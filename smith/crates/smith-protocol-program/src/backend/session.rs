@@ -3,6 +3,7 @@
 //! Affinity and the first rendered message identify the window.
 
 use super::{Backend, Below, Phase, compact, turns};
+use super::{PIPE_BYTES, Pipes};
 use skein_lib::{Env, List, Queue, sha256::Sha256};
 use smith_domain::llm::{self, Affinity, Prompt};
 use smith_protocol_llm::{self as protocol, FromDomain, ToDomain};
@@ -167,7 +168,7 @@ impl Backend {
             || !self.switching
             || self.child.is_some()
             || self.spawning
-            || self.pipes != [None; 3]
+            || self.pipes != Pipes::CLOSED
         {
             return;
         }
@@ -191,7 +192,7 @@ impl Backend {
         self.drain_deadline = None;
         self.deadline = None;
         self.stdout_demanding = false;
-        self.intake = List::with_capacity(4096);
+        self.intake = List::with_capacity(PIPE_BYTES);
         self.intake_at = 0;
         self.intake_due = None;
         self.line = List::with_capacity(self.settings.line_bytes);
@@ -201,8 +202,7 @@ impl Backend {
         self.written = 0;
         self.interrupt_pending = None;
         self.interrupt_line = None;
-        self.ledger =
-            List::with_capacity(self.settings.receiving.max_completion_blocks.checked_mul(5).expect("ledger"));
+        self.ledger = List::with_capacity(self.settings.ledger_slots().expect("ledger"));
         self.turns = turns::Turns::new(&self.settings.receiving, self.settings.adapter.client.answer);
         self.permitted = 1;
         if self.owner.is_some() {

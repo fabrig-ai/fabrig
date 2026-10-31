@@ -2,6 +2,7 @@
 //! Keeps at most one 4096-byte read. Parsing pauses for the service's measure
 //! drain and the domain's next Complete, so content retains its response owner.
 
+use super::PIPE_BYTES;
 use super::{Backend, Below, Phase, stop};
 use skein_lib::{Env, List, Queue};
 use smith_protocol_llm::{self as protocol, ToDomain};
@@ -59,7 +60,7 @@ impl Backend {
             self.completion_deadline(env, false);
         }
         if self.intake_at == self.intake.len() {
-            self.intake = List::with_capacity(4096);
+            self.intake = List::with_capacity(PIPE_BYTES);
             self.intake_at = 0;
         } else if self.native.is_none()
             && (self.owner.is_some() || self.stop != stop::Stop::None || self.phase == Phase::Ending)

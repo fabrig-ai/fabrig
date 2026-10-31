@@ -64,6 +64,46 @@ mod tests;
 #[cfg(test)]
 mod turns_tests;
 
+const PIPE_BYTES: u32 = 4096;
+const INPUT_RIGHT: Token = Token::new(1);
+const INTERRUPT_RIGHT: Token = Token::new(2);
+
+#[derive(Clone, Copy)]
+enum Owner {
+    Status,
+    Program,
+    Files,
+    Native,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Pipes {
+    input: Option<Token>,
+    output: Option<Token>,
+    errors: Option<Token>,
+}
+
+impl Pipes {
+    const CLOSED: Self = Self { input: None, output: None, errors: None };
+
+    fn from_spawn(pipes: &[Token]) -> Self {
+        assert_eq!(pipes.len(), 3, "program requests three pipes");
+        Self { input: pipes.first().copied(), output: pipes.get(1).copied(), errors: pipes.get(2).copied() }
+    }
+
+    fn all(self) -> [Option<Token>; 3] {
+        [self.input, self.output, self.errors]
+    }
+
+    fn closed(&mut self, owner: Token) {
+        for pipe in [&mut self.input, &mut self.output, &mut self.errors] {
+            if *pipe == Some(owner) {
+                *pipe = None;
+            }
+        }
+    }
+}
+
 /// One normalized start directory, supplied by the service before Complete (smith/docs/design/protocol/programs.md 5.4).
 #[derive(Clone, Debug)]
 pub struct Mount {
@@ -103,6 +143,10 @@ pub struct Settings {
 }
 
 impl Settings {
+    fn ledger_slots(&self) -> Option<u32> {
+        self.receiving.max_completion_blocks.checked_mul(5)
+    }
+
     /// Retained program JSON tokens: `N = line_bytes` (smith/docs/design/protocol/programs.md, section 5.5).
     /// Each reader record consumes at least one distinct encoded byte; both
     /// opening and closing container brackets are retained records. With bytes
@@ -178,7 +222,7 @@ pub struct Backend {
     native_writes: Map<Box<[u8]>, smith_domain::tools::Place>,
     child: Option<Token>,
     spawning: bool,
-    pipes: [Option<Token>; 3],
+    pipes: Pipes,
     outgoing: Option<Box<[u8]>>,
     written: u32,
     interrupt_sequence: u64,
@@ -235,7 +279,7 @@ impl Backend {
         let line = List::with_capacity(settings.line_bytes);
         let calls = List::with_capacity(u32::from(settings.mcp.calls));
         let turns = turns::Turns::new(&settings.receiving, settings.adapter.client.answer);
-        let ledger = List::with_capacity(settings.receiving.max_completion_blocks.checked_mul(5).expect("call ledger"));
+        let ledger = List::with_capacity(settings.ledger_slots().expect("call ledger"));
         let delta_carry = redaction::carries(&settings);
         let measure_capacity = measures::capacity(&settings).expect("measure capacity");
         Self {
@@ -256,7 +300,7 @@ impl Backend {
             native_writes: Map::with_capacity(ledger.capacity()),
             child: None,
             spawning: false,
-            pipes: [None; 3],
+            pipes: Pipes::CLOSED,
             outgoing: None,
             written: 0,
             interrupt_sequence: 0,
@@ -279,7 +323,7 @@ impl Backend {
             run_time: Duration::ZERO,
             line,
             stdout_demanding: false,
-            intake: List::with_capacity(4096),
+            intake: List::with_capacity(PIPE_BYTES),
             intake_at: 0,
             intake_due: None,
             measures: Queue::with_capacity(measure_capacity),
@@ -334,11 +378,11 @@ impl Backend {
     /// Whether the service should route this listener, child, pipe or file owner here.
     #[must_use]
     pub fn owns(&self, owner: Token) -> bool {
-        owner == self.token(3)
-            || owner == self.token(4)
-            || owner == self.token(5)
-            || owner == self.token(6)
-            || self.pipes.contains(&Some(owner))
+        owner == self.token(Owner::Status)
+            || owner == self.token(Owner::Program)
+            || owner == self.token(Owner::Files)
+            || owner == self.token(Owner::Native)
+            || self.pipes.all().contains(&Some(owner))
             || match &self.check {
                 Some(check) => check.owns(owner),
                 None => false,
@@ -435,7 +479,7 @@ impl Backend {
     ) {
         match event {
             BelowEvent::File { event, descriptor } => {
-                if event.owner() == self.token(6) {
+                if event.owner() == self.token(Owner::Native) {
                     self.native_event(event, up);
                 } else {
                     self.file_event(env, event, descriptor, up, below);
@@ -511,7 +555,7 @@ impl Backend {
                 Some(_) | None => return,
             }
             self.drain_deadline = None;
-            for pipe in self.pipes.into_iter().flatten() {
+            for pipe in self.pipes.all().into_iter().flatten() {
                 self.io.push(io::Request::Abort { entity: pipe });
             }
             if let Some(child) = self.child {
@@ -527,7 +571,7 @@ impl Backend {
                 signal: if self.stopping == 1 { kernel::Signal::Terminate } else { kernel::Signal::Kill },
             });
             if self.stopping == 2 {
-                for pipe in self.pipes.into_iter().flatten() {
+                for pipe in self.pipes.all().into_iter().flatten() {
                     self.io.push(io::Request::Abort { entity: pipe });
                 }
                 self.io.push(io::Request::Close { entity: child });
@@ -670,7 +714,13 @@ impl Backend {
         self.phase == Phase::Ended
     }
 
-    fn token(&self, offset: u64) -> Token {
+    fn token(&self, owner: Owner) -> Token {
+        let offset = match owner {
+            Owner::Status => 3,
+            Owner::Program => 4,
+            Owner::Files => 5,
+            Owner::Native => 6,
+        };
         Token::new(self.first.raw().checked_add(offset).expect("backend token range"))
     }
 

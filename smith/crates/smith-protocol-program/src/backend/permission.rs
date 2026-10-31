@@ -2,6 +2,7 @@
 //! Held prompts share the MCP queue's capacity and payload bound. Correlation
 //! uses the provider's tool id, or its name/input when the id is absent.
 
+use super::PIPE_BYTES;
 use super::{Backend, Phase, policy};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
@@ -85,7 +86,7 @@ impl Backend {
 }
 
 pub(super) fn outside(names: &[llm::Served]) -> Box<[u8]> {
-    let mut bytes = List::with_capacity(4096);
+    let mut bytes = List::with_capacity(PIPE_BYTES);
     for byte in b"not run: allowed calls now: " {
         bytes.push(*byte).expect("prefix fits");
     }

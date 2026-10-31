@@ -268,7 +268,7 @@ fn an_exited_child_drains_for_one_grace_without_signals() {
     while below.pop().is_some() {}
     backend.from_io(
         &env(1),
-        BelowEvent::Io(io::Event::Exited { owner: backend.token(4), exit: kernel::Exit::Code(0) }),
+        BelowEvent::Io(io::Event::Exited { owner: backend.token(Owner::Program), exit: kernel::Exit::Code(0) }),
         &mut up,
         &mut below,
     );

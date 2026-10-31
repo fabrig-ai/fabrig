@@ -24,7 +24,7 @@ impl Backend {
         };
         self.begin_prompt(&request);
         self.owner = Some(owner);
-        if self.exit.is_some() || self.child.is_none() || self.pipes[0].is_none() {
+        if self.exit.is_some() || self.child.is_none() || self.pipes.input.is_none() {
             self.fail(
                 env,
                 llm::Failure::Program { exit: self.exit },
@@ -189,9 +189,7 @@ impl Backend {
                     self.turns.retry();
                     let old = core::mem::replace(
                         &mut self.ledger,
-                        List::with_capacity(
-                            self.settings.receiving.max_completion_blocks.checked_mul(5).expect("call slots"),
-                        ),
+                        List::with_capacity(self.settings.ledger_slots().expect("call slots")),
                     );
                     for call in old.into_boxed() {
                         if call.message <= self.turns.closed {
@@ -233,7 +231,7 @@ impl Backend {
         below: &mut Queue<Below>,
     ) {
         if self.owner.is_some() && self.turns.result && self.turns.ready.is_empty() && self.turns.message.is_none() {
-            if self.exit.is_some() || self.child.is_none() || self.pipes[0].is_none() {
+            if self.exit.is_some() || self.child.is_none() || self.pipes.input.is_none() {
                 self.fail(
                     env,
                     llm::Failure::Program { exit: self.exit },
@@ -388,7 +386,7 @@ impl Backend {
         // Dropping a call also forgets its allowed native write snapshot.
         let old = core::mem::replace(
             &mut self.ledger,
-            List::with_capacity(self.settings.receiving.max_completion_blocks.checked_mul(5).expect("call slots")),
+            List::with_capacity(self.settings.ledger_slots().expect("call slots")),
         );
         let delivered = self.turns.closed.checked_sub(u64::from(self.turns.ready.len())).expect("delivered message");
         for call in old.into_boxed() {

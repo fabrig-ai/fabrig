@@ -250,7 +250,7 @@ pub(super) fn active() -> Backend {
 pub(super) fn running(mut backend: Backend) -> Backend {
     backend.phase = Phase::Running;
     backend.child = Some(Token::new(30));
-    backend.pipes = [Some(Token::new(31)), Some(Token::new(32)), Some(Token::new(33))];
+    backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
     backend.owner = Some(Token::new(80));
     backend.request = Some(request(&backend));
     backend
@@ -263,7 +263,7 @@ pub(super) fn records() -> Backend {
 
 pub(super) fn records_with(backend: Backend) -> Backend {
     let mut backend = running(backend);
-    backend.pipes = [Some(Token::new(31)), None, None];
+    backend.pipes = Pipes { input: Some(Token::new(31)), ..Pipes::CLOSED };
     backend
 }
 
@@ -283,8 +283,8 @@ pub(super) fn window() -> Backend {
 /// A window whose program pipes have settled before the relay terminal.
 pub(super) fn drained_window() -> Backend {
     let mut backend = window();
-    backend.child = Some(backend.token(4));
-    backend.pipes = [None; 3];
+    backend.child = Some(backend.token(Owner::Program));
+    backend.pipes = Pipes::CLOSED;
     backend
 }
 
@@ -333,7 +333,7 @@ pub(super) fn starting() -> Backend {
     let mut backend = active();
     backend.phase = Phase::Starting;
     backend.deadline = Some(env(30).now);
-    backend.child = Some(backend.token(4));
+    backend.child = Some(backend.token(Owner::Program));
     backend
 }
 
@@ -349,7 +349,7 @@ pub(super) fn running_child() -> Backend {
 pub(super) fn input(bytes: Box<[u8]>) -> Backend {
     let mut backend = backend();
     backend.phase = Phase::Running;
-    backend.pipes[0] = Some(Token::new(31));
+    backend.pipes.input = Some(Token::new(31));
     backend.outgoing = Some(bytes);
     backend.send_input();
     backend

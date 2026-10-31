@@ -19,7 +19,7 @@ fn a_late_spawn_after_grace_is_terminated_as_a_group() {
     backend.from_io(
         &env(3),
         BelowEvent::Io(io::Event::Spawned {
-            owner: backend.token(4),
+            owner: backend.token(Owner::Program),
             child: Token::new(30),
             pipes: Box::new([Token::new(31), Token::new(32), Token::new(33)]),
         }),
@@ -87,7 +87,7 @@ fn a_renewed_grant_survives_its_first_lapse() {
     assert_eq!(backend.phase, Phase::Checking);
     assert!(up.is_empty());
     assert!(below.iter().any(|request| if let Below::Io(io::Request::Spawn { owner, .. }) = request {
-        *owner == backend.token(3)
+        *owner == backend.token(Owner::Status)
     } else {
         false
     }));

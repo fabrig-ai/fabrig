@@ -23,7 +23,7 @@ fn a_nudge_after_stdin_closes_fails_with_the_exit() {
     let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.from_io(
         &env(0),
-        BelowEvent::Io(io::Event::Exited { owner: backend.token(4), exit: kernel::Exit::Code(7) }),
+        BelowEvent::Io(io::Event::Exited { owner: backend.token(Owner::Program), exit: kernel::Exit::Code(7) }),
         &mut up,
         &mut below,
     );
@@ -58,9 +58,9 @@ fn assistant_text_redacts_private_values_before_completion() {
     assert_eq!(usize::try_from(bytes).expect("count"), input.len());
     let Some(ToDomain::Completed { completion, .. }) = up.pop() else { panic!("completion") };
     let llm::Said::Text { text, .. } = &completion.content[0] else { panic!("text") };
-    assert!(skein_lib::bytes::find(&text, &secret).is_none());
-    assert!(skein_lib::bytes::find(&text, &path).is_none());
-    assert!(skein_lib::bytes::find(&text, &backend.names.run).is_none());
+    assert!(skein_lib::bytes::find(text, &secret).is_none());
+    assert!(skein_lib::bytes::find(text, &path).is_none());
+    assert!(skein_lib::bytes::find(text, &backend.names.run).is_none());
     assert!(text.ends_with(b" end"));
 }
 #[test]
@@ -284,7 +284,7 @@ fn failure_never_accepts_an_unjudged_finish() {
 #[test]
 fn an_input_grant_after_stdin_closes_fails_without_writing() {
     let mut backend = active();
-    backend.pipes[0] = None;
+    backend.pipes.input = None;
     backend.exit = Some(7);
     backend.outgoing = Some(b"pending".as_slice().into());
     let mut up = Queue::with_capacity(32);

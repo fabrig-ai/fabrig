@@ -1,7 +1,7 @@
 //! Observed rg selection and the public machine entry points for tree listings.
 
 use skein_io::kernel;
-use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+use skein_lib::{Env, Queue, Time, Token, Wall};
 use smith_domain::{run, tools};
 use smith_protocol_machine::{Below, BelowEvent, Component, FromDomain, Limits, ToDomain};
 

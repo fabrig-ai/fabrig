@@ -233,9 +233,9 @@ impl Backend {
     pub(super) fn send_interrupt(&mut self) {
         if let Some(line) = &self.interrupt_line {
             self.io.push(io::Request::Output {
-                stream: self.pipes[0].expect("interrupt input"),
+                stream: self.pipes.input.expect("interrupt input"),
                 down: skein_lib::stream::OutputDown::Room {
-                    right: skein_lib::Token::new(2),
+                    right: super::INTERRUPT_RIGHT,
                     bytes: u32::try_from(line.len()).expect("bounded interrupt line"),
                 },
             });
@@ -330,7 +330,7 @@ impl Backend {
         }
         match self.stop {
             Stop::Closing | Stop::Parking => {
-                if let Some(input) = self.pipes[0] {
+                if let Some(input) = self.pipes.input {
                     self.io.push(io::Request::Close { entity: input });
                 }
             }

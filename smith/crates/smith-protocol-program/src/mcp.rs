@@ -347,7 +347,15 @@ impl Server {
                     below.push(io::Request::Bind { socket, owner: pending.owner });
                     below.push(io::Request::Stream {
                         stream: socket,
-                        down: stream::Down::Demand { read: stream::Read::Line { max: 65 }, room: 0 },
+                        down: stream::Down::Demand {
+                            read: stream::Read::Line {
+                                max: u32::try_from(SECRET_BYTES)
+                                    .expect("secret length")
+                                    .checked_add(1)
+                                    .expect("secret newline"),
+                            },
+                            room: 0,
+                        },
                     });
                     return;
                 }
@@ -370,7 +378,7 @@ impl Server {
     fn authenticate(&mut self, owner: Token, up: stream::Up, below: &mut Queue<io::Request>) {
         let valid = match up {
             stream::Up::Bytes(bytes) => {
-                bytes.len() == 65
+                bytes.len() == SECRET_BYTES.checked_add(1).expect("secret newline")
                     && bytes.last() == Some(&b'\n')
                     && sha256::equal(bytes.get(..SECRET_BYTES).expect("64 authentication bytes"), self.secret.expose())
             }

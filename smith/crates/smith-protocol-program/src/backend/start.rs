@@ -2,6 +2,7 @@
 //! Keeps no login; the existing status reader classifies subscription use.
 
 use super::{Backend, Below, Phase};
+use super::{Owner, PIPE_BYTES, Pipes};
 use crate::{Command, Ended, Launch, STATUS, Status, configuration_directory, environment, mcp};
 use alloc::boxed::Box;
 use skein_io::{self as io, kernel};
@@ -97,7 +98,7 @@ impl Backend {
         }
         self.phase = Phase::Checking;
         self.check = Some(Command::new(
-            self.token(3),
+            self.token(Owner::Status),
             Launch {
                 program: self.settings.program.claude.clone(),
                 arguments: arguments.into_boxed(),
@@ -135,7 +136,7 @@ impl Backend {
             && self.check.is_none()
             && !self.spawning
             && self.child.is_none()
-            && self.pipes == [None; 3]
+            && self.pipes == Pipes::CLOSED
             && (self.server.is_none() || self.server_ended)
         {
             self.cleanup(env.now, below);
@@ -231,7 +232,7 @@ impl Backend {
         if !self.compaction() && !self.resuming {
             self.first_prompt_measure(env.now);
         }
-        self.io.push(io::Request::Spawn { owner: self.token(4), spawn: launch });
+        self.io.push(io::Request::Spawn { owner: self.token(Owner::Program), spawn: launch });
         self.spawning = true;
         self.deadline = Some(env.now.saturating_add(self.settings.startup));
     }
@@ -352,15 +353,13 @@ impl Backend {
                 self.spawning = false;
                 self.child = Some(child);
                 self.interrupt_sequence = 0;
-                for (slot, pipe) in self.pipes.iter_mut().zip(pipes) {
-                    *slot = Some(pipe);
-                }
+                self.pipes = Pipes::from_spawn(&pipes);
                 self.read_stdout();
-                if let Some(pipe) = self.pipes[2] {
-                    Self::demand(pipe, 4096, &mut self.io);
+                if let Some(pipe) = self.pipes.errors {
+                    Self::demand(pipe, PIPE_BYTES, &mut self.io);
                 }
                 if self.phase == Phase::Ending {
-                    self.io.push(io::Request::Close { entity: self.pipes[0].expect("stdin") });
+                    self.io.push(io::Request::Close { entity: self.pipes.input.expect("stdin") });
                     if self.stopping > 0
                         || match self.deadline {
                             Some(deadline) => env.now >= deadline,
@@ -383,22 +382,18 @@ impl Backend {
                 if let Some(child) = self.child {
                     self.io.push(io::Request::Close { entity: child });
                 }
-                if let Some(input) = self.pipes[0] {
+                if let Some(input) = self.pipes.input {
                     self.io.push(io::Request::Close { entity: input });
                 }
             }
             io::Event::Closed { owner } => {
-                if owner == self.token(4) {
+                if owner == self.token(Owner::Program) {
                     self.child = None;
                 }
-                for pipe in &mut self.pipes {
-                    if *pipe == Some(owner) {
-                        *pipe = None;
-                    }
-                }
+                self.pipes.closed(owner);
                 if self.child.is_none()
                     && !self.spawning
-                    && self.pipes == [None; 3]
+                    && self.pipes == Pipes::CLOSED
                     && self.phase != Phase::Ending
                     && !self.switching
                 {
@@ -408,7 +403,7 @@ impl Backend {
                 }
             }
             io::Event::Failed { owner, .. } => {
-                if owner == self.token(4) {
+                if owner == self.token(Owner::Program) {
                     self.spawning = false;
                 }
                 self.fail(
@@ -420,9 +415,9 @@ impl Backend {
                 );
             }
             io::Event::Stream { owner, up: stream::Up::Bytes(bytes) } => {
-                if self.pipes[2] == Some(owner) {
+                if self.pipes.errors == Some(owner) {
                     self.keep_error(&bytes);
-                    Self::demand(owner, 4096, &mut self.io);
+                    Self::demand(owner, PIPE_BYTES, &mut self.io);
                 } else {
                     self.stdout_demanding = false;
                     self.completion_deadline(env, false);
@@ -441,7 +436,7 @@ impl Backend {
                 if self.phase != Phase::Ending || self.stop == super::stop::Stop::Parking {
                     match outcome {
                         stream::OutputOutcome::Granted => {
-                            if self.exit.is_some() || self.pipes[0].is_none() {
+                            if self.exit.is_some() || self.pipes.input.is_none() {
                                 self.fail(
                                     env,
                                     llm::Failure::Program { exit: self.exit },
@@ -451,21 +446,24 @@ impl Backend {
                                 );
                                 return;
                             }
-                            if right == Token::new(2) {
+                            if right == super::INTERRUPT_RIGHT {
                                 if let Some(bytes) = self.interrupt_line.take() {
                                     self.io.push(io::Request::Output {
-                                        stream: self.pipes[0].expect("interrupt write"),
+                                        stream: self.pipes.input.expect("interrupt write"),
                                         down: stream::OutputDown::Send { right, bytes },
                                     });
                                 }
                             } else if let Some(bytes) = &self.outgoing {
                                 let start = usize::try_from(self.written).expect("input cursor");
-                                let end = start.checked_add(4096).expect("input chunk").min(bytes.len());
+                                let end = start
+                                    .checked_add(usize::try_from(PIPE_BYTES).expect("pipe chunk fits usize"))
+                                    .expect("input chunk")
+                                    .min(bytes.len());
                                 let chunk = Box::from(bytes.get(start..end).expect("input range"));
                                 self.written = u32::try_from(end).expect("input ceiling");
                                 let finished = end == bytes.len();
                                 self.io.push(io::Request::Output {
-                                    stream: self.pipes[0].expect("input write"),
+                                    stream: self.pipes.input.expect("input write"),
                                     down: stream::OutputDown::Send { right, bytes: chunk },
                                 });
                                 if finished {
@@ -509,9 +507,9 @@ impl Backend {
     pub(super) fn read_stdout(&mut self) {
         if !self.stdout_demanding
             && self.intake.is_empty()
-            && let Some(pipe) = self.pipes[1]
+            && let Some(pipe) = self.pipes.output
         {
-            Self::demand(pipe, 4096, &mut self.io);
+            Self::demand(pipe, PIPE_BYTES, &mut self.io);
             self.stdout_demanding = true;
         }
     }
@@ -519,14 +517,14 @@ impl Backend {
     pub(super) fn send_input(&mut self) {
         if let Some(bytes) = &self.outgoing {
             self.io.push(io::Request::Output {
-                stream: self.pipes[0].expect("spawned input"),
+                stream: self.pipes.input.expect("spawned input"),
                 down: stream::OutputDown::Room {
-                    right: Token::new(1),
+                    right: super::INPUT_RIGHT,
                     bytes: u32::try_from(bytes.len())
                         .expect("bounded input")
                         .checked_sub(self.written)
                         .expect("remaining input")
-                        .min(4096),
+                        .min(PIPE_BYTES),
                 },
             });
         }
@@ -597,6 +595,7 @@ pub(super) fn arguments(
         arguments.push(Box::from(b"--effort".as_slice())).ok()?;
         arguments.push(Box::from(effort)).ok()?;
     }
+    let permission = mcp::json::join(&[b"mcp__", mcp::SERVER, b"__", mcp::PROMPT_TOOL]);
     for argument in [
         b"--append-system-prompt-file".as_slice(),
         instructions,
@@ -604,7 +603,7 @@ pub(super) fn arguments(
         mcp_file,
         b"--strict-mcp-config",
         b"--permission-prompt-tool",
-        b"mcp__smith__permission_prompt",
+        permission.as_ref(),
         b"--tools",
         tools,
         b"--max-turns",

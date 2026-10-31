@@ -12,7 +12,7 @@ fn active(observe: bool) -> Backend {
     let mut backend = backend();
     backend.phase = Phase::Running;
     backend.child = Some(Token::new(30));
-    backend.pipes = [Some(Token::new(31)), Some(Token::new(32)), Some(Token::new(33))];
+    backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
     let mut request = request(&backend);
     let FromDomain::Complete { prompt, observation, deltas, .. } = &mut request else { panic!("complete") };
     *observation = if observe { Some(Observation { first: true, messages: 0 }) } else { None };

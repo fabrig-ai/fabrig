@@ -642,14 +642,14 @@ fn native_load(backend: &mut Backend) {
     assert_eq!(
         loads[0],
         &file::Request::Load {
-            owner: backend.token(6),
+            owner: backend.token(Owner::Native),
             root: Token::new(40),
             path: b"a".as_slice().into(),
             max: NATIVE_FILE_BYTES,
             no_follow: false
         }
     );
-    assert!(backend.owns(backend.token(6)));
+    assert!(backend.owns(backend.token(Owner::Native)));
 }
 
 fn native_version(event: Option<ToDomain>, owner: Token, bytes: &[u8]) {
@@ -677,8 +677,10 @@ fn a_whole_native_read_snapshots_before_allow() {
     }
     native_load(&mut backend);
     let mut up = Queue::with_capacity(32);
-    backend
-        .native_event(file::Event::Loaded { owner: backend.token(6), bytes: b"file bytes".as_slice().into() }, &mut up);
+    backend.native_event(
+        file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"file bytes".as_slice().into() },
+        &mut up,
+    );
     native_version(up.pop(), Token::new(80), b"file bytes");
     assert!(up.is_empty());
     allow_native(&mut backend, &input);
@@ -714,7 +716,7 @@ fn native_writes_and_edits_snapshot_after_their_results_including_errors() {
             assert!(up.is_empty(), "result waits for snapshot");
             native_load(&mut backend);
             backend.native_event(
-                file::Event::Loaded { owner: backend.token(6), bytes: b"stored bytes".as_slice().into() },
+                file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"stored bytes".as_slice().into() },
                 &mut up,
             );
             native_version(up.pop(), Token::new(80), b"stored bytes");
@@ -732,7 +734,7 @@ const SNAPSHOT_ERRORS: [kernel::Error; 3] =
 fn fail_native_load(backend: &mut Backend, failure: kernel::Error, up: &mut Queue<ToDomain>) {
     native_load(backend);
     backend.native_event(
-        file::Event::Failed { owner: backend.token(6), error: failure, committed: false, residue: None },
+        file::Event::Failed { owner: backend.token(Owner::Native), error: failure, committed: false, residue: None },
         up,
     );
 }
@@ -751,7 +753,10 @@ fn failed_native_read_snapshots_preserve_allow() {
     let mut backend = native_call("Read", input.clone());
     native_load(&mut backend);
     let mut up = Queue::with_capacity(32);
-    backend.native_event(file::Event::TooLarge { owner: backend.token(6), size: OVERSIZED_FILE_BYTES }, &mut up);
+    backend.native_event(
+        file::Event::TooLarge { owner: backend.token(Owner::Native), size: OVERSIZED_FILE_BYTES },
+        &mut up,
+    );
     assert!(up.is_empty());
     allow_native(&mut backend, &input);
 }
@@ -783,8 +788,10 @@ fn closing_settles_the_native_load_before_private_cleanup() {
     backend.settings.directory = None;
     backend.cleanup(env(0).now, &mut below);
     assert!(!backend.closed(), "snapshot still owes its terminal");
-    backend
-        .native_event(file::Event::Loaded { owner: backend.token(6), bytes: b"cancelled".as_slice().into() }, &mut up);
+    backend.native_event(
+        file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"cancelled".as_slice().into() },
+        &mut up,
+    );
     assert!(up.is_empty(), "cancelled snapshot teaches nothing");
     backend.cleanup(env(0).now, &mut below);
     assert!(backend.closed());
@@ -815,7 +822,7 @@ fn queued_native_snapshots_keep_result_order_and_message_owners() {
     assert!(up.is_empty());
     native_load(&mut backend);
     backend.native_event(
-        file::Event::Loaded { owner: backend.token(6), bytes: b"first version".as_slice().into() },
+        file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"first version".as_slice().into() },
         &mut up,
     );
     native_version(up.pop(), Token::new(80), b"first version");
@@ -823,7 +830,7 @@ fn queued_native_snapshots_keep_result_order_and_message_owners() {
     assert!(up.is_empty(), "the second result waits behind its own snapshot");
     native_load(&mut backend);
     backend.native_event(
-        file::Event::Loaded { owner: backend.token(6), bytes: b"second version".as_slice().into() },
+        file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"second version".as_slice().into() },
         &mut up,
     );
     native_version(up.pop(), Token::new(81), b"second version");

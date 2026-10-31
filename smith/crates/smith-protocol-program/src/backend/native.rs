@@ -3,6 +3,7 @@
 //! reads hold Allow; allowed writes and edits hold their result. Failed loads
 //! teach nothing. Closing waits for the load's terminal before private cleanup.
 
+use super::Owner;
 use super::{Backend, Below, Phase, policy, stop};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
@@ -75,7 +76,7 @@ impl Backend {
     }
 
     pub(super) fn load_native(&mut self, below: &mut Queue<Below>) {
-        let owner = self.token(6);
+        let owner = self.token(Owner::Native);
         if let Some(snapshot) = &mut self.native {
             if snapshot.submitted {
                 return;

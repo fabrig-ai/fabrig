@@ -53,8 +53,8 @@ fn the_session_id_is_a_v4_uuid() {
 fn a_new_window_stops_the_old_session() {
     let mut backend = backend();
     backend.phase = Phase::Running;
-    backend.child = Some(backend.token(4));
-    backend.pipes = [Some(Token::new(31)), Some(Token::new(32)), Some(Token::new(33))];
+    backend.child = Some(backend.token(Owner::Program));
+    backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
     let session::Opening::New { id } = session::opening(&ordinary(), None, None) else { panic!("new") };
     backend.running = Some(id);
     backend.owner = Some(Token::new(80));
@@ -152,8 +152,8 @@ fn a_compaction_s_text_is_its_summary() {
     let mut backend = backend();
     backend.phase = Phase::Running;
     backend.owner = Some(Token::new(80));
-    backend.child = Some(backend.token(4));
-    backend.pipes[0] = Some(Token::new(31));
+    backend.child = Some(backend.token(Owner::Program));
+    backend.pipes.input = Some(Token::new(31));
     let mut request = request(&backend);
     let FromDomain::Complete { prompt, .. } = &mut request else { panic!("complete") };
     prompt.purpose = llm::Purpose::Compaction { room: 1000 };
@@ -191,8 +191,8 @@ fn a_pending_window_keeps_the_stop_grace() {
     let mut backend = backend();
     backend.phase = Phase::Running;
     backend.switching = true;
-    backend.child = Some(backend.token(4));
-    backend.pipes[0] = Some(Token::new(31));
+    backend.child = Some(backend.token(Owner::Program));
+    backend.pipes.input = Some(Token::new(31));
     backend.turns.result = true;
     backend.deadline = Some(env(1).now);
     let mut up = Queue::with_capacity(32);

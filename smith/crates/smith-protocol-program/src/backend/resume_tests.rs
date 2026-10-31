@@ -78,7 +78,7 @@ fn stderr_failure(backend: &mut Backend, detail: &[u8]) -> llm::Failure {
     backend.stderr = List::with_capacity(128);
     backend.stderr_wrapped = false;
     backend.tail = 0;
-    backend.pipes[2] = Some(Token::new(33));
+    backend.pipes.errors = Some(Token::new(33));
     backend.io_event(
         &env(0),
         io::Event::Stream { owner: Token::new(33), up: skein_lib::stream::Up::Bytes(detail.into()) },
@@ -119,8 +119,8 @@ fn a_missing_session_is_gone() {
 fn a_park_while_waiting_interrupts() {
     let mut backend = launchable();
     backend.phase = Phase::Running;
-    backend.child = Some(backend.token(4));
-    backend.pipes = [Some(Token::new(31)), Some(Token::new(32)), Some(Token::new(33))];
+    backend.child = Some(backend.token(Owner::Program));
+    backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
     backend.owner = None; // The wait completion was delivered; its held RPC remains unanswered.
     backend.turns.result = false;
     let mut held = reply_tests::call(b"wait-id");
@@ -185,7 +185,10 @@ fn launch_from_listener(
         backend.from_io(
             &env(seconds),
             BelowEvent::File {
-                event: file::Event::Stored { owner: backend.token(5), digest: io::digest::digest(b"fixture") },
+                event: file::Event::Stored {
+                    owner: backend.token(Owner::Files),
+                    digest: io::digest::digest(b"fixture"),
+                },
                 descriptor: None,
             },
             up,
@@ -210,7 +213,7 @@ fn running_history(up: &mut Queue<ToDomain>, below: &mut Queue<Below>) -> (Backe
         backend.from_io(
             &env(0),
             BelowEvent::File {
-                event: file::Event::Opened { owner: backend.token(5), file, len: 0 },
+                event: file::Event::Opened { owner: backend.token(Owner::Files), file, len: 0 },
                 descriptor: Some(descriptor),
             },
             up,
@@ -223,8 +226,8 @@ fn running_history(up: &mut Queue<ToDomain>, below: &mut Queue<Below>) -> (Backe
     backend.from_io(
         &env(0),
         BelowEvent::Io(io::Event::Spawned {
-            owner: backend.token(4),
-            child: backend.token(4),
+            owner: backend.token(Owner::Program),
+            child: backend.token(Owner::Program),
             pipes: Box::new([Token::new(31), Token::new(32), Token::new(33)]),
         }),
         up,
@@ -271,11 +274,11 @@ fn a_retry_after_a_stopped_process_resumes() {
     );
     backend.from_io(
         &env(1),
-        BelowEvent::Io(io::Event::Exited { owner: backend.token(4), exit: kernel::Exit::Code(0) }),
+        BelowEvent::Io(io::Event::Exited { owner: backend.token(Owner::Program), exit: kernel::Exit::Code(0) }),
         &mut up,
         &mut below,
     );
-    for owner in [Token::new(31), Token::new(32), Token::new(33), backend.token(4)] {
+    for owner in [Token::new(31), Token::new(32), Token::new(33), backend.token(Owner::Program)] {
         backend.from_io(&env(1), BelowEvent::Io(io::Event::Closed { owner }), &mut up, &mut below);
         no_spawn(&below);
     }
@@ -292,8 +295,8 @@ fn a_retry_after_a_stopped_process_resumes() {
     backend.from_io(
         &env(1),
         BelowEvent::Io(io::Event::Spawned {
-            owner: backend.token(4),
-            child: backend.token(4),
+            owner: backend.token(Owner::Program),
+            child: backend.token(Owner::Program),
             pipes: Box::new([Token::new(51), Token::new(52), Token::new(53)]),
         }),
         &mut up,
@@ -361,8 +364,8 @@ fn a_first_call_retry_resumes_the_recorded_session() {
         backend.resuming = false;
         backend.owner = Some(Token::new(80));
         backend.phase = Phase::Starting;
-        backend.child = Some(backend.token(4));
-        backend.pipes = [Some(Token::new(31)), Some(Token::new(32)), Some(Token::new(33))];
+        backend.child = Some(backend.token(Owner::Program));
+        backend.pipes = Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]);
         backend.launch_spec().expect("new spawn");
         let mut up = Queue::with_capacity(32);
         let mut below = Queue::with_capacity(64);
@@ -394,7 +397,7 @@ fn a_first_call_retry_resumes_the_recorded_session() {
         let retry = first_request(&backend);
         backend.from_domain(&env(1), retry, &mut up, &mut below);
         assert!(backend.switching);
-        for owner in [backend.token(4), Token::new(31), Token::new(32), Token::new(33)] {
+        for owner in [backend.token(Owner::Program), Token::new(31), Token::new(32), Token::new(33)] {
             backend.from_io(&env(1), BelowEvent::Io(io::Event::Closed { owner }), &mut up, &mut below);
         }
         assert!(backend.resuming);
@@ -415,7 +418,7 @@ fn a_wrapped_missing_prefix_stays_a_program_error() {
     backend.exit = Some(1);
     let prefix = b"No conversation found with session ID";
     backend.stderr = List::with_capacity(u32::try_from(prefix.len()).expect("prefix length"));
-    backend.pipes[2] = Some(Token::new(33));
+    backend.pipes.errors = Some(Token::new(33));
     for bytes in [[b'x'; b"No conversation found with session ID".len()].as_slice(), prefix.as_slice()] {
         backend.io_event(
             &env(0),
