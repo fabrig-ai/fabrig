@@ -51,7 +51,7 @@ fn only_canonical_start_and_stop_lines_are_known() {
             let expected = match expected {
                 Command::Start(forge) => Command::Stop(forge),
                 Command::Unknown => Command::Unknown,
-                Command::Stop(_) => unreachable!(),
+                Command::Stop(_) | Command::StartKind { .. } | Command::Remove(_) => unreachable!(),
             };
             assert_eq!(pipe::command(&stopped), expected, "{stopped:?}");
         }
@@ -94,4 +94,46 @@ fn box_lines_and_failure_words_have_the_wire_spelling_and_bound() {
             }
         }
     }
+}
+
+#[test]
+fn start_kind_and_remove_parse_strictly() {
+    use temper_forge_setup::machine::BoxKind;
+    for (line, expected) in [
+        (b"start 0 owned\n".as_slice(), Command::StartKind { forge: 0, kind: BoxKind::Owned }),
+        (b"start 65535 fake\n", Command::StartKind { forge: 65535, kind: BoxKind::Fake }),
+        (b"remove 0\n", Command::Remove(0)),
+        (b"remove 65535\n", Command::Remove(65535)),
+    ] {
+        assert_eq!(pipe::command(line), expected);
+    }
+    for line in [
+        b"start 01 owned\n".as_slice(),
+        b"start +1 owned\n",
+        b"start 65536 fake\n",
+        b"start 1 Owned\n",
+        b"start 1 fake \n",
+        b"start 1  owned\n",
+        b"start 1 owned\r\n",
+        b"start 1 owned",
+        b"start 1 fake extra\n",
+        b"start 1 unknown\n",
+        b"start 1 \n",
+        b"stop 1 owned\n",
+        b"remove 01\n",
+        b"remove -1\n",
+        b"remove 65536\n",
+        b"remove 1 fake\n",
+        b"remove  1\n",
+        b"remove 1 \n",
+        b"remove 1\r\n",
+        b"remove 1",
+    ] {
+        assert_eq!(pipe::command(line), Command::Unknown, "{line:?}");
+    }
+    assert_eq!(pipe::removed(65535).as_ref(), b"removed 65535\n");
+}
+#[test]
+fn a_bare_start_still_names_todays_group() {
+    assert_eq!(pipe::command(b"start 3\n"), Command::Start(3));
 }

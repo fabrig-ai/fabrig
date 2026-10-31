@@ -959,7 +959,7 @@ impl Service {
             Line::Whole(line) => match pipe::command(&line) {
                 Command::Start(forge) => self.input(Input::Ask { forge }),
                 Command::Stop(forge) => self.input(Input::Stop { forge }),
-                Command::Unknown => {
+                Command::Unknown | Command::StartKind { .. } | Command::Remove(_) => {
                     if !self.terminal.failed() {
                         self.terminal.push(self.formatter.notice(b"box: serve: unknown pipe line\n", self.env.wall));
                     }
