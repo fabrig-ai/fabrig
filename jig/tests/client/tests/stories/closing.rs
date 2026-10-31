@@ -1,12 +1,8 @@
 use super::*;
-use jig_client::contract::{ObjectKey, OwnerRequester, Phase, ReadValue};
+use jig_client_test_domain::Address;
+use jig_client_view::address::{Address as Page, TaskSection};
 use stories::closing::{CANCELLED, CHAT, MOVED, PARTY};
 const SEED: u64 = 893;
-const TASKS: [(u64, Phase, OwnerRequester); 3] = [
-    (CHAT, Phase::Closing, OwnerRequester::Person(PARTY)),
-    (CANCELLED, Phase::Ended, OwnerRequester::Task(CHAT)),
-    (MOVED, Phase::Running, OwnerRequester::Person(PARTY)),
-];
 #[test]
 fn closing_a_chat_cancels_one_delegate_and_moves_the_other_to_the_person() {
     let mut world = stories::closing::world(SEED);
@@ -20,14 +16,20 @@ fn closing_a_chat_cancels_one_delegate_and_moves_the_other_to_the_person() {
             Step::Press { find: Find::named(Role::Button, b"Take over delegate 11, reserving 1") },
             Step::Type { find: Find::named(Role::TextArea, b"Reason"), words: b"finished".as_slice().into() },
             Step::Press { find: Find::named(Role::Button, b"Confirm") },
+            Step::See { find: Find::text(b"Waiting for delegates"), within: WITHIN },
+            Step::Go { address: Address::Jig(Page::Task { task: CHAT, section: TaskSection::Overview }) },
+            Step::See { find: Find::text(b"Live delegates: 0"), within: WITHIN },
+            Step::Go { address: Address::Jig(Page::Task { task: CANCELLED, section: TaskSection::Overview }) },
+            Step::See { find: Find::text(b"Cancelled delegate"), within: WITHIN },
+            Step::See { find: Find::text(b"Cancelled with reason"), within: WITHIN },
+            Step::See { find: Find::text(b"finished"), within: WITHIN },
+            Step::See { find: Find::text(b"Cancellation requester person: 7"), within: WITHIN },
+            Step::See { find: Find::text(b"Requested by task 9"), within: WITHIN },
+            Step::Go { address: Address::Jig(Page::Task { task: MOVED, section: TaskSection::Overview }) },
+            Step::See { find: Find::text(b"Moved delegate"), within: WITHIN },
+            Step::See { find: Find::text(b"Requested by person 7"), within: WITHIN },
+            Step::See { find: Find::text(b"Active attempt 1"), within: WITHIN },
         ],
     );
     assert_eq!(world.run(Until::Done).verdict, skein_world::domain::Verdict::Passed);
-    assert_eq!(world.front().engine.commits().iter().filter(|commit| commit.ask.is_some()).count(), 1);
-    for (task, phase, requester) in TASKS {
-        let ReadValue::Task(value) = &world.front().engine.truth().objects[&ObjectKey::Task(task)] else {
-            panic!("task document")
-        };
-        assert_eq!((value.chip.phase, value.requester), (phase, requester), "task {task}");
-    }
 }

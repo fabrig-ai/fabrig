@@ -196,6 +196,12 @@ impl Joint {
 }
 
 impl Front<Test> for Joint {
+    fn seed(&mut self, seed: crate::harness::Seed) {
+        if matches!(&seed, crate::harness::Seed::ChatProject { .. }) {
+            self.unsigned_on_bind();
+        }
+        crate::harness::seed::seed_core(&mut self.session.driver, self.now, self.wall, seed);
+    }
     fn bind(&mut self, client: ClientId, party: u64) {
         let identity = self.identities.get(&party).expect("fixture supplies the actual authenticated identity").clone();
         self.last_client = Some(client);
