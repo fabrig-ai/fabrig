@@ -383,10 +383,10 @@ fn the_owners_return_location_reaches_the_sign_in_listener() {
                     );
                 }
                 Effect::Child(domain::Event::Visited { source: 7, address: visit }) => {
-                    let state = visit
-                        .split(|byte| *byte == b'&')
-                        .find_map(|part| part.strip_prefix(b"state="))
-                        .expect("authorization state");
+                    let start = bytes::find(&visit, b"state=").expect("authorization state").checked_add(6).unwrap();
+                    let rest = visit.get(start..).unwrap();
+                    let end = bytes::find(rest, b"&").unwrap_or(rest.len());
+                    let state = rest.get(..end).unwrap();
                     let prefix = b"GET /callback?state=";
                     let suffix = b"&error=access_denied HTTP/1.1\r\nHost: localhost:31234\r\n\r\n";
                     let mut head =
@@ -441,7 +441,9 @@ fn the_owners_return_location_reaches_the_sign_in_listener() {
                 | Effect::SourceRemoved { .. }
                 | Effect::Child(_)
                 | Effect::Io(io::Request::Stream { down: Down::Finish, .. }) => (),
-                other => panic!("unexpected effect: {other:?}"),
+                other @ (Effect::Io(_) | Effect::Store { .. } | Effect::Granted { .. } | Effect::InvalidSecret) => {
+                    panic!("unexpected effect: {other:?}")
+                }
             }
         }
     }
