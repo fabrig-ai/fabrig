@@ -4,10 +4,7 @@ use crate::app::Event;
 use crate::{app::Temper, fixtures, translate};
 use jig_client_world::{
     harness::{ClientId, Front, FrontFault, Observed},
-    joint::{
-        packets,
-        transport::{Transport, Watched},
-    },
+    joint::transport::Transport,
 };
 use skein_lib::{Duration, RequestEnvelope, Time, Token, Wall};
 use smith_domain_session::llm::Block;
@@ -50,6 +47,7 @@ pub struct Joint {
     reads: usize,
     read_loads: BTreeSet<Token>,
     transport: Transport,
+    component: crate::component::Composition,
     limits: client::Limits,
     client_limits: BTreeMap<ClientId, client::Limits>,
     next_limits: Option<client::Limits>,
@@ -718,6 +716,7 @@ impl Joint {
         // Smaller text projections still retain the full task spec and brief.
         let mut engine_limits = *engine_limits;
         engine_limits.documents.text_bytes = engine_limits.documents.text_bytes.min(limits.client.domain.text);
+        let component = crate::component::Composition::new(&configs[1], limits.client.domain);
         let mut engine = Driver::with_repositories(store, configs, &engine_limits, fixtures::REPOSITORIES);
         engine.settle();
         engine.send(hello);
@@ -756,6 +755,7 @@ impl Joint {
             reads: 0,
             read_loads: BTreeSet::new(),
             transport,
+            component,
             limits: *limits,
             client_limits: BTreeMap::new(),
             next_limits: None,
@@ -805,6 +805,7 @@ impl Joint {
         self.now = now;
         self.engine.env.now = now;
         self.engine.env.wall = Wall::from_nanos(now.as_nanos());
+        self.component.clock(now, self.engine.env.wall);
         if let Some(deadline) = self.engine.root.next_deadline(&self.engine.env)
             && deadline <= now
         {
@@ -1031,7 +1032,7 @@ impl Joint {
         }
         false
     }
-    fn request(&mut self, who: ClientId, mut request: Request) {
+    fn request(&mut self, who: ClientId, request: Request) {
         if self.refused_return(who, &request) {
             return;
         }
@@ -1102,15 +1103,45 @@ impl Joint {
         if self.demo_read(who, &request) || self.task_read_end(who, &request) {
             return;
         }
-        let (events, refusal) =
-            translate::request(&mut self.transport, who, &mut request, &self.client_limits[&who].client.domain);
-        if let Some(packet) = refusal {
-            self.incoming(packet);
-        }
-        for event in events {
-            self.send(event);
+        let Request::Client { request: jig_client::Request::Down { down } } = request else {
+            panic!("unlinked down request")
+        };
+        self.component.send(who, down);
+        self.pump_component();
+    }
+    fn pump_component(&mut self) {
+        loop {
+            let packets = self.component.pump(&mut self.transport);
+            let events = self.component.effects();
+            let active = !events.is_empty();
+            for event in events {
+                self.send(event);
+            }
+            if active {
+                self.settle();
+                let refused: Vec<_> = self
+                    .engine
+                    .immediate
+                    .iter()
+                    .filter_map(|request| {
+                        if let engine::Request::Party(engine::PartyRequest::WatchRefused { watcher, .. }) = request {
+                            Some(*watcher)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                self.component.admitted(&refused);
+            }
+            for packet in packets {
+                self.incoming(packet);
+            }
+            if !active {
+                break;
+            }
         }
     }
+
     fn demo_forges(&self, event: &mut RootEvent) {
         use temper_client_protocol_wire::{self as wire, v1 as w};
         let Some(demo) = &self.demo else { return };
@@ -1177,17 +1208,17 @@ impl Joint {
         }
         self.callbacks.push((client, event.into()));
     }
-    fn incoming(&mut self, packet: packets::Incoming) {
+    fn incoming(&mut self, packet: crate::component::Incoming) {
         match packet {
-            packets::Incoming::Authenticated { client, .. } => {
+            crate::component::Incoming::Authenticated { client, .. } => {
                 for request in self.parked.remove(&client).unwrap_or_default() {
                     self.request(client, request);
                 }
             }
-            packets::Incoming::Callback { client, event } => {
+            crate::component::Incoming::Callback { client, event } => {
                 self.callback(client, translate::callback(event));
             }
-            packets::Incoming::SignedOut { client, sign_in } => {
+            crate::component::Incoming::SignedOut { client, sign_in } => {
                 self.observed.push(Observed::SignInEnded { client });
                 self.sign_outs.entry(client).or_default().push_back(Some(sign_in));
                 self.callbacks.push((
@@ -1195,58 +1226,17 @@ impl Joint {
                     Event::Root(RootEvent::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedOut } }),
                 ));
             }
-            packets::Incoming::SignInAgain { why, .. } => panic!("the deployment owner signs in again: {why:?}"),
-            packets::Incoming::SignInFailed { failure, .. } => panic!("the deployment owner signs in: {failure:?}"),
+            crate::component::Incoming::SignInAgain { why, .. } => {
+                panic!("the deployment owner signs in again: {why:?}")
+            }
+            crate::component::Incoming::SignInFailed { failure, .. } => {
+                panic!("the deployment owner signs in: {failure:?}")
+            }
         }
     }
     fn packet(&mut self, request: engine::Request) {
-        match translate::forge::incoming(&mut self.transport, request, &self.limits.client.domain) {
-            Ok(Some((client, event))) => {
-                self.callback(client, event);
-            }
-            Ok(None) => {}
-            Err(request) => {
-                let mut who = None;
-                if let engine::Request::Party(engine::PartyRequest::Deliver(
-                    engine::Delivery::WebReply { to, .. } | engine::Delivery::Read { reply: to, .. },
-                )) = request.as_ref()
-                {
-                    who = self
-                        .transport
-                        .reply_tokens()
-                        .into_iter()
-                        .find(|token| *to == skein_lib::ReplyTo::new(*token))
-                        .and_then(|token| self.transport.reply(token))
-                        .map(|reply| match reply {
-                            jig_client_world::joint::transport::Reply::SignIn { client }
-                            | jig_client_world::joint::transport::Reply::SignOut { client, .. }
-                            | jig_client_world::joint::transport::Reply::Keyed { client, .. }
-                            | jig_client_world::joint::transport::Reply::Read { client, .. }
-                            | jig_client_world::joint::transport::Reply::ApplicationRead { client, .. } => *client,
-                        });
-                }
-                if let engine::Request::Party(
-                    engine::PartyRequest::Deliver(
-                        engine::Delivery::Document { watcher, .. }
-                        | engine::Delivery::WatchEnded { watcher, .. }
-                        | engine::Delivery::ForgeDocument { watcher, .. }
-                        | engine::Delivery::Panel { watcher, .. },
-                    )
-                    | engine::PartyRequest::WatchRefused { watcher, .. }
-                    | engine::PartyRequest::RunText { watcher, .. },
-                ) = request.as_ref()
-                {
-                    who = self.transport.watch(*watcher).map(|watch| watch.client);
-                }
-                let limits = who.map_or(self.limits, |who| self.client_limits[&who]);
-                let codec =
-                    if limits == self.limits { fixtures::codec() } else { fixtures::codec_for(&limits.client.domain) };
-                if let Some(packet) = translate::incoming(&mut self.transport, *request, &limits.client.domain, &codec)
-                {
-                    self.incoming(packet);
-                }
-            }
-        }
+        self.component.incoming(&mut self.transport, request);
+        self.pump_component();
     }
     fn settle(&mut self) {
         for step in 0..200 {
@@ -1364,7 +1354,7 @@ impl Joint {
                 how: temper_engine_domain_forge::How::ForgejoAdmin { .. },
             } = &request
             {
-                let value = self.transport.carried().get(&carried.number).expect("admin carrier");
+                let value = self.component.carried.get(&carried.number).expect("admin carrier");
                 assert!(value.expose().starts_with(&[0, 1, 0]), "temper-secrets admin bundle");
                 self.admin_connects.push((*forge, *attempt));
                 self.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::ConnectAnswered {
@@ -1374,7 +1364,7 @@ impl Joint {
                 })));
             }
             if let engine::Request::EraseCarried { number } = &request {
-                self.transport.unused(*number);
+                self.component.carried.remove(number);
             }
 
             if let engine::Request::SetUpGroup { forge, request } | engine::Request::SetUp { forge, request, .. } =
@@ -1389,21 +1379,19 @@ impl Joint {
         self.sign_outs.remove(&who);
         self.callbacks.retain(|(client, _)| *client != who);
         self.parked.remove(&who);
-        for watcher in self.transport.detach(who) {
-            self.send(translate::party(jig_domain_core::Event::Unwatch { watcher }));
-        }
+        self.component.detach(who);
+        self.transport.detach(who);
+        self.pump_component();
     }
     fn drop_watches(&mut self) {
-        for watcher in self.transport.watches() {
-            let packet = packets::dropped(&mut self.transport, watcher).expect("original protocol watch");
-            self.send(translate::party(jig_domain_core::Event::Unwatch { watcher }));
-            self.incoming(packet);
-        }
+        self.component.drop_watches();
+        self.pump_component();
     }
 }
 impl Front<Temper> for Joint {
     fn bind(&mut self, who: ClientId, party: u64) {
         self.client_limits.insert(who, self.next_limits.take().unwrap_or(self.limits));
+        self.component.receiving(who, self.client_limits[&who].client.domain);
         assert_eq!(party, fixtures::PARTY, "the configured deployment owner");
         self.transport.bind(
             who,
@@ -1420,8 +1408,15 @@ impl Front<Temper> for Joint {
                 event: jig_client::Event::Up { up: self.transport.hello() },
             })),
         ));
-        let event = translate::party(self.transport.start_sign_in(who));
-        self.send(event);
+        self.component.sign_in(
+            who,
+            jig_domain_people::Identity {
+                key: jig_domain_people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                login: b"person".as_slice().into(),
+                name: b"Person".as_slice().into(),
+            },
+        );
+        self.pump_component();
     }
     fn wire(&mut self, who: ClientId, now: Time, _wall: Wall, request: Request) {
         self.advance(now);
@@ -1537,45 +1532,7 @@ impl Front<Temper> for Joint {
             }
         }
     }
-    fn received(&mut self, who: ClientId, event: &Event) {
-        if let Event::Root(RootEvent::Client {
-            event:
-                jig_client::Event::Up {
-                    up: jig_client::Up::Watched { watch, event: jig_client::contract::WatchEvent::Delivered(delivery) },
-                },
-        }) = event
-        {
-            let acknowledgement = if let jig_client::contract::Delivery::Run(text) = delivery {
-                let route = self.transport.watch_token(who, *watch).and_then(|watcher| self.transport.watch(watcher));
-                if let Some(Watched::Jig(jig_client::contract::Subject::Run { task, .. })) =
-                    route.map(|route| &route.subject)
-                {
-                    let task = *task;
-                    self.transport
-                        .continued(
-                            who,
-                            *watch,
-                            jig_client::contract::Subject::Run { task, turn: Some(text.turn), offset: text.through },
-                        )
-                        .expect("delivered stream belongs to its run watch")
-                } else {
-                    None
-                }
-            } else {
-                self.transport.taken(who, *watch)
-            };
-            if let Some(event) = acknowledgement {
-                self.send(translate::party(event));
-            }
-        }
-        if let Event::Root(RootEvent::Client {
-            event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, .. } },
-        }) = event
-            && let Some(event) = self.transport.application_taken(who, *watch)
-        {
-            self.send(translate::party(event));
-        }
-    }
+    fn received(&mut self, _who: ClientId, _event: &Event) {}
     fn sign_in(&mut self, who: ClientId, now: Time, _wall: Wall) {
         self.advance(now);
         self.callbacks.retain(|(client, event)| {
@@ -1592,8 +1549,15 @@ impl Front<Temper> for Joint {
                 event: jig_client::Event::Up { up: self.transport.hello() },
             })),
         ));
-        let event = translate::party(self.transport.start_sign_in(who));
-        self.send(event);
+        self.component.sign_in(
+            who,
+            jig_domain_people::Identity {
+                key: jig_domain_people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                login: b"person".as_slice().into(),
+                name: b"Person".as_slice().into(),
+            },
+        );
+        self.pump_component();
     }
     fn delivers(&mut self, client: ClientId, event: &Event) -> bool {
         if !matches!(
@@ -1616,12 +1580,8 @@ impl Front<Temper> for Joint {
             return;
         }
         let Some(sign_in) = self.transport.sign_in(who) else { return };
-        let reply_to =
-            self.transport.reply_to(jig_client_world::joint::transport::Reply::SignOut { client: who, sign_in });
-        self.send(translate::party(jig_domain_core::Event::People(jig_domain_people::Event::SignOut {
-            reply_to,
-            sign_in,
-        })));
+        self.component.sign_out(who, sign_in);
+        self.pump_component();
     }
 }
 
