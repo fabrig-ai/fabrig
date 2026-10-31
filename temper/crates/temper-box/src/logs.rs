@@ -1,6 +1,9 @@
 //! Private bounded diagnostic logs (protocol/setup.md, 7.2). One owned kernel
 //! operation at a time; a retained piece gates further diagnostic reads.
-use crate::{layout::Placed, lines::joined};
+use crate::{
+    layout::{Placed, Role, Slots},
+    lines::joined,
+};
 use alloc::boxed::Box;
 use skein_io::kernel::{self, Complete, Done, Entry, Error, Fd, Kind, Op, OpenHow, Submit};
 use skein_lib::{Decimal, List, Queue, Token, Wall, bytes};
@@ -12,6 +15,7 @@ struct Log {
     fd: Option<Fd>,
     size: u32,
     failed: bool,
+    active: bool,
 }
 #[derive(Debug)]
 pub(crate) struct Piece {
@@ -45,8 +49,14 @@ enum Phase {
     Rotate,
     Recreate,
     FailedClose,
+    Vacate,
     Cleanup,
     Closed,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Creation {
+    Launch,
+    Slot,
 }
 #[derive(Debug)]
 pub(crate) struct Logs {
@@ -67,20 +77,13 @@ pub(crate) struct Logs {
     record: Option<Box<[u8]>>,
     written: u32,
     done: bool,
+    creation: Creation,
 }
 impl Logs {
     pub fn new(steps: &[Placed], data: &[u8], bound: u32) -> Self {
         let mut logs = List::with_capacity(u32::try_from(steps.len()).expect("bounded steps"));
         for placed in steps {
-            let mut name = bytes::copy_of(placed.step.name());
-            for byte in &mut name {
-                if *byte == b' ' {
-                    *byte = b'-';
-                }
-            }
-            // Validate the original name too: '.' must not become a legal '.log'.
-            let failed = !kernel::is_name(&name);
-            logs.push(Log { name: joined(&[&name, b".log"]), fd: None, size: 0, failed }).expect("one log per step");
+            logs.push(log_for(placed)).expect("one log per position");
         }
         Self {
             files: logs,
@@ -100,7 +103,28 @@ impl Logs {
             record: None,
             written: 0,
             done: false,
+            creation: Creation::Launch,
         }
+    }
+    pub fn fill(&mut self, steps: &[Placed], slots: &Slots, slot: u32) {
+        assert!(self.settled(), "logs drain before slot changes");
+        for position in slots.range(slot) {
+            let log = self.files.get_mut(u32::try_from(position).expect("position")).expect("slot log");
+            assert!(log.fd.is_none(), "vacant log is closed");
+            *log = log_for(steps.get(position).expect("position"));
+        }
+        if !self.unavailable {
+            self.at = 0;
+            self.creation = Creation::Slot;
+            self.phase = Phase::Create;
+        }
+    }
+    pub fn clear(&mut self, slots: &Slots, slot: u32) {
+        assert!(self.settled(), "logs drain before slot changes");
+        for position in slots.range(slot) {
+            self.files.get_mut(u32::try_from(position).expect("position")).expect("slot log").active = false;
+        }
+        self.phase = Phase::Vacate;
     }
     pub fn owns(token: Token) -> bool {
         token == OP
@@ -227,21 +251,10 @@ impl Logs {
             },
             Phase::Make => Op::MakeDirectory { dir: self.directory_fd(), name: bytes::copy_of(b"logs"), mode: 0o700 },
             Phase::Create => {
-                if self.at == self.files.len() {
-                    self.phase = Phase::Idle;
-                    self.notice = Some(joined(&[b"Logs: ", &self.directory(), b"\n"]));
+                let Some(kind) = self.create() else {
                     return;
-                }
-                if self.log().failed {
-                    self.refuse_step(Error::InvalidArgument);
-                    self.at = self.at.checked_add(1).expect("log index");
-                    return;
-                }
-                Op::Open {
-                    root: self.dir.expect("logs directory"),
-                    path: self.log().name.clone(),
-                    how: OpenHow::CreateNoFollow { mode: Some(0o600) },
-                }
+                };
+                kind
             }
             Phase::Write => Op::Write {
                 fd: self.log().fd.expect("log file"),
@@ -262,6 +275,22 @@ impl Logs {
                 path: self.log().name.clone(),
                 how: OpenHow::CreateNoFollow { mode: Some(0o600) },
             },
+            Phase::Vacate => {
+                let mut fd = None;
+                for index in 0..self.files.len() {
+                    let log = self.files.get_mut(index).expect("position");
+                    if !log.active && log.fd.is_some() {
+                        fd = log.fd.take();
+                        break;
+                    }
+                }
+                if let Some(fd) = fd {
+                    Op::Close { fd }
+                } else {
+                    self.phase = Phase::Idle;
+                    return;
+                }
+            }
             Phase::Cleanup => {
                 // At most one descriptor is released in a turn. Close errors still
                 // consume the descriptor, as for the record writer.
@@ -277,6 +306,29 @@ impl Logs {
         };
         out.push(Submit { op: OP, kind });
         self.waiting = true;
+    }
+    fn create(&mut self) -> Option<Op> {
+        if self.at == self.files.len() {
+            self.phase = Phase::Idle;
+            if self.creation == Creation::Launch {
+                self.notice = Some(joined(&[b"Logs: ", &self.directory(), b"\n"]));
+            }
+            return None;
+        }
+        if !self.log().active || self.log().fd.is_some() {
+            self.at = self.at.checked_add(1).expect("position");
+            return None;
+        }
+        if self.log().failed {
+            self.refuse_step(Error::InvalidArgument);
+            self.at = self.at.checked_add(1).expect("log index");
+            return None;
+        }
+        Some(Op::Open {
+            root: self.dir.expect("logs directory"),
+            path: self.log().name.clone(),
+            how: OpenHow::CreateNoFollow { mode: Some(0o600) },
+        })
     }
     fn cleanup_fd(&mut self) -> Option<Fd> {
         for index in 0..self.files.len() {
@@ -375,7 +427,7 @@ impl Logs {
                 self.phase = Phase::Idle;
                 self.done = true;
             }
-            (Phase::Cleanup, Ok(Done::Nothing) | Err(_)) => {}
+            (Phase::Cleanup | Phase::Vacate, Ok(Done::Nothing) | Err(_)) => {}
             (_, Err(error)) => self.refuse_run(error),
             (_, Ok(_)) => unreachable!("logger operation completion shape"),
         }
@@ -413,7 +465,7 @@ impl Logs {
         self.phase = Phase::Cleanup;
     }
     pub fn max_notice(steps: &[Placed], data: &[u8]) -> u32 {
-        let mut longest = 0;
+        let mut longest = temper_forge_setup::group::NAME_BYTES;
         for step in steps {
             longest = longest.max(u32::try_from(step.step.name().len()).expect("step name"));
         }
@@ -424,6 +476,16 @@ impl Logs {
             .checked_add(256)
             .expect("notice words")
     }
+}
+fn log_for(placed: &Placed) -> Log {
+    let mut name = bytes::copy_of(placed.step.name());
+    for byte in &mut name {
+        if *byte == b' ' {
+            *byte = b'-';
+        }
+    }
+    let failed = !kernel::is_name(&name);
+    Log { name: joined(&[&name, b".log"]), fd: None, size: 0, failed, active: placed.role != Role::Vacant }
 }
 fn ending(piece: &[u8]) -> &'static [u8] {
     if piece.ends_with(b"\n") { b"" } else { b"\n" }

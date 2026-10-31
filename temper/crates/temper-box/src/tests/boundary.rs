@@ -27,11 +27,34 @@ fn allowed(path: &str) -> bool {
         };
         for item in group[..end].split(',') {
             let item = item.trim();
-            if !["Step", "steps", "Steps", "Group", "Stage", "Kind", ""].contains(&item) {
+            if !["Step", "steps", "Steps", "Group", "Stage", "Kind", "group", ""].contains(&item) {
                 return false;
             }
         }
         return true;
+    }
+    if let Some(rest) = path.strip_prefix("group") {
+        let rest = rest.trim_start();
+        if rest.starts_with(';') || rest.starts_with(',') {
+            return true;
+        }
+        if let Some(rest) = rest.strip_prefix("::") {
+            let name = rest.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').next().unwrap();
+            return [
+                "build",
+                "read",
+                "Built",
+                "Machine",
+                "GroupFile",
+                "path",
+                "FILE_BYTES",
+                "STEPS",
+                "NAME_BYTES",
+                "LABEL_BYTES",
+            ]
+            .contains(&name);
+        }
+        return false;
     }
     for name in ["Steps", "Group", "Stage", "Kind", "Step", "steps"] {
         if let Some(rest) = path.strip_prefix(name) {

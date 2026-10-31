@@ -87,6 +87,7 @@ struct Synthetic {
     writing: bool,
     received: Vec<u8>,
     end: Option<End>,
+    reply: bool,
     pending: u32,
     serial: u64,
 }
@@ -104,6 +105,7 @@ impl Synthetic {
             writing: false,
             received: Vec::with_capacity(CAPTURE_BYTES),
             end: None,
+            reply: false,
             pending: 0,
             serial: 0,
         }
@@ -166,7 +168,9 @@ impl Synthetic {
                     let length = self.received.len().checked_add(count).expect("bounded capture length");
                     assert!(length <= CAPTURE_BYTES, "capture is at most 4096 bytes");
                     self.received.extend_from_slice(buf.get(..count).expect("kernel read bound"));
-                    self.read(fd);
+                    if !self.reply || !self.received.ends_with(b"\n") {
+                        self.read(fd);
+                    }
                 }
             }
             (Op::ReadSignal { .. }, Done::Signalled(_)) => {
@@ -457,7 +461,10 @@ fn a_split_sign_in_link_stays_whole_on_the_shared_terminal() {
             Service::new(
                 &temper_box::limits::small(),
                 steps,
+                Box::new([]),
                 Settings {
+                    groups: group_machine(),
+                    slots: 4,
                     echo: temper_box::host::Echo::Steps,
                     data: Box::from(b"/data".as_slice()),
                     program: PROGRAM.into(),
@@ -515,4 +522,166 @@ fn a_split_sign_in_link_stays_whole_on_the_shared_terminal() {
     assert!(fresh < stopping && stopping < stopped, "fresh URL precedes ordered shutdown notices");
     timestamp_before(bytes, stopping);
     timestamp_before(bytes, stopped);
+}
+
+fn group_machine() -> temper_forge_setup::group::Machine {
+    temper_forge_setup::group::Machine {
+        flags: Box::new([]),
+        directories: jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap(),
+        limits: skein_forge_setup::limits::Limits {
+            orgs: 8,
+            repositories: 8,
+            reachable: 64,
+            files: 64,
+            file_bytes: 65536,
+            deadline: Duration::from_secs(60),
+            backoff: Duration::from_millis(10),
+            backoff_max: Duration::from_secs(1),
+        },
+        llm: None,
+        forgejo_listens: true,
+    }
+}
+
+const REMOVE_WRITES: [&[u8]; 1] = [b"remove 7\n"];
+fn removal_child(spawn: &Spawn, inherited: &Inherited) -> Proc {
+    if spawn.args.first().unwrap().as_ref() == b"serve" {
+        let writer = descriptor(&inherited.pipes, 3);
+        let reader = descriptor(&inherited.pipes, 4);
+        let mut host = Synthetic::new(vec![writer, reader, inherited.signal]);
+        host.writer = Some(writer);
+        host.chunks = &REMOVE_WRITES;
+        host.released = 1;
+        host.reply = true;
+        for (_, fd) in &inherited.pipes {
+            if *fd != writer && *fd != reader {
+                host.submit(Op::Close { fd: *fd });
+            }
+        }
+        host.read(reader);
+        host.submit(Op::ReadSignal { fd: inherited.signal });
+        Proc::Serve(host)
+    } else {
+        let mut owned = Vec::with_capacity(inherited.pipes.len().checked_add(1).unwrap());
+        for (_, fd) in &inherited.pipes {
+            owned.push(*fd);
+        }
+        owned.push(inherited.signal);
+        let mut host = Synthetic::new(owned);
+        host.close_all(End::Eof);
+        Proc::Diagnostic(host)
+    }
+}
+fn removal_answer(procs: &[Proc]) -> &[u8] {
+    for proc in procs {
+        if let Proc::Serve(host) = proc {
+            return &host.received;
+        }
+    }
+    b""
+}
+struct RemovalJudge {
+    controls: Controls,
+    stopping: bool,
+    wake: Option<Time>,
+}
+impl Referee<Proc> for RemovalJudge {
+    fn act(&mut self, _now: Time, procs: &mut [Proc]) {
+        self.wake = None;
+        if !self.stopping && removal_answer(procs) == b"removed 7\n" {
+            self.stopping = true;
+            self.controls.signal(BOX_HOST, ServiceSignal::Terminate);
+        }
+    }
+    fn observe(&mut self, now: Time, procs: &[Proc]) {
+        if !self.stopping && removal_answer(procs) == b"removed 7\n" {
+            self.wake = Some(now);
+        }
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        self.wake
+    }
+    fn passed(&self) -> bool {
+        self.stopping
+    }
+}
+#[test]
+fn a_removed_group_leaves_no_file_behind() {
+    use std::{
+        fs,
+        io::Write,
+        os::unix::fs::{DirBuilderExt, OpenOptionsExt},
+    };
+    use temper_forge_setup::{Group, Stage, group};
+    let scratch = skein_scratch::Scratch::new("box-remove");
+    for directory in ["box", "box/groups", "box/started"] {
+        fs::DirBuilder::new().mode(0o700).create(scratch.path().join(directory)).unwrap();
+    }
+    let setup = br#"{"directory":"demo/forge","bot":{"login":"temper","email":"temper@localhost"},"mode":{"fake":{"listen":{"socket":"127.0.0.1:8369"},"git":"demo/bin/git","owner":"playground","repositories":[{"name":"widget","landing":"main"}]}}}"#;
+    let content = group::compose(setup, 7, false).unwrap();
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(scratch.path().join("box/groups/7"))
+        .unwrap();
+    file.write_all(&content).unwrap();
+    drop(file);
+    fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(scratch.path().join("box/started/7")).unwrap();
+    let root = open_root(scratch.path()).unwrap();
+    let (reader, stdout, stderr) = shared_terminal(root);
+    let mut world = World::new_controlled(|controls| RemovalJudge { controls, stopping: false, wake: None });
+    // Preparation, serve and removal each get a fresh synthetic host.
+    world.host(HostedProgram { program: PROGRAM.into(), make: removal_child, instances: 3, operations: OPERATIONS });
+    world.spawn_signals(|signals| {
+        let once = |name: &[u8]| Step::new(name.into(), Box::new([b"once".as_slice().into()]), Kind::Once);
+        Proc::Box(Box::new(
+            Service::new(
+                &temper_box::limits::small(),
+                Steps {
+                    always: Box::new([Step::new(
+                        b"serve".as_slice().into(),
+                        Box::new([b"serve".as_slice().into()]),
+                        Kind::Long,
+                    )]),
+                    asked: Box::new([]),
+                },
+                Box::new([group::Built {
+                    group: Group {
+                        forge: 7,
+                        label: b"Forge 7 (fake)".as_slice().into(),
+                        recorded: true,
+                        before: 0,
+                        steps: Box::new([(Stage::Prepare, once(b"prepare"))]),
+                    },
+                    remove: once(b"remove"),
+                }]),
+                Settings {
+                    groups: group_machine(),
+                    slots: 4,
+                    program: PROGRAM.into(),
+                    environment: Box::new([]),
+                    serve: b"serve".as_slice().into(),
+                    listeners: Box::new([]),
+                    root,
+                    echo: temper_box::host::Echo::None,
+                    data: scratch.path().as_os_str().as_encoded_bytes().into(),
+                    signals,
+                    stdout,
+                    stderr,
+                },
+            )
+            .unwrap(),
+        ))
+    });
+    world.spawn_with_fds(vec![reader], || Proc::Capture(Synthetic::capture(reader)));
+    let outcome = world.run(&Clock::new(), PATIENCE);
+    assert!(outcome.killed.is_empty());
+    for proc in &outcome.procs {
+        assert!(proc.is_empty());
+        assert_eq!(proc.exit(), Some(Exit::Code(0)));
+    }
+    assert_eq!(removal_answer(&outcome.procs), b"removed 7\n");
+    assert!(!scratch.path().join("box/started/7").exists());
+    assert!(!scratch.path().join("box/groups/7").exists());
 }
