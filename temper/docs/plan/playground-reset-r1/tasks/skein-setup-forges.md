@@ -3,7 +3,7 @@ id = "skein-setup-forges"
 part = "runtime-forges"
 kind = "interface"
 needs = []
-files = ["skein/crates/skein-forge-setup/**", "skein/tests/forge/setup/src/host.rs", "skein/tests/forge/setup/src/memory.rs"]
+files = ["skein/crates/skein-forge-setup/**", "skein/tests/forge/setup/src/host.rs", "skein/tests/forge/setup/src/memory.rs", "temper/crates/temper-service/src/setup.rs", "temper/crates/temper-service/src/setup/**", "temper/crates/temper-service/src/tests/setup.rs"]
 effort = "high"
 minutes = 60
 +++
@@ -58,7 +58,9 @@ Acceptance:
   limit there, call sites only: the limit is the settings' forge count as
   today (or the existing bound, if one already exists), `Refused` and
   `Removed` are logged as an unexpected stop is today. temper's use of them
-  is a later task's. Check with `heavy cargo check -p temper-service
+  is a later task's. Its test fixture
+  `temper/crates/temper-service/src/tests/setup.rs` matches `host::Event`
+  too: add the two arms there, call sites only. Check with `heavy cargo check -p temper-service
   --tests` and `heavy cargo check -p temper --tests`.
 - Readers in skein's setup world: `skein/tests/forge/setup/src/host.rs`
   matches `host::Event` and `memory.rs` matches `host::Request`. Add the
@@ -109,3 +111,14 @@ case, nothing else in `skein/tests/forge/`, which is
 `skein-connection-forges`'s. Both files are now in `files` and under
 "Owns and may change". Then finish the remaining checks of Steps 3,
 including `heavy cargo check -p skein-forge-setup-world --tests`.
+
+2026-10-31. May this task add `Event::Refused` and `Event::Removed` to the
+exhaustive `host::Event` match in
+`temper/crates/temper-service/src/tests/setup.rs` (the `hold_done` loop)?
+Yes: it is a call site of the interface this task changes, inside
+temper-service like `src/setup/`, and `heavy cargo check -p temper-service
+--tests` does not build without it. Put both in the existing `other @ (...)`
+arm, so the fixture hands them back to `engine.setup.above` as it does
+`Need`, `Stop` and `Closed`; no new test case, nothing else in
+`src/tests/`. The file, with `src/setup.rs` and `src/setup/`, is now in
+`files` and under "Owns and may change". Then finish Steps 3 and 4.
