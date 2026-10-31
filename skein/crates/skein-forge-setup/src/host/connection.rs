@@ -27,6 +27,7 @@ use skein_lib::{
 
 pub(crate) struct Connection {
     pub(super) run: Token,
+    pub(super) forge: u16,
     pub(crate) socket: Option<Token>,
     pub(super) closed: bool,
     pub(super) closing: Option<bool>,
@@ -105,6 +106,7 @@ impl Connection {
         let tls = tls(forge, l);
         Some(Self {
             run,
+            forge: forge.number(),
             socket: None,
             closed: false,
             closing: None,
@@ -176,6 +178,7 @@ impl Connection {
         let tls = tls(forge, l);
         Ok(Self {
             run,
+            forge: forge.number(),
             socket: None,
             closed: false,
             closing: None,

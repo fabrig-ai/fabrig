@@ -1428,3 +1428,6 @@ fn abort_when_idle_is_closed_at_once() {
     assert!(w.io.is_empty());
     assert_eq!(w.host.next_deadline(), None);
 }
+
+#[path = "../host/runtime_tests.rs"]
+mod runtime_tests;

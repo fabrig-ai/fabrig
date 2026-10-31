@@ -113,3 +113,53 @@ fn valid_refuses_installation_slots_past_u32() {
     }
     refuses_limits(crate::tests::host::limits(), settings);
 }
+
+#[test]
+fn runtime_removal_forgets_only_its_forges_callback_states() {
+    use super::states::Purpose;
+    use skein_lib::Duration;
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: crate::tests::host::limits() };
+    let mut host = Host::new(&env.limits, crate::tests::host::github_settings(), crate::tests::host::crypto())
+        .expect("valid settings");
+    let removed = host
+        .states
+        .issue(4, Purpose::Convert, &[1; 16], env.now, Duration::from_secs(60), b"manifest")
+        .expect("unique state");
+    let kept = host
+        .states
+        .issue(1, Purpose::Convert, &[2; 16], env.now, Duration::from_secs(60), b"manifest")
+        .expect("unique state");
+    let mut up = Queue::uncapped();
+    let mut io = Queue::uncapped();
+    host.down(&env, Request::Remove { forge: 4 }, &mut up, &mut io);
+    assert!(host.states.take(4, Purpose::Convert, &removed, env.now).is_err());
+    assert_eq!(host.states.take(1, Purpose::Convert, &kept, env.now), Ok(()));
+    assert!(up.is_empty());
+    assert!(io.is_empty());
+}
+
+#[test]
+fn runtime_removal_stops_an_added_github_forge_at_its_deadline_step() {
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: crate::tests::host::limits() };
+    let mut host = Host::new(&env.limits, crate::tests::host::settings(&[]), crate::tests::host::crypto())
+        .expect("valid settings");
+    let mut up = Queue::uncapped();
+    let mut io = Queue::uncapped();
+    let mut settings = crate::tests::host::github_settings();
+    let forge = settings.forges.get_mut(1).expect("GitHub fixture").clone();
+    assert_eq!(forge.number(), 4);
+    host.down(&env, Request::Add(forge), &mut up, &mut io);
+    host.down(&env, Request::Run { run: Token::new(1), plan: Plan::Install { forge: 4 } }, &mut up, &mut io);
+    assert_eq!(up.pop(), Some(Event::Need { run: Token::new(1), need: Need::Read(crate::item::Item::AppSlug) }));
+    host.down(&env, Request::Remove { forge: 4 }, &mut up, &mut io);
+    assert_eq!(
+        up.pop(),
+        Some(Event::Stop {
+            run: Token::new(1),
+            failure: Failure { forge: 4, step: Stage::App, subject: b"slug".as_slice().into(), why: Why::Down },
+        })
+    );
+    assert!(up.is_empty());
+    assert!(io.is_empty());
+    assert_eq!(host.next_deadline(), None);
+}
