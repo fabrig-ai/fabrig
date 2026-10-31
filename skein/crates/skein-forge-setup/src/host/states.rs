@@ -1,7 +1,7 @@
 //! Bounded one-time authority for setup callbacks (forge-setup.md, 5.7).
 use crate::reconcile::{Failure, Stage, Why};
 use alloc::boxed::Box;
-use skein_lib::{Duration, Queue, Time};
+use skein_lib::{Duration, Queue, Time, hex};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Purpose {
@@ -52,8 +52,8 @@ impl States {
         };
         let mut text = [0_u8; 32];
         for (pair, byte) in text.chunks_exact_mut(2).zip(random) {
-            *pair.first_mut().expect("two hex digits") = hex(byte.wrapping_shr(4));
-            *pair.get_mut(1).expect("two hex digits") = hex(byte & 0x0f);
+            *pair.first_mut().expect("two hex digits") = hex::digit(byte.wrapping_shr(4));
+            *pair.get_mut(1).expect("two hex digits") = hex::digit(byte & 0x0f);
         }
         for entry in &self.entries {
             if entry.state.as_ref() == text {
@@ -101,14 +101,6 @@ impl States {
         }
     }
 }
-fn hex(value: u8) -> u8 {
-    match value {
-        0..=9 => b'0'.checked_add(value).expect("decimal digit"),
-        10..=15 => b'a'.checked_add(value.checked_sub(10).expect("hex letter")).expect("hex digit"),
-        16..=255 => unreachable!("a nibble is below sixteen"),
-    }
-}
-
 #[cfg(test)]
 #[path = "../tests/github_memory.rs"]
 mod memory_tests;
