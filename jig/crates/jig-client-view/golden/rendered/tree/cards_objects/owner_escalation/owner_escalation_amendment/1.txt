@@ -1,0 +1,61 @@
+== jig == 
+Review before confirming:
+  Amend
+  Task 8: Review:
+    [1] Task 8: Review
+    Agent charter 1
+    Held
+    Held budget
+    Current revision 18446744073709551615
+  Amend and release in one decision
+  Before
+  whole task instructions
+  Wake policy:
+    Words
+    Wakes immediately
+    Notices
+    Does not wake
+    News
+    Does not wake
+    Each delegate result wakes
+    Questions do not wake
+    Answers do not wake
+    Timers do not wake
+  --
+  whole task specification
+  The specification is incomplete
+  Some task lists are incomplete
+    Tool bits: 0
+    Delegate tasks: 3
+    Delegate depth: 2
+    Spend ceiling: 10
+    Note scope bits: 0
+    Keep default models
+    Grants
+    Allowed delegation executors
+    Note resources
+    More are held than shown
+  After
+  --
+  [2] New instructions: whole task instructions
+  [3] Wakes on inbox messages
+  [4] Wakes on a delegate result
+  Funded by pool in project 4, person 1, period 3
+  [5] Your reason: (empty)
+  Hold revision 18446744073709551615
+  Held budget
+  Hold revision: 18446744073709551615
+  Prior closing effects
+  Escalation holder person: 18446744073709551615
+  Escalation entry: 17
+  Escalation waiting since: 01:00
+  Transient tries: 1
+  Permanent tries: 2
+  Run tries: 3
+  Agent tries: 4
+  Lost tries: 5
+  Invalid tries: 6
+  Release continues from the shown lifecycle; failure counts reset
+  * Supply the amendment
+  [-] Confirm (disabled)
+  [6] Dismiss

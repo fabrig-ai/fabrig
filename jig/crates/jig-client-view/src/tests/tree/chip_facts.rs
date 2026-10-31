@@ -1,24 +1,17 @@
 #![expect(
     clippy::disallowed_methods,
-    clippy::disallowed_types,
     clippy::wildcard_enum_match_arm,
     reason = "ordinary tests inspect public trees and select supplied watch requests"
 )]
 use crate::JigBindings;
 use crate::tests::fixtures::Fixture;
-use crate::tests::tree::cards::{CLIENT, contains, shared_words as words, text};
+use crate::tests::kit::Goldens;
+pub(in crate::tests) use crate::tests::kit::list;
+use crate::tests::tree::cards::{CLIENT, text, words};
 use crate::{Request, state::address::Address};
 use jig_client::contract::*;
-use skein_lib::List;
 use skein_ui::{Builder, Tree};
-fn list<T>(items: impl IntoIterator<Item = T>) -> List<T> {
-    let items: Vec<_> = items.into_iter().collect();
-    let mut value = List::with_capacity(u32::try_from(items.len()).unwrap());
-    for item in items {
-        assert!(value.push(item).is_ok());
-    }
-    value
-}
+
 fn chip(phase: OwnerChipPhase, details: OwnerChipDetails) -> Chip {
     Chip {
         task: 8,
@@ -40,49 +33,35 @@ fn brief(value: &Chip) -> Tree {
 }
 #[test]
 fn brief_exact_chips_show_title_loss_and_distinct_phase_without_inventing_ending_clock() {
+    let mut goldens = Goldens::new("tree/chip_facts/brief_exact_chips");
     let cases = [
-        (
-            OwnerChipPhase::Waiting { dependencies: list([u64::MAX]), more: true, holds: true },
-            b"More dependencies are not shown".as_slice(),
-        ),
-        (
-            OwnerChipPhase::Person { address: PersonAddress::Role(u32::MAX), taken_by: Some(u64::MAX), since: None },
-            b"4294967295",
-        ),
-        (OwnerChipPhase::Closing(ClosingStage::Run { attempt: u64::MAX }), b"18446744073709551615"),
-        (
-            OwnerChipPhase::Held { reason: HoldCategory::Uncertain { entry: u64::MAX }, revision: u64::MAX },
-            b"18446744073709551615",
-        ),
-        (OwnerChipPhase::Active(RunStage::Running { attempt: u64::MAX }), b"18446744073709551615"),
-        (OwnerChipPhase::Ended, b"Ended"),
+        OwnerChipPhase::Waiting { dependencies: list([u64::MAX]), more: true, holds: true },
+        OwnerChipPhase::Person { address: PersonAddress::Role(u32::MAX), taken_by: Some(u64::MAX), since: None },
+        OwnerChipPhase::Closing(ClosingStage::Run { attempt: u64::MAX }),
+        OwnerChipPhase::Held { reason: HoldCategory::Uncertain { entry: u64::MAX }, revision: u64::MAX },
+        OwnerChipPhase::Active(RunStage::Running { attempt: u64::MAX }),
+        OwnerChipPhase::Ended,
     ];
-    for (phase, label) in cases {
+    for phase in cases {
         let mut details = crate::tests::tree::fragments::chip::details();
-        let executor_label = match &phase {
+        match &phase {
             OwnerChipPhase::Person { address, .. } => {
                 details.executor = OwnerExecutor::Person(*address);
-                b"Project role 4294967295".as_slice()
             }
             OwnerChipPhase::Active(_) => {
                 details.executor = OwnerExecutor::Agent { charter: u32::MAX };
-                b"Agent charter 4294967295".as_slice()
             }
             _ => {
                 details.executor = OwnerExecutor::Procedure { connector: u16::MAX, code: u32::MAX };
-                b"Procedure connector 65535, code 4294967295".as_slice()
             }
-        };
+        }
         let tree = brief(&chip(phase, details));
-        assert!(contains(&tree, label));
-        assert!(contains(&tree, b"Title is incomplete"));
-        assert!(contains(&tree, executor_label));
-        assert!(!contains(&tree, b"Ended at:"));
-        assert!(!tree.nodes().iter().any(|node| node.text.iter().any(|run| run.text.as_ref() == b"Done")));
+        goldens.check(&tree);
     }
 }
 #[test]
 fn task_overview_expands_whole_metadata_but_nested_verdict_chips_stay_brief() {
+    let mut goldens = Goldens::new("tree/chip_facts/task_overview_expands");
     let mut inner_details = crate::tests::tree::fragments::chip::details();
     inner_details.ending =
         Some(OwnerChipEnding::Failed(DocumentText::complete(text(b"nested ending remains carried"))));
@@ -116,11 +95,7 @@ fn task_overview_expands_whole_metadata_but_nested_verdict_chips_stay_brief() {
             .unwrap();
     crate::tests::tree::pages::deliver(&mut client, watch, Delivery::Task(Box::new(doc)));
     let tree = crate::tests::state::page_capacity::render(&client, words());
-    assert!(contains(&tree, b"whole outer result"));
-    assert!(contains(&tree, b"Project: 4294967295"));
-    assert!(contains(&tree, b"Resource holder and writer facts unavailable"));
-    assert!(!contains(&tree, b"nested ending remains carried"));
-    assert!(!contains(&tree, b"Ended at:"));
+    goldens.check(&tree);
     assert_eq!(inner.phase, Phase::Ended);
     assert_eq!(inner.title.whole(), None);
     let bound = crate::tests::render_limits(&CLIENT, words()).unwrap();

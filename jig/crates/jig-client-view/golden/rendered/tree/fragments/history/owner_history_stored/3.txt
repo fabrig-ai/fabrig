@@ -1,0 +1,116 @@
+== jig == 
+Semantic history:
+  Task: 18446744073709551615
+  Revision: 6
+  Requested by person 18446744073709551615
+  Amended
+  Supplied reason
+  reason
+  History time not supplied
+  Stored task overrides; historical effective instructions are not supplied
+  Before
+  Amendment state:
+    Addressed party: 18446744073709551615
+    Taken by party: 18446744073709551615
+    Instructions
+    Only part of this text was supplied
+    Specification
+    spec
+    Parameter 4294967295 has value 18446744073709551615
+    Parameter 1
+    bytes
+    Parameter 2 names connector 65535 resource 18446744073709551615
+    Input task 9
+    Input task 18446744073709551615
+    Authority
+      Tool bits: 18446744073709551615
+      Delegate tasks: 4294967295
+      Delegate depth: 4294967295
+      Spend ceiling: 18446744073709551615
+      Note scope bits: 255
+      Deadline: 18446744073709551615
+      Keep default models
+      Grants
+      Connector: 65535
+      Kind: 65535
+      Literal segments
+      `a/b`
+      `\xFF\x00`
+      
+      Exact ending
+      `tail`
+      Allowed delegation executors
+      Charter: 4294967295
+      Procedure: 4294967295
+      Role: 4294967295
+      Note resources
+      Connector: 7
+      Literal segments
+      Open ending
+      `*`
+    Wake policy:
+      Words
+      Does not wake
+      Notices
+      Wakes immediately
+      News
+      Wakes after 4294967295 messages or 18446744073709551615 ns of oldest message age
+      The last delegate result or a failure wakes
+      Questions wake
+      Answers do not wake
+      Timers wake
+    Dependency task: 18446744073709551615
+    Dependency task: 7
+  After
+  Amendment state:
+    Addressed party: 18446744073709551615
+    Taken by party: 18446744073709551615
+    Instructions
+    Instructions were not supplied
+    Specification
+    spec
+    Parameter 4294967295 has value 18446744073709551615
+    Parameter 1
+    bytes
+    Parameter 2 names connector 65535 resource 18446744073709551615
+    Input task 9
+    Input task 18446744073709551615
+    Authority
+      Tool bits: 18446744073709551615
+      Delegate tasks: 4294967295
+      Delegate depth: 4294967295
+      Spend ceiling: 18446744073709551615
+      Note scope bits: 255
+      Deadline: 18446744073709551615
+      Keep default models
+      Grants
+      Connector: 65535
+      Kind: 65535
+      Literal segments
+      `a/b`
+      `\xFF\x00`
+      
+      Exact ending
+      `tail`
+      Allowed delegation executors
+      Charter: 4294967295
+      Procedure: 4294967295
+      Role: 4294967295
+      Note resources
+      Connector: 7
+      Literal segments
+      Open ending
+      `*`
+    Wake policy:
+      Words
+      Does not wake
+      Notices
+      Wakes immediately
+      News
+      Wakes after 4294967295 messages or 18446744073709551615 ns of oldest message age
+      The last delegate result or a failure wakes
+      Questions wake
+      Answers do not wake
+      Timers wake
+    Dependency task: 18446744073709551615
+    Dependency task: 7

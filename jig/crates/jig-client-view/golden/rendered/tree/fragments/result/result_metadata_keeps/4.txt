@@ -1,0 +1,10 @@
+== jig == 
+Result owner details:
+  Task contract
+  Report word byte limit 4294967295
+  Requested by deployment in project 4294967295
+  Project role 4294967295
+  Choice made by person 18446744073709551615
+  Delegate task references: 0
+  Follow-up facts unavailable
+  Proposal from task 18446744073709551615, number 18446744073709551615

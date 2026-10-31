@@ -6,7 +6,9 @@
 )]
 
 use crate::tests::fixtures::{Fixture, Watched};
-use crate::words::Words;
+use crate::tests::kit::Goldens;
+pub(crate) use crate::tests::kit::words as shared_words;
+pub(crate) use crate::tests::kit::{contains, limits, text, words};
 use crate::words::phrases::english;
 use crate::words::phrases::jig::{JigPhrase, shapes};
 use crate::{
@@ -52,39 +54,14 @@ pub(crate) const CLIENT: crate::tests::fixtures::Profile = crate::tests::fixture
         ..crate::tests::fixtures::CLIENT
     },
 };
-pub(in crate::tests) fn limits() -> skein_ui::Limits {
-    skein_ui::Limits {
-        nodes: 256,
-        depth: 10,
-        text_per_node: 1024,
-        text_bytes: 16384,
-        drawing_bytes: 0,
-        styles_per_node: 2,
-        patches: 1536,
-        bindings: 64,
-        slots: 8,
-        markdown_depth: 3,
-        scene_marks: 0,
-        scene_bytes: 0,
-    }
-}
-pub(crate) fn shared_words() -> &'static Words {
-    static WORDS: std::sync::OnceLock<Words> = std::sync::OnceLock::new();
-    WORDS.get_or_init(|| Words::new(english::english(CLIENT.client.text).unwrap(), 0, 60))
-}
-pub(in crate::tests) fn words() -> &'static Words {
-    shared_words()
-}
-pub(in crate::tests) fn text(bytes: &[u8]) -> Text {
-    Text::new(bytes.into(), CLIENT.client.text).unwrap()
-}
+
 pub(in crate::tests) fn drive(d: &mut Fixture, event: impl crate::tests::fixtures::Input) -> Vec<Request> {
     d.drive(Time::ZERO, event).into_vec()
 }
 pub(in crate::tests) fn document() -> Me {
-    let mut projects = List::with_capacity(2);
-    projects
-        .push(MeProject {
+    let projects = crate::tests::kit::list_in(
+        2,
+        [MeProject {
             models: List::with_capacity(0),
             templates: crate::tests::fixtures::chat_templates(),
             creating: Some(crate::tests::fixtures::creating()),
@@ -100,8 +77,8 @@ pub(in crate::tests) fn document() -> Me {
                 began: None,
                 next: None,
             }),
-        })
-        .unwrap();
+        }],
+    );
     Me {
         providers: List::with_capacity(0),
         providers_cut: false,
@@ -147,12 +124,6 @@ pub(in crate::tests) fn start_arranged(arrangement: crate::state::page::Arrangem
         .unwrap();
     (d, token)
 }
-fn flat(tree: &Tree) -> Vec<u8> {
-    tree.nodes().iter().flat_map(|n| n.text.as_slice().iter().flat_map(|r| r.text.iter().copied())).collect()
-}
-pub(crate) fn contains(tree: &Tree, text: &[u8]) -> bool {
-    flat(tree).windows(text.len()).any(|w| w == text)
-}
 
 pub(crate) fn tree(
     fixture: &Fixture,
@@ -191,6 +162,7 @@ pub(crate) fn tree(
 }
 
 fn frame_builds_statuses_counts_navigation_and_number_submission_in_every_link_state() {
+    let mut goldens = Goldens::new("tree/cards/frame_builds_statuses");
     let (mut d, watch) = start();
     let words = words();
     let mut bindings = JigBindings::new(64, CLIENT.client.text);
@@ -215,12 +187,7 @@ fn frame_builds_statuses_counts_navigation_and_number_submission_in_every_link_s
         b.close();
         let tree = b.finish();
         crate::tests::tree::cards_access::check(&tree);
-        assert!(tree.nodes().iter().any(|n| n.role == Role::Status && n.name.as_deref() == Some(expected)));
-        if expected != b"Connecting" {
-            assert!(contains(&tree, b"10 need you"));
-            assert!(contains(&tree, b"More than 99 updates not read"));
-            assert!(contains(&tree, b"Signed in as Pat"));
-        }
+        goldens.check(&tree);
         let field = tree.nodes().iter().find(|n| n.role == Role::TextField).unwrap().binding.unwrap();
         assert_eq!(decode(&mut bindings, field.token, Act::Input { value: b"123".as_slice().into() }), None);
         assert_eq!(decode(&mut bindings, field.token, Act::Submit), Some(Action::Go { address: Address::task(123) }));
@@ -262,6 +229,7 @@ fn every_binding_kind_decodes_and_old_tokens_are_retired() {
 }
 
 fn jig_phrasebook_requires_every_sentence_and_says_wall_times_in_person_offset() {
+    let mut goldens = Goldens::new("tree/cards/jig_phrasebook_requires");
     let mut language = english::language();
     let missing = language.phrases.last().unwrap().id;
     let size = language.phrases.len().checked_sub(1).unwrap();
@@ -291,9 +259,7 @@ fn jig_phrasebook_requires_every_sentence_and_says_wall_times_in_person_offset()
     b.close();
     let tree = b.finish();
     crate::tests::tree::cards_access::check(&tree);
-    assert!(contains(&tree, b"At 01:00"));
-    assert!(contains(&tree, b"Waiting 4 min"));
-    assert!(contains(&tree, b"18446744073709551615"));
+    goldens.check(&tree);
     assert_eq!(words.say(JigPhrase::Live, &[]).as_ref(), b"Live");
     assert_eq!(words.say(JigPhrase::Amount, &[Hole::Amount(12)]).as_ref(), b"12");
 }

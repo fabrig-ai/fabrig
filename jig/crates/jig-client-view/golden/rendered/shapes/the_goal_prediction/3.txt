@@ -1,0 +1,57 @@
+== Project == Live
+Work:
+  What needs you:
+    Questions: 1; proposals: 2; escalations: 3; person tasks: 4
+    Results read through 0
+    [1] More than 99 updates not read
+    [2] 10 need you
+  Who is signed in:
+    * Signed in as Pat
+    Person
+    Login: fixture-login
+    [3] Sign out
+  Projects:
+    [4] Project: One (current)
+    Held policy role 1
+    Ledger source:
+      Budget: 0
+      Spent directly: 0
+      Settled spend below: 0
+      Reserved for funded work: 0
+      Left: 0
+      Ledger source
+      Funded by pool in project 4, person 1, period 1
+      Ledger is open
+  Go to a task:
+    [5] Go to task number: (empty) (enter sends)
+Project:
+  Project: Tally
+Tally:
+  [6] Overview
+  [7] Goals (current)
+  [8] Tasks
+  [9] Notes
+  [10] Settings
+  [11] Resources
+  [12] Policy
+  [13] Roles and services
+  [14] Spend
+  [15] Recurring tasks
+Goals:
+  ## Goals
+  Priority orders work competing for one resource
+  Start of the list
+  End of the list
+  Goal specification:
+    Your pool has left: 20
+    [16] Goal specification: goal
+    [17] Charter 1
+    [18] Charter 2
+    [19] Goal budget: 10
+    [20] Goal deadline (UTC, YYYY-MM-DD HH:MM): 1970-01-01 00:00
+    [21] Goal priority: 0
+    Budget 10
+    Priority 0
+    Deadline 01:00
+    This act is not offered
+    [22] Set goal

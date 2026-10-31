@@ -6,6 +6,8 @@
     reason = "ordinary public proofs inspect complete accessible trees, raw slots and decoded actions"
 )]
 use crate::tests::fixtures::{Fixture, ReadPage, Served, Watched};
+use crate::tests::kit::Goldens;
+pub(in crate::tests) use crate::tests::kit::list_in as list;
 use crate::words::Words;
 use crate::{JigBindings, tree::sections::project::owner as view};
 use jig_client::thread::window::End;
@@ -17,13 +19,7 @@ use skein_lib::{
     Duration, List, Wall,
     bytes::{copy_of, find},
 };
-fn list<T>(cap: u32, rows: impl IntoIterator<Item = T>) -> List<T> {
-    let mut out = List::with_capacity(cap);
-    for row in rows {
-        assert!(out.push(row).is_ok());
-    }
-    out
-}
+
 fn limits() -> crate::tests::fixtures::Profile {
     crate::tests::fixtures::Profile {
         view: crate::Config { ..(crate::tests::tree::cards::CLIENT).view },
@@ -285,12 +281,10 @@ fn words(selected: bool) -> &'static Words {
     static SELECTED: std::sync::OnceLock<Words> = std::sync::OnceLock::new();
     if selected { SELECTED.get_or_init(|| make_words(true)) } else { NORMAL.get_or_init(|| make_words(false)) }
 }
-fn capacity(f: skein_ui::Limits) -> skein_ui::Limits {
-    f
-}
+
 fn build(value: &OwnerProject, w: &Words) -> (Tree, JigBindings) {
     let f = crate::tests::render_limits(&limits(), w).expect("whole finite admission");
-    let mut b = Builder::new(&capacity(f));
+    let mut b = Builder::new(&f);
     let mut bindings = JigBindings::new(f.bindings, 32);
     let d = Fixture::new(&limits());
     view::render(&mut b, value, &d.view(), w, &mut bindings);
@@ -308,54 +302,31 @@ fn build(value: &OwnerProject, w: &Words) -> (Tree, JigBindings) {
     assert!(bytes <= u64::from(f.text_bytes));
     (tree, bindings)
 }
-fn has(tree: &Tree, bytes: &[u8]) -> bool {
-    tree.nodes().iter().any(|n| n.text.iter().any(|r| find(&r.text, bytes).is_some()))
-}
+
 #[test]
 fn owner_project_public_whole_view_keeps_four_resource_roles_opaque_raw_slots_members_and_independent_losses() {
+    let mut goldens = Goldens::new("tree/sections/project/owner/owner_project_public_whole");
     let value = source();
     let before = value.clone();
     let (tree, bindings) = build(&value, words(false));
-    assert!(
-        tree.nodes().iter().any(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Project: Tally"))
-    );
-    for label in [
-        b"Owned".as_slice(),
-        b"Participant",
-        b"Unavailable",
-        b"Context",
-        b"Service",
-        b"Person",
-        b"Project document is incomplete",
-        b"Policy is incomplete",
-        b"Permission mappings not supplied",
-        b"Escalation role not supplied",
-    ] {
-        assert!(has(&tree, label), "missing {label:?}");
-    }
+    goldens.check(&tree);
     let raw: Vec<_> = tree.nodes().iter().filter_map(|n| n.slot.and_then(|s| bindings.owner_part(s.token))).collect();
     assert!(raw.len() >= 4);
     for actual in raw {
         assert_eq!(actual, &part());
     }
-    assert!(
-        tree.nodes()
-            .iter()
-            .any(|n| n.role == Role::Region && n.name.as_deref() == Some(b"Member: 18446744073709551615"))
-    );
+
     assert_eq!(value, before);
 }
 #[test]
 fn owner_project_optional_ledger_distinguishes_none_supplied_empty_epoch_and_all_four_funding_counters() {
+    let mut goldens = Goldens::new("tree/sections/project/owner/owner_project_optional");
     let mut value = source();
     let (absent, _) = build(&value, words(false));
-    assert!(has(&absent, b"Current period not supplied"));
+    goldens.check(&absent);
     value.current_period = Some(ledger(Funder::Period { project: 0, period: 0 }));
     let (tree, _) = build(&value, words(false));
-    assert!(!has(&tree, b"Current period not supplied"));
-    for n in [b"101".as_slice(), b"103", b"107", b"109", b"113", b"18446744073709551615"] {
-        assert!(has(&tree, n));
-    }
+    goldens.check(&tree);
     let supplied = value.current_period.as_ref().unwrap();
     assert_eq!(supplied.began, Some(Wall::EPOCH));
     let mut empty = supplied.clone();
@@ -363,7 +334,7 @@ fn owner_project_optional_ledger_distinguishes_none_supplied_empty_epoch_and_all
     empty.left = 0;
     value.current_period = Some(empty);
     let (empty_tree, _) = build(&value, words(false));
-    assert!(!has(&empty_tree, b"Current period not supplied"));
+    goldens.check(&empty_tree);
     assert_eq!(value.current_period.as_ref().unwrap().numbers.budget, 0);
     assert_eq!(value.current_period.as_ref().unwrap().began, Some(Wall::EPOCH));
     assert_eq!(value.current_period.as_ref().unwrap().next, None);
@@ -379,18 +350,10 @@ fn owner_project_optional_ledger_distinguishes_none_supplied_empty_epoch_and_all
 }
 #[test]
 fn owner_project_raw_role_permissions_requirement_guards_and_spend_recurring_source_order_are_public_facts() {
+    let mut goldens = Goldens::new("tree/sections/project/owner/owner_project_raw");
     let value = source();
     let (tree, _) = build(&value, words(false));
-    for n in [
-        b"65535".as_slice(),
-        b"255",
-        b"4294967295",
-        b"18446744073709551615",
-        b"full template source",
-        b"Some recurring template facts were omitted",
-    ] {
-        assert!(has(&tree, n), "missing {n:?}");
-    }
+    goldens.check(&tree);
     let (_, bindings) = build(&value, words(false));
     let displayed: Vec<_> = tree
         .nodes()
@@ -471,6 +434,7 @@ fn check_owner_project_real_page_decodes_whole_role_edits_preserves_prior_channe
             address::{Address, ProjectSection},
         },
     };
+    let mut goldens = Goldens::new("tree/sections/project/owner/check_owner_project");
     let mut d = Fixture::new(&limits());
     let opened = native_drive(
         &mut d,
@@ -527,7 +491,7 @@ fn check_owner_project_real_page_decodes_whole_role_edits_preserves_prior_channe
     );
     let w = words(false);
     let f = crate::tests::render_limits(&limits(), w).unwrap();
-    let mut bounds = capacity(f);
+    let mut bounds = f;
     bounds.nodes = bounds.nodes.checked_add(32).unwrap();
     bounds.text_bytes = bounds.text_bytes.checked_add(bounds.text_per_node.checked_mul(32).unwrap()).unwrap();
     let page = |d: &Fixture| {
@@ -566,10 +530,7 @@ fn check_owner_project_real_page_decodes_whole_role_edits_preserves_prior_channe
     let act = crate::decode(&mut bindings, field, skein_ui::Act::Input { value: copy_of(b"129") }).unwrap();
     native_drive(&mut d, Event::Act { action: act });
     let (tree, mut bindings) = page(&d);
-    assert!(has(&tree, b"Before"));
-    assert!(has(&tree, b"After"));
-    assert!(has(&tree, b"32833"));
-    assert!(has(&tree, b"129"));
+    goldens.check(&tree);
     let confirm = tree
         .nodes()
         .iter()
@@ -601,6 +562,7 @@ fn check_owner_project_real_page_decodes_whole_role_edits_preserves_prior_channe
 }
 #[test]
 fn owner_project_public_baselines_preserve_optional_permissions_configured_targets_and_empty_recurring_titles() {
+    let mut goldens = Goldens::new("tree/sections/project/owner/owner_project_public_baselines");
     let mut value = source();
     value.configured_period = 0;
     value.configured_pools.push(ledger(Funder::Pool { project: u32::MAX, person: 0, period: 0 })).unwrap();
@@ -615,21 +577,14 @@ fn owner_project_public_baselines_preserve_optional_permissions_configured_targe
     value.recurring.get_mut(0).unwrap().chip.title = doc(b"", true);
     let before = value.clone();
     let (tree, _) = build(&value, words(false));
-    assert!(has(&tree, b"Configured pool period: 0"));
-    assert!(!has(&tree, b"Permission mappings not supplied"));
-    assert!(has(&tree, b"65535"));
-    assert!(has(&tree, b"4294967295"));
-    assert!(
-        tree.nodes().iter().any(|node| node.role == Role::Region
-            && node.name.as_ref().is_some_and(|name| find(name, b"4294967295").is_some()))
-    );
+    goldens.check(&tree);
     assert_eq!(value, before);
     value.policy.permissions = Some(List::with_capacity(4));
     let (tree, _) = build(&value, words(false));
-    assert!(!has(&tree, b"Permission mappings not supplied"));
+    goldens.check(&tree);
     value.policy.permissions = None;
     let (tree, _) = build(&value, words(false));
-    assert!(has(&tree, b"Permission mappings not supplied"));
+    goldens.check(&tree);
     value.configured_pools = List::with_capacity(5);
 
     value.configured_pools = List::with_capacity(4);
@@ -642,7 +597,7 @@ fn owner_project_public_whole_tree_accepts_exact_observed_nodes_and_text_and_ref
     let w = words(false);
     let (tree, _) = build(&value, w);
     let f = crate::tests::render_limits(&limits(), w).unwrap();
-    let mut bound = capacity(f);
+    let mut bound = f;
     bound.nodes = tree.len();
     bound.text_bytes = tree.nodes().iter().map(crate::tests::text_bytes).sum();
     let render = |bound: skein_ui::Limits| {
@@ -705,7 +660,7 @@ fn native_owner_at(value: OwnerProject, section: crate::state::address::ProjectS
 fn owner_page(domain: &Fixture) -> (Tree, JigBindings) {
     let w = words(false);
     let f = crate::tests::render_limits(&limits(), w).unwrap();
-    let mut bound = capacity(f);
+    let mut bound = f;
     bound.nodes = bound.nodes.checked_add(32).unwrap();
     bound.text_bytes = bound.text_bytes.checked_add(32_u32.checked_mul(bound.text_per_node).unwrap()).unwrap();
     let mut b = Builder::new(&bound);
@@ -719,6 +674,7 @@ fn owner_page(domain: &Fixture) -> (Tree, JigBindings) {
 #[expect(clippy::too_many_lines, reason = "complete explicit public service, pool and membership journey proof")]
 fn owner_project_public_service_and_pool_inputs_decode_explicit_values_and_preserve_complete_membership_choices() {
     use crate::{Event, Request, state::action::Act};
+    let mut goldens = Goldens::new("tree/sections/project/owner/owner_project_public_service");
     let mut value = source();
     value.number = 4;
     value.cut = false;
@@ -733,11 +689,7 @@ fn owner_project_public_service_and_pool_inputs_decode_explicit_values_and_prese
     );
     let mut domain = native_owner(value.clone());
     let (tree, mut bindings) = owner_page(&domain);
-    assert!(
-        tree.nodes()
-            .iter()
-            .all(|node| node.role != Role::TextField || node.name.as_deref() != Some(b"Name".as_slice()))
-    );
+    goldens.check(&tree);
     let selected = tree
         .nodes()
         .iter()
@@ -805,7 +757,7 @@ fn owner_project_public_service_and_pool_inputs_decode_explicit_values_and_prese
         })
         .unwrap();
     assert!(pool.0.value.is_none());
-    assert!(has(&tree, b"No pool exists for this configured target"));
+    goldens.check(&tree);
     native_drive(&mut domain, Event::Act { action: pool.1 });
     assert!(domain.project_page().settings.before.is_none());
     assert_eq!(domain.project_page().settings.pool_period, Some(0));
@@ -1007,7 +959,7 @@ fn historical_project_tree(domain: &Fixture, w: &Words, bound: skein_ui::Limits)
     (b.finish(), bindings)
 }
 fn historical_project_bound(w: &Words) -> skein_ui::Limits {
-    let mut bound = capacity(crate::tests::render_limits(&limits(), w).unwrap());
+    let mut bound = crate::tests::render_limits(&limits(), w).unwrap();
     bound.nodes = bound.nodes.checked_add(32).unwrap();
     bound.text_bytes = bound.text_bytes.checked_add(32_u32.checked_mul(bound.text_per_node).unwrap()).unwrap();
     bound
@@ -1015,6 +967,7 @@ fn historical_project_bound(w: &Words) -> skein_ui::Limits {
 #[test]
 fn owner_project_spend_keeps_live_and_retained_funding_with_both_opaque_edges() {
     use crate::{Event, Request, state::action::Act};
+    let mut goldens = Goldens::new("tree/sections/project/owner/owner_project_spend");
     let (mut domain, page) = native_historical_project();
     assert_eq!(domain.project_page().owner_spend.as_deref(), Some(&page));
     assert_eq!(domain.project_page().spend_before, page.before);
@@ -1023,9 +976,7 @@ fn owner_project_spend_keeps_live_and_retained_funding_with_both_opaque_edges() 
     let w = words(false);
     let (tree, mut bindings) = historical_project_tree(&domain, w, historical_project_bound(w));
     crate::tests::tree::cards_access::check(&tree);
-    for supplied in [b"103".as_slice(), b"977", b"979", b"981", b"983", b"985"] {
-        assert!(has(&tree, supplied), "missing {supplied:?}");
-    }
+    goldens.check(&tree);
     let position = |bytes: &[u8]| {
         tree.nodes().iter().position(|node| node.text.iter().any(|run| find(&run.text, bytes).is_some())).unwrap()
     };
@@ -1065,6 +1016,7 @@ fn owner_project_spend_keeps_live_and_retained_funding_with_both_opaque_edges() 
 #[test]
 #[expect(clippy::assertions_on_result_states, reason = "independent exact and one-under whole companion allocations")]
 fn owner_project_historical_companion_prices_whole_languages_and_refuses_one_under_nodes_or_text() {
+    let mut goldens = Goldens::new("tree/sections/project/owner/owner_project_historical");
     let (domain, page) = native_historical_project();
     for second in [false, true] {
         let w = words(second);
@@ -1087,9 +1039,7 @@ fn owner_project_historical_companion_prices_whole_languages_and_refuses_one_und
         }
         let historical = crate::tests::render_limits(&limits(), w).unwrap();
         assert!(historical.nodes <= view::max_nodes(&limits(), &(limits()).client).unwrap());
-        if second {
-            assert!(has(&tree, b"second "));
-        }
+        goldens.check(&tree);
     }
     assert!(
         view::max_nodes(
@@ -1131,10 +1081,10 @@ fn historical_spend_page(before: Cursor, after: Cursor) -> OwnerSpendPage {
 
 #[test]
 fn owner_project_header_and_tabs_show_the_supplied_name() {
+    let mut goldens = Goldens::new("tree/sections/project/owner/owner_project_header");
     let domain = native_owner(source());
     let (tree, _) = owner_page(&domain);
-    assert!(has(&tree, b"Project: Tally"));
-    assert!(tree.nodes().iter().any(|node| node.role == Role::Tabs && node.name.as_deref() == Some(b"Tally")));
+    goldens.check(&tree);
 }
 
 fn native_historical_project() -> (Fixture, OwnerSpendPage) {

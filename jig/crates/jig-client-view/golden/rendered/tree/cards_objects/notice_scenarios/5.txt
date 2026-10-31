@@ -1,0 +1,2 @@
+== jig == 
+* Set goalOutcome unknown for this action; inspect its current facts

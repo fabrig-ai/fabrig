@@ -1,0 +1,8 @@
+== jig == 
+Proposal decided:
+  * Proposal decided
+  Proposing task: 18446744073709551615
+  Proposal number: 18446744073709551615
+  Decided by person: 18446744073709551615
+  Decided at: 18446744073709551615
+  Accepted

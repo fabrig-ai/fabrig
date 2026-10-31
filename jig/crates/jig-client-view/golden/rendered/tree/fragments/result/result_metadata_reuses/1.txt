@@ -1,0 +1,11 @@
+== jig == 
+Result owner details:
+  Task contract
+  Verdict contract
+  Some contract choices were omitted
+  Requested by deployment in project 4294967295
+  Procedure connector 65535, code 4294967295
+  Choice maker not supplied
+  Delegate task references: 0
+  Follow-up facts unavailable
+  Proposal not supplied

@@ -77,10 +77,11 @@ fn closing_names_each_live_delegate_once_and_chat_about_sends_only_the_named_fir
     assert!(drive(&mut domain, Time::ZERO, Event::Act { action: Act::CloseChat { object: id.token() } }).is_empty());
     drive(&mut domain, Time::ZERO, Event::Act { action: Act::Dispose { task: 10, take_over: false } });
     drive(&mut domain, Time::ZERO, Event::Act { action: Act::Dispose { task: 11, take_over: true } });
-    let mut operations = List::with_capacity(3);
-    operations.push(Operation::Cancel { project: 1, task: 10, reason: text(b""), grace: None }).unwrap();
-    operations.push(Operation::Move { project: 1, task: 11, reason: text(b"") }).unwrap();
-    operations.push(Operation::Cancel { project: 1, task: 8, reason: text(b""), grace: None }).unwrap();
+    let operations = crate::tests::kit::list([
+        Operation::Cancel { project: 1, task: 10, reason: text(b""), grace: None },
+        Operation::Move { project: 1, task: 11, reason: text(b"") },
+        Operation::Cancel { project: 1, task: 8, reason: text(b""), grace: None },
+    ]);
     assert_eq!(
         only_send(&drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm })).1,
         &Ask::Compound { project: 1, operations }

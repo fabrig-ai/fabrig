@@ -1,0 +1,23 @@
+== Conversations == 
+Conversations:
+  ## Conversations
+  - [1] Task 8: Review
+    In project 4
+    kept until T7 is done
+    1 running tasks
+    Budget: 0:
+      Budget: 0
+      Spent directly: 0
+      Settled spend below: 0
+      Reserved for funded work: 0
+      Left: 0
+      Funded by
+      Funded by task 8
+  End of the list
+  [2] Read earlier
+  First words:
+    [3] First words: (empty)
+    Project: One:
+      Charter 1
+      Your pool has left: 20
+      [4] Start a conversation

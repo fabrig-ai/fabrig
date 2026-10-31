@@ -1,0 +1,19 @@
+== jig == 
+Semantic history:
+  Task: 18446744073709551615
+  Revision: 6
+  Requested by person 18446744073709551615
+  Amended
+  Supplied reason
+  reason
+  History time not supplied
+  Stored snapshots not supplied
+  Proposal: 18446744073709551615
+  Raw task-origin proposer: 0
+  Not proposed as holder
+  Retained release
+  Task: 0
+  Proposal pending
+  Holder policy project: 4294967295
+  Retained widening
+  Pending since: 18446744073709551615

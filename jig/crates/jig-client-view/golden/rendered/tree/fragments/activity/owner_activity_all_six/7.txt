@@ -1,0 +1,15 @@
+== jig == 
+Whole message:
+  Message: 18446744073709551615
+  From
+  Person: 18446744073709551615
+  Kind: result
+  Result: change
+  Connector: 65535
+  Change kind: 65535
+  Resource: 18446744073709551615
+  Whole words
+  `~�`
+  Recorded at: 18446744073709551615
+  Merged hints: 4294967295
+  Eligible

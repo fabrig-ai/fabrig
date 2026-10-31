@@ -1,0 +1,11 @@
+== Conversations == 
+Conversations:
+  ## Conversations
+  End of the list
+  [1] Read earlier
+  First words:
+    [2] First words: (empty)
+    Project: One:
+      Charter 2
+      Budget 20
+      [3] Start a conversation

@@ -1,0 +1,51 @@
+== jig == 
+Review before confirming:
+  Amend
+  Task 8: Review:
+    [1] Task 8: Review
+    Person 1
+    Held
+    Held budget
+    Current revision 4
+  Replace the named specification with these changes
+  Before
+  whole task specification
+  whole task instructions
+  Wake policy:
+    Words
+    Wakes immediately
+    Notices
+    Does not wake
+    News
+    Does not wake
+    Each delegate result wakes
+    Questions do not wake
+    Answers do not wake
+    Timers do not wake
+  Task 18446744073709551615
+  Task 8
+    Tool bits: 0
+    Delegate tasks: 3
+    Delegate depth: 2
+    Spend ceiling: 10
+    Note scope bits: 0
+    Keep default models
+    Grants
+    Allowed delegation executors
+    Note resources
+  --
+  After
+  --
+  [2] New specification: whole task specification
+  [3] New instructions: whole task instructions
+  [4] New budget: 10
+  [5] New deadline (UTC, YYYY-MM-DD HH:MM): (empty)
+  [6] Drop dependency 18446744073709551615
+  [7] Drop dependency 8
+  [8] Wakes on inbox messages
+  [9] Wakes on a delegate result
+  Funded by pool in project 4, person 1, period 3
+  [10] Your reason: (empty)
+  * Supply the amendment
+  [-] Confirm (disabled)
+  [11] Dismiss

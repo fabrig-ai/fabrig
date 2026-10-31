@@ -1,0 +1,287 @@
+== jig == 
+- Task 8: Review:
+    ## Task 8: Review
+    In project 4
+    * Open
+    Task 8: Review:
+      [1] Task 8: Review
+      Person 1
+      Held
+      Held budget
+      Current revision 4
+    Write
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Answer
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Take it
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Hand it back
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Accept
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Reject
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Pass up
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Release
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Leave it held
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Amend
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Withdraw proposal
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Stop
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Cancel
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Take over
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Reorder
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Mark read
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Edit note
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Delete note
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Adopt resource
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Change policy
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Set roles
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Make service
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Set pool
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole failure
+    At 23:34
+    Attempt 18446744073709551615
+    Host lost
+    Reason: whole failure
+    At 23:34

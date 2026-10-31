@@ -1,0 +1,87 @@
+== jig == 
+Plan subtree:
+  - Root task: 8 (expanded)
+    Task 8: Review:
+      [1] Task 8: Review
+      Title is incomplete
+      Person 1
+      Held
+      Held budget
+      Current revision 4
+    [2] Fold subtree
+    - Task 9: Review: (expanded)
+        [3] Task 9: Review
+        Title is incomplete
+        Person 1
+        Held
+        Held budget
+        Current revision 4
+      Parent task: 8
+      Depth from root: 4294967295
+      Subtree row spend: 18446744073709551615
+      Some dependencies are outside this row
+      [4] Fold subtree
+      Waiting proposals
+      Dependencies
+      Stored task 18446744073709551615
+      Stored status unavailable
+Folded descendants:
+  Parent task: 0
+  Waiting: 1
+  Idle: 2
+  Starting: 3
+  Running: 4
+  Backing off: 5
+  Closing: 6
+  Held: 7
+  Done: 8
+  Failed: 9
+  Cancelled: 4294967295
+  Held below: 11
+Folded descendants:
+  Parent task: 18446744073709551615
+  Waiting: 1
+  Idle: 4294967295
+  Starting: 3
+  Running: 4
+  Backing off: 5
+  Closing: 6
+  Held: 7
+  Done: 8
+  Failed: 9
+  Cancelled: 4294967295
+  Held below: 17
+Held below: 19
+More descendants remain in the supplied window
+- Proposal:
+    ## Proposal
+    In project 4
+    * Proposal decidedProposing party: 18446744073709551615Proposal number: 18446744073709551615Decided by person: 1Decided at: 01:00Accepted
+    Pending proposal:
+      Proposal number: 18446744073709551615
+      Proposal project: 4
+      By party 18446744073709551615
+      Proposed as holder
+      Waiting holder
+      Holder task: 9
+      Waiting since: 01:00
+      Proposal reason
+      supplied pending reason
+      Proposed release
+      Live task
+      Task 9: Review:
+        [5] Task 9: Review
+        Title is incomplete
+        Person 1
+        Held
+        Held budget
+        Current revision 4
+      Release hold not supplied
+      Supplied funding offers
+    Proposal decided:
+      * Proposal decided
+      Proposing party: 18446744073709551615
+      Proposal number: 18446744073709551615
+      Decided by person: 1
+      Decided at: 01:00
+      Accepted

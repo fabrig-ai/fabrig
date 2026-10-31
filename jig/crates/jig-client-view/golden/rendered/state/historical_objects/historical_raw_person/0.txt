@@ -1,0 +1,55 @@
+== jig == 
+Historical object:
+  Historical record time not supplied
+  Historical record sender not supplied
+  Historical person proposal
+  Number: 18446744073709551615
+  Proposer: 18446744073709551615
+  Project: 4294967295
+  Goal: 18446744073709551615
+  Project: 4294967295
+  Agent charter 4294967295
+  raw goal
+  Report word byte limit 4294967295
+    Tool bits: 18446744073709551615
+    Delegate tasks: 4294967295
+    Delegate depth: 4294967295
+    Spend ceiling: 18446744073709551615
+    Note scope bits: 255
+    Deadline: 23:34
+    Keep default models
+    Grants
+    Allowed delegation executors
+    Note resources
+  Budget: 1
+  Spent: 7
+  Spent below: 11
+  Reserved: 18446744073709551615
+  Funded by task 18446744073709551615
+  Write holding:
+    Write holding
+    Connector: 65535
+    Kind: 65535
+    `a/b`
+    `\xFF\x00`
+  Slot holding:
+    Slot holding
+    Connector: 0
+    Kind: 0
+    `a/b`
+    `\xFF\x00`
+  Wake policy:
+    Words
+    Wakes immediately
+    Notices
+    Does not wake
+    News
+    Does not wake
+    Each delegate result wakes
+    Questions do not wake
+    Answers do not wake
+    Timers do not wake
+  Tracked: 4294967295
+  Pending
+  Pending since: 01:00
+  Decision not supplied

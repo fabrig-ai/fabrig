@@ -1,0 +1,3 @@
+== jig == 
+Proposal approval authority is missing
+Nobody in this project may accept it

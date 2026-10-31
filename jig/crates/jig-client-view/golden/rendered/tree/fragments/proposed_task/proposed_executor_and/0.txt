@@ -1,0 +1,9 @@
+== jig == 
+Agent charter 4294967295
+Procedure connector 65535, code 4294967295
+Person 18446744073709551615
+Project role 4294967295
+Funded by task 18446744073709551615
+Funded by pool in project 4294967295, person 18446744073709551615, period 83
+Funded by recurring task in project 4294967295, task 18446744073709551615, period 71
+Funded by project period 4294967295, period 59

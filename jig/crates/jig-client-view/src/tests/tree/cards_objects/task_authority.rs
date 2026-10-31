@@ -1,19 +1,21 @@
 //! Whole owner authority remains independent of selected changes and document loss.
 use crate::state::address::{Address, TaskSection};
+use crate::tests::kit::Goldens;
 use crate::tests::tree::cards_objects::*;
 
 fn supplied() -> OwnerAuthorityDocument {
-    let mut segments = List::with_capacity(CLIENT.client.rows);
-    segments.push(Box::from(*b"a/b")).unwrap();
-    segments.push(Box::from(*b"\xff\0")).unwrap();
+    let segments = crate::tests::kit::list_in(CLIENT.client.rows, [Box::from(*b"a/b"), Box::from(*b"\xff\0")]);
     let pattern = OwnerPattern { segments, last: OwnerPatternEnd::Open(Box::from(*b"\xff/")) };
-    let mut grants = List::with_capacity(CLIENT.client.rows);
-    grants.push(OwnerGrant { connector: u16::MAX, kind: u16::MAX, pattern: pattern.clone() }).unwrap();
-    let mut kinds = List::with_capacity(CLIENT.client.rows);
-    kinds.push(OwnerAuthorityExecutor::Charter(u32::MAX)).unwrap();
-    kinds.push(OwnerAuthorityExecutor::Role(u32::MAX)).unwrap();
-    let mut note_resources = List::with_capacity(CLIENT.client.rows);
-    note_resources.push(OwnerResourceScope { connector: u16::MAX, pattern }).unwrap();
+    let grants = crate::tests::kit::list_in(
+        CLIENT.client.rows,
+        [OwnerGrant { connector: u16::MAX, kind: u16::MAX, pattern: pattern.clone() }],
+    );
+    let kinds = crate::tests::kit::list_in(
+        CLIENT.client.rows,
+        [OwnerAuthorityExecutor::Charter(u32::MAX), OwnerAuthorityExecutor::Role(u32::MAX)],
+    );
+    let note_resources =
+        crate::tests::kit::list_in(CLIENT.client.rows, [OwnerResourceScope { connector: u16::MAX, pattern }]);
     OwnerAuthorityDocument {
         authority: OwnerAuthority {
             models: None,
@@ -31,6 +33,7 @@ fn supplied() -> OwnerAuthorityDocument {
 
 #[test]
 fn task_authority_forms_preserve_all_permissions_and_selected_delta_without_reconstructing_loss() {
+    let mut goldens = Goldens::new("tree/cards_objects/task_authority/task_authority_forms");
     for cut in [false, true] {
         let mut row = task_doc(&[ActKind::Amend]);
         row.authority = supplied();
@@ -42,17 +45,7 @@ fn task_authority_forms_preserve_all_permissions_and_selected_delta_without_reco
         let words = words();
         let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
         let tree = dialog(&domain, words, &mut bindings);
-        assert!(contains(&tree, b"Tool bits: 18446744073709551615"));
-        assert!(contains(&tree, b"Note scope bits: 255"));
-        assert!(contains(&tree, b"Role: 4294967295"));
-        assert!(contains(&tree, b"a/b"));
-        assert!(contains(&tree, b"\\xFF\\x00"));
-        assert_eq!(contains(&tree, b"More are held than shown"), cut);
-        assert_eq!(tree.nodes().iter().any(|node| node.name.as_deref() == Some(b"New budget")), !cut);
-        assert_eq!(
-            tree.nodes().iter().any(|node| node.name.as_deref() == Some(b"New deadline (UTC, YYYY-MM-DD HH:MM)")),
-            !cut
-        );
+        goldens.check(&tree);
         let action = input(&tree, b"New instructions", b"", &mut bindings);
         drive(&mut domain, Event::Act { action });
         let tree = dialog(&domain, words, &mut bindings);
@@ -100,6 +93,7 @@ fn task_authority_forms_preserve_all_permissions_and_selected_delta_without_reco
 
 #[test]
 fn task_budget_section_renders_exact_bitmap_delegation_and_literal_authority_loss_within_bounds() {
+    let mut goldens = Goldens::new("tree/cards_objects/task_authority/task_budget_section");
     for cut in [false, true] {
         for kind in [
             OwnerAuthorityExecutor::Charter(u32::MAX),
@@ -129,14 +123,7 @@ fn task_budget_section_renders_exact_bitmap_delegation_and_literal_authority_los
             crate::tests::tree::pages::deliver(&mut domain, watch, Delivery::Task(Box::new(row.clone())));
             let (tree, _) = crate::tests::tree::pages::build(&domain, 3, words());
             crate::tests::tree::cards_access::check(&tree);
-            assert!(contains(&tree, b"Tool bits: 18446744073709551615"));
-            assert!(contains(&tree, b"Note scope bits: 255"));
-            assert!(contains(&tree, b"Delegate depth: 4294967295"));
-            assert!(contains(&tree, b"Kind: 65535"));
-            assert!(contains(&tree, b"a/b"));
-            assert!(contains(&tree, b"\\xFF\\x00"));
-            assert!(contains(&tree, b"Open ending"));
-            assert_eq!(contains(&tree, b"More are held than shown"), cut);
+            goldens.check(&tree);
             assert!(tree.len() <= crate::task_nodes(&CLIENT, &(CLIENT).client, 0).unwrap());
             let id = domain.task_page().header.unwrap();
             let Some(crate::state::objects::Body::Task(actual)) = &domain.objects().get(id).unwrap().body else {

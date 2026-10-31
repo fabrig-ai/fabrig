@@ -1,0 +1,38 @@
+== jig == 
+selected :
+  selected 0
+  selected 0
+  selected :
+    selected :
+    selected 18446744073709551615
+  selected :
+  selected :
+    selected 
+    selected 256
+    selected :
+  selected :
+    selected :
+      selected 0
+      selected 4294967295
+    selected :
+      selected 4294967295
+      selected 1
+    selected :
+      selected 7
+      selected 11
+    selected :
+      selected 3
+      selected 17
+    selected 19
+    selected 307445734
+  selected :
+  selected :
+  selected 1
+  selected :
+  selected 2
+  selected 0
+  selected :
+  selected 3
+  selected :
+    selected 
+  selected 

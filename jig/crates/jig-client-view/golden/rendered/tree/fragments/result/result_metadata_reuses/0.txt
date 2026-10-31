@@ -1,0 +1,17 @@
+== jig == 
+Result owner details:
+  Task contract
+  Approval of exact state
+  `\x80\x00`
+  Outbox reference:
+    Connector 65535
+    Outbox reference
+    `a/b`
+    `\xFF\x00`
+    * Loading connector content (busy)
+  Requested by deployment in project 4294967295
+  Procedure connector 65535, code 4294967295
+  Choice maker not supplied
+  Delegate task references: 0
+  Follow-up facts unavailable
+  Proposal not supplied

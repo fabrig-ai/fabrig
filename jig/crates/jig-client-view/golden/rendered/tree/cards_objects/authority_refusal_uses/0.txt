@@ -1,0 +1,2 @@
+== jig == 
+Proposal approval authority is missing

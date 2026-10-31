@@ -6,6 +6,7 @@
 )]
 //! Exact owner Inbox proofs independent of existing supplied fixture projections.
 use crate::tests::fixtures::{Fixture, ReadPage, Watched};
+pub(in crate::tests) use crate::tests::kit::list;
 use crate::tests::state::domain::spine::{LIMITS, delivered, drive, frame, open_token, start};
 use crate::{
     Event, Request,
@@ -13,14 +14,7 @@ use crate::{
 };
 use jig_client::contract::*;
 use skein_lib::{List, Time, Wall};
-fn list<T>(values: impl IntoIterator<Item = T>) -> List<T> {
-    let values: Vec<_> = values.into_iter().collect();
-    let mut result = List::with_capacity(u32::try_from(values.len()).unwrap());
-    for value in values {
-        result.push(value).ok().unwrap();
-    }
-    result
-}
+
 fn entry(task: u64, object: OwnerInboxObject) -> OwnerInboxEntry {
     OwnerInboxEntry {
         reply: None,

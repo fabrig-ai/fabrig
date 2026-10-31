@@ -1,0 +1,23 @@
+== jig == 
+Review before confirming:
+  Answer
+  Task 8: source title:
+    [1] Task 8: source title
+    Title is incomplete
+    Agent charter 4294967295
+    Project role 4294967295
+  Send the answer matching the task's contract
+  Verdict contract
+  Verdict choice 4294967295, word byte limit 3, follow-up limit 4294967295
+  Verdict choice 7, word byte limit 4, follow-up limit 1
+  `field/a`
+  Field value byte limit 4294967295
+  Some contract choices were omitted
+  Choose an option:
+    [2] (*) Choice code: 4294967295
+    [-] ( ) Choice code: 7 (disabled)
+    This choice requires fields the person answer cannot carry
+  [3] Cannot do it
+  [4] Your reason: abc
+  [5] Confirm
+  [6] Dismiss

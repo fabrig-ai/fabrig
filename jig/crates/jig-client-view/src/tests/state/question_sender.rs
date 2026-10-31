@@ -1,9 +1,9 @@
-#![expect(clippy::disallowed_methods, reason = "ordinary tests inspect complete typed cards and loaded language data")]
 use crate::JigBindings;
 use crate::state::objects::{Object, question::facts};
 use crate::tests::fixtures::Fixture;
+use crate::tests::kit::Goldens;
 use crate::tests::tree::{
-    cards::{CLIENT, contains, text, words},
+    cards::{CLIENT, text, words},
     cards_objects::{loaded, question, render},
 };
 use crate::words::Words;
@@ -69,66 +69,41 @@ fn selected() -> Words {
 }
 #[test]
 fn question_sender_cards_render_exact_closed_kinds_full_widths_and_no_claim_for_absence() {
-    for (from, expected) in [
-        (None, b"".as_slice()),
-        (Some(OwnerRequester::Task(0)), b"Question from task 0"),
-        (Some(OwnerRequester::Task(u64::MAX)), b"Question from task 18446744073709551615"),
-        (Some(OwnerRequester::Person(0)), b"Question from person 0"),
-        (Some(OwnerRequester::Person(u64::MAX)), b"Question from person 18446744073709551615"),
-        (Some(OwnerRequester::Deployment { project: 0 }), b"Question from deployment project 0"),
-        (Some(OwnerRequester::Deployment { project: u32::MAX }), b"Question from deployment project 4294967295"),
+    let mut goldens = Goldens::new("state/question_sender/question_sender_cards");
+    for from in [
+        None,
+        Some(OwnerRequester::Task(0)),
+        Some(OwnerRequester::Task(u64::MAX)),
+        Some(OwnerRequester::Person(0)),
+        Some(OwnerRequester::Person(u64::MAX)),
+        Some(OwnerRequester::Deployment { project: 0 }),
+        Some(OwnerRequester::Deployment { project: u32::MAX }),
     ] {
         let (d, id, value) = fixture(from);
         let shown = tree(&d, id, words());
-        if from.is_some() {
-            assert!(contains(&shown, expected));
-        }
-        let (task, person, deployment) = match from {
-            None => (false, false, false),
-            Some(from) => match from {
-                OwnerRequester::Task(_) => (true, false, false),
-                OwnerRequester::Person(_) => (false, true, false),
-                OwnerRequester::Deployment { .. } => (false, false, true),
-            },
-        };
-        assert_eq!(contains(&shown, b"Question from task "), task);
-        assert_eq!(contains(&shown, b"Question from person "), person);
-        assert_eq!(contains(&shown, b"Question from deployment project "), deployment);
-        assert!(contains(&shown, value.words.bytes()), "whole opaque words survive markdown");
-        assert!(contains(&shown, b"Waiting "));
-        assert!(
-            shown
-                .nodes()
-                .iter()
-                .any(|node| node.role == skein_ui::Role::Button && node.name.as_deref() == Some(b"Answer"))
-        );
+        goldens.check(&shown);
         assert_eq!(facts(&d.objects().get(id).unwrap()), Some(&value));
     }
 }
 #[test]
 fn question_sender_selected_language_keeps_reordered_numeric_holes_whole_words_and_waiting_clock() {
+    let mut goldens = Goldens::new("state/question_sender/question_sender_selected");
     let w = selected();
-    for (from, expected) in [
-        (OwnerRequester::Task(u64::MAX), b"18446744073709551615 task/source".as_slice()),
-        (OwnerRequester::Person(u64::MAX), b"18446744073709551615 person/source"),
-        (OwnerRequester::Deployment { project: u32::MAX }, b"4294967295 deployment/source"),
+    for from in [
+        OwnerRequester::Task(u64::MAX),
+        OwnerRequester::Person(u64::MAX),
+        OwnerRequester::Deployment { project: u32::MAX },
     ] {
         let (d, id, value) = fixture(Some(from));
         let shown = tree(&d, id, &w);
-        assert!(contains(&shown, expected));
-        assert!(!contains(&shown, b"Question from "));
-        assert!(contains(&shown, value.words.bytes()));
+        goldens.check(&shown);
         let mut b = Builder::new(&crate::sizes::limits::of_words(&CLIENT, &(CLIENT).client, &w).unwrap());
         w.waiting(&mut b, d.wall(), value.since);
-        for node in b.finish().nodes() {
-            for run in &node.text {
-                assert!(contains(&shown, &run.text));
-            }
-        }
+
         assert_eq!(facts(&d.objects().get(id).unwrap()), Some(&value));
     }
     let (d, id, _) = fixture(None);
-    assert!(!contains(&tree(&d, id, &w), b"/source"));
+    goldens.check(&tree(&d, id, &w));
 }
 
 const UTF8_TEXTS: [&[u8]; 3] = [b"w~\0^?", &[b'x'; 128], &[b't'; 128]];

@@ -138,9 +138,7 @@ pub(crate) use client::{
 };
 
 pub(crate) fn one<T>(value: T) -> skein_lib::List<T> {
-    let mut list = skein_lib::List::with_capacity(1);
-    list.push(value).ok().unwrap();
-    list
+    crate::tests::kit::list([value])
 }
 
 /// A send and the release the displayed hold names share one request.
@@ -160,9 +158,7 @@ pub(crate) fn releasing(
         };
         (project, task, Operation::Amend { project, task, revision, change, reason })
     };
-    let mut operations = skein_lib::List::with_capacity(2);
-    operations.push(first).unwrap();
-    operations.push(Operation::Release { project, task, revision, again: None }).unwrap();
+    let operations = crate::tests::kit::list([first, Operation::Release { project, task, revision, again: None }]);
     Ask::Compound { project, operations }
 }
 pub(crate) fn selected_change(ask: &jig_client::contract::Ask) -> Option<&jig_client::contract::Amendment> {
@@ -232,9 +228,9 @@ pub(crate) fn task_line(
 
 pub(crate) fn chat_templates() -> skein_lib::List<jig_client::contract::Template> {
     use jig_client::contract as c;
-    let mut values = skein_lib::List::with_capacity(2);
-    values
-        .push(c::Template {
+    let mut values = crate::tests::kit::list_in(
+        2,
+        [c::Template {
             llm: None,
             number: jig_client::shapes::CHAT,
             name: c::DocumentText::complete(Text::new(b"Chat".as_slice().into(), 32).unwrap()),
@@ -252,8 +248,8 @@ pub(crate) fn chat_templates() -> skein_lib::List<jig_client::contract::Template
             },
             label: 1,
             grace: None,
-        })
-        .unwrap();
+        }],
+    );
     let mut goal = values.get(0).unwrap().clone();
     goal.number = jig_client::shapes::GOAL;
     goal.executor = c::TemplateExecutor::Chosen;
@@ -269,9 +265,7 @@ pub(crate) fn chat_templates() -> skein_lib::List<jig_client::contract::Template
 
 pub(crate) fn creating() -> jig_client::contract::Creating {
     use jig_client::contract::*;
-    let mut charters = skein_lib::List::with_capacity(2);
-    charters.push(1).unwrap();
-    charters.push(2).unwrap();
+    let charters = crate::tests::kit::list([1, 2]);
     Creating {
         within: CreateBounds {
             authority: Box::new(crate::tests::tree::cards_objects::owner_authority()),
@@ -318,34 +312,26 @@ pub(crate) fn chat_request(project: u32, words: Text) -> jig_client::contract::A
     use jig_client::contract::*;
     let mut authority = crate::tests::tree::cards_objects::owner_authority().authority;
     authority.spend = 0;
-    let mut tasks = skein_lib::List::with_capacity(1);
-    tasks
-        .push(NewTask {
-            llm: None,
-            deadline: NewDeadline::Named,
-            executor: OwnerExecutor::Agent { charter: 1 },
-            spec: Specification {
-                asks: false,
-                words,
-                parameters: skein_lib::List::with_capacity(0),
-                inputs: skein_lib::List::with_capacity(0),
-            },
-            contract: NewContract::Report { words: 32 },
-            authority,
-            budget: NewBudget::AsAllowed { cap: None },
-            wake: None,
-            dependencies: skein_lib::List::with_capacity(0),
-            named: skein_lib::List::with_capacity(0),
-            tracked: None,
-            label: 1,
-            flags: TaskFlags {
-                ended_by: EndedBy::Result,
-                conversation: true,
-                listed: false,
-                retention: Retention::Kept,
-            },
-        })
-        .unwrap();
+    let tasks = crate::tests::kit::list([NewTask {
+        llm: None,
+        deadline: NewDeadline::Named,
+        executor: OwnerExecutor::Agent { charter: 1 },
+        spec: Specification {
+            asks: false,
+            words,
+            parameters: skein_lib::List::with_capacity(0),
+            inputs: skein_lib::List::with_capacity(0),
+        },
+        contract: NewContract::Report { words: 32 },
+        authority,
+        budget: NewBudget::AsAllowed { cap: None },
+        wake: None,
+        dependencies: skein_lib::List::with_capacity(0),
+        named: skein_lib::List::with_capacity(0),
+        tracked: None,
+        label: 1,
+        flags: TaskFlags { ended_by: EndedBy::Result, conversation: true, listed: false, retention: Retention::Kept },
+    }]);
     Ask::Create { project, tasks }
 }
 pub(crate) fn goal_request(
@@ -356,34 +342,26 @@ pub(crate) fn goal_request(
     let mut authority = crate::tests::tree::cards_objects::owner_authority().authority;
     authority.spend = form.budget;
     authority.deadline = form.deadline;
-    let mut tasks = skein_lib::List::with_capacity(1);
-    tasks
-        .push(NewTask {
-            llm: None,
-            deadline: NewDeadline::Named,
-            executor: form.executor,
-            spec: Specification {
-                asks: false,
-                words,
-                parameters: skein_lib::List::with_capacity(0),
-                inputs: skein_lib::List::with_capacity(0),
-            },
-            contract: NewContract::Report { words: 32 },
-            authority,
-            budget: NewBudget::Named,
-            wake: None,
-            dependencies: skein_lib::List::with_capacity(0),
-            named: skein_lib::List::with_capacity(0),
-            tracked: Some(form.priority),
-            label: 2,
-            flags: TaskFlags {
-                ended_by: EndedBy::Result,
-                conversation: false,
-                listed: true,
-                retention: Retention::Kept,
-            },
-        })
-        .unwrap();
+    let tasks = crate::tests::kit::list([NewTask {
+        llm: None,
+        deadline: NewDeadline::Named,
+        executor: form.executor,
+        spec: Specification {
+            asks: false,
+            words,
+            parameters: skein_lib::List::with_capacity(0),
+            inputs: skein_lib::List::with_capacity(0),
+        },
+        contract: NewContract::Report { words: 32 },
+        authority,
+        budget: NewBudget::Named,
+        wake: None,
+        dependencies: skein_lib::List::with_capacity(0),
+        named: skein_lib::List::with_capacity(0),
+        tracked: Some(form.priority),
+        label: 2,
+        flags: TaskFlags { ended_by: EndedBy::Result, conversation: false, listed: true, retention: Retention::Kept },
+    }]);
     Ask::Propose {
         project: form.project,
         action: ProposeAction::Batch { tasks },

@@ -1,8 +1,10 @@
 use crate::state::address::Address;
+use crate::tests::kit::Goldens;
 use crate::tests::tree::cards_objects::*;
 
 #[test]
 fn whole_wake_channel_edits_preserve_batched_rules_flags_and_separate_subscriptions() {
+    let mut goldens = Goldens::new("tree/cards_objects/task_wake/whole_wake_channel");
     for rule in
         [WakeRule::Never, WakeRule::Immediate, WakeRule::Batch { count: u32::MAX, age: Duration::from_nanos(u64::MAX) }]
     {
@@ -28,8 +30,7 @@ fn whole_wake_channel_edits_preserve_batched_rules_flags_and_separate_subscripti
             let words = words();
             let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
             let tree = dialog(&domain, words, &mut bindings);
-            assert!(contains(&tree, b"4294967295 messages or 18446744073709551615 ns"));
-            assert!(contains(&tree, b"Questions wake"));
+            goldens.check(&tree);
             let action = press(&tree, b"Wakes on inbox messages", &mut bindings);
             drive(&mut domain, Event::Act { action });
             let selected = domain.confirmation().unwrap().choices.change.as_ref().unwrap();
@@ -74,6 +75,7 @@ fn whole_wake_channel_edits_preserve_batched_rules_flags_and_separate_subscripti
 
 #[test]
 fn task_overview_renders_numbered_standing_interests_independently_of_activation_choices() {
+    let mut goldens = Goldens::new("tree/cards_objects/task_wake/task_overview_renders");
     for kind in [
         SubscriptionKind::Task { target: u64::MAX, held: true, result: false },
         SubscriptionKind::Topic { connector: u16::MAX, topic: u64::MAX },
@@ -111,21 +113,7 @@ fn task_overview_renders_numbered_standing_interests_independently_of_activation
         crate::tests::tree::pages::deliver(&mut domain, watch, Delivery::Task(Box::new(row.clone())));
         let (tree, _) = crate::tests::tree::pages::build(&domain, 3, words());
         crate::tests::tree::cards_access::check(&tree);
-        assert!(tree.nodes().iter().any(|node| node.name.as_deref() == Some(b"Wake policy")));
-        assert!(tree.nodes().iter().any(|node| node.name.as_deref() == Some(b"Subscriptions")));
-        assert!(contains(&tree, b"4294967295 messages or 18446744073709551615 ns"));
-        assert!(contains(&tree, b"last delegate result or a failure"));
-        assert!(contains(&tree, b"Some task lists are incomplete"));
-        assert!(contains(&tree, b"18446744073709551615"));
-        match kind {
-            SubscriptionKind::Task { .. } => assert!(contains(&tree, b"Task 18446744073709551615")),
-            SubscriptionKind::Topic { .. } => assert!(contains(&tree, b"Connector 65535, topic 18446744073709551615")),
-            SubscriptionKind::Timer { period, .. } => {
-                assert!(contains(&tree, b"Timer at"));
-                assert_eq!(contains(&tree, b"Fires once"), period.is_none());
-                assert_eq!(contains(&tree, b"Repeats every 18446744073709551615 ns"), period.is_some());
-            }
-        }
+        goldens.check(&tree);
         assert!(tree.len() <= crate::task_nodes(&CLIENT, &(CLIENT).client, 0).unwrap());
         let id = domain.task_page().header.unwrap();
         let Some(crate::state::objects::Body::Task(supplied)) = &domain.objects().get(id).unwrap().body else {
