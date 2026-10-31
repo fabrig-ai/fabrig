@@ -50,6 +50,8 @@ fn selection(scope: &reads::Scope) -> Option<(reads::Group, reads::Filter)> {
         | reads::Scope::Result { .. }
         | reads::Scope::Reply { .. }
         | reads::Scope::Turn { .. }
+        | reads::Scope::EndedTasks
+        | reads::Scope::TaskRows { .. }
         | reads::Scope::EndedDelegates { .. }
         | reads::Scope::History { .. }
         | reads::Scope::Activity { .. }
@@ -72,6 +74,8 @@ fn history_root(scope: &reads::Scope) -> Option<u64> {
         | reads::Scope::Result { .. }
         | reads::Scope::Reply { .. }
         | reads::Scope::Turn { .. }
+        | reads::Scope::EndedTasks
+        | reads::Scope::TaskRows { .. }
         | reads::Scope::EndedDelegates { .. }
         | reads::Scope::History { subtree: false, .. }
         | reads::Scope::Inbox { .. }

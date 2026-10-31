@@ -34,6 +34,7 @@ pub(crate) fn read(store: &mut Store, owner: Token, range: Range, above: &mut Qu
     }
     let mut spent = Spent { rows: range.rows, bytes: range.bytes, joins: store.limits.joins };
     let result = match range.scope {
+        Scope::EndedTasks | Scope::TaskRows { .. } => paged::erasure(store, &range, &mut spent),
         Scope::SettingsHistory { .. } => settings::read(store, &range),
         Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
             point::task(store, &range, task, &mut spent)

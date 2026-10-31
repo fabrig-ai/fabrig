@@ -226,3 +226,19 @@ fn subtree_history_does_not_return_to_a_task_already_examined() {
         Answer::None(Why::Unknown)
     );
 }
+
+#[test]
+fn a_party_read_of_an_erasure_scope_is_refused() {
+    let (core, limits) = fixture();
+    for scope in [Scope::EndedTasks, Scope::TaskRows { task: 1 }] {
+        assert!(!super::super::scope_allowed(&core, 1, &scope));
+        assert!(!reads::admits(1, &scope, &Key::Tasks(tasks::Key::Ended(1))));
+        let read =
+            reads::Read::EndedDelegates { task: 1, from: Some(Cursor::Store { scope: scope.clone(), after: None }) };
+        assert!(reads::read_start(&read, 1).is_none(), "a party cannot inject a core scope through its cursor");
+        assert_eq!(
+            super::super::from_store(&core, &limits, &range(scope), Box::new([]), None, Wall::EPOCH),
+            Answer::None(Why::Unknown),
+        );
+    }
+}

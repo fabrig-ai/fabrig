@@ -60,8 +60,13 @@ pub struct Filter {
 }
 
 /// Identity of a store query, independent of its continuation.
+/// Core erasure reads follow `temper/docs/design/draft/playground-reset.md`, section 5.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Scope {
+    /// Every ended task in task order, for the core's project deletion.
+    EndedTasks,
+    /// Every row keyed first by this task, for the core's task erasure.
+    TaskRows { task: u64 },
     /// Dense inclusive revision interval; held newest and tag-9 predecessors.
     SettingsHistory { first: u32, last: u32, newest: u32, whole: bool },
     /// A task query's live group and its indexed ended group.
@@ -535,7 +540,7 @@ pub(crate) fn record_bytes(value: &Record) -> Option<u64> {
             jig_domain_people::EscalationDecision::Reject { reason } => u64::try_from(reason.len()).ok()?,
             jig_domain_people::EscalationDecision::Release | jig_domain_people::EscalationDecision::Pass => 0,
         },
-        Record::Core(CoreRecord::ProposalDecision(_)) => 0,
+        Record::Core(CoreRecord::ProposalDecision(_)) | Record::People(people::Stored::EndedRead { .. }) => 0,
         Record::Notes(notes::Record::Entry(entry)) => u64::try_from(entry.body.len())
             .ok()?
             .checked_add(u64::try_from(entry.description.len()).ok()?)?
@@ -554,13 +559,12 @@ pub(crate) fn record_bytes(value: &Record) -> Option<u64> {
                     total
                 }
             })?,
-        Record::Core(
-            CoreRecord::Settings(_)
-            | CoreRecord::Deployment(_)
-            | CoreRecord::RunProof(_)
-            | CoreRecord::Call(_)
-            | CoreRecord::Projection(_),
-        )
+        Record::Core(CoreRecord::RunProof(value)) => super::owned::proof(value)?,
+        Record::Core(CoreRecord::Call(value)) => super::owned::call(value)?,
+        Record::Core(CoreRecord::Settings(crate::settings::Record::Proposal { value, .. })) => {
+            super::owned::proposal(value)?
+        }
+        Record::Core(CoreRecord::Settings(_) | CoreRecord::Deployment(_) | CoreRecord::Projection(_))
         | Record::People(_)
         | Record::Notes(notes::Record::Line(_))
         | Record::Accounts(_) => return None,

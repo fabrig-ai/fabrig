@@ -12,6 +12,8 @@ fn subtree(scope: &Scope) -> bool {
         | Scope::Result { .. }
         | Scope::Reply { .. }
         | Scope::Turn { .. }
+        | Scope::EndedTasks
+        | Scope::TaskRows { .. }
         | Scope::EndedDelegates { .. }
         | Scope::History { subtree: false, .. }
         | Scope::Activity { .. }

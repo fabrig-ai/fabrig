@@ -156,7 +156,9 @@ fn candidate(store: &Store, range: &reads::Range, value: &core::Record) -> Optio
             }
             Some(row(store, value, owner(store, *task)?))
         }
-        reads::Scope::Proposal { .. }
+        reads::Scope::EndedTasks
+        | reads::Scope::TaskRows { .. }
+        | reads::Scope::Proposal { .. }
         | reads::Scope::Escalation { .. }
         | reads::Scope::Question { .. }
         | reads::Scope::History { .. }
@@ -217,6 +219,8 @@ fn point(store: &Store, scope: &reads::Scope) -> Option<reads::Row> {
         | reads::Scope::Result { .. }
         | reads::Scope::Reply { .. }
         | reads::Scope::Turn { .. }
+        | reads::Scope::EndedTasks
+        | reads::Scope::TaskRows { .. }
         | reads::Scope::EndedDelegates { .. }
         | reads::Scope::History { .. }
         | reads::Scope::Activity { .. }
@@ -351,7 +355,9 @@ fn index_bounds(range: &reads::Range) -> Option<(root::Key, root::Key)> {
             ))
         }
         reads::Scope::EndedDelegates { task } => Some(delegates::bounds(task, true)),
-        reads::Scope::Task { .. }
+        reads::Scope::EndedTasks
+        | reads::Scope::TaskRows { .. }
+        | reads::Scope::Task { .. }
         | reads::Scope::Proposal { .. }
         | reads::Scope::Escalation { .. }
         | reads::Scope::Question { .. }
