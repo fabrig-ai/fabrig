@@ -31,6 +31,7 @@ pub(super) struct Hosted {
     io_env: Env<skein_io::Limits>,
     above: Queue<Event>,
     below: Queue<skein_io::Request>,
+    requests: Queue<skein_io::Request>,
     events: Queue<skein_io::Event>,
     complete: Queue<Complete>,
     submit: Queue<Submit>,
@@ -166,6 +167,7 @@ impl Hosted {
             io_env: Env { now: now.now, wall: now.wall, limits: io_limits },
             above: Queue::with_capacity(256),
             below: Queue::with_capacity(256),
+            requests: Queue::uncapped(),
             events: Queue::with_capacity(256),
             complete: Queue::with_capacity(256),
             submit: Queue::with_capacity(256),
@@ -250,33 +252,20 @@ impl Host for Hosted {
         self.env.wall = wall;
         self.io_env.now = now;
         self.io_env.wall = wall;
-        while self.io.is_ready() {
-            skein_io::resume(&mut self.io, &self.io_env, &mut self.events, &mut self.submit);
-        }
-        while let Some(c) = self.complete.pop() {
-            skein_io::up(&mut self.io, &self.io_env, c, &mut self.events, &mut self.submit);
-            while self.io.is_ready() {
-                skein_io::resume(&mut self.io, &self.io_env, &mut self.events, &mut self.submit);
-            }
-        }
-        while self.io.is_due(now) {
-            skein_io::fire(&mut self.io, &self.io_env, &mut self.events, &mut self.submit);
-        }
+        skein_io::stage::up(&mut self.io, &self.io_env, &mut self.complete, &mut self.events, &mut self.submit, now);
         while let Some(e) = self.events.pop() {
             self.component.up(&self.env, e, &mut self.above, &mut self.below);
         }
         if self.component.next_deadline().is_some_and(|at| at <= now) {
             self.component.fire(&self.env, &mut self.above, &mut self.below);
         }
-        while self.io.takes() {
-            let Some(r) = self.below.pop() else {
-                break;
-            };
+        while let Some(r) = self.below.pop() {
             if let skein_io::Request::Stream { down: Down::Send(bytes), .. } = &r {
                 self.sent += sent_requests(bytes);
             }
-            skein_io::down(&mut self.io, &self.io_env, r, &mut self.submit);
+            self.requests.push(r);
         }
+        skein_io::stage::down(&mut self.io, &self.io_env, &mut self.requests, &mut self.submit);
         while let Some(e) = self.above.pop() {
             match e {
                 Event::Installation { .. } | Event::Fact { .. } | Event::GitToken { .. } => panic!("Forgejo fixture"),
@@ -301,7 +290,9 @@ impl Host for Hosted {
     fn work_pending(&self, now: Time) -> bool {
         self.io.is_ready()
             || self.io.is_due(now)
+            || !self.complete.is_empty()
             || !self.below.is_empty()
+            || !self.requests.is_empty()
             || self.component.next_deadline().is_some_and(|at| at <= now)
     }
     fn next_deadline(&self) -> Option<Time> {
@@ -311,7 +302,12 @@ impl Host for Hosted {
         self.component.next_deadline()
     }
     fn is_empty(&self) -> bool {
-        self.closed && self.io.is_empty() && self.complete.is_empty() && self.submit.is_empty() && self.below.is_empty()
+        self.closed
+            && self.io.is_empty()
+            && self.complete.is_empty()
+            && self.submit.is_empty()
+            && self.below.is_empty()
+            && self.requests.is_empty()
     }
     fn operations(&self) -> u32 {
         skein_io::operations(&self.io_env.limits).expect("io operations")
