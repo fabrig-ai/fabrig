@@ -225,6 +225,14 @@ pub(super) fn tag_people(
             },
             people::Request::RolesApplied { .. } => continue,
             people::Request::RolesRefused { .. } | people::Request::RestoreRefused { .. } => {
+                core.refuse_restore(crate::RestartRequest::Unresolved {
+                    child: crate::RestoreChild::People,
+                    records: 1,
+                });
+                if core.start.mode == crate::start::StartMode::LoadAndLink {
+                    assert!(core.start_failure().is_some(), "people refusal names its fit");
+                    continue;
+                }
                 Request::Now(Box::new(Now::RestoreRefused))
             }
             people::Request::Route { request, person, project, role, mut ask, models } => {

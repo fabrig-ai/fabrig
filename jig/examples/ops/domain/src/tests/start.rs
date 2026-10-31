@@ -30,7 +30,7 @@ fn a_recorded_fit_failure_stops_at_its_start_phase() {
     step(&mut domain, &env, Event::Restart { pending: false });
     take(&mut domain, &env);
     let failure = core::start::Failure::LiveSet {
-        set: core::start::LiveSet::People,
+        set: core::start::LiveSet::PeopleBound(jig_domain_people::RestoreBound::People),
         key: core::Key::People(jig_domain_people::Key::Person(1)),
         held: 1,
         limit: 0,
