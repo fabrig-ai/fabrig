@@ -22,6 +22,10 @@ pub enum RestoreSet {
     LandingAsks,
     LandingEntries,
     NameBytes,
+    DefinitionBytes,
+    FirstNameBytes,
+    ForgeNumber,
+    ForgeNext,
 }
 
 /// The first configured bound a restored row or derived set could not fit.
@@ -237,6 +241,29 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.flights.capacity(),
             d.flights.contains_key(&(*task, *entry)),
         ),
+        Stored::Forge(row) => {
+            forge_fields(l, row)?;
+            room(K::Forge, Rows(K::Forge), d.forges.len(), d.forges.capacity(), d.forges.contains_key(&row.number))
+        }
+        Stored::ForgeNumbers { next } => {
+            if *next == 0 {
+                return Err(RestoreFit {
+                    family: Some(K::ForgeNumbers),
+                    set: RestoreSet::ForgeNext,
+                    held: 0,
+                    additional: 1,
+                    limit: 0,
+                });
+            }
+            Ok(())
+        }
+        Stored::KeptAct(row) => room(
+            K::KeptAct,
+            Rows(K::KeptAct),
+            d.kept_acts.len(),
+            d.kept_acts.capacity(),
+            d.kept_acts.contains_key(&row.key),
+        ),
         Stored::DemoAct(row) => room(
             K::DemoAct,
             Rows(K::DemoAct),
@@ -277,7 +304,7 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.releases.capacity(),
             d.releases.contains_key(&row.task),
         ),
-        Stored::Demo(_) | Stored::Client(_) => Ok(()),
+        Stored::Playground(_) | Stored::Demo(_) | Stored::Client(_) => Ok(()),
     }
 }
 
@@ -335,6 +362,39 @@ fn derived(d: &Domain, l: &Limits) -> Result<(), RestoreFit> {
             additional: 0,
             limit: u64::from(limit),
         });
+    }
+    Ok(())
+}
+
+fn forge_fields(l: &Limits, row: &crate::ForgeRecord) -> Result<(), RestoreFit> {
+    if row.number == 0 || row.number == u16::MAX {
+        return Err(RestoreFit {
+            family: Some(RecordKind::Forge),
+            set: RestoreSet::ForgeNumber,
+            held: u64::from(row.number),
+            additional: u64::from(row.number == 0),
+            limit: if row.number == 0 { 0 } else { u64::from(u16::MAX - 1) },
+        });
+    }
+    field(RecordKind::Forge, RestoreSet::DefinitionBytes, count(row.definition.len()), u64::from(l.definition_bytes))?;
+    if let Some(first) = &row.first {
+        for bytes in [&first.org, &first.repository, &first.label] {
+            field(
+                RecordKind::Forge,
+                RestoreSet::FirstNameBytes,
+                count(bytes.len()),
+                u64::from(crate::FIRST_NAME_BYTES),
+            )?;
+        }
+        match &first.project {
+            crate::SetUpProject::New(name) => field(
+                RecordKind::Forge,
+                RestoreSet::FirstNameBytes,
+                count(name.len()),
+                u64::from(crate::FIRST_NAME_BYTES),
+            )?,
+            crate::SetUpProject::Existing(_) => {}
+        }
     }
     Ok(())
 }

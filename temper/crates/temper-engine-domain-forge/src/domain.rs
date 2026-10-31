@@ -122,6 +122,10 @@ pub struct Domain {
     pub(crate) demo: Option<crate::DemoConfig>,
     bindings: Map<Box<[u8]>, Box<[u8]>>,
     pub(crate) demo_state: Option<crate::DemoState>,
+    pub(crate) forges: Map<u16, crate::ForgeRecord>,
+    pub(crate) forge_next: Option<u16>,
+    pub(crate) playground: Option<crate::Playground>,
+    pub(crate) kept_acts: Map<[u8; 16], crate::KeptAct>,
     pub(crate) demo_acts: Map<[u8; 16], crate::DemoActKind>,
     pub(crate) demo_pending: Map<Token, Token>,
     pub(crate) demo_answers: Map<Token, crate::StartAnswer>,
@@ -531,6 +535,10 @@ impl Domain {
             demo: None,
             demo_state: None,
             bindings: Map::with_capacity(l.bindings),
+            forges: Map::with_capacity(l.forges),
+            forge_next: None,
+            playground: None,
+            kept_acts: Map::with_capacity(crate::limits::kept_act_bound(l).expect("validated kept act bound")),
             demo_acts: Map::with_capacity(crate::demo_act_bound(l).expect("validated act bound")),
             demo_pending: Map::with_capacity(l.applications),
             demo_answers: Map::with_capacity(l.applications),
@@ -4862,6 +4870,18 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             // Cross-record reconciliation is the later restart stage (domain/root.md, 9.1).
             d.flights.insert((task, entry), ()).expect("restored flights within entry limit");
         }
+        Stored::Forge(row) => {
+            d.forge_next =
+                Some(d.forge_next().max(row.number.checked_add(1).expect("restored forge number is below exhaustion")));
+            d.forges.insert(row.number, row).expect("restored forges within limits");
+        }
+        Stored::ForgeNumbers { next } => {
+            d.forge_next = Some(d.forge_next().max(next));
+        }
+        Stored::Playground(row) => d.playground = Some(row),
+        Stored::KeptAct(row) => {
+            d.kept_acts.insert(row.key, row).expect("restored kept acts within limits");
+        }
         Stored::DemoAct(row) => {
             d.demo_acts.insert(row.key, row.act).expect("restored demo acts within limits");
         }
@@ -5289,7 +5309,11 @@ impl Domain {
                 }
                 (position, inserted)
             }
-            Stored::Client(_)
+            Stored::KeptAct(row) => (self.kept_acts.range(..row.key).count(), !self.kept_acts.contains_key(&row.key)),
+            Stored::Forge(_)
+            | Stored::ForgeNumbers { .. }
+            | Stored::Playground(_)
+            | Stored::Client(_)
             | Stored::Flight { .. }
             | Stored::Writer(_)
             | Stored::Demo(_)
@@ -5375,6 +5399,7 @@ impl Domain {
                 let (key, _) = self.landing.receipts.iter().nth(index).expect("restored link row retained");
                 Key::Receipt(key.clone())
             }
+            RecordKind::KeptAct => Key::KeptAct(*self.kept_acts.iter().nth(index).expect("restored act retained").0),
             RecordKind::Flight => {
                 let Need::Entry { task, entry } = need else { unreachable!("flight entry link") };
                 Key::Flight { task, entry }
@@ -5398,7 +5423,12 @@ impl Domain {
                     unreachable!("client forge or repository link")
                 }
             },
-            RecordKind::Landed | RecordKind::Binding | RecordKind::DemoAct => unreachable!("row has no links"),
+            RecordKind::Forge
+            | RecordKind::ForgeNumbers
+            | RecordKind::Playground
+            | RecordKind::Landed
+            | RecordKind::Binding
+            | RecordKind::DemoAct => unreachable!("row has no links"),
         };
         Some(key)
     }
