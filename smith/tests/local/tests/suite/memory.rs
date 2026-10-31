@@ -10,22 +10,13 @@ fn a_local_domain_with_every_line_slot_full_stays_under_its_ceiling() {
     // Peak 5_447_492 B, measured 2026-10-28; a quarter above, rounded up to two significant digits.
     const FULL_LOCAL_CEILING: u64 = 6_900_000;
     let limits = local::Limits {
-        smith: smith_agent_world::LIMITS,
-        agent: local::AgentLimits::inline(
-            smith_agent_world::LIMITS,
-            2,
-            Duration::from_secs(60),
-            Duration::from_secs(5),
-        )
-        .expect("bounded inline child"),
         endpoints: Box::new([Endpoint(0)]),
-        chat_bytes: 64,
         text_bytes: 4096,
         models: 1,
         line_bytes: 1024,
         show_bytes: 4096,
-        unsaved: 2,
         facts: 64,
+        ..local::fixture::small(smith_agent_world::LIMITS)
     };
     let config = local::Config {
         protocol_allowances: Box::new([0]),

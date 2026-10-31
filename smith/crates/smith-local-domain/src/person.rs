@@ -1,7 +1,7 @@
 //! Lines, names and text shown to one terminal (domain/host.md, section 8).
 
-use crate::chat::{Gone, Phase};
-use crate::domain::AgentLife;
+use crate::chat::State;
+use crate::domain::ChildState;
 use crate::{Domain, ExitStatus, Fact, Reading, Request};
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Token};
@@ -318,8 +318,6 @@ mod tests {
     #[test]
     fn a_turn_shows_the_tool_name_and_its_terminal() {
         let turn = agent::Turn {
-            model: b"model".as_slice().into(),
-            effort: None,
             kind: session::record::Kind::First(Box::new(session::record::Opener {
                 affinity: session::llm::Affinity { key: [0; 16], thread: 0 },
                 account: None,
@@ -327,11 +325,6 @@ mod tests {
             })),
             version: 1,
             endpoint: Some(session::llm::Endpoint(1)),
-            dialect: 1,
-            sequence: 1,
-            usage: session::llm::Usage::ZERO,
-            spent: 0,
-            jobs: 0,
             messages: Box::new([session::llm::Message {
                 role: session::llm::Role::Assistant,
                 content: Box::new([
@@ -353,6 +346,7 @@ mod tests {
                     },
                 ]),
             }]),
+            ..crate::fixture::turn()
         };
         assert_eq!(turn_text(&turn, 128).as_ref(), b"Working\nTool: inspect\nTool finished\n");
     }
@@ -367,13 +361,13 @@ pub(crate) fn show_dropped(lines: &mut Lines, out: &mut Queue<Request>) {
 }
 
 pub(crate) fn finish_answer(domain: &mut Domain, out: &mut Queue<Request>) {
-    if domain.agent_life != AgentLife::Gone || domain.chat.state_pending {
+    if domain.agent_life != ChildState::Gone || domain.chat.state_pending {
         return;
     }
     let Some(answer) = domain.turns.answer.take() else { return };
     if domain.stop_failed {
         domain.run = None;
-        domain.chat.phase = Phase::Done;
+        domain.chat.phase = State::Done;
         out.push(Request::Exit { status: crate::end::exit_status(domain.end_cause) });
         return;
     }
@@ -415,10 +409,10 @@ pub(crate) fn finish_answer(domain: &mut Domain, out: &mut Queue<Request>) {
         show_dropped(&mut domain.lines, out);
     }
     if (domain.chat.closed && domain.lines.is_empty()) || headless {
-        domain.chat.phase = Phase::Done;
+        domain.chat.phase = State::Done;
         out.push(Request::Exit { status });
     } else {
-        domain.chat.phase = Phase::Loading;
+        domain.chat.phase = State::Loading;
         domain.chat.load_requested = true;
         out.push(Request::Load);
     }
@@ -522,8 +516,7 @@ pub(crate) fn answered(domain: &mut Domain, answer: host::Answer, detail: Box<[u
     domain.lines.fence(answer.read);
     domain.chat.state.read = answer.read;
     crate::domain::observe(domain, Fact::Answered { activation: domain.chat.state.activation, read: answer.read });
-    domain.chat.phase =
-        Phase::Answered { gone: if domain.agent_life == AgentLife::Gone { Gone::Heard } else { Gone::Owed } };
+    domain.chat.phase = State::Answered;
     match policy(Some(&answer.result), domain.cancel_requested.is_some()) {
         UnreadPolicy::Carry => {}
         UnreadPolicy::Drop => show_dropped(&mut domain.lines, out),

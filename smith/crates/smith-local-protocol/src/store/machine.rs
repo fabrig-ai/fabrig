@@ -16,6 +16,7 @@ use skein_io::{
     file::{self, Expect},
     kernel,
 };
+use skein_lib::bytes::decimal;
 use skein_lib::{Duration, List, Map, Queue, Time, Token};
 use smith_local_domain::{self as local, ChatState, DeliveryRecord};
 use smith_protocol_channel::Endpoints;
@@ -873,17 +874,6 @@ impl Store {
     fn record(&self) -> RecordName {
         record_name(&self.path()).unwrap_or(RecordName::State)
     }
-}
-
-fn decimal(bytes: &[u8]) -> Option<u64> {
-    let mut value = 0_u64;
-    for digit in bytes {
-        if !digit.is_ascii_digit() {
-            return None;
-        }
-        value = value.checked_mul(10)?.checked_add(u64::from(digit.checked_sub(b'0')?))?;
-    }
-    Some(value)
 }
 
 fn record_name(name: &[u8]) -> Option<RecordName> {

@@ -26,7 +26,7 @@ pub enum EndCause {
     /// The store failed while the run went on; its turn is absent for a non-turn write.
     Host { turn: Option<u32>, reason: StoreFailure },
     /// The child ended without answering; Gone supplies any process exit the kit observed.
-    Agent { ended: Option<smith_events::AgentExit> },
+    Agent { ended: Option<smith_host_domain::Exit> },
 }
 
 pub(crate) const fn exit_status(cause: Option<EndCause>) -> ExitStatus {

@@ -1,7 +1,7 @@
 //! One pending local command, applied between activations (shell.md, section 4.1).
 //! It owns only the bounded entered value; the store and run keep their existing owners.
-use crate::chat::Phase;
-use crate::{Domain, Limits, Request};
+use crate::chat::State;
+use crate::{Domain, Limits, Notice, Request};
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue};
 
@@ -24,12 +24,23 @@ pub enum Slash {
     Quit,
 }
 
+/// Typed local choice feedback, rendered by the terminal protocol.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ChoiceNotice {
+    /// A command is already held until the current activation ends.
+    Pending,
+    /// A model belongs to another startup endpoint inventory.
+    ModelElsewhere { model: Box<[u8]> },
+    /// An effort is refused or cleared when the main model changes.
+    Effort { effort: Box<[u8]>, choices: Box<[Box<[u8]>]>, dropped: bool },
+}
+
 pub(crate) fn receive(domain: &mut Domain, choice: Slash, env: &Env<Limits>, out: &mut Queue<Request>) {
     match choice {
         Slash::Quit => crate::domain::closed(domain, out),
         choice @ (Slash::Model { .. } | Slash::Effort { .. } | Slash::New | Slash::Resume { .. }) => {
             if domain.choice.is_some() {
-                out.push(Request::Show { text: b"One command is waiting for the activation to end".as_slice().into() });
+                out.push(Request::Notice { notice: Notice::Choice(ChoiceNotice::Pending) });
                 return;
             }
             domain.choice = Some(choice);
@@ -39,7 +50,7 @@ pub(crate) fn receive(domain: &mut Domain, choice: Slash, env: &Env<Limits>, out
 }
 
 pub(crate) fn apply(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    if domain.chat.phase != Phase::Idle || domain.run.is_some() || domain.chat.state_pending {
+    if domain.chat.phase != State::Idle || domain.run.is_some() || domain.chat.state_pending {
         return;
     }
     let Some(choice) = domain.choice.take() else { return };
@@ -57,20 +68,14 @@ pub(crate) fn apply(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Requ
                 if let Some(effort) = &domain.effort
                     && !smith_domain::ConfiguredModel::accepts_effort(efforts, Some(effort))
                 {
-                    let text = smith_events::effort_words(effort, efforts, domain.show_bytes, true);
+                    let notice =
+                        ChoiceNotice::Effort { effort: effort.clone(), choices: efforts.clone(), dropped: true };
                     domain.effort = None;
-                    out.push(Request::Show { text });
+                    out.push(Request::Notice { notice: Notice::Choice(notice) });
                 }
             }
             Some(_) | None => {
-                let mut text = skein_lib::List::with_capacity(domain.show_bytes);
-                put(&mut text, b"Model ");
-                put(&mut text, smith_events::clip(&model));
-                put(&mut text, b" needs another invocation: smith --chat ");
-                put(&mut text, &domain.config.chat);
-                put(&mut text, b" -m ");
-                put(&mut text, smith_events::clip(&model));
-                out.push(Request::Show { text: text.into_boxed() });
+                out.push(Request::Notice { notice: Notice::Choice(ChoiceNotice::ModelElsewhere { model }) });
             }
         },
         Slash::Effort { level } => {
@@ -78,16 +83,14 @@ pub(crate) fn apply(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Requ
             if smith_domain::ConfiguredModel::accepts_effort(efforts, Some(&level)) {
                 domain.effort = Some(level);
             } else {
-                out.push(Request::Show { text: smith_events::effort_words(&level, efforts, domain.show_bytes, false) });
+                out.push(Request::Notice {
+                    notice: Notice::Choice(ChoiceNotice::Effort {
+                        effort: level,
+                        choices: efforts.clone(),
+                        dropped: false,
+                    }),
+                });
             }
-        }
-    }
-}
-
-fn put(text: &mut skein_lib::List<u8>, bytes: &[u8]) {
-    for byte in bytes {
-        if text.push(*byte).is_err() {
-            break;
         }
     }
 }

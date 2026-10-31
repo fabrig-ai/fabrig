@@ -85,16 +85,12 @@ pub fn decode_state(bytes: &[u8]) -> Result<ChatState, StoreError> {
 /// Fixed-width numeric path for one turn, sortable in transcript order.
 #[must_use]
 pub fn turn_name(place: u32) -> Box<[u8]> {
-    let mut digits = [b'0'; 10];
-    let mut number = place;
-    for index in (0..10).rev() {
-        let digit = number.checked_rem(10).expect("nonzero base");
-        let cell = digits.get_mut(index).expect("decimal position within ten digits");
-        *cell = b'0'.checked_add(u8::try_from(digit).expect("decimal digit fits")).expect("digit fits");
-        number = number.checked_div(10).expect("nonzero base");
-    }
+    let digits = skein_lib::Decimal::of(u64::from(place));
     let mut writer = Writer::new(15);
-    writer.put(&digits).expect("ten digits fit");
+    for _ in digits.as_bytes().len()..10 {
+        writer.put(b"0").expect("ten digits fit");
+    }
+    writer.put(digits.as_bytes()).expect("ten digits fit");
     writer.put(b".turn").expect("turn suffix fits");
     writer.finish()
 }
@@ -229,21 +225,8 @@ pub(crate) mod tests {
         entries.push(channel::Endpoint { name: Box::from(&b"main"[..]), number: 2, dialect: 1 }).expect("one endpoint");
         let endpoints = Endpoints::new(entries);
         let turn = smith_domain::Turn {
-            model: b"model".as_slice().into(),
-            effort: None,
-            kind: smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
-                affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
-                account: None,
-                backend: smith_domain::session::record::Backend::Direct,
-            })),
-            version: smith_domain::session::record::VERSION,
             endpoint: Some(smith_domain::session::llm::Endpoint(2)),
-            dialect: 1,
-            sequence: 1,
-            usage: smith_domain::session::llm::Usage::ZERO,
-            spent: 0,
-            jobs: 0,
-            messages: Box::new([]),
+            ..smith_local_domain::fixture::turn()
         };
         (endpoints, turn)
     }

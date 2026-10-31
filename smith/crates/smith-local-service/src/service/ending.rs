@@ -4,7 +4,15 @@
 
 use super::{Service, local};
 use skein_lib::Time;
-use smith_agent_service::{Close, Step};
+use smith_agent_service::Close;
+
+/// The local product closes components, then its stream, then its signals.
+#[derive(Clone, Copy, Debug)]
+pub(super) enum State {
+    Components,
+    Stream,
+    Signals,
+}
 
 /// The product's close reports, including its shell before its stream terminal.
 #[derive(Clone, Copy, Debug)]
@@ -12,7 +20,7 @@ pub(super) enum Ending {
     /// Local policy still owes its last word.
     Live { shell_closed: bool },
     /// Owned components, the shell, stream or signal reader still owe reports.
-    Closing { at: Time, exit: local::ExitStatus, close: Close, step: Step, shell_closed: bool },
+    Closing { at: Time, exit: local::ExitStatus, close: Close, step: State, shell_closed: bool },
     /// Every owned close reported; the shell receives the retained exit.
     Closed { exit: local::ExitStatus, close: Close },
 }
@@ -21,34 +29,35 @@ impl Service {
     pub(super) fn end_work(&self) -> bool {
         match self.ending {
             Ending::Live { .. } | Ending::Closed { .. } => false,
-            Ending::Closing { step: Step::Components, shell_closed, .. } => {
-                let streams = match &self.stream {
-                    Some(stream) => stream.producer.streams(),
-                    None => 0,
-                }
-                .checked_add(match self.below.inline() {
-                    Some(effects) => effects.streams(),
-                    None => 0,
-                })
-                .expect("bounded destination count")
-                .checked_add(self.below.process().signal_streams())
-                .expect("bounded retained streams");
-                let lower_closed = match self.below.inline() {
-                    Some(effects) => effects.components_closed(),
-                    None => true,
-                };
-                shell_closed && self.accounts_closed() && lower_closed && self.below.process().settled(streams)
-            }
-            Ending::Closing { step: Step::Stream, .. } => {
-                let lower_closed = match self.below.inline() {
+            Ending::Closing { step: State::Components, shell_closed, .. } => self.components_settled(shell_closed),
+            Ending::Closing { step: State::Stream, .. } => {
+                let lower_closed = match self.effects.as_ref() {
                     Some(effects) => effects.closed(),
                     None => true,
                 };
-                lower_closed && self.below.process().settled(self.below.process().signal_streams())
+                lower_closed && self.io.settled(self.io.signal_streams())
             }
-            Ending::Closing { step: Step::Signals, .. } => self.below.process().closed() && self.shell.room() > 0,
-            Ending::Closing { step: Step::Usage, .. } => unreachable!("usage belongs to the producer"),
+            Ending::Closing { step: State::Signals, .. } => self.io.closed() && self.shell.room() > 0,
         }
+    }
+
+    fn components_settled(&self, shell_closed: bool) -> bool {
+        let streams = match &self.stream {
+            Some(stream) => stream.producer.streams(),
+            None => 0,
+        }
+        .checked_add(match self.effects.as_ref() {
+            Some(effects) => effects.streams(),
+            None => 0,
+        })
+        .expect("bounded destination count")
+        .checked_add(self.io.signal_streams())
+        .expect("bounded retained streams");
+        let lower_closed = match self.effects.as_ref() {
+            Some(effects) => effects.components_closed(),
+            None => true,
+        };
+        shell_closed && self.accounts_closed() && lower_closed && self.io.settled(streams)
     }
 
     fn exit_status(&self) -> Option<local::ExitStatus> {
@@ -110,19 +119,19 @@ impl Service {
             stream.abort(self.now);
         }
         match self.ending {
-            Ending::Closing { step: Step::Stream, .. } => {
+            Ending::Closing { step: State::Stream, .. } => {
                 let terminal_sent = match &self.stream {
                     Some(stream) => stream.exit.is_none(),
                     None => false,
                 };
                 if terminal_sent {
-                    self.below.process_mut().abort_stream(&mut self.stream);
+                    self.io.abort_stream(&mut self.stream);
                 }
             }
             Ending::Live { .. } | Ending::Closing { .. } | Ending::Closed { .. } => {}
         }
-        self.below.process_mut().abort();
-        if let Some(effects) = self.below.inline_mut() {
+        self.io.abort();
+        if let Some(effects) = self.effects.as_mut() {
             effects.abort();
         }
     }
@@ -130,49 +139,33 @@ impl Service {
     pub(super) fn advance_end(&mut self) {
         match self.ending {
             Ending::Live { .. } | Ending::Closed { .. } => {}
-            Ending::Closing { at, exit, close, step: Step::Components, shell_closed } => {
-                let streams = match &self.stream {
-                    Some(stream) => stream.producer.streams(),
-                    None => 0,
-                }
-                .checked_add(match self.below.inline() {
-                    Some(effects) => effects.streams(),
-                    None => 0,
-                })
-                .expect("bounded destination count")
-                .checked_add(self.below.process().signal_streams())
-                .expect("bounded retained streams");
-                let lower_closed = match self.below.inline() {
-                    Some(effects) => effects.components_closed(),
-                    None => true,
-                };
-                if lower_closed && self.accounts_closed() && self.below.process().settled(streams) && shell_closed {
-                    if let Some(effects) = self.below.inline_mut() {
+            Ending::Closing { at, exit, close, step: State::Components, shell_closed } => {
+                if self.components_settled(shell_closed) {
+                    if let Some(effects) = self.effects.as_mut() {
                         effects.end(crate::stream::exit(exit));
                     }
                     if let Some(stream) = &mut self.stream {
                         stream.exit = Some(crate::stream::exit(exit));
                     }
-                    self.ending = Ending::Closing { at, exit, close, step: Step::Stream, shell_closed };
+                    self.ending = Ending::Closing { at, exit, close, step: State::Stream, shell_closed };
                 }
             }
-            Ending::Closing { at, exit, close, step: Step::Stream, shell_closed } => {
-                let lower_closed = match self.below.inline() {
+            Ending::Closing { at, exit, close, step: State::Stream, shell_closed } => {
+                let lower_closed = match self.effects.as_ref() {
                     Some(effects) => effects.closed(),
                     None => true,
                 };
-                if lower_closed && self.below.process().settled(self.below.process().signal_streams()) {
-                    self.below.process_mut().close_signals();
-                    self.ending = Ending::Closing { at, exit, close, step: Step::Signals, shell_closed };
+                if lower_closed && self.io.settled(self.io.signal_streams()) {
+                    self.io.close_signals();
+                    self.ending = Ending::Closing { at, exit, close, step: State::Signals, shell_closed };
                 }
             }
-            Ending::Closing { exit, close, step: Step::Signals, .. } => {
-                if self.below.process().closed() && self.shell.room() > 0 {
+            Ending::Closing { exit, close, step: State::Signals, .. } => {
+                if self.io.closed() && self.shell.room() > 0 {
                     self.ending = Ending::Closed { exit, close };
                     self.shell.push(local::Request::Exit { status: self.exit_status().expect("closed product") });
                 }
             }
-            Ending::Closing { step: Step::Usage, .. } => unreachable!("usage is owned by the product producer"),
         }
     }
 }

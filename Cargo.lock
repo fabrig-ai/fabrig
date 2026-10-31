@@ -3451,7 +3451,6 @@ dependencies = [
  "skein-lib",
  "smith-agent-world",
  "smith-domain",
- "smith-events",
  "smith-host-domain",
  "smith-inline-agent",
 ]
@@ -3515,6 +3514,7 @@ dependencies = [
  "smith-events",
  "smith-host-domain",
  "smith-local-domain",
+ "smith-local-protocol",
  "smith-protocol-channel",
  "smith-transcript",
 ]
@@ -3549,6 +3549,7 @@ dependencies = [
  "smith-local-domain",
  "smith-local-process-world",
  "smith-local-protocol",
+ "smith-local-service",
  "smith-protocol-channel",
  "smith-protocol-program",
  "smith-transcript",

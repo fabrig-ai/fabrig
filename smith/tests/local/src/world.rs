@@ -3,6 +3,9 @@
 
 mod headless;
 
+const UNSAVED_TURNS: u32 = 2;
+const FACTS: u32 = 64;
+
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use skein_fake_checkout::git::Remote;
@@ -136,22 +139,9 @@ enum Goal {
     Exit,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Scenario {
-    Chat,
-    Finishing,
-    Workspace,
-    Delegating,
-    PlainChange,
-    PlainNothing,
-    GitChange,
-    GitMarker,
-    PushLands,
-    PushStale,
-    SecondFails,
-    MidReport,
-    TwoDeliveries,
-}
+mod scenario;
+pub use scenario::Scenario;
+use scenario::{Files, ResultKind, Target};
 
 #[derive(Clone, Copy, Debug)]
 enum FirstFailure {
@@ -170,7 +160,7 @@ enum PushFault {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-/// One scripted uncertainty at the git boundary, supplied by a local-world story.
+/// One scripted uncertainty at the git boundary, supplied by a local-world fixture.
 pub enum GitFault {
     /// The deadline passes before a commit makes any effect.
     NoEffect,
@@ -259,22 +249,22 @@ impl World {
         Self::with_store(seed, Store::default())
     }
 
-    /// A chat whose first provider turn finishes before reading the follow-up.
+    /// A scenario over a fresh fake store with the standard small capacities.
     #[must_use]
-    pub fn finishing(seed: u64) -> World {
-        Self::with_capacity(seed, Store::default(), true, 2, 64, Scenario::Finishing)
+    pub fn of(scenario: Scenario, seed: u64) -> World {
+        Self::resumed(scenario, seed, Store::default())
     }
 
-    /// A workspace chat whose main conversation may delegate a read-only reading.
+    /// Restart a scenario over a retained durable store.
     #[must_use]
-    pub fn with_delegation(seed: u64) -> World {
-        Self::with_capacity(seed, Store::default(), true, 2, 64, Scenario::Delegating)
+    pub fn resumed(scenario: Scenario, seed: u64, store: Store) -> World {
+        Self::with_capacity(seed, store, true, UNSAVED_TURNS, FACTS, scenario)
     }
 
     /// Same chat with no observation capacity; domain behavior must agree.
     #[must_use]
     pub fn without_facts(seed: u64) -> World {
-        let mut world = Self::with_capacity(seed, Store::default(), true, 2, 0, Scenario::Chat);
+        let mut world = Self::with_capacity(seed, Store::default(), true, UNSAVED_TURNS, 0, Scenario::Chat);
         world.collect_facts = false;
         world
     }
@@ -282,7 +272,7 @@ impl World {
     /// A one-turn unsaved window for store-pressure stories.
     #[must_use]
     pub fn tight_unsaved(seed: u64) -> World {
-        Self::with_capacity(seed, Store::default(), true, 1, 64, Scenario::Chat)
+        Self::with_capacity(seed, Store::default(), true, 1, FACTS, Scenario::Chat)
     }
 
     /// A fresh local domain over an existing durable fake store.
@@ -298,103 +288,7 @@ impl World {
     }
 
     fn with_resume(seed: u64, store: Store, resume: bool) -> World {
-        Self::with_capacity(seed, store, resume, 2, 64, Scenario::Chat)
-    }
-
-    /// A writable plain directory with a source file and contained test command.
-    #[must_use]
-    pub fn with_workspace(seed: u64) -> World {
-        Self::with_capacity(seed, Store::default(), true, 2, 64, Scenario::Workspace)
-    }
-
-    /// A writable plain directory under a Change contract.
-    #[must_use]
-    pub fn with_plain_change(seed: u64) -> World {
-        Self::with_capacity(seed, Store::default(), true, 2, 64, Scenario::PlainChange)
-    }
-
-    /// A change declaration over an untouched plain directory.
-    #[must_use]
-    pub fn with_plain_nothing(seed: u64) -> World {
-        Self::with_capacity(seed, Store::default(), true, 2, 64, Scenario::PlainNothing)
-    }
-
-    /// A writable git checkout under a Change contract.
-    #[must_use]
-    pub fn with_git_change(seed: u64) -> World {
-        Self::with_capacity(seed, Store::default(), true, 2, 64, Scenario::GitChange)
-    }
-
-    /// A merge with one unresolved marker in its original conflict path.
-    #[must_use]
-    pub fn with_git_marker(seed: u64) -> World {
-        Self::with_capacity(seed, Store::default(), true, 2, 64, Scenario::GitMarker)
-    }
-
-    /// Two ordered git mounts with a commit fault in the second.
-    #[must_use]
-    pub fn with_second_commit_failure(seed: u64) -> World {
-        Self::with_capacity(seed, Store::default(), true, 2, 64, Scenario::SecondFails)
-    }
-
-    /// Resume the two-directory fixture after a crash cut.
-    #[must_use]
-    pub fn with_second_commit_failure_store(seed: u64, store: Store) -> World {
-        Self::with_capacity(seed, store, true, 2, 64, Scenario::SecondFails)
-    }
-
-    /// A Report run separately granted checked mid-run delivery.
-    #[must_use]
-    pub fn with_mid_report(seed: u64) -> World {
-        Self::with_capacity(seed, Store::default(), true, 2, 64, Scenario::MidReport)
-    }
-
-    /// Resume a mid-run delivery fixture after a crash cut.
-    #[must_use]
-    pub fn with_mid_report_store(seed: u64, store: Store) -> World {
-        Self::with_capacity(seed, store, true, 2, 64, Scenario::MidReport)
-    }
-
-    /// Two delivery calls in one turn, before that turn is saved.
-    #[must_use]
-    pub fn with_two_deliveries(seed: u64) -> World {
-        Self::with_capacity(seed, Store::default(), true, 2, 64, Scenario::TwoDeliveries)
-    }
-
-    /// Resume two delivery calls after both answers are durable.
-    #[must_use]
-    pub fn with_two_deliveries_store(seed: u64, store: Store) -> World {
-        Self::with_capacity(seed, store, true, 2, 64, Scenario::TwoDeliveries)
-    }
-
-    /// Resume over the same transcript, checkout, graph and delivery record.
-    #[must_use]
-    pub fn with_git_change_store(seed: u64, store: Store) -> World {
-        Self::with_capacity(seed, store, true, 2, 64, Scenario::GitChange)
-    }
-
-    /// A configured git change whose push reaches the remote.
-    #[must_use]
-    pub fn with_push(seed: u64) -> World {
-        Self::with_capacity(seed, Store::default(), true, 2, 64, Scenario::PushLands)
-    }
-
-    /// Resume a configured push after a crash cut.
-    #[must_use]
-    pub fn with_push_store(seed: u64, store: Store) -> World {
-        Self::with_capacity(seed, store, true, 2, 64, Scenario::PushLands)
-    }
-
-    /// A configured git change whose branch moved before push.
-    #[must_use]
-    pub fn with_moved_remote(seed: u64) -> World {
-        Self::with_capacity(seed, Store::default(), true, 2, 64, Scenario::PushStale)
-    }
-
-    /// Resume a configured push whose target had moved.
-    #[must_use]
-    pub fn with_moved_remote_store(seed: u64, store: Store) -> World {
-        Self::with_capacity(seed, store, true, 2, 64, Scenario::PushStale)
+        Self::with_capacity(seed, store, resume, UNSAVED_TURNS, FACTS, Scenario::Chat)
     }
 
     /// Head of the remote branch in this fixture.
@@ -469,33 +363,22 @@ impl World {
         let (unsaved, facts) = capacities;
         let meeting = Meeting::after(store.activation(), store.state.map_or(0, |state| state.next_message))
             .prior_delivery(store.deliveries.values(), &store.commits);
-        let meeting = match scenario {
-            Scenario::Chat | Scenario::Finishing => meeting,
-            Scenario::SecondFails => meeting.writable(&[0, 1], &[1, 2]),
-            Scenario::Workspace
-            | Scenario::Delegating
-            | Scenario::PlainChange
-            | Scenario::PlainNothing
-            | Scenario::GitChange
-            | Scenario::GitMarker
-            | Scenario::PushLands
-            | Scenario::PushStale
-            | Scenario::MidReport
-            | Scenario::TwoDeliveries => meeting.writable(&[0], &[1]),
+        let fixture = scenario.facts();
+        let meeting = match fixture.files {
+            Files::None => meeting,
+            Files::TwoGit => meeting.writable(&[0, 1], &[1, 2]),
+            Files::Plain | Files::Git | Files::Merge => meeting.writable(&[0], &[1]),
         };
         let referee = Referee::new(meeting);
         let limits = local::Limits {
-            smith: agent_world::LIMITS,
-            agent: local::AgentLimits::inline(agent_world::LIMITS, 2, Duration::from_secs(60), Duration::from_secs(5))
-                .expect("bounded inline child"),
             endpoints: Box::new([run::charter::Endpoint(0)]),
-            chat_bytes: 64,
             text_bytes: 4096,
             models: 1,
             line_bytes: 1024,
             show_bytes: 4096,
             unsaved,
             facts,
+            ..local::fixture::small(agent_world::LIMITS)
         };
         let saved_disk = store.disk.take();
         let restored = saved_disk.is_some();
@@ -503,39 +386,21 @@ impl World {
         let mut history = store.history.take();
         let mut git_head = store.git_head.take();
         let git_expected = store.git_expected.take().or(git_head).or(Some(1));
-        let workspace = if matches!(scenario, Scenario::Chat | Scenario::Finishing) {
+        let workspace = if fixture.files == Files::None {
             None
         } else {
-            if matches!(
-                scenario,
-                Scenario::GitChange
-                    | Scenario::GitMarker
-                    | Scenario::SecondFails
-                    | Scenario::MidReport
-                    | Scenario::TwoDeliveries
-                    | Scenario::PushLands
-                    | Scenario::PushStale
-            ) && !restored
-            {
+            if matches!(fixture.files, Files::Git | Files::Merge | Files::TwoGit) && !restored {
                 let mut tree = BTreeMap::from([(b"src/lib.rs".to_vec(), b"pub fn answer() -> u32 { 42 }\n".to_vec())]);
-                if matches!(
-                    scenario,
-                    Scenario::GitChange
-                        | Scenario::SecondFails
-                        | Scenario::MidReport
-                        | Scenario::TwoDeliveries
-                        | Scenario::PushLands
-                        | Scenario::PushStale
-                ) {
+                if fixture.checks {
                     tree.insert(b".temper/pre-pr".to_vec(), b"#!checks\nsrc/lib.rs 43\n".to_vec());
                 }
                 let mut graph = History::new(tree);
                 git::clone_repository(&mut graph, &mut disk, b"repo", b"work").expect("fixture git clone");
                 git::check_out(&graph, &mut disk, b"work", 1).expect("fixture initial checkout");
-                if scenario == Scenario::PushStale {
+                if fixture.target == Target::Stale {
                     graph.move_remote();
                 }
-                if scenario == Scenario::GitMarker {
+                if fixture.files == Files::Merge {
                     disk.write(b"work/src/lib.rs", b"<<<<<<< ours\nleft\n=======\nright\n>>>>>>> theirs\n");
                     disk.write(b"work/.git/MERGE_HEAD", &1_u64.to_le_bytes());
                     disk.write(b"work/.git/temper-conflicts/0", b"src/lib.rs");
@@ -544,7 +409,7 @@ impl World {
                 git_head = Some(1);
             } else if !restored {
                 disk.write(b"work/src/lib.rs", b"pub fn answer() -> u32 { 42 }\n");
-                if scenario != Scenario::PlainNothing {
+                if fixture.checks {
                     disk.write(b"work/.temper/pre-pr", b"#!checks\nsrc/lib.rs 43\n");
                 }
             }
@@ -563,23 +428,14 @@ impl World {
                 name: b"work".as_slice().into(),
                 root: checkout_io::token(root),
                 writable: true,
-                git: matches!(
-                    scenario,
-                    Scenario::GitChange
-                        | Scenario::GitMarker
-                        | Scenario::SecondFails
-                        | Scenario::MidReport
-                        | Scenario::TwoDeliveries
-                        | Scenario::PushLands
-                        | Scenario::PushStale
-                ),
-                conflicts: if scenario == Scenario::GitMarker {
+                git: matches!(fixture.files, Files::Git | Files::Merge | Files::TwoGit),
+                conflicts: if fixture.files == Files::Merge {
                     Box::new([b"src/lib.rs".as_slice().into()])
                 } else {
                     Box::new([])
                 },
             };
-            let directories = if scenario == Scenario::SecondFails {
+            let directories = if fixture.files == Files::TwoGit {
                 if !restored {
                     disk.write(b"work2/other.txt", b"changed");
                 }
@@ -600,36 +456,11 @@ impl World {
             };
             Some(run::Workspace { directories })
         };
-        let change = matches!(
-            scenario,
-            Scenario::PlainChange
-                | Scenario::PlainNothing
-                | Scenario::GitChange
-                | Scenario::GitMarker
-                | Scenario::SecondFails
-                | Scenario::PushLands
-                | Scenario::PushStale
-        );
+        let change = fixture.result == ResultKind::Change;
         let instructions: &[u8] = if matches!(mode, local::Mode::Chat { .. }) && scenario == Scenario::Chat {
             b"@local-chat Assist the person."
-        } else if scenario == Scenario::Finishing {
-            b"@local-finish"
-        } else if scenario == Scenario::Delegating {
-            b"@local-delegate Delegate a reading, then answer."
-        } else if scenario == Scenario::TwoDeliveries {
-            b"@local-two-deliveries Deliver twice, then report."
-        } else if scenario == Scenario::MidReport {
-            b"@midreport Deliver then report."
-        } else if scenario == Scenario::PlainNothing {
-            b"@local-nothing Declare an unchanged result."
-        } else if scenario == Scenario::GitMarker {
-            b"@local-marker Resolve the merge."
-        } else if change {
-            b"@local-change Make a checked change."
-        } else if workspace.is_some() {
-            b"@local-workspace Assist the person."
         } else {
-            b"@chat Assist the person."
+            fixture.instructions
         };
         let contract = if change {
             Contract::Change(run::outcome::ChangeSpec {
@@ -671,11 +502,11 @@ impl World {
                 window: 8192,
                 output: 256,
             }]),
-            sub_agents: scenario == Scenario::Delegating,
+            sub_agents: fixture.delegate,
             budget: budget.unwrap_or(agent_world::BUDGET),
             conventions: None,
             contract,
-            deliver: if matches!(scenario, Scenario::MidReport | Scenario::TwoDeliveries) {
+            deliver: if fixture.result == ResultKind::MidReport {
                 Some(run::outcome::ChangeSpec {
                     checks_must_pass: true,
                     fields: Box::new([run::outcome::FieldRule { name: b"ticket".as_slice().into(), max: 128 }]),
@@ -683,7 +514,7 @@ impl World {
             } else {
                 None
             },
-            title_field: if matches!(scenario, Scenario::MidReport | Scenario::TwoDeliveries) {
+            title_field: if fixture.result == ResultKind::MidReport {
                 b"ticket".as_slice().into()
             } else {
                 b"title".as_slice().into()
@@ -692,13 +523,12 @@ impl World {
             resume,
             accounts: Box::new([0]),
             workspace,
-            push: if matches!(scenario, Scenario::PushLands | Scenario::PushStale) {
-                Some(Box::new([Some(local::PushTarget {
+            push: match fixture.target {
+                Target::None => None,
+                Target::Current | Target::Stale => Some(Box::new([Some(local::PushTarget {
                     remote: b"repo".as_slice().into(),
                     branch: b"main".as_slice().into(),
-                })]))
-            } else {
-                None
+                })])),
             },
         };
         let provider_config = smith_session_world::Settings::calm(seed).provider;
@@ -795,23 +625,23 @@ impl World {
     /// Reject a failure diagnostic found in a durable turn or any provider prompt.
     #[must_use]
     pub fn diagnostic_in_history(&self, diagnostic: &[u8]) -> bool {
-        self.prompt_texts.iter().any(|text| text.windows(diagnostic.len()).any(|part| part == diagnostic))
+        self.prompt_texts.iter().any(|text| skein_lib::bytes::find(text, diagnostic).is_some())
             || self.store.turns.iter().any(|turn| {
                 turn.messages.iter().any(|message| {
                     message.content.iter().any(|block| {
                         matches!(block, agent::session::llm::Block::Text { text, .. } | agent::session::llm::Block::Refusal { text, .. }
-                    if text.windows(diagnostic.len()).any(|part| part == diagnostic))
+                    if skein_lib::bytes::find(text, diagnostic).is_some())
                     })
                 })
             })
     }
 
-    /// Hold store turn acknowledgements until released by the story.
+    /// Hold store turn acknowledgements until released by the fixture.
     pub fn slow_store(&mut self) {
         self.slow_store = true;
     }
 
-    /// Delay typed git terminals until the story releases them.
+    /// Delay typed git terminals until the fixture releases them.
     pub fn slow_git(&mut self) {
         self.slow_git = true;
     }
@@ -1489,7 +1319,7 @@ impl World {
                 let mut first = None;
                 for path in paths {
                     let at = [b"work/".as_slice(), path.as_ref()].concat();
-                    if self.disk.content(&at).is_some_and(|text| text.windows(7).any(|part| part == b"<<<<<<<")) {
+                    if self.disk.content(&at).is_some_and(|text| skein_lib::bytes::find(text, b"<<<<<<<").is_some()) {
                         first = Some(path);
                         break;
                     }
@@ -1735,7 +1565,7 @@ impl World {
                 let passed = self
                     .disk
                     .load(program.root.raw(), b"src/lib.rs", 4096)
-                    .is_ok_and(|(text, _)| text.windows(2).any(|part| part == b"43"));
+                    .is_ok_and(|(text, _)| skein_lib::bytes::find(&text, b"43").is_some());
                 if passed {
                     let directory =
                         u32::try_from(program.root.raw().checked_sub(1).expect("fixture roots start at one"))

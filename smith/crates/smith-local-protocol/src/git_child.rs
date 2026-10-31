@@ -335,7 +335,7 @@ mod tests {
     const HASH: &[u8] = b"0123456789abcdef0123456789abcdef01234567\n";
 
     fn limits() -> GitLimits {
-        GitLimits { argument_bytes: 4096, output_bytes: 64, conflicts: 2, path_bytes: 64, detail_bytes: 8 }
+        GitLimits { detail_bytes: 8, ..crate::fixture::GIT }
     }
 
     fn make(op: local::GitOp) -> (GitChild, Queue<io::Request>, Queue<local::Event>) {

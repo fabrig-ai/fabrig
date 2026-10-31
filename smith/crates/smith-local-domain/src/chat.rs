@@ -8,7 +8,7 @@ use smith_domain::run::Identity;
 
 /// One invocation's chat phase.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum Phase {
+pub(crate) enum State {
     /// Waiting for the store's typed transcript.
     Loading,
     /// Ready for a person line or exit.
@@ -20,15 +20,9 @@ pub(crate) enum Phase {
     /// A cancellation was sent; the child's answer is still owed.
     Ending,
     /// The answer arrived; saves and the child end may still be owed.
-    Answered { gone: Gone },
+    Answered,
     /// Final exit was emitted.
     Done,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum Gone {
-    Owed,
-    Heard,
 }
 
 /// Durable metadata and one invocation's phase.
@@ -36,7 +30,7 @@ pub(crate) enum Gone {
 #[expect(clippy::struct_excessive_bools, reason = "independent terminal rights coexist with each lifecycle phase")]
 pub(crate) struct Chat {
     pub(crate) state: ChatState,
-    pub(crate) phase: Phase,
+    pub(crate) phase: State,
     pub(crate) load_requested: bool,
     pub(crate) state_pending: bool,
     pub(crate) start_saved: bool,
@@ -51,7 +45,7 @@ impl Chat {
         let identity = Identity::new((low | high).to_le_bytes());
         Chat {
             state: ChatState { identity, activation: 0, next_message: 0, read: None },
-            phase: Phase::Loading,
+            phase: State::Loading,
             load_requested: false,
             state_pending: false,
             start_saved: false,

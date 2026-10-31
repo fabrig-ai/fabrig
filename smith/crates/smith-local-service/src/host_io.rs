@@ -1,27 +1,23 @@
-//! One spawned agent's IO, pipe channel and host-domain terminals
-//! (protocol/hosts.md, sections 3 and 5.6). The adapter keeps IO tokens,
-//! process resources, channel buffers, and bounded plain-tree snapshots or
-//! unknown marks.
-//! `capture_plain` retains no snapshot for trees it cannot inspect whole;
-//! `plain_status` counts them as changed (protocol/hosts.md, section 5.5).
-//! File demands settle serially before markers or a snapshot become a terminal.
-//! Internal handoffs are uncapped; shell and kernel edges retain credit
-//! (protocol/limits.md, section 3.8).
-//! It never knows local delivery
-//! policy, a credential's meaning, or the agent's private domain state.
-//! `up` converts kernel completions to host observations; `down` translates
-//! host effects and submits IO. Gone remains the host domain's decision after
-//! the process adapter has reported child exit, pipe EOF and reap.
+//! The local host's IO hub (protocol/hosts.md, sections 3 and 5.6).
+//! It owns common terminal, file, signal and trace resources in both child modes.
+//! Delivery IO retains bounded git and plain-tree operations; store IO routes
+//! durable chat requests. Policy and credential meaning stay with their domains.
+//! `up` converts completions to host observations; `down` submits requested IO.
 
 use alloc::boxed::Box;
 use skein_io::{self as io, file, file_layer, kernel};
-use skein_lib::{Env, List, Map, Queue, Time, Token, Wall, stream};
+use skein_lib::{Env, Map, Queue, Time, Token, Wall, stream};
 use smith_host_domain as host;
 use smith_host_protocol as protocol;
 use smith_local_domain as local;
 use smith_local_protocol as local_protocol;
 
 use crate::StartValues;
+
+mod delivery;
+mod store;
+use delivery::DeliveryIo;
+use store::StoreIo;
 
 /// Reusable child executable and credential-free environment.
 #[derive(Clone, Debug)]
@@ -63,18 +59,6 @@ enum Operation {
 }
 
 #[derive(Debug)]
-enum PlainPurpose {
-    Capture { directory: u32 },
-    Compare { owner: Token, directory: u32 },
-}
-
-#[derive(Debug)]
-struct PlainScan {
-    purpose: PlainPurpose,
-    scan: local_protocol::Plain,
-}
-
-#[derive(Debug)]
 struct Closing {
     roots: u32,
     shutdown_pending: bool,
@@ -89,7 +73,7 @@ enum WindowRead {
 }
 
 #[derive(Debug)]
-pub(crate) struct ProcessAdapter {
+pub(crate) struct HostIo {
     pub(crate) live: crate::live::Live,
     limits: ProcessLimits,
     pub(crate) programs: Option<Box<crate::service::program_check::Checks>>,
@@ -99,19 +83,9 @@ pub(crate) struct ProcessAdapter {
     shell_output: Option<Token>,
     shell_events: Queue<io::Event>,
     process: Option<protocol::Process>,
-    git: Option<local_protocol::GitChild>,
-    markers: Option<(Token, local_protocol::Markers)>,
-    plain: Option<PlainScan>,
-    snapshots: Map<u32, Option<local_protocol::Snapshot>>,
-    capture_directories: List<u32>,
-    capture_next: u32,
-    capture_deadline: Time,
-    capture_done: Option<bool>,
+    delivery: DeliveryIo,
+    store_io: StoreIo,
     files: file_layer::FileIo,
-    store: Option<local_protocol::Store>,
-    cleanup_warning: Option<kernel::Error>,
-    store_requests: Queue<local_protocol::StoreRequest>,
-    store_actions: Queue<local_protocol::Action>,
     file_roots: Box<[Token]>,
     file_requests: Queue<(file::Request, Time)>,
     file_events: Queue<file::Event>,
@@ -119,8 +93,6 @@ pub(crate) struct ProcessAdapter {
     file_submissions: Queue<kernel::Submit>,
     operations: Map<Token, Operation>,
     next_operation: u64,
-    delivery_roots: Box<[kernel::Fd]>,
-    git_environment: Box<[Box<[u8]>]>,
     io_events: Queue<io::Event>,
     pub(crate) io_requests: Queue<io::Request>,
     process_events: Queue<protocol::ProcessEvent>,
@@ -160,7 +132,7 @@ pub fn native_io_valid(limits: &io::Limits) -> bool {
     limits.is_usable() && operations.checked_mul(2).is_some() && limits.sockets.checked_mul(2).is_some()
 }
 
-impl ProcessAdapter {
+impl HostIo {
     pub(crate) fn new(
         limits: &ProcessLimits,
         launch: Launch,
@@ -183,19 +155,9 @@ impl ProcessAdapter {
             launch,
             endpoints,
             process: None,
-            git: None,
-            markers: None,
-            plain: None,
-            snapshots: Map::with_capacity(64),
-            capture_directories: List::with_capacity(64),
-            capture_next: 0,
-            capture_deadline: Time::ZERO,
-            capture_done: None,
+            delivery: DeliveryIo::new(),
+            store_io: StoreIo::new(),
             files,
-            store: None,
-            cleanup_warning: None,
-            store_requests: Queue::uncapped(),
-            store_actions: Queue::uncapped(),
             file_roots: Box::new([]),
             file_requests: Queue::uncapped(),
             file_events: Queue::uncapped(),
@@ -203,8 +165,6 @@ impl ProcessAdapter {
             file_submissions: Queue::uncapped(),
             operations: Map::with_capacity(limits.queue),
             next_operation: 1,
-            delivery_roots: Box::new([]),
-            git_environment: Box::new([]),
             io_events: Queue::uncapped(),
             io_requests: Queue::uncapped(),
             process_events: Queue::uncapped(),
@@ -233,8 +193,8 @@ impl ProcessAdapter {
             self.file_requests.len(),
             self.file_events.len(),
             self.file_submissions.len(),
-            self.store_requests.len(),
-            self.store_actions.len(),
+            self.store_io.store_requests.len(),
+            self.store_io.store_actions.len(),
             self.process_events.len(),
         ] {
             total = total.checked_add(entries).expect("process backlog entries fit u32");
@@ -244,9 +204,6 @@ impl ProcessAdapter {
 
     // O2: dispatch a store transition's actions before consuming the next file
     // terminal, so its answer precedes a later marker or plain-scan result.
-    fn store_actions_dispatched(&self) -> bool {
-        self.store_actions.is_empty()
-    }
 
     pub(crate) fn completions(&mut self) -> &mut Queue<kernel::Complete> {
         &mut self.completions
@@ -312,18 +269,6 @@ impl ProcessAdapter {
         }
     }
 
-    pub(crate) fn adopt_delivery_roots(&mut self, roots: Box<[kernel::Fd]>, environment: Box<[Box<[u8]>]>) {
-        let mut file_roots = List::with_capacity(u32::try_from(roots.len()).expect("admitted root count"));
-        for root in &roots {
-            file_roots
-                .push(self.files.adopt_root(*root).expect("bounded workspace roots"))
-                .expect("one token per root");
-        }
-        self.file_roots = file_roots.into_boxed();
-        self.delivery_roots = roots;
-        self.git_environment = environment;
-    }
-
     pub(crate) fn at(&self, now: Time, wall: Wall) -> Env<io::Limits> {
         Env { now, wall, limits: self.limits.io }
     }
@@ -349,63 +294,8 @@ impl ProcessAdapter {
         }
     }
 
-    pub(crate) fn adopt_store(&mut self, root: kernel::Fd) -> Option<()> {
-        let token = self.files.adopt_root(root)?;
-        self.store = Some(local_protocol::Store::new(
-            Token::new(u64::MAX - 1),
-            token,
-            root,
-            store_limits(),
-            self.endpoints.clone(),
-        )?);
-        Some(())
-    }
-
-    pub(crate) fn ephemeral(&mut self, parent: kernel::Fd, name: Box<[u8]>) -> Result<(), kernel::Fd> {
-        let token = self.files.adopt_root(parent).ok_or(parent)?;
-        self.store.as_mut().expect("adopted private store").ephemeral(token, parent, name);
-        Ok(())
-    }
-
     pub(crate) fn endpoint_name(&self, number: u32) -> Option<&[u8]> {
         self.endpoints.name_for(number)
-    }
-
-    pub(crate) fn cleanup_warning(&mut self) -> Option<kernel::Error> {
-        self.cleanup_warning.take()
-    }
-
-    #[cfg(test)]
-    pub(crate) fn store_requests(&mut self) -> &mut Queue<local_protocol::StoreRequest> {
-        &mut self.store_requests
-    }
-
-    pub(crate) fn store_request(&mut self, request: local_protocol::StoreRequest) {
-        self.store_requests.push(request);
-    }
-
-    fn store_pass(&mut self, now: Time, local_events: &mut Queue<local::Event>) {
-        for _ in 0_u8..3_u8 {
-            let Some(action) = self.store_actions.pop() else { break };
-            match action {
-                local_protocol::Action::Io { request, deadline } => self.file_requests.push((request, deadline)),
-                local_protocol::Action::Domain(event) => local_events.push(event),
-                local_protocol::Action::Fault(_) => {}
-                local_protocol::Action::CleanupWarning { error } => self.cleanup_warning = Some(error),
-                local_protocol::Action::Closed => self.store = None,
-            }
-        }
-        if self.store_actions.is_empty()
-            && let Some(store) = &mut self.store
-        {
-            if self.closing.is_some() {
-                store.close(now, &mut self.store_actions);
-            } else if store.takes()
-                && let Some(request) = self.store_requests.pop()
-            {
-                store.request(request, now, &mut self.store_actions);
-            }
-        }
     }
 
     pub(crate) fn close(&mut self) {
@@ -470,9 +360,9 @@ impl ProcessAdapter {
             }
             && self.closing_roots() == 0
             && self.io.sockets() == streams
-            && self.store.is_none()
-            && self.store_requests.is_empty()
-            && self.store_actions.is_empty()
+            && self.store_io.store.is_none()
+            && self.store_io.store_requests.is_empty()
+            && self.store_io.store_actions.is_empty()
             && self.files.takes()
             && self.files.open_files() == 0
             && self.operations.len() == u32::from(self.signal_operation.is_some())
@@ -486,202 +376,12 @@ impl ProcessAdapter {
             && self.completions.is_empty()
     }
 
-    pub(crate) fn capture_plain(&mut self, directories: List<u32>, deadline: Time) {
-        assert!(self.plain.is_none() && self.markers.is_none(), "file inspection is serial");
-        self.snapshots = Map::with_capacity(64);
-        self.capture_directories = directories;
-        self.capture_next = 0;
-        self.capture_deadline = deadline;
-        self.capture_done = None;
-        self.next_capture();
-    }
-
-    pub(crate) fn take_capture_done(&mut self) -> Option<bool> {
-        self.capture_done.take()
-    }
-
-    fn next_capture(&mut self) {
-        match self.capture_directories.get(self.capture_next) {
-            Some(directory) => {
-                let directory = *directory;
-                let root = match self.file_roots.get(usize::try_from(directory).expect("bounded directory")) {
-                    Some(root) => *root,
-                    None => {
-                        self.capture_done = Some(false);
-                        return;
-                    }
-                };
-                let scan = local_protocol::Plain::new(Token::new(0), root, plain_limits(), self.capture_deadline)
-                    .expect("checked plain limits");
-                let action = scan.start();
-                self.plain = Some(PlainScan { purpose: PlainPurpose::Capture { directory }, scan });
-                match action {
-                    local_protocol::PlainAction::File { request, deadline } => {
-                        self.file_requests.push((request, deadline));
-                    }
-                    local_protocol::PlainAction::Done | local_protocol::PlainAction::Failed => {
-                        unreachable!("root is first scan")
-                    }
-                }
-            }
-            None => self.capture_done = Some(true),
-        }
-    }
-
-    pub(crate) fn plain_status(
-        &mut self,
-        owner: Token,
-        directory: u32,
-        deadline: Time,
-        events: &mut Queue<local::Event>,
-    ) {
-        assert!(self.plain.is_none() && self.markers.is_none(), "file inspection is serial");
-        let root = match self.file_roots.get(usize::try_from(directory).expect("bounded directory")) {
-            Some(root) => *root,
-            None => {
-                events.push(local::Event::StoreFailed { turn: None, reason: local::StoreFailure::Read });
-                return;
-            }
-        };
-        match self.snapshots.get(&directory) {
-            Some(Some(_)) => {}
-            Some(None) => {
-                events.push(local::Event::PlainStatus { owner, changed: true });
-                return;
-            }
-            None => {
-                events.push(local::Event::StoreFailed { turn: None, reason: local::StoreFailure::Read });
-                return;
-            }
-        }
-        let scan = local_protocol::Plain::new(owner, root, plain_limits(), deadline).expect("checked plain limits");
-        let action = scan.start();
-        self.plain = Some(PlainScan { purpose: PlainPurpose::Compare { owner, directory }, scan });
-        self.plain_action(action, events);
-    }
-
-    fn plain_action(&mut self, action: local_protocol::PlainAction, events: &mut Queue<local::Event>) {
-        match action {
-            local_protocol::PlainAction::File { request, deadline } => self.file_requests.push((request, deadline)),
-            local_protocol::PlainAction::Done => {
-                let active = self.plain.take().expect("active plain scan");
-                let snapshot = active.scan.finish();
-                match active.purpose {
-                    PlainPurpose::Capture { directory } => {
-                        self.snapshots.insert(directory, Some(snapshot)).expect("bounded snapshots");
-                        self.capture_next = self.capture_next.checked_add(1).expect("bounded directory position");
-                        self.next_capture();
-                    }
-                    PlainPurpose::Compare { owner, directory } => {
-                        let before = self
-                            .snapshots
-                            .get(&directory)
-                            .expect("capture precedes compare")
-                            .as_ref()
-                            .expect("unknown capture answers without a scan");
-                        events.push(local::Event::PlainStatus { owner, changed: *before != snapshot });
-                    }
-                }
-            }
-            local_protocol::PlainAction::Failed => {
-                let active = self.plain.take().expect("active plain scan");
-                match active.purpose {
-                    PlainPurpose::Capture { directory } => {
-                        self.snapshots.insert(directory, None).expect("bounded snapshots");
-                        self.capture_next = self.capture_next.checked_add(1).expect("bounded directory position");
-                        self.next_capture();
-                    }
-                    PlainPurpose::Compare { owner, .. } => {
-                        events.push(local::Event::PlainStatus { owner, changed: true });
-                    }
-                }
-            }
-        }
-    }
-
-    pub(crate) fn start_markers(
-        &mut self,
-        owner: Token,
-        directory: u32,
-        paths: Box<[Box<[u8]>]>,
-        deadline: Time,
-        events: &mut Queue<local::Event>,
-    ) {
-        assert!(self.markers.is_none() && self.plain.is_none(), "one local file inspection at a time");
-        let root = self.file_roots.get(usize::try_from(directory).expect("admitted directory"));
-        let markers = match root {
-            Some(root) => local_protocol::Markers::new(owner, *root, paths, deadline, git_limits(&self.limits)),
-            None => None,
-        };
-        match markers {
-            Some(markers) => {
-                let action = markers.start();
-                self.markers = Some((owner, markers));
-                self.marker_action(owner, action, events);
-            }
-            None => events.push(local::Event::Git {
-                owner,
-                result: local::GitResult::Failed {
-                    reason: smith_domain::run::DeliveryReason::TooLarge,
-                    diagnostic: Box::new(smith_domain::run::Diagnostic::empty()),
-                },
-            }),
-        }
-    }
-
-    fn marker_action(&mut self, owner: Token, action: local_protocol::MarkerAction, events: &mut Queue<local::Event>) {
-        match action {
-            local_protocol::MarkerAction::File { request, deadline } => self.file_requests.push((request, deadline)),
-            local_protocol::MarkerAction::Done(result) => {
-                self.markers = None;
-                events.push(local::Event::Git { owner, result });
-            }
-        }
-    }
-
-    pub(crate) fn start_git(
-        &mut self,
-        owner: Token,
-        directory: u32,
-        op: smith_local_domain::GitOp,
-        deadline: Time,
-        events: &mut Queue<smith_local_domain::Event>,
-    ) {
-        assert!(self.git.is_none(), "the local domain serializes git operations");
-        let root = match usize::try_from(directory) {
-            Ok(index) => self.delivery_roots.get(index).copied(),
-            Err(_) => None,
-        };
-        self.git = match root {
-            Some(root) => local_protocol::GitChild::new(
-                owner,
-                Token::new(1 << 62),
-                root,
-                self.git_environment.clone(),
-                op,
-                deadline,
-                git_limits(&self.limits),
-                &mut self.io_requests,
-            ),
-            None => None,
-        };
-        if self.git.is_none() {
-            events.push(smith_local_domain::Event::Git {
-                owner,
-                result: smith_local_domain::GitResult::Failed {
-                    reason: smith_domain::run::DeliveryReason::Broken,
-                    diagnostic: Box::new(smith_domain::run::Diagnostic::empty()),
-                },
-            });
-        }
-    }
-
     pub(crate) fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
         &mut self.submissions
     }
 
     pub(crate) fn next_deadline(&self) -> Option<Time> {
-        let git_deadline = match &self.git {
+        let git_deadline = match &self.delivery.git {
             Some(git) => git.next_deadline(),
             None => None,
         };
@@ -725,9 +425,9 @@ impl ProcessAdapter {
             || self.process_work_pending()
             || !self.completions.is_empty()
             || (self.store_actions_dispatched() && !self.file_events.is_empty())
-            || !self.store_actions.is_empty()
-            || (!self.store_requests.is_empty()
-                && match &self.store {
+            || !self.store_io.store_actions.is_empty()
+            || (!self.store_io.store_requests.is_empty()
+                && match &self.store_io.store {
                     Some(store) => store.takes(),
                     None => false,
                 })
@@ -764,47 +464,6 @@ impl ProcessAdapter {
                     &mut self.file_events,
                     &mut self.file_submissions,
                 ),
-            }
-        }
-    }
-
-    fn markers_up(&mut self, now: Time, local_events: &mut Queue<local::Event>) {
-        if self.files.is_due(now) {
-            file_layer::expire(&mut self.files, now, &mut self.file_submissions);
-        }
-        self.store_pass(now, local_events);
-        for _ in 0..self.limits.queue {
-            if !self.store_actions_dispatched() {
-                break;
-            }
-            let Some(event) = self.file_events.pop() else { break };
-            if event.owner() == Token::new(u64::MAX - 1) {
-                if let file::Event::Opened { file, .. } = &event {
-                    let descriptor = self.files.descriptor(*file).expect("opened directory is owned by the file layer");
-                    self.store.as_mut().expect("store owns its directory open").opened_directory_descriptor(descriptor);
-                }
-                self.store.as_mut().expect("store owner remains until Closed").from_io(
-                    event,
-                    now,
-                    &mut self.store_actions,
-                );
-                continue;
-            }
-            if self.close_root_pending && event.owner() == Token::new(u64::MAX) {
-                self.close_root_pending = false;
-                continue;
-            }
-            match &mut self.plain {
-                Some(active) => {
-                    let action = active.scan.from_file(event);
-                    self.plain_action(action, local_events);
-                }
-                None => {
-                    let (owner, markers) = self.markers.as_mut().expect("file terminal belongs to marker inspection");
-                    let owner = *owner;
-                    let action = markers.from_file(event);
-                    self.marker_action(owner, action, local_events);
-                }
             }
         }
     }
@@ -869,7 +528,7 @@ impl ProcessAdapter {
                 self.programs.as_mut().expect("program route").receive(event, &mut self.io_requests);
                 continue;
             }
-            let git_owned = match &self.git {
+            let git_owned = match &self.delivery.git {
                 Some(git) => match io_owner(&event) {
                     Some(owner) => git.owns(owner),
                     None => false,
@@ -877,7 +536,11 @@ impl ProcessAdapter {
                 None => false,
             };
             if git_owned {
-                self.git.as_mut().expect("git route exists").from_io(event, local_events, &mut self.io_requests);
+                self.delivery.git.as_mut().expect("git route exists").from_io(
+                    event,
+                    local_events,
+                    &mut self.io_requests,
+                );
                 continue;
             }
             match event {
@@ -929,15 +592,15 @@ impl ProcessAdapter {
                 },
             }
         }
-        if let Some(git) = &mut self.git {
+        if let Some(git) = &mut self.delivery.git {
             git.fire(now, &mut self.io_requests);
         }
-        let git_done = match &self.git {
+        let git_done = match &self.delivery.git {
             Some(git) => git.done(),
             None => false,
         };
         if git_done {
-            self.git = None;
+            self.delivery.git = None;
         }
         if let Some(process) = &mut self.process {
             process.fire(now, &mut self.process_events, &mut self.io_requests);
@@ -1411,6 +1074,7 @@ fn store_limits() -> local_protocol::StoreLimits {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use skein_lib::List;
 
     #[test]
     fn invalid_limits_are_refused() {
@@ -1448,8 +1112,7 @@ mod tests {
         // Consume the store terminal, dispatch Fault + Domain, then the marker.
         const DISPATCH_PASSES: u32 = 3;
         let config = crate::tests::config();
-        let mut adapter =
-            ProcessAdapter::new(&config.limits.process, config.launch, config.endpoints, 1).expect("adapter");
+        let mut adapter = HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).expect("adapter");
         adapter.adopt_store(kernel::Fd::new(10)).expect("store root");
         adapter.adopt_delivery_roots(Box::new([kernel::Fd::new(11)]), Box::new([]));
         let mut events = Queue::uncapped();
@@ -1499,11 +1162,11 @@ mod tests {
             panic!("the store answer must reach the chat before the later marker terminal: {terminals:?}");
         };
         assert!(adapter.file_events.is_empty(), "both file terminals settle once");
-        assert!(adapter.store_actions.is_empty(), "the store answer settles once");
-        assert!(adapter.markers.is_none(), "the inspection settles once");
+        assert!(adapter.store_io.store_actions.is_empty(), "the store answer settles once");
+        assert!(adapter.delivery.markers.is_none(), "the inspection settles once");
     }
 
-    fn start_store_load(adapter: &mut ProcessAdapter, now: Time, events: &mut Queue<local::Event>) {
+    fn start_store_load(adapter: &mut HostIo, now: Time, events: &mut Queue<local::Event>) {
         adapter.store_request(local_protocol::StoreRequest::Load);
         adapter.markers_up(now, events);
         adapter.markers_up(now, events);
@@ -1516,7 +1179,7 @@ mod tests {
     const ORDER_STEPS: u32 = 64;
 
     struct FileOrderWorld {
-        adapter: ProcessAdapter,
+        adapter: HostIo,
         sim: skein_sim::Sim,
         pid: skein_sim::Pid,
         machine: skein_fake_machine::Machine,
@@ -1631,8 +1294,8 @@ mod tests {
         };
         assert!(events.is_empty(), "both requests have exactly one chat terminal");
         assert!(world.adapter.file_events.is_empty());
-        assert!(world.adapter.store_actions.is_empty());
-        assert!(world.adapter.markers.is_none());
+        assert!(world.adapter.store_io.store_actions.is_empty());
+        assert!(world.adapter.delivery.markers.is_none());
         world.close(&mut events);
         assert!(events.is_empty(), "closing adds no request terminal");
     }
@@ -1643,11 +1306,11 @@ mod tests {
     const BURST: u32 = 2;
     const KERNEL_QUEUE: u32 = 1;
 
-    fn adapter(queue: u32, sockets: u32) -> ProcessAdapter {
+    fn adapter(queue: u32, sockets: u32) -> HostIo {
         let mut config = crate::tests::config();
         config.limits.process.queue = queue;
         config.limits.process.io.sockets = sockets;
-        ProcessAdapter::new(&config.limits.process, config.launch, config.endpoints, 1).expect("adapter")
+        HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).expect("adapter")
     }
 
     fn close_submission(number: u64) -> kernel::Submit {
@@ -1700,7 +1363,7 @@ mod tests {
         assert!(adapter.shell_events.is_empty());
     }
 
-    fn requests_down(adapter: &mut ProcessAdapter) {
+    fn requests_down(adapter: &mut HostIo) {
         let env = adapter.at(Time::ZERO, Wall::EPOCH);
         adapter.down(
             &env,
@@ -1712,7 +1375,7 @@ mod tests {
         );
     }
 
-    fn internal_io_burst() -> ProcessAdapter {
+    fn internal_io_burst() -> HostIo {
         use skein_lib::Duration;
         use smith_host_protocol::{ProgramSource, SourceAsk};
         use smith_protocol_program::Programs;
@@ -1900,18 +1563,17 @@ mod tests {
         adapter.file_requests.push((file::Request::Close { owner: Token::new(1), file: Token::new(2) }, Time::ZERO));
         adapter.file_events.push(file::Event::Closed { owner: Token::new(1) });
         adapter.file_submissions.push(close_submission(3));
-        adapter.store_requests.push(local_protocol::StoreRequest::Load);
-        adapter.store_actions.push(local_protocol::Action::Closed);
+        adapter.store_io.store_requests.push(local_protocol::StoreRequest::Load);
+        adapter.store_io.store_actions.push(local_protocol::Action::Closed);
         adapter.process_events.push(protocol::ProcessEvent::Exited { agent: Token::new(1), exit: None });
         adapter.io_requests.push(io::Request::Close { entity: Token::new(1) });
         // Each of the nine internal handoffs holds one entry.
         assert_eq!(adapter.backlog(), 9);
     }
 
-    fn prefetched_adapter(owner: Token) -> ProcessAdapter {
+    fn prefetched_adapter(owner: Token) -> HostIo {
         let config = crate::tests::config();
-        let mut adapter =
-            ProcessAdapter::new(&config.limits.process, config.launch, config.endpoints, 1).expect("adapter");
+        let mut adapter = HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).expect("adapter");
         adapter
             .process_events
             .push(protocol::ProcessEvent::Channel { agent: owner, event: Box::new(protocol::OpenEvent::WriteFailed) });

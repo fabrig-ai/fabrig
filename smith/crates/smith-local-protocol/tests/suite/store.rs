@@ -230,21 +230,8 @@ mod tests {
             local::Event::StateSaved
         ));
         let turn = smith_domain::Turn {
-            version: smith_domain::session::record::VERSION,
-            kind: smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
-                affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
-                account: None,
-                backend: smith_domain::session::record::Backend::Direct,
-            })),
             endpoint: Some(smith_domain::session::llm::Endpoint(2)),
-            dialect: 1,
-            model: b"model".as_slice().into(),
-            effort: None,
-            sequence: 1,
-            usage: smith_domain::session::llm::Usage::ZERO,
-            spent: 0,
-            jobs: 0,
-            messages: Box::new([]),
+            ..smith_local_domain::fixture::turn()
         };
         assert!(matches!(
             disk.drive(StoreRequest::SaveTurn {

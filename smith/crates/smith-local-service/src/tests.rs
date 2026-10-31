@@ -50,24 +50,7 @@ fn a_resize_during_a_window_read_is_read_after_its_terminal() {
 const EXTERNAL_QUEUE_SLOTS: u32 = 64;
 
 pub(crate) fn config() -> Config {
-    let mut local_limits = local::Limits {
-        smith: smith_agent_world::LIMITS,
-        agent: local::AgentLimits::inline(
-            smith_agent_world::LIMITS,
-            2,
-            Duration::from_secs(60),
-            Duration::from_secs(5),
-        )
-        .expect("bounded inline child"),
-        endpoints: Box::new([Endpoint(4)]),
-        chat_bytes: 64,
-        text_bytes: 1024,
-        models: 1,
-        line_bytes: 256,
-        show_bytes: 1024,
-        unsaved: 2,
-        facts: 16,
-    };
+    let mut local_limits = local::Limits { models: 1, ..local::fixture::small(smith_agent_world::LIMITS) };
     let mut host_limits = smith_host_world::limits();
     host_limits.agents = 1;
     host_limits.accounts = 1;
@@ -75,30 +58,32 @@ pub(crate) fn config() -> Config {
     let queue = EXTERNAL_QUEUE_SLOTS;
     let agent_limits = smith_agent_process_world::limits();
     let mut process = ProcessLimits {
-        io: skein_io::Limits {
-            sockets: 8,
-            names: 0,
-            refusals: 1,
-            intake: 4096,
-            receive: 4096,
-            output: 1_000_000,
-            sends: 8,
-            accepts: 1,
-            backlog: 2,
-            close_timeout: Duration::from_secs(1),
-            retry: Duration::from_millis(1),
-        },
-        channel: smith_host_protocol::Limits {
-            bodies: agent_limits.channel.bodies,
-            charter: agent_limits.channel.charter,
-            transcript: agent_limits.channel.transcript,
-            endpoints: agent_limits.channel.endpoints,
-            channel: agent_limits.channel.channel,
-            start_bytes: agent_limits.channel.start_bytes,
-            calls: host_limits.calls,
-        },
         detail_bytes: host_limits.detail_bytes,
         queue,
+        ..crate::fixture::process(
+            skein_io::Limits {
+                sockets: 8,
+                names: 0,
+                refusals: 1,
+                intake: 4096,
+                receive: 4096,
+                output: 1_000_000,
+                sends: 8,
+                accepts: 1,
+                backlog: 2,
+                close_timeout: Duration::from_secs(1),
+                retry: Duration::from_millis(1),
+            },
+            smith_host_protocol::Limits {
+                bodies: agent_limits.channel.bodies,
+                charter: agent_limits.channel.charter,
+                transcript: agent_limits.channel.transcript,
+                endpoints: agent_limits.channel.endpoints,
+                channel: agent_limits.channel.channel,
+                start_bytes: agent_limits.channel.start_bytes,
+                calls: host_limits.calls,
+            },
+        )
     };
     process.channel.channel.output_bytes =
         smith_host_protocol::output_bytes(&process.channel).expect("host directional frame");
@@ -139,7 +124,7 @@ pub(crate) fn config() -> Config {
             workspace: None,
             push: None,
         },
-        limits: Limits { local: local_limits, envelope_bytes, process, queue, watermark: queue },
+        limits: Limits { envelope_bytes, queue, watermark: queue, ..crate::fixture::small(local_limits, process) },
         endpoints: smith_protocol_channel::Endpoints::new(List::with_capacity(0)),
         paths: Box::new([]),
         launch: Launch {
@@ -304,9 +289,7 @@ fn a_local_service_refuses_lower_configuration_for_the_other_agent_kind() {
     let mut spawned = config();
     spawned.agent =
         crate::AgentConfig::Inline { configuration: smith_agent_process_world::configuration(), roots: Box::new([]) };
-    let Err(crate::Error::Process) = Service::new(spawned, 95) else {
-        panic!("spawned limits require the process adapter")
-    };
+    let Err(crate::Error::Process) = Service::new(spawned, 95) else { panic!("spawned limits require the host IO") };
 }
 
 #[test]
@@ -330,8 +313,7 @@ fn original_conflict_files_are_read_through_the_services_kernel_routes() {
     let pid = sim.spawn_process();
     let root = sim.root(pid, skein_sim::Handle::new(handle.raw()));
     let config = config();
-    let mut process =
-        crate::process::ProcessAdapter::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
+    let mut process = crate::host_io::HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
     process.adopt_delivery_roots(Box::new([root]), Box::new([]));
     let mut local_events = Queue::with_capacity(256);
     let mut host_events = Queue::with_capacity(256);
@@ -392,7 +374,7 @@ fn original_conflict_files_are_read_through_the_services_kernel_routes() {
 }
 
 pub(crate) fn settle_file_io(
-    process: &mut crate::process::ProcessAdapter,
+    process: &mut crate::host_io::HostIo,
     sim: &mut skein_sim::Sim,
     machine: &mut skein_fake_machine::Machine,
     pid: skein_sim::Pid,
@@ -454,8 +436,7 @@ fn plain_status_uses_the_runs_snapshot_and_refreshes_it_before_the_next_run() {
     let pid = sim.spawn_process();
     let root = sim.root(pid, skein_sim::Handle::new(handle.raw()));
     let config = config();
-    let mut process =
-        crate::process::ProcessAdapter::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
+    let mut process = crate::host_io::HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
     process.adopt_delivery_roots(Box::new([root]), Box::new([]));
     let mut events = Queue::with_capacity(256);
     let mut directories = List::with_capacity(1);
@@ -700,7 +681,7 @@ fn a_later_entrance_keeps_its_facts_behind_the_earlier_entrances_requests() {
         while let Some(output) = service.output().pop() {
             text.extend_from_slice(&output);
         }
-        command_crossed |= text.windows(COMMAND_REFUSAL.len()).any(|part| part == COMMAND_REFUSAL);
+        command_crossed |= skein_lib::bytes::find(&text, COMMAND_REFUSAL).is_some();
         if message_receipts(&trace_records(&machine, trace, &events)) != 0 {
             assert!(command_crossed, "the message fact reached the trace before the command Show crossed");
         }

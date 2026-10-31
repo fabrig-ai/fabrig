@@ -13,6 +13,9 @@ extern crate alloc;
 
 mod borrowed;
 mod delivery_store;
+
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
 pub mod format;
 
 #[rustfmt::skip]
@@ -39,6 +42,6 @@ pub use store::{
     decode_state, decode_turns, save_state, save_turn, turn_name, turn_opens_window,
 };
 pub use terminal::{
-    Entered, Event as TerminalEvent, Limits as TerminalLimits, Slash, Terminal, entered, notice_text, run_failure_text,
-    valid as terminal_valid,
+    Entered, Event as TerminalEvent, Limits as TerminalLimits, Slash, Terminal, choice_text, entered, notice_text,
+    run_failure_text, valid as terminal_valid,
 };

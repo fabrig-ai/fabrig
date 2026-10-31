@@ -7,6 +7,9 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[features]
+fixture = []
+
 [dependencies]
 skein-oauth.workspace = true
 skein-oauth-accounts.workspace = true
@@ -29,6 +32,8 @@ smith-transcript.workspace = true
 smith-channel.workspace = true
 
 [dev-dependencies]
+smith-local-service = { path = ".", features = ["fixture"] }
+smith-local-domain = { workspace = true, features = ["fixture"] }
 skein-fake-oauth.workspace = true
 smith-local-process-world.workspace = true
 skein-fake-peers.workspace = true

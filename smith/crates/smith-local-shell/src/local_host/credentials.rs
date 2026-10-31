@@ -12,6 +12,7 @@ impl Local {
             | domain::Notice::Waiting
             | domain::Notice::Checking(_)
             | domain::Notice::NotDelivered { .. }
+            | domain::Notice::Choice(_)
             | domain::Notice::ChatRefused { .. } => return None,
         };
         let location = self.credential_locations.iter().find(|location| location.account == account)?;

@@ -53,7 +53,7 @@ impl PrivateWorld {
 
     fn settle(&mut self) {
         crate::tests::settle_file_io(
-            self.service.below.process_mut(),
+            &mut self.service.io,
             &mut self.sim,
             &mut self.machine,
             self.pid,
@@ -79,7 +79,7 @@ impl PrivateWorld {
                 }),
             },
         ] {
-            self.service.below.process_mut().store_request(request);
+            self.service.io.store_request(request);
             self.settle();
         }
     }
@@ -92,7 +92,7 @@ impl PrivateWorld {
 
     fn finish(&mut self) -> local::ExitStatus {
         let status = finish_output(&mut self.service);
-        assert!(self.service.below.process().closed());
+        assert!(self.service.io.closed());
         self.machine.close(self.root);
         assert_eq!(self.machine.open_handles(), 0, "store, cleanup parent and observer close");
         status
@@ -109,23 +109,7 @@ impl PrivateWorld {
 }
 
 fn turn() -> smith_domain::Turn {
-    smith_domain::Turn {
-        model: b"model".as_slice().into(),
-        effort: None,
-        kind: smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
-            affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
-            account: None,
-            backend: smith_domain::session::record::Backend::Direct,
-        })),
-        version: smith_domain::session::record::VERSION,
-        endpoint: Some(smith_domain::session::llm::Endpoint(4)),
-        dialect: 1,
-        sequence: 1,
-        usage: smith_domain::session::llm::Usage::ZERO,
-        spent: 0,
-        jobs: 0,
-        messages: Box::new([]),
-    }
+    smith_local_domain::fixture::turn()
 }
 
 fn assert_removed_after_exit(status: local::ExitStatus) {

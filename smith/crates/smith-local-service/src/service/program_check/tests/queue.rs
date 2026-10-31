@@ -59,7 +59,7 @@ fn interruption_answers_the_queue_before_the_live_child_settles() {
 fn a_settling_check_accepts_a_later_request_for_the_same_account() {
     let mut service = service();
     let mut fixture = Fixture::new();
-    fixture.checks = *service.below.process_mut().programs.take().unwrap();
+    fixture.checks = *service.io.programs.take().unwrap();
     fixture.request(7);
     fixture.spawn();
     fixture.checks.cancel(&mut fixture.below);

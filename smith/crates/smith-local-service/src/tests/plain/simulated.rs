@@ -1,7 +1,7 @@
 //! Plain capture bounds and replacement over the fake machine (shell.md, section 4).
 
 use super::{PLAIN_CHILDREN, PLAIN_FILE_BYTES, TOO_MANY_PLAIN_CHILDREN};
-use crate::process::ProcessAdapter;
+use crate::host_io::HostIo;
 use skein_fake_machine::{How, Item, Machine, Opened};
 use skein_lib::{List, Queue, Time, Token};
 use smith_local_domain as local;
@@ -11,7 +11,7 @@ const OWNER: Token = Token::new(7);
 const DEADLINE: Time = Time::from_nanos(u64::MAX);
 
 struct PlainWorld {
-    process: ProcessAdapter,
+    process: HostIo,
     machine: Machine,
     root: Opened,
     sim: skein_sim::Sim,
@@ -31,7 +31,7 @@ impl PlainWorld {
         let pid = sim.spawn_process();
         let descriptor = sim.root(pid, skein_sim::Handle::new(root.raw()));
         let config = crate::tests::config();
-        let mut process = ProcessAdapter::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
+        let mut process = HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
         process.adopt_delivery_roots(Box::new([descriptor]), Box::new([]));
         Self { process, machine, root, sim, pid, events: Queue::uncapped() }
     }

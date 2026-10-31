@@ -89,7 +89,7 @@ impl Live {
             | OpenEvent::Limited { .. }
             | OpenEvent::Refused { .. }
             | OpenEvent::Call { .. }
-            | OpenEvent::Withdraw { .. }) => crate::process::channel_event(run, other),
+            | OpenEvent::Withdraw { .. }) => crate::host_io::channel_event(run, other),
         }
     }
 
@@ -418,13 +418,9 @@ mod tests {
             kind: smith_domain::session::record::Kind::Ordinary,
             endpoint: None,
             model: Box::new([]),
-            effort: None,
-            dialect: 1,
             sequence: number,
             usage: smith_domain::session::llm::Usage::NONE,
-            spent: 0,
-            jobs: 0,
-            messages: Box::new([]),
+            ..smith_local_domain::fixture::turn()
         };
         timing.received(
             &process::Event::Received {
