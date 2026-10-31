@@ -816,5 +816,5 @@ fn a_provider_refusal_is_shown_with_its_class_and_text() {
     let shown = world.shown().iter().find(|text| text.starts_with(b"run failed: ")).expect("failure line");
     assert!(skein_lib::bytes::find(shown, b"invalid (HTTP 400)").is_some());
     assert!(shown.ends_with(b"after 1 attempts: model does not exist\n"));
-    assert!(!skein_lib::bytes::find(shown, b"second line").is_some());
+    assert!(skein_lib::bytes::find(shown, b"second line").is_none());
 }

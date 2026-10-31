@@ -160,7 +160,7 @@ enum PushFault {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-/// One scripted uncertainty at the git boundary, supplied by a local-world story.
+/// One scripted uncertainty at the git boundary, supplied by a local-world fixture.
 pub enum GitFault {
     /// The deadline passes before a commit makes any effect.
     NoEffect,
@@ -363,8 +363,8 @@ impl World {
         let (unsaved, facts) = capacities;
         let meeting = Meeting::after(store.activation(), store.state.map_or(0, |state| state.next_message))
             .prior_delivery(store.deliveries.values(), &store.commits);
-        let story = scenario.facts();
-        let meeting = match story.files {
+        let fixture = scenario.facts();
+        let meeting = match fixture.files {
             Files::None => meeting,
             Files::TwoGit => meeting.writable(&[0, 1], &[1, 2]),
             Files::Plain | Files::Git | Files::Merge => meeting.writable(&[0], &[1]),
@@ -386,21 +386,21 @@ impl World {
         let mut history = store.history.take();
         let mut git_head = store.git_head.take();
         let git_expected = store.git_expected.take().or(git_head).or(Some(1));
-        let workspace = if story.files == Files::None {
+        let workspace = if fixture.files == Files::None {
             None
         } else {
-            if matches!(story.files, Files::Git | Files::Merge | Files::TwoGit) && !restored {
+            if matches!(fixture.files, Files::Git | Files::Merge | Files::TwoGit) && !restored {
                 let mut tree = BTreeMap::from([(b"src/lib.rs".to_vec(), b"pub fn answer() -> u32 { 42 }\n".to_vec())]);
-                if story.checks {
+                if fixture.checks {
                     tree.insert(b".temper/pre-pr".to_vec(), b"#!checks\nsrc/lib.rs 43\n".to_vec());
                 }
                 let mut graph = History::new(tree);
                 git::clone_repository(&mut graph, &mut disk, b"repo", b"work").expect("fixture git clone");
                 git::check_out(&graph, &mut disk, b"work", 1).expect("fixture initial checkout");
-                if story.target == Target::Stale {
+                if fixture.target == Target::Stale {
                     graph.move_remote();
                 }
-                if story.files == Files::Merge {
+                if fixture.files == Files::Merge {
                     disk.write(b"work/src/lib.rs", b"<<<<<<< ours\nleft\n=======\nright\n>>>>>>> theirs\n");
                     disk.write(b"work/.git/MERGE_HEAD", &1_u64.to_le_bytes());
                     disk.write(b"work/.git/temper-conflicts/0", b"src/lib.rs");
@@ -409,7 +409,7 @@ impl World {
                 git_head = Some(1);
             } else if !restored {
                 disk.write(b"work/src/lib.rs", b"pub fn answer() -> u32 { 42 }\n");
-                if story.checks {
+                if fixture.checks {
                     disk.write(b"work/.temper/pre-pr", b"#!checks\nsrc/lib.rs 43\n");
                 }
             }
@@ -428,14 +428,14 @@ impl World {
                 name: b"work".as_slice().into(),
                 root: checkout_io::token(root),
                 writable: true,
-                git: matches!(story.files, Files::Git | Files::Merge | Files::TwoGit),
-                conflicts: if story.files == Files::Merge {
+                git: matches!(fixture.files, Files::Git | Files::Merge | Files::TwoGit),
+                conflicts: if fixture.files == Files::Merge {
                     Box::new([b"src/lib.rs".as_slice().into()])
                 } else {
                     Box::new([])
                 },
             };
-            let directories = if story.files == Files::TwoGit {
+            let directories = if fixture.files == Files::TwoGit {
                 if !restored {
                     disk.write(b"work2/other.txt", b"changed");
                 }
@@ -456,11 +456,11 @@ impl World {
             };
             Some(run::Workspace { directories })
         };
-        let change = story.result == ResultKind::Change;
+        let change = fixture.result == ResultKind::Change;
         let instructions: &[u8] = if matches!(mode, local::Mode::Chat { .. }) && scenario == Scenario::Chat {
             b"@local-chat Assist the person."
         } else {
-            story.instructions
+            fixture.instructions
         };
         let contract = if change {
             Contract::Change(run::outcome::ChangeSpec {
@@ -502,11 +502,11 @@ impl World {
                 window: 8192,
                 output: 256,
             }]),
-            sub_agents: story.delegate,
+            sub_agents: fixture.delegate,
             budget: budget.unwrap_or(agent_world::BUDGET),
             conventions: None,
             contract,
-            deliver: if story.result == ResultKind::MidReport {
+            deliver: if fixture.result == ResultKind::MidReport {
                 Some(run::outcome::ChangeSpec {
                     checks_must_pass: true,
                     fields: Box::new([run::outcome::FieldRule { name: b"ticket".as_slice().into(), max: 128 }]),
@@ -514,7 +514,7 @@ impl World {
             } else {
                 None
             },
-            title_field: if story.result == ResultKind::MidReport {
+            title_field: if fixture.result == ResultKind::MidReport {
                 b"ticket".as_slice().into()
             } else {
                 b"title".as_slice().into()
@@ -523,13 +523,12 @@ impl World {
             resume,
             accounts: Box::new([0]),
             workspace,
-            push: if story.target != Target::None {
-                Some(Box::new([Some(local::PushTarget {
+            push: match fixture.target {
+                Target::None => None,
+                Target::Current | Target::Stale => Some(Box::new([Some(local::PushTarget {
                     remote: b"repo".as_slice().into(),
                     branch: b"main".as_slice().into(),
-                })]))
-            } else {
-                None
+                })])),
             },
         };
         let provider_config = smith_session_world::Settings::calm(seed).provider;
@@ -637,12 +636,12 @@ impl World {
             })
     }
 
-    /// Hold store turn acknowledgements until released by the story.
+    /// Hold store turn acknowledgements until released by the fixture.
     pub fn slow_store(&mut self) {
         self.slow_store = true;
     }
 
-    /// Delay typed git terminals until the story releases them.
+    /// Delay typed git terminals until the fixture releases them.
     pub fn slow_git(&mut self) {
         self.slow_git = true;
     }

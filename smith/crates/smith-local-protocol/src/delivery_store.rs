@@ -344,7 +344,9 @@ fn decimal(out: &mut [u8], cursor: &mut usize, value: u64, width: usize) {
     let digits = skein_lib::Decimal::of(value);
     let end = cursor.checked_add(width).expect("fixed decimal field bound");
     let start = end.checked_sub(digits.as_bytes().len()).expect("value fits its decimal field");
-    out.get_mut(start..end).expect("fixed decimal slot").copy_from_slice(digits.as_bytes());
+    for (slot, digit) in out.get_mut(start..end).expect("fixed decimal slot").iter_mut().zip(digits.as_bytes()) {
+        *slot = *digit;
+    }
     *cursor = end;
 }
 
