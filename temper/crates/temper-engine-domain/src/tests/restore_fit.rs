@@ -221,3 +221,39 @@ fn a_stored_live_set_past_its_limit_keeps_the_core_phase_and_typed_fit() {
     assert!(!domain.journal.stopped());
     assert!(!domain.ready());
 }
+
+#[test]
+fn a_task_correlation_past_its_limit_records_the_row_entrance_fit() {
+    use jig_domain_core::{Key, Record};
+    use jig_domain_tasks as tasks;
+    let (source, _, goal) = super::projection_settled::live_goal(None);
+    let mut task = source.tasks().task(goal).unwrap().clone();
+    task.executor = tasks::Executor::Agent { charter: 1 };
+    task.attempt = 1;
+    let (mut domain, env) = starting();
+    let bound = u64::from(env.limits.tasks.tasks);
+    for number in 1..=bound + 1 {
+        task.number = number;
+        crate::restart::restore_page_row(
+            &mut domain,
+            &env,
+            crate::Record::Core(Record::Tasks(tasks::Stored::Live(Box::new(task.clone())))),
+        );
+        if number <= bound {
+            assert_eq!(domain.core.start_failure(), None);
+        }
+    }
+    assert_eq!(
+        domain.start_stop(),
+        Some(crate::StartStop::Core {
+            phase: Some(jig_domain_core::start::Phase::LoadCore),
+            failure: jig_domain_core::start::Failure::LiveSet {
+                set: jig_domain_core::start::LiveSet::RunProofs,
+                key: Key::Tasks(tasks::Key::Live(bound + 1)),
+                held: bound + 1,
+                limit: bound,
+            },
+        })
+    );
+    assert!(!domain.ready());
+}
