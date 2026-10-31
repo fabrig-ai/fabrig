@@ -113,21 +113,7 @@ pub(super) fn request(backend: &Backend) -> FromDomain {
     FromDomain::Complete {
         owner: Token::new(80),
         grant: Some(GrantName { account: 0, generation: 1 }),
-        prompt: llm::Prompt {
-            purpose: llm::Purpose::Ordinary { guard: None },
-            asker: llm::Asker::Main,
-            endpoint: llm::Endpoint(0),
-            affinity: llm::Affinity { key: [0; 16], thread: 0 },
-            model: b"fake".as_slice().into(),
-            effort: None,
-            system: Box::default(),
-            tools: smith_domain::tools::Grants { inspect: false, modify: false, shell: false },
-            namespace: smith_domain::tools::Namespace::NoWorkspace,
-            served: Box::default(),
-            choice: llm::ToolChoice::Auto,
-            messages: Box::default(),
-            max_tokens: 128,
-        },
+        prompt: prompt_with(Box::default()),
         deadlines: smith_domain::session::Deadlines {
             head: Duration::from_secs(1),
             idle: Duration::from_secs(1),
@@ -305,5 +291,72 @@ pub(super) fn drained_window() -> Backend {
     let mut backend = window();
     backend.child = Some(backend.token(4));
     backend.pipes = [None; 3];
+    backend
+}
+
+/// A backend and the queues supplied at its step boundary.
+pub(super) struct Harness {
+    pub backend: Backend,
+    pub up: Queue<ToDomain>,
+    pub below: Queue<Below>,
+}
+
+impl Harness {
+    pub fn new(backend: Backend) -> Self {
+        Self { backend, up: Queue::with_capacity(32), below: Queue::with_capacity(64) }
+    }
+}
+
+/// An ordinary main prompt with the scenario's message history.
+pub(super) fn prompt_with(messages: Box<[llm::Message]>) -> llm::Prompt {
+    llm::Prompt {
+        purpose: llm::Purpose::Ordinary { guard: None },
+        asker: llm::Asker::Main,
+        endpoint: llm::Endpoint(0),
+        affinity: llm::Affinity { key: [0; 16], thread: 0 },
+        model: b"fake".as_slice().into(),
+        effort: None,
+        system: Box::default(),
+        tools: smith_domain::tools::Grants { inspect: false, modify: false, shell: false },
+        namespace: smith_domain::tools::Namespace::NoWorkspace,
+        served: Box::default(),
+        choice: llm::ToolChoice::Auto,
+        messages,
+        max_tokens: 128,
+    }
+}
+
+/// A lazy startup whose program spawn has not answered yet.
+pub(super) fn spawning() -> Backend {
+    let mut backend = backend();
+    backend.phase = Phase::Starting;
+    backend.spawning = true;
+    backend
+}
+
+/// A spawned program waiting for its init record.
+pub(super) fn starting() -> Backend {
+    let mut backend = active();
+    backend.phase = Phase::Starting;
+    backend.deadline = Some(env(30).now);
+    backend.child = Some(backend.token(4));
+    backend
+}
+
+/// One child with no remaining output streams.
+pub(super) fn running_child() -> Backend {
+    let mut backend = backend();
+    backend.phase = Phase::Running;
+    backend.child = Some(Token::new(30));
+    backend
+}
+
+/// A program input line waiting for output room.
+pub(super) fn input(bytes: Box<[u8]>) -> Backend {
+    let mut backend = backend();
+    backend.phase = Phase::Running;
+    backend.pipes[0] = Some(Token::new(31));
+    backend.outgoing = Some(bytes);
+    backend.send_input();
     backend
 }

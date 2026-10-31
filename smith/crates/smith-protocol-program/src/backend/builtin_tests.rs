@@ -4,6 +4,7 @@
     clippy::disallowed_types,
     reason = "ordinary backend harness, programming-model.md 10.2"
 )]
+use super::fixtures::records as active;
 use super::fixtures::{env, request};
 use super::*;
 use alloc::{vec, vec::Vec};
@@ -12,9 +13,6 @@ use smith_domain::tools::{Effect, Grants};
 const READ: &[u8] = br#"{"type":"assistant","message":{"id":"one","content":[{"type":"tool_use","id":"r","name":"Read","input":{"file_path":"a"}}]}}"#;
 
 const RESULT: &[u8] = br#"{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"r","content":[{"type":"text","text":"one"},{"type":"image"},{"type":"text","text":"two"}],"is_error":true}]}}"#;
-fn active() -> Backend {
-    fixtures::records()
-}
 
 #[test]
 fn a_built_in_tool_use_is_a_builtin_call() {
@@ -31,8 +29,10 @@ fn a_built_in_tool_use_is_a_builtin_call() {
         let mut backend = active();
         let mut up = Queue::with_capacity(32);
         let mut below = Queue::with_capacity(64);
-        let bytes = core::str::from_utf8(READ).expect("JSON").replace("Read", name);
-        backend.line(&env(0), bytes.as_bytes(), &mut up, &mut below);
+        let mut record: serde_json::Value = serde_json::from_slice(READ).expect("JSON");
+        record["message"]["content"][0]["name"] = serde_json::json!(name);
+        let bytes = serde_json::to_vec(&record).expect("JSON");
+        backend.line(&env(0), &bytes, &mut up, &mut below);
         let Some(ToDomain::Completed { completion, .. }) = up.pop() else { panic!("completion") };
         let llm::Said::ToolCall { name: got, call, .. } = &completion.content[0] else { panic!("tool call") };
         assert_eq!(got.as_ref(), name.as_bytes());
@@ -62,9 +62,7 @@ fn a_built_in_result_follows_its_completion() {
 
 #[test]
 fn a_complete_s_result_for_a_built_in_is_skipped() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.line(&env(0), READ, &mut up, &mut below);
     up.pop();
     while backend.pop_measure().is_some() {}
@@ -83,8 +81,8 @@ fn a_complete_s_result_for_a_built_in_is_skipped() {
     assert!(backend.ledger.get(0).expect("call").answer.is_none());
     backend.line(&env(0), RESULT, &mut up, &mut below);
     result_id(up.pop(), Token::new(80), b"r");
-    let later = core::str::from_utf8(READ).expect("JSON").replace("one", "later").replace("\"r\"", "\"r2\"");
-    backend.line(&env(0), later.as_bytes(), &mut up, &mut below);
+    let later = read_record("later", "r2");
+    backend.line(&env(0), &later, &mut up, &mut below);
     completed(up.pop(), Token::new(80));
     let mut next = request(&backend);
     let FromDomain::Complete { prompt, .. } = &mut next else { panic!("Complete") };
@@ -116,9 +114,7 @@ fn init(tools: &[&str], granted: bool) -> (Backend, Queue<ToDomain>) {
 }
 
 fn init_contract(tools: &[&str], granted: bool, contract: bool) -> (Backend, Queue<ToDomain>) {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     if let Some(FromDomain::Complete { prompt, .. }) = &mut backend.request {
         prompt.tools.inspect = granted;
         if contract {
@@ -392,10 +388,12 @@ fn queued_built_in_results_keep_their_message_owners() {
     let mut below = Queue::with_capacity(64);
     backend.line(&env(0), READ, &mut up, &mut below);
     backend.line(&env(0), RESULT, &mut up, &mut below);
-    let next_call = core::str::from_utf8(READ).expect("JSON").replace("one", "second").replace("\"r\"", "\"r2\"");
-    let next_result = core::str::from_utf8(RESULT).expect("JSON").replace("\"r\"", "\"r2\"");
-    backend.line(&env(0), next_call.as_bytes(), &mut up, &mut below);
-    backend.line(&env(0), next_result.as_bytes(), &mut up, &mut below);
+    let next_call = read_record("second", "r2");
+    let mut record: serde_json::Value = serde_json::from_slice(RESULT).expect("JSON");
+    record["message"]["content"][0]["tool_use_id"] = serde_json::json!("r2");
+    let next_result = serde_json::to_vec(&record).expect("JSON");
+    backend.line(&env(0), &next_call, &mut up, &mut below);
+    backend.line(&env(0), &next_result, &mut up, &mut below);
     backend.resume(&env(0), request(&backend), &mut up, &mut below);
     completed(up.pop(), Token::new(80));
     result_id(up.pop(), Token::new(80), b"r");
@@ -928,4 +926,11 @@ fn an_unannounced_mcp_successor_is_refused_when_the_turn_ends() {
     let reply = fixtures::server_reply(&mut backend);
     assert_eq!(reply["result"]["isError"], true);
     assert_eq!(reply["result"]["content"][0]["text"], "smith: this call was not in the model's message");
+}
+
+fn read_record(message: &str, call: &str) -> Vec<u8> {
+    let mut record: serde_json::Value = serde_json::from_slice(READ).expect("JSON");
+    record["message"]["id"] = serde_json::json!(message);
+    record["message"]["content"][0]["id"] = serde_json::json!(call);
+    serde_json::to_vec(&record).expect("JSON")
 }

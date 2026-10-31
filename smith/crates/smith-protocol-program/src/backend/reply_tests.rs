@@ -28,7 +28,7 @@ fn wait_s_messages_join_its_answer() {
     let mut backend = backend();
     assert!(backend.ledger.push(call(b"first")).is_ok());
     assert!(backend.ledger.push(call(b"last")).is_ok());
-    let FromDomain::Complete { mut prompt, .. } = request(&backend) else { panic!("prompt") };
+    let mut prompt = fixtures::prompt_with(Box::default());
     let messages = Box::new([llm::Message {
         role: llm::Role::User,
         content: Box::new([
@@ -54,7 +54,7 @@ fn a_joined_reply_past_its_bound_is_refused() {
     let mut backend = backend();
     backend.settings.adapter.rendered_result = 8;
     assert!(backend.ledger.push(call(b"last")).is_ok());
-    let FromDomain::Complete { mut prompt, .. } = request(&backend) else { panic!("prompt") };
+    let mut prompt = fixtures::prompt_with(Box::default());
     let messages = Box::new([llm::Message {
         role: llm::Role::User,
         content: Box::new([result(b"last"), llm::Block::Text { text: b"more".as_slice().into(), replay: None }]),
@@ -67,7 +67,7 @@ fn user_text_survives_interleaved_results() {
     let mut backend = backend();
     assert!(backend.ledger.push(call(b"first")).is_ok());
     assert!(backend.ledger.push(call(b"last")).is_ok());
-    let FromDomain::Complete { mut prompt, .. } = request(&backend) else { panic!("prompt") };
+    let mut prompt = fixtures::prompt_with(Box::default());
     let messages = Box::new([llm::Message {
         role: llm::Role::User,
         content: Box::new([

@@ -1,11 +1,7 @@
 //! Open stream boundaries (protocol/programs.md 5.9).
 #![expect(clippy::disallowed_methods, reason = "ordinary Rust step harness, programming-model.md 10.2")]
-use super::fixtures::{env, request};
+use super::fixtures::{active as running, env, request};
 use super::*;
-
-fn running() -> Backend {
-    fixtures::active()
-}
 
 fn running_with_queues() -> (Backend, Queue<ToDomain>, Queue<Below>) {
     (running(), Queue::with_capacity(32), Queue::with_capacity(64))

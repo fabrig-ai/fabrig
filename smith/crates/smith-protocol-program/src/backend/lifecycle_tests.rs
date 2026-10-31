@@ -9,9 +9,7 @@ use alloc::vec;
 
 #[test]
 fn a_late_spawn_after_grace_is_terminated_as_a_group() {
-    let mut backend = backend();
-    backend.phase = Phase::Starting;
-    backend.spawning = true;
+    let mut backend = fixtures::spawning();
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     backend.close(&env(0), &mut up, &mut below);
@@ -47,9 +45,7 @@ fn a_late_spawn_after_grace_is_terminated_as_a_group() {
 
 #[test]
 fn a_child_ignoring_termination_reaches_a_bounded_close() {
-    let mut backend = backend();
-    backend.phase = Phase::Running;
-    backend.child = Some(Token::new(30));
+    let mut backend = fixtures::running_child();
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     backend.close(&env(0), &mut up, &mut below);
@@ -98,13 +94,7 @@ fn a_renewed_grant_survives_its_first_lapse() {
 }
 #[test]
 fn an_accepted_init_uses_the_completion_head_deadline() {
-    let mut backend = backend();
-    backend.phase = Phase::Starting;
-    backend.deadline = Some(env(30).now);
-    backend.owner = Some(Token::new(80));
-    backend.request = Some(request(&backend));
-    backend.child = Some(backend.token(4));
-    backend.pipes = [Some(Token::new(31)), Some(Token::new(32)), Some(Token::new(33))];
+    let mut backend = fixtures::starting();
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     backend.from_io(&env(1),BelowEvent::Io(io::Event::Stream { owner: Token::new(32),up: skein_lib::stream::Up::Bytes(br#"{"type":"system","subtype":"init","mcp_servers":[{"name":"smith","status":"connected"}],"tools":["mcp__smith__permission_prompt"]}
@@ -131,11 +121,7 @@ fn private_diagnostics_redact_known_private_values() {
 }
 #[test]
 fn native_input_is_written_in_whole_chunks_within_its_room() {
-    let mut backend = backend();
-    backend.phase = Phase::Running;
-    backend.pipes[0] = Some(Token::new(31));
-    backend.outgoing = Some(vec![b'x'; 10001].into());
-    backend.send_input();
+    let mut backend = fixtures::input(vec![b'x'; 10001].into());
     let mut count = 0;
     let mut chunks = 0_u32;
     let mut up = Queue::with_capacity(32);
@@ -176,9 +162,7 @@ fn native_input_is_written_in_whole_chunks_within_its_room() {
 #[test]
 fn an_input_line_can_exceed_the_output_declaration() {
     let backend = backend();
-    let FromDomain::Complete { mut prompt, .. } = request(&backend) else {
-        panic!("completion");
-    };
+    let mut prompt = fixtures::prompt_with(Box::default());
     prompt.messages = Box::new([llm::Message {
         role: llm::Role::User,
         content: Box::new([llm::Block::Text { text: vec![1; 2000].into(), replay: None }]),

@@ -4,12 +4,9 @@
     clippy::disallowed_types,
     reason = "ordinary Rust deterministic harness, programming-model.md 10.2"
 )]
+use super::fixtures::active;
 use super::fixtures::{env, request};
 use super::*;
-
-fn active() -> Backend {
-    fixtures::active()
-}
 
 fn signal(below: &Queue<Below>, expected: kernel::Signal) -> usize {
     let mut count = 0_usize;
@@ -36,9 +33,7 @@ fn input_closed(below: &Queue<Below>) -> bool {
 
 #[test]
 fn a_cancel_interrupts_a_running_turn() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.from_domain(&env(0), FromDomain::Cancel { owner: Token::new(80) }, &mut up, &mut below);
     assert_eq!(signal(&below, kernel::Signal::Interrupt), 1);
     assert!(!input_closed(&below));
@@ -61,9 +56,7 @@ fn a_cancel_of_an_idle_program_closes_its_input() {
 
 #[test]
 fn a_program_past_its_grace_is_terminated() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.close(&env(0), &mut up, &mut below);
     backend.fire(&env(1), &mut up, &mut below);
     assert_eq!(signal(&below, kernel::Signal::Terminate), 1);
@@ -71,9 +64,7 @@ fn a_program_past_its_grace_is_terminated() {
 
 #[test]
 fn an_interrupted_result_after_a_stop_is_no_failure() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.close(&env(0), &mut up, &mut below);
     backend.line(&env(0), br#"{"type":"result","is_error":true,"subtype":"error_during_execution","terminal_reason":"aborted_streaming"}"#, &mut up, &mut below);
     assert!(backend.pending_failure.is_none());
@@ -120,7 +111,7 @@ fn the_wind_down_requests_one_interrupt() {
 #[test]
 fn the_wind_down_sends_answers_before_the_note() {
     let backend = active();
-    let FromDomain::Complete { mut prompt, .. } = request(&backend) else { panic!("complete") };
+    let mut prompt = fixtures::prompt_with(Box::default());
     prompt.messages = Box::new([llm::Message {
         role: llm::Role::User,
         content: Box::new([
@@ -272,9 +263,7 @@ fn equal_permission_prompts_bind_distinct_calls() {
 #[test]
 #[expect(clippy::match_like_matches_macro, reason = "effect selectors avoid the subset's disallowed matches macro")]
 fn an_exited_child_drains_for_one_grace_without_signals() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.close(&env(0), &mut up, &mut below);
     while below.pop().is_some() {}
     backend.from_io(
@@ -331,7 +320,7 @@ fn streaming_during_wind_down_keeps_the_stop_grace() {
 fn a_tail_checks_its_exact_encoded_length() {
     let backend = active();
     for prefix in [b"".as_slice(), b"(The agent paused your last turn to send the finishing note.)\n"] {
-        let FromDomain::Complete { mut prompt, .. } = request(&backend) else { panic!("complete") };
+        let mut prompt = fixtures::prompt_with(Box::default());
         let mut text = (0_u8..=127).collect::<alloc::vec::Vec<_>>();
         text.extend_from_slice("é水".as_bytes());
         let mut expected = prefix.to_vec();
@@ -363,7 +352,7 @@ fn a_tail_checks_its_exact_encoded_length() {
 #[test]
 fn a_tail_refuses_invalid_utf8_before_encoding() {
     let backend = active();
-    let FromDomain::Complete { mut prompt, .. } = request(&backend) else { panic!("complete") };
+    let mut prompt = fixtures::prompt_with(Box::default());
     prompt.messages = Box::new([llm::Message {
         role: llm::Role::User,
         content: Box::new([llm::Block::Text { text: Box::new([255]), replay: None }]),
@@ -375,7 +364,7 @@ fn a_tail_refuses_invalid_utf8_before_encoding() {
 fn a_tail_moves_served_results_after_the_last_assistant() {
     let mut backend = active();
     builtin(&mut backend);
-    let FromDomain::Complete { mut prompt, .. } = request(&backend) else { panic!("complete") };
+    let mut prompt = fixtures::prompt_with(Box::default());
     prompt.messages = Box::new([
         llm::Message {
             role: llm::Role::User,
@@ -489,9 +478,7 @@ fn sent_lines(below: &Queue<Below>) -> alloc::vec::Vec<serde_json::Value> {
 }
 
 fn yielding() -> (Backend, Queue<ToDomain>, Queue<Below>) {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.yield_for_wind_down(&env(0), &mut up, &mut below);
     grant_input(&mut backend, 2, &mut up, &mut below);
     (backend, up, below)

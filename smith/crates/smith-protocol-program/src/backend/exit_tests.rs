@@ -1,17 +1,12 @@
+use super::fixtures::drained_window as active;
 use super::{
     fixtures::{env, request},
     *,
 };
 
-fn active() -> Backend {
-    fixtures::drained_window()
-}
-
 #[test]
 fn relay_eof_waits_for_the_programs_exit() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.mcp_ended(&env(0), &mut up, &mut below);
     assert!(up.is_empty());
     assert_eq!(backend.phase, Phase::Running);
@@ -29,9 +24,7 @@ fn relay_eof_waits_for_the_programs_exit() {
 
 #[test]
 fn a_relay_without_a_program_exit_fails_at_its_grace() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     let until = env(0).now.saturating_add(backend.settings.grace);
     backend.mcp_ended(&env(0), &mut up, &mut below);
     assert!(up.is_empty(), "EOF must not fail before its grace");

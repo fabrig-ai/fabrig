@@ -56,9 +56,7 @@ fn a_complete_measures_its_user_messages() {
 
 #[test]
 fn a_partial_text_is_a_delta() {
-    let mut backend = active(true);
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active(true));
     backend.line(&env(0), br#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"piece"}}}"#, &mut up, &mut below);
     let Some(Measure::Prompt { .. }) = backend.pop_measure() else { panic!("prompt first") };
     let Some(Measure::Delta { owner, block, text, .. }) = backend.pop_measure() else { panic!("delta") };
@@ -69,9 +67,7 @@ fn a_partial_text_is_a_delta() {
 
 #[test]
 fn an_api_retry_is_a_retry_measure() {
-    let mut backend = active(true);
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active(true));
     backend.line(
         &env(0),
         br#"{"type":"system","subtype":"api_retry","error_status":503,"retry_delay_ms":250}"#,
@@ -103,9 +99,7 @@ fn no_measure_without_an_observation() {
 
 #[test]
 fn a_shared_stdout_read_waits_for_the_next_owner() {
-    let mut backend = active(true);
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active(true));
     let bytes = br#"{"type":"assistant","message":{"id":"one","content":[{"type":"tool_use","id":"f","name":"mcp__smith__finish","input":{}}]}}
 {"type":"system","subtype":"api_retry","error_status":503}
 "#;
@@ -299,9 +293,7 @@ fn private_carries_flush_at_every_terminal_boundary() {
 
 #[test]
 fn a_retry_discards_the_unfinished_message() {
-    let mut backend = active(true);
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active(true));
     for line in [
         br#"{"type":"stream_event","event":{"type":"message_start","message":{"id":"a"}}}"#.as_slice(),
         br#"{"type":"stream_event","event":{"type":"content_block_start","index":7}}"#,

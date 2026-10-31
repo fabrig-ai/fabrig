@@ -4,13 +4,11 @@
     reason = "ordinary Rust step harness, programming-model.md 10.2"
 )]
 #![expect(clippy::match_like_matches_macro, reason = "the no_std test harness uses explicit record filters")]
+use super::fixtures::window as active;
 use super::fixtures::{connect_server, env, request, server_reply};
 use super::*;
 use serde_json::json;
 
-fn active() -> Backend {
-    fixtures::window()
-}
 fn feed(backend: &mut Backend, value: serde_json::Value, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
     backend.line(&env(0), &serde_json::to_vec(&value).expect("fixture JSON"), up, below);
 }
@@ -22,9 +20,7 @@ fn tool(id: &str, input: serde_json::Value) -> serde_json::Value {
 }
 #[test]
 fn a_nudge_after_stdin_closes_fails_with_the_exit() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.from_io(
         &env(0),
         BelowEvent::Io(io::Event::Exited { owner: backend.token(4), exit: kernel::Exit::Code(7) }),
@@ -69,9 +65,7 @@ fn assistant_text_redacts_private_values_before_completion() {
 }
 #[test]
 fn an_open_call_matches_before_the_closed_name_fallback() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     feed(&mut backend, tool("a", json!({"value":"A"})), &mut up, &mut below);
     feed(
         &mut backend,
@@ -110,9 +104,7 @@ fn cancelling_an_unjudged_finish_never_accepts_it() {
 }
 #[test]
 fn a_delivered_assistant_is_not_charged_again_at_result() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     feed(&mut backend, tool("a", json!({})), &mut up, &mut below);
     let Some(ToDomain::Completed { .. }) = up.pop() else { panic!("completion event") };
     backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
@@ -123,9 +115,7 @@ fn a_delivered_assistant_is_not_charged_again_at_result() {
 }
 #[test]
 fn a_silent_completion_obeys_its_head_deadline() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
     backend.fire(&env(1), &mut up, &mut below);
     let Some(ToDomain::Failed { failure, .. }) = up.pop() else { panic!("head deadline") };
@@ -133,9 +123,7 @@ fn a_silent_completion_obeys_its_head_deadline() {
 }
 #[test]
 fn an_incomplete_message_obeys_its_idle_deadline() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
     feed(
         &mut backend,
@@ -149,9 +137,7 @@ fn an_incomplete_message_obeys_its_idle_deadline() {
 }
 #[test]
 fn a_text_message_without_result_obeys_its_idle_deadline() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
     feed(&mut backend, text(), &mut up, &mut below);
     backend.fire(&env(1), &mut up, &mut below);
@@ -192,9 +178,7 @@ fn an_unmatched_call_after_text_closes_is_rejected_immediately() {
 
 #[test]
 fn closed_text_expires_the_preceding_messages_calls() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     feed(&mut backend, tool("a", json!({})), &mut up, &mut below);
     feed(&mut backend, text(), &mut up, &mut below);
     assert_eq!(calls::find(&backend.ledger, b"foo", b"{}", 32, 256), None);
@@ -230,9 +214,7 @@ fn an_accepted_finish_receives_its_acceptance_reply() {
 
 #[test]
 fn a_result_before_resume_does_not_charge_another_completion() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     feed(&mut backend, tool("a", json!({})), &mut up, &mut below);
     let Some(ToDomain::Completed { .. }) = up.pop() else { panic!("completion event") };
     feed(&mut backend, json!({"type":"result","is_error":false}), &mut up, &mut below);
@@ -332,9 +314,7 @@ fn an_input_grant_after_stdin_closes_fails_without_writing() {
 
 #[test]
 fn accepting_one_finish_does_not_accept_an_unjudged_finish() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     feed(
         &mut backend,
         json!({"type":"assistant","message":{"id":"two-finishes","content":[
