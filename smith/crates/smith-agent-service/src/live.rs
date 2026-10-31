@@ -189,6 +189,16 @@ impl Live {
             room.lose(length);
             return;
         }
+        // Release an emitted prefix before allocating another admitted run.
+        if let Some(first) = &mut self.first
+            && first.used > 0
+        {
+            first.bytes = Box::from(
+                first.bytes.get(usize::try_from(first.used).expect("run cursor")..).expect("retained suffix"),
+            );
+            first.offset = first.offset.checked_add(u64::from(first.used)).expect("stream bound");
+            first.used = 0;
+        }
         let next = match call {
             Some(_) => &mut self.input_next,
             None => &mut self.next,

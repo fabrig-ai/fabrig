@@ -245,3 +245,19 @@ fn text_and_calls_share_the_held_bound() {
     }
     assert_eq!(bytes, HELD);
 }
+
+#[test]
+fn new_admission_releases_the_emitted_prefix() {
+    let (mut live, mut room) = stream(false);
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: &AT_BOUND }, AT_ZERO);
+    room.takes = true;
+    room.remaining = 1;
+    room.act(&mut live, Action::Pump, AT_ZERO.saturating_add(standard().policy.live_interval));
+    room.takes = false;
+    room.act(&mut live, Action::Delta { owner: OWNER, bytes: &[b'b'; PIECE_BOUND] }, AT_ZERO);
+    let mut retained = 0_usize;
+    for run in live.first.iter().chain(live.held.iter()) {
+        retained = retained.checked_add(run.bytes.len()).expect("held payload bound");
+    }
+    assert_eq!(retained, HELD, "emitted prefixes do not occupy the held payload allowance");
+}
