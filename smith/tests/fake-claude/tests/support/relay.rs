@@ -175,15 +175,7 @@ impl Agent {
         }
     }
     fn event(&mut self, now: Time, event: Event) {
-        let owner = match &event {
-            Event::Listening { owner, .. }
-            | Event::Accepted { owner, .. }
-            | Event::Stream { owner, .. }
-            | Event::Output { owner, .. }
-            | Event::Failed { owner, .. }
-            | Event::Closed { owner } => Some(*owner),
-            _ => None,
-        };
+        let owner = event.owner();
         if owner.is_some_and(|owner| self.server.owns(owner)) {
             self.server.from_io(now, event, &mut self.requests);
             self.notices();
