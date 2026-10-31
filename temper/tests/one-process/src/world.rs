@@ -189,7 +189,7 @@ pub(crate) enum Proc {
     Service(Box<ServiceHost>),
     Ctl(Box<crate::ctl::Recorded>),
     Calls(Box<crate::ctl::Caller>),
-    Agent(Box<skein_world::PipeHost<smith_agent_shell::Agent>>),
+    Agent(Box<machine::Rooted<skein_world::PipeHost<smith_agent_shell::Agent>>>),
     GitRoute(Box<temper_fake_git::Git<temper_fake_git::Route>>),
     Git(Box<temper_fake_git_hosted::Git<temper_fake_git_hosted::Typed>>),
     Shell(Box<stories::Shell>),
@@ -723,7 +723,7 @@ fn agent(_spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
     crate::m15::observer::process(crate::m15::observer::Role::Agent, inherited, b"worker/agent");
     let stderr = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
     let (errors, capture) = smith_agent_process_world::AgentErrors::pipe(stderr);
-    Proc::Agent(Box::new(
+    Proc::Agent(Box::new(machine::Rooted::new(
         capture.host(
             smith_agent_shell::Agent::new(
                 smith_agent_shell::config::Configuration {
@@ -750,7 +750,8 @@ fn agent(_spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
             )
             .expect("hosted agent"),
         ),
-    ))
+        inherited,
+    )))
 }
 fn git(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
     crate::m15::observer::process(crate::m15::observer::Role::Git, inherited, b"worker");
@@ -770,7 +771,10 @@ fn shell(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
 fn worker_root(_spawn: &skein_io::kernel::Spawn) -> Vec<skein_world::StartupRoot> {
     vec![skein_world::StartupRoot { name: b"worker".as_slice().into(), path: b"worker".as_slice().into() }]
 }
-fn agent_root(_spawn: &skein_io::kernel::Spawn) -> Vec<skein_world::StartupRoot> {
+fn agent_root(spawn: &skein_io::kernel::Spawn) -> Vec<skein_world::StartupRoot> {
+    if !crate::lower::github::active() {
+        return worker_root(spawn);
+    }
     vec![skein_world::StartupRoot { name: b"worker".as_slice().into(), path: b"agent".as_slice().into() }]
 }
 #[must_use]
@@ -921,7 +925,7 @@ pub(crate) fn host_programs<R: skein_world::Referee<Proc>>(world: &mut skein_wor
             instances: fixtures::AGENTS,
             operations: fixtures::agent_limits().routes + 3,
         },
-        agent_root,
+        machine::agent_roots,
     );
     world.host_roots(
         skein_world::HostedProgram {

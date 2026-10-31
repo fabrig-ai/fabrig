@@ -126,6 +126,13 @@ impl Counters {
         self.header = Header::Loading;
     }
 
+    pub(crate) fn loading(&self) -> bool {
+        match self.header {
+            Header::Loading => true,
+            Header::Clean | Header::Dirty => false,
+        }
+    }
+
     /// A supplied durable header replaces these counters with `new`. Only an
     /// empty load still has its bootstrap identity waiting to be committed.
     pub(crate) fn finish_restore(&mut self) {

@@ -28,6 +28,12 @@ impl Harness {
 
     fn select(&mut self, pending: bool) {
         phase(&self.core.start_begin(pending, self.env.wall), Phase::LoadCore);
+        let mut header = self.core.counters.deployment();
+        header.commits = 1;
+        assert!(matches!(
+            self.core.restore_core(core::CoreRecord::Deployment(header), &self.env.limits),
+            core::Restored::Deployment { commits: 1 }
+        ));
     }
 
     fn link(&mut self) -> Action {
@@ -169,4 +175,63 @@ fn cleanup_acknowledgement_blocks_sweep_and_held_account_outputs_are_metered() {
     println!("selected account release including owned outputs: peak={} held={}", released.peak(), released.held());
     assert!(!h.core.tasks.checked());
     assert!(!h.out.is_empty());
+}
+
+#[test]
+fn an_empty_selected_store_seeds_before_opening() {
+    let configured = world::config(204).core;
+    let owners = configured.owners.clone();
+    let mut h = Harness::new(204);
+    phase(&h.core.start_begin(false, h.env.wall), Phase::LoadCore);
+    let Action::Commit(seed) = h.core.start_done(&h.env, Phase::LoadCore, &mut h.out) else {
+        panic!("empty seed requires a commit")
+    };
+    assert!(!h.core.people.ready());
+    let mut policy = false;
+    let mut deployment_roles = false;
+    let mut project_roles = false;
+    let mut settings = false;
+    for _ in 0..h.out.len() {
+        let core::Request::Write(core::Write::Save(record)) = h.out.pop().expect("seed write") else {
+            panic!("seed emits only saved rows")
+        };
+        #[expect(
+            clippy::wildcard_enum_match_arm,
+            reason = "seed commits contain only configured people and settings rows"
+        )]
+        match record {
+            core::Record::People(people::Stored::Policy { .. }) => policy = true,
+            core::Record::People(people::Stored::Roles { project, .. }) => {
+                if project == people::DEPLOYMENT {
+                    deployment_roles = true;
+                } else {
+                    project_roles = true;
+                }
+            }
+            core::Record::Core(core::CoreRecord::Settings(_)) => settings = true,
+            core::Record::People(people::Stored::Person { .. }) => {}
+            _ => panic!("unexpected seed family"),
+        }
+    }
+    assert!(policy && deployment_roles && project_roles && settings);
+    let mut action = h.core.start_resume(&h.env, seed, &mut h.out);
+    for _ in 0..32 {
+        action = match action {
+            Action::Step(Phase::Sweep) => h.core.start_sweep(&h.env, SweepInput::Finished, &mut h.out),
+            Action::Step(done) => h.core.start_done(&h.env, done, &mut h.out),
+            Action::Commit(token) => h.core.start_resume(&h.env, token, &mut h.out),
+            Action::Idle => break,
+            Action::Refused(failure) => panic!("seed refused: {failure:?}"),
+        };
+        while h.out.pop().is_some() {}
+    }
+    assert_eq!(h.core.start_phase(), None);
+    assert!(h.core.people.ready());
+    for owner in owners {
+        let (person, role) = h.core.people.role_for_identity(owner.identity, owner.project).expect("seed owner");
+        assert_eq!(role, people::Role::Owner);
+        assert_eq!(h.core.people.role(person, people::DEPLOYMENT), Some(people::Role::Owner));
+        assert!(h.core.authority.policy(owner.project).is_some());
+    }
+    assert!(h.core.charter(1).is_some());
 }

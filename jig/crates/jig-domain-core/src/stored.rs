@@ -1,5 +1,7 @@
 //! The core's durable run and call identities (domain/engine.md, 5.4 and 7).
 
+mod fit;
+
 use crate::{Core, Counters, Deployment, Family, Limits, fresh};
 
 /// Owner of a retained named-call answer when the call is asked again.
@@ -155,6 +157,9 @@ impl CallPart {
         limits: &Limits,
         authority_limits: &jig_domain_authority::Limits,
     ) -> bool {
+        if self.excess(limits, authority_limits).is_some() {
+            return false;
+        }
         match self {
             CallPart::SettingsRefused(why) => settings_refusal_valid(why),
             CallPart::HoldOwner { task, hold, revision, owner } => {
@@ -189,9 +194,6 @@ impl CallPart {
             CallPart::Sent { message } => *message != 0 && *message <= deployment.messages,
             CallPart::NoteWritten { name, revision } => *name != 0 && *name <= deployment.messages && *revision != 0,
             CallPart::NoteRecalled { entries, .. } => {
-                if entries.len() > usize::try_from(limits.notes.recalled).expect("u32 fits usize") {
-                    return false;
-                }
                 for entry in entries {
                     if !jig_domain_notes::valid_entry(entry, &limits.notes) {
                         return false;
@@ -201,7 +203,7 @@ impl CallPart {
             }
             CallPart::Subscribed { subscription } => *subscription != 0 && *subscription <= deployment.messages,
             CallPart::Delegated(numbers) => {
-                if numbers.is_empty() || numbers.len() > usize::try_from(limits.tasks.batch).expect("u32 fits usize") {
+                if numbers.is_empty() {
                     return false;
                 }
                 for (at, &number) in numbers.iter().enumerate() {
@@ -216,17 +218,9 @@ impl CallPart {
                 }
                 true
             }
-            CallPart::EffectDenied { answer, findings }
-            | CallPart::ToolDenied { answer, findings }
-            | CallPart::DelegationDenied { answer, findings } => {
-                *answer != jig_domain_authority::Answer::Allow
-                    && findings.len()
-                        <= usize::try_from(
-                            jig_domain_authority::stored_finding_limit(authority_limits)
-                                .expect("valid authority bound"),
-                        )
-                        .expect("u32 fits usize")
-            }
+            CallPart::EffectDenied { answer, .. }
+            | CallPart::ToolDenied { answer, .. }
+            | CallPart::DelegationDenied { answer, .. } => *answer != jig_domain_authority::Answer::Allow,
             CallPart::EffectRefused(problem)
             | CallPart::MessageRefused(problem)
             | CallPart::ProposalRefused(problem)
@@ -430,7 +424,7 @@ impl Core {
                 }
             }
             crate::start::StartMode::LoadAndLink => {
-                assert!(self.start.phase == Some(crate::start::Phase::LoadCore), "task rows load before Link");
+                assert!(self.start_loading(), "task rows load before Link");
                 assert!(row.key().live(), "historical task row in live load: {:?}", row.key());
             }
         }
@@ -553,10 +547,33 @@ impl Core {
         }
     }
 
+    fn call_record_admitted(&self, record: &CallRecord, limits: &Limits) -> bool {
+        if let Some(call) = &record.settled {
+            if call.serial == 0 || call.serial > self.counters.deployment().calls || !call.valid(limits) {
+                return false;
+            }
+            for (_, previous) in &self.call_settled {
+                if call.serial == previous.serial {
+                    return false;
+                }
+            }
+        }
+        record.part.valid(&self.counters.deployment(), limits, self.authority.limits())
+    }
+
     /// Retain one of the core's own live rows. The root wraps store bytes and
     /// routes connector rows separately; it cannot alter this live decision.
     pub fn restore_core(&mut self, record: CoreRecord, limits: &Limits) -> Restored {
         self.start_input();
+        match self.start.mode {
+            crate::start::StartMode::Default => {}
+            crate::start::StartMode::LoadAndLink => {
+                assert!(self.start_loading(), "core rows load before Link");
+                if let CoreRecord::Deployment(_) = &record {
+                    assert!(self.counters.loading(), "duplicate {:?}", Key::Core(CoreKey::Deployment));
+                }
+            }
+        }
         match record {
             CoreRecord::Settings(record) => {
                 if self.restore_setting(record, limits) {
@@ -582,23 +599,32 @@ impl Core {
                 Restored::Deployment { commits: deployment.commits }
             }
             CoreRecord::Call(record) => {
-                let mut valid_settled = match &record.settled {
-                    Some(call) => {
-                        call.serial != 0 && call.serial <= self.counters.deployment().calls && call.valid(limits)
+                match self.start.mode {
+                    crate::start::StartMode::Default => {
+                        if !self.call_record_admitted(&record, limits) {
+                            return Restored::Rejected;
+                        }
                     }
-                    None => true,
-                };
-                if let Some(call) = &record.settled {
-                    for (_, previous) in &self.call_settled {
-                        if call.serial == previous.serial {
-                            valid_settled = false;
+                    crate::start::StartMode::LoadAndLink => {
+                        let excess = match record.part.excess(limits, self.authority.limits()) {
+                            Some(excess) => Some(excess),
+                            None => match &record.settled {
+                                Some(call) => call.excess(limits),
+                                None => None,
+                            },
+                        };
+                        if let Some((held, limit)) = excess {
+                            let _refused = self.start_refuse(crate::start::Failure::LiveSet {
+                                set: crate::start::LiveSet::Calls,
+                                key: Key::Core(CoreKey::Call(record.key)),
+                                held,
+                                limit,
+                            });
+                            return Restored::Rejected;
                         }
                     }
                 }
-                if valid_settled
-                    && record.part.valid(&self.counters.deployment(), limits, self.authority.limits())
-                    && self.restore_call(record.key, record.part)
-                {
+                if self.restore_call(record.key, record.part) {
                     if let Some(call) = record.settled {
                         assert!(
                             self.call_settled.insert(record.key, call).is_ok(),

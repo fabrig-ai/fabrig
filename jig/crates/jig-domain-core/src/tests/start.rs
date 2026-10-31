@@ -1,4 +1,5 @@
 //! Start selection and phase discipline (jig/docs/design/domain/engine.md, 6).
+mod rows;
 use super::{Core, Env, Queue, Time, Wall, config, limits, tasks};
 use crate::start::{Action, Failure, Phase, SweepInput};
 use crate::{Key, Request, Write, people};
@@ -390,7 +391,7 @@ fn every_operational_entrance_consumes_selection() {
             name: "start_done",
             input: |core, env| {
                 let _begin = core.start_begin(false, env.wall);
-                step_phase(core.start_done(env, Phase::LoadCore, &mut Queue::uncapped()), Phase::LoadInbox);
+                finish_core_load(core, env, &mut Queue::uncapped());
             },
         },
         Entrance {
@@ -610,7 +611,7 @@ fn step_phase(action: Action, phase: Phase) {
 }
 
 fn through_link(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<Request>) {
-    step_phase(core.start_done(env, Phase::LoadCore, out), Phase::LoadInbox);
+    finish_core_load(core, env, out);
     let connectors = core.connectors.clone();
     let mut phase = Phase::LoadInbox;
     for connector in connectors {
@@ -760,4 +761,23 @@ fn direct_resource_input_prevents_late_start_selection() {
     assert!(out.is_empty());
     assert_eq!(core.tasks.resource_hold(&name), Some(tasks::HoldKind::Shared));
     core.tasks.start_restore();
+}
+
+fn finish_core_load(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<Request>) {
+    match core.start_done(env, Phase::LoadCore, out) {
+        Action::Commit(token) => {
+            while let Some(request) = out.pop() {
+                match request {
+                    Request::Write(_) => {}
+                    Request::Now(_)
+                    | Request::Ask { .. }
+                    | Request::Held(_)
+                    | Request::ProjectMade { .. }
+                    | Request::Decided => panic!("seed commit contains only writes"),
+                }
+            }
+            step_phase(core.start_resume(env, token, out), Phase::LoadInbox);
+        }
+        action @ (Action::Step(_) | Action::Idle | Action::Refused(_)) => step_phase(action, Phase::LoadInbox),
+    }
 }

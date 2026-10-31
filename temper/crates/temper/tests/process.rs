@@ -1785,18 +1785,18 @@ fn a_first_run_plays_the_demo_then_sets_up_a_forgejo_here_with_no_restart() {
 
     // The demo's chat is task 1 in project 1; hello gets the next project and task tree.
     const HELLO: Task = Task { project: 2, chat: 2, change: 3, producer: 4 };
-    // Seven playground reads plus the reply wait; six setup reads; six end reads
-    // (including two refused starts); seven calls for hello's task and landed change.
-    const DEMO_CALLS: usize = 8;
+    // Demo start/chat/reply; six setup reads; two refused starts;
+    // seven calls for hello's task and landed change.
+    const DEMO_CALLS: usize = 6;
     const SETUP_END: usize = DEMO_CALLS + 6;
-    const END_READS_END: usize = SETUP_END + 6;
+    const END_READS_END: usize = SETUP_END + 2;
     const ALL_CALLS: usize = END_READS_END + 7;
     let scratch = support::Scratch::new("demo-then-forgejo");
     let (paths, flags) = first_run_directories(&scratch);
     let flags = support::boxed::echo_steps(flags);
     let (cached, sources) = cache_forgejo_binaries(&paths[2]);
     let steps = demo_then_forgejo_steps(scratch.path(), HELLO);
-    let mut llm = first_repository::llm(&paths[0]);
+    let mut llm = first_repository::compact_llm(&paths[0]);
     llm.expected_exits = vec![(END_READS_END - 2, 2), (END_READS_END - 1, 2)];
     let clock = skein_shell::Clock::new();
     let began = clock.now().now;
@@ -1837,7 +1837,7 @@ fn a_first_run_plays_the_demo_then_sets_up_a_forgejo_here_with_no_restart() {
         assert_playground_end_forges(call, true);
     }
     assert_eq!(support::ctl::json(&seen.calls[5])["met"], true, "the demo chat replied");
-    let account = assert_playground_chat_and_account_open([&seen.calls[4], &seen.calls[6], &seen.calls[7]]);
+    assert_eq!(support::ctl::json(&seen.calls[4])["outcome"]["done"]["owner"]["created"]["first"], 1);
     let _bot = support::forge_land::assert_forgejo_setup_after_sign_in(
         "first",
         &seen.calls[DEMO_CALLS..SETUP_END],
@@ -1850,7 +1850,7 @@ fn a_first_run_plays_the_demo_then_sets_up_a_forgejo_here_with_no_restart() {
         !String::from_utf8_lossy(&seen.calls[SETUP_END - 1].stdout).lines().any(|line| line.starts_with("forge 1 ·")),
         "the ended demo leaves the text list"
     );
-    assert_playground_chat_and_account_ended("runtime", &seen.calls[SETUP_END..END_READS_END], Some(account));
+    assert_demo_refused_starts(&seen.calls[SETUP_END..END_READS_END]);
     assert_eq!(
         stderr.lines().filter(|line| box_notice_words(line) == "Playground: stopped").count(),
         1,
@@ -1890,15 +1890,25 @@ fn demo_then_forgejo_steps(root: &std::path::Path, task: support::first_reposito
     use support::ctl::{Call, Step};
     use support::first_repository;
     let mut steps = playground_end_steps("first");
-    steps.insert(5, Step::Run(Call::new(&["task", "show", "1", "--until", "replied", "--timeout", "30s", "--json"])));
+    // Detailed demo chat/account state belongs to the domain world.
+    steps.truncate(5);
+    steps.push(Step::Run(Call::new(&["task", "show", "1", "--until", "replied", "--timeout", "30s", "--json"])));
     // Keep the same signed-in client and box: skip the setup story's mark and sign-in.
     steps.extend(forgejo_setup_steps("first").into_iter().skip(2));
     steps.push(Step::Stderr(b"Playground: stopped\n"));
-    // The end is read at runtime, using the restart story's chat/account/refusal reads.
-    steps.extend(playground_end_steps("third").into_iter().skip(3));
+    // Keep the real refused-start exits after the runtime stop.
+    steps.extend(playground_end_steps("third").into_iter().skip(7));
     steps.push(Step::Stderr(b" repo is work/hello "));
     steps.extend(first_repository::task_steps_for(root, task));
     steps
+}
+
+fn assert_demo_refused_starts(calls: &[support::Ended]) {
+    for start in calls {
+        assert!(start.stdout.is_empty(), "refused start prints no answer on stdout");
+        let diagnostic = String::from_utf8_lossy(&start.stderr);
+        assert!(diagnostic.contains("not offered"), "{diagnostic}");
+    }
 }
 
 fn assert_demo_then_forgejo_streams(stdout: &[u8], stderr: &str) {
@@ -4560,19 +4570,20 @@ fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_f
         Step::Run(Call::new(&["forge", "setup", "3", "--playground"])),
         Step::Run(Call::new(&["forge", "list", "--json"])),
     ];
-    steps.extend(first_repository::playground_task_steps(scratch.path()));
+    steps.extend(first_repository::playground_read_steps(scratch.path()));
     let ended = support::boxed::run_ctl_with_llm(
         scratch.path(),
         flags,
         scratch.path(),
         steps,
         BOX_DEADLINE,
-        |_| first_repository::live(&paths[0], &paths[1], scratch.path()),
-        first_repository::playground_llm(&paths[0]),
+        |_| first_repository::playground_read_evidence(&paths[0], scratch.path()),
+        first_repository::playground_read_llm(&paths[0]),
     );
     let stderr = String::from_utf8_lossy(&ended.stderr);
     assert_eq!(ended.exit, Some(Exit::Code(0)), "box drained: {stderr}");
     assert_eq!(ended.left, Some(Vec::new()), "no processes outlive the box");
+    assert_eq!(ended.calls.len(), 8, "setup, reads and pull completed: {stderr}");
     for call in &ended.calls {
         assert_eq!(
             call.exit,
@@ -4593,6 +4604,7 @@ fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_f
     assert_eq!(row["first"]["repository"], "widget");
     assert_eq!(row["first"]["playground"], true);
     let evidence = ended.checked.expect("live worker reads");
+    assert_eq!(evidence.panel.exit, Some(Exit::Code(0)), "pull panel read succeeded");
     assert!(evidence.producer.contains("\"path\":\".forgejo/workflows/ci.yml\"}\nRead "), "{}", evidence.producer);
     assert!(evidence.producer.contains("\"path\":\"src/main.rs\"}\nRead "), "{}", evidence.producer);
     // ctl prints read counts; the service test compares every source byte.
