@@ -121,7 +121,7 @@ fn adopt(
                 account_id: configuration.credential.account_id.clone(),
                 scheme: skein_llm::Scheme::Bearer,
             },
-            application: Box::new([]),
+
             receiving: receiving(&bounds),
         },
         &bounds,
@@ -164,7 +164,7 @@ fn completed(context: Context, peer: &mut RawWorld, expected_owner: Token) -> ll
     };
     assert_eq!(owner, expected_owner);
     let Event::Completed { owner, completion } =
-        adapter::completion(context, owner, completion, Box::new([])).expect("observed owned terminal translates")
+        adapter::completion(context, completion).expect("observed owned terminal translates")
     else {
         panic!("completed translation")
     };
@@ -563,9 +563,8 @@ fn observe_failure(
         panic!("provider failure entrance")
     };
     assert_eq!(terminal_owner, owner);
-    let mut event =
-        adapter::failed(context, terminal_owner, terminal_failure, terminal_evidence, terminal_detail, report)
-            .expect("provider failure consumes retained Context");
+    let mut event = adapter::failed(context, terminal_failure, terminal_evidence, terminal_detail, report)
+        .expect("provider failure consumes retained Context");
     failure_corruptions(&mut event, owner, failure, evidence, detail);
     if peer.machine.waiting() != client::Waiting::Nothing {
         assert_eq!(peer.machine.waiting(), client::Waiting::Closing);
@@ -654,7 +653,7 @@ fn block_peer(configuration: &Configuration, bounds: &Limits, source: Vec<u8>) -
                 account_id: configuration.credential.account_id.clone(),
                 scheme: skein_llm::Scheme::Bearer,
             },
-            application: Box::new([]),
+
             receiving: receiving(bounds),
         },
         bounds,
@@ -756,11 +755,11 @@ fn a_reasoning_item_past_its_bound_fails_unless_the_model_drops_it() {
         peer.run();
         let terminal = take_terminal(&mut peer);
         if enabled {
-            let client::Event::Completed { owner, completion } = terminal else {
+            let client::Event::Completed { owner: _, completion } = terminal else {
                 panic!("drop keeps completion");
             };
             let Event::Completed { completion, .. } =
-                adapter::completion(context, owner, completion, Box::new([])).expect("drop translates")
+                adapter::completion(context, completion).expect("drop translates")
             else {
                 panic!("completed");
             };

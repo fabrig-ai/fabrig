@@ -7,13 +7,13 @@
 //! start, tick, cancel, close and settle are distinct entrances under caller clocks
 //! (programming-model.md, sections 5.2 and 9).
 
-use crate::adapter::{self as adapter, Context, Limits, Receiving, ResolvedCall};
+use crate::adapter::{self as adapter, Context, Limits, Receiving};
 use skein_lib::Token;
 use skein_llm::{self as shared, client};
 use skein_llm_world::fake::Exchange;
 use smith_domain::{Event, llm};
 
-pub use smith_protocol_llm::schemas;
+pub use smith_protocol_llm::fixture::schemas;
 
 /// Caller-supplied endpoint and credential data for the wire fixture.
 /// Caller owns this finite configuration; admission and terminals belong to Wire.
@@ -142,7 +142,6 @@ impl Wire {
         scripts: Box<[skein_fake_llm_domain::api::Script]>,
     ) -> Result<Self, adapter::Error> {
         let endpoint_name = prompt.endpoint;
-        let application = schemas(&prompt, &limits.stated);
         let endpoint = configuration.endpoint.clone();
         let peer_endpoint = endpoint.clone();
         let credential = shared::Credential {
@@ -155,10 +154,8 @@ impl Wire {
             account_id: credential.account_id.clone(),
             scheme: skein_llm::Scheme::Bearer,
         };
-        let adapter::Prepared { client, context } = adapter::prepare(
-            adapter::Input { owner, prompt, endpoint_name, endpoint, credential, application, receiving },
-            limits,
-        )?;
+        let adapter::Prepared { client, context } =
+            adapter::prepare(adapter::Input { owner, prompt, endpoint_name, endpoint, credential, receiving }, limits)?;
         let peer = Exchange::prepared_with_options(
             client,
             peer_endpoint,
@@ -218,23 +215,22 @@ impl Wire {
                     self.observed.push(Observed::Completed(owner));
                     self.accepted_usage = Some(completion.usage);
                     let context = self.context.take().expect("one observed Client terminal owns the context");
-                    let decoded = resolutions(&context, &completion);
                     returned
-                        .push(adapter::completion(context, owner, completion, decoded).expect(
+                        .push(adapter::completion(context, completion).expect(
                             "observed admitted Client completion and explicit application codec fit receiving",
                         ));
                 }
                 client::Event::Failed { owner, failure, evidence, report, detail } => {
                     self.observed.push(Observed::Failed(owner));
                     let context = self.context.take().expect("one observed Client terminal owns the context");
-                    returned.push(adapter::failed(context, owner, failure, evidence, detail, report).expect(
+                    returned.push(adapter::failed(context, failure, evidence, detail, report).expect(
                         "observed admitted failure retains owner, class, evidence and full bounded diagnostic",
                     ));
                 }
                 client::Event::Cancelled { owner } => {
                     self.observed.push(Observed::Cancelled(owner));
                     let context = self.context.take().expect("one observed Client terminal owns the context");
-                    returned.push(adapter::cancelled(context, owner).expect("observed cancellation callback owner"));
+                    returned.push(adapter::cancelled(context));
                 }
                 client::Event::Reusable => self.observed.push(Observed::Reusable),
                 client::Event::Close => self.observed.push(Observed::Close),
@@ -246,51 +242,4 @@ impl Wire {
         assert!(returned.len() <= 1, "one root terminal per observed wire call");
         returned
     }
-}
-
-fn resolutions(context: &Context, completion: &shared::Completion) -> Box<[ResolvedCall]> {
-    completion
-        .content
-        .iter()
-        .enumerate()
-        .filter_map(|(position, block)| match block {
-            shared::Block::ToolCall { name, arguments, .. } => {
-                if context.served().iter().any(|declaration| match declaration {
-                    llm::Served::Host(tool) => tool.name == *name,
-                    llm::Served::Finish | llm::Served::Deliver | llm::Served::SubAgent | llm::Served::Wait => false,
-                }) {
-                    return None;
-                }
-                Some(ResolvedCall {
-                    position: u32::try_from(position).expect("bounded observed assistant position"),
-                    name: name.clone(),
-                    input: arguments.clone(),
-                    call: match name.as_ref() {
-                        b"finish" | b"deliver" => crate::translate::decode(
-                            name,
-                            arguments,
-                            context.grants(),
-                            context.served(),
-                            context.asker(),
-                        ),
-                        _ => adapter::decode(
-                            name,
-                            arguments,
-                            context.grants(),
-                            context.served(),
-                            context.asker(),
-                            &context.limits(),
-                        ),
-                    },
-                })
-            }
-            shared::Block::Text { .. }
-            | shared::Block::Refusal { .. }
-            | shared::Block::Reasoning { .. }
-            | shared::Block::ToolResult { .. }
-            | shared::Block::Oversize { .. }
-            | shared::Block::Cut { .. }
-            | shared::Block::Dropped { .. } => None,
-        })
-        .collect()
 }

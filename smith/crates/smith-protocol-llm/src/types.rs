@@ -5,7 +5,7 @@
 use alloc::boxed::Box;
 
 use skein_lib::Token;
-use smith_domain::{llm, tools};
+use smith_domain::{llm, run, tools};
 
 use crate::{Limits, Receiving};
 
@@ -78,24 +78,6 @@ pub struct ToolSchema {
     pub schema: Box<[u8]>,
 }
 
-/// Caller-decoded non-host input for one observed completion block.
-/// The adapter checks its descriptor and cannot accept a caller-supplied host operation.
-#[derive(PartialEq, Eq, Hash, Debug)]
-pub struct ResolvedCall {
-    /// Observed zero-based assistant block position, including preceding text/refusal/replay blocks.
-    /// It is only a lookup key; the run derives durable names from observed transcript origin.
-    pub position: u32,
-
-    /// Exact provider tool name whose bytes were decoded by the caller.
-    pub name: Box<[u8]>,
-
-    /// Exact raw provider argument bytes; must match the observed call byte for byte.
-    pub input: Box<[u8]>,
-
-    /// Typed application outcome, checked against the exact offered descriptor.
-    pub call: llm::Decoded,
-}
-
 /// Immutable context for the observed call. No provider schema or application policy is interpreted.
 /// Declarations survive consumed prompt preparation and are released after observed terminal translation.
 #[derive(Debug)]
@@ -104,51 +86,8 @@ pub struct Context {
     pub(crate) asker: llm::Asker,
     pub(crate) grants: tools::Grants,
     pub(crate) served: Box<[llm::Served]>,
-    pub(crate) application: Box<[ToolSchema]>,
+    pub(crate) outcome: run::outcome::OutcomeSpec,
+    pub(crate) deliver: Option<run::outcome::ChangeSpec>,
     pub(crate) receiving: Receiving,
     pub(crate) limits: Limits,
-}
-
-impl Context {
-    /// The root's conversation identity for classifying nesting requests.
-    #[must_use]
-    pub const fn asker(&self) -> llm::Asker {
-        self.asker
-    }
-
-    /// Limits used for the admitted call and its application decoder.
-    #[must_use]
-    pub const fn limits(&self) -> Limits {
-        self.limits
-    }
-
-    /// Exact admitted checkout grants for a caller's static application decoder.
-    /// This is immutable preparation data, not an authority to run an effect.
-    #[must_use]
-    pub const fn grants(&self) -> tools::Grants {
-        self.grants
-    }
-
-    /// Borrowed observed offered run declarations, valid only during this entry.
-    /// Callers use them for explicit application decoding without copying a
-    /// consumed prompt; host decoding remains the adapter's own declaration lookup.
-    #[must_use]
-    pub fn served(&self) -> &[llm::Served] {
-        &self.served
-    }
-
-    /// Borrowed observed non-host descriptors admitted before the wire attempt.
-    /// A static application decoder may inspect these without a callback or
-    /// retained borrow; the adapter later checks the exact decoded classification.
-    #[must_use]
-    pub fn application(&self) -> &[ToolSchema] {
-        &self.application
-    }
-
-    /// Secured receiving metadata for this observed completion, copied unchanged.
-    /// The caller's bounded decoder prices its input under this aggregate cap.
-    #[must_use]
-    pub const fn receiving(&self) -> Receiving {
-        self.receiving
-    }
 }

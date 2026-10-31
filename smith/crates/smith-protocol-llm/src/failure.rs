@@ -12,19 +12,15 @@ use crate::{Context, Error};
 /// Moves one observed shared Failed terminal into the root boundary unchanged in meaning.
 /// Detail is exact under the secured receiving cap; the policy consumes/drops it
 /// after observation and retains only typed class/evidence in facts and End.
-/// Incorrect owner or over-cap diagnostic is a sender contract refusal.
+/// An over-cap diagnostic is a sender contract refusal.
 /// The component retains the lower client until its independent Closed terminal.
 pub fn failed(
     context: Context,
-    owner: Token,
     failure: shared::Failure,
     evidence: client::Evidence,
     detail: Box<[u8]>,
     report: shared::Report,
 ) -> Result<Event, Error> {
-    if owner != context.owner {
-        return Err(Error::Invalid);
-    }
     if detail.len() > usize::try_from(context.receiving.max_failure_bytes).expect("u32 fits usize") {
         return Err(Error::Limit);
     }
@@ -35,7 +31,7 @@ pub fn failed(
         client::Evidence::Response { status } => llm::Evidence::Response { status: Some(status) },
     };
     Ok(Event::Failed {
-        owner,
+        owner: context.owner,
         failure,
         evidence,
         detail,
@@ -73,9 +69,9 @@ pub(crate) fn class(failure: shared::Failure) -> llm::Failure {
 /// Translates the observed shared cancellation terminal after real lower settlement.
 /// A cancellation request alone never permits calling this function; already
 /// won Completed/Failed terminals keep their values and consume context instead.
-/// An incorrect call owner is Invalid and confers no terminal authority.
-pub fn cancelled(context: Context, owner: Token) -> Result<Event, Error> {
-    if owner == context.owner { Ok(Event::Cancelled { owner }) } else { Err(Error::Invalid) }
+#[must_use]
+pub fn cancelled(context: Context) -> Event {
+    Event::Cancelled { owner: context.owner }
 }
 
 /// Reports a preparation refusal as an unsent root terminal; no wire call existed.

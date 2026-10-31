@@ -4,7 +4,6 @@ mod component_backend;
 pub mod fixture;
 pub mod pool_peer;
 pub mod referee;
-mod translate;
 pub mod wire;
 mod world;
 

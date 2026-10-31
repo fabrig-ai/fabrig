@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use core::mem::size_of;
 
 use skein_lib::{Duration, List, Map};
-use skein_llm::{Prompt, Provider};
+use skein_llm::Provider;
 use skein_llm_connection as connection;
 use smith_domain::llm;
 
@@ -166,20 +166,6 @@ impl Endpoints {
     #[must_use]
     pub fn resolve(&self, name: llm::Endpoint) -> Option<&EndpointOptions> {
         self.options.get(&name.0)
-    }
-
-    /// Apply the startup options to the neutral prompt given to skein.
-    /// Its dialect, target and headers are already in the destination.
-    pub fn apply(&self, name: llm::Endpoint, prompt: &mut Prompt) -> Result<u32, EndpointError> {
-        let options = self.resolve(name).ok_or(EndpointError::Unknown)?;
-        match options.identity {
-            IdentityProfile::Plain => {}
-            IdentityProfile::ClaudeCode => {
-                prompt.instructions = skein_llm::anthropic::identity::instructions(&prompt.instructions)
-                    .or(Err(EndpointError::Identity))?;
-            }
-        }
-        Ok(options.index)
     }
 
     /// Borrow configured destination limits and credential ceilings for startup accounting.

@@ -5,12 +5,13 @@ use skein_llm::{Credential, Endpoint, client};
 use smith_domain::{llm, run};
 
 pub use smith_protocol_llm::{
-    Below, BelowEvent, Component, ComponentError, ComponentLimits, ConfiguredEndpoint, Context, EndpointError,
-    EndpointOptions, Endpoints, Error, FromDomain, GrantError, Grants, IdentityProfile, Limits, Receiving,
-    ResolvedCall, Stated, ToDomain, ToolKind, ToolSchema, cancelled, completion, completion_bound, component_valid,
-    decode, decode_deliver, decode_finish, deliver_schema, failed, finish_schema, prompt, refusal, render_bound,
-    render_outcome, schemas, schemas_for_contract, valid,
+    Below, BelowEvent, Component, ComponentError, ComponentLimits, ConfiguredEndpoint, EndpointError, EndpointOptions,
+    Endpoints, Error, FromDomain, GrantError, Grants, IdentityProfile, Limits, Receiving, Stated, ToDomain, ToolKind,
+    ToolSchema, completion_bound, component_valid, decode, decode_deliver, decode_finish, deliver_schema,
+    finish_schema, render_bound, render_outcome, schemas_for_contract, valid,
 };
+
+pub use smith_protocol_llm::fixture::{Context, cancelled, completion, failed, prompt, refusal, schemas};
 
 /// All owned input to one preparation. Caller credentials are consumed as a grant;
 /// acquisition and refresh remain outside Smith.
@@ -31,9 +32,6 @@ pub struct Input {
     /// Observed caller-provided credential; Smith owns no exchange or refresh client.
     pub credential: Credential,
 
-    /// Exact bounded application schema inventory; retained until observed terminal translation.
-    pub application: Box<[ToolSchema]>,
-
     /// Receiving metadata of the root's observed Complete request.
     pub receiving: Receiving,
 }
@@ -53,12 +51,12 @@ pub struct Prepared {
 /// # Errors
 /// Refuses incompatible receiving limits or invalid prompt declarations.
 pub fn prepare(input: Input, limits: &Limits) -> Result<Prepared, Error> {
-    let Input { owner, prompt, endpoint_name, endpoint, credential, application, receiving } = input;
+    let Input { owner, prompt, endpoint_name, endpoint, credential, receiving } = input;
     if prompt.endpoint != endpoint_name {
         return Err(Error::Invalid);
     }
     let ceiling = prompt.max_tokens;
-    let (mut translated, context) = smith_protocol_llm::prepare_prompt(owner, prompt, application, receiving, limits)?;
+    let (mut translated, context) = smith_protocol_llm::fixture::prepare_prompt(owner, prompt, receiving, limits)?;
     translated.output_ceiling(endpoint.provider, ceiling).map_err(Error::from_shared)?;
     let client = client::Client::prepare(
         skein_llm::Call { owner, endpoint, credential: Some(credential), prompt: translated },
@@ -70,15 +68,27 @@ pub fn prepare(input: Input, limits: &Limits) -> Result<Prepared, Error> {
 
 /// Prepare a client with the production schemas for the admitted contract.
 /// # Errors
-/// Refuses invalid schemas, declarations or receiving limits.
+/// Refuses invalid declarations or receiving limits.
 pub fn prepare_for_contract(
-    mut input: Input,
+    input: Input,
     outcome: &run::outcome::OutcomeSpec,
     deliver: Option<&run::outcome::ChangeSpec>,
     limits: &Limits,
 ) -> Result<Prepared, Error> {
-    input.application = schemas_for_contract(&input.prompt, &limits.stated, outcome, deliver, limits.client.request)?;
-    prepare(input, limits)
+    let Input { owner, prompt, endpoint_name, endpoint, credential, receiving } = input;
+    if prompt.endpoint != endpoint_name {
+        return Err(Error::Invalid);
+    }
+    let ceiling = prompt.max_tokens;
+    let (mut translated, context) =
+        smith_protocol_llm::fixture::prepare_for_contract(owner, prompt, outcome, deliver, receiving, limits)?;
+    translated.output_ceiling(endpoint.provider, ceiling).map_err(Error::from_shared)?;
+    let client = client::Client::prepare(
+        skein_llm::Call { owner, endpoint, credential: Some(credential), prompt: translated },
+        &limits.client,
+    )
+    .map_err(Error::from_shared)?;
+    Ok(Prepared { client, context })
 }
 
 /// Effective fixture quantities shared by direct-client tests.

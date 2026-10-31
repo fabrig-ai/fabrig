@@ -3,16 +3,15 @@
 //! data; no application decoder or Finish policy lives in this test.
 //! Contract: testing-strategy.md, sections 2.5 and 6.
 
-use skein_fake_llm_domain::{self as fake, api};
-use skein_lib::{Env, Queue, Time, Token, Wall};
+use skein_fake_llm_domain::api;
+use skein_lib::Token;
 use skein_llm::{self as shared, client};
 use skein_llm_world::fake::Exchange;
 use smith_domain::{Event, llm, run, tools};
-use smith_protocol_llm_world::adapter::{self as adapter, Context, Input, Limits, ResolvedCall, ToolKind, ToolSchema};
+use smith_protocol_llm_world::adapter::{self as adapter, Context, Input, Limits, ToolKind, ToolSchema};
 use smith_protocol_llm_world::wire::{self, Configuration};
 
 const OWNER: Token = Token::new(71);
-const OTHER: Token = Token::new(72);
 const WAIT_SCHEMA: &[u8] = br#"{"type":"object","properties":{},"additionalProperties":false}"#;
 
 fn limits() -> Limits {
@@ -65,7 +64,6 @@ fn input(configuration: &Configuration) -> Input {
             account_id: configuration.credential.account_id.clone(),
             scheme: skein_llm::Scheme::Bearer,
         },
-        application: Box::new([schema(ToolKind::Wait, b"wait")]),
         receiving: smith_protocol_llm::fixture::receiving(&bounds.client, decoded_call_bytes)
             .expect("fixture receiving bound"),
     }
@@ -103,15 +101,6 @@ fn adopt(input: Input, calls: bool) -> (Context, Exchange) {
     assert!(peer.queries.is_empty(), "preparation starts no wire request");
     assert!(peer.requests.is_empty());
     (context, peer)
-}
-
-fn quiesce(peer: &mut Exchange) {
-    for _ in 0..100_000_u32 {
-        if !peer.tick(true) {
-            return;
-        }
-    }
-    panic!("bounded observed exchange did not quiesce");
 }
 
 fn take_terminal(peer: &mut Exchange) -> client::Event {
@@ -152,179 +141,9 @@ fn close_won(peer: &mut Exchange) {
     assert_eq!(peer.machine.waiting(), client::Waiting::Nothing);
 }
 
-fn completed(configuration: &Configuration, calls: bool) -> (Context, Exchange, Token, shared::Completion) {
-    let (context, mut peer) = adopt(input(configuration), calls);
-    peer.start();
-    peer.run();
-    assert_eq!(peer.queries.len(), 1);
-    assert_eq!(peer.seen.iter().filter(|event| matches!(event, client::Event::Reusable)).count(), 1);
-    let client::Event::Completed { owner, completion } = take_terminal(&mut peer) else {
-        panic!("observed scripted successful terminal");
-    };
-    assert_eq!(owner, OWNER);
-    (context, peer, owner, completion)
-}
-
-#[test]
-fn completed_owner_is_preserved_and_a_different_owner_is_refused() {
-    for configuration in &wire::configurations() {
-        for wrong_owner in [false, true] {
-            let (context, mut peer, owner, completion) = completed(configuration, false);
-            let returned =
-                adapter::completion(context, if wrong_owner { OTHER } else { owner }, completion, Box::new([]));
-            if wrong_owner {
-                assert!(matches!(returned, Err(adapter::Error::Invalid)));
-            } else {
-                let Ok(Event::Completed { owner, completion }) = returned else {
-                    panic!("the successful terminal translates once");
-                };
-                assert_eq!(owner, OWNER);
-                assert_eq!(completion.stop, llm::Stop::EndTurn);
-                assert_eq!(completion.usage.output_tokens, Some(7));
-                let [llm::Said::Text { text, .. }] = completion.content.as_ref() else {
-                    panic!("literal observed text completion");
-                };
-                assert_eq!(text.as_ref(), b"admitted exact");
-            }
-            close_won(&mut peer);
-        }
-    }
-}
-
-// The pinned fake provider emits HTTP Service Unavailable for both OpenAI routes.
-const OPENAI_OVERLOADED_STATUS: u16 = 503;
-
-// The pinned fake provider emits Anthropic's overloaded status, with no exported constant.
-const ANTHROPIC_OVERLOADED_STATUS: u16 = 529;
-
-fn overloaded_status(configuration: &Configuration) -> u16 {
-    match configuration.endpoint.provider {
-        shared::Provider::OpenAi | shared::Provider::OpenAiCodex => OPENAI_OVERLOADED_STATUS,
-        shared::Provider::Anthropic => ANTHROPIC_OVERLOADED_STATUS,
-    }
-}
-
-fn failed(configuration: &Configuration) -> (Context, Exchange, client::Event) {
-    let (context, mut peer) = adopt(input(configuration), false);
-    peer.manual_replies = true;
-    peer.start();
-    quiesce(&mut peer);
-    assert_eq!(peer.pending.len(), 1, "one observed HTTP request issued a domain reply right");
-    let config = fake::Config { overloaded: 1000, ..skein_llm_world::fake::config() };
-    let mut domain = fake::Domain::new(&config, 7);
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
-    let mut out = Queue::uncapped();
-    fake::step(&mut domain, &env, peer.pending.pop().expect("observed independent peer request"), &mut out);
-    assert!(out.pop().is_none(), "the observed fake decision awaits its timer entrance");
-    fake::fire(&mut domain, &env, &mut out);
-    peer.reply(out.pop().expect("observed configured fake overloaded terminal"));
-    assert!(out.pop().is_none());
-    domain.reclaim();
-    assert_eq!(domain.calls(), 0);
-    assert_eq!(domain.next_deadline(), None);
-    peer.run();
-    let terminal = take_terminal(&mut peer);
-    assert!(matches!(
-        &terminal,
-        client::Event::Failed {
-            owner,
-            failure: shared::Failure::Overloaded,
-            evidence: client::Evidence::Response { status },
-            report: _,
-            detail
-        } if *owner == OWNER && *status == overloaded_status(configuration) && detail.as_ref() == b"overloaded_error"
-    ));
-    (context, peer, terminal)
-}
-
-#[test]
-fn failed_owner_class_evidence_and_detail_survive_only_the_matching_context() {
-    for configuration in &wire::configurations() {
-        for wrong_owner in [false, true] {
-            let (context, mut peer, terminal) = failed(configuration);
-            let client::Event::Failed { owner, failure, evidence, report, detail } = terminal else {
-                panic!("observed byte-peer failure established above");
-            };
-            let returned =
-                adapter::failed(context, if wrong_owner { OTHER } else { owner }, failure, evidence, detail, report);
-            if wrong_owner {
-                assert!(matches!(returned, Err(adapter::Error::Invalid)));
-            } else {
-                let Ok(Event::Failed { owner, failure, evidence, detail, .. }) = returned else {
-                    panic!("failure translates once");
-                };
-                assert_eq!(owner, OWNER);
-                assert_eq!(failure, llm::Failure::Overloaded);
-                assert_eq!(evidence, llm::Evidence::Response { status: Some(overloaded_status(configuration)) });
-                assert_eq!(detail.as_ref(), b"overloaded_error");
-            }
-            close_won(&mut peer);
-        }
-    }
-}
-
-#[test]
-fn cancelled_owner_is_checked_only_after_observed_lower_settlement() {
-    for configuration in &wire::configurations() {
-        for wrong_owner in [false, true] {
-            let (context, mut peer) = adopt(input(configuration), false);
-            peer.start();
-            peer.request(client::Request::Cancel);
-            assert_eq!(peer.seen.iter().filter(|event| matches!(event, client::Event::Close)).count(), 1);
-            assert!(!peer.seen.iter().any(|event| matches!(event, client::Event::Cancelled { .. })));
-            peer.settle();
-            let client::Event::Cancelled { owner } = take_terminal(&mut peer) else {
-                panic!("lower settlement yields the native cancellation terminal");
-            };
-            assert_eq!(owner, OWNER);
-            let returned = adapter::cancelled(context, if wrong_owner { OTHER } else { owner });
-            if wrong_owner {
-                assert!(matches!(returned, Err(adapter::Error::Invalid)));
-            } else {
-                assert!(matches!(returned, Ok(Event::Cancelled { owner }) if owner == OWNER));
-            }
-            assert_eq!(peer.seen.iter().filter(|event| matches!(event, client::Event::Closed)).count(), 1);
-            let events = peer.seen.len();
-            peer.settle();
-            assert_eq!(peer.seen.len(), events, "no second cancellation or close terminal");
-            assert_eq!(peer.machine.waiting(), client::Waiting::Nothing);
-        }
-    }
-}
-
-#[test]
-fn schema_inventory_admits_first_then_refuses_missing_duplicate_and_unoffered_entries() {
-    for configuration in &wire::configurations() {
-        let (context, mut peer, owner, completion) = completed(configuration, false);
-        let [query] = peer.queries.as_slice() else { panic!("one observed observed query") };
-        let [declaration] = query.tools.as_ref() else { panic!("one observed offered application schema") };
-        assert_eq!(declaration.name.as_ref(), b"wait");
-        assert_eq!(declaration.description.as_ref(), b"Boundary caller declaration.");
-        assert_eq!(declaration.parameters.as_ref(), WAIT_SCHEMA);
-        assert!(matches!(adapter::completion(context, owner, completion, Box::new([])), Ok(Event::Completed { .. })));
-        close_won(&mut peer);
-
-        let mut missing = input(configuration);
-        missing.application = Box::new([]);
-        assert!(matches!(adapter::prepare(missing, &limits()), Err(adapter::Error::Invalid)));
-        let mut duplicate = input(configuration);
-        duplicate.application = Box::new([schema(ToolKind::Wait, b"wait"), schema(ToolKind::Wait, b"wait")]);
-        assert!(matches!(adapter::prepare(duplicate, &limits()), Err(adapter::Error::Invalid)));
-        let mut unoffered = input(configuration);
-        unoffered.application =
-            Box::new([schema(ToolKind::Wait, b"wait"), schema(ToolKind::Owned(tools::Tool::Shell), b"shell")]);
-        assert!(matches!(adapter::prepare(unoffered, &limits()), Err(adapter::Error::Invalid)));
-    }
-}
-
 fn result_input(configuration: &Configuration) -> Input {
     let mut input = input(configuration);
     input.prompt.tools.shell = true;
-    input.application = Box::new([
-        schema(ToolKind::Wait, b"wait"),
-        schema(ToolKind::Owned(tools::Tool::Shell), b"shell"),
-        schema(ToolKind::Owned(tools::Tool::Job), b"job"),
-    ]);
     input.prompt.messages = Box::new([
         llm::Message {
             role: llm::Role::Assistant,
@@ -367,124 +186,9 @@ fn owned_results_use_the_production_renderer_before_the_request_goes() {
         assert_eq!(id.as_ref(), b"prior-shell");
         assert!(output.starts_with(b"exit code 0\nprior"));
         assert!(!*is_error);
-        let client::Event::Completed { owner, completion } = take_terminal(&mut peer) else { panic!("completion") };
-        assert!(matches!(adapter::completion(context, owner, completion, Box::new([])), Ok(Event::Completed { .. })));
+        let client::Event::Completed { owner: _, completion } = take_terminal(&mut peer) else { panic!("completion") };
+        assert!(matches!(adapter::completion(context, completion), Ok(Event::Completed { .. })));
         close_won(&mut peer);
-    }
-}
-
-fn resolution() -> ResolvedCall {
-    ResolvedCall {
-        position: 1,
-        name: b"wait".as_slice().into(),
-        input: b"{}".as_slice().into(),
-        call: llm::Decoded::Served { ask: run::Ask::Wait },
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-enum Attestation {
-    Exact,
-    Missing,
-    Position,
-    Name,
-    Input,
-    Kind,
-    Duplicate,
-    Unused,
-}
-
-fn resolutions(case: Attestation) -> Box<[ResolvedCall]> {
-    let mut exact = resolution();
-    match case {
-        Attestation::Exact => {}
-        Attestation::Missing => return Box::new([]),
-        Attestation::Position => exact.position = 0,
-        Attestation::Name => exact.name = b"another-name".as_slice().into(),
-        Attestation::Input => exact.input = b"{".as_slice().into(),
-        Attestation::Kind => {
-            exact.call = llm::Decoded::Owned {
-                call: tools::Call::Shell {
-                    after: smith_domain_tools::Yield::Never,
-                    command: Box::new([]),
-                    timeout: tools::Timeout::Default,
-                    output: tools::Budget::Default,
-                },
-            };
-        }
-        Attestation::Duplicate => return Box::new([resolution(), resolution()]),
-        Attestation::Unused => {
-            let mut unused = resolution();
-            unused.position = 2;
-            return Box::new([exact, unused]);
-        }
-    }
-    Box::new([exact])
-}
-
-#[test]
-fn call_attestation_checks_position_name_literal_input_kind_uniqueness_and_consumption() {
-    for configuration in &wire::configurations() {
-        for case in [
-            Attestation::Exact,
-            Attestation::Missing,
-            Attestation::Position,
-            Attestation::Name,
-            Attestation::Input,
-            Attestation::Kind,
-            Attestation::Duplicate,
-            Attestation::Unused,
-        ] {
-            let (context, mut peer, owner, completion) = completed(configuration, true);
-            let [
-                shared::Block::Text { text: first, .. },
-                shared::Block::ToolCall { id, name, arguments, .. },
-                shared::Block::Text { text: last, .. },
-            ] = completion.content.as_ref()
-            else {
-                panic!("the native call has its independent text/call/text positions");
-            };
-            assert_eq!(first.as_ref(), b"before");
-            assert_eq!(last.as_ref(), b"after");
-            assert_eq!(name.as_ref(), b"wait");
-            assert_eq!(arguments.as_ref(), b"{}");
-            assert_eq!(id.as_ref(), b"call_0000000000000001");
-            let returned = adapter::completion(context, owner, completion, resolutions(case));
-            match case {
-                Attestation::Exact => {
-                    let Ok(Event::Completed { owner, completion }) = returned else {
-                        panic!("the exact Wait attestation is admitted first");
-                    };
-                    assert_eq!(owner, OWNER);
-                    assert_eq!(completion.stop, llm::Stop::ToolUse);
-                    assert_eq!(completion.usage.output_tokens, Some(7));
-                    let [
-                        llm::Said::Text { text: first, .. },
-                        llm::Said::ToolCall { id, name, input, call, .. },
-                        llm::Said::Text { text: last, .. },
-                    ] = completion.content.as_ref()
-                    else {
-                        panic!("adapter preserves original positions and fields");
-                    };
-                    assert_eq!(first.as_ref(), b"before");
-                    assert_eq!(last.as_ref(), b"after");
-                    assert_eq!(id.as_ref(), b"call_0000000000000001");
-                    assert_eq!(name.as_ref(), b"wait");
-                    assert_eq!(input.as_ref(), b"{}");
-                    assert!(matches!(call, llm::Decoded::Served { ask: run::Ask::Wait }));
-                }
-                Attestation::Missing
-                | Attestation::Position
-                | Attestation::Name
-                | Attestation::Input
-                | Attestation::Kind
-                | Attestation::Duplicate
-                | Attestation::Unused => {
-                    assert!(matches!(returned, Err(adapter::Error::Invalid)), "bad attestation {case:?}");
-                }
-            }
-            close_won(&mut peer);
-        }
     }
 }
 
@@ -525,8 +229,8 @@ fn a_result_past_its_bound_is_cut_with_its_marker_and_the_request_goes() {
             .parse::<usize>()
             .expect("decimal omitted count");
         assert_eq!(omitted + marker, byte_count + b"exit code 0\n".len());
-        let client::Event::Completed { owner, completion } = take_terminal(&mut peer) else { panic!("completion") };
-        assert!(matches!(adapter::completion(context, owner, completion, Box::new([])), Ok(Event::Completed { .. })));
+        let client::Event::Completed { owner: _, completion } = take_terminal(&mut peer) else { panic!("completion") };
+        assert!(matches!(adapter::completion(context, completion), Ok(Event::Completed { .. })));
         close_won(&mut peer);
     }
 }
@@ -534,8 +238,7 @@ fn a_result_past_its_bound_is_cut_with_its_marker_and_the_request_goes() {
 fn child_completed(configuration: &Configuration, arguments: &[u8]) -> (Context, Exchange, Token, shared::Completion) {
     let mut offered = input(configuration);
     offered.prompt.served = Box::new([llm::Served::SubAgent]);
-    offered.application = adapter::schemas(&offered.prompt, &limits().stated);
-    let schema = offered.application[0].schema.clone();
+    let schema = adapter::schemas(&offered.prompt, &limits().stated)[0].schema.clone();
     let endpoint = offered.endpoint.clone();
     let credential = shared::Credential {
         value: offered.credential.value.clone(),
@@ -562,10 +265,10 @@ fn child_completed(configuration: &Configuration, arguments: &[u8]) -> (Context,
         assert!(tool.parameters.windows(name.len()).any(|part| part == name));
     }
     assert!(!tool.parameters.windows(b"maximum".len()).any(|part| part == b"maximum"));
-    let client::Event::Completed { owner, completion } = take_terminal(&mut peer) else {
+    let client::Event::Completed { owner: _, completion } = take_terminal(&mut peer) else {
         panic!("one observed provider completion");
     };
-    (context, peer, owner, completion)
+    (context, peer, OWNER, completion)
 }
 
 #[test]
@@ -596,26 +299,13 @@ fn optional_child_shares_cross_both_provider_schemas_and_observed_completions() 
     ];
     for configuration in &wire::configurations() {
         for (arguments, expected, field) in cases {
-            let (context, mut peer, owner, completion) = child_completed(configuration, arguments);
-            let [shared::Block::ToolCall { name, arguments: received, .. }] = completion.content.as_ref() else {
+            let (context, mut peer, _owner, completion) = child_completed(configuration, arguments);
+            let [shared::Block::ToolCall { arguments: received, .. }] = completion.content.as_ref() else {
                 panic!("the provider retains the child call");
             };
             assert_eq!(received.as_ref(), arguments);
-            let resolved = Box::new([ResolvedCall {
-                position: 0,
-                name: name.clone(),
-                input: received.clone(),
-                call: adapter::decode(
-                    name,
-                    received,
-                    context.grants(),
-                    context.served(),
-                    context.asker(),
-                    &context.limits(),
-                ),
-            }]);
             let Event::Completed { completion, .. } =
-                adapter::completion(context, owner, completion, resolved).expect("observed checked adapter callback")
+                adapter::completion(context, completion).expect("observed checked adapter callback")
             else {
                 panic!("the observed call has one root completion");
             };
@@ -649,7 +339,7 @@ fn a_prompt_takes_its_sessions_effort_and_none_for_the_provider_default() {
     for effort in [None, Some(b"high".as_slice())] {
         let mut requested = prompt();
         requested.effort = effort.map(Into::into);
-        let translated = smith_protocol_llm::prompt(requested, core::slice::from_ref(&application), &bounds)
+        let translated = smith_protocol_llm::fixture::prompt(requested, core::slice::from_ref(&application), &bounds)
             .expect("admitted prompt");
         assert_eq!(translated.reasoning_effort.as_deref(), effort);
     }

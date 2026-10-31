@@ -140,7 +140,7 @@ fn contract_schemas_reach_the_scripted_byte_peer_in_both_dialects() {
                     account_id: configuration.credential.account_id.clone(),
                     scheme: skein_llm::Scheme::Bearer,
                 },
-                application: Box::new([]),
+
                 receiving,
             },
             &rules,

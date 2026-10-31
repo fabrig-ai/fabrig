@@ -265,7 +265,7 @@ fn invalid_limits_are_refused() {
     let bounds = limits();
     let accepted = receiving(&bounds);
     assert!(adapter::valid(&bounds, &accepted));
-    smith_protocol_llm::prepare_prompt(Token::new(1), prompt(), Box::new([]), accepted, &bounds)
+    smith_protocol_llm::fixture::prepare_prompt(Token::new(1), prompt(), accepted, &bounds)
         .expect("valid limits prepare a prompt");
     let mut cases = Vec::new();
     let mut invalid = bounds;
@@ -293,7 +293,7 @@ fn invalid_limits_are_refused() {
         assert!(!adapter::valid(&bounds, &receiving), "{check}");
         assert!(
             matches!(
-                smith_protocol_llm::prepare_prompt(Token::new(1), prompt(), Box::new([]), receiving, &bounds),
+                smith_protocol_llm::fixture::prepare_prompt(Token::new(1), prompt(), receiving, &bounds),
                 Err(adapter::Error::Limit)
             ),
             "{check}"
@@ -389,7 +389,6 @@ fn two_calls(
 ) -> (adapter::Context, skein_llm_world::fake::Exchange) {
     let mut input = prompt();
     input.served = Box::new([input.served[0].clone(), llm::Served::Finish]);
-    let application = wire::schemas(&input, &bounds.stated);
     let endpoint = configuration.endpoint.clone();
     let credential = skein_llm::Credential {
         value: configuration.credential.value.clone(),
@@ -407,7 +406,6 @@ fn two_calls(
                 account_id: credential.account_id.clone(),
                 scheme: skein_llm::Scheme::Bearer,
             },
-            application,
             receiving,
         },
         bounds,
@@ -417,7 +415,12 @@ fn two_calls(
         cue: b"@client-host".as_slice().into(),
         turns: Box::new([Turn {
             lines: Box::new([
-                Line::Call { name: b"finish".as_slice().into(), arguments: b"{}".as_slice().into() },
+                Line::Call {
+                    name: b"finish".as_slice().into(),
+                    arguments: format!(r#"{{"form":"report","text":"{}","fields":{{}}}}"#, "x".repeat(512))
+                        .into_bytes()
+                        .into(),
+                },
                 Line::Call { name: b"opaque_host".as_slice().into(), arguments: BODY.into() },
             ]),
             finish: Finish::ToolCalls,
@@ -462,14 +465,8 @@ fn reservation_control(configuration: &Configuration, exact: bool) {
         ..smith_protocol_llm::fixture::receiving(&bounds.client, decoded_call_bytes).expect("fixture receiving bound")
     };
     let (context, mut peer) = two_calls(configuration, &bounds, receiving);
-    let (owner, observed_completion) = owned_completion(&mut peer);
-    let resolved = Box::new([adapter::ResolvedCall {
-        position: 0,
-        name: b"finish".as_slice().into(),
-        input: b"{}".as_slice().into(),
-        call: llm::Decoded::Invalid { problem: llm::Problem::Missing { field: vec![b'x'; 4096].into() } },
-    }]);
-    let Event::Completed { completion, .. } = adapter::completion(context, owner, observed_completion, resolved)
+    let (_owner, observed_completion) = owned_completion(&mut peer);
+    let Event::Completed { completion, .. } = adapter::completion(context, observed_completion)
         .expect("fallback wrappers stay in the secured aggregate before later host decoding")
     else {
         panic!("translated observed completion");

@@ -140,8 +140,10 @@ fn the_denials_use_the_workspace_words() {
             llm::Returned::Text { text: json::join(&[prefix, b"\"file_path\""]), error: true, replay: None },
         );
         assert_eq!(
-            smith_protocol_llm::prompt(denied, &[], &backend.settings.adapter).expect("rendered invalid input"),
-            smith_protocol_llm::prompt(expected, &[], &backend.settings.adapter).expect("rendered denial words")
+            smith_protocol_llm::fixture::prompt(denied, &[], &backend.settings.adapter)
+                .expect("rendered invalid input"),
+            smith_protocol_llm::fixture::prompt(expected, &[], &backend.settings.adapter)
+                .expect("rendered denial words")
         );
     }
 }

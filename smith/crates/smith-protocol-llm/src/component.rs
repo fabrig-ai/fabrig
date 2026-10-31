@@ -8,11 +8,10 @@
 //! Accepted calls have one typed terminal.
 //! Contract: protocol/llm.md, sections 1, 6 to 10.
 
-use alloc::boxed::Box;
 use core::fmt;
 
 use skein_io::{Event as IoEvent, Request as IoRequest};
-use skein_lib::{Env, List, Map, Queue, Set, Time, Token, bytes};
+use skein_lib::{Env, Map, Queue, Set, Time, Token, bytes};
 use skein_llm::{self as shared, Credential};
 use skein_llm_connection as connection;
 use smith_domain::{Event as DomainEvent, GrantName, llm, run};
@@ -55,8 +54,6 @@ pub enum ComponentError {
 
 struct Active {
     context: Context,
-    outcome: run::outcome::OutcomeSpec,
-    deliver: Option<run::outcome::ChangeSpec>,
     observation: Option<crate::Observation>,
     deltas: crate::Deltas,
 }
@@ -463,7 +460,7 @@ impl Component {
                 return;
             }
         };
-        match self.active.insert(owner, Active { context, outcome, deliver, observation, deltas }) {
+        match self.active.insert(owner, Active { context, observation, deltas }) {
             Ok(None) => {}
             Ok(Some(_)) | Err(_) => {
                 Self::local_failure(owner, llm::Failure::ApplicationLimit, bounds.max_failure_bytes, to_domain);
@@ -529,7 +526,7 @@ impl Component {
                     self.next.remove(&call);
                     let active = self.active.remove(&call);
                     let maximum = match &active {
-                        Some(active) => active.context.receiving().max_failure_bytes,
+                        Some(active) => active.context.receiving.max_failure_bytes,
                         None => 0,
                     };
                     let error = match why {
@@ -565,8 +562,7 @@ impl Component {
                                 .expect("the observed client admitted its bounded blocks and replay");
                             self.measures.push(crate::Measure::Completion { at: now, owner: call, completion });
                         }
-                        let resolved = self.resolve(&completion, &active);
-                        match crate::completion(active.context, call, completion, resolved) {
+                        match crate::completion(active.context, completion) {
                             Ok(event) => Self::domain_event(event, to_domain),
                             Err(error) => {
                                 Self::refusal(call, error, self.limits.adapter.client.detail_bytes, to_domain);
@@ -578,7 +574,7 @@ impl Component {
                     self.next.remove(&call);
                     if let Some(active) = self.active.remove(&call) {
                         self.measures.push(crate::Measure::Terminal { owner: call, measures });
-                        match crate::failed(active.context, call, failure, evidence, detail, report) {
+                        match crate::failed(active.context, failure, evidence, detail, report) {
                             Ok(event) => Self::domain_event(event, to_domain),
                             Err(error) => {
                                 Self::refusal(call, error, self.limits.adapter.client.detail_bytes, to_domain);
@@ -590,12 +586,7 @@ impl Component {
                     self.next.remove(&call);
                     if let Some(active) = self.active.remove(&call) {
                         self.measures.push(crate::Measure::Terminal { owner: call, measures });
-                        match crate::cancelled(active.context, call) {
-                            Ok(event) => Self::domain_event(event, to_domain),
-                            Err(error) => {
-                                Self::refusal(call, error, self.limits.adapter.client.detail_bytes, to_domain);
-                            }
-                        }
+                        Self::domain_event(crate::cancelled(active.context), to_domain);
                     }
                 }
             }
@@ -637,60 +628,6 @@ impl Component {
             Some(active) => active.deltas.input,
             None => false,
         }
-    }
-
-    fn resolve(&self, completion: &shared::Completion, active: &Active) -> Box<[crate::ResolvedCall]> {
-        let mut resolved = List::with_capacity(self.limits.adapter.client.output_items);
-        for (position, block) in completion.content.iter().enumerate() {
-            let (name, arguments) = match block {
-                shared::Block::ToolCall { name, arguments, .. } => (name, arguments),
-                shared::Block::Text { .. }
-                | shared::Block::Refusal { .. }
-                | shared::Block::ToolResult { .. }
-                | shared::Block::Oversize { .. }
-                | shared::Block::Cut { .. }
-                | shared::Block::Dropped { .. }
-                | shared::Block::Reasoning { .. } => continue,
-            };
-            let mut offered = false;
-            for descriptor in active.context.application() {
-                if descriptor.name.as_ref() == name.as_ref() {
-                    offered = true;
-                }
-            }
-            if !offered {
-                continue;
-            }
-            let call = match name.as_ref() {
-                b"finish" => crate::decode_finish(arguments, &active.outcome, &self.limits.adapter),
-                b"deliver" => match &active.deliver {
-                    Some(change) => crate::decode_deliver(arguments, change, &self.limits.adapter),
-                    None => llm::Decoded::Invalid { problem: llm::Problem::UnknownTool },
-                },
-                _ => crate::decode(
-                    name,
-                    arguments,
-                    active.context.grants(),
-                    active.context.served(),
-                    active.context.asker(),
-                    &self.limits.adapter,
-                ),
-            };
-            match u32::try_from(position) {
-                Ok(position) => {
-                    resolved
-                        .push(crate::ResolvedCall {
-                            position,
-                            name: bytes::copy_of(name),
-                            input: bytes::copy_of(arguments),
-                            call,
-                        })
-                        .expect("admitted completion block count");
-                }
-                Err(_) => break,
-            }
-        }
-        resolved.into_boxed()
     }
 
     fn domain_event(event: DomainEvent, to_domain: &mut Queue<ToDomain>) {

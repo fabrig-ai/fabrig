@@ -8,27 +8,8 @@ use skein_lib::{List, bytes};
 use skein_llm as shared;
 use smith_domain::{llm, run, tools};
 
-use crate::types::{Context, ToolKind, ToolSchema};
+use crate::types::{Context, ToolSchema};
 use crate::{Error, Limits, valid};
-
-/// Translate an admitted prompt and retain its declarations for one terminal.
-/// The component and protocol worlds use this same preparation before skein
-/// creates the client; receiving compatibility is checked before any effect.
-pub fn prepare_prompt(
-    owner: skein_lib::Token,
-    prompt: llm::Prompt,
-    application: Box<[ToolSchema]>,
-    receiving: crate::Receiving,
-    limits: &Limits,
-) -> Result<(shared::Prompt, Context), Error> {
-    if !valid(limits, &receiving) {
-        return Err(Error::Limit);
-    }
-    let asker = prompt.asker;
-    let grants = prompt.tools;
-    let (translated, served) = translate(prompt, &application, limits)?;
-    Ok((translated, Context { owner, asker, grants, served, application, receiving, limits: *limits }))
-}
 
 /// Prepare the translated prompt and retained context for the connection
 /// component, which prepares the sole shared Client when it admits Start.
@@ -45,7 +26,22 @@ pub(crate) fn prepare_component(
     }
     let application =
         crate::tools::schemas_for_contract(&prompt, &limits.stated, outcome, deliver, limits.client.request)?;
-    prepare_prompt(owner, prompt, application, receiving, limits)
+    let asker = prompt.asker;
+    let grants = prompt.tools;
+    let (translated, served) = translate(prompt, &application, limits)?;
+    Ok((
+        translated,
+        Context {
+            owner,
+            asker,
+            grants,
+            served,
+            receiving,
+            limits: *limits,
+            outcome: outcome.clone(),
+            deliver: deliver.cloned(),
+        },
+    ))
 }
 
 /// Pure application prompt translation, including whole supplied tool schemas.
@@ -53,6 +49,7 @@ pub(crate) fn prepare_component(
 /// before directly preparing a Client.
 /// Missing or conflicting application descriptors are Invalid, exceeded
 /// bounds are Limit and incompatible replay remains Unsupported.
+#[cfg(any(test, feature = "fixture"))]
 pub fn prompt(input: llm::Prompt, application: &[ToolSchema], limits: &Limits) -> Result<shared::Prompt, Error> {
     let (translated, _served) = translate(input, application, limits)?;
     Ok(translated)
@@ -290,15 +287,7 @@ fn inventory(input: &llm::Prompt, application: &[ToolSchema], limits: &Limits) -
     if count > maximum || input.served.len() > maximum {
         return Err(Error::Limit);
     }
-    for (index, descriptor) in application.iter().enumerate() {
-        if !offered(descriptor.kind, input) || descriptor.name.is_empty() || !fixed_name(descriptor) {
-            return Err(Error::Invalid);
-        }
-        for previous in application.get(..index).expect("enumerated application prefix") {
-            if previous.kind == descriptor.kind || previous.name == descriptor.name {
-                return Err(Error::Invalid);
-            }
-        }
+    for descriptor in application {
         declaration_bytes = declaration_bytes.checked_add(size(size_of::<ToolSchema>())?).ok_or(Error::Limit)?;
         for field in [&descriptor.name, &descriptor.description, &descriptor.schema] {
             declaration_bytes = declaration_bytes.checked_add(size(field.len())?).ok_or(Error::Limit)?;
@@ -307,7 +296,6 @@ fn inventory(input: &llm::Prompt, application: &[ToolSchema], limits: &Limits) -
     if declaration_bytes > limits.tool_bytes {
         return Err(Error::Limit);
     }
-    required(input, application)?;
     history_admitted(&input.messages, limits)
 }
 
@@ -319,90 +307,6 @@ fn served_unique(descriptor: &llm::Served, previous: &[llm::Served]) -> Result<(
         }
     }
     Ok(())
-}
-
-fn required(input: &llm::Prompt, application: &[ToolSchema]) -> Result<(), Error> {
-    for tool in [
-        tools::Tool::Read,
-        tools::Tool::List,
-        tools::Tool::Search,
-        tools::Tool::Write,
-        tools::Tool::Edit,
-        tools::Tool::Remove,
-        tools::Tool::Shell,
-        tools::Tool::Job,
-    ] {
-        let kind = ToolKind::Owned(tool);
-        if offered(kind, input) && !has(kind, application) {
-            return Err(Error::Invalid);
-        }
-    }
-    for descriptor in &input.served {
-        let kind = match descriptor {
-            llm::Served::Host(_) => continue,
-            llm::Served::Deliver => ToolKind::Deliver,
-            llm::Served::Finish => ToolKind::Finish,
-            llm::Served::SubAgent => ToolKind::SubAgent,
-            llm::Served::Wait => ToolKind::Wait,
-        };
-        if !has(kind, application) {
-            return Err(Error::Invalid);
-        }
-    }
-    Ok(())
-}
-
-fn has(kind: ToolKind, application: &[ToolSchema]) -> bool {
-    for descriptor in application {
-        if descriptor.kind == kind {
-            return true;
-        }
-    }
-    false
-}
-
-fn fixed_name(descriptor: &ToolSchema) -> bool {
-    match descriptor.kind {
-        ToolKind::Owned(tool) => match tool {
-            tools::Tool::Read => descriptor.name.as_ref() == b"read",
-            tools::Tool::List => descriptor.name.as_ref() == b"list",
-            tools::Tool::Search => descriptor.name.as_ref() == b"search",
-            tools::Tool::Write => descriptor.name.as_ref() == b"write",
-            tools::Tool::Remove => descriptor.name.as_ref() == b"remove",
-            tools::Tool::Edit => descriptor.name.as_ref() == b"edit",
-            tools::Tool::Shell => descriptor.name.as_ref() == b"shell",
-            tools::Tool::Job => descriptor.name.as_ref() == b"job",
-        },
-        ToolKind::Finish => descriptor.name.as_ref() == b"finish",
-        ToolKind::Deliver => descriptor.name.as_ref() == b"deliver",
-        ToolKind::SubAgent => descriptor.name.as_ref() == b"sub_agent",
-        ToolKind::Wait => descriptor.name.as_ref() == b"wait",
-    }
-}
-
-fn offered(kind: ToolKind, input: &llm::Prompt) -> bool {
-    match kind {
-        ToolKind::Owned(tool) => match tool {
-            tools::Tool::Read | tools::Tool::List | tools::Tool::Search => input.tools.inspect,
-            tools::Tool::Write | tools::Tool::Edit | tools::Tool::Remove => input.tools.modify,
-            tools::Tool::Shell | tools::Tool::Job => input.tools.shell,
-        },
-        ToolKind::Finish | ToolKind::Deliver | ToolKind::SubAgent | ToolKind::Wait => {
-            for descriptor in &input.served {
-                let same = match descriptor {
-                    llm::Served::Host(_) => false,
-                    llm::Served::Finish => kind == ToolKind::Finish,
-                    llm::Served::Deliver => kind == ToolKind::Deliver,
-                    llm::Served::SubAgent => kind == ToolKind::SubAgent,
-                    llm::Served::Wait => kind == ToolKind::Wait,
-                };
-                if same {
-                    return true;
-                }
-            }
-            false
-        }
-    }
 }
 
 fn history_admitted(messages: &[llm::Message], limits: &Limits) -> Result<(), Error> {

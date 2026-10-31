@@ -19,6 +19,7 @@ smith-domain.workspace = true
 workspace = true
 
 [dev-dependencies]
+smith-protocol-llm = { workspace = true, features = ["fixture"] }
 skein-heap.workspace = true
 skein-llm-world.workspace = true
 skein-llm-connection.workspace = true

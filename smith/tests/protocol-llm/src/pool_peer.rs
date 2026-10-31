@@ -49,6 +49,17 @@ impl Peer {
     /// Build the same observed component peer for either wire dialect.
     #[must_use]
     pub fn for_provider(calls: u32, per_endpoint: u32, provider: skein_llm::Provider) -> Self {
+        Self::for_identity(calls, per_endpoint, provider, smith_protocol_llm::IdentityProfile::Plain)
+    }
+
+    /// Observe the production component's configured provider identity.
+    #[must_use]
+    pub fn for_identity(
+        calls: u32,
+        per_endpoint: u32,
+        provider: skein_llm::Provider,
+        identity: smith_protocol_llm::IdentityProfile,
+    ) -> Self {
         let mut limits = limits();
         limits.connection.calls = calls;
         limits.connection.connections = calls;
@@ -70,7 +81,7 @@ impl Peer {
                         skein_llm::Provider::Anthropic => skein_llm::Endpoint::anthropic(),
                     },
                 },
-                identity: smith_protocol_llm::IdentityProfile::Plain,
+                identity,
                 models: Box::new([]),
             }]),
             limits.connection.endpoints,

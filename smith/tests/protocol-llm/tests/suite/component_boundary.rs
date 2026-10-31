@@ -307,7 +307,7 @@ fn prepared_failure(limits: &ComponentLimits) -> adapter::Prepared {
         endpoint_name: llm::Endpoint(42),
         endpoint: shared::Endpoint::codex(),
         credential: credential(b"secret"),
-        application: Box::new([]),
+
         receiving: limits.receiving,
     };
     adapter::prepare(input, &limits.adapter).expect("bounded preparation")
@@ -326,7 +326,6 @@ fn every_shared_failure_class_keeps_each_evidence_and_detail() {
             let prepared = prepared_failure(&limits);
             let event = adapter::failed(
                 prepared.context,
-                Token::new(71),
                 source,
                 sent,
                 b"literal detail".as_slice().into(),
@@ -490,7 +489,7 @@ fn a_response_failure_keeps_its_status_in_the_evidence() {
             endpoint_name: llm::Endpoint(42),
             endpoint: shared::Endpoint::codex(),
             credential: credential(b"secret"),
-            application: Box::new([]),
+
             receiving: limits.receiving,
         },
         &limits.adapter,
@@ -498,7 +497,6 @@ fn a_response_failure_keeps_its_status_in_the_evidence() {
     .expect("bounded preparation");
     let terminal = adapter::failed(
         prepared.context,
-        Token::new(71),
         shared::Failure::Unavailable,
         shared::client::Evidence::Response { status: 503 },
         Box::default(),
@@ -538,7 +536,6 @@ fn skeins_report_reaches_the_session_whole() {
         let report = shared::Report { code: code.into(), request: request.into(), field: field.into() };
         let terminal = adapter::failed(
             prepared.context,
-            Token::new(71),
             shared::Failure::Unsupported,
             shared::client::Evidence::Unsent,
             Box::default(),
