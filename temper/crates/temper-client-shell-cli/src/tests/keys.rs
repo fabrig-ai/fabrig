@@ -223,3 +223,28 @@ fn an_admin_token_refuses_empty_and_oversized_files_without_printing_them() {
         no_admin_token(&f);
     }
 }
+
+#[test]
+fn new_forge_connections_read_their_private_file() {
+    for words in [
+        &[b"forge".as_slice(), b"connect", b"github-app", b"4242", b"/linked-parent/link-file", b"--key", b"app"][..],
+        &[
+            b"forge".as_slice(),
+            b"connect",
+            b"forgejo-admin",
+            b"/linked-parent/link-file",
+            b"--api",
+            b"127.0.0.1:3000",
+            b"--git",
+            b"http://127.0.0.1:3000",
+            b"--key",
+            b"admin",
+        ][..],
+    ] {
+        let mut frame = fixtures::Frame::act(words);
+        frame.link = ADMIN_TOKEN;
+        frame.sign_in_then_deliver_me();
+        assert_eq!(frame.carried_keys.len(), 1, "new connection carries its private file");
+        no_admin_token(&frame);
+    }
+}
