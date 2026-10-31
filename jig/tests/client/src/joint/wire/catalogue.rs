@@ -10,7 +10,7 @@ pub(super) fn offers(
     values: &List<d::ProviderOffer>,
     limits: &Limits,
 ) -> Result<List<c::ProviderOffer>, owner::Invalid> {
-    let wire = jig_client_protocol_link::Limits::new(*limits, 1).map_err(|_| owner::Invalid::TooLarge)?.wire;
+    let wire = *jig_client_protocol_link::Limits::new(*limits, 1).map_err(|_| owner::Invalid::TooLarge)?.wire();
     for (at, value) in values.iter().enumerate() {
         if value.key_bytes > wire.keyed_value_some {
             return Err(owner::Invalid::TooLarge);
@@ -240,7 +240,7 @@ mod tests {
     #[test]
     fn provider_key_sizes_obey_the_wire_bound() {
         let limits = super::super::deployment::tests::limits();
-        let maximum = jig_client_protocol_link::Limits::new(limits, 1).expect("wire bounds").wire.keyed_value_some;
+        let maximum = jig_client_protocol_link::Limits::new(limits, 1).expect("wire bounds").wire().keyed_value_some;
         let results = [maximum, maximum + 1].map(|key_bytes| {
             let mut value = offer();
             value.key_bytes = key_bytes;

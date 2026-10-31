@@ -18,7 +18,7 @@ pub(crate) fn host_fields(value: &w::Host, limits: &Limits) -> Result<c::Host, w
         grace: opt0,
         used: value.used(),
         free: value.free(),
-        runs: chip_piece(value.runs(), limits, limits.client.rows)?,
+        runs: chip_piece(value.runs(), limits, limits.client().rows)?,
         refused: opt1,
     })
 }
@@ -40,10 +40,10 @@ pub(crate) fn host_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<Li
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::Host::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::Host::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = host_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -61,8 +61,8 @@ pub(crate) fn account_fields(value: &w::Account, limits: &Limits) -> Result<c::A
         number: value.number(),
         usable: value.usable(),
         reason: opt0,
-        runs: chip_piece(value.runs(), limits, limits.client.rows)?,
-        waiting: chip_piece(value.waiting(), limits, limits.client.rows)?,
+        runs: chip_piece(value.runs(), limits, limits.client().rows)?,
+        waiting: chip_piece(value.waiting(), limits, limits.client().rows)?,
     })
 }
 
@@ -83,10 +83,10 @@ pub(crate) fn account_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::Account::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::Account::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = account_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -121,10 +121,10 @@ pub(crate) fn refusal_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::Refusal::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::Refusal::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = crate::translate::answers::refusal(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -134,7 +134,7 @@ pub(crate) fn refusal_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result
 }
 
 pub(crate) fn deployment_fields(value: &w::Deployment, limits: &Limits) -> Result<c::Deployment, w::Problem> {
-    if value.capacity().len() > limits.client.rows {
+    if value.capacity().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.capacity().len());
@@ -142,12 +142,12 @@ pub(crate) fn deployment_fields(value: &w::Deployment, limits: &Limits) -> Resul
         list0.push(capacity_fields(item)).expect("reserved supplied list");
     }
     Ok(c::Deployment {
-        hosts: host_piece(value.hosts(), limits, limits.client.rows)?,
-        accounts: account_piece(value.accounts(), limits, limits.client.rows)?,
+        hosts: host_piece(value.hosts(), limits, limits.client().rows)?,
+        accounts: account_piece(value.accounts(), limits, limits.client().rows)?,
         capacity: list0,
         proposals: value.proposals(),
-        refusals: refusal_piece(value.refusals(), limits, limits.client.rows)?,
-        parts: part_piece(value.parts(), limits, limits.client.rows)?,
+        refusals: refusal_piece(value.refusals(), limits, limits.client().rows)?,
+        parts: part_piece(value.parts(), limits, limits.client().rows)?,
     })
 }
 
@@ -240,10 +240,10 @@ pub(crate) fn owner_host_run_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerHostRun::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerHostRun::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = owner_host_run_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -289,7 +289,7 @@ pub(crate) fn owner_host_fields(
         connected: value.connected(),
         grace_until: opt0,
         grace_remaining: opt1,
-        runs: owner_host_run_piece(value.runs(), limits, limits.client.rows)?,
+        runs: owner_host_run_piece(value.runs(), limits, limits.client().rows)?,
         cut: value.cut(),
     })
 }
@@ -311,7 +311,7 @@ pub(crate) fn owner_host_piece(
         let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else {
             return Err(piece_problem(skein_codec::Reason::Malformed));
         };
-        let row = w::OwnerHost::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerHost::decode(limits.receiving(), &mut Reader::new(&item))?;
         rows.push(owner_host_fields(&row, limits, room)?).expect("counted host pieces");
     }
     Ok(rows)

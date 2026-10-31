@@ -14,7 +14,7 @@ pub(crate) fn object_page_fields(value: &w::ObjectPage, limits: &Limits) -> Resu
     };
     Ok(c::ObjectPage {
         cut: value.cut(),
-        rows: result_piece(value.rows(), limits, limits.client.rows)?,
+        rows: result_piece(value.rows(), limits, limits.client().rows)?,
         before: opt0,
         after: opt1,
     })
@@ -57,10 +57,10 @@ pub(crate) fn owner_ended_delegate_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerEndedDelegate::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerEndedDelegate::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = owner_ended_delegate_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -82,7 +82,7 @@ pub(crate) fn owner_ended_page_fields(
         None => None,
     };
     Ok(c::OwnerEndedPage {
-        rows: owner_ended_delegate_piece(value.rows(), limits, limits.client.rows)?,
+        rows: owner_ended_delegate_piece(value.rows(), limits, limits.client().rows)?,
         before: opt0,
         after: opt1,
         cut: value.cut(),
@@ -121,7 +121,7 @@ pub(crate) fn owner_inbox_selection_fields(
     value: &w::OwnerInboxSelection,
     limits: &Limits,
 ) -> Result<c::OwnerInboxSelection, w::Problem> {
-    if value.goals().len() > limits.client.rows {
+    if value.goals().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.goals().len());
@@ -152,10 +152,10 @@ pub(crate) fn owner_inbox_selection_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerInboxSelection::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerInboxSelection::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = owner_inbox_selection_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -222,10 +222,10 @@ pub(crate) fn owner_inbox_entry_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerInboxEntry::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerInboxEntry::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = owner_inbox_entry_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -239,7 +239,7 @@ pub(crate) fn owner_inbox_page_fields(
     limits: &Limits,
 ) -> Result<c::OwnerInboxPage, w::Problem> {
     let opt0 = match value.selection() {
-        Some(item) => Some(owner_inbox_selection_piece(item, limits, limits.client.rows)?),
+        Some(item) => Some(owner_inbox_selection_piece(item, limits, limits.client().rows)?),
         None => None,
     };
     let opt1 = match value.before() {
@@ -253,7 +253,7 @@ pub(crate) fn owner_inbox_page_fields(
     Ok(c::OwnerInboxPage {
         selection: opt0,
         cut: value.cut(),
-        rows: owner_inbox_entry_piece(value.rows(), limits, limits.client.rows)?,
+        rows: owner_inbox_entry_piece(value.rows(), limits, limits.client().rows)?,
         before: opt1,
         after: opt2,
     })

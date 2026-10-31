@@ -29,7 +29,7 @@ pub(crate) fn owner_spend_page_fields(
     value: &w::OwnerSpendPage,
     limits: &Limits,
 ) -> Result<c::OwnerSpendPage, w::Problem> {
-    if value.rows().len() > limits.client.rows {
+    if value.rows().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.rows().len());
@@ -64,10 +64,10 @@ pub(crate) fn grant_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<L
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::Grant::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::Grant::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = crate::translate::answers::grant(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -93,10 +93,10 @@ pub(crate) fn note_scope_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Res
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::NoteScope::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::NoteScope::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = crate::translate::answers::note_scope(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -107,7 +107,7 @@ pub(crate) fn note_scope_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Res
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn authority_fields(value: &w::Authority, limits: &Limits) -> Result<c::Authority, w::Problem> {
-    if value.task_kinds().len() > limits.client.authority {
+    if value.task_kinds().len() > limits.client().authority {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.task_kinds().len());
@@ -118,7 +118,7 @@ pub(crate) fn authority_fields(value: &w::Authority, limits: &Limits) -> Result<
         Some(item) => Some(Wall::from_nanos(*item)),
         None => None,
     };
-    if value.tools().len() > limits.client.rows {
+    if value.tools().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list2 = List::with_capacity(value.tools().len());
@@ -128,13 +128,13 @@ pub(crate) fn authority_fields(value: &w::Authority, limits: &Limits) -> Result<
     Ok(c::Authority {
         models: crate::translate::model_sets::decode(value.models().as_ref())?,
         budget: value.budget(),
-        grants: grant_piece(value.grants(), limits, limits.client.authority)?,
+        grants: grant_piece(value.grants(), limits, limits.client().authority)?,
         task_kinds: list0,
         depth: value.depth(),
         tasks: value.tasks(),
         deadline: opt1,
         tools: list2,
-        note_scopes: note_scope_piece(value.note_scopes(), limits, limits.client.authority)?,
+        note_scopes: note_scope_piece(value.note_scopes(), limits, limits.client().authority)?,
     })
 }
 
@@ -149,14 +149,14 @@ pub(crate) fn parameter_fields(value: &w::Parameter, limits: &Limits) -> Result<
 }
 
 pub(crate) fn specification_fields(value: &w::Specification, limits: &Limits) -> Result<c::Specification, w::Problem> {
-    if value.parameters().len() > limits.client.rows {
+    if value.parameters().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.parameters().len());
     for item in value.parameters() {
         list0.push(parameter_fields(item, limits)?).expect("reserved supplied list");
     }
-    if value.inputs().len() > limits.client.rows {
+    if value.inputs().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list1 = List::with_capacity(value.inputs().len());
@@ -182,7 +182,7 @@ pub(crate) fn amendment_fields(value: &w::Amendment, limits: &Limits) -> Result<
     };
     let opt3 = match value.dependencies() {
         Some(item) => {
-            if (item).len() > limits.client.rows {
+            if (item).len() > limits.client().rows {
                 return Err(too_large());
             }
             let mut list0 = List::with_capacity((item).len());
@@ -222,7 +222,7 @@ pub(crate) fn proposal_action_fields(
 ) -> Result<c::ProposalAction, w::Problem> {
     Ok(match value {
         w::ProposalAction::Batch(row) => c::ProposalAction::Batch {
-            tasks: proposed_task_piece(row.tasks(), limits, limits.client.rows)?,
+            tasks: proposed_task_piece(row.tasks(), limits, limits.client().rows)?,
             own: row.own(),
         },
         w::ProposalAction::Effect(row) => c::ProposalAction::Effect { part: crate::translate::facts::part(row.part()) },
@@ -252,7 +252,7 @@ pub(crate) fn proposal_fields(value: &w::Proposal, limits: &Limits) -> Result<c:
         needs: authority_fields(value.needs(), limits)?,
         funding: budget_fields(value.funding()),
         waiting: crate::translate::facts::recipient(value.waiting()),
-        trail: passed_piece(value.trail(), limits, limits.client.rows)?,
+        trail: passed_piece(value.trail(), limits, limits.client().rows)?,
         since: Wall::from_nanos(value.since()),
         acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
         ending: opt0,
@@ -269,7 +269,7 @@ pub(crate) fn owner_proposal_action_fields(
             crate::translate::settings_proposals::restore_owner_proposal_action_settings(row, limits)?,
         )),
         w::OwnerProposalAction::Batch(row) => {
-            c::OwnerProposalAction::Batch(proposed_task_piece(row.value(), limits, limits.client.rows)?)
+            c::OwnerProposalAction::Batch(proposed_task_piece(row.value(), limits, limits.client().rows)?)
         }
         w::OwnerProposalAction::Effect(row) => c::OwnerProposalAction::Effect {
             part: crate::translate::facts::owner_part(row.part()),

@@ -240,7 +240,7 @@ fn take_result_value(index: u32, parent: u32, children: &mut Map<u32, Child>) ->
 
 pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Node, w::Problem> {
     let mut reader = Reader::new(bytes);
-    let bound = match u32::try_from(limits.client.document_bytes.checked_div(4).ok_or(too_large())?) {
+    let bound = match u32::try_from(limits.client().document_bytes.checked_div(4).ok_or(too_large())?) {
         Ok(value) => value,
         Err(problem) => return Err(size_problem(problem)),
     };
@@ -254,10 +254,10 @@ pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Node, w::Problem> 
         let Some(item) = item else { break };
         sum = sum.checked_add(u64::try_from(item.len()).expect("piece fits u64")).ok_or(too_large())?;
         sum = sum.checked_add(4).ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::Fact::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::Fact::decode(limits.receiving(), &mut Reader::new(&item))?;
         if rows.insert(rows.len(), row).is_err() {
             return Err(too_large());
         }

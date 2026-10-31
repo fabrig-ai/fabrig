@@ -23,7 +23,7 @@ pub(crate) fn owner_funding_offer_fields(value: &w::OwnerFundingOffer) -> c::Own
 }
 
 pub(crate) fn owner_proposal_fields(value: &w::OwnerProposal, limits: &Limits) -> Result<c::OwnerProposal, w::Problem> {
-    if value.funding().len() > limits.client.rows {
+    if value.funding().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.funding().len());
@@ -74,7 +74,7 @@ pub(crate) fn question_fields(value: &w::Question, limits: &Limits) -> Result<c:
 }
 
 pub(crate) fn option_line_fields(value: &w::OptionLine, limits: &Limits) -> Result<c::OptionLine, w::Problem> {
-    if value.fields().len() > limits.client.rows {
+    if value.fields().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.fields().len());
@@ -107,10 +107,10 @@ pub(crate) fn option_line_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Re
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OptionLine::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OptionLine::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = option_line_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -125,7 +125,7 @@ pub(crate) fn person_contract_fields(
 ) -> Result<c::PersonContract, w::Problem> {
     Ok(match value {
         w::PersonContract::Choice(row) => {
-            c::PersonContract::Choice { options: option_line_piece(row.options(), limits, limits.client.rows)? }
+            c::PersonContract::Choice { options: option_line_piece(row.options(), limits, limits.client().rows)? }
         }
         w::PersonContract::Approval(row) => c::PersonContract::Approval {
             state: text(row.state(), limits)?,
@@ -163,7 +163,7 @@ pub(crate) fn person_task_fields(value: &w::PersonTask, limits: &Limits) -> Resu
         requester: crate::translate::answers::actor(value.requester()),
         spec: specification_document_fields(value.spec(), limits)?,
         contract: person_contract_fields(value.contract(), limits)?,
-        inputs: result_piece(value.inputs(), limits, limits.client.rows)?,
+        inputs: result_piece(value.inputs(), limits, limits.client().rows)?,
         addressed: crate::translate::facts::recipient(value.addressed()),
         taken: opt0,
         since: opt1,
@@ -206,10 +206,10 @@ pub(crate) fn owner_shown_result_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerShownResult::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerShownResult::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = owner_shown_result_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -250,14 +250,14 @@ pub(crate) fn owner_person_task_fields(
         stall: opt2,
         deadline: opt3,
         contract: task_contract_document_fields(value.contract(), limits)?,
-        results: owner_shown_result_piece(value.results(), limits, limits.client.rows)?,
+        results: owner_shown_result_piece(value.results(), limits, limits.client().rows)?,
         cut: value.cut(),
         acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
     })
 }
 
 pub(crate) fn role_policy_fields(value: &w::RolePolicy, limits: &Limits) -> Result<c::RolePolicy, w::Problem> {
-    if value.decisions().len() > limits.client.rows {
+    if value.decisions().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.decisions().len());

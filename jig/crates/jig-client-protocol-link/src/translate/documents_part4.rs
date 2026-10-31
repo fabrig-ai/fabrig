@@ -4,7 +4,7 @@ use super::{
 };
 
 pub(crate) fn cursor_fields(value: &w::Cursor, limits: &Limits) -> Result<c::Cursor, w::Problem> {
-    match c::Cursor::new(bytes::copy_of(value.value()), limits.wire.cursor_value) {
+    match c::Cursor::new(bytes::copy_of(value.value()), limits.receiving().cursor_value) {
         Ok(value) => Ok(value),
         Err(_) => Err(too_large()),
     }
@@ -53,7 +53,7 @@ pub(crate) fn inbox_entry_fields(value: &w::InboxEntry, limits: &Limits) -> Resu
     };
     Ok(c::InboxEntry {
         reply: opt0,
-        lineage: chip_piece(value.lineage(), limits, limits.client.rows)?,
+        lineage: chip_piece(value.lineage(), limits, limits.client().rows)?,
         goal: opt1,
         recipient: opt2,
         stall: opt3,
@@ -82,10 +82,10 @@ pub(crate) fn inbox_entry_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Re
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::InboxEntry::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::InboxEntry::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = inbox_entry_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -99,7 +99,7 @@ pub(crate) fn read_position_fields(value: &w::ReadPosition) -> c::ReadPosition {
 }
 
 pub(crate) fn inbox_fields(value: &w::Inbox, limits: &Limits) -> Result<c::Inbox, w::Problem> {
-    if value.replies_seen().len() > limits.client.rows {
+    if value.replies_seen().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.replies_seen().len());
@@ -107,7 +107,7 @@ pub(crate) fn inbox_fields(value: &w::Inbox, limits: &Limits) -> Result<c::Inbox
         list0.push(read_position_fields(item)).expect("reserved supplied list");
     }
     Ok(c::Inbox {
-        entries: inbox_entry_piece(value.entries(), limits, limits.client.rows)?,
+        entries: inbox_entry_piece(value.entries(), limits, limits.client().rows)?,
         needs: needs_fields(value.needs()),
         updates: count_fields(value.updates()),
         results_seen: value.results_seen(),
@@ -148,10 +148,10 @@ pub(crate) fn task_line_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Resu
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::TaskLine::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::TaskLine::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = crate::translate::queries::line(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -161,5 +161,5 @@ pub(crate) fn task_line_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Resu
 }
 
 pub(crate) fn tasks_fields(value: &w::Tasks, limits: &Limits) -> Result<c::Tasks, w::Problem> {
-    Ok(c::Tasks { rows: task_line_piece(value.rows(), limits, limits.client.rows)?, more: value.more() })
+    Ok(c::Tasks { rows: task_line_piece(value.rows(), limits, limits.client().rows)?, more: value.more() })
 }

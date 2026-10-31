@@ -148,31 +148,28 @@ pub fn none(value: &w::ReadNone) -> c::ReadNone {
 
 /// Decodes a whole discriminated document against the original client limits.
 pub fn value(bytes: &[u8], limits: &Limits) -> Result<c::ReadValue, Undecodable> {
-    if !crate::limits::valid(limits)
-        || u64::try_from(bytes.len()).expect("usize fits u64") > limits.client.document_bytes
-    {
+    if u64::try_from(bytes.len()).expect("usize fits u64") > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let receiving = pages::receiving(limits)?;
-    let record = match w::ReadValue::decode(&receiving.wire, &mut Reader::new(bytes)) {
+    let record = match w::ReadValue::decode(limits.receiving(), &mut Reader::new(bytes)) {
         Ok(record) => record,
         Err(problem) => return Err(super::classify(problem)),
     };
     Ok(match record {
         w::ReadValue::Settings(v) => {
-            c::ReadValue::Settings(Box::new(match super::settings::restore_settings_document(&v, &receiving) {
+            c::ReadValue::Settings(Box::new(match super::settings::restore_settings_document(&v, limits) {
                 Ok(value) => value,
                 Err(problem) => return Err(super::classify(problem)),
             }))
         }
         w::ReadValue::Setting(v) => {
-            c::ReadValue::Setting(Box::new(match super::settings::restore_setting_document(&v, &receiving) {
+            c::ReadValue::Setting(Box::new(match super::settings::restore_setting_document(&v, limits) {
                 Ok(value) => value,
                 Err(problem) => return Err(super::classify(problem)),
             }))
         }
         w::ReadValue::Revision(v) => {
-            c::ReadValue::Revision(Box::new(match super::settings::restore_revision_answer(v.value(), &receiving) {
+            c::ReadValue::Revision(Box::new(match super::settings::restore_revision_answer(v.value(), limits) {
                 Ok(value) => value,
                 Err(problem) => return Err(super::classify(problem)),
             }))

@@ -45,9 +45,9 @@ pub(crate) fn choice(value: Option<&w::LlmChoice>, limits: &Limits) -> Result<Op
 }
 fn model_effort(value: &w::ModelEffort, limits: &Limits) -> Result<c::ModelEffort, w::Problem> {
     Ok(c::ModelEffort {
-        model: name(value.model(), limits.wire.model_effort_model)?,
+        model: name(value.model(), limits.receiving().model_effort_model)?,
         effort: match value.effort() {
-            Some(effort) => Some(name(effort, limits.wire.model_effort_effort_some)?),
+            Some(effort) => Some(name(effort, limits.receiving().model_effort_effort_some)?),
             None => None,
         },
     })
@@ -68,16 +68,16 @@ pub(crate) fn models(values: &List<w::MeModel>, limits: &Limits) -> Result<List<
             Some(value) if value.is_empty() => {
                 return Err(w::Problem { path: w::Path::MeModelDescription, reason: skein_codec::Reason::Malformed });
             }
-            Some(value) => Some(name(value, limits.wire.me_model_description_some)?),
+            Some(value) => Some(name(value, limits.receiving().me_model_description_some)?),
             None => None,
         };
         let mut efforts = List::with_capacity(value.efforts().len());
         for effort in value.efforts() {
-            efforts.push(name(effort, limits.wire.me_model_efforts_item)?).expect("same capacity");
+            efforts.push(name(effort, limits.receiving().me_model_efforts_item)?).expect("same capacity");
         }
         models
             .push(c::MeModel {
-                name: name(value.name(), limits.wire.me_model_name)?,
+                name: name(value.name(), limits.receiving().me_model_name)?,
                 provider: *value.provider(),
                 window: value.window(),
                 output: value.output(),
@@ -97,7 +97,7 @@ pub(crate) fn models(values: &List<w::MeModel>, limits: &Limits) -> Result<List<
 }
 pub(crate) fn refusal(value: &w::RefusalLlm, limits: &Limits) -> Result<c::Refusal, w::Problem> {
     Ok(c::Refusal::Llm {
-        model: name(value.model(), limits.wire.refusal_llm_model)?,
+        model: name(value.model(), limits.receiving().refusal_llm_model)?,
         why: match value.why() {
             w::LlmWhy::Unconfigured => c::LlmWhy::Unconfigured,
             w::LlmWhy::Effort => c::LlmWhy::Effort,

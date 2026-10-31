@@ -185,7 +185,7 @@ pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decisi
     Ok(match value {
         w::Decision::Accepted => c::Decision::Accepted,
         w::Decision::Rejected(row) => c::Decision::Rejected {
-            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client.text) {
+            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client().text) {
                 Ok(value) => value,
                 Err(_) => return Err(text_problem()),
             },
@@ -199,7 +199,7 @@ pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decisi
             c::Decision::Released { again: opt0 }
         }
         w::Decision::LeftHeld(row) => c::Decision::LeftHeld {
-            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client.text) {
+            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client().text) {
                 Ok(value) => value,
                 Err(_) => return Err(text_problem()),
             },
@@ -218,7 +218,7 @@ pub(crate) fn party(value: &w::Party, limits: &Limits) -> Result<c::Party, w::Pr
     Ok(c::Party {
         number: value.number(),
         kind: party_kind(value.kind()),
-        name: match c::Text::new(bytes::copy_of(value.name()), limits.client.text) {
+        name: match c::Text::new(bytes::copy_of(value.name()), limits.client().text) {
             Ok(value) => value,
             Err(_) => return Err(text_problem()),
         },
@@ -283,7 +283,7 @@ pub(crate) fn hold_owner(value: &w::HoldOwner) -> c::HoldOwner {
 }
 pub(crate) fn placed(value: Option<&w::PlacedLine>, limits: &Limits) -> Result<Option<c::PlacedHold>, w::Problem> {
     let Some(value) = value else { return Ok(None) };
-    if value.reason().len() > usize::try_from(limits.client.text).expect("text bound fits") {
+    if value.reason().len() > usize::try_from(limits.client().text).expect("text bound fits") {
         return Err(super::too_large());
     }
     Ok(Some(c::PlacedHold {
@@ -607,7 +607,7 @@ pub(crate) fn credential(record: &w::Owned, limits: &Limits) -> Option<(u64, ske
     if record.owner() != &w::Owner::Jig || record.version() != jig_client_protocol_wire::VERSION {
         return None;
     }
-    let w::Final::Done(value) = w::Final::decode(&limits.wire, &mut Reader::new(record.record())).ok()? else {
+    let w::Final::Done(value) = w::Final::decode(limits.receiving(), &mut Reader::new(record.record())).ok()? else {
         return None;
     };
     let w::Outcome::Made(value) = value.into_parts().outcome else { return None };
@@ -633,10 +633,10 @@ pub fn answer(record: w::KeyedAnswer, limits: &Limits) -> Result<c::Answer, supe
     if value.owner() != &w::Owner::Jig || value.version() != jig_client_protocol_wire::VERSION {
         return Err(super::Undecodable::Version);
     }
-    if u64::try_from(value.record().len()).expect("usize fits u64") > limits.client.document_bytes {
+    if u64::try_from(value.record().len()).expect("usize fits u64") > limits.client().document_bytes {
         return Err(super::Undecodable::TooLarge);
     }
-    let value = match w::Final::decode(&limits.wire, &mut Reader::new(value.record())) {
+    let value = match w::Final::decode(limits.receiving(), &mut Reader::new(value.record())) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
@@ -693,13 +693,14 @@ fn original_nonzero_recipient_survives_wire_decoding_and_contract_translation() 
     .expect("existing small client fixture bounds");
     for to in [7, 91, u32::MAX] {
         let original = w::OwnerOutcome::Proposed(
-            w::OwnerOutcomeProposed::new(&limits.wire, w::OwnerOutcomeProposedParts { proposal: 31, to })
+            w::OwnerOutcomeProposed::new(limits.receiving(), w::OwnerOutcomeProposedParts { proposal: 31, to })
                 .expect("recipient record"),
         );
         let mut out = Writer::new(usize::try_from(original.measure()).expect("small result"));
         original.encode(&mut out).expect("measured room");
         let bytes = out.finish();
-        let decoded = w::OwnerOutcome::decode(&limits.wire, &mut Reader::new(&bytes)).expect("real record decoder");
+        let decoded =
+            w::OwnerOutcome::decode(limits.receiving(), &mut Reader::new(&bytes)).expect("real record decoder");
         assert_eq!(
             owner_outcome(&decoded, &limits).expect("contract translation"),
             c::OwnerOutcome::Proposed { proposal: 31, to }

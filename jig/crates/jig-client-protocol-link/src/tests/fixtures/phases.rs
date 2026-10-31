@@ -21,7 +21,7 @@ pub fn phases() -> [(w::Chip, c::Chip); 13] {
     ]
 }
 pub fn phase_owner() -> (w::Chip, c::Chip) {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let rows = [
         chip_root_fact(),
         w::Fact::ChipPhase(
@@ -99,7 +99,7 @@ pub fn phase_owner() -> (w::Chip, c::Chip) {
     (record, expected)
 }
 pub fn phase_active() -> (w::Chip, c::Chip) {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let rows = [
         chip_root_fact(),
         w::Fact::ChipPhase(
@@ -145,7 +145,7 @@ pub fn phase_active() -> (w::Chip, c::Chip) {
     (record, expected)
 }
 pub fn phase_waiting() -> (w::Chip, c::Chip) {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let rows = [
         chip_root_fact(),
         w::Fact::ChipPhase(
@@ -171,7 +171,7 @@ pub fn phase_waiting() -> (w::Chip, c::Chip) {
     (record, expected)
 }
 pub fn phase_idle() -> (w::Chip, c::Chip) {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let rows = [
         chip_root_fact(),
         w::Fact::ChipPhase(
@@ -215,7 +215,7 @@ pub fn phase_idle() -> (w::Chip, c::Chip) {
     (record, expected)
 }
 pub fn phase_starting() -> (w::Chip, c::Chip) {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let rows = [
         chip_root_fact(),
         w::Fact::ChipPhase(
@@ -229,7 +229,7 @@ pub fn phase_starting() -> (w::Chip, c::Chip) {
     (record, expected)
 }
 pub fn phase_running() -> (w::Chip, c::Chip) {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let rows = [
         chip_root_fact(),
         w::Fact::ChipPhase(
@@ -255,7 +255,7 @@ pub fn phase_running() -> (w::Chip, c::Chip) {
     (record, expected)
 }
 pub fn phase_waiting_for_words() -> (w::Chip, c::Chip) {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let rows = [
         chip_root_fact(),
         w::Fact::ChipPhase(
@@ -281,7 +281,7 @@ pub fn phase_waiting_for_words() -> (w::Chip, c::Chip) {
     (record, expected)
 }
 pub fn phase_backing_off() -> (w::Chip, c::Chip) {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let rows = [
         chip_root_fact(),
         w::Fact::ChipPhase(
@@ -319,7 +319,7 @@ pub fn phase_backing_off() -> (w::Chip, c::Chip) {
     (record, expected)
 }
 pub fn phase_procedure() -> (w::Chip, c::Chip) {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let rows = [
         chip_root_fact(),
         w::Fact::ChipPhase(
@@ -349,7 +349,7 @@ pub fn phase_procedure() -> (w::Chip, c::Chip) {
     (record, expected)
 }
 pub fn phase_person() -> (w::Chip, c::Chip) {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let rows = [
         chip_root_fact(),
         w::Fact::ChipPhase(
@@ -381,7 +381,7 @@ pub fn phase_person() -> (w::Chip, c::Chip) {
     (record, expected)
 }
 pub fn phase_closing() -> (w::Chip, c::Chip) {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let rows = [
         chip_root_fact(),
         w::Fact::ChipPhase(
@@ -418,7 +418,7 @@ pub fn phase_closing() -> (w::Chip, c::Chip) {
     (record, expected)
 }
 pub fn phase_held() -> (w::Chip, c::Chip) {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let rows = [
         chip_root_fact(),
         w::Fact::ChipPhase(
@@ -470,7 +470,7 @@ pub fn phase_held() -> (w::Chip, c::Chip) {
     (record, expected)
 }
 pub fn phase_ended() -> (w::Chip, c::Chip) {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let rows = [
         chip_root_fact(),
         w::Fact::ChipPhase(

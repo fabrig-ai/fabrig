@@ -9,7 +9,7 @@ use skein_lib::Map;
 use skein_lib::{List, Reader, Wall, bytes};
 pub(crate) fn document_text(value: &w::DocumentText, limits: &Limits) -> Result<c::DocumentText, w::Problem> {
     Ok(c::DocumentText {
-        bytes: match c::Text::new(bytes::copy_of(value.bytes()), limits.client.text) {
+        bytes: match c::Text::new(bytes::copy_of(value.bytes()), limits.client().text) {
             Ok(value) => value,
             Err(_) => return Err(text_problem()),
         },
@@ -193,7 +193,7 @@ pub(crate) fn call_identity(value: &w::CallIdentity, limits: &Limits) -> Result<
         owner: skein_lib::Token::new(value.owner()),
         sequence: value.sequence(),
         retry: value.retry(),
-        id: match c::Text::new(bytes::copy_of(value.id()), limits.client.text) {
+        id: match c::Text::new(bytes::copy_of(value.id()), limits.client().text) {
             Ok(value) => value,
             Err(_) => return Err(text_problem()),
         },
@@ -208,7 +208,7 @@ pub(crate) fn run_work(value: &w::RunWork, limits: &Limits) -> Result<c::RunWork
         w::RunWork::Writing => c::RunWork::Writing,
         w::RunWork::Tool(row) => c::RunWork::Tool {
             call: call_identity(row.call(), limits)?,
-            tool: match c::Text::new(bytes::copy_of(row.tool()), limits.client.text) {
+            tool: match c::Text::new(bytes::copy_of(row.tool()), limits.client().text) {
                 Ok(value) => value,
                 Err(_) => return Err(text_problem()),
             },
@@ -305,14 +305,14 @@ pub(crate) fn part(value: &w::Part) -> c::Part {
 
 pub(crate) fn part_piece(bytes: &[u8], limits: &Limits) -> Result<List<c::Part>, w::Problem> {
     let mut reader = Reader::new(bytes);
-    let mut rows = List::with_capacity(limits.client.rows);
-    for _ in 0..=limits.client.rows {
+    let mut rows = List::with_capacity(limits.client().rows);
+    for _ in 0..=limits.client().rows {
         let item = match skein_codec::piece::split(&mut reader) {
             Ok(value) => value,
             Err(problem) => return Err(piece_problem(problem)),
         };
         let Some(item) = item else { return Ok(rows) };
-        let row = w::Part::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::Part::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = part(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -351,7 +351,7 @@ pub(crate) fn recipient(value: &w::Recipient) -> c::Recipient {
 
 pub(crate) fn taken_by(value: &w::TakenBy, limits: &Limits) -> Result<c::TakenBy, w::Problem> {
     let opt0 = match &value.name() {
-        Some(item) => Some(match c::Text::new(bytes::copy_of(item), limits.client.text) {
+        Some(item) => Some(match c::Text::new(bytes::copy_of(item), limits.client().text) {
             Ok(value) => value,
             Err(_) => return Err(text_problem()),
         }),

@@ -72,7 +72,7 @@ pub fn role_refusal() -> contract::Refusal {
 }
 pub fn core_refusal() -> Box<[u8]> {
     use jig_client_protocol_wire as w;
-    let limits = link_limits().wire;
+    let limits = *link_limits().wire();
     let value = w::Refusal::Role(w::RefusalRole::new(&limits, w::RefusalRoleParts { held: None }).expect("role fits"));
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measure fits"));
     value.encode(&mut writer).expect("measured room");
@@ -771,7 +771,7 @@ pub fn native() -> crate::client::NativeClient {
 }
 pub fn service_answer() -> Box<[u8]> {
     use jig_client_protocol_wire as w;
-    let limits = link_limits().wire;
+    let limits = *link_limits().wire();
     let service = w::MadeService::new(&limits, w::MadeServiceParts { party: SERVICE, credential: credential() })
         .expect("service fits");
     let made =

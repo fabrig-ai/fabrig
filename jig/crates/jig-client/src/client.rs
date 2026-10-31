@@ -99,6 +99,7 @@ pub struct Client {
     domain: domain::Domain,
     link: Option<link::Link>,
     limits: Limits,
+    link_limits: link::Limits,
     domain_out: Queue<domain::Request>,
     link_out: Queue<link::Request>,
     store: crate::store::Store,
@@ -133,7 +134,7 @@ impl Client {
     /// # Errors
     /// Refuses limits whose queues or receiving bounds cannot be represented.
     pub fn new(limits: &Limits, seed: u64) -> Result<Self, Unusable> {
-        if !crate::valid(limits) {
+        if !jig_client_domain::valid(&limits.domain) {
             return Err(Unusable::Limits);
         }
         let Ok(bounds) = link::Limits::new(limits.domain, limits.exchanges) else {
@@ -142,21 +143,23 @@ impl Client {
         let Ok(link) = link::Link::new(&bounds) else {
             return Err(Unusable::Limits);
         };
-        Ok(Self::build(limits, seed, Some(link)))
+        Ok(Self::build(limits, bounds, seed, Some(link)))
     }
     /// # Errors
     /// Refuses limits whose queues or receiving bounds cannot be represented.
     pub fn unlinked(limits: &Limits, seed: u64) -> Result<Self, Unusable> {
-        if !crate::valid(limits) {
+        if !jig_client_domain::valid(&limits.domain) {
             return Err(Unusable::Limits);
         }
-        Ok(Self::build(limits, seed, None))
+        let bounds = link::Limits::new(limits.domain, limits.exchanges)?;
+        Ok(Self::build(limits, bounds, seed, None))
     }
-    fn build(limits: &Limits, seed: u64, link: Option<link::Link>) -> Self {
+    fn build(limits: &Limits, link_limits: link::Limits, seed: u64, link: Option<link::Link>) -> Self {
         Self {
             domain: domain::Domain::new(&limits.domain, seed),
             link,
             limits: *limits,
+            link_limits,
             domain_out: Queue::uncapped(),
             link_out: Queue::uncapped(),
             store: crate::store::Store::new(limits.domain.requests.requests),
@@ -463,8 +466,7 @@ impl Client {
         }
         // Validate before retaining cursor/filter/family payloads within their wire envelope.
         // Invalid reads keep their existing terminal; only local exchange pressure waits.
-        let bounds = link::Limits::new(self.limits.domain, self.limits.exchanges).expect("validated link limits");
-        if link::translate::reads::owned(what.clone(), &bounds.wire).is_err() {
+        if link::translate::reads::owned(what.clone(), self.link_limits.wire()).is_err() {
             self.link_step(now, link::Event::Read { read, what });
             return;
         }

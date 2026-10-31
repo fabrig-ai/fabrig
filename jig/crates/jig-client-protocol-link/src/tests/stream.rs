@@ -89,7 +89,7 @@ fn each_watch_refusal_is_handed_up() {
         let mut harness = fixtures::Harness::streaming(fixtures::frame_subject());
         let (exchange, _) = harness.opening();
         let value = w::OpenAnswer::Refused(
-            w::OpenAnswerRefused::new(&fixtures::limits().wire, w::OpenAnswerRefusedParts { why }).unwrap(),
+            w::OpenAnswerRefused::new(fixtures::limits().wire(), w::OpenAnswerRefusedParts { why }).unwrap(),
         );
         harness.answer(exchange, &fixtures::open_answer(&value));
         assert_eq!(harness.ended(fixtures::WATCH), Some(expected));
@@ -255,17 +255,10 @@ fn a_jig_delivery_before_the_opening_answer_admits_it() {
 fn a_delivery_over_the_original_document_bound_is_refused() {
     let value = w::DeliveryValue::Me(fixtures::frame_record());
     let bytes = fixtures::encoded_delivery(&value);
-    let limits = Limits::new(fixtures::limits().client, 4).unwrap();
-    let mut client = limits.client;
+    let limits = Limits::new(fixtures::limits().client(), 4).unwrap();
+    let mut client = limits.client();
     client.document_bytes = u64::from(value.measure()).checked_sub(1).unwrap();
     let limits = Limits::new(client, 4).unwrap();
-    assert_eq!(translate::watches::delivery(&bytes, &limits), Err(Undecodable::TooLarge));
-}
-#[test]
-fn a_delivery_with_mutated_original_limits_is_refused() {
-    let mut limits = fixtures::limits();
-    limits.wire.run_text_text = 1;
-    let bytes = fixtures::encoded_delivery(&w::DeliveryValue::Run(fixtures::run_text_record()));
     assert_eq!(translate::watches::delivery(&bytes, &limits), Err(Undecodable::TooLarge));
 }
 #[test]

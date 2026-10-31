@@ -30,7 +30,7 @@ impl Link {
             }
             With::Link { secret, held } => {
                 let Ok(record) = w::LinkSignIn::new(
-                    &self.limits.wire,
+                    self.limits.wire(),
                     w::LinkSignInParts { secret: skein_lib::bytes::copy_of(secret.expose()) },
                 ) else {
                     out.push(Request::Signing { signing: Signing::Refused });
@@ -109,7 +109,7 @@ impl Link {
         let mut reader = Reader::new(body);
         let signing = {
             match kind {
-                ExchangeKind::SignIn => match w::SignInAnswer::decode(&self.limits.wire, &mut reader) {
+                ExchangeKind::SignIn => match w::SignInAnswer::decode(self.limits.wire(), &mut reader) {
                     Ok(w::SignInAnswer::SignedIn(value))
                         if reader.remaining() == 0
                             && match value.token() {
@@ -133,7 +133,7 @@ impl Link {
                     Ok(w::SignInAnswer::Refused) if reader.remaining() == 0 => Signing::Refused,
                     Ok(_) | Err(_) => Signing::Lost,
                 },
-                ExchangeKind::SignOut { .. } => match w::SignOutAnswer::decode(&self.limits.wire, &mut reader) {
+                ExchangeKind::SignOut { .. } => match w::SignOutAnswer::decode(self.limits.wire(), &mut reader) {
                     Ok(w::SignOutAnswer::SignedOut) if reader.remaining() == 0 => {
                         self.end_sign_in(out);
                         Signing::SignedOut

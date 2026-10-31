@@ -5,7 +5,7 @@ pub(crate) fn subscription_fields(value: &w::Subscription) -> c::Subscription {
 }
 
 pub(crate) fn subscriptions_fields(value: &w::Subscriptions, limits: &Limits) -> Result<c::Subscriptions, w::Problem> {
-    if value.entries().len() > limits.client.rows {
+    if value.entries().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.entries().len());
@@ -20,7 +20,7 @@ pub(crate) fn field_rule_fields(value: &w::FieldRule, limits: &Limits) -> Result
 }
 
 pub(crate) fn verdict_choice_fields(value: &w::VerdictChoice, limits: &Limits) -> Result<c::VerdictChoice, w::Problem> {
-    if value.fields().len() > limits.client.fields {
+    if value.fields().len() > limits.client().fields {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.fields().len());
@@ -51,10 +51,10 @@ pub(crate) fn verdict_choice_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::VerdictChoice::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::VerdictChoice::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = verdict_choice_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -74,7 +74,7 @@ pub(crate) fn task_contract_document_fields(
         },
         w::TaskContractDocument::Report(row) => c::TaskContractDocument::Report { words: row.words() },
         w::TaskContractDocument::Verdict(row) => c::TaskContractDocument::Verdict {
-            choices: verdict_choice_piece(row.choices(), limits, limits.client.rows)?,
+            choices: verdict_choice_piece(row.choices(), limits, limits.client().rows)?,
             cut: row.cut(),
         },
         w::TaskContractDocument::Change(row) => {
@@ -113,10 +113,10 @@ pub(crate) fn task_resource_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::TaskResource::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::TaskResource::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = task_resource_fields(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -150,10 +150,10 @@ pub(crate) fn owner_grant_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Re
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerGrant::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerGrant::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = owner_grant_fields(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -174,7 +174,7 @@ pub(crate) fn owner_delegation_fields(
     value: &w::OwnerDelegation,
     limits: &Limits,
 ) -> Result<c::OwnerDelegation, w::Problem> {
-    if value.kinds().len() > limits.client.authority {
+    if value.kinds().len() > limits.client().authority {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.kinds().len());
@@ -212,10 +212,10 @@ pub(crate) fn owner_resource_scope_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerResourceScope::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerResourceScope::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = owner_resource_scope_fields(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -236,12 +236,12 @@ pub(crate) fn owner_authority_fields(
     Ok(c::OwnerAuthority {
         models: crate::translate::model_sets::decode(value.models().as_ref())?,
         tools: value.tools(),
-        grants: owner_grant_piece(value.grants(), limits, limits.client.authority)?,
+        grants: owner_grant_piece(value.grants(), limits, limits.client().authority)?,
         delegation: owner_delegation_fields(value.delegation(), limits)?,
         spend: value.spend(),
         deadline: opt0,
         notes: value.notes(),
-        note_resources: owner_resource_scope_piece(value.note_resources(), limits, limits.client.authority)?,
+        note_resources: owner_resource_scope_piece(value.note_resources(), limits, limits.client().authority)?,
     })
 }
 

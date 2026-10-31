@@ -29,10 +29,10 @@ pub(crate) fn task_spend_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Res
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::TaskSpend::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::TaskSpend::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = task_spend_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -42,7 +42,7 @@ pub(crate) fn task_spend_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Res
 }
 
 pub(crate) fn spend_period_fields(value: &w::SpendPeriod, limits: &Limits) -> Result<c::SpendPeriod, w::Problem> {
-    if value.pools().len() > limits.client.rows {
+    if value.pools().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.pools().len());
@@ -53,7 +53,7 @@ pub(crate) fn spend_period_fields(value: &w::SpendPeriod, limits: &Limits) -> Re
         period: value.period(),
         budget: budget_fields(value.budget()),
         pools: list0,
-        tasks: task_spend_piece(value.tasks(), limits, limits.client.rows)?,
+        tasks: task_spend_piece(value.tasks(), limits, limits.client().rows)?,
     })
 }
 
@@ -78,10 +78,10 @@ pub(crate) fn spend_period_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::SpendPeriod::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::SpendPeriod::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = spend_period_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -101,7 +101,7 @@ pub(crate) fn spend_page_fields(value: &w::SpendPage, limits: &Limits) -> Result
     };
     Ok(c::SpendPage {
         cut: value.cut(),
-        rows: spend_period_piece(value.rows(), limits, limits.client.rows)?,
+        rows: spend_period_piece(value.rows(), limits, limits.client().rows)?,
         before: opt0,
         after: opt1,
     })
@@ -116,7 +116,7 @@ pub(crate) fn note_author_fields(value: &w::NoteAuthor) -> c::NoteAuthor {
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn note_fields(value: &w::Note, limits: &Limits) -> Result<c::Note, w::Problem> {
-    if value.tasks().len() > limits.client.rows {
+    if value.tasks().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.tasks().len());
@@ -158,10 +158,10 @@ pub(crate) fn note_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<Li
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::Note::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::Note::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = note_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -181,7 +181,7 @@ pub(crate) fn note_page_fields(value: &w::NotePage, limits: &Limits) -> Result<c
     };
     Ok(c::NotePage {
         cut: value.cut(),
-        rows: note_piece(value.rows(), limits, limits.client.rows)?,
+        rows: note_piece(value.rows(), limits, limits.client().rows)?,
         before: opt0,
         after: opt1,
     })
@@ -204,10 +204,10 @@ pub(crate) fn result_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::ResultDocument::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::ResultDocument::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = result_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());

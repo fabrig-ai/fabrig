@@ -86,10 +86,20 @@ fn a_document_one_byte_past_its_measured_limit_is_refused() {
     assert_eq!(documents::frame(record, &limits), Err(Undecodable::TooLarge));
 }
 #[test]
-fn invalid_receiving_limits_are_refused() {
-    let mut limits = fixtures::limits();
-    limits.wire.document_text_bytes = u32::MAX;
-    assert_eq!(documents::frame(fixtures::frame_record(), &limits), Err(Undecodable::TooLarge));
+fn document_decodes_borrow_the_kept_bounds() {
+    let limits = fixtures::limits();
+    let bounds = limits.receiving();
+    assert_eq!(bounds.document_text_bytes, limits.client().text);
+    assert_eq!(bounds.call_input, limits.client().text);
+    assert_eq!(documents::frame(fixtures::frame_record(), &limits), Ok(fixtures::frame()));
+    assert_eq!(documents::frame(fixtures::frame_record(), &limits), Ok(fixtures::frame()));
+    assert!(core::ptr::eq(bounds, limits.receiving()));
+}
+#[test]
+fn invalid_receiving_limits_are_refused_at_construction() {
+    let limits = fixtures::limits();
+    let client = jig_client_domain::Limits { text: u32::MAX, ..limits.client() };
+    assert_eq!(crate::Limits::new(client, limits.exchanges()), Err(crate::Unusable::Limits));
 }
 
 #[test]
@@ -189,15 +199,15 @@ fn a_resource_path_one_segment_past_its_bound_is_refused() {
 #[test]
 fn an_authority_uses_its_own_bound_beyond_the_document_rows() {
     let limits = fixtures::limits();
-    assert_eq!(limits.client.rows, 2);
-    let (record, expected) = fixtures::task_with_authority_grants(limits.client.authority);
+    assert_eq!(limits.client().rows, 2);
+    let (record, expected) = fixtures::task_with_authority_grants(limits.client().authority);
     assert_eq!(documents::task(record, &limits), Ok(expected));
-    let (record, _) = fixtures::task_with_authority_grants(limits.client.authority + 1);
+    let (record, _) = fixtures::task_with_authority_grants(limits.client().authority + 1);
     assert_eq!(documents::task(record, &limits), Err(Undecodable::TooLarge));
 }
 
 fn catalogue_frame(address: &[u8]) -> w::Me {
-    let limits = fixtures::limits().wire;
+    let limits = *fixtures::limits().wire();
     let row = w::ProviderOffer::new(
         &limits,
         w::ProviderOfferParts {
@@ -245,7 +255,7 @@ fn repeated_catalogue(count: usize) -> w::Me {
         writer.put(&frame.providers).unwrap();
     }
     frame.providers = writer.finish();
-    w::Me::new(&fixtures::limits().wire, frame).unwrap()
+    w::Me::new(fixtures::limits().wire(), frame).unwrap()
 }
 #[test]
 fn catalogue_repeated_providers_are_refused() {
@@ -259,20 +269,23 @@ fn catalogue_row_capacity_is_bounded() {
 fn redirect_frame(bound: u32) -> w::Me {
     let mut parts = fixtures::frame_record().into_parts();
     parts.redirect_bytes = bound;
-    w::Me::new(&fixtures::limits().wire, parts).unwrap()
+    w::Me::new(fixtures::limits().wire(), parts).unwrap()
 }
 #[test]
 fn the_redirect_bound_at_the_wire_bound_is_advertised() {
     let limits = fixtures::limits();
     assert_eq!(
-        documents::frame(redirect_frame(limits.wire.keyed_value_some), &limits).unwrap().redirect_bytes,
-        limits.wire.keyed_value_some
+        documents::frame(redirect_frame(limits.wire().keyed_value_some), &limits).unwrap().redirect_bytes,
+        limits.wire().keyed_value_some
     );
 }
 #[test]
 fn a_redirect_bound_past_the_wire_bound_is_refused() {
     let limits = fixtures::limits();
-    assert_eq!(documents::frame(redirect_frame(limits.wire.keyed_value_some + 1), &limits), Err(Undecodable::TooLarge));
+    assert_eq!(
+        documents::frame(redirect_frame(limits.wire().keyed_value_some + 1), &limits),
+        Err(Undecodable::TooLarge)
+    );
 }
 
 #[test]

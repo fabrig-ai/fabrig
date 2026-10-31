@@ -174,7 +174,7 @@ pub fn current_call() -> c::CurrentCall {
     }
 }
 pub fn deployment_record() -> w::Deployment {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     w::Deployment::new(
         &lim,
         w::DeploymentParts {
@@ -199,7 +199,7 @@ pub fn deployment() -> c::Deployment {
     }
 }
 pub fn inbox_record() -> w::Inbox {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     w::Inbox::new(
         &lim,
         w::InboxParts {
@@ -231,7 +231,7 @@ pub fn tasks() -> c::Tasks {
     c::Tasks { rows: List::with_capacity(0), more: false }
 }
 pub fn tree_record() -> w::Tree {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     w::Tree::new(
         &lim,
         w::TreeParts {
@@ -274,13 +274,13 @@ pub fn tree() -> c::Tree {
     }
 }
 pub fn task_with_lineage(count: u32) -> w::Task {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let mut parts = task_record().into_parts();
     parts.lineage_chips = chip_pieces(count);
     w::Task::new(&lim, parts).unwrap()
 }
 pub fn text_record() -> w::RunText {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     w::RunText::new(
         &lim,
         w::RunTextParts {
@@ -312,13 +312,13 @@ pub fn run_text_expected() -> c::RunText {
     }
 }
 pub fn task_with_piece(bytes: &[u8]) -> w::Task {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let mut parts = task_record().into_parts();
     parts.lineage_chips = Box::from(bytes);
     w::Task::new(&lim, parts).unwrap()
 }
 pub fn limits_for_document(bytes: u64) -> Limits {
-    let mut client = limits().client;
+    let mut client = limits().client();
     client.document_bytes = bytes;
     Limits::new(client, 4).unwrap()
 }
@@ -340,7 +340,7 @@ pub fn run_text_one_past_text_limit() -> w::RunText {
 }
 
 pub fn raw_live_call() -> w::LiveCall {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let identity = w::CallIdentity::new(
         &lim,
         w::CallIdentityParts { owner: 17, sequence: 2, retry: 3, id: Box::from(b"provider".as_slice()) },
@@ -369,7 +369,7 @@ pub fn raw_live_call_expected() -> c::LiveCall {
     })
 }
 pub fn decoded_live_call() -> w::LiveCall {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let value = w::Call::new(
         &lim,
         w::CallParts {
@@ -398,7 +398,7 @@ pub fn decoded_live_call_expected() -> c::LiveCall {
 }
 
 pub fn task_with_resource_path(count: u32) -> w::Task {
-    let mut wire = limits().wire;
+    let mut wire = *limits().wire();
     wire.owner_part_key_path_value = count;
     let mut parts = task_record().into_parts();
     let w::TaskContractDocument::Approval(approval) = parts.result_contract else { panic!("approval fixture") };

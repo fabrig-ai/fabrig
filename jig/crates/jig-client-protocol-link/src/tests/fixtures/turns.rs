@@ -94,7 +94,7 @@ fn archived_activity_page_with_problem(why: c::TurnProblem) -> c::ActivityPage {
 
 pub fn turn_limits(text: u32, document_bytes: u64) -> Limits {
     let original = limits();
-    let mut client = original.client;
+    let mut client = original.client();
     client.text = text;
     client.turn_text = text;
     client.document_bytes = document_bytes;

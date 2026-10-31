@@ -18,7 +18,7 @@ pub(crate) fn hold_fields(value: &w::Hold, limits: &Limits) -> Result<c::Hold, w
         Some(item) => Some(result_value_fields(item, limits)?),
         None => None,
     };
-    if value.spend().len() > limits.client.rows {
+    if value.spend().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list1 = List::with_capacity(value.spend().len());
@@ -86,14 +86,14 @@ pub(crate) fn owner_kind_implication_fields(value: &w::OwnerKindImplication) -> 
 pub(crate) fn bounds_fields(value: &w::Bounds, limits: &Limits) -> Result<c::Bounds, w::Problem> {
     Ok(match value {
         w::Bounds::Create(row) => {
-            if row.charters().len() > limits.client.rows {
+            if row.charters().len() > limits.client().rows {
                 return Err(too_large());
             }
             let mut list0 = List::with_capacity(row.charters().len());
             for item in row.charters() {
                 list0.push(*item).expect("reserved supplied list");
             }
-            if row.procedures().len() > limits.client.rows {
+            if row.procedures().len() > limits.client().rows {
                 return Err(too_large());
             }
             let mut list1 = List::with_capacity(row.procedures().len());
@@ -120,7 +120,7 @@ pub(crate) fn bounds_fields(value: &w::Bounds, limits: &Limits) -> Result<c::Bou
             })
         }
         w::Bounds::Amend(row) => {
-            if row.implications().len() > limits.client.authority {
+            if row.implications().len() > limits.client().authority {
                 return Err(too_large());
             }
             let mut list0 = List::with_capacity(row.implications().len());
@@ -129,7 +129,7 @@ pub(crate) fn bounds_fields(value: &w::Bounds, limits: &Limits) -> Result<c::Bou
             }
             c::Bounds::Amend {
                 budget_left: row.budget_left(),
-                grants: owner_grant_piece(row.grants(), limits, limits.client.authority)?,
+                grants: owner_grant_piece(row.grants(), limits, limits.client().authority)?,
                 implications: list0,
                 authority: Box::new(owner_authority_document_fields(row.authority(), limits)?),
                 ceiling: Box::new(owner_authority_document_fields(row.ceiling(), limits)?),
@@ -186,10 +186,10 @@ pub(crate) fn offered_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::Offered::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::Offered::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = offered_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -219,7 +219,7 @@ pub(crate) fn result_details_fields(value: &w::ResultDetails, limits: &Limits) -
         None => None,
     };
     let opt1 = match value.followups() {
-        Some(item) => Some(owner_task_link_piece(item, limits, limits.client.rows)?),
+        Some(item) => Some(owner_task_link_piece(item, limits, limits.client().rows)?),
         None => None,
     };
     let opt2 = match value.proposal() {
@@ -231,7 +231,7 @@ pub(crate) fn result_details_fields(value: &w::ResultDetails, limits: &Limits) -
         requester: crate::translate::facts::owner_requester(value.requester()),
         executor: crate::translate::facts::owner_executor(value.executor()),
         chosen_by: opt0,
-        delegates: owner_task_link_piece(value.delegates(), limits, limits.client.rows)?,
+        delegates: owner_task_link_piece(value.delegates(), limits, limits.client().rows)?,
         followups: opt1,
         proposal: opt2,
         cut: value.cut(),
@@ -311,10 +311,10 @@ pub(crate) fn live_delegate_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::LiveDelegate::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::LiveDelegate::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = live_delegate_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());

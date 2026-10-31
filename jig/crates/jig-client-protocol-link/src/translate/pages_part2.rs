@@ -66,7 +66,7 @@ pub(crate) fn owner_amendment_state_fields(
         Some(item) => Some(crate::translate::facts::document_text(item, limits)?),
         None => None,
     };
-    if value.dependencies().len() > limits.client.rows {
+    if value.dependencies().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list3 = List::with_capacity(value.dependencies().len());
@@ -197,10 +197,10 @@ pub(crate) fn history_row_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Re
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::HistoryRow::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::HistoryRow::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = history_row_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -220,7 +220,7 @@ pub(crate) fn history_page_fields(value: &w::HistoryPage, limits: &Limits) -> Re
     };
     Ok(c::HistoryPage {
         cut: value.cut(),
-        rows: history_row_piece(value.rows(), limits, limits.client.rows)?,
+        rows: history_row_piece(value.rows(), limits, limits.client().rows)?,
         before: opt0,
         after: opt1,
     })
@@ -237,7 +237,7 @@ pub(crate) fn inbox_page_fields(value: &w::InboxPage, limits: &Limits) -> Result
     };
     Ok(c::InboxPage {
         cut: value.cut(),
-        rows: inbox_entry_piece(value.rows(), limits, limits.client.rows)?,
+        rows: inbox_entry_piece(value.rows(), limits, limits.client().rows)?,
         before: opt0,
         after: opt1,
     })

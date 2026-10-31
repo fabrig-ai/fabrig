@@ -21,10 +21,10 @@ pub(crate) fn role_policy_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Re
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::RolePolicy::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::RolePolicy::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = role_policy_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -38,7 +38,7 @@ pub(crate) fn decider_fields(value: &w::Decider) -> c::Decider {
 }
 
 pub(crate) fn policy_fields(value: &w::Policy, limits: &Limits) -> Result<c::Policy, w::Problem> {
-    if value.deciders().len() > limits.client.rows {
+    if value.deciders().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.deciders().len());
@@ -49,8 +49,8 @@ pub(crate) fn policy_fields(value: &w::Policy, limits: &Limits) -> Result<c::Pol
         ceiling: authority_fields(value.ceiling(), limits)?,
         period: value.period(),
         spend: value.spend(),
-        roles: role_policy_piece(value.roles(), limits, limits.client.rows)?,
-        requirements: part_piece(value.requirements(), limits, limits.client.rows)?,
+        roles: role_policy_piece(value.roles(), limits, limits.client().rows)?,
+        requirements: part_piece(value.requirements(), limits, limits.client().rows)?,
         deciders: list0,
     })
 }
@@ -60,21 +60,21 @@ pub(crate) fn holding_fields(value: &w::Holding) -> c::Holding {
 }
 
 pub(crate) fn project_fields(value: &w::Project, limits: &Limits) -> Result<c::Project, w::Problem> {
-    if value.roles().len() > limits.client.rows {
+    if value.roles().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.roles().len());
     for item in value.roles() {
         list0.push(holding_fields(item)).expect("reserved supplied list");
     }
-    if value.pools().len() > limits.client.rows {
+    if value.pools().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list1 = List::with_capacity(value.pools().len());
     for item in value.pools() {
         list1.push(pool_fields(item)).expect("reserved supplied list");
     }
-    if value.services().len() > limits.client.rows {
+    if value.services().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list2 = List::with_capacity(value.services().len());
@@ -83,17 +83,17 @@ pub(crate) fn project_fields(value: &w::Project, limits: &Limits) -> Result<c::P
     }
     Ok(c::Project {
         period: value.period(),
-        spend_lines: task_spend_piece(value.spend_lines(), limits, limits.client.rows)?,
+        spend_lines: task_spend_piece(value.spend_lines(), limits, limits.client().rows)?,
         number: value.number(),
         name: text(value.name(), limits)?,
         policy: policy_fields(value.policy(), limits)?,
         roles: list0,
         spend: budget_fields(value.spend()),
         pools: list1,
-        resources: part_piece(value.resources(), limits, limits.client.rows)?,
+        resources: part_piece(value.resources(), limits, limits.client().rows)?,
         services: list2,
-        recurring: recurring_piece(value.recurring(), limits, limits.client.rows)?,
-        parts: part_piece(value.parts(), limits, limits.client.rows)?,
+        recurring: recurring_piece(value.recurring(), limits, limits.client().rows)?,
+        parts: part_piece(value.parts(), limits, limits.client().rows)?,
         acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
     })
 }
@@ -104,7 +104,7 @@ pub(crate) fn owner_goal_holding_fields(
 ) -> Result<c::OwnerGoalHolding, w::Problem> {
     Ok(match value {
         w::OwnerGoalHolding::Write(row) => {
-            if row.path().len() > limits.client.segments {
+            if row.path().len() > limits.client().segments {
                 return Err(too_large());
             }
             let mut list0 = List::with_capacity(row.path().len());
@@ -114,7 +114,7 @@ pub(crate) fn owner_goal_holding_fields(
             c::OwnerGoalHolding::Write { connector: row.connector(), path: list0, kind: row.kind() }
         }
         w::OwnerGoalHolding::Slot(row) => {
-            if row.path().len() > limits.client.segments {
+            if row.path().len() > limits.client().segments {
                 return Err(too_large());
             }
             let mut list0 = List::with_capacity(row.path().len());
@@ -147,10 +147,10 @@ pub(crate) fn owner_goal_holding_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerGoalHolding::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerGoalHolding::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = owner_goal_holding_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -164,7 +164,7 @@ pub(crate) fn owner_person_proposal_goal_fields(
     value: &w::OwnerPersonProposalGoal,
     limits: &Limits,
 ) -> Result<c::OwnerPersonProposalGoal, w::Problem> {
-    if value.dependencies().len() > limits.client.rows {
+    if value.dependencies().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.dependencies().len());
@@ -185,7 +185,7 @@ pub(crate) fn owner_person_proposal_goal_fields(
         numbers: crate::translate::facts::owner_numbers(value.numbers()),
         funder: crate::translate::facts::funder(value.funder()),
         dependencies: list0,
-        holdings: owner_goal_holding_piece(value.holdings(), limits, limits.client.rows)?,
+        holdings: owner_goal_holding_piece(value.holdings(), limits, limits.client().rows)?,
         wake: crate::translate::facts::owner_wake_policy(value.wake()),
         tracked: opt1,
     })

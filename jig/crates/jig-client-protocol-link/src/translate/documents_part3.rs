@@ -34,7 +34,7 @@ pub(crate) fn steering_fields(value: &w::Steering, limits: &Limits) -> Result<c:
         Some(item) => Some(crate::translate::facts::document_text(item, limits)?),
         None => None,
     };
-    if value.dependencies().len() > limits.client.rows {
+    if value.dependencies().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list4 = List::with_capacity(value.dependencies().len());
@@ -103,10 +103,10 @@ pub(crate) fn passed_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::Passed::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::Passed::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = passed_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -127,7 +127,7 @@ pub(crate) fn escalation_fields(value: &w::Escalation, limits: &Limits) -> Resul
         steering: Box::new(steering_fields(value.steering(), limits)?),
         impact: impact_fields(value.impact()),
         waiting: crate::translate::facts::recipient(value.waiting()),
-        trail: passed_piece(value.trail(), limits, limits.client.rows)?,
+        trail: passed_piece(value.trail(), limits, limits.client().rows)?,
         acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
     })
 }
@@ -149,10 +149,10 @@ pub(crate) fn part_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<Li
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::Part::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::Part::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = crate::translate::facts::part(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -194,7 +194,7 @@ pub(crate) fn runtime_fields(value: &w::Runtime, limits: &Limits) -> Result<c::R
     Ok(match value {
         w::Runtime::Active(row) => c::Runtime::Active(crate::translate::facts::active_run(row.value(), limits)?),
         w::Runtime::Waiting(row) => {
-            if row.dependencies().len() > limits.client.rows {
+            if row.dependencies().len() > limits.client().rows {
                 return Err(too_large());
             }
             let mut list0 = List::with_capacity(row.dependencies().len());
@@ -272,10 +272,10 @@ pub(crate) fn writer_slot_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Re
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::WriterSlot::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::WriterSlot::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = writer_slot_fields(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -293,7 +293,7 @@ pub(crate) fn task_context_fields(value: &w::TaskContext, limits: &Limits) -> Re
         Some(item) => Some(closing_fields(item, limits)?),
         None => None,
     };
-    if value.spend().len() > limits.client.rows {
+    if value.spend().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list2 = List::with_capacity(value.spend().len());
@@ -302,12 +302,12 @@ pub(crate) fn task_context_fields(value: &w::TaskContext, limits: &Limits) -> Re
     }
     Ok(c::TaskContext {
         escalation: opt0,
-        parts: part_piece(value.parts(), limits, limits.client.rows)?,
+        parts: part_piece(value.parts(), limits, limits.client().rows)?,
         closing: opt1,
         spend: list2,
         runtime: runtime_fields(value.runtime(), limits)?,
         impact: impact_fields(value.impact()),
-        writer_slots: writer_slot_piece(value.writer_slots(), limits, limits.client.rows)?,
+        writer_slots: writer_slot_piece(value.writer_slots(), limits, limits.client().rows)?,
     })
 }
 
@@ -321,7 +321,7 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         Some(item) => Some(*item),
         None => None,
     };
-    if value.lineage().len() > limits.client.rows {
+    if value.lineage().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list2 = List::with_capacity(value.lineage().len());
@@ -344,7 +344,7 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         Some(item) => Some(task_hold_fields(item, limits)?),
         None => None,
     };
-    if value.proposals().len() > limits.client.rows {
+    if value.proposals().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list7 = List::with_capacity(value.proposals().len());
@@ -379,8 +379,8 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         chip: chip_fields(value.chip(), limits)?,
         goal: opt0,
         priority: opt1,
-        lineage_chips: chip_piece(value.lineage_chips(), limits, limits.client.rows)?,
-        inputs: owner_task_link_piece(value.inputs(), limits, limits.client.rows)?,
+        lineage_chips: chip_piece(value.lineage_chips(), limits, limits.client().rows)?,
+        inputs: owner_task_link_piece(value.inputs(), limits, limits.client().rows)?,
         project: value.project(),
         requester: crate::translate::facts::owner_requester(value.requester()),
         lineage: list2,
@@ -392,10 +392,10 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         wake: crate::translate::facts::owner_wake_policy(value.wake()),
         subscriptions: subscriptions_fields(value.subscriptions(), limits)?,
         result_contract: task_contract_document_fields(value.result_contract(), limits)?,
-        dependencies: owner_task_link_piece(value.dependencies(), limits, limits.client.rows)?,
-        references: owner_task_link_piece(value.references(), limits, limits.client.rows)?,
+        dependencies: owner_task_link_piece(value.dependencies(), limits, limits.client().rows)?,
+        references: owner_task_link_piece(value.references(), limits, limits.client().rows)?,
         cut: value.cut(),
-        resources: task_resource_piece(value.resources(), limits, limits.client.rows)?,
+        resources: task_resource_piece(value.resources(), limits, limits.client().rows)?,
         budget: crate::translate::facts::owner_budget(value.budget()),
         authority: owner_authority_document_fields(value.authority(), limits)?,
         hold: opt6,
@@ -404,7 +404,7 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         changed: Wall::from_nanos(value.changed()),
         acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
         result: opt8,
-        delegates: live_delegate_piece(value.delegates(), limits, limits.client.rows)?,
+        delegates: live_delegate_piece(value.delegates(), limits, limits.client().rows)?,
         context: opt9,
         llm: crate::translate::llm::choice(value.llm().as_ref(), limits)?,
         kept_account: *value.kept_account(),
@@ -418,14 +418,14 @@ pub(crate) fn tree_node_fields(value: &w::TreeNode, limits: &Limits) -> Result<c
         Some(item) => Some(*item),
         None => None,
     };
-    if value.dependencies().len() > limits.client.rows {
+    if value.dependencies().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list1 = List::with_capacity(value.dependencies().len());
     for item in value.dependencies() {
         list1.push(*item).expect("reserved supplied list");
     }
-    if value.proposals().len() > limits.client.rows {
+    if value.proposals().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list2 = List::with_capacity(value.proposals().len());
@@ -460,10 +460,10 @@ pub(crate) fn tree_node_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Resu
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::TreeNode::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::TreeNode::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = tree_node_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -475,7 +475,7 @@ pub(crate) fn tree_node_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Resu
 pub(crate) fn tree_fields(value: &w::Tree, limits: &Limits) -> Result<c::Tree, w::Problem> {
     Ok(c::Tree {
         task: value.task(),
-        nodes: tree_node_piece(value.nodes(), limits, limits.client.rows)?,
+        nodes: tree_node_piece(value.nodes(), limits, limits.client().rows)?,
         folded: phase_counts_fields(value.folded()),
         held_below: value.held_below(),
     })

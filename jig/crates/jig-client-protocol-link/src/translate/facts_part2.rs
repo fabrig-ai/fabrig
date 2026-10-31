@@ -66,14 +66,14 @@ pub(crate) fn owner_resource_line_piece(
     limits: &Limits,
 ) -> Result<List<c::OwnerResourceLine>, w::Problem> {
     let mut reader = Reader::new(bytes);
-    let mut rows = List::with_capacity(limits.client.rows);
-    for _ in 0..=limits.client.rows {
+    let mut rows = List::with_capacity(limits.client().rows);
+    for _ in 0..=limits.client().rows {
         let item = match skein_codec::piece::split(&mut reader) {
             Ok(value) => value,
             Err(problem) => return Err(piece_problem(problem)),
         };
         let Some(item) = item else { return Ok(rows) };
-        let row = w::OwnerResourceLine::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerResourceLine::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = owner_resource_line(&row);
         if rows.push(row).is_err() {
             return Err(too_large());

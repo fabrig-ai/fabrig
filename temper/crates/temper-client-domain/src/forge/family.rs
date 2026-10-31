@@ -125,15 +125,15 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
 pub fn core_refusal(bytes: &[u8], limits: &link::Limits) -> Option<jig_client::contract::Refusal> {
     use jig_client_protocol_wire as j;
     let mut reader = Reader::new(bytes);
-    let refusal = j::Refusal::decode(&limits.wire, &mut reader).ok()?;
+    let refusal = j::Refusal::decode(limits.wire(), &mut reader).ok()?;
     if !reader.is_empty() {
         return None;
     }
-    let final_answer = j::Final::Refused(j::Refused::new(&limits.wire, j::RefusedParts { refusal, at: None }).ok()?);
+    let final_answer = j::Final::Refused(j::Refused::new(limits.wire(), j::RefusedParts { refusal, at: None }).ok()?);
     let mut writer = Writer::new(usize::try_from(final_answer.measure()).expect("measured record fits usize"));
     final_answer.encode(&mut writer).ok()?;
     let owned = j::Owned::new(
-        &limits.wire,
+        limits.wire(),
         j::OwnedParts { owner: j::Owner::Jig, version: j::VERSION, record: writer.finish() },
     )
     .ok()?;

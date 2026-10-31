@@ -540,7 +540,7 @@ fn answered(route: &Reply, body: Option<temper_engine_domain::ApplicationAnswer>
                                 crate::app::limits().client.exchanges,
                             )
                             .expect("link bounds")
-                            .wire,
+                            .wire(),
                         )
                         .expect("whole forge answer"),
                     })),

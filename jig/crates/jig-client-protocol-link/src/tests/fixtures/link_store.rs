@@ -162,9 +162,10 @@ pub fn stored(harness: &Harness) -> Record {
     panic!("one store write")
 }
 pub fn other_store_version(mut value: Record) -> Record {
-    let record = w::Kept::decode(&limits().wire, &mut Reader::new(&value.bytes)).unwrap();
+    let record = w::Kept::decode(limits().wire(), &mut Reader::new(&value.bytes)).unwrap();
     let record =
-        w::Kept::new(&limits().wire, w::KeptParts { store_version: u16::MAX, record: record.record().into() }).unwrap();
+        w::Kept::new(limits().wire(), w::KeptParts { store_version: u16::MAX, record: record.record().into() })
+            .unwrap();
     let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
     record.encode(&mut writer).unwrap();
     value.bytes = writer.finish();
@@ -310,7 +311,8 @@ fn propose_amendment(revision: c::Revision) -> c::Ask {
 
 pub fn kept_stream() -> Record {
     let record =
-        w::Kept::new(&limits().wire, w::KeptParts { store_version: TABLE_VERSION, record: Box::from(STREAM) }).unwrap();
+        w::Kept::new(limits().wire(), w::KeptParts { store_version: TABLE_VERSION, record: Box::from(STREAM) })
+            .unwrap();
     let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
     record.encode(&mut writer).unwrap();
     Record { key: Box::from(STREAM_KEY), bytes: writer.finish() }
