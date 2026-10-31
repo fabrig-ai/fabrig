@@ -40,7 +40,7 @@ fn a_run_s_text_reaches_the_page_in_its_changed_document() {
     };
     cards::drive(
         &mut fixture,
-        Watched { watch, event: contract::WatchEvent::Delivered(contract::Delivery::Run(Box::new(text))) },
+        Watched { watch, event: contract::WatchEvent::Delivered(crate::tests::fixtures::run(text)) },
     );
     assert_eq!(fixture.conversation().live.get(0).unwrap().text.bytes(), b"one");
 }

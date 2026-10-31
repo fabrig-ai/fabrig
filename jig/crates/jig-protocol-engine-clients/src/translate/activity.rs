@@ -83,7 +83,7 @@ pub fn page_turn(
     supplied: Option<&reads::PageTurn>,
     limits: &w::Limits,
 ) -> Result<w::ActivityLine, w::Problem> {
-    let invalid = w::Problem { path: w::Path::ActivityOwnerDecoded, reason: skein_codec::Reason::Tag };
+    let invalid = w::Problem { path: w::Path::ActivityLineDecoded, reason: skein_codec::Reason::Tag };
     if value.task != task {
         return Err(invalid);
     }
@@ -128,17 +128,7 @@ pub fn page_turn(
             None
         }
     };
-    w::ActivityLine::new(
-        limits,
-        w::ActivityLineParts {
-            position: value.position,
-            at: value.at.as_nanos(),
-            event: w::Activity::Owner(w::ActivityOwner::new(
-                limits,
-                w::ActivityOwnerParts { source: line(value, limits)?, decoded },
-            )?),
-        },
-    )
+    w::ActivityLine::new(limits, w::ActivityLineParts { source: line(value, limits)?, decoded })
 }
 
 /// The same immutable archive serves a page and a single-turn read.

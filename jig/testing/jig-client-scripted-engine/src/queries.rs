@@ -24,7 +24,7 @@ pub(crate) fn selects(query: &TaskQuery, task: &Task) -> bool {
     query.project.is_none_or(|v| v == task.project)
         && query.requester.is_none_or(|v| v == task.requester)
         && query.root.is_none_or(|v| v == task.lineage.as_slice().first().copied().unwrap_or(task.chip.task))
-        && query.parent.is_none_or(|v| Some(v) == task.lineage.as_slice().last().copied())
+        && query.parent.is_none_or(|v| task.requester == c::OwnerRequester::Task(v))
         && query.label.is_none_or(|v| v == task.label)
         && query.phase.map_or(phase != PhaseClass::Ended, |v| v == phase)
         && query.executor.is_none_or(|v| v == executor)
@@ -68,7 +68,8 @@ pub(crate) fn line<'a>(
         flags: task.flags,
         changed: task.changed,
         last_activity: task.last_activity,
-        ended_at: (!jig_client_view::page::conversations::live(task.chip.phase)).then_some(task.changed),
+        ended_at: (matches!(task.chip.phase, Phase::Ended | Phase::Done | Phase::Failed | Phase::Cancelled))
+            .then_some(task.changed),
         budget: task.budget.clone(),
         waits_on: task.waits_on.clone(),
         held_below: phases.held - u32::from(task.chip.phase == Phase::Held),

@@ -264,12 +264,9 @@ impl Ui {
                         Some(
                             crate::state::objects::Body::Historical(_)
                             | crate::state::objects::Body::Chip(_)
-                            | crate::state::objects::Body::Proposal(_)
                             | crate::state::objects::Body::OwnerProposal(_)
-                            | crate::state::objects::Body::Escalation(_)
                             | crate::state::objects::Body::OwnerEscalation(_)
                             | crate::state::objects::Body::Question(_)
-                            | crate::state::objects::Body::PersonTask(_)
                             | crate::state::objects::Body::OwnerPersonTask(_)
                             | crate::state::objects::Body::Result(_)
                             | crate::state::objects::Body::Note { .. },

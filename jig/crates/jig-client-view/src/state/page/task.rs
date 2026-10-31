@@ -19,9 +19,7 @@ use crate::{
     },
 };
 use alloc::boxed::Box;
-use jig_client::contract::{
-    self, Executor, Limit, ObjectKey, Part, Phase, PhaseCounts, ProposalKey, Read, Task, Tree, TreeNode,
-};
+use jig_client::contract::{self, Executor, Limit, ObjectKey, Part, ProposalKey, Read, Task};
 use skein_lib::{Env, Id, List, Map, Queue, Token};
 /// Which plan rows a person has asked to see.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -42,7 +40,7 @@ pub struct Offered {
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "fold choices change only through admitted page actions")]
 pub struct Plan {
-    /// Whole supplied owner tree, independent of older node fixtures.
+    /// The local filter over the supplied owner tree.
     pub filter: PlanFilter,
     folds: Map<u64, bool>,
 }
@@ -102,9 +100,7 @@ impl TaskPage {
         self.ended_task = None;
     }
 }
-pub(crate) fn counts() -> PhaseCounts {
-    PhaseCounts { ended: 0, waiting: 0, running: 0, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0 }
-}
+
 /// Whether a section has content for this executor and its current facts.
 #[must_use]
 pub fn offers(task: &Task) -> Offered {
@@ -167,27 +163,7 @@ pub fn offers(task: &Task) -> Offered {
 pub fn offered(sections: &Offered, section: TaskSection) -> bool {
     sections.offered.as_slice().contains(&section)
 }
-/// Retains a whole bounded tree, folding additional rows by phase and preserving
-/// the owner's total held count so a held descendant cannot disappear.
-pub(crate) fn tree(domain: &mut Ui, tree: Tree) {
-    let plan = &mut domain.task_page.plan;
-    let mut removed = List::with_capacity(plan.folds.len());
-    for (task, _) in &plan.folds {
-        let mut retained = false;
-        for node in &tree.nodes {
-            if node.chip.task == *task {
-                retained = true;
-            }
-        }
-        if !retained {
-            removed.push(*task).expect("fold key fits");
-        }
-    }
-    for task in &removed {
-        let _removed = plan.folds.remove(task);
-    }
-    domain.changed();
-}
+
 /// Moves the complete owner envelope; local choices do not alter source rows.
 pub(crate) fn owner_tree(domain: &mut Ui, tree: &contract::OwnerTree) {
     let plan = &mut domain.task_page.plan;
@@ -215,23 +191,6 @@ impl Plan {
             None => crate::state::page::conversations::live(chip.phase),
         }
     }
-    /// Live subtrees begin open; ended subtrees begin folded to their line.
-    #[must_use]
-    pub fn expanded(&self, node: &TreeNode) -> bool {
-        match self.folds.get(&node.chip.task) {
-            Some(open) => *open,
-            None => crate::state::page::conversations::live(node.chip.phase),
-        }
-    }
-    /// Filtering preserves every retained row so changing the filter loses no facts.
-    #[must_use]
-    pub fn visible(&self, node: &TreeNode) -> bool {
-        match self.filter {
-            PlanFilter::All => true,
-            PlanFilter::Held => node.chip.phase == Phase::Held || node.held_below > 0,
-            PlanFilter::Live => crate::state::page::conversations::live(node.chip.phase),
-        }
-    }
 }
 /// Chooses only the part references named by the selected section.
 #[must_use]
@@ -243,11 +202,6 @@ pub fn parts(task: &Task, section: TaskSection, limit: u32) -> List<Part> {
     }
     match section {
         TaskSection::Overview => {
-            for resource in &task.resources {
-                if let Some(part) = resource.part() {
-                    push(&mut parts, part.clone());
-                }
-            }
             result(&mut parts, task);
         }
         TaskSection::Activity => match task.chip.executor {
@@ -269,11 +223,6 @@ pub fn parts(task: &Task, section: TaskSection, limit: u32) -> List<Part> {
                     }
                 }
                 append(&mut parts, &context.parts);
-            }
-            for resource in &task.resources {
-                if let Some(part) = resource.part() {
-                    push(&mut parts, part.clone());
-                }
             }
             match task.chip.executor {
                 Executor::Procedure { connector, .. } => {
@@ -413,12 +362,9 @@ pub(crate) fn document(domain: &mut Ui, env: &Env<crate::Limits>, out: &mut Queu
         Some(
             Body::Historical(_)
             | Body::Chip(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
-            | Body::Escalation(_)
             | Body::OwnerEscalation(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
@@ -542,15 +488,6 @@ pub(crate) fn fold(domain: &mut Ui, object: Token, open: bool, lent: &jig_client
         if retained && domain.task_page.plan.folds.insert(task, open).is_ok() {
             domain.changed();
         }
-        return;
-    }
-    for node in plan.nodes {
-        if node.chip.task == task {
-            if domain.task_page.plan.folds.insert(task, open).is_ok() {
-                domain.changed();
-            }
-            return;
-        }
     }
 }
 /// Selects a plan filter and reopens its live source without inventing history.
@@ -583,11 +520,6 @@ pub(crate) fn open_ended(domain: &mut Ui, task: u64, out: &mut Queue<Request>, l
         found = owner.root.task == task;
         for row in &owner.rows {
             found |= row.chip.task == task;
-        }
-    }
-    for node in projected.plan.nodes {
-        if node.chip.task == task {
-            found = true;
         }
     }
     if !found {

@@ -5,15 +5,10 @@ use alloc::boxed::Box;
 use jig_client::{Readout, contract as c};
 use skein_json::writer::Encoder;
 
-#[derive(Clone, Copy)]
-enum Proposal<'a> {
-    Owner(&'a c::OwnerProposal),
-    Legacy(&'a c::Proposal),
-}
-fn selected(value: &c::ReadValue) -> Proposal<'_> {
+fn selected(value: &c::ReadValue) -> &c::OwnerProposal {
     match value {
-        c::ReadValue::OwnerProposal(p) => Proposal::Owner(p),
-        c::ReadValue::Proposal(p) => Proposal::Legacy(p),
+        c::ReadValue::OwnerProposal(p) => p,
+
         c::ReadValue::Settings(_)
         | c::ReadValue::Setting(_)
         | c::ReadValue::Revision(_)
@@ -24,31 +19,24 @@ fn selected(value: &c::ReadValue) -> Proposal<'_> {
         | c::ReadValue::Me(_)
         | c::ReadValue::Turn(_)
         | c::ReadValue::Task(_)
-        | c::ReadValue::Escalation(_)
         | c::ReadValue::OwnerEscalation(_)
         | c::ReadValue::Question(_)
-        | c::ReadValue::PersonTask(_)
         | c::ReadValue::OwnerPersonTask(_)
         | c::ReadValue::Result(_)
-        | c::ReadValue::Ended(_)
         | c::ReadValue::OwnerEnded(_)
         | c::ReadValue::History(_)
         | c::ReadValue::Activity(_)
-        | c::ReadValue::Inbox(_)
         | c::ReadValue::OwnerInbox(_)
-        | c::ReadValue::Spend(_)
         | c::ReadValue::OwnerSpend(_)
-        | c::ReadValue::Project(_)
         | c::ReadValue::Notes(_)
-        | c::ReadValue::Deployment(_)
         | c::ReadValue::OwnerDeployment(_) => unreachable!("selected proposal read"),
     }
 }
 
 pub(super) fn text(value: &c::ReadValue, reading: &Reading, limits: &Limits, out: &mut Text) {
-    let (key, reason, action) = match selected(value) {
-        Proposal::Owner(p) => (p.key, p.reason.bytes.bytes(), owner_action(&p.action)),
-        Proposal::Legacy(p) => (p.key, p.why.bytes(), legacy_action(&p.action)),
+    let (key, reason, action) = {
+        let p = selected(value);
+        (p.key, p.reason.bytes.bytes(), owner_action(&p.action))
     };
     out.put(b"proposal ");
     settings::proposal_text(key, out);
@@ -192,91 +180,70 @@ fn owner_action(action: &c::OwnerProposalAction) -> &'static [u8] {
         c::OwnerProposalAction::Release { .. } => b"release",
     }
 }
-fn legacy_action(action: &c::ProposalAction) -> &'static [u8] {
-    match action {
-        c::ProposalAction::Batch { .. } => b"batch",
-        c::ProposalAction::Effect { .. } => b"effect",
-        c::ProposalAction::Widen { .. } => b"widen",
-        c::ProposalAction::Amend { .. } => b"amend",
-    }
-}
+
 pub(super) fn encode(value: &c::ReadValue, reading: &Reading, out: &mut Encoder, budget: &mut Cut) {
     out.object_start();
     let proposal = selected(value);
-    let (key, project, acts) = match proposal {
-        Proposal::Owner(p) => (p.key, p.project, &p.acts),
-        Proposal::Legacy(p) => (p.key, p.project, &p.acts),
-    };
+    let (key, project, acts) = (proposal.key, proposal.project, &proposal.acts);
     out.key(b"key");
     super::encode_proposal_key(&key, out, budget);
     out.key(b"project");
     out.unsigned(u64::from(project));
-    match proposal {
-        Proposal::Owner(p) => {
-            out.key(b"reason");
-            super::encode_document_text(&p.reason, out, budget);
-            out.key(b"action");
-            match &p.action {
-                c::OwnerProposalAction::Settings(s) => encode_settings(s, reading, out),
-                c::OwnerProposalAction::Release { task, hold } => {
-                    out.object_start();
-                    out.key(b"release");
-                    out.object_start();
-                    out.key(b"task");
-                    out.unsigned(task_number(task));
-                    out.key(b"hold");
-                    match hold {
-                        Some(hold) => super::encode_owner_chip_hold(hold, out, budget),
-                        None => out.null(),
-                    }
-                    out.object_end();
-                    out.object_end();
-                }
-                action @ (c::OwnerProposalAction::Batch(_)
-                | c::OwnerProposalAction::Effect { .. }
-                | c::OwnerProposalAction::ProcedureEffect { .. }
-                | c::OwnerProposalAction::Amend { .. }
-                | c::OwnerProposalAction::Widen { .. }) => out.string(owner_action(action)),
-            }
-            out.key(b"as_holder");
-            out.boolean(p.as_holder);
-            out.key(b"waiting");
+    let p = proposal;
+
+    out.key(b"reason");
+    super::encode_document_text(&p.reason, out, budget);
+    out.key(b"action");
+    match &p.action {
+        c::OwnerProposalAction::Settings(s) => encode_settings(s, reading, out),
+        c::OwnerProposalAction::Release { task, hold } => {
             out.object_start();
-            out.key(b"holder");
-            holder(p.waiting.holder, out, budget);
-            out.key(b"since");
-            out.unsigned(p.waiting.since.as_nanos());
-            out.object_end();
-            out.key(b"funding");
-            out.array_start();
-            for offer in &p.funding {
-                out.object_start();
-                out.key(b"source");
-                super::encode_funder(&offer.source, out, budget);
-                out.key(b"needed");
-                out.unsigned(offer.needed);
-                for (key, value) in [(b"left".as_slice(), offer.left), (b"after".as_slice(), offer.after)] {
-                    out.key(key);
-                    match value {
-                        Some(n) => out.unsigned(n),
-                        None => out.null(),
-                    }
-                }
-                out.object_end();
+            out.key(b"release");
+            out.object_start();
+            out.key(b"task");
+            out.unsigned(task_number(task));
+            out.key(b"hold");
+            match hold {
+                Some(hold) => super::encode_owner_chip_hold(hold, out, budget),
+                None => out.null(),
             }
-            out.array_end();
+            out.object_end();
+            out.object_end();
         }
-        Proposal::Legacy(p) => {
-            out.key(b"why");
-            budget.words(p.why.bytes(), out);
-            out.key(b"action");
-            out.string(legacy_action(&p.action));
-            out.key(b"waiting");
-            super::encode_recipient(&p.waiting, out, budget);
-            out.key(b"since");
-            out.unsigned(p.since.as_nanos());
-        }
+        action @ (c::OwnerProposalAction::Batch(_)
+        | c::OwnerProposalAction::Effect { .. }
+        | c::OwnerProposalAction::ProcedureEffect { .. }
+        | c::OwnerProposalAction::Amend { .. }
+        | c::OwnerProposalAction::Widen { .. }) => out.string(owner_action(action)),
     }
+    out.key(b"as_holder");
+    out.boolean(p.as_holder);
+    out.key(b"waiting");
+    out.object_start();
+    out.key(b"holder");
+    holder(p.waiting.holder, out, budget);
+    out.key(b"since");
+    out.unsigned(p.waiting.since.as_nanos());
+    out.object_end();
+    out.key(b"funding");
+    out.array_start();
+    for offer in &p.funding {
+        out.object_start();
+        out.key(b"source");
+        super::encode_funder(&offer.source, out, budget);
+        out.key(b"needed");
+        out.unsigned(offer.needed);
+        for (key, value) in [(b"left".as_slice(), offer.left), (b"after".as_slice(), offer.after)] {
+            out.key(key);
+            match value {
+                Some(n) => out.unsigned(n),
+                None => out.null(),
+            }
+        }
+        out.object_end();
+    }
+    out.array_end();
+
     out.key(b"acts");
     out.array_start();
     for act in acts {

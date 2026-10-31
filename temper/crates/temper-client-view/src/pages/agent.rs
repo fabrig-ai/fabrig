@@ -89,19 +89,17 @@ pub(crate) fn main(
         {
             let delegates = match tree {
                 c::Delivery::OwnerTree(tree) => !tree.rows.is_empty(),
-                c::Delivery::Tree(tree) => tree.nodes.len() > 1,
+
                 c::Delivery::OwnerProject(_)
                 | c::Delivery::Me(_)
                 | c::Delivery::Task(_)
                 | c::Delivery::OwnerProposal(_)
                 | c::Delivery::Chips(_)
-                | c::Delivery::Inbox(_)
                 | c::Delivery::OwnerInbox(_)
                 | c::Delivery::Tasks(_)
                 | c::Delivery::Run(_)
                 | c::Delivery::RunState(_)
                 | c::Delivery::Settings(_)
-                | c::Delivery::Deployment(_)
                 | c::Delivery::OwnerDeployment(_)
                 | c::Delivery::OwnerAccounts(_) => false,
             };

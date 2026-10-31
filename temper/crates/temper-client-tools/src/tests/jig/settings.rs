@@ -1004,7 +1004,7 @@ fn propose_settings_forwards_optional_reason_and_prints_the_original_returned_ro
     let printed = root.answer(number).expect("actual owner result");
     let json = core::str::from_utf8(&printed.stdout).expect("JSON");
     assert!(json.contains("\"to\":{\"role\":{\"project\":0,\"role\":9}}"));
-    assert!(json.contains("\"proposer\":{\"party\":73}"));
+    assert!(json.contains("\"proposed\":{\"proposal\":7,\"to\":9}"));
 }
 
 fn retained_proposal(key: c::ProposalKey, action: c::OwnerRetainedAction) -> c::ReadValue {
@@ -1314,7 +1314,7 @@ fn settings_acceptance_defaults_to_stays_and_preserves_other_decisions() {
                     panic!("proposal decision")
                 };
                 assert_eq!(*running, expected, "settings {settings}, {argv:?}, json {json}");
-                root.done(call, c::Outcome::Changed);
+                root.done(call, c::Outcome::Owner(c::OwnerOutcome::Amended { task: 9 }));
                 assert_eq!(root.answer(call).expect("decision answered").status, 0);
             }
         }

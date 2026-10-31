@@ -76,22 +76,17 @@ fn full_task() -> jig_client_domain::contract::Task {
             },
         },
     ]);
-    task.context.as_mut().expect("supplied task context").parts = jig_client_world::test::list(
-        (1..=8).map(|n| jig_client_domain::contract::Part::Panel { connector: jig_client_test_domain::FIRST, task: n }),
-    );
-    task.resources = jig_client_world::test::list((1..=8).map(|n| {
-        jig_client_domain::contract::TaskResource::Owner(Box::new(jig_client_domain::contract::OwnerResourceLine {
-            part: jig_client_domain::contract::OwnerPart {
-                connector: jig_client_test_domain::SECOND,
-                kind: jig_client_domain::contract::OwnerPartKind::Resource,
-                key: jig_client_domain::contract::OwnerPartKey::Number(n),
-            },
-            kind: 1,
-            taken: false,
-            holder: None,
-            writer: None,
-            writer_lost: false,
-        }))
+    task.resources = jig_client_world::test::list((1..=8).map(|n| jig_client_domain::contract::OwnerResourceLine {
+        part: jig_client_domain::contract::OwnerPart {
+            connector: jig_client_test_domain::SECOND,
+            kind: jig_client_domain::contract::OwnerPartKind::Resource,
+            key: jig_client_domain::contract::OwnerPartKey::Number(n),
+        },
+        kind: 1,
+        taken: false,
+        holder: None,
+        writer: None,
+        writer_lost: false,
     }));
     task.spec.specification.words.bytes = stories::text(&[b's'; 32]);
     task.instructions = Some(jig_client_domain::contract::DocumentText::complete(stories::text(&[b'i'; 32])));
@@ -105,34 +100,6 @@ fn full_task() -> jig_client_domain::contract::Task {
     task.delegates = jig_client_world::test::list([
         jig_client_domain::contract::LiveDelegate { chip: task.chip.clone(), takeover_budget: 1 },
         jig_client_domain::contract::LiveDelegate { chip: task.chip.clone(), takeover_budget: 1 },
-    ]);
-    task.context.as_mut().expect("supplied task context").writer_slots = jig_client_world::test::list([
-        jig_client_domain::contract::WriterSlot {
-            resource: jig_client_domain::contract::Part::Resource {
-                connector: jig_client_test_domain::FIRST,
-                path: {
-                    let mut rows = skein_lib::List::with_capacity(1);
-                    rows.push(stories::text(&[b'r'; 32]).into_bytes())
-                        .expect("one supplied segment fits its reserved slot");
-                    rows
-                },
-            },
-            task: 9,
-            attempt: Some(1),
-        },
-        jig_client_domain::contract::WriterSlot {
-            resource: jig_client_domain::contract::Part::Resource {
-                connector: jig_client_test_domain::FIRST,
-                path: {
-                    let mut rows = skein_lib::List::with_capacity(1);
-                    rows.push(stories::text(&[b'r'; 32]).into_bytes())
-                        .expect("one supplied segment fits its reserved slot");
-                    rows
-                },
-            },
-            task: 9,
-            attempt: Some(2),
-        },
     ]);
     task
 }

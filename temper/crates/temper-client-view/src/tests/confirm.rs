@@ -50,7 +50,7 @@ fn press(root: &mut temper_client_domain::Domain, act: Act) {
 fn open(root: &mut temper_client_domain::Domain, act: ActKind) {
     press(root, Act::Decide { object: ObjectKey::Proposal(PROPOSAL), revision: None, act });
 }
-const ACCEPT_WORDS: [&[u8]; 4] = [b"Why", b"Funds 5 from your pool", b"20 left", b"15 after"];
+const ACCEPT_WORDS: [&[u8]; 4] = [b"Why", b"Funding needed: 5", b"Funding left: 20", b"Funding after: 15"];
 #[test]
 fn the_accept_confirmation_says_what_it_grants_costs_and_leaves_in_the_pool() {
     let mut root = root(ActKind::Accept, Admission::Allowed);

@@ -2,7 +2,7 @@ use crate::tests::fixtures::refusal_answer;
 use crate::tests::fixtures::{AnsweredByEngine, Fixture, ReadPage, Reported};
 use crate::tests::state::domain::{
     confirmation::task,
-    objects::{live, person, proposal},
+    objects::live,
     spine::{LIMITS, drain, drive},
 };
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
     state::{
         action::Act,
         intents::{Progress, send_card},
-        objects::{Body, Card, Left, Object, Source, answer::recovery},
+        objects::{Body, Card, Object, Source, answer::recovery},
     },
     tree::notices::kept::Kind,
 };
@@ -48,51 +48,7 @@ fn read_token(rows: &[Request]) -> jig_client::Handle {
     }
     unreachable!("refresh read emitted")
 }
-#[test]
-fn durable_outcomes_remain_on_open_cards_and_decided_first_leaves_with_all_facts() {
-    for outcome in [
-        Outcome::Owner(OwnerOutcome::Said { task: 8, message: 3 }),
-        Outcome::Proposed { proposal: proposal().key },
-        Outcome::Changed,
-    ] {
-        let (mut domain, _) = live();
-        let id = install(&mut domain, Body::Task(Box::new(task())));
-        let request = send(&mut domain, ObjectKey::Task(8));
-        let answer = Answer::Done(outcome);
-        assert!(answered(&mut domain, request, answer.clone()).is_empty());
-        assert_eq!(domain.objects().get(id).unwrap().card, Card::Open);
-        assert_eq!(domain.objects().get(id).unwrap().answer, Some(answer.clone()));
-        assert!(answered(&mut domain, request, refusal_answer(Refusal::Unknown)).is_empty());
-        assert_eq!(domain.objects().get(id).unwrap().answer, Some(answer));
-    }
-    let (mut domain, _) = live();
-    let id = install(&mut domain, Body::PersonTask(Box::new(person())));
-    let mut out = Queue::uncapped();
-    let request = send_card(
-        &mut domain.ui,
-        ObjectKey::PersonTask(8),
-        ActKind::Take,
-        Box::new(Ask::Take { project: 1, task: 8 }),
-        &mut out,
-        &domain.client,
-    )
-    .unwrap();
-    answered(&mut domain, request, Answer::Done(Outcome::Changed));
-    assert_eq!(domain.objects().get(id).unwrap().card, Card::Open);
-    let (mut domain, _) = live();
-    let id = install(&mut domain, Body::Proposal(Box::new(proposal())));
-    let request = send(&mut domain, ObjectKey::Proposal(proposal().key));
-    let outcome = Outcome::DecidedFirst {
-        by: crate::tests::state::domain::spine::party(9),
-        how: Decision::Accepted,
-        at: Wall::EPOCH,
-    };
-    answered(&mut domain, request, Answer::Done(outcome.clone()));
-    assert_eq!(
-        domain.objects().get(id).unwrap().card,
-        Card::Leaving { how: Left::Answered { outcome }, until: Time::from_nanos(5_000_000_000) }
-    );
-}
+
 #[test]
 fn refusals_keep_every_engine_fact_and_moved_reads_the_current_object_without_losing_the_refusal() {
     let mut names = List::with_capacity(2);
@@ -202,7 +158,9 @@ fn retention_expiry_retires_once_keeps_unknown_distinct_and_inspection_never_res
         Card::Unknown { act: ActKind::Stop, look: Read::Task { task: 8 } }
     );
     assert!(domain.objects().get(id).unwrap().answer.is_none());
-    assert!(answered(&mut domain, request, Answer::Done(Outcome::Changed)).is_empty());
+    assert!(
+        answered(&mut domain, request, Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 }))).is_empty()
+    );
     let rows = drive(&mut domain, Time::ZERO, Event::Act { action: Act::LookAgain { object: id.token() } });
     assert_eq!(rows.len(), 1);
     drive(
@@ -259,13 +217,16 @@ fn full_requests_refuse_without_queueing_and_hidden_answers_and_unknowns_have_no
         if unknown {
             drive(&mut domain, Time::ZERO, Reported { request, progress: Progress::Unknown });
         } else {
-            answered(&mut domain, request, Answer::Done(Outcome::Changed));
+            answered(&mut domain, request, Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })));
         }
         let (notice, ()) = domain.notices().ids().iter().next().unwrap();
         let expected = if unknown {
             Kind::Unknown { object: ObjectKey::Task(8), act: ActKind::Stop }
         } else {
-            Kind::Answer { object: ObjectKey::Task(8), answer: Answer::Done(Outcome::Changed) }
+            Kind::Answer {
+                object: ObjectKey::Task(8),
+                answer: Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })),
+            }
         };
         assert_eq!(domain.notices().get(*notice).unwrap().kind, expected);
         assert!(domain.objects().find(ObjectKey::Task(8)).is_none());
@@ -324,59 +285,6 @@ fn every_owner_outcome_remains_whole_on_its_original_card_after_duplicate_termin
         assert_eq!(domain.objects().get(id).unwrap().answer, Some(answer));
     }
 }
-
-#[test]
-fn owner_historical_proposal_choices_keep_the_named_winner_and_clock_without_explanations() {
-    for maker in [Proposer::Task(u64::MAX), Proposer::Party(u64::MAX)] {
-        for choice in [
-            OwnerProposalChoice::Accepted,
-            OwnerProposalChoice::Rejected,
-            OwnerProposalChoice::Passed,
-            OwnerProposalChoice::Withdrawn,
-            OwnerProposalChoice::Stale,
-        ] {
-            let (mut domain, _) = live();
-            let mut value = proposal();
-            value.key = ProposalKey { proposer: maker, number: 41 };
-            let key = value.key;
-            let id = install(&mut domain, Body::Proposal(Box::new(value)));
-            let mut out = Queue::uncapped();
-            let request = send_card(
-                &mut domain.ui,
-                ObjectKey::Proposal(key),
-                ActKind::Accept,
-                Box::new(Ask::Decide {
-                    project: 1,
-                    on: DecideOn::Proposal { proposal: key, decision: Decision::Accepted, running: None },
-                }),
-                &mut out,
-                &domain.client,
-            )
-            .unwrap();
-            assert_eq!(drain(out).len(), 1);
-            let outcome = Outcome::Owner(OwnerOutcome::ProposalDecided {
-                proposal: key,
-                by: 71,
-                at: Wall::from_nanos(91),
-                choice,
-                repeated: false,
-            });
-            answered(&mut domain, request, Answer::Done(outcome.clone()));
-            assert_eq!(
-                domain.objects().get(id).unwrap().card,
-                Card::Leaving {
-                    how: Left::Answered { outcome: outcome.clone() },
-                    until: Time::from_nanos(5_000_000_000)
-                }
-            );
-            assert_eq!(domain.objects().get(id).unwrap().answer, Some(Answer::Done(outcome)));
-        }
-    }
-    let value = OwnerOutcome::Proposed { proposal: u64::MAX, to: u32::MAX };
-    assert!(!crate::state::objects::stops_waiting(ObjectKey::Proposal(proposal().key), &Outcome::Owner(value)));
-}
-
-use jig_client::contract::DecideOn;
 
 #[test]
 fn a_moving_out_card_keeps_numbers_without_the_record() {

@@ -8,7 +8,7 @@
 )]
 use crate::{Address, Domain, Event, Request, first, unlinked};
 use jig_client::Link;
-use jig_client::contract::{self, Answer, Delivery, Outcome, WatchEnd, WatchEvent};
+use jig_client::contract::{self, Answer, Outcome, WatchEnd};
 use skein_lib::{Duration, List, Queue, RequestEnvelope, Time, Token};
 #[test]
 fn keyed_requests_leave_only_through_the_table_after_their_records() {
@@ -52,7 +52,7 @@ fn a_final_answer_reaches_the_child_that_asked_unread_and_once() {
             _ => None,
         })
         .unwrap();
-    let answer = Answer::Done(Outcome::Changed);
+    let answer = Answer::Done(Outcome::Owner(contract::OwnerOutcome::AccountChanged));
     let rows = drive(
         &mut root,
         Event::Client {
@@ -128,7 +128,9 @@ fn a_reload_parks_kept_requests_until_jig_confirms_their_party() {
                     up: jig_client::Up::Answer {
                         attempt,
                         envelope: RequestEnvelope::Final,
-                        answer: Some(jig_client::Answered::Jig(Answer::Done(Outcome::Changed))),
+                        answer: Some(jig_client::Answered::Jig(Answer::Done(Outcome::Owner(
+                            contract::OwnerOutcome::AccountChanged
+                        )))),
                         why: None
                     }
                 }
@@ -240,26 +242,7 @@ fn item(revision: u64) -> crate::family::Document {
         }),
     })
 }
-fn open_families(root: &mut Domain, rows: &[Request]) {
-    for row in rows {
-        if let Request::Client {
-            request:
-                jig_client::Request::Down {
-                    down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { .. } },
-                },
-        } = row
-        {
-            drive(
-                root,
-                Event::Client {
-                    event: jig_client::Event::Up {
-                        up: jig_client::Up::Watched { watch: *watch, event: WatchEvent::Opened },
-                    },
-                },
-            );
-        }
-    }
-}
+
 fn family_page(root: &mut Domain) -> Vec<Request> {
     drive(
         root,
@@ -277,99 +260,6 @@ fn family_page(root: &mut Domain) -> Vec<Request> {
         }),
     );
     drive(root, Event::Went { place: crate::Place::Address(Address::First(first::Address { project: 3, item: 5 })) })
-}
-#[test]
-fn a_jig_page_routes_every_part_kind_and_forgets_its_generation() {
-    let mut root = ready(21);
-    let opened = drive(
-        &mut root,
-        Event::Went { place: crate::Place::Address(Address::Jig(jig_client_view::address::Address::Deployment)) },
-    );
-    let watch = opened
-        .iter()
-        .find_map(|row| match row {
-            Request::Client {
-                request:
-                    jig_client::Request::Down {
-                        down:
-                            jig_client::Down::Open {
-                                watch,
-                                subject: jig_client::Watchable::Jig(contract::Subject::Deployment),
-                            },
-                    },
-            } => Some(*watch),
-            _ => None,
-        })
-        .unwrap();
-    let parts = deployment_parts();
-    let expected = parts.clone();
-    let rows = drive(
-        &mut root,
-        Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::Watched {
-                    watch,
-                    event: WatchEvent::Delivered(Delivery::Deployment(Box::new(contract::Deployment {
-                        hosts: List::with_capacity(0),
-                        accounts: List::with_capacity(0),
-                        capacity: List::with_capacity(0),
-                        proposals: 0,
-                        refusals: List::with_capacity(0),
-                        parts,
-                    }))),
-                },
-            },
-        },
-    );
-
-    for part in &expected.as_slice()[..8] {
-        assert!(root.first().contains(part));
-    }
-    assert!(root.second().contains(&expected.as_slice()[8]));
-    assert!(root.second().contains(&expected.as_slice()[9]));
-    assert_eq!(
-        rows.iter()
-            .filter(|row| match row {
-                Request::Client {
-                    request:
-                        jig_client::Request::Down {
-                            down: jig_client::Down::Read { what: jig_client::Readable::Family { .. }, .. },
-                        },
-                } => true,
-                _ => false,
-            })
-            .count(),
-        6
-    );
-    open_families(&mut root, &rows);
-    assert_eq!(root.first().part(&expected.as_slice()[2]).unwrap().value, first::Value::Loading);
-    let read = family_read(&rows);
-    drive(&mut root, Event::First(first::Event::Read { read, result: first::ReadResult::Unknown }));
-    assert_eq!(root.first().part(&expected.as_slice()[2]).unwrap().value, first::Value::Unknown);
-    let rows = drive(
-        &mut root,
-        Event::Went {
-            place: crate::Place::Address(Address::Jig(jig_client_view::address::Address::Inbox { project: None })),
-        },
-    );
-    for part in &expected.as_slice()[..8] {
-        assert!(!root.first().contains(part));
-    }
-    assert!(!root.second().contains(&expected.as_slice()[8]));
-    assert!(!root.second().contains(&expected.as_slice()[9]));
-    assert_eq!(
-        rows.iter()
-            .filter(|row| match row {
-                Request::Client {
-                    request: jig_client::Request::Down { down: jig_client::Down::Close { watch: closed } },
-                } => *closed != watch,
-                _ => false,
-            })
-            .count(),
-        6
-    );
-    drive(&mut root, Event::First(first::Event::Read { read, result: first::ReadResult::Value(item(1)) }));
-    assert!(root.first().part(&expected.as_slice()[2]).is_none());
 }
 #[test]
 fn a_family_page_hands_its_task_and_proposal_to_jigs_working_set() {
@@ -721,7 +611,9 @@ fn restored_own_scope_sends_and_retires_each_final_request_once() {
                     up: jig_client::Up::Answer {
                         attempt,
                         envelope: RequestEnvelope::Final,
-                        answer: Some(jig_client::Answered::Jig(Answer::Done(Outcome::Changed))),
+                        answer: Some(jig_client::Answered::Jig(Answer::Done(Outcome::Owner(
+                            contract::OwnerOutcome::AccountChanged,
+                        )))),
                         why: None,
                     },
                 },
@@ -826,93 +718,6 @@ fn a_raw_entrance_refusal_finishes_the_original_family_request_once_with_its_fac
         Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { .. } } } => false,
         _ => true,
     }));
-}
-
-#[test]
-fn outbox_entries_route_as_scoped_numeric_subjects_independently_of_effect_proposals() {
-    use crate::family::{Kind, Scope, Subject};
-    let mut root = ready(121);
-    let opened = drive(
-        &mut root,
-        Event::Went { place: crate::Place::Address(Address::Jig(jig_client_view::address::Address::Deployment)) },
-    );
-    let watch = opened
-        .iter()
-        .find_map(|request| match request {
-            Request::Client {
-                request:
-                    jig_client::Request::Down {
-                        down:
-                            jig_client::Down::Open {
-                                watch,
-                                subject: jig_client::Watchable::Jig(contract::Subject::Deployment),
-                            },
-                    },
-            } => Some(*watch),
-            _ => None,
-        })
-        .unwrap();
-    let entry = u64::MAX;
-    let proposal = contract::ProposalKey { proposer: contract::Proposer::Task(entry), number: entry };
-    let parts = [
-        contract::Part::Outbox { connector: crate::FIRST, scope: contract::PartScope::Project(3), entry },
-        contract::Part::Outbox { connector: crate::FIRST, scope: contract::PartScope::Project(4), entry },
-        contract::Part::Outbox { connector: crate::FIRST, scope: contract::PartScope::Deployment, entry },
-        contract::Part::Effect { connector: crate::FIRST, proposal },
-    ];
-    let mut retained = List::with_capacity(4);
-    for part in &parts {
-        retained.push(part.clone()).unwrap();
-    }
-    let rows = drive(
-        &mut root,
-        Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::Watched {
-                    watch,
-                    event: WatchEvent::Delivered(Delivery::Deployment(Box::new(contract::Deployment {
-                        hosts: List::with_capacity(0),
-                        accounts: List::with_capacity(0),
-                        capacity: List::with_capacity(0),
-                        proposals: 0,
-                        refusals: List::with_capacity(0),
-                        parts: retained,
-                    }))),
-                },
-            },
-        },
-    );
-    let expected = [
-        Subject { scope: Scope::Project(3), kind: Kind::Outbox(entry) },
-        Subject { scope: Scope::Project(4), kind: Kind::Outbox(entry) },
-        Subject { scope: Scope::Deployment, kind: Kind::Outbox(entry) },
-        Subject { scope: Scope::Deployment, kind: Kind::Effect(proposal) },
-    ];
-    for (part, subject) in parts.iter().zip(expected) {
-        assert_eq!(root.first().part(part).unwrap().subject, subject);
-        assert!(rows.iter().any(|row| match row {
-            Request::Client {
-                request:
-                    jig_client::Request::Down {
-                        down: jig_client::Down::Read { what: jig_client::Readable::Family { record, .. }, .. },
-                    },
-            } =>
-                record.bytes
-                    == jig_client_test_protocol_wire::codec::family::read(crate::family::wire::subject(subject).1),
-            _ => false,
-        }));
-        assert!(root.first().contains(part));
-    }
-
-    drive(
-        &mut root,
-        Event::Went {
-            place: crate::Place::Address(Address::Jig(jig_client_view::address::Address::Inbox { project: None })),
-        },
-    );
-    for part in &parts {
-        assert!(!root.first().contains(part));
-    }
 }
 
 #[test]
@@ -1115,28 +920,6 @@ mod navigation;
 use fixtures::{
     ask, confirm, drive, env, family_answer, family_request, limits, out_iter, resource_path, start, taken,
 };
-
-fn deployment_parts() -> List<contract::Part> {
-    let mut parts = List::with_capacity(10);
-    for part in [
-        contract::Part::Resource { connector: crate::FIRST, path: resource_path(b"name") },
-        contract::Part::Kind { connector: crate::FIRST, kind: 4 },
-        contract::Part::Panel { connector: crate::FIRST, task: 9 },
-        contract::Part::Result { connector: crate::FIRST, task: 9 },
-        contract::Part::Effect {
-            connector: crate::FIRST,
-            proposal: contract::ProposalKey { proposer: contract::Proposer::Task(9), number: 2 },
-        },
-        contract::Part::Hold { connector: crate::FIRST, task: 9 },
-        contract::Part::Project { connector: crate::FIRST, project: 3 },
-        contract::Part::Deployment { connector: crate::FIRST },
-        contract::Part::Resource { connector: crate::SECOND, path: resource_path(b"other") },
-        contract::Part::Kind { connector: crate::SECOND, kind: 6 },
-    ] {
-        parts.push(part).unwrap();
-    }
-    parts
-}
 
 pub(super) fn live_first(first: first::Limits) -> (first::Side, jig_client::Client) {
     let mut root = unlinked(&crate::Limits { first, ..limits() }, 1);

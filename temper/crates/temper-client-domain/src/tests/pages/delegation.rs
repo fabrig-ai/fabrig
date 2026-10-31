@@ -177,7 +177,7 @@ fn a_landed_change_without_a_commit_id_says_its_words() {
 fn the_tasks_result_precedes_its_chip_ending_and_hold() {
     let mut task = f::change();
     f::phase(&mut task, c::OwnerChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 1 });
-    let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+    let c::ChipPhase { details, .. } = task.chip.details.as_mut();
     details.ending = Some(c::OwnerChipEnding::Failed(f::document_text(b"Old failure")));
     task.result =
         Some(c::TaskResult::Document(Box::new(f::result(&task, c::Ending::Done, Some(f::change_value(MERGE))))));
@@ -187,32 +187,32 @@ fn the_tasks_result_precedes_its_chip_ending_and_hold() {
 #[test]
 fn a_chips_owner_ending_supplies_the_result() {
     let mut task = f::change();
-    let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+    let c::ChipPhase { details, .. } = task.chip.details.as_mut();
     details.ending = Some(c::OwnerChipEnding::Done(f::change_value(MERGE)));
     assert_eq!(delegation::facts(&task).state, State::Landed);
 }
 #[test]
 fn an_ended_chip_supplies_its_state_and_reason() {
-    for (how, state, said) in [
-        (c::Ending::Done, State::Done, None),
+    for (ending, state, words) in [
+        (c::OwnerChipEnding::Done(c::ResultValue::Report(f::document_text(b"Done"))), State::Done, b"Done".as_slice()),
+        (c::OwnerChipEnding::Failed(f::document_text(b"Failed")), State::Failed, b"Failed".as_slice()),
         (
-            c::Ending::Failed { reason: Some(fixtures::acts::text(b"Failed")) },
-            State::Failed,
-            Some(Said::Words(b"Failed")),
-        ),
-        (c::Ending::Cancelled { by: c::Actor::Party(fixtures::PARTY), reason: None, at: None }, State::Cancelled, None),
-        (
-            c::Ending::Withdrawn { reason: fixtures::acts::text(b"Withdrawn") },
+            c::OwnerChipEnding::Cancelled {
+                by: c::OwnerRequester::Person(fixtures::PARTY),
+                reason: f::document_text(b"Cancelled"),
+                result: None,
+                at: Wall::EPOCH,
+            },
             State::Cancelled,
-            Some(Said::Words(b"Withdrawn")),
+            b"Cancelled".as_slice(),
         ),
-        (c::Ending::Deleted, State::Ended, None),
     ] {
         let mut task = f::change();
-        *task.chip.details = c::ChipPhase::Ended { how, at: Wall::EPOCH };
+        task.chip.details.phase = c::OwnerChipPhase::Ended;
+        task.chip.details.details.ending = Some(ending);
         let facts = delegation::facts(&task);
         assert_eq!(facts.state, state);
-        assert_eq!(facts.said, said);
+        assert_eq!(facts.said, Some(Said::Words(words)));
         assert_eq!(facts.steps, Some(0));
     }
 }

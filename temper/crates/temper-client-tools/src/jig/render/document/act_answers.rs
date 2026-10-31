@@ -167,42 +167,6 @@ pub(super) fn encode_outcome(value: &jig_client::contract::Outcome, out: &mut En
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::Outcome::Proposed { proposal } => {
-            out.object_start();
-            out.key(b"proposed");
-            out.object_start();
-            out.key(b"proposal");
-            super::encode_proposal_key(proposal, out, budget);
-            out.object_end();
-            out.object_end();
-        }
-        jig_client::contract::Outcome::Decided { by, how, at } => {
-            out.object_start();
-            out.key(b"decided");
-            out.object_start();
-            out.key(b"by");
-            super::encode_actor(by, out, budget);
-            out.key(b"how");
-            super::encode_decision(how, out, budget);
-            out.key(b"at");
-            out.unsigned((at).as_nanos());
-            out.object_end();
-            out.object_end();
-        }
-        jig_client::contract::Outcome::DecidedFirst { by, how, at } => {
-            out.object_start();
-            out.key(b"decided_first");
-            out.object_start();
-            out.key(b"by");
-            super::encode_party(by, out, budget);
-            out.key(b"how");
-            super::encode_decision(how, out, budget);
-            out.key(b"at");
-            out.unsigned((at).as_nanos());
-            out.object_end();
-            out.object_end();
-        }
-        jig_client::contract::Outcome::Changed => out.string(b"changed"),
     }
 }
 

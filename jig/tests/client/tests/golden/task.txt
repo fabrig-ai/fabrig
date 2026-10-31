@@ -70,48 +70,12 @@ Activity:
               Call 1
               Using tool delegate
               Call completed
-              Delegate ten
+              Delegate
               [14] Open input and result for delegate
-              - Proposal:
-                  ## Proposal
-                  * Open
-                  Pending proposal:
-                    Proposal number: 1
-                    Proposal project: 1
-                    By task 10
-                    Not proposed as holder
-                    Waiting holder
-                    Holder person: 7
-                    Waiting since: 0
-                    Proposal reason
-                    Resolve the incident
-                    Proposed effect
-                    Effect reference:
-                      Connector 1
-                      Effect reference
-                      Part number 1
-                      - Family item:
-                          * Unknown family object
-                          * Unknown family object
-                      Tool bits: 0
-                      Delegate tasks: 1
-                      Delegate depth: 1
-                      Spend ceiling: 1
-                      Note scope bits: 0
-                      Keep default models
-                      Grants
-                      Allowed delegation executors
-                      Note resources
-                    Effect attempt: 1
-                    Effect completion: 1
-                    Effect position: 1
-                    Effect purpose: 1
-                    Supplied funding offers
-                    Funded by pool in project 1, person 7, period 3
-                    Funding needed: 1
-                    Funding left: 1
-                    Funding after: 0
-                  [15] Accept
+            Call 1
+            Call completed
+            
+          * Some turn content did not fit
           Input tokens: 1
           Output tokens: 1
           Cache tokens read: 0
@@ -119,3 +83,43 @@ Activity:
           Turn spent: 1
   Start of the list
   End of the list
+  - Proposal:
+      ## Proposal
+      * Open
+      Pending proposal:
+        Proposal number: 1
+        Proposal project: 1
+        By task 10
+        Not proposed as holder
+        Waiting holder
+        Holder person: 7
+        Waiting since: 0
+        Proposal reason
+        Resolve the incident
+        Proposed effect
+        Effect reference:
+          Connector 1
+          Effect reference
+          Part number 1
+          - Family item:
+              * Unknown family object
+              * Unknown family object
+          Tool bits: 0
+          Delegate tasks: 1
+          Delegate depth: 1
+          Spend ceiling: 1
+          Note scope bits: 0
+          Keep default models
+          Grants
+          Allowed delegation executors
+          Note resources
+        Effect attempt: 1
+        Effect completion: 1
+        Effect position: 1
+        Effect purpose: 1
+        Supplied funding offers
+        Funded by pool in project 1, person 7, period 3
+        Funding needed: 1
+        Funding left: 1
+        Funding after: 0
+      [15] Accept

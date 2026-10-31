@@ -32,9 +32,10 @@ pub(super) fn text(
                 | c::ReadValue::Revision(_)
                 | c::ReadValue::Revisions(_)),
             )) => super::settings::text(value, crate::jig::call::number(call, 0), limits, out),
-            Readout::Jig(c::ReadResult::Value(
-                value @ (c::ReadValue::Proposal(_) | c::ReadValue::OwnerProposal(_)),
-            )) => super::proposal::text(value, reading, limits, out),
+
+            Readout::Jig(c::ReadResult::Value(value @ c::ReadValue::OwnerProposal(_))) => {
+                super::proposal::text(value, reading, limits, out);
+            }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(task))) => {
                 super::task_text(task, me, book, vocabulary, out);
                 vocabulary.task_next(task, out);
@@ -61,9 +62,7 @@ pub(super) fn text(
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Turn(turn))) => {
                 super::super::turn::text(turn.task, turn.name, &turn.turn, call, limits, out);
             }
-            Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(_) | c::ReadValue::OwnerInbox(_))) => {
-                unreachable!("inbox handled above")
-            }
+
             Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => {
                 unreachable!("validated read value")
             }
@@ -131,9 +130,10 @@ pub(super) fn encode(reading: &Reading, limits: &Limits, out: &mut Encoder, budg
                 | c::ReadValue::Revision(_)
                 | c::ReadValue::Revisions(_)),
             )) => super::settings::encode(value, out),
-            Readout::Jig(c::ReadResult::Value(
-                value @ (c::ReadValue::Proposal(_) | c::ReadValue::OwnerProposal(_)),
-            )) => super::proposal::encode(value, reading, out, budget),
+
+            Readout::Jig(c::ReadResult::Value(value @ c::ReadValue::OwnerProposal(_))) => {
+                super::proposal::encode(value, reading, out, budget);
+            }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(task))) => {
                 if compound {
                     out.key(b"task");
@@ -181,9 +181,7 @@ pub(super) fn encode(reading: &Reading, limits: &Limits, out: &mut Encoder, budg
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Turn(turn))) => {
                 encode_turn(reading, turn, limits, out, budget);
             }
-            Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page))) => {
-                super::encode_inbox_page(page, out, budget);
-            }
+
             Readout::Jig(c::ReadResult::Value(c::ReadValue::OwnerInbox(page))) => {
                 super::encode_owner_inbox_page(page, out, budget);
             }
@@ -212,11 +210,10 @@ fn encode_documents(reading: &Reading, limits: &Limits, compound: bool, out: &mu
             out.key(if *local == 3 { b"tree" } else { b"run" });
         }
         match document {
-            c::Delivery::Tree(tree) => super::subjects::encode(&super::super::Part::Tree(tree), limits, true, out),
             c::Delivery::OwnerTree(tree) => {
                 super::subjects::encode(&super::super::Part::OwnerTree(tree), limits, true, out);
             }
-            c::Delivery::RunState(_) | c::Delivery::Run(_) => {
+            c::Delivery::Run(_) | c::Delivery::RunState(_) => {
                 super::subjects::encode(
                     &super::super::Part::delivery(document).expect("run form"),
                     limits,
@@ -229,11 +226,9 @@ fn encode_documents(reading: &Reading, limits: &Limits, compound: bool, out: &mu
             | c::Delivery::Task(_)
             | c::Delivery::OwnerProposal(_)
             | c::Delivery::Chips(_)
-            | c::Delivery::Inbox(_)
             | c::Delivery::OwnerInbox(_)
             | c::Delivery::Tasks(_)
             | c::Delivery::Settings(_)
-            | c::Delivery::Deployment(_)
             | c::Delivery::OwnerDeployment(_)
             | c::Delivery::OwnerAccounts(_) => unreachable!("selected watch value"),
         }

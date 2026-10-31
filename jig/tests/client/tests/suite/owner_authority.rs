@@ -2,9 +2,7 @@ use jig_client_domain::contract::{
     AuthorityModels, OwnerAuthority, OwnerAuthorityDocument, OwnerAuthorityExecutor, OwnerDelegation, OwnerGrant,
     OwnerPattern, OwnerPatternEnd, OwnerResourceScope,
 };
-use jig_client_scripted_engine::{Bounds, owner_authority as price};
 use skein_lib::{List, Wall};
-use skein_world::domain::heap::Meter;
 fn list<T: core::fmt::Debug>(items: impl IntoIterator<Item = T>) -> List<T> {
     let items: Vec<T> = items.into_iter().collect();
     let mut result = List::with_capacity(u32::try_from(items.len()).expect("fixture size"));
@@ -43,59 +41,7 @@ fn authority() -> OwnerAuthority {
         note_resources: list((0..3).map(|n| OwnerResourceScope { connector: n, pattern: pattern(n % 2 != 0) })),
     }
 }
-fn bounds() -> Bounds {
-    Bounds { rows: 3, authority: 3, segments: 3, text: 4, document_bytes: u64::MAX, ..Bounds::default() }
-}
-#[test]
-fn saturated_authority_prices_every_capacity_and_byte_exactly() {
-    let original = OwnerAuthorityDocument { authority: authority(), cut: true };
-    let meter = Meter::new();
-    let value = original.clone();
-    let held = meter.held();
-    let total =
-        held.checked_add(u64::try_from(core::mem::size_of::<OwnerAuthorityDocument>()).expect("size")).expect("sum");
-    assert_eq!(price::document_bytes(&value, &bounds()), Some(total));
-    assert!(total <= price::heap_bound(&bounds()).expect("valid bounds"), "{total}");
-    assert_eq!(meter.held(), held, "pricing borrows without allocation");
-    let mut exact = bounds();
-    exact.document_bytes = total;
-    assert!(price::document_fits(&value, &exact));
-    exact.document_bytes -= 1;
-    assert!(!price::document_fits(&value, &exact));
-    let payload = price::bytes(&value.authority, &bounds()).expect("whole payload price");
-    exact.document_bytes = payload;
-    assert!(price::fits(&value.authority, &exact));
-    exact.document_bytes -= 1;
-    assert!(!price::fits(&value.authority, &exact));
-    assert_eq!(value, original, "no refusal shortens or rewrites the original");
-}
-#[test]
-fn nested_bounds_check_reserved_empty_lists_terminal_bytes_and_overflow() {
-    let mut value = authority();
-    value.grants = List::with_capacity(4);
-    assert_eq!(value.grants.len(), 0);
-    assert_eq!(price::bytes(&value, &bounds()), None, "empty reserved capacity still owned");
-    value = authority();
-    value.grants.get_mut(0).expect("grant").pattern.segments = List::with_capacity(4);
-    assert_eq!(price::bytes(&value, &bounds()), None, "nested capacity checked");
-    for end in [OwnerPatternEnd::Exact(Box::from(*b"large")), OwnerPatternEnd::Open(Box::from(*b"large"))] {
-        value = authority();
-        value.grants.get_mut(0).expect("grant").pattern.last = end;
-        assert_eq!(price::bytes(&value, &bounds()), None, "both terminal variants bounded");
-    }
-    value = authority();
-    value
-        .note_resources
-        .get_mut(0)
-        .expect("scope")
-        .pattern
-        .segments
-        .get_mut(0)
-        .expect("segment")
-        .clone_from(&Box::from(*b"large"));
-    assert_eq!(price::bytes(&value, &bounds()), None, "resource scope bytes bounded");
-    assert_eq!(price::heap_bound(&Bounds { rows: u32::MAX, authority: u32::MAX, text: u32::MAX, ..bounds() }), None);
-}
+
 #[test]
 fn authority_document_cut_is_separate_from_whole_payload_and_keeps_exact_codes() {
     let payload = authority();
@@ -167,32 +113,5 @@ fn saturated_owner_authority_renders_all_literal_boundaries() {
         tree.nodes().iter().flat_map(|n| &n.text).filter(|r| r.text.as_ref() == b"a/b\0").count(),
         6,
         "all six literal pattern segment boundaries retained"
-    );
-    let empty = OwnerAuthorityDocument {
-        authority: OwnerAuthority {
-            models: None,
-            grants: List::with_capacity(0),
-            delegation: OwnerDelegation { kinds: List::with_capacity(0), tasks: 0, depth: 0 },
-            note_resources: List::with_capacity(0),
-            tools: 0,
-            spend: 0,
-            notes: 0,
-            deadline: None,
-        },
-        cut: false,
-    };
-
-    assert!(price::document_fits(&empty, &Bounds { rows: 0, authority: 0, text: 0, ..bounds() }));
-}
-
-#[test]
-fn a_whole_authority_is_admitted_independently_of_document_rows() {
-    const DISPLAY_ROWS: u32 = 2;
-    let value = authority();
-    let cap = Bounds { rows: DISPLAY_ROWS, ..bounds() };
-    assert!(price::fits(&value, &cap));
-    assert_eq!(
-        price::heap_bound(&cap),
-        price::document_bytes(&OwnerAuthorityDocument { authority: value, cut: false }, &cap)
     );
 }

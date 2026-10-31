@@ -30,7 +30,8 @@ fn a_second_send_of_the_same_request_joins_the_first() {
 fn a_final_answer_is_told_once_with_its_outcome() {
     let mut c = Client::live();
     let attempt = c.send();
-    let answer = Answered::Jig(contract::Answer::Done(contract::Outcome::Changed));
+    let answer =
+        Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(contract::OwnerOutcome::AccountChanged)));
     c.step(Event::Up {
         up: Up::Answer { attempt, envelope: RequestEnvelope::Final, answer: Some(answer.clone()), why: None },
     });
@@ -225,7 +226,8 @@ fn the_same_key_under_another_name_is_a_loud_key_conflict() {
 fn a_name_is_admitted_again_once_its_holder_is_answered() {
     let mut c = Client::live();
     let attempt = c.send_as(KEY, Some(NAME));
-    let answer = Answered::Jig(contract::Answer::Done(contract::Outcome::Changed));
+    let answer =
+        Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(contract::OwnerOutcome::AccountChanged)));
     c.step(Event::Up { up: Up::Answer { attempt, envelope: RequestEnvelope::Final, answer: Some(answer), why: None } });
     c.downs();
     c.told();
@@ -280,7 +282,9 @@ fn final_seen(c: &mut Client, attempt: skein_lib::Token) {
         up: Up::Answer {
             attempt,
             envelope: RequestEnvelope::Final,
-            answer: Some(Answered::Jig(contract::Answer::Done(contract::Outcome::Changed))),
+            answer: Some(Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
+                contract::OwnerOutcome::AccountChanged,
+            )))),
             why: None,
         },
     });
@@ -411,7 +415,9 @@ fn seen_final_answer_erases_and_releases_its_name_once() {
         c.told().as_ref(),
         &[Told::Answered {
             key: KEY,
-            outcome: Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Changed))),
+            outcome: Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
+                contract::OwnerOutcome::AccountChanged
+            )))),
         }]
     );
     assert_eq!(c.domain.pending(KEY), None);

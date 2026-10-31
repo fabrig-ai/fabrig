@@ -617,25 +617,18 @@ impl Front<Test> for Scripted {
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "the observation table classifies every scripted change without inspecting client state"
-)]
 fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>) {
     match change {
         engine::Change::Source(source) => {
             if let (Read::Activity { task, .. }, engine::Rows::Activity(rows)) = (&source.read, &source.rows) {
                 for row in rows {
-                    if let Some((message, words)) = row.event.word_message() {
+                    if let Some((message, words)) = row.word_message() {
                         seen.push(Observed::Kept { task: *task, message, words: words.bytes().to_vec(), commit });
                     }
                 }
                 seen.push(Observed::Retained {
                     task: *task,
-                    messages: rows
-                        .iter()
-                        .filter_map(|row| row.event.word_message().map(|(message, _)| message))
-                        .collect(),
+                    messages: rows.iter().filter_map(|row| row.word_message().map(|(message, _)| message)).collect(),
                     commit,
                 });
             }
@@ -644,34 +637,26 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
         engine::Change::Object { key, value, .. } => {
             let terminal = match value {
                 ReadValue::Historical(p) => p.is_terminal(),
-                ReadValue::Escalation(e) => e.ending.is_some(),
                 ReadValue::Question(q) => q.ending.is_some(),
-                ReadValue::PersonTask(p) => p.ending.is_some(),
                 ReadValue::Task(t) => t.result.is_some(),
                 ReadValue::Result(_) => true,
-                ReadValue::Proposal(_)
-                | ReadValue::OwnerPersonTask(_)
+                ReadValue::OwnerPersonTask(_)
                 | ReadValue::OwnerProposal(_)
                 | ReadValue::OwnerEscalation(_)
                 | ReadValue::Tasks(_)
                 | ReadValue::Me(_)
-                | ReadValue::Ended(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
-                | ReadValue::Inbox(_)
                 | ReadValue::OwnerInbox(_)
-                | ReadValue::Spend(_)
                 | ReadValue::OwnerEnded(_)
                 | ReadValue::OwnerSpend(_)
                 | ReadValue::OwnerProject(_)
-                | ReadValue::Project(_)
                 | ReadValue::Notes(_)
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
                 | ReadValue::Revisions(_)
-                | ReadValue::Deployment(_)
                 | ReadValue::OwnerDeployment(_) => false,
             };
             if terminal {
@@ -684,30 +669,22 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
                 | ReadValue::Tasks(_)
                 | ReadValue::Me(_)
                 | ReadValue::Historical(_)
-                | ReadValue::Proposal(_)
                 | ReadValue::OwnerProposal(_)
-                | ReadValue::Escalation(_)
                 | ReadValue::OwnerEscalation(_)
                 | ReadValue::Question(_)
-                | ReadValue::PersonTask(_)
                 | ReadValue::OwnerPersonTask(_)
-                | ReadValue::Ended(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
-                | ReadValue::Inbox(_)
                 | ReadValue::OwnerInbox(_)
-                | ReadValue::Spend(_)
                 | ReadValue::OwnerEnded(_)
                 | ReadValue::OwnerSpend(_)
                 | ReadValue::OwnerProject(_)
-                | ReadValue::Project(_)
                 | ReadValue::Notes(_)
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
                 | ReadValue::Revisions(_)
-                | ReadValue::Deployment(_)
                 | ReadValue::OwnerDeployment(_) => {}
             }
         }

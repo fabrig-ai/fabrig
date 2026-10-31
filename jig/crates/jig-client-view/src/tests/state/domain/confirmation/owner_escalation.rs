@@ -1,57 +1,6 @@
 use crate::tests::fixtures::ReadPage;
 use crate::tests::state::domain::confirmation::*;
 
-fn row(act: ActKind, reason: HoldCategory) -> OwnerEscalation {
-    let mut task = task();
-    task.context = None;
-    task.person_revision = Some(Revision { value: 23 });
-    task.taken_by = Some(u64::MAX);
-    task.dependencies = List::with_capacity(2);
-    task.dependencies.push(OwnerTaskLink::Stored { number: 99, status: Some(OwnerTaskStatus::Done) }).unwrap();
-    task.inputs = List::with_capacity(2);
-    task.inputs.push(OwnerTaskLink::Stored { number: 31, status: None }).unwrap();
-    task.references = List::with_capacity(2);
-    task.references.push(OwnerTaskLink::Live(chip(32))).unwrap();
-    task.delegates = List::with_capacity(2);
-    task.delegates.push(LiveDelegate { chip: chip(33), takeover_budget: u64::MAX }).unwrap();
-    task.lineage_chips = List::with_capacity(2);
-    task.lineage_chips.push(chip(34)).unwrap();
-    task.resources = List::with_capacity(2);
-    let mut path = List::with_capacity(2);
-    path.push(Box::<[u8]>::from(*b"whole-resource")).unwrap();
-    task.resources.push(TaskResource::Part(Part::Resource { connector: 7, path })).unwrap();
-    task.result = Some(TaskResult::Ending(Box::new(OwnerChipEnding::Failed(DocumentText::complete(text(
-        b"supplied retained task failure",
-    ))))));
-    let held = OwnerChipHold {
-        words: None,
-        placed: None,
-        circle: None,
-        account: None,
-        source: None,
-        reason,
-        revision: u64::MAX,
-        before: OwnerPriorPhase::Closing(ClosingStage::Effects),
-        escalation: Some(OwnerHoldEscalation::Waiting {
-            holder: OwnerEscalationHolder::Person(7),
-            entry: 22,
-            since: Wall::EPOCH,
-        }),
-        tries: OwnerFailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6 },
-        hold_wait_since: None,
-    };
-    let mut details = crate::tests::state::domain::chip_facts::details();
-    details.project = task.project;
-    details.hold = Some(held.clone());
-    task.chip.details = Box::new(ChipPhase::Owner {
-        phase: OwnerChipPhase::Held { reason, revision: held.revision },
-        details: Box::new(details),
-    });
-    task.hold = Some(TaskHold::Owner(Box::new(held)));
-    task.acts = offered(ActKind::Stop, Admission::Allowed);
-    OwnerEscalation { acts: offered(act, Admission::Allowed), task: Box::new(task) }
-}
-
 #[test]
 fn owner_escalation_original_reads_keep_whole_task_and_independent_offers_and_revisions() {
     let (mut domain, page) = live();
@@ -239,3 +188,51 @@ fn owner_escalation_atomic_amend_release_preserves_supplied_reason_and_independe
 }
 
 use jig_client::contract::DecideOn;
+
+fn row(act: ActKind, reason: HoldCategory) -> OwnerEscalation {
+    let mut task = task();
+    task.context = None;
+    task.person_revision = Some(Revision { value: 23 });
+    task.taken_by = Some(u64::MAX);
+    task.dependencies = List::with_capacity(2);
+    task.dependencies.push(OwnerTaskLink::Stored { number: 99, status: Some(OwnerTaskStatus::Done) }).unwrap();
+    task.inputs = List::with_capacity(2);
+    task.inputs.push(OwnerTaskLink::Stored { number: 31, status: None }).unwrap();
+    task.references = List::with_capacity(2);
+    task.references.push(OwnerTaskLink::Live(chip(32))).unwrap();
+    task.delegates = List::with_capacity(2);
+    task.delegates.push(LiveDelegate { chip: chip(33), takeover_budget: u64::MAX }).unwrap();
+    task.lineage_chips = List::with_capacity(2);
+    task.lineage_chips.push(chip(34)).unwrap();
+    task.resources = List::with_capacity(2);
+    task.result = Some(TaskResult::Ending(Box::new(OwnerChipEnding::Failed(DocumentText::complete(text(
+        b"supplied retained task failure",
+    ))))));
+    let held = OwnerChipHold {
+        words: None,
+        placed: None,
+        circle: None,
+        account: None,
+        source: None,
+        reason,
+        revision: u64::MAX,
+        before: OwnerPriorPhase::Closing(ClosingStage::Effects),
+        escalation: Some(OwnerHoldEscalation::Waiting {
+            holder: OwnerEscalationHolder::Person(7),
+            entry: 22,
+            since: Wall::EPOCH,
+        }),
+        tries: OwnerFailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6 },
+        hold_wait_since: None,
+    };
+    let mut details = crate::tests::state::domain::chip_facts::details();
+    details.project = task.project;
+    details.hold = Some(held.clone());
+    task.chip.details = Box::new(ChipPhase {
+        phase: OwnerChipPhase::Held { reason, revision: held.revision },
+        details: Box::new(details),
+    });
+    task.hold = Some(Box::new(held));
+    task.acts = offered(ActKind::Stop, Admission::Allowed);
+    OwnerEscalation { acts: offered(act, Admission::Allowed), task: Box::new(task) }
+}

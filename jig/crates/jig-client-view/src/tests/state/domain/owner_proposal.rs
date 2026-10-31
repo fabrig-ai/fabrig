@@ -3,6 +3,7 @@
     clippy::wildcard_enum_match_arm,
     reason = "ordinary native proofs query original keyed requests and select the three offered decisions"
 )]
+use crate::state::objects;
 use crate::tests::fixtures::refusal_answer;
 use crate::tests::fixtures::{AnsweredByEngine, ReadPage, Watched};
 use crate::tests::state::domain::{
@@ -14,7 +15,7 @@ use crate::{
     state::{
         action::Act,
         fields::Purpose,
-        objects::{self, Body, Card, Source},
+        objects::{Body, Card, Source},
     },
 };
 use jig_client::contract::*;
@@ -85,8 +86,15 @@ fn owner_proposal_original_maker_keys_all_three_decisions_and_reason_survive_dou
         }
         assert_ne!(pending.get(0).unwrap().0, pending.get(1).unwrap().0);
         assert_ne!(pending.get(0).unwrap().1, pending.get(1).unwrap().1);
-        let answer = Answer::Done(Outcome::Decided { by: Actor::Party(7), how: Decision::Accepted, at: Wall::EPOCH });
         for (id, request) in pending.into_boxed() {
+            let ObjectKey::Proposal(proposal) = domain.objects().get(id).unwrap().key else { panic!("proposal") };
+            let answer = Answer::Done(Outcome::Owner(OwnerOutcome::ProposalDecided {
+                proposal,
+                by: 7,
+                choice: OwnerProposalChoice::Accepted,
+                at: Wall::EPOCH,
+                repeated: false,
+            }));
             drive(&mut domain, Time::ZERO, AnsweredByEngine { request, answer: answer.clone() });
             assert_eq!(domain.objects().get(id).unwrap().answer, Some(answer.clone()));
             assert!(match domain.objects().get(id).unwrap().card {
@@ -160,24 +168,6 @@ fn owner_proposal_native_read_consumes_once_watch_keeps_same_card_and_wrong_key_
         domain.objects().get(id).unwrap().card,
         Card::Deciding { request: None, progress: crate::state::intents::Progress::Confirming }
     );
-    // The established document uses the same review state when its offer disappears.
-    let (mut control, _) = live();
-    let mut old = crate::tests::state::domain::objects::proposal();
-    old.acts = List::with_capacity(1);
-    old.acts.push(Offered { effect: None, act: ActKind::Accept, admission: Admission::Allowed }).unwrap();
-    let old_key = ObjectKey::Proposal(old.key);
-    let old_id = control.objects.name(old_key, Source::Window { number: 4 }).unwrap();
-    assert!(control.objects.put(old_key, Body::Proposal(Box::new(old.clone()))));
-    drive(
-        &mut control,
-        Time::ZERO,
-        Event::Act { action: Act::Intend { object: old_id.token(), act: ActKind::Accept } },
-    );
-    old.acts.clear();
-    assert!(control.objects.put(old_key, Body::Proposal(Box::new(old))));
-    assert!(!drive(&mut control, Time::ZERO, Event::Act { action: Act::Confirm }).iter().any(sent));
-    assert_eq!(control.confirmation().unwrap().missing, domain.confirmation().unwrap().missing);
-    assert_eq!(control.objects().get(old_id).unwrap().card, domain.objects().get(id).unwrap().card);
     for admission in
         [Admission::Refused(Refusal::NotOffered), Admission::Refused(Refusal::Limit { which: Limit::Objects })]
     {

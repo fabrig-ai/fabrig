@@ -9,7 +9,7 @@ use skein_lib::{Reader, Wall};
 // TurnBytes::Carried. Generated-encoding boundary tests check this inspector.
 const VALUE: u8 = 1;
 const JIG: u8 = 0;
-const TURN: u8 = 25;
+const TURN: u8 = 17;
 const CARRIED: u8 = 0;
 
 /// Borrows every byte, including an oversized payload, without decoding or copying it.

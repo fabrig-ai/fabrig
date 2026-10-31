@@ -31,11 +31,11 @@ fn escalation() -> OwnerEscalation {
     details.project = task.project;
     details.hold = Some(held.clone());
     details.executor = OwnerExecutor::Agent { charter: 1 };
-    task.chip.details = Box::new(ChipPhase::Owner {
+    task.chip.details = Box::new(ChipPhase {
         phase: OwnerChipPhase::Held { reason: HoldCategory::Budget, revision: u64::MAX },
         details: Box::new(details),
     });
-    task.hold = Some(TaskHold::Owner(Box::new(held)));
+    task.hold = Some(Box::new(held));
     OwnerEscalation {
         task: Box::new(task),
         acts: list([
@@ -43,43 +43,6 @@ fn escalation() -> OwnerEscalation {
             Offered { effect: None, act: ActKind::Amend, admission: Admission::Allowed },
         ]),
     }
-}
-
-fn maximum_card_envelope() {
-    let mut row = escalation();
-    let whole = vec![b'x'; usize::try_from(CLIENT.text).unwrap()];
-    row.task.spec = specification(text(&whole));
-    row.task.instructions = Some(DocumentText::complete(text(&whole)));
-    row.task.dependencies = list(
-        (0..CLIENT.rows)
-            .map(|number| OwnerTaskLink::Stored { number: u64::from(number), status: Some(OwnerTaskStatus::Done) }),
-    );
-    row.task.references = row.task.dependencies.clone();
-    row.task.inputs = row.task.dependencies.clone();
-    row.task.resources = list((0..CLIENT.rows).map(|number| {
-        TaskResource::Part(Part::Resource {
-            connector: u16::try_from(number).unwrap(),
-            path: list((0..CLIENT.rows).map(|_| Box::<[u8]>::from(whole.clone()))),
-        })
-    }));
-    let original = row.clone();
-    let (domain, id) = loaded(ObjectKey::Escalation(8), ReadValue::OwnerEscalation(Box::new(row)));
-    let bound = crate::sizes::sizes::owner_escalation_nodes(&CLIENT).unwrap().checked_add(1).unwrap();
-    let allocation =
-        skein_ui::Limits { nodes: bound, depth: 32, text_bytes: bound.checked_mul(1024).unwrap(), ..limits() };
-    let mut builder = Builder::new(&allocation);
-    let mut bindings = JigBindings::new(bound, CLIENT.text);
-    builder.open(Role::Page);
-    assert!(cards::card(&mut builder, &domain.view(), id, &cards::Place::Elsewhere, words(), &mut bindings));
-    builder.close();
-    let tree = builder.finish();
-    crate::tests::tree::cards_access::check(&tree);
-    assert!(tree.len() <= bound);
-    assert!(contains(&tree, &whole));
-    assert_eq!(
-        domain.objects().get(id).unwrap().body,
-        Some(crate::state::objects::Body::OwnerEscalation(Box::new(original)))
-    );
 }
 
 #[test]
@@ -241,7 +204,11 @@ fn presence_step(domain: &mut Fixture, l: crate::Limits, event: impl crate::test
 fn presence_result(key: ProposalKey) -> Result {
     let mut result = result();
     result.task.task = 42;
-    result.task.details = Box::new(ChipPhase::Waiting { dependencies: list([70, 70]), hold: None });
+    result.task.details = Box::new(crate::tests::fixtures::chip_phase(OwnerChipPhase::Waiting {
+        dependencies: list([70, 70]),
+        more: false,
+        holds: false,
+    }));
     result.value = Some(ResultValue::Verdict {
         verdict: u32::MAX,
         words: DocumentText::complete(text(b"repeated whole verdict")),
@@ -256,30 +223,25 @@ fn presence_result(key: ProposalKey) -> Result {
     result
 }
 
-fn presence_person(result: &Result, owner: bool) -> ReadValue {
-    let mut original = person(PersonContract::Words);
-    original.inputs = list([result.clone(), result.clone()]);
-    original.acts = closed_offers(true).acts;
-    if !owner {
-        return ReadValue::PersonTask(Box::new(original));
-    }
+fn presence_person(result: &Result) -> ReadValue {
+    let original = task_doc(&[]);
     ReadValue::OwnerPersonTask(Box::new(OwnerPersonTask {
-        task: original.task,
-        revision: original.revision,
+        task: original.chip,
+        revision: Revision { value: 4 },
         requester: OwnerRequester::Person(1),
         spec: original.spec,
         address: PersonAddress::Party(1),
         taken_by: None,
-        since: original.since,
-        stall: original.stall,
-        deadline: original.deadline,
+        since: None,
+        stall: None,
+        deadline: None,
         contract: TaskContractDocument::Report { words: 2 },
         results: list((0..CLIENT.rows).map(|_| OwnerShownResult {
             task: OwnerTaskLink::Retained { chip: result.task.clone(), at: None },
             result: Some(Box::new(result.clone())),
         })),
         cut: true,
-        acts: original.acts,
+        acts: closed_offers(true).acts,
     }))
 }
 
@@ -337,8 +299,9 @@ fn presence_domain(l: crate::Limits, documents: &[(ObjectKey, Option<ReadValue>)
     domain
 }
 
-fn check_presence_case(present: [bool; 3], loaded: bool, owner: bool) {
-    let mut proposal = proposal(ProposalAction::Widen { before: authority(), after: authority() });
+fn check_presence_case(present: [bool; 3], loaded: bool) {
+    let mut proposal =
+        crate::tests::fixtures::proposal(ProposalKey { proposer: Proposer::Task(8), number: 1 }, text(b"whole reason"));
     proposal.acts = closed_offers(true).acts;
     let result = presence_result(proposal.key);
     let mut row = closed_offers(true);
@@ -347,13 +310,13 @@ fn check_presence_case(present: [bool; 3], loaded: bool, owner: bool) {
     row.task.dependencies = row.task.inputs.clone();
     row.task.references = row.task.inputs.clone();
     row.task.result = Some(TaskResult::Document(Box::new(result.clone())));
-    let ChipPhase::Owner { details, .. } = row.task.chip.details.as_mut() else { panic!("owned held metadata") };
+    let ChipPhase { details, .. } = row.task.chip.details.as_mut();
     details.ending = Some(OwnerChipEnding::Done(result.value.clone().unwrap()));
     let mut documents = vec![(ObjectKey::Escalation(8), Some(ReadValue::OwnerEscalation(Box::new(row.clone()))))];
     for (yes, key, value) in [
         (present[0], ObjectKey::Result(42), ReadValue::Result(Box::new(result))),
-        (present[1], ObjectKey::PersonTask(8), presence_person(&presence_result(proposal.key), owner)),
-        (present[2], ObjectKey::Proposal(proposal.key), ReadValue::Proposal(Box::new(proposal))),
+        (present[1], ObjectKey::PersonTask(8), presence_person(&presence_result(proposal.key))),
+        (present[2], ObjectKey::Proposal(proposal.key), ReadValue::OwnerProposal(Box::new(proposal))),
     ] {
         if yes {
             documents.push((key, loaded.then_some(value)));
@@ -364,8 +327,11 @@ fn check_presence_case(present: [bool; 3], loaded: bool, owner: bool) {
             let mut task = task_doc(&[]);
             task.chip.task = number;
             task.chip.title = DocumentText::complete(text(b"reachable stored dependency"));
-            task.chip.details =
-                Box::new(ChipPhase::Waiting { dependencies: list([dependency, dependency]), hold: None });
+            task.chip.details = Box::new(crate::tests::fixtures::chip_phase(OwnerChipPhase::Waiting {
+                dependencies: list([dependency, dependency]),
+                more: false,
+                holds: false,
+            }));
             documents.push((ObjectKey::Task(number), Some(ReadValue::Task(Box::new(task)))));
         }
     }
@@ -419,25 +385,19 @@ fn check_presence_case(present: [bool; 3], loaded: bool, owner: bool) {
 }
 
 fn check_presence_envelopes(result: bool, part: u32) {
-    assert!(part < 6);
+    assert!(part < 4);
     let mut case = 0_u32;
     for person in [false, true] {
         for proposal in [false, true] {
             for loaded in [false, true] {
                 if case / 2 == part {
-                    check_presence_case([result, person, proposal], loaded, false);
+                    check_presence_case([result, person, proposal], loaded);
                 }
-                case = case.checked_add(1).expect("twelve presence cases");
-                if person {
-                    if case / 2 == part {
-                        check_presence_case([result, person, proposal], loaded, true);
-                    }
-                    case = case.checked_add(1).expect("twelve presence cases");
-                }
+                case = case.checked_add(1).unwrap();
             }
         }
     }
-    assert_eq!(case, 12);
+    assert_eq!(case, 8);
 }
 
 #[test]
@@ -461,16 +421,6 @@ fn owner_escalation_without_result_key_presence_part_4_keeps_whole_inputs_and_lo
 }
 
 #[test]
-fn owner_escalation_without_result_key_presence_part_5_keeps_whole_inputs_and_loading() {
-    check_presence_envelopes(false, 4);
-}
-
-#[test]
-fn owner_escalation_without_result_key_presence_part_6_keeps_whole_inputs_and_loading() {
-    check_presence_envelopes(false, 5);
-}
-
-#[test]
 fn owner_escalation_with_repeated_result_key_keeps_whole_person_inputs_loading_and_repeated_proposals_in_finite_view() {
     check_presence_envelopes(true, 0);
 }
@@ -488,16 +438,6 @@ fn owner_escalation_with_repeated_result_key_presence_part_3_keeps_whole_inputs_
 #[test]
 fn owner_escalation_with_repeated_result_key_presence_part_4_keeps_whole_inputs_and_loading() {
     check_presence_envelopes(true, 3);
-}
-
-#[test]
-fn owner_escalation_with_repeated_result_key_presence_part_5_keeps_whole_inputs_and_loading() {
-    check_presence_envelopes(true, 4);
-}
-
-#[test]
-fn owner_escalation_with_repeated_result_key_presence_part_6_keeps_whole_inputs_and_loading() {
-    check_presence_envelopes(true, 5);
 }
 
 #[test]
@@ -581,4 +521,47 @@ fn owner_escalation_closed_outer_controls_and_whole_refusals_fit_finite_view_and
         Some(crate::state::objects::Body::OwnerEscalation(Box::new(original)))
     );
     assert_eq!(crate::sizes::sizes::owner_escalation_nodes(&crate::Limits { rows: u32::MAX, ..CLIENT }), None);
+}
+
+fn maximum_card_envelope() {
+    let mut row = escalation();
+    let whole = vec![b'x'; usize::try_from(CLIENT.text).unwrap()];
+    row.task.spec = specification(text(&whole));
+    row.task.instructions = Some(DocumentText::complete(text(&whole)));
+    row.task.dependencies = list(
+        (0..CLIENT.rows)
+            .map(|number| OwnerTaskLink::Stored { number: u64::from(number), status: Some(OwnerTaskStatus::Done) }),
+    );
+    row.task.references = row.task.dependencies.clone();
+    row.task.inputs = row.task.dependencies.clone();
+    row.task.resources = list((0..CLIENT.rows).map(|number| OwnerResourceLine {
+        part: OwnerPart {
+            connector: u16::try_from(number).unwrap(),
+            kind: OwnerPartKind::Resource,
+            key: OwnerPartKey::Path(list((0..CLIENT.rows).map(|_| Box::<[u8]>::from(whole.clone())))),
+        },
+        kind: 1,
+        taken: false,
+        holder: None,
+        writer: None,
+        writer_lost: false,
+    }));
+    let original = row.clone();
+    let (domain, id) = loaded(ObjectKey::Escalation(8), ReadValue::OwnerEscalation(Box::new(row)));
+    let bound = crate::sizes::sizes::owner_escalation_nodes(&CLIENT).unwrap().checked_add(1).unwrap();
+    let allocation =
+        skein_ui::Limits { nodes: bound, depth: 32, text_bytes: bound.checked_mul(1024).unwrap(), ..limits() };
+    let mut builder = Builder::new(&allocation);
+    let mut bindings = JigBindings::new(bound, CLIENT.text);
+    builder.open(Role::Page);
+    assert!(cards::card(&mut builder, &domain.view(), id, &cards::Place::Elsewhere, words(), &mut bindings));
+    builder.close();
+    let tree = builder.finish();
+    crate::tests::tree::cards_access::check(&tree);
+    assert!(tree.len() <= bound);
+    assert!(contains(&tree, &whole));
+    assert_eq!(
+        domain.objects().get(id).unwrap().body,
+        Some(crate::state::objects::Body::OwnerEscalation(Box::new(original)))
+    );
 }

@@ -17,9 +17,7 @@ pub(super) fn encode_lacking(value: &jig_client::contract::Lacking, out: &mut En
         jig_client::contract::Lacking::Budget { needed, left } => {
             encode_lacking_budget(*needed, *left, out, budget);
         }
-        jig_client::contract::Lacking::Grant(field_0) => {
-            encode_lacking_grant(field_0, out, budget);
-        }
+
         jig_client::contract::Lacking::GrantKind { kind } => {
             encode_lacking_grant_kind(*kind, out, budget);
         }
@@ -69,13 +67,6 @@ fn encode_lacking_budget(needed: u64, left: u64, out: &mut Encoder, _budget: &mu
     out.key(b"left");
     out.unsigned(left);
     out.object_end();
-    out.object_end();
-}
-
-fn encode_lacking_grant(field_0: &jig_client::contract::Grant, out: &mut Encoder, budget: &mut super::Cut) {
-    out.object_start();
-    out.key(b"grant");
-    super::encode_grant(field_0, out, budget);
     out.object_end();
 }
 

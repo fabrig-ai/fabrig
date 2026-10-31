@@ -26,69 +26,6 @@ fn finish(mut builder: Builder) -> Tree {
     builder.finish()
 }
 
-pub(in crate::tests) fn full_template(number: u64) -> ProposedTask {
-    let bytes: Box<[u8]> = vec![0xff; usize::try_from(CLIENT.text).unwrap()].into_boxed_slice();
-    let pattern =
-        OwnerPattern { segments: list([bytes.clone(), bytes.clone()]), last: OwnerPatternEnd::Open(bytes.clone()) };
-    let grant = OwnerGrant { connector: u16::MAX, kind: u16::MAX, pattern: pattern.clone() };
-    let note = OwnerResourceScope { connector: u16::MAX, pattern };
-    let resource = OwnerPart {
-        connector: u16::MAX,
-        kind: OwnerPartKind::Resource,
-        key: OwnerPartKey::Path(list([bytes.clone(), bytes.clone()])),
-    };
-    let field = FieldRule { name: bytes, max: u32::MAX };
-    let choice =
-        VerdictChoice { code: u32::MAX, words: u32::MAX, followups: u32::MAX, fields: list([field.clone(), field]) };
-    let mut task =
-        crate::tests::tree::work_pages::recurring_task(number, &vec![b'x'; usize::try_from(CLIENT.text).unwrap()]);
-    task.spec.specification.words.cut = true;
-    task.spec.specification.parameters = list([
-        ParameterDocument::Bytes { name: u32::MAX, value: task.spec.specification.words.clone() },
-        ParameterDocument::Bytes { name: 2, value: task.spec.specification.words.clone() },
-    ]);
-    task.spec.specification.inputs = list([u64::MAX, 9]);
-    task.spec.cut = true;
-    task.executor = OwnerExecutor::Procedure { connector: u16::MAX, code: u32::MAX };
-    task.contract = TaskContractDocument::Verdict {
-        choices: list([choice.clone(), VerdictChoice { code: 2, ..choice }]),
-        cut: true,
-    };
-    task.authority = OwnerAuthorityDocument {
-        authority: OwnerAuthority {
-            models: None,
-            tools: u64::MAX,
-            grants: list([grant.clone(), grant]),
-            delegation: OwnerDelegation {
-                kinds: list([OwnerAuthorityExecutor::Procedure(u32::MAX), OwnerAuthorityExecutor::Role(u32::MAX)]),
-                tasks: u32::MAX,
-                depth: u32::MAX,
-            },
-            spend: u64::MAX,
-            deadline: Some(skein_lib::Wall::from_nanos(u64::MAX)),
-            notes: u8::MAX,
-            note_resources: list([note.clone(), note]),
-        },
-        cut: true,
-    };
-    task.budget = u64::MAX;
-    task.funder = Funder::Pool { project: u32::MAX, person: u64::MAX, period: u64::MAX };
-    task.dependencies = list([u64::MAX, 9]);
-    task.resources = list([resource.clone(), resource]);
-    task.wake = OwnerWakePolicy {
-        words: WakeRule::Batch { count: u32::MAX, age: skein_lib::Duration::from_nanos(u64::MAX) },
-        notices: WakeRule::Batch { count: u32::MAX, age: skein_lib::Duration::from_nanos(u64::MAX) },
-        news: WakeRule::Batch { count: u32::MAX, age: skein_lib::Duration::from_nanos(u64::MAX) },
-        results: ResultsWake::LastOrFailure,
-        questions: true,
-        answers: true,
-        timers: true,
-    };
-    task.priority = Some(u32::MAX);
-    task.cut = true;
-    task
-}
-
 #[test]
 fn exact_part_slots_keep_separate_literal_segments_all_owner_kinds_and_numeric_keys() {
     let words = words();

@@ -41,7 +41,6 @@ impl Words {
                     self.text(b, JigPhrase::KeptUntil, &[Hole::Number(*task)]);
                 }
             }
-
             Refusal::NameTaken => self.text(b, JigPhrase::NameTaken, &[]),
             Refusal::Malformed { at, why } => self.malformed(b, *at, *why),
             Refusal::Role { held } => {
@@ -54,7 +53,7 @@ impl Words {
             Refusal::NotWaiting => self.text(b, JigPhrase::Word(Word::Refusal(RefusalWord::NotWaiting)), &[]),
             Refusal::NoFurther => self.text(b, JigPhrase::Word(Word::Refusal(RefusalWord::NoFurther)), &[]),
             Refusal::Authority { lacking, proposable } => {
-                self.lacking(b, lacking, text_limit);
+                self.lacking(b, lacking);
                 if let Some(false) = proposable {
                     self.text(b, JigPhrase::NobodyMayAccept, &[]);
                 }

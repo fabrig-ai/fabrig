@@ -194,7 +194,7 @@ fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_e
     value.rows.push(second).unwrap();
     let mut metadata = crate::tests::tree::fragments::chip::details();
     metadata.closing_connectors = Some(List::with_capacity(CLIENT.rows));
-    *value.root.details = ChipPhase::Owner {
+    *value.root.details = ChipPhase {
         phase: OwnerChipPhase::Active(RunStage::Running { attempt: u64::MAX }),
         details: Box::new(metadata),
     };

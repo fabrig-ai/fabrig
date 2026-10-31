@@ -10,12 +10,9 @@ pub fn facts(object: &Object) -> Option<&jig_client::contract::Result> {
             Body::Historical(_)
             | Body::Chip(_)
             | Body::Task(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
-            | Body::Escalation(_)
             | Body::OwnerEscalation(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Note { .. },
         )

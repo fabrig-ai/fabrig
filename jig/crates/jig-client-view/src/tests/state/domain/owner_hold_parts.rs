@@ -47,7 +47,7 @@ fn chip(account: Option<OwnerPart>) -> Chip {
         hold_wait_since: None,
     });
     let mut chip = objects::chip(8);
-    chip.details = Box::new(ChipPhase::Owner {
+    chip.details = Box::new(ChipPhase {
         phase: OwnerChipPhase::Held { reason: HoldCategory::Drift, revision: 91 },
         details: Box::new(details),
     });
@@ -270,7 +270,13 @@ fn native_hold_accounts_obey_bounded_application_and_task_parts_without_dropping
         let token = read(&shown, query);
         let mut exact = task(Some(account()));
         let independent = Part::Outbox { connector: 3, entry: 5, scope: PartScope::Deployment };
-        exact.resources = list([TaskResource::Part(independent)]);
+        let mut result = objects::result();
+        result.value = Some(ResultValue::Connector {
+            summary: DocumentText::complete(objects::text(b"result")),
+            part: independent.clone(),
+        });
+        exact.result = Some(TaskResult::Document(Box::new(result)));
+        exact.context.as_mut().unwrap().parts = list([independent]);
         let (value, body) = if escalation {
             let value = OwnerEscalation { task: Box::new(exact), acts: List::with_capacity(0) };
             (ReadValue::OwnerEscalation(Box::new(value.clone())), Body::OwnerEscalation(Box::new(value)))

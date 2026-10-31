@@ -68,9 +68,7 @@ fn task_holds_with_a_placed_line_match_their_smallest_and_full_goldens() {
             },
         )
         .expect("held");
-        let value = w::TaskHold::Owner(
-            w::TaskHoldOwner::new(&w::CEILINGS, w::TaskHoldOwnerParts { value: hold }).expect("task hold"),
-        );
+        let value = hold;
         let mut out = Writer::new(value.measure() as usize);
         value.encode(&mut out).expect("task hold bytes");
         let bytes = out.finish();
@@ -81,6 +79,6 @@ fn task_holds_with_a_placed_line_match_their_smallest_and_full_goldens() {
         let golden = fs::read(&path)
             .expect("run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-client-wire-world --test placed_holds");
         assert_eq!(bytes.as_ref(), golden);
-        assert_eq!(w::TaskHold::decode(&w::CEILINGS, &mut Reader::new(&golden)), Ok(value));
+        assert_eq!(w::OwnerChipHold::decode(&w::CEILINGS, &mut Reader::new(&golden)), Ok(value));
     }
 }

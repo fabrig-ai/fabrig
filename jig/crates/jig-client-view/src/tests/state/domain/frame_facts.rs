@@ -81,3 +81,15 @@ fn pending_words_keep_the_local_name_loss_without_inventing_historical_loss_or_b
     ));
     assert_eq!(words.rows.get(1).unwrap().by_name_cut, None);
 }
+
+#[test]
+fn frame_project_bound_counts_populated_entries_after_decoding() {
+    let mut limits = LIMITS;
+    limits.projects = 1;
+    let mut source = frame(7);
+    source.projects = List::with_capacity(3);
+    source.projects.push(member(HeldRole::Member)).unwrap();
+    assert!(crate::tree::frame::me::fits(&source, &limits));
+    source.projects.push(member(HeldRole::Observer)).unwrap();
+    assert!(!crate::tree::frame::me::fits(&source, &limits));
+}

@@ -1,4 +1,7 @@
 mod boundary;
+#[path = "../../../testing/client_documents.rs"]
+#[expect(dead_code, reason = "shared document fixtures also supply the other client suites")]
+pub mod documents;
 pub(crate) mod fixtures;
 mod help;
 mod jig;

@@ -221,7 +221,6 @@ pub fn task() -> Task {
         delegates: list([]),
 
         context: Some(Box::new(jig_client_domain::contract::TaskContext {
-            escalation: None,
             parts: list([]),
             closing: None,
             spend: list([]),
@@ -580,7 +579,6 @@ pub fn arranged_proposal_world(seed: u64) -> World<Test, Scripted> {
     lead.proposals = list([proposal().key]);
     let context = lead.context.as_mut().expect("task fixture supplies context");
     context.impact.tasks.running = 1;
-    context.parts = list([Part::Panel { connector: jig_client_test_domain::FIRST, task: 9 }]);
     world
         .front()
         .engine
@@ -702,16 +700,12 @@ fn proposal_fixture(seed: u64, delegate_chip: bool) -> World<Test, Scripted> {
             jig_client_scripted_engine::Change::Source(jig_client_scripted_engine::Source {
                 party: 7,
                 read: Read::Activity { task: 9, before: None },
-                rows: jig_client_scripted_engine::Rows::Activity(vec![ActivityLine {
-                    position: 1,
-                    at: Wall::EPOCH,
-                    event: crate::stories::turn_event(
-                        9,
-                        1,
-                        TurnName { attempt: 1, number: 1 },
-                        TurnRead::Decoded(turn),
-                    ),
-                }]),
+                rows: jig_client_scripted_engine::Rows::Activity(vec![crate::stories::turn_event(
+                    9,
+                    1,
+                    TurnName { attempt: 1, number: 1 },
+                    TurnRead::Decoded(turn),
+                )]),
             }),
         )
         .expect("delegation turn fits");
@@ -739,22 +733,18 @@ fn accepted_proposal(world: &mut World<Test, Scripted>, p: &OwnerProposal) {
     let mut after = before;
     if let jig_client_scripted_engine::Rows::Activity(rows) = &mut after.rows {
         rows.push(ActivityLine {
-            position: 2,
-            at: Wall::EPOCH,
-            event: Activity::Owner {
-                source: Box::new(OwnerActivityLine {
-                    task: 9,
-                    position: 2,
-                    at: Wall::EPOCH,
-                    line: OwnerActivity::Words {
-                        message: 2,
-                        by: OwnerRequester::Person(7),
-                        kind: OwnerMessageKind::ProposalDecision { proposal: p.key.number, accepted: true },
-                        words: text(b"Accepted"),
-                    },
-                }),
-                decoded: None,
-            },
+            source: Box::new(OwnerActivityLine {
+                task: 9,
+                position: 2,
+                at: Wall::EPOCH,
+                line: OwnerActivity::Words {
+                    message: 2,
+                    by: OwnerRequester::Person(7),
+                    kind: OwnerMessageKind::ProposalDecision { proposal: p.key.number, accepted: true },
+                    words: text(b"Accepted"),
+                },
+            }),
+            decoded: None,
         });
     }
     let mut changes = vec![
@@ -827,10 +817,11 @@ pub fn held_chat(seed: u64) -> World<Test, Scripted> {
         tries: OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
         hold_wait_since: Some(Wall::EPOCH),
     };
-    held.hold = Some(TaskHold::Owner(Box::new(reason.clone())));
+    held.hold = Some(Box::new(reason.clone()));
     held.chip.phase = Phase::Held;
     held.chip.details = Box::new(owner_chip(OwnerChipPhase::Held { reason: HoldCategory::Stopped, revision: 4 }, None));
-    if let ChipPhase::Owner { details, .. } = held.chip.details.as_mut() {
+    {
+        let ChipPhase { details, .. } = held.chip.details.as_mut();
         details.hold = Some(reason);
     }
     held.context.as_mut().expect("supplied task context").runtime = Runtime::Held { was: None };
@@ -995,6 +986,7 @@ fn incident_delegate() -> Task {
     let mut delegate = task();
     delegate.chip.task = 10;
     delegate.chip.title = DocumentText::complete(text(b"Delegate ten"));
+    delegate.chip.executor = Executor::Procedure { connector: jig_client_test_domain::FIRST, kind: 1 };
     delegate.chip.details = Box::new(owner_chip(
         OwnerChipPhase::Active(RunStage::Running { attempt: 1 }),
         Some(OwnerPart {
@@ -1004,8 +996,6 @@ fn incident_delegate() -> Task {
         }),
     ));
     delegate.requester = OwnerRequester::Task(9);
-    delegate.context.as_mut().expect("supplied task context").parts =
-        list([Part::Panel { connector: jig_client_test_domain::FIRST, task: 10 }]);
     delegate.proposals = list([proposal().key]);
     delegate
 }
@@ -1105,7 +1095,8 @@ pub fn incident() -> RootAddress {
 pub fn reported(mut task: Task, report: &[u8]) -> Task {
     task.chip.phase = Phase::Done;
     task.chip.details = Box::new(owner_chip(OwnerChipPhase::Ended, None));
-    if let ChipPhase::Owner { details, .. } = task.chip.details.as_mut() {
+    {
+        let ChipPhase { details, .. } = task.chip.details.as_mut();
         details.ending = Some(OwnerChipEnding::Done(ResultValue::Report(DocumentText::complete(text(report)))));
         details.ended_at = Some(Wall::EPOCH);
     }
@@ -1179,7 +1170,7 @@ pub(crate) fn inbox_entry(
 }
 
 fn owner_chip(phase: OwnerChipPhase, procedure: Option<OwnerPart>) -> ChipPhase {
-    ChipPhase::Owner {
+    ChipPhase {
         phase,
         details: Box::new(OwnerChipDetails {
             dependencies: list([]),
@@ -1258,8 +1249,8 @@ pub fn decided_proposal(p: &OwnerProposal, state: OwnerProposalHistoryState) -> 
 }
 /// A committed turn and its decoded archive have the owner's independent identities.
 #[must_use]
-pub fn turn_event(task: u64, position: u64, name: TurnName, turn: TurnRead) -> Activity {
-    Activity::Owner {
+pub fn turn_event(task: u64, position: u64, name: TurnName, turn: TurnRead) -> ActivityLine {
+    ActivityLine {
         source: Box::new(OwnerActivityLine {
             task,
             position,

@@ -346,95 +346,52 @@ fn equal_task_and_party_maker_numbers_keep_full_width_effect_keys_in_both_famili
     }
 }
 
-#[test]
-fn public_effect_fragments_keep_equal_task_and_party_makers_separate() {
-    let mut root = ready();
-    let rows = drive(
-        &mut root,
-        Event::Went { place: root::Place::Address(Address::Jig(jig_client_view::address::Address::Deployment)) },
-    );
-    let watch = rows
-        .iter()
-        .find_map(|request| match request {
-            Request::Jig(JigOut::Open { watch, subject: Subject::Deployment }) => Some(*watch),
-            _ => None,
-        })
-        .unwrap();
-    let makers = [Proposer::Task(u64::MAX), Proposer::Party(u64::MAX)];
-    let mut parts = List::with_capacity(2);
-    for proposer in makers {
-        parts.push(Part::Effect { connector: 2, proposal: ProposalKey { proposer, number: u64::MAX } }).unwrap();
-    }
-    let rows = drive(
-        &mut root,
-        Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::Watched {
-                    watch,
-                    event: WatchEvent::Delivered(Delivery::Deployment(Box::new(Deployment {
-                        hosts: List::with_capacity(0),
-                        accounts: List::with_capacity(0),
-                        capacity: List::with_capacity(0),
-                        proposals: 0,
-                        refusals: List::with_capacity(0),
-                        parts,
-                    }))),
-                },
-            },
-        },
-    );
-    for proposer in makers {
-        let expected = infrastructure::Subject {
-            scope: infrastructure::Scope::Deployment,
-            kind: infrastructure::Kind::Effect(ProposalKey { proposer, number: u64::MAX }),
-        };
-        assert_eq!(
-            rows.iter()
-                .filter(|request| match request {
-                    Request::Infrastructure(out) => match out {
-                        infrastructure::Out::Read { subject, .. } => *subject == expected,
-                        infrastructure::Out::Open { .. }
-                        | infrastructure::Out::Close { .. }
-                        | infrastructure::Out::Fact { .. } => false,
-                    },
-                    Request::Save { .. }
-                    | Request::Erase { .. }
-                    | Request::Send { .. }
-                    | Request::Jig(_)
-                    | Request::Observability(_)
-                    | Request::Show { .. }
-                    | Request::SignOut
-                    | Request::SignIn { .. }
-                    | Request::Fact { .. } => false,
-                })
-                .count(),
-            1
-        );
-    }
-    let mut view = view();
-    let mut patches = Queue::uncapped();
-    build(&mut view, &root, &mut patches);
-    for kind in [5, 10] {
-        let expected = skein_ui::Key {
-            owner: (jig_client_view::Owner::Application { number: 2 }).opaque(),
-            kind,
-            a: u64::MAX,
-            b: u64::MAX,
-        };
-        assert_eq!(view.tree().nodes().iter().filter(|node| node.key == Some(expected)).count(), 1);
-    }
-    assert!(contains(&view, b"Loading"));
-    assert!(view.tree().len() <= view.limits().tree.nodes);
-    while patches.pop().is_some() {}
-    build(&mut view, &root, &mut patches);
-    assert!(patches.is_empty());
-}
-
 fn text(bytes: &[u8]) -> Text {
     Text::new(bytes.into(), 32).unwrap()
 }
 fn list<T>(rows: impl IntoIterator<Item = T>) -> List<T> {
     List::from_boxed(rows.into_iter().collect::<Vec<_>>().into_boxed_slice())
+}
+fn procedure_phase() -> ChipPhase {
+    ChipPhase {
+        phase: OwnerChipPhase::Active(RunStage::Running { attempt: 1 }),
+        details: Box::new(OwnerChipDetails {
+            dependencies: list([]),
+            project: 1,
+            executor: OwnerExecutor::Procedure { connector: 2, code: 1 },
+            phase_since: Wall::EPOCH,
+            run_since: Some(Wall::EPOCH),
+            attempt: Some(1),
+            retry: None,
+            wake: OwnerWakePolicy {
+                words: WakeRule::Never,
+                notices: WakeRule::Never,
+                news: WakeRule::Never,
+                results: ResultsWake::Never,
+                questions: false,
+                answers: false,
+                timers: false,
+            },
+            person_wait: None,
+            hold: None,
+            budget: OwnerBudget {
+                numbers: OwnerNumbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
+                left: 1,
+                funder: Funder::Pool { project: 1, person: 7, period: 3 },
+                deadline: None,
+            },
+            activity: 0,
+            resources: list([]),
+            resources_cut: false,
+            resources_observed: false,
+            procedure: Some(OwnerPart { connector: 2, kind: OwnerPartKind::Procedure, key: OwnerPartKey::Number(9) }),
+            live_delegates: 0,
+            closing_connectors: None,
+            ending: None,
+            ended_at: None,
+            observation: None,
+        }),
+    }
 }
 fn task() -> Task {
     Task {
@@ -452,7 +409,7 @@ fn task() -> Task {
             title: DocumentText::complete(text(&[b't'; 32])),
             executor: Executor::Procedure { connector: 2, kind: 1 },
             phase: Phase::Running,
-            details: Box::new(ChipPhase::Procedure { panel: Part::Panel { connector: 2, task: 9 } }),
+            details: Box::new(procedure_phase()),
         },
         goal: None,
         priority: Some(1),
@@ -507,7 +464,6 @@ fn task() -> Task {
         },
         hold: None,
         context: Some(Box::new(TaskContext {
-            escalation: None,
             parts: list([]),
             closing: None,
             spend: list([]),
@@ -689,76 +645,6 @@ fn contains(view: &View, words: &[u8]) -> bool {
         .any(|r| r.text.windows(words.len()).any(|slice| slice == words))
 }
 #[test]
-fn an_incident_with_a_lead_and_an_infrastructure_panel_fills_both_slot_passes() {
-    let mut root = ready();
-    let requests = drive(
-        &mut root,
-        Event::Went {
-            place: root::Place::Address(Address::Observability(observability::Address::Incident {
-                project: 1,
-                incident: 12,
-            })),
-        },
-    );
-    let read = requests
-        .iter()
-        .find_map(|r| match r {
-            Request::Observability(observability::Out::Read { read, .. }) => Some(*read),
-            _ => None,
-        })
-        .unwrap();
-    let mut facts = incident();
-    let observability::values::Value::Incident { incident, .. } = &mut facts.value else { unreachable!() };
-    incident.lead = Some(9);
-    let requests = drive(
-        &mut root,
-        Event::Observability(observability::Event::Read {
-            read,
-            result: observability::ReadResult::Value(Box::new(observability::Document::Value(Box::new(facts)))),
-        }),
-    );
-    let mut pending = requests;
-    while let Some(request) = pending.pop() {
-        let event = match request {
-            Request::Jig(JigOut::Read { read, what: Read::Task { .. } }) => Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::ReadDone {
-                        read,
-                        result: jig_client::Readout::Jig(ReadResult::Value(ReadValue::Task(Box::new(task())))),
-                    },
-                },
-            },
-            Request::Jig(JigOut::Open { watch, subject: Subject::Task { .. } }) => Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::Watched {
-                        watch,
-                        event: WatchEvent::Delivered(Delivery::Task(Box::new(task()))),
-                    },
-                },
-            },
-            Request::Infrastructure(infrastructure::Out::Read { read, subject }) => {
-                Event::Infrastructure(infrastructure::Event::Read {
-                    read,
-                    result: infrastructure::ReadResult::Value(Box::new(infrastructure::Document::Value(Box::new(
-                        waiting_remediation_panel(subject),
-                    )))),
-                })
-            }
-            _ => continue,
-        };
-        pending.extend(drive(&mut root, event));
-    }
-    let mut view = view();
-    let mut patches = Queue::uncapped();
-    build(&mut view, &root, &mut patches);
-    assert!(contains(&view, b"Task 9"));
-    assert!(contains(&view, b"Waiting for healthy"));
-    assert!(view.tree().len() <= view.limits().tree.nodes);
-    while patches.pop().is_some() {}
-    build(&mut view, &root, &mut patches);
-    assert!(patches.is_empty());
-}
-#[test]
 fn moving_an_environment_end_names_the_end_revision_and_waits_for_the_final_envelope() {
     let mut root = ready();
     let requests = drive(
@@ -921,85 +807,6 @@ fn a_common_entrance_refusal_prints_supplied_budget_facts_without_claiming_gone(
     assert!(view.tree().len() <= view.limits().tree.nodes);
 }
 
-#[test]
-fn actual_outbox_entries_render_from_their_explicit_scope_and_keep_proposal_keys_distinct() {
-    for scope in [PartScope::Project(0), PartScope::Project(u32::MAX), PartScope::Project(91)] {
-        let mut root = ready();
-        let rows = drive(
-            &mut root,
-            Event::Went { place: root::Place::Address(Address::Jig(jig_client_view::address::Address::Deployment)) },
-        );
-        let watch = rows
-            .iter()
-            .find_map(|request| match request {
-                Request::Jig(JigOut::Open { watch, subject: Subject::Deployment }) => Some(*watch),
-                _ => None,
-            })
-            .unwrap();
-        let mut parts = List::with_capacity(1);
-        parts.push(Part::Outbox { connector: 2, scope, entry: 17 }).unwrap();
-        let rows = drive(
-            &mut root,
-            Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::Watched {
-                        watch,
-                        event: WatchEvent::Delivered(Delivery::Deployment(Box::new(Deployment {
-                            hosts: List::with_capacity(0),
-                            accounts: List::with_capacity(0),
-                            capacity: List::with_capacity(0),
-                            proposals: 0,
-                            refusals: List::with_capacity(0),
-                            parts,
-                        }))),
-                    },
-                },
-            },
-        );
-        let (read, subject) = rows
-            .iter()
-            .find_map(|request| match request {
-                Request::Infrastructure(infrastructure::Out::Read { read, subject }) => Some((*read, subject.clone())),
-                _ => None,
-            })
-            .unwrap();
-        let expected_scope = match scope {
-            PartScope::Project(project) => infrastructure::Scope::Project(project),
-            PartScope::Deployment => infrastructure::Scope::Deployment,
-        };
-        assert_eq!(subject, infrastructure::Subject { scope: expected_scope, kind: infrastructure::Kind::Outbox(17) });
-        drive(
-            &mut root,
-            Event::Infrastructure(infrastructure::Event::Read {
-                read,
-                result: infrastructure::ReadResult::Value(Box::new(outbox_document(subject))),
-            }),
-        );
-        let mut view = view();
-        let mut patches = Queue::uncapped();
-        build(&mut view, &root, &mut patches);
-        let value = match scope {
-            PartScope::Project(project) => u64::from(project),
-            PartScope::Deployment => u64::MAX,
-        };
-        let expected_key = skein_ui::Key {
-            owner: (jig_client_view::Owner::Application { number: 2 }).opaque(),
-            kind: 6,
-            a: value,
-            b: 17,
-        };
-        assert!(view.tree().nodes().iter().any(|node| node.key == Some(expected_key)));
-        assert!(contains(&view, b"Outbox entry 17"));
-        assert!(contains(&view, b"Sent"));
-        assert!(!contains(&view, b"Maximum price:"));
-        let proposal_key = crate::infrastructure::key(&infrastructure::Subject {
-            scope: expected_scope,
-            kind: infrastructure::Kind::Effect(ProposalKey { proposer: Proposer::Task(17), number: 17 }),
-        });
-        assert_ne!(Some(expected_key), proposal_key);
-    }
-}
-
 fn outbox_entry() -> infrastructure::values::Entry {
     use infrastructure::values as n;
     n::Entry {
@@ -1015,25 +822,6 @@ fn outbox_entry() -> infrastructure::values::Entry {
         phase: n::Phase::Sent,
     }
 }
-fn outbox_document(subject: infrastructure::Subject) -> infrastructure::Document {
-    use infrastructure::values as n;
-    infrastructure::Document::Value(Box::new(n::Document {
-        subject,
-        value: n::Value::Outbox {
-            entry: outbox_entry(),
-            description: n::Description {
-                kind: 1,
-                resources: Box::new([]),
-                condition: false,
-                form: n::Form::Transition,
-                recovery: n::Recovery::Keyed,
-                price: None,
-                state: 1,
-            },
-        },
-    }))
-}
-
 #[test]
 fn resource_slots_preserve_whole_opaque_segments_and_distinct_equal_concatenations_in_both_connectors() {
     let domain_limits = limits();
@@ -1150,14 +938,7 @@ fn deployment_read(root: &mut Domain, connector: u16) -> Request {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch,
-                    event: WatchEvent::Delivered(Delivery::Deployment(Box::new(Deployment {
-                        hosts: list([]),
-                        accounts: list([]),
-                        capacity: list([]),
-                        proposals: 0,
-                        refusals: list([]),
-                        parts: list([Part::Deployment { connector }]),
-                    }))),
+                    event: WatchEvent::Delivered(Delivery::OwnerDeployment(Box::new(configured_deployment(connector)))),
                 },
             },
         },
@@ -1610,23 +1391,34 @@ fn environment_form_uses_the_supplied_request_revision_and_keeps_whole_width_sec
     );
 }
 
-fn waiting_remediation_panel(subject: infrastructure::Subject) -> infrastructure::values::Document {
-    use infrastructure::values as n;
-    n::Document {
-        subject,
-        value: n::Value::Panel {
-            task: 9,
-            state: n::ProcedureState {
-                task: 9,
-                procedure: n::Procedure::Remediate {
-                    service: n::Service { environment: Box::from(*b"production"), name: Box::from(*b"checkout") },
-                    operation: 17,
-                    deadline: 0,
-                },
-                phase: n::ProcedurePhase::WaitingCondition,
-            },
-            resources: list([]),
-            effects: list([]),
-        },
+fn configured_deployment(connector: u16) -> OwnerDeployment {
+    OwnerDeployment {
+        store: StoreFill { bytes: 0, mark: 0 },
+        hosts: list([]),
+        attempts: list([]),
+        accounts: list([]),
+        tasks: OwnerCapacity { used: 0, limit: 1 },
+        workers: OwnerCapacity { used: 0, limit: 1 },
+        attempts_capacity: OwnerCapacity { used: 0, limit: 1 },
+        waiting_attempts: 0,
+        proposals: OwnerCapacity { used: 0, limit: 1 },
+        projects: list([]),
+        grace_bound: Duration::from_secs(1),
+        hello_refusals: list([]),
+        hosts_forgotten: 0,
+        hello_refusals_forgotten: 0,
+        person_room_refusals: list([]),
+        person_room_refusals_forgotten: 0,
+        person_answer_retention: Duration::from_secs(1),
+        task_room_refusals: list([]),
+        task_room_refusals_forgotten: 0,
+        cut: false,
+        connectors: list([connector]),
+        connectors_cut: false,
+        providers: list([]),
+        providers_cut: false,
+        key_bytes: 256,
+        readiness: list([]),
+        readiness_cut: false,
     }
 }

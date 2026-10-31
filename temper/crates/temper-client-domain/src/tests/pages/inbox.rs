@@ -34,7 +34,7 @@ const CASES: [(ObjectKey, InboxGroup, Read); 6] = [
     (ObjectKey::Result(TASK), InboxGroup::Results, Read::Result { task: TASK }),
     (ObjectKey::Task(TASK), InboxGroup::Replies, Read::Task { task: TASK }),
 ];
-fn rows(object: ObjectKey, group: InboxGroup, project: u32) -> List<contract::InboxEntry> {
+fn rows(object: ObjectKey, group: InboxGroup, project: u32) -> List<contract::OwnerInboxEntry> {
     let mut rows = List::with_capacity(2);
     rows.push(fixtures::inbox_entry(object, group, project, POSITION)).expect("one row");
     rows
@@ -150,18 +150,21 @@ fn a_filter_by_goal_shows_only_entries_below_it() {
     );
     assert_eq!(root.pages().inbox().expect("home").cards.len(), 0, "owner membership comes from the filtered query");
     let handle = root.pages().inbox().expect("home").queries[0];
-    let page = contract::InboxPage {
+    let page = contract::OwnerInboxPage {
         cut: false,
         rows: rows(ObjectKey::PersonTask(BELOW_TASK), InboxGroup::PersonTasks, PROJECT),
         before: None,
         after: None,
+        selection: None,
     };
     crate::route::told(
         &mut root,
         &fixtures::env(&fixtures::limits()),
         jig_client::Told::Page {
             handle,
-            page: jig_client::Readout::Jig(contract::ReadResult::Value(contract::ReadValue::Inbox(Box::new(page)))),
+            page: jig_client::Readout::Jig(contract::ReadResult::Value(contract::ReadValue::OwnerInbox(Box::new(
+                page,
+            )))),
         },
         &mut out,
     );
@@ -207,7 +210,9 @@ fn answer_seen(pages: &mut crate::pages::Pages, key: jig_client::Key, outcome: j
     assert!(out.is_empty(), "Seen answers draw and send nothing");
 }
 fn answered() -> jig_client::Outcome {
-    jig_client::Outcome::Answered(jig_client::Answered::Jig(contract::Answer::Done(contract::Outcome::Changed)))
+    jig_client::Outcome::Answered(jig_client::Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
+        contract::OwnerOutcome::Amended { task: 9 },
+    ))))
 }
 #[test]
 fn following_a_result_sends_seen_then_shows_its_task() {
@@ -333,13 +338,19 @@ fn reply_counts_and_source_cut_survive_both_inbox_documents() {
                 selection: None,
             }))
         } else {
-            contract::Delivery::Inbox(Box::new(contract::Inbox {
-                entries,
-                needs: contract::Needs { proposals: 0, questions: 0, escalations: 0, person_tasks: 0 },
-                updates: count,
-                results_seen: 0,
-                replies_seen: List::with_capacity(0),
-                more: true,
+            contract::Delivery::OwnerInbox(Box::new({
+                let counts = contract::Needs { proposals: 0, questions: 0, escalations: 0, person_tasks: 0 };
+                crate::tests::documents::inbox(
+                    entries,
+                    counts
+                        .questions
+                        .saturating_add(counts.proposals)
+                        .saturating_add(counts.escalations)
+                        .saturating_add(counts.person_tasks),
+                    count,
+                    0,
+                    true,
+                )
             }))
         };
         let mut out = Queue::uncapped();
@@ -375,11 +386,12 @@ fn filtered_cut_is_kept_for_each_section_and_both_page_shapes() {
                     after: None,
                 }))
             } else {
-                contract::ReadValue::Inbox(Box::new(contract::InboxPage {
+                contract::ReadValue::OwnerInbox(Box::new(contract::OwnerInboxPage {
                     cut: index == 1,
                     rows: List::with_capacity(0),
                     before: None,
                     after: None,
+                    selection: None,
                 }))
             };
             crate::route::told(

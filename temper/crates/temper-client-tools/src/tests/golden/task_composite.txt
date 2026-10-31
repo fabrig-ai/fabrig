@@ -6,9 +6,10 @@ waiting on: you: question of task 42 · 1 waiting
 acts:
   task stop 41 --key KEY
   task cancel 41 REASON --key KEY
-digest: task 6a8505a0554a8c31
+digest: task 41055b77916c3020
 turn 3.7 · 1025 KB · read with: task turn 41 3.7
 tree:
-digest: tree f559db39c8cebbac
+41 ·  · Running
+digest: tree c9a1576e53d0cee5
 run: 3
 digest: run cf58dc206b2a53fd

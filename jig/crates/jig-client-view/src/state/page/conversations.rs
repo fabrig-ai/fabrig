@@ -21,8 +21,9 @@ use crate::{
     },
 };
 use alloc::boxed::Box;
+use jig_client::contract;
 use jig_client::contract::{
-    self, Answer, Ask, InboxGroup, InboxReadGroup, Limit, ObjectKey, Read, Refusal, SeenThrough, Text,
+    Answer, Ask, InboxGroup, InboxReadGroup, Limit, ObjectKey, Read, Refusal, SeenThrough, Text,
 };
 use jig_client::thread::window::{Edge, Edges, End};
 use skein_lib::{Env, List, Queue, Token};
@@ -107,12 +108,12 @@ pub fn about(
         Some(Body::Task(task)) => (Some(task.project), Some(task.chip.title.bytes.clone())),
         Some(Body::OwnerEscalation(value)) => (Some(value.task.project), Some(value.task.chip.title.bytes.clone())),
         Some(Body::Chip(chip)) => (None, Some(chip.title.bytes.clone())),
-        Some(Body::Escalation(value)) => (None, Some(value.task.title.bytes.clone())),
+
         Some(Body::Question(value)) => (None, Some(value.task.title.bytes.clone())),
-        Some(Body::PersonTask(value)) => (None, Some(value.task.title.bytes.clone())),
+
         Some(Body::OwnerPersonTask(value)) => (value.project(), Some(value.task.title.bytes.clone())),
         Some(Body::Result(value)) => (None, Some(value.task.title.bytes.clone())),
-        Some(Body::Proposal(value)) => (Some(value.project), Some(value.why.clone())),
+
         Some(Body::OwnerProposal(value)) => (Some(value.project), Some(value.reason.bytes.clone())),
         Some(Body::Note { project, document }) => (Some(*project), Some(document.description.bytes.clone())),
         Some(Body::Historical(_)) | None => (None, None),

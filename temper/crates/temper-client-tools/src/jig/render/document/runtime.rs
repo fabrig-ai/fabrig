@@ -213,55 +213,6 @@ pub(super) fn encode_spend_line(value: &jig_client::contract::SpendLine, out: &m
     out.object_end();
 }
 
-pub(super) fn encode_steering(value: &jig_client::contract::Steering, out: &mut Encoder, budget: &mut super::Cut) {
-    out.object_start();
-    out.key(b"addressed");
-    match &value.addressed {
-        Some(item_1) => {
-            super::encode_recipient(item_1, out, budget);
-        }
-        None => out.null(),
-    }
-    out.key(b"person_revision");
-    match &value.person_revision {
-        Some(item_2) => {
-            super::encode_revision(*(item_2), out, budget);
-        }
-        None => out.null(),
-    }
-    out.key(b"taken_by");
-    match &value.taken_by {
-        Some(item_3) => {
-            out.unsigned(*(item_3));
-        }
-        None => out.null(),
-    }
-    out.key(b"revision");
-    super::encode_revision(value.revision, out, budget);
-    out.key(b"spec");
-    encode_specification_document(&value.spec, out, budget);
-    out.key(b"instructions");
-    match &value.instructions {
-        Some(item_4) => {
-            super::encode_document_text(item_4, out, budget);
-        }
-        None => out.null(),
-    }
-    out.key(b"wake");
-    super::encode_owner_wake_policy(&value.wake, out, budget);
-    out.key(b"dependencies");
-    out.array_start();
-    for item_5 in &value.dependencies {
-        out.unsigned(*(item_5));
-    }
-    out.array_end();
-    out.key(b"authority");
-    super::encode_owner_authority_document(&value.authority, out, budget);
-    out.key(b"budget");
-    super::encode_budget(&value.budget, out, budget);
-    out.object_end();
-}
-
 pub(super) fn encode_subscription(
     value: &jig_client::contract::Subscription,
     out: &mut Encoder,

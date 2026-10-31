@@ -90,7 +90,7 @@ fn replay(argv: &[&str]) {
             serve(&mut root, first, f::act_document(&parsed));
             let ask = f::encoded(&root.sends.get(&first).expect("first act sent").2);
             let key = root.sent_name(first);
-            root.done(first, c::Outcome::Changed);
+            root.done(first, c::Outcome::Owner(c::OwnerOutcome::Amended { task: 9 }));
             let expected = root.answer(first).expect("first outcome");
             if fresh {
                 root = f::chat_root(f::CHAT_BUDGET, f::OTHER_SEED);
@@ -99,7 +99,7 @@ fn replay(argv: &[&str]) {
             serve(&mut root, second, retired(&parsed));
             assert_eq!(f::encoded(&root.sends.get(&second).expect("replay sent").2), ask, "{argv:?}");
             assert_eq!(root.sent_name(second), key);
-            root.done(second, c::Outcome::Changed);
+            root.done(second, c::Outcome::Owner(c::OwnerOutcome::Amended { task: 9 }));
             let actual = root.answer(second).expect("replayed outcome");
             assert_eq!(
                 (actual.status, actual.stdout, actual.stderr),
@@ -176,7 +176,7 @@ fn task_amend_replays_equal_replacements_after_its_revision_moves() {
         before.priority = Some(1);
         root.serve(first, f::task_result(before));
         let ask = f::act_ask(&root, first).clone();
-        root.done(first, c::Outcome::Changed);
+        root.done(first, c::Outcome::Owner(c::OwnerOutcome::Amended { task: 9 }));
         let expected = root.answer(first).unwrap();
         let mut task = f::ended_task(c::Phase::Done);
         task.priority = Some(3);
@@ -185,7 +185,7 @@ fn task_amend_replays_equal_replacements_after_its_revision_moves() {
         let second = root.submit_prepared(f::call(&argv), json, None);
         root.serve(second, f::historical_task_result(task, c::Ending::Done));
         assert_eq!(f::act_ask(&root, second), &ask);
-        root.done(second, c::Outcome::Changed);
+        root.done(second, c::Outcome::Owner(c::OwnerOutcome::Amended { task: 9 }));
         let actual = root.answer(second).unwrap();
         assert_eq!((actual.status, actual.stdout, actual.stderr), (expected.status, expected.stdout, expected.stderr));
     }

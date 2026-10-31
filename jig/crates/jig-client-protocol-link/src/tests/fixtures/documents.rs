@@ -13,7 +13,10 @@ pub fn chip() -> c::Chip {
         title: document_text(b""),
         executor: c::Executor::Agent { charter: 7 },
         phase: c::Phase::Waiting,
-        details: Box::new(c::ChipPhase::Starting),
+        details: Box::new(c::ChipPhase {
+            phase: c::OwnerChipPhase::Waiting { dependencies: List::with_capacity(0), more: false, holds: false },
+            details: Box::new(owner_chip_details()),
+        }),
     }
 }
 pub fn chip_record() -> w::Chip {
@@ -173,105 +176,11 @@ pub fn current_call() -> c::CurrentCall {
         began: None,
     }
 }
-pub fn deployment_record() -> w::Deployment {
-    let lim = limits().wire;
-    w::Deployment::new(
-        &lim,
-        w::DeploymentParts {
-            hosts: Box::from([]),
-            accounts: Box::from([]),
-            capacity: List::with_capacity(0),
-            proposals: 7,
-            refusals: Box::from([]),
-            parts: Box::from([]),
-        },
-    )
-    .unwrap()
-}
-pub fn deployment() -> c::Deployment {
-    c::Deployment {
-        hosts: List::with_capacity(0),
-        accounts: List::with_capacity(0),
-        capacity: List::with_capacity(0),
-        proposals: 7,
-        refusals: List::with_capacity(0),
-        parts: List::with_capacity(0),
-    }
-}
-pub fn inbox_record() -> w::Inbox {
-    let lim = limits().wire;
-    w::Inbox::new(
-        &lim,
-        w::InboxParts {
-            entries: Box::from([]),
-            needs: w::Needs::new(&lim, w::NeedsParts { questions: 7, proposals: 7, escalations: 7, person_tasks: 7 })
-                .unwrap(),
-            updates: w::Count::new(&lim, w::CountParts { value: 7, limited: false }).unwrap(),
-            results_seen: 7,
-            replies_seen: List::with_capacity(0),
-            more: false,
-        },
-    )
-    .unwrap()
-}
-pub fn inbox() -> c::Inbox {
-    c::Inbox {
-        entries: List::with_capacity(0),
-        needs: c::Needs { questions: 7, proposals: 7, escalations: 7, person_tasks: 7 },
-        updates: c::Count { value: 7, limited: false },
-        results_seen: 7,
-        replies_seen: List::with_capacity(0),
-        more: false,
-    }
-}
 pub fn tasks_record() -> w::Tasks {
     jig_client_test_records::tasks_record()
 }
 pub fn tasks() -> c::Tasks {
     c::Tasks { rows: List::with_capacity(0), more: false }
-}
-pub fn tree_record() -> w::Tree {
-    let lim = limits().wire;
-    w::Tree::new(
-        &lim,
-        w::TreeParts {
-            task: 7,
-            nodes: Box::from([]),
-            folded: w::PhaseCounts::new(
-                &lim,
-                w::PhaseCountsParts {
-                    ended: 7,
-                    waiting: 7,
-                    running: 7,
-                    held: 7,
-                    closing: 7,
-                    done: 7,
-                    failed: 7,
-                    cancelled: 7,
-                },
-            )
-            .unwrap(),
-            held_below: 7,
-        },
-    )
-    .unwrap()
-}
-pub fn tree() -> c::Tree {
-    c::Tree {
-        task: 7,
-        nodes: List::with_capacity(0),
-        folded: c::PhaseCounts {
-            ended: 7,
-            waiting: 7,
-            running: 7,
-            held: 7,
-            closing: 7,
-            done: 7,
-            failed: 7,
-            cancelled: 7,
-        },
-        held_below: 7,
-    }
 }
 pub fn task_with_lineage(count: u32) -> w::Task {
     let lim = limits().wire;

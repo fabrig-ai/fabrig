@@ -23,7 +23,6 @@ pub mod refusals;
 pub mod resource_names;
 pub mod run_facts;
 pub mod specification;
-pub mod task_resource;
 pub mod task_result;
 pub mod turn;
 pub mod versions;
@@ -47,7 +46,6 @@ pub use refusals::*;
 pub use resource_names::*;
 pub use run_facts::*;
 pub use specification::*;
-pub use task_resource::*;
 pub use task_result::*;
 mod document_text;
 pub use document_text::*;
@@ -94,7 +92,7 @@ pub mod owner_inbox;
 pub use owner_inbox::*;
 
 mod task_hold;
-pub use task_hold::{HoldMode, HoldScope, PlacedHold, TaskHold};
+pub use task_hold::{HoldMode, HoldScope, PlacedHold};
 
 mod owner_proposal;
 pub use owner_proposal::{OwnerFundingOffer, OwnerProposal, OwnerProposalAction, OwnerProposalWaiting};

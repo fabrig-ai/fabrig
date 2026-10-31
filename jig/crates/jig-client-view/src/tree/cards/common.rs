@@ -1,10 +1,10 @@
 //! Shared card facts, acts and part slots (client/domain/objects.md, sections 2–9).
+use crate::words::Words;
 use crate::words::phrases::jig::JigPhrase;
-use crate::words::{Words, name};
 use crate::{JigBindings, JigMeaning, Owner};
-use jig_client::words::{DecisionWord as D, Word};
+
 use skein_ui::phrases::Hole;
-use skein_ui::{Builder, Role, Run, SlotRef};
+use skein_ui::{Builder, Role, SlotRef};
 
 use crate::{
     Borrowed,
@@ -14,7 +14,7 @@ use crate::{
         objects::{Card, Object},
     },
 };
-use jig_client::contract::{ActKind, Admission, Authority, Budget, Offered, Part, Passed, Recipient, TakenBy};
+use jig_client::contract::{ActKind, Admission, Offered, Part, Recipient};
 use skein_lib::{Id, List};
 /// The phrase for every offered act, matched whole.
 #[must_use]
@@ -165,80 +165,6 @@ pub fn recipient(b: &mut Builder, to: &Recipient, words: &Words) {
     }
 }
 
-pub fn taken_by(b: &mut Builder, by: &TakenBy, words: &Words) {
-    match &by.name {
-        Some(value) => words.text(b, JigPhrase::TakenBy, &[name(value.bytes())]),
-        None => words.text(b, JigPhrase::TakenByNumber, &[Hole::Number(by.number)]),
-    }
-}
-/// Show the whole authority facts, with grants' connector descriptions in slots.
-pub fn authority(b: &mut Builder, facts: &Authority, words: &Words, bindings: &mut JigBindings) {
-    let text_limit = bindings.text_limit();
-    words.text(b, JigPhrase::Budget, &[Hole::Amount(facts.budget)]);
-    words.text(b, JigPhrase::Depth, &[Hole::Number(u64::from(facts.depth))]);
-    words.text(b, JigPhrase::TasksAllowed, &[Hole::Number(u64::from(facts.tasks))]);
-    if let Some(at) = facts.deadline {
-        words.deadline(b, at);
-    }
-    for executor in &facts.task_kinds {
-        words.executor(b, *executor);
-    }
-    for grant in &facts.grants {
-        words.text(
-            b,
-            JigPhrase::LiteralGrant,
-            &[Hole::Number(u64::from(grant.kind)), Hole::Number(u64::from(grant.connector))],
-        );
-        crate::tree::fragments::authority::pattern(b, words, &grant.pattern, text_limit);
-        part(b, &Part::Kind { connector: grant.connector, kind: grant.kind }, words, bindings);
-    }
-    for tool in &facts.tools {
-        words.text(b, JigPhrase::ToolAllowed, &[Hole::Number(u64::from(*tool))]);
-    }
-    for scope in &facts.note_scopes {
-        match scope {
-            jig_client::contract::NoteScope::Deployment => words.text(b, JigPhrase::Deployment, &[]),
-            jig_client::contract::NoteScope::Project(project) => {
-                words.text(b, JigPhrase::ContextProject, &[Hole::Number(u64::from(*project))]);
-            }
-            jig_client::contract::NoteScope::Resource { project, connector, pattern } => {
-                words.text(b, JigPhrase::ContextProject, &[Hole::Number(u64::from(*project))]);
-                words.text(b, JigPhrase::PartConnector, &[Hole::Number(u64::from(*connector))]);
-                crate::tree::fragments::authority::pattern(b, words, pattern, text_limit);
-            }
-            jig_client::contract::NoteScope::Task { project, task: goal } => {
-                words.text(b, JigPhrase::ContextProject, &[Hole::Number(u64::from(*project))]);
-                words.text(b, JigPhrase::TaskPage, &[Hole::Number(*goal)]);
-            }
-        }
-    }
-}
-/// Funding facts as given; checked subtraction detects an inconsistent document.
-pub fn funding(b: &mut Builder, facts: &Budget, amount: u64, words: &Words) {
-    match facts.left.checked_sub(amount) {
-        Some(after) => {
-            words.text(
-                b,
-                JigPhrase::Word(Word::Decision(D::Funds)),
-                &[Hole::Amount(amount), Hole::Amount(facts.left), Hole::Amount(after)],
-            );
-        }
-        None => words.text(b, JigPhrase::BudgetMissing, &[Hole::Amount(facts.left), Hole::Amount(amount)]),
-    }
-    words.actor(b, facts.funder);
-}
-/// Each prior holder and its committed reason and missing authority.
-pub fn trail(b: &mut Builder, rows: &List<Passed>, words: &Words, text_limit: u32) {
-    for passed in rows {
-        words.text(b, JigPhrase::PassedBy, &[]);
-        words.actor(b, passed.by);
-        words.wall(b, passed.at);
-        b.text(Run::Plain, passed.reason.bytes());
-        if let Some(lacking) = &passed.lacking {
-            words.lacking(b, lacking, text_limit);
-        }
-    }
-}
 /// Render a form field with its domain write count; the shell preserves typing.
 pub fn field(
     b: &mut Builder,

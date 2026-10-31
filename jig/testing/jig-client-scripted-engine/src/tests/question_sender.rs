@@ -3,7 +3,7 @@ use crate::{Engine, Invalid};
 use jig_client_domain::contract::*;
 use skein_lib::{List, Wall};
 #[test]
-fn question_sender_kit_rejects_malformed_original_packet_before_engine_state_exists() {
+fn question_offer_admission_checks_encoded_entries() {
     let mut supplied = Question {
         task: task().chip,
         from: Some(OwnerRequester::Person(u64::MAX)),
@@ -19,6 +19,11 @@ fn question_sender_kit_rejects_malformed_original_packet_before_engine_state_exi
     setup.truth.objects.insert(key, ReadValue::Question(Box::new(supplied.clone())));
     assert!(Engine::new(setup.clone(), 1).is_ok());
     supplied.acts = List::with_capacity(33);
+    setup.truth.objects.insert(key, ReadValue::Question(Box::new(supplied.clone())));
+    assert!(Engine::new(setup.clone(), 1).is_ok(), "empty producer reservations are absent from the wire");
+    for _ in 0..=MAX_OFFERED_ACTS {
+        supplied.acts.push(Offered { effect: None, act: ActKind::Answer, admission: Admission::Allowed }).unwrap();
+    }
     setup.truth.objects.insert(key, ReadValue::Question(Box::new(supplied.clone())));
     assert_eq!(Engine::new(setup.clone(), 1).err(), Some(Invalid::Payload));
     assert_eq!(setup.truth.objects.get(&key), Some(&ReadValue::Question(Box::new(supplied))));

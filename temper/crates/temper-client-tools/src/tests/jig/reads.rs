@@ -328,7 +328,7 @@ fn dependency_waits_use_jigs_words_and_keep_their_counts() {
 fn a_circle_hold_keeps_its_json_category() {
     let mut latest = fixtures::chat_at(fixtures::TASK, jig_client::contract::RunStage::Idle, None);
     let task = fixtures::task_in(&mut latest);
-    let jig_client::contract::ChipPhase::Owner { phase, .. } = task.chip.details.as_mut() else { panic!("owner chip") };
+    let jig_client::contract::ChipPhase { phase, .. } = task.chip.details.as_mut();
     *phase =
         jig_client::contract::OwnerChipPhase::Held { reason: jig_client::contract::HoldCategory::Circle, revision: 1 };
     let printed = fixtures::read_answer(fixtures::TASK_JSON_CALL, fixtures::task_result(task.clone()));
@@ -339,7 +339,7 @@ fn a_placed_hold_keeps_its_number_in_json() {
     use jig_client::contract as c;
     let mut latest = fixtures::chat_at(fixtures::TASK, c::RunStage::Idle, None);
     let task = fixtures::task_in(&mut latest);
-    let c::ChipPhase::Owner { phase, .. } = task.chip.details.as_mut() else { panic!("owner chip") };
+    let c::ChipPhase { phase, .. } = task.chip.details.as_mut();
     *phase = c::OwnerChipPhase::Held { reason: c::HoldCategory::Placed { hold: u64::MAX }, revision: 1 };
     let printed = fixtures::read_answer(fixtures::TASK_JSON_CALL, fixtures::task_result(task.clone()));
     assert!(skein_lib::bytes::find(&printed.stdout, br#""reason":{"placed":{"hold":18446744073709551615}}"#).is_some());
@@ -568,43 +568,14 @@ fn a_closed_chat_does_not_replace_an_activity_refusal_with_an_empty_conversation
 }
 
 #[test]
-fn a_budget_held_task_explains_how_to_run_or_cancel_it() {
-    use jig_client::contract as c;
-    let (mut root, call, mut task) = fixtures::task_read();
-    task.hold = Some(c::TaskHold::Document(Box::new(c::Hold {
-        placed: None,
-        revision: c::Revision { value: fixtures::HOLD },
-        reason: c::HoldReason::Budget { spent: 3, limit: 4 },
-        before: c::Phase::Idle,
-        since: skein_lib::Wall::EPOCH,
-        result: None,
-        spend: skein_lib::List::with_capacity(0),
-    })));
-    task.chip.phase = c::Phase::Held;
-    root.serve(call, fixtures::task_result(task));
-    let answer = root.answer(call).expect("held task answered");
-    assert_eq!(answer.status, 0);
-    assert!(
-        skein_lib::bytes::find(
-            &answer.stdout,
-            b"\nway out: task release 41 --hold 2; or cancel it: task cancel 41 REASON\n"
-        )
-        .is_some()
-    );
-    assert!(skein_lib::bytes::find(&answer.stdout, b"raise the task's budget, then").is_none());
-    assert!(skein_lib::bytes::find(&answer.stdout,
-        b"Insufficient activation budget. A release alone holds it again: give task 41 more budget by deciding its budget proposal, then release it; or cancel it.").is_some(), "{:?}", answer.stdout);
-}
-
-#[test]
 fn budget_held_owner_tasks_and_inbox_rows_share_the_recovery_words() {
     use jig_client::contract as c;
     let mut latest = fixtures::chat_at(fixtures::TASK, c::RunStage::Idle, None);
     let mut task = fixtures::task_in(&mut latest).clone();
     task.chip.phase = c::Phase::Held;
-    let c::ChipPhase::Owner { phase, .. } = task.chip.details.as_mut() else { panic!("owner chip") };
+    let c::ChipPhase { phase, .. } = task.chip.details.as_mut();
     *phase = c::OwnerChipPhase::Held { reason: c::HoldCategory::Budget, revision: fixtures::HOLD };
-    task.hold = Some(c::TaskHold::Owner(Box::new(c::OwnerChipHold {
+    task.hold = Some(Box::new(c::OwnerChipHold {
         placed: None,
         words: None,
         circle: None,
@@ -616,7 +587,7 @@ fn budget_held_owner_tasks_and_inbox_rows_share_the_recovery_words() {
         escalation: None,
         tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
         hold_wait_since: None,
-    })));
+    }));
     let (mut page, mut watched) = fixtures::owner_first_window(1, false);
     page.rows.get_mut(0).unwrap().task = c::OwnerTaskLink::Live(task.chip.clone());
     watched.needs = page.rows.clone();
@@ -700,7 +671,7 @@ fn check_placed_hold(
     permission: &str,
 ) {
     use jig_client::contract as c;
-    for document in [false, true] {
+    {
         let mut task = fixtures::offered(&[c::ActKind::Release]);
         let placed = c::PlacedHold {
             number: 12,
@@ -713,30 +684,21 @@ fn check_placed_hold(
             lifted,
             may_lift,
         };
-        task.hold = Some(c::TaskHold::Document(Box::new(c::Hold {
+
+        task.hold = Some(Box::new(c::OwnerChipHold {
             placed: Some(placed.clone()),
-            revision: c::Revision { value: 7 },
-            reason: c::HoldReason::Budget { spent: 1, limit: 0 },
-            before: c::Phase::Running,
-            since: skein_lib::Wall::EPOCH,
-            result: None,
-            spend: skein_lib::List::with_capacity(0),
-        })));
-        if !document {
-            task.hold = Some(c::TaskHold::Owner(Box::new(c::OwnerChipHold {
-                placed: Some(placed.clone()),
-                words: None,
-                circle: None,
-                account: None,
-                source: None,
-                reason: c::HoldCategory::Placed { hold: 12 },
-                revision: 7,
-                before: c::OwnerPriorPhase::Waiting,
-                escalation: None,
-                tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
-                hold_wait_since: None,
-            })));
-        }
+            words: None,
+            circle: None,
+            account: None,
+            source: None,
+            reason: c::HoldCategory::Placed { hold: 12 },
+            revision: 7,
+            before: c::OwnerPriorPhase::Waiting,
+            escalation: None,
+            tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+            hold_wait_since: None,
+        }));
+
         let text = fixtures::read_answer(fixtures::TASK_CALL, fixtures::task_result(task.clone()));
         let scope_words = match scope {
             c::HoldScope::Subtree { .. } => "task 41 and below",
@@ -839,7 +801,7 @@ fn connector_hold_words_reach_ctl_text_and_json_with_an_explicit_uncertainty_dec
         for json in [false, true] {
             let (_, _, mut task) = fixtures::task_read();
             task.chip.phase = c::Phase::Held;
-            task.hold = Some(c::TaskHold::Owner(Box::new(c::OwnerChipHold {
+            task.hold = Some(Box::new(c::OwnerChipHold {
                 placed: None,
                 words: Some(c::DocumentText::complete(c::Text::new(Box::from(words), 64).expect("account fits"))),
                 circle: None,
@@ -851,7 +813,7 @@ fn connector_hold_words_reach_ctl_text_and_json_with_an_explicit_uncertainty_dec
                 escalation: None,
                 tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
                 hold_wait_since: None,
-            })));
+            }));
             let argv = fixtures::extended(fixtures::TASK_CALL, if json { &["--json"] } else { &[] });
             let printed = fixtures::read_answer(argv.as_slice(), fixtures::task_result(task));
             assert_eq!(printed.status, 0);

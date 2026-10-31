@@ -1,31 +1,8 @@
 use super::{frame, list, text};
-use crate::{
-    Bounds,
-    payload::{Payload, fits},
-};
+use crate::Bounds;
 use jig_client_domain::contract::*;
-use skein_lib::{List, Wall};
-#[test]
-fn me_prices_memberships_offers_and_required_project_names() {
-    let mut row = frame(1);
-    row.party.login = DocumentText { bytes: text(&[b'l'; 32]), cut: true };
-    row.party.name = DocumentText::complete(text(&[b'n'; 32]));
-    row.projects.get_mut(0).unwrap().name = DocumentText::complete(text(&[b'p'; 32]));
-    let mut bounds = Bounds { rows: 2, text: 32, document_bytes: u64::MAX, ..Bounds::default() };
-    let expected = u64::try_from(core::mem::size_of::<Me>()).unwrap() + List::<MeProject>::price(1).unwrap() + 96;
-    assert_eq!(row.heap(&bounds).unwrap() + u64::try_from(core::mem::size_of::<Me>()).unwrap(), expected);
-    bounds.document_bytes = expected;
-    assert!(fits(&row, &bounds));
-    bounds.document_bytes -= 1;
-    assert!(!fits(&row, &bounds));
-    bounds.document_bytes += 2;
-    assert!(fits(&row, &bounds));
-    bounds.document_bytes = u64::MAX;
-    row.projects.get_mut(0).unwrap().name = DocumentText::complete(text(&[b'p'; 33]));
-    assert!(!fits(&row, &bounds));
-    bounds.text = 33;
-    assert!(fits(&row, &bounds));
-}
+use skein_lib::Wall;
+
 #[test]
 fn builtin_roles_remain_memberships_without_becoming_numeric_policy_recipients() {
     let roles = [
@@ -49,9 +26,9 @@ fn builtin_roles_remain_memberships_without_becoming_numeric_policy_recipients()
         );
         assert!(!crate::requests::recipient(&truth, 1, &Recipient::Role { project: 1, role: 1 }));
         let request = Ask::SetRoles { project: u32::MAX, holdings: list(vec![Holding { party: u64::MAX, role }]) };
-        assert!(fits(&request, &Bounds::default()));
+        assert!(crate::codec::ask(&request, &Bounds::default()).is_ok());
         let service = Ask::MakeService { project: u32::MAX, name: text(b"actual-service"), role };
-        assert!(fits(&service, &Bounds::default()));
+        assert!(crate::codec::ask(&service, &Bounds::default()).is_ok());
         row.projects.get_mut(0).unwrap().pool = Some(PoolLedger {
             source: Funder::Pool { project: u32::MAX, person: u64::MAX, period: u64::MAX },
             parent: Some(Funder::Period { project: u32::MAX, period: u64::MAX }),
@@ -61,6 +38,6 @@ fn builtin_roles_remain_memberships_without_becoming_numeric_policy_recipients()
             began: Some(Wall::EPOCH),
             next: None,
         });
-        assert!(fits(&row, &Bounds::default()));
+        assert!(crate::codec::read(&ReadValue::Me(Box::new(row)), &Bounds::default()).is_ok());
     }
 }

@@ -85,181 +85,6 @@ pub(in crate::tests) fn special_pages(words: &crate::words::Words) {
     assert!(contains(&tree, b"Someone else's work"));
     assert!(!contains(&tree, b"private"));
 }
-fn inbox_edges(words: &crate::words::Words) {
-    let (mut d, f) = start();
-    let out = deliver(&mut d, f, Delivery::Me(Box::new(document())));
-    let page =
-        out.iter()
-            .find_map(|r| match r {
-                Request::Client {
-                    asked:
-                        jig_client::Event::Watch {
-                            handle: watch,
-                            subject: jig_client::Watchable::Jig(Subject::Inbox { .. }),
-                        },
-                } => Some(*watch),
-                _ => None,
-            })
-            .unwrap();
-    let mut entries = List::with_capacity(2);
-    for n in 1..=2 {
-        entries
-            .push(InboxEntry {
-                reply: None,
-                lineage: List::with_capacity(0),
-                goal: Some(7),
-                recipient: Some(Recipient::Role { project: 4, role: 1 }),
-                stall: Some(skein_lib::Wall::from_nanos(100)),
-                object: ObjectKey::Task(n),
-                project: 4,
-                group: InboxGroup::Questions,
-                position: n,
-                at: skein_lib::Wall::EPOCH,
-            })
-            .unwrap();
-    }
-    deliver(
-        &mut d,
-        page,
-        Delivery::Inbox(Box::new(Inbox {
-            entries,
-            needs: Needs { questions: u32::MAX, proposals: 1, escalations: 0, person_tasks: 0 },
-            updates: Count { value: 10, limited: true },
-            results_seen: 0,
-            replies_seen: List::with_capacity(0),
-            more: true,
-        })),
-    );
-    for request in &out {
-        if let Request::Client {
-            asked: jig_client::Event::Read { handle: read, read: jig_client::Readable::Jig(Read::Inbox { .. }) },
-        } = request
-        {
-            drive(
-                &mut d,
-                ReadPage {
-                    read: *read,
-                    result: ReadResult::Value(ReadValue::Inbox(Box::new(InboxPage {
-                        cut: false,
-                        rows: List::with_capacity(0),
-                        before: None,
-                        after: Some(Cursor::new(Box::from(b"next".as_slice()), 1024).expect("bounded opaque cursor")),
-                    }))),
-                },
-            );
-        }
-    }
-    let (tree, mut bindings) = build(&d, 0, words);
-    for label in
-        [b"4294967296 need you".as_slice(), b"More than 10 updates", b"For the person on call", b"Passes up at"]
-    {
-        assert!(contains(&tree, label));
-    }
-    assert!(tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Read later")));
-    assert_eq!(
-        crate::decode(&mut bindings, named_binding(&tree, b"Read later"), skein_ui::Act::Press),
-        Some(crate::state::action::Act::More {
-            window: Token::new(crate::state::page::conversations::INBOX_WINDOW),
-            end: jig_client::thread::window::End::After
-        })
-    );
-    assert_eq!(
-        crate::decode(&mut bindings, named_binding(&tree, b"Goal 7"), skein_ui::Act::Press),
-        Some(crate::state::action::Act::FilterInbox {
-            filter: crate::state::page::inbox::Filter { project: None, kind: None, goal: Some(7) }
-        })
-    );
-}
-fn inbox_committed_read_position(words: &crate::words::Words) {
-    let (mut d, f) = start();
-    let out = deliver(&mut d, f, Delivery::Me(Box::new(document())));
-    let page =
-        out.iter()
-            .find_map(|r| match r {
-                Request::Client {
-                    asked:
-                        jig_client::Event::Watch {
-                            handle: watch,
-                            subject: jig_client::Watchable::Jig(Subject::Inbox { .. }),
-                        },
-                } => Some(*watch),
-                _ => None,
-            })
-            .unwrap();
-    let mut rows = List::with_capacity(1);
-    rows.push(InboxEntry {
-        reply: None,
-        lineage: List::with_capacity(0),
-        goal: None,
-        recipient: None,
-        stall: None,
-        object: ObjectKey::Result(1),
-        project: 4,
-        group: InboxGroup::Results,
-        position: 4,
-        at: skein_lib::Wall::EPOCH,
-    })
-    .unwrap();
-    let value = Inbox {
-        entries: rows.clone(),
-        needs: Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
-        updates: Count { value: 1, limited: false },
-        results_seen: 0,
-        replies_seen: List::with_capacity(0),
-        more: false,
-    };
-    deliver(&mut d, page, Delivery::Inbox(Box::new(value.clone())));
-    assert!(contains(&build(&d, 0, words).0, b"New"));
-    drive(&mut d, Event::Act { action: crate::state::action::Act::OpenUpdates });
-    assert!(contains(&build(&d, 0, words).0, b"New"));
-    let mut committed = value;
-    committed.results_seen = 4;
-    deliver(&mut d, page, Delivery::Inbox(Box::new(committed)));
-    assert!(!contains(&build(&d, 0, words).0, b"New"));
-    let filter = crate::state::page::inbox::Filter { project: None, kind: None, goal: None };
-    drive(&mut d, Event::Act { action: crate::state::action::Act::FilterInbox { filter } });
-    let read = out
-        .iter()
-        .find_map(|r| match r {
-            Request::Client {
-                asked:
-                    jig_client::Event::Read {
-                        handle: read,
-                        read: jig_client::Readable::Jig(Read::Inbox { group: InboxReadGroup::Updates, .. }),
-                    },
-            } => Some(*read),
-            _ => None,
-        })
-        .unwrap();
-    drive(
-        &mut d,
-        ReadPage {
-            read,
-            result: ReadResult::Value(ReadValue::Inbox(Box::new(InboxPage {
-                cut: false,
-                rows,
-                before: Some(Cursor::new(Box::from(b"earlier".as_slice()), 1024).expect("bounded opaque cursor")),
-                after: Some(Cursor::new(Box::from(b"later".as_slice()), 1024).expect("bounded opaque cursor")),
-            }))),
-        },
-    );
-    let (tree, mut bindings) = build(&d, 0, words);
-    assert!(tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Read earlier")));
-    assert!(tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Read later")));
-    let act = crate::decode(&mut bindings, named_binding(&tree, b"Read earlier"), skein_ui::Act::Press).unwrap();
-    let out = drive(&mut d, Event::Act { action: act });
-    assert!(
-        out.iter().any(|r| match r {
-            Request::Client {
-                asked:
-                    jig_client::Event::Read {
-                        read: jig_client::Readable::Jig(Read::Inbox { after: Some(cursor), .. }), ..
-                    },
-            } => cursor.value.bytes() == b"earlier",
-            _ => false,
-        })
-    );
-}
 
 fn conversations_domain() -> Fixture {
     let (mut d, f) = start();
@@ -306,88 +131,6 @@ fn conversations_form(words: &crate::words::Words) {
             .filter(|n| n.binding.is_some())
             .all(|n| n.name.as_ref().is_some_and(|name| !name.is_empty()))
     );
-}
-
-#[test]
-fn pages_show_non_work_states_inbox_edges_and_the_offered_conversation_form() {
-    let words = words();
-    special_pages(words);
-    inbox_edges(words);
-    inbox_committed_read_position(words);
-    conversations_form(words);
-}
-
-#[test]
-fn inbox_group_controls_decode_independent_windows() {
-    let words = words();
-    let (mut d, frame) = start();
-    let out = deliver(&mut d, frame, Delivery::Me(Box::new(document())));
-    for request in &out {
-        if let Request::Client {
-            asked: jig_client::Event::Read { handle: read, read: jig_client::Readable::Jig(Read::Inbox { group, .. }) },
-        } = request
-        {
-            drive(
-                &mut d,
-                ReadPage {
-                    read: *read,
-                    result: ReadResult::Value(ReadValue::Inbox(Box::new(InboxPage {
-                        cut: false,
-                        rows: List::with_capacity(0),
-                        before: None,
-                        after: Some(
-                            Cursor::new(
-                                Box::from(if *group == InboxReadGroup::Needs {
-                                    b"needs".as_slice()
-                                } else {
-                                    b"updates".as_slice()
-                                }),
-                                1024,
-                            )
-                            .expect("bounded opaque cursor"),
-                        ),
-                    }))),
-                },
-            );
-        }
-    }
-    let (tree, mut bindings) = build(&d, 0, words);
-    let mut acts = Vec::new();
-    for node in tree.nodes() {
-        if node.name.as_deref() == Some(b"Read later".as_slice()) {
-            acts.push(crate::decode(&mut bindings, node.binding.unwrap().token, skein_ui::Act::Press).unwrap());
-        }
-    }
-    assert_eq!(
-        acts.as_slice(),
-        &[
-            crate::state::action::Act::More {
-                window: Token::new(crate::state::page::conversations::INBOX_WINDOW),
-                end: jig_client::thread::window::End::After
-            },
-            crate::state::action::Act::More {
-                window: Token::new(crate::state::page::conversations::INBOX_UPDATES_WINDOW),
-                end: jig_client::thread::window::End::After
-            }
-        ]
-    );
-    let more = drive(&mut d, Event::Act { action: acts[1].clone() });
-    let reads: Vec<_> =
-        more.iter()
-            .filter_map(|request| match request {
-                Request::Client {
-                    asked:
-                        jig_client::Event::Read {
-                            read: jig_client::Readable::Jig(Read::Inbox { group, after, .. }), ..
-                        },
-                } => Some((*group, after.clone().unwrap())),
-                _ => None,
-            })
-            .collect();
-    assert_eq!(reads.len(), 1);
-    assert_eq!(reads[0].0, InboxReadGroup::Updates);
-    assert_eq!(reads[0].1.value.bytes(), b"updates");
-    assert_eq!(d.inbox().needs_window.after.as_ref().unwrap().value.bytes(), b"needs");
 }
 
 fn whole_page(d: &Fixture) -> Tree {
@@ -539,26 +282,6 @@ fn the_new_chat_form_is_a_form_inside_the_conversations() {
         nodes.iter().position(|n| n.role == Role::TextArea && n.name.as_deref() == Some(b"First words")).unwrap();
     assert!(field > form && field < form + usize::try_from(nodes[form].size).unwrap());
 }
-#[test]
-fn the_deployment_section_holds_its_four_named_regions() {
-    use crate::regions::JigRegion;
-    let d = crate::tests::tree::work_pages::deployment_domain();
-    let (tree, _) = build(&d, 3, words());
-    let nodes = tree.nodes();
-    let section = nodes.iter().position(|n| n.region == Some(JigRegion::Deployment.region())).unwrap();
-    for (region, name) in [
-        (JigRegion::Hosts, b"jig-hosts".as_slice()),
-        (JigRegion::Accounts, b"jig-accounts".as_slice()),
-        (JigRegion::Connectors, b"jig-connectors".as_slice()),
-        (JigRegion::Capacity, b"jig-capacity".as_slice()),
-    ] {
-        let index = nodes.iter().position(|n| n.region == Some(region.region())).unwrap();
-        assert_eq!(nodes[index].role, Role::Region, "{name:?}");
-        assert_eq!(region.name(), name);
-        assert!(index > section && index < section + usize::try_from(nodes[section].size).unwrap());
-        assert!(nodes[index].name.as_ref().is_some_and(|name| !name.is_empty()));
-    }
-}
 
 #[test]
 fn a_missing_section_says_so_in_its_own_region() {
@@ -584,4 +307,11 @@ fn a_missing_section_says_so_in_its_own_region() {
     assert_eq!(tree.nodes()[0].region, Some(crate::regions::JigRegion::TaskPlan.region()));
     assert_eq!(tree.nodes()[0].size, tree.len());
     assert!(contains(&tree, b"Page missing"));
+}
+
+#[test]
+fn pages_show_non_work_states_and_the_offered_conversation_form() {
+    let words = words();
+    special_pages(words);
+    conversations_form(words);
 }

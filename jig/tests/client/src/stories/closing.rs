@@ -25,7 +25,7 @@ pub fn world(seed: u64) -> World<Test, Scripted> {
         LiveDelegate { chip: cancelled.chip.clone(), takeover_budget: TAKEOVER_BUDGET },
         LiveDelegate { chip: moved.chip.clone(), takeover_budget: TAKEOVER_BUDGET },
     ]);
-    let ChipPhase::Owner { details, .. } = chat.chip.details.as_mut() else { unreachable!("owner chat") };
+    let ChipPhase { details, .. } = chat.chip.details.as_mut();
     details.live_delegates = 2;
     for value in [chat.clone(), cancelled.clone(), moved.clone()] {
         world
@@ -58,14 +58,14 @@ pub fn world(seed: u64) -> World<Test, Scripted> {
         by: OwnerRequester::Person(PARTY),
         at: Wall::EPOCH,
     })));
-    let ChipPhase::Owner { phase, details } = cancelled.chip.details.as_mut() else { unreachable!("owner delegate") };
+    let ChipPhase { phase, details } = cancelled.chip.details.as_mut();
     *phase = OwnerChipPhase::Ended;
     let Some(TaskResult::Ending(ending)) = &cancelled.result else { unreachable!("cancelled delegate") };
     details.ending = Some(*ending.clone());
     details.ended_at = Some(Wall::EPOCH);
     moved.requester = OwnerRequester::Person(PARTY);
     chat.chip.phase = Phase::Closing;
-    let ChipPhase::Owner { phase, details } = chat.chip.details.as_mut() else { unreachable!("owner chat") };
+    let ChipPhase { phase, details } = chat.chip.details.as_mut();
     *phase = OwnerChipPhase::Closing(ClosingStage::Delegates);
     details.live_delegates = 0;
     chat.delegates.clear();

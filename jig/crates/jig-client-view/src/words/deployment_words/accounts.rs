@@ -161,7 +161,6 @@ impl AccountPhrase {
             Self::RefusalNotOurs => b"Account move: not ours",
             Self::RefusalCancelled => b"Account move: cancelled",
             Self::RefusalMoving => b"Account move: moving",
-
             Self::Provider => b"LLM provider ",
             Self::HeldByDeployment => b"Held by the deployment",
             Self::HeldByParty => b"Held by party ",

@@ -5,6 +5,5 @@ pub(crate) mod domain;
 pub(crate) mod handles;
 pub(crate) mod historical_objects;
 pub(crate) mod page_capacity;
-pub(crate) mod page_loss;
 pub(crate) mod question_sender;
 pub(crate) mod records;

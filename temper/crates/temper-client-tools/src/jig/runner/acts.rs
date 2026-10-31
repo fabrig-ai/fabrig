@@ -393,22 +393,8 @@ fn decide(call: &Call, task: u64, limits: &Limits, settings: bool) -> Result<c::
     })
 }
 
-fn chip_project(chip: &c::Chip) -> Option<u32> {
-    match chip.details.as_ref() {
-        c::ChipPhase::Owner { details, .. } => Some(details.project),
-        c::ChipPhase::Active(_)
-        | c::ChipPhase::Waiting { .. }
-        | c::ChipPhase::Idle { .. }
-        | c::ChipPhase::Starting
-        | c::ChipPhase::Running { .. }
-        | c::ChipPhase::WaitingForWords { .. }
-        | c::ChipPhase::BackingOff { .. }
-        | c::ChipPhase::Procedure { .. }
-        | c::ChipPhase::Person { .. }
-        | c::ChipPhase::Closing(_)
-        | c::ChipPhase::Held { .. }
-        | c::ChipPhase::Ended { .. } => None,
-    }
+fn chip_project(chip: &c::Chip) -> u32 {
+    chip.details.details.project
 }
 fn kind(call: &Call) -> c::ActKind {
     match call.tool {

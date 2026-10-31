@@ -271,7 +271,6 @@ pub(super) fn page(
         }
     }
     let more_inbox = match &page {
-        Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page))) => page.after.is_some(),
         Readout::Jig(c::ReadResult::Value(c::ReadValue::OwnerInbox(page))) => page.after.is_some(),
         Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => true,
     };
@@ -594,13 +593,6 @@ fn terminal_read(
 fn next_question(reading: &Reading, maximum: u32) -> Option<(u64, u64)> {
     let mut keys = skein_lib::List::with_capacity(maximum);
     match reading.pages.get(&1) {
-        Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page)))) => {
-            for row in page.rows.as_slice().iter().take(usize::try_from(maximum).expect("rows fit")) {
-                if let c::ObjectKey::Question { task, message } = row.object {
-                    keys.push((task, message)).expect("one bounded page");
-                }
-            }
-        }
         Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::OwnerInbox(page)))) => {
             for row in page.rows.as_slice().iter().take(usize::try_from(maximum).expect("rows fit")) {
                 if let c::OwnerInboxObject::Question { message } = row.object {

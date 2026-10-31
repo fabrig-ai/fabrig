@@ -5,7 +5,7 @@ fn a_list_prints_its_rows_then_its_continuation() {
     let mut root = fixtures::signed_in(fixtures::PARTY);
     let call = root.submit(fixtures::TASKS_CALL);
     root.serve(call, fixtures::task_page_with_cursor());
-    assert_eq!(root.answer(call).expect("page answered").stdout, fixtures::golden("tasks_next"));
+    fixtures::check_golden("tasks_next", &root.answer(call).expect("page answered").stdout);
 }
 #[test]
 fn ended_tasks_use_only_the_ended_group() {
@@ -50,10 +50,10 @@ fn an_inbox_reads_on_in_needs_while_needs_has_more() {
     root.serve(call, fixtures::inbox_page(true));
     root.deliver_subject(
         &fixtures::inbox_watch(),
-        c::Delivery::Inbox(Box::new(fixtures::inbox_window(fixtures::PAGE_ROWS, 0, true))),
+        c::Delivery::OwnerInbox(Box::new(fixtures::inbox_window(fixtures::PAGE_ROWS, 0, true))),
     );
     let printed = root.answer(call).expect("read and window answered");
-    assert_eq!(printed.stdout, fixtures::golden("inbox_needs_next"));
+    fixtures::check_golden("inbox_needs_next", &printed.stdout);
 }
 #[test]
 fn an_inbox_cursor_selects_its_group() {
@@ -73,17 +73,17 @@ fn an_inbox_cursor_selects_its_group() {
 #[test]
 fn inbox_prints_what_needs_the_party_then_updates() {
     let printed = fixtures::inbox_answer(fixtures::PAGE_ROWS, fixtures::PAGE_ROWS, false);
-    assert_eq!(printed.stdout, fixtures::golden("inbox_both"));
+    fixtures::check_golden("inbox_both", &printed.stdout);
 }
 #[test]
 fn an_inbox_reads_on_in_updates_once_needs_ends() {
     let printed = fixtures::inbox_answer(fixtures::PAGE_ROWS, fixtures::PAGE_ROWS, true);
-    assert_eq!(printed.stdout, fixtures::golden("inbox_updates_next"));
+    fixtures::check_golden("inbox_updates_next", &printed.stdout);
 }
 #[test]
 fn an_inbox_page_whose_updates_do_not_fit_reads_on_at_the_start_of_updates() {
     let printed = fixtures::inbox_answer(fixtures::FULL_NEEDS, fixtures::PAGE_ROWS, true);
-    assert_eq!(printed.stdout, fixtures::golden("inbox_updates_start"));
+    fixtures::check_golden("inbox_updates_start", &printed.stdout);
 }
 #[test]
 fn an_inbox_group_byte_alone_starts_the_group() {
@@ -96,7 +96,7 @@ fn an_inbox_group_byte_alone_starts_the_group() {
 #[test]
 fn a_limited_activity_reads_on_with_its_page_whole() {
     let printed = fixtures::read_answer(fixtures::LIMITED_ACTIVITY_CALL, fixtures::activity_words());
-    assert_eq!(printed.stdout, fixtures::golden("activity_limited"));
+    fixtures::check_golden("activity_limited", &printed.stdout);
 }
 #[test]
 fn a_limited_task_activity_names_its_whole_page() {
@@ -109,7 +109,7 @@ fn a_limited_task_activity_names_its_whole_page() {
 #[test]
 fn ended_tasks_keep_their_flag_in_the_continuation() {
     let printed = fixtures::read_answer(fixtures::ENDED_CALL, fixtures::ended_page());
-    assert_eq!(printed.stdout, fixtures::golden("tasks_ended_next"));
+    fixtures::check_golden("tasks_ended_next", &printed.stdout);
 }
 
 #[test]
@@ -131,7 +131,7 @@ fn a_kept_activity_is_parked_in_text_and_preserved_in_json() {
         let c::ReadResult::Value(c::ReadValue::Activity(mut page)) = fixtures::activity_words() else {
             panic!("activity")
         };
-        page.rows.get_mut(0).expect("row").event = c::Activity::Owner {
+        *page.rows.get_mut(0).expect("row") = c::ActivityLine {
             source: Box::new(c::OwnerActivityLine {
                 task: fixtures::TASK,
                 position: 1,
@@ -147,7 +147,7 @@ fn a_kept_activity_is_parked_in_text_and_preserved_in_json() {
 #[test]
 fn a_met_notice_keeps_its_dependency_and_removal_flag_in_json() {
     let c::ReadResult::Value(c::ReadValue::Activity(mut page)) = fixtures::activity_words() else { panic!("activity") };
-    page.rows.get_mut(0).expect("row").event = c::Activity::Owner {
+    *page.rows.get_mut(0).expect("row") = c::ActivityLine {
         source: Box::new(c::OwnerActivityLine {
             task: fixtures::TASK,
             position: 1,
@@ -276,7 +276,7 @@ fn a_tree_says_what_is_folded_and_how_to_read_on() {
     let start = skein_lib::bytes::find(&answer.stdout, b"tree:\n").expect("tree").checked_add(6).expect("tree start");
     let tree = answer.stdout.get(start..).expect("tree text");
     let end = skein_lib::bytes::find(tree, b"digest:").expect("digest");
-    assert_eq!(tree.get(..end).expect("tree rows"), fixtures::golden("task_tree_cut").as_ref());
+    fixtures::check_golden("task_tree_cut", tree.get(..end).expect("tree rows"));
 }
 
 #[test]
@@ -292,7 +292,7 @@ fn an_activity_page_cut_before_its_first_row_reads_on() {
     page.before = Some(fixtures::cursor());
     let printed =
         fixtures::read_answer(&["task", "activity", "41"], c::ReadResult::Value(c::ReadValue::Activity(page.clone())));
-    assert_eq!(printed.stdout, fixtures::golden("activity_empty_cut"));
+    fixtures::check_golden("activity_empty_cut", &printed.stdout);
     let printed = fixtures::read_answer(
         &["task", "activity", "41", "--json"],
         c::ReadResult::Value(c::ReadValue::Activity(page)),

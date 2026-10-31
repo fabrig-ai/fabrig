@@ -1,6 +1,6 @@
 //! The one named review dialog, from recalled facts (view.md, 18.5; objects.md, 2).
 //! Adoption belongs to the application slot rather than this jig form (client/domain/pages.md, 6.5).
-use crate::tree::cards::{common, person, proposal};
+use crate::tree::cards::common;
 use crate::words::Words;
 use crate::words::phrases::jig::JigPhrase;
 use crate::{JigBindings, JigMeaning, JigStyle};
@@ -17,9 +17,7 @@ use crate::{
         objects::{Body, Object},
     },
 };
-use jig_client::contract::{
-    ActKind, Effect, Hold, HoldReason, Impact, ObjectKey, OwnerChipHold, ReleaseEffect, TaskHold,
-};
+use jig_client::contract::{ActKind, Effect, Impact, ObjectKey, OwnerChipHold, ReleaseEffect};
 
 pub(crate) mod amendment;
 /// Build the domain's one object or goal confirmation, or nothing when closed.
@@ -120,13 +118,13 @@ fn context(b: &mut Builder, client: &Borrowed<'_>, object: &Object, words: &Word
         ),
         Some(Body::Task(task)) => crate::tree::cards::chip::chip(b, client, &task.chip, words, bindings),
         Some(Body::Chip(chip)) => crate::tree::cards::chip::chip(b, client, chip, words, bindings),
-        Some(Body::Escalation(doc)) => crate::tree::cards::chip::chip(b, client, &doc.task, words, bindings),
+
         Some(Body::OwnerEscalation(doc)) => crate::tree::cards::chip::chip(b, client, &doc.task.chip, words, bindings),
         Some(Body::Question(doc)) => crate::tree::cards::chip::chip(b, client, &doc.task, words, bindings),
-        Some(Body::PersonTask(doc)) => crate::tree::cards::chip::chip(b, client, &doc.task, words, bindings),
+
         Some(Body::OwnerPersonTask(doc)) => crate::tree::cards::chip::chip(b, client, &doc.task, words, bindings),
         Some(Body::Result(doc)) => crate::tree::cards::chip::chip(b, client, &doc.task, words, bindings),
-        Some(Body::Proposal(doc)) => words.proposer(b, doc.proposer),
+
         Some(Body::OwnerProposal(doc)) => words.proposer(b, doc.key.proposer),
         Some(Body::Note { document, .. }) => b.text(Run::Plain, document.description.bytes()),
         None => words.status(b, JigPhrase::LoadingObject, &[]),
@@ -159,19 +157,13 @@ fn action(
                 Some(Body::OwnerProposal(doc)) => {
                     crate::tree::fragments::proposal::render(b, client, doc, words, bindings);
                 }
-                Some(Body::Proposal(doc)) => {
-                    proposal::action(b, &doc.action, words, bindings, client.limits.rows);
-                    common::authority(b, &doc.needs, words, bindings);
-                    common::funding(b, &doc.funding, doc.needs.budget, words);
-                }
+
                 Some(
                     Body::Task(_)
                     | Body::Historical(_)
                     | Body::Chip(_)
-                    | Body::Escalation(_)
                     | Body::OwnerEscalation(_)
                     | Body::Question(_)
-                    | Body::PersonTask(_)
                     | Body::OwnerPersonTask(_)
                     | Body::Result(_)
                     | Body::Note { .. },
@@ -180,7 +172,7 @@ fn action(
             }
         }
         ActKind::Release => {
-            release_object(b, client, object, words, bindings);
+            release_object(b, object, words, bindings);
             if let Some(again) = open.choices.again {
                 words.text(b, if again { JigPhrase::RepeatEffect } else { JigPhrase::SkipEffect }, &[]);
             }
@@ -193,7 +185,7 @@ fn action(
                 words.text(b, JigPhrase::HoldRevision, &[Hole::Number(revision.value)]);
             }
             if open.choices.release {
-                release_object(b, client, object, words, bindings);
+                release_object(b, object, words, bindings);
             }
         }
         ActKind::Answer => {
@@ -203,7 +195,7 @@ fn action(
                     skein_ui::markdown::read(doc.words.bytes(), 2, b);
                     common::field(b, client, Purpose::Answer, JigPhrase::AnswerField, words, bindings);
                 }
-                Some(Body::PersonTask(doc)) => person::form(b, client, open.object, &doc.contract, words, bindings),
+
                 Some(Body::OwnerPersonTask(doc)) => {
                     crate::tree::fragments::person_task::form(b, client, open.object, &doc.contract, words, bindings);
                 }
@@ -211,9 +203,7 @@ fn action(
                     Body::Task(_)
                     | Body::Historical(_)
                     | Body::Chip(_)
-                    | Body::Proposal(_)
                     | Body::OwnerProposal(_)
-                    | Body::Escalation(_)
                     | Body::OwnerEscalation(_)
                     | Body::Result(_)
                     | Body::Note { .. },
@@ -335,14 +325,12 @@ fn held(object: &Object) -> bool {
     match &object.body {
         Some(Body::Task(doc)) => doc.hold.is_some(),
         Some(Body::OwnerEscalation(doc)) => doc.task.hold.is_some(),
-        Some(Body::Escalation(_)) => true,
+
         Some(
             Body::Historical(_)
             | Body::Chip(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
@@ -350,7 +338,7 @@ fn held(object: &Object) -> bool {
         | None => false,
     }
 }
-fn release_object(b: &mut Builder, client: &Borrowed<'_>, object: &Object, words: &Words, bindings: &mut JigBindings) {
+fn release_object(b: &mut Builder, object: &Object, words: &Words, bindings: &mut JigBindings) {
     if let Some(offers) = crate::state::acts::offers(object)
         && let Some(Effect::Release(effect)) = jig_client::facts::effect(offers.as_slice(), ActKind::Release)
     {
@@ -361,24 +349,22 @@ fn release_object(b: &mut Builder, client: &Borrowed<'_>, object: &Object, words
         }
     }
     match &object.body {
-        Some(Body::Task(doc)) => match &doc.hold {
-            Some(TaskHold::Document(hold)) => release(b, client, hold, words, bindings),
-            Some(TaskHold::Owner(hold)) => release_owner(b, hold, words, bindings),
-            None => {}
-        },
-        Some(Body::Escalation(doc)) => release(b, client, &doc.hold, words, bindings),
-        Some(Body::OwnerEscalation(doc)) => match &doc.task.hold {
-            Some(TaskHold::Document(hold)) => release(b, client, hold, words, bindings),
-            Some(TaskHold::Owner(hold)) => release_owner(b, hold, words, bindings),
-            None => {}
-        },
+        Some(Body::Task(doc)) => {
+            if let Some(hold) = &doc.hold {
+                release_owner(b, hold, words, bindings);
+            }
+        }
+
+        Some(Body::OwnerEscalation(doc)) => {
+            if let Some(hold) = &doc.task.hold {
+                release_owner(b, hold, words, bindings);
+            }
+        }
         Some(
             Body::Historical(_)
             | Body::Chip(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
@@ -419,15 +405,13 @@ fn impact(object: &Object) -> Option<&Impact> {
             Some(context) => Some(&context.impact),
             None => None,
         },
-        Some(Body::Escalation(doc)) => Some(&doc.impact),
+
         Some(Body::OwnerEscalation(doc)) => Some(&doc.task.context.as_ref()?.impact),
         Some(
             Body::Historical(_)
             | Body::Chip(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
@@ -455,45 +439,7 @@ pub fn impact_words(b: &mut Builder, impact: &Impact, words: &Words) {
     words.text(b, JigPhrase::Word(Word::Decision(D::PendingProposals)), &[Hole::Number(u64::from(impact.proposals))]);
     words.text(b, JigPhrase::Word(Word::Decision(D::EffectsSettle)), &[]);
 }
-fn release(b: &mut Builder, client: &Borrowed<'_>, facts: &Hold, words: &Words, bindings: &mut JigBindings) {
-    match &facts.reason {
-        HoldReason::Procedure { part } | HoldReason::Drift { part } | HoldReason::EffectFailed { part } => {
-            common::part(b, part, words, bindings);
-        }
-        HoldReason::EffectUncertain { part } => {
-            common::part(b, part, words, bindings);
-            crate::tree::frame::control(
-                b,
-                words,
-                bindings,
-                Role::Button,
-                JigPhrase::RepeatEffect,
-                &[],
-                Act::Again { again: true },
-            );
-            crate::tree::frame::control(
-                b,
-                words,
-                bindings,
-                Role::Button,
-                JigPhrase::SkipEffect,
-                &[],
-                Act::Again { again: false },
-            );
-        }
-        HoldReason::Tries { .. }
-        | HoldReason::Stopped { .. }
-        | HoldReason::Stalled { .. }
-        | HoldReason::Dependency { .. }
-        | HoldReason::Budget { .. }
-        | HoldReason::Deadline { .. }
-        | HoldReason::Resource { .. }
-        | HoldReason::Pool { .. } => {}
-    }
-    if let Some(result) = &facts.result {
-        crate::tree::cards::result::value_nodes(b, client, result, words, bindings);
-    }
-}
+
 fn delegates(
     b: &mut Builder,
     client: &Borrowed<'_>,
@@ -507,12 +453,9 @@ fn delegates(
         Some(
             Body::Historical(_)
             | Body::Chip(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
-            | Body::Escalation(_)
             | Body::OwnerEscalation(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },

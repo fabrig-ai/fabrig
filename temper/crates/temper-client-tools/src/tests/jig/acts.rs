@@ -8,7 +8,7 @@ fn a_message_under_a_name_sends_it_as_the_engine_key() {
 #[test]
 fn a_message_prints_done() {
     let (mut root, call) = fixtures::message();
-    root.done(call, c::Outcome::Changed);
+    root.done(call, c::Outcome::Owner(c::OwnerOutcome::Amended { task: 9 }));
     let answer = root.answer(call).expect("answered once durable");
     assert_eq!((answer.status, answer.stdout.as_ref()), (0, b"done: task 41, message\n".as_slice()));
 }
@@ -56,11 +56,13 @@ fn a_proposable_act_prints_to_whom() {
         fixtures::send_chat(fixtures::CHAT_BUDGET + fixtures::OVER_BOUND, fixtures::SEED, fixtures::EMPTY.into());
     root.done(
         call,
-        c::Outcome::Proposed {
-            proposal: c::ProposalKey { proposer: c::Proposer::Party(fixtures::PARTY), number: fixtures::PROPOSAL },
-        },
+        c::Outcome::Owner(c::OwnerOutcome::Proposed {
+            proposal: (c::ProposalKey { proposer: c::Proposer::Party(fixtures::PARTY), number: fixtures::PROPOSAL })
+                .number,
+            to: 9,
+        }),
     );
-    assert_eq!(root.answer(call).expect("proposed").stdout.as_ref(), b"proposed: p73/17, to party 91\n");
+    assert_eq!(root.answer(call).expect("proposed").stdout.as_ref(), b"proposed: p73/17, to role 9 in project 1\n");
 }
 #[test]
 fn chat_checks_both_sides_of_its_bounds() {
@@ -119,26 +121,7 @@ fn decide_sends_its_two_forms() {
         );
     }
 }
-#[test]
-fn decided_first_prints_the_winner() {
-    let (mut root, call) = fixtures::message();
-    root.done(
-        call,
-        c::Outcome::DecidedFirst {
-            by: c::Party {
-                number: fixtures::OTHER_PARTY,
-                kind: c::PartyKind::Person,
-                name: fixtures::act_text(b"ada"),
-            },
-            how: c::Decision::Accepted,
-            at: fixtures::DECIDED_AT,
-        },
-    );
-    assert_eq!(
-        root.answer(call).expect("winner answered").stdout.as_ref(),
-        b"decided first: by ada, accepted, 14:02\n"
-    );
-}
+
 #[test]
 fn each_kept_request_prints_its_operation_without_keys() {
     for (records, json, expected) in [
@@ -146,18 +129,18 @@ fn each_kept_request_prints_its_operation_without_keys() {
         (
             fixtures::restored_message(fixtures::PARTY),
             true,
-            b"{\"operation\":\"message\",\"outcome\":{\"done\":\"changed\"}}\n".as_slice(),
+            b"{\"operation\":\"message\",\"outcome\":{\"done\":{\"owner\":{\"amended\":{\"task\":9}}}}}\n".as_slice(),
         ),
         (fixtures::kept(fixtures::RESTORED_PREFIX), false, b"kept: stop, done: task 41, stop\n".as_slice()),
         (
             fixtures::kept(fixtures::RESTORED_PREFIX),
             true,
-            b"{\"operation\":\"stop\",\"outcome\":{\"done\":\"changed\"}}\n".as_slice(),
+            b"{\"operation\":\"stop\",\"outcome\":{\"done\":{\"owner\":{\"amended\":{\"task\":9}}}}}\n".as_slice(),
         ),
     ] {
         let mut root = fixtures::started_with(records, fixtures::SEED, json);
         root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
-        root.done(fixtures::EMPTY, c::Outcome::Changed);
+        root.done(fixtures::EMPTY, c::Outcome::Owner(c::OwnerOutcome::Amended { task: 9 }));
         assert_eq!(root.kept_lines.as_slice(), &[Box::<[u8]>::from(expected)], "{expected:?}");
     }
 }
@@ -184,7 +167,7 @@ fn kept_counts_only_this_partys_unanswered_requests() {
     let mut root = fixtures::started(fixtures::restored_message(fixtures::PARTY));
     root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
     assert_eq!(root.root.kept(), fixtures::KEPT);
-    root.done(fixtures::EMPTY, c::Outcome::Changed);
+    root.done(fixtures::EMPTY, c::Outcome::Owner(c::OwnerOutcome::Amended { task: 9 }));
     assert_eq!(root.root.kept(), fixtures::EMPTY);
 }
 #[test]
@@ -239,21 +222,7 @@ fn changed_me_inputs_can_change_a_named_ask() {
         fixtures::encoded(&second.sends.get(&b).expect("changed chat").2)
     );
 }
-#[test]
-fn a_restored_proposals_kept_line_prints_its_identity_without_a_recipient() {
-    let mut root = fixtures::started(fixtures::restored_chat());
-    root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
-    root.done(
-        fixtures::EMPTY,
-        c::Outcome::Proposed {
-            proposal: c::ProposalKey {
-                proposer: c::Proposer::Task(fixtures::KEPT_PROPOSER),
-                number: fixtures::PROPOSAL,
-            },
-        },
-    );
-    assert_eq!(root.kept_lines.as_slice(), &[Box::<[u8]>::from(b"kept: chat, proposed: t3/17\n".as_slice())]);
-}
+
 #[test]
 fn close_passes_its_reason_or_empty() {
     for (extra, reason) in
@@ -463,15 +432,15 @@ fn an_owner_proposal_uses_the_returned_role_in_the_original_request_project() {
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "ordinary test checks rendered bytes; testing-strategy.md, step tests")]
-fn a_restored_owner_proposals_kept_output_retains_identity_and_omits_original_recipient() {
+fn a_restored_owner_proposals_kept_output_retains_its_supplied_facts() {
     for json in [false, true] {
         let mut root = fixtures::started_with(fixtures::restored_chat(), fixtures::SEED, json);
         root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
         root.done(fixtures::EMPTY, c::Outcome::Owner(c::OwnerOutcome::Proposed { proposal: 17, to: 9 }));
         let line = root.kept_lines.get(0).expect("kept line");
         if json {
-            assert!(line.windows(b"\"number\":17".len()).any(|piece| piece == b"\"number\":17"));
-            assert!(!line.windows(b"\"to\"".len()).any(|piece| piece == b"\"to\""));
+            assert!(line.windows(b"\"proposal\":17".len()).any(|piece| piece == b"\"proposal\":17"));
+            assert!(line.windows(b"\"to\":9".len()).any(|piece| piece == b"\"to\":9"));
         } else {
             assert_eq!(line.as_ref(), b"kept: chat, proposed: p73/17\n");
         }
@@ -599,7 +568,6 @@ fn a_cut_question_is_answered_as_any_other() {
     };
     question.words.cut = true;
     root.serve(call, c::ReadResult::Value(c::ReadValue::Question(question)));
-    root.serve(call, fixtures::task_result(fixtures::offered(&[c::ActKind::Answer])));
     let (_, _, ask) = root.sends.get(&call).expect("answer sent despite cut words");
     assert_eq!(
         ask,
@@ -608,7 +576,7 @@ fn a_cut_question_is_answered_as_any_other() {
             on: c::AnswerOn::Question { task: 41, message: 3, words: fixtures::act_text(b"Go ahead.") },
         }))
     );
-    root.done(call, c::Outcome::Changed);
+    root.done(call, c::Outcome::Owner(c::OwnerOutcome::Amended { task: 9 }));
     assert_eq!(root.answer(call).expect("answer completed").status, 0);
 }
 
@@ -635,7 +603,7 @@ fn answers_full_within_patience_waits_and_then_succeeds() {
     root.now = skein_lib::Time::from_nanos(1_000_000_000);
     root.wall = skein_lib::Wall::from_nanos(1_000_000_000);
     root.fire();
-    root.done(call, c::Outcome::Changed);
+    root.done(call, c::Outcome::Owner(c::OwnerOutcome::Amended { task: 9 }));
     assert_eq!(root.answer(call).expect("retry succeeds").status, 0);
 }
 

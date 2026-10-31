@@ -22,12 +22,12 @@ pub struct Confirm {
 pub fn offers(page: &ReadValue) -> &[Offered] {
     match page {
         ReadValue::Task(v) => v.acts.as_slice(),
-        ReadValue::Proposal(v) => v.acts.as_slice(),
+
         ReadValue::OwnerProposal(v) => v.acts.as_slice(),
         ReadValue::Question(v) => v.acts.as_slice(),
-        ReadValue::Escalation(v) => v.acts.as_slice(),
+
         ReadValue::OwnerEscalation(v) => v.acts.as_slice(),
-        ReadValue::PersonTask(v) => v.acts.as_slice(),
+
         ReadValue::OwnerPersonTask(v) => v.acts.as_slice(),
         ReadValue::Settings(_)
         | ReadValue::Setting(_)
@@ -38,18 +38,13 @@ pub fn offers(page: &ReadValue) -> &[Offered] {
         | ReadValue::Historical(_)
         | ReadValue::Me(_)
         | ReadValue::Result(_)
-        | ReadValue::Ended(_)
         | ReadValue::OwnerEnded(_)
         | ReadValue::History(_)
         | ReadValue::Turn(_)
         | ReadValue::Activity(_)
-        | ReadValue::Inbox(_)
         | ReadValue::OwnerInbox(_)
-        | ReadValue::Spend(_)
         | ReadValue::OwnerSpend(_)
-        | ReadValue::Project(_)
         | ReadValue::Notes(_)
-        | ReadValue::Deployment(_)
         | ReadValue::OwnerDeployment(_) => &[],
     }
 }
@@ -61,12 +56,12 @@ pub fn revision(page: &ReadValue) -> Option<contract::Revision> {
             Some(hold) => Some(hold.revision()),
             None => None,
         },
-        ReadValue::Escalation(v) => Some(v.hold.revision),
+
         ReadValue::OwnerEscalation(v) => match &v.task.hold {
             Some(hold) => Some(hold.revision()),
             None => None,
         },
-        ReadValue::PersonTask(v) => Some(v.revision),
+
         ReadValue::OwnerPersonTask(v) => Some(v.revision),
         ReadValue::Settings(_)
         | ReadValue::Setting(_)
@@ -77,20 +72,14 @@ pub fn revision(page: &ReadValue) -> Option<contract::Revision> {
         | ReadValue::Historical(_)
         | ReadValue::Me(_)
         | ReadValue::Result(_)
-        | ReadValue::Ended(_)
         | ReadValue::OwnerEnded(_)
         | ReadValue::History(_)
         | ReadValue::Turn(_)
         | ReadValue::Activity(_)
-        | ReadValue::Inbox(_)
         | ReadValue::OwnerInbox(_)
-        | ReadValue::Spend(_)
         | ReadValue::OwnerSpend(_)
-        | ReadValue::Project(_)
         | ReadValue::Notes(_)
-        | ReadValue::Deployment(_)
         | ReadValue::OwnerDeployment(_)
-        | ReadValue::Proposal(_)
         | ReadValue::OwnerProposal(_)
         | ReadValue::Question(_) => None,
     }

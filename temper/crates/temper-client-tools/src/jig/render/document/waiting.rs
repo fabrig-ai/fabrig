@@ -53,29 +53,25 @@ pub(super) fn text(
         match delivery {
             c::Delivery::Me(me) => super::me_text(me, book, limits, out),
             c::Delivery::Task(task) => super::task_text(task, wait.me, book, vocabulary, out),
-            c::Delivery::Tree(_) | c::Delivery::OwnerTree(_) => super::super::lists::tree(delivery, None, book, out),
+            c::Delivery::OwnerTree(_) => super::super::lists::tree(delivery, None, book, out),
             c::Delivery::Tasks(tasks) => {
                 for row in tasks.rows.as_slice().iter().take(most) {
                     super::super::lists::chip(&row.chip, book, out);
                 }
             }
-            c::Delivery::Inbox(inbox) => {
-                for row in inbox.entries.as_slice().iter().take(most) {
-                    super::super::lists::object(row.object, out);
-                }
-            }
+
             c::Delivery::OwnerInbox(inbox) => {
                 for row in inbox.needs.as_slice().iter().chain(inbox.updates.as_slice()).take(most) {
                     super::super::lists::owner_inbox_row(row, book, out);
                 }
             }
+
             c::Delivery::Run(_) => super::super::activity::run(delivery, None, out),
             c::Delivery::RunState(run) => super::super::activity::run(delivery, run.writing.as_ref(), out),
             c::Delivery::OwnerProject(_)
             | c::Delivery::OwnerProposal(_)
             | c::Delivery::Chips(_)
             | c::Delivery::Settings(_)
-            | c::Delivery::Deployment(_)
             | c::Delivery::OwnerDeployment(_)
             | c::Delivery::OwnerAccounts(_) => unreachable!("wait subject"),
         }
@@ -87,14 +83,12 @@ pub(super) fn text(
         }
         let part = Part::delivery(delivery).expect("subject form");
         let list = match part {
-            Part::Inbox(_) | Part::OwnerInbox(_) | Part::Tasks(_) => true,
+            Part::OwnerInbox(_) | Part::Tasks(_) => true,
             Part::Me(_)
             | Part::Task(_)
-            | Part::Tree(_)
             | Part::OwnerTree(_)
             | Part::Run(_)
             | Part::RunState(_)
-            | Part::InboxPage(_)
             | Part::OwnerInboxPage(_)
             | Part::TaskPage(_) => false,
         };

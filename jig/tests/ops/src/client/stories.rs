@@ -159,7 +159,8 @@ pub fn incident_world(seed: u64) -> ClientWorld {
     p.reason = DocumentText::complete(text(b"Restart checkout in production"));
     let mut lead = task();
     lead.chip.title = DocumentText::complete(text(b"I incident lead"));
-    if let ChipPhase::Owner { phase, .. } = lead.chip.details.as_mut() {
+    {
+        let ChipPhase { phase, .. } = lead.chip.details.as_mut();
         *phase = OwnerChipPhase::Active(RunStage::Idle);
     }
     let mut restart = task();
@@ -168,15 +169,14 @@ pub fn incident_world(seed: u64) -> ClientWorld {
     restart.requester = OwnerRequester::Task(9);
     restart.proposals = list([p.key]);
     restart.chip.executor = Executor::Procedure { connector: number(Connector::Infrastructure), kind: 1 };
-    if let ChipPhase::Owner { details, .. } = restart.chip.details.as_mut() {
+    {
+        let ChipPhase { details, .. } = restart.chip.details.as_mut();
         details.procedure = Some(OwnerPart {
             connector: number(Connector::Infrastructure),
             kind: OwnerPartKind::Procedure,
             key: OwnerPartKey::Number(10),
         });
     }
-    restart.context.as_mut().expect("supplied task context").parts =
-        list([Part::Panel { connector: number(Connector::Infrastructure), task: 10 }]);
     lead.delegates = list([LiveDelegate { chip: restart.chip.clone(), takeover_budget: 1 }]);
     lead.context.as_mut().expect("supplied task context").impact.tasks.running = 1;
     for (key, value) in [
@@ -208,33 +208,29 @@ pub fn incident_world(seed: u64) -> ClientWorld {
     truth.sources.push(jig_client_scripted_engine::Source {
         party: 7,
         read: Read::Activity { task: 9, before: None },
-        rows: jig_client_scripted_engine::Rows::Activity(vec![ActivityLine {
-            position: 1,
-            at: Wall::EPOCH,
-            event: turn_event(
-                9,
-                1,
-                TurnName { attempt: 1, number: 1 },
-                TurnRead::Decoded(Turn {
-                    messages: list([Message {
-                        speaker: Speaker::Assistant,
-                        blocks: list([Block::Call(Call {
-                            number: 1,
-                            tool: text(b"delegate"),
-                            input: text(b"Restart checkout"),
-                            outcome: Some(text(b"R restart checkout")),
-                            failed: false,
-                            objects: list([ObjectKey::Task(10)]),
-                            parts: list([]),
-                        })]),
-                    }]),
-                    used: Usage { input: 1, output: 1, cached: 0, cache_written: 0 },
-                    spent: 1,
-                    read_through: None,
-                    cut: false,
-                }),
-            ),
-        }]),
+        rows: jig_client_scripted_engine::Rows::Activity(vec![turn_event(
+            9,
+            1,
+            TurnName { attempt: 1, number: 1 },
+            TurnRead::Decoded(Turn {
+                messages: list([Message {
+                    speaker: Speaker::Assistant,
+                    blocks: list([Block::Call(Call {
+                        number: 1,
+                        tool: text(b"delegate"),
+                        input: text(b"Restart checkout"),
+                        outcome: Some(text(b"R restart checkout")),
+                        failed: false,
+                        objects: list([ObjectKey::Task(10)]),
+                        parts: list([]),
+                    })]),
+                }]),
+                used: Usage { input: 1, output: 1, cached: 0, cache_written: 0 },
+                spent: 1,
+                read_through: None,
+                cut: false,
+            }),
+        )]),
     });
     truth.sources.push(jig_client_scripted_engine::Source {
         party: 7,
@@ -381,7 +377,8 @@ pub fn environment_world(seed: u64) -> ClientWorld {
     }
     let mut chat = task();
     chat.chip.title = DocumentText::complete(text(b"Q staging chat"));
-    if let ChipPhase::Owner { phase, .. } = chat.chip.details.as_mut() {
+    {
+        let ChipPhase { phase, .. } = chat.chip.details.as_mut();
         *phase = OwnerChipPhase::Active(RunStage::Idle);
     }
     let mut p = proposal();
@@ -416,33 +413,29 @@ pub fn environment_world(seed: u64) -> ClientWorld {
             jig_client_scripted_engine::Change::Source(jig_client_scripted_engine::Source {
                 party: 7,
                 read: Read::Activity { task: 9, before: None },
-                rows: jig_client_scripted_engine::Rows::Activity(vec![ActivityLine {
-                    position: 1,
-                    at: Wall::EPOCH,
-                    event: turn_event(
-                        9,
-                        1,
-                        TurnName { attempt: 1, number: 1 },
-                        TurnRead::Decoded(Turn {
-                            messages: list([Message {
-                                speaker: Speaker::Assistant,
-                                blocks: list([Block::Call(Call {
-                                    number: 1,
-                                    tool: text(b"provision"),
-                                    input: text(b"staging for one week"),
-                                    outcome: Some(text(b"Price 40 exceeds chat budget 10")),
-                                    failed: false,
-                                    objects: list([ObjectKey::Proposal(p.key)]),
-                                    parts: list([]),
-                                })]),
-                            }]),
-                            used: Usage { input: 1, output: 1, cached: 0, cache_written: 0 },
-                            spent: 1,
-                            read_through: None,
-                            cut: false,
-                        }),
-                    ),
-                }]),
+                rows: jig_client_scripted_engine::Rows::Activity(vec![turn_event(
+                    9,
+                    1,
+                    TurnName { attempt: 1, number: 1 },
+                    TurnRead::Decoded(Turn {
+                        messages: list([Message {
+                            speaker: Speaker::Assistant,
+                            blocks: list([Block::Call(Call {
+                                number: 1,
+                                tool: text(b"provision"),
+                                input: text(b"staging for one week"),
+                                outcome: Some(text(b"Price 40 exceeds chat budget 10")),
+                                failed: false,
+                                objects: list([ObjectKey::Proposal(p.key)]),
+                                parts: list([]),
+                            })]),
+                        }]),
+                        used: Usage { input: 1, output: 1, cached: 0, cache_written: 0 },
+                        spent: 1,
+                        read_through: None,
+                        cut: false,
+                    }),
+                )]),
             }),
             jig_client_scripted_engine::Change::Object {
                 project: 1,

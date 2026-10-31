@@ -1,8 +1,4 @@
-#![expect(
-    clippy::disallowed_methods,
-    clippy::disallowed_types,
-    reason = "ordinary tests inspect complete typed cards and loaded language data"
-)]
+#![expect(clippy::disallowed_methods, reason = "ordinary tests inspect complete typed cards and loaded language data")]
 use crate::JigBindings;
 use crate::state::objects::{Object, question::facts};
 use crate::tests::fixtures::Fixture;
@@ -14,7 +10,7 @@ use crate::words::Words;
 use crate::words::phrases::english;
 use crate::words::phrases::jig::{JigPhrase, shapes};
 use jig_client::contract::*;
-use skein_lib::{Id, List, Wall, bytes::copy_of};
+use skein_lib::{Id, Wall, bytes::copy_of};
 use skein_ui::phrases::{HoleKind, PhraseLimits, Phrasebook, Segment, WallFormat};
 use skein_ui::{Builder, Tree};
 fn fixture(from: Option<OwnerRequester>) -> (Fixture, Id<Object>, Question) {
@@ -133,95 +129,6 @@ fn question_sender_selected_language_keeps_reordered_numeric_holes_whole_words_a
     }
     let (d, id, _) = fixture(None);
     assert!(!contains(&tree(&d, id, &w), b"/source"));
-}
-#[test]
-fn question_sender_maximum_card_has_finite_bounds_and_retains_independent_older_endings() {
-    let w = selected();
-    for ending in [
-        None,
-        Some(Ending::Done),
-        Some(Ending::Failed { reason: Some(text(b"old failure")) }),
-        Some(Ending::Cancelled {
-            by: Actor::Party(u64::MAX),
-            reason: Some(text(b"old cancellation")),
-            at: Some(Wall::from_nanos(u64::MAX)),
-        }),
-    ] {
-        let mut value = question();
-        value.from = Some(OwnerRequester::Deployment { project: u32::MAX });
-        value.words = DocumentText::complete(text(UTF8_TEXTS[1]));
-        value.task.title = DocumentText::complete(text(UTF8_TEXTS[2]));
-        let mut dependencies = List::with_capacity(CLIENT.rows);
-        for number in [0, u64::MAX] {
-            dependencies.push(number).unwrap();
-        }
-        value.task.phase = Phase::Waiting;
-        *value.task.details = ChipPhase::Waiting { dependencies, hold: None };
-        value.ending = ending;
-        let (d, id) = loaded(
-            ObjectKey::Question { task: value.task.task, message: value.message },
-            ReadValue::Question(Box::new(value.clone())),
-        );
-        let mut limits = crate::sizes::limits::of_words(&CLIENT, &w).unwrap();
-        limits.nodes = crate::question_nodes(&CLIENT).unwrap();
-        let mut b = Builder::new(&limits);
-        let mut bindings = JigBindings::new(limits.bindings, CLIENT.text);
-        assert!(crate::tree::cards::question::question(
-            &mut b,
-            &d.view(),
-            id,
-            &crate::tree::cards::Place::Elsewhere,
-            &w,
-            &mut bindings
-        ));
-        let shown = b.finish();
-        assert!(shown.len() <= limits.nodes);
-        let mut total = 0_u64;
-        for node in shown.nodes() {
-            assert!(crate::tests::text_bytes(node) <= limits.text_per_node);
-            total = total.checked_add(u64::from(crate::tests::text_bytes(node))).unwrap();
-        }
-        assert!(total <= u64::from(limits.text_bytes));
-        assert!(contains(&shown, b"4294967295 deployment/source"));
-        assert!(contains(&shown, value.words.bytes()));
-        assert!(contains(&shown, value.task.title.bytes.bytes()));
-        assert_eq!(facts(&d.objects().get(id).unwrap()), Some(&value));
-        let mut older = value.clone();
-        older.from = None;
-        let (baseline, object) = loaded(
-            ObjectKey::Question { task: older.task.task, message: older.message },
-            ReadValue::Question(Box::new(older)),
-        );
-        let old = tree(&baseline, object, &w);
-        let buttons = |t: &Tree| {
-            t.nodes()
-                .iter()
-                .filter(|node| node.role == skein_ui::Role::Button)
-                .map(|node| node.name.clone())
-                .collect::<Vec<_>>()
-        };
-        assert_eq!(buttons(&shown), buttons(&old), "sender never changes independently supplied ending/act controls");
-        if let Some(ending) = &value.ending {
-            let mut ending_builder = Builder::new(&crate::sizes::limits::of_words(&CLIENT, &w).unwrap());
-            w.ending(&mut ending_builder, ending);
-            for node in ending_builder.finish().nodes() {
-                for run in &node.text {
-                    assert!(contains(&shown, &run.text));
-                }
-            }
-        }
-    }
-    for phrase in [JigPhrase::QuestionFromTask, JigPhrase::QuestionFromPerson, JigPhrase::QuestionFromDeployment] {
-        assert_eq!(
-            phrase.shape(CLIENT.text).holes.as_ref(),
-            &[skein_ui::phrases::HoleShape { kind: HoleKind::Number, bytes: 0 }]
-        );
-        assert!(
-            w.say(phrase, &[skein_ui::phrases::Hole::Number(u64::MAX)]).len()
-                <= usize::try_from(w.book().capacity(phrase.id()).unwrap()).unwrap()
-        );
-    }
-    assert!(crate::question_nodes(&crate::Limits { rows: u32::MAX, ..CLIENT }).is_none());
 }
 
 const UTF8_TEXTS: [&[u8]; 3] = [b"w~\0^?", &[b'x'; 128], &[b't'; 128]];

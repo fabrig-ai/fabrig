@@ -162,22 +162,6 @@ fn native_effect_registration_refuses_other_kinds_and_paths_and_preserves_the_se
         assert!(crate::tests::fixtures::parts(&output, LIMITS.parts).is_empty());
         exact(&domain, &value);
     }
-    let (mut domain, _) = objects::live();
-    let mut value = objects::proposal();
-    let maker_part = Part::Effect { connector: 2, proposal: ProposalKey { proposer: Proposer::Party(99), number: 17 } };
-    value.action = ProposalAction::Effect { part: maker_part.clone() };
-    let (read, _) = shown(&mut domain, value.key);
-    let output = drive(
-        &mut domain,
-        Time::ZERO,
-        ReadPage { read, result: ReadResult::Value(ReadValue::Proposal(Box::new(value.clone()))) },
-    );
-    assert_eq!(
-        crate::tests::fixtures::parts(&output, LIMITS.parts).as_ref(),
-        &[Request::ShowPart { part: maker_part, scope: PartScope::Project(1) }]
-    );
-    let object = domain.objects().get(domain.objects().find(ObjectKey::Proposal(value.key)).unwrap()).unwrap();
-    assert_eq!(object.body, Some(Body::Proposal(Box::new(value))));
 }
 
 #[test]

@@ -1,8 +1,7 @@
 //! One-terminal reads, bounded pages and opaque cursors; client/domain/contract.md, 6.
 //! A cursor is never decoded by the client. Live watches may overlap retained read pages.
 use super::{
-    ActivityLine, Bytes, Deployment, Escalation, HistoryRow, InboxEntry, InboxGroup, Me, Note, NoteScope, PersonTask,
-    Project, Proposal, ProposalKey, Question, Result, Task, Text,
+    ActivityLine, Bytes, HistoryRow, InboxGroup, Me, Note, NoteScope, ProposalKey, Question, Result, Task, Text,
 };
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -131,16 +130,6 @@ pub enum Read {
 
 /// A bounded page with opaque cursors at both ends.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ObjectPage {
-    /// The source page is incomplete, independent of row loss and continuations.
-    pub cut: bool,
-    pub rows: List<Result>,
-    pub before: Option<Cursor>,
-    pub after: Option<Cursor>,
-}
-
-/// A bounded page with opaque cursors at both ends.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ActivityPage {
     /// The source page is incomplete, independent of row loss and continuations.
     pub cut: bool,
@@ -155,16 +144,6 @@ pub struct HistoryPage {
     /// The source page is incomplete, independent of row loss and continuations.
     pub cut: bool,
     pub rows: List<HistoryRow>,
-    pub before: Option<Cursor>,
-    pub after: Option<Cursor>,
-}
-
-/// A bounded page with opaque cursors at both ends.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct InboxPage {
-    /// The source page is incomplete, independent of row loss and continuations.
-    pub cut: bool,
-    pub rows: List<InboxEntry>,
     pub before: Option<Cursor>,
     pub after: Option<Cursor>,
 }
@@ -198,44 +177,28 @@ pub enum ReadValue {
     Turn(Box<super::ArchivedTurn>),
     /// A task.
     Task(Box<Task>),
-    /// A proposal.
-    Proposal(Box<Proposal>),
     /// Whole supplied pending owner proposal.
     OwnerProposal(Box<super::OwnerProposal>),
-    /// An escalation.
-    Escalation(Box<Escalation>),
     /// A task owner’s whole escalation document.
     OwnerEscalation(Box<super::OwnerEscalation>),
     /// A question.
     Question(Box<Question>),
-    /// A person task.
-    PersonTask(Box<PersonTask>),
     /// Pending person work with owner contract and optional shown results.
     OwnerPersonTask(Box<super::OwnerPersonTask>),
     /// A result.
     Result(Box<Result>),
-    /// Ended delegate results.
-    Ended(Box<ObjectPage>),
     /// Retained delegate endings without synthetic result details.
     OwnerEnded(Box<super::OwnerEndedPage>),
     /// History lines.
     History(Box<HistoryPage>),
     /// Committed activity.
     Activity(Box<ActivityPage>),
-    /// Inbox entries.
-    Inbox(Box<InboxPage>),
     /// Exact owner Inbox rows selected under the original query.
     OwnerInbox(Box<super::OwnerInboxPage>),
-    /// Project spend periods.
-    Spend(Box<SpendPage>),
     /// Retained whole funding records without inferred ledger facts.
     OwnerSpend(Box<super::OwnerSpendPage>),
-    /// A project.
-    Project(Box<Project>),
     /// Notes.
     Notes(Box<NotePage>),
-    /// Deployment state.
-    Deployment(Box<Deployment>),
     /// Whole deployment-owned facts and diagnostics.
     OwnerDeployment(Box<super::OwnerDeployment>),
 }
@@ -270,14 +233,4 @@ pub enum ReadResult {
     Value(ReadValue),
     /// Why no value came.
     None(ReadNone),
-}
-
-/// Bounded past spend periods with opaque page ends.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct SpendPage {
-    /// The source page is incomplete, independent of row loss and continuations.
-    pub cut: bool,
-    pub rows: List<super::SpendPeriod>,
-    pub before: Option<Cursor>,
-    pub after: Option<Cursor>,
 }

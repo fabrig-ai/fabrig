@@ -148,7 +148,6 @@ fn owner_project_original_read_checks_full_identity_before_terminal_and_ignores_
         let token = domain.read_again(token);
         install(&mut domain, token, value.clone());
         assert_eq!(domain.project_page().owner.as_deref(), Some(&value));
-        assert!(domain.project_page().document.is_none());
         let mut duplicate = value.clone();
         duplicate.policy.period_spend = 0;
         install_late(&mut domain, token, duplicate.clone());
@@ -200,7 +199,11 @@ fn owner_project_whole_role_review_keeps_raw_flags_authority_and_other_edited_ch
     assert_eq!(**ask, chosen);
     let request = *request;
     assert!(drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm }).is_empty());
-    drive(&mut domain, Time::ZERO, AnsweredByEngine { request, answer: Answer::Done(Outcome::Changed) });
+    drive(
+        &mut domain,
+        Time::ZERO,
+        AnsweredByEngine { request, answer: Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })) },
+    );
     assert!(domain.project_page().settings.pending.is_none());
     assert_eq!(domain.project_page().owner.as_deref(), Some(&value));
 }
@@ -379,7 +382,12 @@ fn owner_project_settings_unknown_retires_only_matching_pending_and_late_answer_
     }));
     assert!(drive(&mut domain, Time::ZERO, Reported { request, progress: Progress::Unknown }).is_empty());
     assert!(
-        drive(&mut domain, Time::ZERO, AnsweredByEngine { request, answer: Answer::Done(Outcome::Changed) }).is_empty()
+        drive(
+            &mut domain,
+            Time::ZERO,
+            AnsweredByEngine { request, answer: Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })) }
+        )
+        .is_empty()
     );
     assert!(drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm }).is_empty());
     let after: Vec<_> =

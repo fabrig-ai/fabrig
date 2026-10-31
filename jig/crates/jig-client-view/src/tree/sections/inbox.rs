@@ -14,7 +14,7 @@ use crate::{
     },
 };
 use jig_client::contract::{
-    InboxDocument, InboxGroup, InboxReadGroup, InboxRow, OwnerInboxEntry, OwnerInboxObject, Proposer, Recipient,
+    InboxDocument, InboxGroup, InboxReadGroup, InboxRow, OwnerInboxEntry, OwnerInboxObject, Proposer,
 };
 /// The inbox's filters and counts while either group is shown.
 pub fn header(b: &mut Builder, client: &Borrowed<'_>, words: &Words, bindings: &mut JigBindings) -> bool {
@@ -33,7 +33,7 @@ pub fn header(b: &mut Builder, client: &Borrowed<'_>, words: &Words, bindings: &
     let page = client.inbox();
     let (count, updates) = match &page.document {
         Some(InboxDocument::Owner(value)) => (u64::from(value.cached_needs), value.cached_updates),
-        Some(InboxDocument::Entry(_)) | None => {
+        None => {
             let count = u64::from(page.needs.questions)
                 .checked_add(u64::from(page.needs.proposals))
                 .expect("inbox count fits")
@@ -78,7 +78,6 @@ pub(crate) fn group(
         if needs(entry.group()) == group {
             b.open(Role::Item);
             match entry {
-                InboxRow::Entry(entry) => supplied_entry(b, client, words, bindings, entry, group),
                 InboxRow::Owner(entry) => owner_entry(b, client, words, bindings, entry, group),
             }
             b.close();
@@ -210,47 +209,6 @@ fn filters(b: &mut Builder, client: &Borrowed<'_>, words: &Words, bindings: &mut
     }
 }
 
-fn unread(entry: &jig_client::contract::InboxEntry, results_seen: u64) -> bool {
-    match entry.group {
-        InboxGroup::Results => entry.position > results_seen,
-        InboxGroup::Replies => match &entry.reply {
-            Some(line) => match line.conversation {
-                Some(conversation) => conversation.unread.value > 0,
-                None => false,
-            },
-            None => false,
-        },
-        InboxGroup::Questions | InboxGroup::Proposals | InboxGroup::Escalations | InboxGroup::PersonTasks => false,
-    }
-}
-
-fn supplied_entry(
-    b: &mut Builder,
-    client: &Borrowed<'_>,
-    words: &Words,
-    bindings: &mut JigBindings,
-    entry: &jig_client::contract::InboxEntry,
-    group: bool,
-) {
-    b.key(crate::tree::pages::object_key(entry.object));
-    if group {
-        words.waiting(b, client.wall(), entry.at);
-    } else if unread(entry, client.inbox().results_seen) {
-        words.text(b, JigPhrase::NewUpdate, &[]);
-    }
-    if let Some(at) = entry.stall {
-        words.text(b, JigPhrase::PassesUp, &[Hole::Wall(words.adjusted_wall(at))]);
-    }
-    match entry.recipient {
-        Some(Recipient::Role { .. } | Recipient::Roles { .. }) => words.text(b, JigPhrase::OnCall, &[]),
-        Some(Recipient::Party(_) | Recipient::Task(_)) | None => {}
-    }
-    if let Some(id) = client.objects().find(entry.object)
-        && !client.owes(id)
-    {
-        cards::card(b, client, id, &cards::Place::Inbox { lineage: entry.lineage.clone() }, words, bindings);
-    }
-}
 fn owner_text(b: &mut Builder, words: &Words, phrase: crate::words::inbox_words::InboxPhrase, holes: &[Hole]) {
     let saying =
         words.book().say(words.language(), phrase.id(), holes).expect("whole Inbox words and typed holes checked");

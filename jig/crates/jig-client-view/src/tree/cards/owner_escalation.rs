@@ -31,11 +31,8 @@ pub fn card(
             Body::Historical(_)
             | Body::Chip(_)
             | Body::Task(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
-            | Body::Escalation(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },

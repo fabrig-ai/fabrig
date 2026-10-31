@@ -306,7 +306,7 @@ fn live_updates_do_not_replace_an_older_closed_page() {
 
 pub(super) fn chat_line() -> TaskLine {
     let task = fixtures::chat::task();
-    let ChipPhase::Owner { details, .. } = task.chip.details.as_ref() else { panic!("owner") };
+    let ChipPhase { details, .. } = task.chip.details.as_ref();
     let budget = details.budget.clone();
     TaskLine {
         chip: task.chip,

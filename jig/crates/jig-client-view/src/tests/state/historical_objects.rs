@@ -299,88 +299,7 @@ fn step(domain: &mut Fixture, l: &crate::Limits, event: impl crate::tests::fixtu
     domain.ui.limits = *l;
     domain.drive(skein_lib::Time::ZERO, event).into_vec()
 }
-fn presence(mask: u8) {
-    use crate::{Event, Request};
-    let l = crate::Limits { objects: 4, reads: 8, ..CLIENT };
-    let mut domain = presence_domain(&l);
-    let proposal_key = ProposalKey { proposer: Proposer::Task(9), number: 7 };
-    let mut keys = List::with_capacity(4);
-    keys.push(ObjectKey::Task(8)).unwrap();
-    if mask & 1 != 0 {
-        keys.push(ObjectKey::Result(9)).unwrap();
-    }
-    if mask & 2 != 0 {
-        keys.push(ObjectKey::PersonTask(8)).unwrap();
-    }
-    if mask & 4 != 0 {
-        keys.push(ObjectKey::Proposal(proposal_key)).unwrap();
-    }
-    let reads = step(&mut domain, &l, Event::Named { sections: List::with_capacity(0), objects: keys });
-    let mut task_read = None;
-    for request in reads {
-        let Request::Client { asked: jig_client::Event::Read { handle: read, read: jig_client::Readable::Jig(what) } } =
-            request
-        else {
-            continue;
-        };
-        let value = match what {
-            Read::Task { task: 8 } => {
-                task_read = Some(read);
-                continue;
-            }
-            Read::Result { task: 9 } => {
-                let mut value = result();
-                value.task.task = 9;
-                value.value = Some(ResultValue::Verdict {
-                    verdict: 1,
-                    words: DocumentText::complete(text(b"whole kept verdict")),
-                    fields: List::with_capacity(0),
-                    tasks: List::with_capacity(0),
-                    proposal: Some(proposal_key),
-                });
-                ReadValue::Result(Box::new(value))
-            }
-            Read::PersonTask { task: 8 } => {
-                let t = task();
-                ReadValue::OwnerPersonTask(Box::new(OwnerPersonTask {
-                    task: t.chip,
-                    revision: t.spec_revision,
-                    requester: t.requester,
-                    spec: t.spec,
-                    address: PersonAddress::Party(1),
-                    taken_by: None,
-                    since: None,
-                    stall: None,
-                    deadline: None,
-                    contract: t.result_contract,
-                    results: List::with_capacity(0),
-                    cut: false,
-                    acts: List::with_capacity(0),
-                }))
-            }
-            Read::Proposal { proposal } => {
-                let authority = crate::tests::tree::cards_objects::authority();
-                ReadValue::Proposal(Box::new(Proposal {
-                    key: proposal,
-                    project: 4,
-                    proposer: proposal.proposer,
-                    why: text(b"whole kept proposal"),
-                    action: ProposalAction::Widen { before: authority.clone(), after: authority.clone() },
-                    needs: authority,
-                    funding: Budget { total: 1, own: 0, ended: 0, reserved: 0, left: 1, funder: Actor::Task(9) },
-                    waiting: Recipient::Party(1),
-                    trail: List::with_capacity(0),
-                    since: Wall::EPOCH,
-                    acts: List::with_capacity(0),
-                    ending: None,
-                }))
-            }
-            _ => continue,
-        };
-        step(&mut domain, &l, ReadPage { read, result: ReadResult::Value(value) });
-    }
-    presence_finish(&mut domain, &l, task_read.unwrap(), mask);
-}
+
 fn presence_finish(domain: &mut Fixture, l: &crate::Limits, task_read: jig_client::Handle, mask: u8) {
     let mut doc = task();
     doc.inputs = List::with_capacity(l.rows);
@@ -429,38 +348,7 @@ fn presence_finish(domain: &mut Fixture, l: &crate::Limits, task_read: jig_clien
     );
     assert!(tree.nodes().iter().all(|node| node.role != Role::Button));
 }
-#[test]
-fn historical_task_absent_result_person_and_proposal_keeps_loading_within_whole_bound() {
-    presence(0);
-}
-#[test]
-fn historical_task_result_presence_keeps_repeated_whole_inputs_within_bound() {
-    presence(1);
-}
-#[test]
-fn historical_task_person_presence_keeps_whole_supplied_person_within_bound() {
-    presence(2);
-}
-#[test]
-fn historical_task_result_and_person_presence_keeps_both_whole_sources_within_bound() {
-    presence(3);
-}
-#[test]
-fn historical_task_proposal_presence_keeps_supplied_kept_projection_within_bound() {
-    presence(4);
-}
-#[test]
-fn historical_task_result_and_proposal_presence_keeps_original_verdict_key_projection_within_bound() {
-    presence(5);
-}
-#[test]
-fn historical_task_person_and_proposal_presence_keeps_independent_sources_within_bound() {
-    presence(6);
-}
-#[test]
-fn historical_task_all_three_supplied_presences_keep_repetition_and_whole_sources_within_bound() {
-    presence(7);
-}
+
 #[test]
 fn historical_selected_language_uses_checked_native_captions_and_preserves_opaque_goal_values() {
     use skein_ui::phrases::{PhraseLimits, Phrasebook, Segment};
@@ -541,4 +429,114 @@ fn presence_domain(l: &crate::Limits) -> Fixture {
         Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(crate::tests::tree::cards::document()))) },
     );
     domain
+}
+
+fn presence(mask: u8) {
+    use crate::{Event, Request};
+    let l = crate::Limits { objects: 4, reads: 8, ..CLIENT };
+    let mut domain = presence_domain(&l);
+    let proposal_key = ProposalKey { proposer: Proposer::Task(9), number: 7 };
+    let mut keys = List::with_capacity(4);
+    keys.push(ObjectKey::Task(8)).unwrap();
+    if mask & 1 != 0 {
+        keys.push(ObjectKey::Result(9)).unwrap();
+    }
+    if mask & 2 != 0 {
+        keys.push(ObjectKey::PersonTask(8)).unwrap();
+    }
+    if mask & 4 != 0 {
+        keys.push(ObjectKey::Proposal(proposal_key)).unwrap();
+    }
+    let reads = step(&mut domain, &l, Event::Named { sections: List::with_capacity(0), objects: keys });
+    let mut task_read = None;
+    for request in reads {
+        let Request::Client { asked: jig_client::Event::Read { handle: read, read: jig_client::Readable::Jig(what) } } =
+            request
+        else {
+            continue;
+        };
+        let value = match what {
+            Read::Task { task: 8 } => {
+                task_read = Some(read);
+                continue;
+            }
+            Read::Result { task: 9 } => {
+                let mut value = result();
+                value.task.task = 9;
+                value.value = Some(ResultValue::Verdict {
+                    verdict: 1,
+                    words: DocumentText::complete(text(b"whole kept verdict")),
+                    fields: List::with_capacity(0),
+                    tasks: List::with_capacity(0),
+                    proposal: Some(proposal_key),
+                });
+                ReadValue::Result(Box::new(value))
+            }
+            Read::PersonTask { task: 8 } => {
+                let t = task();
+                ReadValue::OwnerPersonTask(Box::new(OwnerPersonTask {
+                    task: t.chip,
+                    revision: t.spec_revision,
+                    requester: t.requester,
+                    spec: t.spec,
+                    address: PersonAddress::Party(1),
+                    taken_by: None,
+                    since: None,
+                    stall: None,
+                    deadline: None,
+                    contract: t.result_contract,
+                    results: List::with_capacity(0),
+                    cut: false,
+                    acts: List::with_capacity(0),
+                }))
+            }
+            Read::Proposal { proposal } => ReadValue::OwnerProposal(Box::new(crate::tests::fixtures::proposal(
+                proposal,
+                text(b"whole kept proposal"),
+            ))),
+            _ => continue,
+        };
+        step(&mut domain, &l, ReadPage { read, result: ReadResult::Value(value) });
+    }
+    presence_finish(&mut domain, &l, task_read.unwrap(), mask);
+}
+
+#[test]
+fn historical_task_absent_result_person_and_proposal_keeps_loading_within_whole_bound() {
+    presence(0);
+}
+
+#[test]
+fn historical_task_result_presence_keeps_repeated_whole_inputs_within_bound() {
+    presence(1);
+}
+
+#[test]
+fn historical_task_person_presence_keeps_whole_supplied_person_within_bound() {
+    presence(2);
+}
+
+#[test]
+fn historical_task_result_and_person_presence_keeps_both_whole_sources_within_bound() {
+    presence(3);
+}
+
+#[test]
+fn historical_task_proposal_presence_keeps_supplied_kept_projection_within_bound() {
+    presence(4);
+}
+
+#[test]
+fn historical_task_result_and_proposal_presence_keeps_original_verdict_key_projection_within_bound() {
+    presence(5);
+}
+
+#[test]
+fn historical_task_person_and_proposal_presence_keeps_independent_sources_within_bound() {
+    presence(6);
+}
+
+#[test]
+fn historical_task_all_three_supplied_presences_keep_repetition_and_whole_sources_within_bound() {
+    presence(7);
 }

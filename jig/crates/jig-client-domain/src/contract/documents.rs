@@ -3,12 +3,11 @@
 //! List capacities and Text byte bounds are validated by the protocol before entry;
 //! the working set keeps only what its own configured limits admit.
 use super::{
-    Actor, Amendment, Authority, Count, Decision, DocumentText, Ending, Executor, Holding, Lacking, NoteScope,
-    ObjectKey, Part, Party, Phase, Policy, ProposalKey, Proposer, Refusal, Revision, TaskLine, Text, TurnName,
-    TurnRead, WakePolicy,
+    Actor, DocumentText, Ending, Executor, NoteScope, Part, Party, Phase, ProposalKey, Refusal, Revision, TaskLine,
+    Text, TurnName, TurnRead,
 };
 use alloc::boxed::Box;
-use skein_lib::{Duration, List, Wall};
+use skein_lib::{List, Wall};
 /// Exact counts of work needing this party.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Needs {
@@ -16,17 +15,6 @@ pub struct Needs {
     pub proposals: u32,
     pub escalations: u32,
     pub person_tasks: u32,
-}
-
-/// Funding and spend, in the engine amounts.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Budget {
-    pub total: u64,
-    pub own: u64,
-    pub ended: u64,
-    pub reserved: u64,
-    pub left: u64,
-    pub funder: Actor,
 }
 
 /// A named task wherever a page mentions it.
@@ -40,60 +28,11 @@ pub struct Chip {
     pub details: Box<ChipPhase>,
 }
 
-/// Phase facts at every chip, without nesting chips or task documents.
-/// Dependency numbers name other live chips in the bounded working set.
-/// See client/domain/objects.md, 3, and contract.md, 5.1.
+/// Exact producer phase with its mandatory owner metadata.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum ChipPhase {
-    /// Exact producer phase with its mandatory whole owner metadata.
-    Owner {
-        phase: super::OwnerChipPhase,
-        details: Box<super::OwnerChipDetails>,
-    },
-    Active(super::ActiveRun),
-    Waiting {
-        dependencies: List<u64>,
-        hold: Option<Part>,
-    },
-    Idle {
-        wake: WakePolicy,
-    },
-    Starting,
-    Running {
-        attempt: u64,
-        since: Wall,
-        tool: Option<Text>,
-    },
-    WaitingForWords {
-        attempt: u64,
-        since: Wall,
-    },
-    BackingOff {
-        at: Wall,
-        attempt: u64,
-        tries: u32,
-        class: FailureClass,
-        reason: Text,
-    },
-    Procedure {
-        panel: Part,
-    },
-    Person {
-        addressed: Recipient,
-        taken: Option<TakenBy>,
-        since: Option<Wall>,
-    },
-    Closing(Closing),
-    Held {
-        reason: HoldReason,
-        since: Wall,
-        revision: Revision,
-        was: Option<super::HeldRuntime>,
-    },
-    Ended {
-        how: Ending,
-        at: Wall,
-    },
+pub struct ChipPhase {
+    pub phase: super::OwnerChipPhase,
+    pub details: Box<super::OwnerChipDetails>,
 }
 
 /// The settings revisions an agent task's runs read their charter from
@@ -143,10 +82,10 @@ pub struct Task {
     pub references: List<super::OwnerTaskLink>,
     /// At least one task list was omitted; this does not identify which list.
     pub cut: bool,
-    pub resources: List<super::TaskResource>,
+    pub resources: List<super::OwnerResourceLine>,
     pub budget: super::OwnerBudget,
     pub authority: super::OwnerAuthorityDocument,
-    pub hold: Option<super::TaskHold>,
+    pub hold: Option<Box<super::OwnerChipHold>>,
     pub proposals: List<ProposalKey>,
     pub activity: u64,
     pub changed: Wall,
@@ -162,10 +101,9 @@ pub struct Task {
 }
 
 /// Whole separately supplied task context (client/domain/contract.md, 5.1).
-/// Absence supplies no runtime, impact, spend, panel, slot or escalation facts.
+/// Absence supplies no runtime, impact, spend, panel or writer-slot facts.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TaskContext {
-    pub escalation: Option<Escalation>,
     pub parts: List<Part>,
     pub closing: Option<Closing>,
     pub spend: List<SpendLine>,
@@ -377,79 +315,6 @@ pub enum FailureClass {
     Stall,
 }
 
-/// A held task escalation and the hold it names.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Escalation {
-    /// Its committed terminal decision when read after leaving the inbox.
-    pub ending: Option<Ending>,
-    pub task: Chip,
-    pub hold: Hold,
-    /// Bounded specification facts for amend-and-release from this card.
-    pub steering: Box<Steering>,
-    /// Whole cancellation impact, refreshed without changing the hold revision.
-    pub impact: Impact,
-    pub waiting: Recipient,
-    pub trail: List<Passed>,
-    pub acts: List<Offered>,
-}
-
-/// Bounded before facts for a task amendment, without nesting a task document.
-/// The escalation and its held task name the same independent specification revision.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Steering {
-    pub addressed: Option<Recipient>,
-    /// Absent when retained owner facts do not supply the independent revision.
-    pub person_revision: Option<Revision>,
-    pub taken_by: Option<u64>,
-    pub revision: Revision,
-    pub spec: super::SpecificationDocument,
-    /// Supplied context only; absent retained text is not a current default.
-    pub instructions: Option<DocumentText>,
-    pub wake: super::OwnerWakePolicy,
-    pub dependencies: List<u64>,
-    pub authority: super::OwnerAuthorityDocument,
-    pub budget: Budget,
-}
-
-/// A holder an object passed and why.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Passed {
-    pub by: Actor,
-    pub at: Wall,
-    pub reason: Text,
-    pub lacking: Option<Lacking>,
-}
-
-/// An immutable proposal and its current waiting recipient.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Proposal {
-    pub key: ProposalKey,
-    pub project: u32,
-    pub proposer: Proposer,
-    pub why: Text,
-    pub action: ProposalAction,
-    pub needs: Authority,
-    pub funding: Budget,
-    pub waiting: Recipient,
-    pub trail: List<Passed>,
-    pub since: Wall,
-    pub acts: List<Offered>,
-    pub ending: Option<Ending>,
-}
-
-/// What acceptance would make or change.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum ProposalAction {
-    /// A bounded batch, optionally made the accepter's.
-    Batch { tasks: List<ProposedTask>, own: bool },
-    /// A connector effect.
-    Effect { part: Part },
-    /// Wider authority.
-    Widen { before: Authority, after: Authority },
-    /// An amendment beyond the amender authority.
-    Amend { task: u64, before: Text, change: Amendment },
-}
-
 /// One task in a proposal batch.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ProposedTask {
@@ -485,24 +350,6 @@ pub struct Question {
 pub struct TakenBy {
     pub number: u64,
     pub name: Option<Text>,
-}
-
-/// A person-task document with its own revision and exact taker identity.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct PersonTask {
-    pub task: Chip,
-    pub revision: Revision,
-    pub requester: Actor,
-    pub spec: super::SpecificationDocument,
-    pub contract: PersonContract,
-    pub inputs: List<Result>,
-    pub addressed: Recipient,
-    pub taken: Option<TakenBy>,
-    pub since: Option<Wall>,
-    pub stall: Option<Duration>,
-    pub deadline: Option<Wall>,
-    pub acts: List<Offered>,
-    pub ending: Option<Ending>,
 }
 
 /// What a person task answer must say.
@@ -614,27 +461,6 @@ pub struct PhaseCounts {
     pub cancelled: u32,
 }
 
-/// One visible task and what is folded beneath it.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TreeNode {
-    pub chip: Chip,
-    pub parent: Option<u64>,
-    pub dependencies: List<u64>,
-    pub proposals: List<ProposalKey>,
-    pub spend: u64,
-    pub folded: PhaseCounts,
-    pub held_below: u32,
-}
-
-/// A live subtree within its watch window.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Tree {
-    pub task: u64,
-    pub nodes: List<TreeNode>,
-    pub folded: PhaseCounts,
-    pub held_below: u32,
-}
-
 /// A group of inbox entries.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum InboxGroup {
@@ -652,64 +478,11 @@ pub enum InboxGroup {
     Replies,
 }
 
-/// An entry names an object, project and read position.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct InboxEntry {
-    /// Whole committed chat facts for a reply entry; absent for other groups.
-    pub reply: Option<Box<TaskLine>>,
-    pub lineage: List<Chip>,
-    pub goal: Option<u64>,
-    pub recipient: Option<Recipient>,
-    pub stall: Option<Wall>,
-    pub object: ObjectKey,
-    pub project: u32,
-    pub group: InboxGroup,
-    pub position: u64,
-    pub at: Wall,
-}
-
-/// The bounded inbox across projects and its counts.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Inbox {
-    pub entries: List<InboxEntry>,
-    pub needs: Needs,
-    pub updates: Count,
-    pub results_seen: u64,
-    pub replies_seen: List<ReadPosition>,
-    pub more: bool,
-}
-
 /// The read position for one conversation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ReadPosition {
     pub task: u64,
     pub through: u64,
-}
-
-/// A project, its policy, roles, spend and parts.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Project {
-    pub period: u64,
-    pub spend_lines: List<TaskSpend>,
-    pub number: u32,
-    pub name: Text,
-    pub policy: Policy,
-    pub roles: List<Holding>,
-    pub spend: Budget,
-    pub pools: List<Pool>,
-    pub resources: List<Part>,
-    pub services: List<Party>,
-    pub recurring: List<Recurring>,
-    pub parts: List<Part>,
-    pub acts: List<Offered>,
-}
-
-/// A party pool in the current period.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Pool {
-    pub party: u64,
-    pub period: u64,
-    pub budget: Budget,
 }
 
 /// Whole recurring template and retained period facts (pages.md, section 6).
@@ -757,102 +530,13 @@ pub struct Note {
     pub cut: bool,
 }
 
-/// Hosts, accounts and deployment capacity.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Deployment {
-    pub hosts: List<Host>,
-    pub accounts: List<Account>,
-    pub capacity: List<Capacity>,
-    pub proposals: u32,
-    pub refusals: List<Refusal>,
-    pub parts: List<Part>,
-}
-
-/// Host connectivity, grace and run slots.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Host {
-    pub number: u64,
-    pub connected: bool,
-    pub grace: Option<Wall>,
-    pub used: u32,
-    pub free: u32,
-    pub runs: List<Chip>,
-    pub refused: Option<Text>,
-}
-
-/// An LLM account availability and the work using it.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Account {
-    pub number: u32,
-    pub usable: bool,
-    pub reason: Option<Text>,
-    pub runs: List<Chip>,
-    pub waiting: List<Chip>,
-}
-
-/// Live task admission by project or deployment.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Capacity {
-    pub project: Option<u32>,
-    pub live: u32,
-    pub limit: u32,
-}
-
-/// One durable history change in commit order.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct HistoryLine {
-    pub position: u64,
-    pub task: u64,
-    pub by: Actor,
-    pub at: Wall,
-    pub change: HistoryChange,
-}
-
-/// The change one history line describes.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum HistoryChange {
-    /// Made in a batch.
-    Made { batch: u64 },
-    /// Specification changed.
-    Amended { before: Text, after: Text },
-    /// Held with its cause.
-    Held(Box<Hold>),
-    /// A hold lifted.
-    Released,
-    /// Cancelled with a reason.
-    Cancelled { reason: Text },
-    /// Requester changed.
-    Moved { from: Actor, to: Actor, reason: Text },
-}
-
-/// One activity item in the order the engine committed it.
+/// Whole activity source and its optional decoded committed turn.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ActivityLine {
-    pub position: u64,
-    pub at: Wall,
-    pub event: Activity,
+    pub source: Box<super::OwnerActivityLine>,
+    pub decoded: Option<ArchivedTurn>,
 }
 
-/// A task activity event, turns decoded below this domain.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Activity {
-    /// Whole owner activity; its page carries the turn without a separate fetch.
-    Owner { source: Box<super::OwnerActivityLine>, decoded: Option<ArchivedTurn> },
-    /// Words as the party wrote them.
-    Words { by: Party, message: u64, words: Text },
-    /// A run began.
-    RunBegan { attempt: u64, how: RunBeginning, why: Text },
-    /// A run ended.
-    RunEnded { attempt: u64, how: RunEnding, spent: u64 },
-    /// A committed turn, read or undecodable.
-    Turn { name: TurnName, turn: TurnRead },
-    /// A result heard.
-    Result { result: Result },
-    /// News heard.
-    News { topic: u16, summary: Text, part: Option<Part> },
-    /// A recorded decision.
-    Decision { object: ObjectKey, by: Actor, how: Decision },
-}
 /// Archived metadata and turn, carried by activity or fetched as one complete read.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ArchivedTurn {
@@ -863,116 +547,57 @@ pub struct ArchivedTurn {
     pub at: Wall,
     pub turn: TurnRead,
 }
-impl Activity {
+impl ActivityLine {
     /// A committed archive identity, independent of whether its bytes are available.
     #[must_use]
     pub fn committed_turn(&self) -> Option<TurnName> {
-        match self {
-            Self::Turn { name, .. } => Some(*name),
-            Self::Owner { source, .. } => match source.line {
-                super::OwnerActivity::Turn { attempt, turn, .. } => Some(TurnName { attempt, number: turn }),
-                super::OwnerActivity::Words { .. }
-                | super::OwnerActivity::Heard(_)
-                | super::OwnerActivity::Notified { .. }
-                | super::OwnerActivity::RunBegan { .. }
-                | super::OwnerActivity::RunEnded { .. }
-                | super::OwnerActivity::Decided { .. }
-                | super::OwnerActivity::Kept { .. }
-                | super::OwnerActivity::Milestone { .. } => None,
-            },
-            Self::Words { .. }
-            | Self::RunBegan { .. }
-            | Self::RunEnded { .. }
-            | Self::Result { .. }
-            | Self::News { .. }
-            | Self::Decision { .. } => None,
+        match self.source.line {
+            super::OwnerActivity::Turn { attempt, turn, .. } => Some(TurnName { attempt, number: turn }),
+            super::OwnerActivity::Words { .. }
+            | super::OwnerActivity::Heard(_)
+            | super::OwnerActivity::Notified { .. }
+            | super::OwnerActivity::RunBegan { .. }
+            | super::OwnerActivity::RunEnded { .. }
+            | super::OwnerActivity::Decided { .. }
+            | super::OwnerActivity::Kept { .. }
+            | super::OwnerActivity::Milestone { .. } => None,
         }
     }
-    /// Actual decoded content, paired with its supplied committed identity.
+    /// Decoded content paired with its supplied committed identity.
     #[must_use]
     pub fn decoded_turn(&self) -> Option<(TurnName, &super::Turn)> {
-        match self {
-            Self::Turn { name, turn } => Some((*name, turn.decoded()?)),
-            Self::Owner { decoded: Some(turn), .. } => Some((self.committed_turn()?, turn.turn.decoded()?)),
-            Self::Owner { decoded: None, .. }
-            | Self::Words { .. }
-            | Self::RunBegan { .. }
-            | Self::RunEnded { .. }
-            | Self::Result { .. }
-            | Self::News { .. }
-            | Self::Decision { .. } => None,
-        }
+        Some((self.committed_turn()?, self.decoded.as_ref()?.turn.decoded()?))
     }
     /// The immutable inbox message named by a words activity line.
     #[must_use]
     pub fn word_message(&self) -> Option<(u64, &Text)> {
-        match self {
-            Self::Words { message, words, .. } => Some((*message, words)),
-            Self::Owner { source, .. } => match &source.line {
-                super::OwnerActivity::Words { message, words, .. } => Some((*message, words)),
-                super::OwnerActivity::Heard(_)
-                | super::OwnerActivity::Notified { .. }
-                | super::OwnerActivity::RunBegan { .. }
-                | super::OwnerActivity::RunEnded { .. }
-                | super::OwnerActivity::Turn { .. }
-                | super::OwnerActivity::Decided { .. }
-                | super::OwnerActivity::Kept { .. }
-                | super::OwnerActivity::Milestone { .. } => None,
-            },
-            Self::Turn { .. }
-            | Self::RunBegan { .. }
-            | Self::RunEnded { .. }
-            | Self::Result { .. }
-            | Self::News { .. }
-            | Self::Decision { .. } => None,
+        match &self.source.line {
+            super::OwnerActivity::Words { message, words, .. } => Some((*message, words)),
+            super::OwnerActivity::Heard(_)
+            | super::OwnerActivity::Notified { .. }
+            | super::OwnerActivity::RunBegan { .. }
+            | super::OwnerActivity::RunEnded { .. }
+            | super::OwnerActivity::Turn { .. }
+            | super::OwnerActivity::Decided { .. }
+            | super::OwnerActivity::Kept { .. }
+            | super::OwnerActivity::Milestone { .. } => None,
         }
     }
     /// Supplied committed read-through; missing and zero remain distinct.
     #[must_use]
     pub fn read_position(&self) -> Option<u64> {
-        match self {
-            Self::Turn { turn, .. } => turn.decoded()?.read_through,
-            Self::Owner { source, .. } => match source.line {
-                super::OwnerActivity::Turn { read, .. } => read,
-                super::OwnerActivity::Words { .. }
-                | super::OwnerActivity::Heard(_)
-                | super::OwnerActivity::Notified { .. }
-                | super::OwnerActivity::RunBegan { .. }
-                | super::OwnerActivity::RunEnded { .. }
-                | super::OwnerActivity::Decided { .. }
-                | super::OwnerActivity::Kept { .. }
-                | super::OwnerActivity::Milestone { .. } => None,
-            },
-            Self::Words { .. }
-            | Self::RunBegan { .. }
-            | Self::RunEnded { .. }
-            | Self::Result { .. }
-            | Self::News { .. }
-            | Self::Decision { .. } => None,
+        match self.source.line {
+            super::OwnerActivity::Turn { read, .. } => read,
+            super::OwnerActivity::Words { .. }
+            | super::OwnerActivity::Heard(_)
+            | super::OwnerActivity::Notified { .. }
+            | super::OwnerActivity::RunBegan { .. }
+            | super::OwnerActivity::RunEnded { .. }
+            | super::OwnerActivity::Decided { .. }
+            | super::OwnerActivity::Kept { .. }
+            | super::OwnerActivity::Milestone { .. } => None,
         }
     }
-}
-
-/// How an agent run begins.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum RunBeginning {
-    /// Resumed its transcript.
-    Resumed,
-    /// Started from a brief with a conversation tail.
-    Fresh { tail: u32 },
-}
-
-/// How a run ended.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum RunEnding {
-    /// Parked for later.
-    Parked,
-    /// Finished its task.
-    Finished,
-    /// Cancelled.
-    Cancelled,
-    /// Failed with a class and reason.
-    Failed { class: FailureClass, reason: Text },
 }
 
 /// Facts about a task phase that a chip alone does not carry.
@@ -1032,18 +657,4 @@ pub struct LiveDelegate {
 pub struct Tasks {
     pub rows: List<TaskLine>,
     pub more: bool,
-}
-/// Spend attributed to one goal or chat, largest first.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TaskSpend {
-    pub chip: Chip,
-    pub spent: u64,
-}
-/// Whole current or historical project-period spend facts.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct SpendPeriod {
-    pub period: u64,
-    pub budget: Budget,
-    pub pools: List<Pool>,
-    pub tasks: List<TaskSpend>,
 }

@@ -6,12 +6,13 @@ use crate::tests::fixtures::Fixture;
 use crate::words::Words;
 use crate::words::{result_words, result_words::ResultPhrase};
 use crate::{JigBindings, tree::fragments::result as view};
+use jig_client::contract::{OwnerChipPhase, RunStage};
 use skein_ui::Limits;
 use skein_ui::phrases::{Invalid, Language, PhraseLimits, Phrasebook, Segment, WallFormat};
 use skein_ui::{Builder, Tree};
 
 use jig_client::contract::{
-    Chip, ChipPhase, Executor, OwnerExecutor, OwnerPart, OwnerPartKey, OwnerPartKind, OwnerRequester, OwnerTaskLink,
+    Chip, Executor, OwnerExecutor, OwnerPart, OwnerPartKey, OwnerPartKind, OwnerRequester, OwnerTaskLink,
     OwnerTaskStatus, PersonAddress, Phase, ProposalKey, Proposer, ResultDetails, TaskContractDocument, Text,
 };
 use skein_lib::{List, Wall, bytes::copy_of};
@@ -49,7 +50,7 @@ fn chip() -> Chip {
         title: jig_client::contract::DocumentText::complete(Text::new(copy_of(b"supplied title"), 128).unwrap()),
         executor: Executor::Agent { charter: u32::MAX },
         phase: Phase::Due,
-        details: Box::new(ChipPhase::Starting),
+        details: Box::new(crate::tests::fixtures::chip_phase(OwnerChipPhase::Active(RunStage::Preparing))),
     }
 }
 fn details() -> ResultDetails {

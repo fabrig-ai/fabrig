@@ -529,7 +529,7 @@ fn whole_linked_owner_carrier(w: &Words) {
     }
     details.resources_cut = true;
     let mut owner_chip = crate::tests::tree::cards_objects::task_doc(&[]).chip;
-    owner_chip.details = Box::new(ChipPhase::Owner { phase: OwnerChipPhase::Ended, details: Box::new(details) });
+    owner_chip.details = Box::new(ChipPhase { phase: OwnerChipPhase::Ended, details: Box::new(details) });
     let linked = source(OwnerProposalAction::Release {
         task: OwnerTaskLink::Retained { chip: owner_chip, at: Some(Wall::EPOCH) },
         hold: Some(Box::new(hold())),

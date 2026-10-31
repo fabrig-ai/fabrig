@@ -482,7 +482,7 @@ fn source_facts(source: &engine::Source, commit: u64, out: &mut Vec<Observed>) {
     if let (Read::Activity { task, .. }, engine::Rows::Activity(rows)) = (&source.read, &source.rows) {
         let mut messages = vec![];
         for row in rows {
-            if let Some((message, words)) = row.event.word_message() {
+            if let Some((message, words)) = row.word_message() {
                 messages.push(message);
                 out.push(Observed::Kept { task: *task, message, words: words.bytes().to_vec(), commit });
             }
@@ -499,33 +499,25 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
                 ReadValue::Historical(value) => value.is_terminal(),
                 ReadValue::Task(task) => task.result.is_some(),
                 ReadValue::Result(_) => true,
-                ReadValue::Proposal(row) => row.ending.is_some(),
-                ReadValue::Escalation(row) => row.ending.is_some(),
                 ReadValue::Question(row) => row.ending.is_some(),
-                ReadValue::PersonTask(row) => row.ending.is_some(),
                 ReadValue::Tasks(_)
                 | ReadValue::Me(_)
-                | ReadValue::Ended(_)
                 | ReadValue::OwnerEnded(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
-                | ReadValue::Inbox(_)
                 | ReadValue::OwnerInbox(_)
                 | ReadValue::OwnerProposal(_)
                 | ReadValue::OwnerPersonTask(_)
                 | ReadValue::OwnerEscalation(_)
-                | ReadValue::Spend(_)
                 | ReadValue::OwnerSpend(_)
-                | ReadValue::Project(_)
                 | ReadValue::OwnerProject(_)
                 | ReadValue::Notes(_)
                 | ReadValue::OwnerDeployment(_)
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
-                | ReadValue::Revisions(_)
-                | ReadValue::Deployment(_) => false,
+                | ReadValue::Revisions(_) => false,
             };
             if terminal {
                 out.push(Observed::Stopped { card: observe::key(*key), commit });
@@ -539,31 +531,23 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
                 | ReadValue::Tasks(_)
                 | ReadValue::Me(_)
                 | ReadValue::Historical(_)
-                | ReadValue::Proposal(_)
-                | ReadValue::Escalation(_)
                 | ReadValue::Question(_)
-                | ReadValue::PersonTask(_)
-                | ReadValue::Ended(_)
                 | ReadValue::OwnerEnded(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
-                | ReadValue::Inbox(_)
                 | ReadValue::OwnerInbox(_)
                 | ReadValue::OwnerProposal(_)
                 | ReadValue::OwnerPersonTask(_)
                 | ReadValue::OwnerEscalation(_)
-                | ReadValue::Spend(_)
                 | ReadValue::OwnerSpend(_)
-                | ReadValue::Project(_)
                 | ReadValue::OwnerProject(_)
                 | ReadValue::Notes(_)
                 | ReadValue::OwnerDeployment(_)
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
-                | ReadValue::Revisions(_)
-                | ReadValue::Deployment(_) => {}
+                | ReadValue::Revisions(_) => {}
             }
         }
         engine::Change::Settings(_)

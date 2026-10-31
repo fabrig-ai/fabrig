@@ -23,7 +23,7 @@ pub fn proposal(builder: &mut Builder) {
 }
 pub fn held(builder: &mut Builder) {
     let mut task = jig_client_world::stories::task();
-    task.hold = Some(c::TaskHold::Owner(Box::new(c::OwnerChipHold {
+    task.hold = Some(Box::new(c::OwnerChipHold {
         placed: None,
         words: None,
         circle: None,
@@ -35,7 +35,7 @@ pub fn held(builder: &mut Builder) {
         escalation: None,
         tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: TRIES, agent: 0, lost: 0, invalid: 0 },
         hold_wait_since: None,
-    })));
+    }));
     task.acts = List::with_capacity(1);
     task.acts
         .push(c::Offered {

@@ -101,7 +101,6 @@ pub(crate) const CLOSE_MOVE: &[&str] = &["--move", "43"];
 pub(crate) const CLOSE_REASON_WORDS: &str = "all finished";
 pub(crate) const CLOSE_REASON: &[&str] = &["--reason", CLOSE_REASON_WORDS];
 /// A smaller task number would not match the director's restored-proposal example.
-pub(crate) const KEPT_PROPOSER: u64 = 3;
 /// The changed request differs from the held message under the same name.
 pub(crate) const OTHER_MESSAGE: &[&str] = &["task", "message", "41", "different words", "--key", "port-answer"];
 /// JSON's extra word is shared by all act-output cases.
