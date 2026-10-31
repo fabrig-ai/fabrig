@@ -2,15 +2,16 @@
 
 Kind: concept
 
-A forge is where repositories live, GitHub or Forgejo, numbered in the configuration; temper connects to one or runs its own, and works only in the repositories adopted from it.
+A forge is where repositories live, GitHub or Forgejo, numbered when it is set up or connected; temper connects to one or runs its own, and works only in the repositories adopted from it.
 
 ## What it is
 
 - **Its kind:** GitHub or Forgejo.
-- **Its number** is its identity, from the configuration: another
-  number is another forge. `temper init` writes forge 1, the
-  playground's fake Forgejo; forge 2, GitHub; forge 3, a Forgejo temper
-  runs, started only when set up.
+- **Its number** is its identity, the next one, given when it is set
+  up or connected and never given again: another number is another
+  forge. `temper init` writes no forge, only the places this machine
+  gives a Forgejo temper runs, the playground's fake and GitHub
+  (`application.machine`).
 - **Its mode,** as `forge list` prints it:
   - `connected`: a forge someone else runs, reached with a credential
     temper holds, such as GitHub through an App;
@@ -21,9 +22,8 @@ A forge is where repositories live, GitHub or Forgejo, numbered in the configura
     (temper help box);
   - `fake`: the playground's (temper help playground).
 - **GitHub's App:** temper reaches GitHub through an App: one of your
-  own, by its id and private key; temper's own, made from its manifest
-  in a browser; or one another owns, made read-only in the
-  configuration before the start (temper help github).
+  own, by its id and private key; or temper's own, made from its
+  manifest in a browser (temper help github).
 - **An installation** of the App on an account reaches the repositories
   that account chose. temper works through the installations it has
   accepted.
@@ -39,6 +39,9 @@ A forge is where repositories live, GitHub or Forgejo, numbered in the configura
   LOGIN (ID)`, or `Stopped: REASON`. GitHub's App connected with no
   installation accepted prints `Connecting: installed nowhere yet` or
   `Connecting: no installation accepted yet`.
+- **Made:** `forge setup`, `forge connect`, the client's Connect a
+  forge and its welcome make a forge, and `playground start` the
+  playground's.
 - **Set up:** a box's owned Forgejo is fetched, prepared and started
   with its runner, then makes its first repository with a starter CI
   workflow and adopts it.
@@ -48,8 +51,19 @@ A forge is where repositories live, GitHub or Forgejo, numbered in the configura
 - **Its installations,** on GitHub: one made through temper's install
   link is accepted at once; one made on GitHub waits to be accepted. An
   installation not accepted prints ` · not accepted · uninstalled at
-  the next reconcile`, or ` · not accepted · kept: the App is
-  read-only`; a suspended one ` · suspended`.
+  the next reconcile`; a suspended one ` · suspended`.
+- **Started over:** a set up cut short shows in the client's welcome
+  as `not finished`, with Start over, which removes the forge and
+  offers the choices again; GitHub's offers Go on first, to the App's
+  installation. An owned Forgejo set up again takes its binaries from
+  the cache.
+- **Removed:** `forge remove FORGE`, or Remove on its row in the
+  client's Forges. It ends at once and leaves every list; its changes
+  are cancelled, its repositories leave their projects, and its
+  secrets are erased. An owned Forgejo goes with its directory, its
+  binaries kept in the cache. On the forge itself temper undoes only
+  what it ran: a managed Forgejo keeps temper's bot and hooks, and a
+  GitHub App stays yours, to delete in its settings.
 
 ## What temper guarantees
 
@@ -61,9 +75,8 @@ A forge is where repositories live, GitHub or Forgejo, numbered in the configura
   wrote; a branch moved by someone else holds its change instead.
 - **A merge names its head:** temper merges a pull request at the head
   its checks passed, and a moved head or base is checked again first.
-- **A read-only App is left as it is:** temper reads its hook,
-  changes nothing of the App, and uninstalls no installation it did
-  not accept.
+- **A removal ends whole:** one a restart cut goes on at the next
+  start.
 
 ## Acting on it
 
@@ -72,7 +85,8 @@ A forge is where repositories live, GitHub or Forgejo, numbered in the configura
   connect` connects GitHub or a managed Forgejo; `forge install`
   prints a link that installs the App; `forge accept` accepts an
   installation made already; `forge repositories` lists what a forge
-  reaches. Each verb's arguments are its help: `temper ctl help forge`.
+  reaches; `forge remove` removes one. Each verb's arguments are its
+  help: `temper ctl help forge`.
 - **temper's runs** read an adopted repository's issues, pull
   requests, reviews, checks, branches, files and CI logs with the forge
   reads (`read_items`, `read_pull`, `read_job`...), write with
@@ -82,12 +96,16 @@ A forge is where repositories live, GitHub or Forgejo, numbered in the configura
 
 ## Limits
 
-- temper cannot replace a forge's key or forget it: a second connect
-  is refused with `connected already` (exit 2).
+- temper cannot replace a forge's key: a second connect is refused
+  with `connected already` (exit 2). Removed and connected again, it
+  is a new forge, with a new number.
 - temper does not connect a Forgejo by a user's token: only as its
   site admin.
 - temper sets up an owned Forgejo under a box alone: elsewhere, `forge
   setup` is refused with `refused: not under the box` (exit 2).
-- Connecting another forge ends the playground.
+- A Forgejo connected at a host name, not an IP address, is reached
+  from the deployment's next start.
+- While a forge of its own is kept, the deployment offers no
+  playground (temper help playground).
 - ctl opens no browser: it prints the address a person opens on the
   engine's machine.
