@@ -1,3 +1,4 @@
+mod box_kinds;
 mod commands;
 mod help;
 mod settings_fields;
@@ -14,6 +15,7 @@ fn directory_commands_take_flags_after_their_command_words() {
         (vec!["program-login"], false),
         (vec!["forge", "prepare", "1"], true),
         (vec!["forge", "fetch", "1"], true),
+        (vec!["forge", "remove", "1"], true),
         (vec!["forge", "run", "1", "runner"], true),
         (vec!["forge", "reconcile", "1"], true),
         (vec!["forge", "sign-in", "1"], true),
