@@ -847,6 +847,7 @@ fn github_without_an_accepted_installation_is_connecting() {
     let State::Rows(rows) = &mut state else { panic!("rows") };
     rows[0].installations = Box::default();
     assert_eq!(connect::step(Some(Choice::Forge(2)), &state, None), Shown::SettingUp(2));
+    assert_eq!(connect::unfinished(connect::records(&state), None).unwrap().number, 2);
 }
 #[test]
 fn ready_reads_pages_and_accounts_with_fresh_keys_and_follows_the_chosen_name_until_written() {
@@ -1384,12 +1385,33 @@ fn new_owned_adoption_waits_for_the_answer_and_the_made_rows_number() {
     }
 }
 #[test]
-fn the_welcome_shows_a_kept_forge_without_its_first_adoption_as_unfinished() {
+fn the_welcome_shows_a_forge_not_set_up_as_unfinished() {
     assert_eq!(connect::welcome_step(None, &rows(C::NotSetUp), None), Shown::Unfinished(HERE));
-    assert_eq!(
-        connect::welcome_step(None, &rows(C::Connected { id: 1, login: Box::default() }), None),
-        Shown::Unfinished(HERE)
-    );
+}
+#[test]
+fn a_connected_forge_without_its_first_repository_continues_instead_of_starting_over() {
+    for (kind, mode) in [(Kind::GitHub, Mode::Connected), (Kind::Forgejo, Mode::Owned)] {
+        let mut candidate = row(HERE, kind, mode, C::Connected { id: 1, login: Box::default() }, Offer::NotOffered);
+        if kind == Kind::GitHub {
+            candidate.installations =
+                Box::new([forges::Installation { id: 1, account: None, suspended: false, stray: false }]);
+        }
+        let state = State::Rows(Box::new([candidate]));
+        assert!(connect::unfinished(connect::records(&state), None).is_none());
+        let personal = connect::personal(&state, None).unwrap();
+        assert!(!connect::complete(personal), "the first repository is still needed");
+        assert_eq!(connect::step(Some(Choice::Forge(personal.number)), &state, None), Shown::Ready(HERE));
+    }
+}
+
+#[test]
+fn an_adopted_github_without_an_accepted_installation_does_not_offer_start_over() {
+    let mut candidate =
+        row(HERE, Kind::GitHub, Mode::Connected, C::Connected { id: 1, login: Box::default() }, Offer::NotOffered);
+    candidate.repositories =
+        Box::new([forges::Adoption { owner: b"acme".as_slice().into(), name: b"app".as_slice().into(), project: 1 }]);
+    assert!(connect::complete(&candidate));
+    assert!(connect::unfinished(&[candidate], None).is_none());
 }
 
 #[test]
