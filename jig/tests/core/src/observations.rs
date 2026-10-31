@@ -273,9 +273,9 @@ pub struct Observer {
     proposals: BTreeMap<u64, (u16, connector::Effect)>,
     accepted: BTreeMap<(u16, connector::Key), r::Source>,
     settled_calls: BTreeSet<(u64, u64, u64)>,
-    // Fresh marks and delivered cancels fence attempts: subsequent traffic is
-    // discarded without a turn or terminal row (engine.md, 7.2; hosts.md, 6.1).
-    fenced: BTreeSet<(u64, u64)>,
+    // A fresh mark, terminal or delivered cancel fences an attempt. Disposal
+    // acknowledgements follow its claim or terminal (engine.md, 7.2; hosts.md, 6.1).
+    fenced: BTreeMap<(u64, u64), r::Receipt>,
     words: BTreeSet<(u64, u64)>,
     policy_changes: BTreeMap<(u64, [u8; 16]), (u32, people::PolicyChange)>,
     applied_changes: BTreeSet<(u64, [u8; 16])>,
@@ -382,7 +382,7 @@ impl Observer {
             proposals: BTreeMap::new(),
             accepted: BTreeMap::new(),
             settled_calls: BTreeSet::new(),
-            fenced: BTreeSet::new(),
+            fenced: BTreeMap::new(),
             words: BTreeSet::new(),
             policy_changes: BTreeMap::new(),
             applied_changes: BTreeSet::new(),
@@ -616,7 +616,7 @@ impl Observer {
                 }
                 root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(value))) => {
                     if value.crossed {
-                        self.fenced.insert((value.task, value.attempt));
+                        self.fenced.entry((value.task, value.attempt)).or_insert(r::Receipt::Claim(value.task, value.attempt));
                     }
                     Some(r::Receipt::Claim(value.task, value.attempt))
                 }
@@ -624,6 +624,7 @@ impl Observer {
                     Some(r::Receipt::Turn(value.task, value.attempt, value.turn))
                 }
                 root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(value))) => {
+                    self.fenced.insert((value.task, value.attempt), r::Receipt::Terminal(value.task, value.attempt));
                     Some(r::Receipt::Terminal(value.task, value.attempt))
                 }
                 root::Record::Core(core::Record::Core(core::CoreRecord::Call(value))) => Some(call(value.key)),
@@ -913,13 +914,14 @@ impl Observer {
                 root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(value))) => {
                     snapshot.receipts.insert(r::Receipt::Claim(value.task, value.attempt));
                     if value.crossed {
-                        self.fenced.insert((value.task, value.attempt));
+                        self.fenced.entry((value.task, value.attempt)).or_insert(r::Receipt::Claim(value.task, value.attempt));
                     }
                 }
                 root::Record::Core(core::Record::Core(core::CoreRecord::Turn(value))) => {
                     snapshot.receipts.insert(r::Receipt::Turn(value.task, value.attempt, value.turn));
                 }
                 root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(value))) => {
+                    self.fenced.insert((value.task, value.attempt), r::Receipt::Terminal(value.task, value.attempt));
                     snapshot.receipts.insert(r::Receipt::Terminal(value.task, value.attempt));
                 }
                 root::Record::Core(core::Record::Core(core::CoreRecord::Call(value))) => {
@@ -1100,19 +1102,19 @@ impl Observer {
                 }
             }
             root::Delivery::Core(core::Held::Cancel { run, attempt, .. }) => {
-                self.fenced.insert((run.raw(), attempt.raw()));
+                self.fenced.entry((run.raw(), attempt.raw())).or_insert(r::Receipt::Claim(run.raw(), attempt.raw()));
             }
             root::Delivery::Core(core::Held::AcknowledgeTurn { run, attempt, turn, .. }) => {
-                let receipt = if self.fenced.contains(&(run.raw(), attempt.raw())) {
-                    r::Receipt::Claim(run.raw(), attempt.raw())
+                let receipt = if let Some(receipt) = self.fenced.get(&(run.raw(), attempt.raw())) {
+                    receipt.clone()
                 } else {
                     r::Receipt::Turn(run.raw(), attempt.raw(), *turn)
                 };
                 requires.push(receipt);
             }
             root::Delivery::Core(core::Held::Acknowledge { run, attempt, .. }) => {
-                let receipt = if self.fenced.contains(&(run.raw(), attempt.raw())) {
-                    r::Receipt::Claim(run.raw(), attempt.raw())
+                let receipt = if let Some(receipt) = self.fenced.get(&(run.raw(), attempt.raw())) {
+                    receipt.clone()
                 } else {
                     r::Receipt::Terminal(run.raw(), attempt.raw())
                 };
