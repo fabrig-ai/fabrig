@@ -185,9 +185,10 @@ pub fn down(io: &mut Io, env: &Env<Limits>, requests: &mut Queue<Request>,
   entity readied while the stage runs waits for the next stage. Then,
   only once the ready list is empty, `up` for each completion the queue
   held when the stage began. Then, only once every completion is taken,
-  `fire` while a deadline is due at `env.now`, at most two per entity (a
-  close's and a retry's), so that progress that came wins over a deadline
-  that passed while the loop waited (programming-model.md, 9).
+  `fire` while a deadline is due at `env.now`, at most twice
+  `Limits::sockets` calls (a close's deadline and a retry's per entity),
+  so that progress that came wins over a deadline that passed while the
+  loop waited (programming-model.md, 9).
 - **`down` is the requests, oldest first:** each request the queue held
   when the stage began, while io takes one (`Io::takes`: it can hold a
   refusal).
