@@ -43,6 +43,7 @@ mod pipe;
 mod process;
 mod records;
 mod signals;
+pub mod stage;
 mod stream;
 #[cfg(test)]
 mod tests;
