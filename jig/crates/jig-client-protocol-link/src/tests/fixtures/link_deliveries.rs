@@ -25,13 +25,13 @@ pub fn run_event(name: u64) -> Box<[u8]> {
     ))
 }
 pub fn tree_record() -> w::Tree {
-    jig_client_test_records::tree_record()
+    jig_client_test_records::owner_tree_record()
 }
 pub fn tree() -> c::Tree {
     c::Tree { root: chip(), rows: List::with_capacity(2), folded: List::with_capacity(0), held_below: 19, next: None }
 }
 pub fn inbox_record() -> w::Inbox {
-    jig_client_test_records::inbox_record()
+    jig_client_test_records::owner_inbox_record()
 }
 pub fn inbox() -> c::Inbox {
     c::Inbox {

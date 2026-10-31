@@ -304,7 +304,7 @@ pub(super) const PLAYGROUND_ACCOUNT: DeploymentAccount = (Some(PROVIDER), true, 
 pub(super) const OTHER_ACCOUNT: DeploymentAccount = (Some(PROVIDER + 1), true, false, c::AccountHolder::Deployment);
 pub(super) fn deployment(rows: &[DeploymentAccount]) -> c::Deployment {
     let bounds = jig_client_protocol_link::Limits::new(f::limits().client.domain, 8).unwrap();
-    let mut document = jig_client_protocol_link::translate::documents::owner_deployment(
+    let mut document = jig_client_protocol_link::translate::documents::deployment(
         jig_client_test_records::owner_deployment_record(),
         &bounds,
     )

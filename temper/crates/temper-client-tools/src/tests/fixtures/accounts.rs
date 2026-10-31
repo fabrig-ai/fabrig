@@ -62,7 +62,7 @@ pub(crate) fn account_root(owner: bool) -> Harness {
 pub(crate) fn deployment() -> c::Deployment {
     let limits = crate::limits::client().client;
     let limits = jig_client_protocol_link::Limits::new(limits.domain, limits.exchanges).expect("tools limits");
-    let mut deployment = jig_client_protocol_link::translate::documents::owner_deployment(
+    let mut deployment = jig_client_protocol_link::translate::documents::deployment(
         jig_client_test_records::owner_deployment_record(),
         &limits,
     )

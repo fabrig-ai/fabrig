@@ -362,7 +362,7 @@ impl Client {
 pub fn facts_task() -> contract::Task {
     let limits = jig_client_protocol_link::Limits::new(domain_limits(), 8).unwrap();
     let mut parts = jig_client_test_records::task_record().into_parts();
-    parts.chip = jig_client_test_records::waiting_chip_record();
+    parts.chip = jig_client_test_records::owner_waiting_chip_record();
     let wire = w::Task::new(&w::CEILINGS, parts).unwrap();
     jig_client_protocol_link::translate::documents::task(wire, &limits).unwrap()
 }

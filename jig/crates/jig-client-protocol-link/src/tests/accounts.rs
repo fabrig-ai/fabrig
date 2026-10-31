@@ -69,7 +69,7 @@ fn the_account_outcomes_are_read() {
             .unwrap(),
         );
         assert_eq!(
-            translate::answers::outcome(&wire, &limits).unwrap(),
+            translate::answers::document_outcome(&wire, &limits).unwrap(),
             c::DocumentOutcome::AccountSignInStarted { source: u32::MAX, address }
         );
     }
@@ -82,7 +82,7 @@ fn the_account_outcomes_are_read() {
             .unwrap(),
         );
         assert_eq!(
-            translate::answers::outcome(&wire, &limits).unwrap(),
+            translate::answers::document_outcome(&wire, &limits).unwrap(),
             c::DocumentOutcome::AccountSignedOut { confirmed, failed_hosts: Box::new([]) }
         );
     }
@@ -145,7 +145,7 @@ fn the_key_outcomes_and_provider_refusal_are_read() {
             c::DocumentOutcome::AccountRemoved { confirmed: true, failed_hosts: Box::new([]) },
         ),
     ] {
-        assert_eq!(translate::answers::outcome(&wire, &limits).unwrap(), client);
+        assert_eq!(translate::answers::document_outcome(&wire, &limits).unwrap(), client);
     }
     assert_eq!(translate::answers::refusal(&w::Refusal::Provider, &limits), Ok(c::Refusal::Provider));
 }
@@ -161,7 +161,7 @@ fn a_declared_program_name_is_validated_on_receipt() {
         .unwrap(),
     );
     assert_eq!(
-        translate::answers::outcome(&wire, &limits).err(),
+        translate::answers::document_outcome(&wire, &limits).err(),
         Some(w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Malformed })
     );
 }
@@ -186,7 +186,7 @@ fn program_host_results_share_the_native_answer_budget() {
         .unwrap(),
     );
     assert_eq!(
-        translate::answers::outcome(&wire, &limits).err(),
+        translate::answers::document_outcome(&wire, &limits).err(),
         Some(w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound })
     );
 }
@@ -251,7 +251,7 @@ fn moved_in_outcomes_keep_the_renewed_fact() {
                 .unwrap(),
         );
         assert_eq!(
-            translate::answers::outcome(&wire, &limits),
+            translate::answers::document_outcome(&wire, &limits),
             Ok(c::DocumentOutcome::AccountMovedIn { account: u32::MAX, renewed })
         );
     }
@@ -310,7 +310,7 @@ fn a_finishing_outcome_preserves_its_source() {
         w::OutcomeAccountFinishing::new(limits.wire(), w::OutcomeAccountFinishingParts { source: u32::MAX }).unwrap(),
     );
     assert_eq!(
-        translate::answers::outcome(&wire, &limits),
+        translate::answers::document_outcome(&wire, &limits),
         Ok(c::DocumentOutcome::AccountFinishing { source: u32::MAX })
     );
 }

@@ -81,7 +81,7 @@ pub fn archived_activity_record() -> w::ActivityPage {
     jig_client_test_records::archived_activity_record()
 }
 pub fn turn_activity_record(turn: Option<w::TurnBytes>) -> w::ActivityPage {
-    jig_client_test_records::turn_activity_record(turn)
+    jig_client_test_records::owner_turn_activity_record(turn)
 }
 pub fn archived_activity_page() -> c::ActivityPage {
     archived_activity_page_with_problem(c::TurnProblem::Version { found: 4 })
