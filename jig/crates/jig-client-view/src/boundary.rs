@@ -1,7 +1,7 @@
 //! Inputs and outputs toward the application root, no application values.
 //! Each read and watch has one terminal. Sends enter the root's keyed table;
 //! answers arrive only once durable. See client/domain/client.md, 4.
-use crate::{
+use crate::state::{
     action::Act,
     address::Place,
     store::{Record, StoreKey},
@@ -42,7 +42,7 @@ pub enum Event {
     /// A person acted on the view.
     Act { action: Act },
     /// The application's page names the whole list of jig objects and sections.
-    Named { objects: List<jig_client::contract::ObjectKey>, sections: List<crate::page::Section> },
+    Named { objects: List<jig_client::contract::ObjectKey>, sections: List<crate::state::page::Section> },
 }
 
 /// One effect or hand off routed by the application root.

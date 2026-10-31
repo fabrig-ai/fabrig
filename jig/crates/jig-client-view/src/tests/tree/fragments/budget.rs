@@ -1,0 +1,185 @@
+#![expect(clippy::disallowed_methods, reason = "ordinary tests inspect standalone trees and checked language data")]
+use crate::tree::fragments::budget as view;
+use crate::words::Words;
+use skein_ui::Limits;
+use skein_ui::phrases::{PhraseLimits, Phrasebook, Segment, WallFormat};
+use skein_ui::{Builder, Tree};
+
+use jig_client::contract::{Funder, OwnerBudget, OwnerNumbers, PoolLedger};
+use skein_lib::{Wall, bytes::copy_of};
+
+fn numbers() -> OwnerNumbers {
+    OwnerNumbers { budget: 100, spent: 4, spent_below: 7, reserved: 11 }
+}
+fn budget() -> OwnerBudget {
+    OwnerBudget {
+        numbers: numbers(),
+        left: 17,
+        funder: Funder::Task(u64::MAX),
+        deadline: Some(Wall::from_nanos(120_000_000_000)),
+    }
+}
+fn ledger() -> PoolLedger {
+    PoolLedger {
+        source: Funder::Pool { project: u32::MAX, person: u64::MAX, period: u64::MAX - 1 },
+        parent: Some(Funder::Recurring { project: u32::MAX - 1, task: u64::MAX - 2, period: u64::MAX - 3 }),
+        numbers: numbers(),
+        left: 17,
+        closed: true,
+        began: Some(Wall::from_nanos(120_000_000_000)),
+        next: Some(Wall::from_nanos(180_000_000_000)),
+    }
+}
+fn words() -> Words {
+    crate::tests::english_words()
+}
+fn limits(fragment: Limits) -> Limits {
+    fragment
+}
+fn budget_tree(value: &OwnerBudget, words: &Words) -> Tree {
+    let required =
+        crate::tests::render_limits(&crate::tests::tree::cards::CLIENT, words).expect("whole checked capacity");
+    let mut builder = Builder::new(&limits(required));
+    view::render(&mut builder, value, words);
+    builder.finish()
+}
+fn ledger_tree(value: &PoolLedger, words: &Words) -> Tree {
+    let required =
+        crate::tests::render_limits(&crate::tests::tree::cards::CLIENT, words).expect("whole checked capacity");
+    let mut builder = Builder::new(&limits(required));
+    view::ledger(&mut builder, value, words);
+    builder.finish()
+}
+fn has(tree: &Tree, bytes: &[u8]) -> bool {
+    tree.nodes().iter().any(|node| node.text.iter().any(|run| run.text.as_ref() == bytes))
+}
+fn contains(tree: &Tree, bytes: &[u8]) -> bool {
+    tree.nodes().iter().any(|node| node.text.iter().any(|run| run.text.windows(bytes.len()).any(|part| part == bytes)))
+}
+
+#[test]
+fn budget_says_all_owner_numbers_exact_task_funder_and_only_the_supplied_deadline() {
+    let value = budget();
+    let words = words();
+    let tree = budget_tree(&value, &words);
+    assert_eq!(tree.len(), 9);
+    for text in [
+        &b"Budget: 100"[..],
+        &b"Spent directly: 4"[..],
+        &b"Settled spend below: 7"[..],
+        &b"Reserved for funded work: 11"[..],
+        &b"Left: 17"[..],
+        &b"Funded by"[..],
+        &b"Deadline: 120000000000"[..],
+    ] {
+        assert!(has(&tree, text), "owner accounting is never merged or recomputed");
+    }
+    assert!(!has(&tree, b"Left: 78"), "availability is an owner fact");
+    assert!(contains(&tree, b"18446744073709551615"));
+    let mut without_deadline = value;
+    without_deadline.deadline = None;
+    let tree = budget_tree(&without_deadline, &words);
+    assert_eq!(tree.len(), 8);
+    assert!(!contains(&tree, b"Deadline:"));
+}
+#[test]
+fn ledger_keeps_distinct_parent_periods_full_source_widths_and_explicit_optional_facts() {
+    let value = ledger();
+    let words = words();
+    let tree = ledger_tree(&value, &words);
+    assert_eq!(tree.len(), 13);
+    for text in [
+        &b"Ledger source"[..],
+        &b"Parent funder"[..],
+        &b"Ledger is closed"[..],
+        &b"Left: 17"[..],
+        &b"Period began: 120000000000"[..],
+        &b"Next period begins: 180000000000"[..],
+    ] {
+        assert!(has(&tree, text));
+    }
+    for number in [
+        &b"4294967295"[..],
+        &b"4294967294"[..],
+        &b"18446744073709551615"[..],
+        &b"18446744073709551614"[..],
+        &b"18446744073709551613"[..],
+        &b"18446744073709551612"[..],
+    ] {
+        assert!(contains(&tree, number), "source identity never becomes an Actor or current period");
+    }
+    let mut absent = value;
+    absent.parent = None;
+    absent.began = None;
+    absent.next = None;
+    absent.closed = false;
+    let tree = ledger_tree(&absent, &words);
+    assert_eq!(tree.len(), 9);
+    assert!(has(&tree, b"Ledger is open"));
+    for label in [&b"Parent funder"[..], &b"Period began:"[..], &b"Next period begins:"[..], &b"Ledger is closed"[..]] {
+        assert!(!contains(&tree, label), "absence never supplies a parent or calendar fact");
+    }
+}
+#[test]
+fn budget_and_shared_funder_sayings_borrow_selected_normal_words_and_person_offset() {
+    let mut translated = crate::words::phrases::english::language();
+    translated.wall = WallFormat::Clock;
+    for phrase in &mut translated.phrases {
+        for form in &mut phrase.forms {
+            for segment in &mut form.segments {
+                match segment {
+                    Segment::Text(bytes) => *bytes = copy_of(b"selected "),
+                    Segment::Hole { .. } => {}
+                }
+            }
+        }
+    }
+    let languages: Box<[_]> = Box::new([crate::words::phrases::english::language(), translated]);
+    let mut segments = 0_u32;
+    let mut text_bytes = 0_u32;
+    for language in &languages {
+        for phrase in &language.phrases {
+            for form in &phrase.forms {
+                segments = segments
+                    .checked_add(u32::try_from(form.segments.len()).expect("form segment count fits"))
+                    .expect("both complete languages' segment count fits");
+                for segment in &form.segments {
+                    match segment {
+                        Segment::Text(bytes) => {
+                            text_bytes = text_bytes
+                                .checked_add(u32::try_from(bytes.len()).expect("literal byte count fits"))
+                                .expect("both complete languages' literal byte count fits");
+                        }
+                        Segment::Hole { .. } => {}
+                    }
+                }
+            }
+        }
+    }
+    let limits = PhraseLimits {
+        languages: 2,
+        phrases: crate::words::owner_words::phrase_count(),
+        holes: 4,
+        segments,
+        text_bytes,
+        hole_bytes: 256,
+    };
+    let book = Phrasebook::load(crate::words::phrases::jig::shapes(256), languages, &limits)
+        .expect("normal composed vocabulary checks both supplied languages whole");
+    let words = Words::new(book, 1, -1);
+    let tree = budget_tree(&budget(), &words);
+    assert!(has(&tree, b"selected 17"));
+    assert!(has(&tree, b"selected 00:01"));
+    assert!(contains(&tree, b"selected 18446744073709551615"));
+    assert!(!contains(&tree, b"Budget:"));
+    assert!(!contains(&tree, b"Funded by"));
+    let tree = ledger_tree(&ledger(), &words);
+    assert!(has(&tree, b"selected 17"));
+    assert!(has(&tree, b"selected 00:01"));
+    assert!(has(&tree, b"selected 00:02"));
+    assert!(!contains(&tree, b"Ledger source"));
+
+    let mut value = budget();
+    value.deadline = Some(Wall::EPOCH);
+    assert!(has(&budget_tree(&value, &words), b"selected 00:00"));
+}
