@@ -6,15 +6,10 @@ mod fixture;
 pub mod front;
 pub mod random;
 pub use front::Joint;
-mod offered_packets;
-pub mod packets;
-pub mod read_packets;
 pub mod referee;
-pub mod requests;
 pub mod session;
 pub mod transport;
 pub mod truth;
-pub mod wire;
 
 #[cfg(test)]
 mod account_moves;

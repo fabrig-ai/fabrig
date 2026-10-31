@@ -28,7 +28,6 @@ pub struct Driver {
     pub transport: Transport,
     pub referee: super::referee::Referee,
     paused_sources: Vec<root::Event>,
-    refused: Vec<(skein_lib::Token, jig_client_domain::contract::Answer)>,
 }
 
 impl Driver {
@@ -59,12 +58,7 @@ impl Driver {
             transport,
             referee: super::referee::Referee::default(),
             paused_sources: Vec::new(),
-            refused: Vec::new(),
         }
-    }
-
-    pub(super) fn refuse(&mut self, to: skein_lib::Token, answer: jig_client_domain::contract::Answer) {
-        self.refused.push((to, answer));
     }
 
     pub fn send(&mut self, now: Time, wall: Wall, event: root::Event) {
@@ -109,7 +103,6 @@ impl Driver {
     /// packets of the old connection cannot cross into its replacement.
     pub fn restart(&mut self, configuration: root::Config, now: Time, wall: Wall) {
         self.paused_sources.clear();
-        self.refused.clear();
         self.world.reached_cut = None;
         self.register_replies();
         self.world.set_clock(now, wall);
@@ -181,7 +174,7 @@ impl Driver {
     #[must_use]
     pub fn next_due(&self) -> Option<Time> {
         let peer = self.world.client_peer.as_ref().expect("actual protocol peer");
-        if peer.delivered.is_empty() && peer.now.is_empty() && self.refused.is_empty() {
+        if peer.delivered.is_empty() && peer.now.is_empty() {
             self.world.next_due()
         } else {
             Some(self.world.clocks().0)

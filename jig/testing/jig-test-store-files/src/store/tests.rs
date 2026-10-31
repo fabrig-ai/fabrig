@@ -276,18 +276,15 @@ fn readback_rejects_unread_transcript_after_a_successful_prefix() {
     let jig_protocol_store::Event::Turns { turns, next: Some(offset), .. } = event else { panic!("prefix page") };
     assert_eq!(turns.len(), 2);
     let root = store.files.root();
-    let opened = store.file(
-        2,
-        file::Request::OpenWrite {
-            owner: Token::new(800),
-            root: root.fd,
-            name: Box::from(b"0000000000000000/0000000000000001".as_slice()),
-        },
-    );
+    let opened = store.file(file::Request::OpenWrite {
+        owner: Token::new(800),
+        root: root.fd,
+        name: Box::from(b"0000000000000000/0000000000000001".as_slice()),
+    });
     let file::Event::Opened { file, .. } = opened.event else { panic!("actual transcript") };
-    let cut = store.file(2, file::Request::Cut { owner: Token::new(800), file, length: offset });
+    let cut = store.file(file::Request::Cut { owner: Token::new(800), file, length: offset });
     assert!(matches!(cut.event, file::Event::Cut { .. }));
-    let _closed = store.file(2, file::Request::Close { owner: Token::new(800), file });
+    let _closed = store.file(file::Request::Close { owner: Token::new(800), file });
     // The first two real frames still read successfully; the committed third
     // frame is now missing, so a complete collector must reject its prefix.
     let _found = store.transcript(1, false);

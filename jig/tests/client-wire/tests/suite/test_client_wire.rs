@@ -2,23 +2,6 @@ use super::fixtures;
 use jig_client_test_domain::family;
 
 #[test]
-fn a_scripted_item_round_trips_with_every_field_and_state() {
-    for state in [family::ItemState::Ready, family::ItemState::Held, family::ItemState::Ended] {
-        fixtures::assert_document(family::Document::Item(fixtures::item(state)));
-    }
-}
-#[test]
-fn a_scripted_part_round_trips_without_parameters() {
-    fixtures::assert_document(family::Document::Part(fixtures::part(None)));
-}
-#[test]
-fn a_scripted_part_round_trips_with_parameters() {
-    let parameters =
-        family::Parameters { item: fixtures::ITEM, revision: fixtures::REVISION, value: 0, amendable: false };
-    fixtures::assert_document(family::Document::Part(fixtures::part(Some(parameters))));
-}
-
-#[test]
 fn a_connector_document_round_trips_with_its_supplied_subject() {
     use jig_client_test_domain::connector_values::{ApplicationObject, ClientDocument, ConnectorDocument};
     let value = ConnectorDocument {
@@ -34,18 +17,6 @@ fn a_connector_document_round_trips_with_its_supplied_subject() {
     fixtures::assert_document(family::Document::Connector(value));
 }
 
-#[test]
-fn a_scripted_touched_answer_round_trips() {
-    fixtures::assert_answer(family::Answer::Touched { item: fixtures::ITEM, revision: fixtures::REVISION });
-}
-#[test]
-fn a_scripted_moved_answer_round_trips() {
-    fixtures::assert_answer(family::Answer::Moved { item: fixtures::ITEM, revision: fixtures::REVISION });
-}
-#[test]
-fn a_scripted_gone_answer_round_trips() {
-    fixtures::assert_answer(family::Answer::Gone);
-}
 #[test]
 fn a_connector_answer_round_trips() {
     use jig_client_test_domain::connector_values::{ApplicationObject, ApplicationOutcome, ConnectorAnswer};
@@ -67,12 +38,8 @@ fn an_entrance_refusal_has_no_application_wire_record() {
 }
 
 #[test]
-fn a_scripted_touch_round_trips_without_parameters() {
-    fixtures::assert_touch(None);
-}
-#[test]
-fn a_scripted_touch_round_trips_with_parameters() {
-    fixtures::assert_touch(Some(0));
+fn a_connector_change_round_trips_with_an_explicit_zero() {
+    fixtures::assert_change(0);
 }
 #[test]
 fn every_project_subject_round_trips_through_reads_and_opens() {

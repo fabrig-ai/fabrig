@@ -165,20 +165,29 @@ fn family_document_with_second(root: &mut Domain, proposal_count: u64, second: O
         root,
         Event::First(first::Event::Read {
             read: family_read(&rows),
-            result: first::ReadResult::Value(family::Document::Item(family::Item {
-                project: 3,
-                key: 5,
-                revision: Revision { value: 1 },
-                state: family::ItemState::Ready,
-                value: u64::MAX,
-                task: 9,
-                second,
-                proposals,
-                touchable: true,
-            })),
+            result: first::ReadResult::Value(family::Document::Connector(
+                jig_client_test_domain::connector_values::ConnectorDocument {
+                    subject: family::Subject { scope: family::Scope::Project(3), kind: family::Kind::Item(5) },
+                    value: Box::new(jig_client_test_domain::connector_values::ClientDocument::Object {
+                        object: 5,
+                        now: jig_client_test_domain::connector_values::ApplicationObject {
+                            revision: 1,
+                            value: u64::MAX,
+                        },
+                    }),
+                },
+            )),
+        }),
+    );
+    drive(
+        root,
+        Event::First(first::Event::Compose {
+            address: first::Address { project: 3, item: 5 },
+            composition: family::PageComposition { task: 9, second, proposals },
         }),
     )
 }
+
 fn owner_authority() -> OwnerAuthorityDocument {
     OwnerAuthorityDocument {
         authority: OwnerAuthority {
@@ -336,25 +345,50 @@ fn load_cards(root: &mut Domain, rows: Vec<Request>) {
             );
             for row in parts {
                 if let Request::First(first::Out::Read { read, subject }) = row {
-                    let parameters = match subject.kind {
-                        family::Kind::Panel(_) => Some(family::Parameters {
-                            item: 5,
-                            revision: Revision { value: 1 },
-                            value: 13,
-                            amendable: true,
-                        }),
-                        _ => None,
+                    let value = match subject.kind {
+                        family::Kind::Panel(task) => jig_client_test_domain::connector_values::ClientDocument::Panel {
+                            task,
+                            procedure: None,
+                            result: Some(13),
+                            resources: list([]),
+                            effects: list([]),
+                        },
+                        family::Kind::OwnerEffect(number) => {
+                            jig_client_test_domain::connector_values::ClientDocument::Effect {
+                                proposal: number,
+                                task: 9,
+                                effect: jig_client_test_domain::connector_values::Effect {
+                                    kind: 1,
+                                    resources: Box::new([]),
+                                    purpose: 1,
+                                    condition: None,
+                                    target: 1,
+                                    state: 13,
+                                },
+                                description: jig_client_test_domain::connector_values::Description {
+                                    kind: 1,
+                                    resources: Box::new([]),
+                                    purpose: 1,
+                                    condition: false,
+                                    form: jig_client_test_domain::connector_values::Form::Set,
+                                    recovery: jig_client_test_domain::connector_values::Recovery::Keyed,
+                                    price: None,
+                                    state: 13,
+                                },
+                            }
+                        }
+                        _ => panic!("supplied panel or effect reference"),
                     };
                     drive(
                         root,
                         Event::First(first::Event::Read {
                             read,
-                            result: first::ReadResult::Value(family::Document::Part(family::PartDocument {
-                                subject,
-                                revision: Revision { value: 1 },
-                                value: 13,
-                                parameters,
-                            })),
+                            result: first::ReadResult::Value(family::Document::Connector(
+                                jig_client_test_domain::connector_values::ConnectorDocument {
+                                    subject,
+                                    value: Box::new(value),
+                                },
+                            )),
                         }),
                     );
                 }
@@ -379,7 +413,7 @@ fn a_family_page_holding_jig_cards_holding_parts_fits_and_diffs_to_nothing() {
     let mut view = view();
     assert!(!patches(&mut view, &root).is_empty());
     assert!(contains(&view, b"Task 9"));
-    assert!(contains(&view, b"Family part revision 1"));
+    assert!(contains(&view, b"Judged state: 13"));
     assert!(contains(&view, b"Holder policy"));
     assert!(view.tree().len() <= view.limits().tree.nodes);
     assert!(!view.tree().nodes().iter().any(|node| node.states.as_slice().contains(&skein_ui::State::Busy)));
@@ -388,9 +422,9 @@ fn a_family_page_holding_jig_cards_holding_parts_fits_and_diffs_to_nothing() {
             .nodes()
             .iter()
             .flat_map(|node| node.text.as_slice())
-            .filter(|run| run.text.as_ref() == b"Family part revision 1")
+            .filter(|run| run.text.as_ref() == b"Judged state: 13")
             .count(),
-        3
+        4
     );
     assert!(patches(&mut view, &root).is_empty());
 }
@@ -420,22 +454,17 @@ fn buttons_and_parameter_fields_decode_to_their_owner_and_departed_nodes_are_sta
     load_cards(&mut root, rows);
     let mut view = view();
     patches(&mut view, &root);
-    let button = named(&view, Role::Button, b"Touch");
+    let button = named(&view, Role::Button, b"Apply parameters");
     let object = root.first().page().unwrap().token();
     assert_eq!(
         decode(&mut view, button, Act::Press),
-        Some(crate::Action::First(first::Act::Touch { object, revision: Revision { value: 1 } }))
+        Some(crate::Action::First(first::Act::ChangeObject { object, revision: Revision { value: 1 } }))
     );
     let field = named(&view, Role::TextField, b"Parameters");
-    let subject = family::Subject { scope: family::Scope::Project(3), kind: family::Kind::Panel(9) };
-    let panel = root.first().find(subject).unwrap().token();
+
     assert_eq!(
         decode(&mut view, field, Act::Input { value: b"21".as_slice().into() }),
-        Some(crate::Action::First(first::Act::Parameters {
-            object: panel,
-            revision: Revision { value: 1 },
-            value: 21
-        }))
+        Some(crate::Action::First(first::Act::Parameters { object, revision: Revision { value: 1 }, value: 21 }))
     );
     assert_eq!(decode(&mut view, field, Act::Input { value: b"bad".as_slice().into() }), None);
     let nav = named(&view, Role::Link, b"Family");
@@ -504,7 +533,7 @@ fn a_family_entrance_refusal_shows_its_budget_and_keeps_the_object_present() {
     let sends = drive(
         &mut root,
         Event::Act {
-            action: jig_client_test_domain::Action::First(first::Act::Touch {
+            action: jig_client_test_domain::Action::First(first::Act::ChangeObject {
                 object: id.token(),
                 revision: Revision { value: 1 },
             }),

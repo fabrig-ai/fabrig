@@ -13,9 +13,8 @@ pub fn document(value: w::FamilyDocument) -> Box<[u8]> {
 }
 /// # Errors
 /// Refuses malformed records or records outside this family's configured limits.
-pub fn document_value(bytes: &[u8], bound: &d::Limits, rows: u32) -> Result<w::FamilyDocument, Undecodable> {
-    let mut bounds = limits(bound).ok_or(Undecodable)?;
-    bounds.item_proposals = rows;
+pub fn document_value(bytes: &[u8], bound: &d::Limits) -> Result<w::FamilyDocument, Undecodable> {
+    let bounds = limits(bound).ok_or(Undecodable)?;
     if w::check_limits(&bounds).is_err() {
         return Err(Undecodable);
     }
