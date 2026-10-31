@@ -9,7 +9,7 @@ pub enum Choice {
 }
 #[must_use]
 pub fn playground(side: &super::Side) -> Option<u16> {
-    Some(side.demo()?.forge)
+    Some(side.playground()?.forge)
 }
 use alloc::boxed::Box;
 use skein_lib::List;

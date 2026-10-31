@@ -99,7 +99,7 @@ pub fn playground_offered(root: &Domain) -> Option<bool> {
     }
 }
 
-/// The welcome and setup strip use the same model facts, including an ended watch.
+/// The welcome reads model facts, including an ended watch.
 #[must_use]
 pub fn model_usable(root: &Domain) -> Option<bool> {
     let document = root.client().document(accounts::handle())?;
@@ -112,9 +112,9 @@ pub fn model_usable(root: &Domain) -> Option<bool> {
     };
     let Some(accounts) = accounts else { return Some(false) };
     let Some(provider) = root.forge().playground_provider() else { return Some(accounts.usable) };
-    Some(forge::demo::other_model_usable(
+    Some(forge::model::other_model_usable(
         accounts,
-        forge::demo::owner_deployment(root.forge(), root.client()),
+        forge::model::owner_deployment(root.forge(), root.client()),
         provider,
     ))
 }

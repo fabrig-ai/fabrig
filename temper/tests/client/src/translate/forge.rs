@@ -173,9 +173,8 @@ pub fn request(
         v1::Request::StartPlayground
         | v1::Request::EndPlayground
         | v1::Request::Accept(_)
-        | v1::Request::Reachable(_)
-        | v1::Request::StartDemo => {
-            panic!("client sends no demo start yet")
+        | v1::Request::Reachable(_) => {
+            panic!("the front handles playground starts and reachable reads")
         }
         v1::Request::Connect(connect) => {
             assert_eq!(scope, jig_client::contract::Scope::Deployment);
@@ -442,7 +441,6 @@ pub fn incoming(
         | engine::Request::Worker(_)
         | engine::Request::Forge { .. }
         | engine::Request::Account(_)
-        | engine::Request::SetUpGroup { .. }
         | engine::Request::ForgeKept(_)
         | engine::Request::ForgeGone { .. }
         | engine::Request::BoxGroup { .. }
@@ -455,7 +453,6 @@ pub fn incoming(
         | engine::Request::Install { .. }
         | engine::Request::Accept { .. }
         | engine::Request::EraseCarried { .. }
-        | engine::Request::StopGroup { .. }
         | engine::Request::SetUp { .. }
         | engine::Request::Bound { .. }
         | engine::Request::Return { .. }
@@ -478,8 +475,7 @@ pub fn incoming(
         }
         Delivery::Application { to, outcome: value } => (to, value),
         Delivery::WebReply { to, reply } => return admission_reply(transport, to, reply, limits),
-        delivery @ (Delivery::DemoActed { .. }
-        | Delivery::DemoNote { .. }
+        delivery @ (Delivery::PlaygroundNote { .. }
         | Delivery::SourceSignedOut { .. }
         | Delivery::Result { .. }
         | Delivery::Host(_)

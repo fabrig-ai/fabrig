@@ -141,7 +141,7 @@ fn the_model_draft_is_kept_between_steps_and_dropped_on_leaving() {
     assert_eq!(root.pages().connect_model().unwrap().holder, c::AccountHolder::Own);
 }
 #[test]
-fn unavailable_and_demo_ways_resolve_to_choose() {
+fn unavailable_and_playground_ways_resolve_to_choose() {
     let (mut root, _, _) = root(Way::Key { provider: PROVIDER + 1 });
     assert_eq!(connect_model::way(root.pages(), root.client()), None);
     go(&mut root, Some(Way::Key { provider: PROVIDER }));

@@ -34,15 +34,15 @@ fn offer(provider: u32, name: &[u8], sign_in: bool, program: bool) -> c::Provide
 pub(super) fn text(value: &[u8]) -> c::DocumentText {
     c::DocumentText::complete(c::Text::new(Box::from(value), 64).unwrap())
 }
-fn ways_root(offers: List<c::ProviderOffer>, demo: bool) -> d::Domain {
+fn ways_root(offers: List<c::ProviderOffer>, playground: bool) -> d::Domain {
     let limits = fixtures::limits();
     let (mut root, watch, _) = fixtures::root_at(d::Address::ConnectModel { way: None }, &limits);
     let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
     me.providers = offers;
     me.providers_cut = true;
     me.deployment_role = Some(c::HeldRole::Owner);
-    if demo {
-        return fixtures::demo_frame_root(
+    if playground {
+        return fixtures::playground_frame_root(
             d::Address::ConnectModel { way: None },
             fixtures::PROJECT,
             true,
@@ -122,12 +122,16 @@ fn a_provider_without_a_plan_names_its_sign_in_by_its_brand() {
 #[test]
 fn the_playgrounds_provider_offers_no_way() {
     let mut providers = List::with_capacity(2);
-    providers.push(offer(PROVIDER, b"demo", true, true)).unwrap();
+    providers.push(offer(PROVIDER, crate::words::SCRIPTED_MODEL, true, true)).unwrap();
     providers.push(offer(PROVIDER + 1, b"openai", true, false)).unwrap();
     let names = control_names(&ways_root(providers, true));
     assert!(names.contains(&b"Continue with ChatGPT".to_vec()));
     assert!(names.contains(&b"Use an API key".to_vec()));
-    assert!(!names.iter().any(|name| name.windows(b"demo".len()).any(|part| part == b"demo")));
+    assert!(
+        !names.iter().any(|name| name
+            .windows(crate::words::SCRIPTED_MODEL.len())
+            .any(|part| part == crate::words::SCRIPTED_MODEL))
+    );
 }
 #[test]
 fn the_deployment_holder_offers_keys_only() {

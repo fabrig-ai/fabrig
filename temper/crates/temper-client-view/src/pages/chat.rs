@@ -206,8 +206,9 @@ pub(crate) fn speakers(task: &c::Task, me: Option<&c::Me>) -> Speakers {
 }
 
 pub(crate) fn context(b: &mut Builder, root: &Domain, project: u32, words: &Words) {
-    let Some(demo) = root.forge().playground() else { return };
-    if Some(project) != demo.project || demo.state != temper_client_domain::forge::PlaygroundState::Running {
+    let Some(playground) = root.forge().playground() else { return };
+    if Some(project) != playground.project || playground.state != temper_client_domain::forge::PlaygroundState::Running
+    {
         return;
     }
     let Some(me) = root.pages().me(root.client()) else { return };
@@ -217,18 +218,19 @@ pub(crate) fn context(b: &mut Builder, root: &Domain, project: u32, words: &Word
     };
     b.open(Role::Slot);
     b.style(look::CONTEXT);
-    let repository = words.say(Word::DemoRepository, &[Hole::Name(demo.owner.clone()), Hole::Name(demo.name.clone())]);
+    let repository = words
+        .say(Word::PlaygroundRepository, &[Hole::Name(playground.owner.clone()), Hole::Name(playground.name.clone())]);
     b.open(Role::Paragraph);
-    b.text(Run::Plain, &words.say(Word::DemoContextProject, &[Hole::Name(project)]));
+    b.text(Run::Plain, &words.say(Word::PlaygroundContextProject, &[Hole::Name(project)]));
     b.open(Role::Text);
     b.style(look::REPOSITORY);
     b.run(Run::Plain, &repository);
     b.close();
-    words.text(b, Word::DemoRepositoryForge, &[]);
+    words.text(b, Word::PlaygroundRepositoryForge, &[]);
     b.close();
     let mut owner = false;
     for project in &me.projects {
-        if Some(project.project) == demo.project && project.role == c::HeldRole::Owner {
+        if Some(project.project) == playground.project && project.role == c::HeldRole::Owner {
             owner = true;
             break;
         }

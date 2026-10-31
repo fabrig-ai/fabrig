@@ -349,8 +349,8 @@ fn an_update_omits_its_project_metadata_before_its_title_arrives() {
 }
 
 #[test]
-fn updates_do_not_repeat_the_demo_project() {
-    let (mut root, _, watch, _, _) = fixtures::root_at_with_demo(
+fn updates_do_not_repeat_the_playground_project() {
+    let (mut root, _, watch, _, _) = fixtures::root_at_with_playground(
         Address::Inbox { filter: Filter::ALL },
         &fixtures::domain_limits(),
         b"Project 1",

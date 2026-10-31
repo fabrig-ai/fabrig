@@ -8,7 +8,6 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 #[derive(Debug)]
 pub(super) struct State {
     pub answer: Option<Playground>,
-    pub bridge: Option<super::Demo>,
     pub pending: Option<Handle>,
     pub live: bool,
     pub answered: bool,
@@ -26,7 +25,6 @@ impl State {
     pub const fn new() -> Self {
         Self {
             answer: None,
-            bridge: None,
             pending: None,
             live: false,
             answered: false,
@@ -77,7 +75,6 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
             {
                 side.playground.leaving = true;
             }
-            side.playground.bridge = bridge(answer.as_ref());
             side.playground.answer = answer;
             side.playground.answered = true;
             if changed || was_leaving != side.playground.leaving {
@@ -140,21 +137,6 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
         | Told::Dropped { .. } => false,
     }
 }
-fn bridge(answer: Option<&Playground>) -> Option<super::Demo> {
-    let answer = answer?;
-    Some(super::Demo {
-        state: match answer.state {
-            PlaygroundState::Starting => super::demo::DemoState::NotStarted,
-            PlaygroundState::Running | PlaygroundState::Resetting => super::demo::DemoState::Running,
-        },
-        project: answer.project?,
-        forge: answer.forge,
-        provider: answer.provider,
-        owner: answer.owner.clone(),
-        name: answer.name.clone(),
-        cues: answer.cues.clone(),
-    })
-}
 fn owns(side: &Side, key: jig_client::Key, start: bool) -> bool {
     if key.asker != crate::owner::Owner::Forge.asker() {
         return false;
@@ -174,7 +156,6 @@ fn reset(side: &mut Side, out: &mut Queue<Request>) {
     side.playground.start = None;
     side.playground.failure = None;
     side.playground.answer = None;
-    side.playground.bridge = None;
     out.push(Request::PlaygroundReset);
 }
 pub(crate) fn read(side: &mut Side, out: &mut Queue<Request>) {

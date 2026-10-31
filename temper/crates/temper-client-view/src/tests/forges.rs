@@ -77,7 +77,7 @@ fn an_owned_forge_keeps_its_access_when_stopped() {
 fn the_playground_forge_has_no_access_line() {
     let mut rows = List::with_capacity(1);
     rows.push(cf::row(wire::FORGE, w::Kind::Forgejo, w::Mode::Fake, cf::connected(), w::Offer::NotOffered)).unwrap();
-    let root = f::demo_forges_root(Address::Forges, rows);
+    let root = f::playground_forges_root(Address::Forges, rows);
     let view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Heading { level: 2 }, b"The playground").is_some());
     assert!(f::find(view.tree(), Role::Term, b"Account").is_some());
@@ -157,7 +157,7 @@ fn the_playground_forge_shows_while_the_forge_half_holds() {
     let mut rows = List::with_capacity(2);
     rows.push(cf::row(wire::FORGE, w::Kind::Forgejo, w::Mode::Fake, cf::connected(), w::Offer::NotOffered)).unwrap();
     rows.push(cf::row(HERE, w::Kind::Forgejo, w::Mode::Owned, w::Connection::Connecting, w::Offer::Offered)).unwrap();
-    let mut root = f::demo_forges_root(Address::Forges, rows);
+    let mut root = f::playground_forges_root(Address::Forges, rows);
     assert!(d::forge::listed::playground(&root).is_some());
     let view = f::page_view(&root);
     let row = f::find(view.tree(), Role::Disclosure, b"Playground forge").unwrap();
@@ -167,7 +167,7 @@ fn the_playground_forge_shows_while_the_forge_half_holds() {
         d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
     );
     assert!(d::forge::listed::playground(&root).is_some());
-    let root = f::demo_forges_root(Address::Forges, cf::rows(cf::connected(), w::Offer::Offered));
+    let root = f::playground_forges_root(Address::Forges, cf::rows(cf::connected(), w::Offer::Offered));
     assert!(d::forge::listed::playground(&root).is_none());
     assert!(f::find(f::page_view(&root).tree(), Role::Heading { level: 2 }, b"The playground").is_none());
 }
@@ -544,7 +544,7 @@ fn a_repository_making_or_failed_keeps_its_existing_body() {
 fn forges_lists_the_playground_row_with_nothing_to_add() {
     let mut rows = List::with_capacity(1);
     rows.push(cf::row(wire::FORGE, w::Kind::Forgejo, w::Mode::Fake, cf::connected(), w::Offer::NotOffered)).unwrap();
-    let root = f::demo_forges_root(Address::Forges, rows);
+    let root = f::playground_forges_root(Address::Forges, rows);
     let view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Heading { level: 2 }, b"The playground").is_some());
     for name in [b"+ Add a forge".as_slice(), b"Connect a forge"] {

@@ -54,7 +54,7 @@ pub const CONNECT_WHY_BYTES: u32 = 256;
 /// The box's maximum setup failure line length (client/README.md, 4.6).
 pub const SET_UP_WHY_BYTES: u32 = 256;
 
-/// The demo and playground's maximum number of suggested requests (client/README.md, 4.6).
+/// The playground's maximum number of suggested requests (client/README.md, 4.6).
 pub const CUES: u32 = 8;
 /// Each suggested request's maximum UTF-8 byte length (client/README.md, 4.6).
 pub const CUE_BYTES: u32 = 256;
@@ -129,10 +129,6 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         playground_answer_name: bounds.field_bytes,
         playground_answer_cues: CUES,
         playground_answer_cues_item: CUE_BYTES,
-        demo_answer_owner: bounds.field_bytes,
-        demo_answer_name: bounds.field_bytes,
-        demo_answer_cues: CUES,
-        demo_answer_cues_item: CUE_BYTES,
         first_ask_org: bounds.field_bytes,
         first_ask_repository: bounds.field_bytes,
         first_ask_label: 64,
@@ -193,29 +189,6 @@ pub fn decode_reading(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reading> 
     let record = v1::Reading::decode(limits, &mut reader).ok()?;
     if reader.is_empty() { Some(record) } else { None }
 }
-/// Encode the demo's answer; no demo is represented by no record.
-#[must_use]
-pub fn demo_answer(record: &v1::DemoAnswer) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
-    record.encode(&mut writer).expect("measured room");
-    writer.finish()
-}
-/// Decode a complete demo answer, refusing empty cues (client/README.md, 4.6).
-#[must_use]
-pub fn decode_demo_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::DemoAnswer> {
-    let mut reader = Reader::new(bytes);
-    let record = v1::DemoAnswer::decode(limits, &mut reader).ok()?;
-    if !reader.is_empty() {
-        return None;
-    }
-    for cue in record.cues() {
-        if cue.is_empty() {
-            return None;
-        }
-    }
-    Some(record)
-}
-
 /// Encode the playground's answer; no playground is represented by no record.
 #[must_use]
 pub fn playground_answer(record: &v1::PlaygroundAnswer) -> Box<[u8]> {
@@ -315,8 +288,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::Adopt(_)
         | v1::Request::RemoveForge(_)
         | v1::Request::StartPlayground
-        | v1::Request::EndPlayground
-        | v1::Request::StartDemo => {}
+        | v1::Request::EndPlayground => {}
     }
     Some(record)
 }

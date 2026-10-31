@@ -61,13 +61,15 @@ fn service(host: &[u8]) -> Service {
         );
         assert!(engine.store.above.pop().is_some());
     }
+    load(&mut service);
     let engine = service.engine.as_mut().unwrap();
-    fixtures::commit(
-        &mut engine.store,
-        2,
-        Box::new([root::Write::Save(root::Record::Forge { row: Box::new(domain::Stored::Forge(record)) })]),
+    engine.forge.serving = None;
+    root::step(
+        &mut engine.domain,
+        &engine.env,
+        root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(record.clone()) })),
     );
-    assert!(engine.store.above.pop().is_some());
+    crate::route::request(engine, root::Request::ForgeKept(record));
     service
 }
 
@@ -251,7 +253,6 @@ fn a_name_resolved_at_start_serves_a_later_record_on_its_own_port() {
 #[test]
 fn an_add_refused_by_the_component_drops_the_runtime_and_names_its_host() {
     let mut service = service(b"127.0.0.1");
-    load(&mut service);
     let engine = service.engine.as_mut().unwrap();
     engine.forge.env.limits.forges = 1;
     let mut later = record(b"full.test");
@@ -324,9 +325,10 @@ fn plaintext_outside_loopback_is_refused_when_the_record_is_kept() {
     let mut service = service(b"127.0.0.1");
     let mut remote = record(b"192.0.2.7");
     remote.number = NUMBER + 1;
+    let pending = service.engine.as_ref().unwrap().forge.io.len();
     crate::route::request(service.engine.as_mut().unwrap(), root::Request::ForgeKept(remote));
     let engine = service.engine.as_ref().unwrap();
     assert!(engine.workers.forges.get(NUMBER + 1).is_none());
     assert!(engine.forge.component.start(NUMBER + 1).is_none());
-    assert!(engine.forge.io.is_empty());
+    assert_eq!(engine.forge.io.len(), pending);
 }

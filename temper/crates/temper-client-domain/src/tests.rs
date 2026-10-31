@@ -6,7 +6,7 @@ mod address;
 mod admin;
 mod amend;
 mod playground;
-use playground as demo;
+
 pub(crate) mod fixtures;
 mod forge_words;
 mod forges;

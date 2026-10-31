@@ -7,7 +7,7 @@ use temper_client_domain::ChatsFilter;
 
 #[test]
 fn the_start_draws_the_frame_banner_before_its_chatbar_context_and_invitation() {
-    let root = f::demo_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+    let root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
     let view = f::page_view(&root);
     let nodes = view.tree().nodes();
     let mut main = None;
@@ -83,11 +83,11 @@ fn the_start_draws_the_frame_banner_before_its_chatbar_context_and_invitation() 
 
 #[test]
 fn other_chats_keep_their_heading_and_no_start() {
-    for (row, project, model, demo) in
+    for (row, project, model, playground) in
         [("other project", f::SECOND_PROJECT, true, true), ("no answer", f::PROJECT, true, false)]
     {
-        let root = if demo {
-            f::demo_root(Address::Chats { filter: ChatsFilter::All, start: false }, project, model)
+        let root = if playground {
+            f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, project, model)
         } else {
             f::chats_root()
         };
@@ -103,7 +103,7 @@ fn other_chats_keep_their_heading_and_no_start() {
 
 #[test]
 fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person() {
-    let template = f::demo_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+    let template = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
     for (row, deployment, role, named, expected, project) in [
         (
             "deployment owner",
@@ -146,7 +146,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
                 jig_client::contract::Text::new(b"Project 1".as_slice().into(), 64).expect("project name"),
             );
         }
-        let root = f::demo_frame_root(
+        let root = f::playground_frame_root(
             Address::Chats { filter: ChatsFilter::All, start: false },
             f::PROJECT,
             true,
@@ -167,13 +167,17 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
 
 #[test]
 fn a_chats_context_follows_the_chatbar_only_in_the_playground_project() {
-    for (row, project, model, demo, shown) in [
-        ("demo", f::PROJECT, true, true, true),
+    for (row, project, model, playground, shown) in [
+        ("playground", f::PROJECT, true, true, true),
         ("forge alone", f::PROJECT, false, true, true),
         ("other project", f::SECOND_PROJECT, true, true, false),
         ("no answer", f::PROJECT, true, false, false),
     ] {
-        let root = if demo { f::demo_root(Address::Chat { task: 1 }, project, model) } else { f::chat::chat_root() };
+        let root = if playground {
+            f::playground_root(Address::Chat { task: 1 }, project, model)
+        } else {
+            f::chat::chat_root()
+        };
         let view = f::page_view(&root);
         let mut chatbar = None;
         let mut context = None;
@@ -202,7 +206,7 @@ fn the_context_repository_has_its_own_node_and_style() {
     // Each page has exactly one playground repository in its context.
     const REPOSITORIES: u32 = 1;
     for address in [Address::Chats { filter: ChatsFilter::All, start: false }, Address::Chat { task: f::chat::TASK }] {
-        let root = f::demo_root(address, f::PROJECT, true);
+        let root = f::playground_root(address, f::PROJECT, true);
         let view = f::page_view(&root);
         let mut repositories = skein_lib::List::with_capacity(REPOSITORIES);
         for (index, node) in view.tree().nodes().iter().enumerate() {
@@ -218,7 +222,7 @@ fn the_context_repository_has_its_own_node_and_style() {
 
 #[test]
 fn chats_invites_to_the_playground_and_starts_it() {
-    let root = f::demo_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+    let root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
     let view = f::page_view(&root);
     let tree = view.tree();
     let region = f::find(tree, Role::Region, b"What shall we change?").expect("named invitation region");
@@ -262,10 +266,10 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
         (w::StartFailure::NotConnected, "The playground did not start: Playground forge did not connect."),
     ] {
         let mut root = start_root();
-        let attempt = f::demo_start_attempt(&mut root);
+        let attempt = f::playground_start_attempt(&mut root);
         let view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Status, b"Starting").is_some());
-        let read = f::demo_start_answer(
+        let read = f::playground_start_answer(
             &mut root,
             attempt,
             w::Outcome::StartFailed(w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why }).unwrap()),
@@ -289,11 +293,11 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
 fn a_full_group_failure_keeps_each_utf8_replacement_as_the_forge_failure_does() {
     use temper_client_protocol_wire::v1 as w;
     let mut root = start_root();
-    let attempt = f::demo_start_attempt(&mut root);
+    let attempt = f::playground_start_attempt(&mut root);
     let why = w::StartFailure::Group(
         w::GroupFailed::new(&w::CEILINGS, w::GroupFailedParts { why: Box::from([255_u8; 256]) }).unwrap(),
     );
-    let read = f::demo_start_answer(
+    let read = f::playground_start_answer(
         &mut root,
         attempt,
         w::Outcome::StartFailed(w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why }).unwrap()),
@@ -315,7 +319,7 @@ fn enter_and_start_wait_for_the_playground_start_answer() {
     use temper_client_protocol_wire::v1 as w;
 
     let mut root = start_root();
-    let attempt = f::demo_start_attempt(&mut root);
+    let attempt = f::playground_start_attempt(&mut root);
     assert_eq!(f::type_into(&mut root, b"Start a chat", b"Add CSV export").as_ref(), b"Add CSV export");
     assert!(root.forge().playground_starting());
     let mut view = f::page_view(&root);
@@ -324,7 +328,7 @@ fn enter_and_start_wait_for_the_playground_start_answer() {
     assert_eq!(crate::act(&mut view, button, skein_ui::Act::Press), None);
     assert_eq!(crate::act(&mut view, field, skein_ui::Act::Submit), None, "Enter waits as the button does");
 
-    let read = f::demo_start_answer(&mut root, attempt, w::Outcome::Running).expect("fresh playground read");
+    let read = f::playground_start_answer(&mut root, attempt, w::Outcome::Running).expect("fresh playground read");
     f::deliver_playground(&mut root, read, w::PlaygroundState::Running, f::FORGE, Some(f::PROJECT));
     assert_eq!(root.pages().chats().expect("kept draft").words.as_ref(), b"Add CSV export");
     let mut view = f::page_view(&root);
@@ -337,7 +341,7 @@ fn enter_and_start_wait_for_the_playground_start_answer() {
 
 fn start_root() -> temper_client_domain::Domain {
     let address = Address::Chats { filter: ChatsFilter::All, start: false };
-    let template = f::demo_root(address.clone(), f::PROJECT, true);
+    let template = f::playground_root(address.clone(), f::PROJECT, true);
     let (mut root, me, _, _, accounts, _) = f::root_at_with_forges(
         address,
         &f::domain_limits(),
@@ -367,12 +371,12 @@ fn start_root() -> temper_client_domain::Domain {
 fn a_starting_row_without_a_project_keeps_its_invitation_and_cues_disabled() {
     use temper_client_protocol_wire::v1 as w;
     let mut root = start_root();
-    let attempt = f::demo_start_attempt(&mut root);
-    let read = f::demo_start_answer(&mut root, attempt, w::Outcome::Running).expect("playground read");
+    let attempt = f::playground_start_attempt(&mut root);
+    let read = f::playground_start_answer(&mut root, attempt, w::Outcome::Running).expect("playground read");
     f::deliver_playground(&mut root, read, w::PlaygroundState::Starting, f::FORGE, None);
     let mut view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"What shall we change?").is_some());
     assert!(f::find(view.tree(), Role::Status, b"Starting").is_some());
-    let cue = f::find(view.tree(), Role::Button, f::DEMO_CUE).unwrap();
+    let cue = f::find(view.tree(), Role::Button, f::PLAYGROUND_CUE).unwrap();
     assert_eq!(crate::act(&mut view, cue, skein_ui::Act::Press), None);
 }

@@ -139,7 +139,7 @@ fn an_unconfigured_or_unknown_family_read_has_no_record() {
             "demo, unconfigured",
             wire::FORGE,
             wire::CLIENT_VERSION,
-            wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Demo }).unwrap()),
+            wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap()),
             people::ApplicationScope::Deployment,
             (REPLY, wire::FORGE, None),
         ),
@@ -162,106 +162,15 @@ fn an_unconfigured_or_unknown_family_read_has_no_record() {
         assert_eq!((reply, family, record), expected, "{row}");
     }
 }
-fn demo_read(scope: people::ApplicationScope) -> kit::ToApplication {
+fn read_input(scope: people::ApplicationScope) -> kit::ToApplication {
     kit::ToApplication::Read {
         reply: REPLY,
         sign_in: 3,
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        record: wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Demo }).unwrap()),
+        record: wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap()),
         scope,
         window: jig_domain_core::documents::Window { rows: 2, after: None },
-    }
-}
-fn demo_record(input: kit::ToApplication, demo: &crate::settings::Demo) -> Box<[u8]> {
-    let Err(answer) = family::to_root(input, &fixtures::forge_table(&[]), Some(demo), None, &w::CEILINGS) else {
-        panic!("demo read")
-    };
-    let kit::Event::Application(kit::FromApplication::Read { reply, family, record }) = *answer else {
-        panic!("read answer")
-    };
-    assert_eq!((reply, family), (REPLY, wire::FORGE));
-    record.unwrap()
-}
-#[test]
-fn the_demo_read_answers_the_configured_demo() {
-    let demo = crate::settings::Demo {
-        state: Some(forge::DemoState::Running),
-        landing: b"main".as_slice().into(),
-        key_file: b"/demo-key".as_slice().into(),
-        project: 1,
-        forge: 2,
-        provider: 3,
-        owner: b"demo".as_slice().into(),
-        name: b"widget".as_slice().into(),
-        cues: Box::new([
-            b"Add CSV export to widget".as_slice().into(),
-            b"Add a dark theme to widget".as_slice().into(),
-        ]),
-    };
-    let mut cues = List::with_capacity(2);
-    cues.push(b"Add CSV export to widget".as_slice().into()).unwrap();
-    cues.push(b"Add a dark theme to widget".as_slice().into()).unwrap();
-    let expected = w::DemoAnswer::new(
-        &w::CEILINGS,
-        w::DemoAnswerParts {
-            state: w::DemoState::Running,
-            project: 1,
-            forge: 2,
-            provider: 3,
-            owner: b"demo".as_slice().into(),
-            name: b"widget".as_slice().into(),
-            cues,
-        },
-    )
-    .unwrap();
-    for scope in [people::ApplicationScope::Deployment, people::ApplicationScope::Project(7)] {
-        let record = demo_record(demo_read(scope), &demo);
-        assert_eq!(wire::decode_demo_answer(&record, &w::CEILINGS), Some(expected.clone()), "{scope:?}");
-    }
-}
-#[test]
-fn the_demo_answer_carries_no_key_path_socket_or_placeholder() {
-    let service = fixtures::demo_service();
-    let record = demo_record(
-        demo_read(people::ApplicationScope::Deployment),
-        service.engine.as_ref().expect("engine").demo.as_ref().unwrap(),
-    );
-    // The answer's security rule: no key path, listen socket or placeholder.
-    for forbidden in [b"llm.key".as_slice(), b"demo/llm", b"$", b"socket"] {
-        assert_eq!(skein_lib::bytes::find(&record, forbidden), None, "{forbidden:?}");
-    }
-}
-#[test]
-fn a_configured_demo_does_not_answer_other_or_malformed_reads() {
-    let service = fixtures::demo_service();
-    let reading = wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Demo }).unwrap());
-    let mut malformed = reading.clone();
-    *malformed.last_mut().expect("read tag") = 1;
-    let mut writer = skein_lib::Writer::new(reading.len().checked_add(1).expect("one trailing byte fits"));
-    writer.put(&reading).expect("reading room");
-    writer.put(&[0]).expect("trailing byte room");
-    let trailing = writer.finish();
-    for (row, family, version, record) in [
-        ("family", 2, wire::CLIENT_VERSION, reading.clone()),
-        ("version", wire::FORGE, wire::CLIENT_VERSION + 1, reading),
-        ("malformed", wire::FORGE, wire::CLIENT_VERSION, malformed),
-        ("trailing", wire::FORGE, wire::CLIENT_VERSION, trailing),
-    ] {
-        let mut input = demo_read(people::ApplicationScope::Deployment);
-        let kit::ToApplication::Read { family: f, version: v, record: r, .. } = &mut input else { panic!("read") };
-        (*f, *v, *r) = (family, version, record);
-        let Err(answer) = family::to_root(
-            input,
-            &fixtures::forge_table(&[]),
-            service.engine.as_ref().expect("engine").demo.as_ref(),
-            None,
-            &w::CEILINGS,
-        ) else {
-            panic!("{row}: read answer")
-        };
-        let kit::Event::Application(kit::FromApplication::Read { record, .. }) = *answer else { panic!("{row}: read") };
-        assert_eq!(record, None, "{row}");
     }
 }
 #[test]
@@ -1289,73 +1198,7 @@ fn new_project_and_invalid_setup_refusals_translate_to_the_wire() {
 }
 
 #[test]
-fn demo_start_reaches_the_root_with_its_admission_envelope() {
-    let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::StartDemo }).unwrap();
-    let Ok(root::Event::Party(root::PartyInput::Application {
-        reply_to, sign_in, key, digest, request, carried, ..
-    })) = family::to_root(
-        exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
-        &fixtures::forge_table(&[]),
-        None,
-        None,
-        &w::CEILINGS,
-    )
-    else {
-        panic!("start decoded")
-    };
-    assert_eq!(reply_to, REPLY);
-    assert_eq!((sign_in, key, digest, carried), (3, REQUEST_KEY, [7; 32], None));
-    assert_eq!(request, root::Application::Forge(forge::Ask::StartDemo));
-}
-
-#[test]
-fn demo_read_tracks_not_started_running_and_ended() {
-    let Err(answer) = family::to_root(
-        demo_read(people::ApplicationScope::Deployment),
-        &fixtures::forge_table(&[]),
-        None,
-        None,
-        &w::CEILINGS,
-    ) else {
-        panic!("read")
-    };
-    let kit::Event::Application(kit::FromApplication::Read { record, .. }) = *answer else { panic!("demo read") };
-    assert!(record.is_none());
-    let mut service = fixtures::demo_service();
-    let demo = service.engine.as_mut().unwrap().demo.as_mut().unwrap();
-    for (state, expected) in [
-        (None, Some(w::DemoState::NotStarted)),
-        (Some(forge::DemoState::Running), Some(w::DemoState::Running)),
-        (Some(forge::DemoState::Ended), Some(w::DemoState::Ended)),
-    ] {
-        demo.state = state;
-        let Err(answer) = family::to_root(
-            demo_read(people::ApplicationScope::Deployment),
-            &fixtures::forge_table(&[]),
-            Some(demo),
-            None,
-            &w::CEILINGS,
-        ) else {
-            panic!("read")
-        };
-        let kit::Event::Application(kit::FromApplication::Read { record, .. }) = *answer else { panic!("demo read") };
-        let got = match record {
-            Some(record) => {
-                let answer = wire::decode_demo_answer(&record, &w::CEILINGS).unwrap();
-                assert_eq!(
-                    (answer.provider(), answer.project(), answer.forge()),
-                    (demo.provider, demo.project, demo.forge)
-                );
-                Some(answer.state().clone())
-            }
-            None => None,
-        };
-        assert_eq!(got, expected);
-    }
-}
-
-#[test]
-fn demo_start_outcomes_encode_every_failure_and_unknown() {
+fn playground_start_outcomes_encode_every_failure_and_unknown() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
     let group = w::GroupFailed::new(&w::CEILINGS, w::GroupFailedParts { why: b"prepare 1 exited 1".as_slice().into() })
         .unwrap();
@@ -1395,14 +1238,14 @@ fn demo_start_outcomes_encode_every_failure_and_unknown() {
             ),
         ),
     ] {
-        let (demo, playground) = match answer {
+        let (first, playground) = match answer {
             Some(answer) => (
-                Some(root::ApplicationAnswer::StartDemo(answer.clone())),
+                Some(root::ApplicationAnswer::StartPlayground(answer.clone())),
                 Some(root::ApplicationAnswer::StartPlayground(answer)),
             ),
             None => (None, None),
         };
-        for answer in [demo, playground] {
+        for answer in [first, playground] {
             let bytes = family::answer(answer, &w::CEILINGS, &jig).unwrap();
             assert_eq!(
                 w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome,
@@ -2057,7 +1900,7 @@ fn removal_and_playground_answers_use_their_own_outcomes() {
 }
 
 fn playground_read(row: Option<&forge::Playground>, demo: Option<&crate::settings::Demo>) -> Option<Box<[u8]>> {
-    let mut input = demo_read(people::ApplicationScope::Deployment);
+    let mut input = read_input(people::ApplicationScope::Deployment);
     if let kit::ToApplication::Read { record, .. } = &mut input {
         *record = wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap());
     }

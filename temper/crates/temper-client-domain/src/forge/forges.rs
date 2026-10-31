@@ -375,21 +375,24 @@ impl Managed {
 pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: &mut skein_lib::Queue<super::Request>) {
     match act {
         Act::SetUpOwned => {
-            if !can_make(side) || !can_set_up(side) || side.demo_running() {
+            if !can_make(side) || !can_set_up(side) || side.playground_running() {
                 return;
             }
             new_record(side, Kind::Forgejo, Mode::Owned);
             set_up(side, limits, 0, out);
         }
         Act::SetUpOwnedAtOnce => {
-            if !can_make(side) || !can_set_up(side) || side.demo_running() {
+            if !can_make(side) || !can_set_up(side) || side.playground_running() {
                 return;
             }
             new_record(side, Kind::Forgejo, Mode::Owned);
             set_up_at_once(side, limits, 0, out);
         }
         Act::GitHub { back } => {
-            if !can_make(side) || side.party.is_none() || side.demo_running() || side.served == super::Served::OutOfDate
+            if !can_make(side)
+                || side.party.is_none()
+                || side.playground_running()
+                || side.served == super::Served::OutOfDate
             {
                 return;
             }

@@ -41,7 +41,7 @@ fn pump(front: &mut Joint, root: &mut Root, event: d::Event) -> usize {
             Temper::step(root, &Env { now, wall: Wall::EPOCH, limits }, event, &mut out);
         }
     }
-    panic!("demo story did not settle");
+    panic!("playground story did not settle");
 }
 fn go(front: &mut Joint, root: &mut Root, address: Address) -> usize {
     pump(front, root, d::Event::Went { place: Place::Address(address) })

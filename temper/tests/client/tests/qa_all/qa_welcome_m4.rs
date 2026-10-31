@@ -115,7 +115,7 @@ fn unavailable_playground_read_does_not_retire_a_project() {
     let tree = Temper::tree(&view);
     assert!(
         tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Project 1")),
-        "an absent demo answer leaves the seeded project available: {:?}",
+        "an absent playground answer leaves the seeded project available: {:?}",
         words(tree)
     );
 }

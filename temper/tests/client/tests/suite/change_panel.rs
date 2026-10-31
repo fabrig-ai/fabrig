@@ -504,7 +504,7 @@ fn a_forge_procedure_without_a_change_has_an_unknown_panel() {
     assert!(!world.front().watching_change(person, task));
 }
 
-fn playground_change_page(demo_forge: u16) {
+fn playground_change_page(playground_forge: u16) {
     let mut world = fixtures::world(fixtures::SEED);
     *world.front() = Joint::with_change_landing(fixtures::SEED, &fixtures::domain_limits());
     world.front().engine.forge = Some(ForgeStand::with_checks(fixtures::REPOSITORIES, &[BUILD]));
@@ -519,24 +519,24 @@ fn playground_change_page(demo_forge: u16) {
             w::PlaygroundAnswerParts {
                 state: w::PlaygroundState::Running,
                 project: Some(1),
-                forge: demo_forge,
+                forge: playground_forge,
                 provider: 17,
                 owner: b"acme".as_slice().into(),
                 name: b"shop".as_slice().into(),
                 cues,
             },
         )
-        .expect("scripted demo read beside the real engine"),
+        .expect("scripted playground read beside the real engine"),
     );
     let person = world.client(fixtures::PARTY, fixtures::task_page(goal));
-    let on_demo = demo_forge == REPOSITORY.forge;
+    let on_playground = playground_forge == REPOSITORY.forge;
     let link = Find::exactly_named(Role::Link, "View on forge ↗".as_bytes());
     let address = format!("http://forge.example/acme/shop/pulls/{}", facts_after_open(&mut world).pull.number);
     world.person(
         person,
         vec![
             Step::See { find: Find::text(b"Waiting for its gates at its head."), within: fixtures::WITHIN },
-            if on_demo {
+            if on_playground {
                 Step::See {
                     find: Find::exactly_named(Role::Paragraph, format!("View on forge ↗ {address}").as_bytes()),
                     within: fixtures::WITHIN,
@@ -549,11 +549,11 @@ fn playground_change_page(demo_forge: u16) {
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
     let root = world.root(person).person();
-    assert_eq!(root.forge().playground().expect("running playground").forge, demo_forge);
+    assert_eq!(root.forge().playground().expect("running playground").forge, playground_forge);
     let external: Vec<_> =
         world.tree(person).nodes().iter().filter(|node| node.external.as_deref() == Some(address.as_bytes())).collect();
-    if on_demo {
-        assert!(external.is_empty(), "no node can navigate to the demo address");
+    if on_playground {
+        assert!(external.is_empty(), "no node can navigate to the playground address");
         assert!(
             !world
                 .tree(person)
