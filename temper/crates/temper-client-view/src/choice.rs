@@ -62,8 +62,8 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
     b.style(crate::look::ACCOUNTS);
     line(b, w, W::AccountBanner, &[]);
     if let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) {
-        let demo = root.forge().demo_provider();
-        let ways = temper_client_domain::pages::accounts::ways(&me.providers, demo, c::AccountHolder::Own);
+        let playground = root.forge().playground_provider();
+        let ways = temper_client_domain::pages::accounts::ways(&me.providers, playground, c::AccountHolder::Own);
         for way in &ways {
             let name = crate::pages::connect_model::label(me, *way, &ways, w);
             control(
@@ -82,13 +82,9 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
     }
     b.close();
 }
-/// The setup strip and composers read the same account and demo facts.
+/// Composers use the playground or the supplied real-account readiness (temper/docs/design/draft/playground-reset.md, 6.1).
 pub(crate) fn can_send(root: &Domain) -> bool {
-    let demo_model = match root.demo() {
-        Some((_, halves)) => halves.model,
-        None => false,
-    };
-    demo_model || temper_client_domain::pages::welcome::model_usable(root) != Some(false)
+    root.forge().playground().is_some() || temper_client_domain::pages::welcome::model_usable(root) != Some(false)
 }
 pub(crate) fn composer(
     b: &mut Builder,
@@ -215,9 +211,7 @@ fn model_shown(name: &[u8], w: &Words) -> Box<[u8]> {
 }
 
 pub(crate) fn provider_shown(root: &Domain, number: Option<u32>, name: &[u8], w: &Words) -> Box<[u8]> {
-    if let Some(demo) = root.forge().demo()
-        && number == Some(demo.provider)
-    {
+    if number.is_some() && number == root.forge().playground_provider() {
         w.say(W::Demo, &[])
     } else {
         skein_lib::bytes::copy_of(name)
@@ -549,11 +543,8 @@ fn using_line(
         (Some(me), Some(doc)) if own => pinned(doc, me.party.number, provider, [preferred, kept]),
         (Some(_), Some(_)) | (None, _) | (_, None) => None,
     };
-    // Demo.provider is public even when its deployment-held account is outside this slice.
-    if pin.is_none()
-        && let Some(demo) = root.forge().demo()
-        && provider == Some(demo.provider)
-    {
+    // The playground provider is public even when its deployment-held account is outside this slice.
+    if pin.is_none() && provider.is_some() && provider == root.forge().playground_provider() {
         if ready == c::Readiness::Unavailable {
             line(b, w, W::ModelNeedsAccount, &[Hole::Name(name)]);
         } else {
@@ -685,9 +676,10 @@ fn account_row(root: &Domain, account: u32) -> Option<&c::OwnerAccountLine> {
 fn account_line(b: &mut Builder, root: &Domain, w: &Words, account: u32, labels: (W, W)) {
     match account_row(root, account) {
         Some(row) => {
-            let name = match root.forge().demo() {
-                Some(demo) if row.provider == Some(demo.provider) => w.say(W::DemoModelName, &[]),
-                Some(_) | None => skein_lib::bytes::copy_of(row.display.bytes()),
+            let name = if row.provider.is_some() && row.provider == root.forge().playground_provider() {
+                w.say(W::DemoModelName, &[])
+            } else {
+                skein_lib::bytes::copy_of(row.display.bytes())
             };
             line(b, w, labels.1, &[Hole::Name(name)]);
         }
