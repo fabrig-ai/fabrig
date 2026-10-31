@@ -239,26 +239,10 @@ impl Core {
         role: connector::ResourceRole,
     ) -> bool {
         self.start_input();
-        match self.start.mode {
-            crate::start::StartMode::LoadAndLink => {
-                if self.start_phase() != Some(crate::start::Phase::RestoreConnector { connector: name.connector }) {
-                    return false;
-                }
+        {
+            if self.start_phase() != Some(crate::start::Phase::RestoreConnector { connector: name.connector }) {
+                return false;
             }
-            crate::start::StartMode::Default => match self.restart_step() {
-                Some(crate::RestartStep::RestoreConnector { connector }) if connector == name.connector => {}
-                Some(
-                    crate::RestartStep::LoadCore
-                    | crate::RestartStep::LoadInbox
-                    | crate::RestartStep::RestoreConnector { .. }
-                    | crate::RestartStep::Switch
-                    | crate::RestartStep::AdoptRuns
-                    | crate::RestartStep::ReadAfresh { .. }
-                    | crate::RestartStep::SettleOutbox { .. }
-                    | crate::RestartStep::Open,
-                )
-                | None => return false,
-            },
         }
         if !tasks::valid_name(&env.limits.tasks, &name) {
             return false;

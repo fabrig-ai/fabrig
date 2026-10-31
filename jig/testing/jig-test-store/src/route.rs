@@ -20,7 +20,6 @@ pub struct Routes {
 #[derive(Debug)]
 enum Flight {
     Start { phase: core::start::Phase, census: Option<core::Census> },
-    Restart { step: core::RestartStep, census: Option<core::Census> },
     Read(Token),
     Notes(Token),
     Historical(core::Now),
@@ -101,25 +100,6 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
             }
             restart(routes, owner, None)?
         }
-        StoreOut::Restart { step, census } => {
-            if step == core::RestartStep::Switch {
-                let owner = routes.keep(Flight::Restart { step, census });
-                return Some(Request::Switch { owner });
-            }
-            match &step {
-                core::RestartStep::LoadCore | core::RestartStep::RestoreConnector { .. } => {}
-                core::RestartStep::LoadInbox => {
-                    census.as_ref()?;
-                }
-                core::RestartStep::Switch
-                | core::RestartStep::AdoptRuns
-                | core::RestartStep::ReadAfresh { .. }
-                | core::RestartStep::SettleOutbox { .. }
-                | core::RestartStep::Open => return None,
-            }
-            let owner = routes.keep(Flight::Restart { step, census });
-            restart(routes, owner, None)?
-        }
         StoreOut::ReadLoad { load, range } => {
             let owner = routes.keep(Flight::Read(load));
             Request::Read { owner, range: *range }
@@ -149,19 +129,6 @@ fn restart(routes: &Routes, owner: Token, after: Option<store::Cursor>) -> Optio
     use core::start::Phase;
     let (phase, census) = match routes.pending.get(&owner)? {
         Flight::Start { phase, census } => (*phase, census),
-        Flight::Restart { step, census } => (
-            match step {
-                core::RestartStep::LoadCore => Phase::LoadCore,
-                core::RestartStep::LoadInbox => Phase::LoadInbox,
-                core::RestartStep::RestoreConnector { connector } => Phase::RestoreConnector { connector: *connector },
-                core::RestartStep::Switch
-                | core::RestartStep::AdoptRuns
-                | core::RestartStep::ReadAfresh { .. }
-                | core::RestartStep::SettleOutbox { .. }
-                | core::RestartStep::Open => return None,
-            },
-            census,
-        ),
         Flight::Read(_) | Flight::Notes(_) | Flight::Historical(_) | Flight::Window { .. } => return None,
     };
     let range = match phase {
@@ -188,7 +155,7 @@ fn restart(routes: &Routes, owner: Token, after: Option<store::Cursor>) -> Optio
 fn transcript(routes: &Routes, owner: Token, after: Option<u64>) -> Option<Request> {
     let (task, attempt, turn) = match routes.pending.get(&owner)? {
         Flight::Window { task, attempt, turn } => (task, attempt, turn),
-        Flight::Start { .. } | Flight::Restart { .. } | Flight::Read(_) | Flight::Notes(_) | Flight::Historical(_) => {
+        Flight::Start { .. } | Flight::Read(_) | Flight::Notes(_) | Flight::Historical(_) => {
             return None;
         }
     };
@@ -350,16 +317,8 @@ fn switched(routes: &mut Routes, owner: Token, into: &mut Queue<Up>) {
         Some(Flight::Start { phase: core::start::Phase::Switch, .. }) => {
             into.push(Up::Root(root::Event::StartDone(core::start::Phase::Switch)));
         }
-        Some(Flight::Restart { step: core::RestartStep::Switch, .. }) => {
-            into.push(Up::Root(root::Event::Switched));
-        }
         Some(
-            Flight::Start { .. }
-            | Flight::Restart { .. }
-            | Flight::Read(_)
-            | Flight::Notes(_)
-            | Flight::Historical(_)
-            | Flight::Window { .. },
+            Flight::Start { .. } | Flight::Read(_) | Flight::Notes(_) | Flight::Historical(_) | Flight::Window { .. },
         )
         | None => {}
     }

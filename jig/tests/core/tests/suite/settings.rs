@@ -1616,7 +1616,6 @@ fn the_bound_reached_its_named_tasks_moved_and_the_change_then_made() {
 }
 
 #[test]
-#[ignore = "start: root routes worker hello to the core before durable Wires"]
 fn a_restart_adopts_a_live_run_on_its_old_version() {
     let (mut world, signed, goal) = held_run();
     let attempt = world.assigned.as_ref().expect("live run").attempt;
