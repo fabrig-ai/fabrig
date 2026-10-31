@@ -232,7 +232,7 @@ fn script(cue: &[u8], turns: Vec<Turn>) -> Script {
 // The fixture reserves no turns/time; count observed settled callbacks and the
 // injected admission/open/return clocks instead of copying a rendered result.
 fn activation(
-    settings: Settings,
+    settings: &Settings,
     cue: &[u8],
     rates: &[Rate],
     scripts: Box<[Script]>,
@@ -240,12 +240,12 @@ fn activation(
 ) -> World {
     let (disk, workspace) = workspace(settings.writable);
     World::with_workspace_scripts_charter(
-        settings,
+        *settings,
         transcript,
         Some(workspace),
         disk,
         scripts,
-        charter(&settings, cue, rates),
+        charter(settings, cue, rates),
     )
 }
 
@@ -306,7 +306,7 @@ fn an_unaffordable_completion_never_edits_or_finishes() {
         settings.budget.spend = 4;
         let scripts =
             Box::new([script(b"@budget-crossing", vec![calls(vec![call(b"read", READ)], 3), calls(lines, 7)])]);
-        let mut world = activation(settings, b"@budget-crossing", &CROSSING_RATES, scripts, None);
+        let mut world = activation(&settings, b"@budget-crossing", &CROSSING_RATES, scripts, None);
         world.run(20_000);
         assert!(world.completions().is_empty(), "the maximum cannot fit even the first completion");
         assert!(matches!(
@@ -332,7 +332,7 @@ fn an_affordable_completion_edits_and_finishes_within_the_budget() {
         b"@budget-crossing",
         vec![calls(vec![call(b"read", READ)], 3), calls(vec![call(b"edit", EDIT), call(b"finish", REPORT)], 7)],
     )]);
-    let mut world = activation(settings, b"@budget-crossing", &CROSSING_RATES, scripts, None);
+    let mut world = activation(&settings, b"@budget-crossing", &CROSSING_RATES, scripts, None);
     world.run(20_000);
 
     let expected = conservation(&world, &CROSSING_RATES);
@@ -364,7 +364,7 @@ fn parallel_scripts() -> Box<[Script]> {
 
 fn parallel_story() {
     let settings = settings(703, false, false);
-    let mut world = activation(settings, b"@budget-parallel", &PARALLEL_RATES, parallel_scripts(), None);
+    let mut world = activation(&settings, b"@budget-parallel", &PARALLEL_RATES, parallel_scripts(), None);
     world.run(100_000);
 
     let expected = conservation(&world, &PARALLEL_RATES);
@@ -478,7 +478,7 @@ fn parked_accounting(world: &World, rates: &[Rate], prior_sequence: u32) -> run:
 
 fn parking_story() {
     let mut first = activation(
-        settings(704, false, true),
+        &settings(704, false, true),
         b"@budget-parking-main FIRST-INSTRUCTIONS",
         &MODEL_RATES[..2],
         parking_scripts(),
@@ -503,7 +503,7 @@ fn parking_story() {
     let history = saved(&first);
     let immutable = history.clone();
     let mut resumed = activation(
-        settings(705, false, true),
+        &settings(705, false, true),
         b"@budget-parking-main NEW-INSTRUCTIONS",
         &RESUMED_RATES,
         parking_scripts(),
