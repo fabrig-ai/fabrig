@@ -77,7 +77,7 @@ pub fn tools() -> crate::jig::Limits {
     let mut settings =
         *jig_client_protocol_link::Limits::new(client, preset.exchanges).expect("checked host client limits").wire();
     // The settings form's executor bound is independent of the client's grant capacity.
-    settings.owner_delegation_kinds = settings_form::Limits::standard().settings.owner_delegation_kinds;
+    settings.delegation_kinds = settings_form::Limits::standard().settings.delegation_kinds;
     crate::jig::Limits {
         rows: client.rows,
         settings,

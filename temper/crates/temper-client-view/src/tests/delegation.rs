@@ -29,20 +29,16 @@ fn change() -> c::Task {
     task.hold = None;
     task.result = None;
     task.result_contract = c::TaskContractDocument::Change { connector: fixtures::FORGE, kind: 1, words: 256 };
-    let c::ChipPhase { details, .. } = task.chip.details.as_mut();
+    let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
     details.ending = None;
     task
 }
 fn landed() -> c::Task {
     let mut task = change();
-    task.requester = c::OwnerRequester::Task(CHAT);
-    task.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Done(c::ResultValue::Change {
+    task.requester = c::Requester::Task(CHAT);
+    task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(c::ResultValue::Change {
         kind: 1,
-        part: c::OwnerPart {
-            connector: fixtures::FORGE,
-            kind: c::OwnerPartKind::Result,
-            key: c::OwnerPartKey::Number(CHANGE),
-        },
+        part: c::Part { connector: fixtures::FORGE, kind: c::PartKind::Result, key: c::PartKey::Number(CHANGE) },
         words: document(MERGE),
     }))));
     task
@@ -217,15 +213,15 @@ fn activity(called: &[u64], heard: bool) -> c::ActivityPage {
     let mut rows = List::with_capacity(4);
     if heard {
         for (position, from, words) in [(5, CHANGE, b"Carded result".as_slice()), (4, 3, b"Another task's result")] {
-            rows.push(jig_client::contract::ActivityLine {
-                source: Box::new(c::OwnerActivityLine {
+            rows.push(jig_client::contract::DecodedActivityLine {
+                source: Box::new(c::ActivityLine {
                     task: CHAT,
                     position,
                     at: Wall::EPOCH,
-                    line: c::OwnerActivity::Heard(c::OwnerWord {
+                    line: c::Activity::Heard(c::Word {
                         number: position,
-                        from: c::OwnerRequester::Task(from),
-                        kind: c::OwnerMessageKind::Result(c::OwnerWordResult::Report),
+                        from: c::Requester::Task(from),
+                        kind: c::MessageKind::Result(c::WordResult::Report),
                         words: text(words),
                         at: Wall::EPOCH,
                         hits: 0,
@@ -325,10 +321,10 @@ fn after_call() -> c::ActivityPage {
     rows.push(crate::tests::documents::line(
         3,
         Wall::EPOCH,
-        jig_client::contract::OwnerActivity::Heard(jig_client::contract::OwnerWord {
+        jig_client::contract::Activity::Heard(jig_client::contract::Word {
             number: 3,
-            from: jig_client::contract::OwnerRequester::Task(0),
-            kind: jig_client::contract::OwnerMessageKind::Words,
+            from: jig_client::contract::Requester::Task(0),
+            kind: jig_client::contract::MessageKind::Words,
             words: text(LATER),
             at: Wall::EPOCH,
             hits: 1,
@@ -533,7 +529,7 @@ fn a_result_without_its_document_draws_no_input_work() {
 fn a_persons_result_draws_no_input_work() {
     let summary = b"...\n2: Result from task 2:\nwords";
     let mut task = change();
-    task.requester = c::OwnerRequester::Person(CHANGE);
+    task.requester = c::Requester::Person(CHANGE);
     let view = view_root(&root_activity(&[task], wake(false, summary), &[]));
     assert!(fixtures::find(view.tree(), Role::Region, b"Task 2").is_none());
     assert_eq!(work_slots(&view), 0);
@@ -551,17 +547,12 @@ fn a_partly_carded_result_draws_no_input_work() {
 fn each_state_says_its_words_in_its_status_look() {
     for (ending, held, name, token) in [
         (None, true, b"Held".as_slice(), look::STATUS_HELD),
+        (Some(c::ChipEnding::Done(c::ResultValue::Report(document(b"Done")))), false, b"Completed", look::STATUS_DONE),
+        (Some(c::ChipEnding::Failed(document(b"Failed"))), false, b"Failed", look::STATUS_HELD),
         (
-            Some(c::OwnerChipEnding::Done(c::ResultValue::Report(document(b"Done")))),
-            false,
-            b"Completed",
-            look::STATUS_DONE,
-        ),
-        (Some(c::OwnerChipEnding::Failed(document(b"Failed"))), false, b"Failed", look::STATUS_HELD),
-        (
-            Some(c::OwnerChipEnding::Cancelled {
+            Some(c::ChipEnding::Cancelled {
                 reason: document(b"Cancelled"),
-                by: c::OwnerRequester::Person(1),
+                by: c::Requester::Person(1),
                 result: None,
                 at: Wall::EPOCH,
             }),
@@ -575,7 +566,7 @@ fn each_state_says_its_words_in_its_status_look() {
             task.chip.phase = c::Phase::Held;
         }
         if let Some(ending) = ending {
-            task.chip.details.phase = c::OwnerChipPhase::Ended;
+            task.chip.details.phase = c::ChipPhase::Ended;
             task.chip.details.details.ending = Some(ending);
         }
         let view = view(Some(task), &[CHANGE], false);
@@ -587,7 +578,7 @@ fn each_state_says_its_words_in_its_status_look() {
 fn a_report_has_no_steps() {
     let mut task = change();
     task.result_contract = c::TaskContractDocument::Report { words: 256 };
-    task.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Done(c::ResultValue::Report(document(
+    task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(c::ResultValue::Report(document(
         b"A **useful** report",
     ))))));
     let view = view(Some(task), &[CHANGE], false);
@@ -598,7 +589,7 @@ fn a_report_has_no_steps() {
 #[test]
 fn a_failed_change_says_its_reason() {
     let mut task = change();
-    task.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Failed(document(b"Checks failed")))));
+    task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Failed(document(b"Checks failed")))));
     let view = view(Some(task), &[CHANGE], false);
     status(&view, b"Failed", look::STATUS_HELD);
     assert!(find(&view, Find::text(b"Checks failed")).is_some());
@@ -674,7 +665,7 @@ fn first_run_view(dark: bool, landed_change: bool) -> crate::View {
     receiving.client.domain.turn_text = 2048;
     let mut chat = change();
     chat.chip.task = if dark { 4 } else { CHAT };
-    chat.requester = c::OwnerRequester::Person(fixtures::chat::PARTY);
+    chat.requester = c::Requester::Person(fixtures::chat::PARTY);
     chat.chip.title = c::DocumentText::complete(run::text(if dark { run::DARK } else { run::CSV }));
     chat.spec.specification.words = chat.chip.title.clone();
     chat.chip.phase = c::Phase::Idle;
@@ -773,7 +764,7 @@ fn csv_chat_hears_its_result(turn_text: u32) {
     for line in &activity.rows {
         if line.source.position <= 6 {
             let mut line = line.clone();
-            if let c::OwnerActivity::Heard(word) = &mut line.source.line {
+            if let c::Activity::Heard(word) = &mut line.source.line {
                 word.words = run::text(b"1d0b14e4db018fed000000000000000300000000");
             }
             rows.push(line).expect("before resumed turn");
@@ -782,13 +773,13 @@ fn csv_chat_hears_its_result(turn_text: u32) {
     activity.rows = rows;
     let mut chat = change();
     chat.chip.task = CHAT;
-    chat.requester = c::OwnerRequester::Person(fixtures::chat::PARTY);
+    chat.requester = c::Requester::Person(fixtures::chat::PARTY);
     chat.waits_on = c::WaitsOn::News;
     chat.wake.words = c::WakeRule::Immediate;
-    let c::ChipPhase { details, .. } = chat.chip.details.as_mut();
+    let c::ChipPhaseFacts { details, .. } = chat.chip.details.as_mut();
     details.live_delegates = 0;
     let mut task = change();
-    task.requester = c::OwnerRequester::Task(CHAT);
+    task.requester = c::Requester::Task(CHAT);
     let (mut root, mut reads) = root_chat_with_reads(Some(&chat), &[task], activity, &[], &receiving);
     let mut view = crate::View::new(
         &crate::Limits { tree: fixtures::tree_limits() },
@@ -856,13 +847,13 @@ fn the_csv_chat_stops_waiting_when_its_card_lands_before_the_chat_document() {
     receiving.client.domain.turn_text = 2048;
     let mut chat = change();
     chat.chip.task = CHAT;
-    chat.requester = c::OwnerRequester::Person(fixtures::chat::PARTY);
+    chat.requester = c::Requester::Person(fixtures::chat::PARTY);
     chat.waits_on = c::WaitsOn::Delegates;
     chat.wake.words = c::WakeRule::Immediate;
-    let c::ChipPhase { details, .. } = chat.chip.details.as_mut();
+    let c::ChipPhaseFacts { details, .. } = chat.chip.details.as_mut();
     details.live_delegates = 1;
     let mut task = change();
-    task.requester = c::OwnerRequester::Task(CHAT);
+    task.requester = c::Requester::Task(CHAT);
     for landed_change in [false, true] {
         let document = if landed_change { landed() } else { task.clone() };
         let root = root_chat_limits(
@@ -910,7 +901,7 @@ fn the_dark_theme_chat_has_its_whole_answer_and_waits_with_its_composer() {
 fn a_failed_chat_has_one_end_line_with_its_reason() {
     let mut chat = change();
     chat.chip.task = CHAT;
-    chat.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Failed(document(b"No capacity")))));
+    chat.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Failed(document(b"No capacity")))));
     let view = view_root(&root_chat(Some(&chat), &[], after_call(), &[]));
     assert!(fixtures::find(view.tree(), Role::Paragraph, "Failed · No capacity".as_bytes()).is_some());
 }
@@ -919,7 +910,7 @@ fn a_failed_chat_has_one_end_line_with_its_reason() {
 fn an_ended_chat_has_no_composer_line_or_chooser() {
     let mut chat = change();
     chat.chip.task = CHAT;
-    chat.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Failed(document(b"No capacity")))));
+    chat.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Failed(document(b"No capacity")))));
     let view = view_root(&root_chat(Some(&chat), &[], after_call(), &[]));
     for node in view.tree().nodes() {
         for token in [look::COMPOSER_AREA, look::CHOICE, look::ACCOUNT_LINE] {

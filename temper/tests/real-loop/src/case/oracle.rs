@@ -2535,7 +2535,7 @@ pub fn step_5_2(observed: &Observed) -> Vec<Miss> {
         (Read::BHeld, BOWNER, PAUSE),
         (Read::BStillHeld, BOWNER, PAUSE),
         (Read::BEnded, BOWNER, PAUSE),
-        (Read::OwnerEnded, OWNER, PAUSE),
+        (Read::Ended, OWNER, PAUSE),
         (Read::HelperEnded, HELPER, PAUSE),
         (Read::ImplementerHeld, IMPLEMENTER, BOWNER),
         (Read::H1Held, H1, BOWNER),
@@ -2579,7 +2579,7 @@ fn pause_stop(observed: &Observed, misses: &mut Vec<Miss>) {
     let held = task_document(observed, Read::BHeld);
     let still = task_document(observed, Read::BStillHeld);
     let b = task_document(observed, Read::BEnded);
-    let a = task_document(observed, Read::OwnerEnded);
+    let a = task_document(observed, Read::Ended);
     for task in [held, still] {
         step_check(
             misses,
@@ -2598,19 +2598,19 @@ fn pause_stop(observed: &Observed, misses: &mut Vec<Miss>) {
         text(a, "/chip/phase") == "ended"
             && text(a, "/result/value/report/bytes") == OWNER_REPORT
             && a["hold"].is_null()
-            && check_activity(observed, Read::OwnerEnded)
+            && check_activity(observed, Read::Ended)
                 .iter()
                 .filter(|row| number(row, "/line/milestone/position").is_some())
                 .count()
                 == 2
-            && check_activity(observed, Read::OwnerEnded)
+            && check_activity(observed, Read::Ended)
                 .iter()
                 .filter(|row| number(row, "/line/run_began/attempt").is_some())
                 .count()
                 == 1
-            && pause_activity(observed, Read::OwnerEnded)["cut"] == false
-            && pause_activity(observed, Read::OwnerEnded)["before"].is_null()
-            && !check_activity(observed, Read::OwnerEnded).iter().any(|row| row["line"].get("decided").is_some()),
+            && pause_activity(observed, Read::Ended)["cut"] == false
+            && pause_activity(observed, Read::Ended)["before"].is_null()
+            && !check_activity(observed, Read::Ended).iter().any(|row| row["line"].get("decided").is_some()),
         PERSON_STOP,
         "A must finish without a hold or control decision",
     );
@@ -2851,7 +2851,7 @@ mod pause_tests {
                 Read::BEndedEarlier,
                 json!({"activity":{"rows":[{"position":2,"line":{"run_began":{"attempt":1}}}],"before":null,"cut":false}}),
             ),
-            (Read::OwnerEnded, task(OWNER, PAUSE)),
+            (Read::Ended, task(OWNER, PAUSE)),
             (Read::HelperEnded, task(HELPER, PAUSE)),
             (Read::ImplementerEnded, task(IMPLEMENTER, BOWNER)),
             (Read::H1Ended, task(H1, BOWNER)),
@@ -2886,7 +2886,7 @@ mod pause_tests {
         documents.get_mut(&Read::BEnded).expect("B")["task"]["chip"]["details"]["owner"]["details"]["attempt"] =
             2.into();
         for (read, report) in [
-            (Read::OwnerEnded, OWNER_REPORT),
+            (Read::Ended, OWNER_REPORT),
             (Read::BEnded, BOWNER_REPORT),
             (Read::ImplementerEnded, IMPLEMENTER_RESULT),
             (Read::PauseEnded, PAUSE_REPORT),
@@ -2898,7 +2898,7 @@ mod pause_tests {
             json!({"ending":{"task":{"done":{"change":change}}},"value":{"change":change}});
         documents.get_mut(&Read::HelperEnded).expect("helper")["task"]["result"]["ending"] =
             json!({"task":{"cancelled":{"by":{"task":PAUSE},"reason":{"bytes":HELPER_REASON}}}});
-        documents.get_mut(&Read::OwnerEnded).expect("A")["activity"]["rows"] = json!([
+        documents.get_mut(&Read::Ended).expect("A")["activity"]["rows"] = json!([
             {"position":5,"line":{"milestone":{"position":5}}},
             {"position":2,"line":{"run_began":{"attempt":1}}},
             {"position":1,"line":{"milestone":{"position":1}}},
@@ -2968,8 +2968,8 @@ mod pause_tests {
             (Read::BEndedEarlier, "/activity/rows/0/event/owner/source/line/run_began/attempt"),
             (Read::BEnded, "/activity/cut"),
             (Read::BEnded, "/task/result/value/report/bytes"),
-            (Read::OwnerEnded, "/task/result/value/report/bytes"),
-            (Read::OwnerEnded, "/task/chip/phase"),
+            (Read::Ended, "/task/result/value/report/bytes"),
+            (Read::Ended, "/task/chip/phase"),
             (Read::ImplementerEnded, "/task/result/value/report/bytes"),
             (Read::ImplementerEnded, "/task/result/ending/task/done"),
             (Read::H1Ended, "/task/result/ending/task/done/change/kind"),
@@ -2983,8 +2983,8 @@ mod pause_tests {
             (Read::H1Ended, "/activity/rows/0/event/owner/source/line/heard/from/task"),
             (Read::H1Ended, "/activity/rows/0/event/owner/source/line/heard/kind/result/verdict/code"),
             (Read::H1Ended, "/activity/rows/1/event/owner/source/line/heard/from/task"),
-            (Read::OwnerEnded, "/activity/rows/0/event/owner/source/line/milestone/position"),
-            (Read::OwnerEnded, "/activity/rows/1/event/owner/source/line/run_began/attempt"),
+            (Read::Ended, "/activity/rows/0/event/owner/source/line/milestone/position"),
+            (Read::Ended, "/activity/rows/1/event/owner/source/line/run_began/attempt"),
             (Read::HelperEnded, "/task/chip/executor/agent/charter"),
             (Read::HelperEnded, "/task/result/ending/task/cancelled/by/task"),
             (Read::HelperEnded, "/task/result/ending/task/cancelled/reason/bytes"),
@@ -3068,14 +3068,14 @@ mod pause_tests {
         changed_hold.documents.get_mut(&Read::BStillHeld).expect("still held")["task"]["hold"]["reason"]["placed"]["hold"] =
             json!(99);
         let mut a_held = passing.clone();
-        a_held.documents.get_mut(&Read::OwnerEnded).expect("A")["task"]["hold"] = json!({});
+        a_held.documents.get_mut(&Read::Ended).expect("A")["task"]["hold"] = json!({});
         let mut a_released = passing.clone();
-        a_released.documents.get_mut(&Read::OwnerEnded).expect("A")["activity"]["rows"]
+        a_released.documents.get_mut(&Read::Ended).expect("A")["activity"]["rows"]
             .as_array_mut()
             .expect("rows")
             .push(json!({"event":{"owner":{"source":{"line":{"milestone":{"position":3}}}}}}));
         let mut a_retried = passing.clone();
-        a_retried.documents.get_mut(&Read::OwnerEnded).expect("A")["activity"]["rows"]
+        a_retried.documents.get_mut(&Read::Ended).expect("A")["activity"]["rows"]
             .as_array_mut()
             .expect("rows")
             .push(json!({"event":{"owner":{"source":{"line":{"run_began":{"attempt":3}}}}}}));

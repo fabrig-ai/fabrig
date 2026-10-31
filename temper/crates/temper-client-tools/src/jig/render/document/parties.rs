@@ -74,7 +74,7 @@ pub(super) fn encode_phase(value: jig_client::contract::Phase, out: &mut Encoder
 }
 
 pub(super) fn encode_phase_counts(
-    value: &jig_client::contract::PhaseCounts,
+    value: &jig_client::contract::ImpactCounts,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {

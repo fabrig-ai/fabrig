@@ -175,7 +175,7 @@ fn an_unnamed_amend_draws_a_key() {
 #[test]
 fn amend_prints_done() {
     let (mut root, call) = f::send_choice_amend(f::MODEL_AMEND, f::choice_task(c::Admission::Allowed));
-    root.done(call, c::Outcome::Owner(c::OwnerOutcome::Amended { task: 9 }));
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
     let answer = root.answer(call).expect("done");
     assert_eq!((answer.status, answer.stdout.as_ref()), (0, b"done: task 41, amend\n".as_slice()));
 }

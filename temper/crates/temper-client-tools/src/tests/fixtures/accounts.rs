@@ -5,15 +5,15 @@ pub(crate) const SOURCE: u32 = 71;
 pub(crate) const PROVIDER: u32 = 9;
 pub(crate) const ACCOUNT_WATCH: client::Watchable = client::Watchable::Jig(c::Subject::Accounts);
 pub(crate) const DEPLOYMENT_WATCH: client::Watchable = client::Watchable::Jig(c::Subject::Deployment);
-pub(crate) fn accounts() -> c::OwnerAccounts {
+pub(crate) fn accounts() -> c::Accounts {
     let mut sources = List::with_capacity(1);
     sources
-        .push(c::OwnerAccountSource {
+        .push(c::AccountSource {
             name: None,
             place: 1,
             number: SOURCE,
-            kind: c::OwnerAccountKind::Key,
-            state: c::OwnerAccountState::Later { until: Some(Wall::from_nanos(100)) },
+            kind: c::AccountKind::Key,
+            state: c::AccountState::Later { until: Some(Wall::from_nanos(100)) },
             usable: false,
             expiring: true,
             attention: true,
@@ -21,10 +21,10 @@ pub(crate) fn accounts() -> c::OwnerAccounts {
         })
         .expect("one source");
     let mut uses = List::with_capacity(1);
-    uses.push(c::OwnerAccountUse::Project(PROJECT)).expect("one payer");
+    uses.push(c::AccountUse::Project(PROJECT)).expect("one payer");
     let mut accounts = List::with_capacity(1);
     accounts
-        .push(c::OwnerAccountLine {
+        .push(c::AccountLine {
             number: ACCOUNT,
             place: 1,
             uses: Some(uses),
@@ -33,12 +33,12 @@ pub(crate) fn accounts() -> c::OwnerAccounts {
             provider_name: Some(document_text(b"Scripted")),
             manage_usage: Some(Box::from(b"https://provider.example/usage".as_slice())),
             display: document_text(b"Work"),
-            holder: c::OwnerAccountHolder::Party(PARTY),
+            holder: c::AccountHolder::Party(PARTY),
             sources,
             cut: false,
         })
         .expect("one account");
-    c::OwnerAccounts {
+    c::Accounts {
         program_hosts: List::with_capacity(0),
         readiness: List::with_capacity(0),
         readiness_cut: false,
@@ -59,7 +59,7 @@ pub(crate) fn account_root(owner: bool) -> Harness {
     root.deliver(c::Delivery::Me(Box::new(me)));
     root
 }
-pub(crate) fn deployment() -> c::OwnerDeployment {
+pub(crate) fn deployment() -> c::Deployment {
     let limits = crate::limits::client().client;
     let limits = jig_client_protocol_link::Limits::new(limits.domain, limits.exchanges).expect("tools limits");
     let mut deployment = jig_client_protocol_link::translate::documents::owner_deployment(
@@ -72,7 +72,7 @@ pub(crate) fn deployment() -> c::OwnerDeployment {
     deployment.accounts = List::with_capacity(1);
     deployment
         .accounts
-        .push(c::OwnerAccount {
+        .push(c::Account {
             number: row.number,
             place: row.place,
             uses: row.uses,
@@ -81,10 +81,10 @@ pub(crate) fn deployment() -> c::OwnerDeployment {
             provider_name: row.provider_name,
             manage_usage: row.manage_usage,
             display: row.display,
-            holder: c::OwnerAccountHolder::Deployment,
+            holder: c::AccountHolder::Deployment,
             sources: row.sources,
             generation: Some(1),
-            state: c::OwnerAccountState::Granted,
+            state: c::AccountState::Granted,
             usable: true,
             expiring: false,
             attention: false,
@@ -96,16 +96,16 @@ pub(crate) fn deployment() -> c::OwnerDeployment {
         .expect("one deployment account");
     deployment
 }
-pub(crate) fn deliver_accounts(root: &mut Harness, value: c::OwnerAccounts) {
-    root.deliver_subject(&ACCOUNT_WATCH, c::Delivery::OwnerAccounts(Box::new(value)));
+pub(crate) fn deliver_accounts(root: &mut Harness, value: c::Accounts) {
+    root.deliver_subject(&ACCOUNT_WATCH, c::Delivery::Accounts(Box::new(value)));
 }
-pub(crate) fn deliver_deployment(root: &mut Harness, value: c::OwnerDeployment) {
-    root.deliver_subject(&DEPLOYMENT_WATCH, c::Delivery::OwnerDeployment(Box::new(value)));
+pub(crate) fn deliver_deployment(root: &mut Harness, value: c::Deployment) {
+    root.deliver_subject(&DEPLOYMENT_WATCH, c::Delivery::Deployment(Box::new(value)));
 }
 pub(crate) fn account_read(
     root: &mut Harness,
-    value: c::OwnerAccounts,
-    deployment: Option<c::OwnerDeployment>,
+    value: c::Accounts,
+    deployment: Option<c::Deployment>,
 ) -> crate::jig::Printed {
     let call = root.submit(&["account", "list", "--json"]);
     deliver_accounts(root, value);
@@ -139,7 +139,7 @@ pub(crate) fn payer_readiness() -> List<c::PayerReadiness> {
     let mut rows = List::with_capacity(1);
     rows.push(c::PayerReadiness {
         provider: PROVIDER,
-        payer: c::OwnerAccountUse::Party(PARTY),
+        payer: c::AccountUse::Party(PARTY),
         readiness: c::Readiness::Unknown,
         settled: None,
     })

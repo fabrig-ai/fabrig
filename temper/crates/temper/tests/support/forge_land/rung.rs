@@ -88,7 +88,7 @@ pub fn child_rows(live: &Value, ended: &Value) -> Result<Vec<Value>, String> {
     Ok(rows)
 }
 
-/// Explicit messages are `OwnerActivity::Words`, with their author in `by`;
+/// Explicit messages are `Activity::Words`, with their author in `by`;
 /// other input, such as results and forge news, uses the separate `Heard` form.
 pub fn plan_question(rows: &[Value], goal: u64, question: u64) -> Result<&str, String> {
     rows.iter()

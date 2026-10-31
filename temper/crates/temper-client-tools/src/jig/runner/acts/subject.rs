@@ -24,7 +24,7 @@ fn expected(call: &Call) -> c::ObjectKey {
     }
 }
 pub(super) fn scope(call: &Call, document: &c::ReadValue) -> Result<Scope, Failed> {
-    if let c::ReadValue::Historical(history) = document {
+    if let c::ReadValue::Ended(history) = document {
         if !history.matches(expected(call)) {
             return Err(Failed::Fixed(b"unexpected act subject"));
         }
@@ -32,12 +32,13 @@ pub(super) fn scope(call: &Call, document: &c::ReadValue) -> Result<Scope, Faile
             return Ok(Scope::Project(0));
         }
         return Ok(match &history.value {
-            c::OwnerHistoricalValue::Task { document, .. }
-            | c::OwnerHistoricalValue::Escalation { task: document, .. } => Scope::Project(document.project),
-            c::OwnerHistoricalValue::Question { question, .. } => chip_scope(&question.task),
-            c::OwnerHistoricalValue::Proposal(proposal) => Scope::Task(proposal.proposer),
-            c::OwnerHistoricalValue::PersonProposal { proposal, .. } => Scope::Project(proposal.project),
-            c::OwnerHistoricalValue::PersonTask { .. } => return Err(Failed::Fixed(b"unexpected act subject")),
+            c::EndedValue::Task { document, .. } | c::EndedValue::Escalation { task: document, .. } => {
+                Scope::Project(document.project)
+            }
+            c::EndedValue::Question { question, .. } => chip_scope(&question.task),
+            c::EndedValue::Proposal(proposal) => Scope::Task(proposal.proposer),
+            c::EndedValue::PersonProposal { proposal, .. } => Scope::Project(proposal.project),
+            c::EndedValue::PersonTask { .. } => return Err(Failed::Fixed(b"unexpected act subject")),
         });
     }
     if let Some((task, _)) = render::read_task(document)
@@ -50,13 +51,13 @@ pub(super) fn scope(call: &Call, document: &c::ReadValue) -> Result<Scope, Faile
     {
         return Ok(chip_scope(&question.task));
     }
-    if let c::ReadValue::OwnerEscalation(escalation) = document
+    if let c::ReadValue::Escalation(escalation) = document
         && expected(call) == c::ObjectKey::Escalation(escalation.task.chip.task)
     {
         return Ok(Scope::Project(escalation.task.project));
     }
 
-    if let c::ReadValue::OwnerProposal(proposal) = document
+    if let c::ReadValue::Proposal(proposal) = document
         && expected(call) == c::ObjectKey::Proposal(proposal.key)
     {
         return Ok(Scope::Project(proposal.project));
@@ -74,11 +75,11 @@ pub(super) fn offers(document: &c::ReadValue) -> Option<&List<c::Offered>> {
     if let c::ReadValue::Question(question) = document {
         return Some(&question.acts);
     }
-    if let c::ReadValue::OwnerEscalation(escalation) = document {
+    if let c::ReadValue::Escalation(escalation) = document {
         return Some(&escalation.acts);
     }
 
-    if let c::ReadValue::OwnerProposal(proposal) = document {
+    if let c::ReadValue::Proposal(proposal) = document {
         return Some(&proposal.acts);
     }
 
@@ -107,11 +108,11 @@ pub(super) fn ended(document: &c::ReadValue) -> Option<c::Phase> {
     }
     Some(c::Phase::Ended)
 }
-fn owner_ending(ending: &c::OwnerChipEnding) -> c::Phase {
+fn owner_ending(ending: &c::ChipEnding) -> c::Phase {
     match ending {
-        c::OwnerChipEnding::Done(_) => c::Phase::Done,
-        c::OwnerChipEnding::Failed(_) => c::Phase::Failed,
-        c::OwnerChipEnding::Cancelled { .. } => c::Phase::Cancelled,
+        c::ChipEnding::Done(_) => c::Phase::Done,
+        c::ChipEnding::Failed(_) => c::Phase::Failed,
+        c::ChipEnding::Cancelled { .. } => c::Phase::Cancelled,
     }
 }
 

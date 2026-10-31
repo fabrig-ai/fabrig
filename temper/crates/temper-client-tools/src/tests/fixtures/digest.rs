@@ -12,7 +12,7 @@ pub(crate) fn tasks_first_window(rows: u32, more: bool) -> (c::TaskPage, c::Task
     let mut live = List::with_capacity(rows);
     let mut supplied = task_line();
     supplied.chip.phase = c::Phase::Preparing;
-    supplied.chip.details.phase = c::OwnerChipPhase::Active(c::RunStage::Preparing);
+    supplied.chip.details.phase = c::ChipPhase::Active(c::RunStage::Preparing);
     for index in 0..rows {
         let mut row = supplied.clone();
         row.chip.task = TASK.checked_add(u64::from(index)).expect("bounded task identity");
@@ -59,10 +59,10 @@ pub(crate) fn limits() -> crate::jig::Limits {
 pub(crate) const WINDOW_UPDATES: u32 = 2;
 /// The next opaque cursor must differ without changing whether more rows follow.
 pub(crate) const OTHER_CURSOR: &[u8] = &[0x33, 0x44];
-pub(crate) fn inbox_first_window(total: u32) -> (c::OwnerInboxPage, c::OwnerInbox) {
+pub(crate) fn inbox_first_window(total: u32) -> (c::InboxPage, c::Inbox) {
     let needs = total.checked_sub(WINDOW_UPDATES).expect("window includes both groups");
     let watched = inbox_window(needs, WINDOW_UPDATES, false);
-    let page = jig_client::contract::OwnerInboxPage {
+    let page = jig_client::contract::InboxPage {
         rows: {
             let mut rows = watched.needs.clone();
             for row in &watched.updates {
@@ -78,13 +78,12 @@ pub(crate) fn inbox_first_window(total: u32) -> (c::OwnerInboxPage, c::OwnerInbo
     (page, watched)
 }
 /// The fake engine's first window, independently of the read's group pages.
-pub(crate) fn inbox_window(needs: u32, updates: u32, more: bool) -> c::OwnerInbox {
-    let c::ReadResult::Value(c::ReadValue::OwnerInbox(needs_page)) = inbox_rows(c::InboxReadGroup::Needs, needs, false)
+pub(crate) fn inbox_window(needs: u32, updates: u32, more: bool) -> c::Inbox {
+    let c::ReadResult::Value(c::ReadValue::Inbox(needs_page)) = inbox_rows(c::InboxReadGroup::Needs, needs, false)
     else {
         panic!("needs page")
     };
-    let c::ReadResult::Value(c::ReadValue::OwnerInbox(updates_page)) =
-        inbox_rows(c::InboxReadGroup::Updates, updates, more)
+    let c::ReadResult::Value(c::ReadValue::Inbox(updates_page)) = inbox_rows(c::InboxReadGroup::Updates, updates, more)
     else {
         panic!("updates page")
     };
@@ -122,7 +121,7 @@ pub(crate) fn inbox_json_answer(needs: u32, updates: u32, more: bool) -> crate::
     let (mut root, call) = read_call(argv.as_slice());
     root.serve(call, inbox_rows(c::InboxReadGroup::Needs, needs, false));
     root.serve(call, inbox_rows(c::InboxReadGroup::Updates, updates, more));
-    root.deliver_subject(&inbox_watch(), c::Delivery::OwnerInbox(Box::new(inbox_window(needs, updates, more))));
+    root.deliver_subject(&inbox_watch(), c::Delivery::Inbox(Box::new(inbox_window(needs, updates, more))));
     root.answer(call).expect("inbox answered")
 }
 
@@ -167,36 +166,36 @@ pub(crate) fn non_subject_reads() -> [(List<&'static str>, c::ReadResult); NON_S
 const NON_SUBJECT_READS: usize = 8;
 pub(crate) const WATCH_QUERY_FILTERS: &[&[&str]] =
     &[&["--label", "chat"], &["--tracked"], &["--mine"], &["--order", "activity"]];
-pub(crate) fn owner_first_window(rows: u32, more: bool) -> (c::OwnerInboxPage, c::OwnerInbox) {
+pub(crate) fn owner_first_window(rows: u32, more: bool) -> (c::InboxPage, c::Inbox) {
     let mut entries = List::with_capacity(rows);
     for index in 0..rows {
         let task = TASK.checked_add(u64::from(index)).expect("fixture identity");
-        let object = c::OwnerInboxObject::Question { message: u64::from(index) };
+        let object = c::InboxObject::Question { message: u64::from(index) };
         entries
-            .push(c::OwnerInboxEntry {
+            .push(c::InboxEntry {
                 reply: None,
-                task: c::OwnerTaskLink::Stored { number: task, status: None },
+                task: c::TaskLink::Stored { number: task, status: None },
                 project: Some(PROJECT),
                 object,
                 activity: None,
                 at: Some(Wall::EPOCH),
                 unread: Some(false),
-                cursor: c::OwnerInboxCursor::Inbox { task, object, at: Some(Wall::EPOCH) },
+                cursor: c::InboxCursor::Inbox { task, object, at: Some(Wall::EPOCH) },
             })
             .expect("bounded owner rows");
     }
-    let page = c::OwnerInboxPage {
+    let page = c::InboxPage {
         rows: entries.clone(),
         after: if more { Some(cursor()) } else { None },
         before: None,
         cut: false,
         selection: None,
     };
-    let client::Latest::Jig(c::Delivery::OwnerInbox(mut watched)) = owner_inbox_counts(ONE_NEED, ONE_NEED) else {
+    let client::Latest::Jig(c::Delivery::Inbox(mut watched)) = owner_inbox_counts(ONE_NEED, ONE_NEED) else {
         panic!("owner inbox fixture")
     };
     if more {
-        watched.next = Some(c::OwnerInboxCursor::Number { number: TASK });
+        watched.next = Some(c::InboxCursor::Number { number: TASK });
     }
     watched.needs = entries;
     (page, *watched)

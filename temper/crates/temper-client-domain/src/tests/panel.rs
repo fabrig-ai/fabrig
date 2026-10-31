@@ -15,7 +15,7 @@ const TASK: u64 = 17;
 const NEXT: u64 = 19;
 const PROJECT: u32 = f::PROJECT + 1;
 const SUBJECT: Subject = Subject { task: TASK, project: PROJECT };
-const PROCEDURE: c::Executor = c::Executor::Procedure { connector: f::FORGE, kind: 1234 };
+const PROCEDURE: c::ChipExecutor = c::ChipExecutor::Procedure { connector: f::FORGE, kind: 1234 };
 
 fn event(root: &mut Domain, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
@@ -49,7 +49,7 @@ fn before_document() -> (Domain, Token) {
     let watch = task_page(&mut root, TASK);
     (root, watch)
 }
-fn document(root: &mut Domain, watch: Token, task: u64, executor: c::Executor) -> Queue<Request> {
+fn document(root: &mut Domain, watch: Token, task: u64, executor: c::ChipExecutor) -> Queue<Request> {
     up(
         root,
         Up::Watched {
@@ -119,11 +119,11 @@ fn closes(out: &mut Queue<Request>) -> List<Token> {
 fn only_a_forge_procedure_document_opens_its_projects_panel() {
     for (executor, watches) in [
         (PROCEDURE, true),
-        (c::Executor::Procedure { connector: f::FORGE, kind: 1 }, true),
-        (c::Executor::Agent { charter: 1 }, false),
-        (c::Executor::Party { party: f::PARTY }, false),
-        (c::Executor::Role { project: PROJECT, role: 1 }, false),
-        (c::Executor::Procedure { connector: f::FORGE + 1, kind: 1 }, false),
+        (c::ChipExecutor::Procedure { connector: f::FORGE, kind: 1 }, true),
+        (c::ChipExecutor::Agent { charter: 1 }, false),
+        (c::ChipExecutor::Party { party: f::PARTY }, false),
+        (c::ChipExecutor::Role { project: PROJECT, role: 1 }, false),
+        (c::ChipExecutor::Procedure { connector: f::FORGE + 1, kind: 1 }, false),
     ] {
         let (mut root, task) = before_document();
         assert!(root.forge().panel().is_none(), "before its document");
@@ -305,7 +305,7 @@ fn jig_endings_keep_unknown_and_other_reasons_apart_from_loading() {
     }
 }
 fn change_task() -> c::Task {
-    let mut task = p::task(TASK, PROJECT, c::Executor::Procedure { connector: f::FORGE, kind: 2 });
+    let mut task = p::task(TASK, PROJECT, c::ChipExecutor::Procedure { connector: f::FORGE, kind: 2 });
     task.result_contract = c::TaskContractDocument::Change { connector: f::FORGE, kind: 1, words: 64 };
     task
 }
@@ -321,11 +321,11 @@ fn change_opened() -> (Domain, Token, Token, c::Task) {
 }
 fn finish_change(task: &mut c::Task) {
     task.activity = task.activity.checked_add(1).expect("one finished task update");
-    f::chat::phase(task, c::OwnerChipPhase::Ended);
+    f::chat::phase(task, c::ChipPhase::Ended);
     let mut value = f::chat::change_value(b"abcdef0123456789abcdef0123456789abcdef0123");
     let c::ResultValue::Change { part, .. } = &mut value else { panic!("change result") };
-    part.key = c::OwnerPartKey::Number(TASK);
-    task.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Done(value))));
+    part.key = c::PartKey::Number(TASK);
+    task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(value))));
 }
 #[test]
 fn a_panel_falling_behind_before_its_first_record_retries_and_shows_the_landed_change() {
@@ -403,13 +403,12 @@ fn only_a_finished_change_reopens_its_panel_on_the_ending() {
             "cancelled phase" => task.chip.phase = c::Phase::Cancelled,
             "no result" => task.result = None,
             "report" => {
-                task.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Done(c::ResultValue::Report(
+                task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(c::ResultValue::Report(
                     task.chip.title.clone(),
                 )))));
             }
             "failed result" => {
-                task.result =
-                    Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Failed(task.chip.title.clone()))));
+                task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Failed(task.chip.title.clone()))));
             }
             _ => unreachable!(),
         }
@@ -497,11 +496,11 @@ fn a_task_page_recovers_its_ended_panel_when_the_change_is_made_and_landed() {
             );
             task.activity = task.activity.checked_add(1).expect("two task updates");
             if landed {
-                f::chat::phase(&mut task, c::OwnerChipPhase::Ended);
+                f::chat::phase(&mut task, c::ChipPhase::Ended);
                 let mut value = f::chat::change_value(b"abcdef0123456789abcdef0123456789abcdef0123");
                 let c::ResultValue::Change { part, .. } = &mut value else { panic!("change result") };
-                part.key = c::OwnerPartKey::Number(TASK);
-                task.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Done(value))));
+                part.key = c::PartKey::Number(TASK);
+                task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(value))));
             }
             let next = family_open(&mut task_document(&mut root, task_watch, &task), TASK)
                 .expect("one fresh watch per later task document");
@@ -583,9 +582,9 @@ fn an_ended_panel_reopens_only_for_its_live_change_task_or_change_result() {
                 task.result_contract = c::TaskContractDocument::Change { connector: f::FORGE + 1, kind: 1, words: 64 }
             }
             "another contract" => task.result_contract = p::task(TASK, PROJECT, PROCEDURE).result_contract,
-            "ended without result" => f::chat::phase(&mut task, c::OwnerChipPhase::Ended),
+            "ended without result" => f::chat::phase(&mut task, c::ChipPhase::Ended),
             "failed" | "cancelled" => {
-                f::chat::phase(&mut task, c::OwnerChipPhase::Ended);
+                f::chat::phase(&mut task, c::ChipPhase::Ended);
                 task.chip.phase = if row == "failed" { c::Phase::Failed } else { c::Phase::Cancelled };
             }
             _ => unreachable!(),

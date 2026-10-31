@@ -148,12 +148,8 @@ pub(crate) fn part_read() -> (Harness, u32, c::Task) {
     }
     task.resources = List::with_capacity(RESOURCES);
     task.resources
-        .push(c::OwnerResourceLine {
-            part: c::OwnerPart {
-                connector: wire::FORGE,
-                kind: c::OwnerPartKind::Resource,
-                key: c::OwnerPartKey::Path(path),
-            },
+        .push(c::ResourceLine {
+            part: c::Part { connector: wire::FORGE, kind: c::PartKind::Resource, key: c::PartKey::Path(path) },
             kind: 1,
             taken: false,
             holder: None,
@@ -222,7 +218,7 @@ pub(crate) fn branch_part_read() -> (Harness, u32, c::Task, Box<[u8]>) {
         path.push(Box::from(word)).expect("bounded branch path");
     }
     let resource = task.resources.get_mut(EMPTY).expect("one resource");
-    resource.part.key = c::OwnerPartKey::Path(path);
+    resource.part.key = c::PartKey::Path(path);
     let length = segment.len().checked_mul(2).expect("two segments").checked_add(1).expect("separator");
     let mut expected = skein_lib::Writer::new(length);
     expected.put(&segment).expect("first segment");

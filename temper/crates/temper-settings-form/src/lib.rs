@@ -71,25 +71,23 @@ impl Limits {
         let mut settings = jig_client_protocol_wire::CEILINGS;
         settings.owned_record = 1_048_576;
         settings.document_text_bytes = 32_768;
-        settings.owner_part_key_path_value = 9;
-        settings.owner_part_key_path_value_item = 32_768;
-        settings.owner_pattern_end_exact_value = 32_768;
-        settings.owner_pattern_end_open_value = 32_768;
-        settings.owner_pattern_segments = 9;
-        settings.owner_pattern_segments_item = 32_768;
-        settings.owner_delegation_kinds = 12;
-        settings.owner_authority_grants = 1_048_576;
-        settings.owner_authority_note_resources = 1_048_576;
+        settings.part_key_path_value = 9;
+        settings.part_key_path_value_item = 32_768;
+        settings.pattern_end_exact_value = 32_768;
+        settings.pattern_end_open_value = 32_768;
+        settings.pattern_segments = 9;
+        settings.pattern_segments_item = 32_768;
+        settings.delegation_kinds = 12;
+        settings.authority_grants = 1_048_576;
+        settings.authority_note_resources = 1_048_576;
         settings.field_rule_name = 32_768;
         settings.verdict_choice_fields = 32;
         settings.task_contract_document_approval_state = 32_768;
         settings.task_contract_document_verdict_choices = 1_048_576;
         settings.propose_settings_items = 1_048_576_u32.min(jig_client_protocol_wire::CEILINGS.propose_settings_items);
         settings.settings_review_items = 1_048_576_u32.min(jig_client_protocol_wire::CEILINGS.settings_review_items);
-        settings.owner_proposal_action_settings_items =
-            jig_client_protocol_wire::CEILINGS.owner_proposal_action_settings_items;
-        settings.owner_retained_action_settings_items =
-            jig_client_protocol_wire::CEILINGS.owner_retained_action_settings_items;
+        settings.proposal_action_settings_items = jig_client_protocol_wire::CEILINGS.proposal_action_settings_items;
+        settings.retained_action_settings_items = jig_client_protocol_wire::CEILINGS.retained_action_settings_items;
         // Whole settings share the existing receiving text, rows and message envelopes.
         settings.charter_instructions = 1_048_576_u32.min(jig_client_protocol_wire::CEILINGS.charter_instructions);
         settings.change_settings_items = 1_048_576_u32.min(jig_client_protocol_wire::CEILINGS.change_settings_items);

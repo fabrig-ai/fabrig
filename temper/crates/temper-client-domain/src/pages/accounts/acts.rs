@@ -131,14 +131,14 @@ impl Accounts {
     fn ask(&mut self, client: &Client, row: Row, operation: Operation) -> Option<c::Ask> {
         self.request.broken = Some(Broken::Selection);
         let me = super::current_me(client)?;
-        if row.holder == c::AccountHolder::Deployment && me.deployment_role != Some(c::HeldRole::Owner) {
+        if row.holder == c::AskAccountHolder::Deployment && me.deployment_role != Some(c::HeldRole::Owner) {
             return None;
         }
         // Explicit numbers are forwarded; account/source policy remains the engine's.
         let holder = row.holder;
         let change = match operation {
             Operation::SignIn { provider } => {
-                if holder == c::AccountHolder::Deployment {
+                if holder == c::AskAccountHolder::Deployment {
                     return None;
                 }
                 self.request.broken = None;

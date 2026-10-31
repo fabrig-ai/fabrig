@@ -134,13 +134,13 @@ fn gate_task(front: &Joint, goal: u64) -> Option<tasks::TaskRecord> {
 fn finished(document: &c::Task, goal: u64, pull: u64) {
     assert_eq!(document.chip.task, goal);
     assert_eq!(document.chip.phase, c::Phase::Ended);
-    let Some(c::TaskResult::Document(result)) = document.result.as_ref() else { panic!("historical task result") };
+    let Some(c::TaskResult::Document(result)) = document.result.as_ref() else { panic!("ended task result") };
     assert_eq!(result.task.task, goal);
     let c::Ending::Task(ending) = &result.ending else { panic!("task's finished result") };
-    let c::OwnerChipEnding::Done(c::ResultValue::Change { part, .. }) = ending.as_ref() else {
+    let c::ChipEnding::Done(c::ResultValue::Change { part, .. }) = ending.as_ref() else {
         panic!("successfully landed change result");
     };
-    assert_eq!(part.key, c::OwnerPartKey::Number(pull));
+    assert_eq!(part.key, c::PartKey::Number(pull));
 }
 
 fn page_step(name: &[u8]) -> Find {

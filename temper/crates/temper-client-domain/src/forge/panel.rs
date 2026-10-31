@@ -34,8 +34,8 @@ pub enum Watched {
 /// A later document can recover a live change, or its landed result (client/forge.md, 9.2).
 pub(crate) fn refreshable(task: &c::Task, forge: u16) -> bool {
     let procedure = match task.chip.executor {
-        c::Executor::Procedure { connector, kind } => connector == forge && kind == 2,
-        c::Executor::Agent { .. } | c::Executor::Party { .. } | c::Executor::Role { .. } => false,
+        c::ChipExecutor::Procedure { connector, kind } => connector == forge && kind == 2,
+        c::ChipExecutor::Agent { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => false,
     };
     let change = match task.result_contract {
         c::TaskContractDocument::Change { connector, .. } => connector == forge,

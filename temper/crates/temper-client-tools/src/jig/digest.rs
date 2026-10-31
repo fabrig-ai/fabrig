@@ -36,18 +36,18 @@ pub fn part(part: &Part<'_>, limits: &Limits) -> Digest {
 pub(crate) fn inbox(delivery: &jig_client::contract::Delivery) -> Part<'_> {
     use jig_client::contract::Delivery;
     match delivery {
-        Delivery::OwnerInbox(value) => Part::OwnerInbox(value),
+        Delivery::Inbox(value) => Part::Inbox(value),
         Delivery::Me(_)
         | Delivery::Tasks(_)
         | Delivery::Task(_)
-        | Delivery::OwnerTree(_)
+        | Delivery::Tree(_)
         | Delivery::Run(_)
         | Delivery::RunState(_)
-        | Delivery::OwnerProject(_)
-        | Delivery::OwnerProposal(_)
+        | Delivery::Project(_)
+        | Delivery::Proposal(_)
         | Delivery::Chips(_)
         | Delivery::Settings(_)
-        | Delivery::OwnerDeployment(_)
-        | Delivery::OwnerAccounts(_) => unreachable!("inbox watch form"),
+        | Delivery::Deployment(_)
+        | Delivery::Accounts(_) => unreachable!("inbox watch form"),
     }
 }

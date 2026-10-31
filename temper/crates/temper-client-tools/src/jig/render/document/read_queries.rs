@@ -49,7 +49,7 @@ pub(super) fn encode_ended_group(value: &jig_client::contract::EndedGroup, out: 
 }
 
 pub(super) fn encode_owner_phase_counts(
-    value: &jig_client::contract::OwnerPhaseCounts,
+    value: &jig_client::contract::PhaseCounts,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {

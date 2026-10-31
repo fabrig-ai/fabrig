@@ -115,8 +115,8 @@ impl Request {
         self.returned = source;
     }
     fn started(&self) -> Option<(u32, &[u8])> {
-        if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-            c::OwnerOutcome::AccountSignInStarted { source, address },
+        if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::AccountSignInStarted { source, address },
         )))) = self.pending.as_ref()?.outcome.as_ref()?
         {
             Some((*source, address))

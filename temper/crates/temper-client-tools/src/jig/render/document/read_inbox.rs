@@ -2,12 +2,12 @@
 use skein_json::writer::Encoder;
 
 pub(super) fn encode_owner_inbox_cursor(
-    value: &jig_client::contract::OwnerInboxCursor,
+    value: &jig_client::contract::InboxCursor,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerInboxCursor::Number { number } => {
+        jig_client::contract::InboxCursor::Number { number } => {
             out.object_start();
             out.key(b"number");
             out.object_start();
@@ -16,7 +16,7 @@ pub(super) fn encode_owner_inbox_cursor(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerInboxCursor::Inbox { task, object, at } => {
+        jig_client::contract::InboxCursor::Inbox { task, object, at } => {
             out.object_start();
             out.key(b"inbox");
             out.object_start();
@@ -38,7 +38,7 @@ pub(super) fn encode_owner_inbox_cursor(
 }
 
 pub(super) fn encode_owner_inbox_entry(
-    value: &jig_client::contract::OwnerInboxEntry,
+    value: &jig_client::contract::InboxEntry,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -90,12 +90,12 @@ pub(super) fn encode_owner_inbox_entry(
 }
 
 pub(super) fn encode_owner_inbox_object(
-    value: &jig_client::contract::OwnerInboxObject,
+    value: &jig_client::contract::InboxObject,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerInboxObject::Question { message } => {
+        jig_client::contract::InboxObject::Question { message } => {
             out.object_start();
             out.key(b"question");
             out.object_start();
@@ -104,7 +104,7 @@ pub(super) fn encode_owner_inbox_object(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerInboxObject::Proposal { proposer, number } => {
+        jig_client::contract::InboxObject::Proposal { proposer, number } => {
             out.object_start();
             out.key(b"proposal");
             out.object_start();
@@ -115,7 +115,7 @@ pub(super) fn encode_owner_inbox_object(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerInboxObject::Escalation { revision } => {
+        jig_client::contract::InboxObject::Escalation { revision } => {
             out.object_start();
             out.key(b"escalation");
             out.object_start();
@@ -124,8 +124,8 @@ pub(super) fn encode_owner_inbox_object(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerInboxObject::PersonTask => out.string(b"person_task"),
-        jig_client::contract::OwnerInboxObject::Reply { message } => {
+        jig_client::contract::InboxObject::PersonTask => out.string(b"person_task"),
+        jig_client::contract::InboxObject::Reply { message } => {
             out.object_start();
             out.key(b"reply");
             out.object_start();
@@ -134,7 +134,7 @@ pub(super) fn encode_owner_inbox_object(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerInboxObject::Result { position } => {
+        jig_client::contract::InboxObject::Result { position } => {
             out.object_start();
             out.key(b"result");
             out.object_start();
@@ -147,7 +147,7 @@ pub(super) fn encode_owner_inbox_object(
 }
 
 pub(super) fn encode_owner_inbox_page(
-    value: &jig_client::contract::OwnerInboxPage,
+    value: &jig_client::contract::InboxPage,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -189,7 +189,7 @@ pub(super) fn encode_owner_inbox_page(
 }
 
 pub(super) fn encode_owner_inbox_selection(
-    value: &jig_client::contract::OwnerInboxSelection,
+    value: &jig_client::contract::InboxSelection,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {

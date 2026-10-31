@@ -101,7 +101,7 @@ impl Member {
                     if let Some((_, number)) = self.project {
                         assert!(
                             matches!(outcome, client::Outcome::Answered(client::Answered::Jig(c::Answer::Done(
-                                c::Outcome::Owner(c::OwnerOutcome::ProjectMade { project })
+                                c::Outcome::Document(c::DocumentOutcome::ProjectMade { project })
                             ))) if project == number),
                             "project creation answered: {outcome:?}"
                         );

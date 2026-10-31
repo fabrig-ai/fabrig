@@ -321,9 +321,9 @@ fn the_accounts_banner_precedes_the_playground_when_both_show() {
                 event: jig_client::Event::Up {
                     up: jig_client::Up::Watched {
                         watch: watch.unwrap(),
-                        event: jig_client::contract::WatchEvent::Delivered(
-                            jig_client::contract::Delivery::OwnerAccounts(Box::new(doc)),
-                        ),
+                        event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Accounts(
+                            Box::new(doc),
+                        )),
                     },
                 },
             },

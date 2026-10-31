@@ -303,13 +303,13 @@ impl Chat {
     #[must_use]
     pub fn requested<'a>(&'a self, client: &'a Client, task: u64) -> Option<&'a c::Task> {
         let document = self.delegation(client, task)?;
-        if document.requester == c::OwnerRequester::Task(self.task) { Some(document) } else { None }
+        if document.requester == c::Requester::Task(self.task) { Some(document) } else { None }
     }
     /// Reconcile independently delivered chat and card documents (client/README.md, 3.5).
     #[must_use]
     pub fn waiting_delegates(&self, client: &Client) -> u32 {
         let Some(task) = self.task(client) else { return 0 };
-        let c::ChipPhase { details, .. } = task.chip.details.as_ref();
+        let c::ChipPhaseFacts { details, .. } = task.chip.details.as_ref();
         let mut count = details.live_delegates;
         for delegation in &self.delegations {
             let Some(document) = self.requested(client, delegation.task) else { continue };
@@ -583,10 +583,10 @@ impl Chat {
         }));
     }
     fn watch_run(&mut self, task: &c::Task, out: &mut Queue<Request>) {
-        if let c::ChipPhase {
+        if let c::ChipPhaseFacts {
             phase:
-                c::OwnerChipPhase::Active(c::RunStage::Claimed { .. } | c::RunStage::Running { .. })
-                | c::OwnerChipPhase::Closing(c::ClosingStage::Run { .. }),
+                c::ChipPhase::Active(c::RunStage::Claimed { .. } | c::RunStage::Running { .. })
+                | c::ChipPhase::Closing(c::ClosingStage::Run { .. }),
             ..
         } = task.chip.details.as_ref()
         {
@@ -666,7 +666,7 @@ impl Chat {
     pub(crate) fn see(&mut self, serial: &mut u64, out: &mut Queue<Request>) {
         let mut newest = 0;
         for row in &self.thread.lines.rows {
-            if let c::OwnerActivity::Turn { reply, .. } = row.source.line {
+            if let c::Activity::Turn { reply, .. } = row.source.line {
                 newest = newest.max(reply);
             }
         }
@@ -735,10 +735,8 @@ pub fn thread_limits(limits: &Limits) -> jig_client::thread::Limits {
 pub(crate) fn page_task(page: Readout, task: u64) -> Option<Box<c::Task>> {
     match page {
         Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(task))) => Some(task),
-        Readout::Jig(c::ReadResult::Value(c::ReadValue::Historical(value)))
-            if value.matches(c::ObjectKey::Task(task)) =>
-        {
-            if let c::OwnerHistoricalValue::Task { mut document, result } = value.value {
+        Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(value))) if value.matches(c::ObjectKey::Task(task)) => {
+            if let c::EndedValue::Task { mut document, result } = value.value {
                 document.result = Some(c::TaskResult::Document(result));
                 Some(document)
             } else {

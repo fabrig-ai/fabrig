@@ -7,7 +7,7 @@ use crate::jig::{
 use jig_client::contract as c;
 
 pub(super) fn text(
-    project: &c::OwnerProject,
+    project: &c::Project,
     call: &Call,
     limits: &crate::jig::Limits,
     vocabulary: &dyn crate::jig::render::Parts,
@@ -22,7 +22,7 @@ pub(super) fn text(
         out.words(project.name.bytes());
         out.put(b"\nhomes:");
         for resource in &project.resources {
-            if resource.role == c::OwnerProjectResourceRole::Owned {
+            if resource.role == c::ProjectResourceRole::Owned {
                 out.put(b" ");
                 vocabulary.owner_part(&resource.part, out);
             }
@@ -59,7 +59,7 @@ pub(super) fn text(
         out.put(b"\n");
     }
 }
-fn roles(project: &c::OwnerProject, out: &mut Text) {
+fn roles(project: &c::Project, out: &mut Text) {
     for role in &project.policy.roles {
         out.put(b"role ");
         out.number(u64::from(role.number));
@@ -97,7 +97,7 @@ fn held(role: u32) -> c::HeldRole {
         role => c::HeldRole::Policy { role },
     }
 }
-pub(super) fn pool_role(project: &c::OwnerProject, pool: &c::PoolLedger, role: u64) -> bool {
+pub(super) fn pool_role(project: &c::Project, pool: &c::PoolLedger, role: u64) -> bool {
     let c::Funder::Pool { person: party, .. } = pool.source else { return false };
     for member in &project.members {
         if member.party == party && u64::from(member_role(member.role)) == role {
@@ -106,7 +106,7 @@ pub(super) fn pool_role(project: &c::OwnerProject, pool: &c::PoolLedger, role: u
     }
     false
 }
-fn funded(project: &c::OwnerProject, call: &Call, out: &mut Text) {
+fn funded(project: &c::Project, call: &Call, out: &mut Text) {
     let role = number(call, 2);
     match role {
         Some(role) => {
@@ -157,7 +157,7 @@ fn period(period: Option<&c::PoolLedger>, brief: bool, out: &mut Text) {
     out.put(b": ");
     numbers(period, brief, out);
 }
-fn pool_text(project: &c::OwnerProject, pool: &c::PoolLedger, brief: bool, out: &mut Text) {
+fn pool_text(project: &c::Project, pool: &c::PoolLedger, brief: bool, out: &mut Text) {
     out.put(b"pool, ");
     if let c::Funder::Pool { person: number, .. } = pool.source {
         party(number, project, out);
@@ -165,7 +165,7 @@ fn pool_text(project: &c::OwnerProject, pool: &c::PoolLedger, brief: bool, out: 
     out.put(b": ");
     numbers(pool, brief, out);
 }
-fn party(number: u64, project: &c::OwnerProject, out: &mut Text) {
+fn party(number: u64, project: &c::Project, out: &mut Text) {
     out.put(b"party ");
     out.number(number);
     for member in &project.members {
@@ -190,7 +190,7 @@ fn numbers(ledger: &c::PoolLedger, brief: bool, out: &mut Text) {
     out.put(b"\n");
 }
 pub(super) fn encode(
-    project: &c::OwnerProject,
+    project: &c::Project,
     call: &Call,
     limits: &crate::jig::Limits,
     out: &mut skein_json::writer::Encoder,

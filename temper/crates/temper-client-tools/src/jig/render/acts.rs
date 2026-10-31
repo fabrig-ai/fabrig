@@ -2,8 +2,8 @@
 use super::Text;
 use jig_client::{
     contract::{
-        ActKind, Admission, Beyond, Bounds, Me, OwnerAuthorityDocument, OwnerAuthorityExecutor, OwnerGrant,
-        OwnerPattern, OwnerPatternEnd, Recipient, Refusal, Task,
+        ActKind, Admission, AuthorityDocument, AuthorityExecutor, Beyond, Bounds, Grant, Me, Pattern, PatternEnd,
+        Recipient, Refusal, Task,
     },
     words::Word,
 };
@@ -433,7 +433,7 @@ pub(super) fn create_bounds(bound: &jig_client::contract::CreateBounds, out: &mu
     out.put(b"; maximum deadline ");
     wall(bound.maximum_deadline, out);
 }
-pub fn authority(document: &OwnerAuthorityDocument, out: &mut Text) {
+pub fn authority(document: &AuthorityDocument, out: &mut Text) {
     let value = &document.authority;
     out.put(b"authority { tools ");
     out.number(value.tools);
@@ -446,15 +446,15 @@ pub fn authority(document: &OwnerAuthorityDocument, out: &mut Text) {
     for kind in &value.delegation.kinds {
         out.put(b" ");
         match kind {
-            OwnerAuthorityExecutor::Charter(n) => {
+            AuthorityExecutor::Charter(n) => {
                 out.put(b"charter ");
                 out.number(u64::from(*n));
             }
-            OwnerAuthorityExecutor::Procedure(n) => {
+            AuthorityExecutor::Procedure(n) => {
                 out.put(b"procedure ");
                 out.number(u64::from(*n));
             }
-            OwnerAuthorityExecutor::Role(n) => {
+            AuthorityExecutor::Role(n) => {
                 out.put(b"role ");
                 out.number(u64::from(*n));
             }
@@ -482,21 +482,21 @@ pub fn authority(document: &OwnerAuthorityDocument, out: &mut Text) {
         out.put(b" (cut by owner)");
     }
 }
-fn grant_text(grant: &OwnerGrant, out: &mut Text) {
+fn grant_text(grant: &Grant, out: &mut Text) {
     out.number(u64::from(grant.connector));
     out.put(b"/");
     out.number(u64::from(grant.kind));
     out.put(b":");
     pattern(&grant.pattern, out);
 }
-fn pattern(pattern: &OwnerPattern, out: &mut Text) {
+fn pattern(pattern: &Pattern, out: &mut Text) {
     for segment in &pattern.segments {
         out.put(segment);
         out.put(b"/");
     }
     match &pattern.last {
-        OwnerPatternEnd::Exact(value) => out.put(value),
-        OwnerPatternEnd::Open(value) => {
+        PatternEnd::Exact(value) => out.put(value),
+        PatternEnd::Open(value) => {
             out.put(value);
             out.put(b"*");
         }

@@ -56,11 +56,11 @@ fn a_digest_moves_when_a_task_fact_changes() {
     );
 }
 #[test]
-fn a_direct_historical_task_prints_its_task_subject_digest() {
+fn a_direct_ended_task_prints_its_task_subject_digest() {
     let task = fixtures::ended_task(jig_client::contract::Phase::Done);
     let printed = fixtures::read_answer(
         fixtures::TASK_JSON_CALL,
-        fixtures::historical_task_result(task.clone(), jig_client::contract::Ending::Done),
+        fixtures::ended_task_result(task.clone(), jig_client::contract::Ending::Done),
     );
     assert_eq!(printed.status, 0);
     assert_eq!(fixtures::printed_digest(&printed.stdout), digest::part(&Part::Task(&task), &fixtures::limits()).hex());
@@ -70,11 +70,11 @@ fn a_direct_historical_task_prints_its_task_subject_digest() {
 fn a_read_matches_a_watch_windows_digest() {
     let (read, watched) = fixtures::inbox_first_window(fixtures::OVER_WINDOW);
     assert_eq!(
-        digest::part(&Part::OwnerInboxPage(&read), &fixtures::limits()),
-        digest::part(&Part::OwnerInbox(&watched), &fixtures::limits())
+        digest::part(&Part::InboxPage(&read), &fixtures::limits()),
+        digest::part(&Part::Inbox(&watched), &fixtures::limits())
     );
     assert_eq!(read.rows.len(), fixtures::FULL_WINDOW);
-    assert!(Part::OwnerInboxPage(&read).more());
+    assert!(Part::InboxPage(&read).more());
     let last_need = read.rows.get(fixtures::SHORT_WINDOW - fixtures::PAGE_ROWS).expect("last need");
     let first_update = read.rows.get(fixtures::SHORT_WINDOW).expect("first update");
     assert_eq!(
@@ -90,7 +90,7 @@ fn a_read_matches_a_watch_windows_digest() {
 fn an_inbox_read_cut_before_updates_digests_the_watchs_first_window() {
     let printed = fixtures::inbox_json_answer(fixtures::SHORT_WINDOW, fixtures::WINDOW_UPDATES, false);
     let (_, watched) = fixtures::inbox_first_window(fixtures::OVER_WINDOW);
-    let expected = digest::part(&Part::OwnerInbox(&watched), &fixtures::limits()).hex();
+    let expected = digest::part(&Part::Inbox(&watched), &fixtures::limits()).hex();
     assert!(skein_lib::bytes::find(&printed.stdout, &expected).is_some());
     assert_eq!(
         fixtures::occurrences(&printed.stdout, br#""question":{"message":2}"#),
@@ -158,7 +158,7 @@ fn a_task_composite_prints_each_subjects_digest() {
     let tree = fixtures::composite_tree();
     let run = fixtures::no_provisional();
     assert_eq!(fixtures::occurrences(&printed.stdout, b"\"digest\":"), fixtures::SUBJECT_PARTS);
-    for part in [Part::Task(&task), Part::OwnerTree(&tree), Part::delivery(&run).expect("run form")] {
+    for part in [Part::Task(&task), Part::Tree(&tree), Part::delivery(&run).expect("run form")] {
         assert!(
             skein_lib::bytes::find(&printed.stdout, &digest::part(&part, &fixtures::limits()).hex()).is_some(),
             "{part:?}"
@@ -169,20 +169,20 @@ fn a_task_composite_prints_each_subjects_digest() {
 fn owner_read_cursors_do_not_change_row_identity() {
     for rows in [fixtures::SHORT_WINDOW, fixtures::FULL_WINDOW, fixtures::OVER_WINDOW] {
         let (mut page, mut watched) = fixtures::owner_first_window(rows, true);
-        let before = digest::part(&Part::OwnerInbox(&watched), &fixtures::limits());
+        let before = digest::part(&Part::Inbox(&watched), &fixtures::limits());
         page.after = Some(
             jig_client::contract::Cursor::new(Box::from(fixtures::OTHER_CURSOR), fixtures::FULL_WINDOW)
                 .expect("cursor"),
         );
         for index in 0..page.rows.len() {
             page.rows.get_mut(index).expect("supplied row").cursor =
-                jig_client::contract::OwnerInboxCursor::Number { number: fixtures::OTHER_TASK };
+                jig_client::contract::InboxCursor::Number { number: fixtures::OTHER_TASK };
         }
         watched.cached_needs = fixtures::FULL_WINDOW;
         watched.cached_updates.value = fixtures::FULL_WINDOW;
         watched.results_seen = fixtures::OTHER_TASK;
-        assert_eq!(before, digest::part(&Part::OwnerInboxPage(&page), &fixtures::limits()), "rows={rows}");
-        assert_eq!(before, digest::part(&Part::OwnerInbox(&watched), &fixtures::limits()), "rows={rows}");
+        assert_eq!(before, digest::part(&Part::InboxPage(&page), &fixtures::limits()), "rows={rows}");
+        assert_eq!(before, digest::part(&Part::Inbox(&watched), &fixtures::limits()), "rows={rows}");
     }
 }
 #[test]
@@ -207,10 +207,10 @@ fn a_delivery_hashes_exactly_its_printed_subject_fields() {
     let (_, tasks) = fixtures::tasks_first_window(fixtures::PAGE_ROWS, false);
     for part in [
         Part::Me(&me),
-        Part::OwnerTree(&tree),
+        Part::Tree(&tree),
         Part::delivery(&run).expect("run form"),
-        Part::OwnerInbox(&inbox),
-        Part::OwnerInbox(&owner),
+        Part::Inbox(&inbox),
+        Part::Inbox(&owner),
         Part::Tasks(&tasks),
     ] {
         let printed = fixtures::subject_json(&part);
@@ -225,19 +225,19 @@ fn a_delivery_hashes_exactly_its_printed_subject_fields() {
 fn an_owner_rows_raw_identity_moves_its_digest() {
     let (mut page, _) = fixtures::owner_first_window(fixtures::PAGE_ROWS, false);
     let row = page.rows.get_mut(0).expect("one row");
-    row.object = jig_client::contract::OwnerInboxObject::Escalation { revision: fixtures::ROW_REVISION };
+    row.object = jig_client::contract::InboxObject::Escalation { revision: fixtures::ROW_REVISION };
     let card = row.card_key();
-    let before = digest::part(&Part::OwnerInboxPage(&page), &fixtures::limits());
+    let before = digest::part(&Part::InboxPage(&page), &fixtures::limits());
     let row = page.rows.get_mut(0).expect("one row");
-    row.object = jig_client::contract::OwnerInboxObject::Escalation { revision: fixtures::OTHER_ROW_REVISION };
+    row.object = jig_client::contract::InboxObject::Escalation { revision: fixtures::OTHER_ROW_REVISION };
     assert_eq!(row.card_key(), card);
-    assert_ne!(before, digest::part(&Part::OwnerInboxPage(&page), &fixtures::limits()));
+    assert_ne!(before, digest::part(&Part::InboxPage(&page), &fixtures::limits()));
 }
 
 #[test]
 fn inbox_watch_counts_stay_outside_the_digest() {
     let (mut page, mut watched) = fixtures::inbox_first_window(fixtures::OVER_WINDOW);
-    let before = digest::part(&Part::OwnerInbox(&watched), &fixtures::limits());
+    let before = digest::part(&Part::Inbox(&watched), &fixtures::limits());
     watched.cached_needs = fixtures::FULL_WINDOW;
     watched.cached_updates.value = fixtures::FULL_WINDOW;
     watched.cached_updates.limited = true;
@@ -248,8 +248,8 @@ fn inbox_watch_counts_stay_outside_the_digest() {
             .expect("opaque cursor"),
     );
     page.cut = true;
-    assert_eq!(before, digest::part(&Part::OwnerInboxPage(&page), &fixtures::limits()));
-    assert_eq!(before, digest::part(&Part::OwnerInbox(&watched), &fixtures::limits()));
+    assert_eq!(before, digest::part(&Part::InboxPage(&page), &fixtures::limits()));
+    assert_eq!(before, digest::part(&Part::Inbox(&watched), &fixtures::limits()));
 }
 
 #[test]

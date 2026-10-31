@@ -18,7 +18,7 @@ impl Way {
 }
 /// A cut catalogue still offers the facts it holds. At most three ways per provider.
 #[must_use]
-pub fn ways(providers: &List<c::ProviderOffer>, playground: Option<u32>, holder: c::AccountHolder) -> List<Way> {
+pub fn ways(providers: &List<c::ProviderOffer>, playground: Option<u32>, holder: c::AskAccountHolder) -> List<Way> {
     let mut ways = List::with_capacity(providers.len().checked_mul(3).expect("received providers fit"));
     let mut after = None;
     // Borrow the catalogue in number order without copying its names or program lists.
@@ -42,10 +42,10 @@ pub fn ways(providers: &List<c::ProviderOffer>, playground: Option<u32>, holder:
         }
         let Some(offer) = next else { break };
         let provider = offer.provider;
-        if offer.sign_in && holder == c::AccountHolder::Own {
+        if offer.sign_in && holder == c::AskAccountHolder::Own {
             ways.push(Way::SignIn { provider, plan: offer.signed_in_plan }).expect("three per provider");
         }
-        if !offer.programs.is_empty() && holder == c::AccountHolder::Own {
+        if !offer.programs.is_empty() && holder == c::AskAccountHolder::Own {
             ways.push(Way::Program { provider }).expect("three per provider");
         }
         if offer.key {

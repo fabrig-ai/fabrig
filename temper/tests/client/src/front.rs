@@ -1152,7 +1152,7 @@ impl Joint {
             && matches!(
                 ask.as_ref(),
                 jig_client::contract::Ask::AccountChange {
-                    holder: jig_client::contract::AccountHolder::Deployment,
+                    holder: jig_client::contract::AskAccountHolder::Deployment,
                     change: jig_client::contract::AccountChange::Remove { .. },
                 }
             )

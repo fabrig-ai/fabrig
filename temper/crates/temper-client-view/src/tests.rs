@@ -12,7 +12,7 @@ mod inbox;
 mod look;
 mod playground;
 mod playground_start;
-use jig_client::contract::{Part, PartScope};
+use jig_client::contract::{ApplicationPart, PartScope};
 use skein_ui::Role;
 
 #[test]
@@ -37,7 +37,7 @@ fn each_resource_path_shape_says_its_words() {
     ];
     for (path, said) in rows {
         assert_eq!(&*fixtures::owner_part_text(&words, path), said, "path {path:?}");
-        let part = Part::Resource { connector: fixtures::FORGE, path: fixtures::path(path) };
+        let part = ApplicationPart::Resource { connector: fixtures::FORGE, path: fixtures::path(path) };
         assert_eq!(&*fixtures::part_text(&words, part), said, "held path {path:?}");
     }
 }
@@ -64,7 +64,11 @@ fn each_numbered_kind_says_its_words_and_others_kind_n() {
         (16, b"kind 16"),
     ];
     for (kind, said) in rows {
-        assert_eq!(&*fixtures::part_text(&words, Part::Kind { connector: fixtures::FORGE, kind }), said, "kind {kind}");
+        assert_eq!(
+            &*fixtures::part_text(&words, ApplicationPart::Kind { connector: fixtures::FORGE, kind }),
+            said,
+            "kind {kind}"
+        );
     }
 }
 #[test]
@@ -73,17 +77,17 @@ fn a_part_needing_a_document_says_shown_on_the_forge() {
     let words = fixtures::words();
     let connector = fixtures::FORGE;
     let parts = [
-        Part::Panel { connector, task: 1 },
-        Part::Result { connector, task: 1 },
-        Part::Effect {
+        ApplicationPart::Panel { connector, task: 1 },
+        ApplicationPart::Result { connector, task: 1 },
+        ApplicationPart::Effect {
             connector,
             proposal: ProposalKey { proposer: jig_client::contract::Proposer::Task(1), number: 1 },
         },
-        Part::OwnerEffect { connector, proposal: 1 },
-        Part::Outbox { connector, scope: PartScope::Project(fixtures::PROJECT), entry: 1 },
-        Part::Hold { connector, task: 1 },
-        Part::Project { connector, project: fixtures::PROJECT },
-        Part::Deployment { connector },
+        ApplicationPart::OwnerEffect { connector, proposal: 1 },
+        ApplicationPart::Outbox { connector, scope: PartScope::Project(fixtures::PROJECT), entry: 1 },
+        ApplicationPart::Hold { connector, task: 1 },
+        ApplicationPart::Project { connector, project: fixtures::PROJECT },
+        ApplicationPart::Deployment { connector },
     ];
     for part in parts {
         let tree = fixtures::part_tree(&words, part.clone());
@@ -104,7 +108,7 @@ fn a_long_forge_path_shows_its_last_whole_segment() {
     let words = fixtures::words();
     let path = fixtures::path(&[&[b'a'; PATH_SEGMENT_BYTES], &[b'b'; PATH_SEGMENT_BYTES], b"last"]);
     assert_eq!(
-        fixtures::part_text(&words, Part::Resource { connector: fixtures::FORGE, path }).as_ref(),
+        fixtures::part_text(&words, ApplicationPart::Resource { connector: fixtures::FORGE, path }).as_ref(),
         b"\xe2\x80\xa6/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/last"
     );
 }

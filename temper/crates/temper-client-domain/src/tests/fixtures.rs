@@ -324,7 +324,7 @@ pub fn inbox_home(filter: crate::address::Filter) -> (crate::Domain, Token) {
     }
     (root, watch.expect("temper's inbox watch"))
 }
-pub fn inbox_entries(root: &mut crate::Domain, watch: Token, rows: List<contract::OwnerInboxEntry>) -> Queue<Request> {
+pub fn inbox_entries(root: &mut crate::Domain, watch: Token, rows: List<contract::InboxEntry>) -> Queue<Request> {
     let limits = limits();
     let mut out = Queue::uncapped();
     let inbox = {
@@ -346,10 +346,7 @@ pub fn inbox_entries(root: &mut crate::Domain, watch: Token, rows: List<contract
         &env(&limits),
         Event::Client {
             event: jig_client::Event::Up {
-                up: jig_client::Up::Watched {
-                    watch,
-                    event: WatchEvent::Delivered(Delivery::OwnerInbox(Box::new(inbox))),
-                },
+                up: jig_client::Up::Watched { watch, event: WatchEvent::Delivered(Delivery::Inbox(Box::new(inbox))) },
             },
         },
         &mut out,
@@ -361,7 +358,7 @@ pub fn inbox_entry(
     _group: contract::InboxGroup,
     project: u32,
     position: u64,
-) -> contract::OwnerInboxEntry {
+) -> contract::InboxEntry {
     crate::tests::documents::entry(object, project, position, Wall::EPOCH, None)
 }
 

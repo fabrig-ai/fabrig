@@ -295,7 +295,7 @@ fn populate_page(
                     Subject::Me => Some(Delivery::Me(Box::new(jig_client_world::stories::frame(1)))),
                     Subject::Task { .. } => Some(Delivery::Task(Box::new(jig_client_world::stories::task()))),
                     Subject::Deployment => {
-                        Some(Delivery::OwnerDeployment(Box::new(jig_client_world::stories::deployment())))
+                        Some(Delivery::Deployment(Box::new(jig_client_world::stories::deployment())))
                     }
                     Subject::Tree { .. }
                     | Subject::Chips { .. }
@@ -350,7 +350,7 @@ pub fn page_words() -> temper_client_view::words::Words {
         .clone()
 }
 
-pub fn inbox_document(group: contract::InboxReadGroup) -> contract::OwnerInboxPage {
+pub fn inbox_document(group: contract::InboxReadGroup) -> contract::InboxPage {
     use contract::{InboxGroup, ObjectKey};
     let mut rows = skein_lib::List::with_capacity(6);
     for (kind, object) in [
@@ -369,7 +369,7 @@ pub fn inbox_document(group: contract::InboxReadGroup) -> contract::OwnerInboxPa
                 .expect("six inbox groups");
         }
     }
-    contract::OwnerInboxPage { cut: false, rows, before: None, after: None, selection: None }
+    contract::InboxPage { cut: false, rows, before: None, after: None, selection: None }
 }
 pub fn inbox_page() -> skein_ui::Tree {
     use skein_ui::{Role, Run};
@@ -712,10 +712,10 @@ fn read_value(what: &contract::Read) -> Option<contract::ReadValue> {
         }
         Read::Me => Some(ReadValue::Me(Box::new(jig_client_world::stories::frame(1)))),
         Read::Task { .. } => Some(ReadValue::Task(Box::new(jig_client_world::stories::task()))),
-        Read::Project { .. } => Some(ReadValue::OwnerProject(Box::new(jig_client_world::stories::project()))),
-        Read::Deployment => Some(ReadValue::OwnerDeployment(Box::new(jig_client_world::stories::deployment()))),
-        Read::Proposal { .. } => Some(ReadValue::OwnerProposal(Box::new(jig_client_world::stories::proposal()))),
-        Read::Inbox { group, .. } => Some(ReadValue::OwnerInbox(Box::new(inbox_document(*group)))),
+        Read::Project { .. } => Some(ReadValue::Project(Box::new(jig_client_world::stories::project()))),
+        Read::Deployment => Some(ReadValue::Deployment(Box::new(jig_client_world::stories::deployment()))),
+        Read::Proposal { .. } => Some(ReadValue::Proposal(Box::new(jig_client_world::stories::proposal()))),
+        Read::Inbox { group, .. } => Some(ReadValue::Inbox(Box::new(inbox_document(*group)))),
         Read::Activity { .. } => Some(ReadValue::Activity(Box::new(activity_document()))),
         Read::Turn { .. }
         | Read::Escalation { .. }
@@ -734,10 +734,10 @@ fn activity_document() -> contract::ActivityPage {
     rows.push(crate::tests::documents::line(
         1,
         skein_lib::Wall::EPOCH,
-        contract::OwnerActivity::Words {
+        contract::Activity::Words {
             message: 1,
-            by: contract::OwnerRequester::Person((jig_client_world::stories::party(1)).number),
-            kind: contract::OwnerMessageKind::Words,
+            by: contract::Requester::Person((jig_client_world::stories::party(1)).number),
+            kind: contract::MessageKind::Words,
             words: jig_client_world::stories::text(b"A fixture conversation"),
         },
     ))

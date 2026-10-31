@@ -14,12 +14,12 @@ fn list<T>(values: Vec<T>) -> List<T> {
     }
     out
 }
-fn project() -> c::OwnerProject {
-    let authority = c::OwnerAuthorityDocument::complete(c::OwnerAuthority {
+fn project() -> c::Project {
+    let authority = c::AuthorityDocument::complete(c::Authority {
         models: None,
         tools: 0,
         grants: list(vec![]),
-        delegation: c::OwnerDelegation { kinds: list(vec![]), tasks: 0, depth: 0 },
+        delegation: c::Delegation { kinds: list(vec![]), tasks: 0, depth: 0 },
         spend: 100,
         deadline: None,
         notes: 0,
@@ -28,7 +28,7 @@ fn project() -> c::OwnerProject {
     let period = c::PoolLedger {
         source: c::Funder::Period { project: 1, period: 3 },
         parent: None,
-        numbers: c::OwnerNumbers { budget: 100, reserved: 40, spent: 5, spent_below: 15 },
+        numbers: c::Numbers { budget: 100, reserved: 40, spent: 5, spent_below: 15 },
         left: 40,
         closed: false,
         began: Some(Wall::from_nanos(1_793_080_800_000_000_000)),
@@ -41,33 +41,33 @@ fn project() -> c::OwnerProject {
         pool.parent = Some(period.source);
         pools.push(pool);
     }
-    c::OwnerProject {
+    c::Project {
         acts: list(vec![]),
         number: 1,
         name: f::document_text(b"shop"),
-        resources: list(vec![c::OwnerProjectResource {
-            part: c::OwnerPart {
+        resources: list(vec![c::ProjectResource {
+            part: c::Part {
                 connector: 4,
-                kind: c::OwnerPartKind::Resource,
-                key: c::OwnerPartKey::Path(list(vec![b"src".as_slice().into(), b"lib.rs".as_slice().into()])),
+                kind: c::PartKind::Resource,
+                key: c::PartKey::Path(list(vec![b"src".as_slice().into(), b"lib.rs".as_slice().into()])),
             },
-            role: c::OwnerProjectResourceRole::Owned,
+            role: c::ProjectResourceRole::Owned,
         }]),
-        policy: c::OwnerProjectPolicy {
+        policy: c::ProjectPolicy {
             templates: list(vec![]),
             ceiling: authority.clone(),
             period_spend: 100,
             escalation_role: None,
             projections: list(vec![]),
             roles: list(vec![
-                c::OwnerProjectPolicyRole {
+                c::ProjectPolicyRole {
                     number: 0,
                     authority: authority.clone(),
                     period_spend: 100,
                     requests: 0,
                     decides: 0,
                 },
-                c::OwnerProjectPolicyRole { number: 2, authority, period_spend: 50, requests: 0, decides: 0 },
+                c::ProjectPolicyRole { number: 2, authority, period_spend: 50, requests: 0, decides: 0 },
             ]),
             requirements: list(vec![]),
             permissions: None,
@@ -75,14 +75,14 @@ fn project() -> c::OwnerProject {
             cut: false,
         },
         members: list(vec![
-            c::OwnerProjectMember {
+            c::ProjectMember {
                 party: 1,
                 kind: c::PartyKind::Person,
                 role: c::HeldRole::Owner,
                 login: f::document_text(b"alice"),
                 name: f::document_text(b"Alice"),
             },
-            c::OwnerProjectMember {
+            c::ProjectMember {
                 party: 2,
                 kind: c::PartyKind::Person,
                 role: c::HeldRole::Member,
@@ -100,10 +100,10 @@ fn project() -> c::OwnerProject {
         cut: false,
     }
 }
-fn read(argv: &[&str], value: c::OwnerProject) -> jig::Printed {
+fn read(argv: &[&str], value: c::Project) -> jig::Printed {
     let (mut root, call) = f::read_call(argv);
     assert_eq!(root.reads[&call].1, c::Read::Project { project: 1 });
-    root.serve(call, c::ReadResult::Value(c::ReadValue::OwnerProject(Box::new(value))));
+    root.serve(call, c::ReadResult::Value(c::ReadValue::Project(Box::new(value))));
     root.answer(call).expect("project read completed")
 }
 #[test]
@@ -166,9 +166,9 @@ fn project_fund_prints_the_edit_then_the_period_and_roles_pools() {
             argv.extend(["--role", "0"]);
         }
         let call = root.submit(&argv);
-        root.done(call, c::Outcome::Owner(c::OwnerOutcome::PolicyChanged { project: 1 }));
+        root.done(call, c::Outcome::Document(c::DocumentOutcome::PolicyChanged { project: 1 }));
         assert_eq!(root.reads[&call].1, c::Read::Project { project: 1 });
-        root.serve(call, c::ReadResult::Value(c::ReadValue::OwnerProject(Box::new(project()))));
+        root.serve(call, c::ReadResult::Value(c::ReadValue::Project(Box::new(project()))));
         let printed = root.answer(call).unwrap();
         assert_eq!(printed.status, 0);
         let expected = if role {
@@ -236,9 +236,9 @@ fn project_fund_json_reads_the_committed_ledgers() {
         ask.as_ref(),
         &c::Ask::ChangePolicy { project: f::PROJECT, edit: c::PolicyEdit::RoleSpend { role: 0, period_spend: 200 } }
     );
-    root.done(call, c::Outcome::Owner(c::OwnerOutcome::PolicyChanged { project: 1 }));
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::PolicyChanged { project: 1 }));
     assert_eq!(root.reads[&call].1, c::Read::Project { project: 1 });
-    root.serve(call, c::ReadResult::Value(c::ReadValue::OwnerProject(Box::new(project()))));
+    root.serve(call, c::ReadResult::Value(c::ReadValue::Project(Box::new(project()))));
     let printed = root.answer(call).unwrap();
     assert_eq!(printed.status, 0);
     f::unique_keys(&printed.stdout).expect("valid JSON with unique keys");
@@ -252,7 +252,7 @@ fn a_spent_pool_refusal_names_the_project_role_and_remedy() {
         let mut me = f::chat_me(100);
         if pool_known {
             let mut pool = project().pools.get(0).unwrap().clone();
-            pool.numbers = c::OwnerNumbers { budget: 114, reserved: 0, spent: 114, spent_below: 0 };
+            pool.numbers = c::Numbers { budget: 114, reserved: 0, spent: 114, spent_below: 0 };
             pool.left = 0;
             me.projects.get_mut(0).unwrap().pool = Some(pool);
         }
@@ -297,21 +297,21 @@ fn project_fund_replays_the_edit_with_todays_balances() {
             argv.push("--json");
         }
         let first = root.submit(&argv);
-        root.done(first, c::Outcome::Owner(c::OwnerOutcome::PolicyChanged { project: 1 }));
-        root.serve(first, c::ReadResult::Value(c::ReadValue::OwnerProject(Box::new(project()))));
+        root.done(first, c::Outcome::Document(c::DocumentOutcome::PolicyChanged { project: 1 }));
+        root.serve(first, c::ReadResult::Value(c::ReadValue::Project(Box::new(project()))));
         let original = root.answer(first).unwrap().stdout.clone();
         let mut changed = argv.clone();
         changed[3] = "300";
         changed[5] = "second";
         let next = root.submit(&changed);
-        root.done(next, c::Outcome::Owner(c::OwnerOutcome::PolicyChanged { project: 1 }));
+        root.done(next, c::Outcome::Document(c::DocumentOutcome::PolicyChanged { project: 1 }));
         let mut today = project();
         today.current_period.as_mut().unwrap().left = 17;
         today.pools.get_mut(0).unwrap().left = 9;
-        root.serve(next, c::ReadResult::Value(c::ReadValue::OwnerProject(Box::new(today.clone()))));
+        root.serve(next, c::ReadResult::Value(c::ReadValue::Project(Box::new(today.clone()))));
         let replay = root.submit(&argv);
-        root.done(replay, c::Outcome::Owner(c::OwnerOutcome::PolicyChanged { project: 1 }));
-        root.serve(replay, c::ReadResult::Value(c::ReadValue::OwnerProject(Box::new(today))));
+        root.done(replay, c::Outcome::Document(c::DocumentOutcome::PolicyChanged { project: 1 }));
+        root.serve(replay, c::ReadResult::Value(c::ReadValue::Project(Box::new(today))));
         let answer = root.answer(replay).unwrap();
         assert_eq!(answer.status, 0);
         let text = String::from_utf8_lossy(&answer.stdout);
@@ -344,12 +344,12 @@ fn project_fund_replays_the_edit_with_todays_balances() {
 fn project_fund_marks_missing_period_and_cut_flags_as_current_reads() {
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(&["project", "fund", "1", "0", "--key", "cut"]);
-    root.done(call, c::Outcome::Owner(c::OwnerOutcome::PolicyChanged { project: 1 }));
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::PolicyChanged { project: 1 }));
     let mut current = project();
     current.current_period = None;
     current.cut = true;
     current.configured_pools_cut = true;
-    root.serve(call, c::ReadResult::Value(c::ReadValue::OwnerProject(Box::new(current))));
+    root.serve(call, c::ReadResult::Value(c::ReadValue::Project(Box::new(current))));
     assert_eq!(
         root.answer(call).unwrap().stdout.as_ref(),
         b"project 1: spend per period 0\nnow: period: none open\nnow: project: cut\nnow: configured pools: cut\n"

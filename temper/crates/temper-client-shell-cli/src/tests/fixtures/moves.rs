@@ -14,10 +14,8 @@ pub enum Answer {
 impl Frame {
     pub(super) fn deliver_move_accounts(&mut self, watch: u64, subject: &w::Subject) {
         let value = match subject {
-            w::Subject::Accounts => w::DeliveryValue::OwnerAccounts(jig_client_test_records::accounts_record(None)),
-            w::Subject::Deployment => {
-                w::DeliveryValue::OwnerDeployment(jig_client_test_records::owner_deployment_record())
-            }
+            w::Subject::Accounts => w::DeliveryValue::Accounts(jig_client_test_records::accounts_record(None)),
+            w::Subject::Deployment => w::DeliveryValue::Deployment(jig_client_test_records::owner_deployment_record()),
             w::Subject::Me
             | w::Subject::Task(_)
             | w::Subject::Tree(_)
@@ -144,10 +142,10 @@ fn final_answer(answer: Answer) -> w::Final {
             w::Done::new(
                 &w::CEILINGS,
                 w::DoneParts {
-                    outcome: w::Outcome::Owner(
-                        w::OutcomeOwner::new(
+                    outcome: w::Outcome::Document(
+                        w::OutcomeDocument::new(
                             &w::CEILINGS,
-                            w::OutcomeOwnerParts { value: w::OwnerOutcome::AccountChanged },
+                            w::OutcomeDocumentParts { value: w::DocumentOutcome::AccountChanged },
                         )
                         .expect("changed"),
                     ),
@@ -159,14 +157,14 @@ fn final_answer(answer: Answer) -> w::Final {
             w::Done::new(
                 &w::CEILINGS,
                 w::DoneParts {
-                    outcome: w::Outcome::Owner(
-                        w::OutcomeOwner::new(
+                    outcome: w::Outcome::Document(
+                        w::OutcomeDocument::new(
                             &w::CEILINGS,
-                            w::OutcomeOwnerParts {
-                                value: w::OwnerOutcome::AccountMovedIn(
-                                    w::OwnerOutcomeAccountMovedIn::new(
+                            w::OutcomeDocumentParts {
+                                value: w::DocumentOutcome::AccountMovedIn(
+                                    w::OutcomeAccountMovedIn::new(
                                         &w::CEILINGS,
-                                        w::OwnerOutcomeAccountMovedInParts { account: ACCOUNT, renewed },
+                                        w::OutcomeAccountMovedInParts { account: ACCOUNT, renewed },
                                     )
                                     .expect("moved in"),
                                 ),

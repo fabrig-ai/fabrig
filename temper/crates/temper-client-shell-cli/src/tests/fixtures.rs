@@ -36,7 +36,7 @@ pub const PARTIAL: usize = 3; // More than one short write is needed for every h
 #[expect(clippy::struct_excessive_bools, reason = "independent scripted file and network facts")]
 pub struct Frame {
     pub move_answers: VecDeque<moves::Answer>,
-    pub move_requests: Vec<(w::AccountHolder, w::AccountChange)>,
+    pub move_requests: Vec<(w::AskAccountHolder, w::AccountChange)>,
     pub file_steps: Vec<&'static str>,
     pub record_exists: bool,
     pub record_existing_kind: Option<Kind>,

@@ -7,7 +7,7 @@ use skein_lib::Wall;
 #[test]
 fn replied_holds_once_a_chat_is_parked_and_not_while_it_writes() {
     let me = f::me(f::PARTY);
-    let writing = f::chat_at(f::TASK, c::RunStage::Running { attempt: f::ATTEMPT }, Some(c::OwnerChipWork::Writing));
+    let writing = f::chat_at(f::TASK, c::RunStage::Running { attempt: f::ATTEMPT }, Some(c::ChipWork::Writing));
     let parked = f::chat_at(f::TASK, c::RunStage::Idle, None);
     assert_eq!(f::holds(Condition::Replied, &writing, Some(&me)), Some(false));
     assert_eq!(f::holds(Condition::Replied, &parked, Some(&me)), Some(true));
@@ -31,18 +31,18 @@ fn replied_accepts_each_settled_chat_status_and_misses_the_others() {
     let me = f::me(f::PARTY);
     let rows = [
         (c::RunStage::Idle, None, true),
-        (c::RunStage::Running { attempt: f::ATTEMPT }, Some(c::OwnerChipWork::Waiting), true),
+        (c::RunStage::Running { attempt: f::ATTEMPT }, Some(c::ChipWork::Waiting), true),
         (c::RunStage::Due, None, false),
         (c::RunStage::Preparing, None, false),
         (c::RunStage::Claimed { attempt: f::ATTEMPT }, None, false),
-        (c::RunStage::Running { attempt: f::ATTEMPT }, Some(c::OwnerChipWork::Preparing), false),
-        (c::RunStage::Running { attempt: f::ATTEMPT }, Some(c::OwnerChipWork::Starting), false),
-        (c::RunStage::Running { attempt: f::ATTEMPT }, Some(c::OwnerChipWork::Writing), false),
-        (c::RunStage::Running { attempt: f::ATTEMPT }, Some(c::OwnerChipWork::Active), false),
-        (c::RunStage::Running { attempt: f::ATTEMPT }, Some(c::OwnerChipWork::Ending), false),
+        (c::RunStage::Running { attempt: f::ATTEMPT }, Some(c::ChipWork::Preparing), false),
+        (c::RunStage::Running { attempt: f::ATTEMPT }, Some(c::ChipWork::Starting), false),
+        (c::RunStage::Running { attempt: f::ATTEMPT }, Some(c::ChipWork::Writing), false),
+        (c::RunStage::Running { attempt: f::ATTEMPT }, Some(c::ChipWork::Active), false),
+        (c::RunStage::Running { attempt: f::ATTEMPT }, Some(c::ChipWork::Ending), false),
         (
             c::RunStage::Running { attempt: f::ATTEMPT },
-            Some(c::OwnerChipWork::Tool { call: b"c".as_slice().into(), tool: b"sh".as_slice().into() }),
+            Some(c::ChipWork::Tool { call: b"c".as_slice().into(), tool: b"sh".as_slice().into() }),
             false,
         ),
         (c::RunStage::BackingOff { until: Wall::EPOCH }, None, false),
@@ -57,8 +57,8 @@ fn replied_accepts_each_settled_chat_status_and_misses_the_others() {
         assert_eq!(f::holds(Condition::Replied, &latest, Some(&me)), Some(true), "{whom:?}");
     }
     for phase in [
-        c::OwnerChipPhase::Held { reason: c::HoldCategory::Stopped, revision: f::HOLD },
-        c::OwnerChipPhase::Closing(c::ClosingStage::Delegates),
+        c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision: f::HOLD },
+        c::ChipPhase::Closing(c::ClosingStage::Delegates),
     ] {
         f::chip_phase(&mut latest, phase);
         assert_eq!(f::holds(Condition::Replied, &latest, Some(&me)), Some(true));
@@ -99,7 +99,7 @@ fn waiting_on_me_uses_the_party_and_its_project_role() {
 fn waiting_on_me_reads_waits_even_while_the_task_is_held() {
     let me = f::me(f::PARTY);
     let mut latest = f::chat_at(f::TASK, c::RunStage::Idle, None);
-    f::chip_phase(&mut latest, c::OwnerChipPhase::Held { reason: c::HoldCategory::Stopped, revision: f::HOLD });
+    f::chip_phase(&mut latest, c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision: f::HOLD });
     f::task_in(&mut latest).waits_on = f::waiting_on_me();
     assert_eq!(f::holds(Condition::WaitingOnMe, &latest, Some(&me)), Some(true));
 }

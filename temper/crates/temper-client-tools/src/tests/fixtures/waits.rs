@@ -21,17 +21,17 @@ pub(crate) const LIVE_PHASES: &[c::Phase] = &[
     c::Phase::Held,
 ];
 pub(crate) const ENDED_PHASES: &[c::Phase] = &[c::Phase::Ended, c::Phase::Done, c::Phase::Failed, c::Phase::Cancelled];
-pub(crate) fn chat_at(task: u64, stage: c::RunStage, work: Option<c::OwnerChipWork>) -> client::Latest {
+pub(crate) fn chat_at(task: u64, stage: c::RunStage, work: Option<c::ChipWork>) -> client::Latest {
     let mut task = goal(task, c::WaitsOn::Nothing);
     task.label = CHAT_LABEL;
     task.flags.conversation = true;
-    task.chip.phase = c::OwnerChipPhase::Active(stage).compact();
-    task.chip.details = Box::new(c::ChipPhase {
-        phase: c::OwnerChipPhase::Active(stage),
-        details: Box::new(c::OwnerChipDetails {
+    task.chip.phase = c::ChipPhase::Active(stage).compact();
+    task.chip.details = Box::new(c::ChipPhaseFacts {
+        phase: c::ChipPhase::Active(stage),
+        details: Box::new(c::ChipDetails {
             dependencies: List::with_capacity(EMPTY),
             project: task.project,
-            executor: c::OwnerExecutor::Agent { charter: PROJECT },
+            executor: c::Executor::Agent { charter: PROJECT },
             phase_since: Wall::EPOCH,
             run_since: None,
             attempt: Some(ATTEMPT),
@@ -52,10 +52,10 @@ pub(crate) fn chat_at(task: u64, stage: c::RunStage, work: Option<c::OwnerChipWo
             observation: None,
         }),
     });
-    let c::ChipPhase { details, .. } = task.chip.details.as_mut();
+    let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
     details.observation = None;
     if let Some(work) = work {
-        details.observation = Some(c::OwnerChipObservation {
+        details.observation = Some(c::ChipObservation {
             channel: Token::new(1),
             work,
             since: Wall::EPOCH,
@@ -73,8 +73,8 @@ pub(crate) fn ended_chat(phase: c::Phase) -> client::Latest {
     let mut latest = chat_at(TASK, c::RunStage::Idle, None);
     let task = task_in(&mut latest);
     task.chip.phase = phase;
-    let c::ChipPhase { phase, details } = task.chip.details.as_mut();
-    *phase = c::OwnerChipPhase::Ended;
+    let c::ChipPhaseFacts { phase, details } = task.chip.details.as_mut();
+    *phase = c::ChipPhase::Ended;
     details.ended_at = Some(DECIDED_AT);
     latest
 }
@@ -82,7 +82,7 @@ pub(crate) fn party_wait(whom: c::Whom, kind: c::WaitedFor) -> c::WaitsOn {
     c::WaitsOn::Party { whom, task: OTHER_TASK, kind, entries: ONE_NEED }
 }
 pub(crate) fn inbox_counts(needs: u32, updates: u32) -> client::Latest {
-    client::Latest::Jig(c::Delivery::OwnerInbox(Box::new({
+    client::Latest::Jig(c::Delivery::Inbox(Box::new({
         let counts = c::Needs { questions: needs, proposals: 0, escalations: 0, person_tasks: 0 };
         crate::tests::documents::inbox(
             List::with_capacity(EMPTY),
@@ -98,7 +98,7 @@ pub(crate) fn inbox_counts(needs: u32, updates: u32) -> client::Latest {
     })))
 }
 pub(crate) fn owner_inbox_counts(needs: u32, updates: u32) -> client::Latest {
-    client::Latest::Jig(c::Delivery::OwnerInbox(Box::new(c::OwnerInbox {
+    client::Latest::Jig(c::Delivery::Inbox(Box::new(c::Inbox {
         party: PARTY,
         needs: List::with_capacity(EMPTY),
         updates: List::with_capacity(EMPTY),
@@ -123,7 +123,7 @@ pub(crate) fn tree_at(chip: c::Chip) -> client::Latest {
 }
 
 pub(crate) fn owner_tree_at(chip: c::Chip) -> client::Latest {
-    client::Latest::Jig(c::Delivery::OwnerTree(Box::new(c::OwnerTree {
+    client::Latest::Jig(c::Delivery::Tree(Box::new(c::Tree {
         root: chip,
         rows: List::with_capacity(EMPTY),
         folded: List::with_capacity(EMPTY),
@@ -131,10 +131,10 @@ pub(crate) fn owner_tree_at(chip: c::Chip) -> client::Latest {
         next: None,
     })))
 }
-pub(crate) fn chip_phase(latest: &mut client::Latest, phase: c::OwnerChipPhase) {
+pub(crate) fn chip_phase(latest: &mut client::Latest, phase: c::ChipPhase) {
     let task = task_in(latest);
     task.chip.phase = phase.compact();
-    let c::ChipPhase { phase: current, .. } = task.chip.details.as_mut();
+    let c::ChipPhaseFacts { phase: current, .. } = task.chip.details.as_mut();
     *current = phase;
 }
 
@@ -176,7 +176,7 @@ pub(crate) fn parked() -> c::Delivery {
     delivery(chat_at(TASK, c::RunStage::Idle, None))
 }
 pub(crate) fn writing_chat() -> c::Delivery {
-    delivery(chat_at(TASK, c::RunStage::Running { attempt: ATTEMPT }, Some(c::OwnerChipWork::Writing)))
+    delivery(chat_at(TASK, c::RunStage::Running { attempt: ATTEMPT }, Some(c::ChipWork::Writing)))
 }
 pub(crate) fn task_digest(delivery: &c::Delivery) -> crate::jig::digest::Digest {
     crate::jig::digest::part(&crate::jig::render::Part::delivery(delivery).expect("subject"), &limits())
@@ -233,7 +233,7 @@ pub(crate) fn wait_cases(root: &mut Harness) -> [WaitCase; WAIT_SUBJECTS] {
     let call = root.submit(argv.as_slice());
     root.serve(call, inbox_rows(c::InboxReadGroup::Needs, SHORT_WINDOW, false));
     root.serve(call, inbox_rows(c::InboxReadGroup::Updates, WINDOW_UPDATES, false));
-    root.deliver_subject(&inbox_watch(), c::Delivery::OwnerInbox(Box::new(inbox.clone())));
+    root.deliver_subject(&inbox_watch(), c::Delivery::Inbox(Box::new(inbox.clone())));
     let inbox_read = root.answer(call).expect("inbox read");
     let (tasks, watched) = tasks_first_window(OVER_WINDOW, true);
     let task = goal(TASK, waiting_on_me());
@@ -246,7 +246,7 @@ pub(crate) fn wait_cases(root: &mut Harness) -> [WaitCase; WAIT_SUBJECTS] {
     root.serve(call, task_result(task.clone()));
     root.deliver_subject(
         &client::Watchable::Jig(c::Subject::Tree { task: TASK, window: crate::limits::ROWS }),
-        c::Delivery::OwnerTree(Box::new(composite_tree())),
+        c::Delivery::Tree(Box::new(composite_tree())),
     );
     let tree_read = root.answer(call).expect("composite read");
     let argv = extended(RUN_CALL, &["--json"]);
@@ -264,7 +264,7 @@ pub(crate) fn wait_cases(root: &mut Harness) -> [WaitCase; WAIT_SUBJECTS] {
         WaitCase {
             argv: WAIT_INBOX,
             watch: client::Watchable::Jig(c::Subject::Inbox { window: crate::limits::ROWS }),
-            delivery: c::Delivery::OwnerInbox(Box::new(inbox)),
+            delivery: c::Delivery::Inbox(Box::new(inbox)),
             read_digest: last_digest(&inbox_read.stdout),
         },
         WaitCase {
@@ -282,7 +282,7 @@ pub(crate) fn wait_cases(root: &mut Harness) -> [WaitCase; WAIT_SUBJECTS] {
         WaitCase {
             argv: WAIT_TREE,
             watch: client::Watchable::Jig(c::Subject::Tree { task: TASK, window: crate::limits::ROWS }),
-            delivery: c::Delivery::OwnerTree(Box::new(composite_tree())),
+            delivery: c::Delivery::Tree(Box::new(composite_tree())),
             read_digest: last_digest(&tree_read.stdout),
         },
         WaitCase {
@@ -301,7 +301,7 @@ pub(crate) fn changed_delivery(mut delivery: c::Delivery) -> c::Delivery {
     match &mut delivery {
         c::Delivery::Settings(_) => unreachable!("temper does not watch settings"),
         c::Delivery::Me(me) => me.needs_total = me.needs_total.checked_add(ONE_NEED).expect("new need"),
-        c::Delivery::OwnerInbox(inbox) => {
+        c::Delivery::Inbox(inbox) => {
             inbox.needs = List::with_capacity(EMPTY);
             inbox.updates = List::with_capacity(EMPTY);
             inbox.next = None;
@@ -311,14 +311,14 @@ pub(crate) fn changed_delivery(mut delivery: c::Delivery) -> c::Delivery {
             tasks.more = false;
         }
         c::Delivery::Task(task) => task.chip.title = document_text(b"changed"),
-        c::Delivery::OwnerTree(tree) => tree.held_below = ONE_NEED,
+        c::Delivery::Tree(tree) => tree.held_below = ONE_NEED,
         c::Delivery::RunState(run) => run.committed_turn = TURN.checked_add(ONE_NEED).expect("next turn"),
-        c::Delivery::OwnerProject(_)
-        | c::Delivery::OwnerProposal(_)
+        c::Delivery::Project(_)
+        | c::Delivery::Proposal(_)
         | c::Delivery::Chips(_)
-        | c::Delivery::OwnerDeployment(_)
+        | c::Delivery::Deployment(_)
         | c::Delivery::Run(_)
-        | c::Delivery::OwnerAccounts(_) => panic!("fixture subject"),
+        | c::Delivery::Accounts(_) => panic!("fixture subject"),
     }
     delivery
 }

@@ -41,7 +41,7 @@ pub(super) fn encode(reading: &Reading, out: &mut Encoder) {
 }
 pub(crate) fn asking_task(question: &c::Question) -> u64 {
     match question.from {
-        Some(c::OwnerRequester::Task(task)) => task,
+        Some(c::Requester::Task(task)) => task,
         _ => question.task.task,
     }
 }

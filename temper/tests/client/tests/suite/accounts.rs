@@ -49,7 +49,7 @@ fn a_lost_key_answer_replays_under_the_same_name_without_a_second_account() {
             .expect("account fixture state")
             .outcome,
         Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Done(
-            jig_client::contract::Outcome::Owner(jig_client::contract::OwnerOutcome::AccountKeyKept { source })
+            jig_client::contract::Outcome::Document(jig_client::contract::DocumentOutcome::AccountKeyKept { source })
         ))))
     );
     let doc = d::pages::accounts::document(root.client()).expect("account fixture state");

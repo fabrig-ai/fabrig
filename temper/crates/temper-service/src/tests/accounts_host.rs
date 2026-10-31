@@ -900,7 +900,8 @@ fn moved_answer(engine: &mut crate::engine::Engine, bearer: &[u8], attempt: u8) 
         w::AccountChangeMoveOut::new(&limits, w::AccountChangeMoveOutParts { account: 19 }).unwrap(),
     );
     let ask = w::Ask::AccountChange(
-        w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AccountHolder::Own, change }).unwrap(),
+        w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
+            .unwrap(),
     );
     let mut bytes = Writer::new(usize::try_from(ask.measure()).unwrap());
     ask.encode(&mut bytes).unwrap();

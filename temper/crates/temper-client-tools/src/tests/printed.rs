@@ -34,12 +34,12 @@ fn every_printed_call_parses() {
         forgotten: false,
     })));
     let operation = outcome::Operation::of(&Ask::Jig(Box::new(c::Ask::AccountChange {
-        holder: c::AccountHolder::Own,
+        holder: c::AskAccountHolder::Own,
         change: c::AccountChange::CheckProgram { source: f::SOURCE },
     })));
     let verify = outcome::print(
         &operation,
-        &Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountChanged)))),
+        &Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountChanged)))),
         false,
         None,
         &f::limits_root().tools,

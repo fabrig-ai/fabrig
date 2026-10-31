@@ -67,53 +67,53 @@ pub struct ModelEffort {
     pub effort: Option<Text>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerAuthority {
+pub struct Authority {
     pub models: Option<AuthorityModels>,
     pub tools: u64,
-    pub grants: List<OwnerGrant>,
-    pub delegation: OwnerDelegation,
+    pub grants: List<Grant>,
+    pub delegation: Delegation,
     pub spend: u64,
     pub deadline: Option<Wall>,
     pub notes: u8,
-    pub note_resources: List<OwnerResourceScope>,
+    pub note_resources: List<ResourceScope>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerAuthorityExecutor {
+pub enum AuthorityExecutor {
     Charter(u32),
     Procedure(u32),
     Role(u32),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerDelegation {
-    pub kinds: List<OwnerAuthorityExecutor>,
+pub struct Delegation {
+    pub kinds: List<AuthorityExecutor>,
     pub tasks: u32,
     pub depth: u32,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerGrant {
+pub struct Grant {
     pub connector: u16,
     pub kind: u16,
-    pub pattern: OwnerPattern,
+    pub pattern: Pattern,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerKindImplication {
+pub struct KindImplication {
     pub connector: u16,
     pub kind: u16,
     pub implies: u16,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerPart {
+pub struct Part {
     pub connector: u16,
-    pub kind: OwnerPartKind,
-    pub key: OwnerPartKey,
+    pub kind: PartKind,
+    pub key: PartKey,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerPartKey {
+pub enum PartKey {
     Path(List<Box<[u8]>>),
     Number(u64),
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerPartKind {
+pub enum PartKind {
     Resource,
     Pool,
     Result,
@@ -124,24 +124,24 @@ pub enum OwnerPartKind {
     Hold,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerPattern {
+pub struct Pattern {
     pub segments: List<Box<[u8]>>,
-    pub last: OwnerPatternEnd,
+    pub last: PatternEnd,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerPatternEnd {
+pub enum PatternEnd {
     Exact(Box<[u8]>),
     Open(Box<[u8]>),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerResourceScope {
+pub struct ResourceScope {
     pub connector: u16,
-    pub pattern: OwnerPattern,
+    pub pattern: Pattern,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PolicyEditRole {
     pub number: u32,
-    pub authority: OwnerAuthority,
+    pub authority: Authority,
     pub period_spend: u64,
     pub requests: u16,
     pub decides: u8,
@@ -167,7 +167,7 @@ pub struct PolicyPermission {
 pub struct PolicyRequirement {
     pub connector: u16,
     pub kind: u16,
-    pub pattern: OwnerPattern,
+    pub pattern: Pattern,
     pub judge: PolicyJudge,
     pub guard: PolicyGuard,
     pub must_be_guarded: bool,
@@ -260,11 +260,11 @@ pub struct RevisionsPage {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Rules {
-    pub ceiling: OwnerAuthority,
+    pub ceiling: Authority,
     pub period_spend: u64,
     pub minimum_run_spend: u64,
     pub maximum_run_spend: u64,
-    pub implies: List<OwnerKindImplication>,
+    pub implies: List<KindImplication>,
     pub requirements: List<PolicyRequirement>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -347,8 +347,8 @@ pub struct SettingNumber {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingPolicy {
     pub escalation_role: Option<u32>,
-    pub ceiling: OwnerAuthority,
-    pub projections: List<OwnerGrant>,
+    pub ceiling: Authority,
+    pub projections: List<Grant>,
     pub period_spend: u64,
     pub roles: List<PolicyEditRole>,
     pub requirements: List<PolicyRequirement>,
@@ -384,7 +384,7 @@ pub struct Size {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum TaskContractDocument {
-    Approval { state: Box<[u8]>, part: OwnerPart },
+    Approval { state: Box<[u8]>, part: Part },
     Report { words: u32 },
     Verdict { choices: List<VerdictChoice>, cut: bool },
     Change { connector: u16, kind: u16, words: u32 },

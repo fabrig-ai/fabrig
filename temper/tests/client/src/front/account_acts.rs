@@ -115,7 +115,7 @@ fn without_deployment_account((mut front, mut root): (Joint, Root)) -> (Joint, R
     for act in [
         Act::Submit {
             name: [67; 16],
-            row: Row { holder: jig_client::contract::AccountHolder::Deployment, account },
+            row: Row { holder: jig_client::contract::AskAccountHolder::Deployment, account },
             operation: Operation::RemoveAccount,
         },
         Act::Confirm,

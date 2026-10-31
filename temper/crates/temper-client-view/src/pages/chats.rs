@@ -230,11 +230,11 @@ fn start(
 }
 
 pub(crate) fn ended(chip: &jig_client::contract::Chip) -> bool {
-    use jig_client::contract::{ChipPhase, OwnerChipPhase, Phase};
+    use jig_client::contract::{ChipPhase, ChipPhaseFacts, Phase};
     if let Phase::Done | Phase::Ended | Phase::Failed | Phase::Cancelled = chip.phase {
         return true;
     }
-    if let ChipPhase { phase: OwnerChipPhase::Ended, .. } = chip.details.as_ref() {
+    if let ChipPhaseFacts { phase: ChipPhase::Ended, .. } = chip.details.as_ref() {
         return true;
     }
     false
@@ -330,19 +330,19 @@ pub(crate) fn status(
         Option<u32>,
         Option<&jig_client::contract::TaskRunWait>,
     ),
-    (project, requester): (u32, jig_client::contract::OwnerRequester),
-    wake: Option<&jig_client::contract::OwnerWakePolicy>,
+    (project, requester): (u32, jig_client::contract::Requester),
+    wake: Option<&jig_client::contract::WakePolicy>,
     me: &jig_client::contract::Me,
     words: &Words,
 ) {
-    use jig_client::contract::{ChipPhase, HoldCategory, OwnerRequester, WaitsOn, WakeRule};
+    use jig_client::contract::{ChipPhaseFacts, HoldCategory, Requester, WaitsOn, WakeRule};
     use jig_client::facts::ChatStatus;
     if ended(chip) {
         closed_status(b, words);
         return;
     }
     let live = delegates.unwrap_or({
-        let ChipPhase { details, .. } = chip.details.as_ref();
+        let ChipPhaseFacts { details, .. } = chip.details.as_ref();
         details.live_delegates
     });
     let waits_on = if live == 0 && *waits_on == WaitsOn::Delegates { &WaitsOn::News } else { waits_on };
@@ -353,7 +353,7 @@ pub(crate) fn status(
     let narrowed = if (*waits_on == WaitsOn::Delegates || *waits_on == WaitsOn::News) && live > 0 {
         Some(words.say(Word::WaitingForDelegates, &[Hole::Number(u64::from(live))]))
     } else if *waits_on == WaitsOn::News
-        && requester == OwnerRequester::Person(me.party.number)
+        && requester == Requester::Person(me.party.number)
         && let Some(wake) = wake
         && match wake.words {
             WakeRule::Never => false,

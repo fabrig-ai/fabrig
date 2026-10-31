@@ -12,20 +12,20 @@ pub(super) fn text(task: &c::Task, me: Option<&c::Me>, book: &Phrasebook, out: &
     for link in &task.dependencies {
         out.put(b"\n  task ");
         let number = match link {
-            c::OwnerTaskLink::Live(chip) | c::OwnerTaskLink::Retained { chip, .. } => {
+            c::TaskLink::Live(chip) | c::TaskLink::Retained { chip, .. } => {
                 out.number(chip.task);
                 out.put(b" \xc2\xb7 ");
                 out.put(&book.say(0, Word::Phase(chip.phase).id(), &[]).expect("phase phrase").text);
                 chip.task
             }
-            c::OwnerTaskLink::Stored { number, status } => {
+            c::TaskLink::Stored { number, status } => {
                 out.number(*number);
                 if let Some(status) = status {
                     out.put(b" \xc2\xb7 ");
                     out.put(match status {
-                        c::OwnerTaskStatus::Done => b"Completed",
-                        c::OwnerTaskStatus::Failed => b"Failed",
-                        c::OwnerTaskStatus::Cancelled => b"Cancelled",
+                        c::TaskStatus::Done => b"Completed",
+                        c::TaskStatus::Failed => b"Failed",
+                        c::TaskStatus::Cancelled => b"Cancelled",
                     });
                 }
                 *number

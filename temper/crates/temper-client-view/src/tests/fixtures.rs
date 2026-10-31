@@ -1,7 +1,7 @@
 #[path = "../../../../testing/first_run.rs"]
 pub mod first_run;
 use jig_client::contract as c;
-use jig_client::contract::{OwnerPart, OwnerPartKey, OwnerPartKind, Part};
+use jig_client::contract::{ApplicationPart, Part, PartKey, PartKind};
 use skein_lib::{Duration, Env, List, Queue, RequestLimits, Time, Token, Wall, Writer};
 use temper_client_domain::{Limits, forge};
 use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -128,17 +128,17 @@ pub fn owner_part_text(words: &crate::words::Words, segments: &[&[u8]]) -> Box<[
     let mut builder = skein_ui::Builder::new(&tree_limits());
     crate::forge::owner_part(
         &mut builder,
-        &OwnerPart { connector: FORGE, kind: OwnerPartKind::Resource, key: OwnerPartKey::Path(path(segments)) },
+        &Part { connector: FORGE, kind: PartKind::Resource, key: PartKey::Path(path(segments)) },
         words,
     );
     text(&builder.finish())
 }
-pub fn part_tree(words: &crate::words::Words, part: Part) -> skein_ui::Tree {
+pub fn part_tree(words: &crate::words::Words, part: ApplicationPart) -> skein_ui::Tree {
     let mut builder = skein_ui::Builder::new(&tree_limits());
     crate::forge::drawn(&mut builder, &part, words);
     builder.finish()
 }
-pub fn part_text(words: &crate::words::Words, part: Part) -> Box<[u8]> {
+pub fn part_text(words: &crate::words::Words, part: ApplicationPart) -> Box<[u8]> {
     text(&part_tree(words, part))
 }
 pub fn built() -> crate::View {
@@ -461,7 +461,7 @@ fn empty_session(root: &mut temper_client_domain::Domain, read: Token, watch: To
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch,
-                    event: c::WatchEvent::Delivered(c::Delivery::OwnerAccounts(Box::new(c::OwnerAccounts {
+                    event: c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(c::Accounts {
                         accounts: List::with_capacity(0),
                         readiness: List::with_capacity(0),
                         readiness_cut: false,
@@ -662,7 +662,7 @@ pub fn inbox_facts(
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch: watch.expect("inbox watch"),
-                    event: contract::WatchEvent::Delivered(contract::Delivery::OwnerInbox(Box::new(inbox))),
+                    event: contract::WatchEvent::Delivered(contract::Delivery::Inbox(Box::new(inbox))),
                 },
             },
         },
@@ -914,7 +914,7 @@ pub mod chat {
                 act: c::ActKind::Cancel,
                 admission: c::Admission::Allowed,
                 effect: Some(c::Effect::Cancel(c::Impact {
-                    tasks: c::PhaseCounts {
+                    tasks: c::ImpactCounts {
                         waiting: 0,
                         running: 1,
                         held: 0,
@@ -990,13 +990,13 @@ pub mod chat {
         }
         let page = match document {
             Some(page) => page,
-            None => c::ReadValue::OwnerProposal(Box::new(c::OwnerProposal {
+            None => c::ReadValue::Proposal(Box::new(c::Proposal {
                 key: PROPOSAL,
                 project: fixtures::PROJECT,
                 reason: c::DocumentText::complete(c::Text::new(Box::from(*b"Make a goal"), TEXT).expect("reason")),
-                action: c::OwnerProposalAction::Batch(List::with_capacity(EMPTY_BATCH)),
+                action: c::ProposalAction::Batch(List::with_capacity(EMPTY_BATCH)),
                 as_holder: true,
-                waiting: c::OwnerProposalWaiting { holder: c::OwnerHistoryHolder::Person(PARTY), since: Wall::EPOCH },
+                waiting: c::ProposalWaiting { holder: c::HistoryHolder::Person(PARTY), since: Wall::EPOCH },
                 funding: List::with_capacity(EMPTY_BATCH),
                 acts,
             })),
@@ -1194,11 +1194,11 @@ pub fn playground_frame_with_watch(
     charters.push(1).expect("chat charter");
     me.projects.get_mut(0).expect("playground project").creating = Some(c::Creating {
         within: c::CreateBounds {
-            authority: Box::new(c::OwnerAuthorityDocument::complete(c::OwnerAuthority {
+            authority: Box::new(c::AuthorityDocument::complete(c::Authority {
                 models: None,
                 tools: 0,
                 grants: List::with_capacity(0),
-                delegation: c::OwnerDelegation { kinds: List::with_capacity(0), tasks: 1, depth: 2 },
+                delegation: c::Delegation { kinds: List::with_capacity(0), tasks: 1, depth: 2 },
                 spend: 100,
                 deadline: None,
                 notes: 0,
@@ -1235,7 +1235,7 @@ pub fn playground_frame_with_watch(
         task.llm = llm;
         task.kept_account = Some(2);
         task.budget.funder = c::Funder::Pool { project: PROJECT, person: 73, period: 1 };
-        task.requester = c::OwnerRequester::Person(root.pages().me(root.client()).unwrap().party.number);
+        task.requester = c::Requester::Person(root.pages().me(root.client()).unwrap().party.number);
         task.acts = List::with_capacity(1);
         task.acts
             .push(c::Offered { act: c::ActKind::Message, admission: c::Admission::Allowed, effect: None })
@@ -1275,7 +1275,7 @@ pub fn playground_kept_root() -> temper_client_domain::Domain {
     let mut rows = List::with_capacity(2);
     let mut other = doc.accounts.get(1).unwrap().clone();
     other.sources = doc.accounts.get(0).unwrap().sources.clone();
-    other.sources.get_mut(0).unwrap().kind = c::OwnerAccountKind::Key;
+    other.sources.get_mut(0).unwrap().kind = c::AccountKind::Key;
     rows.push(other).unwrap();
     rows.push(doc.accounts.get(0).unwrap().clone()).unwrap();
     doc.accounts = rows;
@@ -1283,7 +1283,7 @@ pub fn playground_kept_root() -> temper_client_domain::Domain {
     readiness
         .push(c::PayerReadiness {
             provider: 18,
-            payer: c::OwnerAccountUse::Party(73),
+            payer: c::AccountUse::Party(73),
             readiness: c::Readiness::Usable,
             settled: Some(true),
         })
@@ -1301,7 +1301,7 @@ pub fn playground_kept_root() -> temper_client_domain::Domain {
     });
     for (watch, value) in [
         (me_watch, c::Delivery::Me(Box::new(me))),
-        (account_watch.unwrap(), c::Delivery::OwnerAccounts(Box::new(doc))),
+        (account_watch.unwrap(), c::Delivery::Accounts(Box::new(doc))),
         (task_watch.unwrap(), c::Delivery::Task(Box::new(task))),
     ] {
         root_event(
@@ -1341,7 +1341,7 @@ pub fn hidden_playground_root(ready: Option<c::Readiness>, payer: u64) -> temper
     for (watch, value) in [
         (me_watch, c::Delivery::Me(Box::new(me))),
         (task_watch.unwrap(), c::Delivery::Task(Box::new(task))),
-        (account_watch.unwrap(), c::Delivery::OwnerAccounts(Box::new(doc))),
+        (account_watch.unwrap(), c::Delivery::Accounts(Box::new(doc))),
     ] {
         root_event(
             &mut root,
@@ -1370,23 +1370,23 @@ fn playground_provider() -> c::ProviderOffer {
     }
 }
 
-fn playground_accounts(model: bool) -> c::OwnerAccounts {
+fn playground_accounts(model: bool) -> c::Accounts {
     let mut rows = List::with_capacity(2);
     let mut sources = List::with_capacity(1);
     sources
-        .push(c::OwnerAccountSource {
+        .push(c::AccountSource {
             name: None,
             place: 1,
             number: 2,
-            kind: c::OwnerAccountKind::None,
-            state: c::OwnerAccountState::Granted,
+            kind: c::AccountKind::None,
+            state: c::AccountState::Granted,
             usable: true,
             expiring: false,
             attention: false,
             spent_until: None,
         })
         .unwrap();
-    rows.push(c::OwnerAccountLine {
+    rows.push(c::AccountLine {
         number: 2,
         place: 1,
         uses: None,
@@ -1395,13 +1395,13 @@ fn playground_accounts(model: bool) -> c::OwnerAccounts {
         provider_name: None,
         manage_usage: None,
         display: c::DocumentText::complete(c::Text::new(Box::from(b"Playground".as_slice()), 32).unwrap()),
-        holder: c::OwnerAccountHolder::Deployment,
+        holder: c::AccountHolder::Deployment,
         sources,
         cut: false,
     })
     .unwrap();
     if !model {
-        rows.push(c::OwnerAccountLine {
+        rows.push(c::AccountLine {
             number: 1,
             place: 1,
             uses: None,
@@ -1410,7 +1410,7 @@ fn playground_accounts(model: bool) -> c::OwnerAccounts {
             provider_name: None,
             manage_usage: None,
             display: c::DocumentText::complete(c::Text::new(b"Other".as_slice().into(), 32).unwrap()),
-            holder: c::OwnerAccountHolder::Party(73),
+            holder: c::AccountHolder::Party(73),
             sources: List::with_capacity(0),
             cut: true,
         })
@@ -1420,12 +1420,12 @@ fn playground_accounts(model: bool) -> c::OwnerAccounts {
     readiness
         .push(c::PayerReadiness {
             provider: 17,
-            payer: c::OwnerAccountUse::Party(73),
+            payer: c::AccountUse::Party(73),
             readiness: c::Readiness::Usable,
             settled: Some(true),
         })
         .unwrap();
-    c::OwnerAccounts {
+    c::Accounts {
         program_hosts: List::with_capacity(0),
         readiness,
         readiness_cut: false,
@@ -1513,7 +1513,7 @@ fn playground_session(
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch,
-                    event: c::WatchEvent::Delivered(c::Delivery::OwnerAccounts(Box::new(accounts))),
+                    event: c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(accounts))),
                 },
             },
         },
@@ -1547,7 +1547,7 @@ pub fn welcome_account(root: &mut temper_client_domain::Domain, watch: Token) {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch,
-                    event: c::WatchEvent::Delivered(c::Delivery::OwnerAccounts(Box::new(playground_accounts(true)))),
+                    event: c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(playground_accounts(true)))),
                 },
             },
         },

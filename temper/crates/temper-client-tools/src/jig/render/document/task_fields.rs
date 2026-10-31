@@ -69,16 +69,12 @@ pub(super) fn encode_task_flags(value: jig_client::contract::TaskFlags, out: &mu
     out.object_end();
 }
 
-pub(super) fn encode_task_hold(
-    value: &jig_client::contract::OwnerChipHold,
-    out: &mut Encoder,
-    budget: &mut super::Cut,
-) {
+pub(super) fn encode_task_hold(value: &jig_client::contract::ChipHold, out: &mut Encoder, budget: &mut super::Cut) {
     super::encode_owner_chip_hold(value, out, budget);
 }
 
 pub(super) fn encode_task_resource(
-    value: &jig_client::contract::OwnerResourceLine,
+    value: &jig_client::contract::ResourceLine,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {

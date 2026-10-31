@@ -18,25 +18,25 @@ const ONE: u32 = 1;
 const DEPENDENCIES: u32 = 2;
 const EMPTY: u32 = 0;
 
-fn pattern() -> c::OwnerPattern {
+fn pattern() -> c::Pattern {
     let mut segments = List::with_capacity(ONE);
     segments.push(Box::from(b"project".as_slice())).unwrap();
-    c::OwnerPattern { segments, last: c::OwnerPatternEnd::Open(Box::from(b"notes".as_slice())) }
+    c::Pattern { segments, last: c::PatternEnd::Open(Box::from(b"notes".as_slice())) }
 }
-fn authority(deadline: Option<Wall>) -> c::OwnerAuthority {
+fn authority(deadline: Option<Wall>) -> c::Authority {
     let mut models = List::with_capacity(ONE);
     models.push(Box::from(b"first".as_slice())).unwrap();
     let mut grants = List::with_capacity(ONE);
-    grants.push(c::OwnerGrant { connector: fixtures::FORGE, kind: 1, pattern: pattern() }).unwrap();
+    grants.push(c::Grant { connector: fixtures::FORGE, kind: 1, pattern: pattern() }).unwrap();
     let mut kinds = List::with_capacity(ONE);
-    kinds.push(c::OwnerAuthorityExecutor::Charter(1)).unwrap();
+    kinds.push(c::AuthorityExecutor::Charter(1)).unwrap();
     let mut note_resources = List::with_capacity(ONE);
-    note_resources.push(c::OwnerResourceScope { connector: fixtures::FORGE, pattern: pattern() }).unwrap();
-    c::OwnerAuthority {
+    note_resources.push(c::ResourceScope { connector: fixtures::FORGE, pattern: pattern() }).unwrap();
+    c::Authority {
         models: Some(c::AuthorityModels::Named(models)),
         tools: 3,
         grants,
-        delegation: c::OwnerDelegation { kinds, tasks: 2, depth: 3 },
+        delegation: c::Delegation { kinds, tasks: 2, depth: 3 },
         spend: 50,
         deadline,
         notes: 1,
@@ -78,14 +78,14 @@ fn goal() -> c::Task {
     let mut task = fixtures::chat::task();
     task.priority = Some(PRIORITY);
     task.spec_revision = REVISION;
-    task.authority = c::OwnerAuthorityDocument::complete(authority(Some(DEADLINE)));
+    task.authority = c::AuthorityDocument::complete(authority(Some(DEADLINE)));
     task.spec = c::SpecificationDocument::complete(spec());
     task.instructions = Some(c::DocumentText::complete(text(b"Run the checks")));
     let mut build = fixtures::acts::chip();
     build.task = BUILD;
     task.dependencies = List::with_capacity(DEPENDENCIES);
-    task.dependencies.push(c::OwnerTaskLink::Live(build)).unwrap();
-    task.dependencies.push(c::OwnerTaskLink::Stored { number: REVIEW, status: None }).unwrap();
+    task.dependencies.push(c::TaskLink::Live(build)).unwrap();
+    task.dependencies.push(c::TaskLink::Stored { number: REVIEW, status: None }).unwrap();
     task.llm = Some(choice(b"first"));
     task
 }

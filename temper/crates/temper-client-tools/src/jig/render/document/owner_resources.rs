@@ -1,6 +1,6 @@
 //! Concrete integer JSON for the client contract (contract.md, 5).
 use skein_json::writer::Encoder;
-pub(super) fn encode_owner_grant(value: &jig_client::contract::OwnerGrant, out: &mut Encoder, budget: &mut super::Cut) {
+pub(super) fn encode_owner_grant(value: &jig_client::contract::Grant, out: &mut Encoder, budget: &mut super::Cut) {
     out.object_start();
     out.key(b"connector");
     out.unsigned(u64::from(value.connector));
@@ -12,13 +12,13 @@ pub(super) fn encode_owner_grant(value: &jig_client::contract::OwnerGrant, out: 
 }
 
 pub(super) fn encode_owner_hold_escalation(
-    value: &jig_client::contract::OwnerHoldEscalation,
+    value: &jig_client::contract::HoldEscalation,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerHoldEscalation::Routing => out.string(b"routing"),
-        jig_client::contract::OwnerHoldEscalation::Waiting { holder, entry, since } => {
+        jig_client::contract::HoldEscalation::Routing => out.string(b"routing"),
+        jig_client::contract::HoldEscalation::Waiting { holder, entry, since } => {
             out.object_start();
             out.key(b"waiting");
             out.object_start();
@@ -31,7 +31,7 @@ pub(super) fn encode_owner_hold_escalation(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::OwnerHoldEscalation::Rejected { by, reason } => {
+        jig_client::contract::HoldEscalation::Rejected { by, reason } => {
             out.object_start();
             out.key(b"rejected");
             out.object_start();
@@ -46,7 +46,7 @@ pub(super) fn encode_owner_hold_escalation(
 }
 
 pub(super) fn encode_owner_kind_implication(
-    value: jig_client::contract::OwnerKindImplication,
+    value: jig_client::contract::KindImplication,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {
@@ -61,11 +61,7 @@ pub(super) fn encode_owner_kind_implication(
     out.object_end();
 }
 
-pub(super) fn encode_owner_numbers(
-    value: &jig_client::contract::OwnerNumbers,
-    out: &mut Encoder,
-    _budget: &mut super::Cut,
-) {
+pub(super) fn encode_owner_numbers(value: &jig_client::contract::Numbers, out: &mut Encoder, _budget: &mut super::Cut) {
     out.object_start();
     out.key(b"budget");
     out.unsigned(value.budget);
@@ -78,7 +74,7 @@ pub(super) fn encode_owner_numbers(
     out.object_end();
 }
 
-pub(super) fn encode_owner_part(value: &jig_client::contract::OwnerPart, out: &mut Encoder, budget: &mut super::Cut) {
+pub(super) fn encode_owner_part(value: &jig_client::contract::Part, out: &mut Encoder, budget: &mut super::Cut) {
     out.object_start();
     out.key(b"connector");
     out.unsigned(u64::from(value.connector));
@@ -90,12 +86,12 @@ pub(super) fn encode_owner_part(value: &jig_client::contract::OwnerPart, out: &m
 }
 
 pub(super) fn encode_owner_part_key(
-    value: &jig_client::contract::OwnerPartKey,
+    value: &jig_client::contract::PartKey,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerPartKey::Path(field_0) => {
+        jig_client::contract::PartKey::Path(field_0) => {
             out.object_start();
             out.key(b"path");
             out.array_start();
@@ -105,7 +101,7 @@ pub(super) fn encode_owner_part_key(
             out.array_end();
             out.object_end();
         }
-        jig_client::contract::OwnerPartKey::Number(field_0) => {
+        jig_client::contract::PartKey::Number(field_0) => {
             out.object_start();
             out.key(b"number");
             out.unsigned(*(field_0));
@@ -115,27 +111,23 @@ pub(super) fn encode_owner_part_key(
 }
 
 pub(super) fn encode_owner_part_kind(
-    value: jig_client::contract::OwnerPartKind,
+    value: jig_client::contract::PartKind,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {
     let value = &value;
     match value {
-        jig_client::contract::OwnerPartKind::Resource => out.string(b"resource"),
-        jig_client::contract::OwnerPartKind::Pool => out.string(b"pool"),
-        jig_client::contract::OwnerPartKind::Result => out.string(b"result"),
-        jig_client::contract::OwnerPartKind::Procedure => out.string(b"procedure"),
-        jig_client::contract::OwnerPartKind::Effect => out.string(b"effect"),
-        jig_client::contract::OwnerPartKind::Outbox => out.string(b"outbox"),
-        jig_client::contract::OwnerPartKind::Hold => out.string(b"hold"),
+        jig_client::contract::PartKind::Resource => out.string(b"resource"),
+        jig_client::contract::PartKind::Pool => out.string(b"pool"),
+        jig_client::contract::PartKind::Result => out.string(b"result"),
+        jig_client::contract::PartKind::Procedure => out.string(b"procedure"),
+        jig_client::contract::PartKind::Effect => out.string(b"effect"),
+        jig_client::contract::PartKind::Outbox => out.string(b"outbox"),
+        jig_client::contract::PartKind::Hold => out.string(b"hold"),
     }
 }
 
-pub(super) fn encode_owner_pattern(
-    value: &jig_client::contract::OwnerPattern,
-    out: &mut Encoder,
-    budget: &mut super::Cut,
-) {
+pub(super) fn encode_owner_pattern(value: &jig_client::contract::Pattern, out: &mut Encoder, budget: &mut super::Cut) {
     out.object_start();
     out.key(b"segments");
     out.array_start();
@@ -149,18 +141,18 @@ pub(super) fn encode_owner_pattern(
 }
 
 pub(super) fn encode_owner_pattern_end(
-    value: &jig_client::contract::OwnerPatternEnd,
+    value: &jig_client::contract::PatternEnd,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::OwnerPatternEnd::Exact(field_0) => {
+        jig_client::contract::PatternEnd::Exact(field_0) => {
             out.object_start();
             out.key(b"exact");
             super::hex(field_0, out);
             out.object_end();
         }
-        jig_client::contract::OwnerPatternEnd::Open(field_0) => {
+        jig_client::contract::PatternEnd::Open(field_0) => {
             out.object_start();
             out.key(b"open");
             super::hex(field_0, out);
@@ -170,7 +162,7 @@ pub(super) fn encode_owner_pattern_end(
 }
 
 pub(super) fn encode_owner_person_stall_notice(
-    value: &jig_client::contract::OwnerPersonStallNotice,
+    value: &jig_client::contract::PersonStallNotice,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {

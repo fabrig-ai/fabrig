@@ -84,9 +84,9 @@ pub(super) fn encode_ending(value: &jig_client::contract::Ending, out: &mut Enco
     }
 }
 
-pub(super) fn encode_executor(value: &jig_client::contract::Executor, out: &mut Encoder, _budget: &mut super::Cut) {
+pub(super) fn encode_executor(value: &jig_client::contract::ChipExecutor, out: &mut Encoder, _budget: &mut super::Cut) {
     match value {
-        jig_client::contract::Executor::Agent { charter } => {
+        jig_client::contract::ChipExecutor::Agent { charter } => {
             out.object_start();
             out.key(b"agent");
             out.object_start();
@@ -95,7 +95,7 @@ pub(super) fn encode_executor(value: &jig_client::contract::Executor, out: &mut 
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::Executor::Procedure { connector, kind } => {
+        jig_client::contract::ChipExecutor::Procedure { connector, kind } => {
             out.object_start();
             out.key(b"procedure");
             out.object_start();
@@ -106,7 +106,7 @@ pub(super) fn encode_executor(value: &jig_client::contract::Executor, out: &mut 
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::Executor::Party { party } => {
+        jig_client::contract::ChipExecutor::Party { party } => {
             out.object_start();
             out.key(b"party");
             out.object_start();
@@ -115,7 +115,7 @@ pub(super) fn encode_executor(value: &jig_client::contract::Executor, out: &mut 
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::Executor::Role { project, role } => {
+        jig_client::contract::ChipExecutor::Role { project, role } => {
             out.object_start();
             out.key(b"role");
             out.object_start();

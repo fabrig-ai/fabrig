@@ -183,17 +183,15 @@ pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<T
                         c::Subject::Me => Some(c::Delivery::Me(Box::new(frame(w, connecting)))),
                         c::Subject::Accounts => {
                             accounts_watch = Some(watch);
-                            Some(c::Delivery::OwnerAccounts(Box::new(accounts(w, then))))
+                            Some(c::Delivery::Accounts(Box::new(accounts(w, then))))
                         }
                         c::Subject::Tasks { window, .. } => Some(c::Delivery::Tasks(Box::new(task_window(w, window)))),
-                        c::Subject::Inbox { window } => {
-                            Some(c::Delivery::OwnerInbox(Box::new(inbox_window(w, window))))
-                        }
+                        c::Subject::Inbox { window } => Some(c::Delivery::Inbox(Box::new(inbox_window(w, window)))),
                         c::Subject::Task { task: number } => {
                             Some(c::Delivery::Task(Box::new(shown_task(w, number, then))))
                         }
                         c::Subject::Tree { task, window } => Some(plan_tree(w, task, window, then)),
-                        c::Subject::Deployment => Some(c::Delivery::OwnerDeployment(Box::new(deployment(w)))),
+                        c::Subject::Deployment => Some(c::Delivery::Deployment(Box::new(deployment(w)))),
                         c::Subject::Settings | c::Subject::Chips { .. } | c::Subject::Run { .. } => None,
                     };
                     if let Some(document) = document {
@@ -564,21 +562,23 @@ fn playground(root: &mut Domain, w: World, read: Token, out: &mut Queue<Request>
         out,
     );
 }
-fn owner(chip: &mut c::Chip) -> (&mut c::OwnerChipPhase, &mut c::OwnerChipDetails) {
-    let c::ChipPhase { phase, details } = chip.details.as_mut();
+fn owner(chip: &mut c::Chip) -> (&mut c::ChipPhase, &mut c::ChipDetails) {
+    let c::ChipPhaseFacts { phase, details } = chip.details.as_mut();
     (phase, details)
 }
 fn finish_document(mut t: c::Task) -> c::Task {
     let compact = t.chip.phase;
     let executor = t.chip.executor;
     match executor {
-        c::Executor::Agent { .. } => {}
-        c::Executor::Procedure { .. } | c::Executor::Party { .. } | c::Executor::Role { .. } => t.settings = None,
+        c::ChipExecutor::Agent { .. } => {}
+        c::ChipExecutor::Procedure { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => {
+            t.settings = None
+        }
     }
     let (phase, details) = owner(&mut t.chip);
     *phase = match compact {
-        c::Phase::Ended | c::Phase::Done => c::OwnerChipPhase::Ended,
-        c::Phase::Running => c::OwnerChipPhase::Active(c::RunStage::Running { attempt: 1 }),
+        c::Phase::Ended | c::Phase::Done => c::ChipPhase::Ended,
+        c::Phase::Running => c::ChipPhase::Active(c::RunStage::Running { attempt: 1 }),
         c::Phase::Waiting
         | c::Phase::Idle
         | c::Phase::Due
@@ -589,12 +589,12 @@ fn finish_document(mut t: c::Task) -> c::Task {
         | c::Phase::Closing
         | c::Phase::Held
         | c::Phase::Failed
-        | c::Phase::Cancelled => c::OwnerChipPhase::Active(c::RunStage::Idle),
+        | c::Phase::Cancelled => c::ChipPhase::Active(c::RunStage::Idle),
     };
     details.executor = match executor {
-        c::Executor::Agent { charter } => c::OwnerExecutor::Agent { charter },
-        c::Executor::Procedure { connector, kind } => c::OwnerExecutor::Procedure { connector, code: kind },
-        c::Executor::Party { .. } | c::Executor::Role { .. } => {
+        c::ChipExecutor::Agent { charter } => c::Executor::Agent { charter },
+        c::ChipExecutor::Procedure { connector, kind } => c::Executor::Procedure { connector, code: kind },
+        c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => {
             unreachable!("worlds have agents and change procedures")
         }
     };
@@ -631,7 +631,7 @@ fn task_line(t: c::Task) -> c::TaskLine {
         last_activity: t.last_activity,
         budget: t.budget,
         waits_on: t.waits_on,
-        phases: c::OwnerPhaseCounts::ZERO,
+        phases: c::PhaseCounts::ZERO,
         held_below: 0,
         conversation: None,
     }
@@ -650,7 +650,7 @@ fn chat_rows(w: World, ended: bool) -> List<c::TaskLine> {
     }
     rows
 }
-fn inbox_document(w: World) -> c::OwnerInbox {
+fn inbox_document(w: World) -> c::Inbox {
     let keys: &[(c::ObjectKey, c::InboxGroup)] = match w {
         Reference => &[(c::ObjectKey::Task(1), c::InboxGroup::Replies)],
         Solo => &[
@@ -713,10 +713,10 @@ fn proposed() -> List<c::ProposedTask> {
     );
     let mut resources = List::with_capacity(1);
     resources
-        .push(c::OwnerPart {
+        .push(c::Part {
             connector: FORGE,
-            kind: c::OwnerPartKind::Resource,
-            key: c::OwnerPartKey::Path(path(&[b"forge", b"github.com", b"robin", b"tally", b"branch", b"main"])),
+            kind: c::PartKind::Resource,
+            key: c::PartKey::Path(path(&[b"forge", b"github.com", b"robin", b"tally", b"branch", b"main"])),
         })
         .expect("landing branch");
     let mut tasks = List::with_capacity(1);
@@ -724,7 +724,7 @@ fn proposed() -> List<c::ProposedTask> {
         .push(c::ProposedTask {
             number: 1,
             spec: base.spec,
-            executor: c::OwnerExecutor::Agent { charter: 2 },
+            executor: c::Executor::Agent { charter: 2 },
             contract: base.result_contract,
             authority: base.authority,
             deadline: c::NewDeadline::Named,
@@ -740,23 +740,23 @@ fn proposed() -> List<c::ProposedTask> {
     tasks
 }
 fn proposal() -> c::ReadValue {
-    c::ReadValue::OwnerProposal(Box::new({
+    c::ReadValue::Proposal(Box::new({
         let mut funding = skein_lib::List::with_capacity(1);
         funding
-            .push(c::OwnerFundingOffer {
+            .push(c::FundingOffer {
                 source: c::Funder::Pool { project: PROJECT, person: 73, period: 1 },
                 needed: 6,
                 left: Some(40),
                 after: Some(34),
             })
             .expect("one funding source");
-        c::OwnerProposal {
+        c::Proposal {
             key: PROPOSAL,
             project: PROJECT,
             reason: c::DocumentText::complete(text(JSON_WHY)),
-            action: c::OwnerProposalAction::Batch(proposed()),
+            action: c::ProposalAction::Batch(proposed()),
             as_holder: true,
-            waiting: c::OwnerProposalWaiting { holder: c::OwnerHistoryHolder::Person(73), since: offset(Solo, -12) },
+            waiting: c::ProposalWaiting { holder: c::HistoryHolder::Person(73), since: offset(Solo, -12) },
             funding,
             acts: offers(&[c::ActKind::Accept, c::ActKind::Reject]),
         }
@@ -793,7 +793,7 @@ fn read_value(w: World, what: &c::Read, then: Then) -> Option<c::ReadValue> {
         c::Read::Proposal { .. } => Some(proposal()),
         c::Read::Question { .. } => Some(c::ReadValue::Question(Box::new(c::Question {
             task: document(Solo, 3).chip,
-            from: Some(c::OwnerRequester::Task(3)),
+            from: Some(c::Requester::Task(3)),
             message: 1,
             words: c::DocumentText::complete(text(QUESTION)),
             since: offset(Solo, -18),
@@ -818,7 +818,7 @@ fn read_value(w: World, what: &c::Read, then: Then) -> Option<c::ReadValue> {
         | c::Read::Deployment => None,
     }
 }
-fn agent_line(words: &str, number: u32, read: Option<u64>) -> c::ActivityLine {
+fn agent_line(words: &str, number: u32, read: Option<u64>) -> c::DecodedActivityLine {
     let mut blocks = List::with_capacity(1);
     let bytes = words.as_bytes();
     let limit = usize::try_from(limits().client.domain.turn_text).expect("turn text limit");
@@ -827,7 +827,7 @@ fn agent_line(words: &str, number: u32, read: Option<u64>) -> c::ActivityLine {
     blocks.push(c::Block::Text(text)).expect("agent text");
     turn_line(&blocks, number, read, length < bytes.len())
 }
-fn turn_line(source: &List<c::Block>, number: u32, read: Option<u64>, mut cut: bool) -> c::ActivityLine {
+fn turn_line(source: &List<c::Block>, number: u32, read: Option<u64>, mut cut: bool) -> c::DecodedActivityLine {
     let mut blocks = List::with_capacity(limits().client.domain.rows.min(source.len()));
     for block in source {
         if blocks.len() == blocks.capacity() {
@@ -851,7 +851,7 @@ fn turn_line(source: &List<c::Block>, number: u32, read: Option<u64>, mut cut: b
         }),
     )
 }
-fn tools_line(calls: &[(&str, u32)], made: &[u64], proposes: bool, number: u32) -> c::ActivityLine {
+fn tools_line(calls: &[(&str, u32)], made: &[u64], proposes: bool, number: u32) -> c::DecodedActivityLine {
     let mut blocks = List::with_capacity(32);
     let mut call_number: u64 = 0;
     for (name, count) in calls {
@@ -907,17 +907,17 @@ fn chip(w: World, number: u64) -> c::Chip {
     let mut t = base_task(number, f.title);
     t.chip.phase = f.phase;
     t.chip.executor = if f.change {
-        c::Executor::Procedure { connector: FORGE, kind: 1 }
+        c::ChipExecutor::Procedure { connector: FORGE, kind: 1 }
     } else {
-        c::Executor::Agent { charter: f.charter }
+        c::ChipExecutor::Agent { charter: f.charter }
     };
     t.budget = budget(&f);
     finish_document(t).chip
 }
-fn budget(f: &TaskFacts) -> c::OwnerBudget {
+fn budget(f: &TaskFacts) -> c::Budget {
     let spent = round_mockup_spend(f.spent_tenths);
-    c::OwnerBudget {
-        numbers: c::OwnerNumbers { budget: f.budget, spent, spent_below: 0, reserved: 0 },
+    c::Budget {
+        numbers: c::Numbers { budget: f.budget, spent, spent_below: 0, reserved: 0 },
         left: f.budget.saturating_sub(spent),
         funder: match f.parent {
             Some(parent) => c::Funder::Task(parent),
@@ -943,8 +943,8 @@ fn document(w: World, number: u64) -> c::Task {
     t.last_activity = Wall::from_nanos(f.activity_at);
     t.changed = t.last_activity;
     t.requester = match f.parent {
-        Some(parent) => c::OwnerRequester::Task(parent),
-        None => c::OwnerRequester::Person(73),
+        Some(parent) => c::Requester::Task(parent),
+        None => c::Requester::Person(73),
     };
     t.spec.specification.words = doc(f.brief);
     // Mockup amounts have decimals; the view prints integer deployment units.
@@ -983,17 +983,13 @@ fn document(w: World, number: u64) -> c::Task {
         let value = if f.merge {
             c::ResultValue::Change {
                 kind: 1,
-                part: c::OwnerPart {
-                    connector: FORGE,
-                    kind: c::OwnerPartKind::Result,
-                    key: c::OwnerPartKey::Number(number),
-                },
+                part: c::Part { connector: FORGE, kind: c::PartKind::Result, key: c::PartKey::Number(number) },
                 words: doc(result),
             }
         } else {
             c::ResultValue::Report(doc(result))
         };
-        t.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Done(value))));
+        t.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(value))));
     }
     if f.phase == c::Phase::Done || f.phase == c::Phase::Ended {
         t.acts.clear();
@@ -1800,7 +1796,7 @@ fn activity(w: World, task: u64) -> c::ActivityPage {
                 decoded.cumulative = line.source.position;
                 decoded.at = line.source.at;
             }
-            if let c::OwnerActivity::Turn { reply, .. } = &mut line.source.line {
+            if let c::Activity::Turn { reply, .. } = &mut line.source.line {
                 *reply = line.source.position;
             }
             line
@@ -1810,18 +1806,18 @@ fn activity(w: World, task: u64) -> c::ActivityPage {
     c::ActivityPage { rows, after: None, before: None, cut: false }
 }
 #[expect(clippy::too_many_lines, reason = "literal account and source facts from the mockup worlds")]
-fn accounts(w: World, then: Then) -> c::OwnerAccounts {
+fn accounts(w: World, then: Then) -> c::Accounts {
     let mut rows = List::with_capacity(2);
     match w {
         Reference => {
             let mut sources = List::with_capacity(2);
             sources
-                .push(c::OwnerAccountSource {
+                .push(c::AccountSource {
                     name: Some(Box::from("claude-pat".as_bytes())),
                     place: 1,
                     number: 1,
-                    kind: c::OwnerAccountKind::Program,
-                    state: c::OwnerAccountState::Granted,
+                    kind: c::AccountKind::Program,
+                    state: c::AccountState::Granted,
                     usable: true,
                     expiring: false,
                     attention: false,
@@ -1829,19 +1825,19 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
                 })
                 .expect("source");
             sources
-                .push(c::OwnerAccountSource {
+                .push(c::AccountSource {
                     name: Some(Box::from("claude-pat-2".as_bytes())),
                     place: 2,
                     number: 2,
-                    kind: c::OwnerAccountKind::Program,
-                    state: c::OwnerAccountState::Granted,
+                    kind: c::AccountKind::Program,
+                    state: c::AccountState::Granted,
                     usable: true,
                     expiring: false,
                     attention: false,
                     spent_until: None,
                 })
                 .expect("source");
-            rows.push(c::OwnerAccountLine {
+            rows.push(c::AccountLine {
                 number: 1,
                 place: 1,
                 uses: None,
@@ -1850,26 +1846,26 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
                 provider_name: Some(doc("anthropic")),
                 manage_usage: None,
                 display: doc("Claude"),
-                holder: c::OwnerAccountHolder::Party(73),
+                holder: c::AccountHolder::Party(73),
                 sources,
                 cut: false,
             })
             .expect("account");
             let mut sources = List::with_capacity(2);
             sources
-                .push(c::OwnerAccountSource {
+                .push(c::AccountSource {
                     name: Some(Box::from("pat@example.com".as_bytes())),
                     place: 1,
                     number: 3,
-                    kind: if then == Then::KeyReady { c::OwnerAccountKind::Key } else { c::OwnerAccountKind::SignIn },
-                    state: c::OwnerAccountState::Granted,
+                    kind: if then == Then::KeyReady { c::AccountKind::Key } else { c::AccountKind::SignIn },
+                    state: c::AccountState::Granted,
                     usable: true,
                     expiring: false,
                     attention: false,
                     spent_until: None,
                 })
                 .expect("source");
-            rows.push(c::OwnerAccountLine {
+            rows.push(c::AccountLine {
                 number: 2,
                 place: 2,
                 uses: None,
@@ -1882,7 +1878,7 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
                 } else {
                     "ChatGPT"
                 }),
-                holder: c::OwnerAccountHolder::Party(73),
+                holder: c::AccountHolder::Party(73),
                 sources,
                 cut: false,
             })
@@ -1891,12 +1887,12 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
         Solo => {
             let mut sources = List::with_capacity(2);
             sources
-                .push(c::OwnerAccountSource {
+                .push(c::AccountSource {
                     name: Some(Box::from("claude-robin".as_bytes())),
                     place: 1,
                     number: 1,
-                    kind: c::OwnerAccountKind::Program,
-                    state: c::OwnerAccountState::Granted,
+                    kind: c::AccountKind::Program,
+                    state: c::AccountState::Granted,
                     usable: true,
                     expiring: false,
                     attention: false,
@@ -1904,19 +1900,19 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
                 })
                 .expect("source");
             sources
-                .push(c::OwnerAccountSource {
+                .push(c::AccountSource {
                     name: Some(Box::from("robin-key".as_bytes())),
                     place: 2,
                     number: 2,
-                    kind: c::OwnerAccountKind::Key,
-                    state: c::OwnerAccountState::Granted,
+                    kind: c::AccountKind::Key,
+                    state: c::AccountState::Granted,
                     usable: true,
                     expiring: false,
                     attention: false,
                     spent_until: None,
                 })
                 .expect("source");
-            rows.push(c::OwnerAccountLine {
+            rows.push(c::AccountLine {
                 number: 1,
                 place: 1,
                 uses: None,
@@ -1925,7 +1921,7 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
                 provider_name: Some(doc("anthropic")),
                 manage_usage: None,
                 display: doc("Claude"),
-                holder: c::OwnerAccountHolder::Party(73),
+                holder: c::AccountHolder::Party(73),
                 sources,
                 cut: false,
             })
@@ -1934,25 +1930,25 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
         FirstRun { .. } | World::Bare => {
             let mut sources = List::with_capacity(2);
             sources
-                .push(c::OwnerAccountSource {
+                .push(c::AccountSource {
                     name: Some(Box::from(
                         if matches!(w, FirstRun { step: 5..=9 }) { "sam@example.com" } else { "playground" }.as_bytes(),
                     )),
                     place: 1,
                     number: 1,
                     kind: if matches!(w, FirstRun { step: 5..=9 }) {
-                        c::OwnerAccountKind::SignIn
+                        c::AccountKind::SignIn
                     } else {
-                        c::OwnerAccountKind::Key
+                        c::AccountKind::Key
                     },
-                    state: c::OwnerAccountState::Granted,
+                    state: c::AccountState::Granted,
                     usable: true,
                     expiring: false,
                     attention: false,
                     spent_until: None,
                 })
                 .expect("source");
-            rows.push(c::OwnerAccountLine {
+            rows.push(c::AccountLine {
                 number: 1,
                 place: 1,
                 uses: None,
@@ -1965,7 +1961,7 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
                     None
                 },
                 display: doc(if matches!(w, FirstRun { step: 5..=9 }) { "ChatGPT" } else { "Scripted model" }),
-                holder: c::OwnerAccountHolder::Party(73),
+                holder: c::AccountHolder::Party(73),
                 sources,
                 cut: false,
             })
@@ -1985,16 +1981,16 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
         for (i, (name, login)) in names.iter().enumerate() {
             let mut programs = List::with_capacity(1);
             programs
-                .push(c::OwnerProgramLogin {
+                .push(c::ProgramLogin {
                     name: Box::from(login.as_bytes()),
-                    state: Some(c::OwnerProgramState::Usable),
+                    state: Some(c::ProgramState::Usable),
                     sign_out: None,
                     cleanup: false,
                     cut: false,
                 })
                 .expect("login");
             hosts
-                .push(c::OwnerProgramHost {
+                .push(c::ProgramHost {
                     name: Box::from(name.as_bytes()),
                     channel: u64::try_from(i).expect("host").checked_add(1).expect("host"),
                     connected: true,
@@ -2010,7 +2006,7 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
         readiness
             .push(c::PayerReadiness {
                 provider: provider.provider,
-                payer: c::OwnerAccountUse::Party(73),
+                payer: c::AccountUse::Party(73),
                 readiness: if w == World::Bare
                     || w == (FirstRun { step: 0 })
                     || matches!(w, FirstRun { step: 1..=4 }) && provider.provider == 18
@@ -2023,22 +2019,21 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
             })
             .expect("provider readiness");
     }
-    c::OwnerAccounts {
+    c::Accounts {
         program_hosts: hosts,
         accounts: rows,
         signing: List::with_capacity(0),
         last_end: match then {
-            Then::SignInReady | Then::Declined => Some(c::OwnerAccountLastEnd {
+            Then::SignInReady | Then::Declined => Some(c::AccountLastEnd {
                 source: 43,
-                end: c::OwnerAccountEnd::Made { account: 2, declined: then == Then::Declined },
+                end: c::AccountEnd::Made { account: 2, declined: then == Then::Declined },
             }),
-            Then::Renewed => Some(c::OwnerAccountLastEnd {
+            Then::Renewed => {
+                Some(c::AccountLastEnd { source: 43, end: c::AccountEnd::Renewed { account: 2, declined: false } })
+            }
+            Then::SignInRefused => Some(c::AccountLastEnd {
                 source: 43,
-                end: c::OwnerAccountEnd::Renewed { account: 2, declined: false },
-            }),
-            Then::SignInRefused => Some(c::OwnerAccountLastEnd {
-                source: 43,
-                end: c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::Held { provider: 18 } },
+                end: c::AccountEnd::Refused { refusal: c::AccountRefusal::Held { provider: 18 } },
             }),
             Then::Shown
             | Then::Filled
@@ -2082,7 +2077,7 @@ fn offers(kinds: &[c::ActKind]) -> List<c::Offered> {
     for act in kinds {
         let effect = match act {
             c::ActKind::Cancel => Some(c::Effect::Cancel(c::Impact {
-                tasks: c::PhaseCounts {
+                tasks: c::ImpactCounts {
                     waiting: 0,
                     running: 0,
                     held: 0,
@@ -2172,7 +2167,7 @@ fn base_frame(person: &str, project: &str) -> c::Me {
 }
 #[expect(clippy::too_many_lines, reason = "the gallery's base task spells out every specification field")]
 fn base_task(number: u64, title: &str) -> c::Task {
-    let wake = c::OwnerWakePolicy {
+    let wake = c::WakePolicy {
         words: c::WakeRule::Immediate,
         notices: c::WakeRule::Never,
         news: c::WakeRule::Never,
@@ -2181,8 +2176,8 @@ fn base_task(number: u64, title: &str) -> c::Task {
         answers: true,
         timers: false,
     };
-    let budget = c::OwnerBudget {
-        numbers: c::OwnerNumbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 },
+    let budget = c::Budget {
+        numbers: c::Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 },
         left: 0,
         funder: c::Funder::Pool { project: PROJECT, person: 73, period: 1 },
         deadline: None,
@@ -2192,14 +2187,14 @@ fn base_task(number: u64, title: &str) -> c::Task {
         chip: c::Chip {
             task: number,
             title: doc(title),
-            executor: c::Executor::Agent { charter: 1 },
+            executor: c::ChipExecutor::Agent { charter: 1 },
             phase: c::Phase::Idle,
-            details: Box::new(c::ChipPhase {
-                phase: c::OwnerChipPhase::Active(c::RunStage::Idle),
-                details: Box::new(c::OwnerChipDetails {
+            details: Box::new(c::ChipPhaseFacts {
+                phase: c::ChipPhase::Active(c::RunStage::Idle),
+                details: Box::new(c::ChipDetails {
                     dependencies: List::with_capacity(0),
                     project: PROJECT,
-                    executor: c::OwnerExecutor::Agent { charter: 1 },
+                    executor: c::Executor::Agent { charter: 1 },
                     phase_since: Wall::EPOCH,
                     run_since: None,
                     attempt: None,
@@ -2230,7 +2225,7 @@ fn base_task(number: u64, title: &str) -> c::Task {
         lineage_chips: List::with_capacity(0),
         inputs: List::with_capacity(0),
         project: PROJECT,
-        requester: c::OwnerRequester::Person(73),
+        requester: c::Requester::Person(73),
         lineage: List::with_capacity(0),
         spec: c::SpecificationDocument::complete(c::Specification {
             asks: false,
@@ -2251,11 +2246,11 @@ fn base_task(number: u64, title: &str) -> c::Task {
         cut: false,
         resources: List::with_capacity(0),
         budget,
-        authority: c::OwnerAuthorityDocument::complete(c::OwnerAuthority {
+        authority: c::AuthorityDocument::complete(c::Authority {
             models: None,
             tools: 0,
             grants: List::with_capacity(0),
-            delegation: c::OwnerDelegation { kinds: List::with_capacity(0), tasks: 0, depth: 0 },
+            delegation: c::Delegation { kinds: List::with_capacity(0), tasks: 0, depth: 0 },
             spend: 0,
             deadline: None,
             notes: 0,
@@ -2299,20 +2294,20 @@ fn reply_line(w: World, task: u64) -> c::TaskLine {
     line.conversation = Some(c::ConversationRead { seen: 0, unread: c::Count { value: 1, limited: false } });
     line
 }
-fn inbox_window(w: World, window: u32) -> c::OwnerInbox {
+fn inbox_window(w: World, window: u32) -> c::Inbox {
     // The engine allocates needs and updates independently, each at the requested window.
     let source = inbox_document(w);
     let mut needs = List::with_capacity(window);
     let mut updates = List::with_capacity(window);
     let mut more = None;
     for row in source.needs.as_slice().iter().chain(source.updates.as_slice()) {
-        let task = if matches!(row.object, c::OwnerInboxObject::Proposal { .. }) { 10 } else { row.task_number() };
+        let task = if matches!(row.object, c::InboxObject::Proposal { .. }) { 10 } else { row.task_number() };
         let object = row.object;
-        let cursor = c::OwnerInboxCursor::Inbox { task, object, at: row.at };
+        let cursor = c::InboxCursor::Inbox { task, object, at: row.at };
         let reply = if row.group() == c::InboxGroup::Replies { Some(Box::new(reply_line(w, task))) } else { None };
-        let entry = c::OwnerInboxEntry {
+        let entry = c::InboxEntry {
             reply,
-            task: c::OwnerTaskLink::Live(chip(w, task)),
+            task: c::TaskLink::Live(chip(w, task)),
             project: Some(PROJECT),
             object,
             activity: row.activity,
@@ -2333,7 +2328,7 @@ fn inbox_window(w: World, window: u32) -> c::OwnerInbox {
             more = Some(cursor);
         }
     }
-    c::OwnerInbox {
+    c::Inbox {
         party: 73,
         needs,
         updates,
@@ -2374,7 +2369,7 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
         t.goal = Some(task);
         t.flags.conversation = false;
         t.flags.listed = true;
-        let hold = c::OwnerChipHold {
+        let hold = c::ChipHold {
             placed: None,
             words: None,
             circle: None,
@@ -2382,15 +2377,15 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             source: None,
             reason: c::HoldCategory::Failures { class: c::HoldFailure::Run },
             revision: 7,
-            before: c::OwnerPriorPhase::Active(c::RunStage::Idle),
+            before: c::PriorPhase::Active(c::RunStage::Idle),
             escalation: None,
-            tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 2, agent: 0, lost: 0, invalid: 0 },
+            tries: c::FailureTries { transient: 0, permanent: 0, run: 2, agent: 0, lost: 0, invalid: 0 },
             hold_wait_since: None,
         };
         t.hold = Some(Box::new(hold.clone()));
         t.chip.phase = c::Phase::Held;
         let (phase, details) = owner(&mut t.chip);
-        *phase = c::OwnerChipPhase::Held { reason: hold.reason, revision: hold.revision };
+        *phase = c::ChipPhase::Held { reason: hold.reason, revision: hold.revision };
         details.hold = Some(hold);
         t.acts = List::with_capacity(1);
         t.acts
@@ -2421,10 +2416,10 @@ fn plan_tree(w: World, task: u64, window: u32, then: Then) -> c::Delivery {
     // The engine's live task view supplies number order, not mockup order.
     descendants.sort_unstable_by_key(|(number, _, _)| *number);
     let mut rows = List::with_capacity(window);
-    let mut phases = c::OwnerPhaseCounts::ZERO;
+    let mut phases = c::PhaseCounts::ZERO;
     for (number, parent, depth) in descendants {
         if rows.len() < window {
-            rows.push(c::OwnerTreeRow {
+            rows.push(c::TreeRow {
                 chip: chip(w, number),
                 parent,
                 depth,
@@ -2442,25 +2437,25 @@ fn plan_tree(w: World, task: u64, window: u32, then: Then) -> c::Delivery {
     }
     let mut folded = List::with_capacity(1);
     let next = if phases.running > 0 {
-        folded.push(c::OwnerTreeFold { parent: task, phases, held_below: 0 }).expect("root fold");
+        folded.push(c::TreeFold { parent: task, phases, held_below: 0 }).expect("root fold");
         Some(c::Cursor::new(Box::from(b"next".as_slice()), limits().client.domain.text).expect("opaque cursor"))
     } else {
         None
     };
-    c::Delivery::OwnerTree(Box::new(c::OwnerTree { root, rows, folded, held_below: 0, next }))
+    c::Delivery::Tree(Box::new(c::Tree { root, rows, folded, held_below: 0, next }))
 }
 
-fn deployment(w: World) -> c::OwnerDeployment {
-    c::OwnerDeployment {
+fn deployment(w: World) -> c::Deployment {
+    c::Deployment {
         store: c::StoreFill { bytes: 0, mark: 0 },
         hosts: List::with_capacity(0),
         attempts: List::with_capacity(0),
         accounts: List::with_capacity(0),
-        tasks: c::OwnerCapacity { used: 0, limit: 0 },
-        workers: c::OwnerCapacity { used: 0, limit: 0 },
-        attempts_capacity: c::OwnerCapacity { used: 0, limit: 0 },
+        tasks: c::Capacity { used: 0, limit: 0 },
+        workers: c::Capacity { used: 0, limit: 0 },
+        attempts_capacity: c::Capacity { used: 0, limit: 0 },
         waiting_attempts: 0,
-        proposals: c::OwnerCapacity { used: 0, limit: 0 },
+        proposals: c::Capacity { used: 0, limit: 0 },
         projects: List::with_capacity(0),
         grace_bound: Duration::from_secs(30),
         hello_refusals: List::with_capacity(0),
@@ -2574,7 +2569,9 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
     sample_answer(
         root,
         attempt,
-        jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectMade { project: 2 }))),
+        jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProjectMade {
+            project: 2,
+        }))),
         out,
     );
     let attempt = sample_attempt(root, out);

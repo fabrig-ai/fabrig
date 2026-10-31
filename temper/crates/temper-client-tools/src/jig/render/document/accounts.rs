@@ -7,8 +7,8 @@ use skein_json::writer::Encoder;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Accounts<'a> {
-    pub party: Option<&'a c::OwnerAccounts>,
-    pub deployment: Option<&'a c::OwnerDeployment>,
+    pub party: Option<&'a c::Accounts>,
+    pub deployment: Option<&'a c::Deployment>,
     pub models: Option<(&'a c::Me, Option<u32>)>,
     pub outcome: Option<(bool, &'a [u8])>,
     pub current: bool,
@@ -81,8 +81,8 @@ pub(super) fn encode(value: Accounts<'_>, limits: &Limits, printed: bool, out: &
     out.object_end();
 }
 fn party_fields(
-    party: &c::OwnerAccounts,
-    extra: Option<&c::OwnerDeployment>,
+    party: &c::Accounts,
+    extra: Option<&c::Deployment>,
     limits: &Limits,
     out: &mut Encoder,
     cut: &mut Cut,
@@ -168,7 +168,7 @@ fn party_fields(
     out.boolean(window.cut || cut.left > 0);
     out.object_end();
 }
-fn deployment(deployment: Option<&c::OwnerDeployment>, out: &mut Encoder, cut: &mut Cut, window: &mut Window) {
+fn deployment(deployment: Option<&c::Deployment>, out: &mut Encoder, cut: &mut Cut, window: &mut Window) {
     out.key(b"deployment");
     out.array_start();
     if let Some(deployment) = deployment {
@@ -223,9 +223,9 @@ fn line(
     manage_usage: Option<&[u8]>,
     plan: bool,
     display: &c::DocumentText,
-    held: c::OwnerAccountHolder,
-    uses: Option<&skein_lib::List<c::OwnerAccountUse>>,
-    sources: &skein_lib::List<c::OwnerAccountSource>,
+    held: c::AccountHolder,
+    uses: Option<&skein_lib::List<c::AccountUse>>,
+    sources: &skein_lib::List<c::AccountSource>,
     lost: bool,
     out: &mut Encoder,
     cut: &mut Cut,
@@ -266,8 +266,8 @@ fn line(
                 }
                 out.object_start();
                 match payer {
-                    c::OwnerAccountUse::Party(n) => number(b"party", *n, out),
-                    c::OwnerAccountUse::Project(n) => number(b"project", u64::from(*n), out),
+                    c::AccountUse::Party(n) => number(b"party", *n, out),
+                    c::AccountUse::Project(n) => number(b"project", u64::from(*n), out),
                 }
                 out.object_end();
             }
@@ -290,10 +290,10 @@ fn line(
         }
         out.key(b"kind");
         out.string(match source.kind {
-            c::OwnerAccountKind::SignIn => b"sign_in",
-            c::OwnerAccountKind::Key => b"key",
-            c::OwnerAccountKind::Program => b"program",
-            c::OwnerAccountKind::None => b"none",
+            c::AccountKind::SignIn => b"sign_in",
+            c::AccountKind::Key => b"key",
+            c::AccountKind::Program => b"program",
+            c::AccountKind::None => b"none",
         });
         out.key(b"state");
         state(source.state, out);
@@ -323,34 +323,34 @@ fn optional(key: &[u8], value: Option<u64>, out: &mut Encoder) {
         None => out.null(),
     }
 }
-fn holder(value: c::OwnerAccountHolder, out: &mut Encoder) {
+fn holder(value: c::AccountHolder, out: &mut Encoder) {
     out.object_start();
     match value {
-        c::OwnerAccountHolder::Party(n) => number(b"party", n, out),
-        c::OwnerAccountHolder::Deployment => {
+        c::AccountHolder::Party(n) => number(b"party", n, out),
+        c::AccountHolder::Deployment => {
             out.key(b"deployment");
             out.boolean(true);
         }
     }
     out.object_end();
 }
-pub(super) fn unloaded(at: c::OwnerAccountPlace, why: c::OwnerAccountUnread, out: &mut Encoder) {
+pub(super) fn unloaded(at: c::AccountPlace, why: c::AccountUnread, out: &mut Encoder) {
     out.key(b"at");
     out.string(match at {
-        c::OwnerAccountPlace::Directory => b"directory",
-        c::OwnerAccountPlace::File => b"file",
+        c::AccountPlace::Directory => b"directory",
+        c::AccountPlace::File => b"file",
     });
     out.key(b"why");
     out.string(match why {
-        c::OwnerAccountUnread::Unreadable => b"unreadable",
-        c::OwnerAccountUnread::Refused => b"refused",
-        c::OwnerAccountUnread::Failed => b"failed",
-        c::OwnerAccountUnread::Stalled => b"stalled",
-        c::OwnerAccountUnread::TooLarge => b"too_large",
+        c::AccountUnread::Unreadable => b"unreadable",
+        c::AccountUnread::Refused => b"refused",
+        c::AccountUnread::Failed => b"failed",
+        c::AccountUnread::Stalled => b"stalled",
+        c::AccountUnread::TooLarge => b"too_large",
     });
 }
-fn state(value: c::OwnerAccountState, out: &mut Encoder) {
-    use c::OwnerAccountState as S;
+fn state(value: c::AccountState, out: &mut Encoder) {
+    use c::AccountState as S;
     out.object_start();
     out.key(b"kind");
     out.string(match value {
@@ -371,8 +371,8 @@ fn state(value: c::OwnerAccountState, out: &mut Encoder) {
     }
     out.object_end();
 }
-fn end(value: c::OwnerAccountEnd, out: &mut Encoder) {
-    use c::{OwnerAccountEnd as E, OwnerAccountFailure as F, OwnerAccountRefusal as R};
+fn end(value: c::AccountEnd, out: &mut Encoder) {
+    use c::{AccountEnd as E, AccountFailure as F, AccountRefusal as R};
     out.object_start();
     match value {
         E::Made { account, declined } => made(b"made", account, declined, out),
@@ -425,26 +425,26 @@ fn end(value: c::OwnerAccountEnd, out: &mut Encoder) {
                 R::NotKept { why } => {
                     out.key(b"why");
                     out.string(match why {
-                        c::OwnerAccountKeyFailure::TooLong => b"too_long",
-                        c::OwnerAccountKeyFailure::NotStored => b"not_stored",
+                        c::AccountKeyFailure::TooLong => b"too_long",
+                        c::AccountKeyFailure::NotStored => b"not_stored",
                     });
                 }
                 R::Limit { bound } => {
                     out.key(b"bound");
                     out.string(match bound {
-                        c::OwnerAccountBound::Accounts => b"accounts",
-                        c::OwnerAccountBound::HolderAccounts => b"holder_accounts",
-                        c::OwnerAccountBound::Sources => b"sources",
-                        c::OwnerAccountBound::SignIns => b"sign_ins",
+                        c::AccountBound::Accounts => b"accounts",
+                        c::AccountBound::HolderAccounts => b"holder_accounts",
+                        c::AccountBound::Sources => b"sources",
+                        c::AccountBound::SignIns => b"sign_ins",
                     });
                 }
                 R::Kind { kind } => {
                     out.key(b"kind");
                     out.string(match kind {
-                        c::OwnerAccountKind::SignIn => b"sign_in",
-                        c::OwnerAccountKind::Key => b"key",
-                        c::OwnerAccountKind::Program => b"program",
-                        c::OwnerAccountKind::None => b"none",
+                        c::AccountKind::SignIn => b"sign_in",
+                        c::AccountKind::Key => b"key",
+                        c::AccountKind::Program => b"program",
+                        c::AccountKind::None => b"none",
                     });
                 }
                 R::NotSignedIn
