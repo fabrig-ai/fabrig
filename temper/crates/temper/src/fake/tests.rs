@@ -50,20 +50,12 @@ fn fake_forge_reads_its_kind_from_the_group_file() {
 }
 
 #[test]
-fn fake_forge_keeps_the_setup_lookup_without_a_machine() {
-    let directory = std::env::temp_dir().join(format!("temper-fake-setup-entry-{}", std::process::id()));
-    let directories = check_directories(
-        directory.to_str().expect("fixture path"),
-        directory.to_str().expect("fixture path"),
-        directory.to_str().expect("fixture path"),
-        Origin::Flag,
-    );
-    let value = crate::tests::configuration::old_form_check_document(&directory);
-    let bytes = serde_json::to_vec(&value).expect("setup document");
-    let entry = forge_entry(&bytes, &directories, 1).expect("setup entry without a group file");
-    assert_eq!(entry.forge, 1);
-    assert!(matches!(entry.mode, temper_forge_setup::setup::Mode::Fake(_)));
-    assert_eq!(forge_entry(&bytes, &directories, 7).expect_err("absent setup entry"), "the setup has no entry for it");
+fn fake_forge_requires_the_machine_and_a_group_file() {
+    let directories = crate::tests::configuration::directories(std::path::Path::new("/fixture"));
+    let mut value = crate::tests::configuration::old_form_check_document(std::path::Path::new("/fixture"));
+    value["application"].as_object_mut().expect("application").remove("machine");
+    let bytes = serde_json::to_vec(&value).expect("document");
+    assert_eq!(forge_entry(&bytes, &directories, 1).expect_err("no machine"), "application.machine: missing member");
 }
 
 #[test]
