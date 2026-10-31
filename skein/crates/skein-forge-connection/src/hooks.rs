@@ -4,6 +4,7 @@ use skein_forge::api;
 use skein_io::Addr;
 use skein_lib::{Env, Id, Map, Queue, Slab, Time, Token};
 pub(crate) mod connection;
+use crate::connection::End;
 use connection::{Closing, Hooked};
 /// The listener; each forge's webhook secret is in its access.
 #[derive(Clone, Debug)]
@@ -27,8 +28,8 @@ pub(crate) struct Hooks {
     live: bool,
     closing: bool,
     aborting: bool,
-    close_sent: bool,
-    abort_sent: bool,
+    /// How io was asked to end the listener.
+    listener_end: Option<End>,
     wake: Option<Time>,
 }
 impl Hooks {
@@ -42,8 +43,7 @@ impl Hooks {
             live: false,
             closing: false,
             aborting: false,
-            close_sent: false,
-            abort_sent: false,
+            listener_end: None,
             wake: None,
         }
     }
@@ -138,13 +138,13 @@ impl Hooks {
         self.wake = None;
         if self.closing {
             if let Some(listener) = self.listener {
-                if self.aborting && !self.abort_sent {
-                    io.push(skein_io::Request::Abort { entity: listener });
-                    self.abort_sent = true;
-                    self.close_sent = true;
-                } else if !self.close_sent {
-                    io.push(skein_io::Request::Close { entity: listener });
-                    self.close_sent = true;
+                let end = if self.aborting { End::Abort } else { End::Close };
+                if self.listener_end.is_none() || (end == End::Abort && self.listener_end == Some(End::Close)) {
+                    io.push(match end {
+                        End::Close => skein_io::Request::Close { entity: listener },
+                        End::Abort => skein_io::Request::Abort { entity: listener },
+                    });
+                    self.listener_end = Some(end);
                 }
             }
             if let Some((socket, _)) = self.waiting.take() {
