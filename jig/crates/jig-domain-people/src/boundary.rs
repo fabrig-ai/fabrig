@@ -380,7 +380,7 @@ pub enum EscalationDecision {
     Pass,
 }
 
-/// Semantic kind of a committed decision, returned to a caller or historical
+/// Semantic kind of a committed decision, returned to a caller or earlier
 /// loser of a race; carries no second task state (domain/people.md, section 5.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EscalationChoice {
@@ -498,7 +498,7 @@ pub enum Outcome {
     Moved {
         task: u64,
     },
-    /// Keyed answer to one current or historical proposal decision.
+    /// Keyed answer to one current or ended proposal decision.
     ProposalDecided {
         proposer: Proposer,
         proposal: u64,
@@ -546,13 +546,13 @@ pub enum Outcome {
         project: u32,
         person: u64,
     },
-    /// Root's committed current or historical decision for one task revision; first commit decides
+    /// Root's committed current or ended decision for one task revision; first commit decides
     /// a race.
     EscalationDecided {
         /// Named held chat.
         task: u64,
         revision: u64,
-        /// Authenticated winning person, including historical races.
+        /// Authenticated winning person, including earlier races.
         by: u64,
         at: Wall,
         choice: EscalationChoice,

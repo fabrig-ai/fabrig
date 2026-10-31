@@ -424,7 +424,7 @@ pub struct Spec {
     /// Parameters bounded by `Limits::parameters`; tasks does not interpret their names, and
     /// current root chat construction supplies an empty slice.
     pub parameters: Box<[Parameter]>,
-    /// Historical input identities, bounded by `Limits::inputs` on creation and restore.
+    /// Retained input identities, bounded by `Limits::inputs` on creation and restore.
     pub inputs: Box<[u64]>,
     /// Immutable obligation to ask its requester a question (domain/tasks.md, 5.7).
     pub asks: bool,
@@ -543,9 +543,9 @@ pub enum InvalidResult {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Ending {
     /// Checked successful result proposed for final ending; retained while closing and made
-    /// historical only after settlement.
-    Done(/** Successful checked result retained in pending closing or in the historical ended record. */ TaskResult),
-    /// Failure ending with its bounded reason, pending while closing or final in the historical
+    /// final only after settlement.
+    Done(/** Successful checked result retained in pending closing or in the retained end record. */ TaskResult),
+    /// Failure ending with its bounded reason, pending while closing or final in the retained
     /// record.
     Failed {
         /** Owned failure reason bounded by `Limits::result_bytes`. */
@@ -582,7 +582,7 @@ pub enum Status {
 pub struct Stub {
     pub task: u64,
     pub phase: Status,
-    /// `Key::Ended(result.raw())` is the historical result row.
+    /// `Key::Ended(result.raw())` is the retained result row.
     pub result: skein_lib::Token,
 }
 
@@ -737,7 +737,7 @@ pub enum Stage {
     Effects,
     /// `Release` output is owed settlement of resource cleanup from root.
     Releases,
-    /// Root closing obligations settled; final financial posting and historical end can commit.
+    /// Root closing obligations settled; final financial posting and retained ending can commit.
     /// Unheld `Settled` is transient and refused on live restore; held prior closing may retain it.
     Settled,
 }
@@ -764,7 +764,7 @@ pub enum Was {
     Closing(/** Prior closing stage and owned pending ending. */ Closing),
 }
 
-/// Task's complete lifecycle value; ended values occur in historical durable rows rather than the
+/// Task's complete lifecycle value; ended values occur in retained durable rows rather than the
 /// live arena. (domain/tasks.md, section 5.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Phase {
@@ -783,8 +783,8 @@ pub enum Phase {
         /// Exact connector-owned cause, retained in lifecycle milestones.
         source: Option<Box<HoldSource>>,
     },
-    /// Historical outcome; default restoration refuses it in the live arena.
-    Ended(/** Historical final ending; this phase is excluded from the live restore arena. */ Ending),
+    /// Ended outcome; default restoration refuses it in the live arena.
+    Ended(/** Final ending; this phase is excluded from the live restore arena. */ Ending),
 }
 
 /// What explains a hold beyond its reason: a connector's resource or effect, or the circle of
@@ -913,7 +913,7 @@ pub struct New {
     /// authority; absent for a procedure's or a person's task, and where the root resolves the
     /// default (domain/tasks.md, sections 3 and 4).
     pub llm: Option<crate::LlmChoice>,
-    /// Owned specification within configured counts/bytes, with empty historical inputs.
+    /// Owned specification within configured counts/bytes, with empty retained inputs.
     pub spec: Spec,
     /// Admitted bounded result contract.
     pub contract: Contract,
@@ -1062,7 +1062,7 @@ pub struct TaskRecord {
     /// Newest opaque reply hints, bounded by `inbox_messages`; older lines are store-loaded.
     pub replies: Box<[ReplyHint]>,
     /// One bounded semantic held-chat decision and checked revision. Root owns
-    /// authentication, routing and historical receipts.
+    /// authentication, routing and retained receipts.
     pub escalation: crate::Escalation,
     /// At most one pending action awaiting a holder; its terminal leaves live memory as history.
     pub proposal: Option<Box<crate::Proposal>>,
@@ -1093,7 +1093,7 @@ pub struct TaskRecord {
     pub recurring: Option<Box<RecurringState>>,
     /// Goal priority retained with the task for project ordering.
     pub tracked: Option<u32>,
-    /// Owned bounded specification; live state has empty historical inputs.
+    /// Owned bounded specification; live state has empty retained inputs.
     pub spec: Spec,
     pub contract: Contract,
     /// Owned bounded permission carrier checked by root policy, not by tasks.
@@ -1161,7 +1161,7 @@ pub struct TaskRecord {
     pub invalid_result: Option<InvalidResult>,
     /// Saturating pre-execution refusal counter used for pauses rather than failure tries.
     pub refusals: u32,
-    /// Current lifecycle or the ended historical outcome.
+    /// Current lifecycle or the retained final outcome.
     pub phase: Phase,
     /// A question-form message to its requester has been admitted; never cleared.
     pub asked_requester: bool,
@@ -1182,7 +1182,7 @@ pub enum Stored {
     EndedByProject(crate::EndedByProject),
     EndedDelegate(crate::Edge),
     Delegate(crate::Edge),
-    /// Historical activity loaded on demand, never restored as live state.
+    /// Earlier activity loaded on demand, never restored as live state.
     Activity(crate::ActivityLine),
     /// One immutable lifecycle milestone, loaded on demand.
     Milestone(crate::Milestone),
@@ -1196,13 +1196,13 @@ pub enum Stored {
     History(crate::History),
     /// Current bounded live task state, emitted on mutation and admitted once at startup.
     Live(/** Owned boxed live task row; fit and link checks precede activation. */ Box<TaskRecord>),
-    /// Historical final task state; root loads it for authenticated result reads, never as
+    /// Ended task state; root loads it for authenticated result reads, never as
     /// live startup state.
     Ended(
-        /** Owned boxed historical ending retained in root storage; never a live restore input or a replayed result delivery. */
-         Box<TaskRecord>,
+        /** Owned boxed ending retained in root storage; never a live restore input or a replayed result delivery. */
+        Box<TaskRecord>,
     ),
-    /// Compact durable pointer to a historical result named by live work.
+    /// Compact durable pointer to a retained result named by live work.
     Stub(Stub),
     /// Finite external source accounting; default startup checks its reservations.
     Ledger(
@@ -1317,7 +1317,7 @@ pub enum Refusal {
     Contract,
     /// Carried authority collections or aggregate bytes exceed the configured shape bounds.
     AuthorityShape,
-    /// Historical inputs exceed their bound or cannot be resolved for the requesting task.
+    /// Retained inputs exceed their bound or cannot be resolved for the requesting task.
     Inputs,
     /// Current task phase does not permit the requested admission.
     State,
@@ -1327,7 +1327,7 @@ pub enum Refusal {
     /// unadmitted.
     LiveDelegates,
     /// A retained row does not fit the configured bounds.
-    /// Historical families stay outside startup.
+    /// Ended families stay outside startup.
     Restore,
     /// A turn's read fence was not an offered unread message.
     Read,
@@ -1549,7 +1549,7 @@ pub enum Event {
     /// Root delivers a just-ended delegate's result to its task requester in
     /// the same decision that archived the delegate.
     DelegateResult { task: u64, word: Word },
-    /// Root verified a newly named historical input against its ended store row.
+    /// Root verified a newly named retained input against its ended store row.
     RememberStub { stub: Stub },
     /// Root `SetRoles` preflight: inspect only current person-requested `Waiting`
     /// contexts without mutation; one terminal even before readiness.
@@ -1788,7 +1788,7 @@ pub enum Event {
     /// Admit one `Live`/`Ledger` row during restoring; invalid input permanently fails restoration
     /// with `RestoreRefused`.
     Restore {
-        /// One bounded `Live` or `Ledger` row while restoring; historical `Ended` and
+        /// One bounded `Live` or `Ledger` row while restoring; `Ended` and
         /// invalid/duplicate rows fail restoration.
         record: Stored,
     },
@@ -1971,7 +1971,7 @@ pub enum Request {
     /// financial posting; current root exposes person result notices, with no task-requester inbox
     /// route or child delivery credit.
     Ended {
-        /** Task removed from the live arena and saved as a historical ended row. */
+        /** Task removed from the live arena and saved as a retained ended row. */
         task: u64,
         /** Requester identifying this notification; the parent routes person result notices. */
         requester: Party,

@@ -57,7 +57,7 @@ pub struct Limits {
     pub hold_wait: skein_lib::Duration,
     /// Maximum tasks a circle of waits names in a refusal or a hold (domain/tasks.md, 6.7).
     pub circle: u32,
-    /// Shape bound for historical input identities checked by the root before delegation.
+    /// Shape bound for retained input identities checked by the root before delegation.
     pub inputs: u32,
     /// Maximum combined specification words and byte-valued parameter bytes per task.
     pub spec_bytes: u32,

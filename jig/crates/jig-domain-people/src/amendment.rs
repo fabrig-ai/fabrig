@@ -48,7 +48,7 @@ pub enum PersonAddress {
     Role(u32),
 }
 
-/// Human supplied words, parameters and historical inputs.
+/// Human supplied words, parameters and retained inputs.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Spec {
     pub words: Box<[u8]>,

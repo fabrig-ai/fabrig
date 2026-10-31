@@ -749,7 +749,7 @@ fn with_the_switch_off_the_asked_task_answers_as_before() {
     let reads::Answer::Page(page) = latest(&world) else { panic!("questions inbox") };
     assert!(page.rows.is_empty());
     ask(&mut world, 909, reads::Read::Question { task: director, message });
-    let reads::EndedValue::Question { question, answer, .. } = past(&world) else { panic!("historical question") };
+    let reads::EndedValue::Question { question, answer, .. } = past(&world) else { panic!("ended question") };
     assert!(question.acts.is_empty());
     assert!(answer.is_some());
     reply(&mut world, director, delegate, message, 2);
