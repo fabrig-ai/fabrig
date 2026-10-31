@@ -66,23 +66,47 @@ fn ledger_parent_state_and_period_options_survive_whole_value_pricing() {
     }
 }
 #[test]
-fn maximal_budget_and_ledger_fragments_fit_the_tree_envelope() {
+fn maximal_budget_and_ledger_render_all_accounting_values() {
     use jig_client_view::owner_budget as view;
-    use jig_client_view::owner_budget_words::{self as data, OwnerBudgetWords};
+    use jig_client_view::words::Words;
     use skein_ui::Builder;
     use skein_ui::Limits;
     use skein_ui::phrases::PhraseLimits;
 
     let language_limits = PhraseLimits {
         languages: 1,
-        phrases: data::standalone_phrase_count(),
+        phrases: jig_client_view::owner_words::phrase_count(),
         holes: 4,
-        segments: 200,
-        text_bytes: 8192,
-        hole_bytes: 256,
+        segments: 20_000,
+        text_bytes: 200_000,
+        hole_bytes: 4096,
     };
-    let words = OwnerBudgetWords::load(Box::new([data::standalone_language()]), &language_limits, 0, 0)
-        .expect("whole checked budget and shared Funder sayings");
+    let mut english = jig_client_view::phrases::english::language();
+    english.wall = skein_ui::phrases::WallFormat::Nanos;
+    let words = Words::new(
+        skein_ui::phrases::Phrasebook::load(
+            jig_client_view::phrases::jig::shapes(4096),
+            Box::new([english]),
+            &language_limits,
+        )
+        .expect("checked rendering fixture"),
+        0,
+        0,
+    );
+    let receiving = jig_client_world::test::limits().jig;
+    let limits = Limits {
+        nodes: 16_384,
+        text_bytes: 16_777_216,
+        ..jig_client_view::limits::envelope(
+            &receiving,
+            words.jig_capacity().expect("checked rendering fixture"),
+            &jig_client_view::page::Arrangement::none(),
+            0,
+            0,
+            0,
+        )
+        .expect("checked rendering fixture")
+    };
 
     let budget = OwnerBudget {
         numbers: numbers(),
@@ -100,42 +124,14 @@ fn maximal_budget_and_ledger_fragments_fit_the_tree_envelope() {
         next: Some(Wall::from_nanos(u64::MAX)),
     };
     for is_ledger in [false, true] {
-        let envelope = if is_ledger {
-            view::ledger_fragment_bound(words.words()).expect("ledger envelope")
-        } else {
-            view::fragment_bound(words.words()).expect("budget envelope")
-        };
-        let required = if is_ledger {
-            view::ledger_required(&ledger, words.words()).expect("ledger fits")
-        } else {
-            view::required(&budget, words.words()).expect("budget fits")
-        };
-        assert_eq!(required.nodes, if is_ledger { 13 } else { 9 });
-        assert_eq!(required.nodes, envelope.nodes);
-        assert!(required.text_bytes <= envelope.text_bytes);
-        let limits = Limits {
-            nodes: envelope.nodes,
-            depth: envelope.depth,
-            text_per_node: envelope.text_per_node,
-            text_bytes: envelope.text_bytes,
-            drawing_bytes: 0,
-            styles_per_node: 0,
-            patches: 0,
-            bindings: 0,
-            slots: 0,
-            markdown_depth: 0,
-            scene_marks: 0,
-            scene_bytes: 0,
-        };
-
         let mut builder = Builder::new(&limits);
         if is_ledger {
-            view::ledger(&mut builder, &ledger, words.words());
+            view::ledger(&mut builder, &ledger, &words);
         } else {
-            view::render(&mut builder, &budget, words.words());
+            view::render(&mut builder, &budget, &words);
         }
         let tree = builder.finish();
-        assert_eq!(tree.len(), required.nodes);
+        assert_eq!(tree.len(), if is_ledger { 13 } else { 9 });
         for exact in [
             &b"Budget: 18446744073709551615"[..],
             &b"Spent directly: 18446744073709551614"[..],

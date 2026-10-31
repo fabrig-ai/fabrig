@@ -1,5 +1,5 @@
 //! Spine routing of page generations, watches, reads, names and parts.
-//! Detailed page policies are jig 22's modules. See client/domain/client.md, 5–7.
+//! Detailed page policies belong to their page modules. See client/domain/client.md, 5–7.
 use crate::{
     Request, Ui,
     address::{Address, Place},

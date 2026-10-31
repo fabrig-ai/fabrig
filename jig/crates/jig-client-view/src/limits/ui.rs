@@ -1,5 +1,5 @@
 //! Container capacities and byte bounds owned by the client.
-//! Every retained container is sized from these at new; jig 21–23 add their
+//! Every retained container is sized from these at new; objects and pages add their
 //! own entities. See client/domain/client.md, 14.
 use skein_lib::Duration;
 

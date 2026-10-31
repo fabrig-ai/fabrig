@@ -1,5 +1,5 @@
 //! Fields retain text and count domain writes; client/domain/view.md, 18.5.
-//! Jig 21 adds draft and confirmation policies. Person edits never advance writes.
+//! Draft and confirmation policies own fields. Person edits never advance writes.
 use jig_client::contract::Text;
 /// Why a person is typing into a field.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -40,7 +40,7 @@ pub struct Fields {
     text: u32,
 }
 impl Fields {
-    /// Allocates the configured purposes; jig 21 owns their draft policy.
+    /// Allocates the configured purposes; the object policies own their drafts.
     #[must_use]
     pub fn new(capacity: u32, text: u32) -> Self {
         Self { rows: Map::with_capacity(capacity), text }

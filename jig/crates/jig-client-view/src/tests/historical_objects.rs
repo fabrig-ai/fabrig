@@ -103,24 +103,11 @@ fn question(answer: bool, ending: bool) -> OwnerHistorical {
         },
     )
 }
-fn limits(f: view::HistoricalFragment) -> Limits {
-    Limits {
-        nodes: f.nodes,
-        depth: f.depth,
-        text_per_node: f.text_per_node,
-        text_bytes: f.text_bytes,
-        drawing_bytes: 0,
-        styles_per_node: 2,
-        patches: 0,
-        bindings: f.bindings,
-        slots: f.slots,
-        markdown_depth: 3,
-        scene_marks: 0,
-        scene_bytes: 0,
-    }
+fn limits(f: Limits) -> Limits {
+    f
 }
 fn build(value: &OwnerHistorical, words: &crate::words::Words) -> (Tree, JigBindings) {
-    let f = view::required(value, &CLIENT, words).unwrap();
+    let f = crate::tests::render_limits(&CLIENT, words).unwrap();
     let l = limits(f);
     let domain = Fixture::new(&CLIENT);
     let mut b = Builder::new(&l);
@@ -279,23 +266,10 @@ fn historical_person_task_keeps_whole_address_contract_loss_and_independent_resu
     assert!(tree.nodes().iter().all(|node| node.role != Role::TextField && node.role != Role::TextArea));
 }
 #[test]
-fn historical_whole_receiving_refuses_reserved_paths_and_nested_text_excess_without_clipping_sources() {
-    let value = person();
-    let original = value.clone();
-    assert!(view::required(&value, &CLIENT, words()).is_some());
-    assert!(view::required(&value, &crate::Limits { rows: 1, ..CLIENT }, words()).is_none());
-    let mut large = value.clone();
-    let OwnerHistoricalValue::PersonProposal { proposal, .. } = &mut large.value else { panic!("raw proposal") };
-    proposal.goal.spec.words = Text::new(Box::from(UTF8_TEXTS[1]), 129).unwrap();
-    assert!(view::required(&large, &CLIENT, words()).is_none());
-    assert_eq!(value, original);
-    assert!(view::max_nodes(&crate::Limits { rows: u32::MAX, ..CLIENT }).is_none());
-}
-#[test]
 fn historical_passive_card_retains_named_whole_departure_and_does_not_bind_current_question_actions() {
     let value = question(true, false);
     let (d, id) = super::cards_objects::loaded(value.key, ReadValue::Historical(Box::new(value.clone())));
-    let f = view::required(&value, &CLIENT, words()).unwrap();
+    let f = crate::tests::render_limits(&CLIENT, words()).unwrap();
     let mut l = limits(f);
     l.nodes = l.nodes.checked_add(64).unwrap();
     l.text_bytes = l.text_bytes.checked_add(64_u32.checked_mul(l.text_per_node).unwrap()).unwrap();
@@ -417,7 +391,7 @@ fn presence_finish(domain: &mut Fixture, l: &crate::Limits, task_read: jig_clien
     );
     let id = domain.objects().find(supplied.key).unwrap();
     let words = words();
-    let f = view::required(&supplied, l, words).unwrap();
+    let f = crate::tests::render_limits(l, words).unwrap();
     let mut cap = limits(f);
     cap.nodes = cap.nodes.checked_add(64).unwrap();
     cap.text_bytes = cap.text_bytes.checked_add(64_u32.checked_mul(cap.text_per_node).unwrap()).unwrap();
@@ -511,7 +485,7 @@ fn historical_selected_language_uses_checked_native_captions_and_preserves_opaqu
     assert_eq!(tree.nodes().first().unwrap().name.as_deref(), Some(b"Selected historical source".as_slice()));
     assert!(contains(&tree, b"\\xFF\\x00"));
     assert!(contains(&tree, b"Reserved: 18446744073709551615"));
-    let f = view::required(&value, &CLIENT, &words).unwrap();
+    let f = crate::tests::render_limits(&CLIENT, &words).unwrap();
     assert!(tree.len() <= f.nodes);
     assert!(tree.nodes().iter().map(crate::tests::text_bytes).sum::<u32>() <= f.text_bytes);
     for phrase in crate::owner_historical_words::ALL {

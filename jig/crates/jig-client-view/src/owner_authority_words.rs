@@ -2,10 +2,10 @@
 //! Phrase IDs 3000..3022 are reserved for the owner authority vocabulary.
 use crate::Owner;
 use alloc::boxed::Box;
-use skein_lib::{List, Wall, bytes::copy_of};
+use skein_lib::{List, bytes::copy_of};
 use skein_ui::phrases::{
-    Form, Hole, HoleKind, HoleShape, Invalid, Language, Phrase, PhraseId, PhraseLimits, PhraseShape, Phrasebook,
-    PluralClass, PluralRule, Segment, SpanUnit, WallFormat,
+    Form, HoleKind, HoleShape, Language, Phrase, PhraseId, PhraseShape, PluralClass, PluralRule, Segment, SpanUnit,
+    WallFormat,
 };
 
 /// The closed reusable authority phrase vocabulary.
@@ -176,48 +176,5 @@ pub fn english() -> Language {
         span_unit: SpanUnit::Nanos,
         wall: WallFormat::Nanos,
         phrases: phrases.into_boxed(),
-    }
-}
-/// A checked closed phrasebook with selected language and person's UTC offset.
-#[derive(Debug)]
-pub struct OwnerAuthorityWords {
-    words: crate::words::Words,
-}
-impl OwnerAuthorityWords {
-    /// Check every language whole before retaining it and its selected index.
-    pub fn load(
-        languages: Box<[Language]>,
-        limits: &PhraseLimits,
-        language: u16,
-        offset_minutes: i32,
-    ) -> Result<Self, Invalid> {
-        if usize::from(language) >= languages.len() {
-            return Err(Invalid::Language);
-        }
-        if u64::from(offset_minutes.unsigned_abs()).checked_mul(60_000_000_000).is_none() {
-            return Err(Invalid::Overflow);
-        }
-        let book = Phrasebook::load(shapes(), languages, limits)?;
-        Ok(Self { words: crate::words::Words::new(book, language, offset_minutes) })
-    }
-    /// Maximum saying capacity across all loaded languages.
-    #[must_use]
-    pub fn capacity(&self, phrase: AuthorityPhrase) -> u32 {
-        self.words.book().capacity(phrase.id()).expect("whole closed phrasebook checked")
-    }
-    /// Say a checked phrase using typed holes in the selected language.
-    #[must_use]
-    pub fn say(&self, phrase: AuthorityPhrase, holes: &[Hole]) -> Box<[u8]> {
-        self.words.book().say(self.words.language(), phrase.id(), holes).expect("checked phrase and typed facts").text
-    }
-    /// Apply the person's UTC offset before the language formats the instant.
-    #[must_use]
-    pub fn adjusted_wall(&self, at: Wall) -> Wall {
-        self.words.adjusted_wall(at)
-    }
-    /// Borrow the same checked book for shared fragment helpers.
-    #[must_use]
-    pub fn words(&self) -> &crate::words::Words {
-        &self.words
     }
 }

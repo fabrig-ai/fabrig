@@ -8,103 +8,7 @@ use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
 use crate::{Borrowed, Limits};
-use jig_client::contract::{
-    ChipPhase, DocumentText, OwnerChipHold, OwnerHoldEscalation, OwnerProposal, OwnerProposalAction, OwnerTaskLink,
-};
-/// Finite storage for the entire supplied proposal fragment.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ProposalFragment {
-    pub nodes: u32,
-    pub text_bytes: u32,
-    pub text_per_node: u32,
-    pub depth: u32,
-    pub bindings: u32,
-    pub slots: u32,
-}
-fn text_fits(value: &DocumentText, limits: &Limits) -> Option<()> {
-    if value.bytes.fits(limits.text) { Some(()) } else { None }
-}
-fn link_fits(value: &OwnerTaskLink, limits: &Limits, words: &Words) -> Option<()> {
-    let chip = match value {
-        OwnerTaskLink::Live(chip) | OwnerTaskLink::Retained { chip, .. } => chip,
-        OwnerTaskLink::Stored { .. } => return Some(()),
-    };
-    text_fits(&chip.title, limits)?;
-    match chip.details.as_ref() {
-        ChipPhase::Owner { details, .. } => {
-            crate::owner_chip::required(details, limits, words)?;
-        }
-        ChipPhase::Active(_)
-        | ChipPhase::Waiting { .. }
-        | ChipPhase::Idle { .. }
-        | ChipPhase::Starting
-        | ChipPhase::Running { .. }
-        | ChipPhase::WaitingForWords { .. }
-        | ChipPhase::BackingOff { .. }
-        | ChipPhase::Procedure { .. }
-        | ChipPhase::Person { .. }
-        | ChipPhase::Closing(_)
-        | ChipPhase::Held { .. }
-        | ChipPhase::Ended { .. } => {}
-    }
-    Some(())
-}
-fn hold_fits(value: &OwnerChipHold, limits: &Limits) -> Option<()> {
-    if let Some(words) = &value.words {
-        text_fits(words, limits)?;
-    }
-    if let Some(part) = &value.source {
-        crate::owner_chip::part_fits(part, limits)?;
-    }
-    match &value.escalation {
-        Some(OwnerHoldEscalation::Rejected { reason, .. }) => text_fits(reason, limits)?,
-        Some(OwnerHoldEscalation::Routing | OwnerHoldEscalation::Waiting { .. }) | None => {}
-    }
-    Some(())
-}
-/// Validate every rendered nested field and reserved row capacity before reservation.
-/// Whole protocol allocation admission remains the receiving kit's independent boundary.
-#[must_use]
-pub fn required(value: &OwnerProposal, limits: &Limits, words: &Words) -> Option<ProposalFragment> {
-    text_fits(&value.reason, limits)?;
-    if value.funding.capacity() > limits.rows || value.acts.capacity() > jig_client::contract::MAX_OFFERED_ACTS {
-        return None;
-    }
-    match &value.action {
-        OwnerProposalAction::Settings(_) => return None,
-        OwnerProposalAction::Batch(tasks) => {
-            if tasks.capacity() > limits.rows {
-                return None;
-            }
-            for task in tasks {
-                crate::owner_history::proposed_fits(task, limits)?;
-            }
-        }
-        OwnerProposalAction::Effect { part, authority, .. }
-        | OwnerProposalAction::ProcedureEffect { part, authority, .. } => {
-            crate::owner_chip::part_fits(part, limits)?;
-            crate::owner_amendment::authority_fits(authority, limits)?;
-        }
-        OwnerProposalAction::Amend { task, before, after, reason, .. } => {
-            link_fits(task, limits, words)?;
-            crate::owner_amendment::required(before, limits, words)?;
-            crate::owner_amendment::required(after, limits, words)?;
-            text_fits(reason, limits)?;
-        }
-        OwnerProposalAction::Widen { task, before, after } => {
-            link_fits(task, limits, words)?;
-            crate::owner_amendment::authority_fits(before, limits)?;
-            crate::owner_amendment::authority_fits(after, limits)?;
-        }
-        OwnerProposalAction::Release { task, hold } => {
-            link_fits(task, limits, words)?;
-            if let Some(hold) = hold {
-                hold_fits(hold, limits)?;
-            }
-        }
-    }
-    fragment_bound(limits, words)
-}
+use jig_client::contract::{OwnerProposal, OwnerProposalAction};
 /// Closed action alternatives, with brief linked chips rather than expanded task cards.
 #[must_use]
 pub fn max_nodes(limits: &Limits) -> Option<u32> {
@@ -129,21 +33,6 @@ pub fn max_nodes(limits: &Limits) -> Option<u32> {
         .checked_add(markdown)?
         .checked_add(limits.rows.checked_mul(10)?)?
         .checked_add(20)
-}
-/// Whole checked saying/literal/Markdown envelope, including name and text storage.
-#[must_use]
-pub fn fragment_bound(limits: &Limits, words: &Words) -> Option<ProposalFragment> {
-    let nodes = max_nodes(limits)?;
-    let phrase = words.jig_capacity()?;
-    let text_per_node = phrase.max(crate::literal_segment::max_bytes(limits.text)?).checked_mul(2)?;
-    Some(ProposalFragment {
-        nodes,
-        text_bytes: nodes.checked_mul(text_per_node)?,
-        text_per_node,
-        depth: limits.rows.checked_add(32)?,
-        bindings: nodes,
-        slots: nodes,
-    })
 }
 fn saying(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
     let value = words

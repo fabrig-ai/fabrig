@@ -1,7 +1,7 @@
 //! Resource name segments are display bytes, never joined or parsed (authority.md, 4).
 #![expect(
     clippy::disallowed_methods,
-    reason = "Q39 permits UTF-8 classification for display only; supplied literal bytes remain opaque"
+    reason = "UTF-8 classification is for display only; supplied literal bytes remain opaque"
 )]
 use alloc::boxed::Box;
 use skein_lib::List;

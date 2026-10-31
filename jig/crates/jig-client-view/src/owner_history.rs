@@ -8,150 +8,14 @@ use skein_ui::{Builder, Role, Run};
 
 use crate::Limits;
 use jig_client::contract::{
-    DocumentText, OwnerHistoryChange, OwnerHistoryHolder, OwnerHistoryLine, OwnerMessageProposalKind,
-    OwnerProposalHistory, OwnerProposalHistoryState, OwnerRetainedAction, OwnerRetainedAmendment, ParameterDocument,
-    PersonAddress, ProposedTask, SpecificationDocument, TaskContractDocument,
+    OwnerHistoryChange, OwnerHistoryHolder, OwnerHistoryLine, OwnerMessageProposalKind, OwnerProposalHistory,
+    OwnerProposalHistoryState, OwnerRetainedAction, OwnerRetainedAmendment, PersonAddress,
 };
 
-/// Checked storage for the whole history and every nested retained fragment.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct HistoryFragment {
-    pub nodes: u32,
-    pub text_bytes: u32,
-    pub text_per_node: u32,
-    pub depth: u32,
-    pub bindings: u32,
-    pub slots: u32,
-}
-fn text_fits(value: &DocumentText, limits: &Limits) -> Option<()> {
-    if value.bytes.fits(limits.text) { Some(()) } else { None }
-}
-fn spec_fits(value: &SpecificationDocument, limits: &Limits) -> Option<()> {
-    let value = &value.specification;
-    text_fits(&value.words, limits)?;
-    if value.parameters.capacity() > limits.rows || value.inputs.capacity() > limits.rows {
-        return None;
-    }
-    for parameter in &value.parameters {
-        match parameter {
-            ParameterDocument::Bytes { value, .. } => text_fits(value, limits)?,
-            ParameterDocument::Number { .. } | ParameterDocument::Resource { .. } => {}
-        }
-    }
-    Some(())
-}
-fn contract_fits(value: &TaskContractDocument, limits: &Limits) -> Option<()> {
-    match value {
-        TaskContractDocument::Approval { state, part } => {
-            if u32::try_from(state.len()).ok()? > limits.text {
-                return None;
-            }
-            crate::owner_chip::part_fits(part, limits)?;
-        }
-        TaskContractDocument::Verdict { choices, .. } => {
-            if choices.capacity() > limits.rows {
-                return None;
-            }
-            for choice in choices {
-                if choice.fields.capacity() > limits.rows {
-                    return None;
-                }
-                for field in &choice.fields {
-                    if u32::try_from(field.name.len()).ok()? > limits.text {
-                        return None;
-                    }
-                }
-            }
-        }
-        TaskContractDocument::Report { .. } | TaskContractDocument::Change { .. } => {}
-    }
-    Some(())
-}
-pub(crate) fn proposed_fits(value: &ProposedTask, limits: &Limits) -> Option<()> {
-    spec_fits(&value.spec, limits)?;
-    contract_fits(&value.contract, limits)?;
-    crate::owner_amendment::authority_fits(&value.authority, limits)?;
-    if value.resources.capacity() > limits.rows || value.dependencies.capacity() > limits.rows {
-        return None;
-    }
-    for part in &value.resources {
-        crate::owner_chip::part_fits(part, limits)?;
-    }
-    Some(())
-}
-fn amendment_fits(value: &OwnerRetainedAmendment, limits: &Limits) -> Option<()> {
-    if let Some(instructions) = &value.instructions {
-        text_fits(instructions, limits)?;
-    }
-    if let Some(spec) = &value.spec {
-        spec_fits(spec, limits)?;
-    }
-    if let Some(authority) = &value.authority {
-        crate::owner_amendment::authority_fits(authority, limits)?;
-    }
-    if let Some(dependencies) = &value.dependencies
-        && dependencies.capacity() > limits.rows
-    {
-        return None;
-    }
-    text_fits(&value.reason, limits)
-}
-fn proposal_fits(proposal: &OwnerProposalHistory, limits: &Limits) -> Option<()> {
-    match &proposal.state {
-        OwnerProposalHistoryState::Rejected { reason, .. } => text_fits(reason, limits)?,
-        OwnerProposalHistoryState::Pending { .. }
-        | OwnerProposalHistoryState::Accepted { .. }
-        | OwnerProposalHistoryState::Withdrawn => {}
-    }
-    match &proposal.action {
-        OwnerRetainedAction::Settings(_) => return None,
-        OwnerRetainedAction::Batch(tasks) => {
-            if tasks.capacity() > limits.rows {
-                return None;
-            }
-            for task in tasks {
-                proposed_fits(task, limits)?;
-            }
-        }
-        OwnerRetainedAction::Effect { part, authority, .. }
-        | OwnerRetainedAction::ProcedureEffect { part, authority, .. } => {
-            crate::owner_chip::part_fits(part, limits)?;
-            crate::owner_amendment::authority_fits(authority, limits)?;
-        }
-        OwnerRetainedAction::Amend { change, .. } => amendment_fits(change, limits)?,
-        OwnerRetainedAction::Widen { authority, .. } => crate::owner_amendment::authority_fits(authority, limits)?,
-        OwnerRetainedAction::Release { .. } => {}
-    }
-    Some(())
-}
-/// Validate every supplied nested text and allocated capacity before rendering.
-#[must_use]
-pub fn required(value: &OwnerHistoryLine, limits: &Limits, words: &Words) -> Option<HistoryFragment> {
-    text_fits(&value.reason, limits)?;
-    if let Some((before, after)) = &value.amendment {
-        crate::owner_amendment::required(before, limits, words)?;
-        crate::owner_amendment::required(after, limits, words)?;
-    }
-    if let Some(proposal) = &value.proposal {
-        proposal_fits(proposal, limits)?;
-    }
-    fragment_bound(limits, words)
-}
-/// Validate a retained proposal without requiring a surrounding history line.
-#[must_use]
-pub fn proposal_required(proposal: &OwnerProposalHistory, limits: &Limits, words: &Words) -> Option<HistoryFragment> {
-    proposal_fits(proposal, limits)?;
-    proposal_fragment_bound(limits, words)
-}
 /// Conservative retained-proposal bound, including the whole history envelope's spare allowance.
 #[must_use]
 pub fn proposal_max_nodes(limits: &Limits) -> Option<u32> {
     max_nodes(limits)
-}
-/// Conservative whole-history storage envelope for the passive proposal subset.
-#[must_use]
-pub fn proposal_fragment_bound(limits: &Limits, words: &Words) -> Option<HistoryFragment> {
-    fragment_bound(limits, words)
 }
 /// Finite whole-node envelope reused by bounded history pages.
 #[must_use]
@@ -167,22 +31,6 @@ pub fn max_nodes(limits: &Limits) -> Option<u32> {
         .checked_add(30)?;
     let effect = crate::proposed_task::part_nodes(limits)?.checked_add(authority)?.checked_add(8)?;
     100_u32.checked_add(amendment.checked_mul(2)?)?.checked_add(batch.max(delta).max(effect))
-}
-/// Finite nested envelope; raw reference bindings never acquire an application scope.
-#[must_use]
-pub fn fragment_bound(limits: &Limits, words: &Words) -> Option<HistoryFragment> {
-    let nodes = max_nodes(limits)?;
-    let phrase = words.jig_capacity()?;
-    let text_per_node = crate::literal_segment::max_bytes(limits.text)?.max(phrase).checked_mul(2)?;
-    let bindings = limits.rows.checked_mul(limits.rows.checked_add(1)?)?.max(1);
-    Some(HistoryFragment {
-        nodes,
-        text_bytes: nodes.checked_mul(text_per_node)?,
-        text_per_node,
-        depth: 16,
-        bindings,
-        slots: bindings,
-    })
 }
 fn saying(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
     let value =

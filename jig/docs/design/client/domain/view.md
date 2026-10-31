@@ -262,9 +262,9 @@ said in words, never by a state (section 9). What of the tree is jig's:
 Each takes skein-ui's builder, the reference UI's state, the client,
 jig's words and jig's bindings (`b, ui, client, words, bindings`), and
 what its line names; each builds the regions and landmarks pages.md,
-section 12, names for it, with their region names, and each has a
-companion that counts the most nodes it may build (section 10). Each is
-a primitive: the application calls it where it likes, or not at all.
+section 12, names for it, with their region names, and each is counted
+in its page's companion (section 10). Each is a primitive: the application
+calls it where it likes, or not at all.
 
 - **The frame's parts** (`frame`, pages.md, 12.1): `link`, `needs`,
   `party`, `projects` and `go_to_task`, each a region the application
@@ -458,15 +458,14 @@ tests feed it agents' replies and results kept as files beside them.
 jig's are the constructors that derive the numbers from the reference
 UI's limits (18.9) and the client's (client.md,
 section 14) (`jig_client_view::limits::of`, `compose`, `of_words` and
-`envelope`, each returning `skein_ui::Limits`). A part's
-`fragment_bound` counts its largest fragment's nodes, labels and bytes
-at the receiving limits. These envelopes size the tree's edges; they
-do not sum a process's heap.
+`envelope`, each returning `skein_ui::Limits`). These limits size the
+tree's edges; they do not sum a process's heap.
 
-Each of jig's parts, sections and pages has a companion that counts the
-most nodes it may build with every window full and every text at its
-most bytes, and the largest page is the tree's capacity. A node's text
-holds at least the phrase before a path, the mark and one segment at its
+Each of jig's pages has a companion in `sizes` that counts the most nodes
+it may build, its parts and sections included, with every window full
+and every text at its most bytes, and the largest page is the tree's
+capacity. A node's text holds at least the phrase before a path, the mark
+and one segment at its
 most bytes, so a path's node stays within it whatever its segments
 (section 7), and the client's bound on a path's segments adds nothing to
 the tree's limits. An authority's list shows at most the rows per

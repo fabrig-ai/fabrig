@@ -1,5 +1,5 @@
 //! Closed immutable-history sayings (client/domain/view.md, 7).
-//! IDs7600..7655 belong to this additive fragment, independent of request editing.
+//! Phrase IDs 7600..7655 name history facts, independent of request editing.
 use crate::Owner;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};

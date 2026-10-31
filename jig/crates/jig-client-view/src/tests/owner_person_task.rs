@@ -98,7 +98,7 @@ fn limits(words: &Words) -> Limits {
     limits_for(&client_limits(), words)
 }
 fn limits_for(client: &crate::Limits, words: &Words) -> Limits {
-    let f = view::fragment_bound(client, words).unwrap();
+    let f = crate::tests::render_limits(client, words).unwrap();
     Limits {
         nodes: f.nodes,
         depth: f.depth,
@@ -171,7 +171,6 @@ fn person_owner_view_retains_ordered_missing_links_full_results_and_independent_
         });
     assert!(positions.windows(2).all(|pair| pair[0] < pair[1]));
     assert_eq!(value, unchanged);
-    assert!(view::required(&value, &client_limits(), w).is_some());
 }
 #[test]
 fn person_owner_card_and_confirmation_show_numeric_rules_and_disable_field_bearing_choices() {
@@ -391,9 +390,6 @@ fn person_storage_dimension(selected_dimension: Option<usize>) {
     let untouched = value.clone();
     if selected_dimension == Some(5) {
         assert_eq!(view::max_nodes(&crate::Limits { rows: u32::MAX, ..client_limits() }), None);
-        let mut over = value.clone();
-        over.results = List::with_capacity(9);
-        assert!(view::required(&over, &client_limits(), &w).is_none());
         assert_eq!(value, untouched);
         let mut bad = owner_person_task_words::language();
         bad.phrases[1].forms[0].segments = Box::new([Segment::Text(copy_of(b"missing number"))]);
@@ -402,9 +398,6 @@ fn person_storage_dimension(selected_dimension: Option<usize>) {
             Some(Invalid::Holes { id: PersonPhrase::Party.id() })
         );
         return;
-    }
-    if selected_dimension.is_none() {
-        assert!(view::required(&value, &l, &w).is_some());
     }
     let maximum = limits_for(&l, &w);
     let tree = build(&value, &w, maximum);
@@ -487,7 +480,7 @@ fn person_owner_view_admits_closed_offer_capacity_without_expanding_shown_result
     }
     value.results.get_mut(0).unwrap().result.as_mut().unwrap().acts = List::with_capacity(MAX_OFFERED_ACTS);
     let original = value.clone();
-    assert!(view::required(&value, &l, w).is_some());
+
     let (domain, id) =
         super::cards_objects::loaded(ObjectKey::PersonTask(8), ReadValue::OwnerPersonTask(Box::new(value.clone())));
     // Price this single enclosing card with the shared card bound.
@@ -505,20 +498,6 @@ fn person_owner_view_admits_closed_offer_capacity_without_expanding_shown_result
     let tree = builder.finish();
     assert!(tree.len() <= crate::card_nodes(&l).unwrap() + 1);
     super::cards_access::check(&tree);
-    for outer in [false, true] {
-        let mut oversized = value.clone();
-        let cap = MAX_OFFERED_ACTS.checked_add(1).unwrap();
-        if outer {
-            oversized.acts = List::with_capacity(cap);
-        } else {
-            oversized.results.get_mut(0).unwrap().result.as_mut().unwrap().acts = List::with_capacity(cap);
-        }
-        let unchanged = oversized.clone();
-        assert!(view::required(&oversized, &l, w).is_none());
-        assert_eq!(oversized, unchanged);
-    }
-    value.results = List::with_capacity(l.rows + 1);
-    assert!(view::required(&value, &l, w).is_none());
     assert_eq!(original.acts.capacity(), MAX_OFFERED_ACTS);
     assert!(MAX_OFFERED_ACTS > l.rows);
 }

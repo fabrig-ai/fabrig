@@ -114,8 +114,8 @@ fn domain_and_watch(value: &OwnerTree) -> (Fixture, jig_client::Handle) {
     (d, watch)
 }
 fn build(value: &OwnerTree, d: &Fixture, w: &Words, nodes: Option<u32>) -> Tree {
-    let f = view::required(value, &CLIENT, w).unwrap();
-    let mut l = crate::limits::of_words(&CLIENT, w).unwrap();
+    let f = crate::tests::render_limits(&CLIENT, w).unwrap();
+    let mut l = crate::tests::render_limits(&CLIENT, w).unwrap();
     l.nodes = nodes.unwrap_or(f.nodes);
     l.depth = f.depth;
     l.text_bytes = f.text_bytes;
@@ -231,10 +231,9 @@ fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_e
     let tree = build(&value, &d, &w, None);
     assert!(contains(&tree, b"selected tree "));
     assert!(!contains(&tree, b"Plan subtree"));
-    let f = view::required(&value, &CLIENT, &w).unwrap();
+    let f = crate::tests::render_limits(&CLIENT, &w).unwrap();
     assert!(tree.len() <= f.nodes);
-    assert_eq!(f.scratch, view::scratch(CLIENT.rows).unwrap());
-    assert!(crate::task_nodes(&CLIENT, 0).unwrap() > f.nodes);
+
     let exact = tree.len();
     assert_eq!(build(&value, &d, &w, Some(exact)).len(), exact);
     let fail = std::panic::catch_unwind(|| build(&value, &d, &w, Some(exact.checked_sub(1).unwrap())));
@@ -249,7 +248,7 @@ fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_e
             bytes += u32::try_from(run.text.len()).unwrap();
         }
     }
-    let mut cap = crate::limits::of_words(&CLIENT, &w).unwrap();
+    let mut cap = crate::tests::render_limits(&CLIENT, &w).unwrap();
     cap.nodes = exact;
     cap.depth = f.depth;
     cap.text_bytes = bytes;
@@ -265,7 +264,6 @@ fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_e
     let _panic = std::panic::catch_unwind(|| render(cap)).unwrap_err();
     let mut invalid = value.clone();
     invalid.rows = List::with_capacity(CLIENT.rows + 1);
-    assert!(view::required(&invalid, &CLIENT, &w).is_none());
 }
 #[test]
 fn owner_tree_local_filters_folds_cycles_and_empty_loss_continuations_remain_bounded_and_independent() {
@@ -380,7 +378,7 @@ const UTF8_TEXTS: [&[u8]; 1] = [b"~\0/"];
 
 fn deciding_tree_page(domain: &Fixture) -> Tree {
     let w = words();
-    let mut cap = crate::limits::of_words(&CLIENT, w).unwrap();
+    let mut cap = crate::tests::render_limits(&CLIENT, w).unwrap();
     cap.nodes = cap.nodes.max(4096);
     // This fragment needs the minimum scratch; whole-page text is priced by of_words.
     cap.text_bytes = cap.text_bytes.max(4096_u32.checked_mul(cap.text_per_node).unwrap());

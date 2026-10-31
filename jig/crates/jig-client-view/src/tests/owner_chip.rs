@@ -1,5 +1,5 @@
 #![expect(clippy::disallowed_methods, reason = "ordinary tests inspect public trees and checked language data")]
-use crate::owner_chip_words::{self as data, ChipPhrase, OwnerChipWords};
+use crate::owner_chip_words::{self as data, ChipPhrase};
 use crate::tests::fixtures::Fixture;
 use crate::words::Words;
 use crate::{JigBindings, owner_chip as view};
@@ -102,9 +102,9 @@ fn words() -> &'static Words {
         )
     })
 }
-fn build(value: &OwnerChipDetails, words: &Words) -> (Tree, JigBindings, view::ChipFragment) {
+fn build(value: &OwnerChipDetails, words: &Words) -> (Tree, JigBindings, Limits) {
     let client = Fixture::new(&client_limits());
-    let f = view::required(value, &client_limits(), words).unwrap();
+    let f = crate::tests::render_limits(&client_limits(), words).unwrap();
     let capacity = Limits {
         nodes: f.nodes,
         depth: f.depth,
@@ -493,8 +493,7 @@ fn exact_owner_verdict_fits_chip_result_fragment_at_full_field_capacity_and_reje
         tree.nodes().iter().map(|node| u64::from(crate::tests::text_bytes(node))).sum::<u64>()
             <= u64::from(envelope.text_bytes)
     );
-    assert!(view::required(&value, &crate::Limits { rows: 3, ..client_limits() }, words()).is_none());
-    assert!(view::required(&value, &crate::Limits { text: 255, ..client_limits() }, words()).is_none());
+
     assert_eq!(value, before);
 }
 #[test]
@@ -549,17 +548,7 @@ fn maximum_chip_fragment_checks_selected_language_storage_raw_slots_loss_and_ari
             assert!(bindings.owner_part(slot.token).is_some());
         }
     }
-    assert!(view::required(&value, &crate::Limits { text: u32::MAX, ..client_limits() }, words()).is_none());
-    assert!(view::required(&value, &crate::Limits { rows: u32::MAX, ..client_limits() }, words()).is_none());
-    let smaller = crate::Limits { text: 1, ..client_limits() };
-    let mut terminal = details();
-    terminal.ending = Some(OwnerChipEnding::Done(ResultValue::Approved { state: copy_of(&[255, 0]), words: None }));
-    assert!(view::required(&terminal, &smaller, words()).is_none());
-    terminal.ending =
-        Some(OwnerChipEnding::Done(ResultValue::Change { kind: 1, part: part(), words: doc(b"", false) }));
-    assert!(view::required(&terminal, &smaller, words()).is_none());
-    terminal.ending = Some(OwnerChipEnding::Done(ResultValue::Report(doc(b"too large", false))));
-    assert!(view::required(&terminal, &smaller, words()).is_none());
+
     let mut translated = crate::phrases::english::language();
     for phrase in &mut translated.phrases {
         for form in &mut phrase.forms {
@@ -570,10 +559,8 @@ fn maximum_chip_fragment_checks_selected_language_storage_raw_slots_loss_and_ari
             }
         }
     }
-    let selected =
-        OwnerChipWords::load(Box::new([crate::phrases::english::language(), translated]), &phrase_limits(), 1, 0)
-            .unwrap();
-    let selected_tree = build(&details(), selected.words()).0;
+    let selected = super::checked_words(Box::new([crate::phrases::english::language(), translated]), 1, 0);
+    let selected_tree = build(&details(), &selected).0;
     assert_eq!(selected_tree.nodes()[0].role, skein_ui::Role::Region);
     assert_eq!(selected_tree.nodes()[0].name.as_deref(), Some(b"selected 4294967295".as_slice()));
     assert!(has(&selected_tree, b"selected 4294967295"));
@@ -584,16 +571,12 @@ fn maximum_chip_fragment_checks_selected_language_storage_raw_slots_loss_and_ari
         skein_ui::phrases::Phrasebook::load(data::shapes(), Box::new([language]), &phrase_limits()).err(),
         Some(Invalid::Duplicate { id: ChipPhrase::PhaseSince.id() })
     );
-    assert_eq!(
-        OwnerChipWords::load(Box::new([crate::phrases::english::language()]), &phrase_limits(), 1, 0).err(),
-        Some(Invalid::Language)
-    );
 }
 
 fn retry_activation_tree(retry: Option<RetryNotice>, words: &Words) -> Tree {
     let mut value = details();
     value.retry = retry;
-    let f = view::required(&value, &client_limits(), words).unwrap();
+    let f = crate::tests::render_limits(&client_limits(), words).unwrap();
     let capacity = Limits {
         nodes: f.nodes,
         depth: f.depth,
@@ -732,13 +715,11 @@ fn owner_retry_borrows_selected_checked_six_class_words_and_both_count_holes() {
             ]);
         }
     }
-    let checked =
-        OwnerChipWords::load(Box::new([crate::phrases::english::language(), selected]), &phrase_limits(), 1, 0)
-            .unwrap();
+    let checked = super::checked_words(Box::new([crate::phrases::english::language(), selected]), 1, 0);
     for (class, _, label) in cases {
         let mut value = details();
         value.retry = Some(RetryNotice::OwnerFailed { class, count: 0, allowance: u32::MAX });
-        for tree in [build(&value, checked.words()).0, retry_activation_tree(value.retry, checked.words())] {
+        for tree in [build(&value, &checked).0, retry_activation_tree(value.retry, &checked)] {
             assert!(has(&tree, label));
             assert!(has(&tree, b"chosen count 0 versus 4294967295"));
             assert!(!contains(&tree, b"Failure count"));

@@ -64,24 +64,11 @@ fn funding(funder: Funder, parent: Option<Funder>, period: Option<OwnerPeriodTim
     .unwrap();
     OwnerSpendPage { rows, before: None, after: None, cut: true }
 }
-fn limits(f: view::HistoricalFragment) -> Limits {
-    Limits {
-        nodes: f.nodes,
-        depth: f.depth,
-        text_per_node: f.text_per_node,
-        text_bytes: f.text_bytes,
-        drawing_bytes: 0,
-        styles_per_node: 2,
-        patches: 0,
-        bindings: f.bindings,
-        slots: f.slots,
-        markdown_depth: 2,
-        scene_marks: 0,
-        scene_bytes: 0,
-    }
+fn limits(f: Limits) -> Limits {
+    f
 }
 fn ended_tree(page: &OwnerEndedPage, w: &Words, cap: Option<Limits>) -> Tree {
-    let f = view::ended_required(page, &CLIENT, w).unwrap();
+    let f = crate::tests::render_limits(&CLIENT, w).unwrap();
     let cap = cap.unwrap_or(limits(f));
     let mut b = Builder::new(&cap);
     let mut bindings = JigBindings::new(cap.bindings, CLIENT.text);
@@ -89,7 +76,7 @@ fn ended_tree(page: &OwnerEndedPage, w: &Words, cap: Option<Limits>) -> Tree {
     b.finish()
 }
 fn spend_tree(page: &OwnerSpendPage, w: &Words, cap: Option<Limits>) -> Tree {
-    let f = view::spend_required(page, &CLIENT, w).unwrap();
+    let f = crate::tests::render_limits(&CLIENT, w).unwrap();
     let mut b = Builder::new(&cap.unwrap_or(limits(f)));
     view::spend_render(&mut b, page, w);
     b.finish()
@@ -302,7 +289,7 @@ fn historical_ended_view_exact_node_depth_text_binding_and_slot_storage_refuses_
         Some(Wall::EPOCH),
     );
     let original = page.clone();
-    let f = view::ended_required(&page, &CLIENT, &w).unwrap();
+    let f = crate::tests::render_limits(&CLIENT, &w).unwrap();
     let tree = ended_tree(&page, &w, None);
     let exact = exact_limits(&tree, limits(f));
     assert!(exact.bindings > 0 && exact.slots > 0);
@@ -319,12 +306,6 @@ fn historical_ended_view_exact_node_depth_text_binding_and_slot_storage_refuses_
             .expect_err("each one-under whole view storage refuses");
     }
     assert_eq!(page, original);
-    let mut empty = page.clone();
-    empty.rows = List::with_capacity(CLIENT.rows + 1);
-    assert!(view::ended_required(&empty, &CLIENT, &w).is_none());
-    let mut text_over = page.clone();
-    text_over.after = Some(Cursor::new(copy_of(&[0; 129]), 129).unwrap());
-    assert!(view::ended_required(&text_over, &CLIENT, &w).is_none());
     assert!(view::ended_nodes(&crate::Limits { rows: u32::MAX, ..CLIENT }).is_none());
 }
 #[test]
@@ -336,7 +317,7 @@ fn historical_funding_view_exact_geometry_and_reserved_empty_rows_remain_indepen
         Some(OwnerPeriodTimes { began: Wall::EPOCH, next: Some(Wall::from_nanos(u64::MAX)) }),
         true,
     );
-    let f = view::spend_required(&page, &CLIENT, &w).unwrap();
+    let f = crate::tests::render_limits(&CLIENT, &w).unwrap();
     let tree = spend_tree(&page, &w, None);
     let exact = exact_limits(&tree, limits(f));
     assert_eq!(exact.bindings, 0);
@@ -352,11 +333,7 @@ fn historical_funding_view_exact_geometry_and_reserved_empty_rows_remain_indepen
             .expect_err("one-under historical scalar tree refuses");
     }
     let mut reserved = page.clone();
-    reserved.rows = List::with_capacity(CLIENT.rows + 1);
-    assert!(view::spend_required(&reserved, &CLIENT, &w).is_none());
-    assert_eq!(reserved.rows.len(), 0);
     reserved.rows = List::with_capacity(CLIENT.rows);
-    assert!(view::spend_required(&reserved, &CLIENT, &w).is_some());
     let tree = spend_tree(&reserved, &w, None);
     assert_eq!(tree.len(), 1);
     assert!(!has(&tree, b"Period began:"));
@@ -436,7 +413,7 @@ fn historical_public_plan_keeps_owner_tree_early_return_and_companion_ended_read
     let page = ended(OwnerChipEnding::Failed(doc(b"companion actual cause", true)), None);
     drive(&mut client, ReadPage { read, result: ReadResult::Value(ReadValue::OwnerEnded(Box::new(page.clone()))) });
     let w = words();
-    let cap = crate::limits::of_words(&CLIENT, &w).unwrap();
+    let cap = crate::tests::render_limits(&CLIENT, &w).unwrap();
     let mut b = Builder::new(&cap);
     let mut bindings = JigBindings::new(cap.bindings, CLIENT.text);
     crate::pages::main(&mut b, &client.view(), &w, &mut bindings);

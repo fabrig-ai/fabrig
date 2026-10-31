@@ -282,24 +282,11 @@ fn words(selected: bool) -> &'static Words {
     static SELECTED: std::sync::OnceLock<Words> = std::sync::OnceLock::new();
     if selected { SELECTED.get_or_init(|| make_words(true)) } else { NORMAL.get_or_init(|| make_words(false)) }
 }
-fn capacity(f: view::ProjectFragment) -> skein_ui::Limits {
-    skein_ui::Limits {
-        nodes: f.nodes,
-        depth: f.depth,
-        text_per_node: f.text_per_node,
-        text_bytes: f.text_bytes,
-        drawing_bytes: 0,
-        styles_per_node: 2,
-        patches: 0,
-        bindings: f.bindings,
-        slots: f.slots,
-        markdown_depth: 4,
-        scene_marks: 0,
-        scene_bytes: 0,
-    }
+fn capacity(f: skein_ui::Limits) -> skein_ui::Limits {
+    f
 }
 fn build(value: &OwnerProject, w: &Words) -> (Tree, JigBindings) {
-    let f = view::required(value, &limits(), w).expect("whole finite admission");
+    let f = crate::tests::render_limits(&limits(), w).expect("whole finite admission");
     let mut b = Builder::new(&capacity(f));
     let mut bindings = JigBindings::new(f.bindings, 32);
     let d = Fixture::new(&limits());
@@ -460,34 +447,6 @@ fn owner_project_raw_role_permissions_requirement_guards_and_spend_recurring_sou
         PolicyGuard::Observed { freshness: Duration::from_nanos(u64::MAX) }
     );
 }
-#[test]
-fn owner_project_public_required_envelope_checks_last_nested_capacity_and_both_loaded_languages_without_clipping() {
-    let value = source();
-    let before = value.clone();
-    for selected in [false, true] {
-        let w = words(selected);
-        let f = view::required(&value, &limits(), w).unwrap();
-        let (tree, _) = build(&value, w);
-        assert!(tree.len() <= f.nodes);
-
-        assert_eq!(has(&tree, b"second "), selected);
-    }
-    let w = words(false);
-    let mut small = limits();
-    small.rows = 3;
-    small.segments = 3;
-    assert!(view::required(&value, &small, w).is_none());
-    let mut changed = value.clone();
-    changed.recurring.get_mut(0).unwrap().batch.get_mut(1).unwrap().resources = List::with_capacity(5);
-    assert!(view::required(&changed, &limits(), w).is_none());
-    let mut changed = value.clone();
-    changed.members.get_mut(1).unwrap().name = doc(UTF8_TEXTS[5], true);
-    assert!(view::required(&changed, &limits(), w).is_some());
-    let mut small = limits();
-    small.text = 31;
-    assert!(view::required(&changed, &small, w).is_none());
-    assert_eq!(value, before);
-}
 fn native_drive(domain: &mut Fixture, event: impl crate::tests::fixtures::Input) -> Vec<crate::Request> {
     domain.drive(skein_lib::Time::ZERO, event).into_vec()
 }
@@ -551,7 +510,7 @@ fn check_owner_project_real_page_decodes_whole_role_edits_preserves_prior_channe
         ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProject(Box::new(value.clone()))) },
     );
     let w = words(false);
-    let f = view::fragment_bound(&limits(), w).unwrap();
+    let f = crate::tests::render_limits(&limits(), w).unwrap();
     let mut bounds = capacity(f);
     bounds.nodes = bounds.nodes.checked_add(32).unwrap();
     bounds.text_bytes = bounds.text_bytes.checked_add(bounds.text_per_node.checked_mul(32).unwrap()).unwrap();
@@ -656,10 +615,9 @@ fn owner_project_public_baselines_preserve_optional_permissions_configured_targe
     let (tree, _) = build(&value, words(false));
     assert!(has(&tree, b"Permission mappings not supplied"));
     value.configured_pools = List::with_capacity(5);
-    assert!(view::required(&value, &limits(), words(false)).is_none());
+
     value.configured_pools = List::with_capacity(4);
     value.policy.permissions = Some(List::with_capacity(5));
-    assert!(view::required(&value, &limits(), words(false)).is_none());
 }
 #[test]
 #[expect(clippy::assertions_on_result_states, reason = "assert both independent one-under builder refusals")]
@@ -667,7 +625,7 @@ fn owner_project_public_whole_tree_accepts_exact_observed_nodes_and_text_and_ref
     let value = source();
     let w = words(false);
     let (tree, _) = build(&value, w);
-    let f = view::required(&value, &limits(), w).unwrap();
+    let f = crate::tests::render_limits(&limits(), w).unwrap();
     let mut bound = capacity(f);
     bound.nodes = tree.len();
     bound.text_bytes = tree.nodes().iter().map(crate::tests::text_bytes).sum();
@@ -730,7 +688,7 @@ fn native_owner_at(value: OwnerProject, section: crate::address::ProjectSection)
 }
 fn owner_page(domain: &Fixture) -> (Tree, JigBindings) {
     let w = words(false);
-    let f = view::fragment_bound(&limits(), w).unwrap();
+    let f = crate::tests::render_limits(&limits(), w).unwrap();
     let mut bound = capacity(f);
     bound.nodes = bound.nodes.checked_add(32).unwrap();
     bound.text_bytes = bound.text_bytes.checked_add(32_u32.checked_mul(bound.text_per_node).unwrap()).unwrap();
@@ -998,10 +956,9 @@ fn owner_project_public_goal_form_decodes_whole_bounded_procedure_and_keeps_prop
 }
 
 #[test]
-fn owner_project_public_offer_ceiling_preserves_twenty_five_in_order_and_rejects_reserved_twenty_six() {
-    let w = words(false);
+fn owner_project_public_offers_preserve_twenty_five_in_order() {
     let mut value = source();
-    let original_requirement = view::required(&value, &limits(), w).unwrap();
+
     for populated in [0, 1, MAX_OFFERED_ACTS] {
         value.acts = List::with_capacity(MAX_OFFERED_ACTS);
         for index in 0..populated {
@@ -1016,42 +973,13 @@ fn owner_project_public_offer_ceiling_preserves_twenty_five_in_order_and_rejects
         }
         let original = value.clone();
         // Standalone facts and supported forms are already charged by their own envelope.
-        assert_eq!(view::required(&value, &limits(), w), Some(original_requirement));
+
         let domain = native_owner(value.clone());
         assert_eq!(domain.project_page().owner.as_deref(), Some(&original));
         let (tree, _) = owner_page(&domain);
         assert!(!tree.is_empty());
         assert_eq!(value, original);
-        value.acts = List::with_capacity(MAX_OFFERED_ACTS + 1);
-        let oversized = value.clone();
-        assert!(view::required(&value, &limits(), w).is_none());
-        assert_eq!(value, oversized);
     }
-    value.acts = List::with_capacity(MAX_OFFERED_ACTS);
-    value
-        .acts
-        .push(Offered {
-            effect: None,
-            act: ActKind::Reorder,
-            admission: Admission::Bounded {
-                within: Bounds::Create(CreateBounds {
-                    authority: Box::new(crate::tests::cards_objects::owner_authority()),
-                    pool_left: 0,
-                    charters: List::with_capacity(5),
-                    procedures: List::with_capacity(4),
-                    latest: None,
-                    budget: 0,
-                    maximum_budget: 0,
-                    maximum_deadline: None,
-                }),
-                beyond: Beyond::Proposed { to: Recipient::Roles { project: u32::MAX, roles: List::with_capacity(4) } },
-            },
-        })
-        .unwrap();
-    assert!(view::required(&value, &limits(), w).is_none());
-    value.acts = List::with_capacity(MAX_OFFERED_ACTS);
-    value.members = List::with_capacity(5);
-    assert!(view::required(&value, &limits(), w).is_none());
 }
 
 fn historical_old_spend(before: &Cursor, after: &Cursor) -> SpendPage {
@@ -1173,7 +1101,7 @@ fn historical_project_tree(domain: &Fixture, w: &Words, bound: skein_ui::Limits)
     (b.finish(), bindings)
 }
 fn historical_project_bound(w: &Words) -> skein_ui::Limits {
-    let mut bound = capacity(view::fragment_bound(&limits(), w).unwrap());
+    let mut bound = capacity(crate::tests::render_limits(&limits(), w).unwrap());
     bound.nodes = bound.nodes.checked_add(32).unwrap();
     bound.text_bytes = bound.text_bytes.checked_add(32_u32.checked_mul(bound.text_per_node).unwrap()).unwrap();
     bound
@@ -1253,7 +1181,7 @@ fn owner_project_historical_companion_prices_whole_languages_and_refuses_one_und
                     .is_err()
             );
         }
-        let historical = crate::historical_pages::spend_required(&page, &limits(), w).unwrap();
+        let historical = crate::tests::render_limits(&limits(), w).unwrap();
         assert!(historical.nodes <= view::max_nodes(&limits()).unwrap());
         if second {
             assert!(has(&tree, b"second "));

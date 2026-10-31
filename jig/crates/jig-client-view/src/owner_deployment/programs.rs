@@ -1,6 +1,5 @@
 //! Program observations are content in the existing deployment host row.
 use super::{P, Words, list, text};
-use crate::Limits;
 use crate::owner_deployment_words::ProgramPhrase as G;
 use jig_client::contract::{OwnerProgramFailure as F, OwnerProgramLogin, OwnerProgramSignOut, OwnerProgramState};
 use skein_lib::List;
@@ -67,36 +66,4 @@ pub(super) fn render(b: &mut Builder, words: &Words, rows: &List<OwnerProgramLog
         b.close();
     }
     b.close();
-}
-pub(super) fn fits(rows: &List<OwnerProgramLogin>, limits: &Limits) -> Option<()> {
-    if rows.capacity() > limits.rows {
-        return None;
-    }
-    for row in rows {
-        if !jig_client::contract::valid_program_name(&row.name) {
-            return None;
-        }
-        match &row.state {
-            Some(OwnerProgramState::SignedInOtherwise { method }) => {
-                if !jig_client::contract::valid_program_method(method) {
-                    return None;
-                }
-            }
-            Some(OwnerProgramState::Failed { detail, .. }) => {
-                if detail.len() > usize::try_from(limits.text).ok()? {
-                    return None;
-                }
-            }
-            None | Some(OwnerProgramState::Usable | OwnerProgramState::NotSignedIn) => {}
-        }
-        match &row.sign_out {
-            Some(OwnerProgramSignOut::Failed { detail, .. }) => {
-                if detail.len() > usize::try_from(limits.text).ok()? {
-                    return None;
-                }
-            }
-            None | Some(OwnerProgramSignOut::SignedOut) => {}
-        }
-    }
-    Some(())
 }

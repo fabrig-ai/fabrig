@@ -1,5 +1,5 @@
 //! Closed amendment-state sayings (client/domain/view.md, 7).
-//! IDs7100..7110 belong to this additive fragment, independent of request editing.
+//! Phrase IDs 7100..7110 name amendment facts, independent of request editing.
 use crate::Owner;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};

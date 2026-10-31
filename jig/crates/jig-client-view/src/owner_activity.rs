@@ -6,115 +6,11 @@ use crate::words::Words;
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
-use crate::Limits;
 use jig_client::contract::{
     HoldFailure, OwnerActivity, OwnerActivityLine, OwnerFailureTries, OwnerMessageKind, OwnerMessageProposalKind,
-    OwnerNewsClass, OwnerNoticeState, OwnerRequester, OwnerRunEnd, OwnerRunWhy, OwnerWord, OwnerWordResult, Text,
+    OwnerNewsClass, OwnerNoticeState, OwnerRequester, OwnerRunEnd, OwnerRunWhy, OwnerWord, OwnerWordResult,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ActivityFragment {
-    pub nodes: u32,
-    pub text_bytes: u32,
-    pub text_per_node: u32,
-    pub depth: u32,
-    pub bindings: u32,
-    pub slots: u32,
-}
-fn result_fits(result: &OwnerWordResult, words: &Text, limits: &Limits) -> Option<()> {
-    match result {
-        OwnerWordResult::Approved { state, words_present } => {
-            if !state.fits(limits.text) || !words_present && !words.bytes().is_empty() {
-                return None;
-            }
-        }
-        OwnerWordResult::Verdict { fields, .. } => {
-            if fields.capacity() > limits.rows {
-                return None;
-            }
-            for field in fields {
-                if u32::try_from(field.name.len()).ok()? > limits.text
-                    || u32::try_from(field.value.len()).ok()? > limits.text
-                {
-                    return None;
-                }
-            }
-        }
-        OwnerWordResult::Report
-        | OwnerWordResult::Change { .. }
-        | OwnerWordResult::Failed
-        | OwnerWordResult::Cancelled => {}
-    }
-    Some(())
-}
-fn message_fits(kind: &OwnerMessageKind, words: &Text, limits: &Limits) -> Option<()> {
-    if !words.fits(limits.text) {
-        return None;
-    }
-    match kind {
-        OwnerMessageKind::Result(result) => result_fits(result, words, limits)?,
-        OwnerMessageKind::Escalation { .. }
-        | OwnerMessageKind::Proposal { .. }
-        | OwnerMessageKind::PersonStalled { .. }
-        | OwnerMessageKind::SettingsDecision { .. }
-        | OwnerMessageKind::ProposalDecision { .. }
-        | OwnerMessageKind::Words
-        | OwnerMessageKind::EffectNotMade { .. }
-        | OwnerMessageKind::Met { .. }
-        | OwnerMessageKind::QuestionAnswered { .. }
-        | OwnerMessageKind::QuestionOwed
-        | OwnerMessageKind::QuestionEnded { .. }
-        | OwnerMessageKind::Amendment { .. }
-        | OwnerMessageKind::Question
-        | OwnerMessageKind::Answer { .. }
-        | OwnerMessageKind::Notice { .. }
-        | OwnerMessageKind::Timer { .. }
-        | OwnerMessageKind::News { .. } => {}
-    }
-    Some(())
-}
-/// Whole message envelope, refusing every nested excess and invalid Approved presence.
-#[must_use]
-pub fn word_required(value: &OwnerWord, limits: &Limits, words: &Words) -> Option<ActivityFragment> {
-    message_fits(&value.kind, &value.words, limits)?;
-    fragment_bound(limits, words)
-}
-/// Whole activity envelope. Text and field arrays are never shortened to fit.
-#[must_use]
-pub fn required(value: &OwnerActivityLine, limits: &Limits, words: &Words) -> Option<ActivityFragment> {
-    match &value.line {
-        OwnerActivity::Words { kind, words, .. } => message_fits(kind, words, limits)?,
-        OwnerActivity::Heard(word) | OwnerActivity::Notified { word, .. } => {
-            message_fits(&word.kind, &word.words, limits)?;
-        }
-        OwnerActivity::Kept { pending, .. } => {
-            if pending.capacity() > limits.rows {
-                return None;
-            }
-        }
-        OwnerActivity::RunBegan { .. }
-        | OwnerActivity::RunEnded { .. }
-        | OwnerActivity::Turn { .. }
-        | OwnerActivity::Decided { .. }
-        | OwnerActivity::Milestone { .. } => {}
-    }
-    fragment_bound(limits, words)
-}
-/// Finite standalone envelope includes every field label, opaque byte and region name.
-#[must_use]
-pub fn fragment_bound(limits: &Limits, words: &Words) -> Option<ActivityFragment> {
-    let nodes = 100_u32.checked_add(limits.rows.checked_mul(4)?)?;
-    let saying = words.jig_capacity()?;
-    let text_per_node = crate::literal_segment::max_bytes(limits.text)?.max(saying);
-    Some(ActivityFragment {
-        nodes,
-        text_bytes: nodes.checked_mul(text_per_node)?,
-        text_per_node,
-        depth: 4,
-        bindings: 0,
-        slots: 0,
-    })
-}
 fn say(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
     let value =
         words.book().say(words.language(), phrase.id(), holes).expect("checked source activity sayings and holes");

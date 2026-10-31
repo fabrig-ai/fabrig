@@ -108,3 +108,37 @@ fn english_phrase_segments(languages: u32) -> u32 {
     }
     segments.checked_mul(languages).expect("loaded fixture languages fit u32")
 }
+
+fn checked_words(
+    languages: Box<[skein_ui::phrases::Language]>,
+    language: u16,
+    offset_minutes: i32,
+) -> crate::words::Words {
+    let limits = skein_ui::phrases::PhraseLimits {
+        languages: u16::try_from(languages.len()).unwrap(),
+        phrases: crate::owner_words::phrase_count(),
+        holes: 4,
+        segments: 20_000,
+        text_bytes: 200_000,
+        hole_bytes: 4096,
+    };
+    let book = skein_ui::phrases::Phrasebook::load(crate::phrases::jig::shapes(4096), languages, &limits).unwrap();
+    crate::words::Words::new(book, language, offset_minutes)
+}
+fn english_words() -> crate::words::Words {
+    let mut english = crate::phrases::english::language();
+    english.wall = skein_ui::phrases::WallFormat::Nanos;
+    english.span_unit = skein_ui::phrases::SpanUnit::Nanos;
+    checked_words(Box::new([english]), 0, 0)
+}
+
+// These rendering fixtures reserve their storage, as an application's world does.
+fn render_limits(client: &crate::Limits, words: &crate::words::Words) -> Option<skein_ui::Limits> {
+    let mut limits =
+        crate::limits::envelope(client, words.jig_capacity()?, &crate::page::Arrangement::none(), 0, 0, 0)?;
+    limits.nodes = 16_384;
+    limits.text_bytes = 16_777_216;
+    limits.bindings = 16_384;
+    limits.slots = 16_384;
+    Some(limits)
+}

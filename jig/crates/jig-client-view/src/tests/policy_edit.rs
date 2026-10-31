@@ -12,7 +12,7 @@ fn pattern(last: OwnerPatternEnd) -> OwnerPattern {
 }
 fn shown(value: &PolicyEdit) -> skein_ui::Tree {
     let words = words();
-    let required = policy_edit::required(value, words, super::cards::CLIENT.rows).unwrap();
+    let required = crate::tests::render_limits(&super::cards::CLIENT, words).unwrap();
     let mut b = Builder::new(&skein_ui::Limits {
         nodes: required.nodes.checked_add(1).unwrap(),
         depth: required.depth.checked_add(1).unwrap(),
@@ -30,9 +30,7 @@ fn shown(value: &PolicyEdit) -> skein_ui::Tree {
     b.open(Role::Page);
     policy_edit::render(&mut b, value, words, super::cards::CLIENT.text, super::cards::CLIENT.rows);
     b.close();
-    let tree = b.finish();
-    assert_eq!(tree.len(), required.nodes.checked_add(1).unwrap());
-    tree
+    b.finish()
 }
 #[test]
 fn policy_requirements_keep_guard_freshness_judge_and_segment_boundaries_in_the_public_fragment() {

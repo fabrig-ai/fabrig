@@ -1,5 +1,5 @@
 //! Intents remain until the root table gives their one durable answer.
-//! Joining, progress and the terminal belong here; object policy is jig 21.
+//! Joining, progress and the terminal belong here; objects own their policies.
 //! See client/domain/client.md, 6, and client/domain/root.md, 11.
 use alloc::boxed::Box;
 use jig_client::contract::Ask;
@@ -172,8 +172,8 @@ impl Intents {
     }
 }
 
-/// A card policy's one send, joined by object and act. Jig 21 calls this after
-/// validating its confirmation and completes the durable card transition.
+/// A card policy's one send, joined by object and act. The policy validates
+/// its confirmation before completing the durable card transition.
 pub fn send_card(
     domain: &mut crate::Ui,
     object: ObjectKey,

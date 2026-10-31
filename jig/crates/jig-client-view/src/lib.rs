@@ -1,8 +1,6 @@
-//! Platform-neutral client trees (client/domain/view.md, sections 3 and 4).
-//!
-//! The builder owns preorder nodes and an open-parent stack. It knows no
-//! domain objects, platform elements or layout. Its calls assert the limits
-//! declared by the caller; `finish` requires every opened node to be closed.
+//! jig's optional reference UI on the public client (jig/docs/design/client/domain/view.md, 1).
+//! Holds presentation state, builds semantic trees and routes acts through bindings,
+//! with default pages composed from jig's parts on skein-ui.
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
