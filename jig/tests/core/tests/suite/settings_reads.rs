@@ -1,7 +1,8 @@
 //! A run's settings reads share party documents without recording a decision (engine.md, 7.3).
 
 use crate::settings_support as support;
-use jig_core_world::{effects::World, fixtures};
+use jig_core_world::fixtures;
+use jig_core_world::world::World;
 use jig_domain_core::{self as core, documents, reads, settings};
 use jig_domain_people as people;
 use support::*;

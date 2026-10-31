@@ -257,7 +257,7 @@ pub(super) mod tests {
     #[test]
     fn immutable_history_keeps_raw_proposer_stored_override_absence_and_independent_revisions_clocks_and_losses() {
         let mut source = source();
-        let copied = line(&source, &limits(), &[jig_core_world::world::scripted_model()]).expect("whole history");
+        let copied = line(&source, &limits(), &[jig_test_profile::scripted_model()]).expect("whole history");
         assert_eq!((copied.task, copied.revision, copied.at), (u64::MAX, 0, None));
         assert_eq!(copied.by, client::OwnerRequester::Deployment { project: u32::MAX });
         assert_eq!(copied.reason.bytes.bytes(), UTF8_TEXTS[0]);
@@ -290,14 +290,14 @@ pub(super) mod tests {
             reason: documents::Text { bytes: Box::new([]), cut: true },
         };
         let copied =
-            line(&source, &limits(), &[jig_core_world::world::scripted_model()]).expect("independent optional facts");
+            line(&source, &limits(), &[jig_test_profile::scripted_model()]).expect("independent optional facts");
         assert_eq!(copied.at, Some(Wall::EPOCH));
         assert_eq!(copied.amendment, None);
         assert!(
             matches!(copied.proposal.expect("proposal").state, client::OwnerProposalHistoryState::Rejected { by: client::OwnerRequester::Person(u64::MAX), reason } if reason.cut && reason.bytes.bytes().is_empty())
         );
         assert_eq!(
-            line(&source, &Limits { text: 1, turn_text: 1, ..limits() }, &[jig_core_world::world::scripted_model()]),
+            line(&source, &Limits { text: 1, turn_text: 1, ..limits() }, &[jig_test_profile::scripted_model()]),
             Err(owner::Invalid::TooLarge)
         );
     }
@@ -321,12 +321,10 @@ pub(super) mod tests {
         };
         let mut batch = List::with_capacity(6);
         batch.push(proposed).expect("one source task");
-        let client::OwnerRetainedAction::Batch(copied) = action(
-            &documents::RetainedAction::Batch(batch.clone()),
-            &limits(),
-            &[jig_core_world::world::scripted_model()],
-        )
-        .expect("whole batch") else {
+        let client::OwnerRetainedAction::Batch(copied) =
+            action(&documents::RetainedAction::Batch(batch.clone()), &limits(), &[jig_test_profile::scripted_model()])
+                .expect("whole batch")
+        else {
             panic!("batch")
         };
         assert_eq!((copied.capacity(), copied.len()), (6, 1));
@@ -339,7 +337,7 @@ pub(super) mod tests {
             action(
                 &documents::RetainedAction::Batch(batch),
                 &Limits { rows: 5, turn_text: limits().turn_text, ..limits() },
-                &[jig_core_world::world::scripted_model()]
+                &[jig_test_profile::scripted_model()]
             ),
             Err(owner::Invalid::TooLarge)
         );
@@ -358,7 +356,7 @@ pub(super) mod tests {
             purpose: u64::MAX,
         };
         assert!(
-            matches!(action(&effect, &limits(), &[jig_core_world::world::scripted_model()]).expect("whole raw effect"), client::OwnerRetainedAction::Effect { part, attempt: u64::MAX, completion: u32::MAX, position: 0, purpose: u64::MAX, .. } if part.connector == u16::MAX && part.kind == client::OwnerPartKind::Outbox && part.key == client::OwnerPartKey::Number(u64::MAX))
+            matches!(action(&effect, &limits(), &[jig_test_profile::scripted_model()]).expect("whole raw effect"), client::OwnerRetainedAction::Effect { part, attempt: u64::MAX, completion: u32::MAX, position: 0, purpose: u64::MAX, .. } if part.connector == u16::MAX && part.kind == client::OwnerPartKind::Outbox && part.key == client::OwnerPartKey::Number(u64::MAX))
         );
     }
     #[test]
@@ -378,7 +376,7 @@ pub(super) mod tests {
         let client::OwnerRetainedAction::Amend { task, change } = action(
             &documents::RetainedAction::Amend { task: u64::MAX, change: Box::new(change) },
             &limits(),
-            &[jig_core_world::world::scripted_model()],
+            &[jig_test_profile::scripted_model()],
         )
         .expect("whole selected delta") else {
             panic!("amend")
@@ -393,18 +391,14 @@ pub(super) mod tests {
             action(
                 &documents::RetainedAction::Widen { task: 0, authority: owner::tests::amendment_source().authority },
                 &limits(),
-                &[jig_core_world::world::scripted_model()]
+                &[jig_test_profile::scripted_model()]
             )
             .expect("widen"),
             client::OwnerRetainedAction::Widen { task: 0, .. }
         ));
         assert_eq!(
-            action(
-                &documents::RetainedAction::Release { task: 0 },
-                &limits(),
-                &[jig_core_world::world::scripted_model()]
-            )
-            .expect("release"),
+            action(&documents::RetainedAction::Release { task: 0 }, &limits(), &[jig_test_profile::scripted_model()])
+                .expect("release"),
             client::OwnerRetainedAction::Release { task: 0 }
         );
     }

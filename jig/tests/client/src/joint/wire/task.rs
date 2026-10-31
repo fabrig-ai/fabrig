@@ -274,7 +274,7 @@ pub(crate) mod tests {
             owner::authority(
                 &source.authority,
                 &super::super::rows::tests::limits(),
-                &[jig_core_world::world::scripted_model()]
+                &[jig_test_profile::scripted_model()]
             )
             .expect("whole source authority")
         );

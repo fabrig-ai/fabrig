@@ -1,5 +1,4 @@
 //! Decision opening gates stale listings when the start opens (engine.md, 6, 8).
-use jig_core_world::{fixtures, world};
 use jig_domain_core::{
     self as core,
     start::{Action, Phase, SweepInput},
@@ -34,7 +33,7 @@ fn listing(core: &mut core::Core, env: &Env<core::Limits>, worker: u32) -> Vec<(
             worker,
             channel,
             hello: fleet::Hello {
-                bounds: fixtures::bounds(),
+                bounds: jig_test_profile::fixtures::bounds(),
                 stop_bound: Duration::ZERO,
                 slots: 1,
                 workstreams: Box::new([]),
@@ -56,9 +55,9 @@ fn listing(core: &mut core::Core, env: &Env<core::Limits>, worker: u32) -> Vec<(
 #[test]
 fn stale_worker_listings_cancel_only_after_either_start_opens() {
     {
-        let mut limits = world::limits().core;
+        let mut limits = jig_test_profile::limits().core;
         limits.fleet.workers = 2;
-        let mut configured = world::config(301).core;
+        let mut configured = jig_test_profile::config(301).core;
         configured.worker_names = Box::new([Box::from(b"alpha".as_slice()), Box::from(b"beta".as_slice())]);
         let mut core = core::Core::new(configured, &limits).expect("configured core");
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };

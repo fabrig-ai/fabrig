@@ -470,7 +470,7 @@ mod tests {
 
     fn member(llm: client::LlmChoice) -> client::NewTask {
         let source = super::super::owner::tests::amendment_source();
-        let models = [jig_core_world::world::scripted_model()];
+        let models = [jig_test_profile::scripted_model()];
         let limits = super::super::rows::tests::limits();
         client::NewTask {
             executor: client::OwnerExecutor::Agent { charter: 1 },
@@ -511,7 +511,7 @@ mod tests {
             reason: text(b"choice"),
         };
         let people::Ask::Amend { amendment, .. } =
-            ask(&request, &[jig_core_world::world::scripted_model()]).expect("translated amendment")
+            ask(&request, &[jig_test_profile::scripted_model()]).expect("translated amendment")
         else {
             panic!("amendment")
         };
@@ -522,7 +522,7 @@ mod tests {
     fn creation_carries_the_chosen_llm() {
         let request = client::Ask::Create { project: 1, tasks: crate::test::list([member(chosen())]) };
         let people::Ask::Create { batch, .. } =
-            ask(&request, &[jig_core_world::world::scripted_model()]).expect("translated creation")
+            ask(&request, &[jig_test_profile::scripted_model()]).expect("translated creation")
         else {
             panic!("creation")
         };
@@ -583,7 +583,7 @@ mod tests {
         ];
         for (request, at) in cases {
             assert_eq!(
-                refused(&request, &[jig_core_world::world::scripted_model()]),
+                refused(&request, &[jig_test_profile::scripted_model()]),
                 Ok(Some(client::Answer::Refused {
                     refusal: client::Refusal::Llm { model: text(b"removed"), why: client::LlmWhy::Unconfigured },
                     at
@@ -673,7 +673,7 @@ mod tests {
         let limits =
             jig_client::DomainLimits { rows: 4, text: 128, turn_text: 128, ..crate::test::limits().client.domain };
         let authority =
-            super::super::owner::authority(&source.authority, &limits, &[jig_core_world::world::scripted_model()])
+            super::super::owner::authority(&source.authority, &limits, &[jig_test_profile::scripted_model()])
                 .expect("whole authority")
                 .authority;
         let wake = client::OwnerWakePolicy {

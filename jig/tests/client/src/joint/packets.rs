@@ -1008,7 +1008,7 @@ mod tests {
         };
         assert_eq!(actual, attempt);
         let family::Answer::Connector(answer) =
-            family::wire::decode_answer(&record.bytes, &jig_core_world::world::limits().connector)
+            family::wire::decode_answer(&record.bytes, &jig_test_profile::limits().connector)
                 .expect("whole application answer")
         else {
             panic!("connector answer")

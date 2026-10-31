@@ -53,7 +53,7 @@ fn project_read_retains_original_project_client_and_token_until_whole_native_adm
     assert_eq!(actual, native);
     assert_eq!(
         value.as_ref(),
-        &wire::projects::document(&original, &limits, &[jig_core_world::world::scripted_model()])
+        &wire::projects::document(&original, &limits, &[jig_test_profile::scripted_model()])
             .expect("complete authentic facts")
     );
     assert_eq!((value.number, value.configured_period), (u32::MAX, 0));

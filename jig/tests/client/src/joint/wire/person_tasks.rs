@@ -91,7 +91,7 @@ pub(crate) mod tests {
             ..super::super::rows::tests::limits()
         };
         let actual =
-            document(&source, &limits, &[jig_core_world::world::scripted_model()]).expect("whole pending person work");
+            document(&source, &limits, &[jig_test_profile::scripted_model()]).expect("whole pending person work");
         assert_eq!(actual.revision.value, u64::MAX);
         assert_eq!(actual.project(), Some(u32::MAX));
         assert_eq!(actual.requester, client::OwnerRequester::Deployment { project: 0 });
@@ -140,7 +140,7 @@ pub(crate) mod tests {
                     source.stall = present.then_some(Duration::ZERO);
                     source.deadline = present.then_some(Wall::EPOCH);
                     source.cut = false;
-                    let actual = document(&source, &limits, &[jig_core_world::world::scripted_model()])
+                    let actual = document(&source, &limits, &[jig_test_profile::scripted_model()])
                         .expect("whole independent optional facts");
                     assert_eq!(actual.requester, results::requester(requester));
                     assert_eq!(actual.address, chips::address(address));
@@ -163,9 +163,8 @@ pub(crate) mod tests {
             turn_text: super::super::rows::tests::limits().turn_text,
             ..super::super::rows::tests::limits()
         };
-        let value =
-            super::super::documents::person_task_read(&source, &limits, &[jig_core_world::world::scripted_model()])
-                .expect("whole read");
+        let value = super::super::documents::person_task_read(&source, &limits, &[jig_test_profile::scripted_model()])
+            .expect("whole read");
         let bounds = jig_client_scripted_engine::Bounds {
             text: limits.text,
             rows: limits.rows,
@@ -181,7 +180,7 @@ pub(crate) mod tests {
             super::super::documents::person_task_read(
                 &source,
                 &Limits { document_bytes: bytes, turn_text: limits.turn_text, ..limits },
-                &[jig_core_world::world::scripted_model()]
+                &[jig_test_profile::scripted_model()]
             ),
             Ok(value)
         );
@@ -189,7 +188,7 @@ pub(crate) mod tests {
             super::super::documents::person_task_read(
                 &source,
                 &Limits { document_bytes: bytes - 1, turn_text: limits.turn_text, ..limits },
-                &[jig_core_world::world::scripted_model()]
+                &[jig_test_profile::scripted_model()]
             ),
             Err(super::super::documents::Invalid::Payload)
         );
@@ -197,12 +196,12 @@ pub(crate) mod tests {
             document(
                 &source,
                 &Limits { rows: 7, turn_text: limits.turn_text, ..limits },
-                &[jig_core_world::world::scripted_model()]
+                &[jig_test_profile::scripted_model()]
             ),
             Err(owner::Invalid::TooLarge)
         );
         assert_eq!(
-            document(&source, &Limits { text: 1, turn_text: 1, ..limits }, &[jig_core_world::world::scripted_model()]),
+            document(&source, &Limits { text: 1, turn_text: 1, ..limits }, &[jig_test_profile::scripted_model()]),
             Err(owner::Invalid::TooLarge)
         );
         assert_eq!(source, original);

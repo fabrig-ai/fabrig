@@ -1,7 +1,6 @@
-use jig_core_world::{
-    effects::fixture,
-    stories::{instructions as story, reads::request},
-};
+use crate::read_support::request;
+use jig_core_world::stories::instructions as story;
+use jig_core_world::world::fixture;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 

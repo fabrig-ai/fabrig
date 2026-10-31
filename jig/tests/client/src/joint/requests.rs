@@ -304,8 +304,8 @@ mod tests {
         let now = Time::from_nanos(17);
         let wall = Wall::from_nanos(1_000_000_000_000);
         let mut driver = Driver::new(
-            jig_core_world::world::config(8455),
-            jig_core_world::world::limits(),
+            jig_test_profile::config(8455),
+            jig_test_profile::limits(),
             Peers::new(Vec::new(), Vec::new()),
             now,
             wall,
@@ -379,7 +379,7 @@ mod tests {
                 },
             },
         };
-        driver.world.cut = Some(jig_core_world::effects::Cut::Submitted(driver.world.store.applied + 1));
+        driver.world.cut = Some(jig_core_world::world::Cut::Submitted(driver.world.store.applied + 1));
         send(&mut driver, ClientId(0), now, wall, &request, &crate::test::limits().client.domain)
             .expect("whole original request is routed");
         assert!(driver.world.reached_cut.is_some());

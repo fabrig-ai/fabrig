@@ -1,5 +1,5 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::effects::World;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -91,7 +91,7 @@ fn settled_delivery_evidence_survives_restart_and_resume_until_a_turn_carries_it
         worker: 0,
         channel: Token::new(7),
         hello: jig_domain_fleet::Hello {
-            bounds: jig_core_world::fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),
             slots: 1,
             workstreams: Box::new([]),
@@ -119,8 +119,8 @@ fn a_chat_past_the_resume_limit_starts_fresh() {
 }
 
 fn transcript_core(window: (u64, u32)) -> core::Core {
-    let limits = jig_core_world::world::limits().core;
-    let config = jig_core_world::world::config(105).core;
+    let limits = jig_test_profile::limits().core;
+    let config = jig_test_profile::config(105).core;
     let mut core = core::Core::new(config, &limits).expect("fixture core configuration");
     core.begin_transcript(1, 3);
     core.transcripts.get_mut(&1).expect("begun transcript").window = Some(window);
@@ -335,7 +335,7 @@ fn a_woken_chats_start_carries_its_waiting_words_oldest_first() {
 }
 
 fn a_start_carries_at_most_the_runs_inbox() {
-    let (config, mut limits) = jig_core_world::effects::fixture(142, false);
+    let (config, mut limits) = jig_core_world::world::fixture(142, false);
     limits.core.tasks.run_inbox = 1;
     let mut world = World::new(Setup { seed: 142, configuration: Some(config), limits, ..Setup::default() });
     let first = world.say(86);
@@ -354,7 +354,7 @@ fn a_start_carries_at_most_the_runs_inbox() {
 }
 
 fn relays_wait_while_the_runs_inbox_is_full() {
-    let (config, mut limits) = jig_core_world::effects::fixture(143, false);
+    let (config, mut limits) = jig_core_world::world::fixture(143, false);
     limits.core.tasks.run_inbox = 1;
     let mut world = World::new(Setup { seed: 143, configuration: Some(config), limits, ..Setup::default() });
     let first = world.say(88);
@@ -365,7 +365,7 @@ fn relays_wait_while_the_runs_inbox_is_full() {
 }
 
 fn a_run_reading_nothing_is_relayed_nothing_more() {
-    let (config, mut limits) = jig_core_world::effects::fixture(144, false);
+    let (config, mut limits) = jig_core_world::world::fixture(144, false);
     limits.core.tasks.run_inbox = 1;
     let mut world = World::new(Setup { seed: 144, configuration: Some(config), limits, ..Setup::default() });
     let first = world.say(90);
@@ -413,7 +413,7 @@ fn an_answer_refusing_an_unoffered_word_fails_invalid() {
 }
 
 fn a_refusal_frees_the_runs_inbox_for_its_next_waiting_word() {
-    let (config, mut limits) = jig_core_world::effects::fixture(147, false);
+    let (config, mut limits) = jig_core_world::world::fixture(147, false);
     limits.core.tasks.run_inbox = 1;
     let mut world = World::new(Setup { seed: 147, configuration: Some(config), limits, ..Setup::default() });
     let first = world.say(94);
@@ -447,7 +447,7 @@ fn a_message_left_unread_wakes_its_task_as_the_run_parks() {
 }
 
 fn quiet_news_left_unread_waits_for_the_next_activation() {
-    let (config, mut limits) = jig_core_world::effects::fixture(150, false);
+    let (config, mut limits) = jig_core_world::world::fixture(150, false);
     limits.core.tasks.inbox_bytes = 256;
     let mut world = World::new(Setup { seed: 150, configuration: Some(config), limits, ..Setup::default() });
     let task = assigned_chat(&world).task;
@@ -556,7 +556,7 @@ fn a_conversations_attempts_name_one_first_attempt() {
 }
 
 fn reserve_fixture(seed: u64, spend: u64) -> (root::Config, root::Limits) {
-    let (mut config, limits) = jig_core_world::effects::fixture(seed, false);
+    let (mut config, limits) = jig_core_world::world::fixture(seed, false);
     config.core.defaults.charters[0].policy.model.price_unit = 1_000;
     config.core.settings.models[0].price_unit = 1_000;
     let mut rules = config.core.defaults.rules.clone();

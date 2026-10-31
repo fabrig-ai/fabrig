@@ -8,7 +8,7 @@ const WALL: Wall = Wall::from_nanos(1_000_000_000_000);
 const FIRST_RETRY: Duration = Duration::from_millis(10);
 const MOST_RETRY: Duration = Duration::from_millis(80);
 fn front() -> Joint {
-    let mut owner = jig_core_world::world::limits();
+    let mut owner = jig_test_profile::limits();
     owner.core.documents.rows = 2;
     owner.core.documents.lines = 2;
     owner.core.documents.chips = 2;

@@ -1,4 +1,3 @@
-use jig_core_world::effects::Setup;
 use jig_test_connector as d;
 use skein_lib::{Rng, Token, Wall};
 pub const FIRST: u16 = 1;
@@ -150,7 +149,7 @@ pub struct Component {
     pub limits: jig_protocol_store::Limits,
 }
 pub fn root_limits() -> jig_test_domain::Limits {
-    jig_core_world::world::limits()
+    jig_test_profile::limits()
 }
 pub fn component_limits() -> jig_protocol_store::Limits {
     let root = root_limits();
@@ -337,24 +336,96 @@ pub fn commit_writes(request: jig_protocol_store::Request) -> Box<[jig_protocol_
     }
 }
 pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
-    let mut world = jig_core_world::effects::World::new(Setup { seed: 18, ..Setup::default() });
-    let task = world.assigned.as_ref().expect("chat assigned").task;
-    world.end(
-        jig_domain_tasks::End::Finished {
-            result: jig_domain_tasks::TaskResult::Report { words: Box::from(b"done".as_slice()) },
-            cancel_delegates: false,
+    use jig_domain_tasks as tasks;
+    Box::new(tasks::TaskRecord {
+        asked_requester: false,
+        placed: None,
+        settings: tasks::SettingsRevision { task: 1, run: None },
+        label: 1,
+        flags: tasks::Flags { conversation: true, ..tasks::Flags::PLAIN },
+        last_activity: Wall::EPOCH,
+        ended_below: tasks::Endings::ZERO,
+        question_lines: Box::new([]),
+        hold: 0,
+        proposal_rows: Box::new([]),
+        instructions: None,
+        llm: None,
+        kept_account: None,
+        refused: Box::new([]),
+        grace: None,
+        created_at: Wall::EPOCH,
+        changed: Wall::EPOCH,
+        phase_since: Wall::EPOCH,
+        run_since: None,
+        retry_notice: None,
+        ended_at: Some(Wall::EPOCH),
+        revision: 0,
+        revisions: tasks::Revisions { hold: 0, spec: 0, person: 0 },
+        milestone: 0,
+        activity: 0,
+        due_reason: tasks::Why::Made,
+        narrowing: false,
+        result_position: 0,
+        last_reply: 0,
+        replies: Box::new([]),
+        escalation: tasks::Escalation::Unheld { revision: 0 },
+        proposal: None,
+        result_proposal: false,
+        number: 1,
+        project: 1,
+        requester: tasks::Party::Person(1),
+        run_spent: 0,
+        run_reserved: 0,
+        root: 1,
+        depth: 0,
+        executor: tasks::Executor::Agent { charter: 1 },
+        taken_by: None,
+        person_answer: None,
+        person_wait: None,
+        result_followups: Box::new([]),
+        tracked: None,
+        recurring: None,
+        spec: tasks::Spec {
+            asks: false,
+            words: b"chat".as_slice().into(),
+            parameters: Box::new([]),
+            inputs: Box::new([]),
         },
-        0,
-    );
-    match world
-        .store
-        .rows
-        .get(&jig_test_domain::Key::Core(jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Ended(task))))
-        .expect("chat ended")
-    {
-        jig_test_domain::Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Ended(row))) => {
-            row.clone()
-        }
-        jig_test_domain::Record::Core(_) | jig_test_domain::Record::Connector { .. } => unreachable!("ended task key"),
-    }
+        contract: tasks::Contract::Report { words: 16 },
+        authority: tasks::Authority {
+            tools: tasks::Tools(0),
+            models: tasks::Models::ALL,
+            grants: Box::new([]),
+            delegation: tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 },
+            budget: tasks::Budget { spend: 0, deadline: None },
+            notes: tasks::Scopes(0),
+            note_resources: Box::new([]),
+        },
+        numbers: tasks::Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 },
+        funder: tasks::Funder::Pool { project: 1, person: 1, period: 1 },
+        waiting_on: Box::new([]),
+        holdings: Box::new([]),
+        holds_taken: false,
+        hold_wait_since: None,
+        hold_bound_since: None,
+        dependencies: Box::new([]),
+        added: Box::new([]),
+        delegates: Box::new([]),
+        references: Box::new([]),
+        questions: Box::new([]),
+        subscriptions: Box::new([]),
+        wake: tasks::WakePolicy::DEFAULT,
+        turn: 0,
+        last_message: 0,
+        inbox: Box::new([]),
+        saved: Box::new([]),
+        ever_turned: false,
+        made: 1,
+        attempt: 0,
+        last_answer: None,
+        tries: tasks::Tries::NONE,
+        invalid_result: None,
+        refusals: 0,
+        phase: tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words: b"done".as_slice().into() })),
+    })
 }

@@ -483,8 +483,8 @@ fn historical_raw_goal_contracts_keep_opaque_state_closed_machine_fields_and_cha
     for contract in contracts {
         let mut source = raw_goal();
         source.contract = contract;
-        let actual = historical_goal::goal(&source, &limits(), &[jig_core_world::world::scripted_model()])
-            .expect("whole raw goal");
+        let actual =
+            historical_goal::goal(&source, &limits(), &[jig_test_profile::scripted_model()]).expect("whole raw goal");
         match actual.contract {
             client::TaskContractDocument::Approval { state, part } => {
                 assert_eq!(*state, [255, 0]);

@@ -153,7 +153,7 @@ pub(crate) mod tests {
             source.proposer = maker;
             let before = source.clone();
             let actual =
-                document(&source, &limits, &[jig_core_world::world::scripted_model()]).expect("whole pending source");
+                document(&source, &limits, &[jig_test_profile::scripted_model()]).expect("whole pending source");
             assert_eq!(actual.key, client::ProposalKey { proposer: expected, number: u64::MAX });
             assert_eq!(actual.project, u32::MAX);
             assert_eq!(actual.reason.bytes.bytes(), UTF8_TEXTS[0]);
@@ -234,8 +234,7 @@ pub(crate) mod tests {
         ];
         for (index, source) in actions.drain(..).enumerate() {
             let before = source.clone();
-            let actual =
-                action(&source, &limits, &[jig_core_world::world::scripted_model()]).expect("whole pending action");
+            let actual = action(&source, &limits, &[jig_test_profile::scripted_model()]).expect("whole pending action");
             match (index, actual) {
                 (0, client::OwnerProposalAction::Batch(values)) => {
                     assert_eq!(values.capacity(), 4);
@@ -244,7 +243,7 @@ pub(crate) mod tests {
                         action(
                             &source,
                             &Limits { rows: 3, turn_text: limits.turn_text, ..limits },
-                            &[jig_core_world::world::scripted_model()]
+                            &[jig_test_profile::scripted_model()]
                         )
                         .err(),
                         Some(owner::Invalid::TooLarge)
@@ -303,8 +302,7 @@ pub(crate) mod tests {
         };
         let before = source.clone();
         let limits = super::super::rows::tests::limits();
-        let native =
-            document(&source, &limits, &[jig_core_world::world::scripted_model()]).expect("whole pending release");
+        let native = document(&source, &limits, &[jig_test_profile::scripted_model()]).expect("whole pending release");
         let client::OwnerProposalAction::Release { hold: Some(hold), .. } = &native.action else {
             panic!("supplied whole hold")
         };
@@ -322,14 +320,12 @@ pub(crate) mod tests {
             .checked_add(u64::try_from(size_of::<client::ReadValue>()).expect("read envelope"))
             .expect("whole read bytes");
         let exact = Limits { document_bytes: bytes, turn_text: limits.turn_text, ..limits };
-        assert!(
-            super::super::documents::proposal_read(&source, &exact, &[jig_core_world::world::scripted_model()]).is_ok()
-        );
+        assert!(super::super::documents::proposal_read(&source, &exact, &[jig_test_profile::scripted_model()]).is_ok());
         assert_eq!(
             super::super::documents::proposal_read(
                 &source,
                 &Limits { document_bytes: bytes - 1, turn_text: exact.turn_text, ..exact },
-                &[jig_core_world::world::scripted_model()]
+                &[jig_test_profile::scripted_model()]
             )
             .err(),
             Some(super::super::documents::Invalid::Payload)
@@ -338,7 +334,7 @@ pub(crate) mod tests {
             document(
                 &source,
                 &Limits { rows: 3, turn_text: limits.turn_text, ..limits },
-                &[jig_core_world::world::scripted_model()]
+                &[jig_test_profile::scripted_model()]
             )
             .err(),
             Some(owner::Invalid::TooLarge)

@@ -787,7 +787,7 @@ fn destination(to: &mut ReplyTo) -> u64 {
 
 pub(crate) fn chat(peers: &Peers, store: &Store, project: u32, words: &[u8]) -> people::Ask {
     let (configuration, limits) = config::root(peers.seed, peers.scenario, peers.story);
-    let creating = jig_core_world::fixtures::Creating::new(&configuration.core, limits.tasks.tree_tasks);
+    let creating = jig_test_profile::fixtures::Creating::new(&configuration.core, limits.tasks.tree_tasks);
     temper_engine_domain_world::walking::configured_chat(
         &creating,
         &store.rows,

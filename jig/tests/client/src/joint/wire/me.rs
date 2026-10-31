@@ -142,14 +142,14 @@ mod tests {
 
     #[test]
     fn template_carries_its_named_choice() {
-        let mut source = jig_core_world::world::config(8455).core.defaults.templates[0].clone();
+        let mut source = jig_test_profile::config(8455).core.defaults.templates[0].clone();
         source.llm = Some(t::LlmChoice {
             account: Some(17),
             main: t::ModelEffort { model: 0, effort: Some(1) },
             subagents: Box::new([t::ModelEffort { model: 0, effort: None }]),
         });
         let limits = super::super::deployment::tests::limits();
-        let actual = template(&source, &limits, &[jig_core_world::world::scripted_model()]).expect("whole template");
+        let actual = template(&source, &limits, &[jig_test_profile::scripted_model()]).expect("whole template");
         let text = |value: &[u8]| c::Text::new(value.into(), limits.text).expect("fixture name");
         assert_eq!(
             actual.llm,

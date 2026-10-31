@@ -266,7 +266,7 @@ mod tests {
             main: t::ModelEffort { model: 0, effort: None },
             subagents: Box::new([t::ModelEffort { model: 0, effort: Some(1) }]),
         };
-        let models = [jig_core_world::world::scripted_model()];
+        let models = [jig_test_profile::scripted_model()];
         let limits = super::super::deployment::tests::limits();
         assert!(choice(Some(&source), &models, &Limits { rows: 1, turn_text: limits.turn_text, ..limits }).is_ok());
         assert_eq!(
@@ -281,7 +281,7 @@ mod tests {
 
     #[test]
     fn model_lists_obey_the_receiving_bound() {
-        let configured = [jig_core_world::world::scripted_model()];
+        let configured = [jig_test_profile::scripted_model()];
         let providers = jig_domain_accounts::Providers::none();
         let limits = super::super::deployment::tests::limits();
         assert!(
@@ -306,7 +306,7 @@ mod tests {
 
     #[test]
     fn missing_choice_indices_are_refused() {
-        let models = [jig_core_world::world::scripted_model()];
+        let models = [jig_test_profile::scripted_model()];
         let limits = super::super::deployment::tests::limits();
         for main in [t::ModelEffort { model: 1, effort: None }, t::ModelEffort { model: 0, effort: Some(2) }] {
             let source = t::LlmChoice { account: None, main, subagents: Box::new([]) };

@@ -541,7 +541,7 @@ pub(crate) mod tests {
             source.from = sender;
             let original = source.clone();
             let client::ReadValue::Question(value) =
-                question_read(&source, &limits, &[jig_core_world::world::scripted_model()])
+                question_read(&source, &limits, &[jig_test_profile::scripted_model()])
                     .expect("whole admitted question")
             else {
                 panic!("question read")
@@ -563,7 +563,7 @@ pub(crate) mod tests {
                 question_read(
                     &source,
                     &Limits { document_bytes: 0, turn_text: limits.turn_text, ..limits },
-                    &[jig_core_world::world::scripted_model()]
+                    &[jig_test_profile::scripted_model()]
                 ),
                 Err(Invalid::Payload)
             );
@@ -571,7 +571,7 @@ pub(crate) mod tests {
                 question_read(
                     &source,
                     &Limits { rows: 3, turn_text: limits.turn_text, ..limits },
-                    &[jig_core_world::world::scripted_model()]
+                    &[jig_test_profile::scripted_model()]
                 ),
                 Err(Invalid::Owner(owner::Invalid::TooLarge))
             );
@@ -579,15 +579,14 @@ pub(crate) mod tests {
                 question_read(
                     &source,
                     &Limits { text: 1, turn_text: 1, ..limits },
-                    &[jig_core_world::world::scripted_model()]
+                    &[jig_test_profile::scripted_model()]
                 ),
                 Err(Invalid::Owner(owner::Invalid::TooLarge))
             );
         }
         source.words = documents::Text { bytes: Box::new([]), cut: false };
         let client::ReadValue::Question(value) =
-            question_read(&source, &limits, &[jig_core_world::world::scripted_model()])
-                .expect("whole empty source words")
+            question_read(&source, &limits, &[jig_test_profile::scripted_model()]).expect("whole empty source words")
         else {
             panic!("empty question")
         };
@@ -706,7 +705,7 @@ pub(crate) mod tests {
                     .expect("original offer");
                 let before = source.clone();
                 let client::ReadValue::Result(value) =
-                    result_read(&source, &limits, &[jig_core_world::world::scripted_model()]).expect("whole Result")
+                    result_read(&source, &limits, &[jig_test_profile::scripted_model()]).expect("whole Result")
                 else {
                     panic!("Result")
                 };
@@ -743,7 +742,7 @@ pub(crate) mod tests {
                     result_read(
                         &source,
                         &Limits { document_bytes: 0, turn_text: limits.turn_text, ..limits },
-                        &[jig_core_world::world::scripted_model()]
+                        &[jig_test_profile::scripted_model()]
                     ),
                     Err(Invalid::Payload)
                 );
@@ -751,7 +750,7 @@ pub(crate) mod tests {
                     result_read(
                         &source,
                         &Limits { rows: 7, turn_text: limits.turn_text, ..limits },
-                        &[jig_core_world::world::scripted_model()]
+                        &[jig_test_profile::scripted_model()]
                     ),
                     Err(Invalid::Owner(owner::Invalid::TooLarge))
                 );

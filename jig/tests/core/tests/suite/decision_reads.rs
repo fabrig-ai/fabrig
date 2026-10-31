@@ -1,8 +1,8 @@
 //! Exact offer fences survive decisions and cold restart (tasks.md, section 9).
 
-use jig_core_world::effects::Setup;
-use jig_core_world::effects::World;
 use jig_core_world::fixtures::{ask_as, delegate, live_row, member};
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
@@ -90,7 +90,7 @@ fn reconnect(world: &mut World, seed: u64) {
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
-            bounds: jig_core_world::fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(100),
             slots: 3,
             workstreams: Box::new([]),

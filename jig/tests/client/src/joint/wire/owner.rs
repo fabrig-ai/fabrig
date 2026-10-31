@@ -488,7 +488,7 @@ pub(super) mod tests {
                 let mut source = amendment_source();
                 source.instructions = instructions.clone();
                 source.addressed = addressed;
-                let actual = amendment(&source, &limits, &[jig_core_world::world::scripted_model()])
+                let actual = amendment(&source, &limits, &[jig_test_profile::scripted_model()])
                     .expect("whole supplied snapshot fits");
                 assert_eq!(
                     actual.instructions.as_ref().map(|value| value.bytes.bytes()),
@@ -523,8 +523,8 @@ pub(super) mod tests {
             let mut source = amendment_source();
             source.spec.cut = spec_loss;
             source.cut = dependency_loss;
-            let actual = amendment(&source, &limits, &[jig_core_world::world::scripted_model()])
-                .expect("independent loss facts fit");
+            let actual =
+                amendment(&source, &limits, &[jig_test_profile::scripted_model()]).expect("independent loss facts fit");
             assert_eq!(actual.spec.cut, spec_loss);
             assert!(actual.spec.specification.words.cut, "supplied word loss is independent of list loss");
             assert!(!actual.authority.cut);
@@ -535,12 +535,12 @@ pub(super) mod tests {
             amendment(
                 &source,
                 &Limits { rows: 3, turn_text: limits.turn_text, ..limits },
-                &[jig_core_world::world::scripted_model()]
+                &[jig_test_profile::scripted_model()]
             ),
             Err(Invalid::TooLarge)
         );
         assert_eq!(
-            amendment(&source, &Limits { text: 2, turn_text: 2, ..limits }, &[jig_core_world::world::scripted_model()]),
+            amendment(&source, &Limits { text: 2, turn_text: 2, ..limits }, &[jig_test_profile::scripted_model()]),
             Err(Invalid::TooLarge)
         );
         assert_eq!(source.dependencies.capacity(), 4);
@@ -714,7 +714,7 @@ pub(super) mod tests {
                 notes: tasks::Scopes(u8::MAX),
                 note_resources: resources.clone(),
             };
-            let actual = authority(&source, &limits, &[jig_core_world::world::scripted_model()])
+            let actual = authority(&source, &limits, &[jig_test_profile::scripted_model()])
                 .expect("the complete supplied fixture is admitted");
             assert!(!actual.cut);
             assert_eq!(actual.authority.tools, u64::MAX);
@@ -751,7 +751,7 @@ pub(super) mod tests {
                 authority(
                     &oversized,
                     &Limits { rows: 3, turn_text: limits.turn_text, ..limits },
-                    &[jig_core_world::world::scripted_model()]
+                    &[jig_test_profile::scripted_model()]
                 ),
                 Err(Invalid::TooLarge)
             );

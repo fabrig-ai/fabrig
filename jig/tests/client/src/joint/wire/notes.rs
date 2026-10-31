@@ -115,8 +115,7 @@ mod tests {
                 source.writer = writer;
                 source.changed = changed;
                 let before = source.clone();
-                let value =
-                    note(&source, &limits, &[jig_core_world::world::scripted_model()]).expect("whole note fits");
+                let value = note(&source, &limits, &[jig_test_profile::scripted_model()]).expect("whole note fits");
                 assert_eq!(value.writer, expected);
                 assert_eq!(value.changed, changed);
                 assert_eq!(value.number, u64::MAX);
@@ -169,12 +168,12 @@ mod tests {
             note(
                 &source,
                 &Limits { rows: 3, turn_text: limits.turn_text, ..limits },
-                &[jig_core_world::world::scripted_model()]
+                &[jig_test_profile::scripted_model()]
             ),
             Err(owner::Invalid::TooLarge)
         );
         assert_eq!(
-            note(&source, &Limits { text: 2, turn_text: 2, ..limits }, &[jig_core_world::world::scripted_model()]),
+            note(&source, &Limits { text: 2, turn_text: 2, ..limits }, &[jig_test_profile::scripted_model()]),
             Err(owner::Invalid::TooLarge)
         );
         assert_eq!(source, before);

@@ -1,5 +1,5 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::effects::{World, fixture};
+use jig_core_world::world::Setup;
+use jig_core_world::world::{World, fixture};
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
@@ -394,7 +394,7 @@ fn add_dependency(world: &mut World, target: u64, dependency: u64) {
 }
 
 fn dependency_edit(parent: (u64, u64), target: u64, dependency: u64) -> core::Event {
-    let mut amendment = jig_core_world::fixtures::unchanged(b"wait for prerequisite");
+    let mut amendment = jig_test_profile::fixtures::unchanged(b"wait for prerequisite");
     amendment.dependencies = Some(Box::new([dependency]));
     core::Event::NamedAction {
         to: ReplyTo::new(Token::new(9950)),

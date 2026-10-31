@@ -210,8 +210,7 @@ mod tests {
             beyond: acts::Beyond::Proposed { to: acts::Recipient::Roles { project: u32::MAX, roles } },
         };
         let before = source.clone();
-        let copied =
-            admission(&source, &limits, &[jig_core_world::world::scripted_model()]).expect("whole bounded offer");
+        let copied = admission(&source, &limits, &[jig_test_profile::scripted_model()]).expect("whole bounded offer");
         let client::Admission::Bounded {
             within:
                 client::Bounds::Create(client::CreateBounds {
@@ -242,7 +241,7 @@ mod tests {
             admission(
                 &source,
                 &Limits { rows: 3, turn_text: limits.turn_text, ..limits },
-                &[jig_core_world::world::scripted_model()]
+                &[jig_test_profile::scripted_model()]
             ),
             Err(owner::Invalid::TooLarge)
         );
@@ -261,23 +260,19 @@ mod tests {
             ),
         ] {
             assert_eq!(
-                admission(
-                    &acts::Admission::Proposed { to: source },
-                    &limits,
-                    &[jig_core_world::world::scripted_model()]
-                ),
+                admission(&acts::Admission::Proposed { to: source }, &limits, &[jig_test_profile::scripted_model()]),
                 Ok(client::Admission::Proposed { to: expected })
             );
         }
         assert_eq!(
-            admission(&acts::Admission::Allowed, &limits, &[jig_core_world::world::scripted_model()]),
+            admission(&acts::Admission::Allowed, &limits, &[jig_test_profile::scripted_model()]),
             Ok(client::Admission::Allowed)
         );
         assert_eq!(
             admission(
                 &acts::Admission::Refused(people::Refusal::Role { held: None }),
                 &limits,
-                &[jig_core_world::world::scripted_model()]
+                &[jig_test_profile::scripted_model()]
             ),
             Ok(client::Admission::Refused(client::Refusal::Role { held: None }))
         );
@@ -285,7 +280,7 @@ mod tests {
             admission(
                 &acts::Admission::Refused(people::Refusal::KeyConflict),
                 &limits,
-                &[jig_core_world::world::scripted_model()]
+                &[jig_test_profile::scripted_model()]
             ),
             Ok(client::Admission::Refused(client::Refusal::KeyConflict))
         );
@@ -321,8 +316,8 @@ mod tests {
             turn_text: crate::test::limits().client.domain.turn_text,
             ..crate::test::limits().client.domain
         };
-        let actual = bounds(&source, &limits, &[jig_core_world::world::scripted_model()])
-            .expect("whole supplied bounded amendment");
+        let actual =
+            bounds(&source, &limits, &[jig_test_profile::scripted_model()]).expect("whole supplied bounded amendment");
         let client::Bounds::Amend { budget_left, grants, implications, authority, ceiling } = actual else {
             panic!("actual amendment bound")
         };
@@ -346,7 +341,7 @@ mod tests {
             bounds(
                 &oversized,
                 &Limits { rows: 3, turn_text: limits.turn_text, ..limits },
-                &[jig_core_world::world::scripted_model()]
+                &[jig_test_profile::scripted_model()]
             ),
             Err(owner::Invalid::TooLarge)
         );

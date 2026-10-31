@@ -1,8 +1,8 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::{
-    effects::Cut,
-    watches::{latest, open, world},
-};
+use jig_core_world::watches::latest;
+use jig_core_world::watches::open;
+use jig_core_world::watches::world;
+use jig_core_world::world::Cut;
+use jig_core_world::world::Setup;
 use jig_domain_core::{
     self as core,
     documents::{Count, Cursor, Document, PhaseCounts, PhaseLine, Watched, Window},
@@ -57,7 +57,7 @@ fn a_tree_window_past_the_rows_is_clamped_and_cut() {
     let (configuration, mut limits) = jig_core_world::faults::plan_fixture_with_document_rows(seed, 2);
     limits.core.tasks.delegates = 4;
     jig_core_world::peers::journal(&mut limits);
-    let mut world = jig_core_world::effects::World::new(Setup {
+    let mut world = jig_core_world::world::World::new(Setup {
         seed,
         configuration: Some(configuration),
         limits,
@@ -201,7 +201,7 @@ fn inbox_across_projects_stories() {
     limits.core.people.inbox_recipients = 16;
     jig_core_world::peers::journal(&mut limits);
     let mut world =
-        jig_core_world::effects::World::new(Setup { configuration: Some(config), limits, ..Setup::default() });
+        jig_core_world::world::World::new(Setup { configuration: Some(config), limits, ..Setup::default() });
     world.watches = Some(Parties::new(788, world.store.applied, true, world.sign_in.expect("signed in")));
     open(&mut world, 1, Watched::Frame);
     open(&mut world, 4, Watched::Inbox);
@@ -235,13 +235,13 @@ fn inbox_across_projects_stories() {
             project,
             b"shared goal".as_slice().into(),
             people::TaskExecutor::Agent { charter: 1 },
-            jig_core_world::fixtures::Goal { budget: 600, ..Default::default() },
+            jig_test_profile::fixtures::Goal { budget: 600, ..Default::default() },
         );
         super::ask_as(
             &mut world,
             if project == 1 { first_sign_in } else { second_sign_in },
             u8::try_from(90 + project).expect("request"),
-            jig_core_world::fixtures::propose_goal(proposed_goal),
+            jig_test_profile::fixtures::propose_goal(proposed_goal),
         );
         let Some(people::Reply::Outcome(people::Outcome::Proposed { proposal, to: 0 })) = world.people_answers.last()
         else {
@@ -270,7 +270,7 @@ fn inbox_across_projects_stories() {
     world.close();
 }
 
-fn a_party_with_roles_in_two_projects_sees_both_in_one_inbox(world: &jig_core_world::effects::World) {
+fn a_party_with_roles_in_two_projects_sees_both_in_one_inbox(world: &jig_core_world::world::World) {
     let Document::Inbox(inbox) = latest(world, 4) else { panic!("inbox") };
     assert_eq!(inbox.cached_needs, 2);
     assert_eq!(inbox.needs.len(), 2);
@@ -281,7 +281,7 @@ fn a_party_with_roles_in_two_projects_sees_both_in_one_inbox(world: &jig_core_wo
 }
 
 fn a_proposal_decided_in_one_project_leaves_the_inbox_across_projects(
-    world: &jig_core_world::effects::World,
+    world: &jig_core_world::world::World,
     other: u64,
 ) {
     let Document::Inbox(inbox) = latest(world, 4) else { panic!("inbox") };

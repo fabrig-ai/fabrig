@@ -63,7 +63,7 @@ pub struct World {
     broken: bool,
     oracle_running: bool,
     oracle_peer: Option<(Token, u32, u32)>,
-    creating: jig_core_world::fixtures::Creating,
+    creating: jig_test_profile::fixtures::Creating,
     pub root: engine::Domain,
     pub env: Env<engine::Limits>,
     pub out: Queue<engine::Request>,
@@ -791,7 +791,7 @@ impl World {
             broken: false,
             oracle_running: false,
             oracle_peer: None,
-            creating: jig_core_world::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
+            creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             root: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
@@ -1572,7 +1572,7 @@ pub fn change_world_funded(
         walking::goal_from(
             world.chat(1, b"make the fix"),
             people::TaskExecutor::Agent { charter: 1 },
-            jig_core_world::fixtures::Goal { budget: 200, priority: 3, deadline: None },
+            jig_test_profile::fixtures::Goal { budget: 200, priority: 3, deadline: None },
         )
     } else {
         world.chat(1, &b"make the fix"[..])
