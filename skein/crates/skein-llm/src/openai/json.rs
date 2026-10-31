@@ -9,7 +9,7 @@ use crate::openai::DecodeError;
 use alloc::boxed::Box;
 use skein_json::{Compact, Document, Kind, collector, document, tokenizer, writer};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Env, List, Queue, Stack, Time, Wall, bytes};
+use skein_lib::{Decimal, Env, List, Queue, Stack, Time, Wall, bytes};
 
 /// A neutral admitted value, owned by a prompt, replay or native codec.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -431,19 +431,21 @@ pub(crate) fn unsigned(view: (&Document, Span)) -> Result<u64, DecodeError> {
         return Err(DecodeError::WrongType);
     }
     let digits = record_text(view, 0)?;
-    let mut n = 0_u64;
-    if digits.is_empty() {
-        return Err(DecodeError::Malformed);
-    }
-    for &byte in digits {
+    let mut end = digits.len();
+    for (index, &byte) in digits.iter().enumerate() {
         if !byte.is_ascii_digit() {
-            return Err(DecodeError::WrongType);
+            if index == 0 {
+                return Err(DecodeError::WrongType);
+            }
+            end = index;
+            break;
         }
-        n = n
-            .checked_mul(10)
-            .ok_or(DecodeError::Malformed)?
-            .checked_add(u64::from(byte.wrapping_sub(b'0')))
-            .ok_or(DecodeError::Malformed)?;
+    }
+    // Overflow in the initial digits precedes a later non-digit's type error.
+    let n = Decimal::parse(digits.get(..end).expect("initial digits are within the number"))
+        .ok_or(DecodeError::Malformed)?;
+    if end != digits.len() {
+        return Err(DecodeError::WrongType);
     }
     Ok(n)
 }
