@@ -1,0 +1,42 @@
+== jig == 
+Proposal: 18446744073709551615
+Raw task-origin proposer: 18446744073709551615
+Not proposed as holder
+Retained effect
+Effect reference:
+  Connector 65535
+  Effect reference
+  `a/b`
+  `\xFF\x00`
+  
+  * Loading connector content (busy)
+  Tool bits: 18446744073709551615
+  Delegate tasks: 4294967295
+  Delegate depth: 4294967295
+  Spend ceiling: 18446744073709551615
+  Note scope bits: 255
+  Deadline: 18446744073709551615
+  Keep default models
+  Grants
+  Connector: 65535
+  Kind: 65535
+  Literal segments
+  `a/b`
+  `\xFF\x00`
+  
+  Exact ending
+  `tail`
+  Allowed delegation executors
+  Charter: 4294967295
+  Procedure: 4294967295
+  Role: 4294967295
+  Note resources
+  Connector: 7
+  Literal segments
+  Open ending
+  `*`
+Source attempt: 18446744073709551615
+Source completion: 4294967295
+Source effect position: 4294967295
+Source purpose: 18446744073709551615
+Proposal withdrawn

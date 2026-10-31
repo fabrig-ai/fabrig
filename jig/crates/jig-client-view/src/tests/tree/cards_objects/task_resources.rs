@@ -1,10 +1,11 @@
+use crate::tests::kit::Goldens;
 use crate::tests::tree::cards_objects::*;
 
 #[test]
 fn task_resource_metadata_keeps_each_raw_slot_writer_presence_full_width_and_independent_flags() {
-    let mut segments = List::with_capacity(CLIENT.client.rows);
-    segments.push(Box::<[u8]>::from(*b"a/b")).unwrap();
-    segments.push(Box::<[u8]>::from([255_u8; 32])).unwrap();
+    let mut goldens = Goldens::new("tree/cards_objects/task_resources/task_resource_metadata");
+    let segments =
+        crate::tests::kit::list_in(CLIENT.client.rows, [Box::<[u8]>::from(*b"a/b"), Box::<[u8]>::from([255_u8; 32])]);
     let reference = OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Resource, key: OwnerPartKey::Path(segments) };
     for writer in [
         None,
@@ -27,30 +28,7 @@ fn task_resource_metadata_keeps_each_raw_slot_writer_presence_full_width_and_ind
                     .unwrap();
             }
             let (tree, bindings) = task_contract::page(row.clone());
-            assert!(contains(&tree, b"Resource kind: 65535"));
-            assert!(contains(&tree, b"Holder task: 18446744073709551615"));
-            assert_eq!(contains(&tree, b"Resource taken"), taken);
-            assert_eq!(contains(&tree, b"Resource not taken"), !taken);
-            assert_eq!(contains(&tree, b"Writer lost"), !taken);
-            assert_eq!(contains(&tree, b"Writer not lost"), taken);
-            match writer {
-                Some(OwnerResourceWriter::Run { .. }) => {
-                    assert!(contains(&tree, b"Writer task: 18446744073709551615"));
-                    assert!(contains(&tree, b"Writer attempt: 18446744073709551615"));
-                    assert!(!contains(&tree, b"Writer effect:"));
-                }
-                Some(OwnerResourceWriter::Effect { .. }) => {
-                    assert!(contains(&tree, b"Writer effect: 18446744073709551615"));
-                    assert!(!contains(&tree, b"Writer task:"));
-                }
-                None => {
-                    assert!(!contains(&tree, b"Writer effect:"));
-                    assert!(!contains(&tree, b"Writer task:"));
-                }
-            }
-            assert!(contains(&tree, b"a/b"));
-            let escaped = "\\xFF".repeat(32);
-            assert!(contains(&tree, escaped.as_bytes()));
+            goldens.check(&tree);
             let mut slots = 0_u32;
             for node in tree.nodes() {
                 if let Some(slot) = node.slot {

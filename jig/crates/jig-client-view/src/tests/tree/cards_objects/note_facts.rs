@@ -1,7 +1,9 @@
 use crate::tests::fixtures::AnsweredByEngine;
+use crate::tests::kit::Goldens;
 use crate::tests::tree::cards_objects::*;
 #[test]
 fn note_cards_name_the_whole_stored_attempt_and_only_render_supplied_times() {
+    let mut goldens = Goldens::new("tree/cards_objects/note_facts/note_cards_name");
     for writer in [NoteAuthor::Party { party: u64::MAX }, NoteAuthor::Task { task: u64::MAX, attempt: u64::MAX }] {
         for changed in [None, Some(Wall::EPOCH)] {
             let note = Note {
@@ -22,29 +24,16 @@ fn note_cards_name_the_whole_stored_attempt_and_only_render_supplied_times() {
             let mut builder = Builder::new(&limits());
             cards::card(&mut builder, &domain.view(), id, &cards::Place::Elsewhere, words, &mut bindings);
             let tree = builder.finish();
-            assert!(contains(&tree, b"note body"));
-            assert!(contains(&tree, b"Only part of this text was supplied"));
-            assert!(contains(&tree, b"This note has more references"));
-            assert_eq!(contains(&tree, b"Note changed time not supplied"), changed.is_none());
+            goldens.check(&tree);
             assert_eq!(
                 tree.nodes().iter().filter(|node| node.role == Role::Time).count(),
                 usize::from(changed.is_some())
             );
-            match writer {
-                NoteAuthor::Party { .. } => {
-                    assert!(contains(&tree, b"Written by party 18446744073709551615"));
-                    assert!(!contains(&tree, b"Written by task"));
-                }
-                NoteAuthor::Task { .. } => {
-                    assert!(contains(&tree, b"Written by task 18446744073709551615, attempt 18446744073709551615"));
-                    assert!(!contains(&tree, b"Written by party"));
-                }
-            }
         }
     }
 }
 
-fn settled_note_answer(act: ActKind, cut: bool) {
+fn settled_note_answer(act: ActKind, cut: bool, goldens: &mut Goldens) {
     let note = Note {
         number: 77,
         revision: Revision { value: 123 },
@@ -65,9 +54,7 @@ fn settled_note_answer(act: ActKind, cut: bool) {
     let words = words();
     let mut bindings = JigBindings::new(256, CLIENT.client.text);
     let tree = render(&domain, id, words, &mut bindings);
-    assert!(!contains(&tree, b"Note edited"));
-    assert!(tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Edit note")));
-    assert!(tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Delete note")));
+    goldens.check(&tree);
     let label = if act == ActKind::EditNote { b"Edit note".as_slice() } else { b"Delete note".as_slice() };
     let action = press(&tree, label, &mut bindings);
     drive(&mut domain, Event::Act { action });
@@ -79,7 +66,7 @@ fn settled_note_answer(act: ActKind, cut: bool) {
             _ => None,
         })
         .unwrap();
-    assert!(!contains(&render(&domain, id, words, &mut bindings), b"Note edited"));
+    goldens.check(&render(&domain, id, words, &mut bindings));
     let answer = Answer::Done(Outcome::Owner(OwnerOutcome::NoteEdited { name: 77 }));
     drive(&mut domain, AnsweredByEngine { request, answer: answer.clone() });
     let facts = domain.objects().get(id).unwrap();
@@ -94,36 +81,20 @@ fn settled_note_answer(act: ActKind, cut: bool) {
     bindings.begin();
     assert!(cards::card(&mut builder, &domain.view(), id, &cards::Place::Elsewhere, words, &mut bindings));
     let tree = builder.finish();
-    assert!(
-        tree.nodes().iter().any(|node| node.role == Role::Region && node.name.as_deref() == Some(b"stored note title"))
-    );
+    goldens.check(&tree);
     assert!(tree.len() <= envelope.nodes);
-    assert!(tree.nodes().iter().any(|node| node.role == Role::Status && node.name.as_deref() == Some(b"Note edited")));
-    assert!(contains(&tree, b"Note: 77"));
-    assert!(contains(&tree, b"stored note body"));
-    assert!(contains(&tree, b"Written by task 91, attempt 12"));
-    assert_eq!(contains(&tree, b"Only part of this text was supplied"), cut);
-    assert_eq!(contains(&tree, b"This note has more references"), cut);
+
     assert_eq!(tree.nodes().iter().filter(|node| node.role == Role::Time).count(), 1);
-    for name in [b"Task 91".as_slice(), b"Task 18446744073709551615".as_slice()] {
-        assert!(tree.nodes().iter().any(|node| node.role == Role::Link && node.name.as_deref() == Some(name)));
-    }
-    assert_eq!(
-        tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Edit note")),
-        act == ActKind::EditNote
-    );
-    assert_eq!(
-        tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Delete note")),
-        act == ActKind::EditNote
-    );
 }
 
 #[test]
 fn a_note_card_shows_its_durable_edit_answer_with_the_stored_document_and_offers() {
-    settled_note_answer(ActKind::EditNote, false);
+    let mut goldens = Goldens::new("tree/cards_objects/note_facts/a_note_card_shows_its_durable_edit");
+    settled_note_answer(ActKind::EditNote, false, &mut goldens);
 }
 
 #[test]
 fn a_note_card_shows_its_durable_deletion_answer_with_the_stored_loss_facts() {
-    settled_note_answer(ActKind::DeleteNote, true);
+    let mut goldens = Goldens::new("tree/cards_objects/note_facts/a_note_card_shows_its_durable_deletion");
+    settled_note_answer(ActKind::DeleteNote, true, &mut goldens);
 }

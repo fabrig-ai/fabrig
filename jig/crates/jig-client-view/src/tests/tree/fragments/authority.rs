@@ -1,4 +1,5 @@
 #![expect(clippy::disallowed_methods, reason = "ordinary tests inspect standalone trees and language data")]
+use crate::tests::kit::Goldens;
 use crate::tree::fragments::authority as view;
 use crate::words::authority_words::AuthorityPhrase;
 use skein_ui::Limits;
@@ -88,36 +89,20 @@ fn render(value: &OwnerAuthorityDocument, words: &crate::words::Words, rows: u32
     );
     tree
 }
-fn has(tree: &Tree, bytes: &[u8]) -> bool {
-    tree.nodes().iter().any(|node| node.text.iter().any(|run| run.text.as_ref() == bytes))
-}
+
 #[test]
 fn exact_authority_fragment_keeps_opaque_boundaries_full_codes_and_explicit_cut() {
+    let mut goldens = Goldens::new("tree/fragments/authority/exact_authority_fragment");
     let value = fixture();
     let words = english();
     let tree = render(&value, &words, 3);
     assert_eq!(tree.len(), 27, "one region and every independent fact/segment/end leaf");
-    for text in [
-        &b"a/b"[..],
-        &b"\\xFF\\x00\\x80"[..],
-        &b"tail/"[..],
-        &b"*raw/"[..],
-        &b"Exact ending"[..],
-        &b"Open ending"[..],
-        &b"Role: 4294967295"[..],
-        &b"Charter: 4294967295"[..],
-        &b"Procedure: 4294967295"[..],
-        &b"Tool bits: 18446744073709551615"[..],
-        &b"Note scope bits: 255"[..],
-        &b"More are held than shown"[..],
-    ] {
-        assert!(has(&tree, text), "exact independent fact retained");
-    }
+    goldens.check(&tree);
     assert_eq!(value.authority.grants.get(0).unwrap().pattern.segments.get(1).unwrap().as_ref(), &[255, 0, 128]);
     let mut complete = value;
     complete.cut = false;
     let tree = render(&complete, &words, 3);
-    assert!(!has(&tree, b"More are held than shown"));
+    goldens.check(&tree);
     assert_eq!(tree.len(), 26);
     let envelope = crate::tests::render_limits(
         &crate::tests::fixtures::Profile {
@@ -131,6 +116,7 @@ fn exact_authority_fragment_keeps_opaque_boundaries_full_codes_and_explicit_cut(
 }
 #[test]
 fn owner_authority_words_use_selected_language_and_person_offset() {
+    let mut goldens = Goldens::new("tree/fragments/authority/owner_authority_words");
     let mut translated = crate::words::phrases::english::language();
     translated.wall = WallFormat::Clock;
     for phrase in &mut translated.phrases {
@@ -145,9 +131,7 @@ fn owner_authority_words_use_selected_language_and_person_offset() {
     }
     let words = crate::tests::checked_words(Box::new([crate::words::phrases::english::language(), translated]), 1, -1);
     let tree = render(&fixture(), &words, 3);
-    assert!(has(&tree, b"selected 00:01"));
-    assert!(has(&tree, b"selected 4294967295"));
-    assert!(!has(&tree, b"Exact ending"));
+    goldens.check(&tree);
     assert_eq!(
         words
             .book()
@@ -163,6 +147,7 @@ const SHOWN: u32 = 2;
 const GRANT_CONNECTORS: [u16; 3] = [11, 12, 13];
 #[test]
 fn a_long_authority_shows_rows_of_grants_and_one_partial_mark() {
+    let mut goldens = Goldens::new("tree/fragments/authority/a_long_authority");
     let mut value = fixture();
     value.cut = false;
     let grant = value.authority.grants.get(0).unwrap().clone();
@@ -173,43 +158,27 @@ fn a_long_authority_shows_rows_of_grants_and_one_partial_mark() {
     value.authority.delegation.kinds.clear();
     let words = english();
     let tree = render(&value, &words, SHOWN);
-    assert!(has(&tree, b"Connector: 11"));
-    assert!(has(&tree, b"Connector: 12"));
-    assert!(!has(&tree, b"Connector: 13"));
-    assert_eq!(
-        tree.nodes()
-            .iter()
-            .flat_map(|node| &node.text)
-            .filter(|run| run.text.as_ref() == b"More are held than shown")
-            .count(),
-        1
-    );
+    goldens.check(&tree);
     assert_eq!(value.authority.grants.len(), 3);
     assert_eq!(value.authority.grants.get(SHOWN).unwrap().connector, GRANT_CONNECTORS[2]);
 }
 
 #[test]
 fn model_selectors_render_literal_names_all_empty_and_default_with_exact_budgets() {
+    let mut goldens = Goldens::new("tree/fragments/authority/model_selectors_render");
     let words = english();
     let mut value = fixture();
     value.cut = false;
-    let mut names = List::with_capacity(2);
-    names.push(copy_of(b"arbitrary model")).unwrap();
-    names.push(copy_of(&[b'x'; 4096])).unwrap();
-    for (models, label) in [
-        (None, b"Keep default models".as_slice()),
-        (Some(jig_client::contract::AuthorityModels::All), b"All models"),
-        (Some(jig_client::contract::AuthorityModels::Named(List::with_capacity(0))), b"No models"),
-        (Some(jig_client::contract::AuthorityModels::Named(names)), b"Allowed models"),
+    let names = crate::tests::kit::list([copy_of(b"arbitrary model"), copy_of(&[b'x'; 4096])]);
+    for models in [
+        None,
+        Some(jig_client::contract::AuthorityModels::All),
+        Some(jig_client::contract::AuthorityModels::Named(List::with_capacity(0))),
+        Some(jig_client::contract::AuthorityModels::Named(names)),
     ] {
         value.authority.models = models;
         let tree = render(&value, &words, 3);
-        assert!(has(&tree, label));
-        if let Some(jig_client::contract::AuthorityModels::Named(names)) = &value.authority.models {
-            for name in names {
-                assert!(has(&tree, name));
-            }
-        }
+        goldens.check(&tree);
     }
     let required = crate::tests::render_limits(
         &crate::tests::fixtures::Profile {
@@ -221,5 +190,5 @@ fn model_selectors_render_literal_names_all_empty_and_default_with_exact_budgets
     .unwrap();
     let tree = render(&value, &words, 1);
     assert!(tree.len() <= required.nodes);
-    assert!(has(&tree, b"More are held than shown"));
+    goldens.check(&tree);
 }

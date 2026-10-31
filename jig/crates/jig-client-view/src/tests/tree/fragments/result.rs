@@ -3,6 +3,7 @@
     reason = "ordinary tests inspect standalone trees and mutate checked language data"
 )]
 use crate::tests::fixtures::Fixture;
+use crate::tests::kit::Goldens;
 use crate::words::Words;
 use crate::words::{result_words, result_words::ResultPhrase};
 use crate::{JigBindings, tree::fragments::result as view};
@@ -76,35 +77,32 @@ fn build(value: &ResultDetails, words: &Words) -> Tree {
     view::render(&mut b, &client.view(), value, words, &mut bindings);
     b.finish()
 }
-fn has(tree: &Tree, text: &[u8]) -> bool {
-    tree.nodes().iter().any(|node| node.text.iter().any(|run| run.text.as_ref() == text))
-}
+
 #[test]
 fn result_metadata_keeps_requester_variants_chooser_and_task_or_party_makers() {
+    let mut goldens = Goldens::new("tree/fragments/result/result_metadata_keeps");
     let mut value = details();
     let words = words();
-    for (requester, expected) in [
-        (OwnerRequester::Task(u64::MAX), b"Requested by task 18446744073709551615".as_slice()),
-        (OwnerRequester::Person(u64::MAX), b"Requested by person 18446744073709551615".as_slice()),
-        (OwnerRequester::Deployment { project: u32::MAX }, b"Requested by deployment in project 4294967295".as_slice()),
+    for requester in [
+        OwnerRequester::Task(u64::MAX),
+        OwnerRequester::Person(u64::MAX),
+        OwnerRequester::Deployment { project: u32::MAX },
     ] {
         value.requester = requester;
-        assert!(has(&build(&value, &words), expected));
+        goldens.check(&build(&value, &words));
     }
-    assert!(has(&build(&value, &words), b"Choice maker not supplied"));
+    goldens.check(&build(&value, &words));
     value.chosen_by = Some(u64::MAX);
     value.proposal = Some(ProposalKey { proposer: Proposer::Task(u64::MAX), number: u64::MAX });
     let task = build(&value, &words);
-    assert!(has(&task, b"Choice made by person 18446744073709551615"));
-    assert!(has(&task, b"Proposal from task 18446744073709551615, number 18446744073709551615"));
+    goldens.check(&task);
     value.proposal = Some(ProposalKey { proposer: Proposer::Party(u64::MAX), number: u64::MAX });
     let party = build(&value, &words);
-    assert!(has(&party, b"Proposal from party 18446744073709551615, number 18446744073709551615"));
-    assert!(!has(&party, b"Proposal from task 18446744073709551615, number 18446744073709551615"));
-    assert!(has(&party, b"Project role 4294967295"));
+    goldens.check(&party);
 }
 #[test]
 fn result_task_links_keep_live_retained_stored_optional_times_and_all_statuses() {
+    let mut goldens = Goldens::new("tree/fragments/result/result_task_links");
     let mut value = details();
     value.delegates = List::with_capacity(7);
     for link in [
@@ -119,19 +117,7 @@ fn result_task_links_keep_live_retained_stored_optional_times_and_all_statuses()
         value.delegates.push(link).unwrap();
     }
     let tree = build(&value, &words());
-    for expected in [
-        b"Live task".as_slice(),
-        b"Retained ended task",
-        b"Ended time unavailable",
-        b"Ended at 00:02",
-        b"Stored task 18446744073709551615",
-        b"Stored status unavailable",
-        b"Done",
-        b"Failed",
-        b"Cancelled",
-    ] {
-        assert!(has(&tree, expected));
-    }
+    goldens.check(&tree);
     assert_eq!(
         tree.nodes().iter().filter(|n| n.binding.is_some()).count(),
         3,
@@ -141,50 +127,38 @@ fn result_task_links_keep_live_retained_stored_optional_times_and_all_statuses()
 }
 #[test]
 fn result_followups_distinguish_absent_empty_nonempty_and_preserve_aggregate_cut() {
+    let mut goldens = Goldens::new("tree/fragments/result/result_followups_distinguish");
     let mut value = details();
     let words = words();
-    assert!(has(&build(&value, &words), b"Follow-up facts unavailable"));
+    goldens.check(&build(&value, &words));
     value.followups = Some(List::with_capacity(2));
     let empty = build(&value, &words);
-    assert!(has(&empty, b"Follow-up task references: 0"));
-    assert!(!has(&empty, b"Follow-up facts unavailable"));
+    goldens.check(&empty);
     value.followups.as_mut().unwrap().push(OwnerTaskLink::Stored { number: 42, status: None }).unwrap();
     value.cut = true;
     let cut = build(&value, &words);
-    assert!(has(&cut, b"Follow-up task references: 1"));
-    assert!(has(&cut, b"Stored task 42"));
-    assert!(has(&cut, b"Some result metadata was omitted"));
-    assert!(!has(&empty, b"Some result metadata was omitted"));
+    goldens.check(&cut);
 }
 #[test]
 fn result_metadata_reuses_whole_contract_opaque_parts_and_owner_executor() {
+    let mut goldens = Goldens::new("tree/fragments/result/result_metadata_reuses");
     let mut value = details();
-    let mut segments = List::with_capacity(2);
-    segments.push(copy_of(b"a/b")).unwrap();
-    segments.push(copy_of(&[255, 0])).unwrap();
+    let segments = crate::tests::kit::list([copy_of(b"a/b"), copy_of(&[255, 0])]);
     value.contract = TaskContractDocument::Approval {
         state: copy_of(&[128, 0]),
         part: OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Outbox, key: OwnerPartKey::Path(segments) },
     };
     value.executor = OwnerExecutor::Procedure { connector: u16::MAX, code: u32::MAX };
     let tree = build(&value, &words());
-    for expected in [
-        b"\\x80\\x00".as_slice(),
-        b"a/b",
-        b"\\xFF\\x00",
-        b"Outbox reference",
-        b"Procedure connector 65535, code 4294967295",
-    ] {
-        assert!(has(&tree, expected));
-    }
+    goldens.check(&tree);
     assert_eq!(tree.nodes().iter().filter(|n| n.slot.is_some()).count(), 1);
     value.contract = TaskContractDocument::Verdict { choices: List::with_capacity(0), cut: true };
     let cut = build(&value, &words());
-    assert!(has(&cut, b"Some contract choices were omitted"));
-    assert!(!has(&cut, b"Some result metadata was omitted"), "contract loss never invents aggregate loss");
+    goldens.check(&cut);
 }
 #[test]
 fn result_words_check_shapes_select_language_and_refuse_insufficient_tree_capacity() {
+    let mut goldens = Goldens::new("tree/fragments/result/result_words_check");
     let normal = crate::words::phrases::english::language();
     let mut translated = crate::words::phrases::english::language();
     translated.wall = WallFormat::Clock;
@@ -203,8 +177,7 @@ fn result_words_check_shapes_select_language_and_refuse_insufficient_tree_capaci
     let book = Phrasebook::load(crate::words::phrases::jig::shapes(128), languages, &limits).unwrap();
     let words = Words::new(book, 1, 0);
     let tree = build(&details(), &words);
-    assert!(has(&tree, b"selected 4294967295"));
-    assert!(!has(&tree, b"Follow-up facts unavailable"));
+    goldens.check(&tree);
     let mut language = result_words::language();
     language.phrases[0].id = ResultPhrase::Contract.id();
     assert_eq!(

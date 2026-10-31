@@ -1,0 +1,14 @@
+== Sign in == Connecting
+Work:
+  What needs you:
+    * Nothing known yet
+  Who is signed in:
+    * Signed out
+  Projects:
+  Go to a task:
+    [1] Go to task number: (empty) (enter sends)
+Sign in:
+  * Sign in (busy)
+Notices:
+  * 1 requests kept from before were not sent
+  [2] Dismiss

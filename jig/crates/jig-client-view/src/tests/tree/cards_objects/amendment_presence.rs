@@ -1,6 +1,7 @@
 //! Selected amendments are independent of displayed source facts (view.md, 18.5).
 
 use crate::tests::fixtures::Fixture;
+use crate::tests::kit::Goldens;
 use crate::tests::tree::cards_objects::*;
 
 fn empty() -> Amendment {
@@ -38,6 +39,7 @@ fn open(row: Task) -> (Fixture, Id<Object>) {
 
 #[test]
 fn amendment_dependency_and_wake_controls_preserve_only_prior_selected_changes() {
+    let mut goldens = Goldens::new("tree/cards_objects/amendment_presence/amendment_dependency_and");
     let mut row = task_doc(&[ActKind::Amend]);
     row.dependencies = list([OwnerTaskLink::Live(chip())]);
     row.wake.notices = WakeRule::Batch { count: 11, age: Duration::from_nanos(22) };
@@ -68,7 +70,7 @@ fn amendment_dependency_and_wake_controls_preserve_only_prior_selected_changes()
     wake.results = ResultsWake::Never;
     expected.wake = Some(wake);
     let tree = dialog(&domain, words, &mut bindings);
-    assert!(!tree.nodes().iter().any(|node| node.name.as_deref() == Some(b"Drop dependency 8")));
+    goldens.check(&tree);
     drive(&mut domain, Event::Act { action: input(&tree, b"New instructions", b"", &mut bindings) });
     expected.instructions = Some(text(b""));
     let out = drive(&mut domain, Event::Act { action: Action::Confirm });
@@ -77,6 +79,7 @@ fn amendment_dependency_and_wake_controls_preserve_only_prior_selected_changes()
 
 #[test]
 fn amendment_loss_in_specification_does_not_select_or_block_independent_fields() {
+    let mut goldens = Goldens::new("tree/cards_objects/amendment_presence/amendment_loss_in");
     for mask in 1_u8..8 {
         let mut row = task_doc(&[ActKind::Amend]);
         row.spec.specification.words.cut = mask & 1 != 0;
@@ -88,11 +91,7 @@ fn amendment_loss_in_specification_does_not_select_or_block_independent_fields()
         let (mut domain, _) = open(row);
         let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
         let tree = dialog(&domain, words(), &mut bindings);
-        assert!(!tree.nodes().iter().any(|node| node.name.as_deref() == Some(b"New specification")));
-        assert!(contains(&tree, b"The specification is incomplete"));
-        assert!(contains(&tree, b"whole task specification"));
-        assert!(contains(&tree, UTF8_TEXTS[0]));
-        assert_eq!(contains(&tree, b"Only part of this text was supplied"), mask & 3 != 0);
+        goldens.check(&tree);
         drive(&mut domain, Event::Act { action: input(&tree, b"New instructions", b"", &mut bindings) });
         let out = drive(&mut domain, Event::Act { action: Action::Confirm });
         assert_eq!(sent(&out), &Amendment { instructions: Some(text(b"")), ..empty() });

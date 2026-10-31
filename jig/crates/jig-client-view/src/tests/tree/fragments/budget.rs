@@ -1,7 +1,6 @@
-#![expect(clippy::disallowed_methods, reason = "ordinary tests inspect standalone trees and checked language data")]
+use crate::tests::kit::Goldens;
 use crate::tree::fragments::budget as view;
 use crate::words::Words;
-use skein_ui::Limits;
 use skein_ui::phrases::{PhraseLimits, Phrasebook, Segment, WallFormat};
 use skein_ui::{Builder, Tree};
 
@@ -33,81 +32,44 @@ fn ledger() -> PoolLedger {
 fn words() -> Words {
     crate::tests::english_words()
 }
-fn limits(fragment: Limits) -> Limits {
-    fragment
-}
+
 fn budget_tree(value: &OwnerBudget, words: &Words) -> Tree {
     let required =
         crate::tests::render_limits(&crate::tests::tree::cards::CLIENT, words).expect("whole checked capacity");
-    let mut builder = Builder::new(&limits(required));
+    let mut builder = Builder::new(&required);
     view::render(&mut builder, value, words);
     builder.finish()
 }
 fn ledger_tree(value: &PoolLedger, words: &Words) -> Tree {
     let required =
         crate::tests::render_limits(&crate::tests::tree::cards::CLIENT, words).expect("whole checked capacity");
-    let mut builder = Builder::new(&limits(required));
+    let mut builder = Builder::new(&required);
     view::ledger(&mut builder, value, words);
     builder.finish()
-}
-fn has(tree: &Tree, bytes: &[u8]) -> bool {
-    tree.nodes().iter().any(|node| node.text.iter().any(|run| run.text.as_ref() == bytes))
-}
-fn contains(tree: &Tree, bytes: &[u8]) -> bool {
-    tree.nodes().iter().any(|node| node.text.iter().any(|run| run.text.windows(bytes.len()).any(|part| part == bytes)))
 }
 
 #[test]
 fn budget_says_all_owner_numbers_exact_task_funder_and_only_the_supplied_deadline() {
+    let mut goldens = Goldens::new("tree/fragments/budget/budget_says_all");
     let value = budget();
     let words = words();
     let tree = budget_tree(&value, &words);
     assert_eq!(tree.len(), 9);
-    for text in [
-        &b"Budget: 100"[..],
-        &b"Spent directly: 4"[..],
-        &b"Settled spend below: 7"[..],
-        &b"Reserved for funded work: 11"[..],
-        &b"Left: 17"[..],
-        &b"Funded by"[..],
-        &b"Deadline: 120000000000"[..],
-    ] {
-        assert!(has(&tree, text), "owner accounting is never merged or recomputed");
-    }
-    assert!(!has(&tree, b"Left: 78"), "availability is an owner fact");
-    assert!(contains(&tree, b"18446744073709551615"));
+    goldens.check(&tree);
     let mut without_deadline = value;
     without_deadline.deadline = None;
     let tree = budget_tree(&without_deadline, &words);
     assert_eq!(tree.len(), 8);
-    assert!(!contains(&tree, b"Deadline:"));
+    goldens.check(&tree);
 }
 #[test]
 fn ledger_keeps_distinct_parent_periods_full_source_widths_and_explicit_optional_facts() {
+    let mut goldens = Goldens::new("tree/fragments/budget/ledger_keeps_distinct");
     let value = ledger();
     let words = words();
     let tree = ledger_tree(&value, &words);
     assert_eq!(tree.len(), 13);
-    for text in [
-        &b"Ledger source"[..],
-        &b"Parent funder"[..],
-        &b"Ledger is closed"[..],
-        &b"Left: 17"[..],
-        &b"Period began: 120000000000"[..],
-        &b"Next period begins: 180000000000"[..],
-    ] {
-        assert!(has(&tree, text));
-    }
-    for number in [
-        &b"4294967295"[..],
-        &b"4294967294"[..],
-        &b"18446744073709551615"[..],
-        &b"18446744073709551614"[..],
-        &b"18446744073709551613"[..],
-        &b"18446744073709551612"[..],
-    ] {
-        assert!(contains(&tree, number), "source identity never becomes an Actor or current period");
-    }
+    goldens.check(&tree);
     let mut absent = value;
     absent.parent = None;
     absent.began = None;
@@ -115,13 +77,11 @@ fn ledger_keeps_distinct_parent_periods_full_source_widths_and_explicit_optional
     absent.closed = false;
     let tree = ledger_tree(&absent, &words);
     assert_eq!(tree.len(), 9);
-    assert!(has(&tree, b"Ledger is open"));
-    for label in [&b"Parent funder"[..], &b"Period began:"[..], &b"Next period begins:"[..], &b"Ledger is closed"[..]] {
-        assert!(!contains(&tree, label), "absence never supplies a parent or calendar fact");
-    }
+    goldens.check(&tree);
 }
 #[test]
 fn budget_and_shared_funder_sayings_borrow_selected_normal_words_and_person_offset() {
+    let mut goldens = Goldens::new("tree/fragments/budget/budget_and_shared");
     let mut translated = crate::words::phrases::english::language();
     translated.wall = WallFormat::Clock;
     for phrase in &mut translated.phrases {
@@ -168,18 +128,11 @@ fn budget_and_shared_funder_sayings_borrow_selected_normal_words_and_person_offs
         .expect("normal composed vocabulary checks both supplied languages whole");
     let words = Words::new(book, 1, -1);
     let tree = budget_tree(&budget(), &words);
-    assert!(has(&tree, b"selected 17"));
-    assert!(has(&tree, b"selected 00:01"));
-    assert!(contains(&tree, b"selected 18446744073709551615"));
-    assert!(!contains(&tree, b"Budget:"));
-    assert!(!contains(&tree, b"Funded by"));
+    goldens.check(&tree);
     let tree = ledger_tree(&ledger(), &words);
-    assert!(has(&tree, b"selected 17"));
-    assert!(has(&tree, b"selected 00:01"));
-    assert!(has(&tree, b"selected 00:02"));
-    assert!(!contains(&tree, b"Ledger source"));
+    goldens.check(&tree);
 
     let mut value = budget();
     value.deadline = Some(Wall::EPOCH);
-    assert!(has(&budget_tree(&value, &words), b"selected 00:00"));
+    goldens.check(&budget_tree(&value, &words));
 }

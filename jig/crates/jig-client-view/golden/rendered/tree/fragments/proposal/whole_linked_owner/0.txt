@@ -1,0 +1,40 @@
+== jig == 
+Pending proposal:
+  Proposal number: 18446744073709551615
+  Proposal project: 4294967295
+  By party 18446744073709551615
+  Proposed as holder
+  Waiting holder
+  Holder task: 31
+  Waiting since: 37
+  Proposal reason
+  ### whole proposal reason
+  Only part of this text was supplied
+  Proposed release
+  Retained ended task
+  Task 8: Review:
+    [1] Task 8: Review
+    Agent charter 4294967295
+    Ended
+  Ended at 0
+  Outbox reference:
+    Connector 65535
+    Outbox reference
+    `a/b`
+    `\xFF\x00\xFE`
+    
+    * Loading connector content (busy)
+  Held uncertain entry: 18446744073709551615
+  Hold revision: 18446744073709551615
+  Prior stage running attempt: 17
+  Left held by: 19
+  `hold explanation`
+  Supplied words incomplete
+  Transient tries: 1
+  Permanent tries: 2
+  Run tries: 3
+  Agent tries: 4
+  Lost tries: 5
+  Invalid tries: 6
+  Hold wait began: 23
+  Supplied funding offers

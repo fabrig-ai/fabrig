@@ -1,0 +1,12 @@
+== jig == 
+Whole message:
+  Message: 18446744073709551615
+  From
+  Person: 18446744073709551615
+  Kind: result
+  Result: failed
+  Whole words
+  `~�`
+  Recorded at: 18446744073709551615
+  Merged hints: 4294967295
+  Eligible

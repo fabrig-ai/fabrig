@@ -5,9 +5,9 @@
     reason = "ordinary public fragment proofs inspect full supplied sources and tree bindings"
 )]
 use crate::tests::fixtures::{Fixture, ReadPage, Served, Watched};
-use crate::tests::tree::cards::{CLIENT, contains, text, words};
+use crate::tests::kit::Goldens;
+use crate::tests::tree::cards::{CLIENT, text, words};
 use crate::{JigBindings, tree::fragments::historical as view};
-use skein_ui::Limits;
 use skein_ui::{Builder, Role, Tree};
 
 use jig_client::contract::*;
@@ -33,12 +33,14 @@ fn envelope(key: ObjectKey, value: OwnerHistoricalValue) -> OwnerHistorical {
 fn person() -> OwnerHistorical {
     let task = task();
     let source = crate::tests::tree::fragments::history::state();
-    let mut path = List::with_capacity(2);
-    path.push(Bytes::new(Box::from(b"a/b".as_slice()), 128).unwrap()).unwrap();
-    path.push(Bytes::new(Box::from([255, 0]), 128).unwrap()).unwrap();
-    let mut holdings = List::with_capacity(2);
-    holdings.push(OwnerGoalHolding::Write { connector: u16::MAX, path: path.clone(), kind: u16::MAX }).unwrap();
-    holdings.push(OwnerGoalHolding::Slot { connector: 0, path, kind: 0 }).unwrap();
+    let path = crate::tests::kit::list([
+        Bytes::new(Box::from(b"a/b".as_slice()), 128).unwrap(),
+        Bytes::new(Box::from([255, 0]), 128).unwrap(),
+    ]);
+    let holdings = crate::tests::kit::list([
+        OwnerGoalHolding::Write { connector: u16::MAX, path: path.clone(), kind: u16::MAX },
+        OwnerGoalHolding::Slot { connector: 0, path, kind: 0 },
+    ]);
     let goal = OwnerPersonProposalGoal {
         number: u64::MAX,
         project: u32::MAX,
@@ -103,12 +105,10 @@ fn question(answer: bool, ending: bool) -> OwnerHistorical {
         },
     )
 }
-fn limits(f: Limits) -> Limits {
-    f
-}
+
 fn build(value: &OwnerHistorical, words: &crate::words::Words) -> (Tree, JigBindings) {
     let f = crate::tests::render_limits(&CLIENT, words).unwrap();
-    let l = limits(f);
+    let l = f;
     let domain = Fixture::new(&CLIENT);
     let mut b = Builder::new(&l);
     let mut bindings = JigBindings::new(f.bindings, CLIENT.client.text);
@@ -126,6 +126,7 @@ fn build(value: &OwnerHistorical, words: &crate::words::Words) -> (Tree, JigBind
 }
 #[test]
 fn historical_task_renders_whole_task_and_independent_result_without_current_task_controls_or_context_defaults() {
+    let mut goldens = Goldens::new("state/historical_objects/historical_task_renders");
     let row = task();
     assert!(row.context.is_none());
     let value = envelope(
@@ -133,37 +134,22 @@ fn historical_task_renders_whole_task_and_independent_result_without_current_tas
         OwnerHistoricalValue::Task { document: Box::new(row), result: Box::new(result()) },
     );
     let (tree, _) = build(&value, words());
-    assert!(contains(&tree, b"independent result"));
-    assert!(contains(&tree, b"Historical task"));
-    assert!(contains(&tree, b"Historical record time not supplied"));
-    assert!(contains(&tree, b"Historical record sender not supplied"));
+    goldens.check(&tree);
     assert!(tree.nodes().iter().all(|node| node.role != Role::Button));
 }
 #[test]
 fn historical_raw_person_goal_displays_all_four_numbers_and_distinct_unjoined_opaque_holdings() {
+    let mut goldens = Goldens::new("state/historical_objects/historical_raw_person");
     let value = person();
     let (tree, _) = build(&value, words());
-    for caption in [
-        b"Budget: 1".as_slice(),
-        b"Spent: 7",
-        b"Spent below: 11",
-        b"Reserved: 18446744073709551615",
-        b"Write holding",
-        b"Slot holding",
-        b"a/b",
-        b"\\xFF\\x00",
-    ] {
-        assert!(contains(&tree, caption));
-    }
-    assert!(!contains(&tree, b"a/b/"));
-    assert!(contains(&tree, b"Decision not supplied"));
+    goldens.check(&tree);
     let selected = words();
-    for (choice, caption) in [
-        (OwnerProposalChoice::Accepted, b"Accept decision".as_slice()),
-        (OwnerProposalChoice::Rejected, b"Reject decision"),
-        (OwnerProposalChoice::Passed, b"Passed"),
-        (OwnerProposalChoice::Withdrawn, b"Withdrawn decision"),
-        (OwnerProposalChoice::Stale, b"Stale decision"),
+    for choice in [
+        OwnerProposalChoice::Accepted,
+        OwnerProposalChoice::Rejected,
+        OwnerProposalChoice::Passed,
+        OwnerProposalChoice::Withdrawn,
+        OwnerProposalChoice::Stale,
     ] {
         let mut decided = value.clone();
         let OwnerHistoricalValue::PersonProposal { decision, .. } = &mut decided.value else {
@@ -180,13 +166,13 @@ fn historical_raw_person_goal_displays_all_four_numbers_and_distinct_unjoined_op
             created: None,
         });
         let (tree, _) = build(&decided, selected);
-        assert!(contains(&tree, caption));
-        assert!(contains(&tree, b"Created task pair not supplied"));
+        goldens.check(&tree);
         assert!(tree.nodes().iter().all(|node| node.role != Role::Button));
     }
 }
 #[test]
 fn historical_retained_proposal_uses_bare_whole_fragment_and_keeps_pending_state_without_fake_history_row() {
+    let mut goldens = Goldens::new("state/historical_objects/historical_retained_proposal");
     let p = crate::tests::tree::fragments::history::proposal(OwnerRetainedAction::Release { task: u64::MAX });
     let value = envelope(
         ObjectKey::Proposal(ProposalKey { proposer: Proposer::Task(p.proposer), number: p.number }),
@@ -194,8 +180,7 @@ fn historical_retained_proposal_uses_bare_whole_fragment_and_keeps_pending_state
     );
     assert!(!value.is_terminal());
     let (tree, _) = build(&value, words());
-    assert!(contains(&tree, b"Historical task proposal"));
-    assert!(!contains(&tree, b"History revision"));
+    goldens.check(&tree);
     assert!(
         crate::tree::fragments::history::proposal_max_nodes(&CLIENT, &(CLIENT).client).unwrap()
             <= view::max_nodes(&CLIENT, &(CLIENT).client).unwrap()
@@ -203,6 +188,7 @@ fn historical_retained_proposal_uses_bare_whole_fragment_and_keeps_pending_state
 }
 #[test]
 fn historical_escalation_keeps_rejection_revision_sender_and_optional_retained_hold_independently() {
+    let mut goldens = Goldens::new("state/historical_objects/historical_escalation_keeps");
     let value = envelope(
         ObjectKey::Escalation(8),
         OwnerHistoricalValue::Escalation {
@@ -220,29 +206,24 @@ fn historical_escalation_keeps_rejection_revision_sender_and_optional_retained_h
         },
     );
     let (tree, _) = build(&value, words());
-    assert!(contains(&tree, b"Revision: 18446744073709551615"));
-    assert!(contains(&tree, b"Decision person: 17"));
-    assert!(contains(&tree, b"Retained hold not supplied"));
-    assert!(contains(&tree, UTF8_TEXTS[0]));
+    goldens.check(&tree);
 }
 #[test]
 fn historical_question_keeps_answer_full_result_and_outer_absence_as_three_independent_sources() {
+    let mut goldens = Goldens::new("state/historical_objects/historical_question_keeps");
     let mut value = question(true, true);
     value.at = Some(Wall::from_nanos(23));
     value.by = Some(OwnerRequester::Person(19));
     let (tree, _) = build(&value, words());
-    assert!(contains(&tree, b"independent result"));
-    assert!(contains(&tree, b"Historical record sender"));
-    assert!(!contains(&tree, b"Answer not supplied"));
-    assert!(!contains(&tree, b"Ending not supplied"));
+    goldens.check(&tree);
     let pending = question(false, false);
     assert!(!pending.is_terminal());
     let (tree, _) = build(&pending, words());
-    assert!(contains(&tree, b"Answer not supplied"));
-    assert!(contains(&tree, b"Ending not supplied"));
+    goldens.check(&tree);
 }
 #[test]
 fn historical_person_task_keeps_whole_address_contract_loss_and_independent_result_without_answer_form() {
+    let mut goldens = Goldens::new("state/historical_objects/historical_person_task");
     let t = task();
     let document = OwnerPersonTask {
         task: t.chip,
@@ -264,16 +245,16 @@ fn historical_person_task_keeps_whole_address_contract_loss_and_independent_resu
         OwnerHistoricalValue::PersonTask { document: Box::new(document), result: Box::new(result()) },
     );
     let (tree, _) = build(&value, words());
-    assert!(contains(&tree, b"independent result"));
-    assert!(contains(&tree, b"Historical person task"));
+    goldens.check(&tree);
     assert!(tree.nodes().iter().all(|node| node.role != Role::TextField && node.role != Role::TextArea));
 }
 #[test]
 fn historical_passive_card_retains_named_whole_departure_and_does_not_bind_current_question_actions() {
+    let mut goldens = Goldens::new("state/historical_objects/historical_passive_card");
     let value = question(true, false);
     let (d, id) = crate::tests::tree::cards_objects::loaded(value.key, ReadValue::Historical(Box::new(value.clone())));
     let f = crate::tests::render_limits(&CLIENT, words()).unwrap();
-    let mut l = limits(f);
+    let mut l = f;
     l.nodes = l.nodes.checked_add(64).unwrap();
     l.text_bytes = l.text_bytes.checked_add(64_u32.checked_mul(l.text_per_node).unwrap()).unwrap();
     let mut b = Builder::new(&l);
@@ -288,8 +269,7 @@ fn historical_passive_card_retains_named_whole_departure_and_does_not_bind_curre
     ));
     let tree = b.finish();
     crate::tests::tree::cards_access::check(&tree);
-    assert!(contains(&tree, b"Historical question"));
-    assert!(!contains(&tree, b"Answer not supplied"));
+    goldens.check(&tree);
     assert!(tree.nodes().iter().all(|node| node.role != Role::Button));
     let crate::state::objects::Card::Leaving { how: crate::state::objects::Left::Historical { facts }, .. } =
         &d.objects().get(id).unwrap().card
@@ -308,6 +288,7 @@ fn step(
 }
 
 fn presence_finish(domain: &mut Fixture, l: &crate::tests::fixtures::Profile, task_read: jig_client::Handle, mask: u8) {
+    let mut goldens = Goldens::case("state/historical_objects/presence", mask);
     let mut doc = task();
     doc.inputs = List::with_capacity(l.client.rows);
     for _ in 0..l.client.rows {
@@ -325,7 +306,7 @@ fn presence_finish(domain: &mut Fixture, l: &crate::tests::fixtures::Profile, ta
     let id = domain.objects().find(supplied.key).unwrap();
     let words = words();
     let f = crate::tests::render_limits(l, words).unwrap();
-    let mut cap = limits(f);
+    let mut cap = f;
     cap.nodes = cap.nodes.checked_add(64).unwrap();
     cap.text_bytes = cap.text_bytes.checked_add(64_u32.checked_mul(cap.text_per_node).unwrap()).unwrap();
     let mut b = Builder::new(&cap);
@@ -341,8 +322,7 @@ fn presence_finish(domain: &mut Fixture, l: &crate::tests::fixtures::Profile, ta
     let tree = b.finish();
     crate::tests::tree::cards_access::check(&tree);
     assert!(tree.len() <= f.nodes.checked_add(64).unwrap());
-    assert_eq!(contains(&tree, b"whole kept verdict"), mask & 1 != 0);
-    assert_eq!(contains(&tree, b"whole kept proposal"), mask & 1 != 0 && mask & 4 != 0);
+    goldens.check(&tree);
     assert_eq!(
         domain.objects().len(),
         1_u32
@@ -359,6 +339,7 @@ fn presence_finish(domain: &mut Fixture, l: &crate::tests::fixtures::Profile, ta
 #[test]
 fn historical_selected_language_uses_checked_native_captions_and_preserves_opaque_goal_values() {
     use skein_ui::phrases::{PhraseLimits, Phrasebook, Segment};
+    let mut goldens = Goldens::new("state/historical_objects/historical_selected_language");
     let english = crate::words::phrases::english::language();
     let mut selected = english.clone();
     for phrase in &mut selected.phrases {
@@ -391,9 +372,7 @@ fn historical_selected_language_uses_checked_native_captions_and_preserves_opaqu
     );
     let value = person();
     let (tree, _) = build(&value, &words);
-    assert_eq!(tree.nodes().first().unwrap().name.as_deref(), Some(b"Selected historical source".as_slice()));
-    assert!(contains(&tree, b"\\xFF\\x00"));
-    assert!(contains(&tree, b"Reserved: 18446744073709551615"));
+    goldens.check(&tree);
     let f = crate::tests::render_limits(&CLIENT, &words).unwrap();
     assert!(tree.len() <= f.nodes);
     assert!(tree.nodes().iter().map(crate::tests::text_bytes).sum::<u32>() <= f.text_bytes);
@@ -446,8 +425,7 @@ fn presence(mask: u8) {
     };
     let mut domain = presence_domain(&l);
     let proposal_key = ProposalKey { proposer: Proposer::Task(9), number: 7 };
-    let mut keys = List::with_capacity(4);
-    keys.push(ObjectKey::Task(8)).unwrap();
+    let mut keys = crate::tests::kit::list_in(4, [ObjectKey::Task(8)]);
     if mask & 1 != 0 {
         keys.push(ObjectKey::Result(9)).unwrap();
     }

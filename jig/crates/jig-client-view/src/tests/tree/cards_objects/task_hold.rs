@@ -1,7 +1,9 @@
+use crate::tests::kit::Goldens;
 use crate::tests::tree::cards_objects::*;
 
 #[test]
 fn owner_hold_confirmation_keeps_exact_prior_counts_loss_clock_presence_and_repeat_bindings() {
+    let mut goldens = Goldens::new("tree/cards_objects/task_hold/owner_hold_confirmation");
     let reference = held_reference();
     for uncertain in [false, true] {
         for wait in [None, Some(Wall::from_nanos(u64::MAX))] {
@@ -45,38 +47,7 @@ fn owner_hold_confirmation_keeps_exact_prior_counts_loss_clock_presence_and_repe
                 let envelope = limits();
                 let mut bindings = JigBindings::new(envelope.bindings, CLIENT.client.text);
                 let tree = dialog(&domain, words(), &mut bindings);
-                assert!(contains(&tree, b"Release continues from the shown lifecycle; failure counts reset"));
-                assert!(contains(&tree, b"Hold revision: 18446744073709551615"));
-                assert!(contains(&tree, b"Left held by: 18446744073709551615"));
-                assert!(contains(&tree, b"exact held rejection"));
-                assert!(contains(&tree, b"Supplied words incomplete"));
-                for caption in [
-                    b"Transient tries: 1".as_slice(),
-                    b"Permanent tries: 2",
-                    b"Run tries: 3",
-                    b"Agent tries: 4",
-                    b"Lost tries: 5",
-                    b"Invalid tries: 4294967295",
-                ] {
-                    assert!(contains(&tree, caption));
-                }
-                assert_eq!(contains(&tree, b"Hold wait began:"), wait.is_some());
-                let expected_prior = match prior {
-                    OwnerPriorPhase::Waiting => b"Prior stage waiting".as_slice(),
-                    OwnerPriorPhase::Active(_) => b"Prior stage claimed attempt: 18446744073709551615",
-                    OwnerPriorPhase::Closing(_) => b"Prior closing effects",
-                };
-                assert!(contains(&tree, expected_prior));
-                let escaped = "\\xFF".repeat(32);
-                assert!(contains(&tree, escaped.as_bytes()));
-                for document_caption in [
-                    b"The next run resumes its conversation".as_slice(),
-                    b"Release to wait again",
-                    b"Release for the executor to decide afresh",
-                    b"Release with procedure counts reset",
-                ] {
-                    assert!(!contains(&tree, document_caption));
-                }
+                goldens.check(&tree);
                 let mut choices = Vec::new();
                 let mut raw_slots = 0_u32;
                 for node in tree.nodes() {
@@ -93,7 +64,7 @@ fn owner_hold_confirmation_keeps_exact_prior_counts_loss_clock_presence_and_repe
                 }
                 assert_eq!(raw_slots, 1);
                 assert_eq!(choices, if uncertain { vec![true, false] } else { vec![] });
-                assert!(!contains(&tree, b"whole report"));
+
                 let Some(crate::state::objects::Body::Task(retained)) = &domain.objects().get(id).unwrap().body else {
                     panic!("whole task")
                 };

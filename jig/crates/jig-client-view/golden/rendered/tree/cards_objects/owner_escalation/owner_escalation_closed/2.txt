@@ -1,0 +1,392 @@
+== jig == 
+- Escalation:
+    ## Escalation
+    In project 4
+    * Open
+    Task 8: Review:
+      [1] Task 8: Review
+      Agent charter 1
+      Held
+      Held budget
+      Current revision 18446744073709551615
+    Taken by party 18446744073709551615
+    Project: 4:
+      Project: 4
+      Agent charter 1
+      Phase since: 01:00
+      Placed or adopted: 01:00
+      Attempt: 18446744073709551615
+      Activation refusal count 4294967295
+      Wake policy:
+        Words
+        Does not wake
+        Notices
+        Wakes immediately
+        News
+        Wakes after 4294967295 messages or 30 ns of oldest message age
+        The last delegate result or a failure wakes
+        Questions wake
+        Answers do not wake
+        Timers wake
+      Held budget
+      Hold revision: 18446744073709551615
+      Prior closing effects
+      Escalation holder person: 18446744073709551615
+      Escalation entry: 17
+      Escalation waiting since: 01:00
+      Transient tries: 1
+      Permanent tries: 2
+      Run tries: 3
+      Agent tries: 4
+      Lost tries: 5
+      Invalid tries: 6
+      Budget: 100:
+        Budget: 100
+        Spent directly: 2
+        Settled spend below: 3
+        Reserved for funded work: 5
+        Left: 7
+        Funded by
+        Funded by task 18446744073709551615
+      Activity through: 18446744073709551615
+      Resource holder and writer facts unavailable
+      Live delegates: 4294967295
+      Closing connectors unavailable
+      Run work unobserved
+    whole task specification
+    whole task instructions
+    Result expected
+    Report word byte limit 32
+    Requested by person 1
+    Wake policy:
+      Words
+      Wakes immediately
+      Notices
+      Does not wake
+      News
+      Does not wake
+      Each delegate result wakes
+      Questions do not wake
+      Answers do not wake
+      Timers do not wake
+    Subscriptions:
+    Failed with reason
+    `supplied prior task failure`
+    Charter 1
+    Budget: 20:
+      Budget: 20
+      Spent directly: 0
+      Settled spend below: 0
+      Reserved for funded work: 0
+      Left: 20
+      Funded by
+      Funded by pool in project 4, person 1, period 3
+      Tool bits: 0
+      Delegate tasks: 3
+      Delegate depth: 2
+      Spend ceiling: 10
+      Note scope bits: 0
+      Keep default models
+      Grants
+      Allowed delegation executors
+      Note resources
+    Release
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Leave it held
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Pass up
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Amend
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Cancel
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Release
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Leave it held
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Pass up
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Amend
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Cancel
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Release
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Leave it held
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Pass up
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Amend
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Cancel
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Release
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Leave it held
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Pass up
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Amend
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Cancel
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Release
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Leave it held
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Pass up
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Amend
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Cancel
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34

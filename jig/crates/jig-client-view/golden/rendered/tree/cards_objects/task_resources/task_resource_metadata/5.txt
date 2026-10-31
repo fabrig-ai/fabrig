@@ -1,0 +1,103 @@
+== Task 8 == 
+Task 8:
+  - Task 8: Review:
+      ## Task 8: Review
+      * Open
+      Task 8: Review:
+        [1] Task 8: Review
+        Person 1
+        Held
+        Held budget
+        Current revision 4
+  In project 4
+  Goal
+  Priority 1
+Task 8:
+  [2] Overview (current)
+  [3] Activity
+  [4] Plan
+  [5] History
+  [6] Budget and authority
+  [7] Connectors
+Overview:
+  ## Overview
+  Project: 4:
+    Project: 4
+    Person 1
+    Phase since: 01:00
+    Wake policy:
+      Words
+      Does not wake
+      Notices
+      Wakes immediately
+      News
+      Wakes after 4294967295 messages or 30 ns of oldest message age
+      The last delegate result or a failure wakes
+      Questions wake
+      Answers do not wake
+      Timers wake
+    Held budget
+    Hold revision: 4
+    Prior stage waiting
+    Transient tries: 0
+    Permanent tries: 0
+    Run tries: 0
+    Agent tries: 0
+    Lost tries: 0
+    Invalid tries: 0
+    Hold wait began: 01:00
+    Budget: 100:
+      Budget: 100
+      Spent directly: 2
+      Settled spend below: 3
+      Reserved for funded work: 5
+      Left: 7
+      Funded by
+      Funded by task 18446744073709551615
+    Activity through: 18446744073709551615
+    Resource holder and writer facts unavailable
+    Live delegates: 0
+    Closing connectors unavailable
+    Run work unobserved
+  whole task specification
+  whole task instructions
+  Result expected
+  Report word byte limit 32
+  Requested by person 1
+  Wake policy:
+    Words
+    Wakes immediately
+    Notices
+    Does not wake
+    News
+    Does not wake
+    Each delegate result wakes
+    Questions do not wake
+    Answers do not wake
+    Timers do not wake
+  Subscriptions:
+  Resource kind: 65535:
+    Resource reference:
+      Connector 65535
+      Resource reference
+      `a/b`
+      `\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF`
+      * Loading connector content (busy)
+    Resource kind: 65535
+    Resource taken
+    Writer task: 18446744073709551615
+    Writer attempt: 18446744073709551615
+    Writer not lost
+  Resource kind: 65535:
+    Resource reference:
+      Connector 65535
+      Resource reference
+      `a/b`
+      `\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF`
+      * Loading connector content (busy)
+    Resource kind: 65535
+    Resource taken
+    Holder task: 18446744073709551615
+    Writer task: 18446744073709551615
+    Writer attempt: 18446744073709551615
+    Writer not lost

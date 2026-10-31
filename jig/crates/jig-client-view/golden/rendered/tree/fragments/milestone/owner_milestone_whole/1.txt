@@ -1,0 +1,12 @@
+== jig == 
+Lifecycle milestone:
+  Lifecycle milestone
+  Task: 18446744073709551615
+  Activity position: 18446744073709551615
+  Milestone time not supplied
+  Ended
+  Completed with result
+  Verdict 4294967295
+  verdict
+  name
+  value

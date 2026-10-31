@@ -1,0 +1,33 @@
+== jig == 
+- Person task:
+    ## Person task
+    In project 4294967295
+    * Open
+    Person task:
+      Task 8: source title:
+        [1] Task 8: source title
+        Title is incomplete
+        Agent charter 4294967295
+        Project role 4294967295
+        kept until T7 is done
+        [2] Task 7
+        * Loading task 7 phase facts
+      Person revision: 18446744073709551615
+      Requested by deployment in project 4294967295
+      question bytes
+      Only part of this text was supplied
+      Parameter 4294967295
+      ~�/
+      Only part of this text was supplied
+      Input task 18446744073709551615
+      The specification is incomplete
+      Role destination: 4294967295
+      Taker not supplied
+      Waiting time not supplied
+      Stall duration: 307445734
+      Deadline: 01:00
+      Shown results:
+      Some shown results were omitted
+      Report word byte limit 3
+    [3] Take it
+    [4] Hand it back

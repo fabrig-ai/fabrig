@@ -1,0 +1,35 @@
+== jig == 
+Result owner details:
+  Task contract
+  Report word byte limit 4294967295
+  Requested by deployment in project 4294967295
+  Project role 4294967295
+  Choice maker not supplied
+  Delegate task references: 7
+  Live task
+  Task 18446744073709551615: supplied title:
+    [1] Task 18446744073709551615: supplied title
+    Person 1
+    Preparing an activation
+  Retained ended task
+  Task 18446744073709551615: supplied title:
+    [2] Task 18446744073709551615: supplied title
+    Person 1
+    Preparing an activation
+  Ended time unavailable
+  Retained ended task
+  Task 18446744073709551615: supplied title:
+    [3] Task 18446744073709551615: supplied title
+    Person 1
+    Preparing an activation
+  Ended at 00:02
+  Stored task 18446744073709551615
+  Stored status unavailable
+  Stored task 18446744073709551615
+  Done
+  Stored task 18446744073709551615
+  Failed
+  Stored task 18446744073709551615
+  Cancelled
+  Follow-up facts unavailable
+  Proposal not supplied

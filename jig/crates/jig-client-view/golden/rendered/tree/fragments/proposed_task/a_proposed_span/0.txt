@@ -1,0 +1,10 @@
+== jig == 
+  Tool bits: 0
+  Delegate tasks: 2
+  Delegate depth: 1
+  Spend ceiling: 5
+  Note scope bits: 0
+  Keep default models
+  Grants
+  Allowed delegation executors
+  Note resources

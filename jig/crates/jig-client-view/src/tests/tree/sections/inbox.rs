@@ -5,7 +5,8 @@
 )]
 use crate::JigBindings;
 use crate::tests::fixtures::{Fixture, ReadPage, Watched};
-use crate::tests::tree::cards::{CLIENT, contains, document, drive, start};
+use crate::tests::kit::Goldens;
+use crate::tests::tree::cards::{CLIENT, document, drive, start};
 use crate::words::Words;
 use skein_ui::phrases::{Hole, Invalid, PhraseLimits, Phrasebook, Segment};
 use skein_ui::{Builder, Role, Tree};
@@ -120,37 +121,23 @@ fn build(client: &Fixture, w: &Words) -> Tree {
 }
 #[test]
 fn owner_inbox_public_six_objects_equal_makers_full_width_keys_and_missing_facts_are_checked() {
+    let mut goldens = Goldens::new("tree/sections/inbox/owner_inbox_public");
     let w = words(false);
     let cases = [
-        (OwnerInboxObject::Question { message: u64::MAX }, b"Question message: 18446744073709551615".as_slice(), 50),
-        (
-            OwnerInboxObject::Proposal { proposer: Proposer::Task(u64::MAX), number: u64::MAX },
-            b"Task proposer: 18446744073709551615 / proposal: 18446744073709551615",
-            51,
-        ),
-        (
-            OwnerInboxObject::Proposal { proposer: Proposer::Party(u64::MAX), number: u64::MAX },
-            b"Party proposer: 18446744073709551615 / proposal: 18446744073709551615",
-            52,
-        ),
-        (OwnerInboxObject::Escalation { revision: u64::MAX }, b"Escalation revision: 18446744073709551615", 53),
-        (OwnerInboxObject::PersonTask, b"Person task", 54),
-        (OwnerInboxObject::Reply { message: u64::MAX }, b"Reply message: 18446744073709551615", 55),
-        (OwnerInboxObject::Result { position: u64::MAX }, b"Result position: 18446744073709551615", 56),
+        (OwnerInboxObject::Question { message: u64::MAX }, 50),
+        (OwnerInboxObject::Proposal { proposer: Proposer::Task(u64::MAX), number: u64::MAX }, 51),
+        (OwnerInboxObject::Proposal { proposer: Proposer::Party(u64::MAX), number: u64::MAX }, 52),
+        (OwnerInboxObject::Escalation { revision: u64::MAX }, 53),
+        (OwnerInboxObject::PersonTask, 54),
+        (OwnerInboxObject::Reply { message: u64::MAX }, 55),
+        (OwnerInboxObject::Result { position: u64::MAX }, 56),
     ];
-    for (object, label, kind) in cases {
+    for (object, kind) in cases {
         let value = whole([row(object)], false);
         let unchanged = value.clone();
         let client = domain(value);
         let tree = build(&client, &w);
-        assert!(contains(&tree, label));
-        assert!(contains(&tree, b"4294967295 need you"));
-        assert!(contains(&tree, b"17 updates"));
-        assert!(!contains(&tree, b"More than 17"));
-        assert!(!contains(&tree, b"New update"));
-        assert!(!contains(&tree, b"Activity position:"));
-        assert!(!contains(&tree, b"Waiting for"));
-        assert!(contains(&tree, b"18446744073709551615"));
+        goldens.check(&tree);
         assert!(tree.nodes().iter().any(|node| if let Some(key) = node.key {
             key.kind == kind && key.a == u64::MAX
         } else {
@@ -164,6 +151,7 @@ fn owner_inbox_public_six_objects_equal_makers_full_width_keys_and_missing_facts
 }
 #[test]
 fn owner_inbox_second_checked_language_rejects_wrong_holes_without_fallback() {
+    let mut goldens = Goldens::new("tree/sections/inbox/owner_inbox_second");
     let w = words(true);
     let mut value = row(OwnerInboxObject::Result { position: u64::MAX });
     value.project = Some(0);
@@ -171,10 +159,7 @@ fn owner_inbox_second_checked_language_rejects_wrong_holes_without_fallback() {
     value.unread = Some(true);
     let client = domain(whole([value], true));
     let tree = build(&client, &w);
-    assert!(contains(&tree, b"second 18446744073709551615"));
-    assert!(!contains(&tree, b"Result position:"));
-    assert!(!contains(&tree, b"Stored task"));
-    assert!(!contains(&tree, b"More than"));
+    goldens.check(&tree);
     let id = crate::words::inbox_words::InboxPhrase::Result.id();
     assert_eq!(w.book().say(1, id, &[Hole::Number(u64::MAX)]).unwrap().text.as_ref(), b"second 18446744073709551615");
     assert_eq!(w.book().say(1, id, &[]).err(), Some(Invalid::Values { id }));
@@ -182,6 +167,7 @@ fn owner_inbox_second_checked_language_rejects_wrong_holes_without_fallback() {
 }
 #[test]
 fn owner_inbox_both_full_groups_two_read_windows_counts_source_cuts_fit_the_whole_page_bound() {
+    let mut goldens = Goldens::new("tree/sections/inbox/owner_inbox_both");
     let w = words(false);
     let values = [
         row(OwnerInboxObject::Question { message: 1 }),
@@ -223,11 +209,7 @@ fn owner_inbox_both_full_groups_two_read_windows_counts_source_cuts_fit_the_whol
     assert!(client.inbox().needs_window.cut);
     assert!(client.inbox().updates_window.cut);
     assert_ne!(client.inbox().needs_window.after, client.inbox().updates_window.after);
-    assert!(contains(&tree, b"More than 17 updates"));
-    assert!(contains(&tree, b"Question message: 1"));
-    assert!(contains(&tree, b"Escalation revision: 2"));
-    assert!(contains(&tree, b"Reply message: 3"));
-    assert!(contains(&tree, b"Result position: 4"));
+    goldens.check(&tree);
     assert!(
         crate::inbox_nodes(
             &crate::tests::fixtures::Profile {

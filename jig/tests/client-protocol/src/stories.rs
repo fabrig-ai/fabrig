@@ -8,8 +8,8 @@ pub const SEEDS: &[u64] = &[8510, 8511];
 pub type Story = World<Test, Protocol>;
 #[must_use]
 pub fn start() -> Vec<Step<jig_client_test_domain::Address>> {
-    let mut steps = fixtures::sign_in_then(stories::start_chat_steps());
-    steps.push(Step::See { find: Find::text(b"Hello"), within: Duration::from_secs(2) });
+    let mut steps =
+        stories::shared::b_conversations::sign_in(stories::shared::b_conversations::start_chat_steps(b"Hello"));
     steps.push(Step::See { find: Find::exactly_named(Role::Button, b"Stop"), within: Duration::from_secs(1) });
     steps
 }
@@ -28,18 +28,7 @@ pub fn finish(world: &mut Story) {
     assert!(world.front().rules().records > 0 && world.front().rules().domains > 0);
 }
 pub fn send_words(world: &mut Story, client: ClientId, words: &[u8], release: bool) {
-    let mut steps = vec![
-        Step::Press { find: Find::exactly_named(Role::Button, b"Write") },
-        Step::Type { find: Find::named(Role::TextArea, b"Your answer"), words: words.into() },
-    ];
-    if release {
-        steps.push(Step::Press { find: Find::named(Role::Button, b"Write and release together") });
-    }
-    steps.extend([
-        Step::Press { find: Find::named(Role::Button, b"Confirm") },
-        Step::See { find: Find::text(words), within: Duration::from_secs(2) },
-    ]);
-    world.person(client, steps);
+    world.person(client, stories::shared::b_effects::words_steps(words, release));
 }
 
 pub fn submit_stop(world: &mut Story, client: ClientId) {
@@ -103,43 +92,4 @@ pub fn two_clients(seed: u64) -> (Story, ClientId) {
 
 pub fn transient_request(seed: u64, fault: &jig_client_world::FrontFault) {
     crate::client::transient_request(seed, fault);
-}
-
-const LIST_WAIT: Duration = Duration::from_secs(1);
-const FIRST_CHAT: u64 = 1;
-#[must_use]
-pub fn conversations() -> jig_client_test_domain::Address {
-    stories::conversation()
-}
-pub fn start_chat(world: &mut Story, client: ClientId, words: &[u8]) {
-    world.person(
-        client,
-        vec![
-            Step::Go { address: conversations() },
-            Step::See { find: Find::named(Role::TextArea, b"First words"), within: LIST_WAIT },
-            Step::Type { find: Find::named(Role::TextArea, b"First words"), words: words.into() },
-            Step::Press { find: Find::named(Role::Button, b"Start a conversation") },
-            Step::See { find: Find::text(words), within: LIST_WAIT },
-        ],
-    );
-    finish(world);
-}
-pub fn end_chat(world: &mut Story, client: ClientId, words: &[u8]) {
-    world.person(
-        client,
-        vec![
-            Step::Go {
-                address: jig_client_test_domain::Address::Jig(jig_client_view::address::Address::Task {
-                    task: FIRST_CHAT,
-                    section: jig_client_view::address::TaskSection::Activity,
-                }),
-            },
-            Step::See { find: Find::text(words), within: LIST_WAIT },
-            Step::Press { find: Find::exactly_named(Role::Button, b"Cancel") },
-            Step::Type { find: Find::named(Role::TextArea, b"Your reason"), words: b"Done chatting".as_slice().into() },
-            Step::Press { find: Find::exactly_named(Role::Button, b"Confirm") },
-            Step::See { find: Find::text(b"Ended"), within: LIST_WAIT },
-        ],
-    );
-    finish(world);
 }

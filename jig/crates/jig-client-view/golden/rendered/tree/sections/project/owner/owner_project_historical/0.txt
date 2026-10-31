@@ -1,0 +1,124 @@
+== Project == 
+Project:
+  Project: Tally
+Tally:
+  [1] Overview
+  [2] Goals
+  [3] Tasks
+  [4] Notes
+  [5] Settings
+  [6] Resources
+  [7] Policy
+  [8] Roles and services
+  [9] Spend (current)
+  [10] Recurring tasks
+Spend:
+  ## Spend
+  Current period not supplied
+  Ledger source:
+    Budget: 101
+    Spent directly: 103
+    Settled spend below: 107
+    Reserved for funded work: 109
+    Left: 113
+    Ledger source
+    Funded by task 18446744073709551615
+    Parent funder
+    Funded by task 18446744073709551615
+    Ledger is closed
+    Period began: 0
+  Ledger source:
+    Budget: 101
+    Spent directly: 103
+    Settled spend below: 107
+    Reserved for funded work: 109
+    Left: 113
+    Ledger source
+    Funded by pool in project 4294967295, person 18446744073709551615, period 0
+    Parent funder
+    Funded by task 18446744073709551615
+    Ledger is closed
+    Period began: 0
+  Ledger source:
+    Budget: 101
+    Spent directly: 103
+    Settled spend below: 107
+    Reserved for funded work: 109
+    Left: 113
+    Ledger source
+    Funded by recurring task in project 0, task 18446744073709551615, period 18446744073709551615
+    Parent funder
+    Funded by task 18446744073709551615
+    Ledger is closed
+    Period began: 0
+  Ledger source:
+    Budget: 101
+    Spent directly: 103
+    Settled spend below: 107
+    Reserved for funded work: 109
+    Left: 113
+    Ledger source
+    Funded by project period 4294967295, period 18446744073709551615
+    Parent funder
+    Funded by task 18446744073709551615
+    Ledger is closed
+    Period began: 0
+  - Spend:
+      Task 9: source chip:
+        [11] Task 9: source chip
+        Title is incomplete
+        Agent charter 4294967295
+        Preparing an activation
+      Funded by task 18446744073709551615
+      Budget: 101
+      Spent: 103
+      Spent below: 107
+      Reserved: 109
+  - Spend:
+      Task 0: source chip:
+        [12] Task 0: source chip
+        Title is incomplete
+        Agent charter 4294967295
+        Preparing an activation
+      Funded by pool in project 4294967295, person 18446744073709551615, period 0
+      Budget: 101
+      Spent: 103
+      Spent below: 107
+      Reserved: 109
+  - Spend:
+      Task 18446744073709551615: source chip:
+        [13] Task 18446744073709551615: source chip
+        Title is incomplete
+        Agent charter 4294967295
+        Preparing an activation
+      Funded by recurring task in project 0, task 18446744073709551615, period 18446744073709551615
+      Budget: 101
+      Spent: 103
+      Spent below: 107
+      Reserved: 109
+  - Spend:
+      Task 9: source chip:
+        [14] Task 9: source chip
+        Title is incomplete
+        Agent charter 4294967295
+        Preparing an activation
+      Funded by project period 4294967295, period 18446744073709551615
+      Budget: 101
+      Spent: 103
+      Spent below: 107
+      Reserved: 109
+  Historical funding records:
+    Funded by project period 4, period 777:
+      Funded by project period 4, period 777
+      Parent funder not supplied
+      Budget: 977
+      Spent by this funder: 979
+      Spent below this funder: 981
+      Reserved: 983
+      Tasks made: 985
+      Funding record closed
+      Period began: 0
+      Next period begins: 18446744073709551615
+  * This page is incomplete
+  [15] Read earlier
+  [16] Read later

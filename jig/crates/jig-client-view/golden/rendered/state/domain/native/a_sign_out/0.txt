@@ -1,0 +1,41 @@
+== Inbox == Live
+Work:
+  What needs you:
+    Questions: 0; proposals: 0; escalations: 0; person tasks: 0
+    Results read through 0
+    [1] 0 updates not read
+    [2] 0 need you
+  Who is signed in:
+    * Signed in as Pat
+    Person
+    Login: fixture-login
+    * Not signed out: the engine was not reached
+    [3] Sign out
+  Projects:
+  Go to a task:
+    [4] Go to task number: (empty) (enter sends)
+Inbox:
+  [5] All projects
+  [6] All kinds
+  [7] Question
+  [8] Proposal
+  [9] Escalation
+  [10] Person task
+  [11] Result
+  [12] Reply
+  [13] All goals
+  0 need you
+  0 updates not read
+Needs you:
+  ## Needs you
+  * Finding how this ended
+  Start of the list
+  End of the list
+Updates:
+  ## Updates
+  * Finding how this ended
+  Start of the list
+  End of the list
+Notices:
+  * Not signed out: the engine was not reached
+  [14] Dismiss
