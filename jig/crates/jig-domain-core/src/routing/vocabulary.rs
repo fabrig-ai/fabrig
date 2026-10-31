@@ -938,6 +938,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Hold { .. }
         | tasks::Event::HoldFrom { .. } => true,
         tasks::Event::Charters { .. }
+        | tasks::Event::DropProject { .. }
         | tasks::Event::WakeProcedure { .. }
         | tasks::Event::RecurringBatch { .. }
         | tasks::Event::Procedure { .. }

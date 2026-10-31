@@ -33,6 +33,9 @@ pub(super) fn tag_tasks(
     for _ in 0..env.limits.routes {
         let Some(next) = pending.pop() else { break };
         let request = match next {
+            tasks::Request::DropRefused { project } => {
+                unreachable!("core's project deletion order dropped project {project} with a live task")
+            }
             tasks::Request::ProcedureRefused { task, step, problem } => {
                 super::procedure_steps::append_problem(core, task, step, problem, &mut out);
                 continue;

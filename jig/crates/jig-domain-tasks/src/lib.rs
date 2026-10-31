@@ -72,6 +72,7 @@ mod compound;
 mod control;
 pub use compound::{CompoundAdmission, CompoundContext, CompoundTask, Operation};
 mod domain;
+mod drop_project;
 mod payer;
 pub use payer::{Payer, PayerLink};
 mod escalation;
