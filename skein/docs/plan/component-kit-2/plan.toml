@@ -1,0 +1,85 @@
+ready = false
+
+# skein's component kit, phase 1 (skein/docs/design/draft/component-kit.md),
+# cut into direct parts. The tasks are in tasks/, the rules they share in
+# notes/, the cut's choices, counts and critical path in notes/decisions.md.
+draft = "component-kit-2"
+repo = "fabrig"
+sources = [
+  "skein/docs/design/draft/component-kit.md",
+  "skein/docs/plan/component-kit-2/inputs/kickoff.md",
+  "skein/docs/plan/component-kit-2/inputs/skein-quality-review.md",
+  "skein/docs/plan/component-kit-2/inputs/brief.md",
+  "skein/docs/plan/component-kit-2/inputs/README.md",
+  "AGENTS.md",
+]
+
+# The counts, lib's missing primitives and io's stage, each landed before
+# any site moves onto it (draft, 3.1 and 4).
+[[part]]
+id = "kit-contract"
+title = "The counts, lib's missing primitives and skein_io::stage::{up, down}"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.1 and 4"
+
+# Referee defaults, a provided Host::next_deadline and the Delegate
+# forwarding (draft, 3.5; 6.1 decided in notes/decisions.md). Its kit-shell
+# task is the surface every stage site also moves onto.
+[[part]]
+id = "world-surfaces"
+title = "Referee defaults, a provided Host::next_deadline, Host forwarded through Delegate"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.5"
+
+[[part]]
+id = "echo-first"
+title = "The echo example's host and client on the shared stage"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.2"
+
+[[part]]
+id = "stage-sites"
+title = "The other io::resume sites on skein_io::stage, one family per task"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.3"
+
+[[part]]
+id = "lib-sites"
+title = "The private copies of lib's primitives on lib, one family per task"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.4"
+
+[[part]]
+id = "abort"
+title = "Abort in skein-forge-connection and skein-forge-setup's host"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.6"
+
+[[slice]]
+id = 1
+story = "The echo example's host and client run on skein_io::stage, the echo world's stories green"
+parts = ["kit-contract", "echo-first"]
+walk = false
+
+[[slice]]
+id = 2
+story = "Every io stage site and every private copy of lib's primitives is on the shared items, the counts at their targets"
+parts = ["stage-sites", "lib-sites"]
+walk = false
+
+[[slice]]
+id = 3
+story = "Test worlds take the Referee and Host defaults and forward Host through Delegate; both forge components take Abort"
+parts = ["world-surfaces", "abort"]
+walk = false
+
+[[question]]
+id = "component-kit-role"
+text = "A component-kit role in skein/docs/foundation/programming-model.md, 4 (draft, 6.2) changes the code's rules. Land the wording proposed in skein/docs/plan/component-kit-2/notes/decisions.md (6.2), change it, or leave the model as it is? Recommended: land it, so the shared transport (draft, 5) has a place. No task waits for the answer."
+parts = []
