@@ -148,7 +148,7 @@ pub struct Peers {
 /// Released outputs, drained without inspecting the root.
 #[derive(Debug)]
 pub enum Delivery {
-    Root(engine::Request),
+    Root(Box<engine::Request>),
     /// An input admission handed back, for its peer to send again.
     Returned(Box<engine::Event>),
     Resume,
@@ -403,7 +403,7 @@ impl Application for Temper {
                     Output::Commit { number, writes }
                 }
                 engine::Request::Stop => Output::Stop,
-                other => Output::Deliver(Delivery::Root(other)),
+                other => Output::Deliver(Delivery::Root(Box::new(other))),
             });
         }
         if let Some(event) = domain.returned.take() {
@@ -463,7 +463,7 @@ impl Application for Temper {
         delivery: Delivery,
     ) -> Vec<Input<Event, observations::Record>> {
         let request = match delivery {
-            Delivery::Root(request) => request,
+            Delivery::Root(request) => *request,
             Delivery::Returned(event) => return vec![Input::Event(Event::Root(*event))],
             Delivery::Resume => return vec![Input::Event(Event::Fire)],
         };
