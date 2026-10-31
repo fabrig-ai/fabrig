@@ -7,7 +7,7 @@ use skein_fake_forge_domain::{
     api::{Change, Check},
 };
 use skein_forge::forgejo::{delivery, document::Body, request::ReviewEvent, server};
-use skein_lib::{Decimal, List, Secret, Writer, sha256::Hmac};
+use skein_lib::{Decimal, List, Secret, Writer, bytes, sha256::Hmac};
 /// One forge's destination and signing secret; no secret crosses into its domain.
 #[derive(Debug)]
 pub struct Endpoint {
@@ -175,8 +175,7 @@ pub fn sign(secret: &Secret, body: &[u8]) -> [u8; 64] {
     let mut signature = [0; 64];
     for (out, byte) in signature.as_chunks_mut::<2>().0.iter_mut().zip(hmac.finish()) {
         for (digit, nibble) in out.iter_mut().zip([byte / 16, byte % 16]) {
-            *digit =
-                if nibble < 10 { b'0'.saturating_add(nibble) } else { b'a'.saturating_add(nibble.saturating_sub(10)) };
+            *digit = bytes::hex_digit(nibble);
         }
     }
     signature
@@ -198,9 +197,9 @@ fn destination(url: &[u8]) -> Option<(SocketAddr, &[u8], &[u8])> {
             return None;
         }
     }
-    let slash = skein_lib::bytes::find(rest, b"/")?;
+    let slash = bytes::find(rest, b"/")?;
     let (host, path) = rest.split_at_checked(slash)?;
-    let target = match skein_lib::bytes::find(path, b"#") {
+    let target = match bytes::find(path, b"#") {
         Some(fragment) => path.get(..fragment)?,
         None => path,
     };
