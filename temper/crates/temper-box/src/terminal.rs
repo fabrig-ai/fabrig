@@ -16,6 +16,7 @@ pub enum Fact {
     GroupStarted { forge: u16 },
     GroupFailed { forge: u16, why: Why },
     GroupStopped { forge: u16 },
+    GroupRemoved { forge: u16 },
     Restarting { step: usize, why: Why, delay: Duration },
     GivingUp { step: usize, why: Why },
     Stopping,
@@ -101,6 +102,9 @@ impl Formatter {
             Fact::GroupStopped { forge } => {
                 joined(&[layout::label(steps, forge).expect("group label"), b": stopped\n"])
             }
+            Fact::GroupRemoved { forge } => {
+                joined(&[layout::label(steps, forge).expect("group label"), b": removed\n"])
+            }
             Fact::Restarting { why: reason, delay, .. } => {
                 joined(&[&why(reason, steps), b"; restarting in ", &seconds(delay), b" s\n"])
             }
@@ -143,6 +147,10 @@ impl Formatter {
 #[must_use]
 pub fn why(why: Why, steps: &[Placed]) -> Box<[u8]> {
     match why {
+        Why::Full => skein_lib::bytes::copy_of(b"full"),
+        Why::Unreadable => skein_lib::bytes::copy_of(b"unreadable"),
+        Why::Removal { exit, .. } => pipe::exited(b"removal", exit),
+        Why::NotRemoved => skein_lib::bytes::copy_of(b"not removed"),
         Why::Busy => skein_lib::bytes::copy_of(b"busy"),
         Why::NotAsked => skein_lib::bytes::copy_of(b"not asked"),
         Why::Stopping => skein_lib::bytes::copy_of(b"stopping"),
@@ -263,13 +271,21 @@ pub(crate) fn tail_step(fact: Fact) -> Option<usize> {
         | Fact::Started { .. }
         | Fact::GroupStarting { .. }
         | Fact::GroupStarted { .. }
+        | Fact::GroupRemoved { .. }
         | Fact::GroupStopped { .. }
         | Fact::Stopping
         | Fact::Stopped => return None,
     };
     match why {
-        Why::Exited { step, .. } | Why::NotReady { step } => Some(step),
-        Why::NotStarted { .. } | Why::NotWritten | Why::Busy | Why::NotAsked | Why::Stopping => None,
+        Why::Removal { step, .. } | Why::Exited { step, .. } | Why::NotReady { step } => Some(step),
+        Why::NotStarted { .. }
+        | Why::NotWritten
+        | Why::Busy
+        | Why::NotAsked
+        | Why::Stopping
+        | Why::Full
+        | Why::Unreadable
+        | Why::NotRemoved => None,
     }
 }
 pub(crate) fn failure_bytes(steps: &[Placed], data: &[u8]) -> u32 {

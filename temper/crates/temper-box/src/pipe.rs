@@ -46,14 +46,17 @@ impl Reader {
 pub enum Command {
     Start(u16),
     Stop(u16),
+    Remove(u16),
     Unknown,
 }
 #[must_use]
 pub fn command(line: &[u8]) -> Command {
-    let (rest, stop) = if let Some(rest) = line.strip_prefix(b"start ") {
-        (rest, false)
+    let (rest, verb) = if let Some(rest) = line.strip_prefix(b"start ") {
+        (rest, Command::Start(0))
     } else if let Some(rest) = line.strip_prefix(b"stop ") {
-        (rest, true)
+        (rest, Command::Stop(0))
+    } else if let Some(rest) = line.strip_prefix(b"remove ") {
+        (rest, Command::Remove(0))
     } else {
         return Command::Unknown;
     };
@@ -76,7 +79,12 @@ pub fn command(line: &[u8]) -> Command {
         };
         number = next;
     }
-    if stop { Command::Stop(number) } else { Command::Start(number) }
+    match verb {
+        Command::Start(_) => Command::Start(number),
+        Command::Stop(_) => Command::Stop(number),
+        Command::Remove(_) => Command::Remove(number),
+        Command::Unknown => unreachable!("known verb"),
+    }
 }
 #[must_use]
 pub fn step(forge: u16, stage: Stage) -> Box<[u8]> {
@@ -111,4 +119,9 @@ pub fn not_started(name: &[u8]) -> Box<[u8]> {
 #[must_use]
 pub fn not_written() -> &'static [u8] {
     b"record not written"
+}
+
+#[must_use]
+pub fn removed(forge: u16) -> Box<[u8]> {
+    joined(&[b"removed ", Decimal::of(u64::from(forge)).as_bytes(), b"\n"])
 }

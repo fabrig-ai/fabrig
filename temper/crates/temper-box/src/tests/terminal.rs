@@ -199,3 +199,24 @@ fn the_largest_tail_fits_one_output_item_and_reset_releases_every_line() {
     tail.append(&mut empty, b"/data/box/logs/last-step.log");
     assert_eq!(empty, formatter.fact(fact, &steps, Wall::EPOCH));
 }
+
+#[test]
+fn group_removed_uses_its_label() {
+    use temper_forge_setup::{Kind, Steps};
+    let group = super::fixtures::grouped_steps().asked.into_iter().next().unwrap();
+    let (steps, _) = crate::layout::slotted(
+        Steps { always: Box::new([super::fixtures::step(b"serve", Kind::Long)]), asked: Box::new([]) },
+        Box::new([(group, super::fixtures::step(b"removal", Kind::Once))]),
+        2,
+        4,
+    );
+    let mut formatter = Formatter::new();
+    assert_eq!(
+        formatter.fact(Fact::GroupRemoved { forge: 3 }, &steps, wall(0)),
+        item(Target::Stderr, b"Forge 3 (Forgejo): removed\n")
+    );
+    formatter.admitted_block();
+    let printed = formatter.fact(Fact::GroupRemoved { forge: 3 }, &steps, wall(3723));
+    assert_eq!(printed, item(Target::Stderr, b"01:02:03Z Forge 3 (Forgejo): removed\n"));
+    assert!(printed.bytes.len() <= usize::try_from(crate::terminal::max_bytes(&steps)).unwrap());
+}

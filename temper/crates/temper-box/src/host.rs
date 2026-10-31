@@ -314,7 +314,9 @@ impl Service {
                 | Order::Wait { .. }
                 | Order::Signal { .. }
                 | Order::Close { .. }
-                | Order::Record { .. },
+                | Order::Record { .. }
+                // bx-box gives this its io
+                | Order::Load { .. } | Order::Unrecord { .. } | Order::Vacate { .. },
             ) => true,
             None => false,
         }
@@ -617,6 +619,12 @@ impl Service {
             }
             Order::Terminal { fact } => self.terminal_fact(fact, wall),
             Order::Record { forge } => self.records.write(forge),
+            // bx-box gives this its io
+            Order::Load { forge } => self.input(Input::NotLoaded { forge, missing: true }),
+            // bx-box gives this its io
+            Order::Unrecord { forge } => self.input(Input::Unrecorded { forge }),
+            // bx-box gives this its io
+            Order::Vacate { .. } => {}
             Order::Say { said } => {
                 if let Some(control) = &mut self.control {
                     let line = match said {
@@ -626,6 +634,8 @@ impl Service {
                         }
                         Said::Started { forge } => pipe::started(forge),
                         Said::Stopped { forge } => pipe::stopped(forge),
+                        // bx-box gives this its io
+                        Said::Removed { forge } => pipe::removed(forge),
                         Said::Failed { forge, why } => {
                             let why = terminal::why(why, &self.steps);
                             pipe::failed(forge, &why, self.line_bytes)
@@ -724,7 +734,9 @@ impl Service {
                 | Order::Wait { .. }
                 | Order::Signal { .. }
                 | Order::Close { .. }
-                | Order::Record { .. } => return true,
+                | Order::Record { .. }
+                // bx-box gives this its io
+                | Order::Load { .. } | Order::Unrecord { .. } | Order::Vacate { .. } => return true,
             }
         }
         false
@@ -959,6 +971,8 @@ impl Service {
             Line::Whole(line) => match pipe::command(&line) {
                 Command::Start(forge) => self.input(Input::Ask { forge }),
                 Command::Stop(forge) => self.input(Input::Stop { forge }),
+                // bx-box gives this its io
+                Command::Remove(forge) => self.input(Input::Remove { forge }),
                 Command::Unknown => {
                     if !self.terminal.failed() {
                         self.terminal.push(self.formatter.notice(b"box: serve: unknown pipe line\n", self.env.wall));

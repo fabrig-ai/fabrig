@@ -51,7 +51,7 @@ fn only_canonical_start_and_stop_lines_are_known() {
             let expected = match expected {
                 Command::Start(forge) => Command::Stop(forge),
                 Command::Unknown => Command::Unknown,
-                Command::Stop(_) => unreachable!(),
+                Command::Stop(_) | Command::Remove(_) => unreachable!(),
             };
             assert_eq!(pipe::command(&stopped), expected, "{stopped:?}");
         }
@@ -93,5 +93,44 @@ fn box_lines_and_failure_words_have_the_wire_spelling_and_bound() {
                 );
             }
         }
+    }
+}
+
+#[test]
+fn remove_is_a_canonical_command() {
+    for (line, expected) in [
+        (b"remove 0\n".as_slice(), Command::Remove(0)),
+        (b"remove 7\n", Command::Remove(7)),
+        (b"remove 65535\n", Command::Remove(65535)),
+        (b"remove 01\n", Command::Unknown),
+        (b"remove\n", Command::Unknown),
+        (b"remove 65536\n", Command::Unknown),
+        (b"remove +1\n", Command::Unknown),
+        (b"remove -1\n", Command::Unknown),
+        (b"remove  1\n", Command::Unknown),
+        (b"remove 1 \n", Command::Unknown),
+        (b"remove 1\r\n", Command::Unknown),
+        (b"remove 1", Command::Unknown),
+        (b"remove \n", Command::Unknown),
+    ] {
+        assert_eq!(pipe::command(line), expected, "{line:?}");
+    }
+}
+
+#[test]
+fn removed_has_the_wire_spelling() {
+    use crate::{machine::Why, terminal};
+    assert_eq!(&*pipe::removed(7), b"removed 7\n");
+    for (why, words) in [
+        (Why::Full, b"full".as_slice()),
+        (Why::Unreadable, b"unreadable"),
+        (Why::Removal { step: 0, exit: Exit::Code(1) }, b"removal exited 1"),
+        (Why::Removal { step: 0, exit: Exit::Signal(u32::MAX) }, b"removal killed by signal 4294967295"),
+        (Why::NotRemoved, b"not removed"),
+    ] {
+        assert_eq!(&*terminal::why(why, &[]), words);
+        let line = pipe::failed(u16::MAX, words, 64);
+        assert_eq!(&*line, &*joined(&[b"failed 65535 ", words, b"\n"]));
+        assert!(line.len() <= 64);
     }
 }
