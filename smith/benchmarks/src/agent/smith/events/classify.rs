@@ -50,24 +50,7 @@ fn failed(failure: &AnswerFailure) -> Result<(End, i32), String> {
 fn pending(session: &super::Session) -> bool {
     let pending = session.records.iter().rev().find_map(|record| match &record.event {
         Event::RunStarted(run) => Some(run.run),
-        Event::MessageReceived(_)
-        | Event::MessageRead(_)
-        | Event::MessageUnread(_)
-        | Event::Budget(_)
-        | Event::SessionStarted(_)
-        | Event::SessionEnded(_)
-        | Event::RunCompleted(_)
-        | Event::ConversationOpened(_)
-        | Event::ConversationClosed(_)
-        | Event::ResponseStarted(_)
-        | Event::ResponseCompleted(_)
-        | Event::TextDelta(_)
-        | Event::ToolStarted(_)
-        | Event::JobEnded(_)
-        | Event::ToolCompleted(_)
-        | Event::CheckStarted(_)
-        | Event::CheckCompleted(_)
-        | Event::Notice(_) => None,
+        _ => None,
     });
     pending.is_some_and(|run| {
         !session.records.iter().any(|record| {
@@ -93,24 +76,7 @@ pub(super) fn classify(observer: &Observer, exit: Exit, forced: Forced) -> Class
     }
     let last = session.records.iter().rev().find_map(|record| match &record.event {
         Event::RunCompleted(value) => Some(value),
-        Event::MessageReceived(_)
-        | Event::MessageRead(_)
-        | Event::MessageUnread(_)
-        | Event::Budget(_)
-        | Event::SessionStarted(_)
-        | Event::SessionEnded(_)
-        | Event::RunStarted(_)
-        | Event::ConversationOpened(_)
-        | Event::ConversationClosed(_)
-        | Event::ResponseStarted(_)
-        | Event::ResponseCompleted(_)
-        | Event::TextDelta(_)
-        | Event::ToolStarted(_)
-        | Event::JobEnded(_)
-        | Event::ToolCompleted(_)
-        | Event::CheckStarted(_)
-        | Event::CheckCompleted(_)
-        | Event::Notice(_) => None,
+        _ => None,
     });
     let Some(run) = last else {
         return if forced == Forced::No {

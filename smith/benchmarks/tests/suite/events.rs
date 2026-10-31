@@ -506,23 +506,7 @@ fn prompt_windows_use_exact_disjoint_usage_and_the_observed_request_model() {
         match &mut record.event {
             Event::ConversationOpened(value) => value.model.window_tokens = 20,
             Event::ResponseStarted(value) => value.model.window_tokens = 20,
-            Event::Budget(_)
-            | Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::RunStarted(_)
-            | Event::RunCompleted(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseCompleted(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Notice(_) => {}
+            _ => {}
         }
     }
     assert_eq!(
@@ -874,24 +858,7 @@ fn observe_against(records: &[Record], original: Option<&Visible>) -> Observer {
         .iter()
         .filter_map(|record| match &record.event {
             Event::SessionEnded(ended) => Some(ended.emitted.len()),
-            Event::Budget(_)
-            | Event::SessionStarted(_)
-            | Event::RunStarted(_)
-            | Event::RunCompleted(_)
-            | Event::ConversationOpened(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseStarted(_)
-            | Event::ResponseCompleted(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Notice(_) => None,
+            _ => None,
         })
         .max()
         .unwrap_or(4)
@@ -1240,20 +1207,7 @@ fn headroom_uses_observed_model_and_admission_bounds_with_exact_half_warnings() 
                     value.turns = smith_events::Quantity { used, limit: u64::MAX };
                     value.spend = smith_events::Quantity { used, limit: u64::MAX };
                 }
-                Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunCompleted(_)
-                | Event::ConversationClosed(_)
-                | Event::TextDelta(_)
-                | Event::ToolStarted(_)
-                | Event::JobEnded(_)
-                | Event::ToolCompleted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::MessageReceived(_)
-                | Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::Notice(_) => {}
+                _ => {}
             }
         }
         let result = health(&values);
@@ -1381,22 +1335,7 @@ fn headroom_maxima_compare_each_conversation_ratio_instead_of_aggregating_usage(
                 value.usage.cache_read_tokens = Some(u64::MAX);
                 value.usage.cache_write_tokens = Some(u64::MAX - u64::from(value.conversation == 0));
             }
-            Event::Budget(_)
-            | Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::RunStarted(_)
-            | Event::RunCompleted(_)
-            | Event::ConversationClosed(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Notice(_) => {}
+            _ => {}
         }
     }
     let result = health(&values);
@@ -1418,24 +1357,7 @@ fn smoke_usage_sums_compare_optional_raw_counts_once_and_do_not_fill_null_with_z
     let mut values = balanced();
     let usage = match &values[4].event {
         Event::ResponseCompleted(value) => value.usage.clone(),
-        Event::Budget(_)
-        | Event::SessionStarted(_)
-        | Event::SessionEnded(_)
-        | Event::RunStarted(_)
-        | Event::RunCompleted(_)
-        | Event::ConversationOpened(_)
-        | Event::ConversationClosed(_)
-        | Event::ResponseStarted(_)
-        | Event::TextDelta(_)
-        | Event::ToolStarted(_)
-        | Event::JobEnded(_)
-        | Event::ToolCompleted(_)
-        | Event::CheckStarted(_)
-        | Event::CheckCompleted(_)
-        | Event::MessageReceived(_)
-        | Event::MessageRead(_)
-        | Event::MessageUnread(_)
-        | Event::Notice(_) => panic!("response fixture"),
+        _ => panic!("response fixture"),
     };
     if let Event::RunCompleted(value) = &mut values[6].event {
         value.usage = usage.clone();

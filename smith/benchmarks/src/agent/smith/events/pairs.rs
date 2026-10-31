@@ -32,17 +32,7 @@ fn pair_key(record: &Record) -> Option<(String, bool)> {
         }
         Event::CheckStarted(value) => Some((format!("check/{}", value.run), true)),
         Event::CheckCompleted(value) => Some((format!("check/{}", value.run), false)),
-        Event::JobEnded(_)
-        | Event::MessageReceived(_)
-        | Event::MessageRead(_)
-        | Event::MessageUnread(_)
-        | Event::Budget(_)
-        | Event::SessionStarted(_)
-        | Event::SessionEnded(_)
-        | Event::RunStarted(_)
-        | Event::RunCompleted(_)
-        | Event::TextDelta(_)
-        | Event::Notice(_) => None,
+        _ => None,
     }
 }
 
@@ -83,23 +73,7 @@ pub(super) fn check(session: &Session) -> Pairing {
                     problems.violations.push("tool terminal changed its call's tool".into());
                 }
             }
-            Event::JobEnded(_)
-            | Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Budget(_)
-            | Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::RunStarted(_)
-            | Event::RunCompleted(_)
-            | Event::ConversationOpened(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseStarted(_)
-            | Event::ResponseCompleted(_)
-            | Event::TextDelta(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::Notice(_) => {}
+            _ => {}
         }
     }
     problems.missing.extend(active.into_iter().map(|key| format!("start without terminal {key}")));

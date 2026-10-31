@@ -36,23 +36,7 @@ pub(super) fn check(observer: &Observer) -> Measure<bool> {
                         return Measure::Observed { value: false };
                     }
                 }
-                Event::MessageReceived(_)
-                | Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::Budget(_)
-                | Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunStarted(_)
-                | Event::ConversationOpened(_)
-                | Event::ConversationClosed(_)
-                | Event::ResponseStarted(_)
-                | Event::TextDelta(_)
-                | Event::ToolStarted(_)
-                | Event::JobEnded(_)
-                | Event::ToolCompleted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::Notice(_) => {}
+                _ => {}
             }
         }
         if runs.is_empty() || sums.keys().any(|run| !runs.contains_key(run)) {

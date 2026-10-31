@@ -265,24 +265,7 @@ fn model_report_requires_observed_child_identity_captured_usage_and_result() {
                 },
                 Event::ResponseStarted(value) if value.response == 1 && field == "prompt" => value.prompt = None,
                 Event::RunCompleted(value) if field == "report" => value.result.as_mut().expect("result").text = None,
-                Event::Budget(_)
-                | Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunStarted(_)
-                | Event::RunCompleted(_)
-                | Event::ConversationOpened(_)
-                | Event::ConversationClosed(_)
-                | Event::ResponseStarted(_)
-                | Event::ResponseCompleted(_)
-                | Event::TextDelta(_)
-                | Event::ToolStarted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::MessageReceived(_)
-                | Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::JobEnded(_)
-                | Event::Notice(_) => {}
+                _ => {}
             }
         }
         if field == "usage" {

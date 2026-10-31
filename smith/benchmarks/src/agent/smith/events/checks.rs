@@ -34,24 +34,7 @@ fn tool_call(observer: &Observer, check: &EventCheck) -> Measure<bool> {
                 Event::ToolCompleted(value) => {
                     ends.insert((index, value.run, value.conversation, value.call.clone()), value);
                 }
-                Event::MessageReceived(_)
-                | Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::Budget(_)
-                | Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunStarted(_)
-                | Event::RunCompleted(_)
-                | Event::ConversationOpened(_)
-                | Event::ConversationClosed(_)
-                | Event::ResponseStarted(_)
-                | Event::ResponseCompleted(_)
-                | Event::TextDelta(_)
-                | Event::ToolStarted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::JobEnded(_)
-                | Event::Notice(_) => {}
+                _ => {}
             }
         }
     }
@@ -98,25 +81,7 @@ fn completions(session: &Session, before: Before) -> usize {
             Event::ResponseCompleted(value) if value.outcome == smith_events::Outcome::Completed => {
                 ids.insert((value.run, value.response));
             }
-            Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Budget(_)
-            | Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::RunStarted(_)
-            | Event::RunCompleted(_)
-            | Event::ConversationOpened(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseStarted(_)
-            | Event::ResponseCompleted(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::Notice(_) => {}
+            _ => {}
         }
     }
     ids.len()
@@ -336,10 +301,7 @@ fn evaluate_complete(observer: &Observer, check: &EventCheck, task: &str, curren
         EventCheck::RunCompleted { status, class, which, reason } => {
             let terminals: Vec<_> = records.iter().filter_map(|record| match &record.event {
                 Event::RunCompleted(value) => Some(value),
-                Event::MessageReceived(_) | Event::MessageRead(_) | Event::MessageUnread(_) | Event::Budget(_) | Event::SessionStarted(_) | Event::SessionEnded(_) | Event::RunStarted(_)
-                | Event::ConversationOpened(_) | Event::ConversationClosed(_) | Event::ResponseStarted(_) | Event::ResponseCompleted(_)
-                | Event::TextDelta(_) | Event::ToolStarted(_) | Event::JobEnded(_) | Event::ToolCompleted(_) | Event::CheckStarted(_)
-                | Event::CheckCompleted(_) | Event::Notice(_) => None,
+                _ => None,
             }).collect();
             if let Some(expected) = which {
                 for value in &terminals {

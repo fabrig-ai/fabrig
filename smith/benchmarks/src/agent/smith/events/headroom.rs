@@ -197,19 +197,7 @@ fn collect(totals: &mut Readings, session: &Session, index: usize) {
                 // RunCompleted.turns counts durable activation turns, not
                 // completion-budget charges (domain/run.md, section9.1).
             }
-            Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::ConversationClosed(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Notice(_) => {}
+            _ => {}
         }
     }
     for run in budgets.keys() {

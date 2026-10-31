@@ -30,22 +30,7 @@ pub(super) fn terminals(session: &Session, require_read: bool) -> Vec<String> {
                     problems.push(format!("unread message {}/{}", value.run, value.name));
                 }
             }
-            Event::Budget(_)
-            | Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::RunStarted(_)
-            | Event::RunCompleted(_)
-            | Event::ConversationOpened(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseStarted(_)
-            | Event::ResponseCompleted(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::Notice(_) => {}
+            _ => {}
         }
     }
     problems.extend(active.into_iter().map(|(run, name)| format!("message lacks terminal {run}/{name}")));
@@ -66,22 +51,7 @@ fn final_fences(session: &Session) -> Vec<String> {
                 *count = count.checked_add(1).expect("retained terminal count fits");
             }
             Event::RunCompleted(value) => completed.push(value),
-            Event::MessageReceived(_)
-            | Event::Budget(_)
-            | Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::RunStarted(_)
-            | Event::ConversationOpened(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseStarted(_)
-            | Event::ResponseCompleted(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::Notice(_) => {}
+            _ => {}
         }
     }
     let mut problems = Vec::new();
@@ -124,26 +94,11 @@ pub(super) fn before_task(observer: &Observer, task: &str) -> Measure<bool> {
                         }
                     }
                 }
-                Event::ResponseStarted(_) | Event::ResponseCompleted(_) => return before_receipt(captured),
+                _ => return before_receipt(captured),
                 Event::ToolStarted(value) if value.tool.as_ref() == b"wait" => {
                     return before_receipt(captured);
                 }
-                Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::Budget(_)
-                | Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunStarted(_)
-                | Event::RunCompleted(_)
-                | Event::ConversationOpened(_)
-                | Event::ConversationClosed(_)
-                | Event::TextDelta(_)
-                | Event::ToolStarted(_)
-                | Event::JobEnded(_)
-                | Event::ToolCompleted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::Notice(_) => {}
+                _ => {}
             }
         }
     }
@@ -181,24 +136,7 @@ pub(super) fn per_exchange(observer: &Observer) -> Measure<bool> {
                         *completions.entry((index, value.run)).or_default() += 1;
                     }
                 }
-                Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::Budget(_)
-                | Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunStarted(_)
-                | Event::RunCompleted(_)
-                | Event::ConversationOpened(_)
-                | Event::ConversationClosed(_)
-                | Event::ResponseStarted(_)
-                | Event::ResponseCompleted(_)
-                | Event::TextDelta(_)
-                | Event::ToolStarted(_)
-                | Event::JobEnded(_)
-                | Event::ToolCompleted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::Notice(_) => {}
+                _ => {}
             }
         }
     }
@@ -218,23 +156,7 @@ pub(super) fn counts(sessions: &[Session]) -> BTreeMap<String, Measure<u64>> {
                 Event::MessageReceived(value) if value.refused.is_some() => Some("refused"),
                 Event::MessageRead(_) => Some("read"),
                 Event::MessageUnread(_) => Some("unread"),
-                Event::MessageReceived(_)
-                | Event::Budget(_)
-                | Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunStarted(_)
-                | Event::RunCompleted(_)
-                | Event::ConversationOpened(_)
-                | Event::ConversationClosed(_)
-                | Event::ResponseStarted(_)
-                | Event::ResponseCompleted(_)
-                | Event::TextDelta(_)
-                | Event::ToolStarted(_)
-                | Event::JobEnded(_)
-                | Event::ToolCompleted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::Notice(_) => None,
+                _ => None,
             };
             if let Some(name) = terminal {
                 let count = counts.entry(name.into()).or_default();

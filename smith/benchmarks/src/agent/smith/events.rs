@@ -249,20 +249,7 @@ impl Observer {
                     seen.push(Seen::Answer);
                 }
             }
-            Event::SessionStarted(_)
-            | Event::RunStarted(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseStarted(_)
-            | Event::TextDelta(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Budget(_)
-            | Event::Notice(_) => {}
+            _ => {}
         }
         session.records.push(record);
         Ok(seen)
@@ -390,7 +377,7 @@ fn run(event: &Event) -> Option<u64> {
         Event::MessageRead(value) => Some(value.run),
         Event::MessageUnread(value) => Some(value.run),
         Event::Notice(value) => value.run,
-        Event::SessionStarted(_) | Event::SessionEnded(_) => None,
+        _ => None,
     }
 }
 

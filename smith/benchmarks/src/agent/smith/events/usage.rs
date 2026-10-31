@@ -183,24 +183,7 @@ pub(super) fn tokens(
             .iter()
             .filter_map(|record| match &record.event {
                 Event::ConversationOpened(conversation) => Some(conversation.run),
-                Event::MessageReceived(_)
-                | Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::Budget(_)
-                | Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunStarted(_)
-                | Event::RunCompleted(_)
-                | Event::ConversationClosed(_)
-                | Event::ResponseStarted(_)
-                | Event::ResponseCompleted(_)
-                | Event::TextDelta(_)
-                | Event::ToolStarted(_)
-                | Event::JobEnded(_)
-                | Event::ToolCompleted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::Notice(_) => None,
+                _ => None,
             })
             .collect();
         for run in runs {
@@ -293,20 +276,7 @@ pub(super) fn counts(sessions: &[Session]) -> Counts {
                         ));
                     }
                 }
-                Event::MessageReceived(_)
-                | Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::Budget(_)
-                | Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunStarted(_)
-                | Event::RunCompleted(_)
-                | Event::ConversationClosed(_)
-                | Event::TextDelta(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::JobEnded(_)
-                | Event::Notice(_) => {}
+                _ => {}
             }
         }
     }

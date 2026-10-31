@@ -140,23 +140,7 @@ impl State {
                     self.budgets.insert((value.run, call.clone()), ordinary);
                 }
             }
-            Event::Budget(_)
-            | Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::RunStarted(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseStarted(_)
-            | Event::ResponseCompleted(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::RunCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::JobEnded(_)
-            | Event::Notice(_) => {}
+            _ => {}
         }
         Ok(())
     }

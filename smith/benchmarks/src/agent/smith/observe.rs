@@ -45,22 +45,7 @@ fn rejected_responses(sessions: &[super::events::Session], expected: u64) -> boo
                     }
                 }
                 Event::TextDelta(_) => return false,
-                Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunStarted(_)
-                | Event::RunCompleted(_)
-                | Event::ConversationOpened(_)
-                | Event::ConversationClosed(_)
-                | Event::ToolStarted(_)
-                | Event::JobEnded(_)
-                | Event::ToolCompleted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::MessageReceived(_)
-                | Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::Budget(_)
-                | Event::Notice(_) => {}
+                _ => {}
             }
         }
     }

@@ -311,20 +311,7 @@ impl<'a> State<'a> {
                     return Ok(false);
                 }
             }
-            Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseCompleted(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::Notice(_) => {}
+            _ => {}
         }
         Ok(true)
     }

@@ -33,23 +33,7 @@ fn runs(session: &Session) -> bool {
                 entry.0 += 1;
                 entry.1 = value.status == Status::Refused;
             }
-            Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Budget(_)
-            | Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::ConversationOpened(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseStarted(_)
-            | Event::ResponseCompleted(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::Notice(_) => {}
+            _ => {}
         }
     }
     session.records.iter().filter_map(|record| super::run(&record.event)).all(|run| completed.contains_key(&run))
@@ -87,23 +71,7 @@ fn spend_sums(session: &Session) -> Result<(bool, bool), String> {
                     return Err("duplicate run.completed".into());
                 }
             }
-            Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Budget(_)
-            | Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::RunStarted(_)
-            | Event::ConversationOpened(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseStarted(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::Notice(_) => {}
+            _ => {}
         }
     }
     let equal = runs.iter().all(|(run, spent)| sums.get(run).copied().unwrap_or(0) == u128::from(*spent))
@@ -148,22 +116,7 @@ fn limit_failure(event: &Event) -> bool {
         Event::ResponseCompleted(value) => value.failure.as_ref(),
         Event::ConversationClosed(value) => value.failure.as_ref(),
         Event::RunCompleted(value) => value.failure.as_ref().and_then(|failure| failure.completion.as_ref()),
-        Event::MessageReceived(_)
-        | Event::MessageRead(_)
-        | Event::MessageUnread(_)
-        | Event::Budget(_)
-        | Event::SessionStarted(_)
-        | Event::SessionEnded(_)
-        | Event::RunStarted(_)
-        | Event::ConversationOpened(_)
-        | Event::ResponseStarted(_)
-        | Event::TextDelta(_)
-        | Event::ToolStarted(_)
-        | Event::JobEnded(_)
-        | Event::ToolCompleted(_)
-        | Event::CheckStarted(_)
-        | Event::CheckCompleted(_)
-        | Event::Notice(_) => None,
+        _ => None,
     };
     failure.is_some_and(|failure| failure.class == smith_events::FailureClass::Limit)
 }
