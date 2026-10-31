@@ -15,15 +15,6 @@ impl Forges {
     }
 
     #[must_use]
-    pub fn from_document(forges: Box<[Forge]>, capacity: u32) -> Self {
-        let mut table = Self::with_capacity(capacity);
-        for forge in forges {
-            assert!(table.insert(forge), "validated document forges fit with unique numbers");
-        }
-        table
-    }
-
-    #[must_use]
     pub fn get(&self, forge: u16) -> Option<&Forge> {
         self.forges.get(&forge)
     }
@@ -99,6 +90,7 @@ impl<'a> Iterator for Iter<'a> {
 /// Record-driven runtime membership (temper/docs/design/draft/playground-reset.md, 3).
 #[expect(clippy::disallowed_methods, reason = "the service protocol layer parses the record's API host")]
 pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_domain_forge::ForgeRecord) {
+    let kept = record.clone();
     let ip = match core::str::from_utf8(&record.place.api.host) {
         Ok(host) => host.parse::<core::net::IpAddr>().ok(),
         Err(_) => None,
@@ -117,12 +109,6 @@ pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_d
         login: record.bot.login,
         author: crate::settings::Author { name: record.bot.name, email: record.bot.email },
     };
-    // A document entry is replaced when the connector keeps its record.
-    engine.forge.file_access.remove(&record.number);
-    engine.forge.startup_access.remove(&record.number);
-    if engine.workers.forges.remove(record.number).is_some() {
-        engine.forge.down(skein_forge_connection::Request::Remove { forge: record.number });
-    }
     let forge = Forge {
         number: record.number,
         kind: match record.kind {
@@ -137,22 +123,45 @@ pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_d
         },
         git: record.place.git,
         web: record.place.web,
-        git_program: None,
+        git_program: engine.setup.git_program(record.mode),
         app_read_only: record.read_only,
         identity: identity.number,
         user: 0,
         api_token: None,
         webhook_secret: None,
     };
+    if let Some(held) = engine.workers.forges.get(forge.number)
+        && held.kind == forge.kind
+        && held.mode == forge.mode
+        && held.api == forge.api
+        && held.transport == forge.transport
+        && held.git == forge.git
+        && held.web == forge.web
+        && held.app_read_only == forge.app_read_only
+        && held.git_program == forge.git_program
+        && engine.values.tokens.same_identity(&identity)
+    {
+        if engine.setup.serves(forge.number) {
+            crate::setup::keep(engine, &kept);
+        }
+        return;
+    }
+    // A kept record replaces its previous runtime endpoint.
+    engine.forge.file_access.remove(&record.number);
+    engine.forge.startup_access.remove(&record.number);
+    if engine.workers.forges.remove(record.number).is_some() {
+        engine.forge.down(skein_forge_connection::Request::Remove { forge: record.number });
+    }
     if keep(engine, forge) {
         engine.values.tokens.keep(&identity, engine.forge.env.limits.installations);
+        crate::setup::keep(engine, &kept);
         if engine.forge_records.done() {
             crate::forge::records::connect(engine, record.number);
         }
     }
 }
 
-/// Document forges and kept records share the same admission path (playground-reset.md, 3).
+/// A kept record admits its endpoint (playground-reset.md, 3).
 pub(crate) fn keep(engine: &mut crate::engine::Engine, forge: Forge) -> bool {
     let number = forge.number;
     let host = match &forge.api {
@@ -178,16 +187,14 @@ pub(crate) fn keep(engine: &mut crate::engine::Engine, forge: Forge) -> bool {
         engine.notes.push(crate::Note::ForgeNotConnected { number, why: crate::NotConnected::Unreachable { host } });
         return false;
     }
-    let access = endpoint.access.take();
+    endpoint.access = None;
     engine.forge.down(skein_forge_connection::Request::Add(endpoint));
     if engine.forge.component.start(number).is_none() {
         engine.workers.forges.remove(number);
         engine.notes.push(crate::Note::ForgeNotConnected { number, why: crate::NotConnected::Unreachable { host } });
         return false;
     }
-    if let Some(access) = access {
-        engine.forge.startup_access.insert(number, access).expect("configured forge capacity");
-    }
+
     if held {
         engine.forge.held.insert(number, host).expect("kept forge capacity");
         if engine.forge.serving.is_none() {
@@ -281,7 +288,10 @@ mod tests {
 
     #[test]
     fn iteration_is_in_number_order() {
-        let forges = Forges::from_document(Box::new([forge(9), forge(3), forge(7)]), 4);
+        let mut forges = Forges::with_capacity(4);
+        for number in [9, 3, 7] {
+            assert!(forges.insert(forge(number)));
+        }
         let mut iter = forges.iter();
         assert_eq!(iter.next().unwrap().number, 3);
         assert_eq!(iter.next().unwrap().number, 7);

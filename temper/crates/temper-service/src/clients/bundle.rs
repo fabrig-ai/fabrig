@@ -338,7 +338,7 @@ fn meta_put(writer: &mut skein_lib::Writer, length: &mut usize, measuring: bool,
 }
 fn forge_metas(
     sign_in: &crate::startup::SignIn,
-    forges: &[crate::startup::Forge],
+    forges: &[crate::settings::Forge],
     setup: &temper_forge_setup::setup::Setup,
     writer: &mut skein_lib::Writer,
     measuring: bool,
@@ -385,7 +385,7 @@ impl Bundle {
     pub fn fill_forge_sign_in(
         &mut self,
         sign_in: Option<&crate::startup::SignIn>,
-        forges: &[crate::startup::Forge],
+        forges: &[crate::settings::Forge],
         setup: &temper_forge_setup::setup::Setup,
         limit: u32,
     ) -> Option<()> {

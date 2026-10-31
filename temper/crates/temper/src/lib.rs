@@ -372,7 +372,6 @@ fn prepare_with_store(
     prepare_with_limits(directories, bytes, owned, false, &service::stock::Given::Stock)
         .map(|(service, store, _)| (service, store))
 }
-#[expect(clippy::too_many_lines, reason = "startup opens checked resources in dependency order")]
 fn prepare_with_limits(
     directories: &Directories,
     bytes: &[u8],
@@ -399,25 +398,7 @@ fn prepare_with_limits(
     let forges = List::with_capacity(0);
     let agent = named.worker.as_ref().map(|_| agent::preflight(&named)).transpose()?;
     let user = skein_shell::effective_user();
-    let mut named_files = named.files.into_vec();
-    named_files.extend(service::startup::setup_files(&checked));
-    let mut files = read_files_with_asked(named_files.into_boxed_slice(), named.asked_files, user)?;
-    let reads = service::startup::handover_reads_with(bytes, &directories.jig(), &checked, given)
-        .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
-    let mut entries = List::with_capacity(
-        files.entries.len().checked_add(u32::try_from(reads.len()).expect("checked handovers")).expect("checked files"),
-    );
-    for entry in files.entries.into_boxed() {
-        entries.push(entry).expect("checked files");
-    }
-    for read in reads {
-        match host::read_handover(&read) {
-            Ok(Some(value)) => entries.push((read.path, value)).expect("checked handovers"),
-            Ok(None) => {}
-            Err(why) => return Err(format!("{}: the handover is unreadable: {why:?}", path(&read.path).display())),
-        }
-    }
-    files.entries = entries;
+    let files = read_files_with_asked(named.files, named.asked_files, user)?;
     let google = google_runtime::resolve(named.sign_in.as_ref())?;
     let mut bundle = match named.bundle.as_deref() {
         Some(configured) => Some(bundle::read(configured, named.bundle_limits)?),
@@ -425,7 +406,7 @@ fn prepare_with_limits(
     };
     if let Some(bundle) = &mut bundle {
         bundle.fill_sign_in(named.sign_in.is_some()).and_then(|()| {
-            bundle.fill_forge_sign_in(named.sign_in.as_ref(), &named.forges, &checked.setup, named.bundle_limits.bundle_bytes)
+            bundle.fill_forge_sign_in(named.sign_in.as_ref(), &[], &checked.setup, named.bundle_limits.bundle_bytes)
         }).ok_or_else(|| {
             format!(
                 "application.clients.bundle: {}: page needs </head> and room within clients.bundle_bytes for sign-in metadata",

@@ -163,11 +163,10 @@ use temper_worker_domain::wire;
 #[test]
 fn an_engine_s_items_reach_the_worker_s_workspace_field_for_field() {
     let assignment = fixtures::assignment_with(fixtures::repository(3, b"acme", b"app"));
-    let config = fixtures::engine();
     let limits = fixtures::wire_limits();
     let items = translate::items(
         &assignment,
-        &fixtures::forge_table(&config.forges),
+        &fixtures::forge_table(&fixtures::forges()),
         &crate::forge::tokens::Tokens::empty(),
         &limits,
     )

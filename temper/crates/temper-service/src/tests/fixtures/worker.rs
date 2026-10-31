@@ -78,7 +78,7 @@ fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
     let values = crate::values::Values::new(2, 8192);
     let jig_protocol_engine_workers::Event::Down { mut down, mut parts, .. } = crate::assignment::down(
         assignment,
-        &crate::tests::fixtures::forge_table(&settings.forges),
+        &crate::tests::fixtures::forge_table(&crate::tests::fixtures::forges()),
         &encoding,
         &values,
         skein_lib::Token::new(1),
