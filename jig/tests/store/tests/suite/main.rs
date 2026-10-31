@@ -9,6 +9,7 @@ mod activity;
 mod carried;
 mod crashes;
 mod directories;
+mod erasure_reads;
 mod frame_memory;
 mod fresh_windows;
 mod generations;

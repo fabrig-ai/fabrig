@@ -114,7 +114,9 @@ pub(crate) mod tests {
     }
     fn page(scope: reads::Scope) -> reads::Page {
         let key = match scope {
-            reads::Scope::EndedDelegates { .. } => tasks::Key::Ended(u64::MAX),
+            reads::Scope::EndedTasks | reads::Scope::TaskRows { .. } | reads::Scope::EndedDelegates { .. } => {
+                tasks::Key::Ended(u64::MAX)
+            }
             reads::Scope::Spend { project } => tasks::Key::Ledger(tasks::Funder::Period { project, period: u64::MAX }),
             reads::Scope::Task { .. }
             | reads::Scope::Proposal { .. }

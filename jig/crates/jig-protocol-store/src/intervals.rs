@@ -140,6 +140,23 @@ fn after(key: &[u8]) -> Box<[u8]> {
 pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
     use core::reads::Scope;
     Some(match scope {
+        Scope::EndedTasks => Box::new([Range::prefix(&[keys::JIG, 1, 6])]),
+        Scope::TaskRows { task } => Box::new([
+            point(&core::Key::Tasks(jig_domain_tasks::Key::Stub(*task))),
+            numbered_prefix(&[keys::JIG, 1, 9], *task),
+            numbered_prefix(&[keys::JIG, 1, 10], *task),
+            numbered_prefix(&[keys::JIG, 1, 11], *task),
+            numbered_prefix(&[keys::JIG, 1, 17], *task),
+            numbered_prefix(&[keys::JIG, 1, 18], *task),
+            // Projections are keyed by projection kind before goal and erased at goal close.
+            point(&core::Key::Core(core::CoreKey::RunProof(*task))),
+            numbered_prefix(&[keys::JIG, 0, 3], *task),
+            numbered_prefix(&[keys::JIG, 0, 5], *task),
+            numbered_prefix(&[keys::JIG, 0, 7], *task),
+            numbered_prefix(&[keys::JIG, 0, 6, 0], *task),
+            numbered_prefix(&[keys::JIG, 0, 8, 4, 0], *task),
+            numbered_prefix(&[keys::JIG, 2, 7], *task),
+        ]),
         Scope::SettingsHistory { first, last, newest, .. } => {
             let mut ranges = List::with_capacity(2);
             if first < newest {

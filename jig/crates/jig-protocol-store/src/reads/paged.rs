@@ -1,6 +1,7 @@
 //! Bounded family pages and dense backwards activity (protocol/store.md, 7.3).
 use super::{Failure, Spent, empty, joins};
 use crate::{Cursor, Row, Store, intervals, keys, pages};
+use alloc::boxed::Box;
 use jig_domain_core::{self as core, reads};
 use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
@@ -218,6 +219,8 @@ pub(super) fn notes(store: &mut Store, range: &reads::Range, spent: &mut Spent) 
             | reads::Scope::Result { .. }
             | reads::Scope::Reply { .. }
             | reads::Scope::Turn { .. }
+            | reads::Scope::EndedTasks
+            | reads::Scope::TaskRows { .. }
             | reads::Scope::EndedDelegates { .. }
             | reads::Scope::History { .. }
             | reads::Scope::Activity { .. }
@@ -266,4 +269,35 @@ pub(super) fn scoped_notes(
     spent: &mut Spent,
 ) -> Result<reads::Loaded, Failure> {
     notes(store, range, spent)
+}
+
+/// Core erasure reads carry physical records without party joins (playground-reset.md, 5).
+pub(super) fn erasure(store: &mut Store, range: &reads::Range, spent: &mut Spent) -> Result<reads::Loaded, Failure> {
+    let intervals = intervals::scope(range.party, &range.scope).ok_or(Failure::Corrupt)?;
+    let after = cursor(range, &intervals)?;
+    let walked = pages::walk(store, &intervals, after.as_ref(), spent.rows).ok_or(Failure::Corrupt)?;
+    let mut found = List::with_capacity(u32::try_from(walked.rows.len()).or(Err(Failure::Corrupt))?);
+    let mut last = range.after.clone();
+    for item in walked.rows {
+        let value = decode(store, item.row)?;
+        let position = reads::Position::Owner(value.key());
+        let row = reads::Row {
+            value,
+            owner: None,
+            ancestors: Box::new([]),
+            related: None,
+            unjoined: None,
+            ended_read: None,
+            linked: Box::new([]),
+            inbox: None,
+        };
+        let bytes = row.owned_bytes().ok_or(Failure::Corrupt)?;
+        let Some(remaining) = spent.bytes.checked_sub(bytes) else {
+            return Ok(reads::Loaded::Page { rows: found.into_boxed(), next: last });
+        };
+        spent.bytes = remaining;
+        last = Some(position);
+        found.push(row).expect("bounded by walked rows");
+    }
+    Ok(reads::Loaded::Page { rows: found.into_boxed(), next: if walked.next.is_some() { last } else { None } })
 }

@@ -16,6 +16,7 @@
 
 pub mod settings;
 pub use settings::{SettingsAnswer, SettingsRead};
+mod owned;
 mod vocabulary;
 pub use vocabulary::{
     Answer, Cursor, EndedGroup, Filter, Group, Historical, Loaded, Page, PageRow, PageTurn, Past, Position, Range,
@@ -39,7 +40,7 @@ use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_lib::{Env, Id, List, Queue, ReplyTo, Token};
 
-/// Which physical rows a read scope loads (protocol/store.md, 4.3 and 7.3).
+/// Which physical rows a party read scope loads (protocol/store.md, 4.3 and 7.3).
 /// Cursor admission is separate: notes lines are joined to entry rows before paging.
 #[must_use]
 pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
@@ -95,7 +96,9 @@ pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
             Key::Tasks(TaskKey::Update { party: owner, .. }) => *owner == party,
             Key::Tasks(_) | Key::Core(_) | Key::People(_) | Key::Notes(_) | Key::Accounts(_) => false,
         },
-        Scope::Tasks { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::Tasks { .. }
         | Scope::Proposal { proposer: Proposer::Task(_), .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }
@@ -243,6 +246,8 @@ fn backwards(scope: &Scope) -> bool {
         | Scope::Result { .. }
         | Scope::Reply { .. }
         | Scope::Turn { .. }
+        | Scope::EndedTasks
+        | Scope::TaskRows { .. }
         | Scope::EndedDelegates { .. }
         | Scope::History { .. }
         | Scope::Inbox {
