@@ -502,7 +502,7 @@ fn the_queue_offers_each_task_ahead_as_a_terminal_command() {
 
 fn demo_toolbar(on_demo: bool, address: &[u8]) -> Tree {
     let root = f::demo_root(temper_client_domain::Address::Forges, f::PROJECT, true);
-    let demo = root.forge().demo().expect("running demo").forge;
+    let demo = root.forge().playground().expect("running playground").forge;
     let mut parts = parts(w::Step::Opening);
     parts.forge = if on_demo { demo } else { demo.checked_add(1).unwrap() };
     parts.pull = Some(w::Pull::new(&w::CEILINGS, w::PullParts { number: 23, address: address.into() }).unwrap());
@@ -516,7 +516,7 @@ fn demo_toolbar(on_demo: bool, address: &[u8]) -> Tree {
         change,
         &words,
         words.capacity().unwrap(),
-        root.forge().serves_pages(change.forge()),
+        crate::pages::serves_pages(&root, change.forge()),
     );
     builder.finish()
 }
