@@ -1,10 +1,10 @@
 //! Account admission and removal (oauth.md, sections 6.2, 6.3 and 6.6).
 
-use super::{Component, Lifecycle, Name, State, Unusable, failed, held, set_held};
+use super::{Component, Name, State, Unusable, failed, held, set_held};
 use crate::accounts::Source;
 use crate::keeper::{Operation, Private, Store};
 use crate::{Account, Asked, Event, Failure, Keeper, Limits, Lower, Refusal, Transport};
-use skein_lib::{Env, List, Queue};
+use skein_lib::{Env, Lifecycle, List, Queue};
 use skein_oauth as oauth;
 
 pub(super) fn admit(account: u32, configuration: Account, limits: &Limits) -> Result<(Source, State, Store), Unusable> {

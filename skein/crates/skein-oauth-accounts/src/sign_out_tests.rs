@@ -85,7 +85,7 @@ fn a_sign_out_is_refused_where_it_does_not_belong() {
         for request in requests {
             owner.ask(request);
         }
-        while owner.above.pop().is_some() {}
+        owner.above.clear();
         owner.ask(Request::SignOut { account });
         assert_eq!(refusal_of(owner.above.pop()), Some((account, Asked::SignOut, expected)), "{name}");
         assert!(owner.io.is_empty() && owner.files.is_empty(), "nothing to revoke or remove");

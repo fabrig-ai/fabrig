@@ -5,8 +5,8 @@ JournalRoom 0
 takes 0
 worst_case 0
 io_resume 19
-earliest_helper 1
-enum_lifecycle 2
+earliest_helper 0
+enum_lifecycle 1
 growth_floor 1
-pop_loop 9
-decimal_hex 16
+pop_loop 0
+decimal_hex 15

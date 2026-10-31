@@ -389,6 +389,35 @@ fn two_accounts_on_one_fixed_port_listen_one_at_a_time() {
 }
 
 #[test]
+fn a_reused_exchange_slot_waits_for_the_active_fixed_port_listener() {
+    let mut owner = restart_owner(2, false, RESTART_LISTENERS);
+    let old = first_visit(&mut owner);
+    owner.ask(Request::SignIn { account: 1, subject: None });
+    cancel_first(&mut owner);
+    cancelled(&mut owner, 0);
+    take_abort(&mut owner);
+    owner.socket(LowerEvent::Closed { owner: old });
+    owner.component.reclaim();
+    let active = owner.listen();
+    owner.listening(active, FIXED_PORT);
+    drop(owner.visit());
+
+    owner.ask(Request::SignIn { account: 0, subject: None });
+    assert!(owner.io.is_empty() && owner.above.is_empty());
+    owner.ask(Request::Cancel { account: 1 });
+    cancelled(&mut owner, 1);
+    take_abort(&mut owner);
+    assert!(owner.io.is_empty());
+    owner.socket(LowerEvent::Closed { owner: active });
+    let (reused, port) = owner.take_listen();
+    assert_ne!(reused, old);
+    assert_eq!(port, FIXED_PORT);
+    owner.listening(reused, FIXED_PORT);
+    drop(owner.visit());
+    assert!(owner.io.is_empty() && owner.above.is_empty());
+}
+
+#[test]
 fn a_restart_with_one_listener_allowed_is_full_until_the_old_listener_settles() {
     let mut owner = restart_owner(1, false, 1);
     let old = first_visit(&mut owner);
@@ -491,7 +520,7 @@ fn a_fixed_port_waits_until_the_old_listeners_callback_has_settled_too() {
     cancel_first(&mut owner);
     owner.ask(Request::SignIn { account: 0, subject: None });
     cancelled(&mut owner, 0);
-    while owner.io.pop().is_some() {}
+    owner.io.clear();
     owner.socket(LowerEvent::Closed { owner: old });
     assert!(owner.io.is_empty());
     owner.socket(LowerEvent::Closed { owner: callback });

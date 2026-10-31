@@ -1,11 +1,11 @@
 //! Shared writes read once under the owner's lock (oauth.md, section 6.4).
 
-use super::{Component, Lifecycle, State, grant, held, names::number, recorded};
+use super::{Component, State, grant, held, names::number, recorded};
 use crate::accounts::{Source, copy_registration};
 use crate::exchange::{Exchange, OwnerLock, Stage};
 use crate::keeper::{Operation, Store};
 use crate::{Event, Failure, Limits, Locked, Lower};
-use skein_lib::{Env, Id, Queue};
+use skein_lib::{Env, Id, Lifecycle, Queue};
 use skein_oauth as oauth;
 
 impl Component {

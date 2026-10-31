@@ -40,7 +40,6 @@ pub(crate) enum OwnerLock {
 
 pub(crate) struct Exchange {
     pub(crate) account: u32,
-    pub(crate) next: Option<skein_lib::Id<Exchange>>,
     pub(crate) sign_in_deadline: Option<Time>,
     pub(crate) client: oauth::Client,
     pub(crate) above: Queue<oauth::Request>,
@@ -89,7 +88,6 @@ impl Exchange {
     pub(crate) fn new(account: u32, client: oauth::Client, pending_grant: bool) -> Exchange {
         Exchange {
             account,
-            next: None,
             sign_in_deadline: None,
             client,
             above: Queue::uncapped(),
@@ -595,7 +593,7 @@ mod tests {
             deadline: Time::ZERO,
         };
         let mut web = Web::new(request, &endpoint, limits).expect("token endpoint");
-        while web.requests.pop().is_some() {}
+        web.requests.clear();
         web.http_event(
             &env,
             http::Event::Response(http::Response {
@@ -622,7 +620,7 @@ mod tests {
             for bytes in br#"{"access_token":"ok"}"#.chunks(piece) {
                 web.http_event(&env, http::Event::Body(Up::Bytes(bytes::copy_of(bytes))));
                 if piece == 1 && web.document.len() < 21 {
-                    while web.requests.pop().is_some() {}
+                    web.requests.clear();
                 }
             }
             assert_eq!(
