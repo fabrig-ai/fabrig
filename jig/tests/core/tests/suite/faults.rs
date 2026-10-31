@@ -152,7 +152,7 @@ fn a_cold_restart_retries_a_party_request_and_retained_host_traffic() {
 fn every_startup_sign_in_chat_and_assignment_commit_restarts_on_either_side_of_durability() {
     for engine in [false, true] {
         let mut reference = faults::workers(307, 1, engine);
-        // Finding: restart changes Task 1 field chip.
+        // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
         if engine {
             reference.broken();
         }
@@ -182,7 +182,7 @@ fn every_startup_sign_in_chat_and_assignment_commit_restarts_on_either_side_of_d
                     })
                     .count();
                 assert_eq!(made, 1, "one keyed chat at {cut:?}, engine {engine}");
-                // Finding: restart changes Task 1 field chip.
+                // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
                 if engine {
                     world.broken();
                 }

@@ -52,7 +52,7 @@ fn a_run_reads_the_inventory_a_setting_a_revision_and_a_history_page() {
     };
     assert!(!error);
     assert_eq!(body.as_ref(), b"Revisions: 1 rows");
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -83,7 +83,7 @@ fn a_run_reads_its_own_held_charter_by_revision() {
         run_read(&mut world, br#"{"kind":"setting","setting":"charter","number":99,"revision":2}"#),
         core::SettingsAnswer::Unknown
     );
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -102,7 +102,7 @@ fn a_run_without_the_settings_family_is_denied_its_read() {
     }
     assert!(world.settings_answers.is_empty());
     assert_eq!(world.store.rows, rows);
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -134,7 +134,7 @@ fn a_settings_read_keeps_no_record_and_is_read_again() {
     assert_eq!(second.newest, 2);
     assert_eq!(world.store.rows, rows);
     assert!(world.answers.is_empty());
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -172,7 +172,7 @@ fn a_forgotten_revision_read_names_the_oldest_kept() {
     assert_eq!(page.rows.get(0).expect("settings read fixture").head.number, 1);
     assert!(page.forgotten);
     assert_eq!(page.next, None);
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
@@ -197,6 +197,6 @@ fn a_settings_read_is_busy_when_the_shared_load_slots_are_full() {
         run_read(&mut world, br#"{"kind":"revision","number":1}"#),
         core::SettingsAnswer::Revision(reads::RevisionAnswer::Revision { .. })
     ));
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }

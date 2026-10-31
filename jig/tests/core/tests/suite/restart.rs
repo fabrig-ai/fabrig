@@ -408,7 +408,7 @@ fn a_restart_with_workers_in_process_assigns_without_a_grace() {
     assert_eq!(assigned.task, task);
     assert!(assigned.attempt > attempt);
     assert!(world.wall_time().as_nanos() - before < Duration::from_secs(5).as_nanos());
-    // Finding: restart changes Task 1 field chip.
+    // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
 }
 
