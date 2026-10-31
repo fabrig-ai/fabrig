@@ -1,5 +1,5 @@
 //! Independent whole settings fixtures (client/domain/contract.md, 3–7).
-use jig_client::contract::{
+use jig_client_domain::contract::{
     AuthorityModels, ChangeSettings, Charter, DocumentText, EndedBy, HeldRevision, LlmChoice, ModelEffort,
     OwnerAuthority, OwnerDelegation, OwnerGrant, OwnerKindImplication, OwnerPattern, OwnerPatternEnd, PolicyEditRole,
     PolicyGuard, PolicyJudge, PolicyPermission, PolicyRequirement, ProposalKey, Proposer, Retention, RevisionDecider,
