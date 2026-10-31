@@ -30,6 +30,7 @@ smith-protocol-machine.workspace = true
 smith-protocol-program.workspace = true
 
 [dev-dependencies]
+smith-events = { workspace = true, features = ["fixture"] }
 smith-protocol-llm = { workspace = true, features = ["fixture"] }
 smith-agent-service = { workspace = true, features = ["fixture"] }
 smith-protocol-events = { workspace = true, features = ["fixture"] }

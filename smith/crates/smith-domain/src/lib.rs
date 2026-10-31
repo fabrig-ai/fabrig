@@ -37,6 +37,8 @@ mod domain;
 mod facts;
 
 mod feedback;
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
 mod limits;
 pub mod llm;
 mod operation;

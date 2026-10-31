@@ -45,25 +45,17 @@ fn tools() -> tools::Limits {
         calls: 1,
         repos: 1,
         path_bytes: 32,
-        host_path_bytes: 4096,
         known_files: 1,
-        file_bytes: 1024,
-        tool_payload: 1024,
         read_bytes: 64,
         list_entries: 8,
         list_bytes: 512,
         match_lines: 8,
         file_timeout: Duration::from_secs(30),
-        jobs: 4,
-        job_poll: Duration::from_secs(30),
-        job_wait: Duration::from_secs(30),
         shell_timeout: Duration::from_secs(30),
         tool_deadline: Duration::from_secs(120),
-        shell_head: 64,
         shell_tail: 64,
-        search_hits: 8,
         search_bytes: 128,
-        search_timeout: Duration::from_secs(30),
+        ..smith_domain_tools::fixture::SMALL
     }
 }
 

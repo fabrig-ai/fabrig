@@ -9,10 +9,10 @@ publish.workspace = true
 
 [dependencies]
 skein-lib.workspace = true
-smith-domain.workspace = true
+smith-domain = { workspace = true, features = ["fixture"] }
 smith-host-domain.workspace = true
 smith-session-world.workspace = true
-smith-domain-tools.workspace = true
+smith-domain-tools = { workspace = true, features = ["fixture"] }
 smith-tools-world.workspace = true
 skein-fake-checkout.workspace = true
 skein-fake-llm-domain.workspace = true

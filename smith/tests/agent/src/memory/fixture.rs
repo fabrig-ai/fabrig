@@ -1,8 +1,8 @@
 //! Random memory driver limits and charters.
 
 use super::{
-    ChangeSpec, Charter, Directory, Duration, Endpoint, Grants, Limits, Llm, OutcomeSpec, TIGHT, TextSpec, Token,
-    Tools, VerdictRule, Workspace, bytes, run,
+    ChangeSpec, Charter, Directory, Endpoint, Grants, Limits, Llm, OutcomeSpec, TIGHT, TextSpec, Token, Tools,
+    VerdictRule, Workspace, bytes, run,
 };
 
 // Content capture capacity for this scenario:
@@ -12,12 +12,7 @@ const MEMORY_CONTENT_EDGE_RECORDS: u32 = 98;
 /// Small limits, so that every bound is met often: few runs and sessions,
 /// few bytes each.
 pub const LIMITS: Limits = Limits {
-    accounts: 4,
-    endpoints: 3,
-    configured_model_bytes: 4096,
-    decoded_call_bytes: 4096,
     content_edge_records: MEMORY_CONTENT_EDGE_RECORDS,
-    skew: Duration::ZERO,
     run: run::Limits {
         runs: 2,
         conversations: 4,
@@ -62,6 +57,7 @@ pub const LIMITS: Limits = Limits {
         },
         ..TIGHT.session
     },
+    ..smith_domain::fixture::SMALL
 };
 
 /// A charter with unchanged aggregate context filler distributed across role,
