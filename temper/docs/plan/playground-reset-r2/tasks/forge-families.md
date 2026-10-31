@@ -148,7 +148,7 @@ May change:
    // Request makers, pushing Request::Save / Request::Erase as Demo's rows do
    pub(crate) fn save_forge(d: &mut Domain, row: ForgeRecord, out: &mut Queue<Request>) -> Result<(), Full>;
    pub(crate) fn erase_forge(d: &mut Domain, forge: u16, out: &mut Queue<Request>);
-   pub(crate) fn give_number(d: &mut Domain, out: &mut Queue<Request>) -> Option<u16>; // saves next + 1; None past u16::MAX
+   pub(crate) fn give_number(d: &mut Domain, out: &mut Queue<Request>) -> Option<u16>; // saves next + 1; None when next == u16::MAX (exhausted)
    pub(crate) fn save_playground(d: &mut Domain, row: Playground, out: &mut Queue<Request>);
    pub(crate) fn erase_playground(d: &mut Domain, out: &mut Queue<Request>);
    pub(crate) fn keep_act(d: &mut Domain, row: KeptAct, out: &mut Queue<Request>) -> Result<(), Full>;
@@ -203,3 +203,30 @@ May change:
 The standard report, plus: each match arm or literal you edited outside
 the owned files; the generator command you ran; whether the store
 version moved; the container types behind the accessors.
+
+## Answers
+
+2026-10-31.
+
+- **May this task extend `domain.rs`'s reconciliation matches?** Yes.
+  Besides the fields, constructor entries and restore arms, this task
+  adds to `domain.rs` the arms its new variants need in
+  `restored_link_position` (on `Stored`) and `restored_link_key` (on
+  `RecordKind` and `Need`), and nothing else there. `KeptAct` is the one
+  family with a link: its position is its key's rank in `kept_acts`
+  (`range(..key).count()`, inserted when absent), its key recovered as
+  `Key::KeptAct(key)` from the `nth` row of `kept_acts`, its need
+  `Need::Forge(forge)`, so a dangling kept act names its own row.
+  `Forge`, `ForgeNumbers` and `Playground` have no links: they join the
+  `return None` arm of `restored_link_position` and the "row has no
+  links" arm of `restored_link_key`. Name each arm in the report.
+- **What represents exhausted forge numbers?** `u16::MAX` is reserved:
+  forges are numbered 1 to `u16::MAX - 1`, and `next == u16::MAX` is
+  exhausted, `give_number` returning `None` and saving nothing. No `0`
+  sentinel: `next` stays monotone, so step 4's restore rule (the larger
+  of the stored `next` and one past the largest restored forge) holds
+  unchanged. A restored `Forge` row numbered `u16::MAX` or a stored
+  `ForgeNumbers.next` of 0 is refused by the restore fit as a malformed
+  row. `notes/contracts.md`, section 2's "Numbers" says so; the
+  `forges` limit (at most `u16::MAX`) is unchanged, since it counts
+  forges kept, not numbers given.
