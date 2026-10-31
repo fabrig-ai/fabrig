@@ -432,6 +432,7 @@ fn selected(scope: &Scope) -> (u32, u32, u32, bool) {
         | Scope::Result { .. }
         | Scope::Reply { .. }
         | Scope::Turn { .. }
+        | Scope::DecidedProposals
         | Scope::EndedTasks
         | Scope::TaskRows { .. }
         | Scope::EndedDelegates { .. }

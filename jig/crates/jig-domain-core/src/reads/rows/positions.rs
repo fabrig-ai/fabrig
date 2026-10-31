@@ -12,6 +12,7 @@ fn subtree(scope: &Scope) -> bool {
         | Scope::Result { .. }
         | Scope::Reply { .. }
         | Scope::Turn { .. }
+        | Scope::DecidedProposals
         | Scope::EndedTasks
         | Scope::TaskRows { .. }
         | Scope::EndedDelegates { .. }
