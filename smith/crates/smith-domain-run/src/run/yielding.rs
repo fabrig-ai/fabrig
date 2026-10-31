@@ -6,11 +6,12 @@ use core::mem;
 use skein_lib::{Duration, Env, Id, Queue, ReplyTo, Slab, Token};
 
 use super::{
-    Conversation, Ending, Phase, Run, State, close, continue_messages, final_remaining, follow, nudge, say, wind_down,
+    Conversation, Ending, Phase, Run, State, close, continue_messages, failed_ending, final_remaining, follow, nudge,
+    say, wind_down,
 };
 use crate::call::Work;
 use crate::charter::Mode;
-use crate::{Domain, Failure, Limits, Request, Stop, agent, prompt};
+use crate::{Domain, Limits, Request, Stop, agent, prompt};
 
 pub(crate) fn yielded(
     domain: &mut Domain,
@@ -136,13 +137,7 @@ fn yielded_finishing(
             };
             say(reply_to, main, peer, note, out)
         }
-        Err(exhausted) => wind_down(
-            conversations,
-            reply_to,
-            main,
-            Ending::Failed(Failure::Budget { exhausted, used: None, bound: None }),
-            out,
-        ),
+        Err(exhausted) => wind_down(conversations, reply_to, main, Ending::Over(exhausted), out),
     }
 }
 
@@ -176,6 +171,6 @@ fn yielded_nudged(
     let Yielding { reply_to, main, peer } = yielding;
     match nudge(run, stop, limits) {
         Ok(()) => say(reply_to, main, peer, prompt::nudge(run.charter.mode, stop, run.nudges, limits.nudges), out),
-        Err(failure) => wind_down(conversations, reply_to, main, Ending::Failed(failure), out),
+        Err(failure) => wind_down(conversations, reply_to, main, failed_ending(failure), out),
     }
 }

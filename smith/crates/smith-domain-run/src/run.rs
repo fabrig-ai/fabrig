@@ -196,6 +196,7 @@ enum State {
 enum Ending {
     Parked,
     Accepted(Declared),
+    Over(Exhausted),
     Failed(Failure),
 }
 
@@ -524,7 +525,7 @@ pub(crate) fn park(domain: &mut Domain, id: Id<Run>, out: &mut Queue<Request>) {
             &mut domain.conversations,
             reply_to,
             main,
-            finished(Ending::Parked, run.spent, run.turns),
+            Answer::Parked { spent: run.spent, turns: run.turns },
             out,
         ),
         State::Listening { reply_to, main, until: _ } => {
@@ -648,11 +649,11 @@ fn hard_stop(
 ) -> State {
     match state {
         State::Working { reply_to, main } | State::Listening { reply_to, main, until: _ } => {
-            wind_down(conversations, reply_to, main, Ending::Failed(failure), out)
+            wind_down(conversations, reply_to, main, failed_ending(failure), out)
         }
         State::Waiting { reply_to, main, call, .. } => {
             out.push(Request::Return { spent: 0, call, result: Returned::Cancelled });
-            wind_down(conversations, reply_to, main, Ending::Failed(failure), out)
+            wind_down(conversations, reply_to, main, failed_ending(failure), out)
         }
         State::Winding { reply_to, ending } => {
             let ending = hard_ending(ending, failure);
@@ -666,7 +667,7 @@ fn hard_stop(
 
 fn hard_ending(ending: Ending, failure: Failure) -> Ending {
     match failure {
-        Failure::Budget { exhausted: Exhausted::Overflow(_), .. } => Ending::Failed(failure),
+        Failure::Budget { exhausted: Exhausted::Overflow(_), .. } => failed_ending(failure),
         Failure::Transcript(_)
         | Failure::Model(_)
         | Failure::Budget { exhausted: _, .. }
@@ -674,7 +675,7 @@ fn hard_ending(ending: Ending, failure: Failure) -> Ending {
         | Failure::Cancelled
         | Failure::Stale => match ending {
             ending @ Ending::Accepted(Declared::Change(_)) => ending,
-            Ending::Accepted(_) | Ending::Parked | Ending::Failed(_) => Ending::Failed(failure),
+            Ending::Accepted(_) | Ending::Parked | Ending::Over(_) | Ending::Failed(_) => failed_ending(failure),
         },
     }
 }
@@ -1078,10 +1079,10 @@ fn main_ended(
         }
         State::Winding { reply_to, ending } => {
             let ending = match failure {
-                Some(failure) => Ending::Failed(failure),
+                Some(failure) => failed_ending(failure),
                 None => ending,
             };
-            let completed = budget_answer(finished(ending, run.spent, run.turns), run, facts.now());
+            let completed = finished(ending, run, facts.now());
             answer(reply_to, completed, run.inbox.fence(), detail, out)
         }
         State::Awaiting { .. } | State::Preparing { .. } | State::Stopping { .. } | State::Closed => {
@@ -1103,7 +1104,7 @@ pub(crate) fn deadline(domain: &mut Domain, id: Id<Run>, out: &mut Queue<Request
     let state = mem::replace(&mut run.state, State::Closed);
     run.state = match state {
         State::Awaiting { reply_to, main, until: _ } => {
-            unopened(run, conversations, reply_to, main, finished(Ending::Parked, run.spent, run.turns), out)
+            unopened(run, conversations, reply_to, main, Answer::Parked { spent: run.spent, turns: run.turns }, out)
         }
         State::Listening { reply_to, main, until: _ } => {
             assert!(!run.inbox.has_queued(), "an admitted wake cancels idle expiry");
@@ -1120,7 +1121,7 @@ pub(crate) fn deadline(domain: &mut Domain, id: Id<Run>, out: &mut Queue<Request
                 facts.push(FactKind::Budget { run: id.token(), standing: standing(run, facts.now()), call: None });
                 State::Working { reply_to, main }
             }
-            None | Some(_) => wind_down(conversations, reply_to, main, Ending::Failed(failure), out),
+            None | Some(_) => wind_down(conversations, reply_to, main, failed_ending(failure), out),
         },
         // It was past its budget first.
         State::Stopping { .. } | State::Winding { .. } | State::Closed => {
@@ -1393,7 +1394,14 @@ fn ready(
     }
     out.push(Request::Waiting { host_run: run.host_name, read: None });
     if run.charter.waiting == Duration::ZERO || run.wind_down.is_some() {
-        return unopened(run, conversations, reply_to, main, finished(Ending::Parked, run.spent, run.turns), out);
+        return unopened(
+            run,
+            conversations,
+            reply_to,
+            main,
+            Answer::Parked { spent: run.spent, turns: run.turns },
+            out,
+        );
     }
     State::Awaiting { reply_to, main, until: env.now.saturating_add(run.charter.waiting) }
 }
@@ -1648,13 +1656,7 @@ fn working_again(
 ) -> State {
     match final_remaining(run, now) {
         Ok(()) => State::Working { reply_to, main },
-        Err(exhausted) => wind_down(
-            conversations,
-            reply_to,
-            main,
-            Ending::Failed(Failure::Budget { exhausted, used: None, bound: None }),
-            out,
-        ),
+        Err(exhausted) => wind_down(conversations, reply_to, main, Ending::Over(exhausted), out),
     }
 }
 
@@ -1714,22 +1716,37 @@ fn answer(
 fn budget_answer(answer: Answer, run: &Run, now: Time) -> Answer {
     match answer {
         Answer::Failed { failure: Failure::Budget { exhausted, .. }, spent, turns } => {
-            let fields = match exhausted {
-                Exhausted::Turns => Some((u64::from(run.spent.turns), u64::from(run.charter.budget.turns))),
-                Exhausted::Spend => Some((run.spent.units, run.charter.budget.spend)),
-                Exhausted::Time => Some((
-                    now.saturating_since(run.started_at).as_nanos() / 1_000_000,
-                    run.charter.budget.time.as_nanos() / 1_000_000,
-                )),
-                Exhausted::Tokens(_) | Exhausted::Overflow(_) => None,
-            };
-            let (used, bound) = match fields {
-                Some((used, bound)) => (Some(used), Some(bound)),
-                None => (None, None),
-            };
-            Answer::Failed { failure: Failure::Budget { exhausted, used, bound }, spent, turns }
+            Answer::Failed { failure: budget_failure(exhausted, run, now), spent, turns }
         }
         other @ (Answer::Failed { .. } | Answer::Accepted { .. } | Answer::Parked { .. } | Answer::Refused(_)) => other,
+    }
+}
+
+fn budget_failure(exhausted: Exhausted, run: &Run, now: Time) -> Failure {
+    let fields = match exhausted {
+        Exhausted::Turns => Some((u64::from(run.spent.turns), u64::from(run.charter.budget.turns))),
+        Exhausted::Spend => Some((run.spent.units, run.charter.budget.spend)),
+        Exhausted::Time => Some((
+            now.saturating_since(run.started_at).as_nanos() / 1_000_000,
+            run.charter.budget.time.as_nanos() / 1_000_000,
+        )),
+        Exhausted::Tokens(_) | Exhausted::Overflow(_) => None,
+    };
+    let (used, bound) = match fields {
+        Some((used, bound)) => (Some(used), Some(bound)),
+        None => (None, None),
+    };
+    Failure::Budget { exhausted, used, bound }
+}
+
+fn failed_ending(failure: Failure) -> Ending {
+    match failure {
+        Failure::Budget { exhausted, .. } => Ending::Over(exhausted),
+        failure @ (Failure::Transcript(_)
+        | Failure::Model(_)
+        | Failure::Policy(_)
+        | Failure::Cancelled
+        | Failure::Stale) => Ending::Failed(failure),
     }
 }
 
@@ -1772,10 +1789,13 @@ fn ending(end: End, spent: Spend, turns: u32) -> Answer {
 }
 
 /// The answer of a run that wound down to `ending`, having spent `spent`.
-fn finished(ending: Ending, spent: Spend, turns: u32) -> Answer {
+fn finished(ending: Ending, run: &Run, now: Time) -> Answer {
+    let spent = run.spent;
+    let turns = run.turns;
     match ending {
         Ending::Parked => Answer::Parked { spent, turns },
         Ending::Accepted(outcome) => Answer::Accepted { outcome, spent, turns },
+        Ending::Over(exhausted) => Answer::Failed { failure: budget_failure(exhausted, run, now), spent, turns },
         Ending::Failed(failure) => Answer::Failed { failure, spent, turns },
     }
 }
