@@ -191,6 +191,7 @@ fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
     let third = forge::Configured { number: 3, ..first.clone() };
     config.forges = Box::new([first, third]);
     let (mut domain, env) = crate::tests::resume_fixture::root_with_config(config);
+    domain.forge.restore_begin(env.wall);
     let mut out = skein_lib::Queue::uncapped();
     for number in [1, 3] {
         forge::step(

@@ -296,18 +296,7 @@ impl World {
             seed,
             skein_forge_client::Config { namespace: Box::from(&b"world"[..]), writers: writer.into_iter().collect() },
             &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
-            &[top::Configured {
-                number: REPO.forge,
-                kind: top::Kind::Forgejo,
-                mode: top::Mode::Connected,
-                admin_connect: false,
-                bot: Box::new([]),
-                owned: None,
-                git: Box::new([]),
-                web: None,
-                read_only: false,
-                asked: false,
-            }],
+            &[configured_forge()],
             false,
         )
         .expect("valid connector configuration");
@@ -1008,6 +997,21 @@ pub fn fake_config() -> forge::Config {
         skew: forge::Skew::Ahead(Duration::from_secs(20)),
         status_updates: false,
         edit_updates: false,
+    }
+}
+
+fn configured_forge() -> top::Configured {
+    top::Configured {
+        number: REPO.forge,
+        kind: top::Kind::Forgejo,
+        mode: top::Mode::Connected,
+        admin_connect: false,
+        bot: Box::new([]),
+        owned: None,
+        git: Box::new([]),
+        web: None,
+        read_only: false,
+        asked: false,
     }
 }
 

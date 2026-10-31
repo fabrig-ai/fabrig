@@ -268,10 +268,11 @@ fn a_freed_name_restores_beside_its_new_holder() {
     crate::deletion::restore_project(&mut core, 1, people::DeletionStep::Tasks);
     let mut out = Queue::uncapped();
     let env = environment(&limits);
-    assert!(matches!(
-        core.start_done(&env, crate::start::Phase::LoadCore, &mut out),
-        crate::start::Action::Step(crate::start::Phase::LoadInbox)
-    ));
+    let crate::start::Action::Step(crate::start::Phase::LoadInbox) =
+        core.start_done(&env, crate::start::Phase::LoadCore, &mut out)
+    else {
+        panic!("loaded policies and deletions precede inbox")
+    };
     assert_eq!(core.projects.as_slice(), &[2]);
     assert!(!core.names.contains_key(&1));
     assert_eq!(core.names.get(&2).unwrap().as_ref(), "tally");
@@ -287,10 +288,9 @@ fn a_kept_deletion_resumes_at_its_tasks_step_after_open() {
     let _closed = resume_fleet(&mut core, &environment(&limits));
     assert!(!closing(&core, 1));
     let mut out = Queue::uncapped();
-    assert!(matches!(
-        core.start_done(&environment(&limits), crate::start::Phase::Open, &mut out),
-        crate::start::Action::Idle
-    ));
+    let crate::start::Action::Idle = core.start_done(&environment(&limits), crate::start::Phase::Open, &mut out) else {
+        panic!("open completes the start")
+    };
     let _opened = resume_fleet(&mut core, &environment(&limits));
     assert!(closing(&core, 1));
     assert!(core.authority.policy(1).is_some());
@@ -307,10 +307,9 @@ fn a_kept_deletion_resumes_at_its_rows_step_after_open() {
     assert!(released_connectors(&closed).is_empty());
     assert!(core.authority.policy(1).is_some());
     let mut out = Queue::uncapped();
-    assert!(matches!(
-        core.start_done(&environment(&limits), crate::start::Phase::Open, &mut out),
-        crate::start::Action::Idle
-    ));
+    let crate::start::Action::Idle = core.start_done(&environment(&limits), crate::start::Phase::Open, &mut out) else {
+        panic!("open completes the start")
+    };
     let Requests::Out(opened) = resume_fleet(&mut core, &environment(&limits));
     assert!(contains_policy(&collect(opened)));
     assert!(core.authority.policy(1).is_none());
@@ -326,10 +325,9 @@ fn a_kept_deletion_resumes_at_its_release_step_after_open() {
     assert!(!contains_policy(&closed));
     assert!(released_connectors(&closed).is_empty());
     let mut out = Queue::uncapped();
-    assert!(matches!(
-        core.start_done(&environment(&limits), crate::start::Phase::Open, &mut out),
-        crate::start::Action::Idle
-    ));
+    let crate::start::Action::Idle = core.start_done(&environment(&limits), crate::start::Phase::Open, &mut out) else {
+        panic!("open completes the start")
+    };
     let Requests::Out(opened) = resume_fleet(&mut core, &environment(&limits));
     assert_eq!(released_connectors(&collect(opened)).as_ref(), &[1, 2]);
     let Requests::Out(again) = resume_fleet(&mut core, &environment(&limits));

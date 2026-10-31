@@ -137,28 +137,22 @@ fn a_kept_deletion_restores_at_start() {
 
 #[test]
 fn too_many_deletion_rows_refuse_the_start() {
-    for selected in [false, true] {
-        let mut people = People::new();
-        people.env.limits.projects = 1;
-        people.domain = Domain::new(&people.env.limits, Box::new([]), 1, Box::new([]));
-        if selected {
-            people.domain.start_restore(people.env.wall);
-        }
-        people.send(Event::Restore { record: Stored::Deletion { project: PROJECT, step: DeletionStep::Tasks } });
-        assert_eq!(
-            people.send(Event::Restore { record: Stored::Deletion { project: OTHER, step: DeletionStep::Tasks } }),
-            [Request::RestoreRefused {
-                key: Key::Deletion(OTHER),
-                refusal: Refusal::Limit { which: p::LimitKind::Restore }
-            }]
-        );
-        assert!(!people.domain.ready());
-        assert_eq!(people.domain.deletions().len(), 1);
-        if selected {
-            assert!(!people.domain.start_link(&people.env));
-            assert!(people.domain.restore_failure().is_some());
-        }
-    }
+    let mut people = People::new();
+    people.env.limits.projects = 1;
+    people.domain = Domain::new(&people.env.limits, Box::new([]), 1, Box::new([]));
+    people.domain.start_restore(people.env.wall);
+    people.send(Event::Restore { record: Stored::Deletion { project: PROJECT, step: DeletionStep::Tasks } });
+    assert_eq!(
+        people.send(Event::Restore { record: Stored::Deletion { project: OTHER, step: DeletionStep::Tasks } }),
+        [Request::RestoreRefused {
+            key: Key::Deletion(OTHER),
+            refusal: Refusal::Limit { which: p::LimitKind::Restore }
+        }]
+    );
+    assert!(!people.domain.ready());
+    assert_eq!(people.domain.deletions().len(), 1);
+    assert!(!people.domain.start_link(&people.env));
+    assert!(people.domain.restore_failure().is_some());
 }
 
 #[test]
