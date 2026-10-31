@@ -102,7 +102,7 @@ impl Plan {
                 Ok(Step::send(r::Request::Compare { at, before, after, files: true }))
             }
             Mode::File { head, path, max } => {
-                self.size = u64::try_from(path.len()).expect("bounded path");
+                self.size = skein_lib::len_u64(path.len());
                 self.check_size(bounds)?;
                 if path.is_empty() {
                     self.stage = Stage::Directory;
@@ -415,7 +415,7 @@ impl Plan {
     }
     fn side(&mut self, value: Option<Box<[u8]>>, bounds: Bounds) -> Result<Option<Step>, api::Error> {
         if let Some(value) = &value {
-            self.add_size(u64::try_from(value.len()).expect("bounded bytes"), bounds)?;
+            self.add_size(skein_lib::len_u64(value.len()), bounds)?;
         }
         let file = self.files.get_mut(self.position).ok_or(api::Error::InvalidAnswer)?;
         match self.stage {

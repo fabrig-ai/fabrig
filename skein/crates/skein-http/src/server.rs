@@ -1070,7 +1070,7 @@ fn reply(
             }
         }
         Down::Send(bytes) => {
-            let len = u64::try_from(bytes.len()).expect("a length fits a u64");
+            let len = skein_lib::len_u64(bytes.len());
             match *reply {
                 Reply::Length { left, room: Room::Granted(granted) } => {
                     assert!(len <= u64::from(granted), "a Send within the room granted");

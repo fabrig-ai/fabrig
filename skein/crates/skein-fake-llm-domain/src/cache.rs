@@ -201,7 +201,7 @@ impl Prefix {
     fn system(query: &Query) -> Prefix {
         let mut prefix = Prefix { digest: 0xcbf2_9ce4_8422_2325, bytes: 0 };
         prefix.field(&query.model);
-        prefix.number(u64::try_from(query.tools.len()).expect("admitted tools"));
+        prefix.number(skein_lib::len_u64(query.tools.len()));
         for tool in &query.tools {
             prefix.text(&tool.name);
             prefix.text(&tool.description);
@@ -227,7 +227,7 @@ impl Prefix {
     }
 
     fn field(&mut self, bytes: &[u8]) {
-        self.number(u64::try_from(bytes.len()).expect("admitted bytes"));
+        self.number(skein_lib::len_u64(bytes.len()));
         for byte in bytes {
             self.byte(*byte);
         }
@@ -235,10 +235,8 @@ impl Prefix {
 
     fn text(&mut self, bytes: &[u8]) {
         self.field(bytes);
-        self.bytes = self
-            .bytes
-            .checked_add(u64::try_from(bytes.len()).expect("admitted bytes"))
-            .expect("query bytes admitted before caching");
+        self.bytes =
+            self.bytes.checked_add(skein_lib::len_u64(bytes.len())).expect("query bytes admitted before caching");
     }
 
     fn choice(&mut self, query: &Query) {

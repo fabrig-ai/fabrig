@@ -386,7 +386,7 @@ impl StreamDecoder {
                     input: value,
                     fragmented: false,
                     too_large,
-                    bytes: u64::try_from(input.len()).expect("slice length fits u64"),
+                    bytes: skein_lib::len_u64(input.len()),
                 })
             }
             BlockStart::Thinking { text, signature, head } => {
@@ -456,7 +456,7 @@ impl StreamDecoder {
                     }
                     let length = match long {
                         Some(length) => length,
-                        None => u64::try_from(fragment.len()).expect("slice length fits u64"),
+                        None => skein_lib::len_u64(fragment.len()),
                     };
                     *bytes = bytes.checked_add(length).ok_or(DecodeError::Malformed)?;
                     if !*too_large {

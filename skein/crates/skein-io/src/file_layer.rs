@@ -778,8 +778,7 @@ fn write_finished(complete: &Complete) -> bool {
     match &complete.kind {
         Op::Write { bytes, from, .. } => match complete.result {
             Ok(Done::Count(count)) => {
-                u64::from(*from).saturating_add(u64::from(count))
-                    >= u64::try_from(bytes.len()).expect("buffer fits u64")
+                u64::from(*from).saturating_add(u64::from(count)) >= skein_lib::len_u64(bytes.len())
             }
             Ok(_) | Err(_) => false,
         },
@@ -933,7 +932,7 @@ fn retain_scan_entry(
     }
     let cost = u64::try_from(size_of::<Entry>())
         .expect("entry cell fits u64")
-        .checked_add(u64::try_from(name.len()).expect("kernel name fits u64"))
+        .checked_add(skein_lib::len_u64(name.len()))
         .expect("entry cost fits u64");
     entries.insert(at, Entry { name: Box::from(name), kind });
     *bytes = bytes.checked_add(cost).expect("bounded scan bytes fit u64");
@@ -944,7 +943,7 @@ fn retain_scan_entry(
         let removed = entries.pop().expect("overfull scan has a last entry");
         let removed_cost = u64::try_from(size_of::<Entry>())
             .expect("entry cell fits u64")
-            .checked_add(u64::try_from(removed.name.len()).expect("kernel name fits u64"))
+            .checked_add(skein_lib::len_u64(removed.name.len()))
             .expect("entry cost fits u64");
         *bytes = bytes.checked_sub(removed_cost).expect("removed entry was counted");
         *cutoff = Some(removed.name);
@@ -1126,7 +1125,7 @@ fn up_inner(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs
             let n = usize::try_from(count).expect("u32 fits usize");
             bytes.extend_from_slice(buf.get(..n).expect("read count is within buffer"));
             if bytes.len() > usize::try_from(max).expect("u32 fits usize") {
-                let size = u64::try_from(bytes.len()).expect("loaded bytes fit u64");
+                let size = skein_lib::len_u64(bytes.len());
                 io.pending = Some(Pending::LoadTooLargeClosing { owner, size });
                 io.issue(Op::Close { fd }, subs);
             } else if count == 0 {
@@ -1165,7 +1164,7 @@ fn up_inner(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs
         ) => {
             let count = usize::try_from(count).expect("u32 fits usize");
             if count == 0 {
-                let kept = u64::try_from(entries.len()).expect("entry count fits u64");
+                let kept = skein_lib::len_u64(entries.len());
                 let more = total.checked_sub(kept).expect("retained entries were counted");
                 io.pending = Some(Pending::ScanClosing { owner, entries, more });
                 io.issue(Op::Close { fd }, subs);
@@ -1213,7 +1212,7 @@ fn up_inner(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs
             if done {
                 events.push(Event::Read { owner, bytes: bytes.into_boxed_slice() });
             } else {
-                let at = offset.checked_add(u64::try_from(bytes.len()).expect("length fits u64")).expect("offset fits");
+                let at = offset.checked_add(skein_lib::len_u64(bytes.len())).expect("offset fits");
                 let left = max.checked_sub(u32::try_from(bytes.len()).expect("length fits u32")).expect("within max");
                 io.pending = Some(Pending::Read { owner, fd, offset, max, bytes });
                 let buffer = vec![0_u8; usize::try_from(left).expect("u32 fits usize")].into_boxed_slice();

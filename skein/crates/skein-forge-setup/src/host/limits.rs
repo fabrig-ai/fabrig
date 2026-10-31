@@ -215,9 +215,9 @@ pub(super) fn check(l: &Limits, settings: &Settings) -> Result<(), Unusable> {
             }
         };
         let head = u64::from(l.target_bytes)
-            .saturating_add(u64::try_from(host.len()).expect("host length fits"))
+            .saturating_add(skein_lib::len_u64(host.len()))
             .saturating_add(credential)
-            .saturating_add(u64::try_from(settings.user_agent.len()).expect("agent length fits"))
+            .saturating_add(skein_lib::len_u64(settings.user_agent.len()))
             .saturating_add(framing);
         if !header_value(&settings.user_agent) || head > u64::from(h.request) {
             return Err(Unusable::Request { forge: number });

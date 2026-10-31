@@ -140,7 +140,7 @@ fn entries(tree: &Tree, directories: &Directories, prefix: &[u8], limits: &Limit
 fn blob_id(content: &[u8]) -> [u8; 20] {
     let mut hash = Sha256::new();
     hash.update(b"\x01");
-    hash.update(&u64::try_from(content.len()).expect("bounded blob").to_be_bytes());
+    hash.update(&skein_lib::len_u64(content.len()).to_be_bytes());
     hash.update(content);
     first(hash.finish())
 }
@@ -149,7 +149,7 @@ fn tree_id(entries: &[TreeEntry]) -> [u8; 20] {
     hash.update(b"\x02");
     for entry in entries {
         hash.update(&entry.mode.to_be_bytes());
-        hash.update(&u64::try_from(entry.name.len()).expect("bounded entry").to_be_bytes());
+        hash.update(&skein_lib::len_u64(entry.name.len()).to_be_bytes());
         hash.update(&entry.name);
         hash.update(&entry.object);
     }

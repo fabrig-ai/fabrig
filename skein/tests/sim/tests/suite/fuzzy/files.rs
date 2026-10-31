@@ -60,7 +60,7 @@ fn append_all(world: &mut World, pid: Pid, file: Fd, bytes: &[u8]) -> Vec<u8> {
 fn read_all(world: &mut World, pid: Pid, file: Fd) -> Result<Vec<u8>, Error> {
     let mut got = Vec::new();
     loop {
-        let at = u64::try_from(got.len()).expect("a usize fits a u64");
+        let at = skein_lib::len_u64(got.len());
         let op = Op::read(file, vec![0; 16].into(), at).expect("room to read");
         let complete = settle(world, pid, op);
         match (complete.kind, complete.result) {

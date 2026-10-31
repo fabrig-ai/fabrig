@@ -63,8 +63,7 @@ fn arbitrary_and_mutated_records_round_trip_when_they_decode() {
         check(&encoded);
         for _ in 0..MUTATION_ROUNDS {
             let mut changed = encoded.clone();
-            let index =
-                usize::try_from(rng.below(u64::try_from(changed.len()).expect("bounded length"))).expect("index fits");
+            let index = usize::try_from(rng.below(skein_lib::len_u64(changed.len()))).expect("index fits");
             *changed.get_mut(index).expect("chosen byte") = u8::try_from(rng.next_u64() & 0xff).expect("low byte");
             check(&changed);
         }

@@ -78,8 +78,7 @@ mod tests {
             for _round in 0_u32..200 {
                 let mut mutated = golden.clone();
                 if !mutated.is_empty() {
-                    let index = usize::try_from(rng.below(u64::try_from(mutated.len()).expect("length fits")))
-                        .expect("index fits");
+                    let index = usize::try_from(rng.below(skein_lib::len_u64(mutated.len()))).expect("index fits");
                     *mutated.get_mut(index).expect("chosen byte") =
                         u8::try_from(rng.next_u64() & 0xff).expect("low byte");
                 }

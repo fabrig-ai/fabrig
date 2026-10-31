@@ -49,7 +49,7 @@ fn measured_head_and_body_equal_the_uploaded_wire() {
             let digits = |length: usize| length.to_string().len();
             assert_eq!(usize::try_from(measured.head).unwrap(), head - digits(sent) + digits(bound));
         }
-        assert_eq!(world.machine.request_bytes(), u64::try_from(world.sent.len()).unwrap());
+        assert_eq!(world.machine.request_bytes(), skein_lib::len_u64(world.sent.len()));
         assert_eq!(
             client::reservation(measured, &bounds).unwrap(),
             u64::from(measured.head)

@@ -277,7 +277,7 @@ fn call(
     *minted = minted.checked_add(1).ok_or(Error::InvalidRequest)?;
     let id = call_id(*minted);
     if rng.chance(config.malformed) && !menu.invalid.is_empty() {
-        let count = u64::try_from(menu.invalid.len()).expect("bounded menu");
+        let count = skein_lib::len_u64(menu.invalid.len());
         let pick = usize::try_from(rng.below(count)).expect("bounded menu index");
         let input = menu.invalid.get(pick).expect("picked below menu count");
         let name = match &input.name {
@@ -286,7 +286,7 @@ fn call(
         };
         return Ok(Part::ToolCall { id, name, arguments: input.arguments.clone() });
     }
-    let count = u64::try_from(menu.arguments.len()).expect("bounded menu");
+    let count = skein_lib::len_u64(menu.arguments.len());
     let pick = usize::try_from(rng.below(count)).expect("bounded menu index");
     let arguments = menu.arguments.get(pick).expect("picked below menu count").clone();
     Ok(Part::ToolCall { id, name: tool.name.clone(), arguments })

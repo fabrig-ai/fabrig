@@ -138,7 +138,7 @@ fn a_large_file_is_written_and_read_back_at_its_offsets() {
     let file = open(&mut world, dir, b"large", OpenHow::Read);
     let mut read = Vec::with_capacity(LEN);
     loop {
-        let op = Op::read(file, vec![0; 1 << 20].into(), u64::try_from(read.len()).unwrap()).unwrap();
+        let op = Op::read(file, vec![0; 1 << 20].into(), skein_lib::len_u64(read.len())).unwrap();
         let done = world.run(op);
         let (Ok(Done::Count(n)), Op::Read { buf, .. }) = (done.result, done.kind) else { panic!("a read") };
         if n == 0 {

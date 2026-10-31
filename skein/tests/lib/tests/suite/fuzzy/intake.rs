@@ -24,7 +24,7 @@ fn random_splits_demands_and_caps_meet_what_the_reference_meets() {
                 3 => arrived(&mut rng, capacity),
                 _ => {
                     let until = delimiters[usize::try_from(rng.below(4)).unwrap()];
-                    let shortest = u64::try_from(until.as_bytes().len()).unwrap();
+                    let shortest = skein_lib::len_u64(until.as_bytes().len());
                     scan(until, u32::try_from(rng.between(shortest, u64::from(capacity))).unwrap())
                 }
             };

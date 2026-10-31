@@ -67,8 +67,8 @@ impl RandomPerson {
         let length = self.rng.below(u64::from(self.word_bytes).checked_add(1).expect("u32 bound plus one fits u64"));
         let mut words = Vec::with_capacity(usize::try_from(length).expect("word length fits usize"));
         for _ in 0..length {
-            let index = usize::try_from(self.rng.below(u64::try_from(ALPHABET.len()).expect("alphabet fits u64")))
-                .expect("alphabet index fits usize");
+            let index =
+                usize::try_from(self.rng.below(skein_lib::len_u64(ALPHABET.len()))).expect("alphabet index fits usize");
             words.push(ALPHABET[index]);
         }
         words.into_boxed_slice()

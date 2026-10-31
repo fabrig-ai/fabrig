@@ -250,7 +250,7 @@ fn random_tree(builder: &mut Builder, rng: &mut Rng) {
     builder.open(if rng.chance(500) { Role::Page } else { Role::Region });
     let mut keys = [1_u64, 2, 3, 4, 5];
     for index in 0..keys.len() {
-        let other = usize::try_from(rng.below(u64::try_from(keys.len()).expect("small array"))).expect("small index");
+        let other = usize::try_from(rng.below(skein_lib::len_u64(keys.len()))).expect("small index");
         keys.swap(index, other);
     }
     for key in keys {

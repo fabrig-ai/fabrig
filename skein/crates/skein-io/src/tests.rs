@@ -15,6 +15,7 @@ mod listener;
 mod output;
 mod private;
 mod process;
+mod records;
 mod signals;
 mod store;
 mod stream;

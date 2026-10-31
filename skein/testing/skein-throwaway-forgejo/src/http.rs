@@ -33,7 +33,7 @@ fn call(port: u16, outgoing: &Outgoing<'_>, auth: Option<&str>) -> Call {
         method,
         target: outgoing.target.as_bytes().into(),
         headers: headers.into(),
-        body: outgoing.body.map_or(Body::None, |body| Body::Length(u64::try_from(body.len()).expect("body fits"))),
+        body: outgoing.body.map_or(Body::None, |body| Body::Length(skein_lib::len_u64(body.len()))),
         close: true,
     }
 }

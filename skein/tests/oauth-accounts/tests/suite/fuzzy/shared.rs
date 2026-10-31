@@ -16,7 +16,7 @@ fn seeded_lock_answers_settle_with_one_unlock_each_and_replay() {
         Story::Removed,
         Story::Aborted,
     ];
-    let count = u64::try_from(stories.len()).expect("story count");
+    let count = skein_lib::len_u64(stories.len());
     for seed in 0..SEEDS {
         let story = stories[usize::try_from(Rng::new(seed).below(count)).expect("story index")];
         let first = shared::run(seed, story, Memory::Unchecked);

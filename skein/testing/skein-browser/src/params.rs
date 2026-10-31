@@ -248,9 +248,9 @@ impl Params<'_> {
                 json.key(b"text");
                 json.string(text);
                 json.key(b"selectionStart");
-                json.unsigned(u64::try_from(text.len()).expect("text length fits u64"));
+                json.unsigned(skein_lib::len_u64(text.len()));
                 json.key(b"selectionEnd");
-                json.unsigned(u64::try_from(text.len()).expect("text length fits u64"));
+                json.unsigned(skein_lib::len_u64(text.len()));
             }
             Params::Key { kind, key, code, windows, text, modifiers, command } => {
                 json.key(b"type");

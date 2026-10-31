@@ -415,7 +415,7 @@ fn vocabulary_measure_counts_dequeued_bytes_and_not_queued() {
     assert_eq!(crate::measure::pull(&pull), Some(baseline));
     let reason = b"The head moved.";
     pull.dequeued = Some(Box::from(reason.as_slice()));
-    let expected = baseline.checked_add(u64::try_from(reason.len()).expect("short reason")).expect("fixture fits");
+    let expected = baseline.checked_add(skein_lib::len_u64(reason.len())).expect("fixture fits");
     assert_eq!(crate::measure::pull(&pull), Some(expected));
     assert_eq!(crate::measure::answer(&Answer::Pull(pull)), Some(expected));
 }

@@ -19,10 +19,8 @@ impl Sha256 {
     /// Hashes the next piece; asserts the standard's bound, 2^64 - 1 bits.
     pub fn update(&mut self, mut piece: &[u8]) {
         let used = usize::try_from(self.hashed % 64).expect("block position fits usize");
-        self.hashed = self
-            .hashed
-            .checked_add(u64::try_from(piece.len()).expect("piece length fits u64"))
-            .expect("SHA-256 hashes at most 2^64 - 1 bits");
+        self.hashed =
+            self.hashed.checked_add(crate::len_u64(piece.len())).expect("SHA-256 hashes at most 2^64 - 1 bits");
         assert!(self.hashed <= u64::MAX / 8, "SHA-256 hashes at most 2^64 - 1 bits");
         if used != 0 {
             let missing = 64_usize.saturating_sub(used);

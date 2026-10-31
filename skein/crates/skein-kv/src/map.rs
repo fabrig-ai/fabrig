@@ -78,16 +78,16 @@ impl KvMap {
             }
             if let Some(old) = self.entries.get(key) {
                 let charge = ENTRY
-                    .checked_add(u64::try_from(key.len()).expect("length fits u64"))
-                    .and_then(|v| v.checked_add(u64::try_from(old.len()).expect("length fits u64")))
+                    .checked_add(skein_lib::len_u64(key.len()))
+                    .and_then(|v| v.checked_add(skein_lib::len_u64(old.len())))
                     .ok_or(Refusal::Full)?;
                 after -= i128::from(charge);
                 count -= 1;
             }
             if let Op::Put { value, .. } = op {
                 let charge = ENTRY
-                    .checked_add(u64::try_from(key.len()).expect("length fits u64"))
-                    .and_then(|v| v.checked_add(u64::try_from(value.len()).expect("length fits u64")))
+                    .checked_add(skein_lib::len_u64(key.len()))
+                    .and_then(|v| v.checked_add(skein_lib::len_u64(value.len())))
                     .ok_or(Refusal::Full)?;
                 after += i128::from(charge);
                 count += 1;

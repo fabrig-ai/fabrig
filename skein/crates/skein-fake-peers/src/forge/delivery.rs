@@ -146,10 +146,7 @@ impl Peer {
             return;
         }
         let bytes = post.as_ref().map_or(0, |post| {
-            u64::try_from(post.head.len())
-                .expect("head size")
-                .checked_add(u64::try_from(post.body.len()).expect("body size"))
-                .expect("bounded post")
+            skein_lib::len_u64(post.head.len()).checked_add(skein_lib::len_u64(post.body.len())).expect("bounded post")
         });
         self.observe(Observation::Delivery { post, outcome }, bytes);
     }

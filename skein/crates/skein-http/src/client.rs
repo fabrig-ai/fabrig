@@ -765,7 +765,7 @@ fn upload(
                     Room::Granted(granted) => granted,
                     Room::Idle | Room::Wanted(_) => unreachable!("a Send within the room granted"),
                 };
-                let len = u64::try_from(bytes.len()).expect("a length fits a u64");
+                let len = skein_lib::len_u64(bytes.len());
                 assert!(len <= u64::from(granted), "a Send within the room granted");
                 let left = left.checked_sub(len).expect("no more than the call's length");
                 below.push(Down::Send(bytes));

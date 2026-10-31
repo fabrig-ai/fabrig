@@ -119,7 +119,7 @@ pub fn read_trust_roots(trust: &Trust, bounds: &RootBounds) -> Result<Roots, Roo
     match trust {
         Trust::Der(path) => {
             let certificate = source(path, bounds.bundle_bytes)?;
-            if u64::try_from(certificate.len()).expect("length fits") > u64::from(bounds.certificate_bytes) {
+            if skein_lib::len_u64(certificate.len()) > u64::from(bounds.certificate_bytes) {
                 return Err(RootsRefusal::TooLong { index: 0, bound: bounds.certificate_bytes });
             }
             if bounds.certificates == 0 {
@@ -258,7 +258,7 @@ fn finish(
         }
         match decoder.finish() {
             Ok(bytes) if ended => {
-                if u64::try_from(certificates.len()).expect("count fits") >= u64::from(bounds.certificates) {
+                if skein_lib::len_u64(certificates.len()) >= u64::from(bounds.certificates) {
                     return Err(RootsRefusal::TooMany { bound: bounds.certificates });
                 }
                 certificates.push(bytes);
