@@ -588,27 +588,49 @@ fn the_referee_rejects_a_procedure_keeping_its_prefix_or_taking_later_words() {
         ),
         Reply::Done
     );
-    for corruption in 0..3 {
-        let mut rows = if corruption == 2 { before.clone() } else { world.records.clone() };
+    struct Case {
+        name: &'static str,
+        after_step: bool,
+        retain_prefix: bool,
+        expected: &'static str,
+    }
+    let cases = [
+        Case {
+            name: "consumed prefix kept",
+            after_step: true,
+            retain_prefix: true,
+            expected: "procedure step kept its consumed inbox prefix",
+        },
+        Case {
+            name: "unread suffix lost",
+            after_step: true,
+            retain_prefix: false,
+            expected: "committed message disappeared without a turn, procedure step or merge",
+        },
+        Case {
+            name: "inbox lost before step",
+            after_step: false,
+            retain_prefix: false,
+            expected: "committed message disappeared without a turn, procedure step or merge",
+        },
+    ];
+    for case in cases {
+        let mut rows = if case.after_step { world.records.clone() } else { before.clone() };
         let jig_domain_tasks::Stored::Live(task) =
             rows.get_mut(&jig_domain_tasks::Key::Live(1)).expect("live procedure")
         else {
             unreachable!()
         };
-        match corruption {
-            0 => {
-                let jig_domain_tasks::Stored::Live(old) = &before[&jig_domain_tasks::Key::Live(1)] else {
-                    unreachable!()
-                };
-                task.inbox = old.inbox.clone();
-            }
-            1 | 2 => task.inbox = Box::new([]),
-            _ => unreachable!(),
-        }
+        task.inbox = if case.retain_prefix {
+            let jig_domain_tasks::Stored::Live(old) = &before[&jig_domain_tasks::Key::Live(1)] else { unreachable!() };
+            old.inbox.clone()
+        } else {
+            Box::new([])
+        };
         let mut referee = jig_tasks_world::accounting_referee::Accounting::default();
         referee.reset(&before);
         referee.procedure(1, 2, Some(3));
-        assert!(referee.committed(&rows, &[]).is_err());
+        assert_eq!(referee.committed(&rows, &[]), Err(case.expected), "{}", case.name);
     }
 }
 

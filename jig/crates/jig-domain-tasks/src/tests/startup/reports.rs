@@ -1,4 +1,4 @@
-//! Mode selection precedes operational input (jig/docs/design/domain/engine.md, 6).
+//! Configuration and operational reports during restoration (jig/docs/design/domain/engine.md, 6).
 use crate::{Domain, Event, HoldKind, Name, Party, Refusal, Request, ResourceAccess, step};
 use skein_lib::{Env, Queue, Time, Wall};
 
@@ -27,23 +27,7 @@ fn resource() -> Name {
 }
 
 #[test]
-#[should_panic(expected = "start_restore must be selected once before restoration input")]
-fn direct_resource_input_prevents_late_start_selection() {
-    let (mut domain, env, mut out) = fresh();
-    let name = resource();
-    step(&mut domain, &env, Event::Resource { name: name.clone(), hold: HoldKind::Shared }, &mut out);
-    assert!(out.is_empty());
-    assert_eq!(domain.resource_hold(&name), Some(HoldKind::Shared));
-    domain.start_restore();
-}
-
-fn rejects_selection(domain: &mut Domain) {
-    assert!(std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| domain.start_restore())).is_err());
-    assert_eq!(domain.restore_failure(), None, "selection misuse is not a fit refusal");
-}
-
-#[test]
-fn resource_updates_keep_the_latest_report_and_prevent_late_selection() {
+fn resource_updates_keep_the_latest_report() {
     let (mut domain, env, mut out) = fresh();
     let name = resource();
     step(&mut domain, &env, Event::Resource { name: name.clone(), hold: HoldKind::Shared }, &mut out);
@@ -51,22 +35,20 @@ fn resource_updates_keep_the_latest_report_and_prevent_late_selection() {
     step(&mut domain, &env, Event::Resource { name: name.clone(), hold: latest }, &mut out);
     assert_eq!(domain.resource_hold(&name), Some(latest));
     assert!(out.is_empty());
-    rejects_selection(&mut domain);
 }
 
 #[test]
-fn malformed_ignored_resource_reports_prevent_late_selection() {
+fn malformed_resource_reports_are_ignored() {
     let (mut domain, env, mut out) = fresh();
     let bytes = usize::try_from(env.limits.hold_bytes).expect("fixture byte limit fits usize") + 1;
     let name = Name { connector: CONNECTOR, path: Box::new([vec![b'x'; bytes].into_boxed_slice()]) };
     step(&mut domain, &env, Event::Resource { name: name.clone(), hold: HoldKind::Shared }, &mut out);
     assert_eq!(domain.resource_hold(&name), None);
     assert!(out.is_empty());
-    rejects_selection(&mut domain);
 }
 
 #[test]
-fn resource_access_removal_prevents_late_selection_even_without_a_cached_entry() {
+fn unrestricted_resource_access_needs_no_cached_entry() {
     let (mut domain, env, mut out) = fresh();
     let name = resource();
     step(
@@ -77,7 +59,6 @@ fn resource_access_removal_prevents_late_selection_even_without_a_cached_entry()
     );
     assert_eq!(crate::holds::available_access(&domain, PROJECT, &name), ResourceAccess::Writable);
     assert!(out.is_empty());
-    rejects_selection(&mut domain);
 }
 
 #[test]
@@ -89,11 +70,10 @@ fn resource_access_reports_retain_and_remove_restrictions() {
         assert_eq!(crate::holds::available_access(&domain, PROJECT, &name), access);
     }
     assert!(out.is_empty());
-    rejects_selection(&mut domain);
 }
 
 #[test]
-fn not_ready_refusals_prevent_late_selection() {
+fn make_before_ready_refuses() {
     let (mut domain, env, mut out) = fresh();
     step(
         &mut domain,
@@ -109,38 +89,34 @@ fn not_ready_refusals_prevent_late_selection() {
     assert_eq!(problem.why, Refusal::NotReady);
     assert!(out.is_empty());
     assert_eq!(domain.task(DUE), None);
-    rejects_selection(&mut domain);
 }
 
 #[test]
-fn ignored_notifications_prevent_late_selection() {
+fn unknown_preparation_notifications_are_ignored() {
     let (mut domain, env, mut out) = fresh();
     step(&mut domain, &env, Event::PreparationFailed { task: UNNAMED }, &mut out);
     assert!(out.is_empty());
     assert_eq!(domain.task(UNNAMED), None);
-    rejects_selection(&mut domain);
 }
 
 #[test]
-fn zero_price_accounting_prevents_late_selection_without_looking_up_a_funder() {
+fn zero_price_accounting_does_not_look_up_a_funder() {
     let (mut domain, env, mut out) = fresh();
     step(&mut domain, &env, Event::ChargeEffect { funder: crate::Funder::Task(UNNAMED), maximum: 0 }, &mut out);
     assert!(out.is_empty());
     assert_eq!(domain.task(UNNAMED), None);
-    rejects_selection(&mut domain);
 }
 
 #[test]
-fn fire_before_ready_prevents_late_selection_without_output() {
+fn fire_before_ready_has_no_output() {
     let (mut domain, env, mut out) = fresh();
     crate::fire(&mut domain, &env, &mut out);
     assert!(out.is_empty());
     assert_eq!(domain.next_deadline(), None);
-    rejects_selection(&mut domain);
 }
 
 #[test]
-fn capacity_refusals_prevent_late_selection_with_zero_full_or_available_room() {
+fn capacity_refusals_account_for_zero_full_or_available_room() {
     let request = crate::Capacity {
         project: None,
         by: Party::Person(PERSON),
@@ -155,7 +131,6 @@ fn capacity_refusals_prevent_late_selection_with_zero_full_or_available_room() {
         assert_eq!(domain.capacity_mark(), 1);
         assert_eq!(domain.capacity_refusals().len(), first_held);
         assert_eq!(domain.capacity_refusals_lost(), first_lost);
-        rejects_selection(&mut domain);
         domain.remember_capacity(Wall::EPOCH, request);
         assert_eq!(domain.capacity_mark(), 2);
         assert_eq!(domain.capacity_refusals().len(), second_held);
@@ -180,34 +155,25 @@ fn configure(domain: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<Requ
 }
 
 #[test]
-fn kinds_and_charters_may_precede_or_follow_selection() {
-    for select_first in [false, true] {
-        let (mut domain, env, mut out) = fresh();
-        if select_first {
-            domain.start_restore();
-        }
-        configure(&mut domain, &env, &mut out);
-        if !select_first {
-            domain.start_restore();
-        }
-        step(&mut domain, &env, Event::Check, &mut out);
-        assert!(domain.checked());
-        step(&mut domain, &env, Event::Restored, &mut out);
-        assert!(domain.ready());
-        assert_eq!(domain.restore_failure(), None);
-    }
+fn kinds_and_charters_configure_restore() {
+    let (mut domain, env, mut out) = fresh();
+    configure(&mut domain, &env, &mut out);
+    step(&mut domain, &env, Event::Check, &mut out);
+    assert!(domain.checked());
+    step(&mut domain, &env, Event::Restored, &mut out);
+    assert!(domain.ready());
+    assert_eq!(domain.restore_failure(), None);
 }
 
 #[test]
-fn configuration_does_not_clear_previous_operational_input() {
+fn configuration_follows_operational_reports() {
     let (mut domain, env, mut out) = fresh();
     step(&mut domain, &env, Event::PreparationFailed { task: UNNAMED }, &mut out);
     configure(&mut domain, &env, &mut out);
-    rejects_selection(&mut domain);
 }
 
 #[test]
-fn kinds_before_selection_still_validate_connector_ownership() {
+fn kinds_validate_connector_ownership() {
     let (mut domain, env, mut out) = fresh();
     assert!(
         std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| step(
@@ -224,7 +190,7 @@ fn kinds_before_selection_still_validate_connector_ownership() {
 }
 
 #[test]
-fn charters_before_selection_still_validate_model_efforts() {
+fn charters_validate_model_efforts() {
     let (mut domain, env, mut out) = fresh();
     assert!(
         std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| step(
@@ -238,7 +204,7 @@ fn charters_before_selection_still_validate_model_efforts() {
 }
 
 #[test]
-fn observations_and_maintenance_leave_fresh_selection_available() {
+fn observations_and_maintenance_keep_a_fresh_domain_empty() {
     let (mut domain, _, out) = fresh();
     assert_eq!(domain.task(DUE), None);
     assert_eq!(domain.resource_hold(&resource()), None);
@@ -249,14 +215,13 @@ fn observations_and_maintenance_leave_fresh_selection_available() {
     assert_eq!(domain.pop_fact(), None);
     domain.reclaim();
     assert!(out.is_empty());
-    domain.start_restore();
 }
 
 #[test]
-fn selected_mode_accepts_operational_reports_before_loading_and_linking() {
+fn restore_accepts_operational_reports_before_loading_and_linking() {
     let source = super::one_task();
     let (mut domain, env, mut out) = fresh();
-    domain.start_restore();
+
     let name = resource();
     step(&mut domain, &env, Event::Resource { name: name.clone(), hold: HoldKind::Shared }, &mut out);
     for record in source.stored.values().filter(|record| record.key().live()) {
@@ -269,11 +234,4 @@ fn selected_mode_accepts_operational_reports_before_loading_and_linking() {
     assert_eq!(domain.restore_failure(), None);
     step(&mut domain, &env, Event::Restored, &mut out);
     assert!(domain.ready());
-}
-
-#[test]
-fn selection_is_still_single_use_before_any_operational_input() {
-    let (mut domain, _, _) = fresh();
-    domain.start_restore();
-    rejects_selection(&mut domain);
 }

@@ -679,39 +679,6 @@ fn check_rows(rows: Vec<Stored>, env: &skein_lib::Env<tasks::Limits>) -> Vec<tas
 }
 
 #[test]
-fn restart_refuses_missing_holds_missing_scope_roots_and_unheld_tasks_in_scope() {
-    let mut w = World::new(920, LIMITS);
-    goal_tree(&mut w);
-    stop(&mut w, 1, 1, 100);
-    park(&mut w);
-    for corruption in 0..3 {
-        let mut rows = w.records.values().filter(|row| row.key().live()).cloned().collect::<Vec<_>>();
-        match corruption {
-            0 => rows.retain(|row| row.key() != Key::PlacedHold(100)),
-            1 => {
-                for row in &mut rows {
-                    if let Stored::PlacedHold(hold) = row {
-                        hold.scope = Scope::Subtree { task: 99 };
-                    }
-                }
-            }
-            2 => {
-                for row in &mut rows {
-                    if let Stored::Live(task) = row
-                        && task.number == 4
-                    {
-                        task.placed = None;
-                        task.phase = Phase::Active(Active::Due);
-                    }
-                }
-            }
-            _ => unreachable!(),
-        }
-        assert!(check_rows(rows, &w.env).iter().any(|reply| matches!(reply, tasks::Request::RestoreRefused { .. })));
-    }
-}
-
-#[test]
 fn restart_refuses_each_placed_hold_count_over_its_limit() {
     let mut w = World::new(921, tasks::Limits { exemptions: 2, ..LIMITS });
     goal_tree(&mut w);
@@ -797,86 +764,71 @@ fn accepting_a_release_proposal_of_the_root_lifts_the_hold_and_records_it_accept
     }
 }
 
-#[test]
-fn restart_asserts_missing_hold_links_and_leaves_scope_laws_to_the_referee() {
-    let mut w = World::new_start_restore(920, LIMITS);
-    goal_tree(&mut w);
-    stop(&mut w, 1, 1, 100);
-    park(&mut w);
-    for corruption in 0..3 {
-        let mut rows = w.records.values().filter(|row| row.key().live()).cloned().collect::<Vec<_>>();
-        match corruption {
-            0 => rows.retain(|row| row.key() != Key::PlacedHold(100)),
-            1 => {
-                for row in &mut rows {
-                    if let Stored::PlacedHold(hold) = row {
-                        hold.scope = Scope::Subtree { task: 99 };
-                    }
-                }
-            }
-            2 => {
-                for row in &mut rows {
-                    if let Stored::Live(task) = row
-                        && task.number == 4
-                    {
-                        task.placed = None;
-                        task.phase = Phase::Active(Active::Due);
-                    }
-                }
-            }
-            _ => unreachable!(),
-        }
-        if corruption < 2 {
-            let panic =
-                std::panic::catch_unwind(|| check_new_rows(rows, &w.env)).expect_err("missing required link panics");
-            let message = panic.downcast_ref::<String>().expect("keyed panic message");
-            let expected = if corruption == 0 {
-                "restore Live(1): missing placed hold 100"
-            } else {
-                "restore PlacedHold(100): missing scope task 99"
-            };
-            assert!(message.contains(expected), "{message}");
-        } else {
-            let live = rows
-                .iter()
-                .filter_map(|row| if let Stored::Live(row) = row { Some(*row.clone()) } else { None })
-                .collect();
-            let holds = rows
-                .iter()
-                .filter_map(|row| if let Stored::PlacedHold(row) = row { Some(*row.clone()) } else { None })
-                .collect();
-            assert!(
-                !check_new_rows(rows, &w.env)
-                    .iter()
-                    .any(|reply| matches!(reply, tasks::Request::RestoreRefused { .. }))
-            );
-            let mut referee = skein_world::domain::Referee::new(jig_tasks_world::referee::Tasks::default());
-            referee.observe(
-                skein_lib::Time::ZERO,
-                jig_tasks_world::referee::Seen::Placed {
-                    live,
-                    holds,
-                    stops: w.stops.clone(),
-                    limits: Box::new(w.env.limits),
-                },
-                &mut Vec::new(),
-            );
-            assert!(matches!(referee.verdict(), skein_world::domain::Verdict::Failed(_)));
-        }
-    }
+fn stopped_rows() -> (World, Vec<Stored>) {
+    let mut world = World::new(920, LIMITS);
+    goal_tree(&mut world);
+    stop(&mut world, 1, 1, 100);
+    park(&mut world);
+    let rows = world.records.values().filter(|row| row.key().live()).cloned().collect();
+    (world, rows)
 }
 
-fn check_new_rows(rows: Vec<Stored>, env: &skein_lib::Env<tasks::Limits>) -> Vec<tasks::Request> {
-    let mut domain = jig_tasks_world::domain(&env.limits, 920);
-    domain.start_restore();
-    let mut out = skein_lib::Queue::uncapped();
-    for record in rows {
-        tasks::step(&mut domain, env, Event::Restore { record }, &mut out);
+#[test]
+#[should_panic(expected = "restore Live(1): missing placed hold 100")]
+fn restart_asserts_a_missing_placed_hold() {
+    let (world, mut rows) = stopped_rows();
+    rows.retain(|row| row.key() != Key::PlacedHold(100));
+    check_rows(rows, &world.env);
+}
+
+#[test]
+#[should_panic(expected = "restore PlacedHold(100): missing scope task 99")]
+fn restart_asserts_a_missing_scope_root() {
+    let (world, mut rows) = stopped_rows();
+    for row in &mut rows {
+        if let Stored::PlacedHold(hold) = row {
+            hold.scope = Scope::Subtree { task: 99 };
+        }
     }
-    tasks::step(&mut domain, env, Event::Check, &mut out);
-    let mut replies = Vec::new();
-    while let Some(reply) = out.pop() {
-        replies.push(reply);
+    check_rows(rows, &world.env);
+}
+
+#[test]
+fn restart_leaves_unheld_tasks_in_scope_to_the_referee() {
+    let (world, mut rows) = stopped_rows();
+    for row in &mut rows {
+        if let Stored::Live(task) = row
+            && task.number == 4
+        {
+            task.placed = None;
+            task.phase = Phase::Active(Active::Due);
+        }
     }
-    replies
+    let live = rows
+        .iter()
+        .filter_map(|row| match row {
+            Stored::Live(row) => Some(*row.clone()),
+            _ => None,
+        })
+        .collect();
+    let holds = rows
+        .iter()
+        .filter_map(|row| match row {
+            Stored::PlacedHold(row) => Some(*row.clone()),
+            _ => None,
+        })
+        .collect();
+    assert!(check_rows(rows, &world.env).is_empty());
+    let mut referee = skein_world::domain::Referee::new(jig_tasks_world::referee::Tasks::default());
+    referee.observe(
+        skein_lib::Time::ZERO,
+        jig_tasks_world::referee::Seen::Placed {
+            live,
+            holds,
+            stops: world.stops.clone(),
+            limits: Box::new(world.env.limits),
+        },
+        &mut Vec::new(),
+    );
+    assert!(matches!(referee.verdict(), skein_world::domain::Verdict::Failed(_)));
 }

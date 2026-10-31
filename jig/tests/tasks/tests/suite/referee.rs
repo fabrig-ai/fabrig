@@ -306,25 +306,70 @@ fn stored_limits() {
     use jig_tasks_world::{LIMITS, World, task};
     let mut w = World::new(0, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[])]);
-    for field in 0..10 {
-        let mut record = w.record(1).clone();
-        match field {
-            0 => record.depth = LIMITS.depth + 1,
-            1 => record.made = LIMITS.tree_tasks + 1,
-            2 => record.delegates = vec![2; 9].into_boxed_slice(),
-            3 => record.dependencies = vec![2; 9].into_boxed_slice(),
-            4 => record.spec.words = vec![1; 65].into_boxed_slice(),
-            5 => record.spec.inputs = vec![2; 5].into_boxed_slice(),
-            6 => {
+    struct Case {
+        name: &'static str,
+        apply: fn(&mut jig_domain_tasks::TaskRecord),
+    }
+    let cases = [
+        Case {
+            name: "depth",
+            apply: |record| {
+                record.depth = LIMITS.depth + 1;
+            },
+        },
+        Case {
+            name: "lifetime made",
+            apply: |record| {
+                record.made = LIMITS.tree_tasks + 1;
+            },
+        },
+        Case {
+            name: "delegates",
+            apply: |record| {
+                record.delegates = vec![2; 9].into_boxed_slice();
+            },
+        },
+        Case {
+            name: "dependencies",
+            apply: |record| {
+                record.dependencies = vec![2; 9].into_boxed_slice();
+            },
+        },
+        Case {
+            name: "spec bytes",
+            apply: |record| {
+                record.spec.words = vec![1; 65].into_boxed_slice();
+            },
+        },
+        Case {
+            name: "inputs",
+            apply: |record| {
+                record.spec.inputs = vec![2; 5].into_boxed_slice();
+            },
+        },
+        Case {
+            name: "parameters",
+            apply: |record| {
                 record.spec.parameters =
                     vec![jig_domain_tasks::Parameter::Number { name: 1, value: 1 }; 5].into_boxed_slice();
-            }
-            7 => record.contract = jig_domain_tasks::Contract::Report { words: 33 },
-            8 => {
+            },
+        },
+        Case {
+            name: "report allowance",
+            apply: |record| {
+                record.contract = jig_domain_tasks::Contract::Report { words: 33 };
+            },
+        },
+        Case {
+            name: "executor kinds",
+            apply: |record| {
                 record.authority.delegation.kinds =
                     vec![jig_domain_tasks::AuthorityExecutor::Role(1); 4].into_boxed_slice();
-            }
-            9 => {
+            },
+        },
+        Case {
+            name: "authority grants",
+            apply: |record| {
                 record.authority.grants = vec![
                     jig_domain_tasks::Grant {
                         connector: 0,
@@ -337,10 +382,15 @@ fn stored_limits() {
                     5
                 ]
                 .into_boxed_slice();
-            }
-            _ => unreachable!(),
-        }
-        rejects(vec![Seen::Stored { live: vec![record], limits: Box::new(LIMITS) }]);
+            },
+        },
+    ];
+    for case in cases {
+        let mut record = w.record(1).clone();
+        (case.apply)(&mut record);
+        let mut referee = Referee::new(Tasks::default());
+        referee.observe(Time::ZERO, Seen::Stored { live: vec![record], limits: Box::new(LIMITS) }, &mut Vec::new());
+        assert!(matches!(referee.verdict(), Verdict::Failed(_)), "{}", case.name);
     }
     let record = w.record(1).clone();
     rejects(vec![Seen::Stored {
@@ -365,59 +415,100 @@ fn accounting_referee_rejects_expense_reservation_and_settlement_corruption() {
         },
         Cause::Priced { cumulative: 7 },
     );
-    for fault in 0..3 {
+    struct Case {
+        name: &'static str,
+        apply: fn(&mut jig_domain_tasks::TaskRecord),
+    }
+    let cases = [
+        Case {
+            name: "recorded expense",
+            apply: |task| {
+                task.numbers.spent = 0;
+            },
+        },
+        Case {
+            name: "attempt expense",
+            apply: |task| {
+                task.run_spent = 0;
+            },
+        },
+        Case {
+            name: "reservation",
+            apply: |task| {
+                task.numbers.reserved = 1;
+            },
+        },
+    ];
+    for case in cases {
         let mut bad = w.records.clone();
         if let Some(Stored::Live(task)) = bad.get_mut(&Key::Live(1)) {
-            match fault {
-                0 => task.numbers.spent = 0,
-                1 => task.run_spent = 0,
-                2 => task.numbers.reserved = 1,
-                _ => unreachable!(),
-            }
+            (case.apply)(task);
         }
         let mut judge = Accounting::default();
         judge.reset(&before);
         judge.charged(1, 7);
-        assert!(judge.committed(&bad, &[]).is_err(), "expense fault {fault}");
+        assert!(judge.committed(&bad, &[]).is_err(), "{}", case.name);
     }
     let before = w.records.clone();
     w.settle(1);
-    for fault in 0..6 {
-        let mut bad = w.records.clone();
-        match fault {
-            0 => {
+    struct SettlementCase {
+        name: &'static str,
+        apply: fn(&mut std::collections::BTreeMap<Key, Stored>),
+    }
+    let cases = [
+        SettlementCase {
+            name: "missing ended row",
+            apply: |bad| {
                 bad.remove(&Key::Ended(1));
-            }
-            1 => {
+            },
+        },
+        SettlementCase {
+            name: "settled expense",
+            apply: |bad| {
                 if let Some(Stored::Ended(row)) = bad.get_mut(&Key::Ended(1)) {
                     row.numbers.spent = 6;
                 }
-            }
-            2 => {
+            },
+        },
+        SettlementCase {
+            name: "settled funder",
+            apply: |bad| {
                 if let Some(Stored::Ended(row)) = bad.get_mut(&Key::Ended(1)) {
                     row.funder = Funder::Task(99);
                 }
-            }
-            3 => {
+            },
+        },
+        SettlementCase {
+            name: "released reservation",
+            apply: |bad| {
                 if let Some(Stored::Ledger(row)) = bad.get_mut(&Key::Ledger(Funder::Period { project: 1, period: 0 })) {
                     row.numbers.reserved = 100;
                 }
-            }
-            4 => {
+            },
+        },
+        SettlementCase {
+            name: "posted expense",
+            apply: |bad| {
                 if let Some(Stored::Ledger(row)) = bad.get_mut(&Key::Ledger(Funder::Period { project: 1, period: 0 })) {
                     row.numbers.spent_below = 0;
                 }
-            }
-            5 => {
+            },
+        },
+        SettlementCase {
+            name: "settled allocation",
+            apply: |bad| {
                 if let Some(Stored::Ended(row)) = bad.get_mut(&Key::Ended(1)) {
                     row.numbers.budget = 99;
                 }
-            }
-            _ => unreachable!(),
-        }
+            },
+        },
+    ];
+    for case in cases {
+        let mut bad = w.records.clone();
+        (case.apply)(&mut bad);
         let mut judge = Accounting::default();
         judge.reset(&before);
-        assert!(judge.committed(&bad, &[]).is_err(), "settlement fault {fault}");
+        assert!(judge.committed(&bad, &[]).is_err(), "{}", case.name);
     }
     let mut bad = w.records.clone();
     bad.remove(&Key::Ended(1));
