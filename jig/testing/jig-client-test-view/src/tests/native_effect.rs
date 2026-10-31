@@ -24,21 +24,26 @@ fn proposal(part: OwnerPart) -> OwnerProposal {
 fn load(root: &mut Domain, proposal: OwnerProposal) -> Vec<Request> {
     let rows =
         drive(root, Event::Went { place: Place::Address(Address::First(first::Address { project: 3, item: 5 })) });
-    let named = drive(
+    drive(
         root,
         Event::First(first::Event::Read {
             read: family_read(&rows),
-            result: first::ReadResult::Value(family::Document::Item(family::Item {
-                project: 3,
-                key: 5,
-                revision: Revision { value: 1 },
-                state: family::ItemState::Ready,
-                value: 1,
-                task: 9,
-                second: None,
-                proposals: list([proposal.key]),
-                touchable: false,
-            })),
+            result: first::ReadResult::Value(family::Document::Connector(
+                jig_client_test_domain::connector_values::ConnectorDocument {
+                    subject: family::Subject { scope: family::Scope::Project(3), kind: family::Kind::Item(5) },
+                    value: Box::new(jig_client_test_domain::connector_values::ClientDocument::Object {
+                        object: 5,
+                        now: jig_client_test_domain::connector_values::ApplicationObject { revision: 1, value: 1 },
+                    }),
+                },
+            )),
+        }),
+    );
+    let named = drive(
+        root,
+        Event::First(first::Event::Compose {
+            address: first::Address { project: 3, item: 5 },
+            composition: family::PageComposition { task: 9, second: None, proposals: list([proposal.key]) },
         }),
     );
     let read = named
