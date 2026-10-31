@@ -719,6 +719,7 @@ impl Joint {
         let mut engine_limits = *engine_limits;
         engine_limits.documents.text_bytes = engine_limits.documents.text_bytes.min(limits.client.domain.text);
         let mut engine = Driver::with_repositories(store, configs, &engine_limits, fixtures::REPOSITORIES);
+        engine.settle();
         engine.send(hello);
         engine.settle();
         let last_commit = engine.store.header().commits;
