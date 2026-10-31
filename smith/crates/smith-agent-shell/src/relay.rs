@@ -219,22 +219,12 @@ fn owner(event: &Event) -> Option<Token> {
 impl Host for Process {
     fn iterate(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: limits() };
-        while self.io.is_ready() {
-            io::resume(&mut self.io, &env, &mut self.events, &mut self.submissions);
-        }
-        while let Some(complete) = self.completions.pop() {
-            io::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
-        }
-        while self.io.is_due(now) {
-            io::fire(&mut self.io, &env, &mut self.events, &mut self.submissions);
-        }
+        io::stage::up(&mut self.io, &env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         while let Some(event) = self.events.pop() {
             self.event(event);
         }
         self.progress();
-        while let Some(request) = self.requests.pop() {
-            io::down(&mut self.io, &env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
     }
     fn completions(&mut self) -> &mut Queue<Complete> {

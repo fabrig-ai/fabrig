@@ -267,9 +267,7 @@ impl Host for Agent {
         }
         self.server.fire(now, &mut self.requests);
         self.notices();
-        while let Some(request) = self.requests.pop() {
-            io::down(&mut self.io, &env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
         if self.fake_done
             && self.io.is_empty()
