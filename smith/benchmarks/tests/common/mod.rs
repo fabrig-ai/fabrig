@@ -59,3 +59,15 @@ pub fn calibration(task: &smith_bench::Task) -> smith_bench::Calibration {
         checks_sha256: task.checks_sha256().expect("checks digest"),
     }
 }
+
+#[must_use]
+pub fn task(name: &str) -> smith_bench::Task {
+    let root = repository();
+    smith_bench::check_task(&root.join("tasks").join(name).join("task.toml"), &root.join("../docs/design"))
+        .expect("authored task and frozen seed")
+}
+
+#[must_use]
+pub fn repository() -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+}
