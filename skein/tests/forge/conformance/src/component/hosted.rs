@@ -250,33 +250,24 @@ impl Host for Hosted {
         self.env.wall = wall;
         self.io_env.now = now;
         self.io_env.wall = wall;
-        while self.io.is_ready() {
-            skein_io::resume(&mut self.io, &self.io_env, &mut self.events, &mut self.submit);
-        }
-        while let Some(c) = self.complete.pop() {
-            skein_io::up(&mut self.io, &self.io_env, c, &mut self.events, &mut self.submit);
-            while self.io.is_ready() {
-                skein_io::resume(&mut self.io, &self.io_env, &mut self.events, &mut self.submit);
-            }
-        }
-        while self.io.is_due(now) {
-            skein_io::fire(&mut self.io, &self.io_env, &mut self.events, &mut self.submit);
-        }
+        skein_io::stage::up(&mut self.io, &self.io_env, &mut self.complete, &mut self.events, &mut self.submit);
         while let Some(e) = self.events.pop() {
             self.component.up(&self.env, e, &mut self.above, &mut self.below);
         }
         if self.component.next_deadline().is_some_and(|at| at <= now) {
             self.component.fire(&self.env, &mut self.above, &mut self.below);
         }
-        while self.io.takes() {
-            let Some(r) = self.below.pop() else {
-                break;
-            };
-            if let skein_io::Request::Stream { down: Down::Send(bytes), .. } = &r {
-                self.sent += sent_requests(bytes);
+        let count_requests = |request: &skein_io::Request| {
+            if let skein_io::Request::Stream { down: Down::Send(bytes), .. } = request {
+                sent_requests(bytes)
+            } else {
+                0
             }
-            skein_io::down(&mut self.io, &self.io_env, r, &mut self.submit);
-        }
+        };
+        let queued: u64 = self.below.iter().map(count_requests).sum();
+        skein_io::stage::down(&mut self.io, &self.io_env, &mut self.below, &mut self.submit);
+        // Only requests taken by io belong to the call's sent count.
+        self.sent += queued - self.below.iter().map(count_requests).sum::<u64>();
         while let Some(e) = self.above.pop() {
             match e {
                 Event::Installation { .. } | Event::Fact { .. } | Event::GitToken { .. } => panic!("Forgejo fixture"),
@@ -301,11 +292,12 @@ impl Host for Hosted {
     fn work_pending(&self, now: Time) -> bool {
         self.io.is_ready()
             || self.io.is_due(now)
+            || !self.complete.is_empty()
             || !self.below.is_empty()
             || self.component.next_deadline().is_some_and(|at| at <= now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.io.next_deadline().into_iter().chain(self.component.next_deadline()).min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.component.next_deadline()
@@ -315,5 +307,81 @@ impl Host for Hosted {
     }
     fn operations(&self) -> u32 {
         skein_io::operations(&self.io_env.limits).expect("io operations")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use skein_io::kernel::{Error, Op};
+
+    fn offline() -> Hosted {
+        let (io_limits, client, limits) = Hosted::limits();
+        let shared = skein_forge_connection::Shared {
+            calls: client.calls,
+            rows: client.rows,
+            answer_bytes: client.answer_bytes,
+            op_bytes: client.op_bytes,
+            lifetime: client.lifetime,
+            name_bytes: 256,
+            repositories: 2,
+            io: io_limits,
+        };
+        let settings = skein_forge_connection::Settings {
+            forges: List::with_capacity(0),
+            webhooks: None,
+            word: Box::from(b"kit".as_slice()),
+            user_agent: Box::from(b"kit/0.0.0".as_slice()),
+        };
+        Hosted {
+            component: Component::new(settings, &limits, &shared).expect("offline component limits"),
+            env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+            io: Io::new(&io_limits),
+            io_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: io_limits },
+            above: Queue::with_capacity(256),
+            below: Queue::with_capacity(256),
+            events: Queue::with_capacity(256),
+            complete: Queue::with_capacity(256),
+            submit: Queue::with_capacity(2),
+            kernel: None,
+            clock: Clock::new(),
+            answer: None,
+            stopped: None,
+            closed: false,
+            serial: 0,
+            sent: 0,
+            costs: 0,
+        }
+    }
+
+    #[test]
+    fn a_completion_held_for_submission_room_keeps_work_pending() {
+        let mut host = offline();
+        skein_io::down(&mut host.io, &host.io_env, skein_io::Request::Usage { owner: Token::new(1) }, &mut host.submit);
+        let Submit { op, kind } = host.submit.pop().expect("usage submission");
+        host.complete.push(Complete { op, kind, result: Err(Error::Other(0)) });
+        host.submit.push(Submit { op: Token::new(2), kind: Op::Usage });
+        host.iterate(Time::ZERO, Wall::EPOCH);
+        assert_eq!(host.complete.len(), 1, "one slot cannot hold MAX_OUT_UP");
+        assert!(host.work_pending(Time::ZERO), "the host must submit without waiting");
+        host.submit.clear();
+        host.iterate(Time::ZERO, Wall::EPOCH);
+        assert!(host.complete.is_empty());
+        assert!(!host.work_pending(Time::ZERO));
+        assert!(host.io.is_empty());
+    }
+
+    #[test]
+    fn sends_waiting_for_submission_room_are_not_counted() {
+        let mut host = offline();
+        host.submit.push(Submit { op: Token::new(1), kind: Op::Usage });
+        host.below.push(skein_io::Request::Stream {
+            stream: Token::new(1),
+            down: Down::Send(Box::from(b"GET /api/v1/user HTTP/1.1\r\n\r\n".as_slice())),
+        });
+        host.iterate(Time::ZERO, Wall::EPOCH);
+        assert_eq!(host.below.len(), 1, "one slot cannot hold MAX_OUT_DOWN");
+        assert_eq!(host.sent, 0);
+        assert!(host.work_pending(Time::ZERO));
     }
 }
