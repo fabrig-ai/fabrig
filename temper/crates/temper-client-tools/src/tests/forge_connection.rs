@@ -777,7 +777,8 @@ fn an_accept_recovers_its_durable_answer_with_its_own_operation_name() {
 #[test]
 fn forge_connect_admin_with_an_api_sends_a_new_managed_forge() {
     for optional in [false, true] {
-        let mut words = vec![
+        let mut words = skein_lib::List::with_capacity(23);
+        for word in [
             "forge",
             "connect",
             "forgejo-admin",
@@ -788,9 +789,11 @@ fn forge_connect_admin_with_an_api_sends_a_new_managed_forge() {
             "https://forge.invalid/git",
             "--key",
             "admin",
-        ];
+        ] {
+            words.push(word).unwrap();
+        }
         if optional {
-            words.extend([
+            for word in [
                 "--tls",
                 "forge.invalid",
                 "--web",
@@ -801,10 +804,12 @@ fn forge_connect_admin_with_an_api_sends_a_new_managed_forge() {
                 "3",
                 "--label",
                 "linux",
-            ]);
+            ] {
+                words.push(word).unwrap();
+            }
         }
         let mut root = f::signed_in(f::PARTY);
-        let call = root.submit_value(&words, Some(Secret::new(TOKEN.into())));
+        let call = root.submit_value(words.as_slice(), Some(Secret::new(TOKEN.into())));
         let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
         let w::Making::New(new) = connect.forge() else { panic!("new forge") };
         let w::ForgeAsk::Managed(managed) = new.forge() else { panic!("managed forge") };
@@ -832,7 +837,40 @@ fn github_forms_without_a_number_send_a_new_github_forge() {
         match connect.how() {
             w::How::GithubApp(app) => assert_eq!(app.id(), 4242),
             w::How::GithubManifest(_) => assert!(words.contains(&"github")),
-            other => panic!("unexpected {other:?}"),
+            other @ w::How::ForgejoAdmin(_) => panic!("unexpected {other:?}"),
         }
+    }
+}
+
+#[test]
+fn new_managed_forge_refuses_bad_addresses_before_sending() {
+    for api in [
+        "forge.invalid",
+        ":3000",
+        "forge.invalid:",
+        "forge.invalid:0",
+        "forge.invalid:65536",
+        "forge.invalid:+30",
+        "forge.invalid:3a",
+    ] {
+        let mut root = f::signed_in(f::PARTY);
+        let call = root.submit_value(
+            &[
+                "forge",
+                "connect",
+                "forgejo-admin",
+                "token",
+                "--api",
+                api,
+                "--git",
+                "http://forge.invalid",
+                "--key",
+                "admin",
+            ],
+            Some(Secret::new(TOKEN.into())),
+        );
+        let printed = root.answer(call).expect("invalid address refused locally");
+        assert_eq!(printed.status, 1);
+        assert!(root.sends.is_empty());
     }
 }

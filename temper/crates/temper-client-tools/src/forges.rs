@@ -1258,19 +1258,7 @@ fn setup_changed(
 ) {
     let watch = state.watches.get_mut(&handle).expect("active setup watch");
     let intent = watch.setup.as_mut().expect("setup intent");
-    if intent.forge == 0 {
-        for row in rows.iter().rev() {
-            if let Some(first) = &row.first
-                && first.org == intent.org
-                && first.repository == intent.repository
-                && first.project == intent.project
-                && first.playground == intent.playground
-            {
-                intent.forge = row.number;
-                break;
-            }
-        }
-    }
+    resolve_forge(intent, &watch.called.call, rows);
     for row in rows {
         if row.number != intent.forge {
             continue;
@@ -1459,4 +1447,27 @@ fn setup_ask(intent: &Intent, limits: &Limits) -> Option<jig_client::Ask> {
         .ok()?,
     );
     lifecycle::ask(request, limits)
+}
+
+fn resolve_forge(intent: &mut Intent, call: &jig::call::Call, rows: &[Row]) {
+    if intent.forge == 0 {
+        let mode = if crate::table::TOOLS.get(usize::from(call.tool)).expect("parsed tool").name == SET_UP.name {
+            domain::Mode::Owned
+        } else {
+            domain::Mode::Managed
+        };
+        for row in rows.iter().rev() {
+            if row.kind == domain::Kind::Forgejo
+                && row.mode == mode
+                && let Some(first) = &row.first
+                && first.org == intent.org
+                && first.repository == intent.repository
+                && first.project == intent.project
+                && first.playground == intent.playground
+            {
+                intent.forge = row.number;
+                break;
+            }
+        }
+    }
 }

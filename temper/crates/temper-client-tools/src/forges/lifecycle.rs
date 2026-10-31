@@ -31,6 +31,7 @@ pub(super) fn ask(request: w::Request, limits: &Limits) -> Option<Ask> {
         record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
     })
 }
+#[expect(clippy::manual_map, reason = "the domain matches without closures")]
 pub(super) fn send(state: &mut Forges, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
     if called.value.is_some() || jig::argv::check(crate::table::TOOLS, &called.call, &env.limits.tools).is_err() {
         let printed = render::failure(b"invalid forge call", called.json, 1);
@@ -162,34 +163,8 @@ fn print(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> j
         }
         return render::outcome::print(&operation, outcome, json, None, &limits.tools, crate::root::DIAGNOSTIC_PREFIX);
     };
-    let (word, why, status): (&[u8], Option<(&[u8], &[u8])>, u8) = match answer {
-        w::Outcome::Removed if !pending.end => (b"removed", None, 0),
-        w::Outcome::Reset if pending.end => (b"reset", None, 0),
-        w::Outcome::RemoveRefused(value) if !pending.end => {
-            (b"remove_refused", Some(temper_client_domain::forge::forges::connect_refusal(value.why())), 2)
-        }
-        w::Outcome::EndRefused(value) if pending.end => match value.why() {
-            w::EndRefusal::NotOffered => (b"end_refused", Some((b"not_offered", b"not offered")), 2),
-        },
-        w::Outcome::Unknown => (b"unknown", None, 1),
-        w::Outcome::Removed
-        | w::Outcome::Reset
-        | w::Outcome::RemoveRefused(_)
-        | w::Outcome::EndRefused(_)
-        | w::Outcome::Adopted(_)
-        | w::Outcome::CoreRefused(_)
-        | w::Outcome::ForgeRefused(_)
-        | w::Outcome::SettingUp
-        | w::Outcome::SetUpRefused(_)
-        | w::Outcome::Running
-        | w::Outcome::StartRefused(_)
-        | w::Outcome::StartFailed(_)
-        | w::Outcome::Returning
-        | w::Outcome::Connecting
-        | w::Outcome::Link(_)
-        | w::Outcome::ConnectRefused(_)
-        | w::Outcome::Page(_)
-        | w::Outcome::Accepted(_) => return render::failure(b"forge answer decoding failed", json, 1),
+    let Some((word, why, status)) = answer_words(answer, pending.end) else {
+        return render::failure(b"forge answer decoding failed", json, 1);
     };
     let bytes = if json {
         let bounds = skein_json::writer::Limits { depth: 8, length: limits.tools.text };
@@ -256,4 +231,38 @@ fn encode(
     if kept {
         out.object_end();
     }
+}
+
+type RefusalWords = (&'static [u8], &'static [u8]);
+type AnswerWords = (&'static [u8], Option<RefusalWords>, u8);
+fn answer_words(answer: w::Outcome, end: bool) -> Option<AnswerWords> {
+    Some(match answer {
+        w::Outcome::Removed if !end => (b"removed", None, 0),
+        w::Outcome::Reset if end => (b"reset", None, 0),
+        w::Outcome::RemoveRefused(value) if !end => {
+            (b"remove_refused", Some(temper_client_domain::forge::forges::connect_refusal(value.why())), 2)
+        }
+        w::Outcome::EndRefused(value) if end => match value.why() {
+            w::EndRefusal::NotOffered => (b"end_refused", Some((b"not_offered", b"not offered")), 2),
+        },
+        w::Outcome::Unknown => (b"unknown", None, 1),
+        w::Outcome::Removed
+        | w::Outcome::Reset
+        | w::Outcome::RemoveRefused(_)
+        | w::Outcome::EndRefused(_)
+        | w::Outcome::Adopted(_)
+        | w::Outcome::CoreRefused(_)
+        | w::Outcome::ForgeRefused(_)
+        | w::Outcome::SettingUp
+        | w::Outcome::SetUpRefused(_)
+        | w::Outcome::Running
+        | w::Outcome::StartRefused(_)
+        | w::Outcome::StartFailed(_)
+        | w::Outcome::Returning
+        | w::Outcome::Connecting
+        | w::Outcome::Link(_)
+        | w::Outcome::ConnectRefused(_)
+        | w::Outcome::Page(_)
+        | w::Outcome::Accepted(_) => return None,
+    })
 }

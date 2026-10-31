@@ -696,19 +696,19 @@ fn managed(call: &jig::call::Call, limits: &Limits) -> Option<w::ManagedForge> {
     if host.is_empty() || git.is_empty() {
         return None;
     }
-    let tls = text_option(call, 7)?;
-    let web = text_option(call, 9)?;
+    let tls = text_option(call, 7).ok()?;
+    let web = text_option(call, 9).ok()?;
     w::ManagedForge::new(&bounds, w::ManagedForgeParts { host: host.into(), port, tls, git: git.clone(), web }).ok()
 }
 
-fn text_option(call: &jig::call::Call, index: usize) -> Option<Option<Box<[u8]>>> {
+fn text_option(call: &jig::call::Call, index: usize) -> Result<Option<Box<[u8]>>, ()> {
     let value = value(call, index);
     if value.is_none() {
-        return Some(None);
+        return Ok(None);
     }
-    let Some(Value::Text(bytes)) = value else { return None };
+    let Some(Value::Text(bytes)) = value else { return Err(()) };
     if bytes.is_empty() {
-        return None;
+        return Err(());
     }
-    Some(Some(bytes.clone()))
+    Ok(Some(bytes.clone()))
 }

@@ -1,4 +1,4 @@
-//! The playground's start answer (client/tools.md, 5.5, area 6).
+//! The playground's start answer (temper/docs/design/draft/playground-reset.md, 6.1).
 use crate::{
     jig::{
         self,
@@ -127,7 +127,7 @@ pub(crate) fn print(outcome: &Outcome, as_json: bool, kept: bool, limits: &Limit
             );
         }
     };
-    let Some(answer) = answer else { return render::failure(b"demo start answer decoding failed", as_json, 1) };
+    let Some(answer) = answer else { return render::failure(b"playground start answer decoding failed", as_json, 1) };
     let status = match answer {
         StartAnswer::Running => 0,
         StartAnswer::NotOffered | StartAnswer::EntranceRefused(_) => 2,

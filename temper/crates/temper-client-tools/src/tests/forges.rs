@@ -1284,7 +1284,15 @@ fn lifecycle_answers(words: &[&str], answers: &[(w::Outcome, &[u8], &[u8], u8)])
                     assert_eq!(words, &["forge", "remove", "3"]);
                     assert_eq!(value.forge(), 3);
                 }
-                other => panic!("unexpected {other:?}"),
+                other @ (w::Request::Adopt(_)
+                | w::Request::SetUp(_)
+                | w::Request::StartDemo
+                | w::Request::Return(_)
+                | w::Request::Connect(_)
+                | w::Request::Install(_)
+                | w::Request::Reachable(_)
+                | w::Request::Accept(_)
+                | w::Request::StartPlayground) => panic!("unexpected {other:?}"),
             }
             root.adoption_answer(call, outcome.clone());
             let printed = root.answer(call).unwrap();
@@ -1297,9 +1305,19 @@ fn lifecycle_answers(words: &[&str], answers: &[(w::Outcome, &[u8], &[u8], u8)])
 
 #[test]
 fn lifecycle_requests_recover_with_their_operation_names() {
-    for (words, outcome, operation, word) in [
-        (&["forge", "remove", "3"][..], w::Outcome::Removed, "forge-remove", "removed"),
-        (&["playground", "end"][..], w::Outcome::Reset, "playground-end", "reset"),
+    for (words, outcome, text, json_text) in [
+        (
+            &["forge", "remove", "3"][..],
+            w::Outcome::Removed,
+            b"kept: forge-remove removed\n".as_slice(),
+            b"{\"operation\":\"forge-remove\",\"outcome\":{\"removed\":{}}}\n".as_slice(),
+        ),
+        (
+            &["playground", "end"][..],
+            w::Outcome::Reset,
+            b"kept: playground-end reset\n".as_slice(),
+            b"{\"operation\":\"playground-end\",\"outcome\":{\"reset\":{}}}\n".as_slice(),
+        ),
     ] {
         for json in [false, true] {
             let mut root = f::signed_in(f::PARTY);
@@ -1312,12 +1330,31 @@ fn lifecycle_requests_recover_with_their_operation_names() {
             let mut root = f::started_with(records, f::SEED, json);
             root.deliver(c::Delivery::Me(Box::new(f::me(f::PARTY))));
             root.adoption_answer(0, outcome.clone());
-            let expected = if json {
-                format!("{{\"operation\":\"{operation}\",\"outcome\":{{\"{word}\":{{}}}}}}\n")
-            } else {
-                format!("kept: {operation} {word}\n")
-            };
-            assert_eq!(root.kept_lines.as_slice(), &[Box::<[u8]>::from(expected.as_bytes())]);
+            let expected = if json { json_text } else { text };
+            assert_eq!(root.kept_lines.as_slice(), &[Box::<[u8]>::from(expected)]);
         }
     }
+}
+
+#[test]
+fn new_owned_forge_setup_adopts_on_the_number_in_the_forges_read() {
+    let mut root = f::signed_in(f::PARTY);
+    let call = root.submit(&["forge", "setup", "--project", "1"]);
+    root.adoption_answer(call, w::Outcome::SettingUp);
+    assert!(root.answer(call).is_none());
+    deliver(
+        &mut root,
+        record_first(
+            w::Connection::Connected(
+                w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
+                    .unwrap(),
+            ),
+            Some(first_record(made())),
+        ),
+    );
+    let adopted = root.sent_adoption(call);
+    assert_eq!(adopted.forge, 3);
+    assert_eq!(adopted.project, 1);
+    assert_eq!(adopted.owner.as_ref(), b"work");
+    assert_eq!(adopted.name.as_ref(), b"hello");
 }

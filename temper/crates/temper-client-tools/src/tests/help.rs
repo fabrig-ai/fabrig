@@ -317,3 +317,29 @@ fn the_project_reference_is_what_the_table_renders() {
         "regenerate with SKEIN_CODEGEN_WRITE=1 and this test"
     );
 }
+
+#[test]
+fn the_forge_reference_is_what_the_table_renders() {
+    reference_matches(b"forge", b"ctl-forge");
+}
+#[test]
+fn the_playground_reference_is_what_the_table_renders() {
+    reference_matches(b"playground", b"ctl-playground");
+}
+fn reference_matches(group_name: &[u8], page_name: &[u8]) {
+    let mut group = None;
+    for candidate in table::GROUPS {
+        if candidate.name == group_name {
+            group = Some(candidate);
+            break;
+        }
+    }
+    let group = group.expect("help group");
+    let mut measured = skein_lib::Writer::new(temper_docs::PAGE_BYTES);
+    crate::help::reference(group, &mut measured).expect("reference fits");
+    let mut out = skein_lib::Writer::new(measured.written());
+    crate::help::reference(group, &mut out).expect("reference measured");
+    let rendered = out.finish();
+    let page = temper_docs::find(page_name).expect("reference page");
+    assert_eq!(page.text.as_bytes(), rendered.as_ref(), "{}: the lead updates the reference page", page.name);
+}
