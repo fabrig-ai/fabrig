@@ -78,7 +78,7 @@ pub(super) fn fixture(records: Vec<accounts::Stored>) -> (Core, Env<Limits>) {
             &mut out,
         );
     }
-    people::step(&mut core.people, &people_env, people::Event::Restored, &mut out);
+    finish_people(&mut core.people, &people_env);
     for record in records {
         drop(step(&mut core, &env, Event::Account(accounts::Event::Restore { record })));
     }
@@ -515,6 +515,7 @@ fn the_providers_uses_rule_checks_people_and_projects_for_plans_and_llm_keys() {
         limits.projects = 3;
         limits.holdings = 3;
         core.people = people::Domain::new(&limits, Box::new([]), core.settings.deployment_provider, Box::new([]));
+        core.people.start_restore(Wall::EPOCH);
         let penv = Env { now: env.now, wall: env.wall, limits };
         let mut out = Queue::uncapped();
         for (party, provider) in [(ALICE, 0), (BOB, 0), (SERVICE, core.settings.deployment_provider)] {
@@ -550,7 +551,7 @@ fn the_providers_uses_rule_checks_people_and_projects_for_plans_and_llm_keys() {
                 &mut out,
             );
         }
-        people::step(&mut core.people, &penv, people::Event::Restored, &mut out);
+        finish_people(&mut core.people, &penv);
         assert!(core.people.ready());
         let plan = kind == accounts::Kind::SignIn;
         for (payer, expected) in [

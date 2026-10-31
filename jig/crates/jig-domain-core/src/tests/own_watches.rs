@@ -40,7 +40,7 @@ fn signed_core() -> (Core, Limits, u64, Box<[Record]>) {
     let mut configuration = config(41);
     configuration.owners = Box::new([]);
     let mut core = Core::new(configuration, &limits).expect("fixture core configuration");
-    drop(watch_outputs(&mut core, &limits, Event::People(people::Event::Restored)));
+    drop(finish_start(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }));
     let (sign_in, records) = sign_in(&mut core, &limits, 1);
     (core, limits, sign_in, records)
 }

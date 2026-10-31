@@ -396,8 +396,7 @@ pub(super) fn touch_people_event(core: &mut Core, limits: &Limits, event: &peopl
         | people::Event::Act { .. }
         | people::Event::Ask { .. }
         | people::Event::Decided { .. }
-        | people::Event::Restore { .. }
-        | people::Event::Restored => {}
+        | people::Event::Restore { .. } => {}
     }
 }
 

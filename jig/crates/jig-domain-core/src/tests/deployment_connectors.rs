@@ -39,7 +39,7 @@ fn source(connectors: &[u16], lines: u32) -> (Core, Limits) {
         people::step(&mut core.people, &env, people::Event::Restore { record }, &mut out);
         assert_eq!(out.pop(), None, "authentic deployment membership restored");
     }
-    people::step(&mut core.people, &env, people::Event::Restored, &mut out);
+    finish_people(&mut core.people, &env);
     assert_eq!(out.pop(), None);
     (core, limits)
 }

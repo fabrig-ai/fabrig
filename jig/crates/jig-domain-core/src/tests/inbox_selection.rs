@@ -32,6 +32,7 @@ fn fixture() -> (Core, Limits) {
     send_task(&mut core, &limits, tasks::Event::Restored);
     let identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
+    core.people.start_restore(Wall::EPOCH);
     let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     for record in [
@@ -45,7 +46,7 @@ fn fixture() -> (Core, Limits) {
         people::step(&mut core.people, &env, people::Event::Restore { record }, &mut out);
         while out.pop().is_some() {}
     }
-    people::step(&mut core.people, &env, people::Event::Restored, &mut out);
+    finish_people(&mut core.people, &env);
     assert!(core.people.identity(1).is_some());
     assert_eq!(core.people.person(10, Time::ZERO, Wall::EPOCH), Some(1));
     (core, limits)

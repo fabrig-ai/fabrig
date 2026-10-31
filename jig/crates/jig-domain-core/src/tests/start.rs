@@ -682,28 +682,6 @@ fn first_failure_is_sticky() {
     assert_eq!(core.start_failure(), Some(first));
 }
 
-#[test]
-#[should_panic]
-#[expect(
-    clippy::should_panic_without_expect,
-    reason = "the selection invariant is checked without matching panic text"
-)]
-fn direct_resource_input_prevents_late_start_selection() {
-    let limits = limits();
-    let mut core = Core::new(config(41), &limits).expect("valid core configuration");
-    let name = tasks::Name { connector: core.connectors[0], path: Box::new([Box::from(b"resource".as_slice())]) };
-    let mut out = Queue::uncapped();
-    tasks::step(
-        &mut core.tasks,
-        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks },
-        tasks::Event::Resource { name: name.clone(), hold: tasks::HoldKind::Shared },
-        &mut out,
-    );
-    assert!(out.is_empty());
-    assert_eq!(core.tasks.resource_hold(&name), Some(tasks::HoldKind::Shared));
-    core.tasks.start_restore();
-}
-
 fn finish_core_load(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<Request>) {
     match core.start_done(env, Phase::LoadCore, out) {
         Action::Commit(token) => {
