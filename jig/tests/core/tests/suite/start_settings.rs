@@ -5,6 +5,7 @@ use jig_domain_core::{
     self as core, settings,
     start::{Action, Failure, Phase, SweepInput},
 };
+use jig_domain_people as people;
 use jig_test_domain as root;
 use skein_lib::{Duration, Env, Queue, Time, Wall};
 
@@ -169,6 +170,16 @@ fn stored_settings_whole_fit_refuses_at_load_core_without_root_completion() {
 #[test]
 fn stored_proposal_consistency_is_not_rejudged_at_link() {
     let mut h = Harness::stored(false, false);
+    let record = people::Stored::Person {
+        number: 1,
+        identity: people::Identity {
+            key: people::IdentityKey { provider: 0, subject: Box::new([1]) },
+            login: Box::new([]),
+            name: Box::new([]),
+        },
+    };
+    assert!(h.core.restore_people_row(&record));
+    drop(core::step(&mut h.core, &h.env, core::Event::People(people::Event::Restore { record })));
     assert_eq!(
         h.core.restore_core(
             core::CoreRecord::Settings(settings::Record::Proposal {

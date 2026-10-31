@@ -13,6 +13,7 @@ fn loaded(selected: bool) -> (Core, Env<Limits>) {
     }
     let mut header = core.counters.deployment();
     header.commits = 1;
+    header.people = 1;
     header.projects = 10;
     assert_eq!(core.restore_core(CoreRecord::Deployment(header), &env.limits), Restored::Deployment { commits: 1 });
     (core, env)
@@ -245,6 +246,16 @@ fn held_rows_past_each_limit_keep_their_refusal_detail() {
 fn a_proposal_without_its_tasks_counterpart_asserts_at_link() {
     for selected in [false, true] {
         let (mut core, env) = loaded(selected);
+        let record = people::Stored::Person {
+            number: 1,
+            identity: people::Identity {
+                key: people::IdentityKey { provider: 0, subject: Box::new([1]) },
+                login: Box::new([]),
+                name: Box::new([]),
+            },
+        };
+        assert!(core.restore_people_row(&record));
+        drop(crate::step(&mut core, &env, crate::Event::People(people::Event::Restore { record })));
         for row in settings_rows(&core).into_boxed() {
             assert_eq!(restore(&mut core, &env, row), Restored::Live);
         }
