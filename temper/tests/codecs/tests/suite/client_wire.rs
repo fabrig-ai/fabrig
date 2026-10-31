@@ -67,9 +67,9 @@ fn first(state: v1::FirstState) -> v1::FirstRepository {
     .expect("record within schema ceilings")
 }
 #[test]
-fn setup_and_every_first_repository_state_round_trip_at_version_eleven() {
+fn setup_and_every_first_repository_state_round_trip_at_version_twelve() {
     use temper_client_protocol_wire as wire;
-    assert_eq!(wire::CLIENT_VERSION, 11);
+    assert_eq!(wire::CLIENT_VERSION, 12);
     for project in [
         project(),
         v1::SetUpProject::New(
@@ -85,7 +85,6 @@ fn setup_and_every_first_repository_state_round_trip_at_version_eleven() {
                         &v1::CEILINGS,
                         v1::SetUpParts {
                             playground: false,
-                            forge: 3,
                             org: b"work".as_slice().into(),
                             repository: b"hello".as_slice().into(),
                             project,
@@ -123,6 +122,7 @@ fn setup_and_every_first_repository_state_round_trip_at_version_eleven() {
         let row = v1::ForgeRow::new(
             &v1::CEILINGS,
             v1::ForgeRowParts {
+                finished: false,
                 number: 3,
                 kind: v1::Kind::Forgejo,
                 mode: v1::Mode::Owned,
@@ -163,7 +163,6 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
         for field in 0..3 {
             let parts = v1::SetUpParts {
                 playground: false,
-                forge: 3,
                 org: if field == 0 { name.clone() } else { b"o".as_slice().into() },
                 repository: if field == 1 { name.clone() } else { b"r".as_slice().into() },
                 project: if field == 2 {
@@ -214,7 +213,6 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
         for org in [true, false] {
             let parts = v1::SetUpParts {
                 playground: false,
-                forge: 3,
                 org: if org { name.clone() } else { b"o".as_slice().into() },
                 repository: if org { b"r".as_slice().into() } else { name.clone() },
                 project: project(),
@@ -234,7 +232,7 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
 }
 
 #[test]
-fn demo_start_outcomes_round_trip_at_each_boundary() {
+fn playground_start_outcomes_round_trip_at_each_boundary() {
     let limits = v1::CEILINGS;
     let mut outcomes = skein_lib::List::with_capacity(8);
     for outcome in [
@@ -296,39 +294,38 @@ fn demo_start_outcomes_round_trip_at_each_boundary() {
 }
 
 #[test]
-fn demo_states_round_trip_at_smallest_and_ceiling() {
+fn playground_states_round_trip_running_and_resetting() {
     let limits = v1::CEILINGS;
-    for state in [v1::DemoState::NotStarted, v1::DemoState::Running] {
+    {
         for full in [false, true] {
-            let mut cues = List::with_capacity(limits.demo_answer_cues);
+            let mut cues = List::with_capacity(limits.playground_running_cues);
             if full {
-                for _ in 0..limits.demo_answer_cues {
+                for _ in 0..limits.playground_running_cues {
                     cues.push(skein_lib::bytes::zeroed(
-                        usize::try_from(limits.demo_answer_cues_item).expect("ceiling"),
+                        usize::try_from(limits.playground_running_cues_item).expect("ceiling"),
                     ))
                     .expect("cue room");
                 }
             }
-            let field = if full { usize::try_from(limits.demo_answer_owner).expect("ceiling") } else { 0 };
-            let record = v1::DemoAnswer::new(
+            let field = if full { usize::try_from(limits.playground_running_owner).expect("ceiling") } else { 0 };
+            let record = playground(
                 &limits,
-                v1::DemoAnswerParts {
+                v1::PlaygroundRunningParts {
                     project: if full { u32::MAX } else { 0 },
                     forge: if full { u16::MAX } else { 0 },
                     provider: if full { u32::MAX } else { 0 },
                     owner: skein_lib::bytes::zeroed(field),
                     name: skein_lib::bytes::zeroed(field),
-                    state: state.clone(),
                     cues,
                 },
             )
             .expect("demo answer");
-            let bytes = temper_client_protocol_wire::demo_answer(&record);
-            assert_eq!(temper_client_protocol_wire::decode_demo_answer(&bytes, &limits), Some(record));
+            let bytes = temper_client_protocol_wire::playground_answer(&record);
+            assert_eq!(temper_client_protocol_wire::decode_playground_answer(&bytes, &limits), Some(record));
         }
     }
-    let record =
-        v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::StartDemo }).expect("start request");
+    let record = v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::StartPlayground })
+        .expect("start request");
     assert_eq!(
         temper_client_protocol_wire::decode_requesting(&temper_client_protocol_wire::requesting(&record), &limits),
         Some(record)
@@ -366,4 +363,9 @@ fn reachable_and_page_goldens_round_trip_with_ids_privacy_and_more() {
         let encoded = wire::answer(&answer);
         assert_eq!(v1::Answer::decode(&v1::CEILINGS, &mut Reader::new(&encoded)), Ok(answer));
     }
+}
+
+fn playground(limits: &v1::Limits, parts: v1::PlaygroundRunningParts) -> Result<v1::PlaygroundAnswer, v1::Problem> {
+    let running = v1::PlaygroundRunning::new(limits, parts)?;
+    v1::PlaygroundAnswer::new(limits, v1::PlaygroundAnswerParts { state: v1::PlaygroundState::Running(running) })
 }

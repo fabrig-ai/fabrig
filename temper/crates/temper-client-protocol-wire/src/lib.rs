@@ -1,3 +1,4 @@
+//! Playground and removal records: temper/docs/design/draft/playground-reset.md, 4 and 6.
 //! The forge family's client records (client/README.md, sections 4.6 and 8).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
@@ -42,7 +43,7 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/README.md, 4.6).
-pub const CLIENT_VERSION: u32 = 11;
+pub const CLIENT_VERSION: u32 = 12;
 
 /// The deployment's maximum number of forges (client/README.md, 4.6).
 pub const FORGES: u32 = 16;
@@ -53,7 +54,7 @@ pub const CONNECT_WHY_BYTES: u32 = 256;
 /// The box's maximum setup failure line length (client/README.md, 4.6).
 pub const SET_UP_WHY_BYTES: u32 = 256;
 
-/// The demo's maximum number of suggested requests (client/README.md, 4.6).
+/// The playground's maximum number of suggested requests (client/README.md, 4.6).
 pub const CUES: u32 = 8;
 /// Each suggested request's maximum UTF-8 byte length (client/README.md, 4.6).
 pub const CUE_BYTES: u32 = 256;
@@ -120,10 +121,10 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         change_panel_branch: bounds.field_bytes,
         change_panel_landing: bounds.field_bytes,
         change_panel_gates: GATES,
-        demo_answer_owner: bounds.field_bytes,
-        demo_answer_name: bounds.field_bytes,
-        demo_answer_cues: CUES,
-        demo_answer_cues_item: CUE_BYTES,
+        playground_running_owner: bounds.field_bytes,
+        playground_running_name: bounds.field_bytes,
+        playground_running_cues: CUES,
+        playground_running_cues_item: CUE_BYTES,
         first_ask_org: bounds.field_bytes,
         first_ask_repository: bounds.field_bytes,
         first_ask_label: 64,
@@ -184,24 +185,26 @@ pub fn decode_reading(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reading> 
     let record = v1::Reading::decode(limits, &mut reader).ok()?;
     if reader.is_empty() { Some(record) } else { None }
 }
-/// Encode the demo's answer; no demo is represented by no record.
+/// Encode the playground's answer; no playground is represented by no record.
 #[must_use]
-pub fn demo_answer(record: &v1::DemoAnswer) -> Box<[u8]> {
+pub fn playground_answer(record: &v1::PlaygroundAnswer) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-/// Decode a complete demo answer, refusing empty cues (client/README.md, 4.6).
+/// Decode a complete playground answer, refusing empty running cues (playground-reset.md, 6.1).
 #[must_use]
-pub fn decode_demo_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::DemoAnswer> {
+pub fn decode_playground_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::PlaygroundAnswer> {
     let mut reader = Reader::new(bytes);
-    let record = v1::DemoAnswer::decode(limits, &mut reader).ok()?;
+    let record = v1::PlaygroundAnswer::decode(limits, &mut reader).ok()?;
     if !reader.is_empty() {
         return None;
     }
-    for cue in record.cues() {
-        if cue.is_empty() {
-            return None;
+    if let v1::PlaygroundState::Running(running) = record.state() {
+        for cue in running.cues() {
+            if cue.is_empty() {
+                return None;
+            }
         }
     }
     Some(record)
@@ -253,6 +256,8 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         return None;
     }
     match record.request() {
+        v1::Request::RemoveForge(value) if value.forge() == 0 => return None,
+        v1::Request::Connect(connect) if *connect.forge() == Some(0) => return None,
         v1::Request::Connect(connect) => match connect.how() {
             v1::How::GithubApp(app) if app.id() == 0 => return None,
             v1::How::GithubApp(_) | v1::How::GithubManifest(_) => {}
@@ -272,7 +277,9 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::Return(_)
         | v1::Request::Adopt(_)
         | v1::Request::SetUp(_)
-        | v1::Request::StartDemo => {}
+        | v1::Request::RemoveForge(_)
+        | v1::Request::EndPlayground
+        | v1::Request::StartPlayground => {}
     }
     Some(record)
 }
