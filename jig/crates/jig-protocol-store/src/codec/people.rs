@@ -570,6 +570,22 @@ pub(crate) fn read_refusal(bytes: &[u8]) -> Result<domain::Refusal, wire::Proble
     Ok(outcomes::decode_refusal(wire::Refusal::decode(&wire::CEILINGS, &mut Reader::new(bytes))?))
 }
 
+const fn encode_deletion_step(step: domain::DeletionStep) -> wire::DeletionStep {
+    match step {
+        domain::DeletionStep::Tasks => wire::DeletionStep::Tasks,
+        domain::DeletionStep::Rows => wire::DeletionStep::Rows,
+        domain::DeletionStep::Release => wire::DeletionStep::Release,
+    }
+}
+
+const fn decode_deletion_step(step: wire::DeletionStep) -> domain::DeletionStep {
+    match step {
+        wire::DeletionStep::Tasks => domain::DeletionStep::Tasks,
+        wire::DeletionStep::Rows => domain::DeletionStep::Rows,
+        wire::DeletionStep::Release => domain::DeletionStep::Release,
+    }
+}
+
 #[cfg(test)]
 mod envelope_tests {
     use super::{core, derived_limits, wire};
@@ -636,21 +652,5 @@ mod envelope_tests {
         let mut limits = profile_inputs(false);
         limits.policy_bytes = u64::MAX;
         assert_eq!(derived_limits(&limits), None);
-    }
-}
-
-const fn encode_deletion_step(step: domain::DeletionStep) -> wire::DeletionStep {
-    match step {
-        domain::DeletionStep::Tasks => wire::DeletionStep::Tasks,
-        domain::DeletionStep::Rows => wire::DeletionStep::Rows,
-        domain::DeletionStep::Release => wire::DeletionStep::Release,
-    }
-}
-
-const fn decode_deletion_step(step: wire::DeletionStep) -> domain::DeletionStep {
-    match step {
-        wire::DeletionStep::Tasks => domain::DeletionStep::Tasks,
-        wire::DeletionStep::Rows => domain::DeletionStep::Rows,
-        wire::DeletionStep::Release => domain::DeletionStep::Release,
     }
 }

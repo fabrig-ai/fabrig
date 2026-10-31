@@ -1463,7 +1463,7 @@ fn a_deletion_row_round_trips_at_each_step() {
     let bytes = crate::keys::encode(&key, fixtures::KEY_LIMIT).expect("deletion key fits");
     assert_eq!(bytes.as_ref(), &[1, 2, 9, 0, 0, 0, 0, 255, 255, 255, 255]);
     assert_eq!(crate::keys::decode(&bytes), Some(key));
-    let mut oversized = bytes.into_vec();
+    let mut oversized = bytes;
     *oversized.get_mut(6).expect("project high word") = 1;
     assert_eq!(crate::keys::decode(&oversized), None);
 }

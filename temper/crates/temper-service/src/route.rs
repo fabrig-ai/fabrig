@@ -12,10 +12,10 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
     }
     #[expect(clippy::match_same_arms, reason = "each request's arm is filled by its own task")]
     match request {
-        root::Request::PlaygroundActs { .. }
-        | root::Request::ResetAct { .. }
-        | root::Request::ForgeKept(_)
-        | root::Request::ForgeGone { .. } => {}
+        root::Request::PlaygroundActs { .. } => {}
+        root::Request::ResetAct { .. } => {}
+        root::Request::ForgeKept(_) => {}
+        root::Request::ForgeGone { .. } => {}
         root::Request::BoxGroup { forge, kind, request } => {
             let mut out = skein_lib::Queue::with_capacity(3);
             engine.box_link.group(forge, kind, request, &mut out);
