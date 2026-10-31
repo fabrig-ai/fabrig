@@ -184,3 +184,29 @@ fn a_real_forge_blocks_the_playground_until_its_record_is_erased() {
     forges::erase(&mut d, 1, &mut Queue::uncapped());
     assert!(!d.real_forge_kept());
 }
+
+#[test]
+fn made_and_restored_forges_supply_their_checkout_credential() {
+    for restored in [false, true] {
+        let mut d = setup_domain(&[], false);
+        let mut out = Queue::uncapped();
+        if restored {
+            outputs(&mut d, Event::Restore { record: Stored::Forge(record(1)) });
+        } else {
+            assert_eq!(make(&mut d, &mut out), Some(1));
+        }
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        let item = d
+            .workspace_item(items::Seed {
+                task: 1,
+                parent: None,
+                repository: REPO,
+                run_branch: b"temper/1/r1".as_slice().into(),
+                saved_branch: None,
+            })
+            .expect("adopted checkout");
+        assert_eq!(item.credential, Some(1), "restored={restored}");
+        forges::erase(&mut d, 1, &mut out);
+        assert_eq!(d.identities.get(&1), None, "erasure frees the credential slot");
+    }
+}

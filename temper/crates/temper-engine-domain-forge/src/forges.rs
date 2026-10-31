@@ -69,6 +69,7 @@ pub(crate) fn make(
 
 /// Save a changed record and keep its public configuration in step.
 pub(crate) fn save(d: &mut Domain, record: ForgeRecord, out: &mut Queue<Request>) {
+    d.identities.insert(record.number, u32::from(record.number)).expect("admitted forge credential");
     d.configured.insert(record.number, configured_of(&record)).expect("admitted configured forge");
     d.records.insert(record.number, record.clone()).expect("admitted forge record");
     out.push(Request::Save { record: Stored::Forge(record), release: None, read_afresh: None });
@@ -76,6 +77,7 @@ pub(crate) fn save(d: &mut Domain, record: ForgeRecord, out: &mut Queue<Request>
 
 /// Erase a record whole; its number stays spent (section 4).
 pub(crate) fn erase(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
+    d.identities.remove(&forge);
     d.records.remove(&forge);
     d.configured.remove(&forge);
     out.push(Request::Erase { key: Key::Forge(forge) });
