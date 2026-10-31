@@ -15,30 +15,6 @@ use skein_lib::Wall;
 // Region + named status + title + confirmation, then a reason and whole name per host.
 pub(crate) const MAX_NODES: u32 = 4 + 128 * 2;
 
-/// A finite fragment envelope reusable by an owner's enclosing view.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct OutcomeFragment {
-    pub nodes: u32,
-    pub text_bytes: u32,
-    pub text_per_node: u32,
-    pub depth: u32,
-}
-/// Maximum fragment over all committed kinds and every loaded language.
-/// One region, one named status, and up to 128 configured hosts with whole names.
-#[must_use]
-pub fn required(words: &Words) -> Option<OutcomeFragment> {
-    let mut capacity = 0_u32;
-    for phrase in owner_outcome_words::ALL {
-        capacity = capacity.max(owner_outcome_words::capacity(words, phrase));
-    }
-    let per_node = capacity.max(4096);
-    Some(OutcomeFragment {
-        nodes: MAX_NODES,
-        text_bytes: per_node.checked_mul(MAX_NODES)?,
-        text_per_node: per_node,
-        depth: 3,
-    })
-}
 fn header(value: &OwnerOutcome) -> P {
     match value {
         OwnerOutcome::Created { .. } => P::Created,

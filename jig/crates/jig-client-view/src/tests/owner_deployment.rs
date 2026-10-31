@@ -114,7 +114,7 @@ fn round_trip(value: OwnerDeployment) -> Tree {
     let client = domain(value);
     assert_eq!(client.deployment_page().owner, Some(&untouched));
     let w = shared_words();
-    let bounds = view::required(client.deployment_page().owner.unwrap(), &CLIENT, w).unwrap();
+    let bounds = crate::tests::render_limits(&CLIENT, w).unwrap();
     let tree = build(&client, w, bounds);
     assert!(tree.len() <= bounds.nodes);
     assert!(
@@ -327,7 +327,7 @@ fn deployment_view_normal_words_select_second_language_and_reject_missing_or_wro
         0,
     );
     let client = domain(empty());
-    let maximum = view::required(client.deployment_page().owner.unwrap(), &CLIENT, &words).unwrap();
+    let maximum = crate::tests::render_limits(&CLIENT, &words).unwrap();
     let tree = build(&client, &words, maximum);
     assert!(contains(&tree, b"selected "));
     assert!(!contains(&tree, b"Deployment diagnostics"));
@@ -445,10 +445,10 @@ fn deployment_view_all_outer_and_nested_lists_fill_together_with_exact_and_one_u
     let untouched = value.clone();
     let client = domain(value);
     let w = shared_words();
-    let maximum = view::required(&untouched, &CLIENT, w).unwrap();
+    let maximum = crate::tests::render_limits(&CLIENT, w).unwrap();
     let tree = build(&client, w, maximum);
     assert!(tree.len() <= maximum.nodes);
-    assert!(crate::deployment_nodes(&CLIENT, 0).unwrap() >= maximum.nodes);
+
     let depth = u32::try_from(
         tree.nodes()
             .iter()
@@ -483,9 +483,7 @@ fn deployment_view_all_outer_and_nested_lists_fill_together_with_exact_and_one_u
         std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| build(&client, w, below)))
             .expect_err("one-under storage refuses this entire tree");
     }
-    let mut oversized = untouched.clone();
-    oversized.hosts = List::with_capacity(CLIENT.rows + 1);
-    assert!(view::required(&oversized, &CLIENT, w).is_none());
+
     assert!(view::max_nodes(&crate::Limits { rows: u32::MAX, ..CLIENT }).is_none());
     assert_eq!(client.deployment_page().owner, Some(&untouched));
 }
@@ -865,16 +863,6 @@ fn deployment_accounts_show_the_default_uses_and_deployment_holder() {
     assert!(contains(&tree, b"Default uses"));
     assert!(contains(&tree, b"Held by the deployment"));
 }
-#[test]
-fn account_uses_keep_their_constant_receiving_bound() {
-    // domain/accounts.md, 4.2; the independent client wire constant is 16.
-    const USES: usize = 16;
-    let mut value = waiting_account(None);
-    value.accounts.get_mut(0).unwrap().uses = Some(list(vec![OwnerAccountUse::Party(23); USES]));
-    let _tree = round_trip(value.clone());
-    value.accounts.get_mut(0).unwrap().uses = Some(list(vec![OwnerAccountUse::Party(23); USES + 1]));
-    assert!(view::required(&value, &CLIENT, shared_words()).is_none());
-}
 
 fn deployment_terms() -> OwnerDeployment {
     let mut value = waiting_account(None);
@@ -919,14 +907,6 @@ fn deployment_manage_addresses_hold_at_the_whole_address_bound() {
         node.external.as_ref().is_some_and(|address| address.len() == usize::try_from(ACCOUNT_MANAGE_USAGE).unwrap())
     }));
     round_trip(value);
-}
-#[test]
-fn deployment_manage_addresses_one_past_the_bound_are_refused() {
-    let mut value = waiting_account(None);
-    let mut address = b"https://usage.example/".to_vec();
-    address.resize(usize::try_from(ACCOUNT_MANAGE_USAGE).unwrap() + 1, b'a');
-    value.accounts.get_mut(0).unwrap().manage_usage = Some(address.into_boxed_slice());
-    assert!(view::required(&value, &CLIENT, shared_words()).is_none());
 }
 
 fn catalogue() -> OwnerDeployment {
@@ -1005,14 +985,6 @@ fn the_reusable_fragment_labels_payer_readiness() {
     }
 }
 #[test]
-fn catalogue_program_capacity_holds_at_its_bound() {
-    let mut value = catalogue();
-    value.providers.get_mut(0).unwrap().programs = List::with_capacity(CLIENT.rows);
-    assert!(view::required(&value, &CLIENT, shared_words()).is_some());
-    value.providers.get_mut(0).unwrap().programs = List::with_capacity(CLIENT.rows + 1);
-    assert!(view::required(&value, &CLIENT, shared_words()).is_none());
-}
-#[test]
 fn catalogue_fragment_storage_holds_at_its_exact_size() {
     let value = catalogue();
     let bounds = view::limits(&CLIENT, shared_words()).unwrap();
@@ -1045,18 +1017,6 @@ fn a_none_offer_labels_its_absent_credential() {
     offer.programs.clear();
     offer.none = true;
     assert!(contains(&round_trip(value), b"No credential"));
-}
-
-#[test]
-fn catalogue_manage_targets_hold_at_the_address_bound() {
-    let mut value = catalogue();
-    let mut address = b"https://usage.example/".to_vec();
-    address.resize(usize::try_from(ACCOUNT_MANAGE_USAGE).unwrap(), b'a');
-    value.providers.get_mut(0).unwrap().manage_usage = Some(address.clone().into_boxed_slice());
-    round_trip(value.clone());
-    address.push(b'a');
-    value.providers.get_mut(0).unwrap().manage_usage = Some(address.into_boxed_slice());
-    assert!(view::required(&value, &CLIENT, shared_words()).is_none());
 }
 
 fn program_host() -> OwnerHost {
@@ -1115,16 +1075,6 @@ fn deployment_renders_the_program_observation() {
 }
 
 #[test]
-fn configured_names_use_their_own_byte_bound() {
-    let mut value = empty();
-    let mut host = program_host();
-    host.name = Some(vec![b'a'; 4096].into());
-    value.hosts.push(host).unwrap();
-    let limits = crate::Limits { text: 1, ..CLIENT };
-    assert!(view::required(&value, &limits, shared_words()).is_some());
-}
-
-#[test]
 fn a_refused_worker_position_is_shown() {
     let mut value = empty();
     value
@@ -1163,7 +1113,7 @@ fn account_lists(accounts: u32, sources: u32) -> OwnerDeployment {
 fn whole_account_lists_above_rows_fill_the_view_counts() {
     let value = account_lists(CLIENT.accounts.accounts, CLIENT.accounts.sources);
     let client = domain(value.clone());
-    let bounds = view::required(&value, &CLIENT, shared_words()).unwrap();
+    let bounds = crate::tests::render_limits(&CLIENT, shared_words()).unwrap();
     let tree = build(&client, shared_words(), bounds);
     assert_eq!(
         tree.nodes().iter().filter(|node| node.key.is_some_and(|key| key.kind == 95)).count(),
@@ -1171,15 +1121,6 @@ fn whole_account_lists_above_rows_fill_the_view_counts() {
     );
     assert!(tree.len() <= bounds.nodes);
     assert!(tree.nodes().iter().map(crate::tests::text_bytes).sum::<u32>() <= bounds.text_bytes);
-}
-#[test]
-fn account_lists_one_past_the_view_counts_are_refused() {
-    for value in [
-        account_lists(CLIENT.accounts.accounts + 1, CLIENT.accounts.sources),
-        account_lists(CLIENT.accounts.accounts, CLIENT.accounts.sources + 1),
-    ] {
-        assert!(view::required(&value, &CLIENT, shared_words()).is_none());
-    }
 }
 
 #[test]

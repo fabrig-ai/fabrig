@@ -3,7 +3,7 @@ use crate::phrases::jig::JigPhrase;
 use crate::proposed_task_words::ProposedPhrase;
 use crate::words::Words;
 use crate::{JigBindings, JigMeaning, Owner};
-use jig_client::words::{DecisionWord as D, Word};
+use jig_client::words::DecisionWord as D;
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, SlotRef};
 
@@ -55,20 +55,6 @@ pub fn funder(b: &mut Builder, value: Funder, words: &Words) {
 #[must_use]
 pub const fn funder_nodes() -> u32 {
     1
-}
-/// Maximum funder saying across every loaded language and owner variant.
-#[must_use]
-pub fn funder_phrase_bytes(words: &Words) -> Option<u32> {
-    let mut largest = 0;
-    for phrase in [
-        Word::Decision(D::FunderTask),
-        Word::Decision(D::FunderPool),
-        Word::Decision(D::FunderRecurring),
-        Word::Decision(D::FunderPeriod),
-    ] {
-        largest = largest.max(words.book().capacity(phrase.id())?);
-    }
-    Some(largest)
 }
 pub fn part(b: &mut Builder, value: &OwnerPart, words: &Words, bindings: &mut JigBindings) {
     b.open(Role::Region);

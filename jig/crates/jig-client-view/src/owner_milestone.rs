@@ -7,18 +7,8 @@ use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
 use crate::{Borrowed, Limits};
-use jig_client::contract::{ClosingStage, OwnerChipEnding, OwnerMilestoneLine, OwnerMilestonePhase, RunStage};
+use jig_client::contract::{ClosingStage, OwnerMilestoneLine, OwnerMilestonePhase, RunStage};
 
-/// Checked storage for one whole milestone and its nested result/source fragments.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct MilestoneFragment {
-    pub nodes: u32,
-    pub text_bytes: u32,
-    pub text_per_node: u32,
-    pub depth: u32,
-    pub bindings: u32,
-    pub slots: u32,
-}
 /// Finite whole row envelope, including existing result follow-ups and raw parts.
 #[must_use]
 pub fn max_nodes(limits: &Limits) -> Option<u32> {
@@ -26,61 +16,6 @@ pub fn max_nodes(limits: &Limits) -> Option<u32> {
         .checked_add(crate::proposed_task::part_nodes(limits)?)?
         .checked_add(skein_ui::markdown::max_nodes(limits.text)?.checked_mul(2)?)?
         .checked_add(crate::result_nodes(limits)?)
-}
-fn ending_fits(value: &OwnerChipEnding, limits: &Limits) -> Option<()> {
-    match value {
-        OwnerChipEnding::Done(result) => {
-            crate::owner_chip::result_nodes(result, limits)?;
-        }
-        OwnerChipEnding::Failed(reason) => {
-            if !reason.bytes.fits(limits.text) {
-                return None;
-            }
-        }
-        OwnerChipEnding::Cancelled { reason, result, .. } => {
-            if !reason.bytes.fits(limits.text) {
-                return None;
-            }
-            if let Some(result) = result {
-                crate::owner_chip::result_nodes(result, limits)?;
-            }
-        }
-    }
-    Some(())
-}
-/// Validate every nested supplied text/list/part before returning a whole envelope.
-#[must_use]
-pub fn required(value: &OwnerMilestoneLine, limits: &Limits, words: &Words) -> Option<MilestoneFragment> {
-    match &value.phase {
-        OwnerMilestonePhase::Waiting | OwnerMilestonePhase::Active(_) => {}
-        OwnerMilestonePhase::Closing { ending, .. } | OwnerMilestonePhase::Ended(ending) => {
-            ending_fits(ending, limits)?;
-        }
-        OwnerMilestonePhase::Held { source, ending, .. } => {
-            if let Some(source) = source {
-                crate::owner_chip::part_fits(source, limits)?;
-            }
-            if let Some(ending) = ending {
-                ending_fits(ending, limits)?;
-            }
-        }
-    }
-    fragment_bound(limits, words)
-}
-/// Checked bound tree/text/binding envelope from the normal selected language.
-#[must_use]
-pub fn fragment_bound(limits: &Limits, words: &Words) -> Option<MilestoneFragment> {
-    let nodes = max_nodes(limits)?;
-    let phrase = words.jig_capacity()?;
-    let text_per_node = crate::literal_segment::max_bytes(limits.text)?.max(phrase).checked_mul(2)?;
-    Some(MilestoneFragment {
-        nodes,
-        text_bytes: nodes.checked_mul(text_per_node)?,
-        text_per_node,
-        depth: 20,
-        bindings: nodes,
-        slots: nodes,
-    })
 }
 fn text(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
     let saying =

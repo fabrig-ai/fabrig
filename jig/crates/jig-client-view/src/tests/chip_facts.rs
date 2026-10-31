@@ -30,7 +30,7 @@ fn chip(phase: OwnerChipPhase, details: OwnerChipDetails) -> Chip {
 }
 fn brief(value: &Chip) -> Tree {
     let client = Fixture::new(&CLIENT);
-    let limits = crate::limits::of_words(&CLIENT, words()).unwrap();
+    let limits = crate::tests::render_limits(&CLIENT, words()).unwrap();
     let mut b = Builder::new(&limits);
     let mut bindings = JigBindings::new(limits.bindings, CLIENT.text);
     crate::cards::chip::chip(&mut b, &client.view(), value, words(), &mut bindings);
@@ -98,8 +98,6 @@ fn task_overview_expands_whole_metadata_but_nested_verdict_chips_stay_brief() {
         tasks: list([inner.clone()]),
         proposal: None,
     }));
-    let metadata_nodes = crate::owner_chip::required(&details, &CLIENT, words()).unwrap().nodes;
-    assert!(metadata_nodes <= crate::owner_chip::max_nodes(&CLIENT).unwrap());
     let mut doc = super::cards_objects::task_doc(&[]);
     doc.chip = chip(OwnerChipPhase::Ended, details);
     let (mut client, out) = super::page_capacity::entered(Address::task(8));
@@ -125,6 +123,6 @@ fn task_overview_expands_whole_metadata_but_nested_verdict_chips_stay_brief() {
     assert!(!contains(&tree, b"Ended at:"));
     assert_eq!(inner.phase, Phase::Ended);
     assert_eq!(inner.title.whole(), None);
-    let bound = crate::limits::of_words(&CLIENT, words()).unwrap();
+    let bound = crate::tests::render_limits(&CLIENT, words()).unwrap();
     assert!(tree.nodes().iter().all(|node| crate::tests::text_bytes(node) <= bound.text_per_node));
 }

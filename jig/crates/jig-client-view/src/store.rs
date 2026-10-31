@@ -115,7 +115,7 @@ pub(crate) fn place(domain: &mut Ui, out: &mut Queue<Request>) {
 }
 
 /// Keeps a policy's draft immediately and coalesces its shell saves on a
-/// monotonic deadline. Jig 21 chooses when a draft uses this API.
+/// monotonic deadline. The object policy chooses when a draft uses this API.
 pub fn coalesce(domain: &mut Ui, record: Record, _out: &mut Queue<Request>) -> bool {
     if !record.valid(domain.text_limit) || domain.confirmed != Some(record.party()) {
         return false;

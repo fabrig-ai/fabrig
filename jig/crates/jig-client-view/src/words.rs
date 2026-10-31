@@ -83,16 +83,7 @@ impl Words {
         b.text(Run::Plain, &text);
     }
     pub(crate) fn node_text(&self, text: u32) -> u32 {
-        let phrase = match self.jig_capacity() {
-            Some(phrase) => phrase,
-            None => {
-                let mut largest = 0;
-                for phrase in crate::owner_authority_words::ALL {
-                    largest = largest.max(self.book.capacity(phrase.id()).expect("authority words checked"));
-                }
-                largest
-            }
-        };
+        let phrase = self.jig_capacity().expect("complete jig vocabulary checked");
         crate::limits::node_text(text, phrase).expect("checked node text")
     }
     /// Emit a text leaf using a phrase's checked words.

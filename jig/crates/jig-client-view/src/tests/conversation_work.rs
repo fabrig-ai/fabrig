@@ -10,10 +10,10 @@ use crate::{
     Request,
     address::{Address, TaskSection},
 };
-use crate::{owner_chip, owner_chip_words::ChipPhrase as P, words::Words};
+use crate::{owner_chip_words::ChipPhrase as P, words::Words};
 use jig_client::contract::*;
 use skein_lib::{Token, Wall, bytes::copy_of};
-use skein_ui::{Builder, Tree};
+use skein_ui::Tree;
 
 fn words() -> &'static Words {
     static WORDS: std::sync::OnceLock<Words> = std::sync::OnceLock::new();
@@ -238,63 +238,6 @@ fn selected_owner_work_activity_preserves_conversation_and_opaque_provisional_te
         assert!(contains(&tree, b"provisional reply"));
         assert!(tree.nodes().iter().any(|node| node.role == skein_ui::Role::Log && node.name.is_some()));
     }
-}
-fn fragment(value: &OwnerChipObservation, capacity: &skein_ui::Limits) -> Tree {
-    let mut builder = Builder::new(capacity);
-    owner_chip::observation(&mut builder, value, words());
-    builder.finish()
-}
-#[test]
-fn owner_work_fragment_checks_raw_limits_exact_six_leaves_bytes_and_one_under_storage() {
-    let value = report(
-        OwnerChipWork::Tool {
-            call: core::iter::repeat_n(255, usize::try_from(CLIENT.text).unwrap()).collect(),
-            tool: core::iter::repeat_n(254, usize::try_from(CLIENT.text).unwrap()).collect(),
-        },
-        Some(Wall::from_nanos(u64::MAX)),
-    );
-    let bound = owner_chip::observation_required(&value, &CLIENT, words()).unwrap();
-    assert_eq!(bound.nodes, owner_chip::observation_nodes());
-    assert_eq!(bound.nodes, 6);
-    assert_eq!(bound.depth, 1);
-    assert_eq!(bound.bindings, 0);
-    assert_eq!(bound.slots, 0);
-    let capacity = skein_ui::Limits {
-        nodes: bound.nodes,
-        depth: bound.depth,
-        text_per_node: bound.text_per_node,
-        text_bytes: bound.text_bytes,
-        drawing_bytes: 0,
-        styles_per_node: 0,
-        patches: 0,
-        bindings: 0,
-        slots: 0,
-        markdown_depth: 1,
-        scene_marks: 0,
-        scene_bytes: 0,
-    };
-    let tree = fragment(&value, &capacity);
-    assert_eq!(tree.len(), bound.nodes);
-    assert!(tree.nodes().iter().all(|node| node.binding.is_none() && node.slot.is_none()));
-    let total = tree.nodes().iter().map(crate::tests::text_bytes).sum::<u32>();
-    let largest = tree.nodes().iter().map(crate::tests::text_bytes).max().unwrap();
-    assert!(bound.text_per_node >= largest.checked_mul(2).unwrap());
-    assert!(bound.text_bytes >= total);
-    let exact = skein_ui::Limits { text_per_node: largest, text_bytes: total, ..capacity };
-    assert_eq!(fragment(&value, &exact).nodes(), tree.nodes());
-    for smaller in [
-        skein_ui::Limits { nodes: 5, ..exact },
-        skein_ui::Limits { text_per_node: largest - 1, ..exact },
-        skein_ui::Limits { text_bytes: total - 1, ..exact },
-    ] {
-        std::panic::catch_unwind(|| fragment(&value, &smaller)).unwrap_err();
-    }
-    assert!(
-        owner_chip::observation_required(&value, &crate::Limits { text: CLIENT.text - 1, ..CLIENT }, words()).is_none()
-    );
-    assert!(owner_chip::observation_required(&value, &crate::Limits { text: u32::MAX, ..CLIENT }, words()).is_none());
-    assert!(crate::task_nodes(&crate::Limits { rows: u32::MAX, ..CLIENT }, 0).is_none());
-    assert_eq!(crate::task_nodes(&CLIENT, 7).unwrap(), crate::task_nodes(&CLIENT, 0).unwrap() + 7);
 }
 #[test]
 fn owner_work_overview_and_activity_keep_the_same_supplied_observation_without_full_metadata_in_activity() {

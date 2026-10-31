@@ -127,7 +127,7 @@ fn words(language: u16, selected: bool) -> Words {
     Words::new(Phrasebook::load(crate::phrases::jig::shapes(8), languages, &phrase_limits()).unwrap(), language, 0)
 }
 fn build(value: &OwnerAmendmentState, words: &Words) -> Tree {
-    let f = view::required(value, &client_limits(), words).unwrap();
+    let f = crate::tests::render_limits(&client_limits(), words).unwrap();
     let limits = Limits {
         nodes: f.nodes,
         depth: f.depth,
@@ -153,7 +153,7 @@ fn build(value: &OwnerAmendmentState, words: &Words) -> Tree {
             <= u64::from(f.text_bytes)
     );
     assert!(tree.nodes().iter().all(|node| node.binding.is_none() && node.slot.is_none()));
-    assert_eq!((f.bindings, f.slots), (0, 0));
+
     tree
 }
 fn has(tree: &Tree, bytes: &[u8]) -> bool {
@@ -365,82 +365,6 @@ fn owner_amendment_selected_normal_words_preserve_checked_captions_numbers_and_n
         tree.nodes(),
         "normal Words Clone retains the complete checked owner composition"
     );
-}
-type CapacityCase = (fn(&mut OwnerAmendmentState), bool);
-const CAPACITY_CASES: [CapacityCase; 8] = [
-    (|s| s.dependencies = List::with_capacity(4), false),
-    (|s| s.spec.specification.parameters = List::with_capacity(4), false),
-    (|s| s.spec.specification.inputs = List::with_capacity(4), false),
-    (|s| s.authority.authority.grants = List::with_capacity(4), true),
-    (|s| s.authority.authority.delegation.kinds = List::with_capacity(4), true),
-    (|s| s.authority.authority.note_resources = List::with_capacity(4), true),
-    (|s| s.authority.authority.grants.get_mut(0).unwrap().pattern.segments = List::with_capacity(4), false),
-    (|s| s.authority.authority.note_resources.get_mut(0).unwrap().pattern.segments = List::with_capacity(4), false),
-];
-#[test]
-fn owner_amendment_whole_tree_envelope_checks_full_nested_capacities_and_overflow_before_rendering() {
-    let words = normal_words();
-    let limits = client_limits();
-    let value = fixture();
-
-    for (mutate, fits) in CAPACITY_CASES {
-        let mut larger = value.clone();
-        mutate(&mut larger);
-        assert_eq!(view::required(&larger, &limits, words).is_some(), fits);
-        assert!(view::required(&larger, &crate::Limits { rows: 4, segments: 4, ..limits }, words).is_some());
-    }
-    assert!(view::required(&value, &crate::Limits { text: 4, ..limits }, words).is_none());
-    assert!(view::fragment_bound(&crate::Limits { text: u32::MAX, ..limits }, words).is_none());
-    assert!(view::fragment_bound(&crate::Limits { rows: u32::MAX, ..limits }, words).is_none());
-    let mut full = value;
-    full.instructions = Some(doc(b"12345678", true));
-    full.spec.specification.words = doc(b"12345678", true);
-    full.spec.specification.parameters = List::with_capacity(3);
-    full.spec.specification.inputs = List::with_capacity(3);
-    full.dependencies = List::with_capacity(3);
-    full.authority.authority.grants = List::with_capacity(3);
-    full.authority.authority.note_resources = List::with_capacity(3);
-    for n in 0..3 {
-        full.spec
-            .specification
-            .parameters
-            .push(ParameterDocument::Bytes { name: n, value: doc(b"12345678", true) })
-            .unwrap();
-        full.spec.specification.inputs.push(u64::MAX).unwrap();
-        full.dependencies.push(u64::MAX).unwrap();
-        let mut segments = List::with_capacity(3);
-        for _ in 0_u32..3 {
-            segments.push(copy_of(&[255; 8])).unwrap();
-        }
-        full.authority
-            .authority
-            .grants
-            .push(OwnerGrant {
-                connector: u16::MAX,
-                kind: u16::MAX,
-                pattern: OwnerPattern { segments: segments.clone(), last: OwnerPatternEnd::Exact(copy_of(&[254; 8])) },
-            })
-            .unwrap();
-        full.authority
-            .authority
-            .note_resources
-            .push(OwnerResourceScope {
-                connector: u16::MAX,
-                pattern: OwnerPattern { segments, last: OwnerPatternEnd::Open(copy_of(&[253; 8])) },
-            })
-            .unwrap();
-    }
-    full.cut = true;
-    full.authority.cut = true;
-    full.spec.cut = true;
-    let selected = words_for_full();
-    let tree = build(&full, &selected);
-    assert_eq!(count(&tree, b"\\xFF\\xFF\\xFF\\xFF\\xFF\\xFF\\xFF\\xFF"), 18);
-    assert_eq!(count(&tree, b"12345678"), 5);
-    assert!(tree.nodes().iter().filter(|n| n.role == skein_ui::Role::Region).all(|n| n.name.is_some()));
-}
-fn words_for_full() -> Words {
-    words(1, true)
 }
 #[test]
 fn owner_amendment_checked_book_refuses_missing_duplicate_and_wrong_number_holes() {
