@@ -1,11 +1,11 @@
 //! Entry-point tests use ordinary Rust to script the parent and inspect outputs.
-#![allow(
+#![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
     clippy::disallowed_types,
     clippy::wildcard_enum_match_arm,
     clippy::match_like_matches_macro,
-    reason = "unit-test parent scripts are ordinary Rust under programming-model.md section 10.2"
+    reason = "unit tests build fixtures and inspect selected child events"
 )]
 use crate::{
     Amendment, Authority, Budget, Contract, Control, Delegation, Domain, EscalationDecision, EscalationHolder,
@@ -1611,4 +1611,30 @@ fn a_release_acceptance_reserves_the_siblings_withdrawal_and_release_revisions()
     assert_eq!(h.domain.task(200), Some(&target));
     assert_eq!(h.domain.task(201), Some(&pending));
     assert!(!h.domain.placed_hold(400).expect("unchanged hold").lifted);
+}
+
+#[test]
+fn served_chat_comes_from_the_task_tree_and_requires_a_person_conversation() {
+    let mut h = Harness::new();
+    let mut chat = task(1, &[]);
+    chat.flags.conversation = true;
+    chat.numbers.budget = 1000;
+    chat.authority.budget.spend = 1000;
+    h.make(vec![chat]);
+    let mut delegate = task(2, &[]);
+    delegate.funder = Funder::Task(1);
+    let out = h.send(Event::Make { reply_to: to(), creator: Party::Task(1), batch: Box::new([delegate]) });
+    assert!(
+        out.iter().any(|r| match r {
+            Request::Made { .. } => true,
+            _ => false,
+        }),
+        "{out:?}"
+    );
+    assert_eq!(h.domain.served_chat(2), Some(1));
+    assert_eq!(h.domain.served_chat(1), None);
+    assert_eq!(h.domain.served_chat(999), None);
+    let id = h.domain.names.get(&1).copied().expect("live chat");
+    h.domain.tasks.get_mut(id).expect("live chat").record.flags.conversation = false;
+    assert_eq!(h.domain.served_chat(2), None);
 }

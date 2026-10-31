@@ -1,7 +1,7 @@
 //! The story's starting documents and atomic changes; contract.md, 5.
 //! Documents carry offers, revisions, terminal facts and parts in the client's vocabulary.
-use crate::{Bounds, Invalid, Source, payload};
-use jig_client_domain::contract::{Answer, Ask, Deployment, Me, Note, ObjectKey, Project, ReadValue, Tree};
+use crate::{Bounds, Invalid, Source};
+use jig_client_domain::contract::{Answer, Ask, Me, Note, ObjectKey, ReadValue, Tree};
 use std::collections::BTreeMap;
 
 /// Client documents indexed by their identities, with parties and sign-ins.
@@ -18,16 +18,16 @@ pub struct Truth {
     pub objects: BTreeMap<ObjectKey, ReadValue>,
     /// Project context for object documents whose client carrier names only a task.
     pub object_projects: BTreeMap<ObjectKey, u32>,
-    pub projects: BTreeMap<u32, Project>,
-    /// Whole authentic projects, independent of ordinary fixtures.
-    pub owner_projects: BTreeMap<u32, jig_client_domain::contract::OwnerProject>,
-    pub deployment: Option<Deployment>,
+    /// Current project owner documents.
+    pub projects: BTreeMap<u32, jig_client_domain::contract::Project>,
     /// Whole deployment diagnostics supplied by their owner.
-    pub owner_deployment: Option<jig_client_domain::contract::OwnerDeployment>,
+    pub deployment: Option<jig_client_domain::contract::Deployment>,
     pub notes: BTreeMap<u64, Note>,
     pub sources: Vec<Source>,
     pub results_seen: BTreeMap<u64, u64>,
     pub replies_seen: BTreeMap<u64, Vec<jig_client_domain::contract::ReadPosition>>,
+    pub inbox_selection: BTreeMap<u64, Vec<jig_client_domain::contract::InboxSelection>>,
+    pub accounts: BTreeMap<u64, jig_client_domain::contract::Accounts>,
     pub trees: BTreeMap<u64, Tree>,
 }
 
@@ -71,20 +71,16 @@ pub enum Change {
     RemoveProject {
         project: u32,
     },
-    /// Replace a project document.
-    Project(Box<Project>),
     /// Replace a whole owner project after its name changes.
-    OwnerProject(Box<jig_client_domain::contract::OwnerProject>),
+    Project(Box<jig_client_domain::contract::Project>),
     /// Replace a revisioned note.
     Note(Note),
     /// Delete a note.
     DeleteNote {
         note: u64,
     },
-    /// Replace deployment hosts, accounts and capacities.
-    Deployment(Deployment),
     /// Replace whole owner deployment facts and bounded diagnostics.
-    OwnerDeployment(jig_client_domain::contract::OwnerDeployment),
+    Deployment(jig_client_domain::contract::Deployment),
     /// Replace the retained rows of one scoped read; rows may span many protocol pages.
     Source(Source),
     /// Replace the authoritative subtree, including folded counts.
@@ -99,28 +95,44 @@ pub enum Change {
 impl Change {
     pub(crate) fn validate(&self, bounds: &Bounds) -> core::result::Result<(), Invalid> {
         let fits = match self {
-            Self::Settings(v) => payload::fits(v, bounds),
-            Self::Setting(v) => payload::fits(v, bounds),
-            Self::Revision { value, .. } => payload::fits(value, bounds),
-            Self::Revisions { value, .. } => payload::fits(value, bounds),
-            Self::Request(ask) => payload::fits(ask, bounds),
+            Self::Settings(v) => crate::codec::read(&ReadValue::Settings(Box::new(v.clone())), bounds).is_ok(),
+            Self::Setting(v) => crate::codec::read(&ReadValue::Setting(Box::new(v.clone())), bounds).is_ok(),
+            Self::Revision { value, .. } => {
+                crate::codec::read(&ReadValue::Revision(Box::new(value.clone())), bounds).is_ok()
+            }
+            Self::Revisions { value, .. } => {
+                crate::codec::read(&ReadValue::Revisions(Box::new(value.clone())), bounds).is_ok()
+            }
+            Self::Request(ask) => crate::codec::ask(ask, bounds).is_ok(),
             Self::Source(value) => {
                 return value.validate(bounds);
             }
             Self::Seen { replies, .. } => replies.len() <= bounds.rows as usize,
-            Self::Tree(value) => payload::fits(value, bounds),
-            Self::Me(value) => payload::fits(value, bounds),
+            Self::Tree(value) => {
+                crate::codec::delivery(&jig_client_domain::contract::Delivery::Tree(Box::new(value.clone())), bounds)
+                    .is_ok()
+            }
+            Self::Me(value) => crate::codec::read(&ReadValue::Me(Box::new(value.clone())), bounds).is_ok(),
             Self::Object { project, key, value } => {
                 if identity(value) != Some(*key) || document_project(value).is_some_and(|number| number != *project) {
                     return Err(Invalid::Identity);
                 }
-                payload::fits(value, bounds)
+                crate::codec::read(value, bounds).is_ok()
             }
-            Self::Project(value) => payload::fits(value, bounds),
-            Self::OwnerProject(value) => payload::fits(value, bounds),
-            Self::Note(value) => payload::fits(value, bounds),
-            Self::Deployment(value) => payload::fits(value, bounds),
-            Self::OwnerDeployment(value) => payload::fits(value, bounds),
+            Self::Project(value) => crate::codec::read(&ReadValue::Project(value.clone()), bounds).is_ok(),
+            Self::Note(value) => crate::codec::read(
+                &ReadValue::Notes(Box::new(jig_client_domain::contract::NotePage {
+                    cut: false,
+                    rows: skein_lib::List::from_boxed(Box::new([value.clone()])),
+                    before: None,
+                    after: None,
+                })),
+                bounds,
+            )
+            .is_ok(),
+            Self::Deployment(value) => {
+                crate::codec::read(&ReadValue::Deployment(Box::new(value.clone())), bounds).is_ok()
+            }
             Self::RemoveProject { .. }
             | Self::SignIn { .. }
             | Self::SignedOut { .. }
@@ -131,7 +143,7 @@ impl Change {
     }
 }
 impl Truth {
-    /// Validates fixture documents, including unused list capacity and nested payloads.
+    /// Validates fixture documents through the receiving link.
     pub fn validate(&self, bounds: &Bounds) -> core::result::Result<(), Invalid> {
         if let Some(value) = &self.settings {
             Change::Settings(value.clone()).validate(bounds)?;
@@ -164,13 +176,7 @@ impl Truth {
             if *number != project.number {
                 return Err(Invalid::Identity);
             }
-            Change::Project(Box::new(project.clone())).validate(bounds)?;
-        }
-        for (number, project) in &self.owner_projects {
-            if *number != project.number {
-                return Err(Invalid::Identity);
-            }
-            if !crate::owner_project::fits(project, bounds) {
+            if crate::codec::read(&ReadValue::Project(Box::new(project.clone())), bounds).is_err() {
                 return Err(Invalid::Payload);
             }
         }
@@ -183,14 +189,11 @@ impl Truth {
         if let Some(deployment) = &self.deployment {
             Change::Deployment(deployment.clone()).validate(bounds)?;
         }
-        if let Some(deployment) = &self.owner_deployment {
-            Change::OwnerDeployment(deployment.clone()).validate(bounds)?;
-        }
         for source in &self.sources {
             source.validate(bounds)?;
         }
         for (task, tree) in &self.trees {
-            if *task != tree.task {
+            if *task != tree.root.task {
                 return Err(Invalid::Identity);
             }
             Change::Tree(tree.clone()).validate(bounds)?;
@@ -218,7 +221,7 @@ impl Truth {
                     (&source.read, &source.rows)
                     && let Some(ReadValue::Task(doc)) = self.objects.get_mut(&ObjectKey::Task(*task))
                 {
-                    doc.activity = rows.last().map_or(0, |line| line.position);
+                    doc.activity = rows.last().map_or(0, |line| line.source.position);
                 }
             }
             Change::Seen { party, results, replies } => {
@@ -229,7 +232,7 @@ impl Truth {
                 self.replies_seen.insert(*party, replies.clone());
             }
             Change::Tree(tree) => {
-                self.trees.insert(tree.task, tree.clone());
+                self.trees.insert(tree.root.task, tree.clone());
             }
             Change::Me(frame) => {
                 self.frames.insert(frame.party.number, frame.clone());
@@ -253,7 +256,6 @@ impl Truth {
             }
             Change::RemoveProject { project } => {
                 self.projects.remove(project);
-                self.owner_projects.remove(project);
                 for frame in self.frames.values_mut() {
                     let mut projects = skein_lib::List::with_capacity(frame.projects.len());
                     for membership in &frame.projects {
@@ -264,9 +266,6 @@ impl Truth {
                     frame.projects = projects;
                 }
             }
-            Change::OwnerProject(project) => {
-                self.owner_projects.insert(project.number, (**project).clone());
-            }
             Change::Project(project) => {
                 self.projects.insert(project.number, (**project).clone());
             }
@@ -276,12 +275,7 @@ impl Truth {
             Change::DeleteNote { note } => {
                 self.notes.remove(note);
             }
-            Change::OwnerDeployment(deployment) => {
-                self.deployment = None;
-                self.owner_deployment = Some(deployment.clone());
-            }
             Change::Deployment(deployment) => {
-                self.owner_deployment = None;
                 self.deployment = Some(deployment.clone());
             }
         }
@@ -308,7 +302,7 @@ impl Rule {
         if matches!(self.answer, Answer::Refused { refusal: _, .. }) && !self.changes.is_empty() {
             return Err(Invalid::Script);
         }
-        if !payload::fits(&self.ask, bounds) || !payload::fits(&self.answer, bounds) {
+        if crate::codec::ask(&self.ask, bounds).is_err() || crate::codec::answer(&self.answer, bounds).is_err() {
             return Err(Invalid::Payload);
         }
         for change in &self.changes {
@@ -354,69 +348,57 @@ impl Script {
 pub(crate) fn identity(value: &ReadValue) -> Option<ObjectKey> {
     match value {
         ReadValue::Task(v) => Some(ObjectKey::Task(v.chip.task)),
+
+        ReadValue::Ended(v) => Some(v.key),
         ReadValue::Proposal(v) => Some(ObjectKey::Proposal(v.key)),
-        ReadValue::Historical(v) => Some(v.key),
-        ReadValue::OwnerProposal(v) => Some(ObjectKey::Proposal(v.key)),
-        ReadValue::Escalation(v) => Some(ObjectKey::Escalation(v.task.task)),
-        ReadValue::OwnerEscalation(v) => Some(ObjectKey::Escalation(v.task.chip.task)),
+
+        ReadValue::Escalation(v) => Some(ObjectKey::Escalation(v.task.chip.task)),
         ReadValue::Question(v) => Some(ObjectKey::Question { task: v.task.task, message: v.message }),
+
         ReadValue::PersonTask(v) => Some(ObjectKey::PersonTask(v.task.task)),
-        ReadValue::OwnerPersonTask(v) => Some(ObjectKey::PersonTask(v.task.task)),
         ReadValue::Result(v) => Some(ObjectKey::Result(v.task.task)),
         ReadValue::Tasks(_)
         | ReadValue::Me(_)
-        | ReadValue::Ended(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
         | ReadValue::Turn(_)
         | ReadValue::Inbox(_)
-        | ReadValue::OwnerInbox(_)
+        | ReadValue::EndedPage(_)
         | ReadValue::Spend(_)
-        | ReadValue::OwnerEnded(_)
-        | ReadValue::OwnerSpend(_)
-        | ReadValue::OwnerProject(_)
         | ReadValue::Project(_)
         | ReadValue::Notes(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
-        | ReadValue::Deployment(_)
-        | ReadValue::OwnerDeployment(_) => None,
+        | ReadValue::Deployment(_) => None,
     }
 }
 
 fn document_project(value: &ReadValue) -> Option<u32> {
     match value {
         ReadValue::Task(v) => Some(v.project),
-        ReadValue::OwnerEscalation(v) => Some(v.task.project),
+        ReadValue::Escalation(v) => Some(v.task.project),
+
         ReadValue::Proposal(v) => Some(v.project),
-        ReadValue::OwnerProposal(v) => Some(v.project),
-        ReadValue::OwnerPersonTask(v) => v.project(),
-        ReadValue::Historical(_)
+        ReadValue::PersonTask(v) => v.project(),
+        ReadValue::Ended(_)
         | ReadValue::Tasks(_)
         | ReadValue::Me(_)
-        | ReadValue::Escalation(_)
         | ReadValue::Question(_)
-        | ReadValue::PersonTask(_)
         | ReadValue::Result(_)
-        | ReadValue::Ended(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
         | ReadValue::Turn(_)
         | ReadValue::Inbox(_)
-        | ReadValue::OwnerInbox(_)
+        | ReadValue::EndedPage(_)
         | ReadValue::Spend(_)
-        | ReadValue::OwnerEnded(_)
-        | ReadValue::OwnerSpend(_)
-        | ReadValue::OwnerProject(_)
         | ReadValue::Project(_)
         | ReadValue::Notes(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
-        | ReadValue::Deployment(_)
-        | ReadValue::OwnerDeployment(_) => None,
+        | ReadValue::Deployment(_) => None,
     }
 }

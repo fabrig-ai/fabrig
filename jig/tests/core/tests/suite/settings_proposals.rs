@@ -1,7 +1,11 @@
 //! Party and run settings proposals through the real store and commit barrier (engine.md, 17.6).
 
 use crate::settings_support as support;
-use jig_core_world::{client_peer::ClientPeer, effects::World, fixtures, peers};
+use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::fixtures;
+use jig_core_world::peers;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core::{self as core, documents, reads, settings};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -71,12 +75,12 @@ fn accepting_settings_records_the_proposal_accepter_and_revision_atomically() {
         frame(&mut world, owner).projects.get(0).expect("project").templates.get(0).expect("chat template").grace,
         Some(skein_lib::Duration::from_secs(7))
     );
-    let reads::Answer::Historical(history) =
+    let reads::Answer::Ended(history) =
         read(&mut world, owner, reads::Read::Proposal { proposer: people::Proposer::Party(OWNER), proposal })
     else {
         panic!("accepted history")
     };
-    let reads::Past::PersonProposal { proposal: row, .. } = history.value else { panic!("party history") };
+    let reads::EndedValue::PersonProposal { proposal: row, .. } = history.value else { panic!("party history") };
     assert_eq!(
         row.state,
         tasks::PersonProposalState::SettingsAccepted { by: tasks::Party::Person(OWNER), revision: 2 }
@@ -98,12 +102,12 @@ fn rejected_settings_keep_the_reason_and_notify_the_project_member() {
         people::ProposalDecision::Reject { reason: b"Keep the current grace".as_slice().into() },
         None,
     );
-    let reads::Answer::Historical(history) =
+    let reads::Answer::Ended(history) =
         read(&mut world, signed, reads::Read::Proposal { proposer: people::Proposer::Party(member), proposal })
     else {
         panic!("rejection history")
     };
-    let reads::Past::PersonProposal { proposal: row, .. } = history.value else { panic!("party history") };
+    let reads::EndedValue::PersonProposal { proposal: row, .. } = history.value else { panic!("party history") };
     assert!(
         matches!(&row.state, tasks::PersonProposalState::Rejected { reason, .. } if reason.as_ref() == b"Keep the current grace")
     );
@@ -124,7 +128,12 @@ fn rejected_settings_keep_the_reason_and_notify_the_project_member() {
 fn an_acceptance_refused_as_full_keeps_the_proposal_and_set_pending() {
     for running in [people::Running::Stays, people::Running::Moves] {
         let (config, limits) = full_version_configuration();
-        let mut world = World::first_start_with_accounts(config, &limits);
+        let mut world = World::new(Setup {
+            configuration: Some(config),
+            limits,
+            boot: jig_core_world::world::Boot::Empty,
+            ..Setup::default()
+        });
         world.client_peer = Some(ClientPeer::default());
         let owner = sign_in(&mut world);
         world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -191,12 +200,12 @@ fn accepting_or_changing_settings_withdraws_stale_proposals_and_proposers_hear()
     let entries = updates(&mut world, signed);
     assert!(entries.iter().any(|entry| entry.object
         == documents::InboxObject::Proposal { proposer: people::Proposer::Party(member), number: stale }));
-    let reads::Answer::Historical(history) =
+    let reads::Answer::Ended(history) =
         read(&mut world, signed, reads::Read::Proposal { proposer: people::Proposer::Party(member), proposal: stale })
     else {
         panic!("withdrawn history")
     };
-    let reads::Past::PersonProposal { proposal: row, decision: Some(decision) } = history.value else {
+    let reads::EndedValue::PersonProposal { proposal: row, decision: Some(decision) } = history.value else {
         panic!("withdrawn party proposal")
     };
     assert!(matches!(row.state, tasks::PersonProposalState::Withdrawn { .. }));
@@ -256,7 +265,12 @@ fn the_pending_settings_bound_admits_two_and_names_the_thirds_refusal() {
     let (config, mut limits) = configuration();
     limits.core.settings.proposals = PENDING;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let owner = sign_in(&mut world);
     let (_, first) = party(&mut world, b"first", Some((1, people::Role::Member)));
@@ -352,8 +366,8 @@ fn settings_proposal_reads_hide_pending_and_retained_values_from_project_only_pa
         None,
     );
     assert_eq!(read(&mut world, outsider, point.clone()), reads::Answer::None(reads::Why::Unknown));
-    assert!(matches!(read(&mut world, owner, point.clone()), reads::Answer::Historical(_)));
-    assert!(matches!(read(&mut world, signed, point.clone()), reads::Answer::Historical(_)));
+    assert!(matches!(read(&mut world, owner, point.clone()), reads::Answer::Ended(_)));
+    assert!(matches!(read(&mut world, signed, point.clone()), reads::Answer::Ended(_)));
     assert_eq!(
         decide(&mut world, owner, 2, member, proposal, people::ProposalDecision::Accept, None),
         people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotWellFormed {
@@ -399,7 +413,7 @@ fn ordinary_party_proposal_history_stays_private_to_its_proposer() {
     );
     let point = reads::Read::Proposal { proposer: people::Proposer::Party(OWNER), proposal };
     assert_eq!(read(&mut world, other, point.clone()), reads::Answer::None(reads::Why::Unknown));
-    assert!(matches!(read(&mut world, owner, point), reads::Answer::Historical(_)));
+    assert!(matches!(read(&mut world, owner, point), reads::Answer::Ended(_)));
     assert_eq!(
         ask(
             &mut world,
@@ -428,7 +442,12 @@ fn a_shape_refused_proposal_can_retry_after_its_unused_model_returns_without_a_h
     config.core.settings.models = Box::new([config.core.settings.models[0].clone(), model.clone()]);
     config.core.settings.llm_providers.providers[0].models =
         Box::new([b"scripted".as_slice().into(), model.name.clone()]);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let owner = sign_in(&mut world);
     assert!(world.assignments.is_empty(), "positive retry has no live holder");

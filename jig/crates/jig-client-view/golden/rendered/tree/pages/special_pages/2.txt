@@ -1,0 +1,2 @@
+== Client out of date: update or reload this client to continue; pending requests are kept == 
+Client out of date: update or reload this client to continue; pending requests are kept:

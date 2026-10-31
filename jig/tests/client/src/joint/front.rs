@@ -196,6 +196,16 @@ impl Joint {
 }
 
 impl Front<Test> for Joint {
+    fn seed(&mut self, seed: crate::harness::Seed) {
+        if let crate::harness::Seed::Roles { story } = seed {
+            *self = super::role_fixture::seeded(story);
+            return;
+        }
+        if matches!(&seed, crate::harness::Seed::ChatProject { .. }) {
+            self.unsigned_on_bind();
+        }
+        crate::harness::seed::seed_core(&mut self.session.driver, self.now, self.wall, seed);
+    }
     fn bind(&mut self, client: ClientId, party: u64) {
         let identity = self.identities.get(&party).expect("fixture supplies the actual authenticated identity").clone();
         self.last_client = Some(client);
@@ -203,6 +213,13 @@ impl Front<Test> for Joint {
             self.session.bind_unsigned(client, party, identity, self.now, self.wall);
         } else {
             self.session.bind(client, party, identity, self.now, self.wall);
+        }
+    }
+    fn starting(&mut self, client: ClientId) -> Vec<Event> {
+        if self.session.driver.transport.sign_in(client).is_none() {
+            vec![crate::test::up(jig_client::Up::SignedOut)]
+        } else {
+            Vec::new()
         }
     }
     fn wire(&mut self, client: ClientId, now: Time, wall: Wall, request: Request) {
@@ -259,6 +276,25 @@ impl Front<Test> for Joint {
         self.session.reload(client, now, self.wall);
     }
     fn delivers(&mut self, client: ClientId, event: &Event) -> bool {
+        // A queued document cannot outlive the authenticated connection that read it.
+        if self.session.driver.transport.sign_in(client).is_none()
+            && matches!(
+                event,
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::Watched { event: jig_client::contract::WatchEvent::Delivered(_), .. }
+                            | jig_client::Up::ReadDone {
+                                result: jig_client::Readout::Jig(jig_client::contract::ReadResult::Value(_))
+                                    | jig_client::Readout::Family { record: Some(_), .. },
+                                ..
+                            }
+                            | jig_client::Up::FamilyDelivered { .. }
+                    }
+                }
+            )
+        {
+            return false;
+        }
         !matches!(event, Event::SignedOut) || self.session.delivers_sign_out(client)
     }
     fn received(&mut self, client: ClientId, event: &Event) {
@@ -287,7 +323,7 @@ pub fn fixture(owner_limits: &jig_test_domain::Limits) -> Joint {
     use jig_domain_people as people;
 
     let driver = Driver::new(
-        jig_core_world::world::config(8455),
+        jig_test_profile::config(8455),
         *owner_limits,
         Peers::new(Vec::new(), Vec::new()),
         Time::ZERO,
@@ -318,7 +354,7 @@ mod tests {
     }
 
     fn front() -> Joint {
-        front_with_limits(&jig_core_world::world::limits())
+        front_with_limits(&jig_test_profile::limits())
     }
 
     fn front_with_limits(owner_limits: &jig_test_domain::Limits) -> Joint {
@@ -382,7 +418,7 @@ mod tests {
         use crate::{Settings, Until, World};
         use skein_fake_person::{Find, Step};
         use skein_ui::Role;
-        let mut limits = jig_core_world::world::limits();
+        let mut limits = jig_test_profile::limits();
         limits.core.documents.rows = 2;
         limits.core.documents.lines = 2;
         limits.core.documents.chips = 2;
@@ -471,7 +507,7 @@ mod tests {
     #[test]
     fn a_real_busy_front_uses_scripted_capacity_and_recovers_the_same_unsaved_key_after_owner_expiry() {
         use skein_lib::{Duration, RequestEnvelope};
-        let mut owner_limits = jig_core_world::world::limits();
+        let mut owner_limits = jig_test_profile::limits();
         owner_limits.core.people.requests = 1;
         owner_limits.core.people.request_retention = Duration::from_secs(1);
         let mut front = front_with_limits(&owner_limits);
@@ -550,7 +586,7 @@ mod tests {
         let applied = front.session.driver.world.store.applied;
         let commits = front.session.driver.world.commits.len();
         let delay = Duration::from_secs(1);
-        front.not_ready_restore(|| jig_core_world::world::config(8455), delay);
+        front.not_ready_restore(|| jig_test_profile::config(8455), delay);
         front.try_fault(Time::ZERO, &FrontFault::NotReady).expect("actual paused root before provider exchange");
         Front::<Test>::sign_in(&mut front, ClientId(0), Time::ZERO, clock(Time::ZERO));
         let captured = &front.session.driver.world.client_peer.as_ref().expect("actual protocol peer").delivered;
@@ -596,7 +632,7 @@ mod tests {
         let applied = front.session.driver.world.store.applied;
         let commits = front.session.driver.world.commits.len();
         let delay = Duration::from_secs(1);
-        front.not_ready_restore(|| jig_core_world::world::config(8455), delay);
+        front.not_ready_restore(|| jig_test_profile::config(8455), delay);
         front.try_fault(Time::ZERO, &FrontFault::NotReady).expect("actual paused owner restore");
         assert!(front.session.driver.world.store.loading());
         assert_eq!(Front::<Test>::next_due(&front), Some(Time::ZERO.saturating_add(delay)));
@@ -623,7 +659,7 @@ mod tests {
         let callbacks = Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO));
         assert!(
             matches!(callbacks.as_slice(), [(ClientId(0), Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Answer {
-            attempt, envelope: RequestEnvelope::Again, answer: None, why: None } } })] if *attempt == Token::new(41))
+            attempt, envelope: RequestEnvelope::Again, answer: None, why: Some(jig_client::Retry::NotReady) } } })] if *attempt == Token::new(41))
         );
         assert_eq!(front.session.driver.world.store.rows, rows);
         assert_eq!(front.session.driver.world.store.applied, applied);
@@ -684,7 +720,7 @@ mod tests {
     #[test]
     fn the_real_front_restart_uses_supplied_configuration_and_reports_reachability_at_the_actual_recovery_deadline() {
         let mut front = front();
-        front.restart_configuration(|| jig_core_world::world::config(8455));
+        front.restart_configuration(|| jig_test_profile::config(8455));
         Front::<Test>::bind(&mut front, ClientId(0), 1);
         let _ = Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO));
         let _ = Front::<Test>::observed(&mut front);
@@ -704,4 +740,91 @@ mod tests {
         assert!(matches!(Front::<Test>::observed(&mut front).first(), Some(Observed::Reachable { live: true })));
         assert!(Front::<Test>::observed(&mut front).is_empty());
     }
+}
+
+#[cfg(test)]
+#[test]
+fn a_persons_joint_inbox_is_the_components_document_for_the_same_core_state() {
+    use crate::harness::Front;
+    use jig_client::contract as c;
+    use jig_client_protocol_wire::v19 as w;
+    use skein_lib::Writer;
+    let now = Time::ZERO;
+    let wall = super::fixture::clock(now);
+    let driver = super::engine::Driver::new(
+        jig_test_profile::config(8455),
+        jig_test_profile::limits(),
+        jig_core_world::peers::Peers::new(Vec::new(), Vec::new()),
+        now,
+        wall,
+    );
+    let limits = crate::test::limits();
+    let session = Session::new(
+        driver,
+        limits,
+        jig_protocol_transcript::Limits {
+            smith: smith_transcript::v6::CEILINGS,
+            bytes: 1_048_576,
+            turn: c::TurnLimits { messages: 2, blocks: 2, text: 32 },
+        },
+    );
+    let identity = Identity {
+        key: jig_domain_people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+        login: b"login".as_slice().into(),
+        name: b"Person".as_slice().into(),
+    };
+    let mut front = Joint::new(session, BTreeMap::from([(1, identity)]), super::fixture::clock);
+    let client = ClientId(0);
+    Front::<Test>::bind(&mut front, client, 1);
+    let _ = Front::<Test>::poll(&mut front, now, wall);
+    let watch = Token::new(91);
+    front
+        .down(
+            client,
+            now,
+            wall,
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { window: 2 }) },
+        )
+        .expect("inbox reaches the clients component");
+    let inbox = front
+        .session
+        .driver
+        .world
+        .client_peer
+        .as_ref()
+        .expect("joint core peer")
+        .delivered
+        .iter()
+        .find_map(|(_, delivery)| {
+            if let jig_test_domain::Delivery::Core(jig_domain_core::Held::Delivery { document, .. }) = delivery
+                && let jig_domain_core::documents::Document::Inbox(inbox) = document.as_ref()
+            {
+                Some(inbox.clone())
+            } else {
+                None
+            }
+        })
+        .expect("the person's inbox from the core");
+    let expected = w::DeliveryValue::Inbox(
+        jig_protocol_engine_clients::translate::inbox::document(&inbox, &w::CEILINGS).expect("component inbox encoder"),
+    );
+    let mut writer = Writer::new(skein_lib::length::usize_of(expected.measure()));
+    expected.encode(&mut writer).expect("measured inbox");
+    let expected = jig_client_protocol_link::translate::watches::delivery(
+        &writer.finish(),
+        &jig_client_protocol_link::Limits::new(limits.client.domain, 64).expect("receiving link bounds"),
+    )
+    .expect("link decodes the component's document");
+    let callbacks = front.up(now, wall, &[]);
+    let delivered = callbacks
+        .into_iter()
+        .find_map(|(owner, up)| {
+            if let jig_client::Up::Watched { watch: actual, event: c::WatchEvent::Delivered(document) } = up {
+                (owner == client && actual == watch).then_some(document)
+            } else {
+                None
+            }
+        })
+        .expect("joint front delivers the person's inbox");
+    assert_eq!(delivered, expected);
 }

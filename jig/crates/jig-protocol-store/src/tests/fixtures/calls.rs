@@ -46,7 +46,7 @@ pub fn call_parts() -> Box<[core::CallPart]> {
             connector: 1,
             entry: 2,
             deadline: Wall::from_nanos(17),
-            outcome: Some(core::connector::OutboxOutcome::Held { entry: 2 }),
+            outcome: Some(core::effects::connector::OutboxOutcome::Held { entry: 2 }),
         },
         C::Connector { connector: 1 },
         C::EffectDenied { answer: Answer::Refuse, findings: findings.clone() },

@@ -5,7 +5,7 @@ use skein_lib::{List, Wall};
 
 /// The whole producer phase, independent of observation and optional ending facts.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerChipPhase {
+pub enum ChipPhase {
     Waiting { dependencies: List<u64>, more: bool, holds: bool },
     Active(RunStage),
     Person { address: PersonAddress, taken_by: Option<u64>, since: Option<Wall> },
@@ -13,7 +13,7 @@ pub enum OwnerChipPhase {
     Held { reason: HoldCategory, revision: u64 },
     Ended,
 }
-impl OwnerChipPhase {
+impl ChipPhase {
     /// A compact filter value, without inventing an ended outcome.
     #[must_use]
     pub const fn compact(&self) -> Phase {

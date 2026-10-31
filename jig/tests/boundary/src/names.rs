@@ -1,6 +1,8 @@
-//! Scan source names and comments while leaving quoted data with its owner.
+//! Scan source names, comments and literals for the kit vocabulary.
 
 use std::path::Path;
+
+const BANNED_WORDS: [&str; 2] = [concat!("leg", "acy"), concat!("hist", "orical")];
 
 fn identifier_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_' || byte >= 128
@@ -10,10 +12,9 @@ fn codec_module(name: &str) -> bool {
     let Some((family, version)) = name.rsplit_once("_v") else {
         return false;
     };
-    super::tests::kit_root()
-        .join("crates/jig-protocol-store/schema")
-        .join(format!("{family}-v{version}.schema"))
-        .is_file()
+    ["crates/jig-protocol-store/schema", "crates/jig-client-view/schema"]
+        .iter()
+        .any(|directory| super::tests::kit_root().join(directory).join(format!("{family}-v{version}.schema")).is_file())
 }
 
 fn forbidden_name(name: &str, codec: bool) -> bool {
@@ -32,9 +33,7 @@ fn forbidden_name(name: &str, codec: bool) -> bool {
             || (end > start && bytes[end].is_ascii_digit());
         if boundary {
             let part = &name[start..end];
-            if matches!(part.len(), 5..=7)
-                && ["Typed", "Untyped", "Legacy"].iter().any(|word| part.eq_ignore_ascii_case(word))
-            {
+            if ["typed", "untyped"].iter().chain(BANNED_WORDS.iter()).any(|word| part.eq_ignore_ascii_case(word)) {
                 return true;
             }
             start = if bytes.get(end) == Some(&b'_') { end + 1 } else { end };
@@ -208,14 +207,23 @@ fn vocabulary_matches(path: &Path, source: &str, words: &[String]) -> Vec<String
         }
     }
     matches.sort_unstable();
-    matches.into_iter().map(|(_, word)| format!("{}: {}", path.display(), words[word])).collect()
+    let mut line = 1;
+    let mut previous = 0;
+    matches
+        .into_iter()
+        .map(|(at, word)| {
+            line += source[previous..at].matches('\n').count();
+            previous = at;
+            format!("{}:{line}: {}", path.display(), words[word])
+        })
+        .collect()
 }
 
 pub(super) fn breaches(path: &Path, source: &str) -> Vec<String> {
     scan(path, source, &[], true)
 }
 
-// Standard string searches check vocabulary; the source walk checks lexeme names.
+// Vocabulary searches and the source walk share source locations.
 pub(super) fn scan(path: &Path, source: &str, words: &[String], names: bool) -> Vec<String> {
     let mut failures = vocabulary_matches(path, source, words);
     if !names {
@@ -231,12 +239,13 @@ pub(super) fn scan(path: &Path, source: &str, words: &[String], names: bool) -> 
         } else {
             None
         };
-        let mut comment = false;
+        let mut text_kind = None;
         if let Some(end) = literal {
             index = end;
+            text_kind = Some("string");
         } else if names && matches!(bytes.get(index..index + 2), Some(b"//" | b"/*")) {
             index = comment_end(bytes, index);
-            comment = true;
+            text_kind = Some("comment");
         } else if names && identifier_byte(bytes[index]) && !bytes[index].is_ascii_digit() {
             while bytes.get(index).is_some_and(|byte| identifier_byte(*byte)) {
                 index += 1;
@@ -255,15 +264,21 @@ pub(super) fn scan(path: &Path, source: &str, words: &[String], names: bool) -> 
                 index += 1;
             }
         }
-        if comment {
-            for (offset, _) in source[start..index].to_ascii_lowercase().match_indices("legacy") {
-                let at = start + offset;
-                if !at.checked_sub(1).and_then(|before| bytes.get(before)).is_some_and(|byte| identifier_byte(*byte))
-                    && !bytes.get(at + 6).is_some_and(|byte| identifier_byte(*byte))
-                {
-                    let comment_line = line + source[start..at].matches('\n').count();
-                    let word = &source[at..at + 6];
-                    failures.push(format!("{}:{comment_line}: comment {word}", path.display()));
+        if let Some(kind) = text_kind {
+            let lower = source[start..index].to_ascii_lowercase();
+            for banned in BANNED_WORDS {
+                for (offset, _) in lower.match_indices(banned) {
+                    let at = start + offset;
+                    if !at
+                        .checked_sub(1)
+                        .and_then(|before| bytes.get(before))
+                        .is_some_and(|byte| identifier_byte(*byte))
+                        && !bytes.get(at + banned.len()).is_some_and(|byte| identifier_byte(*byte))
+                    {
+                        let text_line = line + source[start..at].matches('\n').count();
+                        let word = &source[at..at + banned.len()];
+                        failures.push(format!("{}:{text_line}: {kind} {word}", path.display()));
+                    }
                 }
             }
         }
@@ -294,7 +309,7 @@ fn only_the_foreign_directory_field_is_allowed_at_its_named_site() {
     ];
     for (case, path, source, count) in cases {
         let actual = vocabulary_matches(path, &source, core::slice::from_ref(&field));
-        let expected = vec![format!("{}: {field}", path.display()); count];
+        let expected = vec![format!("{}:1: {field}", path.display()); count];
         assert_eq!(actual, expected, "{case}");
     }
 }

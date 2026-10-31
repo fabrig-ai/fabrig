@@ -4,7 +4,7 @@ use skein_lib::{Reader, Rng, Writer};
 macro_rules! check {
     ($bytes:expr, $record:ident) => {
         if let Ok(value) = wire::$record::decode(&wire::CEILINGS, &mut Reader::new($bytes)) {
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
+            let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
             value.encode(&mut writer).expect("measured room");
             assert_eq!(writer.finish().as_ref(), $bytes);
         }

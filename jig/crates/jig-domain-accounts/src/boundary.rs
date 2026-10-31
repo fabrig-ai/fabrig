@@ -1,60 +1,10 @@
+use crate::{Form, Grant};
 use crate::{Holder, Key, Kind, Refusal, SignInRedirectWhy, Stored, Use};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Time, Token, Wall};
 
 /// Maximum address bytes in an account sign-in answer.
 pub const ADDRESS: u32 = 2_048;
-
-/// The form in which a grant lends its value (protocol/channel.md, section 8).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Form {
-    /// A credential with the scheme its provider takes.
-    Credential(Scheme),
-    /// An application's credential, held in its own table.
-    Application,
-    /// A program source lent by its configuration-directory name.
-    Program(crate::SourceName),
-}
-
-/// A credential's scheme (protocol/channel.md, section 8).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Scheme {
-    /// A bearer credential.
-    Bearer,
-    /// A key credential.
-    Key,
-}
-
-impl Form {
-    /// The protocol table that holds this form's value.
-    #[must_use]
-    pub const fn table(self) -> GrantTable {
-        match self {
-            Self::Credential(_) => GrantTable::Accounts,
-            Self::Application => GrantTable::Application,
-            Self::Program(_) => GrantTable::Name,
-        }
-    }
-}
-
-/// The protocol layer's table that holds a grant (protocol/channel.md, section 8).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum GrantTable {
-    Accounts,
-    Application,
-    /// The value is the form's name; no table entry is held.
-    Name,
-}
-
-/// A name and the time its token has left; never the token itself. An account's grant is
-/// named by its source's number.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Grant {
-    pub form: Form,
-    pub account: u32,
-    pub generation: u64,
-    pub valid: Duration,
-}
 
 /// Accounts on the component's terms (protocol/llm.md, 5.2), and what runs' agents
 /// notice (domain/accounts.md, 3.5): a generation unauthorized; a source limited until
@@ -534,29 +484,6 @@ pub enum Change {
 pub enum KeyFailure {
     TooLong,
     NotStored,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{Form, GrantTable, Scheme};
-
-    #[test]
-    fn a_form_names_its_table() {
-        for (form, table) in [
-            (Form::Credential(Scheme::Bearer), GrantTable::Accounts),
-            (Form::Credential(Scheme::Key), GrantTable::Accounts),
-            (Form::Application, GrantTable::Application),
-            (Form::Program(crate::SourceName::new(b"claude").expect("source name")), GrantTable::Name),
-        ] {
-            assert_eq!(form.table(), table);
-        }
-    }
-
-    #[test]
-    fn a_form_takes_34_bytes() {
-        // tag 1 + length 1 + 32 name bytes.
-        assert_eq!(size_of::<Form>(), 34);
-    }
 }
 
 /// One configured worker's terminal sign-out result; no login bytes.

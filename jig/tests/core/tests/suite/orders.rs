@@ -2,7 +2,8 @@
 //! `dynamic-memory.md`, 4.6): store terminals in arrival order, and a kept
 //! turn before its terminal acknowledgement, while admission is under load.
 
-use jig_core_world::direct::Driver;
+use super::admission_support;
+use jig_core_world::world::World;
 use jig_domain_core::{self as core, reads};
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -24,10 +25,10 @@ const STEPS: usize = 300;
 /// O2: store answers taken while admission binds answer in arrival order.
 #[test]
 fn queued_read_answers_keep_their_arrival_order_under_load() {
-    let mut driver = Driver::chat(9302);
+    let mut driver = admission_support::chat(9302);
     let (task, attempt) = run(&driver);
-    driver.send(turn(task, attempt));
-    driver.settle();
+    driver.offer(turn(task, attempt));
+    driver.drain();
     let second = read_turn(&mut driver, READ_B);
     let first = read_turn(&mut driver, READ_A);
     driver.fill_to_watermark();
@@ -35,17 +36,17 @@ fn queued_read_answers_keep_their_arrival_order_under_load() {
     driver.probe();
     assert_eq!(driver.returned, before_probe + 1, "new work is handed back under load");
     let returned = driver.returned;
-    driver.send(first);
-    driver.send(second);
+    driver.offer(first);
+    driver.offer(second);
     driver.collect();
     assert_eq!(driver.returned, returned, "both store terminals are taken under load");
     assert!(read_replies(&driver).is_empty(), "answers wait for preceding durability");
-    driver.settle();
+    driver.drain();
     let replies = read_replies(&driver);
     assert_eq!(replies.iter().map(|(reply, _)| *reply).collect::<Vec<_>>(), [READ_A, READ_B]);
     for (_, answer) in replies {
-        let reads::Answer::Historical(past) = answer else { panic!("historical turn: {answer:?}") };
-        let reads::Past::Turn(row) = &past.value else { panic!("requested turn") };
+        let reads::Answer::Ended(past) = answer else { panic!("ended turn: {answer:?}") };
+        let reads::EndedValue::Turn(row) = &past.value else { panic!("requested turn") };
         assert_eq!((row.task, row.attempt, row.turn), (task, attempt, TURN));
         assert_eq!(row.transcript.as_ref(), TURN_TEXT);
     }
@@ -56,11 +57,11 @@ fn queued_read_answers_keep_their_arrival_order_under_load() {
 /// O3: a kept turn precedes its terminal acknowledgement under load.
 #[test]
 fn turn_kept_precedes_terminal_acknowledgement_under_load() {
-    let mut driver = Driver::chat(9303);
+    let mut driver = admission_support::chat(9303);
     let (task, attempt) = run(&driver);
-    driver.send(turn(task, attempt));
+    driver.offer(turn(task, attempt));
     driver.collect();
-    driver.send(root::Event::Answer {
+    driver.offer(root::Event::Answer {
         read: None,
         refused: Box::new([]),
         channel: WORKER,
@@ -73,7 +74,7 @@ fn turn_kept_precedes_terminal_acknowledgement_under_load() {
         },
     });
     driver.collect();
-    assert_eq!(driver.pending.len(), STORY_COMMITS, "turn and terminal commits are withheld");
+    assert_eq!(driver.store.pending.len(), STORY_COMMITS, "turn and terminal commits are withheld");
     driver.fill_to_watermark();
     assert!(worker_notices(&driver).is_empty(), "acknowledgements wait for durability");
     // This root routes released callbacks inside release().
@@ -82,14 +83,14 @@ fn turn_kept_precedes_terminal_acknowledgement_under_load() {
         driver.commit_one();
         driver.fill_to_watermark();
     }
-    driver.settle();
+    driver.drain();
     println!("O3 handed-back inputs: {}", driver.returned);
     assert_eq!(
         worker_notices(&driver),
         [(task, attempt, Some(TURN)), (task, attempt, None)],
         "worker sees its kept turn before the terminal acknowledgement, each once"
     );
-    let writes: Vec<_> = driver.transactions.iter().flatten().collect();
+    let writes: Vec<_> = driver.commits.iter().flatten().collect();
     assert_eq!(
         writes
             .iter()
@@ -127,7 +128,7 @@ fn turn_kept_precedes_terminal_acknowledgement_under_load() {
     assert!(driver.domain.quiescent() && !driver.stopped);
 }
 
-fn run(driver: &Driver) -> (u64, u64) {
+fn run(driver: &World) -> (u64, u64) {
     let assignment = driver.assignment();
     (assignment.task, assignment.attempt)
 }
@@ -146,9 +147,9 @@ fn turn(task: u64, attempt: u64) -> root::Event {
     }
 }
 
-fn read_turn(driver: &mut Driver, reply: Token) -> root::Event {
+fn read_turn(driver: &mut World, reply: Token) -> root::Event {
     let (task, attempt) = run(driver);
-    driver.send(root::Event::Core(core::Event::Read {
+    driver.offer(root::Event::Core(core::Event::Read {
         reply: ReplyTo::new(reply),
         sign_in: driver.session(),
         read: reads::Read::Turn { task, attempt, turn: TURN },
@@ -163,14 +164,14 @@ fn read_turn(driver: &mut Driver, reply: Token) -> root::Event {
         if let Some(event) = driver.events.pop_front() {
             driver.send_retaining(event);
         }
-        if !driver.pending.is_empty() {
+        if !driver.store.pending.is_empty() {
             driver.commit_one();
         }
     }
-    panic!("historical read issues a store load within the step budget");
+    panic!("ended read issues a store load within the step budget");
 }
 
-fn read_replies(driver: &Driver) -> Vec<(Token, &reads::Answer)> {
+fn read_replies(driver: &World) -> Vec<(Token, &reads::Answer)> {
     driver
         .released
         .iter()
@@ -184,7 +185,7 @@ fn read_replies(driver: &Driver) -> Vec<(Token, &reads::Answer)> {
         .collect()
 }
 
-fn worker_notices(driver: &Driver) -> Vec<(u64, u64, Option<u32>)> {
+fn worker_notices(driver: &World) -> Vec<(u64, u64, Option<u32>)> {
     driver
         .released
         .iter()

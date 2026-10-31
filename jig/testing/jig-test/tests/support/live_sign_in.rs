@@ -26,7 +26,7 @@ pub const WINDOW: u32 = 272_000;
 const SIGN_IN_WAIT: Duration = Duration::from_secs(660);
 const WHOLE: Duration = Duration::from_secs(1200);
 
-pub fn configuration(directory: &Path) -> codec::Limits {
+pub fn configuration(directory: &Path) -> codec::View {
     let address = ("api.openai.com", 443)
         .to_socket_addrs()
         .expect("resolve public Responses endpoint")
@@ -36,7 +36,7 @@ pub fn configuration(directory: &Path) -> codec::Limits {
     configuration_at(directory, &address, Peers::Real)
 }
 
-pub fn configuration_at(directory: &Path, address: &str, peers: Peers) -> codec::Limits {
+pub fn configuration_at(directory: &Path, address: &str, peers: Peers) -> codec::View {
     let mut value = support::configuration_value(directory);
     let path = directory.join("config.json");
     let engine = &mut value["engine"];
@@ -108,7 +108,7 @@ struct Judge {
     deadline: Time,
     sign_in_deadline: Option<Time>,
     received: usize,
-    accounts: Option<c::OwnerAccounts>,
+    accounts: Option<c::Accounts>,
     state: String,
     chat: Option<u64>,
     task: Option<c::Task>,
@@ -119,7 +119,7 @@ fn client(procs: &mut [Process]) -> &mut NativeClient {
     let Process::Person(person) = &mut procs[1] else { panic!("native person") };
     person.client.as_mut().expect("native client")
 }
-fn progress(previous: &mut String, document: &c::OwnerAccounts, source: u32) {
+fn progress(previous: &mut String, document: &c::Accounts, source: u32) {
     let state = if let Some(end) = document.last_end.as_ref().filter(|end| end.source == source) {
         format!("{:?}", end.end)
     } else if document.signing.iter().any(|signing| signing.source == source) {
@@ -147,9 +147,7 @@ fn progress(previous: &mut String, document: &c::OwnerAccounts, source: u32) {
 /// The chat's run in words: its phase, attempt, retry, work, hold, ending and run wait. A
 /// result's words are the page's; no grant or credential is in the task document.
 pub(super) fn run_line(task: &c::Task) -> String {
-    let c::ChipPhase::Owner { phase, details } = task.chip.details.as_ref() else {
-        return format!("phase={:?}; wait={:?}", task.chip.phase, task.run_wait);
-    };
+    let c::ChipPhaseFacts { phase, details } = task.chip.details.as_ref();
     format!(
         "phase={phase:?}; attempt={:?}; retry={:?}; work={:?}; hold={:?}; ending={}; wait={:?}",
         details.attempt,
@@ -160,33 +158,33 @@ pub(super) fn run_line(task: &c::Task) -> String {
         task.run_wait,
     )
 }
-fn ending(ending: &c::OwnerChipEnding) -> String {
+fn ending(ending: &c::ChipEnding) -> String {
     let text = |text: &c::DocumentText| String::from_utf8_lossy(text.bytes.bytes()).into_owned();
     match ending {
-        c::OwnerChipEnding::Done(c::ResultValue::Report(words) | c::ResultValue::Words(words)) => {
+        c::ChipEnding::Done(c::ResultValue::Report(words) | c::ResultValue::Words(words)) => {
             format!("Done({:?})", text(words))
         }
-        c::OwnerChipEnding::Done(c::ResultValue::Failure(words)) => format!("Done(Failure({:?}))", text(words)),
-        c::OwnerChipEnding::Done(_) => "Done(another result)".to_owned(),
-        c::OwnerChipEnding::Failed(words) => format!("Failed({:?})", text(words)),
-        c::OwnerChipEnding::Cancelled { reason, .. } => format!("Cancelled({:?})", text(reason)),
+        c::ChipEnding::Done(c::ResultValue::Failure(words)) => format!("Done(Failure({:?}))", text(words)),
+        c::ChipEnding::Done(_) => "Done(another result)".to_owned(),
+        c::ChipEnding::Failed(words) => format!("Failed({:?})", text(words)),
+        c::ChipEnding::Cancelled { reason, .. } => format!("Cancelled({:?})", text(reason)),
     }
 }
 /// Whether the run can no longer bring the answer: any failed or refused attempt, a hold, an
 /// ending other than a report, or a host's refusal. Each fails the test at once, in words.
 pub(super) fn failed(task: &c::Task) -> bool {
     let refused = matches!(task.run_wait, Some(c::TaskRunWait::Refused(_)));
-    let c::ChipPhase::Owner { phase, details } = task.chip.details.as_ref() else { return refused };
+    let c::ChipPhaseFacts { phase, details } = task.chip.details.as_ref();
     refused
         || details.retry.is_some()
         || details.hold.is_some()
-        || matches!(phase, c::OwnerChipPhase::Held { .. })
+        || matches!(phase, c::ChipPhase::Held { .. })
         || details.ending.as_ref().is_some_and(|ending| {
-            !matches!(ending, c::OwnerChipEnding::Done(c::ResultValue::Report(_) | c::ResultValue::Words(_)))
+            !matches!(ending, c::ChipEnding::Done(c::ResultValue::Report(_) | c::ResultValue::Words(_)))
         })
 }
 fn reported(task: &c::Task) -> bool {
-    matches!(task.chip.details.as_ref(), c::ChipPhase::Owner { details, .. } if details.ending.is_some())
+    task.chip.details.details.ending.is_some()
 }
 impl Judge {
     /// One line per change of the chat's run; a run that can't answer fails here, with its words.
@@ -206,7 +204,7 @@ impl Judge {
         let mut answer = None;
         for received in &native.received[self.received..] {
             match received {
-                Received::Delivery(c::Delivery::OwnerAccounts(document)) => {
+                Received::Delivery(c::Delivery::Accounts(document)) => {
                     self.accounts = Some(document.as_ref().clone());
                 }
                 Received::Delivery(c::Delivery::Task(document)) if Some(document.chip.task) == self.chat => {
@@ -224,14 +222,14 @@ impl Judge {
         progress(&mut self.state, document, source);
         let Some(end) = document.last_end.as_ref().filter(|end| end.source == source) else { return };
         match end.end {
-            c::OwnerAccountEnd::Made { account, declined } | c::OwnerAccountEnd::Renewed { account, declined } => {
+            c::AccountEnd::Made { account, declined } | c::AccountEnd::Renewed { account, declined } => {
                 assert!(!declined, "ChatGPT sign-in made, but plan usage was declined");
                 let account = document.accounts.iter().find(|line| line.number == account).expect("made account");
                 let grant = account.sources.iter().find(|grant| grant.number == source).expect("signed-in source");
                 assert!(account.plan, "ChatGPT sign-in made without plan usage");
-                if grant.usable && grant.state == c::OwnerAccountState::Granted {
-                    assert!(matches!(account.holder, c::OwnerAccountHolder::Party(_)), "a plan is held by its person");
-                    assert_eq!(grant.kind, c::OwnerAccountKind::SignIn);
+                if grant.usable && grant.state == c::AccountState::Granted {
+                    assert!(matches!(account.holder, c::AccountHolder::Party(_)), "a plan is held by its person");
+                    assert_eq!(grant.kind, c::AccountKind::SignIn);
                     self.sign_in_deadline = None;
                     let native = client(procs);
                     native.account_request(jig_client::Event::Unwatch { handle: ACCOUNTS });
@@ -240,8 +238,8 @@ impl Judge {
                     self.phase = Phase::Answer { source };
                 }
             }
-            c::OwnerAccountEnd::Failed { failure } => panic!("ChatGPT sign-in failed: {failure:?}"),
-            c::OwnerAccountEnd::Refused { refusal } => panic!("ChatGPT sign-in refused: {refusal:?}"),
+            c::AccountEnd::Failed { failure } => panic!("ChatGPT sign-in failed: {failure:?}"),
+            c::AccountEnd::Refused { refusal } => panic!("ChatGPT sign-in refused: {refusal:?}"),
         }
     }
 }
@@ -259,7 +257,7 @@ impl Referee<Process> for Judge {
                     });
                     native.ask_account_sign_in(
                         SIGN_IN,
-                        c::Ask::SignIn { holder: c::AccountHolder::Own, provider: PROVIDER },
+                        c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: PROVIDER },
                     );
                     self.sign_in_deadline = Some(now.saturating_add(self.peers.sign_in_wait()));
                     self.phase = Phase::Address;
@@ -267,8 +265,10 @@ impl Referee<Process> for Judge {
             }
             Phase::Address => {
                 if let Some(answer) = answer {
-                    let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountSignInStarted { source, address })) =
-                        answer
+                    let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignInStarted {
+                        source,
+                        address,
+                    })) = answer
                     else {
                         panic!("ChatGPT sign-in start: {answer:?}");
                     };
@@ -280,7 +280,7 @@ impl Referee<Process> for Judge {
             Phase::Signing { source } => self.signing(procs, source),
             Phase::Answer { source } => {
                 match answer {
-                    Some(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Created { first, .. })))
+                    Some(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Created { first, .. })))
                         if self.chat.is_none() =>
                     {
                         self.chat = Some(first);
@@ -297,7 +297,7 @@ impl Referee<Process> for Judge {
                     native.account_request(jig_client::Event::Unwatch { handle: CHAT });
                     self.ended = None;
                     native.hold_for_account_sign_in();
-                    native.ask_account_sign_in(SIGN_OUT, c::Ask::SignOut { holder: c::AccountHolder::Own, source });
+                    native.ask_account_sign_in(SIGN_OUT, c::Ask::SignOut { holder: c::AskAccountHolder::Own, source });
                     self.phase = Phase::SignOut;
                 }
             }
@@ -305,7 +305,7 @@ impl Referee<Process> for Judge {
                 if let Some(answer) = answer {
                     assert_eq!(
                         answer,
-                        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountSignedOut {
+                        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignedOut {
                             confirmed: true,
                             failed_hosts: Box::new([])
                         })),
@@ -399,7 +399,7 @@ pub fn run(directory: &Path, started: Time, peers: Peers) -> (u32, u32) {
 pub const INSTRUCTIONS: &str = "Report exactly: Process answer";
 pub const WORDS: &str = "Follow the first sentence.";
 
-pub fn store_limits(bytes: &[u8]) -> codec::Limits {
+pub fn store_limits(bytes: &[u8]) -> codec::View {
     let document = config::document(bytes, &config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 })
         .expect("live document");
     let at = config::read::Object::new(&document, 0)
@@ -411,7 +411,7 @@ pub fn store_limits(bytes: &[u8]) -> codec::Limits {
     codec::limits(&engine.limits.core).expect("live store codec limits")
 }
 
-pub fn completions(directory: &Path, limits: &codec::Limits) -> u32 {
+pub fn completions(directory: &Path, limits: &codec::View) -> u32 {
     let path = directory.join("state/transcripts/0000000000000000/0000000000000001");
     let bytes = match fs::read(path) {
         Ok(bytes) => bytes,
@@ -458,7 +458,7 @@ pub fn capture(directory: &Path, destination: &Path) -> bool {
     present
 }
 
-pub fn check(directory: &Path, limits: &codec::Limits, outcome: (u32, u32), peers: Peers) {
+pub fn check(directory: &Path, limits: &codec::View, outcome: (u32, u32), peers: Peers) {
     let count = completions(directory, limits);
     eprintln!("live completions={count}");
     assert!(
@@ -636,8 +636,8 @@ mod tests {
             &jig_client_protocol_world::fixtures::link_limits(),
         )
         .expect("owner task fixture");
-        let c::ChipPhase::Owner { phase, details } = task.chip.details.as_mut() else { panic!("owner chip") };
-        *phase = c::OwnerChipPhase::Active(c::RunStage::BackingOff { until: skein_lib::Wall::from_nanos(17) });
+        let c::ChipPhaseFacts { phase, details } = task.chip.details.as_mut();
+        *phase = c::ChipPhase::Active(c::RunStage::BackingOff { until: skein_lib::Wall::from_nanos(17) });
         details.attempt = Some(1);
         details.retry = Some(c::RetryNotice::OwnerFailed { class: c::HoldFailure::Run, count: 1, allowance: 3 });
         details.hold = None;

@@ -1,6 +1,5 @@
 //! Common role admission; membership belongs to people and policy to authority.
-use super::Act;
-use crate::Core;
+use crate::{Core, acts::Act};
 use jig_domain_people as people;
 
 pub(crate) fn role(core: &Core, project: u32, held: Option<people::Role>, act: Act) -> Result<(), people::Refusal> {

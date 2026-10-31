@@ -101,12 +101,11 @@ fn contract(value: &Contract, limits: &Limits) -> Result<(), RestoreCause> {
             for choice in choices {
                 count(RestoreBound::ResultFields, choice.fields.len(), limits.result_bytes)?;
                 bound(RestoreBound::Batch, u64::from(choice.followups), u64::from(limits.batch))?;
-                let mut bytes = usize::try_from(choice.words).expect("u32 fits usize");
+                let mut bytes = skein_lib::length::usize_of(choice.words);
                 for field in &choice.fields {
                     bytes = bytes.checked_add(field.name.len()).ok_or(RestoreCause::Accounting)?;
-                    bytes = bytes
-                        .checked_add(usize::try_from(field.max).expect("u32 fits usize"))
-                        .ok_or(RestoreCause::Accounting)?;
+                    bytes =
+                        bytes.checked_add(skein_lib::length::usize_of(field.max)).ok_or(RestoreCause::Accounting)?;
                 }
                 count(RestoreBound::ResultBytes, bytes, limits.result_bytes)?;
             }
@@ -438,12 +437,7 @@ fn messages(value: &TaskRecord, ordinary: usize, subscriptions: usize) -> Result
         .ok_or(RestoreCause::Accounting)?
         .checked_add(value.questions.len())
         .ok_or(RestoreCause::Accounting)?
-        .checked_add(crate::inbox::received_credits(
-            value.requester,
-            &value.question_lines,
-            &value.questions,
-            &value.inbox,
-        ))
+        .checked_add(crate::inbox::received_credits(value.requester, &value.question_lines, &value.questions))
         .ok_or(RestoreCause::Accounting)?
         .checked_add(usize::from(value.proposal.is_some()))
         .ok_or(RestoreCause::Accounting)?
@@ -496,15 +490,14 @@ fn inbox(value: &TaskRecord, limits: &Limits) -> Result<(), RestoreCause> {
     let reserved = value
         .delegates
         .len()
-        .checked_mul(usize::try_from(limits.result_bytes).expect("byte bound"))
+        .checked_mul(skein_lib::length::usize_of(limits.result_bytes))
         .ok_or(RestoreCause::Accounting)?;
     let answers = value
         .questions
         .len()
-        .checked_mul(usize::try_from(limits.message_bytes).expect("byte bound"))
+        .checked_mul(skein_lib::length::usize_of(limits.message_bytes))
         .ok_or(RestoreCause::Accounting)?;
-    let proposal =
-        if value.proposal.is_some() { usize::try_from(limits.message_bytes).expect("byte bound") } else { 0 };
+    let proposal = if value.proposal.is_some() { skein_lib::length::usize_of(limits.message_bytes) } else { 0 };
     let total = bytes
         .checked_add(reserved)
         .ok_or(RestoreCause::Accounting)?

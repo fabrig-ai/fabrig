@@ -752,6 +752,12 @@ impl World {
         }
     }
 
+    /// Outputs awaiting the simulated durable commit.
+    #[must_use]
+    pub fn staged_requests(&self) -> &[Request] {
+        &self.pending
+    }
+
     pub fn send(&mut self, event: Event) {
         self.stage(event);
         self.durable();

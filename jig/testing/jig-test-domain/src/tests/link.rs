@@ -19,7 +19,7 @@ fn a_worker_s_hello_reaches_the_fleet_with_its_bounds() {
     assert_eq!(hello.workstreams.as_ref(), [4, 5]);
     assert_eq!(
         hello.hosting.as_ref(),
-        [fleet::Hosted { run: fixtures::RUN, attempt: fixtures::ATTEMPT, phase: fleet::Phase::Waiting }]
+        [fleet::Hosting { run: fixtures::RUN, attempt: fixtures::ATTEMPT, phase: fleet::Phase::Waiting }]
     );
     assert_eq!(
         hello.bounds,
@@ -46,7 +46,7 @@ fn a_turn_from_a_link_reaches_the_fleet_with_its_refusals() {
         panic!("a turn reaches the fleet");
     };
     assert_eq!((channel, run, attempt, turn), (fixtures::CHANNEL, fixtures::RUN, fixtures::ATTEMPT, 1));
-    let Some(Payload::Turn { cumulative, read, refused, opens_window, transcript, .. }) = domain.payloads.get(&body)
+    let Some(Payload::Turn { cumulative, read, refused, opens_window, transcript, .. }) = domain.hub_link.payload(body)
     else {
         panic!("turn bytes stay in the root");
     };
@@ -58,7 +58,7 @@ fn a_turn_from_a_link_reaches_the_fleet_with_its_refusals() {
 fn an_assignment_for_a_channel_leaves_as_the_hub_s_record() {
     let mut domain = fixtures::domain();
     let env = fixtures::env();
-    domain.assignments.insert(fixtures::RUN.raw(), fixtures::assignment()).expect("one prepared run");
+    domain.hub_link.keep_assignment(fixtures::assignment());
     let mut decision = domain.journal.decide();
     let mut out = Queue::uncapped();
     out.push(core::Request::Held(Box::new(core::Held::Assign {
@@ -68,7 +68,7 @@ fn an_assignment_for_a_channel_leaves_as_the_hub_s_record() {
         activation: 3,
         assignment: fleet::Assignment { turns: Token::new(10), answered: Token::new(11) },
     })));
-    crate::routes::route_core(&mut domain, &env, &mut decision, core::Requests::Out(out), &mut fixtures::work());
+    crate::routes::route_core(&mut domain, &env, &mut decision, out, &mut fixtures::work());
     domain.journal.accept(decision);
     let mut released = Queue::uncapped();
     crate::release(&mut domain, &env, &mut released);
@@ -103,12 +103,13 @@ fn a_fenced_result_is_handed_out_before_the_answer_is_read() {
     };
     assert_eq!(handed, payload);
     assert_eq!(outcome.as_ref(), b"opaque result");
-    let Some(Payload::Answer { cumulative, read, refused, .. }) = domain.payloads.get(&payload) else {
+    let Some(Payload::Answer { cumulative, read, refused, .. }) = domain.hub_link.payload(payload) else {
         panic!("the answer stays retained");
     };
     assert_eq!((*cumulative, *read), (12, Some(7)));
     assert_eq!(refused.as_ref(), [6]);
-    let event = link::result_event(&domain, payload, tasks::End::Parked).expect("result metadata");
+    let event =
+        jig_domain_hub_link::result_event(&domain.hub_link, payload, tasks::End::Parked).expect("result metadata");
     let core::Event::AnswerPayload { cumulative, end, read, refused, .. } = event else {
         panic!("core result input");
     };
@@ -118,7 +119,7 @@ fn a_fenced_result_is_handed_out_before_the_answer_is_read() {
 #[test]
 fn channel_records_leave_as_the_hub_s_vocabulary() {
     let mut domain = fixtures::domain();
-    domain.links.insert(fixtures::CHANNEL).expect("one connected link");
+    domain.hub_link.connect(fixtures::CHANNEL);
     for (held, expected) in fixtures::channel_records() {
         let Delivery::Link { channel, down } = link::down(&mut domain, held) else {
             panic!("the hub receives the record");
@@ -162,10 +163,10 @@ fn a_start_refusal_reaches_the_core_as_invalid_without_reading_a_result() {
     }
 }
 
-fn core_request(request: core::Request) -> core::Requests {
+fn core_request(request: core::Request) -> Queue<core::Request> {
     let mut out = Queue::uncapped();
     out.push(request);
-    core::Requests::Out(out)
+    out
 }
 fn gather_brief(
     domain: &mut crate::Domain,
@@ -195,12 +196,7 @@ fn gather_brief(
         panic!("brief child");
     };
     let mut completed = Queue::uncapped();
-    jig_domain_brief::gather_step(
-        &mut domain.core.brief,
-        &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.core.brief },
-        event,
-        &mut completed,
-    );
+    jig_domain_brief::gather_step(&mut domain.core.brief, &env.with(env.limits.core.brief), event, &mut completed);
     let jig_domain_brief::GatherRequest::Complete { brief, order } = completed.pop().expect("completed brief") else {
         panic!("complete typed sections");
     };
@@ -283,12 +279,80 @@ fn an_assignment_carries_its_brief_s_sections_in_order() {
 }
 
 #[test]
+fn a_restored_program_name_survives_sign_in_and_grant_delivery() {
+    use jig_domain_accounts as accounts;
+    let mut domain = fixtures::domain();
+    domain.hub_link.connect(fixtures::CHANNEL);
+    let env = fixtures::env();
+    let env = env.with(env.limits.core.accounts);
+    let mut out = Queue::uncapped();
+    let holder = accounts::Holder::Party(7);
+    for record in [
+        accounts::Stored::Account {
+            number: 0,
+            provider: 1,
+            holder,
+            place: 0,
+            uses: None,
+            subject: Box::new([]),
+            display: Box::new([]),
+        },
+        accounts::Stored::Source {
+            account: 0,
+            number: 1,
+            place: 0,
+            kind: accounts::Kind::Program,
+            name: b"Bad_Name".as_slice().into(),
+            held: None,
+        },
+        accounts::Stored::Issued { number: 1, holder, name: b"Bad_Name".as_slice().into(), signed_out: true },
+        accounts::Stored::Next { number: 2 },
+    ] {
+        accounts::step(&mut domain.core.accounts, &env, accounts::Event::Restore { record }, &mut out);
+    }
+    accounts::step(&mut domain.core.accounts, &env, accounts::Event::Want, &mut out);
+    out.clear();
+    accounts::step(
+        &mut domain.core.accounts,
+        &env,
+        accounts::Event::Change {
+            request: Token::new(44),
+            holder,
+            change: accounts::Change::CheckProgram { source: 1 },
+        },
+        &mut out,
+    );
+    let mut delivered = false;
+    while let Some(request) = out.pop() {
+        if let accounts::Request::Granted { grant } = request {
+            let delivery = link::down(
+                &mut domain,
+                Delivery::Core(core::Held::Grant {
+                    channel: fixtures::CHANNEL,
+                    run: fixtures::RUN,
+                    attempt: fixtures::ATTEMPT,
+                    grant,
+                }),
+            );
+            let Delivery::Link { down: host::LinkDown::Grant { grant: carried, .. }, .. } = delivery else {
+                panic!("grant reaches the host");
+            };
+            assert_eq!(carried, grant);
+            let host::Form::Program(name) = carried.form else { panic!("program grant") };
+            assert_eq!(name.as_bytes(), b"Bad_Name");
+            delivered = true;
+        }
+    }
+    assert!(delivered, "signing in grants the restored source");
+}
+
+#[test]
 fn program_source_lifecycle_routes_without_run_payloads() {
     use jig_domain_host::{LinkDown, LinkUp, Login, LoginState, SignOutResult, SourceName};
     let mut domain = fixtures::domain();
-    domain.links.insert(fixtures::CHANNEL).expect("one connected worker");
+    domain.hub_link.connect(fixtures::CHANNEL);
     let name = SourceName::new(b"alice").expect("source name");
-    let fleet_name = fleet::SourceName::new(b"alice").expect("source name");
+    let fleet_name = name;
     for (held, expected) in [
         (
             core::Held::Sources { channel: fixtures::CHANNEL, sources: Box::new([fleet_name]) },
@@ -303,7 +367,7 @@ fn program_source_lifecycle_routes_without_run_payloads() {
         assert_eq!(channel, fixtures::CHANNEL);
         assert_eq!(down, expected);
     }
-    let before = domain.payloads.len();
+    let before = domain.hub_link.payload_count();
     let inventory = link::up(
         &mut domain,
         fixtures::CHANNEL,
@@ -313,7 +377,7 @@ fn program_source_lifecycle_routes_without_run_payloads() {
         panic!("typed fleet inventory")
     };
     assert_eq!(channel, fixtures::CHANNEL);
-    assert_eq!(logins.as_ref(), [fleet::Login { name: fleet_name, state: fleet::LoginState::Usable }]);
+    assert_eq!(logins.as_ref(), [Login { name: fleet_name, state: LoginState::Usable }]);
     let result = link::up(&mut domain, fixtures::CHANNEL, LinkUp::SignedOut { name, result: SignOutResult::SignedOut });
     let core::Event::Fleet(fleet::Event::SignedOut { channel, name: actual, result }) =
         result.expect("routed sign-out")
@@ -322,14 +386,14 @@ fn program_source_lifecycle_routes_without_run_payloads() {
     };
     assert_eq!(channel, fixtures::CHANNEL);
     assert_eq!(actual, fleet_name);
-    assert_eq!(result, fleet::SignOutResult::SignedOut);
-    assert_eq!(domain.payloads.len(), before);
+    assert_eq!(result, SignOutResult::SignedOut);
+    assert_eq!(domain.hub_link.payload_count(), before);
 }
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "one admitted projection and Stop decision plus its ordered terminals")]
 fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
-    use skein_lib::{Env, Wall};
+    use skein_lib::Wall;
     let (mut domain, env, watcher) = settled_frame_watch(Wall::from_nanos(u64::MAX));
     let mut out = Queue::uncapped();
     let mut policy_out = Queue::uncapped();
@@ -353,7 +417,7 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
     // Queue a real goal creation and Stop in one admitted decision, with
     // exactly one projection pass before acceptance.
     let mut decision = domain.journal.decide();
-    let core_env = Env { now: env.now, wall: env.wall, limits: env.limits.core };
+    let core_env = env.with(env.limits.core);
     let mut work = fixtures::work();
     for event in [
         tasks::Event::Check,
@@ -407,7 +471,7 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
     }
     assert!(work.is_empty(), "ordinary handoffs finish before the projection pass");
     let requests = core::finish_decision(&mut domain.core, &core_env);
-    let core::Requests::Out(ref outputs) = requests;
+    let outputs = &requests;
     let mut feeds = 0_u32;
     for request in outputs {
         if let core::Request::Ask { ask: core::Ask::ProjectGoal { .. }, .. } = request {
@@ -460,29 +524,7 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
 }
 
 fn settled_frame_watch(expiry: skein_lib::Wall) -> (crate::Domain, skein_lib::Env<crate::Limits>, Token) {
-    use jig_domain_people as people;
-    use skein_lib::Env;
-    let mut domain = fixtures::domain();
-    let env = fixtures::env();
-    domain.core.people.start_restore(env.wall);
-    let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.core.people };
-    let mut ignored = Queue::uncapped();
-    for record in [
-        people::Stored::Person {
-            number: 1,
-            identity: people::Identity {
-                key: people::IdentityKey { provider: 0, subject: Box::new([1]) },
-                login: b"owner".as_slice().into(),
-                name: b"Owner".as_slice().into(),
-            },
-        },
-        people::Stored::SignIn { number: 1, person: 1, expires: expiry },
-    ] {
-        people::step(&mut domain.core.people, &people_env, people::Event::Restore { record }, &mut ignored);
-    }
-    assert!(domain.core.people.start_link(&people_env));
-    domain.core.people.start_sweep();
-    assert!(domain.core.people.start_complete(&people_env));
+    let (mut domain, env) = super::start::with_sign_in(expiry);
     let watcher = Token::new(901);
     crate::step(
         &mut domain,
@@ -532,11 +574,6 @@ fn direct_resume_observes_wall_expiry_without_firing_or_reordering_the_people_ti
     crate::step(&mut domain, &env, crate::Event::Timer(core::Timer::People));
     assert_eq!(domain.core.people.sign_in_person(1), None);
     assert_eq!(domain.core.counters.deployment().commits, commits.checked_add(1).expect("one timer commit"));
-}
-
-#[test]
-fn the_hosts_endpoint_cap_is_the_fleets() {
-    assert_eq!(host::PROGRAM_ENDPOINTS, fleet::PROGRAM_ENDPOINTS);
 }
 
 #[test]

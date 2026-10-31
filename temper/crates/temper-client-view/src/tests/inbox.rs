@@ -232,13 +232,19 @@ fn absent_groups_have_no_empty_lists() {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch: watch.expect("inbox watch"),
-                    event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(c::Inbox {
-                        entries: skein_lib::List::with_capacity(0),
-                        needs: c::Needs { proposals: 0, questions: 0, escalations: 0, person_tasks: 0 },
-                        updates: c::Count { value: 0, limited: false },
-                        results_seen: 0,
-                        replies_seen: skein_lib::List::with_capacity(0),
-                        more: false,
+                    event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new({
+                        let counts = c::Needs { proposals: 0, questions: 0, escalations: 0, person_tasks: 0 };
+                        crate::tests::documents::inbox(
+                            skein_lib::List::with_capacity(0),
+                            counts
+                                .questions
+                                .saturating_add(counts.proposals)
+                                .saturating_add(counts.escalations)
+                                .saturating_add(counts.person_tasks),
+                            c::Count { value: 0, limited: false },
+                            0,
+                            false,
+                        )
                     }))),
                 },
             },
@@ -312,18 +318,13 @@ fn an_update_omits_its_project_metadata_before_its_title_arrives() {
     );
     let mut entries = skein_lib::List::with_capacity(1);
     entries
-        .push(c::InboxEntry {
-            reply: None,
-            lineage: skein_lib::List::with_capacity(0),
-            goal: None,
-            recipient: None,
-            stall: None,
-            object: c::ObjectKey::Task(10),
-            project: fixtures::PROJECT,
-            group: c::InboxGroup::Replies,
-            position: 1,
-            at: skein_lib::Wall::EPOCH,
-        })
+        .push(crate::tests::documents::entry(
+            c::ObjectKey::Task(10),
+            fixtures::PROJECT,
+            1,
+            skein_lib::Wall::EPOCH,
+            None,
+        ))
         .expect("entry");
     let watch = inbox_watch.expect("inbox watch");
     fixtures::root_event(
@@ -332,13 +333,19 @@ fn an_update_omits_its_project_metadata_before_its_title_arrives() {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch,
-                    event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(c::Inbox {
-                        entries,
-                        needs: c::Needs { proposals: 0, questions: 0, escalations: 0, person_tasks: 0 },
-                        updates: c::Count { value: 1, limited: false },
-                        results_seen: 0,
-                        replies_seen: skein_lib::List::with_capacity(0),
-                        more: false,
+                    event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new({
+                        let counts = c::Needs { proposals: 0, questions: 0, escalations: 0, person_tasks: 0 };
+                        crate::tests::documents::inbox(
+                            entries,
+                            counts
+                                .questions
+                                .saturating_add(counts.proposals)
+                                .saturating_add(counts.escalations)
+                                .saturating_add(counts.person_tasks),
+                            c::Count { value: 1, limited: false },
+                            0,
+                            false,
+                        )
                     }))),
                 },
             },
@@ -358,18 +365,13 @@ fn updates_do_not_repeat_the_playground_project() {
     );
     let mut entries = skein_lib::List::with_capacity(1);
     entries
-        .push(c::InboxEntry {
-            reply: None,
-            lineage: skein_lib::List::with_capacity(0),
-            goal: None,
-            recipient: None,
-            stall: None,
-            object: c::ObjectKey::Task(10),
-            project: fixtures::PROJECT,
-            group: c::InboxGroup::Replies,
-            position: 1,
-            at: skein_lib::Wall::EPOCH,
-        })
+        .push(crate::tests::documents::entry(
+            c::ObjectKey::Task(10),
+            fixtures::PROJECT,
+            1,
+            skein_lib::Wall::EPOCH,
+            None,
+        ))
         .unwrap();
     fixtures::root_event(
         &mut root,
@@ -377,13 +379,19 @@ fn updates_do_not_repeat_the_playground_project() {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch: watch.expect("inbox watch"),
-                    event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(c::Inbox {
-                        entries,
-                        needs: c::Needs { proposals: 0, questions: 0, escalations: 0, person_tasks: 0 },
-                        updates: c::Count { value: 1, limited: false },
-                        results_seen: 0,
-                        replies_seen: skein_lib::List::with_capacity(0),
-                        more: false,
+                    event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new({
+                        let counts = c::Needs { proposals: 0, questions: 0, escalations: 0, person_tasks: 0 };
+                        crate::tests::documents::inbox(
+                            entries,
+                            counts
+                                .questions
+                                .saturating_add(counts.proposals)
+                                .saturating_add(counts.escalations)
+                                .saturating_add(counts.person_tasks),
+                            c::Count { value: 1, limited: false },
+                            0,
+                            false,
+                        )
                     }))),
                 },
             },
@@ -419,9 +427,9 @@ fn a_reply_card_names_its_task_after_the_task_ends() {
         Filter::ALL,
         Some((
             c::Read::Task { task: fixtures::INBOX_REPLY_TASK },
-            c::ReadValue::Historical(Box::new(c::OwnerHistorical {
+            c::ReadValue::Ended(Box::new(c::Ended {
                 key: c::ObjectKey::Task(fixtures::INBOX_REPLY_TASK),
-                value: c::OwnerHistoricalValue::Task { document: Box::new(task), result: Box::new(result) },
+                value: c::EndedValue::Task { document: Box::new(task), result: Box::new(result) },
                 at: None,
                 by: None,
             })),
@@ -448,7 +456,7 @@ fn loaded_task_held_and_result_titles_keep_the_title_token() {
         (c::Read::Task { task: fixtures::INBOX_REPLY_TASK }, c::ReadValue::Task(Box::new(reply))),
         (
             c::Read::Escalation { task: fixtures::INBOX_TASK },
-            c::ReadValue::OwnerEscalation(Box::new(c::OwnerEscalation {
+            c::ReadValue::Escalation(Box::new(c::Escalation {
                 task: Box::new(task.clone()),
                 acts: skein_lib::List::with_capacity(0),
             })),
@@ -630,7 +638,7 @@ fn result_updates_name_the_ending_and_show_only_the_first_nonempty_result_line()
     for (ending, value, heading) in [
         (c::Ending::Done, Some(report.clone()), b"T9 Ship update is done".as_slice()),
         (c::Ending::Deleted, Some(report.clone()), b"T9 Ship update ended"),
-        (c::Ending::Task(Box::new(c::OwnerChipEnding::Done(report))), None, b"T9 Ship update is done"),
+        (c::Ending::Task(Box::new(c::ChipEnding::Done(report))), None, b"T9 Ship update is done"),
     ] {
         let mut chip = fixtures::task::document().chip;
         chip.task = fixtures::INBOX_TASK;

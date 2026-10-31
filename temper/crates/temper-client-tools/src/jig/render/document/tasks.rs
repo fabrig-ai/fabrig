@@ -64,20 +64,6 @@ pub(super) fn encode_subscriptions(
     out.object_end();
 }
 
-pub(super) fn encode_taken_by(value: &jig_client::contract::TakenBy, out: &mut Encoder, budget: &mut super::Cut) {
-    out.object_start();
-    out.key(b"number");
-    out.unsigned(value.number);
-    out.key(b"name");
-    match &value.name {
-        Some(item_1) => {
-            budget.words((item_1).bytes(), out);
-        }
-        None => out.null(),
-    }
-    out.object_end();
-}
-
 pub(super) fn encode_task(value: &jig_client::contract::Task, out: &mut Encoder, budget: &mut super::Cut) {
     let digest = budget.digest.take();
     out.object_start();
@@ -89,7 +75,7 @@ pub(super) fn encode_task(value: &jig_client::contract::Task, out: &mut Encoder,
     super::subject_end(digest, out);
 }
 
-pub(super) fn encode_historical_task(
+pub(super) fn encode_ended_task(
     value: &jig_client::contract::Task,
     result: &jig_client::contract::Result,
     out: &mut Encoder,
@@ -279,13 +265,6 @@ pub(super) fn encode_task_context(
     budget: &mut super::Cut,
 ) {
     out.object_start();
-    out.key(b"escalation");
-    match &value.escalation {
-        Some(item_1) => {
-            super::encode_escalation(item_1, out, budget);
-        }
-        None => out.null(),
-    }
     out.key(b"parts");
     out.array_start();
     for item_2 in &value.parts {

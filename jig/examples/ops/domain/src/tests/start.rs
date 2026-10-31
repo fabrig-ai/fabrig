@@ -7,10 +7,11 @@ use skein_lib::Map;
 #[test]
 fn the_seed_and_its_start_continuation_share_one_decision() {
     let (mut domain, env) = fixture();
+    assert!(!domain.ready(), "the root must start before accepting work");
     step(&mut domain, &env, Event::Restart { pending: false });
     let outputs = take(&mut domain, &env);
     let [Output::Load { phase: Phase::LoadCore, range: Range::Core }] = outputs.as_ref() else {
-        panic!("the selected start asks for the core first")
+        panic!("the start asks for the core first")
     };
     step(&mut domain, &env, Event::Store(Store::Restored(Phase::LoadCore)));
     let outputs = take(&mut domain, &env);

@@ -165,7 +165,7 @@ fn read_answers_keep_completion_arrival_order_under_load() {
 fn turn_kept_precedes_terminal_acknowledgement_under_load() {
     let mut driver = Driver::started(SEED);
     driver.chat();
-    driver.send(root::Event::Host(host::Event::Turn {
+    driver.send(root::Event::Host(host::Event::Agent(host::FromAgent::Turn {
         owner: driver.owner,
         turn: host::Turn {
             turn: TURN,
@@ -175,7 +175,7 @@ fn turn_kept_precedes_terminal_acknowledgement_under_load() {
             refused: Box::new([]),
             body: TURN_TEXT.into(),
         },
-    }));
+    })));
     driver.send(root::Event::Agent(host::FromAgent::Finished {
         owner: driver.owner,
         turns: TURN,

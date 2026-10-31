@@ -6,6 +6,7 @@
 extern crate alloc;
 mod binding;
 pub(crate) mod builder;
+pub mod date;
 pub(crate) mod diff;
 mod limits;
 pub mod look;

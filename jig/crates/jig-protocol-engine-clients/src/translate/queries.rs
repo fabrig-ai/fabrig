@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code matches optional query facts without closures")]
 //! Task queries and lines preserve the engine's keys and supplied order.
 use super::{chips, live, me, owner, w};
 use jig_domain_core::documents::{self as d, WaitsOn};
@@ -10,9 +9,9 @@ pub(super) fn query(value: w::TaskQuery) -> Option<d::TaskQuery> {
     let value = value.into_parts();
     let requester = match value.requester {
         None => None,
-        Some(w::OwnerRequester::Task(v)) => Some(t::Party::Task(v.value())),
-        Some(w::OwnerRequester::Person(v)) => Some(t::Party::Person(v.value())),
-        Some(w::OwnerRequester::Deployment(_)) => return None,
+        Some(w::Requester::Task(v)) => Some(t::Party::Task(v.value())),
+        Some(w::Requester::Person(v)) => Some(t::Party::Person(v.value())),
+        Some(w::Requester::Deployment(_)) => return None,
     };
     Some(d::TaskQuery {
         project: value.project,
@@ -117,7 +116,7 @@ pub(crate) fn lines(value: &d::Lines, limits: &w::Limits) -> Result<w::Tasks, w:
     let mut rows = List::with_capacity(value.lines.len());
     for row in &value.lines {
         let row = line(row, limits)?;
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured task line");
         rows.push(writer.finish()).expect("same line count");
     }

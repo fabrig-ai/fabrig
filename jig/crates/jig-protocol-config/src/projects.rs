@@ -608,7 +608,7 @@ fn pattern(
     let bytes = check::text(&mut object, document, b"value", path, problems);
     object.finish(document, path, problems);
     let bytes = bytes?;
-    if bytes.len() > usize::try_from(limits.segment_bytes).expect("segment bound") {
+    if bytes.len() > skein_lib::length::usize_of(limits.segment_bytes) {
         problems.push(path.member(b"value"), What::Bound);
     }
     let last = match kind?.as_ref() {

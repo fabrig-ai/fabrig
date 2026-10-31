@@ -42,7 +42,7 @@ pub(crate) fn operations(
     let mut ops = List::with_capacity(capacity);
     let mut frames = Queue::uncapped();
     let mut drops = Queue::uncapped();
-    let mut bytes = 26;
+    let mut bytes = u64::from(skein_kv::FRAME_BYTES);
     let mut deployment = None;
     let mut wires = false;
     for write in writes {
@@ -68,7 +68,7 @@ pub(crate) fn operations(
                 if crate::patching::switch::pending(store) {
                     return Err(Refusal::Failed);
                 }
-                let body = crate::transcripts::frame::encode(&turn, &store.codec).ok_or(Refusal::Failed)?;
+                let body = crate::transcripts::frame::encode(&turn, &store.codec_limits).ok_or(Refusal::Failed)?;
                 let bytes = u32::try_from(body.len()).ok().ok_or(Refusal::Failed)?;
                 let limit = store.limits.store.page.bytes;
                 if bytes > limit {
@@ -108,7 +108,7 @@ pub(crate) fn operations(
     if format_due {
         let id = deployment.expect("the first root commit saves its deployment header");
         let mut row = format::current(store.application.version, id);
-        row.levels = format::recorded(crate::patching::plan::binary(&store.patch_sets));
+        row.levels = crate::patching::plan::binary(&store.patch_sets);
         ops.push(skein_kv::Op::Put {
             key: keys::encode_own(&keys::Own::Format, store.limits.store.key).ok_or(Refusal::Failed)?,
             value: row.encode().ok().ok_or(Refusal::Failed)?,
@@ -146,7 +146,7 @@ fn operation(store: &mut Store, write: Write) -> Option<skein_kv::Op> {
         Write::CopySettingsRevision(number) => copy_settings(store, number),
         Write::Save(record) => Some(skein_kv::Op::Put {
             key: keys::encode(&record.key(), limit)?,
-            value: codec::encode(&record, &store.codec, &store.names)?,
+            value: codec::encode(&record, &store.codec_limits, &store.names)?,
         }),
         Write::Erase(key) => Some(skein_kv::Op::Erase { key: keys::encode(&key, limit)? }),
         Write::Put { key, value } => Some(skein_kv::Op::Put { key: keys::application(&key, limit)?, value }),
@@ -186,12 +186,12 @@ fn header_id(write: &Write) -> Option<[u8; 16]> {
 }
 
 fn append(ops: &mut List<skein_kv::Op>, op: skein_kv::Op, bytes: &mut u64, limit: u32) -> Option<()> {
-    let key = u64::try_from(op.key().len()).ok()?;
+    let key = u32::try_from(op.key().len()).ok()?;
     let size = match &op {
-        skein_kv::Op::Put { key: _, value } => key.checked_add(u64::try_from(value.len()).ok()?)?.checked_add(9)?,
-        skein_kv::Op::Erase { key: _ } => key.checked_add(5)?,
+        skein_kv::Op::Put { key: _, value } => skein_kv::put_bytes(key, u32::try_from(value.len()).ok()?)?,
+        skein_kv::Op::Erase { key: _ } => skein_kv::erase_bytes(key)?,
     };
-    let total = bytes.checked_add(size)?;
+    let total = bytes.checked_add(u64::from(size))?;
     if total > u64::from(limit) {
         return None;
     }

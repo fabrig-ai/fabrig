@@ -3,7 +3,7 @@ use super::{Thread, Words, later, live_turn};
 use crate::{
     Key,
     contract::{
-        Activity, ActivityLine, ActivityPage, Answer, ArchivedTurn, Outcome, OwnerOutcome, Party, PartyKind,
+        ActivityPage, Answer, ArchivedTurn, DecodedActivityLine, DocumentOutcome, Outcome, Party, PartyKind,
         ProvisionalTurnName, Read, RunState, RunText, Task, Text, Turn, TurnName, TurnProblem, TurnRead,
     },
 };
@@ -17,9 +17,7 @@ pub enum Line<'a> {
     Turn { name: TurnName, turn: &'a Turn, at: Wall },
     Undecoded { name: TurnName, why: TurnProblem, at: Wall },
     Provisional { name: ProvisionalTurnName, text: &'a [u8], cut: bool },
-    RunBegan { attempt: u64 },
-    RunEnded { attempt: u64 },
-    Activity { line: &'a ActivityLine },
+    Activity { line: &'a DecodedActivityLine },
     Left { lines: u32 },
 }
 impl Thread {
@@ -155,16 +153,8 @@ impl Thread {
             return;
         };
         let message = match answer {
-            Answer::Done(Outcome::Owner(value)) => number(value, self.task, place),
-            Answer::Done(
-                Outcome::Made { .. }
-                | Outcome::Proposed { .. }
-                | Outcome::Decided { .. }
-                | Outcome::DecidedFirst { .. }
-                | Outcome::Changed
-                | Outcome::SettingsChanged(_)
-                | Outcome::MovedToNewest(_),
-            )
+            Answer::Done(Outcome::Document(value)) => number(value, self.task, place),
+            Answer::Done(Outcome::Made { .. } | Outcome::SettingsChanged(_) | Outcome::MovedToNewest(_))
             | Answer::Refused { .. } => None,
         };
         match message {
@@ -182,31 +172,19 @@ impl Thread {
         for offset in 0..self.lines.rows.len() {
             let at = self.lines.rows.len().saturating_sub(offset).saturating_sub(1);
             let row = self.lines.rows.get(at).expect("reverse row exists");
-            let line = match &row.event {
-                Activity::Words { by, message, words } => Line::Words {
-                    by: Some(by),
-                    words: words.bytes(),
-                    state: self.words.state(*message),
-                    at: Some(row.at),
+            let line = match &row.decoded {
+                Some(ArchivedTurn { name, turn, .. }) => match turn {
+                    TurnRead::Decoded(turn) => Line::Turn { name: *name, turn, at: row.source.at },
+                    TurnRead::Undecodable { why } => Line::Undecoded { name: *name, why: *why, at: row.source.at },
                 },
-                Activity::Turn { name, turn }
-                | Activity::Owner { decoded: Some(ArchivedTurn { name, turn, .. }), .. } => match turn {
-                    TurnRead::Decoded(turn) => Line::Turn { name: *name, turn, at: row.at },
-                    TurnRead::Undecodable { why } => Line::Undecoded { name: *name, why: *why, at: row.at },
-                },
-                Activity::RunBegan { attempt, .. } => Line::RunBegan { attempt: *attempt },
-                Activity::RunEnded { attempt, .. } => Line::RunEnded { attempt: *attempt },
-                Activity::Owner { decoded: None, .. }
-                | Activity::Result { .. }
-                | Activity::News { .. }
-                | Activity::Decision { .. } => Line::Activity { line: row },
+                None => Line::Activity { line: row },
             };
             lines.push(line).expect("thread projection fits its three bounded sets");
         }
         for row in &self.words.rows {
             let mut held = false;
             for line in &self.lines.rows {
-                if let Some((message, _)) = line.event.word_message()
+                if let Some((message, _)) = line.word_message()
                     && self.words.state(message) == row.state
                 {
                     held = true;
@@ -238,54 +216,54 @@ impl Thread {
         kept
     }
 }
-fn number(value: &OwnerOutcome, task: u64, place: u32) -> Option<u64> {
+fn number(value: &DocumentOutcome, task: u64, place: u32) -> Option<u64> {
     match value {
-        OwnerOutcome::Said { task: written, message } => {
+        DocumentOutcome::Said { task: written, message } => {
             if *written == task {
                 Some(*message)
             } else {
                 None
             }
         }
-        OwnerOutcome::Compound { operations, first_message, .. } => {
+        DocumentOutcome::Compound { operations, first_message, .. } => {
             if place < *operations {
                 first_message.checked_add(u64::from(place))
             } else {
                 None
             }
         }
-        OwnerOutcome::Created { .. }
-        | OwnerOutcome::MarkedSeen { .. }
-        | OwnerOutcome::NoteEdited { .. }
-        | OwnerOutcome::ServiceMade { .. }
-        | OwnerOutcome::Adopted { .. }
-        | OwnerOutcome::Stopped { .. }
-        | OwnerOutcome::Cancelled { .. }
-        | OwnerOutcome::Lifted { .. }
-        | OwnerOutcome::Released { .. }
-        | OwnerOutcome::PersonTaken { .. }
-        | OwnerOutcome::PersonHandedBack { .. }
-        | OwnerOutcome::PersonAnswered { .. }
-        | OwnerOutcome::Moved { .. }
-        | OwnerOutcome::ProposalDecided { .. }
-        | OwnerOutcome::QuestionAnswered { .. }
-        | OwnerOutcome::Amended { .. }
-        | OwnerOutcome::Proposed { .. }
-        | OwnerOutcome::Withdrawn { .. }
-        | OwnerOutcome::RolesSet { .. }
-        | OwnerOutcome::PolicyChanged { .. }
-        | OwnerOutcome::AccountProgramDeclared { .. }
-        | OwnerOutcome::AccountKeyKept { .. }
-        | OwnerOutcome::AccountFinishing { .. }
-        | OwnerOutcome::AccountMovedIn { .. }
-        | OwnerOutcome::AccountChanged
-        | OwnerOutcome::AccountRemoved { .. }
-        | OwnerOutcome::AccountSignInStarted { .. }
-        | OwnerOutcome::AccountSignedOut { .. }
-        | OwnerOutcome::ProjectRemoved { .. }
-        | OwnerOutcome::Renamed { .. }
-        | OwnerOutcome::ProjectMade { .. }
-        | OwnerOutcome::PoolSet { .. }
-        | OwnerOutcome::EscalationDecided { .. } => None,
+        DocumentOutcome::Created { .. }
+        | DocumentOutcome::MarkedSeen { .. }
+        | DocumentOutcome::NoteEdited { .. }
+        | DocumentOutcome::ServiceMade { .. }
+        | DocumentOutcome::Adopted { .. }
+        | DocumentOutcome::Stopped { .. }
+        | DocumentOutcome::Cancelled { .. }
+        | DocumentOutcome::Lifted { .. }
+        | DocumentOutcome::Released { .. }
+        | DocumentOutcome::PersonTaken { .. }
+        | DocumentOutcome::PersonHandedBack { .. }
+        | DocumentOutcome::PersonAnswered { .. }
+        | DocumentOutcome::Moved { .. }
+        | DocumentOutcome::ProposalDecided { .. }
+        | DocumentOutcome::QuestionAnswered { .. }
+        | DocumentOutcome::Amended { .. }
+        | DocumentOutcome::Proposed { .. }
+        | DocumentOutcome::Withdrawn { .. }
+        | DocumentOutcome::RolesSet { .. }
+        | DocumentOutcome::PolicyChanged { .. }
+        | DocumentOutcome::AccountProgramDeclared { .. }
+        | DocumentOutcome::AccountKeyKept { .. }
+        | DocumentOutcome::AccountFinishing { .. }
+        | DocumentOutcome::AccountMovedIn { .. }
+        | DocumentOutcome::AccountChanged
+        | DocumentOutcome::AccountRemoved { .. }
+        | DocumentOutcome::AccountSignInStarted { .. }
+        | DocumentOutcome::AccountSignedOut { .. }
+        | DocumentOutcome::ProjectRemoved { .. }
+        | DocumentOutcome::Renamed { .. }
+        | DocumentOutcome::ProjectMade { .. }
+        | DocumentOutcome::PoolSet { .. }
+        | DocumentOutcome::EscalationDecided { .. } => None,
     }
 }

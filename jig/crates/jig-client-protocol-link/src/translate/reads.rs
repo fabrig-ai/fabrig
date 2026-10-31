@@ -9,7 +9,6 @@ use jig_client_protocol_wire::VERSION;
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::{Reader, Writer, bytes};
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub fn read(read: &c::Read, limits: &w::Limits) -> Result<w::Read, w::Problem> {
     Ok(match read {
         c::Read::Settings => w::Read::Settings,
@@ -101,7 +100,6 @@ fn inbox_group(value: c::InboxReadGroup) -> w::InboxReadGroup {
         c::InboxReadGroup::Updates => w::InboxReadGroup::Updates,
     }
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 fn inbox_kind(value: Option<c::InboxGroup>) -> Option<w::InboxGroup> {
     match value {
         Some(value) => Some(match value {
@@ -121,7 +119,7 @@ pub fn owned(value: Readable, limits: &w::Limits) -> Result<w::Owned, w::Problem
     let (owner, version, record) = match value {
         Readable::Jig(value) => {
             let value = read(&value, limits)?;
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("u32 fits usize"));
+            let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
             value.encode(&mut writer).expect("measured read");
             (w::Owner::Jig, VERSION, writer.finish())
         }
@@ -148,84 +146,55 @@ pub fn none(value: &w::ReadNone) -> c::ReadNone {
 
 /// Decodes a whole discriminated document against the original client limits.
 pub fn value(bytes: &[u8], limits: &Limits) -> Result<c::ReadValue, Undecodable> {
-    if !crate::limits::valid(limits)
-        || u64::try_from(bytes.len()).expect("usize fits u64") > limits.client.document_bytes
-    {
+    if u64::try_from(bytes.len()).expect("usize fits u64") > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let receiving = pages::receiving(limits)?;
-    let record = match w::ReadValue::decode(&receiving.wire, &mut Reader::new(bytes)) {
+    let record = match w::ReadValue::decode(limits.receiving(), &mut Reader::new(bytes)) {
         Ok(record) => record,
-        Err(problem) => return Err(documents::classify(problem)),
+        Err(problem) => return Err(super::classify(problem)),
     };
     Ok(match record {
         w::ReadValue::Settings(v) => {
-            c::ReadValue::Settings(Box::new(match super::settings::restore_settings_document(&v, &receiving) {
+            c::ReadValue::Settings(Box::new(match super::settings::restore_settings_document(&v, limits) {
                 Ok(value) => value,
-                Err(problem) => return Err(documents::classify(problem)),
+                Err(problem) => return Err(super::classify(problem)),
             }))
         }
         w::ReadValue::Setting(v) => {
-            c::ReadValue::Setting(Box::new(match super::settings::restore_setting_document(&v, &receiving) {
+            c::ReadValue::Setting(Box::new(match super::settings::restore_setting_document(&v, limits) {
                 Ok(value) => value,
-                Err(problem) => return Err(documents::classify(problem)),
+                Err(problem) => return Err(super::classify(problem)),
             }))
         }
         w::ReadValue::Revision(v) => {
-            c::ReadValue::Revision(Box::new(match super::settings::restore_revision_answer(v.value(), &receiving) {
+            c::ReadValue::Revision(Box::new(match super::settings::restore_revision_answer(v.value(), limits) {
                 Ok(value) => value,
-                Err(problem) => return Err(documents::classify(problem)),
+                Err(problem) => return Err(super::classify(problem)),
             }))
         }
         w::ReadValue::Revisions(v) => {
-            c::ReadValue::Revisions(Box::new(match super::settings::restore_revisions_page(&v, &receiving) {
+            c::ReadValue::Revisions(Box::new(match super::settings::restore_revisions_page(&v) {
                 Ok(value) => value,
-                Err(problem) => return Err(documents::classify(problem)),
+                Err(problem) => return Err(super::classify(problem)),
             }))
         }
-        w::ReadValue::OwnerProject(record) => {
-            c::ReadValue::OwnerProject(Box::new(documents::owner_project(record, limits)?))
-        }
-        w::ReadValue::Historical(record) => {
-            c::ReadValue::Historical(Box::new(objects::owner_historical(*record, limits)?))
-        }
+        w::ReadValue::Project(record) => c::ReadValue::Project(Box::new(documents::project(record, limits)?)),
+        w::ReadValue::Ended(record) => c::ReadValue::Ended(Box::new(objects::ended(*record, limits)?)),
         w::ReadValue::Tasks(record) => c::ReadValue::Tasks(Box::new(pages::task_page(record, limits)?)),
         w::ReadValue::Turn(record) => c::ReadValue::Turn(Box::new(super::turn::archive(record, limits)?)),
         w::ReadValue::Me(record) => c::ReadValue::Me(Box::new(documents::frame(record, limits)?)),
         w::ReadValue::Task(record) => c::ReadValue::Task(Box::new(documents::task(record, limits)?)),
         w::ReadValue::Proposal(record) => c::ReadValue::Proposal(Box::new(objects::proposal(record, limits)?)),
-        w::ReadValue::OwnerProposal(record) => {
-            c::ReadValue::OwnerProposal(Box::new(objects::owner_proposal(record, limits)?))
-        }
         w::ReadValue::Escalation(record) => c::ReadValue::Escalation(Box::new(objects::escalation(record, limits)?)),
-        w::ReadValue::OwnerEscalation(record) => {
-            c::ReadValue::OwnerEscalation(Box::new(objects::owner_escalation(record, limits)?))
-        }
         w::ReadValue::Question(record) => c::ReadValue::Question(Box::new(objects::question(record, limits)?)),
         w::ReadValue::PersonTask(record) => c::ReadValue::PersonTask(Box::new(objects::person_task(record, limits)?)),
-        w::ReadValue::OwnerPersonTask(record) => {
-            c::ReadValue::OwnerPersonTask(Box::new(objects::owner_person_task(record, limits)?))
-        }
         w::ReadValue::Result(record) => c::ReadValue::Result(Box::new(objects::result(record, limits)?)),
-        w::ReadValue::Ended(record) => c::ReadValue::Ended(Box::new(pages::object_page(record, limits)?)),
-        w::ReadValue::OwnerEnded(record) => {
-            c::ReadValue::OwnerEnded(Box::new(pages::owner_ended_page(record, limits)?))
-        }
+        w::ReadValue::EndedPage(record) => c::ReadValue::EndedPage(Box::new(pages::ended_page(record, limits)?)),
         w::ReadValue::History(record) => c::ReadValue::History(Box::new(pages::history_page(record, limits)?)),
         w::ReadValue::Activity(record) => c::ReadValue::Activity(Box::new(pages::activity_page(record, limits)?)),
         w::ReadValue::Inbox(record) => c::ReadValue::Inbox(Box::new(pages::inbox_page(record, limits)?)),
-        w::ReadValue::OwnerInbox(record) => {
-            c::ReadValue::OwnerInbox(Box::new(pages::owner_inbox_page(record, limits)?))
-        }
         w::ReadValue::Spend(record) => c::ReadValue::Spend(Box::new(pages::spend_page(record, limits)?)),
-        w::ReadValue::OwnerSpend(record) => {
-            c::ReadValue::OwnerSpend(Box::new(pages::owner_spend_page(record, limits)?))
-        }
-        w::ReadValue::Project(record) => c::ReadValue::Project(Box::new(objects::project(record, limits)?)),
         w::ReadValue::Notes(record) => c::ReadValue::Notes(Box::new(pages::note_page(record, limits)?)),
         w::ReadValue::Deployment(record) => c::ReadValue::Deployment(Box::new(documents::deployment(record, limits)?)),
-        w::ReadValue::OwnerDeployment(record) => {
-            c::ReadValue::OwnerDeployment(Box::new(documents::owner_deployment(record, limits)?))
-        }
     })
 }

@@ -125,7 +125,7 @@ const PHASES: &[(Phase, &[u8])] = &[
     (Phase::Claimed, b"Claimed by a host"),
     (Phase::Running, b"Running"),
     (Phase::BackingOff, b"Retrying"),
-    (Phase::Active, b"Executor active"),
+    (Phase::Active, b"ChipExecutor active"),
     (Phase::Closing, b"Closing"),
     (Phase::Held, b"Held"),
     (Phase::Ended, b"Ended"),

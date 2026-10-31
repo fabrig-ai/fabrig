@@ -15,8 +15,8 @@ pub enum Unread {
     Record,
 }
 #[must_use]
-pub fn encode(turn: &core::TurnRecord, limits: &codec::Limits) -> Option<Box<[u8]>> {
-    let body = codec::core::turn(turn, &codec::core_limits(limits)).ok()?;
+pub fn encode(turn: &core::TurnRecord, limits: &codec::View) -> Option<Box<[u8]>> {
+    let body = codec::core::turn(turn, limits).ok()?;
     let length = u32::try_from(body.len()).ok()?.checked_add(WRAPPER_BYTES)?;
     let mut writer = Writer::new(usize::try_from(length).ok()?);
     writer.put(&length.to_be_bytes()).ok()?;
@@ -26,9 +26,9 @@ pub fn encode(turn: &core::TurnRecord, limits: &codec::Limits) -> Option<Box<[u8
     Some(writer.finish())
 }
 /// Decode exactly one whole frame, refusing trailing bytes as well.
-pub fn decode(bytes: &[u8], limits: &codec::Limits) -> Result<core::TurnRecord, Unread> {
+pub fn decode(bytes: &[u8], limits: &codec::View) -> Result<core::TurnRecord, Unread> {
     let body = body(bytes)?;
-    match codec::core::read_turn(body, &codec::core_limits(limits)) {
+    match codec::core::read_turn(body, limits) {
         Ok(turn) => Ok(turn),
         Err(_) => Err(Unread::Record),
     }
@@ -91,7 +91,7 @@ const TABLE: [u32; 256] = [
 pub fn crc32c(bytes: &[u8]) -> u32 {
     let mut crc = !0_u32;
     for byte in bytes {
-        let index = usize::try_from((crc ^ u32::from(*byte)) & 0xff).expect("one byte fits usize");
+        let index = skein_lib::length::usize_of((crc ^ u32::from(*byte)) & 0xff);
         crc = (crc >> 8_u32) ^ *TABLE.get(index).expect("one table entry per byte");
     }
     !crc

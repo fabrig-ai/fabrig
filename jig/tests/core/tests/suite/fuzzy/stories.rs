@@ -1,4 +1,6 @@
-use jig_core_world::{effects::World, faults::plan_fixture};
+use jig_core_world::faults::plan_fixture;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
@@ -38,7 +40,7 @@ fn random_pool_sizes_shrink_and_grow_while_finishes_wait_for_their_commits() {
         let replay = std::panic::catch_unwind(|| {
             let mut rng = Rng::new(seed);
             let (config, limits) = plan_fixture(seed);
-            let mut world = World::configured(seed, false, config, limits);
+            let mut world = World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() });
             world.configure_holds(
                 1,
                 Box::new([tasks::Kind {
@@ -93,16 +95,16 @@ fn random_pool_sizes_shrink_and_grow_while_finishes_wait_for_their_commits() {
                 };
                 children.push(numbers[0].task);
             }
-            assert_eq!(world.assignments.len(), 1 + usize::try_from(initial).expect("small pool"));
+            assert_eq!(world.assignments.len(), 1 + skein_lib::length::usize_of(initial));
             pool(&mut world, 0);
-            for child in children.iter().take(usize::try_from(initial).expect("small pool")) {
+            for child in children.iter().take(skein_lib::length::usize_of(initial)) {
                 world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
                 finish(&mut world, *child);
-                assert_eq!(world.assignments.len(), 1 + usize::try_from(initial).expect("small pool"));
+                assert_eq!(world.assignments.len(), 1 + skein_lib::length::usize_of(initial));
                 world.release_commits();
             }
             pool(&mut world, 1);
-            for child in children.iter().skip(usize::try_from(initial).expect("small pool")) {
+            for child in children.iter().skip(skein_lib::length::usize_of(initial)) {
                 finish(&mut world, *child);
             }
             finish(&mut world, parent.0);
@@ -120,7 +122,7 @@ fn random_period_budgets_reset_before_a_standing_template_creates_its_next_batch
         let replay = std::panic::catch_unwind(|| {
             let mut rng = Rng::new(seed);
             let (config, limits) = plan_fixture(seed);
-            let mut world = World::configured(seed, false, config, limits);
+            let mut world = World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() });
             world.end(tasks::End::Parked, 0);
             let mut authority = world.assigned.as_ref().expect("chat").run.authority.clone();
             authority.budget.spend = 30;
@@ -190,12 +192,13 @@ fn random_period_budgets_reset_before_a_standing_template_creates_its_next_batch
 
 fn narrowed_policy_case(seed: u64) {
     let mut rng = Rng::new(seed);
-    let (config, mut limits) = jig_core_world::effects::fixture(seed, true);
+    let (config, mut limits) = jig_core_world::world::fixture(seed, true);
     limits.core.call_records = 8;
     limits.core.people.amendment_bytes = 256;
     limits.core.people.inbox_recipients = 16;
     jig_core_world::peers::journal(&mut limits);
-    let mut world = World::configured(seed, true, config, limits);
+    let mut world =
+        World::new(Setup { seed, requirement: true, configuration: Some(config), limits, ..Setup::default() });
     world.call(1, 9200);
     world.observed(13);
     world.hold_writes = true;
@@ -250,12 +253,12 @@ fn random_policy_changes_leave_a_committed_flight_whole_and_recheck_waiting_prop
 
 #[test]
 fn each_commit_cut_of_an_agents_tool_story_answers_its_call_once() {
-    use jig_core_world::effects::Cut;
+    use jig_core_world::world::Cut;
     for story in jig_core_world::agents_tools::STORIES {
-        let commits = (story.run)(&mut World::new(190, false), None);
+        let commits = (story.run)(&mut World::new(Setup { seed: 190, ..Setup::default() }), None);
         for at in 1..=commits {
             for cut in [Cut::Submitted(at), Cut::Durable(at)] {
-                let mut world = World::new(190, false);
+                let mut world = World::new(Setup { seed: 190, ..Setup::default() });
                 (story.run)(&mut world, Some(cut));
                 assert_eq!(world.reached_cut, Some(cut), "{} reaches its cut", story.name);
             }

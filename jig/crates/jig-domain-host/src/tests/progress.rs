@@ -8,15 +8,15 @@ fn slot_wait_and_resumption_emit_bounded_observations_without_duplicate_transiti
     while h.domain.pop_fact().is_some() {}
     let run = Token::new(1);
     let attempt = Token::new(1001);
-    h.step(Event::Yielded { owner });
+    h.step(Event::Agent(crate::FromAgent::Yielded { owner }));
     assert_eq!(h.domain.pop_fact(), Some(crate::Fact::Waiting { run, attempt }));
-    h.step(Event::Yielded { owner });
+    h.step(Event::Agent(crate::FromAgent::Yielded { owner }));
     assert_eq!(h.domain.pop_fact(), None);
     h.step(fixtures::inbound(run, attempt, Token::new(42), Box::from(&b"words"[..])));
     assert_eq!(h.domain.pop_fact(), Some(crate::Fact::Resumed { run, attempt }));
     h.step(fixtures::inbound(run, attempt, Token::new(43), Box::from(&b"more"[..])));
     assert_eq!(h.domain.pop_fact(), None);
-    h.step(Event::Yielded { owner });
+    h.step(Event::Agent(crate::FromAgent::Yielded { owner }));
     assert_eq!(h.domain.pop_fact(), Some(crate::Fact::Waiting { run, attempt }));
     h.step(fixtures::called(owner, Token::new(44), fixtures::deliver(Box::from(&b"work"[..]))));
     assert_eq!(h.domain.pop_fact(), Some(crate::Fact::Resumed { run, attempt }));

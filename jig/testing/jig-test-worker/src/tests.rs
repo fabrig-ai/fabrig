@@ -99,7 +99,7 @@ fn a_channel_fact_reaches_the_hub_as_activity() {
     assert_eq!(worker.out.pop(), Some(Request::Fact { owner: fixtures::AGENT, body: Box::from(&b"a fact"[..]) }));
     worker.clear();
     let activity =
-        host::Activity::Count { kind: host::CountKind::TextArrived, elapsed: skein_lib::Duration::ZERO, count: 1 };
+        host::AgentActivity::Count { kind: host::CountKind::TextArrived, elapsed: skein_lib::Duration::ZERO, count: 1 };
     worker.step(Event::Activity { owner: fixtures::AGENT, activity: Some(activity) });
     assert_eq!(
         worker.out.pop(),

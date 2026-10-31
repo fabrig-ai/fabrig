@@ -25,14 +25,14 @@ impl Frames {
             return HEADER - self.bytes.len();
         }
         let head = skein_channel::parse_header(&self.bytes[..HEADER]).expect("frame header");
-        HEADER + usize::try_from(head.body_len).expect("frame size") - self.bytes.len()
+        HEADER + skein_lib::length::usize_of(head.body_len) - self.bytes.len()
     }
     fn feed(&mut self, bytes: &[u8]) -> Vec<u16> {
         self.bytes.extend_from_slice(bytes);
         let mut kinds = Vec::new();
         while self.bytes.len() >= HEADER {
             let head = skein_channel::parse_header(&self.bytes[..HEADER]).expect("framed fixture stream");
-            let end = HEADER + usize::try_from(head.body_len).expect("frame size");
+            let end = HEADER + skein_lib::length::usize_of(head.body_len);
             if self.bytes.len() < end {
                 break;
             }
@@ -114,7 +114,7 @@ impl Probe {
                 && Some(*fd) == self.pipe_fd
                 && let Ok(Done::Count(count)) = complete.result
             {
-                let count = shape(&self.pipe, &mut self.pipe_pending, buf, usize::try_from(count).expect("pipe bytes"));
+                let count = shape(&self.pipe, &mut self.pipe_pending, buf, skein_lib::length::usize_of(count));
                 complete.result = Ok(Done::Count(u32::try_from(count).expect("pipe count")));
                 let kinds = self.pipe.feed(&buf[..count]);
                 if !self.inserted && kinds.contains(&PROCESS_CALL) {
@@ -127,7 +127,7 @@ impl Probe {
                 && Some(*fd) == self.channel
                 && let Ok(Done::Count(count)) = complete.result
             {
-                let count = usize::try_from(count).expect("receive bytes");
+                let count = skein_lib::length::usize_of(count);
                 if self.calls && self.held_call.is_some() && !self.dummy_inserted && self.native.bytes.is_empty() {
                     self.dummy_inserted = true;
                     prepend(&mut self.pending, extra_assignment(wire), &buf[..count]);
@@ -148,8 +148,7 @@ impl Probe {
                     complete.result = Ok(Done::Count(u32::try_from(take).expect("receive count")));
                 }
                 let Ok(Done::Count(delivered)) = complete.result else { unreachable!("count retained") };
-                let delivered =
-                    shape(&self.native, &mut self.pending, buf, usize::try_from(delivered).expect("delivered bytes"));
+                let delivered = shape(&self.native, &mut self.pending, buf, skein_lib::length::usize_of(delivered));
                 complete.result = Ok(Done::Count(u32::try_from(delivered).expect("receive count")));
                 for kind in self.native.feed(&buf[..delivered]) {
                     if self.calls
@@ -240,7 +239,7 @@ fn marker() -> Vec<u8> {
     )
     .expect("marker");
     let mut frame = skein_channel::frame_writer(wire::Kind::TurnKept.number(), kept.measure()).expect("marker frame");
-    let mut body = Writer::new(usize::try_from(kept.measure()).expect("marker size"));
+    let mut body = Writer::new(skein_lib::length::usize_of(kept.measure()));
     kept.encode(&mut body).expect("marker body");
     frame.put(&body.finish()).expect("marker frame body");
     frame.finish().expect("marker frame size").bytes().to_vec()
@@ -258,7 +257,7 @@ fn prefix() -> Vec<u8> {
         },
     )
     .expect("new message");
-    let mut body = Writer::new(usize::try_from(inbound.measure()).expect("message size"));
+    let mut body = Writer::new(skein_lib::length::usize_of(inbound.measure()));
     inbound.encode(&mut body).expect("message body");
     let mut frame =
         skein_channel::frame_writer(wire::Kind::Message.number(), inbound.measure()).expect("message frame");
@@ -282,7 +281,7 @@ fn extra_assignment(wire: &Wire) -> Vec<u8> {
     parts.task = OTHER_RUN;
     parts.attempt = OTHER_ATTEMPT;
     let assignment = wire::Assignment::new(&wire::CEILINGS, parts).expect("extra assignment");
-    let mut body = Writer::new(usize::try_from(assignment.measure()).expect("assignment size"));
+    let mut body = Writer::new(skein_lib::length::usize_of(assignment.measure()));
     assignment.encode(&mut body).expect("assignment body");
     let mut frame =
         skein_channel::frame_writer(wire::Kind::Assignment.number(), assignment.measure()).expect("assignment frame");

@@ -3,6 +3,7 @@
 use alloc::boxed::Box;
 
 use crate::bytes;
+use crate::length::usize_of;
 
 use super::{Read, Up};
 
@@ -40,15 +41,15 @@ impl Held {
         let met = match read {
             Read::Nothing => return None,
             Read::Fill(n) => {
-                let n = index(n);
+                let n = usize_of(n);
                 if n <= rest.len() { Some(n) } else { None }
             }
             Read::Arrived { max } => {
                 assert!(max > 0, "a read of what has arrived has a positive maximum");
-                if rest.is_empty() { None } else { Some(rest.len().min(index(max))) }
+                if rest.is_empty() { None } else { Some(rest.len().min(usize_of(max))) }
             }
             Read::Scan { until, max } => {
-                let max = index(max);
+                let max = usize_of(max);
                 let window = rest.get(..max.min(rest.len())).expect("within the rest");
                 match bytes::find(window, until.as_bytes()) {
                     Some(at) => Some(at.saturating_add(until.as_bytes().len())),
@@ -57,7 +58,7 @@ impl Held {
                 }
             }
             Read::Line { max } => {
-                let max = index(max);
+                let max = usize_of(max);
                 let window = rest.get(..max.min(rest.len())).expect("within the rest");
                 match bytes::line_end(window) {
                     Some(at) => Some(at.saturating_add(1)),
@@ -74,8 +75,4 @@ impl Held {
         self.at = self.at.saturating_add(n);
         Some(Up::Bytes(taken))
     }
-}
-
-fn index(n: u32) -> usize {
-    usize::try_from(n).expect("a u32 fits a usize")
 }

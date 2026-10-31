@@ -9,11 +9,15 @@ pub fn text(bytes: &[u8]) -> Text {
 pub fn cursor(bytes: &[u8]) -> Cursor {
     Cursor::new(Box::from(bytes), 1024).expect("bounded opaque cursor")
 }
-pub fn row(position: u64) -> ActivityLine {
-    ActivityLine {
-        position,
-        at: Wall::EPOCH,
-        event: Activity::RunBegan { attempt: 1, how: RunBeginning::Fresh { tail: 3 }, why: text(b"fresh") },
+pub fn row(position: u64) -> DecodedActivityLine {
+    DecodedActivityLine {
+        source: Box::new(ActivityLine {
+            task: 7,
+            position,
+            at: Wall::EPOCH,
+            line: Activity::RunBegan { attempt: 1, why: RunWhy::Made, resumed: false },
+        }),
+        decoded: None,
     }
 }
 pub fn page(positions: &[u64], older: Option<&[u8]>, newer: Option<&[u8]>) -> ActivityPage {
@@ -43,7 +47,7 @@ pub fn page(positions: &[u64], older: Option<&[u8]>, newer: Option<&[u8]>) -> Ac
 pub fn positions(c: &Thread) -> Box<[u64]> {
     let mut positions = List::with_capacity(c.lines.rows.capacity());
     for row in &c.lines.rows {
-        positions.push(row.position).unwrap();
+        positions.push(row.source.position).unwrap();
     }
     positions.into_boxed()
 }

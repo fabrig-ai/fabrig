@@ -29,25 +29,25 @@ fn list<T, I: IntoIterator<Item = T>>(values: I) -> List<T> {
 fn words(text: &str) -> c::Text {
     c::Text::new(text.as_bytes().into(), 1_048_576).expect("fixture text")
 }
-fn authority() -> c::OwnerAuthority {
-    c::OwnerAuthority {
+fn authority() -> c::Authority {
+    c::Authority {
         models: Some(c::AuthorityModels::Named(list([b"model".as_slice().into()]))),
         tools: 3,
-        grants: list([c::OwnerGrant {
+        grants: list([c::Grant {
             connector: 1,
             kind: 2,
-            pattern: c::OwnerPattern {
+            pattern: c::Pattern {
                 segments: list([b"a/b".as_slice().into(), b"\xff".as_slice().into()]),
-                last: c::OwnerPatternEnd::Open(b"last".as_slice().into()),
+                last: c::PatternEnd::Open(b"last".as_slice().into()),
             },
         }]),
-        delegation: c::OwnerDelegation { kinds: list([c::OwnerAuthorityExecutor::Charter(3)]), tasks: 4, depth: 5 },
+        delegation: c::Delegation { kinds: list([c::AuthorityExecutor::Charter(3)]), tasks: 4, depth: 5 },
         spend: 600,
         deadline: Some(Wall::from_nanos(700)),
         notes: 1,
-        note_resources: list([c::OwnerResourceScope {
+        note_resources: list([c::ResourceScope {
             connector: 1,
-            pattern: c::OwnerPattern { segments: list([]), last: c::OwnerPatternEnd::Exact(b"end".as_slice().into()) },
+            pattern: c::Pattern { segments: list([]), last: c::PatternEnd::Exact(b"end".as_slice().into()) },
         }]),
     }
 }
@@ -150,7 +150,7 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
                 period_spend: 3000,
                 minimum_run_spend: 10,
                 maximum_run_spend: 1000,
-                implies: list([c::OwnerKindImplication { connector: 1, kind: 2, implies: 3 }]),
+                implies: list([c::KindImplication { connector: 1, kind: 2, implies: 3 }]),
                 requirements: list([]),
             })),
         ),
@@ -437,11 +437,11 @@ fn settings_values_refuse_each_nonempty_byte_and_list_bound_on_both_sides() {
         (2, "setting_policy_roles", 1),
         (2, "setting_policy_permissions", 1),
         (2, "setting_policy_templates", 1),
-        (2, "owner_authority_grants", grant_bytes),
-        (2, "owner_delegation_kinds", 1),
-        (2, "owner_pattern_segments", 2),
-        (2, "owner_pattern_segments_item", 3),
-        (2, "owner_pattern_end_open_value", 4),
+        (2, "authority_grants", grant_bytes),
+        (2, "delegation_kinds", 1),
+        (2, "pattern_segments", 2),
+        (2, "pattern_segments_item", 3),
+        (2, "pattern_end_open_value", 4),
         (2, "model_set_names_names", 1),
         (2, "model_set_names_names_item", 5),
         (3, "rules_implies", 1),
@@ -465,11 +465,11 @@ fn settings_values_refuse_each_nonempty_byte_and_list_bound_on_both_sides() {
                 "setting_policy_roles" => wire.setting_policy_roles = bound,
                 "setting_policy_permissions" => wire.setting_policy_permissions = bound,
                 "setting_policy_templates" => wire.setting_policy_templates = bound,
-                "owner_authority_grants" => wire.owner_authority_grants = bound,
-                "owner_delegation_kinds" => wire.owner_delegation_kinds = bound,
-                "owner_pattern_segments" => wire.owner_pattern_segments = bound,
-                "owner_pattern_segments_item" => wire.owner_pattern_segments_item = bound,
-                "owner_pattern_end_open_value" => wire.owner_pattern_end_open_value = bound,
+                "authority_grants" => wire.authority_grants = bound,
+                "delegation_kinds" => wire.delegation_kinds = bound,
+                "pattern_segments" => wire.pattern_segments = bound,
+                "pattern_segments_item" => wire.pattern_segments_item = bound,
+                "pattern_end_open_value" => wire.pattern_end_open_value = bound,
                 "model_set_names_names" => wire.model_set_names_names = bound,
                 "model_set_names_names_item" => wire.model_set_names_names_item = bound,
                 "rules_implies" => wire.rules_implies = bound,
@@ -609,9 +609,9 @@ fn requirement() -> c::PolicyRequirement {
     c::PolicyRequirement {
         connector: 1,
         kind: 2,
-        pattern: c::OwnerPattern {
+        pattern: c::Pattern {
             segments: list([b"one".as_slice().into()]),
-            last: c::OwnerPatternEnd::Exact(b"two".as_slice().into()),
+            last: c::PatternEnd::Exact(b"two".as_slice().into()),
         },
         judge: c::PolicyJudge { connector: 1, requirement: 2, parameters: 3 },
         guard: c::PolicyGuard::Observed { freshness: Duration::from_secs(1) },
@@ -641,8 +641,8 @@ fn remaining_nested_collections_and_bytes_obey_jigs_bounds() {
         jig_client_protocol_link::translate::settings::wire_setting_policy(policy, &crate::limits::tools().settings)
             .expect("wire policy");
     let resource_bytes = u32::try_from(wire.ceiling().note_resources().len()).expect("resource bytes");
-    boundary!(setting, value.clone(), owner_authority_note_resources, resource_bytes);
-    boundary!(setting, value.clone(), owner_pattern_end_exact_value, 3);
+    boundary!(setting, value.clone(), authority_note_resources, resource_bytes);
+    boundary!(setting, value.clone(), pattern_end_exact_value, 3);
     let c::SettingValue::Policy(mut policy) = value else { panic!("policy") };
     policy.requirements = list([requirement()]);
     boundary!(setting, c::SettingValue::Policy(policy), setting_policy_requirements, 1);
@@ -655,15 +655,15 @@ fn remaining_nested_collections_and_bytes_obey_jigs_bounds() {
     let c::SettingValue::Template(mut template) = value else { panic!("template") };
     template.contract = c::TaskContractDocument::Approval {
         state: b"yes".as_slice().into(),
-        part: c::OwnerPart {
+        part: c::Part {
             connector: 1,
-            kind: c::OwnerPartKind::Resource,
-            key: c::OwnerPartKey::Path(list([b"path".as_slice().into()])),
+            kind: c::PartKind::Resource,
+            key: c::PartKey::Path(list([b"path".as_slice().into()])),
         },
     };
     boundary!(setting, c::SettingValue::Template(template.clone()), task_contract_document_approval_state, 3);
-    boundary!(setting, c::SettingValue::Template(template.clone()), owner_part_key_path_value, 1);
-    boundary!(setting, c::SettingValue::Template(template.clone()), owner_part_key_path_value_item, 4);
+    boundary!(setting, c::SettingValue::Template(template.clone()), part_key_path_value, 1);
+    boundary!(setting, c::SettingValue::Template(template.clone()), part_key_path_value_item, 4);
     template.contract = c::TaskContractDocument::Verdict {
         choices: list([c::VerdictChoice {
             code: 1,
@@ -818,7 +818,7 @@ fn propose_settings_uses_the_same_whole_items_and_names_its_durable_proposal() {
             assert_eq!(*project, 0);
             assert_eq!(s.against, 5);
             assert_eq!(s.items, settings_file::decode(&file, &crate::limits::tools()).expect("same decoder"));
-            root.done(number, c::Outcome::Owner(c::OwnerOutcome::Proposed { proposal: 7, to: 0 }));
+            root.done(number, c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: 7, to: 0 }));
             let answer = root.answer(number).expect("durable proposal");
             assert_eq!(answer.status, 0);
             golden(if json { "settings_proposed_json" } else { "settings_proposed" }, &answer.stdout);
@@ -829,17 +829,17 @@ fn propose_settings_uses_the_same_whole_items_and_names_its_durable_proposal() {
     assert_eq!(root.answer(number).expect("local refusal").status, 1);
 }
 fn review_proposal(review: Option<c::SettingsReview>) -> c::ReadValue {
-    let c::ReadValue::OwnerProposal(mut p) = fixtures::proposal(c::Proposer::Party(73), &[c::ActKind::Accept]) else {
+    let c::ReadValue::Proposal(mut p) = fixtures::proposal(c::Proposer::Party(73), &[c::ActKind::Accept]) else {
         panic!("owner proposal")
     };
     p.key.number = 7;
-    p.action = c::OwnerProposalAction::Settings(Box::new(c::OwnerProposalActionSettings {
+    p.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
         against: 5,
         items: list([c::RevisionItemHead { setting: c::Setting::Rules, edit: c::RevisionItemEdit::Reset }]),
         review,
         made: None,
     }));
-    c::ReadValue::OwnerProposal(p)
+    c::ReadValue::Proposal(p)
 }
 #[test]
 fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
@@ -965,10 +965,10 @@ fn decide_sends_only_the_given_running_choice_and_leaves_malformed_to_the_engine
 #[test]
 fn a_withdrawn_settings_proposal_is_read_as_its_retained_state() {
     let key = c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 };
-    let history = c::ReadValue::Historical(Box::new(c::OwnerHistorical {
+    let history = c::ReadValue::Ended(Box::new(c::Ended {
         key: c::ObjectKey::Proposal(key),
-        value: c::OwnerHistoricalValue::Proposal(c::OwnerProposalHistory {
-            action: c::OwnerRetainedAction::Settings(c::OwnerRetainedActionSettings {
+        value: c::EndedValue::Proposal(c::ProposalHistory {
+            action: c::RetainedAction::Settings(c::RetainedActionSettings {
                 against: 5,
                 items: list([c::RevisionItemHead { setting: c::Setting::Rules, edit: c::RevisionItemEdit::Reset }]),
                 made: None,
@@ -976,7 +976,7 @@ fn a_withdrawn_settings_proposal_is_read_as_its_retained_state() {
             number: key.number,
             proposer: 73,
             as_holder: false,
-            state: c::OwnerProposalHistoryState::Withdrawn,
+            state: c::ProposalHistoryState::Withdrawn,
         }),
         at: None,
         by: None,
@@ -1000,25 +1000,25 @@ fn propose_settings_forwards_optional_reason_and_prints_the_original_returned_ro
     let c::Ask::Propose { project, reason, .. } = fixtures::act_ask(&root, number) else { panic!("actual proposal") };
     assert_eq!(*project, 0);
     assert_eq!(reason.bytes(), b"Please review");
-    root.done(number, c::Outcome::Owner(c::OwnerOutcome::Proposed { proposal: 7, to: 9 }));
+    root.done(number, c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: 7, to: 9 }));
     let printed = root.answer(number).expect("actual owner result");
     let json = core::str::from_utf8(&printed.stdout).expect("JSON");
     assert!(json.contains("\"to\":{\"role\":{\"project\":0,\"role\":9}}"));
-    assert!(json.contains("\"proposer\":{\"party\":73}"));
+    assert!(json.contains("\"proposed\":{\"proposal\":7,\"to\":9}"));
 }
 
-fn retained_proposal(key: c::ProposalKey, action: c::OwnerRetainedAction) -> c::ReadValue {
+fn retained_proposal(key: c::ProposalKey, action: c::RetainedAction) -> c::ReadValue {
     let proposer = match key.proposer {
         c::Proposer::Task(n) | c::Proposer::Party(n) => n,
     };
-    c::ReadValue::Historical(Box::new(c::OwnerHistorical {
+    c::ReadValue::Ended(Box::new(c::Ended {
         key: c::ObjectKey::Proposal(key),
-        value: c::OwnerHistoricalValue::Proposal(c::OwnerProposalHistory {
+        value: c::EndedValue::Proposal(c::ProposalHistory {
             action,
             number: key.number,
             proposer,
             as_holder: false,
-            state: c::OwnerProposalHistoryState::Accepted { by: c::OwnerRequester::Person(19) },
+            state: c::ProposalHistoryState::Accepted { by: c::Requester::Person(19) },
         }),
         at: None,
         by: None,
@@ -1027,7 +1027,7 @@ fn retained_proposal(key: c::ProposalKey, action: c::OwnerRetainedAction) -> c::
 #[test]
 fn retained_task_release_keeps_its_typed_identity_kind_and_decision_in_text_and_json() {
     let key = c::ProposalKey { proposer: c::Proposer::Task(73), number: 7 };
-    let history = retained_proposal(key, c::OwnerRetainedAction::Release { task: 41 });
+    let history = retained_proposal(key, c::RetainedAction::Release { task: 41 });
     let text = read(&["proposal", "show", "t73/7"], history.clone());
     assert_eq!(text.status, 0);
     assert_eq!(text.stdout.as_ref(), b"proposal t73/7 \xc2\xb7 release \xc2\xb7 accepted\n");
@@ -1044,11 +1044,7 @@ fn retained_settings_preserves_task_or_party_keys_and_its_revision_details() {
         let key = c::ProposalKey { proposer, number: 7 };
         let history = retained_proposal(
             key,
-            c::OwnerRetainedAction::Settings(c::OwnerRetainedActionSettings {
-                against: 5,
-                items: list([]),
-                made: Some(6),
-            }),
+            c::RetainedAction::Settings(c::RetainedActionSettings { against: 5, items: list([]), made: Some(6) }),
         );
         for json in [false, true] {
             let argv = if json { vec!["proposal", "show", name, "--json"] } else { vec!["proposal", "show", name] };
@@ -1073,8 +1069,8 @@ fn retained_settings_preserves_task_or_party_keys_and_its_revision_details() {
 #[test]
 fn retained_proposals_refuse_mismatched_inner_outer_and_requested_identity() {
     let key = c::ProposalKey { proposer: c::Proposer::Task(73), number: 7 };
-    let good = retained_proposal(key, c::OwnerRetainedAction::Release { task: 41 });
-    let c::ReadValue::Historical(original) = good else { panic!("historical") };
+    let good = retained_proposal(key, c::RetainedAction::Release { task: 41 });
+    let c::ReadValue::Ended(original) = good else { panic!("ended") };
     for (name, key, proposer, number) in [
         ("t73/7", c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 }, 73, 7),
         ("t73/7", key, 74, 7),
@@ -1083,28 +1079,28 @@ fn retained_proposals_refuse_mismatched_inner_outer_and_requested_identity() {
     ] {
         let mut broken = original.clone();
         broken.key = c::ObjectKey::Proposal(key);
-        let c::OwnerHistoricalValue::Proposal(h) = &mut broken.value else { panic!("history") };
+        let c::EndedValue::Proposal(h) = &mut broken.value else { panic!("history") };
         h.proposer = proposer;
         h.number = number;
         for json in [false, true] {
             let argv = if json { vec!["proposal", "show", name, "--json"] } else { vec!["proposal", "show", name] };
-            assert_eq!(read(&argv, c::ReadValue::Historical(broken.clone())).status, 1);
+            assert_eq!(read(&argv, c::ReadValue::Ended(broken.clone())).status, 1);
         }
     }
 }
 fn retained_party_batch() -> c::ReadValue {
     let (_, _, task) = fixtures::task_read();
-    c::ReadValue::Historical(Box::new(c::OwnerHistorical {
+    c::ReadValue::Ended(Box::new(c::Ended {
         key: c::ObjectKey::Proposal(c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 }),
-        value: c::OwnerHistoricalValue::PersonProposal {
-            proposal: Box::new(c::OwnerPersonProposal {
+        value: c::EndedValue::PersonProposal {
+            proposal: Box::new(c::PersonProposal {
                 number: 7,
                 proposer: 73,
                 project: 0,
-                goal: c::OwnerPersonProposalGoal {
+                goal: c::PersonProposalGoal {
                     number: 41,
                     project: 0,
-                    executor: c::OwnerExecutor::Agent { charter: 3 },
+                    executor: c::Executor::Agent { charter: 3 },
                     spec: c::Specification {
                         asks: false,
                         words: words("goal"),
@@ -1113,14 +1109,14 @@ fn retained_party_batch() -> c::ReadValue {
                     },
                     contract: c::TaskContractDocument::Report { words: 1024 },
                     authority: authority(),
-                    numbers: c::OwnerNumbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
+                    numbers: c::Numbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
                     funder: c::Funder::Task(41),
                     dependencies: list([]),
                     holdings: list([]),
                     wake: task.wake,
                     tracked: None,
                 },
-                state: c::OwnerPersonProposalState::Pending { since: Wall::from_nanos(17) },
+                state: c::PersonProposalState::Pending { since: Wall::from_nanos(17) },
             }),
             decision: None,
         },
@@ -1303,10 +1299,10 @@ fn settings_acceptance_defaults_to_stays_and_preserves_other_decisions() {
                 argv.extend(extra);
                 let call = root.submit_prepared(fixtures::call(&argv), json, None);
                 let mut document = review_proposal(None);
-                let c::ReadValue::OwnerProposal(proposal) = &mut document else { unreachable!() };
+                let c::ReadValue::Proposal(proposal) = &mut document else { unreachable!() };
                 proposal.acts = fixtures::offered(&[c::ActKind::Accept, c::ActKind::Reject, c::ActKind::PassUp]).acts;
                 if !settings {
-                    proposal.action = c::OwnerProposalAction::Batch(list([]));
+                    proposal.action = c::ProposalAction::Batch(list([]));
                 }
                 root.serve(call, c::ReadResult::Value(document));
                 let c::Ask::Decide { on: c::DecideOn::Proposal { running, .. }, .. } = fixtures::act_ask(&root, call)
@@ -1314,7 +1310,7 @@ fn settings_acceptance_defaults_to_stays_and_preserves_other_decisions() {
                     panic!("proposal decision")
                 };
                 assert_eq!(*running, expected, "settings {settings}, {argv:?}, json {json}");
-                root.done(call, c::Outcome::Changed);
+                root.done(call, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
                 assert_eq!(root.answer(call).expect("decision answered").status, 0);
             }
         }
@@ -1336,17 +1332,17 @@ fn repeated_settings_decisions_send_the_given_key_and_print_the_engine_answer() 
                 let call = root.submit_prepared(fixtures::call(&argv), json, None);
                 let mut history = retained_proposal(
                     proposal,
-                    c::OwnerRetainedAction::Settings(c::OwnerRetainedActionSettings {
+                    c::RetainedAction::Settings(c::RetainedActionSettings {
                         against: 5,
                         items: list([]),
                         made: if accepted { Some(6) } else { None },
                     }),
                 );
                 if !accepted {
-                    let c::ReadValue::Historical(history) = &mut history else { unreachable!() };
-                    let c::OwnerHistoricalValue::Proposal(proposal) = &mut history.value else { unreachable!() };
-                    proposal.state = c::OwnerProposalHistoryState::Rejected {
-                        by: c::OwnerRequester::Person(19),
+                    let c::ReadValue::Ended(history) = &mut history else { unreachable!() };
+                    let c::EndedValue::Proposal(proposal) = &mut history.value else { unreachable!() };
+                    proposal.state = c::ProposalHistoryState::Rejected {
+                        by: c::Requester::Person(19),
                         reason: c::DocumentText::complete(words("first reason")),
                     };
                 }
@@ -1361,15 +1357,11 @@ fn repeated_settings_decisions_send_the_given_key_and_print_the_engine_answer() 
                 assert_eq!(*running, if accept { Some(c::Running::Stays) } else { None });
                 root.done(
                     call,
-                    c::Outcome::Owner(c::OwnerOutcome::ProposalDecided {
+                    c::Outcome::Document(c::DocumentOutcome::ProposalDecided {
                         proposal,
                         by: 19,
                         at: fixtures::DECIDED_AT,
-                        choice: if accepted {
-                            c::OwnerProposalChoice::Accepted
-                        } else {
-                            c::OwnerProposalChoice::Rejected
-                        },
+                        choice: if accepted { c::ProposalChoice::Accepted } else { c::ProposalChoice::Rejected },
                         repeated: key != "first",
                     }),
                 );

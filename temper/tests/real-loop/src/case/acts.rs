@@ -18,7 +18,7 @@ pub enum Read {
     BStillHeld,
     ImplementerEnded,
     H1Ended,
-    OwnerEnded,
+    Ended,
     PauseEnded,
     DirectorEnded,
     AEnded,
@@ -237,7 +237,7 @@ pub fn step_4_1() -> Vec<calls::Step> {
         // Keep these watches live: a fresh wait on an ended delegate exits
         // unknown. jig's crates/jig-domain-core/src/routing/views.rs:304 maps
         // documents/small.rs:23-28's missing/ended live row to that refusal.
-        // 2071ea76 fixes historical reads only; it cannot admit these watches.
+        // 2071ea76 fixes ended reads only; it cannot admit these watches.
         start(D1, argv!["task", "show", number(DIRECTOR), "--until", "ended", "--json"]),
         call(D1, argv!["task", "show", number(DIRECTOR), "--until", "replied"]),
         call(D1, argv!["task", "show", number(A), "--until", "replied"]),
@@ -303,7 +303,7 @@ fn held(key: &'static str, act: Option<calls::Step>) -> Vec<calls::Step> {
         call(D1, argv!["task", "show", number(DIRECTOR), "--until", "replied"]),
         // A fresh wait after the requester ends exits unknown: jig's
         // routing/views.rs admission and documents/small.rs require live rows.
-        // Keep A's watch across the act until jig supports historical waits.
+        // Keep A's watch across the act until jig supports ended waits.
         start(D1, argv!["task", "show", number(A), "--until", "ended", "--json"]),
     ];
     if act.is_none() {
@@ -373,7 +373,7 @@ pub fn step_4_4() -> Vec<calls::Step> {
             ],
         ),
         // The director reports after A, which reports after the survey. Its
-        // existing live watch is the completion barrier; read their historical
+        // existing live watch is the completion barrier; read their ended
         // documents once afterwards, without polling or opening ended watches.
         join(PACE_DIRECTOR_ENDED),
         call(D1, argv!["task", "show", number(SURVEY), "--json"]),
@@ -650,7 +650,7 @@ pub const READS_5_2: &[(Read, usize)] = &[
     (Read::H1Ended, 20),
     (Read::BEnded, B_ENDED_5_2),
     (Read::BEndedEarlier, 22),
-    (Read::OwnerEnded, 23),
+    (Read::Ended, 23),
     (Read::PauseEnded, 24),
 ];
 

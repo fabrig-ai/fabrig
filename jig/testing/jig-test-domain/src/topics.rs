@@ -15,9 +15,8 @@ pub(super) fn start(
     topic: u16,
     work: &mut Queue<Work>,
 ) {
-    let token = Token::new(domain.next_payload);
-    domain.next_payload = domain.next_payload.checked_add(1).expect("bounded topic calls");
-    assert!(domain.topic_calls.insert(token, (to, key, topic)).is_ok(), "synchronous topic call room");
+    let token = domain.hub_link.fresh();
+    domain.hub_link.keep_topic_call(token, (to, key, topic));
     work.push(Work::Connector { number, event: connector::Event::DescribeTopic { token, topic } });
 }
 
@@ -28,7 +27,7 @@ pub(super) fn described(
     resources: Option<Box<[connector::Path]>>,
     work: &mut Queue<Work>,
 ) {
-    let Some((to, key, topic)) = domain.topic_calls.remove(&token) else { return };
+    let Some((to, key, topic)) = domain.hub_link.take_topic_call(token) else { return };
     if !domain.core.current_proof(key.task, key.attempt) {
         return;
     }
@@ -165,7 +164,7 @@ pub(super) fn news(
                 let mut words = Writer::new(size);
                 words.put(b"News on topic ").expect("topic label fits");
                 words.put(digits.as_bytes()).expect("topic number fits");
-                work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::News {
+                work.push(Work::Core(core::Event::EffectConnector(core::effects::connector::Event::News {
                     task: subscriber.task,
                     subscription: interest.number,
                     topic: u64::from(topic),

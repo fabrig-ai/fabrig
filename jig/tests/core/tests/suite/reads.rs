@@ -1,8 +1,12 @@
-use jig_core_world::{
-    effects::Cut,
-    reads::{Fence, ask, complete, latest},
-    stories::reads::{conversation, request, world},
-};
+use crate::read_support::conversation;
+use crate::read_support::request;
+use crate::read_support::world;
+use jig_core_world::reads::Fence;
+use jig_core_world::reads::ask;
+use jig_core_world::reads::complete;
+use jig_core_world::reads::latest;
+use jig_core_world::world::Cut;
+use jig_core_world::world::Setup;
 use jig_domain_core::{self as core, documents, reads};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -40,10 +44,10 @@ fn a_task_read_after_it_ended_says_how_and_by_whom() {
     );
     world.end(tasks::End::Parked, 0);
     ask(&mut world, 2, reads::Read::Task { task });
-    let reads::Answer::Historical(value) = latest(&world) else { panic!("retained task") };
+    let reads::Answer::Ended(value) = latest(&world) else { panic!("retained task") };
     assert_eq!(value.by, Some(tasks::Party::Person(1)));
     assert!(value.at.is_some());
-    let reads::Past::Task { document, result } = &value.value else { panic!("full retained task") };
+    let reads::EndedValue::Task { document, result } = &value.value else { panic!("full retained task") };
     assert_eq!(document.chip.number, task);
     let documents::Ending::Cancelled { by, at, reason, .. } = &result.ending else { panic!("cancellation") };
     assert_eq!(*by, tasks::Party::Person(1));
@@ -153,7 +157,7 @@ fn five_independent_read_stories_fit_the_shared_process_budget() {
     a_read_when_loads_are_full_is_busy();
     a_read_after_the_sign_in_ended_is_answered_signed_out();
     a_read_whose_sign_in_ends_while_it_loads_is_signed_out();
-    jig_core_world::stories::reads::a_backward_wall_correction_keeps_reply_paging_whole_after_restart();
+    crate::read_support::a_backward_wall_correction_keeps_reply_paging_whole_after_restart();
 }
 
 #[test]
@@ -187,7 +191,7 @@ fn updates_page_from_the_index_newest_first_after_restart() {
 
 #[test]
 fn a_forgotten_chats_result_leaves_the_updates_index() {
-    let mut world = jig_core_world::stories::reads::forgettable_world(781);
+    let mut world = crate::read_support::forgettable_world(781);
     let task = world.assigned.as_ref().expect("chat").task;
     world.turn(1, 1, None, b"reply");
     request(&mut world, 71, people::Ask::MarkSeen { seen: people::Seen::Conversation { task, through: 1 } });
@@ -248,7 +252,7 @@ fn the_results_group_pages_results_only_from_the_index() {
 }
 
 fn a_read_after_the_sign_in_ended_is_answered_signed_out() {
-    let mut world = jig_core_world::stories::reads::forgettable_world(784);
+    let mut world = crate::read_support::forgettable_world(784);
     end_sign_in(&mut world);
     ask(&mut world, 800, reads::Read::Frame);
     assert_eq!(latest(&world), &reads::Answer::None(reads::Why::SignedOut));
@@ -265,19 +269,19 @@ fn a_read_whose_sign_in_ends_while_it_loads_is_signed_out() {
     assert!(world.reads.as_ref().expect("party").loads.is_empty());
 }
 
-fn end_sign_in(world: &mut jig_core_world::effects::World) {
+fn end_sign_in(world: &mut jig_core_world::world::World) {
     world.send(root::Event::Core(core::Event::People(people::Event::SignOut {
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(80_000)),
         sign_in: world.sign_in.expect("original sign-in"),
     })));
 }
 
-fn chat_task(world: &jig_core_world::effects::World) -> u64 {
+fn chat_task(world: &jig_core_world::world::World) -> u64 {
     world.assigned.as_ref().expect("chat").task
 }
 
 fn message(
-    world: &mut jig_core_world::effects::World,
+    world: &mut jig_core_world::world::World,
     source: u64,
     target: u64,
     completion: u32,
@@ -295,11 +299,11 @@ fn message(
     }
 }
 
-fn question(world: &mut jig_core_world::effects::World, target: u64, completion: u32) -> u64 {
+fn question(world: &mut jig_core_world::world::World, target: u64, completion: u32) -> u64 {
     message(world, chat_task(world), target, completion, tasks::MessageKind::Question, b"original question?")
 }
 
-fn finish_chat(world: &mut jig_core_world::effects::World, task: u64) {
+fn finish_chat(world: &mut jig_core_world::world::World, task: u64) {
     let key = run_key(world, task, 0);
     world.send(root::Event::Answer {
         read: None,
@@ -315,8 +319,8 @@ fn finish_chat(world: &mut jig_core_world::effects::World, task: u64) {
     });
 }
 
-fn past(world: &jig_core_world::effects::World) -> &reads::Past {
-    let reads::Answer::Historical(value) = latest(world) else { panic!("retained document: {:?}", latest(world)) };
+fn past(world: &jig_core_world::world::World) -> &reads::EndedValue {
+    let reads::Answer::Ended(value) = latest(world) else { panic!("retained document: {:?}", latest(world)) };
     &value.value
 }
 
@@ -336,7 +340,7 @@ fn a_question_read_after_its_task_ended_finds_both_lines_by_key() {
     finish_chat(&mut world, sender);
     finish_chat(&mut world, task);
     ask(&mut world, 901, reads::Read::Question { task, message });
-    let reads::Past::Question { question, answer, ending } = past(&world) else { panic!("question") };
+    let reads::EndedValue::Question { question, answer, ending } = past(&world) else { panic!("question") };
     assert_eq!(question.words.bytes.as_ref(), b"original question?");
     let answer = answer.as_ref().expect("answer by key");
     assert!(matches!(&answer.line, tasks::Line::Words { kind: tasks::MessageKind::Answer { question }, words, .. }
@@ -362,7 +366,7 @@ fn an_escalation_read_shows_its_latest_decision_and_its_hold() {
     );
     request(&mut world, 94, people::Ask::Cancel { project: 1, task, reason: b"end".as_slice().into(), grace: None });
     ask(&mut world, 902, reads::Read::Escalation { task });
-    let reads::Past::Escalation { decision, hold, .. } = past(&world) else { panic!("escalation") };
+    let reads::EndedValue::Escalation { decision, hold, .. } = past(&world) else { panic!("escalation") };
     assert_eq!(decision.revision, 1);
     assert_eq!(decision.decision, people::EscalationDecision::Reject { reason: b"stay stopped".as_slice().into() });
     assert!(hold.is_some());
@@ -376,7 +380,7 @@ fn a_task_proposal_read_finds_its_history_row_by_key() {
     world.decide_proposal(proposal, false, 95);
     finish_chat(&mut world, task);
     ask(&mut world, 903, reads::Read::Proposal { proposer: documents::Proposer::Task(task), proposal });
-    let reads::Past::Proposal(value) = past(&world) else { panic!("proposal") };
+    let reads::EndedValue::Proposal(value) = past(&world) else { panic!("proposal") };
     assert_eq!(value.number, proposal);
     assert!(matches!(&value.state, documents::ProposalHistoryState::Rejected { by, reason }
         if *by == tasks::Party::Person(1) && reason.bytes.as_ref() == b"not now"));
@@ -402,16 +406,16 @@ fn a_question_older_than_the_kept_lines_reads_as_gone() {
     assert_eq!(latest(&world), &reads::Answer::None(reads::Why::Gone));
 }
 
-fn reply(world: &mut jig_core_world::effects::World, source: u64, target: u64, question: u64, completion: u32) -> u64 {
+fn reply(world: &mut jig_core_world::world::World, source: u64, target: u64, question: u64, completion: u32) -> u64 {
     message(world, source, target, completion, tasks::MessageKind::Answer { question }, b"answer")
 }
 
-fn run_key(world: &jig_core_world::effects::World, task: u64, completion: u32) -> core::CallKey {
+fn run_key(world: &jig_core_world::world::World, task: u64, completion: u32) -> core::CallKey {
     let (_, attempt) = world.assignments.iter().rev().find(|(number, _)| *number == task).expect("assigned task");
     core::CallKey { task, attempt: *attempt, completion, position: 0 }
 }
 
-fn take_message(world: &mut jig_core_world::effects::World, task: u64, turn: u32, message: u64) {
+fn take_message(world: &mut jig_core_world::world::World, task: u64, turn: u32, message: u64) {
     world.send(root::Event::Turn {
         opens_window: turn == 1,
         refused: Box::new([]),
@@ -425,7 +429,7 @@ fn take_message(world: &mut jig_core_world::effects::World, task: u64, turn: u32
     });
 }
 
-fn question_world(seed: u64, bound: Option<u32>) -> (jig_core_world::effects::World, u64) {
+fn question_world(seed: u64, bound: Option<u32>) -> (jig_core_world::world::World, u64) {
     question_world_with_text_bound(seed, bound, None)
 }
 
@@ -433,7 +437,7 @@ fn question_world_with_text_bound(
     seed: u64,
     bound: Option<u32>,
     text: Option<u32>,
-) -> (jig_core_world::effects::World, u64) {
+) -> (jig_core_world::world::World, u64) {
     question_world_with_switch(seed, bound, text, false)
 }
 
@@ -446,7 +450,7 @@ fn question_world_with_switch(
     bound: Option<u32>,
     text: Option<u32>,
     enabled: bool,
-) -> (jig_core_world::effects::World, u64) {
+) -> (jig_core_world::world::World, u64) {
     question_world_with_obligation(seed, bound, text, enabled, false)
 }
 
@@ -456,7 +460,7 @@ fn question_world_with_obligation(
     text: Option<u32>,
     enabled: bool,
     asks: bool,
-) -> (jig_core_world::effects::World, u64) {
+) -> (jig_core_world::world::World, u64) {
     let (configuration, mut limits) = jig_core_world::faults::plan_fixture(seed);
     if let Some(text) = text {
         limits.core.documents.text_bytes = text;
@@ -467,9 +471,20 @@ fn question_world_with_obligation(
     }
     jig_core_world::peers::journal(&mut limits);
     let mut world = if enabled {
-        jig_core_world::effects::World::configured_with_startup(seed, configuration, limits, enable_person_answers)
+        jig_core_world::world::World::new(Setup {
+            seed,
+            configuration: Some(configuration),
+            limits,
+            startup: Some(enable_person_answers),
+            ..Setup::default()
+        })
     } else {
-        jig_core_world::effects::World::configured(seed, false, configuration, limits)
+        jig_core_world::world::World::new(Setup {
+            seed,
+            configuration: Some(configuration),
+            limits,
+            ..Setup::default()
+        })
     };
     world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
     let parent = chat_task(&world);
@@ -514,7 +529,7 @@ fn a_question_answered_by_its_task_reads_the_line_in_the_delegates_activity() {
     finish_chat(&mut world, delegate);
     finish_chat(&mut world, task);
     ask(&mut world, 905, reads::Read::Question { task, message });
-    let reads::Past::Question { answer, .. } = past(&world) else { panic!("question") };
+    let reads::EndedValue::Question { answer, .. } = past(&world) else { panic!("question") };
     let answer = answer.as_ref().expect("delegate's answer by key");
     assert_eq!(answer.task, delegate);
     assert!(
@@ -523,7 +538,7 @@ fn a_question_answered_by_its_task_reads_the_line_in_the_delegates_activity() {
     );
 }
 
-fn live_task(world: &jig_core_world::effects::World, task: u64) -> &tasks::TaskRecord {
+fn live_task(world: &jig_core_world::world::World, task: u64) -> &tasks::TaskRecord {
     let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) =
         &world.store.rows[&root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)))]
     else {
@@ -532,7 +547,7 @@ fn live_task(world: &jig_core_world::effects::World, task: u64) -> &tasks::TaskR
     row
 }
 
-fn ended_delegate_world(seed: u64) -> (jig_core_world::effects::World, u64, u64) {
+fn ended_delegate_world(seed: u64) -> (jig_core_world::world::World, u64, u64) {
     let mut world = world(seed);
     let chat = chat_task(&world);
     finish_chat(&mut world, chat);
@@ -541,7 +556,7 @@ fn ended_delegate_world(seed: u64) -> (jig_core_world::effects::World, u64, u64)
         1,
         b"goal with a delegate".as_slice().into(),
         people::TaskExecutor::Agent { charter: 1 },
-        jig_core_world::fixtures::Goal { budget: 300, priority: 1, ..Default::default() },
+        jig_test_profile::fixtures::Goal { budget: 300, priority: 1, ..Default::default() },
     );
     request(&mut world, 124, ask);
     let goal = chat_task(&world);
@@ -567,7 +582,7 @@ fn ended_delegates_page_from_the_index() {
     assert!(page.next.is_none());
 }
 
-fn seed_history(world: &mut jig_core_world::effects::World, task: u64) {
+fn seed_history(world: &mut jig_core_world::world::World, task: u64) {
     let row = tasks::History {
         task,
         revision: 1,
@@ -581,7 +596,7 @@ fn seed_history(world: &mut jig_core_world::effects::World, task: u64) {
     world.seed(Box::new([root::Record::Core(core::Record::Tasks(tasks::Stored::History(row)))]));
 }
 
-fn subtree_history(world: &mut jig_core_world::effects::World, task: u64) -> Vec<(u8, u64, u64)> {
+fn subtree_history(world: &mut jig_core_world::world::World, task: u64) -> Vec<(u8, u64, u64)> {
     let mut from = None;
     let mut rows = Vec::new();
     for number in 0..24 {
@@ -634,10 +649,10 @@ fn a_subtree_history_reads_each_delegates_rows_found_by_index() {
 
 #[test]
 fn a_turn_past_the_read_bound_reports_its_size() {
-    use jig_core_world::stories::reads::{LARGE_TURN_BYTES, TURN_READ_BYTES, world_with_large_turn};
+    use crate::read_support::{LARGE_TURN_BYTES, TURN_READ_BYTES, world_with_large_turn};
     let mut world = world_with_large_turn(802);
     let task = world.assigned.as_ref().expect("chat").task;
-    let body = vec![b'x'; usize::try_from(LARGE_TURN_BYTES).expect("bounded fixture")];
+    let body = vec![b'x'; skein_lib::length::usize_of(LARGE_TURN_BYTES)];
     assert!(u64::try_from(body.len()).expect("payload length") > u64::from(TURN_READ_BYTES));
     world.turn(1, 1, None, &body);
     ask(&mut world, 980, reads::Read::Turn { task, attempt: 1, turn: 1 });
@@ -734,7 +749,7 @@ fn with_the_switch_off_the_asked_task_answers_as_before() {
     let reads::Answer::Page(page) = latest(&world) else { panic!("questions inbox") };
     assert!(page.rows.is_empty());
     ask(&mut world, 909, reads::Read::Question { task: director, message });
-    let reads::Past::Question { question, answer, .. } = past(&world) else { panic!("historical question") };
+    let reads::EndedValue::Question { question, answer, .. } = past(&world) else { panic!("ended question") };
     assert!(question.acts.is_empty());
     assert!(answer.is_some());
     reply(&mut world, director, delegate, message, 2);
@@ -763,7 +778,7 @@ fn stored_cut_question(words: &[u8], bound: u32, expected: &[u8]) {
     finish_chat(&mut world, sender);
     finish_chat(&mut world, task);
     ask(&mut world, 901, reads::Read::Question { task, message });
-    let reads::Past::Question { question, answer, .. } = past(&world) else { panic!("stored question") };
+    let reads::EndedValue::Question { question, answer, .. } = past(&world) else { panic!("stored question") };
     assert_eq!(question.words.bytes.as_ref(), expected);
     assert!(question.words.cut);
     assert!(answer.is_some(), "the full stored question remains answerable");
@@ -794,7 +809,7 @@ fn the_persons_answer_reaches_the_asking_task() {
     assert!(row.inbox.iter().any(|word| word.kind == tasks::MessageKind::QuestionAnswered { question }));
     assert_eq!(row.question_lines[0].answer.expect("first answer retained").task, delegate);
     ask(&mut world, 910, reads::Read::Question { task: director, message: question });
-    let reads::Past::Question { answer, .. } = past(&world) else { panic!("answered question") };
+    let reads::EndedValue::Question { answer, .. } = past(&world) else { panic!("answered question") };
     assert!(answer.is_some());
 }
 

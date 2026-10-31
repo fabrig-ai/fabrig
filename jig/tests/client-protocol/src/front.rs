@@ -58,6 +58,13 @@ pub struct Protocol {
     task_queries_read: u32,
 }
 impl Protocol {
+    /// Construct a person story's starting facts before its core heap meter starts.
+    #[must_use]
+    pub fn story(seed: u64, facts: &jig_client_world::stories::shared::b_seed::Facts) -> Self {
+        let (configuration, limits, peers) =
+            jig_client_world::stories::shared::b_config::setup(seed, facts, fixtures::owner_limits());
+        Self::with_engine(Engine::with_peers(seed, &limits, configuration, peers))
+    }
     #[must_use]
     pub fn new(seed: u64) -> Self {
         Self::bounded(seed, &fixtures::owner_limits())
@@ -224,6 +231,11 @@ impl Protocol {
     }
 }
 impl Front<Test> for Protocol {
+    fn seed(&mut self, seed: jig_client_world::harness::Seed) {
+        assert!(self.clients.is_empty(), "seed before admitting clients");
+        jig_client_world::harness::seed::seed_core(&mut self.engine.driver, self.now, fixtures::wall(self.now), seed);
+        self.advance(self.now, fixtures::wall(self.now));
+    }
     fn constructor(
         &self,
         _: jig_client_world::harness::ClientConstructor<Test>,

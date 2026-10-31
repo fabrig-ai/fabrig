@@ -105,7 +105,7 @@ fn refused(refusal: smith::Refusal) -> &'static [u8] {
 }
 
 #[must_use]
-pub fn activity(body: &[u8], agent: &crate::settings::Agent) -> Option<hub::Activity> {
+pub fn activity(body: &[u8], agent: &crate::settings::Agent) -> Option<hub::AgentActivity> {
     let limits = &agent.limits;
     let mut reader = Reader::new(body);
     let Ok(fact) = smith_channel::Fact::decode(&limits.bodies, &mut reader) else { return None };
@@ -124,7 +124,7 @@ pub fn activity(body: &[u8], agent: &crate::settings::Agent) -> Option<hub::Acti
         smith_channel::FactKind::CheckFinished => hub::CountKind::CheckFinished,
         smith_channel::FactKind::TextArrived => hub::CountKind::TextArrived,
     };
-    Some(hub::Activity::Count { kind, elapsed: fact.elapsed(), count: fact.count() })
+    Some(hub::AgentActivity::Count { kind, elapsed: fact.elapsed(), count: fact.count() })
 }
 
 /// Decode the hub start, including its live ask (domain/worker.md, 4.1 and 7).
@@ -371,7 +371,7 @@ pub fn identity(
 /// Parts only under tokens an answer names; refusals have no application parts.
 #[must_use]
 pub fn answer_parts(
-    answer: &hub::Answer,
+    answer: &hub::RunAnswer,
     work: &temper_worker_domain::wire::Work,
     preparation: Option<&temper_worker_domain::wire::Preparation>,
 ) -> Box<[jig_protocol_worker_wire::Part]> {

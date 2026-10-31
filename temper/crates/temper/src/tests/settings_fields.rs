@@ -79,7 +79,7 @@ fn printed(value: &StockValue, models: &[jig_protocol_engine_clients::Model]) ->
     let preset = temper_client_tools::limits::client().client;
     let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("ctl preset");
     let wire =
-        jig_protocol_engine_clients::translate::settings::value(value, models, &link.wire).expect("stock fits wire");
+        jig_protocol_engine_clients::translate::settings::value(value, models, link.wire()).expect("stock fits wire");
     let client = jig_client_protocol_link::translate::settings::restore_setting_value(&wire, &link)
         .expect("stock reaches client");
     let value = temper_client_tools::jig::form_setting_value(&client);

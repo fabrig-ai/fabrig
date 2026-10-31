@@ -1,6 +1,10 @@
 //! Settings travel through the real restart, store and commit barrier (engine.md, 17.7).
 
-use jig_core_world::{client_peer::ClientPeer, effects::World, fixtures, peers};
+use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::fixtures;
+use jig_core_world::peers;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core::{self as core, documents, reads, settings};
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
@@ -36,7 +40,7 @@ fn the_document_bridge_starts_once_and_preserves_templates_policies_rules_and_mo
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
-            bounds: fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),
@@ -359,7 +363,12 @@ fn changed_charter_instructions_and_effort_prepare_the_next_new_task() {
     config.core.settings.models[0].efforts = Box::new([Box::from(b"low".as_slice()), Box::from(b"high".as_slice())]);
     config.core.settings.models[0].effort = Some(Box::from(b"low".as_slice()));
     config.core.defaults.charters[0].policy.model = config.core.settings.models[0].clone();
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     let mut charter = world.domain.settings().charter(1).expect("settings fixture").clone();
@@ -384,7 +393,7 @@ fn changed_charter_instructions_and_effort_prepare_the_next_new_task() {
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
-            bounds: fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),
@@ -568,7 +577,12 @@ fn live_tasks_with_llm_choices_the_newest_disallows_stay_and_are_all_counted() {
     config.core.defaults.charters[0].policy.alternatives = Box::new([other.clone()]);
     limits.core.tasks.circle = 1;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -625,7 +639,7 @@ fn a_changed_run_cap_applies_to_the_next_run_without_capping_its_tasks_total_all
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
-            bounds: fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),
@@ -663,7 +677,12 @@ fn released_history() -> World {
     limits.core.settings.history = 2;
     limits.core.documents.rows = 2;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     for grace in 6..=10 {
         let mut config = configuration().0;
@@ -692,7 +711,7 @@ fn settings_inventory_tracks_each_defaults_revision_across_a_release() {
 }
 #[test]
 fn settings_inventory_is_unknown_without_a_deployment_role() {
-    let mut world = jig_core_world::stories::reads::world(SEED);
+    let mut world = crate::read_support::world(SEED);
     world.send(root::Event::Core(core::Event::People(people::Event::Roles {
         project: people::DEPLOYMENT,
         holdings: Box::new([]),
@@ -783,7 +802,7 @@ fn ready_host(world: &mut World) {
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
-            bounds: fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),
@@ -867,7 +886,12 @@ fn a_removed_setting_keeps_its_inventory_line_and_reads_unknown() {
 fn revision_item_previews_state_how_many_were_cut() {
     let (config, mut limits) = configuration();
     limits.core.documents.lines = 1;
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let mut config = configuration().0;
     for template in &mut config.core.defaults.templates {
@@ -914,7 +938,12 @@ fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
     const ENCODED_TEMPLATE_BYTES: u64 = 4142;
     let (config, mut limits) = configuration();
     limits.core.load_bytes = SINGLE_READ_BYTES;
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let mut config = configuration().0;
     config.core.defaults.templates[0].name = vec![b'x'; NAME_BYTES].into_boxed_slice();
@@ -956,7 +985,12 @@ fn held_run_with_history(history: u32) -> (World, u64, u64) {
     let (mut config, mut limits) = configuration();
     limits.core.settings.history = history;
     config.core.defaults.rules.maximum_run_spend = 20;
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1087,10 +1121,10 @@ fn a_revision_leaves_memory_as_its_last_holder_ends() {
     assert!(decision.iter().any(|write| matches!(write, root::Write::Erase(address) if *address == key(settings::Key::Charter { charter: 1, revision: 1 }))));
     assert!(!world.store.rows.contains_key(&key(settings::Key::Held(1))));
     assert!(!world.store.rows.contains_key(&key(settings::Key::Charter { charter: 1, revision: 1 })));
-    let reads::Answer::Historical(past) = client_read(&mut world, signed, reads::Read::Task { task: goal }) else {
+    let reads::Answer::Ended(past) = client_read(&mut world, signed, reads::Read::Task { task: goal }) else {
         panic!("ended task")
     };
-    let reads::Past::Task { document, .. } = past.value else { panic!("ended task document") };
+    let reads::EndedValue::Task { document, .. } = past.value else { panic!("ended task document") };
     assert!(document.instructions.is_none(), "a released revision supplies no charter fields");
     assert_eq!(revision(&world, 1, true).head.number, 1);
     assert_eq!(inventory(&mut world, signed).held.iter().map(|row| row.head.number).collect::<Vec<_>>(), [2]);
@@ -1112,7 +1146,12 @@ fn held_revisions_past_their_limit_refuse_the_change_naming_the_oldest_and_its_t
     let (config, mut limits) = configuration();
     limits.core.settings.revisions = 1;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1167,7 +1206,12 @@ fn held_versions_past_their_limit_refuse_the_change_without_writing_settings() {
     let (config, mut limits) = configuration();
     limits.core.settings.versions = 1;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1317,7 +1361,12 @@ fn a_move_uses_the_room_freed_by_its_tasks_for_heads_and_versions() {
     limits.core.settings.versions = 1;
     config.core.defaults.rules.maximum_run_spend = 20;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1416,7 +1465,12 @@ fn held_revisions_past_a_lowered_limit_refuse_the_start_naming_the_limit() {
     let (config, mut limits) = configuration();
     limits.core.settings.revisions = 2;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1460,7 +1514,7 @@ fn an_unheld_task_or_run_revision_refuses_the_start_naming_the_task() {
         }
         // This deliberately corrupt fixture violates the normal-world referee.
         // Record its observations while checking the engine's startup refusal.
-        world.observer = jig_core_world::observations::Observer::recording(&held_restart_configuration());
+        world.observer = jig_core_world::conformance::Observer::recording(&held_restart_configuration());
         world.seed(Box::new([root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(row))))]));
         let before = world.store.applied;
         let linked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -1481,7 +1535,7 @@ fn resume_host_after_restart(world: &mut World) {
 fn seed_restart_accounts(world: &mut World) {
     // first_start_with_accounts preloads this fake's rows into the first core;
     // a cold start needs the same account fixture in the store.
-    world.seed(fixtures::account_rows(&configuration().0.core.settings.llm_providers));
+    world.seed(jig_test_profile::fixtures::account_rows(&configuration().0.core.settings.llm_providers));
 }
 
 #[test]
@@ -1546,7 +1600,12 @@ fn a_goal_on_an_older_revision_runs_where_its_version_allows() {
     config.core.defaults.rules.maximum_run_spend = 20;
     limits.core.fleet.engine_slots = 1;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1554,7 +1613,7 @@ fn a_goal_on_an_older_revision_runs_where_its_version_allows() {
         worker: 0,
         channel: Token::new(0),
         hello: fleet::Hello {
-            bounds: fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),
@@ -1625,7 +1684,12 @@ fn the_bound_reached_its_named_tasks_moved_and_the_change_then_made() {
     limits.core.settings.revisions = 1;
     config.core.defaults.rules.maximum_run_spend = 20;
     peers::journal(&mut limits);
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1677,11 +1741,11 @@ fn a_restart_adopts_a_live_run_on_its_old_version() {
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
-            bounds: fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),
-            hosting: Box::new([fleet::Hosted {
+            hosting: Box::new([fleet::Hosting {
                 run: Token::new(goal),
                 attempt: Token::new(attempt),
                 phase: fleet::Phase::Active,
@@ -1733,7 +1797,12 @@ fn two_story_charters() -> (root::Config, root::Limits) {
 #[test]
 fn a_delegation_to_a_removed_charter_is_refused_while_its_version_serves_its_task() {
     let (config, limits) = two_story_charters();
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1802,7 +1871,12 @@ fn remove_second_charter(world: &World, first: settings::Item) -> Box<[settings:
 #[test]
 fn a_conversation_moves_at_its_next_turn_and_one_whose_charter_is_removed_stays() {
     let (config, limits) = two_story_charters();
-    let mut world = World::first_start_with_accounts(config, &limits);
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let signed = sign_in(&mut world);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
@@ -1905,7 +1979,7 @@ fn a_held_versions_documents_show_its_charter_and_nothing_once_released() {
         worker: 0,
         channel: Token::new(8),
         hello: fleet::Hello {
-            bounds: fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_secs(3600),
             slots: 1,
             workstreams: Box::new([]),
@@ -1947,10 +2021,10 @@ fn a_held_versions_documents_show_its_charter_and_nothing_once_released() {
     assert_eq!(reply, people::Reply::Outcome(people::Outcome::Cancelled { task: goal }));
     assert!(!world.store.rows.contains_key(&key(settings::Key::Held(1))));
     assert!(!world.store.rows.contains_key(&key(settings::Key::Charter { charter: 1, revision: 1 })));
-    let reads::Answer::Historical(past) = client_read(&mut world, signed, reads::Read::Task { task: goal }) else {
+    let reads::Answer::Ended(past) = client_read(&mut world, signed, reads::Read::Task { task: goal }) else {
         panic!("ended task")
     };
-    let reads::Past::Task { document, .. } = past.value else { panic!("ended task document") };
+    let reads::EndedValue::Task { document, .. } = past.value else { panic!("ended task document") };
     assert_eq!(document.executor, jig_domain_tasks::Executor::Agent { charter: 1 });
     assert_eq!(document.settings, Some(documents::TaskSettings { task: 1, run: None, newest: 2 }));
     assert!(document.instructions.is_none());
@@ -1960,7 +2034,7 @@ fn a_held_versions_documents_show_its_charter_and_nothing_once_released() {
 
 fn goal_description_review(world: &mut World, signed: u64, goal: u64) -> documents::Proposal {
     let revision = fixtures::live_row(world, goal).revisions.spec;
-    let mut amendment = fixtures::person_unchanged(b"Review the goal's description");
+    let mut amendment = jig_test_profile::fixtures::person_unchanged(b"Review the goal's description");
     amendment.spec = Some(people::Spec {
         asks: false,
         words: b"Proposed goal description".as_slice().into(),

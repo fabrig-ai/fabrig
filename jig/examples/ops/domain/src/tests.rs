@@ -1,4 +1,5 @@
 //! Entry-point checks for the reference journal and routes.
+mod fixtures;
 mod host_tools;
 mod start;
 use crate::{Config, Domain, Event, Limits, Output, Released, Store, release, step, try_step};
@@ -15,13 +16,14 @@ fn fixture() -> (Domain, Env<Limits>) {
 }
 
 fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
-    let mut core_limits = jig_core_world::world::limits().core;
+    let mut core_limits = jig_test_profile::limits().core;
     core_limits.fleet.engine_slots = 1;
     core_limits.tasks.hold_kinds = 3;
     let limits = Limits {
+        policy: crate::Policy::reference(),
         core: core_limits,
-        infrastructure: jig_ops_world::infrastructure_limits(),
-        observability: jig_ops_world::limits(),
+        infrastructure: fixtures::infrastructure_limits(),
+        observability: fixtures::limits(),
         host: host::Limits {
             slots: 1,
             accounts: 1,
@@ -51,9 +53,10 @@ fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
         routes: 256,
     };
     let mut config = Config {
-        agent_bounds: jig_ops_world::agent_bounds(),
-        tools: jig_ops_world::protocol::tools(Duration::from_secs(30)),
-        core: jig_core_world::world::config(17).core,
+        environment_closed_reason: crate::ENVIRONMENT_CLOSED_REASON.into(),
+        agent_bounds: fixtures::agent_bounds(),
+        tools: fixtures::tools(Duration::from_secs(30)),
+        core: jig_test_profile::config(17).core,
         triage_templates: Box::new([]),
         lead_templates: Box::new([]),
         backend: infrastructure::Backend::OperationIds,
@@ -85,14 +88,14 @@ fn name(task: u64) -> Event {
     Event::Infrastructure(infrastructure::Event::Names {
         project: 1,
         task,
-        resources: Box::new([infrastructure::Resource::Service(jig_ops_world::infra_service())]),
+        resources: Box::new([infrastructure::Resource::Service(fixtures::infra_service())]),
     })
 }
 
 fn pressure() -> Event {
     Event::Observability(observability::Event::Subscribe {
         task: 900,
-        topic: observability::Topic::Alerts(jig_ops_world::service()),
+        topic: observability::Topic::Alerts(fixtures::service()),
         wake_at: 5,
         keep_at: 1,
     })
@@ -134,7 +137,7 @@ fn admission_precedes_a_connectors_change_and_its_outputs_wait_for_the_commit() 
     // connector's Names continuation as the rejected probe.
     let event = Event::Observability(observability::Event::Subscribe {
         task: SUBSCRIBER,
-        topic: observability::Topic::Alerts(jig_ops_world::service()),
+        topic: observability::Topic::Alerts(fixtures::service()),
         wake_at: 5,
         keep_at: 1,
     });
@@ -143,7 +146,7 @@ fn admission_precedes_a_connectors_change_and_its_outputs_wait_for_the_commit() 
         panic!("the caller retains its original subscription")
     };
     assert_eq!(*task, SUBSCRIBER);
-    assert_eq!(*topic, observability::Topic::Alerts(jig_ops_world::service()));
+    assert_eq!(*topic, observability::Topic::Alerts(fixtures::service()));
     assert!(take(&mut domain, &env).is_empty(), "refusal changes no child and emits no output");
     try_step(&mut domain, &env, Event::Store(Store::Committed { number: FIRST_COMMIT, fill: 0 }))
         .expect("commit completion enters at the watermark");
@@ -170,7 +173,7 @@ fn connector_read(token: Token) -> Event {
     Event::Observability(observability::Event::Read {
         token,
         read: observability::Read::Logs {
-            service: jig_ops_world::service(),
+            service: fixtures::service(),
             window: observability::Window { from: 0, through: 1 },
             filter: Box::new([]),
             max_bytes: READ_BYTES,
@@ -186,7 +189,7 @@ fn a_failed_commit_stops_the_reference_root_before_held_system_requests_leave() 
         &env,
         Event::Observability(observability::Event::Subscribe {
             task: 1,
-            topic: observability::Topic::Alerts(jig_ops_world::service()),
+            topic: observability::Topic::Alerts(fixtures::service()),
             wake_at: 5,
             keep_at: 1,
         }),
@@ -311,7 +314,7 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
                     if let Some(record) = header.take() {
                         step(&mut domain, &env, Event::Store(Store::Restore(record)));
                         assert!(take(&mut domain, &env).is_empty(), "header restore is an empty admitted decision");
-                        for row in jig_core_world::fixtures::initial_settings_current(&domain.core.current) {
+                        for row in jig_test_profile::fixtures::initial_settings_current(&domain.core.current) {
                             step(&mut domain, &env, Event::Store(Store::Restore(crate::Record::Core(row))));
                         }
                     }
@@ -420,7 +423,7 @@ fn started_chat() -> (Domain, Env<Limits>, Token) {
     use jig_domain_people as people;
     let (mut domain, env) = fixture();
     step(&mut domain, &env, Event::Restart { pending: false });
-    for row in jig_core_world::fixtures::account_rows(&jig_core_world::world::config(17).core.settings.llm_providers) {
+    for row in jig_test_profile::fixtures::account_rows(&jig_test_profile::config(17).core.settings.llm_providers) {
         let jig_test_domain::Record::Core(row) = row else { panic!("core account fixture") };
         step(&mut domain, &env, Event::Store(Store::Restore(crate::Record::Core(row))));
     }
@@ -560,12 +563,12 @@ fn connector_documents_and_reads_share_the_last_connector_commit_barrier() {
         let initial = settle(&mut domain, &env);
         assert!(initial.is_empty(), "restore outputs: {initial:?}");
     }
-    let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.core.people };
+    let people_env = env.with(env.limits.core.people);
     assert!(domain.core.people.start_link(&people_env));
     domain.core.people.start_sweep();
     assert!(domain.core.people.start_complete(&people_env));
     assert!(take(&mut domain, &env).is_empty());
-    let service = jig_ops_world::service();
+    let service = fixtures::service();
     step(
         &mut domain,
         &env,
@@ -708,183 +711,10 @@ fn an_unknown_connector_refuses_the_restart_without_loading_a_child() {
     }
 }
 
-fn triage_fields(alerts: &[u8]) -> Box<[jig_domain_tasks::ResultField]> {
-    Box::new([
-        jig_domain_tasks::ResultField { name: Box::from(&b"alerts"[..]), value: Box::from(alerts) },
-        jig_domain_tasks::ResultField { name: Box::from(&b"environment"[..]), value: Box::from(&b"production"[..]) },
-        jig_domain_tasks::ResultField { name: Box::from(&b"service"[..]), value: Box::from(&b"checkout"[..]) },
-        jig_domain_tasks::ResultField { name: Box::from(&b"severity"[..]), value: Box::from(&b"3"[..]) },
-    ])
-}
-
-#[test]
-fn a_closed_verdict_translates_only_explicit_machine_fields_to_the_watch() {
-    let (_, env) = fixture();
-    let limits = &env.limits.observability;
-    assert_eq!(
-        crate::translate::watch_result(
-            100,
-            &jig_domain_tasks::ResultKind::Verdict { code: 1, fields: Box::new([]) },
-            limits
-        ),
-        observability::WatchMessage::Triage { child: 100, verdict: observability::TriageVerdict::Noise }
-    );
-    assert_eq!(
-        crate::translate::watch_result(
-            100,
-            &jig_domain_tasks::ResultKind::Verdict { code: 2, fields: triage_fields(b"12 13") },
-            limits
-        ),
-        observability::WatchMessage::Triage {
-            child: 100,
-            verdict: observability::TriageVerdict::Incident {
-                alerts: Box::new([12, 13]),
-                service: observability::Service::new(Box::from(&b"production"[..]), Box::from(&b"checkout"[..])),
-                severity: 3,
-            }
-        }
-    );
-}
-
-#[test]
-fn malformed_machine_fields_are_refused_without_reading_an_explanation() {
-    let (_, env) = fixture();
-    let limits = &env.limits.observability;
-    for alerts in [b"".as_slice(), b"12 ", b"12 report 13", b"18446744073709551616"] {
-        assert_eq!(
-            crate::translate::watch_result(
-                100,
-                &jig_domain_tasks::ResultKind::Verdict { code: 2, fields: triage_fields(alerts) },
-                limits
-            ),
-            observability::WatchMessage::InvalidTriage { child: 100 }
-        );
-    }
-    let mut fields = triage_fields(b"12");
-    fields[1].name = Box::from(&b"alerts"[..]);
-    assert_eq!(
-        crate::translate::watch_result(100, &jig_domain_tasks::ResultKind::Verdict { code: 2, fields }, limits),
-        observability::WatchMessage::InvalidTriage { child: 100 }
-    );
-    assert_eq!(
-        crate::translate::watch_result(
-            100,
-            &jig_domain_tasks::ResultKind::Verdict { code: 2, fields: Box::new([]) },
-            limits
-        ),
-        observability::WatchMessage::InvalidTriage { child: 100 }
-    );
-}
-
-fn environment_spec() -> jig_domain_tasks::Spec {
-    use jig_domain_tasks::Parameter;
-    jig_domain_tasks::Spec {
-        asks: false,
-        words: Box::from(b"staging for payments, a week".as_slice()),
-        parameters: Box::new([
-            Parameter::Bytes { name: 1, value: Box::from(b"staging".as_slice()) },
-            Parameter::Bytes { name: 2, value: Box::from(b"payments".as_slice()) },
-            Parameter::Number { name: 3, value: 604_800 },
-            Parameter::Number { name: 4, value: 40 },
-            Parameter::Number { name: 5, value: 7200 },
-        ]),
-        inputs: Box::new([]),
-    }
-}
-
-#[test]
-fn provision_preserves_opaque_environment_parameters_and_distinct_pool_hold() {
-    use jig_domain_tasks::{Executor, HoldKind, Holding, Name, Taken};
-    let mut spec = environment_spec();
-    let environment =
-        infrastructure::Environment::new(Box::from(b"staging".as_slice()), Box::from(b"payments".as_slice()));
-    assert_eq!(
-        crate::translate::procedure(infrastructure::PROVISION_CODE, &spec, [1; 16]),
-        Some(infrastructure::Procedure::Provision {
-            environment: environment.clone(),
-            until: 604_800,
-            price: 40,
-            deadline: 7200,
-        })
-    );
-    assert_eq!(
-        crate::translate::holdings(
-            2,
-            Executor::Procedure { connector: 2, code: infrastructure::PROVISION_CODE },
-            &spec
-        ),
-        Some(Box::from([
-            Holding::Write {
-                resource: Name { connector: 2, path: infrastructure::Resource::Environment(environment).segments() },
-                kind: 2
-            },
-            Holding::Slot {
-                pool: Name {
-                    connector: 2,
-                    path: infrastructure::Resource::Pool(infrastructure::Pool(Box::from(b"staging".as_slice())))
-                        .segments()
-                },
-                kind: 3
-            },
-        ]))
-    );
-    let kinds = crate::translate::hold_kinds(2);
-    assert_eq!(
-        kinds.as_ref(),
-        &[
-            jig_domain_tasks::Kind { connector: 2, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } },
-            jig_domain_tasks::Kind { connector: 2, kind: 2, hold: HoldKind::Exclusive { taken: Taken::Waits } },
-            jig_domain_tasks::Kind { connector: 2, kind: 3, hold: HoldKind::Pooled { taken: Taken::Waits } },
-        ]
-    );
-    spec.parameters = spec.parameters[..4].into();
-    assert_eq!(
-        crate::translate::procedure(infrastructure::PROVISION_CODE, &spec, [1; 16]),
-        None,
-        "a missing deadline is not manufactured"
-    );
-    spec.parameters[1] = jig_domain_tasks::Parameter::Number { name: 2, value: 99 };
-    assert_eq!(
-        crate::translate::holdings(
-            2,
-            Executor::Procedure { connector: 2, code: infrastructure::PROVISION_CODE },
-            &spec
-        ),
-        None,
-        "numeric service identities are not substituted for an environment name"
-    );
-}
-
-#[test]
-fn adding_provision_preserves_scale_and_remediate_codes_and_service_hold() {
-    use jig_domain_tasks::{Executor, Holding, Name};
-    let mut spec = environment_spec();
-    spec.parameters = spec.parameters[..4].into();
-    let service = infrastructure::Service::new(Box::from(b"staging".as_slice()), Box::from(b"payments".as_slice()));
-    assert_eq!(
-        crate::translate::procedure(1, &spec, [1; 16]),
-        Some(infrastructure::Procedure::Scale { service: service.clone(), replicas: 604_800, deadline: 40 })
-    );
-    assert_eq!(
-        crate::translate::procedure(2, &spec, [1; 16]),
-        Some(infrastructure::Procedure::Remediate { service: service.clone(), operation: 604_800, deadline: 40 })
-    );
-    for code in [1, 2] {
-        assert_eq!(
-            crate::translate::holdings(2, Executor::Procedure { connector: 2, code }, &spec),
-            Some(Box::from([Holding::Write {
-                resource: Name { connector: 2, path: infrastructure::Resource::Service(service.clone()).segments() },
-                kind: 1
-            },]))
-        );
-    }
-    assert_eq!(crate::translate::procedure(99, &spec, [1; 16]), None);
-}
-
 fn chat_request(limits: &core::Limits, words: &[u8]) -> jig_domain_people::Ask {
-    let config = jig_core_world::world::config(17).core;
-    let members = jig_core_world::fixtures::Creating::new(&config, limits.tasks.tree_tasks);
-    jig_core_world::fixtures::create_chat(&members, 1, 0, words.into())
+    let config = jig_test_profile::config(17).core;
+    let members = jig_test_profile::fixtures::Creating::new(&config, limits.tasks.tree_tasks);
+    jig_test_profile::fixtures::create_chat(&members, 1, 0, words.into())
 }
 
 #[test]
@@ -893,27 +723,24 @@ fn either_start_refusal_cause_assembles_an_invalid_end() {
         let (mut domain, _env) = fixture();
         let run = Token::new(1);
         let attempt = Token::new(7);
-        let payload = Token::new(99);
-        domain
-            .payloads
-            .insert(
-                payload,
-                crate::boundary::Payload::Answer {
-                    task: run.raw(),
-                    attempt: attempt.raw(),
-                    spent: 0,
-                    ending: host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
-                        cause,
-                        why: Box::from(&b"start refused"[..]),
-                    })),
-                    read: None,
-                    refused: Box::new([]),
-                },
-            )
-            .unwrap();
+        let payload = domain.hub_link.retain(jig_domain_hub_link::Payload::Answer {
+            task: run.raw(),
+            attempt: attempt.raw(),
+            cumulative: 0,
+            end: jig_domain_hub_link::Ending::Link(host::Ending::Refused(host::Refusal::Invalid(
+                host::Invalid::Start { cause, why: Box::from(&b"start refused"[..]) },
+            ))),
+            read: None,
+            refused: Box::new([]),
+        });
         let mut work = Queue::with_capacity(1);
-        crate::assemble::answer_payload(&mut domain, run, attempt, payload, &mut work);
-        let Some(crate::domain::Work::Core(core::Event::AnswerPayload {
+        jig_domain_hub_link::step(
+            &mut domain.hub_link,
+            Time::ZERO,
+            jig_domain_hub_link::Event::AnswerPayload { run, attempt, payload },
+            &mut work,
+        );
+        let Some(jig_domain_hub_link::Request::Core(core::Event::AnswerPayload {
             run: answered_run,
             attempt: answered_attempt,
             payload: answered_payload,
@@ -978,11 +805,9 @@ fn stopping_ignores_the_starts_mark_continuations() {
     let (mut starting, _) = fixture();
     let _begin = starting.core.start_begin(false, env.wall);
     let mut out = Queue::uncapped();
-    let core::start::Action::Commit(continuation) = starting.core.start_done(
-        &Env { now: env.now, wall: env.wall, limits: env.limits.core },
-        core::start::Phase::LoadCore,
-        &mut out,
-    ) else {
+    let core::start::Action::Commit(continuation) =
+        starting.core.start_done(&env.with(env.limits.core), core::start::Phase::LoadCore, &mut out)
+    else {
         panic!("seed continuation")
     };
     for event in [Event::Store(Store::Switched), Event::Released(Released::Start(continuation))] {
@@ -1048,7 +873,7 @@ fn a_retained_turn_retry_fires_at_the_watermark() {
     step(
         &mut domain,
         &env,
-        Event::Host(host::Event::Turn {
+        Event::Host(host::Event::Agent(host::FromAgent::Turn {
             owner,
             turn: host::Turn {
                 turn: TURN,
@@ -1058,14 +883,41 @@ fn a_retained_turn_retry_fires_at_the_watermark() {
                 refused: Box::new([]),
                 body: b"kept turn".as_slice().into(),
             },
-        }),
+        })),
     );
     take(&mut domain, &env);
-    crate::turn_backoff::busy(&mut domain, &env, RUN, ATTEMPT, TURN);
+    let mut out = Queue::uncapped();
+    jig_domain_hub_link::step(
+        &mut domain.hub_link,
+        env.now,
+        jig_domain_hub_link::Event::TurnBusy {
+            run: RUN,
+            attempt: ATTEMPT,
+            turn: TURN,
+            retained: domain.host.has_turn(RUN, ATTEMPT, TURN),
+        },
+        &mut out,
+    );
+    assert!(out.is_empty());
     let due = domain.next_turn_deadline().expect("the retained turn has a retry");
     fill_to_watermark(&mut domain, &env);
     env.now = due;
     crate::fire(&mut domain, &env, crate::Timer::Turn);
     assert_eq!(domain.next_turn_deadline(), None, "an admitted retry timer fires despite the backlog");
     assert!(take(&mut domain, &env).is_empty(), "retrying the retained turn makes no duplicate commit");
+}
+
+#[test]
+fn requirements_take_the_deployments_identifiers_and_thresholds() {
+    let mut policy = crate::Policy::reference();
+    assert_eq!(policy.verdict_freshness_seconds, 60);
+    assert_eq!(policy.scale_down_load_seconds, 1800);
+    policy.low_load_requirement = 9;
+    policy.scale_down_load_percent = 12;
+    policy.scale_down_load_seconds = 600;
+    assert_eq!(crate::translate::requirement(2, &policy), None);
+    assert_eq!(
+        crate::translate::requirement(9, &policy),
+        Some(observability::Requirement::LoadBelow { percent: 12, for_seconds: 600 })
+    );
 }

@@ -1,8 +1,9 @@
 //! Deployment facts and store fill (client/domain/pages.md, 7; protocol/store.md, 11.2).
 //! Closed at once (jig/docs/design/domain/people.md, 5.2).
-use super::inbox_deployment::line_bound;
-use super::{Chip, Missing, TaskLink, Window};
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    documents::{Chip, Missing, TaskLink, Window, inbox_deployment::line_bound},
+};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_fleet as fleet;
@@ -186,7 +187,6 @@ pub(super) fn account_state(state: accounts::State) -> AccountState {
         accounts::State::Closing => AccountState::Closing,
     }
 }
-#[expect(clippy::manual_map, reason = "step code has no closures (programming-model.md, section 10)")]
 fn host_run(
     core: &Core,
     party: u64,
@@ -229,7 +229,6 @@ fn host_run(
     clippy::too_many_lines,
     reason = "one deployment document gathers bounded child-owned host, account and capacity facts"
 )]
-#[expect(clippy::manual_map, reason = "step code has no closures (programming-model.md, section 10)")]
 pub(super) fn deployment(
     core: &Core,
     limits: &Limits,
@@ -298,7 +297,7 @@ pub(super) fn deployment(
             })
             .expect("bounded hosts");
     }
-    cut |= usize::try_from(source_hosts.len()).expect("host count fits") > line_bound(limits);
+    cut |= skein_lib::length::usize_of(source_hosts.len()) > line_bound(limits);
     cut |= core.fleet.host_history_lost() != 0 || core.fleet.hello_history_lost() != 0;
     let mut hello_refusals = List::with_capacity(limits.documents.lines);
     let refused = core.fleet.hello_refusals();
@@ -313,12 +312,12 @@ pub(super) fn deployment(
             })
             .expect("bounded hello refusals");
     }
-    cut |= usize::try_from(refused.len()).expect("hello count fits") > line_bound(limits);
+    cut |= skein_lib::length::usize_of(refused.len()) > line_bound(limits);
     let mut attempts = List::with_capacity(limits.documents.lines);
     for value in source_runs.iter().take(line_bound(limits)) {
         attempts.push(host_run(core, party, limits, clock, value)?).expect("bounded attempt rows");
     }
-    cut |= usize::try_from(source_runs.len()).expect("attempt count fits") > line_bound(limits);
+    cut |= skein_lib::length::usize_of(source_runs.len()) > line_bound(limits);
     let rows = core.tasks.view_tasks();
     let mut accounts = List::with_capacity(limits.documents.lines);
     let source_accounts = core.accounts.account_views();
@@ -459,14 +458,14 @@ pub(super) fn deployment(
     for value in refused.iter().take(line_bound(limits)) {
         person_room_refusals.push(*value).expect("bounded person room refusals");
     }
-    cut |= usize::try_from(refused.len()).expect("refusal count fits") > line_bound(limits);
+    cut |= skein_lib::length::usize_of(refused.len()) > line_bound(limits);
     cut |= core.people.capacity_refusals_lost() != 0;
     let refused_tasks = core.tasks.capacity_refusals();
     let mut task_room_refusals = List::with_capacity(limits.documents.lines);
     for value in refused_tasks.as_slice().iter().rev().take(line_bound(limits)) {
         task_room_refusals.push(*value).expect("bounded task room refusals");
     }
-    cut |= usize::try_from(refused_tasks.len()).expect("refusal count fits") > line_bound(limits);
+    cut |= skein_lib::length::usize_of(refused_tasks.len()) > line_bound(limits);
     cut |= core.tasks.capacity_refusals_lost() != 0;
     let mut connectors = List::with_capacity(limits.documents.lines);
     for connector in core.connectors.iter().take(line_bound(limits)) {

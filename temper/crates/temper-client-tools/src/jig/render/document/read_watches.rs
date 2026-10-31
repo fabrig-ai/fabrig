@@ -57,7 +57,7 @@ pub(super) fn encode_object_key(value: &jig_client::contract::ObjectKey, out: &m
     }
 }
 
-pub(super) fn encode_owner_tree(value: &jig_client::contract::OwnerTree, out: &mut Encoder, budget: &mut super::Cut) {
+pub(super) fn encode_owner_tree(value: &jig_client::contract::Tree, out: &mut Encoder, budget: &mut super::Cut) {
     let digest = budget.digest.take();
     out.object_start();
     out.key(b"root");
@@ -90,7 +90,7 @@ pub(super) fn encode_owner_tree(value: &jig_client::contract::OwnerTree, out: &m
 }
 
 pub(super) fn encode_owner_tree_fold(
-    value: &jig_client::contract::OwnerTreeFold,
+    value: &jig_client::contract::TreeFold,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -104,11 +104,7 @@ pub(super) fn encode_owner_tree_fold(
     out.object_end();
 }
 
-pub(super) fn encode_owner_tree_row(
-    value: &jig_client::contract::OwnerTreeRow,
-    out: &mut Encoder,
-    budget: &mut super::Cut,
-) {
+pub(super) fn encode_owner_tree_row(value: &jig_client::contract::TreeRow, out: &mut Encoder, budget: &mut super::Cut) {
     out.object_start();
     out.key(b"chip");
     super::encode_chip(&value.chip, out, budget);
@@ -133,45 +129,6 @@ pub(super) fn encode_owner_tree_row(
     out.key(b"cut");
     out.boolean(value.cut);
     out.object_end();
-}
-
-pub(super) fn encode_run_beginning(
-    value: jig_client::contract::RunBeginning,
-    out: &mut Encoder,
-    _budget: &mut super::Cut,
-) {
-    let value = &value;
-    match value {
-        jig_client::contract::RunBeginning::Resumed => out.string(b"resumed"),
-        jig_client::contract::RunBeginning::Fresh { tail } => {
-            out.object_start();
-            out.key(b"fresh");
-            out.object_start();
-            out.key(b"tail");
-            out.unsigned(u64::from(*(tail)));
-            out.object_end();
-            out.object_end();
-        }
-    }
-}
-
-pub(super) fn encode_run_ending(value: &jig_client::contract::RunEnding, out: &mut Encoder, budget: &mut super::Cut) {
-    match value {
-        jig_client::contract::RunEnding::Parked => out.string(b"parked"),
-        jig_client::contract::RunEnding::Finished => out.string(b"finished"),
-        jig_client::contract::RunEnding::Cancelled => out.string(b"cancelled"),
-        jig_client::contract::RunEnding::Failed { class, reason } => {
-            out.object_start();
-            out.key(b"failed");
-            out.object_start();
-            out.key(b"class");
-            super::encode_failure_class(*(class), out, budget);
-            out.key(b"reason");
-            budget.words((reason).bytes(), out);
-            out.object_end();
-            out.object_end();
-        }
-    }
 }
 
 pub(super) fn encode_run_state(value: &jig_client::contract::RunState, out: &mut Encoder, budget: &mut super::Cut) {
@@ -235,54 +192,4 @@ pub(super) fn encode_run_text(value: &jig_client::contract::RunText, out: &mut E
         None => out.null(),
     }
     super::subject_end(digest, out);
-}
-
-pub(super) fn encode_tree(value: &jig_client::contract::Tree, out: &mut Encoder, budget: &mut super::Cut) {
-    let digest = budget.digest.take();
-    out.object_start();
-    out.key(b"task");
-    out.unsigned(value.task);
-    out.key(b"nodes");
-    out.array_start();
-    for item_1 in &value.nodes {
-        encode_tree_node(item_1, out, budget);
-    }
-    out.array_end();
-    out.key(b"folded");
-    super::encode_phase_counts(&value.folded, out, budget);
-    out.key(b"held_below");
-    out.unsigned(u64::from(value.held_below));
-    super::subject_end(digest, out);
-}
-
-pub(super) fn encode_tree_node(value: &jig_client::contract::TreeNode, out: &mut Encoder, budget: &mut super::Cut) {
-    out.object_start();
-    out.key(b"chip");
-    super::encode_chip(&value.chip, out, budget);
-    out.key(b"parent");
-    match &value.parent {
-        Some(item_1) => {
-            out.unsigned(*(item_1));
-        }
-        None => out.null(),
-    }
-    out.key(b"dependencies");
-    out.array_start();
-    for item_2 in &value.dependencies {
-        out.unsigned(*(item_2));
-    }
-    out.array_end();
-    out.key(b"proposals");
-    out.array_start();
-    for item_3 in &value.proposals {
-        super::encode_proposal_key(item_3, out, budget);
-    }
-    out.array_end();
-    out.key(b"spend");
-    out.unsigned(value.spend);
-    out.key(b"folded");
-    super::encode_phase_counts(&value.folded, out, budget);
-    out.key(b"held_below");
-    out.unsigned(u64::from(value.held_below));
-    out.object_end();
 }

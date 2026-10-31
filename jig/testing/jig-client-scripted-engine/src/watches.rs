@@ -1,8 +1,8 @@
 //! One in-flight document and a dirty mark per watch; contract.md, 7.
-use crate::{Engine, Invalid, Rows, Up, payload, reads::list};
+use crate::{Engine, Invalid, Rows, Up, reads::list};
 use jig_client_domain::contract::{
-    Call, Delivery, Inbox, LiveCall, ObjectKey, OwnerRequester, Phase, ProvisionalTurnName, Read, ReadValue, RunState,
-    RunText, Subject, Tasks, Text, TurnName, WatchEnd, WatchEvent,
+    Call, Delivery, Inbox, InboxCursor, LiveCall, ObjectKey, Phase, PhaseCounts, ProvisionalTurnName, Read, ReadValue,
+    Requester, RunState, RunText, Subject, Tasks, Text, TurnName, WatchEnd, WatchEvent,
 };
 use skein_lib::{Time, Token, Wall};
 
@@ -24,7 +24,7 @@ pub(crate) struct Watch {
 impl<A: crate::Application> Engine<A> {
     /// Admits one subject, then emits whole current values until one terminal.
     pub fn open(&mut self, now: Time, sign_in: u64, token: Token, subject: Subject) -> Result<(), Invalid> {
-        if !payload::fits(&subject, &self.bounds) {
+        if crate::codec::subject(&subject, &self.bounds).is_err() {
             return Err(Invalid::Payload);
         }
         if !self.watch_tokens.insert(token) {
@@ -178,16 +178,15 @@ impl<A: crate::Application> Engine<A> {
             Subject::Task { task } | Subject::Tree { task, .. } | Subject::Run { task, .. } => vec![*task],
             Subject::Chips { tasks } => tasks.iter().copied().collect(),
             Subject::Tasks { query, .. } => {
-                if matches!(query.requester, Some(OwnerRequester::Deployment { .. })) {
+                if matches!(query.requester, Some(Requester::Deployment { .. })) {
                     return Some(WatchEnd::Unknown);
                 }
                 return match query.project {
                     Some(project) => (!self.truth.visible(party, project)).then_some(hidden),
-                    None => (query.requester != Some(OwnerRequester::Person(party))).then_some(hidden),
+                    None => (query.requester != Some(Requester::Person(party))).then_some(hidden),
                 };
             }
-            Subject::Accounts => return Some(WatchEnd::Unknown),
-            Subject::Me => return (!self.truth.frames.contains_key(&party)).then_some(hidden),
+            Subject::Accounts | Subject::Me => return (!self.truth.frames.contains_key(&party)).then_some(hidden),
             Subject::Inbox { .. } => return None,
             Subject::Settings => return (!self.read_visible(party, &Read::Settings)).then_some(hidden),
             Subject::Deployment => return (!self.read_visible(party, &Read::Deployment)).then_some(hidden),
@@ -217,12 +216,12 @@ impl<A: crate::Application> Engine<A> {
             }
             Subject::Tree { task, window } => {
                 let mut tree = self.truth.trees.get(task).cloned().ok_or(WatchEnd::Unknown)?;
-                let nodes: Vec<_> = tree.nodes.iter().cloned().collect();
+                let nodes: Vec<_> = tree.rows.iter().cloned().collect();
                 let count = nodes.len().min((*window).min(self.bounds.rows) as usize);
                 for node in &nodes[count..] {
-                    fold(&mut tree.folded, node.chip.phase);
+                    fold_tree(&mut tree.folded, node.parent, node.chip.phase);
                 }
-                tree.nodes = list(&nodes[..count]);
+                tree.rows = list(&nodes[..count]);
                 Delivery::Tree(Box::new(tree))
             }
             Subject::Chips { tasks } => {
@@ -249,13 +248,44 @@ impl<A: crate::Application> Engine<A> {
                 }
                 let count = entries.len().min((*window).min(self.bounds.rows) as usize);
                 let frame = &self.truth.frames[&party];
+                let rows = &entries[..count];
                 Delivery::Inbox(Box::new(Inbox {
-                    entries: list(&entries[..count]),
-                    needs: frame.needs,
-                    updates: frame.updates,
+                    party,
+                    needs: list(
+                        &rows
+                            .iter()
+                            .filter(|row| {
+                                jig_client_domain::contract::InboxReadGroup::of(row.group())
+                                    == jig_client_domain::contract::InboxReadGroup::Needs
+                            })
+                            .cloned()
+                            .collect::<Vec<_>>(),
+                    ),
+                    updates: list(
+                        &rows
+                            .iter()
+                            .filter(|row| {
+                                jig_client_domain::contract::InboxReadGroup::of(row.group())
+                                    != jig_client_domain::contract::InboxReadGroup::Needs
+                            })
+                            .cloned()
+                            .collect::<Vec<_>>(),
+                    ),
+                    cached_needs: frame.needs_total,
+                    cached_updates: frame.updates,
                     results_seen: self.truth.results_seen.get(&party).copied().unwrap_or(0),
-                    replies_seen: list(self.truth.replies_seen.get(&party).map_or(&[], Vec::as_slice)),
-                    more: count < entries.len(),
+                    next: (count < entries.len())
+                        .then(|| rows.last().map_or(InboxCursor::Number { number: 0 }, |row| row.cursor)),
+                    updates_time_complete: true,
+                    selection: self.truth.inbox_selection.get(&party).map(|selections| {
+                        list(
+                            &selections
+                                .iter()
+                                .filter(|selection| rows.iter().any(|row| row.cursor == selection.cursor))
+                                .cloned()
+                                .collect::<Vec<_>>(),
+                        )
+                    }),
                 }))
             }
             Subject::Tasks { query, window } => {
@@ -268,7 +298,11 @@ impl<A: crate::Application> Engine<A> {
                     return Ok(None);
                 };
                 let run = match run {
-                    Run::State(value) => return Ok(Some(Delivery::RunState(Box::new(value.clone())))),
+                    Run::State(value) => {
+                        return crate::codec::delivery(&Delivery::RunState(Box::new(value.clone())), &self.bounds)
+                            .map(Some)
+                            .map_err(|_| WatchEnd::Busy);
+                    }
                     Run::Text(value) => value,
                 };
                 let acknowledged =
@@ -280,29 +314,46 @@ impl<A: crate::Application> Engine<A> {
                 value.cut = from > acknowledged;
                 value.text = Text::new(run.text.bytes()[start..].to_vec().into_boxed_slice(), self.bounds.text)
                     .expect("retained run fits");
-                Delivery::Run(Box::new(value))
+                Delivery::RunState(Box::new(RunState {
+                    task: *task,
+                    attempt: Some(value.attempt),
+                    committed_turn: 0,
+                    writing: Some(value),
+                    call: None,
+                }))
             }
-            Subject::Accounts => return Err(WatchEnd::Unknown),
+            Subject::Accounts => Delivery::Accounts(Box::new(self.truth.accounts.get(&party).cloned().unwrap_or(
+                jig_client_domain::contract::Accounts {
+                    program_hosts: list(&[]),
+                    accounts: list(&[]),
+                    signing: list(&[]),
+                    last_end: None,
+                    usable: false,
+                    settled: true,
+                    cut: false,
+                    readiness: list(&[]),
+                    readiness_cut: false,
+                },
+            ))),
             Subject::Settings => Delivery::Settings(Box::new(self.truth.settings.clone().ok_or(WatchEnd::Unknown)?)),
             Subject::Deployment => {
-                if let Some(value) = &self.truth.owner_deployment {
-                    Delivery::OwnerDeployment(Box::new(value.clone()))
-                } else {
-                    Delivery::Deployment(Box::new(self.truth.deployment.clone().ok_or(WatchEnd::Unknown)?))
-                }
+                Delivery::Deployment(Box::new(self.truth.deployment.clone().ok_or(WatchEnd::Unknown)?))
             }
         };
         loop {
-            if payload::fits(&value, &self.bounds) {
-                return Ok(Some(value));
+            if let Ok(decoded) = crate::codec::delivery(&value, &self.bounds) {
+                return Ok(Some(decoded));
             }
             match &mut value {
-                Delivery::OwnerInbox(_) => return Err(WatchEnd::Unknown),
                 Delivery::Inbox(doc) => {
-                    if !shorten(&mut doc.entries) {
+                    let rows = if doc.updates.is_empty() { &mut doc.needs } else { &mut doc.updates };
+                    let Some(last) = rows.iter().last().map(|row| row.cursor) else {
+                        return Err(WatchEnd::Busy);
+                    };
+                    if !shorten(rows) {
                         return Err(WatchEnd::Busy);
                     }
-                    doc.more = true;
+                    doc.next = Some(last);
                 }
                 Delivery::Tasks(doc) => {
                     if !shorten(&mut doc.rows) {
@@ -311,25 +362,23 @@ impl<A: crate::Application> Engine<A> {
                     doc.more = true;
                 }
                 Delivery::Tree(doc) => {
-                    let nodes: Vec<_> = doc.nodes.iter().cloned().collect();
+                    let nodes: Vec<_> = doc.rows.iter().cloned().collect();
                     let Some(last) = nodes.last() else {
                         return Err(WatchEnd::Busy);
                     };
-                    fold(&mut doc.folded, last.chip.phase);
-                    doc.nodes = list(&nodes[..nodes.len() - 1]);
+                    fold_tree(&mut doc.folded, last.parent, last.chip.phase);
+                    doc.rows = list(&nodes[..nodes.len() - 1]);
                 }
                 Delivery::Me(_)
-                | Delivery::OwnerTree(_)
                 | Delivery::Task(_)
-                | Delivery::OwnerProject(_)
-                | Delivery::OwnerProposal(_)
+                | Delivery::Project(_)
+                | Delivery::Proposal(_)
                 | Delivery::Chips(_)
                 | Delivery::Run(_)
                 | Delivery::RunState(_)
                 | Delivery::Settings(_)
                 | Delivery::Deployment(_)
-                | Delivery::OwnerDeployment(_)
-                | Delivery::OwnerAccounts(_) => return Err(WatchEnd::Busy),
+                | Delivery::Accounts(_) => return Err(WatchEnd::Busy),
             }
         }
     }
@@ -378,9 +427,6 @@ impl<A: crate::Application> Engine<A> {
         if !self.online(now) {
             return Err(Invalid::Offline);
         }
-        if !payload::fits(bytes, &self.bounds) || !payload::fits(&call, &self.bounds) {
-            return Err(Invalid::Payload);
-        }
         if !self.truth.objects.contains_key(&ObjectKey::Task(task)) {
             return Err(Invalid::Identity);
         }
@@ -413,9 +459,16 @@ impl<A: crate::Application> Engine<A> {
             cut: from != 0,
             call,
         };
-        if !payload::fits(&run, &self.bounds) {
-            return Err(Invalid::Payload);
-        }
+        crate::codec::delivery(
+            &Delivery::RunState(Box::new(RunState {
+                task,
+                attempt: Some(run.attempt),
+                committed_turn: 0,
+                writing: Some(run.clone()),
+                call: None,
+            })),
+            &self.bounds,
+        )?;
         self.runs.insert(task, Run::Text(run));
         for watch in self.watches.values_mut() {
             if matches!(watch.subject, Subject::Run { task:id, .. } if id == task) {
@@ -433,11 +486,11 @@ impl<A: crate::Application> Engine<A> {
         if !self.online(now) {
             return Err(Invalid::Offline);
         }
-        if !payload::fits(&value, &self.bounds)
-            || !payload::fits(&Delivery::RunState(Box::new(value.clone())), &self.bounds)
-        {
-            return Err(Invalid::Payload);
-        }
+        let Delivery::RunState(value) = crate::codec::delivery(&Delivery::RunState(Box::new(value)), &self.bounds)?
+        else {
+            unreachable!("encoded run state")
+        };
+        let value = *value;
         if !self.truth.objects.contains_key(&ObjectKey::Task(value.task)) {
             return Err(Invalid::Identity);
         }
@@ -466,18 +519,42 @@ fn shorten<T: Clone>(rows: &mut skein_lib::List<T>) -> bool {
     *rows = list(&copy[..copy.len() - 1]);
     true
 }
-fn fold(counts: &mut jig_client_domain::contract::PhaseCounts, phase: Phase) {
-    let count = match phase {
-        Phase::Waiting | Phase::Idle | Phase::Due | Phase::Preparing | Phase::Claimed | Phase::BackingOff => {
-            &mut counts.waiting
+fn fold_tree(folds: &mut skein_lib::List<jig_client_domain::contract::TreeFold>, parent: u64, phase: Phase) {
+    for at in 0..folds.len() {
+        let row = folds.get_mut(at).expect("bounded fold");
+        if row.parent == parent {
+            fold(&mut row.phases, phase);
+            return;
         }
-        Phase::Running | Phase::Active => &mut counts.running,
-        Phase::Held => &mut counts.held,
-        Phase::Closing => &mut counts.closing,
-        Phase::Ended => &mut counts.ended,
-        Phase::Done => &mut counts.done,
-        Phase::Failed => &mut counts.failed,
-        Phase::Cancelled => &mut counts.cancelled,
+    }
+    let mut phases = PhaseCounts {
+        waiting: 0,
+        idle: 0,
+        starting: 0,
+        running: 0,
+        backing_off: 0,
+        closing: 0,
+        held: 0,
+        done: 0,
+        failed: 0,
+        cancelled: 0,
     };
-    *count = count.saturating_add(1);
+    fold(&mut phases, phase);
+    let mut rows: Vec<_> = folds.iter().cloned().collect();
+    rows.push(jig_client_domain::contract::TreeFold { parent, phases, held_below: 0 });
+    *folds = list(&rows);
+}
+fn fold(counts: &mut PhaseCounts, phase: Phase) {
+    match phase {
+        Phase::Due | Phase::Preparing | Phase::Claimed => counts.starting += 1,
+        Phase::BackingOff => counts.backing_off += 1,
+        Phase::Idle => counts.idle += 1,
+        Phase::Waiting => counts.waiting += 1,
+        Phase::Running | Phase::Active => counts.running += 1,
+        Phase::Held => counts.held += 1,
+        Phase::Closing => counts.closing += 1,
+        Phase::Done => counts.done += 1,
+        Phase::Failed => counts.failed += 1,
+        Phase::Ended | Phase::Cancelled => counts.cancelled += 1,
+    }
 }

@@ -297,7 +297,7 @@ pub fn sign_in_secret(number: u64, byte: u8) -> Secrets {
         value: crate::SecretValue::Digest { expiry: 0, digest: [byte; 32] },
     }
 }
-pub fn codec_limits() -> codec::Limits {
+pub fn codec_limits() -> codec::View {
     codec::limits(&CORE_LIMITS).expect("fixture codec limits")
 }
 pub fn turn(task: u64, attempt: u64, number: u32, bytes: &[u8]) -> jig_domain_core::TurnRecord {
@@ -384,7 +384,7 @@ pub fn script(store: &mut Store, mut below: Below, answers: &[Answer]) -> Box<[E
                 let file::Request::ReadAt { owner, max, .. } = request else {
                     panic!("read frame");
                 };
-                assert!(bytes.len() <= usize::try_from(max).expect("read size"));
+                assert!(bytes.len() <= skein_lib::length::usize_of(max));
                 file::Event::Read { owner, bytes: bytes.clone() }
             }
             Answer::Removed => {

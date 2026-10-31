@@ -1,14 +1,16 @@
 //! Finished task and tree watches reuse the bounded durable task load (contract.md, 7.2).
-use super::{Answer, Destination, Loaded, Past, Pending, Range, Row, Scope, rows};
-use crate::documents::{Document, Missing, Subject};
-use crate::{Core, Held, Limits, Request, Requests};
+use crate::{
+    Core, Held, Limits, Request,
+    documents::{self, Document, Missing, Subject},
+    reads::{Answer, Destination, EndedValue, Loaded, Pending, Range, Row, Scope, rows},
+};
 use alloc::boxed::Box;
 use jig_domain_views as views;
 use skein_lib::{Env, Id, Queue, Token};
 
-pub(crate) fn start_watch(core: &mut Core, env: &Env<Limits>, watcher: Token) -> Requests {
-    let task = crate::routing::view_routes::retained_task(core, watcher).expect("task construction");
-    let binding = core.view_subjects.get(&watcher).expect("bound construction");
+pub(crate) fn start_watch(core: &mut Core, env: &Env<Limits>, watcher: Token) -> Queue<Request> {
+    let task = crate::routing::view::routes::retained_task(core, watcher).expect("task construction");
+    let binding = core.watch_binding(watcher).expect("bound construction");
     let range = Range {
         party: binding.party,
         scope: Scope::Task { task },
@@ -25,12 +27,11 @@ pub(crate) fn start_watch(core: &mut Core, env: &Env<Limits>, watcher: Token) ->
         tasks: None,
     };
     let Ok(load) = core.reads.insert(pending) else {
-        return crate::routing::view_routes::retained_made(core, env, watcher, Err(views::End::Gone));
+        return crate::routing::view::routes::retained_made(core, env, watcher, Err(views::End::Gone));
     };
     let mut out = Queue::uncapped();
     out.push(Request::Held(Box::new(Held::ReadLoad { load: load.token(), range: Box::new(range) })));
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 pub(super) fn watch_loaded(
@@ -39,7 +40,7 @@ pub(super) fn watch_loaded(
     load: Id<Pending>,
     watcher: Token,
     result: Loaded,
-) -> Requests {
+) -> Queue<Request> {
     let pending = core.reads.get_mut(load).expect("pending watch load");
     pending.destination = Destination::Done;
     let sign_in = pending.sign_in;
@@ -51,7 +52,7 @@ pub(super) fn watch_loaded(
     } else {
         Err(views::End::SignedOut)
     };
-    crate::routing::view_routes::retained_made(core, env, watcher, document)
+    crate::routing::view::routes::retained_made(core, env, watcher, document)
 }
 
 fn from_store(
@@ -67,7 +68,7 @@ fn from_store(
             return Err(views::End::Gone);
         }
     };
-    let Some(binding) = core.view_subjects.get(&watcher) else { return Err(views::End::Gone) };
+    let Some(binding) = core.watch_binding(watcher) else { return Err(views::End::Gone) };
     let subject = &core.view_names.get(binding.subject).expect("bound task subject").subject;
     // Validate the same row, byte, identity and visibility bounds as an ordinary task read.
     match subject {
@@ -91,16 +92,16 @@ fn from_store(
         | Subject::Application { .. } => return Err(views::End::Gone),
     }
     match rows::from_store(core, &env.limits, range, raw, next, env.wall) {
-        Answer::Historical(value) => {
+        Answer::Ended(value) => {
             let document = match value.value {
-                Past::Task { document, .. } => document,
-                Past::PersonProposal { .. }
-                | Past::Proposal(_)
-                | Past::Escalation { .. }
-                | Past::Question { .. }
-                | Past::PersonTask { .. }
-                | Past::Turn(_)
-                | Past::Reply(_) => return Err(views::End::Gone),
+                EndedValue::Task { document, .. } => document,
+                EndedValue::PersonProposal { .. }
+                | EndedValue::Proposal(_)
+                | EndedValue::Escalation { .. }
+                | EndedValue::Question { .. }
+                | EndedValue::PersonTask { .. }
+                | EndedValue::Turn(_)
+                | EndedValue::Reply(_) => return Err(views::End::Gone),
             };
             Ok(Document::Task(document))
         }
@@ -125,8 +126,29 @@ fn tree(core: &Core, limits: &Limits, range: &Range, raw: &[Row], more: bool) ->
         return Err(views::End::Gone);
     }
     let Some(owner) = super::vocabulary::row_owner(row) else { return Err(views::End::Gone) };
-    match crate::documents::task_tree::ended_tree(core, limits, range.party, owner) {
+    match documents::task_tree::ended_tree(core, limits, range.party, owner) {
         Ok(tree) => Ok(Document::Tree(tree)),
         Err(Missing::NotAllowed | Missing::Unknown | Missing::Ended | Missing::TooLarge) => Err(views::End::Gone),
     }
+}
+
+/// A watch's authenticated owner and concrete construction inputs.
+/// `client/domain/contract.md`, sections 7.1 and 7.2.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub(crate) struct WatchBinding {
+    /// The party whose document is constructed.
+    pub(crate) party: u64,
+    /// The sign-in that admitted this watch.
+    pub(crate) sign_in: u64,
+    /// The core-owned subject.
+    pub(crate) subject: Id<WatchedSubject>,
+    /// The requested bounded window.
+    pub(crate) window: documents::Window,
+}
+
+/// A concrete subject shared by watches, with its opaque child name.
+#[derive(Debug)]
+pub(crate) struct WatchedSubject {
+    pub(crate) subject: Subject,
+    pub(crate) watchers: u32,
 }

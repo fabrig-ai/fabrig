@@ -150,7 +150,7 @@ fn account_text_waits_append_the_condition_to_read_output() {
     assert_eq!(root.answer(wait).expect("text wait").stdout, f::appended(&expected.stdout, b"met\n"));
 }
 
-fn account_condition(condition: &str, usable: bool, settled: bool) -> (f::Harness, u32, c::OwnerAccounts) {
+fn account_condition(condition: &str, usable: bool, settled: bool) -> (f::Harness, u32, c::Accounts) {
     let mut root = f::account_root(true);
     let call = root.submit(&["account", "list", "--until", condition, "--json"]);
     let mut party = f::accounts();
@@ -305,7 +305,7 @@ fn changed_readiness(change: ReadinessChange) -> (skein_lib::List<c::PayerReadin
     match change {
         ReadinessChange::Removed => rows = skein_lib::List::with_capacity(0),
         ReadinessChange::Provider => row.provider = f::PROVIDER.checked_add(1).expect("other provider"),
-        ReadinessChange::Payer => row.payer = c::OwnerAccountUse::Project(1),
+        ReadinessChange::Payer => row.payer = c::AccountUse::Project(1),
         ReadinessChange::Usable => row.readiness = c::Readiness::Usable,
         ReadinessChange::Unavailable => row.readiness = c::Readiness::Unavailable,
         ReadinessChange::Settled => row.settled = Some(false),

@@ -1,5 +1,8 @@
 //! P and Q's supplied owner facts and public-tree observations.
-#![allow(clippy::wildcard_imports, reason = "finite story fixtures enumerate the complete client vocabulary")]
+#![cfg_attr(
+    not(test),
+    expect(clippy::wildcard_imports, reason = "story fixtures enumerate the complete client vocabulary")
+)]
 use super::{Document, Ops, OpsScript, Scripted, Subject};
 use jig_client_domain::contract::*;
 use jig_client_scripted_engine::{Bounds, Script, Truth};
@@ -9,7 +12,7 @@ use jig_client_world::{
     Settings, World,
     harness::{CardKey, CardSeen, Seen},
     observe,
-    stories::{frame, party, proposal, task, text},
+    stories::{decided_proposal, frame, proposal, task, text, turn_event},
 };
 use jig_ops_client_domain::{Address, infrastructure as infra, observability as obs};
 use jig_ops_domain_connectors::{Connector, number};
@@ -31,14 +34,14 @@ pub fn lead() -> Address {
 /// Explicit environment address, independent of its creation purpose.
 #[must_use]
 pub fn environment() -> Address {
-    Address::Infrastructure(infra::Address::Environment { project: 1, environment: 7 })
+    Address::Infrastructure(infra::Address::Environment { project: 1, environment: environment_name() })
 }
 pub(super) fn seen(tree: &ViewTree) -> Vec<Seen> {
     let mut seen = observe::jig_seen(tree);
     for (at, node) in tree.nodes().iter().enumerate() {
         let Some(key) = node.key else { continue };
         if key.owner != ((Owner::Application { number: number(Connector::Infrastructure) }).opaque())
-            || !matches!(key.kind, 2 | 12)
+            || key.kind != 12
             || node.role != Role::Item
         {
             continue;
@@ -54,72 +57,78 @@ pub(super) fn seen(tree: &ViewTree) -> Vec<Seen> {
         } else {
             CardSeen::Waiting
         };
-        // The native form supplies the owner's end revision as the public
+        // The form supplies the owner's end revision as the public
         // field's write version, alongside the whole client object identity.
-        let revision = if key.kind == 12 {
-            tree.nodes()[at..at + usize::try_from(node.size).expect("card subtree")]
-                .iter()
-                .find(|field| field.role == Role::TextField)
-                .and_then(|field| field.value.as_ref())
-                .map(|value| value.written)
-        } else {
-            None
-        };
+        let revision = tree.nodes()[at..at + skein_lib::length::usize_of(node.size)]
+            .iter()
+            .find(|field| field.role == Role::TextField)
+            .and_then(|field| field.value.as_ref())
+            .map(|value| value.written);
         seen.push(Seen::Card { key: CardKey::of(key), state, revision });
     }
     seen
 }
 #[must_use]
-pub fn incident_document() -> obs::documents::Incident {
-    let previous = obs::documents::Health {
-        observed: Wall::from_nanos(36_000_000_000_000),
-        healthy_replicas: 3,
-        errors: 2,
-        error_rate_percent: 2,
-    };
-    obs::documents::Incident {
-        project: 1,
-        number: 12,
-        revision: Revision { value: 1 },
-        watch: 888,
-        raised: previous.observed,
-        service: obs::documents::Service {
-            environment: b"production".as_slice().into(),
-            name: b"checkout".as_slice().into(),
+pub fn incident_document() -> obs::values::Document {
+    let previous = obs::values::Health { observed: 36_000, healthy_replicas: 3, errors: 2, error_rate_percent: 2 };
+    obs::values::Document {
+        subject: obs::Subject { scope: obs::Scope::Project(1), kind: obs::Kind::Incident(12) },
+        value: obs::values::Value::Incident {
+            incident: obs::values::Incident {
+                project: 1,
+                number: 12,
+                watch: 888,
+                raised: Wall::from_nanos(36_000_000_000_000),
+                service: obs::documents::Service {
+                    environment: b"production".as_slice().into(),
+                    name: b"checkout".as_slice().into(),
+                },
+                severity: 2,
+                state: obs::documents::State::Alerting,
+                timeline: list([obs::values::Point {
+                    at: Wall::from_nanos(36_000_000_000_000),
+                    health: Some(previous),
+                }]),
+                cut: false,
+                lead: Some(9),
+                alerts: Box::new([]),
+            },
+            fact: Some(obs::values::Fact {
+                observed: 36_120,
+                healthy_replicas: 2,
+                errors: 30,
+                error_rate_percent: 30,
+                load_percent: 0,
+                load: Box::new([]),
+            }),
         },
-        severity: 2,
-        state: obs::documents::State::Alerting,
-        timeline: list([obs::documents::Point { at: previous.observed, health: Some(previous) }]),
-        cut: false,
-        health: Some(obs::documents::Health {
-            observed: Wall::from_nanos(36_120_000_000_000),
-            healthy_replicas: 2,
-            errors: 30,
-            error_rate_percent: 30,
-        }),
-        lead: Some(9),
-        proposals: list([]),
     }
 }
 #[must_use]
-pub fn environment_document() -> infra::documents::Environment {
-    infra::documents::Environment {
-        project: 1,
-        number: 7,
-        pool: 3,
-        name: b"staging-7".as_slice().into(),
-        revision: Revision { value: 99 },
-        created_by: infra::documents::Creation {
-            deployment: [1; 16],
-            task: 10,
-            origin: infra::documents::Purpose::Procedure { purpose: 2 },
-            purpose: 2,
+pub fn environment_name() -> infra::values::Environment {
+    infra::values::Environment { pool: b"Q pool".as_slice().into(), name: b"staging-7".as_slice().into() }
+}
+#[must_use]
+pub fn environment_document() -> infra::values::Document {
+    infra::values::Document {
+        subject: infra::Subject { scope: infra::Scope::Project(1), kind: infra::Kind::Environment(environment_name()) },
+        value: infra::values::Value::Environment {
+            environment: environment_name(),
+            end_revision: 5,
+            fact: infra::values::EnvironmentFact {
+                created_by: infra::values::Key {
+                    deployment: [1; 16],
+                    task: 10,
+                    origin: infra::values::Purpose::Procedure { purpose: 2 },
+                    purpose: 2,
+                },
+                ready_at: 30,
+                until: 123,
+                price: 40,
+            },
+            end: Some(infra::values::EnvironmentEnd { revision: 5, until: 600 }),
+            pool: Some(infra::values::ClientPool { quota: 2, used: 1 }),
         },
-        ready_at: Some(Wall::from_nanos(30_000_000_000)),
-        ready: Some(true),
-        cost: Some(40),
-        observed_until: Some(Wall::from_nanos(123_000_000_000)),
-        end: Some(infra::documents::End { revision: Revision { value: 5 }, until: Wall::from_nanos(600_000_000_000) }),
     }
 }
 /// Starts the incident story; every identity is explicitly supplied by its fixture.
@@ -135,24 +144,39 @@ pub fn incident_world(seed: u64) -> ClientWorld {
         truth.sign_ins.insert(party, party);
     }
     let mut p = proposal();
-    p.action =
-        ProposalAction::Effect { part: Part::Effect { connector: number(Connector::Infrastructure), proposal: p.key } };
-    p.why = text(b"Restart checkout in production");
+    p.action = ProposalAction::Effect {
+        part: Part {
+            connector: number(Connector::Infrastructure),
+            kind: PartKind::Effect,
+            key: PartKey::Number(p.key.number),
+        },
+        authority: task().authority,
+        attempt: 1,
+        completion: 1,
+        position: 1,
+        purpose: 1,
+    };
+    p.reason = DocumentText::complete(text(b"Restart checkout in production"));
     let mut lead = task();
     lead.chip.title = DocumentText::complete(text(b"I incident lead"));
-    *lead.chip.details = ChipPhase::Idle {
-        wake: WakePolicy { words: false, results: false, topics: list([]), subscriptions: list([]) },
-    };
+    {
+        let ChipPhaseFacts { phase, .. } = lead.chip.details.as_mut();
+        *phase = ChipPhase::Active(RunStage::Idle);
+    }
     let mut restart = task();
     restart.chip.task = 10;
     restart.chip.title = DocumentText::complete(text(b"R restart checkout"));
-    restart.requester = OwnerRequester::Task(9);
+    restart.requester = Requester::Task(9);
     restart.proposals = list([p.key]);
-    restart.chip.executor = Executor::Procedure { connector: number(Connector::Infrastructure), kind: 1 };
-    *restart.chip.details =
-        ChipPhase::Procedure { panel: Part::Panel { connector: number(Connector::Infrastructure), task: 10 } };
-    restart.context.as_mut().expect("supplied task context").parts =
-        list([Part::Panel { connector: number(Connector::Infrastructure), task: 10 }]);
+    restart.chip.executor = ChipExecutor::Procedure { connector: number(Connector::Infrastructure), kind: 1 };
+    {
+        let ChipPhaseFacts { details, .. } = restart.chip.details.as_mut();
+        details.procedure = Some(Part {
+            connector: number(Connector::Infrastructure),
+            kind: PartKind::Procedure,
+            key: PartKey::Number(10),
+        });
+    }
     lead.delegates = list([LiveDelegate { chip: restart.chip.clone(), takeover_budget: 1 }]);
     lead.context.as_mut().expect("supplied task context").impact.tasks.running = 1;
     for (key, value) in [
@@ -163,150 +187,126 @@ pub fn incident_world(seed: u64) -> ClientWorld {
         truth.object_projects.insert(key, 1);
         truth.objects.insert(key, value);
     }
-    let counts =
-        PhaseCounts { waiting: 0, running: 2, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0, ended: 0 };
     truth.trees.insert(
         9,
         Tree {
-            task: 9,
-            nodes: list([
-                TreeNode {
-                    chip: lead.chip.clone(),
-                    parent: None,
-                    dependencies: list([]),
-                    proposals: list([]),
-                    spend: 0,
-                    folded: counts,
-                    held_below: 0,
-                },
-                TreeNode {
-                    chip: restart.chip.clone(),
-                    parent: Some(9),
-                    dependencies: list([]),
-                    proposals: list([p.key]),
-                    spend: 0,
-                    folded: counts,
-                    held_below: 0,
-                },
-            ]),
-            folded: counts,
+            root: lead.chip.clone(),
+            rows: list([TreeRow {
+                chip: restart.chip.clone(),
+                parent: 9,
+                depth: 1,
+                dependencies: list([]),
+                proposals: list([p.key]),
+                spent: 0,
+                cut: false,
+            }]),
+            folded: list([]),
             held_below: 0,
+            next: None,
         },
     );
     truth.sources.push(jig_client_scripted_engine::Source {
         party: 7,
         read: Read::Activity { task: 9, before: None },
-        rows: jig_client_scripted_engine::Rows::Activity(vec![ActivityLine {
-            position: 1,
-            at: Wall::EPOCH,
-            event: Activity::Turn {
-                name: TurnName { attempt: 1, number: 1 },
-                turn: TurnRead::Decoded(Turn {
-                    messages: list([Message {
-                        speaker: Speaker::Assistant,
-                        blocks: list([Block::Call(Call {
-                            number: 1,
-                            tool: text(b"delegate"),
-                            input: text(b"Restart checkout"),
-                            outcome: Some(text(b"R restart checkout")),
-                            failed: false,
-                            objects: list([ObjectKey::Task(10)]),
-                            parts: list([]),
-                        })]),
-                    }]),
-                    used: Usage { input: 1, output: 1, cached: 0, cache_written: 0 },
-                    spent: 1,
-                    read_through: None,
-                    cut: false,
-                }),
-            },
-        }]),
+        rows: jig_client_scripted_engine::Rows::Activity(vec![turn_event(
+            9,
+            1,
+            TurnName { attempt: 1, number: 1 },
+            TurnRead::Decoded(Turn {
+                messages: list([Message {
+                    speaker: Speaker::Assistant,
+                    blocks: list([Block::Call(Call {
+                        number: 1,
+                        tool: text(b"delegate"),
+                        input: text(b"Restart checkout"),
+                        outcome: Some(text(b"R restart checkout")),
+                        failed: false,
+                        objects: list([ObjectKey::Task(10)]),
+                        parts: list([]),
+                    })]),
+                }]),
+                used: Usage { input: 1, output: 1, cached: 0, cache_written: 0 },
+                spent: 1,
+                read_through: None,
+                cut: false,
+            }),
+        )]),
     });
     truth.sources.push(jig_client_scripted_engine::Source {
         party: 7,
         read: Read::Inbox { group: InboxReadGroup::Needs, project: None, kind: None, goal: None, after: None },
-        rows: jig_client_scripted_engine::Rows::Inbox(vec![InboxEntry {
-            reply: None,
-            lineage: list([]),
-            goal: None,
-            recipient: Some(Recipient::Party(7)),
-            stall: None,
-            object: ObjectKey::Proposal(p.key),
-            project: 1,
-            group: InboxGroup::Proposals,
-            position: 1,
-            at: Wall::EPOCH,
-        }]),
+        rows: jig_client_scripted_engine::Rows::Inbox(vec![inbox_entry(
+            ObjectKey::Proposal(p.key),
+            1,
+            InboxGroup::Proposals,
+            1,
+            Wall::EPOCH,
+            None,
+        )]),
     });
     let mut ops = OpsScript::default();
     let incident = incident_document();
-    let incident_doc = obs::Document::Incident(incident.clone());
+    let obs::values::Value::Incident { incident: row, .. } = &incident.value else { unreachable!() };
+    let rows = list([row.clone()]);
+    let incident_doc = obs::Document::Value(Box::new(incident));
     ops.documents.insert(Subject::Observability(incident_doc.subject()), Document::Observability(incident_doc));
     let subject = obs::Subject { scope: obs::Scope::Project(1), kind: obs::Kind::Incidents { open: true } };
     ops.documents.insert(
         Subject::Observability(subject),
-        Document::Observability(obs::Document::Incidents {
+        Document::Observability(obs::Document::Value(Box::new(obs::values::Document {
             subject,
-            revision: Revision { value: 1 },
-            incidents: list([incident]),
-        }),
+            value: obs::values::Value::Project { project: 1, services: list([]), incidents: rows },
+        }))),
     );
-    let panel_subject = infra::Subject { scope: infra::Scope::Project(1), kind: infra::Kind::Panel(10) };
-    let mut panel = part(panel_subject.clone());
-    panel.panel = Some(infra::documents::Panel {
-        task: 10,
-        procedure: infra::documents::Procedure::Remediate {
-            service: infra::documents::Service {
-                environment: b"production".as_slice().into(),
-                name: b"checkout".as_slice().into(),
+    let subject = infra::Subject { scope: infra::Scope::Project(1), kind: infra::Kind::Panel(10) };
+    ops.documents.insert(
+        Subject::Infrastructure(subject.clone()),
+        Document::Infrastructure(infra::Document::Value(Box::new(infra::values::Document {
+            subject,
+            value: infra::values::Value::Panel {
+                task: 10,
+                state: infra::values::ProcedureState {
+                    task: 10,
+                    procedure: infra::values::Procedure::Remediate { service: service(), operation: 17, deadline: 900 },
+                    phase: infra::values::ProcedurePhase::WaitingCondition,
+                },
+                resources: list([]),
+                effects: list([]),
             },
-            operation: 17,
-            deadline: Wall::from_nanos(900_000_000_000),
-        },
-        phase: infra::documents::Phase::WaitingCondition,
-    });
-    ops.documents.insert(
-        Subject::Infrastructure(panel_subject),
-        Document::Infrastructure(infra::Document::Part(Box::new(panel))),
+        }))),
     );
-    let effect_subject = infra::Subject { scope: infra::Scope::Project(1), kind: infra::Kind::Effect(p.key) };
-    let mut effect = part(effect_subject.clone());
-    effect.description = Some(infra::documents::Description {
-        words: b"Restart checkout".as_slice().into(),
-        resource: b"checkout in production".as_slice().into(),
-        kind: 1,
-        recovery: infra::documents::Recovery::Keyed,
-        price: None,
-        condition: true,
-        form: infra::documents::Form::Transition,
-        state: 1,
-    });
-    effect.effect = Some(infra::documents::EffectAction::Restart {
-        service: infra::documents::Service {
-            environment: b"production".as_slice().into(),
-            name: b"checkout".as_slice().into(),
-        },
-        operation: 17,
-    });
+    let subject = infra::Subject { scope: infra::Scope::Project(1), kind: infra::Kind::OwnerEffect(p.key.number) };
     ops.documents.insert(
-        Subject::Infrastructure(effect_subject),
-        Document::Infrastructure(infra::Document::Part(Box::new(effect))),
+        Subject::Infrastructure(subject.clone()),
+        Document::Infrastructure(infra::Document::Value(Box::new(infra::values::Document {
+            subject,
+            value: infra::values::Value::Effect {
+                proposal: p.key.number,
+                task: 10,
+                effect: infra::values::Effect::Restart { service: service(), operation: 17 },
+                description: description(1, None, true, infra::values::Form::Transition),
+            },
+        }))),
     );
-    let mut decided = p.clone();
-    decided.ending =
-        Some(Ending::Decided { by: 7, party: Some(party(7)), how: Some(Decision::Accepted), at: Wall::EPOCH });
+    let decided = decided_proposal(&p, ProposalHistoryState::Accepted { by: Requester::Person(7) });
     let rule = jig_client_scripted_engine::Rule {
         party: Some(7),
         ask: Ask::Decide {
             project: 1,
             on: DecideOn::Proposal { proposal: p.key, decision: Decision::Accepted, running: None },
         },
-        answer: Answer::Done(Outcome::Decided { by: Actor::Party(7), how: Decision::Accepted, at: Wall::EPOCH }),
+        answer: Answer::Done(Outcome::Document(DocumentOutcome::ProposalDecided {
+            proposal: p.key,
+            by: 7,
+            choice: ProposalChoice::Accepted,
+            at: Wall::EPOCH,
+            repeated: false,
+        })),
         changes: vec![
             jig_client_scripted_engine::Change::Object {
                 project: 1,
                 key: ObjectKey::Proposal(p.key),
-                value: ReadValue::Proposal(Box::new(decided)),
+                value: ReadValue::Ended(Box::new(decided)),
             },
             jig_client_scripted_engine::Change::Source(jig_client_scripted_engine::Source {
                 party: 7,
@@ -342,22 +342,23 @@ fn configured(seed: u64, truth: Truth, ops: OpsScript, rules: Vec<jig_client_scr
         ),
     )
 }
-fn part(subject: infra::Subject) -> infra::documents::PartDocument {
-    infra::documents::PartDocument {
-        subject,
-        revision: Revision { value: 1 },
-        panel: None,
-        description: None,
-        effect: None,
-        resources: list([]),
-        effects: list([]),
-        drift: list([]),
-        environments: list([]),
-        pools: list([]),
-        backend: None,
-        made: None,
-        proposal_limit: None,
-        staged_limit: None,
+fn service() -> infra::values::Service {
+    infra::values::Service { environment: b"production".as_slice().into(), name: b"checkout".as_slice().into() }
+}
+fn description(
+    kind: u16,
+    price: Option<u64>,
+    condition: bool,
+    form: infra::values::Form,
+) -> infra::values::Description {
+    infra::values::Description {
+        kind,
+        resources: Box::new([]),
+        condition,
+        form,
+        recovery: infra::values::Recovery::Keyed,
+        price,
+        state: 1,
     }
 }
 /// Starts Q's new chat with the complete price and owner request fixture.
@@ -376,20 +377,34 @@ pub fn environment_world(seed: u64) -> ClientWorld {
     }
     let mut chat = task();
     chat.chip.title = DocumentText::complete(text(b"Q staging chat"));
-    *chat.chip.details = ChipPhase::Idle {
-        wake: WakePolicy { words: false, results: false, topics: list([]), subscriptions: list([]) },
-    };
+    {
+        let ChipPhaseFacts { phase, .. } = chat.chip.details.as_mut();
+        *phase = ChipPhase::Active(RunStage::Idle);
+    }
     let mut p = proposal();
-    p.why = text(b"Provision staging for one week");
-    p.funding = Budget { total: 40, own: 40, ended: 0, reserved: 0, left: 40, funder: Actor::Party(7) };
-    p.action =
-        ProposalAction::Effect { part: Part::Effect { connector: number(Connector::Infrastructure), proposal: p.key } };
+    p.reason = DocumentText::complete(text(b"Provision staging for one week"));
+    p.funding = list([FundingOffer {
+        source: Funder::Pool { project: 1, person: 7, period: 3 },
+        needed: 40,
+        left: Some(40),
+        after: Some(0),
+    }]);
+    p.action = ProposalAction::Effect {
+        part: Part {
+            connector: number(Connector::Infrastructure),
+            kind: PartKind::Effect,
+            key: PartKey::Number(p.key.number),
+        },
+        authority: task().authority,
+        attempt: 1,
+        completion: 1,
+        position: 1,
+        purpose: 1,
+    };
     chat.proposals = list([p.key]);
     let ask = jig_client::shapes::chat(&truth.frames[&7], 1, text(b"staging for one week"))
         .expect("fixture offers the chat template");
-    let mut accepted = p.clone();
-    accepted.ending =
-        Some(Ending::Decided { by: 7, party: Some(party(7)), how: Some(Decision::Accepted), at: Wall::EPOCH });
+    let accepted = decided_proposal(&p, ProposalHistoryState::Accepted { by: Requester::Person(7) });
     let rule = jig_client_scripted_engine::Rule {
         party: Some(7),
         ask,
@@ -398,31 +413,29 @@ pub fn environment_world(seed: u64) -> ClientWorld {
             jig_client_scripted_engine::Change::Source(jig_client_scripted_engine::Source {
                 party: 7,
                 read: Read::Activity { task: 9, before: None },
-                rows: jig_client_scripted_engine::Rows::Activity(vec![ActivityLine {
-                    position: 1,
-                    at: Wall::EPOCH,
-                    event: Activity::Turn {
-                        name: TurnName { attempt: 1, number: 1 },
-                        turn: TurnRead::Decoded(Turn {
-                            messages: list([Message {
-                                speaker: Speaker::Assistant,
-                                blocks: list([Block::Call(Call {
-                                    number: 1,
-                                    tool: text(b"provision"),
-                                    input: text(b"staging for one week"),
-                                    outcome: Some(text(b"Price 40 exceeds chat budget 10")),
-                                    failed: false,
-                                    objects: list([ObjectKey::Proposal(p.key)]),
-                                    parts: list([]),
-                                })]),
-                            }]),
-                            used: Usage { input: 1, output: 1, cached: 0, cache_written: 0 },
-                            spent: 1,
-                            read_through: None,
-                            cut: false,
-                        }),
-                    },
-                }]),
+                rows: jig_client_scripted_engine::Rows::Activity(vec![turn_event(
+                    9,
+                    1,
+                    TurnName { attempt: 1, number: 1 },
+                    TurnRead::Decoded(Turn {
+                        messages: list([Message {
+                            speaker: Speaker::Assistant,
+                            blocks: list([Block::Call(Call {
+                                number: 1,
+                                tool: text(b"provision"),
+                                input: text(b"staging for one week"),
+                                outcome: Some(text(b"Price 40 exceeds chat budget 10")),
+                                failed: false,
+                                objects: list([ObjectKey::Proposal(p.key)]),
+                                parts: list([]),
+                            })]),
+                        }]),
+                        used: Usage { input: 1, output: 1, cached: 0, cache_written: 0 },
+                        spent: 1,
+                        read_through: None,
+                        cut: false,
+                    }),
+                )]),
             }),
             jig_client_scripted_engine::Change::Object {
                 project: 1,
@@ -442,34 +455,36 @@ pub fn environment_world(seed: u64) -> ClientWorld {
             project: 1,
             on: DecideOn::Proposal { proposal: p.key, decision: Decision::Accepted, running: None },
         },
-        answer: Answer::Done(Outcome::Decided { by: Actor::Party(7), how: Decision::Accepted, at: Wall::EPOCH }),
+        answer: Answer::Done(Outcome::Document(DocumentOutcome::ProposalDecided {
+            proposal: p.key,
+            by: 7,
+            choice: ProposalChoice::Accepted,
+            at: Wall::EPOCH,
+            repeated: false,
+        })),
         changes: vec![jig_client_scripted_engine::Change::Object {
             project: 1,
             key: ObjectKey::Proposal(p.key),
-            value: ReadValue::Proposal(Box::new(accepted)),
+            value: ReadValue::Ended(Box::new(accepted)),
         }],
     };
     let mut ops = OpsScript::default();
-    let subject = infra::Subject { scope: infra::Scope::Project(1), kind: infra::Kind::Effect(p.key) };
-    let mut effect = part(subject.clone());
-    effect.description = Some(infra::documents::Description {
-        words: b"Provision staging".as_slice().into(),
-        resource: b"Q pool".as_slice().into(),
-        kind: 3,
-        recovery: infra::documents::Recovery::Keyed,
-        price: Some(40),
-        condition: false,
-        form: infra::documents::Form::Creation,
-        state: 1,
-    });
-    effect.effect = Some(infra::documents::EffectAction::CreateEnvironment {
-        environment: 7,
-        until: Wall::from_nanos(600_000_000_000),
-        price: 40,
-    });
+    let subject = infra::Subject { scope: infra::Scope::Project(1), kind: infra::Kind::OwnerEffect(p.key.number) };
     ops.documents.insert(
         Subject::Infrastructure(subject.clone()),
-        Document::Infrastructure(infra::Document::Part(Box::new(effect))),
+        Document::Infrastructure(infra::Document::Value(Box::new(infra::values::Document {
+            subject,
+            value: infra::values::Value::Effect {
+                proposal: p.key.number,
+                task: 10,
+                effect: infra::values::Effect::CreateEnvironment {
+                    environment: environment_name(),
+                    until: 600,
+                    price: 40,
+                },
+                description: description(3, Some(40), false, infra::values::Form::Creation),
+            },
+        }))),
     );
     configured(seed, truth, ops, vec![rule, accept])
 }
@@ -478,22 +493,20 @@ pub fn provision(world: &mut ClientWorld) {
     let now = world.now();
     let mut ops = world.front().engine.application().clone();
     let environment = environment_document();
-    let document = infra::Document::Environment(environment.clone());
+    let infra::values::Value::Environment { environment: name, fact, end, pool, .. } = &environment.value else {
+        unreachable!()
+    };
+    let rows =
+        list([infra::values::ClientEnvironment { environment: name.clone(), fact: *fact, end: *end, pool: *pool }]);
+    let document = infra::Document::Value(Box::new(environment));
     ops.documents.insert(Subject::Infrastructure(document.subject()), Document::Infrastructure(document));
     let subject = infra::Subject { scope: infra::Scope::Project(1), kind: infra::Kind::Environments { pool: None } };
     ops.documents.insert(
         Subject::Infrastructure(subject.clone()),
-        Document::Infrastructure(infra::Document::Environments {
+        Document::Infrastructure(infra::Document::Value(Box::new(infra::values::Document {
             subject,
-            revision: Revision { value: 1 },
-            pools: list([infra::documents::Pool {
-                number: 3,
-                name: b"Q pool".as_slice().into(),
-                quota: Some(2),
-                used: Some(1),
-            }]),
-            environments: list([environment]),
-        }),
+            value: infra::values::Value::Project { project: 1, resources: list([]), environments: rows },
+        }))),
     );
     world
         .front()
@@ -506,15 +519,17 @@ pub fn resolve(world: &mut ClientWorld) {
     let now = world.now();
     let mut ops = world.front().engine.application().clone();
     let mut incident = incident_document();
-    incident.revision.value += 1;
-    incident.state = obs::documents::State::Resolved;
-    incident.health = Some(obs::documents::Health {
-        observed: Wall::from_nanos(36_240_000_000_000),
+    let obs::values::Value::Incident { incident: row, fact } = &mut incident.value else { unreachable!() };
+    row.state = obs::documents::State::Resolved;
+    *fact = Some(obs::values::Fact {
+        observed: 36_240,
         healthy_replicas: 3,
         errors: 0,
         error_rate_percent: 0,
+        load_percent: 0,
+        load: Box::new([]),
     });
-    let document = obs::Document::Incident(incident);
+    let document = obs::Document::Value(Box::new(incident));
     ops.documents.insert(Subject::Observability(document.subject()), Document::Observability(document));
     let lead = world.front().engine.truth().objects[&ObjectKey::Task(9)].clone();
     let ReadValue::Task(lead) = lead else { unreachable!("supplied lead is task") };
@@ -538,12 +553,43 @@ pub fn resolve(world: &mut ClientWorld) {
 }
 
 pub(super) fn list<T>(rows: impl IntoIterator<Item = T>) -> skein_lib::List<T> {
-    let rows: Vec<_> = rows.into_iter().collect();
-    let mut list = skein_lib::List::with_capacity(u32::try_from(rows.len()).expect("finite fixture row count"));
-    for row in rows {
-        list.push(row).ok().expect("fixture list capacity");
-    }
-    list
+    skein_lib::List::from_boxed(rows.into_iter().collect::<Vec<_>>().into_boxed_slice())
 }
 
 use jig_client::contract::DecideOn;
+
+fn inbox_entry(
+    object: ObjectKey,
+    project: u32,
+    group: InboxGroup,
+    position: u64,
+    at: Wall,
+    reply: Option<Box<TaskLine>>,
+) -> InboxEntry {
+    let (task, object) = match object {
+        ObjectKey::Question { task, message } => (task, InboxObject::Question { message }),
+        ObjectKey::Proposal(key) => (
+            match key.proposer {
+                Proposer::Task(n) | Proposer::Party(n) => n,
+            },
+            InboxObject::Proposal { proposer: key.proposer, number: key.number },
+        ),
+        ObjectKey::Escalation(task) => (task, InboxObject::Escalation { revision: 1 }),
+        ObjectKey::PersonTask(task) => (task, InboxObject::PersonTask),
+        ObjectKey::Task(task) => (task, InboxObject::Reply { message: position }),
+        ObjectKey::Result(task) => (task, InboxObject::Result { position }),
+        ObjectKey::Note { .. } => unreachable!("notes have no inbox row"),
+    };
+    let row = InboxEntry {
+        reply,
+        task: TaskLink::Stored { number: task, status: None },
+        project: Some(project),
+        object,
+        activity: None,
+        at: Some(at),
+        unread: None,
+        cursor: InboxCursor::Number { number: position },
+    };
+    assert_eq!(row.group(), group);
+    row
+}

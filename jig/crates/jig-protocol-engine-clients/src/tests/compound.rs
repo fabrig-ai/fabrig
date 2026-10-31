@@ -60,10 +60,10 @@ fn a_compound_answer_keeps_its_message_and_operation_count() {
         &p::Reply::Outcome(p::Outcome::Compound { project: PROJECT, operations: 2, first_message: FIRST_MESSAGE }),
         &limits,
     );
-    let expected = w::OwnerOutcome::Compound(
-        w::OwnerOutcomeCompound::new(
+    let expected = w::DocumentOutcome::Compound(
+        w::OutcomeCompound::new(
             &limits,
-            w::OwnerOutcomeCompoundParts { project: PROJECT, operations: 2, first_message: FIRST_MESSAGE },
+            w::OutcomeCompoundParts { project: PROJECT, operations: 2, first_message: FIRST_MESSAGE },
         )
         .unwrap(),
     );
@@ -72,6 +72,6 @@ fn a_compound_answer_keeps_its_message_and_operation_count() {
     };
     assert_eq!(
         value.outcome(),
-        &w::Outcome::Owner(w::OutcomeOwner::new(&limits, w::OutcomeOwnerParts { value: expected }).unwrap())
+        &w::Outcome::Document(w::OutcomeDocument::new(&limits, w::OutcomeDocumentParts { value: expected }).unwrap())
     );
 }

@@ -312,7 +312,7 @@ fn a_closing_root_request_receives_the_robots_file() {
 fn a_bundle_file_larger_than_one_send_is_delivered_in_full() {
     let mut bundle = f::bundle();
     let limits = crate::limits::profile_limits(jig_protocol_config::Profile::Small).server;
-    let length = usize::try_from(limits.http.send).expect("send size").checked_add(1).expect("larger file");
+    let length = skein_lib::length::usize_of(limits.http.send).checked_add(1).expect("larger file");
     bundle.files.get_mut(&Box::from(b"boot.js".as_slice())).expect("boot file").bytes =
         skein_lib::bytes::zeroed(length);
     let reply =

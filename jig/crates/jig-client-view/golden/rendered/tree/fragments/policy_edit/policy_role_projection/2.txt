@@ -1,0 +1,15 @@
+== jig == 
+Replace role 4294967295:
+  Replace role 4294967295
+    Tool bits: 18446744073709551615
+    Delegate tasks: 4294967295
+    Delegate depth: 4294967295
+    Spend ceiling: 18446744073709551615
+    Note scope bits: 255
+    Keep default models
+    Grants
+    Allowed delegation executors
+    Note resources
+  Period spend: 18446744073709551615
+  Request flags: 65535
+  Proposal decision flags: 255

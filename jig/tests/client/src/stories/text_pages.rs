@@ -2,9 +2,8 @@
 use super::{held_chat, proposal_world, task, text};
 use crate::{Scripted, Test, World, test};
 use jig_client_domain::contract::{
-    self as c, Actor, Count, DocumentText, Ending, Executor, InboxEntry, InboxGroup, InboxReadGroup, Needs, ObjectKey,
-    OwnerEscalation, OwnerRequester, PersonContract, PersonTask, Phase, Question, Read, ReadValue, Recipient,
-    ResultValue, Revision, TaskLine,
+    self as c, ChipExecutor, Count, DocumentText, Ending, Escalation, InboxGroup, InboxReadGroup, Needs, ObjectKey,
+    Phase, Question, Read, ReadValue, Requester, ResultValue, Revision, TaskLine,
 };
 use jig_client_scripted_engine::{Change, Rows, Source};
 use skein_lib::{Time, Wall};
@@ -13,9 +12,9 @@ use skein_lib::{Time, Wall};
 pub fn limits() -> jig_client_test_domain::Limits {
     let mut limits = test::limits();
     limits.jig.objects = 8;
-    limits.jig.watches = 16;
-    limits.jig.rows = 4;
-    limits.jig.document_bytes = 8192;
+    limits.client.domain.watches = 16;
+    limits.client.domain.rows = 4;
+    limits.client.domain.document_bytes = 8192;
     limits
 }
 #[must_use]
@@ -42,7 +41,7 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
     let task = task();
     let question = Question {
         task: task.chip.clone(),
-        from: Some(OwnerRequester::Person(7)),
+        from: Some(Requester::Person(7)),
         message: 1,
         words: DocumentText::complete(text(b"Which option?")),
         since: Wall::EPOCH,
@@ -51,25 +50,39 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
     };
     let mut person_chip = task.chip.clone();
     person_chip.task = 10;
-    person_chip.executor = Executor::Party { party: 7 };
-    let person = PersonTask {
+    person_chip.executor = ChipExecutor::Party { party: 7 };
+    person_chip.details = Box::new(super::owner_chip(
+        c::ChipPhase::Person { address: c::PersonAddress::Party(7), taken_by: None, since: Some(Wall::EPOCH) },
+        None,
+    ));
+    {
+        let c::ChipPhaseFacts { details, .. } = person_chip.details.as_mut();
+        details.executor = c::Executor::Person(c::PersonAddress::Party(7));
+    }
+    let person = c::PersonTask {
         task: person_chip,
         revision: Revision { value: 1 },
-        requester: Actor::Party(7),
+        requester: Requester::Person(7),
         spec: task.spec.clone(),
-        contract: PersonContract::Words,
-        inputs: test::list([]),
-        addressed: Recipient::Party(7),
-        taken: None,
+        address: c::PersonAddress::Party(7),
+        taken_by: None,
         since: Some(Wall::EPOCH),
         stall: None,
         deadline: None,
+        contract: c::TaskContractDocument::Report { words: 32 },
+        results: test::list([]),
+        cut: false,
         acts: test::list([]),
-        ending: None,
     };
     let mut result_chip = task.chip.clone();
     result_chip.task = 11;
     result_chip.phase = Phase::Done;
+    result_chip.details = Box::new(super::owner_chip(c::ChipPhase::Ended, None));
+    {
+        let c::ChipPhaseFacts { details, .. } = result_chip.details.as_mut();
+        details.ended_at = Some(Wall::EPOCH);
+        details.ending = Some(c::ChipEnding::Done(ResultValue::Report(DocumentText::complete(text(b"Finished")))));
+    }
     let result = c::Result {
         task: result_chip,
         ending: Ending::Done,
@@ -80,10 +93,7 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
     };
     for (key, value) in [
         (ObjectKey::Question { task: 9, message: 1 }, ReadValue::Question(Box::new(question))),
-        (
-            ObjectKey::Escalation(9),
-            ReadValue::OwnerEscalation(Box::new(OwnerEscalation { acts: held.acts.clone(), task: held })),
-        ),
+        (ObjectKey::Escalation(9), ReadValue::Escalation(Box::new(Escalation { acts: held.acts.clone(), task: held }))),
         (ObjectKey::PersonTask(10), ReadValue::PersonTask(Box::new(person))),
         (ObjectKey::Result(11), ReadValue::Result(Box::new(result))),
     ] {
@@ -93,6 +103,9 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
             .act(Time::ZERO, Wall::EPOCH, Change::Object { project: 1, key, value })
             .expect("golden object fits");
     }
+    reply(task)
+}
+fn reply(task: c::Task) -> TaskLine {
     TaskLine {
         chip: {
             let mut chip = task.chip;
@@ -100,7 +113,7 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
             chip
         },
         project: 1,
-        requester: jig_client_domain::contract::OwnerRequester::Person(1),
+        requester: jig_client_domain::contract::Requester::Person(1),
         tracked: None,
         label: 1,
         flags: reply_flags(),
@@ -109,7 +122,7 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
         ended_at: None,
         budget: task.budget,
         waits_on: jig_client_domain::contract::WaitsOn::Nothing,
-        phases: jig_client_domain::contract::OwnerPhaseCounts {
+        phases: jig_client_domain::contract::PhaseCounts {
             waiting: 0,
             idle: 0,
             starting: 0,
@@ -141,17 +154,15 @@ fn rows(world: &mut World<Test, Scripted>, reply: &TaskLine) {
         .into_iter()
         .enumerate()
         .filter(|(_, (kind, _))| InboxReadGroup::of(*kind) == group)
-        .map(|(n, (kind, object))| InboxEntry {
-            reply: (kind == InboxGroup::Replies).then(|| Box::new(reply.clone())),
-            lineage: test::list([]),
-            goal: None,
-            recipient: Some(Recipient::Party(7)),
-            stall: None,
-            object,
-            project: 1,
-            group: kind,
-            position: u64::try_from(n).expect("six rows") + 1,
-            at: Wall::EPOCH,
+        .map(|(n, (kind, object))| {
+            crate::stories::inbox_entry(
+                object,
+                1,
+                kind,
+                u64::try_from(n).expect("six rows") + 1,
+                Wall::EPOCH,
+                (kind == InboxGroup::Replies).then(|| Box::new(reply.clone())),
+            )
         })
         .collect();
         world

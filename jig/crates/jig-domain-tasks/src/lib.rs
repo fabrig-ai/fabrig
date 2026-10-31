@@ -9,7 +9,7 @@
 //! `Stored::Writer` and `Stored::Pool`
 //! enter `Restore`; `Check` validates the complete live graph and authentic
 //! financial reservations before the store switches. `Restored` replays bounded
-//! activation/adoption outputs after the start's mark is durable. Historical
+//! activation/adoption outputs after the start's mark is durable. Retained
 //! ended rows remain in root storage and cannot re-enter live state
 
 //!
@@ -27,9 +27,9 @@
 //! `Request::Activate` carries a bounded `RunContext`, not rendered
 //! bytes or a second mutable task ledger. Root gathers the brief and
 //! claims the task. `Request::Close` awaits root's closing obligations;
-//! `Ended`, the historical task row, and original-source
+//! `Ended`, the retained task row, and original-source
 //! posting share one atomic decision. The current root exposes person result notices and
-//! delays outward replies/effects until durability; historical result reads
+//! delays outward replies/effects until durability; retained result reads
 //! remain the root's route (domain/tasks.md, section 5.6; domain/engine.md, sections 5.6, 7.1 and 9).
 //!
 //! `fire` expires at most one projected retry timer per call and advances bounded
@@ -55,10 +55,11 @@
 //! | person question | changed spec/dependencies/address or holder released | person revision + 1 | save, message |
 //! | person inputs | dependency result arrives | person revision + 1 | save |
 //! | any revisions | spend, turn, priority, delegate phase | same revisions | ordinary outputs |
-//! Agent and procedure executors are routed. The root checks historical inputs
+//! Agent and procedure executors are routed. The root checks retained inputs
 //! before delegation.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 mod activity;
 mod admission;
@@ -131,10 +132,11 @@ pub use boundary::{
     Ending, Event, Exceeded, Executor, FieldRule, Hold, HoldKind, HoldSource, Holding, InvalidResult, Key, Kind,
     MessageKind, Name, New, NewsClass, NoticeState, Parameter, Party, PersonAddress, PersonAnswer, PersonStallNotice,
     PersonWait, Phase, PoolSlots, Problem, ProcedureAmendment, ProcedureCancel, ProcedureDecision, ProcedureEnd,
-    ProcedureMessage, QuestionCredit, QuestionNotice, RecurringOverlap, RecurringState, RecurringTemplate, Refusal,
-    ReplyHint, Request, ResourceAccess, ResultField, ResultFollowups, ResultKind, ResultsWake, Revisions, RunContext,
-    SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind, Taken,
-    TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer, WriterSlot,
+    ProcedureInput, ProcedureMessage, QuestionCredit, QuestionNotice, RecurringOverlap, RecurringState,
+    RecurringTemplate, Refusal, ReplyHint, Request, ResourceAccess, ResultField, ResultFollowups, ResultKind,
+    ResultsWake, Revisions, RunContext, SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub,
+    Subscription, SubscriptionKind, Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer,
+    WriterSlot,
 };
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};
 

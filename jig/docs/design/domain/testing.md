@@ -205,6 +205,9 @@ What every application runs, and what makes jig's promises its own.
     reported as not applicable, never faked with a different mechanism;
     jig's own worlds still cover it;
   - the referee (section 6).
+
+`jig_conformance::core` translates the core's rows and released outputs into the referee's snapshot, and answers the core's peers as every application's adapter would, so an adapter writes only its own root's and connectors' part.
+
 - **What the application gives,** through the harness's trait:
   - its engine domain, built from configuration;
   - its systems' fakes, as step machines, each reporting what it saw in

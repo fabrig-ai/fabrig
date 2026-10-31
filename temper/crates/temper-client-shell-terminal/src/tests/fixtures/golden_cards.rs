@@ -9,17 +9,21 @@ const WINDOW: u32 = 2;
 const TRIES: u32 = 2;
 pub fn proposal(builder: &mut Builder) {
     let mut proposal = jig_client_world::stories::proposal();
-    proposal.why = jig_client_world::stories::text(b"It touches sign-in.");
-    proposal.action = c::ProposalAction::Batch { tasks: List::with_capacity(0), own: true };
-    proposal.needs.budget = BUDGET;
-    proposal.funding.left = LEFT;
+    proposal.reason = c::DocumentText::complete(jig_client_world::stories::text(b"It touches sign-in."));
+    proposal.action = c::ProposalAction::Batch(List::with_capacity(0));
+    proposal.funding = jig_client_world::test::list([c::FundingOffer {
+        source: c::Funder::Pool { project: 1, person: 7, period: 3 },
+        needed: BUDGET,
+        left: Some(LEFT),
+        after: Some(LEFT - BUDGET),
+    }]);
     let page = c::ReadValue::Proposal(Box::new(proposal));
     let words = super::page_words();
     temper_client_view::cards::proposal_at(builder, &page, &words, WINDOW, temper_client_view::cards::Place::Inbox);
 }
 pub fn held(builder: &mut Builder) {
     let mut task = jig_client_world::stories::task();
-    task.hold = Some(c::TaskHold::Owner(Box::new(c::OwnerChipHold {
+    task.hold = Some(Box::new(c::ChipHold {
         placed: None,
         words: None,
         circle: None,
@@ -27,11 +31,11 @@ pub fn held(builder: &mut Builder) {
         source: None,
         reason: c::HoldCategory::Failures { class: c::HoldFailure::Run },
         revision: HOLD_REVISION,
-        before: c::OwnerPriorPhase::Active(c::RunStage::Idle),
+        before: c::PriorPhase::Active(c::RunStage::Idle),
         escalation: None,
-        tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: TRIES, agent: 0, lost: 0, invalid: 0 },
+        tries: c::FailureTries { transient: 0, permanent: 0, run: TRIES, agent: 0, lost: 0, invalid: 0 },
         hold_wait_since: None,
-    })));
+    }));
     task.acts = List::with_capacity(1);
     task.acts
         .push(c::Offered {

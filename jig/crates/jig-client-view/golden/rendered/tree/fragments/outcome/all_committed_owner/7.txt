@@ -1,0 +1,4 @@
+== jig == 
+Task stopped:
+  * Task stopped
+  Task: 18446744073709551615

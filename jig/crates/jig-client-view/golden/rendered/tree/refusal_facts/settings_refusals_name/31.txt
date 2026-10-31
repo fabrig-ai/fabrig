@@ -1,0 +1,2 @@
+== jig == 
+Choose whether running work moves only when accepting a settings proposal

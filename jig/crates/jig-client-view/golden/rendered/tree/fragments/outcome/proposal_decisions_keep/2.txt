@@ -1,0 +1,8 @@
+== jig == 
+Proposal decided:
+  * Proposal decided
+  Proposing task: 9
+  Proposal number: 17
+  Decided by person: 23
+  Decided at: 31
+  Passed up

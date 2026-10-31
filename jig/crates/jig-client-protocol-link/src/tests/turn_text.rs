@@ -29,9 +29,9 @@ fn turn_with(second: &[u8]) -> Box<[u8]> {
 
 fn decoded(second: &[u8]) -> c::TurnRead {
     let base = fixtures::limits();
-    let client = jig_client_domain::Limits { text: FIELD_TEXT, turn_text: TURN_TEXT, ..base.client };
-    let limits = Limits::new(client, base.exchanges).unwrap();
-    translate::pages::turn_fields(&turn_with(second), &limits)
+    let client = jig_client_domain::Limits { text: FIELD_TEXT, turn_text: TURN_TEXT, ..*base.client() };
+    let limits = Limits::new(client, base.exchanges()).unwrap();
+    translate::pages::carried_turn_fields(&turn_with(second), &limits)
 }
 
 #[test]
@@ -45,31 +45,22 @@ fn a_pages_archived_turn_past_the_live_turns_field_is_decoded() {
     let body = turn_with(&text.finish());
     assert!(body.len() > 65_536);
     let base = fixtures::limits();
-    let client = jig_client_domain::Limits { document_bytes: 1_048_576, ..base.client };
-    let limits = Limits::new(client, base.exchanges).unwrap();
+    let client = jig_client_domain::Limits { document_bytes: 1_048_576, ..*base.client() };
+    let limits = Limits::new(client, base.exchanges()).unwrap();
     let turn = translate::pages::archived_turn_fields(&fixtures::single_turn_record(&body), &limits).turn;
     let c::TurnRead::Decoded(_) = turn else { panic!("archived turn decodes whole: {turn:?}") };
 }
 
 #[test]
-fn a_pages_archived_turn_is_decoded_at_each_bound_and_too_large_one_byte_past() {
+fn a_pages_archived_turn_is_decoded_at_its_document_bound_and_too_large_one_byte_past() {
     let record = fixtures::single_turn_record(fixtures::FULL_TURN);
-    let at = u32::try_from(fixtures::TURN_PAYLOAD_BYTES).unwrap();
     let too_large = c::TurnRead::Undecodable { why: c::TurnProblem::TooLarge { bytes: fixtures::TURN_PAYLOAD_BYTES } };
-    // The wire's carried-turn bound, below the client's document bound.
-    let mut limits = fixtures::turn_limits(32, 1_048_576);
-    limits.wire.activity_turn_turn = 1;
-    limits.wire.turn_carried_bytes = at;
-    assert_eq!(translate::pages::archived_turn_fields(&record, &limits).turn, fixtures::decoded_turn(b"abc", false));
-    limits.wire.turn_carried_bytes = at - 1;
-    assert_eq!(translate::pages::archived_turn_fields(&record, &limits).turn, too_large);
     // The client's document bound, below the wire's.
     for (document, expected) in [
         (fixtures::TURN_PAYLOAD_BYTES, fixtures::decoded_turn(b"abc", false)),
         (fixtures::TURN_PAYLOAD_BYTES - 1, too_large),
     ] {
-        let mut limits = fixtures::turn_limits(32, document);
-        limits.wire.activity_turn_turn = 1;
+        let limits = fixtures::turn_limits(32, document);
         assert_eq!(translate::pages::archived_turn_fields(&record, &limits).turn, expected);
     }
 }

@@ -317,19 +317,26 @@ fn the_test_clients_family_revision_and_durable_outcome_are_observed() {
     use jig_client_test_domain::family;
     let mut w = jig_client_world::stories::chat_ready(20);
     let subject = family::Subject { scope: family::Scope::Project(1), kind: family::Kind::Item(1) };
-    let mut state = jig_client_world::scripted::Family::default();
-    state.documents.insert(
-        subject,
-        family::Document::Item(family::Item {
-            project: 1,
-            key: 1,
-            revision: jig_client_domain::contract::Revision { value: 7 },
-            state: family::ItemState::Ready,
-            value: 1,
+    w.front().compositions.insert(
+        jig_client_test_domain::first::Address { project: 1, item: 1 },
+        jig_client_test_domain::family::PageComposition {
             task: 9,
             second: None,
             proposals: jig_client_world::test::list([]),
-            touchable: true,
+        },
+    );
+    let mut state = jig_client_world::scripted::Family::default();
+    state.documents.insert(
+        subject,
+        family::Document::Connector(jig_client_test_domain::connector_values::ConnectorDocument {
+            subject: jig_client_test_domain::family::Subject {
+                scope: jig_client_test_domain::family::Scope::Project(1),
+                kind: jig_client_test_domain::family::Kind::Item(1),
+            },
+            value: Box::new(jig_client_test_domain::connector_values::ClientDocument::Object {
+                object: 1,
+                now: jig_client_test_domain::connector_values::ApplicationObject { revision: 7, value: 1 },
+            }),
         }),
     );
     w.front()
@@ -343,9 +350,9 @@ fn the_test_clients_family_revision_and_durable_outcome_are_observed() {
     w.person(
         c,
         vec![
-            Step::See { find: Find::named(Role::Button, b"Touch"), within: Duration::from_secs(1) },
-            Step::Press { find: Find::named(Role::Button, b"Touch") },
-            Step::See { find: Find::named(Role::Status, b"Touched revision 8"), within: Duration::from_secs(1) },
+            Step::See { find: Find::named(Role::Button, b"Apply parameters"), within: Duration::from_secs(1) },
+            Step::Press { find: Find::named(Role::Button, b"Apply parameters") },
+            Step::See { find: Find::text(b"Object changed"), within: Duration::from_secs(1) },
         ],
     );
     let result = w.run(Until::Done);
@@ -355,7 +362,9 @@ fn the_test_clients_family_revision_and_durable_outcome_are_observed() {
 
 #[test]
 fn the_test_clients_sent_words_are_found_in_committed_activity() {
-    use jig_client_domain::contract::{Activity, ActivityLine, Answer, Ask, Outcome, Read};
+    use jig_client_domain::contract::{
+        Activity, ActivityLine, Answer, Ask, DecodedActivityLine, MessageKind, Outcome, Read, Requester,
+    };
     use jig_client_world::stories;
     let mut w = stories::chat_ready(21);
     w.front()
@@ -363,14 +372,26 @@ fn the_test_clients_sent_words_are_found_in_committed_activity() {
         .script(jig_client_scripted_engine::Rule {
             party: Some(7),
             ask: Ask::Message { project: 1, task: 9, words: stories::text(b"Words") },
-            answer: Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::Said { task: 9, message: 1 })),
+            answer: Answer::Done(Outcome::Document(jig_client::contract::DocumentOutcome::Said {
+                task: 9,
+                message: 1,
+            })),
             changes: vec![jig_client_scripted_engine::Change::Source(jig_client_scripted_engine::Source {
                 party: 7,
                 read: Read::Activity { task: 9, before: None },
-                rows: jig_client_scripted_engine::Rows::Activity(vec![ActivityLine {
-                    position: 1,
-                    at: Wall::EPOCH,
-                    event: Activity::Words { by: stories::party(7), message: 1, words: stories::text(b"Words") },
+                rows: jig_client_scripted_engine::Rows::Activity(vec![DecodedActivityLine {
+                    source: Box::new(ActivityLine {
+                        task: 9,
+                        position: 1,
+                        at: skein_lib::Wall::EPOCH,
+                        line: Activity::Words {
+                            by: Requester::Person(7),
+                            message: 1,
+                            kind: MessageKind::Words,
+                            words: stories::text(b"Words"),
+                        },
+                    }),
+                    decoded: None,
                 }]),
             })],
         })

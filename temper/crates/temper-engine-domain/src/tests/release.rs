@@ -11,7 +11,7 @@ fn release_answers_project_released_after_its_commit() {
     let mut requests = Queue::uncapped();
     requests
         .push(jig_domain_core::Request::Ask { connector, ask: jig_domain_core::Ask::ReleaseProject { project: 1 } });
-    crate::route::route_core_requests(&mut domain, &env, &mut decision, jig_domain_core::Requests::Out(requests));
+    crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
     let Some(crate::Work::Forge(forge::Event::ReleaseProject { project: 1, request })) = domain.work.pop() else {
         panic!("release reaches the forge");
     };

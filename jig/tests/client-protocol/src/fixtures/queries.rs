@@ -33,8 +33,7 @@ pub fn task_lines(story: &crate::client::Story, handle: Handle) -> Option<&c::Ta
 #[must_use]
 pub fn person_tasks() -> List<c::NewTask> {
     let mut tasks = tracked_tasks();
-    tasks.get_mut(0).expect("first member").executor =
-        c::OwnerExecutor::Person(c::PersonAddress::Party(super::FIRST_OWNER));
+    tasks.get_mut(0).expect("first member").executor = c::Executor::Person(c::PersonAddress::Party(super::FIRST_OWNER));
     tasks
 }
 #[must_use]
@@ -93,23 +92,20 @@ mod tests {
     use super::*;
     #[test]
     fn the_wait_story_creates_a_tracked_person_task() {
-        let limits = query_limits();
-        let ask = jig_client_world::joint::wire::asks::ask(&c::Ask::Create { project: 1, tasks: person_tasks() }, &[])
-            .expect("whole create");
-        let world = jig_core_world::effects::World::configured_with(
-            super::super::SEED,
-            false,
-            person_batch_config(super::super::SEED),
-            super::super::journal(limits),
-            ask,
-        );
+        use jig_client::{Answered, Ask, Asker, Key, Outcome};
+        let mut story = crate::client::Story::live_person_batch(super::super::SEED);
+        let key = Key { asker: Asker::JIG, number: 1 };
+        story.send(key, Ask::Jig(Box::new(c::Ask::Create { project: 1, tasks: person_tasks() })));
+        assert!(story.run_until(|story| !story.answered(key).is_empty(), skein_lib::Duration::from_secs(1)));
         assert_eq!(
-            world.people_answers.last(),
-            Some(&jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::Created {
-                first: FIRST_QUERY_TASK,
-                last: SECOND_QUERY_TASK,
-                given: Some(jig_domain_people::Given { task: FIRST_QUERY_TASK, amount: 20 })
-            }))
+            story.answered(key),
+            vec![Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::Created {
+                    first: FIRST_QUERY_TASK,
+                    last: SECOND_QUERY_TASK,
+                    given: Some(c::CreatedGiven { task: FIRST_QUERY_TASK, amount: 20 })
+                }
+            ))))]
         );
     }
 }

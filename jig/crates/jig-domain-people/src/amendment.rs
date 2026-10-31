@@ -48,7 +48,7 @@ pub enum PersonAddress {
     Role(u32),
 }
 
-/// Human supplied words, parameters and historical inputs.
+/// Human supplied words, parameters and retained inputs.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Spec {
     pub words: Box<[u8]>,
@@ -228,7 +228,7 @@ pub fn authority_bytes(authority: &Authority) -> Option<u64> {
 }
 
 pub(crate) fn valid(limits: &crate::Limits, amendment: &Amendment) -> bool {
-    amendment.reason.len() <= usize::try_from(limits.words).expect("u32 fits usize")
+    amendment.reason.len() <= skein_lib::length::usize_of(limits.words)
         && crate::llm::valid(amendment.llm.as_ref())
         && match amendment_bytes(amendment) {
             Some(bytes) => bytes <= u64::from(limits.amendment_bytes),

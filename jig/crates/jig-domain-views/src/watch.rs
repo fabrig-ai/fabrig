@@ -21,7 +21,7 @@
 //! ClosingStream stream taken closed           Ended
 //! ```
 use crate::{Domain, End, Fact, Follow, Limits, Made, Refusal, Request, Window};
-use skein_lib::{Id, List, Queue, Token};
+use skein_lib::{Id, List, Lossy, Queue, Token};
 
 #[derive(Debug)]
 pub(crate) struct Watcher {
@@ -86,7 +86,7 @@ pub(crate) fn open(
     make(domain.watchers.get(id).expect("inserted"), &mut domain.facts, out);
     crate::text::offer_one(domain, id, out);
 }
-fn make(watch: &Watcher, facts: &mut crate::facts::Facts, out: &mut Queue<Request>) {
+fn make(watch: &Watcher, facts: &mut Lossy<Fact>, out: &mut Queue<Request>) {
     facts.push(Fact::Making);
     out.push(Request::Make { watcher: watch.token, subject: watch.subject, window: watch.window });
 }
@@ -122,7 +122,6 @@ pub(crate) fn made(domain: &mut Domain, token: Token, outcome: Made, out: &mut Q
         State::Making { changed } => match outcome {
             Made::Ready => {
                 watch.state = State::Sending { changed };
-                domain.facts.push(Fact::Delivered);
                 out.push(Request::Deliver { watcher: token });
             }
             Made::Gone { why } => finish(domain, id, why, out),
@@ -138,6 +137,7 @@ pub(crate) fn delivered(domain: &mut Domain, token: Token, out: &mut Queue<Reque
     let watch = domain.watchers.get_mut(id).expect("named watch");
     match watch.state {
         State::Sending { changed } => {
+            domain.facts.push(Fact::Delivered);
             watch.state = if changed {
                 make(watch, &mut domain.facts, out);
                 State::Making { changed: false }

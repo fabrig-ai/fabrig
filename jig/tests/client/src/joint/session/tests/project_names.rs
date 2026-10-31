@@ -50,7 +50,7 @@ fn the_frame_names_each_project() {
     };
     let names: Vec<_> = me.projects.iter().map(|row| (row.project, row.name.bytes())).collect();
     assert_eq!(names, [(1, b"Tally".as_slice()), (PROJECT, b"Project 2".as_slice())]);
-    let client::ReadValue::OwnerProject(project) =
+    let client::ReadValue::Project(project) =
         read(&mut session, &mut client, now, wall, PAGE, client::Read::Project { project: PROJECT })
     else {
         panic!("public project document")
@@ -155,7 +155,7 @@ fn a_make_through_the_public_api_is_answered_and_in_me() {
     let (mut session, mut client, now, wall) = projects();
     assert_eq!(
         ask(&mut session, &mut client, now, wall, 1, client::Ask::MakeProject { name: name(b"Tally"), policy: 1 }),
-        client::Answer::Done(client::Outcome::Owner(client::OwnerOutcome::ProjectMade { project: MADE }))
+        client::Answer::Done(client::Outcome::Document(client::DocumentOutcome::ProjectMade { project: MADE }))
     );
     let client::ReadValue::Me(me) = read(&mut session, &mut client, now, wall, ME, client::Read::Me) else {
         panic!("me")
@@ -167,7 +167,7 @@ fn a_rename_through_the_public_api_reaches_me() {
     let (mut session, mut client, now, wall) = projects();
     assert_eq!(
         ask(&mut session, &mut client, now, wall, 1, client::Ask::Rename { project: PROJECT, name: name(b"Tally") }),
-        client::Answer::Done(client::Outcome::Owner(client::OwnerOutcome::Renamed { project: PROJECT }))
+        client::Answer::Done(client::Outcome::Document(client::DocumentOutcome::Renamed { project: PROJECT }))
     );
     let client::ReadValue::Me(me) = read(&mut session, &mut client, now, wall, ME, client::Read::Me) else {
         panic!("me")

@@ -1,5 +1,6 @@
-use jig_core_world::effects::{World, fixture};
 use jig_core_world::fixtures::finish_chat;
+use jig_core_world::world::Setup;
+use jig_core_world::world::{World, fixture};
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -15,7 +16,13 @@ fn projections_use_project_grants_require_verdicts_and_observe_a_policy_narrowin
     policy.roles[0].authority.grants = Box::new([]);
 
     configuration.core.seed_projects[0].policy.policy = policy;
-    let mut world = World::configured(170, true, configuration, limits);
+    let mut world = World::new(Setup {
+        seed: 170,
+        requirement: true,
+        configuration: Some(configuration),
+        limits,
+        ..Setup::default()
+    });
     let goal = tracked_goal(&mut world);
     let record = world
         .store
@@ -167,7 +174,7 @@ fn tree_world() -> (World, root::Config) {
         (authority::Domain::new(rules, limits.core.authority).expect("tree policy")).rules().clone();
 
     configuration.core.seed_projects[0].policy.policy = policy;
-    jig_core_world::world::edit_role(&mut configuration.core, |role| {
+    jig_test_profile::edit_role(&mut configuration.core, |role| {
         role.authority.delegation =
             authority::Delegation { kinds: Box::new([authority::Executor::Charter(1)]), tasks: 3, depth: 3 };
     });
@@ -175,7 +182,10 @@ fn tree_world() -> (World, root::Config) {
     restart_configuration.core.defaults.rules = configuration.core.defaults.rules.clone();
     restart_configuration.core.seed_projects[0].policy.policy =
         configuration.core.seed_projects[0].policy.policy.clone();
-    (World::configured(171, false, configuration, limits), restart_configuration)
+    (
+        World::new(Setup { seed: 171, configuration: Some(configuration), limits, ..Setup::default() }),
+        restart_configuration,
+    )
 }
 
 fn a_delegate_of_a_delegate_ending_feeds_the_whole_plan_once_and_closing_waits_for_its_write() {
@@ -197,7 +207,7 @@ fn a_delegate_of_a_delegate_ending_feeds_the_whole_plan_once_and_closing_waits_f
             1,
             Box::from(&b"Whole tree"[..]),
             people::TaskExecutor::Agent { charter: 1 },
-            jig_core_world::fixtures::Goal { budget: 300, priority: 1, ..Default::default() },
+            jig_test_profile::fixtures::Goal { budget: 300, priority: 1, ..Default::default() },
         ),
     })));
     let goal = {
@@ -336,20 +346,20 @@ fn untracked_configuration(seed: u64) -> (root::Config, root::Limits) {
 fn untracked_world(seed: u64) -> (World, root::Config, u64) {
     let (configuration, limits) = untracked_configuration(seed);
     let restart = untracked_configuration(seed).0;
-    let mut world = World::configured(seed, false, configuration, limits);
+    let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
     finish_chat(&mut world, 0, b"");
     let tracked_goal_request = jig_core_world::fixtures::goal(
         &world,
         1,
         b"untracked goal".as_slice().into(),
         people::TaskExecutor::Agent { charter: 1 },
-        jig_core_world::fixtures::Goal { budget: 20, priority: 1, ..Default::default() },
+        jig_test_profile::fixtures::Goal { budget: 20, priority: 1, ..Default::default() },
     );
-    jig_core_world::stories::reads::request(&mut world, 91, tracked_goal_request);
+    crate::read_support::request(&mut world, 91, tracked_goal_request);
     let goal = world.assigned.as_ref().expect("goal assigned").task;
     world.hold_projection_settlements = true;
     world.projections.clear();
-    jig_core_world::stories::reads::request(
+    crate::read_support::request(
         &mut world,
         92,
         people::Ask::Amend {
@@ -365,7 +375,7 @@ fn untracked_world(seed: u64) -> (World, root::Config, u64) {
                     parameters: Box::new([]),
                     inputs: Box::new([]),
                 }),
-                ..jig_core_world::fixtures::person_unchanged(b"untracked")
+                ..jig_test_profile::fixtures::person_unchanged(b"untracked")
             },
         },
     );
@@ -390,7 +400,7 @@ fn an_untracked_goal_is_fed_its_state_once_as_its_last_feed() {
     }
     assert_ne!(feeds[0].0, feeds[1].0);
     world.restart_with(configuration);
-    jig_core_world::stories::reads::request(
+    crate::read_support::request(
         &mut world,
         93,
         people::Ask::Say { project: 1, task: goal, words: b"still live".as_slice().into() },
@@ -444,7 +454,7 @@ fn tracked_goal(world: &mut World) -> u64 {
             1,
             Box::from(&b"Project this goal"[..]),
             people::TaskExecutor::Agent { charter: 1 },
-            jig_core_world::fixtures::Goal { budget: 20, priority: 1, ..Default::default() },
+            jig_test_profile::fixtures::Goal { budget: 20, priority: 1, ..Default::default() },
         ),
     })));
     world
@@ -494,7 +504,7 @@ fn unresolved_projection_outcomes_keep_their_entry_across_restart_until_connecto
             (config, limits)
         };
         let (config, limits) = configuration();
-        let mut world = World::configured(seed, false, config, limits);
+        let mut world = World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() });
         let goal = tracked_goal(&mut world);
         world.hold_projection_settlements = true;
         world.hold_writes = true;

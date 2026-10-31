@@ -76,11 +76,11 @@ pub(crate) fn query_fixture() -> (Core, Limits) {
 /// A fresh tasks domain over `core`'s configured charters and models, as a restart builds one.
 pub(crate) fn fresh_tasks(core: &Core, limits: &Limits) -> tasks::Domain {
     tasks::Domain::new(
-        &settings::task_limits(limits),
+        &limits.tasks,
         17,
         core.current.newest(),
-        crate::charters::models(&core.current, &core.settings, limits),
-        crate::charters::efforts(&core.settings),
+        charters::models(&core.current, &core.settings, limits),
+        charters::efforts(&core.settings),
     )
 }
 

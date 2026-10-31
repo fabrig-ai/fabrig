@@ -1,14 +1,19 @@
-//! Start selection and phase discipline (jig/docs/design/domain/engine.md, 6).
-mod connectors;
-mod inbox;
-mod links;
-mod projections;
-mod rows;
-mod runs;
-mod settings;
-use super::{Core, Env, Queue, Time, Wall, config, limits, tasks};
-use crate::start::{Action, Failure, Phase, SweepInput};
-use crate::{Key, Request, Write, people};
+//! Start opening and phase discipline (jig/docs/design/domain/engine.md, 6).
+
+pub(in crate::tests) mod connectors;
+pub(in crate::tests) mod inbox;
+pub(in crate::tests) mod links;
+pub(in crate::tests) mod projections;
+pub(in crate::tests) mod restore;
+pub(in crate::tests) mod rows;
+pub(in crate::tests) mod runs;
+pub(in crate::tests) mod settings;
+
+use crate::{
+    Key, Request, Write, people,
+    start::{Action, Failure, Phase, SweepInput},
+    tests::{Core, Env, Queue, Time, Wall, config, limits, tasks},
+};
 
 struct Entrance {
     name: &'static str,
@@ -58,7 +63,7 @@ fn transcript() -> crate::Transcript {
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table audits every public operational entrance")]
-fn every_operational_entrance_consumes_selection() {
+fn every_operational_entrance_prevents_late_start() {
     use skein_lib::Token;
     let cases = [
         Entrance {
@@ -70,7 +75,7 @@ fn every_operational_entrance_consumes_selection() {
         Entrance {
             name: "reserve_connector_subscription",
             input: |core, _| {
-                assert!(core.reserve_connector_subscription(Token::new(1), call_key(), 1));
+                assert!(core.reserve_connector_subscription(Token::new(1), call_key(), 1).is_some());
             },
         },
         Entrance {
@@ -92,7 +97,7 @@ fn every_operational_entrance_consumes_selection() {
             input: |core, env| {
                 let _begin = core.start_begin(false, env.wall);
                 let configured = config(41);
-                let value = crate::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[])
+                let value = crate::admission::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[])
                     .expect("bounded policy");
                 let _accepted = core.restore_policy(&env.limits, 1, Box::from("Project 1"), value);
             },
@@ -101,7 +106,8 @@ fn every_operational_entrance_consumes_selection() {
             name: "restore_resource_role",
             input: |core, env| {
                 let name = tasks::Name { connector: 1, path: Box::new([Box::from(b"resource".as_slice())]) };
-                let _accepted = core.restore_resource_role(env, 1, name, crate::connector::ResourceRole::Context);
+                let _accepted =
+                    core.restore_resource_role(env, 1, name, crate::effects::connector::ResourceRole::Context);
             },
         },
         Entrance {
@@ -153,8 +159,15 @@ fn every_operational_entrance_consumes_selection() {
         Entrance {
             name: "person_task",
             input: |core, _| {
-                let _refused =
-                    core.person_task(Token::new(1), 1, 1, None, people::Ask::TakePerson { project: 1, task: 1 });
+                let _refused = core.person_task(
+                    crate::routing::party::dispatch::Party {
+                        request: Token::new(1),
+                        person: 1,
+                        project: 1,
+                        role: None,
+                    },
+                    crate::admission::person_task::Action::Take { task: 1 },
+                );
             },
         },
         Entrance { name: "lost_channel", input: |core, env| core.lost_channel(env, Token::new(1)) },
@@ -172,28 +185,19 @@ fn every_operational_entrance_consumes_selection() {
             },
         },
         Entrance {
-            name: "made",
-            input: |core, _| {
-                let _route = core.made(Token::new(u64::MAX), Box::new([]), false);
-            },
-        },
-        Entrance {
             name: "person_proposed",
             input: |core, _| {
-                core.goal_routes
-                    .insert(Token::new(1), crate::GoalRoute::Offering { proposal: 1, to: 1, stubs: Box::new([]) })
-                    .expect("route room");
-                let _route = core.person_proposed(Token::new(1), 1);
+                let token = core
+                    .fly_goal(Token::new(1), crate::GoalRoute::Offering { proposal: 1, to: 1, stubs: Box::new([]) });
+                let _route = core.person_proposed(token, 1);
             },
         },
         Entrance {
             name: "person_proposal_decided",
             input: |core, env| {
-                core.goal_routes
-                    .insert(Token::new(1), crate::GoalRoute::Deciding { proposer: 1, proposal: 1, by: 1 })
-                    .expect("route room");
-                let _route =
-                    core.person_proposal_decided(Token::new(1), 1, 1, tasks::ProposalOutcome::Accepted, env.wall);
+                let token =
+                    core.fly_goal(Token::new(1), crate::GoalRoute::Deciding { proposer: 1, proposal: 1, by: 1 });
+                let _route = core.person_proposal_decided(token, 1, 1, tasks::ProposalOutcome::Accepted, env.wall);
             },
         },
         Entrance {
@@ -205,7 +209,13 @@ fn every_operational_entrance_consumes_selection() {
                     1,
                     tasks::ProposalOutcome::Accepted,
                     env.wall,
-                    false,
+                    crate::PersonProposalRoute::Deciding {
+                        request: Token::new(1),
+                        proposer: 1,
+                        proposal: 1,
+                        by: 1,
+                        moved: None,
+                    },
                 );
             },
         },
@@ -225,7 +235,7 @@ fn every_operational_entrance_consumes_selection() {
             name: "sent",
             input: |core, env| {
                 let request = Token::new(1);
-                core.saying.insert(request, (1, None)).expect("message route room");
+                let request = core.fly(crate::routing::flight::Flight::Saying { request, task: 1, question: None });
                 let word = tasks::Word {
                     number: 1,
                     from: tasks::Party::Person(1),
@@ -301,7 +311,7 @@ fn every_operational_entrance_consumes_selection() {
         Entrance {
             name: "fire",
             input: |core, env| {
-                let _out = crate::fire(core, env, crate::Timer::View);
+                let _out = crate::fire(core, env, crate::Timer::Brief);
             },
         },
         Entrance {
@@ -367,12 +377,12 @@ fn every_operational_entrance_consumes_selection() {
         (case.input)(&mut core, &env);
         assert!(core.start.consumed, "{} consumes even refused or empty input", case.name);
         let late = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| core.start_begin(false, env.wall)));
-        assert!(late.is_err(), "{} prevents late selection", case.name);
+        assert!(late.is_err(), "{} prevents a late start", case.name);
     }
 }
 
 #[test]
-fn queries_drains_and_configuration_leave_selection_open() {
+fn queries_drains_and_configuration_leave_start_open() {
     let limits = limits();
     let mut core = Core::new(config(41), &limits).expect("valid core configuration");
     core.person_answers();
@@ -386,13 +396,13 @@ fn queries_drains_and_configuration_leave_selection_open() {
 }
 
 #[test]
-fn refused_start_cannot_be_selected_again() {
+fn refused_start_cannot_begin_again() {
     let limits = limits();
     let mut core = Core::new(config(41), &limits).expect("valid core configuration");
     let _first = core.start_begin(false, Wall::EPOCH);
     let _refused = core.start_refuse(Failure::ProjectPolicy { project: 1 });
     let repeated = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| core.start_begin(true, Wall::EPOCH)));
-    let _panic = repeated.expect_err("refused start cannot be selected again");
+    let _panic = repeated.expect_err("refused start cannot be started again");
 }
 
 #[test]
@@ -422,11 +432,8 @@ fn actual_stored_call_capacity_keeps_its_key() {
 
 #[test]
 #[should_panic]
-#[expect(
-    clippy::should_panic_without_expect,
-    reason = "the selection invariant is checked without matching panic text"
-)]
-fn empty_finishing_is_an_input_before_selection() {
+#[expect(clippy::should_panic_without_expect, reason = "the start invariant is checked without matching panic text")]
+fn empty_finishing_is_an_input_before_start() {
     let limits = limits();
     let mut core = Core::new(config(41), &limits).expect("valid core configuration");
     let _outputs = crate::finish_decision(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits });
@@ -435,10 +442,7 @@ fn empty_finishing_is_an_input_before_selection() {
 
 #[test]
 #[should_panic]
-#[expect(
-    clippy::should_panic_without_expect,
-    reason = "the selection invariant is checked without matching panic text"
-)]
+#[expect(clippy::should_panic_without_expect, reason = "the start invariant is checked without matching panic text")]
 fn runtime_resume_cannot_cross_wires_early() {
     let limits = limits();
     let mut core = Core::new(config(41), &limits).expect("valid core configuration");
@@ -456,7 +460,7 @@ fn actual_account_outputs_wait_for_wires_release() {
     let mut child = Queue::uncapped();
     crate::accounts::step(
         &mut core.accounts,
-        &Env { now: env.now, wall: env.wall, limits: limits.accounts },
+        &env.with(limits.accounts),
         crate::accounts::Event::Restore { record: crate::accounts::Stored::Next { number: 3 } },
         &mut child,
     );
@@ -502,11 +506,8 @@ fn actual_account_outputs_wait_for_wires_release() {
 
 #[test]
 #[should_panic]
-#[expect(
-    clippy::should_panic_without_expect,
-    reason = "the selection invariant is checked without matching panic text"
-)]
-fn a_loaded_header_prevents_late_selection() {
+#[expect(clippy::should_panic_without_expect, reason = "the start invariant is checked without matching panic text")]
+fn a_loaded_header_prevents_late_start() {
     let limits = limits();
     let mut core = Core::new(config(41), &limits).expect("valid core configuration");
     let header = core.counters.deployment();
@@ -570,7 +571,8 @@ fn every_start_reaches_switch_and_waits_for_wires() {
 fn core_owned_people_rows_survive_sweep() {
     let limits = limits();
     let configured = config(41);
-    let value = crate::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[]).expect("bounded policy");
+    let value = crate::admission::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[])
+        .expect("bounded policy");
     let stored = [
         people::Stored::Policy { project: 1, name: Box::from("Project 1"), value },
         people::Stored::EndedRead { task: 2, party: 1, through: 0 },
@@ -581,7 +583,8 @@ fn core_owned_people_rows_survive_sweep() {
     step_phase(core.start_begin(false, env.wall), Phase::LoadCore);
     through_link(&mut core, &env, &mut out);
     for row in stored {
-        match core.start_sweep(&env, SweepInput::Record(row), &mut out) {
+        assert_eq!(core.restore(&env, crate::Record::People(row)), crate::Restore::Swept);
+        match core.start_sweep(&env, SweepInput::Next, &mut out) {
             Action::Idle => {}
             Action::Step(_) | Action::Commit(_) | Action::Refused(_) => panic!("core-owned row remains stored"),
         }
@@ -603,14 +606,15 @@ fn frozen_expiry_and_stale_cleanup_continuation() {
     let mut child = Queue::uncapped();
     people::step(
         &mut core.people,
-        &Env { now: env.now, wall: env.wall, limits: limits.people },
+        &env.with(limits.people),
         people::Event::Restore { record: row.clone() },
         &mut child,
     );
     assert!(child.is_empty());
     through_link(&mut core, &env, &mut out);
     env.wall = Wall::EPOCH;
-    let Action::Commit(token) = core.start_sweep(&env, SweepInput::Record(row), &mut out) else {
+    assert_eq!(core.restore(&env, crate::Record::People(row)), crate::Restore::Swept);
+    let Action::Commit(token) = core.start_sweep(&env, SweepInput::Next, &mut out) else {
         panic!("expired row commits")
     };
     let Some(Request::Write(Write::Erase(key))) = out.pop() else { panic!("expected expiry erase") };
@@ -626,10 +630,7 @@ fn frozen_expiry_and_stale_cleanup_continuation() {
 
 #[test]
 #[should_panic]
-#[expect(
-    clippy::should_panic_without_expect,
-    reason = "the selection invariant is checked without matching panic text"
-)]
+#[expect(clippy::should_panic_without_expect, reason = "the start invariant is checked without matching panic text")]
 fn first_external_missing_link_stops_before_sweep() {
     let limits = limits();
     let mut core = Core::new(config(41), &limits).expect("valid core configuration");
@@ -645,7 +646,7 @@ fn first_external_missing_link_stops_before_sweep() {
 }
 
 #[test]
-fn begin_selects_before_the_people_lifecycle_input() {
+fn begin_starts_before_the_people_lifecycle_input() {
     let limits = limits();
     for pending in [false, true] {
         let mut core = Core::new(config(41), &limits).expect("valid core configuration");
@@ -657,11 +658,8 @@ fn begin_selects_before_the_people_lifecycle_input() {
 
 #[test]
 #[should_panic]
-#[expect(
-    clippy::should_panic_without_expect,
-    reason = "the selection invariant is checked without matching panic text"
-)]
-fn begin_is_selected_once() {
+#[expect(clippy::should_panic_without_expect, reason = "the start invariant is checked without matching panic text")]
+fn begin_runs_once() {
     let limits = limits();
     let mut core = Core::new(config(41), &limits).expect("valid core configuration");
     let _first = core.start_begin(false, Wall::EPOCH);
@@ -689,11 +687,9 @@ fn finish_core_load(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<R
             while let Some(request) = out.pop() {
                 match request {
                     Request::Write(_) => {}
-                    Request::Now(_)
-                    | Request::Ask { .. }
-                    | Request::Held(_)
-                    | Request::ProjectMade { .. }
-                    | Request::Decided => panic!("seed commit contains only writes"),
+                    Request::Now(_) | Request::Ask { .. } | Request::Held(_) | Request::ProjectMade { .. } => {
+                        panic!("seed commit contains only writes")
+                    }
                 }
             }
             step_phase(core.start_resume(env, token, out), Phase::LoadInbox);

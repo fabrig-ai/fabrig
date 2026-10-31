@@ -206,7 +206,7 @@ impl Protocol {
         self.serial += 1;
         let outcome: Box<[u8]> = self.serial.to_be_bytes().into();
         self.ends.insert(outcome.clone(), end);
-        let answer = host::Answer {
+        let answer = host::RunAnswer {
             read: None,
             refused: Box::new([]),
             turns: 0,

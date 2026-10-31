@@ -91,7 +91,7 @@ pub fn compound(project: u32, values: &[w::Operation]) -> w::Ask {
 }
 
 pub fn encode_ask(ask: &w::Ask) -> Box<[u8]> {
-    let mut out = Writer::new(usize::try_from(ask.measure()).expect("short ask"));
+    let mut out = Writer::new(skein_lib::length::usize_of(ask.measure()));
     ask.encode(&mut out).expect("bounded ask");
     out.finish()
 }
@@ -102,7 +102,7 @@ pub fn keyed(owner: w::Owner, version: u32, request: Box<[u8]>) -> Box<[u8]> {
     };
     let value =
         w::Keyed::new(&wire(), w::KeyedParts { key: [5; 16], owner, version, request, value: None }).expect("keyed");
-    let mut out = Writer::new(usize::try_from(value.measure()).expect("short keyed record"));
+    let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut out).expect("bounded keyed");
     out.finish()
 }

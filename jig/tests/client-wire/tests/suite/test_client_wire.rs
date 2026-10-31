@@ -1,64 +1,5 @@
-//! The committed client codec and bytes against its schema (skein's codec.md, 6).
-use skein_codegen::{generate, parse};
-use std::fs;
-
-#[test]
-fn test_client_wire_schema_matches_generated_code_and_goldens() {
-    check_test_client(2);
-}
-
-#[test]
-fn test_client_wire_v1_schema_matches_generated_code() {
-    check_test_client(1);
-}
-
-fn check_test_client(version: u16) {
-    let root = skein_scratch::paths::tree().join("testing/jig-client-test-protocol-wire");
-    let source = fs::read_to_string(root.join(format!("schema/test-client-v{version}.schema"))).expect("client schema");
-    let output = generate(&parse(&source).expect("schema valid"));
-    let code = root.join(format!("src/generated/v{version}.rs"));
-    let goldens = root.join("golden");
-    let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
-    let again = "run SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-client-wire-world --test test_client_wire";
-    if write {
-        fs::write(&code, &output.rust).expect("write generated code");
-        fs::create_dir_all(&goldens).expect("create golden directory");
-    } else {
-        assert_eq!(fs::read_to_string(&code).expect("generated code committed"), output.rust, "{again}");
-    }
-    // Both versions use the same golden names; v2 owns those bytes.
-    if version == 1 {
-        return;
-    }
-    for golden in output.goldens {
-        let path = goldens.join(golden.name);
-        if write {
-            fs::write(&path, golden.bytes).expect("write golden bytes");
-        } else {
-            assert_eq!(fs::read(&path).expect("golden bytes committed"), golden.bytes, "{again}");
-        }
-    }
-}
-
 use super::fixtures;
 use jig_client_test_domain::family;
-
-#[test]
-fn a_scripted_item_round_trips_with_every_field_and_state() {
-    for state in [family::ItemState::Ready, family::ItemState::Held, family::ItemState::Ended] {
-        fixtures::assert_document(family::Document::Item(fixtures::item(state)));
-    }
-}
-#[test]
-fn a_scripted_part_round_trips_without_parameters() {
-    fixtures::assert_document(family::Document::Part(fixtures::part(None)));
-}
-#[test]
-fn a_scripted_part_round_trips_with_parameters() {
-    let parameters =
-        family::Parameters { item: fixtures::ITEM, revision: fixtures::REVISION, value: 0, amendable: false };
-    fixtures::assert_document(family::Document::Part(fixtures::part(Some(parameters))));
-}
 
 #[test]
 fn a_connector_document_round_trips_with_its_supplied_subject() {
@@ -76,18 +17,6 @@ fn a_connector_document_round_trips_with_its_supplied_subject() {
     fixtures::assert_document(family::Document::Connector(value));
 }
 
-#[test]
-fn a_scripted_touched_answer_round_trips() {
-    fixtures::assert_answer(family::Answer::Touched { item: fixtures::ITEM, revision: fixtures::REVISION });
-}
-#[test]
-fn a_scripted_moved_answer_round_trips() {
-    fixtures::assert_answer(family::Answer::Moved { item: fixtures::ITEM, revision: fixtures::REVISION });
-}
-#[test]
-fn a_scripted_gone_answer_round_trips() {
-    fixtures::assert_answer(family::Answer::Gone);
-}
 #[test]
 fn a_connector_answer_round_trips() {
     use jig_client_test_domain::connector_values::{ApplicationObject, ApplicationOutcome, ConnectorAnswer};
@@ -109,12 +38,8 @@ fn an_entrance_refusal_has_no_application_wire_record() {
 }
 
 #[test]
-fn a_scripted_touch_round_trips_without_parameters() {
-    fixtures::assert_touch(None);
-}
-#[test]
-fn a_scripted_touch_round_trips_with_parameters() {
-    fixtures::assert_touch(Some(0));
+fn a_connector_change_round_trips_with_an_explicit_zero() {
+    fixtures::assert_change(0);
 }
 #[test]
 fn every_project_subject_round_trips_through_reads_and_opens() {

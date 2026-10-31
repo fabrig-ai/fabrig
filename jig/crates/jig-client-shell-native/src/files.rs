@@ -100,7 +100,7 @@ impl Files {
                     .filter(|(old, _)| **old != key)
                     .map(|(key, value)| key.len() + value.len() + 8)
                     .sum();
-                if bytes + key.len() + record.len() + 12 > usize::try_from(self.max).expect("file bound") {
+                if bytes + key.len() + record.len() + 12 > skein_lib::length::usize_of(self.max) {
                     self.refused = true;
                     return;
                 }

@@ -116,18 +116,6 @@ impl Inbox {
             None => None,
         };
         if let Some(Latest::Jig(Delivery::Inbox(inbox))) = latest {
-            self.cut = [inbox.more; 2];
-            for row in &inbox.entries {
-                self.add(
-                    row.object,
-                    row.group,
-                    Some(row.project),
-                    Some(row.position),
-                    unread(row.reply.as_deref()),
-                    out,
-                );
-            }
-        } else if let Some(Latest::Jig(Delivery::OwnerInbox(inbox))) = latest {
             self.cut = [inbox.next.is_some(); 2];
             for rows in [&inbox.needs, &inbox.updates] {
                 for row in rows {
@@ -224,18 +212,6 @@ impl Inbox {
                 *self.cut.get_mut(index).expect("query names one section") = page.cut;
                 for row in &page.rows {
                     self.add(
-                        row.object,
-                        row.group,
-                        Some(row.project),
-                        Some(row.position),
-                        unread(row.reply.as_deref()),
-                        out,
-                    );
-                }
-            } else if let ReadValue::OwnerInbox(page) = value {
-                *self.cut.get_mut(index).expect("query names one section") = page.cut;
-                for row in &page.rows {
-                    self.add(
                         row.card_key(),
                         row.group(),
                         row.project,
@@ -280,8 +256,8 @@ pub const fn kind(kind: Kind) -> InboxGroup {
 fn handle(number: u64) -> Handle {
     Handle { asker: Owner::Pages.asker(), number }
 }
-fn position(object: contract::OwnerInboxObject) -> Option<u64> {
-    if let contract::OwnerInboxObject::Result { position } = object { Some(position) } else { None }
+fn position(object: contract::InboxObject) -> Option<u64> {
+    if let contract::InboxObject::Result { position } = object { Some(position) } else { None }
 }
 
 #[expect(clippy::manual_map, reason = "step code spells out optional reply facts")]

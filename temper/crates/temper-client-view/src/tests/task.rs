@@ -52,13 +52,13 @@ fn the_task_header_names_the_playground_project_playground() {
         assert!(skein_lib::bytes::find(&fixtures::node_text(tree, heading), b"Project 1").is_none());
     }
 }
-fn page(executor: c::Executor, priority: Option<u32>) -> crate::View {
+fn page(executor: c::ChipExecutor, priority: Option<u32>) -> crate::View {
     let root = f::root(executor, priority);
     let mut view = fixtures::view();
     fixtures::build(&mut view, &root);
     view
 }
-fn assert_header_and_plan(executor: c::Executor, name: &[u8]) {
+fn assert_header_and_plan(executor: c::ChipExecutor, name: &[u8]) {
     let view = page(executor, None);
     let tree = view.tree();
     assert!(fixtures::find(tree, Role::Heading { level: 2 }, b"Task details").is_some());
@@ -70,11 +70,11 @@ fn assert_header_and_plan(executor: c::Executor, name: &[u8]) {
 }
 #[test]
 fn a_procedures_task_shows_its_header_and_plan_only() {
-    assert_header_and_plan(c::Executor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE }, b"Its tasks");
+    assert_header_and_plan(c::ChipExecutor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE }, b"Its tasks");
 }
 #[test]
 fn a_person_tasks_page_shows_its_header_and_plan_only() {
-    assert_header_and_plan(c::Executor::Party { party: PARTY }, b"Plan");
+    assert_header_and_plan(c::ChipExecutor::Party { party: PARTY }, b"Plan");
 }
 const PROCEDURE_TASK: u64 = 34;
 const SERVED_GOAL: u64 = 7;
@@ -84,7 +84,7 @@ fn a_procedures_task_links_the_goal_it_serves() {
         for (goal, shown) in [(Some(SERVED_GOAL), true), (Some(PROCEDURE_TASK), false), (None, false)] {
             let mut task = f::document();
             task.chip.task = PROCEDURE_TASK;
-            task.chip.executor = c::Executor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE };
+            task.chip.executor = c::ChipExecutor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE };
             task.goal = goal;
             let root = f::supplied_root(task, false);
             let mut view = fixtures::view_of(if browser { fixtures::browser_words() } else { fixtures::words() });
@@ -98,7 +98,7 @@ fn a_procedures_task_links_the_goal_it_serves() {
 }
 #[test]
 fn a_procedures_plan_is_named_its_tasks() {
-    let view = page(c::Executor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE }, None);
+    let view = page(c::ChipExecutor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE }, None);
     let tree = view.tree();
     for role in [Role::Region, Role::Heading { level: 2 }, Role::Tree] {
         assert!(fixtures::find(tree, role, b"Its tasks").is_some());
@@ -118,7 +118,7 @@ fn a_goals_page_has_no_goal_slot_and_keeps_its_plan() {
 }
 #[test]
 fn a_tracked_task_has_its_regions_in_order() {
-    let view = page(c::Executor::Agent { charter: CHARTER }, Some(PRIORITY));
+    let view = page(c::ChipExecutor::Agent { charter: CHARTER }, Some(PRIORITY));
     let tree = view.tree();
     let mut headings = List::with_capacity(HEADINGS);
     for node in tree.nodes() {
@@ -134,7 +134,7 @@ fn a_tracked_task_has_its_regions_in_order() {
 #[test]
 fn a_plans_chip_links_to_its_tasks_page_by_number() {
     let mut delivery = f::tree();
-    let c::Delivery::OwnerTree(owner) = &mut delivery else { panic!("owner tree") };
+    let c::Delivery::Tree(owner) = &mut delivery else { panic!("owner tree") };
     owner.rows = List::with_capacity(ONE);
     owner.rows.push(row()).expect("row");
     let mut builder = Builder::new(&fixtures::tree_limits());
@@ -161,7 +161,7 @@ fn a_plans_chip_links_to_its_tasks_page_by_number() {
 fn a_plan_with_no_live_task_says_so_in_its_region() {
     for rows in [0_usize, 1] {
         let mut delivery = f::tree();
-        let c::Delivery::OwnerTree(owner) = &mut delivery else { panic!("owner tree") };
+        let c::Delivery::Tree(owner) = &mut delivery else { panic!("owner tree") };
         owner.rows = List::with_capacity(ONE);
         if rows == 1 {
             owner.rows.push(row()).expect("row");
@@ -200,17 +200,29 @@ fn index_of_text(tree: &Tree, expected: &[u8]) -> Option<usize> {
     None
 }
 
-fn asked(part: c::Part) -> Tree {
+fn asked(part: c::ApplicationPart) -> Tree {
     let mut task = f::document();
     task.resources = List::with_capacity(ONE);
-    task.resources.push(c::TaskResource::Part(part)).expect("one part");
+    let c::ApplicationPart::Resource { connector, path } = part else { panic!("owner resource") };
+    let kind = c::PartKind::Resource;
+    let key = c::PartKey::Path(path);
+    task.resources
+        .push(c::ResourceLine {
+            part: c::Part { connector, kind, key },
+            kind: 1,
+            taken: false,
+            holder: None,
+            writer: None,
+            writer_lost: false,
+        })
+        .expect("one resource");
     let mut b = Builder::new(&fixtures::tree_limits());
     crate::pages::task::asked(&mut b, &task, &fixtures::words());
     b.finish()
 }
 #[test]
 fn a_forge_resource_on_the_page_is_in_the_forges_words() {
-    let tree = asked(c::Part::Resource {
+    let tree = asked(c::ApplicationPart::Resource {
         connector: fixtures::FORGE,
         path: fixtures::path(&[b"forge", b"forge.example", b"acme", b"shop"]),
     });
@@ -218,21 +230,17 @@ fn a_forge_resource_on_the_page_is_in_the_forges_words() {
 }
 #[test]
 fn a_delegate_branch_resource_on_the_page_is_in_words() {
-    let tree = asked(c::Part::Resource {
+    let tree = asked(c::ApplicationPart::Resource {
         connector: fixtures::FORGE,
         path: fixtures::path(&[&1_u16.to_be_bytes(), &1_u32.to_be_bytes(), b"temper/1/c2"]),
     });
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"branch temper/1/c2 of repository 1 on forge 1").is_some());
 }
-#[test]
-fn a_forge_panel_on_the_page_says_shown_on_the_forge() {
-    let tree = asked(c::Part::Panel { connector: fixtures::FORGE, task: TASK });
-    assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"Shown on the forge.").is_some());
-}
+
 #[test]
 fn a_plans_items_are_nested_under_their_supplied_parent() {
     let mut delivery = f::tree();
-    let c::Delivery::OwnerTree(owner) = &mut delivery else { panic!("owner tree") };
+    let c::Delivery::Tree(owner) = &mut delivery else { panic!("owner tree") };
     owner.rows = List::with_capacity(2);
     owner.rows.push(row()).expect("row");
     let mut child = row();
@@ -280,52 +288,15 @@ fn a_plans_deeper_delegates_follow_parents_even_when_children_arrive_first() {
 }
 
 // README 5.8: "a live root's own delegates stay under it, in the tree's order".
-#[test]
-fn a_legacy_plans_later_grandchild_stays_under_its_parent() {
-    let counts =
-        c::PhaseCounts { ended: 0, waiting: 0, running: 0, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0 };
-    for rows in [
-        [(9, None), (12, Some(9)), (13, Some(9)), (14, Some(12))],
-        [(14, Some(12)), (12, Some(9)), (13, Some(9)), (9, None)],
-    ] {
-        let mut legacy = c::Tree { task: TASK, nodes: List::with_capacity(4), folded: counts, held_below: 0 };
-        for (task, parent) in rows {
-            let mut chip = row().chip;
-            chip.task = task;
-            legacy
-                .nodes
-                .push(c::TreeNode {
-                    chip,
-                    parent,
-                    dependencies: List::with_capacity(0),
-                    proposals: List::with_capacity(0),
-                    spend: 0,
-                    folded: if task == TASK { c::PhaseCounts { running: 1, ..counts } } else { counts },
-                    held_below: 0,
-                })
-                .unwrap();
-        }
-        let tree = plan(&c::Delivery::Tree(Box::new(legacy)));
-        let parent = index_of(&tree, Role::TreeItem, b"Task 12");
-        assert!(named(subtree(&tree, parent), Role::TreeItem, b"Task 14"));
-        assert!(!named(subtree(&tree, parent), Role::TreeItem, b"Task 13"));
-        let roots = children(&tree, index_of(&tree, Role::Tree, b"Plan"));
-        assert_eq!(roots.as_slice().len(), 3);
-        assert_eq!(tree.nodes()[roots.as_slice()[0]].role, Role::Paragraph);
-        assert_eq!(tree.nodes()[roots.as_slice()[1]].name.as_deref(), Some(b"Task 12".as_slice()));
-        assert_eq!(tree.nodes()[roots.as_slice()[2]].name.as_deref(), Some(b"Task 13".as_slice()));
-        assert_tree_items(&tree, &[b"Task 12", b"Task 14", b"Task 13"]);
-    }
-}
 
 // README 5.8: "An ended delegate is drawn before the first live root with a higher number";
 // "a live root's own delegates stay under it, in the tree's order".
 #[test]
 fn an_ended_delegate_follows_the_whole_subtree_of_the_live_root_before_it() {
-    let c::Delivery::OwnerTree(tree) = plan_rows(&[(12, 9, 1), (14, 9, 1), (15, 12, 2)]) else { panic!("owner tree") };
+    let c::Delivery::Tree(tree) = plan_rows(&[(12, 9, 1), (14, 9, 1), (15, 12, 2)]) else { panic!("owner tree") };
     let root = goal_root(
         tree.rows.as_slice(),
-        Some(tasks_page(&[ended_line(13, c::OwnerTaskStatus::Done)], false, false)),
+        Some(tasks_page(&[ended_line(13, c::TaskStatus::Done)], false, false)),
         c::Phase::Running,
     );
     let view = fixtures::page_view(&root);
@@ -352,7 +323,7 @@ fn a_plans_siblings_keep_their_supplied_order_even_out_of_number_order() {
 
 fn plan_rows(rows: &[(u64, u64, u32)]) -> c::Delivery {
     let mut delivery = f::tree();
-    let c::Delivery::OwnerTree(tree) = &mut delivery else { panic!("owner tree") };
+    let c::Delivery::Tree(tree) = &mut delivery else { panic!("owner tree") };
     tree.rows = List::with_capacity(u32::try_from(rows.len()).unwrap());
     for (task, parent, depth) in rows {
         let mut row = row();
@@ -511,7 +482,7 @@ fn titled() -> c::Task {
 fn the_title_sits_between_the_headers_two_meta_rows_without_a_title_paragraph() {
     let mut task = titled();
     task.priority = Some(PRIORITY);
-    task.requester = c::OwnerRequester::Person(PARTY);
+    task.requester = c::Requester::Person(PARTY);
     task.budget.deadline = Some(skein_lib::Wall::EPOCH);
     let root = f::held_root();
     let tree = header(&task, root.pages().me(root.client()));
@@ -574,12 +545,9 @@ fn the_budget_deadline_names_the_utc_date_or_moment_and_none() {
 fn the_first_meta_omits_absent_priority_and_uses_the_project_fallback_and_procedure_part() {
     let mut task = titled();
     task.priority = None;
-    let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
-    details.procedure = Some(c::OwnerPart {
-        connector: fixtures::FORGE,
-        kind: c::OwnerPartKind::Procedure,
-        key: c::OwnerPartKey::Number(1),
-    });
+    let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
+    details.procedure =
+        Some(c::Part { connector: fixtures::FORGE, kind: c::PartKind::Procedure, key: c::PartKey::Number(1) });
     let tree = header(&task, None);
     let first = subtree(&tree, styled(&tree, look::META));
     assert!(!named(first, Role::Paragraph, "Goal · priority 1".as_bytes()));
@@ -614,11 +582,9 @@ fn the_first_meta_omits_absent_priority_and_uses_the_project_fallback_and_proced
 #[test]
 fn the_bar_links_only_a_requesting_task_before_the_current_task_paragraph() {
     use temper_client_domain::{Action, Address, Event, pages::Act};
-    for requester in [
-        c::OwnerRequester::Task(7),
-        c::OwnerRequester::Person(PARTY),
-        c::OwnerRequester::Deployment { project: fixtures::PROJECT },
-    ] {
+    for requester in
+        [c::Requester::Task(7), c::Requester::Person(PARTY), c::Requester::Deployment { project: fixtures::PROJECT }]
+    {
         let limits = fixtures::domain_limits();
         let (mut root, _, watch, _) =
             fixtures::root_at_with_tree(Address::Task { task: TASK, filter: PlanFilter::All }, &limits);
@@ -648,7 +614,7 @@ fn the_bar_links_only_a_requesting_task_before_the_current_task_paragraph() {
         let bar = children(tree, main).as_slice()[0];
         assert_eq!(tree.nodes()[bar].styles.as_slice(), [look::PAGEBAR]);
         let parts = children(tree, bar);
-        let expected = if requester == c::OwnerRequester::Task(7) { 2 } else { 1 };
+        let expected = if requester == c::Requester::Task(7) { 2 } else { 1 };
         assert_eq!(parts.len(), expected);
         let current = &tree.nodes()[*parts.as_slice().last().expect("current")];
         assert_eq!(current.role, Role::Paragraph);
@@ -691,7 +657,7 @@ fn every_phase_has_the_same_status_token_in_the_header_and_its_plan_row() {
         let header = header(&task, None);
         assert_eq!(fixtures::styles(&header, Role::Status).as_ref(), [Box::from([token])]);
         let mut delivery = f::tree();
-        let c::Delivery::OwnerTree(tree) = &mut delivery else { panic!("owner") };
+        let c::Delivery::Tree(tree) = &mut delivery else { panic!("owner") };
         let mut row = row();
         row.chip = task.chip;
         row.chip.task = CHILD;
@@ -742,13 +708,25 @@ fn the_goals_held_card_keeps_its_key_without_a_goal_row() {
     assert!(hold < plan);
     assert!(fixtures::find(tree, Role::TreeItem, b"Task 9").is_none());
 }
-pub(super) fn activity_news() -> c::Activity {
-    c::Activity::News { topic: 1, summary: result_words(b"Ready for review"), part: None }
+pub(super) fn activity_news() -> jig_client::contract::DecodedActivityLine {
+    crate::tests::documents::line(
+        1,
+        skein_lib::Wall::EPOCH,
+        jig_client::contract::Activity::Heard(jig_client::contract::Word {
+            number: 1,
+            from: jig_client::contract::Requester::Task(1),
+            kind: jig_client::contract::MessageKind::Words,
+            words: result_words(b"Ready for review"),
+            at: skein_lib::Wall::EPOCH,
+            hits: 1,
+            eligible: true,
+        }),
+    )
 }
-pub(super) fn activity_tree(events: &[c::Activity]) -> Tree {
+pub(super) fn activity_tree(events: &[jig_client::contract::DecodedActivityLine]) -> Tree {
     draw_activity(events).0
 }
-fn draw_activity(events: &[c::Activity]) -> (Tree, crate::frame::Bindings) {
+fn draw_activity(events: &[jig_client::contract::DecodedActivityLine]) -> (Tree, crate::frame::Bindings) {
     let mut page = c::ActivityPage {
         rows: List::with_capacity(u32::try_from(events.len()).expect("activity rows fit")),
         after: None,
@@ -756,7 +734,14 @@ fn draw_activity(events: &[c::Activity]) -> (Tree, crate::frame::Bindings) {
         cut: false,
     };
     for event in events {
-        page.rows.push(c::ActivityLine { position: 1, at: skein_lib::Wall::EPOCH, event: event.clone() }).expect("row");
+        page.rows
+            .push({
+                let mut line = event.clone();
+                line.source.position = 1;
+                line.source.at = skein_lib::Wall::EPOCH;
+                line
+            })
+            .expect("row");
     }
     let mut builder = Builder::new(&fixtures::tree_limits());
     let mut bindings = crate::frame::Bindings::new(fixtures::tree_limits().bindings);
@@ -786,8 +771,8 @@ fn activity_rows_have_the_time_first_and_words_in_a_slot_and_no_empty_list() {
 }
 const RESULT_TASK: u64 = 7;
 const HEARD_WORDS: &[u8] = b"Two crates hold the export";
-fn heard_word(from: c::OwnerRequester, kind: c::OwnerMessageKind) -> c::OwnerWord {
-    c::OwnerWord {
+fn heard_word(from: c::Requester, kind: c::MessageKind) -> c::Word {
+    c::Word {
         number: 1,
         from,
         kind,
@@ -797,18 +782,18 @@ fn heard_word(from: c::OwnerRequester, kind: c::OwnerMessageKind) -> c::OwnerWor
         eligible: true,
     }
 }
-fn heard_activity(word: c::OwnerWord) -> c::Activity {
-    c::Activity::Owner {
-        source: Box::new(c::OwnerActivityLine {
+fn heard_activity(word: c::Word) -> jig_client::contract::DecodedActivityLine {
+    c::DecodedActivityLine {
+        source: Box::new(c::ActivityLine {
             task: TASK,
             position: 1,
             at: skein_lib::Wall::EPOCH,
-            line: c::OwnerActivity::Heard(word),
+            line: c::Activity::Heard(word),
         }),
         decoded: None,
     }
 }
-fn assert_activity_link(event: c::Activity, words: &[u8]) {
+fn assert_activity_link(event: jig_client::contract::DecodedActivityLine, words: &[u8]) {
     let (tree, bindings) = draw_activity(&[event]);
     let events = styled(&tree, look::EVENTS);
     let items = children(&tree, events);
@@ -830,32 +815,11 @@ fn assert_activity_link(event: c::Activity, words: &[u8]) {
 #[test]
 fn a_heard_result_begins_with_its_tasks_link() {
     assert_activity_link(
-        heard_activity(heard_word(
-            c::OwnerRequester::Task(RESULT_TASK),
-            c::OwnerMessageKind::Result(c::OwnerWordResult::Report),
-        )),
+        heard_activity(heard_word(c::Requester::Task(RESULT_TASK), c::MessageKind::Result(c::WordResult::Report))),
         HEARD_WORDS,
     );
 }
-#[test]
-fn a_result_line_begins_with_its_tasks_link() {
-    let mut chip = f::document().chip;
-    chip.task = RESULT_TASK;
-    chip.title = document_words(b"Survey the export's crates");
-    assert_activity_link(
-        c::Activity::Result {
-            result: c::Result {
-                task: chip,
-                ending: c::Ending::Done,
-                value: None,
-                at: None,
-                details: None,
-                acts: List::with_capacity(0),
-            },
-        },
-        b"Survey the export's crates",
-    );
-}
+
 fn assert_no_activity_link(tree: &Tree) {
     for node in tree.nodes() {
         assert_ne!(node.role, Role::Link);
@@ -863,8 +827,8 @@ fn assert_no_activity_link(tree: &Tree) {
 }
 #[test]
 fn a_persons_words_have_no_link() {
-    for kind in [c::OwnerMessageKind::Words, c::OwnerMessageKind::Result(c::OwnerWordResult::Report)] {
-        let tree = activity_tree(&[heard_activity(heard_word(c::OwnerRequester::Person(PARTY), kind))]);
+    for kind in [c::MessageKind::Words, c::MessageKind::Result(c::WordResult::Report)] {
+        let tree = activity_tree(&[heard_activity(heard_word(c::Requester::Person(PARTY), kind))]);
         assert_no_activity_link(&tree);
         assert!(skein_lib::bytes::find(&fixtures::text(&tree), HEARD_WORDS).is_some());
     }
@@ -874,10 +838,7 @@ fn the_chats_owner_activity_draws_no_link() {
     let mut builder = Builder::new(&fixtures::tree_limits());
     crate::pages::task::owner_activity(
         &mut builder,
-        &c::OwnerActivity::Heard(heard_word(
-            c::OwnerRequester::Task(RESULT_TASK),
-            c::OwnerMessageKind::Result(c::OwnerWordResult::Report),
-        )),
+        &c::Activity::Heard(heard_word(c::Requester::Task(RESULT_TASK), c::MessageKind::Result(c::WordResult::Report))),
         &fixtures::words(),
     );
     let tree = builder.finish();
@@ -887,13 +848,16 @@ fn the_chats_owner_activity_draws_no_link() {
 
 #[test]
 fn asked_resources_have_a_meta_row_only_when_there_are_parts() {
-    let tree = asked(c::Part::Panel { connector: fixtures::FORGE, task: TASK });
+    let tree = asked(c::ApplicationPart::Resource {
+        connector: fixtures::FORGE,
+        path: fixtures::path(&[b"forge", b"forge.example", b"acme", b"shop"]),
+    });
     let meta = styled(&tree, look::META);
     assert_eq!(tree.nodes()[meta].role, Role::Slot);
     let mut found = false;
     for node in subtree(&tree, meta) {
         for run in &node.text {
-            found |= run.text.as_ref() == b"Shown on the forge.";
+            found |= run.text.as_ref() == b"acme/shop on forge.example";
         }
     }
     assert!(found);
@@ -912,7 +876,7 @@ fn a_kept_activity_is_parked() {
     let mut builder = Builder::new(&fixtures::tree_limits());
     crate::pages::task::owner_activity(
         &mut builder,
-        &c::OwnerActivity::Kept { attempt: 1, pending: List::with_capacity(0), question: None },
+        &c::Activity::Kept { attempt: 1, pending: List::with_capacity(0), question: None },
         &fixtures::words(),
     );
     assert_eq!(fixtures::text(&builder.finish()).as_ref(), b"parked");
@@ -938,8 +902,7 @@ fn document_words(bytes: &[u8]) -> c::DocumentText {
 }
 #[test]
 fn a_goal_names_the_result_it_gives() {
-    let part =
-        c::OwnerPart { connector: fixtures::FORGE, kind: c::OwnerPartKind::Result, key: c::OwnerPartKey::Number(TASK) };
+    let part = c::Part { connector: fixtures::FORGE, kind: c::PartKind::Result, key: c::PartKey::Number(TASK) };
     for (contract, name) in [
         (c::TaskContractDocument::Report { words: 256 }, "Result · report".as_bytes()),
         (
@@ -1023,13 +986,9 @@ fn an_ended_goal_shows_its_result() {
     }
     let mut task = f::document();
     task.result_contract = c::TaskContractDocument::Change { connector: fixtures::FORGE, kind: 1, words: 256 };
-    task.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Done(c::ResultValue::Change {
+    task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(c::ResultValue::Change {
         kind: 1,
-        part: c::OwnerPart {
-            connector: fixtures::FORGE,
-            kind: c::OwnerPartKind::Result,
-            key: c::OwnerPartKey::Number(TASK),
-        },
+        part: c::Part { connector: fixtures::FORGE, kind: c::PartKind::Result, key: c::PartKey::Number(TASK) },
         words: document_words(b"1a2b3c4abcdef0123456789abcdef0123456789abcd"),
     }))));
     let view = goal(task);
@@ -1048,7 +1007,7 @@ fn a_live_goal_has_no_result_region() {
 #[test]
 fn a_goals_budget_card_shows_its_budget_as_supplied() {
     let mut task = f::document();
-    task.budget.numbers = c::OwnerNumbers { budget: 913, spent: 37, spent_below: 83, reserved: 29 };
+    task.budget.numbers = c::Numbers { budget: 913, spent: 37, spent_below: 83, reserved: 29 };
     task.budget.left = 641;
     task.authority.authority.spend = 877;
     task.authority.authority.delegation.tasks = 11;
@@ -1237,17 +1196,17 @@ const DEPENDENCY: u64 = 17;
 const OTHER_DEPENDENCY: u64 = 23;
 const GRANDCHILD: u64 = 13;
 const ROW_SPENT: u64 = 5;
-fn owner_phase(chip: &mut c::Chip, phase: c::OwnerChipPhase) {
+fn owner_phase(chip: &mut c::Chip, phase: c::ChipPhase) {
     chip.phase = phase.compact();
-    let c::ChipPhase::Owner { phase: target, .. } = chip.details.as_mut() else { panic!("owner") };
+    let c::ChipPhaseFacts { phase: target, .. } = chip.details.as_mut();
     *target = phase;
 }
-fn row() -> c::OwnerTreeRow {
+fn row() -> c::TreeRow {
     let mut chip = f::document().chip;
     chip.task = CHILD;
-    let c::ChipPhase::Owner { details, .. } = chip.details.as_mut() else { panic!("owner") };
+    let c::ChipPhaseFacts { details, .. } = chip.details.as_mut();
     details.budget.numbers.spent = ROW_SPENT;
-    c::OwnerTreeRow {
+    c::TreeRow {
         chip,
         parent: TASK,
         depth: ONE,
@@ -1262,7 +1221,7 @@ fn plan(delivery: &c::Delivery) -> Tree {
     crate::pages::task::plan(
         &mut builder,
         Some(delivery),
-        &f::root(c::Executor::Agent { charter: CHARTER }, Some(PRIORITY)),
+        &f::root(c::ChipExecutor::Agent { charter: CHARTER }, Some(PRIORITY)),
         &fixtures::words(),
         &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
         fixtures::domain_limits().client.domain.rows,
@@ -1270,9 +1229,9 @@ fn plan(delivery: &c::Delivery) -> Tree {
     );
     builder.finish()
 }
-fn plan_with_row(row: c::OwnerTreeRow) -> Tree {
+fn plan_with_row(row: c::TreeRow) -> Tree {
     let mut delivery = f::tree();
-    let c::Delivery::OwnerTree(tree) = &mut delivery else { panic!("owner tree") };
+    let c::Delivery::Tree(tree) = &mut delivery else { panic!("owner tree") };
     tree.rows = List::with_capacity(ONE);
     tree.rows.push(row).expect("row");
     plan(&delivery)
@@ -1307,7 +1266,7 @@ fn a_plan_row_says_what_its_task_waits_for() {
         for number in *numbers {
             dependencies.push(*number).expect("dependency");
         }
-        owner_phase(&mut row.chip, c::OwnerChipPhase::Waiting { dependencies, more: *more, holds: *holds });
+        owner_phase(&mut row.chip, c::ChipPhase::Waiting { dependencies, more: *more, holds: *holds });
         let tree = plan_with_row(row);
         assert_status(&tree, expected, look::STATUS_WAITING);
         assert!(skein_lib::bytes::find(&fixtures::text(&tree), expected).is_some());
@@ -1318,14 +1277,14 @@ fn document_text(words: &[u8]) -> c::DocumentText {
 }
 #[test]
 fn an_ended_row_says_its_ending() {
-    let cases: [(c::OwnerChipEnding, &[u8], skein_ui::Style); 3] = [
-        (c::OwnerChipEnding::Done(c::ResultValue::Report(document_text(b"Done"))), b"Completed", look::STATUS_DONE),
-        (c::OwnerChipEnding::Failed(document_text(b"Failed")), b"Failed", look::STATUS_HELD),
+    let cases: [(c::ChipEnding, &[u8], skein_ui::Style); 3] = [
+        (c::ChipEnding::Done(c::ResultValue::Report(document_text(b"Done"))), b"Completed", look::STATUS_DONE),
+        (c::ChipEnding::Failed(document_text(b"Failed")), b"Failed", look::STATUS_HELD),
         (
-            c::OwnerChipEnding::Cancelled {
+            c::ChipEnding::Cancelled {
                 reason: document_text(b"Cancelled"),
                 result: None,
-                by: c::OwnerRequester::Person(PARTY),
+                by: c::Requester::Person(PARTY),
                 at: skein_lib::Wall::EPOCH,
             },
             b"Cancelled",
@@ -1334,8 +1293,8 @@ fn an_ended_row_says_its_ending() {
     ];
     for (ending, expected, token) in cases {
         let mut row = row();
-        owner_phase(&mut row.chip, c::OwnerChipPhase::Ended);
-        let c::ChipPhase::Owner { details, .. } = row.chip.details.as_mut() else { panic!("owner") };
+        owner_phase(&mut row.chip, c::ChipPhase::Ended);
+        let c::ChipPhaseFacts { details, .. } = row.chip.details.as_mut();
         details.ending = Some(ending);
         assert_status(&plan_with_row(row), expected, token);
     }
@@ -1353,21 +1312,19 @@ fn a_rows_spend_is_its_supplied_spent() {
     assert_eq!(parts.as_slice().last(), Some(&spend));
     assert_eq!(tree.nodes()[parts.as_slice()[2]].role, Role::Status);
     let mut row = row();
-    *row.chip.details = c::ChipPhase::Starting;
-    for node in plan_with_row(row).nodes() {
-        assert!(!node.styles.as_slice().contains(&look::PLAN_SPEND));
-    }
+    row.chip.details.details.budget.numbers.spent = 0;
+    assert!(fixtures::find(&plan_with_row(row), Role::Paragraph, b"0 spent").is_some());
 }
-fn dependency_row() -> c::OwnerTreeRow {
+fn dependency_row() -> c::TreeRow {
     let mut row = row();
     let mut live = f::document().chip;
     live.task = DEPENDENCY;
-    owner_phase(&mut live, c::OwnerChipPhase::Active(c::RunStage::Running { attempt: 1 }));
+    owner_phase(&mut live, c::ChipPhase::Active(c::RunStage::Running { attempt: 1 }));
     row.dependencies = List::with_capacity(4);
     for link in [
-        c::OwnerTaskLink::Live(live),
-        c::OwnerTaskLink::Stored { number: OTHER_DEPENDENCY, status: Some(c::OwnerTaskStatus::Done) },
-        c::OwnerTaskLink::Stored { number: TASK, status: None },
+        c::TaskLink::Live(live),
+        c::TaskLink::Stored { number: OTHER_DEPENDENCY, status: Some(c::TaskStatus::Done) },
+        c::TaskLink::Stored { number: TASK, status: None },
     ] {
         row.dependencies.push(link).expect("dependency");
     }
@@ -1376,7 +1333,7 @@ fn dependency_row() -> c::OwnerTreeRow {
 #[test]
 fn a_rows_dependency_line_lists_its_dependencies() {
     let mut delivery = f::tree();
-    let c::Delivery::OwnerTree(owner) = &mut delivery else { panic!("owner tree") };
+    let c::Delivery::Tree(owner) = &mut delivery else { panic!("owner tree") };
     owner.rows = List::with_capacity(2);
     owner.rows.push(dependency_row()).expect("row");
     let mut child = row();
@@ -1422,12 +1379,12 @@ fn a_rows_dependency_line_lists_its_dependencies() {
         }
     }
 }
-fn amended_dependency_row() -> c::OwnerTreeRow {
+fn amended_dependency_row() -> c::TreeRow {
     let mut row = dependency_row();
     row.dependencies
-        .push(c::OwnerTaskLink::Stored { number: GRANDCHILD, status: Some(c::OwnerTaskStatus::Done) })
+        .push(c::TaskLink::Stored { number: GRANDCHILD, status: Some(c::TaskStatus::Done) })
         .expect("original dependency");
-    let c::ChipPhase::Owner { details, .. } = row.chip.details.as_mut() else { panic!("owner") };
+    let c::ChipPhaseFacts { details, .. } = row.chip.details.as_mut();
     details.dependencies = f::amended_dependency_facts();
     row
 }
@@ -1498,11 +1455,11 @@ fn a_cut_dependency_line_ends_with_its_last_line() {
 #[test]
 fn the_goal_has_no_plan_row() {
     let mut delivery = f::tree();
-    let c::Delivery::OwnerTree(owner) = &mut delivery else { panic!("owner tree") };
+    let c::Delivery::Tree(owner) = &mut delivery else { panic!("owner tree") };
     let mut dependencies = List::with_capacity(ONE);
     dependencies.push(DEPENDENCY).expect("dependency");
-    owner_phase(&mut owner.root, c::OwnerChipPhase::Waiting { dependencies, more: false, holds: false });
-    let c::ChipPhase::Owner { details, .. } = owner.root.details.as_mut() else { panic!("owner") };
+    owner_phase(&mut owner.root, c::ChipPhase::Waiting { dependencies, more: false, holds: false });
+    let c::ChipPhaseFacts { details, .. } = owner.root.details.as_mut();
     details.dependencies = List::with_capacity(ONE);
     details
         .dependencies
@@ -1528,11 +1485,11 @@ pub(super) fn dependency_plan() -> Tree {
     plan_with_row(dependency_row())
 }
 
-fn observed(chip: &mut c::Chip, work: Option<c::OwnerChipWork>) {
-    owner_phase(chip, c::OwnerChipPhase::Active(c::RunStage::Running { attempt: ONE.into() }));
-    let c::ChipPhase::Owner { details, .. } = chip.details.as_mut() else { panic!("owner") };
+fn observed(chip: &mut c::Chip, work: Option<c::ChipWork>) {
+    owner_phase(chip, c::ChipPhase::Active(c::RunStage::Running { attempt: ONE.into() }));
+    let c::ChipPhaseFacts { details, .. } = chip.details.as_mut();
     if let Some(work) = work {
-        details.observation = Some(c::OwnerChipObservation {
+        details.observation = Some(c::ChipObservation {
             channel: skein_lib::Token::new(1),
             work,
             since: skein_lib::Wall::EPOCH,
@@ -1545,14 +1502,14 @@ fn observed(chip: &mut c::Chip, work: Option<c::OwnerChipWork>) {
 }
 #[test]
 fn a_running_row_and_header_say_the_observed_work() {
-    let cases: [(Option<c::OwnerChipWork>, &[u8]); 4] = [
+    let cases: [(Option<c::ChipWork>, &[u8]); 4] = [
         (None, b"running"),
-        (Some(c::OwnerChipWork::Writing), "running · writing".as_bytes()),
+        (Some(c::ChipWork::Writing), "running · writing".as_bytes()),
         (
-            Some(c::OwnerChipWork::Tool { call: Box::from(*b"call"), tool: Box::from(*b"read_file") }),
+            Some(c::ChipWork::Tool { call: Box::from(*b"call"), tool: Box::from(*b"read_file") }),
             "running · a tool · read_file".as_bytes(),
         ),
-        (Some(c::OwnerChipWork::Waiting), b"running"),
+        (Some(c::ChipWork::Waiting), b"running"),
     ];
     for (work, expected) in cases {
         let mut row = row();
@@ -1605,7 +1562,7 @@ fn the_header_says_its_exact_wait_and_goal_priority_in_both_shells() {
         for (count, expected) in
             [(0, b"waiting on 0 delegates".as_slice()), (1, b"waiting on 1 delegate"), (2, b"waiting on 2 delegates")]
         {
-            let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+            let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
             details.live_delegates = count;
             let mut builder = Builder::new(&fixtures::tree_limits());
             crate::pages::task::header(
@@ -1622,41 +1579,23 @@ fn the_header_says_its_exact_wait_and_goal_priority_in_both_shells() {
     }
 }
 #[test]
-fn both_plan_shapes_omit_the_goal_and_its_hold_and_keep_its_folds() {
+fn the_plan_omits_the_goal_and_its_hold_and_keep_its_folds() {
     let root = f::held_root();
     let mut owner = f::tree();
-    let c::Delivery::OwnerTree(tree) = &mut owner else { panic!("owner tree") };
+    let c::Delivery::Tree(tree) = &mut owner else { panic!("owner tree") };
     tree.root.phase = c::Phase::Held;
     tree.rows = List::with_capacity(ONE);
     tree.rows.push(row()).expect("row");
     tree.folded = List::with_capacity(ONE);
     tree.folded
-        .push(c::OwnerTreeFold {
+        .push(c::TreeFold {
             parent: TASK,
-            phases: c::OwnerPhaseCounts { running: 2, ..c::OwnerPhaseCounts::ZERO },
+            phases: c::PhaseCounts { running: 2, ..c::PhaseCounts::ZERO },
             held_below: 0,
         })
         .expect("root fold");
-    let counts =
-        c::PhaseCounts { ended: 0, waiting: 0, running: 0, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0 };
-    let mut legacy = c::Tree { task: TASK, nodes: List::with_capacity(2), folded: counts, held_below: 0 };
-    for (chip, parent, folded) in
-        [(tree.root.clone(), None, c::PhaseCounts { running: 2, ..counts }), (row().chip, Some(TASK), counts)]
     {
-        legacy
-            .nodes
-            .push(c::TreeNode {
-                chip,
-                parent,
-                dependencies: List::with_capacity(NO_ROWS),
-                proposals: List::with_capacity(NO_ROWS),
-                spend: ROW_SPENT + 7,
-                folded,
-                held_below: 0,
-            })
-            .expect("node");
-    }
-    for delivery in [owner, c::Delivery::Tree(Box::new(legacy))] {
+        let delivery = owner;
         let mut builder = Builder::new(&fixtures::tree_limits());
         crate::pages::task::plan(
             &mut builder,
@@ -1723,9 +1662,9 @@ fn an_agents_task_has_its_parts_in_order() {
 #[test]
 fn the_lineage_bar_links_the_parent_by_number_with_its_title() {
     for (lineage, requester, parent, title) in [
-        (true, c::OwnerRequester::Task(23), Some(b"Task 12".as_slice()), true),
-        (false, c::OwnerRequester::Task(23), Some(b"Task 23".as_slice()), false),
-        (false, c::OwnerRequester::Person(PARTY), None, false),
+        (true, c::Requester::Task(23), Some(b"Task 12".as_slice()), true),
+        (false, c::Requester::Task(23), Some(b"Task 23".as_slice()), false),
+        (false, c::Requester::Person(PARTY), None, false),
     ] {
         let mut task = f::delegate();
         task.requester = requester;
@@ -1783,9 +1722,9 @@ fn the_brief_says_its_spec_who_asked_and_its_dependencies() {
         task.cut = true;
         if dependencies {
             task.dependencies = List::with_capacity(2);
-            task.dependencies.push(c::OwnerTaskLink::Live(row().chip)).expect("live dependency");
+            task.dependencies.push(c::TaskLink::Live(row().chip)).expect("live dependency");
             task.dependencies
-                .push(c::OwnerTaskLink::Stored { number: GRANDCHILD, status: Some(c::OwnerTaskStatus::Done) })
+                .push(c::TaskLink::Stored { number: GRANDCHILD, status: Some(c::TaskStatus::Done) })
                 .expect("ended dependency");
         }
         let view = agent(task);
@@ -1839,13 +1778,13 @@ fn the_briefs_added_dependency_is_marked() {
 #[test]
 fn an_added_dependency_names_another_party_or_the_deployment() {
     for (by, expected) in [
-        (c::OwnerRequester::Person(74), b"Added by party 74".as_slice()),
-        (c::OwnerRequester::Deployment { project: 1 }, b"Added by the deployment".as_slice()),
+        (c::Requester::Person(74), b"Added by party 74".as_slice()),
+        (c::Requester::Deployment { project: 1 }, b"Added by the deployment".as_slice()),
     ] {
         let mut task = f::delegate();
         task.dependencies = List::with_capacity(ONE);
         task.dependencies
-            .push(c::OwnerTaskLink::Stored { number: DEPENDENCY, status: Some(c::OwnerTaskStatus::Done) })
+            .push(c::TaskLink::Stored { number: DEPENDENCY, status: Some(c::TaskStatus::Done) })
             .expect("dependency");
         task.dependency_facts = List::with_capacity(ONE);
         task.dependency_facts.push(f::added_dependency(DEPENDENCY, by, false)).expect("added dependency");
@@ -1859,17 +1798,17 @@ fn an_added_dependency_names_another_party_or_the_deployment() {
 #[test]
 fn the_run_heading_says_each_phase() {
     for (phase, attempt, heading, started) in [
-        (c::OwnerChipPhase::Active(c::RunStage::Claimed { attempt: 2 }), Some(1), Some("Run 2 · live now"), true),
-        (c::OwnerChipPhase::Active(c::RunStage::Running { attempt: 2 }), Some(2), Some("Run 2 · live now"), true),
-        (c::OwnerChipPhase::Closing(c::ClosingStage::Run { attempt: 2 }), Some(2), Some("Run 2 · live now"), true),
-        (c::OwnerChipPhase::Active(c::RunStage::Idle), Some(2), Some("Run 2 · waiting"), true),
-        (c::OwnerChipPhase::Ended, Some(2), Some("Run 2 · ended"), false),
-        (c::OwnerChipPhase::Active(c::RunStage::Idle), None, Some("No run now"), false),
-        (c::OwnerChipPhase::Ended, None, None, false),
+        (c::ChipPhase::Active(c::RunStage::Claimed { attempt: 2 }), Some(1), Some("Run 2 · live now"), true),
+        (c::ChipPhase::Active(c::RunStage::Running { attempt: 2 }), Some(2), Some("Run 2 · live now"), true),
+        (c::ChipPhase::Closing(c::ClosingStage::Run { attempt: 2 }), Some(2), Some("Run 2 · live now"), true),
+        (c::ChipPhase::Active(c::RunStage::Idle), Some(2), Some("Run 2 · waiting"), true),
+        (c::ChipPhase::Ended, Some(2), Some("Run 2 · ended"), false),
+        (c::ChipPhase::Active(c::RunStage::Idle), None, Some("No run now"), false),
+        (c::ChipPhase::Ended, None, None, false),
     ] {
         let mut task = f::delegate();
         f::phase(&mut task, phase);
-        let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+        let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
         details.attempt = attempt;
         let view = agent(task);
         let tree = view.tree();
@@ -1881,7 +1820,7 @@ fn the_run_heading_says_each_phase() {
         }
     }
     let mut task = f::delegate();
-    let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+    let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
     details.run_since = None;
     let view = agent(task);
     let tree = view.tree();
@@ -1969,18 +1908,14 @@ fn an_agent_pages_conversation_draws_its_runs_but_not_its_milestones() {
     let mut page = f::activity(false);
     page.rows = List::with_capacity(3);
     for (position, line) in [
-        (1, c::OwnerActivity::RunBegan { attempt: 1, why: c::OwnerRunWhy::Made, resumed: false }),
-        (2, c::OwnerActivity::Milestone { position: 2 }),
-        (3, c::OwnerActivity::RunEnded { attempt: 1, end: c::OwnerRunEnd::Finished, spent: 0 }),
+        (1, c::Activity::RunBegan { attempt: 1, why: c::RunWhy::Made, resumed: false }),
+        (2, c::Activity::Milestone { position: 2 }),
+        (3, c::Activity::RunEnded { attempt: 1, end: c::RunEnd::Finished, spent: 0 }),
     ] {
         page.rows
-            .push(c::ActivityLine {
-                position,
-                at: skein_lib::Wall::EPOCH,
-                event: c::Activity::Owner {
-                    source: Box::new(c::OwnerActivityLine { task: TASK, position, at: skein_lib::Wall::EPOCH, line }),
-                    decoded: None,
-                },
+            .push(jig_client::contract::DecodedActivityLine {
+                source: Box::new(c::ActivityLine { task: TASK, position, at: skein_lib::Wall::EPOCH, line }),
+                decoded: None,
             })
             .expect("run and milestone lines");
     }
@@ -1994,10 +1929,9 @@ fn an_agent_pages_conversation_draws_its_runs_but_not_its_milestones() {
 #[test]
 fn an_ended_agents_task_shows_its_result() {
     let mut task = f::delegate();
-    f::phase(&mut task, c::OwnerChipPhase::Ended);
-    let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
-    details.ending =
-        Some(c::OwnerChipEnding::Done(c::ResultValue::Report(f::document_words(b"Tokens rotated safely."))));
+    f::phase(&mut task, c::ChipPhase::Ended);
+    let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
+    details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(f::document_words(b"Tokens rotated safely."))));
     let view = agent(task);
     let tree = view.tree();
     let result = region_index(tree, b"Result");
@@ -2010,48 +1944,14 @@ fn an_ended_agents_task_shows_its_result() {
 #[test]
 fn an_agents_plan_shows_only_with_a_delegate_or_a_card() {
     let mut delegates = f::tree();
-    let c::Delivery::OwnerTree(tree) = &mut delegates else { panic!("owner tree") };
+    let c::Delivery::Tree(tree) = &mut delegates else { panic!("owner tree") };
     tree.rows = List::with_capacity(1);
     tree.rows.push(row()).expect("delegate");
     let mut held_tree = f::tree();
-    let c::Delivery::OwnerTree(tree) = &mut held_tree else { panic!("owner tree") };
+    let c::Delivery::Tree(tree) = &mut held_tree else { panic!("owner tree") };
     tree.root.phase = c::Phase::Held;
-    let counts =
-        c::PhaseCounts { ended: 0, waiting: 0, running: 0, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0 };
-    let mut legacy = c::Tree { task: TASK, nodes: List::with_capacity(2), folded: counts, held_below: 0 };
-    legacy
-        .nodes
-        .push(c::TreeNode {
-            chip: f::delegate().chip,
-            parent: None,
-            dependencies: List::with_capacity(0),
-            proposals: List::with_capacity(0),
-            spend: 0,
-            folded: counts,
-            held_below: 0,
-        })
-        .expect("root node");
-    let single = c::Delivery::Tree(Box::new(legacy.clone()));
-    legacy
-        .nodes
-        .push(c::TreeNode {
-            chip: row().chip,
-            parent: Some(TASK),
-            dependencies: List::with_capacity(0),
-            proposals: List::with_capacity(0),
-            spend: 0,
-            folded: counts,
-            held_below: 0,
-        })
-        .expect("delegate node");
-    for (delivery, plan) in [
-        (Some(f::tree()), false),
-        (None, false),
-        (Some(delegates), true),
-        (Some(held_tree), true),
-        (Some(single), false),
-        (Some(c::Delivery::Tree(Box::new(legacy))), true),
-    ] {
+    for (delivery, plan) in [(Some(f::tree()), false), (None, false), (Some(delegates), true), (Some(held_tree), true)]
+    {
         let root = f::agent_root(f::delegate(), delivery, true);
         let view = fixtures::page_view(&root);
         for role in [Role::Region, Role::Heading { level: 2 }, Role::Tree] {
@@ -2070,9 +1970,8 @@ fn an_agents_page_carries_its_tokens_on_their_roles() {
         assert_eq!(live.tree().nodes()[styled(live.tree(), token)].role, role);
     }
     let mut task = f::delegate();
-    task.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Done(c::ResultValue::Report(
-        f::document_words(b"Done"),
-    )))));
+    task.result =
+        Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(c::ResultValue::Report(f::document_words(b"Done"))))));
     let ended = agent(task);
     assert_eq!(ended.tree().nodes()[styled(ended.tree(), look::AGENT_RESULT)].role, Role::Region);
 }
@@ -2170,7 +2069,7 @@ fn task_cancel_says_the_supplied_impact_and_stop_says_it_holds() {
     let mut task = f::document();
     offers(&mut task, &[(c::ActKind::Cancel, c::Admission::Allowed), (c::ActKind::Stop, c::Admission::Allowed)]);
     task.acts.get_mut(0).expect("cancel").effect = Some(c::Effect::Cancel(c::Impact {
-        tasks: c::PhaseCounts {
+        tasks: c::ImpactCounts {
             waiting: 2,
             running: 3,
             held: 4,
@@ -2295,7 +2194,7 @@ fn the_own_held_card_follows_the_goals_toolbar_or_the_agents_run_heading() {
 }
 fn tree_delivery() -> c::Delivery {
     let mut delivery = f::tree();
-    let c::Delivery::OwnerTree(tree) = &mut delivery else { panic!("tree") };
+    let c::Delivery::Tree(tree) = &mut delivery else { panic!("tree") };
     tree.root.phase = c::Phase::Held;
     delivery
 }
@@ -2305,7 +2204,7 @@ fn an_agents_older_button_reads_before_the_full_window() {
     task.activity = 2;
     let mut page = f::activity(true);
     let mut second = page.rows.as_slice()[0].clone();
-    second.position = 2;
+    second.source.position = 2;
     page.rows = {
         let first = page.rows.as_slice()[0].clone();
         let mut rows = List::with_capacity(2);
@@ -2352,7 +2251,7 @@ fn confirming_stop(root: &mut Domain) -> skein_lib::Token {
 fn task_acts_show_progress_and_the_answer_after_the_toolbar_or_conversation() {
     for agent in [false, true] {
         for (answer, expected) in [
-            (c::Answer::Done(c::Outcome::Changed), b"Applied".as_slice()),
+            (c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 })), b"Applied".as_slice()),
             (c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None }, b"This act is not offered"),
         ] {
             let mut task = f::delegate();
@@ -2397,7 +2296,7 @@ fn task_acts_show_progress_and_the_answer_after_the_toolbar_or_conversation() {
 fn a_held_procedure_goal_shows_its_own_release_before_its_plan() {
     let source = f::held_root();
     let mut task = source.pages().task().expect("page").document(source.client()).expect("task").clone();
-    task.chip.executor = c::Executor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE };
+    task.chip.executor = c::ChipExecutor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE };
     task.priority = None;
     let root = f::supplied_root(task, true);
     let view = fixtures::page_view(&root);
@@ -2514,7 +2413,7 @@ fn no_change_is_shown_until_an_amendment_is_edited() {
 fn a_moved_amendment_hides_send_and_its_refusal_offers_look_again() {
     let mut task = f::document();
     task.chip.task = TASK;
-    task.chip.executor = c::Executor::Agent { charter: CHARTER };
+    task.chip.executor = c::ChipExecutor::Agent { charter: CHARTER };
     task.priority = Some(PRIORITY);
     offers(&mut task, &[(c::ActKind::Amend, c::Admission::Allowed)]);
     let (mut root, watch) = f::supplied_root_watching(task, false);
@@ -2588,7 +2487,9 @@ fn amendment_progress_and_done_stay_in_its_region_until_amend_again() {
                     up: jig_client::Up::Answer {
                         attempt,
                         envelope: skein_lib::RequestEnvelope::Final,
-                        answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Changed))),
+                        answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                            c::DocumentOutcome::Amended { task: 9 },
+                        )))),
                         why: None,
                     },
                 },
@@ -2611,20 +2512,20 @@ fn amendment_progress_and_done_stay_in_its_region_until_amend_again() {
 }
 
 const ENDED_CHILD: u64 = 23;
-fn ended_line(number: u64, status: c::OwnerTaskStatus) -> c::TaskLine {
+fn ended_line(number: u64, status: c::TaskStatus) -> c::TaskLine {
     let mut line = super::chats::line();
     line.chip = row().chip;
     line.chip.task = number;
     line.chip.phase = c::Phase::Ended;
-    let c::ChipPhase::Owner { phase, details } = line.chip.details.as_mut() else { panic!("owner") };
-    *phase = c::OwnerChipPhase::Ended;
+    let c::ChipPhaseFacts { phase, details } = line.chip.details.as_mut();
+    *phase = c::ChipPhase::Ended;
     details.ending = Some(match status {
-        c::OwnerTaskStatus::Done => c::OwnerChipEnding::Done(c::ResultValue::Report(f::document_words(b"Done"))),
-        c::OwnerTaskStatus::Failed => c::OwnerChipEnding::Failed(f::document_words(b"Failed")),
-        c::OwnerTaskStatus::Cancelled => c::OwnerChipEnding::Cancelled {
+        c::TaskStatus::Done => c::ChipEnding::Done(c::ResultValue::Report(f::document_words(b"Done"))),
+        c::TaskStatus::Failed => c::ChipEnding::Failed(f::document_words(b"Failed")),
+        c::TaskStatus::Cancelled => c::ChipEnding::Cancelled {
             reason: f::document_words(b"Cancelled"),
             result: None,
-            by: c::OwnerRequester::Person(PARTY),
+            by: c::Requester::Person(PARTY),
             at: skein_lib::Wall::EPOCH,
         },
     });
@@ -2648,14 +2549,14 @@ fn tasks_page(lines: &[c::TaskLine], after: bool, cut: bool) -> c::TaskPage {
 fn procedure_document(phase: c::Phase) -> c::Task {
     let mut task = f::document();
     task.chip.task = TASK;
-    task.chip.executor = c::Executor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE };
+    task.chip.executor = c::ChipExecutor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE };
     task.chip.phase = phase;
     task.priority = None;
     task
 }
-fn its_tasks_tree(live: &[c::OwnerTreeRow], phase: c::Phase, page: Option<c::TaskPage>) -> Tree {
+fn its_tasks_tree(live: &[c::TreeRow], phase: c::Phase, page: Option<c::TaskPage>) -> Tree {
     let mut delivery = f::tree();
-    let c::Delivery::OwnerTree(tree) = &mut delivery else { panic!("owner tree") };
+    let c::Delivery::Tree(tree) = &mut delivery else { panic!("owner tree") };
     tree.rows = List::with_capacity(u32::try_from(live.len()).unwrap());
     for row in live {
         tree.rows.push(row.clone()).expect("live row");
@@ -2678,9 +2579,9 @@ fn its_tasks_delivery(delivery: c::Delivery, phase: c::Phase, page: Option<c::Ta
 #[test]
 fn its_ended_tasks_keep_their_endings_spend_and_muted_links() {
     let lines = [
-        ended_line(ENDED_CHILD, c::OwnerTaskStatus::Done),
-        ended_line(24, c::OwnerTaskStatus::Failed),
-        ended_line(25, c::OwnerTaskStatus::Cancelled),
+        ended_line(ENDED_CHILD, c::TaskStatus::Done),
+        ended_line(24, c::TaskStatus::Failed),
+        ended_line(25, c::TaskStatus::Cancelled),
     ];
     let tree = its_tasks_tree(&[row()], c::Phase::Running, Some(tasks_page(&lines, false, false)));
     let live = index_of(&tree, Role::TreeItem, b"Task 12");
@@ -2730,7 +2631,7 @@ fn its_empty_tasks_says_none_yet_while_it_lives_and_none_once_it_ends() {
 fn its_tasks_without_a_tree_draws_its_answered_ended_page() {
     for (phase, empty_word) in [(c::Phase::Ended, b"None.".as_slice()), (c::Phase::Running, b"None yet.")] {
         for empty in [false, true] {
-            let lines = [ended_line(ENDED_CHILD, c::OwnerTaskStatus::Done)];
+            let lines = [ended_line(ENDED_CHILD, c::TaskStatus::Done)];
             let page = tasks_page(if empty { &[] } else { &lines }, false, false);
             let root = f::root_with_optional_tree_and_ended(procedure_document(phase), None, Some(page));
             let view = fixtures::page_view(&root);
@@ -2755,50 +2656,20 @@ fn its_tasks_with_only_folds_or_held_below_does_not_say_none() {
         for (running, held_below, has_fold) in [(ONE, NO_ROWS, true), (NO_ROWS, ONE, false), (NO_ROWS, NO_ROWS, false)]
         {
             let mut owner = f::tree();
-            let c::Delivery::OwnerTree(tree) = &mut owner else { panic!("owner tree") };
+            let c::Delivery::Tree(tree) = &mut owner else { panic!("owner tree") };
             tree.rows = List::with_capacity(NO_ROWS);
             tree.folded = List::with_capacity(ONE);
             tree.folded
-                .push(c::OwnerTreeFold {
+                .push(c::TreeFold {
                     parent: TASK,
-                    phases: c::OwnerPhaseCounts { running, ..c::OwnerPhaseCounts::ZERO },
+                    phases: c::PhaseCounts { running, ..c::PhaseCounts::ZERO },
                     held_below,
                 })
                 .expect("root fold");
             let mut owner_held = tree.clone();
             owner_held.folded = List::with_capacity(NO_ROWS);
             owner_held.held_below = held_below;
-            let zero = c::PhaseCounts {
-                ended: 0,
-                waiting: 0,
-                running: 0,
-                held: 0,
-                closing: 0,
-                done: 0,
-                failed: 0,
-                cancelled: 0,
-            };
-            let counts = c::PhaseCounts { running, ..zero };
-            let legacy = c::Tree { task: TASK, nodes: List::with_capacity(NO_ROWS), folded: counts, held_below };
-            let mut node_fold = c::Tree { task: TASK, nodes: List::with_capacity(ONE), folded: zero, held_below: 0 };
-            node_fold
-                .nodes
-                .push(c::TreeNode {
-                    chip: tree.root.clone(),
-                    parent: None,
-                    dependencies: List::with_capacity(NO_ROWS),
-                    proposals: List::with_capacity(NO_ROWS),
-                    spend: 0,
-                    folded: counts,
-                    held_below,
-                })
-                .expect("root node");
-            for (delivery, has_fold) in [
-                (owner, has_fold),
-                (c::Delivery::Tree(Box::new(legacy)), has_fold),
-                (c::Delivery::Tree(Box::new(node_fold)), has_fold),
-                (c::Delivery::OwnerTree(owner_held), false),
-            ] {
+            for (delivery, has_fold) in [(owner, has_fold), (c::Delivery::Tree(owner_held), false)] {
                 let tree = its_tasks_delivery(delivery, phase, Some(tasks_page(&[], false, false)));
                 let region = subtree(&tree, region_index(&tree, b"Its tasks"));
                 let empty = !has_fold && held_below == 0;
@@ -2817,7 +2688,7 @@ fn its_tasks_reports_more_ended_tasks_for_a_cursor_or_a_cut_page() {
         let tree = its_tasks_tree(
             &[],
             c::Phase::Running,
-            Some(tasks_page(&[ended_line(ENDED_CHILD, c::OwnerTaskStatus::Done)], after, cut)),
+            Some(tasks_page(&[ended_line(ENDED_CHILD, c::TaskStatus::Done)], after, cut)),
         );
         let region = region_index(&tree, b"Its tasks");
         let more = b"More of its ended tasks are not shown.";
@@ -2839,7 +2710,7 @@ fn an_ended_task_still_in_its_live_tree_is_drawn_once_in_that_tree() {
     let tree = its_tasks_tree(
         &[parent, child],
         c::Phase::Running,
-        Some(tasks_page(&[ended_line(CHILD, c::OwnerTaskStatus::Done)], false, false)),
+        Some(tasks_page(&[ended_line(CHILD, c::TaskStatus::Done)], false, false)),
     );
     let mut count = NO_ROWS;
     for node in tree.nodes() {
@@ -2853,16 +2724,16 @@ fn an_ended_task_still_in_its_live_tree_is_drawn_once_in_that_tree() {
     assert!(child > parent && child < parent + usize::try_from(tree.nodes()[parent].size).unwrap());
 }
 
-fn goal_root(live: &[c::OwnerTreeRow], page: Option<c::TaskPage>, phase: c::Phase) -> Domain {
+fn goal_root(live: &[c::TreeRow], page: Option<c::TaskPage>, phase: c::Phase) -> Domain {
     let mut task = f::document();
     task.chip.task = TASK;
-    task.chip.executor = c::Executor::Agent { charter: CHARTER };
+    task.chip.executor = c::ChipExecutor::Agent { charter: CHARTER };
     task.priority = Some(PRIORITY);
     task.chip.phase = phase;
-    let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+    let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
     details.live_delegates = 2;
     let mut delivery = f::tree();
-    let c::Delivery::OwnerTree(tree) = &mut delivery else { panic!("owner tree") };
+    let c::Delivery::Tree(tree) = &mut delivery else { panic!("owner tree") };
     tree.rows = List::with_capacity(u32::try_from(live.len()).unwrap());
     for row in live {
         tree.rows.push(row.clone()).unwrap();
@@ -2911,7 +2782,7 @@ fn a_goals_counts_use_the_chip_and_the_whole_kept_page_under_either_filter() {
     ] {
         let mut root = goal_root(
             &[row()],
-            Some(tasks_page(&[ended_line(23, c::OwnerTaskStatus::Done)], after, cut)),
+            Some(tasks_page(&[ended_line(23, c::TaskStatus::Done)], after, cut)),
             c::Phase::Running,
         );
         for label in [b"All".as_slice(), b"Live only", b"All"] {
@@ -2953,9 +2824,9 @@ fn a_goals_empty_plan_uses_its_read_phase_and_filter_words() {
 fn only_a_goals_plan_has_counts_and_a_filter() {
     // An agent's task page draws no plan region without delegates: check the whole page.
     for executor in [
-        c::Executor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE },
-        c::Executor::Agent { charter: CHARTER },
-        c::Executor::Party { party: PARTY },
+        c::ChipExecutor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE },
+        c::ChipExecutor::Agent { charter: CHARTER },
+        c::ChipExecutor::Party { party: PARTY },
     ] {
         let mut task = f::document();
         task.chip.executor = executor;
@@ -2993,7 +2864,7 @@ fn ended_rows_merge_among_roots_and_leave_each_roots_delegates_under_it() {
     let mut last = row();
     last.chip.task = 18;
     let live = [first, child, last];
-    let lines = [10, 12, 15, 18, 20, 30].map(|number| ended_line(number, c::OwnerTaskStatus::Done));
+    let lines = [10, 12, 15, 18, 20, 30].map(|number| ended_line(number, c::TaskStatus::Done));
     let page = tasks_page(&lines, false, false);
     let goal = goal_root(&live, Some(page.clone()), c::Phase::Running);
     let view = fixtures::page_view(&goal);
@@ -3013,63 +2884,32 @@ fn ended_rows_merge_among_roots_and_leave_each_roots_delegates_under_it() {
         assert!(!has_style(subtree(tree, ended), look::DEPENDENCIES));
     }
 }
-#[test]
-fn legacy_roots_out_of_number_order_draw_each_ended_row_once() {
-    let zero =
-        c::PhaseCounts { ended: 0, waiting: 0, running: 0, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0 };
-    let mut tree = c::Tree { task: TASK, nodes: List::with_capacity(3), folded: zero, held_below: 0 };
-    for number in [18, 12, 15] {
-        let mut chip = row().chip;
-        chip.task = number;
-        tree.nodes
-            .push(c::TreeNode {
-                chip,
-                parent: Some(TASK),
-                dependencies: List::with_capacity(NO_ROWS),
-                proposals: List::with_capacity(NO_ROWS),
-                spend: 0,
-                folded: zero,
-                held_below: 0,
-            })
-            .unwrap();
-    }
-    let lines = [10, 12, 14, 15, 18, 20].map(|number| ended_line(number, c::OwnerTaskStatus::Done));
-    let tree = its_tasks_delivery(
-        c::Delivery::Tree(Box::new(tree)),
-        c::Phase::Running,
-        Some(tasks_page(&lines, false, false)),
-    );
-    assert_tree_items(&tree, &[b"Task 10", b"Task 14", b"Task 18", b"Task 12", b"Task 15", b"Task 20"]);
-    for number in [b"Task 12".as_slice(), b"Task 15", b"Task 18"] {
-        assert!(!has_style(subtree(&tree, index_of(&tree, Role::TreeItem, number)), look::PLAN_DONE));
-    }
-}
 
 #[test]
 fn live_only_keeps_live_rows_folds_held_counts_and_held_cards() {
     let source = f::held_root();
     let mut held = source.pages().task().unwrap().document(source.client()).unwrap().clone();
     held.chip.task = CHILD;
-    held.requester = c::OwnerRequester::Task(TASK);
+    held.requester = c::Requester::Task(TASK);
     let mut live = row();
     live.chip = held.chip.clone();
     let mut delivery = f::tree();
-    let c::Delivery::OwnerTree(tree) = &mut delivery else { panic!("owner") };
+    let c::Delivery::Tree(tree) = &mut delivery else { panic!("owner") };
     tree.rows = List::with_capacity(ONE);
     tree.rows.push(live).unwrap();
     tree.folded = List::with_capacity(ONE);
     tree.folded
-        .push(c::OwnerTreeFold {
+        .push(c::TreeFold {
             parent: TASK,
-            phases: c::OwnerPhaseCounts { running: 1, ..c::OwnerPhaseCounts::ZERO },
+            phases: c::PhaseCounts { running: 1, ..c::PhaseCounts::ZERO },
             held_below: 0,
         })
         .unwrap();
     tree.held_below = 1;
     let mut goal = f::document();
     goal.priority = Some(PRIORITY);
-    goal.chip.executor = c::Executor::Agent { charter: CHARTER };
-    let page = tasks_page(&[ended_line(23, c::OwnerTaskStatus::Done)], true, false);
+    goal.chip.executor = c::ChipExecutor::Agent { charter: CHARTER };
+    let page = tasks_page(&[ended_line(23, c::TaskStatus::Done)], true, false);
     let mut root = f::root_with_ended_and_held(goal, Some(delivery), Some(page), Some(held));
     for label in [b"All".as_slice(), b"Live only"] {
         press_button(&mut root, label);
@@ -3091,12 +2931,12 @@ fn a_goals_folds_and_held_counts_keep_an_empty_live_filter_from_saying_no_live_t
         let mut document = f::document();
         document.priority = Some(PRIORITY);
         let mut delivery = f::tree();
-        let c::Delivery::OwnerTree(tree) = &mut delivery else { panic!("owner") };
+        let c::Delivery::Tree(tree) = &mut delivery else { panic!("owner") };
         tree.folded = List::with_capacity(ONE);
         tree.folded
-            .push(c::OwnerTreeFold {
+            .push(c::TreeFold {
                 parent: TASK,
-                phases: c::OwnerPhaseCounts { running: folded, ..c::OwnerPhaseCounts::ZERO },
+                phases: c::PhaseCounts { running: folded, ..c::PhaseCounts::ZERO },
                 held_below,
             })
             .unwrap();

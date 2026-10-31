@@ -1,0 +1,296 @@
+use crate::tests::fixtures::{Ended, Fixture, ReadPage, Watched};
+pub(in crate::tests) use crate::tests::kit::list;
+use crate::tests::state::domain::{
+    objects,
+    spine::{LIMITS, drive},
+};
+use crate::{
+    Event, Request,
+    state::{
+        address::{Address, Place, TaskSection},
+        objects::Body,
+    },
+};
+use jig_client::contract::*;
+use skein_lib::{List, Time};
+
+fn account() -> Part {
+    Part { connector: u16::MAX, kind: PartKind::Hold, key: PartKey::Number(u64::MAX) }
+}
+fn origin() -> Part {
+    Part {
+        connector: 2,
+        kind: PartKind::Resource,
+        key: PartKey::Path(list([Box::from([255_u8, 0]), Box::from(*b"a/b")])),
+    }
+}
+fn chip(account: Option<Part>) -> Chip {
+    let mut details = crate::tests::state::domain::chip_facts::details();
+    details.project = 41;
+    details.hold = Some(ChipHold {
+        words: None,
+        placed: None,
+        circle: None,
+        account,
+        source: Some(origin()),
+        reason: HoldCategory::Drift,
+        revision: 91,
+        before: PriorPhase::Waiting,
+        escalation: None,
+        tries: FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        hold_wait_since: None,
+    });
+    let mut chip = objects::chip(8);
+    chip.details = Box::new(ChipPhaseFacts {
+        phase: ChipPhase::Held { reason: HoldCategory::Drift, revision: 91 },
+        details: Box::new(details),
+    });
+    chip
+}
+fn task(account: Option<Part>) -> Task {
+    let mut task = crate::tests::state::domain::confirmation::task();
+    task.project = 41;
+    task.chip = chip(account);
+    task
+}
+fn part() -> ApplicationPart {
+    ApplicationPart::Hold { connector: u16::MAX, task: u64::MAX }
+}
+fn read(output: &[Request], expected: Read) -> jig_client::Handle {
+    let mut found = None;
+    for request in output {
+        if let Request::Client {
+            asked: jig_client::Event::Read { handle: read, read: jig_client::Readable::Jig(what) },
+        } = request
+            && *what == expected
+        {
+            assert!(found.replace(*read).is_none());
+        }
+    }
+    found.unwrap()
+}
+fn app(domain: &mut Fixture, key: ObjectKey) -> Box<[Request]> {
+    drive(domain, Time::ZERO, Event::Went { place: Place::Elsewhere });
+    drive(domain, Time::ZERO, Event::Named { sections: List::with_capacity(0), objects: list([key]) })
+}
+fn task_watch(domain: &mut Fixture, section: TaskSection) -> jig_client::Handle {
+    let output = drive(domain, Time::ZERO, Event::Went { place: Place::Jig(Address::Task { task: 8, section }) });
+    let mut found = None;
+    for request in &output {
+        if let Request::Client {
+            asked:
+                jig_client::Event::Watch { handle: watch, subject: jig_client::Watchable::Jig(Subject::Task { task: 8 }) },
+        } = request
+        {
+            assert!(found.replace(*watch).is_none());
+        }
+    }
+    found.unwrap()
+}
+
+fn expected(_generation: u32) -> Request {
+    Request::ShowPart { part: part(), scope: PartScope::Project(41) }
+}
+
+#[test]
+fn native_hold_account_is_shown_once_by_whole_task_reads_in_every_section_and_leaves_with_its_generation() {
+    for section in [
+        TaskSection::Overview,
+        TaskSection::Activity,
+        TaskSection::Plan,
+        TaskSection::History,
+        TaskSection::Budget,
+        TaskSection::Panels,
+    ] {
+        let (mut domain, _) = objects::live();
+        let watch = task_watch(&mut domain, section);
+        let request = drive(&mut domain, Time::ZERO, Ended { watch, end: WatchEnd::Unknown });
+        let token = read(&request, Read::Task { task: 8 });
+        let mut exact = task(Some(account()));
+        let context = exact.context.as_mut().unwrap();
+        context.impact.tasks.waiting = 1;
+        context.parts = list([part()]);
+        let shown = drive(
+            &mut domain,
+            Time::ZERO,
+            ReadPage { read: token, result: ReadResult::Value(ReadValue::Task(Box::new(exact.clone()))) },
+        );
+        assert_eq!(crate::tests::fixtures::parts(&shown, LIMITS.client.parts).as_ref(), &[expected(1)]);
+        let id = domain.objects().find(ObjectKey::Task(8)).unwrap();
+        assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Task(Box::new(exact.clone()))));
+        let left = drive(&mut domain, Time::ZERO, Event::Went { place: Place::Elsewhere });
+        assert!(left.contains(&Request::PartsLeft));
+        assert!(domain.task_page().header.is_none());
+        assert!(
+            drive(
+                &mut domain,
+                Time::ZERO,
+                ReadPage { read: token, result: ReadResult::Value(ReadValue::Task(Box::new(exact))) }
+            )
+            .is_empty()
+        );
+        assert!(domain.objects().find(ObjectKey::Task(8)).is_none());
+    }
+}
+
+#[test]
+fn native_hold_account_application_chips_use_supplied_scope_and_whole_task_and_escalation_reads_register_once() {
+    for cached in [false, true] {
+        let (mut domain, _) = objects::live();
+        let shown = app(&mut domain, ObjectKey::Task(8));
+        let mut watch = None;
+        for request in &shown {
+            if let Request::Client {
+                asked:
+                    jig_client::Event::Watch { handle: found, subject: jig_client::Watchable::Jig(Subject::Chips { .. }) },
+            } = request
+            {
+                assert!(watch.replace(*found).is_none());
+            }
+        }
+        let watch = watch.unwrap();
+        let mut old = crate::tests::state::domain::confirmation::task();
+        old.project = 7;
+        if cached {
+            let token = read(&shown, Read::Task { task: 8 });
+            drive(
+                &mut domain,
+                Time::ZERO,
+                ReadPage { read: token, result: ReadResult::Value(ReadValue::Task(Box::new(old.clone()))) },
+            );
+        }
+        let exact = chip(Some(account()));
+        let shown = drive(
+            &mut domain,
+            Time::ZERO,
+            Watched { watch, event: WatchEvent::Delivered(Delivery::Chips(list([exact.clone()]))) },
+        );
+        assert_eq!(crate::tests::fixtures::parts(&shown, LIMITS.client.parts).as_ref(), &[expected(1)]);
+        let id = domain.objects().find(ObjectKey::Task(8)).unwrap();
+        let body = if cached {
+            old.chip = exact.clone();
+            Body::Task(Box::new(old))
+        } else {
+            Body::Chip(exact.clone())
+        };
+        assert_eq!(domain.objects().get(id).unwrap().body, Some(body));
+        let left = drive(
+            &mut domain,
+            Time::ZERO,
+            Event::Named { objects: List::with_capacity(0), sections: List::with_capacity(0) },
+        );
+        assert!(left.contains(&Request::Client { asked: jig_client::Event::Unwatch { handle: watch } }));
+        let late = drive(
+            &mut domain,
+            Time::ZERO,
+            Watched { watch, event: WatchEvent::Delivered(Delivery::Chips(list([exact]))) },
+        );
+        assert!(crate::tests::fixtures::parts(&late, LIMITS.client.parts).is_empty());
+        assert!(domain.objects().find(ObjectKey::Task(8)).is_none());
+    }
+    for escalation in [false, true] {
+        let (mut domain, _) = objects::live();
+        let key = if escalation { ObjectKey::Escalation(8) } else { ObjectKey::Task(8) };
+        let shown = app(&mut domain, key);
+        let query = if escalation { Read::Escalation { task: 8 } } else { Read::Task { task: 8 } };
+        let token = read(&shown, query);
+        let exact = task(Some(account()));
+        let (value, body) = if escalation {
+            let value = Escalation { task: Box::new(exact), acts: List::with_capacity(0) };
+            (ReadValue::Escalation(Box::new(value.clone())), Body::Escalation(Box::new(value)))
+        } else {
+            (ReadValue::Task(Box::new(exact.clone())), Body::Task(Box::new(exact)))
+        };
+        let shown = drive(&mut domain, Time::ZERO, ReadPage { read: token, result: ReadResult::Value(value) });
+        assert_eq!(crate::tests::fixtures::parts(&shown, LIMITS.client.parts).as_ref(), &[expected(1)]);
+        let id = domain.objects().find(key).unwrap();
+        assert_eq!(domain.objects().get(id).unwrap().body, Some(body));
+    }
+}
+
+#[test]
+fn native_hold_account_absence_other_families_and_path_keys_never_invent_a_hold_from_the_independent_origin() {
+    let mut accounts = crate::tests::kit::list_in(8, [None, Some(Part { key: origin().key, ..account() })]);
+    for kind in
+        [PartKind::Resource, PartKind::Pool, PartKind::Result, PartKind::Procedure, PartKind::Effect, PartKind::Outbox]
+    {
+        accounts.push(Some(Part { kind, ..account() })).unwrap();
+    }
+    for account in accounts.into_boxed() {
+        for application in [false, true] {
+            let (mut domain, _) = objects::live();
+            let exact = task(account.clone());
+            let shown = if application {
+                let shown = app(&mut domain, ObjectKey::Task(8));
+                let token = read(&shown, Read::Task { task: 8 });
+                drive(
+                    &mut domain,
+                    Time::ZERO,
+                    ReadPage { read: token, result: ReadResult::Value(ReadValue::Task(Box::new(exact.clone()))) },
+                )
+            } else {
+                let watch = task_watch(&mut domain, TaskSection::Overview);
+                drive(
+                    &mut domain,
+                    Time::ZERO,
+                    Watched { watch, event: WatchEvent::Delivered(Delivery::Task(Box::new(exact.clone()))) },
+                )
+            };
+            assert!(crate::tests::fixtures::parts(&shown, LIMITS.client.parts).is_empty());
+            let id = domain.objects().find(ObjectKey::Task(8)).unwrap();
+            assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Task(Box::new(exact))));
+        }
+    }
+}
+
+#[test]
+fn native_hold_accounts_obey_bounded_application_and_task_parts_without_dropping_whole_owner_facts() {
+    for escalation in [false, true] {
+        let mut limits = LIMITS;
+        limits.client.parts = 1;
+        let (mut domain, _) = objects::live_with(&limits);
+        let key = if escalation { ObjectKey::Escalation(8) } else { ObjectKey::Task(8) };
+        let shown = app(&mut domain, key);
+        let query = if escalation { Read::Escalation { task: 8 } } else { Read::Task { task: 8 } };
+        let token = read(&shown, query);
+        let mut exact = task(Some(account()));
+        let independent = ApplicationPart::Outbox { connector: 3, entry: 5, scope: PartScope::Deployment };
+        let mut result = objects::result();
+        result.value = Some(ResultValue::Connector {
+            summary: DocumentText::complete(objects::text(b"result")),
+            part: independent.clone(),
+        });
+        exact.result = Some(TaskResult::Document(Box::new(result)));
+        exact.context.as_mut().unwrap().parts = list([independent]);
+        let (value, body) = if escalation {
+            let value = Escalation { task: Box::new(exact), acts: List::with_capacity(0) };
+            (ReadValue::Escalation(Box::new(value.clone())), Body::Escalation(Box::new(value)))
+        } else {
+            (ReadValue::Task(Box::new(exact.clone())), Body::Task(Box::new(exact)))
+        };
+        let shown = domain.drive(Time::ZERO, ReadPage { read: token, result: ReadResult::Value(value) });
+        assert_eq!(crate::tests::fixtures::parts(&shown, LIMITS.client.parts).as_ref(), &[expected(1)]);
+        let (notice, ()) = domain.notices().ids().iter().next().unwrap();
+        assert_eq!(
+            domain.notices().get(*notice).unwrap().kind,
+            crate::tree::notices::kept::Kind::Refused(Limit::Objects)
+        );
+        let id = domain.objects().find(key).unwrap();
+        assert_eq!(domain.objects().get(id).unwrap().body, Some(body));
+    }
+    let mut limits = LIMITS;
+    limits.client.parts = 0;
+    let (mut domain, _) = objects::live_with(&limits);
+    let watch = task_watch(&mut domain, TaskSection::Overview);
+    let exact = task(Some(account()));
+    let shown = domain
+        .drive(Time::ZERO, Watched { watch, event: WatchEvent::Delivered(Delivery::Task(Box::new(exact.clone()))) });
+    assert!(crate::tests::fixtures::parts(&shown, LIMITS.client.parts).is_empty());
+    if let crate::state::page::Page::Work { refused, .. } = domain.page() {
+        assert_eq!(*refused, Some(Limit::Objects));
+    } else {
+        panic!("task page retained with its bounded refusal");
+    }
+    let id = domain.objects().find(ObjectKey::Task(8)).unwrap();
+    assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Task(Box::new(exact))));
+}

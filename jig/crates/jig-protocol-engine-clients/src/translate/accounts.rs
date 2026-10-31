@@ -1,131 +1,122 @@
-#![expect(clippy::manual_map, reason = "step code translates optional facts without closures")]
 //! Whole secret-free accounts documents (client/domain/contract.md, 5.1; domain/accounts.md, 3–5).
 use super::{deployment, owner, pieces, w};
 use alloc::boxed::Box;
 use jig_domain_accounts as a;
 use jig_domain_core::documents as d;
 use skein_lib::{List, Writer};
-pub fn payer(value: a::Use, limits: &w::Limits) -> Result<w::OwnerAccountUse, w::Problem> {
+pub fn payer(value: a::Use, limits: &w::Limits) -> Result<w::AccountUse, w::Problem> {
     Ok(match value {
         a::Use::Party(party) => {
-            w::OwnerAccountUse::Party(w::OwnerAccountUseParty::new(limits, w::OwnerAccountUsePartyParts { party })?)
+            w::AccountUse::Party(w::AccountUseParty::new(limits, w::AccountUsePartyParts { party })?)
         }
-        a::Use::Project(project) => w::OwnerAccountUse::Project(w::OwnerAccountUseProject::new(
-            limits,
-            w::OwnerAccountUseProjectParts { project },
-        )?),
+        a::Use::Project(project) => {
+            w::AccountUse::Project(w::AccountUseProject::new(limits, w::AccountUseProjectParts { project })?)
+        }
     })
 }
-pub fn holder(value: a::Holder, limits: &w::Limits) -> Result<w::OwnerAccountHolder, w::Problem> {
+pub fn holder(value: a::Holder, limits: &w::Limits) -> Result<w::AccountHolder, w::Problem> {
     Ok(match value {
-        a::Holder::Deployment => w::OwnerAccountHolder::Deployment,
-        a::Holder::Party(party) => w::OwnerAccountHolder::Party(w::OwnerAccountHolderParty::new(
-            limits,
-            w::OwnerAccountHolderPartyParts { party },
-        )?),
+        a::Holder::Deployment => w::AccountHolder::Deployment,
+        a::Holder::Party(party) => {
+            w::AccountHolder::Party(w::AccountHolderParty::new(limits, w::AccountHolderPartyParts { party })?)
+        }
     })
 }
-fn kind(value: a::Kind) -> w::OwnerAccountKind {
+fn kind(value: a::Kind) -> w::AccountKind {
     match value {
-        a::Kind::SignIn => w::OwnerAccountKind::SignIn,
-        a::Kind::Key => w::OwnerAccountKind::Key,
-        a::Kind::Program => w::OwnerAccountKind::Program,
-        a::Kind::None => w::OwnerAccountKind::None,
+        a::Kind::SignIn => w::AccountKind::SignIn,
+        a::Kind::Key => w::AccountKind::Key,
+        a::Kind::Program => w::AccountKind::Program,
+        a::Kind::None => w::AccountKind::None,
     }
 }
-fn bound(value: a::Bound) -> w::OwnerAccountBound {
+fn bound(value: a::Bound) -> w::AccountBound {
     match value {
-        a::Bound::Accounts => w::OwnerAccountBound::Accounts,
-        a::Bound::HolderAccounts => w::OwnerAccountBound::HolderAccounts,
-        a::Bound::Sources => w::OwnerAccountBound::Sources,
-        a::Bound::SignIns => w::OwnerAccountBound::SignIns,
+        a::Bound::Accounts => w::AccountBound::Accounts,
+        a::Bound::HolderAccounts => w::AccountBound::HolderAccounts,
+        a::Bound::Sources => w::AccountBound::Sources,
+        a::Bound::SignIns => w::AccountBound::SignIns,
     }
 }
-fn key_failure(value: a::KeyFailure) -> w::OwnerAccountKeyFailure {
+fn key_failure(value: a::KeyFailure) -> w::AccountKeyFailure {
     match value {
-        a::KeyFailure::TooLong => w::OwnerAccountKeyFailure::TooLong,
-        a::KeyFailure::NotStored => w::OwnerAccountKeyFailure::NotStored,
+        a::KeyFailure::TooLong => w::AccountKeyFailure::TooLong,
+        a::KeyFailure::NotStored => w::AccountKeyFailure::NotStored,
     }
 }
-pub fn refusal(value: a::Refusal, limits: &w::Limits) -> Result<w::OwnerAccountRefusal, w::Problem> {
+pub fn refusal(value: a::Refusal, limits: &w::Limits) -> Result<w::AccountRefusal, w::Problem> {
     Ok(match value {
         // A finish refusal leaves the sign-in waiting, so it never ends an accounts watch's sign-in.
         a::Refusal::SignInRedirect { .. } => unreachable!("a redirect refusal is only a finish answer"),
-        a::Refusal::NotSignedIn => w::OwnerAccountRefusal::NotSignedIn,
-        a::Refusal::NotOurs => w::OwnerAccountRefusal::NotOurs,
-        a::Refusal::Cancelled => w::OwnerAccountRefusal::Cancelled,
-        a::Refusal::Moving => w::OwnerAccountRefusal::Moving,
-        a::Refusal::Unknown => w::OwnerAccountRefusal::Unknown,
-        a::Refusal::NotLimited => w::OwnerAccountRefusal::NotLimited,
-        a::Refusal::Uses => w::OwnerAccountRefusal::Uses,
-        a::Refusal::NotKept { why } => w::OwnerAccountRefusal::NotKept(w::OwnerAccountRefusalNotKept::new(
+        a::Refusal::NotSignedIn => w::AccountRefusal::NotSignedIn,
+        a::Refusal::NotOurs => w::AccountRefusal::NotOurs,
+        a::Refusal::Cancelled => w::AccountRefusal::Cancelled,
+        a::Refusal::Moving => w::AccountRefusal::Moving,
+        a::Refusal::Unknown => w::AccountRefusal::Unknown,
+        a::Refusal::NotLimited => w::AccountRefusal::NotLimited,
+        a::Refusal::Uses => w::AccountRefusal::Uses,
+        a::Refusal::NotKept { why } => w::AccountRefusal::NotKept(w::AccountRefusalNotKept::new(
             limits,
-            w::OwnerAccountRefusalNotKeptParts { why: key_failure(why) },
+            w::AccountRefusalNotKeptParts { why: key_failure(why) },
         )?),
-        a::Refusal::Limit { bound } => w::OwnerAccountRefusal::Limit(w::OwnerAccountRefusalLimit::new(
+        a::Refusal::Limit { bound } => w::AccountRefusal::Limit(w::AccountRefusalLimit::new(
             limits,
-            w::OwnerAccountRefusalLimitParts { bound: self::bound(bound) },
+            w::AccountRefusalLimitParts { bound: self::bound(bound) },
         )?),
-        a::Refusal::Held { provider } => w::OwnerAccountRefusal::Held(w::OwnerAccountRefusalHeld::new(
+        a::Refusal::Held { provider } => {
+            w::AccountRefusal::Held(w::AccountRefusalHeld::new(limits, w::AccountRefusalHeldParts { provider })?)
+        }
+        a::Refusal::Provider { provider } => w::AccountRefusal::Provider(w::AccountRefusalProvider::new(
             limits,
-            w::OwnerAccountRefusalHeldParts { provider },
+            w::AccountRefusalProviderParts { provider },
         )?),
-        a::Refusal::Provider { provider } => w::OwnerAccountRefusal::Provider(w::OwnerAccountRefusalProvider::new(
+        a::Refusal::Subject => w::AccountRefusal::Subject,
+        a::Refusal::Numbers => w::AccountRefusal::Numbers,
+        a::Refusal::Kind { kind } => w::AccountRefusal::Kind(w::AccountRefusalKind::new(
             limits,
-            w::OwnerAccountRefusalProviderParts { provider },
+            w::AccountRefusalKindParts { kind: self::kind(kind) },
         )?),
-        a::Refusal::Subject => w::OwnerAccountRefusal::Subject,
-        a::Refusal::Numbers => w::OwnerAccountRefusal::Numbers,
-        a::Refusal::Kind { kind } => w::OwnerAccountRefusal::Kind(w::OwnerAccountRefusalKind::new(
-            limits,
-            w::OwnerAccountRefusalKindParts { kind: self::kind(kind) },
-        )?),
-        a::Refusal::Closing => w::OwnerAccountRefusal::Closing,
-        a::Refusal::NotStarted => w::OwnerAccountRefusal::NotStarted,
+        a::Refusal::Closing => w::AccountRefusal::Closing,
+        a::Refusal::NotStarted => w::AccountRefusal::NotStarted,
     })
 }
-pub fn failure(value: a::Failure, limits: &w::Limits) -> Result<w::OwnerAccountFailure, w::Problem> {
+pub fn failure(value: a::Failure, limits: &w::Limits) -> Result<w::AccountFailure, w::Problem> {
     Ok(match value {
-        a::Failure::Later { after } => w::OwnerAccountFailure::Later(w::OwnerAccountFailureLater::new(
+        a::Failure::Later { after } => {
+            w::AccountFailure::Later(w::AccountFailureLater::new(limits, w::AccountFailureLaterParts { after })?)
+        }
+        a::Failure::SignInAgain => w::AccountFailure::SignInAgain,
+        a::Failure::MissingScope { scope } => w::AccountFailure::MissingScope(w::AccountFailureMissingScope::new(
             limits,
-            w::OwnerAccountFailureLaterParts { after },
+            w::AccountFailureMissingScopeParts { scope },
         )?),
-        a::Failure::SignInAgain => w::OwnerAccountFailure::SignInAgain,
-        a::Failure::MissingScope { scope } => w::OwnerAccountFailure::MissingScope(
-            w::OwnerAccountFailureMissingScope::new(limits, w::OwnerAccountFailureMissingScopeParts { scope })?,
-        ),
-        a::Failure::Misconfigured => w::OwnerAccountFailure::Misconfigured,
-        a::Failure::Unloaded { at, why } => w::OwnerAccountFailure::Unloaded(w::OwnerAccountFailureUnloaded::new(
+        a::Failure::Misconfigured => w::AccountFailure::Misconfigured,
+        a::Failure::Unloaded { at, why } => w::AccountFailure::Unloaded(w::AccountFailureUnloaded::new(
             limits,
-            w::OwnerAccountFailureUnloadedParts {
-                at: deployment::account_place(at),
-                why: deployment::account_unread(why),
-            },
+            w::AccountFailureUnloadedParts { at: deployment::account_place(at), why: deployment::account_unread(why) },
         )?),
-        a::Failure::Cancelled => w::OwnerAccountFailure::Cancelled,
+        a::Failure::Cancelled => w::AccountFailure::Cancelled,
     })
 }
-pub fn end(value: a::End, limits: &w::Limits) -> Result<w::OwnerAccountEnd, w::Problem> {
+pub fn end(value: a::End, limits: &w::Limits) -> Result<w::AccountEnd, w::Problem> {
     Ok(match value {
-        a::End::Made { account, declined } => w::OwnerAccountEnd::Made(w::OwnerAccountEndMade::new(
+        a::End::Made { account, declined } => {
+            w::AccountEnd::Made(w::AccountEndMade::new(limits, w::AccountEndMadeParts { account, declined })?)
+        }
+        a::End::Renewed { account, declined } => {
+            w::AccountEnd::Renewed(w::AccountEndRenewed::new(limits, w::AccountEndRenewedParts { account, declined })?)
+        }
+        a::End::Refused { refusal } => w::AccountEnd::Refused(w::AccountEndRefused::new(
             limits,
-            w::OwnerAccountEndMadeParts { account, declined },
+            w::AccountEndRefusedParts { refusal: self::refusal(refusal, limits)? },
         )?),
-        a::End::Renewed { account, declined } => w::OwnerAccountEnd::Renewed(w::OwnerAccountEndRenewed::new(
+        a::End::Failed { failure } => w::AccountEnd::Failed(w::AccountEndFailed::new(
             limits,
-            w::OwnerAccountEndRenewedParts { account, declined },
-        )?),
-        a::End::Refused { refusal } => w::OwnerAccountEnd::Refused(w::OwnerAccountEndRefused::new(
-            limits,
-            w::OwnerAccountEndRefusedParts { refusal: self::refusal(refusal, limits)? },
-        )?),
-        a::End::Failed { failure } => w::OwnerAccountEnd::Failed(w::OwnerAccountEndFailed::new(
-            limits,
-            w::OwnerAccountEndFailedParts { failure: self::failure(failure, limits)? },
+            w::AccountEndFailedParts { failure: self::failure(failure, limits)? },
         )?),
     })
 }
-pub fn uses(value: Option<&List<a::Use>>, limits: &w::Limits) -> Result<Option<List<w::OwnerAccountUse>>, w::Problem> {
+pub fn uses(value: Option<&List<a::Use>>, limits: &w::Limits) -> Result<Option<List<w::AccountUse>>, w::Problem> {
     let Some(value) = value else {
         return Ok(None);
     };
@@ -135,10 +126,10 @@ pub fn uses(value: Option<&List<a::Use>>, limits: &w::Limits) -> Result<Option<L
     }
     Ok(Some(rows))
 }
-pub fn source(value: &d::SourceLine, limits: &w::Limits) -> Result<w::OwnerAccountSource, w::Problem> {
-    w::OwnerAccountSource::new(
+pub fn source(value: &d::SourceLine, limits: &w::Limits) -> Result<w::AccountSource, w::Problem> {
+    w::AccountSource::new(
         limits,
-        w::OwnerAccountSourceParts {
+        w::AccountSourceParts {
             name: value.name.clone(),
             place: value.place,
             number: value.number,
@@ -163,16 +154,16 @@ pub fn source_pieces(
     let mut encoded = List::with_capacity(value.len());
     for row in value {
         let row = source(row, limits)?;
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("wire measure fits"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).expect("measured account source");
         encoded.push(out.finish()).expect("supplied source pieces fit");
     }
     pieces(&encoded, bound, path)
 }
-pub fn line(value: &d::AccountLine, limits: &w::Limits) -> Result<w::OwnerAccountLine, w::Problem> {
-    w::OwnerAccountLine::new(
+pub fn line(value: &d::AccountLine, limits: &w::Limits) -> Result<w::AccountLine, w::Problem> {
+    w::AccountLine::new(
         limits,
-        w::OwnerAccountLineParts {
+        w::AccountLineParts {
             number: value.number,
             place: value.place,
             uses: uses(value.uses.as_ref(), limits)?,
@@ -185,52 +176,43 @@ pub fn line(value: &d::AccountLine, limits: &w::Limits) -> Result<w::OwnerAccoun
             manage_usage: value.manage_usage.clone(),
             display: owner::text(&value.display, limits)?,
             holder: holder(value.holder, limits)?,
-            sources: source_pieces(
-                &value.sources,
-                limits,
-                limits.owner_account_line_sources,
-                w::Path::OwnerAccountLineSources,
-            )?,
+            sources: source_pieces(&value.sources, limits, limits.account_line_sources, w::Path::AccountLineSources)?,
             cut: value.cut,
         },
     )
 }
-pub fn document(value: &d::Accounts, limits: &w::Limits) -> Result<w::OwnerAccounts, w::Problem> {
+pub fn document(value: &d::Accounts, limits: &w::Limits) -> Result<w::Accounts, w::Problem> {
     let mut accounts = List::with_capacity(value.accounts.len());
     for row in &value.accounts {
         let row = line(row, limits)?;
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("wire measure fits"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).expect("measured account line");
         accounts.push(out.finish()).expect("supplied account pieces fit");
     }
-    let accounts = pieces(&accounts, limits.owner_accounts_accounts, w::Path::OwnerAccountsAccounts)?;
+    let accounts = pieces(&accounts, limits.accounts_accounts, w::Path::AccountsAccounts)?;
     let mut signing = List::with_capacity(value.signing.len());
     for row in &value.signing {
-        let row = w::OwnerAccountSignIn::new(
+        let row = w::AccountSignIn::new(
             limits,
-            w::OwnerAccountSignInParts {
-                source: row.source,
-                provider: row.provider,
-                holder: holder(row.holder, limits)?,
-            },
+            w::AccountSignInParts { source: row.source, provider: row.provider, holder: holder(row.holder, limits)? },
         )?;
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("wire measure fits"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).expect("measured sign-in line");
         signing.push(out.finish()).expect("supplied sign-in pieces fit");
     }
-    let signing = pieces(&signing, limits.owner_accounts_signing, w::Path::OwnerAccountsSigning)?;
+    let signing = pieces(&signing, limits.accounts_signing, w::Path::AccountsSigning)?;
     let last_end = match &value.last_end {
-        Some(row) => Some(w::OwnerAccountLastEnd::new(
+        Some(row) => Some(w::AccountLastEnd::new(
             limits,
-            w::OwnerAccountLastEndParts { source: row.source, end: end(row.end, limits)? },
+            w::AccountLastEndParts { source: row.source, end: end(row.end, limits)? },
         )?),
         None => None,
     };
-    w::OwnerAccounts::new(
+    w::Accounts::new(
         limits,
-        w::OwnerAccountsParts {
+        w::AccountsParts {
             skein_bools: [value.usable, value.settled, value.cut, value.readiness_cut],
-            readiness: super::catalogue::readiness(&value.readiness, limits.owner_accounts_readiness, limits)?,
+            readiness: super::catalogue::readiness(&value.readiness, limits.accounts_readiness, limits)?,
             program_hosts: super::programs::hosts(&value.program_hosts, limits)?,
             accounts,
             signing,

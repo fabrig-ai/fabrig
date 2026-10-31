@@ -301,7 +301,12 @@ fn effect(target: u64) -> jig_test_connector::Effect {
     }
 }
 fn key() -> jig_test_connector::Key {
-    jig_test_connector::Key { deployment: [1; 16], task: 1, purpose: 1, attempt: 1, completion: 1, position: 1 }
+    jig_test_connector::Key {
+        deployment: [1; 16],
+        task: 1,
+        purpose: 1,
+        origin: jig_test_connector::Purpose::Call { attempt: 1, completion: 1, position: 1 },
+    }
 }
 #[test]
 fn the_system_applies_an_effect_and_reads_it_back() {
@@ -808,7 +813,7 @@ fn a_program_grant_needs_no_table_entry() {
 fn program_names_share_the_wire_and_domain_bounds() {
     use jig_protocol_worker_wire::v9;
     // Schema source names and grant names both admit exactly 32 bytes.
-    let bound = usize::try_from(v9::CEILINGS.program_value_name).expect("name bound fits usize");
+    let bound = skein_lib::length::usize_of(v9::CEILINGS.program_value_name);
     assert_eq!(v9::CEILINGS.program_value_name, v9::CEILINGS.program_source_name);
     let past = bound.checked_add(1).expect("small name bound");
     let name = [b'a'; 33]; // The schema's 32-byte name plus one byte.

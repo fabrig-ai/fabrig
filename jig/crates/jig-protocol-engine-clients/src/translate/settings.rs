@@ -172,14 +172,10 @@ fn charter(value: &core::Charter, limits: &w::Limits) -> Result<w::Charter, w::P
         },
     )
 }
-fn authority(
-    value: &a::Authority,
-    models: &[crate::Model],
-    limits: &w::Limits,
-) -> Result<w::OwnerAuthority, w::Problem> {
+fn authority(value: &a::Authority, models: &[crate::Model], limits: &w::Limits) -> Result<w::Authority, w::Problem> {
     objects::goal::authority(models, &core::task_authority(value), limits)
 }
-fn pattern(value: &a::Pattern, limits: &w::Limits) -> Result<w::OwnerPattern, w::Problem> {
+fn pattern(value: &a::Pattern, limits: &w::Limits) -> Result<w::Pattern, w::Problem> {
     objects::goal::pattern(
         &t::Pattern {
             segments: value.segments.clone(),
@@ -191,10 +187,10 @@ fn pattern(value: &a::Pattern, limits: &w::Limits) -> Result<w::OwnerPattern, w:
         limits,
     )
 }
-fn grant(value: &a::Grant, limits: &w::Limits) -> Result<w::OwnerGrant, w::Problem> {
-    w::OwnerGrant::new(
+fn grant(value: &a::Grant, limits: &w::Limits) -> Result<w::Grant, w::Problem> {
+    w::Grant::new(
         limits,
-        w::OwnerGrantParts { connector: value.connector, kind: value.kind, pattern: pattern(&value.pattern, limits)? },
+        w::GrantParts { connector: value.connector, kind: value.kind, pattern: pattern(&value.pattern, limits)? },
     )
 }
 fn requirements(values: &[a::Requirement], limits: &w::Limits) -> Result<List<w::PolicyRequirement>, w::Problem> {
@@ -284,9 +280,9 @@ fn rules(value: &a::Rules, models: &[crate::Model], limits: &w::Limits) -> Resul
     let mut implies = List::with_capacity(super::count(value.implies.entries().len())?);
     for v in value.implies.entries() {
         implies
-            .push(w::OwnerKindImplication::new(
+            .push(w::KindImplication::new(
                 limits,
-                w::OwnerKindImplicationParts { connector: v.connector, kind: v.kind, implies: v.implies },
+                w::KindImplicationParts { connector: v.connector, kind: v.kind, implies: v.implies },
             )?)
             .expect("implication count");
     }
@@ -353,7 +349,7 @@ pub fn revision(
                 };
                 let item =
                     w::RevisionItem::new(limits, w::RevisionItemParts { setting: name(item.setting, limits)?, edit })?;
-                let mut out = Writer::new(usize::try_from(item.measure()).expect("measured item"));
+                let mut out = Writer::new(skein_lib::length::usize_of(item.measure()));
                 item.encode(&mut out).expect("measured item");
                 pieces.push(out.finish()).expect("item count");
             }
@@ -470,7 +466,7 @@ pub(crate) fn review(
             cut = true;
             break;
         }
-        let mut bytes = Writer::new(usize::try_from(row.measure()).expect("measured review item"));
+        let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut bytes).expect("measured review item");
         pieces.push(bytes.finish()).expect("review count");
     }

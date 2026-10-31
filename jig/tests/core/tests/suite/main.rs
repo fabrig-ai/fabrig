@@ -8,10 +8,15 @@ mod settings_support;
 
 mod activity;
 mod admission;
+#[path = "../support/admission.rs"]
+mod admission_support;
 mod application_documents;
+#[path = "../support/bundle.rs"]
+mod bundle;
 mod charters;
 mod client_peer;
 mod client_peer_routes;
+mod closed_windows;
 mod completion_retry;
 mod credentials;
 mod crossed_claims;
@@ -53,6 +58,7 @@ mod run_positions;
 mod runs;
 mod settings;
 mod settings_memory;
+mod settings_proposal_edges;
 mod settings_proposals;
 mod settings_reads;
 mod simulation;
@@ -80,3 +86,6 @@ mod fuzzy {
     mod stories;
     mod watches;
 }
+
+#[path = "../support/reads.rs"]
+mod read_support;

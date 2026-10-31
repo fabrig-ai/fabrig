@@ -4,9 +4,9 @@
 use jig_domain_notes as notes;
 use skein_lib::List;
 
-use crate::{Problem, json::Value};
+use crate::{Problem, json::Node};
 
-pub(crate) fn new(value: &Value) -> Result<(notes::New, Option<u32>), Problem> {
+pub(crate) fn new(value: Node<'_>) -> Result<(notes::New, Option<u32>), Problem> {
     let recalled = match value.field(b"recalled")? {
         Some(revision) => Some(revision.small()?),
         None => None,
@@ -35,7 +35,7 @@ pub(crate) fn new(value: &Value) -> Result<(notes::New, Option<u32>), Problem> {
     ))
 }
 
-pub(crate) fn recall(value: &Value) -> Result<(notes::Recall, u32), Problem> {
+pub(crate) fn recall(value: Node<'_>) -> Result<(notes::Recall, u32), Problem> {
     let page = match value.field(b"page")? {
         Some(page) => page.small()?,
         None => 0,
@@ -49,12 +49,13 @@ pub(crate) fn recall(value: &Value) -> Result<(notes::Recall, u32), Problem> {
             notes::Recall::Name { name }
         }
         b"search" => {
-            let values = value.required(b"scopes")?.array()?;
+            let mut values = value.required(b"scopes")?.array()?;
             let Ok(capacity) = u32::try_from(values.len()) else {
                 return Err(Problem { field: b"", why: crate::Why::TooLarge });
             };
             let mut scopes = List::with_capacity(capacity);
-            for value in values {
+            for _ in 0..values.len() {
+                let value = values.next().expect("counted array element");
                 if scopes.push(scope(value)?).is_err() {
                     return Err(Problem { field: b"", why: crate::Why::TooLarge });
                 }
@@ -66,7 +67,7 @@ pub(crate) fn recall(value: &Value) -> Result<(notes::Recall, u32), Problem> {
     Ok((by, page))
 }
 
-fn scope(value: &Value) -> Result<notes::Scope, Problem> {
+fn scope(value: Node<'_>) -> Result<notes::Scope, Problem> {
     match value.required(b"kind")?.text()?.as_ref() {
         b"deployment" => Ok(notes::Scope::Deployment),
         b"project" => Ok(notes::Scope::Project { project: value.required(b"project")?.small()? }),
@@ -76,12 +77,13 @@ fn scope(value: &Value) -> Result<notes::Scope, Problem> {
         }),
         b"resources" => {
             let pattern = value.required(b"pattern")?;
-            let values = pattern.required(b"segments")?.array()?;
+            let mut values = pattern.required(b"segments")?.array()?;
             let Ok(capacity) = u32::try_from(values.len()) else {
                 return Err(Problem { field: b"", why: crate::Why::TooLarge });
             };
             let mut segments = List::with_capacity(capacity);
-            for segment in values {
+            for _ in 0..values.len() {
+                let segment = values.next().expect("counted array element");
                 if segments.push(segment.text()?).is_err() {
                     return Err(Problem { field: b"", why: crate::Why::TooLarge });
                 }
@@ -101,13 +103,14 @@ fn scope(value: &Value) -> Result<notes::Scope, Problem> {
     }
 }
 
-fn numbers(value: &Value) -> Result<List<u64>, Problem> {
-    let values = value.array()?;
+fn numbers(value: Node<'_>) -> Result<List<u64>, Problem> {
+    let mut values = value.array()?;
     let Ok(capacity) = u32::try_from(values.len()) else {
         return Err(Problem { field: b"", why: crate::Why::TooLarge });
     };
     let mut out = List::with_capacity(capacity);
-    for value in values {
+    for _ in 0..values.len() {
+        let value = values.next().expect("counted array element");
         let number = value.number()?;
         if number == 0 {
             return Err(Problem { field: b"references", why: crate::Why::Range });

@@ -58,12 +58,12 @@ pub fn final_answer(value: w::Final) -> Box<[u8]> {
     let mut bytes = Writer::new(usize::try_from(value.measure()).unwrap());
     value.encode(&mut bytes).unwrap();
     let owned =
-        w::Owned::new(&limits().wire, w::OwnedParts { owner: w::Owner::Jig, version: 19, record: bytes.finish() })
+        w::Owned::new(limits().wire(), w::OwnedParts { owner: w::Owner::Jig, version: 19, record: bytes.finish() })
             .unwrap();
     encoded_answer(&w::KeyedAnswer::FinalAnswer(owned))
 }
 pub fn answer_done_chat(task: u64) -> Box<[u8]> {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let mut tasks = skein_lib::List::with_capacity(1);
     tasks.push(task).unwrap();
     let made_tasks = w::MadeTasks::new(&lim, w::MadeTasksParts { tasks }).unwrap();
@@ -72,17 +72,17 @@ pub fn answer_done_chat(task: u64) -> Box<[u8]> {
 }
 pub fn answer_key_conflict() -> Box<[u8]> {
     final_answer(w::Final::Refused(
-        w::Refused::new(&limits().wire, w::RefusedParts { at: None, refusal: w::Refusal::KeyConflict }).unwrap(),
+        w::Refused::new(limits().wire(), w::RefusedParts { at: None, refusal: w::Refusal::KeyConflict }).unwrap(),
     ))
 }
 pub fn answer_family(family: u16, version: u32) -> Box<[u8]> {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let owner = w::Owner::Family(w::Family::new(&lim, w::FamilyParts { number: family }).unwrap());
     let record = w::Owned::new(&lim, w::OwnedParts { owner, version, record: family_read().bytes }).unwrap();
     encoded_answer(&w::KeyedAnswer::FinalAnswer(record))
 }
 pub fn answer_done_service(credential: &[u8]) -> Box<[u8]> {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let row = w::MadeService::new(
         &lim,
         w::MadeServiceParts { party: 7, credential: skein_lib::Secret::new(Box::from(credential)) },
@@ -99,7 +99,7 @@ pub fn answer_signed_out() -> Box<[u8]> {
 }
 pub fn malformed_final() -> Box<[u8]> {
     let owned =
-        w::Owned::new(&limits().wire, w::OwnedParts { owner: w::Owner::Jig, version: 19, record: Box::from([255]) })
+        w::Owned::new(limits().wire(), w::OwnedParts { owner: w::Owner::Jig, version: 19, record: Box::from([255]) })
             .unwrap();
     encoded_answer(&w::KeyedAnswer::FinalAnswer(owned))
 }
@@ -218,7 +218,7 @@ pub fn fact_bytes(value: &w::Fact) -> Box<[u8]> {
     jig_client_test_records::fact_bytes(value)
 }
 pub fn refusal_with_hold(rows: Box<[u8]>) -> Box<[u8]> {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let reason = w::HoldReason::new(&lim, w::HoldReasonParts { rows }).unwrap();
     let reason = w::CurrentHoldDocument::new(&lim, w::CurrentHoldDocumentParts { value: reason }).unwrap();
     let what = w::MovedHold::new(&lim, w::MovedHoldParts { reason: Some(w::CurrentHold::Document(reason)) }).unwrap();
@@ -228,7 +228,7 @@ pub fn refusal_with_hold(rows: Box<[u8]>) -> Box<[u8]> {
     final_answer(w::Final::Refused(value))
 }
 pub fn hold_budget_fact() -> w::Fact {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let value =
         w::HoldReasonBudgetFields::new(&lim, w::HoldReasonBudgetFieldsParts { spent: u64::MAX, limit: 16 }).unwrap();
     w::Fact::HoldReason(
@@ -295,7 +295,7 @@ impl Harness {
 pub fn signed_in(party: u64, token: &[u8; 40]) -> Box<[u8]> {
     let record = w::SignInAnswer::SignedIn(
         w::SignedIn::new(
-            &limits().wire,
+            limits().wire(),
             w::SignedInParts { token: Some(skein_lib::Secret::new(Box::from(*token))), party, expires: 10 },
         )
         .unwrap(),

@@ -50,7 +50,7 @@ fn all(store: &mut Store, mut range: reads::Range) -> Box<[Record]> {
     let mut previous = None;
     for _ in 0..MAX_ROWS {
         let (rows, next) = load(store, range.clone());
-        assert!(rows.len() <= usize::try_from(range.rows).expect("row bound"));
+        assert!(rows.len() <= skein_lib::length::usize_of(range.rows));
         let mut bytes = 0_u64;
         for row in rows {
             bytes = bytes.checked_add(row_bytes(&row)).expect("page size");
@@ -110,7 +110,7 @@ fn ended_tasks_continue_from_a_cut_page() {
     let encoded_bytes = keys::encode(&record.key(), fixtures::KEY_LIMIT)
         .expect("key")
         .len()
-        .checked_add(codec::encode(record, &store.codec, &store.names).expect("value").len())
+        .checked_add(codec::encode(record, &store.codec_limits, &store.names).expect("value").len())
         .expect("encoded row size");
     for (row_bound, byte_bound, encoded_bound) in [
         (1, range.bytes, store.limits.store.page.bytes),
@@ -260,7 +260,7 @@ fn task_rows_continue_across_families_after_byte_cuts() {
         let bytes = keys::encode(&record.key(), fixtures::KEY_LIMIT)
             .expect("key")
             .len()
-            .checked_add(codec::encode(record, &store.codec, &store.names).expect("value").len())
+            .checked_add(codec::encode(record, &store.codec_limits, &store.names).expect("value").len())
             .expect("encoded row size");
         encoded_bound = encoded_bound.max(u32::try_from(bytes).expect("encoded page bound"));
     }

@@ -12,22 +12,22 @@ use crate::{
 use jig_client::contract as c;
 use skein_lib::{List, Wall};
 
-fn historical(key: c::ObjectKey, value: c::OwnerHistoricalValue) -> c::ReadResult {
-    c::ReadResult::Value(c::ReadValue::Historical(Box::new(c::OwnerHistorical { key, value, at: None, by: None })))
+fn ended(key: c::ObjectKey, value: c::EndedValue) -> c::ReadResult {
+    c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended { key, value, at: None, by: None })))
 }
-fn ended() -> c::ReadResult {
+fn ended_task() -> c::ReadResult {
     let mut task = f::ended_task(c::Phase::Cancelled);
     task.acts = List::with_capacity(0);
-    f::historical_task_result(task, c::Ending::Done)
+    f::ended_task_result(task, c::Ending::Done)
 }
 fn retired(call: &call::Call) -> c::ReadResult {
     if call.tool == rows::ANSWER_AT {
         let c::ReadResult::Value(c::ReadValue::Question(question)) = f::act_document(call) else { panic!("question") };
         let mut question = *question;
         question.acts = List::with_capacity(0);
-        return historical(
+        return ended(
             c::ObjectKey::Question { task: f::TASK, message: 3 },
-            c::OwnerHistoricalValue::Question {
+            c::EndedValue::Question {
                 question,
                 answer: None,
                 ending: Some(Box::new(c::Result {
@@ -42,18 +42,18 @@ fn retired(call: &call::Call) -> c::ReadResult {
         );
     }
     if call.tool == rows::TASK_DECIDE_AT {
-        return historical(
+        return ended(
             c::ObjectKey::Escalation(f::TASK),
-            c::OwnerHistoricalValue::Escalation {
+            c::EndedValue::Escalation {
                 task: Box::new(f::ended_task(c::Phase::Cancelled)),
-                decision: c::OwnerEscalationDecisionRecord {
+                decision: c::EscalationDecisionRecord {
                     project: f::PROJECT,
                     requester: f::PARTY,
                     task: f::TASK,
                     revision: f::HOLD,
                     by: f::PARTY,
                     at: Wall::EPOCH,
-                    decision: c::OwnerEscalationDecision::Release,
+                    decision: c::EscalationDecision::Release,
                 },
                 hold: None,
             },
@@ -62,23 +62,23 @@ fn retired(call: &call::Call) -> c::ReadResult {
     if call.tool == rows::DECIDE_AT {
         let Some(call::Value::Proposal(key)) = call::value(call, 0) else { panic!("proposal") };
         let c::Proposer::Task(proposer) = key.proposer else { panic!("task proposal") };
-        return historical(
+        return ended(
             c::ObjectKey::Proposal(*key),
-            c::OwnerHistoricalValue::Proposal(c::OwnerProposalHistory {
+            c::EndedValue::Proposal(c::ProposalHistory {
                 number: key.number,
                 proposer,
                 as_holder: false,
-                state: c::OwnerProposalHistoryState::Accepted { by: c::OwnerRequester::Person(f::PARTY) },
-                action: c::OwnerRetainedAction::Release { task: f::TASK },
+                state: c::ProposalHistoryState::Accepted { by: c::Requester::Person(f::PARTY) },
+                action: c::RetainedAction::Release { task: f::TASK },
             }),
         );
     }
-    ended()
+    ended_task()
 }
 fn serve(root: &mut f::Harness, number: u32, document: c::ReadResult) {
     root.serve(number, document);
     if root.reads.contains_key(&number) {
-        root.serve(number, ended());
+        root.serve(number, ended_task());
     }
 }
 fn replay(argv: &[&str]) {
@@ -90,7 +90,7 @@ fn replay(argv: &[&str]) {
             serve(&mut root, first, f::act_document(&parsed));
             let ask = f::encoded(&root.sends.get(&first).expect("first act sent").2);
             let key = root.sent_name(first);
-            root.done(first, c::Outcome::Changed);
+            root.done(first, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
             let expected = root.answer(first).expect("first outcome");
             if fresh {
                 root = f::chat_root(f::CHAT_BUDGET, f::OTHER_SEED);
@@ -99,7 +99,7 @@ fn replay(argv: &[&str]) {
             serve(&mut root, second, retired(&parsed));
             assert_eq!(f::encoded(&root.sends.get(&second).expect("replay sent").2), ask, "{argv:?}");
             assert_eq!(root.sent_name(second), key);
-            root.done(second, c::Outcome::Changed);
+            root.done(second, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
             let actual = root.answer(second).expect("replayed outcome");
             assert_eq!(
                 (actual.status, actual.stdout, actual.stderr),
@@ -150,7 +150,7 @@ fn task_cancel_with_a_new_key_on_an_ended_task_is_the_engines_refusal() {
                 let call = root.submit_prepared(f::call(argv.as_slice()), json, None);
                 let mut task = f::ended_task(phase);
                 task.acts = List::with_capacity(0);
-                root.serve(call, f::historical_task_result(task, c::Ending::Done));
+                root.serve(call, f::ended_task_result(task, c::Ending::Done));
                 assert!(root.sent_name(call).is_some());
                 root.answered(call, c::Answer::Refused { refusal: c::Refusal::Unknown, at: None });
                 let answer = root.answer(call).expect("engine refused");
@@ -176,16 +176,16 @@ fn task_amend_replays_equal_replacements_after_its_revision_moves() {
         before.priority = Some(1);
         root.serve(first, f::task_result(before));
         let ask = f::act_ask(&root, first).clone();
-        root.done(first, c::Outcome::Changed);
+        root.done(first, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
         let expected = root.answer(first).unwrap();
         let mut task = f::ended_task(c::Phase::Done);
         task.priority = Some(3);
         task.spec_revision.value = task.spec_revision.value.saturating_add(1);
         task.acts = List::with_capacity(0);
         let second = root.submit_prepared(f::call(&argv), json, None);
-        root.serve(second, f::historical_task_result(task, c::Ending::Done));
+        root.serve(second, f::ended_task_result(task, c::Ending::Done));
         assert_eq!(f::act_ask(&root, second), &ask);
-        root.done(second, c::Outcome::Changed);
+        root.done(second, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
         let actual = root.answer(second).unwrap();
         assert_eq!((actual.status, actual.stdout, actual.stderr), (expected.status, expected.stdout, expected.stderr));
     }
@@ -195,17 +195,17 @@ fn task_amend_replays_equal_replacements_after_its_revision_moves() {
 fn unkeyed_cancel_on_an_ended_task_still_asks_the_engine() {
     let mut root = f::chat_root(f::CHAT_BUDGET, f::SEED);
     let call = root.submit(&f::ACT_CALLS[7][..4]);
-    root.serve(call, ended());
+    root.serve(call, ended_task());
     root.answered(call, c::Answer::Refused { refusal: c::Refusal::Unknown, at: None });
     assert_eq!(root.answer(call).unwrap().status, 2);
 }
 #[test]
-fn a_mismatched_historical_subject_cannot_route_an_act() {
+fn a_mismatched_ended_subject_cannot_route_an_act() {
     let mut root = f::chat_root(f::CHAT_BUDGET, f::SEED);
     let call = root.submit(f::ACT_CALLS[7]);
     let mut wrong = f::ended_task(c::Phase::Cancelled);
     wrong.chip.task = wrong.chip.task.saturating_add(1);
-    root.serve(call, f::historical_task_result(wrong, c::Ending::Done));
+    root.serve(call, f::ended_task_result(wrong, c::Ending::Done));
     assert!(root.sends.is_empty());
     assert_eq!(root.answer(call).unwrap().status, 1);
 }
@@ -266,9 +266,9 @@ fn direct(argv: &[&str]) {
             let number = root.submit_prepared(parsed.clone(), json, value);
             let mut accounts = f::accounts();
             if parsed.tool == rows::DISCONNECT_AT {
-                accounts.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().kind = c::OwnerAccountKind::SignIn;
+                accounts.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().kind = c::AccountKind::SignIn;
             } else if parsed.tool == rows::VERIFY_AT {
-                accounts.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().kind = c::OwnerAccountKind::Program;
+                accounts.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().kind = c::AccountKind::Program;
             }
             f::deliver_accounts(&mut root, accounts);
             let sent = root.sends.get(&number).unwrap_or_else(|| panic!("act sent: {argv:?}"));
@@ -325,9 +325,9 @@ fn amendment_replays_its_original_direct_or_proposed_form_after_the_offer_change
             root.serve(first, f::task_result(f::choice_task(admission)));
             let original = f::act_ask(&root, first).clone();
             let outcome = if proposed {
-                c::Outcome::Owner(c::OwnerOutcome::Proposed { proposal: f::PROPOSAL, to: 9 })
+                c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: f::PROPOSAL, to: 9 })
             } else {
-                c::Outcome::Owner(c::OwnerOutcome::Amended { task: f::TASK })
+                c::Outcome::Document(c::DocumentOutcome::Amended { task: f::TASK })
             };
             root.done(first, outcome.clone());
             let expected = root.answer(first).unwrap();
@@ -342,7 +342,7 @@ fn amendment_replays_its_original_direct_or_proposed_form_after_the_offer_change
             let page = if proposed {
                 task.chip.phase = c::Phase::Done;
                 task.acts = List::with_capacity(0);
-                f::historical_task_result(task, c::Ending::Done)
+                f::ended_task_result(task, c::Ending::Done)
             } else {
                 f::task_result(task)
             };
@@ -388,9 +388,9 @@ fn a_restored_proposed_amendment_is_joined_after_the_task_ends() {
         let mut task = f::choice_task(c::Admission::Allowed);
         task.chip.phase = c::Phase::Done;
         task.acts = List::with_capacity(0);
-        root.serve(number, f::historical_task_result(task, c::Ending::Done));
+        root.serve(number, f::ended_task_result(task, c::Ending::Done));
         assert!(root.answer(number).is_none(), "join the kept ask after trying its other shape");
-        root.done(f::EMPTY, c::Outcome::Owner(c::OwnerOutcome::Proposed { proposal: f::PROPOSAL, to: 9 }));
+        root.done(f::EMPTY, c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: f::PROPOSAL, to: 9 }));
         assert_eq!(root.answer(number).unwrap().status, 0);
     }
 }

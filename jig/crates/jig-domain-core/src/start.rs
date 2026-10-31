@@ -1,14 +1,24 @@
 //! Load, link and sweep before durable opening (jig/docs/design/domain/engine.md, 6).
+
+mod census;
+mod cursor;
+pub(crate) mod first;
 mod inbox;
 mod links;
 pub(crate) mod projections;
+mod restore;
 mod runs;
 mod script;
 mod settings;
+
+pub use census::{Census, ReadResults};
+pub use cursor::restore_cursor;
+
 use crate::{Core, Key, Wall, settings as core_settings};
 use jig_domain_accounts as accounts;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
+pub use restore::Restore;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Phase {
@@ -66,13 +76,10 @@ pub enum Action {
     Refused(Failure),
 }
 
-#[derive(Debug)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "the approved sweep input moves one decoded row without another allocation"
-)]
+/// Drive one queued sweep row or finish the walk.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SweepInput {
-    Record(people::Stored),
+    Next,
     Finished,
 }
 
@@ -94,6 +101,7 @@ pub(crate) struct Script {
     waiting: Option<Continuation>,
     pub(crate) held: crate::Queue<crate::Request>,
     waiting_tasks: crate::Queue<tasks::Request>,
+    pub(crate) sweep: crate::Queue<people::Stored>,
     pub(crate) projections: Option<skein_lib::Map<u64, projections::Assembly>>,
 }
 
@@ -110,6 +118,7 @@ impl Script {
             held: crate::Queue::uncapped(),
             waiting_tasks: crate::Queue::uncapped(),
             projections: None,
+            sweep: crate::Queue::uncapped(),
         }
     }
 }
@@ -154,17 +163,17 @@ impl Core {
         false
     }
 
-    /// Choose the start interface once, capturing the expiry instant before loading.
+    /// Begin the start once, capturing the expiry instant before loading.
     pub fn start_begin(&mut self, pending: bool, at: Wall) -> Action {
-        assert!(!self.start.consumed, "start selected before input once");
+        assert!(!self.start.consumed, "the start begins before input once");
         self.start_input();
         self.people.start_restore(at);
         self.authority.start_restore();
         self.start.phase = Some(Phase::LoadCore);
         self.start.at = at;
-        self.restart_pending = pending;
+        self.start_pending = pending;
         self.people.end_seeding();
-        self.counters.begin_restore();
+        self.counters.begin_start();
         Action::Step(Phase::LoadCore)
     }
 
@@ -181,7 +190,7 @@ impl Core {
     /// Freeze the script with its first fit failure.
     pub fn start_refuse(&mut self, failure: Failure) -> Action {
         self.start_input();
-        assert!(self.start.phase.is_some(), "start refusal requires a selected start");
+        assert!(self.start.phase.is_some(), "start refusal requires the start");
         if self.start.failure.is_none() {
             self.start.failure = Some(failure);
         }
@@ -192,9 +201,69 @@ impl Core {
     /// Retain the first externally discovered missing obligation for the Link pass.
     pub fn start_missing(&mut self, record: Key, target: Key) {
         self.start_input();
-        assert!(self.start.phase.is_some(), "missing link belongs to a selected start");
+        assert!(self.start.phase.is_some(), "missing link belongs to the start");
         if self.start.missing.is_none() {
             self.start.missing = Some((record, target));
         }
+    }
+}
+
+/// Ordered live ranges of the cold start (protocol/store.md, 4.3 and 7.2).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum RestoreRange {
+    /// The deployment header, first.
+    Deployment,
+    /// The live settings, before the children restore.
+    Settings,
+    /// The accounts' counter, accounts and sources, before the child starts.
+    Accounts,
+    /// All people's live families.
+    People,
+    /// The tasks child's live families.
+    Tasks,
+    /// The core's remaining live families.
+    Core,
+    /// Inbox owners named by durable indexes after read positions are restored.
+    Census(Census),
+}
+
+impl RestoreRange {
+    /// The fixed order of `LoadCore`'s ranges.
+    pub const LIVE: [Self; 6] =
+        [Self::Deployment, Self::Settings, Self::Accounts, Self::People, Self::Tasks, Self::Core];
+
+    /// Predicate checked against the store's intervals (protocol/store.md, 4.3).
+    #[must_use]
+    pub fn admits(&self, key: &Key) -> bool {
+        match self {
+            Self::Census(census) => return census.admits(key),
+            Self::Deployment | Self::Settings | Self::Accounts | Self::People | Self::Tasks | Self::Core => {}
+        }
+        match key {
+            Key::Core(crate::CoreKey::Settings(key)) => {
+                *self == Self::Settings
+                    && match key {
+                        crate::settings::Key::History(_) => false,
+                        crate::settings::Key::Default(_)
+                        | crate::settings::Key::Changed(_)
+                        | crate::settings::Key::Held(_)
+                        | crate::settings::Key::Charter { .. }
+                        | crate::settings::Key::Proposal { .. }
+                        | crate::settings::Key::Extent => true,
+                    }
+            }
+            Key::Core(crate::CoreKey::Deployment) => *self == Self::Deployment,
+            Key::Core(key) => *self == Self::Core && key.live(),
+            Key::People(key) => *self == Self::People && key.live(),
+            Key::Tasks(key) => *self == Self::Tasks && key.live(),
+            Key::Accounts(_) => *self == Self::Accounts,
+            Key::Notes(_) => false,
+        }
+    }
+}
+
+impl Core {
+    pub(crate) fn ready(&self) -> bool {
+        self.start.phase.is_none() && !self.start_stopped()
     }
 }

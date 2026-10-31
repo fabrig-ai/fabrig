@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code translates optional watch facts without closures")]
 //! Watches retain their whole subject and stream record (protocol/client.md, 7).
 use super::{chips, cursor, deployment, inbox, live, objects, owner, task, w};
 use alloc::boxed::Box;
@@ -100,7 +99,7 @@ pub(crate) fn delivery(
                 )?),
                 None => None,
             };
-            w::DeliveryValue::OwnerTree(live::tree(value, next, limits)?)
+            w::DeliveryValue::Tree(live::tree(value, next, limits)?)
         }
         d::Document::Chips(value) => {
             let mut rows = List::with_capacity(value.len());
@@ -109,20 +108,20 @@ pub(crate) fn delivery(
             }
             let mut pieces = List::with_capacity(rows.len());
             for row in rows.into_boxed() {
-                let mut bytes = Writer::new(usize::try_from(row.measure()).expect("chip measure fits"));
+                let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure()));
                 row.encode(&mut bytes).expect("measured chip");
                 pieces.push(bytes.finish()).expect("chip pieces fit");
             }
             let rows = super::pieces(&pieces, limits.chips_rows, w::Path::ChipsRows)?;
             w::DeliveryValue::Chips(w::Chips::new(limits, w::ChipsParts { rows })?)
         }
-        d::Document::Inbox(value) => w::DeliveryValue::OwnerInbox(inbox::document(value, limits)?),
+        d::Document::Inbox(value) => w::DeliveryValue::Inbox(inbox::document(value, limits)?),
         d::Document::Lines(value) => w::DeliveryValue::Tasks(super::queries::lines(value, limits)?),
         d::Document::Run(value) => w::DeliveryValue::RunState(live::run(value, limits)?),
-        d::Document::Accounts(value) => w::DeliveryValue::OwnerAccounts(super::accounts::document(value, limits)?),
+        d::Document::Accounts(value) => w::DeliveryValue::Accounts(super::accounts::document(value, limits)?),
         d::Document::Settings(value) => w::DeliveryValue::Settings(super::settings::document(value, limits)?),
-        d::Document::Deployment(value) => w::DeliveryValue::OwnerDeployment(deployment::document(value, limits)?),
-        d::Document::Proposal(value) => w::DeliveryValue::OwnerProposal(objects::proposal(models, value, limits)?),
+        d::Document::Deployment(value) => w::DeliveryValue::Deployment(deployment::document(value, limits)?),
+        d::Document::Proposal(value) => w::DeliveryValue::Proposal(objects::proposal(models, value, limits)?),
         d::Document::Escalation(_)
         | d::Document::Question(_)
         | d::Document::PersonTask(_)
@@ -132,12 +131,12 @@ pub(crate) fn delivery(
     })
 }
 pub(crate) fn owned(value: w::DeliveryValue, version: u32, limits: &w::Limits) -> Result<w::Owned, w::Problem> {
-    let mut record = Writer::new(usize::try_from(value.measure()).expect("wire measure fits"));
+    let mut record = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut record).expect("measured delivery");
     w::Owned::new(limits, w::OwnedParts { owner: w::Owner::Jig, version, record: record.finish() })
 }
 pub(crate) fn packet(value: &w::StreamEvent) -> Box<[u8]> {
-    let mut record = Writer::new(usize::try_from(value.measure()).expect("wire measure fits"));
+    let mut record = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut record).expect("measured stream record");
     record.finish()
 }
@@ -175,5 +174,5 @@ pub(crate) fn text_packet(
     Ok(w::StreamEvent::Text(w::StreamText::new(limits, w::StreamTextParts { watch, value })?))
 }
 pub(crate) fn end_packet(why: views::End, watch: u64, limits: &w::Limits) -> Result<w::StreamEvent, w::Problem> {
-    Ok(w::StreamEvent::Ended(w::Ended::new(limits, w::EndedParts { watch, why: ended(why) })?))
+    Ok(w::StreamEvent::Ended(w::WatchEnded::new(limits, w::WatchEndedParts { watch, why: ended(why) })?))
 }

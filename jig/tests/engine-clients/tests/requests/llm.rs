@@ -27,8 +27,8 @@ fn create(llm: w::LlmChoice) -> w::Ask {
         &limits,
         w::NewTaskParts {
             deadline: w::NewDeadline::Named,
-            executor: w::OwnerExecutor::Agent(
-                w::OwnerExecutorAgent::new(&limits, w::OwnerExecutorAgentParts { charter: 1 }).expect("agent"),
+            executor: w::Executor::Agent(
+                w::ExecutorAgent::new(&limits, w::ExecutorAgentParts { charter: 1 }).expect("agent"),
             ),
             spec: w::Specification::new(
                 &limits,
@@ -64,7 +64,7 @@ fn create(llm: w::LlmChoice) -> w::Ask {
         },
     )
     .expect("task");
-    let size = usize::try_from(task.measure()).expect("task size");
+    let size = skein_lib::length::usize_of(task.measure());
     let mut out = Writer::new(size.checked_add(4).expect("piece size"));
     out.put(&u32::try_from(size).expect("task size").to_be_bytes()).expect("piece length");
     task.encode(&mut out).expect("task bytes");
@@ -117,8 +117,8 @@ fn a_create_naming_a_model_and_its_effort_keeps_them_by_configuration_s_indices(
     let socket = peer.post(b"/jig/v1/request", keyed([62; 16], &create(llm)), Some(&bearer));
     assert_eq!(route_real_core(&mut peer, &mut world), [[62; 16]], "core reply: {:?}", world.people_answers.last());
     let w::Final::Done(done) = final_answer(&peer, socket) else { panic!("done") };
-    let w::Outcome::Owner(owner) = done.outcome() else { panic!("owner outcome") };
-    let w::OwnerOutcome::Created(created) = owner.value() else { panic!("created: {:?}", owner.value()) };
+    let w::Outcome::Document(owner) = done.outcome() else { panic!("owner outcome") };
+    let w::DocumentOutcome::Created(created) = owner.value() else { panic!("created: {:?}", owner.value()) };
     assert_eq!(
         live_row(&world, created.first()).llm,
         Some(tasks::LlmChoice {

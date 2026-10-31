@@ -1,0 +1,26 @@
+== jig == 
+Semantic history:
+  Task: 18446744073709551615
+  Revision: 6
+  Requested by person 18446744073709551615
+  Amended
+  Supplied reason
+  reason
+  History time not supplied
+  Stored snapshots not supplied
+  Proposal: 18446744073709551615
+  Raw task-origin proposer: 18446744073709551615
+  Proposed as holder
+  Retained amendment
+  Task: 0
+  Address replacement not supplied
+  Instruction replacement not supplied
+  Release not supplied
+  Specification replacement not supplied
+  Authority replacement not supplied
+  Wake replacement not supplied
+  Dependency replacement not supplied
+  Supplied reason
+  Proposal pending
+  Holder task: 18446744073709551615
+  Pending since: 7

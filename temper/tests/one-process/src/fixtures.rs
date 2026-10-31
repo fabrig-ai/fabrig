@@ -378,7 +378,7 @@ pub(crate) fn scripted_provider(scripts: Box<[skein_fake_llm_domain::api::Script
     )
     .expect("configured provider")
 }
-pub(crate) fn codec() -> jig_protocol_store::codec::Limits {
+pub(crate) fn codec() -> jig_protocol_store::codec::View {
     let limits = jig_test_service_limits(&engine().limits);
     jig_protocol_store::codec::limits(&limits.root.core).expect("codec")
 }

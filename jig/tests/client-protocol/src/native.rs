@@ -39,7 +39,7 @@ impl Script {
             find: Find::named(skein_ui::Role::Paragraph, answer).within(Box::new([
                 skein_fake_person::Target::ExactRole {
                     role: skein_ui::Role::Region,
-                    name: b"Historical object".as_slice().into(),
+                    name: b"Ended object".as_slice().into(),
                 },
                 skein_fake_person::Target::ExactRole {
                     role: skein_ui::Role::Region,
@@ -217,8 +217,8 @@ impl NativeClient {
                     Received::SignedIn { .. } => self.signed_in += 1,
                     Received::Answer {
                         answer:
-                            jig_client::contract::Answer::Done(jig_client::contract::Outcome::Owner(
-                                jig_client::contract::OwnerOutcome::Created { .. },
+                            jig_client::contract::Answer::Done(jig_client::contract::Outcome::Document(
+                                jig_client::contract::DocumentOutcome::Created { .. },
                             )),
                         ..
                     } => self.chats_made += 1,

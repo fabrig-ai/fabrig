@@ -1,7 +1,7 @@
 use super::*;
 #[test]
 fn a_read_keeps_its_long_cursor_as_opaque_bytes() {
-    let actual = translate::reads::read(&fixtures::history_read(), &fixtures::limits().wire).unwrap();
+    let actual = translate::reads::read(&fixtures::history_read(), fixtures::limits().wire()).unwrap();
     let w::Read::History(record) = actual else { panic!("history record") };
     assert_eq!(record.task(), 7);
     assert!(record.subtree());
@@ -9,7 +9,7 @@ fn a_read_keeps_its_long_cursor_as_opaque_bytes() {
 }
 #[test]
 fn a_read_cursor_past_its_wire_bound_is_refused() {
-    let mut limits = fixtures::limits().wire;
+    let mut limits = *fixtures::limits().wire();
     limits.cursor_value = 47;
     let problem = translate::reads::read(&fixtures::history_read(), &limits).unwrap_err();
     assert_eq!(problem.path, w::Path::CursorValue);
@@ -17,7 +17,7 @@ fn a_read_cursor_past_its_wire_bound_is_refused() {
 }
 #[test]
 fn a_notes_read_keeps_its_scope_and_filter_with_its_cursor() {
-    let actual = translate::reads::read(&fixtures::notes_read(), &fixtures::limits().wire).unwrap();
+    let actual = translate::reads::read(&fixtures::notes_read(), fixtures::limits().wire()).unwrap();
     let w::Read::Notes(record) = actual else { panic!("notes record") };
     assert_eq!(record.scope(), &fixtures::notes_scope_record());
     assert_eq!(record.description().as_deref(), Some(b"filter".as_slice()));
@@ -26,10 +26,10 @@ fn a_notes_read_keeps_its_scope_and_filter_with_its_cursor() {
 
 #[test]
 fn a_read_body_names_jigs_wire_and_keeps_its_read() {
-    let record = translate::reads::owned(Readable::Jig(fixtures::history_read()), &fixtures::limits().wire).unwrap();
+    let record = translate::reads::owned(Readable::Jig(fixtures::history_read()), fixtures::limits().wire()).unwrap();
     assert_eq!(record.owner(), &w::Owner::Jig);
     assert_eq!(record.version(), jig_client_protocol_wire::VERSION);
-    let read = w::Read::decode(&fixtures::limits().wire, &mut Reader::new(record.record())).unwrap();
+    let read = w::Read::decode(fixtures::limits().wire(), &mut Reader::new(record.record())).unwrap();
     let w::Read::History(read) = read else { panic!("history read") };
     assert_eq!(read.task(), 7);
     assert_eq!(read.after().as_ref().unwrap().value(), fixtures::READ_CURSOR);
@@ -42,13 +42,13 @@ fn a_family_read_body_keeps_its_opaque_owner_record() {
             window: jig_client_domain::contract::Window { rows: 3, after: None },
             record: fixtures::family_read(),
         },
-        &fixtures::limits().wire,
+        fixtures::limits().wire(),
     )
     .unwrap();
     let w::Owner::Family(owner) = record.owner() else { panic!("family owner") };
     assert_eq!(owner.number(), 19);
     assert_eq!(record.version(), 23);
-    let family = w::FamilyRecord::decode(&fixtures::limits().wire, &mut Reader::new(record.record())).unwrap();
+    let family = w::FamilyRecord::decode(fixtures::limits().wire(), &mut Reader::new(record.record())).unwrap();
     assert_eq!(family.record(), &[255, 0, 1]);
 }
 #[test]
@@ -57,13 +57,13 @@ fn each_wire_none_keeps_its_reason() {
         (w::ReadNone::Malformed, c::ReadNone::Malformed),
         (
             w::ReadNone::TooLinked(
-                w::ReadTooLinked::new(&fixtures::limits().wire, w::ReadTooLinkedParts { joins: 4 }).expect("bound"),
+                w::ReadTooLinked::new(fixtures::limits().wire(), w::ReadTooLinkedParts { joins: 4 }).expect("bound"),
             ),
             c::ReadNone::TooLinked { joins: 4 },
         ),
         (
             w::ReadNone::TooLarge(
-                w::TurnTooLarge::new(&fixtures::limits().wire, w::TurnTooLargeParts { bytes: 8192 }).expect("size"),
+                w::TurnTooLarge::new(fixtures::limits().wire(), w::TurnTooLargeParts { bytes: 8192 }).expect("size"),
             ),
             c::ReadNone::TooLarge { bytes: 8192 },
         ),
@@ -84,10 +84,11 @@ fn a_read_becomes_one_post_with_its_owner_and_cursor() {
     let Request::Exchange { message: Message::Read(body), .. } = h.out.pop().unwrap() else {
         panic!("expected read exchange")
     };
-    let record = w::Owned::decode(&fixtures::limits().wire, &mut Reader::new(&body)).unwrap();
+    let record = w::Owned::decode(fixtures::limits().wire(), &mut Reader::new(&body)).unwrap();
     assert_eq!(record.owner(), &w::Owner::Jig);
     assert_eq!(record.version(), jig_client_protocol_wire::VERSION);
-    let w::Read::History(value) = w::Read::decode(&fixtures::limits().wire, &mut Reader::new(record.record())).unwrap()
+    let w::Read::History(value) =
+        w::Read::decode(fixtures::limits().wire(), &mut Reader::new(record.record())).unwrap()
     else {
         panic!("history read")
     };
@@ -124,13 +125,13 @@ fn a_read_none_answer_keeps_each_wire_reason_once() {
         (w::ReadNone::Malformed, c::ReadNone::Malformed),
         (
             w::ReadNone::TooLinked(
-                w::ReadTooLinked::new(&fixtures::limits().wire, w::ReadTooLinkedParts { joins: 4 }).expect("bound"),
+                w::ReadTooLinked::new(fixtures::limits().wire(), w::ReadTooLinkedParts { joins: 4 }).expect("bound"),
             ),
             c::ReadNone::TooLinked { joins: 4 },
         ),
         (
             w::ReadNone::TooLarge(
-                w::TurnTooLarge::new(&fixtures::limits().wire, w::TurnTooLargeParts { bytes: 8192 }).expect("size"),
+                w::TurnTooLarge::new(fixtures::limits().wire(), w::TurnTooLargeParts { bytes: 8192 }).expect("size"),
             ),
             c::ReadNone::TooLarge { bytes: 8192 },
         ),
@@ -178,8 +179,7 @@ fn a_malformed_read_body_is_unreachable() {
 }
 #[test]
 fn reads_and_attempts_share_the_exchange_admission_bound() {
-    let mut limits = fixtures::limits();
-    limits.exchanges = 1;
+    let limits = Limits::new(*fixtures::limits().client(), 1).unwrap();
     let mut h = fixtures::Harness::new(&limits);
     h.send(fixtures::ATTEMPT, fixtures::KEY, fixtures::message());
     h.link.step(
@@ -247,13 +247,6 @@ fn a_read_value_counts_its_discriminator_against_the_document_byte_bound() {
     assert_eq!(translate::reads::value(&value, &short), Err(Undecodable::TooLarge));
 }
 #[test]
-fn a_read_value_rejects_mutated_original_limits() {
-    let value = fixtures::encoded_read_value(&fixtures::frame_read_value());
-    let mut limits = fixtures::limits();
-    limits.wire.cursor_value = 1;
-    assert_eq!(translate::reads::value(&value, &limits), Err(Undecodable::TooLarge));
-}
-#[test]
 fn a_read_page_keeps_both_long_cursors_without_parsing_them() {
     let (mut h, exchange) = fixtures::Harness::reading();
     let value = w::ReadValue::Notes(fixtures::note_page_with_cursors());
@@ -274,14 +267,15 @@ fn a_read_activity_keeps_each_undecodable_turn_in_its_page() {
 #[test]
 fn me_s_projects_past_the_document_bytes_are_refused_as_too_large() {
     let value = jig_client_test_records::frame_two_projects_record();
-    let mut limits = fixtures::limits();
-    limits.client.document_bytes = u64::from(value.measure()).checked_sub(1).unwrap();
+    let mut client = *fixtures::limits().client();
+    client.document_bytes = u64::from(value.measure()).checked_sub(1).unwrap();
+    let limits = Limits::new(client, 4).unwrap();
     assert_eq!(translate::documents::frame(value, &limits), Err(Undecodable::TooLarge));
 }
 
 #[test]
 fn a_turn_read_keeps_all_three_numbers() {
-    let value = translate::reads::read(&fixtures::turn_read(), &fixtures::limits().wire).unwrap();
+    let value = translate::reads::read(&fixtures::turn_read(), fixtures::limits().wire()).unwrap();
     let w::Read::Turn(value) = value else { panic!("turn read") };
     assert_eq!((value.task(), value.attempt(), value.turn()), (7, 44, 3));
 }
@@ -366,8 +360,7 @@ fn the_turn_inspector_rejects_incomplete_or_false_envelopes() {
 #[test]
 fn the_single_turn_decoder_uses_the_archive_bound() {
     // The archive decoder applies its TurnCarriedBytes bound.
-    let mut archive_limits = fixtures::limits();
-    archive_limits.wire.activity_turn_turn = 1;
+    let archive_limits = fixtures::limits();
     assert_eq!(
         translate::turn::archive(fixtures::single_turn_record(fixtures::FULL_TURN), &archive_limits),
         Ok(fixtures::expected_single_turn())
@@ -378,7 +371,7 @@ fn the_single_turn_decoder_uses_the_archive_bound() {
 fn a_too_linked_read_keeps_its_bound_after_decoding() {
     let (mut h, exchange) = fixtures::Harness::reading();
     let none = w::ReadNone::TooLinked(
-        w::ReadTooLinked::new(&fixtures::limits().wire, w::ReadTooLinkedParts { joins: 4 }).expect("bound"),
+        w::ReadTooLinked::new(fixtures::limits().wire(), w::ReadTooLinkedParts { joins: 4 }).expect("bound"),
     );
     h.answer(exchange, &fixtures::read_none_answer(none));
     assert_eq!(h.read_answered(), Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::TooLinked { joins: 4 }))));

@@ -1,0 +1,48 @@
+== Task 8 == 
+Task 8:
+  - Task 8: Review:
+      ## Task 8: Review
+      * Open
+      Task 8: Review:
+        [1] Task 8: Review
+        Person 1
+        Active attempt 2
+      [2] Write
+  In project 4
+  Goal
+  Priority 1
+Task 8:
+  [3] Overview
+  [4] Activity (current)
+  [5] Plan
+  [6] History
+  [7] Budget and authority
+Activity:
+  ## Activity
+  For 0 min
+  Writing
+  - Conversation: (busy)
+      - Provisional:
+          * Provisional
+          At 01:00
+          ### provisional first
+          * Some turn content did not fit
+          ReadFact:
+            Call 1
+            Using tool ReadFact
+            Call completed
+            whole tool result
+            [8] Fold input and result for ReadFact (expanded)
+            `whole private input`
+            whole tool result
+            - Task 8: Review:
+                ## Task 8: Review
+                * Open
+                Task 8: Review:
+                  [9] Task 8: Review
+                  Person 1
+                  Active attempt 2
+                [10] Write
+            * Loading connector content (busy)
+  Start of the list
+  End of the list

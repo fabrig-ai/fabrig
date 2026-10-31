@@ -21,9 +21,9 @@ impl Core {
             | tasks::Escalation::Rejected { .. } => {}
         }
         let Some(entry) = crate::fresh(&mut self.counters, crate::Family::Message) else { return false };
-        tasks::step(
-            &mut self.tasks,
-            &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+        crate::routing::step::step_tasks(
+            self,
+            env,
             tasks::Event::RoutedEscalation {
                 task: context.task,
                 revision: context.escalation.revision(),

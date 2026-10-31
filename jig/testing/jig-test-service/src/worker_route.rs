@@ -102,7 +102,7 @@ fn refused(refusal: smith::Refusal) -> &'static [u8] {
     }
 }
 
-pub(super) fn activity(body: &[u8], limits: &Limits) -> Option<hub::Activity> {
+pub(super) fn activity(body: &[u8], limits: &Limits) -> Option<hub::AgentActivity> {
     let mut reader = Reader::new(body);
     let Ok(fact) = smith_channel::Fact::decode(&limits.bodies, &mut reader) else { return None };
     if !reader.is_empty() {
@@ -120,7 +120,7 @@ pub(super) fn activity(body: &[u8], limits: &Limits) -> Option<hub::Activity> {
         smith_channel::FactKind::CheckFinished => hub::CountKind::CheckFinished,
         smith_channel::FactKind::TextArrived => hub::CountKind::TextArrived,
     };
-    Some(hub::Activity::Count { kind, elapsed: fact.elapsed(), count: fact.count() })
+    Some(hub::AgentActivity::Count { kind, elapsed: fact.elapsed(), count: fact.count() })
 }
 
 pub(super) fn decode(run: Token, source: hub::Start, agent: &crate::Agent) -> Result<Box<smith::Start>, Invalid> {

@@ -11,7 +11,7 @@ pub fn notes_read() -> c::Read {
     }
 }
 pub fn notes_scope_record() -> w::NoteScope {
-    w::NoteScope::Task(w::NoteScopeTask::new(&limits().wire, w::NoteScopeTaskParts { project: 7, task: 9 }).unwrap())
+    w::NoteScope::Task(w::NoteScopeTask::new(limits().wire(), w::NoteScopeTaskParts { project: 7, task: 9 }).unwrap())
 }
 
 pub fn family_read() -> Family {
@@ -123,11 +123,11 @@ pub fn encoded_read_answer(value: &w::ReadAnswer) -> Box<[u8]> {
 }
 pub fn read_none_answer(value: w::ReadNone) -> Box<[u8]> {
     encoded_read_answer(&w::ReadAnswer::None(
-        w::ReadAnswerNone::new(&limits().wire, w::ReadAnswerNoneParts { value }).unwrap(),
+        w::ReadAnswerNone::new(limits().wire(), w::ReadAnswerNoneParts { value }).unwrap(),
     ))
 }
 pub fn family_read_answer(family: u16, version: u32) -> Box<[u8]> {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let owner = w::Owner::Family(w::Family::new(&lim, w::FamilyParts { number: family }).unwrap());
     let value = w::Owned::new(&lim, w::OwnedParts { owner, version, record: family_read().bytes }).unwrap();
     encoded_read_answer(&w::ReadAnswer::Value(value))
@@ -158,68 +158,48 @@ pub fn read_value_cases() -> Box<[(w::ReadValue, c::ReadValue)]> {
     cases.into_boxed()
 }
 fn read_value_cases_first(cases: &mut skein_lib::List<(w::ReadValue, c::ReadValue)>) {
+    cases.push((w::ReadValue::Project(project_record()), c::ReadValue::Project(Box::new(project())))).unwrap();
     cases
         .push((
-            w::ReadValue::OwnerProject(owner_project_record()),
-            c::ReadValue::OwnerProject(Box::new(owner_project())),
-        ))
-        .unwrap();
-    cases
-        .push((
-            w::ReadValue::Historical(Box::new(read_wire_owner_historical())),
-            c::ReadValue::Historical(Box::new(read_value_owner_historical())),
+            w::ReadValue::Ended(Box::new(read_wire_owner_ended())),
+            c::ReadValue::Ended(Box::new(read_value_owner_ended())),
         ))
         .unwrap();
     cases.push((w::ReadValue::Me(frame_record()), c::ReadValue::Me(Box::new(frame())))).unwrap();
     cases.push((w::ReadValue::Task(task_record()), c::ReadValue::Task(Box::new(task())))).unwrap();
-    cases
-        .push((w::ReadValue::Proposal(read_wire_proposal()), c::ReadValue::Proposal(Box::new(read_value_proposal()))))
-        .unwrap();
+
     cases
         .push((
-            w::ReadValue::OwnerProposal(read_wire_owner_proposal()),
-            c::ReadValue::OwnerProposal(Box::new(read_value_owner_proposal())),
+            w::ReadValue::Proposal(read_wire_owner_proposal()),
+            c::ReadValue::Proposal(Box::new(read_value_owner_proposal())),
         ))
         .unwrap();
+
     cases
         .push((
-            w::ReadValue::Escalation(read_wire_escalation()),
-            c::ReadValue::Escalation(Box::new(read_value_escalation())),
-        ))
-        .unwrap();
-    cases
-        .push((
-            w::ReadValue::OwnerEscalation(read_wire_owner_escalation()),
-            c::ReadValue::OwnerEscalation(Box::new(read_value_owner_escalation())),
+            w::ReadValue::Escalation(read_wire_owner_escalation()),
+            c::ReadValue::Escalation(Box::new(read_value_owner_escalation())),
         ))
         .unwrap();
     cases
         .push((w::ReadValue::Question(read_wire_question()), c::ReadValue::Question(Box::new(read_value_question()))))
         .unwrap();
+
     cases
         .push((
-            w::ReadValue::PersonTask(read_wire_person_task()),
-            c::ReadValue::PersonTask(Box::new(read_value_person_task())),
-        ))
-        .unwrap();
-    cases
-        .push((
-            w::ReadValue::OwnerPersonTask(read_wire_owner_person_task()),
-            c::ReadValue::OwnerPersonTask(Box::new(read_value_owner_person_task())),
+            w::ReadValue::PersonTask(read_wire_owner_person_task()),
+            c::ReadValue::PersonTask(Box::new(read_value_owner_person_task())),
         ))
         .unwrap();
     cases
         .push((w::ReadValue::Result(read_wire_result()), c::ReadValue::Result(Box::new(read_value_result()))))
         .unwrap();
-    cases
-        .push((w::ReadValue::Ended(read_wire_object_page()), c::ReadValue::Ended(Box::new(read_value_object_page()))))
-        .unwrap();
 }
 fn read_value_cases_last(cases: &mut skein_lib::List<(w::ReadValue, c::ReadValue)>) {
     cases
         .push((
-            w::ReadValue::OwnerEnded(read_wire_owner_ended_page()),
-            c::ReadValue::OwnerEnded(Box::new(read_value_owner_ended_page())),
+            w::ReadValue::EndedPage(read_wire_owner_ended_page()),
+            c::ReadValue::EndedPage(Box::new(read_value_owner_ended_page())),
         ))
         .unwrap();
     cases
@@ -234,45 +214,34 @@ fn read_value_cases_last(cases: &mut skein_lib::List<(w::ReadValue, c::ReadValue
             c::ReadValue::Activity(Box::new(decoded_activity_page())),
         ))
         .unwrap();
-    cases
-        .push((w::ReadValue::Inbox(read_wire_inbox_page()), c::ReadValue::Inbox(Box::new(read_value_inbox_page()))))
-        .unwrap();
+
     cases
         .push((
-            w::ReadValue::OwnerInbox(read_wire_owner_inbox_page()),
-            c::ReadValue::OwnerInbox(Box::new(read_value_owner_inbox_page())),
+            w::ReadValue::Inbox(read_wire_owner_inbox_page()),
+            c::ReadValue::Inbox(Box::new(read_value_owner_inbox_page())),
         ))
         .unwrap();
 
     cases
-        .push((w::ReadValue::Spend(read_wire_spend_page()), c::ReadValue::Spend(Box::new(read_value_spend_page()))))
-        .unwrap();
-    cases
         .push((
-            w::ReadValue::OwnerSpend(read_wire_owner_spend_page()),
-            c::ReadValue::OwnerSpend(Box::new(read_value_owner_spend_page())),
+            w::ReadValue::Spend(read_wire_owner_spend_page()),
+            c::ReadValue::Spend(Box::new(read_value_owner_spend_page())),
         ))
         .unwrap();
-    cases
-        .push((w::ReadValue::Project(read_wire_project()), c::ReadValue::Project(Box::new(read_value_project()))))
-        .unwrap();
+
     cases
         .push((w::ReadValue::Notes(read_wire_note_page()), c::ReadValue::Notes(Box::new(read_value_note_page()))))
         .unwrap();
+
     cases
         .push((w::ReadValue::Deployment(deployment_record()), c::ReadValue::Deployment(Box::new(deployment()))))
         .unwrap();
-    cases
-        .push((
-            w::ReadValue::OwnerDeployment(owner_deployment_record()),
-            c::ReadValue::OwnerDeployment(Box::new(owner_deployment())),
-        ))
-        .unwrap();
 }
 
-pub fn values_past_client_limits() -> [w::ReadValue; 2] {
-    [w::ReadValue::Proposal(proposal_with_words(&[b'a'; 33])), w::ReadValue::Ended(object_page_piece(result_rows(3)))]
+pub fn values_past_client_limits() -> [w::ReadValue; 1] {
+    [w::ReadValue::EndedPage(ended_page_piece(ended_rows(3)))]
 }
+
 pub fn malformed_read_values() -> [Box<[u8]>; 4] {
     let value = encoded_read_value(&frame_read_value());
     let mut trailing = Writer::new(value.len().checked_add(1).unwrap());
@@ -281,12 +250,12 @@ pub fn malformed_read_values() -> [Box<[u8]>; 4] {
     [
         Box::from([255]),
         trailing.finish(),
-        encoded_read_value(&w::ReadValue::Ended(object_page_piece(Box::from([0, 0, 0])))),
-        encoded_read_value(&w::ReadValue::Ended(object_page_piece(trailing_result_row()))),
+        encoded_read_value(&w::ReadValue::EndedPage(ended_page_piece(Box::from([0, 0, 0])))),
+        encoded_read_value(&w::ReadValue::EndedPage(ended_page_piece(trailing_ended_row()))),
     ]
 }
 pub fn read_byte_limits(document_bytes: u64) -> Limits {
-    let mut client = limits().client;
+    let mut client = *limits().client();
     client.document_bytes = document_bytes;
     Limits::new(client, 4).unwrap()
 }

@@ -2,7 +2,6 @@
 use jig_client::{Event as ClientEvent, Message, Streamed};
 use jig_client_protocol_wire::v19 as w;
 use jig_client_view::address::Address as JigAddress;
-use jig_client_view::boundary::Offset;
 use jig_ops_client_domain::{self as root, Address, Event, Place, Request, infrastructure, observability};
 use skein_lib::{Duration, Env, List, Queue, Reader, Time, Token, Wall, Writer};
 
@@ -45,7 +44,6 @@ impl World {
         world.step(Event::Start {
             address: Address::Jig(JigAddress::Inbox { project: None }),
             kept: List::with_capacity(0),
-            offset: Offset { minutes: 0 },
         });
         world.client(ClientEvent::SignIn { with: jig_client::With::Transport });
         world.stream(&hello());
@@ -53,7 +51,7 @@ impl World {
         // before delivering the frame, then storage is left delayed.
         let (exchange, watch) = world.watches.remove(0);
         let answer = w::OpenAnswer::Admitted;
-        let mut bytes = Writer::new(usize::try_from(answer.measure()).expect("open answer size"));
+        let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
         answer.encode(&mut bytes).expect("measured open answer");
         world.client(ClientEvent::Reply { exchange, message: bytes.finish() });
         world.stream(&frame(watch));
@@ -67,7 +65,7 @@ impl World {
     }
 
     fn stream(&mut self, event: &w::StreamEvent) {
-        let mut bytes = Writer::new(usize::try_from(event.measure()).expect("stream event size"));
+        let mut bytes = Writer::new(skein_lib::length::usize_of(event.measure()));
         event.encode(&mut bytes).expect("measured stream event");
         self.client(ClientEvent::Streamed { message: Streamed::Record(bytes.finish()) });
     }
@@ -75,14 +73,14 @@ impl World {
     fn step(&mut self, event: Event) {
         let mut out = Queue::uncapped();
         root::step(&mut self.root, &self.env, event, &mut out);
-        root::take(&mut self.root, &self.env, &mut out);
+        root::take(&mut self.root);
         self.drain(out);
     }
 
     fn fire(&mut self) {
         let mut out = Queue::uncapped();
         root::fire(&mut self.root, &self.env, &mut out);
-        root::take(&mut self.root, &self.env, &mut out);
+        root::take(&mut self.root);
         self.drain(out);
     }
 
@@ -225,7 +223,7 @@ fn frame(watch: u64) -> w::StreamEvent {
     )
     .expect("frame fixture");
     let value = w::DeliveryValue::Me(frame);
-    let mut bytes = Writer::new(usize::try_from(value.measure()).expect("frame size"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut bytes).expect("measured frame");
     let document = w::Owned::new(
         &w::CEILINGS,

@@ -1,15 +1,20 @@
 //! Link obligations and stored diagnostics (jig/docs/design/domain/engine.md, 6).
 #![expect(clippy::disallowed_macros, reason = "stored fixtures exercise byte limits")]
-use super::{Action, Core, Env, Failure, Key, Phase, Queue, Request, Time, Wall, config, people, step_phase, tasks};
-use crate::{CoreRecord, Event, Restored};
+use crate::{
+    CoreRecord, Event, Restored,
+    tests::start::{
+        Action, Core, Env, Failure, Key, Phase, Queue, Request, Time, Wall, config, people, step_phase, tasks,
+    },
+};
 use core::panic::AssertUnwindSafe;
 use skein_lib::Token;
 use std::panic::catch_unwind;
 
 fn loaded() -> (Core, Env<crate::Limits>) {
-    let (_, limits) = super::super::tree_core();
+    let (_, limits) = crate::tests::tree_core();
     let configured = config(41);
-    let policy = crate::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[]).expect("policy");
+    let policy =
+        crate::admission::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[]).expect("policy");
     let mut core = Core::new(configured, &limits).expect("configured core");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     step_phase(core.start_begin(false, env.wall), Phase::LoadCore);
@@ -36,24 +41,24 @@ fn loaded() -> (Core, Env<crate::Limits>) {
 }
 
 fn restore_person(core: &mut Core, env: &Env<crate::Limits>, record: people::Stored) {
-    let crate::Requests::Out(mut out) = crate::step(core, env, Event::People(people::Event::Restore { record }));
+    let mut out = crate::step(core, env, Event::People(people::Event::Restore { record }));
     while let Some(request) = out.pop() {
         if let Request::Now(now) = request
             && let crate::Now::RestoreRefused = *now
         {
-            panic!("selected start emits no RestoreRefused");
+            panic!("the start emits no RestoreRefused");
         }
     }
 }
 
 fn restore_task(core: &mut Core, env: &Env<crate::Limits>, record: tasks::Stored) {
     assert!(core.restore_task_row(&record));
-    let crate::Requests::Out(mut out) = crate::step(core, env, Event::Tasks(tasks::Event::Restore { record }));
+    let mut out = crate::step(core, env, Event::Tasks(tasks::Event::Restore { record }));
     while let Some(request) = out.pop() {
         if let Request::Now(now) = request
             && let crate::Now::RestoreRefused = *now
         {
-            panic!("selected start emits no RestoreRefused");
+            panic!("the start emits no RestoreRefused");
         }
     }
 }
@@ -72,8 +77,8 @@ fn link(core: &mut Core, env: &Env<crate::Limits>) -> Action {
 }
 
 fn task() -> tasks::TaskRecord {
-    let (mut source, limits) = super::super::tree_core();
-    super::super::make_task(&mut source, &limits, 1);
+    let (mut source, limits) = crate::tests::tree_core();
+    crate::tests::make_task(&mut source, &limits, 1);
     source.tasks.task(1).expect("source task").clone()
 }
 
@@ -171,7 +176,7 @@ fn tasks_fit_refusal_keeps_the_key_without_failing_the_other_script() {
             row.numbers.spent_below = 1;
         } else {
             row.spec.words =
-                vec![b'x'; usize::try_from(env.limits.tasks.spec_bytes + 1).expect("small spec")].into_boxed_slice();
+                vec![b'x'; skein_lib::length::usize_of(env.limits.tasks.spec_bytes + 1)].into_boxed_slice();
         }
         let key = Key::Tasks(tasks::Key::Live(row.number));
         restore_task(&mut core, &env, tasks::Stored::Live(Box::new(row)));
@@ -201,7 +206,7 @@ fn people_fit_refusal_keeps_the_key_without_failing_the_other_script() {
             identity: people::Identity {
                 key: people::IdentityKey {
                     provider: 0,
-                    subject: vec![b'x'; usize::try_from(held).expect("small identity")].into_boxed_slice(),
+                    subject: vec![b'x'; skein_lib::length::usize_of(held)].into_boxed_slice(),
                 },
                 login: Box::new([]),
                 name: Box::new([]),
@@ -583,7 +588,7 @@ fn connector_resource_roles_link_their_projects() {
         let connector = core.connectors[0];
         step_phase(core.start_done(&env, Phase::LoadInbox, &mut out), Phase::RestoreConnector { connector });
         let name = tasks::Name { connector, path: Box::new([Box::from(b"resource".as_slice())]) };
-        assert!(core.restore_resource_role(&env, project, name, crate::connector::ResourceRole::Context));
+        assert!(core.restore_resource_role(&env, project, name, crate::effects::connector::ResourceRole::Context));
         let mut previous = Phase::RestoreConnector { connector };
         for connector in core.connectors.clone().into_iter().skip(1) {
             let next = Phase::RestoreConnector { connector };

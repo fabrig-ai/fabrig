@@ -1,8 +1,8 @@
 //! The scripted project requests (contract.md, 3.2, 4 and 7.5).
 use crate::{Application, Change, Engine, Invalid};
 use jig_client_domain::contract::{
-    AdmissionLimit, Answer, Ask, DocumentText, HeldRole, Limit, Malformed, MeProject, NameRule, Outcome, OwnerOutcome,
-    Refusal, Text,
+    AdmissionLimit, Answer, Ask, DocumentOutcome, DocumentText, HeldRole, Limit, Malformed, MeProject, NameRule,
+    Outcome, Refusal, Text,
 };
 use skein_lib::List;
 
@@ -54,7 +54,7 @@ impl<A: Application> Engine<A> {
         let change = Change::RemoveProject { project };
         change.validate(&self.bounds)?;
         self.truth.apply(&change)?;
-        Ok((Answer::Done(Outcome::Owner(OwnerOutcome::ProjectRemoved { project })), vec![change]))
+        Ok((Answer::Done(Outcome::Document(DocumentOutcome::ProjectRemoved { project })), vec![change]))
     }
 
     fn change_project(
@@ -90,19 +90,14 @@ impl<A: Application> Engine<A> {
             .truth
             .projects
             .values()
-            .any(|p| Some(p.number) != project && p.name.bytes().eq_ignore_ascii_case(name.bytes()))
-            || self
-                .truth
-                .owner_projects
-                .values()
-                .any(|p| Some(p.number) != project && p.name.bytes().eq_ignore_ascii_case(name.bytes()));
+            .any(|p| Some(p.number) != project && p.name.bytes().eq_ignore_ascii_case(name.bytes()));
         if taken {
             return Ok(refused(Refusal::NameTaken));
         }
         let (outcome, changes) = match project {
-            Some(project) => (OwnerOutcome::Renamed { project }, self.rename_changes(project, name)),
+            Some(project) => (DocumentOutcome::Renamed { project }, self.rename_changes(project, name)),
             None => match self.make_change(party, name) {
-                Ok((project, change)) => (OwnerOutcome::ProjectMade { project }, vec![change]),
+                Ok((project, change)) => (DocumentOutcome::ProjectMade { project }, vec![change]),
                 Err(refusal) => return Ok(refused(refusal)),
             },
         };
@@ -112,7 +107,7 @@ impl<A: Application> Engine<A> {
             next.apply(change)?;
         }
         self.truth = next;
-        Ok((Answer::Done(Outcome::Owner(outcome)), changes))
+        Ok((Answer::Done(Outcome::Document(outcome)), changes))
     }
 
     fn rename_changes(&self, project: u32, name: &Text) -> Vec<Change> {
@@ -131,13 +126,8 @@ impl<A: Application> Engine<A> {
         }
         if let Some(value) = self.truth.projects.get(&project) {
             let mut value = value.clone();
-            value.name = name.clone();
-            changes.push(Change::Project(Box::new(value)));
-        }
-        if let Some(value) = self.truth.owner_projects.get(&project) {
-            let mut value = value.clone();
             value.name = DocumentText::complete(name.clone());
-            changes.push(Change::OwnerProject(Box::new(value)));
+            changes.push(Change::Project(Box::new(value)));
         }
         changes
     }
@@ -147,7 +137,6 @@ impl<A: Application> Engine<A> {
             .truth
             .projects
             .keys()
-            .chain(self.truth.owner_projects.keys())
             .chain(self.truth.object_projects.values())
             .copied()
             .chain(self.truth.frames.values().flat_map(|frame| frame.projects.iter().map(|p| p.project)))

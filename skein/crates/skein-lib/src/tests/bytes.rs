@@ -4,8 +4,46 @@
 use alloc::boxed::Box;
 
 use super::ROUNDS;
-use crate::bytes::{count, decimal, find, find_from, hex_digit, hex_value};
+use crate::bytes::{count, decimal, find, find_from, hex_digit, hex_value, is_utf8, utf8_prefix};
 use crate::{Decimal, List, Overflow, Reader, Rng, Writer};
+
+#[test]
+fn utf8_accepts_scalar_values_and_rejects_invalid_encodings() {
+    for bytes in [b"".as_slice(), b"ascii\0", "¢€𐀀\u{10ffff}".as_bytes()] {
+        assert!(is_utf8(bytes), "{bytes:?}");
+    }
+    for bytes in [
+        &[0x80][..],   // A continuation without a leading byte.
+        &[0xc0, 0x80], // An overlong encoding.
+        &[0xe0, 0x80, 0x80],
+        &[0xed, 0xa0, 0x80],       // A surrogate.
+        &[0xf4, 0x90, 0x80, 0x80], // Past the largest scalar value.
+        &[0xff],
+        &[0xc2], // Truncated characters of each multibyte width.
+        &[0xe2, 0x82],
+        &[0xf0, 0x90, 0x80],
+        &[0xc2, b'a'], // A leading byte followed by ASCII.
+    ] {
+        assert!(!is_utf8(bytes), "{bytes:?}");
+    }
+}
+
+#[test]
+fn utf8_prefix_cuts_at_every_character_boundary_or_before_it() {
+    let bytes = "a¢€𐀀z".as_bytes();
+    let lengths = [0, 1, 1, 3, 3, 3, 6, 6, 6, 6, 10, 11, 11];
+    for (limit, length) in lengths.into_iter().enumerate() {
+        let prefix = utf8_prefix(bytes, limit);
+        assert_eq!(prefix, &bytes[..length], "limit {limit}");
+        assert!(is_utf8(prefix));
+        assert_eq!(prefix.as_ptr(), bytes.as_ptr(), "a borrowed prefix");
+    }
+    assert_eq!(utf8_prefix(bytes, usize::MAX), bytes);
+    assert_eq!(utf8_prefix(b"", 0), b"");
+    assert_eq!(utf8_prefix(b"", usize::MAX), b"");
+    assert_eq!(utf8_prefix(b"ascii", 3), b"asc");
+    assert_eq!(utf8_prefix("𐀀".as_bytes(), 3), b"");
+}
 
 #[test]
 fn a_zeroed_buffer_is_its_length_of_zeros() {

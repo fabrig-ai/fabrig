@@ -395,10 +395,12 @@ than one per shape, buys:
   in the engine: the hello as one value, which a worker's root assembles
   from the hub, its workspace, its agent capability's bounds and its
   link's graces; notices relayed from the agent; facts as outputs, best
-  effort, as well as by query. The engine's root translates its own
-  hub's link as it translates a worker's (`../protocol/channel.md`,
-  section 1), its hello stating the bounds of its `smith-inline-agent`'s
-  configuration.
+  effort, as well as by query. The values are one crate's, `jig-domain-link`, which
+  the hub and the core's fleet share, so the engine's root passes its own
+  hub's link to the fleet unchanged, as a worker's protocol layer decodes a
+  worker's into the same values (`../protocol/channel.md`, section 1); its
+  hello states the bounds of its `smith-inline-agent`'s configuration.
+  In the engine, `jig-domain-hub-link` is that link: it keeps the hub's assignments, briefs, payload hand-outs and relayed calls beside the fleet's claims, and the root composes it and routes to it.
 - **The link vocabulary names only what crosses.** It names a run and an
   attempt by their numbers, and a call, a message or a turn by the name
   or number the run or the engine gave it, which mean the same on both
@@ -414,8 +416,7 @@ than one per shape, buys:
   tokens.
 - **Turn busy is not in it.** The engine's answer of busy to a turn is
   the fleet's word to what keeps the backoff below the hub, which arms no
-  timers (6.2): a worker's link, or the engine's root for its own hub, on
-  its protocol layer's timers. At the backoff's deadline it asks its root
+  timers (6.2): a worker's link, or `jig-domain-hub-link` for the engine's own hub, on the timers of the layer that holds it. At the backoff's deadline it asks its root
   for the hub's kept copy of the turn, which goes up again as any turn
   (`../protocol/channel.md`, 5.2).
 - **The engine holds the claim.** It commits a claim before assigning a
@@ -802,6 +803,8 @@ translation into smith's charter (smith's `domain/run.md`, 3.1; smith's
 engine's protocol layer calls for every run, on workers and in the
 engine alike, and which reads every run's result back by the path of
 host tools' calls (6.8).
+
+Its `assignment` builds that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes, its checks required to pass, and the workspace tools the run's policy grants. A root calls it and decides none of it.
 
 - **Instructions and brief:** the charter's instructions, and the brief's
   sections rendered as smith's titled sections, in order, the

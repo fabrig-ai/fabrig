@@ -17,6 +17,7 @@
 //! | outbox uncertain | lookup finds key | settled | erase, outcome |
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 
 extern crate alloc;
 
@@ -33,6 +34,7 @@ pub use client_documents::{
 mod boundary;
 mod domain;
 mod limits;
+mod triage;
 
 pub use boundary::{
     Alert, Class, Classed, Effect, Entry, Event, Fact, Key, LeadTemplate, LoadPoint, Outcome, Phase, Purpose, Read,
@@ -40,7 +42,8 @@ pub use boundary::{
     TriageTemplate, Verdict, Watch, Window,
 };
 pub use domain::{Domain, fire, next_deadline, split, step};
-pub use limits::{Limits, valid};
+pub use limits::{Limits, Vocabulary, valid};
+pub use triage::{Parameter, ResultField, ResultKind, Spec, WatchInput, WatchSpec, watch_messages, watch_spec};
 
 #[cfg(test)]
 mod tests;

@@ -35,29 +35,27 @@ pub enum State {
     /// Observed using this tool.
     Tool(Box<[u8]>),
     /// Ended, with its owner's ending.
-    Ended(c::OwnerTaskStatus),
+    Ended(c::TaskStatus),
 }
 /// A task's state from its chip.
 #[must_use]
 pub fn row_state(chip: &c::Chip) -> State {
     if chip.phase == c::Phase::Running {
-        if let c::ChipPhase::Owner { details, .. } = chip.details.as_ref()
-            && let Some(observation) = &details.observation
-        {
+        if let Some(observation) = &chip.details.details.observation {
             match &observation.work {
-                c::OwnerChipWork::Writing => return State::Writing,
-                c::OwnerChipWork::Tool { tool, .. } => return State::Tool(tool.clone()),
-                c::OwnerChipWork::Preparing
-                | c::OwnerChipWork::Starting
-                | c::OwnerChipWork::Active
-                | c::OwnerChipWork::Waiting
-                | c::OwnerChipWork::Ending => {}
+                c::ChipWork::Writing => return State::Writing,
+                c::ChipWork::Tool { tool, .. } => return State::Tool(tool.clone()),
+                c::ChipWork::Preparing
+                | c::ChipWork::Starting
+                | c::ChipWork::Active
+                | c::ChipWork::Waiting
+                | c::ChipWork::Ending => {}
             }
         }
         return State::Running;
     }
     match chip.details.as_ref() {
-        c::ChipPhase::Owner { phase: c::OwnerChipPhase::Waiting { dependencies, more, holds }, .. } => {
+        c::ChipPhaseFacts { phase: c::ChipPhase::Waiting { dependencies, more, holds }, .. } => {
             if dependencies.len() == 1 && !more {
                 State::WaitingFor(*dependencies.as_slice().first().expect("one dependency"))
             } else if !dependencies.is_empty() || *more {
@@ -68,32 +66,17 @@ pub fn row_state(chip: &c::Chip) -> State {
                 State::Phase(chip.phase)
             }
         }
-        c::ChipPhase::Owner { phase: c::OwnerChipPhase::Ended, details } => match &details.ending {
-            Some(c::OwnerChipEnding::Done(_)) => State::Ended(c::OwnerTaskStatus::Done),
-            Some(c::OwnerChipEnding::Failed(_)) => State::Ended(c::OwnerTaskStatus::Failed),
-            Some(c::OwnerChipEnding::Cancelled { .. }) => State::Ended(c::OwnerTaskStatus::Cancelled),
+        c::ChipPhaseFacts { phase: c::ChipPhase::Ended, details } => match &details.ending {
+            Some(c::ChipEnding::Done(_)) => State::Ended(c::TaskStatus::Done),
+            Some(c::ChipEnding::Failed(_)) => State::Ended(c::TaskStatus::Failed),
+            Some(c::ChipEnding::Cancelled { .. }) => State::Ended(c::TaskStatus::Cancelled),
             None => State::Phase(chip.phase),
         },
-        c::ChipPhase::Owner {
+        c::ChipPhaseFacts {
             phase:
-                c::OwnerChipPhase::Active(_)
-                | c::OwnerChipPhase::Person { .. }
-                | c::OwnerChipPhase::Closing(_)
-                | c::OwnerChipPhase::Held { .. },
+                c::ChipPhase::Active(_) | c::ChipPhase::Person { .. } | c::ChipPhase::Closing(_) | c::ChipPhase::Held { .. },
             ..
-        }
-        | c::ChipPhase::Active(_)
-        | c::ChipPhase::Waiting { .. }
-        | c::ChipPhase::Idle { .. }
-        | c::ChipPhase::Starting
-        | c::ChipPhase::Running { .. }
-        | c::ChipPhase::WaitingForWords { .. }
-        | c::ChipPhase::BackingOff { .. }
-        | c::ChipPhase::Procedure { .. }
-        | c::ChipPhase::Person { .. }
-        | c::ChipPhase::Closing(_)
-        | c::ChipPhase::Held { .. }
-        | c::ChipPhase::Ended { .. } => State::Phase(chip.phase),
+        } => State::Phase(chip.phase),
     }
 }
 /// A goal's header state from its exact wait, falling back to its chip.
@@ -122,21 +105,7 @@ pub fn header_state(task: &c::Task, me: Option<&c::Me>) -> State {
                 row_state(&task.chip)
             }
         }
-        c::WaitsOn::Delegates => match task.chip.details.as_ref() {
-            c::ChipPhase::Owner { details, .. } => State::WaitingForDelegates(details.live_delegates),
-            c::ChipPhase::Active(_)
-            | c::ChipPhase::Waiting { .. }
-            | c::ChipPhase::Idle { .. }
-            | c::ChipPhase::Starting
-            | c::ChipPhase::Running { .. }
-            | c::ChipPhase::WaitingForWords { .. }
-            | c::ChipPhase::BackingOff { .. }
-            | c::ChipPhase::Procedure { .. }
-            | c::ChipPhase::Person { .. }
-            | c::ChipPhase::Closing(_)
-            | c::ChipPhase::Held { .. }
-            | c::ChipPhase::Ended { .. } => row_state(&task.chip),
-        },
+        c::WaitsOn::Delegates => State::WaitingForDelegates(task.chip.details.details.live_delegates),
         c::WaitsOn::Party { whom, .. } => {
             if let Some(me) = me
                 && reader(*whom, task.project, me)
@@ -166,21 +135,21 @@ pub enum Run {
 #[must_use]
 #[expect(clippy::manual_map, reason = "the client's domain matches without a closure")]
 pub fn run(task: &c::Task) -> Option<Run> {
-    let c::ChipPhase::Owner { phase, details } = task.chip.details.as_ref() else { return None };
+    let c::ChipPhaseFacts { phase, details } = task.chip.details.as_ref();
     match phase {
-        c::OwnerChipPhase::Active(c::RunStage::Claimed { attempt } | c::RunStage::Running { attempt })
-        | c::OwnerChipPhase::Closing(c::ClosingStage::Run { attempt }) => {
+        c::ChipPhase::Active(c::RunStage::Claimed { attempt } | c::RunStage::Running { attempt })
+        | c::ChipPhase::Closing(c::ClosingStage::Run { attempt }) => {
             Some(Run::Live { attempt: *attempt, since: details.run_since })
         }
-        c::OwnerChipPhase::Ended => match details.attempt {
+        c::ChipPhase::Ended => match details.attempt {
             Some(attempt) => Some(Run::Ended { attempt }),
             None => None,
         },
-        c::OwnerChipPhase::Active(_)
-        | c::OwnerChipPhase::Waiting { .. }
-        | c::OwnerChipPhase::Person { .. }
-        | c::OwnerChipPhase::Closing(_)
-        | c::OwnerChipPhase::Held { .. } => Some(match details.attempt {
+        c::ChipPhase::Active(_)
+        | c::ChipPhase::Waiting { .. }
+        | c::ChipPhase::Person { .. }
+        | c::ChipPhase::Closing(_)
+        | c::ChipPhase::Held { .. } => Some(match details.attempt {
             Some(attempt) => Run::Waiting { attempt, since: details.run_since },
             None => Run::NoRun,
         }),
@@ -212,11 +181,11 @@ fn reader(whom: c::Whom, project: u32, me: &c::Me) -> bool {
 }
 /// A dependency's state from its link; none when a stored link has no status.
 #[must_use]
-pub fn link_state(link: &c::OwnerTaskLink) -> Option<State> {
+pub fn link_state(link: &c::TaskLink) -> Option<State> {
     match link {
-        c::OwnerTaskLink::Live(chip) | c::OwnerTaskLink::Retained { chip, .. } => Some(row_state(chip)),
-        c::OwnerTaskLink::Stored { status: Some(status), .. } => Some(State::Ended(*status)),
-        c::OwnerTaskLink::Stored { status: None, .. } => None,
+        c::TaskLink::Live(chip) | c::TaskLink::Retained { chip, .. } => Some(row_state(chip)),
+        c::TaskLink::Stored { status: Some(status), .. } => Some(State::Ended(*status)),
+        c::TaskLink::Stored { status: None, .. } => None,
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -401,13 +370,13 @@ impl Task {
     pub fn panel(&self, client: &Client, forge: u16) -> Option<crate::forge::panel::Subject> {
         let task = self.document(client)?;
         match task.chip.executor {
-            c::Executor::Procedure { connector, .. } if connector == forge => {
+            c::ChipExecutor::Procedure { connector, .. } if connector == forge => {
                 Some(crate::forge::panel::Subject { task: task.chip.task, project: task.project })
             }
-            c::Executor::Procedure { .. }
-            | c::Executor::Agent { .. }
-            | c::Executor::Party { .. }
-            | c::Executor::Role { .. } => None,
+            c::ChipExecutor::Procedure { .. }
+            | c::ChipExecutor::Agent { .. }
+            | c::ChipExecutor::Party { .. }
+            | c::ChipExecutor::Role { .. } => None,
         }
     }
     pub(crate) fn act(
@@ -747,17 +716,13 @@ impl Task {
             Told::Changed { handle } if handle == self.tree => {
                 self.read_ended(out);
                 match latest(client, handle) {
-                    Some(Latest::Jig(c::Delivery::OwnerTree(tree))) => {
+                    Some(Latest::Jig(c::Delivery::Tree(tree))) => {
                         self.held(&tree.root, out);
                         for row in &tree.rows {
                             self.held(&row.chip, out);
                         }
                     }
-                    Some(Latest::Jig(c::Delivery::Tree(tree))) => {
-                        for node in &tree.nodes {
-                            self.held(&node.chip, out);
-                        }
-                    }
+
                     Some(Latest::Jig(_) | Latest::Family(_)) | None => {}
                 }
             }
@@ -949,9 +914,9 @@ impl Task {
     }
     fn changed(&mut self, task: &c::Task, out: &mut Queue<Request>) {
         let reads_ended = match task.chip.executor {
-            c::Executor::Procedure { .. } => true,
-            c::Executor::Agent { .. } => task.priority.is_some(),
-            c::Executor::Party { .. } | c::Executor::Role { .. } => false,
+            c::ChipExecutor::Procedure { .. } => true,
+            c::ChipExecutor::Agent { .. } => task.priority.is_some(),
+            c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => false,
         };
         if reads_ended {
             if self.ended.is_none() {
@@ -962,9 +927,9 @@ impl Task {
             self.read_ended(out);
         }
         self.shape = match task.chip.executor {
-            c::Executor::Agent { .. } if task.priority.is_some() => Shape::Tracked,
-            c::Executor::Agent { .. } => Shape::Agent,
-            c::Executor::Procedure { .. } | c::Executor::Party { .. } | c::Executor::Role { .. } => {
+            c::ChipExecutor::Agent { .. } if task.priority.is_some() => Shape::Tracked,
+            c::ChipExecutor::Agent { .. } => Shape::Agent,
+            c::ChipExecutor::Procedure { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => {
                 Shape::HeaderAndPlan
             }
         };
@@ -986,25 +951,13 @@ impl Task {
             self.through = Some(task.activity);
         }
         let running = match task.chip.details.as_ref() {
-            c::ChipPhase::Owner {
+            c::ChipPhaseFacts {
                 phase:
-                    c::OwnerChipPhase::Active(c::RunStage::Claimed { .. } | c::RunStage::Running { .. })
-                    | c::OwnerChipPhase::Closing(c::ClosingStage::Run { .. }),
+                    c::ChipPhase::Active(c::RunStage::Claimed { .. } | c::RunStage::Running { .. })
+                    | c::ChipPhase::Closing(c::ClosingStage::Run { .. }),
                 ..
-            }
-            | c::ChipPhase::Running { .. }
-            | c::ChipPhase::WaitingForWords { .. } => true,
-            c::ChipPhase::Owner { .. }
-            | c::ChipPhase::Active(_)
-            | c::ChipPhase::Waiting { .. }
-            | c::ChipPhase::Idle { .. }
-            | c::ChipPhase::Starting
-            | c::ChipPhase::BackingOff { .. }
-            | c::ChipPhase::Procedure { .. }
-            | c::ChipPhase::Person { .. }
-            | c::ChipPhase::Closing(_)
-            | c::ChipPhase::Held { .. }
-            | c::ChipPhase::Ended { .. } => false,
+            } => true,
+            c::ChipPhaseFacts { .. } => false,
         };
         if running && self.run.is_none() {
             let handle = handle(self.next);
@@ -1036,20 +989,8 @@ fn read(handle: Handle, read: c::Read, out: &mut Queue<Request>) {
 /// The hold's revision a chip says, if it is held.
 fn chip_hold(chip: &c::Chip) -> Option<u64> {
     match chip.details.as_ref() {
-        c::ChipPhase::Held { revision, .. } => Some(revision.value),
-        c::ChipPhase::Owner { phase: c::OwnerChipPhase::Held { revision, .. }, .. } => Some(*revision),
-        c::ChipPhase::Owner { .. }
-        | c::ChipPhase::Active(_)
-        | c::ChipPhase::Waiting { .. }
-        | c::ChipPhase::Idle { .. }
-        | c::ChipPhase::Starting
-        | c::ChipPhase::Running { .. }
-        | c::ChipPhase::WaitingForWords { .. }
-        | c::ChipPhase::BackingOff { .. }
-        | c::ChipPhase::Procedure { .. }
-        | c::ChipPhase::Person { .. }
-        | c::ChipPhase::Closing(_)
-        | c::ChipPhase::Ended { .. } => None,
+        c::ChipPhaseFacts { phase: c::ChipPhase::Held { revision, .. }, .. } => Some(*revision),
+        c::ChipPhaseFacts { .. } => None,
     }
 }
 /// The hold's revision a held card's read task carries, if any.

@@ -28,7 +28,8 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
             if let Some(request) = account_return(engine, source, &path)
                 && let Some(accounts) = &mut engine.accounts
             {
-                accounts.down(request);
+                let (source, location) = request;
+                accounts.return_to(source, location);
             }
         }
         root::Request::SetUp { forge, request, org, repository, playground } => {
@@ -206,7 +207,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
 }
 
 /// Only the listener's bound socket supplies the origin of a checked client path.
-fn account_return(engine: &Engine, source: u32, path: &[u8]) -> Option<skein_oauth_accounts::Request> {
+fn account_return(engine: &Engine, source: u32, path: &[u8]) -> Option<(u32, Box<[u8]>)> {
     let listening = engine.clients.bound_address()?;
     let host = crate::clients::printed::address_text(listening)?;
     let parts: [&[u8]; 3] = [b"http://", &host, path];
@@ -218,7 +219,7 @@ fn account_return(engine: &Engine, source: u32, path: &[u8]) -> Option<skein_oau
     for part in parts {
         location.put(part).expect("measured return URL");
     }
-    Some(skein_oauth_accounts::Request::Return { account: source, location: location.finish() })
+    Some((source, location.finish()))
 }
 
 fn store(engine: &mut Engine, request: root::StoreRequest) {
@@ -355,10 +356,7 @@ mod tests {
             }));
             assert_eq!(engine.clients.listening.take(), Some(address), "the system consumes the note");
             let path = b"/accounts/connect?provider=17&way=sign-in&source=9";
-            let Some(skein_oauth_accounts::Request::Return { account, location }) = account_return(engine, 9, path)
-            else {
-                panic!("driver return")
-            };
+            let Some((account, location)) = account_return(engine, 9, path) else { panic!("driver return") };
             assert_eq!(account, 9);
             assert_eq!(location.as_ref(), expected);
         }

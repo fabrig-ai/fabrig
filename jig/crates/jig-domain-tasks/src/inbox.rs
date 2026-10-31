@@ -1,5 +1,4 @@
 //! Bounded task messages and atomic turn reads (domain/tasks.md, section 8.2).
-#![expect(clippy::result_large_err, reason = "bounded owner refusal carries exact capacity diagnostics inline")]
 use crate::domain::{Domain, publish, record, task_mut};
 use crate::{Limits, MessageKind, NewsClass, Party, Phase, QuestionCredit, Refusal, Request, Word};
 use alloc::boxed::Box;
@@ -80,8 +79,7 @@ pub(crate) fn prepare_staged(
                     unanswered = unanswered.checked_add(1).expect("bounded question positions");
                 }
             }
-            if (word.kind == MessageKind::Question
-                && unanswered >= usize::try_from(limits.inbox_messages).expect("u32 fits usize"))
+            if (word.kind == MessageKind::Question && unanswered >= skein_lib::length::usize_of(limits.inbox_messages))
                 || !room_staged(
                     domain,
                     staged,
@@ -177,7 +175,7 @@ pub(crate) fn room_staged(
             continue;
         }
         delegates = delegates.checked_add(1).expect("delegate bound");
-        if crate::person::credit(crate::domain::record(domain, *child).expect("live delegate")) {
+        if staged.delegate_credit(domain, *child) {
             stall_credits = stall_credits.checked_add(1).expect("bounded person delegates");
         }
     }
@@ -189,7 +187,7 @@ pub(crate) fn room_staged(
     }
     let owed_credit = record.spec.asks && !record.asked_requester && !reminder;
     let Some(reserved) = reserved.checked_add(usize::from(owed_credit)) else { return false };
-    let received = received_credits(record.requester, &record.question_lines, &record.questions, record.inbox);
+    let received = received_credits(record.requester, &record.question_lines, &record.questions);
     let Some(reserved) = reserved.checked_add(received) else { return false };
     let Some(reserved) = reserved.checked_add(usize::from(record.proposal.is_some())) else { return false };
     let Some((subscription_count, subscription_bytes)) = crate::subscriptions::credit(&record, limits) else {
@@ -228,7 +226,7 @@ pub(crate) fn room_staged(
     }
     let total_count = total_count.saturating_sub(extra_count);
     let Some(total_count) = total_count.checked_add(subscription_count) else { return false };
-    let Some(total_count) = total_count.checked_add(usize::try_from(count).expect("u32 fits usize")) else {
+    let Some(total_count) = total_count.checked_add(skein_lib::length::usize_of(count)) else {
         return false;
     };
     let mut total_bytes = bytes;
@@ -241,12 +239,10 @@ pub(crate) fn room_staged(
         };
         total_bytes = sum;
     }
-    let Some(result_bytes) = delegates.checked_mul(usize::try_from(limits.result_bytes).expect("u32 fits usize"))
-    else {
+    let Some(result_bytes) = delegates.checked_mul(skein_lib::length::usize_of(limits.result_bytes)) else {
         return false;
     };
-    let Some(answer_bytes) =
-        record.questions.len().checked_mul(usize::try_from(limits.message_bytes).expect("u32 fits usize"))
+    let Some(answer_bytes) = record.questions.len().checked_mul(skein_lib::length::usize_of(limits.message_bytes))
     else {
         return false;
     };
@@ -259,12 +255,11 @@ pub(crate) fn room_staged(
     let Some(total_bytes) = total_bytes.checked_add(answer_bytes) else {
         return false;
     };
-    let proposal_bytes =
-        if record.proposal.is_some() { usize::try_from(limits.message_bytes).expect("u32 fits usize") } else { 0 };
+    let proposal_bytes = if record.proposal.is_some() { skein_lib::length::usize_of(limits.message_bytes) } else { 0 };
     let Some(total_bytes) = total_bytes.checked_add(proposal_bytes) else { return false };
     let Some(total_bytes) = total_bytes.checked_add(subscription_bytes) else { return false };
-    total_count <= usize::try_from(limits.inbox_messages).expect("u32 fits usize")
-        && total_bytes <= usize::try_from(limits.inbox_bytes).expect("u32 fits usize")
+    total_count <= skein_lib::length::usize_of(limits.inbox_messages)
+        && total_bytes <= skein_lib::length::usize_of(limits.inbox_bytes)
 }
 
 #[expect(clippy::too_many_arguments, reason = "one message entrance carries its addressed word and authorization")]
@@ -383,7 +378,7 @@ pub(crate) fn check_message(
     if word.number == 0
         || word.number <= task.last_message
         || word.words.is_empty()
-        || word.words.len() > usize::try_from(env.limits.message_bytes).expect("u32 fits usize")
+        || word.words.len() > skein_lib::length::usize_of(env.limits.message_bytes)
     {
         return Err(Box::new(crate::Problem {
             task: Some(number),
@@ -500,7 +495,7 @@ pub(crate) fn check_message(
                 }));
             }
         };
-        if !room(domain, &env.limits, source, 1, usize::try_from(env.limits.message_bytes).expect("u32 fits usize")) {
+        if !room_staged(domain, staged, &env.limits, source, 1, skein_lib::length::usize_of(env.limits.message_bytes)) {
             return Err(Box::new(crate::Problem {
                 task: Some(source),
                 why: Refusal::Busy,
@@ -610,7 +605,7 @@ pub(crate) fn delegate_result(
         Party::Person(_) | Party::Deployment { .. } => false,
     } || word.number == 0
         || word.number <= task.last_message
-        || payload_bytes > usize::try_from(env.limits.result_bytes).expect("u32 fits usize")
+        || payload_bytes > skein_lib::length::usize_of(env.limits.result_bytes)
         || !room(domain, &env.limits, number, 1, payload_bytes)
     {
         return;
@@ -725,51 +720,7 @@ pub(crate) fn finish_word(task: &crate::TaskRecord, message: u64) -> bool {
     }
 }
 
-/// Project inbox admission and answer credits without publishing a step part.
-pub(crate) fn preview_message(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    project: u32,
-    number: u64,
-    word: Word,
-) -> Result<(), crate::Problem> {
-    let checked = match check_message(
-        domain,
-        &crate::compound::Staged::new(0),
-        env,
-        Message { project, number, word, authorized: false },
-    ) {
-        Ok(plan) => plan,
-        Err(problem) => return Err(*problem),
-    };
-    let row = &mut task_mut(domain, number).expect("message checked").record;
-    row.last_message = checked.prepared.word.number;
-    row.inbox = checked.prepared.inbox;
-    if let Some(question) = checked.answer {
-        let mut credits = List::with_capacity(env.limits.inbox_messages);
-        for credit in &row.questions {
-            if credit.number != question {
-                credits.push(credit.clone()).expect("credit subset");
-            }
-        }
-        row.questions = credits.into_boxed();
-    }
-    if checked.prepared.word.kind == MessageKind::Question {
-        let Party::Task(source) = checked.prepared.word.from else { unreachable!("question source checked") };
-        let credit = question_credit(domain, number, &checked.prepared.word);
-        let row = &mut task_mut(domain, source).expect("referenced source").record;
-        row.asked_requester |= row.requester == Party::Task(number);
-        let mut credits = List::with_capacity(env.limits.inbox_messages);
-        for credit in &row.questions {
-            credits.push(credit.clone()).expect("bounded credits");
-        }
-        credits.push(credit).expect("question checked");
-        row.questions = credits.into_boxed();
-    }
-    Ok(())
-}
-
-fn question_credit(domain: &Domain, asked: u64, word: &Word) -> QuestionCredit {
+pub(crate) fn question_credit(domain: &Domain, asked: u64, word: &Word) -> QuestionCredit {
     let answerer = Party::Task(asked);
     QuestionCredit {
         number: word.number,
@@ -786,12 +737,7 @@ fn question_credit(domain: &Domain, asked: u64, word: &Word) -> QuestionCredit {
 
 /// Received question positions and original outgoing credits share the core
 /// history cache admission. A carried direct question uses its existing credit.
-pub(crate) fn received_credits(
-    requester: Party,
-    lines: &[crate::QuestionLine],
-    credits: &[QuestionCredit],
-    _inbox: &[Word],
-) -> usize {
+pub(crate) fn received_credits(requester: Party, lines: &[crate::QuestionLine], credits: &[QuestionCredit]) -> usize {
     let Party::Person(_) = requester else {
         return 0;
     };

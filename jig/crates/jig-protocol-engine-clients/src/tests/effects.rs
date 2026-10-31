@@ -36,11 +36,11 @@ fn a_cancel_offer_preserves_its_working_census_runs_and_proposals() {
         live_runs: 37,
         proposals: 41,
     });
-    let rows = fixtures::list([acts::Offered {
+    let rows = skein_lib::List::from_boxed(Box::new([acts::Offered {
         act: acts::Act::Cancel,
         admission: acts::Admission::Allowed,
         effect: Some(effect),
-    }]);
+    }]));
     let bytes =
         translate::task::offered(&fixtures::models(), &rows, &limits, limits.task_acts, w::Path::TaskActs).unwrap();
     let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(&bytes)).unwrap().unwrap();

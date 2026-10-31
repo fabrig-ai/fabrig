@@ -1,20 +1,15 @@
-//! The client and actual engine share one translation boundary
-//! (client/domain/testing.md, 5). The front and real stories are added after
-//! the complete document carriers; no scripted truth stands in for core facts.
+//! The core and client composed through their shipping protocol components
+//! in memory (client/domain/testing.md, 5; protocol/client.md, 2).
+mod component;
 pub mod engine;
 mod fixture;
 pub mod front;
 pub mod random;
 pub use front::Joint;
-mod offered_packets;
-pub mod packets;
-pub mod read_packets;
 pub mod referee;
-pub mod requests;
 pub mod session;
 pub mod transport;
 pub mod truth;
-pub mod wire;
 
 #[cfg(test)]
 mod account_moves;
@@ -36,3 +31,5 @@ fn take_signed_in(
     assert!(!callbacks.iter().any(signed_in), "one authentication notification");
     callbacks
 }
+
+mod role_fixture;

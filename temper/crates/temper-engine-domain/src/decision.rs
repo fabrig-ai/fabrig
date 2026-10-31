@@ -543,9 +543,10 @@ pub fn accept_routed(
     }
     let mut batch = decision.batch;
     if writing {
-        batch.push_write(Write::Save(Record::Core(jig_domain_core::Record::Core(
-            jig_domain_core::CoreRecord::Deployment(counters.next_commit()),
-        ))));
+        let jig_domain_core::Write::Save(header) = counters.commit_header() else {
+            unreachable!("a deployment header is a save");
+        };
+        batch.push_write(Write::Save(Record::Core(header)));
         for at in 0..decision.writes.len() {
             let source = decision.writes.get_mut(at).expect("admitted write index");
             let key = source.key();

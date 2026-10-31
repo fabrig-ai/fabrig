@@ -120,21 +120,16 @@ mod tests {
         let mut task = jig_client_protocol_link::translate::documents::task(record, &link).expect("translated task");
         task.chip.task = TASK;
         task.project = 1;
-        task.chip.executor = c::Executor::Procedure { connector: FORGE, kind: 2 };
+        task.chip.executor = c::ChipExecutor::Procedure { connector: FORGE, kind: 2 };
         task.priority = None;
         task.goal = None;
         task.chip.phase = c::Phase::Active;
-        let c::ChipPhase::Owner { phase, details, .. } = task.chip.details.as_mut() else {
-            unreachable!("owner fixture")
-        };
-        *phase = c::OwnerChipPhase::Active(c::RunStage::Idle);
+        let c::ChipPhaseFacts { phase, details, .. } = task.chip.details.as_mut();
+        *phase = c::ChipPhase::Active(c::RunStage::Idle);
         details.project = 1;
-        details.executor = c::OwnerExecutor::Procedure { connector: FORGE, code: 2 };
-        details.procedure = Some(c::OwnerPart {
-            connector: FORGE,
-            kind: c::OwnerPartKind::Procedure,
-            key: c::OwnerPartKey::Number(TASK),
-        });
+        details.executor = c::Executor::Procedure { connector: FORGE, code: 2 };
+        details.procedure =
+            Some(c::Part { connector: FORGE, kind: c::PartKind::Procedure, key: c::PartKey::Number(TASK) });
         details.observation = None;
         details.ending = None;
         details.live_delegates = 0;
@@ -207,7 +202,7 @@ mod tests {
         (root, task_watch, tree_watch, after)
     }
     fn tree(document: &c::Task) -> c::Delivery {
-        c::Delivery::OwnerTree(Box::new(c::OwnerTree {
+        c::Delivery::Tree(Box::new(c::Tree {
             root: document.chip.clone(),
             rows: List::with_capacity(0),
             folded: List::with_capacity(0),
@@ -218,20 +213,20 @@ mod tests {
     fn words(bytes: &[u8]) -> c::DocumentText {
         c::DocumentText::complete(c::Text::new(bytes.into(), 32).expect("fixture words fit"))
     }
-    fn phase(task: &mut c::Task, value: c::OwnerChipPhase) {
+    fn phase(task: &mut c::Task, value: c::ChipPhase) {
         task.chip.phase = value.compact();
-        let c::ChipPhase::Owner { phase, .. } = task.chip.details.as_mut() else { unreachable!("owner") };
+        let c::ChipPhaseFacts { phase, .. } = task.chip.details.as_mut();
         *phase = value;
     }
-    fn details(task: &mut c::Task) -> &mut c::OwnerChipDetails {
-        let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { unreachable!("owner") };
+    fn details(task: &mut c::Task) -> &mut c::ChipDetails {
+        let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
         details
     }
     fn agent() -> c::Task {
         let mut task = document();
-        phase(&mut task, c::OwnerChipPhase::Active(c::RunStage::Idle));
-        task.chip.executor = c::Executor::Agent { charter: 1 };
-        details(&mut task).executor = c::OwnerExecutor::Agent { charter: 1 };
+        phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
+        task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+        details(&mut task).executor = c::Executor::Agent { charter: 1 };
         details(&mut task).procedure = None;
         details(&mut task).attempt = None;
         details(&mut task).run_since = None;
@@ -252,8 +247,8 @@ mod tests {
         details(&mut task).live_delegates = 17;
         task
     }
-    fn finish(task: &mut c::Task, ending: c::OwnerChipEnding) {
-        phase(task, c::OwnerChipPhase::Ended);
+    fn finish(task: &mut c::Task, ending: c::ChipEnding) {
+        phase(task, c::ChipPhase::Ended);
         details(task).ending = Some(ending.clone());
         details(task).ended_at = Some(Wall::EPOCH);
         task.result = Some(c::TaskResult::Ending(Box::new(ending)));
@@ -286,15 +281,19 @@ mod tests {
     }
     fn activity(position: u64) -> c::ReadValue {
         let mut rows = List::with_capacity(1);
-        rows.push(c::ActivityLine {
+        rows.push(crate::documents::line(
             position,
-            at: Wall::EPOCH,
-            event: c::Activity::News {
-                topic: 1,
-                summary: c::Text::new(b"Activity at read watermark".as_slice().into(), 32).expect("news fits"),
-                part: None,
-            },
-        })
+            Wall::EPOCH,
+            c::Activity::Heard(c::Word {
+                number: position,
+                from: c::Requester::Task(1),
+                kind: c::MessageKind::Words,
+                words: c::Text::new(b"Activity at read watermark".as_slice().into(), 32).expect("news fits"),
+                at: Wall::EPOCH,
+                hits: 1,
+                eligible: true,
+            }),
+        ))
         .expect("one activity");
         c::ReadValue::Activity(Box::new(c::ActivityPage { rows, before: None, after: None, cut: false }))
     }
@@ -315,7 +314,7 @@ mod tests {
         let terminal = reads(&requests).into_iter().find(|(_, what)| *what == c::Read::Task { task: TASK });
         let (read, _) = terminal.expect("watch ending requests final task");
         let mut task = goal();
-        finish(&mut task, c::OwnerChipEnding::Done(c::ResultValue::Report(words(b"Final goal report"))));
+        finish(&mut task, c::ChipEnding::Done(c::ResultValue::Report(words(b"Final goal report"))));
         drop(answer(&mut root, read, c::ReadValue::Task(Box::new(task.clone()))));
         assert_eq!(
             root.pages().task().expect("task page").document(root.client()),
@@ -393,7 +392,7 @@ mod tests {
     #[test]
     fn leaving_agent_releases_its_run_and_drops_late_thread_answers() {
         let mut task = agent();
-        phase(&mut task, c::OwnerChipPhase::Active(c::RunStage::Running { attempt: 2 }));
+        phase(&mut task, c::ChipPhase::Active(c::RunStage::Running { attempt: 2 }));
         details(&mut task).attempt = Some(2);
         let (mut root, _, _, requests) = opened(task);
         let activity = activity_reads(&requests).into_iter().next().expect("thread read");

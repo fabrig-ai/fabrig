@@ -92,7 +92,7 @@ impl Request {
         *serial = serial.checked_add(1).expect("page keys fit");
         let key = Key { asker: Owner::Pages.asker(), number: *serial };
         let ask = c::Ask::AccountChange {
-            holder: c::AccountHolder::Own,
+            holder: c::AskAccountHolder::Own,
             change: c::AccountChange::FinishSignIn { source, digest },
         };
         self.paste.pending =
@@ -137,8 +137,8 @@ impl Request {
         match &pending.outcome {
             None => PasteState::Sending,
             Some(jig_client::Outcome::Full { held, room_at }) => PasteState::Full { held: *held, room_at: *room_at },
-            Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                c::OwnerOutcome::AccountFinishing { .. },
+            Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::AccountFinishing { .. },
             ))))) => PasteState::Finishing,
             Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
                 refusal: c::Refusal::SignInRedirect { why },

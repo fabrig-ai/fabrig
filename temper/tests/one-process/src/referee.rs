@@ -204,7 +204,7 @@ fn snapshot(store: &Store) -> rules::Snapshot {
             root::Record::Core(core::Record::Tasks(
                 jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task),
             )) => {
-                snapshot.tasks.insert(task.number, jig_core_world::observations::task(task));
+                snapshot.tasks.insert(task.number, jig_conformance::core::task(task));
                 snapshot.receipts.insert(rules::Receipt::Task(task.number));
                 if matches!(task.phase, jig_domain_tasks::Phase::Ended(_)) {
                     snapshot.receipts.insert(rules::Receipt::Ended(task.number));
@@ -558,11 +558,11 @@ fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) 
             receipts
         }
         client::Received::Answer { key, answer } => {
-            if matches!(answer, c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::MarkedSeen { .. }))) {
+            if matches!(answer, c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::MarkedSeen { .. }))) {
                 return Vec::new(); // A seen watermark has no kept request answer.
             }
             let mut receipts = vec![rules::Receipt::Party(party.expect("signed-in request"), *key)];
-            if let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Created { first, last, .. })) = answer {
+            if let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Created { first, last, .. })) = answer {
                 receipts.extend((*first..=*last).map(rules::Receipt::Task));
             }
             receipts
@@ -570,11 +570,9 @@ fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) 
         client::Received::Delivery(c::Delivery::RunState(run)) if run.committed_turn > 0 => {
             vec![rules::Receipt::Turn(run.task, run.attempt.expect("committed attempt"), run.committed_turn)]
         }
-        client::Received::Read(c::ReadValue::Historical(value)) => {
-            let c::OwnerHistoricalValue::Task { document, result } = &value.value else { return Vec::new() };
-            let c::ChipPhase::Owner { details, .. } = document.chip.details.as_ref() else {
-                panic!("owner task facts")
-            };
+        client::Received::Read(c::ReadValue::Ended(value)) => {
+            let c::EndedValue::Task { document, result } = &value.value else { return Vec::new() };
+            let details = &document.chip.details.details;
             assert_eq!(result.task.task, document.chip.task, "result belongs to its task");
             vec![
                 rules::Receipt::Ended(document.chip.task),
@@ -585,11 +583,7 @@ fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) 
             .rows
             .iter()
             .filter_map(|row| {
-                if let c::Activity::Owner { source, .. } = &row.event {
-                    row.event.committed_turn().map(|turn| rules::Receipt::Turn(source.task, turn.attempt, turn.number))
-                } else {
-                    None
-                }
+                row.committed_turn().map(|turn| rules::Receipt::Turn(row.source.task, turn.attempt, turn.number))
             })
             .collect(),
         client::Received::Application { key, .. } => {

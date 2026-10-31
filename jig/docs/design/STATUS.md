@@ -33,15 +33,9 @@ Each design document's status is in `<doc>.status.md` beside it:
 - [`protocol/client.md`](protocol/client.status.md)
 - [`protocol/store.md`](protocol/store.status.md)
 - [`protocol/browser.md`](protocol/browser.status.md)
+- [`debt/quality-review.md`](debt/quality-review.status.md)
 
 Not single documents:
 
 A cancel grace emits durable `FinishRequested { revision }`, translated to
-smith's finish flag live and in Start; clients see Amendment. Tasks store
-v9 and worker wire v9 are incompatible with v8. Other store families and
-client versions keep their versions.
-
-| Area | Built | Not yet |
-|---|---|---|
-
-Configuring E-QA-2's newest-only compatibility interim is replaced by the full retained-revision and charter-version bound (17.8). A refused acceptance keeps the proposal pending. E-QA-3 is pending the application-owned judged-settings mechanism; no test-only hook substitutes for it.
+smith's finish flag live and in Start; clients see Amendment.

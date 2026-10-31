@@ -315,7 +315,7 @@ fn goal_issue(world: &mut World) -> Result<(), Violation> {
         temper_engine_domain_world::walking::goal_from(
             crate::chat(&world.peers, &world.store, 1, b"Fix the small bug through a milestone"),
             people::TaskExecutor::Agent { charter: 1 },
-            jig_core_world::fixtures::Goal { budget: 100, priority: 3, deadline: None },
+            jig_test_profile::fixtures::Goal { budget: 100, priority: 3, deadline: None },
         ),
     );
     wait(world, |world| {
@@ -445,7 +445,7 @@ fn issue_creation(world: &mut World) -> Result<(), Violation> {
     wait(world, |world| {
         world.store.rows.values().any(|record| matches!(record,
         root::Record::Core(core::Record::Core(core::CoreRecord::Call(call)))
-        if call.key.completion == 401 && matches!(call.part, core::CallPart::Effect {outcome: Some(core::connector::OutboxOutcome::Made),..})))
+        if call.key.completion == 401 && matches!(call.part, core::CallPart::Effect {outcome: Some(core::effects::connector::OutboxOutcome::Made),..})))
     })?;
     require(
         world
@@ -463,7 +463,7 @@ fn creation_held(world: &World) -> bool {
         matches!(record,
         root::Record::Core(core::Record::Core(core::CoreRecord::Call(call)))
         if call.key.completion == 401 && matches!(call.part,core::CallPart::Effect {
-            outcome: Some(core::connector::OutboxOutcome::Held {..}),..
+            outcome: Some(core::effects::connector::OutboxOutcome::Held {..}),..
         }))
     })
 }

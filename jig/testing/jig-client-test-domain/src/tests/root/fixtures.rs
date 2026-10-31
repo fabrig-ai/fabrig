@@ -7,30 +7,20 @@ use skein_lib::{Duration, Env, List, Queue, RequestLimits, Time, Token, Wall};
 pub(super) const UNOWNED_KEY_NUMBER: u64 = 42;
 pub(super) const RECORD_PROJECT: u32 = 3;
 pub(super) const RECORD_ITEM: u64 = 5;
-const JIG: jig_client_view::Limits = jig_client_view::Limits {
-    watches: 4,
+const JIG: jig_client_view::Config = jig_client_view::Config {
     notices: 2,
     notice_life: Duration::from_secs(5),
     linger: Duration::from_secs(5),
     save_delay: Duration::from_secs(1),
     intents: 2,
-    fields: 4,
 
     objects: 2,
     sources: 8,
-    reads: 4,
-    parts: 10,
-    delegates: 2,
-    document_bytes: 65536,
-    records: 2,
-    kept: 4,
+
     drafts: 1,
-    projects: 2,
+
     roles: 2,
-    text: 32,
-    rows: 2,
-    segments: 4,
-    accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
+
     conversation_words: 2,
     navigation_entries: 8,
     updates_count: 99,
@@ -244,7 +234,7 @@ pub(super) fn family_answer(answer: first::Answer) -> jig_client::Answered {
         first::Answer::Refused(why) => {
             jig_client::Answered::Jig(Answer::Refused { refusal: why.into_refusal(), at: None })
         }
-        answer => jig_client::Answered::Family(jig_client::Family {
+        answer @ first::Answer::Connector(_) => jig_client::Answered::Family(jig_client::Family {
             family: crate::FIRST,
             version: jig_client_test_protocol_wire::VERSION,
             bytes: crate::family::wire::encode_answer(&answer).unwrap(),

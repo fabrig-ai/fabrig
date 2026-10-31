@@ -110,7 +110,7 @@ impl Capture {
         }
         false
     }
-    pub fn corrupt_transcript(&self, op: &mut Op, limits: &codec::Limits) {
+    pub fn corrupt_transcript(&self, op: &mut Op, limits: &codec::View) {
         if let Op::Write { fd, bytes, from: 0, .. } = op
             && self.path(*fd).is_some_and(|path| {
                 path.starts_with(b"transcripts/") && path.len() == 45 && path.get(28) == Some(&b'/')
@@ -143,7 +143,7 @@ impl Store {
     pub fn observe(
         &mut self,
         events: &mut Vec<Observed>,
-        limits: &codec::Limits,
+        limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &jig_test_connector::Limits,
     ) -> Vec<Commit> {
@@ -190,7 +190,7 @@ impl Store {
     fn durable(
         &mut self,
         path: &[u8],
-        limits: &codec::Limits,
+        limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &jig_test_connector::Limits,
     ) -> Vec<Commit> {
@@ -208,7 +208,7 @@ impl Store {
         }
         committed
     }
-    fn apply(&mut self, commit: &Commit, limits: &codec::Limits) {
+    fn apply(&mut self, commit: &Commit, limits: &codec::View) {
         for write in &commit.writes {
             match write {
                 root::Write::DropTranscript { task } => {
@@ -254,7 +254,7 @@ impl Store {
         &self,
         number: u64,
         ops: Box<[skein_kv::Op]>,
-        limits: &codec::Limits,
+        limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &jig_test_connector::Limits,
     ) -> Commit {

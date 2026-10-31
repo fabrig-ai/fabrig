@@ -2,13 +2,15 @@
 //! The core routes these sibling facts on save and restore (domain/engine.md, 4.4).
 
 mod census;
+
+use crate::routing::Work;
 pub(crate) use census::Progress;
 
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::List;
+use skein_lib::{List, Queue};
 
 use crate::{Core, Limits};
 
@@ -60,7 +62,7 @@ pub(crate) fn question_capacity(limits: &Limits) -> Option<u32> {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub(crate) struct ArchivedChat {
+pub(crate) struct EndedChat {
     pub(crate) party: u64,
     pub(crate) project: u32,
     pub(crate) at: Option<skein_lib::Wall>,
@@ -153,7 +155,7 @@ impl Core {
         }
     }
     /// Keep whole committed archive facts only while the shared recent prefix may deliver them.
-    pub(crate) fn cache_archived_chat(&mut self, limits: &Limits, row: &tasks::TaskRecord, seen: Option<u64>) {
+    pub(crate) fn cache_ended_chat(&mut self, limits: &Limits, row: &tasks::TaskRecord, seen: Option<u64>) {
         let party = match row.requester {
             tasks::Party::Person(party) => party,
             tasks::Party::Task(_) | tasks::Party::Deployment { .. } => return,
@@ -172,27 +174,20 @@ impl Core {
         };
         let chip = crate::documents::chip_from_row(limits, row).expect("ended chip has no whole resource paths");
         assert!(
-            self.archived_chats
+            self.ended_chats
                 .insert(
                     row.number,
-                    ArchivedChat {
-                        party,
-                        project: row.project,
-                        at: row.ended_at,
-                        chip,
-                        line,
-                        last_reply: row.last_reply
-                    }
+                    EndedChat { party, project: row.project, at: row.ended_at, chip, line, last_reply: row.last_reply }
                 )
                 .is_ok(),
             "one temporary archive slot beyond the bounded prefix"
         );
-        let mut names = List::with_capacity(self.archived_chats.capacity());
-        for (number, _) in &self.archived_chats {
+        let mut names = List::with_capacity(self.ended_chats.capacity());
+        for (number, _) in &self.ended_chats {
             names.push(*number).expect("archive snapshot bound");
         }
         for number in names.into_boxed() {
-            let owner = self.archived_chats.get(&number).expect("snapshot archive").party;
+            let owner = self.ended_chats.get(&number).expect("snapshot archive").party;
             let mut needed = false;
             if let Some(updates) = self.people.cached_updates(&limits.people, owner) {
                 for update in updates {
@@ -204,7 +199,7 @@ impl Core {
                 }
             }
             if !needed {
-                drop(self.archived_chats.remove(&number));
+                drop(self.ended_chats.remove(&number));
             }
         }
     }
@@ -362,7 +357,7 @@ pub(crate) fn valid_header(core: &Core, limits: &Limits, row: &tasks::TaskRecord
         || row.number > deployment.tasks
         || row.project == 0
         || row.last_reply > row.activity
-        || row.replies.len() > usize::try_from(limits.tasks.inbox_messages).expect("hint bound fits")
+        || row.replies.len() > skein_lib::length::usize_of(limits.tasks.inbox_messages)
     {
         return false;
     }
@@ -398,13 +393,15 @@ pub(crate) fn valid_header(core: &Core, limits: &Limits, row: &tasks::TaskRecord
 pub(crate) fn seen_conversation_loaded(
     core: &mut Core,
     env: &skein_lib::Env<Limits>,
-    work: &mut skein_lib::Queue<crate::Event>,
+    work: &mut Queue<Work>,
     request: skein_lib::Token,
     row: Option<Box<tasks::TaskRecord>>,
     busy: bool,
-) -> crate::Requests {
-    let Some((party, people::Seen::Conversation { task, .. })) = core.people.seen_context(request) else {
-        return crate::Requests::Out(skein_lib::Queue::uncapped());
+) -> Queue<crate::Request> {
+    let Some((party, people::Seen::Conversation { task, .. })) =
+        core.people.seen_context(core.people_request(request).expect("party route"))
+    else {
+        return Queue::uncapped();
     };
     let event = if busy {
         people::Event::Decided { request, outcome: people::Outcome::Again(people::Again::Busy) }
@@ -417,37 +414,29 @@ pub(crate) fn seen_conversation_loaded(
                 outcome: people::Outcome::Refused(people::Refusal::Role { held: core.people.role(party, row.project) }),
             }
         } else {
-            assert!(
-                core.ended_marks
-                    .insert(
-                        request,
-                        crate::ended_marks::Loaded {
-                            task,
-                            party,
-                            project: row.project,
-                            last_reply: row.last_reply,
-                            owner: crate::forget::Owner::of_row(&row),
-                        }
-                    )
-                    .is_ok(),
-                "one header per pending mark"
-            );
-            let mut out = skein_lib::Queue::uncapped();
+            let request = core.fly(crate::routing::flight::Flight::EndedMark {
+                request,
+                route: crate::routing::ended_marks::Loaded {
+                    task,
+                    party,
+                    project: row.project,
+                    last_reply: row.last_reply,
+                    owner: crate::reads::forget::Owner::of_row(&row),
+                },
+            });
+            let mut out = Queue::uncapped();
             out.push(crate::Request::Held(Box::new(crate::Held::Load(Box::new(crate::Now::LoadEndedRead {
                 request,
                 task,
                 party,
             })))));
-            out.push(crate::Request::Decided);
-            return crate::Requests::Out(out);
+            return out;
         }
     } else {
         people::Event::Decided { request, outcome: people::Outcome::Refused(people::Refusal::Unknown) }
     };
-    work.push(crate::Event::People(event));
-    let mut out = skein_lib::Queue::uncapped();
-    out.push(crate::Request::Decided);
-    crate::Requests::Out(out)
+    work.push(Work::Event(crate::Event::People(event)));
+    Queue::uncapped()
 }
 fn matches_ended(phase: &tasks::Phase) -> bool {
     match phase {
@@ -471,5 +460,13 @@ impl Core {
         let mut counts = self.people.need_counts(party)?;
         counts.proposals = counts.proposals.checked_add(self.settings_needs(party))?;
         Some(counts)
+    }
+}
+
+impl Core {
+    /// Enable the person's direct inbox answers (domain/people.md, 6).
+    /// Set by the application after `Core::new`, before the first step; off by default.
+    pub fn person_answers(&mut self) {
+        self.person_answers = true;
     }
 }

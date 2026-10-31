@@ -207,7 +207,7 @@ pub fn frame_two_projects_record() -> jig_client_protocol_wire::v19::Me {
                 .expect("literal name");
         let project = w::MeProject::new(&limits, project).expect("named project");
         size = size
-            .checked_add(usize::try_from(project.measure()).expect("fixture size"))
+            .checked_add(skein_lib::length::usize_of(project.measure()))
             .expect("fixture size")
             .checked_add(size_of::<u32>())
             .expect("piece header");
@@ -215,7 +215,7 @@ pub fn frame_two_projects_record() -> jig_client_protocol_wire::v19::Me {
     }
     let mut writer = skein_lib::Writer::new(size);
     for project in projects.into_boxed() {
-        let mut encoded = skein_lib::Writer::new(usize::try_from(project.measure()).expect("fixture size"));
+        let mut encoded = skein_lib::Writer::new(skein_lib::length::usize_of(project.measure()));
         project.encode(&mut encoded).expect("measured project");
         skein_codec::piece::write(&mut writer, &encoded.finish()).expect("measured piece");
     }

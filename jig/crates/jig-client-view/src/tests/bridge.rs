@@ -1,11 +1,10 @@
-use super::{
-    cards,
+use crate::tests::{
     fixtures::{Fixture, Watched},
-    turns,
+    tree::{cards, turns},
 };
 use crate::{
     Event, Request,
-    address::{Address, Place},
+    state::address::{Address, Place},
 };
 use jig_client::{Asker, Key, Up, contract};
 use skein_lib::{List, Time, Wall};
@@ -41,7 +40,7 @@ fn a_run_s_text_reaches_the_page_in_its_changed_document() {
     };
     cards::drive(
         &mut fixture,
-        Watched { watch, event: contract::WatchEvent::Delivered(contract::Delivery::Run(Box::new(text))) },
+        Watched { watch, event: contract::WatchEvent::Delivered(crate::tests::fixtures::run(text)) },
     );
     assert_eq!(fixture.conversation().live.get(0).unwrap().text.bytes(), b"one");
 }
@@ -49,7 +48,7 @@ fn a_run_s_text_reaches_the_page_in_its_changed_document() {
 fn out_of_date_shows_the_out_of_date_page() {
     let (mut fixture, _) = cards::start();
     cards::drive(&mut fixture, Up::Served { served: false, versions: None });
-    assert_eq!(fixture.page(), &crate::page::Page::OutOfDate);
+    assert_eq!(fixture.page(), &crate::state::page::Page::OutOfDate);
 }
 #[test]
 fn a_watch_the_client_s_limit_ends_retires() {
@@ -89,7 +88,7 @@ fn a_lost_sign_out_reaches_the_ui() {
     for (id, ()) in fixture.notices().ids() {
         notices.push(&fixture.notices().get(*id).unwrap().kind).unwrap();
     }
-    assert_eq!(notices.as_slice(), &[&crate::notices::kept::Kind::SignOutLost]);
+    assert_eq!(notices.as_slice(), &[&crate::tree::notices::kept::Kind::SignOutLost]);
     assert_eq!(fixture.frame().party(), Some(7));
 }
 

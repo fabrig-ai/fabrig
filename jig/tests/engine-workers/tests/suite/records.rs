@@ -108,7 +108,7 @@ mod records {
                 wire::FactParts { task: 83, attempt: 97, value: wire::FactValue::Piece(piece) },
             )
             .expect("fact");
-            let mut body = skein_lib::Writer::new(usize::try_from(fact.measure()).expect("body length"));
+            let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(fact.measure()));
             fact.encode(&mut body).expect("body");
             let mut peer = reporting();
             peer.play(fixtures::frame(wire::Kind::Fact.number(), &body.finish()));

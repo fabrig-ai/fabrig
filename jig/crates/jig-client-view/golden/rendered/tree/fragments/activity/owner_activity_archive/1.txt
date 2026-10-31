@@ -1,0 +1,10 @@
+== jig == 
+Task activity:
+  Activity task: 18446744073709551615
+  Commit position: 18446744073709551615
+  Recorded at: 18446744073709551615
+  Committed turn reference
+  Archive reply: 18446744073709551615
+  Attempt: 18446744073709551615
+  Turn: 4294967295
+  Last read message: 0

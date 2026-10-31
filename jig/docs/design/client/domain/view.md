@@ -107,28 +107,15 @@ listed in section 14, and what it adds later in section 16.
 
 ```
 jig-client-view/src/
-├── ui.rs           the reference UI's state machine: its events and requests, step, fire (section 18)
-├── address.rs      its places, and their codec (pages.md, section 2)
-├── page.rs         the page at the place: its sections, handles, windows, folds and filters (18.2; pages.md, 12.5)
-├── objects.rs      the working set: objects by key, their revisions and card states (18.3)
-├── intents.rs      the requests it sent, by key, and what each is about (18.4)
-├── drafts.rs       fields, drafts and the confirmation's state (18.5)
-├── records.rs      its own records: drafts and the place (18.8)
+├── state/          the reference UI's state: ui (its events and requests, step, fire; section 18), address (its places and their codec; pages.md, 2), page (sections, handles, windows, folds and filters; 18.2), objects (the working set; 18.3), intents (18.4), drafts and confirm (fields, drafts and the confirmation's state; 18.5), records (its own records; 18.8), handles (who holds each watch), activity (thread routing)
+├── tree/           what builds nodes: frame (the frame's parts and jig's banner; 4.1), cards (each card and their shared parts), sections (each section of jig's pages; 4.1), pages (jig's default arrangement, `after_page`, the owed cards), turns (a conversation's thread; section 9), notices (18.7), confirmation (the confirmation), fragments (each document's parts, including runtime's lifecycle facts)
+├── words/          the reference UI's phrases and their holes (phrases/jig.rs), English (phrases/english.rs), and each part's vocabulary (section 7)
+├── sizes/          jig's constructors of skein-ui's limits, and the pages' companions (sections 10 and 18.9)
 ├── owner.rs        jig's owner, and its mapping onto skein-ui's (section 3; root.md, section 15)
 ├── regions.rs      jig's region names, each with its name (pages.md, 12.4)
 ├── styles.rs       jig's style tokens, each with its name (section 13)
 ├── binding.rs      jig's bindings: its meanings, their table, the binding constructors, decoding (section 5)
-├── phrases/        the reference UI's phrases and their holes (jig.rs), and English (english.rs) (section 7)
-├── turns.rs        a conversation's thread as nodes, and its provisional text (section 9)
-├── frame.rs        the frame's parts, and jig's banner (section 4.1)
-├── confirmation.rs the confirmation
-├── notices.rs      the notices: kept, timed and built (18.7)
-├── cards.rs        each card, and their shared parts: head, context, state
-├── sections/       each section of jig's pages, and the pages' headers (section 4.1)
-├── pages.rs        jig's default arrangement, `after_page` and the owed cards; the pages not about the work
-├── draw.rs         jig's drawing code, which draws no kind (section 17)
-├── limits.rs       jig's constructors of skein-ui's limits and fragment envelopes (sections 10 and 18.9)
-└── tests.rs
+└── tests/
 ```
 
 It depends on `skein-ui` and `jig-client`, and on nothing else of
@@ -262,9 +249,9 @@ said in words, never by a state (section 9). What of the tree is jig's:
 Each takes skein-ui's builder, the reference UI's state, the client,
 jig's words and jig's bindings (`b, ui, client, words, bindings`), and
 what its line names; each builds the regions and landmarks pages.md,
-section 12, names for it, with their region names, and each has a
-companion that counts the most nodes it may build (section 10). Each is
-a primitive: the application calls it where it likes, or not at all.
+section 12, names for it, with their region names, and each is counted
+in its page's companion (section 10). Each is a primitive: the application
+calls it where it likes, or not at all.
 
 - **The frame's parts** (`frame`, pages.md, 12.1): `link`, `needs`,
   `party`, `projects` and `go_to_task`, each a region the application
@@ -375,9 +362,12 @@ the counts it reads:
 
 The machinery is skein-ui's (skein's `ui.md`, section 9). What is jig's:
 
-- **Facts in, words out.** The client's documents and the helpers carry
+- **Facts in, words out.** The client's owner documents and the helpers carry
   typed facts; the reference UI says them, from tables that match jig's
   enums whole, so a new phase or hold is a build error until it is said.
+  Chips carry their owner phase and details together; activity carries its
+  owner source and optional decoded archive. Pages and cards render these
+  supplied facts through one path.
   Names are copied in, as skein-ui's are: a task's title, a party's
   name, a resource's words.
 - **jig's enums, in `words`.** The helper `words` (client.md, section
@@ -458,15 +448,14 @@ tests feed it agents' replies and results kept as files beside them.
 jig's are the constructors that derive the numbers from the reference
 UI's limits (18.9) and the client's (client.md,
 section 14) (`jig_client_view::limits::of`, `compose`, `of_words` and
-`envelope`, each returning `skein_ui::Limits`). A part's
-`fragment_bound` counts its largest fragment's nodes, labels and bytes
-at the receiving limits. These envelopes size the tree's edges; they
-do not sum a process's heap.
+`envelope`, each returning `skein_ui::Limits`). These limits size the
+tree's edges; they do not sum a process's heap.
 
-Each of jig's parts, sections and pages has a companion that counts the
-most nodes it may build with every window full and every text at its
-most bytes, and the largest page is the tree's capacity. A node's text
-holds at least the phrase before a path, the mark and one segment at its
+Each of jig's pages has a companion in `sizes` that counts the most nodes
+it may build, its parts and sections included, with every window full
+and every text at its most bytes, and the largest page is the tree's
+capacity. A node's text holds at least the phrase before a path, the mark
+and one segment at its
 most bytes, so a path's node stays within it whatever its segments
 (section 7), and the client's bound on a path's segments adds nothing to
 the tree's limits. An authority's list shows at most the rows per
@@ -1046,6 +1035,8 @@ read by the application: ui.sections(), ui.shown()
   limits.
 
 ### 18.9 Limits and envelopes
+
+The reference UI's limits are its own: its windows, folds and its pages' bounds; for what the client already bounds (watches, reads, parts, documents, rows, text and the rest) it reads the client's limits (client.md, section 14), never a copy.
 
 Each is configured and bounds what the view accepts or builds:
 

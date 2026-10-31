@@ -1,4 +1,4 @@
-//! Supplied period boundaries (`authority.md`, 12; client plan QUESTIONS 32).
+//! Supplied period boundaries (`authority.md`, section 12).
 //! The period ledger owns its receipt wall and optional supplied next wall.
 //! There is no calendar, reset policy or monotonic timer here.
 use crate::{Domain, Funder, Request};

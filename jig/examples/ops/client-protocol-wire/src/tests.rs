@@ -5,7 +5,7 @@ use crate::{
 use skein_lib::List;
 
 mod fixtures;
-use fixtures::{ENVIRONMENT, PROJECT, REVISION, UNTIL, request};
+use fixtures::{PROJECT, REVISION, UNTIL, request};
 
 #[test]
 fn an_environment_request_round_trips_through_its_bytes() {
@@ -17,7 +17,7 @@ fn an_environment_request_round_trips_through_its_bytes() {
 fn an_environment_answer_round_trips_through_its_bytes() {
     let value = w::InfrastructureAnswerMovedEnd::new(
         &w::CEILINGS,
-        w::InfrastructureAnswerMovedEndParts { environment: ENVIRONMENT, revision: REVISION, until: UNTIL },
+        w::InfrastructureAnswerMovedEndParts { environment: fixtures::environment(), revision: REVISION, until: UNTIL },
     )
     .expect("answer");
     let value = w::InfrastructureAnswerRecord::new(
@@ -51,19 +51,47 @@ fn an_observability_subject_round_trips_through_its_bytes() {
 
 #[test]
 fn an_environment_document_round_trips_through_its_bytes() {
-    let value = w::InfrastructureDocumentEnvironments::new(
+    let project = w::InfrastructureValueProject::new(
         &w::CEILINGS,
-        w::InfrastructureDocumentEnvironmentsParts {
-            subject: fixtures::infrastructure_subject(),
-            revision: REVISION,
-            pools: List::with_capacity(0),
+        w::InfrastructureValueProjectParts {
+            project: PROJECT,
+            resources: List::with_capacity(0),
             environments: List::with_capacity(0),
         },
     )
+    .expect("project");
+    let value = w::InfrastructureDocumentData::new(
+        &w::CEILINGS,
+        w::InfrastructureDocumentDataParts {
+            subject: w::InfrastructureSubject::new(
+                &w::CEILINGS,
+                w::InfrastructureSubjectParts {
+                    scope: w::InfrastructureScope::Project(
+                        w::InfrastructureScopeProject::new(
+                            &w::CEILINGS,
+                            w::InfrastructureScopeProjectParts { value: PROJECT },
+                        )
+                        .expect("project scope"),
+                    ),
+                    kind: w::InfrastructureKind::Environments(
+                        w::InfrastructureKindEnvironments::new(
+                            &w::CEILINGS,
+                            w::InfrastructureKindEnvironmentsParts { pool: None },
+                        )
+                        .expect("environments"),
+                    ),
+                },
+            )
+            .expect("subject"),
+            value: w::InfrastructureValue::Project(project),
+        },
+    )
     .expect("environment list");
+    let value = w::InfrastructureDocumentValue::new(&w::CEILINGS, w::InfrastructureDocumentValueParts { value })
+        .expect("values document");
     let value = w::InfrastructureDocumentRecord::new(
         &w::CEILINGS,
-        w::InfrastructureDocumentRecordParts { value: w::InfrastructureDocument::Environments(value) },
+        w::InfrastructureDocumentRecordParts { value: w::InfrastructureDocument::Value(value) },
     )
     .expect("document record");
     assert_eq!(infra::document(&infra::document_record(&value)), Ok(value));
@@ -73,12 +101,42 @@ fn an_environment_document_round_trips_through_its_bytes() {
 fn an_incident_document_round_trips_through_its_bytes() {
     let incident = fixtures::incident();
     assert_eq!(incident.project(), PROJECT);
+    let number = incident.number();
     let value =
-        w::ObservabilityDocumentIncident::new(&w::CEILINGS, w::ObservabilityDocumentIncidentParts { value: incident })
-            .expect("incident document");
+        w::ObservabilityValueIncident::new(&w::CEILINGS, w::ObservabilityValueIncidentParts { incident, fact: None })
+            .expect("incident value");
+    let value = w::ObservabilityDocumentData::new(
+        &w::CEILINGS,
+        w::ObservabilityDocumentDataParts {
+            subject: w::ObservabilitySubject::new(
+                &w::CEILINGS,
+                w::ObservabilitySubjectParts {
+                    scope: w::ObservabilityScope::Project(
+                        w::ObservabilityScopeProject::new(
+                            &w::CEILINGS,
+                            w::ObservabilityScopeProjectParts { value: PROJECT },
+                        )
+                        .expect("project scope"),
+                    ),
+                    kind: w::ObservabilityKind::Incident(
+                        w::ObservabilityKindIncident::new(
+                            &w::CEILINGS,
+                            w::ObservabilityKindIncidentParts { value: number },
+                        )
+                        .expect("incident kind"),
+                    ),
+                },
+            )
+            .expect("subject"),
+            value: w::ObservabilityValue::Incident(value),
+        },
+    )
+    .expect("values incident");
+    let value = w::ObservabilityDocumentValue::new(&w::CEILINGS, w::ObservabilityDocumentValueParts { value })
+        .expect("document");
     let value = w::ObservabilityDocumentRecord::new(
         &w::CEILINGS,
-        w::ObservabilityDocumentRecordParts { value: w::ObservabilityDocument::Incident(value) },
+        w::ObservabilityDocumentRecordParts { value: w::ObservabilityDocument::Value(value) },
     )
     .expect("document record");
     assert_eq!(obs::document(&obs::document_record(&value)), Ok(value));

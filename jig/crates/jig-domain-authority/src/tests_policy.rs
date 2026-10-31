@@ -1497,3 +1497,15 @@ fn explicit_start_preserves_startup_configuration_before_policy_input() {
         assert_eq!(domain.start_link(), Ok(()));
     }
 }
+
+#[test]
+fn never_started_authority_accepts_policy_and_cannot_start_afterward() {
+    let mut domain = Domain::new(rules(authority()), LIMITS).unwrap();
+    assert_eq!(
+        apply(&mut domain, Event::Policy { project: 1, policy: policy(authority()) }),
+        PolicyFact::Added { project: 1 }
+    );
+    assert!(domain.policy(1).is_some());
+    let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| domain.start_restore()));
+    assert!(result.is_err());
+}

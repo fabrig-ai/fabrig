@@ -4,10 +4,10 @@ use jig_ops_client_protocol_wire::{codec, v1 as w};
 /// A value outside the family wire's bounds or vocabulary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Invalid;
-mod infrastructure_documents;
-mod infrastructure_native;
-mod observability_documents;
-mod observability_native;
+mod infrastructure_data;
+mod infrastructure_values;
+mod observability_data;
+mod observability_values;
 fn proposal_encode(value: &jig_client::contract::ProposalKey) -> Result<w::DecisionKey, Invalid> {
     use jig_client::contract::Proposer;
     let maker = match value.proposer {
@@ -40,7 +40,7 @@ fn proposal_decode(value: w::DecisionKey) -> jig_client::contract::ProposalKey {
 }
 /// Infrastructure subjects and documents on the family wire.
 pub mod infrastructure {
-    use super::{Box, Invalid, codec, infrastructure_documents as values, w};
+    use super::{Box, Invalid, codec, infrastructure_values as values, w};
     use crate::infrastructure as d;
     /// Encode a whole subject.
     pub fn subject(value: &d::Subject) -> Result<Box<[u8]>, Invalid> {
@@ -117,7 +117,7 @@ pub mod infrastructure {
 }
 /// Observability subjects and documents on the family wire.
 pub mod observability {
-    use super::{Box, Invalid, codec, observability_documents as values, w};
+    use super::{Box, Invalid, codec, observability_values as values, w};
     use crate::observability as d;
     /// Encode a whole subject.
     pub fn subject(value: &d::Subject) -> Result<Box<[u8]>, Invalid> {
@@ -196,7 +196,7 @@ pub mod observability {
 pub fn ask(value: &crate::infrastructure::Ask) -> Result<Box<[u8]>, Invalid> {
     let Ok(record) = w::InfrastructureAskRecord::new(
         &w::CEILINGS,
-        w::InfrastructureAskRecordParts { value: infrastructure_documents::ask_encode(value)? },
+        w::InfrastructureAskRecordParts { value: infrastructure_values::ask_encode(value)? },
     ) else {
         return Err(Invalid);
     };
@@ -205,13 +205,13 @@ pub fn ask(value: &crate::infrastructure::Ask) -> Result<Box<[u8]>, Invalid> {
 /// Decode an infrastructure ask.
 pub fn ask_value(bytes: &[u8]) -> Result<crate::infrastructure::Ask, Invalid> {
     let Ok(record) = codec::infrastructure::ask_value(bytes) else { return Err(Invalid) };
-    Ok(infrastructure_documents::ask_decode(record.into_parts().value))
+    Ok(infrastructure_values::ask_decode(record.into_parts().value))
 }
 /// Encode an infrastructure answer.
 pub fn answer(value: &crate::infrastructure::Answer) -> Result<Box<[u8]>, Invalid> {
     let Ok(record) = w::InfrastructureAnswerRecord::new(
         &w::CEILINGS,
-        w::InfrastructureAnswerRecordParts { value: infrastructure_documents::answer_encode(value)? },
+        w::InfrastructureAnswerRecordParts { value: infrastructure_values::answer_encode(value)? },
     ) else {
         return Err(Invalid);
     };
@@ -220,5 +220,5 @@ pub fn answer(value: &crate::infrastructure::Answer) -> Result<Box<[u8]>, Invali
 /// Decode an infrastructure answer.
 pub fn answer_value(bytes: &[u8]) -> Result<crate::infrastructure::Answer, Invalid> {
     let Ok(record) = codec::infrastructure::answer(bytes) else { return Err(Invalid) };
-    Ok(infrastructure_documents::answer_decode(record.into_parts().value))
+    Ok(infrastructure_values::answer_decode(record.into_parts().value))
 }

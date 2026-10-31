@@ -140,7 +140,7 @@ fn task_pieces(
     let mut pieces = skein_lib::List::with_capacity(lines.len());
     for line in lines {
         let line = super::queries::line(line, limits)?;
-        let mut writer = skein_lib::Writer::new(usize::try_from(line.measure()).expect("measure fits"));
+        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(line.measure()));
         line.encode(&mut writer).expect("measured line");
         pieces.push(writer.finish()).expect("same line count");
     }

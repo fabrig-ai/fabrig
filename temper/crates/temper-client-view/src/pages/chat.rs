@@ -117,7 +117,7 @@ pub(crate) fn main(
             b.close();
         }
         if let Some(result) = &task.result {
-            let clock = end_clock(task, result, words, times);
+            let clock = end_clock(task, words, times);
             result_text(b, result, task.requester, words, clock.as_deref());
         }
         act_status(b, root, chat, words);
@@ -128,18 +128,7 @@ pub(crate) fn main(
     b.close();
 }
 fn closed_status(b: &mut Builder, task: &c::Task, words: &Words, times: &mut Times) {
-    let clock = match &task.result {
-        Some(result) => end_clock(task, result, words, times),
-        None => {
-            if let c::ChipPhase::Owner { details, .. } = task.chip.details.as_ref()
-                && let Some(at) = details.ended_at
-            {
-                Some(times.say(words, TimeForm::Clock, at))
-            } else {
-                None
-            }
-        }
-    };
+    let clock = end_clock(task, words, times);
     let name = match clock {
         Some(clock) => words.say(Word::TimeClosed, &[Hole::Name(clock)]),
         None => words.say(Word::ChatClosed, &[]),
@@ -199,8 +188,8 @@ pub(crate) fn speakers(task: &c::Task, me: Option<&c::Me>) -> Speakers {
         None => None,
     };
     let requester = match task.requester {
-        c::OwnerRequester::Person(number) => Some(number) == person,
-        c::OwnerRequester::Task(_) | c::OwnerRequester::Deployment { .. } => false,
+        c::Requester::Person(number) => Some(number) == person,
+        c::Requester::Task(_) | c::Requester::Deployment { .. } => false,
     };
     Speakers { person, requester }
 }
@@ -305,25 +294,8 @@ fn proposal_wait(b: &mut Builder, words: &Words, times: &mut Times, since: skein
     b.close();
 }
 #[expect(clippy::manual_map, reason = "step code spells out the supplied end clock")]
-fn end_clock(task: &c::Task, result: &c::TaskResult, words: &Words, times: &mut Times) -> Option<Box<[u8]>> {
-    let at = match task.chip.details.as_ref() {
-        c::ChipPhase::Owner { details, .. } => details.ended_at,
-        c::ChipPhase::Active(_)
-        | c::ChipPhase::Waiting { .. }
-        | c::ChipPhase::Idle { .. }
-        | c::ChipPhase::Starting
-        | c::ChipPhase::Running { .. }
-        | c::ChipPhase::WaitingForWords { .. }
-        | c::ChipPhase::BackingOff { .. }
-        | c::ChipPhase::Procedure { .. }
-        | c::ChipPhase::Person { .. }
-        | c::ChipPhase::Closing(_)
-        | c::ChipPhase::Held { .. }
-        | c::ChipPhase::Ended { .. } => match result {
-            c::TaskResult::Document(result) => result.at,
-            c::TaskResult::Ending(_) => None,
-        },
-    };
+fn end_clock(task: &c::Task, words: &Words, times: &mut Times) -> Option<Box<[u8]>> {
+    let at = task.chip.details.details.ended_at;
     match at {
         Some(at) => Some(times.say(words, TimeForm::Clock, at)),
         None => None,
@@ -336,13 +308,7 @@ fn reason_bytes(reason: Option<&c::Text>) -> Option<&[u8]> {
     }
 }
 // A chat owns one end line; goal/result cards keep their independent drawing.
-fn result_text(
-    b: &mut Builder,
-    result: &c::TaskResult,
-    requester: c::OwnerRequester,
-    words: &Words,
-    clock: Option<&[u8]>,
-) {
+fn result_text(b: &mut Builder, result: &c::TaskResult, requester: c::Requester, words: &Words, clock: Option<&[u8]>) {
     match result {
         c::TaskResult::Ending(ending) => owner_end(b, ending, requester, words, clock),
         c::TaskResult::Document(result) => match &result.ending {
@@ -352,11 +318,9 @@ fn result_text(
             }
             c::Ending::Cancelled { reason, by, .. } => {
                 let by = match by {
-                    c::Actor::Party(number) => Some(c::OwnerRequester::Person(*number)),
-                    c::Actor::Task(number) => Some(c::OwnerRequester::Task(*number)),
-                    c::Actor::ProjectDeployment { project } => {
-                        Some(c::OwnerRequester::Deployment { project: *project })
-                    }
+                    c::Actor::Party(number) => Some(c::Requester::Person(*number)),
+                    c::Actor::Task(number) => Some(c::Requester::Task(*number)),
+                    c::Actor::ProjectDeployment { project } => Some(c::Requester::Deployment { project: *project }),
                     c::Actor::Deployment => None,
                 };
                 if let Some(by) = by
@@ -374,19 +338,13 @@ fn result_text(
         },
     }
 }
-fn owner_end(
-    b: &mut Builder,
-    ending: &c::OwnerChipEnding,
-    requester: c::OwnerRequester,
-    words: &Words,
-    clock: Option<&[u8]>,
-) {
+fn owner_end(b: &mut Builder, ending: &c::ChipEnding, requester: c::Requester, words: &Words, clock: Option<&[u8]>) {
     match ending {
-        c::OwnerChipEnding::Done(value) => end_report(b, Some(value), words, clock),
-        c::OwnerChipEnding::Failed(reason) => {
+        c::ChipEnding::Done(value) => end_report(b, Some(value), words, clock),
+        c::ChipEnding::Failed(reason) => {
             end_reason(b, Word::ChatFailed, Some(reason.bytes()), words, clock);
         }
-        c::OwnerChipEnding::Cancelled { reason, by, .. } => {
+        c::ChipEnding::Cancelled { reason, by, .. } => {
             if closed_by_requester(requester, *by) {
                 end_closed(b, words, clock);
             } else {
@@ -395,7 +353,7 @@ fn owner_end(
         }
     }
 }
-pub(crate) fn closed_by_requester(requester: c::OwnerRequester, by: c::OwnerRequester) -> bool {
+pub(crate) fn closed_by_requester(requester: c::Requester, by: c::Requester) -> bool {
     requester == by
 }
 fn end_closed(b: &mut Builder, words: &Words, clock: Option<&[u8]>) {
@@ -463,7 +421,7 @@ fn composer(
     if task.result.is_some() {
         return;
     }
-    if let c::ChipPhase::Owner { phase: c::OwnerChipPhase::Ended, .. } = task.chip.details.as_ref() {
+    if let c::ChipPhaseFacts { phase: c::ChipPhase::Ended, .. } = task.chip.details.as_ref() {
         return;
     }
     if temper_client_domain::pages::chat::allowed(task, c::ActKind::Message) {
@@ -629,32 +587,14 @@ pub(crate) fn conversation_with_times(
             }
             Line::Provisional { text, cut, .. } => provisional(b, text, cut, words, text_limit),
             Line::Undecoded { why, .. } => undecoded(b, why, words, clock.as_deref()),
-            Line::RunBegan { attempt } => {
-                b.style(look::MARKER);
-                text(b, Role::Paragraph, &words.say(Word::RunBegan, &[Hole::Number(attempt)]));
-            }
-            Line::RunEnded { attempt } => {
-                b.style(look::MARKER);
-                text(b, Role::Paragraph, &words.say(Word::RunEnded, &[Hole::Number(attempt)]));
-            }
+
             Line::Left { lines } => {
                 b.style(look::MARKER);
                 text(b, Role::Status, &words.say(Word::LinesLeft, &[Hole::Number(u64::from(lines))]));
             }
-            Line::Activity { line } => match &line.event {
-                c::Activity::Owner { source, .. } => owner_line(b, &source.line, projected, speakers.person, words),
-                c::Activity::Result { result } => {
-                    crate::cards::result(b, result, words);
-                }
-                c::Activity::News { summary, .. } => text(b, Role::Paragraph, summary.bytes()),
-                c::Activity::Decision { .. } => {
-                    words.text(b, Word::DecisionMade, &[]);
-                }
-                c::Activity::Words { .. }
-                | c::Activity::RunBegan { .. }
-                | c::Activity::RunEnded { .. }
-                | c::Activity::Turn { .. } => {}
-            },
+            Line::Activity { line } => {
+                owner_line(b, &line.source.line, projected, speakers.person, words, clock.as_deref());
+            }
         }
         b.close();
     }
@@ -705,11 +645,18 @@ fn line_time(line: &Line<'_>) -> Option<skein_lib::Wall> {
     match line {
         Line::Words { at, .. } => *at,
         Line::Turn { at, .. } | Line::Undecoded { at, .. } => Some(*at),
-        Line::Activity { .. }
-        | Line::Provisional { .. }
-        | Line::RunBegan { .. }
-        | Line::RunEnded { .. }
-        | Line::Left { .. } => None,
+        Line::Activity { line } => match line.source.line {
+            c::Activity::Words { .. } => Some(line.source.at),
+            c::Activity::Heard(_)
+            | c::Activity::Notified { .. }
+            | c::Activity::RunBegan { .. }
+            | c::Activity::RunEnded { .. }
+            | c::Activity::Turn { .. }
+            | c::Activity::Decided { .. }
+            | c::Activity::Milestone { .. }
+            | c::Activity::Kept { .. } => None,
+        },
+        Line::Provisional { .. } | Line::Left { .. } => None,
     }
 }
 fn turn_time(
@@ -748,8 +695,7 @@ fn heard_card(
     bindings: &mut Bindings,
 ) {
     if let Line::Activity { line } = line
-        && let c::Activity::Owner { source, .. } = &line.event
-        && let Some(task) = delegation::heard(&source.line)
+        && let Some(task) = delegation::heard(&line.source.line)
         && !shown.as_slice().contains(&task)
     {
         tasks.clear();
@@ -777,36 +723,38 @@ fn provisional(b: &mut Builder, message: &[u8], cut: bool, words: &Words, text_l
     b.close();
     b.close();
 }
-fn owner_line(b: &mut Builder, line: &c::OwnerActivity, projected: bool, person: Option<u64>, words: &Words) {
-    if projected
-        && let c::OwnerActivity::Heard(c::OwnerWord {
-            kind: c::OwnerMessageKind::QuestionAnswered { question }, ..
-        }) = line
-    {
+fn owner_line(
+    b: &mut Builder,
+    line: &c::Activity,
+    projected: bool,
+    person: Option<u64>,
+    words: &Words,
+    clock: Option<&[u8]>,
+) {
+    if projected && let c::Activity::Heard(c::Word { kind: c::MessageKind::QuestionAnswered { question }, .. }) = line {
         text(b, Role::Paragraph, &words.say(Word::QuestionAnswered, &[Hole::Number(*question)]));
         return;
     }
-    if projected && let c::OwnerActivity::Words { by, words: message, .. } = line {
+    if let c::Activity::Words { by, words: message, .. } = line {
         let (label, side) = match by {
-            c::OwnerRequester::Person(by) => (
+            c::Requester::Person(by) => (
                 if Some(*by) == person { words.say_card(P::You, &[]) } else { words.say_card(P::Person, &[]) },
                 look::BY_PERSON,
             ),
-            c::OwnerRequester::Task(task) => (words.say(Word::TaskWho, &[Hole::Number(*task)]), look::BY_AGENT),
-            c::OwnerRequester::Deployment { .. } => {
+            c::Requester::Task(task) => (words.say(Word::TaskWho, &[Hole::Number(*task)]), look::BY_AGENT),
+            c::Requester::Deployment { .. } => {
                 super::task::owner_activity(b, line, words);
                 return;
             }
         };
-        words_message(b, &label, message.bytes(), WordState::Read { message: 0 }, side, words, None);
+        words_message(b, &label, message.bytes(), WordState::Read { message: 0 }, side, words, clock);
         return;
     }
     super::task::owner_activity(b, line, words);
 }
 fn hidden_line(line: &Line<'_>, projected: bool, delegations: Option<(&Chat, &jig_client::Client)>) -> bool {
     match line {
-        Line::RunBegan { .. } | Line::RunEnded { .. } => projected,
-        Line::Activity { line } => hidden(&line.event, projected, delegations),
+        Line::Activity { line } => hidden(line, projected, delegations),
         Line::Words { .. }
         | Line::Turn { .. }
         | Line::Undecoded { .. }
@@ -1265,34 +1213,26 @@ fn carded(tasks: &List<u64>, delegations: Option<(&Chat, &jig_client::Client)>) 
     }
     true
 }
-fn hidden(event: &c::Activity, projected: bool, delegations: Option<(&Chat, &jig_client::Client)>) -> bool {
-    if let c::Activity::Owner { source, .. } = event {
+fn hidden(event: &c::DecodedActivityLine, projected: bool, delegations: Option<(&Chat, &jig_client::Client)>) -> bool {
+    {
+        let c::DecodedActivityLine { source, .. } = event;
         match &source.line {
-            c::OwnerActivity::Milestone { .. } => return true,
-            c::OwnerActivity::RunBegan { .. } | c::OwnerActivity::RunEnded { .. } => {
+            c::Activity::Milestone { .. } => return true,
+            c::Activity::RunBegan { .. } | c::Activity::RunEnded { .. } => {
                 if projected {
                     return true;
                 }
             }
-            c::OwnerActivity::Words { .. }
-            | c::OwnerActivity::Heard(_)
-            | c::OwnerActivity::Notified { .. }
-            | c::OwnerActivity::Turn { .. }
-            | c::OwnerActivity::Decided { .. }
-            | c::OwnerActivity::Kept { .. } => {}
+            c::Activity::Words { .. }
+            | c::Activity::Heard(_)
+            | c::Activity::Notified { .. }
+            | c::Activity::Turn { .. }
+            | c::Activity::Decided { .. }
+            | c::Activity::Kept { .. } => {}
         }
     }
     let Some((chat, client)) = delegations else { return false };
-    let task = match event {
-        c::Activity::Owner { source, .. } => delegation::heard(&source.line),
-        c::Activity::Result { result } => Some(result.task.task),
-        c::Activity::Words { .. }
-        | c::Activity::RunBegan { .. }
-        | c::Activity::RunEnded { .. }
-        | c::Activity::Turn { .. }
-        | c::Activity::News { .. }
-        | c::Activity::Decision { .. } => None,
-    };
+    let task = delegation::heard(&event.source.line);
     match task {
         Some(task) => chat.delegation(client, task).is_some(),
         None => false,

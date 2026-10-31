@@ -716,7 +716,7 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
 
     let (mut domain, env) = resume_fixture::root();
     let fixture = held_assignment();
-    domain.brief_sections.insert(fixture.task, Box::new([])).unwrap();
+    domain.hub_link.keep_brief(fixture.task, Box::new([]));
     domain
         .run_workspaces
         .insert(
@@ -748,8 +748,8 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
         grants: Box::new([]),
     })));
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    crate::route::route_core_requests(&mut domain, &env, &mut decision, core::Requests::Out(requests));
-    let assignment = domain.assignments.get(&fixture.task).expect("prepared assignment");
+    crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
+    let assignment = domain.hub_link.assignment(fixture.task).expect("prepared assignment");
     assert!(assignment.live.text);
     assert!(!assignment.live.reasoning);
     assert!(!assignment.live.input);
@@ -758,17 +758,15 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
 #[test]
 fn a_refused_settlement_uses_cores_returned_reply_address() {
     let (mut domain, _) = resume_fixture::root();
-    let payload = domain
-        .payloads
-        .insert(Some(crate::boundary::Payload::RefusedCall { name: b"returned opaque address".as_slice().into() }))
-        .unwrap();
+    let payload = domain.hub_link.retain(crate::boundary::Payload::Busy);
+    domain.refused_calls.insert(payload, b"returned opaque address".as_slice().into()).unwrap();
     let delivery = crate::route::host_route::relayed(
         &mut domain,
         Token::new(7),
         Token::new(3),
         Token::new(9),
         b"fleet address".as_slice().into(),
-        payload.token(),
+        payload,
     );
     assert_eq!(
         delivery,
@@ -810,7 +808,7 @@ fn a_dropped_transcript_crosses_the_journal() {
     for key in &erased {
         requests.push(core::Request::Write(core::Write::Erase(key.clone())));
     }
-    crate::route::route_core_requests(&mut domain, &env, &mut decision, core::Requests::Out(requests));
+    crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
     accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, true).unwrap();
     let Some(Output::Commit { writes, .. }) = crate::decision::commit(&mut domain.journal, &env.limits.journal) else {
         panic!("the erasure reaches the store through its journal commit");

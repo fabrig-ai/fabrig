@@ -222,6 +222,7 @@ impl Chat {
                     call: run.call.clone(),
                 }));
             }
+
             Some(Latest::Jig(c::Delivery::Run(text))) => {
                 let fallback = c::RunState {
                     task: self.task,
@@ -302,13 +303,13 @@ impl Chat {
     #[must_use]
     pub fn requested<'a>(&'a self, client: &'a Client, task: u64) -> Option<&'a c::Task> {
         let document = self.delegation(client, task)?;
-        if document.requester == c::OwnerRequester::Task(self.task) { Some(document) } else { None }
+        if document.requester == c::Requester::Task(self.task) { Some(document) } else { None }
     }
     /// Reconcile independently delivered chat and card documents (client/README.md, 3.5).
     #[must_use]
     pub fn waiting_delegates(&self, client: &Client) -> u32 {
         let Some(task) = self.task(client) else { return 0 };
-        let c::ChipPhase::Owner { details, .. } = task.chip.details.as_ref() else { return 0 };
+        let c::ChipPhaseFacts { details, .. } = task.chip.details.as_ref();
         let mut count = details.live_delegates;
         for delegation in &self.delegations {
             let Some(document) = self.requested(client, delegation.task) else { continue };
@@ -337,9 +338,7 @@ impl Chat {
     }
     fn heard_result(&self, task: u64) -> bool {
         for line in &self.thread.lines.rows {
-            if let c::Activity::Owner { source, .. } = &line.event
-                && delegation::heard(&source.line) == Some(task)
-            {
+            if delegation::heard(&line.source.line) == Some(task) {
                 return true;
             }
         }
@@ -372,8 +371,7 @@ impl Chat {
                 // A heard result names its delegate as a result block does, before
                 // the chat's resumed turn carries one (client/README.md, 5.7).
                 jig_client::thread::Line::Activity { line } => {
-                    if let c::Activity::Owner { source, .. } = &line.event
-                        && let Some(task) = delegation::heard(&source.line)
+                    if let Some(task) = delegation::heard(&line.source.line)
                         && !tasks.as_slice().contains(&task)
                         && tasks.push(task).is_err()
                     {
@@ -384,8 +382,6 @@ impl Chat {
                 jig_client::thread::Line::Words { .. }
                 | jig_client::thread::Line::Undecoded { .. }
                 | jig_client::thread::Line::Provisional { .. }
-                | jig_client::thread::Line::RunBegan { .. }
-                | jig_client::thread::Line::RunEnded { .. }
                 | jig_client::thread::Line::Left { .. } => continue,
             };
             for message in turn.messages.iter().rev() {
@@ -587,10 +583,10 @@ impl Chat {
         }));
     }
     fn watch_run(&mut self, task: &c::Task, out: &mut Queue<Request>) {
-        if let c::ChipPhase::Owner {
+        if let c::ChipPhaseFacts {
             phase:
-                c::OwnerChipPhase::Active(c::RunStage::Claimed { .. } | c::RunStage::Running { .. })
-                | c::OwnerChipPhase::Closing(c::ClosingStage::Run { .. }),
+                c::ChipPhase::Active(c::RunStage::Claimed { .. } | c::RunStage::Running { .. })
+                | c::ChipPhase::Closing(c::ClosingStage::Run { .. }),
             ..
         } = task.chip.details.as_ref()
         {
@@ -669,11 +665,8 @@ impl Chat {
     }
     pub(crate) fn see(&mut self, serial: &mut u64, out: &mut Queue<Request>) {
         let mut newest = 0;
-        // Backlog for jig: non-owner turns carry no reply number.
         for row in &self.thread.lines.rows {
-            if let c::Activity::Owner { source, .. } = &row.event
-                && let c::OwnerActivity::Turn { reply, .. } = source.line
-            {
+            if let c::Activity::Turn { reply, .. } = row.source.line {
                 newest = newest.max(reply);
             }
         }
@@ -742,10 +735,8 @@ pub fn thread_limits(limits: &Limits) -> jig_client::thread::Limits {
 pub(crate) fn page_task(page: Readout, task: u64) -> Option<Box<c::Task>> {
     match page {
         Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(task))) => Some(task),
-        Readout::Jig(c::ReadResult::Value(c::ReadValue::Historical(value)))
-            if value.matches(c::ObjectKey::Task(task)) =>
-        {
-            if let c::OwnerHistoricalValue::Task { mut document, result } = value.value {
+        Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(value))) if value.matches(c::ObjectKey::Task(task)) => {
+            if let c::EndedValue::Task { mut document, result } = value.value {
                 document.result = Some(c::TaskResult::Document(result));
                 Some(document)
             } else {

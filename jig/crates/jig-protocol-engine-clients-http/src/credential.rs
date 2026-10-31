@@ -59,7 +59,7 @@ fn header(settings: &Settings, via: Via, credential: &[u8], seconds: u64) -> ske
     let secure = if via == Via::Public { b"; Secure".as_slice() } else { b"".as_slice() };
     let size = b"jig-sign-in="
         .len()
-        .checked_add(usize::try_from(encoded).expect("base64 fits"))
+        .checked_add(skein_lib::length::usize_of(encoded))
         .expect("cookie")
         .checked_add(b"; Path=".len())
         .expect("cookie")

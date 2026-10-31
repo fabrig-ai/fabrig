@@ -657,15 +657,13 @@ pub(crate) enum Mark {
     Limited,
 }
 pub(crate) fn mark(root: &temper_client_domain::Domain) -> Option<Mark> {
-    use jig_client::contract::{OwnerAccountHolder, OwnerAccountState};
+    use jig_client::contract::{AccountHolder, AccountState};
     let document = root.pages().accounts_document(root.client())?;
     let party = root.pages().me(root.client())?.party.number;
     let playground = root.forge().playground_provider();
     let mut limited = false;
     for account in &document.accounts {
-        if account.holder != OwnerAccountHolder::Party(party)
-            || (playground.is_some() && account.provider == playground)
-        {
+        if account.holder != AccountHolder::Party(party) || (playground.is_some() && account.provider == playground) {
             continue;
         }
         // The deciding source is the first supplied in order (client/README.md, 5.3).
@@ -676,15 +674,15 @@ pub(crate) fn mark(root: &temper_client_domain::Domain) -> Option<Mark> {
         }
         limited |= source.spent_until.is_some();
         match source.state {
-            OwnerAccountState::SignInAgain | OwnerAccountState::Misconfigured | OwnerAccountState::Unloaded { .. } => {
+            AccountState::SignInAgain | AccountState::Misconfigured | AccountState::Unloaded { .. } => {
                 return Some(Mark::Needs);
             }
-            OwnerAccountState::Later { .. } => limited = true,
-            OwnerAccountState::Moving
-            | OwnerAccountState::Asking
-            | OwnerAccountState::Granted
-            | OwnerAccountState::Cancelled
-            | OwnerAccountState::Closing => {}
+            AccountState::Later { .. } => limited = true,
+            AccountState::Moving
+            | AccountState::Asking
+            | AccountState::Granted
+            | AccountState::Cancelled
+            | AccountState::Closing => {}
         }
     }
     if limited { Some(Mark::Limited) } else { None }

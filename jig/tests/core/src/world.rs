@@ -1,676 +1,862 @@
-//! Seeded fixtures and scripts for the testing application.
-
-mod deliveries;
+//! A scripted caller and two independent systems exercise the root boundary.
+mod account_preparation;
+mod credentials;
+mod grants;
 use crate::Store;
 use jig_domain_accounts as accounts;
-use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
+use jig_test_connector as connector;
 use jig_test_domain as root;
+use jig_test_store::{StoreOut, Up};
+use jig_test_system::{Fault, System};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use std::collections::VecDeque;
+mod admission;
+mod constructors;
+mod walking;
+pub use walking::{Scenario, Walking};
+mod deliveries;
+mod store;
+pub use constructors::fixture;
 
-// Four people hand-offs allow five requests apiece: one bootstrap owner plus
-// four sign-in/terminal outputs. This is the fixture's store-write allowance.
-const PEOPLE_WRITE_ALLOWANCE: u32 = 20;
-
-#[must_use]
-pub fn limits() -> root::Limits {
-    static LIMITS: std::sync::OnceLock<root::Limits> = std::sync::OnceLock::new();
-    *LIMITS.get_or_init(profile)
-}
-
-#[expect(clippy::too_many_lines, reason = "the walking fixture states every child bound")]
-fn profile() -> root::Limits {
-    let retry = tasks::Retry { retries: 1, base: Duration::from_millis(10), max: Duration::from_secs(1) };
-    let tasks = tasks::Limits {
-        placed_holds: 1,
-        project_placed_holds: 1,
-        party_placed_holds: 1,
-        exemptions: 1,
-        circle: 8,
-        tasks: 2,
-        funders: 4,
-        project_tasks: 2,
-        project_goals: 2,
-        tree_tasks: 2,
-        depth: 1,
-        delegates: 1,
-        references: 2,
-        subscriptions: 2,
-        batch: 1,
-        dependencies: 1,
-        holdings: 2,
-        hold_kinds: 2,
-        resource_reports: 64,
-        pools: 2,
-        hold_segments: 4,
-        hold_bytes: 128,
-        hold_waiters: 2,
-        grace: skein_lib::Duration::from_secs(600),
-        hold_wait: Duration::from_secs(10),
-        inputs: 1,
-        spec_bytes: 64,
-        parameters: 1,
-        result_bytes: 128,
-        run_inbox: 4,
-        inbox_messages: 4,
-        inbox_bytes: 192,
-        message_bytes: 64,
-        proposal_stall: Duration::from_millis(10),
-        escalation_stall: Duration::from_secs(3600),
-        person_stall: Duration::from_secs(3600),
-        saved_resources: 2,
-        contract_choices: 1,
-        charters: 1,
-        revisions: 4,
-        versions: 8,
-        authority_grants: 1,
-        authority_segments: 1,
-        authority_bytes: 32,
-        executor_kinds: 2,
-        retries: tasks::Retries {
-            transient: retry,
-            permanent: retry,
-            run: retry,
-            agent: retry,
-            lost: retry,
-            invalid: retry,
-        },
-        facts: 2,
-        room_refusals: 2,
-    };
-    let people = people::Limits {
-        operations: 2,
-        batch: 2,
-        people: 2,
-        inbox_entries: 2,
-        inbox_tasks: 16,
-        inbox_recipients: 64,
-        sign_ins: 2,
-        // The configured project and the deployment's roles.
-        projects: 2,
-        holdings: 2,
-        initial_owners: 1,
-        requests: 4,
-        pending: 2,
-        waiters: 2,
-        program_hosts: 65,
-        program_host_name_bytes: 32,
-        act_grants: 2,
-        identity_bytes: 32,
-        words: 64,
-        amendment_bytes: 512,
-        sign_in_lifetime: Duration::from_secs(60),
-        request_retention: Duration::from_secs(120),
-        room_refusals: 2,
-        facts: 2,
-    };
-    let fleet = fleet::Limits {
-        configured_workers: 64,
-        worker_name_bytes: 32,
-        program_sources: 12,
-        source_detail_bytes: 4096,
-        needs_bytes: 4096,
-        versions: 0,
-        workers: 1,
-        engine_slots: 0,
-        slots: 1,
-        workstreams: 1,
-        attempts: 2,
-        grants: 8,
-        calls: 1,
-        call_name_bytes: 64,
-        progress_bytes: 64,
-        turns: 2,
-        grace: Duration::from_secs(5),
-        facts: 2,
-        history: 2,
-    };
-    let writes = PEOPLE_WRITE_ALLOWANCE + people.pending * 2 + jig_test_connector::OUTPUTS_BOUND * 2 + tasks.tasks + 6;
-    let journal = root::JournalSizes { commits: 3, writes: writes.max(2000), door: 32, release: 32 };
-    let mut limits = root::Limits {
-        journal,
-        routes: 200,
-        watermark: root::default_watermark(&journal),
-        connector: jig_test_connector_world::LIMITS,
-        core: core::Limits {
-            routes: 20_783,
-            settings: core::settings::Limits {
-                revisions: 4,
-                versions: 8,
-                history: 64,
-                proposals: 4,
-                alternatives: 16,
-                permissions: 32,
-            },
-            templates: 8,
-            fill_mark: 1000,
-            documents: core::documents::DocumentLimits {
-                grants: 1,
-                executors: 2,
-                implications: 0,
-                roles: authority_limits().roles,
-                segments: 4,
-                rows: 32,
-                text_bytes: 256,
-                chips: 32,
-                lines: 32,
-                versions: core::documents::Versions { minimum: 19, maximum: 19 },
-            },
-            connectors: 2,
-            resume_bytes: 256,
-            run_bytes: 512,
-            policy_bytes: 8192,
-            escalation_reason_bytes: 128,
-            load_slots: 2,
-            load_bytes: 65_536,
-            call_records: 2,
-            call_answer_bytes: 256,
-            tasks,
-            authority: authority_limits(),
-            people,
-            fleet,
-            brief: jig_domain_brief::Limits { briefs: 2, sections: 3, read_bytes: 256, brief_bytes: 384 },
-            brief_parts: 2,
-            brief_core_budgets: core::CoreBriefBudgets {
-                tail: 128,
-                task: 128,
-                dependencies: 128,
-                attempts: 128,
-                plan: 128,
-                notes: 64,
-            },
-            accounts: accounts::Limits {
-                accounts: 1,
-                holder_accounts: 1,
-                program_names: 12,
-                program_hosts: 65,
-                sources: 3,
-                sign_ins: 1,
-                credentials: 2,
-                backoff_base: Duration::from_secs(2),
-                backoff_max: Duration::from_secs(8),
-                retry: Duration::from_secs(30),
-                move_deadline: Duration::from_secs(60),
-                spent_attention: Duration::from_secs(1),
-                facts: 2,
-            },
-            views: jig_domain_views::Limits {
-                runs: 2,
-                watchers: 4,
-                watchers_per_party: 8,
-                subjects_per_change: 64,
-                text_bytes: 64,
-                facts: 8,
-            },
-            notes: jig_domain_notes::Limits {
-                scopes: 4,
-                entries_per_scope: 1,
-                pattern_bytes: 64,
-                description_bytes: 64,
-                body_bytes: 256,
-                references: 1,
-                load_rows: 1,
-                lines: 1,
-                recalled: 1,
-            },
-        },
-    };
-    let room = limits.core.routes;
-    let connectors = jig_test_connector::OUTPUTS_BOUND.checked_mul(2).expect("two connectors");
-    limits.journal.writes = limits.journal.writes.max(room.checked_add(connectors).expect("fixture writes"));
-    limits
-}
-
-fn authority_limits() -> authority::Limits {
-    authority::Limits {
-        projects: 1,
-        roles: 1,
-        requirements: 1,
-        facts: 2,
-        grants: 1,
-        executors: 2,
-        segments: 1,
-        segment_bytes: 32,
-        implications: 0,
-        batch: 1,
-        accounts: 3,
-        writes: 1,
-    }
-}
-
-fn authority_value(spend: u64, kinds: Box<[authority::Executor]>) -> authority::Authority {
-    authority::Authority {
-        tools: authority::Tools(1023),
-        models: authority::Models::ALL,
-        grants: Box::new([]),
-        delegation: authority::Delegation { kinds, tasks: 3, depth: 2 },
-        budget: authority::Budget { spend, deadline: None },
-        notes: authority::Scopes(0),
-        note_resources: Box::new([]),
-    }
-}
-
-/// The one configured model, which the charter names and which declares two efforts
-/// (`../protocol/configuration.md`, section 3; domain/tasks.md, section 3).
-#[must_use]
-pub fn scripted_model() -> core::Model {
-    core::Model {
-        dialect: 1,
-        endpoint: 1,
-        program: None,
-        name: b"scripted".as_slice().into(),
-        window: 8192,
-        output: 1024,
-        input_price: 1,
-        cached_price: 1,
-        cache_write_price: None,
-        output_price: 1,
-        price_unit: 1_000_000,
-        efforts: Box::new([b"low".as_slice().into(), b"high".as_slice().into()]),
-        effort: None,
-    }
-}
-
-/// Authority policy and an authenticated owner.
-#[must_use]
-#[expect(clippy::too_many_lines, reason = "the walking fixture states the whole deployment")]
-pub fn config(seed: u64) -> root::Config {
-    let ceiling = authority_value(1000, Box::new([authority::Executor::Charter(1), authority::Executor::Procedure(1)]));
-    let rules = authority::Rules {
-        ceiling: ceiling.clone(),
-        period_spend: 1000,
-        minimum_run_spend: 1,
-        maximum_run_spend: 100,
-        implies: authority::Implies::new(Box::new([]), 0).expect("empty implication configuration"),
-        requirements: Box::new([]),
-    };
-    let domain = authority::Domain::new(rules, authority_limits()).expect("valid authority configuration");
-    let policy = authority::Policy {
-        projections: Box::new([]),
-        escalation_role: Some(0),
-        ceiling,
-        period_spend: 1000,
-        roles: Box::new([authority::Role {
-            number: 0,
-            authority: {
-                let mut given = authority_value(
-                    100,
-                    Box::new([authority::Executor::Charter(1), authority::Executor::Procedure(1)]),
-                );
-                given.delegation.tasks = 2;
-                given.delegation.depth = 2;
-                given
-            },
-            period_spend: 500,
-            requests: authority::Requests::ALL,
-            decides: authority::Proposals::ALL,
-        }]),
-        requirements: Box::new([]),
-    };
-    let mut first = jig_test_connector_world::config(1);
-    first.deployment = [31; 16];
-    let mut second = jig_test_connector_world::config(2);
-    second.deployment = [31; 16];
-    first.procedures = Box::new([jig_test_connector::ProcedureSpec {
-        number: 1,
-        actions: Box::new([jig_test_connector::ProcedureAction::Finish {
-            result: jig_test_connector::ProcedureResult::Succeeded,
-        }]),
-        max_steps: 1,
-        stall: Duration::from_secs(1),
-    }]);
-    root::Config {
-        first,
-        second,
-        core: core::Config {
-            worker_names: Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
-            deployment: [31; 16],
-            seed,
-            workers_in_process: false,
-            hub_turns: 2,
-            grants: Box::new([]),
-            owners: Box::new([people::InitialOwner {
-                project: 1,
-                identity: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
-            }]),
-            seed_projects: Box::new([core::SeedProject {
-                number: 1,
-                name: Box::from("Project 1"),
-                policy: core::ConfiguredPolicy {
-                    policy,
-                    permissions: Box::new([
-                        people::PermissionRole { connector: 1, permission: 3, role: 1 },
-                        people::PermissionRole { connector: 1, permission: 2, role: 2 },
-                        people::PermissionRole { connector: 1, permission: 1, role: 3 },
-                    ]),
-                    templates: Box::new([]),
-                },
-            }]),
-            connectors: Box::new([1, 2]),
-            settings: core::Settings {
-                deployment_provider: 3,
-                models: Box::new([scripted_model()]),
-                resume_bytes: 256,
-                tail_bytes: 128,
-                tools: core::ToolFamilies::JIG,
-                key_bytes: 256,
-                redirect_bytes: 4096,
-                llm_providers: accounts::Providers {
-                    providers: Box::new([accounts::Provider {
-                        name: b"Fake".as_slice().into(),
-                        signed_in_plan: true,
-                        manage_usage: Some(b"https://usage.example/".as_slice().into()),
-                        number: 1,
-                        models: Box::new([b"scripted".as_slice().into()]),
-                        offers: accounts::Offers { sign_in: true, key: true, programs: Box::new([]) },
-                    }]),
-                },
-            },
-            defaults: core::settings::Defaults {
-                charters: Box::new([core::Charter {
-                    number: 1,
-                    hosts: fleet::Kinds::Workers,
-                    spend: 100,
-                    policy: core::RunPolicy {
-                        instructions: b"Complete the task within its authority.".as_slice().into(),
-                        waiting: Duration::from_secs(1),
-                        resume: true,
-                        turns: 8,
-                        time: Duration::from_secs(60),
-                        reserve_turns: 1,
-                        reserve_time: Duration::from_secs(10),
-                        model: scripted_model(),
-                        alternatives: Box::new([]),
-                        inspect: true,
-                        modify: true,
-                        shell: true,
-                        agents: true,
-                        call_timeout: Duration::from_secs(10),
-                    },
-                }]),
-                templates: crate::fixtures::templates(),
-                policies: skein_lib::Map::with_capacity(0),
-                rules: (domain).rules().clone(),
-            },
-        },
-    }
-}
-
-/// A scripted party and worker watching only the root's outputs and durable
-/// store rows. The core and connectors remain inside the testing root.
+/// Startup of the core world (`jig/docs/design/domain/engine.md`, section 15).
 #[derive(Debug)]
-pub struct World {
-    /// The application under test.
-    pub domain: root::Domain,
-    /// The ordered fake store.
-    pub store: Store,
-    /// External events not yet delivered.
-    pub events: VecDeque<root::Event>,
-    /// Every output observed from outside the root.
-    pub trace: Vec<String>,
-    /// Sign-in number issued to the scripted party.
-    pub sign_in: Option<u64>,
-    /// Task issued for the party's chat.
-    pub chat: Option<u64>,
-    /// Current worker assignment.
-    pub assignment: Option<root::Assignment>,
-    /// Count of accepted turns the worker may forget.
-    pub turn_acks: u32,
-    /// Count of terminal answers the worker may forget.
-    pub answer_acks: u32,
-    /// Count of results delivered to the party.
-    pub results: u32,
-    /// Goal's delegated procedure, if this script requested one.
-    pub procedure: Option<u64>,
-    /// Refused named batches delivered to the calling worker.
-    pub batch_refusals: u32,
-    /// Independent promises checked at the store and peer boundaries.
-    pub observer: crate::observations::Observer,
-    heap: crate::observations::Heap,
-    scenario: Scenario,
-    creating: crate::fixtures::Creating,
-    delegated: bool,
-    goal_answer_sent: bool,
-    limits: root::Limits,
-    iteration: u64,
+pub struct Setup {
+    pub seed: u64,
+    pub requirement: bool,
+    pub configuration: Option<root::Config>,
+    pub limits: root::Limits,
+    pub initial: Option<people::Ask>,
+    pub rows: Option<Box<[root::Record]>>,
+    pub startup: Option<fn(&mut root::Domain)>,
+    pub patch_sets: jig_protocol_store::PatchSets,
+    pub peers: Option<crate::peers::Peers>,
+    pub cut: Option<Cut>,
+    pub clock: Option<(Time, Wall)>,
+    pub boot: Boot,
+    pub require_assignment: bool,
+    pub walking: Option<Scenario>,
 }
 
+/// Whether startup also signs in a caller and creates its initial task.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Scenario {
-    Chat,
-    Goal,
-    Batch,
+pub enum Boot {
+    Empty,
+    Caller,
+}
+
+impl Default for Setup {
+    fn default() -> Self {
+        Self {
+            seed: 0,
+            requirement: false,
+            configuration: None,
+            limits: constructors::limits(),
+            initial: None,
+            rows: None,
+            startup: None,
+            patch_sets: jig_protocol_store::PatchSets::NONE,
+            peers: None,
+            cut: None,
+            clock: None,
+            boot: Boot::Caller,
+            require_assignment: true,
+            walking: None,
+        }
+    }
+}
+
+/// A scenario's cut around one store transaction, before application or reply.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Cut {
+    /// Submission has left the root but is not durable.
+    Submitted(u64),
+    /// The rows are durable but the root has not received the completion.
+    Durable(u64),
+}
+
+/// Committed turns supplied to one assignment, captured at the worker boundary.
+#[derive(Debug)]
+pub struct AssignedTranscript {
+    pub task: u64,
+    pub turns: Box<[Box<[u8]>]>,
+}
+
+/// Root, store and separate systems, with an answer channel that may disappear.
+#[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independently held peer traffic and crash cuts")]
+pub struct World {
+    /// Explicit admission tests retain outputs and control each store completion.
+    pub manual: bool,
+    pub returned: u64,
+    pub released: Vec<root::Request>,
+    serial: u64,
+    pub walking: Option<Walking>,
+    pub(crate) broken: bool,
+    pub(crate) oracle_closed: bool,
+    pub(crate) restart_config: (root::Config, root::Limits),
+    startup: Option<fn(&mut root::Domain)>,
+    fixture_rows: Box<[root::Record]>,
+    pub domain: root::Domain,
+    pub store: Store,
+    internal_reads: std::collections::BTreeSet<Token>,
+    pub systems: [System; 2],
+    protocol: crate::protocol::Stand,
+    pub host_calls: Vec<(Token, u64, u64, fleet::Call)>,
+    pub host_answers: Vec<(Box<[u8]>, core::SettledCall)>,
+    pub inbound: Vec<tasks::Word>,
+    pub settings_answers: Vec<(Token, core::CallKey, core::SettingsAnswer)>,
+    pub answers: Vec<(Token, core::CallKey, core::CallPart)>,
+    pub assigned: Option<root::Assignment>,
+    last_read: Option<u64>,
+    received_grant: Option<(Token, Token, Token, fleet::Grant)>,
+    grant_follows_assignment: bool,
+    renew_on_running: Option<accounts::FromComponent>,
+    pub fail_account_before_workspace: bool,
+    pub hold_accounts: bool,
+    /// Visit a sign-in, then wait for a scripted pasted address.
+    pub wait_for_finish: bool,
+    pub finish_script: VecDeque<Option<accounts::SignInRedirectWhy>>,
+    pub finishes: Vec<(u32, u64)>,
+    /// Fail the next LLM key keep at the scripted accounts component.
+    pub fail_llm_key_keep: Option<accounts::KeyFailure>,
+    /// Refuse the next moved record as belonging to another application.
+    pub fail_move_open: bool,
+    moved: std::collections::BTreeMap<u32, skein_lib::Secret>,
+    account_generations: std::collections::BTreeMap<u32, u64>,
+    move_provider: Option<u32>,
+    pub assignments: Vec<(u64, u64)>,
+    pub assignment_transcripts: Vec<AssignedTranscript>,
+    pub cancellations: Vec<(u64, u64)>,
+    pub busy_turns: Vec<(u64, u64, u32)>,
+    pub busy_calls: Vec<Box<[u8]>>,
+    pub busy_events: Vec<root::Event>,
+    pub stop_deliveries: Vec<core::Held>,
+    pub commits: Vec<Vec<root::Write>>,
+    pub projections: Vec<(usize, u16, core::ProjectionFeed)>,
+    pub hold_projection_settlements: bool,
+    pub sign_in: Option<u64>,
+    pub initial_ask: people::Ask,
+    pub(crate) creating: jig_test_profile::fixtures::Creating,
+    pub people_answers: Vec<people::Reply>,
+    /// Project notification and the durable store mark at its release.
+    pub project_made: Vec<(u64, u32)>,
+    pub act_answers: Vec<(Token, people::Outcome)>,
+    /// Connector release requests observed across starts.
+    pub project_releases: Vec<(u16, u32)>,
+    /// Connectors whose project release answer the story withholds.
+    pub hold_project_releases: Vec<u16>,
+    pub application_answers: Vec<(Token, u16, connector::ApplicationOutcome)>,
+    /// Each carried value the core left unused, with how many answers
+    /// (people's and applications') were delivered before it.
+    pub carried_unused: Vec<(usize, u64)>,
+    pub procedure: Option<u64>,
+    /// Whole held protocol inputs received by the independent procedure connector.
+    pub procedure_inputs: Vec<(u64, u16, u16, Box<tasks::RunContext>)>,
+    /// A procedure connector can withhold its reply while a story drives its step.
+    pub hold_procedures: bool,
+    pub pending_reads: Vec<(u16, connector::SystemRequest)>,
+    /// Hold a lost writer's fresh read until the scenario releases it.
+    pub hold_lost_reads: bool,
+    pub pending_lost_reads: Vec<(u16, tasks::Name, connector::SystemRequest)>,
+    pub lost_answers: u32,
+    pub hold_writes: bool,
+    pub recovery: connector::Recovery,
+    pub hold_lookups: bool,
+    pub pending_lookups: Vec<(u16, connector::SystemRequest)>,
+    pub pending_writes: Vec<(u16, connector::SystemRequest)>,
+    pub lose_answer: bool,
+    pub trace: Vec<String>,
+    tracing: bool,
+    pub restart_steps: Vec<core::start::Phase>,
+    pub restore_ranges: Vec<core::RestoreRange>,
+    pub census_ended: u32,
+    pub hold_restart_reads: bool,
+    /// Withhold requested whole store pages during a real cold restore.
+    pub hold_restore_pages: bool,
+    pub hold_switch: bool,
+    /// Delay before a submitted store transaction becomes durable.
+    pub store_delay: u32,
+    /// Store map bytes supplied with subsequent commit answers.
+    pub fill: u64,
+    /// Whether the root reported a failed commit and stopped.
+    pub stopped: bool,
+    period_started: bool,
+    /// Independent scripted hosts and clients, when this scenario uses them.
+    pub peers: Option<crate::peers::Peers>,
+    /// Client-facing outputs; their protocol adapter runs in the joint world.
+    pub client_peer: Option<crate::client_peer::ClientPeer>,
+    /// Whole applied store snapshots, enabled only for external durable observers.
+    pub store_peer: Option<crate::store_peer::StorePeer>,
+    /// Independent document consumers, enabled only in watch stories.
+    pub watches: Option<crate::peers::WatchParties>,
+    /// Independent offer observer, enabled for immediately acting scripted parties.
+    pub offers: Option<crate::referee::offers::Referee>,
+    /// Independent read parties and owner-range store transport, enabled in read stories.
+    pub reads: Option<crate::reads::Parties>,
+    /// Referee observations, independent of the root state.
+    pub observer: crate::conformance::Observer,
+    heap: crate::conformance::Heap,
+    restoring: Option<(core::start::Phase, usize)>,
+    restart_reads: std::collections::BTreeMap<u16, core::start::Phase>,
+    pub events: VecDeque<root::Event>,
+    limits: root::Limits,
+    /// Pause at a selected transaction boundary, with its traffic retained.
+    pub cut: Option<Cut>,
+    /// The boundary at which the last drain paused.
+    pub reached_cut: Option<Cut>,
+    hold_kinds: Vec<(u16, Box<[tasks::Kind]>)>,
+    wall: u64,
+    wall_lag: u64,
+    supplied_wall: Option<Wall>,
 }
 
 impl World {
-    /// Start a seeded application, including its two connector kinds and one worker.
-    #[must_use]
-    pub fn new(seed: u64) -> World {
-        World::with_scenario(seed, Scenario::Chat)
-    }
-
-    /// One person asks for a tracked goal, whose run delegates a procedure.
-    #[must_use]
-    pub fn goal(seed: u64) -> World {
-        World::with_scenario(seed, Scenario::Goal)
-    }
-
-    /// One worker tries a batch larger than its delegated authority.
-    #[must_use]
-    pub fn batch(seed: u64) -> World {
-        World::with_scenario(seed, Scenario::Batch)
-    }
-
-    fn with_scenario(seed: u64, scenario: Scenario) -> World {
-        let limits = limits();
-        let mut events = VecDeque::new();
-        for connector in [1, 2] {
-            events.push_back(root::Event::Core(core::Event::Tasks(tasks::Event::Kinds {
-                connector,
-                kinds: Box::new([tasks::Kind {
-                    connector,
-                    kind: 1,
-                    hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
-                }]),
-            })));
+    /// Supply monotonic time and wall time independently, including wall corrections.
+    pub fn set_clock(&mut self, now: Time, wall: Wall) {
+        if self.supplied_wall.is_some() {
+            assert!(now.as_nanos() >= self.wall, "elapsed time is monotonic");
         }
-        events.push_back(root::Event::Core(core::Event::Account(accounts::Event::Want)));
-        events.push_back(root::Event::Core(core::Event::Account(accounts::Event::Component(
-            accounts::FromComponent::Granted {
-                form: accounts::Form::Credential(accounts::Scheme::Bearer),
-                account: 1,
-                generation: 1,
-                valid: Duration::from_secs(60),
-            },
-        ))));
-        events.push_back(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
-            worker: 0,
-            channel: Token::new(7),
-            hello: fleet::Hello {
-                bounds: crate::fixtures::bounds(),
-                stop_bound: Duration::from_millis(100),
-                slots: 1,
-                workstreams: Box::new([]),
-                hosting: Box::new([]),
+        if self.env().wall != wall
+            && let Some(offers) = &mut self.offers
+        {
+            offers.clock_changed();
+        }
+        self.wall = now.as_nanos();
+        self.supplied_wall = Some(wall);
+    }
+
+    /// The pair actually supplied to the root and its children.
+    #[must_use]
+    pub fn clocks(&self) -> (Time, Wall) {
+        let env = self.env();
+        (env.now, env.wall)
+    }
+
+    /// Earliest armed owner deadline at the current supplied clock pair.
+    /// Absolute Wall values are sampled again after a correction or delivery.
+    #[must_use]
+    pub fn next_due(&self) -> Option<Time> {
+        let (now, wall) = self.clocks();
+        let mut next = self.domain.core().next_deadline(now, wall);
+        for deadline in self
+            .domain
+            .connector_deadlines()
+            .into_iter()
+            .map(|(_, deadline)| deadline)
+            .chain([self.domain.effect_deadline()])
+            .flatten()
+        {
+            let remaining = deadline.as_nanos().saturating_sub(wall.as_nanos());
+            let due = Time::from_nanos(now.as_nanos().checked_add(remaining).expect("world deadline fits"));
+            next = Some(next.map_or(due, |prior| prior.min(due)));
+        }
+        next
+    }
+
+    /// Fire only currently due owners through their ordinary root inputs.
+    /// The caller supplies clocks; neither draining nor timer delivery advances them.
+    pub fn fire_due(&mut self, now: Time, wall: Wall) {
+        self.set_clock(now, wall);
+        while let Some(timer) = self.domain.core().due(now, wall) {
+            if !self.domain.ready() || self.stopped {
+                break;
+            }
+            let refused = self.busy_events.len();
+            self.send(root::Event::Timer(timer));
+            if self.busy_events.len() != refused {
+                break;
+            }
+        }
+        let mut events = Vec::new();
+        for (number, deadline) in self.domain.connector_deadlines() {
+            if deadline.is_some_and(|deadline| deadline <= wall) {
+                events.push(root::Event::ConnectorTimer { number });
+            }
+        }
+        if self.domain.effect_deadline().is_some_and(|deadline| deadline <= wall) {
+            events.push(root::Event::Core(core::Event::EffectDeadline));
+        }
+        self.send_all(events);
+    }
+
+    /// Advance simulated time, firing fleet and task deadlines through the root.
+    pub fn advance(&mut self, by: Duration) {
+        self.wall = self.wall.checked_add(by.as_nanos()).expect("world time fits");
+        self.supplied_wall = self
+            .supplied_wall
+            .map(|wall| Wall::from_nanos(wall.as_nanos().checked_add(by.as_nanos()).expect("supplied wall fits")));
+        self.events.push_back(root::Event::Timer(core::Timer::Fleet));
+        self.events.push_back(root::Event::Timer(core::Timer::Tasks));
+        self.events.push_back(root::Event::Timer(core::Timer::People));
+        self.events.push_back(root::Event::ConnectorTimer { number: 1 });
+        self.events.push_back(root::Event::ConnectorTimer { number: 2 });
+        self.drain();
+    }
+
+    /// Correct wall time backwards while elapsed time continues monotonically.
+    pub fn correct_wall_backwards(&mut self, by: Duration) {
+        self.wall_lag = self.wall_lag.checked_add(by.as_nanos()).expect("wall correction fits");
+    }
+
+    #[must_use]
+    pub fn env(&self) -> Env<root::Limits> {
+        Env {
+            now: Time::from_nanos(self.wall),
+            wall: self.supplied_wall.unwrap_or_else(|| Wall::from_nanos(self.wall.saturating_sub(self.wall_lag))),
+            limits: self.limits,
+        }
+    }
+
+    /// Queue a burst so independent parties draw their pace between its inputs.
+    pub fn send_all(&mut self, events: Vec<root::Event>) {
+        self.events.extend(events);
+        self.drain();
+    }
+
+    pub fn send(&mut self, event: root::Event) {
+        self.events.push_back(event);
+        self.drain();
+    }
+
+    /// Retain diagnostics for a focused story that asserts on trace text.
+    pub fn enable_tracing(&mut self) {
+        self.tracing = true;
+    }
+
+    pub fn drain(&mut self) {
+        self.domain.script_project_releases();
+        self.drive(300, true, true);
+    }
+
+    #[expect(clippy::too_many_lines, reason = "one loop routes root, store and peer work in order")]
+    fn drive(&mut self, steps: usize, tick: bool, consume: bool) {
+        for _ in 0..steps {
+            if self.stopped {
+                return;
+            }
+            if self.supplied_wall.is_none() {
+                self.wall += 1_000_000;
+            }
+            self.observer.observe(self.wall, crate::referee::Observed::Tick);
+            let env = self.env();
+            self.observer.systems(self.wall, &self.systems);
+            let sweep_waits = self.domain.start_phase() == Some(core::start::Phase::Sweep)
+                && !self.domain.quiescent()
+                && self.events.front().is_some_and(|event| {
+                    matches!(event, root::Event::StartRecord(_) | root::Event::StartDone(core::start::Phase::Sweep))
+                });
+            if consume
+                && !sweep_waits
+                && let Some(mut event) = self.events.pop_front()
+            {
+                self.start_input(&event);
+                if !matches!(
+                    event,
+                    root::Event::StartBegin { .. }
+                        | root::Event::StartRecord(_)
+                        | root::Event::StartMissing { .. }
+                        | root::Event::StartPageRefused { .. }
+                        | root::Event::StartDone(_)
+                ) {
+                    self.observer.inbound(&self.store, self.wall, &mut event);
+                    if let Some(offers) = &mut self.offers {
+                        offers.inbound(&mut event);
+                    }
+                    if let Some(watches) = &mut self.watches {
+                        watches.inbound(&event);
+                    }
+                    let internal_read = if let root::Event::Core(core::Event::ReadLoaded { load, .. }) = &event {
+                        self.internal_reads.remove(load)
+                    } else {
+                        false
+                    };
+                    if !internal_read && let Some(reads) = &mut self.reads {
+                        reads.inbound(&event);
+                    }
+                }
+                if self.tracing {
+                    self.trace.push(format!("input {event:?}"));
+                }
+                if self.manual {
+                    if let Err(event) = root::try_step(&mut self.domain, &env, event) {
+                        self.returned += 1;
+                        self.events.push_front(event);
+                    }
+                } else {
+                    root::step(&mut self.domain, &env, event);
+                }
+            }
+            let mut out = Queue::with_capacity(128);
+            root::release(&mut self.domain, &env, &mut out);
+            let empty = out.is_empty();
+            for _ in 0..out.len() {
+                let request = out.pop().expect("root output count");
+                if self.tracing {
+                    self.trace.push(format!("output {request:?}"));
+                }
+                match request {
+                    root::Request::Start { phase, census } => self.start_step(phase, census),
+
+                    root::Request::Commit { number, mut writes } => {
+                        let mut rows = Vec::new();
+                        while let Some(write) = writes.pop() {
+                            rows.push(write);
+                        }
+                        rows.extend(
+                            std::mem::take(&mut self.fixture_rows).into_vec().into_iter().map(root::Write::Save),
+                        );
+                        if let Some(watches) = &mut self.watches {
+                            watches.commit(number, &rows);
+                        }
+                        if let Some(offers) = &mut self.offers {
+                            offers.committed(number);
+                        }
+                        if let Some(reads) = &mut self.reads {
+                            reads.commit(number);
+                        }
+                        self.inject_assignment_renewal(&rows);
+                        self.commits.push(rows.clone());
+                        self.store.submit(number, rows.into_boxed_slice(), self.store_delay);
+                        self.observer.submitted(self.wall, &self.store);
+                        if self.cut == Some(Cut::Submitted(number)) {
+                            self.reached_cut = self.cut.take();
+                            return;
+                        }
+                    }
+                    root::Request::Deliver(delivery) => {
+                        if self.manual {
+                            self.capture(delivery);
+                        } else {
+                            self.delivered(delivery);
+                        }
+                    }
+                    root::Request::ReadResult { .. } => panic!("scripted results are already typed"),
+                    root::Request::Now(now @ core::Now::StartPreparation { .. }) => self.transcript_loaded(now),
+                    root::Request::Now(
+                        now @ (core::Now::SeenConversation { .. }
+                        | core::Now::LoadEndedRead { .. }
+                        | core::Now::EndedPersonTask { .. }
+                        | core::Now::EndedTask { .. }
+                        | core::Now::PartyInputs { .. }
+                        | core::Now::EndedProposal { .. }
+                        | core::Now::DecidedProposal { .. }
+                        | core::Now::EndedEscalation { .. }),
+                    ) => self.store.ask(StoreOut::Now(now)),
+                    root::Request::Now(now) if self.manual => self.released.push(root::Request::Now(now)),
+                    root::Request::Now(core::Now::Call { to, run, attempt, call }) => {
+                        let token = to.into_token();
+                        if self.peers.is_none()
+                            && let Some(event) = self.protocol.decode(token, run, attempt, &call)
+                        {
+                            self.events.push_back(event);
+                        } else if let Some(peers) = &mut self.peers {
+                            self.events.extend(peers.opaque_answer(ReplyTo::new(token), run, attempt, &call));
+                        } else {
+                            self.host_calls.push((token, run.raw(), attempt.raw(), call));
+                        }
+                    }
+                    root::Request::Now(core::Now::SettingsAnswer { to, key, answer }) => {
+                        let token = to.into_token();
+                        if let Some(event) = self
+                            .peers
+                            .as_mut()
+                            .map_or(&mut self.protocol, |peers| &mut peers.protocol)
+                            .settings_answer(token, key, &answer)
+                        {
+                            self.events.push_back(event);
+                        }
+                        self.settings_answers.push((token, key, *answer));
+                    }
+                    root::Request::Now(core::Now::EffectAnswer { to, key, part }) => {
+                        let token = to.into_token();
+                        if let Some(event) = self
+                            .peers
+                            .as_mut()
+                            .map_or(&mut self.protocol, |peers| &mut peers.protocol)
+                            .answer(token, key, &part, false)
+                        {
+                            self.events.push_back(event);
+                        }
+                        self.answers.push((token, key, part));
+                    }
+                    root::Request::Now(core::Now::Account(accounts::Request::Component(request))) => {
+                        self.account_request(request);
+                    }
+                    root::Request::Now(core::Now::Account(accounts::Request::Signing(signing))) => {
+                        self.account_signing(signing);
+                    }
+                    root::Request::Now(now) => {
+                        if let Some(peer) = &mut self.client_peer
+                            && crate::client_peer::ClientPeer::immediate(&now)
+                        {
+                            peer.now.push(now);
+                            continue;
+                        }
+                        if let Some(watches) = &mut self.watches {
+                            watches.now(&now);
+                        }
+                    }
+                    root::Request::Busy { event } => self.busy_events.push(*event),
+                    root::Request::Stop => {
+                        self.stopped = true;
+                        if self.manual {
+                            self.released.push(root::Request::Stop);
+                        }
+                    }
+                }
+            }
+            if !self.hold_restart_reads && !self.restart_reads.is_empty() && self.domain.quiescent() {
+                self.answer_restart_reads();
+            }
+            while let Some((connector, project)) = self.domain.take_project_release() {
+                self.project_releases.push((connector, project));
+                if !self.hold_project_releases.contains(&connector) {
+                    self.events.push_back(root::Event::Core(core::Event::ProjectReleased { connector, project }));
+                }
+            }
+            if !self.stopped {
+                if tick {
+                    self.tick_store();
+                }
+                if let Some(peer) = &mut self.store_peer {
+                    peer.capture(Time::from_nanos(self.wall), &self.store);
+                }
+                if self.cut == Some(Cut::Durable(self.store.applied)) {
+                    self.reached_cut = self.cut.take();
+                    return;
+                }
+                self.observer.systems(self.wall, &self.systems);
+                self.restore_pages();
+                if let Some(watches) = &mut self.watches {
+                    self.events.extend(watches.tick());
+                }
+                if self.domain.ready()
+                    && let Some(peers) = &mut self.peers
+                {
+                    if self.period_started {
+                        self.events.extend(peers.tick(&self.store, env.now));
+                    } else {
+                        self.period_started = true;
+                        self.events.push_front(root::Event::Core(core::Event::Period {
+                            project: 1,
+                            period: 1,
+                            budget: 1000,
+                            next: None,
+                        }));
+                    }
+                }
+            }
+            if let Some(peers) = &self.peers {
+                self.observer.workers(self.wall, &peers.workers);
+            }
+            if let Some(mut walking) = self.walking.take() {
+                walking.tick(self);
+                self.walking = Some(walking);
+            }
+            self.domain.reclaim();
+            self.observer.observe(self.wall, self.heap.observed());
+            if steps == 1 {
+                return;
+            }
+            let held_restore = self.hold_restore_pages && self.restoring.is_some() && self.store.loading();
+            if empty
+                && self.events.is_empty()
+                && self.store.pending.is_empty()
+                && (!self.store.loading() || held_restore)
+                && (self.domain.quiescent()
+                    || held_restore
+                    || self.hold_switch
+                    || !self.store.held.is_empty()
+                    || self.reads.as_ref().is_some_and(crate::reads::Parties::paused))
+                && self.watches.as_ref().is_none_or(crate::peers::WatchParties::quiescent)
+            {
+                return;
+            }
+        }
+        panic!("effect world did not settle: {:?}", self.trace);
+    }
+
+    #[must_use]
+    pub fn call_key(&self, completion: u32) -> core::CallKey {
+        let assignment = self.assigned.as_ref().expect("assigned caller");
+        core::CallKey { task: assignment.task, attempt: assignment.attempt, completion, position: 0 }
+    }
+
+    #[must_use]
+    pub fn effect() -> connector::Effect {
+        connector::Effect {
+            kind: 5,
+            resources: Box::new([jig_test_connector_world::path(1, 1)]),
+            purpose: 19,
+            condition: None,
+            target: 13,
+            state: 13,
+        }
+    }
+
+    pub fn call(&mut self, completion: u32, right: u64) {
+        self.send(root::Event::EffectCall {
+            to: ReplyTo::new(Token::new(right)),
+            key: self.call_key(completion),
+            number: 1,
+            effect: Self::effect(),
+            deadline: Wall::from_nanos(self.wall + 1_000_000_000),
+            proposal: None,
+        });
+    }
+
+    /// The caller's independently stored expense, including made effects.
+    #[must_use]
+    pub fn spent(&self) -> u64 {
+        let task = self.call_key(1).task;
+        match self.store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)))) {
+            Some(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row)))) => row.numbers.spent,
+            row => panic!("live caller's stored balance: {row:?}"),
+        }
+    }
+
+    /// Expense debited to the accepting person's finite pool.
+    #[must_use]
+    pub fn holder_spent(&self) -> u64 {
+        let funder = tasks::Funder::Pool { project: 1, person: 1, period: 1 };
+        let live = root::Key::Core(core::Key::Tasks(tasks::Key::Ledger(funder)));
+        let past = root::Key::Core(core::Key::Tasks(tasks::Key::ClosedLedger(funder)));
+        match self.store.rows.get(&live).or_else(|| self.store.rows.get(&past)) {
+            Some(root::Record::Core(core::Record::Tasks(
+                tasks::Stored::Ledger(row) | tasks::Stored::ClosedLedger(row),
+            ))) => row.numbers.spent,
+            row => panic!("holder's stored balance: {row:?}"),
+        }
+    }
+
+    /// Explicitly propose the connector payload instead of making it.
+    pub fn propose(&mut self, completion: u32) -> u64 {
+        self.send(root::Event::EffectCall {
+            to: ReplyTo::new(Token::new(220)),
+            key: self.call_key(completion),
+            number: 1,
+            effect: Self::effect(),
+            deadline: Wall::from_nanos(self.wall + 1_000_000_000),
+            proposal: Some(b"ask the holder".as_slice().into()),
+        });
+        match self.answers.last() {
+            Some((_, _, core::CallPart::Proposed { proposal, .. })) => *proposal,
+            answer => panic!("effect proposed: {answer:?}; {:?}", self.trace),
+        }
+    }
+
+    /// The signed-in person decides the caller's proposal through people.
+    pub fn decide_proposal(&mut self, proposal: u64, accept: bool, request: u8) {
+        let decision = if accept {
+            people::ProposalDecision::Accept
+        } else {
+            people::ProposalDecision::Reject { reason: b"not now".as_slice().into() }
+        };
+        self.send(root::Event::Core(core::Event::People(people::Event::Ask {
+            models: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(u64::from(request) + 230)),
+            sign_in: self.sign_in.expect("signed-in person"),
+            key: [request; 16],
+            ask: people::Ask::DecideProposal {
+                project: 1,
+                proposer: people::Proposer::Task(self.call_key(1).task),
+                proposal,
+                decision,
+                running: None,
             },
         })));
-        events.push_back(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 1000, next: None }));
-        events.push_back(root::Event::Core(core::Event::SignIn {
-            held: None,
-            reply_to: ReplyTo::new(Token::new(101)),
-            identity: people::Identity {
-                key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
-                login: b"person".as_slice().into(),
-                name: b"Person".as_slice().into(),
-            },
+    }
+
+    /// Cross the call's absolute deadline while its committed write is pending.
+    pub fn deadline(&mut self) {
+        self.wall += 1_000_000_000;
+        self.send(root::Event::Core(core::Event::EffectDeadline));
+    }
+
+    /// Deliver the system answers held past the caller's deadline.
+    pub fn release_writes(&mut self) {
+        self.hold_writes = false;
+        for (number, call) in std::mem::take(&mut self.pending_writes) {
+            let event = self.systems[usize::from(number - 1)].answer(call, Fault::None);
+            self.events.push_back(root::Event::Connector { number, event: connector::Event::System(event) });
+        }
+        self.drain();
+    }
+
+    pub fn delegate(&mut self) {
+        let assignment = self.assigned.as_ref().expect("assigned caller");
+        let mut authority = assignment.run.authority.clone();
+        authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+        authority.budget.spend = 20;
+        authority.tools = tasks::Tools(0);
+        self.send(root::Event::Core(core::Event::DelegateValidated {
+            to: ReplyTo::new(Token::new(201)),
+            key: self.call_key(1),
+            batch: Box::new([core::Delegate {
+                deadline: jig_domain_tasks::Deadline::Named,
+                label: 0,
+                flags: jig_domain_tasks::Flags::PLAIN,
+                tracked: None,
+                budget: jig_domain_people::Budget::Named,
+                executor: tasks::Executor::Procedure { connector: 1, code: 1 },
+                spec: tasks::Spec {
+                    asks: false,
+                    words: b"make a checked effect".as_slice().into(),
+                    parameters: Box::new([]),
+                    inputs: Box::new([]),
+                },
+                contract: tasks::Contract::Report { words: 128 },
+                authority,
+                llm: None,
+                symbolic_grants: Box::new([]),
+                dependencies: Box::new([]),
+                wake: tasks::WakePolicy::DEFAULT,
+            }]),
+            stubs: Box::new([]),
         }));
-        let heap = crate::observations::Heap::new();
-        let bootstrap = crate::effects::World::first_start_with_accounts(config(seed), &limits);
-        let mut observer = crate::observations::Observer::new(&config(seed));
-        observer.fresh_mark(0, &bootstrap.store);
-        let (domain, store) = bootstrap.into_domain_store();
-        World {
-            creating: crate::fixtures::Creating::new(&config(seed).core, limits.core.tasks.tree_tasks),
-            domain,
-            store,
-            events,
-            trace: Vec::new(),
-            sign_in: None,
-            chat: None,
-            assignment: None,
-            turn_acks: 0,
-            answer_acks: 0,
-            results: 0,
-            procedure: None,
-            batch_refusals: 0,
-            observer,
-            heap,
-            scenario,
-            delegated: false,
-            goal_answer_sent: false,
-            limits,
-            iteration: 0,
-        }
+        assert!(self.procedure.is_some(), "delegated procedure admitted: {:?}", self.trace);
     }
 
-    /// Advance one outside event, one commit and all ready deliveries.
-    pub fn iterate(&mut self) {
-        self.iteration += 1;
-        self.observer.observe(self.iteration * 1_000_000, crate::referee::Observed::Tick);
-        let now = Time::from_nanos(self.iteration * 1_000_000);
-        let env = Env { now, wall: Wall::from_nanos(self.iteration * 1_000_000), limits: self.limits };
-        if let Some(mut event) = self.events.pop_front() {
-            self.observer.inbound(&self.store, self.iteration * 1_000_000, &mut event);
-            self.trace.push(format!("input {event:?}"));
-            root::step(&mut self.domain, &env, event);
+    /// Read the observer's system, then give the idle procedure another step.
+    pub fn observed(&mut self, state: u64) {
+        self.systems[1].other_hand(&jig_test_connector_world::path(1, 1), state);
+        let reads = std::mem::take(&mut self.pending_reads);
+        for (number, call) in reads {
+            let event = self.systems[usize::from(number - 1)].answer(call, Fault::None);
+            self.events.push_back(root::Event::Connector { number, event: connector::Event::System(event) });
         }
-        let mut out = Queue::with_capacity(128);
-        root::release(&mut self.domain, &env, &mut out);
-        while let Some(request) = out.pop() {
-            self.trace.push(format!("output {request:?}"));
-            match request {
-                root::Request::Start { phase, census } => {
-                    self.store.ask(jig_test_store::StoreOut::Start { phase, census });
-                }
-                root::Request::Commit { number, mut writes } => {
-                    let mut rows = Vec::new();
-                    while let Some(write) = writes.pop() {
-                        rows.push(write);
-                    }
-                    self.store.submit(number, rows.into_boxed_slice(), 0);
-                    let applied = self.store.tick(false).expect("store did not fail").expect("ready commit");
-                    self.observer.durable(self.iteration * 1_000_000, &self.store);
-                    self.events.push_front(root::Event::Committed { number: applied, fill: 0 });
-                }
-                root::Request::Deliver(delivery) => self.delivered(delivery),
-                root::Request::ReadResult { .. } => panic!("scripted results are already typed"),
-                root::Request::Now(core::Now::Account(accounts::Request::Component(accounts::ToComponent::Want {
-                    account,
-                }))) => {
-                    self.events.push_back(root::Event::Core(core::Event::Account(accounts::Event::Component(
-                        accounts::FromComponent::Granted {
-                            form: accounts::Form::Credential(accounts::Scheme::Bearer),
-                            account,
-                            generation: 1,
-                            valid: Duration::from_secs(60),
-                        },
-                    ))));
-                }
-                root::Request::Now(core::Now::Account(accounts::Request::Component(accounts::ToComponent::Close))) => {
-                    self.events.push_back(root::Event::Core(core::Event::Account(accounts::Event::Component(
-                        accounts::FromComponent::Closed,
-                    ))));
-                }
-                root::Request::Now(
-                    now @ (core::Now::HistoricalPersonTask { .. }
-                    | core::Now::EndedTask { .. }
-                    | core::Now::PartyInputs { .. }
-                    | core::Now::HistoricalProposal { .. }
-                    | core::Now::DecidedProposal { .. }
-                    | core::Now::HistoricalEscalation { .. }
-                    | core::Now::SeenConversation { .. }
-                    | core::Now::LoadEndedRead { .. }
-                    | core::Now::StartPreparation { from: Some(_), .. }),
-                ) => self.store.ask(jig_test_store::StoreOut::Now(now)),
-                root::Request::Now(_) => {}
-
-                root::Request::Busy { .. } => panic!("this world does not stop"),
-                root::Request::Stop => panic!("testing root stopped: {:?}", self.trace),
-            }
+        self.drain();
+        if let Some(task) = self.procedure {
+            self.send(root::Event::Core(core::Event::Tasks(tasks::Event::WakeProcedure { task })));
         }
-        for answer in self.store.answers() {
-            match answer {
-                jig_test_store::Up::Root(event) => self.events.push_back(event),
-                jig_test_store::Up::Ask(_) => {
-                    panic!("walking fixture does not restart")
-                }
-            }
-        }
-        self.domain.reclaim();
-        self.observer.observe(self.iteration * 1_000_000, self.heap.observed());
-        if self.scenario == Scenario::Goal
-            && self.delegated
-            && !self.goal_answer_sent
-            && let Some(procedure) = self.procedure
-            && self.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(procedure))))
-        {
-            let assignment = self.assignment.as_ref().expect("goal worker was assigned");
-            self.goal_answer_sent = true;
-            self.events.push_back(root::Event::Turn {
-                opens_window: false,
-                refused: Box::new([]),
-                channel: Token::new(7),
-                task: assignment.task,
-                attempt: assignment.attempt,
-                turn: 1,
-                read: None,
-                cumulative: 3,
-                transcript: b"procedure finished".as_slice().into(),
-            });
-        }
-    }
-
-    /// Run until the worker and party have seen the terminal, within a fixed bound.
-    pub fn run_chat(&mut self) {
-        for _ in 0..300 {
-            if self.results == 1 && self.answer_acks == 1 && self.events.is_empty() && self.domain.quiescent() {
-                return;
-            }
-            self.iterate();
-        }
-        panic!("chat did not settle: {:?}", self.trace);
-    }
-
-    /// Run the goal, delegated procedure and person's final result.
-    pub fn run_goal(&mut self) {
-        for _ in 0..300 {
-            if self.results == 1 && self.procedure.is_some() && self.events.is_empty() && self.domain.quiescent() {
-                return;
-            }
-            self.iterate();
-        }
-        panic!("goal did not settle: {:?}", self.trace);
-    }
-
-    /// Run through the named batch refusal and its durable reply.
-    pub fn run_batch(&mut self) {
-        for _ in 0..300 {
-            if self.batch_refusals == 1 && self.events.is_empty() && self.domain.quiescent() {
-                return;
-            }
-            self.iterate();
-        }
-        panic!("batch did not settle: {:?}", self.trace);
     }
 }
 
-pub use crate::charters::{research_charter, two_charters};
-mod credentials;
-pub use credentials::with_workspace_credential;
+impl World {
+    pub fn say(&mut self, key: u8) -> u64 {
+        let mut text = [0; 4];
+        let words = char::from(key).encode_utf8(&mut text);
+        let task = self.assigned.as_ref().expect("assigned chat").task;
+        self.send(root::Event::Core(core::Event::People(people::Event::Ask {
+            models: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(3000 + u64::from(key))),
+            sign_in: self.sign_in.expect("signed in"),
+            key: [key; 16],
+            ask: people::Ask::Say { project: 1, task, words: Box::from(words.as_bytes()) },
+        })));
+        self.people_answers
+            .iter()
+            .rev()
+            .find_map(|reply| match reply {
+                people::Reply::Outcome(people::Outcome::Said { message, .. }) => Some(*message),
+                people::Reply::Signer(_)
+                | people::Reply::Full { .. }
+                | people::Reply::SignedIn { .. }
+                | people::Reply::SignedOut
+                | people::Reply::Outcome(_)
+                | people::Reply::Refused(_)
+                | people::Reply::Again(_) => None,
+            })
+            .expect("durable words")
+    }
 
-mod funding;
-pub use funding::edit_role;
+    pub fn turn(&mut self, number: u32, spent: u64, read: Option<u64>, body: &[u8]) {
+        self.send_turn(number, spent, read, body, None, &[]);
+    }
+
+    pub fn window_turn(&mut self, number: u32, spent: u64, read: Option<u64>, body: &[u8]) {
+        self.send_turn(number, spent, read, body, Some(true), &[]);
+    }
+
+    pub fn turn_refusing(&mut self, number: u32, spent: u64, read: Option<u64>, refused: &[u64], body: &[u8]) {
+        self.send_turn(number, spent, read, body, None, refused);
+    }
+
+    fn send_turn(
+        &mut self,
+        number: u32,
+        spent: u64,
+        read: Option<u64>,
+        body: &[u8],
+        opens: Option<bool>,
+        refused: &[u64],
+    ) {
+        self.last_read = read;
+        let assignment = self.assigned.as_ref().expect("assigned chat");
+        self.send(root::Event::Turn {
+            opens_window: opens.unwrap_or(number == 1 && assignment.transcript.is_empty()),
+            refused: refused.into(),
+            channel: Token::new(7),
+            task: assignment.task,
+            attempt: assignment.attempt,
+            turn: number,
+            cumulative: spent,
+            read,
+            transcript: body.into(),
+        });
+    }
+
+    pub fn end(&mut self, end: tasks::End, cumulative: u64) {
+        let event = self.end_event(end, cumulative);
+        self.send(event);
+    }
+
+    #[must_use]
+    pub fn end_event(&self, end: tasks::End, cumulative: u64) -> root::Event {
+        let assignment = self.assigned.as_ref().expect("assigned chat");
+        root::Event::Answer {
+            read: self.last_read,
+            refused: Box::new([]),
+            channel: Token::new(7),
+            task: assignment.task,
+            attempt: assignment.attempt,
+            cumulative,
+            end,
+        }
+    }
+
+    pub fn host_call(&mut self, name: &[u8], tool: &[u8], input: &[u8], writes: bool) -> Token {
+        self.relay_call(name, tool, input, writes);
+        self.host_calls.last().expect("fleet authenticated call").0
+    }
+}
+
+impl World {
+    pub fn retry_due(&mut self) {
+        self.wall += 1_000_000_000;
+        self.send(root::Event::Timer(core::Timer::Tasks));
+    }
+}
+
+impl World {
+    #[must_use]
+    pub fn wall_time(&self) -> Wall {
+        Wall::from_nanos(self.wall)
+    }
+
+    pub fn finish_lookups(&mut self) {
+        self.hold_lookups = false;
+        for (number, call) in std::mem::take(&mut self.pending_lookups) {
+            let event = self.systems[usize::from(number - 1)].answer(call, Fault::None);
+            self.events.push_back(root::Event::Connector { number, event: connector::Event::System(event) });
+        }
+        self.drain();
+    }
+
+    pub fn waiting_judge(&mut self) {
+        self.send(root::Event::Connector {
+            number: 2,
+            event: connector::Event::System(connector::SystemEvent::Fact {
+                resource: jig_test_connector_world::path(1, 1),
+                fact: connector::Fact { state: None, observed: Wall::from_nanos(self.wall), pending: true },
+                origin: connector::Origin::Other,
+            }),
+        });
+    }
+}
+
+mod stopping;

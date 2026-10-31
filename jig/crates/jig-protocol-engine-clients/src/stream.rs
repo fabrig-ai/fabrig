@@ -71,14 +71,14 @@ impl Stream {
             bytes: 0,
         }
     }
-    pub fn write(&mut self, _env: &Env<Limits>, packet: Packet) {
+    pub fn write(&mut self, packet: Packet) {
         assert!(!self.waiting, "one SSE event at a time");
         self.bytes = u32::try_from(packet.event.len()).expect("bounded packet");
         self.taken = packet.taken;
         self.waiting = true;
         self.message = Some(crate::Streamed::Record(packet.event));
     }
-    pub fn heartbeat(&mut self, _env: &Env<Limits>) {
+    pub fn heartbeat(&mut self) {
         self.waiting = true;
         self.taken = Taken::None;
         self.message = Some(crate::Streamed::Heartbeat);

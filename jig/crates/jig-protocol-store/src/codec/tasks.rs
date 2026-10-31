@@ -130,7 +130,11 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
 }
 
 /// Encode one tasks row within the configured bounds.
-pub fn encode(row: &domain::Stored, limits: &wire::Limits, names: &[Box<[u8]>]) -> Result<Box<[u8]>, wire::Problem> {
+pub fn encode(
+    row: &domain::Stored,
+    limits: &wire::Limits,
+    names: &[jig_domain_core::settings::ModelName],
+) -> Result<Box<[u8]>, wire::Problem> {
     let (models, moved) = models::encode(row, names, limits)?;
     let value = match row {
         domain::Stored::PlacedHold(row) => wire::Value::PlacedHold(placed::encode(row, limits)?),
@@ -179,26 +183,30 @@ pub fn encode(row: &domain::Stored, limits: &wire::Limits, names: &[Box<[u8]>]) 
         domain::Stored::Stub(row) => wire::Value::Stub(state::stub(row, limits)?),
     };
     let row = wire::Row::new(limits, wire::RowParts { value, models })?;
-    let mut writer = Writer::new(usize::try_from(row.measure()).expect("encoded row fits usize"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
     row.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }
 
 /// Decode one tasks row, refusing another version or trailing bytes.
-pub fn decode(bytes: &[u8], limits: &wire::Limits, names: &[Box<[u8]>]) -> Result<domain::Stored, wire::Problem> {
+pub fn decode(
+    bytes: &[u8],
+    limits: &wire::Limits,
+    names: &[jig_domain_core::settings::ModelName],
+) -> Result<domain::Stored, wire::Problem> {
     let wire::RowParts { value, models: kept } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
     let mut row = match value {
         wire::Value::PlacedHold(row) => domain::Stored::PlacedHold(Box::new(placed::decode(row))),
-        wire::Value::Update(row) => domain::Stored::Update(index::read_update(row, limits)?),
-        wire::Value::Result(row) => domain::Stored::Result(index::read_result_row(row, limits)?),
-        wire::Value::EndedDelegate(row) => domain::Stored::EndedDelegate(index::read_edge(row, limits)?),
+        wire::Value::Update(row) => domain::Stored::Update(index::read_update(row)?),
+        wire::Value::Result(row) => domain::Stored::Result(index::read_result_row(row)?),
+        wire::Value::EndedDelegate(row) => domain::Stored::EndedDelegate(index::read_edge(row)?),
         wire::Value::EndedByParty(row) => domain::Stored::EndedByParty(index::read_ended_by_party(row)),
         wire::Value::EndedByProject(row) => domain::Stored::EndedByProject(index::read_ended_by_project(row)),
-        wire::Value::Delegate(row) => domain::Stored::Delegate(index::read_edge(row, limits)?),
+        wire::Value::Delegate(row) => domain::Stored::Delegate(index::read_edge(row)?),
         wire::Value::Activity(row) => domain::Stored::Activity(activity::read_activity_line(row, limits)?),
         wire::Value::Live(row) => domain::Stored::Live(Box::new(record::read_task_record(row, limits)?)),
         wire::Value::Ended(row) => domain::Stored::Ended(Box::new(record::read_task_record(row, limits)?)),
-        wire::Value::Stub(row) => domain::Stored::Stub(state::read_stub(row, limits)?),
+        wire::Value::Stub(row) => domain::Stored::Stub(state::read_stub(row)?),
         wire::Value::Ledger(value) => domain::Stored::Ledger(value::read_funding(value)),
         wire::Value::History(value) => domain::Stored::History(proposals::read_history(*value, limits)?),
         wire::Value::Milestone(value) => domain::Stored::Milestone(proposals::read_milestone(value, limits)?),

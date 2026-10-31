@@ -1,7 +1,9 @@
 //! Stored settings and policy fits precede linking (domain/engine.md, 6, 17.7).
-use super::{Action, Core, Env, Failure, Key, Phase, Queue, Time, Wall, config, limits, people};
-use crate::{CoreRecord, HeldLimit, Limits, Restored, settings};
-use settings::{Changed, CharterVersion, Fault, Head, Record, Revision, Setting, Value};
+use crate::{
+    CoreRecord, HeldLimit, Limits, Restored,
+    settings::{Changed, CharterVersion, Fault, Head, Record, Revision, Setting, Value},
+    tests::start::{Action, Core, Env, Failure, Key, Phase, Queue, Time, Wall, config, limits, people},
+};
 use skein_lib::List;
 
 fn loaded() -> (Core, Env<Limits>) {
@@ -31,7 +33,7 @@ fn head(number: u32) -> Record {
                 number,
                 against: number.saturating_sub(1),
                 at: Wall::EPOCH,
-                by: settings::Decider::FirstStart,
+                by: crate::settings::Decider::FirstStart,
                 proposal: None,
                 moved: false,
             },
@@ -51,17 +53,17 @@ fn settings_rows(core: &Core) -> List<Record> {
 }
 
 fn policy() -> people::PolicyValue {
-    crate::policy::snapshot(&config(401).seed_projects[0].policy.policy, &[], &[]).expect("stored policy")
+    crate::admission::policy::snapshot(&config(401).seed_projects[0].policy.policy, &[], &[]).expect("stored policy")
 }
 
 #[test]
 fn stored_policy_names_and_project_counters_are_writers_rules() {
     for (project, name) in [(0, "Zero"), (1, ""), (11, "Project")] {
-        let (mut selected, env) = loaded();
-        assert!(selected.restore_policy(&env.limits, project, name.into(), policy()));
-        assert_eq!(selected.names.get(&project).expect("stored name").as_ref(), name);
-        assert!(selected.authority.policy(project).is_some());
-        assert_eq!(selected.start_failure(), None);
+        let (mut started, env) = loaded();
+        assert!(started.restore_policy(&env.limits, project, name.into(), policy()));
+        assert_eq!(started.names.get(&project).expect("stored name").as_ref(), name);
+        assert!(started.authority.policy(project).is_some());
+        assert_eq!(started.start_failure(), None);
     }
     {
         let (mut core, env) = loaded();
@@ -206,7 +208,7 @@ fn whole_settings_fit_is_checked_by_load_core() {
         assert_eq!(restore(&mut core, &env, row), Restored::Live);
     }
     let expected = Failure::Settings {
-        failure: settings::Failure { setting: Setting::Charter(1), fault: Fault::Reference },
+        failure: crate::settings::Failure { setting: Setting::Charter(1), fault: Fault::Reference },
         changed: true,
     };
     let mut out = Queue::uncapped();
@@ -269,7 +271,7 @@ fn authority_child_policy_bounds_refuse_at_the_row_entrance() {
 fn setting_values_keep_their_byte_bound_at_the_row_entrance() {
     let (mut core, mut env) = loaded();
     let charter = core.charter(1).expect("charter").clone();
-    let bytes = crate::memory::policy_owned_bytes(&charter.policy).expect("charter bytes");
+    let bytes = crate::limits::policy_owned_bytes(&charter.policy).expect("charter bytes");
     env.limits.run_bytes = u32::try_from(bytes).expect("small charter");
     let record = Record::Changed {
         setting: Setting::Charter(1),
@@ -282,7 +284,7 @@ fn setting_values_keep_their_byte_bound_at_the_row_entrance() {
     assert_eq!(
         core.start_failure(),
         Some(Failure::Settings {
-            failure: settings::Failure { setting: Setting::Charter(1), fault: Fault::Shape },
+            failure: crate::settings::Failure { setting: Setting::Charter(1), fault: Fault::Shape },
             changed: true,
         })
     );

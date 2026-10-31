@@ -57,7 +57,7 @@ pub(super) fn encode_capacity_action(
         tasks::CapacityAction::Move => wire::CapacityAction::MoveTask,
     })
 }
-pub(super) fn decode_capacity_action(value: wire::CapacityAction, _limits: &Limits) -> tasks::CapacityAction {
+pub(super) fn decode_capacity_action(value: wire::CapacityAction) -> tasks::CapacityAction {
     match value {
         wire::CapacityAction::Batch(value) => {
             let wire::CapacityActionBatchParts { first, members } = value.into_parts();
@@ -178,7 +178,7 @@ pub(super) fn encode_capacity_cause(
         )?),
     })
 }
-pub(super) fn decode_capacity_cause(value: wire::CapacityCause, _limits: &Limits) -> tasks::CapacityCause {
+pub(super) fn decode_capacity_cause(value: wire::CapacityCause) -> tasks::CapacityCause {
     match value {
         wire::CapacityCause::PlacedHolds(value) => tasks::CapacityCause::PlacedHolds { limit: value.limit() },
         wire::CapacityCause::ProjectPlacedHolds(value) => {
@@ -257,13 +257,13 @@ pub(super) fn encode_capacity(value: &tasks::Capacity, limits: &Limits) -> Resul
         },
     )
 }
-pub(super) fn decode_capacity(value: wire::Capacity, limits: &Limits) -> tasks::Capacity {
+pub(super) fn decode_capacity(value: wire::Capacity) -> tasks::Capacity {
     let wire::CapacityParts { project, by, action, cause } = value.into_parts();
     tasks::Capacity {
         project,
         by: super::value::read_party(by),
-        action: decode_capacity_action(action, limits),
-        cause: decode_capacity_cause(cause, limits),
+        action: decode_capacity_action(action),
+        cause: decode_capacity_cause(cause),
     }
 }
 
@@ -342,7 +342,7 @@ pub(super) fn encode_refusal(value: &tasks::Refusal, limits: &Limits) -> Result<
         )?),
     })
 }
-pub(super) fn decode_refusal(value: wire::Refusal, _limits: &Limits) -> tasks::Refusal {
+pub(super) fn decode_refusal(value: wire::Refusal) -> tasks::Refusal {
     match value {
         wire::Refusal::Placed(value) => tasks::Refusal::Placed { hold: value.hold() },
         wire::Refusal::HoldOwner(value) => tasks::Refusal::HoldOwner { hold: value.hold() },
@@ -440,18 +440,17 @@ pub(super) fn encode_problem(value: &tasks::Problem, limits: &Limits) -> Result<
         },
     )
 }
-#[expect(clippy::manual_map, reason = "step code uses concrete matches (programming-model.md, 10)")]
-pub(super) fn decode_problem(value: wire::TaskProblem, limits: &Limits) -> tasks::Problem {
+pub(super) fn decode_problem(value: wire::TaskProblem) -> tasks::Problem {
     let wire::TaskProblemParts { task, why, blocked_by, capacity } = value.into_parts();
     tasks::Problem {
         task,
-        why: decode_refusal(why, limits),
+        why: decode_refusal(why),
         blocked_by: match blocked_by {
-            Some(value) => Some(decode_problem_blocked_by(value, limits)),
+            Some(value) => Some(decode_problem_blocked_by(value)),
             None => None,
         },
         capacity: match capacity {
-            Some(value) => Some(decode_capacity(value, limits)),
+            Some(value) => Some(decode_capacity(value)),
             None => None,
         },
     }
@@ -583,7 +582,7 @@ fn encode_problem_blocked_by(values: &[u64], limits: &Limits) -> Result<List<wir
     }
     Ok(result)
 }
-fn decode_problem_blocked_by(values: List<wire::Number>, _limits: &Limits) -> Box<[u64]> {
+fn decode_problem_blocked_by(values: List<wire::Number>) -> Box<[u64]> {
     let mut result = List::with_capacity(values.len());
     for value in values.into_boxed() {
         result.push(value.into_parts().value).expect("same number of members");
@@ -616,17 +615,17 @@ fn decode_result_followups_delegates_value(
 }
 pub fn problem(value: &tasks::Problem, limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
     let value = encode_problem(value, limits)?;
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }
 pub fn read_problem(bytes: &[u8], limits: &Limits) -> Result<tasks::Problem, wire::Problem> {
     let value = wire::TaskProblem::decode(limits, &mut Reader::new(bytes))?;
-    Ok(decode_problem(value, limits))
+    Ok(decode_problem(value))
 }
 pub fn end(value: &tasks::End, limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
     let value = wire::EndRecord::new(limits, wire::EndRecordParts { value: encode_end(value, limits)? })?;
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }
@@ -636,7 +635,7 @@ pub fn read_end(bytes: &[u8], limits: &Limits) -> Result<tasks::End, wire::Probl
 }
 pub fn phase(value: &tasks::Phase, limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
     let value = wire::PhaseRecord::new(limits, wire::PhaseRecordParts { value: super::phase::phase(value, limits)? })?;
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }
@@ -645,15 +644,14 @@ pub fn read_phase(bytes: &[u8], limits: &Limits) -> Result<tasks::Phase, wire::P
     super::phase::read_phase(value.into_parts().value, limits)
 }
 pub fn change(value: &tasks::Change, limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
-    let value =
-        wire::ChangeRecord::new(limits, wire::ChangeRecordParts { value: super::proposals::change(value, limits)? })?;
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
+    let value = wire::ChangeRecord::new(limits, wire::ChangeRecordParts { value: super::proposals::change(value)? })?;
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }
 pub fn read_change(bytes: &[u8], limits: &Limits) -> Result<tasks::Change, wire::Problem> {
     let value = wire::ChangeRecord::decode(limits, &mut Reader::new(bytes))?;
-    super::proposals::read_change(value.into_parts().value, limits)
+    super::proposals::read_change(value.into_parts().value)
 }
 fn too_large(_: core::num::TryFromIntError) -> wire::Problem {
     wire::Problem { path: wire::Path::TaskProblemBlockedBy, reason: skein_codec::Reason::Bound }

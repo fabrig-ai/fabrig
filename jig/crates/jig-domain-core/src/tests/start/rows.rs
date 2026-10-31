@@ -1,8 +1,10 @@
 //! Stored core rows load independently of admission (domain/engine.md, 6).
 #![expect(clippy::disallowed_macros, reason = "dynamic unit fixtures exercise stored collection boundaries")]
-use super::{Core, Failure, Key, Wall, call_key, config, limits, proof, tasks};
-use crate::start::LiveSet;
-use crate::{CallPart, CallRecord, CoreKey, CoreRecord, Limits, Restored, SettledAnswer, SettledCall};
+use crate::{
+    CallPart, CallRecord, CoreKey, CoreRecord, Limits, Restored, SettledAnswer, SettledCall,
+    start::LiveSet,
+    tests::start::{Core, Failure, Key, Wall, call_key, config, limits, proof, tasks},
+};
 use jig_domain_authority as authority;
 use jig_domain_notes as notes;
 use skein_lib::List;
@@ -46,14 +48,14 @@ fn note() -> notes::Entry {
 }
 
 fn retained(record: CallRecord) {
-    let (mut selected, limits) = loaded();
-    assert_eq!(selected.restore_core(CoreRecord::Call(record.clone()), &limits), Restored::Live);
-    assert_eq!(selected.call_record(record.key), Some(record));
-    assert_eq!(selected.start_failure(), None);
+    let (mut started, limits) = loaded();
+    assert_eq!(started.restore_core(CoreRecord::Call(record.clone()), &limits), Restored::Live);
+    assert_eq!(started.call_record(record.key), Some(record));
+    assert_eq!(started.start_failure(), None);
 }
 
 #[test]
-fn stored_calls_ignore_historical_serials_and_tool_shape() {
+fn stored_calls_ignore_retained_serials_and_tool_shape() {
     for call in [settled(0, b"tool"), settled(101, b"tool"), settled(1, b"")] {
         let mut record = row(CallPart::Controlled);
         record.settled = Some(call);
@@ -85,7 +87,7 @@ fn settled_serials_are_not_record_keys() {
 }
 
 #[test]
-fn stored_parts_ignore_historical_counters_and_current_rules() {
+fn stored_parts_ignore_retained_counters_and_current_rules() {
     let problem = tasks::Problem { task: Some(101), why: tasks::Refusal::Grace, blocked_by: None, capacity: None };
     let parts = [
         CallPart::SettingsRefused(crate::people::Refusal::Stale { newest: 0 }),
@@ -128,9 +130,9 @@ fn stored_parts_ignore_historical_counters_and_current_rules() {
     let mut limits = limits();
     limits.tasks.batch = 2;
 
-    let (mut selected, _) = loaded();
-    assert_eq!(selected.restore_core(CoreRecord::Call(duplicate.clone()), &limits), Restored::Live);
-    assert_eq!(selected.call_record(duplicate.key), Some(duplicate.clone()));
+    let (mut started, _) = loaded();
+    assert_eq!(started.restore_core(CoreRecord::Call(duplicate.clone()), &limits), Restored::Live);
+    assert_eq!(started.call_record(duplicate.key), Some(duplicate.clone()));
 }
 
 #[test]
@@ -361,7 +363,7 @@ fn proof_capacity_failures_keep_the_outer_key() {
 }
 
 fn size(count: u32) -> usize {
-    usize::try_from(count).expect("small fixture count")
+    skein_lib::length::usize_of(count)
 }
 
 fn accepted(part: CallPart) {
@@ -443,7 +445,7 @@ fn call_payloads_at_their_capacity_fit_both_paths() {
 }
 
 #[test]
-fn selected_row_duplicates_reject_before_replacement() {
+fn start_row_duplicates_reject_before_replacement() {
     let (mut core, limits) = loaded();
     let record = row(CallPart::Controlled);
     assert_eq!(core.restore_core(CoreRecord::Call(record.clone()), &limits), Restored::Live);
@@ -511,7 +513,7 @@ fn seed_commit_prevents_further_core_loading_until_acknowledged() {
 }
 
 #[test]
-fn selected_seed_policy_uses_restore_instead_of_current_admission() {
+fn start_seed_policy_uses_restore_instead_of_current_admission() {
     let limits = limits();
     let env = super::Env { now: super::Time::ZERO, wall: Wall::EPOCH, limits };
     let mut configured = config(303);
@@ -519,7 +521,7 @@ fn selected_seed_policy_uses_restore_instead_of_current_admission() {
     let mut core = Core::new(configured, &limits).expect("seed fits configuration bounds");
     let _begin = core.start_begin(false, Wall::EPOCH);
     let action = core.start_done(&env, super::Phase::LoadCore, &mut super::Queue::uncapped());
-    let super::Action::Commit(_) = action else { panic!("selected seed kept its policy") };
+    let super::Action::Commit(_) = action else { panic!("started seed kept its policy") };
     assert_eq!(core.authority.policy(1).expect("seeded policy").period_spend, 1001);
     assert_eq!(core.start_failure(), None);
 }

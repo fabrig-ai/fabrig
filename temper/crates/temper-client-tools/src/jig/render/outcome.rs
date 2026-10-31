@@ -261,11 +261,11 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
     let Outcome::Answered(Answered::Jig(answer)) = outcome else { unreachable!("client answers handled") };
     match answer {
         c::Answer::Done(_) if operation.exported.is_some() => moved_out(operation, out),
-        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountMovedIn { account, renewed })) => {
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountMovedIn { account, renewed })) => {
             moved_in(*account, *renewed, out);
         }
-        c::Answer::Done(c::Outcome::Proposed { proposal }) => proposed(*proposal, operation, me, out),
-        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Proposed { proposal, .. })) => proposed(
+
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Proposed { proposal, .. })) => proposed(
             c::ProposalKey {
                 proposer: c::Proposer::Party(operation.party.expect("request party retained")),
                 number: *proposal,
@@ -274,20 +274,17 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
             me,
             out,
         ),
-        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProposalDecided {
-            by, at, choice, repeated: true, ..
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProposalDecided {
+            by,
+            at,
+            choice,
+            repeated: true,
+            ..
         })) => {
             repeated_text(*by, *at, *choice, me, out);
         }
-        c::Answer::Done(c::Outcome::DecidedFirst { by, how, at }) => {
-            out.put(b"decided first: by ");
-            out.put(by.name.bytes());
-            out.put(b", ");
-            decision(how, out);
-            out.put(b", ");
-            document::utc(*at, out);
-        }
-        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountProgramDeclared { source, name })) => {
+
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountProgramDeclared { source, name })) => {
             out.put(b"Program source ");
             out.number(u64::from(*source));
             out.put(b": ");
@@ -297,17 +294,17 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
             out.put(b" ");
             out.put(name);
         }
-        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountChanged)) if operation.word == b"verify" => {
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountChanged)) if operation.word == b"verify" => {
             out.put(b"asked\naccount list --until settled");
         }
-        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountSignInStarted { address, .. })) => {
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignInStarted { address, .. })) => {
             out.put(b"Open this address in a browser on the engine's machine:\n");
             out.put(address);
             out.put(b"\naccount list --until settled");
         }
-        c::Answer::Done(c::Outcome::Owner(
-            c::OwnerOutcome::AccountSignedOut { confirmed, failed_hosts }
-            | c::OwnerOutcome::AccountRemoved { confirmed, failed_hosts },
+        c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::AccountSignedOut { confirmed, failed_hosts }
+            | c::DocumentOutcome::AccountRemoved { confirmed, failed_hosts },
         )) => {
             sign_out(operation, *confirmed, failed_hosts, me, limits, out);
         }
@@ -316,7 +313,9 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
             out.put(b"revision ");
             out.number(u64::from(changed.revision));
         }
-        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Lifted { hold, released })) => lifted(*hold, *released, out),
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Lifted { hold, released })) => {
+            lifted(*hold, *released, out);
+        }
         c::Answer::Done(done) => {
             out.put(b"done: ");
             let task = match done {
@@ -324,13 +323,8 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
                     unreachable!("settings answer handled above")
                 }
                 c::Outcome::Made { what: c::Made::Tasks { tasks } } => tasks.get(0).copied(),
-                c::Outcome::Owner(c::OwnerOutcome::Created { first, .. }) => Some(*first),
-                c::Outcome::Owner(_)
-                | c::Outcome::Made { .. }
-                | c::Outcome::Proposed { .. }
-                | c::Outcome::Decided { .. }
-                | c::Outcome::DecidedFirst { .. }
-                | c::Outcome::Changed => operation.task,
+                c::Outcome::Document(c::DocumentOutcome::Created { first, .. }) => Some(*first),
+                c::Outcome::Document(_) | c::Outcome::Made { .. } => operation.task,
             };
             if let Some(task) = task {
                 out.put(b"task ");
@@ -350,16 +344,16 @@ fn lifted(hold: u64, released: u32, out: &mut Text) {
     out.number(u64::from(released));
     out.put(b" released");
 }
-fn repeated_text(by: u64, at: skein_lib::Wall, choice: c::OwnerProposalChoice, me: Option<&c::Me>, out: &mut Text) {
+fn repeated_text(by: u64, at: skein_lib::Wall, choice: c::ProposalChoice, me: Option<&c::Me>, out: &mut Text) {
     out.put(b"decided first: by ");
     acts::party(by, me, out);
     out.put(b", ");
     out.put(match choice {
-        c::OwnerProposalChoice::Accepted => b"accepted",
-        c::OwnerProposalChoice::Rejected => b"rejected",
-        c::OwnerProposalChoice::Passed => b"passed up",
-        c::OwnerProposalChoice::Withdrawn => b"withdrawn",
-        c::OwnerProposalChoice::Stale => b"stale",
+        c::ProposalChoice::Accepted => b"accepted",
+        c::ProposalChoice::Rejected => b"rejected",
+        c::ProposalChoice::Passed => b"passed up",
+        c::ProposalChoice::Withdrawn => b"withdrawn",
+        c::ProposalChoice::Stale => b"stale",
     });
     out.put(b", ");
     document::utc(at, out);
@@ -379,15 +373,7 @@ fn proposed(proposal: c::ProposalKey, operation: &Operation, me: Option<&c::Me>,
         acts::recipient(to, me, out);
     }
 }
-fn decision(how: &c::Decision, out: &mut Text) {
-    out.put(match how {
-        c::Decision::Accepted => b"accepted",
-        c::Decision::Rejected { .. } => b"rejected",
-        c::Decision::PassedUp => b"passed up",
-        c::Decision::Released { .. } => b"released",
-        c::Decision::LeftHeld { .. } => b"left held",
-    });
-}
+
 fn encode(
     operation: &Operation,
     outcome: &Outcome,
@@ -427,23 +413,12 @@ fn encode(
             out.key(b"file");
             out.string(operation.file.as_deref().expect("export file"));
             out.object_end();
-        } else if (kept || operation.word == b"propose_settings")
-            && let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Proposed { proposal, .. })) = answer
-        {
-            // A formatter projection of the actual original result; the client outcome stays intact.
-            let projected = c::Answer::Done(c::Outcome::Proposed {
-                proposal: c::ProposalKey {
-                    proposer: c::Proposer::Party(operation.party.expect("request party retained")),
-                    number: *proposal,
-                },
-            });
-            document::answer_json(&projected, out);
         } else {
             document::answer_json(answer, out);
         }
     }
-    if let Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-        c::OwnerOutcome::AccountProgramDeclared { name, .. },
+    if let Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(
+        c::DocumentOutcome::AccountProgramDeclared { name, .. },
     )))) = outcome
     {
         out.key(b"next");
@@ -453,9 +428,9 @@ fn encode(
         out.key(b"next");
         out.string(next);
     }
-    if let Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-        c::OwnerOutcome::AccountSignedOut { confirmed, failed_hosts }
-        | c::OwnerOutcome::AccountRemoved { confirmed, failed_hosts },
+    if let Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(
+        c::DocumentOutcome::AccountSignedOut { confirmed, failed_hosts }
+        | c::DocumentOutcome::AccountRemoved { confirmed, failed_hosts },
     )))) = outcome
     {
         let mut measure = Text::measure();
@@ -582,10 +557,10 @@ pub(crate) fn account_tool(tool: u8) -> &'static crate::jig::table::Tool {
 
 fn account_follow_up(operation: &Operation, outcome: &Outcome) -> Option<&'static [u8]> {
     match outcome {
-        Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-            c::OwnerOutcome::AccountSignInStarted { .. },
+        Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::AccountSignInStarted { .. },
         )))) => Some(b"account list --until settled"),
-        Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountChanged))))
+        Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountChanged))))
             if operation.word == b"verify" =>
         {
             Some(b"account list --until settled")

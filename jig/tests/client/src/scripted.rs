@@ -1,14 +1,17 @@
 //! Token routing between a client root and scripted engine. No root state is read.
-#![allow(clippy::wildcard_imports, reason = "world adapters translate the complete owner vocabulary")]
-use crate::{harness::*, test::Test};
+use crate::harness::{ClientId, Front, FrontFault, Observed};
+use crate::test::Test;
 use jig_client::{Ask, Down, Readable, Watchable};
-use jig_client_domain::contract::*;
+use jig_client_domain::contract::{
+    ObjectKey, Read, ReadNone, ReadResult, ReadValue, Subject, VersionRange, WatchEnd, WatchEvent,
+};
 use jig_client_scripted_engine::{self as engine, Application, ApplicationValue, Decision, Envelope, Truth, Up};
 use jig_client_test_domain::{self as domain, Event, Request, family, first};
 use sha2::{Digest, Sha256};
 use skein_lib::{RequestEnvelope, Time, Token, Wall};
 use skein_world::domain::Ledger;
 use std::collections::BTreeMap;
+mod stories;
 /// Scripted family documents with revision-naming decisions.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Family {
@@ -21,26 +24,6 @@ impl Application for Family {
     type Document = family::Document;
     fn decide(&mut self, _: &Truth, _: u64, ask: &Self::Ask, _: Wall) -> Decision<Self::Answer> {
         let answer = match ask {
-            family::Ask::Touch { project, item, revision, parameters } => {
-                let subject =
-                    family::Subject { scope: family::Scope::Project(*project), kind: family::Kind::Item(*item) };
-                match self.documents.get_mut(&subject) {
-                    Some(family::Document::Item(doc)) if doc.revision == *revision => {
-                        doc.revision = Revision { value: doc.revision.value + 1 };
-                        if let Some(value) = parameters {
-                            doc.value = *value;
-                        }
-                        family::Answer::Touched { item: *item, revision: doc.revision }
-                    }
-                    Some(doc) => match doc.revision() {
-                        Some(revision) => family::Answer::Moved { item: *item, revision },
-                        None => family::Answer::Connector(jig_client_test_domain::connector_values::ConnectorAnswer {
-                            value: jig_client_test_domain::connector_values::ApplicationOutcome::Unknown,
-                        }),
-                    },
-                    None => family::Answer::Gone,
-                }
-            }
             family::Ask::ChangeObject { project, object, revision, value } => {
                 let subject =
                     family::Subject { scope: family::Scope::Project(*project), kind: family::Kind::Item(*object) };
@@ -76,9 +59,7 @@ impl Application for Family {
                             jig_client_test_domain::connector_values::ApplicationOutcome::Unknown
                         }
                     },
-                    None | Some(family::Document::Item(_) | family::Document::Part(_)) => {
-                        jig_client_test_domain::connector_values::ApplicationOutcome::Unknown
-                    }
+                    None => jig_client_test_domain::connector_values::ApplicationOutcome::Unknown,
                 };
                 family::Answer::Connector(jig_client_test_domain::connector_values::ConnectorAnswer { value: outcome })
             }
@@ -107,7 +88,6 @@ impl Application for Family {
 }
 fn family_document_fits(document: &family::Document, bounds: &engine::Bounds) -> bool {
     match document {
-        family::Document::Item(_) | family::Document::Part(_) => document.fits(bounds.rows),
         family::Document::Connector(value) => {
             let limits = domain::connector_values::ConnectorLimits {
                 rows: bounds.rows,
@@ -130,6 +110,7 @@ pub struct Scripted {
     /// Whole subjects received at the scripted engine boundary.
     pub opened: Vec<Subject>,
     pub engine: engine::Engine<Family>,
+    pub compositions: BTreeMap<first::Address, family::PageComposition>,
     ledger: Ledger<Token, ()>,
     parties: BTreeMap<ClientId, u64>,
     hellos: std::collections::BTreeSet<ClientId>,
@@ -147,8 +128,102 @@ pub struct Scripted {
     recovery: Option<Time>,
     pending_sign_ins: Vec<u64>,
     pending_faults: Vec<FrontFault>,
+    chat_report: Option<Box<[u8]>>,
+    project_facts: bool,
+    chat_projects: std::collections::BTreeSet<(u64, u32)>,
 }
 impl Scripted {
+    fn seed_chat(&self, party: u64, project: u32, words: &[u8]) -> jig_client_domain::contract::Task {
+        let number = self
+            .engine
+            .truth()
+            .objects
+            .keys()
+            .filter_map(|key| if let ObjectKey::Task(task) = key { Some(*task) } else { None })
+            .max()
+            .unwrap_or(0)
+            .checked_add(1)
+            .expect("seed task number fits");
+        let mut task = crate::stories::conversations::chat(number, words, Wall::EPOCH);
+        task.project = project;
+        task.requester = jig_client_domain::contract::Requester::Person(party);
+        task.spec = jig_client_domain::contract::SpecificationDocument {
+            specification: jig_client_domain::contract::DocumentSpecification {
+                words: jig_client_domain::contract::DocumentText::complete(crate::stories::text(words)),
+                parameters: crate::test::list([]),
+                inputs: crate::test::list([]),
+                asks: false,
+            },
+            cut: false,
+        };
+        task.settings.as_mut().expect("chat settings").run = Some(1);
+        task.chip.phase = jig_client_domain::contract::Phase::Running;
+        task.chip.details.phase =
+            jig_client_domain::contract::ChipPhase::Active(jig_client_domain::contract::RunStage::Running {
+                attempt: 1,
+            });
+        task.context.as_mut().expect("chat context").runtime =
+            jig_client_domain::contract::Runtime::Running { attempt: 1, since: Wall::EPOCH, tool: None };
+        task.acts = crate::test::list([
+            jig_client_domain::contract::Offered {
+                effect: None,
+                act: jig_client_domain::contract::ActKind::Message,
+                admission: jig_client_domain::contract::Admission::Allowed,
+            },
+            jig_client_domain::contract::Offered {
+                effect: None,
+                act: jig_client_domain::contract::ActKind::Stop,
+                admission: jig_client_domain::contract::Admission::Allowed,
+            },
+            jig_client_domain::contract::Offered {
+                effect: None,
+                act: jig_client_domain::contract::ActKind::Cancel,
+                admission: jig_client_domain::contract::Admission::Allowed,
+            },
+        ]);
+        task
+    }
+
+    fn script_chat(&mut self, party: u64, wall: Wall, ask: &jig_client_domain::contract::Ask) {
+        use jig_client_domain::contract::{Answer, Made, Outcome};
+        if self.chat_projects.iter().any(|(owner, _)| *owner == party) {
+            if self.project_facts {
+                crate::stories::shared::b_scripted::propose(self, party, ask);
+            }
+            crate::stories::shared::b_scripted::cancel(self, party, wall, ask);
+        }
+        let jig_client_domain::contract::Ask::Create { project, tasks } = ask else { return };
+        if !self.chat_projects.contains(&(party, *project)) || tasks.len() != 1 {
+            return;
+        }
+        let member = tasks.get(0).expect("one batch member");
+        if !member.flags.conversation {
+            return;
+        }
+        let mut task = self.seed_chat(party, *project, member.spec.words.bytes());
+        task.flags = member.flags;
+        task.label = member.label;
+        task.last_activity = wall;
+        task.changed = wall;
+        self.engine
+            .script(engine::Rule {
+                party: Some(party),
+                ask: ask.clone(),
+                answer: Answer::Done(Outcome::Made {
+                    what: Made::Tasks { tasks: crate::test::list([task.chip.task]) },
+                }),
+                changes: vec![engine::Change::Object {
+                    project: *project,
+                    key: ObjectKey::Task(task.chip.task),
+                    value: self.chat_report.as_ref().map_or_else(
+                        || ReadValue::Task(Box::new(task.clone())),
+                        |report| stories::ended(task.clone(), report),
+                    ),
+                }],
+            })
+            .expect("seeded project's chat rule fits");
+    }
+
     /// Lose the next shell sign-out before it reaches the engine.
     pub fn lose_next_sign_out(&mut self) {
         self.lose_sign_out = true;
@@ -176,6 +251,7 @@ impl Scripted {
         }
         Self {
             opened: Vec::new(),
+            compositions: BTreeMap::new(),
             ledger: Ledger::new("scripted wire operation"),
             engine: engine::Engine::with_application(script, seed, family).expect("script keeps contract"),
             parties: BTreeMap::new(),
@@ -194,6 +270,9 @@ impl Scripted {
             recovery: None,
             pending_sign_ins: Vec::new(),
             pending_faults: Vec::new(),
+            chat_report: None,
+            project_facts: false,
+            chat_projects: std::collections::BTreeSet::new(),
         }
     }
     fn transport(&mut self, client: ClientId, local: Token, first: bool, fresh: bool) -> Token {
@@ -284,12 +363,62 @@ impl Scripted {
 }
 
 impl Front<Test> for Scripted {
+    fn seed(&mut self, seed: crate::harness::Seed) {
+        use crate::harness::Seed;
+        match seed {
+            Seed::Roles { story } => stories::roles(self, story),
+            Seed::PendingGoal { words, budget } => stories::proposal(self, &words, budget),
+            Seed::Profile => stories::profile(self),
+            Seed::ChatResult { report } => self.chat_report = Some(report),
+            Seed::Project(facts) => {
+                self.project_facts = true;
+                crate::stories::shared::b_seed::scripted(self, facts);
+            }
+            Seed::ChatProject { party, project } => {
+                assert_eq!(project, 1, "the scripted frame's project");
+                self.chat_projects.insert((party, project));
+                self.engine
+                    .act(Time::ZERO, Wall::EPOCH, engine::Change::Me(crate::stories::frame(party)))
+                    .expect("seed frame fits");
+                self.engine
+                    .act(Time::ZERO, Wall::EPOCH, engine::Change::SignedOut { sign_in: party })
+                    .expect("seed sign-out fits");
+            }
+            Seed::Conversation { party, project, words } => {
+                assert!(self.chat_projects.contains(&(party, project)), "seed the conversation's project first");
+                let task = self.seed_chat(party, project, &words);
+                self.engine
+                    .act(
+                        Time::ZERO,
+                        Wall::EPOCH,
+                        engine::Change::Object {
+                            project,
+                            key: ObjectKey::Task(task.chip.task),
+                            value: ReadValue::Task(Box::new(task)),
+                        },
+                    )
+                    .expect("seed conversation fits");
+            }
+        }
+    }
     fn bind(&mut self, client: ClientId, party: u64) {
         self.parties.insert(client, party);
     }
     fn starting(&mut self, client: ClientId) -> Vec<Event> {
         self.hellos.insert(client);
-        vec![crate::test::up(jig_client::Up::SignedIn)]
+        let mut events: Vec<_> = self
+            .compositions
+            .iter()
+            .map(|(address, composition)| {
+                Event::First(first::Event::Compose { address: *address, composition: composition.clone() })
+            })
+            .collect();
+        if self.engine.truth().sign_ins.contains_key(&self.parties[&client]) {
+            events.push(crate::test::up(jig_client::Up::SignedIn));
+        } else {
+            events.push(crate::test::up(jig_client::Up::SignedOut));
+        }
+        events
     }
     fn wire(&mut self, client: ClientId, now: Time, wall: Wall, request: Request) {
         let party = self.parties[&client];
@@ -303,6 +432,10 @@ impl Front<Test> for Scripted {
                 self.last_attempt = Some(attempt);
                 match ask {
                     Ask::Jig(ask) => {
+                        self.script_chat(party, wall, &ask);
+                        if !self.project_facts {
+                            stories::request(self, party, &ask, wall);
+                        }
                         self.engine.send(now, wall, party, key, attempt, *ask).expect("jig send fits");
                     }
                     Ask::Family { scope, record } => {
@@ -430,7 +563,7 @@ impl Front<Test> for Scripted {
                 for mut source in sources {
                     if let engine::Rows::Inbox(rows) = &mut source.rows {
                         let before = rows.len();
-                        rows.retain(|row| row.object != key);
+                        rows.retain(|row| row.card_key() != key);
                         if rows.len() != before {
                             self.engine.act(now, wall, engine::Change::Source(source)).expect("listing fits");
                         }
@@ -540,25 +673,18 @@ impl Front<Test> for Scripted {
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "the observation table classifies every scripted change without inspecting client state"
-)]
 fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>) {
     match change {
         engine::Change::Source(source) => {
             if let (Read::Activity { task, .. }, engine::Rows::Activity(rows)) = (&source.read, &source.rows) {
                 for row in rows {
-                    if let Some((message, words)) = row.event.word_message() {
+                    if let Some((message, words)) = row.word_message() {
                         seen.push(Observed::Kept { task: *task, message, words: words.bytes().to_vec(), commit });
                     }
                 }
                 seen.push(Observed::Retained {
                     task: *task,
-                    messages: rows
-                        .iter()
-                        .filter_map(|row| row.event.word_message().map(|(message, _)| message))
-                        .collect(),
+                    messages: rows.iter().filter_map(|row| row.word_message().map(|(message, _)| message)).collect(),
                     commit,
                 });
             }
@@ -566,36 +692,28 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
         engine::Change::Forget { key } => seen.push(Observed::Stopped { card: crate::observe::key(*key), commit }),
         engine::Change::Object { key, value, .. } => {
             let terminal = match value {
-                ReadValue::Proposal(p) => p.ending.is_some(),
-                ReadValue::Escalation(e) => e.ending.is_some(),
+                ReadValue::Ended(p) => p.is_terminal(),
                 ReadValue::Question(q) => q.ending.is_some(),
-                ReadValue::PersonTask(p) => p.ending.is_some(),
                 ReadValue::Task(t) => t.result.is_some(),
                 ReadValue::Result(_) => true,
-                ReadValue::OwnerPersonTask(_)
-                | ReadValue::Historical(_)
-                | ReadValue::OwnerProposal(_)
-                | ReadValue::OwnerEscalation(_)
+                ReadValue::PersonTask(_)
+                | ReadValue::Proposal(_)
+                | ReadValue::Escalation(_)
                 | ReadValue::Tasks(_)
                 | ReadValue::Me(_)
-                | ReadValue::Ended(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
                 | ReadValue::Inbox(_)
-                | ReadValue::OwnerInbox(_)
+                | ReadValue::EndedPage(_)
                 | ReadValue::Spend(_)
-                | ReadValue::OwnerEnded(_)
-                | ReadValue::OwnerSpend(_)
-                | ReadValue::OwnerProject(_)
                 | ReadValue::Project(_)
                 | ReadValue::Notes(_)
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
                 | ReadValue::Revisions(_)
-                | ReadValue::Deployment(_)
-                | ReadValue::OwnerDeployment(_) => false,
+                | ReadValue::Deployment(_) => false,
             };
             if terminal {
                 seen.push(Observed::Stopped { card: crate::observe::key(*key), commit });
@@ -606,32 +724,24 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
                 ReadValue::Task(_)
                 | ReadValue::Tasks(_)
                 | ReadValue::Me(_)
+                | ReadValue::EndedPage(_)
                 | ReadValue::Proposal(_)
-                | ReadValue::Historical(_)
-                | ReadValue::OwnerProposal(_)
                 | ReadValue::Escalation(_)
-                | ReadValue::OwnerEscalation(_)
                 | ReadValue::Question(_)
                 | ReadValue::PersonTask(_)
-                | ReadValue::OwnerPersonTask(_)
-                | ReadValue::Ended(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
                 | ReadValue::Inbox(_)
-                | ReadValue::OwnerInbox(_)
+                | ReadValue::Ended(_)
                 | ReadValue::Spend(_)
-                | ReadValue::OwnerEnded(_)
-                | ReadValue::OwnerSpend(_)
-                | ReadValue::OwnerProject(_)
                 | ReadValue::Project(_)
                 | ReadValue::Notes(_)
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
                 | ReadValue::Revisions(_)
-                | ReadValue::Deployment(_)
-                | ReadValue::OwnerDeployment(_) => {}
+                | ReadValue::Deployment(_) => {}
             }
         }
         engine::Change::Settings(_)
@@ -643,12 +753,10 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
         | engine::Change::SignIn { .. }
         | engine::Change::SignedOut { .. }
         | engine::Change::RemoveProject { .. }
-        | engine::Change::OwnerProject(_)
         | engine::Change::Project(_)
         | engine::Change::Note(_)
         | engine::Change::DeleteNote { .. }
         | engine::Change::Deployment(_)
-        | engine::Change::OwnerDeployment(_)
         | engine::Change::Tree(_)
         | engine::Change::Seen { .. } => {}
     }

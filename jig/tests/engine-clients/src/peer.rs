@@ -269,10 +269,10 @@ impl Peer {
         self.pump();
     }
     fn mount_env(&self) -> Env<mapping::Limits> {
-        Env { now: self.env.now, wall: self.env.wall, limits: fixtures::http_limits() }
+        self.env.with(fixtures::http_limits())
     }
     fn mount_event(&mut self, event: mapping::Event) {
-        self.mount.down(&self.mount_env(), event, &mut self.mount_out);
+        self.mount.down(&self.mount_env(), event);
     }
     fn mount_step(&mut self) -> bool {
         let mut active = self.mount.up(&self.mount_env(), &mut self.mount_out);
@@ -535,7 +535,7 @@ impl Peer {
         &self.sockets[&self.streams[&stream]].body
     }
     pub fn request_watch_event(&mut self, stream: [u8; 16], subject: &w::Subject) -> (Token, core::Event) {
-        let mut record = Writer::new(usize::try_from(subject.measure()).expect("subject size"));
+        let mut record = Writer::new(skein_lib::length::usize_of(subject.measure()));
         subject.encode(&mut record).expect("subject");
         let subject = w::Owned::new(
             &self.env.limits.wire,
@@ -545,7 +545,7 @@ impl Peer {
         let open = w::Open::new(&self.env.limits.wire, w::OpenParts { stream, watch: self.next_watch, subject })
             .expect("open");
         self.next_watch += 1;
-        let mut body = Writer::new(usize::try_from(open.measure()).expect("open size"));
+        let mut body = Writer::new(skein_lib::length::usize_of(open.measure()));
         open.encode(&mut body).expect("open record");
         let bearer = self.bearer.clone().expect("signed in");
         let exchange = self.post(b"/jig/v1/watch", body.finish(), Some(&bearer));
@@ -669,7 +669,7 @@ impl Peer {
     }
     pub fn advance_time(&mut self, span: skein_lib::Duration) {
         self.env.now = self.env.now.saturating_add(span);
-        self.component.fire(&self.env, &mut self.out);
+        self.component.fire(&self.env);
         self.pump();
     }
     #[must_use]
@@ -684,7 +684,7 @@ impl Peer {
         let secret = link.split(|byte| *byte == b'=').next_back().expect("link query");
         let secret = base64::decode(Alphabet::Url, secret, 32).expect("link secret");
         let record = w::LinkSignIn::new(&self.env.limits.wire, w::LinkSignInParts { secret }).expect("bounded secret");
-        let mut out = Writer::new(usize::try_from(record.measure()).expect("record size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut out).expect("encoded link");
         out.finish()
     }

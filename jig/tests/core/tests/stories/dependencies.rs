@@ -1,5 +1,6 @@
 use super::*;
-use jig_core_world::fixtures::unchanged;
+use jig_core_world::world::Setup;
+use jig_test_profile::fixtures::unchanged;
 
 #[test]
 fn a_kept_delegate_is_woken_by_its_last_dependencys_met() {
@@ -151,7 +152,7 @@ fn member_world(seed: u64) -> World {
     .rules()
     .clone();
     jig_core_world::peers::journal(&mut limits);
-    World::configured(seed, false, configuration, limits)
+    World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() })
 }
 
 fn dependency_amendment(dependencies: &[u64]) -> people::Amendment {

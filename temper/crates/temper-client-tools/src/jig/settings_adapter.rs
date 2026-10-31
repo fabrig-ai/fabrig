@@ -138,8 +138,8 @@ pub fn form_model_effort(v: &c::ModelEffort) -> n::ModelEffort {
 pub fn client_model_effort(v: &n::ModelEffort) -> c::ModelEffort {
     c::ModelEffort { model: client_text(&v.model), effort: client_optional_text(v.effort.as_ref()) }
 }
-pub fn form_owner_authority(v: &c::OwnerAuthority) -> n::OwnerAuthority {
-    n::OwnerAuthority {
+pub fn form_owner_authority(v: &c::Authority) -> n::Authority {
+    n::Authority {
         models: form_optional_authority_models(v.models.as_ref()),
         tools: v.tools,
         grants: {
@@ -162,8 +162,8 @@ pub fn form_owner_authority(v: &c::OwnerAuthority) -> n::OwnerAuthority {
         },
     }
 }
-pub fn client_owner_authority(v: &n::OwnerAuthority) -> c::OwnerAuthority {
-    c::OwnerAuthority {
+pub fn client_owner_authority(v: &n::Authority) -> c::Authority {
+    c::Authority {
         models: client_optional_authority_models(v.models.as_ref()),
         tools: v.tools,
         grants: {
@@ -186,22 +186,22 @@ pub fn client_owner_authority(v: &n::OwnerAuthority) -> c::OwnerAuthority {
         },
     }
 }
-pub fn form_owner_authority_executor(v: c::OwnerAuthorityExecutor) -> n::OwnerAuthorityExecutor {
+pub fn form_owner_authority_executor(v: c::AuthorityExecutor) -> n::AuthorityExecutor {
     match v {
-        c::OwnerAuthorityExecutor::Charter(x) => n::OwnerAuthorityExecutor::Charter(x),
-        c::OwnerAuthorityExecutor::Procedure(x) => n::OwnerAuthorityExecutor::Procedure(x),
-        c::OwnerAuthorityExecutor::Role(x) => n::OwnerAuthorityExecutor::Role(x),
+        c::AuthorityExecutor::Charter(x) => n::AuthorityExecutor::Charter(x),
+        c::AuthorityExecutor::Procedure(x) => n::AuthorityExecutor::Procedure(x),
+        c::AuthorityExecutor::Role(x) => n::AuthorityExecutor::Role(x),
     }
 }
-pub fn client_owner_authority_executor(v: n::OwnerAuthorityExecutor) -> c::OwnerAuthorityExecutor {
+pub fn client_owner_authority_executor(v: n::AuthorityExecutor) -> c::AuthorityExecutor {
     match v {
-        n::OwnerAuthorityExecutor::Charter(x) => c::OwnerAuthorityExecutor::Charter(x),
-        n::OwnerAuthorityExecutor::Procedure(x) => c::OwnerAuthorityExecutor::Procedure(x),
-        n::OwnerAuthorityExecutor::Role(x) => c::OwnerAuthorityExecutor::Role(x),
+        n::AuthorityExecutor::Charter(x) => c::AuthorityExecutor::Charter(x),
+        n::AuthorityExecutor::Procedure(x) => c::AuthorityExecutor::Procedure(x),
+        n::AuthorityExecutor::Role(x) => c::AuthorityExecutor::Role(x),
     }
 }
-pub fn form_owner_delegation(v: &c::OwnerDelegation) -> n::OwnerDelegation {
-    n::OwnerDelegation {
+pub fn form_owner_delegation(v: &c::Delegation) -> n::Delegation {
+    n::Delegation {
         kinds: {
             let mut out = List::with_capacity(v.kinds.len());
             for item in &v.kinds {
@@ -213,8 +213,8 @@ pub fn form_owner_delegation(v: &c::OwnerDelegation) -> n::OwnerDelegation {
         depth: v.depth,
     }
 }
-pub fn client_owner_delegation(v: &n::OwnerDelegation) -> c::OwnerDelegation {
-    c::OwnerDelegation {
+pub fn client_owner_delegation(v: &n::Delegation) -> c::Delegation {
+    c::Delegation {
         kinds: {
             let mut out = List::with_capacity(v.kinds.len());
             for item in &v.kinds {
@@ -226,72 +226,72 @@ pub fn client_owner_delegation(v: &n::OwnerDelegation) -> c::OwnerDelegation {
         depth: v.depth,
     }
 }
-pub fn form_owner_grant(v: &c::OwnerGrant) -> n::OwnerGrant {
-    n::OwnerGrant { connector: v.connector, kind: v.kind, pattern: form_owner_pattern(&v.pattern) }
+pub fn form_owner_grant(v: &c::Grant) -> n::Grant {
+    n::Grant { connector: v.connector, kind: v.kind, pattern: form_owner_pattern(&v.pattern) }
 }
-pub fn client_owner_grant(v: &n::OwnerGrant) -> c::OwnerGrant {
-    c::OwnerGrant { connector: v.connector, kind: v.kind, pattern: client_owner_pattern(&v.pattern) }
+pub fn client_owner_grant(v: &n::Grant) -> c::Grant {
+    c::Grant { connector: v.connector, kind: v.kind, pattern: client_owner_pattern(&v.pattern) }
 }
-pub fn form_owner_kind_implication(v: c::OwnerKindImplication) -> n::OwnerKindImplication {
-    n::OwnerKindImplication { connector: v.connector, kind: v.kind, implies: v.implies }
+pub fn form_owner_kind_implication(v: c::KindImplication) -> n::KindImplication {
+    n::KindImplication { connector: v.connector, kind: v.kind, implies: v.implies }
 }
-pub fn client_owner_kind_implication(v: n::OwnerKindImplication) -> c::OwnerKindImplication {
-    c::OwnerKindImplication { connector: v.connector, kind: v.kind, implies: v.implies }
+pub fn client_owner_kind_implication(v: n::KindImplication) -> c::KindImplication {
+    c::KindImplication { connector: v.connector, kind: v.kind, implies: v.implies }
 }
-pub fn form_owner_part(v: &c::OwnerPart) -> n::OwnerPart {
-    n::OwnerPart { connector: v.connector, kind: form_owner_part_kind(v.kind), key: form_owner_part_key(&v.key) }
+pub fn form_owner_part(v: &c::Part) -> n::Part {
+    n::Part { connector: v.connector, kind: form_owner_part_kind(v.kind), key: form_owner_part_key(&v.key) }
 }
-pub fn client_owner_part(v: &n::OwnerPart) -> c::OwnerPart {
-    c::OwnerPart { connector: v.connector, kind: client_owner_part_kind(v.kind), key: client_owner_part_key(&v.key) }
+pub fn client_owner_part(v: &n::Part) -> c::Part {
+    c::Part { connector: v.connector, kind: client_owner_part_kind(v.kind), key: client_owner_part_key(&v.key) }
 }
-pub fn form_owner_part_key(v: &c::OwnerPartKey) -> n::OwnerPartKey {
+pub fn form_owner_part_key(v: &c::PartKey) -> n::PartKey {
     match v {
-        c::OwnerPartKey::Path(x) => n::OwnerPartKey::Path({
+        c::PartKey::Path(x) => n::PartKey::Path({
             let mut out = List::with_capacity(x.len());
             for item in x {
                 out.push(item.clone()).expect("one value per input");
             }
             out
         }),
-        c::OwnerPartKey::Number(x) => n::OwnerPartKey::Number(*x),
+        c::PartKey::Number(x) => n::PartKey::Number(*x),
     }
 }
-pub fn client_owner_part_key(v: &n::OwnerPartKey) -> c::OwnerPartKey {
+pub fn client_owner_part_key(v: &n::PartKey) -> c::PartKey {
     match v {
-        n::OwnerPartKey::Path(x) => c::OwnerPartKey::Path({
+        n::PartKey::Path(x) => c::PartKey::Path({
             let mut out = List::with_capacity(x.len());
             for item in x {
                 out.push(item.clone()).expect("one value per input");
             }
             out
         }),
-        n::OwnerPartKey::Number(x) => c::OwnerPartKey::Number(*x),
+        n::PartKey::Number(x) => c::PartKey::Number(*x),
     }
 }
-pub fn form_owner_part_kind(v: c::OwnerPartKind) -> n::OwnerPartKind {
+pub fn form_owner_part_kind(v: c::PartKind) -> n::PartKind {
     match v {
-        c::OwnerPartKind::Resource => n::OwnerPartKind::Resource,
-        c::OwnerPartKind::Pool => n::OwnerPartKind::Pool,
-        c::OwnerPartKind::Result => n::OwnerPartKind::Result,
-        c::OwnerPartKind::Procedure => n::OwnerPartKind::Procedure,
-        c::OwnerPartKind::Effect => n::OwnerPartKind::Effect,
-        c::OwnerPartKind::Outbox => n::OwnerPartKind::Outbox,
-        c::OwnerPartKind::Hold => n::OwnerPartKind::Hold,
+        c::PartKind::Resource => n::PartKind::Resource,
+        c::PartKind::Pool => n::PartKind::Pool,
+        c::PartKind::Result => n::PartKind::Result,
+        c::PartKind::Procedure => n::PartKind::Procedure,
+        c::PartKind::Effect => n::PartKind::Effect,
+        c::PartKind::Outbox => n::PartKind::Outbox,
+        c::PartKind::Hold => n::PartKind::Hold,
     }
 }
-pub fn client_owner_part_kind(v: n::OwnerPartKind) -> c::OwnerPartKind {
+pub fn client_owner_part_kind(v: n::PartKind) -> c::PartKind {
     match v {
-        n::OwnerPartKind::Resource => c::OwnerPartKind::Resource,
-        n::OwnerPartKind::Pool => c::OwnerPartKind::Pool,
-        n::OwnerPartKind::Result => c::OwnerPartKind::Result,
-        n::OwnerPartKind::Procedure => c::OwnerPartKind::Procedure,
-        n::OwnerPartKind::Effect => c::OwnerPartKind::Effect,
-        n::OwnerPartKind::Outbox => c::OwnerPartKind::Outbox,
-        n::OwnerPartKind::Hold => c::OwnerPartKind::Hold,
+        n::PartKind::Resource => c::PartKind::Resource,
+        n::PartKind::Pool => c::PartKind::Pool,
+        n::PartKind::Result => c::PartKind::Result,
+        n::PartKind::Procedure => c::PartKind::Procedure,
+        n::PartKind::Effect => c::PartKind::Effect,
+        n::PartKind::Outbox => c::PartKind::Outbox,
+        n::PartKind::Hold => c::PartKind::Hold,
     }
 }
-pub fn form_owner_pattern(v: &c::OwnerPattern) -> n::OwnerPattern {
-    n::OwnerPattern {
+pub fn form_owner_pattern(v: &c::Pattern) -> n::Pattern {
+    n::Pattern {
         segments: {
             let mut out = List::with_capacity(v.segments.len());
             for item in &v.segments {
@@ -302,8 +302,8 @@ pub fn form_owner_pattern(v: &c::OwnerPattern) -> n::OwnerPattern {
         last: form_owner_pattern_end(&v.last),
     }
 }
-pub fn client_owner_pattern(v: &n::OwnerPattern) -> c::OwnerPattern {
-    c::OwnerPattern {
+pub fn client_owner_pattern(v: &n::Pattern) -> c::Pattern {
+    c::Pattern {
         segments: {
             let mut out = List::with_capacity(v.segments.len());
             for item in &v.segments {
@@ -314,23 +314,23 @@ pub fn client_owner_pattern(v: &n::OwnerPattern) -> c::OwnerPattern {
         last: client_owner_pattern_end(&v.last),
     }
 }
-pub fn form_owner_pattern_end(v: &c::OwnerPatternEnd) -> n::OwnerPatternEnd {
+pub fn form_owner_pattern_end(v: &c::PatternEnd) -> n::PatternEnd {
     match v {
-        c::OwnerPatternEnd::Exact(x) => n::OwnerPatternEnd::Exact(x.clone()),
-        c::OwnerPatternEnd::Open(x) => n::OwnerPatternEnd::Open(x.clone()),
+        c::PatternEnd::Exact(x) => n::PatternEnd::Exact(x.clone()),
+        c::PatternEnd::Open(x) => n::PatternEnd::Open(x.clone()),
     }
 }
-pub fn client_owner_pattern_end(v: &n::OwnerPatternEnd) -> c::OwnerPatternEnd {
+pub fn client_owner_pattern_end(v: &n::PatternEnd) -> c::PatternEnd {
     match v {
-        n::OwnerPatternEnd::Exact(x) => c::OwnerPatternEnd::Exact(x.clone()),
-        n::OwnerPatternEnd::Open(x) => c::OwnerPatternEnd::Open(x.clone()),
+        n::PatternEnd::Exact(x) => c::PatternEnd::Exact(x.clone()),
+        n::PatternEnd::Open(x) => c::PatternEnd::Open(x.clone()),
     }
 }
-pub fn form_owner_resource_scope(v: &c::OwnerResourceScope) -> n::OwnerResourceScope {
-    n::OwnerResourceScope { connector: v.connector, pattern: form_owner_pattern(&v.pattern) }
+pub fn form_owner_resource_scope(v: &c::ResourceScope) -> n::ResourceScope {
+    n::ResourceScope { connector: v.connector, pattern: form_owner_pattern(&v.pattern) }
 }
-pub fn client_owner_resource_scope(v: &n::OwnerResourceScope) -> c::OwnerResourceScope {
-    c::OwnerResourceScope { connector: v.connector, pattern: client_owner_pattern(&v.pattern) }
+pub fn client_owner_resource_scope(v: &n::ResourceScope) -> c::ResourceScope {
+    c::ResourceScope { connector: v.connector, pattern: client_owner_pattern(&v.pattern) }
 }
 pub fn form_policy_edit_role(v: &c::PolicyEditRole) -> n::PolicyEditRole {
     n::PolicyEditRole {
@@ -1120,30 +1120,22 @@ pub fn form_read_value(v: &c::ReadValue) -> n::ReadValue {
         c::ReadValue::Revision(x) => n::ReadValue::Revision(Box::new(form_revision_answer(x))),
         c::ReadValue::Revisions(x) => n::ReadValue::Revisions(Box::new(form_revisions_page(x))),
         c::ReadValue::Tasks(_)
-        | c::ReadValue::OwnerProject(_)
-        | c::ReadValue::Historical(_)
+        | c::ReadValue::Project(_)
+        | c::ReadValue::Ended(_)
         | c::ReadValue::Me(_)
         | c::ReadValue::Turn(_)
         | c::ReadValue::Task(_)
         | c::ReadValue::Proposal(_)
-        | c::ReadValue::OwnerProposal(_)
         | c::ReadValue::Escalation(_)
-        | c::ReadValue::OwnerEscalation(_)
         | c::ReadValue::Question(_)
         | c::ReadValue::PersonTask(_)
-        | c::ReadValue::OwnerPersonTask(_)
         | c::ReadValue::Result(_)
-        | c::ReadValue::Ended(_)
-        | c::ReadValue::OwnerEnded(_)
+        | c::ReadValue::EndedPage(_)
         | c::ReadValue::History(_)
         | c::ReadValue::Activity(_)
         | c::ReadValue::Inbox(_)
-        | c::ReadValue::OwnerInbox(_)
         | c::ReadValue::Spend(_)
-        | c::ReadValue::OwnerSpend(_)
-        | c::ReadValue::Project(_)
         | c::ReadValue::Notes(_)
-        | c::ReadValue::Deployment(_)
-        | c::ReadValue::OwnerDeployment(_) => unreachable!("selected settings read"),
+        | c::ReadValue::Deployment(_) => unreachable!("selected settings read"),
     }
 }

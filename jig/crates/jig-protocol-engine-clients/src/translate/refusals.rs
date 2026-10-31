@@ -88,9 +88,9 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
             w::RefusalDependencyParts {
                 dependency,
                 how: match how {
-                    p::DependencyStatus::Done => w::OwnerTaskStatus::Done,
-                    p::DependencyStatus::Failed => w::OwnerTaskStatus::Failed,
-                    p::DependencyStatus::Cancelled => w::OwnerTaskStatus::Cancelled,
+                    p::DependencyStatus::Done => w::TaskStatus::Done,
+                    p::DependencyStatus::Failed => w::TaskStatus::Failed,
+                    p::DependencyStatus::Cancelled => w::TaskStatus::Cancelled,
                 },
             },
         )?),
@@ -375,7 +375,7 @@ fn ending(value: p::Ending, limits: &w::Limits) -> Result<w::Ending, w::Problem>
     if size > limits.ending_rows {
         return Err(w::Problem { path: w::Path::EndingRows, reason: skein_codec::Reason::Bound });
     }
-    let mut rows = Writer::new(usize::try_from(size).expect("wire size fits"));
+    let mut rows = Writer::new(skein_lib::length::usize_of(size));
     rows.put(&row.measure().to_be_bytes()).expect("measured piece length");
     row.encode(&mut rows).expect("measured ending row");
     w::Ending::new(limits, w::EndingParts { rows: rows.finish() })

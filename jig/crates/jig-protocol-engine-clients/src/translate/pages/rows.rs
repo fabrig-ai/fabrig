@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code carries optional owner facts without closures")]
 //! Bounded owner page pieces (protocol/client.md, 3).
 use super::super::{owner, pieces, task, w};
 use alloc::boxed::Box;
@@ -15,7 +14,7 @@ fn charge(size: u32, measure: u32, bound: u32, path: w::Path) -> Result<u32, w::
     Ok(size)
 }
 pub(super) fn activity_pieces(
-    rows: &List<w::ActivityLine>,
+    rows: &List<w::DecodedActivityLine>,
     bound: u32,
     path: w::Path,
 ) -> Result<Box<[u8]>, w::Problem> {
@@ -25,7 +24,7 @@ pub(super) fn activity_pieces(
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits usize"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
         encoded.push(out.finish()).expect("selected rows fit");
     }
@@ -38,41 +37,33 @@ pub(super) fn history_pieces(rows: &List<w::HistoryRow>, bound: u32, path: w::Pa
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits usize"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
         encoded.push(out.finish()).expect("selected rows fit");
     }
     pieces(&encoded, bound, path)
 }
-pub(super) fn inbox_pieces(
-    rows: &List<w::OwnerInboxEntry>,
-    bound: u32,
-    path: w::Path,
-) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn inbox_pieces(rows: &List<w::InboxEntry>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut size = 0;
     for row in rows {
         size = charge(size, row.measure(), bound, path)?;
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits usize"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
         encoded.push(out.finish()).expect("selected rows fit");
     }
     pieces(&encoded, bound, path)
 }
-pub(super) fn ended_pieces(
-    rows: &List<w::OwnerEndedDelegate>,
-    bound: u32,
-    path: w::Path,
-) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn ended_pieces(rows: &List<w::EndedDelegate>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut size = 0;
     for row in rows {
         size = charge(size, row.measure(), bound, path)?;
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits usize"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
         encoded.push(out.finish()).expect("selected rows fit");
     }
@@ -85,20 +76,20 @@ pub(super) fn note_pieces(rows: &List<w::Note>, bound: u32, path: w::Path) -> Re
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits usize"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
         encoded.push(out.finish()).expect("selected rows fit");
     }
     pieces(&encoded, bound, path)
 }
-pub(super) fn funding(value: &t::FundingRecord, limits: &w::Limits) -> Result<w::OwnerFundingRecord, w::Problem> {
-    w::OwnerFundingRecord::new(
+pub(super) fn funding(value: &t::FundingRecord, limits: &w::Limits) -> Result<w::FundingRecord, w::Problem> {
+    w::FundingRecord::new(
         limits,
-        w::OwnerFundingRecordParts {
+        w::FundingRecordParts {
             period: match value.period {
-                Some(value) => Some(w::OwnerPeriodTimes::new(
+                Some(value) => Some(w::PeriodTimes::new(
                     limits,
-                    w::OwnerPeriodTimesParts {
+                    w::PeriodTimesParts {
                         began: value.began.as_nanos(),
                         next: match value.next {
                             Some(value) => Some(value.as_nanos()),

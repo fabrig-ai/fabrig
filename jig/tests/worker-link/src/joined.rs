@@ -49,7 +49,7 @@ mod net {
                 let count = usize::try_from(rng.between(1, 17))
                     .expect("small cut")
                     .min(self.bytes.len())
-                    .min(usize::try_from(self.intake.room()).expect("small intake"));
+                    .min(skein_lib::length::usize_of(self.intake.room()));
                 let cut: Vec<_> = self.bytes.drain(..count).collect();
                 self.intake.append(&cut).expect("checked room");
             }
@@ -208,7 +208,6 @@ impl Joined {
                 self.engine.fire(self.now, &mut self.engine_out);
                 continue;
             }
-            self.engine.reclaim();
             return;
         }
         panic!("joined world settles");

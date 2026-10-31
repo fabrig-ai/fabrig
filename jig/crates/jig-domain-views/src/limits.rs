@@ -1,5 +1,5 @@
 //! Fixed pacing capacities (`domain/engine.md`, 11 and 13).
-//! There is no additional per-subject limit (`QUESTIONS.md`, item 17).
+//! There is no additional per-subject limit.
 /// Capacities fixed when the child is constructed.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {

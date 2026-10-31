@@ -1,8 +1,10 @@
 //! Settings restore precedes live work; stored defaults survive until its holders are known (engine.md, 17.7–17.8).
-use super::{
-    CharterVersion, Decider, Default, Edit, Failure, Fault, Head, Item, Key, Record, Revision, Setting, VersionKey,
+use crate::{
+    Core, CoreKey, CoreRecord, HeldLimit, Limits, Request, Write,
+    settings::{
+        CharterVersion, Decider, Default, Edit, Failure, Fault, Head, Item, Key, Record, Revision, Setting, VersionKey,
+    },
 };
-use crate::{Core, CoreKey, CoreRecord, HeldLimit, Limits, Request, Requests, Write};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_fleet as fleet;
@@ -93,7 +95,7 @@ impl Core {
                 "duplicate {:?}",
                 crate::Key::Core(CoreKey::Settings(Key::Proposal { proposer, proposal }))
             );
-            if value.items.len() > usize::try_from(tasks::SETTINGS_ITEMS).expect("item bound")
+            if value.items.len() > skein_lib::length::usize_of(tasks::SETTINGS_ITEMS)
                 || self.settings_proposals.len() >= self.settings_proposals.capacity()
             {
                 self.refuse_restore(crate::start::Failure::Settings {
@@ -271,8 +273,8 @@ impl Core {
     pub(crate) fn tell_replaced_settings(&mut self, env: &Env<Limits>, rules: bool, charters: bool) {
         if rules {
             let mut facts = Queue::uncapped();
-            authority::step(
-                &mut self.authority,
+            crate::routing::step::step_authority(
+                self,
                 authority::Event::Rules(Box::new(self.current.rules().clone())),
                 &mut facts,
             );
@@ -280,7 +282,7 @@ impl Core {
         }
         let versions = charters || self.tasks.newest() != self.current.newest();
         if versions {
-            let models = crate::charters::held_models(self, &env.limits);
+            let models = super::charters::held_models(self, &env.limits);
             let mut charters: List<tasks::CharterModels> =
                 List::with_capacity(u32::try_from(models.len()).expect("charter model count"));
             for model in models {
@@ -296,13 +298,13 @@ impl Core {
             }
             let charters = charters.into_boxed();
             let mut tasks_out = Queue::uncapped();
-            tasks::step(
-                &mut self.tasks,
-                &Env { now: env.now, wall: env.wall, limits: super::task_limits(&env.limits) },
+            crate::routing::step::step_tasks(
+                self,
+                env,
                 tasks::Event::Charters {
                     newest: self.current.newest(),
                     charters,
-                    efforts: crate::charters::efforts(&self.settings),
+                    efforts: super::charters::efforts(&self.settings),
                 },
                 &mut tasks_out,
             );
@@ -311,14 +313,9 @@ impl Core {
         if !versions && !rules {
             return;
         }
-        let needs = crate::fleet_needs::current(self, &env.limits);
+        let needs = super::fleet_needs::current(self, &env.limits);
         let mut fleet_out = Queue::uncapped();
-        fleet::step(
-            &mut self.fleet,
-            &Env { now: env.now, wall: env.wall, limits: super::fleet_limits(&env.limits) },
-            fleet::Event::Needs(needs),
-            &mut fleet_out,
-        );
+        crate::routing::step::step_fleet(self, env, fleet::Event::Needs(needs), &mut fleet_out);
         assert!(fleet_out.is_empty(), "needs replacement retains running attempts");
     }
 
@@ -349,26 +346,26 @@ impl Core {
                 }
             }
             if let Some(revision) = orphan {
-                let _archived = self.archive_revision(env, revision, out);
+                let _retained = self.archive_revision(env, revision, out);
             }
         }
     }
 
-    pub(crate) fn commit_restored_settings(&mut self, env: &Env<Limits>, room: u32) -> Requests {
+    pub(crate) fn commit_restored_settings(&mut self, env: &Env<Limits>, room: u32) -> Queue<Request> {
         self.write_restored_settings(env, room)
     }
 
-    pub(crate) fn write_restored_settings(&mut self, env: &Env<Limits>, room: u32) -> Requests {
+    pub(crate) fn write_restored_settings(&mut self, env: &Env<Limits>, room: u32) -> Queue<Request> {
         let mut out = Queue::uncapped();
         if !self.settings_restore.held || self.settings_restore.defaults.is_empty() || self.restore_failure.is_some() {
-            return Requests::Out(out);
+            return out;
         }
         let oldest_before = self.current.oldest;
         let previous = self.current.newest();
         let release = self.settings_restore.release.is_some();
-        if release && !crate::routing::settings::withdrawal_room(self, None) {
+        if release && !crate::routing::settings::dispatch::withdrawal_room(self, None) {
             let _refused = self.refuse_settings(Failure { setting: Setting::Rules, fault: Fault::Count });
-            return Requests::Out(out);
+            return out;
         }
         let newest = if release { previous.checked_add(1).expect("release number preflighted") } else { previous };
         let reserve = if release { super::withdrawal_writes(&env.limits).expect("withdrawal room") } else { 0 };
@@ -387,11 +384,11 @@ impl Core {
         let plan = self.held.plan_release(&self.current, items.as_slice(), newest, &after, &env.limits);
         if after.len() > env.limits.settings.revisions {
             self.refuse_held(HeldLimit::Revisions, after.len(), env.limits.settings.revisions);
-            return Requests::Out(out);
+            return out;
         }
         if plan.versions() > env.limits.settings.versions {
             self.refuse_held(HeldLimit::Versions, plan.versions(), env.limits.settings.versions);
-            return Requests::Out(out);
+            return out;
         }
         // No writes leave a refused start. Archive orphan heads and apply the
         // single preflighted version plan before bounded history pruning.
@@ -442,11 +439,11 @@ impl Core {
         self.finish_extent(oldest_before, &mut out);
         self.tell_settings(env);
         if release {
-            crate::routing::settings::withdraw_stale(self, env, &mut out, None);
+            crate::routing::settings::dispatch::withdraw_stale(self, env, &mut out, None);
         }
         self.settings_restore = Restore::new(&env.limits);
         self.settings_restore.ready = true;
-        Requests::Out(out)
+        out
     }
 }
 fn save(record: Record) -> Write {

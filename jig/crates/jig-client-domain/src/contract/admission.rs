@@ -2,8 +2,7 @@
 //! The engine owns authorization; no role or policy is interpreted here.
 //! See client/domain/pages.md, 6.2, and objects.md, 11.
 use super::{
-    Admission, Amendment, Beyond, Bounds, OwnerAuthority, OwnerAuthorityDocument, OwnerExecutor, OwnerGrant,
-    OwnerPattern, OwnerPatternEnd, Refusal,
+    Admission, Amendment, Authority, AuthorityDocument, Beyond, Bounds, Executor, Grant, Pattern, PatternEnd, Refusal,
 };
 use skein_lib::Wall;
 
@@ -26,7 +25,7 @@ fn deadline(draft: Option<Wall>, latest: Option<Wall>) -> bool {
 
 /// Judge a creation from the supplied factual executor, budget and deadline bounds.
 #[must_use]
-pub fn creation(offer: &Admission, executor: OwnerExecutor, budget: u64, at: Option<Wall>) -> Admission {
+pub fn creation(offer: &Admission, executor: Executor, budget: u64, at: Option<Wall>) -> Admission {
     match offer {
         Admission::Bounded { within, beyond: outside } => match within {
             Bounds::Create(super::CreateBounds {
@@ -41,15 +40,15 @@ pub fn creation(offer: &Admission, executor: OwnerExecutor, budget: u64, at: Opt
             }) => {
                 let mut listed = false;
                 match executor {
-                    OwnerExecutor::Person(_) => return Admission::Refused(Refusal::NotOffered),
-                    OwnerExecutor::Agent { charter } => {
+                    Executor::Person(_) => return Admission::Refused(Refusal::NotOffered),
+                    Executor::Agent { charter } => {
                         for number in charters {
                             if *number == charter {
                                 listed = true;
                             }
                         }
                     }
-                    OwnerExecutor::Procedure { connector, code } => {
+                    Executor::Procedure { connector, code } => {
                         for procedure in procedures {
                             if procedure.connector == connector && procedure.code == code {
                                 listed = true;
@@ -70,7 +69,7 @@ pub fn creation(offer: &Admission, executor: OwnerExecutor, budget: u64, at: Opt
 
 /// Explain an amendment against the current task facts and its supplied additions.
 #[must_use]
-pub fn amendment(offer: &Admission, change: &Amendment, before: &OwnerAuthorityDocument) -> Admission {
+pub fn amendment(offer: &Admission, change: &Amendment, before: &AuthorityDocument) -> Admission {
     match offer {
         Admission::Bounded { within, beyond: outside } => match within {
             Bounds::Amend { budget_left, grants, implications, authority, ceiling } => {
@@ -108,7 +107,7 @@ pub fn amendment(offer: &Admission, change: &Amendment, before: &OwnerAuthorityD
 // Compare the supplied whole scalar/delegation facts and literal pattern order.
 // Connector kinds follow only equality or the supplied complete configured relation.
 // The supported form changes spend/deadline while preserving each literal permission.
-fn covers(facts: &OwnerAuthority, draft: &OwnerAuthority, order: &[super::OwnerKindImplication]) -> bool {
+fn covers(facts: &Authority, draft: &Authority, order: &[super::KindImplication]) -> bool {
     let mut fits = draft.spend <= facts.spend
         && draft.delegation.depth <= facts.delegation.depth
         && draft.delegation.tasks <= facts.delegation.tasks
@@ -132,7 +131,7 @@ fn covers(facts: &OwnerAuthority, draft: &OwnerAuthority, order: &[super::OwnerK
     fits
 }
 
-fn grant_covered(facts: &[OwnerGrant], draft: &OwnerGrant, order: &[super::OwnerKindImplication]) -> bool {
+fn grant_covered(facts: &[Grant], draft: &Grant, order: &[super::KindImplication]) -> bool {
     for given in facts {
         if given.connector == draft.connector
             && kind_at_most(given.connector, draft.kind, given.kind, order)
@@ -143,7 +142,7 @@ fn grant_covered(facts: &[OwnerGrant], draft: &OwnerGrant, order: &[super::Owner
     }
     false
 }
-fn kind_at_most(connector: u16, needed: u16, given: u16, order: &[super::OwnerKindImplication]) -> bool {
+fn kind_at_most(connector: u16, needed: u16, given: u16, order: &[super::KindImplication]) -> bool {
     if needed == given {
         return true;
     }
@@ -155,13 +154,13 @@ fn kind_at_most(connector: u16, needed: u16, given: u16, order: &[super::OwnerKi
     false
 }
 // domain/authority.md, sections4–5: literal segment inclusion, with no path joining.
-fn pattern_at_most(draft: &OwnerPattern, given: &OwnerPattern) -> bool {
+fn pattern_at_most(draft: &Pattern, given: &Pattern) -> bool {
     match &given.last {
-        OwnerPatternEnd::Exact(last) => match &draft.last {
-            OwnerPatternEnd::Exact(candidate) => draft.segments == given.segments && candidate == last,
-            OwnerPatternEnd::Open(_) => false,
+        PatternEnd::Exact(last) => match &draft.last {
+            PatternEnd::Exact(candidate) => draft.segments == given.segments && candidate == last,
+            PatternEnd::Open(_) => false,
         },
-        OwnerPatternEnd::Open(last) => {
+        PatternEnd::Open(last) => {
             let prefix = given.segments.as_slice();
             let segments = draft.segments.as_slice();
             if segments.get(..prefix.len()) != Some(prefix) {
@@ -171,7 +170,7 @@ fn pattern_at_most(draft: &OwnerPattern, given: &OwnerPattern) -> bool {
                 return segment.starts_with(last);
             }
             match &draft.last {
-                OwnerPatternEnd::Exact(segment) | OwnerPatternEnd::Open(segment) => segment.starts_with(last),
+                PatternEnd::Exact(segment) | PatternEnd::Open(segment) => segment.starts_with(last),
             }
         }
     }

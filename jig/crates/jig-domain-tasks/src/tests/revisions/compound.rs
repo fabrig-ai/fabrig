@@ -14,10 +14,7 @@ const OTHER_PARTY: u64 = 10;
 const HOLDS: [Hold; 3] = [Hold::Placed { hold: REQUESTER }, Hold::Placed { hold: OTHER_PARTY }, Hold::Budget];
 
 pub(super) fn compound(test: &mut Harness, operations: Vec<Operation>, pool_budget: u64) -> Vec<Request> {
-    let mut bounded = List::with_capacity(u32::try_from(operations.len()).unwrap());
-    for operation in operations {
-        bounded.push(operation).unwrap();
-    }
+    let bounded = List::from_boxed(operations.into_boxed_slice());
     test.send(Event::Compound {
         reply_to: to(),
         by: Party::Person(REQUESTER),

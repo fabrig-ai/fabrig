@@ -8,9 +8,9 @@ pub(super) fn text(result: &c::Result, vocabulary: &dyn Parts, out: &mut Text) {
     match &result.ending {
         c::Ending::Done => done(result.value.as_ref(), vocabulary, out),
         c::Ending::Task(ending) => match ending.as_ref() {
-            c::OwnerChipEnding::Done(value) => done(Some(value), vocabulary, out),
-            c::OwnerChipEnding::Failed(reason) => said(b"Failed", Some(reason.bytes()), out),
-            c::OwnerChipEnding::Cancelled { reason, .. } => said(b"Cancelled", Some(reason.bytes()), out),
+            c::ChipEnding::Done(value) => done(Some(value), vocabulary, out),
+            c::ChipEnding::Failed(reason) => said(b"Failed", Some(reason.bytes()), out),
+            c::ChipEnding::Cancelled { reason, .. } => said(b"Cancelled", Some(reason.bytes()), out),
         },
         c::Ending::Failed { reason } => said(b"Failed", reason_bytes(reason.as_ref()), out),
         c::Ending::Cancelled { reason, .. } => said(b"Cancelled", reason_bytes(reason.as_ref()), out),

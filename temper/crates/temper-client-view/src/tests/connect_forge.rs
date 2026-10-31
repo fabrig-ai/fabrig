@@ -712,8 +712,8 @@ fn pending_adoption_with_watch() -> (d::Domain, skein_lib::Token, skein_lib::Tok
     let token = attempt(jig_answer(
         &mut root,
         token,
-        jig_client::contract::Answer::Done(jig_client::contract::Outcome::Owner(
-            jig_client::contract::OwnerOutcome::ProjectMade { project: f::PROJECT },
+        jig_client::contract::Answer::Done(jig_client::contract::Outcome::Document(
+            jig_client::contract::DocumentOutcome::ProjectMade { project: f::PROJECT },
         )),
     ));
     (root, token, watch)
@@ -1692,8 +1692,8 @@ fn github_adopt_refusals_keep_the_picker_and_success_keeps_the_findings_until_re
         let token = attempt(jig_answer(
             &mut root,
             token,
-            jig_client::contract::Answer::Done(jig_client::contract::Outcome::Owner(
-                jig_client::contract::OwnerOutcome::ProjectMade { project: f::PROJECT },
+            jig_client::contract::Answer::Done(jig_client::contract::Outcome::Document(
+                jig_client::contract::DocumentOutcome::ProjectMade { project: f::PROJECT },
             )),
         ));
         if success {

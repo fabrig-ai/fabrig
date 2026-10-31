@@ -250,7 +250,7 @@ pub fn limits() -> Limits {
     map.ops = sizes.ops;
     map.commit = sizes.commit;
     map.queued_bytes = u64::from(sizes.commit) * 2;
-    map.chunk = sizes.key + sizes.value + 20;
+    map.chunk = skein_kv::chunk_bytes(sizes.key, sizes.value).expect("bounded row chunk");
     map.page.bytes = sizes.key + sizes.value;
     Limits {
         core: CORE_LIMITS,

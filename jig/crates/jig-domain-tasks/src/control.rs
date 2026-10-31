@@ -92,7 +92,7 @@ pub fn instruction_admit(
     match instructions {
         None => Ok(()),
         Some(instructions) => {
-            if instructions.len() > usize::try_from(limits.message_bytes).expect("u32 fits usize") {
+            if instructions.len() > skein_lib::length::usize_of(limits.message_bytes) {
                 return Err(Refusal::Read);
             }
             match executor {
@@ -463,7 +463,7 @@ fn check_amend_fields(
     if old.revision == u64::MAX || message == 0 || message <= old.last_message {
         return Err(Refusal::Read);
     }
-    if amendment.reason.len() > usize::try_from(env.limits.message_bytes).expect("u32 fits usize") {
+    if amendment.reason.len() > skein_lib::length::usize_of(env.limits.message_bytes) {
         return Err(Refusal::Read);
     }
     crate::compound::Staged::address(&old, amendment.addressed.as_ref())?;
@@ -479,7 +479,7 @@ fn check_amend_fields(
         return Err(Refusal::Read);
     }
     if let Some(dependencies) = &amendment.dependencies {
-        if dependencies.len() > usize::try_from(env.limits.dependencies).expect("u32 fits usize") {
+        if dependencies.len() > skein_lib::length::usize_of(env.limits.dependencies) {
             return Err(Refusal::Dependencies);
         }
         for (at, dependency) in dependencies.iter().enumerate() {
@@ -1087,7 +1087,7 @@ pub(crate) fn check_cancel(
         problem.why = Refusal::Grace;
         return Err(problem);
     }
-    if reason.len() > usize::try_from(env.limits.result_bytes).expect("u32 fits usize") {
+    if reason.len() > skein_lib::length::usize_of(env.limits.result_bytes) {
         return Err(problem);
     }
     let mut selected = skein_lib::List::with_capacity(env.limits.tasks);
@@ -1136,92 +1136,6 @@ pub(crate) fn apply_cancel(
     }
 }
 
-/// Project the admission fields used by the remaining parts of an atomic step.
-pub(crate) fn preview_amend(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    by: Party,
-    part: &crate::ProcedureAmendment,
-) -> Result<(), Box<crate::Problem>> {
-    let checked = check_amend(
-        domain,
-        &crate::compound::Staged::new(0),
-        env,
-        by,
-        Amend {
-            places: Box::new([]),
-            number: part.task,
-            message: part.message,
-            stop_run: part.stop_run,
-            funder: None,
-            amendment: part.amendment.clone(),
-        },
-    )?;
-    let phase = crate::compound::Staged::new(0).amended_phase(domain, &env.limits, &checked);
-    let old = record(domain, part.task).expect("amendment checked");
-    if let Some(authority) = &part.amendment.authority {
-        let budget = authority.budget.spend;
-        let old_budget = old.numbers.budget;
-        let funder = old.funder;
-        let source = match funder {
-            crate::Funder::Task(number) => &mut task_mut(domain, number).expect("live funder").record.numbers,
-            crate::Funder::Pool { .. } | crate::Funder::Period { .. } | crate::Funder::Recurring { .. } => {
-                &mut domain.funding.get_mut(&funder).expect("live source").numbers
-            }
-        };
-        source.reserved = source
-            .reserved
-            .checked_sub(old_budget)
-            .expect("reservation checked")
-            .checked_add(budget)
-            .expect("resize checked");
-        task_mut(domain, part.task).expect("live task").record.numbers.budget = budget;
-    }
-    let row = &mut task_mut(domain, part.task).expect("amendment checked").record;
-    let amendment = &part.amendment;
-    if let Some(tracked) = amendment.tracked {
-        row.tracked = match tracked {
-            Tracking::Tracked { priority } => Some(priority),
-            Tracking::Untracked => None,
-        };
-    }
-    if let Some(change) = amendment.addressed {
-        row.executor = crate::Executor::Person(change.address);
-        row.taken_by = None;
-    }
-    if let Some(instructions) = &amendment.instructions {
-        row.instructions = Some(instructions.clone());
-    }
-    if let Some(llm) = &amendment.llm {
-        row.llm = Some(llm.clone());
-    }
-    if let Some(spec) = &amendment.spec {
-        row.spec = spec.clone();
-    }
-    if let Some(wake) = &amendment.wake {
-        row.wake = *wake;
-    }
-    if let Some(dependencies) = &amendment.dependencies {
-        row.dependencies.clone_from(dependencies);
-        row.waiting_on = checked.waiting_on;
-        row.added = checked.added;
-    }
-    if let Some(authority) = &amendment.authority {
-        row.authority = authority.clone();
-    }
-    row.revision = row.revision.checked_add(1).expect("revision checked");
-    if checked.changed {
-        row.revisions.spec = row.revisions.spec.checked_add(1).expect("spec revision checked");
-    }
-    if checked.person_changed {
-        row.revisions.person = row.revisions.person.checked_add(1).expect("person revision checked");
-    }
-    row.phase = phase;
-    row.last_message = part.message;
-    row.inbox = checked.prepared.inbox;
-    Ok(())
-}
-
 pub(crate) fn release_problem(
     domain: &Domain,
     staged: &crate::compound::Staged,
@@ -1236,7 +1150,7 @@ pub(crate) fn release_problem(
         && let Some(hold) = staged.placed_hold(domain, identity)
         && !hold.lifted
         && hold.scope != (crate::Scope::Subtree { task: number })
-        && hold.exempt.len() >= usize::try_from(limits.exemptions).expect("bounded exemptions")
+        && hold.exempt.len() >= skein_lib::length::usize_of(limits.exemptions)
     {
         return crate::Problem::capacity(
             Some(number),

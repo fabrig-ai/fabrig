@@ -154,7 +154,7 @@ fn a_carried_request_past_the_client_s_bounds_is_answered_at_once() {
 const ACCOUNT: u32 = 7;
 const MOVE: u32 = 9;
 fn change(change: contract::AccountChange) -> Ask {
-    Ask::Jig(Box::new(contract::Ask::AccountChange { holder: contract::AccountHolder::Own, change }))
+    Ask::Jig(Box::new(contract::Ask::AccountChange { holder: contract::AskAccountHolder::Own, change }))
 }
 fn move_out() -> Ask {
     change(contract::AccountChange::MoveOut { account: ACCOUNT })
@@ -278,10 +278,9 @@ fn a_finish_is_carried_once_never_saved_and_answered_once() {
     assert_eq!(bytes.expose(), address);
     c.told();
     never_sent_again(&mut c);
-    let done =
-        Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(contract::OwnerOutcome::AccountFinishing {
-            source: SOURCE,
-        })));
+    let done = Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+        contract::DocumentOutcome::AccountFinishing { source: SOURCE },
+    )));
     answer(&mut c, *attempt, RequestEnvelope::Final, Some(done.clone()));
     assert_eq!(c.told().as_ref(), &[Told::Answered { key: KEY, outcome: Outcome::Answered(done.clone()) }]);
     answer(&mut c, *attempt, RequestEnvelope::Final, Some(done));

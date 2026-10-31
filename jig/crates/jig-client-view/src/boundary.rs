@@ -1,12 +1,12 @@
 //! Inputs and outputs toward the application root, no application values.
 //! Each read and watch has one terminal. Sends enter the root's keyed table;
 //! answers arrive only once durable. See client/domain/client.md, 4.
-use crate::{
+use crate::state::{
     action::Act,
     address::Place,
     store::{Record, StoreKey},
 };
-use jig_client::contract::Part;
+use jig_client::contract::ApplicationPart;
 use skein_lib::List;
 /// The person offset from universal time, in minutes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -42,7 +42,7 @@ pub enum Event {
     /// A person acted on the view.
     Act { action: Act },
     /// The application's page names the whole list of jig objects and sections.
-    Named { objects: List<jig_client::contract::ObjectKey>, sections: List<crate::page::Section> },
+    Named { objects: List<jig_client::contract::ObjectKey>, sections: List<crate::state::page::Section> },
 }
 
 /// One effect or hand off routed by the application root.
@@ -57,7 +57,7 @@ pub enum Request {
     /// Erase this domain record.
     Erase { records: List<StoreKey> },
     /// Have the part owner show its value.
-    ShowPart { part: Part, scope: jig_client::contract::PartScope },
+    ShowPart { part: ApplicationPart, scope: jig_client::contract::PartScope },
     /// The old page no longer shows its parts.
     PartsLeft,
 }

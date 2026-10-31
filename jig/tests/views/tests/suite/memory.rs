@@ -1,5 +1,5 @@
 use jig_client_views_world::LIMITS;
-use jig_domain_views::{self as views, Call, Domain, Event, Follow, Made, TurnName, Window};
+use jig_domain_views::{self as views, Call, Domain, End, Event, Follow, Made, TurnName, Window};
 use skein_lib::{Env, List, Queue, Time, Token, Wall};
 fn step(domain: &mut Domain, out: &mut Queue<views::Request>, event: Event) {
     views::step(domain, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS }, event, out);
@@ -34,7 +34,7 @@ fn retained_runs_survive_followers_and_release_on_end() {
                         run: Token::new(u64::from(run)),
                         turn: TurnName { attempt: 1, turn: 1, retry: 0 },
                         offset,
-                        text: vec![1; usize::try_from(LIMITS.text_bytes).expect("text bound")].into_boxed_slice(),
+                        text: vec![1; skein_lib::length::usize_of(LIMITS.text_bytes)].into_boxed_slice(),
                         call: Some(Call {
                             identity: jig_domain_views::CallIdentity {
                                 owner: Token::new(1),
@@ -59,7 +59,7 @@ fn retained_runs_survive_followers_and_release_on_end() {
         if wave == 0 {
             for watcher in 0..LIMITS.watchers {
                 let token = Token::new(u64::from(watcher));
-                step(&mut domain, &mut out, Event::Unwatch { watcher: token });
+                step(&mut domain, &mut out, Event::EndWatch { watcher: token, end: End::Unwatched });
                 step(&mut domain, &mut out, Event::Delivered { watcher: token });
                 step(&mut domain, &mut out, Event::StreamDelivered { watcher: token });
             }

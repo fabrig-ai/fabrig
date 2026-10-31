@@ -88,7 +88,7 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
     let wire = &limits.clients.wire;
     let path = Path::root().member(b"limits");
     // settings-v1 bounds a proposal to 128 item heads; its review shares the document envelope.
-    if wire.owner_proposal_action_settings_items < 128 || wire.owner_retained_action_settings_items < 128 {
+    if wire.proposal_action_settings_items < 128 || wire.retained_action_settings_items < 128 {
         problems.push(path.member(b"clients.wire.proposal_heads"), crate::What::Bound);
     }
     if wire.settings_review_items < wire.owned_record {
@@ -248,8 +248,8 @@ mod proposal_settings_tests {
             ),
         ] {
             let mut limits = crate::profile(crate::Profile::Small);
-            limits.clients.wire.owner_proposal_action_settings_items = proposal;
-            limits.clients.wire.owner_retained_action_settings_items = retained;
+            limits.clients.wire.proposal_action_settings_items = proposal;
+            limits.clients.wire.retained_action_settings_items = retained;
             limits.clients.wire.settings_review_items = review;
             let mut problems = Problems::empty();
             check_settings(&limits, &mut problems);

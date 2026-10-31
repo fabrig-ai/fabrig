@@ -31,10 +31,10 @@ pub(super) fn receipt(attempt: Token, message: Option<(u64, u32)>, bytes: &[u8])
     let w::Final::Done(done) = w::Final::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("final answer") else {
         return Vec::new();
     };
-    let w::Outcome::Owner(owner) = done.outcome() else {
+    let w::Outcome::Document(owner) = done.outcome() else {
         return Vec::new();
     };
-    let w::OwnerOutcome::Compound(value) = owner.value() else {
+    let w::DocumentOutcome::Compound(value) = owner.value() else {
         return Vec::new();
     };
     let message = value.first_message().checked_add(u64::from(at)).expect("bounded message positions");

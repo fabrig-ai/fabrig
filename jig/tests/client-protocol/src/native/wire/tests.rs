@@ -8,7 +8,7 @@ const PROJECT: u32 = 1;
 const FIRST_MESSAGE: u64 = 19;
 const KEY: [u8; 16] = [3; 16];
 fn encoded<T>(value: &T, measure: fn(&T) -> u32, encode: fn(&T, &mut Writer) -> Result<(), Overflow>) -> Box<[u8]> {
-    let mut out = Writer::new(usize::try_from(measure(value)).expect("bounded wire fixture"));
+    let mut out = Writer::new(skein_lib::length::usize_of(measure(value)));
     encode(value, &mut out).expect("bounded wire fixture");
     out.finish()
 }
@@ -42,15 +42,15 @@ fn request() -> Request {
     }
 }
 fn reply() -> Event {
-    let value = w::OwnerOutcome::Compound(
-        w::OwnerOutcomeCompound::new(
+    let value = w::DocumentOutcome::Compound(
+        w::OutcomeCompound::new(
             &w::CEILINGS,
-            w::OwnerOutcomeCompoundParts { project: PROJECT, operations: 2, first_message: FIRST_MESSAGE },
+            w::OutcomeCompoundParts { project: PROJECT, operations: 2, first_message: FIRST_MESSAGE },
         )
         .expect("bounded wire fixture"),
     );
-    let outcome = w::Outcome::Owner(
-        w::OutcomeOwner::new(&w::CEILINGS, w::OutcomeOwnerParts { value }).expect("bounded wire fixture"),
+    let outcome = w::Outcome::Document(
+        w::OutcomeDocument::new(&w::CEILINGS, w::OutcomeDocumentParts { value }).expect("bounded wire fixture"),
     );
     let answer = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("bounded wire fixture"));
     let value = w::Owned::new(

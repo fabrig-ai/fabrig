@@ -7,33 +7,55 @@ fn wire_cursor(value: &[u8]) -> w::Cursor {
     w::Cursor::new(&w::CEILINGS, w::CursorParts { value: Box::from(value) }).expect("literal fixture fits")
 }
 #[must_use]
-pub fn turn_line(position: u64, at: u64, number: u32, bytes: &[u8]) -> w::ActivityLine {
+pub fn turn_line(position: u64, at: u64, number: u32, bytes: &[u8]) -> w::DecodedActivityLine {
     let lim = w::CEILINGS;
-    let turn = w::ActivityTurn::new(
+    let source = w::ActivityLine::new(
         &lim,
-        w::ActivityTurnParts {
-            name: w::TurnName::new(&lim, w::TurnNameParts { attempt: 44, number }).expect("literal fixture fits"),
-            turn: Box::from(bytes),
+        w::ActivityLineParts {
+            task: 7,
+            position,
+            at,
+            line: w::Activity::Turn(
+                w::ActivityTurn::new(
+                    &lim,
+                    w::ActivityTurnParts { reply: position, attempt: 44, turn: number, read: None },
+                )
+                .expect("literal turn"),
+            ),
         },
     )
-    .expect("literal fixture fits");
-    w::ActivityLine::new(&lim, w::ActivityLineParts { position, at, event: w::Activity::Turn(turn) })
-        .expect("literal fixture fits")
+    .expect("literal source");
+    let decoded = w::ArchivedTurn::new(
+        &lim,
+        w::ArchivedTurnParts {
+            task: 7,
+            name: w::TurnName::new(&lim, w::TurnNameParts { attempt: 44, number }).expect("literal name"),
+            cumulative: 0,
+            read: None,
+            at,
+            turn: w::TurnBytes::Carried(
+                w::TurnCarried::new(&lim, w::TurnCarriedParts { bytes: Box::from(bytes) }).expect("literal turn bytes"),
+            ),
+        },
+    )
+    .expect("literal archive");
+    w::DecodedActivityLine::new(&lim, w::DecodedActivityLineParts { source, decoded: Some(decoded) })
+        .expect("literal line")
 }
 
 #[must_use]
-pub fn activity_rows(rows: &[w::ActivityLine]) -> w::ActivityPage {
+pub fn activity_rows(rows: &[w::DecodedActivityLine]) -> w::ActivityPage {
     let mut length = 0_usize;
     for row in rows {
         length = length
-            .checked_add(usize::try_from(row.measure()).expect("literal fixture fits"))
+            .checked_add(skein_lib::length::usize_of(row.measure()))
             .expect("literal fixture fits")
             .checked_add(4)
             .expect("literal fixture fits");
     }
     let mut piece = Writer::new(length);
     for row in rows {
-        let mut bytes = Writer::new(usize::try_from(row.measure()).expect("literal fixture fits"));
+        let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut bytes).expect("literal fixture fits");
         skein_codec::piece::write(&mut piece, &bytes.finish()).expect("literal fixture fits");
     }
@@ -59,20 +81,17 @@ pub fn cut_activity_record() -> w::ActivityPage {
     activity_rows(&[turn_line(10, 20, 1, FULL_TURN)])
 }
 
-fn owner_turn_source() -> w::OwnerActivityLine {
+fn owner_turn_source() -> w::ActivityLine {
     let lim = w::CEILINGS;
-    w::OwnerActivityLine::new(
+    w::ActivityLine::new(
         &lim,
-        w::OwnerActivityLineParts {
+        w::ActivityLineParts {
             task: 7,
             position: 88,
             at: 66,
-            line: w::OwnerActivity::Turn(
-                w::OwnerActivityTurn::new(
-                    &lim,
-                    w::OwnerActivityTurnParts { reply: 999, attempt: 44, turn: 3, read: Some(77) },
-                )
-                .expect("literal fixture fits"),
+            line: w::Activity::Turn(
+                w::ActivityTurn::new(&lim, w::ActivityTurnParts { reply: 999, attempt: 44, turn: 3, read: Some(77) })
+                    .expect("literal fixture fits"),
             ),
         },
     )
@@ -109,10 +128,7 @@ pub fn owner_turn_activity_record(turn: Option<w::TurnBytes>) -> w::ActivityPage
             .expect("literal fixture fits"),
         );
     }
-    let event = w::Activity::Owner(
-        w::ActivityOwner::new(&lim, w::ActivityOwnerParts { source, decoded }).expect("literal fixture fits"),
-    );
-    let row =
-        w::ActivityLine::new(&lim, w::ActivityLineParts { position: 50, at: 51, event }).expect("literal fixture fits");
+    let row = w::DecodedActivityLine::new(&lim, w::DecodedActivityLineParts { source, decoded })
+        .expect("literal fixture fits");
     activity_rows(&[row])
 }

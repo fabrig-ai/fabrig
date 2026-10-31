@@ -4,13 +4,13 @@ use crate::{
     component::{Attempt, ExchangeKind},
 };
 use jig_client_protocol_wire::v19 as w;
-use skein_lib::{Queue, Reader, Secret, Time, Token, Writer};
+use skein_lib::{Queue, Reader, Secret, Token, Writer};
 impl Link {
     #[must_use]
     pub fn credential(&self) -> Option<&Secret> {
         self.credential.as_ref()
     }
-    pub(super) fn sign_in(&mut self, _now: Time, with: With, out: &mut Queue<Request>) {
+    pub(super) fn sign_in(&mut self, with: With, out: &mut Queue<Request>) {
         match with {
             With::Held(credential) => {
                 self.end_sign_in(out);
@@ -30,13 +30,13 @@ impl Link {
             }
             With::Link { secret, held } => {
                 let Ok(record) = w::LinkSignIn::new(
-                    &self.limits.wire,
+                    self.limits.wire(),
                     w::LinkSignInParts { secret: skein_lib::bytes::copy_of(secret.expose()) },
                 ) else {
                     out.push(Request::Signing { signing: Signing::Refused });
                     return;
                 };
-                let mut writer = Writer::new(usize::try_from(record.measure()).expect("short sign-in"));
+                let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
                 record.encode(&mut writer).expect("measured sign-in");
                 self.signing_exchange(
                     ExchangeKind::SignIn,
@@ -48,7 +48,7 @@ impl Link {
             }
         }
     }
-    pub(super) fn sign_out(&mut self, _now: Time, out: &mut Queue<Request>) {
+    pub(super) fn sign_out(&mut self, out: &mut Queue<Request>) {
         self.signing_exchange(
             ExchangeKind::SignOut { generation: self.generation },
             Message::SignOut,
@@ -109,7 +109,7 @@ impl Link {
         let mut reader = Reader::new(body);
         let signing = {
             match kind {
-                ExchangeKind::SignIn => match w::SignInAnswer::decode(&self.limits.wire, &mut reader) {
+                ExchangeKind::SignIn => match w::SignInAnswer::decode(self.limits.wire(), &mut reader) {
                     Ok(w::SignInAnswer::SignedIn(value))
                         if reader.remaining() == 0
                             && match value.token() {
@@ -133,7 +133,7 @@ impl Link {
                     Ok(w::SignInAnswer::Refused) if reader.remaining() == 0 => Signing::Refused,
                     Ok(_) | Err(_) => Signing::Lost,
                 },
-                ExchangeKind::SignOut { .. } => match w::SignOutAnswer::decode(&self.limits.wire, &mut reader) {
+                ExchangeKind::SignOut { .. } => match w::SignOutAnswer::decode(self.limits.wire(), &mut reader) {
                     Ok(w::SignOutAnswer::SignedOut) if reader.remaining() == 0 => {
                         self.end_sign_in(out);
                         Signing::SignedOut

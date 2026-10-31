@@ -132,7 +132,7 @@ pub fn signed_small_core() -> (core::Core, Env<core::Limits>, u64) {
         };
     }
     assert!(core.start_opened());
-    let core::Requests::Out(mut out) = core::step(
+    let mut out = core::step(
         &mut core,
         &env,
         core::Event::SignIn { held: None, reply_to: ReplyTo::new(Token::new(90)), identity: super::first_owner() },

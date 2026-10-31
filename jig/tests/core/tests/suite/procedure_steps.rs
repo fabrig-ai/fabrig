@@ -1,9 +1,11 @@
-use jig_core_world::effects::World;
-use jig_core_world::fixtures::{finish_chat, live_row, member, unchanged};
+use jig_core_world::fixtures::{finish_chat, live_row, member};
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
 use jig_test_domain as root;
+use jig_test_profile::fixtures::unchanged;
 use skein_lib::{ReplyTo, Token};
 
 const CONNECTOR: u16 = 1;
@@ -31,7 +33,7 @@ fn program_world_with_deadline(
         configuration.first.procedures[0].actions = actions;
         configuration.first.procedures[0].max_steps = 6;
     }
-    let mut world = World::configured(seed, false, configuration, limits);
+    let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
     world.hold_procedures = true;
     let root_run = world.assignments[0];
     let mut procedure =
@@ -328,7 +330,7 @@ fn a_procedure_asked_to_finish_by_a_grace_steps_as_on_an_amendment() {
     let (mut world, procedure) = procedure_world(469);
     decide(&mut world, procedure, core::ProcedureStep::new(core::StepEnd::Wait));
     let before = world.procedure_inputs.len();
-    jig_core_world::stories::reads::request(
+    crate::read_support::request(
         &mut world,
         75,
         jig_domain_people::Ask::Cancel {

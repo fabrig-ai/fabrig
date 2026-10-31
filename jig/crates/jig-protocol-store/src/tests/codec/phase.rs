@@ -258,14 +258,14 @@ fn a_finish_grace_reads_back() {
     };
     let encoded = phase::grace(&source, &tasks_limits()).expect("fixed-width fields fit");
     let encoded = saved_wire(encoded, Grace::measure, Grace::encode, Grace::decode);
-    assert_eq!(phase::read_grace(encoded, &tasks_limits()), Ok(source));
+    assert_eq!(phase::read_grace(encoded), Ok(source));
 }
 fn a_revision_set_reads_back() {
     use crate::{codec::tasks::phase, tasks_v9::Revisions};
     let source = jig_domain_tasks::Revisions { hold: 3, spec: 5, person: 7 };
     let encoded = phase::revisions(&source, &tasks_limits()).expect("fixed-width fields fit");
     let encoded = saved_wire(encoded, Revisions::measure, Revisions::encode, Revisions::decode);
-    assert_eq!(phase::read_revisions(encoded, &tasks_limits()), Ok(source));
+    assert_eq!(phase::read_revisions(encoded), Ok(source));
 }
 fn each_retry_notice_reads_back() {
     use crate::{codec::tasks::phase, tasks_v9::RetryNotice};
@@ -275,7 +275,7 @@ fn each_retry_notice_reads_back() {
     ] {
         let encoded = phase::retry_notice(&source, &tasks_limits()).expect("fixed-width fields fit");
         let encoded = saved_wire(encoded, RetryNotice::measure, RetryNotice::encode, RetryNotice::decode);
-        assert_eq!(phase::read_retry_notice(encoded, &tasks_limits()), Ok(source));
+        assert_eq!(phase::read_retry_notice(encoded), Ok(source));
     }
 }
 

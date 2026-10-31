@@ -504,8 +504,8 @@ fn admin_first_makes_a_new_project_or_uses_its_number_or_name_then_prints_the_ad
                     up: client::Up::Answer {
                         attempt,
                         envelope: RequestEnvelope::Final,
-                        answer: Some(client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                            c::OwnerOutcome::ProjectMade { project: 8 },
+                        answer: Some(client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                            c::DocumentOutcome::ProjectMade { project: 8 },
                         )))),
                         why: None,
                     },
@@ -563,8 +563,8 @@ fn admin_first_reruns_use_the_same_project_and_adoption_keys_and_keep_an_existin
                     up: client::Up::Answer {
                         attempt,
                         envelope: RequestEnvelope::Final,
-                        answer: Some(client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                            c::OwnerOutcome::ProjectMade { project: 8 },
+                        answer: Some(client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                            c::DocumentOutcome::ProjectMade { project: 8 },
                         )))),
                         why: None,
                     },

@@ -103,7 +103,7 @@ pub fn answer() -> host::LinkUp {
     host::LinkUp::Answer {
         run: RUN_SEVEN,
         attempt: ATTEMPT_TWO,
-        answer: host::Answer {
+        answer: host::RunAnswer {
             read: Some(Token::new(5)),
             refused: Box::new([]),
             turns: 1,
@@ -200,7 +200,7 @@ pub fn window() -> Box<[u8]> {
 }
 
 fn writer(measured: u32) -> Writer {
-    Writer::new(usize::try_from(measured).expect("small record"))
+    Writer::new(skein_lib::length::usize_of(measured))
 }
 
 pub fn assignment_bytes(record: &wire::Assignment) -> Box<[u8]> {

@@ -15,10 +15,16 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         return;
     }
     let ask = match called.call.tool {
-        24 => acts::Request::Ask(c::Ask::SignIn { holder: c::AccountHolder::Own, provider: integer(&called.call, 0) }),
+        24 => {
+            acts::Request::Ask(c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: integer(&called.call, 0) })
+        }
         crate::jig::rows::IMPORT_AT => acts::Request::MoveIn,
         26 => acts::Request::AddKey {
-            holder: if value(&called.call, 3).is_some() { c::AccountHolder::Deployment } else { c::AccountHolder::Own },
+            holder: if value(&called.call, 3).is_some() {
+                c::AskAccountHolder::Deployment
+            } else {
+                c::AskAccountHolder::Own
+            },
             provider: integer(&called.call, 0),
             join: join(&called.call),
         },
@@ -48,7 +54,7 @@ fn build(reading: &reads::Reading) -> Result<acts::Request, &'static [u8]> {
     let mut found = None;
     for delivery in reading.documents.values() {
         match delivery {
-            c::Delivery::OwnerAccounts(doc) => {
+            c::Delivery::Accounts(doc) => {
                 for row in &doc.accounts {
                     if row.number == account {
                         if found.is_some() {
@@ -58,7 +64,7 @@ fn build(reading: &reads::Reading) -> Result<acts::Request, &'static [u8]> {
                     }
                 }
             }
-            c::Delivery::OwnerDeployment(doc) => {
+            c::Delivery::Deployment(doc) => {
                 for row in &doc.accounts {
                     if row.number == account {
                         if found.is_some() {
@@ -68,27 +74,24 @@ fn build(reading: &reads::Reading) -> Result<acts::Request, &'static [u8]> {
                     }
                 }
             }
-            c::Delivery::OwnerProject(_)
+            c::Delivery::Project(_)
             | c::Delivery::Me(_)
             | c::Delivery::Task(_)
-            | c::Delivery::OwnerProposal(_)
+            | c::Delivery::Proposal(_)
             | c::Delivery::Tree(_)
-            | c::Delivery::OwnerTree(_)
             | c::Delivery::Chips(_)
             | c::Delivery::Inbox(_)
-            | c::Delivery::OwnerInbox(_)
             | c::Delivery::Tasks(_)
             | c::Delivery::Run(_)
             | c::Delivery::RunState(_)
-            | c::Delivery::Settings(_)
-            | c::Delivery::Deployment(_) => {}
+            | c::Delivery::Settings(_) => {}
         }
     }
     let (holder, sources, cut, provider, provider_name) =
         found.ok_or(b"account unavailable; read account list again".as_slice())?;
     let holder = match holder {
-        c::OwnerAccountHolder::Party(_) => c::AccountHolder::Own,
-        c::OwnerAccountHolder::Deployment => c::AccountHolder::Deployment,
+        c::AccountHolder::Party(_) => c::AskAccountHolder::Own,
+        c::AccountHolder::Deployment => c::AskAccountHolder::Deployment,
     };
     if call.tool == crate::jig::rows::EXPORT_AT {
         return Ok(acts::Request::MoveOut { holder, account });
@@ -98,8 +101,8 @@ fn build(reading: &reads::Reading) -> Result<acts::Request, &'static [u8]> {
 fn change(
     call: &Call,
     account: u32,
-    holder: c::AccountHolder,
-    sources: &skein_lib::List<c::OwnerAccountSource>,
+    holder: c::AskAccountHolder,
+    sources: &skein_lib::List<c::AccountSource>,
     cut: bool,
     provider: Option<u32>,
     provider_name: Option<&c::DocumentText>,
@@ -112,8 +115,8 @@ fn change(
     };
     if call.tool == 28 && !cut {
         for source in sources {
-            context.program |= source.kind == c::OwnerAccountKind::Program;
-            context.sign_in |= source.kind == c::OwnerAccountKind::SignIn;
+            context.program |= source.kind == c::AccountKind::Program;
+            context.sign_in |= source.kind == c::AccountKind::SignIn;
         }
     }
     let source_slot = if call.tool == 29 { 2 } else { 1 };
@@ -131,14 +134,14 @@ fn change(
         c::AccountChange::MoveAccount { account, place: integer(call, 1).checked_sub(1).expect("one-based position") }
     } else {
         let source = source(sources, selected, cut)?;
-        if call.tool == 25 || call.tool == 28 && source.kind != c::OwnerAccountKind::Key {
-            context.program = source.kind == c::OwnerAccountKind::Program;
-            context.sign_in = source.kind == c::OwnerAccountKind::SignIn;
+        if call.tool == 25 || call.tool == 28 && source.kind != c::AccountKind::Key {
+            context.program = source.kind == c::AccountKind::Program;
+            context.sign_in = source.kind == c::AccountKind::SignIn;
             return Ok(acts::Request::Account { ask: c::Ask::SignOut { holder, source: source.number }, context });
         }
         match call.tool {
             33 => {
-                if source.kind != c::OwnerAccountKind::Program {
+                if source.kind != c::AccountKind::Program {
                     return Err(
                         b"account verify needs a program source; sign-in and key sources have no host login to check",
                     );
@@ -186,7 +189,7 @@ fn declare(call: &Call, me: &c::Me) -> Result<(acts::Request, Option<c::Recipien
     // DeclareProgram carries no adapter: this validates the offer locally, without binding one in the ask.
     Ok((
         acts::Request::DeclareProgram {
-            holder: c::AccountHolder::Own,
+            holder: c::AskAccountHolder::Own,
             provider,
             join: if number(call, 3).is_some() { Some(integer(call, 3)) } else { None },
             name: name.clone(),
@@ -196,20 +199,20 @@ fn declare(call: &Call, me: &c::Me) -> Result<(acts::Request, Option<c::Recipien
 }
 
 fn source(
-    sources: &skein_lib::List<c::OwnerAccountSource>,
+    sources: &skein_lib::List<c::AccountSource>,
     selected: Option<u8>,
     cut: bool,
-) -> Result<&c::OwnerAccountSource, &'static [u8]> {
+) -> Result<&c::AccountSource, &'static [u8]> {
     if cut {
         return Err(b"source list is incomplete; read account list again");
     }
     let mut source = None;
     for candidate in sources {
         let kind = match candidate.kind {
-            c::OwnerAccountKind::SignIn => 0,
-            c::OwnerAccountKind::Key => 1,
-            c::OwnerAccountKind::Program => 2,
-            c::OwnerAccountKind::None => 3,
+            c::AccountKind::SignIn => 0,
+            c::AccountKind::Key => 1,
+            c::AccountKind::Program => 2,
+            c::AccountKind::None => 3,
         };
         if selected.is_none() || selected == Some(kind) {
             if source.is_some() {

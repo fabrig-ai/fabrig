@@ -9,7 +9,6 @@ mod carried;
 mod documents;
 mod fixtures;
 mod llm_accounts;
-mod owner_accounts;
 mod pages;
 
 mod reads;
@@ -36,18 +35,18 @@ const TOO_MANY_OWNERS: [jig_client_domain::Spoken; 16] = {
 const DUPLICATE_OWNERS: [jig_client_domain::Spoken; 2] = [jig_client_domain::Spoken { family: 19, version: 1 }; 2];
 const INVALID_OWNERS: [&[jig_client_domain::Spoken]; 2] = [&TOO_MANY_OWNERS, &DUPLICATE_OWNERS];
 #[test]
-fn owner_declarations_fit_one_hello_without_duplicates() {
+fn declarations_fit_one_hello_without_duplicates() {
     let bounds = fixtures::limits();
     for owners in INVALID_OWNERS {
-        let client = jig_client_domain::Limits { owners, turn_text: bounds.client.turn_text, ..bounds.client };
-        assert_eq!(Limits::new(client, bounds.exchanges), Err(Unusable::Limits), "{owners:?}");
+        let client = jig_client_domain::Limits { owners, turn_text: bounds.client().turn_text, ..*bounds.client() };
+        assert_eq!(Limits::new(client, bounds.exchanges()), Err(Unusable::Limits), "{owners:?}");
     }
     let client = jig_client_domain::Limits {
         owners: &TOO_MANY_OWNERS[..15],
-        turn_text: bounds.client.turn_text,
-        ..bounds.client
+        turn_text: bounds.client().turn_text,
+        ..*bounds.client()
     };
-    assert_eq!(Limits::new(client, bounds.exchanges).expect("fifteen distinct owners").client.owners.len(), 15);
+    assert_eq!(Limits::new(client, bounds.exchanges()).expect("fifteen distinct owners").client().owners.len(), 15);
 }
 
 mod store;
@@ -72,18 +71,17 @@ mod settings_proposals;
 mod placed_holds;
 
 #[test]
-fn valid_refuses_each_unrepresentable_limit() {
+fn construction_refuses_each_unrepresentable_limit() {
     let base = fixtures::limits();
-    assert!(valid(&base));
+    Limits::new(*base.client(), base.exchanges()).expect("valid limits reconstruct");
+    assert_eq!(Limits::new(*base.client(), 0), Err(Unusable::Limits));
     let cases = [
-        Limits { exchanges: 0, ..base },
-        Limits { wire: w::Limits { authorize_go_location: 1, ..base.wire }, ..base },
-        Limits { client: jig_client_domain::Limits { document_bytes: u64::MAX, ..base.client }, ..base },
-        Limits { client: jig_client_domain::Limits { watches: 0, ..base.client }, ..base },
-        Limits { client: jig_client_domain::Limits { heartbeat: skein_lib::Duration::ZERO, ..base.client }, ..base },
+        jig_client_domain::Limits { document_bytes: u64::MAX, ..*base.client() },
+        jig_client_domain::Limits { watches: 0, ..*base.client() },
+        jig_client_domain::Limits { heartbeat: skein_lib::Duration::ZERO, ..*base.client() },
     ];
-    for (case, limits) in cases.into_iter().enumerate() {
-        assert!(!valid(&limits), "case {case}");
+    for (case, client) in cases.into_iter().enumerate() {
+        assert_eq!(Limits::new(client, base.exchanges()), Err(Unusable::Limits), "case {case}");
     }
 }
 
@@ -91,13 +89,12 @@ fn valid_refuses_each_unrepresentable_limit() {
 fn a_person_answer_notice_keeps_its_question_number() {
     let limits = fixtures::limits();
     for question in [0, 1, u64::MAX] {
-        let notice = w::OwnerMessageKind::QuestionAnswered(
-            w::OwnerMessageKindAnswer::new(&limits.wire, w::OwnerMessageKindAnswerParts { question })
-                .expect("question number"),
+        let notice = w::MessageKind::QuestionAnswered(
+            w::MessageKindAnswer::new(limits.wire(), w::MessageKindAnswerParts { question }).expect("question number"),
         );
         assert_eq!(
-            translate::pages::owner_message_kind_fields(&notice, &limits),
-            Ok(c::OwnerMessageKind::QuestionAnswered { question }),
+            translate::pages::message_kind_fields(&notice, &limits),
+            Ok(c::MessageKind::QuestionAnswered { question }),
         );
     }
 }

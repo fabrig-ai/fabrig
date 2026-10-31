@@ -5,7 +5,7 @@ use jig_ops_client_domain::{infrastructure as infra, observability as obs};
 use skein_lib::Wall;
 use std::collections::BTreeMap;
 
-/// The two connector subjects retain their original scope and numeric identity.
+/// The two connector subjects retain their supplied scope and owner identity.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Subject {
     Observability(obs::Subject),
@@ -28,32 +28,39 @@ impl Application for OpsScript {
     type Subject = Subject;
     type Document = Document;
     fn decide(&mut self, _: &Truth, _: u64, ask: &infra::Ask, _: Wall) -> Decision<infra::Answer> {
-        let infra::Ask::MoveEnd { project, environment, revision, until } = ask else {
-            return Decision {
-                answer: infra::Answer::Refused { why: infra::documents::Refusal::Invalid },
-                changes: vec![],
-            };
-        };
+        let infra::Ask::MoveEnd { project, environment, revision, until, .. } = ask;
         let subject = Subject::Infrastructure(infra::Subject {
             scope: infra::Scope::Project(*project),
-            kind: infra::Kind::Environment(*environment),
+            kind: infra::Kind::Environment(environment.clone()),
         });
         let answer = match self.documents.get_mut(&subject) {
-            Some(Document::Infrastructure(infra::Document::Environment(env))) => match env.end {
-                Some(end) if end.revision == *revision => {
-                    let revision =
-                        Revision { value: end.revision.value.checked_add(1).expect("finite fixture revision") };
-                    env.revision.value = env.revision.value.checked_add(1).expect("finite document revision");
-                    env.end = Some(infra::documents::End { revision, until: *until });
-                    // The actual backend lease stays supplied, even while desired end advances.
-                    infra::Answer::MovedEnd { environment: *environment, revision, until: *until }
+            Some(Document::Infrastructure(infra::Document::Value(document))) => match &mut document.value {
+                infra::values::Value::Environment { end_revision, end, fact, .. } => {
+                    if *end_revision == revision.value {
+                        *end_revision = end_revision.checked_add(1).expect("finite fixture revision");
+                        *end = Some(infra::values::EnvironmentEnd { revision: *end_revision, until: *until });
+                        infra::Answer::MovedEnd {
+                            environment: environment.clone(),
+                            revision: Revision { value: *end_revision },
+                            until: *until,
+                        }
+                    } else {
+                        infra::Answer::Moved {
+                            environment: environment.clone(),
+                            revision: Revision { value: *end_revision },
+                            until: end.map_or(fact.until, |value| value.until),
+                        }
+                    }
                 }
-                Some(end) => {
-                    infra::Answer::Moved { environment: *environment, revision: end.revision, until: Some(end.until) }
-                }
-                None => infra::Answer::Gone,
+                infra::values::Value::Panel { .. }
+                | infra::values::Value::Result { .. }
+                | infra::values::Value::Effect { .. }
+                | infra::values::Value::Outbox { .. }
+                | infra::values::Value::Hold { .. }
+                | infra::values::Value::Project { .. }
+                | infra::values::Value::Deployment { .. } => infra::Answer::Gone,
             },
-            Some(Document::Observability(_) | Document::Infrastructure(_)) | None => infra::Answer::Gone,
+            Some(Document::Observability(_)) | None => infra::Answer::Gone,
         };
         Decision { answer, changes: vec![] }
     }
@@ -76,15 +83,12 @@ impl Application for OpsScript {
     }
     fn fits(&self, value: ApplicationValue<'_, Self>, bounds: &Bounds) -> bool {
         let mut limits = super::limits();
-        limits.observability.rows = bounds.rows;
-        limits.observability.text = bounds.text;
-        limits.observability.document_bytes = bounds.document_bytes;
-        limits.infrastructure.rows = bounds.rows;
-        limits.infrastructure.text = bounds.text;
-        limits.infrastructure.document_bytes = bounds.document_bytes;
+        limits.client.domain.rows = bounds.rows;
+        limits.client.domain.text = bounds.text;
+        limits.client.domain.document_bytes = bounds.document_bytes;
         let fits = |doc: &Document| match doc {
-            Document::Observability(doc) => doc.fits(&limits.observability),
-            Document::Infrastructure(doc) => doc.fits(&limits.infrastructure),
+            Document::Observability(doc) => doc.fits(&limits.client.domain),
+            Document::Infrastructure(doc) => doc.fits(&limits.client.domain),
         };
         match value {
             ApplicationValue::Document(doc) => fits(doc),

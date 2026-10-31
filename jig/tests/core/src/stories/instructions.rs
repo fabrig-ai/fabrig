@@ -1,5 +1,6 @@
 //! Starting facts for a charter instruction amendment and cold continuation.
-use crate::{effects::World, reads::Parties};
+use crate::world::Setup;
+use crate::{reads::Parties, world::World};
 use jig_domain_core::{self as core, documents};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -8,7 +9,7 @@ use skein_lib::{ReplyTo, Token};
 
 #[must_use]
 pub fn world(seed: u64) -> World {
-    let mut w = World::new(seed, false);
+    let mut w = World::new(Setup { seed, ..Setup::default() });
     w.reads = Some(Parties::new(w.store.applied));
     w
 }
@@ -21,7 +22,10 @@ pub fn row(w: &World, task: u64) -> &tasks::TaskRecord {
 }
 #[must_use]
 pub fn change(words: &[u8]) -> people::Amendment {
-    people::Amendment { instructions: Some(words.into()), ..crate::fixtures::person_unchanged(b"new evidence") }
+    people::Amendment {
+        instructions: Some(words.into()),
+        ..jig_test_profile::fixtures::person_unchanged(b"new evidence")
+    }
 }
 #[must_use]
 pub fn task_document(w: &mut World, task: u64, request: u64) -> documents::Task {
@@ -40,7 +44,7 @@ pub fn sign_in(w: &mut World) {
         worker: 0,
         channel: Token::new(7),
         hello: jig_domain_fleet::Hello {
-            bounds: crate::fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),
             slots: 2,
             workstreams: Box::new([]),

@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 use skein_lib::List;
 
-use super::{OwnerPattern, OwnerPatternEnd};
+use super::{Pattern, PatternEnd};
 
 /// Each allocated segment and its opaque bytes fit the decoding owner's bounds.
 #[must_use]
@@ -11,7 +11,7 @@ pub fn resource_path_fits(path: &List<Box<[u8]>>, segments: u32, text: u32) -> b
         return false;
     }
     for segment in path {
-        if segment.len() > usize::try_from(text).expect("u32 fits usize") {
+        if segment.len() > skein_lib::length::usize_of(text) {
             return false;
         }
     }
@@ -21,12 +21,12 @@ pub fn resource_path_fits(path: &List<Box<[u8]>>, segments: u32, text: u32) -> b
 /// The exact pattern for one whole nonempty supplied name; no bytes are parsed.
 /// An empty path has no terminal segment, so supplies no exact pattern.
 #[must_use]
-pub fn exact_resource_pattern(path: &List<Box<[u8]>>) -> Option<OwnerPattern> {
+pub fn exact_resource_pattern(path: &List<Box<[u8]>>) -> Option<Pattern> {
     let last = path.as_slice().last()?.clone();
     let preceding = path.len().checked_sub(1)?;
     let mut segments = List::with_capacity(preceding);
-    for segment in path.as_slice().get(..usize::try_from(preceding).expect("u32 fits usize"))? {
+    for segment in path.as_slice().get(..skein_lib::length::usize_of(preceding))? {
         segments.push(segment.clone()).expect("exact preceding segment count fits");
     }
-    Some(OwnerPattern { segments, last: OwnerPatternEnd::Exact(last) })
+    Some(Pattern { segments, last: PatternEnd::Exact(last) })
 }

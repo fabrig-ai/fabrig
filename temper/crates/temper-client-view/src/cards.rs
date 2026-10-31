@@ -101,13 +101,9 @@ pub fn progress(b: &mut Builder, words: &Words, value: jig_client::Progress) {
 pub fn outcome(b: &mut Builder, words: &Words, value: &c::Outcome) {
     // The outcome names the engine's answer; it is never inferred from local state.
     let phrase = match value {
-        c::Outcome::Owner(value) => return owner_outcome(b, words, value),
-        c::Outcome::Decided { how, .. } | c::Outcome::DecidedFirst { how, .. } => return decided(b, words, how),
-        c::Outcome::SettingsChanged(_)
-        | c::Outcome::MovedToNewest(_)
-        | c::Outcome::Made { .. }
-        | c::Outcome::Changed => P::Applied,
-        c::Outcome::Proposed { .. } => P::ProposeInstead,
+        c::Outcome::Document(value) => return owner_outcome(b, words, value),
+
+        c::Outcome::SettingsChanged(_) | c::Outcome::MovedToNewest(_) | c::Outcome::Made { .. } => P::Applied,
     };
     status(b, words, phrase, &[]);
 }
@@ -125,8 +121,8 @@ fn decided(b: &mut Builder, words: &Words, how: &c::Decision) {
         &[],
     );
 }
-fn owner_outcome(b: &mut Builder, words: &Words, value: &c::OwnerOutcome) {
-    use c::OwnerOutcome as O;
+fn owner_outcome(b: &mut Builder, words: &Words, value: &c::DocumentOutcome) {
+    use c::DocumentOutcome as O;
     let word = match value {
         O::Cancelled { .. } => P::Cancelled,
         O::Released { .. } | O::Lifted { .. } => P::Released,
@@ -134,15 +130,15 @@ fn owner_outcome(b: &mut Builder, words: &Words, value: &c::OwnerOutcome) {
         O::PersonHandedBack { .. } => P::HandedBack,
         O::PersonAnswered { .. } | O::QuestionAnswered { .. } => P::Answered,
         O::ProposalDecided { choice, .. } => match choice {
-            c::OwnerProposalChoice::Accepted => P::Accepted,
-            c::OwnerProposalChoice::Rejected => P::Rejected,
-            c::OwnerProposalChoice::Passed => P::ProposeInstead,
-            c::OwnerProposalChoice::Withdrawn | c::OwnerProposalChoice::Stale => P::Cancelled,
+            c::ProposalChoice::Accepted => P::Accepted,
+            c::ProposalChoice::Rejected => P::Rejected,
+            c::ProposalChoice::Passed => P::ProposeInstead,
+            c::ProposalChoice::Withdrawn | c::ProposalChoice::Stale => P::Cancelled,
         },
         O::EscalationDecided { choice, .. } => match choice {
-            c::OwnerEscalationChoice::Released => P::Released,
-            c::OwnerEscalationChoice::Rejected => P::LeftHeld,
-            c::OwnerEscalationChoice::Passed => P::ProposeInstead,
+            c::EscalationChoice::Released => P::Released,
+            c::EscalationChoice::Rejected => P::LeftHeld,
+            c::EscalationChoice::Passed => P::ProposeInstead,
         },
         O::AccountMovedIn { .. }
         | O::Created { .. }
@@ -250,15 +246,15 @@ pub fn result(b: &mut Builder, result: &c::Result, words: &Words) {
 pub fn ending(b: &mut Builder, ending: &c::Ending, words: &Words) {
     let word = match ending {
         c::Ending::Task(value) => match value.as_ref() {
-            c::OwnerChipEnding::Done(result) => {
+            c::ChipEnding::Done(result) => {
                 value_nodes(b, result, words);
                 P::Done
             }
-            c::OwnerChipEnding::Failed(reason) => {
+            c::ChipEnding::Failed(reason) => {
                 document(b, reason);
                 P::Failed
             }
-            c::OwnerChipEnding::Cancelled { reason, result, .. } => {
+            c::ChipEnding::Cancelled { reason, result, .. } => {
                 document(b, reason);
                 if let Some(result) = result {
                     value_nodes(b, result, words);

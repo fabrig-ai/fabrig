@@ -6,11 +6,11 @@
     reason = "ordinary fixtures collect public outputs"
 )]
 use crate::{
-    family::{self, Document, Item, ItemState, Kind, Scope, Subject},
+    family::{self, Document, Kind, Scope, Subject},
     first::{self, FamilyTerminal as T},
 };
-use jig_client::contract::{Part, ProposalKey, Proposer, Revision};
-use skein_lib::{Duration, Env, List, Queue, Time, Token, Wall};
+use jig_client::contract::{ApplicationPart, Revision};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 fn limits() -> first::Limits {
     first::Limits {
         parts: 2,
@@ -71,20 +71,12 @@ fn opened(rows: &[first::Request]) -> Token {
         .unwrap()
 }
 fn item() -> Document {
-    let mut proposals = List::with_capacity(2);
-    for number in [u64::MAX - 1, u64::MAX] {
-        proposals.push(ProposalKey { proposer: Proposer::Task(u64::MAX), number }).unwrap();
-    }
-    Document::Item(Item {
-        project: 3,
-        key: 5,
-        revision: Revision { value: u64::MAX },
-        state: ItemState::Ready,
-        value: u64::MAX,
-        task: u64::MAX,
-        second: None,
-        proposals,
-        touchable: true,
+    Document::Connector(crate::connector_values::ConnectorDocument {
+        subject: Subject { scope: Scope::Project(3), kind: Kind::Item(5) },
+        value: Box::new(crate::connector_values::ClientDocument::Object {
+            object: 5,
+            now: crate::connector_values::ApplicationObject { revision: u64::MAX, value: u64::MAX },
+        }),
     })
 }
 fn object(side: &first::Side) -> &first::Object {
@@ -182,7 +174,9 @@ fn family_denied_and_ended_departures_disable_acts_without_replacing_supplied_do
         let rows = drive(
             &mut side,
             1,
-            first::Event::Act { act: first::Act::Touch { object: id.token(), revision: Revision { value: u64::MAX } } },
+            first::Event::Act {
+                act: first::Act::ChangeObject { object: id.token(), revision: Revision { value: u64::MAX } },
+            },
         );
         let request = rows
             .iter()
@@ -191,7 +185,12 @@ fn family_denied_and_ended_departures_disable_acts_without_replacing_supplied_do
                 _ => None,
             })
             .unwrap();
-        let answer = family::Answer::Touched { item: 5, revision: Revision { value: 17 } };
+        let answer = family::Answer::Connector(crate::connector_values::ConnectorAnswer {
+            value: crate::connector_values::ApplicationOutcome::Changed {
+                object: 5,
+                now: crate::connector_values::ApplicationObject { revision: 17, value: u64::MAX },
+            },
+        });
         drive(&mut side, 2, first::Event::Answered { request, answer: answer.clone() });
         drive(&mut side, 3, first::Event::Ended { watch, end });
         assert_eq!(object(&side).card, first::Card::Done { answer });
@@ -201,7 +200,7 @@ fn family_denied_and_ended_departures_disable_acts_without_replacing_supplied_do
                 &mut side,
                 4,
                 first::Event::Act {
-                    act: first::Act::Touch { object: id.token(), revision: Revision { value: u64::MAX } }
+                    act: first::Act::ChangeObject { object: id.token(), revision: Revision { value: u64::MAX } }
                 }
             )
             .is_empty()
@@ -241,7 +240,10 @@ fn family_terminal_envelopes_fit_full_rows_and_object_capacity_and_signed_out_pa
         let rows = drive(
             &mut side,
             0,
-            first::Event::Show { part: Part::Panel { connector: crate::FIRST, task: 6 }, scope: Scope::Project(3) },
+            first::Event::Show {
+                part: ApplicationPart::Panel { connector: crate::FIRST, task: 6 },
+                scope: Scope::Project(3),
+            },
         );
         let second_watch = opened(&rows);
         drive(&mut side, 1, first::Event::Ended { watch, end });
@@ -293,4 +295,62 @@ fn valid_refuses_each_unrepresentable_limit() {
     ] {
         assert!(!first::valid(&invalid), "{condition}");
     }
+}
+
+#[test]
+fn page_composition_admits_bounded_jig_references_without_reading_connector_documents() {
+    use jig_client::contract::{ObjectKey, ProposalKey, Proposer};
+    let (mut side, _, _) = start();
+    let address = first::Address { project: 3, item: 5 };
+    let proposal = ProposalKey { proposer: Proposer::Party(7), number: 5 };
+    let mut proposals = skein_lib::List::with_capacity(2);
+    proposals.push(proposal).unwrap();
+    let composition = family::PageComposition { task: 9, second: Some(10), proposals };
+    let rows = drive(&mut side, 0, first::Event::Compose { address, composition: composition.clone() });
+    let first::Request::Named { objects, sections } = &rows[0] else { panic!("composition names jig references") };
+    assert_eq!(objects.as_slice(), &[ObjectKey::Task(9), ObjectKey::Proposal(proposal)]);
+    assert_eq!(
+        sections.as_slice(),
+        &[
+            jig_client_view::page::Section::Task { task: 9, section: jig_client_view::address::TaskSection::Plan },
+            jig_client_view::page::Section::Task { task: 10, section: jig_client_view::address::TaskSection::Plan },
+        ]
+    );
+    assert_eq!(object(&side).value, first::Value::Loading);
+    let refused = drive(
+        &mut side,
+        0,
+        first::Event::Compose {
+            address,
+            composition: family::PageComposition {
+                task: 11,
+                second: None,
+                proposals: skein_lib::List::with_capacity(3),
+            },
+        },
+    );
+    assert!(match refused.as_slice() {
+        [first::Request::Out(first::Out::Fact { fact: first::Fact::Full })] => true,
+        _ => false,
+    });
+    assert_eq!(side.composition(), Some(&composition));
+    drive(&mut side, 0, first::Event::Left);
+    assert_eq!(side.composition(), None);
+    let rows = drive(&mut side, 0, first::Event::Went { address });
+    assert!(rows.iter().any(|row| match row {
+        first::Request::Named { objects, sections } => objects.len() == 2 && sections.len() == 2,
+        _ => false,
+    }));
+    let other = first::Address { project: 4, item: 5 };
+    drive(&mut side, 0, first::Event::Compose { address: other, composition: composition.clone() });
+    let rows = drive(
+        &mut side,
+        0,
+        first::Event::Compose { address: first::Address { project: 5, item: 5 }, composition: composition.clone() },
+    );
+    assert!(match rows.as_slice() {
+        [first::Request::Out(first::Out::Fact { fact: first::Fact::Full })] => true,
+        _ => false,
+    });
+    assert_eq!(side.composition(), Some(&composition));
 }

@@ -1,10 +1,10 @@
 //! Stored projection fits and links (jig/docs/design/domain/engine.md, 6).
 #![expect(clippy::disallowed_macros, reason = "dynamic stored-row fixtures exercise byte bounds")]
-use super::{Core, Failure, Key, Wall, config, limits, tasks};
-use crate::start::LiveSet;
 use crate::{
     CoreKey, CoreRecord, Limits, MilestoneId, ProjectionGoal, ProjectionMilestone, ProjectionRecord, ProjectionTask,
     Restored,
+    start::LiveSet,
+    tests::start::{Core, Failure, Key, Wall, config, limits, tasks},
 };
 
 fn loaded() -> (Core, Limits) {
@@ -29,7 +29,7 @@ fn loaded_policy(policy: bool) -> (Core, Limits) {
             &limits,
             project.number,
             project.name.clone(),
-            crate::policy::snapshot(&project.policy.policy, &[], &[]).expect("bounded policy")
+            crate::admission::policy::snapshot(&project.policy.policy, &[], &[]).expect("bounded policy")
         ));
     }
     (core, limits)
@@ -72,18 +72,18 @@ fn restore(core: &mut Core, limits: &Limits, row: ProjectionRecord) -> Restored 
     core.restore_core(CoreRecord::Projection(row), limits)
 }
 fn retained(row: ProjectionRecord, header: bool) {
-    let (mut selected, limits) = loaded();
+    let (mut started, limits) = loaded();
     if header {
-        assert_eq!(restore(&mut selected, &limits, goal(1)), Restored::Live);
+        assert_eq!(restore(&mut started, &limits, goal(1)), Restored::Live);
     }
-    assert_eq!(restore(&mut selected, &limits, row), Restored::Live);
-    assert_eq!(selected.start_failure(), None);
-    selected.start_projections_link();
-    assert_eq!(selected.projections.len(), 1);
+    assert_eq!(restore(&mut started, &limits, row), Restored::Live);
+    assert_eq!(started.start_failure(), None);
+    started.start_projections_link();
+    assert_eq!(started.projections.len(), 1);
 }
 
 #[test]
-fn historical_numbers_and_feed_positions_are_not_admission_rules() {
+fn retained_numbers_and_feed_positions_are_not_admission_rules() {
     for number in [0, 101] {
         retained(goal(number), false);
         retained(task(number), true);
@@ -132,7 +132,7 @@ fn policy_is_linked_after_loading_and_deployment_needs_none() {
         &limits,
         1,
         project.name.clone(),
-        crate::policy::snapshot(&project.policy.policy, &[], &[]).expect("bounded policy")
+        crate::admission::policy::snapshot(&project.policy.policy, &[], &[]).expect("bounded policy")
     ));
     core.start_projections_link();
     assert_eq!(core.projections.get(&1).expect("linked goal").goal.project, 1);
@@ -156,8 +156,8 @@ fn pending_closing_projection_loads_without_its_live_task() {
 
 #[test]
 fn pending_on_a_live_tracked_goal_is_retained() {
-    let (mut source, limits) = super::super::core();
-    super::super::make_task(&mut source, &limits, 1);
+    let (mut source, limits) = crate::tests::core();
+    crate::tests::make_task(&mut source, &limits, 1);
     let mut live = source.tasks.task(1).expect("live fixture").clone();
     live.tracked = Some(1);
     let mut row = goal(1);
@@ -194,11 +194,11 @@ fn pieces_in_any_order_finalize_to_the_default_projection() {
     }
     expected.start_projections_link();
     for order in [[1, 4, 2, 3, 0], [4, 0, 3, 2, 1], [0, 1, 2, 3, 4]] {
-        let (mut selected, _) = loaded();
+        let (mut started, _) = loaded();
         for index in order {
-            assert_eq!(restore(&mut selected, &limits, rows[index].clone()), Restored::Live);
+            assert_eq!(restore(&mut started, &limits, rows[index].clone()), Restored::Live);
         }
-        let assembly = selected.start.projections.as_ref().expect("assembly").get(&1).expect("goal pieces");
+        let assembly = started.start.projections.as_ref().expect("assembly").get(&1).expect("goal pieces");
         assert_eq!(
             assembly.tasks.get(&2),
             match &rows[2] {
@@ -207,9 +207,9 @@ fn pieces_in_any_order_finalize_to_the_default_projection() {
             }
         );
         assert_eq!(assembly.milestones.len(), 2);
-        selected.start_projections_link();
-        assert_eq!(selected.projections.get(&1), expected.projections.get(&1));
-        assert!(selected.start.projections.is_none());
+        started.start_projections_link();
+        assert_eq!(started.projections.get(&1), expected.projections.get(&1));
+        assert!(started.start.projections.is_none());
     }
 }
 
@@ -285,7 +285,7 @@ fn words_phase_and_pending_fits_keep_the_row_key() {
                 (&mut milestone.words, limits.tasks.message_bytes.max(limits.tasks.result_bytes))
             }
         };
-        *words = vec![b'x'; usize::try_from(bound + 1).expect("fixture bytes")].into_boxed_slice();
+        *words = vec![b'x'; skein_lib::length::usize_of(bound + 1)].into_boxed_slice();
         refused(&mut core, &limits, row, u64::from(bound) + 1, u64::from(bound));
     }
     let (mut core, _) = loaded();
@@ -308,8 +308,7 @@ fn words_phase_and_pending_fits_keep_the_row_key() {
             ProjectionRecord::Milestone { milestone, .. } => milestone.phase.as_mut().expect("fixture phase"),
         };
         *phase = tasks::Phase::Ended(tasks::Ending::Failed {
-            reason: vec![b'x'; usize::try_from(limits.tasks.result_bytes * 2 + 1).expect("fixture bytes")]
-                .into_boxed_slice(),
+            reason: vec![b'x'; skein_lib::length::usize_of(limits.tasks.result_bytes * 2 + 1)].into_boxed_slice(),
         });
         refused(
             &mut core,
@@ -426,16 +425,15 @@ fn exact_word_and_phase_bounds_remain_loadable() {
                 milestone.phase.as_mut().expect("fixture phase"),
             ),
         };
-        *words = vec![b'x'; usize::try_from(bound).expect("fixture bytes")].into_boxed_slice();
+        *words = vec![b'x'; skein_lib::length::usize_of(bound)].into_boxed_slice();
         *phase = tasks::Phase::Ended(tasks::Ending::Failed {
-            reason: vec![b'x'; usize::try_from(limits.tasks.result_bytes * 2).expect("fixture phase bytes")]
-                .into_boxed_slice(),
+            reason: vec![b'x'; skein_lib::length::usize_of(limits.tasks.result_bytes * 2)].into_boxed_slice(),
         });
         assert_eq!(restore(&mut core, &limits, row), Restored::Live);
     }
     core.start_projections_link();
     let projection = core.projections.get(&1).expect("projection at byte bounds");
-    assert_eq!(projection.goal.words.len(), usize::try_from(limits.tasks.spec_bytes).expect("fixture bytes"));
+    assert_eq!(projection.goal.words.len(), skein_lib::length::usize_of(limits.tasks.spec_bytes));
     assert_eq!(projection.plan.len(), 1);
     assert_eq!(projection.milestones.len(), 1);
 }

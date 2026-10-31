@@ -50,7 +50,7 @@ pub(super) fn turn() -> Box<[u8]> {
         },
     )
     .expect("whole actual codec turn");
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured turn fits"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("actual codec encoding");
     writer.finish()
 }
@@ -91,7 +91,7 @@ pub(super) fn seeded_world_with_receiving(
     bounds: fn(&mut jig_test_domain::Limits),
     receiving: &jig_client_test_domain::Limits,
 ) -> World<Test, Joint> {
-    let mut owner = jig_core_world::world::limits();
+    let mut owner = jig_test_profile::limits();
     bounds(&mut owner);
     owner.core.documents.rows = 2;
     owner.core.documents.lines = 2;
@@ -112,7 +112,7 @@ pub(super) fn seeded_world_with_receiving(
         ])],
     );
     let driver = Driver::new(
-        jig_core_world::world::config(seed),
+        jig_test_profile::config(seed),
         owner,
         Peers::new(vec![worker], Vec::new()),
         Time::ZERO,

@@ -25,7 +25,7 @@ fn the_system_observes_the_committed_effect_of_the_calling_task() {
         to: ReplyTo::new(Token::new(77)),
         key: jig_domain_core::CallKey { task, attempt, completion: 1, position: 0 },
         number: 1,
-        effect: jig_core_world::effects::World::effect(),
+        effect: jig_core_world::world::World::effect(),
         deadline: Wall::from_nanos(1_000_000_000),
         proposal: None,
     });

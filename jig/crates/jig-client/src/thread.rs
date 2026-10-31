@@ -15,7 +15,7 @@
 //! | any read | failed | idle | nothing |
 use self::window::{Edge, Edges, End, TurnWindow};
 use crate::contract::{
-    Activity, ActivityLine, ActivityPage, ArchivedTurn, Block, CallIdentity, Cursor, LiveCall, ObjectKey, Part,
+    ActivityPage, ApplicationPart, ArchivedTurn, Block, CallIdentity, Cursor, DecodedActivityLine, LiveCall, ObjectKey,
     ProvisionalTurnName, Read, RunState, RunText, Text, TurnName, TurnRead,
 };
 use skein_lib::{List, Map, Wall, Writer};
@@ -131,7 +131,7 @@ impl Thread {
             chips_pending: false,
         }
     }
-    /// Reads a newer committed tail once, leaving a historical window in place.
+    /// Reads a newer committed tail once, leaving a ended window in place.
     pub fn moved(&mut self, committed: u64) -> Option<Read> {
         self.committed = self.committed.max(committed);
         if self.reading.is_some() || !self.lines.edges.reaches(End::Before) || self.committed <= self.loaded {
@@ -179,7 +179,7 @@ impl Thread {
                 let mut rows = List::with_capacity(self.lines.rows.capacity());
                 let mut reached = false;
                 for row in page.rows.into_boxed() {
-                    if row.position <= known {
+                    if row.source.position <= known {
                         reached = true;
                     } else if rows.push(row).is_err() {
                         break;
@@ -206,7 +206,7 @@ impl Thread {
                     }
                 }
                 if let Some(row) = self.fresh.rows.get(0) {
-                    self.loaded = self.loaded.max(row.position);
+                    self.loaded = self.loaded.max(row.source.position);
                 }
                 let rows = core::mem::replace(&mut self.fresh.rows, List::with_capacity(self.lines.rows.capacity()));
                 let edges = core::mem::replace(&mut self.fresh.edges, Edges { before: Edge::End, after: Edge::End });
@@ -230,7 +230,7 @@ impl Thread {
                 for row in page.rows.into_boxed() {
                     let mut held = false;
                     for old in &self.lines.rows {
-                        if old.position == row.position {
+                        if old.source.position == row.source.position {
                             held = true;
                             break;
                         }
@@ -250,7 +250,7 @@ impl Thread {
         // Staged pages fence live text only once their rows enter the window.
         for at in 0..self.lines.rows.len() {
             let row = self.lines.rows.get(at).expect("bounded window row exists");
-            if let Some(name) = row.event.committed_turn() {
+            if let Some(name) = row.committed_turn() {
                 self.committed(name);
             }
         }
@@ -279,54 +279,22 @@ impl Thread {
     }
     /// Connector-owned parts carried by calls, results or news, requested by the root.
     #[must_use]
-    pub fn parts(&self, capacity: u32, live: &[LiveTurn]) -> List<Part> {
+    pub fn parts(&self, capacity: u32, live: &[LiveTurn]) -> List<ApplicationPart> {
         let mut parts = List::with_capacity(capacity);
         for line in &self.lines.rows {
-            match &line.event {
-                Activity::Turn { turn: TurnRead::Decoded(turn), .. }
-                | Activity::Owner { decoded: Some(ArchivedTurn { turn: TurnRead::Decoded(turn), .. }), .. } => {
-                    for message in &turn.messages {
-                        for block in &message.blocks {
-                            match block {
-                                Block::Call(call) => {
-                                    for part in &call.parts {
-                                        add_part(&mut parts, part);
-                                    }
+            if let Some(ArchivedTurn { turn: TurnRead::Decoded(turn), .. }) = &line.decoded {
+                for message in &turn.messages {
+                    for block in &message.blocks {
+                        match block {
+                            Block::Call(call) => {
+                                for part in &call.parts {
+                                    add_part(&mut parts, part);
                                 }
-                                Block::Text(_) | Block::Result { .. } | Block::Opaque { .. } => {}
                             }
+                            Block::Text(_) | Block::Result { .. } | Block::Opaque { .. } => {}
                         }
                     }
                 }
-                Activity::News { part, .. } => {
-                    if let Some(part) = part {
-                        add_part(&mut parts, part);
-                    }
-                }
-                Activity::Result { result } => {
-                    if let Some(value) = &result.value {
-                        match value {
-                            crate::contract::ResultValue::Connector { part, .. } => {
-                                add_part(&mut parts, part);
-                            }
-                            crate::contract::ResultValue::Report(_)
-                            | crate::contract::ResultValue::Verdict { .. }
-                            | crate::contract::ResultValue::OwnerVerdict { .. }
-                            | crate::contract::ResultValue::Change { .. }
-                            | crate::contract::ResultValue::Choice { .. }
-                            | crate::contract::ResultValue::Approved { .. }
-                            | crate::contract::ResultValue::Failure(_)
-                            | crate::contract::ResultValue::Words(_) => {}
-                        }
-                    }
-                }
-                Activity::Turn { turn: TurnRead::Undecodable { .. }, .. }
-                | Activity::Owner { decoded: Some(ArchivedTurn { turn: TurnRead::Undecodable { .. }, .. }), .. }
-                | Activity::Owner { decoded: None, .. }
-                | Activity::Words { .. }
-                | Activity::RunBegan { .. }
-                | Activity::RunEnded { .. }
-                | Activity::Decision { .. } => {}
             }
         }
         for live in live {
@@ -466,31 +434,19 @@ impl Thread {
     pub fn names(&self, capacity: u32, live: &[LiveTurn]) -> List<ObjectKey> {
         let mut names = List::with_capacity(capacity);
         for line in &self.lines.rows {
-            match &line.event {
-                Activity::Turn { turn: TurnRead::Decoded(turn), .. }
-                | Activity::Owner { decoded: Some(ArchivedTurn { turn: TurnRead::Decoded(turn), .. }), .. } => {
-                    for message in &turn.messages {
-                        for block in &message.blocks {
-                            match block {
-                                Block::Call(call) => {
-                                    for key in &call.objects {
-                                        add_name(&mut names, *key);
-                                    }
+            if let Some(ArchivedTurn { turn: TurnRead::Decoded(turn), .. }) = &line.decoded {
+                for message in &turn.messages {
+                    for block in &message.blocks {
+                        match block {
+                            Block::Call(call) => {
+                                for key in &call.objects {
+                                    add_name(&mut names, *key);
                                 }
-                                Block::Text(_) | Block::Result { .. } | Block::Opaque { .. } => {}
                             }
+                            Block::Text(_) | Block::Result { .. } | Block::Opaque { .. } => {}
                         }
                     }
                 }
-                Activity::Result { result } => add_name(&mut names, ObjectKey::Result(result.task.task)),
-                Activity::Decision { object, .. } => add_name(&mut names, *object),
-                Activity::Turn { turn: TurnRead::Undecodable { .. }, .. }
-                | Activity::Owner { decoded: Some(ArchivedTurn { turn: TurnRead::Undecodable { .. }, .. }), .. }
-                | Activity::Owner { decoded: None, .. }
-                | Activity::Words { .. }
-                | Activity::RunBegan { .. }
-                | Activity::RunEnded { .. }
-                | Activity::News { .. } => {}
             }
         }
         for live in live {
@@ -527,12 +483,12 @@ fn page_edges(newer: Option<Cursor>, older: Option<Cursor>) -> Edges {
         },
     }
 }
-fn order(rows: &mut List<ActivityLine>) {
+fn order(rows: &mut List<DecodedActivityLine>) {
     for first in 0..rows.len() {
         for second in first.saturating_add(1)..rows.len() {
             let a = rows.get(first).expect("bounded row exists");
             let b = rows.get(second).expect("bounded row exists");
-            if b.position > a.position {
+            if b.source.position > a.source.position {
                 let b = b.clone();
                 let a = core::mem::replace(rows.get_mut(first).expect("bounded row exists"), b);
                 *rows.get_mut(second).expect("bounded row exists") = a;
@@ -540,9 +496,9 @@ fn order(rows: &mut List<ActivityLine>) {
         }
     }
 }
-fn has_call(rows: &List<ActivityLine>, name: CallName) -> bool {
+fn has_call(rows: &List<DecodedActivityLine>, name: CallName) -> bool {
     for row in rows {
-        if let Some((turn_name, turn)) = row.event.decoded_turn()
+        if let Some((turn_name, turn)) = row.decoded_turn()
             && turn_name.attempt == name.attempt
             && turn_name.number == name.turn
         {
@@ -582,7 +538,7 @@ pub fn later(name: TurnName, other: TurnName) -> bool {
 }
 fn tail(old: &[u8], incoming: &[u8], limit: u32) -> Text {
     let length = old.len().checked_add(incoming.len()).expect("validated text lengths fit usize");
-    let kept = length.min(usize::try_from(limit).expect("text limit fits usize"));
+    let kept = length.min(skein_lib::length::usize_of(limit));
     let dropped = length.saturating_sub(kept);
     let old_from = dropped.min(old.len());
     let new_from = dropped.saturating_sub(old.len());
@@ -591,7 +547,7 @@ fn tail(old: &[u8], incoming: &[u8], limit: u32) -> Text {
     writer.put(incoming.get(new_from..).expect("new tail starts within text")).expect("new tail fits allocation");
     Text::new(writer.finish(), limit).expect("tail respects its byte bound")
 }
-fn add_part(parts: &mut List<Part>, part: &Part) {
+fn add_part(parts: &mut List<ApplicationPart>, part: &ApplicationPart) {
     if !parts.as_slice().contains(part) {
         match parts.push(part.clone()) {
             Ok(()) | Err(_) => {}

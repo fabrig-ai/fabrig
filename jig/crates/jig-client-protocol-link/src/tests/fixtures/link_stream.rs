@@ -14,7 +14,7 @@ pub fn family_subject() -> Watchable {
     }
 }
 pub fn hello_event(heartbeat: Duration) -> Box<[u8]> {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let mut served = List::with_capacity(2);
     served.push(w::Served::new(&lim, w::ServedParts { owner: w::Owner::Jig, first: 19, last: 19 }).unwrap()).unwrap();
     served
@@ -40,14 +40,16 @@ pub fn event_bytes(value: &w::StreamEvent) -> Box<[u8]> {
     binary.finish()
 }
 pub fn family_delivery(name: u64) -> Box<[u8]> {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let family = family_read();
     let owner = w::Owner::Family(w::Family::new(&lim, w::FamilyParts { number: family.family }).unwrap());
     let document = w::Owned::new(&lim, w::OwnedParts { owner, version: family.version, record: family.bytes }).unwrap();
     event_bytes(&w::StreamEvent::Delivery(w::Delivery::new(&lim, w::DeliveryParts { watch: name, document }).unwrap()))
 }
 pub fn ending(name: u64, why: w::WatchEnd) -> Box<[u8]> {
-    event_bytes(&w::StreamEvent::Ended(w::Ended::new(&limits().wire, w::EndedParts { watch: name, why }).unwrap()))
+    event_bytes(&w::StreamEvent::Ended(
+        w::WatchEnded::new(limits().wire(), w::WatchEndedParts { watch: name, why }).unwrap(),
+    ))
 }
 pub fn open_answer(value: &w::OpenAnswer) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
@@ -90,7 +92,7 @@ impl Harness {
         for request in &self.out {
             match request {
                 Request::Exchange { exchange, message: Message::Watch(body), .. } => {
-                    let record = w::Open::decode(&limits().wire, &mut Reader::new(body)).unwrap();
+                    let record = w::Open::decode(limits().wire(), &mut Reader::new(body)).unwrap();
                     return (*exchange, record.watch());
                 }
                 Request::Exchange { .. }
@@ -200,7 +202,7 @@ impl Harness {
         for request in &self.out {
             match request {
                 Request::Exchange { message: Message::StreamGone(body), .. } => {
-                    return *w::Gone::decode(&limits().wire, &mut Reader::new(body)).unwrap().stream();
+                    return *w::Gone::decode(limits().wire(), &mut Reader::new(body)).unwrap().stream();
                 }
                 Request::Exchange { .. }
                 | Request::Answer { .. }
@@ -228,7 +230,7 @@ impl Harness {
         for request in &self.out {
             match request {
                 Request::Exchange { message: Message::Watch(body), .. } => {
-                    let lim = limits().wire;
+                    let lim = *limits().wire();
                     let open = w::Open::decode(&lim, &mut Reader::new(body)).unwrap();
                     let subject = w::Subject::decode(&lim, &mut Reader::new(open.subject().record())).unwrap();
                     let turn = w::ProvisionalTurnName::new(
@@ -270,7 +272,7 @@ impl Harness {
 }
 
 pub fn not_served() -> w::NotServed {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let owner = w::Owner::Family(w::Family::new(&lim, w::FamilyParts { number: 19 }).unwrap());
     let mut served = List::with_capacity(1);
     served.push(w::Served::new(&lim, w::ServedParts { owner: owner.clone(), first: 24, last: 24 }).unwrap()).unwrap();

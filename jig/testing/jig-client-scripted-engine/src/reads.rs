@@ -1,22 +1,22 @@
 //! Retained rows and scoped opaque cursors; contract.md, 6.
-use crate::{Bounds, Engine, Invalid, Up, payload};
+use crate::{Bounds, Engine, Invalid, Up};
 use jig_client_domain::contract::{
-    ActivityLine, ActivityPage, Cursor, HistoryPage, HistoryRow, InboxEntry, InboxGroup, InboxPage, InboxReadGroup,
-    Note, NotePage, NoteScope, ObjectKey, ObjectPage, Read, ReadNone, ReadResult, ReadValue, Result, SpendPage,
-    SpendPeriod,
+    ActivityPage, Cursor, DecodedActivityLine, EndedDelegate, EndedPage, FundingRecord, HistoryPage, HistoryRow,
+    InboxEntry, InboxGroup, InboxPage, InboxReadGroup, Note, NotePage, NoteScope, ObjectKey, Read, ReadNone,
+    ReadResult, ReadValue, SpendPage,
 };
 use skein_lib::{List, Time, Token};
 
 /// An authoritative retained row collection, not a protocol page.
-/// Every row is checked as a whole payload; the protocol chooses bounded pages.
+/// Each row passes through the wire codec and link; the protocol chooses bounded pages.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Rows {
     Tasks(Vec<jig_client_domain::contract::TaskLine>),
-    Ended(Vec<Result>),
+    Ended(Vec<EndedDelegate>),
     History(Vec<HistoryRow>),
-    Activity(Vec<ActivityLine>),
+    Activity(Vec<DecodedActivityLine>),
     Inbox(Vec<InboxEntry>),
-    Spend(Vec<SpendPeriod>),
+    Spend(Vec<FundingRecord>),
     Notes(Vec<Note>),
 }
 /// A party's page source. The read has no cursor and supplies its exact filters.
@@ -29,15 +29,15 @@ pub struct Source {
 impl Source {
     pub(crate) fn validate(&self, bounds: &Bounds) -> core::result::Result<(), Invalid> {
         let (read, cursor) = plain(self.read.clone());
-        if cursor.is_some() || !payload::fits(&read, bounds) || !self.rows.matches(&read) {
+        if cursor.is_some() || crate::codec::selector(&read, bounds).is_err() || !self.rows.matches(&read) {
             return Err(Invalid::Identity);
         }
         self.rows.validate(bounds)?;
         if let Rows::Inbox(rows) = &self.rows {
             for row in rows {
-                match (&row.group, &row.reply) {
+                match (&row.group(), &row.reply) {
                     (InboxGroup::Replies, Some(line))
-                        if row.object == ObjectKey::Task(line.chip.task) && row.project == line.project => {}
+                        if row.card_key() == ObjectKey::Task(line.chip.task) && row.project == Some(line.project) => {}
                     (InboxGroup::Replies, None | Some(_))
                     | (
                         InboxGroup::Questions
@@ -63,17 +63,12 @@ impl Source {
 }
 impl Rows {
     pub(crate) fn validate(&self, bounds: &Bounds) -> core::result::Result<(), Invalid> {
-        let fits = match self {
-            Self::Tasks(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::Ended(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::History(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::Activity(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::Inbox(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::Spend(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::Notes(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-        };
-        if fits { Ok(()) } else { Err(Invalid::Payload) }
+        for start in 0..self.len() {
+            crate::codec::read(&self.page(start, start + 1, None, None), bounds)?;
+        }
+        Ok(())
     }
+
     fn matches(&self, read: &Read) -> bool {
         matches!(
             (self, read),
@@ -105,7 +100,7 @@ impl Rows {
                 ended: jig_client_domain::contract::EndedGroup::None,
             })),
             Self::Ended(rows) => {
-                ReadValue::Ended(Box::new(ObjectPage { cut: false, rows: list(&rows[start..end]), before, after }))
+                ReadValue::EndedPage(Box::new(EndedPage { cut: false, rows: list(&rows[start..end]), before, after }))
             }
             Self::History(rows) => {
                 ReadValue::History(Box::new(HistoryPage { cut: false, rows: list(&rows[start..end]), before, after }))
@@ -113,9 +108,13 @@ impl Rows {
             Self::Activity(rows) => {
                 ReadValue::Activity(Box::new(ActivityPage { cut: false, rows: list(&rows[start..end]), before, after }))
             }
-            Self::Inbox(rows) => {
-                ReadValue::Inbox(Box::new(InboxPage { cut: false, rows: list(&rows[start..end]), before, after }))
-            }
+            Self::Inbox(rows) => ReadValue::Inbox(Box::new(InboxPage {
+                selection: None,
+                cut: false,
+                rows: list(&rows[start..end]),
+                before,
+                after,
+            })),
             Self::Spend(rows) => {
                 ReadValue::Spend(Box::new(SpendPage { cut: false, rows: list(&rows[start..end]), before, after }))
             }
@@ -135,11 +134,7 @@ fn cursor(number: u64, bounds: &Bounds) -> Cursor {
     Cursor::new(number.to_be_bytes().to_vec().into_boxed_slice(), bounds.text).expect("cursor bound checked")
 }
 pub(crate) fn list<T: Clone>(rows: &[T]) -> List<T> {
-    let mut list = List::with_capacity(u32::try_from(rows.len()).expect("bounded rows fit u32"));
-    for row in rows {
-        assert!(list.push(row.clone()).is_ok(), "reserved page capacity");
-    }
-    list
+    List::from_boxed(rows.to_vec().into_boxed_slice())
 }
 pub(crate) fn plain(mut read: Read) -> (Read, Option<Cursor>) {
     let position = match &mut read {
@@ -170,7 +165,7 @@ pub(crate) fn plain(mut read: Read) -> (Read, Option<Cursor>) {
 impl<A: crate::Application> Engine<A> {
     /// Captures one read at the latest numbered commit. A token receives one terminal.
     pub fn read(&mut self, now: Time, sign_in: u64, token: Token, read: Read) -> core::result::Result<(), Invalid> {
-        if !payload::fits(&read, &self.bounds) {
+        if crate::codec::selector(&read, &self.bounds).is_err() {
             return Err(Invalid::Payload);
         }
         if !self.read_tokens.insert(token) {
@@ -183,6 +178,10 @@ impl<A: crate::Application> Engine<A> {
             self.read_value(party, read).map_or_else(ReadResult::None, ReadResult::Value)
         } else {
             ReadResult::None(ReadNone::SignedOut)
+        };
+        let terminal = match terminal {
+            ReadResult::Value(value) => ReadResult::Value(value),
+            ReadResult::None(why) => ReadResult::None(crate::codec::none(why)),
         };
         self.queue(now, self.next_commit - 1, Up::Read { token, terminal });
         Ok(())
@@ -208,9 +207,6 @@ impl<A: crate::Application> Engine<A> {
             Read::PersonTask { task } => Some(ObjectKey::PersonTask(*task)),
             Read::Result { task } => Some(ObjectKey::Result(*task)),
             Read::Project { project } => {
-                if let Some(value) = self.truth.owner_projects.get(project) {
-                    return self.checked_read(Some(ReadValue::OwnerProject(Box::new(value.clone()))));
-                }
                 return self
                     .checked_read(self.truth.projects.get(project).cloned().map(|v| ReadValue::Project(Box::new(v))));
             }
@@ -242,9 +238,6 @@ impl<A: crate::Application> Engine<A> {
                 );
             }
             Read::Deployment => {
-                if let Some(value) = &self.truth.owner_deployment {
-                    return self.checked_read(Some(ReadValue::OwnerDeployment(Box::new(value.clone()))));
-                }
                 return self.checked_read(self.truth.deployment.clone().map(|v| ReadValue::Deployment(Box::new(v))));
             }
             Read::Tasks { .. }
@@ -276,7 +269,7 @@ impl<A: crate::Application> Engine<A> {
         } else {
             0
         };
-        let maximum = usize::try_from(self.bounds.rows).expect("u32 fits usize");
+        let maximum = skein_lib::length::usize_of(self.bounds.rows);
         let mut count = maximum.min(if backward { index } else { rows.len() - index });
         if count == 0 && rows.len() != 0 {
             return Err(ReadNone::Busy);
@@ -285,7 +278,7 @@ impl<A: crate::Application> Engine<A> {
             let (start, end) = if backward { (index - count, index) } else { (index, index + count) };
             let before = (start != 0).then(|| cursor(self.next_position, &self.bounds));
             let after = (end != rows.len()).then(|| cursor(self.next_position + 1, &self.bounds));
-            let page = if let (Rows::Tasks(rows), Read::Tasks { query, .. }) = (&rows, &query)
+            let mut page = if let (Rows::Tasks(rows), Read::Tasks { query, .. }) = (&rows, &query)
                 && query.phase == Some(jig_client_domain::contract::PhaseClass::Ended)
             {
                 ReadValue::Tasks(Box::new(jig_client_domain::contract::TaskPage {
@@ -300,7 +293,18 @@ impl<A: crate::Application> Engine<A> {
             } else {
                 rows.page(start, end, before.clone(), after.clone())
             };
-            if payload::fits(&page, &self.bounds) {
+            if let ReadValue::Inbox(page) = &mut page {
+                page.selection = self.truth.inbox_selection.get(&party).map(|rows| {
+                    list(
+                        &rows
+                            .iter()
+                            .filter(|selection| page.rows.iter().any(|row| row.cursor == selection.cursor))
+                            .cloned()
+                            .collect::<Vec<_>>(),
+                    )
+                });
+            }
+            if let Ok(page) = crate::codec::read(&page, &self.bounds) {
                 if before.is_some() {
                     self.positions.insert(self.next_position, Position { party, read: query.clone(), index: start });
                 }
@@ -324,11 +328,11 @@ impl<A: crate::Application> Engine<A> {
             unreachable!("activity rows")
         };
         for row in rows {
-            if let jig_client_domain::contract::Activity::Owner { source, decoded } = row.event
-                && source.task == task
-                && matches!(source.line, jig_client_domain::contract::OwnerActivity::Turn { attempt: found_attempt, turn: found_turn, .. } if (found_attempt, found_turn) == (attempt, turn))
+            let source = row.source;
+            if source.task == task
+                && matches!(source.line, jig_client_domain::contract::Activity::Turn { attempt: found_attempt, turn: found_turn, .. } if (found_attempt, found_turn) == (attempt, turn))
             {
-                let archive = decoded.ok_or(ReadNone::Malformed)?;
+                let archive = row.decoded.ok_or(ReadNone::Malformed)?;
                 if (archive.task, archive.name.attempt, archive.name.number) != (task, attempt, turn)
                     || matches!(archive.turn, jig_client_domain::contract::TurnRead::Undecodable { .. })
                 {
@@ -363,17 +367,17 @@ impl<A: crate::Application> Engine<A> {
         );
         match rows {
             Rows::Inbox(rows) => { let mut rows: Vec<_> = rows.into_iter().filter(|row| {
-                if !self.truth.visible(party,row.project) { return false; }
+                if row.project.is_some_and(|project| !self.truth.visible(party,project)) { return false; }
                 match query {
-                    Read::Inbox { group, project, kind, goal, .. } => *group == InboxReadGroup::of(row.group) && project.is_none_or(|p| p == row.project) && kind.is_none_or(|k| k == row.group) && goal.is_none_or(|g| row.goal == Some(g)),
+                    Read::Inbox { group, project, kind, goal, .. } => *group == InboxReadGroup::of(row.group()) && project.is_none_or(|p| Some(p) == row.project) && kind.is_none_or(|k| k == row.group()) && goal.is_none_or(|g| self.truth.inbox_selection.get(&party).is_some_and(|selections| selections.iter().any(|selection| selection.cursor == row.cursor && selection.goals.iter().any(|goal| *goal == g)))),
                     Read::Tasks { .. } | Read::Me | Read::Task { .. } | Read::Proposal { .. } | Read::Escalation { .. } | Read::Question { .. }
                     | Read::Turn { .. } | Read::PersonTask { .. } | Read::Result { .. } | Read::Ended { .. } | Read::History { .. } | Read::Activity { .. } | Read::Spend { .. } | Read::Project { .. } | Read::Notes { .. } | Read::Settings | Read::Setting(_) | Read::Revision(_) | Read::Revisions(_) | Read::Deployment => false,
                 }
             }).collect();
-                rows.sort_by(|a, b| {
-                    let order = if jig_client_view::page::inbox::needs(a.group) { a.at.cmp(&b.at) } else { b.at.cmp(&a.at) };
-                    order.then(a.object.cmp(&b.object))
-                });
+                // The core orders needs oldest first and updates newest first,
+                // then by update position, task and exact inbox object.
+                // jig/docs/design/domain/engine.md, 11.2.
+                rows.sort_by_key(inbox_order);
                 Rows::Inbox(rows)
             },
             Rows::Notes(rows) => Rows::Notes(rows.into_iter().filter(|row| {
@@ -386,7 +390,7 @@ impl<A: crate::Application> Engine<A> {
     }
     fn checked_read(&self, value: Option<ReadValue>) -> core::result::Result<ReadValue, ReadNone> {
         let value = value.ok_or(ReadNone::Unknown)?;
-        if payload::fits(&value, &self.bounds) { Ok(value) } else { Err(ReadNone::Busy) }
+        crate::codec::read(&value, &self.bounds).map_err(|_| ReadNone::Busy)
     }
     pub(crate) fn read_visible(&self, party: u64, read: &Read) -> bool {
         let key = match read {
@@ -455,5 +459,20 @@ fn empty(read: &Read) -> Rows {
     }
 }
 
-#[cfg(test)]
-mod page_loss;
+fn inbox_order(row: &InboxEntry) -> (bool, u64, u64, u64, jig_client_domain::contract::InboxObject) {
+    use jig_client_domain::contract::InboxObject;
+    let time = row.at.map_or(0, skein_lib::Wall::as_nanos);
+    let position = match row.object {
+        InboxObject::Result { position } => Some(position),
+        InboxObject::Reply { message } => Some(message),
+        InboxObject::Question { .. }
+        | InboxObject::Proposal { .. }
+        | InboxObject::Escalation { .. }
+        | InboxObject::PersonTask => None,
+    };
+    let task = row.task_number();
+    match position {
+        Some(position) => (true, u64::MAX - time, u64::MAX - position, task, row.object),
+        None => (false, time, task, task, row.object),
+    }
+}

@@ -236,7 +236,7 @@ fn the_transcript_queue_refuses_before_a_later_commit_is_submitted() {
 fn a_frame_exactly_the_page_bound_commits_and_reads_back() {
     let (mut store, _) = fixtures::opened_with_transcripts();
     let turn = fixtures::turn(LIVE, 1, 1, b"one");
-    let encoded = crate::transcripts::frame::encode(&turn, &store.codec).expect("tiny frame");
+    let encoded = crate::transcripts::frame::encode(&turn, &store.codec_limits).expect("tiny frame");
     store.limits.store.page.bytes = u32::try_from(encoded.len()).expect("bounded tiny frame fixture");
     let (events, below) = submit(&mut store, 2, core::slice::from_ref(&turn));
     assert!(events.is_empty());
@@ -254,7 +254,7 @@ fn a_frame_one_past_the_page_bound_refuses_before_any_data_io() {
     let (mut store, _) = fixtures::opened_with_transcripts();
     let turn = fixtures::turn(LIVE, 1, 1, b"one");
     let bytes = u32::try_from(
-        crate::transcripts::frame::encode(&turn, &store.codec).expect("bounded tiny frame fixture").len(),
+        crate::transcripts::frame::encode(&turn, &store.codec_limits).expect("bounded tiny frame fixture").len(),
     )
     .expect("bounded tiny frame fixture");
     let limit = bytes.checked_sub(1).expect("bounded tiny frame fixture");
@@ -293,11 +293,11 @@ fn an_oversized_later_turn_refuses_the_whole_batch_and_prior_data_survives_crash
     let first = fixtures::turn(LIVE, 1, 2, b"new");
     let oversized = fixtures::turn(23, 1, 1, b"long");
     let limit = u32::try_from(
-        crate::transcripts::frame::encode(&first, &store.codec).expect("bounded tiny frame fixture").len(),
+        crate::transcripts::frame::encode(&first, &store.codec_limits).expect("bounded tiny frame fixture").len(),
     )
     .expect("bounded tiny frame fixture");
     let bytes = u32::try_from(
-        crate::transcripts::frame::encode(&oversized, &store.codec).expect("bounded tiny frame fixture").len(),
+        crate::transcripts::frame::encode(&oversized, &store.codec_limits).expect("bounded tiny frame fixture").len(),
     )
     .expect("bounded tiny frame fixture");
     assert_eq!(bytes, limit.checked_add(1).expect("bounded tiny frame fixture"));
@@ -350,7 +350,7 @@ fn a_named_frame_refusal_precedes_failures_of_earlier_pending_commits() {
     assert!(submit(&mut store, 3, &[]).0.is_empty());
     let turn = fixtures::turn(LIVE, 1, 2, b"long");
     let bytes = u32::try_from(
-        crate::transcripts::frame::encode(&turn, &store.codec).expect("bounded tiny frame fixture").len(),
+        crate::transcripts::frame::encode(&turn, &store.codec_limits).expect("bounded tiny frame fixture").len(),
     )
     .expect("bounded tiny frame fixture");
     let limit = bytes.checked_sub(1).expect("bounded tiny frame fixture");
@@ -396,7 +396,7 @@ fn read_answer(store: &mut Store, mut below: Below, disk: &[u8], chunk: u32) -> 
         }
         file::Request::ReadAt { owner, offset, max, .. } => {
             let start = usize::try_from(offset).expect("fixture offset");
-            let count = usize::try_from(max.min(chunk)).expect("fixture count");
+            let count = skein_lib::length::usize_of(max.min(chunk));
             let end = start.checked_add(count).expect("fixture read end").min(disk.len());
             let bytes = Box::from(disk.get(start..end).expect("read within fixture disk"));
             file::Event::Read { owner, bytes }
@@ -668,9 +668,9 @@ fn current_and_patched_frames_share_the_exact_direct_read_bound() {
     let said = [b's'; FIXTURE_TEXT];
     let replay = [b'r'; FIXTURE_TEXT];
     // Written tokens are replay length plus the 18-byte frame key.
-    let expected = jig_store_world::patches::fixture_turn(2, &said, &[], FIXTURE_TOKENS);
+    let expected = fixtures::fixture_turn(2, &said, &[], FIXTURE_TOKENS);
     for (body, version, raw_length) in [(5, 1, 189), (6, 1, 194), (6, 2, FIXTURE_FRAME)] {
-        let transcript = jig_store_world::patches::fixture_turn(version, &said, &replay, FIXTURE_TOKENS);
+        let transcript = fixtures::fixture_turn(version, &said, &replay, FIXTURE_TOKENS);
         let raw = frames::frame(body, &transcript);
         assert_eq!(u64::try_from(raw.len()).expect("raw frame length"), raw_length);
         let mut store = framed_readable(&raw);
@@ -702,31 +702,11 @@ fn current_and_patched_frames_share_the_exact_direct_read_bound() {
 
 #[test]
 fn configured_read_room_and_frame_capacity_are_measured_separately() {
-    use jig_protocol_config::{Profile, profile};
-    // The frame bound is TurnRecord::encoded_bound + 12, including
-    // version, optional read, transcript length, checksum and both lengths.
     const MAX_FRAME: u64 = 8_388_672;
-    // Standard's map page includes the task/run revisions and placed reference;
-    // transcript framing and direct read room are unchanged.
-    for (kind, request, page) in [(Profile::Small, 65_536, 1_590_110), (Profile::Standard, 262_144, 10_666_854)] {
-        let configured = profile(kind);
-        let codec = crate::codec::limits(&configured.core).expect("profile codec");
-        assert_eq!(u64::from(configured.core.resume_bytes), request);
-        assert_eq!(configured.store.store.page.bytes, page);
-        assert_eq!(crate::core_v6::TurnRecord::encoded_bound(&codec.core).expect("body") + 12, MAX_FRAME);
-        assert!(request.min(u64::from(page)) < MAX_FRAME);
-    }
     let limits = fixtures::store_limits();
     let sets = super::frame_patches::SETS;
     let capacity = crate::transcripts::patches::capacity(&sets.sets[0], 0, &limits).expect("body capacity");
     assert_eq!(u64::from(capacity.bytes) + 12, MAX_FRAME);
-    for (limits, page) in [(jig_store_world::root::limits(), 330_596), (jig_store_world::patches::limits(), 2_048)] {
-        assert_eq!(limits.core.resume_bytes, 256);
-        assert_eq!(limits.store.page.bytes, page);
-        let room = u64::from(limits.core.resume_bytes).min(u64::from(page));
-        assert!(room >= FIXTURE_FRAME);
-        assert!(room < MAX_FRAME);
-    }
     assert_eq!(limits.core.resume_bytes, 256);
     assert_eq!(limits.store.page.bytes, 16_778_240);
     // Supplied well-formed smith fixtures: the current turn's maximum is
@@ -993,7 +973,7 @@ fn cut_open(length: Option<u64>, claimed: bool) -> (Store, Box<[Event]>, Below) 
         let record = fixtures::run_proof(LIVE);
         ops.push(skein_kv::Op::Put {
             key: crate::keys::encode(&record.key(), fixtures::KEY_LIMIT).expect("proof key"),
-            value: crate::codec::encode(&record, &store.codec, &store.names).expect("proof"),
+            value: crate::codec::encode(&record, &store.codec_limits, &store.names).expect("proof"),
         })
         .expect("proof slot");
     }

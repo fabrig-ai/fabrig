@@ -45,7 +45,7 @@ fn the_format_row_reads_back_with_its_versions_and_deployment() {
         settings: 9,
         application: 6,
         deployment: [7; 16],
-        levels: crate::format::recorded(crate::format::NONE),
+        levels: crate::format::NONE,
     };
     let bytes = row.encode().expect("fixed width fields fit");
     assert_eq!(component::Format::decode(&bytes), Ok(row));
@@ -205,9 +205,10 @@ fn tasks_limits() -> crate::tasks_v9::Limits {
 }
 fn saved_tasks(row: &jig_domain_tasks::Stored) -> Result<jig_domain_tasks::Stored, crate::tasks_v9::Problem> {
     let limits = tasks_limits();
-    let bytes = crate::codec::tasks::encode(row, &limits, &fixtures::model_names(&[b"first", b"second", b"third"]))
-        .expect("within its limits");
-    crate::codec::tasks::decode(&bytes, &limits, &fixtures::model_names(&[b"first", b"second", b"third"]))
+    let bytes =
+        crate::codec::tasks::encode(row, &limits, &fixtures::configured_model_names(&[b"first", b"second", b"third"]))
+            .expect("within its limits");
+    crate::codec::tasks::decode(&bytes, &limits, &fixtures::configured_model_names(&[b"first", b"second", b"third"]))
 }
 fn a_period_ledger_reads_back_as_it_was_saved() {
     let row = jig_domain_tasks::Stored::Ledger(fixtures::task_funding());
@@ -253,7 +254,7 @@ fn saved_wire<T>(
     encode: fn(&T, &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow>,
     decode: fn(&crate::tasks_v9::Limits, &mut skein_lib::Reader<'_>) -> Result<T, crate::tasks_v9::Problem>,
 ) -> T {
-    let mut writer = skein_lib::Writer::new(usize::try_from(measure(&value)).expect("measured length"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(measure(&value)));
     encode(&value, &mut writer).expect("measured room");
     decode(&tasks_limits(), &mut skein_lib::Reader::new(&writer.finish())).expect("within bounds")
 }
@@ -466,7 +467,7 @@ fn a_writer_resource_past_its_aggregate_byte_bound_is_refused() {
         crate::codec::tasks::encode(
             &writer_with_path_bytes(16),
             &tasks_limits(),
-            &fixtures::model_names(&[b"first", b"second", b"third"])
+            &fixtures::configured_model_names(&[b"first", b"second", b"third"])
         ),
         Err(bound_problem(crate::tasks_v9::Path::NamePath))
     );
@@ -477,11 +478,15 @@ fn a_decoded_writer_resource_past_its_aggregate_byte_bound_is_refused() {
     let bytes = crate::codec::tasks::encode(
         &writer_with_path_bytes(16),
         &wider,
-        &fixtures::model_names(&[b"first", b"second", b"third"]),
+        &fixtures::configured_model_names(&[b"first", b"second", b"third"]),
     )
     .expect("within wider limit");
     assert_eq!(
-        crate::codec::tasks::decode(&bytes, &tasks_limits(), &fixtures::model_names(&[b"first", b"second", b"third"])),
+        crate::codec::tasks::decode(
+            &bytes,
+            &tasks_limits(),
+            &fixtures::configured_model_names(&[b"first", b"second", b"third"])
+        ),
         Err(bound_problem(crate::tasks_v9::Path::NamePath))
     );
 }
@@ -489,11 +494,15 @@ fn a_tasks_row_of_another_version_does_not_decode() {
     let limits = tasks_limits();
     let row = jig_domain_tasks::Stored::Ledger(fixtures::task_funding());
     let mut bytes =
-        crate::codec::tasks::encode(&row, &limits, &fixtures::model_names(&[b"first", b"second", b"third"]))
+        crate::codec::tasks::encode(&row, &limits, &fixtures::configured_model_names(&[b"first", b"second", b"third"]))
             .expect("within bounds");
     *bytes.get_mut(1).expect("version prefix") = 5;
     assert_eq!(
-        crate::codec::tasks::decode(&bytes, &limits, &fixtures::model_names(&[b"first", b"second", b"third"])),
+        crate::codec::tasks::decode(
+            &bytes,
+            &limits,
+            &fixtures::configured_model_names(&[b"first", b"second", b"third"])
+        ),
         Err(crate::tasks_v9::Problem { path: crate::tasks_v9::Path::RowVersion, reason: skein_codec::Reason::Version })
     );
 }
@@ -566,7 +575,7 @@ fn people_limits() -> crate::people_v14::Limits {
 
 fn people_round_trip(row: jig_domain_people::Stored) {
     let limits = people_limits();
-    let names = fixtures::model_names(&[b"first", b"second", b"third"]);
+    let names = fixtures::configured_model_names(&[b"first", b"second", b"third"]);
     let bytes = crate::codec::people::encode(&row, &limits, &names).expect("within people's bounds");
     assert_eq!(crate::codec::people::decode(&bytes, &limits, &names), Ok(row));
 }
@@ -574,7 +583,7 @@ fn people_round_trip(row: jig_domain_people::Stored) {
 fn ask_round_trip(ask: jig_domain_people::Ask) {
     let limits = people_limits();
     let value = crate::codec::people::encode_ask(&ask, &limits).expect("bounded ask");
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("bounded length"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured room");
     let bytes = writer.finish();
     let read = crate::people_v14::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("saved ask");
@@ -603,10 +612,10 @@ fn a_roles_models_follow_their_names_to_todays_configuration() {
     value.roles[0].authority.models = Some(jig_domain_people::Models::Named(0b111));
     value.ceiling.models = Some(jig_domain_people::Models::Named(0b011));
     let row = jig_domain_people::Stored::Policy { project: 3, name: Box::from("Tally"), value: value.clone() };
-    let then = fixtures::model_names(&[b"first", b"second", b"third"]);
+    let then = fixtures::configured_model_names(&[b"first", b"second", b"third"]);
     let bytes = crate::codec::people::encode(&row, &limits, &then).expect("within people's bounds");
     // "third" moved to the front, "second" is no longer configured, "fourth" is new.
-    let now = fixtures::model_names(&[b"third", b"fourth", b"first"]);
+    let now = fixtures::configured_model_names(&[b"third", b"fourth", b"first"]);
     value.roles[0].authority.models = Some(jig_domain_people::Models::Named(0b101));
     value.ceiling.models = Some(jig_domain_people::Models::Named(0b100));
     assert_eq!(
@@ -620,8 +629,9 @@ fn a_role_naming_every_model_keeps_every_model() {
     let mut value = fixtures::people_policy();
     value.roles[0].authority.models = Some(jig_domain_people::Models::ALL);
     let row = jig_domain_people::Stored::Policy { project: 3, name: Box::from("Tally"), value };
-    let bytes = crate::codec::people::encode(&row, &limits, &fixtures::model_names(&[b"first"])).expect("bounded");
-    let now = fixtures::model_names(&[b"second", b"first"]);
+    let bytes =
+        crate::codec::people::encode(&row, &limits, &fixtures::configured_model_names(&[b"first"])).expect("bounded");
+    let now = fixtures::configured_model_names(&[b"second", b"first"]);
     assert_eq!(crate::codec::people::decode(&bytes, &limits, &now), Ok(row));
 }
 
@@ -689,7 +699,7 @@ fn a_person_identity_field_past_its_limit_is_refused() {
         crate::codec::people::encode(
             &jig_domain_people::Stored::Person { number: 1, identity },
             &people_limits(),
-            &fixtures::model_names(&[])
+            &fixtures::configured_model_names(&[])
         ),
         Err(crate::people_v14::Problem {
             path: crate::people_v14::Path::IdentityKeySubject,
@@ -701,7 +711,7 @@ fn a_person_identity_field_past_its_limit_is_refused() {
 fn a_people_row_of_another_version_does_not_decode() {
     let limits = people_limits();
     let row = jig_domain_people::Stored::ReadResults { party: 1, through: 2 };
-    let names = fixtures::model_names(&[]);
+    let names = fixtures::configured_model_names(&[]);
     let mut bytes = crate::codec::people::encode(&row, &limits, &names).expect("fixed row");
     *bytes.get_mut(1).expect("version prefix") = 9;
     assert_eq!(
@@ -714,8 +724,8 @@ fn a_people_row_of_another_version_does_not_decode() {
 }
 
 mod record;
-fn call_limits() -> crate::codec::core::Limits {
-    crate::codec::core::limits(&core_limits()).expect("within core ceilings")
+fn call_limits() -> crate::codec::View {
+    crate::codec::limits(&core_limits()).expect("within core ceilings")
 }
 fn core_round_trip(row: jig_domain_core::CoreRecord) {
     let limits = call_limits();
@@ -802,7 +812,7 @@ fn a_carried_change_reads_back_as_its_own_family() {
 fn core_limits_past_the_settled_answer_ceiling_are_refused() {
     let mut domain = core_limits();
     domain.call_answer_bytes = crate::core_v6::CEILINGS.settled_answer_host_body + 1;
-    assert!(crate::codec::core::limits(&domain).is_none());
+    assert!(crate::codec::limits(&domain).is_none());
 }
 
 fn end_round_trip(end: jig_domain_tasks::End) {
@@ -965,7 +975,7 @@ fn an_llm_key_answer_keeps_its_digest_without_the_value() {
         at: skein_lib::Wall::EPOCH,
     };
     let limits = people_limits();
-    let names = fixtures::model_names(&[b"first", b"second", b"third"]);
+    let names = fixtures::configured_model_names(&[b"first", b"second", b"third"]);
     let bytes = crate::codec::people::encode(&row, &limits, &names).expect("bounded people row");
     for window in bytes.windows(VALUE.len()) {
         assert_ne!(window, VALUE);
@@ -1026,7 +1036,7 @@ fn nested_retained_requests_keep_their_original_names_after_reconfiguration() {
             }),
         },
     ];
-    let then = fixtures::model_names(&[b"first", b"second"]);
+    let then = fixtures::configured_model_names(&[b"first", b"second"]);
     for ask in asks {
         let row = p::Stored::Answer {
             key: p::RequestKey { person: 1, key: [2; 16] },
@@ -1036,7 +1046,10 @@ fn nested_retained_requests_keep_their_original_names_after_reconfiguration() {
             at: skein_lib::Wall::EPOCH,
         };
         let bytes = crate::codec::people::encode(&row, &limits, &then).unwrap();
-        for now in [fixtures::model_names(&[b"second", b"first"]), fixtures::model_names(&[b"second", b"new"])] {
+        for now in [
+            fixtures::configured_model_names(&[b"second", b"first"]),
+            fixtures::configured_model_names(&[b"second", b"new"]),
+        ] {
             assert_eq!(crate::codec::people::decode(&bytes, &limits, &now), Ok(row.clone()));
         }
     }
@@ -1048,12 +1061,17 @@ fn a_named_full_mask_drops_removed_models_without_becoming_all() {
     value.roles[0].authority.models = Some(jig_domain_people::Models::Named(u64::MAX));
     let mut names = skein_lib::List::with_capacity(64);
     for at in 0_u8..64 {
-        names.push(Box::<[u8]>::from([b'0'.checked_add(at).expect("ASCII name")])).expect("64 names");
+        names
+            .push(jig_domain_core::settings::ModelName {
+                name: Box::from([b'0'.checked_add(at).expect("ASCII name")]),
+                efforts: Box::new([]),
+            })
+            .expect("64 names");
     }
     let names = names.into_boxed();
     let row = jig_domain_people::Stored::Policy { project: 3, name: Box::from("Tally"), value: value.clone() };
     let bytes = crate::codec::people::encode(&row, &limits, &names).unwrap();
-    let now = fixtures::model_names(&[b"new", b"o", b"0"]);
+    let now = fixtures::configured_model_names(&[b"new", b"o", b"0"]);
     value.roles[0].authority.models = Some(jig_domain_people::Models::Named(0b110));
     assert_eq!(
         crate::codec::people::decode(&bytes, &limits, &now),
@@ -1069,14 +1087,14 @@ fn pending_policy_proposal_members_follow_names_on_restore() {
     let t::PersonAction::Batch(batch) = &mut proposal.action else { panic!("batch") };
     batch[0].authority.models = t::Models::Named(0b101);
     let row = t::Stored::PersonProposal(Box::new(proposal.clone()));
-    let then = fixtures::model_names(&[b"first", b"second", b"third"]);
-    let now = fixtures::model_names(&[b"third", b"first", b"new"]);
+    let then = fixtures::configured_model_names(&[b"first", b"second", b"third"]);
+    let now = fixtures::configured_model_names(&[b"third", b"first", b"new"]);
     let bytes = crate::codec::tasks::encode(&row, &limits, &then).unwrap();
     let mut reordered = proposal.clone();
     let t::PersonAction::Batch(batch) = &mut reordered.action else { panic!("batch") };
     batch[0].authority.models = t::Models::Named(0b011);
     assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &now), Ok(t::Stored::PersonProposal(Box::new(reordered))));
-    let removed = fixtures::model_names(&[b"new", b"third"]);
+    let removed = fixtures::configured_model_names(&[b"new", b"third"]);
     let t::PersonAction::Batch(batch) = &mut proposal.action else { panic!("batch") };
     batch[0].authority.models = t::Models::Named(0b10);
     assert_eq!(
@@ -1089,7 +1107,7 @@ fn pending_policy_proposal_members_follow_names_on_restore() {
 fn unrelated_tasks_rows_keep_no_model_names_or_configuration_bytes() {
     use jig_domain_tasks as t;
     let limits = tasks_limits();
-    let names = fixtures::model_names(&[b"unreferenced-model", b"another-model"]);
+    let names = fixtures::configured_model_names(&[b"unreferenced-model", b"another-model"]);
     for row in [
         t::Stored::Ledger(fixtures::task_funding()),
         t::Stored::ClosedLedger(fixtures::task_funding()),
@@ -1110,9 +1128,9 @@ fn tasks_context_contains_only_canonical_referenced_names_with_reindexed_selecto
     let limits = tasks_limits();
     let mut same = None;
     for (names, mask) in [
-        (fixtures::model_names(&[b"z", b"unused", b"a"]), 0b101),
-        (fixtures::model_names(&[b"a", b"z", b"unused"]), 0b011),
-        (fixtures::model_names(&[b"unused", b"a", b"z"]), 0b110),
+        (fixtures::configured_model_names(&[b"z", b"unused", b"a"]), 0b101),
+        (fixtures::configured_model_names(&[b"a", b"z", b"unused"]), 0b011),
+        (fixtures::configured_model_names(&[b"unused", b"a", b"z"]), 0b110),
     ] {
         let mut proposal = fixtures::task_person_proposal();
         let t::PersonAction::Batch(batch) = &mut proposal.action else { panic!("batch") };
@@ -1135,7 +1153,7 @@ fn tasks_context_contains_only_canonical_referenced_names_with_reindexed_selecto
         let t::PersonAction::Batch(batch) = &mut proposal.action else { panic!("batch") };
         batch[0].authority.models = selector;
         let row = t::Stored::PersonProposal(Box::new(proposal.clone()));
-        let names = fixtures::model_names(&[b"z", b"unused", b"a"]);
+        let names = fixtures::configured_model_names(&[b"z", b"unused", b"a"]);
         let bytes = crate::codec::tasks::encode(&row, &limits, &names).unwrap();
         let wire = crate::tasks_v9::Row::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap();
         assert!(wire.models().is_empty());
@@ -1151,7 +1169,7 @@ fn tasks_named_all_64_keeps_its_names_and_literal_all_keeps_none() {
     for at in 0_u8..64 {
         let mut name = skein_lib::bytes::zeroed(usize::try_from(jig_domain_core::MODEL_NAME_BYTES).unwrap());
         name.fill(b'0'.checked_add(at).unwrap());
-        names.push(name).unwrap();
+        names.push(jig_domain_core::settings::ModelName { name, efforts: Box::new([]) }).unwrap();
     }
     let names = names.into_boxed();
     let mut encoded = skein_lib::List::with_capacity(2);
@@ -1165,7 +1183,10 @@ fn tasks_named_all_64_keeps_its_names_and_literal_all_keeps_none() {
         assert_eq!(wire.models().len(), if selector.is_all() { 0 } else { 64 });
         assert!(u64::try_from(bytes.len()).unwrap() <= crate::tasks_v9::Row::encoded_bound(&limits).unwrap());
         assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &names), Ok(row));
-        let now = Box::new([names[0].clone(), Box::<[u8]>::from(b"new".as_slice())]);
+        let now = Box::new([
+            names[0].clone(),
+            jig_domain_core::settings::ModelName { name: Box::from(b"new".as_slice()), efforts: Box::new([]) },
+        ]);
         let decoded = crate::codec::tasks::decode(&bytes, &limits, now.as_ref()).unwrap();
         let t::Stored::PersonProposal(proposal) = decoded else { panic!("proposal") };
         let t::PersonAction::Batch(batch) = proposal.action else { panic!("batch") };
@@ -1182,7 +1203,7 @@ fn tasks_named_all_64_keeps_its_names_and_literal_all_keeps_none() {
 fn canonical_tasks_context_reindexes_live_recurring_proposals_and_history() {
     use jig_domain_tasks as t;
     let limits = tasks_limits();
-    let names = fixtures::model_names(&[b"z", b"unused", b"a"]);
+    let names = fixtures::configured_model_names(&[b"z", b"unused", b"a"]);
     let mut task = fixtures::task_record();
     task.authority.models = t::Models::Named(1);
     task.recurring.as_mut().unwrap().template.batch[0].authority.models = t::Models::Named(4);
@@ -1403,14 +1424,11 @@ fn an_owing_spec_and_its_asked_latch_survive_storage() {
 #[test]
 fn an_owing_reminder_survives_storage_with_small_caller_word_limits() {
     use jig_domain_tasks::{ActivityLine, Line, MessageKind, Party, Stored, Word};
-    let domain = jig_domain_tasks::Limits {
-        message_bytes: 16,
-        result_bytes: 32,
-        ..jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks
-    };
+    let domain =
+        jig_domain_tasks::Limits { message_bytes: 16, result_bytes: 32, inbox_bytes: 4096, ..fixtures::TASKS_LIMITS };
     let words = b"You owe your requester a question: ask your plan with message, as a question, and wait.";
-    assert!(words.len() > usize::try_from(domain.message_bytes).expect("word bound"));
-    assert!(words.len() <= usize::try_from(domain.inbox_bytes).expect("inbox bound"));
+    assert!(words.len() > skein_lib::length::usize_of(domain.message_bytes));
+    assert!(words.len() <= skein_lib::length::usize_of(domain.inbox_bytes));
     let limits = crate::codec::tasks::limits(&domain).expect("unchanged inbox envelope fits");
     let row = Stored::Activity(ActivityLine {
         task: 1,

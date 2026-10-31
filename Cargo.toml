@@ -173,6 +173,7 @@ members = [
     "jig/testing/jig-test-store",
     "jig/testing/jig-test-store-files",
     "jig/testing/jig-test-domain",
+    "jig/testing/jig-test-profile",
     "jig/testing/jig-test-worker",
     "jig/testing/jig-test-service",
     "jig/testing/jig-client-test-protocol-wire",
@@ -201,7 +202,8 @@ members = [
     "jig/crates/jig-domain-authority",
     "jig/crates/jig-domain-brief",
     "jig/crates/jig-domain-fleet",
-    "jig/crates/jig-domain-workers",
+    "jig/crates/jig-domain-link",
+    "jig/crates/jig-domain-hub-link",
     "jig/crates/jig-domain-notes",
     "jig/crates/jig-domain-people",
     "jig/crates/jig-domain-tasks",
@@ -425,6 +427,7 @@ jig-test-store = { path = "jig/testing/jig-test-store" }
 jig-test-store-files = { path = "jig/testing/jig-test-store-files" }
 jig-test-connector-world = { path = "jig/tests/test-connector" }
 jig-test-domain = { path = "jig/testing/jig-test-domain" }
+jig-test-profile = { path = "jig/testing/jig-test-profile" }
 jig-client-test-domain = { path = "jig/testing/jig-client-test-domain" }
 jig-client-test-kit = { path = "jig/testing/jig-client-test-kit" }
 jig-client-fake-person-browser = { path = "jig/testing/jig-client-fake-person-browser" }
@@ -449,7 +452,8 @@ jig-domain-people = { path = "jig/crates/jig-domain-people" }
 jig-domain-tasks = { path = "jig/crates/jig-domain-tasks" }
 jig-domain-brief = { path = "jig/crates/jig-domain-brief" }
 jig-domain-fleet = { path = "jig/crates/jig-domain-fleet" }
-jig-domain-workers = { path = "jig/crates/jig-domain-workers" }
+jig-domain-link = { path = "jig/crates/jig-domain-link" }
+jig-domain-hub-link = { path = "jig/crates/jig-domain-hub-link" }
 jig-domain-views = { path = "jig/crates/jig-domain-views" }
 jig-domain-host = { path = "jig/crates/jig-domain-host" }
 jig-protocol-charter = { path = "jig/crates/jig-protocol-charter" }

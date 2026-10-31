@@ -49,7 +49,7 @@ pub(crate) fn call(
     if let Some(credential) = credential {
         let size = base64::encoded_len(Alphabet::Url, u32::try_from(credential.len()).expect("bounded credential"))
             .expect("bounded bearer");
-        let mut value = Writer::new(usize::try_from(size).expect("u32 fits").checked_add(7).expect("bounded bearer"));
+        let mut value = Writer::new(skein_lib::length::usize_of(size).checked_add(7).expect("bounded bearer"));
         value.put(b"Bearer ").expect("measured bearer");
         base64::encode(Alphabet::Url, credential.expose(), &mut value).expect("measured bearer");
         headers

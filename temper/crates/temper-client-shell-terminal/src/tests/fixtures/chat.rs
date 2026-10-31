@@ -97,7 +97,7 @@ fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
                     c::Subject::Settings => unreachable!("temper does not watch settings"),
                     c::Subject::Me => Some(c::Delivery::Me(Box::new(demo_me()))),
                     c::Subject::Task { task } => Some(c::Delivery::Task(Box::new(delegation_task(task, landed)))),
-                    c::Subject::Accounts if landed => Some(c::Delivery::OwnerAccounts(Box::new(demo_accounts()))),
+                    c::Subject::Accounts if landed => Some(c::Delivery::Accounts(Box::new(demo_accounts()))),
                     c::Subject::Deployment
                     | c::Subject::Tree { .. }
                     | c::Subject::Chips { .. }
@@ -199,10 +199,10 @@ fn delegation_task(number: u64, landed: bool) -> contract::Task {
     task.activity = if number == 1 { if landed { 9 } else { 5 } } else { 0 };
     task.spec.specification.words = c::DocumentText::complete(delegation_text(first_run::CSV));
     if number == 1 {
-        task.requester = c::OwnerRequester::Person(1);
+        task.requester = c::Requester::Person(1);
         task.wake.words = c::WakeRule::Immediate;
         task.waits_on = if landed { c::WaitsOn::News } else { c::WaitsOn::Delegates };
-        let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("chat owner") };
+        let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
         // The first-run fixture has one change, still live until its result arrives.
         details.live_delegates = u32::from(!landed);
         details.wake = task.wake;
@@ -214,12 +214,12 @@ fn delegation_task(number: u64, landed: bool) -> contract::Task {
         }
     }
     if number == 2 {
-        task.requester = c::OwnerRequester::Task(1);
+        task.requester = c::Requester::Task(1);
         task.result_contract = c::TaskContractDocument::Change { connector: 1, kind: 1, words: 256 };
         if landed {
-            task.result = Some(c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Done(c::ResultValue::Change {
+            task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(c::ResultValue::Change {
                 kind: 1,
-                part: c::OwnerPart { connector: 1, kind: c::OwnerPartKind::Result, key: c::OwnerPartKey::Number(2) },
+                part: c::Part { connector: 1, kind: c::PartKind::Result, key: c::PartKey::Number(2) },
                 words: c::DocumentText::complete(delegation_text(b"1a2b3c4abcdef0123456789abcdef0123456789abcd")),
             }))));
         }
@@ -234,26 +234,26 @@ fn delegation_text(bytes: &[u8]) -> contract::Text {
     contract::Text::new(Box::from(bytes), 256).expect("first run text fits")
 }
 
-fn demo_accounts() -> contract::OwnerAccounts {
+fn demo_accounts() -> contract::Accounts {
     use jig_client::contract as c;
     use skein_lib::List;
     let mut readiness = List::with_capacity(1);
     readiness
         .push(c::PayerReadiness {
             provider: 3,
-            payer: c::OwnerAccountUse::Party(1),
+            payer: c::AccountUse::Party(1),
             readiness: c::Readiness::Usable,
             settled: Some(true),
         })
         .expect("demo readiness");
     let mut sources = List::with_capacity(1);
     sources
-        .push(c::OwnerAccountSource {
+        .push(c::AccountSource {
             name: None,
             place: 1,
             number: 1,
-            kind: c::OwnerAccountKind::None,
-            state: c::OwnerAccountState::Granted,
+            kind: c::AccountKind::None,
+            state: c::AccountState::Granted,
             usable: true,
             expiring: false,
             attention: false,
@@ -262,7 +262,7 @@ fn demo_accounts() -> contract::OwnerAccounts {
         .expect("demo source");
     let mut accounts = List::with_capacity(1);
     accounts
-        .push(c::OwnerAccountLine {
+        .push(c::AccountLine {
             number: 1,
             place: 1,
             uses: None,
@@ -271,12 +271,12 @@ fn demo_accounts() -> contract::OwnerAccounts {
             provider_name: None,
             manage_usage: None,
             display: c::DocumentText::complete(delegation_text(b"Demo")),
-            holder: c::OwnerAccountHolder::Deployment,
+            holder: c::AccountHolder::Deployment,
             sources,
             cut: false,
         })
         .expect("demo account");
-    contract::OwnerAccounts {
+    contract::Accounts {
         program_hosts: skein_lib::List::with_capacity(0),
         readiness,
         readiness_cut: false,

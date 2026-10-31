@@ -2,7 +2,7 @@
 //! (jig/docs/design/client/domain/testing.md, 4).
 use super::{ClientId, Until, World};
 use crate::{Scripted, Test, stories, test::list};
-use jig_client::contract::{InboxEntry, InboxGroup, InboxReadGroup, ObjectKey, Read, ReadValue};
+use jig_client::contract::{InboxGroup, InboxReadGroup, ObjectKey, Read, ReadValue};
 use jig_client_scripted_engine::{Change, Rows, Source};
 use jig_client_test_domain::Action;
 use jig_client_view::{address, page::Page};
@@ -37,18 +37,14 @@ fn inbox() -> (World<Test, Scripted>, ClientId) {
         Change::Source(Source {
             party: PARTY,
             read: Read::Inbox { group: InboxReadGroup::Updates, project: None, kind: None, goal: None, after: None },
-            rows: Rows::Inbox(vec![InboxEntry {
-                reply: None,
-                lineage: list([]),
-                goal: None,
-                recipient: None,
-                stall: None,
-                object: ObjectKey::Result(TASK),
-                project: PROJECT,
-                group: InboxGroup::Results,
-                position: 1,
-                at: Wall::EPOCH,
-            }]),
+            rows: Rows::Inbox(vec![crate::stories::inbox_entry(
+                ObjectKey::Result(TASK),
+                PROJECT,
+                InboxGroup::Results,
+                1,
+                Wall::EPOCH,
+                None,
+            )]),
         }),
     ] {
         world.front().engine.act(Time::ZERO, Wall::EPOCH, change).expect("inbox fixture fits");

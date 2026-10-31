@@ -1,0 +1,14 @@
+== jig == 
+- note title:
+    ## note title
+    In project 4
+    * Open
+    note body
+    Only part of this text was supplied
+    This note has more references; read the whole note before replacing it
+    Written by party 1
+    At 01:00
+    [1] Task 91
+    [2] Edit note
+    Pass up
+    Your pool has 12 left; this needs 40

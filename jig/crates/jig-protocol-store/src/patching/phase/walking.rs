@@ -112,7 +112,7 @@ pub(super) fn opened(
     let key = Key::Core(CoreKey::Deployment);
     let encoded = keys::encode(&key, store.limits.store.key)?;
     let bytes = open::get_open(store, store.directory.owner, encoded).ok()??;
-    let record = codec::decode(&key, &bytes, &store.codec, &store.names)?;
+    let record = codec::decode(&key, &bytes, &store.codec_limits, &store.names)?;
     let header = match record {
         Record::Core(CoreRecord::Deployment(header)) => header,
         Record::Core(
@@ -155,7 +155,7 @@ pub(super) fn opened(
         running: None,
         deferred: None,
         ops: List::with_capacity(ops_capacity(&store.limits)),
-        bytes: 26,
+        bytes: u64::from(skein_kv::FRAME_BYTES),
         through: None,
         counts: Counts { records: 0, commits: 0 },
         waiting: Waiting::Ready,
@@ -334,7 +334,7 @@ fn cross_row(store: &mut Store, walking: &mut Walking, row: pages::WalkRow) -> O
         open::data(store, &row.row.key, crate::restore::DecodeFailure::Key);
         return None;
     };
-    let Some(record) = codec::decode(&key, &row.row.value, &store.codec, &store.names) else {
+    let Some(record) = codec::decode(&key, &row.row.value, &store.codec_limits, &store.names) else {
         open::data(store, &row.row.key, crate::restore::DecodeFailure::Value);
         return None;
     };
@@ -367,7 +367,7 @@ fn cross_row(store: &mut Store, walking: &mut Walking, row: pages::WalkRow) -> O
         window.closed = true;
     }
     if changed {
-        let value = codec::encode(&Record::Core(CoreRecord::RunProof(proof)), &store.codec, &store.names)?;
+        let value = codec::encode(&Record::Core(CoreRecord::RunProof(proof)), &store.codec_limits, &store.names)?;
         walking.deferred = Some(Put { key: row.row.key, value, cursor: row.cursor });
     } else {
         walking.through = Some(row.cursor);
@@ -379,9 +379,10 @@ fn append(store: &Store, walking: &mut Walking) -> Option<bool> {
     let Some(put) = walking.deferred.take() else { return Some(true) };
     let map = walking.map();
     let limits = pages::map_limits(store, map);
-    let size = u64::try_from(put.key.len()).ok()?.checked_add(u64::try_from(put.value.len()).ok()?)?.checked_add(9)?;
+    let size =
+        u64::from(skein_kv::put_bytes(u32::try_from(put.key.len()).ok()?, u32::try_from(put.value.len()).ok()?)?);
     // No part of this page is submitted on a put that cannot fit alone.
-    if size.checked_add(26)? > u64::from(limits.commit)
+    if size.checked_add(u64::from(skein_kv::FRAME_BYTES))? > u64::from(limits.commit)
         || puts(&store.limits, map) == 0
         || put.value.len() > usize::try_from(limits.value).ok()?
     {
@@ -444,7 +445,7 @@ pub(super) fn resume(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Eve
             walking.waiting = Waiting::Commit { map, number };
             let ops =
                 core::mem::replace(&mut walking.ops, List::with_capacity(ops_capacity(&store.limits))).into_boxed();
-            walking.bytes = 26;
+            walking.bytes = u64::from(skein_kv::FRAME_BYTES);
             state(store, Patching::Walking(walking));
             match map {
                 KeptMap::Store => commits::submit(store, env, number, ops, above, below),
@@ -484,14 +485,15 @@ fn seal(
         return refuse(store, above);
     };
     let mut format = format::current(store.application.version, header.id);
-    format.levels = format::recorded(crate::patching::plan::binary(&store.patch_sets));
+    format.levels = crate::patching::plan::binary(&store.patch_sets);
     let Ok(format) = format.encode() else {
         return refuse(store, above);
     };
-    let Some(header) = codec::encode(&Record::Core(CoreRecord::Deployment(header)), &store.codec, &store.names) else {
+    let Some(header) = codec::encode(&Record::Core(CoreRecord::Deployment(header)), &store.codec_limits, &store.names)
+    else {
         return refuse(store, above);
     };
-    let mut size = 26_u64;
+    let mut size = u64::from(skein_kv::FRAME_BYTES);
     let Some(layouts_key) = keys::encode_own(&keys::Own::Layouts, store.limits.store.key) else {
         return refuse(store, above);
     };
@@ -512,7 +514,8 @@ fn seal(
 }
 
 fn put_size(key: &[u8], value: &[u8], before: u64) -> Option<u64> {
-    before.checked_add(u64::try_from(key.len()).ok()?)?.checked_add(u64::try_from(value.len()).ok()?)?.checked_add(9)
+    before
+        .checked_add(u64::from(skein_kv::put_bytes(u32::try_from(key.len()).ok()?, u32::try_from(value.len()).ok()?)?))
 }
 
 fn start(walking: &mut Walking, family: FamilyIx, root: &str, row: pages::WalkRow) -> Option<()> {

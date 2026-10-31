@@ -141,7 +141,7 @@ impl World {
             }
             if !writes.is_empty() {
                 if let Intent::DropProject { .. } = intent {
-                    assert!(writes.len() <= usize::try_from(self.limits.load_rows).expect("page bound fits"));
+                    assert!(writes.len() <= skein_lib::length::usize_of(self.limits.load_rows));
                 }
                 self.referee.before_commit(&self.store, &writes, &intent);
                 for write in writes {
@@ -169,14 +169,9 @@ impl World {
         answer
     }
 
-    /// Restart the child from the durable store and its end marker.
+    /// Restart the child with an empty cache; durable records stay in the store.
     pub fn restart(&mut self) {
         self.domain = notes::Domain::new(&self.limits);
-        let records: Vec<_> = self.store.values().cloned().collect();
-        for record in records {
-            assert!(self.step_once(Event::Restore { record }).is_empty(), "restore emits nothing");
-        }
-        assert!(self.step_once(Event::Restored).is_empty(), "restored emits nothing");
         self.referee.after_commit(&self.store, &self.limits);
     }
 
@@ -306,9 +301,7 @@ pub fn task_entry(name: u64, scope: Scope, description: &[u8], body: &[u8], task
 /// A single scope in a bounded list.
 #[must_use]
 pub fn one_scope(scope: Scope) -> List<Scope> {
-    let mut scopes = List::with_capacity(1);
-    scopes.push(scope).expect("one scope fits");
-    scopes
+    List::from_boxed(Box::new([scope]))
 }
 
 /// A party's correction at the revision seen.

@@ -107,15 +107,15 @@ fn waiting_for_return() -> (Host, Vec<Asked>, u32) {
     let (signing, _) = exchange(&mut host);
     let pending = host.root.pages().connect_model().expect("flow").request.pending.as_ref().expect("own sign-in");
     assert!(pending.name.is_some() && pending.outcome.is_none(), "own unanswered request");
-    let started = w::OwnerOutcome::AccountSignInStarted(
-        w::OwnerOutcomeAccountSignInStarted::new(
+    let started = w::DocumentOutcome::AccountSignInStarted(
+        w::OutcomeAccountSignInStarted::new(
             &w::CEILINGS,
-            w::OwnerOutcomeAccountSignInStartedParts { source: 43, address: ADDRESS.into() },
+            w::OutcomeAccountSignInStartedParts { source: 43, address: ADDRESS.into() },
         )
         .expect("sign-in started"),
     );
-    let outcome = w::Outcome::Owner(
-        w::OutcomeOwner::new(&w::CEILINGS, w::OutcomeOwnerParts { value: started }).expect("owner outcome"),
+    let outcome = w::Outcome::Document(
+        w::OutcomeDocument::new(&w::CEILINGS, w::OutcomeDocumentParts { value: started }).expect("owner outcome"),
     );
     let answer = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("done"));
     let answer = w::KeyedAnswer::FinalAnswer(owned(encoded(answer.measure(), |writer| answer.encode(writer))));

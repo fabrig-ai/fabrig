@@ -661,27 +661,27 @@ const NAVIGATION_SOURCES: u32 = 2;
 const NAVIGATION_PROVIDER: u32 = 18;
 const NAVIGATION_PARTY: u64 = 73; // Pat in fixture_me.
 
-fn navigation_accounts(states: &[jig_client::contract::OwnerAccountState]) -> jig_client::contract::OwnerAccounts {
+fn navigation_accounts(states: &[jig_client::contract::AccountState]) -> jig_client::contract::Accounts {
     use jig_client::contract as c;
     let mut accounts = skein_lib::List::with_capacity(u32::try_from(states.len()).unwrap());
     for (index, state) in states.iter().enumerate() {
         let number = u32::try_from(index.checked_add(1).unwrap()).unwrap();
         let mut sources = skein_lib::List::with_capacity(NAVIGATION_SOURCES);
         sources
-            .push(c::OwnerAccountSource {
+            .push(c::AccountSource {
                 name: None,
                 place: 1,
                 number,
-                kind: c::OwnerAccountKind::Key,
+                kind: c::AccountKind::Key,
                 state: *state,
-                usable: *state == c::OwnerAccountState::Granted,
+                usable: *state == c::AccountState::Granted,
                 expiring: false,
                 attention: false,
                 spent_until: None,
             })
             .unwrap();
         accounts
-            .push(c::OwnerAccountLine {
+            .push(c::AccountLine {
                 number,
                 place: number,
                 uses: None,
@@ -690,13 +690,13 @@ fn navigation_accounts(states: &[jig_client::contract::OwnerAccountState]) -> ji
                 provider_name: None,
                 manage_usage: None,
                 display: c::DocumentText::complete(c::Text::new(Box::from(b"Pat".as_slice()), 32).unwrap()),
-                holder: c::OwnerAccountHolder::Party(NAVIGATION_PARTY),
+                holder: c::AccountHolder::Party(NAVIGATION_PARTY),
                 sources,
                 cut: false,
             })
             .unwrap();
     }
-    c::OwnerAccounts {
+    c::Accounts {
         program_hosts: skein_lib::List::with_capacity(0),
         readiness: skein_lib::List::with_capacity(0),
         readiness_cut: false,
@@ -712,7 +712,7 @@ fn navigation_accounts(states: &[jig_client::contract::OwnerAccountState]) -> ji
 fn deliver_navigation_accounts(
     root: &mut temper_client_domain::Domain,
     watch: skein_lib::Token,
-    doc: jig_client::contract::OwnerAccounts,
+    doc: jig_client::contract::Accounts,
 ) {
     fixtures::root_event(
         root,
@@ -720,7 +720,7 @@ fn deliver_navigation_accounts(
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch,
-                    event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::OwnerAccounts(
+                    event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Accounts(
                         Box::new(doc),
                     )),
                 },
@@ -774,7 +774,7 @@ fn assert_account_mark(root: &temper_client_domain::Domain, expected: Option<(cr
 
 #[test]
 fn accounts_navigation_has_no_dot_without_accounts_or_with_usable_accounts() {
-    use jig_client::contract::OwnerAccountState as S;
+    use jig_client::contract::AccountState as S;
     let (mut root, watch) = fixtures::account_root();
     assert_account_mark(&root, None);
     for states in [&[][..], &[S::Granted, S::Granted][..]] {
@@ -786,25 +786,21 @@ fn accounts_navigation_has_no_dot_without_accounts_or_with_usable_accounts() {
 #[test]
 fn a_moving_account_has_no_navigation_mark() {
     let (mut root, watch) = fixtures::account_root();
-    deliver_navigation_accounts(
-        &mut root,
-        watch,
-        navigation_accounts(&[jig_client::contract::OwnerAccountState::Moving]),
-    );
+    deliver_navigation_accounts(&mut root, watch, navigation_accounts(&[jig_client::contract::AccountState::Moving]));
     assert_eq!(crate::accounts::words::mark(&root), None);
     assert_account_mark(&root, None);
 }
 
 #[test]
 fn accounts_navigation_is_red_for_each_state_needing_the_person() {
-    use c::OwnerAccountState as S;
+    use c::AccountState as S;
     use jig_client::contract as c;
     let (mut root, watch) = fixtures::account_root();
     for state in [
-        S::Unloaded { at: c::OwnerAccountPlace::File, why: c::OwnerAccountUnread::Refused },
+        S::Unloaded { at: c::AccountPlace::File, why: c::AccountUnread::Refused },
         S::SignInAgain,
         S::Misconfigured,
-        S::Unloaded { at: c::OwnerAccountPlace::Directory, why: c::OwnerAccountUnread::Unreadable },
+        S::Unloaded { at: c::AccountPlace::Directory, why: c::AccountUnread::Unreadable },
     ] {
         deliver_navigation_accounts(&mut root, watch, navigation_accounts(&[state]));
         assert_account_mark(&root, Some((crate::accounts::words::Mark::Needs, b"an account needs you")));
@@ -814,7 +810,7 @@ fn accounts_navigation_is_red_for_each_state_needing_the_person() {
 #[test]
 fn accounts_navigation_is_amber_for_limited_and_red_takes_precedence() {
     use crate::accounts::words::Mark;
-    use jig_client::contract::OwnerAccountState as S;
+    use jig_client::contract::AccountState as S;
     let (mut root, watch) = fixtures::account_root();
     for (states, mark, words) in [
         (&[S::Later { until: None }][..], Mark::Limited, b"an account is limited".as_slice()),
@@ -828,7 +824,7 @@ fn accounts_navigation_is_amber_for_limited_and_red_takes_precedence() {
 
 #[test]
 fn accounts_navigation_uses_only_the_first_supplied_source_even_when_cut() {
-    use jig_client::contract::OwnerAccountState as S;
+    use jig_client::contract::AccountState as S;
     let (mut root, watch) = fixtures::account_root();
     let mut doc = navigation_accounts(&[S::Granted, S::SignInAgain]);
     let later = doc.accounts.get(1).unwrap().sources.get(0).unwrap().clone();
@@ -856,10 +852,10 @@ fn accounts_navigation_ignores_the_playground_provider_and_other_holders() {
         Some((fixtures::PROJECT, true)),
     );
     let provider = root.forge().playground().unwrap().provider;
-    let mut doc = navigation_accounts(&[c::OwnerAccountState::SignInAgain; 3]);
+    let mut doc = navigation_accounts(&[c::AccountState::SignInAgain; 3]);
     doc.accounts.get_mut(0).unwrap().provider = Some(provider);
-    doc.accounts.get_mut(1).unwrap().holder = c::OwnerAccountHolder::Deployment;
-    doc.accounts.get_mut(2).unwrap().holder = c::OwnerAccountHolder::Party(fixtures::OTHER_PARTY);
+    doc.accounts.get_mut(1).unwrap().holder = c::AccountHolder::Deployment;
+    doc.accounts.get_mut(2).unwrap().holder = c::AccountHolder::Party(fixtures::OTHER_PARTY);
     for cut in [false, true] {
         doc.cut = cut;
         deliver_navigation_accounts(&mut root, watch.unwrap(), doc.clone());
@@ -870,7 +866,7 @@ fn accounts_navigation_ignores_the_playground_provider_and_other_holders() {
 #[test]
 fn accounts_navigation_reads_attention_as_needing_and_spent_usage_as_limited() {
     use crate::accounts::words::Mark;
-    use jig_client::contract::OwnerAccountState as S;
+    use jig_client::contract::AccountState as S;
     let (mut root, watch) = fixtures::account_root();
     let mut attention = navigation_accounts(&[S::Granted]);
     attention.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().attention = true;

@@ -1,9 +1,10 @@
 //! Connector values through the real root and independently observed store.
 
-use jig_core_world::{
-    effects::{Cut, World},
-    reads, watches,
-};
+use jig_core_world::reads;
+use jig_core_world::watches;
+use jig_core_world::world::Cut;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_people::ApplicationScope;
 use jig_test_connector::{self as connector, ClientDocument, ClientSubject};
@@ -21,7 +22,7 @@ const DEPLOYMENT_WATCHER: u64 = 57;
 const UNKNOWN_SUBJECT: u64 = 900;
 
 fn world(seed: u64) -> World {
-    let mut world = World::new(seed, false);
+    let mut world = World::new(Setup { seed, ..Setup::default() });
     world.watches = Some(watches::Parties::new(seed, world.store.applied, false, world.sign_in.expect("signed in")));
     world.reads = Some(reads::Parties::new(world.store.applied));
     world.send(root::Event::Connector {
@@ -209,7 +210,7 @@ fn a_deployment_scope_watch_without_a_deployment_role_is_refused() {
     let env = skein_lib::Env {
         now: skein_lib::Time::ZERO,
         wall: skein_lib::Wall::EPOCH,
-        limits: jig_core_world::effects::fixture(885, false).1,
+        limits: jig_core_world::world::fixture(885, false).1,
     };
     root::step(
         &mut world.domain,

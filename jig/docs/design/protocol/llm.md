@@ -80,7 +80,7 @@ engine's root
 ├── smith-inline-agent              completions asked and cancelled, and their terminals; facts and content drained
 └── …
 engine's protocol layer
-├── jig-protocol-accounts           the child's vocabulary to the driver's and back; the credentials' table
+├── jig-protocol-accounts           the accounts component: the child, the driver and the credentials' table composed, and the translation between them
 │     └── skein-oauth-accounts      sign-in, refresh, sign-out, records kept in the secrets' store, tokens lent by generation
 ├── jig-protocol-store              the secrets' store: records and keys, beside credentials' digests (store.md, section 9)
 ├── smith-protocol-llm              prompts, tools' schemas, decoding, rendering; its grants' table; text as it comes
@@ -231,8 +231,7 @@ engine's protocol layer
 
 ### 5.2 The translation
 
-`jig-protocol-accounts` is small total functions between the accounts
-child's vocabulary and the driver's, both ways, exhaustive on both:
+`jig-protocol-accounts` translates between the accounts child's vocabulary and the driver's, both ways, exhaustive on both, and its `Component` composes the two with the credentials' table in the order this section gives, so a root routes its events and orders none of it:
 
 | The accounts child asks | The driver hears |
 |---|---|

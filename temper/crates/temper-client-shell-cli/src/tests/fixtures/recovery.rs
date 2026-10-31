@@ -131,7 +131,7 @@ pub(super) fn stored_request(party: u64, request: jig_client::Ask) -> jig_client
         &lim,
     )
     .expect("kept table");
-    let kept = w::Kept::new(&lim.wire, w::KeptParts { store_version: TABLE_VERSION, record: encode!(table) })
+    let kept = w::Kept::new(lim.wire(), w::KeptParts { store_version: TABLE_VERSION, record: encode!(table) })
         .expect("kept record");
     jig_client::Record { key: KEPT_KEY.into(), bytes: encode!(kept) }
 }
@@ -217,12 +217,12 @@ impl Frame {
             self.adopt_reply(fd);
             return;
         }
-        let value = w::OwnerOutcome::Created(
-            w::OwnerOutcomeCreated::new(&w::CEILINGS, w::OwnerOutcomeCreatedParts { first: 41, last: 41, given: None })
+        let value = w::DocumentOutcome::Created(
+            w::OutcomeCreated::new(&w::CEILINGS, w::OutcomeCreatedParts { first: 41, last: 41, given: None })
                 .expect("created"),
         );
-        let outcome = w::Outcome::Owner(
-            w::OutcomeOwner::new(&w::CEILINGS, w::OutcomeOwnerParts { value }).expect("owner outcome"),
+        let outcome = w::Outcome::Document(
+            w::OutcomeDocument::new(&w::CEILINGS, w::OutcomeDocumentParts { value }).expect("owner outcome"),
         );
         let answer = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("done"));
         let owned = w::Owned::new(

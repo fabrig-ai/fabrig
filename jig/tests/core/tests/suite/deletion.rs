@@ -1,10 +1,11 @@
 //! Project deletion on the real store (`jig/docs/design/domain/people.md`, 5.2 and 8).
 
+use super::read_support::request;
 use jig_core_world::{
-    effects::{Cut, World},
     fixtures::{self, live_row},
     reads,
-    stories::{delegates::delegate_pair, reads::request},
+    stories::delegates::delegate_pair,
+    world::{Cut, Setup, World},
 };
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
@@ -15,6 +16,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
 use jig_test_domain as root;
+use jig_test_profile::fixtures as profile_fixtures;
 use skein_lib::{Duration, List, Map, ReplyTo, Token};
 use std::collections::BTreeMap;
 
@@ -55,7 +57,7 @@ fn configuration(seed: u64) -> (root::Config, root::Limits) {
 }
 
 fn account_rows(config: &root::Config) -> Box<[root::Record]> {
-    let mut rows = fixtures::account_rows(&config.core.settings.llm_providers).into_vec();
+    let mut rows = profile_fixtures::account_rows(&config.core.settings.llm_providers).into_vec();
     for row in &mut rows {
         if let root::Record::Core(core::Record::Accounts(accounts::Stored::Account { uses, .. })) = row {
             *uses = Some(Box::new([accounts::Use::Project(PROJECT), accounts::Use::Party(PARTY)]));
@@ -92,14 +94,21 @@ fn account_rows(config: &root::Config) -> Box<[root::Record]> {
 
 fn deleted_world(seed: u64) -> World {
     let (config, limits) = configuration(seed);
-    let initial = fixtures::create_chat(
-        &fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks),
+    let initial = profile_fixtures::create_chat(
+        &profile_fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks),
         PROJECT,
         0,
         b"retained conversation".as_slice().into(),
     );
     let rows = account_rows(&config);
-    let mut world = World::configured_with_rows(seed, false, config, limits, initial, rows);
+    let mut world = World::new(Setup {
+        seed,
+        configuration: Some(config),
+        limits,
+        initial: Some(initial),
+        rows: Some(rows),
+        ..Setup::default()
+    });
     assert!(
         world.assigned.is_some(),
         "fixture conversation assigned: {:?}; failure {:?}; phase {:?}; phases {:?}",
@@ -230,7 +239,7 @@ fn restart_world(world: &mut World) {
                         | tasks::Phase::Closing(tasks::Closing { stage: tasks::Stage::Run { .. }, .. })
                 )
             {
-                Some(fleet::Hosted {
+                Some(fleet::Hosting {
                     run: Token::new(row.number),
                     attempt: Token::new(row.attempt),
                     phase: fleet::Phase::Active,
@@ -245,7 +254,7 @@ fn restart_world(world: &mut World) {
             worker: 0,
             channel: Token::new(7),
             hello: fleet::Hello {
-                bounds: fixtures::bounds(),
+                bounds: profile_fixtures::bounds(),
                 stop_bound: Duration::from_millis(100),
                 slots: 3,
                 workstreams: Box::new([]),
@@ -485,7 +494,7 @@ fn adoption() -> people::Adoption {
 fn party_entries(project: u32, chat: u64) -> [people::Ask; 4] {
     [
         people::Ask::Say { project, task: chat, words: b"too late".as_slice().into() },
-        people::Ask::Create { project, batch: Box::new([jig_core_world::stories::reads::conversation_member(false)]) },
+        people::Ask::Create { project, batch: Box::new([jig_test_profile::fixtures::conversation_member(false)]) },
         people::Ask::Rename { project, name: "Another name".into() },
         people::Ask::SetRoles {
             project,
@@ -500,7 +509,7 @@ fn watch_end(world: &mut World, project: u32, watcher: u64) -> core::WatchRefusa
         watcher: Token::new(watcher),
         sign_in: world.sign_in.expect("signed in"),
         subject: documents::Watched::Query {
-            query: documents::TaskQuery { project: Some(project), requester: None, ..fixtures::OWN_TASKS },
+            query: documents::TaskQuery { project: Some(project), requester: None, ..profile_fixtures::OWN_TASKS },
         },
         window: documents::Window { rows: 2, after: None },
     }));

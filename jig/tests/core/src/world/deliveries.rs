@@ -1,223 +1,244 @@
-//! The walking world's scripted delivery responses.
-use super::{ReplyTo, Scenario, Token, World, core, people, root, tasks};
+//! Scripted peers consume each root delivery in order.
+use super::{Fault, ReplyTo, StoreOut, Token, World, connector, core, people, root};
 impl World {
-    #[expect(clippy::too_many_lines, reason = "one script handles each externally observed delivery")]
+    #[expect(clippy::too_many_lines, reason = "one exhaustive delivery handler drives the script's independent peers")]
     pub(super) fn delivered(&mut self, mut delivery: root::Delivery) {
-        self.observer.delivered(self.iteration * 1_000_000, &mut delivery);
+        self.observer.delivered(self.wall, &mut delivery);
+        if !matches!(delivery, root::Delivery::System { .. } | root::Delivery::LostRead { .. })
+            && let Some(mut walking) = self.walking.take()
+        {
+            walking.delivered(self, delivery);
+            self.walking = Some(walking);
+            return;
+        }
+        if let Some(offers) = &mut self.offers {
+            offers.delivered(&mut delivery);
+        }
+        if let Some(watches) = &mut self.watches {
+            watches.released(&delivery, self.store.applied);
+        }
+        if let Some(peer) = &mut self.client_peer {
+            match peer.capture(self.store.applied, delivery) {
+                Ok(()) => return,
+                Err(unowned) => delivery = unowned,
+            }
+        }
+        if let Some(peers) = &mut self.peers {
+            peers.delivered(&delivery);
+            if let root::Delivery::Core(core::Held::PeopleReply { to, reply }) = delivery {
+                peers.reply(to, &reply);
+                self.people_answers.push(reply);
+                return;
+            }
+        }
         match delivery {
+            root::Delivery::Start(_) => unreachable!("the root resumes its held start continuation"),
+            root::Delivery::ProjectMade { project } => self.project_made.push((self.store.applied, project)),
+            root::Delivery::Core(core::Held::Acted { to, outcome }) => {
+                self.act_answers.push((to.into_token(), outcome));
+            }
             root::Delivery::Core(core::Held::Sources { channel, sources }) => {
-                assert!(sources.is_empty(), "walking worker source fixture");
                 self.events.push_back(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Logins {
                     channel,
-                    logins: Box::new([]),
+                    logins: sources
+                        .iter()
+                        .map(|source| jig_domain_fleet::Login {
+                            name: *source,
+                            state: jig_domain_fleet::LoginState::Usable,
+                        })
+                        .collect(),
                 })));
             }
+            root::Delivery::ApplicationRead { reply, number, answer } => {
+                if let Some(reads) = &mut self.reads {
+                    reads.application_replied(reply, number, answer, &self.store);
+                }
+            }
+            root::Delivery::Core(core::Held::Read { reply, answer }) => {
+                if let Some(reads) = &mut self.reads {
+                    reads.replied(reply, answer, &self.store);
+                }
+            }
+            root::Delivery::Core(core::Held::ReadLoad { load, range }) => {
+                let requests = if range.party == 0 {
+                    assert!(self.internal_reads.insert(load), "one internal erasure load");
+                    vec![StoreOut::ReadLoad { load, range }]
+                } else if let Some(reads) = &mut self.reads {
+                    reads.load(load, *range, &self.store)
+                } else {
+                    vec![StoreOut::ReadLoad { load, range }]
+                };
+                for request in requests {
+                    self.store.ask(request);
+                }
+            }
+            root::Delivery::Core(
+                core::Held::Applied { .. }
+                | core::Held::ApplicationDelivery { .. }
+                | core::Held::ApplicationWatchEnded { .. },
+            ) => {
+                panic!("root assembles connector outcomes before journaling")
+            }
+            root::Delivery::Application { to, number, outcome } => {
+                self.application_answers.push((to.into_token(), number, outcome));
+            }
+            root::Delivery::Core(core::Held::CarriedUnused { number }) => {
+                let before = self
+                    .people_answers
+                    .len()
+                    .checked_add(self.application_answers.len())
+                    .and_then(|count| count.checked_add(self.act_answers.len()));
+                self.carried_unused.push((before.expect("bounded story answers"), number));
+            }
             root::Delivery::Projection { connector, feed } => {
-                if feed.closing {
+                if feed.closing && !self.hold_projection_settlements {
                     self.events.push_back(root::Event::Core(core::Event::ProjectionSettled {
                         goal: feed.goal.number,
                         connector,
                     }));
                 }
+                self.projections.push((self.commits.len(), connector, *feed));
             }
 
-            root::Delivery::Core(core::Held::Load(load)) => self.store.ask(jig_test_store::StoreOut::Now(*load)),
-            root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
-                self.store.ask(jig_test_store::StoreOut::NotesLoad { owner, range });
+            root::Delivery::CallBusy { name, .. } => self.busy_calls.push(name),
+            root::Delivery::Core(core::Held::TurnBusy { run, attempt, turn, .. }) => {
+                self.busy_turns.push((run.raw(), attempt.raw(), turn));
+            }
+            root::Delivery::Core(
+                held @ (core::Held::Drained | core::Held::WatchEnded { .. } | core::Held::Acknowledge { .. }),
+            ) => {
+                self.stop_deliveries.push(held);
+            }
+            root::Delivery::CallAnswer { name, call, .. } => self.host_answers.push((name, call)),
+            root::Delivery::Message { word, .. } => self.inbound.push(word),
+            root::Delivery::Assigned { assignment, .. } => {
+                self.last_read = None;
+                self.assignments.push((assignment.task, assignment.attempt));
+                self.assignment_transcripts
+                    .push(super::AssignedTranscript { task: assignment.task, turns: assignment.transcript.clone() });
+                self.assigned = Some(assignment);
+            }
+            root::Delivery::Core(core::Held::Grant { channel, run, attempt, grant }) => {
+                self.grant_delivered(channel, run, attempt, grant);
+            }
+            root::Delivery::Core(core::Held::Cancel { run, attempt, .. }) => {
+                self.cancellations.push((run.raw(), attempt.raw()));
+            }
+            root::Delivery::Procedure { task, step, connector: number, code, context } => {
+                self.procedure = Some(task);
+                self.procedure_inputs.push((step, number, code, context.clone()));
+                if self.hold_procedures {
+                    return;
+                }
+                self.events.push_back(root::Event::Connector {
+                    number,
+                    event: root::procedure_input(&context, code, jig_test_connector_world::path(1, 1)),
+                });
+            }
+            root::Delivery::LostRead { connector, resource, call, .. } => {
+                if self.hold_lost_reads {
+                    self.pending_lost_reads.push((connector, resource, call));
+                    return;
+                }
+                let event = self.systems[usize::from(connector - 1)].answer(call, Fault::None);
+                self.events.push_back(root::Event::WriterRead { connector, resource, event });
+            }
+            root::Delivery::System {
+                connector: number,
+                call: connector::SystemRequest::ReadFact { resource, observed },
+            } => {
+                let call = connector::SystemRequest::ReadFact { resource, observed };
+                if let Some(phase @ core::start::Phase::ReadAfresh { connector }) = self.domain.start_phase() {
+                    assert_eq!(connector, number);
+                    if self.restart_steps.last() != Some(&phase) {
+                        self.restart_steps.push(phase);
+                    }
+                    self.restart_reads.insert(number, phase);
+                }
+                self.pending_reads.push((number, call));
+            }
+            root::Delivery::System { connector: number, call } => {
+                if let connector::SystemRequest::Apply { entry, key, .. } = &call {
+                    assert!(self.store.rows.values().any(|row| matches!(row, root::Record::Connector { number: owner, record: connector::Record::Outbox(row) } if *owner == number && row.number == *entry && row.key == *key)), "system sees only a committed outbox attempt");
+                    assert_eq!(key.deployment, [31; 16]);
+                }
+                if self.hold_lookups && matches!(call, connector::SystemRequest::Look { .. }) {
+                    self.pending_lookups.push((number, call));
+                    return;
+                }
+                if self.hold_writes && matches!(call, connector::SystemRequest::Apply { .. }) {
+                    self.pending_writes.push((number, call));
+                    return;
+                }
+                let event = self.systems[usize::from(number - 1)].answer(call, Fault::None);
+                self.events.push_back(root::Event::Connector { number, event: connector::Event::System(event) });
             }
             root::Delivery::Core(core::Held::PeopleReply {
-                reply: people::Reply::SignedIn { sign_in, .. }, ..
+                reply: reply @ people::Reply::SignedIn { sign_in, .. },
+                ..
             }) => {
+                let initial = self.sign_in.is_none();
                 self.sign_in = Some(sign_in);
-                let people::Ask::Create { project, mut batch } =
-                    crate::fixtures::create_chat(&self.creating, 1, 0, b"hello".as_slice().into())
-                else {
-                    unreachable!()
-                };
-                if matches!(self.scenario, Scenario::Goal | Scenario::Batch) {
-                    let member = &mut batch[0];
-                    member.words = b"complete procedure".as_slice().into();
-                    member.flags.conversation = false;
-                    member.flags.listed = true;
-                    member.label = jig_client_test_records::GOAL;
-                    member.tracked = Some(1);
-                    member.budget = people::Budget::Named;
-                    member.authority.spend = 100;
+                self.people_answers.push(reply);
+                if !initial {
+                    return;
                 }
-                let ask = people::Ask::Create { project, batch };
                 self.events.push_back(root::Event::Core(core::Event::People(people::Event::Ask {
                     models: Box::new([]),
                     reply_to: ReplyTo::new(Token::new(102)),
                     sign_in,
                     key: [5; 16],
-                    ask,
+                    ask: self.initial_ask.clone(),
                 })));
             }
-            root::Delivery::Core(core::Held::PeopleReply {
-                reply: people::Reply::Outcome(people::Outcome::Created { first: task, .. }),
-                ..
-            }) => {
-                self.chat = Some(task);
-                assert!(
-                    self.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)))),
-                    "party saw task only after commit"
-                );
+            root::Delivery::Core(core::Held::Load(load)) => self.store.ask(jig_test_store::StoreOut::Now(*load)),
+            root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
+                self.store.ask(StoreOut::NotesLoad { owner, range });
             }
-            root::Delivery::Assigned { channel, assignment } => {
-                assert_eq!(channel, Token::new(7));
+            root::Delivery::Core(core::Held::CallAnswer { to, key, part }) => {
+                let token = to.into_token();
                 assert!(
-                    self.store
-                        .rows
-                        .contains_key(&root::Key::Core(core::Key::Core(core::CoreKey::RunProof(assignment.task))))
+                    self.store.rows.contains_key(&root::Key::Core(core::Key::Core(core::CoreKey::Call(key)))),
+                    "state-changing answer has its committed record"
                 );
-                let task = assignment.task;
-                let attempt = assignment.attempt;
-                self.assignment = Some(assignment);
-                match self.scenario {
-                    Scenario::Chat => self.events.push_back(root::Event::Turn {
-                        opens_window: false,
-                        refused: Box::new([]),
-                        channel,
-                        task,
-                        attempt,
-                        turn: 1,
-                        read: None,
-                        cumulative: 3,
-                        transcript: b"answer".as_slice().into(),
-                    }),
-                    Scenario::Goal | Scenario::Batch => {
-                        let authority = tasks::Authority {
-                            tools: tasks::Tools(0),
-                            models: tasks::Models::NONE,
-                            grants: Box::new([]),
-                            delegation: tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 },
-                            budget: tasks::Budget { spend: 0, deadline: None },
-                            notes: tasks::Scopes(0),
-                            note_resources: Box::new([]),
-                        };
-                        self.delegated = true;
-                        let delegate = core::Delegate {
-                            deadline: jig_domain_tasks::Deadline::Named,
-                            label: 0,
-                            flags: jig_domain_tasks::Flags::PLAIN,
-                            tracked: None,
-                            budget: jig_domain_people::Budget::Named,
-                            executor: tasks::Executor::Procedure { connector: 1, code: 1 },
-                            spec: tasks::Spec {
-                                asks: false,
-                                words: b"run the check".as_slice().into(),
-                                parameters: Box::new([]),
-                                inputs: Box::new([]),
-                            },
-                            contract: tasks::Contract::Report { words: 0 },
-                            authority,
-                            llm: None,
-                            symbolic_grants: Box::new([]),
-                            dependencies: Box::new([]),
-                            wake: tasks::WakePolicy::DEFAULT,
-                        };
-                        let batch = match self.scenario {
-                            Scenario::Goal => vec![delegate].into_boxed_slice(),
-                            Scenario::Batch => vec![delegate.clone(), delegate].into_boxed_slice(),
-                            Scenario::Chat => unreachable!("chat does not delegate"),
-                        };
-                        self.events.push_back(root::Event::Core(core::Event::DelegateValidated {
-                            to: ReplyTo::new(Token::new(104)),
-                            key: core::CallKey { task, attempt, completion: 1, position: 0 },
-                            batch,
-                            stubs: Box::new([]),
-                        }));
+                if self.lose_answer {
+                    self.lost_answers += 1;
+                } else {
+                    if let Some(event) = self
+                        .peers
+                        .as_mut()
+                        .map_or(&mut self.protocol, |peers| &mut peers.protocol)
+                        .answer(token, key, &part, true)
+                    {
+                        self.events.push_back(event);
                     }
+                    self.answers.push((token, key, part));
                 }
             }
-            root::Delivery::Procedure { task, connector, code, context, .. } => {
-                self.procedure = Some(task);
-                self.events.push_back(root::Event::Connector {
-                    number: connector,
-                    event: root::procedure_input(&context, code, jig_test_connector_world::path(1, 1)),
-                });
-            }
-            root::Delivery::Core(core::Held::CallAnswer { part: core::CallPart::Delegated(tasks), .. }) => {
-                assert_eq!(tasks.len(), 1);
-                self.procedure = Some(tasks[0].task);
-            }
-            root::Delivery::Core(core::Held::CallAnswer {
-                part: core::CallPart::DelegationDenied { findings, .. },
-                ..
-            }) => {
-                assert_eq!(self.scenario, Scenario::Batch);
-                assert!(!findings.is_empty(), "worker receives a reason for the atomic refusal");
-                self.batch_refusals += 1;
-            }
-            root::Delivery::Core(core::Held::CallAnswer {
-                part: core::CallPart::DelegationRefused(problem), ..
-            }) => {
-                assert_eq!(self.scenario, Scenario::Batch);
-                assert_eq!(problem.why, tasks::Refusal::Batch);
-                self.batch_refusals += 1;
-            }
-            root::Delivery::Message { channel, task: run, attempt, word } => {
-                assert_eq!(word.from, tasks::Party::Task(self.procedure.expect("delegated child")));
-                self.events.push_back(root::Event::Answer {
-                    read: None,
-                    refused: Box::new([]),
-                    channel,
-                    task: run,
-                    attempt,
-                    cumulative: 3,
-                    end: tasks::End::Finished {
-                        result: tasks::TaskResult::Report { words: b"done".as_slice().into() },
-                        cancel_delegates: false,
-                    },
-                });
-            }
-            root::Delivery::Core(core::Held::AcknowledgeTurn { channel, run, attempt, turn }) => {
-                assert_eq!(channel, Token::new(7));
-                assert!(
-                    self.store.rows.contains_key(&root::Key::Core(core::Key::Core(core::CoreKey::Turn {
-                        task: run.raw(),
-                        attempt: attempt.raw(),
-                        turn,
-                    }))),
-                    "worker saw ACK only after turn committed"
-                );
-                self.turn_acks += 1;
-                self.events.push_back(root::Event::Answer {
-                    read: None,
-                    refused: Box::new([]),
-                    channel,
-                    task: run.raw(),
-                    attempt: attempt.raw(),
-                    cumulative: 3,
-                    end: tasks::End::Finished {
-                        result: tasks::TaskResult::Report { words: b"done".as_slice().into() },
-                        cancel_delegates: false,
-                    },
-                });
-            }
-            root::Delivery::Core(core::Held::Acknowledge { .. }) => self.answer_acks += 1,
-            root::Delivery::Core(core::Held::Result { task, words, .. }) => {
-                assert!(self.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(task)))));
-                assert_eq!(words.as_ref(), b"done");
-                self.results += 1;
-            }
+            root::Delivery::Core(core::Held::PeopleReply { reply, .. }) => self.people_answers.push(reply),
             root::Delivery::ApplicationDocument { .. }
-            | root::Delivery::ApplicationRead { .. }
+            | root::Delivery::Link { .. }
             | root::Delivery::Core(
-                core::Held::Delivery { .. } | core::Held::WatchEnded { .. } | core::Held::Grant { .. },
+                core::Held::Delivery { .. }
+                | core::Held::SettledCall { .. }
+                | core::Held::Assign { .. }
+                | core::Held::Inbound { .. }
+                | core::Held::Relayed { .. }
+                | core::Held::Relay { .. }
+                | core::Held::Result { .. }
+                | core::Held::AcknowledgeTurn { .. }
+                | core::Held::TaskTurnKept { .. }
+                | core::Held::TaskTerminalAcknowledged { .. }
+                | core::Held::NotesWritten { .. }
+                | core::Held::NotesDeleted { .. }
+                | core::Held::StopRun { .. }
+                | core::Held::CheckSource { .. }
+                | core::Held::SignOutSource { .. }
+                | core::Held::SourceSignedOut { .. }
+                | core::Held::Refuse { .. }
+                | core::Held::MakeEffect { .. },
             ) => {}
-            other @ (root::Delivery::Link { .. }
-            | root::Delivery::ProjectMade { .. }
-            | root::Delivery::CallBusy { .. }
-            | root::Delivery::CallAnswer { .. }
-            | root::Delivery::Core(_)
-            | root::Delivery::Fleet(_)
-            | root::Delivery::Start(_)
-            | root::Delivery::System { .. }
-            | root::Delivery::Application { .. }
-            | root::Delivery::LostRead { .. }) => {
-                panic!("unhandled walking delivery {other:?}: {:?}", self.trace)
-            }
+            root::Delivery::Fleet(_) => panic!("root releases its fleet continuations internally"),
         }
     }
 }

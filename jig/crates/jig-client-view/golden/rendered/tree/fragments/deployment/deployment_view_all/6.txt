@@ -1,0 +1,49 @@
+== jig == 
+Deployment owner facts:
+  Store map bytes: 0
+  Store high-water mark in bytes: 0
+  Hosts:
+    Hosts:
+    Hosts forgotten: 18446744073709551615
+  Tracked attempts:
+    - Attempt: 18446744073709551615
+      Stored task 18446744073709551615
+      Stored status unavailable
+      Kept turns: 4294967295
+      Not listed by host
+      Attempt State Stray
+      Run Location Adrift
+      Lost host identity not supplied
+      Clock not supplied
+      Duration not supplied
+      Clock not supplied
+  LLM accounts:
+    LLM provider offers
+    Maximum key bytes 256
+    LLM accounts:
+  Resource capacities:
+    Tasks Capacity:
+      Used: 0
+      Limit: 4294967295
+    Workers Capacity:
+      Used: 4294967295
+      Limit: 1
+    Attempts Capacity:
+      Used: 7
+      Limit: 11
+    Proposals Capacity:
+      Used: 3
+      Limit: 17
+    Waiting attempts: 19
+    Deployment grace bound: 307445734
+  Project capacities:
+  Refused hellos:
+  Hellos forgotten: 1
+  Person room refusals:
+  Person refusals forgotten: 2
+  Person answer retention: 0
+  Task room refusals:
+  Task refusals forgotten: 3
+  Configured connectors:
+    No configured connectors
+  Some rows were omitted

@@ -2,56 +2,56 @@ use super::*;
 fn case_1() -> (p::Reply, w::Final) {
     (
         p::Reply::Outcome(p::Outcome::NoteEdited { name: 8 }),
-        owner(w::OwnerOutcome::NoteEdited(
-            w::OwnerOutcomeNoteEdited::new(&wire(), w::OwnerOutcomeNoteEditedParts { name: 8 }).expect("NoteEdited"),
+        owner(w::DocumentOutcome::NoteEdited(
+            w::OutcomeNoteEdited::new(&wire(), w::OutcomeNoteEditedParts { name: 8 }).expect("NoteEdited"),
         )),
     )
 }
 fn case_2() -> (p::Reply, w::Final) {
     (
         p::Reply::Outcome(p::Outcome::Adopted { project: 3 }),
-        owner(w::OwnerOutcome::Adopted(
-            w::OwnerOutcomeAdopted::new(&wire(), w::OwnerOutcomeAdoptedParts { project: 3 }).expect("Adopted"),
+        owner(w::DocumentOutcome::Adopted(
+            w::OutcomeAdopted::new(&wire(), w::OutcomeAdoptedParts { project: 3 }).expect("Adopted"),
         )),
     )
 }
 fn case_5() -> (p::Reply, w::Final) {
     (
         p::Reply::Outcome(p::Outcome::Stopped { task: 8 }),
-        owner(w::OwnerOutcome::Stopped(
-            w::OwnerOutcomeStopped::new(&wire(), w::OwnerOutcomeStoppedParts { task: 8 }).expect("Stopped"),
+        owner(w::DocumentOutcome::Stopped(
+            w::OutcomeStopped::new(&wire(), w::OutcomeStoppedParts { task: 8 }).expect("Stopped"),
         )),
     )
 }
 fn case_6() -> (p::Reply, w::Final) {
     (
         p::Reply::Outcome(p::Outcome::Cancelled { task: 8 }),
-        owner(w::OwnerOutcome::Cancelled(
-            w::OwnerOutcomeCancelled::new(&wire(), w::OwnerOutcomeCancelledParts { task: 8 }).expect("Cancelled"),
+        owner(w::DocumentOutcome::Cancelled(
+            w::OutcomeCancelled::new(&wire(), w::OutcomeCancelledParts { task: 8 }).expect("Cancelled"),
         )),
     )
 }
 fn case_7() -> (p::Reply, w::Final) {
     (
         p::Reply::Outcome(p::Outcome::Released { task: 8 }),
-        owner(w::OwnerOutcome::Released(
-            w::OwnerOutcomeReleased::new(&wire(), w::OwnerOutcomeReleasedParts { task: 8 }).expect("Released"),
+        owner(w::DocumentOutcome::Released(
+            w::OutcomeReleased::new(&wire(), w::OutcomeReleasedParts { task: 8 }).expect("Released"),
         )),
     )
 }
 fn case_8() -> (p::Reply, w::Final) {
     (
         p::Reply::Outcome(p::Outcome::PersonTaken { task: 8 }),
-        owner(w::OwnerOutcome::PersonTaken(
-            w::OwnerOutcomePersonTaken::new(&wire(), w::OwnerOutcomePersonTakenParts { task: 8 }).expect("PersonTaken"),
+        owner(w::DocumentOutcome::PersonTaken(
+            w::OutcomePersonTaken::new(&wire(), w::OutcomePersonTakenParts { task: 8 }).expect("PersonTaken"),
         )),
     )
 }
 fn case_9() -> (p::Reply, w::Final) {
     (
         p::Reply::Outcome(p::Outcome::PersonHandedBack { task: 8 }),
-        owner(w::OwnerOutcome::PersonHandedBack(
-            w::OwnerOutcomePersonHandedBack::new(&wire(), w::OwnerOutcomePersonHandedBackParts { task: 8 })
+        owner(w::DocumentOutcome::PersonHandedBack(
+            w::OutcomePersonHandedBack::new(&wire(), w::OutcomePersonHandedBackParts { task: 8 })
                 .expect("PersonHandedBack"),
         )),
     )
@@ -59,35 +59,34 @@ fn case_9() -> (p::Reply, w::Final) {
 fn case_10() -> (p::Reply, w::Final) {
     (
         p::Reply::Outcome(p::Outcome::PersonAnswered { task: 8 }),
-        owner(w::OwnerOutcome::PersonAnswered(
-            w::OwnerOutcomePersonAnswered::new(&wire(), w::OwnerOutcomePersonAnsweredParts { task: 8 })
-                .expect("PersonAnswered"),
+        owner(w::DocumentOutcome::PersonAnswered(
+            w::OutcomePersonAnswered::new(&wire(), w::OutcomePersonAnsweredParts { task: 8 }).expect("PersonAnswered"),
         )),
     )
 }
 fn case_11() -> (p::Reply, w::Final) {
     (
         p::Reply::Outcome(p::Outcome::Moved { task: 8 }),
-        owner(w::OwnerOutcome::Moved(
-            w::OwnerOutcomeMoved::new(&wire(), w::OwnerOutcomeMovedParts { task: 8 }).expect("Moved"),
+        owner(w::DocumentOutcome::Moved(
+            w::OutcomeMoved::new(&wire(), w::OutcomeMovedParts { task: 8 }).expect("Moved"),
         )),
     )
 }
 fn case_12() -> (p::Reply, w::Final) {
     (
         p::Reply::Outcome(p::Outcome::Said { task: 8, message: 8 }),
-        owner(w::OwnerOutcome::Said(
-            w::OwnerOutcomeSaid::new(&wire(), w::OwnerOutcomeSaidParts { task: 8, message: 8 }).expect("Said"),
+        owner(w::DocumentOutcome::Said(
+            w::OutcomeSaid::new(&wire(), w::OutcomeSaidParts { task: 8, message: 8 }).expect("Said"),
         )),
     )
 }
 fn case_13() -> (p::Reply, w::Final) {
     (
         p::Reply::Outcome(p::Outcome::QuestionAnswered { task: 8, question: 8, message: 8 }),
-        owner(w::OwnerOutcome::QuestionAnswered(
-            w::OwnerOutcomeQuestionAnswered::new(
+        owner(w::DocumentOutcome::QuestionAnswered(
+            w::OutcomeQuestionAnswered::new(
                 &wire(),
-                w::OwnerOutcomeQuestionAnsweredParts { task: 8, question: 8, message: 8 },
+                w::OutcomeQuestionAnsweredParts { task: 8, question: 8, message: 8 },
             )
             .expect("QuestionAnswered"),
         )),
@@ -96,38 +95,36 @@ fn case_13() -> (p::Reply, w::Final) {
 fn case_15() -> (p::Reply, w::Final) {
     (
         p::Reply::Outcome(p::Outcome::Amended { task: 8, released: true }),
-        owner(w::OwnerOutcome::Amended(
-            w::OwnerOutcomeAmended::new(&wire(), w::OwnerOutcomeAmendedParts { task: 8 }).expect("Amended"),
+        owner(w::DocumentOutcome::Amended(
+            w::OutcomeAmended::new(&wire(), w::OutcomeAmendedParts { task: 8 }).expect("Amended"),
         )),
     )
 }
 fn case_16() -> (p::Reply, w::Final) {
     (
         p::Reply::Outcome(p::Outcome::RolesSet { project: 3 }),
-        owner(w::OwnerOutcome::RolesSet(
-            w::OwnerOutcomeRolesSet::new(&wire(), w::OwnerOutcomeRolesSetParts { project: 3 }).expect("RolesSet"),
+        owner(w::DocumentOutcome::RolesSet(
+            w::OutcomeRolesSet::new(&wire(), w::OutcomeRolesSetParts { project: 3 }).expect("RolesSet"),
         )),
     )
 }
 fn case_18() -> (p::Reply, w::Final) {
     (
         p::Reply::Outcome(p::Outcome::PolicyChanged { project: 3 }),
-        owner(w::OwnerOutcome::PolicyChanged(
-            w::OwnerOutcomePolicyChanged::new(&wire(), w::OwnerOutcomePolicyChangedParts { project: 3 })
-                .expect("PolicyChanged"),
+        owner(w::DocumentOutcome::PolicyChanged(
+            w::OutcomePolicyChanged::new(&wire(), w::OutcomePolicyChangedParts { project: 3 }).expect("PolicyChanged"),
         )),
     )
 }
 fn case_19() -> (p::Reply, w::Final) {
     (
         p::Reply::Outcome(p::Outcome::PoolSet { project: 3, person: 8 }),
-        owner(w::OwnerOutcome::PoolSet(
-            w::OwnerOutcomePoolSet::new(&wire(), w::OwnerOutcomePoolSetParts { project: 3, person: 8 })
-                .expect("PoolSet"),
+        owner(w::DocumentOutcome::PoolSet(
+            w::OutcomePoolSet::new(&wire(), w::OutcomePoolSetParts { project: 3, person: 8 }).expect("PoolSet"),
         )),
     )
 }
-pub fn owner_outcomes() -> [(p::Reply, w::Final); 15] {
+pub fn outcomes() -> [(p::Reply, w::Final); 15] {
     [
         case_1(),
         case_2(),
@@ -168,14 +165,14 @@ pub fn decision_outcomes() -> [(p::Reply, w::Final); 2] {
                 choice: p::ProposalChoice::Passed,
                 repeated: false,
             }),
-            owner(w::OwnerOutcome::ProposalDecided(
-                w::OwnerOutcomeProposalDecided::new(
+            owner(w::DocumentOutcome::ProposalDecided(
+                w::OutcomeProposalDecided::new(
                     &limits,
-                    w::OwnerOutcomeProposalDecidedParts {
+                    w::OutcomeProposalDecidedParts {
                         proposal,
                         by: 11,
                         at: 13,
-                        choice: w::OwnerProposalChoice::Passed,
+                        choice: w::ProposalChoice::Passed,
                         repeated: false,
                     },
                 )
@@ -190,15 +187,15 @@ pub fn decision_outcomes() -> [(p::Reply, w::Final); 2] {
                 at: Wall::from_nanos(13),
                 choice: p::EscalationChoice::Released,
             }),
-            owner(w::OwnerOutcome::EscalationDecided(
-                w::OwnerOutcomeEscalationDecided::new(
+            owner(w::DocumentOutcome::EscalationDecided(
+                w::OutcomeEscalationDecided::new(
                     &limits,
-                    w::OwnerOutcomeEscalationDecidedParts {
+                    w::OutcomeEscalationDecidedParts {
                         task: 8,
                         revision: revision(6),
                         by: 11,
                         at: 13,
-                        choice: w::OwnerEscalationChoice::Released,
+                        choice: w::EscalationChoice::Released,
                     },
                 )
                 .expect("decision"),
@@ -211,10 +208,10 @@ pub fn seen_outcomes() -> [(p::Reply, w::Final); 2] {
     [
         (
             p::Reply::Outcome(p::Outcome::MarkedSeen { seen: p::Seen::Results { through: 15 } }),
-            owner(w::OwnerOutcome::MarkedSeen(
-                w::OwnerOutcomeMarkedSeen::new(
+            owner(w::DocumentOutcome::MarkedSeen(
+                w::OutcomeMarkedSeen::new(
                     &limits,
-                    w::OwnerOutcomeMarkedSeenParts {
+                    w::OutcomeMarkedSeenParts {
                         seen: w::SeenThrough::Results(
                             w::SeenResults::new(&limits, w::SeenResultsParts { through: 15 }).expect("results"),
                         ),
@@ -225,10 +222,10 @@ pub fn seen_outcomes() -> [(p::Reply, w::Final); 2] {
         ),
         (
             p::Reply::Outcome(p::Outcome::MarkedSeen { seen: p::Seen::Conversation { task: 8, through: 15 } }),
-            owner(w::OwnerOutcome::MarkedSeen(
-                w::OwnerOutcomeMarkedSeen::new(
+            owner(w::DocumentOutcome::MarkedSeen(
+                w::OutcomeMarkedSeen::new(
                     &limits,
-                    w::OwnerOutcomeMarkedSeenParts {
+                    w::OutcomeMarkedSeenParts {
                         seen: w::SeenThrough::Conversation(
                             w::SeenConversation::new(&limits, w::SeenConversationParts { task: 8, through: 15 })
                                 .expect("replies"),

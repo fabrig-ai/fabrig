@@ -1,6 +1,6 @@
 //! The admitted step and ordered journal release (jig's domain/root.md, 3).
 use crate::boundary::{
-    Assignment, BriefConnector, BriefSection, Event, Fact, Payload, PreparedWorkspace, Read, Released, Request, Work,
+    BriefConnector, BriefSection, Event, Fact, Payload, PreparedWorkspace, Read, Released, Request, Work,
 };
 use crate::limits::{Limits, backlog, core_limits, environment_core, payload_slots, run_policy_bound, valid};
 use crate::restart::{connector_restarting, request_load};
@@ -78,7 +78,7 @@ pub struct Domain {
     pub(crate) core_header_loaded: bool,
     pub(crate) restored_commits: Option<u64>,
     pub(crate) brief_connectors: Slab<BriefConnector>,
-    pub(crate) brief_sections: Map<u64, Box<[BriefSection]>>,
+    pub(crate) forge_briefs: Map<Token, BriefSection>,
     pub(crate) run_workspaces: Map<u64, PreparedWorkspace>,
     pub(crate) forge: forge::Domain,
     pub(crate) application: Option<(Token, crate::Application)>,
@@ -92,7 +92,7 @@ pub struct Domain {
     pub(crate) playground_policy: Option<u32>,
     pub(crate) next_application_owner: u64,
     pub(crate) returns: Map<Token, (Time, Wall)>,
-    pub(crate) adoption_restore: Map<Token, Option<forge::Repository>>,
+    pub(crate) adoption_restore: Map<Token, (Token, Option<forge::Repository>)>,
     pub(crate) forge_subscribing: Map<Token, forge::Subscriber>,
     pub(crate) forge_unsubscribing: Map<Token, (u64, forge::Topic)>,
     pub(crate) forge_reading: Map<Token, (ReplyTo, CallKey)>,
@@ -102,18 +102,19 @@ pub struct Domain {
     pub(crate) next_effect_owner: u64,
     pub(crate) forge_delegating: Map<(u64, u64), forge_change::Delegate>,
     pub(crate) loads: loads::Loads,
-    pub(crate) assignments: Map<u64, Assignment>,
-    pub(crate) payloads: Slab<Option<Payload>>,
+    pub(crate) hub_link: jig_domain_hub_link::Link,
+    pub(crate) assignment_parts: Map<u64, crate::boundary::AssignmentParts>,
+    pub(crate) answer_parts: Map<Token, crate::boundary::Parts>,
+    pub(crate) refused_calls: Map<Token, Box<[u8]>>,
     /// Loads of durable rows outside the working set: a run's preparation
     /// (transcript, dependencies, inputs) and historical queries.
     pub(crate) archive_reads: Slab<Option<Read>>,
     /// Read loads' answers that waited for journal room (jig's `domain/root.md`, 3).
     pub(crate) store_answers: Queue<Event>,
-    pub(crate) host_calls: Map<Token, host_route::Flight>,
+    pub(crate) call_renders: Map<Token, host_route::Flight>,
     pub(crate) work: Queue<Work>,
     pub(crate) facts: Queue<Fact>,
     pub(crate) facts_lost: u64,
-    pub(crate) pieces_dropped: u64,
 }
 
 impl Domain {
@@ -174,8 +175,8 @@ impl Domain {
     /// Tasks whose prepared assignment has not yet been handed to a worker.
     #[must_use]
     pub fn pending_assignments(&self) -> List<u64> {
-        let mut tasks = List::with_capacity(self.assignments.len());
-        for (task, _) in &self.assignments {
+        let mut tasks = List::with_capacity(self.assignment_parts.len());
+        for (task, _) in &self.assignment_parts {
             tasks.push(*task).expect("one task per assignment");
         }
         tasks
@@ -392,6 +393,7 @@ impl Domain {
         }
         let root_config =
             RootConfig { forge_connector, forge_charter: config.forge_charter, landings: config.landing.landings };
+        let link_rng = skein_lib::Rng::new(config.core.seed);
         let mut core = Core::new(config.core, &core_limits(limits))?;
         // temper/docs/design/domain/agent.md, 8.2: the person answers in their inbox.
         core.person_answers();
@@ -456,7 +458,7 @@ impl Domain {
                     .checked_mul(2)
                     .expect("validated brief connector room"),
             ),
-            brief_sections: Map::with_capacity(limits.tasks.tasks),
+            forge_briefs: Map::uncapped(),
             run_workspaces: Map::with_capacity(limits.tasks.tasks),
             forge,
             application: None,
@@ -482,15 +484,23 @@ impl Domain {
             next_effect_owner: 1,
             forge_delegating: Map::with_capacity(limits.forge.changes),
             loads: loads::Loads::new(&limits.loads),
-            assignments: Map::with_capacity(limits.tasks.tasks),
-            payloads: Slab::with_capacity(payload_slots(limits).expect("valid payload room")),
+            hub_link: jig_domain_hub_link::Link::new(
+                jig_domain_hub_link::Limits {
+                    assignments: limits.tasks.tasks,
+                    payloads: payload_slots(limits).expect("valid payload room"),
+                    turns: limits.tasks.tasks,
+                },
+                link_rng,
+            ),
+            assignment_parts: Map::with_capacity(limits.tasks.tasks),
+            answer_parts: Map::uncapped(),
+            refused_calls: Map::uncapped(),
             archive_reads: Slab::with_capacity(limits.loads.loads),
             store_answers: Queue::with_capacity(limits.loads.loads),
-            host_calls: Map::with_capacity(limits.fleet.calls),
+            call_renders: Map::with_capacity(limits.fleet.calls),
             work: Queue::uncapped(),
             facts: Queue::with_capacity(crate::limits::FACTS),
             facts_lost: 0,
-            pieces_dropped: 0,
             config: root_config,
             limits: *limits,
         })
@@ -552,8 +562,11 @@ impl Domain {
             && self.core.quiescent(self.journal.idle())
             && self.loads.quiescent()
             && self.work.is_empty()
-            && self.assignments.is_empty()
-            && self.payloads.is_empty()
+            && self.assignment_parts.is_empty()
+            && self.hub_link.payload_count() == 0
+            && self.answer_parts.is_empty()
+            && self.refused_calls.is_empty()
+            && self.forge_briefs.is_empty()
             && self.archive_reads.is_empty()
             && self.store_answers.is_empty()
             && self.adoption_restore.is_empty()
@@ -561,7 +574,7 @@ impl Domain {
             && self.forge_unsubscribing.is_empty()
             && self.forge_reading.is_empty()
             && self.forge.briefs_idle()
-            && self.host_calls.is_empty()
+            && self.call_renders.is_empty()
             && self.forge_effecting.is_empty()
             && self.forge_effects.is_empty()
             && self.brief_connectors.is_empty()
@@ -584,7 +597,6 @@ impl Domain {
         self.core.reclaim();
         self.brief_connectors.reclaim();
         self.forge.reclaim();
-        self.payloads.reclaim();
         self.archive_reads.reclaim();
         loads::reclaim(&mut self.loads);
     }
@@ -606,7 +618,7 @@ impl Domain {
     /// (jig's `domain/hosts.md`, 6.5; `domain/engine.md`, 11).
     #[must_use]
     pub const fn pieces_dropped(&self) -> u64 {
-        self.pieces_dropped
+        self.hub_link.pieces_dropped()
     }
 
     /// How many of the root's own facts were dropped for want of room.
@@ -677,9 +689,9 @@ fn finish_close(
     let requests = if domain.start_runtime() {
         jig_domain_core::finish_decision(&mut domain.core, &environment_core(env))
     } else {
-        jig_domain_core::Requests::Out(Queue::uncapped())
+        Queue::uncapped()
     };
-    let finished = only_decided(&requests);
+    let finished = requests.is_empty();
     route_core_requests(domain, env, &mut decision, requests);
     route_into(domain, env, &mut decision);
     let persist_header = domain.core_header_loaded
@@ -717,24 +729,6 @@ fn finish_close(
         return false;
     }
     empty
-}
-
-fn only_decided(requests: &jig_domain_core::Requests) -> bool {
-    let jig_domain_core::Requests::Out(output) = requests;
-    if output.len() != 1 {
-        return false;
-    }
-    for request in output {
-        match request {
-            jig_domain_core::Request::Decided => {}
-            jig_domain_core::Request::Write(_)
-            | jig_domain_core::Request::Ask { .. }
-            | jig_domain_core::Request::Held(_)
-            | jig_domain_core::Request::Now(_)
-            | jig_domain_core::Request::ProjectMade { .. } => return false,
-        }
-    }
-    true
 }
 
 pub(crate) fn invalidate_input(domain: &mut Domain, event: &Event) {
@@ -945,7 +939,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
         domain.settled = None;
         let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
         let routed = jig_domain_core::resume_fleet(&mut domain.core, &environment_core(env));
-        let fleet_empty = only_decided(&routed);
+        let fleet_empty = routed.is_empty();
         route_core_requests(domain, env, &mut decision, routed);
         route_into(domain, env, &mut decision);
         if close(domain, env, decision, out) && fleet_empty {
@@ -984,7 +978,7 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
     }
     domain.settled = None;
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    for timer in [jig_domain_core::Timer::Account, jig_domain_core::Timer::View] {
+    if let Some(timer) = domain.core.due(env.now, env.wall) {
         let routed = jig_domain_core::fire(&mut domain.core, &environment_core(env), timer);
         route_core_requests(domain, env, &mut decision, routed);
     }
@@ -1006,15 +1000,6 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
         let routed =
             jig_domain_core::step(&mut domain.core, &environment_core(env), jig_domain_core::Event::EffectDeadline);
         route_core_requests(domain, env, &mut decision, routed);
-        for timer in [
-            jig_domain_core::Timer::People,
-            jig_domain_core::Timer::Tasks,
-            jig_domain_core::Timer::Fleet,
-            jig_domain_core::Timer::Brief,
-        ] {
-            let routed = jig_domain_core::fire(&mut domain.core, &environment_core(env), timer);
-            route_core_requests(domain, env, &mut decision, routed);
-        }
         route_into(domain, env, &mut decision);
     }
     close(domain, env, decision, out);
@@ -1084,18 +1069,18 @@ fn released_into(
         Delivery::Start(continuation) => {
             let mut output = Queue::uncapped();
             let action = domain.core.start_resume(&environment_core(env), continuation, &mut output);
-            route_core_requests(domain, env, decision, jig_domain_core::Requests::Out(output));
+            route_core_requests(domain, env, decision, output);
             domain.work.push(Work::Start(action));
         }
         Delivery::Fleet(event) => domain.work.push(Work::Fleet(event)),
         Delivery::NotesLoad { owner, range } => crate::route::held::notes_load(domain, env, decision, owner, range),
         Delivery::Relay { task, attempt, word, .. } => {
             let name = Token::new(word.number);
-            let payload = domain.payloads.insert(Some(Payload::InboxWord(word))).expect("relay payload reserved");
+            let payload = domain.hub_link.retain(Payload::InboxWord(word));
             domain.work.push(Work::Fleet(fleet::Event::Inbound {
                 run: Token::new(task),
                 attempt: Token::new(attempt),
-                message: fleet::Message { name, sender: payload.token(), words: payload.token() },
+                message: fleet::Message { name, sender: payload, words: payload },
             }));
         }
         Delivery::Load { waiter, range, after } => {

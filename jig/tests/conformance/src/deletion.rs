@@ -98,7 +98,7 @@ fn proposal_rows(world: &mut World) {
         to: ReplyTo::new(Token::new(9802)),
         key: core::CallKey { task, attempt, completion: 1, position: 0 },
         number: 1,
-        effect: jig_core_world::effects::World::effect(),
+        effect: jig_core_world::world::World::effect(),
         deadline: skein_lib::Wall::from_nanos(world.clock().now + 1_000_000_000),
         proposal: Some(b"ask the owner".as_slice().into()),
     });
@@ -160,7 +160,7 @@ fn core_rows(world: &mut World) {
 fn people_rows(world: &mut World) {
     let task = world.peers.assignments[0].0;
     ask(world, 31, people::Ask::MarkSeen { seen: people::Seen::Conversation { task, through: 1 } });
-    let chat = jig_core_world::fixtures::create_chat(
+    let chat = jig_test_profile::fixtures::create_chat(
         world.peers.peers.creating.as_ref().expect("creating fixture"),
         1,
         0,
@@ -245,7 +245,7 @@ fn task_rows(world: &mut World) {
         })
         .expect("delegate created");
     ask(world, 40, people::Ask::Cancel { project: 1, task: child, reason: b"done".as_slice().into(), grace: None });
-    let mut dependent = jig_core_world::fixtures::people_member(b"ended input", 1);
+    let mut dependent = jig_test_profile::fixtures::people_member(b"ended input", 1);
     dependent.inputs = Box::new([child]);
     dependent.flags.listed = true;
     ask(world, 43, people::Ask::Create { project: 1, batch: Box::new([dependent]) });
@@ -370,7 +370,7 @@ pub fn remove(world: &mut World) {
         world.peers.start_phases
     );
     for (key, record) in &world.store.rows {
-        if let Some(name) = jig_core_world::observations::naming::naming(key, record) {
+        if let Some(name) = jig_core_world::conformance::naming::naming(key, record) {
             assert!(
                 (name.project != Some(1) && !name.task.is_some_and(|task| tasks.contains(&task)))
                     || name.outlives.is_some(),

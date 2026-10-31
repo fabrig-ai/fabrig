@@ -73,7 +73,8 @@ pub fn refused(seed: u64, proposable: Option<bool>) -> World<Test, Scripted> {
             changes: vec![],
         })
         .expect("fixture admitted");
-    let proposal = super::proposal();
+    let mut proposal = super::proposal();
+    proposal.key.proposer = Proposer::Party(PARTY);
     world
         .front()
         .engine
@@ -88,7 +89,7 @@ pub fn refused(seed: u64, proposable: Option<bool>) -> World<Test, Scripted> {
                 },
                 reason: text(b"because"),
             },
-            answer: Answer::Done(Outcome::Proposed { proposal: proposal.key }),
+            answer: Answer::Done(Outcome::Document(DocumentOutcome::Proposed { proposal: proposal.key.number, to: 1 })),
             changes: vec![jig_client_scripted_engine::Change::Object {
                 project: PROJECT,
                 key: ObjectKey::Proposal(proposal.key),
@@ -147,7 +148,7 @@ pub(super) fn creating() -> Creating {
         beyond: Beyond::Proposed { to: Recipient::Role { project: 1, role: 1 } },
     }
 }
-pub(super) fn ask(me: &Me, executor: OwnerExecutor) -> Ask {
+pub(super) fn ask(me: &Me, executor: Executor) -> Ask {
     match jig_client::shapes::set_goal(
         me,
         1,

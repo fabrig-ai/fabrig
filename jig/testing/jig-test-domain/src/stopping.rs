@@ -1,9 +1,8 @@
 //! Routing the engine's drain without deciding connector work (engine.md, 6.1).
-use crate::{Delivery, Domain, Event, Payload, Request, Work};
+use crate::{Domain, Event, Request, Work};
 use alloc::boxed::Box;
 use jig_domain_core as core;
-use jig_domain_fleet as fleet;
-use skein_lib::{Queue, ReplyTo, Token};
+use skein_lib::{Queue, ReplyTo};
 
 pub(super) fn defer(domain: &mut Domain, event: Event) -> Result<Event, ()> {
     if !domain.stopping() {
@@ -51,27 +50,7 @@ pub(super) fn release(domain: &mut Domain, out: &mut Queue<Request>) {
     }
 }
 pub(super) fn call(domain: &mut Domain, to: ReplyTo, work: &mut Queue<Work>) {
-    let answer = crate::payload(domain, Payload::Busy);
-    work.push(Work::Core(core::Event::Fleet(fleet::Event::Relayed { to, answer })));
-}
-pub(super) fn relayed(
-    domain: &mut Domain,
-    channel: Token,
-    run: Token,
-    attempt: Token,
-    name: Box<[u8]>,
-    answer: Token,
-    writes: bool,
-) -> Delivery {
-    match domain.payloads.remove(&answer).expect("retained relay answer") {
-        Payload::Busy => Delivery::CallBusy { channel, task: run.raw(), attempt: attempt.raw(), name },
-        Payload::SettledCall(call) => {
-            Delivery::CallAnswer { channel, task: run.raw(), attempt: attempt.raw(), name, call, writes }
-        }
-        Payload::Turn { .. } | Payload::Answer { .. } | Payload::InboxWord(_) => {
-            unreachable!("relay answer family")
-        }
-    }
+    crate::link::route(domain, skein_lib::Time::ZERO, jig_domain_hub_link::Event::Busy { to }, work);
 }
 
 impl Domain {

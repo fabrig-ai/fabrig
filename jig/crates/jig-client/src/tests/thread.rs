@@ -49,17 +49,12 @@ fn activity_document_movement_reads_only_new_lines_and_bridges_small_pages() {
     assert_eq!(c.lines.edges.after, Edge::More(cursor(b"remaining")));
 }
 
-const FIRST_WORDS: crate::Key = crate::Key { asker: crate::Asker::JIG, number: 11 };
-const SECOND_WORDS: crate::Key = crate::Key { asker: crate::Asker::JIG, number: 12 };
-const FULL_WORDS: crate::Key = crate::Key { asker: crate::Asker::JIG, number: 13 };
 const ARCHIVE_WORDS: crate::Key = crate::Key { asker: crate::Asker::JIG, number: 77 };
 const ATTEMPT: u64 = 1;
 const TURN: u32 = 1;
 const MESSAGE: u64 = 41;
 const FIRST_MESSAGE: u64 = 40;
 const TURN_AT: Wall = Wall::from_nanos(17);
-const FIRST_WORDS_AT: Wall = Wall::from_nanos(11);
-const SECOND_WORDS_AT: Wall = Wall::from_nanos(13);
 fn run() -> RunState {
     RunState { task: fixtures::SUBJECT_TASK, attempt: Some(ATTEMPT), committed_turn: 0, writing: None, call: None }
 }
@@ -79,10 +74,26 @@ fn provisional(number: u32, words: &[u8]) -> RunText {
 fn commit(thread: &mut Thread, turn: TurnRead) {
     let mut page = page(&[], None, None);
     page.rows
-        .push(ActivityLine {
-            position: 1,
-            at: TURN_AT,
-            event: Activity::Turn { name: TurnName { attempt: ATTEMPT, number: TURN }, turn },
+        .push(DecodedActivityLine {
+            source: Box::new(ActivityLine {
+                task: 7,
+                position: 1,
+                at: TURN_AT,
+                line: Activity::Turn {
+                    reply: 1,
+                    attempt: (TurnName { attempt: ATTEMPT, number: TURN }).attempt,
+                    turn: (TurnName { attempt: ATTEMPT, number: TURN }).number,
+                    read: None,
+                },
+            }),
+            decoded: Some(ArchivedTurn {
+                task: 7,
+                name: TurnName { attempt: ATTEMPT, number: TURN },
+                cumulative: 0,
+                read: None,
+                at: TURN_AT,
+                turn,
+            }),
         })
         .unwrap();
     assert!(thread.moved(1).is_some());
@@ -122,10 +133,21 @@ fn a_live_turn_stays_until_its_staged_commit_merges() {
     let turn = empty_turn();
     let name = TurnName { attempt: ATTEMPT, number: TURN };
     let mut newest = page(&[4, 3], Some(b"older"), None);
-    *newest.rows.get_mut(0).unwrap() = ActivityLine {
-        position: 4,
-        at: TURN_AT,
-        event: Activity::Turn { name, turn: TurnRead::Decoded(turn.clone()) },
+    *newest.rows.get_mut(0).unwrap() = DecodedActivityLine {
+        source: Box::new(ActivityLine {
+            task: 7,
+            position: 4,
+            at: TURN_AT,
+            line: Activity::Turn { reply: 4, attempt: (name).attempt, turn: (name).number, read: None },
+        }),
+        decoded: Some(ArchivedTurn {
+            task: 7,
+            name,
+            cumulative: 0,
+            read: None,
+            at: TURN_AT,
+            turn: TurnRead::Decoded(turn.clone()),
+        }),
     };
     assert_eq!(
         thread.page(newest),
@@ -135,10 +157,7 @@ fn a_live_turn_stays_until_its_staged_commit_merges() {
     assert_eq!(thread.fresh.rows.len(), 2);
     assert_eq!(thread.live.len(), 1);
     let live = Line::Provisional { name: provisional(TURN, b"").turn, text: b"The answer", cut: false };
-    assert_eq!(
-        thread.lines().as_slice(),
-        &[Line::RunBegan { attempt: ATTEMPT }, Line::RunBegan { attempt: ATTEMPT }, live]
-    );
+    assert_eq!(thread.lines().as_slice(), &[Line::Activity { line: &row(1) }, Line::Activity { line: &row(2) }, live]);
     thread.run(&run(), Some(&provisional(TURN, b"The answer is")));
     let live = Line::Provisional { name: provisional(TURN, b"").turn, text: b"The answer is", cut: false };
     assert!(thread.lines().as_slice().contains(&live));
@@ -147,9 +166,9 @@ fn a_live_turn_stays_until_its_staged_commit_merges() {
     assert_eq!(
         thread.lines().as_slice(),
         &[
-            Line::RunBegan { attempt: ATTEMPT },
-            Line::RunBegan { attempt: ATTEMPT },
-            Line::RunBegan { attempt: ATTEMPT },
+            Line::Activity { line: &row(1) },
+            Line::Activity { line: &row(2) },
+            Line::Activity { line: &row(3) },
             Line::Turn { name, turn: &turn, at: TURN_AT }
         ]
     );
@@ -203,7 +222,7 @@ fn words_sent_in_a_compound_are_numbered_by_their_place() {
     );
     thread.answered(
         fixtures::STOP,
-        &Answer::Done(Outcome::Owner(OwnerOutcome::Compound {
+        &Answer::Done(Outcome::Document(DocumentOutcome::Compound {
             project: fixtures::PROJECT,
             operations: 2,
             first_message: FIRST_MESSAGE,
@@ -218,118 +237,22 @@ fn words_sent_in_a_compound_are_numbered_by_their_place() {
 }
 
 #[test]
-fn words_keep_the_submitted_snapshot_and_restore_sent_messages_until_read() {
-    use crate::thread::{KeptWords, Words};
-    let mut words = KeptWords::new(2);
-    let a = FIRST_WORDS;
-    let b = SECOND_WORDS;
-    assert!(words.begin(a, None, text(b"first")));
-    assert!(words.begin(a, None, text(b"later edit")));
-    assert_eq!(words.rows.get(0).unwrap().words, text(b"first"));
-    assert_eq!(words.rows.get(0).unwrap().state, Words::BeingSent);
-    assert!(words.begin(b, None, text(b"second")));
-    assert!(!words.begin(FULL_WORDS, None, text(b"full")));
-    words.read(1);
-    assert!(words.sent(a, 1));
-    assert!(words.sent(b, 2));
-    assert_eq!(words.rows.get(0).unwrap().state, Words::Read { message: 1 });
-    assert_eq!(words.rows.get(1).unwrap().state, Words::Sent { message: 2 });
-    words.read(2);
-    assert_eq!(words.rows.get(1).unwrap().state, Words::Read { message: 2 });
-    assert!(words.admits());
-    assert_eq!(words.rows.len(), 0);
-    words.bind(Some(7));
-    assert!(words.begin(a, None, text(b"private pending")));
-    words.bind(Some(8));
-    assert!(words.rows.is_empty());
-    let mut joined = KeptWords::new(2);
-    assert!(joined.begin(a, None, text(b"original")));
-    assert!(joined.restore(party(7), 3, text(b"activity copy")));
-    assert!(joined.sent(a, 3));
-    assert_eq!(joined.rows.len(), 1);
-    assert_eq!(joined.rows.get(0).unwrap().words, text(b"original"));
-    let mut reload = Thread::new(8, &crate::thread::Limits { lines: 3, bytes: 65536, text: 4096 });
-    assert!(reload.moved(2).is_some());
-    assert_eq!(reload.accept(words_page()), None);
-    assert_eq!(reload.words.rows.len(), 2);
-    assert_eq!(reload.words.rows.get(0).unwrap().request, None);
-    assert_eq!(reload.words.rows.get(0).unwrap().state, Words::Sent { message: 2 });
-    let author = party(7);
-    assert_eq!(
-        reload.lines().as_slice(),
-        &[
-            Line::Words {
-                by: Some(&author),
-                words: b"first",
-                state: Words::Sent { message: 1 },
-                at: Some(FIRST_WORDS_AT)
-            },
-            Line::Words {
-                by: Some(&author),
-                words: b"second",
-                state: Words::Sent { message: 2 },
-                at: Some(SECOND_WORDS_AT)
-            }
-        ]
-    );
-    assert!(reload.moved(3).is_some());
-    let mut committed = ActivityLine {
-        position: 3,
-        at: Wall::EPOCH,
-        event: Activity::Turn {
-            name: TurnName { attempt: ATTEMPT, number: TURN },
-            turn: TurnRead::Decoded(empty_turn()),
-        },
-    };
-    if let Activity::Turn { turn: TurnRead::Decoded(turn), .. } = &mut committed.event {
-        turn.read_through = Some(3);
-    }
-    let mut rows = List::with_capacity(1);
-    rows.push(committed).unwrap();
-    assert_eq!(reload.accept(ActivityPage { cut: false, rows, before: None, after: None }), None);
-    assert_eq!(reload.words.rows.get(0).unwrap().state, Words::Read { message: 2 });
-    assert_eq!(reload.words.rows.get(1).unwrap().state, Words::Read { message: 1 });
-    assert_eq!(reload.words.rows.get(1).unwrap().words, text(b"first"));
-}
-fn words_page() -> ActivityPage {
-    let mut rows = List::with_capacity(2);
-    for (message, words, at) in [(2, b"second".as_slice(), SECOND_WORDS_AT), (1, b"first".as_slice(), FIRST_WORDS_AT)] {
-        rows.push(ActivityLine {
-            position: message,
-            at,
-            event: Activity::Words { by: party(7), message, words: text(words) },
-        })
-        .unwrap();
-    }
-    ActivityPage { cut: false, rows, before: None, after: None }
-}
-
-#[test]
-fn owner_archive_reference_keeps_committed_read_and_local_author_separate_from_raw_sender() {
-    use crate::contract::{OwnerActivity, OwnerActivityLine, OwnerMessageKind, OwnerRequester};
+fn archive_reference_keeps_committed_read_and_local_author_separate_from_raw_sender() {
+    use crate::contract::{Activity, ActivityLine, MessageKind, Requester};
     use crate::thread::words::{KeptWords, Words};
     let mut kept = KeptWords::new(2);
     let request = ARCHIVE_WORDS;
     assert!(kept.begin(request, Some(party(7)), text(b"local")));
     assert!(kept.sent(request, 0));
-    let line = |position, source| ActivityLine {
-        position,
-        at: Wall::EPOCH,
-        event: Activity::Owner {
-            source: Box::new(OwnerActivityLine { task: 8, position, at: Wall::EPOCH, line: source }),
-            decoded: None,
-        },
+    let line = |position, source| DecodedActivityLine {
+        source: Box::new(ActivityLine { task: 8, position, at: Wall::EPOCH, line: source }),
+        decoded: None,
     };
     let mut rows = List::with_capacity(2);
-    rows.push(line(2, OwnerActivity::Turn { reply: 9, attempt: 3, turn: 4, read: Some(0) })).unwrap();
+    rows.push(line(2, Activity::Turn { reply: 9, attempt: 3, turn: 4, read: Some(0) })).unwrap();
     rows.push(line(
         1,
-        OwnerActivity::Words {
-            message: 0,
-            by: OwnerRequester::Task(7),
-            kind: OwnerMessageKind::Question,
-            words: text(b"task words"),
-        },
+        Activity::Words { message: 0, by: Requester::Task(7), kind: MessageKind::Question, words: text(b"task words") },
     ))
     .unwrap();
     let page = ActivityPage { rows, before: None, after: None, cut: false };
@@ -337,9 +260,9 @@ fn owner_archive_reference_keeps_committed_read_and_local_author_separate_from_r
     assert_eq!(kept.rows.len(), 1);
     assert_eq!(kept.rows.get(0).unwrap().state, Words::Read { message: 0 });
     assert_eq!(kept.rows.get(0).unwrap().by.as_ref().unwrap().name.bytes(), b"Pat");
-    assert_eq!(page.rows.get(1).unwrap().event.word_message().unwrap().1.bytes(), b"task words");
-    assert!(page.rows.get(0).unwrap().event.decoded_turn().is_none());
-    assert_eq!(page.rows.get(0).unwrap().event.committed_turn(), Some(TurnName { attempt: 3, number: 4 }));
+    assert_eq!(page.rows.get(1).unwrap().word_message().unwrap().1.bytes(), b"task words");
+    assert!(page.rows.get(0).unwrap().decoded_turn().is_none());
+    assert_eq!(page.rows.get(0).unwrap().committed_turn(), Some(TurnName { attempt: 3, number: 4 }));
 }
 
 fn party(number: u64) -> Party {

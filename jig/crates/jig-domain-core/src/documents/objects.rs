@@ -2,16 +2,19 @@
 //! Closed at once (jig/docs/design/domain/people.md, 5.2).
 //! `client/domain/pages.md`, 5.2). Store readers supply retained rows. Routing
 //! trails and before/after history require those store rows; no trail is cached.
-#![expect(clippy::manual_map, reason = "step code uses explicit matches instead of closures")]
-use super::{
-    AuthorityLine, Chip, ContractLine, Ending, HoldLine, Missing, Parameter, Part, PartKey, PartKind, PriorPhase,
-    Proposer, Task, TaskLink, Text,
+
+mod party;
+
+use crate::{
+    Core, Limits,
+    documents::{
+        AuthorityLine, Chip, ContractLine, Ending, HoldLine, Missing, Parameter, Part, PartKey, PartKind, PriorPhase,
+        Proposer, Task, TaskLink, Text,
+    },
 };
-use crate::{Core, Limits};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Wall};
-mod party;
 
 /// A specification without application values; loss is explicit on every text and list.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -256,7 +259,7 @@ pub struct EndedDelegate {
 }
 
 fn bound(limits: &Limits) -> usize {
-    usize::try_from(limits.documents.lines).expect("line bound fits")
+    skein_lib::length::usize_of(limits.documents.lines)
 }
 fn numbers(limits: &Limits, values: &[u64]) -> List<u64> {
     let mut result = List::with_capacity(limits.documents.lines);
@@ -306,7 +309,7 @@ pub(super) fn proposed(limits: &Limits, value: &tasks::New) -> Result<ProposedTa
         executor: value.executor,
         spec: spec(limits, &value.spec),
         contract: super::task_tree::contract(limits, &value.contract)?,
-        authority: super::task_tree::authority(limits, &value.authority)?,
+        authority: super::act_authority(limits, &value.authority)?,
         budget: value.numbers.budget,
         funder: value.funder,
         dependencies: numbers(limits, &value.dependencies),
@@ -370,7 +373,7 @@ fn amendment(
             tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => None,
         },
         spec: spec(limits, description),
-        authority: super::task_tree::authority(limits, authority)?,
+        authority: super::act_authority(limits, authority)?,
         wake,
         dependencies: numbers(limits, dependencies),
         cut: dependencies.len() > bound(limits),
@@ -403,7 +406,7 @@ fn action(
         tasks::ProposalAction::Effect { connector, authority, attempt, completion, position, purpose } => {
             ProposalAction::Effect {
                 part: Part { connector: *connector, kind: PartKind::Effect, key: PartKey::Number(number) },
-                authority: super::task_tree::authority(limits, authority)?,
+                authority: super::act_authority(limits, authority)?,
                 attempt: *attempt,
                 completion: *completion,
                 position: *position,
@@ -413,7 +416,7 @@ fn action(
         tasks::ProposalAction::ProcedureEffect { connector, authority, step, purpose } => {
             ProposalAction::ProcedureEffect {
                 part: Part { connector: *connector, kind: PartKind::Effect, key: PartKey::Number(number) },
-                authority: super::task_tree::authority(limits, authority)?,
+                authority: super::act_authority(limits, authority)?,
                 step: *step,
                 purpose: *purpose,
             }
@@ -423,8 +426,8 @@ fn action(
         }
         tasks::ProposalAction::Widen { task, authority } => ProposalAction::Widen {
             task: super::task_tree::link(core, limits, party, *task)?,
-            before: super::task_tree::authority(limits, &super::small::visible(core, party, *task)?.authority)?,
-            after: super::task_tree::authority(limits, authority)?,
+            before: super::act_authority(limits, &super::small::visible(core, party, *task)?.authority)?,
+            after: super::act_authority(limits, authority)?,
         },
         tasks::ProposalAction::ReleasePlaced { task, .. } | tasks::ProposalAction::Release { task } => {
             ProposalAction::Release {
@@ -889,7 +892,7 @@ pub fn retained_action(limits: &Limits, number: u64, value: &tasks::ProposalActi
         tasks::ProposalAction::Effect { connector, authority, attempt, completion, position, purpose } => {
             RetainedAction::Effect {
                 part: Part { connector: *connector, kind: PartKind::Effect, key: PartKey::Number(number) },
-                authority: super::task_tree::authority(limits, authority)?,
+                authority: super::act_authority(limits, authority)?,
                 attempt: *attempt,
                 completion: *completion,
                 position: *position,
@@ -899,7 +902,7 @@ pub fn retained_action(limits: &Limits, number: u64, value: &tasks::ProposalActi
         tasks::ProposalAction::ProcedureEffect { connector, authority, step, purpose } => {
             RetainedAction::ProcedureEffect {
                 part: Part { connector: *connector, kind: PartKind::Effect, key: PartKey::Number(number) },
-                authority: super::task_tree::authority(limits, authority)?,
+                authority: super::act_authority(limits, authority)?,
                 step: *step,
                 purpose: *purpose,
             }
@@ -918,7 +921,7 @@ pub fn retained_action(limits: &Limits, number: u64, value: &tasks::ProposalActi
                     None => None,
                 },
                 authority: match &change.authority {
-                    Some(value) => Some(super::task_tree::authority(limits, value)?),
+                    Some(value) => Some(super::act_authority(limits, value)?),
                     None => None,
                 },
                 wake: change.wake,
@@ -934,7 +937,7 @@ pub fn retained_action(limits: &Limits, number: u64, value: &tasks::ProposalActi
             }),
         },
         tasks::ProposalAction::Widen { task, authority } => {
-            RetainedAction::Widen { task: *task, authority: super::task_tree::authority(limits, authority)? }
+            RetainedAction::Widen { task: *task, authority: super::act_authority(limits, authority)? }
         }
         tasks::ProposalAction::ReleasePlaced { task, .. } | tasks::ProposalAction::Release { task } => {
             RetainedAction::Release { task: *task }
@@ -981,7 +984,7 @@ fn settings(limits: &Limits, row: &tasks::Settings) -> Result<AmendmentState, Mi
             None => None,
         },
         spec: spec(limits, &row.spec),
-        authority: super::task_tree::authority(limits, &row.authority)?,
+        authority: super::act_authority(limits, &row.authority)?,
         wake: row.wake,
         dependencies: numbers(limits, &row.dependencies),
         cut: row.dependencies.len() > bound(limits),

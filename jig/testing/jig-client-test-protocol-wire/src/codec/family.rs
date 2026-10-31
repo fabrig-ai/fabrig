@@ -7,15 +7,14 @@ use skein_lib::{Reader, Writer};
 pub fn document(value: w::FamilyDocument) -> Box<[u8]> {
     let record = w::FamilyDocumentRecord::new(&w::CEILINGS, w::FamilyDocumentRecordParts { value })
         .expect("admitted family document");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("bounded record"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
 /// # Errors
 /// Refuses malformed records or records outside this family's configured limits.
-pub fn document_value(bytes: &[u8], bound: &d::Limits, rows: u32) -> Result<w::FamilyDocument, Undecodable> {
-    let mut bounds = limits(bound).ok_or(Undecodable)?;
-    bounds.item_proposals = rows;
+pub fn document_value(bytes: &[u8], bound: &d::Limits) -> Result<w::FamilyDocument, Undecodable> {
+    let bounds = limits(bound).ok_or(Undecodable)?;
     if w::check_limits(&bounds).is_err() {
         return Err(Undecodable);
     }
@@ -40,7 +39,7 @@ pub fn connector_document_value(value: w::ClientDocument, bound: &d::Limits) -> 
 pub fn answer(value: w::FamilyAnswer) -> Box<[u8]> {
     let record =
         w::FamilyAnswerRecord::new(&w::CEILINGS, w::FamilyAnswerRecordParts { value }).expect("admitted family answer");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("bounded record"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
@@ -72,7 +71,7 @@ pub fn connector_answer_value(value: w::FamilyConnectorAnswer, bound: &d::Limits
 #[must_use]
 pub fn request_record(project: u32, value: w::ApplicationRequest) -> Box<[u8]> {
     let record = w::Request::new(&w::CEILINGS, w::RequestParts { project, value }).expect("fixed family request");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("bounded record"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
@@ -90,7 +89,7 @@ pub fn request_value(bytes: &[u8], bound: &d::Limits) -> Result<w::RequestParts,
 #[must_use]
 pub fn subject(value: w::FamilySubject) -> Box<[u8]> {
     let record = w::Subject::new(&w::CEILINGS, w::SubjectParts { value }).expect("fixed family subject");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("bounded record"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
@@ -108,7 +107,7 @@ pub fn subject_value(bytes: &[u8], bound: &d::Limits) -> Result<w::FamilySubject
 #[must_use]
 pub fn read(value: w::FamilySubject) -> Box<[u8]> {
     let record = w::Read::new(&w::CEILINGS, w::ReadParts { value }).expect("fixed family read");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("bounded record"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }

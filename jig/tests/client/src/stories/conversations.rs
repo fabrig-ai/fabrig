@@ -40,12 +40,12 @@ pub fn chat(number: u64, title: &[u8], activity: Wall) -> Task {
     task.last_activity = activity;
     task.flags.conversation = true;
     task.priority = None;
-    task.chip.details = Box::new(ChipPhase::Owner {
-        phase: OwnerChipPhase::Active(RunStage::Idle),
-        details: Box::new(OwnerChipDetails {
+    task.chip.details = Box::new(ChipPhaseFacts {
+        phase: ChipPhase::Active(RunStage::Idle),
+        details: Box::new(ChipDetails {
             dependencies: skein_lib::List::with_capacity(0),
             project: task.project,
-            executor: OwnerExecutor::Agent { charter: 1 },
+            executor: Executor::Agent { charter: 1 },
             phase_since: Wall::EPOCH,
             run_since: None,
             attempt: None,

@@ -149,8 +149,8 @@ pub enum Word {
     Condition,
     /// State.
     State,
-    /// Native owner effect proposal number, independent of observed state.
-    NativeProposal,
+    /// Owner effect proposal number, independent of observed state.
+    Proposal,
     /// Creation.
     Creation,
     /// Transition.
@@ -316,7 +316,7 @@ const ALL: [Word; 122] = [
     Word::Unrecoverable,
     Word::Condition,
     Word::State,
-    Word::NativeProposal,
+    Word::Proposal,
     Word::Creation,
     Word::Transition,
     Word::Set,
@@ -444,7 +444,7 @@ impl Word {
             Self::Unrecoverable => 66,
             Self::Condition => 67,
             Self::State => 68,
-            Self::NativeProposal => 121,
+            Self::Proposal => 121,
             Self::Creation => 69,
             Self::Transition => 70,
             Self::Set => 71,
@@ -583,7 +583,7 @@ impl Words {
                 Word::Unrecoverable => (b"Outcome cannot be recovered automatically".as_slice(), None),
                 Word::Condition => (b"Condition required".as_slice(), None),
                 Word::State => (b"Observed state: ".as_slice(), Some(HoleKind::Number)),
-                Word::NativeProposal => (b"Proposal number: ".as_slice(), Some(HoleKind::Number)),
+                Word::Proposal => (b"Proposal number: ".as_slice(), Some(HoleKind::Number)),
                 Word::Creation => (b"Creation".as_slice(), None),
                 Word::Transition => (b"Transition".as_slice(), None),
                 Word::Set => (b"Set".as_slice(), None),

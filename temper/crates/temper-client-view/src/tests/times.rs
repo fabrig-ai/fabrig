@@ -153,17 +153,14 @@ fn the_inbox_waits_use_the_proposal_hold_and_person_task_clocks() {
     let proposal_root = fixtures::chat::proposal_root();
     let mut proposal = proposal_root.pages().chat().unwrap().cards.as_slice()[0].page.clone().unwrap();
     let key = c::ProposalKey { proposer: c::Proposer::Task(fixtures::INBOX_TASK), number: fixtures::INBOX_QUESTION };
-    let c::ReadValue::OwnerProposal(document) = &mut proposal else { panic!("owner proposal") };
+    let c::ReadValue::Proposal(document) = &mut proposal else { panic!("owner proposal") };
     document.key = key;
     let task_root = fixtures::task::held_root();
     let mut task = task_root.pages().task().unwrap().document(task_root.client()).unwrap().clone();
-    match task.hold.as_mut().unwrap() {
-        c::TaskHold::Owner(hold) => hold.hold_wait_since = Some(Wall::EPOCH),
-        c::TaskHold::Document(_) => panic!("owner hold"),
-    }
+    task.hold.as_mut().unwrap().hold_wait_since = Some(Wall::EPOCH);
     let mut person_chip = task.chip.clone();
     person_chip.phase = c::Phase::Waiting;
-    let person = c::ReadValue::OwnerPersonTask(Box::new(c::OwnerPersonTask {
+    let person = c::ReadValue::PersonTask(Box::new(c::PersonTask {
         task: person_chip,
         revision: c::Revision { value: 1 },
         requester: task.requester,
@@ -182,10 +179,7 @@ fn the_inbox_waits_use_the_proposal_hold_and_person_task_clocks() {
         (c::Read::Proposal { proposal: key }, proposal),
         (
             c::Read::Escalation { task: fixtures::INBOX_TASK },
-            c::ReadValue::OwnerEscalation(Box::new(c::OwnerEscalation {
-                task: Box::new(task),
-                acts: List::with_capacity(0),
-            })),
+            c::ReadValue::Escalation(Box::new(c::Escalation { task: Box::new(task), acts: List::with_capacity(0) })),
         ),
         (c::Read::PersonTask { task: fixtures::INBOX_TASK }, person),
     ] {

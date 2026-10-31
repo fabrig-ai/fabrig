@@ -1,8 +1,8 @@
-use jig_core_world::{
-    reads::{ask, latest},
-    stories::reads::{request, world},
-};
-use jig_domain_core::{self as core, documents, reads, waits::WaitsOn};
+use crate::read_support::request;
+use crate::read_support::world;
+use jig_core_world::reads::ask;
+use jig_core_world::reads::latest;
+use jig_domain_core::{self as core, documents, reads, runs::waits::WaitsOn};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -20,7 +20,7 @@ fn a_placed_stop_reads_as_held_without_a_generic_escalation() {
     assert!(matches!(value.hold.as_ref().map(|hold| hold.reason), Some(tasks::Hold::Placed { .. })));
 }
 
-fn delegate_question(world: &mut jig_core_world::effects::World, parent: u64) {
+fn delegate_question(world: &mut jig_core_world::world::World, parent: u64) {
     let mut authority = world.assigned.as_ref().expect("parent run").run.authority.clone();
     authority.budget.spend = 20;
     authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
@@ -108,42 +108,42 @@ fn me_reads_the_pool_left_in_its_creating_bounds() {
 const QUERY_PARENT: u64 = 1;
 const QUERY_FIRST_WATCHER: u64 = 100;
 const QUERY_FENCE_WATCHER: u64 = 90;
-use jig_core_world::fixtures::QUERY_REQUESTER;
+use jig_test_profile::fixtures::QUERY_REQUESTER;
 const QUERY_TABLE: [documents::TaskQuery; 6] = [
-    jig_core_world::fixtures::OWN_TASKS,
+    jig_test_profile::fixtures::OWN_TASKS,
     documents::TaskQuery {
         project: Some(1),
         requester: None,
         root: Some(QUERY_PARENT),
         order: documents::QueryOrder::Changed,
-        ..jig_core_world::fixtures::OWN_TASKS
+        ..jig_test_profile::fixtures::OWN_TASKS
     },
     documents::TaskQuery {
         project: Some(1),
         requester: None,
         parent: Some(QUERY_PARENT),
         order: documents::QueryOrder::Activity,
-        ..jig_core_world::fixtures::OWN_TASKS
+        ..jig_test_profile::fixtures::OWN_TASKS
     },
     documents::TaskQuery {
         project: Some(1),
         label: Some(0),
         tracked: Some(false),
         order: documents::QueryOrder::Priority,
-        ..jig_core_world::fixtures::OWN_TASKS
+        ..jig_test_profile::fixtures::OWN_TASKS
     },
     documents::TaskQuery {
         project: Some(1),
         requester: None,
         executor: Some(documents::ExecutorKind::Agent),
         phase: Some(documents::PhaseClass::Held),
-        ..jig_core_world::fixtures::OWN_TASKS
+        ..jig_test_profile::fixtures::OWN_TASKS
     },
     documents::TaskQuery {
         project: Some(1),
         requester: None,
         order: documents::QueryOrder::Ended,
-        ..jig_core_world::fixtures::OWN_TASKS
+        ..jig_test_profile::fixtures::OWN_TASKS
     },
 ];
 
@@ -192,7 +192,7 @@ fn a_watched_task_querys_deliveries_each_follow_their_commit() {
     jig_core_world::watches::open(
         &mut world,
         QUERY_FENCE_WATCHER,
-        documents::Watched::Query { query: jig_core_world::fixtures::OWN_TASKS },
+        documents::Watched::Query { query: jig_test_profile::fixtures::OWN_TASKS },
     );
     world.send(root::Event::Core(core::Event::Delivered { watcher: Token::new(QUERY_FENCE_WATCHER) }));
     world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
@@ -239,7 +239,8 @@ fn a_task_query_reads_a_partys_live_tasks_in_last_activity_order() {
         QUERY_MORE_REQUEST,
         people::Ask::Say { project: 1, task: older, words: b"new activity".as_slice().into() },
     );
-    let query = documents::TaskQuery { order: documents::QueryOrder::Activity, ..jig_core_world::fixtures::OWN_TASKS };
+    let query =
+        documents::TaskQuery { order: documents::QueryOrder::Activity, ..jig_test_profile::fixtures::OWN_TASKS };
     ask(&mut world, QUERY_READ, reads::Read::Tasks { query, live: None, ended: None });
     assert_eq!(jig_core_world::fixtures::query_numbers(&world), [older, newer]);
     let reads::Answer::Tasks(page) = latest(&world) else { panic!("query page") };
@@ -248,13 +249,13 @@ fn a_task_query_reads_a_partys_live_tasks_in_last_activity_order() {
 
 #[test]
 fn a_task_query_read_pages_its_live_group_and_then_ends() {
-    let mut world = jig_core_world::stories::reads::world_with_rows(1207, 1);
+    let mut world = crate::read_support::world_with_rows(1207, 1);
     let mut expected = vec![world.assigned.as_ref().expect("first task").task];
     world.end(tasks::End::Parked, 0);
     let later_chat = jig_core_world::fixtures::chat(&world, 1, b"next task".as_slice().into());
     request(&mut world, QUERY_REQUEST, later_chat);
     expected.push(world.assigned.as_ref().expect("next task").task);
-    let query = jig_core_world::fixtures::OWN_TASKS;
+    let query = jig_test_profile::fixtures::OWN_TASKS;
     ask(&mut world, QUERY_READ, reads::Read::Tasks { query, live: None, ended: None });
     assert_eq!(jig_core_world::fixtures::query_numbers(&world), expected[..1]);
     let reads::Answer::Tasks(page) = latest(&world) else { panic!("query page") };
@@ -275,18 +276,18 @@ fn a_task_query_read_waits_for_the_commit_in_flight_and_survives_the_crash() {
     let task = world.assigned.as_ref().expect("task").task;
     let number = world.store.applied + 1;
     world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
-    world.cut = Some(jig_core_world::effects::Cut::Submitted(number));
+    world.cut = Some(jig_core_world::world::Cut::Submitted(number));
     request(
         &mut world,
         QUERY_REQUEST,
         people::Ask::Say { project: 1, task, words: b"durable activity".as_slice().into() },
     );
-    assert_eq!(world.reached_cut, Some(jig_core_world::effects::Cut::Submitted(number)));
+    assert_eq!(world.reached_cut, Some(jig_core_world::world::Cut::Submitted(number)));
     assert!(world.store.applied < number);
     ask(
         &mut world,
         QUERY_READ,
-        reads::Read::Tasks { query: jig_core_world::fixtures::OWN_TASKS, live: None, ended: None },
+        reads::Read::Tasks { query: jig_test_profile::fixtures::OWN_TASKS, live: None, ended: None },
     );
     assert!(world.reads.as_ref().expect("party").receipts.is_empty());
     let committed = world.store.release_held().expect("held commit");
@@ -307,7 +308,7 @@ fn seen_over_a_conversations_turns_clears_its_lines_unread_count() {
     let mut world = world(1209);
     let task = world.assigned.as_ref().expect("conversation").task;
     world.turn(CONVERSATION_TURN, 0, None, b"a committed turn");
-    let query = jig_core_world::fixtures::OWN_TASKS;
+    let query = jig_test_profile::fixtures::OWN_TASKS;
     ask(&mut world, QUERY_READ, reads::Read::Tasks { query, live: None, ended: None });
     let reads::Answer::Tasks(page) = latest(&world) else { panic!("task query") };
     let line = page.live.get(0).expect("conversation line");
@@ -333,7 +334,7 @@ fn a_task_line_keeps_a_held_name_past_the_short_list_bound() {
         &mut world,
         QUERY_READ,
         reads::Read::Tasks {
-            query: documents::TaskQuery { project: Some(1), requester: None, ..jig_core_world::fixtures::OWN_TASKS },
+            query: documents::TaskQuery { project: Some(1), requester: None, ..jig_test_profile::fixtures::OWN_TASKS },
             live: None,
             ended: None,
         },
@@ -349,7 +350,7 @@ fn a_task_line_keeps_a_held_name_past_the_short_list_bound() {
 fn a_query_without_index_keys_reads_the_requesters_live_tasks() {
     let mut world = world(1211);
     let task = world.assigned.as_ref().expect("live task").task;
-    let query = documents::TaskQuery { requester: None, project: None, ..jig_core_world::fixtures::OWN_TASKS };
+    let query = documents::TaskQuery { requester: None, project: None, ..jig_test_profile::fixtures::OWN_TASKS };
     ask(&mut world, QUERY_READ, reads::Read::Tasks { query, live: None, ended: None });
     let reads::Answer::Tasks(page) = latest(&world) else { panic!("task page: {:?}", latest(&world)) };
     assert_eq!(page.live.iter().map(|line| line.chip.number).collect::<Vec<_>>(), [task]);
@@ -368,7 +369,7 @@ fn a_projectless_query_without_a_requester_keeps_the_asking_partys_tasks_alone()
     let other = world.assigned.as_ref().expect("second party's task").task;
     assert_ne!(own, other);
     world.sign_in = Some(first);
-    let query = documents::TaskQuery { requester: None, project: None, ..jig_core_world::fixtures::OWN_TASKS };
+    let query = documents::TaskQuery { requester: None, project: None, ..jig_test_profile::fixtures::OWN_TASKS };
     ask(&mut world, QUERY_READ, reads::Read::Tasks { query, live: None, ended: None });
     let reads::Answer::Tasks(page) = latest(&world) else { panic!("task page: {:?}", latest(&world)) };
     assert_eq!(page.live.iter().map(|line| line.chip.number).collect::<Vec<_>>(), [own]);

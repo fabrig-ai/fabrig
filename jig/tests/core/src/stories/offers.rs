@@ -1,5 +1,6 @@
 //! Starting facts shared by the delivered-offer stories.
-use crate::effects::{World, fixture};
+use crate::world::Setup;
+use crate::world::{World, fixture};
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -10,7 +11,7 @@ use skein_lib::{Queue, ReplyTo, Token};
 #[must_use]
 pub fn world_configuration(seed: u64) -> root::Config {
     let (mut configuration, _) = fixture(seed, false);
-    crate::world::edit_role(&mut configuration.core, |role| {
+    jig_test_profile::edit_role(&mut configuration.core, |role| {
         role.authority.delegation.tasks = 2;
         role.authority.delegation.depth = 2;
     });
@@ -21,7 +22,7 @@ pub fn world_configuration(seed: u64) -> root::Config {
 #[must_use]
 pub fn member_configuration(seed: u64) -> root::Config {
     let mut configuration = world_configuration(seed);
-    let mut limits = crate::world::limits().core.authority;
+    let mut limits = jig_test_profile::limits().core.authority;
     limits.roles = 2;
     limits.batch = 2;
     let mut policy = configuration.core.seed_projects[0].policy.policy.clone();
@@ -80,7 +81,7 @@ pub fn world_with_policy(
                 .rules()
                 .clone();
     }
-    crate::world::edit_role(&mut configuration.core, |role| {
+    jig_test_profile::edit_role(&mut configuration.core, |role| {
         role.authority.delegation.tasks = 2;
         role.authority.delegation.depth = 2;
     });
@@ -99,7 +100,7 @@ pub fn world_with_policy(
     let room = limits.core.routes;
     let connectors = jig_test_connector::OUTPUTS_BOUND.checked_mul(2).expect("two connectors");
     limits.journal.writes = limits.journal.writes.max(room.checked_add(connectors).expect("writes"));
-    let mut world = World::configured(seed, false, configuration, limits);
+    let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
     let person = world
         .people_answers
         .iter()
@@ -166,7 +167,7 @@ pub fn no_holder_fixture(seed: u64) -> (root::Config, root::Limits) {
 
 #[must_use]
 pub fn goal(budget: u64) -> people::Ask {
-    let mut member = crate::fixtures::people_member(b"offered goal", budget);
+    let mut member = jig_test_profile::fixtures::people_member(b"offered goal", budget);
     member.label = jig_client_test_records::GOAL;
     member.flags.listed = true;
     member.tracked = Some(1);

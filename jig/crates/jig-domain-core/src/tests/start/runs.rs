@@ -1,10 +1,12 @@
 //! Adoption fits and opening use the same state (domain/engine.md, 6, 8).
-use super::{
-    Action, Core, Env, Failure, Key, Phase, Queue, Request, SweepInput, Time, Wall, config, step_phase, tasks,
-    through_link,
+use crate::{
+    CoreRecord, Event, Now, RunProof, fleet, people,
+    start::{Continuation, LiveSet},
+    tests::start::{
+        Action, Core, Env, Failure, Key, Phase, Queue, Request, SweepInput, Time, Wall, config, step_phase, tasks,
+        through_link,
+    },
 };
-use crate::start::{Continuation, LiveSet};
-use crate::{CoreRecord, Event, Now, Requests, RunProof, fleet, people};
 use core::panic::AssertUnwindSafe;
 use skein_lib::Token;
 use std::panic::catch_unwind;
@@ -14,15 +16,16 @@ const ENGINE: u64 = 1;
 const DUE: u64 = 3;
 const ATTEMPT: u64 = 7;
 
-fn loaded(in_process: bool, attempts: u32) -> (Core, Env<crate::Limits>) {
-    let (mut source, mut limits) = super::super::tree_core();
+pub(in crate::tests) fn loaded(in_process: bool, attempts: u32) -> (Core, Env<crate::Limits>) {
+    let (mut source, mut limits) = crate::tests::tree_core();
     for number in [WORKER, ENGINE, DUE] {
-        super::super::make_task(&mut source, &limits, number);
+        crate::tests::make_task(&mut source, &limits, number);
     }
     limits.fleet.attempts = attempts;
     let mut configured = config(41);
     configured.workers_in_process = in_process;
-    let policy = crate::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[]).expect("project policy");
+    let policy = crate::admission::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[])
+        .expect("project policy");
     let mut core = Core::new(configured, &limits).expect("configured start");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     step_phase(core.start_begin(false, env.wall), Phase::LoadCore);
@@ -67,7 +70,7 @@ fn loaded(in_process: bool, attempts: u32) -> (Core, Env<crate::Limits>) {
         }
         restore(&mut core, &env, tasks::Stored::Live(Box::new(row)));
     }
-    super::super::restore_key_account(&mut core, &limits, 0, 1, 1);
+    crate::tests::restore_key_account(&mut core, &limits, 0, 1, 1);
     drop(crate::step(
         &mut core,
         &env,
@@ -81,7 +84,7 @@ fn restore(core: &mut Core, env: &Env<crate::Limits>, record: tasks::Stored) {
     drop(crate::step(core, env, Event::Tasks(tasks::Event::Restore { record })));
 }
 
-fn wires(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<Request>) -> Continuation {
+pub(in crate::tests) fn wires(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<Request>) -> Continuation {
     through_link(core, env, out);
     step_phase(core.start_sweep(env, SweepInput::Finished, out), Phase::Switch);
     step_phase(core.start_done(env, Phase::Switch, out), Phase::Wires);
@@ -91,15 +94,8 @@ fn wires(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<Request>) ->
     token
 }
 
-fn drain(core: &mut Core, env: &Env<crate::Limits>) {
-    while let Some(event) = core.adopted.pop() {
-        drop(crate::step(core, env, Event::Fleet(event)));
-    }
-    drop(crate::step(core, env, Event::Fleet(fleet::Event::Loaded)));
-}
-
 fn open(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<Request>) {
-    let mut action = core.start_done(env, Phase::AdoptRuns, out);
+    let mut action = Action::Step(core.start_phase().expect("start in progress"));
     for _ in 0..8_u32 {
         action = match action {
             Action::Step(done) => core.start_done(env, done, out),
@@ -120,10 +116,8 @@ fn restored_claims_adopt_and_engine_claims_settle_before_open() {
         let token = wires(&mut core, &env, &mut out);
         step_phase(core.start_resume(&env, token, &mut out), Phase::AdoptRuns);
         assert_eq!(core.adopted.len(), 2);
-        let _panic = catch_unwind(AssertUnwindSafe(|| core.start_done(&env, Phase::AdoptRuns, &mut out)))
-            .expect_err("undrained claim stops adoption completion");
         assert_eq!(core.restored_worker_claims(), if in_process { None } else { Some((WORKER, 1)) });
-        drain(&mut core, &env);
+        let _action = core.start_done(&env, Phase::AdoptRuns, &mut out);
         assert_eq!(core.tasks.task(ENGINE).expect("engine task").refusals, 1);
         assert_eq!(core.unreported_restored.contains_key(&WORKER), !in_process);
         open(&mut core, &env, &mut out);
@@ -170,7 +164,7 @@ fn a_released_continuation_is_stale_and_a_cold_start_repeats_adoption() {
         let fleet::Event::Adopt { run, attempt, kind, .. } = event else { panic!("restored adoption") };
         assert_eq!((run.raw(), attempt.raw(), *kind), expected);
     }
-    drain(&mut core, &env);
+    let _action = core.start_done(&env, Phase::AdoptRuns, &mut out);
     open(&mut core, &env, &mut out);
 }
 
@@ -190,17 +184,16 @@ fn due_agent_preparation_waits_until_open() {
             valid: skein_lib::Duration::from_secs(60),
         })),
     ));
-    super::super::run_choice::host(&mut core, &env.limits, Token::new(7), &[b"scripted"]);
+    crate::tests::runs::run_choice::host(&mut core, &env.limits, Token::new(7), &[b"scripted"]);
     let context = core.tasks.run_context(DUE).expect("due agent");
-    let Requests::Out(mut before) = crate::step(&mut core, &env, Event::Activate { context, ready: true });
-    let Some(Request::Decided) = before.pop() else { panic!("closed decisions defer the due agent") };
+    let before = crate::step(&mut core, &env, Event::Activate { context, ready: true });
     assert!(before.is_empty());
-    drain(&mut core, &env);
+    let _action = core.start_done(&env, Phase::AdoptRuns, &mut out);
     open(&mut core, &env, &mut out);
     let context = core.take_due().expect("next Resume takes due agent");
     assert_eq!(context.task, DUE);
-    let Requests::Out(mut after) = crate::step(&mut core, &env, Event::Activate { context, ready: true });
+    let mut after = crate::step(&mut core, &env, Event::Activate { context, ready: true });
     let Some(Request::Now(request)) = after.pop() else { panic!("agent preparation request") };
-    let Now::PrepareAgent { context } = *request else { panic!("due agent begins preparation") };
+    let Now::PrepareAgent { context, .. } = *request else { panic!("due agent begins preparation") };
     assert_eq!(context.task, DUE);
 }

@@ -390,7 +390,7 @@ impl Agents {
             )],
             Role::Uncued => Vec::new(),
         };
-        steps.into_iter().nth(usize::try_from(index).expect("small index")).unwrap_or(Step::Yield)
+        steps.into_iter().nth(skein_lib::length::usize_of(index)).unwrap_or(Step::Yield)
     }
 }
 
@@ -441,7 +441,7 @@ fn name(activation: u64, completion: u32) -> Box<[u8]> {
         smith_channel::v5::CallNameParts { activation, completion, position: 0 },
     )
     .expect("script call name");
-    let mut encoded = skein_lib::Writer::new(usize::try_from(name.measure()).expect("call name size"));
+    let mut encoded = skein_lib::Writer::new(skein_lib::length::usize_of(name.measure()));
     name.encode(&mut encoded).expect("measured call name");
     encoded.finish()
 }
@@ -543,7 +543,7 @@ fn turn(agent: &Agent, texts: &[Vec<u8>], step: &Step) -> Box<[u8]> {
         },
     )
     .expect("bounded turn");
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("turn size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured turn");
     writer.finish()
 }
@@ -572,7 +572,12 @@ fn verdict(code: &str, text: &str, fields: &[(&str, &str)]) -> Box<[u8]> {
     result(smith_charter::Form::Verdict, Some(code.as_bytes()), text.as_bytes(), fields)
 }
 /// The run's accepted result, in the record its outcome carries.
-fn result(form: smith_charter::Form, label: Option<&[u8]>, text: &[u8], fields: &[(&str, &str)]) -> Box<[u8]> {
+pub(super) fn result(
+    form: smith_charter::Form,
+    label: Option<&[u8]>,
+    text: &[u8],
+    fields: &[(&str, &str)],
+) -> Box<[u8]> {
     let limits = smith_charter::v4::CEILINGS;
     let mut list = List::with_capacity(u32::try_from(fields.len()).expect("few fields"));
     for (name, value) in fields {
@@ -596,7 +601,7 @@ fn result(form: smith_charter::Form, label: Option<&[u8]>, text: &[u8], fields: 
         },
     )
     .expect("bounded result");
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("result size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured result");
     writer.finish()
 }
@@ -684,9 +689,13 @@ pub fn lead() -> Box<[u8]> {
 fn completion_activity(owner: Token, turns: u32) -> Vec<root::Event> {
     let mut reports = Vec::new();
     for activity in [
-        host::Activity::Long { operation: host::Operation::Completion, span: Duration::from_secs(1) },
-        host::Activity::Count { kind: host::CountKind::LlmFinished, elapsed: Duration::ZERO, count: u64::from(turns) },
-        host::Activity::LongDone,
+        host::AgentActivity::Long { operation: host::AgentOperation::Completion, span: Duration::from_secs(1) },
+        host::AgentActivity::Count {
+            kind: host::CountKind::LlmFinished,
+            elapsed: Duration::ZERO,
+            count: u64::from(turns),
+        },
+        host::AgentActivity::LongDone,
     ] {
         reports.push(root::Event::Agent(host::FromAgent::Activity { owner, activity }));
     }

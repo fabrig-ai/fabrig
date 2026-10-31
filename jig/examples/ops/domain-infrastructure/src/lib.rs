@@ -25,6 +25,7 @@
 //! | effect uncertain | lookup or deadline | settled, retry or held | outcome, save |
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 
 extern crate alloc;
 
@@ -41,15 +42,17 @@ pub use client_documents::{
 mod boundary;
 mod domain;
 mod limits;
+mod spec;
 
 pub use boundary::{
-    Added, ApplyResult, Backend, CloseOutcome, Description, Effect, Entry, Environment, EnvironmentFact, Event, Form,
-    Hold, Key, Looked, Named, Outcome, PROVISION_CODE, Party, Phase, Pool, Procedure, ProcedurePhase, ProcedureSignal,
-    ProcedureState, Purpose, Record, RecordKey, Recovery, Request, Resource, ResourceRole, RestartStage, Service,
-    ServiceFact, StepDecision, SystemEvent, SystemRequest, TEAR_DOWN_CODE,
+    Added, Admission, ApplyResult, Backend, CloseOutcome, Description, Effect, Entry, Environment, EnvironmentFact,
+    Event, Form, Hold, Key, Looked, Named, Outcome, PROVISION_CODE, Party, Phase, Pool, Procedure, ProcedurePhase,
+    ProcedureSignal, ProcedureState, Purpose, Record, RecordKey, Recovery, Request, Resource, ResourceRole,
+    RestartStage, Service, ServiceFact, StepDecision, SystemEvent, SystemRequest, TEAR_DOWN_CODE,
 };
-pub use domain::{Domain, fire, next_deadline, split, step};
-pub use limits::{Limits, valid};
+pub use domain::{Domain, fire, next_deadline, procedure_outcome, split, step};
+pub use limits::{Limits, Vocabulary, valid};
+pub use spec::{Executor, Holding, Kind, Parameter, Spec, hold_kinds, holdings, procedure};
 
 #[cfg(test)]
 mod tests;

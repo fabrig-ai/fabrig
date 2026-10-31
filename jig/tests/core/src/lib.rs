@@ -3,12 +3,10 @@
 #![forbid(unsafe_code)]
 
 mod charters;
-pub mod direct;
 pub mod world;
 
 mod application_observations;
 pub mod client_peer;
-pub mod effects;
 pub mod peers;
 pub mod protocol;
 pub mod store_peer;
@@ -18,7 +16,7 @@ pub use jig_test_store_files::{Fault, Store};
 
 pub mod oracle;
 
-pub mod observations;
+pub mod conformance;
 pub mod referee;
 
 pub mod faults;

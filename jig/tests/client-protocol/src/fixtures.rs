@@ -16,7 +16,7 @@ pub fn address() -> skein_io::Addr {
 }
 #[must_use]
 pub fn owner_limits() -> jig_test_domain::Limits {
-    let mut limits = jig_core_world::world::limits();
+    let mut limits = jig_test_profile::limits();
     // Client keeps closing watches until their engine terminals arrive.
     limits.core.views.watchers = jig_client_world::test::limits().client.domain.watches;
     // Two clients may place distinct overlapping holds on the same task.
@@ -72,7 +72,7 @@ pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
 /// The core world's configured models as the client side names them.
 #[must_use]
 pub fn models() -> Box<[jig_protocol_engine_clients::Model]> {
-    let model = jig_core_world::world::scripted_model();
+    let model = jig_test_profile::scripted_model();
     Box::new([jig_protocol_engine_clients::Model {
         name: model.name,
         provider: None,
@@ -141,7 +141,7 @@ pub fn world(seed: u64) -> World<Test, Protocol> {
 #[must_use]
 pub fn family_world(seed: u64) -> World<Test, Protocol> {
     let mut world = self::world(seed);
-    let configuration = jig_core_world::world::config(seed);
+    let configuration = jig_test_profile::config(seed);
     let resource = configuration.first.resources.first().expect("configured first object").path.clone();
     world.front().adopt_family_resource(resource);
     world
@@ -149,31 +149,10 @@ pub fn family_world(seed: u64) -> World<Test, Protocol> {
 
 #[must_use]
 pub fn domain_limits() -> jig_client_domain::Limits {
-    let profile = jig_client_world::test::limits();
-    let jig = profile.jig;
     jig_client_domain::Limits {
         owners: &[jig_client_domain::Spoken { family: 1, version: jig_client_test_protocol_wire::VERSION }],
-        requests: profile.client.domain.requests,
-        ask_bytes: 16384,
         handles: 8,
-        watches: jig.watches,
-        reads: jig.reads,
-        turn_bytes: 32,
-        document_bytes: jig.document_bytes,
-        backoff: jig_client_world::test::limits().client.domain.backoff,
-        rows: jig.rows,
-        segments: jig.segments,
-        text: jig.text,
-        turn_text: jig.text,
-        projects: jig.projects,
-        fields: jig.fields,
-        delegates: jig.delegates,
-        records: jig.records,
-        kept: jig.kept,
-        parts: jig.parts,
-        authority: 8,
-        accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
-        heartbeat: jig_client_world::test::limits().client.domain.heartbeat,
+        ..jig_client_world::test::limits().client.domain
     }
 }
 
@@ -208,7 +187,7 @@ pub fn printed(secret: &skein_lib::Secret) -> Box<[u8]> {
         u32::try_from(secret.expose().len()).expect("short secret"),
     )
     .expect("encoded secret");
-    let mut bytes = skein_lib::Writer::new(PREFIX.len() + usize::try_from(encoded).expect("u32 fits"));
+    let mut bytes = skein_lib::Writer::new(PREFIX.len() + skein_lib::length::usize_of(encoded));
     bytes.put(PREFIX).expect("prefix fits");
     skein_lib::base64::encode(skein_lib::base64::Alphabet::Url, secret.expose(), &mut bytes).expect("secret fits");
     bytes.finish()
@@ -246,11 +225,7 @@ pub fn mount() -> jig_protocol_engine_clients_http::Mount {
     let mut hosts = skein_lib::List::with_capacity(1);
     hosts.push(Box::from(HOST.as_bytes())).expect("one host");
     let env = skein_lib::Env { now: Time::ZERO, wall: Wall::EPOCH, limits: http_limits() };
-    mount.down(
-        &env,
-        jig_protocol_engine_clients_http::Event::Listening { hosts },
-        &mut skein_lib::Queue::with_capacity(1),
-    );
+    mount.down(&env, jig_protocol_engine_clients_http::Event::Listening { hosts });
     mount
 }
 #[must_use]
@@ -315,7 +290,7 @@ fn turn_with_blocks(blocks: List<smith_transcript::v6::Block>) -> Box<[u8]> {
     turn.messages = List::with_capacity(1);
     turn.messages.push(s::Message::new(&s::CEILINGS, message).expect("source message")).expect("one message");
     let turn = s::Turn::new(&s::CEILINGS, turn).expect("source turn");
-    let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).expect("turn size"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(turn.measure()));
     turn.encode(&mut writer).expect("v7 encoding");
     writer.finish()
 }
@@ -341,8 +316,7 @@ pub fn large_turn() -> Box<[u8]> {
             s::Text::new(
                 &s::CEILINGS,
                 s::TextParts {
-                    text: vec![b'x'; usize::try_from(LARGE_TURN_TEXT_BYTES).expect("bounded text size")]
-                        .into_boxed_slice(),
+                    text: vec![b'x'; skein_lib::length::usize_of(LARGE_TURN_TEXT_BYTES)].into_boxed_slice(),
                     replay: None,
                 },
             )

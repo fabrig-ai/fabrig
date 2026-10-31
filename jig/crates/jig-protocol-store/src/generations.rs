@@ -66,8 +66,8 @@ pub(crate) fn manifest(
     crate::codec::component::Manifest {
         generation,
         from,
-        before: crate::format::recorded(before),
-        after: crate::format::recorded(after),
+        before,
+        after,
         counts: kept,
         store,
         secrets,
@@ -485,7 +485,7 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
             let file::Event::Listed { entries, .. } = arrived.event else {
                 return copy_fail(copying, queue);
             };
-            copying.last = entries.len() < usize::try_from(PAGE).expect("page fits usize");
+            copying.last = entries.len() < skein_lib::length::usize_of(PAGE);
             copying.entries = entries;
             copying.next = 0;
             return copy_next(copying, queue);
@@ -517,7 +517,7 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
             let file::Event::Read { bytes, .. } = arrived.event else {
                 return copy_fail(copying, queue);
             };
-            if bytes.len() != usize::try_from(copying.transfer).expect("chunk fits usize") {
+            if bytes.len() != skein_lib::length::usize_of(copying.transfer) {
                 return copy_fail(copying, queue);
             }
             queue.push(file::Request::WriteAt {

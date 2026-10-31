@@ -356,7 +356,8 @@ pub(crate) fn goal(number: u64, waits_on: c::WaitsOn) -> c::Task {
     task.chip.phase = c::Phase::Running;
     task.priority = Some(2);
     task.project = PROJECT;
-    task.requester = c::OwnerRequester::Person(PARTY);
+    task.chip.details.details.project = PROJECT;
+    task.requester = c::Requester::Person(PARTY);
     task.spec.specification.words = document_text(b"Add a /health endpoint that reports the store's state");
     task.budget.numbers.spent = 120;
     task.budget.numbers.budget = 500;
@@ -372,7 +373,7 @@ pub(crate) fn goal(number: u64, waits_on: c::WaitsOn) -> c::Task {
 pub(crate) fn task_result(task: c::Task) -> c::ReadResult {
     c::ReadResult::Value(c::ReadValue::Task(Box::new(task)))
 }
-pub(crate) fn historical_task_result(task: c::Task, ending: c::Ending) -> c::ReadResult {
+pub(crate) fn ended_task_result(task: c::Task, ending: c::Ending) -> c::ReadResult {
     let result = c::Result {
         task: task.chip.clone(),
         ending,
@@ -381,9 +382,9 @@ pub(crate) fn historical_task_result(task: c::Task, ending: c::Ending) -> c::Rea
         details: None,
         acts: List::with_capacity(EMPTY),
     };
-    c::ReadResult::Value(c::ReadValue::Historical(Box::new(c::OwnerHistorical {
+    c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended {
         key: c::ObjectKey::Task(task.chip.task),
-        value: c::OwnerHistoricalValue::Task { document: Box::new(task), result: Box::new(result) },
+        value: c::EndedValue::Task { document: Box::new(task), result: Box::new(result) },
         at: None,
         by: None,
     })))
@@ -660,11 +661,11 @@ const AUTHORITY_DEPTH: u32 = 1;
 /// One entry exercises each independently bounded authority collection.
 const AUTHORITY_ENTRIES: u32 = 1;
 pub(crate) fn bounded_offer(beyond: c::Beyond) -> c::Admission {
-    let authority = c::OwnerAuthorityDocument::complete(c::OwnerAuthority {
+    let authority = c::AuthorityDocument::complete(c::Authority {
         models: None,
         tools: 5,
         grants: List::with_capacity(EMPTY),
-        delegation: c::OwnerDelegation { kinds: List::with_capacity(EMPTY), tasks: 3, depth: AUTHORITY_DEPTH },
+        delegation: c::Delegation { kinds: List::with_capacity(EMPTY), tasks: 3, depth: AUTHORITY_DEPTH },
         spend: 17,
         deadline: None,
         notes: 2,
@@ -672,12 +673,12 @@ pub(crate) fn bounded_offer(beyond: c::Beyond) -> c::Admission {
     });
     let mut grants = List::with_capacity(AUTHORITY_ENTRIES);
     grants
-        .push(c::OwnerGrant {
+        .push(c::Grant {
             connector: 4,
             kind: 2,
-            pattern: c::OwnerPattern {
+            pattern: c::Pattern {
                 segments: List::with_capacity(EMPTY),
-                last: c::OwnerPatternEnd::Open(Box::from(b"src".as_slice())),
+                last: c::PatternEnd::Open(Box::from(b"src".as_slice())),
             },
         })
         .expect("one held grant");
@@ -701,14 +702,14 @@ pub(crate) fn long_resource(task: &mut c::Task) {
     let path = long_path();
     task.resources = List::with_capacity(RESOURCES);
     task.resources
-        .push(c::TaskResource::Owner(Box::new(c::OwnerResourceLine {
-            part: c::OwnerPart { connector: 4, kind: c::OwnerPartKind::Resource, key: c::OwnerPartKey::Path(path) },
+        .push(c::ResourceLine {
+            part: c::Part { connector: 4, kind: c::PartKind::Resource, key: c::PartKey::Path(path) },
             kind: 2,
             taken: false,
             holder: None,
             writer: None,
             writer_lost: false,
-        })))
+        })
         .expect("one owner resource");
 }
 

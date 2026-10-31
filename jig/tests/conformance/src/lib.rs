@@ -3,7 +3,9 @@
 #![forbid(unsafe_code)]
 use jig_conformance::scenarios::Scenario;
 use jig_conformance::{Application, Clock, Input, Output};
-use jig_core_world::{Store, observations::Observer, peers::Peers};
+use jig_core_world::Store;
+use jig_core_world::conformance::Observer;
+use jig_core_world::peers::Peers;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
@@ -41,7 +43,7 @@ impl Config {
             scenario,
             // root() below derives the exact scenario limits. Its input does
             // not use this field, so constructing a second fixture adds nothing.
-            limits: jig_core_world::world::limits(),
+            limits: jig_test_profile::limits(),
             fault: negative::Fault::None,
             deletion: false,
         };
@@ -96,7 +98,7 @@ impl Config {
             limits.core.tasks.inbox_bytes = 512;
             limits.core.tasks.inbox_messages = 5;
             limits.core.people.inbox_recipients = 24;
-            jig_core_world::world::edit_role(&mut config.core, |role| role.authority.budget.spend = 80);
+            jig_test_profile::edit_role(&mut config.core, |role| role.authority.budget.spend = 80);
         }
         if matches!(self.scenario, Some(Scenario::ConversationEndsWhileRead | Scenario::QueryWatchedWhileTasksEnd)) {
             limits.core.fleet.slots = 3;
@@ -185,7 +187,7 @@ pub enum Delivery {
     Now(core::Now),
     /// A connector retains this event until a later engine can take it.
     Busy(Box<root::Event>),
-    /// A core-selected start phase and its optional inbox range.
+    /// A phase of the core's start and its optional inbox range.
     Start { phase: core::start::Phase, census: Option<core::Census> },
 }
 
@@ -242,7 +244,11 @@ impl Neighbours {
                 }
                 root::Record::Connector { number, record: connector::Record::Outbox(row) } => {
                     if let Some(attempt) = row.attempt {
-                        receipts.insert(Receipt::Outbox(*number, row.key.into(), attempt.number));
+                        receipts.insert(Receipt::Outbox(
+                            *number,
+                            jig_core_world::conformance::effect_key(row.key),
+                            attempt.number,
+                        ));
                     }
                 }
                 root::Record::Core(_) | root::Record::Connector { .. } => {}
@@ -288,7 +294,7 @@ impl Application for Testing {
     }
     fn build(config: &Config) -> Engine {
         let (configuration, limits) = config.root();
-        let fixture = jig_core_world::fixtures::account_rows(&configuration.core.settings.llm_providers);
+        let fixture = jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers);
         let mut domain = root::Domain::new(configuration, &limits);
         let env = env(config, Clock { now: 0 });
         domain.configure_holds(
@@ -376,7 +382,7 @@ impl Application for Testing {
             )],
         );
         peers.creating =
-            Some(jig_core_world::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks));
+            Some(jig_test_profile::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks));
         Neighbours {
             peers,
             observer,
@@ -556,36 +562,22 @@ impl Application for Testing {
                     .into_iter()
                     .map(Input::Event)
                     .collect(),
-                Delivery::Now(core::Now::Account(accounts::Request::Component(accounts::ToComponent::Want {
-                    account,
-                }))) => {
-                    vec![Input::Event(root::Event::Core(core::Event::Account(accounts::Event::Component(
-                        accounts::FromComponent::Granted {
-                            form: accounts::Form::Credential(accounts::Scheme::Bearer),
-                            account,
-                            generation: 1,
-                            valid: Duration::from_secs(60),
-                        },
-                    ))))]
-                }
-                Delivery::Now(core::Now::Account(accounts::Request::Component(accounts::ToComponent::Close))) => {
-                    vec![Input::Event(root::Event::Core(core::Event::Account(accounts::Event::Component(
-                        accounts::FromComponent::Closed,
-                    ))))]
-                }
-                Delivery::Now(core::Now::StartPreparation { task, from: None, .. }) => {
-                    vec![Input::Event(root::Event::TranscriptLoaded { task, rows: Box::new([]), done: true })]
+                Delivery::Now(core::Now::Account(accounts::Request::Component(request))) => {
+                    jig_conformance::core::peers::account(request, Duration::from_secs(60))
+                        .into_iter()
+                        .map(|event| Input::Event(root::Event::Core(event)))
+                        .collect()
                 }
                 Delivery::Now(
-                    now @ (core::Now::StartPreparation { from: Some(_), .. }
+                    now @ (core::Now::StartPreparation { .. }
                     | core::Now::SeenConversation { .. }
                     | core::Now::LoadEndedRead { .. }
-                    | core::Now::HistoricalPersonTask { .. }
+                    | core::Now::EndedPersonTask { .. }
                     | core::Now::EndedTask { .. }
                     | core::Now::PartyInputs { .. }
-                    | core::Now::HistoricalProposal { .. }
+                    | core::Now::EndedProposal { .. }
                     | core::Now::DecidedProposal { .. }
-                    | core::Now::HistoricalEscalation { .. }),
+                    | core::Now::EndedEscalation { .. }),
                 ) => {
                     store.ask(StoreOut::Now(now));
                     Vec::new()
@@ -708,6 +700,17 @@ impl Application for Testing {
         let mut events = Vec::new();
         for answer in store.answers() {
             match answer {
+                Up::Root(root::Event::Core(core::Event::Notes(jig_domain_notes::Event::Loaded {
+                    owner,
+                    rows,
+                    more,
+                }))) => {
+                    events.push(Input::Event(root::Event::Core(jig_conformance::core::peers::notes_loaded(
+                        owner,
+                        rows.records,
+                        more,
+                    ))));
+                }
                 Up::Root(event) => {
                     events.push(Input::Event(event));
                 }

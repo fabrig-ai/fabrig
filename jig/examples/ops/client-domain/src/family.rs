@@ -34,8 +34,7 @@ pub(crate) fn send(
             key: Key { asker: asker(Connector::Infrastructure), number: token.raw() ^ root.salt },
             request: jig_client::Ask::Family {
                 scope: jig_client::contract::Scope::Project(match ask {
-                    crate::infrastructure::Ask::MoveEnd { project, .. }
-                    | crate::infrastructure::Ask::NativeMoveEnd { project, .. } => *project,
+                    crate::infrastructure::Ask::MoveEnd { project, .. } => *project,
                 }),
                 record: owned(Connector::Infrastructure, bytes),
             },
@@ -93,7 +92,7 @@ pub(crate) mod infrastructure {
                         d::Scope::Project(project) => jig_client::contract::Scope::Project(project),
                         d::Scope::Deployment => jig_client::contract::Scope::Deployment,
                     },
-                    window: jig_client::contract::Window { rows: env.limits.infrastructure.rows, after: None },
+                    window: jig_client::contract::Window { rows: env.limits.client.domain.rows, after: None },
                     record: owned(
                         Connector::Infrastructure,
                         wire::infrastructure::subject(&subject).expect("admitted subject"),
@@ -105,7 +104,7 @@ pub(crate) mod infrastructure {
                     asker: asker(Connector::Infrastructure),
                     number: read
                         .raw()
-                        .checked_add(u64::from(env.limits.infrastructure.watches) << 32)
+                        .checked_add(u64::from(env.limits.client.domain.watches) << 32)
                         .expect("read slots follow watch slots"),
                 },
                 read: jig_client::Readable::Family {
@@ -113,7 +112,7 @@ pub(crate) mod infrastructure {
                         d::Scope::Project(project) => jig_client::contract::Scope::Project(project),
                         d::Scope::Deployment => jig_client::contract::Scope::Deployment,
                     },
-                    window: jig_client::contract::Window { rows: env.limits.infrastructure.rows, after: None },
+                    window: jig_client::contract::Window { rows: env.limits.client.domain.rows, after: None },
                     record: owned(
                         Connector::Infrastructure,
                         wire::infrastructure::subject(&subject).expect("admitted subject"),
@@ -179,7 +178,7 @@ pub(crate) mod infrastructure {
                     read: Token::new(
                         handle
                             .number
-                            .checked_sub(u64::from(env.limits.infrastructure.watches) << 32)
+                            .checked_sub(u64::from(env.limits.client.domain.watches) << 32)
                             .expect("family read slot"),
                     ),
                     result,
@@ -220,7 +219,7 @@ pub(crate) mod observability {
                         d::Scope::Project(project) => jig_client::contract::Scope::Project(project),
                         d::Scope::Deployment => jig_client::contract::Scope::Deployment,
                     },
-                    window: jig_client::contract::Window { rows: env.limits.observability.rows, after: None },
+                    window: jig_client::contract::Window { rows: env.limits.client.domain.rows, after: None },
                     record: owned(
                         Connector::Observability,
                         wire::observability::subject(&subject).expect("admitted subject"),
@@ -232,7 +231,7 @@ pub(crate) mod observability {
                     asker: asker(Connector::Observability),
                     number: read
                         .raw()
-                        .checked_add(u64::from(env.limits.observability.watches) << 32)
+                        .checked_add(u64::from(env.limits.client.domain.watches) << 32)
                         .expect("read slots follow watch slots"),
                 },
                 read: jig_client::Readable::Family {
@@ -240,7 +239,7 @@ pub(crate) mod observability {
                         d::Scope::Project(project) => jig_client::contract::Scope::Project(project),
                         d::Scope::Deployment => jig_client::contract::Scope::Deployment,
                     },
-                    window: jig_client::contract::Window { rows: env.limits.observability.rows, after: None },
+                    window: jig_client::contract::Window { rows: env.limits.client.domain.rows, after: None },
                     record: owned(
                         Connector::Observability,
                         wire::observability::subject(&subject).expect("admitted subject"),
@@ -306,7 +305,7 @@ pub(crate) mod observability {
                     read: Token::new(
                         handle
                             .number
-                            .checked_sub(u64::from(env.limits.observability.watches) << 32)
+                            .checked_sub(u64::from(env.limits.client.domain.watches) << 32)
                             .expect("family read slot"),
                     ),
                     result,

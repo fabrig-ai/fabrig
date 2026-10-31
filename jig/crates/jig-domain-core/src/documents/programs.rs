@@ -1,6 +1,5 @@
 //! Secret-free per-host login observations, joined at read time (accounts.md, 3.4).
-use super::DocumentLimits;
-use crate::Core;
+use crate::{Core, documents::DocumentLimits};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_fleet as fleet;

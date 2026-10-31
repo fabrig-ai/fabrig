@@ -2,8 +2,10 @@
 //! (`client/domain/pages.md`, section 3). Live membership follows the bounded
 //! requester walk; retained membership uses the supplied original ancestry.
 
-use super::{Cursor, Missing};
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    documents::{Cursor, Missing},
+};
 use jig_domain_tasks as tasks;
 use skein_lib::List;
 
@@ -56,7 +58,7 @@ pub(crate) fn retained(
     ancestors: &[u64],
 ) -> Result<InboxSelection, Missing> {
     let capacity = limits.tasks.depth.checked_add(1).ok_or(Missing::TooLarge)?;
-    if ancestors.len() > usize::try_from(limits.tasks.depth).expect("configured depth fits") {
+    if ancestors.len() > skein_lib::length::usize_of(limits.tasks.depth) {
         return Err(Missing::TooLarge);
     }
     let mut goals = List::with_capacity(capacity);

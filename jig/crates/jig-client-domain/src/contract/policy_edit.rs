@@ -1,6 +1,6 @@
 //! One keyed edit to project policy; domain/people.md, 5.2.
 //! These are whole owner values, with no policy inferred from display text.
-use super::{OwnerAuthority, OwnerGrant, OwnerPattern};
+use super::{Authority, Grant, Pattern};
 use skein_lib::{Duration, List};
 
 /// One mutable part of project policy, sent in one request.
@@ -9,7 +9,7 @@ pub enum PolicyEdit {
     ProjectSpend { period_spend: u64 },
     Role(PolicyEditRole),
     Requirements { requirements: List<PolicyRequirement> },
-    Projections { grants: List<OwnerGrant> },
+    Projections { grants: List<Grant> },
     Permissions { mappings: List<PolicyPermission> },
     Templates { overrides: List<TemplateOverride> },
     RoleSpend { role: u32, period_spend: u64 },
@@ -19,7 +19,7 @@ pub enum PolicyEdit {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PolicyEditRole {
     pub number: u32,
-    pub authority: OwnerAuthority,
+    pub authority: Authority,
     pub period_spend: u64,
     pub requests: u16,
     pub decides: u8,
@@ -53,7 +53,7 @@ pub enum PolicyGuard {
 pub struct PolicyRequirement {
     pub connector: u16,
     pub kind: u16,
-    pub pattern: OwnerPattern,
+    pub pattern: Pattern,
     pub judge: PolicyJudge,
     pub guard: PolicyGuard,
     pub must_be_guarded: bool,

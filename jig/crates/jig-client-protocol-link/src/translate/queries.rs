@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code matches optional query facts without closures")]
 //! The fixed task query and the task owner's whole lines.
 use super::{documents, facts, w};
 use crate::Limits;
@@ -8,16 +7,16 @@ use skein_lib::Wall;
 pub(super) fn query(value: c::TaskQuery, limits: &w::Limits) -> Result<w::TaskQuery, w::Problem> {
     let requester = match value.requester {
         None => None,
-        Some(c::OwnerRequester::Task(value)) => {
-            Some(w::OwnerRequester::Task(w::OwnerRequesterTask::new(limits, w::OwnerRequesterTaskParts { value })?))
+        Some(c::Requester::Task(value)) => {
+            Some(w::Requester::Task(w::RequesterTask::new(limits, w::RequesterTaskParts { value })?))
         }
-        Some(c::OwnerRequester::Person(value)) => Some(w::OwnerRequester::Person(w::OwnerRequesterPerson::new(
+        Some(c::Requester::Person(value)) => {
+            Some(w::Requester::Person(w::RequesterPerson::new(limits, w::RequesterPersonParts { value })?))
+        }
+        Some(c::Requester::Deployment { project }) => Some(w::Requester::Deployment(w::RequesterDeployment::new(
             limits,
-            w::OwnerRequesterPersonParts { value },
+            w::RequesterDeploymentParts { project },
         )?)),
-        Some(c::OwnerRequester::Deployment { project }) => Some(w::OwnerRequester::Deployment(
-            w::OwnerRequesterDeployment::new(limits, w::OwnerRequesterDeploymentParts { project })?,
-        )),
     };
     w::TaskQuery::new(
         limits,
@@ -98,7 +97,7 @@ pub(super) fn line(value: &w::TaskLine, limits: &Limits) -> Result<c::TaskLine, 
     Ok(c::TaskLine {
         chip: documents::chip_fields(value.chip(), limits)?,
         project: value.project(),
-        requester: facts::owner_requester(value.requester(), limits),
+        requester: facts::requester(value.requester()),
         tracked: *value.tracked(),
         label: value.label(),
         flags: flags(value.flags()),
@@ -108,15 +107,13 @@ pub(super) fn line(value: &w::TaskLine, limits: &Limits) -> Result<c::TaskLine, 
             None => None,
             Some(v) => Some(Wall::from_nanos(v)),
         },
-        budget: facts::owner_budget(value.budget(), limits),
+        budget: facts::budget(value.budget()),
         waits_on: waits(value.waits_on()),
-        phases: documents::owner_phase_counts_fields(value.phases(), limits),
+        phases: documents::phase_counts_fields(value.phases()),
         held_below: value.held_below(),
         conversation: match value.conversation() {
             None => None,
-            Some(v) => {
-                Some(c::ConversationRead { seen: v.seen(), unread: documents::count_fields(v.unread(), limits) })
-            }
+            Some(v) => Some(c::ConversationRead { seen: v.seen(), unread: documents::count_fields(v.unread()) }),
         },
     })
 }

@@ -50,15 +50,12 @@ pub fn worker(document: &Document, at: u32, directories: &Directories) -> Result
     };
     let mut limits = profile(Profile::Small);
     if let Some(at) = object.required(document, b"limits", &path, &mut problems) {
-        match overrides::parse(document, at, &path.member(b"limits")) {
-            Ok(value) => limits = value,
-            Err(found) => {
-                for problem in &found.problems {
-                    problems.push(problem.path.clone(), problem.what);
-                }
-                problems.past = problems.past.saturating_add(found.past);
-            }
+        let parsed = overrides::parse(document, at, &path.member(b"limits"));
+        limits = parsed.limits;
+        for problem in &parsed.problems.problems {
+            problems.push(problem.path.clone(), problem.what);
         }
+        problems.past = problems.past.saturating_add(parsed.problems.past);
     }
     let engine = check::address(&mut object, document, b"engine", &path, &mut problems);
     if let Some(engine) = &engine {
@@ -66,7 +63,7 @@ pub fn worker(document: &Document, at: u32, directories: &Directories) -> Result
     }
     let name = check::text(&mut object, document, b"name", &path, &mut problems);
     if let Some(name) = &name
-        && name.len() > usize::try_from(limits.link.name).expect("name bound fits usize")
+        && name.len() > skein_lib::length::usize_of(limits.link.name)
     {
         problems.push(path.member(b"name"), What::Bound);
     }

@@ -14,17 +14,11 @@ fn selectors_and_cut_authorities_round_trip_without_becoming_replacements() {
     for models in [None, Some(c::AuthorityModels::All), Some(names(&[])), Some(names(&[b"second", b"first"]))] {
         let mut authority = fixtures::read_value_owner_authority();
         authority.models = models;
-        let wire = translate::asks::wire_owner_authority(&authority, &limits.wire).unwrap();
-        assert_eq!(translate::documents::owner_authority_fields(&wire, &limits), Ok(authority.clone()));
-        let mut common = fixtures::read_wire_authority().into_parts();
-        common.models = wire.models().clone();
-        let common = w::Authority::new(&limits.wire, common).unwrap();
-        assert_eq!(translate::pages::authority_fields(&common, &limits).unwrap().models, authority.models);
-
+        let wire = translate::asks::wire_owner_authority(&authority, limits.wire()).unwrap();
+        assert_eq!(translate::documents::authority_fields(&wire, &limits), Ok(authority.clone()));
         let document =
-            w::OwnerAuthorityDocument::new(&limits.wire, w::OwnerAuthorityDocumentParts { authority: wire, cut: true })
-                .unwrap();
-        let read = translate::documents::owner_authority_document_fields(&document, &limits).unwrap();
+            w::AuthorityDocument::new(limits.wire(), w::AuthorityDocumentParts { authority: wire, cut: true }).unwrap();
+        let read = translate::documents::authority_document_fields(&document, &limits).unwrap();
         assert!(read.cut);
         assert_eq!(read.whole(), None);
         assert_eq!(read.authority, authority);
@@ -34,11 +28,12 @@ fn selectors_and_cut_authorities_round_trip_without_becoming_replacements() {
 fn malformed_and_one_past_model_sets_are_refused_and_exact_bounds_fit() {
     let base = fixtures::limits();
     let limits =
-        Limits::new(jig_client_domain::Limits { text: 4096, turn_text: 4096, ..base.client }, base.exchanges).unwrap();
+        Limits::new(jig_client_domain::Limits { text: 4096, turn_text: 4096, ..*base.client() }, base.exchanges())
+            .unwrap();
     let mut authority = fixtures::read_value_owner_authority();
     for bad in [names(&[b""]), names(&[b"same", b"same"]), names(&[b"\xff"]), names(&[&[b'x'; 4097]])] {
         authority.models = Some(bad);
-        translate::asks::wire_owner_authority(&authority, &limits.wire).expect_err("invalid selector");
+        translate::asks::wire_owner_authority(&authority, limits.wire()).expect_err("invalid selector");
     }
     for count in [64_u32, 65] {
         let mut values = List::with_capacity(count);
@@ -48,8 +43,8 @@ fn malformed_and_one_past_model_sets_are_refused_and_exact_bounds_fit() {
                 .unwrap();
         }
         authority.models = Some(c::AuthorityModels::Named(values));
-        assert_eq!(translate::asks::wire_owner_authority(&authority, &limits.wire).is_ok(), count == 64);
+        assert_eq!(translate::asks::wire_owner_authority(&authority, limits.wire()).is_ok(), count == 64);
     }
     authority.models = Some(names(&[&[b'x'; 4096]]));
-    translate::asks::wire_owner_authority(&authority, &limits.wire).expect("exact name bound");
+    translate::asks::wire_owner_authority(&authority, limits.wire()).expect("exact name bound");
 }

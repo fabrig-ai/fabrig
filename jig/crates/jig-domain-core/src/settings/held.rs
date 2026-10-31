@@ -1,6 +1,8 @@
 //! Revisions and charter versions retained by live work (engine.md, 17.3 and 17.8).
-use super::{CharterVersion, Current, Edit, Head, Item, Key, Record, Setting};
-use crate::{Charter, Core, CoreKey, CoreRecord, Limits, Request, Write};
+use crate::{
+    Charter, Core, CoreKey, CoreRecord, Limits, Request, Write,
+    settings::{CharterVersion, Current, Edit, Head, Item, Key, Record, Setting},
+};
 use alloc::boxed::Box;
 use skein_lib::{Env, Map, Queue};
 
@@ -172,7 +174,6 @@ impl Held {
     }
 
     /// Commit a preflighted selection, moving existing values only once.
-    #[expect(clippy::manual_map, reason = "step code keeps charter ownership explicit without a closure")]
     pub(crate) fn retain(&mut self, current: &Current, plan: &Plan, out: &mut Queue<Request>) -> bool {
         let mut changed = false;
         for (&key, ()) in &plan.candidates {
@@ -294,15 +295,13 @@ impl Core {
         true
     }
 
-    /// Coalesce extent changes after all sibling routes, before the decision's mark.
+    /// Coalesce extent changes after all sibling routes.
     pub(crate) fn finish_extent(&self, previous: u32, out: &mut Queue<Request>) {
         if previous == self.current.oldest {
             return;
         }
-        let mut decided = false;
         for _ in 0..out.len() {
             match out.pop().expect("extent output count") {
-                Request::Decided => decided = true,
                 Request::Write(Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent { .. })))) => {}
                 request @ (Request::ProjectMade { .. }
                 | Request::Write(_)
@@ -314,9 +313,6 @@ impl Core {
         out.push(Request::Write(Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent {
             oldest: self.current.oldest,
         })))));
-        if decided {
-            out.push(Request::Decided);
-        }
     }
 }
 

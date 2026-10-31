@@ -1,7 +1,6 @@
 //! Concrete test-application adapter; application vocabulary is read only here.
-#![allow(clippy::wildcard_imports, reason = "world adapters translate the complete owner vocabulary")]
-use crate::harness::*;
-use jig_client_domain::contract::*;
+use crate::harness::{App, CardKey, Duty, Receipt, Sent, StoreWrite};
+use jig_client_domain::contract::{Answer, Ask, ReadNone, ReadResult, Revision, VersionRange, WatchEnd, WatchEvent};
 use jig_client_test_domain::{self as domain, Address, Event, Request, first};
 use jig_client_test_view as view;
 use jig_client_view::boundary::Offset;
@@ -21,30 +20,20 @@ const LINGER: Duration = Duration::from_millis(25);
 #[must_use]
 pub fn limits() -> jig_client_test_domain::Limits {
     jig_client_test_domain::Limits {
-        jig: jig_client_view::Limits {
-            watches: 8,
+        jig: jig_client_view::Config {
             notices: 2,
             notice_life: Duration::from_secs(5),
             linger: LINGER,
             save_delay: Duration::from_millis(10),
             intents: 2,
-            fields: 4,
 
             objects: 3,
             sources: 8,
-            reads: 8,
-            parts: 8,
-            delegates: 2,
-            document_bytes: 65536,
-            records: 2,
-            kept: 4,
+
             drafts: 1,
-            projects: 2,
+
             roles: 2,
-            text: 32,
-            rows: 2,
-            segments: 4,
-            accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
+
             conversation_words: 2,
             navigation_entries: 8,
             updates_count: 99,
@@ -111,12 +100,7 @@ pub fn limits() -> jig_client_test_domain::Limits {
 /// Creates a bounded fixture list with room for all supplied rows.
 #[must_use]
 pub fn list<T>(rows: impl IntoIterator<Item = T>) -> List<T> {
-    let rows: Vec<_> = rows.into_iter().collect();
-    let mut out = List::with_capacity(u32::try_from(rows.len()).expect("fixture rows fit"));
-    for row in rows {
-        assert!(out.push(row).is_ok(), "fixture capacity");
-    }
-    out
+    List::from_boxed(rows.into_iter().collect::<Vec<_>>().into_boxed_slice())
 }
 
 /// Check the public decision vocabulary supplied by an application's world.
@@ -154,9 +138,10 @@ type Books = (jig_client_view::words::Words, view::words::Words);
 pub(crate) fn phrasebooks(limits: &domain::Limits) -> &'static Books {
     static BOOKS: OnceLock<Mutex<BTreeMap<(u32, u32), &'static Books>>> = OnceLock::new();
     let mut books = BOOKS.get_or_init(|| Mutex::new(BTreeMap::new())).lock().expect("fixture books lock");
-    books.entry((limits.jig.text, limits.first.text)).or_insert_with(|| {
+    books.entry((limits.client.domain.text, limits.first.text)).or_insert_with(|| {
         Box::leak(Box::new((
-            view::connector_values_words::english(limits.jig.text).expect("composed application English fits"),
+            view::connector_values_words::english(limits.client.domain.text)
+                .expect("composed application English fits"),
             view::words::Words::english(limits.first.text).expect("family English fits"),
         )))
     })
@@ -405,11 +390,11 @@ pub fn family_request(record: &jig_client::Family) -> domain::family::Ask {
     let request = w::Request::decode(&w::CEILINGS, &mut reader).expect("whole application request").into_parts();
     assert_eq!(reader.remaining(), 0);
     let value = request.value.into_parts();
-    domain::family::Ask::Touch {
+    domain::family::Ask::ChangeObject {
         project: request.project,
-        item: value.object,
+        object: value.object,
         revision: Revision { value: value.revision },
-        parameters: value.value,
+        value: value.value.expect("object request supplies its value"),
     }
 }
 /// The typed test transport retains every supplied family subject field.
@@ -432,10 +417,7 @@ pub fn family_answer(answer: domain::family::Answer) -> jig_client::Answered {
         domain::family::Answer::Refused(why) => {
             jig_client::Answered::Jig(Answer::Refused { refusal: why.into_refusal(), at: None })
         }
-        value @ (domain::family::Answer::Touched { .. }
-        | domain::family::Answer::Moved { .. }
-        | domain::family::Answer::Gone
-        | domain::family::Answer::Connector(_)) => jig_client::Answered::Family(jig_client::Family {
+        value @ domain::family::Answer::Connector(_) => jig_client::Answered::Family(jig_client::Family {
             family: domain::FIRST,
             version: jig_client_test_protocol_wire::VERSION,
             bytes: domain::family::wire::encode_answer(&value).expect("whole application answer"),

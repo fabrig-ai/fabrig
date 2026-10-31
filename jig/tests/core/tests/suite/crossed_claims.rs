@@ -1,16 +1,18 @@
 //! engine.md, 15: a fresh mark stops a live resumed claim before retrying.
 
 use crate::fresh_windows;
+use jig_core_world::world::Setup;
 
 use fresh_windows::{AFTER, BEFORE, SEED, TAIL};
-use jig_core_world::{effects::World, fixtures};
+use jig_core_world::fixtures;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{Duration, Token};
 
-// The world's fleet grace (world::limits); check its two sides one nanosecond apart.
+// The world's fleet grace (jig_test_profile::limits); check its two sides one nanosecond apart.
 const GRACE: Duration = Duration::from_secs(5);
 const TICK: Duration = Duration::from_nanos(1);
 const BEFORE_GRACE: Duration = Duration::from_nanos(4_999_999_999);
@@ -34,9 +36,9 @@ fn live_resumed() -> (World, u64, u64) {
     (world, task, attempt)
 }
 
-fn hosting(world: &World) -> fleet::Hosted {
+fn hosting(world: &World) -> fleet::Hosting {
     let assignment = world.assigned.as_ref().expect("live resumed assignment");
-    fleet::Hosted {
+    fleet::Hosting {
         run: Token::new(assignment.task),
         attempt: Token::new(assignment.attempt),
         phase: fleet::Phase::Active,
@@ -95,7 +97,7 @@ fn a_crossed_claim_no_worker_lists_is_lost_once_the_grace_passes() {
     let (mut world, task, attempt) = live_resumed();
     fresh_windows::restart(&mut world, AFTER);
     assert!(fresh_windows::proof(&world).crossed);
-    assert_eq!(jig_core_world::world::limits().core.fleet.grace, GRACE);
+    assert_eq!(jig_test_profile::limits().core.fleet.grace, GRACE);
     world.advance(BEFORE_GRACE);
     assert_eq!(fresh_windows::tries(&world).lost, 0);
     assert_eq!(world.assignments.last(), Some(&(task, attempt)));
@@ -105,12 +107,12 @@ fn a_crossed_claim_no_worker_lists_is_lost_once_the_grace_passes() {
 
 #[test]
 fn an_in_process_crossed_claim_yet_to_commit_a_turn_is_not_started() {
-    let mut world = World::with_patch_sets(SEED, false, BEFORE);
+    let mut world = World::new(Setup { seed: SEED, patch_sets: BEFORE, ..Setup::default() });
     let (task, attempt) = (world.task(), world.attempt());
     let (now, wall) = world.clocks();
     world.set_clock(now, wall);
     world.store.patch_sets(AFTER);
-    let mut config = jig_core_world::effects::fixture(SEED, false).0;
+    let mut config = jig_core_world::world::fixture(SEED, false).0;
     config.core.workers_in_process = true;
     world.restart_with(config);
     assert!(world.domain.ready());
@@ -193,7 +195,7 @@ fn writer_slot(world: &World, task: u64, attempt: u64) -> Option<&tasks::WriterS
 
 #[test]
 fn a_crossed_claims_writer_slot_waits_for_the_read_afresh() {
-    let mut world = World::with_patch_sets(SEED, false, BEFORE);
+    let mut world = World::new(Setup { seed: SEED, patch_sets: BEFORE, ..Setup::default() });
     fixtures::configure_resources(&mut world);
     let parent = (world.task(), world.attempt());
     let spec = fixtures::resource_member(&world, 1, b"writer across a fresh mark");

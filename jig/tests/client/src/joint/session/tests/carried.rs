@@ -21,11 +21,11 @@ fn adopted(session: &mut Session, now: Time, wall: Wall) {
 }
 fn carrying(attempt: Token, value: &Secret) -> Request {
     let (project, request) =
-        jig_client_test_domain::family::wire::request(&jig_client_test_domain::family::Ask::Touch {
+        jig_client_test_domain::family::wire::request(&jig_client_test_domain::family::Ask::ChangeObject {
             project: 1,
-            item: 1,
+            object: 1,
             revision: jig_client::contract::Revision { value: 0 },
-            parameters: Some(42),
+            value: 42,
         });
     Request::Client {
         request: jig_client::Request::Down {
@@ -66,13 +66,12 @@ fn a_carried_value_is_kept_before_the_core_sees_it_and_a_replay_s_value_is_erase
     let value = Secret::new(Box::from(VALUE));
     session.send(ClientId(0), now, wall, carrying(Token::new(31), &value)).expect("a carried request");
     let first = answered(&mut session, now, wall, Token::new(31));
-    let kept: Vec<_> =
-        session.driver.transport.carried().iter().map(|(number, kept)| (*number, kept.clone())).collect();
+    let kept: Vec<_> = session.component.carried.iter().map(|(number, kept)| (*number, kept.clone())).collect();
     assert_eq!(kept, vec![(1 << 63, value.clone())], "the admitted request's value stays kept");
     session.send(ClientId(0), now, wall, carrying(Token::new(32), &value)).expect("the same key again");
     assert_eq!(answered(&mut session, now, wall, Token::new(32)), first, "the first answer again");
     assert_eq!(
-        session.driver.transport.carried().keys().copied().collect::<Vec<_>>(),
+        session.component.carried.keys().copied().collect::<Vec<_>>(),
         vec![1 << 63],
         "the replay's value, kept under the next number, is erased"
     );

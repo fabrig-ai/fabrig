@@ -5,7 +5,7 @@
     clippy::result_large_err,
     reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
 )]
-use crate::domain::{Domain, entrance, publish, record, refused, task_mut};
+use crate::domain::{Domain, publish, record, refused, task_mut};
 use crate::{Change, Funder, Limits, Numbers, Party, Phase, Refusal, Request, Was};
 use skein_lib::{Env, List, Queue, ReplyTo};
 
@@ -97,14 +97,17 @@ pub(crate) fn check(
     moving: Move<'_>,
 ) -> Result<Plan, crate::Problem> {
     let Move { number, person, period, pool_budget, period_budget, reason } = moving;
-    if let Err((_, why)) = entrance(domain, ReplyTo::new(skein_lib::Token::new(0)), number) {
-        return Err(crate::Problem::new(Some(number), why));
+    if !domain.ready() {
+        return Err(crate::Problem::new(Some(number), Refusal::NotReady));
+    }
+    if record(domain, number).is_none() {
+        return Err(crate::Problem::new(Some(number), Refusal::Unknown));
     }
     let old = staged.record(domain, number).expect("entrance named live task");
     if person == 0 || old.requester == Party::Person(person) || !mutable(&old.phase) {
         return Err(crate::Problem::new(Some(number), Refusal::State));
     }
-    if reason.len() > usize::try_from(env.limits.message_bytes).expect("bounded reason size") {
+    if reason.len() > skein_lib::length::usize_of(env.limits.message_bytes) {
         return Err(crate::Problem::new(Some(number), Refusal::Read));
     }
     let mut unanswered = 0_usize;
@@ -120,12 +123,11 @@ pub(crate) fn check(
             Party::Person(_) | Party::Deployment { .. } => {}
         }
     }
-    if unanswered.saturating_add(carried) > usize::try_from(env.limits.inbox_messages).expect("question bound") {
+    if unanswered.saturating_add(carried) > skein_lib::length::usize_of(env.limits.inbox_messages) {
         return Err(crate::Problem::new(Some(number), Refusal::Busy));
     }
-    let received_before = crate::inbox::received_credits(old.requester, &old.question_lines, &old.questions, old.inbox);
-    let received_after =
-        crate::inbox::received_credits(Party::Person(person), &old.question_lines, &old.questions, old.inbox);
+    let received_before = crate::inbox::received_credits(old.requester, &old.question_lines, &old.questions);
+    let received_after = crate::inbox::received_credits(Party::Person(person), &old.question_lines, &old.questions);
     let added =
         u32::try_from(received_after.checked_sub(received_before).expect("move adds received question positions"))
             .expect("bounded question positions");
@@ -200,12 +202,12 @@ pub(crate) fn check(
                 return Err(crate::Problem::new(Some(number), Refusal::Reference));
             };
             if !staged.reference(domain, parent, number)
-                && staged.references(domain, parent) >= usize::try_from(env.limits.references).expect("reference bound")
+                && staged.references(domain, parent) >= skein_lib::length::usize_of(env.limits.references)
             {
                 return Err(crate::Problem::new(Some(number), Refusal::Reference));
             }
             if !staged.reference(domain, number, parent)
-                && staged.references(domain, number) >= usize::try_from(env.limits.references).expect("reference bound")
+                && staged.references(domain, number) >= skein_lib::length::usize_of(env.limits.references)
             {
                 return Err(crate::Problem::new(Some(number), Refusal::Reference));
             }
@@ -358,7 +360,7 @@ pub(crate) fn make(domain: &mut Domain, env: &Env<Limits>, plan: Plan, reason: &
             task.record.references = references.into_boxed();
         }
     }
-    crate::questions::moved(domain, env, number, person, out);
+    crate::questions::moved(domain, env, number, person);
     if let Some(parent) = old_parent {
         out.push(Request::Erase { key: crate::Key::Delegate { requester: parent, task: number } });
         let parent_row = task_mut(domain, parent).expect("old requester live");

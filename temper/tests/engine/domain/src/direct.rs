@@ -14,7 +14,7 @@ use crate::walking::{config, limits};
 pub struct Driver {
     pub(crate) broken: crate::oracle::Fixture,
     pub(crate) restart_config: engine::Config,
-    creating: jig_core_world::fixtures::Creating,
+    creating: jig_test_profile::fixtures::Creating,
     pub forge: Option<crate::forge_stand::ForgeStand>,
     pub root: engine::Domain,
     pub env: Env<engine::Limits>,
@@ -99,7 +99,7 @@ impl Driver {
         Driver {
             broken: crate::oracle::Fixture::Checked,
             restart_config: crate::oracle::config::copy(&config),
-            creating: jig_core_world::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
+            creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             forge: None,
             root: engine::Domain::new(config, limits).expect("valid engine configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
@@ -308,7 +308,13 @@ impl Driver {
     pub fn settle(&mut self) {
         for _ in 0..200 {
             self.advance(true);
-            if self.root.quiescent()
+            if self.root.next_deadline(&self.env).is_some_and(|due| due <= self.env.now) {
+                engine::fire(&mut self.root, &self.env);
+                engine::release(&mut self.root, &self.env, &mut self.out);
+                self.collect();
+            }
+            if self.root.next_deadline(&self.env).is_none_or(|due| due > self.env.now)
+                && self.root.quiescent()
                 && self.events.is_empty()
                 && self.store.pending.is_empty()
                 && self.forge.as_ref().is_none_or(crate::forge_stand::ForgeStand::quiescent)

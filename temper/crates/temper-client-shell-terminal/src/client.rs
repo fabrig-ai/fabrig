@@ -153,7 +153,7 @@ impl NativeClient {
             let mut retained = List::with_capacity(chat.thread.lines.rows.capacity());
             for row in &chat.thread.lines.rows {
                 retained
-                    .push(Row { position: row.position, committed_turn: row.event.committed_turn() })
+                    .push(Row { position: row.source.position, committed_turn: row.committed_turn() })
                     .expect("one diagnostic per retained row");
             }
             let reading = match &chat.thread.reading {
@@ -514,13 +514,13 @@ impl Host for NativeClient {
 fn kept_key(record: &jig_client::Record, limits: &link::Limits) -> Option<jig_client::Key> {
     use jig_client_protocol_wire as w;
     let mut reader = skein_lib::Reader::new(&record.bytes);
-    let kept = w::Kept::decode(&limits.wire, &mut reader).ok()?;
+    let kept = w::Kept::decode(limits.wire(), &mut reader).ok()?;
     if !reader.is_empty() {
         return None;
     }
     let mut reader = skein_lib::Reader::new(kept.record());
     let row =
-        link::translate::store::restore_table(w::TableEntry::decode(&limits.wire, &mut reader).ok()?, limits).ok()?;
+        link::translate::store::restore_table(w::TableEntry::decode(limits.wire(), &mut reader).ok()?, limits).ok()?;
     if !reader.is_empty() || row.key.as_slice() != record.key.as_ref() {
         return None;
     }
@@ -530,14 +530,14 @@ fn service_credential(message: &[u8], limits: &jig_client::Limits) -> Option<(u6
     use jig_client_protocol_wire as w;
     let limits = link::Limits::new(limits.domain, limits.exchanges).ok()?;
     let mut reader = skein_lib::Reader::new(message);
-    let w::KeyedAnswer::FinalAnswer(owned) = w::KeyedAnswer::decode(&limits.wire, &mut reader).ok()? else {
+    let w::KeyedAnswer::FinalAnswer(owned) = w::KeyedAnswer::decode(limits.wire(), &mut reader).ok()? else {
         return None;
     };
     if !reader.is_empty() || owned.owner() != &w::Owner::Jig || owned.version() != w::VERSION {
         return None;
     }
     let mut reader = skein_lib::Reader::new(owned.record());
-    let w::Final::Done(done) = w::Final::decode(&limits.wire, &mut reader).ok()? else { return None };
+    let w::Final::Done(done) = w::Final::decode(limits.wire(), &mut reader).ok()? else { return None };
     if !reader.is_empty() {
         return None;
     }

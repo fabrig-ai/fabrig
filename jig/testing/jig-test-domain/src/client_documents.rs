@@ -49,9 +49,9 @@ pub(crate) fn document(
             None,
         ),
     };
-    let core::Requests::Out(mut requests) = core::step(
+    let mut requests = core::step(
         &mut domain.core,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.core },
+        &env.with(env.limits.core),
         core::Event::View(views::Event::Made { watcher, outcome }),
     );
     for _ in 0..requests.len() {
@@ -59,11 +59,11 @@ pub(crate) fn document(
         match request {
             core::Request::Held(held) => match *held {
                 core::Held::ApplicationDelivery { watcher: due, connector: owner, subject: named } => {
-                    assert!(due == watcher && owner == number && named == subject, "construction keeps its owner");
+                    assert!(owner == number && named == subject, "construction keeps its owner");
                     let document = value.take().expect("ready construction owns its whole document");
                     crate::hold(
                         decision,
-                        Delivery::ApplicationDocument { watcher, number, document: Box::new(document) },
+                        Delivery::ApplicationDocument { watcher: due, number, document: Box::new(document) },
                     );
                 }
                 held @ (core::Held::ApplicationWatchEnded { .. }
@@ -107,8 +107,7 @@ pub(crate) fn document(
             request @ (core::Request::Write(_)
             | core::Request::Ask { .. }
             | core::Request::Now(_)
-            | core::Request::ProjectMade { .. }
-            | core::Request::Decided) => forward(domain, env, decision, request, work),
+            | core::Request::ProjectMade { .. }) => forward(domain, env, decision, request, work),
         }
     }
     assert!(value.is_none(), "every ready document was assembled");
@@ -123,7 +122,7 @@ fn forward(
 ) {
     let mut requests = Queue::uncapped();
     requests.push(request);
-    route_core(domain, env, decision, core::Requests::Out(requests), work);
+    route_core(domain, env, decision, requests, work);
 }
 
 #[expect(clippy::too_many_arguments, reason = "an admitted read completes synchronously with its reply owned here")]
@@ -143,7 +142,7 @@ pub(crate) fn read(
     let mut out = Queue::uncapped();
     connector::step(
         crate::numbered(domain, number),
-        &Env { now: env.now, wall: env.wall, limits: env.limits.connector },
+        &env.with(env.limits.connector),
         connector::Event::ReadDocument { scope, read, party, window: self::window(window) },
         &mut out,
     );

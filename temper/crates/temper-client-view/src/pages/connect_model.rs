@@ -174,15 +174,15 @@ fn ready(root: &Domain, way: Way) -> bool {
         match (&p.ask, &p.outcome, way) {
             (
                 c::Ask::AccountChange { change: c::AccountChange::AddKey { provider, join: None, .. }, .. },
-                Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                    c::OwnerOutcome::AccountKeyKept { .. },
+                Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                    c::DocumentOutcome::AccountKeyKept { .. },
                 ))))),
                 Way::Key { provider: chosen },
             )
             | (
                 c::Ask::AccountChange { change: c::AccountChange::DeclareProgram { provider, join: None, .. }, .. },
-                Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                    c::OwnerOutcome::AccountProgramDeclared { .. },
+                Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                    c::DocumentOutcome::AccountProgramDeclared { .. },
                 ))))),
                 Way::Program { provider: chosen },
             ) => *provider == chosen,
@@ -262,7 +262,7 @@ fn ending_heading(root: &Domain, w: &Words, way: Way) -> Box<[u8]> {
             && let Some(doc) = accounts::document(root.client())
             && let Some(last) = &doc.last_end
             && last.source == source
-            && let c::OwnerAccountEnd::Made { account, declined: false } = last.end
+            && let c::AccountEnd::Made { account, declined: false } = last.end
         {
             return made_words(root, w, way, account, false);
         }
@@ -295,7 +295,7 @@ fn choose_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
     }
     if !welcome && me.deployment_role == Some(c::HeldRole::Owner) {
         for (holder, word) in
-            [(c::AccountHolder::Own, W::OwnChoice), (c::AccountHolder::Deployment, W::DeploymentChoice)]
+            [(c::AskAccountHolder::Own, W::OwnChoice), (c::AskAccountHolder::Deployment, W::DeploymentChoice)]
         {
             if let Some(to) = bindings.insert(Meaning::Model(Act::Holder { holder })) {
                 b.open(Role::Button);
@@ -434,9 +434,9 @@ fn ready_body(
         Way::Program { .. } => {
             let Some(pending) = &page.request.pending else { return };
             let name = match &pending.outcome {
-                Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                    c::OwnerOutcome::AccountProgramDeclared { name, .. },
-                ))))) => name.as_ref(),
+                Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
+                    c::Outcome::Document(c::DocumentOutcome::AccountProgramDeclared { name, .. }),
+                )))) => name.as_ref(),
                 _ => b"",
             };
             let label = words::say(
@@ -517,16 +517,16 @@ pub(super) fn welcome_end(b: &mut Builder, root: &Domain, w: &Words, bindings: &
     let Some(doc) = accounts::document(root.client()) else { return };
     let Some(last) = &doc.last_end else { return };
     let declined = match last.end {
-        c::OwnerAccountEnd::Made { declined: true, .. } | c::OwnerAccountEnd::Renewed { declined: true, .. } => true,
-        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::Held { .. } }
-        | c::OwnerAccountEnd::Failed { failure: c::OwnerAccountFailure::Misconfigured } => false,
-        c::OwnerAccountEnd::Made { .. }
-        | c::OwnerAccountEnd::Renewed { .. }
-        | c::OwnerAccountEnd::Refused { .. }
-        | c::OwnerAccountEnd::Failed { .. } => return,
+        c::AccountEnd::Made { declined: true, .. } | c::AccountEnd::Renewed { declined: true, .. } => true,
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::Held { .. } }
+        | c::AccountEnd::Failed { failure: c::AccountFailure::Misconfigured } => false,
+        c::AccountEnd::Made { .. }
+        | c::AccountEnd::Renewed { .. }
+        | c::AccountEnd::Refused { .. }
+        | c::AccountEnd::Failed { .. } => return,
     };
     let Some(me) = accounts::current_me(root.client()) else { return };
-    let ways = accounts::ways(&me.providers, root.forge().playground_provider(), c::AccountHolder::Own);
+    let ways = accounts::ways(&me.providers, root.forge().playground_provider(), c::AskAccountHolder::Own);
     // These endings are ChatGPT's: last_end has no provider on a Failed ending.
     let mut offered = None;
     for way in &ways {
@@ -567,23 +567,21 @@ pub(super) fn welcome_end(b: &mut Builder, root: &Domain, w: &Words, bindings: &
     b.close();
     b.close();
 }
-pub(super) fn sign_in_end(b: &mut Builder, root: &Domain, w: &Words, way: Way, end: &c::OwnerAccountEnd) -> bool {
+pub(super) fn sign_in_end(b: &mut Builder, root: &Domain, w: &Words, way: Way, end: &c::AccountEnd) -> bool {
     match end {
-        c::OwnerAccountEnd::Made { declined: true, .. } | c::OwnerAccountEnd::Renewed { declined: true, .. } => {
+        c::AccountEnd::Made { declined: true, .. } | c::AccountEnd::Renewed { declined: true, .. } => {
             text(b, w, Role::Alert, W::DeclinedPlan);
         }
-        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::Held { .. } } => {
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::Held { .. } } => {
             text(b, w, Role::Alert, W::HeldPlan);
         }
-        c::OwnerAccountEnd::Failed { failure: c::OwnerAccountFailure::Misconfigured } => {
+        c::AccountEnd::Failed { failure: c::AccountFailure::Misconfigured } => {
             text(b, w, Role::Alert, W::MisconfiguredPlan);
         }
-        c::OwnerAccountEnd::Made { account, .. } | c::OwnerAccountEnd::Renewed { account, .. } => {
+        c::AccountEnd::Made { account, .. } | c::AccountEnd::Renewed { account, .. } => {
             let renewed = match end {
-                c::OwnerAccountEnd::Renewed { .. } => true,
-                c::OwnerAccountEnd::Made { .. }
-                | c::OwnerAccountEnd::Refused { .. }
-                | c::OwnerAccountEnd::Failed { .. } => false,
+                c::AccountEnd::Renewed { .. } => true,
+                c::AccountEnd::Made { .. } | c::AccountEnd::Refused { .. } | c::AccountEnd::Failed { .. } => false,
             };
             let text = made_words(root, w, way, *account, renewed);
             if renewed || !model::open(root.pages().address()) {
@@ -591,7 +589,7 @@ pub(super) fn sign_in_end(b: &mut Builder, root: &Domain, w: &Words, way: Way, e
             }
             return !renewed;
         }
-        c::OwnerAccountEnd::Refused { .. } | c::OwnerAccountEnd::Failed { .. } => {
+        c::AccountEnd::Refused { .. } | c::AccountEnd::Failed { .. } => {
             if let Some(doc) = accounts::document(root.client()) {
                 super::accounts::end(b, w, end, &doc.accounts);
             }
@@ -604,8 +602,7 @@ fn on_accounts(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
         return;
     }
     let Some(doc) = accounts::document(root.client()) else { return };
-    let Some(c::OwnerAccountLastEnd { end: c::OwnerAccountEnd::Made { account, declined: false }, .. }) = &doc.last_end
-    else {
+    let Some(c::AccountLastEnd { end: c::AccountEnd::Made { account, declined: false }, .. }) = &doc.last_end else {
         return;
     };
     let Some(me) = accounts::current_me(root.client()) else { return };
@@ -657,8 +654,8 @@ fn facts(b: &mut Builder, root: &Domain, w: &Words, way: Way) {
     };
     let account = match doc {
         Some(doc) => match outcome {
-            Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                c::OwnerOutcome::AccountKeyKept { source },
+            Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::AccountKeyKept { source },
             ))))) => {
                 let mut found = None;
                 for row in &doc.accounts {
@@ -671,7 +668,7 @@ fn facts(b: &mut Builder, root: &Domain, w: &Words, way: Way) {
                 found
             }
             _ => match &doc.last_end {
-                Some(c::OwnerAccountLastEnd { end: c::OwnerAccountEnd::Made { account, .. }, .. }) => {
+                Some(c::AccountLastEnd { end: c::AccountEnd::Made { account, .. }, .. }) => {
                     let mut found = None;
                     for row in &doc.accounts {
                         if row.number == *account {
@@ -713,7 +710,7 @@ fn facts(b: &mut Builder, root: &Domain, w: &Words, way: Way) {
             w,
             if is_plan(way) {
                 W::PlanPays
-            } else if page.holder == c::AccountHolder::Own {
+            } else if page.holder == c::AskAccountHolder::Own {
                 W::OwnPays
             } else {
                 W::DeploymentPays
@@ -724,8 +721,7 @@ fn facts(b: &mut Builder, root: &Domain, w: &Words, way: Way) {
 }
 fn manage_usage(b: &mut Builder, root: &Domain, w: &Words, way: Way) {
     let Some(doc) = accounts::document(root.client()) else { return };
-    let Some(c::OwnerAccountLastEnd { end: c::OwnerAccountEnd::Made { account, declined: false }, .. }) = &doc.last_end
-    else {
+    let Some(c::AccountLastEnd { end: c::AccountEnd::Made { account, declined: false }, .. }) = &doc.last_end else {
         return;
     };
     let mut found = None;
@@ -751,10 +747,10 @@ fn manage_usage(b: &mut Builder, root: &Domain, w: &Words, way: Way) {
     }
 }
 
-fn declined(end: &c::OwnerAccountEnd) -> bool {
+fn declined(end: &c::AccountEnd) -> bool {
     match end {
-        c::OwnerAccountEnd::Made { declined, .. } | c::OwnerAccountEnd::Renewed { declined, .. } => *declined,
-        c::OwnerAccountEnd::Refused { .. } | c::OwnerAccountEnd::Failed { .. } => false,
+        c::AccountEnd::Made { declined, .. } | c::AccountEnd::Renewed { declined, .. } => *declined,
+        c::AccountEnd::Refused { .. } | c::AccountEnd::Failed { .. } => false,
     }
 }
 fn is_plan(way: Way) -> bool {

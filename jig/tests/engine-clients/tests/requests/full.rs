@@ -62,7 +62,7 @@ fn full_people_answers_reach_the_carried_clients_outcome_with_facts() {
     client.step(
         Time::ZERO,
         WALL,
-        client::accounts::move_out(KEY, NAME, c::AccountHolder::Own, EXPORT_ACCOUNT),
+        client::accounts::move_out(KEY, NAME, c::AskAccountHolder::Own, EXPORT_ACCOUNT),
         &mut output,
     );
     let mut codec = link::Link::new(&receiving).expect("client codec");

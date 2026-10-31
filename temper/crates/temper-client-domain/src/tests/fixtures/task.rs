@@ -19,7 +19,7 @@ pub fn held_pages() -> crate::pages::Pages {
     let c::ReadValue::Escalation(held) = acts::held(c::ActKind::Release) else { panic!("hold") };
     let mut task = chat::task();
     task.chip.task = HELD;
-    task.hold = Some(c::TaskHold::Document(Box::new(held.hold)));
+    task.hold = Some(held.task.hold.expect("owner hold"));
     task.acts = held.acts;
     pages
         .cards_mut()

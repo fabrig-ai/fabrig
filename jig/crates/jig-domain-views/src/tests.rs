@@ -56,11 +56,35 @@ fn a_change_while_idle_makes_a_document_at_once() {
     assert_eq!(change(&mut domain).len(), 1);
 }
 #[test]
+fn delivered_fact_waits_for_the_delivery_terminal() {
+    for changed in [false, true] {
+        let mut domain = Domain::new(&LIMITS);
+        watch(&mut domain, 1, 1);
+        assert_eq!(domain.pop_fact(), Some(Fact::Watching));
+        assert_eq!(domain.pop_fact(), Some(Fact::Making));
+        assert_eq!(domain.pop_fact(), None);
+        ready(&mut domain, 1);
+        assert_eq!(domain.pop_fact(), None);
+        if changed {
+            change(&mut domain);
+            assert_eq!(domain.pop_fact(), Some(Fact::Changed { watchers: 1 }));
+        }
+        drive(&mut domain, Event::Delivered { watcher: Token::new(1) });
+        assert_eq!(domain.pop_fact(), Some(Fact::Delivered));
+        if changed {
+            assert_eq!(domain.pop_fact(), Some(Fact::Making));
+        }
+        assert_eq!(domain.pop_fact(), None);
+        drive(&mut domain, Event::Delivered { watcher: Token::new(1) });
+        assert_eq!(domain.pop_fact(), None, "a duplicate terminal produces no fact");
+    }
+}
+#[test]
 fn unwatch_waits_for_a_delivery_to_end() {
     let mut domain = Domain::new(&LIMITS);
     watch(&mut domain, 1, 1);
     ready(&mut domain, 1);
-    assert!(drive(&mut domain, Event::Unwatch { watcher: Token::new(1) }).is_empty());
+    assert!(drive(&mut domain, Event::EndWatch { watcher: Token::new(1), end: End::Unwatched }).is_empty());
     assert!(change(&mut domain).is_empty());
     assert_eq!(
         drive(&mut domain, Event::Delivered { watcher: Token::new(1) }),
@@ -82,7 +106,7 @@ fn a_gone_subject_waits_and_preserves_its_reason() {
 fn closing_during_construction_waits_for_the_parent() {
     let mut domain = Domain::new(&LIMITS);
     watch(&mut domain, 1, 1);
-    assert!(drive(&mut domain, Event::Unwatch { watcher: Token::new(1) }).is_empty());
+    assert!(drive(&mut domain, Event::EndWatch { watcher: Token::new(1), end: End::Unwatched }).is_empty());
     assert_eq!(
         drive(&mut domain, Event::Made { watcher: Token::new(1), outcome: Made::Ready }),
         Box::<[Request]>::from([Request::Ended { watcher: Token::new(1), end: End::Unwatched }])
@@ -207,7 +231,7 @@ fn closing_waits_for_both_document_and_stream_terminals() {
     follow(&mut domain, 1, 7, None, 0);
     ready(&mut domain, 1);
     text(&mut domain, 1, 0, b"abc");
-    drive(&mut domain, Event::Unwatch { watcher: Token::new(1) });
+    drive(&mut domain, Event::EndWatch { watcher: Token::new(1), end: End::Unwatched });
     assert!(domain.is_closing(Token::new(1)));
     assert!(drive(&mut domain, Event::Delivered { watcher: Token::new(1) }).is_empty());
     assert!(domain.is_closing(Token::new(1)), "stream acknowledgement still outstanding");

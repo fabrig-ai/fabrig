@@ -32,13 +32,14 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
     Domain {
         jig: jig_client_view::Ui::new(
             &limits.jig,
+            &limits.client.domain,
             jig_client_view::page::navigation::Navigation::new(limits.jig.navigation_entries),
             jig_client_view::address::Address::Inbox { project: None },
             jig_client_view::page::Arrangement::none(),
         )
         .expect("root's UI configuration is valid"),
-        infrastructure: infrastructure::Side::new(&limits.infrastructure, rng.next_u64()),
-        observability: crate::observability::Side::new(&limits.observability, rng.next_u64()),
+        infrastructure: infrastructure::Side::new(&limits.infrastructure, &limits.client.domain),
+        observability: crate::observability::Side::new(&limits.observability, &limits.client.domain),
         client,
         salt: rng.next_u64(),
         unlinked,
@@ -71,20 +72,6 @@ pub fn fire(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
     root.jig.fire(env.now, env.wall, &root.client, &mut child);
     route::route_jig(root, env, &mut child, out);
-    let mut child = Queue::uncapped();
-    infrastructure::fire(
-        &mut root.infrastructure,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.infrastructure },
-        &mut child,
-    );
-    route::route_infrastructure(root, env, &mut child, out);
-    let mut child = Queue::uncapped();
-    crate::observability::fire(
-        &mut root.observability,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.observability },
-        &mut child,
-    );
-    route::route_observability(root, env, &mut child, out);
     let mut client = Queue::uncapped();
     root.client.fire(env.now, env.wall, &mut client);
     route::route_client(root, env, &mut client, out);
@@ -115,24 +102,14 @@ fn children_first(out: &mut Queue<Request>) {
 }
 #[must_use]
 pub fn next_deadline(root: &Domain) -> Option<Time> {
-    let mut next = jig_client_view::next_deadline(&root.jig);
-    for deadline in [
-        infrastructure::next_deadline(&root.infrastructure),
-        crate::observability::next_deadline(&root.observability),
-        root.client.next_deadline(),
-    ]
-    .into_iter()
-    .flatten()
-    {
-        next = match next {
-            Some(old) => Some(old.min(deadline)),
-            None => Some(deadline),
-        };
+    match (jig_client_view::next_deadline(&root.jig), root.client.next_deadline()) {
+        (Some(view), Some(client)) => Some(view.min(client)),
+        (Some(deadline), None) | (None, Some(deadline)) => Some(deadline),
+        (None, None) => None,
     }
-    next
 }
 /// Reclaim the client and children after every tell has been routed.
-pub fn take(root: &mut Domain, _env: &Env<Limits>, _out: &mut Queue<Request>) {
+pub fn take(root: &mut Domain) {
     root.client.reclaim();
     jig_client_view::reclaim(&mut root.jig);
     infrastructure::reclaim(&mut root.infrastructure);

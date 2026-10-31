@@ -43,6 +43,7 @@ impl Host {
     }
 
     fn begin(&mut self) {
+        assert!(!self.domain.ready(), "the root must start before accepting work");
         crate::step(&mut self.domain, &self.env, Event::StartBegin { pending: false });
         assert!(!self.domain.ready());
     }
@@ -179,6 +180,33 @@ fn seeded_rows() -> Vec<Record> {
     host.rows
 }
 
+/// A runtime watch fixture takes the same start as the application.
+pub(super) fn with_sign_in(expiry: skein_lib::Wall) -> (Domain, Env<crate::Limits>) {
+    let mut rows = seeded_rows();
+    for row in &mut rows {
+        if let Record::Core(core::Record::Core(core::CoreRecord::Deployment(header))) = row {
+            header.people = 1;
+            header.sign_ins = 1;
+        }
+    }
+    rows.extend([
+        Record::Core(core::Record::People(people::Stored::Person {
+            number: 1,
+            identity: people::Identity {
+                key: people::IdentityKey { provider: 0, subject: Box::new([1]) },
+                login: b"owner".as_slice().into(),
+                name: b"Owner".as_slice().into(),
+            },
+        })),
+        Record::Core(core::Record::People(people::Stored::SignIn { number: 1, person: 1, expires: expiry })),
+    ]);
+    let mut host = Host::new(rows);
+    host.begin();
+    host.drive();
+    assert!(host.domain.ready());
+    (host.domain, host.env)
+}
+
 #[test]
 fn begin_holds_the_seed_until_its_commit_is_released() {
     let mut host = Host::new(Vec::new());
@@ -284,7 +312,7 @@ fn populated_rows() -> Vec<Record> {
     let mut source = fixtures::domain();
     let env = fixtures::env();
     let mut out = Queue::uncapped();
-    let task_env = Env { now: env.now, wall: env.wall, limits: env.limits.core.tasks };
+    let task_env = env.with(env.limits.core.tasks);
     for event in [
         tasks::Event::Check,
         tasks::Event::Restored,
@@ -431,7 +459,7 @@ fn populated_fixture_contains_a_live_task_and_its_people_and_project() {
 fn wires_commit_holds_its_continuation_before_any_connector_read() {
     use core::start::{Action, SweepInput};
     let mut host = Host::new(Vec::new());
-    let env = Env { now: host.env.now, wall: host.env.wall, limits: host.env.limits.core };
+    let env = host.env.with(host.env.limits.core);
     let mut out = Queue::uncapped();
     // Prepare the core at Wires without asking the host for an inbox census.
     let mut action = host.domain.core.start_begin(false, env.wall);

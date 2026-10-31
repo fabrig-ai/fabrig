@@ -21,17 +21,17 @@ pub(crate) const LIVE_PHASES: &[c::Phase] = &[
     c::Phase::Held,
 ];
 pub(crate) const ENDED_PHASES: &[c::Phase] = &[c::Phase::Ended, c::Phase::Done, c::Phase::Failed, c::Phase::Cancelled];
-pub(crate) fn chat_at(task: u64, stage: c::RunStage, work: Option<c::OwnerChipWork>) -> client::Latest {
+pub(crate) fn chat_at(task: u64, stage: c::RunStage, work: Option<c::ChipWork>) -> client::Latest {
     let mut task = goal(task, c::WaitsOn::Nothing);
     task.label = CHAT_LABEL;
     task.flags.conversation = true;
-    task.chip.phase = c::OwnerChipPhase::Active(stage).compact();
-    task.chip.details = Box::new(c::ChipPhase::Owner {
-        phase: c::OwnerChipPhase::Active(stage),
-        details: Box::new(c::OwnerChipDetails {
+    task.chip.phase = c::ChipPhase::Active(stage).compact();
+    task.chip.details = Box::new(c::ChipPhaseFacts {
+        phase: c::ChipPhase::Active(stage),
+        details: Box::new(c::ChipDetails {
             dependencies: List::with_capacity(EMPTY),
             project: task.project,
-            executor: c::OwnerExecutor::Agent { charter: PROJECT },
+            executor: c::Executor::Agent { charter: PROJECT },
             phase_since: Wall::EPOCH,
             run_since: None,
             attempt: Some(ATTEMPT),
@@ -52,10 +52,10 @@ pub(crate) fn chat_at(task: u64, stage: c::RunStage, work: Option<c::OwnerChipWo
             observation: None,
         }),
     });
-    let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner fixture") };
+    let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
     details.observation = None;
     if let Some(work) = work {
-        details.observation = Some(c::OwnerChipObservation {
+        details.observation = Some(c::ChipObservation {
             channel: Token::new(1),
             work,
             since: Wall::EPOCH,
@@ -73,8 +73,8 @@ pub(crate) fn ended_chat(phase: c::Phase) -> client::Latest {
     let mut latest = chat_at(TASK, c::RunStage::Idle, None);
     let task = task_in(&mut latest);
     task.chip.phase = phase;
-    let c::ChipPhase::Owner { phase, details } = task.chip.details.as_mut() else { panic!("owner fixture") };
-    *phase = c::OwnerChipPhase::Ended;
+    let c::ChipPhaseFacts { phase, details } = task.chip.details.as_mut();
+    *phase = c::ChipPhase::Ended;
     details.ended_at = Some(DECIDED_AT);
     latest
 }
@@ -82,17 +82,23 @@ pub(crate) fn party_wait(whom: c::Whom, kind: c::WaitedFor) -> c::WaitsOn {
     c::WaitsOn::Party { whom, task: OTHER_TASK, kind, entries: ONE_NEED }
 }
 pub(crate) fn inbox_counts(needs: u32, updates: u32) -> client::Latest {
-    client::Latest::Jig(c::Delivery::Inbox(Box::new(c::Inbox {
-        entries: List::with_capacity(EMPTY),
-        needs: c::Needs { questions: needs, proposals: 0, escalations: 0, person_tasks: 0 },
-        updates: c::Count { value: updates, limited: false },
-        results_seen: 0,
-        replies_seen: List::with_capacity(EMPTY),
-        more: false,
+    client::Latest::Jig(c::Delivery::Inbox(Box::new({
+        let counts = c::Needs { questions: needs, proposals: 0, escalations: 0, person_tasks: 0 };
+        crate::tests::documents::inbox(
+            List::with_capacity(EMPTY),
+            counts
+                .questions
+                .saturating_add(counts.proposals)
+                .saturating_add(counts.escalations)
+                .saturating_add(counts.person_tasks),
+            c::Count { value: updates, limited: false },
+            0,
+            false,
+        )
     })))
 }
 pub(crate) fn owner_inbox_counts(needs: u32, updates: u32) -> client::Latest {
-    client::Latest::Jig(c::Delivery::OwnerInbox(Box::new(c::OwnerInbox {
+    client::Latest::Jig(c::Delivery::Inbox(Box::new(c::Inbox {
         party: PARTY,
         needs: List::with_capacity(EMPTY),
         updates: List::with_capacity(EMPTY),
@@ -113,30 +119,11 @@ pub(crate) fn holds(
 }
 
 pub(crate) fn tree_at(chip: c::Chip) -> client::Latest {
-    let mut nodes = List::with_capacity(PAGE_ROWS);
-    nodes
-        .push(c::TreeNode {
-            chip,
-            parent: None,
-            dependencies: List::with_capacity(EMPTY),
-            proposals: List::with_capacity(EMPTY),
-            spend: 0,
-            folded: phase_counts(),
-            held_below: 0,
-        })
-        .expect("root row");
-    client::Latest::Jig(c::Delivery::Tree(Box::new(c::Tree {
-        task: TASK,
-        nodes,
-        folded: phase_counts(),
-        held_below: 0,
-    })))
+    owner_tree_at(chip)
 }
-pub(crate) fn phase_counts() -> c::PhaseCounts {
-    c::PhaseCounts { ended: 0, running: 0, waiting: 0, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0 }
-}
+
 pub(crate) fn owner_tree_at(chip: c::Chip) -> client::Latest {
-    client::Latest::Jig(c::Delivery::OwnerTree(Box::new(c::OwnerTree {
+    client::Latest::Jig(c::Delivery::Tree(Box::new(c::Tree {
         root: chip,
         rows: List::with_capacity(EMPTY),
         folded: List::with_capacity(EMPTY),
@@ -144,10 +131,10 @@ pub(crate) fn owner_tree_at(chip: c::Chip) -> client::Latest {
         next: None,
     })))
 }
-pub(crate) fn chip_phase(latest: &mut client::Latest, phase: c::OwnerChipPhase) {
+pub(crate) fn chip_phase(latest: &mut client::Latest, phase: c::ChipPhase) {
     let task = task_in(latest);
     task.chip.phase = phase.compact();
-    let c::ChipPhase::Owner { phase: current, .. } = task.chip.details.as_mut() else { panic!("owner chip") };
+    let c::ChipPhaseFacts { phase: current, .. } = task.chip.details.as_mut();
     *current = phase;
 }
 
@@ -189,7 +176,7 @@ pub(crate) fn parked() -> c::Delivery {
     delivery(chat_at(TASK, c::RunStage::Idle, None))
 }
 pub(crate) fn writing_chat() -> c::Delivery {
-    delivery(chat_at(TASK, c::RunStage::Running { attempt: ATTEMPT }, Some(c::OwnerChipWork::Writing)))
+    delivery(chat_at(TASK, c::RunStage::Running { attempt: ATTEMPT }, Some(c::ChipWork::Writing)))
 }
 pub(crate) fn task_digest(delivery: &c::Delivery) -> crate::jig::digest::Digest {
     crate::jig::digest::part(&crate::jig::render::Part::delivery(delivery).expect("subject"), &limits())
@@ -315,8 +302,9 @@ pub(crate) fn changed_delivery(mut delivery: c::Delivery) -> c::Delivery {
         c::Delivery::Settings(_) => unreachable!("temper does not watch settings"),
         c::Delivery::Me(me) => me.needs_total = me.needs_total.checked_add(ONE_NEED).expect("new need"),
         c::Delivery::Inbox(inbox) => {
-            inbox.entries = List::with_capacity(EMPTY);
-            inbox.more = false;
+            inbox.needs = List::with_capacity(EMPTY);
+            inbox.updates = List::with_capacity(EMPTY);
+            inbox.next = None;
         }
         c::Delivery::Tasks(tasks) => {
             tasks.rows = List::with_capacity(EMPTY);
@@ -325,15 +313,12 @@ pub(crate) fn changed_delivery(mut delivery: c::Delivery) -> c::Delivery {
         c::Delivery::Task(task) => task.chip.title = document_text(b"changed"),
         c::Delivery::Tree(tree) => tree.held_below = ONE_NEED,
         c::Delivery::RunState(run) => run.committed_turn = TURN.checked_add(ONE_NEED).expect("next turn"),
-        c::Delivery::OwnerProject(_)
-        | c::Delivery::OwnerProposal(_)
-        | c::Delivery::OwnerTree(_)
+        c::Delivery::Project(_)
+        | c::Delivery::Proposal(_)
         | c::Delivery::Chips(_)
-        | c::Delivery::OwnerInbox(_)
-        | c::Delivery::Run(_)
         | c::Delivery::Deployment(_)
-        | c::Delivery::OwnerDeployment(_)
-        | c::Delivery::OwnerAccounts(_) => panic!("fixture subject"),
+        | c::Delivery::Run(_)
+        | c::Delivery::Accounts(_) => panic!("fixture subject"),
     }
     delivery
 }

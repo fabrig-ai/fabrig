@@ -287,10 +287,9 @@ fn measure_full_delegate_tree_dependency_edges_and_cold_restored_claims_fit() {
 fn filled(limits: &Limits, number: u64) -> jig_domain_tasks::New {
     let limits = *limits;
     let mut new = task(number, &[]);
-    new.spec.words = vec![1; usize::try_from(limits.spec_bytes).expect("small bound")].into_boxed_slice();
-    new.spec.parameters =
-        vec![Parameter::Number { name: 1, value: 1 }; usize::try_from(limits.parameters).expect("small bound")]
-            .into_boxed_slice();
+    new.spec.words = vec![1; skein_lib::length::usize_of(limits.spec_bytes)].into_boxed_slice();
+    new.spec.parameters = vec![Parameter::Number { name: 1, value: 1 }; skein_lib::length::usize_of(limits.parameters)]
+        .into_boxed_slice();
 
     new.contract = Contract::Verdict {
         choices: (0..limits.contract_choices)
@@ -308,7 +307,7 @@ fn filled(limits: &Limits, number: u64) -> jig_domain_tasks::New {
                     .collect::<Vec<_>>()
                     .into_boxed_slice(),
                 last: Last::Exact(if kind == 0 {
-                    vec![1; usize::try_from(limits.authority_bytes).expect("small bound")].into_boxed_slice()
+                    vec![1; skein_lib::length::usize_of(limits.authority_bytes)].into_boxed_slice()
                 } else {
                     Box::new([])
                 }),
@@ -317,8 +316,7 @@ fn filled(limits: &Limits, number: u64) -> jig_domain_tasks::New {
         .collect::<Vec<_>>()
         .into_boxed_slice();
     new.authority.delegation.kinds =
-        vec![AuthorityExecutor::Charter(1); usize::try_from(limits.executor_kinds).expect("small bound")]
-            .into_boxed_slice();
+        vec![AuthorityExecutor::Charter(1); skein_lib::length::usize_of(limits.executor_kinds)].into_boxed_slice();
     new
 }
 
@@ -510,7 +508,7 @@ fn saturated_approval_states_parts_and_results_fit_the_owner_bound() {
     m.bootstrap();
     let mut path = skein_lib::List::with_capacity(l.hold_segments);
     for _ in 0..l.hold_segments {
-        path.push(vec![7; usize::try_from(l.hold_bytes / l.hold_segments).expect("small limit")].into_boxed_slice())
+        path.push(vec![7; skein_lib::length::usize_of(l.hold_bytes / l.hold_segments)].into_boxed_slice())
             .expect("bounded path");
     }
     let batch = (1..=u64::from(l.tasks))
@@ -519,7 +517,7 @@ fn saturated_approval_states_parts_and_results_fit_the_owner_bound() {
             new.executor = tasks::Executor::Person(tasks::PersonAddress::Person(9));
             new.funder = Funder::Pool { project: 1, person: 9, period: 7 };
             new.contract = Contract::Approval {
-                state: vec![5; usize::try_from(l.result_bytes).expect("small limit")].into_boxed_slice(),
+                state: vec![5; skein_lib::length::usize_of(l.result_bytes)].into_boxed_slice(),
                 part: tasks::Part {
                     connector: 1,
                     kind: tasks::PartKind::Resource,
@@ -533,7 +531,7 @@ fn saturated_approval_states_parts_and_results_fit_the_owner_bound() {
     m.event(Event::Make {
         reply_to,
         creator: Party::Person(9),
-        batch: batch[..usize::try_from(l.batch).expect("small limit")].to_vec().into_boxed_slice(),
+        batch: batch[..skein_lib::length::usize_of(l.batch)].to_vec().into_boxed_slice(),
     });
     assert!(!m.refused);
     for number in 1..=u64::from(l.batch) {
@@ -543,7 +541,7 @@ fn saturated_approval_states_parts_and_results_fit_the_owner_bound() {
             task: number,
             person: 9,
             result: TaskResult::Approved {
-                state: vec![5; usize::try_from(l.result_bytes).expect("small limit")].into_boxed_slice(),
+                state: vec![5; skein_lib::length::usize_of(l.result_bytes)].into_boxed_slice(),
                 words: Some(Box::new([])),
             },
         });
@@ -552,7 +550,7 @@ fn saturated_approval_states_parts_and_results_fit_the_owner_bound() {
         m.event(Event::Settled { task: number });
     }
     let approval = Contract::Approval {
-        state: vec![5; usize::try_from(l.result_bytes + 1).expect("small limit")].into_boxed_slice(),
+        state: vec![5; skein_lib::length::usize_of(l.result_bytes + 1)].into_boxed_slice(),
         part: tasks::Part { connector: 1, kind: tasks::PartKind::Resource, key: tasks::PartKey::Number(1) },
     };
     assert!(!tasks::valid_contract(&l, &approval), "oversized whole state cannot be admitted");

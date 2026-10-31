@@ -10,7 +10,7 @@ fn task_settings_round_trip_with_and_without_a_run_revision() {
             w::TaskSettings::new(&w::CEILINGS, w::TaskSettingsParts { task: 7, run, newest: 9 }).expect("settings"),
         );
         let task = w::Task::new(&w::CEILINGS, parts).expect("task");
-        let mut out = Writer::new(usize::try_from(task.measure()).expect("bounded task"));
+        let mut out = Writer::new(skein_lib::length::usize_of(task.measure()));
         task.encode(&mut out).expect("encode task");
         let bytes = out.finish();
         let mut input = Reader::new(&bytes);

@@ -9,7 +9,23 @@ use alloc::vec::Vec;
 
 const MAGIC: &[u8; 4] = b"SKVC";
 const VERSION: u16 = 1;
-pub(crate) const HEADER: usize = 22;
+pub(crate) const HEADER: u32 = 22;
+const CHECKSUM: u32 = 4;
+
+/// A commit frame's header and checksum (skein/docs/design/kv.md, 3 and 7).
+pub const FRAME_BYTES: u32 = HEADER.checked_add(CHECKSUM).expect("fixed frame overhead fits");
+
+/// One put operation's encoded size, excluding the frame's overhead.
+#[must_use]
+pub fn put_bytes(key: u32, value: u32) -> Option<u32> {
+    key.checked_add(value)?.checked_add(9)
+}
+
+/// One erase operation's encoded size, excluding the frame's overhead.
+#[must_use]
+pub fn erase_bytes(key: u32) -> Option<u32> {
+    key.checked_add(5)
+}
 
 #[derive(PartialEq, Eq, Debug)]
 pub(crate) struct Frame {
@@ -18,14 +34,15 @@ pub(crate) struct Frame {
 }
 
 pub(crate) fn encoded_len(ops: &[Op]) -> Option<usize> {
-    let mut total = HEADER.checked_add(4)?;
+    let mut total = FRAME_BYTES;
     for op in ops {
-        total = total.checked_add(1)?.checked_add(4)?.checked_add(op.key().len())?;
-        if let Op::Put { value, .. } = op {
-            total = total.checked_add(4)?.checked_add(value.len())?;
-        }
+        let size = match op {
+            Op::Put { key, value } => put_bytes(u32::try_from(key.len()).ok()?, u32::try_from(value.len()).ok()?)?,
+            Op::Erase { key } => erase_bytes(u32::try_from(key.len()).ok()?)?,
+        };
+        total = total.checked_add(size)?;
     }
-    Some(total)
+    usize::try_from(total).ok()
 }
 
 pub(crate) fn encode(number: u64, ops: &[Op], limit: u32) -> Option<Box<[u8]>> {
@@ -34,7 +51,7 @@ pub(crate) fn encode(number: u64, ops: &[Op], limit: u32) -> Option<Box<[u8]>> {
         return None;
     }
     let count = u32::try_from(ops.len()).ok()?;
-    let capacity = total.checked_sub(HEADER)?.checked_sub(4)?;
+    let capacity = total.checked_sub(usize::try_from(FRAME_BYTES).ok()?)?;
     let mut body = Vec::with_capacity(capacity);
     for op in ops {
         match op {
@@ -65,11 +82,11 @@ pub(crate) fn encode(number: u64, ops: &[Op], limit: u32) -> Option<Box<[u8]>> {
 
 #[must_use]
 pub(crate) fn frame_len(head: &[u8], max: u32) -> Option<usize> {
-    if head.len() < HEADER || head.get(..4)? != MAGIC || u16_at(head, 4)? != VERSION {
+    if head.len() < usize::try_from(HEADER).ok()? || head.get(..4)? != MAGIC || u16_at(head, 4)? != VERSION {
         return None;
     }
     let body = usize::try_from(u32_at(head, 18)?).ok()?;
-    let total = HEADER.checked_add(body)?.checked_add(4)?;
+    let total = usize::try_from(FRAME_BYTES).ok()?.checked_add(body)?;
     if total > usize::try_from(max).ok()? {
         return None;
     }
@@ -88,7 +105,7 @@ pub(crate) fn decode(bytes: &[u8], max: u32) -> Option<Frame> {
     let number = u64_at(bytes, 6)?;
     let count = usize::try_from(u32_at(bytes, 14)?).ok()?;
     let mut ops = Vec::new();
-    let mut pos = HEADER;
+    let mut pos = usize::try_from(HEADER).ok()?;
     while pos < crc_at {
         if ops.len() >= count {
             return None;

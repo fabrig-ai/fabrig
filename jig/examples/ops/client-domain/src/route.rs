@@ -7,8 +7,8 @@ use crate::{
 };
 use skein_lib::{Env, List, Queue};
 
-fn infrastructure_env(env: &Env<Limits>) -> Env<infrastructure::Limits> {
-    Env { now: env.now, wall: env.wall, limits: env.limits.infrastructure }
+fn infrastructure_env(env: &Env<Limits>) -> Env<jig_client::DomainLimits> {
+    env.with(env.limits.client.domain)
 }
 pub(crate) fn jig(root: &mut Domain, env: &Env<Limits>, event: jig_client_view::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
@@ -32,20 +32,15 @@ pub(crate) fn observability(
     out: &mut Queue<Request>,
 ) {
     let mut child = Queue::uncapped();
-    observability::step(
-        &mut root.observability,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.observability },
-        event,
-        &mut child,
-    );
+    observability::step(&mut root.observability, &env.with(env.limits.client.domain), event, &mut child);
     route_observability(root, env, &mut child, out);
 }
 pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
-        Event::Start { address, kept, offset: _ } => {
+        Event::Start { address, kept } => {
             let mut bytes = List::with_capacity(env.limits.client.domain.requests.requests);
             let mut records = List::with_capacity(env.limits.client.domain.requests.requests);
-            let mut jig_kept = List::with_capacity(env.limits.jig.records);
+            let mut jig_kept = List::with_capacity(env.limits.client.domain.records);
             for record in kept.into_boxed() {
                 match record {
                     Record::Jig(record) => {
@@ -337,26 +332,14 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told,
 
 fn infrastructure_me(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
     let mut child = Queue::uncapped();
-    let consumed = infrastructure::me_told(
-        &mut root.infrastructure,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.infrastructure },
-        &root.client,
-        told,
-        &mut child,
-    );
+    let consumed = infrastructure::me_told(&mut root.infrastructure, &root.client, told, &mut child);
     route_infrastructure(root, env, &mut child, out);
     consumed
 }
 
 fn observability_me(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
     let mut child = Queue::uncapped();
-    let consumed = observability::me_told(
-        &mut root.observability,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.observability },
-        &root.client,
-        told,
-        &mut child,
-    );
+    let consumed = observability::me_told(&mut root.observability, &root.client, told, &mut child);
     route_observability(root, env, &mut child, out);
     consumed
 }

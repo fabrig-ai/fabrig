@@ -1,0 +1,6 @@
+== jig == 
+Task 8: partial title:
+  [1] Task 8: partial title
+  Title is incomplete
+  Agent charter 4294967295
+  Active attempt 18446744073709551615

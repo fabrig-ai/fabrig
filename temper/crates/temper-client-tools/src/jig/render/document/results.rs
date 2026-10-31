@@ -173,7 +173,7 @@ fn encode_result_value_verdict(
 
 fn encode_result_value_connector(
     summary: &jig_client::contract::DocumentText,
-    part: &jig_client::contract::Part,
+    part: &jig_client::contract::ApplicationPart,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
@@ -190,7 +190,7 @@ fn encode_result_value_connector(
 
 fn encode_result_value_change(
     kind: u16,
-    part: &jig_client::contract::OwnerPart,
+    part: &jig_client::contract::Part,
     words: &jig_client::contract::DocumentText,
     out: &mut Encoder,
     budget: &mut super::Cut,

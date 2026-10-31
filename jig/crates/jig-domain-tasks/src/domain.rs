@@ -3,7 +3,7 @@
 //! and iteration time, routes outputs and owns durability/transport proofs.
 //! A procedure keeps the transient inbox prefix offered to its current step;
 //! restoring reoffers its durable unread inbox. Tasks never performs IO or keeps
-//! full historical results or root shadows.
+//! full retained results or root shadows.
 use crate::{Active, Event, Fact, Limits, New, Party, Phase, Problem, Refusal, Request, Stored, TaskRecord, Tries};
 use alloc::boxed::Box;
 use skein_lib::{Deadlines, Env, Id, List, Map, Queue, ReplyTo, Rng, Slab, Time, Wall};
@@ -34,7 +34,7 @@ pub(crate) enum Startup {
 }
 
 /// Bounded live task arena, indexed waits, retry timers, finite period/pool ledgers,
-/// configured charters and deterministic retry randomness. Keeps bounded historical stubs,
+/// configured charters and deterministic retry randomness. Keeps bounded retained stubs,
 /// transport receipt, connector state or mutable root shadow ledger. (domain/tasks.md, sections 2, 4–5 and 10).
 #[derive(Debug)]
 pub struct Domain {
@@ -148,7 +148,7 @@ impl Domain {
     }
 
     /// One bounded walk returning the first tasks incompatible with prospective charters,
-    /// plus the exact count omitted (engine.md, 17.2; M3's newest-only rule).
+    /// plus the exact count omitted (engine.md, 17.2).
     #[must_use]
     pub fn incompatible_charters(&self, charters: &[crate::CharterModels], limit: u32) -> (Box<[u64]>, u32) {
         let mut tasks = List::with_capacity(limit);
@@ -901,7 +901,6 @@ pub(crate) fn entrance(domain: &Domain, to: ReplyTo, number: u64) -> Result<Repl
     Ok(to)
 }
 
-#[expect(clippy::manual_map, reason = "step code does not use closures")]
 pub(crate) fn activate(domain: &mut Domain, number: u64, out: &mut Queue<Request>) {
     let offered = match record(domain, number).expect("activation names live task").inbox.last() {
         Some(word) => Some(word.number),
@@ -1110,7 +1109,6 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
     let escalation = crate::escalation::begin(&mut task.record);
     // Admission permits equality with the wall. Wake just after it, without
     // another alarm or a durable deadline carrier (domain/authority.md, 7).
-    #[expect(clippy::manual_map, reason = "step code has no closures (programming-model.md, section 10)")]
     let wall = match task.record.authority.budget.deadline {
         Some(wall) => match wall.as_nanos().checked_add(1) {
             Some(nanos) => Some(Wall::from_nanos(nanos)),
@@ -1226,7 +1224,6 @@ pub(crate) fn remember_result_followups(domain: &mut Domain, limits: &Limits, nu
 }
 
 /// Construct a whole batch after its entrance and funding were preflighted in this decision.
-#[expect(clippy::manual_map, reason = "the subset uses a closed match instead of a closure")]
 #[expect(clippy::too_many_lines, reason = "one whole admitted batch constructs every durable member")]
 pub(crate) fn make_admitted(
     domain: &mut Domain,
@@ -1462,7 +1459,7 @@ pub(crate) fn make_admitted(
             }
         }
         if inherited {
-            crate::holds::take(domain, env, number, out);
+            crate::holds::take(domain, number, out);
             task_mut(domain, number).expect("handed child live").record.phase = Phase::Active(Active::Due);
         }
         let held = crate::placed::covering(domain, &crate::compound::Staged::new(0), number, None);
@@ -1496,18 +1493,17 @@ fn append(capacity: u32, old: &[u64], batch: &[New]) -> Box<[u64]> {
 fn validate_charters(limits: &Limits, charters: &[crate::CharterModels], efforts: &[u8]) {
     assert!(
         charters.len()
-            <= usize::try_from(
+            <= skein_lib::length::usize_of(
                 limits
                     .charters
                     .checked_mul(2)
                     .expect("newest charter states")
                     .checked_add(limits.versions)
                     .expect("version bound")
-            )
-            .expect("u32 fits usize"),
+            ),
         "charter versions fit"
     );
-    let models = usize::try_from(crate::MODELS).expect("u32 fits usize");
+    let models = skein_lib::length::usize_of(crate::MODELS);
     assert!(efforts.len() <= models, "configured models fit");
     for (at, charter) in charters.iter().enumerate() {
         for earlier in charters.iter().take(at) {
@@ -1523,6 +1519,23 @@ fn validate_charters(limits: &Limits, charters: &[crate::CharterModels], efforts
             for earlier in configured.iter().take(index) {
                 assert!(earlier != model, "a charter lists each model once");
             }
+        }
+    }
+}
+
+impl Domain {
+    /// The person conversation served by a directly requested delegate (domain/tasks.md, 2 and 8.1).
+    #[must_use]
+    pub fn served_chat(&self, task: u64) -> Option<u64> {
+        let row = self.task(task)?;
+        let chat = match row.requester {
+            Party::Task(chat) => chat,
+            Party::Person(_) | Party::Deployment { .. } => return None,
+        };
+        let row = self.task(chat)?;
+        match row.requester {
+            Party::Person(_) if row.flags.conversation => Some(chat),
+            Party::Person(_) | Party::Task(_) | Party::Deployment { .. } => None,
         }
     }
 }

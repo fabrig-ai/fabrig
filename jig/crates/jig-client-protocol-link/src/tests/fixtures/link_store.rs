@@ -132,18 +132,14 @@ pub fn store_asks() -> List<c::Ask> {
         },
         c::Ask::MakeService { project: 7, name: store_text(), role: c::HeldRole::Member },
         c::Ask::SetPool { project: 7, party: u64::MAX, budget: u64::MAX },
-        c::Ask::SignIn { holder: c::AccountHolder::Own, provider: u32::MAX },
-        c::Ask::SignIn { holder: c::AccountHolder::Deployment, provider: u32::MAX },
-        c::Ask::SignOut { holder: c::AccountHolder::Own, source: u32::MAX },
-        c::Ask::SignOut { holder: c::AccountHolder::Deployment, source: u32::MAX },
+        c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: u32::MAX },
+        c::Ask::SignIn { holder: c::AskAccountHolder::Deployment, provider: u32::MAX },
+        c::Ask::SignOut { holder: c::AskAccountHolder::Own, source: u32::MAX },
+        c::Ask::SignOut { holder: c::AskAccountHolder::Deployment, source: u32::MAX },
     ])
 }
 pub fn list<T, const N: usize>(values: [T; N]) -> List<T> {
-    let mut out = List::with_capacity(u32::try_from(N).unwrap());
-    for value in values {
-        out.push(value).ok().expect("fixture list fits");
-    }
-    out
+    List::from_boxed(Box::new(values))
 }
 pub const TABLE_VERSION: u16 = jig_client_domain::TABLE_VERSION;
 pub fn saved_table(ask: c::Ask) -> Saved {
@@ -163,9 +159,10 @@ pub fn stored(harness: &Harness) -> Record {
     panic!("one store write")
 }
 pub fn other_store_version(mut value: Record) -> Record {
-    let record = w::Kept::decode(&limits().wire, &mut Reader::new(&value.bytes)).unwrap();
+    let record = w::Kept::decode(limits().wire(), &mut Reader::new(&value.bytes)).unwrap();
     let record =
-        w::Kept::new(&limits().wire, w::KeptParts { store_version: u16::MAX, record: record.record().into() }).unwrap();
+        w::Kept::new(limits().wire(), w::KeptParts { store_version: u16::MAX, record: record.record().into() })
+            .unwrap();
     let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
     record.encode(&mut writer).unwrap();
     value.bytes = writer.finish();
@@ -311,7 +308,8 @@ fn propose_amendment(revision: c::Revision) -> c::Ask {
 
 pub fn kept_stream() -> Record {
     let record =
-        w::Kept::new(&limits().wire, w::KeptParts { store_version: TABLE_VERSION, record: Box::from(STREAM) }).unwrap();
+        w::Kept::new(limits().wire(), w::KeptParts { store_version: TABLE_VERSION, record: Box::from(STREAM) })
+            .unwrap();
     let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
     record.encode(&mut writer).unwrap();
     Record { key: Box::from(STREAM_KEY), bytes: writer.finish() }

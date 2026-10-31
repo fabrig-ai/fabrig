@@ -122,11 +122,10 @@ impl Directory {
 }
 
 pub(crate) fn env(store: &Store, env: &Env<Limits>, secret: bool) -> Env<skein_kv::Limits> {
-    Env { now: env.now, wall: env.wall, limits: if secret { store.limits.secrets } else { store.limits.store } }
+    env.with(if secret { store.limits.secrets } else { store.limits.store })
 }
 pub(crate) fn open(
     store: &mut Store,
-    _env: &Env<Limits>,
     owner: Token,
     root: Root,
     installation: [u8; 16],

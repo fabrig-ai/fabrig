@@ -34,8 +34,8 @@ fn an_ended_tree_delivery_waits_for_the_tasks_read() {
         let client::Latest::Jig(delivery) = fixtures::owner_tree_at(task.chip.clone()) else { panic!("owner tree") };
         retained_delivery(&mut root, fixtures::tree_watch(), delivery);
         assert!(root.answer(call).is_none(), "task read is still pending");
-        root.serve(call, fixtures::historical_task_result(task, c::Ending::Done));
-        let answer = root.answer(call).expect("retained tree and historical task complete the read");
+        root.serve(call, fixtures::ended_task_result(task, c::Ending::Done));
+        let answer = root.answer(call).expect("retained tree and ended task complete the read");
         assert_eq!(answer.status, 0);
         assert!(answer.stderr.is_empty());
         assert!(fixtures::has(&answer, if json { b"\"tree\":" } else { b"tree:\n" }));
@@ -198,7 +198,9 @@ fn queued_owner_outputs(
             up: client::Up::Answer {
                 attempt: *attempt,
                 envelope: skein_lib::RequestEnvelope::Final,
-                answer: Some(client::Answered::Jig(c::Answer::Done(c::Outcome::Changed))),
+                answer: Some(client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                    c::DocumentOutcome::Amended { task: 9 },
+                )))),
                 why: None,
             },
         },
@@ -247,7 +249,7 @@ fn a_follow_on_named_request_waits_for_the_previous_erase() {
     root.serving = Some(follow_on);
     root.outputs(out);
     root.serving = None;
-    root.done(follow_on, c::Outcome::Changed);
+    root.done(follow_on, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
     assert_eq!(root.answer(previous).expect("previous call answered once").status, 0);
     assert_eq!(root.answer(follow_on).expect("follow-on call answered once").status, 0);
     assert!(root.answer(previous).is_none() && root.answer(follow_on).is_none());

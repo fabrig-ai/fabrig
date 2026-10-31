@@ -20,7 +20,7 @@ fn sources(names: &[&[u8]]) -> skein_channel::Frame {
         .expect("row");
     }
     let record = wire::Sources::new(&wire::CEILINGS, wire::SourcesParts { sources: rows }).expect("wire list");
-    let mut body = Writer::new(usize::try_from(record.measure()).expect("body"));
+    let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut body).expect("encode");
     fixtures::frame(0x0188, &body.finish())
 }

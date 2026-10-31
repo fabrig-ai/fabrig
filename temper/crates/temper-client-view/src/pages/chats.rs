@@ -230,11 +230,11 @@ fn start(
 }
 
 pub(crate) fn ended(chip: &jig_client::contract::Chip) -> bool {
-    use jig_client::contract::{ChipPhase, OwnerChipPhase, Phase};
+    use jig_client::contract::{ChipPhase, ChipPhaseFacts, Phase};
     if let Phase::Done | Phase::Ended | Phase::Failed | Phase::Cancelled = chip.phase {
         return true;
     }
-    if let ChipPhase::Owner { phase: OwnerChipPhase::Ended, .. } | ChipPhase::Ended { .. } = chip.details.as_ref() {
+    if let ChipPhaseFacts { phase: ChipPhase::Ended, .. } = chip.details.as_ref() {
         return true;
     }
     false
@@ -283,13 +283,9 @@ pub(crate) fn row(
     let spend = words.say(Word::ChatRowSpend, &[Hole::Number(line.budget.numbers.spent)]);
     b.name(&spend);
     b.text(Run::Plain, &spend);
-    if line.ended_at.is_none()
-        && !ended(&line.chip)
-        && let jig_client::contract::ChipPhase::Owner { details, .. } = line.chip.details.as_ref()
-        && details.live_delegates > 0
-    {
+    if line.ended_at.is_none() && !ended(&line.chip) && line.chip.details.details.live_delegates > 0 {
         words.text(b, Word::ToolSeparator, &[]);
-        words.text(b, Word::ChatDelegates, &[Hole::Number(u64::from(details.live_delegates))]);
+        words.text(b, Word::ChatDelegates, &[Hole::Number(u64::from(line.chip.details.details.live_delegates))]);
     }
     b.close();
     b.open(Role::Paragraph);
@@ -334,45 +330,30 @@ pub(crate) fn status(
         Option<u32>,
         Option<&jig_client::contract::TaskRunWait>,
     ),
-    (project, requester): (u32, jig_client::contract::OwnerRequester),
-    wake: Option<&jig_client::contract::OwnerWakePolicy>,
+    (project, requester): (u32, jig_client::contract::Requester),
+    wake: Option<&jig_client::contract::WakePolicy>,
     me: &jig_client::contract::Me,
     words: &Words,
 ) {
-    use jig_client::contract::{ChipPhase, HoldCategory, OwnerRequester, WaitsOn, WakeRule};
+    use jig_client::contract::{ChipPhaseFacts, HoldCategory, Requester, WaitsOn, WakeRule};
     use jig_client::facts::ChatStatus;
     if ended(chip) {
         closed_status(b, words);
         return;
     }
-    let live = delegates.unwrap_or(if let ChipPhase::Owner { details, .. } = chip.details.as_ref() {
+    let live = delegates.unwrap_or({
+        let ChipPhaseFacts { details, .. } = chip.details.as_ref();
         details.live_delegates
-    } else {
-        0
     });
     let waits_on = if live == 0 && *waits_on == WaitsOn::Delegates { &WaitsOn::News } else { waits_on };
     let wake = match wake {
         Some(wake) => Some(wake),
-        None => match chip.details.as_ref() {
-            ChipPhase::Owner { details, .. } => Some(&details.wake),
-            ChipPhase::Active(_)
-            | ChipPhase::Waiting { .. }
-            | ChipPhase::Idle { .. }
-            | ChipPhase::Starting
-            | ChipPhase::Running { .. }
-            | ChipPhase::WaitingForWords { .. }
-            | ChipPhase::BackingOff { .. }
-            | ChipPhase::Procedure { .. }
-            | ChipPhase::Person { .. }
-            | ChipPhase::Closing(_)
-            | ChipPhase::Held { .. }
-            | ChipPhase::Ended { .. } => None,
-        },
+        None => Some(&chip.details.details.wake),
     };
     let narrowed = if (*waits_on == WaitsOn::Delegates || *waits_on == WaitsOn::News) && live > 0 {
         Some(words.say(Word::WaitingForDelegates, &[Hole::Number(u64::from(live))]))
     } else if *waits_on == WaitsOn::News
-        && requester == OwnerRequester::Person(me.party.number)
+        && requester == Requester::Person(me.party.number)
         && let Some(wake) = wake
         && match wake.words {
             WakeRule::Never => false,

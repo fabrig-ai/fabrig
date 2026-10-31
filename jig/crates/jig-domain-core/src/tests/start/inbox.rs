@@ -1,10 +1,15 @@
 //! Census loading before people's durable opening (domain/engine.md, 6, 11.4).
-use super::{Action, Core, Env, Failure, Phase, Queue, Time, Wall, config, limits, people, step_phase, tasks};
-use crate::tests::fixtures;
-use crate::{CoreRecord, Limits, Record, Restored, start::LiveSet};
+use crate::{
+    CoreRecord, Limits, Record, Restored,
+    start::LiveSet,
+    tests::{
+        fixtures,
+        start::{Action, Core, Env, Failure, Phase, Queue, Time, Wall, config, limits, people, step_phase, tasks},
+    },
+};
 use skein_lib::Map;
 
-fn loaded() -> (Core, Env<Limits>) {
+pub(in crate::tests) fn loaded() -> (Core, Env<Limits>) {
     let limits = limits();
     let mut core = Core::new(config(401), &limits).expect("configured core");
     let env = Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits };
@@ -38,7 +43,7 @@ fn loaded() -> (Core, Env<Limits>) {
     (core, env)
 }
 
-fn inbox(core: &mut Core, env: &Env<Limits>) {
+pub(in crate::tests) fn inbox(core: &mut Core, env: &Env<Limits>) {
     {
         step_phase(core.start_done(env, Phase::LoadCore, &mut Queue::uncapped()), Phase::LoadInbox);
         assert!(!core.people.ready());
@@ -47,7 +52,7 @@ fn inbox(core: &mut Core, env: &Env<Limits>) {
     assert_eq!(census.results.as_ref(), [crate::ReadResults { party: 1, after: 0 }]);
 }
 
-fn ended() -> tasks::TaskRecord {
+pub(in crate::tests) fn ended() -> tasks::TaskRecord {
     let mut row = fixtures::ended_report(2, tasks::Party::Person(1));
     row.last_reply = 0;
     row.replies = Box::new([]);
@@ -55,7 +60,7 @@ fn ended() -> tasks::TaskRecord {
 }
 
 #[test]
-fn selected_census_uses_its_phase_and_clears_progress_when_done() {
+fn start_census_uses_its_phase_and_clears_progress_when_done() {
     let (mut core, env) = loaded();
     inbox(&mut core, &env);
     assert!(core.restore_inbox_row(&env.limits, &Record::Tasks(tasks::Stored::Ended(Box::new(ended())))));
@@ -65,7 +70,7 @@ fn selected_census_uses_its_phase_and_clears_progress_when_done() {
 }
 
 #[test]
-fn row_rules_do_not_refuse_selected_loading() {
+fn row_rules_do_not_refuse_start_loading() {
     let mut past_counter = ended();
     past_counter.result_position = 101;
     let mut header = ended();
@@ -145,7 +150,7 @@ fn ended_conversation_witness_is_retired_at_link() {
     );
     assert!(core.restore_inbox_row(&env.limits, &Record::Tasks(tasks::Stored::Ended(Box::new(ended())))));
     assert_eq!(core.people.read_conversations().len(), 1);
-    assert!(core.people.start_link(&Env { now: env.now, wall: env.wall, limits: env.limits.people }));
+    assert!(core.people.start_link(&env.with(env.limits.people)));
     assert!(core.people.read_conversations().is_empty());
 }
 
@@ -191,7 +196,7 @@ fn census_party_and_read_result_sets_name_the_person_record() {
 fn archive_capacity_refuses_with_the_ended_record_key() {
     let (mut core, env) = loaded();
     inbox(&mut core, &env);
-    core.archived_chats = Map::with_capacity(0);
+    core.ended_chats = Map::with_capacity(0);
     let record = Record::Tasks(tasks::Stored::Ended(Box::new(ended())));
     assert!(!core.restore_inbox_row(&env.limits, &record));
     assert_eq!(
@@ -213,7 +218,7 @@ fn unknown_requester_does_not_take_a_census_party_slot() {
 }
 
 #[test]
-fn question_membership_is_supplied_by_the_selected_census_index() {
+fn question_membership_is_supplied_by_the_start_census_index() {
     {
         let (mut core, env) = loaded();
         let (source, _) = crate::tests::watch_core();
@@ -221,7 +226,7 @@ fn question_membership_is_supplied_by_the_selected_census_index() {
         let mut out = Queue::uncapped();
         tasks::step(
             &mut core.tasks,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+            &env.with(env.limits.tasks),
             tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) },
             &mut out,
         );
@@ -252,7 +257,7 @@ fn a_full_question_list_names_its_live_task_record() {
     let mut out = Queue::uncapped();
     tasks::step(
         &mut core.tasks,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+        &env.with(env.limits.tasks),
         tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) },
         &mut out,
     );

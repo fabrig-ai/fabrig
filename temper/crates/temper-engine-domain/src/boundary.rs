@@ -711,7 +711,6 @@ pub(crate) enum Work {
     People(people::Event),
     Fleet(fleet::Event),
     Brief(brief::GatherEvent),
-    StartBrief { task: u64 },
     Forge(forge::Event),
     ForgeRestored,
     ProjectGoal(Box<jig_domain_core::ProjectionFeed>),
@@ -741,41 +740,16 @@ pub(crate) struct PreparedWorkspace {
     pub(crate) claim_names: Box<[forge::Name]>,
 }
 
-/// Bodies the fleet names by token while it routes them (jig's `domain/hosts.md`, 6.4).
+pub(crate) use jig_domain_hub_link::Payload;
+
+/// Temper's connector parts beside the link's prepared assignment
+/// (temper/docs/design/domain/root.md, 7.1).
 #[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "bounded call ownership moves whole through the fleet handoff")]
-pub(crate) enum Payload {
-    /// The drain's answer to a relayed call.
-    Busy,
-    Call {
-        key: CallKey,
-        body: Call,
-    },
-    SettledCall(jig_domain_core::SettledCall),
-    /// A refused settlement keeps only core's live reply address.
-    RefusedCall {
-        name: Box<[u8]>,
-    },
-    InboxWord(tasks::Word),
-    Turn {
-        task: u64,
-        attempt: u64,
-        turn: u32,
-        cumulative: u64,
-        read: Option<u64>,
-        transcript: Box<[u8]>,
-        opens_window: bool,
-        refused: Box<[u64]>,
-    },
-    Answer {
-        task: u64,
-        attempt: u64,
-        cumulative: u64,
-        ending: host::Ending,
-        read: Option<u64>,
-        refused: Box<[u64]>,
-        parts: Parts,
-    },
+pub(crate) struct AssignmentParts {
+    pub saved: Box<[u64]>,
+    pub workstream: u64,
+    pub workspace: ForgeWorkspace,
+    pub answered: Box<[crate::CallRecord]>,
 }
 
 /// An ended owner row the core asked the root to load.

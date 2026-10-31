@@ -8,7 +8,7 @@ fn a_message_under_a_name_sends_it_as_the_engine_key() {
 #[test]
 fn a_message_prints_done() {
     let (mut root, call) = fixtures::message();
-    root.done(call, c::Outcome::Changed);
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
     let answer = root.answer(call).expect("answered once durable");
     assert_eq!((answer.status, answer.stdout.as_ref()), (0, b"done: task 41, message\n".as_slice()));
 }
@@ -56,11 +56,13 @@ fn a_proposable_act_prints_to_whom() {
         fixtures::send_chat(fixtures::CHAT_BUDGET + fixtures::OVER_BOUND, fixtures::SEED, fixtures::EMPTY.into());
     root.done(
         call,
-        c::Outcome::Proposed {
-            proposal: c::ProposalKey { proposer: c::Proposer::Party(fixtures::PARTY), number: fixtures::PROPOSAL },
-        },
+        c::Outcome::Document(c::DocumentOutcome::Proposed {
+            proposal: (c::ProposalKey { proposer: c::Proposer::Party(fixtures::PARTY), number: fixtures::PROPOSAL })
+                .number,
+            to: 9,
+        }),
     );
-    assert_eq!(root.answer(call).expect("proposed").stdout.as_ref(), b"proposed: p73/17, to party 91\n");
+    assert_eq!(root.answer(call).expect("proposed").stdout.as_ref(), b"proposed: p73/17, to role 9 in project 1\n");
 }
 #[test]
 fn chat_checks_both_sides_of_its_bounds() {
@@ -119,26 +121,7 @@ fn decide_sends_its_two_forms() {
         );
     }
 }
-#[test]
-fn decided_first_prints_the_winner() {
-    let (mut root, call) = fixtures::message();
-    root.done(
-        call,
-        c::Outcome::DecidedFirst {
-            by: c::Party {
-                number: fixtures::OTHER_PARTY,
-                kind: c::PartyKind::Person,
-                name: fixtures::act_text(b"ada"),
-            },
-            how: c::Decision::Accepted,
-            at: fixtures::DECIDED_AT,
-        },
-    );
-    assert_eq!(
-        root.answer(call).expect("winner answered").stdout.as_ref(),
-        b"decided first: by ada, accepted, 14:02\n"
-    );
-}
+
 #[test]
 fn each_kept_request_prints_its_operation_without_keys() {
     for (records, json, expected) in [
@@ -146,18 +129,19 @@ fn each_kept_request_prints_its_operation_without_keys() {
         (
             fixtures::restored_message(fixtures::PARTY),
             true,
-            b"{\"operation\":\"message\",\"outcome\":{\"done\":\"changed\"}}\n".as_slice(),
+            b"{\"operation\":\"message\",\"outcome\":{\"done\":{\"document\":{\"amended\":{\"task\":9}}}}}\n"
+                .as_slice(),
         ),
         (fixtures::kept(fixtures::RESTORED_PREFIX), false, b"kept: stop, done: task 41, stop\n".as_slice()),
         (
             fixtures::kept(fixtures::RESTORED_PREFIX),
             true,
-            b"{\"operation\":\"stop\",\"outcome\":{\"done\":\"changed\"}}\n".as_slice(),
+            b"{\"operation\":\"stop\",\"outcome\":{\"done\":{\"document\":{\"amended\":{\"task\":9}}}}}\n".as_slice(),
         ),
     ] {
         let mut root = fixtures::started_with(records, fixtures::SEED, json);
         root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
-        root.done(fixtures::EMPTY, c::Outcome::Changed);
+        root.done(fixtures::EMPTY, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
         assert_eq!(root.kept_lines.as_slice(), &[Box::<[u8]>::from(expected)], "{expected:?}");
     }
 }
@@ -169,9 +153,9 @@ fn a_kept_project_removal_prints_its_operation_and_outcome() {
             jig_client::Ask::Jig(Box::new(c::Ask::RemoveProject { project: 7 }));
         let mut root = fixtures::started_with(records, fixtures::SEED, json);
         root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
-        root.done(fixtures::EMPTY, c::Outcome::Owner(c::OwnerOutcome::ProjectRemoved { project: 7 }));
+        root.done(fixtures::EMPTY, c::Outcome::Document(c::DocumentOutcome::ProjectRemoved { project: 7 }));
         let expected = if json {
-            b"{\"operation\":\"remove-project\",\"outcome\":{\"done\":{\"owner\":{\"project_removed\":{\"project\":7}}}}}\n".as_slice()
+            b"{\"operation\":\"remove-project\",\"outcome\":{\"done\":{\"document\":{\"project_removed\":{\"project\":7}}}}}\n".as_slice()
         } else {
             b"kept: remove-project, done: remove-project\n".as_slice()
         };
@@ -184,7 +168,7 @@ fn kept_counts_only_this_partys_unanswered_requests() {
     let mut root = fixtures::started(fixtures::restored_message(fixtures::PARTY));
     root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
     assert_eq!(root.root.kept(), fixtures::KEPT);
-    root.done(fixtures::EMPTY, c::Outcome::Changed);
+    root.done(fixtures::EMPTY, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
     assert_eq!(root.root.kept(), fixtures::EMPTY);
 }
 #[test]
@@ -239,21 +223,7 @@ fn changed_me_inputs_can_change_a_named_ask() {
         fixtures::encoded(&second.sends.get(&b).expect("changed chat").2)
     );
 }
-#[test]
-fn a_restored_proposals_kept_line_prints_its_identity_without_a_recipient() {
-    let mut root = fixtures::started(fixtures::restored_chat());
-    root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
-    root.done(
-        fixtures::EMPTY,
-        c::Outcome::Proposed {
-            proposal: c::ProposalKey {
-                proposer: c::Proposer::Task(fixtures::KEPT_PROPOSER),
-                number: fixtures::PROPOSAL,
-            },
-        },
-    );
-    assert_eq!(root.kept_lines.as_slice(), &[Box::<[u8]>::from(b"kept: chat, proposed: t3/17\n".as_slice())]);
-}
+
 #[test]
 fn close_passes_its_reason_or_empty() {
     for (extra, reason) in
@@ -395,7 +365,7 @@ fn dependency_refusals_print_jigs_words_and_integer_facts() {
             br#""circle":{"tasks":[],"cut":true}"#.as_slice(),
         ),
         (
-            c::Refusal::Dependency { dependency: fixtures::TASK, how: c::OwnerTaskStatus::Failed },
+            c::Refusal::Dependency { dependency: fixtures::TASK, how: c::TaskStatus::Failed },
             b"The added dependency has ended",
             br#""dependency":{"dependency":41,"how":"failed"}"#,
         ),
@@ -442,7 +412,7 @@ fn an_account_finishing_outcome_keeps_its_source_in_json() {
     let mut root = fixtures::signed_in(fixtures::PARTY);
     let call = root.submit(&["task", "message", "41", "hello", "--key", "words", "--json"]);
     root.serve(call, fixtures::task_result(fixtures::offered(&[c::ActKind::Message])));
-    root.done(call, c::Outcome::Owner(c::OwnerOutcome::AccountFinishing { source: 23 }));
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::AccountFinishing { source: 23 }));
     let printed = root.answer(call).expect("answered");
     assert_eq!(printed.status, 0);
     assert!(skein_lib::bytes::find(&printed.stdout, br#""account_finishing":{"source":23}"#).is_some(), "{printed:?}");
@@ -455,7 +425,7 @@ fn an_owner_proposal_uses_the_returned_role_in_the_original_request_project() {
         fixtures::send_chat(fixtures::CHAT_BUDGET + fixtures::OVER_BOUND, fixtures::SEED, fixtures::EMPTY.into());
     let c::Ask::Propose { project, .. } = fixtures::act_ask(&root, call) else { panic!("actual proposal ask") };
     let project = *project;
-    root.done(call, c::Outcome::Owner(c::OwnerOutcome::Proposed { proposal: fixtures::PROPOSAL, to: 9 }));
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: fixtures::PROPOSAL, to: 9 }));
     let printed = root.answer(call).expect("actual owner result");
     assert_eq!(printed.status, 0);
     assert_eq!(printed.stdout.as_ref(), format!("proposed: p73/17, to role 9 in project {project}\n").as_bytes());
@@ -463,15 +433,15 @@ fn an_owner_proposal_uses_the_returned_role_in_the_original_request_project() {
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "ordinary test checks rendered bytes; testing-strategy.md, step tests")]
-fn a_restored_owner_proposals_kept_output_retains_identity_and_omits_original_recipient() {
+fn a_restored_owner_proposals_kept_output_retains_its_supplied_facts() {
     for json in [false, true] {
         let mut root = fixtures::started_with(fixtures::restored_chat(), fixtures::SEED, json);
         root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
-        root.done(fixtures::EMPTY, c::Outcome::Owner(c::OwnerOutcome::Proposed { proposal: 17, to: 9 }));
+        root.done(fixtures::EMPTY, c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: 17, to: 9 }));
         let line = root.kept_lines.get(0).expect("kept line");
         if json {
-            assert!(line.windows(b"\"number\":17".len()).any(|piece| piece == b"\"number\":17"));
-            assert!(!line.windows(b"\"to\"".len()).any(|piece| piece == b"\"to\""));
+            assert!(line.windows(b"\"proposal\":17".len()).any(|piece| piece == b"\"proposal\":17"));
+            assert!(line.windows(b"\"to\":9".len()).any(|piece| piece == b"\"to\":9"));
         } else {
             assert_eq!(line.as_ref(), b"kept: chat, proposed: p73/17\n");
         }
@@ -482,7 +452,7 @@ fn a_restored_owner_proposals_kept_output_retains_identity_and_omits_original_re
 #[expect(clippy::disallowed_methods, reason = "ordinary test checks rendered bytes; testing-strategy.md, step tests")]
 fn a_proposal_answer_without_original_request_scope_reports_the_tools_invariant() {
     let (mut root, call) = fixtures::message();
-    root.done(call, c::Outcome::Owner(c::OwnerOutcome::Proposed { proposal: 17, to: 9 }));
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: 17, to: 9 }));
     let printed = root.answer(call).expect("terminal invariant report");
     assert_eq!(printed.status, 1);
     assert!(printed.stdout.is_empty());
@@ -498,9 +468,8 @@ fn a_proposal_answer_without_original_request_scope_reports_the_tools_invariant(
 fn close_rebuilds_the_same_ask_after_the_chat_and_its_delegates_end() {
     let mut task = fixtures::ended_task(c::Phase::Done);
     task.acts = skein_lib::List::with_capacity(fixtures::EMPTY);
-    let ending = c::Ending::Task(Box::new(c::OwnerChipEnding::Done(c::ResultValue::Report(fixtures::document_text(
-        b"finished",
-    )))));
+    let ending =
+        c::Ending::Task(Box::new(c::ChipEnding::Done(c::ResultValue::Report(fixtures::document_text(b"finished")))));
     for extra in [&[][..], fixtures::CLOSE_MOVE] {
         let argv = fixtures::extended(fixtures::CLOSE_CALL, extra);
         let mut first = fixtures::chat_root(fixtures::CHAT_BUDGET, fixtures::SEED);
@@ -509,7 +478,7 @@ fn close_rebuilds_the_same_ask_after_the_chat_and_its_delegates_end() {
         let expected = fixtures::act_ask(&first, call).clone();
         let mut replay = fixtures::chat_root(fixtures::CHAT_BUDGET, fixtures::SEED);
         let call = replay.submit(argv.as_slice());
-        replay.serve(call, fixtures::historical_task_result(task.clone(), ending.clone()));
+        replay.serve(call, fixtures::ended_task_result(task.clone(), ending.clone()));
         assert_eq!(fixtures::act_ask(&replay, call), &expected);
         assert_eq!(replay.sent_name(call), Some(fixtures::named("close-chat")));
     }
@@ -521,7 +490,7 @@ fn hold_lift_sends_without_a_read_and_prints_done_refused_and_moved() {
     let argv = &["hold", "lift", "12", "--rev", "1", "--with-tasks", "--key", "lift-12"];
     let cases = [
         (
-            c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Lifted { hold: 12, released: 2 })),
+            c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Lifted { hold: 12, released: 2 })),
             0,
             "done: hold 12 lifted, 2 released\n",
         ),
@@ -563,16 +532,15 @@ fn hold_lift_sends_without_a_read_and_prints_done_refused_and_moved() {
 
 #[test]
 fn close_names_an_archived_chat_end_only_when_the_authorized_read_proves_it() {
-    let ending = c::Ending::Task(Box::new(c::OwnerChipEnding::Done(c::ResultValue::Report(fixtures::document_text(
-        b"finished",
-    )))));
+    let ending =
+        c::Ending::Task(Box::new(c::ChipEnding::Done(c::ResultValue::Report(fixtures::document_text(b"finished")))));
     for (ended, refusal, names_end) in
         [(true, c::Refusal::Unknown, true), (false, c::Refusal::Unknown, false), (true, c::Refusal::KeyConflict, false)]
     {
         let mut root = fixtures::chat_root(fixtures::CHAT_BUDGET, fixtures::SEED);
         let call = root.submit(fixtures::CLOSE_CALL);
         let page = if ended {
-            fixtures::historical_task_result(fixtures::ended_task(c::Phase::Done), ending.clone())
+            fixtures::ended_task_result(fixtures::ended_task(c::Phase::Done), ending.clone())
         } else {
             fixtures::task_result(fixtures::with_delegates())
         };
@@ -599,7 +567,6 @@ fn a_cut_question_is_answered_as_any_other() {
     };
     question.words.cut = true;
     root.serve(call, c::ReadResult::Value(c::ReadValue::Question(question)));
-    root.serve(call, fixtures::task_result(fixtures::offered(&[c::ActKind::Answer])));
     let (_, _, ask) = root.sends.get(&call).expect("answer sent despite cut words");
     assert_eq!(
         ask,
@@ -608,7 +575,7 @@ fn a_cut_question_is_answered_as_any_other() {
             on: c::AnswerOn::Question { task: 41, message: 3, words: fixtures::act_text(b"Go ahead.") },
         }))
     );
-    root.done(call, c::Outcome::Changed);
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
     assert_eq!(root.answer(call).expect("answer completed").status, 0);
 }
 
@@ -635,7 +602,7 @@ fn answers_full_within_patience_waits_and_then_succeeds() {
     root.now = skein_lib::Time::from_nanos(1_000_000_000);
     root.wall = skein_lib::Wall::from_nanos(1_000_000_000);
     root.fire();
-    root.done(call, c::Outcome::Changed);
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
     assert_eq!(root.answer(call).expect("retry succeeds").status, 0);
 }
 
@@ -678,7 +645,7 @@ fn a_change_cannot_repeat_a_run_of_its_own() {
     let mut root = fixtures::signed_in(fixtures::PARTY);
     let call = root.submit(&["task", "release", "41", "--hold", "1", "--again"]);
     let mut task = fixtures::offered(&[c::ActKind::Release]);
-    task.chip.executor = c::Executor::Procedure { connector: temper_client_protocol_wire::FORGE, kind: 2 };
+    task.chip.executor = c::ChipExecutor::Procedure { connector: temper_client_protocol_wire::FORGE, kind: 2 };
     root.serve(call, fixtures::task_result(task));
     assert!(!root.sends.contains_key(&call), "no repeat is submitted for authority admission");
     let answer = root.answer(call).unwrap();
@@ -692,8 +659,8 @@ fn a_change_cannot_repeat_a_run_of_its_own() {
 #[test]
 fn a_plain_change_release_and_an_agents_repeat_still_reach_the_engine() {
     for (executor, again) in [
-        (c::Executor::Procedure { connector: temper_client_protocol_wire::FORGE, kind: 2 }, false),
-        (c::Executor::Agent { charter: 1 }, true),
+        (c::ChipExecutor::Procedure { connector: temper_client_protocol_wire::FORGE, kind: 2 }, false),
+        (c::ChipExecutor::Agent { charter: 1 }, true),
     ] {
         let mut root = fixtures::signed_in(fixtures::PARTY);
         let words = ["task", "release", "41", "--hold", "1", "--again"];

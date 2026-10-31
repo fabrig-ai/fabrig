@@ -1,8 +1,8 @@
 //! Facts read from delivered documents (client/domain/client.md, 19;
 //! contract.md, 5.3–5.4).
 use crate::contract::{
-    ActKind, Admission, Chip, ChipPhase, Effect, HeldRole, HoldCategory, Me, Offered, OwnerChipDetails, OwnerChipPhase,
-    OwnerChipWork, RetryNotice, RunStage, WaitedFor, WaitsOn, Whom,
+    ActKind, Admission, Chip, ChipDetails, ChipPhase, ChipPhaseFacts, ChipWork, Effect, HeldRole, HoldCategory, Me,
+    Offered, RetryNotice, RunStage, WaitedFor, WaitsOn, Whom,
 };
 use alloc::boxed::Box;
 use skein_lib::Wall;
@@ -33,44 +33,31 @@ pub fn chat_status(
     project: u32,
     me: &Me,
 ) -> ChatStatus {
-    match chip.details.as_ref() {
-        ChipPhase::Owner { phase, details } => match phase {
-            OwnerChipPhase::Held { reason, .. } => ChatStatus::Held(*reason),
-            OwnerChipPhase::Closing(_) => ChatStatus::Closing,
-            OwnerChipPhase::Ended => ChatStatus::Ended { at: details.ended_at.expect("ended chip has its end time") },
-            OwnerChipPhase::Active(stage) => {
-                if let Some(waiting) = waiting(waits_on, project, me) {
-                    return waiting;
-                }
-                let unplaced = match stage {
-                    RunStage::Due | RunStage::Preparing => true,
-                    RunStage::Idle
-                    | RunStage::Claimed { .. }
-                    | RunStage::Running { .. }
-                    | RunStage::BackingOff { .. } => false,
-                };
-                if unplaced && let Some(crate::contract::TaskRunWait::Refused(why)) = run_wait {
-                    return ChatStatus::HostRefused(*why);
-                }
-                active(*stage, details)
+    let ChipPhaseFacts { phase, details } = chip.details.as_ref();
+    match phase {
+        ChipPhase::Held { reason, .. } => ChatStatus::Held(*reason),
+        ChipPhase::Closing(_) => ChatStatus::Closing,
+        ChipPhase::Ended => ChatStatus::Ended { at: details.ended_at.expect("ended chip has its end time") },
+        ChipPhase::Active(stage) => {
+            if let Some(waiting) = waiting(waits_on, project, me) {
+                return waiting;
             }
-            OwnerChipPhase::Waiting { .. } | OwnerChipPhase::Person { .. } => ChatStatus::Starting,
-        },
-        ChipPhase::Active(_)
-        | ChipPhase::Waiting { .. }
-        | ChipPhase::Idle { .. }
-        | ChipPhase::Starting
-        | ChipPhase::Running { .. }
-        | ChipPhase::WaitingForWords { .. }
-        | ChipPhase::BackingOff { .. }
-        | ChipPhase::Procedure { .. }
-        | ChipPhase::Person { .. }
-        | ChipPhase::Closing(_)
-        | ChipPhase::Held { .. }
-        | ChipPhase::Ended { .. } => unreachable!("delivered chips carry their whole owner phase"),
+            let unplaced = match stage {
+                RunStage::Due | RunStage::Preparing => true,
+                RunStage::Idle | RunStage::Claimed { .. } | RunStage::Running { .. } | RunStage::BackingOff { .. } => {
+                    false
+                }
+            };
+            if unplaced && let Some(crate::contract::TaskRunWait::Refused(why)) = run_wait {
+                return ChatStatus::HostRefused(*why);
+            }
+            active(*stage, details)
+        }
+        ChipPhase::Waiting { .. } | ChipPhase::Person { .. } => ChatStatus::Starting,
     }
 }
-fn active(stage: RunStage, details: &OwnerChipDetails) -> ChatStatus {
+
+fn active(stage: RunStage, details: &ChipDetails) -> ChatStatus {
     match stage {
         RunStage::BackingOff { until } => {
             ChatStatus::Retrying { until, notice: details.retry.expect("backing off records its retry decision") }
@@ -79,11 +66,11 @@ fn active(stage: RunStage, details: &OwnerChipDetails) -> ChatStatus {
         RunStage::Due | RunStage::Preparing => ChatStatus::Starting,
         RunStage::Claimed { .. } | RunStage::Running { .. } => match &details.observation {
             Some(observation) => match &observation.work {
-                OwnerChipWork::Preparing | OwnerChipWork::Starting => ChatStatus::Starting,
-                OwnerChipWork::Writing => ChatStatus::Writing,
-                OwnerChipWork::Tool { tool, .. } => ChatStatus::Tool { tool: tool.clone(), since: observation.since },
-                OwnerChipWork::Waiting => ChatStatus::Parked,
-                OwnerChipWork::Active | OwnerChipWork::Ending => ChatStatus::Working { since: observation.since },
+                ChipWork::Preparing | ChipWork::Starting => ChatStatus::Starting,
+                ChipWork::Writing => ChatStatus::Writing,
+                ChipWork::Tool { tool, .. } => ChatStatus::Tool { tool: tool.clone(), since: observation.since },
+                ChipWork::Waiting => ChatStatus::Parked,
+                ChipWork::Active | ChipWork::Ending => ChatStatus::Working { since: observation.since },
             },
             None => match stage {
                 RunStage::Claimed { .. } => ChatStatus::Starting,
@@ -185,66 +172,42 @@ pub const fn dangerous(act: ActKind) -> bool {
 pub struct DecisionFacts {
     pub dangerous: bool,
     pub effect: Option<Effect>,
-    pub funding: skein_lib::List<crate::contract::OwnerFundingOffer>,
-    pub funds: Option<Funds>,
-}
-/// The proposal document's supplied budget and checked remainder.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Funds {
-    pub needed: u64,
-    pub left: u64,
-    pub after: u64,
+    pub funding: skein_lib::List<crate::contract::FundingOffer>,
 }
 /// Read decision facts; a missing document still carries the act's danger.
 #[must_use]
 pub fn decision(document: Option<&crate::contract::ReadValue>, act: ActKind) -> DecisionFacts {
     use crate::contract::ReadValue;
-    let mut value = DecisionFacts {
-        dangerous: dangerous(act),
-        effect: None,
-        funding: skein_lib::List::with_capacity(0),
-        funds: None,
-    };
+    let mut value =
+        DecisionFacts { dangerous: dangerous(act), effect: None, funding: skein_lib::List::with_capacity(0) };
     if let Some(document) = document {
         if let Some(offers) = decision_offers(document) {
             value.effect = effect(offers.as_slice(), act).copied();
         }
         if act == ActKind::Accept {
             match document {
-                ReadValue::OwnerProposal(proposal) => value.funding = proposal.funding.clone(),
-                ReadValue::Proposal(proposal) => {
-                    if let Some(after) = proposal.funding.left.checked_sub(proposal.needs.budget) {
-                        value.funds = Some(Funds { needed: proposal.needs.budget, left: proposal.funding.left, after });
-                    }
-                }
+                ReadValue::Proposal(proposal) => value.funding = proposal.funding.clone(),
                 ReadValue::Task(_)
                 | ReadValue::Escalation(_)
-                | ReadValue::OwnerEscalation(_)
                 | ReadValue::PersonTask(_)
-                | ReadValue::OwnerPersonTask(_)
                 | ReadValue::Me(_)
                 | ReadValue::Tasks(_)
-                | ReadValue::Historical(_)
+                | ReadValue::Ended(_)
                 | ReadValue::Question(_)
                 | ReadValue::Result(_)
-                | ReadValue::Ended(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
                 | ReadValue::Inbox(_)
-                | ReadValue::OwnerInbox(_)
                 | ReadValue::Notes(_)
+                | ReadValue::EndedPage(_)
                 | ReadValue::Spend(_)
-                | ReadValue::OwnerEnded(_)
-                | ReadValue::OwnerSpend(_)
-                | ReadValue::OwnerProject(_)
                 | ReadValue::Project(_)
-                | ReadValue::Deployment(_)
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
                 | ReadValue::Revisions(_)
-                | ReadValue::OwnerDeployment(_) => {}
+                | ReadValue::Deployment(_) => {}
             }
         }
     }
@@ -255,33 +218,25 @@ fn decision_offers(value: &crate::contract::ReadValue) -> Option<&skein_lib::Lis
     match value {
         ReadValue::Task(value) => Some(&value.acts),
         ReadValue::Escalation(value) => Some(&value.acts),
-        ReadValue::OwnerEscalation(value) => Some(&value.acts),
         ReadValue::PersonTask(value) => Some(&value.acts),
-        ReadValue::OwnerPersonTask(value) => Some(&value.acts),
         ReadValue::Proposal(value) => Some(&value.acts),
-        ReadValue::OwnerProposal(value) => Some(&value.acts),
         ReadValue::Me(_)
         | ReadValue::Tasks(_)
-        | ReadValue::Historical(_)
+        | ReadValue::Ended(_)
         | ReadValue::Question(_)
         | ReadValue::Result(_)
-        | ReadValue::Ended(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
         | ReadValue::Turn(_)
         | ReadValue::Inbox(_)
-        | ReadValue::OwnerInbox(_)
         | ReadValue::Notes(_)
+        | ReadValue::EndedPage(_)
         | ReadValue::Spend(_)
-        | ReadValue::OwnerEnded(_)
-        | ReadValue::OwnerSpend(_)
-        | ReadValue::OwnerProject(_)
         | ReadValue::Project(_)
-        | ReadValue::Deployment(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
-        | ReadValue::OwnerDeployment(_) => None,
+        | ReadValue::Deployment(_) => None,
     }
 }

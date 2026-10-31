@@ -11,7 +11,7 @@ impl Exchange {
     }
     pub fn open_record(&mut self, stream: [u8; 16], name: u64, subject: w::Owned) -> Token {
         let value = w::Open::new(&wire(), w::OpenParts { stream, watch: name, subject }).expect("open");
-        let mut bytes = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut bytes).expect("open");
         let owner = self.send(crate::Message::Watch(bytes.finish()));
         self.authenticate();
@@ -19,7 +19,7 @@ impl Exchange {
     }
     pub fn unwatch(&mut self, stream: [u8; 16], watch: u64) -> Token {
         let value = w::WatchClose::new(&wire(), w::WatchCloseParts { stream, watch }).expect("close");
-        let mut body = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut body = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut body).expect("close");
         let owner = self.send(crate::Message::Unwatch(body.finish()));
         self.authenticate();
@@ -39,7 +39,7 @@ impl Exchange {
     }
 }
 pub fn owned_subject(value: &w::Subject) -> w::Owned {
-    let mut bytes = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut bytes).expect("subject");
     w::Owned::new(&wire(), w::OwnedParts { owner: w::Owner::Jig, version: 19, record: bytes.finish() })
         .expect("subject owner")

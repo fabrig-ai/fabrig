@@ -1,6 +1,7 @@
-use jig_core_world::effects::{World, fixture};
 pub(crate) use jig_core_world::fixtures::{configure_resources, resource_member};
 use jig_core_world::fixtures::{delegate, live_row, member};
+use jig_core_world::world::Setup;
+use jig_core_world::world::{World, fixture};
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_notes as notes;
@@ -56,7 +57,7 @@ pub(crate) fn finish(world: &mut World, run: (u64, u64), words: &[u8]) {
 
 pub(crate) fn plan_world(seed: u64) -> World {
     let (configuration, limits) = jig_core_world::faults::plan_fixture(seed);
-    World::configured(seed, false, configuration, limits)
+    World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() })
 }
 
 #[test]
@@ -196,7 +197,13 @@ fn narrowed_policy_world() -> (World, u64, (u64, u64)) {
     limits.core.people.amendment_bytes = 256;
     limits.core.people.inbox_recipients = 16;
     jig_core_world::peers::journal(&mut limits);
-    let mut world = World::configured(126, true, configuration, limits);
+    let mut world = World::new(Setup {
+        seed: 126,
+        requirement: true,
+        configuration: Some(configuration),
+        limits,
+        ..Setup::default()
+    });
     world.call(1, 9200);
     world.observed(13);
     world.hold_writes = true;
@@ -255,7 +262,7 @@ fn a_policy_narrowed_while_a_proposal_waits_keeps_the_committed_entry_and_checks
 
 #[test]
 fn drift_holds_a_task_and_the_client_reads_why_it_needs_a_decision() {
-    let mut world = World::new(127, false);
+    let mut world = World::new(Setup { seed: 127, ..Setup::default() });
     let task = world.call_key(1).task;
     let resource = jig_test_connector_world::path(1, 1);
     world.send(root::Event::Connector {
@@ -357,7 +364,7 @@ fn a_note_written_corrected_by_a_person_and_recalled_keeps_the_corrected_body() 
     .rules()
     .clone();
 
-    let mut world = World::configured(121, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 121, configuration: Some(configuration), limits, ..Setup::default() });
     let key = world.call_key(1);
     action(
         &mut world,
@@ -406,7 +413,7 @@ fn a_note_written_corrected_by_a_person_and_recalled_keeps_the_corrected_body() 
 
 #[test]
 fn a_persons_whole_words_reach_a_running_run_and_retire_only_with_its_committed_read() {
-    let mut world = World::new(122, false);
+    let mut world = World::new(Setup { seed: 122, ..Setup::default() });
     let message = world.say(42);
     let inbound = world.inbound.last().expect("running run received words");
     assert_eq!(inbound.number, message);
@@ -425,7 +432,7 @@ fn a_persons_whole_words_reach_a_running_run_and_retire_only_with_its_committed_
 
 #[test]
 fn a_judges_observed_facts_may_change_after_a_verdict_but_new_effects_use_the_new_facts() {
-    let mut world = World::new(123, true);
+    let mut world = World::new(Setup { seed: 123, requirement: true, ..Setup::default() });
     world.call(1, 8000);
     world.observed(13);
     world.hold_writes = true;
@@ -678,7 +685,7 @@ fn an_exclusive_resource_that_refuses_waiting_refuses_the_second_batch() {
     let seed = 151;
     let (mut configuration, limits) = jig_core_world::faults::plan_fixture(seed);
     configuration.first.resources[0].hold = connector::Hold::Exclusive { mode: connector::HoldMode::Refuse };
-    let mut world = World::configured(seed, false, configuration, limits);
+    let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
     // The kind default waits: the individual connector report must override it.
     configure_resources(&mut world);
     let parent = world.assignments[0];
@@ -760,7 +767,7 @@ fn a_batch_waits_without_creating_a_task_or_reserving_funding_until_its_resource
 
 #[test]
 fn re_adopting_a_resource_as_context_refuses_the_existing_tasks_next_effect() {
-    let mut world = World::new(153, false);
+    let mut world = World::new(Setup { seed: 153, ..Setup::default() });
     let resource = jig_test_connector_world::path(1, 1);
     let task = world.call_key(1).task;
     world.send(root::Event::Connector {
@@ -771,11 +778,11 @@ fn re_adopting_a_resource_as_context_refuses_the_existing_tasks_next_effect() {
         number: 1,
         event: connector::Event::Names { task, project: 1, resources: Box::new([resource.clone()]) },
     });
-    world.send(root::Event::Core(core::Event::EffectConnector(core::connector::Event::Resource {
+    world.send(root::Event::Core(core::Event::EffectConnector(core::effects::connector::Event::Resource {
         project: 2,
         name: tasks::Name { connector: 1, path: resource.segments().into() },
-        role: core::connector::ResourceRole::Context,
-        hold: core::connector::HoldKind::Exclusive { wait: true },
+        role: core::effects::connector::ResourceRole::Context,
+        hold: core::effects::connector::HoldKind::Exclusive { wait: true },
     })));
     world.send(root::Event::Connector {
         number: 1,
@@ -867,7 +874,7 @@ fn re_adopting_a_running_workspace_as_context_stops_its_writer() {
 
 #[test]
 fn a_context_adoption_still_refuses_effects_after_a_cold_restart() {
-    let mut world = World::new(156, false);
+    let mut world = World::new(Setup { seed: 156, ..Setup::default() });
     world.send(root::Event::Connector {
         number: 1,
         event: connector::Event::Adopt {
@@ -887,13 +894,13 @@ fn a_context_adoption_still_refuses_effects_after_a_cold_restart() {
 pub(crate) fn amendment(words: &[u8]) -> people::Amendment {
     people::Amendment {
         spec: Some(people::Spec { asks: false, words: words.into(), parameters: Box::new([]), inputs: Box::new([]) }),
-        ..jig_core_world::fixtures::person_unchanged(b"new evidence")
+        ..jig_test_profile::fixtures::person_unchanged(b"new evidence")
     }
 }
 
 #[test]
 fn a_release_naming_an_old_hold_is_refused_as_moved_saying_what_holds_it_now() {
-    let mut world = World::new(150, false);
+    let mut world = World::new(Setup { seed: 150, ..Setup::default() });
     let task = world.call_key(1).task;
     ask(&mut world, 50, people::Ask::Stop { project: 1, task });
     let revision = live_row(&world, task).revisions.hold;
@@ -914,7 +921,7 @@ fn a_release_naming_an_old_hold_is_refused_as_moved_saying_what_holds_it_now() {
 
 #[test]
 fn a_release_after_a_pass_up_keeps_the_hold_revision_and_uses_the_partys_tree() {
-    let mut world = World::new(151, false);
+    let mut world = World::new(Setup { seed: 151, ..Setup::default() });
     let task = world.call_key(1).task;
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Stalled })));
     world.end(tasks::End::Parked, 0);
@@ -940,7 +947,7 @@ fn a_release_after_a_pass_up_keeps_the_hold_revision_and_uses_the_partys_tree() 
 #[test]
 fn an_amendment_and_a_release_are_one_decision() {
     let (configuration, limits) = amendment_world_fixture(152);
-    let mut world = World::configured(152, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 152, configuration: Some(configuration), limits, ..Setup::default() });
     let task = world.call_key(1).task;
     ask(&mut world, 54, people::Ask::Stop { project: 1, task });
     world.end(tasks::End::Parked, 0);
@@ -998,7 +1005,7 @@ fn an_amendment_and_a_release_are_one_decision() {
 
 #[test]
 fn a_party_deciding_a_cancelled_task_hears_who_cancelled_it_and_when() {
-    let mut world = World::new(154, false);
+    let mut world = World::new(Setup { seed: 154, ..Setup::default() });
     let task = world.call_key(1).task;
     let person = match live_row(&world, task).requester {
         tasks::Party::Person(person) => person,
@@ -1050,7 +1057,7 @@ pub(crate) fn person_world_fixture(seed: u64) -> (root::Config, root::Limits) {
 )]
 fn a_person_answering_a_person_task_whose_inputs_changed_is_refused_as_moved() {
     let (configuration, limits) = person_world_fixture(160);
-    let mut world = World::configured(160, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 160, configuration: Some(configuration), limits, ..Setup::default() });
     let parent = world.assignments[0];
     let mut input = member(&world, tasks::Executor::Agent { charter: 1 }, b"input report");
     input.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
@@ -1301,16 +1308,16 @@ fn a_widening_amendment_with_release_is_proposed_and_released_on_acceptance(worl
 #[test]
 fn a_goal_with_a_deadline_is_held_past_it() {
     let (configuration, limits) = amendment_world_fixture(161);
-    let mut world = World::configured(161, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 161, configuration: Some(configuration), limits, ..Setup::default() });
     let deadline = skein_lib::Wall::from_nanos(1_000_000_000);
     let proposed_goal = jig_core_world::fixtures::goal(
         &world,
         1,
         b"finish before the deadline".as_slice().into(),
         people::TaskExecutor::Agent { charter: 1 },
-        jig_core_world::fixtures::Goal { budget: 600, deadline: Some(deadline), ..Default::default() },
+        jig_test_profile::fixtures::Goal { budget: 600, deadline: Some(deadline), ..Default::default() },
     );
-    ask(&mut world, 90, jig_core_world::fixtures::propose_goal(proposed_goal));
+    ask(&mut world, 90, jig_test_profile::fixtures::propose_goal(proposed_goal));
     let Some(people::Reply::Outcome(people::Outcome::Proposed { proposal, to: 0 })) =
         world.people_answers.last().cloned()
     else {
@@ -1407,7 +1414,7 @@ mod offers;
 
 fn approval_world(seed: u64) -> (World, u64, u64, u64) {
     let (configuration, limits) = person_world_fixture(seed);
-    let mut world = World::configured(seed, false, configuration, limits);
+    let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
     let parent = world.assignments[0];
     let mut approval = member(&world, tasks::Executor::Person(tasks::PersonAddress::Role(0)), b"approve shown state");
     approval.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
@@ -1644,7 +1651,7 @@ fn an_approval_reaches_its_asking_procedure_connector_as_the_whole_durable_input
 #[test]
 fn approval_state_and_explanation_share_the_person_answer_byte_bound() {
     let (mut world, parent, task, revision) = approval_world(457);
-    let bound = usize::try_from(person_world_fixture(457).1.core.people.words).expect("small bound");
+    let bound = skein_lib::length::usize_of(person_world_fixture(457).1.core.people.words);
     let state = b"state\x00\xff";
     ask(
         &mut world,
@@ -1757,7 +1764,7 @@ fn a_verdicts_machine_fields_reach_its_requester_whole_after_commit_and_restart(
 
 fn procedure_world(seed: u64, number: u16) -> (World, u64) {
     let (configuration, limits) = procedure_configuration(seed);
-    let mut world = World::configured(seed, false, configuration, limits);
+    let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
     world.hold_procedures = true;
     let root_run = world.assignments[0];
     let mut procedure = member(&world, tasks::Executor::Procedure { connector: number, code: 1 }, b"ask for approval");
@@ -1856,7 +1863,7 @@ fn procedure_configuration(seed: u64) -> (root::Config, root::Limits) {
 #[test]
 fn procedure_delegate_outcomes_without_a_live_procedure_owner_are_not_routed() {
     let (configuration, limits) = person_world_fixture(460);
-    let mut world = World::configured(460, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 460, configuration: Some(configuration), limits, ..Setup::default() });
     let agent = world.assignments[0].0;
     for task in [agent, u64::MAX] {
         world.send(root::Event::Core(core::Event::ProcedureStep {
@@ -1880,8 +1887,8 @@ fn procedure_delegate_outcomes_without_a_live_procedure_owner_are_not_routed() {
 #[path = "../stories/procedure_goals.rs"]
 mod procedure_goals;
 
-#[path = "../stories/historical.rs"]
-mod historical;
+#[path = "../stories/ended.rs"]
+mod ended;
 
 #[path = "../stories/dependencies.rs"]
 mod dependencies;

@@ -1,0 +1,56 @@
+use crate::tests::fixtures::{ReadPage, Watched};
+use crate::tests::state::domain::{
+    objects,
+    spine::{drive, open_token},
+};
+use crate::{
+    Event,
+    state::{
+        address::{Address, Place, TaskSection},
+        objects::Body,
+    },
+};
+use jig_client::contract::*;
+use skein_lib::{List, Time};
+
+#[test]
+fn whole_owner_task_resources_survive_reads_without_invented_scope() {
+    let segments = crate::tests::kit::list([Box::<[u8]>::from(*b"a/b"), Box::<[u8]>::from([255_u8, 0])]);
+    let owner = ResourceLine {
+        part: Part { connector: u16::MAX, kind: PartKind::Resource, key: PartKey::Path(segments) },
+        kind: u16::MAX,
+        taken: false,
+        holder: Some(u64::MAX),
+        writer: Some(ResourceWriter::Effect { entry: u64::MAX }),
+        writer_lost: true,
+    };
+    {
+        let (mut domain, page) = objects::live();
+        let first = objects::watched(&mut domain, page, &[ObjectKey::Task(8)]);
+        let read = objects::read_token(&first);
+        let mut row = crate::tests::state::domain::confirmation::task();
+        row.resources = List::with_capacity(2);
+        row.resources.push(owner.clone()).unwrap();
+        let exact = row.clone();
+        let output = drive(
+            &mut domain,
+            Time::ZERO,
+            ReadPage { read, result: ReadResult::Value(ReadValue::Task(Box::new(row))) },
+        );
+        let id = domain.objects().find(ObjectKey::Task(8)).unwrap();
+        assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Task(Box::new(exact.clone()))));
+        assert!(output.is_empty(), "object reads retain facts without selecting application parts");
+        let opened = drive(
+            &mut domain,
+            Time::ZERO,
+            Event::Went { place: Place::Jig(Address::Task { task: 8, section: TaskSection::Overview }) },
+        );
+        let watch = open_token(&opened);
+        let output = drive(
+            &mut domain,
+            Time::ZERO,
+            Watched { watch, event: WatchEvent::Delivered(Delivery::Task(Box::new(exact))) },
+        );
+        assert!(output.is_empty());
+    }
+}

@@ -1,12 +1,12 @@
 //! A refused start frees its slot without keeping an unstarted agent (hosts.md, 6.2 and 6.3).
 use super::{Hosted, State, conclude, tail};
-use crate::{Answer, Domain, Ending, Invalid, Limits, LinkUp, Refusal, Request};
+use crate::{Ending, Hub, Invalid, Limits, LinkUp, Refusal, Request, RunAnswer};
 use alloc::boxed::Box;
 use core::mem;
 use skein_lib::{Env, Id, Queue, Token};
 
 pub(crate) fn start_refused(
-    domain: &mut Domain,
+    domain: &mut Hub,
     env: &Env<Limits>,
     owner: Token,
     why: Box<[u8]>,
@@ -38,7 +38,7 @@ pub(crate) fn start_refused(
     if let Some(workspace) = workspace {
         out.push(Request::Release { workspace });
     }
-    let answer = Answer {
+    let answer = RunAnswer {
         turns: 0,
         spent: 0,
         read: None,

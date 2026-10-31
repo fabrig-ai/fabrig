@@ -1,7 +1,18 @@
 //! Offers and the authenticated entrance share their current authority facts.
-use super::*;
-use crate::acts as offers;
-use crate::acts::{Act, Admission, Beyond, Bounds};
+
+pub(in crate::tests) mod conversations;
+pub(in crate::tests) mod decision_effects;
+pub(in crate::tests) mod escalation;
+pub(in crate::tests) mod kind_order;
+pub(in crate::tests) mod proposals;
+pub(in crate::tests) mod tracking;
+
+use crate::{
+    acts as offers,
+    acts::{Act, Admission, Beyond, Bounds},
+    routing::party::dispatch::Control,
+    tests::*,
+};
 
 fn policy_holder(numbers: &[u32]) -> offers::Recipient {
     let mut roles = List::with_capacity(u32::try_from(numbers.len()).unwrap());
@@ -205,7 +216,12 @@ fn an_amendment_uses_live_pool_and_remaining_task_facts_and_preserves_narrowing(
         reason: Box::new([]),
     };
     assert_eq!(
-        core.amend_admit(1, Some(people::Role::Owner), 1, 1, &change, limits.tasks.depth, &limits.tasks),
+        core.amend_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+            &change,
+            limits.tasks.depth,
+            &limits.tasks
+        ),
         Err(people::Refusal::Authority {
             lacking: people::Lack::Budget { needs: 550, left: 500 },
             proposable: Some(people::Accepter::Role(0))
@@ -223,7 +239,12 @@ fn an_amendment_uses_live_pool_and_remaining_task_facts_and_preserves_narrowing(
         people::Refusal::Authority { lacking: people::Lack::Approver, proposable: Some(people::Accepter::Nobody) }
     );
     assert_eq!(
-        core.amend_admit(1, Some(people::Role::Owner), 1, 1, &change, limits.tasks.depth, &limits.tasks),
+        core.amend_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+            &change,
+            limits.tasks.depth,
+            &limits.tasks
+        ),
         Err(people::Refusal::Authority {
             lacking: people::Lack::Budget { needs: 550, left: 500 },
             proposable: Some(people::Accepter::Nobody)
@@ -231,7 +252,12 @@ fn an_amendment_uses_live_pool_and_remaining_task_facts_and_preserves_narrowing(
     );
     change.authority.as_mut().unwrap().budget.spend = 90;
     assert_eq!(
-        core.amend_admit(1, Some(people::Role::Owner), 1, 1, &change, limits.tasks.depth, &limits.tasks),
+        core.amend_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+            &change,
+            limits.tasks.depth,
+            &limits.tasks
+        ),
         Ok(true)
     );
 }
@@ -303,7 +329,7 @@ fn an_observers_core_role_refusals_match_their_offers() {
         let key = [u8::try_from(index).unwrap(); 16];
         let outcome = people::Outcome::Refused(expected.clone());
         for replay in [false, true] {
-            let Requests::Out(out) = step(
+            let out = step(
                 &mut core,
                 &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
                 Event::People(people::Event::Ask {
@@ -328,11 +354,7 @@ fn an_observers_core_role_refusals_match_their_offers() {
                         saved += 1;
                     }
                     Request::Write(Write::Save(Record::Tasks(_))) => panic!("refused act wrote a task"),
-                    Request::ProjectMade { .. }
-                    | Request::Write(_)
-                    | Request::Ask { .. }
-                    | Request::Now(_)
-                    | Request::Decided => {}
+                    Request::ProjectMade { .. } | Request::Write(_) | Request::Ask { .. } | Request::Now(_) => {}
                 }
             }
             assert!(replied, "index {index}, replay {replay}: {out:?}");
@@ -396,10 +418,18 @@ fn offered_person_handoffs_and_answers_reach_the_child_and_change_the_offer() {
     let subject = Subject::PersonTask { task: 5 };
     assert_eq!(offers::admit(&core, &limits, 1, Act::Take, &subject, Wall::EPOCH), Admission::Allowed);
     let event = core
-        .person_task(Token::new(81), 1, 1, Some(people::Role::Owner), people::Ask::TakePerson { project: 1, task: 5 })
+        .person_task(
+            crate::routing::party::dispatch::Party {
+                request: Token::new(81),
+                person: 1,
+                project: 1,
+                role: Some(people::Role::Owner),
+            },
+            person_task::Action::Take { task: 5 },
+        )
         .unwrap();
     send_task(&mut core, &limits, event);
-    assert_eq!(core.person_tasks.remove(&Token::new(81)), Some(PersonTaskRoute::Take(5)));
+    assert_eq!(person_task_flight(&mut core, Token::new(81)), Some(PersonTaskRoute::Take(5)));
     assert_eq!(core.tasks.task(5).unwrap().taken_by, Some(1));
     assert_eq!(
         offers::admit(&core, &limits, 1, Act::Take, &subject, Wall::EPOCH),
@@ -409,35 +439,65 @@ fn offered_person_handoffs_and_answers_reach_the_child_and_change_the_offer() {
     assert_eq!(offers::admit(&core, &limits, 1, Act::HandBack, &subject, Wall::EPOCH), Admission::Allowed);
     let event = core
         .person_task(
-            Token::new(82),
-            1,
-            1,
-            Some(people::Role::Observer),
-            people::Ask::HandBackPerson { project: 1, task: 5 },
+            crate::routing::party::dispatch::Party {
+                request: Token::new(82),
+                person: 1,
+                project: 1,
+                role: Some(people::Role::Observer),
+            },
+            person_task::Action::HandBack { task: 5 },
         )
         .unwrap();
     send_task(&mut core, &limits, event);
-    assert_eq!(core.person_tasks.remove(&Token::new(82)), Some(PersonTaskRoute::HandBack(5)));
+    assert_eq!(person_task_flight(&mut core, Token::new(82)), Some(PersonTaskRoute::HandBack(5)));
     assert_eq!(core.tasks.task(5).unwrap().taken_by, None);
     holding(&mut core, &limits, people::Role::Owner);
     let why = people::Refusal::NotWaiting;
     assert_eq!(offers::admit(&core, &limits, 1, Act::Answer, &subject, Wall::EPOCH), Admission::Refused(why.clone()));
-    let answer = people::Ask::AnswerPerson {
-        project: 1,
+    let answer = person_task::Action::Answer {
         task: 5,
         revision: core.tasks.task(5).unwrap().revisions.person,
         result: people::PersonResult::Report { words: b"done".as_slice().into() },
     };
-    assert_eq!(core.person_task(Token::new(83), 1, 1, Some(people::Role::Owner), answer.clone()), Err(why));
+    assert_eq!(
+        core.person_task(
+            crate::routing::party::dispatch::Party {
+                request: Token::new(83),
+                person: 1,
+                project: 1,
+                role: Some(people::Role::Owner)
+            },
+            answer.clone()
+        ),
+        Err(why)
+    );
     let event = core
-        .person_task(Token::new(84), 1, 1, Some(people::Role::Owner), people::Ask::TakePerson { project: 1, task: 5 })
+        .person_task(
+            crate::routing::party::dispatch::Party {
+                request: Token::new(84),
+                person: 1,
+                project: 1,
+                role: Some(people::Role::Owner),
+            },
+            person_task::Action::Take { task: 5 },
+        )
         .unwrap();
     send_task(&mut core, &limits, event);
-    assert_eq!(core.person_tasks.remove(&Token::new(84)), Some(PersonTaskRoute::Take(5)));
+    assert_eq!(person_task_flight(&mut core, Token::new(84)), Some(PersonTaskRoute::Take(5)));
     assert_eq!(offers::admit(&core, &limits, 1, Act::Answer, &subject, Wall::EPOCH), Admission::Allowed);
-    let event = core.person_task(Token::new(85), 1, 1, Some(people::Role::Owner), answer).unwrap();
+    let event = core
+        .person_task(
+            crate::routing::party::dispatch::Party {
+                request: Token::new(85),
+                person: 1,
+                project: 1,
+                role: Some(people::Role::Owner),
+            },
+            answer,
+        )
+        .unwrap();
     send_task(&mut core, &limits, event);
-    assert_eq!(core.person_tasks.remove(&Token::new(85)), Some(PersonTaskRoute::Answer(5)));
+    assert_eq!(person_task_flight(&mut core, Token::new(85)), Some(PersonTaskRoute::Answer(5)));
     let actor = core.tasks.task(5).unwrap().person_answer.unwrap();
     assert_eq!(actor.by, 1);
     assert_eq!(
@@ -472,15 +532,19 @@ fn a_named_person_can_answer_without_project_membership() {
         offers::admit(&core, &limits, 1, Act::Answer, &Subject::PersonTask { task: 5 }, Wall::EPOCH),
         Admission::Allowed
     );
-    let answer = people::Ask::AnswerPerson {
-        project: 1,
+    let answer = person_task::Action::Answer {
         task: 5,
         revision: core.tasks.task(5).unwrap().revisions.person,
         result: people::PersonResult::Report { words: b"done".as_slice().into() },
     };
-    let event = core.person_task(Token::new(87), 1, 1, None, answer).unwrap();
+    let event = core
+        .person_task(
+            crate::routing::party::dispatch::Party { request: Token::new(87), person: 1, project: 1, role: None },
+            answer,
+        )
+        .unwrap();
     send_task(&mut core, &limits, event);
-    assert_eq!(core.person_tasks.remove(&Token::new(87)), Some(PersonTaskRoute::Answer(5)));
+    assert_eq!(person_task_flight(&mut core, Token::new(87)), Some(PersonTaskRoute::Answer(5)));
     assert_eq!(core.tasks.task(5).unwrap().person_answer.unwrap().by, 1);
 }
 
@@ -491,25 +555,24 @@ fn task_controls_owner_changes_priorities_and_note_scopes_share_their_judges() {
     given.delegation.tasks = 3;
     given.delegation.depth = 2;
     set_role_authority(&mut core.authority, given);
-    for (act, ask, number) in [
-        (Act::Stop, people::Ask::Stop { project: 1, task: 2 }, 2),
-        (Act::Cancel, people::Ask::Cancel { project: 1, task: 2, reason: b"done".as_slice().into(), grace: None }, 2),
-        (
-            Act::Release,
-            people::Ask::Release {
-                project: 1,
-                task: 3,
-                revision: core.tasks.task(3).unwrap().revisions.hold,
-                again: None,
-            },
-            3,
-        ),
+    for (act, control, number) in [
+        (Act::Stop, Control::Stop, 2),
+        (Act::Cancel, Control::Cancel { reason_len: b"done".len(), grace: None }, 2),
+        (Act::Release, Control::Release { again: None }, 3),
     ] {
         assert_eq!(
             offers::admit(&core, &limits, 1, act, &Subject::Task { task: number }, Wall::EPOCH),
             Admission::Allowed
         );
-        assert_eq!(core.control_admit(&ask, 1, 1, Some(people::Role::Owner), &limits.tasks), Ok(number));
+        assert_eq!(
+            core.control_admit(
+                compound::PartyTask { person: 1, project: 1, role: Some(people::Role::Owner), task: number },
+                control,
+                &limits.tasks,
+                &tasks::CompoundAdmission::new(&core.tasks, 0)
+            ),
+            Ok(number)
+        );
     }
     let why = people::Refusal::Authority {
         lacking: people::Lack::Tasks { left: 3 },
@@ -520,7 +583,12 @@ fn task_controls_owner_changes_priorities_and_note_scopes_share_their_judges() {
         Admission::Refused(why.clone())
     );
     assert_eq!(
-        core.move_admit(1, Some(people::Role::Owner), 1, 2, limits.tasks.tree_tasks, limits.tasks.depth),
+        core.move_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 2 },
+            limits.tasks.tree_tasks,
+            limits.tasks.depth,
+            &tasks::CompoundAdmission::new(&core.tasks, 0)
+        ),
         Err(why)
     );
     assert_eq!(
@@ -577,7 +645,7 @@ fn sign_in(core: &mut Core, limits: &Limits) {
 }
 
 fn ask_now(core: &mut Core, limits: &Limits, key: u8, ask: people::Ask) -> people::Outcome {
-    let Requests::Out(out) = step(
+    let out = step(
         core,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
         Event::People(people::Event::Ask {
@@ -664,8 +732,6 @@ fn offered_proposal_decisions_are_made_at_the_named_holder_and_another_holder_is
     }
 }
 
-mod conversations;
-
 #[test]
 fn a_move_offer_tracks_requester_changes_after_adoption() {
     let (mut core, limits) = make_tree();
@@ -698,7 +764,12 @@ fn a_move_offer_tracks_requester_changes_after_adoption() {
     let why = people::Refusal::NotWaiting;
     assert_eq!(offers::admit(&core, &limits, 1, Act::Move, &object, Wall::EPOCH), Admission::Refused(why.clone()));
     assert_eq!(
-        core.move_admit(1, Some(people::Role::Owner), 1, 5, limits.tasks.tree_tasks, limits.tasks.depth),
+        core.move_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 5 },
+            limits.tasks.tree_tasks,
+            limits.tasks.depth,
+            &tasks::CompoundAdmission::new(&core.tasks, 0)
+        ),
         Err(why)
     );
 }
@@ -815,7 +886,7 @@ fn procedure_goal_bounds_refuse_an_incomplete_executor_list() {
 }
 
 fn keyed_proposal(core: &mut Core, limits: &Limits, key: u8, proposer: Proposer) -> Queue<Request> {
-    let Requests::Out(out) = step(
+    step(
         core,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
         Event::People(people::Event::Ask {
@@ -831,8 +902,7 @@ fn keyed_proposal(core: &mut Core, limits: &Limits, key: u8, proposer: Proposer)
                 running: None,
             },
         }),
-    );
-    out
+    )
 }
 
 fn proposal_answer(out: &Queue<Request>) -> people::Outcome {
@@ -938,12 +1008,12 @@ fn a_task_and_a_party_with_identical_proposal_numbers_are_decided_separately() {
 }
 
 #[test]
-fn a_historical_proposal_decision_requires_the_exact_maker() {
+fn an_ended_proposal_decision_requires_the_exact_maker() {
     for proposer in [Proposer::Task(1), Proposer::Party(1)] {
         for other_store in [false, true] {
             let (mut core, limits) = make_tree();
             sign_in(&mut core, &limits);
-            // Allocate the archived decider and proposal through their real deployment families.
+            // Allocate the ended decider and proposal through their real deployment families.
             assert_eq!(fresh(&mut core.counters, Family::Person), Some(1));
             for _ in 0_u8..10 {
                 fresh(&mut core.counters, Family::Message).unwrap();
@@ -952,10 +1022,10 @@ fn a_historical_proposal_decision_requires_the_exact_maker() {
             let mut named_request = None;
             for output in &out {
                 if let Request::Now(now) = output
-                    && let Now::HistoricalProposal { request, person, project, proposer: named, proposal } = &**now
+                    && let Now::EndedProposal { request, person, project, proposer: named, proposal } = &**now
                 {
                     assert_eq!((*person, *project, *named, *proposal), (1, 1, proposer, 10));
-                    assert!(named_request.replace(*request).is_none(), "one exact historical load");
+                    assert!(named_request.replace(*request).is_none(), "one exact ended load");
                 }
             }
             let request = named_request.expect("only the named absent store falls back to history");
@@ -985,10 +1055,10 @@ fn a_historical_proposal_decision_requires_the_exact_maker() {
                 choice: people::ProposalChoice::Rejected,
                 created: None,
             };
-            let Requests::Out(out) = step(
+            let out = step(
                 &mut core,
                 &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-                Event::HistoricalProposal {
+                Event::EndedProposal {
                     request,
                     person: 1,
                     project: 1,
@@ -1017,16 +1087,6 @@ fn a_historical_proposal_decision_requires_the_exact_maker() {
     }
 }
 
-mod kind_order;
-
-mod escalation;
-
-mod proposals;
-
-mod tracking;
-
-mod decision_effects;
-
 #[test]
 fn a_procedure_repeat_is_refused_before_authority_and_its_uncertain_effect_keeps_its_choice() {
     let (mut core, limits) = tree_core();
@@ -1046,7 +1106,15 @@ fn a_procedure_repeat_is_refused_before_authority_and_its_uncertain_effect_keeps
     let mut procedure = core.tasks.task(1).expect("procedure made").clone();
     let ask = people::Ask::Release { project: 1, task: 1, revision: procedure.revisions.hold, again: Some(true) };
     let refusal = people::Refusal::NotOffered;
-    assert_eq!(core.control_admit(&ask, 1, 1, None, &limits.tasks), Err(refusal.clone()));
+    assert_eq!(
+        core.control_admit(
+            compound::PartyTask { person: 1, project: 1, role: None, task: 1 },
+            Control::Release { again: Some(true) },
+            &limits.tasks,
+            &tasks::CompoundAdmission::new(&core.tasks, 0)
+        ),
+        Err(refusal.clone())
+    );
     assert_eq!(offers::request(&core, &limits, 1, 1, None, &ask, Wall::EPOCH), Err(refusal));
     assert_eq!(revisions::release_run(&procedure, None), Ok(()));
     let tasks::Phase::Held { why, .. } = &mut procedure.phase else { panic!("held fixture") };
@@ -1055,4 +1123,18 @@ fn a_procedure_repeat_is_refused_before_authority_and_its_uncertain_effect_keeps
     assert_eq!(revisions::release_run(&procedure, Some(false)), Ok(()));
     procedure.executor = tasks::Executor::Agent { charter: 1 };
     assert_eq!(revisions::release_run(&procedure, Some(true)), Ok(()));
+}
+
+fn person_task_flight(core: &mut Core, token: Token) -> Option<PersonTaskRoute> {
+    let mut found = None;
+    for (id, flight) in &core.flights {
+        if let flight::Flight::PersonTask { request, .. } = flight
+            && *request == token
+        {
+            found = Some(id);
+            break;
+        }
+    }
+    let flight::Flight::PersonTask { route, .. } = core.land(found?.token())? else { return None };
+    Some(route)
 }

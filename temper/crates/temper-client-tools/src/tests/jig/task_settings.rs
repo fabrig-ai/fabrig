@@ -43,7 +43,7 @@ fn task_settings_text_and_json_show_the_recorded_run_and_newest_revisions() {
 #[test]
 fn procedure_task_text_and_json_carry_no_settings_revision() {
     let mut task = f::goal(f::TASK, c::WaitsOn::Nothing);
-    task.chip.executor = c::Executor::Procedure { connector: 1, kind: 1 };
+    task.chip.executor = c::ChipExecutor::Procedure { connector: 1, kind: 1 };
     task.settings = None;
     task.instructions = None;
     golden("task_settings_procedure", f::read_answer(f::TASK_CALL, f::task_result(task.clone())));

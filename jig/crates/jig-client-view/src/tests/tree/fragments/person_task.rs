@@ -1,0 +1,532 @@
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    clippy::wildcard_enum_match_arm,
+    reason = "ordinary proofs inspect public trees, source data and checked language selection"
+)]
+use crate::tests::fixtures::Fixture;
+use crate::tests::kit::Goldens;
+use crate::tests::tree::cards::{CLIENT, drive, words};
+use crate::words::Words;
+use crate::words::person_task_words::PersonPhrase;
+use crate::{JigBindings, tree::fragments::person_task as view, words::person_task_words as owner_person_task_words};
+use skein_ui::Limits;
+use skein_ui::phrases::{Invalid, PhraseLimits, Phrasebook, Segment};
+use skein_ui::{Builder, Role, State, Tree};
+
+use crate::{
+    Event,
+    state::{action::Act, fields::Purpose},
+};
+use jig_client::contract::*;
+use skein_lib::{Duration, List, Wall, bytes::copy_of};
+fn rows<T>(values: impl IntoIterator<Item = T>) -> List<T> {
+    List::from_boxed(values.into_iter().collect::<Vec<_>>().into_boxed_slice())
+}
+fn doc(bytes: &[u8]) -> DocumentText {
+    DocumentText { bytes: Text::new(copy_of(bytes), CLIENT.client.text).unwrap(), cut: true }
+}
+fn chip(task: u64) -> Chip {
+    Chip {
+        task,
+        title: doc(b"source title"),
+        executor: ChipExecutor::Role { project: u32::MAX, role: u32::MAX },
+        phase: Phase::Active,
+        details: Box::new(ChipPhaseFacts {
+            phase: ChipPhase::Person { address: PersonAddress::Role(u32::MAX), taken_by: None, since: None },
+            details: Box::new(crate::tests::tree::fragments::chip::details()),
+        }),
+    }
+}
+fn result(task: u64) -> Result {
+    Result {
+        task: chip(task),
+        ending: Ending::Done,
+        value: Some(ResultValue::OwnerVerdict {
+            verdict: u32::MAX,
+            words: doc(b"result explanation"),
+            fields: rows([ResultField { name: copy_of(b"field/a"), value: copy_of(&[255, 0, 47]) }]),
+        }),
+        at: None,
+        details: Some(Box::new(ResultDetails {
+            contract: TaskContractDocument::Report { words: 3 },
+            requester: Requester::Person(u64::MAX),
+            executor: Executor::Person(PersonAddress::Role(u32::MAX)),
+            chosen_by: None,
+            delegates: List::with_capacity(3),
+            followups: Some(List::with_capacity(3)),
+            proposal: None,
+            cut: true,
+        })),
+        acts: List::with_capacity(3),
+    }
+}
+fn value() -> PersonTask {
+    PersonTask {
+        task: chip(8),
+        revision: Revision { value: u64::MAX },
+        requester: Requester::Deployment { project: u32::MAX },
+        spec: SpecificationDocument {
+            specification: DocumentSpecification {
+                asks: false,
+                words: doc(b"question bytes"),
+                parameters: rows([ParameterDocument::Bytes { name: u32::MAX, value: doc(UTF8_TEXTS[0]) }]),
+                inputs: rows([u64::MAX]),
+            },
+            cut: true,
+        },
+        address: PersonAddress::Role(u32::MAX),
+        taken_by: None,
+        since: None,
+        stall: Some(Duration::from_nanos(u64::MAX)),
+        deadline: Some(Wall::EPOCH),
+        contract: TaskContractDocument::Report { words: 3 },
+        results: List::with_capacity(4),
+        cut: true,
+        acts: rows([
+            Offered { effect: None, act: ActKind::Answer, admission: Admission::Allowed },
+            Offered { effect: None, act: ActKind::Take, admission: Admission::Allowed },
+            Offered { effect: None, act: ActKind::HandBack, admission: Admission::Allowed },
+        ]),
+    }
+}
+fn client_limits() -> crate::tests::fixtures::Profile {
+    crate::tests::fixtures::Profile {
+        view: crate::Config { ..(CLIENT).view },
+        client: jig_client::DomainLimits { rows: 8, ..(CLIENT).client },
+    }
+}
+fn limits(words: &Words) -> Limits {
+    limits_for(&client_limits(), words)
+}
+fn limits_for(client: &crate::tests::fixtures::Profile, words: &Words) -> Limits {
+    let f = crate::tests::render_limits(client, words).unwrap();
+    Limits {
+        nodes: f.nodes,
+        depth: f.depth,
+        text_per_node: f.text_per_node,
+        text_bytes: f.text_bytes,
+        drawing_bytes: 0,
+        styles_per_node: 2,
+        patches: 0,
+        bindings: f.bindings,
+        slots: f.slots,
+        markdown_depth: 3,
+        scene_marks: 0,
+        scene_bytes: 0,
+    }
+}
+fn build(value: &PersonTask, words: &Words, cap: Limits) -> Tree {
+    let d = Fixture::new(&client_limits());
+    let mut b = Builder::new(&cap);
+    let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
+    view::render(&mut b, &d.view(), value, words, &mut bindings);
+    b.finish()
+}
+
+#[test]
+fn person_owner_view_retains_ordered_missing_links_full_results_and_independent_loss() {
+    let mut goldens = Goldens::new("tree/fragments/person_task/person_owner_view");
+    let mut value = value();
+    value.results = rows([
+        ShownResult { task: TaskLink::Live(chip(101)), result: None },
+        ShownResult { task: TaskLink::Retained { chip: chip(102), at: None }, result: None },
+        ShownResult {
+            task: TaskLink::Retained { chip: chip(103), at: Some(Wall::EPOCH) },
+            result: Some(Box::new(result(103))),
+        },
+        ShownResult { task: TaskLink::Stored { number: 104, status: None }, result: None },
+        ShownResult {
+            task: TaskLink::Stored { number: 105, status: Some(TaskStatus::Cancelled) },
+            result: Some(Box::new(result(105))),
+        },
+    ]);
+    let unchanged = value.clone();
+    let w = words();
+    let tree = build(&value, w, limits(w));
+    goldens.check(&tree);
+    let positions =
+        [b"Live task".as_slice(), b"Retained ended task", b"Stored task 104", b"Stored task 105"].map(|text| {
+            tree.nodes().iter().position(|node| node.text.iter().any(|run| run.text.as_ref() == text)).unwrap()
+        });
+    assert!(positions.windows(2).all(|pair| pair[0] < pair[1]));
+    assert_eq!(value, unchanged);
+}
+#[test]
+fn person_owner_card_and_confirmation_show_numeric_rules_and_disable_field_bearing_choices() {
+    let mut goldens = Goldens::new("tree/fragments/person_task/person_owner_card");
+    let mut value = value();
+    value.contract = TaskContractDocument::Verdict {
+        choices: rows([
+            VerdictChoice { code: u32::MAX, words: 3, followups: u32::MAX, fields: List::with_capacity(2) },
+            VerdictChoice {
+                code: 7,
+                words: 4,
+                followups: 1,
+                fields: rows([FieldRule { name: copy_of(b"field/a"), max: u32::MAX }]),
+            },
+        ]),
+        cut: true,
+    };
+    let (mut d, id) =
+        crate::tests::tree::cards_objects::loaded(ObjectKey::PersonTask(8), ReadValue::PersonTask(Box::new(value)));
+    drive(&mut d, Event::Act { action: Act::Intend { object: id.token(), act: ActKind::Answer } });
+    let w = words();
+    let mut cap = limits(w);
+    cap.nodes = cap.nodes.checked_add(view::form_nodes(&client_limits(), &(client_limits()).client).unwrap()).unwrap();
+    cap.text_bytes = cap.nodes.checked_mul(cap.text_per_node).unwrap();
+    cap.bindings = cap.nodes;
+    cap.slots = cap.nodes;
+    let mut b = Builder::new(&cap);
+    let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
+    crate::tree::cards::card(&mut b, &d.view(), id, &crate::tree::cards::Place::Elsewhere, w, &mut bindings);
+    crate::tree::confirmation::confirmation(&mut b, &d.view(), w, &mut bindings);
+    let tree = b.finish();
+    goldens.check(&tree);
+    let disabled =
+        tree.nodes().iter().find(|n| n.role == Role::Choice && n.name.as_deref() == Some(b"Choice code: 7")).unwrap();
+    assert!(disabled.states.as_slice().contains(&State::Disabled));
+    assert_eq!(disabled.binding, None);
+    let supported = tree
+        .nodes()
+        .iter()
+        .find(|n| n.role == Role::Choice && n.name.as_deref() == Some(b"Choice code: 4294967295"))
+        .unwrap();
+    assert!(supported.binding.is_some());
+    assert_eq!(d.objects().get(id).unwrap().project, Some(u32::MAX));
+    drive(&mut d, Event::Act { action: Act::Choose { option: u32::MAX } });
+    drive(
+        &mut d,
+        Event::Act {
+            action: Act::Edit { field: Purpose::Reason, text: Text::new(copy_of(b"abc"), CLIENT.client.text).unwrap() },
+        },
+    );
+    let mut b = Builder::new(&cap);
+    crate::tree::confirmation::confirmation(&mut b, &d.view(), w, &mut bindings);
+    let confirmation = b.finish();
+    goldens.check(&confirmation);
+}
+#[test]
+fn person_owner_approval_renders_opaque_parts_without_inventing_application_scope() {
+    let mut goldens = Goldens::new("tree/fragments/person_task/person_owner_approval");
+    let mut value = value();
+    value.address = PersonAddress::Party(u64::MAX);
+    value.taken_by = Some(u64::MAX);
+    value.contract = TaskContractDocument::Approval {
+        state: copy_of(&[255, 0, 47]),
+        part: Part {
+            connector: u16::MAX,
+            kind: PartKind::Outbox,
+            key: PartKey::Path(rows([copy_of(b"a/b"), copy_of(&[128, 0])])),
+        },
+    };
+    let w = words();
+    let cap = limits(w);
+    let client = Fixture::new(&client_limits());
+    let mut b = Builder::new(&cap);
+    let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
+    view::render(&mut b, &client.view(), &value, w, &mut bindings);
+    let tree = b.finish();
+    goldens.check(&tree);
+    let slot = tree.nodes().iter().find_map(|node| node.slot).unwrap();
+    let meaning = bindings.owner_part(slot.token).unwrap();
+    assert_eq!(
+        meaning,
+        match &value.contract {
+            TaskContractDocument::Approval { part, .. } => part,
+            _ => unreachable!(),
+        }
+    );
+}
+fn full_value(l: &crate::tests::fixtures::Profile) -> PersonTask {
+    let mut value = value();
+    value.task.title = doc(UTF8_TEXTS[1]);
+    value.spec.specification.words = doc(UTF8_TEXTS[2]);
+    value.spec.specification.parameters =
+        rows((0..l.client.rows).map(|name| ParameterDocument::Bytes { name, value: doc(UTF8_TEXTS[1]) }));
+    value.spec.specification.inputs = rows(0..u64::from(l.client.rows));
+    let contract = TaskContractDocument::Verdict {
+        choices: rows((0..l.client.rows).map(|code| VerdictChoice {
+            code,
+            words: u32::MAX,
+            followups: u32::MAX,
+            fields: rows((0..l.client.rows).map(|_| FieldRule { name: copy_of(&[255; 128]), max: u32::MAX })),
+        })),
+        cut: true,
+    };
+    value.contract = contract.clone();
+    value.results = rows((0..l.client.rows).map(|number| {
+        let number = u64::from(number);
+        let mut result = result(number);
+        result.value = Some(ResultValue::OwnerVerdict {
+            verdict: u32::MAX,
+            words: doc(UTF8_TEXTS[3]),
+            fields: rows(
+                (0..l.client.rows).map(|_| ResultField { name: copy_of(&[255; 128]), value: copy_of(&[128; 128]) }),
+            ),
+        });
+        let details = result.details.as_mut().unwrap();
+        details.contract = contract.clone();
+        details.delegates = rows((0..l.client.rows).map(|task| TaskLink::Live(chip(u64::from(task)))));
+        details.followups =
+            Some(rows((0..l.client.rows).map(|task| TaskLink::Retained { chip: chip(u64::from(task)), at: None })));
+        result.acts = List::with_capacity(l.client.rows);
+        ShownResult { task: TaskLink::Retained { chip: chip(number), at: None }, result: Some(Box::new(result)) }
+    }));
+    value.acts = List::with_capacity(l.client.rows);
+    value
+}
+#[test]
+fn person_owner_selected_words_and_all_view_storage_dimensions_refuse_one_under_whole_requirements() {
+    person_storage_dimension(None);
+}
+
+#[test]
+fn person_owner_selected_words_and_nodes_refuse_one_under_whole_requirements() {
+    person_storage_dimension(Some(0));
+}
+
+#[test]
+fn person_owner_selected_words_and_depth_refuse_one_under_whole_requirements() {
+    person_storage_dimension(Some(1));
+}
+
+#[test]
+fn person_owner_selected_words_and_per_node_text_refuse_one_under_whole_requirements() {
+    person_storage_dimension(Some(2));
+}
+
+#[test]
+fn person_owner_selected_words_and_total_text_refuse_one_under_whole_requirements() {
+    person_storage_dimension(Some(3));
+}
+
+#[test]
+fn person_owner_selected_words_and_exact_storage_envelope_fit_whole_requirements() {
+    person_storage_dimension(Some(4));
+}
+
+#[test]
+fn person_owner_selected_words_reject_overflow_and_invalid_phrase_holes() {
+    person_storage_dimension(Some(5));
+}
+
+#[expect(
+    clippy::arithmetic_side_effects,
+    clippy::too_many_lines,
+    reason = "ordinary test entry retains the complete original fixture, assertions and one-under arithmetic"
+)]
+fn person_storage_dimension(selected_dimension: Option<usize>) {
+    let mut goldens = Goldens::new("tree/fragments/person_task/person_storage_dimension");
+    let normal = crate::words::phrases::english::language();
+    let mut selected = crate::words::phrases::english::language();
+    for phrase in &mut selected.phrases {
+        for form in &mut phrase.forms {
+            for segment in &mut form.segments {
+                if let Segment::Text(bytes) = segment {
+                    *bytes = copy_of(b"selected ");
+                }
+            }
+        }
+    }
+    let segments = [&normal, &selected]
+        .into_iter()
+        .flat_map(|language| language.phrases.iter())
+        .flat_map(|phrase| phrase.forms.iter())
+        .try_fold(0_u32, |total, form| total.checked_add(u32::try_from(form.segments.len()).ok()?))
+        .expect("whole supplied languages fit their segment count");
+    let phrase_limits = PhraseLimits {
+        languages: 2,
+        phrases: crate::words::document_words::phrase_count(),
+        holes: 4,
+        segments,
+        text_bytes: 100_000,
+        hole_bytes: 128,
+    };
+    let w = Words::new(
+        Phrasebook::load(
+            crate::words::phrases::jig::shapes(CLIENT.client.text),
+            Box::new([normal, selected]),
+            &phrase_limits,
+        )
+        .unwrap(),
+        1,
+        0,
+    );
+    let l = crate::tests::fixtures::Profile {
+        view: crate::Config { ..(client_limits()).view },
+        client: jig_client::DomainLimits { rows: 3, ..(client_limits()).client },
+    };
+    let value = full_value(&l);
+    let untouched = value.clone();
+    if selected_dimension == Some(5) {
+        assert_eq!(
+            view::max_nodes(
+                &crate::tests::fixtures::Profile {
+                    view: crate::Config { ..(client_limits()).view },
+                    client: jig_client::DomainLimits { rows: u32::MAX, ..(client_limits()).client }
+                },
+                &(crate::tests::fixtures::Profile {
+                    view: crate::Config { ..(client_limits()).view },
+                    client: jig_client::DomainLimits { rows: u32::MAX, ..(client_limits()).client }
+                })
+                .client
+            ),
+            None
+        );
+        assert_eq!(value, untouched);
+        let mut bad = owner_person_task_words::language();
+        bad.phrases[1].forms[0].segments = Box::new([Segment::Text(copy_of(b"missing number"))]);
+        assert_eq!(
+            Phrasebook::load(owner_person_task_words::shapes(), Box::new([bad]), &phrase_limits).err(),
+            Some(Invalid::Holes { id: PersonPhrase::Party.id() })
+        );
+        return;
+    }
+    let maximum = limits_for(&l, &w);
+    let tree = build(&value, &w, maximum);
+    if selected_dimension.is_none() {
+        goldens.check(&tree);
+        assert_eq!(value, untouched);
+        return;
+    }
+    let nodes = tree.len();
+    // A preorder node's size gives the end of its subtree. Keep only the
+    // ancestors whose subtrees include this node, matching the independent
+    // ancestor-count definition without rescanning earlier nodes.
+    let mut ancestors = Vec::new();
+    let mut deepest = 0;
+    for (at, node) in tree.nodes().iter().enumerate() {
+        while ancestors.last().is_some_and(|end| *end <= at) {
+            ancestors.pop();
+        }
+        deepest = deepest.max(1 + ancestors.len());
+        let end = at + usize::try_from(node.size).unwrap();
+        if end > at + 1 {
+            ancestors.push(end);
+        }
+    }
+    let depth = u32::try_from(deepest).unwrap();
+    let per_node = tree
+        .nodes()
+        .iter()
+        .map(|n| n.name.as_ref().map_or(0, |v| v.len()) + n.text.iter().map(|r| r.text.len()).sum::<usize>())
+        .max()
+        .unwrap();
+    let total = tree
+        .nodes()
+        .iter()
+        .map(|n| n.name.as_ref().map_or(0, |v| v.len()) + n.text.iter().map(|r| r.text.len()).sum::<usize>())
+        .sum::<usize>();
+    let exact = Limits {
+        nodes,
+        depth,
+        text_per_node: u32::try_from(per_node).unwrap(),
+        text_bytes: u32::try_from(total).unwrap(),
+        ..maximum
+    };
+    if selected_dimension == Some(4) {
+        assert_eq!(build(&value, &w, exact).len(), nodes);
+        assert_eq!(value, untouched);
+        return;
+    }
+    for (index, below) in [
+        Limits { nodes: nodes - 1, ..exact },
+        Limits { depth: depth - 1, ..exact },
+        Limits { text_per_node: exact.text_per_node - 1, ..exact },
+        Limits { text_bytes: exact.text_bytes - 1, ..exact },
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        if selected_dimension != Some(index) {
+            continue;
+        }
+        std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| build(&value, &w, below)))
+            .expect_err("one-under storage rejects the whole view");
+    }
+    assert_eq!(value, untouched);
+}
+
+#[test]
+fn person_owner_view_admits_closed_offer_capacity_without_expanding_shown_result_rows() {
+    let l = crate::tests::fixtures::Profile {
+        view: crate::Config { ..(client_limits()).view },
+        client: jig_client::DomainLimits { rows: 3, ..(client_limits()).client },
+    };
+    let w = words();
+    let mut value = value();
+    value.results =
+        rows([ShownResult { task: TaskLink::Stored { number: 2, status: None }, result: Some(Box::new(result(2))) }]);
+    value.acts = List::with_capacity(MAX_OFFERED_ACTS);
+    for act in [ActKind::HandBack, ActKind::Answer, ActKind::Take] {
+        value.acts.push(Offered { effect: None, act, admission: Admission::Allowed }).unwrap();
+    }
+    value.results.get_mut(0).unwrap().result.as_mut().unwrap().acts = List::with_capacity(MAX_OFFERED_ACTS);
+    let original = value.clone();
+
+    let (domain, id) = crate::tests::tree::cards_objects::loaded(
+        ObjectKey::PersonTask(8),
+        ReadValue::PersonTask(Box::new(value.clone())),
+    );
+    // Price this single enclosing card with the shared card bound.
+    let mut cap = limits(w);
+    cap.nodes = crate::card_nodes(&l, &(l).client).unwrap().checked_add(1).unwrap();
+    cap.depth = l.client.rows.checked_add(32).unwrap();
+    cap.text_bytes = cap.nodes.checked_mul(cap.text_per_node).unwrap();
+    cap.bindings = cap.nodes;
+    cap.slots = cap.nodes;
+    let mut builder = Builder::new(&cap);
+    let mut bindings = JigBindings::new(cap.bindings, l.client.text);
+    builder.open(Role::Page);
+    assert!(crate::tree::cards::card(
+        &mut builder,
+        &domain.view(),
+        id,
+        &crate::tree::cards::Place::Elsewhere,
+        w,
+        &mut bindings
+    ));
+    builder.close();
+    let tree = builder.finish();
+    assert!(tree.len() <= crate::card_nodes(&l, &(l).client).unwrap() + 1);
+    crate::tests::tree::cards_access::check(&tree);
+    assert_eq!(original.acts.capacity(), MAX_OFFERED_ACTS);
+    assert!(MAX_OFFERED_ACTS > l.client.rows);
+}
+
+const UTF8_TEXTS: [&[u8]; 4] = [b"~\0/", &[b'~'; 128], &[b'q'; 128], &[b'w'; 128]];
+
+#[test]
+fn a_kept_person_chip_names_its_dependency_and_who_added_it() {
+    let mut goldens = Goldens::new("tree/fragments/person_task/a_kept_person_chip");
+    let mut value = value();
+    let ChipPhaseFacts { details, .. } = value.task.details.as_mut();
+    details.dependencies = rows([Dependency {
+        number: 7,
+        pending: true,
+        keeps: true,
+        added: Some(DependencyAdded { at: Wall::EPOCH, by: Requester::Person(5) }),
+        status: None,
+    }]);
+    let tree = build(&value, words(), limits(words()));
+    goldens.check(&tree);
+}
+
+#[test]
+fn a_kept_person_card_keeps_take_but_hides_an_answer_offer() {
+    let mut goldens = Goldens::new("tree/fragments/person_task/a_kept_person_card");
+    let mut value = value();
+    let ChipPhaseFacts { details, .. } = value.task.details.as_mut();
+    details.dependencies = rows([Dependency { number: 7, pending: true, keeps: true, added: None, status: None }]);
+    let (d, object) =
+        crate::tests::tree::cards_objects::loaded(ObjectKey::PersonTask(8), ReadValue::PersonTask(Box::new(value)));
+    let w = words();
+    let cap = limits(w);
+    let mut b = Builder::new(&cap);
+    let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
+    crate::tree::cards::card(&mut b, &d.view(), object, &crate::tree::cards::Place::Elsewhere, w, &mut bindings);
+    let tree = b.finish();
+
+    goldens.check(&tree);
+}

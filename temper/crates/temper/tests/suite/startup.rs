@@ -684,13 +684,9 @@ fn shipped_bounds_fit_the_configured_charters_and_worker() {
             .expect("engine configuration");
     let agent = &bounded.agent;
     let core = config::core(&engine, [0; 16], 1);
-    let needs = jig_domain_core::fleet_needs::configured(&core, &engine.limits.core);
+    let needs = jig_domain_core::settings::fleet_needs::configured(&core, &engine.limits.core);
     assert_eq!(
-        jig_domain_fleet::shortfall(
-            &needs,
-            &temper_engine_domain::hello_bounds(agent.bounds.clone()),
-            jig_domain_fleet::HostKind::Worker,
-        ),
+        jig_domain_fleet::shortfall(&needs, &agent.bounds.clone(), jig_domain_fleet::HostKind::Worker,),
         None,
         "the shipped worker is admitted by the canonical fleet check"
     );

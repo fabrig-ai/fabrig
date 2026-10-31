@@ -32,17 +32,15 @@ pub(crate) fn kept_conversation() -> c::ReadResult {
         let c::ReadResult::Value(c::ReadValue::Turn(turn)) = turn_blocks(blocks) else {
             panic!("decoded turn fixture")
         };
-        rows.push(c::ActivityLine {
-            position: u64::try_from(index).expect("two positions").checked_add(1).expect("nonzero position"),
-            at: Wall::EPOCH,
-            event: c::Activity::Turn {
-                name: c::TurnName {
-                    attempt: ATTEMPT,
-                    number: TURN.checked_add(u32::try_from(index).expect("two turns")).expect("next turn"),
-                },
-                turn: turn.turn,
+        rows.push(crate::tests::documents::turn(
+            u64::try_from(index).expect("two positions").checked_add(1).expect("nonzero position"),
+            Wall::EPOCH,
+            c::TurnName {
+                attempt: ATTEMPT,
+                number: TURN.checked_add(u32::try_from(index).expect("two turns")).expect("next turn"),
             },
-        })
+            turn.turn,
+        ))
         .expect("two kept turns");
     }
     c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
@@ -77,7 +75,7 @@ pub(crate) fn task_line() -> c::TaskLine {
         ended_at: None,
         budget: task.budget,
         waits_on: task.waits_on,
-        phases: c::OwnerPhaseCounts {
+        phases: c::PhaseCounts {
             waiting: 0,
             idle: 0,
             starting: 0,
@@ -140,14 +138,12 @@ pub(crate) fn turn_too_large(bytes: u64) -> c::ReadResult {
 }
 pub(crate) fn activity_too_large() -> c::ReadResult {
     let mut rows = List::with_capacity(PAGE_ROWS);
-    rows.push(c::ActivityLine {
-        position: 1,
-        at: Wall::EPOCH,
-        event: c::Activity::Turn {
-            name: c::TurnName { attempt: ATTEMPT, number: TURN },
-            turn: c::TurnRead::Undecodable { why: c::TurnProblem::TooLarge { bytes: TOO_LARGE } },
-        },
-    })
+    rows.push(crate::tests::documents::turn(
+        1,
+        Wall::EPOCH,
+        c::TurnName { attempt: ATTEMPT, number: TURN },
+        c::TurnRead::Undecodable { why: c::TurnProblem::TooLarge { bytes: TOO_LARGE } },
+    ))
     .expect("one turn row");
     c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
         cut: false,
@@ -223,31 +219,21 @@ pub(crate) fn inbox_rows(group: c::InboxReadGroup, count: u32, more: bool) -> c:
     let mut rows = List::with_capacity(count);
     for index in 0..count {
         let task = TASK.checked_add(u64::from(index)).expect("fixture task number");
-        let (object, kind) = match group {
+        let (object, _kind) = match group {
             c::InboxReadGroup::Needs => (c::ObjectKey::Question { task, message: 2 }, c::InboxGroup::Questions),
             c::InboxReadGroup::Updates => {
                 (c::ObjectKey::Result(task.checked_add(1).expect("different updated task")), c::InboxGroup::Results)
             }
         };
-        rows.push(c::InboxEntry {
-            reply: None,
-            lineage: List::with_capacity(EMPTY),
-            goal: None,
-            recipient: None,
-            stall: None,
-            object,
-            project: PROJECT,
-            group: kind,
-            position: u64::from(index),
-            at: Wall::EPOCH,
-        })
-        .expect("bounded inbox rows");
+        rows.push(crate::tests::documents::entry(object, PROJECT, u64::from(index), Wall::EPOCH, None))
+            .expect("bounded inbox rows");
     }
-    c::ReadResult::Value(c::ReadValue::Inbox(Box::new(c::InboxPage {
+    c::ReadResult::Value(c::ReadValue::Inbox(Box::new(jig_client::contract::InboxPage {
         cut: false,
         rows,
         before: None,
         after: if more { Some(cursor()) } else { None },
+        selection: None,
     })))
 }
 pub(crate) fn inbox_answer(needs: u32, updates: u32, more: bool) -> crate::jig::Printed {
@@ -268,11 +254,16 @@ pub(crate) const LIMITED_TASK_CALL: &[&str] = &[TASK_CALL[0], TASK_CALL[1], TASK
 pub(crate) fn activity_words() -> c::ReadResult {
     let mut rows = List::with_capacity(LIMITED_ROWS);
     for index in 0..LIMITED_ROWS {
-        rows.push(c::ActivityLine {
-            position: u64::from(index).checked_add(1).expect("fixture position"),
-            at: Wall::EPOCH,
-            event: c::Activity::Words { by: activity_party(), message: u64::from(index), words: turn_words(b"words") },
-        })
+        rows.push(crate::tests::documents::line(
+            u64::from(index).checked_add(1).expect("fixture position"),
+            Wall::EPOCH,
+            jig_client::contract::Activity::Words {
+                message: u64::from(index),
+                by: jig_client::contract::Requester::Person((activity_party()).number),
+                kind: jig_client::contract::MessageKind::Words,
+                words: turn_words(b"words"),
+            },
+        ))
         .expect("two supplied activity rows");
     }
     c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
@@ -285,7 +276,7 @@ pub(crate) fn activity_words() -> c::ReadResult {
 pub(crate) fn turn_call(path: Option<List<Box<[u8]>>>) -> c::ReadResult {
     let mut parts = List::with_capacity(TURN_REFERENCES);
     if let Some(path) = path {
-        parts.push(c::Part::Resource { connector: 4, path }).expect("one reference");
+        parts.push(c::ApplicationPart::Resource { connector: 4, path }).expect("one reference");
     }
     let mut blocks = List::with_capacity(CALL_RESULT_BLOCKS);
     blocks
@@ -360,19 +351,11 @@ pub(crate) fn extended<'a>(base: &[&'a str], extra: &[&'a str]) -> List<&'a str>
 
 pub(crate) fn composite_tree() -> c::Tree {
     c::Tree {
-        task: TASK,
-        nodes: List::with_capacity(EMPTY),
-        folded: c::PhaseCounts {
-            ended: 0,
-            running: 0,
-            waiting: 0,
-            held: 0,
-            closing: 0,
-            done: 0,
-            failed: 0,
-            cancelled: 0,
-        },
+        root: goal(TASK, c::WaitsOn::Nothing).chip,
+        rows: List::with_capacity(EMPTY),
+        folded: List::with_capacity(EMPTY),
         held_below: 0,
+        next: None,
     }
 }
 
@@ -394,20 +377,20 @@ pub(crate) fn document_at_byte_bound() -> c::Task {
     let mut parts = jig_client_test_records::task_record().into_parts();
     parts.instructions = Some(
         w::DocumentText::new(
-            &link.wire,
+            link.wire(),
             w::DocumentTextParts { bytes: maximally_escaped_json_text(client.domain.text), cut: false },
         )
         .expect("worst-case instructions at text bound"),
     );
     parts.resources = resource_pieces(&link, 0);
-    let empty = w::Task::new(&link.wire, parts).expect("task with empty paths");
+    let empty = w::Task::new(link.wire(), parts).expect("task with empty paths");
     let payload = u32::try_from(crate::limits::DOCUMENT)
         .expect("document bound fits")
         .checked_sub(empty.measure())
         .expect("room after framing");
     let mut parts = empty.into_parts();
     parts.resources = resource_pieces(&link, payload);
-    let record = w::Task::new(&link.wire, parts).expect("task at document bound");
+    let record = w::Task::new(link.wire(), parts).expect("task at document bound");
     assert_eq!(u64::from(record.measure()), crate::limits::DOCUMENT, "whole encoded document at the bound");
     jig_client_protocol_link::translate::documents::task(record, &link).expect("document admitted by shipped limits")
 }
@@ -417,18 +400,22 @@ fn resource_pieces(link: &jig_client_protocol_link::Limits, payload: u32) -> Box
     let mut left = payload;
     let mut size = 0_u32;
     for _ in 0..DOCUMENT_RESOURCES {
-        let mut path = List::with_capacity(link.client.segments);
-        for _ in 0..link.client.segments {
-            let bytes = left.min(link.client.text);
+        let mut path = List::with_capacity(link.client().segments);
+        for _ in 0..link.client().segments {
+            let bytes = left.min(link.client().text);
             path.push(maximally_escaped_json_text(bytes)).expect("bounded path");
             left = left.checked_sub(bytes).expect("within payload");
         }
-        let part = w::Part::Resource(
-            w::PartResource::new(&link.wire, w::PartResourceParts { connector: 4, path }).expect("bounded resource"),
+        let key = w::PartKey::Path(
+            w::PartKeyPath::new(link.wire(), w::PartKeyPathParts { value: path }).expect("bounded path"),
         );
-        let row = w::TaskResource::Part(
-            w::TaskResourcePart::new(&link.wire, w::TaskResourcePartParts { value: part }).expect("resource row"),
-        );
+        let part = w::Part::new(link.wire(), w::PartParts { connector: 4, kind: w::PartKind::Resource, key })
+            .expect("bounded resource");
+        let row = w::ResourceLine::new(
+            link.wire(),
+            w::ResourceLineParts { part, kind: 1, taken: false, holder: None, writer: None, writer_lost: false },
+        )
+        .expect("resource row");
         size = size.checked_add(4).expect("piece prefix").checked_add(row.measure()).expect("bounded pieces");
         rows.push(row).expect("bounded resources");
     }
@@ -444,7 +431,7 @@ fn resource_pieces(link: &jig_client_protocol_link::Limits, payload: u32) -> Box
 /// The owner read's exact hold facts, including its independent revision.
 pub(crate) fn held_task(mut task: c::Task, reason: c::HoldCategory) -> c::Task {
     task.chip.phase = c::Phase::Held;
-    task.hold = Some(c::TaskHold::Owner(Box::new(c::OwnerChipHold {
+    task.hold = Some(Box::new(c::ChipHold {
         placed: None,
         words: None,
         circle: None,
@@ -452,11 +439,11 @@ pub(crate) fn held_task(mut task: c::Task, reason: c::HoldCategory) -> c::Task {
         source: None,
         reason,
         revision: 9,
-        before: c::OwnerPriorPhase::Waiting,
+        before: c::PriorPhase::Waiting,
         escalation: None,
-        tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
         hold_wait_since: None,
-    })));
+    }));
     task
 }
 

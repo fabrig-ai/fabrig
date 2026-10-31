@@ -1,8 +1,10 @@
 //! Shared jig observations and the Test application's family vocabulary.
-#![allow(clippy::wildcard_imports, reason = "boundary adapter covers the owner vocabulary")]
 use crate::harness::{CardKey, CardSeen, Receipt, Seen, Sent};
 use jig_client::contract::{AnswerOn, DecideOn};
-use jig_client_domain::contract::*;
+use jig_client_domain::contract::{
+    Answer, Ask, Delivery, DocumentOutcome, Me, NoteScope, ObjectKey, Outcome, Proposer, ReadNone, ReadResult,
+    ReadValue, Task, WatchEnd, WatchEvent,
+};
 use jig_client_test_domain::{self as domain, Event, Request, family};
 use jig_client_view::Owner;
 use skein_fake_person::{Face, Find, Found, TreeFace};
@@ -38,11 +40,9 @@ pub fn sent(request: &Request) -> Option<Sent> {
         jig_client::Ask::Jig(ask) => return Some(jig_sent(*attempt, *k, ask)),
         jig_client::Ask::Family { record, .. } => {
             let ask = crate::test::family_request(record);
-            let family::Ask::Touch { project, item, revision, .. } = ask else {
-                unreachable!("decoded optional request")
-            };
+            let family::Ask::ChangeObject { project, object: item, revision, .. } = ask;
             (
-                Some(CardKey::of(jig_client_test_view::family_key(&family::Subject {
+                Some(CardKey::of(jig_client_test_view::family_key(&jig_client_test_domain::family::Subject {
                     scope: family::Scope::Project(project),
                     kind: family::Kind::Item(item),
                 }))),
@@ -130,11 +130,7 @@ fn read_cards(v: &ReadValue) -> Vec<Receipt> {
     match v {
         ReadValue::Task(t) => vec![task(t)],
         ReadValue::Me(f) => frame(f, None),
-        ReadValue::Escalation(e) => vec![Receipt::Card {
-            key: key(ObjectKey::Escalation(e.task.task)),
-            revisions: vec![(1, e.steering.revision.value), (2, e.hold.revision.value)],
-        }],
-        ReadValue::OwnerEscalation(e) => {
+        ReadValue::Escalation(e) => {
             let mut revisions = vec![(1, e.task.spec_revision.value)];
             if let Some(hold) = &e.task.hold {
                 revisions.push((2, hold.revision().value));
@@ -142,9 +138,6 @@ fn read_cards(v: &ReadValue) -> Vec<Receipt> {
             vec![Receipt::Card { key: key(ObjectKey::Escalation(e.task.chip.task)), revisions }]
         }
         ReadValue::PersonTask(p) => {
-            vec![Receipt::Card { key: key(ObjectKey::PersonTask(p.task.task)), revisions: vec![(3, p.revision.value)] }]
-        }
-        ReadValue::OwnerPersonTask(p) => {
             vec![Receipt::Card { key: key(ObjectKey::PersonTask(p.task.task)), revisions: vec![(3, p.revision.value)] }]
         }
         ReadValue::Notes(p) => p
@@ -161,39 +154,29 @@ fn read_cards(v: &ReadValue) -> Vec<Receipt> {
             })
             .collect(),
         ReadValue::Tasks(_)
+        | ReadValue::EndedPage(_)
         | ReadValue::Proposal(_)
-        | ReadValue::Historical(_)
-        | ReadValue::OwnerProposal(_)
         | ReadValue::Question(_)
         | ReadValue::Result(_)
-        | ReadValue::Ended(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
         | ReadValue::Turn(_)
         | ReadValue::Inbox(_)
-        | ReadValue::OwnerInbox(_)
+        | ReadValue::Ended(_)
         | ReadValue::Spend(_)
-        | ReadValue::OwnerEnded(_)
-        | ReadValue::OwnerSpend(_)
-        | ReadValue::OwnerProject(_)
         | ReadValue::Project(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
-        | ReadValue::Deployment(_)
-        | ReadValue::OwnerDeployment(_) => vec![],
+        | ReadValue::Deployment(_) => vec![],
     }
 }
 fn frame(frame: &Me, watch: Option<Token>) -> Vec<Receipt> {
     vec![Receipt::Party { party: frame.party.number, watch }]
 }
 fn family(doc: &family::Document) -> Receipt {
-    let revision = match doc {
-        family::Document::Item(item) => Some(item.revision),
-        family::Document::Part(part) => Some(part.parameters.map_or(part.revision, |p| p.revision)),
-        family::Document::Connector(_) => doc.revision(),
-    };
+    let revision = doc.revision();
     Receipt::Card {
         key: CardKey::of(jig_client_test_view::family_key(&doc.subject())),
         revisions: revision.map_or_else(Vec::new, |revision| vec![(0, revision.value)]),
@@ -236,8 +219,9 @@ pub fn up_received(up: &jig_client::Up) -> Vec<Receipt> {
     match up {
         Up::Answer { attempt, envelope, answer, why: None } => {
             let words = match answer {
-                Some(jig_client::Answered::Jig(Answer::Done(Outcome::Owner(
-                    OwnerOutcome::Said { task, message, .. } | OwnerOutcome::QuestionAnswered { task, message, .. },
+                Some(jig_client::Answered::Jig(Answer::Done(Outcome::Document(
+                    DocumentOutcome::Said { task, message, .. }
+                    | DocumentOutcome::QuestionAnswered { task, message, .. },
                 )))) => Some((*task, *message)),
                 Some(jig_client::Answered::Jig(_) | jig_client::Answered::Family(_)) | None => None,
             };
@@ -269,11 +253,11 @@ pub fn up_received(up: &jig_client::Up) -> Vec<Receipt> {
             receipts
         }
 
-        Up::Watched { event: WatchEvent::Delivered(Delivery::OwnerProject(value)), .. } => {
-            read(&ReadValue::OwnerProject(value.clone()))
+        Up::Watched { event: WatchEvent::Delivered(Delivery::Project(value)), .. } => {
+            read(&ReadValue::Project(value.clone()))
         }
-        Up::Watched { event: WatchEvent::Delivered(Delivery::OwnerProposal(value)), .. } => {
-            read(&ReadValue::OwnerProposal(value.clone()))
+        Up::Watched { event: WatchEvent::Delivered(Delivery::Proposal(value)), .. } => {
+            read(&ReadValue::Proposal(value.clone()))
         }
         Up::WatchEnded { watch, end } => {
             let mut receipts = vec![Receipt::WatchEnded { watch: *watch }];
@@ -312,7 +296,7 @@ fn contains(tree: &Tree, start: usize, end: usize, role: Role, name: &[u8]) -> b
                             && n.key.is_some_and(|key| {
                                 matches!(Owner::from_opaque(key.owner), Some(Owner::Application { .. }))
                             })))
-                        && start + 1 + offset + usize::try_from(n.size).expect("subtree") > at
+                        && start + 1 + offset + skein_lib::length::usize_of(n.size) > at
                 })
         }
         Found::Absent | Found::Pending => false,
@@ -328,7 +312,7 @@ fn explained(tree: &Tree, start: usize, end: usize) -> bool {
     let Some(at) = tree.nodes().iter().position(|n| n.id == id) else {
         return false;
     };
-    let through = at + usize::try_from(tree.nodes()[at].size).expect("status subtree");
+    let through = at + skein_lib::length::usize_of(tree.nodes()[at].size);
     through <= end && tree.nodes()[at..through].iter().any(|n| !n.text.is_empty())
 }
 fn card_key(k: Key) -> bool {
@@ -355,7 +339,7 @@ fn enclosing_card(tree: &Tree, node: NodeId, admits: fn(Key) -> bool) -> Option<
         .iter()
         .enumerate()
         .take(at + 1)
-        .filter(|(i, n)| *i + usize::try_from(n.size).expect("subtree") > at)
+        .filter(|(i, n)| *i + skein_lib::length::usize_of(n.size) > at)
         .filter_map(|(_, n)| n.key.filter(|k| admits(*k)))
         .next_back()
         .map(CardKey::of)
@@ -373,7 +357,7 @@ fn frame_link(tree: &Tree) -> Option<bool> {
     let (at, frame) = tree.nodes().iter().enumerate().find(|(_, node)| {
         node.role == Role::Region && node.region == Some(jig_client_view::regions::JigRegion::Link.region())
     })?;
-    let end = at + usize::try_from(frame.size).expect("frame subtree");
+    let end = at + skein_lib::length::usize_of(frame.size);
     let mut child = at + 1;
     // The frame's own status is current; notices and navigation slots can
     // retain other link words. Read direct frame children, not their descendants.
@@ -386,7 +370,7 @@ fn frame_link(tree: &Tree) -> Option<bool> {
                 _ => {}
             }
         }
-        child += usize::try_from(node.size).expect("frame child subtree");
+        child += skein_lib::length::usize_of(node.size);
     }
     None
 }
@@ -415,7 +399,19 @@ fn visible(tree: &Tree, include_test_family: bool) -> Vec<Seen> {
         let Some(k) = node.key else {
             continue;
         };
-        let end = at + usize::try_from(node.size).expect("subtree");
+        let end = at + skein_lib::length::usize_of(node.size);
+        // Unimplemented owner effect fragments create no waiting-card obligation.
+        if k.owner == (Owner::Application { number: jig_client_test_domain::FIRST }).opaque()
+            && k.kind == 20
+            && tree.nodes()[at..end].iter().find(|node| node.role == Role::Status).is_some_and(|node| {
+                matches!(
+                    node.name.as_deref(),
+                    Some(b"Unknown family object" | b"Loading family document" | b"Unsupported family document")
+                )
+            })
+        {
+            continue;
+        }
         // Plan tree items reuse object identity, but only Item nodes are cards.
         if (k.owner == Owner::Jig.opaque() && (k.kind <= 6 || k.kind == 29) && node.role == Role::Item)
             || (include_test_family && k.owner != Owner::Jig.opaque() && card_key(k))
@@ -427,10 +423,7 @@ fn visible(tree: &Tree, include_test_family: bool) -> Vec<Seen> {
             let leaving = contains(tree, at, end, Role::Status, b"Leaving");
             let looking = contains(tree, at, end, Role::Status, b"Leaving")
                 && contains(tree, at, end, Role::Text, b"Finding how this ended");
-            let done = contains(tree, at, end, Role::Status, b"Touched")
-                || contains(tree, at, end, Role::Status, b"Moved to revision")
-                || contains(tree, at, end, Role::Status, b"Gone")
-                || (include_test_family && contains(tree, at, end, Role::Status, b"Application outcome"));
+            let done = include_test_family && contains(tree, at, end, Role::Status, b"Application outcome");
             let state = if leaving && !looking {
                 CardSeen::Left { reason: explained(tree, at, end) }
             } else if deciding || looking {
@@ -469,7 +462,7 @@ fn visible(tree: &Tree, include_test_family: bool) -> Vec<Seen> {
 #[path = "observe/link_tests.rs"]
 mod link_tests;
 
-/// Only decoded public person acts explain changing the displayed window (QUESTIONS 34).
+/// Only decoded public person acts explain changing the displayed window.
 #[must_use]
 pub fn window_changed(event: &Event) -> bool {
     let act = match event {
@@ -487,7 +480,7 @@ pub fn window_changed(event: &Event) -> bool {
     };
     jig_window_changed(act)
 }
-/// Only decoded jig person acts explain a changed displayed window (QUESTIONS 34).
+/// Only decoded jig person acts explain a changed displayed window.
 #[must_use]
 pub fn jig_window_changed(act: &jig_client_view::action::Act) -> bool {
     // Settings review and explicit service role selection keep the current windows.
@@ -536,6 +529,44 @@ mod tests {
     }
 
     #[test]
+    fn family_placeholders_distinguish_items_from_owner_effects() {
+        for (kind, waiting) in [
+            (jig_client_test_domain::family::Kind::OwnerEffect(1), false),
+            (jig_client_test_domain::family::Kind::Item(1), true),
+        ] {
+            for caption in [b"Loading family document".as_slice(), b"Unknown family object"] {
+                let limits = skein_ui::Limits {
+                    nodes: 8,
+                    depth: 4,
+                    text_per_node: 64,
+                    text_bytes: 256,
+                    drawing_bytes: 0,
+                    styles_per_node: 0,
+                    patches: 32,
+                    bindings: 0,
+                    slots: 0,
+                    markdown_depth: 1,
+                    scene_marks: 0,
+                    scene_bytes: 0,
+                };
+                let mut builder = skein_ui::Builder::new(&limits);
+                builder.open(Role::Item);
+                builder.key(jig_client_test_view::family_key(&jig_client_test_domain::family::Subject {
+                    scope: jig_client_test_domain::family::Scope::Project(1),
+                    kind,
+                }));
+                builder.open(Role::Status);
+                builder.name(caption);
+                builder.close();
+                builder.close();
+                assert_eq!(
+                    super::seen(&builder.finish()).iter().any(|value| matches!(value, Seen::Card { .. })),
+                    waiting
+                );
+            }
+        }
+    }
+    #[test]
     fn top_level_seen_has_no_retained_answer_observation() {
         for through in [c::SeenThrough::Results { through: 1 }, c::SeenThrough::Conversation { task: TASK, through: 1 }]
         {
@@ -570,12 +601,12 @@ mod tests {
             c::Ask::Rename { project: PROJECT, name: name.clone() },
             c::Ask::MakeProject { name, policy: 1 },
             c::Ask::SetPool { project: PROJECT, party: 1, budget: 10 },
-            c::Ask::SignIn { holder: c::AccountHolder::Own, provider: 1 },
+            c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 1 },
             c::Ask::AccountChange {
-                holder: c::AccountHolder::Own,
+                holder: c::AskAccountHolder::Own,
                 change: c::AccountChange::CheckProgram { source: 1 },
             },
-            c::Ask::SignOut { holder: c::AccountHolder::Own, source: 1 },
+            c::Ask::SignOut { holder: c::AskAccountHolder::Own, source: 1 },
             c::Ask::Compound {
                 project: PROJECT,
                 operations: list([
@@ -602,11 +633,11 @@ mod tests {
     #[test]
     fn family_requests_keep_their_card_and_revision() {
         let (project, value) =
-            jig_client_test_domain::family::wire::request(&jig_client_test_domain::family::Ask::Touch {
+            jig_client_test_domain::family::wire::request(&jig_client_test_domain::family::Ask::ChangeObject {
                 project: PROJECT,
-                item: TASK,
+                object: TASK,
                 revision: c::Revision { value: 5 },
-                parameters: None,
+                value: 0,
             });
         let sent = super::sent(&send(jig_client::Ask::Family {
             scope: c::Scope::Project(project),
@@ -652,13 +683,13 @@ mod tests {
         builder.open(Role::Item);
         builder.key(Key { owner: (Owner::Application { number: 77 }).opaque(), kind: 2, a: 1, b: 5 });
         builder.open(Role::Status);
-        builder.name(b"Gone");
+        builder.name(b"Application outcome");
         builder.close();
         builder.close();
         builder.close();
         builder.close();
         view.finish(builder, 1, &mut Queue::with_capacity(limits.patches));
-        let seen = jig_seen(view.tree());
+        let seen = super::seen(view.tree());
         assert!(
             matches!(seen.as_slice(), [Seen::Card { key, state: CardSeen::Waiting, revision: None }] if *key == CardKey::of(card))
         );
@@ -726,13 +757,13 @@ mod tests {
     fn public_owner_answer_receipts_keep_original_attempt_envelope_and_exact_message_ids() {
         use super::{Receipt, received};
         use jig_client::Answered;
-        use jig_client_domain::contract::{Answer, Outcome, OwnerOutcome};
+        use jig_client_domain::contract::{Answer, DocumentOutcome, Outcome};
         use jig_client_test_domain::Event;
         use skein_lib::{RequestEnvelope, Token};
         let cases = [
-            (OwnerOutcome::Said { task: u64::MAX, message: 37 }, Some((u64::MAX, 37))),
-            (OwnerOutcome::Said { task: 41, message: u64::MAX }, Some((41, u64::MAX))),
-            (OwnerOutcome::QuestionAnswered { task: 43, question: 47, message: 53 }, Some((43, 53))),
+            (DocumentOutcome::Said { task: u64::MAX, message: 37 }, Some((u64::MAX, 37))),
+            (DocumentOutcome::Said { task: 41, message: u64::MAX }, Some((41, u64::MAX))),
+            (DocumentOutcome::QuestionAnswered { task: 43, question: 47, message: 53 }, Some((43, 53))),
         ];
         for (outcome, expected) in cases {
             for envelope in [RequestEnvelope::Final, RequestEnvelope::Again, RequestEnvelope::Lost] {
@@ -741,7 +772,7 @@ mod tests {
                         up: jig_client::Up::Answer {
                             attempt: Token::new(73),
                             envelope,
-                            answer: Some(Answered::Jig(Answer::Done(Outcome::Owner(outcome.clone())))),
+                            answer: Some(Answered::Jig(Answer::Done(Outcome::Document(outcome.clone())))),
                             why: None,
                         },
                     },
@@ -760,7 +791,7 @@ mod tests {
                     up: jig_client::Up::Answer {
                         attempt: Token::new(73),
                         envelope: RequestEnvelope::SignedOut,
-                        answer: Some(Answered::Jig(Answer::Done(Outcome::Owner(outcome)))),
+                        answer: Some(Answered::Jig(Answer::Done(Outcome::Document(outcome)))),
                         why: None,
                     },
                 },

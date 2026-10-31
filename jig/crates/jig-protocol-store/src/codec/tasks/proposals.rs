@@ -6,7 +6,7 @@ use jig_domain_tasks as domain;
 use skein_lib::{List, Wall};
 
 /// Translate `ProposalKind` to its store value.
-pub fn kind(source: &domain::ProposalKind, _limits: &wire::Limits) -> Result<wire::ProposalKind, wire::Problem> {
+pub fn kind(source: &domain::ProposalKind) -> Result<wire::ProposalKind, wire::Problem> {
     Ok(match source {
         domain::ProposalKind::Settings => wire::ProposalKind::Settings,
         domain::ProposalKind::Batch => wire::ProposalKind::Batch,
@@ -17,7 +17,7 @@ pub fn kind(source: &domain::ProposalKind, _limits: &wire::Limits) -> Result<wir
     })
 }
 /// Read `ProposalKind` from its store value.
-pub fn read_kind(source: wire::ProposalKind, _limits: &wire::Limits) -> Result<domain::ProposalKind, wire::Problem> {
+pub fn read_kind(source: wire::ProposalKind) -> Result<domain::ProposalKind, wire::Problem> {
     Ok(match source {
         wire::ProposalKind::Settings => domain::ProposalKind::Settings,
         wire::ProposalKind::Batch => domain::ProposalKind::Batch,
@@ -39,15 +39,12 @@ pub fn holder(source: &domain::ProposalHolder, limits: &wire::Limits) -> Result<
         }
         domain::ProposalHolder::Policy { project, kind } => wire::ProposalHolder::Policy(wire::PolicyHolder::new(
             limits,
-            wire::PolicyHolderParts { project: *project, kind: self::kind(kind, limits)? },
+            wire::PolicyHolderParts { project: *project, kind: self::kind(kind)? },
         )?),
     })
 }
 /// Read `ProposalHolder` from its store value.
-pub fn read_holder(
-    source: wire::ProposalHolder,
-    limits: &wire::Limits,
-) -> Result<domain::ProposalHolder, wire::Problem> {
+pub fn read_holder(source: wire::ProposalHolder) -> Result<domain::ProposalHolder, wire::Problem> {
     Ok(match source {
         wire::ProposalHolder::Task(value) => {
             let wire::TaskParts { task } = value.into_parts();
@@ -59,7 +56,7 @@ pub fn read_holder(
         }
         wire::ProposalHolder::Policy(value) => {
             let wire::PolicyHolderParts { project, kind } = value.into_parts();
-            domain::ProposalHolder::Policy { project, kind: read_kind(kind, limits)? }
+            domain::ProposalHolder::Policy { project, kind: read_kind(kind)? }
         }
     })
 }
@@ -83,11 +80,11 @@ pub fn state(source: &domain::ProposalState, limits: &wire::Limits) -> Result<wi
     })
 }
 /// Read `ProposalState` from its store value.
-pub fn read_state(source: wire::ProposalState, limits: &wire::Limits) -> Result<domain::ProposalState, wire::Problem> {
+pub fn read_state(source: wire::ProposalState) -> Result<domain::ProposalState, wire::Problem> {
     Ok(match source {
         wire::ProposalState::Pending(value) => {
             let wire::PendingProposalParts { holder, since } = value.into_parts();
-            domain::ProposalState::Pending { holder: read_holder(holder, limits)?, since: Wall::from_nanos(since) }
+            domain::ProposalState::Pending { holder: read_holder(holder)?, since: Wall::from_nanos(since) }
         }
         wire::ProposalState::Accepted(value) => {
             let wire::AcceptedProposalParts { by } = value.into_parts();
@@ -113,10 +110,7 @@ pub fn address_change(
     )
 }
 /// Read `AddressChange` from its store record.
-pub fn read_address_change(
-    source: wire::AddressChange,
-    _limits: &wire::Limits,
-) -> Result<domain::AddressChange, wire::Problem> {
+pub fn read_address_change(source: wire::AddressChange) -> Result<domain::AddressChange, wire::Problem> {
     let wire::AddressChangeParts { revision, address } = source.into_parts();
     Ok(domain::AddressChange { revision, address: value::read_person_address(address) })
 }
@@ -171,11 +165,11 @@ pub fn read_amendment(source: wire::Amendment, limits: &wire::Limits) -> Result<
     } = source.into_parts();
     Ok(domain::Amendment {
         tracked: read_tracking(tracked),
-        addressed: read_optional_address_change(addressed, limits)?,
+        addressed: read_optional_address_change(addressed)?,
         instructions,
         release,
         spec: read_optional_spec(spec, limits)?,
-        wake: read_optional_wake(wake, limits)?,
+        wake: read_optional_wake(wake)?,
         dependencies: read_optional_dependencies(dependencies),
         authority: read_optional_authority(authority, limits)?,
         llm: value::read_llm(llm),
@@ -334,12 +328,12 @@ pub fn read_proposal(source: wire::Proposal, limits: &wire::Limits) -> Result<do
         action: read_action(action, limits)?,
         reason,
         as_holder,
-        state: read_state(state, limits)?,
+        state: read_state(state)?,
     })
 }
 
 /// Translate `Change` to its store value.
-pub fn change(source: &domain::Change, _limits: &wire::Limits) -> Result<wire::Change, wire::Problem> {
+pub fn change(source: &domain::Change) -> Result<wire::Change, wire::Problem> {
     Ok(match source {
         domain::Change::Cancelled => wire::Change::Cancelled,
         domain::Change::Released => wire::Change::Released,
@@ -353,7 +347,7 @@ pub fn change(source: &domain::Change, _limits: &wire::Limits) -> Result<wire::C
     })
 }
 /// Read `Change` from its store value.
-pub fn read_change(source: wire::Change, _limits: &wire::Limits) -> Result<domain::Change, wire::Problem> {
+pub fn read_change(source: wire::Change) -> Result<domain::Change, wire::Problem> {
     Ok(match source {
         wire::Change::Cancelled => domain::Change::Cancelled,
         wire::Change::Released => domain::Change::Released,
@@ -400,7 +394,7 @@ pub fn read_settings(source: wire::Settings, limits: &wire::Limits) -> Result<do
         taken_by,
         instructions,
         spec: value::read_spec(spec, limits)?,
-        wake: phase::read_wake(wake, limits)?,
+        wake: phase::read_wake(wake)?,
         dependencies: phase::read_references(dependencies),
         authority: value::read_authority(authority, limits)?,
         llm: value::read_llm(llm),
@@ -444,7 +438,7 @@ pub fn history(
             task: *task,
             revision: *revision,
             by: value::party(by, limits)?,
-            change: self::change(change, limits)?,
+            change: self::change(change)?,
             reason: reason.clone(),
             proposal: optional_proposal(proposal.as_deref(), limits, moved)?,
             at: at.as_nanos(),
@@ -459,7 +453,7 @@ pub fn read_history(source: wire::History, limits: &wire::Limits) -> Result<doma
         task,
         revision,
         by: value::read_party(by),
-        change: read_change(change, limits)?,
+        change: read_change(change)?,
         reason,
         proposal: read_optional_proposal(proposal, limits)?,
         at: Wall::from_nanos(at),
@@ -502,10 +496,7 @@ pub fn person_state(
     })
 }
 /// Read `PersonProposalState` from its store value.
-pub fn read_person_state(
-    source: wire::PersonProposalState,
-    _limits: &wire::Limits,
-) -> Result<domain::PersonProposalState, wire::Problem> {
+pub fn read_person_state(source: wire::PersonProposalState) -> Result<domain::PersonProposalState, wire::Problem> {
     Ok(match source {
         wire::PersonProposalState::SettingsAccepted(row) => {
             let row = row.into_parts();
@@ -595,7 +586,7 @@ pub fn read_person_proposal(
             domain::PersonAction::Amend { task, revision, amendment: Box::new(read_amendment(amendment, limits)?) }
         }
     };
-    Ok(domain::PersonProposal { number, proposer, project, action, reason, state: read_person_state(state, limits)? })
+    Ok(domain::PersonProposal { number, proposer, project, action, reason, state: read_person_state(state)? })
 }
 
 /// Translate `Milestone` to its store record.
@@ -655,7 +646,6 @@ fn optional_dependencies(
         None => Ok(None),
     }
 }
-#[expect(clippy::manual_map, reason = "step code uses exhaustive matches instead of closures or function pointers")]
 fn read_optional_dependencies(source: Option<List<wire::Number>>) -> Option<Box<[u64]>> {
     match source {
         Some(value) => Some(phase::read_references(value)),
@@ -671,7 +661,6 @@ fn optional_address(
         None => Ok(None),
     }
 }
-#[expect(clippy::manual_map, reason = "step code uses exhaustive matches instead of closures or function pointers")]
 fn read_optional_address(source: Option<wire::PersonAddress>) -> Option<domain::PersonAddress> {
     match source {
         Some(value) => Some(value::read_person_address(value)),
@@ -689,10 +678,9 @@ fn optional_address_change(
 }
 fn read_optional_address_change(
     source: Option<wire::AddressChange>,
-    limits: &wire::Limits,
 ) -> Result<Option<domain::AddressChange>, wire::Problem> {
     match source {
-        Some(value) => Ok(Some(read_address_change(value, limits)?)),
+        Some(value) => Ok(Some(read_address_change(value)?)),
         None => Ok(None),
     }
 }
@@ -722,12 +710,9 @@ fn optional_wake(
         None => Ok(None),
     }
 }
-fn read_optional_wake(
-    source: Option<wire::WakePolicy>,
-    limits: &wire::Limits,
-) -> Result<Option<domain::WakePolicy>, wire::Problem> {
+fn read_optional_wake(source: Option<wire::WakePolicy>) -> Result<Option<domain::WakePolicy>, wire::Problem> {
     match source {
-        Some(value) => Ok(Some(phase::read_wake(value, limits)?)),
+        Some(value) => Ok(Some(phase::read_wake(value)?)),
         None => Ok(None),
     }
 }
@@ -861,7 +846,7 @@ fn setting_heads(
     items: &[domain::SettingHead],
     limits: &wire::Limits,
 ) -> Result<wire::ProposedSettings, wire::Problem> {
-    if items.len() > usize::try_from(limits.proposed_settings_items).expect("item bound fits") {
+    if items.len() > skein_lib::length::usize_of(limits.proposed_settings_items) {
         return Err(wire::Problem { path: wire::Path::ProposedSettingsItems, reason: skein_codec::Reason::Bound });
     }
     let mut heads = List::with_capacity(domain::SETTINGS_ITEMS);

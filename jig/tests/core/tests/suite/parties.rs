@@ -1,15 +1,18 @@
+use jig_core_world::world::Setup;
 const OWNER_ROLE: u32 = 0;
-use jig_core_world::{
-    effects::World,
-    fixtures::{
-        ask_as,
-        deadlines::{decide, propose},
-        inbox_objects as inbox, live_row, people_member, proposal_object, refusal,
-    },
-    stories::offers::{no_holder_fixture, world_with},
-};
+use jig_core_world::fixtures::ask_as;
+use jig_core_world::fixtures::deadlines::decide;
+use jig_core_world::fixtures::deadlines::propose;
+use jig_core_world::fixtures::inbox_objects as inbox;
+use jig_core_world::fixtures::live_row;
+use jig_core_world::fixtures::refusal;
+use jig_core_world::stories::offers::no_holder_fixture;
+use jig_core_world::stories::offers::world_with;
+use jig_core_world::world::World;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
+use jig_test_profile::fixtures::people_member;
+use jig_test_profile::fixtures::proposal_object;
 const PARTY: u64 = 1;
 const FIRST: u64 = 2;
 const LAST: u64 = 3;
@@ -89,7 +92,7 @@ fn a_partys_batch_with_a_dependency_circle_is_refused_naming_its_tasks_in_order(
 #[test]
 fn a_partys_batch_is_refused_while_nobody_holds_its_escalations() {
     let (configuration, limits) = no_holder_fixture(303);
-    let mut world = World::configured(303, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 303, configuration: Some(configuration), limits, ..Setup::default() });
     world.send(jig_test_domain::Event::Core(jig_domain_core::Event::People(people::Event::Roles {
         project: PROJECT,
         holdings: Box::new([people::Holding { person: PARTY, role: people::Role::Member }]),
@@ -398,7 +401,7 @@ fn a_partys_batch_beyond_the_project_ceiling_says_nobody_could_accept() {
 #[test]
 fn a_partys_batch_no_role_may_accept_says_nobody() {
     let (configuration, limits) = jig_core_world::stories::offers::no_acceptor_fixture(322);
-    let mut world = World::configured(322, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 322, configuration: Some(configuration), limits, ..Setup::default() });
     world.send(jig_test_domain::Event::Core(jig_domain_core::Event::People(people::Event::Roles {
         project: PROJECT,
         holdings: Box::new([people::Holding { person: PARTY, role: people::Role::Member }]),
@@ -516,7 +519,7 @@ fn a_proposed_batch_giving_as_allowed_is_not_well_formed() {
 #[test]
 fn a_proposal_no_role_may_accept_is_refused_at_admission() {
     let (configuration, limits) = jig_core_world::stories::offers::no_acceptor_fixture(334);
-    let mut world = World::configured(334, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 334, configuration: Some(configuration), limits, ..Setup::default() });
     let sign_in = world.sign_in.expect("party");
     ask_as(
         &mut world,
@@ -561,7 +564,7 @@ fn a_proposal_beyond_the_project_ceiling_is_refused_naming_nobody() {
 #[test]
 fn a_proposed_batch_is_refused_while_nobody_holds_its_escalations() {
     let (configuration, limits) = no_holder_fixture(336);
-    let mut world = World::configured(336, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 336, configuration: Some(configuration), limits, ..Setup::default() });
     world.send(jig_test_domain::Event::Core(jig_domain_core::Event::People(people::Event::Roles {
         project: PROJECT,
         holdings: Box::new([people::Holding { person: PARTY, role: people::Role::Member }]),
@@ -678,7 +681,7 @@ fn a_goal_beyond_the_pool_is_refused_naming_who_may_accept() {
 }
 
 fn widening() -> people::Amendment {
-    let mut amendment = jig_core_world::fixtures::person_unchanged(b"more work");
+    let mut amendment = jig_test_profile::fixtures::person_unchanged(b"more work");
     amendment.authority = Some(people_member(b"work", 150).authority);
     amendment
 }

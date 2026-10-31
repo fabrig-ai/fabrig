@@ -27,7 +27,7 @@ pub(super) fn decide(value: &c::DecideOn, limits: &w::Limits) -> Result<w::Decid
             limits,
             w::DecideProposalParts {
                 running: match running {
-                    Some(value) => Some(super::settings::wire_running(value, limits)?),
+                    Some(value) => Some(super::settings::wire_running(value)?),
                     None => None,
                 },
                 proposal: asks::wire_proposal_key(proposal, limits)?,
@@ -102,7 +102,6 @@ pub(super) fn deadline(value: c::TemplateDeadline, limits: &w::Limits) -> Result
 pub(super) fn restore_templates(values: &List<w::TemplateOverride>) -> c::PolicyEdit {
     c::PolicyEdit::Templates { overrides: restore_template_overrides(values) }
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(super) fn restore_template_overrides(values: &List<w::TemplateOverride>) -> List<c::TemplateOverride> {
     let mut overrides = List::with_capacity(values.len());
     for v in values {
@@ -180,7 +179,7 @@ fn batch(tasks: &List<c::NewTask>, bound: u32, limits: &w::Limits) -> Result<Box
         }
         records.push(record).expect("same capacity");
     }
-    let mut out = skein_lib::Writer::new(usize::try_from(size).expect("wire size fits"));
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(size));
     for record in records.into_boxed() {
         out.put(&record.measure().to_be_bytes()).expect("measured piece");
         record.encode(&mut out).expect("measured task");
@@ -206,16 +205,15 @@ fn new_task(v: &c::NewTask, limits: &w::Limits) -> Result<w::NewTask, w::Problem
         named.push(asks::wire_owner_grant(grant, limits)?).expect("same capacity");
     }
     let executor = match v.executor {
-        c::OwnerExecutor::Agent { charter } => {
-            w::OwnerExecutor::Agent(w::OwnerExecutorAgent::new(limits, w::OwnerExecutorAgentParts { charter })?)
+        c::Executor::Agent { charter } => {
+            w::Executor::Agent(w::ExecutorAgent::new(limits, w::ExecutorAgentParts { charter })?)
         }
-        c::OwnerExecutor::Procedure { connector, code } => w::OwnerExecutor::Procedure(w::OwnerExecutorProcedure::new(
+        c::Executor::Procedure { connector, code } => {
+            w::Executor::Procedure(w::ExecutorProcedure::new(limits, w::ExecutorProcedureParts { connector, code })?)
+        }
+        c::Executor::Person(address) => w::Executor::Person(w::ExecutorPerson::new(
             limits,
-            w::OwnerExecutorProcedureParts { connector, code },
-        )?),
-        c::OwnerExecutor::Person(address) => w::OwnerExecutor::Person(w::OwnerExecutorPerson::new(
-            limits,
-            w::OwnerExecutorPersonParts { value: asks::wire_person_address(&address, limits)? },
+            w::ExecutorPersonParts { value: asks::wire_person_address(&address, limits)? },
         )?),
     };
     w::NewTask::new(
@@ -301,12 +299,12 @@ pub(super) fn restore_create(value: &w::Create, limits: &crate::Limits) -> Resul
 }
 fn restore_batch(bytes: &[u8], limits: &crate::Limits) -> Result<List<c::NewTask>, w::Problem> {
     let mut reader = skein_lib::Reader::new(bytes);
-    let mut tasks = List::with_capacity(limits.client.rows);
+    let mut tasks = List::with_capacity(limits.client().rows);
     while let Some(bytes) = create_piece(&mut reader)? {
         if tasks.len() == tasks.capacity() {
             return Err(super::too_large());
         }
-        let v = w::NewTask::decode(&limits.wire, &mut skein_lib::Reader::new(&bytes))?;
+        let v = w::NewTask::decode(limits.receiving(), &mut skein_lib::Reader::new(&bytes))?;
         tasks.push(restore_task(&v, limits)?).expect("checked capacity");
     }
     Ok(tasks)
@@ -339,17 +337,17 @@ fn restore_task(v: &w::NewTask, limits: &crate::Limits) -> Result<c::NewTask, w:
             w::NewDeadline::Named => c::NewDeadline::Named,
             w::NewDeadline::Span(value) => c::NewDeadline::Span(value.value()),
         },
-        executor: super::facts::owner_executor(v.executor(), limits),
+        executor: super::facts::executor(v.executor()),
         spec: super::pages::specification_fields(v.spec(), limits)?,
         contract,
-        authority: super::documents::owner_authority_fields(v.authority(), limits)?,
+        authority: super::documents::authority_fields(v.authority(), limits)?,
         budget: match v.budget() {
             w::NewBudget::Named => c::NewBudget::Named,
             w::NewBudget::AsAllowed(v) => c::NewBudget::AsAllowed { cap: *v.cap() },
         },
-        wake: restore_wake(v.wake().as_ref(), limits),
+        wake: restore_wake(v.wake().as_ref()),
         dependencies,
-        named: super::documents::owner_grant_piece(v.named(), limits, limits.client.authority)?,
+        named: super::documents::grant_piece(v.named(), limits, limits.client().authority)?,
         tracked: *v.tracked(),
         label: v.label(),
         flags: c::TaskFlags {
@@ -413,7 +411,7 @@ pub(super) fn restore_propose(value: &w::Propose, limits: &crate::Limits) -> Res
         w::ProposeAction::Batch(value) => c::ProposeAction::Batch { tasks: restore_batch(value.tasks(), limits)? },
         w::ProposeAction::Amendment(value) => c::ProposeAction::Amendment {
             task: value.task(),
-            revision: super::answers::revision(value.revision(), limits),
+            revision: super::answers::revision(value.revision()),
             change: Box::new(super::pages::amendment_fields(value.change(), limits)?),
         },
     };
@@ -421,7 +419,7 @@ pub(super) fn restore_propose(value: &w::Propose, limits: &crate::Limits) -> Res
     Ok(c::Ask::Propose { project: value.project(), action, reason })
 }
 
-fn restore_wake(value: Option<&w::OwnerWakePolicy>, limits: &crate::Limits) -> Option<c::OwnerWakePolicy> {
+fn restore_wake(value: Option<&w::WakePolicy>) -> Option<c::WakePolicy> {
     let wake = value?;
-    Some(super::facts::owner_wake_policy(wake, limits))
+    Some(super::facts::wake_policy(wake))
 }

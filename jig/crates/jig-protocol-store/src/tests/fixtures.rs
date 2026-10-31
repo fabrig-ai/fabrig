@@ -409,6 +409,16 @@ pub fn model_names(names: &[&[u8]]) -> Box<[Box<[u8]>]> {
     result.into_boxed()
 }
 
+pub fn configured_model_names(names: &[&[u8]]) -> Box<[jig_domain_core::settings::ModelName]> {
+    let mut result = skein_lib::List::with_capacity(u64::BITS);
+    for name in names {
+        result
+            .push(jig_domain_core::settings::ModelName { name: Box::from(*name), efforts: Box::new([]) })
+            .expect("at most one name per model bit");
+    }
+    result.into_boxed()
+}
+
 pub fn people_policy() -> people::PolicyValue {
     people::PolicyValue {
         ceiling: people_authority(),
@@ -823,4 +833,27 @@ pub fn manifest_counts(rows: &[(&str, u64, u64)]) -> skein_lib::List<crate::code
         counts.push(count).expect("fixture count");
     }
     counts
+}
+
+/// The kept turn schemas' said, replay and token fields.
+pub fn fixture_turn(version: u16, said: &[u8], replay: &[u8], tokens: u32) -> Box<[u8]> {
+    let replay_bytes = if version == 1 { replay.len() } else { 0 };
+    let length = said
+        .len()
+        .checked_add(replay_bytes)
+        .expect("fixture text length")
+        .checked_add(10)
+        .expect("fixture turn length");
+    let mut out = skein_lib::Writer::new(length);
+    out.put(&version.to_be_bytes()).expect("fixture version");
+    out.put(&u32::try_from(said.len()).expect("fixture text length").to_be_bytes()).expect("fixture text length");
+    out.put(said).expect("fixture text");
+    if version == 1 {
+        out.put(&u32::try_from(replay.len()).expect("fixture replay length").to_be_bytes())
+            .expect("fixture replay length");
+        out.put(replay).expect("fixture replay");
+    } else {
+        out.put(&tokens.to_be_bytes()).expect("fixture tokens");
+    }
+    out.finish()
 }

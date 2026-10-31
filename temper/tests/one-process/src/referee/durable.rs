@@ -122,7 +122,7 @@ impl Store {
     pub fn observe(
         &mut self,
         events: &mut Vec<Observed>,
-        limits: &codec::Limits,
+        limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &temper_protocol_store::Bounds,
     ) -> Vec<Commit> {
@@ -186,7 +186,7 @@ impl Store {
     fn durable(
         &mut self,
         path: &[u8],
-        limits: &codec::Limits,
+        limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &temper_protocol_store::Bounds,
     ) -> Vec<Commit> {
@@ -206,7 +206,7 @@ impl Store {
         }
         committed
     }
-    fn apply(&mut self, commit: &Commit, limits: &codec::Limits) {
+    fn apply(&mut self, commit: &Commit, limits: &codec::View) {
         for write in &commit.writes {
             match write {
                 root::Write::DropTranscript { task } => {
@@ -233,7 +233,7 @@ impl Store {
         &self,
         number: u64,
         ops: Box<[skein_kv::Op]>,
-        limits: &codec::Limits,
+        limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &temper_protocol_store::Bounds,
     ) -> Commit {

@@ -91,7 +91,7 @@ pub(crate) fn ready(store: &Store) -> Result<(), Failure> {
 }
 
 pub(crate) fn site(store: &Store, key: &[u8]) -> RowSite {
-    let allowance = usize::try_from(store.limits.store.key).expect("map key allowance fits usize");
+    let allowance = skein_lib::length::usize_of(store.limits.store.key);
     let shown = key.get(..key.len().min(allowance)).expect("bounded key prefix");
     let family = match key {
         [crate::keys::COMPONENT, ..] => Some(Family::Component),

@@ -1,11 +1,12 @@
 use jig_core_world::Fault;
-use jig_core_world::{
-    client_peer::ClientPeer,
-    effects::World,
-    observations::Observer,
-    peers::{Peers, fixture},
-    referee::{Observed, Receipt},
-};
+use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::conformance::Observer;
+use jig_core_world::peers::Peers;
+use jig_core_world::peers::fixture;
+use jig_core_world::referee::Observed;
+use jig_core_world::referee::Receipt;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -22,14 +23,15 @@ const SUBJECT: &[u8] = b"same identity";
 
 fn world(peer: ClientPeer) -> World {
     let (config, limits) = fixture(1212, 0);
-    let mut world = World::scripted(
-        config,
+    let mut world = World::new(Setup {
+        configuration: Some(config),
         limits,
-        Peers::new(
+        peers: Some(Peers::new(
             vec![Worker::new(7, 1, vec![Box::new([Script::Wait])])],
             vec![Party::new(1, Role::Owner, SCRIPTED, Box::new([]))],
-        ),
-    );
+        )),
+        ..Setup::default()
+    });
     world.client_peer = Some(peer);
     world
 }

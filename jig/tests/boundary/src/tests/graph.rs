@@ -47,10 +47,10 @@ fn core_breaches(manifests: &[CrateManifest]) -> Vec<String> {
                 .iter()
                 .filter(|name| {
                     if manifest.name.as_deref() == Some("jig-domain-core") {
-                        !["skein-lib", "jig-domain-workers"].contains(&name.as_str())
+                        !["skein-lib", "jig-domain-link"].contains(&name.as_str())
                             && !CORE_FAMILY.contains(&name.as_str())
                     } else {
-                        !["skein-lib", "jig-domain-workers"].contains(&name.as_str())
+                        !["skein-lib", "jig-domain-link"].contains(&name.as_str())
                     }
                 })
                 .map(|name| format!("{}: {name}", manifest.path.display()))
@@ -67,7 +67,7 @@ fn core_and_children_use_only_the_kit_and_foundation_even_when_empty() {
 }
 
 #[test]
-fn hosts_and_translation_use_no_core_crates_even_when_empty() {
+fn hosts_and_translation_use_only_their_core_vocabularies_even_when_empty() {
     let failures: Vec<_> = manifests()
         .into_iter()
         .filter(|manifest| matches!(manifest.name.as_deref(), Some("jig-domain-host" | "jig-protocol-charter")))
@@ -75,7 +75,12 @@ fn hosts_and_translation_use_no_core_crates_even_when_empty() {
             manifest
                 .dependencies
                 .iter()
-                .filter(|name| CORE_FAMILY.contains(&name.as_str()))
+                .filter(|name| {
+                    CORE_FAMILY.contains(&name.as_str())
+                        // jig/docs/design/domain/hosts.md, 8: assignment translates the run charter and task contract.
+                        && !(manifest.name.as_deref() == Some("jig-protocol-charter")
+                            && ["jig-domain-core", "jig-domain-tasks"].contains(&name.as_str()))
+                })
                 .map(|name| format!("{}: {name}", manifest.path.display()))
                 .collect::<Vec<_>>()
         })
@@ -84,7 +89,7 @@ fn hosts_and_translation_use_no_core_crates_even_when_empty() {
 }
 
 #[test]
-fn host_hub_links_only_skein() {
+fn host_hub_links_only_foundation_and_link_values() {
     let failures: Vec<_> = manifests()
         .into_iter()
         .filter(|manifest| manifest.name.as_deref() == Some("jig-domain-host"))
@@ -92,7 +97,7 @@ fn host_hub_links_only_skein() {
             manifest
                 .dependencies
                 .iter()
-                .filter(|name| name.as_str() != "skein-lib")
+                .filter(|name| !["skein-lib", "jig-domain-link"].contains(&name.as_str()))
                 .map(|name| format!("{}: {name}", manifest.path.display()))
                 .collect::<Vec<_>>()
         })
@@ -215,7 +220,7 @@ fn client_transcript_is_the_client_only_smith_link() {
 }
 
 #[test]
-fn scripted_engine_links_only_the_client_and_foundation() {
+fn scripted_engine_links_only_the_client_codecs_and_foundation() {
     let engines: Vec<_> = manifests()
         .into_iter()
         .filter(|manifest| manifest.name.as_deref() == Some("jig-client-scripted-engine"))
@@ -223,10 +228,16 @@ fn scripted_engine_links_only_the_client_and_foundation() {
     assert_eq!(engines.len(), 1);
     for manifest in engines {
         assert!(
-            manifest
-                .dependencies
-                .iter()
-                .all(|name| ["skein-lib", "jig-client-view", "jig-client-domain"].contains(&name.as_str())),
+            manifest.dependencies.iter().all(|name| [
+                "skein-lib",
+                "skein-codec",
+                "jig-client-view",
+                "jig-client-domain",
+                "jig-client-protocol-wire",
+                "jig-client-protocol-link",
+                "smith-transcript",
+            ]
+            .contains(&name.as_str())),
             "{}",
             manifest.path.display()
         );
@@ -299,6 +310,8 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-client",
                 "jig-client-domain",
                 "jig-client-protocol-link",
+                "jig-client-protocol-wire",
+                "jig-protocol-engine-clients",
                 "jig-client-view",
                 // Whole committed turns use the existing below-domain codec.
                 "jig-protocol-transcript",
@@ -320,8 +333,7 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-domain-tasks",
                 "jig-domain-views",
                 "jig-domain-notes",
-                // Reuse the actual root/store/workers/systems and referee, not a harness copy.
-                "jig-core-world",
+                "jig-test-profile",
                 // Scripted parties remain beside the real joint protocol peer.
                 "jig-fake-parties",
                 "jig-fake-workers",
@@ -330,7 +342,8 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-client-test-kit",
                 "sha2"
             ]
-            .contains(&d.as_str())),
+            .contains(&d.as_str())
+                || super::kits::pending_world_dependency("jig-client-world", d)),
             "{}",
             manifest.path.display()
         );
@@ -684,9 +697,6 @@ fn the_identity_dependency_is_allowed_for_the_test_service_alone() {
     }
 }
 
-/// Client crates outside the prefix until the client's restructuring removes them.
-const PENDING: [&str; 0] = [];
-
 #[test]
 fn client_crates_carry_the_client_prefix() {
     let allowed = [
@@ -701,7 +711,8 @@ fn client_crates_carry_the_client_prefix() {
         "jig-channel-world",
         "jig-ops-world",
     ];
-    assert_eq!(crate::client_names::breaches(&kit_root(), "jig", &allowed), PENDING);
+    let failures = crate::client_names::breaches(&kit_root(), "jig", &allowed);
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
 #[test]
@@ -751,11 +762,11 @@ fn client_crate_links_only_its_domain_link_and_foundation() {
 }
 
 #[test]
-fn worker_values_have_no_dependencies() {
+fn link_values_depend_on_skein_lib_alone() {
     let crates: Vec<_> =
-        manifests().into_iter().filter(|manifest| manifest.name.as_deref() == Some("jig-domain-workers")).collect();
+        manifests().into_iter().filter(|manifest| manifest.name.as_deref() == Some("jig-domain-link")).collect();
     assert_eq!(crates.len(), 1);
-    assert!(crates[0].dependencies.is_empty());
+    assert_eq!(crates[0].dependencies, ["skein-lib"]);
 }
 
 #[test]
@@ -763,4 +774,30 @@ fn accounts_cannot_depend_on_fleet() {
     let source = "[package]\nname = \"jig-domain-accounts\"\n[dependencies]\njig-domain-fleet.workspace = true\n";
     let manifest = parse_manifest(PathBuf::from("accounts/Cargo.toml"), source);
     assert_eq!(core_breaches(&[manifest]), ["accounts/Cargo.toml: jig-domain-fleet"]);
+}
+
+#[test]
+fn engine_hub_link_joins_only_core_host_and_link_vocabularies() {
+    let crates: Vec<_> = manifests().into_iter().filter(|m| m.name.as_deref() == Some("jig-domain-hub-link")).collect();
+    assert_eq!(crates.len(), 1, "one engine hub link");
+    for dependency in &crates[0].dependencies {
+        assert!(
+            [
+                "skein-lib",
+                "jig-domain-core",
+                "jig-domain-host",
+                "jig-domain-link",
+                "jig-domain-accounts",
+                "jig-domain-authority",
+                "jig-domain-brief",
+                "jig-domain-fleet",
+                "jig-domain-tasks"
+            ]
+            .contains(&dependency.as_str()),
+            "engine hub link dependency: {dependency}"
+        );
+    }
+    let source = fs::read_to_string(kit_root().join("crates/jig-domain-hub-link/src/lib.rs")).expect("hub link source");
+    assert!(source.contains("cfg_attr(not(test), no_std)"));
+    assert!(source.contains("forbid(unsafe_code)"));
 }

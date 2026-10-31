@@ -3,8 +3,10 @@
 //! `contract.md`, 5 and 7.1). Entries are bounded cache views;
 //! needs count all live task projections across the party's projects. Reply
 //! read positions and stored inbox rows are supplied by their owners.
-use super::{Count, Cursor, Missing, Proposer, TaskLine, TaskLink, Window};
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    documents::{Count, Cursor, Missing, Proposer, TaskLine, TaskLink, Window},
+};
 use alloc::boxed::Box;
 use jig_domain_people as people;
 use skein_lib::{List, Map, Wall};
@@ -50,7 +52,7 @@ pub struct Inbox {
 }
 
 pub(super) fn line_bound(limits: &Limits) -> usize {
-    usize::try_from(limits.documents.lines).expect("line bound fits")
+    skein_lib::length::usize_of(limits.documents.lines)
 }
 fn object(core: &Core, task: u64, kind: people::EntryKind) -> InboxObject {
     match kind {
@@ -127,8 +129,8 @@ fn reply_activity(core: &Core, task: u64, object: InboxObject) -> Option<u64> {
     }
 }
 
-fn archived_conversation(core: &Core, limits: &Limits, party: u64, task: u64) -> Option<TaskLine> {
-    let archive = core.archived_chats.get(&task)?;
+fn ended_conversation(core: &Core, limits: &Limits, party: u64, task: u64) -> Option<TaskLine> {
+    let archive = core.ended_chats.get(&task)?;
     if archive.party != party
         || (archive.project != people::DEPLOYMENT && !core.open_project(archive.project))
         || core.people.role(party, archive.project).is_none()
@@ -157,7 +159,7 @@ fn inbox_reply(
     }
     match core.tasks.task(task) {
         Some(row) => Ok(Some(Box::new(super::task_line(core, limits, party, row, None)?))),
-        None => match archived_conversation(core, limits, party, task) {
+        None => match ended_conversation(core, limits, party, task) {
             Some(line) => Ok(Some(Box::new(line))),
             None => Ok(None),
         },
@@ -290,7 +292,7 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
         let link = if *task == jig_domain_tasks::PROPOSAL_WITHOUT_TASK {
             TaskLink::Stored { number: jig_domain_tasks::PROPOSAL_WITHOUT_TASK, status: None }
         } else {
-            match core.archived_chats.get(task) {
+            match core.ended_chats.get(task) {
                 Some(archive) if archive.party == party => {
                     TaskLink::Retained { chip: archive.chip.clone(), at: archive.at }
                 }

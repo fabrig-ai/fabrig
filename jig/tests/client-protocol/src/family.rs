@@ -51,7 +51,7 @@ pub fn saved(value: &first::Record) -> Box<[u8]> {
         w::PlaceParts { store_version: *version, party: *party, project: address.project, item: address.item },
     )
     .expect("bounded place record");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("bounded encoding"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }

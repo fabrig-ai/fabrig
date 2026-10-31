@@ -14,7 +14,7 @@ pub(crate) const CHANGE_CODE: u32 = 2;
 pub(crate) const LANDING_CODE: u32 = 3;
 #[expect(dead_code, reason = "reserved after-landing procedure (domain/after-landing.md)")]
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
-use jig_domain_core::connector::{EffectDescription, EffectForm, Recovery};
+use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
 
 mod landing_route;
 pub(crate) use landing_route::start_landing_step;
@@ -429,7 +429,6 @@ pub(crate) fn effect_call(
     write: skein_forge::api::Write,
     proposal: Option<(Box<[u8]>, bool)>,
 ) {
-    let owner = effect_owner(domain);
     let flight = match describe_agent(domain, env, key, repository, resource, write) {
         Ok(flight) => flight,
         Err(skein_forge::api::Error::Busy) => {
@@ -441,6 +440,7 @@ pub(crate) fn effect_call(
             return;
         }
     };
+    let owner = effect_owner(domain);
     assert!(domain.forge_effects.insert(owner, flight).is_ok(), "admitted forge effect handoff");
     let deadline = skein_lib::Wall::from_nanos(
         // A call's timeout is its task's charter's (jig's `domain/engine.md`, 7.1).
@@ -632,10 +632,10 @@ pub(crate) fn subscribe_call(
         return;
     }
     let token = to.into_token();
-    assert!(domain.core.reserve_connector_subscription(token, key, number), "one routed call");
+    let flight = domain.core.reserve_connector_subscription(token, key, number).expect("one routed call");
     assert!(domain.forge_subscribing.insert(token, subscriber) == Ok(None), "one connector interest");
     domain.work.push(Work::Tasks(tasks::Event::SubscribeTopic {
-        reply_to: ReplyTo::new(token),
+        reply_to: ReplyTo::new(flight),
         task: key.task,
         subscription: tasks::Subscription {
             number,
@@ -964,17 +964,20 @@ fn fail_projection_feed(
     }));
 }
 
-fn outbox_outcome(entry: u64, outcome: skein_forge_client::Outcome) -> jig_domain_core::connector::OutboxOutcome {
+fn outbox_outcome(
+    entry: u64,
+    outcome: skein_forge_client::Outcome,
+) -> jig_domain_core::effects::connector::OutboxOutcome {
     match outcome {
-        skein_forge_client::Outcome::Made { .. } => jig_domain_core::connector::OutboxOutcome::Made,
+        skein_forge_client::Outcome::Made { .. } => jig_domain_core::effects::connector::OutboxOutcome::Made,
         skein_forge_client::Outcome::Failed(_) | skein_forge_client::Outcome::Raced { .. } => {
-            jig_domain_core::connector::OutboxOutcome::Failed
+            jig_domain_core::effects::connector::OutboxOutcome::Failed
         }
-        skein_forge_client::Outcome::Withdrawn => jig_domain_core::connector::OutboxOutcome::Withdrawn,
+        skein_forge_client::Outcome::Withdrawn => jig_domain_core::effects::connector::OutboxOutcome::Withdrawn,
         skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => {
-            jig_domain_core::connector::OutboxOutcome::Uncertain
+            jig_domain_core::effects::connector::OutboxOutcome::Uncertain
         }
-        skein_forge_client::Outcome::Held => jig_domain_core::connector::OutboxOutcome::Held { entry },
+        skein_forge_client::Outcome::Held => jig_domain_core::effects::connector::OutboxOutcome::Held { entry },
     }
 }
 
@@ -1074,7 +1077,6 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::People(_)
             | Work::Fleet(_)
             | Work::Brief(_)
-            | Work::StartBrief { .. }
             | Work::Forge(_)
             | Work::ProjectGoal(_)
             | Work::AgreedGoal(_)
@@ -1519,7 +1521,7 @@ pub(crate) fn claimed_writes(
     env: &Env<Limits>,
     task: u64,
 ) -> Option<(Box<[forge::Name]>, Box<[u64]>)> {
-    let assignment = domain.assignments.get(&task)?;
+    let assignment = domain.assignment_parts.get(&task)?;
     let mut writes = List::with_capacity(env.limits.forge.resources_per_task);
     let mut holders = List::with_capacity(env.limits.forge.resources_per_task);
     for repository in &assignment.workspace.repositories {
@@ -3054,9 +3056,9 @@ pub(crate) fn outputs(
             }
             forge::Request::RestartDone { stage } => {
                 let stage = match stage {
-                    forge::RestartStage::Restored => jig_domain_core::connector::RestartStage::Restored,
-                    forge::RestartStage::ReadAfresh => jig_domain_core::connector::RestartStage::ReadAfresh,
-                    forge::RestartStage::Settled => jig_domain_core::connector::RestartStage::Settled,
+                    forge::RestartStage::Restored => jig_domain_core::effects::connector::RestartStage::Restored,
+                    forge::RestartStage::ReadAfresh => jig_domain_core::effects::connector::RestartStage::ReadAfresh,
+                    forge::RestartStage::Settled => jig_domain_core::effects::connector::RestartStage::Settled,
                 };
                 super::connector_start_done(domain, stage);
             }
@@ -3134,7 +3136,8 @@ pub(crate) fn outputs(
                 }
             }
             forge::Request::Adopted { reply_to, result } => {
-                let previous = domain.adoption_restore.remove(&reply_to).expect("one admitted adoption result");
+                let (request, previous) =
+                    domain.adoption_restore.remove(&reply_to).expect("one admitted adoption result");
                 match result {
                     Ok(adopted) => {
                         let mut parties = List::with_capacity(env.limits.forge.collaborators);
@@ -3142,7 +3145,7 @@ pub(crate) fn outputs(
                             if let Some(role) = seeded_role(domain, adopted.repository.project, collaborator.permission)
                             {
                                 parties
-                                    .push(jig_domain_core::connector::AdoptedParty {
+                                    .push(jig_domain_core::effects::connector::AdoptedParty {
                                         subject: collaborator.user.to_be_bytes().into(),
                                         role,
                                     })
@@ -3161,7 +3164,7 @@ pub(crate) fn outputs(
                                     collaborators: seeds,
                                 }));
                                 domain.work.push(Work::People(people::Event::Decided {
-                                    request: reply_to,
+                                    request,
                                     outcome: people::Outcome::Adopted { project: adopted.repository.project },
                                 }));
                             }
@@ -3170,16 +3173,14 @@ pub(crate) fn outputs(
                                     repository: adopted.repository.provider,
                                     restore: previous,
                                 }));
-                                domain
-                                    .work
-                                    .push(Work::People(people::Event::Decided { request: reply_to, outcome: why }));
+                                domain.work.push(Work::People(people::Event::Decided { request, outcome: why }));
                             }
                         }
                     }
                     Err(error) => {
                         // The forge's adoption errors as jig's facts (brief D12).
                         let outcome = adoption_failure(error);
-                        domain.work.push(Work::People(people::Event::Decided { request: reply_to, outcome }));
+                        domain.work.push(Work::People(people::Event::Decided { request, outcome }));
                     }
                 }
             }
@@ -3217,11 +3218,11 @@ pub(crate) fn outputs(
                         .forge
                         .named_outcome(entry, skein_forge_client::Outcome::Failed(skein_forge::api::Error::Busy));
                     domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
-                        jig_domain_core::connector::Event::Outbox {
+                        jig_domain_core::effects::connector::Event::Outbox {
                             connector: domain.config.forge_connector,
                             entry,
                             task: key.task,
-                            outcome: jig_domain_core::connector::OutboxOutcome::Failed,
+                            outcome: jig_domain_core::effects::connector::OutboxOutcome::Failed,
                         },
                     )));
                 }
@@ -3229,17 +3230,17 @@ pub(crate) fn outputs(
             }
             forge::Request::NotMade { entry, task } => {
                 domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
-                    jig_domain_core::connector::Event::Outbox {
+                    jig_domain_core::effects::connector::Event::Outbox {
                         connector: domain.config.forge_connector,
                         entry,
                         task,
-                        outcome: jig_domain_core::connector::OutboxOutcome::NotMade,
+                        outcome: jig_domain_core::effects::connector::OutboxOutcome::NotMade,
                     },
                 )));
             }
             forge::Request::ProjectionOutcome { entry, outcome } => {
                 domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
-                    jig_domain_core::connector::Event::ProjectionOutbox {
+                    jig_domain_core::effects::connector::Event::ProjectionOutbox {
                         connector: domain.config.forge_connector,
                         entry,
                         outcome: outbox_outcome(entry, outcome),
@@ -3274,7 +3275,7 @@ pub(crate) fn outputs(
                 }
                 let result = outbox_outcome(entry, outcome);
                 domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
-                    jig_domain_core::connector::Event::Outbox {
+                    jig_domain_core::effects::connector::Event::Outbox {
                         connector: domain.config.forge_connector,
                         entry,
                         task,
@@ -3315,7 +3316,10 @@ pub(crate) fn outputs(
             }
             forge::Request::EffectsSettled { task } => {
                 domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
-                    jig_domain_core::connector::Event::Closed { task, connector: domain.config.forge_connector },
+                    jig_domain_core::effects::connector::Event::Closed {
+                        task,
+                        connector: domain.config.forge_connector,
+                    },
                 )));
             }
             forge::Request::ReleaseFailed { task, account } => {
@@ -3574,9 +3578,7 @@ fn adoption_failure(error: skein_forge::api::Error) -> people::Outcome {
 }
 
 fn effect_owner(domain: &mut Domain) -> Token {
-    let owner = Token::new(domain.next_effect_owner);
-    domain.next_effect_owner = domain.next_effect_owner.checked_add(1).expect("transient effect owner counter");
-    owner
+    domain.core.effect_owner()
 }
 
 /// Assemble connector evidence without replacing the core's status decision.
@@ -3622,17 +3624,22 @@ pub(crate) fn effect_answer(domain: &Domain, key: CallKey, part: &jig_domain_cor
 
 /// The root only translates each handoff that the core selected.
 #[expect(clippy::too_many_lines, reason = "one exhaustive core effect handoff translator")]
-pub(crate) fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: jig_domain_core::connector::Ask) {
+pub(crate) fn effect_ask(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    number: u16,
+    ask: jig_domain_core::effects::connector::Ask,
+) {
     match ask {
         // A person settles a held uncertain effect (brief D14; jig's
         // `domain/connectors.md`, 4.3): again remakes it, a creation looked
         // for first; otherwise it is recorded not made.
-        jig_domain_core::connector::Ask::ResolveUncertain { entry, again } => {
+        jig_domain_core::effects::connector::Ask::ResolveUncertain { entry, again } => {
             if number == domain.config.forge_connector {
                 domain.work.push(Work::Forge(forge::Event::Resolve { entry, again }));
             }
         }
-        jig_domain_core::connector::Ask::Describe { owner } => {
+        jig_domain_core::effects::connector::Ask::Describe { owner } => {
             let description = match domain.forge_effects.get(&owner) {
                 Some(
                     EffectFlight::Call { description, .. }
@@ -3643,10 +3650,10 @@ pub(crate) fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, as
                 None => return,
             };
             domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
-                jig_domain_core::connector::Event::Described { owner, description },
+                jig_domain_core::effects::connector::Event::Described { owner, description },
             )));
         }
-        jig_domain_core::connector::Ask::DescribeProposal { owner, proposal } => {
+        jig_domain_core::effects::connector::Ask::DescribeProposal { owner, proposal } => {
             let flight = match domain.forge.proposed_effect(proposal) {
                 Some(row) => {
                     let key = match domain.core.tasks.proposal(row.entry.task, proposal) {
@@ -3678,18 +3685,18 @@ pub(crate) fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, as
             match flight {
                 Ok(flight) => {
                     assert!(domain.forge_effects.insert(owner, flight).is_ok(), "fresh proposal description");
-                    effect_ask(domain, env, number, jig_domain_core::connector::Ask::Describe { owner });
+                    effect_ask(domain, env, number, jig_domain_core::effects::connector::Ask::Describe { owner });
                 }
                 Err(why) => domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
                     if why == skein_forge::api::Error::Busy {
-                        jig_domain_core::connector::Event::DescribeBusy { owner }
+                        jig_domain_core::effects::connector::Event::DescribeBusy { owner }
                     } else {
-                        jig_domain_core::connector::Event::DescribeRefused { owner }
+                        jig_domain_core::effects::connector::Event::DescribeRefused { owner }
                     },
                 ))),
             }
         }
-        jig_domain_core::connector::Ask::KeepProposal { owner, proposal, task, project: _ } => {
+        jig_domain_core::effects::connector::Ask::KeepProposal { owner, proposal, task, project: _ } => {
             match domain.forge_effects.remove(&owner) {
                 Some(EffectFlight::Call { repository, effect, resource, .. }) => {
                     domain.work.push(Work::Forge(forge::Event::KeepProposedEffect {
@@ -3717,10 +3724,10 @@ pub(crate) fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, as
                 }
             }
         }
-        jig_domain_core::connector::Ask::DropProposal { proposal } => {
+        jig_domain_core::effects::connector::Ask::DropProposal { proposal } => {
             domain.work.push(Work::Forge(forge::Event::DropProposedEffect { number: proposal }));
         }
-        jig_domain_core::connector::Ask::Keep { owner, entry, task, key: core_key } => {
+        jig_domain_core::effects::connector::Ask::Keep { owner, entry, task, key: core_key } => {
             match domain.forge_effects.remove(&owner) {
                 Some(EffectFlight::Call { repository, effect, key, description, .. }) => {
                     assert!(
@@ -3764,7 +3771,7 @@ pub(crate) fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, as
                 None => {}
             }
         }
-        jig_domain_core::connector::Ask::Drop { owner, answer, findings, why } => {
+        jig_domain_core::effects::connector::Ask::Drop { owner, answer, findings, why } => {
             match domain.forge_effects.remove(&owner) {
                 Some(EffectFlight::Procedure { entry, task, evidence, description }) => {
                     domain.work.push(Work::Forge(forge::Event::VetoChange { task, entry, prior: evidence.prior }));
@@ -3778,23 +3785,25 @@ pub(crate) fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, as
                         append(
                             &mut words,
                             match why {
-                                jig_domain_core::connector::EffectRefusal::Authority => b" was vetoed by authority",
-                                jig_domain_core::connector::EffectRefusal::Obsolete => {
+                                jig_domain_core::effects::connector::EffectRefusal::Authority => {
+                                    b" was vetoed by authority"
+                                }
+                                jig_domain_core::effects::connector::EffectRefusal::Obsolete => {
                                     b" was refused: its procedure step or entry is no longer valid"
                                 }
-                                jig_domain_core::connector::EffectRefusal::Description => {
+                                jig_domain_core::effects::connector::EffectRefusal::Description => {
                                     b" was refused: its connector description is invalid"
                                 }
-                                jig_domain_core::connector::EffectRefusal::Capacity => {
+                                jig_domain_core::effects::connector::EffectRefusal::Capacity => {
                                     b" was refused: effect admission has no room"
                                 }
-                                jig_domain_core::connector::EffectRefusal::Dependencies => {
+                                jig_domain_core::effects::connector::EffectRefusal::Dependencies => {
                                     b" was refused: its dependency is still pending"
                                 }
-                                jig_domain_core::connector::EffectRefusal::Proposal => {
+                                jig_domain_core::effects::connector::EffectRefusal::Proposal => {
                                     b" was refused: its proposal could not be admitted or addressed"
                                 }
-                                jig_domain_core::connector::EffectRefusal::Unavailable => {
+                                jig_domain_core::effects::connector::EffectRefusal::Unavailable => {
                                     b" was refused: effect admission is unavailable"
                                 }
                             },
@@ -3830,36 +3839,43 @@ pub(crate) fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, as
                 Some(EffectFlight::Call { .. }) | None => {}
             }
         }
-        jig_domain_core::connector::Ask::Judge { owner, judge, state, resources: _ } => {
+        jig_domain_core::effects::connector::Ask::Judge { owner, judge, state, resources: _ } => {
             let (verdict, guarded) = judge_effect(domain, env, owner, number, judge, state);
             domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
-                jig_domain_core::connector::Event::Verdict { owner, judge, verdict, at: env.wall, guarded, state },
+                jig_domain_core::effects::connector::Event::Verdict {
+                    owner,
+                    judge,
+                    verdict,
+                    at: env.wall,
+                    guarded,
+                    state,
+                },
             )));
         }
-        jig_domain_core::connector::Ask::Names { .. }
-        | jig_domain_core::connector::Ask::Unname { .. }
-        | jig_domain_core::connector::Ask::Hold { .. }
-        | jig_domain_core::connector::Ask::ReleaseHold { .. }
-        | jig_domain_core::connector::Ask::Writer { .. }
-        | jig_domain_core::connector::Ask::Make { .. }
-        | jig_domain_core::connector::Ask::ProcedureMade { .. }
-        | jig_domain_core::connector::Ask::ProcedureActivate { .. }
-        | jig_domain_core::connector::Ask::ProcedureMessage { .. }
-        | jig_domain_core::connector::Ask::ProcedureClose { .. }
-        | jig_domain_core::connector::Ask::Project { .. }
-        | jig_domain_core::connector::Ask::Release { .. }
-        | jig_domain_core::connector::Ask::Subscribe { .. }
-        | jig_domain_core::connector::Ask::Unsubscribe { .. }
-        | jig_domain_core::connector::Ask::Read { .. }
-        | jig_domain_core::connector::Ask::Gather { .. }
-        | jig_domain_core::connector::Ask::CutTo { .. }
-        | jig_domain_core::connector::Ask::Take { .. }
-        | jig_domain_core::connector::Ask::Prepare { .. }
-        | jig_domain_core::connector::Ask::Left { .. }
-        | jig_domain_core::connector::Ask::Adopt { .. }
-        | jig_domain_core::connector::Ask::Restore { .. }
-        | jig_domain_core::connector::Ask::ReadAfresh
-        | jig_domain_core::connector::Ask::SettleOutbox => unreachable!("core effect handoff"),
+        jig_domain_core::effects::connector::Ask::Names { .. }
+        | jig_domain_core::effects::connector::Ask::Unname { .. }
+        | jig_domain_core::effects::connector::Ask::Hold { .. }
+        | jig_domain_core::effects::connector::Ask::ReleaseHold { .. }
+        | jig_domain_core::effects::connector::Ask::Writer { .. }
+        | jig_domain_core::effects::connector::Ask::Make { .. }
+        | jig_domain_core::effects::connector::Ask::ProcedureMade { .. }
+        | jig_domain_core::effects::connector::Ask::ProcedureActivate { .. }
+        | jig_domain_core::effects::connector::Ask::ProcedureMessage { .. }
+        | jig_domain_core::effects::connector::Ask::ProcedureClose { .. }
+        | jig_domain_core::effects::connector::Ask::Project { .. }
+        | jig_domain_core::effects::connector::Ask::Release { .. }
+        | jig_domain_core::effects::connector::Ask::Subscribe { .. }
+        | jig_domain_core::effects::connector::Ask::Unsubscribe { .. }
+        | jig_domain_core::effects::connector::Ask::Read { .. }
+        | jig_domain_core::effects::connector::Ask::Gather { .. }
+        | jig_domain_core::effects::connector::Ask::CutTo { .. }
+        | jig_domain_core::effects::connector::Ask::Take { .. }
+        | jig_domain_core::effects::connector::Ask::Prepare { .. }
+        | jig_domain_core::effects::connector::Ask::Left { .. }
+        | jig_domain_core::effects::connector::Ask::Adopt { .. }
+        | jig_domain_core::effects::connector::Ask::Restore { .. }
+        | jig_domain_core::effects::connector::Ask::ReadAfresh
+        | jig_domain_core::effects::connector::Ask::SettleOutbox => unreachable!("core effect handoff"),
     }
 }
 
@@ -3957,16 +3973,18 @@ fn route_resource(
 ) {
     let Some(name) = hub_name(domain.config.forge_connector, name, &env.limits.tasks) else { return };
     let role = match role {
-        forge::Access::Owned => jig_domain_core::connector::ResourceRole::Owned,
-        forge::Access::Participant => jig_domain_core::connector::ResourceRole::Participant,
-        forge::Access::Context => jig_domain_core::connector::ResourceRole::Context,
-        forge::Access::Unavailable => jig_domain_core::connector::ResourceRole::Unavailable,
+        forge::Access::Owned => jig_domain_core::effects::connector::ResourceRole::Owned,
+        forge::Access::Participant => jig_domain_core::effects::connector::ResourceRole::Participant,
+        forge::Access::Context => jig_domain_core::effects::connector::ResourceRole::Context,
+        forge::Access::Unavailable => jig_domain_core::effects::connector::ResourceRole::Unavailable,
     };
     let hold = match hold {
-        forge::resources::HoldKind::Shared => jig_domain_core::connector::HoldKind::Shared,
-        forge::resources::HoldKind::Exclusive { wait } => jig_domain_core::connector::HoldKind::Exclusive { wait },
+        forge::resources::HoldKind::Shared => jig_domain_core::effects::connector::HoldKind::Shared,
+        forge::resources::HoldKind::Exclusive { wait } => {
+            jig_domain_core::effects::connector::HoldKind::Exclusive { wait }
+        }
     };
     domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
-        jig_domain_core::connector::Event::Resource { project, name, role, hold },
+        jig_domain_core::effects::connector::Event::Resource { project, name, role, hold },
     )));
 }

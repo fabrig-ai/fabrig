@@ -23,7 +23,7 @@ fn keyed_value(owner: w::Owner, version: u32, request: Box<[u8]>, value: &[u8]) 
         w::KeyedParts { key: [5; 16], owner, version, request, value: Some(Secret::new(Box::from(value))) },
     )
     .expect("carrying keyed");
-    let mut out = Writer::new(usize::try_from(record.measure()).expect("short keyed record"));
+    let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut out).expect("bounded keyed");
     out.finish()
 }
@@ -185,7 +185,7 @@ fn every_carrying_request_names_its_values_kind() {
     rows.push((carrying(family(), value), crate::CarriedKind::Value)).expect("application row");
     for (change, kind) in changes {
         let ask = w::Ask::AccountChange(
-            w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AccountHolder::Own, change })
+            w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
                 .expect("account change"),
         );
         rows.push((keyed_value(w::Owner::Jig, 19, f::encode_ask(&ask), value), kind)).expect("account row");

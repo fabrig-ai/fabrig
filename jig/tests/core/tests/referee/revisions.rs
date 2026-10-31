@@ -54,10 +54,10 @@ fn a_cancel_of_a_held_task_needs_no_named_hold() {
     fake.commit(3, rows).expect("cancellation requires no named hold");
 }
 
-pub(super) fn revisions_referee_cases() {
-    ownership_catches_an_amendment_made_past_the_revision_it_named();
-    ownership_catches_a_release_of_a_hold_nobody_named();
-    two_amendments_each_naming_the_revision_they_moved_are_valid();
-    a_release_naming_the_hold_after_a_pass_up_is_valid();
-    a_cancel_of_a_held_task_needs_no_named_hold();
+pub(super) fn revisions_referee_cases(bundle: &mut crate::bundle::Bundle) {
+    crate::bundle::case!(bundle, 0, ownership_catches_an_amendment_made_past_the_revision_it_named);
+    crate::bundle::case!(bundle, 0, ownership_catches_a_release_of_a_hold_nobody_named);
+    crate::bundle::case!(bundle, 0, two_amendments_each_naming_the_revision_they_moved_are_valid);
+    crate::bundle::case!(bundle, 0, a_release_naming_the_hold_after_a_pass_up_is_valid);
+    crate::bundle::case!(bundle, 0, a_cancel_of_a_held_task_needs_no_named_hold);
 }

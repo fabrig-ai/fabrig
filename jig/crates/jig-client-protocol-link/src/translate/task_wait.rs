@@ -2,15 +2,15 @@
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
 
-pub(super) fn waiting(value: Option<&w::TaskRunWait>, limits: &crate::Limits) -> Option<c::TaskRunWait> {
+pub(super) fn waiting(value: Option<&w::TaskRunWait>) -> Option<c::TaskRunWait> {
     Some(match value? {
         w::TaskRunWait::Credential => c::TaskRunWait::Credential,
         w::TaskRunWait::Host => c::TaskRunWait::Host,
         w::TaskRunWait::Refused(value) => c::TaskRunWait::Refused(match value.value() {
             w::TaskWaitRefused::Hello(row) => c::TaskWaitRefused::Hello {
-                kind: super::documents::owner_host_kind_fields(row.kind(), limits),
+                kind: super::documents::host_kind_fields(row.kind()),
                 at: skein_lib::Wall::from_nanos(row.at()),
-                why: super::documents::owner_hello_refusal_fields(row.why(), limits),
+                why: super::documents::hello_refusal_fields(row.why()),
             },
             w::TaskWaitRefused::Program(value) => c::TaskWaitRefused::Program(match value.value() {
                 w::TaskWaitProgram::Model => c::OpenProgram::Model,
@@ -51,20 +51,19 @@ fn source_state(value: &w::TaskSourceState) -> c::TaskSourceState {
         w::TaskSourceState::Moving => c::TaskSourceState::Moving,
         w::TaskSourceState::Unloaded(row) => c::TaskSourceState::Unloaded {
             at: match row.at() {
-                w::TaskSourcePlace::Directory => c::OwnerAccountPlace::Directory,
-                w::TaskSourcePlace::File => c::OwnerAccountPlace::File,
+                w::TaskSourcePlace::Directory => c::AccountPlace::Directory,
+                w::TaskSourcePlace::File => c::AccountPlace::File,
             },
             why: match row.why() {
-                w::TaskSourceUnread::Unreadable => c::OwnerAccountUnread::Unreadable,
-                w::TaskSourceUnread::Refused => c::OwnerAccountUnread::Refused,
-                w::TaskSourceUnread::Failed => c::OwnerAccountUnread::Failed,
-                w::TaskSourceUnread::Stalled => c::OwnerAccountUnread::Stalled,
-                w::TaskSourceUnread::TooLarge => c::OwnerAccountUnread::TooLarge,
+                w::TaskSourceUnread::Unreadable => c::AccountUnread::Unreadable,
+                w::TaskSourceUnread::Refused => c::AccountUnread::Refused,
+                w::TaskSourceUnread::Failed => c::AccountUnread::Failed,
+                w::TaskSourceUnread::Stalled => c::AccountUnread::Stalled,
+                w::TaskSourceUnread::TooLarge => c::AccountUnread::TooLarge,
             },
         },
     }
 }
-#[expect(clippy::manual_map, reason = "step code translates optional wall times without function pointers")]
 fn wall(value: Option<u64>) -> Option<skein_lib::Wall> {
     match value {
         Some(value) => Some(skein_lib::Wall::from_nanos(value)),

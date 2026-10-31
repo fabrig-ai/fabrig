@@ -3,8 +3,12 @@
 //! deliveries. Request durability and every business decision stay in the root.
 use super::transport::Transport;
 use jig_client_domain::contract::VersionRange;
-use jig_core_world::{client_peer::ClientPeer, effects::World, peers::Peers};
+use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::peers::Peers;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
+use jig_protocol_engine_clients::{self as clients, Event};
 use jig_test_domain as root;
 use skein_lib::{Time, Wall};
 
@@ -18,39 +22,43 @@ pub enum Packet {
 
 pub struct Driver {
     pub world: World,
+    pub(super) limits: root::Limits,
+    pub(super) key_bytes: u32,
+    pub(super) redirect_bytes: u32,
     pub transport: Transport,
     pub referee: super::referee::Referee,
     paused_sources: Vec<root::Event>,
-    refused: Vec<(skein_lib::Token, jig_client_domain::contract::Answer)>,
 }
 
 impl Driver {
     #[must_use]
     pub fn new(configuration: root::Config, limits: root::Limits, peers: Peers, now: Time, wall: Wall) -> Self {
+        let key_bytes = configuration.core.settings.key_bytes;
+        let redirect_bytes = configuration.core.settings.redirect_bytes;
         let configured = limits.core.documents.versions;
         let models = configuration.core.settings.models.clone();
         let providers = configuration.core.settings.llm_providers.clone();
         let mut transport = Transport::new(VersionRange { first: configured.minimum, last: configured.maximum });
         transport.models = models;
         transport.providers = providers;
-        let mut world = World::scripted_clock(configuration, limits, peers, now, wall);
+        let mut world = World::new(Setup {
+            configuration: Some(configuration),
+            limits,
+            peers: Some(peers),
+            clock: Some((now, wall)),
+            ..Setup::default()
+        });
         world.client_peer = Some(ClientPeer::routed());
         world.store_peer = Some(jig_core_world::store_peer::StorePeer::after(world.store.applied));
         Self {
             world,
+            limits,
+            key_bytes,
+            redirect_bytes,
             transport,
             referee: super::referee::Referee::default(),
             paused_sources: Vec::new(),
-            refused: Vec::new(),
         }
-    }
-
-    pub(super) fn refuse(&mut self, to: skein_lib::Token, answer: jig_client_domain::contract::Answer) {
-        self.refused.push((to, answer));
-    }
-
-    pub(super) fn take_refusals(&mut self) -> Vec<(skein_lib::Token, jig_client_domain::contract::Answer)> {
-        std::mem::take(&mut self.refused)
     }
 
     pub fn send(&mut self, now: Time, wall: Wall, event: root::Event) {
@@ -95,7 +103,6 @@ impl Driver {
     /// packets of the old connection cannot cross into its replacement.
     pub fn restart(&mut self, configuration: root::Config, now: Time, wall: Wall) {
         self.paused_sources.clear();
-        self.refused.clear();
         self.world.reached_cut = None;
         self.register_replies();
         self.world.set_clock(now, wall);
@@ -167,12 +174,101 @@ impl Driver {
     #[must_use]
     pub fn next_due(&self) -> Option<Time> {
         let peer = self.world.client_peer.as_ref().expect("actual protocol peer");
-        if peer.delivered.is_empty() && peer.now.is_empty() && self.refused.is_empty() {
+        if peer.delivered.is_empty() && peer.now.is_empty() {
             self.world.next_due()
         } else {
             Some(self.world.clocks().0)
         }
     }
+}
+
+#[must_use]
+pub fn held_event(held: core::Held) -> Option<Event> {
+    Some(match held {
+        core::Held::PeopleReply { to, reply } => Event::Reply { to, reply },
+        core::Held::Read { reply, answer } => Event::Read { reply, answer },
+        core::Held::Delivery { watcher, document } => Event::Delivery { watcher, document },
+        core::Held::WatchEnded { watcher, why } => Event::WatchEnded { watcher, why },
+        core::Held::CarriedUnused { number } => Event::Application(clients::FromApplication::Unused { number }),
+        core::Held::Acted { .. }
+        | core::Held::Drained
+        | core::Held::ApplicationDelivery { .. }
+        | core::Held::ApplicationWatchEnded { .. }
+        | core::Held::ReadLoad { .. }
+        | core::Held::Applied { .. }
+        | core::Held::MakeEffect { .. }
+        | core::Held::SettledCall { .. }
+        | core::Held::Assign { .. }
+        | core::Held::Grant { .. }
+        | core::Held::Relayed { .. }
+        | core::Held::Inbound { .. }
+        | core::Held::Relay { .. }
+        | core::Held::CallAnswer { .. }
+        | core::Held::Result { .. }
+        | core::Held::Acknowledge { .. }
+        | core::Held::TaskTerminalAcknowledged { .. }
+        | core::Held::TaskTurnKept { .. }
+        | core::Held::AcknowledgeTurn { .. }
+        | core::Held::Cancel { .. }
+        | core::Held::Sources { .. }
+        | core::Held::CheckSource { .. }
+        | core::Held::SignOutSource { .. }
+        | core::Held::SourceSignedOut { .. }
+        | core::Held::Refuse { .. }
+        | core::Held::TurnBusy { .. }
+        | core::Held::StopRun { .. }
+        | core::Held::Load(..)
+        | core::Held::NotesLoad { .. }
+        | core::Held::NotesWritten { .. }
+        | core::Held::NotesDeleted { .. } => return None,
+    })
+}
+#[must_use]
+pub fn now_event(now: core::Now) -> Option<Event> {
+    Some(match now {
+        core::Now::SignInRefused { to } => Event::SignInRefused { to },
+        core::Now::WatchRefused { watcher, why } => Event::WatchRefused { watcher, why },
+        core::Now::RunText { watcher, turn, from, to, text, cut, call, writing } => {
+            Event::RunText { watcher, turn, from, to, text, cut, call, writing }
+        }
+        core::Now::RelayBusy { .. }
+        | core::Now::CallBusy { .. }
+        | core::Now::Relayed { .. }
+        | core::Now::EffectAnswer { .. }
+        | core::Now::SettingsAnswer { .. }
+        | core::Now::SettledCallRefused { .. }
+        | core::Now::Call { .. }
+        | core::Now::DropCall { .. }
+        | core::Now::Undelivered { .. }
+        | core::Now::Account(_)
+        | core::Now::NotesIndexed { .. }
+        | core::Now::NotesRecalled { .. }
+        | core::Now::NotesRefused { .. }
+        | core::Now::NoteBusy { .. }
+        | core::Now::DropPayload { .. }
+        | core::Now::DropAssignment { .. }
+        | core::Now::TurnPayload { .. }
+        | core::Now::AnswerPayload { .. }
+        | core::Now::AcceptedTurn { .. }
+        | core::Now::RefusedPayload { .. }
+        | core::Now::Activate { .. }
+        | core::Now::PrepareAgent { .. }
+        | core::Now::StartPreparation { .. }
+        | core::Now::SeenConversation { .. }
+        | core::Now::LoadEndedRead { .. }
+        | core::Now::EndedProposal { .. }
+        | core::Now::DecidedProposal { .. }
+        | core::Now::EndedPersonTask { .. }
+        | core::Now::EndedTask { .. }
+        | core::Now::PartyInputs { .. }
+        | core::Now::CompleteBrief { .. }
+        | core::Now::BriefCorePlanned { .. }
+        | core::Now::WorkspaceRequest { .. }
+        | core::Now::RunPreparationFailed { .. }
+        | core::Now::RunPrepared { .. }
+        | core::Now::EndedEscalation { .. }
+        | core::Now::RestoreRefused => return None,
+    })
 }
 
 #[cfg(test)]
@@ -186,8 +282,8 @@ mod tests {
         let now = Time::ZERO;
         let wall = Wall::from_nanos(1_000_000_000_000);
         let mut driver = Driver::new(
-            jig_core_world::world::config(8455),
-            jig_core_world::world::limits(),
+            jig_test_profile::config(8455),
+            jig_test_profile::limits(),
             Peers::new(Vec::new(), Vec::new()),
             now,
             wall,
@@ -201,7 +297,7 @@ mod tests {
                 name: Box::new([]),
             },
         );
-        driver.world.cut = Some(jig_core_world::effects::Cut::Submitted(driver.world.store.applied + 1));
+        driver.world.cut = Some(jig_core_world::world::Cut::Submitted(driver.world.store.applied + 1));
         let event = driver.transport.start_sign_in(ClientId(0));
         driver.send(now, wall, root::Event::Core(event));
         assert!(driver.world.reached_cut.is_some());
@@ -215,10 +311,10 @@ mod tests {
     fn actual_root_driver_releases_the_supplied_identity_and_independent_session_only_after_its_store_commit() {
         let now = Time::from_nanos(17);
         let wall = Wall::from_nanos(1_000_000_000_000);
-        let mut limits = jig_core_world::world::limits();
+        let mut limits = jig_test_profile::limits();
         limits.core.documents.versions = core::documents::Versions { minimum: 1, maximum: u32::MAX };
         let mut driver =
-            Driver::new(jig_core_world::world::config(8455), limits, Peers::new(Vec::new(), Vec::new()), now, wall);
+            Driver::new(jig_test_profile::config(8455), limits, Peers::new(Vec::new(), Vec::new()), now, wall);
         let supplied = people::Identity {
             key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
             login: b"login".as_slice().into(),
@@ -226,7 +322,7 @@ mod tests {
         };
         driver.transport.bind(ClientId(0), 1, supplied.clone());
         assert_eq!(driver.transport.hello(), jig_client::Up::Served { served: true, versions: None });
-        driver.world.cut = Some(jig_core_world::effects::Cut::Submitted(driver.world.store.applied + 1));
+        driver.world.cut = Some(jig_core_world::world::Cut::Submitted(driver.world.store.applied + 1));
         let event = driver.transport.start_sign_in(ClientId(0));
         let core::Event::SignIn { identity, .. } = &event else { panic!("real sign-in") };
         assert_eq!(identity, &supplied);
@@ -259,8 +355,8 @@ mod tests {
         let now = Time::from_nanos(17);
         let wall = Wall::from_nanos(1_000_000_000_000);
         let mut driver = Driver::new(
-            jig_core_world::world::config(8455),
-            jig_core_world::world::limits(),
+            jig_test_profile::config(8455),
+            jig_test_profile::limits(),
             Peers::new(Vec::new(), Vec::new()),
             now,
             wall,
@@ -276,7 +372,7 @@ mod tests {
             },
         );
         let expected = driver.world.store.applied + 1;
-        driver.world.cut = Some(jig_core_world::effects::Cut::Durable(expected));
+        driver.world.cut = Some(jig_core_world::world::Cut::Durable(expected));
         let event = driver.transport.start_sign_in(ClientId(0));
         driver.send(now, wall, root::Event::Core(event));
         assert!(driver.poll(now, wall).is_empty(), "the durable cut still withholds the owner answer");

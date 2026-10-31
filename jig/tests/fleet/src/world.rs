@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use jig_domain_fleet::{
-    self as fleet, Answer, Domain, Event, Fact, Hello, Hosted, Limits, Phase, Request, Undelivered, Withdrawal,
+    self as fleet, Answer, Domain, Event, Fact, Hello, Limits, Phase, Request, Undelivered, Withdrawal,
 };
 use skein_lib::{Duration, ReplyTo, Rng, Time, Token};
 use skein_world::domain::{Ledger, Referee, Schedule, Span, Stage, Trace};
@@ -555,7 +555,7 @@ impl World {
                 gone: false,
             });
             let at = settings.redial.draw(&mut world.rng);
-            let worker = usize::try_from(worker).expect("a worker's index");
+            let worker = skein_lib::length::usize_of(worker);
             world.send(Time::ZERO.saturating_add(at), Delivery::Dial { worker });
         }
         let mut at = Time::ZERO;
@@ -563,11 +563,11 @@ impl World {
             let run = world.wire.name();
             world.items.push(Item { run, starts: settings.starts, open: BTreeMap::new(), claim: None, done: false });
             at = at.saturating_add(settings.item_gap.draw(&mut world.rng));
-            world.send(at, Delivery::Start { item: usize::try_from(item).expect("an item's index") });
+            world.send(at, Delivery::Start { item: skein_lib::length::usize_of(item) });
         }
         for _ in 0..settings.drops {
             let at = world.moment();
-            let worker = usize::try_from(world.below(settings.workers)).expect("a worker's index");
+            let worker = skein_lib::length::usize_of(world.below(settings.workers));
             let back = if world.rng.chance(settings.never_back) {
                 None
             } else if world.rng.chance(settings.quick) {
@@ -874,7 +874,11 @@ impl World {
                 let workstreams = workstreams.into();
                 let hosting = hosting
                     .into_iter()
-                    .map(|(run, attempt, phase)| Hosted { run: Token::new(run), attempt: Token::new(attempt), phase })
+                    .map(|(run, attempt, phase)| fleet::Hosting {
+                        run: Token::new(run),
+                        attempt: Token::new(attempt),
+                        phase,
+                    })
                     .collect();
                 Event::Hello {
                     worker: u32::try_from(self.channels[&channel].worker).expect("configured worker position"),
@@ -941,7 +945,7 @@ impl World {
     fn request(&mut self, request: Request) {
         match request {
             Request::Sources { channel, sources } => {
-                assert!(sources.is_empty(), "legacy worker fixture has no program sources");
+                assert!(sources.is_empty(), "worker fixture has no program sources");
                 self.stage.push(Event::Logins { channel, logins: Box::new([]) });
             }
             Request::ProgramTargets { .. }

@@ -34,7 +34,7 @@ fn a_worlds_sole_watcher_reopens_from_an_unwatched_retry_without_a_replay_source
     world.text(7, name(0), b"previous", None);
     world.settle();
     assert_eq!(
-        world.step(Event::Unwatch { watcher: Token::new(1) }),
+        world.step(Event::EndWatch { watcher: Token::new(1), end: End::Unwatched }),
         vec![Request::Ended { watcher: Token::new(1), end: End::Unwatched }]
     );
     assert!(world.text(7, name(1), b"retained", None).is_empty());
@@ -58,7 +58,7 @@ fn world_run_admission_survives_detach_and_late_text_starts_when_an_ended_run_fr
     assert!(!second.iter().any(|request| matches!(request, Request::Refused { .. } | Request::Stream { .. })));
     world.settle();
     assert_eq!(
-        world.step(Event::Unwatch { watcher: Token::new(1) }),
+        world.step(Event::EndWatch { watcher: Token::new(1), end: End::Unwatched }),
         vec![Request::Ended { watcher: Token::new(1), end: End::Unwatched }]
     );
     assert!(world.text(8, name(0), b"later", None).is_empty(), "detaching does not free retained admission");

@@ -1,10 +1,12 @@
 use super::*;
-use jig_core_world::{reads::Parties, stories::instructions::task_document};
+use jig_core_world::reads::Parties;
+use jig_core_world::stories::instructions::task_document;
+use jig_core_world::world::Setup;
 
 #[test]
 fn a_person_task_is_readdressed_after_durability_and_the_previous_taker_cannot_answer_after_restart() {
     let (configuration, limits) = person_world_fixture(185);
-    let mut w = World::configured(185, false, configuration, limits);
+    let mut w = World::new(Setup { seed: 185, configuration: Some(configuration), limits, ..Setup::default() });
     w.reads = Some(Parties::new(w.store.applied));
     let parent = w.assignments[0];
     let mut child = member(&w, tasks::Executor::Person(tasks::PersonAddress::Role(0)), b"check the report");
@@ -93,7 +95,7 @@ fn a_person_task_is_readdressed_after_durability_and_the_previous_taker_cannot_a
 #[test]
 fn address_and_spec_and_exact_hold_release_are_one_decision_and_stale_address_refuses_every_change() {
     let (configuration, limits) = person_world_fixture(186);
-    let mut w = World::configured(186, false, configuration, limits);
+    let mut w = World::new(Setup { seed: 186, configuration: Some(configuration), limits, ..Setup::default() });
     let parent = w.assignments[0];
     let mut child = member(&w, tasks::Executor::Person(tasks::PersonAddress::Role(0)), b"first question");
     child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };

@@ -4,11 +4,12 @@
 //! phase counts; held counts cover the whole subtree. Goal progress uses retained
 //! goal projections, including ended rows. Nothing here mutates a task or policy.
 
-#![expect(clippy::manual_map, reason = "step code uses explicit matches instead of closures")]
-
-use super::{Chip, Cursor, Missing, Proposer, Text, Window};
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    documents::{Chip, Cursor, Missing, Proposer, Text, Window},
+};
 use alloc::boxed::Box;
+use jig_domain_authority as authority;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Wall};
 
@@ -93,7 +94,7 @@ pub enum Ending {
     Cancelled { reason: Text, result: Option<ResultValue>, by: tasks::Party, at: Wall },
 }
 
-/// One task reference, including a historical result still named by live work.
+/// One task reference, including a retained result still named by live work.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TaskLink {
     /// An ended task whose stored owner row supplied its identity and wall time.
@@ -359,13 +360,13 @@ pub(super) fn part_path(limits: &Limits, connector: u16, kind: PartKind, bytes: 
     Ok(Part { connector, kind, key: PartKey::Path(path(limits, bytes)?) })
 }
 
-fn path(limits: &Limits, bytes: &[Box<[u8]>]) -> Result<List<Box<[u8]>>, Missing> {
-    if bytes.len() > usize::try_from(limits.documents.segments).expect("segment count fits") {
+pub(super) fn path(limits: &Limits, bytes: &[Box<[u8]>]) -> Result<List<Box<[u8]>>, Missing> {
+    if bytes.len() > skein_lib::length::usize_of(limits.documents.segments) {
         return Err(Missing::TooLarge);
     }
     let mut result = List::with_capacity(limits.documents.segments);
     for segment in bytes {
-        if segment.len() > usize::try_from(limits.documents.text_bytes).expect("text bound fits") {
+        if segment.len() > skein_lib::length::usize_of(limits.documents.text_bytes) {
             return Err(Missing::TooLarge);
         }
         result.push(skein_lib::bytes::copy_of(segment)).expect("validated path length");
@@ -373,54 +374,60 @@ fn path(limits: &Limits, bytes: &[Box<[u8]>]) -> Result<List<Box<[u8]>>, Missing
     Ok(result)
 }
 
-fn pattern(limits: &Limits, value: &tasks::Pattern) -> Result<PatternEnd, Missing> {
+pub(super) fn pattern(limits: &Limits, value: &authority::Pattern) -> Result<PatternEnd, Missing> {
     let bytes = match &value.last {
-        tasks::Last::Exact(bytes) | tasks::Last::Open(bytes) => bytes,
+        authority::Last::Exact(bytes) | authority::Last::Open(bytes) => bytes,
     };
-    if bytes.len() > usize::try_from(limits.documents.text_bytes).expect("text bound fits") {
+    if bytes.len() > skein_lib::length::usize_of(limits.documents.text_bytes) {
         return Err(Missing::TooLarge);
     }
     Ok(match &value.last {
-        tasks::Last::Exact(bytes) => PatternEnd::Exact(skein_lib::bytes::copy_of(bytes)),
-        tasks::Last::Open(bytes) => PatternEnd::Open(skein_lib::bytes::copy_of(bytes)),
+        authority::Last::Exact(bytes) => PatternEnd::Exact(skein_lib::bytes::copy_of(bytes)),
+        authority::Last::Open(bytes) => PatternEnd::Open(skein_lib::bytes::copy_of(bytes)),
     })
 }
 
-pub(super) fn authority(limits: &Limits, value: &tasks::Authority) -> Result<AuthorityLine, Missing> {
+pub(super) fn authority(limits: &Limits, value: &authority::Authority) -> Result<AuthorityLine, Missing> {
     let mut grants = List::with_capacity(limits.documents.grants);
-    for grant in &value.grants {
+    for value in &value.grants {
         grants
             .push(GrantLine {
-                connector: grant.connector,
-                kind: grant.kind,
-                segments: path(limits, &grant.pattern.segments)?,
-                last: pattern(limits, &grant.pattern)?,
+                connector: value.connector,
+                kind: value.kind,
+                segments: path(limits, &value.pattern.segments)?,
+                last: pattern(limits, &value.pattern)?,
             })
             .expect("bounded grants");
     }
     let mut executors = List::with_capacity(limits.documents.executors);
-    for kind in &value.delegation.kinds {
-        executors.push(*kind).expect("bounded executor list");
+    for value in &value.delegation.kinds {
+        executors
+            .push(match value {
+                authority::Executor::Charter(number) => tasks::AuthorityExecutor::Charter(*number),
+                authority::Executor::Procedure(number) => tasks::AuthorityExecutor::Procedure(*number),
+                authority::Executor::Role(number) => tasks::AuthorityExecutor::Role(*number),
+            })
+            .expect("bounded executors");
     }
     let mut note_resources = List::with_capacity(limits.documents.grants);
-    for scope in &value.note_resources {
+    for value in &value.note_resources {
         note_resources
             .push(NoteScope {
-                connector: scope.connector,
-                segments: path(limits, &scope.pattern.segments)?,
-                last: pattern(limits, &scope.pattern)?,
+                connector: value.connector,
+                segments: path(limits, &value.pattern.segments)?,
+                last: pattern(limits, &value.pattern)?,
             })
             .expect("bounded note scopes");
     }
     Ok(AuthorityLine {
-        models: value.models,
-        tools: value.tools,
+        models: tasks::Models::from_parts(value.models.bits(), value.models.is_all()),
+        tools: tasks::Tools(value.tools.0),
         grants,
         executors,
         tasks: value.delegation.tasks,
         depth: value.delegation.depth,
-        ceiling: value.budget,
-        notes: value.notes,
+        ceiling: tasks::Budget { spend: value.budget.spend, deadline: value.budget.deadline },
+        notes: tasks::Scopes(value.notes.0),
         note_resources,
     })
 }
@@ -428,7 +435,7 @@ pub(super) fn authority(limits: &Limits, value: &tasks::Authority) -> Result<Aut
 pub(super) fn contract(limits: &Limits, value: &tasks::Contract) -> Result<ContractLine, Missing> {
     Ok(match value {
         tasks::Contract::Approval { state, part } => {
-            if state.len() > usize::try_from(limits.documents.text_bytes).expect("u32 fits usize") {
+            if state.len() > skein_lib::length::usize_of(limits.documents.text_bytes) {
                 return Err(Missing::TooLarge);
             }
             match &part.key {
@@ -438,7 +445,7 @@ pub(super) fn contract(limits: &Limits, value: &tasks::Contract) -> Result<Contr
                         return Err(Missing::TooLarge);
                     }
                     for segment in segments {
-                        if segment.len() > usize::try_from(limits.documents.text_bytes).expect("u32 fits usize") {
+                        if segment.len() > skein_lib::length::usize_of(limits.documents.text_bytes) {
                             return Err(Missing::TooLarge);
                         }
                     }
@@ -460,7 +467,7 @@ pub(super) fn contract(limits: &Limits, value: &tasks::Contract) -> Result<Contr
                 for field in &choice.fields {
                     names = names.checked_add(field.name.len()).ok_or(Missing::TooLarge)?;
                 }
-                if names > usize::try_from(limits.documents.text_bytes).expect("u32 fits usize") {
+                if names > skein_lib::length::usize_of(limits.documents.text_bytes) {
                     return Err(Missing::TooLarge);
                 }
                 result.push(choice.clone()).expect("bounded form choices");
@@ -473,7 +480,7 @@ pub(super) fn contract(limits: &Limits, value: &tasks::Contract) -> Result<Contr
 pub(super) fn result_value(limits: &Limits, value: &tasks::TaskResult) -> Result<ResultValue, Missing> {
     Ok(match value {
         tasks::TaskResult::Approved { state, words } => {
-            if state.len() > usize::try_from(limits.documents.text_bytes).expect("u32 fits usize") {
+            if state.len() > skein_lib::length::usize_of(limits.documents.text_bytes) {
                 return Err(Missing::TooLarge);
             }
             ResultValue::Approved {
@@ -499,7 +506,7 @@ pub(super) fn result_value(limits: &Limits, value: &tasks::TaskResult) -> Result
                     .checked_add(field.value.len())
                     .ok_or(Missing::TooLarge)?;
             }
-            if total > usize::try_from(limits.documents.text_bytes).expect("u32 fits usize") {
+            if total > skein_lib::length::usize_of(limits.documents.text_bytes) {
                 return Err(Missing::TooLarge);
             }
             ResultValue::Verdict {
@@ -657,12 +664,12 @@ pub(super) fn hold_for(
 
 pub(super) fn placed(core: &Core, limits: &Limits, party: u64, task: u64) -> Result<Option<PlacedLine>, Missing> {
     let Some(hold) = core.tasks.placed_on(task) else { return Ok(None) };
-    if hold.reason.len() > usize::try_from(limits.documents.text_bytes).expect("text bound fits") {
+    if hold.reason.len() > skein_lib::length::usize_of(limits.documents.text_bytes) {
         return Err(Missing::TooLarge);
     }
     Ok(Some(PlacedLine {
         number: hold.number,
-        owner: crate::roles::hold_owner(hold.owner),
+        owner: crate::admission::roles::hold_owner(hold.owner),
         mode: hold.mode,
         scope: hold.scope,
         reason: hold.reason.clone(),
@@ -690,7 +697,7 @@ fn bound(limits: &Limits) -> usize {
     size(limits.documents.lines)
 }
 fn size(value: u32) -> usize {
-    usize::try_from(value).expect("bounded count fits usize")
+    skein_lib::length::usize_of(value)
 }
 
 pub(super) fn link(core: &Core, limits: &Limits, party: u64, number: u64) -> Result<TaskLink, Missing> {
@@ -882,7 +889,7 @@ fn task_with_lineage(
         tasks::Phase::Waiting | tasks::Phase::Active(_) => None,
     };
     let acts = super::offers::task(core, limits, party, row, decision)?;
-    let authority = authority(limits, &row.authority)?;
+    let authority = authority(limits, &crate::translate::tasks_authority(&row.authority))?;
     Ok(Task {
         settings: match row.executor {
             tasks::Executor::Agent { .. } => Some(TaskSettings {
@@ -895,7 +902,7 @@ fn task_with_lineage(
             }),
             tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => None,
         },
-        waits_on: crate::waits::from_row(core, limits, row),
+        waits_on: crate::runs::waits::from_row(core, limits, row),
         label: row.label,
         flags: row.flags,
         last_activity: row.last_activity,

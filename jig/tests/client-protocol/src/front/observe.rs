@@ -166,7 +166,10 @@ pub fn receipts(fact: &Received) -> Vec<Receipt> {
             },
         },
         Received::Delivery(c::Delivery::Me(value)) => {
-            return vec![Receipt::Party { party: value.party.number, watch: None }];
+            return vec![
+                Receipt::Party { party: value.party.number, watch: None },
+                Receipt::Document { value: Box::new(c::ReadValue::Me(value.clone())) },
+            ];
         }
         Received::Delivery(value) => Event::Client {
             event: jig_client::Event::Up {
@@ -194,7 +197,7 @@ mod tests {
     const TASK: u64 = 8;
 
     fn encoded<T>(value: &T, measure: fn(&T) -> u32, encode: fn(&T, &mut Writer) -> Result<(), Overflow>) -> Box<[u8]> {
-        let mut writer = Writer::new(usize::try_from(measure(value)).expect("bounded wire fixture"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(measure(value)));
         encode(value, &mut writer).expect("measured wire fixture");
         writer.finish()
     }
@@ -269,11 +272,11 @@ mod tests {
 
     #[test]
     fn encoded_family_requests_keep_their_card_and_revision() {
-        let record = crate::family::request(&jig_client_test_domain::family::Ask::Touch {
+        let record = crate::family::request(&jig_client_test_domain::family::Ask::ChangeObject {
             project: PROJECT,
-            item: TASK,
+            object: TASK,
             revision: c::Revision { value: 5 },
-            parameters: None,
+            value: 0,
         });
         let envelope = w::FamilyRequest::new(
             &w::CEILINGS,

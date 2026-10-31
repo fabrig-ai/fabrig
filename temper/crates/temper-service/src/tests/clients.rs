@@ -502,7 +502,7 @@ fn a_moved_file_at_its_forms_bound_passes_and_one_byte_past_is_refused() {
             w::AskAccountChange::new(
                 &limits,
                 w::AskAccountChangeParts {
-                    holder: w::AccountHolder::Own,
+                    holder: w::AskAccountHolder::Own,
                     change: w::AccountChange::MoveIn(
                         w::AccountChangeMoveIn::new(&limits, w::AccountChangeMoveInParts { digest }).unwrap(),
                     ),

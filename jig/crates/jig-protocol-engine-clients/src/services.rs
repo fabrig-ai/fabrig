@@ -27,15 +27,15 @@ impl Component {
                 {
                     match answer {
                         Answer::SignedIn(value) => {
-                            self.respond(env, exchange, routes::signed_in(&env.limits.wire, value));
+                            self.respond(exchange, routes::signed_in(value));
                         }
                         Answer::Minted { credential, expires } => {
                             let exchange = self.pending.mints.remove(&exchange).expect("mint owner");
                             out.push(Request::Minted { exchange, credential, expires });
                         }
                         Answer::Service(value) => {
-                            self.answer(env, exchange, Ok(value), out);
-                            self.replayed(env, owner, out);
+                            self.answer(exchange, Ok(value));
+                            self.replayed(env, owner);
                         }
                     }
                 }
@@ -89,7 +89,7 @@ impl Component {
                                 match owner {
                                     SecretOwner::SignIn(_) => self.denied(env, exchange, route),
                                     SecretOwner::Service(_) => {
-                                        self.respond(env, exchange, routes::refused(&env.limits.wire));
+                                        self.respond(exchange, routes::refused());
                                     }
                                     SecretOwner::Carried(_) => unreachable!("carried values are only erased"),
                                 }
@@ -112,14 +112,14 @@ impl Component {
                     }
                 }
             }
-            SecretsAnswer::Carried { exchange, number } => self.carried(env, exchange, number, out),
-            SecretsAnswer::Failed => self.abort(out),
-            SecretsAnswer::Erased { owner } => self.erased(env, owner),
+            SecretsAnswer::Carried { exchange, number } => self.carried(exchange, number, out),
+            SecretsAnswer::Failed => self.abort(),
+            SecretsAnswer::Erased { owner } => self.erased(owner),
         }
     }
     /// The store kept a request's carried value: the core sees the request
     /// now; one whose exchange is gone, or not kept, is answered or erased.
-    fn carried(&mut self, env: &Env<Limits>, exchange: Token, number: Option<u64>, out: &mut Queue<Request>) {
+    fn carried(&mut self, exchange: Token, number: Option<u64>, out: &mut Queue<Request>) {
         let Some(slot) = self.pending.carried.get_mut(&exchange) else {
             unreachable!("the store answers each carry once")
         };
@@ -128,7 +128,7 @@ impl Component {
             self.pending.carried.remove(&exchange);
             if let Some(waiting) = waiting {
                 if let Waiting::Carry { .. } = waiting {
-                    self.respond(env, exchange, routes::busy());
+                    self.respond(exchange, routes::busy());
                 } else {
                     self.pending.exchanges.insert(exchange, waiting).expect("same slot");
                 }
@@ -173,11 +173,11 @@ impl Component {
     }
     fn service_sign_in(&mut self, env: &Env<Limits>, exchange: Token, party: u64, out: &mut Queue<Request>) {
         if self.stopping() {
-            self.respond(env, exchange, routes::sign_in_not_ready());
+            self.respond(exchange, routes::sign_in_not_ready());
             return;
         }
         if self.admitted() >= env.limits.exchanges {
-            self.respond(env, exchange, routes::refused(&env.limits.wire));
+            self.respond(exchange, routes::refused());
             return;
         }
         let identity = people::Identity {
@@ -220,10 +220,8 @@ impl Component {
         }
         if kept.is_some() {
             self.answer(
-                env,
                 exchange,
                 crate::translate::answers::service(party, Secret::new(Box::new([])), &env.limits.wire),
-                out,
             );
             return;
         }
@@ -241,10 +239,10 @@ impl Component {
                     value: Kept { digest, expires: Wall::from_nanos(u64::MAX) },
                 }));
             }
-            Err(problem) => self.answer(env, exchange, Err(problem), out),
+            Err(problem) => self.answer(exchange, Err(problem)),
         }
     }
-    fn replayed(&mut self, env: &Env<Limits>, owner: SecretOwner, out: &mut Queue<Request>) {
+    fn replayed(&mut self, env: &Env<Limits>, owner: SecretOwner) {
         for _ in 0..env.limits.exchanges {
             let mut found = None;
             for (exchange, waiting) in &self.pending.exchanges {
@@ -258,10 +256,8 @@ impl Component {
             let Some((exchange, party)) = found else { break };
             self.pending.exchanges.remove(&exchange);
             self.answer(
-                env,
                 exchange,
                 crate::translate::answers::service(party, Secret::new(Box::new([])), &env.limits.wire),
-                out,
             );
         }
     }

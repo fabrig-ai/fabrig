@@ -18,7 +18,7 @@ pub(crate) fn requested(store: &Store, event: &mut root::Event) -> Option<r::Obs
         root::Record::Core(_) | root::Record::Connector { .. } => None,
     })?;
     Some(r::Observed::ApplicationRequested {
-        reply: crate::observations::destination(reply_to),
+        reply: jig_conformance::core::destination(reply_to),
         key: r::ApplicationKey { person, key: *key },
         connector: *number,
         digest: *digest,

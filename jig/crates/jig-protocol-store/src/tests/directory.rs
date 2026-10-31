@@ -657,8 +657,8 @@ fn first_manifest() -> crate::codec::component::Manifest {
     crate::codec::component::Manifest {
         generation: 1,
         from: None,
-        before: crate::format::recorded(crate::format::NONE),
-        after: crate::format::recorded(crate::format::NONE),
+        before: crate::format::NONE,
+        after: crate::format::NONE,
         counts: skein_lib::List::with_capacity(0),
         store: 0,
         secrets: None,

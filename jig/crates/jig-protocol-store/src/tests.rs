@@ -78,3 +78,29 @@ fn valid_refuses_each_unrepresentable_limit() {
 }
 
 mod sizes;
+
+#[test]
+fn valid_requires_room_for_transcript_work() {
+    let limits = fixtures::store_limits();
+    for (name, limits, accepted) in [
+        ("empty queue", crate::Limits { queue: 0, ..limits }, false),
+        ("queue exceeds store", crate::Limits { queue: limits.store.queued.checked_add(1).unwrap(), ..limits }, false),
+        ("empty files", crate::Limits { files: 0, ..limits }, false),
+        ("empty orphan erases", crate::Limits { orphan_erases: 0, ..limits }, false),
+        (
+            "too few readers",
+            crate::Limits {
+                reads: limits.core.load_slots.checked_add(limits.core.tasks.tasks).unwrap().checked_sub(1).unwrap(),
+                ..limits
+            },
+            false,
+        ),
+        (
+            "exact readers",
+            crate::Limits { reads: limits.core.load_slots.checked_add(limits.core.tasks.tasks).unwrap(), ..limits },
+            true,
+        ),
+    ] {
+        assert_eq!(crate::valid(&limits), accepted, "{name}");
+    }
+}

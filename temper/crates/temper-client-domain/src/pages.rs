@@ -233,7 +233,7 @@ impl Pages {
         name
     }
     #[must_use]
-    pub fn accounts_document<'a>(&self, client: &'a Client) -> Option<&'a jig_client::contract::OwnerAccounts> {
+    pub fn accounts_document<'a>(&self, client: &'a Client) -> Option<&'a jig_client::contract::Accounts> {
         if !self.watching || self.party != Some(accounts::current_me(client)?.party.number) {
             return None;
         }
@@ -575,7 +575,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             }
             if let Address::Welcome { .. } = address {
                 let page = pages.connect_model.as_mut().expect("open flow has state");
-                if page.holder != jig_client::contract::AccountHolder::Own {
+                if page.holder != jig_client::contract::AskAccountHolder::Own {
                     page.leave();
                     **page = connect_model::ConnectModel::default();
                 }
@@ -912,11 +912,11 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
                 pages.connect_model = Some(Box::new(connect_model::ConnectModel::default()));
             }
             let page = pages.connect_model.as_mut().expect("open flow has state");
-            if page.holder == jig_client::contract::AccountHolder::Deployment
+            if page.holder == jig_client::contract::AskAccountHolder::Deployment
                 && me.deployment_role != Some(jig_client::contract::HeldRole::Owner)
             {
                 page.request.clear_key();
-                page.holder = jig_client::contract::AccountHolder::Own;
+                page.holder = jig_client::contract::AskAccountHolder::Own;
             }
         }
     }

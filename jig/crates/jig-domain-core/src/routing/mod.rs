@@ -4,84 +4,65 @@
 
 #![expect(clippy::mod_module_files, reason = "the route split keeps dispatch in routing/mod.rs")]
 
-pub(crate) mod amendment_reads;
 pub(crate) mod application_routes;
-pub(crate) mod create;
-pub(crate) mod deadlines;
-pub(crate) mod deployment_acts;
-pub(crate) mod key_routes;
-pub(crate) mod party_inputs;
-mod propose;
-pub(crate) mod result_reads;
+mod children;
+pub(crate) mod effect;
+pub(crate) mod ended_marks;
+pub(crate) mod flight;
+pub(crate) mod party;
+pub(crate) mod refusals;
+pub(crate) mod run;
 pub(crate) mod settings;
+pub(crate) mod sibling_routes;
+pub(crate) mod step;
+pub(crate) mod stopping;
+pub(crate) mod task;
+pub(crate) mod timers;
+pub(crate) mod view;
 
-use crate::{CallKey, CallPart, Core, RoutedCall};
+pub use crate::vocabulary::{Event, Held, HoldingsNeed, Limits, Request, Timer, ToolKind, TranscriptLoad};
+use crate::{
+    CallKey, CallPart, Core, RoutedCall,
+    routing::{
+        children::{
+            route_account, route_brief, route_fleet, route_projection_settled, tag_account, tag_brief, tag_fleet,
+        },
+        effect::note::route_notes,
+        party::{
+            ended::{route_ended_escalation, route_ended_proposal},
+            holdings::route_holdings,
+            people::{route_people, sign_in},
+        },
+        run::{
+            calls::{named_action, route_named_answer, route_refused_payload},
+            delegation::{
+                delegate_holdings, delegate_input_failed, delegate_validated, procedure_holdings, procedure_step,
+                route_period, route_start_recurring,
+            },
+            payloads::{route_answer_payload, route_turn_payload},
+            preparation::{
+                brief_assembled, plan_brief, route_activate, route_claim_prepared, route_claim_refused,
+                route_preparation_failed, route_prepared_agent, start_brief, workspace_prepared,
+            },
+        },
+        task::{route_connector_repair, route_tasks, tag_task_outputs},
+        view::routes::{open, route_view},
+    },
+};
+pub(crate) use crate::{
+    routing::{run::calls::named_propose, view::marks::finish_watches},
+    vocabulary::Work,
+};
 use alloc::boxed::Box;
-use children::{route_account, route_brief, route_fleet, route_projection_settled, tag_account, tag_brief, tag_fleet};
-use historical::{route_historical_escalation, route_historical_proposal};
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
-use jig_domain_brief as brief;
-use jig_domain_fleet as fleet;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_domain_views as views;
-use note_routes::route_notes;
-use parties::route_holdings;
-use people_routes::{route_people, sign_in};
-use run_delegation::{
-    delegate_holdings, delegate_input_failed, delegate_validated, procedure_holdings, procedure_step, route_period,
-    route_start_recurring,
-};
-use run_payloads::{route_answer_payload, route_turn_payload};
-use run_preparation::{
-    brief_assembled, plan_brief, route_activate, route_claim_prepared, route_claim_refused, route_preparation_failed,
-    route_prepared_agent, start_brief, workspace_prepared,
-};
-pub(crate) use runs::named_propose;
-use runs::{named_action, route_named_answer, route_refused_payload};
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
-use task_routes::{
-    route_connector_repair, route_person_escalation, route_person_proposal, route_task_escalation, route_tasks,
-    tag_tasks,
-};
-use view_routes::{made_outputs, open, route_view};
-pub use vocabulary::{
-    Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsNeed, Limits, NamedAction, Now,
-    PayloadRefusal, ProposalChoice, Request, Requests, StepRefusal, Timer, ToolKind, WatchRefusal, Write,
-};
-pub(crate) use watch_marks::finish_watches;
 
-pub(crate) mod account_requests;
-mod children;
-pub(crate) mod first_start;
-mod historical;
-#[path = "notes.rs"]
-mod note_routes;
-mod parties;
-mod party_controls;
-mod party_decisions;
-#[path = "people.rs"]
-pub(crate) mod people_routes;
-pub(crate) mod procedure_steps;
-mod projects;
-mod proposal_revisions;
-pub(crate) mod refusals;
-mod run_controls;
-mod run_delegation;
-mod run_payloads;
-mod run_preparation;
-mod runs;
-mod topics;
-mod turns;
-use turns::route_accepted_turn;
-#[path = "tasks.rs"]
-mod task_routes;
-#[path = "views.rs"]
-pub(crate) mod view_routes;
-mod vocabulary;
-pub(crate) mod watch_marks;
+use crate::routing::run::turns::route_accepted_turn;
 
 impl Core {
     /// Retain a numbered connector call until its translated answer arrives.
@@ -93,29 +74,29 @@ impl Core {
 
     /// Retain a connector subscription's task-hub continuation with its named call.
     #[must_use]
-    pub fn reserve_connector_subscription(&mut self, token: Token, key: CallKey, subscription: u64) -> bool {
+    pub fn reserve_connector_subscription(&mut self, token: Token, key: CallKey, subscription: u64) -> Option<Token> {
         self.start_input();
         if !self.reserve_connector_call(key) {
-            return false;
+            return None;
         }
-        self.routing_calls.insert(token, RoutedCall::Subscribe { key, subscription }) == Ok(None)
+        Some(self.fly_call(token, RoutedCall::Subscribe { key, subscription }))
     }
 }
 
 /// Person choice retained only while the task child decides its exact revision.
 #[derive(PartialEq, Eq, Debug)]
 pub(crate) struct PersonEscalation {
-    request: Token,
-    requester: u64,
-    person: u64,
-    project: u32,
-    task: u64,
-    revision: u64,
-    decision: people::EscalationDecision,
+    pub(crate) request: Token,
+    pub(crate) requester: u64,
+    pub(crate) person: u64,
+    pub(crate) project: u32,
+    pub(crate) task: u64,
+    pub(crate) revision: u64,
+    pub(crate) decision: people::EscalationDecision,
 }
 
 #[derive(Debug)]
-pub(super) enum CreationKind {
+pub(crate) enum CreationKind {
     Batch { person: u64, given: Option<people::Given>, stubs: Box<[tasks::Stub]> },
     Propose { person: u64, reason: Box<[u8]>, to: u32, stubs: Box<[tasks::Stub]> },
 }
@@ -245,7 +226,7 @@ impl Core {
             &self.authority,
             &authority::CallAsk {
                 project: task.project,
-                authority: crate::translate::authority_value(&task.authority),
+                authority: crate::translate::tasks_authority(&task.authority),
                 family,
                 call,
             },
@@ -292,6 +273,7 @@ impl Core {
 /// The parent caller held while the notes child reads its store pages.
 #[derive(Debug)]
 pub(crate) enum NoteRoute {
+    Deletion { project: u32 },
     Call { to: ReplyTo, key: CallKey },
     Person { request: Token },
     Brief { task: u64 },
@@ -307,19 +289,15 @@ pub(crate) enum NoteBrief {
 
 impl Core {
     pub(crate) fn begin_note_route(&mut self, route: NoteRoute) -> Token {
-        let owner = Token::new(self.next_note_owner);
-        self.next_note_owner = self.next_note_owner.checked_add(1).expect("transient note owner space");
-        let previous = self.note_routes.insert(owner, route).expect("notes keeps one pending route plus a refusal");
-        assert!(previous.is_none(), "transient note owners are unique");
-        owner
+        self.fly(flight::Flight::Note(route))
     }
 }
 
 /// Route one child event and each sibling continuation within one core decision.
-pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
+pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> {
     core.start_input();
     if core.start_failure().is_some() {
-        return Requests::Out(Queue::uncapped());
+        return Queue::uncapped();
     }
     if let Some(phase) = core.start_phase() {
         #[expect(clippy::wildcard_enum_match_arm, reason = "only restore entrances need phase validation")]
@@ -331,7 +309,7 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
                 assert!(core.start_loading(), "rows load before Link and outside a seed commit");
             }
             Event::SettingsCommit { .. } => unreachable!("the start commits settings itself"),
-            Event::EffectConnector(crate::connector::Event::Resource { name, .. }) => {
+            Event::EffectConnector(crate::effects::connector::Event::Resource { name, .. }) => {
                 assert!(takes_connector_resource(phase, name.connector), "connector resources load before Link");
             }
             _ => {}
@@ -342,35 +320,26 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
     core.run_wall = env.wall;
     let mut work = Queue::uncapped();
     let mut out = Queue::uncapped();
-    work.push(event);
+    work.push(Work::Event(event));
     for _ in 0..env.limits.routes {
         let Some(next) = work.pop() else { break };
-        let Requests::Out(mut batch) = step_one(core, env, next, &mut work);
+        let mut batch = step_work(core, env, next, &mut work);
         for _ in 0..batch.len() {
-            match batch.pop().expect("core route output count") {
-                Request::Decided => {}
-                request @ (Request::ProjectMade { .. }
-                | Request::Write(_)
-                | Request::Ask { .. }
-                | Request::Held(_)
-                | Request::Now(_)) => {
-                    out.push(request);
-                }
-            }
+            let request = batch.pop().expect("core route output count");
+            out.push(request);
         }
     }
     assert!(work.is_empty(), "sibling_routes_drained");
     core.finish_extent(oldest, &mut out);
     core.start_collect_failure();
     if core.start_failure().is_some() {
-        return Requests::Out(Queue::uncapped());
+        return Queue::uncapped();
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 /// Want every configured account once, after the restart has restored the core's own ranges.
-pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Requests {
+pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     core.start_input();
     if let Some(phase) = core.start_phase() {
         assert!(phase == crate::start::Phase::Link, "account wants attach after all loading");
@@ -380,7 +349,7 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Requests {
     core.run_now = env.now;
     core.run_wall = env.wall;
     let mut work = Queue::uncapped();
-    let Requests::Out(mut out) = route_account(core, env, &mut work, accounts::Event::Want);
+    let mut out = route_account(core, env, &mut work, accounts::Event::Want);
     assert!(work.is_empty(), "wanting the accounts answers no party");
     core.finish_extent(oldest, &mut out);
     if core.start_phase().is_some() {
@@ -389,16 +358,16 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Requests {
             let request = out.pop().expect("bounded restored accounts output");
             match request {
                 Request::Write(_) => writes.push(request),
-                Request::Decided => {}
+
                 Request::ProjectMade { .. } | Request::Ask { .. } | Request::Held(_) | Request::Now(_) => {
                     core.start.held.push(request);
                 }
             }
         }
         core.start_collect_failure();
-        return Requests::Out(writes);
+        return writes;
     }
-    Requests::Out(out)
+    out
 }
 
 fn takes_connector_resource(phase: crate::start::Phase, connector: u16) -> bool {
@@ -423,7 +392,7 @@ pub(crate) fn start_task_outputs(
     child: Queue<tasks::Request>,
     out: &mut Queue<Request>,
 ) {
-    let Requests::Out(mut routed) = tag_tasks(core, env, child, false, false, false);
+    let mut routed = tag_task_outputs(core, env, child);
     for _ in 0..routed.len() {
         let request = routed.pop().expect("bounded restored task outputs");
         out.push(request);
@@ -431,54 +400,69 @@ pub(crate) fn start_task_outputs(
 }
 
 /// Resume the fleet's next held placement or relay through the core's sibling routes.
-pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Requests {
+pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     core.start_runtime_input();
     let oldest = core.current.oldest;
     core.run_now = env.now;
     core.run_wall = env.wall;
     if core.stopping {
-        return crate::stopping::empty();
+        return stopping::empty();
     }
     let mut child = Queue::uncapped();
-    fleet::resume(&mut core.fleet, &Env { now: env.now, wall: env.wall, limits: env.limits.fleet }, &mut child);
+    step::resume_fleet(core, env, &mut child);
     if !child.is_empty() {
         core.touch_deployment();
         core.touch_run_waits();
     }
     let mut work = Queue::uncapped();
-    let Requests::Out(mut out) = tag_fleet(core, env, &mut work, child);
+    let mut out = tag_fleet(core, env, &mut work, child);
     assert!(work.is_empty(), "fleet resumption produces no sibling continuations");
-    crate::deletion::advance(core, env, &mut out);
+    crate::admission::deletion::advance(core, env, &mut out);
     core.finish_extent(oldest, &mut out);
-    Requests::Out(out)
+    out
+}
+
+fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Work>) -> Queue<Request> {
+    match next {
+        Work::StartBrief { .. } | Work::BriefNotes { .. } | Work::PreparationFailed { .. } if core.stopping => {
+            stopping::empty()
+        }
+        Work::Event(event) => step_one(core, env, event, work),
+        Work::StartBrief { task } => start_brief(core, env, work, task),
+        Work::BriefNotes { task, lines, more } => plan_brief(core, env, work, task, lines, more),
+        Work::PreparationFailed { task } => route_preparation_failed(core, work, task),
+        Work::Forget { owner } => crate::reads::forget::forget(core, work, &owner),
+    }
 }
 
 #[expect(clippy::too_many_lines, reason = "exhaustive event dispatch delegates each concern")]
-fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<Event>) -> Requests {
-    let event = match crate::stopping::gate(core, event) {
+fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<Work>) -> Queue<Request> {
+    let event = match stopping::gate(core, event) {
         Ok(event) => event,
         Err(answer) => return answer,
     };
     match event {
         Event::ChangeSettings { reply_to, sign_in, key, digest, change } => {
-            settings::start(core, env, work, reply_to, sign_in, key, digest, change)
+            settings::dispatch::start(core, env, work, reply_to, sign_in, key, digest, change)
         }
         Event::ProposeSettings { reply_to, sign_in, key, digest, change } => {
-            settings::propose_start(core, env, work, reply_to, sign_in, key, digest, *change)
+            settings::dispatch::propose_start(core, env, work, reply_to, sign_in, key, digest, *change)
         }
         Event::SettingsCommit { room } => core.commit_restored_settings(env, room.saturating_sub(1)),
-        Event::ProjectReleased { connector, project } => crate::deletion::released(core, env, connector, project),
+        Event::ProjectReleased { connector, project } => {
+            crate::admission::deletion::released(core, env, connector, project)
+        }
         Event::Fill { bytes } => {
             core.fill = bytes;
-            crate::stopping::empty()
+            stopping::empty()
         }
-        Event::Stopping => crate::stopping::start(core),
-        Event::Marked { connector, subjects } => view_routes::marked(core, connector, subjects),
+        Event::Stopping => stopping::start(core),
+        Event::Marked { connector, subjects } => view::routes::marked(core, connector, subjects),
         Event::Act { reply_to, connector, key, act, carried } => {
-            deployment_acts::start(core, env, work, reply_to, connector, key, act, carried)
+            party::deployment_acts::start(core, env, work, reply_to, connector, key, act, carried)
         }
         Event::Key { reply_to, sign_in, key, ask, carried } => {
-            key_routes::start(core, env, work, reply_to, sign_in, key, *ask, carried)
+            party::key_routes::start(core, env, work, reply_to, sign_in, key, *ask, carried)
         }
         Event::Application { reply_to, sign_in, key, scope, connector, digest, owner, carried } => {
             let input = application_routes::Input { connector, owner, carried: application_routes::number(carried) };
@@ -490,14 +474,14 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         }
         Event::ProjectionSettled { goal, connector } => route_projection_settled(core, goal, connector),
         Event::SettledCall { to, key, name, call } => {
-            crate::conversation::settle(core, &env.limits, to, key, name, call)
+            crate::runs::conversation::settle(core, &env.limits, to, key, name, call)
         }
         Event::EffectStart { owner, connector, origin } => crate::effects::start(core, env, owner, connector, origin),
         Event::EffectConnector(event) => crate::effects::connector(core, env, work, event),
         Event::SubscribeTopic { to, key, connector, topic, resources } => {
-            topics::subscribe(core, env, work, to, key, connector, topic, &resources)
+            effect::topics::subscribe(core, env, work, to, key, connector, topic, &resources)
         }
-        Event::EffectDeadline if !core.ready() => crate::stopping::empty(),
+        Event::EffectDeadline if !core.ready() => stopping::empty(),
         Event::EffectDeadline => crate::effects::deadline(core, env),
         Event::SignIn { reply_to, .. } | Event::People(people::Event::Ask { reply_to, .. }) if !core.ready() => {
             let mut out = Queue::uncapped();
@@ -505,35 +489,42 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
                 to: reply_to,
                 reply: people::Reply::Again(people::Again::NotReady),
             })));
-            Requests::Out(out)
+            out
         }
         Event::SignIn { reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held),
         Event::ReadLoaded { load, result } => crate::reads::loaded(core, env, load, result),
         Event::Read { reply, sign_in, read } => crate::reads::start(core, env, reply, sign_in, read),
         Event::Watch { watcher, sign_in, subject, window } => open(core, env, watcher, sign_in, subject, window),
         Event::WatchRun { watcher, sign_in, task, turn, offset } => {
-            view_routes::open_run(core, env, watcher, sign_in, task, turn, offset)
+            view::routes::open_run(core, env, watcher, sign_in, task, turn, offset)
         }
-        Event::Unwatch { watcher } => route_view(core, env, views::Event::Unwatch { watcher }),
-        Event::Delivered { watcher } => route_view(core, env, views::Event::Delivered { watcher }),
-        Event::StreamDelivered { watcher } => view_routes::stream_delivered(core, env, watcher),
-        Event::RunCall { run, attempt, call } => view_routes::run_call(core, env, run, attempt, call),
+        Event::Unwatch { watcher } => {
+            let Some(watcher) = core.watch_token(watcher) else { return Queue::uncapped() };
+            route_view(core, env, views::Event::EndWatch { watcher, end: views::End::Unwatched })
+        }
+        Event::Delivered { watcher } => {
+            let Some(watcher) = core.watch_token(watcher) else { return Queue::uncapped() };
+            route_view(core, env, views::Event::Delivered { watcher })
+        }
+        Event::StreamDelivered { watcher } => {
+            let Some(watcher) = core.watch_token(watcher) else { return Queue::uncapped() };
+            view::routes::stream_delivered(core, env, watcher)
+        }
+        Event::RunCall { run, attempt, call } => view::routes::run_call(core, env, run, attempt, call),
         Event::RunInput { run, attempt, turn, retry, offset, id, tool, input } => {
-            view_routes::run_input(core, env, run, attempt, turn, retry, offset, id, tool, input)
+            view::routes::run_input(core, env, run, attempt, turn, retry, offset, id, tool, input)
         }
         Event::RunText { run, attempt, turn, retry, offset, text, call } => {
-            view_routes::run_text(core, env, run, attempt, turn, retry, offset, text, call)
+            view::routes::run_text(core, env, run, attempt, turn, retry, offset, text, call)
         }
         Event::Tasks(event) => {
-            let Requests::Out(mut out) = route_tasks(core, env, work, event);
-            crate::deletion::advance(core, env, &mut out);
-            Requests::Out(out)
+            let mut out = route_tasks(core, env, work, event);
+            crate::admission::deletion::advance(core, env, &mut out);
+            out
         }
         Event::StartRecurring { project, authority, template } => {
             route_start_recurring(core, work, project, authority, template)
         }
-        Event::StartBrief { task } => start_brief(core, env, work, task),
-        Event::BriefNotes { task, lines, more } => plan_brief(core, env, work, task, lines, more),
         Event::BriefAssembled { task, ready } => brief_assembled(core, work, task, ready),
         Event::WorkspacePrepared { task, attempt, writes, credentials } => {
             workspace_prepared(core, env, work, task, attempt, writes, credentials)
@@ -543,22 +534,18 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         }
         Event::ClaimRefused { task } => route_claim_refused(core, work, task),
         Event::ConnectorRepair { seed, executor, spec, contract, holdings } => {
-            route_connector_repair(work, seed, executor, spec, contract, holdings)
+            route_connector_repair(core, work, seed, executor, spec, contract, holdings)
         }
         Event::Period { project, period, budget, next } => route_period(core, work, project, period, budget, next),
-        Event::PreparationFailed { task } => route_preparation_failed(core, work, task),
-        Event::TranscriptUnread { task } => run_preparation::transcript_unread(core, work, task),
-        Event::PersonProposal(event) => route_person_proposal(core, env, event),
-        Event::TaskEscalation(event) => route_task_escalation(core, env, event),
-        Event::PersonEscalation(event) => route_person_escalation(core, env, event),
+        Event::TranscriptLoaded { task, load } => run::preparation::transcript_loaded(core, env, work, task, load),
         Event::People(event) => route_people(core, env, work, event),
         Event::Holdings { request, connector, holdings } => {
             route_holdings(core, env, work, request, connector, holdings)
         }
         Event::Fleet(event) => {
-            let Requests::Out(mut out) = route_fleet(core, env, work, event);
-            crate::deletion::advance(core, env, &mut out);
-            Requests::Out(out)
+            let mut out = route_fleet(core, env, work, event);
+            crate::admission::deletion::advance(core, env, &mut out);
+            out
         }
         Event::TurnPayload { run, attempt, turn, body, read, cumulative, refused } => {
             route_turn_payload(core, work, run, attempt, turn, body, read, refused, cumulative)
@@ -586,40 +573,49 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         }
         Event::Activate { context, ready } => route_activate(core, env, work, context, ready),
         Event::PreparedAgent { context, transcript_waiter, busy } => {
-            route_prepared_agent(core, context, transcript_waiter, busy)
+            route_prepared_agent(core, work, context, transcript_waiter, busy)
         }
-        Event::Forget { owner } => crate::forget::forget(core, env, work, &owner),
-        Event::EndedReadLoaded { request, task, party, through, busy } => crate::ended_marks::loaded(
-            core,
-            env,
-            work,
-            crate::ended_marks::Answer { request, task, party, through, busy },
-        ),
+        Event::EndedReadLoaded { request, task, party, through, busy } => {
+            ended_marks::loaded(core, env, work, ended_marks::Answer { request, task, party, through, busy })
+        }
         Event::SeenConversationLoaded { request, row, busy } => {
             crate::inbox::seen_conversation_loaded(core, env, work, request, row, busy)
         }
         Event::DecidedProposal { to, key, proposal, row, busy } => {
-            historical::decided_proposal(core, to, key, proposal, row, busy)
+            party::ended::decided_proposal(core, to, key, proposal, row, busy)
         }
-        Event::HistoricalProposal { request, person, project, proposer, proposal, row, busy } => {
-            route_historical_proposal(core, work, request, person, project, proposer, proposal, row, busy)
-        }
-        Event::EndedTaskLoaded { request, row, busy } => result_reads::loaded(core, env, work, request, row, busy),
+        Event::EndedProposal { request, person, project, proposer, proposal, row, busy } => route_ended_proposal(
+            core,
+            work,
+            party::dispatch::Party { request, person, project, role: None },
+            proposer,
+            proposal,
+            row,
+            busy,
+        ),
+        Event::EndedTaskLoaded { request, row, busy } => run::results::loaded(core, env, work, request, row, busy),
         Event::PartyInputsLoaded { request, row, busy } => {
-            let mut out = Queue::uncapped();
-            party_inputs::loaded(core, env, &mut out, work, party_inputs::Loaded { request, row, busy });
-            Requests::Out(out)
+            let mut routed = party::dispatch::Routed::new(work);
+            party::inputs::loaded(core, env, &mut routed, party::inputs::Loaded { request, row, busy });
+            routed.finish(work)
         }
-        Event::HistoricalPersonTask { request, person, project, task, row, busy } => {
-            let outcome = core.person_task_ended(person, project, task, row, busy);
-            work.push(Event::People(people::Event::Decided { request, outcome }));
-            let mut out = Queue::uncapped();
-            out.push(Request::Decided);
-            Requests::Out(out)
+        Event::EndedPersonTask { request, person, project, task, row, busy } => {
+            let outcome = core.person_task_ended(
+                party::dispatch::Party { request, person, project, role: None },
+                task,
+                row,
+                busy,
+            );
+            work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
+            Queue::uncapped()
         }
-        Event::HistoricalEscalation { request, person, project, task, revision, row, busy } => {
-            route_historical_escalation(core, env, work, request, person, project, task, revision, row, busy)
-        }
+        Event::EndedEscalation { request, person, project, task, revision, row, busy } => route_ended_escalation(
+            core,
+            env,
+            work,
+            party::dispatch::Party { request, person, project, role: None },
+            party::ended::Escalation { task, revision, row, busy },
+        ),
         Event::NamedAnswer { to, key, part } => route_named_answer(core, to, key, part),
         Event::NamedAction { to, key, action } => named_action(core, env, work, to, key, action),
         Event::DelegateValidated { to, key, batch, stubs } => delegate_validated(core, env, to, key, batch, stubs),
@@ -641,34 +637,34 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
 }
 
 /// Fire one due child timer, returning its whole bounded request batch.
-pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Requests {
+pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> {
     core.start_input();
     if !core.ready() {
-        return crate::stopping::empty();
+        return stopping::empty();
     }
     core.run_now = env.now;
     core.run_wall = env.wall;
-    if core.stopping && crate::stopping::waits(timer) {
-        return crate::stopping::empty();
+    if core.stopping && stopping::waits(timer) {
+        return stopping::empty();
     }
     let oldest = core.current.oldest;
-    let Requests::Out(mut out) = match timer {
+    let mut out = match timer {
         Timer::People => {
             let mut out = Queue::uncapped();
-            people::fire(&mut core.people, &Env { now: env.now, wall: env.wall, limits: env.limits.people }, &mut out);
+            step::fire_people(core, env, &mut out);
             let mut work = Queue::uncapped();
-            let requests = people_routes::tag_people(core, env, out, &mut work);
+            let requests = party::people::tag_people(core, env, out, &mut work);
             assert!(work.is_empty(), "people expirations produce no sibling continuations");
             requests
         }
         Timer::Tasks => {
             let mut out = Queue::uncapped();
-            tasks::fire(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, &mut out);
-            tag_tasks(core, env, out, false, false, false)
+            step::fire_tasks(core, env, &mut out);
+            tag_task_outputs(core, env, out)
         }
         Timer::Fleet => {
             let mut out = Queue::uncapped();
-            fleet::fire(&mut core.fleet, &Env { now: env.now, wall: env.wall, limits: env.limits.fleet }, &mut out);
+            step::fire_fleet(core, env, &mut out);
             if !out.is_empty() {
                 core.touch_deployment();
                 core.touch_run_waits();
@@ -681,20 +677,12 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Requests {
         }
         Timer::Brief => {
             let mut out = Queue::uncapped();
-            brief::gather_fire(
-                &mut core.brief,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.brief },
-                &mut out,
-            );
+            step::fire_brief(core, env, &mut out);
             tag_brief(core, env, out)
         }
         Timer::Account => {
             let mut out = Queue::uncapped();
-            accounts::fire(
-                &mut core.accounts,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.accounts },
-                &mut out,
-            );
+            step::fire_accounts(core, env, &mut out);
             core.touch_deployment();
             core.touch_run_waits();
             core.touch_accounts(None);
@@ -703,24 +691,19 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Requests {
             assert!(work.is_empty(), "an account's alarm answers no party");
             requests
         }
-        Timer::View => {
-            let mut out = Queue::uncapped();
-            views::fire(&mut core.views, &Env { now: env.now, wall: env.wall, limits: env.limits.views }, &mut out);
-            made_outputs(core, env, out)
-        }
     };
-    crate::deletion::advance(core, env, &mut out);
+    crate::admission::deletion::advance(core, env, &mut out);
     core.finish_extent(oldest, &mut out);
-    Requests::Out(out)
+    out
 }
 
 pub(crate) fn tag_ended_mark(
     core: &mut Core,
     env: &Env<Limits>,
     child: Queue<people::Request>,
-    work: &mut Queue<Event>,
-) -> Requests {
-    people_routes::tag_people(core, env, child, work)
+    work: &mut Queue<Work>,
+) -> Queue<Request> {
+    party::people::tag_people(core, env, child, work)
 }
 
 /// Drain deletion's bounded sibling decisions without a new root input or extent.
@@ -732,14 +715,13 @@ pub(crate) fn deletion_people(core: &mut Core, env: &Env<Limits>, event: people:
 pub(crate) fn deletion_event(core: &mut Core, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     let previous = core.deletions.route(true);
     let mut work = Queue::uncapped();
-    work.push(event);
+    work.push(Work::Event(event));
     for _ in 0..env.limits.routes {
         let Some(event) = work.pop() else { break };
-        let Requests::Out(mut batch) = step_one(core, env, event, &mut work);
+        let mut batch = step_work(core, env, event, &mut work);
         for _ in 0..batch.len() {
             let request = batch.pop().expect("deletion child output count");
             match request {
-                Request::Decided => {}
                 request @ (Request::ProjectMade { .. }
                 | Request::Write(_)
                 | Request::Ask { .. }

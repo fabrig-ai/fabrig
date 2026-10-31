@@ -5,6 +5,7 @@
 //! child keeps names, validity, limits, refusals and failures, and releases all wants at close.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 mod boundary;
 mod changes;
@@ -20,9 +21,8 @@ mod restore;
 mod selection;
 mod signing;
 pub use boundary::{
-    ADDRESS, Answer, Change, Deadline, End, Ended, Event, Fact, Failure, Form, FromComponent, Grant, GrantTable,
-    KeyFailure, Pending, Place, Program, ProgramFailure, ProgramHost, ProgramResult, Request, Scheme, Signing, State,
-    ToComponent, Turned, Unread,
+    ADDRESS, Answer, Change, Deadline, End, Ended, Event, Fact, Failure, FromComponent, KeyFailure, Pending, Place,
+    Program, ProgramFailure, ProgramHost, ProgramResult, Request, Signing, State, ToComponent, Turned, Unread,
 };
 pub use checks::{Bound, Refusal, SignIn, SignInRedirectWhy, room_for_sign_in};
 pub use domain::{Account, Domain, fire, step};
@@ -33,4 +33,6 @@ pub use records::{DISPLAY, Held, Holder, Key, Kind, NAME, SUBJECT, Stored, USES,
 pub use restore::{RestoreLimit, RestoreSet};
 pub use selection::{Coverage, Excluded, HostSource, Selection, WaitWhy};
 
-pub use jig_domain_workers::{SourceName, Worker};
+pub use jig_domain_link::{SourceName, Worker};
+
+pub use jig_domain_link::{Form, Grant, GrantTable, Scheme};

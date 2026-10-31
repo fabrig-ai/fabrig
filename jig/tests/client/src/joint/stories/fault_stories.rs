@@ -21,31 +21,7 @@ fn start() -> Vec<Step<jig_client_test_domain::Address>> {
 #[test]
 fn a_draft_kept_across_a_reload_stays_unsent_on_the_actual_engine() {
     let mut world = super::world(super::turn());
-    let client = world.client(1, crate::stories::conversation());
-    let within = Duration::from_secs(1);
-    let mut script = start();
-    script.extend([
-        Step::Press { find: Find::exactly_named(Role::Button, b"Write") },
-        Step::Type { find: Find::named(Role::TextArea, b"Your answer"), words: Box::from(*b"Unsent draft") },
-        Step::Pause { span: Duration::from_millis(30) },
-        Step::Reload,
-        Step::See { find: Find::exactly_named(Role::Button, b"Write"), within },
-        Step::Press { find: Find::exactly_named(Role::Button, b"Write") },
-    ]);
-    world.person(client, script);
-    let outcome = world.run(Until::Done);
-    assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
-    assert!(outcome.judged.0 > 0);
-    assert!(world.kept(client).iter().any(|record| matches!(record,
-        jig_client_test_domain::store::Record::Jig(jig_client_view::store::Record::Draft { words, .. })
-        if words.bytes() == b"Unsent draft")));
-    assert!(
-        world
-            .tree(client)
-            .nodes()
-            .iter()
-            .any(|node| node.value.as_ref().is_some_and(|value| value.text.as_ref() == b"Unsent draft"))
-    );
+    crate::stories::shared::a_person::a_draft_survives_reload(&mut world);
     let owner = &world.front().session.driver.world;
     assert_eq!(
         owner
@@ -106,7 +82,7 @@ fn shown(world: &World<Test, Joint>, client: crate::ClientId, words: &[u8]) -> b
 fn a_held_actual_commit_keeps_the_stop_answer_pending_until_its_completion() {
     let (mut world, client) = stop_ready();
     let submitted = world.front().session.driver.world.store.applied.checked_add(1).expect("next transaction");
-    world.front().session.driver.world.cut = Some(jig_core_world::effects::Cut::Submitted(submitted));
+    world.front().session.driver.world.cut = Some(jig_core_world::world::Cut::Submitted(submitted));
     world.person(
         client,
         vec![
@@ -121,10 +97,7 @@ fn a_held_actual_commit_keeps_the_stop_answer_pending_until_its_completion() {
         "the held request remains a real liveness obligation"
     );
     assert!(outcome.judged.0 > 0);
-    assert_eq!(
-        world.front().session.driver.world.reached_cut,
-        Some(jig_core_world::effects::Cut::Submitted(submitted))
-    );
+    assert_eq!(world.front().session.driver.world.reached_cut, Some(jig_core_world::world::Cut::Submitted(submitted)));
     assert_eq!(answers(&mut world), 1, "only starting the chat is answered durably");
     assert!(!shown(&world, client, b"Held by a placed hold"));
     assert!(world.front().session.driver.withhold_completion().expect("actual store applied").is_none());
@@ -143,7 +116,7 @@ fn a_held_actual_commit_keeps_the_stop_answer_pending_until_its_completion() {
 #[test]
 fn a_failed_commit_stops_the_engine_and_the_person_sees_offline_before_keyed_recovery() {
     fn configuration() -> jig_test_domain::Config {
-        jig_core_world::world::config(8510)
+        jig_test_profile::config(8510)
     }
     let (mut world, client) = stop_ready();
     world.front().restart_configuration(configuration);
@@ -200,7 +173,7 @@ fn a_reload_with_a_stop_pending_recovers_its_lost_committed_answer_by_the_origin
     ));
     enable_tracing(&mut world);
     let submitted = world.front().session.driver.world.store.applied.checked_add(1).expect("next transaction");
-    world.front().session.driver.world.cut = Some(jig_core_world::effects::Cut::Submitted(submitted));
+    world.front().session.driver.world.cut = Some(jig_core_world::world::Cut::Submitted(submitted));
     world.person(
         client,
         vec![
@@ -211,10 +184,7 @@ fn a_reload_with_a_stop_pending_recovers_its_lost_committed_answer_by_the_origin
     let boundary = world.now().saturating_add(Duration::from_millis(50));
     let outcome = world.run(Until::Time(boundary));
     assert!(matches!(outcome.verdict, skein_world::domain::Verdict::Open { .. }));
-    assert_eq!(
-        world.front().session.driver.world.reached_cut,
-        Some(jig_core_world::effects::Cut::Submitted(submitted))
-    );
+    assert_eq!(world.front().session.driver.world.reached_cut, Some(jig_core_world::world::Cut::Submitted(submitted)));
     assert_eq!(answers(&mut world), 1);
     assert!(world.front().session.driver.withhold_completion().expect("actual durable commit").is_none());
     assert_eq!(answers(&mut world), 2);
@@ -293,7 +263,7 @@ fn a_dropped_watch_and_slow_delivery_show_the_page_behind_before_the_held_chat_i
 #[test]
 fn a_crash_after_the_stop_commit_cold_restarts_offline_and_answers_the_same_key_once() {
     fn configuration() -> jig_test_domain::Config {
-        jig_core_world::world::config(8510)
+        jig_test_profile::config(8510)
     }
     let (mut world, client) = stop_ready_in(super::bounded_world(
         super::turn(),
@@ -302,7 +272,7 @@ fn a_crash_after_the_stop_commit_cold_restarts_offline_and_answers_the_same_key_
     ));
     enable_tracing(&mut world);
     let submitted = world.front().session.driver.world.store.applied.checked_add(1).expect("next transaction");
-    world.front().session.driver.world.cut = Some(jig_core_world::effects::Cut::Submitted(submitted));
+    world.front().session.driver.world.cut = Some(jig_core_world::world::Cut::Submitted(submitted));
     world.person(
         client,
         vec![
@@ -313,10 +283,7 @@ fn a_crash_after_the_stop_commit_cold_restarts_offline_and_answers_the_same_key_
     let boundary = world.now().saturating_add(Duration::from_millis(50));
     let outcome = world.run(Until::Time(boundary));
     assert!(matches!(outcome.verdict, skein_world::domain::Verdict::Open { .. }));
-    assert_eq!(
-        world.front().session.driver.world.reached_cut,
-        Some(jig_core_world::effects::Cut::Submitted(submitted))
-    );
+    assert_eq!(world.front().session.driver.world.reached_cut, Some(jig_core_world::world::Cut::Submitted(submitted)));
     assert_eq!(answers(&mut world), 1);
     assert!(world.front().session.driver.withhold_completion().expect("actual durable commit").is_none());
     assert_eq!(answers(&mut world), 2);

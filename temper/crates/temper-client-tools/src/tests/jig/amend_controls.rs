@@ -18,7 +18,7 @@ fn task() -> c::Task {
     task.spec.cut = false;
     task.spec.specification.words.cut = false;
     task.dependencies = List::with_capacity(1);
-    task.dependencies.push(c::OwnerTaskLink::Stored { number: 43, status: None }).unwrap();
+    task.dependencies.push(c::TaskLink::Stored { number: 43, status: None }).unwrap();
     task
 }
 fn no_change() -> c::Amendment {
@@ -386,7 +386,7 @@ fn amend_sends_and_answers_a_replacement_when_only_the_old_words_are_cut() {
     let call = root.submit_prepared(call, false, None);
     root.serve(call, f::task_result(task));
     assert_eq!(f::act_ask(&root, call), &expected(c::Amendment { spec: Some(spec), ..no_change() }, REVISION));
-    root.done(call, c::Outcome::Owner(c::OwnerOutcome::Amended { task: f::TASK }));
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::Amended { task: f::TASK }));
     let answer = root.answer(call).expect("engine answered the replacement");
     assert_eq!(answer.status, 0);
 }

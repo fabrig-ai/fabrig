@@ -43,7 +43,7 @@ pub(super) struct ServiceHost {
     pub(super) held_mark: Vec<Complete>,
     pub(super) mark_gate_checked: bool,
     pub(super) early_connections: u32,
-    codec: jig_protocol_store::codec::Limits,
+    codec: jig_protocol_store::codec::View,
     connector: jig_test_connector::Limits,
 }
 impl Host for ServiceHost {

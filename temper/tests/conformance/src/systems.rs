@@ -1,7 +1,7 @@
 //! Independent fake Forgejo and the native calls it received.
 use crate::observations::{self, Store};
 use jig_conformance::{Clock, referee as r};
-use jig_test_system::{Copy, Observed, SystemKey, ValueObserved};
+use r::{Copy, EffectKey, EffectObserved as Observed, ValueObserved};
 use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_forge::api;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
@@ -16,7 +16,7 @@ struct Pending {
     root_call: Token,
     generation: u64,
     op: api::Op,
-    effect: Option<(SystemKey, raw::Write, Copy, ValueObserved)>,
+    effect: Option<(EffectKey, raw::Write, Copy, ValueObserved)>,
 }
 /// Forge state and transport faults persist when the engine crashes.
 #[expect(clippy::struct_excessive_bools, reason = "independent transport faults and CI modes are orthogonal")]
@@ -26,7 +26,7 @@ pub struct FakeForge {
     client_limits: skein_forge_client::Limits,
     out: std::collections::VecDeque<fake::Request>,
     pending: BTreeMap<Token, Pending>,
-    late: Vec<(Token, api::Repository, api::Op, SystemKey)>,
+    late: Vec<(Token, api::Repository, api::Op, EffectKey)>,
     pub hold: bool,
     pub merge_only: bool,
     pub failed: bool,
@@ -34,11 +34,11 @@ pub struct FakeForge {
     pub lose_merge_answer: bool,
     pub lose_issue_answer: bool,
     pub effects: Vec<Observed>,
-    pub uncertain: Vec<SystemKey>,
+    pub uncertain: Vec<EffectKey>,
     pub native_observations: Vec<fake::Observation>,
     owners: BTreeMap<Vec<u8>, u64>,
     new_observations: RefCell<Vec<r::Observed>>,
-    seen: BTreeMap<SystemKey, u32>,
+    seen: BTreeMap<EffectKey, u32>,
     serial: u64,
     pub generation: u64,
     pub head: api::Commit,
@@ -164,11 +164,11 @@ impl FakeForge {
         self.send(clock, call, op, key, false);
         Vec::new()
     }
-    fn uncertainty(&mut self, key: SystemKey) {
+    fn uncertainty(&mut self, key: EffectKey) {
         self.uncertain.push(key);
         self.new_observations.borrow_mut().push(r::Observed::Uncertain { connector: 0, key });
     }
-    fn send(&mut self, clock: Clock, call: Token, op: api::Op, key: Option<SystemKey>, late: bool) {
+    fn send(&mut self, clock: Clock, call: Token, op: api::Op, key: Option<EffectKey>, late: bool) {
         let native = translate::op(&op, &self.client_limits);
         let name = translate::locate_name(&op).unwrap_or_else(|| b"org/repo".as_slice().into());
         let effect = match (&native, key) {
@@ -238,7 +238,7 @@ impl FakeForge {
                     let observation = Observed {
                         kind,
                         key,
-                        resources: resources.into_iter().map(|name| jig_test_system::Name(name.path)).collect(),
+                        resources,
                         condition,
                         target,
                         before: vec![before],
@@ -348,7 +348,7 @@ impl FakeForge {
         clippy::wildcard_enum_match_arm,
         reason = "unsupported writes panic and absent read answers provide no evidence"
     )]
-    fn before(&self, write: &raw::Write, key: SystemKey) -> ValueObserved {
+    fn before(&self, write: &raw::Write, key: EffectKey) -> ValueObserved {
         let (state, owned) = match write {
             raw::Write::Merge { number, .. } => (
                 match self.domain.inspect(&self.config, b"org/repo", &raw::Read::Pull { number: *number }) {

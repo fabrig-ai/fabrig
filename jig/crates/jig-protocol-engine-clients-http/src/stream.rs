@@ -16,7 +16,7 @@ pub(crate) struct Stream {
     pub below: Queue<skein_lib::stream::Down>,
 }
 pub(crate) fn env(env: &Env<Limits>) -> Env<sse::Limits> {
-    Env { now: env.now, wall: env.wall, limits: sse::Limits { event: env.limits.event, chunk: env.limits.send } }
+    env.with(sse::Limits { event: env.limits.event, chunk: env.limits.send })
 }
 impl Call {
     pub fn stream_ready(&self) -> bool {
@@ -57,7 +57,7 @@ impl Call {
                 let length =
                     base64::encoded_len(Alphabet::Standard, u32::try_from(record.len()).expect("bounded record"))
                         .expect("bounded base64");
-                let mut data = skein_lib::Writer::new(usize::try_from(length).expect("u32 fits"));
+                let mut data = skein_lib::Writer::new(skein_lib::length::usize_of(length));
                 base64::encode(Alphabet::Standard, &record, &mut data).expect("measured event");
                 sse::Request::Event(sse::Outgoing { name: Box::new([]), data: data.finish(), id: None, retry: None })
             }

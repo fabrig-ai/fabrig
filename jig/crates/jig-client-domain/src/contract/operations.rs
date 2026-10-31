@@ -79,15 +79,15 @@ pub struct TaskFlags {
 /// A batch member, including grants named after it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct NewTask {
-    pub executor: super::OwnerExecutor,
+    pub executor: super::Executor,
     pub spec: super::Specification,
     pub contract: NewContract,
-    pub authority: super::OwnerAuthority,
+    pub authority: super::Authority,
     pub budget: NewBudget,
     pub deadline: NewDeadline,
-    pub wake: Option<super::OwnerWakePolicy>,
+    pub wake: Option<super::WakePolicy>,
     pub dependencies: skein_lib::List<TaskRef>,
-    pub named: skein_lib::List<super::OwnerGrant>,
+    pub named: skein_lib::List<super::Grant>,
     pub tracked: Option<u32>,
     pub label: u32,
     pub flags: TaskFlags,

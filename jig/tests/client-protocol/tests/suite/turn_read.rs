@@ -48,11 +48,7 @@ fn committed_turn(story: Story) -> (Story, c::ArchivedTurn) {
         .rows
         .iter()
         .find_map(|line| {
-            if let c::Activity::Owner { decoded: Some(archive), .. } = &line.event {
-                Some(archive.clone())
-            } else {
-                None
-            }
+            if let c::DecodedActivityLine { decoded: Some(archive), .. } = line { Some(archive.clone()) } else { None }
         })
         .expect("the committed turn's archive");
     (story, archive)

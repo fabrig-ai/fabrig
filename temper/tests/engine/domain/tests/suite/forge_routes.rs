@@ -2152,7 +2152,7 @@ fn a_goal_ending_while_its_issue_is_opening_eventually_closes_that_issue() {
         ask: walking::goal_from(
             world.chat(1, b"Finish the goal"),
             people::TaskExecutor::Agent { charter: 1 },
-            jig_core_world::fixtures::Goal { budget: 50, priority: 3, deadline: None },
+            jig_test_profile::fixtures::Goal { budget: 50, priority: 3, deadline: None },
         ),
     }));
     world.until(Until::Assigned);
@@ -2585,7 +2585,7 @@ fn a_named_forge_effect_is_committed_before_its_write_and_made_once() {
         position: 1,
     };
     assert!(
-        matches!(world.store.rows.get(&Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Call(key)))), Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Call(row)))) if matches!(row.part, jig_domain_core::CallPart::Effect { entry: observed, outcome: Some(jig_domain_core::connector::OutboxOutcome::Made), .. } if observed == entry))
+        matches!(world.store.rows.get(&Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Call(key)))), Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Call(row)))) if matches!(row.part, jig_domain_core::CallPart::Effect { entry: observed, outcome: Some(jig_domain_core::effects::connector::OutboxOutcome::Made), .. } if observed == entry))
     );
     let event = world.protocol.call(
         Token::new(7),
@@ -2884,7 +2884,7 @@ fn effect_survives_each_commit_and_outbox_cut_without_a_second_issue() {
                 world.store.rows.get(&Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Call(key)))),
                 Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Call(row))))
                     if matches!(row.part, jig_domain_core::CallPart::Effect {
-                        outcome: Some(jig_domain_core::connector::OutboxOutcome::Made), ..
+                        outcome: Some(jig_domain_core::effects::connector::OutboxOutcome::Made), ..
                     })
             ),
             "cut {cut} committed the settled named answer"

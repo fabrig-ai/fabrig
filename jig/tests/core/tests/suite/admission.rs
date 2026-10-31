@@ -1,6 +1,7 @@
 //! Admitted records and split facts at the watermark (programming-model.md, 7.1–7.2).
 
-use jig_core_world::direct::Driver;
+use super::admission_support;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_host as host;
 use jig_domain_people::ApplicationScope;
@@ -22,7 +23,7 @@ const ONCE: usize = 1;
 
 #[test]
 fn admitted_work_is_taken_at_the_watermark() {
-    let mut driver = Driver::chat(9401);
+    let mut driver = admission_support::chat(9401);
     let (task, attempt) = run(&driver);
     driver.fill_to_watermark();
     let returned = driver.returned;
@@ -35,11 +36,11 @@ fn admitted_work_is_taken_at_the_watermark() {
             link: root::link::Event::Up(host::LinkUp::Logins { logins: Box::new([]) }),
         },
     ] {
-        driver.send(event);
+        driver.offer(event);
     }
     assert_eq!(driver.returned, returned, "admitted worker records enter at the watermark");
-    driver.settle();
-    let writes: Vec<_> = driver.transactions.iter().flatten().collect();
+    driver.drain();
+    let writes: Vec<_> = driver.commits.iter().flatten().collect();
     assert_eq!(
         writes
             .iter()
@@ -73,10 +74,11 @@ fn admitted_work_is_taken_at_the_watermark() {
 
 #[test]
 fn a_workers_call_waits_at_the_watermark() {
-    let mut driver = Driver::chat(9402);
+    let mut driver = admission_support::chat(9402);
     let (task, attempt) = run(&driver);
     driver.fill_to_watermark();
-    let event = root::try_step(&mut driver.domain, &driver.env, call(task, attempt)).expect_err("a call is new work");
+    let env = driver.env();
+    let event = root::try_step(&mut driver.domain, &env, call(task, attempt)).expect_err("a call is new work");
     let root::Event::Link {
         channel,
         link: root::link::Event::Up(host::LinkUp::Call { run, attempt: retained, call, tool, writes, input, deadline }),
@@ -89,8 +91,9 @@ fn a_workers_call_waits_at_the_watermark() {
         (call.as_ref(), tool.as_ref(), *writes, input.as_ref(), *deadline),
         (b"held call".as_slice(), b"read".as_slice(), false, b"{}".as_slice(), Duration::from_secs(1))
     );
-    driver.settle();
-    root::try_step(&mut driver.domain, &driver.env, event).expect("the same call enters after settlement");
+    driver.drain();
+    let env = driver.env();
+    root::try_step(&mut driver.domain, &env, event).expect("the same call enters after settlement");
 }
 
 #[test]
@@ -98,7 +101,8 @@ fn a_fact_settles_under_load_and_its_drift_waits() {
     let mut driver = watched_owner(9403);
     driver.fill_to_watermark();
     let event = root::Event::Connector { number: 1, event: connector::Event::System(changed_fact(&driver)) };
-    let rest = root::try_step(&mut driver.domain, &driver.env, event).expect_err("drift waits");
+    let env = driver.env();
+    let rest = root::try_step(&mut driver.domain, &env, event).expect_err("drift waits");
     assert!(
         matches!(
             &rest,
@@ -114,16 +118,17 @@ fn a_fact_settles_under_load_and_its_drift_waits() {
 
 #[test]
 fn a_lost_writers_read_completes_under_load_and_its_drift_waits() {
-    let (mut driver, writer) = Driver::lost_resource_writer(9404);
+    let (mut driver, writer) = admission_support::lost_resource_writer(9404);
     let (task, _) = run(&driver);
     let resource = resource_name();
     driver.fill_to_watermark();
     let event = root::Event::WriterRead { connector: 1, resource, event: changed_fact(&driver) };
-    let rest = root::try_step(&mut driver.domain, &driver.env, event).expect_err("drift waits");
+    let env = driver.env();
+    let rest = root::try_step(&mut driver.domain, &env, event).expect_err("drift waits");
     driver.collect();
     assert_eq!(
         driver
-            .transactions
+            .commits
             .iter()
             .flatten()
             .filter(|write| matches!(write,
@@ -133,16 +138,16 @@ fn a_lost_writers_read_completes_under_load_and_its_drift_waits() {
         "the fresh read frees the lost writer under load"
     );
     assert!(matches!(&rest, root::Event::Connector { number: 1, .. }), "only drift remains, not a writer read");
-    driver.settle();
+    driver.drain();
     assert_eq!(drift_writes(&driver, task), 0, "the read settles before its new drift");
-    driver.send(rest);
-    driver.settle();
+    driver.offer(rest);
+    driver.drain();
     assert_eq!(drift_writes(&driver, task), ONCE, "the resource owner drifts in one decision after admission");
 }
 
-fn drift_writes(driver: &Driver, task: u64) -> usize {
+fn drift_writes(driver: &World, task: u64) -> usize {
     driver
-        .transactions
+        .commits
         .iter()
         .filter(|transaction| {
             transaction.iter().any(|write| {
@@ -154,32 +159,32 @@ fn drift_writes(driver: &Driver, task: u64) -> usize {
         .count()
 }
 
-fn watched_owner(seed: u64) -> Driver {
-    let mut driver = Driver::resource_owner(seed);
+fn watched_owner(seed: u64) -> World {
+    let mut driver = admission_support::resource_owner(seed);
     let task = driver.assignment().task;
-    driver.send(root::Event::WatchApplication {
+    driver.offer(root::Event::WatchApplication {
         watcher: WATCHER,
         sign_in: driver.session(),
         scope: ApplicationScope::Project(1),
         number: 1,
         subject: connector::ClientSubject::Hold { project: 1, task },
-        window: core::documents::Window { rows: driver.env.limits.core.documents.rows, after: None },
+        window: core::documents::Window { rows: driver.env().limits.core.documents.rows, after: None },
     });
-    driver.settle();
-    driver.send(root::Event::Core(core::Event::Delivered { watcher: WATCHER }));
-    driver.settle();
+    driver.drain();
+    driver.offer(root::Event::Core(core::Event::Delivered { watcher: WATCHER }));
+    driver.drain();
     driver
 }
 
-fn check_settlement_and_drift(driver: &mut Driver, rest: root::Event) {
+fn check_settlement_and_drift(driver: &mut World, rest: root::Event) {
     let (task, _) = run(driver);
     driver.collect();
     assert_eq!(facts(driver), [OLD_STATE], "refreshed document waits for preceding durability");
-    driver.settle();
+    driver.drain();
     assert_eq!(facts(driver), [OLD_STATE, CHANGED_STATE], "the admitted fact refreshes its watched subject");
     assert!(driver.domain.escalation(1, task).is_none(), "drift waits with the new work");
-    driver.send(rest);
-    driver.settle();
+    driver.offer(rest);
+    driver.drain();
     assert_eq!(
         driver.domain.escalation(1, task).expect("the changed resource holds its owner").why,
         tasks::Hold::Drift
@@ -197,7 +202,7 @@ fn check_settlement_and_drift(driver: &mut Driver, rest: root::Event) {
     );
 }
 
-fn facts(driver: &Driver) -> Vec<u64> {
+fn facts(driver: &World) -> Vec<u64> {
     driver
         .released
         .iter()
@@ -217,15 +222,15 @@ fn resource_name() -> tasks::Name {
     tasks::Name { connector: 1, path: jig_test_connector_world::path(1, 1).segments().into() }
 }
 
-fn changed_fact(driver: &Driver) -> connector::SystemEvent {
+fn changed_fact(driver: &World) -> connector::SystemEvent {
     connector::SystemEvent::Fact {
         resource: jig_test_connector_world::path(1, 1),
-        fact: connector::Fact { state: Some(CHANGED_STATE), observed: driver.env.wall, pending: false },
+        fact: connector::Fact { state: Some(CHANGED_STATE), observed: driver.env().wall, pending: false },
         origin: connector::Origin::Other,
     }
 }
 
-fn run(driver: &Driver) -> (u64, u64) {
+fn run(driver: &World) -> (u64, u64) {
     let assignment = driver.assignment();
     (assignment.task, assignment.attempt)
 }
@@ -274,7 +279,7 @@ fn call(task: u64, attempt: u64) -> root::Event {
     }
 }
 
-fn worker_notices(driver: &Driver) -> Vec<Option<u32>> {
+fn worker_notices(driver: &World) -> Vec<Option<u32>> {
     driver
         .released
         .iter()

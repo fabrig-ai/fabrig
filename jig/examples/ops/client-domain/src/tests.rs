@@ -12,33 +12,22 @@ use crate as support_domain;
 mod support;
 use crate::{Address, Answered, Ask, Event, Limits, infrastructure};
 use jig_client::contract::{self, Delivery, DocumentText, HeldRole, Me, MeParty, Needs, PartyKind, WatchEvent};
-use jig_client_view::boundary::Offset;
 use skein_lib::{Duration, Env, List, Queue, RequestEnvelope, Time, Token, Wall};
 use support::{Domain, JigOut, Request, new, step, take};
-const JIG: jig_client_view::Limits = jig_client_view::Limits {
-    watches: 4,
+const JIG: jig_client_view::Config = jig_client_view::Config {
     notices: 2,
     notice_life: Duration::from_secs(5),
     linger: Duration::from_secs(5),
     save_delay: Duration::from_secs(1),
     intents: 2,
-    fields: 4,
 
     objects: 2,
     sources: 8,
-    reads: 4,
-    parts: 10,
-    delegates: 2,
-    document_bytes: 65536,
-    records: 2,
-    kept: 4,
+
     drafts: 1,
-    projects: 2,
+
     roles: 2,
-    text: 32,
-    rows: 2,
-    segments: 4,
-    accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
+
     conversation_words: 2,
     navigation_entries: 8,
     updates_count: 99,
@@ -46,29 +35,8 @@ const JIG: jig_client_view::Limits = jig_client_view::Limits {
 fn limits() -> Limits {
     Limits {
         jig: JIG,
-        infrastructure: infrastructure::Limits {
-            parts: 10,
-            text: 32,
-            objects: 12,
-            watches: 24,
-            reads: 24,
-            requests: 4,
-            rows: 2,
-            segments: 4,
-            retry: Duration::from_nanos(10),
-            document_bytes: 65536,
-        },
-        observability: crate::observability::Limits {
-            parts: 10,
-            objects: 12,
-            reads: 24,
-            watches: 24,
-            rows: 2,
-            segments: 4,
-            text: 32,
-            retry: Duration::from_nanos(10),
-            document_bytes: 65536,
-        },
+        infrastructure: infrastructure::Limits { objects: 12 },
+        observability: crate::observability::Limits { objects: 12 },
         client: client_limits(),
     }
 }
@@ -96,11 +64,7 @@ fn start(root: &mut Domain, kept: List<crate::store::Record>) -> Token {
     let mut rows = drive(root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedIn } });
     rows.extend(drive(
         root,
-        Event::Start {
-            address: Address::Jig(jig_client_view::address::Address::Inbox { project: None }),
-            kept,
-            offset: Offset { minutes: 0 },
-        },
+        Event::Start { address: Address::Jig(jig_client_view::address::Address::Inbox { project: None }), kept },
     ));
     rows.iter()
         .find_map(|row| match row {
@@ -150,24 +114,34 @@ fn ready(seed: u64) -> Domain {
     confirm(&mut root, watch, 7);
     root
 }
+fn environment_name() -> infrastructure::values::Environment {
+    infrastructure::values::Environment { pool: Box::from(*b"Q.pool"), name: Box::from(*b"preview") }
+}
 fn environment(revision: u64) -> infrastructure::Document {
-    use infrastructure::documents::{Creation, Environment, Purpose};
-    infrastructure::Document::Environment(Environment {
-        project: 3,
-        number: 5,
-        pool: 1,
-        name: Box::from(*b"preview"),
-        revision: contract::Revision { value: revision },
-        created_by: Creation { deployment: [7; 16], task: 9, origin: Purpose::Procedure { purpose: 2 }, purpose: 4 },
-        ready_at: None,
-        ready: None,
-        cost: None,
-        observed_until: None,
-        end: Some(infrastructure::documents::End {
-            revision: contract::Revision { value: revision },
-            until: Wall::from_nanos(50_000_000_000),
-        }),
-    })
+    use infrastructure::values as n;
+    infrastructure::Document::Value(Box::new(n::Document {
+        subject: infrastructure::Subject {
+            scope: infrastructure::Scope::Project(3),
+            kind: infrastructure::Kind::Environment(environment_name()),
+        },
+        value: n::Value::Environment {
+            environment: environment_name(),
+            end_revision: revision,
+            fact: n::EnvironmentFact {
+                created_by: n::Key {
+                    deployment: [7; 16],
+                    task: 9,
+                    origin: n::Purpose::Procedure { purpose: 2 },
+                    purpose: 4,
+                },
+                ready_at: 0,
+                until: 50,
+                price: 0,
+            },
+            end: Some(n::EnvironmentEnd { revision, until: 50 }),
+            pool: None,
+        },
+    }))
 }
 fn open_families(root: &mut Domain, rows: &[Request]) {
     for row in rows {
@@ -190,7 +164,7 @@ fn family_page(root: &mut Domain) -> Vec<Request> {
         Event::Went {
             place: crate::Place::Address(Address::Infrastructure(infrastructure::Address::Environment {
                 project: 3,
-                environment: 5,
+                environment: environment_name(),
             })),
         },
     )
@@ -229,7 +203,7 @@ fn until(root: &mut Domain, object: Token) {
             action: crate::Action::Infrastructure(infrastructure::Act::Until {
                 object,
                 revision: contract::Revision { value: 2 },
-                value: Wall::from_nanos(100_000_000_000),
+                value: 100,
             }),
         },
     );
@@ -252,9 +226,9 @@ fn an_end_move_names_current_revision_and_only_durable_answer_finishes_the_card(
         root.infrastructure().object(object).unwrap().card,
         infrastructure::Card::Refused {
             answer: infrastructure::Answer::Moved {
-                environment: 5,
+                environment: environment_name(),
                 revision: contract::Revision { value: 2 },
-                until: Some(Wall::from_nanos(50_000_000_000))
+                until: 50
             }
         }
     );
@@ -282,16 +256,17 @@ fn an_end_move_names_current_revision_and_only_durable_answer_finishes_the_card(
     assert_eq!(
         ask,
         &infrastructure::Ask::MoveEnd {
+            object: object.token(),
             project: 3,
-            environment: 5,
+            environment: environment_name(),
             revision: contract::Revision { value: 2 },
-            until: Wall::from_nanos(100_000_000_000)
+            until: 100
         }
     );
     let answer = infrastructure::Answer::MovedEnd {
-        environment: 5,
+        environment: environment_name(),
         revision: contract::Revision { value: 3 },
-        until: Wall::from_nanos(100_000_000_000),
+        until: 100,
     };
     drive(&mut root, support::answer(attempt, RequestEnvelope::Again, Some(Answered::Infrastructure(answer.clone()))));
     assert!(match root.infrastructure().object(object).unwrap().card {
@@ -314,7 +289,7 @@ fn an_end_move_names_current_revision_and_only_durable_answer_finishes_the_card(
     assert_eq!(root.infrastructure().object(object).unwrap().card, infrastructure::Card::Done { answer });
 }
 #[test]
-fn revision_changes_clear_drafts_and_old_watch_documents_cannot_reverse_facts() {
+fn environment_end_revision_changes_clear_drafts() {
     let mut root = ready(42);
     let rows = family_page(&mut root);
     let watch = family_watch(&rows);
@@ -335,17 +310,6 @@ fn revision_changes_clear_drafts_and_old_watch_documents_cannot_reverse_facts() 
         }),
     );
     assert_eq!(root.infrastructure().object(object).unwrap().draft, None);
-    drive(
-        &mut root,
-        Event::Infrastructure(infrastructure::Event::Watch {
-            watch,
-            event: infrastructure::WatchEvent::Delivered(Box::new(environment(1))),
-        }),
-    );
-    assert_eq!(
-        root.infrastructure().object(object).unwrap().value,
-        infrastructure::Value::Known(Box::new(environment(3)))
-    );
 }
 #[test]
 fn abandoned_read_and_closing_watch_tokens_cannot_recreate_a_page() {
@@ -391,8 +355,8 @@ fn abandoned_read_and_closing_watch_tokens_cannot_recreate_a_page() {
 #[test]
 fn whole_document_limits_keep_unknown_owner_facts_unknown() {
     let document = environment(2);
-    assert!(document.fits(&limits().infrastructure));
-    let mut bound = limits().infrastructure;
+    assert!(document.fits(&limits().client.domain));
+    let mut bound = limits().client.domain;
     bound.text = 2;
     assert!(!document.fits(&bound));
     bound.text = 32;
@@ -402,230 +366,22 @@ fn whole_document_limits_keep_unknown_owner_facts_unknown() {
     let object = load_environment(&mut root);
     assert_eq!(root.infrastructure().object(object).unwrap().value, infrastructure::Value::Known(Box::new(document)));
     let mut bound = limits();
-    bound.jig.kept = bound.client.domain.requests.requests - 1;
-    assert!(!crate::valid(&bound));
+    bound.client.domain.kept = bound.client.domain.requests.requests - 1;
+    assert!(crate::valid(&bound));
 }
-#[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "the same exhaustive scoped lifecycle is checked independently for both connector families"
-)]
-fn both_connectors_route_all_parts_in_the_supplied_scope_and_leave_resources_in_words() {
-    for connector in
-        [jig_ops_domain_connectors::Connector::Infrastructure, jig_ops_domain_connectors::Connector::Observability]
-    {
-        let mut root = ready(45);
-        let rows = drive(
-            &mut root,
-            Event::Went { place: crate::Place::Address(Address::Jig(jig_client_view::address::Address::Deployment)) },
-        );
-        let watch = rows
-            .iter()
-            .find_map(|row| match row {
-                Request::Jig(JigOut::Open { watch, subject: contract::Subject::Deployment }) => Some(*watch),
-                _ => None,
-            })
-            .unwrap();
-        let number = jig_ops_domain_connectors::number(connector);
-        let parts = connector_parts(number);
-        let expected = parts.clone();
-        let rows = drive(
-            &mut root,
-            Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::Watched {
-                        watch,
-                        event: WatchEvent::Delivered(Delivery::Deployment(Box::new(contract::Deployment {
-                            hosts: List::with_capacity(0),
-                            accounts: List::with_capacity(0),
-                            capacity: List::with_capacity(0),
-                            proposals: 0,
-                            refusals: List::with_capacity(0),
-                            parts,
-                        }))),
-                    },
-                },
-            },
-        );
-        assert_eq!(
-            rows.iter()
-                .filter(|row| match row {
-                    Request::Infrastructure(infrastructure::Out::Read { .. })
-                    | Request::Observability(crate::observability::Out::Read { .. }) => true,
-                    _ => false,
-                })
-                .count(),
-            6
-        );
-
-        for part in &expected {
-            match connector {
-                jig_ops_domain_connectors::Connector::Infrastructure => {
-                    assert!(root.infrastructure().contains(part));
-                }
-                jig_ops_domain_connectors::Connector::Observability => {
-                    assert!(root.observability().contains(part));
-                }
-            }
-        }
-        for row in &rows {
-            match row {
-                Request::Infrastructure(infrastructure::Out::Read { subject, .. }) => {
-                    assert_eq!(
-                        subject.scope,
-                        match subject.kind {
-                            infrastructure::Kind::Project(project) => infrastructure::Scope::Project(project),
-                            _ => infrastructure::Scope::Deployment,
-                        }
-                    );
-                }
-                Request::Observability(crate::observability::Out::Read { subject, .. }) => {
-                    assert_eq!(
-                        subject.scope,
-                        match subject.kind {
-                            crate::observability::Kind::Project(project) =>
-                                crate::observability::Scope::Project(project),
-                            _ => crate::observability::Scope::Deployment,
-                        }
-                    );
-                }
-                _ => {}
-            }
-        }
-        open_families(&mut root, &rows);
-        let rows = drive(
-            &mut root,
-            Event::Went {
-                place: crate::Place::Address(Address::Jig(jig_client_view::address::Address::Inbox { project: None })),
-            },
-        );
-        assert_eq!(
-            rows.iter()
-                .filter(|row| match row {
-                    Request::Infrastructure(infrastructure::Out::Close { .. })
-                    | Request::Observability(crate::observability::Out::Close { .. }) => true,
-                    _ => false,
-                })
-                .count(),
-            6
-        );
-        for part in &expected {
-            match connector {
-                jig_ops_domain_connectors::Connector::Infrastructure => {
-                    assert!(!root.infrastructure().contains(part));
-                }
-                jig_ops_domain_connectors::Connector::Observability => {
-                    assert!(!root.observability().contains(part));
-                }
-            }
-        }
-    }
-}
-#[test]
-fn incident_facts_keep_cuts_and_unknown_health_and_never_turn_a_watch_into_a_lead() {
-    use crate::observability::{
-        self,
-        documents::{Incident, Service, State},
-    };
-    let mut root = ready(46);
-    let rows = drive(
-        &mut root,
-        Event::Went {
-            place: crate::Place::Address(Address::Observability(observability::Address::Incident {
-                project: 3,
-                incident: 8,
-            })),
-        },
-    );
-    let read = rows
-        .iter()
-        .find_map(|row| match row {
-            Request::Observability(observability::Out::Read { read, .. }) => Some(*read),
-            _ => None,
-        })
-        .unwrap();
-    let watch = rows
-        .iter()
-        .find_map(|row| match row {
-            Request::Observability(observability::Out::Open { watch, .. }) => Some(*watch),
-            _ => None,
-        })
-        .unwrap();
-    let mut incident = Incident {
-        project: 3,
-        number: 8,
-        revision: contract::Revision { value: 2 },
-        watch: 99,
-        raised: Wall::EPOCH,
-        service: Service { environment: Box::from(*b"prod"), name: Box::from(*b"api") },
-        severity: 1,
-        state: State::Alerting,
-        timeline: List::with_capacity(2),
-        cut: true,
-        health: None,
-        lead: None,
-        proposals: List::with_capacity(2),
-    };
-    let document = observability::Document::Incident(incident.clone());
-    assert!(document.objects(2).is_empty());
-    drive(
-        &mut root,
-        Event::Observability(observability::Event::Read {
-            read,
-            result: observability::ReadResult::Value(Box::new(document)),
-        }),
-    );
-    let id = root.observability().page().unwrap();
-    incident.revision = contract::Revision { value: 3 };
-    incident.state = State::Resolved;
-    let resolved = observability::Document::Incident(incident.clone());
-    drive(
-        &mut root,
-        Event::Observability(observability::Event::Watch {
-            watch,
-            event: observability::WatchEvent::Delivered(Box::new(resolved.clone())),
-        }),
-    );
-    incident.revision = contract::Revision { value: 1 };
-    incident.state = State::Alerting;
-    drive(
-        &mut root,
-        Event::Observability(observability::Event::Watch {
-            watch,
-            event: observability::WatchEvent::Delivered(Box::new(observability::Document::Incident(incident))),
-        }),
-    );
-    assert_eq!(root.observability().object(id).unwrap().value, observability::Value::Known(Box::new(resolved)));
-}
-
-fn incidents_naming_sections(lead: Option<u64>) -> [crate::observability::Document; 2] {
-    use crate::observability::{documents::*, native};
-    let incident = Incident {
-        project: 3,
-        number: 8,
-        revision: contract::Revision { value: 2 },
-        watch: 99,
-        raised: Wall::EPOCH,
-        service: Service { environment: Box::from(*b"prod"), name: Box::from(*b"api") },
-        severity: 1,
-        state: State::Alerting,
-        timeline: List::with_capacity(0),
-        cut: false,
-        health: None,
-        lead,
-        proposals: List::with_capacity(0),
-    };
-    let native = native::Document {
+fn incidents_naming_sections(lead: Option<u64>) -> [crate::observability::Document; 1] {
+    use crate::observability::{documents::*, values};
+    let values = values::Document {
         subject: Subject { scope: Scope::Project(3), kind: Kind::Incident(8) },
-        value: native::Value::Incident {
-            incident: native::Incident {
+        value: values::Value::Incident {
+            incident: values::Incident {
                 project: 3,
                 number: 8,
                 watch: 99,
                 lead,
                 alerts: Box::from([]),
                 raised: Wall::EPOCH,
-                service: incident.service.clone(),
+                service: Service { environment: Box::from(*b"prod"), name: Box::from(*b"api") },
                 severity: 1,
                 state: State::Alerting,
                 timeline: List::with_capacity(0),
@@ -634,21 +390,21 @@ fn incidents_naming_sections(lead: Option<u64>) -> [crate::observability::Docume
             fact: None,
         },
     };
-    [Document::Incident(incident), Document::Native(Box::new(native))]
+    [Document::Value(Box::new(values))]
 }
 
 #[test]
 fn an_incident_with_a_lead_names_its_plan_section() {
     let expected =
         [jig_client_view::page::Section::Task { task: 9, section: jig_client_view::address::TaskSection::Plan }];
-    for (name, document) in ["incident", "native"].into_iter().zip(incidents_naming_sections(Some(9))) {
+    for (name, document) in ["values"].into_iter().zip(incidents_naming_sections(Some(9))) {
         assert_eq!(document.sections().as_slice(), expected, "{name}");
     }
 }
 
 #[test]
 fn an_incident_without_a_lead_names_no_sections() {
-    for (name, document) in ["incident", "native"].into_iter().zip(incidents_naming_sections(None)) {
+    for (name, document) in ["values"].into_iter().zip(incidents_naming_sections(None)) {
         assert_eq!(document.sections().as_slice(), [], "{name}");
     }
 }
@@ -677,128 +433,27 @@ fn application_navigation_is_forwarded_before_start_and_retains_order() {
     assert!(crate::configure_navigation(&mut root, Navigation::new(0)).is_err());
 }
 
-fn connector_parts(number: u16) -> List<contract::Part> {
-    let mut parts = List::with_capacity(9);
-    for part in [
-        contract::Part::Connector { connector: number },
-        contract::Part::Resource {
-            connector: number,
-            path: {
-                let mut path = List::with_capacity(1);
-                path.push(Box::<[u8]>::from(*b"service")).unwrap();
-                path
-            },
-        },
-        contract::Part::Kind { connector: number, kind: 1 },
-        contract::Part::Panel { connector: number, task: 9 },
-        contract::Part::Result { connector: number, task: 9 },
-        contract::Part::Effect {
-            connector: number,
-            proposal: contract::ProposalKey { proposer: contract::Proposer::Task(9), number: 2 },
-        },
-        contract::Part::Hold { connector: number, task: 9 },
-        contract::Part::Project { connector: number, project: 3 },
-        contract::Part::Deployment { connector: number },
-    ] {
-        parts.push(part).unwrap();
-    }
-    parts
-}
-#[test]
-fn an_absent_owner_end_cannot_become_a_revision_naming_request() {
-    let mut root = ready(48);
-    let rows = family_page(&mut root);
-    let mut document = environment(2);
-    let infrastructure::Document::Environment(environment) = &mut document else { unreachable!() };
-    environment.end = None;
-    drive(
-        &mut root,
-        Event::Infrastructure(infrastructure::Event::Read {
-            read: family_read(&rows),
-            result: infrastructure::ReadResult::Value(Box::new(document)),
-        }),
-    );
-    let object = root.infrastructure().page().unwrap();
-    until(&mut root, object.token());
-    assert_eq!(root.infrastructure().object(object).unwrap().draft, None);
-    drive(
-        &mut root,
-        Event::Act {
-            action: crate::Action::Infrastructure(infrastructure::Act::MoveEnd {
-                object: object.token(),
-                revision: contract::Revision { value: 2 },
-            }),
-        },
-    );
-    assert!(!taken(&mut root).iter().any(|row| match row {
-        Request::Send { .. } => true,
-        _ => false,
-    }));
-}
-
 #[test]
 fn observability_project_lists_are_admitted_and_priced_whole() {
-    use crate::observability::documents::{Document, Kind, PartDocument, Scope, Service, ServiceState, Subject};
+    use crate::observability::{
+        documents::{Document, Kind, Scope, Service, Subject},
+        values as n,
+    };
     let mut services = List::with_capacity(2);
     services
-        .push(ServiceState {
+        .push(n::ServiceState {
             service: Service { environment: Box::from(*b"production"), name: Box::from(*b"checkout") },
-            health: None,
+            fact: None,
         })
         .unwrap();
-    let mut part = PartDocument {
+    let mut part = n::Document {
         subject: Subject { scope: Scope::Project(1), kind: Kind::Project(1) },
-        revision: contract::Revision { value: 1 },
-        service: None,
-        health: None,
-        incident: None,
-        incidents: List::with_capacity(2),
-        services,
-        effects: List::with_capacity(2),
-        watches: None,
-        read_limit: None,
-        incident_limit: None,
+        value: n::Value::Project { project: 1, services, incidents: List::with_capacity(2) },
     };
-    assert!(Document::Part(Box::new(part.clone())).fits(&limits().observability));
-    part.services = List::with_capacity(3);
-    assert!(!Document::Part(Box::new(part)).fits(&limits().observability));
-}
-#[test]
-fn an_outbox_description_can_be_absent_without_becoming_a_proposal() {
-    use crate::infrastructure::documents::{
-        Creation, Document, Effect, EffectAction, EffectState, Kind, PartDocument, Purpose, Scope, Subject,
-    };
-    let mut effects = List::with_capacity(2);
-    effects
-        .push(Effect {
-            entry: 900,
-            task: 17,
-            project: Some(1),
-            origin: Creation { deployment: [1; 16], task: 17, origin: Purpose::Procedure { purpose: 3 }, purpose: 3 },
-            description: None,
-            state: EffectState::Kept,
-            attempt: 0,
-            deadline: Wall::EPOCH,
-            action: EffectAction::CreateEnvironment { environment: 7, until: Wall::EPOCH, price: 40 },
-        })
-        .unwrap();
-    let part = PartDocument {
-        subject: Subject { scope: Scope::Project(1), kind: Kind::Outbox(900) },
-        revision: contract::Revision { value: 1 },
-        panel: None,
-        description: None,
-        effect: None,
-        resources: List::with_capacity(2),
-        effects,
-        drift: List::with_capacity(2),
-        environments: List::with_capacity(2),
-        pools: List::with_capacity(2),
-        backend: None,
-        made: None,
-        proposal_limit: None,
-        staged_limit: None,
-    };
-    assert!(Document::Part(Box::new(part)).fits(&limits().infrastructure));
+    assert!(Document::Value(Box::new(part.clone())).fits(&limits().client.domain));
+    let n::Value::Project { services, .. } = &mut part.value else { unreachable!() };
+    *services = List::with_capacity(3);
+    assert!(!Document::Value(Box::new(part)).fits(&limits().client.domain));
 }
 
 #[test]
@@ -858,9 +513,9 @@ fn an_entrance_refusal_finishes_only_its_original_child_and_survives_a_duplicate
 fn outbox_subjects_copy_the_supplied_scope_and_numeric_entry_independently_of_effects() {
     use crate::{infrastructure as infra, observability as obs};
     let proposal = contract::ProposalKey { proposer: contract::Proposer::Task(17), number: 17 };
-    let effect = contract::Part::Effect { connector: 2, proposal };
+    let effect = contract::ApplicationPart::Effect { connector: 2, proposal };
     for scope in [contract::PartScope::Project(91), contract::PartScope::Deployment] {
-        let part = contract::Part::Outbox { connector: 2, scope, entry: 17 };
+        let part = contract::ApplicationPart::Outbox { connector: 2, scope, entry: 17 };
         let infrastructure = infra::documents::subject(&part, infra::Scope::Project(3)).unwrap();
         let observability = obs::documents::subject(&part, obs::Scope::Project(3)).unwrap();
         assert_eq!(infrastructure.kind, infra::Kind::Outbox(17));
@@ -891,13 +546,13 @@ fn resource_parts_bound_allocated_segments_and_whole_segment_bytes_in_both_conne
         let mut too_long = List::with_capacity(1);
         too_long.push(Box::<[u8]>::from([b'x'; 33])).unwrap();
         for (path, accepted) in [(valid, true), (empty_overallocated, false), (too_long, false)] {
-            let part = contract::Part::Resource { connector, path };
+            let part = contract::ApplicationPart::Resource { connector, path };
             if connector == 1 {
-                let mut side = crate::observability::Side::new(&limits.observability, 61);
+                let mut side = crate::observability::Side::new(&limits.observability, &limits.client.domain);
                 let mut out = Queue::uncapped();
                 crate::observability::step(
                     &mut side,
-                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.observability },
+                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.client.domain },
                     crate::observability::Event::Show {
                         part: part.clone(),
                         scope: crate::observability::Scope::Project(1),
@@ -916,11 +571,11 @@ fn resource_parts_bound_allocated_segments_and_whole_segment_bytes_in_both_conne
                     assert!(out.is_empty());
                 }
             } else {
-                let mut side = infrastructure::Side::new(&limits.infrastructure, 62);
+                let mut side = infrastructure::Side::new(&limits.infrastructure, &limits.client.domain);
                 let mut out = Queue::uncapped();
                 infrastructure::step(
                     &mut side,
-                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.infrastructure },
+                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.client.domain },
                     infrastructure::Event::Show { part: part.clone(), scope: infrastructure::Scope::Project(1) },
                     &mut out,
                 );
@@ -940,26 +595,26 @@ fn resource_parts_bound_allocated_segments_and_whole_segment_bytes_in_both_conne
 }
 
 #[test]
-fn native_effect_parts_keep_connector_numbers_separate_from_maker_subjects() {
+fn effect_parts_keep_connector_numbers_separate_from_maker_subjects() {
     use crate::observability as obs;
     let limits = limits();
     for connector in [1, 2, u16::MAX] {
         for number in [0, u64::MAX] {
-            let native = contract::Part::OwnerEffect { connector, proposal: number };
-            assert_eq!(crate::parts::connector(&native), connector);
+            let values = contract::ApplicationPart::OwnerEffect { connector, proposal: number };
+            assert_eq!(crate::parts::connector(&values), connector);
             for proposer in [contract::Proposer::Task(number), contract::Proposer::Party(number)] {
                 let key = contract::ProposalKey { proposer, number };
-                let maker_effect = contract::Part::Effect { connector, proposal: key };
-                assert_ne!(native, maker_effect);
+                let maker_effect = contract::ApplicationPart::Effect { connector, proposal: key };
+                assert_ne!(values, maker_effect);
                 for project in [0, u32::MAX] {
                     assert_eq!(
-                        infrastructure::documents::subject(&native, infrastructure::Scope::Project(project)),
+                        infrastructure::documents::subject(&values, infrastructure::Scope::Project(project)),
                         Some(infrastructure::Subject {
                             scope: infrastructure::Scope::Project(project),
                             kind: infrastructure::Kind::OwnerEffect(number),
                         })
                     );
-                    assert_eq!(obs::documents::subject(&native, obs::Scope::Project(project)), None);
+                    assert_eq!(obs::documents::subject(&values, obs::Scope::Project(project)), None);
                     assert_eq!(
                         infrastructure::documents::subject(&maker_effect, infrastructure::Scope::Project(project)),
                         Some(infrastructure::Subject {
@@ -973,37 +628,37 @@ fn native_effect_parts_keep_connector_numbers_separate_from_maker_subjects() {
                     );
                 }
             }
-            assert_eq!(infrastructure::documents::subject(&native, infrastructure::Scope::Deployment), None);
-            assert_eq!(obs::documents::subject(&native, obs::Scope::Deployment), None);
-            let mut infra = infrastructure::Side::new(&limits.infrastructure, 82);
+            assert_eq!(infrastructure::documents::subject(&values, infrastructure::Scope::Deployment), None);
+            assert_eq!(obs::documents::subject(&values, obs::Scope::Deployment), None);
+            let mut infra = infrastructure::Side::new(&limits.infrastructure, &limits.client.domain);
             let mut infra_out = Queue::uncapped();
-            let infra_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.infrastructure };
+            let infra_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.client.domain };
             infrastructure::step(
                 &mut infra,
                 &infra_env,
-                infrastructure::Event::Show { part: native.clone(), scope: infrastructure::Scope::Deployment },
+                infrastructure::Event::Show { part: values.clone(), scope: infrastructure::Scope::Deployment },
                 &mut infra_out,
             );
-            assert!(infra.contains(&native));
-            assert!(infra.part(&native).is_none());
+            assert!(infra.contains(&values));
+            assert!(infra.part(&values).is_none());
             assert!(infra_out.is_empty());
             infrastructure::step(&mut infra, &infra_env, infrastructure::Event::PartsLeft, &mut infra_out);
-            assert!(!infra.contains(&native));
+            assert!(!infra.contains(&values));
             assert!(infra_out.is_empty());
-            let mut side = obs::Side::new(&limits.observability, 83);
+            let mut side = obs::Side::new(&limits.observability, &limits.client.domain);
             let mut out = Queue::uncapped();
-            let side_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.observability };
+            let side_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.client.domain };
             obs::step(
                 &mut side,
                 &side_env,
-                obs::Event::Show { part: native.clone(), scope: obs::Scope::Deployment },
+                obs::Event::Show { part: values.clone(), scope: obs::Scope::Deployment },
                 &mut out,
             );
-            assert!(side.contains(&native));
-            assert!(side.part(&native).is_none());
+            assert!(side.contains(&values));
+            assert!(side.part(&values).is_none());
             assert!(out.is_empty());
             obs::step(&mut side, &side_env, obs::Event::PartsLeft, &mut out);
-            assert!(!side.contains(&native));
+            assert!(!side.contains(&values));
             assert!(out.is_empty());
         }
     }
@@ -1012,16 +667,16 @@ fn native_effect_parts_keep_connector_numbers_separate_from_maker_subjects() {
 #[test]
 #[expect(
     clippy::too_many_lines,
-    reason = "one whole native environment request exercises document, draft, journal and opaque identity"
+    reason = "one whole environment request exercises document, draft, journal and opaque identity"
 )]
-fn native_environment_names_request_revision_and_whole_width_end_survive_the_client_request() {
-    use infrastructure::native as n;
+fn environment_names_request_revision_and_whole_width_end_survive_the_client_request() {
+    use infrastructure::values as n;
     let environment = n::Environment { pool: Box::from(*b"Q.pool"), name: Box::from(*b"preview") };
     let subject = infrastructure::Subject {
         scope: infrastructure::Scope::Project(3),
-        kind: infrastructure::Kind::NativeEnvironment(environment.clone()),
+        kind: infrastructure::Kind::Environment(environment.clone()),
     };
-    let document = infrastructure::Document::Native(Box::new(n::Document {
+    let document = infrastructure::Document::Value(Box::new(n::Document {
         subject: subject.clone(),
         value: n::Value::Environment {
             environment: environment.clone(),
@@ -1041,12 +696,12 @@ fn native_environment_names_request_revision_and_whole_width_end_survive_the_cli
             pool: None,
         },
     }));
-    assert!(document.fits(&limits().infrastructure));
+    assert!(document.fits(&limits().client.domain));
     let mut root = ready(512);
     let requests = drive(
         &mut root,
         Event::Went {
-            place: crate::Place::Address(Address::Infrastructure(infrastructure::Address::NativeEnvironment {
+            place: crate::Place::Address(Address::Infrastructure(infrastructure::Address::Environment {
                 project: 3,
                 environment: environment.clone(),
             })),
@@ -1058,7 +713,7 @@ fn native_environment_names_request_revision_and_whole_width_end_survive_the_cli
             Request::Infrastructure(infrastructure::Out::Read { read, .. }) => Some(*read),
             _ => None,
         })
-        .expect("native read");
+        .expect("values read");
     drive(
         &mut root,
         Event::Infrastructure(infrastructure::Event::Read {
@@ -1074,7 +729,7 @@ fn native_environment_names_request_revision_and_whole_width_end_survive_the_cli
     drive(
         &mut root,
         Event::Act {
-            action: crate::Action::Infrastructure(infrastructure::Act::NativeUntil {
+            action: crate::Action::Infrastructure(infrastructure::Act::Until {
                 object: id.token(),
                 revision: contract::Revision { value: 0 },
                 value: u64::MAX,
@@ -1084,7 +739,7 @@ fn native_environment_names_request_revision_and_whole_width_end_survive_the_cli
     let requests = drive(
         &mut root,
         Event::Act {
-            action: crate::Action::Infrastructure(infrastructure::Act::NativeMoveEnd {
+            action: crate::Action::Infrastructure(infrastructure::Act::MoveEnd {
                 object: id.token(),
                 revision: contract::Revision { value: 0 },
             }),
@@ -1100,7 +755,7 @@ fn native_environment_names_request_revision_and_whole_width_end_survive_the_cli
                     jig_client::Ask::Jig(_) => panic!("family ask"),
                 })
                 .unwrap()
-                    == (infrastructure::Ask::NativeMoveEnd {
+                    == (infrastructure::Ask::MoveEnd {
                         object: id.token(),
                         project: 3,
                         environment: environment.clone(),
@@ -1111,20 +766,13 @@ fn native_environment_names_request_revision_and_whole_width_end_survive_the_cli
             _ => false,
         }
     }));
-    assert_ne!(
-        subject,
-        infrastructure::Subject {
-            scope: infrastructure::Scope::Project(3),
-            kind: infrastructure::Kind::Environment(0)
-        }
-    );
     let mut different = environment.clone();
     different.pool = Box::from(*b"P.pool");
     assert!(
         root.infrastructure()
             .find(infrastructure::Subject {
                 scope: infrastructure::Scope::Project(3),
-                kind: infrastructure::Kind::NativeEnvironment(different)
+                kind: infrastructure::Kind::Environment(different)
             })
             .is_none()
     );
@@ -1144,7 +792,11 @@ fn infrastructure_reopens_a_dropped_watch_after_the_link_goes_offline_and_live()
     );
     drive(
         &mut root,
-        Event::Infrastructure(infrastructure::Event::Ended { watch: old, end: infrastructure::WatchEnd::Dropped }),
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::WatchEnded { watch: old, end: contract::WatchEnd::Dropped },
+            },
+        },
     );
     let offline = support::offline(&root);
     drive(&mut root, offline);
@@ -1196,7 +848,11 @@ fn observability_reopens_a_dropped_watch_after_the_link_goes_offline_and_live() 
         .unwrap();
     drive(
         &mut root,
-        Event::Observability(observability::Event::Ended { watch: old, end: observability::WatchEnd::Dropped }),
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::WatchEnded { watch: old, end: contract::WatchEnd::Dropped },
+            },
+        },
     );
     let offline = support::offline(&root);
     drive(&mut root, offline);
@@ -1221,11 +877,14 @@ fn observability_reopens_a_dropped_watch_after_the_link_goes_offline_and_live() 
         &mut root,
         Event::Observability(observability::Event::Ended { watch: old, end: observability::WatchEnd::NotAllowed }),
     );
-    let document = observability::Document::Incidents {
+    let document = observability::Document::Value(Box::new(observability::values::Document {
         subject,
-        revision: contract::Revision { value: 3 },
-        incidents: List::with_capacity(2),
-    };
+        value: observability::values::Value::Project {
+            project: 3,
+            services: List::with_capacity(0),
+            incidents: List::with_capacity(2),
+        },
+    }));
     drive(
         &mut root,
         Event::Observability(observability::Event::Watch {

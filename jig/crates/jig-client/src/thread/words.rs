@@ -12,7 +12,7 @@
 //! | sent | committed read-through | read |
 //! | absent | activity words | sent or read |
 use crate::Key;
-use crate::contract::{Activity, ActivityPage, MeParty, Party, Text};
+use crate::contract::{ActivityPage, MeParty, Party, Text};
 use skein_lib::List;
 /// Where a person's words are relative to the engine's committed turns.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -30,7 +30,7 @@ pub struct Sent {
     pub request: Option<Key>,
     pub place: u32,
     pub by: Option<Party>,
-    /// Name loss supplied by the local Me; historical Party has no such fact.
+    /// Name loss supplied by the local Me; ended Party has no such fact.
     pub by_name_cut: Option<bool>,
     pub words: Text,
     pub state: Words,
@@ -193,22 +193,8 @@ impl KeptWords {
     /// in the activity window and obtain their state from `state`.
     pub fn observe(&mut self, page: &ActivityPage) {
         for row in &page.rows {
-            if let Some(through) = row.event.read_position() {
+            if let Some(through) = row.read_position() {
                 self.read(through);
-            }
-        }
-        for row in &page.rows {
-            match &row.event {
-                Activity::Words { by, message, words } => match self.restore(by.clone(), *message, words.clone()) {
-                    true | false => {}
-                },
-                Activity::Owner { .. }
-                | Activity::Turn { .. }
-                | Activity::RunBegan { .. }
-                | Activity::RunEnded { .. }
-                | Activity::Result { .. }
-                | Activity::News { .. }
-                | Activity::Decision { .. } => {}
             }
         }
     }

@@ -52,7 +52,7 @@ impl Joint {
             limits,
             story,
             seed,
-            bytes: Some(super::bytes::Bytes::new(seed, story, limits.jig.rows)),
+            bytes: Some(super::bytes::Bytes::new(seed, story, limits.client.domain.rows)),
             callbacks: Vec::new(),
             now: Time::ZERO,
             due: None,
@@ -100,14 +100,14 @@ pub(super) fn subject_route(
                 infra::Scope::Deployment => None,
             };
             let owner = match subject.kind {
-                infra::Kind::NativeEnvironment(environment) => S::Environment {
+                infra::Kind::Environment(environment) => S::Environment {
                     project: project.ok_or("environment scope")?,
                     environment: jig_ops_domain_infrastructure::Environment {
                         pool: environment.pool,
                         name: environment.name,
                     },
                 },
-                infra::Kind::NativeEnvironments { .. } => S::Project { project: project.ok_or("environments scope")? },
+                infra::Kind::Environments { .. } => S::Project { project: project.ok_or("environments scope")? },
                 infra::Kind::Panel(task) => S::Panel { project: project.ok_or("panel scope")?, task },
                 infra::Kind::Result(task) => S::Result { project: project.ok_or("result scope")?, task },
                 infra::Kind::OwnerEffect(proposal) => S::Effect { project: project.ok_or("effect scope")?, proposal },
@@ -125,10 +125,7 @@ pub(super) fn subject_route(
                     }
                     S::Deployment
                 }
-                infra::Kind::Effect(_) => return Err("maker effect has no native raw identity"),
-                infra::Kind::Environments { .. } | infra::Kind::Environment(_) => {
-                    return Err("legacy numeric identity is absent from the native owner");
-                }
+                infra::Kind::Effect(_) => return Err("maker effect has no values raw identity"),
             };
             let scope = match subject.scope {
                 infra::Scope::Project(project) => jig_domain_people::ApplicationScope::Project(project),
@@ -203,20 +200,20 @@ pub(super) fn application_document(
     match subject {
         Subject::Infrastructure(subject) => {
             let root::ClientDocument::Infrastructure(document) = document else { panic!("wrong connector document") };
-            let document = infra::Document::Native(Box::new(infra::native::Document {
+            let document = infra::Document::Value(Box::new(infra::values::Document {
                 subject,
                 value: super::infrastructure::translate_value(*document),
             }));
-            assert!(document.fits(&limits.infrastructure), "whole infrastructure admission");
+            assert!(document.fits(&limits.client.domain), "whole infrastructure admission");
             ApplicationDocument::Infrastructure(Box::new(document))
         }
         Subject::Observability(subject) => {
             let root::ClientDocument::Observability(document) = document else { panic!("wrong connector document") };
-            let document = obs::Document::Native(Box::new(obs::native::Document {
+            let document = obs::Document::Value(Box::new(obs::values::Document {
                 subject,
                 value: super::observability::document(*document),
             }));
-            assert!(document.fits(&limits.observability), "whole observability admission");
+            assert!(document.fits(&limits.client.domain), "whole observability admission");
             ApplicationDocument::Observability(Box::new(document))
         }
     }

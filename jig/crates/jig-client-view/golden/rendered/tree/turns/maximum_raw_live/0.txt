@@ -1,0 +1,65 @@
+== Task 8 == Live
+Work:
+  What needs you:
+    Questions: 1; proposals: 2; escalations: 3; person tasks: 4
+    Results read through 0
+    [1] More than 99 updates not read
+    [2] 10 need you
+  Who is signed in:
+    * Signed in as Pat
+    Person
+    Login: fixture-login
+    [3] Sign out
+  Projects:
+    [4] Project: One (current)
+    Held policy role 1
+    Ledger source:
+      Budget: 0
+      Spent directly: 0
+      Settled spend below: 0
+      Reserved for funded work: 0
+      Left: 20
+      Ledger source
+      Funded by pool in project 4, person 1, period 1
+      Ledger is open
+  Go to a task:
+    [5] Go to task number: (empty) (enter sends)
+Navigation:
+  * Loading navigation (busy)
+Task 8:
+  - Task 8: Review:
+      ## Task 8: Review
+      * Open
+      Task 8: Review:
+        [6] Task 8: Review
+        Person 1
+        Active attempt 2
+      [7] Write
+  In project 4
+  Goal
+  Priority 1
+Task 8:
+  [8] Overview
+  [9] Activity (current)
+  [10] Plan
+  [11] History
+  [12] Budget and authority
+Activity:
+  ## Activity
+  For 0 min
+  Writing
+  - Conversation: (busy)
+      - Provisional:
+          * Provisional
+          At 23:34
+          xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+          * Some turn content did not fit
+          Observed current tool call:
+            `????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????`
+            At 01:00
+            `~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
+            [13] Fold current call input (expanded)
+            `!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!`
+            * Some turn content did not fit
+  Start of the list
+  End of the list

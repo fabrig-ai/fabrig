@@ -67,7 +67,7 @@ The structural seam is already present: `Service` owns shared IO and the worker;
 
 **Proposal:** split checked startup configuration from runtime construction; add an explicit pause/drain/recover/rebind lifecycle around the domain. Keep driving IO and protocol heartbeats, return bounded “not ready” responses during recovery, and fence old domain replies using an incarnation identifier or fully drained correlation tables.
 
-This cannot reuse shutdown unchanged: shutdown stops clients/workers, closes components, and eventually aborts the in-process worker. Nor can it send `Restart` twice to the same core: `restart_begin` only starts from `Cold`. `temper/crates/temper-service/src/stop.rs:10`, `temper/crates/temper-service/src/system.rs:429`, `jig/crates/jig-domain-core/src/restart.rs:108`
+Restart now goes through `Core::start_begin(pending, at)` (`jig/docs/design/domain/engine.md`, section 6).
 
 **Jig should own** the lifecycle guarantees, surviving-host adoption, client/watch rebinding and reference implementation/tests. **Temper should own** configuration diffing, forge-specific reconciliation and its service wiring. Skein’s loop already knows nothing about domain state, so a generic shell redesign appears unnecessary. `skein/crates/skein-shell/src/drive.rs:1`
 

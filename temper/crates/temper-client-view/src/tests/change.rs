@@ -20,16 +20,13 @@ fn event(root: &mut Domain, up: Up) -> Queue<Request> {
 fn opened() -> (Domain, Token) {
     let mut task = t::document();
     task.chip.task = TASK;
-    let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
-    details.procedure = Some(c::OwnerPart {
-        connector: f::FORGE,
-        kind: c::OwnerPartKind::Procedure,
-        key: c::OwnerPartKey::Number(TASK),
-    });
+    let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
+    details.procedure =
+        Some(c::Part { connector: f::FORGE, kind: c::PartKind::Procedure, key: c::PartKey::Number(TASK) });
     task.priority = Some(3);
-    task.chip.executor = c::Executor::Procedure { connector: f::FORGE + 1, kind: 1 };
+    task.chip.executor = c::ChipExecutor::Procedure { connector: f::FORGE + 1, kind: 1 };
     let (mut root, watch) = t::supplied_root_watching(task.clone(), false);
-    task.chip.executor = c::Executor::Procedure { connector: f::FORGE, kind: 1 };
+    task.chip.executor = c::ChipExecutor::Procedure { connector: f::FORGE, kind: 1 };
     let mut out =
         event(&mut root, Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task))) });
     let mut family = None;
@@ -408,7 +405,7 @@ fn unshown_panels_say_where_they_are_and_other_subjects_draw_nothing() {
     assert!(!contains(view.tree(), "Loading the change"));
     assert!(contains(view.tree(), "Shown on the forge."));
     assert!(styled(view.tree(), look::CHANGE).is_empty());
-    let root = t::root(c::Executor::Procedure { connector: f::FORGE + 1, kind: 1 }, None);
+    let root = t::root(c::ChipExecutor::Procedure { connector: f::FORGE + 1, kind: 1 }, None);
     assert!(styled(page_view(&root).tree(), look::CHANGE).is_empty());
 }
 #[test]

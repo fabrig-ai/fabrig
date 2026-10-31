@@ -46,7 +46,7 @@ fn pages_match(seed: u64) {
                 APPLICATION_BYTES,
             )
             .expect("typed page");
-        assert!(page.items.len() <= usize::try_from(rows).expect("rows"));
+        assert!(page.items.len() <= skein_lib::length::usize_of(rows));
         let mut bytes = 0;
         for item in page.items {
             let Item::Row(Row::Application { key, value }) = item else { panic!("application row") };
@@ -69,7 +69,7 @@ fn pages_match(seed: u64) {
     loop {
         let rows = u32::try_from(1 + rng.below(4)).expect("row budget");
         let page = world.retained_page(after.as_deref(), rows, INVENTORY_BYTES).expect("inventory page");
-        assert!(page.rows.len() <= usize::try_from(rows.min(root::limits().store.page.rows)).expect("rows"));
+        assert!(page.rows.len() <= skein_lib::length::usize_of(rows.min(root::limits().store.page.rows)));
         for row in page.rows {
             assert!(after.as_deref().is_none_or(|after| row.key.as_ref() > after));
             if row.key.first() == Some(&keys::APPLICATION) {

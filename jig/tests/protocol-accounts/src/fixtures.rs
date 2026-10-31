@@ -264,10 +264,10 @@ pub fn expected(story: crate::world::Story) -> Vec<crate::owner::Heard> {
             Heard::Granted { account: ACCOUNT_CHAT, generation: 1 },
             Heard::Failed { account: ACCOUNT_CHAT, failure: child::Failure::Misconfigured },
         ],
-        Story::RefusedGrant | Story::NoRecord => {
+        Story::RefusedGrant => {
             vec![Heard::Failed { account: ACCOUNT_CHAT, failure: child::Failure::SignInAgain }]
         }
-        Story::DamagedRecord => vec![Heard::Failed {
+        Story::DamagedRecord | Story::NoRecord => vec![Heard::Failed {
             account: ACCOUNT_CHAT,
             failure: child::Failure::Unloaded { at: child::Place::File, why: child::Unread::Unreadable },
         }],

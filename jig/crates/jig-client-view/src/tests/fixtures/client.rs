@@ -1,11 +1,11 @@
 //! A reference UI with the real unlinked client and a scripted transport.
-use crate::{Event, Limits, Request, Ui};
+use crate::tests::fixtures::Profile;
+use crate::{Event, Request, Ui};
 use jig_client::{Client, Down, Handle, Key, Readout, Up, Watchable, contract};
 use skein_lib::{Duration, List, Queue, Time, Token, Wall};
 pub(crate) const MOST: Duration = Duration::from_nanos(80);
 const OBSERVATIONS: u32 = 4096;
 const EXCHANGES: u32 = 256;
-const HEARTBEAT: Duration = Duration::from_secs(1000);
 const SEED: u64 = 9;
 #[derive(Debug)]
 pub struct Fixture {
@@ -16,7 +16,7 @@ pub struct Fixture {
     pub attempts: List<(Key, Token)>,
     pub watches: List<(contract::Subject, Token)>,
     pub transport_reads: List<(Handle, Token)>,
-    pub read_origins: List<(Handle, crate::handles::Reading)>,
+    pub read_origins: List<(Handle, crate::state::handles::Reading)>,
 }
 impl core::ops::Deref for Fixture {
     type Target = Ui;
@@ -30,65 +30,44 @@ impl core::ops::DerefMut for Fixture {
     }
 }
 impl Fixture {
-    pub fn new(limits: &Limits) -> Self {
-        Self::with_client_handles(limits, limits.watches.checked_add(limits.reads).unwrap().checked_add(1).unwrap())
+    pub fn new(limits: &Profile) -> Self {
+        Self::with_client_handles(
+            limits,
+            limits.client.watches.checked_add(limits.client.reads).unwrap().checked_add(1).unwrap(),
+        )
     }
-    pub fn with_client_handles(limits: &Limits, handles: u32) -> Self {
+    pub fn with_client_handles(limits: &Profile, handles: u32) -> Self {
         Self::build(limits, handles, None)
     }
     pub fn restored(
-        limits: &Limits,
-        records: List<crate::store::Record>,
+        limits: &Profile,
+        records: List<crate::state::store::Record>,
         kept: List<skein_lib::RequestRecord<jig_client::Held>>,
     ) -> Self {
         Self::build(
             limits,
-            limits.watches.checked_add(limits.reads).unwrap().checked_add(1).unwrap(),
+            limits.client.watches.checked_add(limits.client.reads).unwrap().checked_add(1).unwrap(),
             Some((records, kept)),
         )
     }
     fn build(
-        limits: &Limits,
+        limits: &Profile,
         handles: u32,
-        restored: Option<(List<crate::store::Record>, List<skein_lib::RequestRecord<jig_client::Held>>)>,
+        restored: Option<(List<crate::state::store::Record>, List<skein_lib::RequestRecord<jig_client::Held>>)>,
     ) -> Self {
         let domain = jig_client::DomainLimits {
-            owners: &[],
-            requests: skein_lib::RequestLimits {
-                requests: limits.intents.max(1),
-                bytes: 1 << 20,
-                out: EXCHANGES,
-                first: Duration::from_nanos(10),
-                most: MOST,
-                margin: Duration::from_secs(1),
-            },
-            ask_bytes: 65536,
             handles,
-            watches: limits.watches.checked_add(1).unwrap(),
-            reads: limits.reads,
-            turn_bytes: limits.text,
-            document_bytes: limits.document_bytes,
-            backoff: jig_client::Backoff { first: Duration::from_nanos(10), most: MOST },
-            rows: limits.rows,
-            segments: limits.segments,
-            text: limits.text,
-            turn_text: limits.text,
-            projects: limits.projects,
-            fields: limits.fields,
-            delegates: limits.delegates,
-            records: limits.records,
-            kept: limits.kept,
-            parts: limits.parts,
-            authority: 8,
-            accounts: limits.accounts,
-            heartbeat: HEARTBEAT,
+            turn_bytes: limits.client.text,
+            turn_text: limits.client.text,
+            ..limits.client
         };
         let mut value = Self {
             ui: Ui::new(
-                limits,
-                crate::page::navigation::Navigation::new(limits.navigation_entries),
-                crate::address::Address::Inbox { project: None },
-                crate::page::Arrangement::none(),
+                &limits.view,
+                &domain,
+                crate::state::page::navigation::Navigation::new(limits.navigation_entries),
+                crate::state::address::Address::Inbox { project: None },
+                crate::state::page::Arrangement::none(),
             )
             .unwrap(),
             client: Client::unlinked(&jig_client::Limits { domain, exchanges: EXCHANGES }, SEED).unwrap(),
@@ -107,7 +86,7 @@ impl Fixture {
                 &value.client,
                 Event::Start {
                     records,
-                    place: crate::address::Place::Jig(crate::address::Address::Inbox { project: None }),
+                    place: crate::state::address::Place::Jig(crate::state::address::Address::Inbox { project: None }),
                     seed: 8,
                 },
                 &mut out,
@@ -125,22 +104,22 @@ impl Fixture {
     pub fn view(&self) -> crate::Borrowed<'_> {
         self.ui.borrow(&self.client)
     }
-    pub fn frame(&self) -> crate::frame::me::FrameState<'_> {
+    pub fn frame(&self) -> crate::tree::frame::me::FrameState<'_> {
         self.ui.frame(&self.client)
     }
-    pub fn frame_summary(&self) -> crate::frame::me::Summary {
+    pub fn frame_summary(&self) -> crate::tree::frame::me::Summary {
         self.ui.frame_summary(&self.client)
     }
-    pub fn objects(&self) -> crate::ui::borrowed::ObjectsBorrowed<'_> {
+    pub fn objects(&self) -> crate::state::ui::borrowed::ObjectsBorrowed<'_> {
         self.view().objects()
     }
-    pub fn project_page(&self) -> crate::ui::borrowed::project::Project<'_> {
+    pub fn project_page(&self) -> crate::state::ui::borrowed::project::Project<'_> {
         self.view().project_page()
     }
-    pub fn task_page(&self) -> crate::ui::borrowed::task::Task<'_> {
+    pub fn task_page(&self) -> crate::state::ui::borrowed::task::Task<'_> {
         self.view().task_page()
     }
-    pub fn conversation_rows(&self) -> crate::windows::ConversationWindow {
+    pub fn conversation_rows(&self) -> crate::state::windows::ConversationWindow {
         self.view().conversation_rows()
     }
     pub fn first_turn(&self) -> Option<contract::ProvisionalTurnName> {
@@ -148,19 +127,19 @@ impl Fixture {
         let turn = projected.live.get(0)?;
         Some(turn.name)
     }
-    pub fn conversation(&self) -> crate::ui::borrowed::conversation::Activity<'_> {
+    pub fn conversation(&self) -> crate::state::ui::borrowed::conversation::Activity<'_> {
         self.view().conversation()
     }
-    pub fn inbox(&self) -> crate::page::inbox::Inbox {
+    pub fn inbox(&self) -> crate::state::page::inbox::Inbox {
         self.view().inbox()
     }
-    pub fn deployment_page(&self) -> crate::ui::borrowed::Deployment<'_> {
+    pub fn deployment_page(&self) -> crate::state::ui::borrowed::Deployment<'_> {
         self.view().deployment_page()
     }
-    pub fn shows(&self, section: crate::page::Section) -> bool {
+    pub fn shows(&self, section: crate::state::page::Section) -> bool {
         self.ui.shows(section, &self.client)
     }
-    pub fn section_status(&self, section: crate::page::Section) -> Option<crate::page::SectionStatus> {
+    pub fn section_status(&self, section: crate::state::page::Section) -> Option<crate::state::page::SectionStatus> {
         self.view().section_status(section)
     }
     pub fn reopen(&mut self, watch: Handle) {
@@ -172,7 +151,7 @@ impl Fixture {
         self.native_out(native, None, None, &mut ui);
         self.output(ui);
     }
-    pub fn owes(&self, id: skein_lib::Id<crate::objects::Object>) -> bool {
+    pub fn owes(&self, id: skein_lib::Id<crate::state::objects::Object>) -> bool {
         self.ui.owes(id, &self.client)
     }
     pub fn intent(&self, key: Key) -> Token {
@@ -180,7 +159,7 @@ impl Fixture {
     }
     pub fn request_watch(&mut self, subject: contract::Subject) -> Option<Handle> {
         let mut out = Queue::uncapped();
-        let handle = self.ui.handles.watch(subject, crate::handles::Owner::Page, &mut out)?;
+        let handle = self.ui.handles.watch(subject, crate::state::handles::Holder::Page, &mut out)?;
         self.output(out);
         Some(handle)
     }
@@ -199,7 +178,7 @@ impl Fixture {
         }
         handle
     }
-    pub fn request_read(&mut self, source: crate::objects::Source, what: contract::Read) -> Option<Handle> {
+    pub fn request_read(&mut self, source: crate::state::objects::Source, what: contract::Read) -> Option<Handle> {
         let mut out = Queue::uncapped();
         let handle = self.ui.handles.read(source, what, &mut out)?;
         self.output(out);
@@ -424,12 +403,12 @@ impl Input for Served {
 }
 pub struct Reported<K = Key> {
     pub request: K,
-    pub progress: crate::intents::Progress,
+    pub progress: crate::state::intents::Progress,
 }
 impl<K: IntentKey> Input for Reported<K> {
     fn enter(self, fixture: &mut Fixture, out: &mut Queue<Request>) {
         let token = self.request.intent(&fixture.ui);
-        crate::intents::progress(&mut fixture.ui, token, self.progress, out, &fixture.client);
+        crate::state::intents::progress(&mut fixture.ui, token, self.progress, out, &fixture.client);
     }
 }
 pub struct AnsweredByEngine<K = Key> {
@@ -462,7 +441,7 @@ impl<K: IntentKey> Input for AnsweredByEngine<K> {
             return;
         }
         let env = skein_lib::Env { now: fixture.now, wall: Wall::EPOCH, limits: fixture.ui.limits };
-        crate::intents::answered(&mut fixture.ui, &env, token, self.answer, out, &fixture.client);
+        crate::state::intents::answered(&mut fixture.ui, &env, token, self.answer, out, &fixture.client);
     }
 }
 fn copy_client_event(event: &jig_client::Event) -> jig_client::Event {
@@ -510,7 +489,7 @@ impl IntentKey for Key {
 #[derive(Clone)]
 pub struct SendIntent {
     pub scope: u64,
-    pub origin: crate::intents::Origin,
+    pub origin: crate::state::intents::Origin,
     pub ask: Box<contract::Ask>,
 }
 impl Input for SendIntent {
@@ -522,7 +501,7 @@ impl Input for SendIntent {
 pub fn intent(scope: u64, number: u64, ask: contract::Ask) -> SendIntent {
     SendIntent {
         scope,
-        origin: crate::intents::Origin::Card {
+        origin: crate::state::intents::Origin::Card {
             object: contract::ObjectKey::Task(number),
             act: contract::ActKind::Stop,
         },
@@ -555,7 +534,14 @@ pub struct CardAsk {
 }
 impl Input for CardAsk {
     fn enter(self, fixture: &mut Fixture, out: &mut Queue<Request>) {
-        crate::intents::send_card(&mut fixture.ui, self.object, self.act, Box::new(self.ask), out, &fixture.client);
+        crate::state::intents::send_card(
+            &mut fixture.ui,
+            self.object,
+            self.act,
+            Box::new(self.ask),
+            out,
+            &fixture.client,
+        );
     }
 }
 

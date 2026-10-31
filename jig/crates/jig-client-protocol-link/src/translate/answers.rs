@@ -1,55 +1,54 @@
 //! Field-for-field client contract translation (protocol/client.md, 3 and 5).
 use crate::Limits;
-use crate::translate::text_problem;
+use crate::translate::{classify, text_problem};
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::{List, Reader, Wall, bytes};
-pub(crate) fn seen(value: &w::SeenThrough, _limits: &Limits) -> c::SeenThrough {
+pub(crate) fn seen(value: &w::SeenThrough) -> c::SeenThrough {
     match value {
         w::SeenThrough::Results(row) => c::SeenThrough::Results { through: row.through() },
         w::SeenThrough::Conversation(row) => c::SeenThrough::Conversation { task: row.task(), through: row.through() },
     }
 }
 
-pub(crate) fn proposer(value: &w::Proposer, _limits: &Limits) -> c::Proposer {
+pub(crate) fn proposer(value: &w::Proposer) -> c::Proposer {
     match value {
         w::Proposer::Task(row) => c::Proposer::Task(row.value()),
         w::Proposer::Party(row) => c::Proposer::Party(row.value()),
     }
 }
 
-pub(crate) fn proposal_key(value: &w::ProposalKey, limits: &Limits) -> c::ProposalKey {
-    c::ProposalKey { proposer: proposer(value.proposer(), limits), number: value.number() }
+pub(crate) fn proposal_key(value: &w::ProposalKey) -> c::ProposalKey {
+    c::ProposalKey { proposer: proposer(value.proposer()), number: value.number() }
 }
 
-pub(crate) fn owner_proposal_choice(value: &w::OwnerProposalChoice, _limits: &Limits) -> c::OwnerProposalChoice {
+pub(crate) fn proposal_choice(value: &w::ProposalChoice) -> c::ProposalChoice {
     match value {
-        w::OwnerProposalChoice::Accepted => c::OwnerProposalChoice::Accepted,
-        w::OwnerProposalChoice::Rejected => c::OwnerProposalChoice::Rejected,
-        w::OwnerProposalChoice::Passed => c::OwnerProposalChoice::Passed,
-        w::OwnerProposalChoice::Withdrawn => c::OwnerProposalChoice::Withdrawn,
-        w::OwnerProposalChoice::Stale => c::OwnerProposalChoice::Stale,
+        w::ProposalChoice::Accepted => c::ProposalChoice::Accepted,
+        w::ProposalChoice::Rejected => c::ProposalChoice::Rejected,
+        w::ProposalChoice::Passed => c::ProposalChoice::Passed,
+        w::ProposalChoice::Withdrawn => c::ProposalChoice::Withdrawn,
+        w::ProposalChoice::Stale => c::ProposalChoice::Stale,
     }
 }
 
-pub(crate) fn revision(value: &w::Revision, _limits: &Limits) -> c::Revision {
+pub(crate) fn revision(value: &w::Revision) -> c::Revision {
     c::Revision { value: value.value() }
 }
 
-pub(crate) fn owner_escalation_choice(value: &w::OwnerEscalationChoice, _limits: &Limits) -> c::OwnerEscalationChoice {
+pub(crate) fn escalation_choice(value: &w::EscalationChoice) -> c::EscalationChoice {
     match value {
-        w::OwnerEscalationChoice::Released => c::OwnerEscalationChoice::Released,
-        w::OwnerEscalationChoice::Rejected => c::OwnerEscalationChoice::Rejected,
-        w::OwnerEscalationChoice::Passed => c::OwnerEscalationChoice::Passed,
+        w::EscalationChoice::Released => c::EscalationChoice::Released,
+        w::EscalationChoice::Rejected => c::EscalationChoice::Rejected,
+        w::EscalationChoice::Passed => c::EscalationChoice::Passed,
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields")]
-pub(crate) fn owner_outcome(value: &w::OwnerOutcome, limits: &Limits) -> Result<c::OwnerOutcome, w::Problem> {
+pub(crate) fn document_outcome(value: &w::DocumentOutcome, limits: &Limits) -> Result<c::DocumentOutcome, w::Problem> {
     Ok(match value {
-        w::OwnerOutcome::ProjectRemoved(row) => c::OwnerOutcome::ProjectRemoved { project: row.project() },
-        w::OwnerOutcome::Created(row) => c::OwnerOutcome::Created {
+        w::DocumentOutcome::ProjectRemoved(row) => c::DocumentOutcome::ProjectRemoved { project: row.project() },
+        w::DocumentOutcome::Created(row) => c::DocumentOutcome::Created {
             first: row.first(),
             last: row.last(),
             given: match row.given() {
@@ -57,104 +56,106 @@ pub(crate) fn owner_outcome(value: &w::OwnerOutcome, limits: &Limits) -> Result<
                 None => None,
             },
         },
-        w::OwnerOutcome::Compound(row) => c::OwnerOutcome::Compound {
+        w::DocumentOutcome::Compound(row) => c::DocumentOutcome::Compound {
             project: row.project(),
             operations: row.operations(),
             first_message: row.first_message(),
         },
-        w::OwnerOutcome::MarkedSeen(row) => c::OwnerOutcome::MarkedSeen { seen: seen(row.seen(), limits) },
-        w::OwnerOutcome::NoteEdited(row) => c::OwnerOutcome::NoteEdited { name: row.name() },
-        w::OwnerOutcome::ServiceMade(row) => c::OwnerOutcome::ServiceMade { person: row.person() },
-        w::OwnerOutcome::Adopted(row) => c::OwnerOutcome::Adopted { project: row.project() },
-        w::OwnerOutcome::Stopped(row) => c::OwnerOutcome::Stopped { task: row.task() },
-        w::OwnerOutcome::Cancelled(row) => c::OwnerOutcome::Cancelled { task: row.task() },
-        w::OwnerOutcome::Lifted(row) => c::OwnerOutcome::Lifted { hold: row.hold(), released: row.released() },
-        w::OwnerOutcome::Released(row) => c::OwnerOutcome::Released { task: row.task() },
-        w::OwnerOutcome::PersonTaken(row) => c::OwnerOutcome::PersonTaken { task: row.task() },
-        w::OwnerOutcome::PersonHandedBack(row) => c::OwnerOutcome::PersonHandedBack { task: row.task() },
-        w::OwnerOutcome::PersonAnswered(row) => c::OwnerOutcome::PersonAnswered { task: row.task() },
-        w::OwnerOutcome::Moved(row) => c::OwnerOutcome::Moved { task: row.task() },
-        w::OwnerOutcome::ProposalDecided(row) => c::OwnerOutcome::ProposalDecided {
-            proposal: proposal_key(row.proposal(), limits),
+        w::DocumentOutcome::MarkedSeen(row) => c::DocumentOutcome::MarkedSeen { seen: seen(row.seen()) },
+        w::DocumentOutcome::NoteEdited(row) => c::DocumentOutcome::NoteEdited { name: row.name() },
+        w::DocumentOutcome::ServiceMade(row) => c::DocumentOutcome::ServiceMade { person: row.person() },
+        w::DocumentOutcome::Adopted(row) => c::DocumentOutcome::Adopted { project: row.project() },
+        w::DocumentOutcome::Stopped(row) => c::DocumentOutcome::Stopped { task: row.task() },
+        w::DocumentOutcome::Cancelled(row) => c::DocumentOutcome::Cancelled { task: row.task() },
+        w::DocumentOutcome::Lifted(row) => c::DocumentOutcome::Lifted { hold: row.hold(), released: row.released() },
+        w::DocumentOutcome::Released(row) => c::DocumentOutcome::Released { task: row.task() },
+        w::DocumentOutcome::PersonTaken(row) => c::DocumentOutcome::PersonTaken { task: row.task() },
+        w::DocumentOutcome::PersonHandedBack(row) => c::DocumentOutcome::PersonHandedBack { task: row.task() },
+        w::DocumentOutcome::PersonAnswered(row) => c::DocumentOutcome::PersonAnswered { task: row.task() },
+        w::DocumentOutcome::Moved(row) => c::DocumentOutcome::Moved { task: row.task() },
+        w::DocumentOutcome::ProposalDecided(row) => c::DocumentOutcome::ProposalDecided {
+            proposal: proposal_key(row.proposal()),
             by: row.by(),
             at: Wall::from_nanos(row.at()),
-            choice: owner_proposal_choice(row.choice(), limits),
+            choice: proposal_choice(row.choice()),
             repeated: row.repeated(),
         },
-        w::OwnerOutcome::Said(row) => c::OwnerOutcome::Said { task: row.task(), message: row.message() },
-        w::OwnerOutcome::QuestionAnswered(row) => {
-            c::OwnerOutcome::QuestionAnswered { task: row.task(), question: row.question(), message: row.message() }
+        w::DocumentOutcome::Said(row) => c::DocumentOutcome::Said { task: row.task(), message: row.message() },
+        w::DocumentOutcome::QuestionAnswered(row) => {
+            c::DocumentOutcome::QuestionAnswered { task: row.task(), question: row.question(), message: row.message() }
         }
-        w::OwnerOutcome::Amended(row) => c::OwnerOutcome::Amended { task: row.task() },
-        w::OwnerOutcome::Proposed(row) => c::OwnerOutcome::Proposed { proposal: row.proposal(), to: row.to() },
-        w::OwnerOutcome::Withdrawn(row) => c::OwnerOutcome::Withdrawn { proposal: row.proposal() },
-        w::OwnerOutcome::RolesSet(row) => c::OwnerOutcome::RolesSet { project: row.project() },
-        w::OwnerOutcome::Renamed(row) => c::OwnerOutcome::Renamed { project: row.project() },
-        w::OwnerOutcome::ProjectMade(row) => c::OwnerOutcome::ProjectMade { project: row.project() },
-        w::OwnerOutcome::PolicyChanged(row) => c::OwnerOutcome::PolicyChanged { project: row.project() },
-        w::OwnerOutcome::AccountSignInStarted(row) => {
-            c::OwnerOutcome::AccountSignInStarted { source: row.source(), address: bytes::copy_of(row.address()) }
+        w::DocumentOutcome::Amended(row) => c::DocumentOutcome::Amended { task: row.task() },
+        w::DocumentOutcome::Proposed(row) => c::DocumentOutcome::Proposed { proposal: row.proposal(), to: row.to() },
+        w::DocumentOutcome::Withdrawn(row) => c::DocumentOutcome::Withdrawn { proposal: row.proposal() },
+        w::DocumentOutcome::RolesSet(row) => c::DocumentOutcome::RolesSet { project: row.project() },
+        w::DocumentOutcome::Renamed(row) => c::DocumentOutcome::Renamed { project: row.project() },
+        w::DocumentOutcome::ProjectMade(row) => c::DocumentOutcome::ProjectMade { project: row.project() },
+        w::DocumentOutcome::PolicyChanged(row) => c::DocumentOutcome::PolicyChanged { project: row.project() },
+        w::DocumentOutcome::AccountSignInStarted(row) => {
+            c::DocumentOutcome::AccountSignInStarted { source: row.source(), address: bytes::copy_of(row.address()) }
         }
-        w::OwnerOutcome::AccountKeyKept(row) => c::OwnerOutcome::AccountKeyKept { source: row.source() },
-        w::OwnerOutcome::AccountProgramDeclared(row) => {
+        w::DocumentOutcome::AccountKeyKept(row) => c::DocumentOutcome::AccountKeyKept { source: row.source() },
+        w::DocumentOutcome::AccountProgramDeclared(row) => {
             if !c::valid_program_name(row.name()) {
                 return Err(super::piece_problem(skein_codec::Reason::Malformed));
             }
-            c::OwnerOutcome::AccountProgramDeclared { source: row.source(), name: bytes::copy_of(row.name()) }
+            c::DocumentOutcome::AccountProgramDeclared { source: row.source(), name: bytes::copy_of(row.name()) }
         }
-        w::OwnerOutcome::AccountFinishing(row) => c::OwnerOutcome::AccountFinishing { source: row.source() },
-        w::OwnerOutcome::AccountMovedIn(row) => {
-            c::OwnerOutcome::AccountMovedIn { account: row.account(), renewed: row.renewed() }
+        w::DocumentOutcome::AccountFinishing(row) => c::DocumentOutcome::AccountFinishing { source: row.source() },
+        w::DocumentOutcome::AccountMovedIn(row) => {
+            c::DocumentOutcome::AccountMovedIn { account: row.account(), renewed: row.renewed() }
         }
-        w::OwnerOutcome::AccountChanged => c::OwnerOutcome::AccountChanged,
-        w::OwnerOutcome::AccountRemoved(row) => c::OwnerOutcome::AccountRemoved {
+        w::DocumentOutcome::AccountChanged => c::DocumentOutcome::AccountChanged,
+        w::DocumentOutcome::AccountRemoved(row) => c::DocumentOutcome::AccountRemoved {
             confirmed: row.confirmed(),
             failed_hosts: super::account_hosts::decode(row.failed_hosts(), row.confirmed(), limits)?,
         },
-        w::OwnerOutcome::AccountSignedOut(row) => c::OwnerOutcome::AccountSignedOut {
+        w::DocumentOutcome::AccountSignedOut(row) => c::DocumentOutcome::AccountSignedOut {
             confirmed: row.confirmed(),
             failed_hosts: super::account_hosts::decode(row.failed_hosts(), row.confirmed(), limits)?,
         },
-        w::OwnerOutcome::PoolSet(row) => c::OwnerOutcome::PoolSet { project: row.project(), person: row.person() },
-        w::OwnerOutcome::EscalationDecided(row) => c::OwnerOutcome::EscalationDecided {
+        w::DocumentOutcome::PoolSet(row) => {
+            c::DocumentOutcome::PoolSet { project: row.project(), person: row.person() }
+        }
+        w::DocumentOutcome::EscalationDecided(row) => c::DocumentOutcome::EscalationDecided {
             task: row.task(),
-            revision: revision(row.revision(), limits),
+            revision: revision(row.revision()),
             by: row.by(),
             at: Wall::from_nanos(row.at()),
-            choice: owner_escalation_choice(row.choice(), limits),
+            choice: escalation_choice(row.choice()),
         },
     })
 }
 
-pub(crate) fn owner_pattern_end(value: &w::OwnerPatternEnd, _limits: &Limits) -> c::OwnerPatternEnd {
+pub(crate) fn pattern_end(value: &w::PatternEnd) -> c::PatternEnd {
     match value {
-        w::OwnerPatternEnd::Exact(row) => c::OwnerPatternEnd::Exact(bytes::copy_of(row.value())),
-        w::OwnerPatternEnd::Open(row) => c::OwnerPatternEnd::Open(bytes::copy_of(row.value())),
+        w::PatternEnd::Exact(row) => c::PatternEnd::Exact(bytes::copy_of(row.value())),
+        w::PatternEnd::Open(row) => c::PatternEnd::Open(bytes::copy_of(row.value())),
     }
 }
 
-pub(crate) fn owner_pattern(value: &w::OwnerPattern, limits: &Limits) -> c::OwnerPattern {
+pub(crate) fn pattern(value: &w::Pattern) -> c::Pattern {
     let mut list0 = List::with_capacity(value.segments().len());
     for item in value.segments() {
         list0.push(bytes::copy_of(item)).expect("reserved supplied list");
     }
-    c::OwnerPattern { segments: list0, last: owner_pattern_end(value.last(), limits) }
+    c::Pattern { segments: list0, last: pattern_end(value.last()) }
 }
 
-pub(crate) fn note_scope(value: &w::NoteScope, limits: &Limits) -> c::NoteScope {
+pub(crate) fn note_scope(value: &w::NoteScope) -> c::NoteScope {
     match value {
         w::NoteScope::Deployment => c::NoteScope::Deployment,
         w::NoteScope::Project(row) => c::NoteScope::Project(row.value()),
         w::NoteScope::Resource(row) => c::NoteScope::Resource {
             project: row.project(),
             connector: row.connector(),
-            pattern: owner_pattern(row.pattern(), limits),
+            pattern: pattern(row.pattern()),
         },
         w::NoteScope::Task(row) => c::NoteScope::Task { project: row.project(), task: row.task() },
     }
 }
 
-pub(crate) fn made(value: &w::Made, limits: &Limits) -> c::Made {
+pub(crate) fn made(value: &w::Made) -> c::Made {
     match value {
         w::Made::Tasks(row) => {
             let mut list0 = List::with_capacity(row.tasks().len());
@@ -168,27 +169,17 @@ pub(crate) fn made(value: &w::Made, limits: &Limits) -> c::Made {
         }
         w::Made::Service(row) => c::Made::Service { party: row.party() },
         w::Made::PersonResult(row) => c::Made::PersonResult { task: row.task() },
-        w::Made::Note(row) => c::Made::Note { note: row.note(), scope: note_scope(row.scope(), limits) },
+        w::Made::Note(row) => c::Made::Note { note: row.note(), scope: note_scope(row.scope()) },
     }
 }
 
-pub(crate) fn actor(value: &w::Actor, _limits: &Limits) -> c::Actor {
-    match value {
-        w::Actor::Party(row) => c::Actor::Party(row.value()),
-        w::Actor::Task(row) => c::Actor::Task(row.value()),
-        w::Actor::Deployment => c::Actor::Deployment,
-        w::Actor::ProjectDeployment(row) => c::Actor::ProjectDeployment { project: row.project() },
-    }
-}
-
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decision, w::Problem> {
     Ok(match value {
         w::Decision::Accepted => c::Decision::Accepted,
         w::Decision::Rejected(row) => c::Decision::Rejected {
-            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client.text) {
+            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client().text) {
                 Ok(value) => value,
-                Err(problem) => return Err(text_problem(problem)),
+                Err(_) => return Err(text_problem()),
             },
         },
         w::Decision::PassedUp => c::Decision::PassedUp,
@@ -200,60 +191,37 @@ pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decisi
             c::Decision::Released { again: opt0 }
         }
         w::Decision::LeftHeld(row) => c::Decision::LeftHeld {
-            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client.text) {
+            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client().text) {
                 Ok(value) => value,
-                Err(problem) => return Err(text_problem(problem)),
+                Err(_) => return Err(text_problem()),
             },
         },
     })
 }
 
-pub(crate) fn party_kind(value: &w::PartyKind, _limits: &Limits) -> c::PartyKind {
+pub(crate) fn party_kind(value: &w::PartyKind) -> c::PartyKind {
     match value {
         w::PartyKind::Person => c::PartyKind::Person,
         w::PartyKind::Service => c::PartyKind::Service,
     }
 }
 
-pub(crate) fn party(value: &w::Party, limits: &Limits) -> Result<c::Party, w::Problem> {
-    Ok(c::Party {
-        number: value.number(),
-        kind: party_kind(value.kind(), limits),
-        name: match c::Text::new(bytes::copy_of(value.name()), limits.client.text) {
-            Ok(value) => value,
-            Err(problem) => return Err(text_problem(problem)),
-        },
-    })
-}
-
 pub(crate) fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, w::Problem> {
     Ok(match value {
-        w::Outcome::Owner(row) => c::Outcome::Owner(owner_outcome(row.value(), limits)?),
-        w::Outcome::Made(row) => c::Outcome::Made { what: made(row.what(), limits) },
-        w::Outcome::Proposed(row) => c::Outcome::Proposed { proposal: proposal_key(row.proposal(), limits) },
-        w::Outcome::Decided(row) => c::Outcome::Decided {
-            by: actor(row.by(), limits),
-            how: decision(row.how(), limits)?,
-            at: Wall::from_nanos(row.at()),
-        },
-        w::Outcome::DecidedFirst(row) => c::Outcome::DecidedFirst {
-            by: party(row.by(), limits)?,
-            how: decision(row.how(), limits)?,
-            at: Wall::from_nanos(row.at()),
-        },
+        w::Outcome::Document(row) => c::Outcome::Document(document_outcome(row.value(), limits)?),
+        w::Outcome::Made(row) => c::Outcome::Made { what: made(row.what()) },
         w::Outcome::MovedToNewest(value) => c::Outcome::MovedToNewest(c::OutcomeMovedToNewest {
             newest: value.newest(),
             moved: value.moved(),
             stayed: value.stayed(),
         }),
         w::Outcome::SettingsChanged(value) => {
-            c::Outcome::SettingsChanged(super::settings::restore_outcome_settings_changed(value, limits)?)
+            c::Outcome::SettingsChanged(super::settings::restore_outcome_settings_changed(value)?)
         }
-        w::Outcome::Changed => c::Outcome::Changed,
     })
 }
 
-pub(crate) fn held_role(value: &w::HeldRole, _limits: &Limits) -> c::HeldRole {
+pub(crate) fn held_role(value: &w::HeldRole) -> c::HeldRole {
     match value {
         w::HeldRole::Owner => c::HeldRole::Owner,
         w::HeldRole::Maintainer => c::HeldRole::Maintainer,
@@ -263,16 +231,12 @@ pub(crate) fn held_role(value: &w::HeldRole, _limits: &Limits) -> c::HeldRole {
     }
 }
 
-pub(crate) fn grant(value: &w::Grant, limits: &Limits) -> c::Grant {
-    c::Grant { connector: value.connector(), kind: value.kind(), pattern: owner_pattern(value.pattern(), limits) }
-}
-
-pub(crate) fn executor(value: &w::Executor, _limits: &Limits) -> c::Executor {
+pub(crate) fn executor(value: &w::ChipExecutor) -> c::ChipExecutor {
     match value {
-        w::Executor::Agent(row) => c::Executor::Agent { charter: row.charter() },
-        w::Executor::Procedure(row) => c::Executor::Procedure { connector: row.connector(), kind: row.kind() },
-        w::Executor::Party(row) => c::Executor::Party { party: row.party() },
-        w::Executor::Role(row) => c::Executor::Role { project: row.project(), role: row.role() },
+        w::ChipExecutor::Agent(row) => c::ChipExecutor::Agent { charter: row.charter() },
+        w::ChipExecutor::Procedure(row) => c::ChipExecutor::Procedure { connector: row.connector(), kind: row.kind() },
+        w::ChipExecutor::Party(row) => c::ChipExecutor::Party { party: row.party() },
+        w::ChipExecutor::Role(row) => c::ChipExecutor::Role { project: row.project(), role: row.role() },
     }
 }
 
@@ -284,7 +248,7 @@ pub(crate) fn hold_owner(value: &w::HoldOwner) -> c::HoldOwner {
 }
 pub(crate) fn placed(value: Option<&w::PlacedLine>, limits: &Limits) -> Result<Option<c::PlacedHold>, w::Problem> {
     let Some(value) = value else { return Ok(None) };
-    if value.reason().len() > usize::try_from(limits.client.text).expect("text bound fits") {
+    if value.reason().len() > skein_lib::length::usize_of(limits.client().text) {
         return Err(super::too_large());
     }
     Ok(Some(c::PlacedHold {
@@ -305,12 +269,10 @@ pub(crate) fn placed(value: Option<&w::PlacedLine>, limits: &Limits) -> Result<O
         may_lift: value.may_lift(),
     }))
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn lacking(value: &w::Lacking, limits: &Limits) -> c::Lacking {
+pub(crate) fn lacking(value: &w::Lacking) -> c::Lacking {
     match value {
         w::Lacking::Approver => c::Lacking::Approver,
         w::Lacking::Budget(row) => c::Lacking::Budget { needed: row.needed(), left: row.left() },
-        w::Lacking::Grant(row) => c::Lacking::Grant(grant(row.value(), limits)),
         w::Lacking::GrantKind(row) => c::Lacking::GrantKind { kind: row.kind() },
         w::Lacking::Funding => c::Lacking::Funding,
         w::Lacking::Tool => c::Lacking::Tool,
@@ -329,7 +291,7 @@ pub(crate) fn lacking(value: &w::Lacking, limits: &Limits) -> c::Lacking {
         w::Lacking::Unguarded(row) => c::Lacking::Unguarded { connector: row.connector(), kind: row.kind() },
         w::Lacking::TaskKind(row) => {
             let opt0 = match &row.executor() {
-                Some(item) => Some(executor(item, limits)),
+                Some(item) => Some(executor(item)),
                 None => None,
             };
             c::Lacking::TaskKind { executor: opt0 }
@@ -362,7 +324,7 @@ pub(crate) fn lacking(value: &w::Lacking, limits: &Limits) -> c::Lacking {
     }
 }
 
-pub(crate) fn admission_limit(value: &w::AdmissionLimit, _limits: &Limits) -> c::AdmissionLimit {
+pub(crate) fn admission_limit(value: &w::AdmissionLimit) -> c::AdmissionLimit {
     match value {
         w::AdmissionLimit::Goals => c::AdmissionLimit::Goals,
         w::AdmissionLimit::Operations => c::AdmissionLimit::Operations,
@@ -415,9 +377,9 @@ pub(crate) fn admission_limit(value: &w::AdmissionLimit, _limits: &Limits) -> c:
     }
 }
 
-pub(crate) fn limit(value: &w::Limit, limits: &Limits) -> c::Limit {
+pub(crate) fn limit(value: &w::Limit) -> c::Limit {
     match value {
-        w::Limit::Admission(row) => c::Limit::Admission { which: admission_limit(row.which(), limits) },
+        w::Limit::Admission(row) => c::Limit::Admission { which: admission_limit(row.which()) },
         w::Limit::LiveTasks(row) => c::Limit::LiveTasks { project: row.project(), limit: row.limit() },
         w::Limit::Inbox(row) => c::Limit::Inbox { task: row.task(), limit: row.limit() },
         w::Limit::Words(row) => c::Limit::Words { limit: row.limit() },
@@ -434,7 +396,7 @@ fn hold_reason(value: &w::HoldReason, limits: &Limits) -> Result<c::HoldReason, 
     super::facts::hold_reason(value, limits)
 }
 
-pub(crate) fn hold_failure(value: &w::HoldFailure, _limits: &Limits) -> c::HoldFailure {
+pub(crate) fn hold_failure(value: &w::HoldFailure) -> c::HoldFailure {
     match value {
         w::HoldFailure::Transient => c::HoldFailure::Transient,
         w::HoldFailure::Permanent => c::HoldFailure::Permanent,
@@ -445,7 +407,7 @@ pub(crate) fn hold_failure(value: &w::HoldFailure, _limits: &Limits) -> c::HoldF
     }
 }
 
-pub(crate) fn hold_category(value: &w::HoldCategory, limits: &Limits) -> c::HoldCategory {
+pub(crate) fn hold_category(value: &w::HoldCategory) -> c::HoldCategory {
     match value {
         w::HoldCategory::Exceeded(value) => c::HoldCategory::Exceeded(c::Exceeded {
             bound: match value.bound() {
@@ -461,7 +423,7 @@ pub(crate) fn hold_category(value: &w::HoldCategory, limits: &Limits) -> c::Hold
             },
             value: value.value(),
         }),
-        w::HoldCategory::Failures(row) => c::HoldCategory::Failures { class: hold_failure(row.class(), limits) },
+        w::HoldCategory::Failures(row) => c::HoldCategory::Failures { class: hold_failure(row.class()) },
         w::HoldCategory::Stalled => c::HoldCategory::Stalled,
         w::HoldCategory::Dependency(row) => c::HoldCategory::Dependency { task: row.task() },
         w::HoldCategory::Stopped => c::HoldCategory::Stopped,
@@ -484,7 +446,7 @@ pub(crate) fn hold_category(value: &w::HoldCategory, limits: &Limits) -> c::Hold
 pub(crate) fn current_hold(value: &w::CurrentHold, limits: &Limits) -> Result<c::CurrentHold, w::Problem> {
     Ok(match value {
         w::CurrentHold::Document(row) => c::CurrentHold::Document(Box::new(hold_reason(row.value(), limits)?)),
-        w::CurrentHold::Reason(row) => c::CurrentHold::Reason(hold_category(row.value(), limits)),
+        w::CurrentHold::Reason(row) => c::CurrentHold::Reason(hold_category(row.value())),
     })
 }
 
@@ -509,12 +471,11 @@ fn ending(value: &w::Ending, limits: &Limits) -> Result<c::Ending, w::Problem> {
     super::facts::ending(value, limits)
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal, w::Problem> {
     Ok(match value {
         w::Refusal::Role(row) => {
             let opt0 = match &row.held() {
-                Some(item) => Some(held_role(item, limits)),
+                Some(item) => Some(held_role(item)),
                 None => None,
             };
             c::Refusal::Role { held: opt0 }
@@ -525,13 +486,13 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
         w::Refusal::Dependency(value) => c::Refusal::Dependency {
             dependency: value.dependency(),
             how: match value.how() {
-                w::OwnerTaskStatus::Done => c::OwnerTaskStatus::Done,
-                w::OwnerTaskStatus::Failed => c::OwnerTaskStatus::Failed,
-                w::OwnerTaskStatus::Cancelled => c::OwnerTaskStatus::Cancelled,
+                w::TaskStatus::Done => c::TaskStatus::Done,
+                w::TaskStatus::Failed => c::TaskStatus::Failed,
+                w::TaskStatus::Cancelled => c::TaskStatus::Cancelled,
             },
         },
-        w::Refusal::Stale(value) => c::Refusal::Stale(super::settings::restore_refusal_stale(value, limits)?),
-        w::Refusal::Full(value) => c::Refusal::Full(super::settings::restore_refusal_full(value, limits)?),
+        w::Refusal::Stale(value) => c::Refusal::Stale(super::settings::restore_refusal_stale(value)?),
+        w::Refusal::Full(value) => c::Refusal::Full(super::settings::restore_refusal_full(value)?),
         w::Refusal::NotWaiting => c::Refusal::NotWaiting,
         w::Refusal::NoFurther => c::Refusal::NoFurther,
         w::Refusal::Authority(row) => {
@@ -539,18 +500,16 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
                 Some(item) => Some(*item),
                 None => None,
             };
-            c::Refusal::Authority { lacking: lacking(row.lacking(), limits), proposable: opt0 }
+            c::Refusal::Authority { lacking: lacking(row.lacking()), proposable: opt0 }
         }
-        w::Refusal::Limit(row) => c::Refusal::Limit { which: limit(row.which(), limits) },
-        w::Refusal::Moved(row) => {
-            c::Refusal::Moved { now: revision(row.now(), limits), what: moved(row.what(), limits)? }
-        }
+        w::Refusal::Limit(row) => c::Refusal::Limit { which: limit(row.which()) },
+        w::Refusal::Moved(row) => c::Refusal::Moved { now: revision(row.now()), what: moved(row.what(), limits)? },
         w::Refusal::Ended(row) => c::Refusal::Ended { how: ending(row.how(), limits)? },
         w::Refusal::Malformed(row) => c::Refusal::Malformed {
             at: row.at(),
             why: match row.why() {
                 w::Malformed::Settings(value) => {
-                    c::Malformed::Settings(super::settings::restore_malformed_settings(value, limits)?)
+                    c::Malformed::Settings(super::settings::restore_malformed_settings(value)?)
                 }
                 w::Malformed::Running => c::Malformed::Running,
                 w::Malformed::SettingsUnchanged => c::Malformed::SettingsUnchanged,
@@ -610,7 +569,7 @@ pub(crate) fn credential(record: &w::Owned, limits: &Limits) -> Option<(u64, ske
     if record.owner() != &w::Owner::Jig || record.version() != jig_client_protocol_wire::VERSION {
         return None;
     }
-    let w::Final::Done(value) = w::Final::decode(&limits.wire, &mut Reader::new(record.record())).ok()? else {
+    let w::Final::Done(value) = w::Final::decode(limits.wire(), &mut Reader::new(record.record())).ok()? else {
         return None;
     };
     let w::Outcome::Made(value) = value.into_parts().outcome else { return None };
@@ -636,10 +595,10 @@ pub fn answer(record: w::KeyedAnswer, limits: &Limits) -> Result<c::Answer, supe
     if value.owner() != &w::Owner::Jig || value.version() != jig_client_protocol_wire::VERSION {
         return Err(super::Undecodable::Version);
     }
-    if u64::try_from(value.record().len()).expect("usize fits u64") > limits.client.document_bytes {
+    if u64::try_from(value.record().len()).expect("usize fits u64") > limits.client().document_bytes {
         return Err(super::Undecodable::TooLarge);
     }
-    let value = match w::Final::decode(&limits.wire, &mut Reader::new(value.record())) {
+    let value = match w::Final::decode(limits.wire(), &mut Reader::new(value.record())) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
@@ -652,19 +611,6 @@ pub fn answer(record: w::KeyedAnswer, limits: &Limits) -> Result<c::Answer, supe
             Ok(refusal) => Ok(c::Answer::Refused { refusal, at: *value.at() }),
             Err(problem) => Err(classify(problem)),
         },
-    }
-}
-
-fn classify(problem: w::Problem) -> super::Undecodable {
-    match problem.reason {
-        skein_codec::Reason::Bound => super::Undecodable::TooLarge,
-        skein_codec::Reason::Malformed
-        | skein_codec::Reason::Tag
-        | skein_codec::Reason::Utf8
-        | skein_codec::Reason::Short
-        | skein_codec::Reason::Bool
-        | skein_codec::Reason::Version
-        | skein_codec::Reason::Trailing => super::Undecodable::Malformed,
     }
 }
 
@@ -708,17 +654,17 @@ fn original_nonzero_recipient_survives_wire_decoding_and_contract_translation() 
     )
     .expect("existing small client fixture bounds");
     for to in [7, 91, u32::MAX] {
-        let original = w::OwnerOutcome::Proposed(
-            w::OwnerOutcomeProposed::new(&limits.wire, w::OwnerOutcomeProposedParts { proposal: 31, to })
+        let original = w::DocumentOutcome::Proposed(
+            w::OutcomeProposed::new(limits.wire(), w::OutcomeProposedParts { proposal: 31, to })
                 .expect("recipient record"),
         );
-        let mut out = Writer::new(usize::try_from(original.measure()).expect("small result"));
+        let mut out = Writer::new(skein_lib::length::usize_of(original.measure()));
         original.encode(&mut out).expect("measured room");
         let bytes = out.finish();
-        let decoded = w::OwnerOutcome::decode(&limits.wire, &mut Reader::new(&bytes)).expect("real record decoder");
+        let decoded = w::DocumentOutcome::decode(limits.wire(), &mut Reader::new(&bytes)).expect("real record decoder");
         assert_eq!(
-            owner_outcome(&decoded, &limits).expect("contract translation"),
-            c::OwnerOutcome::Proposed { proposal: 31, to }
+            document_outcome(&decoded, &limits).expect("contract translation"),
+            c::DocumentOutcome::Proposed { proposal: 31, to }
         );
     }
 }

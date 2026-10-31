@@ -59,23 +59,9 @@ pub fn facts(task: &c::Task) -> Facts<'_> {
             Some((state, result.value.as_ref().or(value), reason))
         }
         Some(c::TaskResult::Ending(how)) => Some(owner_ending(how)),
-        None => match task.chip.details.as_ref() {
-            c::ChipPhase::Owner { details, .. } => match &details.ending {
-                Some(how) => Some(owner_ending(how)),
-                None => None,
-            },
-            c::ChipPhase::Ended { how, .. } => Some(ending(how)),
-            c::ChipPhase::Active(_)
-            | c::ChipPhase::Waiting { .. }
-            | c::ChipPhase::Idle { .. }
-            | c::ChipPhase::Starting
-            | c::ChipPhase::Running { .. }
-            | c::ChipPhase::WaitingForWords { .. }
-            | c::ChipPhase::BackingOff { .. }
-            | c::ChipPhase::Procedure { .. }
-            | c::ChipPhase::Person { .. }
-            | c::ChipPhase::Closing(_)
-            | c::ChipPhase::Held { .. } => None,
+        None => match &task.chip.details.details.ending {
+            Some(how) => Some(owner_ending(how)),
+            None => None,
         },
     };
     let (mut state, value, reason) = ended.unwrap_or((
@@ -150,13 +136,11 @@ fn ending(how: &c::Ending) -> (State, Option<&c::ResultValue>, Option<&[u8]>) {
         c::Ending::Decided { .. } | c::Ending::Deleted => (State::Ended, None, None),
     }
 }
-fn owner_ending(how: &c::OwnerChipEnding) -> (State, Option<&c::ResultValue>, Option<&[u8]>) {
+fn owner_ending(how: &c::ChipEnding) -> (State, Option<&c::ResultValue>, Option<&[u8]>) {
     match how {
-        c::OwnerChipEnding::Done(value) => (State::Done, Some(value), None),
-        c::OwnerChipEnding::Failed(reason) => (State::Failed, None, Some(reason.bytes())),
-        c::OwnerChipEnding::Cancelled { reason, result, .. } => {
-            (State::Cancelled, result.as_ref(), Some(reason.bytes()))
-        }
+        c::ChipEnding::Done(value) => (State::Done, Some(value), None),
+        c::ChipEnding::Failed(reason) => (State::Failed, None, Some(reason.bytes())),
+        c::ChipEnding::Cancelled { reason, result, .. } => (State::Cancelled, result.as_ref(), Some(reason.bytes())),
     }
 }
 /// The tasks a delegate call made (temper-engine-smith answers.rs `CallAnswer::Delegated`): none
@@ -223,13 +207,8 @@ pub fn results(summary: &[u8], into: &mut List<u64>) {
 }
 /// The task whose result a chat heard (jig's owner activity `Heard`, a result from a task).
 #[must_use]
-pub fn heard(line: &c::OwnerActivity) -> Option<u64> {
-    if let c::OwnerActivity::Heard(c::OwnerWord {
-        from: c::OwnerRequester::Task(task),
-        kind: c::OwnerMessageKind::Result(_),
-        ..
-    }) = line
-    {
+pub fn heard(line: &c::Activity) -> Option<u64> {
+    if let c::Activity::Heard(c::Word { from: c::Requester::Task(task), kind: c::MessageKind::Result(_), .. }) = line {
         Some(*task)
     } else {
         None

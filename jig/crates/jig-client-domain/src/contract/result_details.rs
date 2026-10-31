@@ -1,11 +1,11 @@
 //! Result metadata and linked task identities (client/domain/objects.md, 8;
 //! client/domain/contract.md, 5). Missing stored facts stay absent.
-use super::{Chip, OwnerExecutor, ProposalKey, TaskContractDocument};
+use super::{Chip, Executor, ProposalKey, TaskContractDocument};
 use skein_lib::{List, Wall};
 
 /// The owner that requested a task, including deployment work.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerRequester {
+pub enum Requester {
     /// A task with this never-reused number.
     Task(u64),
     /// A person with this party number.
@@ -16,7 +16,7 @@ pub enum OwnerRequester {
 
 /// An ended task's supplied status, without requiring its stored result.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerTaskStatus {
+pub enum TaskStatus {
     /// Completed successfully.
     Done,
     /// Failed.
@@ -27,16 +27,16 @@ pub enum OwnerTaskStatus {
 
 /// A task reference with only the identity and history its owner supplied.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerTaskLink {
+pub enum TaskLink {
     /// A live, visible task with its whole chip.
     Live(Chip),
     /// An ended task whose chip is retained; its wall clock may be unavailable.
     Retained { chip: Chip, at: Option<Wall> },
     /// A stored task number, with a status only when supplied.
-    Stored { number: u64, status: Option<OwnerTaskStatus> },
+    Stored { number: u64, status: Option<TaskStatus> },
 }
 
-impl OwnerTaskLink {
+impl TaskLink {
     /// The supplied task identity, including references without a chip.
     #[must_use]
     pub const fn number(&self) -> u64 {
@@ -51,12 +51,12 @@ impl OwnerTaskLink {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ResultDetails {
     pub contract: TaskContractDocument,
-    pub requester: OwnerRequester,
-    pub executor: OwnerExecutor,
+    pub requester: Requester,
+    pub executor: Executor,
     pub chosen_by: Option<u64>,
-    pub delegates: List<OwnerTaskLink>,
+    pub delegates: List<TaskLink>,
     /// None means unavailable; Some(empty) supplies an empty reference list.
-    pub followups: Option<List<OwnerTaskLink>>,
+    pub followups: Option<List<TaskLink>>,
     pub proposal: Option<ProposalKey>,
     /// Aggregate owner list loss; it does not identify a particular list.
     pub cut: bool,

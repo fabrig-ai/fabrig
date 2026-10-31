@@ -22,26 +22,26 @@ pub(super) fn root(act: ActKind, admission: Admission) -> temper_client_domain::
     acts.push(c::Offered { act, admission, effect: None }).expect("one act");
     let mut funding = List::with_capacity(SINGLE_OFFER);
     funding
-        .push(c::OwnerFundingOffer {
+        .push(c::FundingOffer {
             source: c::Funder::Pool { project: fixtures::PROJECT, person: PARTY, period: FUNDING_PERIOD },
             needed: FUNDING_NEEDED,
             left: Some(FUNDING_LEFT),
             after: Some(FUNDING_AFTER),
         })
         .expect("one funding source");
-    let page = c::OwnerProposal {
+    let page = c::Proposal {
         key: PROPOSAL,
         project: fixtures::PROJECT,
         reason: c::DocumentText::complete(text(b"Make a goal")),
-        action: c::OwnerProposalAction::Batch(List::with_capacity(EMPTY_BATCH)),
+        action: c::ProposalAction::Batch(List::with_capacity(EMPTY_BATCH)),
         as_holder: true,
-        waiting: c::OwnerProposalWaiting { holder: c::OwnerHistoryHolder::Person(PARTY), since: Wall::EPOCH },
+        waiting: c::ProposalWaiting { holder: c::HistoryHolder::Person(PARTY), since: Wall::EPOCH },
         funding,
         acts,
     };
     fixtures::inbox_with_document(
         Filter::ALL,
-        Some((Read::Proposal { proposal: PROPOSAL }, ReadValue::OwnerProposal(Box::new(page)))),
+        Some((Read::Proposal { proposal: PROPOSAL }, ReadValue::Proposal(Box::new(page)))),
     )
 }
 fn press(root: &mut temper_client_domain::Domain, act: Act) {
@@ -50,7 +50,7 @@ fn press(root: &mut temper_client_domain::Domain, act: Act) {
 fn open(root: &mut temper_client_domain::Domain, act: ActKind) {
     press(root, Act::Decide { object: ObjectKey::Proposal(PROPOSAL), revision: None, act });
 }
-const ACCEPT_WORDS: [&[u8]; 4] = [b"Why", b"Funds 5 from your pool", b"20 left", b"15 after"];
+const ACCEPT_WORDS: [&[u8]; 4] = [b"Why", b"Funding needed: 5", b"Funding left: 20", b"Funding after: 15"];
 #[test]
 fn the_accept_confirmation_says_what_it_grants_costs_and_leaves_in_the_pool() {
     let mut root = root(ActKind::Accept, Admission::Allowed);

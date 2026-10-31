@@ -5,6 +5,7 @@ use super::*;
 
 fn limits() -> Limits {
     Limits {
+        vocabulary: Vocabulary::reference(),
         services: 4,
         environments: 4,
         pools: 2,
@@ -854,4 +855,137 @@ fn nonmixed_system_facts_return_from_the_splitter_unchanged() {
     ] {
         assert_eq!(split(&domain, &split_env(), input.clone()), Err(input));
     }
+}
+
+fn environment_spec() -> Spec {
+    Spec {
+        parameters: Box::new([
+            Parameter::Bytes { name: 1, value: Box::from(*b"staging") },
+            Parameter::Bytes { name: 2, value: Box::from(*b"payments") },
+            Parameter::Number { name: 3, value: 604_800 },
+            Parameter::Number { name: 4, value: 40 },
+            Parameter::Number { name: 5, value: 7200 },
+        ]),
+    }
+}
+
+#[test]
+fn provision_preserves_opaque_environment_parameters_and_distinct_pool_hold() {
+    let vocabulary = Vocabulary::reference();
+    let mut spec = environment_spec();
+    assert_eq!(
+        procedure(&vocabulary, PROVISION_CODE, &spec, [1; 16]),
+        Some(Procedure::Provision { environment: environment(), until: 604_800, price: 40, deadline: 7200 })
+    );
+    assert_eq!(
+        holdings(&vocabulary, 2, Executor::Procedure { connector: 2, code: PROVISION_CODE }, &spec),
+        Some(Box::from([
+            Holding::Write { resource: Resource::Environment(environment()), kind: 2 },
+            Holding::Slot { pool: Pool(environment().pool), kind: 3 },
+        ]))
+    );
+    assert_eq!(
+        hold_kinds(&vocabulary).as_ref(),
+        &[
+            Kind { kind: 1, hold: Hold::ExclusiveWait },
+            Kind { kind: 2, hold: Hold::ExclusiveWait },
+            Kind { kind: 3, hold: Hold::PooledWait },
+        ]
+    );
+    spec.parameters = spec.parameters[..4].into();
+    assert_eq!(procedure(&vocabulary, PROVISION_CODE, &spec, [1; 16]), None, "missing deadline");
+    spec.parameters[1] = Parameter::Number { name: 2, value: 99 };
+    assert_eq!(
+        holdings(&vocabulary, 2, Executor::Procedure { connector: 2, code: PROVISION_CODE }, &spec),
+        None,
+        "numeric identities cannot replace names"
+    );
+}
+
+#[test]
+fn adding_provision_preserves_scale_and_remediate_codes_and_service_hold() {
+    let vocabulary = Vocabulary::reference();
+    let mut spec = environment_spec();
+    spec.parameters = spec.parameters[..4].into();
+    let service = Service::new(environment().pool, environment().name);
+    assert_eq!(
+        procedure(&vocabulary, 1, &spec, [1; 16]),
+        Some(Procedure::Scale { service: service.clone(), replicas: 604_800, deadline: 40 })
+    );
+    assert_eq!(
+        procedure(&vocabulary, 2, &spec, [1; 16]),
+        Some(Procedure::Remediate { service: service.clone(), operation: 604_800, deadline: 40 })
+    );
+    for code in [1, 2] {
+        assert_eq!(
+            holdings(&vocabulary, 2, Executor::Procedure { connector: 2, code }, &spec),
+            Some(Box::from([Holding::Write { resource: Resource::Service(service.clone()), kind: 1 }]))
+        );
+    }
+    assert_eq!(procedure(&vocabulary, 99, &spec, [1; 16]), None);
+}
+
+#[test]
+fn spec_hold_and_effect_identifiers_come_from_configuration() {
+    let mut vocabulary = Vocabulary::reference();
+    vocabulary.environment_until_parameter = 13;
+    vocabulary.environment_hold = 12;
+    vocabulary.pool_slot_hold = 13;
+    vocabulary.restart_effect = 11;
+    let mut spec = environment_spec();
+    assert_eq!(procedure(&vocabulary, PROVISION_CODE, &spec, [1; 16]), None);
+    spec.parameters[2] = Parameter::Number { name: 13, value: 604_800 };
+    assert!(procedure(&vocabulary, PROVISION_CODE, &spec, [1; 16]).is_some());
+    let held = holdings(&vocabulary, 2, Executor::Procedure { connector: 2, code: PROVISION_CODE }, &spec).unwrap();
+    assert_eq!(held[0], Holding::Write { resource: Resource::Environment(environment()), kind: 12 });
+    assert_eq!(held[1], Holding::Slot { pool: Pool(environment().pool), kind: 13 });
+    assert_eq!(
+        domain::describe(&Effect::Restart { service: service(), operation: 1 }, Backend::OperationIds, &vocabulary)
+            .kind,
+        11
+    );
+}
+
+#[test]
+fn observed_service_changes_wake_only_this_connectors_readers() {
+    let mut domain = Domain::new(Backend::OperationIds, &limits());
+    event(
+        &mut domain,
+        1,
+        Event::StartProcedure {
+            task: 7,
+            project: 1,
+            chat: None,
+            pending: Box::new([]),
+            added: Box::new([]),
+            procedure: Procedure::Remediate { service: service(), operation: 9, deadline: 100 },
+        },
+    );
+    let target = service();
+    let mut out =
+        event(&mut domain, 1, Event::ObservedServiceChanged { environment: target.environment, name: target.name });
+    assert_eq!(out.pop(), Some(Request::Wake { task: 7 }));
+    assert!(out.is_empty());
+    assert!(
+        event(
+            &mut domain,
+            1,
+            Event::ObservedServiceChanged { environment: Box::from(*b"other"), name: Box::from(*b"service") }
+        )
+        .is_empty()
+    );
+}
+
+#[test]
+fn outbox_outcomes_select_the_owning_procedures_input() {
+    for (outcome, signal) in [
+        (Outcome::Made, ProcedureSignal::EffectMade),
+        (Outcome::Failed, ProcedureSignal::EffectFailed),
+        (Outcome::Skipped, ProcedureSignal::EffectFailed),
+        (Outcome::Uncertain, ProcedureSignal::Step),
+    ] {
+        assert_eq!(procedure_outcome(key(), outcome), Some(Event::Procedure { task: 7, signal }));
+    }
+    let call = Key { origin: Purpose::Call { attempt: 1, completion: 1, position: 0 }, ..key() };
+    assert_eq!(procedure_outcome(call, Outcome::Made), None);
 }

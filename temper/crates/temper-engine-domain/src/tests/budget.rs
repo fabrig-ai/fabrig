@@ -9,7 +9,7 @@ use skein_lib::{Env, Queue, ReplyTo, Token};
 fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, output: core::Now) {
     let mut requests = Queue::with_capacity(1);
     requests.push(core::Request::Now(Box::new(output)));
-    crate::route::route_core_requests(domain, env, decision, core::Requests::Out(requests));
+    crate::route::route_core_requests(domain, env, decision, requests);
 }
 
 fn payload(domain: &mut Domain) -> Token {
@@ -24,7 +24,46 @@ fn payload(domain: &mut Domain) -> Token {
         refused: Box::new([]),
     };
     domain.hold_bytes(crate::budget::payload_bytes(&payload));
-    domain.payloads.insert(Some(payload)).unwrap().token()
+    domain.hub_link.retain(payload)
+}
+
+fn keep_assignment(domain: &mut Domain, assignment: crate::Assignment) {
+    let crate::Assignment {
+        task,
+        attempt,
+        conversation,
+        live,
+        charter,
+        run,
+        sections,
+        messages,
+        saved,
+        workstream,
+        workspace,
+        transcript,
+        answered,
+        settled,
+        grants,
+    } = assignment;
+    crate::link::keep_sections(domain, task, sections);
+    let brief = domain.hub_link.take_brief(task).unwrap();
+    domain
+        .assignment_parts
+        .insert(task, crate::boundary::AssignmentParts { saved, workstream, workspace, answered })
+        .unwrap();
+    domain.hub_link.keep_assignment(jig_domain_hub_link::Assignment {
+        task,
+        attempt,
+        conversation,
+        live: core::LiveAsk { text: live.text, reasoning: live.reasoning, input: live.input },
+        charter,
+        run,
+        brief,
+        messages,
+        transcript,
+        answered: settled,
+        grants,
+    });
 }
 
 #[test]
@@ -80,7 +119,7 @@ fn dropped_and_released_assignments_release_their_turns_and_sections_once() {
         let mut out = Queue::uncapped();
         match path {
             0 => {
-                domain.assignments.insert(1, assignment).unwrap();
+                keep_assignment(&mut domain, assignment);
                 now(&mut domain, &env, &mut decision, core::Now::DropAssignment { task: 1 });
                 assert_eq!(domain.held_bytes(), 0);
             }
@@ -126,7 +165,7 @@ fn replacing_a_turn_write_releases_only_the_old_body_and_issue_releases_the_new_
         let Write::Save(crate::Record::Core(row)) = write else { unreachable!() };
         requests.push(core::Request::Write(core::Write::Save(row)));
     }
-    crate::route::route_core_requests(&mut domain, &env, &mut decision, core::Requests::Out(requests));
+    crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
     assert_eq!(domain.held_bytes(), 7);
     crate::decision::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, true)
         .unwrap();
@@ -140,7 +179,7 @@ fn replacing_a_turn_write_releases_only_the_old_body_and_issue_releases_the_new_
 }
 
 // A real task in the child with its current proof, for accepted-turn callbacks
-// that the fleet would ordinarily produce. Its bodies enter through the slab.
+// that the fleet would ordinarily produce. Its bodies enter through the link.
 fn turn_root() -> (Domain, Env<Limits>) {
     let (mut domain, env) = resume_fixture::root();
     let mut out = Queue::uncapped();

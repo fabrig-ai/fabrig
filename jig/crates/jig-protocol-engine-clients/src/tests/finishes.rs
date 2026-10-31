@@ -25,7 +25,8 @@ fn finish(exchange: &mut Exchange, bytes: &[u8]) -> Token {
         .unwrap(),
     );
     let ask = w::Ask::AccountChange(
-        w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AccountHolder::Own, change }).unwrap(),
+        w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
+            .unwrap(),
     );
     let keyed = w::Keyed::new(
         &limits,

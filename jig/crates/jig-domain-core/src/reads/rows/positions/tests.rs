@@ -1,6 +1,10 @@
-use super::super::{Answer, Cursor, Filter, Group, Key, Position, Range, Record, Row, Scope, Why, tasks};
-use crate::reads;
-use crate::tests::{core, make_task, stored_row};
+use crate::{
+    reads::{
+        self,
+        rows::{Answer, Cursor, Filter, Group, Key, Position, Range, Record, Row, Scope, Why, tasks},
+    },
+    tests::{core, make_task, stored_row},
+};
 use alloc::boxed::Box;
 use skein_lib::Wall;
 
@@ -77,7 +81,7 @@ fn an_inbox_page_that_skipped_rows_goes_on_from_the_last_examined() {
     let scope = Scope::Inbox { group: Group::Results, filter: Filter { project: None, goal: None } };
     let row = result_row(core.tasks.task(1).unwrap());
     let next = update_position(10, 98);
-    let answer = super::super::from_store(
+    let answer = reads::rows::from_store(
         &core,
         &limits,
         &range(scope.clone()),
@@ -96,7 +100,7 @@ fn a_page_that_returned_none_within_its_bound_is_cut_not_ended() {
     let scope = Scope::Inbox { group: Group::Results, filter: Filter { project: None, goal: None } };
     let next = update_position(10, 98);
     let answer =
-        super::super::from_store(&core, &limits, &range(scope.clone()), Box::new([]), Some(next.clone()), Wall::EPOCH);
+        reads::rows::from_store(&core, &limits, &range(scope.clone()), Box::new([]), Some(next.clone()), Wall::EPOCH);
     let Answer::Page(page) = answer else { panic!("empty filtered page is retained") };
     assert!(page.rows.is_empty());
     assert!(page.cut);
@@ -112,13 +116,13 @@ fn an_empty_activity_page_is_cut_only_with_a_continuation() {
     range.backwards = true;
     for after in [None, Some(next.clone())] {
         range.after = after;
-        let answer = super::super::from_store(&core, &limits, &range, Box::new([]), Some(next.clone()), Wall::EPOCH);
+        let answer = reads::rows::from_store(&core, &limits, &range, Box::new([]), Some(next.clone()), Wall::EPOCH);
         let Answer::Page(page) = answer else { panic!("empty cut page accepted") };
         assert!(page.rows.is_empty());
         assert!(page.cut);
         assert_eq!(page.next, Some(Cursor::Store { scope: scope.clone(), after: Some(next.clone()) }));
     }
-    let answer = super::super::from_store(&core, &limits, &range, Box::new([]), None, Wall::EPOCH);
+    let answer = reads::rows::from_store(&core, &limits, &range, Box::new([]), None, Wall::EPOCH);
     let Answer::Page(page) = answer else { panic!("empty ended page accepted") };
     assert!(!page.cut);
     assert!(page.next.is_none());
@@ -147,7 +151,7 @@ fn a_history_page_with_no_visible_rows_is_cut_only_with_a_continuation() {
         let position = reads::row_key(&row).unwrap();
         let next = if continuing { Some(position) } else { None };
         let answer =
-            super::super::from_store(&core, &limits, &range(scope.clone()), Box::new([row]), next.clone(), Wall::EPOCH);
+            reads::rows::from_store(&core, &limits, &range(scope.clone()), Box::new([row]), next.clone(), Wall::EPOCH);
         let Answer::Page(page) = answer else { panic!("stored history page accepted") };
         assert!(page.rows.is_empty());
         assert_eq!(page.cut, next.is_some());
@@ -170,7 +174,7 @@ fn a_continuation_outside_the_scope_or_behind_the_page_is_unknown() {
         Position::Owner(Key::Tasks(tasks::Key::History { task: 1, revision: 0 })),
     ] {
         assert_eq!(
-            super::super::from_store(&core, &limits, &range, Box::new([]), Some(next), Wall::EPOCH),
+            reads::rows::from_store(&core, &limits, &range, Box::new([]), Some(next), Wall::EPOCH),
             Answer::None(Why::Unknown),
         );
     }
@@ -192,7 +196,7 @@ fn a_nonempty_activity_page_cannot_continue_from_an_unexamined_position() {
     );
     let next = Position::Owner(Key::Tasks(tasks::Key::Activity { task: 1, position: 7 }));
     assert_eq!(
-        super::super::from_store(&core, &limits, &range, Box::new([row]), Some(next), Wall::EPOCH),
+        reads::rows::from_store(&core, &limits, &range, Box::new([row]), Some(next), Wall::EPOCH),
         Answer::None(Why::Unknown),
     );
 }
@@ -203,7 +207,7 @@ fn a_subtree_history_page_moves_from_one_task_to_the_next() {
     let scope = Scope::History { task: 1, subtree: true };
     let rows = subtree_rows(core.tasks.task(1).unwrap());
     let next = reads::row_key(rows.last().unwrap()).unwrap();
-    let answer = super::super::from_store(&core, &limits, &range(scope.clone()), rows, Some(next.clone()), Wall::EPOCH);
+    let answer = reads::rows::from_store(&core, &limits, &range(scope.clone()), rows, Some(next.clone()), Wall::EPOCH);
     let Answer::Page(page) = answer else { panic!("task-by-task history accepted") };
     assert_eq!(page.rows.len(), 2);
     assert_eq!(page.next, Some(Cursor::Store { scope, after: Some(next) }));
@@ -222,7 +226,7 @@ fn subtree_history_does_not_return_to_a_task_already_examined() {
     let mut extra = subtree_rows(owner).into_iter();
     repeated.push(extra.next().unwrap()).unwrap();
     assert_eq!(
-        super::super::from_store(&core, &limits, &range(scope), repeated.into_boxed(), None, Wall::EPOCH),
+        reads::rows::from_store(&core, &limits, &range(scope), repeated.into_boxed(), None, Wall::EPOCH),
         Answer::None(Why::Unknown)
     );
 }

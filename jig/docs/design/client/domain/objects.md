@@ -106,7 +106,8 @@ section 13.
 
 A task named anywhere (a plan, an entry, a history line, a turn) is a
 chip: its number, its title, its executor's kind, its phase, kept live
-while it shows, linking to its page.
+while it shows, linking to its page. Its `ChipPhase` carries the owner
+phase and its mandatory owner details together.
 
 | The engine's phase | The client says |
 |---|---|
@@ -147,12 +148,11 @@ authority it needs (`../../domain/tasks.md`, section 9;
     asks for ("budget 10 → 25"; "also restart services in production");
   - *an amendment* beyond its amender's authority: the task, and the
     change, before and after.
-- **What it needs, and who would fund it:** "funds 40 from your pool: 120
-  left this period, 80 after", from the proposal's document
-  (contract.md, 5.4).
-- **Where it has been:** passed up by whom, or past which holders that
-  could not cover it, and why ("I may not restart services in
-  production").
+- **Its supplied authority and funding:** the `OwnerProposal` action
+  carries its authority facts where supplied, and its funding rows name
+  their sources and amounts (contract.md, 5.4).
+- **Where it waits:** its current holder and the supplied waiting time,
+  from `OwnerProposal.waiting`.
 - **Its actions,** each a `Decide`:
   - *accept,* when the party covers what it needs; otherwise not offered,
     and the card says what they lack;
@@ -186,12 +186,12 @@ Proposal from I, incident: checkout errors                waiting 4 min
 A held task whose escalation reached the party
 (`../../domain/tasks.md`, 5.5 and section 9).
 
-- **The task,** as a chip, and **why it is held,** in words, with what
-  tells the story (the table below).
+- **The task,** from `OwnerEscalation.task`, and **why it is held,**
+  from its owner hold, in words with the supplied details (the table below).
 - **What it had done:** its phase before the hold; its result, if it was
   closing.
-- **Where it has been:** which holders it passed, and why; or "I has it"
-  while a task above may still decide it. A party in whose tree the
+- **Where it waits:** the owner hold's supplied escalation state and
+  current holder. A party in whose tree the
   task is, or whose role in the project allows it, may release, amend or
   cancel it wherever its escalation waits; leaving it held or passing it
   up is the escalation's holder's, while it waits for them; the first
@@ -263,8 +263,8 @@ A task whose executor is the party, or a role they hold
   party).
 - **The results it depends on,** side by side when there are several: a
   choice between two reports shows both.
-- **Its contract,** as the form that answers it, an `Answer` naming the
-  person task's revision:
+- **Its contract,** from `OwnerPersonTask.contract`, as the form that
+  answers it, an `Answer` naming the person task's revision:
   - *a choice* among the options its spec lists, with words to say why;
   - *an approval* of a state its procedure names, which its connector
     shows (a part); the answer names the state it approves, and is

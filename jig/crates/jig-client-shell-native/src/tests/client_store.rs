@@ -54,7 +54,7 @@ pub(super) fn bounds() -> client::Limits {
     }
 }
 fn stream(machine: &mut client::Client, record: &w::StreamEvent, out: &mut Queue<Request>) {
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("test record size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured stream record");
     machine.step(Time::ZERO, Wall::EPOCH, Event::Streamed { message: client::Streamed::Record(writer.finish()) }, out);
 }
@@ -101,7 +101,7 @@ pub(super) fn mixed_turn() -> (client::Client, Queue<Request>) {
     let mut parts = jig_client_test_records::frame_record().into_parts();
     parts.retention = Duration::from_secs(60);
     let me = w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, parts).expect("me"));
-    let mut writer = Writer::new(usize::try_from(me.measure()).expect("me size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(me.measure()));
     me.encode(&mut writer).expect("measured me");
     let document =
         w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: VERSION, record: writer.finish() })
@@ -125,14 +125,28 @@ pub(super) fn mixed_turn() -> (client::Client, Queue<Request>) {
         })
         .expect("first request sent");
     discard(&mut out);
-    let done = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome: w::Outcome::Changed }).expect("done"));
-    let mut writer = Writer::new(usize::try_from(done.measure()).expect("answer size"));
+    let done = w::Final::Done(
+        w::Done::new(
+            &w::CEILINGS,
+            w::DoneParts {
+                outcome: w::Outcome::Document(
+                    w::OutcomeDocument::new(
+                        &w::CEILINGS,
+                        w::OutcomeDocumentParts { value: w::DocumentOutcome::AccountChanged },
+                    )
+                    .expect("owner outcome"),
+                ),
+            },
+        )
+        .expect("done"),
+    );
+    let mut writer = Writer::new(skein_lib::length::usize_of(done.measure()));
     done.encode(&mut writer).expect("measured final answer");
     let owned =
         w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: VERSION, record: writer.finish() })
             .expect("owned answer");
     let answer = w::KeyedAnswer::FinalAnswer(owned);
-    let mut writer = Writer::new(usize::try_from(answer.measure()).expect("reply size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut writer).expect("measured reply");
     machine.step(Time::ZERO, Wall::EPOCH, Event::Reply { exchange, message: writer.finish() }, &mut out);
     machine.step(Time::ZERO, Wall::EPOCH, send(NEXT), &mut out);

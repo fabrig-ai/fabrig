@@ -1,6 +1,10 @@
 //! Connector loading and the durable output gate (jig/docs/design/domain/engine.md, 6).
-use super::{Action, Core, Env, Phase, Queue, Request, SweepInput, Time, Wall, config, limits, step_phase};
-use crate::{Ask, CoreRecord, Restored, connector, resources, tasks};
+use crate::{
+    Ask, CoreRecord, Restored,
+    effects::{connector, resources},
+    tasks,
+    tests::start::{Action, Core, Env, Phase, Queue, Request, SweepInput, Time, Wall, config, limits, step_phase},
+};
 
 fn fresh() -> (Core, Env<crate::Limits>) {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
@@ -16,7 +20,7 @@ fn fresh() -> (Core, Env<crate::Limits>) {
     header.projects = 1;
     assert_eq!(core.restore_core(CoreRecord::Deployment(header), &env.limits), Restored::Deployment { commits: 1 });
     let project = &config(41).seed_projects[0];
-    let value = crate::policy::snapshot(&project.policy.policy, &[], &[]).expect("fixture policy");
+    let value = crate::admission::policy::snapshot(&project.policy.policy, &[], &[]).expect("fixture policy");
     assert!(core.restore_policy(&env.limits, project.number, project.name.clone(), value));
     (core, env)
 }
@@ -74,12 +78,12 @@ fn resource_reports_load_access_slots_and_holds_before_link_without_asking() {
             let mut child = Queue::uncapped();
             tasks::step(
                 &mut core.tasks,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+                &env.with(env.limits.tasks),
                 tasks::Event::Restore { record: tasks::Stored::Pool(pool) },
                 &mut child,
             );
             assert!(child.is_empty());
-            let crate::Requests::Out(mut out) = crate::step(
+            let out = crate::step(
                 &mut core,
                 &env,
                 crate::Event::EffectConnector(connector::Event::Resource {
@@ -89,7 +93,6 @@ fn resource_reports_load_access_slots_and_holds_before_link_without_asking() {
                     hold: connector::HoldKind::Pooled { slots: 5, wait: true },
                 }),
             );
-            let Some(Request::Decided) = out.pop() else { panic!("loading decision completes") };
             assert!(out.is_empty(), "loading reports cannot emit connector asks or other outputs");
             assert_eq!(
                 core.tasks.resource_hold(&name(connector)),
@@ -148,7 +151,7 @@ fn a_connector_ask_waits_for_the_wires_continuation() {
             Request::Now(now) => {
                 let crate::Now::Account(_) = *now else { panic!("account startup output") };
             }
-            Request::Decided => {}
+
             Request::Ask { .. } | Request::Held(_) | Request::Write(_) | Request::ProjectMade { .. } => {
                 panic!("only the held connector ask and account startup leave")
             }

@@ -54,7 +54,7 @@ impl Setup {
                 client.account_request(accounts::declare_program(
                     key(1),
                     [71; 16],
-                    c::AccountHolder::Own,
+                    c::AskAccountHolder::Own,
                     1,
                     None,
                     b"alice".as_slice().into(),
@@ -63,7 +63,7 @@ impl Setup {
                 client.account_request(accounts::add_key(
                     key(1),
                     [71; 16],
-                    c::AccountHolder::Deployment,
+                    c::AskAccountHolder::Deployment,
                     1,
                     None,
                     Secret::new(value.into()),
@@ -77,8 +77,9 @@ impl Setup {
             .filter_map(|r| {
                 if let Received::Answer {
                     answer:
-                        answer @ c::Answer::Done(c::Outcome::Owner(
-                            c::OwnerOutcome::AccountKeyKept { .. } | c::OwnerOutcome::AccountProgramDeclared { .. },
+                        answer @ c::Answer::Done(c::Outcome::Document(
+                            c::DocumentOutcome::AccountKeyKept { .. }
+                            | c::DocumentOutcome::AccountProgramDeclared { .. },
                         )),
                     ..
                 } = r
@@ -90,8 +91,9 @@ impl Setup {
             })
             .collect();
         for answer in &replies[self.answers..] {
-            let c::Answer::Done(c::Outcome::Owner(
-                c::OwnerOutcome::AccountKeyKept { source } | c::OwnerOutcome::AccountProgramDeclared { source, .. },
+            let c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::AccountKeyKept { source }
+                | c::DocumentOutcome::AccountProgramDeclared { source, .. },
             )) = answer
             else {
                 panic!("fixture source admitted: {answer:?}");
@@ -101,7 +103,7 @@ impl Setup {
                 client.account_request(accounts::add_key(
                     key(2),
                     [72; 16],
-                    c::AccountHolder::Deployment,
+                    c::AskAccountHolder::Deployment,
                     2,
                     None,
                     Secret::new(crate::fixtures::NEXT_KEY.into()),
@@ -111,7 +113,7 @@ impl Setup {
                 client.account_request(accounts::replace_key(
                     key(2),
                     [72; 16],
-                    c::AccountHolder::Deployment,
+                    c::AskAccountHolder::Deployment,
                     *source,
                     Secret::new(crate::fixtures::KEY.into()),
                 ));
@@ -145,11 +147,11 @@ impl Setup {
             .iter()
             .filter_map(|r| match r {
                 Received::Answer {
-                    answer: c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Created { first, .. })),
+                    answer: c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Created { first, .. })),
                     ..
                 } => Some(Reply::Started { task: *first }),
                 Received::Answer {
-                    answer: c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Said { task, message })),
+                    answer: c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Said { task, message })),
                     ..
                 } => Some(Reply::Said { task: *task, message: *message }),
                 Received::SignedIn { .. }
@@ -239,7 +241,7 @@ impl Setup {
         client.account_request(accounts::replace_key(
             key(3),
             [73; 16],
-            c::AccountHolder::Deployment,
+            c::AskAccountHolder::Deployment,
             self.source.expect("kept key"),
             Secret::new(crate::fixtures::NEXT_KEY.into()),
         ));
@@ -273,11 +275,9 @@ fn observe(client: &jig_client_protocol_world::native::NativeClient, views: &mut
     }
     for received in &client.received {
         match received {
-            Received::Delivery(c::Delivery::Task(task)) => match &*task.chip.details {
-                c::ChipPhase::Owner { details, .. } => views.activity_seen |= details.observation.is_some(),
-                c::ChipPhase::Active(run) => views.activity_seen |= run.observation.is_some(),
-                _ => {}
-            },
+            Received::Delivery(c::Delivery::Task(task)) => {
+                views.activity_seen |= task.chip.details.details.observation.is_some();
+            }
             Received::Delivery(c::Delivery::Run(text)) => {
                 views.text_bytes = views.text_bytes.max(text.text.bytes().len());
             }

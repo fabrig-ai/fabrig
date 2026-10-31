@@ -56,12 +56,11 @@ mod boundary;
 mod call;
 mod channel;
 mod programs;
-mod source_values;
 mod sources;
-pub use jig_domain_workers::{
+pub use jig_domain_link::{
     Membership, PROGRAM_ENDPOINTS, Problem as WorkerProblem, SourceName, Worker, valid_program_endpoints,
 };
-pub use source_values::{Login, LoginMethod, LoginState, ProgramResult, SignOutResult, SourceFailure, WORKER_NAME};
+pub use programs::{ProgramResult, WORKER_NAME};
 mod domain;
 mod facts;
 mod grants;
@@ -75,17 +74,18 @@ mod tests;
 mod turn;
 
 pub use boundary::{
-    Answer, Assignment, AttemptState, AttemptView, Call, Event, Form, Grant, GrantName, GrantTable, Hello, HostKind,
-    HostView, Hosted, Kinds, Message, Phase, Placement, PlacementConstraint, Refusal, Request, Scheme, Turned,
-    Undelivered, Withdrawal,
+    Answer, Assignment, AttemptState, AttemptView, Call, Event, GrantName, HostKind, HostView, Kinds, Message,
+    Placement, PlacementConstraint, Refusal, Request, Turned, Undelivered, Withdrawal,
 };
 pub use domain::{Domain, fire, resume, step};
 pub use facts::Fact;
 pub use history::{HelloRefusal, HelloRefusalRecord};
 pub use limits::{Limits, valid};
-pub use progress::{Activity, CountKind, Observation, Operation, Report};
-
-mod bounds;
-pub use bounds::{Bounds, ModelBound};
+pub use progress::{Activity, Observation, Report};
 
 pub use needs::{CATALOGUE_MODELS, CATALOGUE_NAME_BYTES};
+
+pub use jig_domain_link::{
+    Bounds, CountKind, Form, Grant, GrantTable, Hello, Hosting, Login, LoginMethod, LoginState, ModelBound, Operation,
+    Phase, Scheme, SignOutResult, SourceFailure,
+};

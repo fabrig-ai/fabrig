@@ -77,7 +77,7 @@ fn worker(
     let mut object = check::object(document, at, path, problems)?;
     let name = check::text(&mut object, document, b"name", path, problems);
     if let Some(name) = &name
-        && name.len() > usize::try_from(max_name).expect("byte bound fits usize")
+        && name.len() > skein_lib::length::usize_of(max_name)
     {
         problems.push(path.member(b"name"), What::Bound);
     }

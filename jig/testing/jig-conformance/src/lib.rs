@@ -6,3 +6,5 @@ pub mod referee;
 pub mod trace;
 pub use harness::{Application, Clock, Cut, Durable, Harness, Input, Outcome, Output};
 pub mod scenarios;
+
+pub mod core;

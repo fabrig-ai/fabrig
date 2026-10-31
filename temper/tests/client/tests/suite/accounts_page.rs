@@ -87,7 +87,7 @@ fn a_folded_account_rows_key_joins_that_account_and_is_shown_there() {
     let row = doc.accounts.get(0).expect("account story fixture");
     assert_eq!(row.number, before);
     assert_eq!(doc.accounts.len(), 1);
-    assert!(row.sources.iter().any(|s| s.number == key && s.kind == c::OwnerAccountKind::Key));
+    assert!(row.sources.iter().any(|s| s.number == key && s.kind == c::AccountKind::Key));
     let drawn = view(&root);
     assert!(drawn.tree().nodes().iter().any(|n| n.text.iter().any(|t| t.text.as_ref() == b"API key")));
     assert!(!root.person().pages().accounts().expect("account story fixture").request.has_key());

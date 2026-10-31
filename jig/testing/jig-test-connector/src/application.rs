@@ -95,7 +95,6 @@ impl State {
 impl Domain {
     /// Assemble the kept value during the root's admitted decision, before its held reply.
     #[must_use]
-    #[expect(clippy::manual_map, reason = "step code uses explicit matching instead of closures")]
     pub fn application_outcome(&self, token: Token) -> Option<ApplicationOutcome> {
         match self.application.answers.get(&token) {
             Some((_, outcome)) => Some(*outcome),

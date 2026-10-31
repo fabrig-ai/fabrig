@@ -44,7 +44,6 @@ jig-protocol-config.workspace = true
 jig-protocol-store.workspace = true
 jig-conformance.workspace = true
 jig-test-service = { path = "../../../jig/testing/jig-test-service" }
-jig-core-world.workspace = true
 smith-channel.workspace = true
 smith-charter.workspace = true
 skein-lib.workspace = true

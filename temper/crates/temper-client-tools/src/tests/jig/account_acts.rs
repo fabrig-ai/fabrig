@@ -74,7 +74,7 @@ fn account_acts_preserve_the_resolved_source() {
                 f::deliver_deployment(&mut root, f::deployment());
             }
             let (_, _, ask) = root.sends.get(&call).expect("resolved act");
-            let holder = if owner { c::AccountHolder::Deployment } else { c::AccountHolder::Own };
+            let holder = if owner { c::AskAccountHolder::Deployment } else { c::AskAccountHolder::Own };
             assert_eq!(ask, &jig_client::Ask::Jig(Box::new(c::Ask::AccountChange { holder, change: change.clone() })));
         }
     }
@@ -99,11 +99,11 @@ fn ambiguous_sources_are_refused_before_sending() {
 #[test]
 fn a_key_value_never_enters_the_request_store() {
     for (words, holder, join) in [
-        (ADD, c::AccountHolder::Deployment, None),
-        (&["account", "add-key", "9", "file", "--key", "add"][..], c::AccountHolder::Own, None),
+        (ADD, c::AskAccountHolder::Deployment, None),
+        (&["account", "add-key", "9", "file", "--key", "add"][..], c::AskAccountHolder::Own, None),
         (
             &["account", "add-key", "9", "file", "--account", "43", "--key", "add"],
-            c::AccountHolder::Own,
+            c::AskAccountHolder::Own,
             Some(f::ACCOUNT),
         ),
     ] {
@@ -124,7 +124,7 @@ fn a_key_value_never_enters_the_request_store() {
             }))
         );
         assert!(root.saved.is_empty());
-        root.done(call, c::Outcome::Owner(c::OwnerOutcome::AccountKeyKept { source: f::SOURCE }));
+        root.done(call, c::Outcome::Document(c::DocumentOutcome::AccountKeyKept { source: f::SOURCE }));
         assert_eq!(root.answer(call).expect("durable answer").status, 0);
     }
 }
@@ -134,11 +134,11 @@ fn connect_prints_the_watch_that_follows_its_address() {
     let call = root.submit(&["account", "connect", "0", "--key", "connect"]);
     assert_eq!(
         root.sends.get(&call).expect("configured provider zero").2,
-        jig_client::Ask::Jig(Box::new(c::Ask::SignIn { holder: c::AccountHolder::Own, provider: 0 }))
+        jig_client::Ask::Jig(Box::new(c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 0 }))
     );
     root.done(
         call,
-        c::Outcome::Owner(c::OwnerOutcome::AccountSignInStarted {
+        c::Outcome::Document(c::DocumentOutcome::AccountSignInStarted {
             source: f::SOURCE,
             address: Box::from(b"http://engine/visit".as_slice()),
         }),
@@ -155,16 +155,15 @@ fn unconfirmed_disconnect_names_the_provider_settings() {
     me.providers = f::provider_offers();
     root.deliver(c::Delivery::Me(Box::new(me)));
     let mut accounts = f::accounts();
-    accounts.accounts.get_mut(0).expect("account").sources.get_mut(0).expect("source").kind =
-        c::OwnerAccountKind::SignIn;
+    accounts.accounts.get_mut(0).expect("account").sources.get_mut(0).expect("source").kind = c::AccountKind::SignIn;
     f::deliver_accounts(&mut root, accounts);
     assert_eq!(
         root.sends.get(&call).expect("disconnect").2,
-        jig_client::Ask::Jig(Box::new(c::Ask::SignOut { holder: c::AccountHolder::Own, source: f::SOURCE }))
+        jig_client::Ask::Jig(Box::new(c::Ask::SignOut { holder: c::AskAccountHolder::Own, source: f::SOURCE }))
     );
     root.done(
         call,
-        c::Outcome::Owner(c::OwnerOutcome::AccountSignedOut { confirmed: false, failed_hosts: Box::new([]) }),
+        c::Outcome::Document(c::DocumentOutcome::AccountSignedOut { confirmed: false, failed_hosts: Box::new([]) }),
     );
     let printed = root.answer(call).expect("removed locally");
     assert_eq!(printed.status, 0);
@@ -208,7 +207,7 @@ fn replacement_draws_an_ephemeral_name() {
     let call = root.submit_value(&["account", "replace-key", "43", "file"], Some(Secret::new(KEY.into())));
     f::deliver_accounts(&mut root, f::accounts());
     let first = root.sent_name(call).expect("drawn name");
-    root.done(call, c::Outcome::Owner(c::OwnerOutcome::AccountKeyKept { source: f::SOURCE }));
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::AccountKeyKept { source: f::SOURCE }));
     let next = root.submit_value(&["account", "replace-key", "43", "file"], Some(Secret::new(KEY.into())));
     f::deliver_accounts(&mut root, f::accounts());
     assert_ne!(first, root.sent_name(next).expect("second drawn name"));
@@ -216,7 +215,7 @@ fn replacement_draws_an_ephemeral_name() {
     assert_eq!(
         root.sends.get(&call).expect("replacement").2,
         jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
-            holder: c::AccountHolder::Own,
+            holder: c::AskAccountHolder::Own,
             change: c::AccountChange::ReplaceKey { source: f::SOURCE, digest: skein_lib::sha256::digest(KEY) },
         }))
     );
@@ -234,7 +233,7 @@ fn out_of_bound_secrets_are_refused_at_call_admission() {
 
 #[test]
 fn source_shorthand_resolves_the_supplied_kind() {
-    for (word, kind) in [("sign_in", c::OwnerAccountKind::SignIn), ("program", c::OwnerAccountKind::Program)] {
+    for (word, kind) in [("sign_in", c::AccountKind::SignIn), ("program", c::AccountKind::Program)] {
         for tool in ["disconnect", "forget"] {
             let mut root = f::account_root(false);
             let call = root.submit(&["account", tool, "43", "--source", word]);
@@ -243,7 +242,7 @@ fn source_shorthand_resolves_the_supplied_kind() {
             f::deliver_accounts(&mut root, accounts);
             assert_eq!(
                 root.sends.get(&call).expect("resolved sign-out").2,
-                jig_client::Ask::Jig(Box::new(c::Ask::SignOut { holder: c::AccountHolder::Own, source: f::SOURCE }))
+                jig_client::Ask::Jig(Box::new(c::Ask::SignOut { holder: c::AskAccountHolder::Own, source: f::SOURCE }))
             );
         }
     }
@@ -305,7 +304,7 @@ fn declare_validates_the_offer_and_sends_only_the_contract_fields() {
         assert_eq!(
             ask,
             &jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
-                holder: c::AccountHolder::Own,
+                holder: c::AskAccountHolder::Own,
                 change: c::AccountChange::DeclareProgram {
                     provider: f::PROVIDER,
                     join: if join { Some(f::ACCOUNT) } else { None },
@@ -315,7 +314,7 @@ fn declare_validates_the_offer_and_sends_only_the_contract_fields() {
         );
         root.done(
             call,
-            c::Outcome::Owner(c::OwnerOutcome::AccountProgramDeclared {
+            c::Outcome::Document(c::DocumentOutcome::AccountProgramDeclared {
                 source: f::SOURCE,
                 name: b"work-login".as_slice().into(),
             }),
@@ -390,7 +389,7 @@ fn verify_asks_the_supplied_program_source_then_names_the_wait() {
             let call = root.submit(words);
             let mut accounts = f::accounts();
             accounts.accounts.get_mut(0).expect("account").sources.get_mut(0).expect("source").kind =
-                c::OwnerAccountKind::Program;
+                c::AccountKind::Program;
             if owner {
                 accounts.accounts = List::with_capacity(0);
             }
@@ -398,18 +397,18 @@ fn verify_asks_the_supplied_program_source_then_names_the_wait() {
             if owner {
                 let mut deployment = f::deployment();
                 deployment.accounts.get_mut(0).expect("account").sources.get_mut(0).expect("source").kind =
-                    c::OwnerAccountKind::Program;
+                    c::AccountKind::Program;
                 f::deliver_deployment(&mut root, deployment);
             }
             assert_eq!(
                 root.sends.get(&call).expect("check request").2,
                 jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
-                    holder: if owner { c::AccountHolder::Deployment } else { c::AccountHolder::Own },
+                    holder: if owner { c::AskAccountHolder::Deployment } else { c::AskAccountHolder::Own },
                     change: c::AccountChange::CheckProgram { source: f::SOURCE },
                 }))
             );
             assert!(root.answer(call).is_none(), "wait for durable answer");
-            root.done(call, c::Outcome::Owner(c::OwnerOutcome::AccountChanged));
+            root.done(call, c::Outcome::Document(c::DocumentOutcome::AccountChanged));
             let printed = root.answer(call).expect("asked");
             assert_eq!(printed.status, 0);
             assert!(f::has(&printed, b"account list --until settled"));
@@ -418,7 +417,7 @@ fn verify_asks_the_supplied_program_source_then_names_the_wait() {
 }
 #[test]
 fn verify_refuses_sources_without_a_program_login_locally() {
-    for kind in [c::OwnerAccountKind::Key, c::OwnerAccountKind::SignIn, c::OwnerAccountKind::None] {
+    for kind in [c::AccountKind::Key, c::AccountKind::SignIn, c::AccountKind::None] {
         let mut root = f::account_root(false);
         let call = root.submit(&["account", "verify", "43"]);
         let mut accounts = f::accounts();
@@ -433,7 +432,7 @@ fn verify_refuses_sources_without_a_program_login_locally() {
 
 #[test]
 fn forget_with_cut_sources_keeps_the_source_kinds_unknown() {
-    for kind in [c::OwnerAccountKind::Key, c::OwnerAccountKind::Program, c::OwnerAccountKind::SignIn] {
+    for kind in [c::AccountKind::Key, c::AccountKind::Program, c::AccountKind::SignIn] {
         for failed in [false, true] {
             let mut root = f::account_root(false);
             let call = root.submit(&["account", "forget", "43"]);
@@ -445,7 +444,7 @@ fn forget_with_cut_sources_keeps_the_source_kinds_unknown() {
             assert_eq!(
                 root.sends.get(&call).expect("remove request").2,
                 jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
-                    holder: c::AccountHolder::Own,
+                    holder: c::AskAccountHolder::Own,
                     change: c::AccountChange::Remove { account: f::ACCOUNT },
                 }))
             );
@@ -457,7 +456,10 @@ fn forget_with_cut_sources_keeps_the_source_kinds_unknown() {
             } else {
                 Box::default()
             };
-            root.done(call, c::Outcome::Owner(c::OwnerOutcome::AccountRemoved { confirmed: false, failed_hosts }));
+            root.done(
+                call,
+                c::Outcome::Document(c::DocumentOutcome::AccountRemoved { confirmed: false, failed_hosts }),
+            );
             let printed = root.answer(call).expect("removal");
             assert_eq!(printed.status, 0);
             if failed {
@@ -479,21 +481,21 @@ fn restored_unconfirmed_sign_out_and_removal_print_the_provider_settings_advice(
             let mut records = f::restored_message(f::PARTY);
             let ask = if remove {
                 c::Ask::AccountChange {
-                    holder: c::AccountHolder::Own,
+                    holder: c::AskAccountHolder::Own,
                     change: c::AccountChange::Remove { account: f::ACCOUNT },
                 }
             } else {
-                c::Ask::SignOut { holder: c::AccountHolder::Own, source: f::SOURCE }
+                c::Ask::SignOut { holder: c::AskAccountHolder::Own, source: f::SOURCE }
             };
             records.get_mut(f::EMPTY).expect("restored request").request.request = jig_client::Ask::Jig(Box::new(ask));
             let mut root = f::started_with(records, f::SEED, json);
             root.deliver(c::Delivery::Me(Box::new(f::me(f::PARTY))));
             let done = if remove {
-                c::OwnerOutcome::AccountRemoved { confirmed: false, failed_hosts: Box::default() }
+                c::DocumentOutcome::AccountRemoved { confirmed: false, failed_hosts: Box::default() }
             } else {
-                c::OwnerOutcome::AccountSignedOut { confirmed: false, failed_hosts: Box::default() }
+                c::DocumentOutcome::AccountSignedOut { confirmed: false, failed_hosts: Box::default() }
             };
-            root.done(f::EMPTY, c::Outcome::Owner(done));
+            root.done(f::EMPTY, c::Outcome::Document(done));
             let line = root.kept_lines.get(0).expect("restored answer");
             assert!(
                 skein_lib::bytes::find(line, b"Disconnect temper in the provider's settings, under Apps.").is_some()
@@ -512,10 +514,10 @@ fn mixed_forget_reports_program_hosts_independently_of_sign_in_revocation() {
         let row = accounts.accounts.get_mut(0).expect("account");
         let mut source = row.sources.get(0).expect("source").clone();
         row.sources = List::with_capacity(2);
-        source.kind = c::OwnerAccountKind::Program;
+        source.kind = c::AccountKind::Program;
         row.sources.push(source.clone()).expect("program");
         source.number = f::SOURCE.checked_add(1).expect("other source");
-        source.kind = c::OwnerAccountKind::SignIn;
+        source.kind = c::AccountKind::SignIn;
         row.sources.push(source).expect("sign-in");
         f::deliver_accounts(&mut root, accounts);
         let failed_hosts = if failed {
@@ -526,7 +528,7 @@ fn mixed_forget_reports_program_hosts_independently_of_sign_in_revocation() {
         } else {
             Box::default()
         };
-        root.done(call, c::Outcome::Owner(c::OwnerOutcome::AccountRemoved { confirmed: false, failed_hosts }));
+        root.done(call, c::Outcome::Document(c::DocumentOutcome::AccountRemoved { confirmed: false, failed_hosts }));
         let printed = root.answer(call).expect("mixed removal");
         assert_eq!(printed.status, 0);
         if failed {
@@ -541,7 +543,7 @@ fn mixed_forget_reports_program_hosts_independently_of_sign_in_revocation() {
 
 #[test]
 fn confirmed_key_and_sign_in_results_keep_done_in_text_only() {
-    for kind in [c::OwnerAccountKind::Key, c::OwnerAccountKind::SignIn] {
+    for kind in [c::AccountKind::Key, c::AccountKind::SignIn] {
         for remove in [false, true] {
             for json in [false, true] {
                 let mut root = f::account_root(false);
@@ -555,18 +557,18 @@ fn confirmed_key_and_sign_in_results_keep_done_in_text_only() {
                 accounts.accounts.get_mut(0).expect("account").sources.get_mut(0).expect("source").kind = kind;
                 f::deliver_accounts(&mut root, accounts);
                 let done = if remove {
-                    c::OwnerOutcome::AccountRemoved { confirmed: true, failed_hosts: Box::default() }
+                    c::DocumentOutcome::AccountRemoved { confirmed: true, failed_hosts: Box::default() }
                 } else {
-                    c::OwnerOutcome::AccountSignedOut { confirmed: true, failed_hosts: Box::default() }
+                    c::DocumentOutcome::AccountSignedOut { confirmed: true, failed_hosts: Box::default() }
                 };
-                root.done(call, c::Outcome::Owner(done));
+                root.done(call, c::Outcome::Document(done));
                 let printed = root.answer(call).expect("confirmed result");
                 assert_eq!(printed.status, 0);
                 if json {
                     let expected = if remove {
-                        b"{\"operation\":\"forget\",\"outcome\":{\"done\":{\"owner\":{\"account_removed\":{\"confirmed\":true,\"failed_hosts\":[]}}}},\"task\":null,\"to\":null}".as_slice()
+                        b"{\"operation\":\"forget\",\"outcome\":{\"done\":{\"document\":{\"account_removed\":{\"confirmed\":true,\"failed_hosts\":[]}}}},\"task\":null,\"to\":null}".as_slice()
                     } else {
-                        b"{\"operation\":\"disconnect\",\"outcome\":{\"done\":{\"owner\":{\"account_signed_out\":{\"confirmed\":true,\"failed_hosts\":[]}}}},\"task\":null,\"to\":null}".as_slice()
+                        b"{\"operation\":\"disconnect\",\"outcome\":{\"done\":{\"document\":{\"account_signed_out\":{\"confirmed\":true,\"failed_hosts\":[]}}}},\"task\":null,\"to\":null}".as_slice()
                     };
                     assert_eq!(printed.stdout.as_ref(), expected);
                 } else {
@@ -597,7 +599,7 @@ fn program_disconnect_and_forget_report_confirmation_or_each_failed_host() {
                 let call = root.submit(argv.as_slice());
                 let mut accounts = f::accounts();
                 let source = accounts.accounts.get_mut(0).expect("account").sources.get_mut(0).expect("source");
-                source.kind = c::OwnerAccountKind::Program;
+                source.kind = c::AccountKind::Program;
                 source.name = Some(b"work-login".as_slice().into());
                 f::deliver_accounts(&mut root, accounts);
                 let failed_hosts = if confirmed {
@@ -613,11 +615,11 @@ fn program_disconnect_and_forget_report_confirmation_or_each_failed_host() {
                     ])
                 };
                 let done = if words.len() == 3 && words[1] == "forget" {
-                    c::OwnerOutcome::AccountRemoved { confirmed, failed_hosts }
+                    c::DocumentOutcome::AccountRemoved { confirmed, failed_hosts }
                 } else {
-                    c::OwnerOutcome::AccountSignedOut { confirmed, failed_hosts }
+                    c::DocumentOutcome::AccountSignedOut { confirmed, failed_hosts }
                 };
-                root.done(call, c::Outcome::Owner(done));
+                root.done(call, c::Outcome::Document(done));
                 let printed = root.answer(call).expect("sign-out result");
                 assert_eq!(printed.status, 0);
                 if confirmed {
@@ -658,7 +660,7 @@ fn exports_resolve_the_holder_without_selecting_a_source() {
             f::deliver_deployment(&mut root, f::deployment());
         }
         let (_, _, ask) = root.sends.get(&call).expect("move out sent");
-        let holder = if owner { c::AccountHolder::Deployment } else { c::AccountHolder::Own };
+        let holder = if owner { c::AskAccountHolder::Deployment } else { c::AskAccountHolder::Own };
         assert_eq!(
             ask,
             &jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
@@ -680,7 +682,7 @@ fn imports_carry_the_whole_record_once_as_own_at_the_bound() {
     assert_eq!(
         ask,
         &jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
-            holder: c::AccountHolder::Own,
+            holder: c::AskAccountHolder::Own,
             change: c::AccountChange::MoveIn { digest: skein_lib::sha256::digest(RECORD) },
         }))
     );
@@ -735,11 +737,11 @@ fn exports_wait_for_the_record_acknowledgment_and_render_public_fields() {
         assert_eq!(
             ask,
             &jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
-                holder: c::AccountHolder::Own,
+                holder: c::AskAccountHolder::Own,
                 change: c::AccountChange::Written { number: 83 }
             }))
         );
-        root.done(call, c::Outcome::Owner(c::OwnerOutcome::AccountChanged));
+        root.done(call, c::Outcome::Document(c::DocumentOutcome::AccountChanged));
         let printed = root.answer(call).expect("exported");
         assert_eq!((printed.status, printed.file), (0, crate::jig::FileEnd::Keep));
         if json {
@@ -767,7 +769,7 @@ fn imports_render_the_account_and_renewal_from_the_answer() {
                 &["account", "import", "record", "--key", "move-in"]
             };
             let call = root.submit_value(words, Some(Secret::new(KEY.into())));
-            root.done(call, c::Outcome::Owner(c::OwnerOutcome::AccountMovedIn { account: f::ACCOUNT, renewed }));
+            root.done(call, c::Outcome::Document(c::DocumentOutcome::AccountMovedIn { account: f::ACCOUNT, renewed }));
             let printed = root.answer(call).expect("imported");
             assert_eq!((printed.status, printed.file), (0, crate::jig::FileEnd::Remove));
             if json {

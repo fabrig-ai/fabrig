@@ -98,7 +98,7 @@ impl World {
                 }
                 GatherRequest::CutTo { section, size, .. } => {
                     let bytes = self.held.get_mut(&section).expect("cut held section");
-                    bytes.truncate(usize::try_from(size).expect("bounded size"));
+                    bytes.truncate(skein_lib::length::usize_of(size));
                     GatherEvent::Cut {
                         brief: self.brief,
                         section,
@@ -114,7 +114,7 @@ impl World {
                     for placed in &order {
                         if let GatherPlaced::Connector { token, size, .. } = placed {
                             let bytes = self.held.remove(token).expect("take held section");
-                            assert_eq!(bytes.len(), usize::try_from(*size).expect("bounded size"));
+                            assert_eq!(bytes.len(), skein_lib::length::usize_of(*size));
                             assert!(self.closed.insert(*token), "section closed twice");
                         }
                     }

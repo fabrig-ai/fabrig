@@ -1,11 +1,10 @@
 //! Ops root/view shell adapter; observations come from public requests and trees.
-#![allow(clippy::wildcard_imports, reason = "the adapter translates complete owner vocabularies")]
-use jig_client_domain::contract::Outcome;
-use jig_client_domain::contract::*;
+use jig_client_domain::contract::{Answer, Ask, Outcome, WatchEnd};
+#[cfg(test)]
+use jig_client_domain::contract::{Operation, Revision, Scope, SeenThrough, Text};
 use jig_client_view::Owner;
-use jig_client_view::boundary::Offset;
-use jig_client_world::harness::Seen;
-use jig_client_world::{harness::*, observe};
+use jig_client_world::harness::{App, CardKey, Duty, Receipt, Seen, Sent, StoreWrite};
+use jig_client_world::observe;
 use jig_ops_client_domain::{
     self as domain, Action, Address, Event, Request, infrastructure as infra, observability as obs,
 };
@@ -27,78 +26,47 @@ pub struct Ops;
 #[must_use]
 pub fn limits() -> domain::Limits {
     domain::Limits {
-        jig: jig_client_view::Limits {
-            watches: 8,
+        jig: jig_client_view::Config {
             notices: 2,
             notice_life: Duration::from_secs(5),
             // A finite fixture keeps the same before/after-linger behavior at a short scale.
             linger: Duration::from_millis(25),
             save_delay: Duration::from_millis(10),
             intents: 2,
-            fields: 4,
 
             objects: 3,
             sources: 8,
-            reads: 8,
-            parts: 8,
-            delegates: 2,
-            document_bytes: 65536,
-            records: 2,
-            kept: 4,
+
             drafts: 1,
-            projects: 2,
+
             roles: 2,
-            text: 32,
-            rows: 2,
-            segments: 4,
-            accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
+
             conversation_words: 2,
             navigation_entries: 8,
             updates_count: 99,
         },
-        observability: obs::Limits {
-            parts: 8,
-            objects: 12,
-            reads: 16,
-            watches: 16,
-            rows: 2,
-            segments: 4,
-            text: 32,
-            retry: Duration::from_millis(10),
-            document_bytes: 65536,
-        },
-        infrastructure: infra::Limits {
-            parts: 8,
-            objects: 12,
-            reads: 16,
-            watches: 16,
-            requests: 4,
-            rows: 2,
-            segments: 4,
-            text: 32,
-            retry: Duration::from_millis(10),
-            document_bytes: 65536,
-        },
+        observability: obs::Limits { objects: 12 },
+        infrastructure: infra::Limits { objects: 12 },
         client: client_limits(),
     }
 }
 type Books = (jig_client_view::words::Words, view::words::Words, view::words::Words);
-type BookCache = Mutex<BTreeMap<(u32, u32, u32), Books>>;
+type BookCache = Mutex<BTreeMap<u32, Books>>;
 fn phrasebooks(limits: &domain::Limits) -> Books {
     static BOOKS: OnceLock<BookCache> = OnceLock::new();
     let mut books = BOOKS.get_or_init(|| Mutex::new(BTreeMap::new())).lock().expect("fixture books lock");
     books
-        .entry((limits.jig.text, limits.observability.text, limits.infrastructure.text))
+        .entry(limits.client.domain.text)
         .or_insert_with(|| {
             (
                 jig_client_view::words::Words::new(
-                    jig_client_view::phrases::english::english(limits.jig.text).expect("English fits"),
+                    jig_client_view::phrases::english::english(limits.client.domain.text).expect("English fits"),
                     0,
                     0,
                 ),
-                view::words::Words::english(number(Connector::Observability), limits.observability.text)
+                view::words::Words::english(number(Connector::Observability), limits.client.domain.text)
                     .expect("incident English fits"),
-                view::words::Words::english(number(Connector::Infrastructure), limits.infrastructure.text)
+                view::words::Words::english(number(Connector::Infrastructure), limits.client.domain.text)
                     .expect("environment English fits"),
             )
         })
@@ -151,8 +119,8 @@ impl App for Ops {
         domain::configure_arrangement(&mut root, view::arrangement()).expect("ops arrangement before start");
         (root, view::View::new(&bounds, &limits, jig, obs, infra, 1))
     }
-    fn start(address: Address, kept: Vec<Self::Record>, offset: i32) -> Event {
-        Event::Start { address, kept: super::stories::list(kept), offset: Offset { minutes: offset } }
+    fn start(address: Address, kept: Vec<Self::Record>, _offset: i32) -> Event {
+        Event::Start { address, kept: super::stories::list(kept) }
     }
     fn went(address: Address) -> Event {
         Event::Went { place: domain::Place::Address(address) }
@@ -163,8 +131,8 @@ impl App for Ops {
     fn fire(root: &mut Self::Root, env: &Env<Self::Limits>, out: &mut Queue<Request>) {
         domain::fire(root, env, out);
     }
-    fn take(root: &mut Self::Root, env: &Env<Self::Limits>, out: &mut Queue<Request>) {
-        domain::take(root, env, out);
+    fn take(root: &mut Self::Root, _env: &Env<Self::Limits>, _out: &mut Queue<Request>) {
+        domain::take(root);
     }
     fn next_deadline(root: &Self::Root) -> Option<Time> {
         domain::next_deadline(root)
@@ -321,21 +289,6 @@ impl App for Ops {
         match event {
             Event::Jig(event) => observe::jig_received(event),
             Event::Client { event: jig_client::Event::Up { up } } => client_received(up),
-            Event::Infrastructure(
-                infra::Event::Read { result: infra::ReadResult::Value(doc), .. }
-                | infra::Event::Watch { event: infra::WatchEvent::Delivered(doc), .. },
-            ) => {
-                if let infra::Document::Environment(env) = doc.as_ref()
-                    && let Some(end) = env.end
-                {
-                    vec![Receipt::Card {
-                        key: environment_key(env.project, env.number),
-                        revisions: vec![(0, end.revision.value)],
-                    }]
-                } else {
-                    vec![]
-                }
-            }
             Event::SignedOut => vec![Receipt::Parked],
             Event::Start { .. }
             | Event::Went { .. }
@@ -352,11 +305,11 @@ impl App for Ops {
             .iter()
             .enumerate()
             .take(at + 1)
-            .filter(|(i, n)| *i + usize::try_from(n.size).expect("subtree") > at)
+            .filter(|(i, n)| *i + skein_lib::length::usize_of(n.size) > at)
             .filter_map(|(_, n)| {
                 n.key.filter(|k| {
                     matches!(Owner::from_opaque(k.owner), Some(Owner::Application { number: connector }) if connector == number(Connector::Infrastructure))
-                        && matches!(k.kind, 2 | 12)
+                        && k.kind == 12
                         && n.role == Role::Item
                 })
             })
@@ -364,17 +317,6 @@ impl App for Ops {
         family.map(CardKey::of).or_else(|| observe::jig_card(tree, node))
     }
 }
-#[must_use]
-pub(super) fn environment_key(project: u32, environment: u64) -> CardKey {
-    CardKey::of(
-        view::infrastructure::key(&infra::Subject {
-            scope: infra::Scope::Project(project),
-            kind: infra::Kind::Environment(environment),
-        })
-        .expect("legacy numeric environment key"),
-    )
-}
-
 fn client_limits() -> jig_client::Limits {
     const OWNERS: [jig_client::Spoken; 2] = [
         jig_client::Spoken { family: number(Connector::Observability), version: jig_ops_client_protocol_wire::VERSION },
@@ -397,8 +339,8 @@ fn client_received(up: &jig_client::Up) -> Vec<Receipt> {
                 return vec![Receipt::Parked];
             }
             let words = match answer {
-                Some(jig_client::Answered::Jig(Answer::Done(Outcome::Owner(
-                    jig_client::contract::OwnerOutcome::Said { task, message },
+                Some(jig_client::Answered::Jig(Answer::Done(Outcome::Document(
+                    jig_client::contract::DocumentOutcome::Said { task, message },
                 )))) => Some((*task, *message)),
                 _ => None,
             };
@@ -417,10 +359,6 @@ fn client_received(up: &jig_client::Up) -> Vec<Receipt> {
                 result: jig_client::Readout::Jig(result.clone()),
             })
         }
-        Up::FamilyDelivered { record, .. } if record.family == 2 => infrastructure_received(&record.bytes),
-        Up::ReadDone { result: jig_client::Readout::Family { family: 2, record: Some(bytes) }, .. } => {
-            infrastructure_read_received(bytes)
-        }
         Up::Served { .. } | Up::WatchEnded { .. } => observe::up_received(up),
         Up::SignedOut => vec![Receipt::Parked],
         Up::SignedIn
@@ -430,30 +368,9 @@ fn client_received(up: &jig_client::Up) -> Vec<Receipt> {
         | Up::ReadDone { .. } => vec![],
     }
 }
-pub(crate) fn infrastructure_received(bytes: &[u8]) -> Vec<Receipt> {
-    let doc = domain::wire::infrastructure::document_value(bytes).expect("whole infrastructure receipt");
-    infrastructure_document_received(&doc)
-}
-
-pub(crate) fn infrastructure_read_received(bytes: &[u8]) -> Vec<Receipt> {
-    let result = domain::wire::infrastructure::read_answer_value(bytes);
-    let infra::ReadResult::Value(doc) = result else { return vec![] };
-    infrastructure_document_received(&doc)
-}
-
-fn infrastructure_document_received(doc: &infra::Document) -> Vec<Receipt> {
-    if let infra::Document::Environment(env) = doc
-        && let Some(end) = env.end
-    {
-        vec![Receipt::Card { key: environment_key(env.project, env.number), revisions: vec![(0, end.revision.value)] }]
-    } else {
-        vec![]
-    }
-}
-
 fn infrastructure_sent(attempt: skein_lib::Token, key: [u8; 16], ask: &infra::Ask) -> Sent {
     let (card, revision) = match ask {
-        infra::Ask::NativeMoveEnd { object, revision, .. } => (
+        infra::Ask::MoveEnd { object, revision, .. } => (
             CardKey::of(skein_ui::Key {
                 owner: (jig_client_view::Owner::Application { number: 2 }).opaque(),
                 kind: 12,
@@ -462,9 +379,6 @@ fn infrastructure_sent(attempt: skein_lib::Token, key: [u8; 16], ask: &infra::As
             }),
             revision.value,
         ),
-        infra::Ask::MoveEnd { project, environment, revision, .. } => {
-            (environment_key(*project, *environment), revision.value)
-        }
     };
     Sent { attempt, key, card: Some(card), revision: Some((0, revision)), words: None }
 }
@@ -485,7 +399,7 @@ mod tests {
         measure: fn(&T) -> u32,
         encode: fn(&T, &mut Writer) -> std::result::Result<(), Overflow>,
     ) -> Box<[u8]> {
-        let mut writer = Writer::new(usize::try_from(measure(value)).expect("bounded wire fixture"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(measure(value)));
         encode(value, &mut writer).expect("measured wire fixture");
         writer.finish()
     }
@@ -576,10 +490,11 @@ mod tests {
     #[test]
     fn both_ops_routes_keep_infrastructure_requests() {
         let ask = infra::Ask::MoveEnd {
+            object: skein_lib::Token::new(7),
             project: PROJECT,
-            environment: TASK,
+            environment: super::super::stories::environment_name(),
             revision: Revision { value: 5 },
-            until: skein_lib::Wall::from_nanos(100),
+            until: 100,
         };
         for request in requests(jig_client::Ask::Family {
             scope: Scope::Project(PROJECT),
@@ -592,29 +507,25 @@ mod tests {
             let sent = Ops::sent(&request).expect("infrastructure request observed");
             assert_eq!(
                 (sent.attempt, sent.key, sent.card, sent.revision, sent.words),
-                (ATTEMPT, REQUEST_KEY, Some(environment_key(PROJECT, TASK)), Some((0, 5)), None),
+                (
+                    ATTEMPT,
+                    REQUEST_KEY,
+                    Some(CardKey::of(skein_ui::Key {
+                        owner: (jig_client_view::Owner::Application { number: 2 }).opaque(),
+                        kind: 12,
+                        a: 0,
+                        b: 7
+                    })),
+                    Some((0, 5)),
+                    None
+                ),
                 "{request:?}"
             );
         }
     }
 
     #[test]
-    fn application_read_receipt_unwraps_its_versioned_read_answer() {
-        let document = infra::Document::Environment(super::super::stories::environment_document());
-        let bytes = domain::wire::infrastructure::read_answer(&infra::ReadResult::Value(Box::new(document)))
-            .expect("fixture read answer fits");
-        let receipts = client_received(&jig_client::Up::ReadDone {
-            read: skein_lib::Token::new(7),
-            result: jig_client::Readout::Family { family: 2, record: Some(bytes) },
-        });
-        let [Receipt::Card { key, revisions }] = receipts.as_slice() else {
-            panic!("one versioned environment receipt");
-        };
-        assert_eq!(*key, environment_key(1, 7));
-        assert_eq!(*revisions, vec![(0, 5)]);
-    }
-    #[test]
-    fn native_link_receipts_keep_version_refusals_and_ended_sessions() {
+    fn link_receipts_keep_version_refusals_and_ended_sessions() {
         let cases = [
             (jig_client::Up::Served { served: false, versions: None }, "[OutOfDate]"),
             (

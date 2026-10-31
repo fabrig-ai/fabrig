@@ -39,9 +39,9 @@ impl StartIn {
     /// Only `ProjectMade` permits adoption. Every other outcome stays in jig's words.
     pub fn answered(&mut self, outcome: &Outcome) -> Option<super::Adoption> {
         self.outcome = Some(outcome.clone());
-        if let Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectMade {
-            project,
-        })))) = outcome
+        if let Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::ProjectMade { project },
+        )))) = outcome
         {
             self.adoption.project = *project;
             Some(self.adoption.clone())

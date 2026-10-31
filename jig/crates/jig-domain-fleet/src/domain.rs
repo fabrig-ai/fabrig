@@ -1,12 +1,12 @@
 //! The fleet's state and its entry points (programming-model.md, section 3).
 
-use skein_lib::{Deadlines, Env, Id, List, Map, Queue, Slab, Time, Token};
+use skein_lib::{Deadlines, Env, Id, List, Lossy, Map, Queue, Slab, Time, Token};
 
 use crate::attempt::{self, Attempt, Run};
 use crate::boundary::{Event, HostKind, Request};
 use crate::call::{self, PendingCall};
 use crate::channel::{self, Channel};
-use crate::facts::{Fact, Facts};
+use crate::facts::Fact;
 use crate::limits::{self, Limits};
 use crate::turn::{self, Pending};
 use alloc::boxed::Box;
@@ -56,7 +56,7 @@ pub struct Domain {
     pub(crate) claims: u32,
     /// The parent has loaded its claims: strays' deadlines run.
     pub(crate) loaded: bool,
-    pub(crate) facts: Facts,
+    pub(crate) facts: Lossy<Fact>,
     pub(crate) lost_hosts: Map<Token, crate::history::LostHost>,
     pub(crate) hello_refusals: Queue<crate::HelloRefusalRecord>,
     pub(crate) host_history_lost: u64,
@@ -130,15 +130,9 @@ impl Domain {
             },
             "configured agent needs fit their byte bound"
         );
-        assert!(
-            catalogue.len() <= usize::try_from(crate::CATALOGUE_MODELS).expect("catalogue count"),
-            "bounded model catalogue"
-        );
+        assert!(catalogue.len() <= skein_lib::length::usize_of(crate::CATALOGUE_MODELS), "bounded model catalogue");
         for name in &catalogue {
-            assert!(
-                name.len() <= usize::try_from(crate::CATALOGUE_NAME_BYTES).expect("model name bound"),
-                "bounded model names"
-            );
+            assert!(name.len() <= skein_lib::length::usize_of(crate::CATALOGUE_NAME_BYTES), "bounded model names");
         }
         let tracked = limits::tracked(limits).expect("validated fleet limits");
         let channels_count =
@@ -187,7 +181,7 @@ impl Domain {
             placing: false,
             claims: 0,
             loaded: false,
-            facts: Facts::with_capacity(limits.facts),
+            facts: Lossy::with_capacity(limits.facts),
             lost_hosts: Map::with_capacity(limits.history),
             hello_refusals: Queue::with_capacity(limits.history),
             host_history_lost: 0,

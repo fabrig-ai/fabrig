@@ -16,21 +16,21 @@ const DELEGATES: u32 = 3;
 const EMPTY: u32 = 0;
 const ACTIVITY: u64 = 1;
 pub(super) fn line() -> TaskLine {
-    let budget = OwnerBudget {
-        numbers: OwnerNumbers { budget: BUDGET, spent: SPENT, spent_below: BELOW, reserved: RESERVED },
+    let budget = Budget {
+        numbers: Numbers { budget: BUDGET, spent: SPENT, spent_below: BELOW, reserved: RESERVED },
         left: LEFT,
         funder: Funder::Task(TASK),
         deadline: None,
     };
-    let details = OwnerChipDetails {
+    let details = ChipDetails {
         dependencies: List::with_capacity(EMPTY),
         project: fixtures::PROJECT,
-        executor: OwnerExecutor::Person(PersonAddress::Party(73)),
+        executor: Executor::Person(PersonAddress::Party(73)),
         phase_since: Wall::EPOCH,
         run_since: None,
         attempt: None,
         retry: None,
-        wake: OwnerWakePolicy {
+        wake: WakePolicy {
             words: WakeRule::Never,
             notices: WakeRule::Never,
             news: WakeRule::Never,
@@ -57,15 +57,12 @@ pub(super) fn line() -> TaskLine {
         chip: Chip {
             task: TASK,
             title: DocumentText::complete(Text::new(Box::from(*b"Hello"), TEXT).expect("title")),
-            executor: Executor::Party { party: 73 },
+            executor: ChipExecutor::Party { party: 73 },
             phase: Phase::Idle,
-            details: Box::new(ChipPhase::Owner {
-                phase: OwnerChipPhase::Active(RunStage::Idle),
-                details: Box::new(details),
-            }),
+            details: Box::new(ChipPhaseFacts { phase: ChipPhase::Active(RunStage::Idle), details: Box::new(details) }),
         },
         project: fixtures::PROJECT,
-        requester: OwnerRequester::Person(73),
+        requester: Requester::Person(73),
         tracked: None,
         label: LABEL,
         flags: TaskFlags { ended_by: EndedBy::Result, conversation: true, listed: false, retention: Retention::Kept },
@@ -74,7 +71,7 @@ pub(super) fn line() -> TaskLine {
         ended_at: None,
         budget,
         waits_on: WaitsOn::Nothing,
-        phases: OwnerPhaseCounts { running: DELEGATES, ..OwnerPhaseCounts::ZERO },
+        phases: PhaseCounts { running: DELEGATES, ..PhaseCounts::ZERO },
         held_below: EMPTY,
         conversation: None,
     }
@@ -116,8 +113,8 @@ pub(super) const HELD_STATUSES: [(HoldCategory, &[u8]); 3] = [
 fn a_held_chats_row_names_only_its_exceeded_bound() {
     for (reason, expected) in HELD_STATUSES {
         let mut line = line();
-        let ChipPhase::Owner { phase, .. } = line.chip.details.as_mut() else { panic!("owner") };
-        *phase = OwnerChipPhase::Held { reason, revision: 1 };
+        let ChipPhaseFacts { phase, .. } = line.chip.details.as_mut();
+        *phase = ChipPhase::Held { reason, revision: 1 };
         let (tree, _) = tree(&line);
         let mut status = None;
         for node in tree.nodes() {
@@ -242,17 +239,17 @@ pub(super) fn status_rows() -> [(TaskLine, skein_ui::Style); 11] {
         (line(), look::STATUS_QUIET),
     ];
     for (index, (line, _)) in rows.iter_mut().enumerate() {
-        let ChipPhase::Owner { phase, details } = line.chip.details.as_mut() else { panic!("owner") };
+        let ChipPhaseFacts { phase, details } = line.chip.details.as_mut();
         details.ended_at = Some(Wall::EPOCH);
         details.retry = Some(RetryNotice::OwnerFailed { class: HoldFailure::Lost, count: 2, allowance: 3 });
         *phase = match index {
-            1 => OwnerChipPhase::Held { reason: HoldCategory::Stopped, revision: 1 },
-            2 => OwnerChipPhase::Active(RunStage::BackingOff { until: Wall::EPOCH }),
-            3 => OwnerChipPhase::Active(RunStage::Due),
-            4..=6 => OwnerChipPhase::Active(RunStage::Running { attempt: 1 }),
-            9 => OwnerChipPhase::Closing(ClosingStage::Delegates),
-            10 => OwnerChipPhase::Ended,
-            _ => OwnerChipPhase::Active(RunStage::Idle),
+            1 => ChipPhase::Held { reason: HoldCategory::Stopped, revision: 1 },
+            2 => ChipPhase::Active(RunStage::BackingOff { until: Wall::EPOCH }),
+            3 => ChipPhase::Active(RunStage::Due),
+            4..=6 => ChipPhase::Active(RunStage::Running { attempt: 1 }),
+            9 => ChipPhase::Closing(ClosingStage::Delegates),
+            10 => ChipPhase::Ended,
+            _ => ChipPhase::Active(RunStage::Idle),
         };
         if index == 0 || index == 7 {
             line.waits_on = WaitsOn::Party {
@@ -263,12 +260,12 @@ pub(super) fn status_rows() -> [(TaskLine, skein_ui::Style); 11] {
             };
         }
         if (4..=6).contains(&index) {
-            details.observation = Some(OwnerChipObservation {
+            details.observation = Some(ChipObservation {
                 channel: Token::new(1),
                 work: match index {
-                    4 => OwnerChipWork::Writing,
-                    5 => OwnerChipWork::Tool { call: Box::from(*b"call"), tool: Box::from(*b"search") },
-                    _ => OwnerChipWork::Active,
+                    4 => ChipWork::Writing,
+                    5 => ChipWork::Tool { call: Box::from(*b"call"), tool: Box::from(*b"search") },
+                    _ => ChipWork::Active,
                 },
                 since: Wall::EPOCH,
                 reported_at: Wall::EPOCH,
@@ -541,7 +538,7 @@ fn a_chats_line_counts_the_delegates_it_waits_on() {
 fn a_chats_line_reads_its_owner_wake_policy_for_news() {
     let mut line = line();
     line.waits_on = WaitsOn::News;
-    let ChipPhase::Owner { details, .. } = line.chip.details.as_mut() else { panic!("owner") };
+    let ChipPhaseFacts { details, .. } = line.chip.details.as_mut();
     details.wake.words = WakeRule::Immediate;
     details.live_delegates = 0;
     let (tree, _) = tree(&line);
@@ -553,8 +550,8 @@ fn an_open_chat_at_rest_says_waiting_on_your_words_on_its_line() {
     let mut line = line();
     line.flags.ended_by = EndedBy::Requester;
     line.waits_on = WaitsOn::News;
-    let ChipPhase::Owner { phase, details } = line.chip.details.as_mut() else { panic!("owner") };
-    *phase = OwnerChipPhase::Active(RunStage::Idle);
+    let ChipPhaseFacts { phase, details } = line.chip.details.as_mut();
+    *phase = ChipPhase::Active(RunStage::Idle);
     details.wake.words = WakeRule::Immediate;
     details.live_delegates = 0;
     let (tree, _) = tree(&line);
@@ -563,24 +560,24 @@ fn an_open_chat_at_rest_says_waiting_on_your_words_on_its_line() {
 #[test]
 fn a_closed_chat_says_closed_on_its_line() {
     for (by, expected) in [
-        (Some(OwnerRequester::Person(73)), b"Closed".as_slice()),
-        (Some(OwnerRequester::Person(74)), b"Closed"),
+        (Some(Requester::Person(73)), b"Closed".as_slice()),
+        (Some(Requester::Person(74)), b"Closed"),
         (None, b"Closed"),
     ] {
         let mut line = line();
-        let ChipPhase::Owner { phase, details } = line.chip.details.as_mut() else { panic!("owner") };
-        *phase = OwnerChipPhase::Ended;
+        let ChipPhaseFacts { phase, details } = line.chip.details.as_mut();
+        *phase = ChipPhase::Ended;
         details.ended_at = Some(Wall::EPOCH);
         details.ending = Some(match by {
-            Some(by) => OwnerChipEnding::Cancelled {
+            Some(by) => ChipEnding::Cancelled {
                 by,
                 reason: DocumentText::complete(fixtures::first_run::text(b"Chat closed")),
                 result: None,
                 at: Wall::EPOCH,
             },
-            None => OwnerChipEnding::Done(ResultValue::Report(DocumentText::complete(fixtures::first_run::text(
-                b"A report",
-            )))),
+            None => {
+                ChipEnding::Done(ResultValue::Report(DocumentText::complete(fixtures::first_run::text(b"A report"))))
+            }
         });
         let (tree, _) = tree(&line);
         assert!(fixtures::find(&tree, Role::Status, expected).is_some());
@@ -709,7 +706,7 @@ fn more_closed_chats_is_bound_only_under_all_or_closed_with_an_older_page() {
 fn delegate_counts_are_plural_and_absent_at_zero() {
     for (count, expected) in [(0, None), (1, Some(b"1 delegate".as_slice())), (2, Some(b"2 delegates".as_slice()))] {
         let mut line = line();
-        let ChipPhase::Owner { details, .. } = line.chip.details.as_mut() else { panic!("owner") };
+        let ChipPhaseFacts { details, .. } = line.chip.details.as_mut();
         details.live_delegates = count;
         let (tree, _) = tree(&line);
         if let Some(words) = expected {
@@ -803,11 +800,9 @@ fn an_accepted_start_draws_no_applied_status() {
                 up: jig_client::Up::Answer {
                     attempt,
                     envelope: skein_lib::RequestEnvelope::Final,
-                    answer: Some(jig_client::Answered::Jig(Answer::Done(Outcome::Owner(OwnerOutcome::Created {
-                        first: 1,
-                        last: 1,
-                        given: None,
-                    })))),
+                    answer: Some(jig_client::Answered::Jig(Answer::Done(Outcome::Document(
+                        DocumentOutcome::Created { first: 1, last: 1, given: None },
+                    )))),
                     why: None,
                 },
             },
@@ -879,12 +874,12 @@ fn the_chats_page_opens_with_its_bar_and_draws_its_list_as_the_mockup() {
 #[test]
 fn done_and_failed_chats_say_closed_in_the_list_and_bar() {
     for ending in [
-        OwnerChipEnding::Done(ResultValue::Report(DocumentText::complete(fixtures::first_run::text(b"Done")))),
-        OwnerChipEnding::Failed(DocumentText::complete(fixtures::first_run::text(b"Failed"))),
+        ChipEnding::Done(ResultValue::Report(DocumentText::complete(fixtures::first_run::text(b"Done")))),
+        ChipEnding::Failed(DocumentText::complete(fixtures::first_run::text(b"Failed"))),
     ] {
         let mut line = line();
-        let ChipPhase::Owner { phase, details } = line.chip.details.as_mut() else { panic!("owner") };
-        *phase = OwnerChipPhase::Ended;
+        let ChipPhaseFacts { phase, details } = line.chip.details.as_mut();
+        *phase = ChipPhase::Ended;
         details.live_delegates = 0;
         details.ended_at = Some(Wall::EPOCH);
         details.ending = Some(ending);

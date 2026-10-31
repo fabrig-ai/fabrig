@@ -1,7 +1,9 @@
 family jig-test-client-wire 2
 record Segment { bytes: bytes 256 }
 record ResourcePath { segments: list 32 Segment }
-record Key { attempt: u64 completion: u32 position: u32 deployment: fixed 16 task: u64 purpose: u64 }
+record CallPurpose { attempt: u64 completion: u32 position: u32 }
+enum Purpose { procedure, projection, call: CallPurpose }
+record Key { origin: Purpose deployment: fixed 16 task: u64 purpose: u64 }
 record Effect { kind: u16 resources: list 64 ResourcePath purpose: u64 condition: option u64 target: u64 state: u64 }
 record Attempt { number: u32 sent: u64 deadline: u64 }
 record ProcedureState { project: u32 task: u64 number: u16 resource: ResourcePath index: u16 steps: u16 awaiting: bool deadline: option u64 delegate: option u64 revision: u64 }
@@ -97,14 +99,9 @@ enum FamilyKind { item: FamilyNumber, panel: FamilyNumber, result: FamilyNumber,
 record FamilySubject { scope: FamilyScope kind: FamilyKind }
 versioned record Subject { value: FamilySubject }
 versioned record Read { value: FamilySubject }
-enum ItemState { ready, held, ended }
-record Item { project: u32 key: u64 revision: u64 state: ItemState value: u64 task: u64 second: option u64 proposals: list 128 FamilyProposalKey touchable: bool }
-record Parameters { item: u64 revision: u64 value: u64 amendable: bool }
-record PartDocument { subject: FamilySubject revision: u64 value: u64 parameters: option Parameters }
-record FamilyRevision { item: u64 revision: u64 }
 record FamilyConnectorDocument { subject: FamilySubject value: ClientDocument }
-enum FamilyDocument { item: Item, part: PartDocument, connector: FamilyConnectorDocument }
+enum FamilyDocument { connector: FamilyConnectorDocument }
 versioned record FamilyDocumentRecord { value: FamilyDocument }
 record FamilyConnectorAnswer { value: ApplicationOutcome }
-enum FamilyAnswer { touched: FamilyRevision, moved: FamilyRevision, gone, connector: FamilyConnectorAnswer }
+enum FamilyAnswer { connector: FamilyConnectorAnswer }
 versioned record FamilyAnswerRecord { value: FamilyAnswer }

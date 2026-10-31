@@ -1,0 +1,5 @@
+== jig == 
+Words admitted:
+  * Words admitted
+  Task: 7
+  Message: 11

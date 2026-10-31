@@ -5,9 +5,13 @@
 //! Pool edits target the configured period independently of the observed
 //! period. Permission mappings come from the core's retained policy entry;
 //! an absent entry remains absent, and each new list states its own loss.
-use super::{AuthorityLine, Chip, GrantLine, Missing, NoteScope, Part, PartKind, PatternEnd, ProposedTask, Text};
-use crate::{Core, Limits};
-use alloc::boxed::Box;
+use crate::{
+    Core, Limits,
+    documents::{
+        AuthorityLine, Chip, GrantLine, Missing, NoteScope, Part, PartKind, PatternEnd, ProposedTask, Text,
+        task_tree::{authority as authority_line, path, pattern},
+    },
+};
 use jig_domain_authority as authority;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
@@ -145,70 +149,14 @@ pub struct Note {
 }
 
 fn bound(limits: &Limits) -> usize {
-    usize::try_from(limits.documents.lines).expect("line count fits")
-}
-fn path(limits: &Limits, values: &[Box<[u8]>]) -> Result<List<Box<[u8]>>, Missing> {
-    let value = super::task_tree::part_path(limits, 0, PartKind::Resource, values)?;
-    match value.key {
-        super::PartKey::Path(path) => Ok(path),
-        super::PartKey::Number(_) => unreachable!("path constructor"),
-    }
-}
-fn last(limits: &Limits, value: &authority::Last) -> Result<PatternEnd, Missing> {
-    let bytes = match value {
-        authority::Last::Exact(bytes) | authority::Last::Open(bytes) => bytes,
-    };
-    if bytes.len() > usize::try_from(limits.documents.text_bytes).expect("text count fits") {
-        return Err(Missing::TooLarge);
-    }
-    Ok(match value {
-        authority::Last::Exact(bytes) => PatternEnd::Exact(skein_lib::bytes::copy_of(bytes)),
-        authority::Last::Open(bytes) => PatternEnd::Open(skein_lib::bytes::copy_of(bytes)),
-    })
+    skein_lib::length::usize_of(limits.documents.lines)
 }
 fn grant(limits: &Limits, value: &authority::Grant) -> Result<GrantLine, Missing> {
     Ok(GrantLine {
         connector: value.connector,
         kind: value.kind,
         segments: path(limits, &value.pattern.segments)?,
-        last: last(limits, &value.pattern.last)?,
-    })
-}
-fn authority_line(limits: &Limits, value: &authority::Authority) -> Result<AuthorityLine, Missing> {
-    let mut grants = List::with_capacity(limits.documents.grants);
-    for value in &value.grants {
-        grants.push(grant(limits, value)?).expect("bounded grants");
-    }
-    let mut executors = List::with_capacity(limits.documents.executors);
-    for value in &value.delegation.kinds {
-        executors
-            .push(match value {
-                authority::Executor::Charter(number) => tasks::AuthorityExecutor::Charter(*number),
-                authority::Executor::Procedure(number) => tasks::AuthorityExecutor::Procedure(*number),
-                authority::Executor::Role(number) => tasks::AuthorityExecutor::Role(*number),
-            })
-            .expect("bounded executors");
-    }
-    let mut note_resources = List::with_capacity(limits.documents.grants);
-    for value in &value.note_resources {
-        note_resources
-            .push(NoteScope {
-                connector: value.connector,
-                segments: path(limits, &value.pattern.segments)?,
-                last: last(limits, &value.pattern.last)?,
-            })
-            .expect("bounded note scopes");
-    }
-    Ok(AuthorityLine {
-        models: tasks::Models::from_parts(value.models.bits(), value.models.is_all()),
-        tools: tasks::Tools(value.tools.0),
-        grants,
-        executors,
-        tasks: value.delegation.tasks,
-        depth: value.delegation.depth,
-        ceiling: tasks::Budget { spend: value.budget.spend, deadline: value.budget.deadline },
-        notes: tasks::Scopes(value.notes.0),
-        note_resources,
+        last: pattern(limits, &value.pattern)?,
     })
 }
 fn policy(
@@ -237,7 +185,7 @@ fn policy(
                     connector: value.connector,
                     kind: value.kind,
                     segments: path(limits, &value.pattern.segments)?,
-                    last: last(limits, &value.pattern.last)?,
+                    last: pattern(limits, &value.pattern)?,
                 },
                 judge: value.judge,
                 guard: value.guard,
@@ -283,7 +231,6 @@ fn policy(
             || permissions_cut,
     })
 }
-#[expect(clippy::manual_map, reason = "step code matches options without closures")]
 pub(super) fn ledger(value: &tasks::FundingRecord) -> Ledger {
     Ledger {
         source: value.funder,
@@ -329,10 +276,10 @@ pub(super) fn project(
                 .push(ProjectResource {
                     part: super::task_tree::part_path(limits, key.name.connector, PartKind::Resource, &key.name.path)?,
                     role: match role {
-                        crate::connector::ResourceRole::Owned => ResourceRole::Owned,
-                        crate::connector::ResourceRole::Participant => ResourceRole::Participant,
-                        crate::connector::ResourceRole::Context => ResourceRole::Context,
-                        crate::connector::ResourceRole::Unavailable => ResourceRole::Unavailable,
+                        crate::effects::connector::ResourceRole::Owned => ResourceRole::Owned,
+                        crate::effects::connector::ResourceRole::Participant => ResourceRole::Participant,
+                        crate::effects::connector::ResourceRole::Context => ResourceRole::Context,
+                        crate::effects::connector::ResourceRole::Unavailable => ResourceRole::Unavailable,
                     },
                 })
                 .expect("bounded resource roles");
@@ -525,7 +472,7 @@ pub fn note_from_entry(core: &Core, limits: &Limits, party: u64, value: &notes::
             let bytes = match &pattern.last {
                 notes::Last::Exact(bytes) | notes::Last::Open(bytes) => bytes,
             };
-            if bytes.len() > usize::try_from(limits.documents.text_bytes).expect("text count fits") {
+            if bytes.len() > skein_lib::length::usize_of(limits.documents.text_bytes) {
                 return Err(Missing::TooLarge);
             }
             NoteLocation::Resources {
@@ -570,7 +517,7 @@ pub fn note_from_entry(core: &Core, limits: &Limits, party: u64, value: &notes::
         tasks,
         changed: Some(value.changed),
         revision: value.revision,
-        cut: usize::try_from(value.references.len()).expect("references fit") > bound(limits),
+        cut: skein_lib::length::usize_of(value.references.len()) > bound(limits),
     })
 }
 

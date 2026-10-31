@@ -175,10 +175,6 @@ pub enum Event {
     LoadFailed { owner: Token },
     /// A bounded store page for the load with this owner.
     Loaded { owner: Token, rows: Rows, more: bool },
-    /// One durable record supplied during restart.
-    Restore { record: Record },
-    /// All live records have been restored.
-    Restored,
 }
 
 /// Requests to the parent, including writes in the current decision.

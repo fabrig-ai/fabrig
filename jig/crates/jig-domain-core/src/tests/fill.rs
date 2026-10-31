@@ -30,7 +30,7 @@ fn signed_in(core: &mut Core, env: &Env<Limits>) {
     drop(step(core, env, Event::Period { project: 1, period: 1, budget: 1000, next: None }));
 }
 
-fn ask(core: &mut Core, env: &Env<Limits>, ask: people::Ask) -> Requests {
+fn ask(core: &mut Core, env: &Env<Limits>, ask: people::Ask) -> Queue<Request> {
     step(
         core,
         env,
@@ -50,13 +50,12 @@ fn goal() -> people::Ask {
     people::Ask::Create { project: 1, batch: Box::new([member]) }
 }
 
-fn busy(requests: Requests) {
-    let Requests::Out(mut out) = requests;
+fn busy(requests: Queue<Request>) {
+    let mut out = requests;
     let Some(Request::Held(held)) = out.pop() else { panic!("one busy answer") };
     let Held::PeopleReply { to, reply } = *held else { panic!("the party's answer") };
     assert_eq!(to.into_token(), Token::new(7202));
     assert_eq!(reply, people::Reply::Again(people::Again::Busy));
-    let Some(Request::Decided) = out.pop() else { panic!("the decision closes") };
     assert!(out.is_empty(), "the refusal saves nothing");
 }
 
@@ -68,12 +67,11 @@ fn a_sign_in_at_the_fill_mark_is_refused() {
         login: b"second".as_slice().into(),
         name: b"B Person".as_slice().into(),
     };
-    let Requests::Out(mut out) =
+    let mut out =
         step(&mut core, &env, Event::SignIn { held: None, reply_to: ReplyTo::new(Token::new(7201)), identity });
     let Some(Request::Now(now)) = out.pop() else { panic!("one refusal, first") };
     let Now::SignInRefused { to } = *now else { panic!("the sign-in's refusal") };
     assert_eq!(to.into_token(), Token::new(7201));
-    let Some(Request::Decided) = out.pop() else { panic!("the decision closes") };
     assert!(out.is_empty(), "nothing is written");
 }
 
@@ -92,7 +90,7 @@ fn a_chat_at_the_fill_mark_is_answered_busy() {
 fn a_goal_below_the_fill_mark_is_made() {
     let (mut core, env) = filled_core(limits().fill_mark - 1);
     signed_in(&mut core, &env);
-    let Requests::Out(mut out) = ask(&mut core, &env, goal());
+    let mut out = ask(&mut core, &env, goal());
     let mut request = None;
     while let Some(next) = out.pop() {
         if let Request::Ask { ask: Ask::TaskHoldings { request: token, .. }, .. } = next {
@@ -132,8 +130,7 @@ fn a_full_sign_in_pool_holds_its_answer_and_advances_the_deployment_numbers() {
     }
     let before = core.counters.next_commit();
     assert!(!core.counters.dirty());
-    let Requests::Out(mut out) =
-        step(&mut core, &env, Event::SignIn { held: None, reply_to: ReplyTo::new(token), identity });
+    let mut out = step(&mut core, &env, Event::SignIn { held: None, reply_to: ReplyTo::new(token), identity });
     let Some(Request::Held(held)) = out.pop() else { panic!("Full waits for durability") };
     let Held::PeopleReply { to, reply } = *held else { panic!("people reply") };
     assert_eq!(to.into_token(), token);
@@ -144,7 +141,6 @@ fn a_full_sign_in_pool_holds_its_answer_and_advances_the_deployment_numbers() {
             earliest: Wall::from_nanos(limits.people.sign_in_lifetime.as_nanos()),
         }
     );
-    let Some(Request::Decided) = out.pop() else { panic!("the decision closes") };
     assert!(out.is_empty(), "Full writes no people record");
     assert!(core.counters.dirty());
     let after = core.counters.next_commit();

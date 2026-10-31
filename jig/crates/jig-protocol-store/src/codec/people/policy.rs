@@ -128,7 +128,6 @@ pub(super) fn decode_delegation(
     Ok(domain::Delegation { kinds: decode_delegation_kinds(kinds, limits, shared_sum(limits))?, tasks, depth })
 }
 
-#[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub(super) fn encode_authority(
     value: &domain::Authority,
     limits: &wire::Limits,
@@ -163,7 +162,6 @@ pub(super) fn encode_authority(
         },
     )
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub(super) fn decode_authority(
     value: wire::Authority,
     limits: &wire::Limits,
@@ -587,7 +585,7 @@ pub(super) fn decode_wake_rule(value: wire::WakeRule) -> domain::WakeRule {
     }
 }
 
-pub(super) fn encode_results_wake(value: domain::ResultsWake, _limits: &wire::Limits) -> wire::ResultsWake {
+pub(super) fn encode_results_wake(value: domain::ResultsWake) -> wire::ResultsWake {
     match value {
         domain::ResultsWake::Never => wire::ResultsWake::Never,
         domain::ResultsWake::Each => wire::ResultsWake::Each,
@@ -613,7 +611,7 @@ pub(super) fn encode_wake_policy(
             words: encode_wake_rule(words, limits)?,
             notices: encode_wake_rule(notices, limits)?,
             news: encode_wake_rule(news, limits)?,
-            results: encode_results_wake(*results, limits),
+            results: encode_results_wake(*results),
             questions: *questions,
             answers: *answers,
             timers: *timers,
@@ -681,7 +679,6 @@ pub(crate) fn encode_amendment(
         },
     )
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub(crate) fn decode_amendment(
     value: wire::Amendment,
     limits: &wire::Limits,

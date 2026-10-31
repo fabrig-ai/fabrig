@@ -147,6 +147,11 @@ pub struct World<A: App, F: Front<A>> {
     heap_peak: u64,
 }
 impl<A: App, F: Front<A>> World<A, F> {
+    /// Install front-neutral starting facts before admitting clients.
+    pub fn seed(&mut self, seed: super::Seed) {
+        assert!(self.clients.is_empty(), "seed before admitting clients");
+        self.front.seed(seed);
+    }
     /// Creates one seeded loop in front of the supplied engine boundary.
     #[must_use]
     pub fn new(settings: Settings, front: F) -> Self {
@@ -959,7 +964,7 @@ mod tests {
             vec![
                 Step::See { find: Find::named(Role::Link, b"Family"), within },
                 Step::Press { find: Find::named(Role::Link, b"Family") },
-                Step::See { find: Find::text(b"Item 1"), within },
+                Step::See { find: Find::text(b"Object: 1"), within },
                 Step::See { find: Find::text(b"Chat nine"), within },
             ],
         );

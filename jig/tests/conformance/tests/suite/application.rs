@@ -1,4 +1,5 @@
-use jig_core_world::effects::{Cut, World};
+use jig_core_world::world::Setup;
+use jig_core_world::world::{Cut, World};
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_test_connector as connector;
@@ -38,7 +39,7 @@ fn ask(sign_in: u64, key: u8, value: connector::ApplicationRequest) -> root::Eve
 
 #[test]
 fn admitted_application_routes_and_its_core_part_share_the_commit_barrier() {
-    let mut world = World::new(711, false);
+    let mut world = World::new(Setup { seed: 711, ..Setup::default() });
     let sign_in = world.sign_in.expect("signed in owner");
     let value = connector::ApplicationRequest { object: 1, revision: 0, value: 18, release: None };
     let commit = world.store.applied + 1;
@@ -83,8 +84,8 @@ fn admitted_application_routes_and_its_core_part_share_the_commit_barrier() {
 
 #[test]
 fn application_replay_after_a_durable_restart_does_not_repeat_a_decision() {
-    let mut configured = jig_core_world::world::config(715);
-    let mut limits = jig_core_world::world::limits();
+    let mut configured = jig_test_profile::config(715);
+    let mut limits = jig_test_profile::limits();
     limits.core.authority.roles = 2;
     let policy = &mut configured.core.seed_projects[0].policy.policy;
     let mut member = policy.roles[0].clone();
@@ -93,7 +94,7 @@ fn application_replay_after_a_durable_restart_does_not_repeat_a_decision() {
     member.requests = jig_domain_authority::Requests(0);
     member.decides = jig_domain_authority::Proposals(0);
     policy.roles = Box::new([policy.roles[0].clone(), member]);
-    let mut world = World::configured(715, false, configured, limits);
+    let mut world = World::new(Setup { seed: 715, configuration: Some(configured), limits, ..Setup::default() });
     let sign_in = world.sign_in.expect("signed in owner");
     let value = connector::ApplicationRequest { object: 1, revision: 0, value: 14, release: None };
     let commit = world.store.applied + 1;

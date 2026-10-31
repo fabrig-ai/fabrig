@@ -32,24 +32,6 @@ pub(super) fn encode_party_kind(value: jig_client::contract::PartyKind, out: &mu
     }
 }
 
-pub(super) fn encode_passed(value: &jig_client::contract::Passed, out: &mut Encoder, budget: &mut super::Cut) {
-    out.object_start();
-    out.key(b"by");
-    super::encode_actor(&value.by, out, budget);
-    out.key(b"at");
-    out.unsigned(value.at.as_nanos());
-    out.key(b"reason");
-    budget.words(value.reason.bytes(), out);
-    out.key(b"lacking");
-    match &value.lacking {
-        Some(item_1) => {
-            super::encode_lacking(item_1, out, budget);
-        }
-        None => out.null(),
-    }
-    out.object_end();
-}
-
 pub(super) fn encode_person_address(
     value: &jig_client::contract::PersonAddress,
     out: &mut Encoder,
@@ -92,7 +74,7 @@ pub(super) fn encode_phase(value: jig_client::contract::Phase, out: &mut Encoder
 }
 
 pub(super) fn encode_phase_counts(
-    value: &jig_client::contract::PhaseCounts,
+    value: &jig_client::contract::ImpactCounts,
     out: &mut Encoder,
     _budget: &mut super::Cut,
 ) {

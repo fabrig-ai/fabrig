@@ -1,5 +1,6 @@
 //! A holder's moves cross people, the core, the child and the scripted component.
 use super::*;
+use jig_core_world::world::Setup;
 
 fn change(change: people::AccountChange) -> people::Ask {
     people::Ask::AccountChange { holder: people::AccountHolder::Own, change }
@@ -61,7 +62,7 @@ fn the_deployment_document_shows_its_signed_in_source_moving() {
     limits.core.accounts.holder_accounts = 2;
     jig_core_world::peers::journal(&mut limits);
     config.core.settings.llm_providers.providers.first_mut().expect("provider").signed_in_plan = false;
-    let mut world = World::configured(204, false, config, limits);
+    let mut world = World::new(Setup { seed: 204, configuration: Some(config), limits, ..Setup::default() });
     let sign_in = world.sign_in.expect("signed in");
     let person = party(&world, sign_in);
     world.send(root::Event::Core(core::Event::People(people::Event::Roles {

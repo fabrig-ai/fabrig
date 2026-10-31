@@ -4,8 +4,8 @@ use jig_client::{Readout, contract as c};
 
 pub(crate) const FIRST: u32 = 8;
 pub(crate) fn review(page: &Readout) -> Option<(c::ProposalKey, &c::SettingsReview)> {
-    if let Readout::Jig(c::ReadResult::Value(c::ReadValue::OwnerProposal(proposal))) = page
-        && let c::OwnerProposalAction::Settings(settings) = &proposal.action
+    if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Proposal(proposal))) = page
+        && let c::ProposalAction::Settings(settings) = &proposal.action
         && let Some(review) = &settings.review
     {
         return Some((proposal.key, review));

@@ -68,8 +68,8 @@ fn a_held_chatbar_names_only_its_exceeded_bound() {
         let (mut root, _, watch) = fixtures::root_at(Address::Chat { task: TASK }, &fixtures::domain_limits());
         let mut task = fixtures::task::document();
         task.chip.task = TASK;
-        let c::ChipPhase::Owner { phase, .. } = task.chip.details.as_mut() else { panic!("owner") };
-        *phase = c::OwnerChipPhase::Held { reason, revision: 1 };
+        let c::ChipPhaseFacts { phase, .. } = task.chip.details.as_mut();
+        *phase = c::ChipPhase::Held { reason, revision: 1 };
         fixtures::root_event(
             &mut root,
             Event::Client {
@@ -107,14 +107,12 @@ fn provisional_text_is_marked_until_its_turn_commits() {
     assert!(fixtures::find(&tree(&thread), Role::Status, b"Writing...").is_some());
     thread.reading = Some(jig_client::thread::Reading::Latest { known: COMMITTED.into() });
     let mut rows = List::with_capacity(TURN);
-    rows.push(c::ActivityLine {
-        position: TURN.into(),
-        at: Wall::EPOCH,
-        event: c::Activity::Turn {
-            name: c::TurnName { attempt: ATTEMPT, number: TURN },
-            turn: c::TurnRead::Undecodable { why: c::TurnProblem::Malformed },
-        },
-    })
+    rows.push(crate::tests::documents::turn(
+        TURN.into(),
+        Wall::EPOCH,
+        c::TurnName { attempt: ATTEMPT, number: TURN },
+        c::TurnRead::Undecodable { why: c::TurnProblem::Malformed },
+    ))
     .expect("turn");
     thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
     assert_eq!(fixtures::find(&tree(&thread), Role::Status, b"Writing..."), None);
@@ -131,26 +129,22 @@ fn an_inbox_answer_is_acknowledged_in_the_chat_conversation() {
     let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: COMMITTED.into() });
     let mut rows = List::with_capacity(1);
-    rows.push(c::ActivityLine {
-        position: 1,
-        at: Wall::EPOCH,
-        event: c::Activity::Owner {
-            source: Box::new(c::OwnerActivityLine {
-                task: TASK,
-                position: 1,
+    rows.push(jig_client::contract::DecodedActivityLine {
+        source: Box::new(c::ActivityLine {
+            task: TASK,
+            position: 1,
+            at: Wall::EPOCH,
+            line: c::Activity::Heard(c::Word {
+                number: MESSAGE,
+                from: c::Requester::Task(TASK),
+                kind: c::MessageKind::QuestionAnswered { question: 42 },
+                words: c::Text::new(Box::new([]), TEXT).expect("empty notice words"),
                 at: Wall::EPOCH,
-                line: c::OwnerActivity::Heard(c::OwnerWord {
-                    number: MESSAGE,
-                    from: c::OwnerRequester::Task(TASK),
-                    kind: c::OwnerMessageKind::QuestionAnswered { question: 42 },
-                    words: c::Text::new(Box::new([]), TEXT).expect("empty notice words"),
-                    at: Wall::EPOCH,
-                    hits: 1,
-                    eligible: true,
-                }),
+                hits: 1,
+                eligible: true,
             }),
-            decoded: None,
-        },
+        }),
+        decoded: None,
     })
     .expect("notice");
     thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
@@ -191,23 +185,19 @@ fn owner_words_thread() -> Thread {
     let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: COMMITTED.into() });
     let mut rows = List::with_capacity(TURN);
-    rows.push(c::ActivityLine {
-        position: TURN.into(),
-        at: Wall::EPOCH,
-        event: c::Activity::Owner {
-            source: Box::new(c::OwnerActivityLine {
-                task: TASK,
-                position: TURN.into(),
-                at: Wall::EPOCH,
-                line: c::OwnerActivity::Words {
-                    message: MESSAGE,
-                    by: c::OwnerRequester::Person(PARTY),
-                    kind: c::OwnerMessageKind::Words,
-                    words: c::Text::new(Box::from(*b"An owner message"), TEXT).expect("words"),
-                },
-            }),
-            decoded: None,
-        },
+    rows.push(jig_client::contract::DecodedActivityLine {
+        source: Box::new(c::ActivityLine {
+            task: TASK,
+            position: TURN.into(),
+            at: Wall::EPOCH,
+            line: c::Activity::Words {
+                message: MESSAGE,
+                by: c::Requester::Person(PARTY),
+                kind: c::MessageKind::Words,
+                words: c::Text::new(Box::from(*b"An owner message"), TEXT).expect("words"),
+            },
+        }),
+        decoded: None,
     })
     .expect("line");
     thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
@@ -256,8 +246,8 @@ fn the_close_confirmation_says_how_the_chat_ends() {
         let mut me = source.pages().me(source.client()).unwrap().clone();
         me.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap().grace = grace;
         let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
-        let c::ChipPhase::Owner { phase, .. } = task.chip.details.as_mut() else { panic!("owner") };
-        *phase = c::OwnerChipPhase::Active(stage);
+        let c::ChipPhaseFacts { phase, .. } = task.chip.details.as_mut();
+        *phase = c::ChipPhase::Active(stage);
         task.delegates = List::with_capacity(1);
         if delegate {
             let mut chip = task.chip.clone();
@@ -321,9 +311,9 @@ fn an_open_chat_at_rest_says_waiting_on_your_words_and_keeps_its_composer() {
     task.flags.ended_by = c::EndedBy::Requester;
     task.waits_on = c::WaitsOn::News;
     task.wake.words = c::WakeRule::Immediate;
-    task.requester = c::OwnerRequester::Person(PARTY);
-    let c::ChipPhase::Owner { phase, details } = task.chip.details.as_mut() else { panic!("owner") };
-    *phase = c::OwnerChipPhase::Active(c::RunStage::Idle);
+    task.requester = c::Requester::Person(PARTY);
+    let c::ChipPhaseFacts { phase, details } = task.chip.details.as_mut();
+    *phase = c::ChipPhase::Active(c::RunStage::Idle);
     details.live_delegates = 0;
     let view = fixtures::page_view(&messaging_task(task));
     assert!(fixtures::find(view.tree(), Role::Status, b"waiting on your words").is_some());
@@ -581,9 +571,7 @@ fn chat_cards_are_items_of_the_cards_list_after_the_log() {
     assert!(named_position(tree.nodes(), Role::Log, None).expect("log") < cards);
 }
 
-pub(super) fn structured_thread() -> Thread {
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: 12, bytes: BYTES, text: 128 });
-    thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+fn structured_messages() -> List<c::Message> {
     let mut messages = List::with_capacity(4);
     for speaker in [c::Speaker::Person, c::Speaker::Assistant, c::Speaker::Tool, c::Speaker::System] {
         let mut blocks = List::with_capacity(2);
@@ -607,44 +595,81 @@ pub(super) fn structured_thread() -> Thread {
             .expect("result");
         messages.push(c::Message { speaker, blocks }).expect("message");
     }
+    messages
+}
+pub(super) fn structured_thread() -> Thread {
+    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: 12, bytes: BYTES, text: 128 });
+    thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+    let messages = structured_messages();
     let mut rows = List::with_capacity(5);
     for (position, event) in [
-        (5, c::Activity::RunEnded { attempt: ATTEMPT, how: c::RunEnding::Parked, spent: 0 }),
+        (
+            5,
+            crate::tests::documents::line(
+                1,
+                Wall::EPOCH,
+                jig_client::contract::Activity::RunEnded {
+                    attempt: ATTEMPT,
+                    end: jig_client::contract::RunEnd::Finished,
+                    spent: 0,
+                },
+            ),
+        ),
         (
             4,
-            c::Activity::Turn {
-                name: c::TurnName { attempt: ATTEMPT, number: 1 },
-                turn: c::TurnRead::Decoded(c::Turn {
+            crate::tests::documents::turn(
+                1,
+                Wall::EPOCH,
+                c::TurnName { attempt: ATTEMPT, number: 1 },
+                c::TurnRead::Decoded(c::Turn {
                     messages,
                     used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
                     spent: 0,
                     read_through: None,
                     cut: false,
                 }),
-            },
+            ),
         ),
         (
             3,
-            c::Activity::Words {
-                by: c::Party {
-                    number: PARTY,
-                    kind: c::PartyKind::Person,
-                    name: c::Text::new(Box::from(*b"Pat"), TEXT).expect("person"),
+            crate::tests::documents::line(
+                1,
+                Wall::EPOCH,
+                jig_client::contract::Activity::Words {
+                    message: 1,
+                    by: jig_client::contract::Requester::Person(
+                        (c::Party {
+                            number: PARTY,
+                            kind: c::PartyKind::Person,
+                            name: c::Text::new(Box::from(*b"Pat"), TEXT).expect("person"),
+                        })
+                        .number,
+                    ),
+                    kind: jig_client::contract::MessageKind::Words,
+                    words: c::Text::new(Box::from(*b"Hello"), TEXT).expect("words"),
                 },
-                message: 1,
-                words: c::Text::new(Box::from(*b"Hello"), TEXT).expect("words"),
-            },
+            ),
         ),
         (
             2,
-            c::Activity::RunBegan {
-                attempt: ATTEMPT,
-                how: c::RunBeginning::Fresh { tail: 0 },
-                why: c::Text::new(Box::from(*b"Hello"), TEXT).expect("why"),
-            },
+            crate::tests::documents::line(
+                1,
+                Wall::EPOCH,
+                jig_client::contract::Activity::RunBegan {
+                    attempt: ATTEMPT,
+                    why: jig_client::contract::RunWhy::Made,
+                    resumed: false,
+                },
+            ),
         ),
     ] {
-        rows.push(c::ActivityLine { position, at: Wall::EPOCH, event }).expect("line");
+        rows.push({
+            let mut line = event;
+            line.source.position = position;
+            line.source.at = Wall::EPOCH;
+            line
+        })
+        .expect("line");
     }
     thread.page(c::ActivityPage {
         rows,
@@ -768,33 +793,33 @@ fn history() -> (temper_client_domain::Domain, skein_lib::Queue<temper_client_do
         &mut out,
     );
     let mut rows = List::with_capacity(2);
-    rows.push(c::ActivityLine {
-        position: 3,
-        at: Wall::EPOCH,
-        event: c::Activity::Owner {
-            source: Box::new(c::OwnerActivityLine {
-                task: TASK,
-                position: 3,
-                at: Wall::EPOCH,
-                line: c::OwnerActivity::Turn { reply: 1, attempt: ATTEMPT, turn: TURN, read: None },
-            }),
-            decoded: None,
-        },
+    rows.push(jig_client::contract::DecodedActivityLine {
+        source: Box::new(c::ActivityLine {
+            task: TASK,
+            position: 3,
+            at: Wall::EPOCH,
+            line: c::Activity::Turn { reply: 1, attempt: ATTEMPT, turn: TURN, read: None },
+        }),
+        decoded: None,
     })
     .expect("owner turn");
-    rows.push(c::ActivityLine {
-        position: 4,
-        at: Wall::EPOCH,
-        event: c::Activity::Words {
-            by: c::Party {
-                number: PARTY,
-                kind: c::PartyKind::Person,
-                name: c::Text::new(Box::from(*b"Pat"), TEXT).expect("name"),
-            },
+    rows.push(crate::tests::documents::line(
+        4,
+        Wall::EPOCH,
+        jig_client::contract::Activity::Words {
             message: 1,
+            by: jig_client::contract::Requester::Person(
+                (c::Party {
+                    number: PARTY,
+                    kind: c::PartyKind::Person,
+                    name: c::Text::new(Box::from(*b"Pat"), TEXT).expect("name"),
+                })
+                .number,
+            ),
+            kind: jig_client::contract::MessageKind::Words,
             words: c::Text::new(Box::from(*b"Hello"), TEXT).expect("words"),
         },
-    })
+    ))
     .expect("line");
     chat_event(
         &mut root,
@@ -885,7 +910,9 @@ fn answered_message(answer: c::Answer) -> temper_client_domain::Domain {
                 up: jig_client::Up::Answer {
                     attempt: seen,
                     envelope: skein_lib::RequestEnvelope::Final,
-                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Changed))),
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                        c::DocumentOutcome::Amended { task: 9 },
+                    )))),
                     why: None,
                 },
             },
@@ -896,8 +923,10 @@ fn answered_message(answer: c::Answer) -> temper_client_domain::Domain {
 }
 #[test]
 fn a_messages_progress_and_acceptance_stay_in_the_conversation() {
-    let root =
-        answered_message(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Said { task: TASK, message: MESSAGE })));
+    let root = answered_message(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Said {
+        task: TASK,
+        message: MESSAGE,
+    })));
     let answered = fixtures::page_view(&root);
     assert!(fixtures::find(answered.tree(), Role::Status, b"Sent").is_some());
     let applied = fixtures::words().say_card(crate::cards::P::Applied, &[]);
@@ -915,7 +944,7 @@ fn a_refused_message_draws_its_refusal_after_send() {
     assert!(status < area + usize::try_from(nodes[area].size).unwrap());
 }
 
-fn header_with_status(waits_on: c::WaitsOn, live: u32, wake: c::WakeRule, requester: c::OwnerRequester) -> crate::View {
+fn header_with_status(waits_on: c::WaitsOn, live: u32, wake: c::WakeRule, requester: c::Requester) -> crate::View {
     use temper_client_domain::{Address, Event};
     let (mut root, _, watch) = fixtures::root_at(Address::Chat { task: TASK }, &fixtures::domain_limits());
     let mut task = fixtures::task::document();
@@ -923,7 +952,7 @@ fn header_with_status(waits_on: c::WaitsOn, live: u32, wake: c::WakeRule, reques
     task.waits_on = waits_on;
     task.requester = requester;
     task.wake.words = wake;
-    let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+    let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
     details.live_delegates = live;
     fixtures::root_event(
         &mut root,
@@ -943,8 +972,7 @@ fn header_with_status(waits_on: c::WaitsOn, live: u32, wake: c::WakeRule, reques
 fn the_chatbar_counts_the_delegates_it_waits_on() {
     // One and two distinguish the shared goal phrase's plural forms.
     for (live, expected) in [(1, b"waiting on 1 delegate".as_slice()), (2, b"waiting on 2 delegates")] {
-        let view =
-            header_with_status(c::WaitsOn::Delegates, live, c::WakeRule::Never, c::OwnerRequester::Person(PARTY));
+        let view = header_with_status(c::WaitsOn::Delegates, live, c::WakeRule::Never, c::Requester::Person(PARTY));
         let status = fixtures::find(view.tree(), Role::Status, expected).expect("delegate status");
         assert_eq!(view.tree().find(status).unwrap().styles.as_slice(), [crate::look::STATUS_WAITING]);
     }
@@ -959,7 +987,7 @@ fn the_chatbar_waits_on_the_requesting_persons_words() {
     for rule in
         [c::WakeRule::Immediate, c::WakeRule::Batch { count: BATCH_COUNT, age: skein_lib::Duration::from_secs(1) }]
     {
-        let view = header_with_status(c::WaitsOn::News, 0, rule, c::OwnerRequester::Person(requester));
+        let view = header_with_status(c::WaitsOn::News, 0, rule, c::Requester::Person(requester));
         let status = fixtures::find(view.tree(), Role::Status, b"waiting on your words").expect("words status");
         assert_eq!(view.tree().find(status).unwrap().styles.as_slice(), [crate::look::STATUS_WAITING]);
     }
@@ -971,9 +999,9 @@ fn the_chatbar_keeps_jigs_word_without_the_requesters_words_wake() {
     let person = fixtures::root_in_project(None);
     let requester = person.pages().me(person.client()).unwrap().party.number;
     for (rule, by) in [
-        (c::WakeRule::Never, c::OwnerRequester::Person(requester)),
-        (c::WakeRule::Immediate, c::OwnerRequester::Person(OTHER_PERSON)),
-        (c::WakeRule::Immediate, c::OwnerRequester::Task(TASK)),
+        (c::WakeRule::Never, c::Requester::Person(requester)),
+        (c::WakeRule::Immediate, c::Requester::Person(OTHER_PERSON)),
+        (c::WakeRule::Immediate, c::Requester::Task(TASK)),
     ] {
         let view = header_with_status(c::WaitsOn::News, 0, rule, by);
         assert!(fixtures::find(view.tree(), Role::Status, b"Parked").is_some());
@@ -1108,15 +1136,19 @@ fn an_assistants_opaque_block_stays_inside_its_temper_message() {
 fn a_persons_words_are_paragraphs_without_a_read_label() {
     let mut thread = structured_thread();
     let mut rows = List::with_capacity(1);
-    rows.push(c::ActivityLine {
-        position: 6,
-        at: Wall::EPOCH,
-        event: c::Activity::Words {
-            by: c::Party { number: PARTY, kind: c::PartyKind::Person, name: fixtures::first_run::text(b"Pat") },
+    rows.push(crate::tests::documents::line(
+        6,
+        Wall::EPOCH,
+        jig_client::contract::Activity::Words {
             message: 2,
+            by: jig_client::contract::Requester::Person(
+                (c::Party { number: PARTY, kind: c::PartyKind::Person, name: fixtures::first_run::text(b"Pat") })
+                    .number,
+            ),
+            kind: jig_client::contract::MessageKind::Words,
             words: fixtures::first_run::text(b"First line\nSecond line"),
         },
-    })
+    ))
     .expect("words");
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 5 });
     thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
@@ -1131,23 +1163,19 @@ fn an_owners_person_words_have_a_person_shell_and_one_paragraph_per_line() {
     let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: 512 });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(1);
-    rows.push(c::ActivityLine {
-        position: 1,
-        at: Wall::EPOCH,
-        event: c::Activity::Owner {
-            source: Box::new(c::OwnerActivityLine {
-                task: TASK,
-                position: 1,
-                at: Wall::EPOCH,
-                line: c::OwnerActivity::Words {
-                    message: MESSAGE,
-                    by: c::OwnerRequester::Person(PARTY),
-                    kind: c::OwnerMessageKind::Words,
-                    words: fixtures::first_run::text(b"First line\nSecond line"),
-                },
-            }),
-            decoded: None,
-        },
+    rows.push(jig_client::contract::DecodedActivityLine {
+        source: Box::new(c::ActivityLine {
+            task: TASK,
+            position: 1,
+            at: Wall::EPOCH,
+            line: c::Activity::Words {
+                message: MESSAGE,
+                by: c::Requester::Person(PARTY),
+                kind: c::MessageKind::Words,
+                words: fixtures::first_run::text(b"First line\nSecond line"),
+            },
+        }),
+        decoded: None,
     })
     .expect("owner words");
     thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
@@ -1165,23 +1193,19 @@ fn a_tasks_words_have_an_agent_shell_named_by_the_task() {
     let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(1);
-    rows.push(c::ActivityLine {
-        position: 1,
-        at: Wall::EPOCH,
-        event: c::Activity::Owner {
-            source: Box::new(c::OwnerActivityLine {
-                task: TASK,
-                position: 1,
-                at: Wall::EPOCH,
-                line: c::OwnerActivity::Words {
-                    message: MESSAGE,
-                    by: c::OwnerRequester::Task(2),
-                    kind: c::OwnerMessageKind::Question,
-                    words: fixtures::first_run::text(b"First line\nSecond line"),
-                },
-            }),
-            decoded: None,
-        },
+    rows.push(jig_client::contract::DecodedActivityLine {
+        source: Box::new(c::ActivityLine {
+            task: TASK,
+            position: 1,
+            at: Wall::EPOCH,
+            line: c::Activity::Words {
+                message: MESSAGE,
+                by: c::Requester::Task(2),
+                kind: c::MessageKind::Question,
+                words: fixtures::first_run::text(b"First line\nSecond line"),
+            },
+        }),
+        decoded: None,
     })
     .expect("owner words");
     thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
@@ -1244,9 +1268,10 @@ fn result_view_at(result: c::TaskResult, at: Option<Wall>) -> crate::View {
     let live = messaging_root();
     let mut task = live.pages().chat().expect("chat").task(live.client()).expect("task").clone();
     // Keep Message offered: the same result which draws the end must suppress the whole foot.
-    task.requester = c::OwnerRequester::Person(PARTY);
+    task.requester = c::Requester::Person(PARTY);
     task.result = Some(result);
-    if let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() {
+    {
+        let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
         details.ended_at = at;
     }
     fixtures::root_event(
@@ -1278,25 +1303,20 @@ fn result_document(ending: c::Ending) -> c::TaskResult {
 fn every_chat_end_line_carries_ended_and_omits_the_whole_composer() {
     use fixtures::first_run::text;
     let report = c::ResultValue::Report(c::DocumentText::complete(text(b"A report")));
-    let cancelled = c::OwnerChipEnding::Cancelled {
+    let cancelled = c::ChipEnding::Cancelled {
         reason: c::DocumentText::complete(text(b"No longer needed")),
         result: None,
-        by: c::OwnerRequester::Person(74),
+        by: c::Requester::Person(74),
         at: Wall::EPOCH,
     };
     for (result, expected) in [
-        (c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Done(report.clone()))), "Closed · its report, “A report”"),
+        (c::TaskResult::Ending(Box::new(c::ChipEnding::Done(report.clone()))), "Closed · its report, “A report”"),
         (
-            c::TaskResult::Ending(Box::new(c::OwnerChipEnding::Failed(c::DocumentText::complete(text(
-                b"Checks failed",
-            ))))),
+            c::TaskResult::Ending(Box::new(c::ChipEnding::Failed(c::DocumentText::complete(text(b"Checks failed"))))),
             "Failed · Checks failed",
         ),
         (c::TaskResult::Ending(Box::new(cancelled.clone())), "Cancelled · No longer needed"),
-        (
-            result_document(c::Ending::Task(Box::new(c::OwnerChipEnding::Done(report)))),
-            "Closed · its report, “A report”",
-        ),
+        (result_document(c::Ending::Task(Box::new(c::ChipEnding::Done(report)))), "Closed · its report, “A report”"),
         (result_document(c::Ending::Task(Box::new(cancelled))), "Cancelled · No longer needed"),
         (result_document(c::Ending::Failed { reason: Some(text(b"Checks failed")) }), "Failed · Checks failed"),
         (result_document(c::Ending::Failed { reason: None }), "Failed · "),
@@ -1324,8 +1344,8 @@ fn every_chat_end_line_carries_ended_and_omits_the_whole_composer() {
     }
 }
 
-fn cancelled_by(by: c::OwnerRequester) -> c::OwnerChipEnding {
-    c::OwnerChipEnding::Cancelled {
+fn cancelled_by(by: c::Requester) -> c::ChipEnding {
+    c::ChipEnding::Cancelled {
         by,
         reason: c::DocumentText::complete(fixtures::first_run::text(b"No longer needed")),
         result: None,
@@ -1345,42 +1365,36 @@ fn a_chats_end_line_says_who_ended_it() {
     for (name, owner, document, clock, expected) in [
         (
             "requester",
-            cancelled_by(c::OwnerRequester::Person(PARTY)),
+            cancelled_by(c::Requester::Person(PARTY)),
             cancelled_document(c::Actor::Party(PARTY)),
             Some(fixtures::NOW),
             "Closed 00:00",
         ),
         (
             "requester without clock",
-            cancelled_by(c::OwnerRequester::Person(PARTY)),
+            cancelled_by(c::Requester::Person(PARTY)),
             cancelled_document(c::Actor::Party(PARTY)),
             None,
             "Closed",
         ),
         (
             "another person",
-            cancelled_by(c::OwnerRequester::Person(74)),
+            cancelled_by(c::Requester::Person(74)),
             cancelled_document(c::Actor::Party(74)),
             Some(fixtures::NOW),
             "Cancelled 00:00 · No longer needed",
         ),
         (
             "a task",
-            cancelled_by(c::OwnerRequester::Task(7)),
+            cancelled_by(c::Requester::Task(7)),
             cancelled_document(c::Actor::Task(7)),
             Some(fixtures::NOW),
             "Cancelled 00:00 · No longer needed",
         ),
-        (
-            "report",
-            c::OwnerChipEnding::Done(report),
-            reported,
-            Some(fixtures::NOW),
-            "Closed 00:00 · its report, “A report”",
-        ),
+        ("report", c::ChipEnding::Done(report), reported, Some(fixtures::NOW), "Closed 00:00 · its report, “A report”"),
         (
             "failure",
-            c::OwnerChipEnding::Failed(c::DocumentText::complete(text(b"Checks failed"))),
+            c::ChipEnding::Failed(c::DocumentText::complete(text(b"Checks failed"))),
             result_document(c::Ending::Failed { reason: Some(text(b"Checks failed")) }),
             Some(fixtures::NOW),
             "Failed 00:00 · Checks failed",
@@ -1417,15 +1431,15 @@ fn a_chats_end_and_its_phase_keep_the_supplied_clock() {
     use fixtures::first_run::text;
     for (ending, expected) in [
         (
-            c::OwnerChipEnding::Done(c::ResultValue::Report(c::DocumentText::complete(text(b"A report")))),
+            c::ChipEnding::Done(c::ResultValue::Report(c::DocumentText::complete(text(b"A report")))),
             "Closed 00:00 · its report, “A report”",
         ),
-        (c::OwnerChipEnding::Failed(c::DocumentText::complete(text(b"Checks failed"))), "Failed 00:00 · Checks failed"),
+        (c::ChipEnding::Failed(c::DocumentText::complete(text(b"Checks failed"))), "Failed 00:00 · Checks failed"),
         (
-            c::OwnerChipEnding::Cancelled {
+            c::ChipEnding::Cancelled {
                 reason: c::DocumentText::complete(text(b"No longer needed")),
                 result: None,
-                by: c::OwnerRequester::Person(74),
+                by: c::Requester::Person(74),
                 at: Wall::EPOCH,
             },
             "Cancelled 00:00 · No longer needed",
@@ -1468,29 +1482,38 @@ const TURN_MIDNIGHT: u64 = TURN_NOON - TURN_DAY / 2;
 fn turn_wall(seconds: u64) -> Wall {
     Wall::from_nanos(seconds.checked_mul(1_000_000_000).expect("fixture wall fits"))
 }
-fn timed_thread(events: &[(u64, c::Activity)]) -> Thread {
+fn timed_thread(events: &[(u64, jig_client::contract::DecodedActivityLine)]) -> Thread {
     let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: 12, bytes: BYTES, text: 512 });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(u32::try_from(events.len()).unwrap());
     for (index, (at, event)) in events.iter().enumerate().rev() {
-        rows.push(c::ActivityLine {
-            position: u64::try_from(index).unwrap().checked_add(1).expect("position fits"),
-            at: turn_wall(*at),
-            event: event.clone(),
+        rows.push({
+            let mut line = event.clone();
+            line.source.position = u64::try_from(index).unwrap().checked_add(1).expect("position fits");
+            line.source.at = turn_wall(*at);
+            line
         })
         .unwrap();
     }
     thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
     thread
 }
-fn timed_words() -> c::Activity {
-    c::Activity::Words {
-        by: c::Party { number: PARTY, kind: c::PartyKind::Person, name: fixtures::first_run::text(b"Pat") },
-        message: MESSAGE,
-        words: fixtures::first_run::text(b"A message"),
-    }
+fn timed_words() -> jig_client::contract::DecodedActivityLine {
+    crate::tests::documents::line(
+        1,
+        Wall::EPOCH,
+        jig_client::contract::Activity::Words {
+            message: MESSAGE,
+            by: jig_client::contract::Requester::Person(
+                (c::Party { number: PARTY, kind: c::PartyKind::Person, name: fixtures::first_run::text(b"Pat") })
+                    .number,
+            ),
+            kind: jig_client::contract::MessageKind::Words,
+            words: fixtures::first_run::text(b"A message"),
+        },
+    )
 }
-fn timed_turn() -> c::Activity {
+fn timed_turn() -> jig_client::contract::DecodedActivityLine {
     fixtures::first_run::turn(
         1,
         ATTEMPT,
@@ -1501,7 +1524,6 @@ fn timed_turn() -> c::Activity {
         )],
         512,
     )
-    .event
 }
 fn timed_tree(
     thread: &Thread,
@@ -1542,7 +1564,7 @@ fn timed_style_positions(tree: &skein_ui::Tree, style: skein_ui::Style) -> List<
 fn turn_clocks_follow_separately_named_speakers_on_both_paths() {
     let thread = timed_thread(&[(TURN_NOON, timed_words()), (TURN_NOON + 60, timed_turn())]);
     for projected in [true, false] {
-        for (person, label) in [(Some(PARTY), b"You".as_slice()), (None, b"Pat".as_slice())] {
+        for (person, label) in [(Some(PARTY), b"You".as_slice()), (None, b"Person".as_slice())] {
             let (tree, _) = timed_tree(&thread, timed_drawing(projected), person, TURN_NOON);
             let roles = timed_style_positions(&tree, crate::look::WHO);
             for (index, (name, clock)) in roles.iter().zip([(label, b"12:00"), (b"Temper".as_slice(), b"12:01")]) {
@@ -1579,11 +1601,15 @@ fn pending_words_and_provisional_text_have_no_clock_or_day() {
 }
 #[test]
 fn the_request_uses_the_first_timed_line_and_shares_its_day() {
-    let began = c::Activity::RunBegan {
-        attempt: ATTEMPT,
-        how: c::RunBeginning::Fresh { tail: 0 },
-        why: fixtures::first_run::text(b"Run"),
-    };
+    let began = crate::tests::documents::line(
+        1,
+        Wall::EPOCH,
+        jig_client::contract::Activity::RunBegan {
+            attempt: ATTEMPT,
+            why: jig_client::contract::RunWhy::Made,
+            resumed: false,
+        },
+    );
     let thread = timed_thread(&[(TURN_NOON - 60, began), (TURN_NOON, timed_words())]);
     let request = c::SpecificationDocument::complete(c::Specification {
         asks: false,
@@ -1649,10 +1675,12 @@ fn each_days_first_turn_has_one_day_line_with_the_calendar_words() {
 fn an_undecodable_turn_keeps_its_clock_and_day_on_both_paths() {
     let thread = timed_thread(&[(
         TURN_NOON,
-        c::Activity::Turn {
-            name: c::TurnName { attempt: ATTEMPT, number: TURN },
-            turn: c::TurnRead::Undecodable { why: c::TurnProblem::Malformed },
-        },
+        crate::tests::documents::turn(
+            1,
+            Wall::EPOCH,
+            c::TurnName { attempt: ATTEMPT, number: TURN },
+            c::TurnRead::Undecodable { why: c::TurnProblem::Malformed },
+        ),
     )]);
     for projected in [true, false] {
         let (tree, _) = timed_tree(&thread, timed_drawing(projected), None, TURN_NOON);
@@ -1696,16 +1724,16 @@ fn the_chatbar_and_chats_line_share_every_status_phrase() {
     ] {
         let mut line = super::chats::line();
         line.waits_on = waits_on;
-        let c::ChipPhase::Owner { details, .. } = line.chip.details.as_mut() else { panic!("owner") };
+        let c::ChipPhaseFacts { details, .. } = line.chip.details.as_mut();
         details.live_delegates = live;
         details.wake.words = wake;
         rows.push(line).unwrap();
     }
     let mut closed = super::chats::line();
-    let c::ChipPhase::Owner { phase, details } = closed.chip.details.as_mut() else { panic!("owner") };
-    *phase = c::OwnerChipPhase::Ended;
+    let c::ChipPhaseFacts { phase, details } = closed.chip.details.as_mut();
+    *phase = c::ChipPhase::Ended;
     details.ended_at = Some(Wall::EPOCH);
-    details.ending = Some(c::OwnerChipEnding::Cancelled {
+    details.ending = Some(c::ChipEnding::Cancelled {
         by: closed.requester,
         reason: c::DocumentText::complete(fixtures::first_run::text(b"Any reason")),
         result: None,
@@ -1735,7 +1763,7 @@ fn the_chatbar_and_chats_line_share_every_status_phrase() {
     for (line, expected) in rows.iter().zip(expected) {
         let (line_tree, _) = super::chats::tree(line);
         assert!(fixtures::find(&line_tree, Role::Status, expected).is_some(), "chats line: {expected:?}");
-        let c::ChipPhase::Owner { details, .. } = line.chip.details.as_ref() else { panic!("owner") };
+        let c::ChipPhaseFacts { details, .. } = line.chip.details.as_ref();
         let root = fixtures::root_in_project(None);
         let me = root.pages().me(root.client()).unwrap();
         let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
@@ -1800,7 +1828,9 @@ fn a_proposals_fold_precedes_its_card_after_the_message() {
     message.blocks = blocks;
     let mut rows = List::with_capacity(2);
     let mut first = run::turn(1, ATTEMPT, 1, &[], 512);
-    let c::Activity::Turn { turn: c::TurnRead::Decoded(turn), .. } = &mut first.event else { panic!("decoded turn") };
+    let Some(c::ArchivedTurn { turn: c::TurnRead::Decoded(turn), .. }) = &mut first.decoded else {
+        panic!("decoded turn")
+    };
     turn.messages = List::with_capacity(1);
     turn.messages.push(message).unwrap();
     rows.push(first).unwrap();

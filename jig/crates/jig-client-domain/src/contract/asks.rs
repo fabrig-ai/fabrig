@@ -1,9 +1,9 @@
 //! Each visible act is one ask; client/domain/contract.md, 3.2 and 4.
 //! Requests carry jig facts alone and their outcomes are durable.
 //! Adoption uses the connector's application request (client/domain/pages.md, 6.5).
-use super::{Actor, Authority, Decision, HeldRole, NoteScope, Part, Party, ProposalKey, Refusal, Revision, Text};
+use super::{Decision, HeldRole, NoteScope, ProposalKey, Refusal, Revision, Text};
 use alloc::boxed::Box;
-use skein_lib::{Duration, List, Wall};
+use skein_lib::{Duration, List};
 
 /// A person destination change names the independent person-task revision (domain/tasks.md, 7).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -25,23 +25,14 @@ pub struct Amendment {
     /// Retarget a person task, with admission decided by its engine document.
     pub addressed: Option<AddressChange>,
     pub spec: Option<super::Specification>,
-    pub wake: Option<super::OwnerWakePolicy>,
+    pub wake: Option<super::WakePolicy>,
     /// Replaces the whole list: new names add dependencies, omitted names remove them (tasks.md, 7).
     pub dependencies: Option<List<u64>>,
-    pub authority: Option<super::OwnerAuthority>,
+    pub authority: Option<super::Authority>,
     pub instructions: Option<Text>,
     pub tracked: Option<Tracking>,
     /// A new LLM choice for the task's next runs.
     pub llm: Option<super::LlmChoice>,
-}
-
-/// The kinds of news that wake an agent.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct WakePolicy {
-    pub words: bool,
-    pub results: bool,
-    pub topics: List<u16>,
-    pub subscriptions: List<Part>,
 }
 
 /// A person task answer matching its contract.
@@ -71,33 +62,6 @@ pub enum SeenThrough {
 pub struct Holding {
     pub party: u64,
     pub role: HeldRole,
-}
-
-/// The project policy as facts.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Policy {
-    pub ceiling: Authority,
-    pub period: u64,
-    pub spend: u64,
-    pub roles: List<RolePolicy>,
-    pub requirements: List<Part>,
-    pub deciders: List<Decider>,
-}
-
-/// What a project role may give, allot and decide.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RolePolicy {
-    pub number: u16,
-    pub authority: Authority,
-    pub allotment: u64,
-    pub decisions: List<u16>,
-}
-
-/// The policy role for a kind of proposal past a tree.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Decider {
-    pub kind: u16,
-    pub role: u16,
 }
 
 /// The target and decision of a `Decide`.
@@ -262,24 +226,24 @@ pub enum Ask {
     },
     /// Start an LLM account sign-in.
     SignIn {
-        holder: AccountHolder,
+        holder: AskAccountHolder,
         provider: u32,
     },
     /// Change the holder's LLM account. Key values travel in the envelope only.
     AccountChange {
-        holder: AccountHolder,
+        holder: AskAccountHolder,
         change: AccountChange,
     },
     /// End an LLM account sign-in for a source.
     SignOut {
-        holder: AccountHolder,
+        holder: AskAccountHolder,
         source: u32,
     },
 }
 
 /// The holder of an LLM account sign-in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum AccountHolder {
+pub enum AskAccountHolder {
     Own,
     Deployment,
 }
@@ -290,29 +254,11 @@ pub enum Outcome {
     SettingsChanged(super::OutcomeSettingsChanged),
     MovedToNewest(super::OutcomeMovedToNewest),
     /// Whole committed owner facts, without inferred names or explanations.
-    Owner(super::OwnerOutcome),
+    Document(super::DocumentOutcome),
     /// A named thing was made.
     Made {
         what: Made,
     },
-    /// The act became a proposal.
-    Proposed {
-        proposal: ProposalKey,
-    },
-    /// A decision was made.
-    Decided {
-        by: Actor,
-        how: Decision,
-        at: Wall,
-    },
-    /// Another party decided first.
-    DecidedFirst {
-        by: Party,
-        how: Decision,
-        at: Wall,
-    },
-    /// The requested change was made.
-    Changed,
 }
 
 /// What an ask made, named for its client.
@@ -379,7 +325,7 @@ pub enum AccountChange {
     },
     SetUses {
         account: u32,
-        uses: Option<Box<[super::OwnerAccountUse]>>,
+        uses: Option<Box<[super::AccountUse]>>,
     },
     MoveOut {
         account: u32,

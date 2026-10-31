@@ -157,7 +157,7 @@ pub(crate) fn stage(
 /// temper's parts of `answer`, matched by its tokens: what the run left on
 /// the forge, what it saved, and for a workspace that could not be prepared,
 /// which repository and why.
-pub(crate) fn parts(domain: &Domain, answer: &host::Answer) -> (wire::Work, Option<wire::Preparation>) {
+pub(crate) fn parts(domain: &Domain, answer: &host::RunAnswer) -> (wire::Work, Option<wire::Preparation>) {
     let (work, preparation) = match &answer.ending {
         host::Ending::Refused(_) => (None, None),
         host::Ending::Ended { work, .. } | host::Ending::Parked { work } => (Some(work), None),
@@ -646,7 +646,7 @@ mod tests {
                 }
             }
         }
-        let answer = host::Answer {
+        let answer = host::RunAnswer {
             read: None,
             refused: Box::new([]),
             turns: 0,

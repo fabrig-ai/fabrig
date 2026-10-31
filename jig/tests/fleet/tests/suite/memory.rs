@@ -1,6 +1,6 @@
 //! Saturated fleet lifecycle, refusals and exact ownership observations.
 
-use jig_domain_fleet::{Answer, Domain, Event, Hello, Hosted, Limits, Phase, Request, fire, resume, step};
+use jig_domain_fleet::{Answer, Domain, Event, Hello, Hosting, Limits, Phase, Request, fire, resume, step};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 
@@ -97,11 +97,11 @@ impl Measured {
 
     /// A hello on `channel`, holding as many keys as a worker may, of the
     /// most bytes, and hosting `hosting`.
-    fn hello(&mut self, channel: Token, hosting: Vec<Hosted>) -> Vec<Request> {
+    fn hello(&mut self, channel: Token, hosting: Vec<Hosting>) -> Vec<Request> {
         self.hello_with_endpoints(channel, hosting, jig_domain_fleet::PROGRAM_ENDPOINTS)
     }
 
-    fn hello_with_endpoints(&mut self, channel: Token, hosting: Vec<Hosted>, endpoints: u32) -> Vec<Request> {
+    fn hello_with_endpoints(&mut self, channel: Token, hosting: Vec<Hosting>, endpoints: u32) -> Vec<Request> {
         let limits = self.env.limits;
         let workstreams = (0..limits.workstreams).map(|nth| channel.raw() * 100 + u64::from(nth)).collect();
         let mut bounds = jig_fleet_world::fixtures::bounds();
@@ -329,7 +329,7 @@ fn every_entry_point_preserves_its_lifecycle() {
     fleet.settle();
     // A worker lost, back on another channel, and lost for good.
     fleet.step(Event::Lost { channel: channel(0) });
-    let hosting = vec![Hosted { run: r3, attempt: a3, phase: Phase::Active }];
+    let hosting = vec![Hosting { run: r3, attempt: a3, phase: Phase::Active }];
     fleet.hello(channel(1), hosting);
     for raw in [7, 8] {
         let answer = Event::Answer {
@@ -366,7 +366,7 @@ fn held_turns_refuse_overflow_and_release_after_adoption() {
     let limits = Limits { turns: 8, ..LIMITS };
     let mut fleet = Measured::new(limits);
     let (run, attempt) = (fleet.name(), fleet.name());
-    fleet.hello(channel(0), vec![Hosted { run, attempt, phase: Phase::Active }]);
+    fleet.hello(channel(0), vec![Hosting { run, attempt, phase: Phase::Active }]);
     for turn in 1..=limits.turns {
         let out =
             fleet.step(Event::Turn { channel: channel(0), run, attempt, turn, body: Token::new(u64::from(turn)) });

@@ -29,7 +29,7 @@ impl Harness {
         self.answered(call, c::Answer::Done(outcome));
     }
     pub(crate) fn answered(&mut self, call: u32, answer: c::Answer) {
-        if let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::PolicyChanged { .. })) = &answer {
+        if let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::PolicyChanged { .. })) = &answer {
             self.pending_reads.push(call);
         }
         let (attempt, _, _) = self.sends.get(&call).expect("call sent");
@@ -101,7 +101,6 @@ pub(crate) const CLOSE_MOVE: &[&str] = &["--move", "43"];
 pub(crate) const CLOSE_REASON_WORDS: &str = "all finished";
 pub(crate) const CLOSE_REASON: &[&str] = &["--reason", CLOSE_REASON_WORDS];
 /// A smaller task number would not match the director's restored-proposal example.
-pub(crate) const KEPT_PROPOSER: u64 = 3;
 /// The changed request differs from the held message under the same name.
 pub(crate) const OTHER_MESSAGE: &[&str] = &["task", "message", "41", "different words", "--key", "port-answer"];
 /// JSON's extra word is shared by all act-output cases.
@@ -170,13 +169,13 @@ pub(crate) fn chat_root(budget: u64, seed: u64) -> Harness {
     root
 }
 pub(crate) fn proposal(proposer: c::Proposer, acts: &[c::ActKind]) -> c::ReadValue {
-    c::ReadValue::OwnerProposal(Box::new(c::OwnerProposal {
+    c::ReadValue::Proposal(Box::new(c::Proposal {
         key: c::ProposalKey { proposer, number: PROPOSAL },
         project: PROJECT,
         reason: document_text(b"more time"),
-        action: c::OwnerProposalAction::Batch(List::with_capacity(EMPTY)),
+        action: c::ProposalAction::Batch(List::with_capacity(EMPTY)),
         as_holder: true,
-        waiting: c::OwnerProposalWaiting { holder: c::OwnerHistoryHolder::Person(PARTY), since: Wall::EPOCH },
+        waiting: c::ProposalWaiting { holder: c::HistoryHolder::Person(PARTY), since: Wall::EPOCH },
         funding: List::with_capacity(EMPTY),
         acts: offered(acts).acts,
     }))
@@ -199,10 +198,9 @@ pub(crate) fn act_document(call: &crate::jig::call::Call) -> c::ReadResult {
             };
             proposal(key.proposer, &[c::ActKind::Accept, c::ActKind::Reject, c::ActKind::PassUp])
         }
-        crate::jig::rows::TASK_DECIDE_AT => c::ReadValue::OwnerEscalation(Box::new(c::OwnerEscalation {
-            acts: task.acts.clone(),
-            task: Box::new(task),
-        })),
+        crate::jig::rows::TASK_DECIDE_AT => {
+            c::ReadValue::Escalation(Box::new(c::Escalation { acts: task.acts.clone(), task: Box::new(task) }))
+        }
         _ => c::ReadValue::Task(Box::new(task)),
     })
 }

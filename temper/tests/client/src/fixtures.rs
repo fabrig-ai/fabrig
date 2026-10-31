@@ -675,8 +675,8 @@ pub fn task_budget(front: &mut Joint, task: u64) -> jig_domain_core::documents::
                         None
                     }
                 }
-                reads::Answer::Historical(historical) => {
-                    if let reads::Past::Task { document, .. } = &historical.value {
+                reads::Answer::Ended(ended) => {
+                    if let reads::EndedValue::Task { document, .. } = &ended.value {
                         Some(document.budget)
                     } else {
                         None

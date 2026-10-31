@@ -555,7 +555,7 @@ fn nothing_leaves_before_the_mark() {
     let engine = service.engine.as_mut().expect("engine");
     assert!(engine.store.held_mark.is_some(), "public restore reaches its mark without secret bootstrap");
     assert!(!engine.store.component.mark_durable());
-    assert_eq!(engine.accounts.as_ref().expect("accounts").startup_state(), (false, 0));
+    assert_eq!(engine.accounts.as_ref().expect("accounts").startup_state(), (false, 0, 0));
     assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::Wires));
     assert!(engine.values.identities.numbers().is_empty(), "restored identities wait for the durable wires");
     assert!(engine.workers.forges.is_empty(), "runtime forges wait for the durable wires");
@@ -573,7 +573,7 @@ fn nothing_leaves_before_the_mark() {
     fixtures::restart(&mut service);
     let engine = service.engine.as_ref().expect("engine");
     assert!(engine.store.component.mark_durable());
-    assert_eq!(engine.accounts.as_ref().expect("accounts").startup_state(), (true, 0));
+    assert_eq!(engine.accounts.as_ref().expect("accounts").startup_state(), (true, 0, 0));
     assert_eq!(engine.store.forge_loads.as_slice(), [None], "one application-secrets pass");
     assert!(engine.forge_records.done());
     assert!(engine.forge.startup_begun());
@@ -583,7 +583,7 @@ fn nothing_leaves_before_the_mark() {
         fixtures::turn(&mut service);
     }
     let engine = service.engine.as_ref().expect("engine");
-    assert_eq!(engine.accounts.as_ref().expect("accounts").startup_state(), (true, 0));
+    assert_eq!(engine.accounts.as_ref().expect("accounts").startup_state(), (true, 0, 0));
     assert_eq!(engine.store.secret_requests, secrets, "bootstrap is not repeated");
     assert_eq!(engine.store.forge_loads.as_slice(), [None]);
 }

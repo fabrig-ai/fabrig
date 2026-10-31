@@ -43,7 +43,7 @@ pub fn wake_rule(source: &domain::WakeRule, limits: &wire::Limits) -> Result<wir
     })
 }
 /// Read `WakeRule` from its store value.
-pub fn read_wake_rule(source: wire::WakeRule, _limits: &wire::Limits) -> Result<domain::WakeRule, wire::Problem> {
+pub fn read_wake_rule(source: wire::WakeRule) -> Result<domain::WakeRule, wire::Problem> {
     Ok(match source {
         wire::WakeRule::Never => domain::WakeRule::Never,
         wire::WakeRule::Immediate => domain::WakeRule::Immediate,
@@ -55,7 +55,7 @@ pub fn read_wake_rule(source: wire::WakeRule, _limits: &wire::Limits) -> Result<
 }
 
 /// Translate `ResultsWake` to its store value.
-pub fn results_wake(source: &domain::ResultsWake, _limits: &wire::Limits) -> Result<wire::ResultsWake, wire::Problem> {
+pub fn results_wake(source: &domain::ResultsWake) -> Result<wire::ResultsWake, wire::Problem> {
     Ok(match source {
         domain::ResultsWake::Never => wire::ResultsWake::Never,
         domain::ResultsWake::Each => wire::ResultsWake::Each,
@@ -63,10 +63,7 @@ pub fn results_wake(source: &domain::ResultsWake, _limits: &wire::Limits) -> Res
     })
 }
 /// Read `ResultsWake` from its store value.
-pub fn read_results_wake(
-    source: wire::ResultsWake,
-    _limits: &wire::Limits,
-) -> Result<domain::ResultsWake, wire::Problem> {
+pub fn read_results_wake(source: wire::ResultsWake) -> Result<domain::ResultsWake, wire::Problem> {
     Ok(match source {
         wire::ResultsWake::Never => domain::ResultsWake::Never,
         wire::ResultsWake::Each => domain::ResultsWake::Each,
@@ -83,7 +80,7 @@ pub fn wake(source: &domain::WakePolicy, limits: &wire::Limits) -> Result<wire::
             words: wake_rule(words, limits)?,
             notices: wake_rule(notices, limits)?,
             news: wake_rule(news, limits)?,
-            results: results_wake(results, limits)?,
+            results: results_wake(results)?,
             questions: *questions,
             answers: *answers,
             timers: *timers,
@@ -91,13 +88,13 @@ pub fn wake(source: &domain::WakePolicy, limits: &wire::Limits) -> Result<wire::
     )
 }
 /// Read `WakePolicy` from its store record.
-pub fn read_wake(source: wire::WakePolicy, limits: &wire::Limits) -> Result<domain::WakePolicy, wire::Problem> {
+pub fn read_wake(source: wire::WakePolicy) -> Result<domain::WakePolicy, wire::Problem> {
     let wire::WakePolicyParts { words, notices, news, results, questions, answers, timers } = source.into_parts();
     Ok(domain::WakePolicy {
-        words: read_wake_rule(words, limits)?,
-        notices: read_wake_rule(notices, limits)?,
-        news: read_wake_rule(news, limits)?,
-        results: read_results_wake(results, limits)?,
+        words: read_wake_rule(words)?,
+        notices: read_wake_rule(notices)?,
+        news: read_wake_rule(news)?,
+        results: read_results_wake(results)?,
         questions,
         answers,
         timers,
@@ -105,20 +102,14 @@ pub fn read_wake(source: wire::WakePolicy, limits: &wire::Limits) -> Result<doma
 }
 
 /// Translate `RecurringOverlap` to its store value.
-pub fn overlap(
-    source: &domain::RecurringOverlap,
-    _limits: &wire::Limits,
-) -> Result<wire::RecurringOverlap, wire::Problem> {
+pub fn overlap(source: &domain::RecurringOverlap) -> Result<wire::RecurringOverlap, wire::Problem> {
     Ok(match source {
         domain::RecurringOverlap::Skip => wire::RecurringOverlap::Skip,
         domain::RecurringOverlap::Wait => wire::RecurringOverlap::Wait,
     })
 }
 /// Read `RecurringOverlap` from its store value.
-pub fn read_overlap(
-    source: wire::RecurringOverlap,
-    _limits: &wire::Limits,
-) -> Result<domain::RecurringOverlap, wire::Problem> {
+pub fn read_overlap(source: wire::RecurringOverlap) -> Result<domain::RecurringOverlap, wire::Problem> {
     Ok(match source {
         wire::RecurringOverlap::Skip => domain::RecurringOverlap::Skip,
         wire::RecurringOverlap::Wait => domain::RecurringOverlap::Wait,
@@ -176,7 +167,7 @@ pub fn hold(source: &domain::Hold, limits: &wire::Limits) -> Result<wire::Hold, 
     })
 }
 /// Read `Hold` from its store value.
-pub fn read_hold(source: wire::Hold, _limits: &wire::Limits) -> Result<domain::Hold, wire::Problem> {
+pub fn read_hold(source: wire::Hold) -> Result<domain::Hold, wire::Problem> {
     Ok(match source {
         wire::Hold::Exceeded(value) => domain::Hold::Exceeded(domain::Exceeded {
             bound: match value.bound() {
@@ -245,7 +236,7 @@ pub fn active(source: &domain::Active, limits: &wire::Limits) -> Result<wire::Ac
     })
 }
 /// Read `Active` from its store value.
-pub fn read_active(source: wire::Active, _limits: &wire::Limits) -> Result<domain::Active, wire::Problem> {
+pub fn read_active(source: wire::Active) -> Result<domain::Active, wire::Problem> {
     Ok(match source {
         wire::Active::Idle => domain::Active::Idle,
         wire::Active::Due => domain::Active::Due,
@@ -278,7 +269,7 @@ pub fn stage(source: &domain::Stage, limits: &wire::Limits) -> Result<wire::Stag
     })
 }
 /// Read `Stage` from its store value.
-pub fn read_stage(source: wire::Stage, _limits: &wire::Limits) -> Result<domain::Stage, wire::Problem> {
+pub fn read_stage(source: wire::Stage) -> Result<domain::Stage, wire::Problem> {
     Ok(match source {
         wire::Stage::Run(value) => {
             let wire::NumberParts { value } = value.into_parts();
@@ -345,7 +336,7 @@ pub fn closing(source: &domain::Closing, limits: &wire::Limits) -> Result<wire::
 /// Read `Closing` from its store record.
 pub fn read_closing(source: wire::Closing, limits: &wire::Limits) -> Result<domain::Closing, wire::Problem> {
     let wire::ClosingParts { stage, ending } = source.into_parts();
-    Ok(domain::Closing { stage: read_stage(stage, limits)?, ending: read_ending(ending, limits)? })
+    Ok(domain::Closing { stage: read_stage(stage)?, ending: read_ending(ending, limits)? })
 }
 
 /// Translate `Was` to its store value.
@@ -364,7 +355,7 @@ pub fn read_was(source: wire::Was, limits: &wire::Limits) -> Result<domain::Was,
         wire::Was::Waiting => domain::Was::Waiting,
         wire::Was::Active(value) => {
             let wire::ActivationParts { value } = value.into_parts();
-            domain::Was::Active(read_active(value, limits)?)
+            domain::Was::Active(read_active(value)?)
         }
         wire::Was::Closing(value) => domain::Was::Closing(read_closing(value, limits)?),
     })
@@ -437,14 +428,14 @@ pub fn read_phase(source: wire::Phase, limits: &wire::Limits) -> Result<domain::
         wire::Phase::Waiting => domain::Phase::Waiting,
         wire::Phase::Active(value) => {
             let wire::ActivationParts { value } = value.into_parts();
-            domain::Phase::Active(read_active(value, limits)?)
+            domain::Phase::Active(read_active(value)?)
         }
         wire::Phase::Closing(value) => domain::Phase::Closing(read_closing(value, limits)?),
         wire::Phase::Held(value) => {
             let wire::HeldParts { was, why, source } = value.into_parts();
             domain::Phase::Held {
                 was: read_was(was, limits)?,
-                why: read_hold(why, limits)?,
+                why: read_hold(why)?,
                 source: read_optional_source(source, limits)?,
             }
         }
@@ -469,7 +460,7 @@ pub fn grace(source: &domain::Grace, limits: &wire::Limits) -> Result<wire::Grac
     )
 }
 /// Read `Grace` from its store record.
-pub fn read_grace(source: wire::Grace, _limits: &wire::Limits) -> Result<domain::Grace, wire::Problem> {
+pub fn read_grace(source: wire::Grace) -> Result<domain::Grace, wire::Problem> {
     let wire::GraceParts { by, until, reason, message } = source.into_parts();
     Ok(domain::Grace { by: value::read_party(by), until: Wall::from_nanos(until), reason, message })
 }
@@ -480,7 +471,7 @@ pub fn revisions(source: &domain::Revisions, limits: &wire::Limits) -> Result<wi
     wire::Revisions::new(limits, wire::RevisionsParts { hold: *hold, spec: *spec, person: *person })
 }
 /// Read `Revisions` from its store record.
-pub fn read_revisions(source: wire::Revisions, _limits: &wire::Limits) -> Result<domain::Revisions, wire::Problem> {
+pub fn read_revisions(source: wire::Revisions) -> Result<domain::Revisions, wire::Problem> {
     let wire::RevisionsParts { hold, spec, person } = source.into_parts();
     Ok(domain::Revisions { hold, spec, person })
 }
@@ -498,10 +489,7 @@ pub fn retry_notice(source: &domain::RetryNotice, limits: &wire::Limits) -> Resu
     })
 }
 /// Read `RetryNotice` from its store value.
-pub fn read_retry_notice(
-    source: wire::RetryNotice,
-    _limits: &wire::Limits,
-) -> Result<domain::RetryNotice, wire::Problem> {
+pub fn read_retry_notice(source: wire::RetryNotice) -> Result<domain::RetryNotice, wire::Problem> {
     Ok(match source {
         wire::RetryNotice::Failed(value) => {
             let wire::FailedRetryParts { class, count, allowance } = value.into_parts();
@@ -646,7 +634,7 @@ fn read_member(source: wire::Member, limits: &wire::Limits) -> Result<domain::Ne
         funder: value::read_funder(funder),
         dependencies: read_references(dependencies),
         holdings: resources.into_boxed(),
-        wake: read_wake(policy, limits)?,
+        wake: read_wake(policy)?,
         recurring: None,
         tracked,
     })
@@ -692,7 +680,7 @@ pub fn template(
     }
     wire::RecurringTemplate::new(
         limits,
-        wire::RecurringTemplateParts { key: *key, batch: members, overlap: overlap(rule, limits)? },
+        wire::RecurringTemplateParts { key: *key, batch: members, overlap: overlap(rule)? },
     )
 }
 /// Read a recurring batch whose schema members cannot recur.
@@ -705,7 +693,7 @@ pub fn read_template(
     for item in batch.into_boxed() {
         members.push(read_member(item, limits)?).expect("same number of members");
     }
-    Ok(domain::RecurringTemplate { key, batch: members.into_boxed(), overlap: read_overlap(overlap, limits)? })
+    Ok(domain::RecurringTemplate { key, batch: members.into_boxed(), overlap: read_overlap(overlap)? })
 }
 /// Translate a result within its combined byte bound.
 pub fn result(source: &domain::TaskResult, limits: &wire::Limits) -> Result<wire::TaskResult, wire::Problem> {
@@ -781,7 +769,7 @@ fn check_result(source: &domain::TaskResult, limits: &wire::Limits) -> Result<()
         domain::TaskResult::Report { words } | domain::TaskResult::Change { words, .. } => words.len(),
         domain::TaskResult::Failure { reason } => reason.len(),
     };
-    if bytes > usize::try_from(limits.result_field_value).expect("limit fits usize") {
+    if bytes > skein_lib::length::usize_of(limits.result_field_value) {
         return Err(problem(wire::Path::TaskResultTag));
     }
     Ok(())

@@ -282,7 +282,11 @@ fn a_task_record_past_its_inbox_count_is_refused() {
         fixtures::task_word(17),
     ]);
     assert_eq!(
-        tasks::encode(&live_record(record), &tasks_limits(), &fixtures::model_names(&[b"first", b"second", b"third"])),
+        tasks::encode(
+            &live_record(record),
+            &tasks_limits(),
+            &fixtures::configured_model_names(&[b"first", b"second", b"third"])
+        ),
         Err(bound_problem(wire::Path::TaskInterestsInbox))
     );
 }
@@ -295,10 +299,14 @@ fn a_task_record_inbox_decoded_above_its_count_is_refused() {
     let mut record = fixtures::task_record();
     record.inbox =
         Box::new([fixtures::task_word(5), fixtures::task_word(7), fixtures::task_word(11), fixtures::task_word(13)]);
-    let bytes = tasks::encode(&live_record(record), &wider, &fixtures::model_names(&[b"first", b"second", b"third"]))
-        .expect("within wider count");
+    let bytes = tasks::encode(
+        &live_record(record),
+        &wider,
+        &fixtures::configured_model_names(&[b"first", b"second", b"third"]),
+    )
+    .expect("within wider count");
     assert_eq!(
-        tasks::decode(&bytes, &limits, &fixtures::model_names(&[b"first", b"second", b"third"])),
+        tasks::decode(&bytes, &limits, &fixtures::configured_model_names(&[b"first", b"second", b"third"])),
         Err(bound_problem(wire::Path::TaskInterestsInbox))
     );
 }
@@ -335,7 +343,7 @@ fn an_activity_words_line_past_its_own_word_bound_is_refused() {
         words: skein_lib::bytes::zeroed(17),
     });
     assert_eq!(
-        tasks::encode(&row, &tasks_limits(), &fixtures::model_names(&[b"first", b"second", b"third"])),
+        tasks::encode(&row, &tasks_limits(), &fixtures::configured_model_names(&[b"first", b"second", b"third"])),
         Err(bound_problem(wire::Path::ActivityWordsWords))
     );
 }

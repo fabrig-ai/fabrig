@@ -69,44 +69,16 @@ pub(super) fn encode_task_flags(value: jig_client::contract::TaskFlags, out: &mu
     out.object_end();
 }
 
-pub(super) fn encode_task_hold(value: &jig_client::contract::TaskHold, out: &mut Encoder, budget: &mut super::Cut) {
-    out.object_start();
-    if let Some(placed) = value.placed() {
-        out.key(b"placed");
-        super::placed_hold::encode(placed, out, budget);
-    }
-    match value {
-        jig_client::contract::TaskHold::Document(field_0) => {
-            out.key(b"document");
-            super::encode_hold(field_0, out, budget);
-        }
-        jig_client::contract::TaskHold::Owner(field_0) => {
-            out.key(b"owner");
-            super::encode_owner_chip_hold(field_0, out, budget);
-        }
-    }
-    out.object_end();
+pub(super) fn encode_task_hold(value: &jig_client::contract::ChipHold, out: &mut Encoder, budget: &mut super::Cut) {
+    super::encode_owner_chip_hold(value, out, budget);
 }
 
 pub(super) fn encode_task_resource(
-    value: &jig_client::contract::TaskResource,
+    value: &jig_client::contract::ResourceLine,
     out: &mut Encoder,
     budget: &mut super::Cut,
 ) {
-    match value {
-        jig_client::contract::TaskResource::Part(field_0) => {
-            out.object_start();
-            out.key(b"part");
-            super::encode_part(field_0, out, budget);
-            out.object_end();
-        }
-        jig_client::contract::TaskResource::Owner(field_0) => {
-            out.object_start();
-            out.key(b"owner");
-            super::encode_owner_resource_line(field_0, out, budget);
-            out.object_end();
-        }
-    }
+    super::encode_owner_resource_line(value, out, budget);
 }
 
 pub(super) fn encode_task_result(value: &jig_client::contract::TaskResult, out: &mut Encoder, budget: &mut super::Cut) {

@@ -139,11 +139,11 @@ pub struct Peers {
     calls: std::collections::BTreeMap<u64, (u64, u64, engine::Call)>,
     retries: std::collections::BTreeMap<u64, u64>,
     generation: u64,
-    uncertain: std::collections::BTreeMap<jig_test_system::SystemKey, u16>,
+    uncertain: std::collections::BTreeMap<r::EffectKey, u16>,
     words: std::collections::BTreeSet<(u64, u64)>,
-    effects: std::collections::BTreeMap<jig_test_system::SystemKey, observations::EffectEvidence>,
-    held: std::collections::BTreeMap<jig_test_system::SystemKey, u16>,
-    settled: std::collections::BTreeSet<jig_test_system::SystemKey>,
+    effects: std::collections::BTreeMap<r::EffectKey, observations::EffectEvidence>,
+    held: std::collections::BTreeMap<r::EffectKey, u16>,
+    settled: std::collections::BTreeSet<r::EffectKey>,
 }
 /// Released outputs, drained without inspecting the root.
 #[derive(Debug)]
@@ -787,7 +787,7 @@ fn destination(to: &mut ReplyTo) -> u64 {
 
 pub(crate) fn chat(peers: &Peers, store: &Store, project: u32, words: &[u8]) -> people::Ask {
     let (configuration, limits) = config::root(peers.seed, peers.scenario, peers.story);
-    let creating = jig_core_world::fixtures::Creating::new(&configuration.core, limits.tasks.tree_tasks);
+    let creating = jig_test_profile::fixtures::Creating::new(&configuration.core, limits.tasks.tree_tasks);
     temper_engine_domain_world::walking::configured_chat(
         &creating,
         &store.rows,

@@ -41,11 +41,11 @@ impl Component {
         }
         let codec = wire::sizes::limits(&limits.sizes).ok_or(Unusable::Limits)?;
         let schema = crate::limits::schema(limits).ok_or(Unusable::Limits)?;
-        if workers.len() > usize::try_from(limits.names).expect("u32 fits usize") {
+        if workers.len() > skein_lib::length::usize_of(limits.names) {
             return Err(Unusable::Workers);
         }
         for (index, worker) in workers.iter().enumerate() {
-            if worker.name.len() > usize::try_from(limits.sizes.name).expect("u32 fits usize") {
+            if worker.name.len() > skein_lib::length::usize_of(limits.sizes.name) {
                 return Err(Unusable::Workers);
             }
             for earlier in workers.iter().take(index) {
@@ -433,7 +433,6 @@ impl Component {
     pub fn dropped_down(&self) -> u64 {
         self.dropped_down
     }
-    pub fn reclaim(&mut self) {}
 }
 
 fn closed(connection: Token, state: &mut Connection, why: Closed, out: &mut Queue<Request>) {

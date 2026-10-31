@@ -75,7 +75,7 @@ pub fn step(root: &mut Domain, env: &Env<d::Limits>, event: d::Event, out: &mut 
 pub fn take(root: &mut Domain, env: &Env<d::Limits>, out: &mut Queue<Request>) {
     let mut raw = Queue::uncapped();
     d::fire(&mut root.root, env, &mut raw);
-    d::take(&mut root.root, env, &mut raw);
+    d::take(&mut root.root);
     collect(root, &mut raw, out);
     for row in core::mem::take(&mut root.later) {
         out.push(row);

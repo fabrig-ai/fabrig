@@ -152,23 +152,7 @@ fn messages(words: &[tasks::Word]) -> Box<[host::StartMessage]> {
     messages.into_boxed()
 }
 fn grants(grants: &[accounts::Grant]) -> Box<[host::Grant]> {
-    let mut filled = List::with_capacity(u32::try_from(grants.len()).expect("bounded grants"));
-    for grant in grants {
-        let form = match grant.form {
-            accounts::Form::Credential(scheme) => host::Form::Credential(match scheme {
-                accounts::Scheme::Bearer => host::Scheme::Bearer,
-                accounts::Scheme::Key => host::Scheme::Key,
-            }),
-            accounts::Form::Application => host::Form::Application,
-            accounts::Form::Program(name) => {
-                host::Form::Program(host::SourceName::new(name.as_bytes()).expect("same source name grammar"))
-            }
-        };
-        filled
-            .push(host::Grant { form, account: grant.account, generation: grant.generation, valid: grant.valid })
-            .expect("bounded grants");
-    }
-    filled.into_boxed()
+    Box::from(grants)
 }
 fn answered(calls: &[core::Settled]) -> Box<[host::AnsweredCall]> {
     let mut answered = List::with_capacity(u32::try_from(calls.len()).expect("bounded answered calls"));

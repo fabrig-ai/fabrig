@@ -197,14 +197,14 @@ fn a_task_watch_ending_reads_how_the_task_ended_before_answering() {
     }
 }
 // Both a refused opening and an admitted watch's end use the same final read.
-// The task read has a live form and a historical document/result form.
+// The task read has a live form and a ended document/result form.
 const FINAL_TASK_FORMS: usize = 2;
 // Any application family is unexpected on the jig task read.
 const UNEXPECTED_FAMILY: u16 = 1;
 const TASK_ENDS: &[c::WatchEnd] = &[c::WatchEnd::SubjectEnded, c::WatchEnd::Unknown];
 
 fn final_task_reads(task: c::Task, ending: c::Ending) -> [c::ReadResult; FINAL_TASK_FORMS] {
-    [f::task_result(task.clone()), f::historical_task_result(task, ending)]
+    [f::task_result(task.clone()), f::ended_task_result(task, ending)]
 }
 
 fn final_read(end: c::WatchEnd, json: bool, until: &[&str]) -> (f::Harness, u32, skein_lib::Token, skein_lib::Token) {
@@ -310,7 +310,7 @@ fn a_final_task_read_must_match_the_number_and_terminal_phase() {
         (c::WatchEnd::Unknown, f::UNTIL_REPLIED),
     ] {
         for task in &tasks {
-            // Historical keys are self-consistent even for the wrong task number.
+            // Ended keys are self-consistent even for the wrong task number.
             for result in final_task_reads(task.clone(), c::Ending::Done) {
                 let (mut root, call, watch, read) = final_read(end, true, until);
                 root.serve(call, result);
@@ -593,7 +593,7 @@ fn sign_out_during_the_final_read_exits_1() {
         let (mut root, call, watch, read) = final_read(*end, true, f::UNTIL_ENDED);
         root.client(jig_client::Event::Up { up: jig_client::Up::SignedOut });
         assert_eq!(root.answer(call).expect("signed out final read").status, 1);
-        root.serve(call, f::historical_task_result(f::ended_task(c::Phase::Done), c::Ending::Done));
+        root.serve(call, f::ended_task_result(f::ended_task(c::Phase::Done), c::Ending::Done));
         settled_final_read(&mut root, call, watch, read);
     }
 }
@@ -634,19 +634,19 @@ fn changed_with_since_needs_a_change_after_the_baseline() {
 }
 #[test]
 fn task_tree_reads_the_tree_alone() {
-    let jig_client::Latest::Jig(c::Delivery::OwnerTree(mut owner)) = f::owner_tree_at(f::parked_task().chip) else {
+    let jig_client::Latest::Jig(c::Delivery::Tree(mut owner)) = f::owner_tree_at(f::parked_task().chip) else {
         panic!("owner tree")
     };
     owner.folded = skein_lib::List::with_capacity(1);
     owner
         .folded
-        .push(c::OwnerTreeFold {
+        .push(c::TreeFold {
             parent: f::TASK,
-            phases: c::OwnerPhaseCounts { waiting: 1, ..c::OwnerPhaseCounts::ZERO },
+            phases: c::PhaseCounts { waiting: 1, ..c::PhaseCounts::ZERO },
             held_below: 0,
         })
         .expect("fold");
-    for tree in [c::Delivery::Tree(Box::new(f::composite_tree())), c::Delivery::OwnerTree(owner)] {
+    for tree in [c::Delivery::Tree(Box::new(f::composite_tree())), c::Delivery::Tree(owner)] {
         for json in [false, true] {
             let mut root = f::signed_in(f::PARTY);
             let flags = if json { &["--tree", "--json"][..] } else { &["--tree"][..] };
@@ -693,11 +693,8 @@ fn inbox_read(
         let (mut updates_page, _) = f::owner_first_window(updates, false);
         for index in 0..updates_page.rows.len() {
             let row = updates_page.rows.get_mut(index).expect("update row");
-            row.object = if index == 0 {
-                c::OwnerInboxObject::Result { position: 1 }
-            } else {
-                c::OwnerInboxObject::Reply { message: 2 }
-            };
+            row.object =
+                if index == 0 { c::InboxObject::Result { position: 1 } } else { c::InboxObject::Reply { message: 2 } };
         }
         window.cached_needs = needs;
         window.updates = updates_page.rows.clone();
@@ -705,11 +702,11 @@ fn inbox_read(
         if needs_more {
             needs_page.after = Some(f::cursor());
         }
-        root.serve(call, c::ReadResult::Value(c::ReadValue::OwnerInbox(Box::new(needs_page))));
+        root.serve(call, c::ReadResult::Value(c::ReadValue::Inbox(Box::new(needs_page))));
         if !needs_more {
-            root.serve(call, c::ReadResult::Value(c::ReadValue::OwnerInbox(Box::new(updates_page))));
+            root.serve(call, c::ReadResult::Value(c::ReadValue::Inbox(Box::new(updates_page))));
         }
-        delivery = c::Delivery::OwnerInbox(Box::new(window));
+        delivery = c::Delivery::Inbox(Box::new(window));
     } else {
         root.serve(call, f::inbox_rows(c::InboxReadGroup::Needs, needs, needs_more));
         if !needs_more {
@@ -798,12 +795,12 @@ fn an_inbox_wait_since_its_reads_digest_answers_at_a_new_update() {
     let call = root.wait_since(f::INBOX_CALL, &[], &digest);
     root.deliver_subject(&f::inbox_watch(), delivery.clone());
     assert!(root.answer(call).is_none());
-    let c::Delivery::OwnerInbox(window) = &mut delivery else { panic!("owner inbox") };
+    let c::Delivery::Inbox(window) = &mut delivery else { panic!("owner inbox") };
     let mut updates = skein_lib::List::with_capacity(f::WINDOW_UPDATES);
     let first = window.updates.get(0).expect("existing update").clone();
     updates.push(first.clone()).expect("existing update fits");
     let mut next = first;
-    next.object = c::OwnerInboxObject::Reply { message: 2 };
+    next.object = c::InboxObject::Reply { message: 2 };
     updates.push(next).expect("new update fits");
     window.updates = updates;
     window.cached_updates.value = f::WINDOW_UPDATES;
@@ -866,12 +863,12 @@ fn run_ended_with_since_needs_both_a_changed_digest_and_no_attempt() {
 
 const INBOX_QUESTION: &[u8] = "Plan: I’ll add a `--csv` output-mode option to the Rust CLI in `src/main.rs`, reuse the existing `TABLE` data, print a header ".as_bytes();
 
-fn owner_question_inbox(more: bool, cut: bool) -> (c::OwnerInboxPage, c::Delivery, c::Question) {
+fn owner_question_inbox(more: bool, cut: bool) -> (c::InboxPage, c::Delivery, c::Question) {
     let (mut page, mut window) = f::owner_first_window(1, more);
     let row = page.rows.get_mut(0).expect("question row");
-    row.task = c::OwnerTaskLink::Stored { number: 1, status: None };
-    row.object = c::OwnerInboxObject::Question { message: 2 };
-    row.cursor = c::OwnerInboxCursor::Inbox { task: 1, object: row.object, at: Some(skein_lib::Wall::EPOCH) };
+    row.task = c::TaskLink::Stored { number: 1, status: None };
+    row.object = c::InboxObject::Question { message: 2 };
+    row.cursor = c::InboxCursor::Inbox { task: 1, object: row.object, at: Some(skein_lib::Wall::EPOCH) };
     window.needs = page.rows.clone();
     page.after = None;
     window.updates = question_inbox_updates(&page, more).rows;
@@ -883,20 +880,20 @@ fn owner_question_inbox(more: bool, cut: bool) -> (c::OwnerInboxPage, c::Deliver
     let question = c::Question {
         task,
         message: 2,
-        from: Some(c::OwnerRequester::Task(2)),
+        from: Some(c::Requester::Task(2)),
         words,
         since: skein_lib::Wall::EPOCH,
         acts: skein_lib::List::with_capacity(0),
         ending: None,
     };
-    (page, c::Delivery::OwnerInbox(Box::new(window)), question)
+    (page, c::Delivery::Inbox(Box::new(window)), question)
 }
 
-fn question_inbox_updates(needs: &c::OwnerInboxPage, more: bool) -> c::OwnerInboxPage {
+fn question_inbox_updates(needs: &c::InboxPage, more: bool) -> c::InboxPage {
     let mut page = needs.clone();
     let row = page.rows.get_mut(0).expect("reply row");
-    row.object = c::OwnerInboxObject::Reply { message: 3 };
-    row.cursor = c::OwnerInboxCursor::Inbox { task: 1, object: row.object, at: Some(skein_lib::Wall::EPOCH) };
+    row.object = c::InboxObject::Reply { message: 3 };
+    row.cursor = c::InboxCursor::Inbox { task: 1, object: row.object, at: Some(skein_lib::Wall::EPOCH) };
     page.after = if more { Some(f::cursor()) } else { None };
     page
 }
@@ -904,14 +901,14 @@ fn question_inbox_updates(needs: &c::OwnerInboxPage, more: bool) -> c::OwnerInbo
 fn serve_question_inbox(
     root: &mut f::Harness,
     call: u32,
-    page: c::OwnerInboxPage,
+    page: c::InboxPage,
     delivery: c::Delivery,
     question: c::Question,
 ) {
-    let c::Delivery::OwnerInbox(window) = &delivery else { panic!("owner inbox") };
+    let c::Delivery::Inbox(window) = &delivery else { panic!("owner inbox") };
     let updates = question_inbox_updates(&page, window.next.is_some());
-    root.serve(call, c::ReadResult::Value(c::ReadValue::OwnerInbox(Box::new(page))));
-    root.serve(call, c::ReadResult::Value(c::ReadValue::OwnerInbox(Box::new(updates))));
+    root.serve(call, c::ReadResult::Value(c::ReadValue::Inbox(Box::new(page))));
+    root.serve(call, c::ReadResult::Value(c::ReadValue::Inbox(Box::new(updates))));
     root.serve(call, c::ReadResult::Value(c::ReadValue::Question(Box::new(question))));
     root.deliver_subject(&f::inbox_watch(), delivery);
 }
@@ -977,7 +974,7 @@ fn a_met_owner_inbox_wait_prints_the_follow_up_reads_current_digest() {
     root.pending_reads.push(wait);
     root.deliver_subject(&f::inbox_watch(), delivery.clone());
     let first = f::task_digest(&delivery).hex();
-    let c::Delivery::OwnerInbox(window) = &mut delivery else { panic!("owner inbox") };
+    let c::Delivery::Inbox(window) = &mut delivery else { panic!("owner inbox") };
     window.needs.get_mut(0).expect("question row").activity = Some(7);
     let current = f::task_digest(&delivery).hex();
     assert_ne!(first, current);
@@ -987,7 +984,7 @@ fn a_met_owner_inbox_wait_prints_the_follow_up_reads_current_digest() {
     let since = root.wait_since(&["inbox"], &[], &current);
     // Re-delivering the same watch window leaves the since wait pending.
     let (_, mut delivery, _) = owner_question_inbox(true, true);
-    let c::Delivery::OwnerInbox(window) = &mut delivery else { panic!("owner inbox") };
+    let c::Delivery::Inbox(window) = &mut delivery else { panic!("owner inbox") };
     window.needs.get_mut(0).expect("question row").activity = Some(7);
     root.deliver_subject(&f::inbox_watch(), delivery);
     assert!(root.answer(since).is_none());

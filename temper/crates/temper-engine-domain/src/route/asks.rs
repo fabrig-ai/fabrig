@@ -1,16 +1,16 @@
 //! The core's connector asks, translated for temper's forge and brief
 //! (jig's `domain/root.md`, 5; `examples/ops/domain/src/route.rs`).
 use super::{
-    Decision, Delivery, Domain, Env, Limits, List, Queue, ReplyTo, Token, Work, brief_outputs, decide_call, emit,
-    forge, forge_release_ending, forge_route, internal,
+    Decision, Delivery, Domain, Env, Limits, List, Queue, ReplyTo, Work, brief_outputs, decide_call, emit, forge,
+    forge_release_ending, forge_route,
 };
 use crate::CallAnswer;
 use alloc::boxed::Box;
 use jig_domain_brief as brief;
 use jig_domain_core as core;
-use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
+use skein_lib::Token;
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher translates the core's ask vocabulary")]
 pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, connector: u16, ask: core::Ask) {
@@ -122,13 +122,22 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::Adopt { request, .. } => {
-            let located =
-                if connector == domain.config.forge_connector { domain.forge.applying(request) } else { None };
+            let located = if connector == domain.config.forge_connector
+                && let Some(application) = domain.core.application_part_request(request)
+                && let Some(repository) = domain.forge.applying(application)
+            {
+                Some((application, repository))
+            } else {
+                None
+            };
             match located {
-                Some(repository) if domain.adoption_restore.len() < env.limits.forge.adoptions => {
+                Some((application, repository)) if domain.adoption_restore.len() < env.limits.forge.adoptions => {
                     let previous = domain.forge.repository(repository).cloned();
-                    assert!(domain.adoption_restore.insert(request, previous) == Ok(None), "one keyed adoption flight");
-                    domain.work.push(Work::Forge(forge::Event::Adopt { request }));
+                    assert!(
+                        domain.adoption_restore.insert(application, (request, previous)) == Ok(None),
+                        "one keyed adoption flight"
+                    );
+                    domain.work.push(Work::Forge(forge::Event::Adopt { request: application }));
                 }
                 Some(_) => domain.work.push(Work::People(people::Event::Decided {
                     request,
@@ -288,25 +297,24 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 if !writes.is_empty() {
                     domain.work.push(Work::Forge(forge::Event::Claim { task, attempt, writes, holders }));
                 }
-                let assignment = domain.assignments.get(&task).expect("claimed assignment");
-                let workstream = assignment.workstream;
-                let placement = Some(assignment.run.placement);
-                let grants = fleet_grants(&assignment.grants);
-                emit(
-                    decision,
-                    &env.limits,
-                    Delivery::Fleet(fleet::Event::Start {
-                        placement,
-                        grants,
-                        kinds,
-                        version,
-                        reply_to: internal(task),
-                        run: Token::new(task),
-                        attempt: Token::new(attempt),
-                        workstream,
-                        assignment: fleet::Assignment { turns: Token::new(task), answered: Token::new(task) },
-                    }),
+                let mut out = Queue::uncapped();
+                jig_domain_hub_link::step(
+                    &mut domain.hub_link,
+                    env.now,
+                    jig_domain_hub_link::Event::Start { task, attempt, kinds, version },
+                    &mut out,
                 );
+                for _ in 0..out.len() {
+                    let jig_domain_hub_link::Request::Core(core::Event::Fleet(mut event)) =
+                        out.pop().expect("link start")
+                    else {
+                        unreachable!("a start routes to the fleet")
+                    };
+                    if let jig_domain_fleet::Event::Start { workstream, .. } = &mut event {
+                        *workstream = domain.assignment_parts.get(&task).expect("temper workspace").workstream;
+                    }
+                    emit(decision, &env.limits, Delivery::Fleet(event));
+                }
             }
             None
         }
@@ -362,31 +370,6 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         child.push(request);
         brief_outputs(domain, env, decision, &mut child);
     }
-}
-
-/// Translate a prepared assignment's owned grants for the fleet's start.
-fn fleet_grants(grants: &[jig_domain_accounts::Grant]) -> Box<[fleet::Grant]> {
-    let mut translated = List::with_capacity(u32::try_from(grants.len()).expect("bounded grants"));
-    for grant in grants {
-        translated
-            .push(fleet::Grant {
-                form: match grant.form {
-                    jig_domain_accounts::Form::Credential(scheme) => fleet::Form::Credential(match scheme {
-                        jig_domain_accounts::Scheme::Bearer => fleet::Scheme::Bearer,
-                        jig_domain_accounts::Scheme::Key => fleet::Scheme::Key,
-                    }),
-                    jig_domain_accounts::Form::Application => fleet::Form::Application,
-                    jig_domain_accounts::Form::Program(name) => {
-                        fleet::Form::Program(fleet::SourceName::new(name.as_bytes()).expect("same source name grammar"))
-                    }
-                },
-                account: grant.account,
-                generation: grant.generation,
-                valid: grant.valid,
-            })
-            .expect("grant room");
-    }
-    translated.into_boxed()
 }
 
 fn step_made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>) {

@@ -16,6 +16,7 @@ use core::fmt;
 use core::net::SocketAddr;
 
 use skein_io::kernel::{Addr, Complete, Done, Error, Family, Fd, Op, ServiceSignal, Submit};
+use skein_lib::length::usize_of;
 use skein_lib::{Duration, Queue, Rng, Time, Token, Wall};
 
 use crate::config::{Config, Trace};
@@ -1694,10 +1695,6 @@ fn cut(rng: &mut Rng, chance: u32, n: usize) -> (usize, bool) {
     } else {
         (n, false)
     }
-}
-
-fn usize_of(n: u32) -> usize {
-    usize::try_from(n).expect("a u32 fits a usize")
 }
 
 fn usize_from(n: u64) -> usize {

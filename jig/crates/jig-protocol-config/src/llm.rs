@@ -106,8 +106,7 @@ fn program_bindings(
         let Some(program) = &endpoint.program else { continue };
         let at = check::index(&path.member(b"endpoints"), index).member(b"program");
         let mut valid = false;
-        let mut refused =
-            program.is_empty() || program.len() > usize::try_from(jig_domain_accounts::NAME).expect("program bound");
+        let mut refused = program.is_empty() || program.len() > skein_lib::length::usize_of(jig_domain_accounts::NAME);
         for model in models {
             if model.endpoint != endpoint.number {
                 continue;
@@ -364,7 +363,7 @@ fn price(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> 
     })
 }
 
-// Decision 4: LLM and OAuth dial socket addresses, with host resolution at startup.
+// LLM and OAuth dial socket addresses, with host resolution at startup.
 fn network_address(address: &Address, path: &Path, problems: &mut Problems) {
     match address {
         Address::Addr(skein_io::Addr::InProcess(_)) => problems.push(path.clone(), What::Form),

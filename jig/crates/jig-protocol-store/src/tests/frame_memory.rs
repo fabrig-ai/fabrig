@@ -32,20 +32,7 @@ const TYPICAL_NODES: u32 = 348;
 
 #[test]
 fn frame_capacities_cover_real_and_kept_turns() {
-    let profile = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
-    let source = profile.store;
-    let limits = crate::Limits {
-        core: source.core,
-        store: source.store,
-        secrets: source.secrets,
-        commits: crate::sizes::Commits { in_flight: source.commits.in_flight, writes: source.commits.writes },
-        joins: source.joins,
-        queue: source.queue,
-        files: source.files,
-        reads: source.reads,
-        orphan_erases: source.orphan_erases,
-        held: source.held,
-    };
+    let limits = super::fixtures::store_limits();
     let sets = super::frame_patches::SETS;
     for nodes in CANDIDATES {
         let mut capacity = patches::capacity(&sets.sets[1], 0, &limits).expect("turn capacity");

@@ -112,7 +112,7 @@ pub fn up(event: driver::Event, now: Time, required: &[u8]) -> Up {
         driver::Event::Closed => Up::Child(accounts::FromComponent::Closed),
         driver::Event::Taken { account } => Up::Finishing { source: account },
         driver::Event::Visit { account, url } => {
-            if url.len() > usize::try_from(accounts::ADDRESS).expect("address bound") {
+            if url.len() > skein_lib::length::usize_of(accounts::ADDRESS) {
                 Up::SignInFailed { source: account, failure: accounts::Failure::Misconfigured }
             } else {
                 Up::Visited { source: account, address: url }

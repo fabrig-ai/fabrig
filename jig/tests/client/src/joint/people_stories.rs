@@ -5,31 +5,7 @@ use super::*;
 #[test]
 fn a_person_s_words_reach_a_running_run() {
     let mut world = super::world(super::turn());
-    let client = world.client(1, crate::stories::conversation());
-    let within = Duration::from_secs(1);
-    world.person(
-        client,
-        vec![
-            Step::See { find: Find::named(Role::Button, b"Sign in with Test"), within },
-            Step::Press { find: Find::named(Role::Button, b"Sign in with Test") },
-            Step::See { find: Find::named(Role::TextArea, b"First words"), within },
-            Step::Type { find: Find::named(Role::TextArea, b"First words"), words: b"Hello".as_slice().into() },
-            Step::Press { find: Find::named(Role::Button, b"Start a conversation") },
-            Step::See { find: Find::text(b"Hello"), within },
-            Step::Pause { span: Duration::from_millis(450) },
-            Step::See { find: Find::named(Role::Button, b"Write"), within },
-            Step::Press { find: Find::named(Role::Button, b"Write") },
-            Step::Type {
-                find: Find::named(Role::TextArea, b"Your answer"),
-                words: b"Please continue".as_slice().into(),
-            },
-            Step::Press { find: Find::named(Role::Button, b"Confirm") },
-            Step::See { find: Find::text(b"Please continue"), within },
-        ],
-    );
-    let outcome = world.run(Until::Done);
-    assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed);
-    assert!(outcome.judged.0 > 0);
+    let client = crate::stories::shared::a_person::words_in_a_running_conversation(&mut world);
     super::offered_acts::task(&mut world, client, 1);
     let peers = world.front().session.driver.world.peers.as_ref().expect("worker peer");
     let assigned = peers.workers[0].seen.first().expect("assigned chat");
@@ -57,32 +33,7 @@ fn a_person_s_words_reach_a_running_run() {
 #[test]
 fn a_person_stops_a_run_and_releases_it() {
     let mut world = super::world(super::turn());
-    let client = world.client(1, crate::stories::conversation());
-    let within = Duration::from_secs(1);
-    world.person(
-        client,
-        vec![
-            Step::See { find: Find::named(Role::Button, b"Sign in with Test"), within },
-            Step::Press { find: Find::named(Role::Button, b"Sign in with Test") },
-            Step::See { find: Find::named(Role::TextArea, b"First words"), within },
-            Step::Type { find: Find::named(Role::TextArea, b"First words"), words: b"Hello".as_slice().into() },
-            Step::Press { find: Find::named(Role::Button, b"Start a conversation") },
-            Step::See { find: Find::text(b"Hello"), within },
-            Step::Pause { span: Duration::from_millis(450) },
-            Step::See { find: Find::named(Role::Button, b"Stop"), within },
-            Step::Press { find: Find::named(Role::Button, b"Stop") },
-            Step::See { find: Find::text(b"Stop the live run and hold its task"), within },
-            Step::Press { find: Find::named(Role::Button, b"Confirm") },
-            Step::See { find: Find::text(b"Held by a placed hold"), within },
-            Step::See { find: Find::exactly_named(Role::Button, b"Release"), within },
-            Step::Press { find: Find::exactly_named(Role::Button, b"Release") },
-            Step::Press { find: Find::named(Role::Button, b"Confirm") },
-            Step::See { find: Find::text(b"Released"), within },
-        ],
-    );
-    let outcome = world.run(Until::Done);
-    assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed);
-    assert!(outcome.judged.0 > 0);
+    let client = crate::stories::shared::a_person::stopping_and_releasing_a_conversation(&mut world);
     super::offered_acts::task(&mut world, client, 1);
     let peers = world.front().session.driver.world.peers.as_ref().expect("worker peer");
     assert_eq!(peers.workers[0].seen.len(), 2);
@@ -112,7 +63,7 @@ fn a_person_stops_a_run_and_releases_it() {
 fn a_request_sent_twice_is_made_once_across_an_engine_restart() {
     use skein_fake_person::{Face, Found, TreeFace};
     fn configuration() -> jig_test_domain::Config {
-        jig_core_world::world::config(8510)
+        jig_test_profile::config(8510)
     }
     let mut world = super::configured_world(super::turn(), |front| front.restart_configuration(configuration));
     let client = world.client(1, crate::stories::conversation());
@@ -334,62 +285,39 @@ fn a_hold_moved_in_the_engine_is_refused_as_moved_and_shown_current() {
     })))));
 }
 
-fn signed_in_at_the_frame() -> (World<Test, Joint>, crate::harness::ClientId) {
-    let mut world = super::world(super::turn());
-    let client = world.client(1, crate::stories::inbox());
-    world.person(
-        client,
-        vec![
-            Step::See { find: sign_in_button(), within: Duration::from_secs(1) },
-            Step::Press { find: sign_in_button() },
-            Step::See { find: sign_out_button(), within: Duration::from_secs(1) },
-        ],
-    );
-    assert_eq!(world.run(Until::Done).verdict, skein_world::domain::Verdict::Passed);
-    (world, client)
-}
-fn sign_out_button() -> Find {
-    Find::named(Role::Button, b"Sign out")
-}
 #[test]
 fn a_person_signs_out_and_a_later_request_is_answered_signed_out() {
-    use crate::joint::transport::{KeyedOwner, Reply};
-    let (mut world, client) = signed_in_at_the_frame();
-    let sign_in = session_sign_in(&world.front().session, client).expect("real sign-in");
-    world.person(
-        client,
-        vec![
-            Step::Press { find: sign_out_button() },
-            Step::See { find: sign_in_button(), within: Duration::from_secs(1) },
-        ],
-    );
-    assert_eq!(world.run(Until::Done).verdict, skein_world::domain::Verdict::Passed);
+    let mut world = super::world(super::turn());
+    let client = crate::stories::shared::a_person::signing_out(&mut world);
     let now = world.now();
     let attempt = Token::new(999);
     let key = [99; 16];
     let session = &mut world.front().session;
     assert_eq!(session_sign_in(session, client), None);
-    let reply_to = session.driver.transport.reply_to(Reply::Keyed { client, attempt, key, owner: KeyedOwner::Jig });
-    session.driver.send(
-        now,
-        super::clock(now),
-        jig_test_domain::Event::Core(jig_domain_core::Event::People(people::Event::Ask {
-            models: Box::new([]),
-            reply_to,
-            sign_in,
-            key,
-            ask: people::Ask::Stop { project: 1, task: u64::MAX },
-        })),
-    );
+    session
+        .send(
+            client,
+            now,
+            super::clock(now),
+            jig_client_test_domain::Request::Client {
+                request: jig_client::Request::Down {
+                    down: jig_client::Down::Send {
+                        attempt,
+                        key,
+                        request: jig_client::Ask::Jig(Box::new(client::Ask::Stop { project: 1, task: u64::MAX })),
+                        value: None,
+                    },
+                },
+            },
+        )
+        .expect("the request crosses the component with no credential");
     let callbacks = session.poll(now, super::clock(now)).expect("actual engine terminal");
     assert!(callbacks.iter().any(|(owner, event)| *owner == client && matches!(event,
         jig_client_test_domain::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Answer { attempt: actual, envelope: skein_lib::RequestEnvelope::SignedOut, answer: None, why: None } } } if *actual == attempt)));
-    assert!(session.driver.world.store.rows.values().all(|row| !matches!(row,
-        jig_test_domain::Record::Core(jig_domain_core::Record::People(people::Stored::SignIn { number, .. })) if *number == sign_in)));
-}
-
-fn sign_in_button() -> Find {
-    Find::named(Role::Button, b"Sign in with Test")
+    assert!(session.driver.world.store.rows.values().all(|row| !matches!(
+        row,
+        jig_test_domain::Record::Core(jig_domain_core::Record::People(people::Stored::SignIn { .. }))
+    )));
 }
 
 fn session_sign_in(session: &Session, client: crate::harness::ClientId) -> Option<u64> {

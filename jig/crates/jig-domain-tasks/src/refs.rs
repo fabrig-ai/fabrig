@@ -38,7 +38,7 @@ pub(crate) fn introduce(
     for (task, peer) in [(left, right), (right, left)] {
         let row = record(domain, task).expect("preflighted live peer");
         if !crate::batch::contains(&row.references, peer)
-            && row.references.len() >= usize::try_from(env.limits.references).expect("u32 fits usize")
+            && row.references.len() >= skein_lib::length::usize_of(env.limits.references)
         {
             let project = row.project;
             return crate::capacity::refuse(
@@ -72,12 +72,12 @@ pub(crate) fn introduce(
     out.push(Request::Done { reply_to: to });
 }
 
-pub(crate) fn end(domain: &mut Domain, env: &Env<Limits>, ended: u64, out: &mut Queue<Request>) {
+pub(crate) fn end(domain: &mut Domain, env: &Env<Limits>, ended: u64) {
     let outgoing = record(domain, ended).expect("ending task still indexed").questions.clone();
     for credit in outgoing {
         match credit.asked {
             Party::Task(asked) => {
-                crate::questions::forget_received(domain, env, asked, credit.number, out);
+                crate::questions::forget_received(domain, env, asked, credit.number);
             }
             Party::Person(_) | Party::Deployment { .. } => {}
         }
@@ -110,7 +110,7 @@ pub(crate) fn end(domain: &mut Domain, env: &Env<Limits>, ended: u64, out: &mut 
         }
         row.record.questions = credits.into_boxed();
         for question in ended_questions.into_boxed() {
-            crate::questions::owe(domain, env, number, question);
+            crate::questions::owe(domain, number, question);
         }
         crate::questions::changed(domain, number);
     }

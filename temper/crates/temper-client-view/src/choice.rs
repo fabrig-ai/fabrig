@@ -63,7 +63,7 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
     line(b, w, W::AccountBanner, &[]);
     if let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) {
         let playground = root.forge().playground_provider();
-        let ways = temper_client_domain::pages::accounts::ways(&me.providers, playground, c::AccountHolder::Own);
+        let ways = temper_client_domain::pages::accounts::ways(&me.providers, playground, c::AskAccountHolder::Own);
         for way in &ways {
             let name = crate::pages::connect_model::label(me, *way, &ways, w);
             control(
@@ -96,8 +96,8 @@ pub(crate) fn composer(
 ) {
     if let Some(task) = task {
         match task.chip.executor {
-            c::Executor::Agent { .. } => {}
-            c::Executor::Procedure { .. } | c::Executor::Party { .. } | c::Executor::Role { .. } => return,
+            c::ChipExecutor::Agent { .. } => {}
+            c::ChipExecutor::Procedure { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => return,
         }
     }
     let draft = root.pages().choice();
@@ -245,23 +245,19 @@ pub(crate) fn shown(name: &[u8], w: &Words) -> Box<[u8]> {
 }
 
 /// Keep payer selection shared with the catalogue's provider readiness.
-fn payer(me: &c::Me, task: Option<&c::Task>) -> Option<c::OwnerAccountUse> {
+fn payer(me: &c::Me, task: Option<&c::Task>) -> Option<c::AccountUse> {
     match task {
-        None => Some(c::OwnerAccountUse::Party(me.party.number)),
+        None => Some(c::AccountUse::Party(me.party.number)),
         Some(task) => match task.budget.funder {
-            c::Funder::Pool { person, .. } => Some(c::OwnerAccountUse::Party(person)),
+            c::Funder::Pool { person, .. } => Some(c::AccountUse::Party(person)),
             c::Funder::Period { project, .. } | c::Funder::Recurring { project, .. } => {
-                Some(c::OwnerAccountUse::Project(project))
+                Some(c::AccountUse::Project(project))
             }
             c::Funder::Task(_) => None,
         },
     }
 }
-pub(crate) fn readiness(
-    doc: &c::OwnerAccounts,
-    provider: Option<u32>,
-    payer: Option<c::OwnerAccountUse>,
-) -> c::Readiness {
+pub(crate) fn readiness(doc: &c::Accounts, provider: Option<u32>, payer: Option<c::AccountUse>) -> c::Readiness {
     for row in &doc.readiness {
         if Some(row.provider) == provider && Some(row.payer) == payer {
             return row.readiness;
@@ -271,22 +267,17 @@ pub(crate) fn readiness(
 }
 // Translation of jig-domain-core coverage.rs and jig-domain-accounts selection.rs.
 // The own-party slice alone preserves jig's payer/explicit/deployment ordering.
-fn eligible(row: &c::OwnerAccountLine, viewer: u64, provider: Option<u32>) -> bool {
-    if row.provider != provider || row.holder != c::OwnerAccountHolder::Party(viewer) {
+fn eligible(row: &c::AccountLine, viewer: u64, provider: Option<u32>) -> bool {
+    if row.provider != provider || row.holder != c::AccountHolder::Party(viewer) {
         return false;
     }
     // In the own-holder slice, plan and non-plan coverage coincide.
     match &row.uses {
-        Some(uses) => uses.as_slice().contains(&c::OwnerAccountUse::Party(viewer)),
+        Some(uses) => uses.as_slice().contains(&c::AccountUse::Party(viewer)),
         None => true,
     }
 }
-fn pinned(
-    doc: &c::OwnerAccounts,
-    viewer: u64,
-    provider: Option<u32>,
-    pins: [Option<u32>; 2],
-) -> Option<&c::OwnerAccountLine> {
+fn pinned(doc: &c::Accounts, viewer: u64, provider: Option<u32>, pins: [Option<u32>; 2]) -> Option<&c::AccountLine> {
     for number in pins.into_iter().flatten() {
         for row in &doc.accounts {
             if row.number == number && eligible(row, viewer, provider) {
@@ -311,17 +302,17 @@ fn program_endpoint(me: &c::Me, provider: Option<u32>) -> Option<bool> {
     }
     None
 }
-fn held(state: c::OwnerAccountState) -> Option<bool> {
+fn held(state: c::AccountState) -> Option<bool> {
     match state {
-        c::OwnerAccountState::Asking | c::OwnerAccountState::Granted => Some(false),
+        c::AccountState::Asking | c::AccountState::Granted => Some(false),
         // The public Later state also carries jig's Limited state.
-        c::OwnerAccountState::Later { .. } => None,
-        c::OwnerAccountState::Moving
-        | c::OwnerAccountState::SignInAgain
-        | c::OwnerAccountState::Misconfigured
-        | c::OwnerAccountState::Unloaded { .. }
-        | c::OwnerAccountState::Cancelled
-        | c::OwnerAccountState::Closing => Some(true),
+        c::AccountState::Later { .. } => None,
+        c::AccountState::Moving
+        | c::AccountState::SignInAgain
+        | c::AccountState::Misconfigured
+        | c::AccountState::Unloaded { .. }
+        | c::AccountState::Cancelled
+        | c::AccountState::Closing => Some(true),
     }
 }
 enum SourceChoice {
@@ -329,15 +320,15 @@ enum SourceChoice {
     Wait,
     Undecidable,
 }
-fn chosen_source(row: &c::OwnerAccountLine, program: bool) -> SourceChoice {
+fn chosen_source(row: &c::AccountLine, program: bool) -> SourceChoice {
     // An unusable "later" program source is jig's Later, which goes on to the
     // account's next program source, or its Limited, which waits: a source
     // chosen after it is undecidable.
     let mut later = false;
     for (source, index) in row.sources.iter().zip(0u32..) {
         let fits = match source.kind {
-            c::OwnerAccountKind::Program => program,
-            c::OwnerAccountKind::Key | c::OwnerAccountKind::SignIn | c::OwnerAccountKind::None => !program,
+            c::AccountKind::Program => program,
+            c::AccountKind::Key | c::AccountKind::SignIn | c::AccountKind::None => !program,
         };
         if !fits {
             continue;
@@ -365,12 +356,7 @@ fn chosen_source(row: &c::OwnerAccountLine, program: bool) -> SourceChoice {
     }
     SourceChoice::Wait
 }
-fn selected_account(
-    doc: &c::OwnerAccounts,
-    viewer: u64,
-    provider: Option<u32>,
-    program: bool,
-) -> Option<&c::OwnerAccountLine> {
+fn selected_account(doc: &c::Accounts, viewer: u64, provider: Option<u32>, program: bool) -> Option<&c::AccountLine> {
     for row in &doc.accounts {
         if !eligible(row, viewer, provider) {
             continue;
@@ -536,7 +522,7 @@ fn using_line(
         None => None,
     };
     let own = match me {
-        Some(me) => payer == Some(c::OwnerAccountUse::Party(me.party.number)),
+        Some(me) => payer == Some(c::AccountUse::Party(me.party.number)),
         None => false,
     };
     let pin = match (me, doc) {
@@ -609,8 +595,8 @@ fn program_name(root: &Domain, provider: Option<u32>, w: &Words) -> Box<[u8]> {
 fn using_account(
     b: &mut Builder,
     root: &Domain,
-    account: &c::OwnerAccountLine,
-    source: &c::OwnerAccountSource,
+    account: &c::AccountLine,
+    source: &c::AccountSource,
     name: Box<[u8]>,
     w: &Words,
 ) {
@@ -628,13 +614,13 @@ fn using_account(
         return;
     };
     let text = match source.kind {
-        c::OwnerAccountKind::Key => {
+        c::AccountKind::Key => {
             w.say(W::UsingKey, &[Hole::Name(skein_lib::bytes::copy_of(provider_name.0)), Hole::Name(name)])
         }
-        c::OwnerAccountKind::SignIn => {
+        c::AccountKind::SignIn => {
             w.say(W::UsingPlan, &[Hole::Name(skein_lib::bytes::copy_of(provider_name.1)), Hole::Name(name)])
         }
-        c::OwnerAccountKind::Program => w.say(
+        c::AccountKind::Program => w.say(
             W::UsingProgram,
             &[
                 Hole::Name(skein_lib::bytes::copy_of(provider_name.1)),
@@ -642,13 +628,13 @@ fn using_account(
                 Hole::Name(name),
             ],
         ),
-        c::OwnerAccountKind::None => w.say(W::UsingModel, &[Hole::Name(name)]),
+        c::AccountKind::None => w.say(W::UsingModel, &[Hole::Name(name)]),
     };
     b.open(Role::Paragraph);
     b.style(crate::look::ACCOUNT_LINE);
     b.name(&text);
     b.text(skein_ui::Run::Plain, &text);
-    if source.kind == c::OwnerAccountKind::SignIn
+    if source.kind == c::AccountKind::SignIn
         && let Some(address) = &account.manage_usage
         && skein_ui::markdown::safe_url(address)
         && c::valid_manage_usage(address)
@@ -664,7 +650,7 @@ fn using_account(
     b.close();
 }
 #[expect(clippy::manual_find, reason = "the programming model uses bounded loops, not closures")]
-fn account_row(root: &Domain, account: u32) -> Option<&c::OwnerAccountLine> {
+fn account_row(root: &Domain, account: u32) -> Option<&c::AccountLine> {
     let doc = temper_client_domain::pages::accounts::document(root.client())?;
     for row in &doc.accounts {
         if row.number == account {
@@ -751,29 +737,29 @@ fn refused(w: &Words, times: &mut Times, why: c::TaskWaitRefused) -> Box<[u8]> {
         }
         c::TaskWaitRefused::Hello { kind, at, why } => {
             let word = match kind {
-                c::OwnerHostKind::Engine => W::RefusedEngineAt,
-                c::OwnerHostKind::Worker => W::RefusedWorkerAt,
+                c::HostKind::Engine => W::RefusedEngineAt,
+                c::HostKind::Worker => W::RefusedWorkerAt,
             };
             let first = w.say(word, &[Hole::Name(times.say(w, TimeForm::Clock, at))]);
             sentences(w, first, hello_refusal(w, why))
         }
     }
 }
-fn hello_refusal(w: &Words, why: c::OwnerHelloRefusal) -> Box<[u8]> {
+fn hello_refusal(w: &Words, why: c::HelloRefusal) -> Box<[u8]> {
     match why {
-        c::OwnerHelloRefusal::ReservedChannel => w.say(W::HelloReservedChannel, &[]),
-        c::OwnerHelloRefusal::Position { worker } => w.say(W::HelloPosition, &[Hole::Number(u64::from(worker))]),
-        c::OwnerHelloRefusal::Workers { limit } => {
+        c::HelloRefusal::ReservedChannel => w.say(W::HelloReservedChannel, &[]),
+        c::HelloRefusal::Position { worker } => w.say(W::HelloPosition, &[Hole::Number(u64::from(worker))]),
+        c::HelloRefusal::Workers { limit } => {
             sentences(w, w.say(W::HelloWorkers, &[]), w.say(W::HelloLimit, &[Hole::Number(u64::from(limit))]))
         }
-        c::OwnerHelloRefusal::StopBound { grace } => {
+        c::HelloRefusal::StopBound { grace } => {
             sentences(w, w.say(W::HelloStopBound, &[]), w.say(W::HelloAllowedGrace, &[Hole::Span(grace)]))
         }
-        c::OwnerHelloRefusal::Agent { why } => agent_shortfall(w, why),
+        c::HelloRefusal::Agent { why } => agent_shortfall(w, why),
     }
 }
-fn agent_shortfall(w: &Words, why: c::OwnerAgentShortfall) -> Box<[u8]> {
-    use c::OwnerAgentShortfall as S;
+fn agent_shortfall(w: &Words, why: c::AgentShortfall) -> Box<[u8]> {
+    use c::AgentShortfall as S;
     let word = match why {
         S::Model { .. } => W::AgentModel,
         S::Window { .. } => W::AgentWindow,

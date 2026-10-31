@@ -10,7 +10,9 @@ pub const NAME: &[u8] = b"Pat with a supplied name longer than the default recei
 #[must_use]
 pub fn limits() -> jig_client_test_domain::Limits {
     let mut limits = test::limits();
-    limits.jig.text = 128;
+    limits.client.domain.text = 128;
+    limits.client.domain.turn_text = 128;
+    limits.client.domain.turn_bytes = 128;
     limits.first.text = 128;
     limits
 }

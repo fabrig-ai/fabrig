@@ -4,71 +4,19 @@
 //! The root owns application workspace items and interprets opaque tokens.
 
 use alloc::boxed::Box;
+pub(crate) use jig_domain_link::{Grant, GrantTable, Hosting, Phase};
 
 use skein_lib::{Duration, Token};
 
 /// parent -> host
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    Agent(FromAgent),
     SourceAnswered {
         owner: Token,
         answer: crate::sources::Answer,
     },
     SourceLost,
-    /// One completed conversation turn from the agent.
-    Turn {
-        owner: Token,
-        turn: Turn,
-    },
-    /// A host or delivery call named in the run's own bytes.
-    Called {
-        owner: Token,
-        call: Box<[u8]>,
-        ask: Ask,
-    },
-    /// The agent withdrew its call after its deadline.
-    Withdrawn {
-        owner: Token,
-        call: Box<[u8]>,
-    },
-    /// A piece of live content (hosts.md, 6.5).
-    Piece {
-        owner: Token,
-        piece: crate::Piece,
-    },
-    /// Typed agent activity, kept best effort for the engine.
-    Activity {
-        owner: Token,
-        activity: crate::Activity,
-    },
-    /// The provider rejected the account's credential of `generation`.
-    Unauthorized {
-        owner: Token,
-        account: u32,
-        generation: u64,
-    },
-    /// The account reached its provider limit; `reset`, when the provider
-    /// gave one, is how long until it lifts.
-    Limited {
-        owner: Token,
-        account: u32,
-        reset: Option<Duration>,
-    },
-    /// The provider refused the account, with its code and reason.
-    AccountRefused {
-        owner: Token,
-        account: u32,
-        code: Box<[u8]>,
-        reason: Box<[u8]>,
-    },
-    /// Last word, with cumulative accounting.
-    Finished {
-        owner: Token,
-        turns: u32,
-        spent: u64,
-        read: Option<Token>,
-        finish: Finish,
-    },
     /// Terminal for a cancelled relay: its local delivery and wait have ended.
     RelayCancelled {
         run: Token,
@@ -102,38 +50,6 @@ pub enum Event {
         failure: Preparation,
         detail: Box<[u8]>,
     },
-    /// The agent started, and `agent` names it from now on.
-    Started {
-        owner: Token,
-        agent: Token,
-    },
-    /// Terminal for a start the agent refused; its bounded words name why.
-    StartRefused {
-        cause: StartCause,
-        owner: Token,
-        why: Box<[u8]>,
-    },
-    /// The agent could not take an inbound event for the run, for `reason`.
-    Refused {
-        owner: Token,
-        name: Token,
-        reason: MessageRefusal,
-    },
-    /// The run yielded: it waits for its next inbound event.
-    Yielded {
-        owner: Token,
-    },
-    /// The agent child domain is stopping the agent for `fault`.
-    Faulted {
-        owner: Token,
-        fault: AgentFailure,
-    },
-    /// Terminal for `Start`: the agent and everything it started are gone.
-    /// `detail` is for operators, such as the tail of its error output.
-    Gone {
-        owner: Token,
-        detail: Box<[u8]>,
-    },
     /// Terminal for a delivery, including the root's opaque left-work token.
     Delivered {
         owner: Token,
@@ -149,6 +65,7 @@ pub enum Event {
 /// host -> parent
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    Agent(ToAgent),
     Source {
         owner: Token,
         name: crate::SourceName,
@@ -159,31 +76,6 @@ pub enum Request {
     Up(crate::LinkUp),
     Hello {
         hello: crate::Hello,
-    },
-    /// Pass a named message to the agent.
-    Message {
-        agent: Token,
-        name: Token,
-        sender: Box<[u8]>,
-        words: Box<[u8]>,
-        finish_requested: bool,
-    },
-    /// Answer a call under the agent's opaque name.
-    Reply {
-        agent: Token,
-        call: Box<[u8]>,
-        reply: Reply,
-    },
-    /// Start an agent with its activation and committed conversation state.
-    Start {
-        owner: Token,
-        start: Box<Start>,
-    },
-
-    /// The hub has taken this turn and now owns its retention.
-    AcknowledgeAgentTurn {
-        agent: Token,
-        turn: u32,
     },
     Deliver {
         owner: Token,
@@ -199,8 +91,6 @@ pub enum Request {
         attempt: Token,
         call: Box<[u8]>,
     },
-    /// To the engine: an inbound event for the run `run`'s attempt `attempt`
-    /// was not passed on, for `reason`.
     /// Prepare `workspace` for the hosted run `owner`.
     Prepare {
         owner: Token,
@@ -211,18 +101,6 @@ pub enum Request {
     /// the race, and then the workspace is released.
     Abort {
         owner: Token,
-    },
-    /// Stop the agent `agent`: cancel its run, then end what is left of it
-    /// past the grace. Its start's `Gone` comes once it has all gone. Sent
-    /// whenever its run leaves live, also once the run has said how it
-    /// finishes or the agent was faulted, when it changes nothing: the agent
-    /// child domain winds the agent down then anyway.
-    Stop {
-        agent: Token,
-    },
-    Grant {
-        agent: Token,
-        grant: Grant,
     },
     /// Ask the workspace to save unfinished work.
     Save {
@@ -251,7 +129,7 @@ pub enum ToAgent {
     Answer {
         agent: Token,
         call: Box<[u8]>,
-        reply: Reply,
+        answer: CallAnswer,
     },
     /// Start an agent with its activation and committed conversation state.
     Start {
@@ -267,6 +145,8 @@ pub enum ToAgent {
         agent: Token,
         grant: Grant,
     },
+    /// Cancel the run and end what remains past its grace. The start reports
+    /// `Gone` once the agent and everything it started have ended.
     Cancel {
         agent: Token,
     },
@@ -277,142 +157,37 @@ pub enum ToAgent {
 #[derive(PartialEq, Eq, Debug)]
 pub enum FromAgent {
     /// A named host or delivery call with arguments.
-    Called {
-        owner: Token,
-        call: Box<[u8]>,
-        ask: Ask,
-    },
+    Called { owner: Token, call: Box<[u8]>, ask: Ask },
     /// The agent withdrew its named call.
-    Withdrawn {
-        owner: Token,
-        call: Box<[u8]>,
-    },
-    Turn {
-        owner: Token,
-        turn: Turn,
-    },
+    Withdrawn { owner: Token, call: Box<[u8]> },
+    /// One completed conversation turn from the agent.
+    Turn { owner: Token, turn: Turn },
     /// A piece of live content (hosts.md, 6.5).
-    Piece {
-        owner: Token,
-        piece: crate::Piece,
-    },
+    Piece { owner: Token, piece: crate::Piece },
     /// Typed agent activity, kept best effort for the engine.
-    Activity {
-        owner: Token,
-        activity: crate::Activity,
-    },
+    Activity { owner: Token, activity: crate::AgentActivity },
     /// The provider rejected the account's credential of `generation`.
-    Unauthorized {
-        owner: Token,
-        account: u32,
-        generation: u64,
-    },
+    Unauthorized { owner: Token, account: u32, generation: u64 },
     /// The account reached its provider limit; `reset`, when the provider
     /// gave one, is how long until it lifts.
-    Limited {
-        owner: Token,
-        account: u32,
-        reset: Option<Duration>,
-    },
+    Limited { owner: Token, account: u32, reset: Option<Duration> },
     /// The provider refused the account, with its code and reason.
-    AccountRefused {
-        owner: Token,
-        account: u32,
-        code: Box<[u8]>,
-        reason: Box<[u8]>,
-    },
-    Finished {
-        owner: Token,
-        turns: u32,
-        spent: u64,
-        read: Option<Token>,
-        finish: Finish,
-    },
-    Started {
-        owner: Token,
-        agent: Token,
-    },
+    AccountRefused { owner: Token, account: u32, code: Box<[u8]>, reason: Box<[u8]> },
+    /// Last word, with cumulative accounting.
+    Finished { owner: Token, turns: u32, spent: u64, read: Option<Token>, finish: Finish },
+    /// The agent started, and `agent` names it from now on.
+    Started { owner: Token, agent: Token },
     /// The agent refused its start, before any run began.
-    StartRefused {
-        cause: StartCause,
-        owner: Token,
-        why: Box<[u8]>,
-    },
-    Refused {
-        owner: Token,
-        name: Token,
-        reason: MessageRefusal,
-    },
-    Yielded {
-        owner: Token,
-    },
-    Faulted {
-        owner: Token,
-        fault: AgentFailure,
-    },
-    Gone {
-        owner: Token,
-        detail: Box<[u8]>,
-    },
-}
-
-impl Event {
-    /// Bring an agent capability's report into the host's event stream.
-    #[must_use]
-    pub fn from_agent(event: FromAgent) -> Event {
-        match event {
-            FromAgent::Called { owner, call, ask } => Event::Called { owner, call, ask },
-            FromAgent::Withdrawn { owner, call } => Event::Withdrawn { owner, call },
-            FromAgent::Turn { owner, turn } => Event::Turn { owner, turn },
-            FromAgent::Piece { owner, piece } => Event::Piece { owner, piece },
-            FromAgent::Activity { owner, activity } => Event::Activity { owner, activity },
-            FromAgent::Unauthorized { owner, account, generation } => {
-                Event::Unauthorized { owner, account, generation }
-            }
-            FromAgent::Limited { owner, account, reset } => Event::Limited { owner, account, reset },
-            FromAgent::AccountRefused { owner, account, code, reason } => {
-                Event::AccountRefused { owner, account, code, reason }
-            }
-            FromAgent::Finished { owner, turns, spent, read, finish } => {
-                Event::Finished { owner, turns, spent, read, finish }
-            }
-            FromAgent::Started { owner, agent } => Event::Started { owner, agent },
-            FromAgent::StartRefused { cause, owner, why } => Event::StartRefused { cause, owner, why },
-            FromAgent::Refused { owner, name, reason } => Event::Refused { owner, name, reason },
-            FromAgent::Yielded { owner } => Event::Yielded { owner },
-            FromAgent::Faulted { owner, fault } => Event::Faulted { owner, fault },
-            FromAgent::Gone { owner, detail } => Event::Gone { owner, detail },
-        }
-    }
-}
-
-impl Request {
-    /// Take an agent request for translation by the root, returning
-    /// any request addressed to another capability unchanged.
-    #[expect(clippy::result_large_err, reason = "the root receives an owned link record with its refusal metadata")]
-    pub fn to_agent(self) -> Result<ToAgent, Request> {
-        match self {
-            Request::Message { agent, name, sender, words, finish_requested } => {
-                Ok(ToAgent::Message { agent, name, sender, words, finish_requested })
-            }
-            Request::Reply { agent, call, reply } => Ok(ToAgent::Answer { agent, call, reply }),
-            Request::Start { owner, start } => Ok(ToAgent::Start { owner, start }),
-
-            Request::Grant { agent, grant } => Ok(ToAgent::Grant { agent, grant }),
-            Request::AcknowledgeAgentTurn { agent, turn } => Ok(ToAgent::Acknowledge { agent, turn }),
-            Request::Stop { agent } => Ok(ToAgent::Cancel { agent }),
-            other @ (Request::Source { .. }
-            | Request::SourceFault
-            | Request::Up(..)
-            | Request::Deliver { .. }
-            | Request::CancelRelay { .. }
-            | Request::Hello { .. }
-            | Request::Prepare { .. }
-            | Request::Abort { .. }
-            | Request::Save { .. }
-            | Request::Release { .. }) => Err(other),
-        }
-    }
+    StartRefused { cause: StartCause, owner: Token, why: Box<[u8]> },
+    /// The agent could not take an inbound event for the run.
+    Refused { owner: Token, name: Token, reason: MessageRefusal },
+    /// The run waits for its next inbound event.
+    Yielded { owner: Token },
+    /// The agent capability is stopping the agent for `fault`.
+    Faulted { owner: Token, fault: AgentFailure },
+    /// Terminal for `Start`: the agent and everything it started are gone.
+    /// `detail` is for operators, such as the tail of its error output.
+    Gone { owner: Token, detail: Box<[u8]> },
 }
 
 /// The agent's complete start (hosts.md, sections 2 and 9).
@@ -436,47 +211,6 @@ pub struct StartMessage {
     pub sender: Box<[u8]>,
     pub words: Box<[u8]>,
     pub finish_requested: bool,
-}
-
-/// The form in which a grant lends its value (protocol/channel.md, section 8).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Form {
-    /// A credential with the scheme its provider takes.
-    Credential(Scheme),
-    /// An application's credential, held in its own table.
-    Application,
-    /// A program source lent by its configuration-directory name.
-    Program(crate::SourceName),
-}
-
-/// A credential's scheme (protocol/channel.md, section 8).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Scheme {
-    /// A bearer credential.
-    Bearer,
-    /// A key credential.
-    Key,
-}
-
-impl Form {
-    /// The protocol table that holds this form's value.
-    #[must_use]
-    pub const fn table(self) -> GrantTable {
-        match self {
-            Self::Credential(_) => GrantTable::Accounts,
-            Self::Application => GrantTable::Application,
-            Self::Program(_) => GrantTable::Name,
-        }
-    }
-}
-
-/// The protocol layer's table that holds a credential (channel.md, section 8).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum GrantTable {
-    Accounts,
-    Application,
-    /// The value is the form's name; no table entry is held.
-    Name,
 }
 
 /// What the core gives the host for one run (domain/hosts.md, section 2).
@@ -545,7 +279,7 @@ pub enum Finish {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Answer {
+pub struct RunAnswer {
     pub read: Option<Token>,
     pub refused: Box<[Refused]>,
     pub turns: u32,
@@ -588,7 +322,7 @@ pub enum Ask {
 
 /// The answer to a host call.
 #[derive(PartialEq, Eq, Hash, Debug)]
-pub enum Reply {
+pub enum CallAnswer {
     /// The engine's answer to a relayed call, as it is.
     Relayed { error: bool, text: Box<[u8]> },
     /// How the delivery went.
@@ -634,29 +368,6 @@ pub enum MessageRefusal {
     Full,
     NameInUse,
     /// The run is ending.
-    Ending,
-}
-
-/// A hosted run, for the reconnect report.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Hosting {
-    pub run: Token,
-    pub attempt: Token,
-    pub phase: Phase,
-}
-
-/// Where a hosted run is in its lifecycle (hosts.md, section 6).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Phase {
-    Answered,
-    Preparing,
-    Starting,
-    /// Its agent is at work.
-    Active,
-    /// It yielded, and waits for its next inbound event.
-    Waiting,
-    /// How it ends is decided: it is stopping, saving, or waiting for what is
-    /// in flight to settle, and answers next.
     Ending,
 }
 
@@ -764,43 +475,11 @@ pub enum Reason {
     Shutdown,
 }
 
-/// Names of credential grants; their values belong to the protocol layer.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Grant {
-    pub form: Form,
-    pub account: u32,
-    pub generation: u64,
-    pub valid: Duration,
-}
-
 /// A message refusal carried by its next turn or answer (hosts.md, 6.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Refused {
     pub name: Token,
     pub reason: MessageRefusal,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{Form, GrantTable, Scheme};
-
-    #[test]
-    fn a_form_names_its_table() {
-        for (form, table) in [
-            (Form::Credential(Scheme::Bearer), GrantTable::Accounts),
-            (Form::Credential(Scheme::Key), GrantTable::Accounts),
-            (Form::Application, GrantTable::Application),
-            (Form::Program(crate::SourceName::new(b"claude").expect("source name")), GrantTable::Name),
-        ] {
-            assert_eq!(form.table(), table);
-        }
-    }
-
-    #[test]
-    fn a_form_takes_34_bytes() {
-        // tag 1 + length 1 + 32 name bytes.
-        assert_eq!(size_of::<Form>(), 34);
-    }
 }
 
 /// Why the agent refused a start, independent of its diagnostic bytes.
@@ -841,4 +520,58 @@ pub enum Bound {
     Window,
     /// The model's declared output ceiling: tokens.
     Output,
+}
+
+impl Event {
+    /// Whether this input starts work, rather than settling admitted work (domain/hosts.md, 6).
+    #[must_use]
+    pub fn new_work(&self) -> bool {
+        match self {
+            Event::Agent(event) => event.new_work(),
+            Event::Opened { .. } => true,
+            Event::Down(event) => match event {
+                crate::LinkDown::Sources { .. }
+                | crate::LinkDown::Check { .. }
+                | crate::LinkDown::SignOut { .. }
+                | crate::LinkDown::Assign { .. }
+                | crate::LinkDown::Message { .. } => true,
+                crate::LinkDown::Relayed { .. }
+                | crate::LinkDown::TurnKept { .. }
+                | crate::LinkDown::Acknowledge { .. }
+                | crate::LinkDown::Cancel { .. }
+                | crate::LinkDown::Grant { .. } => false,
+            },
+            Event::SourceAnswered { .. }
+            | Event::SourceLost
+            | Event::RelayCancelled { .. }
+            | Event::CancelAll { .. }
+            | Event::Prepared { .. }
+            | Event::Unprepared { .. }
+            | Event::Delivered { .. }
+            | Event::Saved { .. } => false,
+        }
+    }
+}
+impl FromAgent {
+    /// Calls start new work; other reports settle hosted work (domain/hosts.md, 6).
+    #[must_use]
+    pub const fn new_work(&self) -> bool {
+        match self {
+            FromAgent::Called { .. } => true,
+            FromAgent::Withdrawn { .. }
+            | FromAgent::Turn { .. }
+            | FromAgent::Piece { .. }
+            | FromAgent::Activity { .. }
+            | FromAgent::Unauthorized { .. }
+            | FromAgent::Limited { .. }
+            | FromAgent::AccountRefused { .. }
+            | FromAgent::Finished { .. }
+            | FromAgent::Started { .. }
+            | FromAgent::StartRefused { .. }
+            | FromAgent::Refused { .. }
+            | FromAgent::Yielded { .. }
+            | FromAgent::Faulted { .. }
+            | FromAgent::Gone { .. } => false,
+        }
+    }
 }

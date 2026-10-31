@@ -1040,8 +1040,8 @@ fn setup_makes_the_default_or_named_project_then_adopts_the_answered_number() {
                         up: client::Up::Answer {
                             attempt: *attempt,
                             envelope: skein_lib::RequestEnvelope::Final,
-                            answer: Some(client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                                c::OwnerOutcome::ProjectMade { project: 8 },
+                            answer: Some(client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                                c::DocumentOutcome::ProjectMade { project: 8 },
                             )))),
                             why: None,
                         },

@@ -2,14 +2,10 @@
 use super::{inbox_both_groups_record, limits, w, wire_text};
 use skein_lib::{List, Writer};
 fn rows<T, const N: usize>(values: [T; N]) -> List<T> {
-    let mut rows = List::with_capacity(u32::try_from(N).expect("literal rows"));
-    for row in values {
-        rows.push(row).ok().expect("literal row");
-    }
-    rows
+    List::from_boxed(Box::new(values))
 }
 fn encoded(measure: u32, encode: impl FnOnce(&mut Writer) -> Result<(), skein_lib::Overflow>) -> Box<[u8]> {
-    let mut out = Writer::new(usize::try_from(measure).expect("literal size"));
+    let mut out = Writer::new(skein_lib::length::usize_of(measure));
     encode(&mut out).expect("literal record");
     out.finish()
 }
@@ -21,38 +17,28 @@ fn pieces<const N: usize>(values: [Box<[u8]>; N]) -> Box<[u8]> {
     }
     out.finish()
 }
-fn activity_row(position: u64, attempt: u64, number: u32, decoded: Option<w::ArchivedTurn>) -> w::ActivityLine {
+fn activity_row(position: u64, attempt: u64, number: u32, decoded: Option<w::ArchivedTurn>) -> w::DecodedActivityLine {
     let l = limits();
-    w::ActivityLine::new(
+    w::DecodedActivityLine::new(
         &l,
-        w::ActivityLineParts {
-            position,
-            at: 17,
-            event: w::Activity::Owner(
-                w::ActivityOwner::new(
-                    &l,
-                    w::ActivityOwnerParts {
-                        source: w::OwnerActivityLine::new(
+        w::DecodedActivityLineParts {
+            source: w::ActivityLine::new(
+                &l,
+                w::ActivityLineParts {
+                    task: 7,
+                    position,
+                    at: 17,
+                    line: w::Activity::Turn(
+                        w::ActivityTurn::new(
                             &l,
-                            w::OwnerActivityLineParts {
-                                task: 7,
-                                position,
-                                at: 17,
-                                line: w::OwnerActivity::Turn(
-                                    w::OwnerActivityTurn::new(
-                                        &l,
-                                        w::OwnerActivityTurnParts { reply: 61, attempt, turn: number, read: Some(0) },
-                                    )
-                                    .expect("literal"),
-                                ),
-                            },
+                            w::ActivityTurnParts { reply: 61, attempt, turn: number, read: Some(0) },
                         )
                         .expect("literal"),
-                        decoded,
-                    },
-                )
-                .expect("literal"),
-            ),
+                    ),
+                },
+            )
+            .expect("literal"),
+            decoded,
         },
     )
     .expect("literal")
@@ -177,16 +163,15 @@ pub fn mixed_history_page() -> w::HistoryPage {
         w::HistoryRowChange::new(
             &l,
             w::HistoryRowChangeParts {
-                value: w::OwnerHistoryLine::new(
+                value: w::HistoryLine::new(
                     &l,
-                    w::OwnerHistoryLineParts {
+                    w::HistoryLineParts {
                         task: 7,
                         revision: 19,
-                        by: w::OwnerRequester::Person(
-                            w::OwnerRequesterPerson::new(&l, w::OwnerRequesterPersonParts { value: 23 })
-                                .expect("literal"),
+                        by: w::Requester::Person(
+                            w::RequesterPerson::new(&l, w::RequesterPersonParts { value: 23 }).expect("literal"),
                         ),
-                        change: w::OwnerHistoryChange::Amended,
+                        change: w::HistoryChange::Amended,
                         reason: w::DocumentText::new(&l, reason).expect("literal"),
                         proposal: None,
                         amendment: None,
@@ -202,14 +187,9 @@ pub fn mixed_history_page() -> w::HistoryPage {
         w::HistoryRowMilestone::new(
             &l,
             w::HistoryRowMilestoneParts {
-                value: w::OwnerMilestoneLine::new(
+                value: w::MilestoneLine::new(
                     &l,
-                    w::OwnerMilestoneLineParts {
-                        task: 7,
-                        position: 31,
-                        phase: w::OwnerMilestonePhase::Waiting,
-                        at: Some(37),
-                    },
+                    w::MilestoneLineParts { task: 7, position: 31, phase: w::MilestonePhase::Waiting, at: Some(37) },
                 )
                 .expect("literal"),
             },
@@ -231,12 +211,12 @@ pub fn mixed_history_page() -> w::HistoryPage {
     .expect("literal")
 }
 #[must_use]
-pub fn selected_inbox_pages() -> [w::OwnerInboxPage; 2] {
+pub fn selected_inbox_pages() -> [w::InboxPage; 2] {
     let source = inbox_both_groups_record().into_parts();
     [source.needs, source.updates].map(|rows| {
-        w::OwnerInboxPage::new(
+        w::InboxPage::new(
             &limits(),
-            w::OwnerInboxPageParts { cut: true, rows, before: None, after: None, selection: source.selection.clone() },
+            w::InboxPageParts { cut: true, rows, before: None, after: None, selection: source.selection.clone() },
         )
         .expect("literal")
     })
@@ -244,13 +224,12 @@ pub fn selected_inbox_pages() -> [w::OwnerInboxPage; 2] {
 #[must_use]
 pub fn scoped_notes_page() -> w::NotePage {
     let l = limits();
-    let pattern = w::OwnerPattern::new(
+    let pattern = w::Pattern::new(
         &l,
-        w::OwnerPatternParts {
+        w::PatternParts {
             segments: rows([Box::<[u8]>::from([255, b'/', 0])]),
-            last: w::OwnerPatternEnd::Open(
-                w::OwnerPatternEndOpen::new(&l, w::OwnerPatternEndOpenParts { value: Box::from([128, 0]) })
-                    .expect("literal"),
+            last: w::PatternEnd::Open(
+                w::PatternEndOpen::new(&l, w::PatternEndOpenParts { value: Box::from([128, 0]) }).expect("literal"),
             ),
         },
     )

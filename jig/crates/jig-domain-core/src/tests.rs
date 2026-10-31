@@ -1,13 +1,59 @@
 //! Unit fixtures use the core world's small configuration and child entry points.
 #![expect(clippy::too_many_lines, reason = "tests state complete bounded fixtures")]
-use crate::Settings;
-use crate::documents::*;
-use crate::*;
+
+mod acts;
+mod admission;
+mod documents;
+mod effects;
+mod fill;
+mod fixtures;
+mod funding;
+mod inbox;
+mod limits;
+mod reads;
+mod routing;
+mod runs;
+mod settings;
+mod start;
+mod translate;
+
+use crate::{
+    Settings,
+    admission::{amendments, compound, person_task},
+    documents::*,
+    effects::{connector, projections},
+    routing::Work,
+    runs::state as run,
+    settings::revisions,
+    *,
+};
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
-mod closed;
-mod deletion;
-mod start;
+#[test]
+fn call_room_counts_pending_calls_and_allows_retained_replay_at_capacity() {
+    let limits = limits();
+    let mut core = Core::new(config(41), &limits).expect("fixture core configuration");
+    let pending = CallKey { task: 1, attempt: 1, completion: 1, position: 0 };
+    let retained = CallKey { position: 1, ..pending };
+    let fresh = CallKey { position: 2, ..pending };
+    assert_eq!(limits.call_records, 2);
+    assert!(core.call_room(pending));
+    assert!(core.call_room(fresh));
+
+    core.pending_calls.insert(pending, true).expect("first call fits");
+    assert!(!core.call_room(pending));
+    assert!(core.call_room(retained));
+    core.call_parts.insert(retained, CallPart::Controlled).expect("second call fits");
+    assert!(!core.call_room(pending));
+    assert!(core.call_room(retained));
+    assert!(!core.call_room(fresh));
+    assert_eq!(core.pending_calls.len(), 1);
+    assert_eq!(core.call_parts.len(), 1);
+
+    assert_eq!(core.pending_calls.remove(&pending), Some(true));
+    assert!(core.call_room(fresh));
+    assert!(core.call_room(retained));
+}
 
 pub(crate) fn limits() -> Limits {
     let retry = tasks::Retry { retries: 1, base: Duration::from_millis(10), max: Duration::from_secs(1) };
@@ -100,7 +146,7 @@ pub(crate) fn limits() -> Limits {
         program_sources: 12,
         source_detail_bytes: 4096,
         needs_bytes: 4096,
-        versions: 0,
+        versions: 8,
         workers: 1,
         engine_slots: 0,
         slots: 1,
@@ -117,7 +163,7 @@ pub(crate) fn limits() -> Limits {
     };
     Limits {
         routes: 20_783,
-        settings: settings::Limits {
+        settings: crate::settings::Limits {
             revisions: 4,
             versions: 8,
             history: 64,
@@ -413,7 +459,7 @@ pub(crate) fn config(seed: u64) -> Config {
                 }]),
             },
         },
-        defaults: settings::Defaults {
+        defaults: crate::settings::Defaults {
             charters: Box::new([Charter {
                 number: 1,
                 hosts: fleet::Kinds::Workers,
@@ -610,7 +656,7 @@ fn documents_frame_carries_roles_retention_and_configured_charters() {
             name: Text { bytes: Box::from(&b"Project 1"[..]), cut: false },
             pool: None,
             creating: Some(crate::acts::Creating {
-                within: frame_facts::owner_creating(limits.documents.lines, 1, 1),
+                within: documents::frame_facts::owner_creating(limits.documents.lines, 1, 1),
                 beyond: crate::acts::Beyond::Proposed {
                     to: crate::acts::Recipient::Roles {
                         project: 1,
@@ -1912,7 +1958,7 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
                 stop_bound: Duration::from_secs(1),
                 slots: 1,
                 workstreams: Box::new([]),
-                hosting: Box::new([fleet::Hosted {
+                hosting: Box::new([fleet::Hosting {
                     run: Token::new(2),
                     attempt: Token::new(9),
                     phase: fleet::Phase::Active,
@@ -1987,7 +2033,7 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
 #[test]
 fn documents_deployment_accounts_are_secret_free_and_show_unusable_state() {
     let (mut core, mut limits) = make_tree();
-    run_choice::host(&mut core, &limits, Token::new(10), &[b"scripted"]);
+    runs::run_choice::host(&mut core, &limits, Token::new(10), &[b"scripted"]);
     limits.people.projects = 2;
     restore_document_party(&mut core, &limits, &[0, 1]);
     let env = Env { now: Time::from_nanos(100), wall: Wall::from_nanos(1000), limits: limits.accounts };
@@ -2090,15 +2136,12 @@ fn watch_core() -> (Core, Limits) {
 }
 
 fn watch_outputs(core: &mut Core, limits: &Limits, event: Event) -> Box<[Request]> {
-    match step(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }, event) {
-        Requests::Out(mut out) => {
-            let mut requests = List::with_capacity(out.len());
-            while let Some(request) = out.pop() {
-                requests.push(request).unwrap();
-            }
-            requests.into_boxed()
-        }
+    let mut out = step(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }, event);
+    let mut requests = List::with_capacity(out.len());
+    while let Some(request) = out.pop() {
+        requests.push(request).unwrap();
     }
+    requests.into_boxed()
 }
 
 fn watch_subjects() -> [(&'static str, Watched, Subject); 9] {
@@ -2138,12 +2181,11 @@ fn an_unkeyed_watch_on_each_subject_makes_its_first_document_as_a_held_output() 
             &limits,
             Event::Watch { watcher: Token::new(30), sign_in: 10, subject, window: window() },
         );
-        assert_eq!(out.len(), 2);
+        assert_eq!(out.len(), 1);
         let Request::Held(held) = &out[0] else { panic!("document is held") };
         let Held::Delivery { watcher, document } = held.as_ref() else { panic!("typed delivery") };
         assert_eq!(*watcher, Token::new(30));
         assert_eq!(document.as_ref(), &expected, "{label}");
-        let Request::Decided = &out[1] else { panic!("one decision") };
     }
 }
 
@@ -2177,7 +2219,7 @@ fn watch_admission_checks_each_subjects_project_or_owner() {
             Event::Watch { watcher: Token::new(30), sign_in: 10, subject, window: window() },
         );
         assert_watch_refusal(&out[0], WatchRefusal::NotAllowed);
-        assert!(core.view_subjects.is_empty(), "{label}");
+        assert!((core.watch_flights() == 0), "{label}");
     }
 }
 
@@ -2194,7 +2236,7 @@ fn signed_out_unknown_and_full_watches_are_refused_without_keyed_work() {
             Event::Watch { watcher: Token::new(30), sign_in, subject, window: window() },
         );
         assert_watch_refusal(&out[0], why);
-        assert!(core.view_subjects.is_empty(), "{label}");
+        assert!((core.watch_flights() == 0), "{label}");
     }
     for watcher in 1..=limits.views.watchers {
         watch_outputs(
@@ -2230,14 +2272,14 @@ fn a_tree_watch_past_the_rows_bound_keeps_its_clamped_window() {
         &limits,
         Event::Watch { watcher, sign_in: 10, subject: Watched::Tree { task: 1 }, window: Window { rows: 32, after } },
     );
-    assert_eq!(out.len(), 2);
+    assert_eq!(out.len(), 1);
     let Request::Held(held) = &out[0] else { panic!("admitted delivery") };
     let Held::Delivery { document, .. } = held.as_ref() else { panic!("document delivery") };
     let Document::Tree(tree) = document.as_ref() else { panic!("tree document") };
     assert_eq!(tree.rows.len(), 2);
     assert_eq!(tree.rows.get(0).unwrap().chip.number, 3);
     assert_eq!(tree.rows.get(1).unwrap().chip.number, 4);
-    assert_eq!(core.view_subjects.get(&watcher).unwrap().window, Window { rows: 2, after });
+    assert_eq!(core.named_watch(watcher).unwrap().window, Window { rows: 2, after });
     assert_eq!(core.views.watchers(), 1);
 }
 
@@ -2260,7 +2302,7 @@ fn an_application_watch_asks_its_connector_with_the_clamped_window() {
             window: Window { rows: 32, after },
         },
     );
-    assert_eq!(out.len(), 2);
+    assert_eq!(out.len(), 1);
     let Request::Ask {
         connector: owner,
         ask: Ask::Document { watcher: got, scope: got_scope, subject: got_subject, party, window },
@@ -2268,9 +2310,12 @@ fn an_application_watch_asks_its_connector_with_the_clamped_window() {
     else {
         panic!("connector construction")
     };
-    assert_eq!((*owner, *got, *got_scope, *got_subject, *party), (connector, watcher, scope, subject, 1));
+    assert_eq!(
+        (*owner, *got, *got_scope, *got_subject, *party),
+        (connector, core.watch_token(watcher).unwrap(), scope, subject, 1)
+    );
     assert_eq!(*window, Window { rows: 2, after });
-    assert_eq!(core.view_subjects.get(&watcher).unwrap().window, *window);
+    assert_eq!(core.named_watch(watcher).unwrap().window, *window);
 }
 
 #[test]
@@ -2304,9 +2349,9 @@ fn a_watch_whose_task_has_an_oversized_whole_value_is_refused_unknown() {
         &limits,
         Event::Watch { watcher: Token::new(30), sign_in: 10, subject: Watched::Task { task: 1 }, window: window() },
     );
-    assert_eq!(out.len(), 2);
+    assert_eq!(out.len(), 1);
     assert_watch_refusal(&out[0], WatchRefusal::Unknown);
-    assert!(core.view_subjects.is_empty());
+    assert!((core.watch_flights() == 0));
     assert!(core.view_names.is_empty());
     assert_eq!(core.views.watchers(), 0);
 }
@@ -2317,13 +2362,13 @@ fn an_unwatch_waits_for_its_delivery_then_ends_as_a_held_output() {
     let watcher = Token::new(30);
     watch_outputs(&mut core, &limits, Event::Watch { watcher, sign_in: 10, subject: Watched::Frame, window: window() });
     let out = watch_outputs(&mut core, &limits, Event::Unwatch { watcher });
-    assert_eq!(out.len(), 1);
+    assert!(out.is_empty());
     let out = watch_outputs(&mut core, &limits, Event::Delivered { watcher });
     let Request::Held(held) = &out[0] else { panic!("ending is held") };
     let Held::WatchEnded { watcher: got, why } = held.as_ref() else { panic!("watch ending") };
     assert_eq!(*got, watcher);
     assert_eq!(*why, views::End::Unwatched);
-    assert!(core.view_subjects.is_empty());
+    assert!((core.watch_flights() == 0));
 }
 
 fn assert_watch_refusal(request: &Request, why: WatchRefusal) {
@@ -2334,14 +2379,13 @@ fn assert_watch_refusal(request: &Request, why: WatchRefusal) {
 
 fn finish_watch_outputs(core: &mut Core, limits: &Limits) -> Box<[Request]> {
     for _ in 0_u32..8 {
-        let Requests::Out(mut out) =
-            finish_decision(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits });
+        let mut out = finish_decision(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits });
         let mut requests = List::with_capacity(out.len());
         let mut handoff = false;
         while let Some(request) = out.pop() {
             match request {
                 Request::ProjectMade { .. } | Request::Write(_) | Request::Ask { .. } => handoff = true,
-                request @ (Request::Held(_) | Request::Now(_) | Request::Decided) => requests.push(request).unwrap(),
+                request @ (Request::Held(_) | Request::Now(_)) => requests.push(request).unwrap(),
             }
         }
         if !handoff {
@@ -2388,17 +2432,17 @@ fn one_task_change_marks_trees_queries_and_named_chips_once() {
         watch_outputs(&mut core, &limits, Event::Tasks(tasks::Event::Hold { task: 2, why: tasks::Hold::Budget }));
     assert!(!changed.is_empty());
     let out = finish_watch_outputs(&mut core, &limits);
-    assert_eq!(out.len(), 6);
+    assert_eq!(out.len(), 5);
     let mut watchers = skein_lib::Set::with_capacity(5);
     for request in out.iter().take(5) {
         let Request::Held(held) = request else { panic!("held change") };
         let Held::Delivery { watcher, document } = held.as_ref() else { panic!("document change") };
         assert!(watchers.insert(*watcher).unwrap());
-        let binding = core.view_subjects.get(watcher).unwrap();
+        let binding = core.named_watch(*watcher).unwrap();
         let subject = &core.view_names.get(binding.subject).unwrap().subject;
         assert_eq!(document.as_ref(), &make(&core, &limits, 1, subject, &window(), Wall::EPOCH).unwrap());
     }
-    assert_eq!(finish_watch_outputs(&mut core, &limits).len(), 1);
+    assert!(finish_watch_outputs(&mut core, &limits).is_empty());
 }
 
 #[test]
@@ -2421,17 +2465,17 @@ fn ten_changed_decisions_coalesce_behind_one_inflight_delivery() {
                 }]),
             }),
         );
-        assert_eq!(finish_watch_outputs(&mut core, &limits).len(), 1);
+        assert!(finish_watch_outputs(&mut core, &limits).is_empty());
     }
     let out = watch_outputs(&mut core, &limits, Event::Delivered { watcher });
-    assert_eq!(out.len(), 2);
+    assert_eq!(out.len(), 1);
     let Request::Held(held) = &out[0] else { panic!("coalesced held delivery") };
     let Held::Delivery { document, .. } = held.as_ref() else { panic!("typed current document") };
     assert_eq!(
         document.as_ref(),
         &make(&core, &limits, 1, &Subject::Inbox { party: 1 }, &window(), Wall::EPOCH).unwrap()
     );
-    assert_eq!(watch_outputs(&mut core, &limits, Event::Delivered { watcher }).len(), 1);
+    assert!(watch_outputs(&mut core, &limits, Event::Delivered { watcher }).is_empty());
 }
 
 #[test]
@@ -2477,11 +2521,8 @@ fn watches_share_subject_tokens_and_expired_signins_end_only_their_own_watch() {
         );
         watch_outputs(&mut core, &limits, Event::Delivered { watcher });
     }
-    assert_eq!(
-        core.view_subjects.get(&Token::new(30)).unwrap().subject,
-        core.view_subjects.get(&Token::new(31)).unwrap().subject
-    );
-    let Requests::Out(mut out) = routing::finish_watches(
+    assert_eq!(core.named_watch(Token::new(30)).unwrap().subject, core.named_watch(Token::new(31)).unwrap().subject);
+    let mut out = crate::routing::finish_watches(
         &mut core,
         &Env {
             now: Time::from_nanos(Duration::from_secs(61).as_nanos()),
@@ -2492,7 +2533,7 @@ fn watches_share_subject_tokens_and_expired_signins_end_only_their_own_watch() {
     let Request::Held(held) = out.pop().unwrap() else { panic!("held watch ending") };
     let Held::WatchEnded { watcher, why } = held.as_ref() else { panic!("admission ending") };
     assert_eq!((*watcher, *why), (Token::new(30), views::End::SignedOut));
-    assert!(core.view_subjects.contains_key(&Token::new(31)));
+    assert!(core.watch_token(Token::new(31)).is_some());
     assert_eq!(core.view_names.len(), 1);
 }
 
@@ -2504,7 +2545,7 @@ fn taking_a_changed_delivery_after_signin_expiry_ends_instead_of_making_a_docume
     core.touch_party(1);
     finish_watch_outputs(&mut core, &limits);
     let at = Duration::from_secs(61).as_nanos();
-    let Requests::Out(mut out) = step(
+    let mut out = step(
         &mut core,
         &Env { now: Time::from_nanos(at), wall: Wall::from_nanos(at), limits },
         Event::Delivered { watcher },
@@ -2512,14 +2553,9 @@ fn taking_a_changed_delivery_after_signin_expiry_ends_instead_of_making_a_docume
     let Request::Held(held) = out.pop().unwrap() else { panic!("held signed-out ending") };
     let Held::WatchEnded { why, .. } = held.as_ref() else { panic!("no document after expiry") };
     assert_eq!(*why, views::End::SignedOut);
-    assert!(core.view_subjects.is_empty());
+    assert!((core.watch_flights() == 0));
 }
 
-mod activity;
-mod completion_retry;
-mod conversation;
-mod read_filters;
-mod run_positions;
 fn open_run_watch(core: &mut Core, limits: &Limits, number: u64) {
     let watcher = Token::new(number);
     watch_outputs(
@@ -2593,8 +2629,8 @@ fn turn_three_writing_follows_committed_turn_two_and_fences_old_attempts() {
     let (mut core, limits) = watch_core();
     core.proofs.get_mut(&1).unwrap().turn = Some(TurnProof { turn: 2, cumulative: 0, read: None });
     open_run_watch(&mut core, &limits, 30);
-    assert_eq!(run_text_outputs(&mut core, &limits, 6, 3, 0, b"stale").len(), 1);
-    assert_eq!(run_text_outputs(&mut core, &limits, 7, 2, 0, b"committed").len(), 1);
+    assert!(run_text_outputs(&mut core, &limits, 6, 3, 0, b"stale").is_empty());
+    assert!(run_text_outputs(&mut core, &limits, 7, 2, 0, b"committed").is_empty());
     let out = run_text_outputs(&mut core, &limits, 7, 3, 0, b"third");
     assert_stream(&out[0], 30, views::TurnName { attempt: 7, turn: 3, retry: 0 }, 0, 5, b"third", false);
     let Document::Run(run) = make(&core, &limits, 1, &Subject::Run { task: 1 }, &window(), Wall::EPOCH).unwrap() else {
@@ -2611,7 +2647,7 @@ fn turn_three_writing_follows_committed_turn_two_and_fences_old_attempts() {
         panic!("run document")
     };
     assert!(run.writing.is_none());
-    assert_eq!(watch_outputs(&mut core, &limits, Event::StreamDelivered { watcher: Token::new(30) }).len(), 1);
+    assert!(watch_outputs(&mut core, &limits, Event::StreamDelivered { watcher: Token::new(30) }).is_empty());
 }
 
 #[test]
@@ -2656,7 +2692,7 @@ fn a_run_watch_stays_open_between_attempts_and_the_new_attempt_starts_at_zero() 
     let Document::Run(run) = document.as_ref() else { panic!("idle run") };
     assert_eq!(run.attempt, None);
     assert!(run.writing.is_none());
-    assert!(core.view_subjects.contains_key(&Token::new(30)));
+    assert!(core.watch_token(Token::new(30)).is_some());
     watch_outputs(&mut core, &limits, Event::StreamDelivered { watcher: Token::new(30) });
     let proof = core.proofs.get_mut(&1).unwrap();
     proof.attempt = 8;
@@ -2673,7 +2709,7 @@ fn an_expired_run_signin_receives_no_next_provisional_suffix() {
     run_text_outputs(&mut core, &limits, 7, 1, 0, b"first");
     run_text_outputs(&mut core, &limits, 7, 1, 5, b"secret");
     let at = Duration::from_secs(61).as_nanos();
-    let Requests::Out(mut out) = step(
+    let mut out = step(
         &mut core,
         &Env { now: Time::from_nanos(at), wall: Wall::from_nanos(at), limits },
         Event::StreamDelivered { watcher: Token::new(30) },
@@ -2681,10 +2717,10 @@ fn an_expired_run_signin_receives_no_next_provisional_suffix() {
     let Request::Held(held) = out.pop().unwrap() else { panic!("held expiry ending") };
     let Held::WatchEnded { why, .. } = held.as_ref() else { panic!("no provisional suffix after expiry") };
     assert_eq!(*why, views::End::SignedOut);
-    assert_eq!(out.len(), 1);
+    assert!(out.is_empty());
 }
 
-fn read_start(core: &mut Core, limits: &Limits, sign_in: u64, read: reads::Read) -> Held {
+fn read_start(core: &mut Core, limits: &Limits, sign_in: u64, read: crate::reads::Read) -> Held {
     let outputs = watch_outputs(core, limits, Event::Read { reply: ReplyTo::new(Token::new(90)), sign_in, read });
     let mut held = None;
     for output in outputs {
@@ -2693,7 +2729,7 @@ fn read_start(core: &mut Core, limits: &Limits, sign_in: u64, read: reads::Read)
                 assert!(held.is_none(), "one answer per read");
                 held = Some(*answer);
             }
-            Request::Decided => {}
+
             Request::ProjectMade { .. } | Request::Write(_) | Request::Ask { .. } | Request::Now(_) => {
                 panic!("read changes nothing")
             }
@@ -2702,7 +2738,12 @@ fn read_start(core: &mut Core, limits: &Limits, sign_in: u64, read: reads::Read)
     held.expect("one terminal answer")
 }
 
-fn loaded_answer(core: &mut Core, limits: &Limits, load: Token, result: reads::Loaded) -> Option<reads::Answer> {
+fn loaded_answer(
+    core: &mut Core,
+    limits: &Limits,
+    load: Token,
+    result: crate::reads::Loaded,
+) -> Option<crate::reads::Answer> {
     let mut answer = None;
     for output in watch_outputs(core, limits, Event::ReadLoaded { load, result }) {
         match output {
@@ -2711,7 +2752,7 @@ fn loaded_answer(core: &mut Core, limits: &Limits, load: Token, result: reads::L
                 assert!(answer.is_none());
                 answer = Some(value);
             }
-            Request::Decided => {}
+
             Request::ProjectMade { .. } | Request::Write(_) | Request::Ask { .. } | Request::Now(_) => {
                 panic!("read decides nothing")
             }
@@ -2720,20 +2761,20 @@ fn loaded_answer(core: &mut Core, limits: &Limits, load: Token, result: reads::L
     answer
 }
 
-fn read_answer(core: &mut Core, limits: &Limits, sign_in: u64, read: reads::Read) -> Held {
+fn read_answer(core: &mut Core, limits: &Limits, sign_in: u64, read: crate::reads::Read) -> Held {
     let held = read_start(core, limits, sign_in, read);
     if let Held::ReadLoad { load, .. } = held {
         return Held::Read {
             reply: ReplyTo::new(Token::new(90)),
-            answer: loaded_answer(core, limits, load, reads::Loaded::Page { rows: Box::new([]), next: None }).unwrap(),
+            answer: loaded_answer(core, limits, load, crate::reads::Loaded::Page { rows: Box::new([]), next: None })
+                .unwrap(),
         };
     }
     held
 }
 
-#[expect(clippy::manual_map, reason = "the test helper follows the exhaustive option style")]
-pub(crate) fn stored_row(value: Record, owner: Option<tasks::TaskRecord>) -> reads::Row {
-    reads::Row {
+pub(crate) fn stored_row(value: Record, owner: Option<tasks::TaskRecord>) -> crate::reads::Row {
+    crate::reads::Row {
         value,
         owner: match owner {
             Some(value) => Some(Box::new(value)),
@@ -2765,7 +2806,7 @@ fn stored_activity_pages_follow_committed_positions_with_exact_continuations() {
         },
     };
     let Held::ReadLoad { load, range } =
-        read_start(&mut core, &limits, 10, reads::Read::Activity { task: 1, before: None })
+        read_start(&mut core, &limits, 10, crate::reads::Read::Activity { task: 1, before: None })
     else {
         panic!()
     };
@@ -2775,27 +2816,27 @@ fn stored_activity_pages_follow_committed_positions_with_exact_continuations() {
         stored_row(Record::Tasks(tasks::Stored::Activity(line(3, 10))), Some(owner.clone())),
         stored_row(Record::Tasks(tasks::Stored::Activity(line(2, 30))), Some(owner.clone())),
     ]);
-    let next = reads::row_key(&rows[1]).unwrap();
-    let reads::Answer::Page(page) =
-        loaded_answer(&mut core, &limits, load, reads::Loaded::Page { rows, next: Some(next.clone()) }).unwrap()
+    let next = crate::reads::row_key(&rows[1]).unwrap();
+    let crate::reads::Answer::Page(page) =
+        loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Page { rows, next: Some(next.clone()) }).unwrap()
     else {
         panic!()
     };
     assert_eq!(page.rows.len(), 2);
-    let reads::PageRow::Activity { line: first, .. } = page.rows.get(0).unwrap() else { panic!() };
+    let crate::reads::PageRow::Activity { line: first, .. } = page.rows.get(0).unwrap() else { panic!() };
     assert_eq!(first.position, 3);
     core.reclaim();
     let Held::ReadLoad { load, range } =
-        read_start(&mut core, &limits, 10, reads::Read::Activity { task: 1, before: page.next })
+        read_start(&mut core, &limits, 10, crate::reads::Read::Activity { task: 1, before: page.next })
     else {
         panic!()
     };
     assert_eq!(range.after, Some(next));
-    let reads::Answer::Page(last) = loaded_answer(
+    let crate::reads::Answer::Page(last) = loaded_answer(
         &mut core,
         &limits,
         load,
-        reads::Loaded::Page {
+        crate::reads::Loaded::Page {
             rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Activity(line(1, 20))), Some(owner))]),
             next: None,
         },
@@ -2805,7 +2846,7 @@ fn stored_activity_pages_follow_committed_positions_with_exact_continuations() {
     };
     assert_eq!(last.rows.len(), 1);
     assert_eq!(last.next, None);
-    assert!(loaded_answer(&mut core, &limits, load, reads::Loaded::Gone).is_none());
+    assert!(loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Gone).is_none());
 }
 
 #[test]
@@ -2814,27 +2855,28 @@ fn store_load_admission_is_bounded_and_each_terminal_consumes_its_slot() {
     limits.load_slots = 1;
     // Reconstruct with the chosen capacity; authentication is restored below.
     core.reads = skein_lib::Slab::with_capacity(1);
-    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, reads::Read::Task { task: 100 }) else {
+    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 100 }) else {
         panic!()
     };
-    let Held::Read { answer, .. } = read_start(&mut core, &limits, 10, reads::Read::Task { task: 101 }) else {
+    let Held::Read { answer, .. } = read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 101 }) else {
         panic!()
     };
-    assert_eq!(answer, reads::Answer::None(reads::Why::Busy));
+    assert_eq!(answer, crate::reads::Answer::None(crate::reads::Why::Busy));
     assert_eq!(core.reads.len(), 1);
     assert_eq!(
-        loaded_answer(&mut core, &limits, load, reads::Loaded::Busy),
-        Some(reads::Answer::None(reads::Why::Busy))
+        loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Busy),
+        Some(crate::reads::Answer::None(crate::reads::Why::Busy))
     );
     core.reclaim();
-    let Held::ReadLoad { load: fresh, .. } = read_start(&mut core, &limits, 10, reads::Read::Task { task: 101 }) else {
+    let Held::ReadLoad { load: fresh, .. } = read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 101 })
+    else {
         panic!()
     };
     assert_ne!(fresh, load);
-    assert!(loaded_answer(&mut core, &limits, load, reads::Loaded::Gone).is_none());
+    assert!(loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Gone).is_none());
     assert_eq!(
-        loaded_answer(&mut core, &limits, fresh, reads::Loaded::Gone),
-        Some(reads::Answer::None(reads::Why::Gone))
+        loaded_answer(&mut core, &limits, fresh, crate::reads::Loaded::Gone),
+        Some(crate::reads::Answer::None(crate::reads::Why::Gone))
     );
 }
 
@@ -2845,7 +2887,7 @@ fn stored_read_refuses_rows_over_either_bound_and_cursors_from_another_query() {
     limits.load_bytes = 1;
     let owner = core.tasks.task(1).unwrap().clone();
     let Held::ReadLoad { load, .. } =
-        read_start(&mut core, &limits, 10, reads::Read::Activity { task: 1, before: None })
+        read_start(&mut core, &limits, 10, crate::reads::Read::Activity { task: 1, before: None })
     else {
         panic!()
     };
@@ -2854,25 +2896,25 @@ fn stored_read_refuses_rows_over_either_bound_and_cursors_from_another_query() {
             &mut core,
             &limits,
             load,
-            reads::Loaded::Page {
+            crate::reads::Loaded::Page {
                 rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Ended(Box::new(owner))), None)]),
                 next: None
             }
         ),
-        Some(reads::Answer::None(reads::Why::Busy))
+        Some(crate::reads::Answer::None(crate::reads::Why::Busy))
     );
     let Held::Read { answer, .. } = read_start(
         &mut core,
         &limits,
         10,
-        reads::Read::Activity {
+        crate::reads::Read::Activity {
             task: 1,
-            before: Some(reads::Cursor::Store { scope: reads::Scope::Activity { task: 2 }, after: None }),
+            before: Some(crate::reads::Cursor::Store { scope: crate::reads::Scope::Activity { task: 2 }, after: None }),
         },
     ) else {
         panic!()
     };
-    assert_eq!(answer, reads::Answer::None(reads::Why::Unknown));
+    assert_eq!(answer, crate::reads::Answer::None(crate::reads::Why::Unknown));
 }
 
 #[test]
@@ -2888,14 +2930,14 @@ fn retained_task_read_keeps_cancellation_actor_time_and_full_spec() {
     });
     owner.ended_at = Some(Wall::from_nanos(13));
     let expected = owner.spec.clone();
-    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, reads::Read::Task { task: 99 }) else {
+    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 99 }) else {
         panic!()
     };
-    let reads::Answer::Historical(value) = loaded_answer(
+    let crate::reads::Answer::Ended(value) = loaded_answer(
         &mut core,
         &limits,
         load,
-        reads::Loaded::Page {
+        crate::reads::Loaded::Page {
             rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Ended(Box::new(owner))), None)]),
             next: None,
         },
@@ -2905,7 +2947,7 @@ fn retained_task_read_keeps_cancellation_actor_time_and_full_spec() {
     };
     assert_eq!(value.by, Some(tasks::Party::Person(1)));
     assert_eq!(value.at, Some(Wall::from_nanos(13)));
-    let reads::Past::Task { document, result } = value.value else { panic!() };
+    let crate::reads::EndedValue::Task { document, result } = value.value else { panic!() };
     assert_eq!(document.chip.number, 99);
     assert_eq!(document.words.bytes, expected.words);
     let Ending::Cancelled { by, at, .. } = result.ending else { panic!() };
@@ -2932,15 +2974,16 @@ fn stored_reply_reads_exact_child_activity_and_preserves_original_word_facts() {
         at: word.at,
         line: tasks::Line::Notified { recipient: tasks::Party::Person(1), word: word.clone() },
     };
-    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, reads::Read::Reply { task: 1, activity: 8 })
+    let Held::ReadLoad { load, .. } =
+        read_start(&mut core, &limits, 10, crate::reads::Read::Reply { task: 1, activity: 8 })
     else {
         panic!()
     };
-    let reads::Answer::Historical(value) = loaded_answer(
+    let crate::reads::Answer::Ended(value) = loaded_answer(
         &mut core,
         &limits,
         load,
-        reads::Loaded::Page {
+        crate::reads::Loaded::Page {
             rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Activity(line)), Some(owner))]),
             next: None,
         },
@@ -2948,7 +2991,7 @@ fn stored_reply_reads_exact_child_activity_and_preserves_original_word_facts() {
     .unwrap() else {
         panic!()
     };
-    assert_eq!(value.value, reads::Past::Reply(word));
+    assert_eq!(value.value, crate::reads::EndedValue::Reply(word));
 }
 
 #[test]
@@ -2970,15 +3013,17 @@ fn stored_person_forms_load_dependency_results_and_retained_links() {
     dependency.ended_at = Some(Wall::from_nanos(8));
     let mut row = stored_row(Record::Tasks(tasks::Stored::Ended(Box::new(owner))), None);
     row.linked = Box::new([Box::new(dependency)]);
-    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, reads::Read::PersonTask { task: 100 }) else {
-        panic!()
-    };
-    let reads::Answer::Historical(value) =
-        loaded_answer(&mut core, &limits, load, reads::Loaded::Page { rows: Box::new([row]), next: None }).unwrap()
+    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, crate::reads::Read::PersonTask { task: 100 })
     else {
         panic!()
     };
-    let reads::Past::PersonTask { document, .. } = value.value else { panic!() };
+    let crate::reads::Answer::Ended(value) =
+        loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Page { rows: Box::new([row]), next: None })
+            .unwrap()
+    else {
+        panic!()
+    };
+    let crate::reads::EndedValue::PersonTask { document, .. } = value.value else { panic!() };
     let shown = document.results.get(0).unwrap();
     assert!(shown.result.is_some());
     let TaskLink::Retained { chip, at } = &shown.task else { panic!() };
@@ -2991,7 +3036,7 @@ fn a_load_completion_rechecks_current_project_visibility() {
     let (mut core, limits) = watch_core();
     let owner = core.tasks.task(1).unwrap().clone();
     let Held::ReadLoad { load, .. } =
-        read_start(&mut core, &limits, 10, reads::Read::Activity { task: 1, before: None })
+        read_start(&mut core, &limits, 10, crate::reads::Read::Activity { task: 1, before: None })
     else {
         panic!()
     };
@@ -3007,12 +3052,12 @@ fn a_load_completion_rechecks_current_project_visibility() {
             &mut core,
             &limits,
             load,
-            reads::Loaded::Page {
+            crate::reads::Loaded::Page {
                 rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Live(Box::new(owner))), None)]),
                 next: None
             }
         ),
-        Some(reads::Answer::None(reads::Why::Unknown))
+        Some(crate::reads::Answer::None(crate::reads::Why::Unknown))
     );
 }
 
@@ -3020,10 +3065,10 @@ fn a_load_completion_rechecks_current_project_visibility() {
 fn live_reads_use_owner_documents_without_a_key_or_state_change() {
     let (mut core, limits) = watch_core();
     for (read, subject) in [
-        (reads::Read::Frame, Subject::Frame { party: 1 }),
-        (reads::Read::Task { task: 1 }, Subject::Task { task: 1 }),
-        (reads::Read::Project { project: 1 }, Subject::Project { project: 1 }),
-        (reads::Read::Deployment, Subject::Deployment),
+        (crate::reads::Read::Frame, Subject::Frame { party: 1 }),
+        (crate::reads::Read::Task { task: 1 }, Subject::Task { task: 1 }),
+        (crate::reads::Read::Project { project: 1 }, Subject::Project { project: 1 }),
+        (crate::reads::Read::Deployment, Subject::Deployment),
     ] {
         let expected = make_with_clock(
             &core,
@@ -3034,7 +3079,8 @@ fn live_reads_use_owner_documents_without_a_key_or_state_change() {
             DocumentClock { now: Time::ZERO, wall: Wall::EPOCH },
         )
         .unwrap();
-        let Held::Read { reply, answer: reads::Answer::Document(document) } = read_answer(&mut core, &limits, 10, read)
+        let Held::Read { reply, answer: crate::reads::Answer::Document(document) } =
+            read_answer(&mut core, &limits, 10, read)
         else {
             panic!("live document expected")
         };
@@ -3047,22 +3093,22 @@ fn live_reads_use_owner_documents_without_a_key_or_state_change() {
 fn invisible_and_absent_reads_have_the_same_unknown_answer() {
     let (mut core, limits) = watch_core();
     for (sign_in, read, why) in [
-        (99, reads::Read::Frame, reads::Why::SignedOut),
-        (10, reads::Read::Project { project: 9 }, reads::Why::Unknown),
-        (10, reads::Read::Task { task: 99 }, reads::Why::Unknown),
+        (99, crate::reads::Read::Frame, crate::reads::Why::SignedOut),
+        (10, crate::reads::Read::Project { project: 9 }, crate::reads::Why::Unknown),
+        (10, crate::reads::Read::Task { task: 99 }, crate::reads::Why::Unknown),
     ] {
         let Held::Read { answer, .. } = read_answer(&mut core, &limits, sign_in, read) else {
             panic!("read terminal expected")
         };
-        assert_eq!(answer, reads::Answer::None(why));
+        assert_eq!(answer, crate::reads::Answer::None(why));
     }
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     let mut out = Queue::uncapped();
     people::step(&mut core.people, &env, people::Event::Roles { project: 1, holdings: Box::new([]) }, &mut out);
-    let Held::Read { answer, .. } = read_answer(&mut core, &limits, 10, reads::Read::Task { task: 1 }) else {
+    let Held::Read { answer, .. } = read_answer(&mut core, &limits, 10, crate::reads::Read::Task { task: 1 }) else {
         panic!("read terminal expected")
     };
-    assert_eq!(answer, reads::Answer::None(reads::Why::Unknown));
+    assert_eq!(answer, crate::reads::Answer::None(crate::reads::Why::Unknown));
 }
 
 #[test]
@@ -3075,7 +3121,7 @@ fn a_core_read_answer_waits_for_the_last_commit_already_made() {
     journal.accept(prior);
     let commit = journal.commit().unwrap().number;
     let mut read = journal.decide();
-    read.push_held(read_answer(&mut core, &limits, 10, reads::Read::Task { task: 1 }));
+    read.push_held(read_answer(&mut core, &limits, 10, crate::reads::Read::Task { task: 1 }));
     journal.accept(read);
     assert!(journal.commit().is_none(), "read makes no commit");
     let mut released = Queue::with_capacity(4);
@@ -3083,7 +3129,7 @@ fn a_core_read_answer_waits_for_the_last_commit_already_made() {
     assert!(released.is_empty());
     journal.committed(commit);
     assert_eq!(journal.release(&mut released), Released::Some);
-    let Some(Held::Read { answer: reads::Answer::Document(_), .. }) = released.pop() else {
+    let Some(Held::Read { answer: crate::reads::Answer::Document(_), .. }) = released.pop() else {
         panic!("held document released after durability")
     };
     assert!(released.is_empty());
@@ -3295,22 +3341,6 @@ fn deployment_capacity_carries_direct_batch_refusals_and_task_history_cut() {
     assert_eq!(fact.request.cause, tasks::CapacityCause::Tasks { limit: 4 });
     assert!(core.tasks.task(7).is_none());
 }
-mod application_documents;
-
-mod acts;
-mod chip_phase;
-mod hold_origin;
-mod live_delegates;
-
-mod document_offers;
-mod last_batch;
-mod periods;
-
-mod frame_deployment_role;
-mod frame_facts;
-mod project_baselines;
-
-mod deployment_connectors;
 
 #[test]
 fn approval_documents_keep_opaque_state_whole_and_refuse_a_smaller_bound() {
@@ -3348,10 +3378,6 @@ fn approval_documents_keep_opaque_state_whole_and_refuse_a_smaller_bound() {
     );
     assert_eq!(result_from_row(&core, &smaller, 1, &row, Wall::EPOCH), Err(Missing::TooLarge));
 }
-
-mod chip_executor;
-mod task_settings;
-mod task_specification;
 
 #[test]
 fn verdict_documents_preserve_machine_field_rules_and_values_whole() {
@@ -3397,20 +3423,6 @@ fn verdict_documents_preserve_machine_field_rules_and_values_whole() {
     assert_eq!(result_from_row(&core, &smaller, 1, &row, Wall::EPOCH), Err(Missing::TooLarge));
 }
 
-mod engine_timers;
-mod sign_ins;
-
-mod fill;
-mod inbox_selection;
-
-mod project_period_watches;
-
-mod fixtures;
-mod reserve;
-mod waits;
-
-mod charters;
-
 #[test]
 fn an_answer_payload_for_a_replaced_attempt_is_dropped() {
     let (mut core, limits) = watch_core();
@@ -3426,47 +3438,14 @@ fn an_answer_payload_for_a_replaced_attempt_is_dropped() {
         saved: None,
         invalid_saved: false,
     };
-    let Requests::Out(mut out) = step(&mut core, &env, event);
+    let mut out = step(&mut core, &env, event);
     let Request::Now(answer) = out.pop().unwrap() else { panic!("payload drop") };
     let Now::DropPayload { payload } = *answer else { panic!("drop stale answer") };
     assert_eq!(payload, Token::new(91));
     assert!(core.current_proof(1, 7), "the replacement proof remains current");
 }
 
-mod account_signing;
-mod accounts_document;
-mod credentials;
-
-mod funding_fixtures;
-mod transcript_bytes;
-mod windows;
-use funding_fixtures::{set_role_authority, set_seed_role_authority};
-
-mod read_activity;
-
-mod own_watches;
-
-mod default_llm;
-mod goal_of;
-mod kept_models;
-mod role_models;
-mod task_query;
-
-mod brief_revisions;
-
-mod escalation_holder;
-mod virtual_words;
-
-mod templates;
-
-mod forget;
-
-mod coverage;
-
-mod open_shape;
-mod run_choice;
-
-mod account_admission;
+use crate::tests::funding::fixtures::{set_role_authority, set_seed_role_authority};
 
 #[test]
 fn outcomes_reserve_one_more_than_configured_workers() {
@@ -3515,15 +3494,10 @@ fn startup_accepts_the_worker_name_byte_bound() {
 }
 
 fn configured_worker_name(length: u32) -> Box<[u8]> {
-    let mut name = skein_lib::bytes::zeroed(usize::try_from(length).expect("fixture name bound"));
+    let mut name = skein_lib::bytes::zeroed(skein_lib::length::usize_of(length));
     name.fill(b'a');
     name
 }
-
-mod notes_room;
-mod result_reads;
-
-mod amendment_reads;
 
 #[test]
 fn finishing_owes_header_changed_marks_and_first_drain_but_not_future_alarms() {
@@ -3532,7 +3506,7 @@ fn finishing_owes_header_changed_marks_and_first_drain_but_not_future_alarms() {
     core.counters.next_commit();
     assert!(!core.finish_owed(), "future sign-in alarms are independent of finishing");
     assert!(core.people.next_deadline().unwrap() > Time::ZERO);
-    assert_decided_only(finish_watch_outputs(&mut core, &limits).as_ref());
+    assert_empty(finish_watch_outputs(&mut core, &limits).as_ref());
     let watcher = Token::new(30);
     watch_outputs(&mut core, &limits, Event::Watch { watcher, sign_in: 10, subject: Watched::Frame, window: window() });
     watch_outputs(&mut core, &limits, Event::Delivered { watcher });
@@ -3541,21 +3515,21 @@ fn finishing_owes_header_changed_marks_and_first_drain_but_not_future_alarms() {
     assert!(core.finish_owed());
     assert!(!core.quiescent(true), "broader idle includes the same finishing derivation");
     let out = finish_watch_outputs(&mut core, &limits);
-    let [Request::Held(_), Request::Decided] = out.as_ref() else { panic!("one changed delivery") };
+    let [Request::Held(_)] = out.as_ref() else { panic!("one changed delivery") };
     assert!(!core.finish_owed(), "an inflight delivery is a child-held wait");
     watch_outputs(&mut core, &limits, Event::Stopping);
     assert!(core.finish_owed());
-    assert_eq!(finish_watch_outputs(&mut core, &limits).len(), 1, "ending awaits the delivery terminal");
-    assert!(core.views.is_closing(watcher));
+    assert!(finish_watch_outputs(&mut core, &limits).is_empty(), "ending awaits the delivery terminal");
+    assert!(core.views.is_closing(core.watch_token(watcher).unwrap()));
     assert!(!core.finish_owed(), "closing must not repeatedly owe an ending");
     let ended = watch_outputs(&mut core, &limits, Event::Delivered { watcher });
     assert_one_watch_ending(&ended, views::End::Stopping);
     assert!(core.finish_owed(), "empty bindings still owe the first drain");
     let drained = finish_watch_outputs(&mut core, &limits);
-    let [Request::Held(held), Request::Decided] = drained.as_ref() else { panic!("one held drain") };
+    let [Request::Held(held)] = drained.as_ref() else { panic!("one held drain") };
     let Held::Drained = held.as_ref() else { panic!("drained terminal") };
     assert!(!core.finish_owed());
-    assert_decided_only(finish_watch_outputs(&mut core, &limits).as_ref());
+    assert_empty(finish_watch_outputs(&mut core, &limits).as_ref());
 }
 
 #[test]
@@ -3579,12 +3553,12 @@ fn retained_writing_reconciles_public_proof_changes_even_without_watchers() {
             _ => unreachable!(),
         }
         assert!(core.finish_owed());
-        assert_decided_only(finish_watch_outputs(&mut core, &limits).as_ref());
+        assert_empty(finish_watch_outputs(&mut core, &limits).as_ref());
         assert!(!core.finish_owed());
         assert_eq!(core.views.runs(), u32::from(change == 0));
         if change == 0 {
             assert!(core.views.retained_run_states().next().unwrap().1.metadata().2);
-            assert_decided_only(finish_watch_outputs(&mut core, &limits).as_ref());
+            assert_empty(finish_watch_outputs(&mut core, &limits).as_ref());
         }
     }
 }
@@ -3617,10 +3591,10 @@ fn finishing_inspects_membership_role_and_query_visibility_without_clocks() {
         assert!(!core.finish_owed());
         match change {
             0 => {
-                core.view_subjects.get_mut(&watcher).unwrap().sign_in = 999;
+                core.named_watch_mut(watcher).unwrap().sign_in = 999;
             }
             1 => {
-                core.view_subjects.get_mut(&watcher).unwrap().party = 2;
+                core.named_watch_mut(watcher).unwrap().party = 2;
             }
             2 | 3 => {
                 let mut ignored = Queue::uncapped();
@@ -3664,7 +3638,7 @@ fn projection_readiness_shares_generation_restore_and_pending_connector_rules() 
     }]);
     state.fed_at = Some(commit);
     assert!(!core.finish_owed(), "same-generation unread milestones wait");
-    assert_decided_only(finish_watch_outputs(&mut core, &limits).as_ref());
+    assert_empty(finish_watch_outputs(&mut core, &limits).as_ref());
     core.counters.next_commit();
     assert!(core.finish_owed(), "public commit generation makes the milestone eligible");
     finish_watch_outputs(&mut core, &limits);
@@ -3695,8 +3669,8 @@ fn projection_readiness_shares_generation_restore_and_pending_connector_rules() 
     assert!(!core.finish_owed(), "pending connectors take precedence over changed");
 }
 
-fn assert_decided_only(out: &[Request]) {
-    let [Request::Decided] = out else { panic!("only Decided") };
+fn assert_empty(out: &[Request]) {
+    assert!(out.is_empty());
 }
 
 fn assert_one_watch_ending(out: &[Request], expected: views::End) {
@@ -3711,8 +3685,6 @@ fn assert_one_watch_ending(out: &[Request], expected: views::End) {
     }
     assert_eq!(endings, 1);
 }
-
-mod projects;
 
 #[test]
 fn configured_policies_are_retained_by_the_core() {
@@ -3739,8 +3711,6 @@ fn configured_policies_are_retained_by_the_core() {
     assert!(policy.templates.is_empty());
 }
 
-mod ended_watches;
-
 fn placed(task: u64, person: u64, number: u64) -> tasks::Event {
     tasks::Event::Place {
         reply_to: ReplyTo::new(Token::new(number)),
@@ -3758,12 +3728,6 @@ fn placed(task: u64, person: u64, number: u64) -> tasks::Event {
         },
     }
 }
-
-mod funding;
-
-mod retained_lineage;
-
-mod route_orders;
 
 #[test]
 fn validity_keeps_document_settings_and_route_refusals() {
@@ -3784,7 +3748,6 @@ fn validity_keeps_document_settings_and_route_refusals() {
     assert!(!valid(&selected), "engine outcomes need a host beyond the workers");
 }
 
-mod erase;
 pub(crate) fn finish_start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let action = core.start_begin(false, env.wall);
     finish_started(core, env, action)

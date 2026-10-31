@@ -41,7 +41,7 @@ fn a_live_run_is_watched_and_dropped_when_it_ends() {
         }))
     );
     let mut task = f::task();
-    f::phase(&mut task, c::OwnerChipPhase::Active(c::RunStage::Idle));
+    f::phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
     f::deliver(&mut f.client, f.watch, task);
     f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
     assert_eq!(f.chat.run, None);
@@ -108,7 +108,7 @@ fn run_state(writing: Option<c::RunText>) -> c::Delivery {
 fn a_chats_stream_suffix_extends_its_provisional_turn_until_committed() {
     let mut f = f::opened();
     let watch = open_run(&mut f);
-    run_delivery(&mut f, watch, run_state(Some(run_text(0, b"The answer"))));
+    run_delivery(&mut f, watch, c::Delivery::Run(Box::new(run_text(0, b"The answer"))));
     assert_eq!(f.chat.thread.live.get(0).expect("provisional prefix").text.bytes(), b"The answer");
     run_delivery(&mut f, watch, c::Delivery::Run(Box::new(run_text(10, b" is forty-two."))));
     let handle = f.chat.run.unwrap();
@@ -184,20 +184,16 @@ fn chat_told(pages: &mut crate::pages::Pages, client: &jig_client::Client, told:
     );
     out
 }
-fn owner_activity(position: u64, line: c::OwnerActivity) -> c::ActivityLine {
-    c::ActivityLine {
-        position,
-        at: skein_lib::Wall::EPOCH,
-        event: c::Activity::Owner {
-            source: Box::new(c::OwnerActivityLine { task: f::TASK, position, at: skein_lib::Wall::EPOCH, line }),
-            decoded: None,
-        },
+fn owner_activity(position: u64, line: c::Activity) -> c::DecodedActivityLine {
+    c::DecodedActivityLine {
+        source: Box::new(c::ActivityLine { task: f::TASK, position, at: skein_lib::Wall::EPOCH, line }),
+        decoded: None,
     }
 }
-fn owner_turn(position: u64, reply: u64) -> c::ActivityLine {
+fn owner_turn(position: u64, reply: u64) -> c::DecodedActivityLine {
     owner_activity(
         position,
-        c::OwnerActivity::Turn { reply, attempt: f::ATTEMPT, turn: u32::try_from(reply).unwrap(), read: None },
+        c::Activity::Turn { reply, attempt: f::ATTEMPT, turn: u32::try_from(reply).unwrap(), read: None },
     )
 }
 fn chat_move(
@@ -214,7 +210,7 @@ fn chat_activity(
     pages: &mut crate::pages::Pages,
     client: &jig_client::Client,
     position: u64,
-    rows: skein_lib::List<c::ActivityLine>,
+    rows: skein_lib::List<c::DecodedActivityLine>,
 ) -> Queue<Request> {
     let mut task = f::task();
     task.activity = position;
@@ -250,7 +246,9 @@ fn seen_key(pages: &crate::pages::Pages) -> jig_client::Key {
     panic!("automatic Seen pending")
 }
 fn seen_answer() -> jig_client::Outcome {
-    jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Changed)))
+    jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+        c::DocumentOutcome::Amended { task: 9 },
+    ))))
 }
 fn seen_ask(through: u64) -> c::Ask {
     c::Ask::Seen { through: c::SeenThrough::Conversation { task: f::TASK, through } }
@@ -328,27 +326,21 @@ fn a_chat_sends_no_seen_without_a_new_loaded_reply() {
 fn a_chat_sees_reply_numbers_instead_of_activity_positions() {
     let (mut pages, client) = chat_pages();
     let mut rows = skein_lib::List::with_capacity(4);
-    rows.push(owner_activity(
-        1,
-        c::OwnerActivity::RunBegan { attempt: f::ATTEMPT, why: c::OwnerRunWhy::Made, resumed: false },
-    ))
-    .unwrap();
+    rows.push(owner_activity(1, c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false }))
+        .unwrap();
     rows.push(owner_activity(
         2,
-        c::OwnerActivity::Words {
+        c::Activity::Words {
             message: 1,
-            by: c::OwnerRequester::Person(fixtures::PARTY),
-            kind: c::OwnerMessageKind::Words,
+            by: c::Requester::Person(fixtures::PARTY),
+            kind: c::MessageKind::Words,
             words: fixtures::acts::text(b"Hello"),
         },
     ))
     .unwrap();
     rows.push(owner_turn(3, 1)).unwrap();
-    rows.push(owner_activity(
-        4,
-        c::OwnerActivity::RunEnded { attempt: f::ATTEMPT, end: c::OwnerRunEnd::Parked, spent: 0 },
-    ))
-    .unwrap();
+    rows.push(owner_activity(4, c::Activity::RunEnded { attempt: f::ATTEMPT, end: c::RunEnd::Parked, spent: 0 }))
+        .unwrap();
     let mut out = chat_activity(&mut pages, &client, 4, rows);
     assert_eq!(pages.chat().unwrap().thread.loaded, 4);
     assert_eq!(fixtures::acts::sent(&mut out).as_ref(), [seen_ask(1)]);
@@ -362,29 +354,22 @@ fn a_chat_sees_reply_numbers_instead_of_activity_positions() {
 fn a_chat_with_activity_but_no_numbered_owner_turn_sends_no_seen() {
     let (mut pages, client) = chat_pages();
     let mut rows = skein_lib::List::with_capacity(3);
-    rows.push(owner_activity(
-        1,
-        c::OwnerActivity::RunBegan { attempt: f::ATTEMPT, why: c::OwnerRunWhy::Made, resumed: false },
-    ))
-    .unwrap();
+    rows.push(owner_activity(1, c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false }))
+        .unwrap();
     rows.push(owner_activity(
         2,
-        c::OwnerActivity::Words {
+        c::Activity::Words {
             message: 1,
-            by: c::OwnerRequester::Person(fixtures::PARTY),
-            kind: c::OwnerMessageKind::Words,
+            by: c::Requester::Person(fixtures::PARTY),
+            kind: c::MessageKind::Words,
             words: fixtures::acts::text(b"Hello"),
         },
     ))
     .unwrap();
-    rows.push(c::ActivityLine {
-        position: 4,
-        at: skein_lib::Wall::EPOCH,
-        event: c::Activity::Turn {
-            name: c::TurnName { attempt: f::ATTEMPT, number: 1 },
-            turn: c::TurnRead::Undecodable { why: c::TurnProblem::Malformed },
-        },
-    })
+    rows.push(owner_activity(
+        4,
+        c::Activity::Kept { attempt: f::ATTEMPT, pending: skein_lib::List::with_capacity(0), question: None },
+    ))
     .unwrap();
     assert!(fixtures::acts::sent(&mut chat_activity(&mut pages, &client, 4, rows)).is_empty());
     assert_eq!(pages.chat().unwrap().thread.loaded, 4);
@@ -521,8 +506,10 @@ fn an_automatic_seen_and_a_message_can_both_be_pending_and_answered() {
     );
     for (attempt, (_, kind)) in attempts.iter().zip(&pending) {
         let answer = match kind {
-            Sending::Seen => c::Answer::Done(c::Outcome::Changed),
-            Sending::Message => c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Said { task: f::TASK, message: 1 })),
+            Sending::Seen => c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 })),
+            Sending::Message => {
+                c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Said { task: f::TASK, message: 1 }))
+            }
             Sending::Stop | Sending::Close => panic!("only Seen and Message pending"),
         };
         root_event(
@@ -780,9 +767,7 @@ fn a_chat_watches_each_delegated_task_as_its_call_arrives() {
 fn a_delegation_requested_by_another_owner_is_not_this_chats() {
     let mut f = f::opened();
     f::activity(&mut f, &[DELEGATED], f::POSITION);
-    for (requester, requested) in
-        [(c::OwnerRequester::Person(DELEGATED), false), (c::OwnerRequester::Task(f::TASK), true)]
-    {
+    for (requester, requested) in [(c::Requester::Person(DELEGATED), false), (c::Requester::Task(f::TASK), true)] {
         let mut task = f::change();
         task.chip.task = DELEGATED;
         task.requester = requester;
@@ -876,9 +861,9 @@ fn an_ended_delegation_reads_its_task_and_keeps_its_result() {
     let mut task = f::change();
     task.chip.task = DELEGATED;
     let result = f::result(&task, c::Ending::Done, Some(f::change_value(b"abcdef0123456789")));
-    let historical = c::OwnerHistorical {
+    let ended = c::Ended {
         key: c::ObjectKey::Task(DELEGATED),
-        value: c::OwnerHistoricalValue::Task { document: Box::new(task.clone()), result: Box::new(result.clone()) },
+        value: c::EndedValue::Task { document: Box::new(task.clone()), result: Box::new(result.clone()) },
         at: None,
         by: None,
     };
@@ -887,7 +872,7 @@ fn an_ended_delegation_reads_its_task_and_keeps_its_result() {
         &f.client,
         Told::Page {
             handle,
-            page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Historical(Box::new(historical))))
+            page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(Box::new(ended))))
         },
         &mut f.out
     ));
@@ -919,15 +904,11 @@ fn the_chat_composer_keeps_the_send_bound_when_receiving_grows() {
 fn window_page(chat: &mut Chat, client: &jig_client::Client, out: &mut Queue<Request>, page: u32, pages: u32) {
     let mut rows = skein_lib::List::with_capacity(2);
     for offset in 0..2 {
-        rows.push(c::ActivityLine {
-            position: u64::from(pages.checked_sub(page).unwrap().checked_mul(2).unwrap().checked_sub(offset).unwrap()),
-            at: skein_lib::Wall::EPOCH,
-            event: c::Activity::RunBegan {
-                attempt: 1,
-                how: c::RunBeginning::Resumed,
-                why: fixtures::acts::text(b"resume"),
-            },
-        })
+        rows.push(crate::tests::documents::line(
+            u64::from(pages.checked_sub(page).unwrap().checked_mul(2).unwrap().checked_sub(offset).unwrap()),
+            skein_lib::Wall::EPOCH,
+            c::Activity::RunBegan { attempt: 1, why: c::RunWhy::Made, resumed: false },
+        ))
         .unwrap();
     }
     let cursor = c::Cursor::new(Box::from(*b"older"), 5).unwrap();

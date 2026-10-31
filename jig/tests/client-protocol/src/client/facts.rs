@@ -30,7 +30,7 @@ impl Story {
             ]),
         ];
         let peers = jig_core_world::peers::Peers::new(vec![Worker::new(WORKER, 1, scripts)], Vec::new());
-        let mut config = jig_core_world::world::config(seed);
+        let mut config = jig_test_profile::config(seed);
         let mut rules = config.core.defaults.rules.clone();
         rules.maximum_run_spend = 20;
         let policy = config.core.seed_projects[0].policy.policy.clone();

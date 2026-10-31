@@ -1,6 +1,8 @@
 /// Bounds for infrastructure's live records and system values.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
+    /// Identifiers shared with the deployment's specs, contracts and authority.
+    pub vocabulary: Vocabulary,
     /// Services in the working set.
     pub services: u32,
     /// Environments in the working set.
@@ -52,4 +54,58 @@ fn refresh_capacity(limits: &Limits) -> Option<u32> {
         .checked_add(limits.procedures)?
         .checked_add(limits.environments)?
         .checked_add(limits.made)
+}
+
+/// Configured connector vocabulary (jig/docs/design/examples.md, 3–6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Vocabulary {
+    pub environment_parameter: u32,
+    pub name_parameter: u32,
+    pub environment_until_parameter: u32,
+    pub environment_price_parameter: u32,
+    pub environment_deadline_parameter: u32,
+    pub creation_task_parameter: u32,
+    pub creation_purpose_parameter: u32,
+    pub operation_parameter: u32,
+    pub replicas_parameter: u32,
+    pub service_deadline_parameter: u32,
+    pub scale_procedure: u32,
+    pub remediate_procedure: u32,
+    pub service_hold: u16,
+    pub environment_hold: u16,
+    pub pool_slot_hold: u16,
+    pub restart_effect: u16,
+    pub scale_effect: u16,
+    pub rollback_effect: u16,
+    pub create_environment_effect: u16,
+    pub tear_down_effect: u16,
+}
+
+impl Vocabulary {
+    /// Identifiers used by the reference deployment.
+    #[must_use]
+    pub const fn reference() -> Self {
+        Self {
+            environment_parameter: 1,
+            name_parameter: 2,
+            environment_until_parameter: 3,
+            environment_price_parameter: 4,
+            environment_deadline_parameter: 5,
+            creation_task_parameter: 3,
+            creation_purpose_parameter: 4,
+            operation_parameter: 3,
+            replicas_parameter: 3,
+            service_deadline_parameter: 4,
+            scale_procedure: 1,
+            remediate_procedure: 2,
+            service_hold: 1,
+            environment_hold: 2,
+            pool_slot_hold: 3,
+            restart_effect: 1,
+            scale_effect: 2,
+            rollback_effect: 3,
+            create_environment_effect: 4,
+            tear_down_effect: 5,
+        }
+    }
 }

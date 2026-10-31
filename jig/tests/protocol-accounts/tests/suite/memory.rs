@@ -6,7 +6,7 @@ fn the_table_keeps_two_generations_at_its_account_and_token_limits() {
     let accounts = 2;
     let token_bytes = 32;
     let mut table = Table::new(accounts, token_bytes);
-    let token_length = usize::try_from(token_bytes).expect("token bound");
+    let token_length = skein_lib::length::usize_of(token_bytes);
     for account in 0..accounts {
         for generation in 1..=2 {
             table
@@ -66,7 +66,7 @@ fn the_moved_codec_at_its_ceilings_fits_its_heap_bound() {
     use jig_protocol_accounts::v1::{CEILINGS, Moved, MovedParts};
     use skein_lib::{Reader, Writer};
 
-    let field = |length| bytes::zeroed(usize::try_from(length).expect("schema ceiling fits"));
+    let field = |length| bytes::zeroed(skein_lib::length::usize_of(length));
     let value = Moved::new(
         &CEILINGS,
         MovedParts {
@@ -79,7 +79,7 @@ fn the_moved_codec_at_its_ceilings_fits_its_heap_bound() {
         },
     )
     .expect("parts at their ceilings");
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured writer");
     let input = writer.finish();
     drop(value);

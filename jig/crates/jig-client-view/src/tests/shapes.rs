@@ -1,6 +1,10 @@
-use super::cards::{contains, document, drive, text, tree};
 use crate::tests::fixtures::{shape_goal_fixture, unoffered_chat};
-use crate::{Event, action::Act, fields::Purpose, page::project::goals::GoalForm};
+use crate::tests::kit::Goldens;
+use crate::tests::tree::cards::{document, drive, text, tree};
+use crate::{
+    Event,
+    state::{action::Act, fields::Purpose, page::project::goals::GoalForm},
+};
 use jig_client::{contract as c, shapes};
 use skein_lib::{Duration, Wall};
 const PROJECT: u32 = 4;
@@ -15,13 +19,15 @@ fn a_chat_without_creating_sends_nothing() {
 }
 #[test]
 fn a_chat_without_creating_shows_the_refusal() {
+    let mut goldens = Goldens::new("shapes/a_chat_without");
     let mut fixture = unoffered_chat();
     drive(&mut fixture, Event::Act { action: Act::BeginConversation { project: PROJECT } });
     assert_eq!(fixture.chats.refusal, Some(c::Refusal::NotOffered));
-    assert!(contains(&tree(&fixture, None, None), b"This act is not offered"));
+    goldens.check(&tree(&fixture, None, None));
 }
 #[test]
 fn the_goal_prediction_agrees_with_the_shaped_ask() {
+    let mut goldens = Goldens::new("shapes/the_goal_prediction");
     let cases = [
         ("span", c::TemplateDeadline::Span(SPAN), Some(LATER), true),
         ("given at bound", c::TemplateDeadline::Given, Some(BOUND), true),
@@ -39,17 +45,18 @@ fn the_goal_prediction_agrees_with_the_shaped_ask() {
         drive(&mut fixture, Event::Act { action: Act::Edit { field: Purpose::NewGoal, text: text(b"goal") } });
         let form = GoalForm {
             project: PROJECT,
-            executor: c::OwnerExecutor::Agent { charter: 1 },
+            executor: c::Executor::Agent { charter: 1 },
             budget: 10,
             deadline: wall,
             priority: 0,
         };
         drive(&mut fixture, Event::Act { action: Act::GoalForm { form } });
-        assert_eq!(contains(&tree(&fixture, None, None), b"This act is not offered"), !offered, "{name}");
+        goldens.check(&tree(&fixture, None, None));
         drive(&mut fixture, Event::Act { action: Act::Submit { field: Purpose::NewGoal } });
         assert_eq!(fixture.project_page.form.confirmation.is_some(), offered, "{name}");
         let output = drive(&mut fixture, Event::Act { action: Act::Confirm });
-        let judged = shapes::set_goal(&me, PROJECT, crate::page::project::goals::draft(form, text(b"goal")), text(b""));
+        let judged =
+            shapes::set_goal(&me, PROJECT, crate::state::page::project::goals::draft(form, text(b"goal")), text(b""));
         match judged {
             shapes::Judged::Create(expected) => {
                 let [

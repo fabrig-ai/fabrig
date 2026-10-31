@@ -189,7 +189,7 @@ fn the_playground_account_always_names_default_whatever_the_model_or_project() {
 fn conversation_speakers_use_you_temper_or_the_other_person() {
     for (row, person, requester, person_word, party_word) in [
         ("mine", Some(f::chat::PARTY), true, b"You".as_slice(), b"You".as_slice()),
-        ("another requester", Some(f::chat::PARTY + 1), false, b"Person", b"Pat"),
+        ("another requester", Some(f::chat::PARTY + 1), false, b"Person", b"Person"),
     ] {
         let mut b = skein_ui::Builder::new(&f::tree_limits());
         // A request with words opens the conversation under its speaker.
@@ -321,9 +321,9 @@ fn the_accounts_banner_precedes_the_playground_when_both_show() {
                 event: jig_client::Event::Up {
                     up: jig_client::Up::Watched {
                         watch: watch.unwrap(),
-                        event: jig_client::contract::WatchEvent::Delivered(
-                            jig_client::contract::Delivery::OwnerAccounts(Box::new(doc)),
-                        ),
+                        event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Accounts(
+                            Box::new(doc),
+                        )),
                     },
                 },
             },

@@ -12,7 +12,6 @@ pub fn stream_limits() -> Limits {
     limits.call_tool = 32;
     limits.call_input = 32;
     limits.call_outcome_some = 32;
-    limits.deployment_capacity = 2;
     check_limits(&limits).expect("stream fixture limits below ceilings");
     limits
 }
@@ -115,8 +114,8 @@ pub fn run_text(limits: &Limits, call: LiveCall) -> RunText {
     .expect("provisional text at its configured ceiling")
 }
 
-pub fn ended(limits: &Limits, why: WatchEnd) -> Ended {
-    Ended::new(limits, EndedParts { watch: u64::MAX, why }).expect("named ending")
+pub fn ended(limits: &Limits, why: WatchEnd) -> WatchEnded {
+    WatchEnded::new(limits, WatchEndedParts { watch: u64::MAX, why }).expect("named ending")
 }
 
 pub fn stream_events(limits: &Limits) -> [StreamEvent; 5] {
@@ -145,30 +144,16 @@ pub fn open_tree(limits: &Limits) -> Open {
     Open::new(limits, OpenParts { stream: [7; 16], watch: u64::MAX, subject }).expect("open named tree")
 }
 
-pub fn deployment_parts(limits: &Limits, row_count: u32) -> DeploymentParts {
-    let row = Capacity::new(limits, CapacityParts { project: Some(u32::MAX), live: u32::MAX, limit: u32::MAX })
-        .expect("whole capacity row");
-    DeploymentParts {
-        hosts: Box::from([]),
-        accounts: Box::from([]),
-        capacity: repeated(row, row_count),
-        proposals: u32::MAX,
-        refusals: Box::from([]),
-        parts: Box::from([]),
-    }
-}
-
-pub fn waiting_account_state(limits: &Limits, until: Option<u64>) -> OwnerAccountState {
-    OwnerAccountState::Later(
-        OwnerAccountStateLater::new(limits, OwnerAccountStateLaterParts { until })
-            .expect("supplied optional next-ask wall"),
+pub fn waiting_account_state(limits: &Limits, until: Option<u64>) -> AccountState {
+    AccountState::Later(
+        AccountStateLater::new(limits, AccountStateLaterParts { until }).expect("supplied optional next-ask wall"),
     )
 }
 
-pub fn owner_account(limits: &Limits, state: OwnerAccountState) -> OwnerAccount {
-    OwnerAccount::new(
+pub fn account(limits: &Limits, state: AccountState) -> Account {
+    Account::new(
         limits,
-        OwnerAccountParts {
+        AccountParts {
             provider_name: None,
             manage_usage: None,
             number: u32::MAX,
@@ -177,7 +162,7 @@ pub fn owner_account(limits: &Limits, state: OwnerAccountState) -> OwnerAccount 
             provider: None,
             display: DocumentText::new(limits, DocumentTextParts { bytes: Box::from([]), cut: false })
                 .expect("empty display"),
-            holder: OwnerAccountHolder::Deployment,
+            holder: AccountHolder::Deployment,
             sources: Box::from([]),
             generation: Some(u64::MAX),
             state,
@@ -190,12 +175,12 @@ pub fn owner_account(limits: &Limits, state: OwnerAccountState) -> OwnerAccount 
     .expect("whole supplied account facts")
 }
 
-pub fn historical_goal_holding(limits: &Limits) -> OwnerGoalHolding {
+pub fn ended_goal_holding(limits: &Limits) -> GoalHolding {
     let mut path = List::with_capacity(2);
     path.push(Box::from(b"one/two".as_slice())).expect("first literal segment");
     path.push(Box::from([255, 0])).expect("second opaque segment");
-    OwnerGoalHolding::Write(
-        OwnerGoalHoldingWrite::new(limits, OwnerGoalHoldingWriteParts { connector: u16::MAX, path, kind: 0 })
+    GoalHolding::Write(
+        GoalHoldingWrite::new(limits, GoalHoldingWriteParts { connector: u16::MAX, path, kind: 0 })
             .expect("whole raw goal holding"),
     )
 }

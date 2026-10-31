@@ -47,7 +47,7 @@ fn decode(
         w::Ask::ChangeSettings(value) => {
             let against = value.against();
             let record = w::Ask::ChangeSettings(value);
-            let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).expect("wire measure"));
+            let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut bytes).expect("measured ask");
             p::Ask::ChangeSettings {
                 against,
@@ -247,13 +247,13 @@ fn role(value: w::HeldRole) -> p::Role {
         w::HeldRole::Policy(v) => p::Role::Policy { role: v.role() },
     }
 }
-fn pattern(value: w::OwnerPattern) -> p::Pattern {
+fn pattern(value: w::Pattern) -> p::Pattern {
     let v = value.into_parts();
     p::Pattern {
         segments: v.segments.into_boxed(),
         last: match v.last {
-            w::OwnerPatternEnd::Exact(v) => p::Last::Exact(v.into_parts().value),
-            w::OwnerPatternEnd::Open(v) => p::Last::Open(v.into_parts().value),
+            w::PatternEnd::Exact(v) => p::Last::Exact(v.into_parts().value),
+            w::PatternEnd::Open(v) => p::Last::Open(v.into_parts().value),
         },
     }
 }
@@ -306,7 +306,7 @@ fn wake_rule(value: w::WakeRule) -> p::WakeRule {
         w::WakeRule::Batch(v) => p::WakeRule::Batch { count: v.count(), age: v.age() },
     }
 }
-pub(super) fn wake(value: w::OwnerWakePolicy) -> p::WakePolicy {
+pub(super) fn wake(value: w::WakePolicy) -> p::WakePolicy {
     let v = value.into_parts();
     p::WakePolicy {
         words: wake_rule(v.words),
@@ -332,7 +332,6 @@ fn address(value: w::AddressChange) -> p::AddressChange {
         },
     }
 }
-#[expect(clippy::manual_map, reason = "optional step fields use named total functions")]
 pub(super) fn amendment(
     value: w::Amendment,
     reason: Box<[u8]>,
@@ -398,7 +397,7 @@ fn sum(total: &mut u64, bytes: Option<u64>, ceiling: u32, path: w::Path) -> Resu
     }
     Ok(())
 }
-pub(super) fn grant(value: w::OwnerGrant) -> p::Grant {
+pub(super) fn grant(value: w::Grant) -> p::Grant {
     let v = value.into_parts();
     p::Grant { connector: v.connector, kind: v.kind, pattern: pattern(v.pattern) }
 }
@@ -414,7 +413,7 @@ pub(super) fn grants(
     let mut total = 0;
     for _ in 0..count {
         let bytes = item(&mut reader, path)?;
-        let value = match w::OwnerGrant::decode(limits, &mut Reader::new(&bytes)) {
+        let value = match w::Grant::decode(limits, &mut Reader::new(&bytes)) {
             Ok(value) => grant(value),
             Err(_) => return Err(Untranslatable { path }),
         };
@@ -423,9 +422,8 @@ pub(super) fn grants(
     }
     Ok(values.into_boxed())
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields")]
 pub(super) fn authority(
-    value: w::OwnerAuthority,
+    value: w::Authority,
     limits: &w::Limits,
     names: &mut List<Box<[u8]>>,
 ) -> Result<p::Authority, Untranslatable> {
@@ -435,32 +433,32 @@ pub(super) fn authority(
     for kind in delegation.kinds.into_boxed() {
         kinds
             .push(match kind {
-                w::OwnerAuthorityExecutor::Charter(v) => p::Executor::Charter(v.value()),
-                w::OwnerAuthorityExecutor::Procedure(v) => p::Executor::Procedure(v.value()),
-                w::OwnerAuthorityExecutor::Role(v) => p::Executor::Role(v.value()),
+                w::AuthorityExecutor::Charter(v) => p::Executor::Charter(v.value()),
+                w::AuthorityExecutor::Procedure(v) => p::Executor::Procedure(v.value()),
+                w::AuthorityExecutor::Role(v) => p::Executor::Role(v.value()),
             })
             .expect("same capacity");
     }
-    let path = w::Path::OwnerAuthorityNoteResources;
+    let path = w::Path::AuthorityNoteResources;
     let count = count(&v.note_resources, path)?;
     let mut resources = List::with_capacity(count);
     let mut reader = Reader::new(&v.note_resources);
     let mut total = 0;
     for _ in 0..count {
         let bytes = item(&mut reader, path)?;
-        let value = match w::OwnerResourceScope::decode(limits, &mut Reader::new(&bytes)) {
+        let value = match w::ResourceScope::decode(limits, &mut Reader::new(&bytes)) {
             Ok(value) => value.into_parts(),
             Err(_) => return Err(Untranslatable { path }),
         };
         let pattern = pattern(value.pattern);
         let size = pattern_bytes(&pattern, size_of::<p::ResourceScope>());
-        sum(&mut total, size, limits.owner_authority_note_resources, path)?;
+        sum(&mut total, size, limits.authority_note_resources, path)?;
         resources.push(p::ResourceScope { connector: value.connector, pattern }).expect("counted pieces");
     }
     Ok(p::Authority {
         tools: v.tools,
         models: super::llm::requested(v.models, names)?,
-        grants: grants(&v.grants, limits.owner_authority_grants, w::Path::OwnerAuthorityGrants, limits)?,
+        grants: grants(&v.grants, limits.authority_grants, w::Path::AuthorityGrants, limits)?,
         delegation: p::Delegation { kinds: kinds.into_boxed(), tasks: delegation.tasks, depth: delegation.depth },
         spend: v.spend,
         deadline: match v.deadline {
@@ -568,10 +566,10 @@ fn pattern_bytes(value: &p::Pattern, fixed: usize) -> Option<u64> {
     })
 }
 
-fn account_holder(value: &w::AccountHolder) -> p::AccountHolder {
+fn account_holder(value: &w::AskAccountHolder) -> p::AccountHolder {
     match value {
-        w::AccountHolder::Own => p::AccountHolder::Own,
-        w::AccountHolder::Deployment => p::AccountHolder::Deployment,
+        w::AskAccountHolder::Own => p::AccountHolder::Own,
+        w::AskAccountHolder::Deployment => p::AccountHolder::Deployment,
     }
 }
 
@@ -617,8 +615,8 @@ fn account_change(value: &w::AccountChange) -> Result<p::AccountChange, Untransl
                     let mut rows = List::with_capacity(uses.len());
                     for use_ in uses {
                         rows.push(match use_ {
-                            w::OwnerAccountUse::Party(value) => p::Use::Party(value.party()),
-                            w::OwnerAccountUse::Project(value) => p::Use::Project(value.project()),
+                            w::AccountUse::Party(value) => p::Use::Party(value.party()),
+                            w::AccountUse::Project(value) => p::Use::Project(value.project()),
                         })
                         .expect("reserved uses");
                     }

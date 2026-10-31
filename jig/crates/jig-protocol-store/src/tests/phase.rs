@@ -924,8 +924,8 @@ fn secret_tokens_patch_in_their_own_commits() {
         Ok(crate::codec::component::Manifest {
             generation: 2,
             from: Some(1),
-            before: crate::format::recorded(levels(0, 0)),
-            after: crate::format::recorded(levels(2, 2)),
+            before: levels(0, 0),
+            after: levels(2, 2),
             counts: fixture_counts(3),
             store: last,
             secrets: Some(store.stores.secrets.last()),
@@ -1068,7 +1068,7 @@ fn assert_sealed(store: &mut Store, last: u64) {
     assert_eq!(header, value);
     let key = crate::keys::encode_own(&crate::keys::Own::Format, store.limits.store.key).expect("format key");
     let mut expected = crate::format::current(store.application.version, fixtures::DEPLOYMENT);
-    expected.levels = crate::format::recorded(crate::patching::plan::binary(&store.patch_sets));
+    expected.levels = crate::patching::plan::binary(&store.patch_sets);
     assert_eq!(fixtures::get_kv(store, &key).expect("format"), expected.encode().expect("format bytes"));
     let key = crate::keys::encode_own(&crate::keys::Own::Layouts, store.limits.store.key).expect("layouts key");
     assert_eq!(fixtures::get_kv(store, &key), Some(store.layouts.encode()));
@@ -1341,7 +1341,7 @@ fn a_full_byte_page_defers_the_next_finished_record_without_repeating_its_site()
         Some(&(crate::Owner::Application, 2, crate::Counts { records: 5, commits: 2 }))
     );
     assert_fixture_opened(&events, 5);
-    assert_eq!(disk.sites.len(), usize::try_from(SHELVES).expect("shelves"));
+    assert_eq!(disk.sites.len(), skein_lib::length::usize_of(SHELVES));
     assert_eq!(fixture_rows(&mut store, 2, 2), expected);
 }
 
@@ -1357,8 +1357,8 @@ fn assert_manifest(
         Ok(crate::codec::component::Manifest {
             generation,
             from: generation.checked_sub(1),
-            before: crate::format::recorded(before),
-            after: crate::format::recorded(after),
+            before,
+            after,
             counts: if after == levels(2, 2) { fixture_counts(0) } else { skein_lib::List::with_capacity(0) },
             store: last,
             secrets: Some(0),
@@ -1391,8 +1391,8 @@ fn a_patch_manifest_records_the_copys_secret_commit_and_write_clock() {
         Ok(crate::codec::component::Manifest {
             generation: 2,
             from: Some(1),
-            before: crate::format::recorded(levels(0, 0)),
-            after: crate::format::recorded(levels(2, 2)),
+            before: levels(0, 0),
+            after: levels(2, 2),
             counts: fixture_counts(0),
             store: 8,
             secrets: Some(1),
@@ -1409,14 +1409,14 @@ fn assert_page_rows(store: &mut Store, last: u64) {
     let record = crate::codec::decode(
         &jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment),
         &bytes,
-        &store.codec,
+        &store.codec_limits,
         &store.names,
     )
     .expect("header decodes");
     assert_eq!(record, fixtures::header_record(last), "page commits never write the header");
     let key = crate::keys::encode_own(&crate::keys::Own::Format, store.limits.store.key).expect("format key");
     let mut expected = crate::format::current(0, fixtures::DEPLOYMENT);
-    expected.levels = crate::format::recorded(levels(0, 0));
+    expected.levels = levels(0, 0);
     assert_eq!(
         fixtures::get_kv(store, &key),
         Some(expected.encode().expect("format")),
@@ -1532,7 +1532,7 @@ fn a_restart_row_past_the_deployments_lowered_limit_refuses_load() {
     let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
     // The fixture task has a dependency, valid under the base's two-entry limit.
     store.limits.core.tasks.dependencies = 0;
-    store.codec = crate::codec::limits(&store.limits.core).expect("lower deployment limits");
+    store.codec_limits = crate::codec::limits(&store.limits.core).expect("lower deployment limits");
     let events = disk.open(&mut store);
     assert_check(&events, &store, crate::Check::Load { key });
     assert_abandoned_at(disk, FIXTURE_LAST + 1);
@@ -1597,7 +1597,7 @@ fn a_restart_row_at_the_deployments_lowered_limit_loads() {
     let mut disk = Harness::new(&fixture_with_record(record));
     let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
     store.limits.core.tasks.dependencies = 1;
-    store.codec = crate::codec::limits(&store.limits.core).expect("lower deployment limits");
+    store.codec_limits = crate::codec::limits(&store.limits.core).expect("lower deployment limits");
     let events = disk.open(&mut store);
     let Some(Event::Opened { .. }) = events.last() else { panic!("row within its bound loads: {events:?}") };
     assert_eq!(disk.bytes(b"active").as_ref(), b"2\n");
@@ -1609,8 +1609,22 @@ const FRESH_TASKS: u64 = 5;
 const FRESH_CLOSED_TASK: u64 = 3;
 fn fresh_record(task: u64, crossed: bool) -> jig_domain_core::Record {
     use jig_domain_core::{CoreRecord, Record};
-    let Record::Core(CoreRecord::RunProof(mut proof)) = jig_store_world::root::run_proof(task) else {
-        panic!("run fixture")
+    let mut proof = jig_domain_core::RunProof {
+        accounts: Box::new([]),
+        placement: None,
+        account_failure: None,
+        account_terminal: false,
+        task,
+        attempt: 1,
+        conversation: 1,
+        credentials: Box::new([]),
+        window: Some(jig_domain_core::CurrentWindow { attempt: 1, turn: 1, closed: false }),
+        crossed: false,
+        host: jig_domain_fleet::HostKind::Worker,
+        offered: None,
+        outstanding: Box::new([]),
+        turn: None,
+        terminal: None,
     };
     if task == FRESH_TASKS.checked_sub(1).expect("windowless task") {
         proof.window = None;
@@ -1627,10 +1641,10 @@ fn fresh_baseline() -> Vec<Item> {
     store.patch_sets(FRESH_BEFORE);
     assert_opened(&disk.open(&mut store), 0);
     for task in 1..=FRESH_TASKS {
-        let turn = jig_store_world::root::turn(task, 1, 1, b"committed transcript");
+        let turn = fixtures::window_turn(task, 1, 1, b"committed transcript");
         let writes = Box::new([
             fixtures::header(task),
-            fixtures::save(jig_store_world::root::live_task(task)),
+            fixtures::save(fixtures::live_task(task)),
             fixtures::save(fresh_record(task, false)),
             fixtures::save(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))),
         ]);
@@ -1688,7 +1702,7 @@ fn a_closing_proof_past_its_lowered_decode_limit_refuses_load() {
     let mut disk = Harness::new(&fresh_with_proof());
     let mut store = fresh_store(&disk, true);
     store.limits.core.accounts.credentials = 0;
-    store.codec = crate::codec::limits(&store.limits.core).expect("lower proof decode limit");
+    store.codec_limits = crate::codec::limits(&store.limits.core).expect("lower proof decode limit");
     let events = disk.open(&mut store);
     assert_check(&events, &store, crate::Check::Load { key: fresh_proof_key() });
     assert_abandoned_with(disk, FRESH_TASKS + 1, FRESH_BEFORE, fixtures::APPLICATION.version);
@@ -1698,7 +1712,7 @@ fn a_closing_proof_at_its_decode_limit_keeps_its_credentials() {
     let mut disk = Harness::new(&fresh_with_proof());
     let mut store = fresh_store(&disk, true);
     store.limits.core.accounts.credentials = 1;
-    store.codec = crate::codec::limits(&store.limits.core).expect("exact proof decode limit");
+    store.codec_limits = crate::codec::limits(&store.limits.core).expect("exact proof decode limit");
     let events = disk.open(&mut store);
     let Some(Event::Opened { .. }) = events.last() else { panic!("valid closing proof: {events:?}") };
     let jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(mut expected)) = bounded_fresh_proof()
@@ -1710,7 +1724,7 @@ fn a_closing_proof_at_its_decode_limit_keeps_its_credentials() {
     let record = jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(expected));
     assert_eq!(
         proof_bytes(&mut store, FRESH_PROOF_TASK),
-        crate::codec::encode(&record, &store.codec, &[]).expect("proof")
+        crate::codec::encode(&record, &store.codec_limits, &[]).expect("proof")
     );
     assert_eq!(disk.bytes(b"active").as_ref(), b"2\n");
     disk.assert_source_unchanged(1);
@@ -1721,7 +1735,7 @@ fn fresh_with_raw_proof(key: Box<[u8]>, record: jig_domain_core::Record) -> Vec<
     let (mut disk, mut store) = fresh_source();
     let ops = Box::new([
         fixtures::header_put(fixtures::DEPLOYMENT, FRESH_TASKS + 1),
-        skein_kv::Op::Put { key, value: crate::codec::encode(&record, &store.codec, &[]).expect("raw proof") },
+        skein_kv::Op::Put { key, value: crate::codec::encode(&record, &store.codec_limits, &[]).expect("raw proof") },
     ]);
     let env = crate::memory_env(store.limits.store);
     let mut above = Queue::uncapped();
@@ -1776,8 +1790,8 @@ fn proof_bytes(store: &mut Store, task: u64) -> Box<[u8]> {
 }
 fn assert_fresh_proofs(store: &mut Store, crossed: bool) {
     for task in 1..=FRESH_TASKS {
-        let expected =
-            crate::codec::encode(&fresh_record(task, crossed), &store.codec, &store.names).expect("proof encoding");
+        let expected = crate::codec::encode(&fresh_record(task, crossed), &store.codec_limits, &store.names)
+            .expect("proof encoding");
         assert_eq!(proof_bytes(store, task), expected, "task {task}");
     }
 }

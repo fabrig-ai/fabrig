@@ -127,12 +127,12 @@ pub fn family_read(
     use jig_client_protocol_wire::v19 as w;
     let record = w::FamilyRecord::new(&limits().wire, w::FamilyRecordParts { scope, window, record: Box::new([255]) })
         .expect("family record");
-    let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).expect("record size"));
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut bytes).expect("measured record");
     let owner = w::Owner::Family(w::Family::new(&limits().wire, w::FamilyParts { number: 1 }).expect("family"));
     let record =
         w::Owned::new(&limits().wire, w::OwnedParts { owner, version: 1, record: bytes.finish() }).expect("owned");
-    let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).expect("record size"));
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut bytes).expect("measured record");
     bytes.finish()
 }
@@ -154,7 +154,7 @@ pub fn printed(secret: &skein_lib::Secret) -> Box<[u8]> {
         u32::try_from(secret.expose().len()).expect("short secret"),
     )
     .expect("encoded secret");
-    let mut bytes = skein_lib::Writer::new(PREFIX.len() + usize::try_from(encoded).expect("u32 fits"));
+    let mut bytes = skein_lib::Writer::new(PREFIX.len() + skein_lib::length::usize_of(encoded));
     bytes.put(PREFIX).expect("prefix fits");
     skein_lib::base64::encode(skein_lib::base64::Alphabet::Url, secret.expose(), &mut bytes).expect("secret fits");
     bytes.finish()
@@ -196,11 +196,7 @@ pub fn mount() -> jig_protocol_engine_clients_http::Mount {
     let mut hosts = skein_lib::List::with_capacity(1);
     hosts.push(Box::from(HOST.as_bytes())).expect("one host");
     let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: http_limits() };
-    mount.down(
-        &env,
-        jig_protocol_engine_clients_http::Event::Listening { hosts },
-        &mut skein_lib::Queue::with_capacity(1),
-    );
+    mount.down(&env, jig_protocol_engine_clients_http::Event::Listening { hosts });
     mount
 }
 #[must_use]

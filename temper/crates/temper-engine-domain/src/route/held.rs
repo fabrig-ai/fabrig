@@ -2,48 +2,29 @@
 //! (jig's `domain/root.md`, 4; `testing/jig-test-domain/src/routes.rs`).
 use super::{Decision, Delivery, Domain, Env, Limits, Read, Token, Work, emit, forge_route, host_route, relay_call};
 use crate::Range;
-use crate::assemble::take_payload;
-use crate::boundary::Payload;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher releases every held core output")]
 pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, held: core::Held) {
+    let held = match jig_domain_hub_link::down(&mut domain.hub_link, held) {
+        Ok((channel, down)) => {
+            emit(decision, &env.limits, Delivery::Link { channel, down });
+            return;
+        }
+        Err(held) => held,
+    };
     match held {
         core::Held::Sources { channel, sources } => {
-            let mut names = skein_lib::List::with_capacity(u32::try_from(sources.len()).expect("bounded sources"));
-            for name in sources {
-                names
-                    .push(host::SourceName::new(name.as_bytes()).expect("same source grammar"))
-                    .expect("one name per source");
-            }
-            emit(
-                decision,
-                &env.limits,
-                Delivery::Link { channel, down: host::LinkDown::Sources { sources: names.into_boxed() } },
-            );
+            emit(decision, &env.limits, Delivery::Link { channel, down: host::LinkDown::Sources { sources } });
         }
-        core::Held::CheckSource { channel, name } => emit(
-            decision,
-            &env.limits,
-            Delivery::Link {
-                channel,
-                down: host::LinkDown::Check {
-                    name: host::SourceName::new(name.as_bytes()).expect("same source grammar"),
-                },
-            },
-        ),
-        core::Held::SignOutSource { channel, name } => emit(
-            decision,
-            &env.limits,
-            Delivery::Link {
-                channel,
-                down: host::LinkDown::SignOut {
-                    name: host::SourceName::new(name.as_bytes()).expect("same source grammar"),
-                },
-            },
-        ),
+        core::Held::CheckSource { channel, name } => {
+            emit(decision, &env.limits, Delivery::Link { channel, down: host::LinkDown::Check { name } });
+        }
+        core::Held::SignOutSource { channel, name } => {
+            emit(decision, &env.limits, Delivery::Link { channel, down: host::LinkDown::SignOut { name } });
+        }
         core::Held::SourceSignedOut { to, channel, name, result } => {
             emit(decision, &env.limits, Delivery::SourceSignedOut { to, channel, name, result });
         }
@@ -56,20 +37,9 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
             emit(decision, &env.limits, delivery);
         }
         core::Held::Inbound { channel, run, attempt, message } => {
-            let word = match take_payload(domain, message.words) {
-                Some(Payload::InboxWord(word)) => word,
-                Some(
-                    Payload::Busy
-                    | Payload::Call { .. }
-                    | Payload::SettledCall(_)
-                    | Payload::RefusedCall { .. }
-                    | Payload::Turn { .. }
-                    | Payload::Answer { .. },
-                )
-                | None => unreachable!("fleet message payload"),
-            };
-            let down = crate::link::message(run, attempt, &word);
-            emit(decision, &env.limits, Delivery::Link { channel, down });
+            let delivery =
+                crate::link::delivery(domain, jig_domain_hub_link::Event::Inbound { channel, run, attempt, message });
+            emit(decision, &env.limits, delivery);
         }
         core::Held::MakeEffect { connector, entry } => {
             assert!(connector == domain.config.forge_connector, "numbered forge make");
@@ -96,26 +66,10 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
             emit(decision, &env.limits, Delivery::Result { person, task, words });
         }
         core::Held::Assign { channel, run, attempt, .. } => {
-            let assignment = domain.assignments.remove(&run.raw()).expect("durable claim has prepared assignment");
-            assert!(assignment.attempt == attempt.raw(), "assignment names current attempt");
-            emit(decision, &env.limits, Delivery::Assigned { channel, assignment });
+            let delivery = crate::link::delivery(domain, jig_domain_hub_link::Event::Assign { channel, run, attempt });
+            emit(decision, &env.limits, delivery);
         }
         core::Held::Grant { channel, run, attempt, grant } => {
-            let grant = host::Grant {
-                form: match grant.form {
-                    fleet::Form::Credential(scheme) => host::Form::Credential(match scheme {
-                        fleet::Scheme::Bearer => host::Scheme::Bearer,
-                        fleet::Scheme::Key => host::Scheme::Key,
-                    }),
-                    fleet::Form::Application => host::Form::Application,
-                    fleet::Form::Program(name) => {
-                        host::Form::Program(host::SourceName::new(name.as_bytes()).expect("same source name grammar"))
-                    }
-                },
-                account: grant.account,
-                generation: grant.generation,
-                valid: grant.valid,
-            };
             emit(
                 decision,
                 &env.limits,

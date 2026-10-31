@@ -175,6 +175,21 @@ impl Transport {
         self.clients.keys().copied().collect()
     }
 
+    pub(super) fn identity(&self, client: ClientId) -> people::Identity {
+        self.clients.get(&client).expect("bound client").identity.clone()
+    }
+
+    pub fn route_reply(&mut self, token: Token, reply: Reply) {
+        assert!(self.replies.insert(token, reply).is_none(), "component reply has one route");
+    }
+
+    pub fn route_watch(&mut self, token: Token, client: ClientId, native: Token, subject: Watched) {
+        assert!(
+            self.watches.insert(token, Watch { client, native, subject }).is_none(),
+            "component watch has one route"
+        );
+    }
+
     fn token(&mut self) -> Token {
         let number = self.next;
         self.next = self.next.checked_add(1).expect("finite transport token namespace");
@@ -489,10 +504,6 @@ mod tests {
         );
         assert_eq!(front.watch(owner).expect("original watch").subject, Watched::Jig(exact.clone()));
         assert!(front.continued(ClientId(0), native, exact.clone()).expect("duplicate callback").is_none());
-        let resumed = crate::joint::wire::watches::watch(Token::new(77), 23, &exact, 2).expect("exact resume");
-        assert!(
-            matches!(resumed, Event::WatchRun { watcher, sign_in: 23, task: u64::MAX, turn: Some(jig_domain_views::TurnName { attempt: u64::MAX, turn: u32::MAX, retry: u32::MAX }), offset: u32::MAX } if watcher == Token::new(77))
-        );
         assert!(matches!(front.taken(ClientId(1), native), Some(Event::Delivered { watcher }) if watcher == other));
     }
 

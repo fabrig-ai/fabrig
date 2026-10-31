@@ -10,7 +10,7 @@ use super::{Text, acts};
 use crate::jig::{Limits, runner::Printed};
 use alloc::boxed::Box;
 use jig_client::{
-    contract::{HeldRole, Me, OwnerRequester, Recipient, Task, WaitedFor, WaitsOn, Whom},
+    contract::{HeldRole, Me, Recipient, Requester, Task, WaitedFor, WaitsOn, Whom},
     words::{self, Word},
 };
 use skein_json::writer::Encoder;
@@ -20,7 +20,7 @@ pub(crate) enum Document<'a> {
     Me(&'a Me),
     Accounts(accounts::Accounts<'a>),
     Task(&'a Task, Option<&'a Me>),
-    HistoricalTask(&'a Task, &'a jig_client::contract::Result, Option<&'a Me>),
+    EndedTask(&'a Task, &'a jig_client::contract::Result, Option<&'a Me>),
     ReadSet(&'a crate::jig::runner::reads::Reading, Option<&'a Me>),
     Wait(waiting::Waiting<'a>),
     SizedTurn { task: u64, name: jig_client::contract::TurnName, bytes: u64 },
@@ -36,7 +36,7 @@ pub(crate) fn print(
         Document::Accounts(_) => true,
         Document::Me(_)
         | Document::Task(..)
-        | Document::HistoricalTask(..)
+        | Document::EndedTask(..)
         | Document::ReadSet(..)
         | Document::Wait(_)
         | Document::SizedTurn { .. } => false,
@@ -52,7 +52,7 @@ pub(crate) fn print(
         Document::Me(_)
         | Document::Accounts(_)
         | Document::Task(..)
-        | Document::HistoricalTask(..)
+        | Document::EndedTask(..)
         | Document::Wait(_)
         | Document::SizedTurn { .. } => false,
     };
@@ -113,7 +113,7 @@ fn text(
             task_text(task, *me, book, vocabulary, out);
             vocabulary.task_next(task, out);
         }
-        Document::HistoricalTask(task, result, me) => {
+        Document::EndedTask(task, result, me) => {
             task_text(task, *me, book, vocabulary, out);
             result_text(result, vocabulary, out);
             vocabulary.task_next(task, out);
@@ -123,7 +123,7 @@ fn text(
     }
     match document {
         Document::Me(me) => subjects::text_digest(b"me", &super::Part::Me(me), limits, out),
-        Document::Task(task, _) | Document::HistoricalTask(task, _, _) => {
+        Document::Task(task, _) | Document::EndedTask(task, _, _) => {
             subjects::text_digest(b"task", &super::Part::Task(task), limits, out);
         }
         Document::Accounts(_) | Document::ReadSet(..) | Document::SizedTurn { .. } | Document::Wait(_) => {}
@@ -281,7 +281,7 @@ fn task_text(
         out.put(b" held below)\n");
     }
     for resource in &task.resources {
-        if let jig_client::contract::TaskResource::Owner(resource) = resource {
+        {
             out.put(b"resource: ");
             vocabulary.owner_part(&resource.part, out);
             out.put(b"\n");
@@ -295,14 +295,14 @@ pub(super) fn budget_hold_text(task: u64, book: &Phrasebook, out: &mut Text) {
     out.put(&book.say(0, word.id(), &[skein_ui::phrases::Hole::Number(task)]).expect("budget hold phrase").text);
     out.put(b"\n");
 }
-fn requester(value: OwnerRequester, me: Option<&Me>, out: &mut Text) {
+fn requester(value: Requester, me: Option<&Me>, out: &mut Text) {
     match value {
-        OwnerRequester::Person(party) => acts::party(party, me, out),
-        OwnerRequester::Task(task) => {
+        Requester::Person(party) => acts::party(party, me, out),
+        Requester::Task(task) => {
             out.put(b"task ");
             out.number(task);
         }
-        OwnerRequester::Deployment { project } => {
+        Requester::Deployment { project } => {
             out.put(b"deployment ");
             out.number(u64::from(project));
         }
@@ -403,7 +403,7 @@ fn hex(bytes: &[u8], out: &mut Encoder) {
 fn subject_digest(document: &Document<'_>, limits: &Limits) -> Option<crate::jig::digest::Digest> {
     match document {
         Document::Me(me) => Some(crate::jig::digest::part(&super::Part::Me(me), limits)),
-        Document::Task(task, _) | Document::HistoricalTask(task, _, _) => {
+        Document::Task(task, _) | Document::EndedTask(task, _, _) => {
             Some(crate::jig::digest::part(&super::Part::Task(task), limits))
         }
         Document::Accounts(_) | Document::ReadSet(..) | Document::Wait(_) | Document::SizedTurn { .. } => None,
@@ -422,9 +422,9 @@ fn encode(document: &Document<'_>, limits: &Limits, digest: Option<crate::jig::d
         Document::Accounts(value) => accounts::encode(*value, limits, true, out),
         Document::Me(me) => subjects::encode_as(&super::Part::Me(me), limits, digest, out),
         Document::Task(task, _) => subjects::encode_as(&super::Part::Task(task), limits, digest, out),
-        Document::HistoricalTask(task, result, _) => {
+        Document::EndedTask(task, result, _) => {
             cut.digest = digest;
-            tasks::encode_historical_task(task, result, out, &mut cut);
+            tasks::encode_ended_task(task, result, out, &mut cut);
         }
         Document::ReadSet(reading, _) => read_sets::encode(reading, limits, out, &mut cut),
         Document::SizedTurn { task, name, bytes } => {
@@ -468,18 +468,16 @@ mod task_fields;
 mod tasks;
 mod templates;
 use admissions::{encode_act_kind, encode_active_run, encode_actor, encode_admission};
-use bounds::{
-    encode_admission_limit, encode_attempt_failure, encode_beyond, encode_bounds, encode_budget, encode_call_identity,
-};
+use bounds::{encode_admission_limit, encode_attempt_failure, encode_beyond, encode_bounds, encode_call_identity};
 use chips::{encode_chip, encode_closing, encode_closing_stage};
 use creation::{
     encode_count, encode_create_bounds, encode_creating, encode_current_hold, encode_decision,
     encode_document_specification, encode_document_text, encode_effect,
 };
-use endings::{encode_ending, encode_escalation, encode_executor, encode_failure_class, encode_field_rule};
+use endings::{encode_ending, encode_executor, encode_failure_class, encode_field_rule};
 use hold_reasons::{encode_hold_reason, encode_impact};
 use hold_states::{encode_hold_category, encode_hold_failure};
-use holds::{encode_funder, encode_grant, encode_held_role, encode_held_runtime, encode_hold};
+use holds::{encode_funder, encode_held_role, encode_held_runtime};
 use limits::{encode_lacking, encode_limit};
 use me::{encode_live_delegate, encode_malformed, encode_me, encode_moved, encode_offered, encode_owner_authority};
 use outcomes::{encode_proposer, encode_recipient, encode_refusal, encode_release_effect, encode_result};
@@ -500,21 +498,21 @@ use owner_resources::{
     encode_owner_part, encode_owner_pattern, encode_owner_person_stall_notice,
 };
 use parties::{
-    encode_part_scope, encode_party, encode_party_kind, encode_passed, encode_person_address, encode_phase,
-    encode_phase_counts, encode_pool_ledger, encode_proposal_key,
+    encode_part_scope, encode_party, encode_party_kind, encode_person_address, encode_phase, encode_phase_counts,
+    encode_pool_ledger, encode_proposal_key,
 };
 use parts::{encode_owner_wake_policy, encode_parameter_document, encode_part};
 use results::{encode_result_details, encode_result_field, encode_result_value, encode_results_wake, encode_retention};
 use runs::{encode_retry_notice, encode_revision, encode_run_observation, encode_run_stage};
-use runtime::{encode_runtime, encode_specification_document, encode_spend_line, encode_steering, encode_subscription};
+use runtime::{encode_runtime, encode_specification_document, encode_spend_line, encode_subscription};
 use task_fields::{
     encode_task_contract_document, encode_task_flags, encode_task_hold, encode_task_resource, encode_task_result,
     encode_template,
 };
-use tasks::{encode_subscription_kind, encode_taken_by, encode_task};
+use tasks::{encode_subscription_kind, encode_task};
 use templates::{
-    encode_template_deadline, encode_template_executor, encode_verdict_choice, encode_waits_on, encode_wake_policy,
-    encode_wake_rule, encode_writer_slot,
+    encode_template_deadline, encode_template_executor, encode_verdict_choice, encode_waits_on, encode_wake_rule,
+    encode_writer_slot,
 };
 
 mod read_activity;
@@ -529,7 +527,7 @@ mod read_queries;
 use read_queries::{encode_cursor, encode_owner_phase_counts, encode_task_line, encode_task_page};
 
 mod read_inbox;
-use read_inbox::{encode_inbox_page, encode_owner_inbox_page};
+use read_inbox::encode_owner_inbox_page;
 
 mod read_owner_activity;
 use read_owner_activity::encode_owner_activity_line;
@@ -538,16 +536,13 @@ mod read_owner_words;
 use read_owner_words::encode_owner_message_kind;
 
 mod read_watches;
-use read_watches::{
-    encode_object_key, encode_owner_tree, encode_run_beginning, encode_run_ending, encode_run_state, encode_run_text,
-    encode_tree,
-};
+use read_watches::{encode_object_key, encode_owner_tree, encode_run_state, encode_run_text};
 
 mod read_sets;
 
 mod turn_window;
 
-pub(super) fn part(part: &jig_client::contract::Part, out: &mut Text) {
+pub(super) fn part(part: &jig_client::contract::ApplicationPart, out: &mut Text) {
     let limits = skein_json::writer::Limits { depth: 32, length: u32::MAX };
     let mut budget = Cut { room: 0, left: 0, turn: None, subject: false, digest: None };
     let mut measure = Encoder::measure(&limits);

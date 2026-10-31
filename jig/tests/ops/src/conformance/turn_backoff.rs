@@ -29,7 +29,7 @@ impl World {
             kept: Vec::new(),
         };
         world.send(root::Event::Restart { pending: false });
-        for row in jig_core_world::fixtures::account_rows(&world_configuration_providers) {
+        for row in jig_test_profile::fixtures::account_rows(&world_configuration_providers) {
             let jig_test_domain::Record::Core(row) = row else { panic!("core account fixture") };
             world.send(root::Event::Store(root::Store::Restore(root::Record::Core(row))));
         }
@@ -95,7 +95,7 @@ impl World {
     }
 
     pub fn turn(&mut self, number: u32) {
-        self.send(root::Event::Host(host::Event::Turn {
+        self.send(root::Event::Host(host::Event::Agent(host::FromAgent::Turn {
             owner: self.owner,
             turn: host::Turn {
                 turn: number,
@@ -105,7 +105,7 @@ impl World {
                 refused: Box::new([]),
                 body: Box::new([u8::try_from(number).expect("small world turn")]),
             },
-        }));
+        })));
     }
 
     pub fn take(&mut self) -> Vec<root::Output> {

@@ -8,7 +8,7 @@ const WALL: Wall = Wall::from_nanos(1_000_000_000_000);
 const FIRST_RETRY: Duration = Duration::from_millis(10);
 const MOST_RETRY: Duration = Duration::from_millis(80);
 fn front() -> Joint {
-    let mut owner = jig_core_world::world::limits();
+    let mut owner = jig_test_profile::limits();
     owner.core.documents.rows = 2;
     owner.core.documents.lines = 2;
     owner.core.documents.chips = 2;
@@ -16,36 +16,17 @@ fn front() -> Joint {
     jig_client_world::joint::front::fixture(&owner)
 }
 fn limits() -> jig_client::Limits {
-    let world = jig_client_world::test::limits();
-    let l = world.jig;
     jig_client::Limits {
         domain: jig_client::DomainLimits {
             owners: &[],
-            requests: world.client.domain.requests,
-            ask_bytes: 16384,
-            rows: l.rows,
-            segments: l.segments,
-            text: l.text,
-            turn_text: l.text,
-            projects: l.projects,
-            fields: l.fields,
-            delegates: l.delegates,
-            records: l.records,
-            kept: l.kept,
-            parts: l.parts,
-            authority: 8,
-            accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
-            heartbeat: world.client.domain.heartbeat,
             handles: 8,
-            turn_bytes: 32,
-            reads: l.reads,
-            watches: l.watches,
-            document_bytes: l.document_bytes,
             backoff: jig_client::Backoff { first: FIRST_RETRY, most: MOST_RETRY },
+            ..jig_client_world::test::limits().client.domain
         },
         exchanges: 8,
     }
 }
+
 fn drain(client: &mut Client, front: &mut Joint, out: &mut Queue<Request>) {
     while let Some(request) = out.pop() {
         match request {
@@ -114,7 +95,7 @@ fn a_key_constructor_sends_the_value_once_without_keeping_it() {
             jig_client::accounts::add_key(
                 key,
                 [31; 16],
-                c::AccountHolder::Own,
+                c::AskAccountHolder::Own,
                 3,
                 None,
                 Secret::new(Box::from(bytes.as_slice())),
@@ -125,7 +106,7 @@ fn a_key_constructor_sends_the_value_once_without_keeping_it() {
             jig_client::accounts::replace_key(
                 key,
                 [32; 16],
-                c::AccountHolder::Own,
+                c::AskAccountHolder::Own,
                 9,
                 Secret::new(Box::from(bytes.as_slice())),
             ),

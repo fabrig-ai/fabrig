@@ -1,5 +1,4 @@
-//! Direct selected-start projection rows become ordinary serving feeds.
-use jig_core_world::world;
+//! Direct started-start projection rows become ordinary serving feeds.
 use jig_domain_core::{
     self as core,
     start::{Action, Phase, SweepInput},
@@ -15,9 +14,9 @@ struct Harness {
 }
 impl Harness {
     fn new() -> Self {
-        let limits = world::limits().core;
+        let limits = jig_test_profile::limits().core;
         let mut h = Self {
-            core: core::Core::new(world::config(411).core, &limits).expect("configured core"),
+            core: core::Core::new(jig_test_profile::config(411).core, &limits).expect("configured core"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
         };
@@ -25,13 +24,16 @@ impl Harness {
         let mut header = h.core.counters.deployment();
         header.commits = 1;
         assert_eq!(
-            h.core.restore_core(core::CoreRecord::Deployment(header), &h.env.limits),
-            core::Restored::Deployment { commits: 1 }
+            h.core.restore(&h.env, core::Record::Core(core::CoreRecord::Deployment(header))),
+            core::Restore::Deployment { commits: 1 }
         );
         h
     }
     fn row(&mut self, row: core::ProjectionRecord) {
-        assert_eq!(self.core.restore_core(core::CoreRecord::Projection(row), &self.env.limits), core::Restored::Live);
+        assert_eq!(
+            self.core.restore(&self.env, core::Record::Core(core::CoreRecord::Projection(row))),
+            core::Restore::Kept
+        );
     }
     fn link(&mut self) -> Action {
         assert_step(&self.core.start_done(&self.env, Phase::LoadCore, &mut self.out), Phase::LoadInbox);
@@ -104,7 +106,7 @@ fn early_pieces_and_pending_closing_header_become_a_serving_feed() {
         panic!("Wires waits for release")
     };
     assert_step(&h.core.start_resume(&h.env, token, &mut h.out), Phase::AdoptRuns);
-    let core::Requests::Out(mut output) = core::finish_decision(&mut h.core, &h.env);
+    let mut output = core::finish_decision(&mut h.core, &h.env);
     let mut feeds = 0;
     while let Some(request) = output.pop() {
         if let core::Request::Ask { connector, ask: core::Ask::ProjectGoal { feed } } = request {
@@ -137,9 +139,9 @@ fn a_fit_refusal_names_the_stored_projection_key() {
     let mut row = goal(Box::new([]));
     let core::ProjectionRecord::Goal { goal, .. } = &mut row else { unreachable!() };
     let limit = h.env.limits.tasks.spec_bytes;
-    goal.words = vec![b'x'; usize::try_from(limit + 1).expect("fixture bytes")].into_boxed_slice();
+    goal.words = vec![b'x'; skein_lib::length::usize_of(limit + 1)].into_boxed_slice();
     let key = core::Key::Core(core::CoreKey::Projection(row.key()));
-    assert_eq!(h.core.restore_core(core::CoreRecord::Projection(row), &h.env.limits), core::Restored::Rejected);
+    assert_eq!(h.core.restore(&h.env, core::Record::Core(core::CoreRecord::Projection(row))), core::Restore::Refused);
     let expected = core::start::Failure::LiveSet {
         set: core::start::LiveSet::Projections,
         key,

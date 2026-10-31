@@ -1,4 +1,4 @@
-//! Ops's two proof-of-concept stories on jig's independent conformance loop.
+//! Ops's root and connector bindings for jig's conformance loop (domain/testing.md, 5).
 mod application;
 pub(crate) mod config;
 pub use config::chat;
@@ -9,6 +9,7 @@ mod observations;
 mod protocol;
 mod scripts;
 pub use scripts::agent_bounds;
+mod scenarios;
 mod store;
 mod systems;
 
@@ -26,7 +27,7 @@ pub use observations::Store;
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Time, Token, Wall};
 pub use systems::Systems;
 
-/// Only these two stories belong to this proof of concept.
+/// Ops-specific stories beside the shared adversarial scenarios.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Story {
     Alert,
@@ -43,6 +44,7 @@ pub struct Config {
     documents: bool,
     client_backed: bool,
     close_grant: bool,
+    scenario: Option<jig_conformance::scenarios::Scenario>,
 }
 
 impl Config {
@@ -56,6 +58,7 @@ impl Config {
             documents: false,
             client_backed: false,
             close_grant: true,
+            scenario: None,
         }
     }
 
@@ -110,15 +113,15 @@ impl Config {
     reason = "independent account, sign-in, application-request and document peers progress separately"
 )]
 pub struct Peers {
-    pub(crate) policy: r::Policy,
+    pub(crate) observer: jig_conformance::core::Observer,
     applied: u64,
     observed: Vec<r::Observed>,
     application_observed: Vec<r::Observed>,
-    intents: jig_core_world::observations::intents::Intents,
     application_requests: bool,
     pub sign_in: Option<u64>,
     account_ready: bool,
-    asked_sign_in: bool,
+    party: jig_fake_parties::Party,
+    scenario: Option<scenarios::State>,
     role_widened: bool,
     pub results: Vec<u64>,
     pub read_results: Vec<Token>,
@@ -198,15 +201,24 @@ impl Application for Ops {
     }
     fn peers(config: &Config, _: u64) -> Peers {
         Peers {
-            policy: observations::policy(config.seed, config.story == Story::Environment),
+            observer: observations::observer(config.seed, config.story == Story::Environment),
             applied: 0,
             observed: Vec::new(),
             application_observed: Vec::new(),
-            intents: jig_core_world::observations::intents::Intents::default(),
             application_requests: false,
             sign_in: None,
             account_ready: false,
-            asked_sign_in: config.client_backed,
+            party: jig_fake_parties::Party::new(
+                1,
+                jig_fake_parties::Role::Member,
+                100,
+                if config.client_backed {
+                    Box::new([])
+                } else {
+                    Box::new([jig_fake_parties::Act::SignIn { provider: 0, subject: 7_u64.to_be_bytes().into() }])
+                },
+            ),
+            scenario: config.scenario.map(scenarios::State::new),
             role_widened: false,
             results: Vec::new(),
             read_results: Vec::new(),
@@ -243,10 +255,10 @@ impl Application for Ops {
         }
     }
     fn policy(peers: &Peers) -> &r::Policy {
-        &peers.policy
+        &peers.observer.referee.policy
     }
-    fn policy_generation(_: &Peers) -> u64 {
-        0
+    fn policy_generation(peers: &Peers) -> u64 {
+        peers.observer.policy_generation()
     }
     fn recovery(_: &Config, connector: u16, kind: u16) -> r::Recovery {
         match (connector, kind) {
@@ -258,7 +270,7 @@ impl Application for Ops {
     fn start(config: &Config, store: &mut Store) -> Vec<root::Event> {
         if store.rows.is_empty() {
             let configuration = config::root_for(config.seed, config.story == Story::Environment).0;
-            for row in jig_core_world::fixtures::account_rows(&configuration.core.settings.llm_providers) {
+            for row in jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers) {
                 let jig_test_domain::Record::Core(row) = row else { panic!("account fixture row") };
                 let row = root::Record::Core(row);
                 store.rows.insert(row.key(), row);
@@ -266,12 +278,15 @@ impl Application for Ops {
         }
         vec![root::Event::Restart { pending: false }]
     }
-    fn cold(peers: &mut Peers, store: &Store, _: Clock) {
-        peers.observed.push(r::Observed::ColdStore { receipts: observations::snapshot(store).receipts });
+    fn cold(peers: &mut Peers, store: &Store, clock: Clock) {
+        peers.observer.cold(clock.now, &observations::core_store(store));
         peers.account_ready = false;
         peers.asked_accept.clear();
         peers.role_widened = false;
         peers.agents.clear();
+        if let Some(state) = &mut peers.scenario {
+            state.cold();
+        }
         peers.protocol.clear();
     }
     fn timers(_: &Config) -> Vec<root::Event> {
@@ -352,8 +367,19 @@ impl Application for Ops {
         }
         outputs
     }
-    fn inbound(peers: &mut Peers, store: &Store, _: Clock, event: &mut root::Event) {
-        peers.application_observed.extend(observations::inbound(&mut peers.intents, store, event));
+    fn inbound(peers: &mut Peers, store: &Store, clock: Clock, event: &mut root::Event) {
+        if let root::Event::Core(event) = event {
+            peers.observer.inbound(&observations::core_store(store), clock.now, event);
+        }
+        if let root::Event::Effect { key, proposal: Some(_), .. } = event {
+            let observations = peers.observer.intents.propose(*key);
+            peers.application_observed.extend(observations);
+        }
+        if let root::Event::Agent(jig_domain_host::FromAgent::Turn { owner, turn }) = event
+            && let Some((task, attempt)) = peers.scenario.as_ref().and_then(|state| state.assigned(*owner))
+        {
+            peers.observer.completion(clock.now, task, attempt, turn.spent);
+        }
         peers.agents.stepped(event);
         if let Some(observed) = application::requested(store, event) {
             peers.application_requests = true;
@@ -370,7 +396,12 @@ impl Application for Ops {
         delivery: Delivery,
     ) -> Vec<Input<root::Event, root::Record>> {
         let delivery = match delivery {
-            Delivery::Root(root) => *root,
+            Delivery::Root(mut root) => {
+                if let root::Output::Core(held) = root.as_mut() {
+                    peers.observer.delivered(clock.now, held);
+                }
+                *root
+            }
             Delivery::Results { commit, rows } => {
                 for (task, parent) in rows {
                     peers.pending_results.push((commit, task, parent));
@@ -378,6 +409,13 @@ impl Application for Ops {
                 return Vec::new();
             }
         };
+        scenarios::delivered(peers, store, &delivery);
+        if peers.scenario.is_some()
+            && let Some(event) = scenarios::reads::load(store, &delivery)
+        {
+            return vec![Input::Event(event)];
+        }
+
         match delivery {
             root::Output::Application { to, outcome } => {
                 peers.application_observed.push(r::Observed::ApplicationAnswered {
@@ -412,32 +450,24 @@ impl Application for Ops {
                             | root::Record::Infrastructure(_) => None,
                         })
                         .expect("durable assignment proof");
-                    peers.observed.push(r::Observed::Assigned {
-                        task,
-                        attempt,
-                        budget,
-                        conversation: proof.conversation,
-                        resumed: !assignment.turns.is_empty(),
-                        // These scenarios use the first-start settings and draw no changes.
-                        settings: 1,
-                    });
+                    peers.observer.assigned(
+                        clock.now,
+                        jig_conformance::core::Assignment {
+                            task,
+                            attempt,
+                            budget,
+                            conversation: proof.conversation,
+                            resumed: !assignment.turns.is_empty(),
+                            settings: 1,
+                        },
+                        &[],
+                    );
                 }
                 vec![Input::Event(root::Event::Released(child))]
             }
             root::Output::Switch => vec![Input::Event(root::Event::Store(root::Store::Switched))],
             root::Output::Load { phase, range } => {
-                let position = match phase {
-                    core::start::Phase::LoadCore | core::start::Phase::LoadInbox | core::start::Phase::Sweep => 0,
-                    core::start::Phase::RestoreConnector { connector } => u32::from(connector),
-                    core::start::Phase::Link
-                    | core::start::Phase::Wires
-                    | core::start::Phase::Switch
-                    | core::start::Phase::AdoptRuns
-                    | core::start::Phase::ReadAfresh { .. }
-                    | core::start::Phase::SettleOutbox { .. }
-                    | core::start::Phase::Open => panic!("only row loads go to the store"),
-                };
-                if matches!(phase, core::start::Phase::LoadCore | core::start::Phase::RestoreConnector { .. }) {
+                if let Some(position) = jig_conformance::core::peers::restart_position(phase, 2) {
                     peers.observed.push(r::Observed::RestartStage { position });
                 }
                 let rows: Vec<_> = if range == root::Range::Core {
@@ -483,6 +513,10 @@ impl Application for Ops {
                 events
             }
             root::Output::Infrastructure(call) => {
+                if let Some(events) = scenarios::infrastructure(peers, &call) {
+                    return events;
+                }
+
                 if peers.document_story
                     && let infra::SystemRequest::Apply { key, .. } = &call
                     && !documents::restarting(peers, key.task)
@@ -496,12 +530,15 @@ impl Application for Ops {
                     let attempt = *attempt;
                     let stable = observations::key(*key);
                     let (kind, resources, condition, target) = observations::parts(effect);
-                    peers
-                        .observed
-                        .push(r::Observed::Released { requires: vec![r::Receipt::Outbox(2, stable, attempt)] });
+                    let delayed = peers.scenario.as_ref().is_some_and(|state| state.replaying);
+                    if !delayed {
+                        peers
+                            .observed
+                            .push(r::Observed::Released { requires: vec![r::Receipt::Outbox(2, stable, attempt)] });
+                    }
                     let before = match effect {
                         infra::Effect::Restart { operation, .. } => {
-                            vec![jig_test_system::ValueObserved {
+                            vec![r::ValueObserved {
                                 state: systems.production.find_restart(*operation).map(|_| *operation),
                                 owner: None,
                             }]
@@ -511,7 +548,7 @@ impl Application for Ops {
                                 std::str::from_utf8(&service.environment).expect("fixture bytes"),
                                 std::str::from_utf8(&service.name).expect("fixture bytes"),
                             );
-                            vec![jig_test_system::ValueObserved {
+                            vec![r::ValueObserved {
                                 state: Some(u64::from(
                                     systems.production.read_service(&name).expect("fixture service").replicas,
                                 )),
@@ -537,23 +574,21 @@ impl Application for Ops {
                                 state: Some(u64::from(systems.production.used_slots(pool))),
                                 at: clock.now,
                             });
-                            vec![jig_test_system::ValueObserved {
+                            vec![r::ValueObserved {
                                 state: before.as_ref().map(|row| row.until),
                                 owner: before.map(|row| {
-                                    let (attempt, completion, position) = match row.key.origin {
+                                    let origin = match row.key.origin {
                                         production::Purpose::Call { attempt, completion, position } => {
-                                            (attempt, completion, position)
+                                            r::EffectOrigin::Call { attempt, completion, position }
                                         }
-                                        production::Purpose::Procedure { .. } => (0, 0, 0),
-                                        production::Purpose::Projection { .. } => (0, 0, 1),
+                                        production::Purpose::Procedure { .. } => r::EffectOrigin::Procedure,
+                                        production::Purpose::Projection { .. } => r::EffectOrigin::Projection,
                                     };
-                                    jig_test_system::SystemKey {
+                                    r::EffectKey {
                                         deployment: row.key.deployment,
                                         task: row.key.task,
                                         purpose: row.key.purpose,
-                                        attempt,
-                                        completion,
-                                        position,
+                                        origin,
                                     }
                                 }),
                             }]
@@ -563,7 +598,7 @@ impl Application for Ops {
                                 std::str::from_utf8(&environment.pool).expect("fixture pool"),
                                 std::str::from_utf8(&environment.name).expect("fixture environment"),
                             );
-                            vec![jig_test_system::ValueObserved {
+                            vec![r::ValueObserved {
                                 state: systems.production.read_environment(&name).map(|_| 1),
                                 owner: None,
                             }]
@@ -583,21 +618,20 @@ impl Application for Ops {
                     };
                     peers.observed.push(r::Observed::Effect {
                         connector: 2,
-                        effect: jig_test_system::Observed {
+                        effect: r::EffectObserved {
                             kind,
                             key: stable,
-                            resources: resources
-                                .into_iter()
-                                .map(|resource| jig_test_system::Name(resource.path))
-                                .collect(),
+                            resources,
                             condition,
                             target,
                             before,
                             applied,
-                            copy: if attempt == 1 {
-                                jig_test_system::Copy::First
+                            copy: if delayed {
+                                r::Copy::Late
+                            } else if attempt == 1 {
+                                r::Copy::First
                             } else {
-                                jig_test_system::Copy::Retried
+                                r::Copy::Retried
                             },
                         },
                     });
@@ -614,12 +648,19 @@ impl Application for Ops {
                 vec![Input::Event(peers.protocol.decode(to, run, attempt, &call, Wall::from_nanos(clock.now)))]
             }
             root::Output::Core(core::Held::CallAnswer { to, key, part }) => {
+                if peers.scenario.is_some() {
+                    return Vec::new();
+                }
                 vec![Input::Event(peers.protocol.answer(to, key, &part, true))]
             }
             root::Output::Now(core::Now::SettingsAnswer { to, key, answer }) => {
                 peers.protocol.settings_answer(to, key, &answer).into_iter().map(Input::Event).collect()
             }
             root::Output::Now(core::Now::EffectAnswer { to, key, part }) => {
+                if let Some(state) = &mut peers.scenario {
+                    state.answer(part);
+                    return Vec::new();
+                }
                 vec![Input::Event(peers.protocol.answer(to, key, &part, false))]
             }
             root::Output::Now(core::Now::NoteBusy { to, key }) => vec![Input::Event(peers.protocol.busy(to, key))],
@@ -630,31 +671,26 @@ impl Application for Ops {
                 peers.read_results.push(payload);
                 vec![Input::Event(root::Event::ResultRead { payload, end: crate::protocol::result(&outcome) })]
             }
-            root::Output::Now(core::Now::Account(accounts::Request::Component(accounts::ToComponent::Want {
-                account,
-            }))) => {
-                vec![Input::Event(root::Event::Core(core::Event::Account(accounts::Event::Component(
-                    accounts::FromComponent::Granted {
-                        form: accounts::Form::Credential(accounts::Scheme::Bearer),
-                        account,
-                        generation: 1,
-                        valid: Duration::from_secs(7200),
-                    },
-                ))))]
+            root::Output::Now(core::Now::Account(accounts::Request::Component(request))) => {
+                jig_conformance::core::peers::account(request, Duration::from_secs(7200))
+                    .into_iter()
+                    .map(|event| Input::Event(root::Event::Core(event)))
+                    .collect()
             }
-            root::Output::Now(core::Now::Account(accounts::Request::Component(accounts::ToComponent::Close))) => {
-                vec![Input::Event(root::Event::Core(core::Event::Account(accounts::Event::Component(
-                    accounts::FromComponent::Closed,
-                ))))]
+            root::Output::Core(core::Held::Delivery { watcher, .. }) => {
+                vec![Input::Event(root::Event::Core(core::Event::Delivered { watcher }))]
             }
             root::Output::Core(core::Held::PeopleReply { mut to, reply }) => {
                 let token = std::mem::replace(&mut to, ReplyTo::new(Token::new(0))).into_token();
-                peers.application_observed.extend(peers.intents.reply(token, &reply));
+                if token.raw() == 100
+                    && let people::Reply::SignedIn { person, sign_in, .. } = &reply
+                {
+                    peers.party.reply(100, jig_fake_parties::Reply::SignedIn { person: *person, sign_in: *sign_in });
+                }
                 peers.replies += 1;
                 match reply {
                     people::Reply::SignedIn { sign_in: number, .. } => {
                         peers.sign_in = Some(number);
-                        peers.observed.push(r::Observed::Released { requires: vec![r::Receipt::SignIn(number)] });
                     }
                     people::Reply::Outcome(_) => {}
                     other @ (people::Reply::Signer(_)
@@ -669,38 +705,22 @@ impl Application for Ops {
             }
             root::Output::Core(core::Held::Result { task, person, .. }) => {
                 peers.results.push(task);
-                peers.observed.push(r::Observed::Result { task, to: r::Source::Person(person) });
-                peers.observed.push(r::Observed::Released { requires: vec![r::Receipt::Ended(task)] });
+                let _ = person;
                 Vec::new()
             }
             root::Output::Core(core::Held::NotesLoad { owner, .. }) => {
-                vec![Input::Event(root::Event::Core(core::Event::Notes(jig_domain_notes::Event::Loaded {
+                vec![Input::Event(root::Event::Core(jig_conformance::core::peers::notes_loaded(
                     owner,
-                    rows: jig_domain_notes::Rows { records: List::with_capacity(0) },
-                    more: false,
-                })))]
+                    List::with_capacity(0),
+                    false,
+                )))]
             }
             root::Output::CoreLoad(core::Now::StartPreparation { task, from, .. }) => {
-                let mut rows: Vec<_> = store
-                    .rows
-                    .values()
-                    .filter_map(|record| match record {
-                        root::Record::Core(core::Record::Core(core::CoreRecord::Turn(row)))
-                            if row.task == task && from.is_some_and(|start| (row.attempt, row.turn) >= start) =>
-                        {
-                            Some(row.clone())
-                        }
-                        root::Record::Core(_) | root::Record::Infrastructure(_) | root::Record::Observability(_) => {
-                            None
-                        }
-                    })
-                    .collect();
-                rows.sort_by_key(|row| (row.attempt, row.turn));
-                if let Some(start) = from
-                    && !rows.first().is_some_and(|row| (row.attempt, row.turn) == start && row.opens_window)
-                {
-                    return vec![Input::Event(root::Event::Core(core::Event::TranscriptUnread { task }))];
-                }
+                let records = observations::core_store(store).rows;
+                let rows = match jig_conformance::core::peers::transcript(&records, task, from) {
+                    Ok(rows) => rows,
+                    Err(event) => return vec![Input::Event(root::Event::Core(*event))],
+                };
                 vec![Input::Event(root::Event::Store(root::Store::Transcript {
                     task,
                     rows: rows
@@ -781,22 +801,29 @@ impl Application for Ops {
                 },
             )))));
         }
-        if ready && !peers.asked_sign_in {
-            peers.asked_sign_in = true;
-            events.push(Input::Event(root::Event::Core(core::Event::SignIn {
-                held: None,
-                reply_to: ReplyTo::new(Token::new(100)),
-                identity: people::Identity {
-                    key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
-                    login: b"oncall".as_slice().into(),
-                    name: Box::new([]),
-                },
-            })));
+        if ready && let Some(up) = peers.party.tick(Time::from_nanos(clock.now)) {
+            match up {
+                jig_fake_parties::Up::SignIn { to, provider, subject } => {
+                    events.push(Input::Event(root::Event::Core(core::Event::SignIn {
+                        held: None,
+                        reply_to: ReplyTo::new(Token::new(to)),
+                        identity: people::Identity {
+                            key: people::IdentityKey { provider, subject },
+                            login: b"oncall".as_slice().into(),
+                            name: Box::new([]),
+                        },
+                    })));
+                }
+                jig_fake_parties::Up::Request { .. } => unreachable!("the on-call party scripts only authentication"),
+            }
         }
         if ready {
             events.extend(funding::poll(peers, store));
         }
-        if ready && let Some(sign_in) = peers.sign_in {
+        if ready
+            && peers.scenario.is_none()
+            && let Some(sign_in) = peers.sign_in
+        {
             for record in store.rows.values() {
                 if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = record
                     && let Some(proposal) = &row.proposal
@@ -840,10 +867,15 @@ impl Application for Ops {
                 ));
             }
         }
-        events.extend(peers.agents.poll(clock));
+        if let Some(state) = &mut peers.scenario {
+            events.extend(state.poll(clock));
+        } else {
+            events.extend(peers.agents.poll(clock));
+        }
         events
     }
     fn submitted(peers: &mut Peers, store: &Store, _: Clock) {
+        peers.observer.submitted(&observations::core_store(store));
         documents::leads_submitted(peers, store);
         if peers.document_story || peers.client_documents {
             documents::submitted(peers, store);
@@ -852,10 +884,20 @@ impl Application for Ops {
             peers.application_observed.extend(application::submitted(store));
         }
     }
-    fn observed(peers: &mut Peers, _: &Systems, store: &Store, _: Clock) -> Vec<r::Observed> {
-        let mut observed = std::mem::take(&mut peers.application_observed);
+    fn observed(peers: &mut Peers, _: &Systems, store: &Store, clock: Clock) -> Vec<r::Observed> {
+        peers.observer.durable(clock.now, &observations::core_store(store));
+        let mut observed = Vec::new();
+        let mut answers = Vec::new();
+        for evidence in std::mem::take(&mut peers.application_observed) {
+            if matches!(evidence, r::Observed::ApplicationAnswered { .. }) {
+                answers.push(evidence);
+            } else {
+                observed.push(evidence);
+            }
+        }
+        observed.extend(peers.observer.take());
+        observed.extend(answers);
         if peers.applied != store.applied {
-            observed.extend(observations::intents(&mut peers.intents, store));
             let snapshot = observations::snapshot(store);
             for row in store.rows.values() {
                 if let root::Record::Core(core::Record::Core(core::CoreRecord::ProposalDecision(row))) = row
@@ -871,7 +913,6 @@ impl Application for Ops {
                     peers.entries.push((store.applied, decision.kind));
                 }
             }
-            observed.push(r::Observed::Durable { number: store.applied, snapshot });
             for row in store.rows.values() {
                 if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = row {
                     for word in &row.inbox {

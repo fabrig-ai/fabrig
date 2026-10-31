@@ -36,7 +36,7 @@ fn validate(names: &List<Box<[u8]>>) -> Result<(), w::Problem> {
     }
     for (at, name) in names.iter().enumerate() {
         if name.is_empty()
-            || name.len() > usize::try_from(c::AUTHORITY_MODEL_BYTES).expect("name bound")
+            || name.len() > skein_lib::length::usize_of(c::AUTHORITY_MODEL_BYTES)
             || !skein_codec::text_is_valid(name)
         {
             return Err(bad);

@@ -1,7 +1,8 @@
 //! Replayable fault scenarios for `domain/testing.md`, 4, 7. Configuration
 //! comes from the scenario, choices from a seed, and the referee observes every
 //! drain. Conformance can reuse the independent peers and the chosen cuts.
-use crate::{effects::World, peers::Peers};
+use crate::world::Setup;
+use crate::{peers::Peers, world::World};
 use jig_fake_parties::{Act, Ask, Party, Role, Task};
 use jig_fake_workers::{Fault, Script, Worker};
 use skein_lib::{Duration, Time};
@@ -15,7 +16,7 @@ pub fn workers(seed: u64, count: u32, engine: bool) -> World {
 
 /// The same actors with a crash cut armed before startup.
 #[must_use]
-pub fn workers_at(seed: u64, count: u32, engine: bool, cut: Option<crate::effects::Cut>) -> World {
+pub fn workers_at(seed: u64, count: u32, engine: bool, cut: Option<crate::world::Cut>) -> World {
     assert!((1..=3).contains(&count));
     let (config, limits) = crate::peers::fixture(seed, u32::from(engine));
     let script = |read| {
@@ -30,10 +31,10 @@ pub fn workers_at(seed: u64, count: u32, engine: bool, cut: Option<crate::effect
     if engine {
         hosts.insert(0, Worker::new(0, 1, vec![script(1), script(2)]));
     }
-    World::scripted_at(
-        config,
+    World::new(Setup {
+        configuration: Some(config),
         limits,
-        Peers::new(
+        peers: Some(Peers::new(
             hosts,
             vec![Party::new(
                 1,
@@ -44,9 +45,10 @@ pub fn workers_at(seed: u64, count: u32, engine: bool, cut: Option<crate::effect
                     Act::Request { key: [1; 16], ask: Ask::Chat { words: b"work".as_slice().into() } },
                 ]),
             )],
-        ),
+        )),
         cut,
-    )
+        ..Setup::default()
+    })
 }
 
 /// Resume the owner's last chat, retaining the key for reproducible retries.
@@ -96,7 +98,7 @@ pub fn plan_fixture_with_document_rows(seed: u64, rows: u32) -> (jig_test_domain
 /// The bounded two-level plan fixture used by resource and failure stories.
 #[must_use]
 pub fn plan_fixture(seed: u64) -> (jig_test_domain::Config, jig_test_domain::Limits) {
-    let (mut configuration, mut limits) = crate::effects::fixture(seed, false);
+    let (mut configuration, mut limits) = crate::world::fixture(seed, false);
     limits.core.tasks.tasks = 5;
     limits.core.tasks.project_tasks = 5;
     limits.core.tasks.tree_tasks = 5;

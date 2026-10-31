@@ -1,0 +1,5 @@
+== jig == 
+Words admitted:
+  * Words admitted
+  Task: 18446744073709551615
+  Message: 18446744073709551615

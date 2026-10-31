@@ -10,33 +10,33 @@ fn copy(value: &[u8], room: &mut u64) -> Result<Box<[u8]>, w::Problem> {
     charge(room, u64::try_from(value.len()).ok())?;
     Ok(bytes::copy_of(value))
 }
-fn failure(value: &w::OwnerProgramFailure) -> c::OwnerProgramFailure {
+fn failure(value: &w::ProgramFailure) -> c::ProgramFailure {
     match value {
-        w::OwnerProgramFailure::Missing => c::OwnerProgramFailure::Missing,
-        w::OwnerProgramFailure::Deadline => c::OwnerProgramFailure::Deadline,
-        w::OwnerProgramFailure::Unreadable => c::OwnerProgramFailure::Unreadable,
-        w::OwnerProgramFailure::Exited => c::OwnerProgramFailure::Exited,
-        w::OwnerProgramFailure::Unconfigured => c::OwnerProgramFailure::Unconfigured,
-        w::OwnerProgramFailure::Unknown => c::OwnerProgramFailure::Unknown,
-        w::OwnerProgramFailure::Closed => c::OwnerProgramFailure::Closed,
+        w::ProgramFailure::Missing => c::ProgramFailure::Missing,
+        w::ProgramFailure::Deadline => c::ProgramFailure::Deadline,
+        w::ProgramFailure::Unreadable => c::ProgramFailure::Unreadable,
+        w::ProgramFailure::Exited => c::ProgramFailure::Exited,
+        w::ProgramFailure::Unconfigured => c::ProgramFailure::Unconfigured,
+        w::ProgramFailure::Unknown => c::ProgramFailure::Unknown,
+        w::ProgramFailure::Closed => c::ProgramFailure::Closed,
     }
 }
-fn state(value: &w::OwnerProgramState, room: &mut u64) -> Result<c::OwnerProgramState, w::Problem> {
+fn state(value: &w::ProgramState, room: &mut u64) -> Result<c::ProgramState, w::Problem> {
     Ok(match value {
-        w::OwnerProgramState::Usable => c::OwnerProgramState::Usable,
-        w::OwnerProgramState::NotSignedIn => c::OwnerProgramState::NotSignedIn,
-        w::OwnerProgramState::SignedInOtherwise(row) => {
+        w::ProgramState::Usable => c::ProgramState::Usable,
+        w::ProgramState::NotSignedIn => c::ProgramState::NotSignedIn,
+        w::ProgramState::SignedInOtherwise(row) => {
             if !c::valid_program_method(row.method()) {
                 return Err(piece_problem(skein_codec::Reason::Malformed));
             }
-            c::OwnerProgramState::SignedInOtherwise { method: copy(row.method(), room)? }
+            c::ProgramState::SignedInOtherwise { method: copy(row.method(), room)? }
         }
-        w::OwnerProgramState::Failed(row) => {
-            c::OwnerProgramState::Failed { reason: failure(row.reason()), detail: copy(row.detail(), room)? }
+        w::ProgramState::Failed(row) => {
+            c::ProgramState::Failed { reason: failure(row.reason()), detail: copy(row.detail(), room)? }
         }
     })
 }
-fn login(value: &w::OwnerProgramLogin, room: &mut u64) -> Result<c::OwnerProgramLogin, w::Problem> {
+fn login(value: &w::ProgramLogin, room: &mut u64) -> Result<c::ProgramLogin, w::Problem> {
     if !c::valid_program_name(value.name()) {
         return Err(piece_problem(skein_codec::Reason::Malformed));
     }
@@ -45,53 +45,45 @@ fn login(value: &w::OwnerProgramLogin, room: &mut u64) -> Result<c::OwnerProgram
         None => None,
     };
     let sign_out = match value.sign_out() {
-        Some(w::OwnerProgramSignOut::SignedOut) => Some(c::OwnerProgramSignOut::SignedOut),
-        Some(w::OwnerProgramSignOut::Failed(value)) => Some(c::OwnerProgramSignOut::Failed {
-            reason: failure(value.reason()),
-            detail: copy(value.detail(), room)?,
-        }),
+        Some(w::ProgramSignOut::SignedOut) => Some(c::ProgramSignOut::SignedOut),
+        Some(w::ProgramSignOut::Failed(value)) => {
+            Some(c::ProgramSignOut::Failed { reason: failure(value.reason()), detail: copy(value.detail(), room)? })
+        }
         None => None,
     };
-    Ok(c::OwnerProgramLogin {
-        name: copy(value.name(), room)?,
-        state,
-        sign_out,
-        cleanup: value.cleanup(),
-        cut: value.cut(),
-    })
+    Ok(c::ProgramLogin { name: copy(value.name(), room)?, state, sign_out, cleanup: value.cleanup(), cut: value.cut() })
 }
-pub(crate) fn logins(value: &[u8], limits: &Limits, room: &mut u64) -> Result<List<c::OwnerProgramLogin>, w::Problem> {
+pub(crate) fn logins(value: &[u8], limits: &Limits, room: &mut u64) -> Result<List<c::ProgramLogin>, w::Problem> {
     let count = piece_count(value)?;
-    charge(room, List::<c::OwnerProgramLogin>::price(count))?;
+    charge(room, List::<c::ProgramLogin>::price(count))?;
     let mut reader = Reader::new(value);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
         let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else {
             return Err(piece_problem(skein_codec::Reason::Malformed));
         };
-        let value = w::OwnerProgramLogin::decode(&limits.wire, &mut Reader::new(&item))?;
+        let value = w::ProgramLogin::decode(limits.receiving(), &mut Reader::new(&item))?;
         rows.push(login(&value, room)?).expect("counted login pieces");
     }
     Ok(rows)
 }
-#[expect(clippy::disallowed_methods, reason = "protocol validates configured UTF-8 names before allocation")]
 pub(crate) fn name(value: &[u8], room: &mut u64) -> Result<Box<[u8]>, w::Problem> {
-    if core::str::from_utf8(value).is_err() {
+    if !bytes::is_utf8(value) {
         return Err(piece_problem(skein_codec::Reason::Malformed));
     }
     copy(value, room)
 }
-pub(crate) fn hosts(value: &[u8], limits: &Limits, room: &mut u64) -> Result<List<c::OwnerProgramHost>, w::Problem> {
+pub(crate) fn hosts(value: &[u8], limits: &Limits, room: &mut u64) -> Result<List<c::ProgramHost>, w::Problem> {
     let count = piece_count(value)?;
-    charge(room, List::<c::OwnerProgramHost>::price(count))?;
+    charge(room, List::<c::ProgramHost>::price(count))?;
     let mut reader = Reader::new(value);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
         let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else {
             return Err(piece_problem(skein_codec::Reason::Malformed));
         };
-        let row = w::OwnerProgramHost::decode(&limits.wire, &mut Reader::new(&item))?;
-        rows.push(c::OwnerProgramHost {
+        let row = w::ProgramHost::decode(limits.receiving(), &mut Reader::new(&item))?;
+        rows.push(c::ProgramHost {
             name: name(row.name(), room)?,
             channel: row.channel(),
             connected: row.connected(),

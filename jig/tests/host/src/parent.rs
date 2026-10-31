@@ -28,7 +28,9 @@
 //! workspace with no agent yet, and nothing saved or released while the
 //! workspace's agent may still be running or a delivery or save is in flight.
 
+use jig_domain_host::FromAgent;
 use jig_domain_host::LinkUp;
+use jig_domain_host::ToAgent;
 use std::collections::{BTreeMap, BTreeSet};
 
 use jig_domain_host::{
@@ -270,17 +272,17 @@ impl Parent {
                 self.tally.aborts += 1;
                 Vec::new()
             }
-            Request::Start { owner, start } => {
+            Request::Agent(ToAgent::Start { owner, start }) => {
                 let workspace = start.workspace;
                 self.start(owner, workspace.expect("the scripted assignments have workspace items"))
             }
-            Request::Message { agent, .. } => self.deliver(agent),
-            Request::Reply { agent, call: _, reply: _ } => self.reply(agent),
-            Request::Stop { agent } => self.stop(agent),
+            Request::Agent(ToAgent::Message { agent, .. }) => self.deliver(agent),
+            Request::Agent(ToAgent::Answer { agent, call: _, answer: _ }) => self.reply(agent),
+            Request::Agent(ToAgent::Cancel { agent }) => self.stop(agent),
             Request::Deliver { owner, workspace, .. } => self.delivery(owner, workspace),
             Request::Save { owner, workspace } => self.save(owner, workspace),
             Request::Release { workspace } => self.release(workspace),
-            Request::Grant { .. } => Vec::new(),
+            Request::Agent(ToAgent::Grant { .. }) => Vec::new(),
             Request::Up(
                 LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
@@ -293,7 +295,7 @@ impl Parent {
                 | LinkUp::Answer { .. }
                 | LinkUp::Call { .. },
             )
-            | Request::AcknowledgeAgentTurn { .. }
+            | Request::Agent(ToAgent::Acknowledge { .. })
             | Request::CancelRelay { .. }
             | Request::Hello { .. } => {
                 unreachable!("for the engine or the top level")
@@ -315,7 +317,8 @@ impl Parent {
             Phase::Waiting { .. } => self.say(agent, Finish::Parked),
             Phase::Stuck { fault } => {
                 let after = self.script.kill.draw(&mut self.rng);
-                let mut out = vec![host(Duration::ZERO, Event::Faulted { owner: self.owner(agent), fault })];
+                let mut out =
+                    vec![host(Duration::ZERO, Event::Agent(FromAgent::Faulted { owner: self.owner(agent), fault }))];
                 out.push(self.exit(agent, after));
                 out
             }
@@ -370,12 +373,15 @@ impl Parent {
             self.tally.unstarted += 1;
             let entry = Agent { owner, fate, phase: Phase::Gone, wake: 0, calls: 0 };
             self.agents.insert(agent, entry);
-            return vec![host(after, Event::Gone { owner, detail: Box::from(&b"spawn: no such file"[..]) })];
+            return vec![host(
+                after,
+                Event::Agent(FromAgent::Gone { owner, detail: Box::from(&b"spawn: no such file"[..]) }),
+            )];
         }
         let steps = u32::try_from(self.rng.below(u64::from(self.script.steps) + 1)).expect("fits");
         let entry = Agent { owner, fate, phase: Phase::Working { steps }, wake: 0, calls: 0 };
         self.agents.insert(agent, entry);
-        let mut out = vec![host(after, Event::Started { owner, agent })];
+        let mut out = vec![host(after, Event::Agent(FromAgent::Started { owner, agent }))];
         let step = self.script.step.draw(&mut self.rng);
         out.push(self.rearm(agent, after.saturating_add(step)));
         out
@@ -393,7 +399,7 @@ impl Parent {
         } else if roll < relays + deliveries + yields {
             self.tally.yields += 1;
             self.set(agent, Phase::Waiting { steps });
-            out.push(host(Duration::ZERO, Event::Yielded { owner: self.owner(agent) }));
+            out.push(host(Duration::ZERO, Event::Agent(FromAgent::Yielded { owner: self.owner(agent) })));
             let idle = self.script.idle.draw(&mut self.rng);
             out.push(self.rearm(agent, idle));
             return out;
@@ -423,7 +429,7 @@ impl Parent {
             Fate::Overrun => self.stuck(agent, AgentFailure::WallTime),
             Fate::Rules => {
                 let after = self.script.kill.draw(&mut self.rng);
-                let fault = Event::Faulted { owner: self.owner(agent), fault: AgentFailure::Rules };
+                let fault = Event::Agent(FromAgent::Faulted { owner: self.owner(agent), fault: AgentFailure::Rules });
                 vec![host(Duration::ZERO, fault), self.exit(agent, after)]
             }
         }
@@ -449,7 +455,10 @@ impl Parent {
     /// The agent and everything it started are gone.
     fn goes(&mut self, agent: Token, detail: &[u8]) -> Vec<Out> {
         self.set(agent, Phase::Gone);
-        vec![host(Duration::ZERO, Event::Gone { owner: self.owner(agent), detail: Box::from(detail) })]
+        vec![host(
+            Duration::ZERO,
+            Event::Agent(FromAgent::Gone { owner: self.owner(agent), detail: Box::from(detail) }),
+        )]
     }
 
     fn call(&mut self, agent: Token, ask: Ask) -> Out {

@@ -37,6 +37,7 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
     Domain {
         jig: jig_client_view::Ui::new(
             &limits.jig,
+            &limits.client.domain,
             navigation,
             jig_client_view::address::Address::Inbox { project: None },
             jig_client_view::page::Arrangement::none(),
@@ -77,7 +78,7 @@ pub fn fire(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     root.jig.fire(env.now, env.wall, &root.client, &mut child);
     route::route_jig(root, env, &mut child, out);
     let mut child = Queue::uncapped();
-    first::fire(&mut root.first, &Env { now: env.now, wall: env.wall, limits: env.limits.first }, &mut child);
+    first::fire(&mut root.first, &env.with(env.limits.first), &mut child);
     route::route_first(root, env, &mut child, out);
     let mut client = Queue::uncapped();
     root.client.fire(env.now, env.wall, &mut client);

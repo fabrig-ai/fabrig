@@ -1,4 +1,5 @@
-use jig_core_world::effects::World;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
@@ -6,7 +7,7 @@ use jig_test_connector as connector;
 use jig_test_domain as root;
 
 fn a_procedures_effect_waits_for_another_connectors_verdict_then_is_made() {
-    let mut world = World::new(81, true);
+    let mut world = World::new(Setup { seed: 81, requirement: true, ..Setup::default() });
     world.delegate();
     let task = world.procedure.expect("delegated procedure");
     assert!(world.systems[0].observed().is_empty(), "unknown observer facts authorize no effect");
@@ -28,7 +29,7 @@ fn a_procedures_effect_waits_for_another_connectors_verdict_then_is_made() {
 
 fn a_tool_call_whose_answer_is_lost_with_the_channel_and_the_engine_is_asked_again_after_a_restart_and_answered_from_its_record()
  {
-    let mut world = World::new(82, false);
+    let mut world = World::new(Setup { seed: 82, ..Setup::default() });
     world.lose_answer = true;
     world.call(1, 202);
     let key = world.call_key(1);
@@ -43,7 +44,7 @@ fn a_tool_call_whose_answer_is_lost_with_the_channel_and_the_engine_is_asked_aga
     assert!(matches!(
         row,
         root::Record::Core(core::Record::Core(core::CoreRecord::Call(core::CallRecord {
-            part: core::CallPart::Effect { outcome: Some(core::connector::OutboxOutcome::Made), .. },
+            part: core::CallPart::Effect { outcome: Some(core::effects::connector::OutboxOutcome::Made), .. },
             ..
         })))
     ));
@@ -54,7 +55,7 @@ fn a_tool_call_whose_answer_is_lost_with_the_channel_and_the_engine_is_asked_aga
     assert_eq!(world.answers[0].0.raw(), 203);
     assert!(matches!(
         world.answers[0].2,
-        core::CallPart::Effect { outcome: Some(core::connector::OutboxOutcome::Made), .. }
+        core::CallPart::Effect { outcome: Some(core::effects::connector::OutboxOutcome::Made), .. }
     ));
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1);
     assert_eq!(world.store.applied, commits + 1, "only the start's mark commits; replay decides nothing again");
@@ -62,7 +63,7 @@ fn a_tool_call_whose_answer_is_lost_with_the_channel_and_the_engine_is_asked_aga
 }
 
 fn an_effect_call_wait_commits_nothing_and_the_same_name_can_be_asked_again() {
-    let mut world = World::new(83, true);
+    let mut world = World::new(Setup { seed: 83, requirement: true, ..Setup::default() });
     let commits = world.store.applied;
     world.call(1, 204);
     assert_eq!(world.store.applied, commits);
@@ -76,13 +77,13 @@ fn an_effect_call_wait_commits_nothing_and_the_same_name_can_be_asked_again() {
     world.call(1, 205);
     assert!(matches!(
         world.answers.last(),
-        Some((_, _, core::CallPart::Effect { outcome: Some(core::connector::OutboxOutcome::Made), .. }))
+        Some((_, _, core::CallPart::Effect { outcome: Some(core::effects::connector::OutboxOutcome::Made), .. }))
     ));
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1);
 }
 
 fn an_effect_answers_committed_and_pending_only_past_its_absolute_deadline() {
-    let mut world = World::new(84, false);
+    let mut world = World::new(Setup { seed: 84, ..Setup::default() });
     world.hold_writes = true;
     world.call(1, 206);
     assert!(world.answers.is_empty(), "keeping an entry does not answer made");
@@ -101,13 +102,13 @@ fn an_effect_answers_committed_and_pending_only_past_its_absolute_deadline() {
     world.call(1, 208);
     assert!(matches!(
         world.answers.last(),
-        Some((_, _, core::CallPart::Effect { outcome: Some(core::connector::OutboxOutcome::Made), .. }))
+        Some((_, _, core::CallPart::Effect { outcome: Some(core::effects::connector::OutboxOutcome::Made), .. }))
     ));
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1);
 }
 
 fn an_explicit_effect_proposal_is_kept_across_a_restart_and_checked_again_before_acceptance() {
-    let mut world = World::new(85, true);
+    let mut world = World::new(Setup { seed: 85, requirement: true, ..Setup::default() });
     let proposal = world.propose(1);
     assert!(world.systems[0].observed().is_empty());
     assert!(
@@ -131,14 +132,14 @@ fn an_explicit_effect_proposal_is_kept_across_a_restart_and_checked_again_before
             .rows
             .contains_key(&root::Key::Connector { number: 1, key: connector::RecordKey::Proposal(proposal) })
     );
-    assert_eq!(world.systems[0].observed()[0].key.attempt, world.call_key(1).attempt);
-    assert_eq!(world.systems[0].observed()[0].key.completion, 1);
+    assert!(matches!(world.systems[0].observed()[0].key.origin,
+        jig_conformance::referee::EffectOrigin::Call { attempt, completion: 1, .. } if attempt == world.call_key(1).attempt));
     assert_eq!(world.spent(), 0, "the proposal's accepter funds the effect");
     assert_eq!(world.holder_spent(), 3);
 }
 
 fn rejecting_an_effect_proposal_erases_its_payload_without_making_it() {
-    let mut world = World::new(86, false);
+    let mut world = World::new(Setup { seed: 86, ..Setup::default() });
     let proposal = world.propose(1);
     world.decide_proposal(proposal, false, 3);
     assert!(world.systems[0].observed().is_empty());
@@ -151,7 +152,9 @@ fn rejecting_an_effect_proposal_erases_its_payload_without_making_it() {
 }
 
 fn a_full_connector_outbox_is_busy_without_a_record_or_charge_and_can_retry_the_same_name() {
-    let mut world = World::with_entries(87, false, 1);
+    let mut setup = Setup { seed: 87, ..Setup::default() };
+    setup.limits.connector.entries = 1;
+    let mut world = World::new(setup);
     world.hold_writes = true;
     world.call(1, 210);
     let commits = world.store.applied;
@@ -164,7 +167,7 @@ fn a_full_connector_outbox_is_busy_without_a_record_or_charge_and_can_retry_the_
     world.call(2, 212);
     assert!(matches!(
         world.answers.last(),
-        Some((_, _, core::CallPart::Effect { outcome: Some(core::connector::OutboxOutcome::Failed), .. }))
+        Some((_, _, core::CallPart::Effect { outcome: Some(core::effects::connector::OutboxOutcome::Failed), .. }))
     ));
     assert_eq!(world.spent(), 6);
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1);
@@ -174,22 +177,32 @@ fn a_full_connector_outbox_is_busy_without_a_record_or_charge_and_can_retry_the_
 // A shared entrypoint avoids one process startup per short scenario.
 #[test]
 fn effects_scenarios() {
-    a_procedures_effect_waits_for_another_connectors_verdict_then_is_made();
-    a_tool_call_whose_answer_is_lost_with_the_channel_and_the_engine_is_asked_again_after_a_restart_and_answered_from_its_record();
-    an_effect_call_wait_commits_nothing_and_the_same_name_can_be_asked_again();
-    an_effect_answers_committed_and_pending_only_past_its_absolute_deadline();
-    an_explicit_effect_proposal_is_kept_across_a_restart_and_checked_again_before_acceptance();
-    rejecting_an_effect_proposal_erases_its_payload_without_making_it();
-    a_full_connector_outbox_is_busy_without_a_record_or_charge_and_can_retry_the_same_name();
+    let mut bundle = super::bundle::Bundle::default();
+    crate::bundle::case!(bundle, 81, a_procedures_effect_waits_for_another_connectors_verdict_then_is_made);
+    crate::bundle::case!(bundle, 82, a_tool_call_whose_answer_is_lost_with_the_channel_and_the_engine_is_asked_again_after_a_restart_and_answered_from_its_record);
+    crate::bundle::case!(bundle, 83, an_effect_call_wait_commits_nothing_and_the_same_name_can_be_asked_again);
+    crate::bundle::case!(bundle, 84, an_effect_answers_committed_and_pending_only_past_its_absolute_deadline);
+    crate::bundle::case!(
+        bundle,
+        85,
+        an_explicit_effect_proposal_is_kept_across_a_restart_and_checked_again_before_acceptance
+    );
+    crate::bundle::case!(bundle, 86, rejecting_an_effect_proposal_erases_its_payload_without_making_it);
+    crate::bundle::case!(
+        bundle,
+        87,
+        a_full_connector_outbox_is_busy_without_a_record_or_charge_and_can_retry_the_same_name
+    );
+    bundle.finish().unwrap_or_else(|failures| panic!("{failures}"));
 }
 
 // Reuse an actual world's durable claim and public configuration, restoring
 // through the core's public entry points rather than injecting waiting rights.
 fn retained_effect_core(seed: u64) -> (core::Core, core::Limits, core::CallKey) {
     use skein_lib::{Env, Time, Wall};
-    let world = World::new(seed, false);
+    let world = World::new(Setup { seed, ..Setup::default() });
     let key = world.call_key(1);
-    let (configuration, limits) = jig_core_world::effects::fixture(seed, false);
+    let (configuration, limits) = jig_core_world::world::fixture(seed, false);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.core };
     let domain = super::start_links::recovered(&world, configuration.core, &env);
     assert!(domain.current_proof(key.task, key.attempt));
@@ -204,8 +217,7 @@ fn effect_outputs(
     wall: skein_lib::Wall,
     event: core::Event,
 ) -> Vec<core::Request> {
-    let core::Requests::Out(mut out) =
-        core::step(domain, &skein_lib::Env { now: skein_lib::Time::ZERO, wall, limits: *limits }, event);
+    let mut out = core::step(domain, &skein_lib::Env { now: skein_lib::Time::ZERO, wall, limits: *limits }, event);
     let mut requests = Vec::new();
     while let Some(request) = out.pop() {
         requests.push(request);
@@ -221,7 +233,7 @@ fn kept_effect(
     right: u64,
 ) -> core::CallPart {
     use skein_lib::{ReplyTo, Token, Wall};
-    let owner = Token::new(right.checked_add(1000).expect("fixture owner"));
+    let owner = domain.effect_owner();
     let started = effect_outputs(
         domain,
         limits,
@@ -232,14 +244,14 @@ fn kept_effect(
             origin: core::EffectOrigin::Call { to: ReplyTo::new(Token::new(right)), key, deadline },
         },
     );
-    assert!(started.iter().any(|row| matches!(row, core::Request::Ask { connector: 1, ask: core::Ask::Effect(core::connector::Ask::Describe { owner: actual }) } if *actual == owner)));
+    assert!(started.iter().any(|row| matches!(row, core::Request::Ask { connector: 1, ask: core::Ask::Effect(core::effects::connector::Ask::Describe { owner: actual }) } if *actual == owner)));
     let kept = effect_outputs(
         domain,
         limits,
         Wall::EPOCH,
-        core::Event::EffectConnector(core::connector::Event::Described {
+        core::Event::EffectConnector(core::effects::connector::Event::Described {
             owner,
-            description: Box::new(core::connector::EffectDescription {
+            description: Box::new(core::effects::connector::EffectDescription {
                 waits_for_dependencies: false,
                 connector: 1,
                 purpose: 19,
@@ -255,8 +267,8 @@ fn kept_effect(
                     additional: Box::new([]),
                     guards: Box::new([]),
                 },
-                form: core::connector::EffectForm::Set,
-                recovery: core::connector::Recovery::Keyed,
+                form: core::effects::connector::EffectForm::Set,
+                recovery: core::effects::connector::Recovery::Keyed,
             }),
         }),
     );
@@ -279,17 +291,17 @@ fn kept_effect(
 fn deadline_answers(outputs: Vec<core::Request>) -> Vec<(u64, core::CallKey, core::CallPart)> {
     outputs
         .into_iter()
-        .filter_map(|row| {
+        .map(|row| {
             assert!(!matches!(row, core::Request::Write(_)), "a deadline makes no new commit");
             match row {
                 core::Request::Held(held) => {
                     if let core::Held::CallAnswer { to, key, part } = *held {
-                        Some((to.into_token().raw(), key, part))
+                        (to.into_token().raw(), key, part)
                     } else {
                         panic!("the deadline emits only retained call answers")
                     }
                 }
-                core::Request::Decided => None,
+
                 core::Request::ProjectMade { .. }
                 | core::Request::Write(_)
                 | core::Request::Ask { .. }
@@ -376,12 +388,13 @@ fn a_duplicate_keeps_its_exact_deadline_and_latest_right_while_made_removes_only
     let second_key = core::CallKey { completion: 2, ..first_key };
     let first = kept_effect(&mut domain, &limits, first_key, Wall::from_nanos(20), 311);
     let second = kept_effect(&mut domain, &limits, second_key, Wall::from_nanos(10), 312);
+    let duplicate_owner = domain.effect_owner();
     let duplicate = effect_outputs(
         &mut domain,
         &limits,
         Wall::EPOCH,
         core::Event::EffectStart {
-            owner: Token::new(1313),
+            owner: duplicate_owner,
             connector: 1,
             origin: core::EffectOrigin::Call {
                 to: ReplyTo::new(Token::new(313)),
@@ -397,11 +410,11 @@ fn a_duplicate_keeps_its_exact_deadline_and_latest_right_while_made_removes_only
         &mut domain,
         &limits,
         Wall::from_nanos(1),
-        core::Event::EffectConnector(core::connector::Event::Outbox {
+        core::Event::EffectConnector(core::effects::connector::Event::Outbox {
             connector: 1,
             entry,
             task: second_key.task,
-            outcome: core::connector::OutboxOutcome::Made,
+            outcome: core::effects::connector::OutboxOutcome::Made,
         }),
     );
     let made_answers: Vec<_> = made
@@ -427,7 +440,7 @@ fn a_duplicate_keeps_its_exact_deadline_and_latest_right_while_made_removes_only
                 connector: 1,
                 entry,
                 deadline: Wall::from_nanos(10),
-                outcome: Some(core::connector::OutboxOutcome::Made),
+                outcome: Some(core::effects::connector::OutboxOutcome::Made),
             }
         )]
     );
@@ -484,8 +497,8 @@ fn a_stale_claim_keeps_its_effect_deadline_until_the_due_right_is_consumed_witho
 fn an_unauthorized_grant_reaches_the_accounts_child() {
     use jig_domain_fleet as fleet;
     use skein_lib::Token;
-    let (config, limits) = jig_core_world::world::two_charters(151);
-    let mut rows = jig_core_world::fixtures::account_rows(&config.core.settings.llm_providers).into_vec();
+    let (config, limits) = jig_test_profile::two_charters(151);
+    let mut rows = jig_test_profile::fixtures::account_rows(&config.core.settings.llm_providers).into_vec();
     for row in &mut rows {
         match row {
             root::Record::Core(core::Record::Accounts(jig_domain_accounts::Stored::Account {
@@ -520,8 +533,8 @@ fn an_unauthorized_grant_reaches_the_accounts_child() {
 fn a_workers_limit_reaches_the_accounts_child_and_holds_its_charter_until_the_reset() {
     use jig_domain_fleet as fleet;
     use skein_lib::{Duration, Token, Wall};
-    let (config, limits) = jig_core_world::world::two_charters(152);
-    let mut world = World::configured(152, false, config, limits);
+    let (config, limits) = jig_test_profile::two_charters(152);
+    let mut world = World::new(Setup { seed: 152, configuration: Some(config), limits, ..Setup::default() });
     let (run, attempt, account) = {
         let current = assignment(&world);
         (current.task, current.attempt, current.grants[0].account)
@@ -552,18 +565,23 @@ fn assignment(world: &World) -> &root::Assignment {
 #[test]
 fn ordinary_failed_and_held_entries_keep_their_call_and_task_routes_across_restart() {
     for (seed, recovery, result, expected) in [
-        (88, connector::Recovery::Keyed, connector::ApplyResult::Conflict, core::connector::OutboxOutcome::Failed),
+        (
+            88,
+            connector::Recovery::Keyed,
+            connector::ApplyResult::Conflict,
+            core::effects::connector::OutboxOutcome::Failed,
+        ),
         (
             89,
             connector::Recovery::Unrecoverable,
             connector::ApplyResult::Uncertain,
-            core::connector::OutboxOutcome::Held { entry: 1 },
+            core::effects::connector::OutboxOutcome::Held { entry: 1 },
         ),
     ] {
-        let (mut configuration, limits) = jig_core_world::effects::fixture(seed, false);
+        let (mut configuration, limits) = jig_core_world::world::fixture(seed, false);
         configuration.first.kinds.iter_mut().find(|kind| kind.kind == 5).expect("configured effect kind").recovery =
             recovery;
-        let mut world = World::configured(seed, false, configuration, limits);
+        let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
         world.recovery = recovery;
         world.hold_writes = true;
         world.call(1, 220);
@@ -587,7 +605,7 @@ fn ordinary_failed_and_held_entries_keep_their_call_and_task_routes_across_resta
             }),
         });
         let expected = if result == connector::ApplyResult::Uncertain {
-            core::connector::OutboxOutcome::Held { entry: entry.number }
+            core::effects::connector::OutboxOutcome::Held { entry: entry.number }
         } else {
             expected
         };

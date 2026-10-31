@@ -2,25 +2,26 @@
 use super::fixtures::STOP;
 use crate::{
     Ask, Event, accounts,
-    contract::{self as c, AccountChange, AccountHolder},
+    contract::{self as c, AccountChange, AskAccountHolder},
 };
 use skein_lib::Secret;
 const NAME: skein_lib::RequestKey = [7; 16];
 const ACCOUNT: u32 = 19;
 const MOVE: u32 = 23;
 fn ask(change: AccountChange) -> Ask {
-    Ask::Jig(Box::new(c::Ask::AccountChange { holder: AccountHolder::Own, change }))
+    Ask::Jig(Box::new(c::Ask::AccountChange { holder: AskAccountHolder::Own, change }))
 }
 #[test]
 fn move_out_builds_a_carry_with_no_value() {
-    let Event::Carry { key, name, request, value } = accounts::move_out(STOP, NAME, AccountHolder::Own, ACCOUNT) else {
+    let Event::Carry { key, name, request, value } = accounts::move_out(STOP, NAME, AskAccountHolder::Own, ACCOUNT)
+    else {
         panic!("move out carries once");
     };
     assert_eq!((key, name, request, value), (STOP, NAME, ask(AccountChange::MoveOut { account: ACCOUNT }), None));
 }
 #[test]
 fn written_builds_an_ordinary_named_send() {
-    let Event::Send { key, name, request } = accounts::written(STOP, NAME, AccountHolder::Own, MOVE) else {
+    let Event::Send { key, name, request } = accounts::written(STOP, NAME, AskAccountHolder::Own, MOVE) else {
         panic!("written goes through the table");
     };
     assert_eq!((key, name, request), (STOP, Some(NAME), ask(AccountChange::Written { number: MOVE })));
@@ -28,7 +29,7 @@ fn written_builds_an_ordinary_named_send() {
 #[test]
 fn move_in_carries_the_file_beside_its_digest() {
     let file = Secret::new(Box::from(b"moved record".as_slice()));
-    let Event::Carry { key, name, request, value } = accounts::move_in(STOP, NAME, AccountHolder::Own, file.clone())
+    let Event::Carry { key, name, request, value } = accounts::move_in(STOP, NAME, AskAccountHolder::Own, file.clone())
     else {
         panic!("move in carries once");
     };
@@ -41,8 +42,8 @@ fn move_in_carries_the_file_beside_its_digest() {
 fn key_helpers_still_carry_some_value() {
     let file = Secret::new(Box::from(b"key".as_slice()));
     for event in [
-        accounts::add_key(STOP, NAME, AccountHolder::Own, 1, None, file.clone()),
-        accounts::replace_key(STOP, NAME, AccountHolder::Own, 1, file.clone()),
+        accounts::add_key(STOP, NAME, AskAccountHolder::Own, 1, None, file.clone()),
+        accounts::replace_key(STOP, NAME, AskAccountHolder::Own, 1, file.clone()),
     ] {
         let Event::Carry { value, .. } = event else { panic!("key carries once") };
         assert_eq!(value, Some(file.clone()));

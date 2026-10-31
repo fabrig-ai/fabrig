@@ -14,7 +14,7 @@ fn carry(h: &mut Harness, attempt: Token) {
 fn posted(h: &Harness) -> Option<w::Keyed> {
     for request in &h.out {
         if let Request::Exchange { message: Message::Request(body), .. } = request {
-            let record = w::Keyed::decode(&limits().wire, &mut Reader::new(body)).expect("keyed request");
+            let record = w::Keyed::decode(limits().wire(), &mut Reader::new(body)).expect("keyed request");
             if record.key() == &CARRIED_KEY {
                 return Some(record);
             }
@@ -64,7 +64,7 @@ fn move_out(h: &mut Harness, attempt: Token) {
             attempt,
             key: CARRIED_KEY,
             ask: Ask::Jig(Box::new(c::Ask::AccountChange {
-                holder: c::AccountHolder::Own,
+                holder: c::AskAccountHolder::Own,
                 change: c::AccountChange::MoveOut { account: u32::MAX },
             })),
             value: None,
@@ -86,7 +86,7 @@ fn a_move_out_leaves_while_the_table_waits_on_a_write() {
 #[test]
 fn a_move_out_the_link_cannot_post_is_unsent() {
     let mut h = Harness::new(&limits());
-    for number in 0..limits().exchanges {
+    for number in 0..limits().exchanges() {
         h.send(Token::new(u64::from(number)), [u8::try_from(number).unwrap(); 16], fixtures::message());
     }
     move_out(&mut h, ATTEMPT);

@@ -1,6 +1,9 @@
 //! Configuration seeds project policies and first owners once (configuration.md, 3).
 
-use jig_core_world::{client_peer::ClientPeer, effects::World, store_peer::with_start_mark, world};
+use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::store_peer::with_start_mark;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_authority as authority;
 use jig_domain_core::{self as core, documents, reads};
 use jig_domain_people as people;
@@ -8,7 +11,13 @@ use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
 
 fn cold() -> World {
-    let mut world = World::first_start(world::config(11_001), world::limits());
+    let mut world = World::new(Setup {
+        configuration: Some(jig_test_profile::config(11_001)),
+        limits: jig_test_profile::limits(),
+        boot: jig_core_world::world::Boot::Empty,
+        rows: Some(Box::new([])),
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     world
 }
@@ -83,7 +92,7 @@ fn a_restart_seeds_nothing_and_keeps_the_saved_policy_and_owner() {
     let mut world = cold();
     let rows = world.store.rows.clone();
     let commits = world.commits.len();
-    let mut configuration = world::config(11_002);
+    let mut configuration = jig_test_profile::config(11_002);
     let mut policy = configuration.core.seed_projects[0].policy.policy.clone();
     policy.period_spend = 700;
     policy.ceiling.budget.spend = 700;
@@ -111,7 +120,7 @@ fn a_restart_does_not_grant_new_configured_owners() {
     let mut world = cold();
     let roles = root::Key::Core(core::Key::People(people::Key::Roles(1)));
     let expected = world.store.rows[&roles].clone();
-    let mut configuration = world::config(11_003);
+    let mut configuration = jig_test_profile::config(11_003);
     configuration.core.owners[0].identity.subject = 8_u64.to_be_bytes().into();
     world.restart_with(configuration);
     let (person, _) = sign_in(&mut world, 8);
@@ -124,11 +133,11 @@ fn two_projects(people_projects: u32) -> (root::Config, root::Limits) {
 }
 
 fn numbered_projects(people_projects: u32, second: u32) -> (root::Config, root::Limits) {
-    let mut configuration = world::config(11_020);
-    let mut limits = world::limits();
+    let mut configuration = jig_test_profile::config(11_020);
+    let mut limits = jig_test_profile::limits();
     limits.core.authority.projects = 2;
     limits.core.people.projects = people_projects;
-    // Reprice this fixture's journal for the second policy, as world::limits does.
+    // Reprice this fixture's journal for the second policy, as jig_test_profile::limits does.
     let room = limits.core.routes;
     let connectors = jig_test_connector::OUTPUTS_BOUND * 2;
     limits.journal.writes = room + connectors;
@@ -158,7 +167,13 @@ fn numbered_projects(people_projects: u32, second: u32) -> (root::Config, root::
 fn all_configured_projects_seed_together_at_or_below_people_capacity() {
     for capacity in [AT_ROSTER_BOUND, AT_ROSTER_BOUND + DEPLOYMENT_ROSTER] {
         let (configuration, limits) = two_projects(capacity);
-        let mut world = World::first_start(configuration, limits);
+        let mut world = World::new(Setup {
+            configuration: Some(configuration),
+            limits,
+            boot: jig_core_world::world::Boot::Empty,
+            rows: Some(Box::new([])),
+            ..Setup::default()
+        });
         assert!(world.domain.ready());
         assert_eq!(world.store.applied, 2, "the whole seed is one atomic decision, followed by the start's mark");
         assert_eq!(world.commits.len(), 2);
@@ -195,12 +210,12 @@ fn all_configured_projects_seed_together_at_or_below_people_capacity() {
 }
 
 fn model(name: &[u8]) -> core::Model {
-    core::Model { name: name.into(), ..world::scripted_model() }
+    core::Model { name: name.into(), ..jig_test_profile::scripted_model() }
 }
 
 /// The fixture deployment under `models`, its owner's role naming `role` of them.
 fn with_models(seed: u64, models: Box<[core::Model]>, role: authority::Models) -> root::Config {
-    let mut configuration = world::config(seed);
+    let mut configuration = jig_test_profile::config(seed);
     configuration.core.settings.models = models;
     let mut policy = configuration.core.seed_projects[0].policy.policy.clone();
     let mut roles = policy.roles.into_vec();
@@ -231,7 +246,7 @@ fn frame_models(world: &mut World, sign_in: u64) -> authority::Models {
     frame(world, sign_in).projects.as_slice()[0].models
 }
 
-const FIRST_OWNER_SUBJECT: u64 = 7; // world::config’s configured owner.
+const FIRST_OWNER_SUBJECT: u64 = 7; // jig_test_profile::config’s configured owner.
 const OTHER_SUBJECT: u64 = 8;
 const CONFIGURED_PROJECTS: u32 = 2; // two_projects seeds 1 and 2.
 const DEPLOYMENT_ROSTER: u32 = 1;
@@ -261,7 +276,13 @@ fn the_frame_and_me_list_no_project_for_the_deployments_roles() {
     configuration.core.owners = Box::new([owner.clone(), people::InitialOwner { project: 2, ..owner }]);
     limits.core.people.initial_owners = CONFIGURED_PROJECTS;
     jig_core_world::peers::journal(&mut limits);
-    let mut world = World::first_start(configuration, limits);
+    let mut world = World::new(Setup {
+        configuration: Some(configuration),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        rows: Some(Box::new([])),
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let (_, signed) = sign_in(&mut world, FIRST_OWNER_SUBJECT);
     let value = frame(&mut world, signed);
@@ -270,13 +291,19 @@ fn the_frame_and_me_list_no_project_for_the_deployments_roles() {
 
 #[test]
 fn with_no_project_configured_the_first_owner_owns_the_deployment() {
-    let mut configuration = world::config(11_030);
+    let mut configuration = jig_test_profile::config(11_030);
     configuration.core.seed_projects = Box::new([]);
     // Configuration carries a deployment bootstrap entry when there is no project.
     for owner in &mut configuration.core.owners {
         owner.project = people::DEPLOYMENT;
     }
-    let mut world = World::first_start(configuration, world::limits());
+    let mut world = World::new(Setup {
+        configuration: Some(configuration),
+        limits: jig_test_profile::limits(),
+        boot: jig_core_world::world::Boot::Empty,
+        rows: Some(Box::new([])),
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let (_, signed) = sign_in(&mut world, FIRST_OWNER_SUBJECT);
     assert_eq!(frame(&mut world, signed).deployment_role, Some(people::Role::Owner));
@@ -284,8 +311,14 @@ fn with_no_project_configured_the_first_owner_owns_the_deployment() {
 
 #[test]
 fn a_roles_models_follow_their_names_across_restarts() {
-    let named = || Box::new([world::scripted_model(), model(b"research"), model(b"review")]);
-    let mut world = World::first_start(with_models(11_004, named(), authority::Models::Named(0b101)), world::limits());
+    let named = || Box::new([jig_test_profile::scripted_model(), model(b"research"), model(b"review")]);
+    let mut world = World::new(Setup {
+        configuration: Some(with_models(11_004, named(), authority::Models::Named(0b101))),
+        limits: jig_test_profile::limits(),
+        boot: jig_core_world::world::Boot::Empty,
+        rows: Some(Box::new([])),
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let (_, signed) = sign_in(&mut world, 7);
     assert_eq!(frame_models(&mut world, signed), authority::Models::Named(0b101), "scripted and review, seeded");
@@ -295,13 +328,13 @@ fn a_roles_models_follow_their_names_across_restarts() {
         authority::Models::Named(0b101),
         "the saved role, not configuration's"
     );
-    let today = Box::new([model(b"research"), world::scripted_model()]);
+    let today = Box::new([model(b"research"), jig_test_profile::scripted_model()]);
     world.restart_with(with_models(11_006, today, authority::Models::ALL));
     assert_eq!(frame_models(&mut world, signed), authority::Models::Named(0b10), "scripted moves; review drops out");
 }
 
 fn named_edit(world: &mut World, sign_in: u64, key: u8, name: &[u8]) -> people::Reply {
-    let mut member = jig_core_world::fixtures::people_member(b"work", 1);
+    let mut member = jig_test_profile::fixtures::people_member(b"work", 1);
     member.authority.models = Some(people::Models::Named(1));
     world.send(root::Event::Core(core::Event::People(people::Event::Ask {
         reply_to: ReplyTo::new(Token::new(11_010)),
@@ -328,15 +361,26 @@ fn named_edit(world: &mut World, sign_in: u64, key: u8, name: &[u8]) -> people::
 }
 #[test]
 fn an_original_key_replays_before_model_admission_after_removal() {
-    let mut world = World::first_start(
-        with_models(11_011, Box::new([world::scripted_model(), model(b"removed")]), authority::Models::ALL),
-        world::limits(),
-    );
+    let mut world = World::new(Setup {
+        configuration: Some(with_models(
+            11_011,
+            Box::new([jig_test_profile::scripted_model(), model(b"removed")]),
+            authority::Models::ALL,
+        )),
+        limits: jig_test_profile::limits(),
+        boot: jig_core_world::world::Boot::Empty,
+        rows: Some(Box::new([])),
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let (_, sign_in) = sign_in(&mut world, 7);
     let original = named_edit(&mut world, sign_in, 80, b"removed");
     assert_eq!(original, people::Reply::Outcome(people::Outcome::PolicyChanged { project: 1 }));
-    world.restart_with(with_models(11_012, Box::new([world::scripted_model(), model(b"new")]), authority::Models::ALL));
+    world.restart_with(with_models(
+        11_012,
+        Box::new([jig_test_profile::scripted_model(), model(b"new")]),
+        authority::Models::ALL,
+    ));
     assert_eq!(named_edit(&mut world, sign_in, 80, b"removed"), original);
     assert_eq!(named_edit(&mut world, sign_in, 80, b"new"), people::Reply::Refused(people::Refusal::KeyConflict));
     assert_eq!(
@@ -367,7 +411,13 @@ fn project_names(world: &mut World, sign_in: u64) -> Vec<(u32, Box<[u8]>)> {
 #[test]
 fn a_first_start_names_each_project() {
     let (configuration, limits) = named_projects();
-    let mut world = World::first_start(configuration, limits);
+    let mut world = World::new(Setup {
+        configuration: Some(configuration),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        rows: Some(Box::new([])),
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let (_, signed) = sign_in(&mut world, FIRST_OWNER_SUBJECT);
     assert_eq!(project_names(&mut world, signed), [(1, Box::from(&b"Tally"[..])), (2, Box::from(&b"Project 2"[..]))]);
@@ -376,7 +426,13 @@ fn a_first_start_names_each_project() {
 #[test]
 fn a_restart_keeps_each_projects_name() {
     let (configuration, limits) = named_projects();
-    let mut world = World::first_start(configuration, limits);
+    let mut world = World::new(Setup {
+        configuration: Some(configuration),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        rows: Some(Box::new([])),
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let (mut changed, _) = named_projects();
     // Even swapped configured names cannot collide with the names being restored.
@@ -391,7 +447,13 @@ const LAST_SEEDED_PROJECT: u32 = 5;
 
 fn sparse_projects() -> World {
     let (config, limits) = numbered_projects(AT_ROSTER_BOUND, LAST_SEEDED_PROJECT);
-    World::first_start(config, limits)
+    World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        rows: Some(Box::new([])),
+        ..Setup::default()
+    })
 }
 fn projects_mark(world: &World) -> u64 {
     let key = root::Key::Core(core::Key::Core(core::CoreKey::Deployment));
@@ -416,9 +478,15 @@ fn a_restart_keeps_the_projects_mark_in_later_commits() {
 }
 #[test]
 fn a_first_start_without_projects_keeps_the_mark_zero() {
-    let mut config = world::config(11_040);
+    let mut config = jig_test_profile::config(11_040);
     config.core.seed_projects = Box::new([]);
-    let world = World::first_start(config, world::limits());
+    let world = World::new(Setup {
+        configuration: Some(config),
+        limits: jig_test_profile::limits(),
+        boot: jig_core_world::world::Boot::Empty,
+        rows: Some(Box::new([])),
+        ..Setup::default()
+    });
     assert_eq!(projects_mark(&world), 0);
 }
 
@@ -426,7 +494,13 @@ fn a_first_start_without_projects_keeps_the_mark_zero() {
 fn a_restart_restores_a_project_whose_policy_configuration_no_longer_names() {
     const REMOVED_PROJECT: u32 = 2;
     let (configuration, limits) = named_projects();
-    let mut world = World::first_start(configuration, limits);
+    let mut world = World::new(Setup {
+        configuration: Some(configuration),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        rows: Some(Box::new([])),
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     world.send(root::Event::Core(core::Event::Period { project: REMOVED_PROJECT, period: 1, budget: 700, next: None }));
     let (mut changed, _) = named_projects();
@@ -462,7 +536,13 @@ fn a_project_configured_after_the_first_start_is_not_seeded() {
     let (mut configuration, limits) = named_projects();
     configuration.core.seed_projects =
         configuration.core.seed_projects.into_vec().into_iter().filter(|project| project.number == 1).collect();
-    let mut world = World::first_start(configuration, limits);
+    let mut world = World::new(Setup {
+        configuration: Some(configuration),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        rows: Some(Box::new([])),
+        ..Setup::default()
+    });
     world.client_peer = Some(ClientPeer::default());
     let rows = world.store.rows.clone();
     let (mut changed, _) = named_projects();

@@ -14,27 +14,32 @@
 //! | loading | missing transport range | retired | held gone |
 //! | retired | late duplicate terminal | retired | nothing |
 
+pub(crate) mod activity;
+mod answers;
+pub mod ended;
+pub mod forget;
+pub mod indexed;
+pub(crate) mod indexes;
+mod rows;
 pub mod settings;
-pub use settings::{SettingsAnswer, SettingsRead};
+mod turn;
 mod vocabulary;
+pub(crate) mod watches;
+
+pub use rows::row_key;
+pub use settings::{SettingsAnswer, SettingsRead};
 pub use vocabulary::{
-    Answer, Cursor, EndedGroup, Filter, Group, Historical, Loaded, Page, PageRow, PageTurn, Past, Position, Range,
+    Answer, Cursor, Ended, EndedGroup, EndedValue, Filter, Group, Loaded, Page, PageRow, PageTurn, Position, Range,
     Read, RevisionAnswer, RevisionEdit, RevisionItemHead, RevisionRow, RevisionsPage, Row, Scope, SettingDocument,
     TaskPage, TurnFailure, UnjoinedTurn, Why,
 };
-pub(crate) mod activity;
-mod answers;
-mod watches;
 pub(crate) use watches::start_watch;
 use watches::watch_loaded;
-pub mod ended;
-pub mod indexed;
-mod rows;
-mod turn;
-pub use rows::row_key;
 
-use crate::documents::{self, DocumentClock, Missing, Subject, Window};
-use crate::{Core, Held, Limits, Request, Requests};
+use crate::{
+    Core, Held, Limits, Request,
+    documents::{self, DocumentClock, Missing, Subject, Window},
+};
 use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_lib::{Env, Id, List, Queue, ReplyTo, Token};
@@ -140,11 +145,10 @@ impl Pending {
     }
 }
 
-fn terminal(reply: ReplyTo, answer: Answer) -> Requests {
+fn terminal(reply: ReplyTo, answer: Answer) -> Queue<Request> {
     let mut out = Queue::uncapped();
     out.push(Request::Held(Box::new(Held::Read { reply, answer })));
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 pub(crate) fn scope(read: &Read) -> Option<Scope> {
@@ -262,14 +266,13 @@ fn backwards(scope: &Scope) -> bool {
     }
 }
 
-fn refused_application(reply: ReplyTo, read: &Read, why: Why) -> Requests {
+fn refused_application(reply: ReplyTo, read: &Read, why: Why) -> Queue<Request> {
     match read {
         Read::Application { connector, read, .. } => {
             let mut out = Queue::uncapped();
             out.push(Request::Ask { connector: *connector, ask: crate::Ask::DropDocument { subject: *read } });
             out.push(Request::Held(Box::new(Held::Read { reply, answer: Answer::None(why) })));
-            out.push(Request::Decided);
-            Requests::Out(out)
+            out
         }
         Read::Frame
         | Read::Task { .. }
@@ -297,7 +300,7 @@ fn refused_application(reply: ReplyTo, read: &Read, why: Why) -> Requests {
     }
 }
 
-pub(crate) fn start(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in: u64, read: Read) -> Requests {
+pub(crate) fn start(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in: u64, read: Read) -> Queue<Request> {
     let Some(party) = core.people.person(sign_in, env.now, env.wall) else {
         let why = if core.people.ready() { Why::SignedOut } else { Why::Unknown };
         return refused_application(reply, &read, why);
@@ -321,8 +324,7 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in:
                 connector: *connector,
                 ask: crate::Ask::Read { reply, scope: *scope, read: *name, party, window: *window },
             });
-            out.push(Request::Decided);
-            return Requests::Out(out);
+            return out;
         }
         Read::Frame
         | Read::Task { .. }
@@ -385,9 +387,7 @@ fn bounded_query(read: &Read, limits: &Limits) -> bool {
         Read::ScopedNotes { scope, description, .. } => {
             jig_domain_notes::valid_scope(scope, &limits.notes)
                 && match description {
-                    Some(query) => {
-                        query.len() <= usize::try_from(limits.notes.description_bytes).expect("description bound fits")
-                    }
+                    Some(query) => query.len() <= skein_lib::length::usize_of(limits.notes.description_bytes),
                     None => true,
                 }
         }
@@ -455,7 +455,14 @@ fn read_start(read: &Read, party: u64) -> Option<ReadStart> {
     Some(ReadStart { after_live, after_store, stored })
 }
 
-fn start_jig(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in: u64, party: u64, read: Read) -> Requests {
+fn start_jig(
+    core: &mut Core,
+    env: &Env<Limits>,
+    reply: ReplyTo,
+    sign_in: u64,
+    party: u64,
+    read: Read,
+) -> Queue<Request> {
     if !bounded_query(&read, &env.limits) {
         return terminal(reply, Answer::None(Why::Busy));
     }
@@ -536,21 +543,20 @@ fn start_jig(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in: u64, p
     };
     let mut out = Queue::uncapped();
     out.push(Request::Held(Box::new(Held::ReadLoad { load, range: Box::new(emitted) })));
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
-pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: Loaded) -> Requests {
+pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: Loaded) -> Queue<Request> {
     let name = Id::<Pending>::from_token(load);
     let Some(pending) = core.reads.get(name) else {
-        return Requests::Out(Queue::uncapped());
+        return Queue::uncapped();
     };
     match &pending.destination {
         Destination::Watch(watcher) => return watch_loaded(core, env, name, *watcher, result),
         Destination::Settings { .. } => return settings::run_loaded(core, env, name, result),
-        Destination::Erase => return crate::erase::loaded(core, env, load, result),
+        Destination::Erase => return crate::routing::task::erase::loaded(core, env, load, result),
         Destination::Read(_) => {}
-        Destination::Done => return Requests::Out(Queue::uncapped()),
+        Destination::Done => return Queue::uncapped(),
     }
     let answer = if core.people.person(pending.sign_in, env.now, env.wall) != Some(pending.party) {
         Answer::None(Why::SignedOut)
@@ -584,7 +590,6 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: Lo
     terminal(reply, answer)
 }
 
-#[expect(clippy::manual_map, reason = "step code matches the optional live continuation")]
 fn task_live(
     core: &Core,
     env: &Env<Limits>,
@@ -648,7 +653,7 @@ pub(crate) fn query_bound(limits: &Limits) -> Option<u64> {
         .checked_add(u64::from(limits.notes.description_bytes))
 }
 
-pub(super) fn load_settings(core: &mut Core, env: &Env<Limits>, pending: Pending) -> Requests {
+pub(super) fn load_settings(core: &mut Core, env: &Env<Limits>, pending: Pending) -> Queue<Request> {
     if core.reads.len() >= env.limits.load_slots {
         return settings::answer(pending.destination, Answer::None(Why::Busy));
     }
@@ -659,8 +664,7 @@ pub(super) fn load_settings(core: &mut Core, env: &Env<Limits>, pending: Pending
     };
     let mut out = Queue::uncapped();
     out.push(Request::Held(Box::new(Held::ReadLoad { load, range: Box::new(emitted) })));
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 /// Internal erasure loads are independent of client authentication and admission.

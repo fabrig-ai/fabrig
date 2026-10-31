@@ -1,8 +1,7 @@
-use jig_core_world::{
-    effects::Cut,
-    reads::{ask, latest},
-    stories::reads::world,
-};
+use crate::read_support::world;
+use jig_core_world::reads::ask;
+use jig_core_world::reads::latest;
+use jig_core_world::world::Cut;
 use jig_domain_core::{self as core, reads};
 use jig_domain_people as people;
 use jig_test_domain as root;
@@ -46,7 +45,7 @@ fn seeded_reads_wait_for_prior_commits_and_keep_receipts_across_restart_cuts() {
             ask(
                 &mut world,
                 QUERY_READ,
-                reads::Read::Tasks { query: jig_core_world::fixtures::OWN_TASKS, live: None, ended: None },
+                reads::Read::Tasks { query: jig_test_profile::fixtures::OWN_TASKS, live: None, ended: None },
             );
             assert_eq!(jig_core_world::fixtures::query_numbers(&world), [task]);
             assert_eq!(world.reads.as_ref().expect("party").receipts.len(), observed + 3);

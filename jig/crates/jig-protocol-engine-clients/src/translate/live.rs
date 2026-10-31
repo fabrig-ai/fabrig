@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code matches optional owner facts without closures")]
 //! Whole live document facts (protocol/client.md, 3 and 7).
 use super::{chips, pieces, task, w};
 use alloc::boxed::Box;
@@ -126,10 +125,10 @@ pub fn count(value: d::Count, limits: &w::Limits) -> Result<w::Count, w::Problem
     };
     w::Count::new(limits, w::CountParts { value: number, limited })
 }
-pub fn phases(value: d::PhaseCounts, limits: &w::Limits) -> Result<w::OwnerPhaseCounts, w::Problem> {
-    w::OwnerPhaseCounts::new(
+pub fn phases(value: d::PhaseCounts, limits: &w::Limits) -> Result<w::PhaseCounts, w::Problem> {
+    w::PhaseCounts::new(
         limits,
-        w::OwnerPhaseCountsParts {
+        w::PhaseCountsParts {
             waiting: value.waiting,
             idle: value.idle,
             starting: value.starting,
@@ -144,7 +143,7 @@ pub fn phases(value: d::PhaseCounts, limits: &w::Limits) -> Result<w::OwnerPhase
     )
 }
 
-pub fn tree_row(value: &d::TreeRow, limits: &w::Limits) -> Result<w::OwnerTreeRow, w::Problem> {
+pub fn tree_row(value: &d::TreeRow, limits: &w::Limits) -> Result<w::TreeRow, w::Problem> {
     let mut proposals = List::with_capacity(value.proposals.len());
     for row in &value.proposals {
         proposals.push(task::proposal(row, limits)?).expect("supplied proposals fit");
@@ -153,11 +152,10 @@ pub fn tree_row(value: &d::TreeRow, limits: &w::Limits) -> Result<w::OwnerTreeRo
     for row in &value.dependencies {
         dependencies.push(task::link(row, limits)?).expect("supplied dependencies fit");
     }
-    let dependencies =
-        task::links_pieces(&dependencies, limits.owner_tree_row_dependencies, w::Path::OwnerTreeRowDependencies)?;
-    w::OwnerTreeRow::new(
+    let dependencies = task::links_pieces(&dependencies, limits.tree_row_dependencies, w::Path::TreeRowDependencies)?;
+    w::TreeRow::new(
         limits,
-        w::OwnerTreeRowParts {
+        w::TreeRowParts {
             chip: chips::chip(&value.chip, limits)?,
             parent: value.parent,
             depth: value.depth,
@@ -168,18 +166,18 @@ pub fn tree_row(value: &d::TreeRow, limits: &w::Limits) -> Result<w::OwnerTreeRo
         },
     )
 }
-pub fn tree(value: &d::Tree, next: Option<w::Cursor>, limits: &w::Limits) -> Result<w::OwnerTree, w::Problem> {
+pub fn tree(value: &d::Tree, next: Option<w::Cursor>, limits: &w::Limits) -> Result<w::Tree, w::Problem> {
     let mut rows = List::with_capacity(value.rows.len());
     for row in &value.rows {
         rows.push(tree_row(row, limits)?).expect("supplied rows fit");
     }
-    let rows = tree_pieces(&rows, limits.owner_tree_rows, w::Path::OwnerTreeRows)?;
+    let rows = tree_pieces(&rows, limits.tree_rows, w::Path::TreeRows)?;
     let mut folded = List::with_capacity(value.folded.len());
     for row in &value.folded {
         folded
-            .push(w::OwnerTreeFold::new(
+            .push(w::TreeFold::new(
                 limits,
-                w::OwnerTreeFoldParts {
+                w::TreeFoldParts {
                     parent: row.parent,
                     phases: phases(row.phases, limits)?,
                     held_below: row.held_below,
@@ -187,16 +185,16 @@ pub fn tree(value: &d::Tree, next: Option<w::Cursor>, limits: &w::Limits) -> Res
             )?)
             .expect("supplied folds fit");
     }
-    w::OwnerTree::new(
+    w::Tree::new(
         limits,
-        w::OwnerTreeParts { root: chips::chip(&value.root, limits)?, rows, folded, held_below: value.held_below, next },
+        w::TreeParts { root: chips::chip(&value.root, limits)?, rows, folded, held_below: value.held_below, next },
     )
 }
 
-fn tree_pieces(rows: &List<w::OwnerTreeRow>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+fn tree_pieces(rows: &List<w::TreeRow>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits usize"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         match row.encode(&mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),

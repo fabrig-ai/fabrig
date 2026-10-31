@@ -7,13 +7,13 @@
 use super::fixtures;
 use crate::{End, Stop, store};
 use alloc::collections::BTreeMap;
-use jig_protocol_store::{codec, component_v2, keys};
+use jig_protocol_store::{codec, keys};
 use skein_io::{
     file,
     file_layer::{self, FileIo},
     kernel::Complete,
 };
-use skein_lib::{Duration, Env, Queue, Token, Writer};
+use skein_lib::{Duration, Env, Queue, Token};
 use skein_shell::{Clock, Config, Kernel, Wait};
 use skein_world::{Deadline, Expired};
 use std::{
@@ -23,7 +23,7 @@ use std::{
 };
 
 // Use skein-kv itself to frame, write and sync the planted rows, as the restart
-// fixtures do. The old component family is retained by jig for this purpose.
+// fixtures do.
 fn plant(directory: &Path, ops: Box<[skein_kv::Op]>) {
     let (_, _, profile) = fixtures::store_limits();
     let limits = profile.store;
@@ -143,21 +143,10 @@ fn pre_settings_refusals_leave_the_whole_directory_unchanged() {
     let (root, core, profile) = fixtures::store_limits();
     let limits = store::limits(&root, &root.forge, &profile).unwrap();
     let deployment = fixtures::seeds().deployment;
-    let old = component_v2::Format::new(
-        &component_v2::CEILINGS,
-        component_v2::FormatParts {
-            component: 2,
-            core: 6,
-            tasks: 9,
-            people: 14,
-            notes: 1,
-            accounts: 2,
-            application: temper_protocol_store::STORE_VERSION,
-            deployment,
-        },
-    );
-    let mut bytes = Writer::new(usize::try_from(old.measure()).unwrap());
-    old.encode(&mut bytes).unwrap();
+    // The refused format's version and six family fields, then application and deployment.
+    let mut bytes = Vec::from([0, 2, 0, 2, 0, 6, 0, 9, 0, 14, 0, 1, 0, 2]);
+    bytes.extend_from_slice(&temper_protocol_store::STORE_VERSION.to_be_bytes());
+    bytes.extend_from_slice(&deployment);
     let header = jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(jig_domain_core::Deployment {
         id: deployment,
         projects: 0,
@@ -176,7 +165,7 @@ fn pre_settings_refusals_leave_the_whole_directory_unchanged() {
         Box::new([
             skein_kv::Op::Put {
                 key: keys::encode_own(&keys::Own::Format, limits.store.key).unwrap(),
-                value: bytes.finish(),
+                value: bytes.into_boxed_slice(),
             },
             skein_kv::Op::Put {
                 key: keys::encode(&header.key(), limits.store.key).unwrap(),

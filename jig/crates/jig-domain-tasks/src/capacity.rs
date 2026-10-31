@@ -55,7 +55,6 @@ pub struct Capacity {
 impl Capacity {
     /// Describe a whole refused atomic batch without retaining its specifications.
     #[must_use]
-    #[expect(clippy::manual_map, reason = "step code has no closures (programming-model.md, section 10)")]
     pub fn batch(by: Party, batch: &[New], task: Option<u64>, cause: CapacityCause) -> Self {
         let mut project = None;
         if let Some(first) = batch.first() {

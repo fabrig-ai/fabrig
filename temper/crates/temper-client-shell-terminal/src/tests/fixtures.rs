@@ -72,7 +72,7 @@ pub fn role_refusal() -> contract::Refusal {
 }
 pub fn core_refusal() -> Box<[u8]> {
     use jig_client_protocol_wire as w;
-    let limits = link_limits().wire;
+    let limits = *link_limits().wire();
     let value = w::Refusal::Role(w::RefusalRole::new(&limits, w::RefusalRoleParts { held: None }).expect("role fits"));
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measure fits"));
     value.encode(&mut writer).expect("measured room");
@@ -244,7 +244,7 @@ fn populate_page(
     address: &temper_client_domain::Address,
     out: &mut skein_lib::Queue<client::Request>,
 ) {
-    use jig_client::contract::{Delivery, ReadResult, Subject, WatchEvent};
+    use contract::{Delivery, ReadResult, Subject, WatchEvent};
     use temper_client_domain::{Event, Request};
     for _ in 0..128 {
         let Some(request) = out.pop() else {
@@ -351,7 +351,7 @@ pub fn page_words() -> temper_client_view::words::Words {
 }
 
 pub fn inbox_document(group: contract::InboxReadGroup) -> contract::InboxPage {
-    use contract::{InboxEntry, InboxGroup, ObjectKey};
+    use contract::{InboxGroup, ObjectKey};
     let mut rows = skein_lib::List::with_capacity(6);
     for (kind, object) in [
         (InboxGroup::Questions, ObjectKey::Question { task: 9, message: 1 }),
@@ -365,22 +365,11 @@ pub fn inbox_document(group: contract::InboxReadGroup) -> contract::InboxPage {
         (InboxGroup::Replies, ObjectKey::Task(10)),
     ] {
         if contract::InboxReadGroup::of(kind) == group {
-            rows.push(InboxEntry {
-                reply: None,
-                lineage: skein_lib::List::with_capacity(0),
-                goal: None,
-                recipient: None,
-                stall: None,
-                object,
-                project: 1,
-                group: kind,
-                position: 1,
-                at: skein_lib::Wall::EPOCH,
-            })
-            .expect("six inbox groups");
+            rows.push(crate::tests::documents::entry(object, 1, 1, skein_lib::Wall::EPOCH, None))
+                .expect("six inbox groups");
         }
     }
-    contract::InboxPage { cut: false, rows, before: None, after: None }
+    contract::InboxPage { cut: false, rows, before: None, after: None, selection: None }
 }
 pub fn inbox_page() -> skein_ui::Tree {
     use skein_ui::{Role, Run};
@@ -742,15 +731,16 @@ fn read_value(what: &contract::Read) -> Option<contract::ReadValue> {
 }
 fn activity_document() -> contract::ActivityPage {
     let mut rows = skein_lib::List::with_capacity(1);
-    rows.push(contract::ActivityLine {
-        position: 1,
-        at: skein_lib::Wall::EPOCH,
-        event: contract::Activity::Words {
-            by: jig_client_world::stories::party(1),
+    rows.push(crate::tests::documents::line(
+        1,
+        skein_lib::Wall::EPOCH,
+        contract::Activity::Words {
             message: 1,
+            by: contract::Requester::Person((jig_client_world::stories::party(1)).number),
+            kind: contract::MessageKind::Words,
             words: jig_client_world::stories::text(b"A fixture conversation"),
         },
-    })
+    ))
     .expect("one conversation entry");
     contract::ActivityPage { cut: false, rows, before: None, after: None }
 }
@@ -771,7 +761,7 @@ pub fn native() -> crate::client::NativeClient {
 }
 pub fn service_answer() -> Box<[u8]> {
     use jig_client_protocol_wire as w;
-    let limits = link_limits().wire;
+    let limits = *link_limits().wire();
     let service = w::MadeService::new(&limits, w::MadeServiceParts { party: SERVICE, credential: credential() })
         .expect("service fits");
     let made =

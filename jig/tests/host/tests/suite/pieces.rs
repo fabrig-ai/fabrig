@@ -130,8 +130,8 @@ fn each_asked_kind_passes_with_all_fields_whole_while_waiting() {
 fn a_piece_at_the_byte_bound_passes_and_one_byte_more_is_fenced() {
     for limit in [0, 16] {
         let mut world = world(2, limit, TEXT);
-        world.piece(text(1, 1, 0, &vec![b'x'; usize::try_from(limit + 1).expect("tiny bound")]));
-        let exact = text(1, 2, 0, &vec![b'x'; usize::try_from(limit).expect("tiny bound")]);
+        world.piece(text(1, 1, 0, &vec![b'x'; skein_lib::length::usize_of(limit + 1)]));
+        let exact = text(1, 2, 0, &vec![b'x'; skein_lib::length::usize_of(limit)]);
         world.piece(exact.clone());
         assert_eq!(pieces(&world), [expected(exact)]);
         assert_eq!(world.piece_counts(), (1, 0));
@@ -148,7 +148,7 @@ fn pieces_stop_at_half_the_queue_and_leave_room_for_a_phase_change() {
         let room = capacity / 2;
         for offset in 0..room {
             if activity_first {
-                world.activity(jig_domain_host::Activity::LongDone);
+                world.activity(jig_domain_host::AgentActivity::LongDone);
             } else {
                 world.piece(text(1, 1, u64::from(offset), b"x"));
             }
@@ -165,7 +165,7 @@ fn pieces_stop_at_half_the_queue_and_leave_room_for_a_phase_change() {
         };
         assert_eq!(pieces(&world), expected);
         assert!(matches!(world.reports.last(), Some(LinkUp::Activity {
-            run, attempt, activity: jig_domain_host::Activity::Phase(Phase::Waiting),
+            run, attempt, activity: jig_domain_host::AgentActivity::Phase(Phase::Waiting),
         }) if (*run, *attempt) == (Token::new(31), Token::new(932))));
         finish(&mut world, 0);
         assert_eq!(world.piece_counts(), (0, 1));

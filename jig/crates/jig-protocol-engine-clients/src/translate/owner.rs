@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code matches optional owner facts without closures")]
 //! Whole owner facts encoded without clipping (protocol/client.md, 3).
 use super::{pieces, problem, w};
 use alloc::boxed::Box;
@@ -33,10 +32,10 @@ pub fn funder(value: t::Funder, limits: &w::Limits) -> Result<w::Funder, w::Prob
         }
     })
 }
-pub fn numbers(value: t::Numbers, limits: &w::Limits) -> Result<w::OwnerNumbers, w::Problem> {
-    w::OwnerNumbers::new(
+pub fn numbers(value: t::Numbers, limits: &w::Limits) -> Result<w::Numbers, w::Problem> {
+    w::Numbers::new(
         limits,
-        w::OwnerNumbersParts {
+        w::NumbersParts {
             budget: value.budget,
             spent: value.spent,
             spent_below: value.spent_below,
@@ -44,10 +43,10 @@ pub fn numbers(value: t::Numbers, limits: &w::Limits) -> Result<w::OwnerNumbers,
         },
     )
 }
-pub fn budget(value: &d::BudgetLine, limits: &w::Limits) -> Result<w::OwnerBudget, w::Problem> {
-    w::OwnerBudget::new(
+pub fn budget(value: &d::BudgetLine, limits: &w::Limits) -> Result<w::Budget, w::Problem> {
+    w::Budget::new(
         limits,
-        w::OwnerBudgetParts {
+        w::BudgetParts {
             numbers: numbers(value.numbers, limits)?,
             left: value.left,
             funder: funder(value.funder, limits)?,
@@ -81,34 +80,31 @@ pub fn ledger(value: &d::Ledger, limits: &w::Limits) -> Result<w::PoolLedger, w:
         },
     )
 }
-pub fn executor(value: t::Executor, limits: &w::Limits) -> Result<w::OwnerExecutor, w::Problem> {
+pub fn executor(value: t::Executor, limits: &w::Limits) -> Result<w::Executor, w::Problem> {
     Ok(match value {
         t::Executor::Agent { charter } => {
-            w::OwnerExecutor::Agent(w::OwnerExecutorAgent::new(limits, w::OwnerExecutorAgentParts { charter })?)
+            w::Executor::Agent(w::ExecutorAgent::new(limits, w::ExecutorAgentParts { charter })?)
         }
-        t::Executor::Procedure { connector, code } => w::OwnerExecutor::Procedure(w::OwnerExecutorProcedure::new(
+        t::Executor::Procedure { connector, code } => {
+            w::Executor::Procedure(w::ExecutorProcedure::new(limits, w::ExecutorProcedureParts { connector, code })?)
+        }
+        t::Executor::Person(address) => w::Executor::Person(w::ExecutorPerson::new(
             limits,
-            w::OwnerExecutorProcedureParts { connector, code },
-        )?),
-        t::Executor::Person(address) => w::OwnerExecutor::Person(w::OwnerExecutorPerson::new(
-            limits,
-            w::OwnerExecutorPersonParts { value: super::chips::address(address, limits)? },
+            w::ExecutorPersonParts { value: super::chips::address(address, limits)? },
         )?),
     })
 }
-pub fn requester(value: t::Party, limits: &w::Limits) -> Result<w::OwnerRequester, w::Problem> {
+pub fn requester(value: t::Party, limits: &w::Limits) -> Result<w::Requester, w::Problem> {
     Ok(match value {
         t::Party::Task(number) => {
-            w::OwnerRequester::Task(w::OwnerRequesterTask::new(limits, w::OwnerRequesterTaskParts { value: number })?)
+            w::Requester::Task(w::RequesterTask::new(limits, w::RequesterTaskParts { value: number })?)
         }
-        t::Party::Person(number) => w::OwnerRequester::Person(w::OwnerRequesterPerson::new(
-            limits,
-            w::OwnerRequesterPersonParts { value: number },
-        )?),
-        t::Party::Deployment { project } => w::OwnerRequester::Deployment(w::OwnerRequesterDeployment::new(
-            limits,
-            w::OwnerRequesterDeploymentParts { project },
-        )?),
+        t::Party::Person(number) => {
+            w::Requester::Person(w::RequesterPerson::new(limits, w::RequesterPersonParts { value: number })?)
+        }
+        t::Party::Deployment { project } => {
+            w::Requester::Deployment(w::RequesterDeployment::new(limits, w::RequesterDeploymentParts { project })?)
+        }
     })
 }
 pub fn wake_rule(value: t::WakeRule, limits: &w::Limits) -> Result<w::WakeRule, w::Problem> {
@@ -120,10 +116,10 @@ pub fn wake_rule(value: t::WakeRule, limits: &w::Limits) -> Result<w::WakeRule, 
         }
     })
 }
-pub fn wake(value: t::WakePolicy, limits: &w::Limits) -> Result<w::OwnerWakePolicy, w::Problem> {
-    w::OwnerWakePolicy::new(
+pub fn wake(value: t::WakePolicy, limits: &w::Limits) -> Result<w::WakePolicy, w::Problem> {
+    w::WakePolicy::new(
         limits,
-        w::OwnerWakePolicyParts {
+        w::WakePolicyParts {
             words: wake_rule(value.words, limits)?,
             notices: wake_rule(value.notices, limits)?,
             news: wake_rule(value.news, limits)?,
@@ -213,52 +209,45 @@ pub fn frame(value: &d::Frame, models: &[crate::Model], limits: &w::Limits) -> R
     )
 }
 
-pub fn part_kind(value: t::PartKind, _limits: &w::Limits) -> Result<w::OwnerPartKind, w::Problem> {
+pub fn part_kind(value: t::PartKind) -> Result<w::PartKind, w::Problem> {
     Ok(match value {
-        t::PartKind::Resource => w::OwnerPartKind::Resource,
-        t::PartKind::Pool => w::OwnerPartKind::Pool,
-        t::PartKind::Result => w::OwnerPartKind::Result,
-        t::PartKind::Procedure => w::OwnerPartKind::Procedure,
-        t::PartKind::Effect => w::OwnerPartKind::Effect,
-        t::PartKind::Outbox => w::OwnerPartKind::Outbox,
-        t::PartKind::Hold => w::OwnerPartKind::Hold,
+        t::PartKind::Resource => w::PartKind::Resource,
+        t::PartKind::Pool => w::PartKind::Pool,
+        t::PartKind::Result => w::PartKind::Result,
+        t::PartKind::Procedure => w::PartKind::Procedure,
+        t::PartKind::Effect => w::PartKind::Effect,
+        t::PartKind::Outbox => w::PartKind::Outbox,
+        t::PartKind::Hold => w::PartKind::Hold,
     })
 }
-pub fn part(value: &t::Part, limits: &w::Limits) -> Result<w::OwnerPart, w::Problem> {
+pub fn part(value: &t::Part, limits: &w::Limits) -> Result<w::Part, w::Problem> {
     let key = match &value.key {
         t::PartKey::Number(number) => {
-            w::OwnerPartKey::Number(w::OwnerPartKeyNumber::new(limits, w::OwnerPartKeyNumberParts { value: *number })?)
+            w::PartKey::Number(w::PartKeyNumber::new(limits, w::PartKeyNumberParts { value: *number })?)
         }
         t::PartKey::Path(value) => {
-            w::OwnerPartKey::Path(w::OwnerPartKeyPath::new(limits, w::OwnerPartKeyPathParts { value: value.clone() })?)
+            w::PartKey::Path(w::PartKeyPath::new(limits, w::PartKeyPathParts { value: value.clone() })?)
         }
     };
-    w::OwnerPart::new(
-        limits,
-        w::OwnerPartParts { connector: value.connector, kind: part_kind(value.kind, limits)?, key },
-    )
+    w::Part::new(limits, w::PartParts { connector: value.connector, kind: part_kind(value.kind)?, key })
 }
-pub fn pattern(
-    segments: &List<Box<[u8]>>,
-    last: &d::PatternEnd,
-    limits: &w::Limits,
-) -> Result<w::OwnerPattern, w::Problem> {
+pub fn pattern(segments: &List<Box<[u8]>>, last: &d::PatternEnd, limits: &w::Limits) -> Result<w::Pattern, w::Problem> {
     let last = match last {
-        d::PatternEnd::Exact(value) => w::OwnerPatternEnd::Exact(w::OwnerPatternEndExact::new(
+        d::PatternEnd::Exact(value) => w::PatternEnd::Exact(w::PatternEndExact::new(
             limits,
-            w::OwnerPatternEndExactParts { value: bytes::copy_of(value) },
+            w::PatternEndExactParts { value: bytes::copy_of(value) },
         )?),
-        d::PatternEnd::Open(value) => w::OwnerPatternEnd::Open(w::OwnerPatternEndOpen::new(
+        d::PatternEnd::Open(value) => w::PatternEnd::Open(w::PatternEndOpen::new(
             limits,
-            w::OwnerPatternEndOpenParts { value: bytes::copy_of(value) },
+            w::PatternEndOpenParts { value: bytes::copy_of(value) },
         )?),
     };
-    w::OwnerPattern::new(limits, w::OwnerPatternParts { segments: segments.clone(), last })
+    w::Pattern::new(limits, w::PatternParts { segments: segments.clone(), last })
 }
-pub fn grant(value: &d::GrantLine, limits: &w::Limits) -> Result<w::OwnerGrant, w::Problem> {
-    w::OwnerGrant::new(
+pub fn grant(value: &d::GrantLine, limits: &w::Limits) -> Result<w::Grant, w::Problem> {
+    w::Grant::new(
         limits,
-        w::OwnerGrantParts {
+        w::GrantParts {
             connector: value.connector,
             kind: value.kind,
             pattern: pattern(&value.segments, &value.last, limits)?,
@@ -269,22 +258,19 @@ pub fn authority(
     models: &[crate::Model],
     value: &d::AuthorityLine,
     limits: &w::Limits,
-) -> Result<w::OwnerAuthorityDocument, w::Problem> {
+) -> Result<w::AuthorityDocument, w::Problem> {
     let mut grants = List::with_capacity(value.grants.len());
     for item in &value.grants {
         grants.push(grant(item, limits)?).expect("supplied grants");
     }
-    let grants = grants_pieces(
-        &grants,
-        limits.owner_authority_grants.min(w::CEILINGS.owner_authority_grants),
-        w::Path::OwnerAuthorityGrants,
-    )?;
+    let grants =
+        grants_pieces(&grants, limits.authority_grants.min(w::CEILINGS.authority_grants), w::Path::AuthorityGrants)?;
     let mut scopes = List::with_capacity(value.note_resources.len());
     for item in &value.note_resources {
         scopes
-            .push(w::OwnerResourceScope::new(
+            .push(w::ResourceScope::new(
                 limits,
-                w::OwnerResourceScopeParts {
+                w::ResourceScopeParts {
                     connector: item.connector,
                     pattern: pattern(&item.segments, &item.last, limits)?,
                 },
@@ -293,20 +279,20 @@ pub fn authority(
     }
     let note_resources = scopes_pieces(
         &scopes,
-        limits.owner_authority_note_resources.min(w::CEILINGS.owner_authority_note_resources),
-        w::Path::OwnerAuthorityNoteResources,
+        limits.authority_note_resources.min(w::CEILINGS.authority_note_resources),
+        w::Path::AuthorityNoteResources,
     )?;
     let mut kinds = List::with_capacity(value.executors.capacity());
     for item in &value.executors {
         kinds.push(authority_executor(*item, limits)?).expect("supplied executors");
     }
-    w::OwnerAuthorityDocument::new(
+    w::AuthorityDocument::new(
         limits,
-        w::OwnerAuthorityDocumentParts {
+        w::AuthorityDocumentParts {
             cut: false,
-            authority: w::OwnerAuthority::new(
+            authority: w::Authority::new(
                 limits,
-                w::OwnerAuthorityParts {
+                w::AuthorityParts {
                     models: super::llm::authority(
                         jig_domain_authority::Models::from_parts(value.models.bits(), value.models.is_all()),
                         models,
@@ -314,9 +300,9 @@ pub fn authority(
                     )?,
                     tools: value.tools.0,
                     grants,
-                    delegation: w::OwnerDelegation::new(
+                    delegation: w::Delegation::new(
                         limits,
-                        w::OwnerDelegationParts { kinds, tasks: value.tasks, depth: value.depth },
+                        w::DelegationParts { kinds, tasks: value.tasks, depth: value.depth },
                     )?,
                     spend: value.ceiling.spend,
                     deadline: match value.ceiling.deadline {
@@ -331,27 +317,26 @@ pub fn authority(
     )
 }
 
-pub fn authority_executor(
-    value: t::AuthorityExecutor,
-    limits: &w::Limits,
-) -> Result<w::OwnerAuthorityExecutor, w::Problem> {
+pub fn authority_executor(value: t::AuthorityExecutor, limits: &w::Limits) -> Result<w::AuthorityExecutor, w::Problem> {
     Ok(match value {
-        t::AuthorityExecutor::Charter(number) => w::OwnerAuthorityExecutor::Charter(
-            w::OwnerAuthorityExecutorCharter::new(limits, w::OwnerAuthorityExecutorCharterParts { value: number })?,
-        ),
-        t::AuthorityExecutor::Procedure(number) => w::OwnerAuthorityExecutor::Procedure(
-            w::OwnerAuthorityExecutorProcedure::new(limits, w::OwnerAuthorityExecutorProcedureParts { value: number })?,
-        ),
-        t::AuthorityExecutor::Role(number) => w::OwnerAuthorityExecutor::Role(w::OwnerAuthorityExecutorRole::new(
+        t::AuthorityExecutor::Charter(number) => w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter::new(
             limits,
-            w::OwnerAuthorityExecutorRoleParts { value: number },
+            w::AuthorityExecutorCharterParts { value: number },
+        )?),
+        t::AuthorityExecutor::Procedure(number) => w::AuthorityExecutor::Procedure(w::AuthorityExecutorProcedure::new(
+            limits,
+            w::AuthorityExecutorProcedureParts { value: number },
+        )?),
+        t::AuthorityExecutor::Role(number) => w::AuthorityExecutor::Role(w::AuthorityExecutorRole::new(
+            limits,
+            w::AuthorityExecutorRoleParts { value: number },
         )?),
     })
 }
-pub fn grants_pieces(rows: &List<w::OwnerGrant>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn grants_pieces(rows: &List<w::Grant>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(usize::try_from(row.measure()).expect("u32 record measure fits usize"));
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
         match row.encode(&mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
@@ -360,10 +345,10 @@ pub fn grants_pieces(rows: &List<w::OwnerGrant>, bound: u32, path: w::Path) -> R
     }
     pieces(&encoded, bound, path)
 }
-pub fn scopes_pieces(rows: &List<w::OwnerResourceScope>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn scopes_pieces(rows: &List<w::ResourceScope>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(usize::try_from(row.measure()).expect("u32 record measure fits usize"));
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
         match row.encode(&mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
@@ -504,7 +489,7 @@ pub fn contract(value: &d::ContractLine, limits: &w::Limits) -> Result<w::TaskCo
 pub fn choices_pieces(rows: &List<w::VerdictChoice>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(usize::try_from(row.measure()).expect("u32 record measure fits usize"));
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
         match row.encode(&mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
@@ -517,7 +502,7 @@ pub fn choices_pieces(rows: &List<w::VerdictChoice>, bound: u32, path: w::Path) 
 pub fn me_projects_pieces(rows: &List<w::MeProject>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(usize::try_from(row.measure()).expect("u32 record measure fits usize"));
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
         match row.encode(&mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),

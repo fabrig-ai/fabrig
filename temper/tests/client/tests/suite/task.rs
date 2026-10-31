@@ -525,7 +525,7 @@ fn a_chat_reply_is_identified_by_its_task_in_the_native_inbox() {
     }
     let root = world.root(person).person();
     let inbox = root.pages().inbox().expect("inbox");
-    let Some(jig_client::Latest::Jig(jig_client::contract::Delivery::OwnerInbox(owner))) =
+    let Some(jig_client::Latest::Jig(jig_client::contract::Delivery::Inbox(owner))) =
         root.client().document(inbox.entries).and_then(|document| document.latest)
     else {
         panic!("owner inbox delivered")
@@ -534,9 +534,7 @@ fn a_chat_reply_is_identified_by_its_task_in_the_native_inbox() {
     let reply = owner
         .updates
         .iter()
-        .find(|row| {
-            row.task_number() == task && matches!(row.object, jig_client::contract::OwnerInboxObject::Reply { .. })
-        })
+        .find(|row| row.task_number() == task && matches!(row.object, jig_client::contract::InboxObject::Reply { .. }))
         .expect("same-task unread Reply");
     assert_eq!(reply.unread, Some(true));
     let line = reply.reply.as_ref().expect("Reply task context");

@@ -1,6 +1,6 @@
 //! The second connector owns resource/kind words and the shared link only.
 use jig_client::Link;
-use jig_client::contract::Part;
+use jig_client::contract::ApplicationPart;
 use skein_lib::List;
 #[derive(Debug)]
 pub struct Side {
@@ -14,7 +14,7 @@ pub struct Side {
 }
 #[derive(Debug)]
 struct Held {
-    part: Part,
+    part: ApplicationPart,
 }
 impl Side {
     #[must_use]
@@ -37,23 +37,23 @@ impl Side {
     pub const fn party(&self) -> Option<u64> {
         self.party
     }
-    pub(crate) fn show(&mut self, part: Part) -> bool {
+    pub(crate) fn show(&mut self, part: ApplicationPart) -> bool {
         match &part {
-            Part::Resource { path, .. } => {
+            ApplicationPart::Resource { path, .. } => {
                 if !jig_client::contract::resource_path_fits(path, self.segments, self.text) {
                     return false;
                 }
             }
-            Part::Connector { .. }
-            | Part::Kind { .. }
-            | Part::Panel { .. }
-            | Part::Result { .. }
-            | Part::Effect { .. }
-            | Part::OwnerEffect { .. }
-            | Part::Outbox { .. }
-            | Part::Hold { .. }
-            | Part::Project { .. }
-            | Part::Deployment { .. } => {}
+            ApplicationPart::Connector { .. }
+            | ApplicationPart::Kind { .. }
+            | ApplicationPart::Panel { .. }
+            | ApplicationPart::Result { .. }
+            | ApplicationPart::Effect { .. }
+            | ApplicationPart::OwnerEffect { .. }
+            | ApplicationPart::Outbox { .. }
+            | ApplicationPart::Hold { .. }
+            | ApplicationPart::Project { .. }
+            | ApplicationPart::Deployment { .. } => {}
         }
         for held in &self.parts {
             if held.part == part {
@@ -78,7 +78,7 @@ impl Side {
         self.shown
     }
     #[must_use]
-    pub fn contains(&self, part: &Part) -> bool {
+    pub fn contains(&self, part: &ApplicationPart) -> bool {
         for held in &self.parts {
             if &held.part == part {
                 return true;

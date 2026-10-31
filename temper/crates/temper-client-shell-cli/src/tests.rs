@@ -404,7 +404,7 @@ fn a_json_kept_line_is_unprefixed() {
     words.push(b"--json");
     let mut f = fixtures::Disk::act_words_with(&words, fixtures::kept_chat());
     f.answer_kept();
-    assert_eq!(f.stderr(), b"{\"operation\":\"chat\",\"outcome\":{\"done\":{\"owner\":{\"created\":{\"first\":41,\"last\":41,\"given\":null}}}}}\n");
+    assert_eq!(f.stderr(), b"{\"operation\":\"chat\",\"outcome\":{\"done\":{\"document\":{\"created\":{\"first\":41,\"last\":41,\"given\":null}}}}}\n");
     assert_eq!(f.stdout(), b"");
 }
 #[test]

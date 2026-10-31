@@ -1,4 +1,5 @@
-use jig_core_world::effects::World;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 const CHILD: u64 = 2;
 const REQUESTER: u64 = 1;
 const EFFECT: u64 = 1;
@@ -29,7 +30,7 @@ fn answer(world: &World) -> &core::SettledAnswer {
 
 #[test]
 fn a_message_call_is_decoded_decided_and_answered_in_words() {
-    let mut world = World::new(170, false);
+    let mut world = World::new(Setup { seed: 170, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     let task = world.procedure.expect("delegated child");
@@ -46,7 +47,7 @@ fn a_message_call_is_decoded_decided_and_answered_in_words() {
 
 #[test]
 fn a_call_whose_input_does_not_decode_is_answered_an_error_and_commits_nothing() {
-    let mut world = World::new(171, false);
+    let mut world = World::new(Setup { seed: 171, ..Setup::default() });
     let commits = world.store.applied;
     world.tool_call(b"message", br#"{"form":"words","words":"is the build green?"}"#, true);
     assert_eq!(world.store.applied, commits, "a call that does not decode decides nothing");
@@ -58,7 +59,7 @@ fn a_call_whose_input_does_not_decode_is_answered_an_error_and_commits_nothing()
 
 #[test]
 fn a_call_asked_again_after_an_error_is_decoded_again() {
-    let mut world = World::new(172, false);
+    let mut world = World::new(Setup { seed: 172, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     world.tool_call(b"message", b"{}", true);
@@ -71,7 +72,7 @@ fn a_call_asked_again_after_an_error_is_decoded_again() {
 
 #[test]
 fn a_call_whose_name_does_not_decode_is_answered_an_error() {
-    let mut world = World::new(173, false);
+    let mut world = World::new(Setup { seed: 173, ..Setup::default() });
     let commits = world.store.applied;
     relay(&mut world, b"bad-name", b"message", br#"{"target":1,"form":"words","words":"hello"}"#);
     assert_eq!(world.store.applied, commits);
@@ -83,7 +84,7 @@ fn a_call_whose_name_does_not_decode_is_answered_an_error() {
 
 #[test]
 fn a_delegate_call_makes_its_batch_and_answers_their_numbers() {
-    let mut world = World::new(174, false);
+    let mut world = World::new(Setup { seed: 174, ..Setup::default() });
     world.hold_procedures = true;
     world.tool_call(b"delegate", br#"{"batch":[{"executor":{"kind":"procedure","connector":1,"code":1},"spec":{"words":"check"},"contract":{"kind":"report","words":64},"authority":{"tools":0,"grants":[],"delegation":{"kinds":[],"tasks":0,"depth":0},"budget":{"spend":20},"notes":0}}]}"#, true);
     assert_eq!(
@@ -95,7 +96,7 @@ fn a_delegate_call_makes_its_batch_and_answers_their_numbers() {
 
 #[test]
 fn an_amend_naming_an_old_spec_revision_is_answered_moved() {
-    let mut world = World::new(176, false);
+    let mut world = World::new(Setup { seed: 176, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     let task = world.procedure.expect("delegated child");
@@ -114,7 +115,7 @@ fn an_amend_naming_an_old_spec_revision_is_answered_moved() {
 
 #[test]
 fn an_amend_naming_its_spec_revision_is_done_with_the_next() {
-    let mut world = World::new(177, false);
+    let mut world = World::new(Setup { seed: 177, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     let task = world.procedure.expect("delegated child");
@@ -130,11 +131,12 @@ fn an_amend_naming_its_spec_revision_is_done_with_the_next() {
 
 #[test]
 fn agents_tools_scenario_family() {
-    use jig_core_world::{agents_tools::STORIES, effects::Cut};
+    use jig_core_world::agents_tools::STORIES;
+    use jig_core_world::world::Cut;
     for story in STORIES {
-        let commits = (story.run)(&mut World::new(190, false), None);
+        let commits = (story.run)(&mut World::new(Setup { seed: 190, ..Setup::default() }), None);
         for cut in [Cut::Submitted(commits), Cut::Durable(commits)] {
-            let mut world = World::new(190, false);
+            let mut world = World::new(Setup { seed: 190, ..Setup::default() });
             (story.run)(&mut world, Some(cut));
             assert_eq!(world.reached_cut, Some(cut), "{} reaches its cut", story.name);
         }
@@ -147,11 +149,11 @@ fn a_release_naming_an_old_hold_revision_is_answered_moved() {
         .iter()
         .find(|story| story.name == "release moved")
         .expect("release story");
-    (story.run)(&mut World::new(178, false), None);
+    (story.run)(&mut World::new(Setup { seed: 178, ..Setup::default() }), None);
 }
 #[test]
 fn a_release_naming_its_hold_revision_lifts_the_hold() {
-    let mut world = World::new(179, false);
+    let mut world = World::new(Setup { seed: 179, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     world.send(root::Event::Core(core::Event::Tasks(jig_domain_tasks::Event::Hold {
@@ -171,7 +173,7 @@ fn a_release_naming_its_hold_revision_lifts_the_hold() {
 }
 #[test]
 fn a_release_of_an_uncertain_effect_without_again_is_refused() {
-    let mut world = World::new(180, false);
+    let mut world = World::new(Setup { seed: 180, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     world.send(root::Event::Core(core::Event::Tasks(jig_domain_tasks::Event::Hold {
@@ -192,7 +194,7 @@ fn a_release_of_an_uncertain_effect_without_again_is_refused() {
 }
 #[test]
 fn a_decide_naming_an_old_escalation_revision_is_answered_moved() {
-    let mut world = World::new(181, false);
+    let mut world = World::new(Setup { seed: 181, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     for why in [jig_domain_tasks::Hold::Stopped, jig_domain_tasks::Hold::Budget] {
@@ -218,7 +220,7 @@ fn a_held_delegates_notice_reaches_its_requester_with_its_hold_revision() {
         .iter()
         .find(|story| story.name == "held notice")
         .expect("held notice story");
-    (story.run)(&mut World::new(182, false), None);
+    (story.run)(&mut World::new(Setup { seed: 182, ..Setup::default() }), None);
 }
 
 const PROPOSE_AMEND: &[u8] = br#"{"action":"amend","target":2,"revision":0,"amendment":{"spec":{"words":"proposed"},"reason":"evidence"},"reason":"please"}"#;
@@ -247,7 +249,7 @@ fn accept(world: &mut World, proposer: jig_domain_people::Proposer, proposal: u6
 }
 #[test]
 fn a_proposed_amendment_naming_an_old_revision_is_answered_moved() {
-    let mut world = World::new(194, false);
+    let mut world = World::new(Setup { seed: 194, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     world.tool_call(b"amend", DIRECT_AMEND, true);
@@ -261,7 +263,7 @@ fn a_proposed_amendment_naming_an_old_revision_is_answered_moved() {
 }
 #[test]
 fn a_propose_call_answers_its_number_and_to_whom() {
-    let mut world = World::new(195, false);
+    let mut world = World::new(Setup { seed: 195, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     world.tool_call(b"propose", PROPOSE_AMEND, true);
@@ -273,7 +275,7 @@ fn a_propose_call_answers_its_number_and_to_whom() {
 #[test]
 fn an_amendment_proposal_accepted_after_its_spec_moved_is_stale() {
     use jig_domain_people as people;
-    let mut world = World::new(196, false);
+    let mut world = World::new(Setup { seed: 196, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     world.tool_call(b"propose", PROPOSE_AMEND, true);
@@ -304,11 +306,11 @@ fn an_amendment_proposal_accepted_after_its_spec_moved_is_stale() {
 #[test]
 fn a_partys_amendment_proposal_accepted_after_its_spec_moved_is_stale() {
     use jig_domain_people as people;
-    let mut world = World::new(197, false);
+    let mut world = World::new(Setup { seed: 197, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     let sign_in = world.sign_in.expect("party");
-    let mut amendment = jig_core_world::fixtures::person_unchanged(b"evidence");
+    let mut amendment = jig_test_profile::fixtures::person_unchanged(b"evidence");
     amendment.spec = Some(people::Spec {
         asks: false,
         words: b"proposed".as_slice().into(),
@@ -344,11 +346,11 @@ fn a_partys_amendment_proposal_accepted_after_its_spec_moved_is_stale() {
 }
 #[test]
 fn a_delegate_given_as_allowed_answers_what_it_was_given() {
-    jig_core_world::agents_tools::delegate_given(&mut World::new(198, false), None);
+    jig_core_world::agents_tools::delegate_given(&mut World::new(Setup { seed: 198, ..Setup::default() }), None);
 }
 #[test]
 fn a_delegate_call_answers_its_tasks_spec_revisions() {
-    let mut world = World::new(199, false);
+    let mut world = World::new(Setup { seed: 199, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     assert_eq!(
@@ -364,7 +366,7 @@ const CANCEL_CHILD: &[u8] = br#"{"target":2,"reason":"wrap up","grace":500000000
 
 #[test]
 fn a_cancel_with_a_grace_asks_the_delegate_to_finish_first() {
-    let mut world = World::new(201, false);
+    let mut world = World::new(Setup { seed: 201, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     world.tool_call(b"cancel", CANCEL_CHILD, true);
@@ -377,7 +379,7 @@ fn a_cancel_with_a_grace_asks_the_delegate_to_finish_first() {
 }
 #[test]
 fn a_runs_priority_change_without_a_revision_commits_after_a_spec_change() {
-    let mut world = World::new(202, false);
+    let mut world = World::new(Setup { seed: 202, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     world.tool_call(b"amend", TRACK_CHILD, true);
@@ -397,7 +399,7 @@ fn a_runs_priority_change_without_a_revision_commits_after_a_spec_change() {
 }
 #[test]
 fn a_runs_amendment_untracks_its_delegate() {
-    let mut world = World::new(203, false);
+    let mut world = World::new(Setup { seed: 203, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     world.tool_call(b"amend", TRACK_CHILD, true);
@@ -414,12 +416,12 @@ fn a_runs_amendment_untracks_its_delegate() {
 
 #[test]
 fn withdrawing_an_accepted_proposal_answers_already_accepted() {
-    jig_core_world::agents_tools::withdraw_decided(&mut World::new(204, false), None);
+    jig_core_world::agents_tools::withdraw_decided(&mut World::new(Setup { seed: 204, ..Setup::default() }), None);
 }
 const UNKNOWN_PROPOSAL: &[u8] = br#"{"proposal":42}"#;
 #[test]
 fn withdrawing_an_unknown_proposal_is_refused_unknown() {
-    let mut world = World::new(205, false);
+    let mut world = World::new(Setup { seed: 205, ..Setup::default() });
     world.tool_call(b"withdraw", UNKNOWN_PROPOSAL, true);
     assert_eq!(
         world.answers.last().expect("withdraw answer").2,

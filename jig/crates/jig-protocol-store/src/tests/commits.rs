@@ -27,7 +27,7 @@ fn commit(store: &mut Store, number: u64, writes: Box<[Write]>) -> Box<[Event]> 
 fn jig_row(store: &mut Store, key: &Key) -> Option<Record> {
     let encoded = keys::encode(key, fixtures::KEY_LIMIT).expect("fixture key fits");
     let bytes = fixtures::get_kv(store, &encoded)?;
-    codec::decode(key, &bytes, &store.codec, &store.names)
+    codec::decode(key, &bytes, &store.codec_limits, &store.names)
 }
 
 fn format_row(store: &mut Store) -> codec::component::Format {
@@ -91,7 +91,7 @@ fn a_first_commit_puts_format_layouts_and_installation_with_its_header() {
             settings: 1,
             application: 1,
             deployment: fixtures::DEPLOYMENT,
-            levels: crate::format::recorded(crate::format::NONE),
+            levels: crate::format::NONE,
         },
     );
     let layouts = fixtures::get_kv(&mut store, &[0, 3]).expect("layouts row exists");
@@ -345,7 +345,7 @@ fn only_the_first_commit_records_the_binarys_levels_and_layouts() {
         store.patch_sets(first_sets);
         assert_committed(&commit(&mut store, 1, Box::new([fixtures::header(1)])), 1);
         let first = format_row(&mut store);
-        assert_eq!(crate::format::levels(first.levels), expected);
+        assert_eq!(first.levels, expected);
         let key = keys::encode_own(&keys::Own::Layouts, store.limits.store.key).expect("layouts key");
         let layouts = fixtures::get_kv(&mut store, &key).expect("layouts");
         store.patch_sets(later_sets);

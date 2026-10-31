@@ -20,7 +20,7 @@ pub(super) struct Reading {
 pub(super) struct Sent {
     pub(super) called: Called,
     pub(super) operation: Operation,
-    pub(super) holder: Option<c::AccountHolder>,
+    pub(super) holder: Option<c::AskAccountHolder>,
     pub(super) dispatched: bool,
     alternate: Option<c::Ask>,
 }
@@ -262,18 +262,18 @@ pub(super) fn page(
 }
 fn settings_history(call: &Call, document: &c::ReadValue) -> bool {
     if call.tool == rows::DECIDE_AT
-        && let c::ReadValue::Historical(history) = document
+        && let c::ReadValue::Ended(history) = document
         && let Some(Value::Proposal(key)) = value(call, 0)
-        && render::historical_proposal(history) == Some(*key)
-        && let c::OwnerHistoricalValue::Proposal(proposal) = &history.value
+        && render::ended_proposal(history) == Some(*key)
+        && let c::EndedValue::Proposal(proposal) = &history.value
         && match proposal.action {
-            c::OwnerRetainedAction::Settings(_) => true,
-            c::OwnerRetainedAction::Batch(_)
-            | c::OwnerRetainedAction::Effect { .. }
-            | c::OwnerRetainedAction::ProcedureEffect { .. }
-            | c::OwnerRetainedAction::Amend { .. }
-            | c::OwnerRetainedAction::Widen { .. }
-            | c::OwnerRetainedAction::Release { .. } => false,
+            c::RetainedAction::Settings(_) => true,
+            c::RetainedAction::Batch(_)
+            | c::RetainedAction::Effect { .. }
+            | c::RetainedAction::ProcedureEffect { .. }
+            | c::RetainedAction::Amend { .. }
+            | c::RetainedAction::Widen { .. }
+            | c::RetainedAction::Release { .. } => false,
         }
     {
         return true;
@@ -281,15 +281,15 @@ fn settings_history(call: &Call, document: &c::ReadValue) -> bool {
     false
 }
 
-fn settings_action(action: &c::OwnerProposalAction) -> bool {
+fn settings_action(action: &c::ProposalAction) -> bool {
     match action {
-        c::OwnerProposalAction::Settings(_) => true,
-        c::OwnerProposalAction::Batch(_)
-        | c::OwnerProposalAction::Effect { .. }
-        | c::OwnerProposalAction::ProcedureEffect { .. }
-        | c::OwnerProposalAction::Amend { .. }
-        | c::OwnerProposalAction::Widen { .. }
-        | c::OwnerProposalAction::Release { .. } => false,
+        c::ProposalAction::Settings(_) => true,
+        c::ProposalAction::Batch(_)
+        | c::ProposalAction::Effect { .. }
+        | c::ProposalAction::ProcedureEffect { .. }
+        | c::ProposalAction::Amend { .. }
+        | c::ProposalAction::Widen { .. }
+        | c::ProposalAction::Release { .. } => false,
     }
 }
 
@@ -339,7 +339,7 @@ fn build(
         Some(c::Admission::Allowed | c::Admission::Refused(_)) | None => None,
     };
     let settings =
-        if let c::ReadValue::OwnerProposal(proposal) = document { settings_action(&proposal.action) } else { false };
+        if let c::ReadValue::Proposal(proposal) = document { settings_action(&proposal.action) } else { false };
     let task = number(call, 0).unwrap_or(0);
     let ask = match call.tool {
         rows::MESSAGE_AT => c::Ask::Message { project, task, words: words(call, 1, limits)? },
@@ -393,22 +393,8 @@ fn decide(call: &Call, task: u64, limits: &Limits, settings: bool) -> Result<c::
     })
 }
 
-fn chip_project(chip: &c::Chip) -> Option<u32> {
-    match chip.details.as_ref() {
-        c::ChipPhase::Owner { details, .. } => Some(details.project),
-        c::ChipPhase::Active(_)
-        | c::ChipPhase::Waiting { .. }
-        | c::ChipPhase::Idle { .. }
-        | c::ChipPhase::Starting
-        | c::ChipPhase::Running { .. }
-        | c::ChipPhase::WaitingForWords { .. }
-        | c::ChipPhase::BackingOff { .. }
-        | c::ChipPhase::Procedure { .. }
-        | c::ChipPhase::Person { .. }
-        | c::ChipPhase::Closing(_)
-        | c::ChipPhase::Held { .. }
-        | c::ChipPhase::Ended { .. } => None,
-    }
+fn chip_project(chip: &c::Chip) -> u32 {
+    chip.details.details.project
 }
 fn kind(call: &Call) -> c::ActKind {
     match call.tool {
@@ -459,17 +445,17 @@ fn decision(call: &Call, limits: &Limits) -> Result<c::Decision, Failed> {
     })
 }
 pub(crate) enum Request {
-    MoveOut { holder: c::AccountHolder, account: u32 },
-    Written { holder: c::AccountHolder, account: u32, number: u32 },
+    MoveOut { holder: c::AskAccountHolder, account: u32 },
+    Written { holder: c::AskAccountHolder, account: u32, number: u32 },
     MoveIn,
     Ask(c::Ask),
     Amend { ask: c::Ask, alternate: Option<c::Ask> },
     Act { ask: c::Ask, phase: Option<c::Phase> },
     Account { ask: c::Ask, context: render::outcome::Account },
-    AddKey { holder: c::AccountHolder, provider: u32, join: Option<u32> },
-    ReplaceKey { holder: c::AccountHolder, source: u32 },
-    DeclareProgram { holder: c::AccountHolder, provider: u32, join: Option<u32>, name: Box<[u8]> },
-    CheckProgram { holder: c::AccountHolder, source: u32 },
+    AddKey { holder: c::AskAccountHolder, provider: u32, join: Option<u32> },
+    ReplaceKey { holder: c::AskAccountHolder, source: u32 },
+    DeclareProgram { holder: c::AskAccountHolder, provider: u32, join: Option<u32>, name: Box<[u8]> },
+    CheckProgram { holder: c::AskAccountHolder, source: u32 },
 }
 pub(crate) fn prepared(
     runner: &mut Runner,
@@ -567,7 +553,7 @@ fn send(
         Request::MoveIn => jig_client::accounts::move_in(
             key,
             name.expect("import name"),
-            c::AccountHolder::Own,
+            c::AskAccountHolder::Own,
             called.value.take().expect("record supplied"),
         ),
         Request::Account { .. } | Request::Act { .. } | Request::Amend { .. } => {
@@ -652,8 +638,8 @@ pub(super) fn answered(
             send(runner, client, sent.called, Request::Amend { ask: alternate, alternate: None }, None, out);
             return;
         }
-        if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-            c::OwnerOutcome::Proposed { to, .. },
+        if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::Proposed { to, .. },
         )))) = outcome
         {
             let Some(project) = sent.operation.proposal_project else {
@@ -672,8 +658,8 @@ pub(super) fn answered(
             return;
         }
         if sent.called.call.tool == rows::PROJECT_FUND_AT
-            && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                c::OwnerOutcome::PolicyChanged { project },
+            && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::PolicyChanged { project },
             )))) = outcome
         {
             // Read the committed project once, resolving names to the answered identity.
@@ -691,8 +677,8 @@ pub(super) fn answered(
             runner.parts.expect("host vocabulary").diagnostic_prefix(),
         );
         if sent.called.call.tool == rows::IMPORT_AT
-            && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
-                c::OwnerOutcome::AccountMovedIn { .. },
+            && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::AccountMovedIn { .. },
             )))) = outcome
         {
             printed.file = super::FileEnd::Remove;

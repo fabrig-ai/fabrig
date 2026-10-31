@@ -14,7 +14,7 @@ const REQUEST_KEY: [u8; 16] = [0x46; 16];
 fn task() -> c::NewTask {
     c::NewTask {
         deadline: c::NewDeadline::Named,
-        executor: c::OwnerExecutor::Agent { charter: CHAT_CHARTER },
+        executor: c::Executor::Agent { charter: CHAT_CHARTER },
         spec: c::Specification {
             asks: false,
             words: c::Text::new(b"Forged".as_slice().into(), SPEC_WORDS).expect("bounded specification"),
@@ -22,11 +22,11 @@ fn task() -> c::NewTask {
             inputs: List::with_capacity(0),
         },
         contract: c::NewContract::Report { words: RESULT_WORDS },
-        authority: c::OwnerAuthority {
+        authority: c::Authority {
             models: None,
             tools: 0,
             grants: List::with_capacity(0),
-            delegation: c::OwnerDelegation { kinds: List::with_capacity(0), tasks: 0, depth: 0 },
+            delegation: c::Delegation { kinds: List::with_capacity(0), tasks: 0, depth: 0 },
             spend: 0,
             deadline: None,
             notes: 0,

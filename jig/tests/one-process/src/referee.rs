@@ -144,7 +144,7 @@ impl Referee {
                     client.account_request(jig_client::accounts::add_key(
                         jig_client::Key { asker: jig_client::Asker(77), number: 1 },
                         [61; 16],
-                        jig_client::contract::AccountHolder::Deployment,
+                        jig_client::contract::AskAccountHolder::Deployment,
                         1,
                         None,
                         skein_lib::Secret::new(jig_channel_world::fixtures::TOKEN.into()),
@@ -155,8 +155,8 @@ impl Referee {
                         matches!(
                             r,
                             Received::Answer {
-                                answer: jig_client::contract::Answer::Done(jig_client::contract::Outcome::Owner(
-                                    jig_client::contract::OwnerOutcome::AccountKeyKept { .. }
+                                answer: jig_client::contract::Answer::Done(jig_client::contract::Outcome::Document(
+                                    jig_client::contract::DocumentOutcome::AccountKeyKept { .. }
                                 )),
                                 ..
                             }
@@ -321,7 +321,7 @@ fn snapshot(rows: &BTreeMap<root::Key, root::Record>) -> rules::Snapshot {
             jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task),
         )) = row
         {
-            snapshot.tasks.insert(task.number, jig_core_world::observations::task(task));
+            snapshot.tasks.insert(task.number, jig_conformance::core::task(task));
             snapshot.receipts.insert(rules::Receipt::Task(task.number));
             for word in &task.inbox {
                 snapshot.receipts.insert(rules::Receipt::Word(task.number, word.number));
@@ -354,7 +354,7 @@ fn snapshot(rows: &BTreeMap<root::Key, root::Record>) -> rules::Snapshot {
 }
 fn received(seen: &Received, store: &Store) -> Vec<rules::Receipt> {
     if let Received::Answer {
-        answer: client::Answer::Done(client::Outcome::Owner(client::OwnerOutcome::Created { first, last, .. })),
+        answer: client::Answer::Done(client::Outcome::Document(client::DocumentOutcome::Created { first, last, .. })),
         ..
     } = seen
     {
@@ -386,11 +386,7 @@ fn received(seen: &Received, store: &Store) -> Vec<rules::Receipt> {
             .rows
             .iter()
             .filter_map(|row| {
-                if let client::Activity::Owner { source, .. } = &row.event {
-                    row.event.committed_turn().map(|turn| rules::Receipt::Turn(source.task, turn.attempt, turn.number))
-                } else {
-                    None
-                }
+                row.committed_turn().map(|turn| rules::Receipt::Turn(row.source.task, turn.attempt, turn.number))
             })
             .collect();
     }

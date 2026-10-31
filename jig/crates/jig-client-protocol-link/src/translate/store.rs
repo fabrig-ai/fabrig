@@ -8,7 +8,7 @@ use jig_client_protocol_wire::{self as wire, v19 as w};
 use skein_lib::{List, Reader, RequestRecord, Wall, Writer, bytes};
 
 pub(super) fn text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
-    match c::Text::new(bytes::copy_of(value), limits.client.text) {
+    match c::Text::new(bytes::copy_of(value), limits.client().text) {
         Ok(value) => Ok(value),
         Err(_) => Err(too_large()),
     }
@@ -41,29 +41,28 @@ fn policy_edit(value: &w::PolicyEdit, limits: &Limits) -> Result<c::PolicyEdit, 
             let value = value.value();
             c::PolicyEdit::Role(c::PolicyEditRole {
                 number: value.number(),
-                authority: documents::owner_authority_fields(value.authority(), limits)?,
+                authority: documents::authority_fields(value.authority(), limits)?,
                 period_spend: value.period_spend(),
                 requests: value.requests(),
                 decides: value.decides(),
             })
         }
         w::PolicyEdit::Requirements(value) => c::PolicyEdit::Requirements {
-            requirements: documents::policy_requirement_piece(value.requirements(), limits, limits.client.rows)?,
+            requirements: documents::policy_requirement_piece(value.requirements(), limits, limits.client().rows)?,
         },
         w::PolicyEdit::Projections(value) => c::PolicyEdit::Projections {
-            grants: documents::owner_grant_piece(value.grants(), limits, limits.client.authority)?,
+            grants: documents::grant_piece(value.grants(), limits, limits.client().authority)?,
         },
         w::PolicyEdit::Permissions(value) => {
             let mut mappings = List::with_capacity(value.mappings().len());
             for row in value.mappings() {
-                mappings.push(documents::policy_permission_fields(row, limits)).expect("reserved decoded mappings");
+                mappings.push(documents::policy_permission_fields(row)).expect("reserved decoded mappings");
             }
             c::PolicyEdit::Permissions { mappings }
         }
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 #[expect(clippy::too_many_lines, reason = "one total match restores every client ask")]
 pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::Problem> {
     Ok(match value {
@@ -86,7 +85,7 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
                 }
                 w::AnswerOn::Person(v) => c::AnswerOn::Person {
                     task: v.task(),
-                    revision: answers::revision(v.revision(), limits),
+                    revision: answers::revision(v.revision()),
                     answer: person_answer(v.answer(), limits)?,
                 },
             },
@@ -98,15 +97,15 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
             on: match value.on() {
                 w::DecideOn::Proposal(v) => c::DecideOn::Proposal {
                     running: match v.running() {
-                        Some(value) => Some(super::settings::restore_running(value, limits)?),
+                        Some(value) => Some(super::settings::restore_running(value)?),
                         None => None,
                     },
-                    proposal: answers::proposal_key(v.proposal(), limits),
+                    proposal: answers::proposal_key(v.proposal()),
                     decision: answers::decision(v.decision(), limits)?,
                 },
                 w::DecideOn::Escalation(v) => c::DecideOn::Escalation {
                     task: v.task(),
-                    revision: answers::revision(v.revision(), limits),
+                    revision: answers::revision(v.revision()),
                     decision: answers::decision(v.decision(), limits)?,
                 },
             },
@@ -119,14 +118,14 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
         w::Ask::Release(value) => c::Ask::Release {
             project: value.project(),
             task: value.task(),
-            revision: answers::revision(value.revision(), limits),
+            revision: answers::revision(value.revision()),
             again: *value.again(),
         },
         w::Ask::Amend(value) => c::Ask::Amend {
             project: value.project(),
             task: value.task(),
             revision: match value.revision() {
-                Some(value) => Some(answers::revision(value, limits)),
+                Some(value) => Some(answers::revision(value)),
                 None => None,
             },
             change: Box::new(pages::amendment_fields(value.change(), limits)?),
@@ -142,12 +141,12 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
         w::Ask::MoveTask(value) => {
             c::Ask::Move { project: value.project(), task: value.task(), reason: text(value.reason(), limits)? }
         }
-        w::Ask::Seen(value) => c::Ask::Seen { through: answers::seen(value.through(), limits) },
+        w::Ask::Seen(value) => c::Ask::Seen { through: answers::seen(value.through()) },
         w::Ask::EditNote(value) => c::Ask::EditNote {
             project: value.project(),
             note: value.note(),
-            scope: answers::note_scope(value.scope(), limits),
-            revision: answers::revision(value.revision(), limits),
+            scope: answers::note_scope(value.scope()),
+            revision: answers::revision(value.revision()),
             description: text(value.description(), limits)?,
             body: text(value.body(), limits)?,
             references: value.references().clone(),
@@ -155,8 +154,8 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
         w::Ask::DeleteNote(value) => c::Ask::DeleteNote {
             project: value.project(),
             note: value.note(),
-            scope: answers::note_scope(value.scope(), limits),
-            revision: answers::revision(value.revision(), limits),
+            scope: answers::note_scope(value.scope()),
+            revision: answers::revision(value.revision()),
         },
         w::Ask::ChangePolicy(value) => {
             c::Ask::ChangePolicy { project: value.project(), edit: policy_edit(value.edit(), limits)? }
@@ -165,7 +164,7 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
             let mut holdings = List::with_capacity(value.holdings().len());
             for row in value.holdings() {
                 holdings
-                    .push(c::Holding { party: row.party(), role: answers::held_role(row.role(), limits) })
+                    .push(c::Holding { party: row.party(), role: answers::held_role(row.role()) })
                     .expect("reserved decoded holdings");
             }
             c::Ask::SetRoles { project: value.project(), holdings }
@@ -173,7 +172,7 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
         w::Ask::MakeService(value) => c::Ask::MakeService {
             project: value.project(),
             name: text(value.name(), limits)?,
-            role: answers::held_role(value.role(), limits),
+            role: answers::held_role(value.role()),
         },
         w::Ask::AccountChange(value) => {
             c::Ask::AccountChange { holder: account_holder(value.holder()), change: account_change(value.change())? }
@@ -189,19 +188,18 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub fn table(value: &RequestRecord<jig_client_domain::Held>, limits: &Limits) -> Result<w::TableEntry, w::Problem> {
     let (owner, version, request) = match &value.request.request {
         Ask::Jig(value) => {
-            let record = super::asks::ask(value, &limits.wire)?;
-            let mut writer = Writer::new(usize::try_from(record.measure()).expect("u32 fits usize"));
+            let record = super::asks::ask(value, limits.wire())?;
+            let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut writer).expect("measured ask");
             (w::Owner::Jig, wire::VERSION, writer.finish())
         }
         Ask::Family { scope, record: value } => (
-            w::Owner::Family(w::Family::new(&limits.wire, w::FamilyParts { number: value.family })?),
+            w::Owner::Family(w::Family::new(limits.wire(), w::FamilyParts { number: value.family })?),
             value.version,
-            super::envelope::request(*scope, value, &limits.wire)?,
+            super::envelope::request(*scope, value, limits.wire())?,
         ),
     };
     let first_sent = match value.first_sent {
@@ -209,7 +207,7 @@ pub fn table(value: &RequestRecord<jig_client_domain::Held>, limits: &Limits) ->
         None => None,
     };
     w::TableEntry::new(
-        &limits.wire,
+        limits.wire(),
         w::TableEntryParts {
             asker: value.request.key.asker.0,
             number: value.request.key.number,
@@ -222,7 +220,6 @@ pub fn table(value: &RequestRecord<jig_client_domain::Held>, limits: &Limits) ->
         },
     )
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub fn restore_table(
     value: w::TableEntry,
     limits: &Limits,
@@ -233,14 +230,14 @@ pub fn restore_table(
                 return Err(super::piece_problem(skein_codec::Reason::Version));
             }
             let mut reader = Reader::new(value.request());
-            let ask = w::Ask::decode(&limits.wire, &mut reader)?;
+            let ask = w::Ask::decode(limits.wire(), &mut reader)?;
             if reader.remaining() != 0 {
                 return Err(super::piece_problem(skein_codec::Reason::Malformed));
             }
             Ask::Jig(Box::new(restore_ask(ask, limits)?))
         }
         w::Owner::Family(owner) => {
-            let (scope, bytes) = super::envelope::restore(value.request(), &limits.wire)?;
+            let (scope, bytes) = super::envelope::restore(value.request(), limits.wire())?;
             Ask::Family { scope, record: Family { family: owner.number(), version: value.version(), bytes } }
         }
     };
@@ -259,10 +256,10 @@ pub fn restore_table(
     })
 }
 
-fn account_holder(value: &w::AccountHolder) -> c::AccountHolder {
+fn account_holder(value: &w::AskAccountHolder) -> c::AskAccountHolder {
     match value {
-        w::AccountHolder::Own => c::AccountHolder::Own,
-        w::AccountHolder::Deployment => c::AccountHolder::Deployment,
+        w::AskAccountHolder::Own => c::AskAccountHolder::Own,
+        w::AskAccountHolder::Deployment => c::AskAccountHolder::Deployment,
     }
 }
 
@@ -311,8 +308,8 @@ fn account_change(value: &w::AccountChange) -> Result<c::AccountChange, w::Probl
                     let mut rows = List::with_capacity(uses.len());
                     for use_ in uses {
                         rows.push(match use_ {
-                            w::OwnerAccountUse::Party(value) => c::OwnerAccountUse::Party(value.party()),
-                            w::OwnerAccountUse::Project(value) => c::OwnerAccountUse::Project(value.project()),
+                            w::AccountUse::Party(value) => c::AccountUse::Party(value.party()),
+                            w::AccountUse::Project(value) => c::AccountUse::Project(value.project()),
                         })
                         .expect("reserved uses");
                     }

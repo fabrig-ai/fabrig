@@ -4,7 +4,7 @@ use super::{Limits, List, Reader, c, piece_problem, too_large, w};
 
 pub(super) fn offers(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result<List<c::ProviderOffer>, w::Problem> {
     let count = piece_count(bytes)?;
-    if count > limits.client.rows {
+    if count > limits.client().rows {
         return Err(too_large());
     }
     let mut rows: List<c::ProviderOffer> = List::with_capacity(count);
@@ -16,11 +16,11 @@ pub(super) fn offers(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result<Li
             Err(reason) => return Err(piece_problem(reason)),
         };
         let Some(item) = item else { return Err(piece_problem(skein_codec::Reason::Malformed)) };
-        let value = w::ProviderOffer::decode(&limits.wire, &mut Reader::new(&item))?;
-        if value.key_bytes() > limits.wire.keyed_value_some {
+        let value = w::ProviderOffer::decode(limits.receiving(), &mut Reader::new(&item))?;
+        if value.key_bytes() > limits.receiving().keyed_value_some {
             return Err(too_large());
         }
-        if value.programs().len() > limits.client.rows {
+        if value.programs().len() > limits.client().rows {
             return Err(too_large());
         }
         charge(room, List::<c::Text>::price(value.programs().len()))?;
@@ -29,7 +29,7 @@ pub(super) fn offers(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result<Li
         for name in value.programs() {
             charge(room, Some(u64::try_from(name.len()).or(Err(too_large()))?))?;
             programs
-                .push(c::Text::new(name.clone(), limits.wire.provider_offer_programs_item).or(Err(too_large()))?)
+                .push(c::Text::new(name.clone(), limits.receiving().provider_offer_programs_item).or(Err(too_large()))?)
                 .or(Err(too_large()))?;
         }
         let address = checked_manage_usage(value.manage_usage().as_deref(), w::Path::ProviderOfferManageUsage)?;
@@ -59,7 +59,7 @@ pub(super) fn offers(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result<Li
 }
 pub(super) fn readiness(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result<List<c::PayerReadiness>, w::Problem> {
     let count = piece_count(bytes)?;
-    if count > limits.client.rows {
+    if count > limits.client().rows {
         return Err(too_large());
     }
     let mut rows: List<c::PayerReadiness> = List::with_capacity(count);
@@ -71,8 +71,8 @@ pub(super) fn readiness(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result
             Err(reason) => return Err(piece_problem(reason)),
         };
         let Some(item) = item else { return Err(piece_problem(skein_codec::Reason::Malformed)) };
-        let value = w::PayerReadiness::decode(&limits.wire, &mut Reader::new(&item))?;
-        let payer = super::accounts::owner_account_use(value.payer());
+        let value = w::PayerReadiness::decode(limits.receiving(), &mut Reader::new(&item))?;
+        let payer = super::accounts::account_use(value.payer());
         for old in &rows {
             if old.provider == value.provider() && old.payer == payer {
                 return Err(piece_problem(skein_codec::Reason::Malformed));

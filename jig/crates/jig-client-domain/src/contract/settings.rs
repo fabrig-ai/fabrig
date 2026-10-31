@@ -1,7 +1,7 @@
 //! Whole settings values and retained revision facts (client/domain/contract.md, 3–7; domain/engine.md, 17).
 use super::{
-    DocumentText, OwnerAuthority, OwnerGrant, OwnerKindImplication, PolicyEditRole, PolicyPermission,
-    PolicyRequirement, ProposalKey, Proposer, Template, TemplateOverride, Text,
+    Authority, DocumentText, Grant, KindImplication, PolicyEditRole, PolicyPermission, PolicyRequirement, ProposalKey,
+    Proposer, Template, TemplateOverride, Text,
 };
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Wall};
@@ -62,8 +62,8 @@ pub struct Charter {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingPolicy {
     pub escalation_role: Option<u32>,
-    pub ceiling: OwnerAuthority,
-    pub projections: List<OwnerGrant>,
+    pub ceiling: Authority,
+    pub projections: List<Grant>,
     pub period_spend: u64,
     pub roles: List<PolicyEditRole>,
     pub requirements: List<PolicyRequirement>,
@@ -72,11 +72,11 @@ pub struct SettingPolicy {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Rules {
-    pub ceiling: OwnerAuthority,
+    pub ceiling: Authority,
     pub period_spend: u64,
     pub minimum_run_spend: u64,
     pub maximum_run_spend: u64,
-    pub implies: List<OwnerKindImplication>,
+    pub implies: List<KindImplication>,
     pub requirements: List<PolicyRequirement>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -305,14 +305,14 @@ pub struct SettingsReview {
     pub cut: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerProposalActionSettings {
+pub struct ProposalActionSettings {
     pub against: u32,
     pub items: List<RevisionItemHead>,
     pub review: Option<SettingsReview>,
     pub made: Option<u32>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerRetainedActionSettings {
+pub struct RetainedActionSettings {
     pub against: u32,
     pub items: List<RevisionItemHead>,
     pub made: Option<u32>,

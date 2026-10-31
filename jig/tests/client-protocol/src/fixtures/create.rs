@@ -13,7 +13,7 @@ pub fn create_tasks() -> List<c::NewTask> {
             .push(c::NewTask {
                 llm: None,
                 deadline: jig_client_domain::contract::NewDeadline::Named,
-                executor: c::OwnerExecutor::Agent { charter: 1 },
+                executor: c::Executor::Agent { charter: 1 },
                 spec: c::Specification {
                     asks: false,
                     words: c::Text::new(b"Work".as_slice().into(), 32).expect("bounded spec"),
@@ -21,18 +21,18 @@ pub fn create_tasks() -> List<c::NewTask> {
                     inputs: List::with_capacity(0),
                 },
                 contract: c::NewContract::Report { words: 8 },
-                authority: c::OwnerAuthority {
+                authority: c::Authority {
                     models: None,
                     tools: 0,
                     grants: List::with_capacity(0),
-                    delegation: c::OwnerDelegation { kinds: List::with_capacity(0), tasks: 0, depth: 0 },
+                    delegation: c::Delegation { kinds: List::with_capacity(0), tasks: 0, depth: 0 },
                     spend: if allowed { 0 } else { 10 },
                     deadline: None,
                     notes: 0,
                     note_resources: List::with_capacity(0),
                 },
                 budget: if allowed { c::NewBudget::AsAllowed { cap: Some(20) } } else { c::NewBudget::Named },
-                wake: Some(c::OwnerWakePolicy {
+                wake: Some(c::WakePolicy {
                     words: c::WakeRule::Immediate,
                     notices: c::WakeRule::Never,
                     news: c::WakeRule::Never,
@@ -60,10 +60,10 @@ pub fn create_tasks() -> List<c::NewTask> {
 #[must_use]
 pub fn batch_config(seed: u64) -> jig_test_domain::Config {
     use jig_domain_authority as a;
-    let mut config = jig_core_world::world::config(seed);
+    let mut config = jig_test_profile::config(seed);
     let current = &config.core.defaults.rules;
     let policy = config.core.seed_projects[0].policy.policy.clone();
-    let mut bounds = jig_core_world::world::limits().core.authority;
+    let mut bounds = jig_test_profile::limits().core.authority;
     bounds.batch = 2;
     let mut authority = a::Domain::new(current.clone(), bounds).expect("two-member authority");
     let mut out = skein_lib::Queue::uncapped();
@@ -88,7 +88,7 @@ mod tests {
     #[test]
     fn the_create_story_authority_admits_both_members() {
         let config = super::batch_config(super::super::SEED);
-        let mut bounds = jig_core_world::world::limits().core.authority;
+        let mut bounds = jig_test_profile::limits().core.authority;
         bounds.batch = 2;
         let mut authority =
             a::Domain::new(config.core.defaults.rules.clone(), bounds).expect("fixture authority bounds");

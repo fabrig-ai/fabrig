@@ -1,17 +1,23 @@
 //! People act on the public tree over actual core, worker and applied store doors
 //! (client/domain/testing.md, sections 5–6; domain/people.md, section 11).
-use super::{Joint, engine::Driver, session::Session};
+use super::{Joint, session::Session};
 use crate::{Settings, Test, Until, World};
 use jig_client_domain::contract as client;
-use jig_core_world::peers::Peers;
 use jig_domain_people as people;
-use jig_fake_workers::{Script, Worker};
+use jig_fake_workers::Script;
 use skein_fake_person::{Find, Step};
 use skein_lib::{Duration, Time, Token};
 use skein_ui::Role;
-use std::collections::BTreeMap;
 
 use super::fixture::{bounded_world, clock, configured_world, turn, world};
+
+mod shared {
+    #[test]
+    fn signing_in_and_starting_a_chat() {
+        let mut world = super::world(super::turn());
+        crate::stories::shared::signing_in_and_starting_a_chat(&mut world);
+    }
+}
 
 fn report(
     world: &mut World<Test, Joint>,
@@ -29,130 +35,6 @@ fn report(
             report: jig_domain_fleet::Report::Activity(activity),
         })),
     );
-}
-
-fn same_pattern(source: &jig_domain_core::documents::GrantLine, native: &client::OwnerGrant) {
-    assert_eq!((source.connector, source.kind), (native.connector, native.kind));
-    assert_eq!(source.segments.capacity(), native.pattern.segments.capacity());
-    assert_eq!(source.segments.as_slice(), native.pattern.segments.as_slice());
-    match (&source.last, &native.pattern.last) {
-        (jig_domain_core::documents::PatternEnd::Exact(a), client::OwnerPatternEnd::Exact(b))
-        | (jig_domain_core::documents::PatternEnd::Open(a), client::OwnerPatternEnd::Open(b)) => assert_eq!(a, b),
-        pair => panic!("different whole pattern ends: {pair:?}"),
-    }
-}
-
-fn same_authority(source: &jig_domain_core::documents::AuthorityLine, native: &client::OwnerAuthorityDocument) {
-    let authority = &native.authority;
-    assert!(!native.cut);
-    assert_eq!((source.tools.0, source.notes.0), (authority.tools, authority.notes));
-    assert_eq!((source.ceiling.spend, source.ceiling.deadline), (authority.spend, authority.deadline));
-    assert_eq!((source.tasks, source.depth), (authority.delegation.tasks, authority.delegation.depth));
-    assert_eq!(source.grants.capacity(), authority.grants.capacity());
-    assert_eq!(source.grants.len(), authority.grants.len());
-    for (a, b) in source.grants.iter().zip(authority.grants.iter()) {
-        same_pattern(a, b);
-    }
-    assert_eq!(source.executors.capacity(), authority.delegation.kinds.capacity());
-    assert_eq!(source.executors.len(), authority.delegation.kinds.len());
-    for (a, b) in source.executors.iter().zip(authority.delegation.kinds.iter()) {
-        match (a, b) {
-            (jig_domain_tasks::AuthorityExecutor::Charter(a), client::OwnerAuthorityExecutor::Charter(b))
-            | (jig_domain_tasks::AuthorityExecutor::Procedure(a), client::OwnerAuthorityExecutor::Procedure(b))
-            | (jig_domain_tasks::AuthorityExecutor::Role(a), client::OwnerAuthorityExecutor::Role(b)) => {
-                assert_eq!(a, b);
-            }
-            pair => panic!("different executor permission: {pair:?}"),
-        }
-    }
-    assert_eq!(source.note_resources.capacity(), authority.note_resources.capacity());
-    assert_eq!(source.note_resources.len(), authority.note_resources.len());
-    for (a, b) in source.note_resources.iter().zip(authority.note_resources.iter()) {
-        assert_eq!(a.connector, b.connector);
-        assert_eq!(a.segments.capacity(), b.pattern.segments.capacity());
-        assert_eq!(a.segments.as_slice(), b.pattern.segments.as_slice());
-        match (&a.last, &b.pattern.last) {
-            (jig_domain_core::documents::PatternEnd::Exact(a), client::OwnerPatternEnd::Exact(b))
-            | (jig_domain_core::documents::PatternEnd::Open(a), client::OwnerPatternEnd::Open(b)) => assert_eq!(a, b),
-            pair => panic!("different whole note scope: {pair:?}"),
-        }
-    }
-}
-
-fn same_recipient(source: &jig_domain_core::acts::Recipient, native: &client::Recipient) {
-    match (source, native) {
-        (jig_domain_core::acts::Recipient::Task(a), client::Recipient::Task(b))
-        | (jig_domain_core::acts::Recipient::Party(a), client::Recipient::Party(b)) => assert_eq!(a, b),
-        (
-            jig_domain_core::acts::Recipient::Role { project: a, role: ar },
-            client::Recipient::Role { project: b, role: br },
-        ) => {
-            assert_eq!((a, ar), (b, br));
-        }
-        (
-            jig_domain_core::acts::Recipient::Roles { project: a, roles: ar },
-            client::Recipient::Roles { project: b, roles: br },
-        ) => {
-            assert_eq!(a, b);
-            assert_eq!(ar.capacity(), br.capacity());
-            assert_eq!(ar.as_slice(), br.as_slice());
-        }
-        pair => panic!("different exact recipient: {pair:?}"),
-    }
-}
-
-fn same_task_admission(source: &jig_domain_core::acts::Admission, native: &client::Admission) {
-    match (source, native) {
-        (jig_domain_core::acts::Admission::Allowed, client::Admission::Allowed) => {}
-        (jig_domain_core::acts::Admission::Proposed { to: a }, client::Admission::Proposed { to: b }) => {
-            same_recipient(a, b);
-        }
-        (jig_domain_core::acts::Admission::Refused(a), client::Admission::Refused(b)) => {
-            assert_eq!(super::wire::refusals::refusal(a.clone()).expect("bounded refusal"), *b);
-        }
-        (
-            jig_domain_core::acts::Admission::Bounded {
-                within:
-                    jig_domain_core::acts::Bounds::Amend {
-                        budget_left: a,
-                        grants: ag,
-                        implications: ai,
-                        authority: aa,
-                        ceiling: ac,
-                    },
-                beyond: ab,
-            },
-            client::Admission::Bounded {
-                within:
-                    client::Bounds::Amend { budget_left: b, grants: bg, implications: bi, authority: ba, ceiling: bc },
-                beyond: bb,
-            },
-        ) => {
-            assert_eq!(a, b);
-            assert_eq!(ag.capacity(), bg.capacity());
-            assert_eq!(ag.len(), bg.len());
-            for (a, b) in ag.iter().zip(bg.iter()) {
-                same_pattern(a, b);
-            }
-            assert_eq!(ai.capacity(), bi.capacity());
-            assert_eq!(ai.len(), bi.len());
-            for (a, b) in ai.iter().zip(bi.iter()) {
-                assert_eq!((a.connector, a.kind, a.implies), (b.connector, b.kind, b.implies));
-            }
-            same_authority(aa, ba);
-            same_authority(ac, bc);
-            match (ab, bb) {
-                (jig_domain_core::acts::Beyond::Proposed { to: a }, client::Beyond::Proposed { to: b }) => {
-                    same_recipient(a, b);
-                }
-                (jig_domain_core::acts::Beyond::Refused(a), client::Beyond::Refused(b)) => {
-                    assert_eq!(super::wire::refusals::refusal(a.clone()).expect("bounded refusal"), *b);
-                }
-                pair => panic!("different exact beyond-bound judgment: {pair:?}"),
-            }
-        }
-        pair => panic!("different actual Task admission: {pair:?}"),
-    }
 }
 
 #[test]
@@ -186,45 +68,6 @@ fn signing_in_and_starting_a_chat_on_the_engine() {
     world.run(Until::Time(Time::from_nanos(80_000_000)));
     report(&mut world, &assignment, completion());
     world.run(Until::Time(Time::from_nanos(180_000_000)));
-    let offers = world.front().session.task_offers(client, assignment.task).expect("admitted actual Task packet");
-    assert_eq!(offers.source.capacity(), 6);
-    assert_eq!(offers.native.capacity(), 6);
-    for (source, native) in offers.source.iter().zip(offers.native.iter()) {
-        same_task_admission(&source.admission, &native.admission);
-    }
-    let source_observation = offers.source_task.chip.details.observation.as_ref().expect("actual reported work");
-    assert_eq!(source_observation.work, jig_domain_core::documents::ChipWork::Writing);
-    let client::ChipPhase::Owner { details, .. } = offers.native_task.chip.details.as_ref() else {
-        panic!("whole actual chip metadata")
-    };
-    let observation = details.observation.as_ref().expect("translated actual reported work");
-    assert_eq!(observation.work, client::OwnerChipWork::Writing);
-    assert_eq!(source_observation.channel, observation.channel);
-    assert_eq!(source_observation.since, observation.since);
-    assert_eq!(source_observation.reported_at, observation.reported_at);
-    assert_eq!(source_observation.started, observation.started);
-    assert_eq!(
-        offers.source.iter().map(|value| value.act).collect::<Vec<_>>(),
-        vec![
-            jig_domain_core::acts::Act::Message,
-            jig_domain_core::acts::Act::Amend,
-            jig_domain_core::acts::Act::Move,
-            jig_domain_core::acts::Act::Stop,
-            jig_domain_core::acts::Act::Cancel,
-            jig_domain_core::acts::Act::Seen,
-        ]
-    );
-    assert_eq!(
-        offers.native.iter().map(|value| value.act).collect::<Vec<_>>(),
-        vec![
-            client::ActKind::Message,
-            client::ActKind::Amend,
-            client::ActKind::Move,
-            client::ActKind::Stop,
-            client::ActKind::Cancel,
-            client::ActKind::Seen,
-        ]
-    );
     assert!(world.tree(client).nodes().iter().any(|node| node.name.as_deref() == Some(b"Provisional".as_slice())));
     assert!(!world.front().session.driver.world.store.rows.values().any(|value| matches!(
         value,
@@ -259,29 +102,7 @@ fn signing_in_and_starting_a_chat_on_the_engine() {
 #[test]
 fn a_person_reads_actual_project_settings_and_returns_to_its_overview() {
     let mut world = world(turn());
-    let client = world.client(1, crate::stories::conversation());
-    let within = Duration::from_secs(1);
-    world.person(
-        client,
-        vec![
-            Step::See { find: Find::named(Role::Button, b"Sign in with Test"), within },
-            Step::Press { find: Find::named(Role::Button, b"Sign in with Test") },
-            Step::See { find: Find::named(Role::Button, b"Project 1"), within },
-            Step::Press { find: Find::named(Role::Button, b"Project 1") },
-            Step::See { find: Find::named(Role::Tab, b"Settings"), within },
-            Step::Press { find: Find::named(Role::Tab, b"Settings") },
-            Step::See { find: Find::text(b"Period spend: 1000"), within },
-            Step::See { find: Find::text(b"Period spend: 500"), within },
-            Step::See { find: Find::text(b"Escalation role: 0"), within },
-            Step::See { find: Find::text(b"Configured pool period: 1"), within },
-            Step::See { find: Find::named(Role::Tab, b"Overview"), within },
-            Step::Press { find: Find::named(Role::Tab, b"Overview") },
-            Step::See { find: Find::named(Role::Tab, b"Settings"), within },
-        ],
-    );
-    let outcome = world.run(Until::Done);
-    assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed);
-    assert!(outcome.judged.0 > 0);
+    crate::stories::shared::a_person::reading_project_settings(&mut world);
     let rows = &world.front().session.driver.world.store.rows;
     assert_eq!(
         rows.values()
@@ -307,12 +128,6 @@ fn a_person_reads_actual_project_settings_and_returns_to_its_overview() {
     )));
 }
 
-#[path = "deployment_story.rs"]
-mod deployment;
-
-#[path = "historical_story.rs"]
-mod historical;
-
 #[path = "people_stories.rs"]
 mod person_stories;
 
@@ -333,3 +148,5 @@ fn completion() -> jig_domain_fleet::Activity {
         span: Duration::from_secs(1),
     }
 }
+
+mod a_shared;

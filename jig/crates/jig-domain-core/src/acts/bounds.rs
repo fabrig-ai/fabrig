@@ -1,7 +1,9 @@
 //! Factual direct bounds and the policy holder for supported widening drafts.
-use super::{Admission, Beyond, Bounds, Recipient, standing};
-use crate::translate;
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    acts::{Admission, Beyond, Bounds, Recipient, standing},
+    translate,
+};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
@@ -130,7 +132,7 @@ pub(crate) fn amend_preflight_in(
     };
     amendment_admit_in(
         core,
-        crate::compound::PartyTask { person: party, role: held, project: row.project, task },
+        crate::admission::compound::PartyTask { person: party, role: held, project: row.project, task },
         &empty,
         limits.tasks.depth,
         &limits.tasks,
@@ -304,29 +306,18 @@ pub(crate) fn create_start(
 }
 
 /// The amendment's one full judge, used for admission and form standing.
-#[expect(clippy::too_many_arguments, reason = "an amendment carries its current task, authority and child bounds")]
 pub(crate) fn amendment_admit(
     core: &Core,
-    person: u64,
-    role: Option<people::Role>,
-    project: u32,
-    task: u64,
+    party: crate::admission::compound::PartyTask,
     amendment: &tasks::Amendment,
     depth: u32,
     limits: &tasks::Limits,
 ) -> Result<bool, people::Refusal> {
-    amendment_admit_in(
-        core,
-        crate::compound::PartyTask { person, project, role, task },
-        amendment,
-        depth,
-        limits,
-        &tasks::CompoundAdmission::new(&core.tasks, 0),
-    )
+    amendment_admit_in(core, party, amendment, depth, limits, &tasks::CompoundAdmission::new(&core.tasks, 0))
 }
 pub(crate) fn amendment_admit_in(
     core: &Core,
-    party: crate::compound::PartyTask,
+    party: crate::admission::compound::PartyTask,
     amendment: &tasks::Amendment,
     depth: u32,
     limits: &tasks::Limits,
@@ -335,13 +326,9 @@ pub(crate) fn amendment_admit_in(
     amendment_admit_places_in(core, party, amendment, depth, limits, admission, &[])
 }
 
-#[expect(clippy::too_many_arguments, reason = "authenticated amendment with loaded places")]
 pub(crate) fn amendment_admit_with_places(
     core: &Core,
-    person: u64,
-    role: Option<people::Role>,
-    project: u32,
-    task: u64,
+    party: crate::admission::compound::PartyTask,
     amendment: &tasks::Amendment,
     depth: u32,
     limits: &tasks::Limits,
@@ -349,7 +336,7 @@ pub(crate) fn amendment_admit_with_places(
 ) -> Result<bool, people::Refusal> {
     amendment_admit_places_in(
         core,
-        crate::compound::PartyTask { person, project, role, task },
+        party,
         amendment,
         depth,
         limits,
@@ -360,21 +347,21 @@ pub(crate) fn amendment_admit_with_places(
 
 pub(crate) fn amendment_admit_places_in(
     core: &Core,
-    party: crate::compound::PartyTask,
+    party: crate::admission::compound::PartyTask,
     amendment: &tasks::Amendment,
     depth: u32,
     limits: &tasks::Limits,
     admission: &tasks::CompoundAdmission<'_>,
     places: &[tasks::DependencyPlace],
 ) -> Result<bool, people::Refusal> {
-    let crate::compound::PartyTask { person, project, role, task } = party;
+    let crate::admission::compound::PartyTask { person, project, role, task } = party;
     standing::role(core, project, role, super::Act::Amend)?;
     if amendment.tracked.is_some() {
         standing::role(core, project, role, super::Act::Reorder)?;
     }
     let Some(context) = admission.task(task) else { return Err(people::Refusal::Unknown) };
     let Some(role) = role else { return Err(people::Refusal::Role { held: None }) };
-    let standing = Core::person_tree_in(person, task, depth, admission);
+    let standing = Core::person_tree(person, task, depth, admission);
     if context.project != project || !core.reaches_project(role, project) && !standing {
         return Err(people::Refusal::Unknown);
     }
@@ -400,7 +387,7 @@ pub(crate) fn amendment_admit_places_in(
         };
         return Err(why);
     }
-    if let Err(why) = crate::account_preference::executor(row.executor, amendment.llm.as_ref()) {
+    if let Err(why) = crate::runs::account_preference::executor(row.executor, amendment.llm.as_ref()) {
         return Err(core.account_refusal(why));
     }
     if let Some(choice) = &amendment.llm
@@ -417,8 +404,8 @@ pub(crate) fn amendment_admit_places_in(
     if !tasks::valid_authority(limits, after) {
         return Err(people::Refusal::Limit { which: people::LimitKind::Authority });
     }
-    let before = translate::authority_value(context.authority);
-    let after = translate::authority_value(after);
+    let before = translate::tasks_authority(context.authority);
+    let after = translate::tasks_authority(after);
     let implies = &core.authority.rules().implies;
     let stop_run = !authority::at_most(&before, &after, implies);
     if authority::at_most(&after, &before, implies) {
@@ -485,21 +472,21 @@ pub(crate) fn proposal_has_recipient(core: &Core, holder: tasks::ProposalHolder)
 /// Live names use staged reach; ended names use only their loaded place and root.
 fn amendment_dependencies(
     core: &Core,
-    party: crate::compound::PartyTask,
+    party: crate::admission::compound::PartyTask,
     existing: &[u64],
     dependencies: &[u64],
     depth: u32,
     admission: &tasks::CompoundAdmission<'_>,
     places: &[tasks::DependencyPlace],
 ) -> Result<(), people::Refusal> {
-    let crate::compound::PartyTask { person, project, role, .. } = party;
+    let crate::admission::compound::PartyTask { person, project, role, .. } = party;
     let Some(role) = role else { return Err(people::Refusal::Role { held: None }) };
     for dependency in dependencies {
         if existing.contains(dependency) {
             continue;
         }
         if admission.task(*dependency).is_some() {
-            if !core.reaches_in(crate::compound::PartyTask { task: *dependency, ..party }, depth, admission) {
+            if !core.reaches(crate::admission::compound::PartyTask { task: *dependency, ..party }, depth, admission) {
                 return Err(people::Refusal::Unknown);
             }
             continue;
@@ -511,7 +498,7 @@ fn amendment_dependencies(
             let mut reached = row.project == project
                 && (core.reaches_project(role, project)
                     || row.requester == tasks::Party::Person(person)
-                    || Core::person_tree_in(person, row.root, depth, admission));
+                    || Core::person_tree(person, row.root, depth, admission));
             if row.project == project && !reached {
                 for root in places {
                     if root.number == row.root

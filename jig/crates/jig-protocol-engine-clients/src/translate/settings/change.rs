@@ -1,5 +1,4 @@
 //! Whole settings asks into core values (client/domain/contract.md, 3.2).
-#![expect(clippy::manual_map, reason = "step code translates optional values with matches")]
 use super::super::{Untranslatable, asks, operations, w};
 use alloc::boxed::Box;
 use jig_domain_authority as a;
@@ -130,11 +129,7 @@ fn charter(value: w::Charter) -> c::Charter {
         },
     }
 }
-fn authority(
-    value: w::OwnerAuthority,
-    models: &[crate::Model],
-    limits: &w::Limits,
-) -> Result<a::Authority, Untranslatable> {
+fn authority(value: w::Authority, models: &[crate::Model], limits: &w::Limits) -> Result<a::Authority, Untranslatable> {
     let mut names = List::with_capacity(p::MODELS);
     let mut value = asks::authority(value, limits, &mut names)?;
     if let Some(selected) = value.models
@@ -160,7 +155,7 @@ fn authority(
         }
         value.models = Some(p::Models::Named(mask));
     }
-    c::authority_to_authority(value).ok_or(bad())
+    c::people_authority(value).ok_or(bad())
 }
 fn requirements(values: List<w::PolicyRequirement>) -> Box<[a::Requirement]> {
     let mut result = List::with_capacity(values.len());
@@ -330,22 +325,22 @@ fn contract(value: w::TaskContractDocument, limits: &w::Limits) -> Result<t::Con
     })
 }
 
-fn part(value: w::OwnerPart) -> t::Part {
+fn part(value: w::Part) -> t::Part {
     let v = value.into_parts();
     t::Part {
         connector: v.connector,
         kind: match v.kind {
-            w::OwnerPartKind::Resource => t::PartKind::Resource,
-            w::OwnerPartKind::Pool => t::PartKind::Pool,
-            w::OwnerPartKind::Result => t::PartKind::Result,
-            w::OwnerPartKind::Procedure => t::PartKind::Procedure,
-            w::OwnerPartKind::Effect => t::PartKind::Effect,
-            w::OwnerPartKind::Outbox => t::PartKind::Outbox,
-            w::OwnerPartKind::Hold => t::PartKind::Hold,
+            w::PartKind::Resource => t::PartKind::Resource,
+            w::PartKind::Pool => t::PartKind::Pool,
+            w::PartKind::Result => t::PartKind::Result,
+            w::PartKind::Procedure => t::PartKind::Procedure,
+            w::PartKind::Effect => t::PartKind::Effect,
+            w::PartKind::Outbox => t::PartKind::Outbox,
+            w::PartKind::Hold => t::PartKind::Hold,
         },
         key: match v.key {
-            w::OwnerPartKey::Number(value) => t::PartKey::Number(value.value()),
-            w::OwnerPartKey::Path(value) => t::PartKey::Path(value.into_parts().value),
+            w::PartKey::Number(value) => t::PartKey::Number(value.value()),
+            w::PartKey::Path(value) => t::PartKey::Path(value.into_parts().value),
         },
     }
 }

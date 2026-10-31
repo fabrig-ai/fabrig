@@ -1,5 +1,6 @@
-use jig_core_world::effects::World;
 use jig_core_world::fixtures::{ask_as, delegate, inbox_objects, live_row, member, refusal, second_party};
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -29,7 +30,7 @@ fn configuration(seed: u64) -> (root::Config, root::Limits) {
 
 fn story(seed: u64) -> Story {
     let (config, limits) = configuration(seed);
-    let mut world = World::configured(seed, false, config, limits);
+    let mut world = World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() });
     let owner_sign_in = world.sign_in.expect("owner signed in");
     let coordinator = world.assignments[0];
     let tasks::Party::Person(owner) = live_row(&world, coordinator.0).requester else { panic!("owner's coordinator") };
@@ -280,11 +281,11 @@ fn pending_release_proposals_and_placed_holds_survive_a_restart() {
         worker: 0,
         channel: Token::new(7),
         hello: jig_domain_fleet::Hello {
-            bounds: jig_core_world::fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),
             slots: 3,
             workstreams: Box::new([]),
-            hosting: Box::new([jig_domain_fleet::Hosted {
+            hosting: Box::new([jig_domain_fleet::Hosting {
                 run: Token::new(s.coordinator.0),
                 attempt: Token::new(s.coordinator.1),
                 phase: jig_domain_fleet::Phase::Active,
@@ -356,7 +357,7 @@ fn a_maintainer_cannot_release_an_owners_hold_as_part_of_an_amendment() {
     let sign_in = s.owner_sign_in;
     let number = stop(&mut s, sign_in);
     let before = live_row(&s.world, s.goal).clone();
-    let amendment = jig_core_world::fixtures::person_unchanged(b"resume");
+    let amendment = jig_test_profile::fixtures::person_unchanged(b"resume");
     ask_as(
         &mut s.world,
         maintainer,

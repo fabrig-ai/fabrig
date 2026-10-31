@@ -5,8 +5,8 @@ use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, Time, Token, Wall};
 
 use crate::{
-    Delivery, DeliveryOutcome, Domain, Event, Failure, Finish, Invalid, Limits, MessageRefusal, Preparation, Reason,
-    Refusal, Refused, Reply, Request, RunAssignment, Work, Workspace, step,
+    CallAnswer, Delivery, DeliveryOutcome, Event, Failure, Finish, Hub, Invalid, Limits, MessageRefusal, Preparation,
+    Reason, Refusal, Refused, Request, RunAssignment, Work, Workspace, step,
 };
 
 const LIMITS: Limits = Limits {
@@ -33,7 +33,7 @@ const LIMITS: Limits = Limits {
 };
 
 struct Harness {
-    domain: Domain,
+    domain: Hub,
     env: Env<Limits>,
     out: Queue<Request>,
 }
@@ -41,7 +41,7 @@ struct Harness {
 impl Harness {
     fn new() -> Self {
         Self {
-            domain: Domain::new(&LIMITS),
+            domain: Hub::new(&LIMITS),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS },
             out: Queue::uncapped(),
         }
@@ -70,12 +70,12 @@ impl Harness {
     fn live(&mut self, run: u64) -> (Token, Token, Token) {
         let (owner, workspace) = self.assign(run);
         let requests = self.step(Event::Prepared { owner, workspace });
-        let [Request::Start { owner: started, start: prepared }] = &*requests else {
+        let [Request::Agent(crate::ToAgent::Start { owner: started, start: prepared })] = &*requests else {
             panic!("expected start: {requests:?}")
         };
         assert_eq!((*started, prepared.workspace), (owner, Some(workspace)));
         let agent = Token::new(run.checked_add(300).expect("small run"));
-        assert!(self.step(Event::Started { owner, agent }).is_empty());
+        assert!(self.step(Event::Agent(crate::FromAgent::Started { owner, agent })).is_empty());
         (owner, workspace, agent)
     }
 }
@@ -110,28 +110,32 @@ fn an_itemless_run_starts_and_ends_without_a_workspace() {
     let run = assignment.run;
     let attempt = assignment.attempt;
     let requests = h.step(fixtures::assign(assignment));
-    let [Request::Start { owner, start }] = &*requests else {
+    let [Request::Agent(crate::ToAgent::Start { owner, start })] = &*requests else {
         panic!("an itemless run starts without preparation: {requests:?}");
     };
     assert_eq!(start.workspace, None);
     let owner = *owner;
     let agent = Token::new(301);
-    assert!(h.step(Event::Started { owner, agent }).is_empty());
+    assert!(h.step(Event::Agent(crate::FromAgent::Started { owner, agent })).is_empty());
     let call = Token::new(42);
     assert_eq!(
         &*h.step(fixtures::called(owner, call, fixtures::deliver(Box::from(&b"work"[..])))),
-        [Request::Reply { agent, call: Box::from(call.raw().to_be_bytes()), reply: Reply::Unavailable }]
+        [Request::Agent(crate::ToAgent::Answer {
+            agent,
+            call: Box::from(call.raw().to_be_bytes()),
+            answer: CallAnswer::Unavailable
+        })]
     );
     assert_eq!(
         &*h.step(fixtures::finished(owner, Finish::Ended { outcome: Box::from(&b"done"[..]) })),
-        [Request::Stop { agent }]
+        [Request::Agent(crate::ToAgent::Cancel { agent })]
     );
-    let requests = h.step(Event::Gone { owner, detail: Box::new([]) });
+    let requests = h.step(Event::Agent(crate::FromAgent::Gone { owner, detail: Box::new([]) }));
     let [
         Request::Up(LinkUp::Answer {
             run: answered,
             attempt: answered_attempt,
-            answer: crate::Answer { ending: crate::Ending::Ended { work, .. }, .. },
+            answer: crate::RunAnswer { ending: crate::Ending::Ended { work, .. }, .. },
             ..
         }),
     ] = &*requests
@@ -155,13 +159,13 @@ fn turns_stay_in_the_host_until_their_own_ack_and_credit_returns() {
             answered: Box::new([]),
         },
     }));
-    let [Request::Start { owner, start }] = &*requests else {
+    let [Request::Agent(crate::ToAgent::Start { owner, start })] = &*requests else {
         panic!("an itemless run starts: {requests:?}");
     };
     assert_eq!(start.workspace, None);
     let owner = *owner;
     let agent = Token::new(301);
-    assert!(h.step(Event::Started { owner, agent }).is_empty());
+    assert!(h.step(Event::Agent(crate::FromAgent::Started { owner, agent })).is_empty());
     for number in 1..=2 {
         let usage = u64::from(number == 1);
         let turn = crate::Turn {
@@ -172,10 +176,10 @@ fn turns_stay_in_the_host_until_their_own_ack_and_credit_returns() {
             read: None,
             body: Box::from([7_u8; 64]),
         };
-        let requests = h.step(Event::Turn { owner, turn });
+        let requests = h.step(Event::Agent(crate::FromAgent::Turn { owner, turn }));
         let [
             Request::Up(LinkUp::Turn { turn: sent, .. }),
-            Request::AcknowledgeAgentTurn { agent: credited, turn: ack },
+            Request::Agent(crate::ToAgent::Acknowledge { agent: credited, turn: ack }),
         ] = &*requests
         else {
             panic!("a turn is sent with the next credit: {requests:?}");
@@ -196,7 +200,7 @@ fn turns_stay_in_the_host_until_their_own_ack_and_credit_returns() {
 
 #[test]
 fn a_turn_credit_bound_must_hold_a_maximum_body() {
-    assert!(!crate::valid(&Limits { turn_queue_bytes: 63, ..LIMITS }));
+    assert!(!crate::valid_hub(&Limits { turn_queue_bytes: 63, ..LIMITS }));
 }
 
 #[test]
@@ -207,7 +211,7 @@ fn a_bad_charter_is_refused_before_a_workspace_is_touched() {
     let requests = h.step(fixtures::assign(assignment));
     let [
         Request::Up(LinkUp::Answer {
-            answer: crate::Answer { ending: crate::Ending::Refused(Refusal::Invalid(Invalid::Charter)), .. },
+            answer: crate::RunAnswer { ending: crate::Ending::Refused(Refusal::Invalid(Invalid::Charter)), .. },
             ..
         }),
     ] = &*requests
@@ -228,7 +232,7 @@ fn a_preparation_failure_answers_without_starting_an_agent() {
     let [
         Request::Up(LinkUp::Answer {
             answer:
-                crate::Answer {
+                crate::RunAnswer {
                     ending:
                         crate::Ending::Failed {
                             failure: Failure::Unprepared(Preparation::Permanent { resource: Some(resource) }),
@@ -260,14 +264,20 @@ fn a_delivery_is_answered_after_the_workspace_reports_what_it_left() {
     let requests = h.step(Event::Delivered { owner: *delivery, delivery: delivered });
     assert_eq!(
         &*requests,
-        [Request::Reply { agent, call: Box::from(call.raw().to_be_bytes()), reply: Reply::Delivered(delivered) }]
+        [Request::Agent(crate::ToAgent::Answer {
+            agent,
+            call: Box::from(call.raw().to_be_bytes()),
+            answer: CallAnswer::Delivered(delivered)
+        })]
     );
     let requests = h.step(fixtures::finished(owner, Finish::Ended { outcome: Box::from(&b"done"[..]) }));
-    assert_eq!(&*requests, [Request::Stop { agent }]);
-    let requests = h.step(Event::Gone { owner, detail: Box::new([]) });
+    assert_eq!(&*requests, [Request::Agent(crate::ToAgent::Cancel { agent })]);
+    let requests = h.step(Event::Agent(crate::FromAgent::Gone { owner, detail: Box::new([]) }));
     let [
         Request::Release { workspace: released },
-        Request::Up(LinkUp::Answer { answer: crate::Answer { ending: crate::Ending::Ended { work, .. }, .. }, .. }),
+        Request::Up(LinkUp::Answer {
+            answer: crate::RunAnswer { ending: crate::Ending::Ended { work, .. }, .. }, ..
+        }),
     ] = &*requests
     else {
         panic!("expected release and answer: {requests:?}")
@@ -285,15 +295,21 @@ fn stopping_waits_for_a_delivery_even_after_the_agent_is_gone() {
     let delivery = *delivery;
     assert_eq!(
         &*h.step(fixtures::finished(owner, Finish::Ended { outcome: Box::from(&b"done"[..]) })),
-        [Request::Stop { agent }]
+        [Request::Agent(crate::ToAgent::Cancel { agent })]
     );
-    assert!(h.step(Event::Gone { owner, detail: Box::new([]) }).is_empty());
+    assert!(h.step(Event::Agent(crate::FromAgent::Gone { owner, detail: Box::new([]) })).is_empty());
     let changed = Delivery { outcome: DeliveryOutcome::Delivered, left: Token::new(900), changed: true };
     let requests = h.step(Event::Delivered { owner: delivery, delivery: changed });
     let [
-        Request::Reply { agent: answered_agent, call: answered_call, reply: Reply::Delivered(outcome) },
+        Request::Agent(crate::ToAgent::Answer {
+            agent: answered_agent,
+            call: answered_call,
+            answer: CallAnswer::Delivered(outcome),
+        }),
         Request::Release { workspace: released },
-        Request::Up(LinkUp::Answer { answer: crate::Answer { ending: crate::Ending::Ended { work, .. }, .. }, .. }),
+        Request::Up(LinkUp::Answer {
+            answer: crate::RunAnswer { ending: crate::Ending::Ended { work, .. }, .. }, ..
+        }),
     ] = &*requests
     else {
         panic!("the delivery settles before release and answer: {requests:?}")
@@ -310,14 +326,14 @@ fn live_agent_facts_wait_within_the_hosts_bound_and_drop_when_full() {
     let lost = h.domain.activity_lost();
     for count in 1..=3 {
         assert!(
-            h.step(Event::Activity {
+            h.step(Event::Agent(crate::FromAgent::Activity {
                 owner,
-                activity: crate::Activity::Count {
+                activity: crate::AgentActivity::Count {
                     kind: crate::CountKind::TextArrived,
                     elapsed: skein_lib::Duration::ZERO,
                     count
                 }
-            })
+            }))
             .is_empty()
         );
     }
@@ -328,7 +344,7 @@ fn live_agent_facts_wait_within_the_hosts_bound_and_drop_when_full() {
             Some(LinkUp::Activity {
                 run: Token::new(1),
                 attempt: Token::new(1001),
-                activity: crate::Activity::Count {
+                activity: crate::AgentActivity::Count {
                     kind: crate::CountKind::TextArrived,
                     elapsed: skein_lib::Duration::ZERO,
                     count
@@ -349,7 +365,9 @@ fn cancelling_a_preparing_run_waits_for_the_workspace_terminal() {
     let [
         Request::Up(LinkUp::Answer {
             answer:
-                crate::Answer { ending: crate::Ending::Failed { failure: Failure::Cancelled(Reason::Engine), .. }, .. },
+                crate::RunAnswer {
+                    ending: crate::Ending::Failed { failure: Failure::Cancelled(Reason::Engine), .. }, ..
+                },
             ..
         }),
     ] = &*requests
@@ -375,14 +393,14 @@ fn held_finish_messages_reach_the_agent_after_start() {
         h.step(Event::Prepared { owner, workspace });
         let agent = Token::new(301);
         assert_eq!(
-            &*h.step(Event::Started { owner, agent }),
-            &[Request::Message {
+            &*h.step(Event::Agent(crate::FromAgent::Started { owner, agent })),
+            &[Request::Agent(crate::ToAgent::Message {
                 agent,
                 name,
                 sender: Box::from(b"requester".as_slice()),
                 words: Box::from(b"wrap up".as_slice()),
                 finish_requested,
-            }]
+            })]
         );
     }
 }
@@ -401,7 +419,7 @@ fn messages_held_during_a_failed_prepare_are_returned_by_name() {
         [Request::Up(LinkUp::Answer {
             run,
             attempt,
-            answer: crate::Answer {
+            answer: crate::RunAnswer {
                 read: None,
                 refused: Box::from([Refused { name, reason: MessageRefusal::Ending }]),
                 turns: 0,
@@ -424,18 +442,22 @@ fn cancellation_returns_messages_held_before_the_agent_starts() {
     let attempt = Token::new(1001);
     let name = Token::new(42);
     let requests = h.step(Event::Prepared { owner, workspace });
-    let [Request::Start { .. }] = &*requests else { panic!("the agent starts: {requests:?}") };
+    let [Request::Agent(crate::ToAgent::Start { .. })] = &*requests else { panic!("the agent starts: {requests:?}") };
     assert!(h.step(fixtures::inbound(run, attempt, name, Box::from(&b"question"[..]))).is_empty());
     assert_eq!(&*h.step(Event::Down(LinkDown::Cancel { run, attempt })), []);
     let agent = Token::new(301);
-    assert_eq!(&*h.step(Event::Started { owner, agent }), [Request::Stop { agent }]);
-    let requests = h.step(Event::Gone { owner, detail: Box::new([]) });
+    assert_eq!(
+        &*h.step(Event::Agent(crate::FromAgent::Started { owner, agent })),
+        [Request::Agent(crate::ToAgent::Cancel { agent })]
+    );
+    let requests = h.step(Event::Agent(crate::FromAgent::Gone { owner, detail: Box::new([]) }));
     assert_eq!(&*requests, [Request::Save { owner, workspace }]);
     let requests = h.step(Event::Saved { owner, at: None });
     let [
         Request::Release { workspace: released },
         Request::Up(LinkUp::Answer {
-            answer: crate::Answer { ending: crate::Ending::Failed { failure, .. }, .. }, ..
+            answer: crate::RunAnswer { ending: crate::Ending::Failed { failure, .. }, .. },
+            ..
         }),
     ] = &*requests
     else {
@@ -477,11 +499,11 @@ mod fixtures {
         Event::Down(LinkDown::Message { run, attempt, name, sender: Box::new([]), words, finish_requested: false })
     }
     pub fn called(owner: Token, call: Token, ask: Ask) -> Event {
-        Event::Called { owner, call: Box::from(call.raw().to_be_bytes()), ask }
+        Event::Agent(crate::FromAgent::Called { owner, call: Box::from(call.raw().to_be_bytes()), ask })
     }
 
     pub fn finished(owner: Token, finish: Finish) -> Event {
-        Event::Finished { read: None, owner, turns: 0, spent: 0, finish }
+        Event::Agent(crate::FromAgent::Finished { read: None, owner, turns: 0, spent: 0, finish })
     }
     pub fn deliver(title: Box<[u8]>) -> Ask {
         Ask::Deliver { title, body: Box::new([]) }
@@ -502,7 +524,9 @@ fn assigned_grants(h: &mut Harness, grants: Box<[crate::Grant]>) -> (Token, Box<
     let requests = h.step(fixtures::assign(assignment));
     assert_eq!(requests.len(), 1);
     let mut requests = requests.into_iter();
-    let Some(Request::Start { owner, start }) = requests.next() else { panic!("expected start") };
+    let Some(Request::Agent(crate::ToAgent::Start { owner, start })) = requests.next() else {
+        panic!("expected start")
+    };
     (owner, start)
 }
 
@@ -527,10 +551,10 @@ fn a_program_grant_reaches_the_agents_start_and_renewals() {
     let (owner, start) = assigned_grants(&mut h, Box::new([fixtures::program_grant(1)]));
     assert_eq!(&*start.grants, &[fixtures::program_grant(1)]);
     let agent = Token::new(301);
-    h.step(Event::Started { owner, agent });
+    h.step(Event::Agent(crate::FromAgent::Started { owner, agent }));
     assert_eq!(
         &*renewal(&mut h, fixtures::program_grant(2)),
-        &[Request::Grant { agent, grant: fixtures::program_grant(2) }]
+        &[Request::Agent(crate::ToAgent::Grant { agent, grant: fixtures::program_grant(2) })]
     );
 }
 
@@ -541,8 +565,8 @@ fn a_program_renewal_while_starting_reaches_the_agent() {
     renewal(&mut h, fixtures::program_grant(2));
     let agent = Token::new(301);
     assert_eq!(
-        &*h.step(Event::Started { owner, agent }),
-        &[Request::Grant { agent, grant: fixtures::program_grant(2) }]
+        &*h.step(Event::Agent(crate::FromAgent::Started { owner, agent })),
+        &[Request::Agent(crate::ToAgent::Grant { agent, grant: fixtures::program_grant(2) })]
     );
 }
 
@@ -559,7 +583,7 @@ fn an_applications_grant_is_kept_and_never_handed_to_the_agent() {
     let (owner, start) = assigned_grants(&mut h, Box::new([fixtures::application_grant(1)]));
     assert!(start.grants.is_empty());
     assert!(renewal(&mut h, fixtures::application_grant(2)).is_empty());
-    assert!(h.step(Event::Started { owner, agent: Token::new(301) }).is_empty());
+    assert!(h.step(Event::Agent(crate::FromAgent::Started { owner, agent: Token::new(301) })).is_empty());
     assert!(renewal(&mut h, fixtures::application_grant(3)).is_empty());
     assert_eq!(kept_grants(&h, owner), &[fixtures::application_grant(3)]);
 }
@@ -569,9 +593,9 @@ fn an_accounts_grant_renews_the_agents_grant() {
     let mut h = Harness::new();
     let (owner, _) = assigned_grants(&mut h, Box::new([fixtures::account_grant(1), fixtures::application_grant(1)]));
     let agent = Token::new(301);
-    h.step(Event::Started { owner, agent });
+    h.step(Event::Agent(crate::FromAgent::Started { owner, agent }));
     let newest = crate::Grant { form: crate::Form::Credential(crate::Scheme::Key), ..fixtures::account_grant(2) };
-    assert_eq!(&*renewal(&mut h, newest), &[Request::Grant { agent, grant: newest }]);
+    assert_eq!(&*renewal(&mut h, newest), &[Request::Agent(crate::ToAgent::Grant { agent, grant: newest })]);
     assert_eq!(kept_grants(&h, owner), &[newest, fixtures::application_grant(1)]);
 }
 
@@ -583,8 +607,8 @@ fn a_renewal_while_starting_sends_the_agent_accounts_grants_only() {
     assert!(renewal(&mut h, fixtures::application_grant(2)).is_empty());
     let agent = Token::new(301);
     assert_eq!(
-        &*h.step(Event::Started { owner, agent }),
-        &[Request::Grant { agent, grant: fixtures::account_grant(2) }]
+        &*h.step(Event::Agent(crate::FromAgent::Started { owner, agent })),
+        &[Request::Agent(crate::ToAgent::Grant { agent, grant: fixtures::account_grant(2) })]
     );
 }
 
@@ -592,7 +616,7 @@ fn a_renewal_while_starting_sends_the_agent_accounts_grants_only() {
 fn an_equal_or_older_generation_does_not_renew_an_agent() {
     let mut h = Harness::new();
     let (owner, _) = assigned_grants(&mut h, Box::new([fixtures::account_grant(2)]));
-    h.step(Event::Started { owner, agent: Token::new(301) });
+    h.step(Event::Agent(crate::FromAgent::Started { owner, agent: Token::new(301) }));
     assert!(renewal(&mut h, fixtures::account_grant(2)).is_empty());
     assert!(renewal(&mut h, fixtures::account_grant(1)).is_empty());
 }
@@ -609,8 +633,14 @@ fn an_agent_cannot_supply_the_hubs_turn_refusals() {
         refused: Box::from([Refused { name: Token::new(42), reason: MessageRefusal::Full }]),
         body: Box::new([]),
     };
-    assert_eq!(&*h.step(Event::Turn { owner, turn }), &[Request::Stop { agent }]);
-    assert_eq!(&*h.step(Event::Gone { owner, detail: Box::new([]) }), &[Request::Save { owner, workspace }]);
+    assert_eq!(
+        &*h.step(Event::Agent(crate::FromAgent::Turn { owner, turn })),
+        &[Request::Agent(crate::ToAgent::Cancel { agent })]
+    );
+    assert_eq!(
+        &*h.step(Event::Agent(crate::FromAgent::Gone { owner, detail: Box::new([]) })),
+        &[Request::Save { owner, workspace }]
+    );
     let requests = h.step(Event::Saved { owner, at: None });
     let [Request::Release { .. }, Request::Up(LinkUp::Answer { answer, .. })] = &*requests else {
         panic!("one failed answer")
@@ -627,7 +657,7 @@ fn an_agent_cannot_supply_the_hubs_turn_refusals() {
 }
 
 fn named_relay(h: &mut Harness, owner: Token, name: &[u8]) {
-    let requests = h.step(Event::Called {
+    let requests = h.step(Event::Agent(crate::FromAgent::Called {
         owner,
         call: Box::from(name),
         ask: crate::Ask::Relay {
@@ -636,7 +666,7 @@ fn named_relay(h: &mut Harness, owner: Token, name: &[u8]) {
             input: Box::from(&b"{}"[..]),
             deadline: skein_lib::Duration::from_secs(1),
         },
-    });
+    }));
     let [Request::Up(LinkUp::Call { call, .. })] = &*requests else {
         panic!("expected named relay: {requests:?}");
     };
@@ -662,11 +692,11 @@ fn a_named_relay_answer_reaches_its_waiting_call() {
     let requests = h.step(named_answer(2, b"read-call"));
     assert_eq!(
         &*requests,
-        &[Request::Reply {
+        &[Request::Agent(crate::ToAgent::Answer {
             agent,
             call: Box::from(&b"read-call"[..]),
-            reply: Reply::Relayed { error: false, text: Box::from(&b"record"[..]) },
-        }]
+            answer: CallAnswer::Relayed { error: false, text: Box::from(&b"record"[..]) },
+        })]
     );
     assert!(h.domain.is_relayed(Token::new(1), Token::new(1001), b"read-call"));
 }
@@ -687,8 +717,14 @@ fn an_answer_naming_no_relay_of_its_attempt_is_dropped() {
 fn an_assignment_is_answered_by_its_run_and_attempt() {
     let mut h = Harness::new();
     let (owner, workspace, agent) = h.live(7);
-    assert_eq!(&*h.step(fixtures::finished(owner, Finish::Parked)), &[Request::Stop { agent }]);
-    assert_eq!(&*h.step(Event::Gone { owner, detail: Box::new([]) }), &[Request::Save { owner, workspace }]);
+    assert_eq!(
+        &*h.step(fixtures::finished(owner, Finish::Parked)),
+        &[Request::Agent(crate::ToAgent::Cancel { agent })]
+    );
+    assert_eq!(
+        &*h.step(Event::Agent(crate::FromAgent::Gone { owner, detail: Box::new([]) })),
+        &[Request::Save { owner, workspace }]
+    );
     let requests = h.step(Event::Saved { owner, at: None });
     let [Request::Release { .. }, Request::Up(LinkUp::Answer { run, attempt, answer })] = &*requests else {
         panic!("the assignment answers: {requests:?}");
@@ -707,7 +743,7 @@ fn an_assignment_is_refused_by_its_run_and_attempt() {
         &[Request::Up(LinkUp::Answer {
             run: Token::new(9),
             attempt: Token::new(1009),
-            answer: crate::Answer {
+            answer: crate::RunAnswer {
                 read: None,
                 refused: Box::new([]),
                 turns: 0,
@@ -721,7 +757,9 @@ fn an_assignment_is_refused_by_its_run_and_attempt() {
 fn pending_start(h: &mut Harness, run: u64) -> (Token, Token) {
     let (owner, workspace) = h.assign(run);
     let requests = h.step(Event::Prepared { owner, workspace });
-    let [Request::Start { owner: started, start }] = &*requests else { panic!("expected start: {requests:?}") };
+    let [Request::Agent(crate::ToAgent::Start { owner: started, start })] = &*requests else {
+        panic!("expected start: {requests:?}")
+    };
     assert_eq!((*started, start.workspace), (owner, Some(workspace)));
     (owner, workspace)
 }
@@ -731,7 +769,7 @@ fn a_refused_start_answers_invalid_with_its_words_and_frees_its_slot() {
     let mut h = Harness::new();
     let (owner, workspace) = pending_start(&mut h, 1);
     let _other = h.assign(2);
-    let requests = h.step(Event::from_agent(crate::FromAgent::StartRefused {
+    let requests = h.step(Event::Agent(crate::FromAgent::StartRefused {
         cause: crate::StartCause::Grants,
         owner,
         why: b"budget".as_slice().into(),
@@ -743,7 +781,7 @@ fn a_refused_start_answers_invalid_with_its_words_and_frees_its_slot() {
             Request::Up(LinkUp::Answer {
                 run: Token::new(1),
                 attempt: Token::new(1001),
-                answer: crate::Answer {
+                answer: crate::RunAnswer {
                     turns: 0,
                     spent: 0,
                     read: None,
@@ -765,7 +803,7 @@ fn a_refused_start_answers_invalid_with_its_words_and_frees_its_slot() {
 fn a_refused_starts_words_keep_only_the_bounded_detail_tail() {
     let mut h = Harness::new();
     let (owner, _) = pending_start(&mut h, 1);
-    let requests = h.step(Event::from_agent(crate::FromAgent::StartRefused {
+    let requests = h.step(Event::Agent(crate::FromAgent::StartRefused {
         cause: crate::StartCause::Other,
         owner,
         why: b"prefix detailed".as_slice().into(),
@@ -786,7 +824,7 @@ fn a_refused_starts_words_keep_only_the_bounded_detail_tail() {
 fn gone_while_starting_still_answers_an_unstarted_agent_failure() {
     let mut h = Harness::new();
     let (owner, workspace) = pending_start(&mut h, 1);
-    let requests = h.step(Event::Gone { owner, detail: b"exit".as_slice().into() });
+    let requests = h.step(Event::Agent(crate::FromAgent::Gone { owner, detail: b"exit".as_slice().into() }));
     assert_eq!(
         requests.as_ref(),
         &[
@@ -794,7 +832,7 @@ fn gone_while_starting_still_answers_an_unstarted_agent_failure() {
             Request::Up(LinkUp::Answer {
                 run: Token::new(1),
                 attempt: Token::new(1001),
-                answer: crate::Answer {
+                answer: crate::RunAnswer {
                     turns: 0,
                     spent: 0,
                     read: None,
@@ -815,7 +853,7 @@ fn a_start_refusal_after_cancel_keeps_the_cancellations_answer() {
     let mut h = Harness::new();
     let (owner, _) = pending_start(&mut h, 1);
     assert!(h.step(Event::Down(LinkDown::Cancel { run: Token::new(1), attempt: Token::new(1001) })).is_empty());
-    let requests = h.step(Event::from_agent(crate::FromAgent::StartRefused {
+    let requests = h.step(Event::Agent(crate::FromAgent::StartRefused {
         cause: crate::StartCause::Other,
         owner,
         why: b"budget".as_slice().into(),
@@ -844,7 +882,7 @@ fn two_grants_of_one_account_in_different_forms_are_refused() {
     let requests = h.step(fixtures::assign(assignment));
     let [
         Request::Up(LinkUp::Answer {
-            answer: crate::Answer { ending: crate::Ending::Refused(Refusal::Invalid(Invalid::Grants)), .. },
+            answer: crate::RunAnswer { ending: crate::Ending::Refused(Refusal::Invalid(Invalid::Grants)), .. },
             ..
         }),
     ] = &*requests
@@ -867,13 +905,13 @@ fn program_endpoints_are_valid_up_to_the_cap_and_distinct() {
     const ENDPOINT_CAP: u32 = 64;
     let mut duplicate = program_endpoints(ENDPOINT_CAP);
     *duplicate.last_mut().expect("nonempty endpoint list") = 0;
-    for (endpoints, valid) in [
+    for (endpoints, valid_hub) in [
         (program_endpoints(0), true),
         (program_endpoints(ENDPOINT_CAP), true),
         (program_endpoints(ENDPOINT_CAP + 1), false),
         (duplicate, false),
     ] {
-        assert_eq!(crate::valid_program_endpoints(&endpoints), valid, "endpoints: {endpoints:?}");
+        assert_eq!(crate::valid_program_endpoints(&endpoints), valid_hub, "endpoints: {endpoints:?}");
     }
 }
 
@@ -886,7 +924,7 @@ fn an_assignments_live_ask_reaches_the_agents_start() {
         let requests = h.step(fixtures::assign(assignment));
         let [Request::Prepare { owner, .. }] = &*requests else { panic!("prepare workspace") };
         let requests = h.step(Event::Prepared { owner: *owner, workspace: Token::new(201) });
-        let [Request::Start { start, .. }] = &*requests else { panic!("start agent") };
+        let [Request::Agent(crate::ToAgent::Start { start, .. })] = &*requests else { panic!("start agent") };
         assert_eq!(start.live, live);
     }
 }
@@ -904,11 +942,11 @@ fn a_local_call_error_retires_the_relay_and_ignores_late_terminals() {
     });
     assert_eq!(
         &*h.step(error),
-        &[Request::Reply {
+        &[Request::Agent(crate::ToAgent::Answer {
             agent,
             call: b"oversized".as_slice().into(),
-            reply: Reply::Relayed { error: true, text: b"call too large".as_slice().into() }
-        }]
+            answer: CallAnswer::Relayed { error: true, text: b"call too large".as_slice().into() }
+        })]
     );
     h.domain.reclaim();
     assert_eq!(h.domain.calls(), 0);
@@ -923,8 +961,14 @@ fn a_local_call_error_retires_the_relay_and_ignores_late_terminals() {
         .is_empty()
     );
     assert_eq!(h.domain.calls(), 0);
-    assert_eq!(&*h.step(fixtures::finished(owner, Finish::Parked)), &[Request::Stop { agent }]);
-    assert_eq!(&*h.step(Event::Gone { owner, detail: Box::new([]) }), &[Request::Save { owner, workspace }]);
+    assert_eq!(
+        &*h.step(fixtures::finished(owner, Finish::Parked)),
+        &[Request::Agent(crate::ToAgent::Cancel { agent })]
+    );
+    assert_eq!(
+        &*h.step(Event::Agent(crate::FromAgent::Gone { owner, detail: Box::new([]) })),
+        &[Request::Save { owner, workspace }]
+    );
     let requests = h.step(Event::Saved { owner, at: None });
     let [Request::Release { .. }, Request::Up(LinkUp::Answer { .. })] = &*requests else {
         panic!("the drained assignment answers: {requests:?}");
@@ -950,7 +994,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         ("source_interval", Limits { source_interval: skein_lib::Duration::ZERO, ..LIMITS }, false),
         ("source_timeout", Limits { source_timeout: skein_lib::Duration::ZERO, ..LIMITS }, false),
     ] {
-        assert_eq!(crate::valid(&limits), accepted, "{name}");
+        assert_eq!(crate::valid_hub(&limits), accepted, "{name}");
     }
 }
 
@@ -969,11 +1013,35 @@ mod source_validity {
 
 #[test]
 fn validity_does_not_price_host_payloads() {
-    assert!(crate::valid(&Limits {
+    assert!(crate::valid_hub(&Limits {
         event_bytes: u64::MAX,
         charter_bytes: u64::MAX,
         transcript_bytes: u64::MAX,
         turn_queue_bytes: u64::MAX,
         ..LIMITS
     }));
+}
+
+#[test]
+fn admission_classifies_calls_and_link_work_separately_from_completions() {
+    let call = crate::FromAgent::Called {
+        owner: Token::new(1),
+        call: Box::from(*b"read"),
+        ask: crate::Ask::Relay {
+            tool: Box::from(*b"logs"),
+            writes: false,
+            input: Box::new([]),
+            deadline: skein_lib::Duration::from_secs(1),
+        },
+    };
+    assert!(call.new_work());
+    assert!(Event::Agent(call).new_work());
+    let settled = crate::FromAgent::Yielded { owner: Token::new(1) };
+    assert!(!settled.new_work());
+    assert!(!Event::Agent(settled).new_work());
+    assert!(
+        Event::Down(LinkDown::SignOut { name: crate::SourceName::new(b"test").expect("configured name") }).new_work()
+    );
+    assert!(!Event::SourceLost.new_work());
+    assert!(!Event::Saved { owner: Token::new(1), at: None }.new_work());
 }

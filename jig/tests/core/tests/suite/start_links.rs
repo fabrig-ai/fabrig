@@ -1,9 +1,8 @@
-//! Selected starts retain durable diagnostic answers (jig/docs/design/domain/engine.md, 6).
-use jig_core_world::{
-    effects::{World, fixture},
-    fixtures,
-};
-use jig_domain_accounts as accounts;
+//! Starts retain durable diagnostic answers (jig/docs/design/domain/engine.md, 6).
+use jig_core_world::fixtures;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
+use jig_core_world::world::fixture;
 use jig_domain_core::{
     self as core,
     start::{Action, Phase, SweepInput},
@@ -45,33 +44,7 @@ impl Harness {
     }
 
     fn record(&mut self, record: core::Record) {
-        match record {
-            core::Record::Core(row) => {
-                assert_ne!(self.core.restore_core(row, &self.env.limits), core::Restored::Rejected);
-            }
-            core::Record::Tasks(row) => {
-                assert!(self.core.restore_task_row(&row));
-                drop(core::step(&mut self.core, &self.env, core::Event::Tasks(tasks::Event::Restore { record: row })));
-            }
-            core::Record::People(people::Stored::Policy { project, name, value }) => {
-                assert!(self.core.restore_policy(&self.env.limits, project, name, value));
-            }
-            core::Record::People(row) => {
-                drop(core::step(
-                    &mut self.core,
-                    &self.env,
-                    core::Event::People(people::Event::Restore { record: row }),
-                ));
-            }
-            core::Record::Accounts(row) => {
-                drop(core::step(
-                    &mut self.core,
-                    &self.env,
-                    core::Event::Account(accounts::Event::Restore { record: row }),
-                ));
-            }
-            core::Record::Notes(_) => panic!("diagnostic fixtures contain no notes"),
-        }
+        assert_ne!(self.core.restore(&self.env, record), core::Restore::Refused);
         assert_eq!(self.core.start_failure(), None);
     }
 
@@ -92,13 +65,6 @@ impl Harness {
         for _ in 0..32 {
             action = match action {
                 Action::Step(Phase::Sweep) => self.core.start_sweep(&self.env, SweepInput::Finished, &mut self.out),
-                Action::Step(Phase::AdoptRuns) => {
-                    while let Some(event) = self.core.adopted.pop() {
-                        drop(core::step(&mut self.core, &self.env, core::Event::Fleet(event)));
-                    }
-                    drop(core::step(&mut self.core, &self.env, core::Event::Fleet(jig_domain_fleet::Event::Loaded)));
-                    self.core.start_done(&self.env, Phase::AdoptRuns, &mut self.out)
-                }
                 Action::Step(done) => self.core.start_done(&self.env, done, &mut self.out),
                 Action::Commit(token) => self.core.start_resume(&self.env, token, &mut self.out),
                 Action::Idle => return,
@@ -115,8 +81,8 @@ fn phase(action: &Action, expected: Phase) {
 }
 
 #[test]
-fn unknown_introduction_target_replays_its_original_diagnostic_after_selected_link() {
-    let mut world = World::new(SEED, false);
+fn unknown_introduction_target_replays_its_original_diagnostic_after_start_link() {
+    let mut world = World::new(Setup { seed: SEED, ..Setup::default() });
     world.hold_procedures = true;
     world.delegate();
     world.tool_call(b"introduce", br#"{"left":2,"right":18446744073709551615}"#, true);
@@ -135,8 +101,8 @@ fn unknown_introduction_target_replays_its_original_diagnostic_after_selected_li
 
 #[test]
 fn retained_malformed_create_keeps_and_replays_the_original_refusal() {
-    let mut world = World::new(SEED, false);
-    let mut member = fixtures::people_member(b"malformed", 1);
+    let mut world = World::new(Setup { seed: SEED, ..Setup::default() });
+    let mut member = jig_test_profile::fixtures::people_member(b"malformed", 1);
     member.executor = people::TaskExecutor::Procedure { connector: 0, code: 0 };
     let ask = people::Ask::Create { project: 1, batch: Box::new([member]) };
     let key = people::RequestKey { person: 1, key: [91; 16] };
@@ -159,7 +125,7 @@ fn retained_malformed_create_keeps_and_replays_the_original_refusal() {
     let mut out = Queue::uncapped();
     people::step(
         &mut h.core.people,
-        &Env { now: h.env.now, wall: h.env.wall, limits: h.env.limits.people },
+        &h.env.with(h.env.limits.people),
         people::Event::Ask {
             reply_to: ReplyTo::new(Token::new(900)),
             sign_in: world.sign_in.expect("owner sign-in"),
@@ -177,8 +143,8 @@ fn retained_malformed_create_keeps_and_replays_the_original_refusal() {
 }
 
 #[test]
-fn recurring_lifetime_count_past_live_capacity_survives_selected_link() {
-    let world = World::new(SEED, false);
+fn recurring_lifetime_count_past_live_capacity_survives_start_link() {
+    let world = World::new(Setup { seed: SEED, ..Setup::default() });
     let mut h = Harness::stored(&world);
     let task = h.core.tasks.task(1).expect("standing root");
     let parent = task.funder;
@@ -198,7 +164,7 @@ fn recurring_lifetime_count_past_live_capacity_survives_selected_link() {
 
 /// Restore the direct core through durable Wires before testing runtime inputs.
 pub(super) fn recovered(world: &World, config: core::Config, env: &Env<core::Limits>) -> core::Core {
-    let mut harness = Harness::stored_with(world, config, Env { now: env.now, wall: env.wall, limits: env.limits });
+    let mut harness = Harness::stored_with(world, config, env.with(env.limits));
     let action = harness.link();
     harness.open(action);
     assert!(harness.core.start_opened());
@@ -208,7 +174,7 @@ pub(super) fn recovered(world: &World, config: core::Config, env: &Env<core::Lim
 pub(super) fn first(config: core::Config, env: &Env<core::Limits>) -> core::Core {
     let mut harness = Harness {
         core: core::Core::new(config, &env.limits).expect("configured core"),
-        env: Env { now: env.now, wall: env.wall, limits: env.limits },
+        env: env.with(env.limits),
         out: Queue::uncapped(),
     };
     let action = harness.core.start_begin(false, harness.env.wall);

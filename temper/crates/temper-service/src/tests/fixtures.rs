@@ -722,7 +722,7 @@ pub fn answer(ending: jig_domain_host::Ending) -> jig_domain_host::LinkUp {
     jig_domain_host::LinkUp::Answer {
         run: Token::new(7),
         attempt: Token::new(2),
-        answer: jig_domain_host::Answer { read: None, refused: Box::new([]), turns: 0, spent: 0, ending },
+        answer: jig_domain_host::RunAnswer { read: None, refused: Box::new([]), turns: 0, spent: 0, ending },
     }
 }
 

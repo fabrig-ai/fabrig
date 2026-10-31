@@ -1,27 +1,26 @@
-#![expect(clippy::manual_map, reason = "step code matches optional owner facts without closures")]
 //! Whole single-read owner documents (protocol/client.md, 3 and 6).
 use super::super::{owner, w};
 use alloc::boxed::Box;
 use jig_domain_tasks as t;
 use skein_lib::{List, Writer, bytes};
-pub fn pattern(value: &t::Pattern, limits: &w::Limits) -> Result<w::OwnerPattern, w::Problem> {
+pub fn pattern(value: &t::Pattern, limits: &w::Limits) -> Result<w::Pattern, w::Problem> {
     let mut segments = List::with_capacity(super::super::count(value.segments.len())?);
     for row in &value.segments {
         segments.push(bytes::copy_of(row)).expect("supplied rows fit");
     }
 
-    w::OwnerPattern::new(
+    w::Pattern::new(
         limits,
-        w::OwnerPatternParts {
+        w::PatternParts {
             segments,
             last: match &value.last {
-                t::Last::Exact(value) => w::OwnerPatternEnd::Exact(w::OwnerPatternEndExact::new(
+                t::Last::Exact(value) => w::PatternEnd::Exact(w::PatternEndExact::new(
                     limits,
-                    w::OwnerPatternEndExactParts { value: bytes::copy_of(value) },
+                    w::PatternEndExactParts { value: bytes::copy_of(value) },
                 )?),
-                t::Last::Open(value) => w::OwnerPatternEnd::Open(w::OwnerPatternEndOpen::new(
+                t::Last::Open(value) => w::PatternEnd::Open(w::PatternEndOpen::new(
                     limits,
-                    w::OwnerPatternEndOpenParts { value: bytes::copy_of(value) },
+                    w::PatternEndOpenParts { value: bytes::copy_of(value) },
                 )?),
             },
         },
@@ -31,21 +30,17 @@ pub fn authority(
     models: &[crate::Model],
     value: &t::Authority,
     limits: &w::Limits,
-) -> Result<w::OwnerAuthority, w::Problem> {
+) -> Result<w::Authority, w::Problem> {
     let mut grants = List::with_capacity(super::super::count(value.grants.len())?);
     for row in &value.grants {
         grants
-            .push(w::OwnerGrant::new(
+            .push(w::Grant::new(
                 limits,
-                w::OwnerGrantParts {
-                    connector: row.connector,
-                    kind: row.kind,
-                    pattern: pattern(&row.pattern, limits)?,
-                },
+                w::GrantParts { connector: row.connector, kind: row.kind, pattern: pattern(&row.pattern, limits)? },
             )?)
             .expect("supplied rows fit");
     }
-    let grants = owner::grants_pieces(&grants, limits.owner_authority_grants, w::Path::OwnerAuthorityGrants)?;
+    let grants = owner::grants_pieces(&grants, limits.authority_grants, w::Path::AuthorityGrants)?;
     let mut kinds = List::with_capacity(super::super::count(value.delegation.kinds.len())?);
     for row in &value.delegation.kinds {
         kinds.push(owner::authority_executor(*row, limits)?).expect("supplied rows fit");
@@ -53,18 +48,17 @@ pub fn authority(
     let mut scopes = List::with_capacity(super::super::count(value.note_resources.len())?);
     for row in &value.note_resources {
         scopes
-            .push(w::OwnerResourceScope::new(
+            .push(w::ResourceScope::new(
                 limits,
-                w::OwnerResourceScopeParts { connector: row.connector, pattern: pattern(&row.pattern, limits)? },
+                w::ResourceScopeParts { connector: row.connector, pattern: pattern(&row.pattern, limits)? },
             )?)
             .expect("supplied rows fit");
     }
-    let scopes =
-        owner::scopes_pieces(&scopes, limits.owner_authority_note_resources, w::Path::OwnerAuthorityNoteResources)?;
+    let scopes = owner::scopes_pieces(&scopes, limits.authority_note_resources, w::Path::AuthorityNoteResources)?;
 
-    w::OwnerAuthority::new(
+    w::Authority::new(
         limits,
-        w::OwnerAuthorityParts {
+        w::AuthorityParts {
             models: super::super::llm::authority(
                 jig_domain_authority::Models::from_parts(value.models.bits(), value.models.is_all()),
                 models,
@@ -72,9 +66,9 @@ pub fn authority(
             )?,
             tools: value.tools.0,
             grants,
-            delegation: w::OwnerDelegation::new(
+            delegation: w::Delegation::new(
                 limits,
-                w::OwnerDelegationParts { kinds, tasks: value.delegation.tasks, depth: value.delegation.depth },
+                w::DelegationParts { kinds, tasks: value.delegation.tasks, depth: value.delegation.depth },
             )?,
             spend: value.budget.spend,
             deadline: match value.budget.deadline {
@@ -169,13 +163,9 @@ pub fn contract(value: &t::Contract, limits: &w::Limits) -> Result<w::TaskContra
         }
     })
 }
-pub fn goal(
-    models: &[crate::Model],
-    value: &t::New,
-    limits: &w::Limits,
-) -> Result<w::OwnerPersonProposalGoal, w::Problem> {
+pub fn goal(models: &[crate::Model], value: &t::New, limits: &w::Limits) -> Result<w::PersonProposalGoal, w::Problem> {
     if value.recurring.is_some() {
-        return Err(w::Problem { path: w::Path::OwnerPersonProposalGoal, reason: skein_codec::Reason::Tag });
+        return Err(w::Problem { path: w::Path::PersonProposalGoal, reason: skein_codec::Reason::Tag });
     }
     let mut dependencies = List::with_capacity(super::super::count(value.dependencies.len())?);
     for row in &value.dependencies {
@@ -193,26 +183,23 @@ pub fn goal(
         }
         holdings
             .push(match row {
-                t::Holding::Write { .. } => w::OwnerGoalHolding::Write(w::OwnerGoalHoldingWrite::new(
+                t::Holding::Write { .. } => w::GoalHolding::Write(w::GoalHoldingWrite::new(
                     limits,
-                    w::OwnerGoalHoldingWriteParts { connector: name.connector, path, kind },
+                    w::GoalHoldingWriteParts { connector: name.connector, path, kind },
                 )?),
-                t::Holding::Slot { .. } => w::OwnerGoalHolding::Slot(w::OwnerGoalHoldingSlot::new(
+                t::Holding::Slot { .. } => w::GoalHolding::Slot(w::GoalHoldingSlot::new(
                     limits,
-                    w::OwnerGoalHoldingSlotParts { connector: name.connector, path, kind },
+                    w::GoalHoldingSlotParts { connector: name.connector, path, kind },
                 )?),
             })
             .expect("supplied holdings fit");
     }
-    let holdings = owner_goal_holding_pieces(
-        &holdings,
-        limits.owner_person_proposal_goal_holdings,
-        w::Path::OwnerPersonProposalGoalHoldings,
-    )?;
+    let holdings =
+        goal_holding_pieces(&holdings, limits.person_proposal_goal_holdings, w::Path::PersonProposalGoalHoldings)?;
 
-    w::OwnerPersonProposalGoal::new(
+    w::PersonProposalGoal::new(
         limits,
-        w::OwnerPersonProposalGoalParts {
+        w::PersonProposalGoalParts {
             number: value.number,
             project: value.project,
             executor: owner::executor(value.executor, limits)?,
@@ -228,14 +215,14 @@ pub fn goal(
         },
     )
 }
-pub(super) fn owner_goal_holding_pieces(
-    rows: &List<w::OwnerGoalHolding>,
+pub(super) fn goal_holding_pieces(
+    rows: &List<w::GoalHolding>,
     bound: u32,
     path: w::Path,
 ) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits usize"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         match row.encode(&mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),

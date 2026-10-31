@@ -57,7 +57,7 @@ fn frame(world: &ProjectWorld, client: ClientId) -> &c::Me {
     root.jig().frame(root.client()).document.expect("project story fixture or delivered fact")
 }
 fn project_made(world: &mut ProjectWorld) -> u32 {
-    let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectMade { project })) = answer(world) else {
+    let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProjectMade { project })) = answer(world) else {
         panic!("make answered ProjectMade");
     };
     project
@@ -86,7 +86,10 @@ fn an_owner_renames_a_project_and_me_says_the_new_name() {
     let (mut world, client) = ready(true);
     send(&mut world, client, 91, c::Ask::Rename { project: PROJECT, name: text(b"Tally") });
     settle(&mut world);
-    assert_eq!(answer(&mut world), c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Renamed { project: PROJECT })));
+    assert_eq!(
+        answer(&mut world),
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Renamed { project: PROJECT }))
+    );
     assert_eq!(
         frame(&world, client).projects.get(0).expect("project story fixture or delivered fact").name.bytes(),
         b"Tally"
@@ -158,7 +161,7 @@ fn an_owner_removes_a_project_and_reads_its_answer_once() {
     settle(&mut world);
     assert_eq!(
         answer(&mut world),
-        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectRemoved { project: PROJECT }))
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProjectRemoved { project: PROJECT }))
     );
     assert!(world.root(client).client().pending(key).is_none());
     assert!(!frame(&world, client).projects.iter().any(|p| p.project == PROJECT));
@@ -182,7 +185,7 @@ fn a_remove_project_kept_across_a_restart_is_answered_once() {
     settle(&mut world);
     assert_eq!(
         answer(&mut world),
-        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectRemoved { project: PROJECT }))
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProjectRemoved { project: PROJECT }))
     );
     assert!(world.root(client).client().pending(key).is_none());
     assert!(

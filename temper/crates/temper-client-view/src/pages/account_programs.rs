@@ -13,18 +13,18 @@ fn whole(b: &mut Builder, w: &Words, bytes: &[u8], text_per_node: u32) {
     }
     b.run(Run::Plain, b" ");
 }
-pub(super) fn failure(b: &mut Builder, w: &Words, reason: c::OwnerProgramFailure, detail: &[u8], text_per_node: u32) {
+pub(super) fn failure(b: &mut Builder, w: &Words, reason: c::ProgramFailure, detail: &[u8], text_per_node: u32) {
     run(
         b,
         w,
         match reason {
-            c::OwnerProgramFailure::Missing => W::Missing,
-            c::OwnerProgramFailure::Deadline => W::Deadline,
-            c::OwnerProgramFailure::Unreadable => W::Unreadable,
-            c::OwnerProgramFailure::Exited => W::Exited,
-            c::OwnerProgramFailure::Unconfigured => W::Unconfigured,
-            c::OwnerProgramFailure::Unknown => W::Unknown,
-            c::OwnerProgramFailure::Closed => W::Closing,
+            c::ProgramFailure::Missing => W::Missing,
+            c::ProgramFailure::Deadline => W::Deadline,
+            c::ProgramFailure::Unreadable => W::Unreadable,
+            c::ProgramFailure::Exited => W::Exited,
+            c::ProgramFailure::Unconfigured => W::Unconfigured,
+            c::ProgramFailure::Unknown => W::Unknown,
+            c::ProgramFailure::Closed => W::Closing,
         },
     );
     whole(b, w, detail, text_per_node);

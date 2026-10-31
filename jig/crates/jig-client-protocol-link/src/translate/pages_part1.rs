@@ -1,65 +1,36 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
 use super::{
-    Box, Limits, List, Reader, Wall, archived_turn_fields, c, cursor_fields, hold_fields, object_key_fields,
-    owner_activity_line_fields, owner_authority_document_fields, piece_problem, proposed_task_piece, result_fields,
-    specification_document_fields, text, too_large, turn_fields, turn_name_fields, w,
+    Box, Limits, List, Reader, activity_line_fields, archived_turn_fields, authority_document_fields, c, cursor_fields,
+    piece_problem, proposed_task_piece, specification_document_fields, too_large, w,
 };
 
-pub(crate) fn history_change_fields(value: &w::HistoryChange, limits: &Limits) -> Result<c::HistoryChange, w::Problem> {
-    Ok(match value {
-        w::HistoryChange::Made(row) => c::HistoryChange::Made { batch: row.batch() },
-        w::HistoryChange::Amended(row) => {
-            c::HistoryChange::Amended { before: text(row.before(), limits)?, after: text(row.after(), limits)? }
-        }
-        w::HistoryChange::Held(row) => c::HistoryChange::Held(Box::new(hold_fields(row.value(), limits)?)),
-        w::HistoryChange::Released => c::HistoryChange::Released,
-        w::HistoryChange::Cancelled(row) => c::HistoryChange::Cancelled { reason: text(row.reason(), limits)? },
-        w::HistoryChange::Moved(row) => c::HistoryChange::Moved {
-            from: crate::translate::answers::actor(row.from(), limits),
-            to: crate::translate::answers::actor(row.to(), limits),
-            reason: text(row.reason(), limits)?,
-        },
-    })
-}
-
-pub(crate) fn history_line_fields(value: &w::HistoryLine, limits: &Limits) -> Result<c::HistoryLine, w::Problem> {
-    Ok(c::HistoryLine {
-        position: value.position(),
-        task: value.task(),
-        by: crate::translate::answers::actor(value.by(), limits),
-        at: Wall::from_nanos(value.at()),
-        change: history_change_fields(value.change(), limits)?,
-    })
-}
-
-pub(crate) fn owner_history_change_fields(value: &w::OwnerHistoryChange, _limits: &Limits) -> c::OwnerHistoryChange {
+pub(crate) fn history_change_fields(value: &w::HistoryChange) -> c::HistoryChange {
     match value {
-        w::OwnerHistoryChange::Cancelled => c::OwnerHistoryChange::Cancelled,
-        w::OwnerHistoryChange::Released => c::OwnerHistoryChange::Released,
-        w::OwnerHistoryChange::Amended => c::OwnerHistoryChange::Amended,
-        w::OwnerHistoryChange::Moved => c::OwnerHistoryChange::Moved,
-        w::OwnerHistoryChange::Proposed => c::OwnerHistoryChange::Proposed,
-        w::OwnerHistoryChange::ProposalPassed => c::OwnerHistoryChange::ProposalPassed,
-        w::OwnerHistoryChange::ProposalAccepted => c::OwnerHistoryChange::ProposalAccepted,
-        w::OwnerHistoryChange::ProposalRejected => c::OwnerHistoryChange::ProposalRejected,
-        w::OwnerHistoryChange::ProposalWithdrawn => c::OwnerHistoryChange::ProposalWithdrawn,
+        w::HistoryChange::Cancelled => c::HistoryChange::Cancelled,
+        w::HistoryChange::Released => c::HistoryChange::Released,
+        w::HistoryChange::Amended => c::HistoryChange::Amended,
+        w::HistoryChange::Moved => c::HistoryChange::Moved,
+        w::HistoryChange::Proposed => c::HistoryChange::Proposed,
+        w::HistoryChange::ProposalPassed => c::HistoryChange::ProposalPassed,
+        w::HistoryChange::ProposalAccepted => c::HistoryChange::ProposalAccepted,
+        w::HistoryChange::ProposalRejected => c::HistoryChange::ProposalRejected,
+        w::HistoryChange::ProposalWithdrawn => c::HistoryChange::ProposalWithdrawn,
     }
 }
 
-pub(crate) fn address_change_fields(value: &w::AddressChange, limits: &Limits) -> c::AddressChange {
+pub(crate) fn address_change_fields(value: &w::AddressChange) -> c::AddressChange {
     c::AddressChange {
-        revision: crate::translate::answers::revision(value.revision(), limits),
-        address: crate::translate::facts::person_address(value.address(), limits),
+        revision: crate::translate::answers::revision(value.revision()),
+        address: crate::translate::facts::person_address(value.address()),
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_retained_amendment_fields(
-    value: &w::OwnerRetainedAmendment,
+pub(crate) fn retained_amendment_fields(
+    value: &w::RetainedAmendment,
     limits: &Limits,
-) -> Result<c::OwnerRetainedAmendment, w::Problem> {
+) -> Result<c::RetainedAmendment, w::Problem> {
     let opt0 = match value.addressed() {
-        Some(item) => Some(address_change_fields(item, limits)),
+        Some(item) => Some(address_change_fields(item)),
         None => None,
     };
     let opt1 = match value.instructions() {
@@ -75,16 +46,16 @@ pub(crate) fn owner_retained_amendment_fields(
         None => None,
     };
     let opt4 = match value.authority() {
-        Some(item) => Some(owner_authority_document_fields(item, limits)?),
+        Some(item) => Some(authority_document_fields(item, limits)?),
         None => None,
     };
     let opt5 = match value.wake() {
-        Some(item) => Some(crate::translate::facts::owner_wake_policy(item, limits)),
+        Some(item) => Some(crate::translate::facts::wake_policy(item)),
         None => None,
     };
     let opt6 = match value.dependencies() {
         Some(item) => {
-            if (item).len() > limits.client.rows {
+            if (item).len() > limits.client().rows {
                 return Err(too_large());
             }
             let mut list0 = List::with_capacity((item).len());
@@ -95,7 +66,7 @@ pub(crate) fn owner_retained_amendment_fields(
         }
         None => None,
     };
-    Ok(c::OwnerRetainedAmendment {
+    Ok(c::RetainedAmendment {
         addressed: opt0,
         instructions: opt1,
         release: opt2,
@@ -108,40 +79,40 @@ pub(crate) fn owner_retained_amendment_fields(
     })
 }
 
-pub(crate) fn owner_retained_action_fields(
-    value: &w::OwnerRetainedAction,
+pub(crate) fn retained_action_fields(
+    value: &w::RetainedAction,
     limits: &Limits,
-) -> Result<c::OwnerRetainedAction, w::Problem> {
+) -> Result<c::RetainedAction, w::Problem> {
     Ok(match value {
-        w::OwnerRetainedAction::Settings(row) => c::OwnerRetainedAction::Settings(
+        w::RetainedAction::Settings(row) => c::RetainedAction::Settings(
             crate::translate::settings_proposals::restore_owner_retained_action_settings(row, limits)?,
         ),
-        w::OwnerRetainedAction::Batch(row) => {
-            c::OwnerRetainedAction::Batch(proposed_task_piece(row.value(), limits, limits.client.rows)?)
+        w::RetainedAction::Batch(row) => {
+            c::RetainedAction::Batch(proposed_task_piece(row.value(), limits, limits.client().rows)?)
         }
-        w::OwnerRetainedAction::Effect(row) => c::OwnerRetainedAction::Effect {
-            part: crate::translate::facts::owner_part(row.part(), limits),
-            authority: owner_authority_document_fields(row.authority(), limits)?,
+        w::RetainedAction::Effect(row) => c::RetainedAction::Effect {
+            part: crate::translate::facts::part(row.part()),
+            authority: authority_document_fields(row.authority(), limits)?,
             attempt: row.attempt(),
             completion: row.completion(),
             position: row.position(),
             purpose: row.purpose(),
         },
-        w::OwnerRetainedAction::ProcedureEffect(row) => c::OwnerRetainedAction::ProcedureEffect {
-            part: crate::translate::facts::owner_part(row.part(), limits),
-            authority: owner_authority_document_fields(row.authority(), limits)?,
+        w::RetainedAction::ProcedureEffect(row) => c::RetainedAction::ProcedureEffect {
+            part: crate::translate::facts::part(row.part()),
+            authority: authority_document_fields(row.authority(), limits)?,
             step: row.step(),
             purpose: row.purpose(),
         },
-        w::OwnerRetainedAction::Amend(row) => c::OwnerRetainedAction::Amend {
+        w::RetainedAction::Amend(row) => c::RetainedAction::Amend {
             task: row.task(),
-            change: Box::new(owner_retained_amendment_fields(row.change(), limits)?),
+            change: Box::new(retained_amendment_fields(row.change(), limits)?),
         },
-        w::OwnerRetainedAction::Widen(row) => c::OwnerRetainedAction::Widen {
+        w::RetainedAction::Widen(row) => c::RetainedAction::Widen {
             task: row.task(),
-            authority: owner_authority_document_fields(row.authority(), limits)?,
+            authority: authority_document_fields(row.authority(), limits)?,
         },
-        w::OwnerRetainedAction::Release(row) => c::OwnerRetainedAction::Release { task: row.task() },
+        w::RetainedAction::Release(row) => c::RetainedAction::Release { task: row.task() },
     })
 }
 
@@ -156,7 +127,7 @@ pub(crate) fn activity_page_fields(value: &w::ActivityPage, limits: &Limits) -> 
     };
     Ok(c::ActivityPage {
         cut: value.cut(),
-        rows: activity_line_piece(value.rows(), limits, limits.client.rows)?,
+        rows: activity_line_piece(value.rows(), limits, limits.client().rows)?,
         before: opt0,
         after: opt1,
     })
@@ -166,7 +137,7 @@ pub(crate) fn activity_line_piece(
     bytes: &[u8],
     limits: &Limits,
     bound: u32,
-) -> Result<List<c::ActivityLine>, w::Problem> {
+) -> Result<List<c::DecodedActivityLine>, w::Problem> {
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
@@ -183,11 +154,11 @@ pub(crate) fn activity_line_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::ActivityLine::decode(&limits.wire, &mut Reader::new(&item))?;
-        let row = activity_line_fields(&row, limits)?;
+        let row = w::DecodedActivityLine::decode(limits.receiving(), &mut Reader::new(&item))?;
+        let row = decoded_activity_line_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -195,81 +166,13 @@ pub(crate) fn activity_line_piece(
     Err(too_large())
 }
 
-pub(crate) fn activity_line_fields(value: &w::ActivityLine, limits: &Limits) -> Result<c::ActivityLine, w::Problem> {
-    Ok(c::ActivityLine {
-        position: value.position(),
-        at: Wall::from_nanos(value.at()),
-        event: activity_fields(value.event(), limits)?,
-    })
-}
-
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn activity_fields(value: &w::Activity, limits: &Limits) -> Result<c::Activity, w::Problem> {
-    Ok(match value {
-        w::Activity::Owner(row) => {
-            if row.decoded().is_none()
-                && let w::OwnerActivity::Turn(turn) = row.source().line()
-            {
-                return Ok(c::Activity::Turn {
-                    name: c::TurnName { attempt: turn.attempt(), number: turn.turn() },
-                    turn: c::TurnRead::Undecodable { why: c::TurnProblem::Malformed },
-                });
-            }
-            let opt0 = match row.decoded() {
-                Some(item) => Some(archived_turn_fields(item, limits)),
-                None => None,
-            };
-            c::Activity::Owner { source: Box::new(owner_activity_line_fields(row.source(), limits)?), decoded: opt0 }
-        }
-        w::Activity::Words(row) => c::Activity::Words {
-            by: crate::translate::answers::party(row.by(), limits)?,
-            message: row.message(),
-            words: text(row.words(), limits)?,
-        },
-        w::Activity::RunBegan(row) => c::Activity::RunBegan {
-            attempt: row.attempt(),
-            how: run_beginning_fields(row.how(), limits),
-            why: text(row.why(), limits)?,
-        },
-        w::Activity::RunEnded(row) => c::Activity::RunEnded {
-            attempt: row.attempt(),
-            how: run_ending_fields(row.how(), limits)?,
-            spent: row.spent(),
-        },
-        w::Activity::Turn(row) => {
-            c::Activity::Turn { name: turn_name_fields(row.name(), limits), turn: turn_fields(row.turn(), limits) }
-        }
-        w::Activity::Result(row) => c::Activity::Result { result: result_fields(row.result(), limits)? },
-        w::Activity::News(row) => {
-            let opt0 = match row.part() {
-                Some(item) => Some(crate::translate::facts::part(item, limits)),
-                None => None,
-            };
-            c::Activity::News { topic: row.topic(), summary: text(row.summary(), limits)?, part: opt0 }
-        }
-        w::Activity::Decision(row) => c::Activity::Decision {
-            object: object_key_fields(row.object(), limits),
-            by: crate::translate::answers::actor(row.by(), limits),
-            how: crate::translate::answers::decision(row.how(), limits)?,
-        },
-    })
-}
-
-pub(crate) fn run_ending_fields(value: &w::RunEnding, limits: &Limits) -> Result<c::RunEnding, w::Problem> {
-    Ok(match value {
-        w::RunEnding::Parked => c::RunEnding::Parked,
-        w::RunEnding::Finished => c::RunEnding::Finished,
-        w::RunEnding::Cancelled => c::RunEnding::Cancelled,
-        w::RunEnding::Failed(row) => c::RunEnding::Failed {
-            class: crate::translate::facts::failure_class(row.class(), limits),
-            reason: text(row.reason(), limits)?,
-        },
-    })
-}
-
-pub(crate) fn run_beginning_fields(value: &w::RunBeginning, _limits: &Limits) -> c::RunBeginning {
-    match value {
-        w::RunBeginning::Resumed => c::RunBeginning::Resumed,
-        w::RunBeginning::Fresh(row) => c::RunBeginning::Fresh { tail: row.tail_count() },
-    }
+pub(crate) fn decoded_activity_line_fields(
+    value: &w::DecodedActivityLine,
+    limits: &Limits,
+) -> Result<c::DecodedActivityLine, w::Problem> {
+    let decoded = match value.decoded() {
+        Some(item) => Some(archived_turn_fields(item, limits)),
+        None => None,
+    };
+    Ok(c::DecodedActivityLine { source: Box::new(activity_line_fields(value.source(), limits)?), decoded })
 }

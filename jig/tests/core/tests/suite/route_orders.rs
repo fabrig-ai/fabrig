@@ -1,5 +1,6 @@
 //! Synchronous child routes remain in one decision under watermark pressure.
-use jig_core_world::direct::Driver;
+use super::admission_support;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
@@ -12,7 +13,7 @@ const LATER: Token = Token::new(9702);
 const FIRST_KEY: [u8; 16] = [71; 16];
 const LATER_KEY: [u8; 16] = [72; 16];
 const PROJECT: u32 = 2;
-// MakeProject fans out to Roles, OpenPeriod, PeriodNext and Decided.
+// MakeProject fans out to Roles, OpenPeriod and PeriodNext.
 const HANDOFFS: usize = 4;
 const ONCE: usize = 1;
 
@@ -21,11 +22,11 @@ const ONCE: usize = 1;
 /// watermark.
 #[test]
 fn a_wide_route_finishes_within_its_decision_before_a_later_entrance() {
-    let mut driver = Driver::project_maker(9701);
+    let mut driver = admission_support::project_maker(9701);
     let session = begin_story(&mut driver);
-    driver.send(ask(session, FIRST, FIRST_KEY, people::Ask::MakeProject { name: "Tally".into(), policy: 1 }));
+    driver.offer(ask(session, FIRST, FIRST_KEY, people::Ask::MakeProject { name: "Tally".into(), policy: 1 }));
     hold_later(&mut driver, session, PROJECT);
-    driver.settle();
+    driver.drain();
 
     let (first_index, writes) = answer_transaction(&driver, FIRST_KEY);
     // Every sibling's durable consequence, plus the policy, is in that transaction.
@@ -103,11 +104,11 @@ const TIMER_DELAY: Duration = Duration::from_millis(1);
 /// subscription removal, inbox write and delivery all precede later work.
 #[test]
 fn a_task_route_finishes_its_generated_requests_within_its_decision() {
-    let mut driver = Driver::chat(9702);
+    let mut driver = admission_support::chat(9702);
     let session = driver.session();
     let task = driver.assignment().task;
-    let at = Wall::from_nanos(driver.env.wall.as_nanos() + TIMER_DELAY.as_nanos());
-    driver.send(root::Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
+    let at = Wall::from_nanos(driver.env().wall.as_nanos() + TIMER_DELAY.as_nanos());
+    driver.offer(root::Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
         reply_to: ReplyTo::new(SUBSCRIBE),
         task,
         subscription: tasks::Subscription {
@@ -115,16 +116,15 @@ fn a_task_route_finishes_its_generated_requests_within_its_decision() {
             kind: tasks::SubscriptionKind::Timer { at, period: None },
         },
     })));
-    driver.settle();
-    driver.env.now = driver.env.now.checked_add(TIMER_DELAY).expect("fixture timer");
-    driver.env.wall = at;
+    driver.drain();
+    driver.set_clock(driver.env().now.checked_add(TIMER_DELAY).expect("fixture timer"), at);
     clear_story(&mut driver);
-    driver.send(root::Event::Timer(core::Timer::Tasks));
+    driver.offer(root::Event::Timer(core::Timer::Tasks));
     hold_later(&mut driver, session, CHAT_PROJECT);
     assert!(timer_deliveries(&driver, task).is_empty(), "generated notice waits for durability");
-    driver.settle();
+    driver.drain();
 
-    let notice_transactions: Vec<_> = driver.transactions.iter().enumerate().filter(|(_, writes)| {
+    let notice_transactions: Vec<_> = driver.commits.iter().enumerate().filter(|(_, writes)| {
         writes.iter().any(|write| matches!(write,
             root::Write::Save(root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(line))))
                 if line.task == task && matches!(line.line,
@@ -157,7 +157,7 @@ fn a_task_route_finishes_its_generated_requests_within_its_decision() {
         "the one-shot subscription is removed in the same decision"
     );
     let task_decisions: Vec<_> = driver
-        .transactions
+        .commits
         .iter()
         .enumerate()
         .filter_map(|(index, writes)| {
@@ -183,9 +183,9 @@ fn a_task_route_finishes_its_generated_requests_within_its_decision() {
 /// and roles before the keyed terminal, with a later entrance held.
 #[test]
 fn a_people_route_finishes_its_continuation_within_its_decision() {
-    let mut driver = Driver::chat(9703);
+    let mut driver = admission_support::chat(9703);
     let session = begin_story(&mut driver);
-    driver.send(ask(
+    driver.offer(ask(
         session,
         FIRST,
         FIRST_KEY,
@@ -197,7 +197,7 @@ fn a_people_route_finishes_its_continuation_within_its_decision() {
     ));
     hold_later(&mut driver, session, CHAT_PROJECT);
     assert!(story_replies(&driver).is_empty(), "the service answer waits for durability");
-    driver.settle();
+    driver.drain();
 
     let (first_index, writes) = answer_transaction(&driver, FIRST_KEY);
     let mut consequences = Vec::new();
@@ -247,11 +247,11 @@ fn a_people_route_finishes_its_continuation_within_its_decision() {
 /// a live turn appends its busy notice. Both finish before later keyed work.
 #[test]
 fn a_fleet_route_finishes_its_follow_ups_within_its_decision() {
-    let mut driver = Driver::reconnecting_chat(9704);
+    let mut driver = admission_support::reconnecting_chat(9704);
     let session = driver.session();
     let (task, attempt) = (driver.assignment().task, driver.assignment().attempt);
     clear_story(&mut driver);
-    driver.send(ask(
+    driver.offer(ask(
         session,
         FIRST,
         FIRST_KEY,
@@ -260,9 +260,9 @@ fn a_fleet_route_finishes_its_follow_ups_within_its_decision() {
     driver.collect();
     driver.fill_to_watermark();
     reconnect_with_stale_attempt(&mut driver, task, attempt);
-    driver.send(root::Event::Core(core::Event::Stopping));
+    driver.offer(root::Event::Core(core::Event::Stopping));
     let returned = driver.returned;
-    driver.send(root::Event::Turn {
+    driver.offer(root::Event::Turn {
         opens_window: true,
         refused: Box::new([]),
         channel: RECONNECTED_WORKER,
@@ -278,7 +278,7 @@ fn a_fleet_route_finishes_its_follow_ups_within_its_decision() {
     hold_later(&mut driver, session, CHAT_PROJECT);
     assert!(busy_turns(&driver).is_empty(), "the follow-up waits for preceding durability");
     assert!(stale_notices(&driver).is_empty(), "cancellation and acknowledgement wait for durability");
-    driver.settle();
+    driver.drain();
 
     assert_eq!(busy_turns(&driver), [(task, attempt, TURN)], "the recursive busy follow-up leaves once");
     assert_eq!(stale_notices(&driver), ["cancel", "acknowledge"], "the stale attempt is cancelled and forgotten once");
@@ -302,14 +302,14 @@ fn a_fleet_route_finishes_its_follow_ups_within_its_decision() {
     assert_eq!(story_replies(&driver), [FIRST, LATER]);
     let (first_index, _) = answer_transaction(&driver, FIRST_KEY);
     assert!(
-        !driver.transactions[first_index..].iter().flatten().any(|write| matches!(write,
+        !driver.commits[first_index..].iter().flatten().any(|write| matches!(write,
             root::Write::Save(root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(row))))
                 if row.task == STALE_RUN.raw()
         )),
         "the stale answer is discarded without a task terminal"
     );
     assert!(
-        !driver.transactions.iter().flatten().any(|write| matches!(write,
+        !driver.commits.iter().flatten().any(|write| matches!(write,
             root::Write::Save(root::Record::Core(core::Record::Core(core::CoreRecord::Turn(row))))
                 if row.task == task && row.attempt == attempt
         )),
@@ -318,24 +318,24 @@ fn a_fleet_route_finishes_its_follow_ups_within_its_decision() {
     assert!(driver.domain.quiescent() && !driver.stopped);
 }
 
-fn reconnect_with_stale_attempt(driver: &mut Driver, task: u64, attempt: u64) {
-    driver.send(root::Event::Core(core::Event::Fleet(fleet::Event::Lost { channel: WORKER })));
+fn reconnect_with_stale_attempt(driver: &mut World, task: u64, attempt: u64) {
+    driver.offer(root::Event::Core(core::Event::Fleet(fleet::Event::Lost { channel: WORKER })));
     driver.collect();
-    driver.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
+    driver.offer(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: WORKER_NUMBER,
         channel: RECONNECTED_WORKER,
         hello: fleet::Hello {
-            bounds: jig_core_world::fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: STOP_BOUND,
             slots: HOSTED,
             workstreams: Box::new([]),
             hosting: Box::new([
-                fleet::Hosted { run: Token::new(task), attempt: Token::new(attempt), phase: fleet::Phase::Active },
-                fleet::Hosted { run: STALE_RUN, attempt: STALE_ATTEMPT, phase: fleet::Phase::Active },
+                fleet::Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: fleet::Phase::Active },
+                fleet::Hosting { run: STALE_RUN, attempt: STALE_ATTEMPT, phase: fleet::Phase::Active },
             ]),
         },
     })));
-    driver.send(root::Event::Answer {
+    driver.offer(root::Event::Answer {
         read: None,
         refused: Box::new([]),
         channel: RECONNECTED_WORKER,
@@ -346,7 +346,7 @@ fn reconnect_with_stale_attempt(driver: &mut Driver, task: u64, attempt: u64) {
     });
 }
 
-fn hold_later(driver: &mut Driver, session: u64, project: u32) {
+fn hold_later(driver: &mut World, session: u64, project: u32) {
     driver.collect();
     driver.fill_to_watermark();
     let returned = driver.returned;
@@ -355,9 +355,9 @@ fn hold_later(driver: &mut Driver, session: u64, project: u32) {
     assert_eq!(driver.events.len(), ONCE, "later work is retained");
 }
 
-fn answer_transaction(driver: &Driver, key: [u8; 16]) -> (usize, &[root::Write]) {
+fn answer_transaction(driver: &World, key: [u8; 16]) -> (usize, &[root::Write]) {
     let transactions: Vec<_> = driver
-        .transactions
+        .commits
         .iter()
         .enumerate()
         .filter(|(_, writes)| {
@@ -371,7 +371,7 @@ fn answer_transaction(driver: &Driver, key: [u8; 16]) -> (usize, &[root::Write])
     (transactions[0].0, transactions[0].1)
 }
 
-fn timer_deliveries(driver: &Driver, task: u64) -> Vec<&tasks::Word> {
+fn timer_deliveries(driver: &World, task: u64) -> Vec<&tasks::Word> {
     driver
         .released
         .iter()
@@ -388,7 +388,7 @@ fn timer_deliveries(driver: &Driver, task: u64) -> Vec<&tasks::Word> {
         .collect()
 }
 
-fn story_replies(driver: &Driver) -> Vec<Token> {
+fn story_replies(driver: &World) -> Vec<Token> {
     driver
         .released
         .iter()
@@ -402,7 +402,7 @@ fn story_replies(driver: &Driver) -> Vec<Token> {
         .collect()
 }
 
-fn busy_turns(driver: &Driver) -> Vec<(u64, u64, u32)> {
+fn busy_turns(driver: &World) -> Vec<(u64, u64, u32)> {
     driver
         .released
         .iter()
@@ -422,11 +422,11 @@ fn busy_turns(driver: &Driver) -> Vec<(u64, u64, u32)> {
         .collect()
 }
 
-fn stale_notices(driver: &Driver) -> Vec<&'static str> {
+fn stale_notices(driver: &World) -> Vec<&'static str> {
     stale_notices_before(driver, driver.released.len())
 }
 
-fn stale_notices_before(driver: &Driver, end: usize) -> Vec<&'static str> {
+fn stale_notices_before(driver: &World, end: usize) -> Vec<&'static str> {
     driver.released[..end]
         .iter()
         .filter_map(|request| {
@@ -451,14 +451,14 @@ fn stale_notices_before(driver: &Driver, end: usize) -> Vec<&'static str> {
         .collect()
 }
 
-fn begin_story(driver: &mut Driver) -> u64 {
+fn begin_story(driver: &mut World) -> u64 {
     let session = driver.session();
     clear_story(driver);
     session
 }
 
-fn clear_story(driver: &mut Driver) {
-    driver.transactions.clear();
+fn clear_story(driver: &mut World) {
+    driver.commits.clear();
     driver.released.clear();
 }
 

@@ -37,7 +37,7 @@ pub(crate) fn sign_out(domain: &mut Domain, source: u32, name: SourceName, out: 
             }
         }
         let Some(id) = target else {
-            out.push(Request::ProgramSignedOut { source, worker, result: crate::ProgramResult::NotInContact });
+            out.push(Request::ProgramSignedOut { source, worker, result: ProgramResult::NotInContact });
             continue;
         };
         let host = domain.channels.get_mut(id).expect("current configured worker channel");
@@ -47,14 +47,14 @@ pub(crate) fn sign_out(domain: &mut Domain, source: u32, name: SourceName, out: 
                 Reply::Cleanup => Reply::Program { source, worker },
                 Reply::Direct(to) => Reply::DirectProgram { to, source, worker },
                 kept @ (Reply::Program { .. } | Reply::DirectProgram { .. }) => {
-                    out.push(Request::ProgramSignedOut { source, worker, result: crate::ProgramResult::Failed });
+                    out.push(Request::ProgramSignedOut { source, worker, result: ProgramResult::Failed });
                     kept
                 }
             };
             continue;
         }
         if host.sources.pending.len() == host.sources.pending.capacity() {
-            out.push(Request::ProgramSignedOut { source, worker, result: crate::ProgramResult::Failed });
+            out.push(Request::ProgramSignedOut { source, worker, result: ProgramResult::Failed });
             continue;
         }
         host.sources
@@ -150,3 +150,15 @@ pub(crate) fn resume(domain: &mut Domain, out: &mut Queue<Request>) {
         }
     }
 }
+
+/// Terminal status for one configured member, independent of its current channel.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum ProgramResult {
+    SignedOut,
+    NotInContact,
+    Lost,
+    Failed,
+}
+
+/// Whole configured worker names exposed in program facts and outcomes.
+pub const WORKER_NAME: u32 = 4_096;

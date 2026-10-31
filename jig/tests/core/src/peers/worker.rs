@@ -16,13 +16,13 @@ impl Peers {
                     .expect("bounded peer membership"),
                     channel: Token::new(channel),
                     hello: fleet::Hello {
-                        bounds: crate::fixtures::bounds(),
+                        bounds: jig_test_profile::fixtures::bounds(),
                         slots,
                         stop_bound,
                         workstreams: Box::new([]),
                         hosting: hosting
                             .into_iter()
-                            .map(|(task, attempt, answered)| fleet::Hosted {
+                            .map(|(task, attempt, answered)| fleet::Hosting {
                                 run: Token::new(task),
                                 attempt: Token::new(attempt),
                                 phase: if answered { fleet::Phase::Answered } else { fleet::Phase::Active },

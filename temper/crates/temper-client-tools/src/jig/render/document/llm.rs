@@ -160,16 +160,16 @@ fn source_text(value: c::TaskSourceState, out: &mut Text) {
         c::TaskSourceState::Unloaded { at, why } => {
             out.put(b"unloaded ");
             out.put(match at {
-                c::OwnerAccountPlace::Directory => b"directory",
-                c::OwnerAccountPlace::File => b"file",
+                c::AccountPlace::Directory => b"directory",
+                c::AccountPlace::File => b"file",
             });
             out.put(b": ");
             out.put(match why {
-                c::OwnerAccountUnread::Unreadable => b"unreadable",
-                c::OwnerAccountUnread::Refused => b"refused",
-                c::OwnerAccountUnread::Failed => b"failed",
-                c::OwnerAccountUnread::Stalled => b"stalled",
-                c::OwnerAccountUnread::TooLarge => b"too large",
+                c::AccountUnread::Unreadable => b"unreadable",
+                c::AccountUnread::Refused => b"refused",
+                c::AccountUnread::Failed => b"failed",
+                c::AccountUnread::Stalled => b"stalled",
+                c::AccountUnread::TooLarge => b"too large",
             });
         }
         c::TaskSourceState::Cancelled => out.put(b"cancelled"),
@@ -197,10 +197,10 @@ pub(super) fn refusal(account: u32, why: c::AccountWhy, out: &mut Encoder) {
     out.object_end();
 }
 
-fn host_kind(value: c::OwnerHostKind) -> &'static [u8] {
+fn host_kind(value: c::HostKind) -> &'static [u8] {
     match value {
-        c::OwnerHostKind::Engine => b"engine",
-        c::OwnerHostKind::Worker => b"worker",
+        c::HostKind::Engine => b"engine",
+        c::HostKind::Worker => b"worker",
     }
 }
 fn refused(value: c::TaskWaitRefused, out: &mut Encoder) {
@@ -243,10 +243,10 @@ fn open_program(value: c::OpenProgram, out: &mut Encoder) {
         }
     }
 }
-fn hello_refusal(value: c::OwnerHelloRefusal, out: &mut Encoder) {
+fn hello_refusal(value: c::HelloRefusal, out: &mut Encoder) {
     match value {
-        c::OwnerHelloRefusal::ReservedChannel => out.string(b"reserved_channel"),
-        c::OwnerHelloRefusal::Agent { why } => {
+        c::HelloRefusal::ReservedChannel => out.string(b"reserved_channel"),
+        c::HelloRefusal::Agent { why } => {
             out.object_start();
             out.key(b"agent");
             out.object_start();
@@ -255,9 +255,9 @@ fn hello_refusal(value: c::OwnerHelloRefusal, out: &mut Encoder) {
             out.object_end();
             out.object_end();
         }
-        c::OwnerHelloRefusal::Position { worker } => refusal_number(b"position", b"worker", u64::from(worker), out),
-        c::OwnerHelloRefusal::Workers { limit } => refusal_number(b"workers", b"limit", u64::from(limit), out),
-        c::OwnerHelloRefusal::StopBound { grace } => refusal_number(b"stop_bound", b"grace", grace.as_nanos(), out),
+        c::HelloRefusal::Position { worker } => refusal_number(b"position", b"worker", u64::from(worker), out),
+        c::HelloRefusal::Workers { limit } => refusal_number(b"workers", b"limit", u64::from(limit), out),
+        c::HelloRefusal::StopBound { grace } => refusal_number(b"stop_bound", b"grace", grace.as_nanos(), out),
     }
 }
 fn refusal_number(variant: &[u8], field: &[u8], value: u64, out: &mut Encoder) {
@@ -269,19 +269,19 @@ fn refusal_number(variant: &[u8], field: &[u8], value: u64, out: &mut Encoder) {
     out.object_end();
     out.object_end();
 }
-fn agent_shortfall(value: c::OwnerAgentShortfall, out: &mut Encoder) {
+fn agent_shortfall(value: c::AgentShortfall, out: &mut Encoder) {
     match value {
-        c::OwnerAgentShortfall::Model { charter, model } => agent_numbers(b"model", charter, model, out),
-        c::OwnerAgentShortfall::Window { charter, model } => agent_numbers(b"window", charter, model, out),
-        c::OwnerAgentShortfall::Output { charter, model } => agent_numbers(b"output", charter, model, out),
-        c::OwnerAgentShortfall::Turns => out.string(b"turns"),
-        c::OwnerAgentShortfall::Spend => out.string(b"spend"),
-        c::OwnerAgentShortfall::Time => out.string(b"time"),
-        c::OwnerAgentShortfall::Waiting => out.string(b"waiting"),
-        c::OwnerAgentShortfall::Checks => out.string(b"checks"),
-        c::OwnerAgentShortfall::Message => out.string(b"message"),
-        c::OwnerAgentShortfall::Inbox => out.string(b"inbox"),
-        c::OwnerAgentShortfall::Unacknowledged => out.string(b"unacknowledged"),
+        c::AgentShortfall::Model { charter, model } => agent_numbers(b"model", charter, model, out),
+        c::AgentShortfall::Window { charter, model } => agent_numbers(b"window", charter, model, out),
+        c::AgentShortfall::Output { charter, model } => agent_numbers(b"output", charter, model, out),
+        c::AgentShortfall::Turns => out.string(b"turns"),
+        c::AgentShortfall::Spend => out.string(b"spend"),
+        c::AgentShortfall::Time => out.string(b"time"),
+        c::AgentShortfall::Waiting => out.string(b"waiting"),
+        c::AgentShortfall::Checks => out.string(b"checks"),
+        c::AgentShortfall::Message => out.string(b"message"),
+        c::AgentShortfall::Inbox => out.string(b"inbox"),
+        c::AgentShortfall::Unacknowledged => out.string(b"unacknowledged"),
     }
 }
 fn agent_numbers(variant: &[u8], charter: u32, model: u32, out: &mut Encoder) {
@@ -320,52 +320,52 @@ fn open_program_text(value: c::OpenProgram, out: &mut Text) {
         }
     }
 }
-fn hello_refusal_text(value: c::OwnerHelloRefusal, out: &mut Text) {
+fn hello_refusal_text(value: c::HelloRefusal, out: &mut Text) {
     match value {
-        c::OwnerHelloRefusal::Agent { why } => agent_shortfall_text(why, out),
-        c::OwnerHelloRefusal::ReservedChannel => out.put(b"channel zero belongs to the engine's own host"),
-        c::OwnerHelloRefusal::Position { worker } => {
+        c::HelloRefusal::Agent { why } => agent_shortfall_text(why, out),
+        c::HelloRefusal::ReservedChannel => out.put(b"channel zero belongs to the engine's own host"),
+        c::HelloRefusal::Position { worker } => {
             out.put(b"unconfigured or occupied worker position ");
             out.number(u64::from(worker));
         }
-        c::OwnerHelloRefusal::Workers { limit } => {
+        c::HelloRefusal::Workers { limit } => {
             out.put(b"no room for another worker, limit ");
             out.number(u64::from(limit));
         }
-        c::OwnerHelloRefusal::StopBound { grace } => {
+        c::HelloRefusal::StopBound { grace } => {
             out.put(b"would not stop before the engine's grace ends, allowed grace ");
             out.number(grace.as_nanos());
             out.put(b" ns");
         }
     }
 }
-fn agent_shortfall_text(value: c::OwnerAgentShortfall, out: &mut Text) {
+fn agent_shortfall_text(value: c::AgentShortfall, out: &mut Text) {
     match value {
-        c::OwnerAgentShortfall::Model { charter, model } => {
+        c::AgentShortfall::Model { charter, model } => {
             out.put(b"agent model missing for charter ");
             out.number(u64::from(charter));
             out.put(b", model position ");
             out.number(u64::from(model));
         }
-        c::OwnerAgentShortfall::Window { charter, model } => {
+        c::AgentShortfall::Window { charter, model } => {
             out.put(b"agent window too small for charter ");
             out.number(u64::from(charter));
             out.put(b", model position ");
             out.number(u64::from(model));
         }
-        c::OwnerAgentShortfall::Output { charter, model } => {
+        c::AgentShortfall::Output { charter, model } => {
             out.put(b"agent output too small for charter ");
             out.number(u64::from(charter));
             out.put(b", model position ");
             out.number(u64::from(model));
         }
-        c::OwnerAgentShortfall::Turns => out.put(b"agent turns too few"),
-        c::OwnerAgentShortfall::Spend => out.put(b"agent spend too small"),
-        c::OwnerAgentShortfall::Time => out.put(b"agent time too short"),
-        c::OwnerAgentShortfall::Waiting => out.put(b"agent waiting too short"),
-        c::OwnerAgentShortfall::Checks => out.put(b"agent checks exceed the change reserve"),
-        c::OwnerAgentShortfall::Message => out.put(b"agent message bound too small"),
-        c::OwnerAgentShortfall::Inbox => out.put(b"agent inbox too small"),
-        c::OwnerAgentShortfall::Unacknowledged => out.put(b"agent unacknowledged turns too few"),
+        c::AgentShortfall::Turns => out.put(b"agent turns too few"),
+        c::AgentShortfall::Spend => out.put(b"agent spend too small"),
+        c::AgentShortfall::Time => out.put(b"agent time too short"),
+        c::AgentShortfall::Waiting => out.put(b"agent waiting too short"),
+        c::AgentShortfall::Checks => out.put(b"agent checks exceed the change reserve"),
+        c::AgentShortfall::Message => out.put(b"agent message bound too small"),
+        c::AgentShortfall::Inbox => out.put(b"agent inbox too small"),
+        c::AgentShortfall::Unacknowledged => out.put(b"agent unacknowledged turns too few"),
     }
 }

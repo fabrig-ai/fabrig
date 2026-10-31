@@ -1,5 +1,5 @@
 //! Named tool stories share restart cuts around their own commits.
-use crate::effects::{Cut, World};
+use crate::world::{Cut, World};
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 const CHILD: u64 = 2;
@@ -71,11 +71,11 @@ fn reconnect(world: &mut World, key: core::CallKey) {
         worker: 0,
         channel: Token::new(CHANNEL),
         hello: fleet::Hello {
-            bounds: crate::fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(100),
-            slots: crate::world::limits().core.fleet.slots,
+            slots: jig_test_profile::limits().core.fleet.slots,
             workstreams: Box::new([]),
-            hosting: Box::new([fleet::Hosted {
+            hosting: Box::new([fleet::Hosting {
                 run: Token::new(key.task),
                 attempt: Token::new(key.attempt),
                 phase: fleet::Phase::Active,

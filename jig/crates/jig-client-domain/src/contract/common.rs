@@ -10,9 +10,8 @@ pub struct Text {
 }
 impl Text {
     /// Takes UTF-8 bytes only when their length fits the owner's bound.
-    #[expect(clippy::disallowed_methods, reason = "client/domain/contract.md, 5.3 requires UTF-8 text validation")]
     pub fn new(bytes: Box<[u8]>, limit: u32) -> Result<Self, Box<[u8]>> {
-        if bytes.len() > usize::try_from(limit).expect("u32 fits usize") || core::str::from_utf8(&bytes).is_err() {
+        if bytes.len() > skein_lib::length::usize_of(limit) || !skein_lib::bytes::is_utf8(&bytes) {
             return Err(bytes);
         }
         Ok(Self { bytes })
@@ -25,7 +24,7 @@ impl Text {
     /// Whether the already decoded text fits another owner's byte bound.
     #[must_use]
     pub fn fits(&self, limit: u32) -> bool {
-        self.bytes.len() <= usize::try_from(limit).expect("u32 fits usize")
+        self.bytes.len() <= skein_lib::length::usize_of(limit)
     }
     /// Moves the bytes to their next owner.
     #[must_use]
@@ -41,7 +40,7 @@ pub struct Bytes {
 impl Bytes {
     /// Takes opaque bytes only when their length fits the owner's bound.
     pub fn new(bytes: Box<[u8]>, limit: u32) -> Result<Self, Box<[u8]>> {
-        if bytes.len() > usize::try_from(limit).expect("u32 fits usize") {
+        if bytes.len() > skein_lib::length::usize_of(limit) {
             return Err(bytes);
         }
         Ok(Self { bytes })
@@ -54,7 +53,7 @@ impl Bytes {
     /// Whether the bytes fit another owner's byte bound.
     #[must_use]
     pub fn fits(&self, limit: u32) -> bool {
-        self.bytes.len() <= usize::try_from(limit).expect("u32 fits usize")
+        self.bytes.len() <= skein_lib::length::usize_of(limit)
     }
     /// Moves the complete bytes to their next owner.
     #[must_use]
@@ -136,7 +135,7 @@ pub enum Actor {
 
 /// The kind of executor carrying out a task.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Executor {
+pub enum ChipExecutor {
     /// An agent and its charter.
     Agent { charter: u32 },
     /// A connector procedure.
@@ -182,7 +181,7 @@ pub enum Phase {
 
 /// An application value named without carrying its type.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Part {
+pub enum ApplicationPart {
     /// The connector name, supplied by its own view words.
     Connector { connector: u16 },
     /// A resource in its connector.
@@ -207,28 +206,6 @@ pub enum Part {
     Deployment { connector: u16 },
 }
 
-/// Permission for a numbered kind on a resource pattern.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Grant {
-    pub connector: u16,
-    pub kind: u16,
-    pub pattern: super::OwnerPattern,
-}
-
-/// Authority facts to show or ask to amend, never evaluated here.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Authority {
-    pub models: Option<super::AuthorityModels>,
-    pub budget: u64,
-    pub grants: List<Grant>,
-    pub task_kinds: List<Executor>,
-    pub depth: u32,
-    pub tasks: u32,
-    pub deadline: Option<Wall>,
-    pub tools: List<u16>,
-    pub note_scopes: List<NoteScope>,
-}
-
 /// The scope of a note.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum NoteScope {
@@ -237,7 +214,7 @@ pub enum NoteScope {
     /// In a project.
     Project(u32),
     /// On a resource pattern.
-    Resource { project: u32, connector: u16, pattern: super::OwnerPattern },
+    Resource { project: u32, connector: u16, pattern: super::Pattern },
     /// For one goal.
     Task { project: u32, task: u64 },
 }
@@ -246,7 +223,7 @@ pub enum NoteScope {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Ending {
     /// The complete ending supplied by a task owner, separate from other terminal objects.
-    Task(Box<super::OwnerChipEnding>),
+    Task(Box<super::ChipEnding>),
     /// Completed.
     Done,
     /// Failed with a reason.

@@ -9,7 +9,7 @@ use jig_test_domain as root;
 use skein_lib::{Duration, Rng};
 use support::*;
 
-fn agree(world: &jig_core_world::effects::World) {
+fn agree(world: &jig_core_world::world::World) {
     let current = world.domain.settings();
     let mut expected = std::collections::BTreeMap::new();
     let mut changes = std::collections::BTreeMap::new();
@@ -76,14 +76,14 @@ fn agree(world: &jig_core_world::effects::World) {
         }
     }
 }
-fn live_work(world: &mut jig_core_world::effects::World, signed: u64) {
+fn live_work(world: &mut jig_core_world::world::World, signed: u64) {
     // Two non-conversation goals retain their settings: one parked, one running.
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
     world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
         worker: 0,
         channel: skein_lib::Token::new(7),
         hello: jig_domain_fleet::Hello {
-            bounds: fixtures::bounds(),
+            bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),
@@ -107,7 +107,7 @@ fn live_work(world: &mut jig_core_world::effects::World, signed: u64) {
 }
 
 fn draw_change(
-    world: &mut jig_core_world::effects::World,
+    world: &mut jig_core_world::world::World,
     signed: u64,
     step: u8,
     seed: u64,
@@ -257,7 +257,7 @@ fn random_small_settings_changes_and_stale_requests_survive_restarts() {
     );
 }
 
-fn pending_settings(world: &jig_core_world::effects::World) -> Vec<(u64, u32, settings::Proposal)> {
+fn pending_settings(world: &jig_core_world::world::World) -> Vec<(u64, u32, settings::Proposal)> {
     world
         .store
         .rows
@@ -272,7 +272,7 @@ fn pending_settings(world: &jig_core_world::effects::World) -> Vec<(u64, u32, se
         })
         .collect()
 }
-fn proposal_sets_agree(world: &mut jig_core_world::effects::World, signed: u64) {
+fn proposal_sets_agree(world: &mut jig_core_world::world::World, signed: u64) {
     let sets = pending_settings(world);
     let pending = inventory(world, signed).pending;
     assert_eq!(pending.len(), u32::try_from(sets.len()).expect("bounded sets"));

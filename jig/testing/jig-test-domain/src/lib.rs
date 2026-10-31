@@ -1,3 +1,4 @@
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 //! The testing application's root. It owns two numbered test connectors and
 //! one commit door; the core owns every cross-child decision. The root only
 //! translates connector values and wraps records (`domain/root.md`, 3–4).
@@ -18,7 +19,7 @@ use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
-use skein_lib::{Decision, Env, Journal, List, Map, Queue, ReplyTo, Set, Time, Token, Wall};
+use skein_lib::{Decision, Env, Journal, List, Map, Queue, ReplyTo, Token, Wall};
 
 /// A store address owned by the core or one numbered connector.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -114,27 +115,7 @@ pub enum Delivery {
     Procedure { task: u64, step: u64, connector: u16, code: u16, context: Box<tasks::RunContext> },
 }
 
-/// The root's assembled, worker assignment.
-#[derive(Debug)]
-pub struct Assignment {
-    pub live: core::LiveAsk,
-    /// Ordered sections selected by the brief child, typed until protocol routing.
-    pub brief: Box<[jig_domain_brief::GatherPlaced]>,
-    /// The conversation's first attempt, shared by its resumes.
-    pub conversation: u64,
-    /// Claimed task and activation fence.
-    pub task: u64,
-    pub attempt: u64,
-    /// Charter and task-specific policy and contract.
-    pub charter: u32,
-    pub run: Box<core::RunCharter>,
-    /// Whole words and prior committed conversation offered to the worker.
-    pub messages: Box<[tasks::Word]>,
-    pub transcript: Box<[Box<[u8]>]>,
-    pub answered: Box<[core::Settled]>,
-    /// The selected account and application credential grants.
-    pub grants: Box<[jig_domain_accounts::Grant]>,
-}
+pub use jig_domain_hub_link::Assignment;
 
 /// What the root asks its surrounding world to do.
 #[derive(Debug)]
@@ -208,7 +189,7 @@ pub enum Event {
     /// The host finished the requested phase, with pages handed in through
     /// `start_record`/`start_missing`, or the store switched at `Switch`.
     StartDone(core::start::Phase),
-    /// A decoded row from the selected start phase.
+    /// A decoded row from the start phase.
     StartRecord(Record),
     /// A page's source row names an absent owner.
     StartMissing { record: core::Key, target: core::Key },
@@ -317,26 +298,17 @@ pub struct Config {
     pub second: connector::Config,
 }
 
-/// Routing identity reconstructed from the connector's persisted effect key.
-#[derive(Clone, Copy, Debug)]
-struct OutboxOwner {
-    task: u64,
-    projection: bool,
-}
+use jig_domain_hub_link::OutboxOwner;
 
 fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntry) -> bool {
     let key = &row.key;
-    let projection = (key.attempt, key.completion, key.position) == (0, 0, 1);
+    let projection = key.origin == connector::Purpose::Projection;
     let owner = OutboxOwner { task: row.task, projection };
-    if domain.outbox_owners.insert(row.number, owner).is_err() {
-        return false;
-    }
-    if (key.attempt, key.completion, key.position) == (0, 0, 0) {
-        if domain.outbox_procedures.insert(row.number, number).is_err() {
-            return false;
-        }
+    domain.hub_link.keep_outbox_owner(row.number, owner);
+    if key.origin == connector::Purpose::Procedure {
+        domain.hub_link.keep_outbox_procedure(row.number, number);
     } else {
-        domain.outbox_procedures.remove(&row.number);
+        let _removed = domain.hub_link.take_outbox_procedure(row.number);
     }
     true
 }
@@ -345,27 +317,16 @@ fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntr
 #[derive(Debug)]
 pub struct Domain {
     scripted_project_releases: Option<Queue<(u16, u32)>>,
-    pieces_dropped: u64,
+    hub_link: jig_domain_hub_link::Link,
     core: core::Core,
     first: connector::Domain,
     second: connector::Domain,
     journal: Journal<Write, Delivery>,
     now: Queue<Request>,
     store_answers: Queue<Box<Event>>,
-    links: Set<Token>,
     busy: Queue<Box<Event>>,
-    assignments: Map<u64, Assignment>,
-    briefs: Map<u64, Box<[jig_domain_brief::GatherPlaced]>>,
     workspace_writes: Map<u64, Box<[tasks::Name]>>,
-    procedure_steps: Map<u64, (u64, u16)>,
-    topic_calls: Map<Token, (ReplyTo, core::CallKey, u16)>,
     effects: Map<Token, connector::Effect>,
-    effect_procedures: Map<Token, u64>,
-    outbox_procedures: Map<u64, u16>,
-    judges: Map<Token, (Token, jig_domain_authority::Judge, [u8; 32])>,
-    outbox_owners: Map<u64, OutboxOwner>,
-    payloads: Map<Token, Payload>,
-    next_payload: u64,
     decision_wrote: bool,
     stopped_reported: bool,
     start_opened: bool,
@@ -373,6 +334,12 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// The composed core, including its child timer queries.
+    #[must_use]
+    pub const fn core(&self) -> &core::Core {
+        &self.core
+    }
+
     /// Let a world supply connector release answers (jig/docs/design/domain/people.md, 5.2).
     pub fn script_project_releases(&mut self) {
         if self.scripted_project_releases.is_none() {
@@ -384,6 +351,7 @@ impl Domain {
     pub fn take_project_release(&mut self) -> Option<(u16, u32)> {
         self.scripted_project_releases.as_mut()?.pop()
     }
+
     /// Configure the composed core before the testing application's first step.
     pub fn core_mut(&mut self) -> &mut core::Core {
         &mut self.core
@@ -409,7 +377,6 @@ impl Domain {
 
     /// The start's refusal with the phase it refused at.
     #[must_use]
-    #[expect(clippy::manual_map, reason = "the step-code subset uses exhaustive matches")]
     pub fn start_failure(&self) -> Option<(Option<core::start::Phase>, core::start::Failure)> {
         match self.core.start_failure() {
             Some(failure) => Some((self.core.start_phase(), failure)),
@@ -421,32 +388,6 @@ impl Domain {
     #[must_use]
     pub fn start_page_failure(&self) -> Option<&(core::start::Phase, jig_protocol_store::restore::Failure)> {
         self.start_page_failure.as_ref()
-    }
-
-    /// Project each child's original elapsed deadline and the saved people
-    /// wall expiry at the supplied clocks. The loop sends the owner's Timer.
-    #[must_use]
-    pub fn core_deadlines(&self, now: Time, wall: Wall) -> [(core::Timer, Option<Time>); 6] {
-        let elapsed = self.core.people.next_deadline();
-        let saved = match self.core.people.next_wall_expiry() {
-            Some(expiry) if self.core.people.ready() => Some(
-                now.saturating_add(skein_lib::Duration::from_nanos(expiry.as_nanos().saturating_sub(wall.as_nanos()))),
-            ),
-            Some(_) | None => None,
-        };
-        let people = match (elapsed, saved) {
-            (Some(left), Some(right)) => Some(left.min(right)),
-            (Some(at), None) | (None, Some(at)) => Some(at),
-            (None, None) => None,
-        };
-        [
-            (core::Timer::People, people),
-            (core::Timer::Tasks, self.core.tasks.next_deadline()),
-            (core::Timer::Fleet, self.core.fleet.next_deadline()),
-            (core::Timer::Brief, self.core.brief.next_deadline()),
-            (core::Timer::Account, self.core.accounts.next_deadline()),
-            (core::Timer::View, self.core.views.next_deadline()),
-        ]
     }
 
     /// Project the two connector owners' existing absolute deadlines unchanged.
@@ -472,7 +413,7 @@ impl Domain {
         let mut out = Queue::uncapped();
         tasks::step(
             &mut self.core.tasks,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.core.tasks },
+            &env.with(env.limits.core.tasks),
             tasks::Event::Kinds { connector, kinds },
             &mut out,
         );
@@ -481,7 +422,7 @@ impl Domain {
     /// Pieces whose kind or offset the core cannot keep (engine.md, 11).
     #[must_use]
     pub fn pieces_dropped(&self) -> u64 {
-        self.pieces_dropped
+        self.hub_link.pieces_dropped()
     }
 
     /// Build the testing application without issuing a store request.
@@ -490,31 +431,25 @@ impl Domain {
         assert!(limits.routes > 0, "synchronous route bound is positive");
         Domain {
             scripted_project_releases: None,
-            pieces_dropped: 0,
+            hub_link: jig_domain_hub_link::Link::new(
+                jig_domain_hub_link::Limits {
+                    assignments: limits.core.tasks.tasks,
+                    payloads: limits.core.fleet.turns.checked_add(limits.core.fleet.attempts).expect("payload room"),
+                    turns: limits.core.fleet.turns,
+                },
+                skein_lib::Rng::new(config.core.seed ^ 0x5455_524e_4255_5359),
+            ),
             core: core::Core::new(config.core, &limits.core).expect("fixture core configuration"),
             first: connector::Domain::new(config.first, &limits.connector),
             second: connector::Domain::new(config.second, &limits.connector),
             journal: Journal::uncapped(limits.journal.release, 0),
             now: Queue::uncapped(),
             store_answers: Queue::uncapped(),
-            links: Set::with_capacity(limits.core.fleet.workers),
             busy: Queue::uncapped(),
-            assignments: Map::with_capacity(limits.core.tasks.tasks),
-            briefs: Map::with_capacity(limits.core.tasks.tasks),
             workspace_writes: Map::with_capacity(limits.core.tasks.tasks),
-            procedure_steps: Map::with_capacity(limits.core.tasks.tasks),
-            topic_calls: Map::with_capacity(limits.core.call_records),
             effects: Map::with_capacity(
                 limits.core.call_records.checked_add(limits.core.tasks.tasks).expect("effect room"),
             ),
-            effect_procedures: Map::with_capacity(limits.core.tasks.tasks),
-            outbox_procedures: Map::with_capacity(limits.connector.entries.checked_mul(2).expect("outbox procedures")),
-            judges: Map::with_capacity(limits.core.authority.facts),
-            outbox_owners: Map::with_capacity(limits.connector.entries.checked_mul(2).expect("outboxes")),
-            payloads: Map::with_capacity(
-                limits.core.fleet.turns.checked_add(limits.core.fleet.attempts).expect("payload room"),
-            ),
-            next_payload: 1,
             decision_wrote: false,
             stopped_reported: false,
             start_opened: false,
@@ -524,7 +459,7 @@ impl Domain {
 
     #[must_use]
     pub fn ready(&self) -> bool {
-        self.start_opened || self.starting().is_none()
+        self.start_opened
     }
 
     /// The client's current held-task context, admitted by the core's visibility rule.
@@ -560,7 +495,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         Event::StartMissing { record, target } => start_missing(domain, record, target),
         Event::StartPageRefused { failure } => {
             if !domain.start_stopped() {
-                let phase = domain.core.start_phase().expect("page belongs to a selected start phase");
+                let phase = domain.core.start_phase().expect("page belongs to the start phase");
                 domain.start_page_failure = Some((phase, failure));
             }
         }
@@ -632,26 +567,11 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
 }
 
 fn transcript_loaded(domain: &mut Domain, env: &Env<Limits>, task: u64, rows: Box<[core::TranscriptRow]>, done: bool) {
-    if !domain.core.transcripts.contains_key(&task) {
-        return;
-    }
-    if rows.len() > usize::try_from(env.limits.core.resume_bytes).expect("u32 fits usize") {
-        return;
-    }
-    for (row, text) in rows {
-        if !domain.core.append_transcript(task, row, text) {
-            decide(domain, env, Work::Core(core::Event::PreparationFailed { task }));
-            return;
-        }
-    }
-    if done {
-        let event = if domain.core.transcript_readable(task) {
-            core::Event::StartBrief { task }
-        } else {
-            core::Event::TranscriptUnread { task }
-        };
-        decide(domain, env, Work::Core(event));
-    }
+    decide(
+        domain,
+        env,
+        Work::Core(core::Event::TranscriptLoaded { task, load: core::TranscriptLoad::Page { rows, done } }),
+    );
 }
 
 #[expect(clippy::too_many_lines, reason = "one bounded decision routes the complete root work vocabulary")]
@@ -670,10 +590,8 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             if !domain.ready() {
                 break;
             }
-            let requests =
-                core::finish_decision(&mut domain.core, &Env { now: env.now, wall: env.wall, limits: env.limits.core });
-            let core::Requests::Out(ref out) = requests;
-            let done = out.len() == 1;
+            let requests = core::finish_decision(&mut domain.core, &env.with(env.limits.core));
+            let done = requests.is_empty();
             route_core(domain, env, &mut decision, requests, &mut work);
             if done && work.is_empty() {
                 break;
@@ -690,7 +608,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             },
             Work::Start(input) => {
                 let mut out = Queue::uncapped();
-                let core_env = Env { now: env.now, wall: env.wall, limits: env.limits.core };
+                let core_env = env.with(env.limits.core);
                 let action = match input {
                     StartInput::Begin { pending } => domain.core.start_begin(pending, env.wall),
                     StartInput::Done(core::start::Phase::Sweep) => {
@@ -698,11 +616,9 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                     }
                     StartInput::Done(phase) => domain.core.start_done(&core_env, phase, &mut out),
                     StartInput::Resume(continuation) => domain.core.start_resume(&core_env, continuation, &mut out),
-                    StartInput::Sweep(row) => {
-                        domain.core.start_sweep(&core_env, core::start::SweepInput::Record(row), &mut out)
-                    }
+                    StartInput::Sweep => domain.core.start_sweep(&core_env, core::start::SweepInput::Next, &mut out),
                 };
-                route_core(domain, env, &mut decision, core::Requests::Out(out), &mut work);
+                route_core(domain, env, &mut decision, out, &mut work);
                 let mut next = start_action(domain, env, &mut decision, action);
                 for _ in 0..next.len() {
                     work.push(next.pop().expect("start phase work"));
@@ -711,8 +627,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
 
             Work::Link { channel, link } => link::receive(domain, channel, link, &mut work),
             Work::WatchApplication { watcher, sign_in, scope, number, subject, window } => {
-                let token = Token::new(domain.next_payload);
-                domain.next_payload = domain.next_payload.checked_add(1).expect("root subject token room");
+                let token = domain.hub_link.fresh();
                 if number == 1 || number == 2 {
                     work.push(Work::Connector { number, event: connector::Event::DocumentPrepare { token, subject } });
                 }
@@ -724,8 +639,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 }));
             }
             Work::ReadApplication { reply, sign_in, scope, number, subject, window } => {
-                let token = Token::new(domain.next_payload);
-                domain.next_payload = domain.next_payload.checked_add(1).expect("root read token room");
+                let token = domain.hub_link.fresh();
                 if number == 1 || number == 2 {
                     work.push(Work::Connector { number, event: connector::Event::DocumentPrepare { token, subject } });
                 }
@@ -736,8 +650,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 }));
             }
             Work::Application { reply_to, sign_in, key, scope, number, digest, value, carried } => {
-                let owner = Token::new(domain.next_payload);
-                domain.next_payload = domain.next_payload.checked_add(1).expect("root token room");
+                let owner = domain.hub_link.fresh();
                 if number == 1 || number == 2 {
                     work.push(Work::Connector { number, event: connector::Event::ApplicationPrepare { owner, value } });
                 }
@@ -754,11 +667,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             }
             Work::ConnectorFire { number } => {
                 let mut out = Queue::uncapped();
-                connector::fire(
-                    numbered(domain, number),
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.connector },
-                    &mut out,
-                );
+                connector::fire(numbered(domain, number), &env.with(env.limits.connector), &mut out);
                 route_connector(domain, env, &mut decision, number, &mut out, &mut work);
             }
             Work::ProjectionEffect { goal, number, effect } => {
@@ -779,8 +688,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 work.push(Work::Core(core::Event::EffectStart { owner, connector: number, origin }));
             }
             Work::Timer(timer) => {
-                let requests =
-                    core::fire(&mut domain.core, &Env { now: env.now, wall: env.wall, limits: env.limits.core }, timer);
+                let requests = core::fire(&mut domain.core, &env.with(env.limits.core), timer);
                 route_core(domain, env, &mut decision, requests, &mut work);
             }
             Work::CallAnswered { to, call } => {
@@ -788,16 +696,12 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 work.push(Work::Core(core::Event::Fleet(fleet::Event::Relayed { to, answer })));
             }
             Work::Core(event) => {
-                let requests =
-                    core::step(&mut domain.core, &Env { now: env.now, wall: env.wall, limits: env.limits.core }, event);
+                let requests = core::step(&mut domain.core, &env.with(env.limits.core), event);
                 route_core(domain, env, &mut decision, requests, &mut work);
             }
             Work::Finish => finish_only = true,
             Work::ResumeFleet => {
-                let requests = core::resume_fleet(
-                    &mut domain.core,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.core },
-                );
+                let requests = core::resume_fleet(&mut domain.core, &env.with(env.limits.core));
                 route_core(domain, env, &mut decision, requests, &mut work);
             }
             Work::WriterRead { connector, resource, event } => {
@@ -813,12 +717,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             Work::Connector { number, event } => {
                 let mut requests = Queue::uncapped();
                 let connector = numbered(domain, number);
-                connector::step(
-                    connector,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.connector },
-                    event,
-                    &mut requests,
-                );
+                connector::step(connector, &env.with(env.limits.connector), event, &mut requests);
                 route_connector(domain, env, &mut decision, number, &mut requests, &mut work);
             }
             Work::ConnectorResume { number } => {
@@ -841,13 +740,12 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     if finish_only {
         assert!(!domain.decision_wrote && !domain.core.counters.dirty(), "stopping continuation makes no commit");
     }
-    if domain.decision_wrote || domain.core.counters.dirty() {
-        let header = domain.core.counters.next_commit();
-        write(
-            domain,
-            &mut decision,
-            Write::Save(Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))),
-        );
+    let header = if domain.decision_wrote { Some(domain.core.commit_header()) } else { domain.core.cold_header() };
+    if let Some(header) = header {
+        let core::Write::Save(header) = header else {
+            unreachable!("a deployment header is a save");
+        };
+        write(domain, &mut decision, Write::Save(Record::Core(header)));
     }
     if !domain.start_stopped() {
         domain.journal.accept(decision);
@@ -856,12 +754,11 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
 
 /// Inputs routed inside the root's decision (jig/docs/design/domain/engine.md, 6).
 #[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "the sweep moves one decoded people row")]
 enum StartInput {
     Begin { pending: bool },
     Done(core::start::Phase),
     Resume(core::start::Continuation),
-    Sweep(jig_domain_people::Stored),
+    Sweep,
 }
 
 fn start_action(
@@ -880,10 +777,6 @@ fn start_action(
             }
             Phase::Link | Phase::Wires | Phase::Open => work.push(Work::Start(StartInput::Done(phase))),
             Phase::AdoptRuns => {
-                for _ in 0..domain.core.adopted.len() {
-                    work.push(Work::Core(core::Event::Fleet(domain.core.adopted.pop().expect("restored claim count"))));
-                }
-                work.push(Work::Core(core::Event::Fleet(fleet::Event::Loaded)));
                 work.push(Work::Start(StartInput::Done(phase)));
             }
             Phase::ReadAfresh { connector: number } => {
@@ -935,17 +828,13 @@ impl Domain {
 }
 
 fn effect_payload(domain: &mut Domain, effect: connector::Effect) -> Token {
-    let token = Token::new(domain.next_payload);
-    domain.next_payload = domain.next_payload.checked_add(1).expect("bounded owner numbers");
+    let token = domain.core.effect_owner();
     assert!(domain.effects.insert(token, effect).is_ok(), "admitted effect room");
     token
 }
 
 fn payload(domain: &mut Domain, value: Payload) -> Token {
-    let token = Token::new(domain.next_payload);
-    domain.next_payload = domain.next_payload.checked_add(1).expect("bounded test flight numbering");
-    assert!(domain.payloads.insert(token, value).is_ok(), "payload room reserved");
-    token
+    domain.hub_link.retain(value)
 }
 
 fn numbered(domain: &mut Domain, number: u16) -> &mut connector::Domain {
@@ -1070,12 +959,8 @@ fn wall_due(env: &Env<Limits>, expiry: Wall) -> bool {
 }
 
 fn timers_due(domain: &Domain, env: &Env<Limits>) -> bool {
-    for (_, due) in domain.core_deadlines(env.now, env.wall) {
-        if let Some(due) = due
-            && due <= env.now
-        {
-            return true;
-        }
+    if domain.core.due(env.now, env.wall).is_some() {
+        return true;
     }
     for (_, due) in domain.connector_deadlines() {
         if let Some(due) = due
@@ -1163,51 +1048,18 @@ pub use census::inbox_census;
 
 fn restore_row(domain: &mut Domain, env: &Env<Limits>, record: Record) -> bool {
     match record {
-        Record::Core(core::Record::Core(row)) => match domain.core.restore_core(row, &env.limits.core) {
-            core::Restored::Deployment { commits } => {
+        Record::Core(row) => match domain.core.restore(&env.with(env.limits.core), row) {
+            core::Restore::Deployment { commits } => {
                 domain.journal = Journal::uncapped(env.limits.journal.release, commits);
                 true
             }
-            core::Restored::Live | core::Restored::Archive => true,
-            core::Restored::Rejected => false,
-        },
-        Record::Core(core::Record::Tasks(row)) => {
-            if !domain.core.restore_task_row(&row) {
-                return false;
+            core::Restore::Kept => true,
+            core::Restore::Refused => false,
+            core::Restore::Swept => {
+                decide(domain, env, Work::Start(StartInput::Sweep));
+                true
             }
-            let mut out = Queue::uncapped();
-            tasks::step(
-                &mut domain.core.tasks,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.core.tasks },
-                tasks::Event::Restore { record: row },
-                &mut out,
-            );
-            out.is_empty()
-        }
-        Record::Core(core::Record::People(jig_domain_people::Stored::Policy { project, name, value })) => {
-            domain.core.restore_policy(&env.limits.core, project, name, value)
-        }
-        Record::Core(core::Record::People(row)) => {
-            let mut out = Queue::uncapped();
-            jig_domain_people::step(
-                &mut domain.core.people,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.core.people },
-                jig_domain_people::Event::Restore { record: row },
-                &mut out,
-            );
-            out.is_empty()
-        }
-        Record::Core(core::Record::Notes(_)) => true,
-        Record::Core(core::Record::Accounts(record)) => {
-            let mut out = Queue::uncapped();
-            jig_domain_accounts::step(
-                &mut domain.core.accounts,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.core.accounts },
-                jig_domain_accounts::Event::Restore { record },
-                &mut out,
-            );
-            out.is_empty()
-        }
+        },
         Record::Connector { number, record } => restore_connector(domain, env, number, record),
     }
 }
@@ -1218,17 +1070,10 @@ pub fn start_record(domain: &mut Domain, env: &Env<Limits>, record: Record) {
     if domain.start_stopped() {
         return;
     }
-    let fits = match domain.core.start_phase().expect("row belongs to a selected start phase") {
-        Phase::Sweep => {
-            let Record::Core(core::Record::People(row)) = record else { unreachable!("sweep pages only people") };
-            decide(domain, env, Work::Start(StartInput::Sweep(row)));
-            return;
+    let fits = match domain.core.start_phase().expect("row belongs to the start phase") {
+        Phase::Sweep | Phase::LoadInbox | Phase::LoadCore | Phase::RestoreConnector { .. } => {
+            restore_row(domain, env, record)
         }
-        Phase::LoadInbox => {
-            let Record::Core(row) = record else { unreachable!("inbox pages only core rows") };
-            domain.core.restore_inbox_row(&env.limits.core, &row)
-        }
-        Phase::LoadCore | Phase::RestoreConnector { .. } => restore_row(domain, env, record),
         Phase::Link
         | Phase::Switch
         | Phase::Wires
@@ -1237,7 +1082,7 @@ pub fn start_record(domain: &mut Domain, env: &Env<Limits>, record: Record) {
         | Phase::SettleOutbox { .. }
         | Phase::Open => unreachable!("phase loads no rows"),
     };
-    assert!(fits || domain.start_failure().is_some(), "a selected row entrance refuses with a start failure");
+    assert!(fits || domain.start_failure().is_some(), "the start's row entrance refuses with a start failure");
 }
 
 /// A store page's missing owner.
@@ -1280,7 +1125,7 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
     let mut out = Queue::uncapped();
     connector::step(
         numbered(domain, number),
-        &Env { now: env.now, wall: env.wall, limits: env.limits.connector },
+        &env.with(env.limits.connector),
         connector::Event::Restore { record },
         &mut out,
     );
@@ -1288,13 +1133,13 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
         match out.pop().expect("restored connector output count") {
             connector::Request::Resource { project, resource } => {
                 let role = match resource.role {
-                    connector::ResourceRole::Owned => core::connector::ResourceRole::Owned,
-                    connector::ResourceRole::Participating => core::connector::ResourceRole::Participant,
-                    connector::ResourceRole::Context => core::connector::ResourceRole::Context,
-                    connector::ResourceRole::Unavailable => core::connector::ResourceRole::Unavailable,
+                    connector::ResourceRole::Owned => core::effects::connector::ResourceRole::Owned,
+                    connector::ResourceRole::Participating => core::effects::connector::ResourceRole::Participant,
+                    connector::ResourceRole::Context => core::effects::connector::ResourceRole::Context,
+                    connector::ResourceRole::Unavailable => core::effects::connector::ResourceRole::Unavailable,
                 };
                 if !domain.core.restore_resource_role(
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.core },
+                    &env.with(env.limits.core),
                     project,
                     tasks::Name { connector: number, path: resource.path.segments().into() },
                     role,
@@ -1341,7 +1186,7 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
     true
 }
 
-/// Settings rows accompanying a deployment header in an explicitly seeded test store.
+/// Settings rows accompanying a deployment header in a seeded test store.
 #[must_use]
 pub fn initial_settings(defaults: &core::settings::Defaults) -> Box<[core::Record]> {
     use core::settings as s;

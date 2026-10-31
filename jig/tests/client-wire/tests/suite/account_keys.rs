@@ -6,13 +6,13 @@ fn all_eight_account_changes_and_their_outcomes_round_trip() {
     let mut uses = List::with_capacity(16);
     for n in 0..16 {
         uses.push(if n % 2 == 0 {
-            OwnerAccountUse::Party(
-                OwnerAccountUseParty::new(&CEILINGS, OwnerAccountUsePartyParts { party: u64::from(n) })
+            AccountUse::Party(
+                AccountUseParty::new(&CEILINGS, AccountUsePartyParts { party: u64::from(n) })
                     .expect("bounded account wire fixture"),
             )
         } else {
-            OwnerAccountUse::Project(
-                OwnerAccountUseProject::new(&CEILINGS, OwnerAccountUseProjectParts { project: n })
+            AccountUse::Project(
+                AccountUseProject::new(&CEILINGS, AccountUseProjectParts { project: n })
                     .expect("bounded account wire fixture"),
             )
         })
@@ -55,44 +55,43 @@ fn all_eight_account_changes_and_their_outcomes_round_trip() {
                 .expect("bounded account wire fixture"),
         ),
     ] {
-        for holder in [AccountHolder::Own, AccountHolder::Deployment] {
+        for holder in [AskAccountHolder::Own, AskAccountHolder::Deployment] {
             let ask = Ask::AccountChange(
                 AskAccountChange::new(&CEILINGS, AskAccountChangeParts { holder, change: change.clone() })
                     .expect("bounded account wire fixture"),
             );
-            let mut out = Writer::new(usize::try_from(ask.measure()).expect("measured ask fits"));
+            let mut out = Writer::new(skein_lib::length::usize_of(ask.measure()));
             ask.encode(&mut out).expect("bounded account wire fixture");
             assert_eq!(Ask::decode(&CEILINGS, &mut Reader::new(&out.finish())), Ok(ask));
         }
     }
     for outcome in [
-        OwnerOutcome::AccountKeyKept(
-            OwnerOutcomeAccountKeyKept::new(&CEILINGS, OwnerOutcomeAccountKeyKeptParts { source: u32::MAX })
+        DocumentOutcome::AccountKeyKept(
+            OutcomeAccountKeyKept::new(&CEILINGS, OutcomeAccountKeyKeptParts { source: u32::MAX })
                 .expect("bounded account wire fixture"),
         ),
-        OwnerOutcome::AccountChanged,
-        OwnerOutcome::AccountRemoved(
-            OwnerOutcomeAccountRemoved::new(
+        DocumentOutcome::AccountChanged,
+        DocumentOutcome::AccountRemoved(
+            OutcomeAccountRemoved::new(
                 &CEILINGS,
-                OwnerOutcomeAccountRemovedParts { confirmed: true, failed_hosts: skein_lib::List::with_capacity(0) },
+                OutcomeAccountRemovedParts { confirmed: true, failed_hosts: skein_lib::List::with_capacity(0) },
             )
             .expect("bounded account wire fixture"),
         ),
     ] {
-        let mut out = Writer::new(usize::try_from(outcome.measure()).expect("measured outcome fits"));
+        let mut out = Writer::new(skein_lib::length::usize_of(outcome.measure()));
         outcome.encode(&mut out).expect("bounded account wire fixture");
-        assert_eq!(OwnerOutcome::decode(&CEILINGS, &mut Reader::new(&out.finish())), Ok(outcome));
+        assert_eq!(DocumentOutcome::decode(&CEILINGS, &mut Reader::new(&out.finish())), Ok(outcome));
     }
     let mut uses = List::with_capacity(17);
     for _ in 0..17 {
-        uses.push(OwnerAccountUse::Party(
-            OwnerAccountUseParty::new(&CEILINGS, OwnerAccountUsePartyParts { party: 1 })
-                .expect("bounded account wire fixture"),
+        uses.push(AccountUse::Party(
+            AccountUseParty::new(&CEILINGS, AccountUsePartyParts { party: 1 }).expect("bounded account wire fixture"),
         ))
         .expect("bounded account wire fixture");
     }
     assert!(AccountChangeSetUses::new(&CEILINGS, AccountChangeSetUsesParts { account: 1, uses: Some(uses) }).is_err());
-    let mut out = Writer::new(usize::try_from(Refusal::Provider.measure()).expect("measured refusal fits"));
+    let mut out = Writer::new(skein_lib::length::usize_of(Refusal::Provider.measure()));
     Refusal::Provider.encode(&mut out).expect("bounded account wire fixture");
     assert_eq!(Refusal::decode(&CEILINGS, &mut Reader::new(&out.finish())), Ok(Refusal::Provider));
 }

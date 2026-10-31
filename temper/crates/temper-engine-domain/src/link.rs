@@ -9,18 +9,18 @@ use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
+use jig_domain_hub_link as hub;
 use jig_domain_tasks as tasks;
-use skein_lib::{Decimal, List, Token, Writer};
+use skein_lib::{Decimal, List, Queue, Token, Writer};
 use temper_engine_domain_forge as forge;
 impl Domain {
     /// The unique resource pushed under this fenced answer's authentic writer claim.
     #[must_use]
     pub fn change_resource(&self, payload: Token) -> Option<(u16, u16, u64)> {
-        let Some(Some(Payload::Answer { task, attempt, parts, .. })) =
-            self.payloads.get(skein_lib::Id::from_token(payload))
-        else {
+        let Some(Payload::Answer { task, attempt, .. }) = self.hub_link.payload(payload) else {
             return None;
         };
+        let parts = self.answer_parts.get(&payload)?;
         if !self.core.current_proof(*task, *attempt) || !parts_within(parts, &self.limits) {
             return None;
         }
@@ -42,43 +42,33 @@ pub(crate) fn settled_resource(heads: &[(forge::Name, skein_forge::api::Commit)]
 /// `None` when the root has no room for their bytes, which admission
 /// ([`crate::try_step`]) hands back first, and their host sends again.
 pub(crate) fn receive(domain: &mut Domain, channel: Token, link: Link) -> Option<core::Event> {
-    Some(core::Event::Fleet(match link {
-        Link::Hello { worker, hello } => fleet::Event::Hello { channel, worker, hello: self::hello(hello) },
-        Link::Up { up: host::LinkUp::Piece { run, attempt, piece }, .. } => {
-            if let Ok(offset) = u32::try_from(piece.offset) {
-                match piece.kind {
-                    host::LiveKind::Text => {
-                        return Some(core::Event::RunText {
-                            run,
-                            attempt,
-                            turn: piece.turn,
-                            retry: piece.retry,
-                            offset,
-                            text: piece.bytes,
-                            call: None,
-                        });
-                    }
-                    host::LiveKind::Input { call, tool } => {
-                        return Some(core::Event::RunInput {
-                            run,
-                            attempt,
-                            turn: piece.turn,
-                            retry: piece.retry,
-                            offset,
-                            id: call,
-                            tool,
-                            input: piece.bytes,
-                        });
-                    }
-                    host::LiveKind::Reasoning => {}
+    match link {
+        Link::Hello { worker, hello } => {
+            domain.hub_link.connect(channel);
+            Some(core::Event::Fleet(fleet::Event::Hello { channel, worker, hello }))
+        }
+        Link::Lost => {
+            domain.hub_link.disconnect(channel);
+            Some(core::Event::Fleet(fleet::Event::Lost { channel }))
+        }
+        Link::Up { up, parts } => {
+            let bytes = if let host::LinkUp::Turn { turn, .. } = &up {
+                u64::try_from(turn.body.len()).expect("bounded turn bytes")
+            } else {
+                0
+            };
+            let invalid = !parts_within(&parts, &domain.limits);
+            let mut event = hub::up(&mut domain.hub_link, channel, up)?;
+            domain.hold_bytes(bytes);
+            if let core::Event::Fleet(fleet::Event::Answer { payload, answer, .. }) = &mut event {
+                domain.answer_parts.insert(*payload, parts).expect("one application part per answer");
+                if invalid {
+                    *answer = fleet::Answer::Failed { turned: None };
                 }
             }
-            domain.pieces_dropped = domain.pieces_dropped.saturating_add(1);
-            return None;
+            Some(event)
         }
-        Link::Up { up, parts } => self::up(domain, channel, up, parts)?,
-        Link::Lost => fleet::Event::Lost { channel },
-    }))
+    }
 }
 
 /// Only these protocol answers and worker records can retain a new payload.
@@ -113,7 +103,7 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
 
 /// Whether the root can retain one more payload from a worker or the protocol.
 pub(crate) fn room(domain: &Domain) -> bool {
-    domain.payloads.len() < domain.payloads.capacity()
+    domain.hub_link.payload_count() < crate::limits::payload_slots(&domain.limits).expect("valid payload room")
 }
 
 /// temper's parts within their bounds: the heads a run pushed and the
@@ -126,243 +116,98 @@ fn parts_within(parts: &Parts, limits: &crate::Limits) -> bool {
     saved && parts.pushed.len() <= usize::try_from(limits.forge.resources_per_task).expect("u32 fits usize")
 }
 
-fn hello(hello: host::Hello) -> fleet::Hello {
-    let mut hosting = List::with_capacity(u32::try_from(hello.hosting.len()).expect("bounded hosted runs"));
-    for run in hello.hosting {
-        hosting
-            .push(fleet::Hosted { run: run.run, attempt: run.attempt, phase: phase(run.phase) })
-            .expect("one slot per hosted run");
-    }
-    fleet::Hello {
-        slots: hello.slots,
-        stop_bound: hello.stop_bound,
-        workstreams: hello.workstreams,
-        hosting: hosting.into_boxed(),
-        bounds: hello_bounds(hello.bounds),
-    }
-}
-
-/// The worker's advertised agent bounds in the fleet's hello vocabulary.
-#[must_use]
-pub fn hello_bounds(bounds: host::Bounds) -> fleet::Bounds {
-    let mut models = List::with_capacity(u32::try_from(bounds.models.len()).expect("bounded models"));
-    for model in bounds.models {
-        models
-            .push(fleet::ModelBound { name: model.name, window: model.window, output: model.output })
-            .expect("one slot per model");
-    }
-    fleet::Bounds {
-        program_endpoints: bounds.program_endpoints,
-        models: models.into_boxed(),
-        turns: bounds.turns,
-        spend: bounds.spend,
-        time: bounds.time,
-        waiting: bounds.waiting,
-        checks: bounds.checks,
-        message_bytes: bounds.message_bytes,
-        inbox: bounds.inbox,
-        unacknowledged: bounds.unacknowledged,
-    }
-}
-
-fn phase(phase: host::Phase) -> fleet::Phase {
-    match phase {
-        host::Phase::Preparing => fleet::Phase::Preparing,
-        host::Phase::Starting => fleet::Phase::Starting,
-        host::Phase::Active => fleet::Phase::Active,
-        host::Phase::Waiting => fleet::Phase::Waiting,
-        host::Phase::Ending => fleet::Phase::Ending,
-        host::Phase::Answered => fleet::Phase::Answered,
-    }
-}
-
-/// Retain a worker's bytes and temper's parts; translate only their metadata.
-fn up(domain: &mut Domain, channel: Token, up: host::LinkUp, parts: Parts) -> Option<fleet::Event> {
-    Some(match up {
-        host::LinkUp::Piece { .. } => unreachable!("live pieces route directly to the core in receive"),
-        host::LinkUp::Logins { logins } => {
-            let mut rows = List::with_capacity(u32::try_from(logins.len()).expect("bounded source rows"));
-            for login in logins {
-                rows.push(fleet::Login { name: source_name(login.name), state: source_login(login.state) })
-                    .expect("one source row per input");
-            }
-            fleet::Event::Logins { channel, logins: rows.into_boxed() }
-        }
-        host::LinkUp::SignedOut { name, result } => fleet::Event::SignedOut {
-            channel,
-            name: source_name(name),
-            result: match result {
-                host::SignOutResult::SignedOut => fleet::SignOutResult::SignedOut,
-                host::SignOutResult::Failed { reason, detail } => {
-                    fleet::SignOutResult::Failed { reason: source_failure(reason), detail }
-                }
-            },
-        },
-
-        host::LinkUp::Turn { run, attempt, turn } => {
-            let number = turn.turn;
-            let bytes = u64::try_from(turn.body.len()).expect("worker turn body length fits u64");
-            let body = payload(
-                domain,
-                Payload::Turn {
-                    task: run.raw(),
-                    attempt: attempt.raw(),
-                    turn: number,
-                    cumulative: turn.spent,
-                    read: read_name(turn.read),
-                    transcript: turn.body,
-                    opens_window: turn.opens_window,
-                    refused: refusals(&turn.refused),
-                },
-            )?;
-            domain.hold_bytes(bytes);
-            fleet::Event::Turn { channel, run, attempt, turn: number, body }
-        }
-        host::LinkUp::Answer { run, attempt, answer } => {
-            // An answer whose parts exceed their bounds is the run's invalid
-            // failure, whatever it says (`answer` below).
-            let kind = if parts_within(&parts, &domain.limits) {
-                match answer.ending {
-                    host::Ending::Ended { .. } => fleet::Answer::Ended,
-                    host::Ending::Parked { .. } => fleet::Answer::Parked,
-                    host::Ending::Failed { failure, .. } => fleet::Answer::Failed { turned: turned(failure) },
-                    host::Ending::Refused(host::Refusal::Busy) => fleet::Answer::Busy,
-                    host::Ending::Refused(host::Refusal::Invalid(_)) => fleet::Answer::Invalid,
-                }
-            } else {
-                fleet::Answer::Failed { turned: None }
-            };
-            let payload = payload(
-                domain,
-                Payload::Answer {
-                    task: run.raw(),
-                    attempt: attempt.raw(),
-                    cumulative: answer.spent,
-                    read: read_name(answer.read),
-                    refused: refusals(&answer.refused),
-                    ending: answer.ending,
-                    parts,
-                },
-            )?;
-            fleet::Event::Answer { channel, run, attempt, answer: kind, payload }
-        }
-        host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline } => fleet::Event::Relay {
-            channel,
-            run,
-            attempt,
-            call: fleet::Call { name: call, tool, writes, input, deadline },
-        },
-        host::LinkUp::Unauthorized { run, attempt, account, generation } => {
-            fleet::Event::Unauthorized { channel, run, attempt, account, generation }
-        }
-        host::LinkUp::Limited { run, attempt, account, reset } => {
-            fleet::Event::Limited { channel, run, attempt, account, reset }
-        }
-        host::LinkUp::AccountRefused { run, attempt, account, code, reason } => {
-            fleet::Event::AccountRefused { channel, run, attempt, account, code, reason }
-        }
-        host::LinkUp::Activity { run, attempt, activity } => {
-            fleet::Event::Observe { channel, run, attempt, report: report(activity) }
-        }
-    })
-}
-
-/// The account a failed run turned on, as the fleet carries it.
-const fn turned(failure: host::Failure) -> Option<fleet::Turned> {
-    match failure {
-        host::Failure::Run(host::RunFailure::Limited { account, reset }) => {
-            Some(fleet::Turned::Limited { account, reset })
-        }
-        host::Failure::Run(host::RunFailure::Refused { account }) => Some(fleet::Turned::Refused { account }),
-        host::Failure::Run(
-            host::RunFailure::Model
-            | host::RunFailure::Exceeded(_)
-            | host::RunFailure::Budget
-            | host::RunFailure::Policy
-            | host::RunFailure::Cancelled
-            | host::RunFailure::Stale,
-        )
-        | host::Failure::Unprepared(_)
-        | host::Failure::Agent(_)
-        | host::Failure::Cancelled(_) => None,
-    }
-}
-
-fn payload(domain: &mut Domain, value: Payload) -> Option<Token> {
-    Some(domain.payloads.insert(Some(value)).ok()?.token())
-}
-
-fn read_name(name: Option<Token>) -> Option<u64> {
-    Some(name?.raw())
-}
-
-fn refusals(values: &[host::Refused]) -> Box<[u64]> {
-    let mut names = List::with_capacity(u32::try_from(values.len()).expect("bounded refusals"));
-    for value in values {
-        names.push(value.name.raw()).expect("one slot per refusal");
-    }
-    names.into_boxed()
-}
-
-/// The fleet fenced an answer: an ended one's outcome goes to the protocol
-/// layer to read; any other ending is translated here.
+/// The shared link interprets worker endings; temper adds the forge parts.
 pub(crate) fn answer(domain: &mut Domain, run: Token, attempt: Token, payload: Token) {
-    let end = match domain.payloads.get(skein_lib::Id::from_token(payload)) {
-        Some(Some(Payload::Answer { task, attempt: retained, ending, parts, .. })) => {
-            assert!(*task == run.raw() && *retained == attempt.raw(), "fenced answer identity");
-            if parts_within(parts, &domain.limits) {
-                match ending {
-                    host::Ending::Ended { outcome, .. } => {
-                        let request = Request::Worker(WorkerRequest::ReadResult { payload, outcome: outcome.clone() });
-                        assert!(crate::domain::now(domain, request), "result read door reserved");
-                        return;
-                    }
-                    other @ (host::Ending::Refused(_) | host::Ending::Parked { .. } | host::Ending::Failed { .. }) => {
-                        end(other)
-                    }
-                }
-            } else {
-                tasks::End::Failed(tasks::Class::Invalid)
+    if match domain.answer_parts.get(&payload) {
+        Some(parts) => !parts_within(parts, &domain.limits),
+        None => false,
+    } {
+        let event = result_event(domain, payload, tasks::End::Failed(tasks::Class::Invalid)).expect("retained answer");
+        domain.work.push(Work::Core(event));
+        return;
+    }
+    route(domain, hub::Event::AnswerPayload { run, attempt, payload });
+}
+
+/// The root applies immediate outputs to its work queue and protocol door.
+pub(crate) fn route(domain: &mut Domain, event: hub::Event) {
+    let mut out = Queue::uncapped();
+    hub::step(&mut domain.hub_link, skein_lib::Time::ZERO, event, &mut out);
+    for _ in 0..out.len() {
+        match out.pop().expect("link output count") {
+            hub::Request::Core(mut event) => {
+                decorate_answer(domain, &mut event);
+                domain.work.push(Work::Core(event));
+            }
+            hub::Request::ReadResult { payload, outcome } => {
+                let request = Request::Worker(WorkerRequest::ReadResult { payload, outcome });
+                assert!(crate::domain::now(domain, request), "result read door reserved");
+            }
+            hub::Request::Assigned { .. }
+            | hub::Request::Down { .. }
+            | hub::Request::Relayed { .. }
+            | hub::Request::Message { .. }
+            | hub::Request::ConnectorCall { .. }
+            | hub::Request::TurnCopy { .. } => {
+                unreachable!("immediate payload routing returns a core event or protocol read")
             }
         }
-        Some(
-            Some(
-                Payload::Busy
-                | Payload::Call { .. }
-                | Payload::SettledCall(_)
-                | Payload::RefusedCall { .. }
-                | Payload::InboxWord(_)
-                | Payload::Turn { .. },
-            )
-            | None,
-        )
-        | None => unreachable!("the fleet retained the answer body"),
-    };
-    let event = result_event(domain, payload, end).expect("retained answer");
-    domain.work.push(Work::Core(event));
+    }
+}
+
+/// Translate link hand-outs through temper's assignment, inbox and tool rendering.
+pub(crate) fn delivery(domain: &mut Domain, event: hub::Event) -> crate::Delivery {
+    let mut out = Queue::uncapped();
+    hub::step(&mut domain.hub_link, skein_lib::Time::ZERO, event, &mut out);
+    assert!(out.len() == 1, "one delivery per link hand-out");
+    match out.pop().expect("link delivery") {
+        hub::Request::Assigned { channel, assignment: value } => {
+            crate::Delivery::Assigned { channel, assignment: assignment(domain, value) }
+        }
+        hub::Request::Message { channel, run, attempt, word } => {
+            crate::Delivery::Link { channel, down: message(run, attempt, &word) }
+        }
+        hub::Request::Relayed { channel, run, attempt, call: name, answer } => {
+            let answer = match answer {
+                None => host::Relayed::Busy,
+                Some(call) => match call.answer {
+                    core::SettledAnswer::Host { error, body } => host::Relayed::Answer { error, text: body },
+                    core::SettledAnswer::Delivery { .. } => {
+                        return crate::Delivery::Host(Box::new(crate::HostDelivery::Answer {
+                            channel,
+                            task: run.raw(),
+                            attempt: attempt.raw(),
+                            name,
+                            call,
+                        }));
+                    }
+                },
+            };
+            crate::Delivery::Link { channel, down: host::LinkDown::Relayed { run, attempt, call: name, answer } }
+        }
+        hub::Request::Down { channel, value } => crate::Delivery::Link { channel, down: value },
+        hub::Request::Core(_)
+        | hub::Request::ReadResult { .. }
+        | hub::Request::ConnectorCall { .. }
+        | hub::Request::TurnCopy { .. } => unreachable!("link hand-out returns one delivery"),
+    }
 }
 
 /// The answer's task terminal, with temper's saved work translated and what
 /// it left on the forge kept for a lost run (domain/forge.md).
 pub(crate) fn result_event(domain: &mut Domain, payload: Token, end: tasks::End) -> Option<core::Event> {
-    let (task, attempt, cumulative, read, refused, parts) =
-        match domain.payloads.get(skein_lib::Id::from_token(payload)) {
-            Some(Some(Payload::Answer { task, attempt, cumulative, read, refused, parts, .. })) => {
-                (*task, *attempt, *cumulative, *read, refused.clone(), parts.clone())
-            }
-            Some(
-                Some(
-                    Payload::Busy
-                    | Payload::Call { .. }
-                    | Payload::SettledCall(_)
-                    | Payload::RefusedCall { .. }
-                    | Payload::InboxWord(_)
-                    | Payload::Turn { .. },
-                )
-                | None,
-            )
-            | None => return None,
-        };
+    let mut event = hub::result_event(&domain.hub_link, payload, end)?;
+    decorate_answer(domain, &mut event);
+    Some(event)
+}
+
+fn decorate_answer(domain: &mut Domain, event: &mut core::Event) {
+    let core::Event::AnswerPayload { run, attempt, payload, saved: saved_out, invalid_saved: invalid_out, .. } = event
+    else {
+        return;
+    };
+    let (task, attempt) = (run.raw(), attempt.raw());
+    let parts = domain.answer_parts.get(payload).expect("worker answer has temper parts").clone();
     let Parts { saved, pushed, preparation } = if parts_within(&parts, &domain.limits) { parts } else { Parts::none() };
     if let Some(preparation) = preparation
         && domain.facts.try_push(crate::Fact::PreparationFailed { task, attempt, preparation }).is_err()
@@ -377,83 +222,91 @@ pub(crate) fn result_event(domain: &mut Domain, payload: Token, end: tasks::End)
         },
         None => (None, false),
     };
-    Some(core::Event::AnswerPayload {
-        run: Token::new(task),
-        attempt: Token::new(attempt),
-        payload,
-        cumulative,
-        end,
-        saved,
-        invalid_saved,
-        read,
-        refused,
-    })
+    *saved_out = saved;
+    *invalid_out = invalid_saved;
 }
 
-fn end(ending: &host::Ending) -> tasks::End {
-    match ending {
-        host::Ending::Refused(host::Refusal::Busy) => tasks::End::Refused,
-        host::Ending::Refused(host::Refusal::Invalid(_)) => tasks::End::Failed(tasks::Class::Invalid),
-        host::Ending::Parked { .. } => tasks::End::Parked,
-        host::Ending::Failed { failure: host::Failure::Run(host::RunFailure::Exceeded(exceeded)), .. } => {
-            let bound = match exceeded.bound {
-                host::Bound::Reasoning => tasks::Bound::Reasoning,
-                host::Bound::Metadata => tasks::Bound::Metadata,
-                host::Bound::Items => tasks::Bound::Items,
-                host::Bound::Answer => tasks::Bound::Answer,
-                host::Bound::Tools => tasks::Bound::Tools,
-                host::Bound::HistoryItems => tasks::Bound::HistoryItems,
-                host::Bound::History => tasks::Bound::History,
-                host::Bound::Window => tasks::Bound::Window,
-                host::Bound::Output => tasks::Bound::Output,
-            };
-            tasks::End::Exceeded(tasks::Exceeded { bound, value: exceeded.value })
-        }
-        host::Ending::Failed { failure, .. } => tasks::End::Failed(match failure {
-            host::Failure::Unprepared(host::Preparation::Transient) => tasks::Class::Transient,
-            host::Failure::Unprepared(host::Preparation::Permanent { .. }) => tasks::Class::Permanent,
-            host::Failure::Run(_) => tasks::Class::Run,
-            host::Failure::Agent(_) | host::Failure::Cancelled(_) => tasks::Class::Agent,
-        }),
-        host::Ending::Ended { .. } => unreachable!("ended payloads leave for the protocol routing"),
+/// Keep generic section ordering in the link and forge text in temper.
+pub(crate) fn keep_sections(domain: &mut Domain, task: u64, sections: Box<[crate::BriefSection]>) {
+    use crate::{BriefBody, BriefKind};
+    use jig_domain_brief::GatherPlaced;
+    let mut brief = List::with_capacity(u32::try_from(sections.len()).expect("bounded brief sections"));
+    for section in sections {
+        let placed = match section {
+            crate::BriefSection { kind: BriefKind::Core(kind), body: BriefBody::Text(text) } => {
+                GatherPlaced::Core { kind, text }
+            }
+            crate::BriefSection { kind: BriefKind::Core(kind), body: BriefBody::Missing(why) } => {
+                GatherPlaced::CoreMissing { kind, why }
+            }
+            section @ crate::BriefSection { kind: BriefKind::Forge(_), .. } => {
+                let token = domain.hub_link.fresh();
+                let size = u32::try_from(crate::budget::section_bytes(::core::slice::from_ref(&section)))
+                    .expect("bounded forge section");
+                domain.forge_briefs.insert(token, section).expect("one forge section per token");
+                GatherPlaced::Connector { connector: domain.config.forge_connector, kind: 0, token, size }
+            }
+        };
+        brief.push(placed).expect("one placed section per input");
     }
+    domain.hub_link.keep_brief(task, brief.into_boxed());
 }
 
-fn report(activity: host::Activity) -> fleet::Report {
-    match activity {
-        host::Activity::Phase(phase) => fleet::Report::Activity(match phase {
-            host::Phase::Preparing => fleet::Activity::Preparing,
-            host::Phase::Starting => fleet::Activity::Starting,
-            host::Phase::Active => fleet::Activity::Active,
-            host::Phase::Waiting => fleet::Activity::Waiting,
-            host::Phase::Ending | host::Phase::Answered => fleet::Activity::Ending,
-        }),
-        host::Activity::Long { operation, span } => fleet::Report::Activity(fleet::Activity::Long {
-            operation: match operation {
-                host::Operation::Checks => fleet::Operation::Checks,
-                host::Operation::Completion => fleet::Operation::Completion,
-                host::Operation::Command => fleet::Operation::Command,
-            },
-            span,
-        }),
-        host::Activity::LongDone => fleet::Report::Activity(fleet::Activity::Active),
-        host::Activity::Count { kind, elapsed, count } => fleet::Report::Count {
-            kind: match kind {
-                host::CountKind::Admitted => fleet::CountKind::Admitted,
-                host::CountKind::Ended => fleet::CountKind::Ended,
-                host::CountKind::LlmStarted => fleet::CountKind::LlmStarted,
-                host::CountKind::LlmRetried => fleet::CountKind::LlmRetried,
-                host::CountKind::LlmFinished => fleet::CountKind::LlmFinished,
-                host::CountKind::ToolStarted => fleet::CountKind::ToolStarted,
-                host::CountKind::ToolFinished => fleet::CountKind::ToolFinished,
-                host::CountKind::CheckStarted => fleet::CountKind::CheckStarted,
-                host::CountKind::CheckFinished => fleet::CountKind::CheckFinished,
-                host::CountKind::TextArrived => fleet::CountKind::TextArrived,
-            },
-            elapsed,
-            count,
+fn sections(domain: &mut Domain, brief: Box<[jig_domain_brief::GatherPlaced]>) -> Box<[crate::BriefSection]> {
+    use crate::{BriefBody, BriefKind, BriefSection};
+    use jig_domain_brief::GatherPlaced;
+    let mut sections = List::with_capacity(u32::try_from(brief.len()).expect("bounded brief sections"));
+    for placed in brief {
+        let section = match placed {
+            GatherPlaced::Core { kind, text } => {
+                BriefSection { kind: BriefKind::Core(kind), body: BriefBody::Text(text) }
+            }
+            GatherPlaced::CoreMissing { kind, why } => {
+                BriefSection { kind: BriefKind::Core(kind), body: BriefBody::Missing(why) }
+            }
+            GatherPlaced::Connector { token, .. } => {
+                domain.forge_briefs.remove(&token).expect("retained forge section")
+            }
+            GatherPlaced::Missing { .. } => unreachable!("forge missing sections are translated at completion"),
+        };
+        sections.push(section).expect("one section per placed input");
+    }
+    sections.into_boxed()
+}
+
+pub(crate) fn take_sections(domain: &mut Domain, task: u64) -> Option<Box<[crate::BriefSection]>> {
+    let brief = domain.hub_link.take_brief(task)?;
+    Some(sections(domain, brief))
+}
+
+pub(crate) fn assignment(domain: &mut Domain, assignment: hub::Assignment) -> crate::Assignment {
+    let parts = domain.assignment_parts.remove(&assignment.task).expect("prepared temper assignment parts");
+    crate::Assignment {
+        task: assignment.task,
+        attempt: assignment.attempt,
+        conversation: assignment.conversation,
+        live: host::LiveAsk {
+            text: assignment.live.text,
+            reasoning: assignment.live.reasoning,
+            input: assignment.live.input,
         },
+        charter: assignment.charter,
+        run: assignment.run,
+        sections: sections(domain, assignment.brief),
+        messages: assignment.messages,
+        saved: parts.saved,
+        workstream: parts.workstream,
+        workspace: parts.workspace,
+        transcript: assignment.transcript,
+        answered: parts.answered,
+        settled: assignment.answered,
+        grants: assignment.grants,
     }
+}
+
+pub(crate) fn take_assignment(domain: &mut Domain, task: u64) -> Option<crate::Assignment> {
+    let value = domain.hub_link.take_assignment(task)?;
+    Some(assignment(domain, value))
 }
 
 /// One committed inbox word for its live host, its kind kept in its rendered line.
@@ -599,34 +452,6 @@ fn sender(value: tasks::Party) -> Box<[u8]> {
     }
 }
 
-fn source_name(name: host::SourceName) -> fleet::SourceName {
-    fleet::SourceName::new(name.as_bytes()).expect("same source name grammar")
-}
-
-fn source_login(state: host::LoginState) -> fleet::LoginState {
-    match state {
-        host::LoginState::Usable => fleet::LoginState::Usable,
-        host::LoginState::NotSignedIn => fleet::LoginState::NotSignedIn,
-        host::LoginState::SignedInOtherwise(method) => fleet::LoginState::SignedInOtherwise(
-            fleet::LoginMethod::new(method.as_bytes()).expect("same printable method grammar"),
-        ),
-        host::LoginState::Failed { reason, detail } => {
-            fleet::LoginState::Failed { reason: source_failure(reason), detail }
-        }
-    }
-}
-const fn source_failure(reason: host::SourceFailure) -> fleet::SourceFailure {
-    match reason {
-        host::SourceFailure::Missing => fleet::SourceFailure::Missing,
-        host::SourceFailure::Deadline => fleet::SourceFailure::Deadline,
-        host::SourceFailure::Unreadable => fleet::SourceFailure::Unreadable,
-        host::SourceFailure::Exited => fleet::SourceFailure::Exited,
-        host::SourceFailure::Unconfigured => fleet::SourceFailure::Unconfigured,
-        host::SourceFailure::Unknown => fleet::SourceFailure::Unknown,
-        host::SourceFailure::Closed => fleet::SourceFailure::Closed,
-    }
-}
-
 fn settings_decision_words(outcome: tasks::SettingsOutcome, reason: &[u8]) -> Box<[u8]> {
     let number = Decimal::of(match outcome {
         tasks::SettingsOutcome::Accepted { revision } => u64::from(revision),
@@ -652,7 +477,6 @@ fn settings_decision_words(outcome: tasks::SettingsOutcome, reason: &[u8]) -> Bo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use skein_lib::Duration;
 
     #[test]
     fn text_pieces_reach_the_core_with_their_identity_and_offsets() {
@@ -777,29 +601,6 @@ mod tests {
             );
             assert_eq!(domain.pieces_dropped(), u64::try_from(index + 1).expect("three cases"));
         }
-        domain.pieces_dropped = u64::MAX;
-        assert!(
-            receive(
-                &mut domain,
-                Token::new(7),
-                Link::Up {
-                    up: host::LinkUp::Piece {
-                        run: Token::new(31),
-                        attempt: Token::new(932),
-                        piece: host::Piece {
-                            turn: 3,
-                            retry: 2,
-                            kind: host::LiveKind::Reasoning,
-                            offset: 0,
-                            bytes: Box::new([]),
-                        }
-                    },
-                    parts: Parts::none(),
-                }
-            )
-            .is_none()
-        );
-        assert_eq!(domain.pieces_dropped(), u64::MAX);
     }
 
     fn rendered_line(from: tasks::Party, kind: tasks::MessageKind) -> Box<[u8]> {
@@ -897,42 +698,5 @@ mod tests {
             };
             assert_eq!(inbox_words(&word).as_ref(), expected);
         }
-    }
-
-    #[test]
-    fn hello_advertises_the_public_bounds_conversion() {
-        let bounds = host::Bounds {
-            program_endpoints: Box::new([7]),
-            models: Box::new([host::ModelBound { name: Box::from(b"model".as_slice()), window: 8192, output: 1024 }]),
-            turns: 8,
-            spend: 100,
-            time: Duration::from_secs(360),
-            waiting: Duration::from_secs(60),
-            checks: Duration::from_secs(60),
-            message_bytes: 4096,
-            inbox: 8,
-            unacknowledged: 4,
-        };
-        let converted = hello_bounds(bounds.clone());
-        let hello = hello(host::Hello {
-            slots: 2,
-            stop_bound: Duration::from_secs(5),
-            workstreams: Box::new([11]),
-            hosting: Box::new([]),
-            bounds: bounds.clone(),
-        });
-        assert_eq!(hello.bounds, converted);
-        assert_eq!(hello.bounds.program_endpoints.as_ref(), &[7]);
-        assert_eq!(hello.bounds.models[0].name, bounds.models[0].name);
-        assert_eq!(hello.bounds.models[0].window, bounds.models[0].window);
-        assert_eq!(hello.bounds.models[0].output, bounds.models[0].output);
-        assert_eq!(hello.bounds.turns, bounds.turns);
-        assert_eq!(hello.bounds.spend, bounds.spend);
-        assert_eq!(hello.bounds.time, bounds.time);
-        assert_eq!(hello.bounds.waiting, bounds.waiting);
-        assert_eq!(hello.bounds.checks, bounds.checks);
-        assert_eq!(hello.bounds.message_bytes, bounds.message_bytes);
-        assert_eq!(hello.bounds.inbox, bounds.inbox);
-        assert_eq!(hello.bounds.unacknowledged, bounds.unacknowledged);
     }
 }

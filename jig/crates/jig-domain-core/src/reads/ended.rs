@@ -1,8 +1,8 @@
 //! The single index serving a task query's ended group (store.md, 7.3).
-use super::{PageRow, Row, vocabulary::row_owner};
 use crate::{
     Core, Key, Limits,
     documents::{self, Missing, PhaseClass, TaskQuery},
+    reads::{PageRow, Row, vocabulary::row_owner},
 };
 use jig_domain_tasks as tasks;
 

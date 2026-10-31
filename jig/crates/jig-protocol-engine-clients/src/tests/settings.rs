@@ -128,7 +128,7 @@ fn the_inventory_at_profile_bounds_fits_one_wire_document() {
     let value = translate::document(&document, &w::CEILINGS).unwrap();
     assert!(value.measure() < w::CEILINGS.owned_record);
     assert!(document.settings.len() > w::CEILINGS.revisions_page_rows);
-    let mut client = f::client_limits().client;
+    let mut client = *f::client_limits().client();
     client.document_bytes = u64::from(w::CEILINGS.owned_record);
     client.text = u32::try_from(NAME_BYTES).unwrap();
     client.turn_text = client.text;
@@ -375,7 +375,7 @@ fn settings_decisions_translate_the_revision_and_stale_newest_without_changing_r
             eligible: true,
         };
         let value = crate::translate::objects::question_answer::word(&word, &limits).unwrap();
-        let w::OwnerMessageKind::SettingsDecision(kind) = value.kind() else { panic!("settings decision") };
+        let w::MessageKind::SettingsDecision(kind) = value.kind() else { panic!("settings decision") };
         assert_eq!(kind.proposal(), 41);
         assert_eq!(kind.outcome(), &expected);
         assert_eq!(value.words(), b"review reason");

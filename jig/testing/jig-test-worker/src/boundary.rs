@@ -17,7 +17,7 @@ pub enum Event {
     Live { agent: Token, piece: host::Piece },
     Decoded { agent: Token, start: Result<Box<smith::Start>, Invalid> },
     Encoded { owner: Token, encoded: Encoded },
-    Activity { owner: Token, activity: Option<host::Activity> },
+    Activity { owner: Token, activity: Option<host::AgentActivity> },
     Shutdown,
     Timer,
     Checks,

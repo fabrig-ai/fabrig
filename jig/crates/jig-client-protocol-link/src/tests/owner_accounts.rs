@@ -1,36 +1,32 @@
 //! Complete accounts receiving admission and field preservation.
 use super::{c, fixtures, w};
-use crate::{Undecodable, translate::watches};
+use crate::{Limits, Undecodable, Unusable, translate::watches};
 use skein_lib::{Duration, List, Wall, Writer};
 fn list<T, const N: usize>(items: [T; N]) -> List<T> {
-    let mut out = List::with_capacity(u32::try_from(N).expect("literal rows"));
-    for item in items {
-        out.push(item).ok().expect("literal rows");
-    }
-    out
+    List::from_boxed(Box::new(items))
 }
-fn source_lines() -> List<c::OwnerAccountSource> {
+fn source_lines() -> List<c::AccountSource> {
     list(source_rows())
 }
-fn source_rows() -> [c::OwnerAccountSource; 2] {
+fn source_rows() -> [c::AccountSource; 2] {
     [
-        c::OwnerAccountSource {
+        c::AccountSource {
             name: None,
             place: 2,
             number: 11,
-            kind: c::OwnerAccountKind::SignIn,
-            state: c::OwnerAccountState::Granted,
+            kind: c::AccountKind::SignIn,
+            state: c::AccountState::Granted,
             usable: true,
             expiring: false,
             attention: true,
             spent_until: Some(Wall::from_nanos(101)),
         },
-        c::OwnerAccountSource {
+        c::AccountSource {
             name: None,
             place: 5,
             number: 12,
-            kind: c::OwnerAccountKind::Key,
-            state: c::OwnerAccountState::Later { until: None },
+            kind: c::AccountKind::Key,
+            state: c::AccountState::Later { until: None },
             usable: false,
             expiring: true,
             attention: false,
@@ -38,30 +34,29 @@ fn source_rows() -> [c::OwnerAccountSource; 2] {
         },
     ]
 }
-#[expect(clippy::manual_map, reason = "optional fixture facts follow the step crate lint configuration")]
-fn document(end: Option<c::OwnerAccountEnd>) -> c::OwnerAccounts {
-    c::OwnerAccounts {
+fn document(end: Option<c::AccountEnd>) -> c::Accounts {
+    c::Accounts {
         readiness: List::with_capacity(0),
         readiness_cut: false,
         program_hosts: List::with_capacity(0),
         accounts: list([
-            c::OwnerAccountLine {
+            c::AccountLine {
                 provider_name: None,
                 manage_usage: None,
                 number: 7,
                 place: 3,
-                uses: Some(list([c::OwnerAccountUse::Party(23), c::OwnerAccountUse::Project(29)])),
+                uses: Some(list([c::AccountUse::Party(23), c::AccountUse::Project(29)])),
                 plan: true,
                 provider: Some(3),
                 display: c::DocumentText {
                     bytes: c::Text::new(Box::from(b"Personal".as_slice()), 32).unwrap(),
                     cut: true,
                 },
-                holder: c::OwnerAccountHolder::Party(23),
+                holder: c::AccountHolder::Party(23),
                 sources: source_lines(),
                 cut: true,
             },
-            c::OwnerAccountLine {
+            c::AccountLine {
                 provider_name: None,
                 manage_usage: None,
                 number: 9,
@@ -70,14 +65,14 @@ fn document(end: Option<c::OwnerAccountEnd>) -> c::OwnerAccounts {
                 plan: false,
                 provider: None,
                 display: c::DocumentText { bytes: c::Text::new(Box::from([]), 32).unwrap(), cut: false },
-                holder: c::OwnerAccountHolder::Deployment,
+                holder: c::AccountHolder::Deployment,
                 sources: List::with_capacity(0),
                 cut: false,
             },
         ]),
-        signing: list([c::OwnerAccountSignIn { source: 19, provider: 3, holder: c::OwnerAccountHolder::Party(23) }]),
+        signing: list([c::AccountSignIn { source: 19, provider: 3, holder: c::AccountHolder::Party(23) }]),
         last_end: match end {
-            Some(end) => Some(c::OwnerAccountLastEnd { source: 11, end }),
+            Some(end) => Some(c::AccountLastEnd { source: 11, end }),
             None => None,
         },
         usable: true,
@@ -85,47 +80,47 @@ fn document(end: Option<c::OwnerAccountEnd>) -> c::OwnerAccounts {
         cut: true,
     }
 }
-fn ends() -> Box<[c::OwnerAccountEnd]> {
+fn ends() -> Box<[c::AccountEnd]> {
     Box::new([
-        c::OwnerAccountEnd::Made { account: 7, declined: false },
-        c::OwnerAccountEnd::Renewed { account: 7, declined: true },
-        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::NotLimited },
-        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::Uses },
-        c::OwnerAccountEnd::Refused {
-            refusal: c::OwnerAccountRefusal::NotKept { why: c::OwnerAccountKeyFailure::NotStored },
+        c::AccountEnd::Made { account: 7, declined: false },
+        c::AccountEnd::Renewed { account: 7, declined: true },
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::NotLimited },
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::Uses },
+        c::AccountEnd::Refused {
+            refusal: c::AccountRefusal::NotKept { why: c::AccountKeyFailure::NotStored },
         },
-        c::OwnerAccountEnd::Refused {
-            refusal: c::OwnerAccountRefusal::Limit { bound: c::OwnerAccountBound::HolderAccounts },
+        c::AccountEnd::Refused {
+            refusal: c::AccountRefusal::Limit { bound: c::AccountBound::HolderAccounts },
         },
-        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::Held { provider: 3 } },
-        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::Provider { provider: 3 } },
-        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::Subject },
-        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::Unknown },
-        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::Numbers },
-        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::Kind { kind: c::OwnerAccountKind::Program } },
-        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::Closing },
-        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::NotStarted },
-        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::NotSignedIn },
-        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::NotOurs },
-        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::Cancelled },
-        c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::Moving },
-        c::OwnerAccountEnd::Failed {
-            failure: c::OwnerAccountFailure::Later { after: Some(Duration::from_nanos(103)) },
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::Held { provider: 3 } },
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::Provider { provider: 3 } },
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::Subject },
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::Unknown },
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::Numbers },
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::Kind { kind: c::AccountKind::Program } },
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::Closing },
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::NotStarted },
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::NotSignedIn },
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::NotOurs },
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::Cancelled },
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::Moving },
+        c::AccountEnd::Failed {
+            failure: c::AccountFailure::Later { after: Some(Duration::from_nanos(103)) },
         },
-        c::OwnerAccountEnd::Failed { failure: c::OwnerAccountFailure::Later { after: None } },
-        c::OwnerAccountEnd::Failed { failure: c::OwnerAccountFailure::SignInAgain },
-        c::OwnerAccountEnd::Failed { failure: c::OwnerAccountFailure::MissingScope { scope: 31 } },
-        c::OwnerAccountEnd::Failed { failure: c::OwnerAccountFailure::Misconfigured },
-        c::OwnerAccountEnd::Failed {
-            failure: c::OwnerAccountFailure::Unloaded {
-                at: c::OwnerAccountPlace::File,
-                why: c::OwnerAccountUnread::Stalled,
+        c::AccountEnd::Failed { failure: c::AccountFailure::Later { after: None } },
+        c::AccountEnd::Failed { failure: c::AccountFailure::SignInAgain },
+        c::AccountEnd::Failed { failure: c::AccountFailure::MissingScope { scope: 31 } },
+        c::AccountEnd::Failed { failure: c::AccountFailure::Misconfigured },
+        c::AccountEnd::Failed {
+            failure: c::AccountFailure::Unloaded {
+                at: c::AccountPlace::File,
+                why: c::AccountUnread::Stalled,
             },
         },
-        c::OwnerAccountEnd::Failed { failure: c::OwnerAccountFailure::Cancelled },
+        c::AccountEnd::Failed { failure: c::AccountFailure::Cancelled },
     ])
 }
-fn bytes(end: Option<w::OwnerAccountEnd>) -> Box<[u8]> {
+fn bytes(end: Option<w::AccountEnd>) -> Box<[u8]> {
     delivery(jig_client_test_records::accounts_record(end))
 }
 /// A list's pieces written `times` over, one after another.
@@ -136,7 +131,7 @@ fn repeated(pieces: &[u8], times: usize) -> Box<[u8]> {
     }
     out.finish()
 }
-fn line_piece(line: &w::OwnerAccountLine) -> Box<[u8]> {
+fn line_piece(line: &w::AccountLine) -> Box<[u8]> {
     let mut out = Writer::new(usize::try_from(line.measure()).unwrap());
     line.encode(&mut out).unwrap();
     let bytes = out.finish();
@@ -148,15 +143,15 @@ fn line_piece(line: &w::OwnerAccountLine) -> Box<[u8]> {
 /// display and two sources, and its one sign-in.
 fn held() -> u64 {
     let parts = [
-        size_of::<c::OwnerAccounts>(),
-        size_of::<c::OwnerAccountLine>(),
-        size_of::<c::OwnerAccountLine>(),
-        size_of::<c::OwnerAccountUse>(),
-        size_of::<c::OwnerAccountUse>(),
+        size_of::<c::Accounts>(),
+        size_of::<c::AccountLine>(),
+        size_of::<c::AccountLine>(),
+        size_of::<c::AccountUse>(),
+        size_of::<c::AccountUse>(),
         b"Personal".len(),
-        size_of::<c::OwnerAccountSource>(),
-        size_of::<c::OwnerAccountSource>(),
-        size_of::<c::OwnerAccountSignIn>(),
+        size_of::<c::AccountSource>(),
+        size_of::<c::AccountSource>(),
+        size_of::<c::AccountSignIn>(),
     ];
     let mut bytes = 0_usize;
     for part in parts {
@@ -164,8 +159,8 @@ fn held() -> u64 {
     }
     u64::try_from(bytes).unwrap()
 }
-fn delivery(record: w::OwnerAccounts) -> Box<[u8]> {
-    let value = w::DeliveryValue::OwnerAccounts(record);
+fn delivery(record: w::Accounts) -> Box<[u8]> {
+    let value = w::DeliveryValue::Accounts(record);
     let mut out = Writer::new(usize::try_from(value.measure()).unwrap());
     value.encode(&mut out).unwrap();
     out.finish()
@@ -173,20 +168,20 @@ fn delivery(record: w::OwnerAccounts) -> Box<[u8]> {
 #[test]
 fn accounts_delivery_preserves_every_field_and_terminal_outcome() {
     let limits = fixtures::limits();
-    assert_eq!(watches::subject(&c::Subject::Accounts, &limits.wire), Ok(w::Subject::Accounts));
+    assert_eq!(watches::subject(&c::Subject::Accounts, limits.wire()), Ok(w::Subject::Accounts));
     for (end, expected) in jig_client_test_records::account_end_records().into_iter().zip(ends()) {
         assert_eq!(
             watches::delivery(&bytes(Some(end)), &limits),
-            Ok(c::Delivery::OwnerAccounts(Box::new(document(Some(expected)))))
+            Ok(c::Delivery::Accounts(Box::new(document(Some(expected)))))
         );
     }
-    assert_eq!(watches::delivery(&bytes(None), &limits), Ok(c::Delivery::OwnerAccounts(Box::new(document(None)))));
+    assert_eq!(watches::delivery(&bytes(None), &limits), Ok(c::Delivery::Accounts(Box::new(document(None)))));
 }
 #[test]
 fn an_accounts_document_filling_its_decoded_room_is_admitted() {
     // The smallest document limit whose decoded room holds the fixture.
     let limits = fixtures::limits_for_document(held().div_ceil(2));
-    assert_eq!(watches::delivery(&bytes(None), &limits), Ok(c::Delivery::OwnerAccounts(Box::new(document(None)))));
+    assert_eq!(watches::delivery(&bytes(None), &limits), Ok(c::Delivery::Accounts(Box::new(document(None)))));
 }
 #[test]
 fn an_accounts_document_past_its_decoded_room_is_refused() {
@@ -207,19 +202,19 @@ fn account_uses_keep_their_constant_bound_with_fewer_receiving_rows() {
     let limits = fixtures::limits();
     let mut line = jig_client_test_records::account_line_record().into_parts();
     line.uses = Some(list([(); USES].map(|()| {
-        w::OwnerAccountUse::Party(
-            w::OwnerAccountUseParty::new(&limits.wire, w::OwnerAccountUsePartyParts { party: 23 }).unwrap(),
+        w::AccountUse::Party(
+            w::AccountUseParty::new(limits.wire(), w::AccountUsePartyParts { party: 23 }).unwrap(),
         )
     })));
-    let line = w::OwnerAccountLine::new(&limits.wire, line).unwrap();
+    let line = w::AccountLine::new(limits.wire(), line).unwrap();
     let mut record = jig_client_test_records::accounts_record(None).into_parts();
     record.accounts = line_piece(&line);
-    let record = w::OwnerAccounts::new(&limits.wire, record).unwrap();
+    let record = w::Accounts::new(limits.wire(), record).unwrap();
     let mut expected = document(None);
     let mut line = expected.accounts.get(0).unwrap().clone();
-    line.uses = Some(list([c::OwnerAccountUse::Party(23); USES]));
+    line.uses = Some(list([c::AccountUse::Party(23); USES]));
     expected.accounts = list([line]);
-    assert_eq!(watches::delivery(&delivery(record), &limits), Ok(c::Delivery::OwnerAccounts(Box::new(expected))));
+    assert_eq!(watches::delivery(&delivery(record), &limits), Ok(c::Delivery::Accounts(Box::new(expected))));
 }
 #[test]
 fn account_lists_longer_than_the_receiving_rows_are_kept() {
@@ -227,36 +222,36 @@ fn account_lists_longer_than_the_receiving_rows_are_kept() {
     let limits = fixtures::limits();
     let mut line = jig_client_test_records::account_line_record().into_parts();
     line.sources = repeated(&line.sources, 2);
-    let line = w::OwnerAccountLine::new(&limits.wire, line).unwrap();
+    let line = w::AccountLine::new(limits.wire(), line).unwrap();
     let mut record = jig_client_test_records::accounts_record(None).into_parts();
     record.accounts = repeated(&line_piece(&line), 3);
     record.signing = repeated(&record.signing, 3);
-    let record = w::OwnerAccounts::new(&limits.wire, record).unwrap();
+    let record = w::Accounts::new(limits.wire(), record).unwrap();
     let mut expected = document(None);
     let mut line = expected.accounts.get(0).unwrap().clone();
     let [granted, later] = source_rows();
     line.sources = list([granted.clone(), later.clone(), granted, later]);
     expected.accounts = list([line.clone(), line.clone(), line]);
-    expected.signing = list([(); 3].map(|()| c::OwnerAccountSignIn {
+    expected.signing = list([(); 3].map(|()| c::AccountSignIn {
         source: 19,
         provider: 3,
-        holder: c::OwnerAccountHolder::Party(23),
+        holder: c::AccountHolder::Party(23),
     }));
-    assert_eq!(watches::delivery(&delivery(record), &limits), Ok(c::Delivery::OwnerAccounts(Box::new(expected))));
+    assert_eq!(watches::delivery(&delivery(record), &limits), Ok(c::Delivery::Accounts(Box::new(expected))));
 }
 
-fn configured_line() -> c::OwnerAccountLine {
+fn configured_line() -> c::AccountLine {
     let limits = fixtures::limits();
     let mut line = jig_client_test_records::account_line_record().into_parts();
     line.provider_name = Some(
         w::DocumentText::new(
-            &limits.wire,
+            limits.wire(),
             w::DocumentTextParts { bytes: Box::from(b"Arbitrary provider".as_slice()), cut: true },
         )
         .unwrap(),
     );
     line.manage_usage = Some(Box::from(b"https://usage.example/".as_slice()));
-    let line = w::OwnerAccountLine::new(&limits.wire, line).unwrap();
+    let line = w::AccountLine::new(limits.wire(), line).unwrap();
     let encoded = {
         let mut writer = Writer::new(usize::try_from(line.measure()).unwrap());
         line.encode(&mut writer).unwrap();
@@ -268,8 +263,8 @@ fn configured_line() -> c::OwnerAccountLine {
         skein_codec::piece::write(&mut writer, &encoded).unwrap();
         writer.finish()
     };
-    let record = w::OwnerAccounts::new(&limits.wire, record).unwrap();
-    let c::Delivery::OwnerAccounts(value) = watches::delivery(&delivery(record), &limits).unwrap() else {
+    let record = w::Accounts::new(limits.wire(), record).unwrap();
+    let c::Delivery::Accounts(value) = watches::delivery(&delivery(record), &limits).unwrap() else {
         panic!("accounts delivery")
     };
     value.accounts.get(0).unwrap().clone()
@@ -291,15 +286,15 @@ fn configured_manage_address_reaches_accounts_client() {
 fn account_capacity_labels_decode_without_account_payloads() {
     let limits = fixtures::limits();
     for (wire, expected) in [
-        (w::OwnerPersonCapacityAction::AccountSignIn, c::OwnerPersonCapacityAction::AccountSignIn),
-        (w::OwnerPersonCapacityAction::AccountSignOut, c::OwnerPersonCapacityAction::AccountSignOut),
-        (w::OwnerPersonCapacityAction::AccountChange, c::OwnerPersonCapacityAction::AccountChange),
+        (w::PersonCapacityAction::AccountSignIn, c::PersonCapacityAction::AccountSignIn),
+        (w::PersonCapacityAction::AccountSignOut, c::PersonCapacityAction::AccountSignOut),
+        (w::PersonCapacityAction::AccountChange, c::PersonCapacityAction::AccountChange),
     ] {
         let mut writer = Writer::new(usize::try_from(wire.measure()).unwrap());
         wire.encode(&mut writer).unwrap();
         let bytes = writer.finish();
-        let decoded = w::OwnerPersonCapacityAction::decode(&limits.wire, &mut skein_lib::Reader::new(&bytes)).unwrap();
-        assert_eq!(crate::translate::documents::owner_person_capacity_action_fields(&decoded, &limits), expected);
+        let decoded = w::PersonCapacityAction::decode(limits.wire(), &mut skein_lib::Reader::new(&bytes)).unwrap();
+        assert_eq!(crate::translate::documents::person_capacity_action_fields(&decoded), expected);
     }
 }
 
@@ -312,10 +307,10 @@ fn unsafe_manage_addresses_refuse_accounts_frames() {
     for address in unsafe_manage_addresses() {
         let mut line = jig_client_test_records::account_line_record().into_parts();
         line.manage_usage = Some(Box::from(address));
-        let line = w::OwnerAccountLine::new(&limits.wire, line).unwrap();
+        let line = w::AccountLine::new(limits.wire(), line).unwrap();
         let mut record = jig_client_test_records::accounts_record(None).into_parts();
         record.accounts = line_piece(&line);
-        let record = w::OwnerAccounts::new(&limits.wire, record).unwrap();
+        let record = w::Accounts::new(limits.wire(), record).unwrap();
         assert_eq!(watches::delivery(&delivery(record), &limits), Err(Undecodable::Malformed));
     }
 }
@@ -323,12 +318,12 @@ fn unsafe_manage_addresses_refuse_accounts_frames() {
 fn unsafe_manage_addresses_refuse_deployment_frames() {
     let limits = fixtures::limits();
     for address in unsafe_manage_addresses() {
-        let record = fixtures::owner_with_account(Some(5));
+        let record = fixtures::with_account(Some(5));
         let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(record.accounts())).unwrap().unwrap();
         let mut account =
-            w::OwnerAccount::decode(&limits.wire, &mut skein_lib::Reader::new(&bytes)).unwrap().into_parts();
+            w::Account::decode(limits.wire(), &mut skein_lib::Reader::new(&bytes)).unwrap().into_parts();
         account.manage_usage = Some(Box::from(address));
-        let account = w::OwnerAccount::new(&limits.wire, account).unwrap();
+        let account = w::Account::new(limits.wire(), account).unwrap();
         let mut out = Writer::new(usize::try_from(account.measure()).unwrap());
         account.encode(&mut out).unwrap();
         let bytes = out.finish();
@@ -336,7 +331,7 @@ fn unsafe_manage_addresses_refuse_deployment_frames() {
         skein_codec::piece::write(&mut pieces, &bytes).unwrap();
         let mut record = record.into_parts();
         record.accounts = pieces.finish();
-        let value = w::DeliveryValue::OwnerDeployment(w::OwnerDeployment::new(&limits.wire, record).unwrap());
+        let value = w::DeliveryValue::Deployment(w::Deployment::new(limits.wire(), record).unwrap());
         let mut out = Writer::new(usize::try_from(value.measure()).unwrap());
         value.encode(&mut out).unwrap();
         assert_eq!(watches::delivery(&out.finish(), &limits), Err(Undecodable::Malformed));
@@ -346,32 +341,35 @@ fn unsafe_manage_addresses_refuse_deployment_frames() {
 #[test]
 fn a_refused_worker_position_survives_wire_receipt() {
     let limits = fixtures::limits();
-    let mut record = fixtures::owner_deployment_record().into_parts();
-    let mut expected = fixtures::owner_deployment();
+    let mut record = fixtures::deployment_record().into_parts();
+    let mut expected = fixtures::deployment();
     let position = u32::MAX;
-    record.hello_refusals = list([w::OwnerHelloRefusalLine::new(
-        &limits.wire,
-        w::OwnerHelloRefusalLineParts {
+    record.hello_refusals = list([w::HelloRefusalLine::new(
+        limits.wire(),
+        w::HelloRefusalLineParts {
             channel: 9,
             at: 0,
             slots: 1,
             stop_bound: Duration::ZERO,
-            why: w::OwnerHelloRefusal::Position(
-                w::OwnerHelloRefusalPosition::new(&limits.wire, w::OwnerHelloRefusalPositionParts { worker: position })
-                    .expect("position record"),
+            why: w::HelloRefusal::Position(
+                w::HelloRefusalPosition::new(
+                    limits.wire(),
+                    w::HelloRefusalPositionParts { worker: position },
+                )
+                .expect("position record"),
             ),
         },
     )
     .expect("hello refusal")]);
-    expected.hello_refusals = list([c::OwnerHelloRefusalLine {
+    expected.hello_refusals = list([c::HelloRefusalLine {
         channel: 9,
         at: Wall::EPOCH,
         slots: 1,
         stop_bound: Duration::ZERO,
-        why: c::OwnerHelloRefusal::Position { worker: position },
+        why: c::HelloRefusal::Position { worker: position },
     }]);
-    let record = w::OwnerDeployment::new(&limits.wire, record).expect("deployment");
-    assert_eq!(crate::translate::documents::owner_deployment(record, &limits), Ok(expected));
+    let record = w::Deployment::new(limits.wire(), record).expect("deployment");
+    assert_eq!(crate::translate::documents::deployment(record, &limits), Ok(expected));
 }
 
 #[test]
@@ -379,12 +377,12 @@ fn zero_account_receiving_counts_make_limits_unusable() {
     use jig_client_domain::AccountCounts;
     let bounds = fixtures::limits();
     for accounts in [
-        AccountCounts { accounts: 0, ..bounds.client.accounts },
-        AccountCounts { sources: 0, ..bounds.client.accounts },
-        AccountCounts { sign_ins: 0, ..bounds.client.accounts },
+        AccountCounts { accounts: 0, ..bounds.client().accounts },
+        AccountCounts { sources: 0, ..bounds.client().accounts },
+        AccountCounts { sign_ins: 0, ..bounds.client().accounts },
     ] {
-        let client = jig_client_domain::Limits { accounts, turn_text: bounds.client.turn_text, ..bounds.client };
-        assert_eq!(crate::Limits::new(client, bounds.exchanges), Err(crate::Unusable::Limits), "{accounts:?}");
+        let client = jig_client_domain::Limits { accounts, turn_text: bounds.client().turn_text, ..*bounds.client() };
+        assert_eq!(Limits::new(client, bounds.exchanges()), Err(Unusable::Limits), "{accounts:?}");
     }
 }
 
@@ -394,9 +392,9 @@ fn counted_accounts() -> Box<[u8]> {
     let limits = fixtures::limits();
     let mut record = jig_client_test_records::accounts_record(None).into_parts();
     record.signing = repeated(&record.signing, usize::try_from(ACCOUNT_COUNT).unwrap());
-    delivery(w::OwnerAccounts::new(&limits.wire, record).unwrap())
+    delivery(w::Accounts::new(limits.wire(), record).unwrap())
 }
-fn count_limits() -> crate::Limits {
+fn count_limits() -> Limits {
     let bounds = fixtures::limits();
     let client = jig_client_domain::Limits {
         accounts: jig_client_domain::AccountCounts {
@@ -404,10 +402,10 @@ fn count_limits() -> crate::Limits {
             sources: ACCOUNT_COUNT,
             sign_ins: ACCOUNT_COUNT,
         },
-        turn_text: bounds.client.turn_text,
-        ..bounds.client
+        turn_text: bounds.client().turn_text,
+        ..*bounds.client()
     };
-    crate::Limits::new(client, bounds.exchanges).unwrap()
+    Limits::new(client, bounds.exchanges()).unwrap()
 }
 #[test]
 fn account_lists_filling_their_receiving_counts_are_admitted() {
@@ -416,7 +414,7 @@ fn account_lists_filling_their_receiving_counts_are_admitted() {
     expected.signing = list([signing.clone(), signing]);
     assert_eq!(
         watches::delivery(&counted_accounts(), &count_limits()),
-        Ok(c::Delivery::OwnerAccounts(Box::new(expected)))
+        Ok(c::Delivery::Accounts(Box::new(expected)))
     );
 }
 #[test]
@@ -424,25 +422,25 @@ fn account_lists_one_past_their_receiving_counts_are_refused() {
     let bounds = count_limits();
     let bytes = counted_accounts();
     for accounts in [
-        jig_client_domain::AccountCounts { accounts: ACCOUNT_COUNT - 1, ..bounds.client.accounts },
-        jig_client_domain::AccountCounts { sources: ACCOUNT_COUNT - 1, ..bounds.client.accounts },
-        jig_client_domain::AccountCounts { sign_ins: ACCOUNT_COUNT - 1, ..bounds.client.accounts },
+        jig_client_domain::AccountCounts { accounts: ACCOUNT_COUNT - 1, ..bounds.client().accounts },
+        jig_client_domain::AccountCounts { sources: ACCOUNT_COUNT - 1, ..bounds.client().accounts },
+        jig_client_domain::AccountCounts { sign_ins: ACCOUNT_COUNT - 1, ..bounds.client().accounts },
     ] {
-        let client = jig_client_domain::Limits { accounts, turn_text: bounds.client.turn_text, ..bounds.client };
-        let limits = crate::Limits::new(client, bounds.exchanges).unwrap();
+        let client = jig_client_domain::Limits { accounts, turn_text: bounds.client().turn_text, ..*bounds.client() };
+        let limits = Limits::new(client, bounds.exchanges()).unwrap();
         assert_eq!(watches::delivery(&bytes, &limits), Err(Undecodable::TooLarge), "{accounts:?}");
     }
 }
 // One more account than receiving rows, within the configured account count.
 const DEPLOYMENT_ACCOUNTS: u32 = 3;
-fn counted_deployment(count: u32) -> w::OwnerDeployment {
+fn counted_deployment(count: u32) -> w::Deployment {
     let limits = fixtures::limits();
-    let mut record = fixtures::owner_with_account(Some(5)).into_parts();
+    let mut record = fixtures::with_account(Some(5)).into_parts();
     record.accounts = repeated(&record.accounts, usize::try_from(count).unwrap());
-    w::OwnerDeployment::new(&limits.wire, record).unwrap()
+    w::Deployment::new(limits.wire(), record).unwrap()
 }
-fn expected_deployment(count: u32) -> c::OwnerDeployment {
-    let mut expected = fixtures::owner_account_expected(Some(5));
+fn expected_deployment(count: u32) -> c::Deployment {
+    let mut expected = fixtures::account_expected(Some(5));
     let account = expected.accounts.get(0).unwrap().clone();
     expected.accounts = List::with_capacity(count);
     for _ in 0..count {
@@ -450,17 +448,17 @@ fn expected_deployment(count: u32) -> c::OwnerDeployment {
     }
     expected
 }
-fn deployment_count_limits() -> crate::Limits {
+fn deployment_count_limits() -> Limits {
     let bounds = fixtures::limits();
-    let mut client = bounds.client;
+    let mut client = *bounds.client();
     client.accounts.accounts = DEPLOYMENT_ACCOUNTS;
-    crate::Limits::new(client, bounds.exchanges).unwrap()
+    Limits::new(client, bounds.exchanges()).unwrap()
 }
 #[test]
 fn deployment_accounts_filling_the_receiving_count_are_admitted() {
     let limits = deployment_count_limits();
     assert_eq!(
-        crate::translate::documents::owner_deployment(counted_deployment(DEPLOYMENT_ACCOUNTS), &limits),
+        crate::translate::documents::deployment(counted_deployment(DEPLOYMENT_ACCOUNTS), &limits),
         Ok(expected_deployment(DEPLOYMENT_ACCOUNTS))
     );
 }
@@ -468,19 +466,19 @@ fn deployment_accounts_filling_the_receiving_count_are_admitted() {
 fn deployment_accounts_one_past_the_receiving_count_are_refused() {
     let limits = deployment_count_limits();
     assert_eq!(
-        crate::translate::documents::owner_deployment(counted_deployment(DEPLOYMENT_ACCOUNTS + 1), &limits),
+        crate::translate::documents::deployment(counted_deployment(DEPLOYMENT_ACCOUNTS + 1), &limits),
         Err(Undecodable::TooLarge)
     );
 }
 // The deployment reserves its rows-bounded host list; these accounts have no sources, uses or
 // display, and each reserves two rows-bounded chip lists.
 fn deployment_held() -> u64 {
-    let chips = List::<c::Chip>::price(fixtures::limits().client.rows).unwrap();
-    u64::try_from(size_of::<c::OwnerDeployment>())
+    let chips = List::<c::Chip>::price(fixtures::limits().client().rows).unwrap();
+    u64::try_from(size_of::<c::Deployment>())
         .unwrap()
-        .checked_add(List::<c::OwnerHost>::price(fixtures::limits().client.rows).unwrap())
+        .checked_add(List::<c::Host>::price(fixtures::limits().client().rows).unwrap())
         .unwrap()
-        .checked_add(List::<c::OwnerAccount>::price(DEPLOYMENT_ACCOUNTS).unwrap())
+        .checked_add(List::<c::Account>::price(DEPLOYMENT_ACCOUNTS).unwrap())
         .unwrap()
         .checked_add(u64::from(DEPLOYMENT_ACCOUNTS).checked_mul(2).unwrap().checked_mul(chips).unwrap())
         .unwrap()
@@ -490,7 +488,7 @@ fn a_deployment_filling_its_decoded_room_is_admitted() {
     // The smallest document limit whose decoded room holds the fixture.
     let limits = fixtures::limits_for_document(deployment_held().div_ceil(2));
     assert_eq!(
-        crate::translate::documents::owner_deployment(counted_deployment(DEPLOYMENT_ACCOUNTS), &limits),
+        crate::translate::documents::deployment(counted_deployment(DEPLOYMENT_ACCOUNTS), &limits),
         Ok(expected_deployment(DEPLOYMENT_ACCOUNTS))
     );
 }
@@ -498,7 +496,7 @@ fn a_deployment_filling_its_decoded_room_is_admitted() {
 fn a_deployment_past_its_decoded_room_is_refused() {
     let limits = fixtures::limits_for_document(deployment_held().div_ceil(2).checked_sub(1).unwrap());
     assert_eq!(
-        crate::translate::documents::owner_deployment(counted_deployment(DEPLOYMENT_ACCOUNTS), &limits),
+        crate::translate::documents::deployment(counted_deployment(DEPLOYMENT_ACCOUNTS), &limits),
         Err(Undecodable::TooLarge)
     );
 }

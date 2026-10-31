@@ -6,7 +6,7 @@ use jig_fake_workers::{Script, Worker};
 use skein_lib::{List, Queue};
 
 fn configuration() -> root::Config {
-    let mut config = jig_core_world::world::config(8455);
+    let mut config = jig_test_profile::config(8455);
     let mut alternate = config.core.settings.models[0].clone();
     alternate.name = Box::from(b"alternate".as_slice());
     let mut blocked = alternate.clone();
@@ -29,7 +29,7 @@ fn install_policy(rules: authority::Rules, policy: authority::Policy, limits: au
 }
 
 fn ready(config: root::Config) -> (Session, Time, Wall) {
-    ready_with_limits(config, &jig_core_world::world::limits())
+    ready_with_limits(config, &jig_test_profile::limits())
 }
 fn ready_with_limits(config: root::Config, limits: &root::Limits) -> (Session, Time, Wall) {
     let worker = Worker::new(1, 1, vec![Box::new([Script::Wait])]);
@@ -135,7 +135,7 @@ fn creating(me: &c::Me, choice: c::LlmChoice) -> c::Ask {
 }
 
 fn created(answer: &c::Answer) -> u64 {
-    let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Created { first, .. })) = answer else {
+    let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Created { first, .. })) = answer else {
         panic!("created: {answer:?}")
     };
     *first
@@ -242,7 +242,7 @@ fn me_lists_allowed_models_in_configuration_order() {
         role.authority.models = authority::Models::Named(0b011);
     }
     config.core.seed_projects[0].policy.policy = policy.clone();
-    let checked = install_policy(rules, policy, jig_core_world::world::limits().core.authority);
+    let checked = install_policy(rules, policy, jig_test_profile::limits().core.authority);
     config.core.defaults.rules =
         (authority::Domain::new(checked.rules().clone(), *checked.limits()).expect("checked rules")).rules().clone();
     let (mut session, now, wall) = ready(config);
@@ -331,13 +331,13 @@ fn authority_admits_a_named_model() {
     let mut config = configuration();
     let rules = config.core.defaults.rules.clone();
     let policy = config.core.seed_projects[0].policy.policy.clone();
-    let mut limits = jig_core_world::world::limits().core.authority;
+    let mut limits = jig_test_profile::limits().core.authority;
     limits.batch = 2;
     config.core.seed_projects[0].policy.policy = policy.clone();
     let checked = install_policy(rules, policy, limits);
     config.core.defaults.rules =
         (authority::Domain::new(checked.rules().clone(), *checked.limits()).expect("checked rules")).rules().clone();
-    let mut owner_limits = jig_core_world::world::limits();
+    let mut owner_limits = jig_test_profile::limits();
     owner_limits.core.authority = limits;
     let (mut session, now, wall) = ready_with_limits(config, &owner_limits);
     let me = me(&mut session, now, wall);
@@ -357,20 +357,65 @@ fn authority_admits_a_named_model() {
     second.llm.as_mut().expect("chosen model").main.model = text(b"alternate");
     *tasks = crate::test::list([first, second]);
     let answer = ask(&mut session, now, wall, 41, request);
-    let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Created { first, last, .. })) = answer else {
+    let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Created { first, last, .. })) = answer else {
         panic!("admitted named models: {answer:?}")
     };
     assert_eq!(last.checked_sub(first), Some(1));
 }
 
+fn task_source(session: &mut Session, now: Time, wall: Wall, number: u64) -> Box<core::documents::Task> {
+    session
+        .send(
+            ClientId(0),
+            now,
+            wall,
+            down(jig_client::Down::Read {
+                read: Token::new(92),
+                what: jig_client::Readable::Jig(c::Read::Task { task: number }),
+            }),
+        )
+        .expect("task document request");
+    let source_task = session
+        .driver
+        .world
+        .client_peer
+        .as_ref()
+        .expect("joint peer")
+        .delivered
+        .iter()
+        .find_map(|(_, delivery)| {
+            if let root::Delivery::Core(core::Held::Read { answer: core::reads::Answer::Document(document), .. }) =
+                delivery
+                && let core::documents::Document::Task(task) = document.as_ref()
+            {
+                Some(task.clone())
+            } else {
+                None
+            }
+        })
+        .expect("task from the core");
+    session.poll(now, wall).expect("consume the task read");
+    source_task
+}
+
 #[test]
 fn question_offers_keep_the_named_model() {
-    use crate::joint::wire;
     use jig_domain_core::{acts, documents, reads};
 
-    let (mut session, _, _) = ready(configuration());
-    let mut source = wire::documents::tests::question_source();
-    let mut authority = wire::task::tests::source().authority;
+    let (mut session, now, wall) = ready(configuration());
+    let me = me(&mut session, now, wall);
+    let made = ask(&mut session, now, wall, 90, creating(&me, choice(None)));
+    let number = created(&made);
+    let source_task = task_source(&mut session, now, wall, number);
+    let mut source = documents::Question {
+        acts: List::with_capacity(0),
+        task: source_task.chip.clone(),
+        message: 1,
+        from: jig_domain_tasks::Party::Task(number),
+        at: wall,
+        words: documents::Text { bytes: Box::from(b"Which model?".as_slice()), cut: false },
+    };
+    let mut authority = source_task.authority.clone();
     authority.models = jig_domain_tasks::Models::Named(0b010);
     source.acts = crate::test::list([acts::Offered {
         effect: None,
@@ -386,13 +431,45 @@ fn question_offers_keep_the_named_model() {
             beyond: acts::Beyond::Refused(people::Refusal::KeyConflict),
         },
     }]);
-    let what = c::Read::Question { task: source.task.number, message: source.message };
-    let to =
-        session.driver.transport.reply_to(Reply::Read { client: ClientId(0), read: Token::new(91), what }).into_token();
-    let answer = reads::Answer::Document(Box::new(documents::Document::Question(source)));
-    let Incoming::Callback {
-        event:
-            Event::Client {
+    let now = Time::from_nanos(17);
+    let wall = Wall::from_nanos(1_000_000_000_000);
+    session
+        .send(
+            ClientId(0),
+            now,
+            wall,
+            down(jig_client::Down::Read {
+                read: Token::new(91),
+                what: jig_client::Readable::Jig(c::Read::Question {
+                    task: source.task.number,
+                    message: source.message,
+                }),
+            }),
+        )
+        .expect("question read reaches the component");
+    let token = session
+        .driver
+        .transport
+        .reply_tokens()
+        .into_iter()
+        .find(|token| matches!(session.driver.transport.reply(*token), Some(Reply::Read { .. })))
+        .expect("component read route");
+    session.driver.world.client_peer.as_mut().expect("joint peer").delivered.clear();
+    session
+        .held(
+            root::Delivery::Core(core::Held::Read {
+                reply: skein_lib::ReplyTo::new(token),
+                answer: reads::Answer::Document(Box::new(documents::Document::Question(source))),
+            }),
+            now,
+            wall,
+        )
+        .expect("component question answer");
+    let callbacks = session.poll(now, wall).expect("question decoded by the link");
+    let value = callbacks
+        .iter()
+        .find_map(|(_, event)| {
+            if let Event::Client {
                 event:
                     jig_client::Event::Up {
                         up:
@@ -401,19 +478,14 @@ fn question_offers_keep_the_named_model() {
                                 ..
                             },
                     },
-            },
-        ..
-    } = read_packets::read_with_codec(
-        &mut session.driver.transport,
-        to,
-        &answer,
-        &session.limits.client.domain,
-        &session.codec,
-    )
-    .expect("whole original Question")
-    else {
-        panic!("Question callback")
-    };
+            } = event
+            {
+                Some(value)
+            } else {
+                None
+            }
+        })
+        .expect("question document");
     let c::Admission::Bounded { within: c::Bounds::Amend { authority, .. }, .. } =
         &value.acts.get(0).expect("offered amendment").admission
     else {

@@ -28,13 +28,13 @@ fn out() -> Queue<pages::Request> {
 }
 fn form(root: &crate::Domain) -> Request {
     let mut request = Request::default();
-    request.send(NAME, c::Ask::SignIn { holder: c::AccountHolder::Own, provider: 17 }, false, &mut 0, &mut out());
+    request.send(NAME, c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 17 }, false, &mut 0, &mut out());
     let key = request.pending.as_ref().unwrap().key;
     request.told(
         root.client(),
         &Told::Answered {
             key,
-            outcome: finishing_answer(c::OwnerOutcome::AccountSignInStarted {
+            outcome: finishing_answer(c::DocumentOutcome::AccountSignInStarted {
                 source: 43,
                 address: Box::from(b"https://issuer.test/start".as_slice()),
             }),
@@ -42,8 +42,8 @@ fn form(root: &crate::Domain) -> Request {
     );
     request
 }
-fn finishing_answer(outcome: c::OwnerOutcome) -> jig_client::Outcome {
-    jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(outcome))))
+fn finishing_answer(outcome: c::DocumentOutcome) -> jig_client::Outcome {
+    jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(outcome))))
 }
 fn refusal(why: c::SignInRedirectWhy) -> jig_client::Outcome {
     jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
@@ -61,10 +61,9 @@ fn answer(request: &mut Request, root: &crate::Domain, outcome: jig_client::Outc
     assert!(request.told(root.client(), &Told::Answered { key, outcome }));
 }
 fn end(root: &mut crate::Domain, watch: skein_lib::Token) {
-    let c::WatchEvent::Delivered(c::Delivery::OwnerAccounts(mut doc)) = document(false) else { unreachable!() };
-    doc.last_end =
-        Some(c::OwnerAccountLastEnd { source: 43, end: c::OwnerAccountEnd::Made { account: 29, declined: false } });
-    deliver(root, watch, c::WatchEvent::Delivered(c::Delivery::OwnerAccounts(doc)));
+    let c::WatchEvent::Delivered(c::Delivery::Accounts(mut doc)) = document(false) else { unreachable!() };
+    doc.last_end = Some(c::AccountLastEnd { source: 43, end: c::AccountEnd::Made { account: 29, declined: false } });
+    deliver(root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc)));
 }
 #[test]
 fn the_paste_waits_under_a_started_sign_in_and_is_closed_without_one() {
@@ -87,7 +86,7 @@ fn a_paste_is_trimmed_around_and_held_until_sent() {
     assert_eq!(
         ask,
         jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
-            holder: c::AccountHolder::Own,
+            holder: c::AskAccountHolder::Own,
             change: c::AccountChange::FinishSignIn {
                 source: 43,
                 digest: skein_lib::sha256::digest(b"fixture address")
@@ -142,7 +141,7 @@ fn answered_finishing_reads_finishing_until_the_watch_shows_the_end() {
     let mut request = form(&root);
     request.paste_value(secret(b"fixture"), 256);
     finish(&mut request, &root);
-    answer(&mut request, &root, finishing_answer(c::OwnerOutcome::AccountFinishing { source: 43 }));
+    answer(&mut request, &root, finishing_answer(c::DocumentOutcome::AccountFinishing { source: 43 }));
     assert_eq!(request.paste_state(root.client()), S::Finishing);
     end(&mut root, watch);
     request.refresh(root.client());
@@ -206,7 +205,7 @@ fn leaving_the_page_or_a_new_sign_in_drops_the_paste() {
         if new_sign_in {
             request.send(
                 NAME,
-                c::Ask::SignIn { holder: c::AccountHolder::Own, provider: 17 },
+                c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 17 },
                 false,
                 &mut 2,
                 &mut out(),
@@ -231,10 +230,10 @@ fn flow(root: &mut crate::Domain) {
 #[test]
 fn an_accounts_rows_paste_finishes_that_rows_sign_in() {
     let (mut root, _, watch) = opened(c::HeldRole::Member);
-    let c::WatchEvent::Delivered(c::Delivery::OwnerAccounts(mut doc)) = document(false) else { unreachable!() };
+    let c::WatchEvent::Delivered(c::Delivery::Accounts(mut doc)) = document(false) else { unreachable!() };
     doc.accounts = skein_lib::List::with_capacity(1);
     doc.accounts
-        .push(c::OwnerAccountLine {
+        .push(c::AccountLine {
             number: 29,
             place: 0,
             uses: None,
@@ -243,13 +242,13 @@ fn an_accounts_rows_paste_finishes_that_rows_sign_in() {
             provider_name: None,
             manage_usage: None,
             display: c::DocumentText::complete(c::Text::new(Box::from(b"fixture".as_slice()), 32).unwrap()),
-            holder: c::OwnerAccountHolder::Party(fixtures::PARTY),
+            holder: c::AccountHolder::Party(fixtures::PARTY),
             sources: skein_lib::List::with_capacity(0),
             cut: false,
         })
         .unwrap();
-    deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::OwnerAccounts(doc)));
-    let row = Row { holder: c::AccountHolder::Own, account: 29 };
+    deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc)));
+    let row = Row { holder: c::AskAccountHolder::Own, account: 29 };
     event(
         &mut root,
         Event::Act {
@@ -272,7 +271,7 @@ fn an_accounts_rows_paste_finishes_that_rows_sign_in() {
     assert_eq!(
         sent.2,
         jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
-            holder: c::AccountHolder::Own,
+            holder: c::AskAccountHolder::Own,
             change: c::AccountChange::FinishSignIn { source: 43, digest: skein_lib::sha256::digest(b"fixture") }
         }))
     );
@@ -284,7 +283,10 @@ fn signing_in_elsewhere_sends_the_same_sign_in_and_departs_nowhere() {
     root.departing = true;
     flow(&mut root);
     let sent = sends(model(&mut root, Act::SignInElsewhere { name: NAME, way: WAY })).pop().unwrap();
-    assert_eq!(sent.2, jig_client::Ask::Jig(Box::new(c::Ask::SignIn { holder: c::AccountHolder::Own, provider: 17 })));
+    assert_eq!(
+        sent.2,
+        jig_client::Ask::Jig(Box::new(c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 17 }))
+    );
     let key = root.pages().connect_model().unwrap().request.pending.as_ref().unwrap().key;
     let mut result = Queue::uncapped();
     crate::route::told(
@@ -292,7 +294,7 @@ fn signing_in_elsewhere_sends_the_same_sign_in_and_departs_nowhere() {
         &fixtures::env(&fixtures::limits()),
         Told::Answered {
             key,
-            outcome: finishing_answer(c::OwnerOutcome::AccountSignInStarted {
+            outcome: finishing_answer(c::DocumentOutcome::AccountSignInStarted {
                 source: 43,
                 address: Box::from(b"https://issuer.test/start".as_slice()),
             }),
@@ -345,7 +347,7 @@ fn a_kept_finish_restores_only_the_pastes_request_without_a_name() {
         &Told::Kept {
             key,
             request: jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
-                holder: c::AccountHolder::Own,
+                holder: c::AskAccountHolder::Own,
                 change: c::AccountChange::FinishSignIn { source: 43, digest: [0; 32] }
             }))
         }

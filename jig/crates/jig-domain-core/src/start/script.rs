@@ -1,6 +1,9 @@
 //! Script transitions and journal release identities (jig/docs/design/domain/engine.md, 6).
-use super::{Action, Continuation, Failure, LiveSet, Phase, SweepInput};
-use crate::{Core, Key, Limits, Queue, Request, Write, people, tasks};
+use crate::{
+    Core, Key, Limits, Queue, Request, Write, people,
+    start::{Action, Continuation, Failure, LiveSet, Phase, SweepInput},
+    tasks,
+};
 use skein_lib::Env;
 
 impl Core {
@@ -30,13 +33,13 @@ impl Core {
                 if let Some(failure) = self.start_settings_finish(env) {
                     return Action::Refused(failure);
                 }
-                if !crate::deletion::restored(self) {
+                if !crate::admission::deletion::restored(self) {
                     self.start_collect_failure();
                     return Action::Refused(self.start_failure().expect("named project policy failure"));
                 }
                 self.counters.finish_restore();
                 if self.counters.dirty() {
-                    crate::routing::first_start::start_seed(self, env, out);
+                    super::first::start_seed(self, env, out);
                     self.start_collect_failure();
                     if let Some(failure) = self.start_failure() {
                         return Action::Refused(failure);
@@ -77,20 +80,17 @@ impl Core {
             Phase::Switch => Phase::Wires,
             Phase::Wires => return self.start_commit(Phase::AdoptRuns),
             Phase::AdoptRuns => {
-                if let Some(claim) = self.adopted.iter().next() {
-                    #[expect(
-                        clippy::wildcard_enum_match_arm,
-                        reason = "the adoption queue contains only restored claims"
-                    )]
-                    let task = match claim {
-                        crate::fleet::Event::Adopt { run, .. } | crate::fleet::Event::Cross { run, .. } => run.raw(),
-                        _ => unreachable!("adopted queue contains restored claims"),
-                    };
-                    assert!(
-                        self.adopted.is_empty(),
-                        "{:?} restored claim delivered before reads",
-                        Key::Tasks(tasks::Key::Live(task))
-                    );
+                // Each restored claim is delivered once before the fleet opens placement.
+                for _ in 0..self.adopted.len() {
+                    let event = self.adopted.pop().expect("restored claims are bounded by live tasks");
+                    let mut child = crate::step(self, env, crate::Event::Fleet(event));
+                    for _ in 0..child.len() {
+                        out.push(child.pop().expect("bounded fleet outputs"));
+                    }
+                }
+                let mut child = crate::step(self, env, crate::Event::Fleet(crate::fleet::Event::Loaded));
+                for _ in 0..child.len() {
+                    out.push(child.pop().expect("bounded fleet outputs"));
                 }
                 match self.connectors.first() {
                     Some(&connector) => Phase::ReadAfresh { connector },
@@ -127,7 +127,8 @@ impl Core {
             return Action::Idle;
         }
         match input {
-            SweepInput::Record(record) => {
+            SweepInput::Next => {
+                let Some(record) = self.start.sweep.pop() else { return Action::Idle };
                 match &record {
                     // The sweep erases only expired rows (jig/docs/design/domain/engine.md, 6).
                     people::Stored::Policy { .. }
@@ -143,7 +144,7 @@ impl Core {
                 }
                 let mut child = Queue::uncapped();
                 self.people.start_sweep_row(
-                    &Env { now: env.now, wall: self.start.at, limits: env.limits.people },
+                    &Env { wall: self.start.at, ..env.with(env.limits.people) },
                     &record,
                     &mut child,
                 );
@@ -160,7 +161,10 @@ impl Core {
                 }
                 self.start_commit(Phase::Sweep)
             }
-            SweepInput::Finished => self.start_ask(Phase::Switch),
+            SweepInput::Finished => {
+                assert!(self.start.sweep.is_empty(), "sweep rows finish before the switch");
+                self.start_ask(Phase::Switch)
+            }
         }
     }
 
@@ -177,7 +181,7 @@ impl Core {
         match continuation.phase {
             Phase::AdoptRuns => {
                 assert!(
-                    self.people.start_complete(&Env { now: env.now, wall: env.wall, limits: env.limits.people }),
+                    self.people.start_complete(&env.with(env.limits.people)),
                     "linked people complete after durable Wires"
                 );
                 let _adoption = self.start_ask(Phase::AdoptRuns);
@@ -187,8 +191,7 @@ impl Core {
                 }
                 let pending = core::mem::replace(&mut self.start.waiting_tasks, Queue::uncapped());
                 crate::routing::start_task_outputs(self, env, pending, out);
-                let crate::Requests::Out(mut activated) =
-                    crate::step(self, env, crate::Event::Tasks(tasks::Event::Restored));
+                let mut activated = crate::step(self, env, crate::Event::Tasks(tasks::Event::Restored));
                 for _ in 0..activated.len() {
                     let request = activated.pop().expect("bounded restored activation outputs");
                     out.push(request);
@@ -219,7 +222,6 @@ impl Core {
         self.start_ask(continuation.phase)
     }
 
-    #[expect(clippy::manual_map, reason = "the step-code subset uses exhaustive matches")]
     pub(crate) fn start_collect_failure(&mut self) {
         if self.start.phase.is_none() || self.start.failure.is_some() {
             return;
@@ -265,23 +267,18 @@ impl Core {
             let _refused = self.start_refuse(Failure::ProjectPolicy { project });
             return;
         }
-        if !self.people.start_link(&Env { now: env.now, wall: self.start.at, limits: env.limits.people }) {
+        if !self.people.start_link(&Env { wall: self.start.at, ..env.with(env.limits.people) }) {
             self.start_collect_failure();
             return;
         }
         let mut child = Queue::uncapped();
-        tasks::step(
-            &mut self.tasks,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-            tasks::Event::Check,
-            &mut child,
-        );
+        crate::routing::step::step_tasks(self, env, tasks::Event::Check, &mut child);
         self.start_collect_failure();
         if self.start.failure.is_some() {
             return;
         }
         self.start_cross_links();
-        let crate::Requests::Out(mut accounts) = crate::want_accounts(self, env);
+        let mut accounts = crate::want_accounts(self, env);
         self.start_collect_failure();
         if self.start.failure.is_some() {
             return;

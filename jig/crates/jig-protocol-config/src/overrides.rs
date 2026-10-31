@@ -606,17 +606,27 @@ fn set_link(limits: &mut crate::Link, field: &[u8], value: u64) -> Result<(), Wh
     Ok(())
 }
 
-/// Read the limits member at its path, then check all overrides together.
-pub fn parse(document: &Document, at: u32, path: &Path) -> Result<Limits, Problems> {
+/// Best-known limits and the problems found while reading them (configuration.md, 6).
+#[must_use]
+#[derive(Debug)]
+pub struct Parsed {
+    /// The named profile with applied overrides; Small if no profile was recognized.
+    /// These limits may be used for further diagnostics, but require no problems for startup.
+    pub limits: Limits,
+    pub problems: Problems,
+}
+
+/// Read the limits member at its path, retaining its limits when checks find problems.
+pub fn parse(document: &Document, at: u32, path: &Path) -> Parsed {
+    let mut limits = profile(Profile::Small);
     let mut problems = Problems::empty();
     let mut object = match read::Object::new(document, at) {
         Ok(object) => object,
         Err(what) => {
             problems.push(path.clone(), what);
-            return Err(problems);
+            return Parsed { limits, problems };
         }
     };
-    let mut limits = profile(Profile::Small);
     if let Some(at) = object.required(document, b"profile", path, &mut problems) {
         match read::text(document, at, 8) {
             Ok(name) => match name.as_ref() {
@@ -649,7 +659,7 @@ pub fn parse(document: &Document, at: u32, path: &Path) -> Result<Limits, Proble
         let problem = codec_problem(document, overrides_at, path, problem);
         problems.push(problem.path, problem.what);
     }
-    if problems.is_empty() { Ok(limits) } else { Err(problems) }
+    Parsed { limits, problems }
 }
 
 // A canonical effective-limit path is translated back to its spelling in the
@@ -753,7 +763,7 @@ fn valid(limits: &Limits, name: &[u8], fits: &mut Fits) -> bool {
     match name.get(..dot) {
         Some(b"hub") => {
             if fits.hub.is_none() {
-                fits.hub = Some(jig_domain_host::valid(&limits.hub));
+                fits.hub = Some(jig_domain_host::valid_hub(&limits.hub));
             }
             fits.hub.expect("hub fit checked")
         }

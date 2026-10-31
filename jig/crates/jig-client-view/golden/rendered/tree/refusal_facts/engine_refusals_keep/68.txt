@@ -1,0 +1,12 @@
+== jig == 
+The hold or its reason changed
+Current revision 23
+Held: out of tries
+Attempt 1
+Host lost
+Reason: whole failure reason
+At 01:00
+Attempt 2
+Host lost
+Reason: whole failure reason
+At 01:00

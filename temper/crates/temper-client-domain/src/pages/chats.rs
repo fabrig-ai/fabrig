@@ -55,7 +55,7 @@ impl Chats {
         let Some(template) = jig_client::shapes::template(me, project, jig_client::shapes::CHAT) else { return };
         let query = TaskQuery {
             project: Some(project),
-            requester: Some(c::OwnerRequester::Person(me.party.number)),
+            requester: Some(c::Requester::Person(me.party.number)),
             root: None,
             parent: None,
             label: Some(template.label),
@@ -194,7 +194,7 @@ impl Chats {
             Told::Pending { key } if Some(key) == self.start => true,
             Told::Answered { key, outcome } if Some(key) == self.start => {
                 if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(value))) = &outcome {
-                    if let c::Outcome::Owner(c::OwnerOutcome::Created { first, .. }) = value {
+                    if let c::Outcome::Document(c::DocumentOutcome::Created { first, .. }) = value {
                         out.push(Request::Show { address: Address::Chat { task: *first } });
                     } else if let c::Outcome::Made { what: c::Made::Tasks { tasks } } = value
                         && let Some(task) = tasks.get(0)

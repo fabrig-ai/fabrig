@@ -61,7 +61,7 @@ fn a_tasks_live_run_is_unwatched_when_it_ends() {
     let run = page.run.expect("live run");
     while f.out.pop().is_some() {}
     let mut task = f::task();
-    f::phase(&mut task, c::OwnerChipPhase::Active(c::RunStage::Idle));
+    f::phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
     f::deliver(&mut f.client, f.watch, task);
     page.told(Time::ZERO, &f.client, Told::Changed { handle: page.document }, &mut f.out);
     assert_eq!(page.run, None);
@@ -79,14 +79,18 @@ fn an_agents_task_without_a_priority_has_the_agent_shape() {
     const CHARTER: u32 = 1;
     const PARTY: u64 = 73;
     const PROCEDURE: u32 = 2;
-    const CASES: &[(Option<u32>, c::Executor, Shape)] = &[
-        (Some(PRIORITY), c::Executor::Agent { charter: CHARTER }, Shape::Tracked),
-        (None, c::Executor::Agent { charter: CHARTER }, Shape::Agent),
-        (Some(PRIORITY), c::Executor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE }, Shape::HeaderAndPlan),
-        (Some(PRIORITY), c::Executor::Party { party: PARTY }, Shape::HeaderAndPlan),
-        (None, c::Executor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE }, Shape::HeaderAndPlan),
-        (None, c::Executor::Party { party: PARTY }, Shape::HeaderAndPlan),
-        (None, c::Executor::Role { project: fixtures::PROJECT, role: 1 }, Shape::HeaderAndPlan),
+    const CASES: &[(Option<u32>, c::ChipExecutor, Shape)] = &[
+        (Some(PRIORITY), c::ChipExecutor::Agent { charter: CHARTER }, Shape::Tracked),
+        (None, c::ChipExecutor::Agent { charter: CHARTER }, Shape::Agent),
+        (
+            Some(PRIORITY),
+            c::ChipExecutor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE },
+            Shape::HeaderAndPlan,
+        ),
+        (Some(PRIORITY), c::ChipExecutor::Party { party: PARTY }, Shape::HeaderAndPlan),
+        (None, c::ChipExecutor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE }, Shape::HeaderAndPlan),
+        (None, c::ChipExecutor::Party { party: PARTY }, Shape::HeaderAndPlan),
+        (None, c::ChipExecutor::Role { project: fixtures::PROJECT, role: 1 }, Shape::HeaderAndPlan),
     ];
     for (priority, executor, expected) in CASES {
         let (mut page, mut f) = opened();
@@ -125,17 +129,17 @@ fn a_task_held_anew_reads_its_released_card_again() {
     let (mut page, mut fixture) = opened();
     let mut task = f::task();
     let mut held = |revision| {
-        f::phase(&mut task, c::OwnerChipPhase::Held { reason: c::HoldCategory::Stopped, revision });
+        f::phase(&mut task, c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision });
         task.chip.clone()
     };
     page.held(&held(fixtures::acts::REVISION.value), &mut fixture.out);
     let card = page.cards.get_mut(FIRST_CARD).expect("held card");
     let first = card.handle;
     let c::ReadValue::Escalation(read) = fixtures::acts::held(c::ActKind::Release) else { panic!("hold") };
-    let mut stopped = read.hold;
-    stopped.revision = fixtures::acts::REVISION;
+    let mut stopped = read.task.hold.expect("owner hold");
+    stopped.revision = fixtures::acts::REVISION.value;
     let mut document = f::task();
-    document.hold = Some(c::TaskHold::Document(Box::new(stopped)));
+    document.hold = Some(stopped);
     card.page = Some(c::ReadValue::Task(Box::new(document)));
     card.outcome = Some(jig_client::Outcome::Unknown);
     while fixture.out.pop().is_some() {}
@@ -192,7 +196,7 @@ fn a_tasks_state_says_what_it_waits_for() {
         for number in *numbers {
             dependencies.push(*number).expect("waiting dependencies");
         }
-        f::phase(&mut task, c::OwnerChipPhase::Waiting { dependencies, more: *more, holds: *holds });
+        f::phase(&mut task, c::ChipPhase::Waiting { dependencies, more: *more, holds: *holds });
         assert_eq!(row_state(&task.chip), expected.clone());
     }
 }
@@ -200,24 +204,24 @@ fn a_tasks_state_says_what_it_waits_for() {
 fn an_ended_task_says_its_owners_ending() {
     for (ending, expected) in [
         (
-            Some(c::OwnerChipEnding::Done(c::ResultValue::Report(f::document_text(b"Done")))),
-            State::Ended(c::OwnerTaskStatus::Done),
+            Some(c::ChipEnding::Done(c::ResultValue::Report(f::document_text(b"Done")))),
+            State::Ended(c::TaskStatus::Done),
         ),
-        (Some(c::OwnerChipEnding::Failed(f::document_text(b"Failed"))), State::Ended(c::OwnerTaskStatus::Failed)),
+        (Some(c::ChipEnding::Failed(f::document_text(b"Failed"))), State::Ended(c::TaskStatus::Failed)),
         (
-            Some(c::OwnerChipEnding::Cancelled {
+            Some(c::ChipEnding::Cancelled {
                 reason: f::document_text(b"Cancelled"),
                 result: None,
-                by: c::OwnerRequester::Person(fixtures::PARTY),
+                by: c::Requester::Person(fixtures::PARTY),
                 at: Wall::EPOCH,
             }),
-            State::Ended(c::OwnerTaskStatus::Cancelled),
+            State::Ended(c::TaskStatus::Cancelled),
         ),
         (None, State::Phase(c::Phase::Ended)),
     ] {
         let mut task = f::task();
-        f::phase(&mut task, c::OwnerChipPhase::Ended);
-        let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+        f::phase(&mut task, c::ChipPhase::Ended);
+        let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
         details.ending = ending;
         assert_eq!(row_state(&task.chip), expected);
         task.waits_on = c::WaitsOn::News;
@@ -227,19 +231,12 @@ fn an_ended_task_says_its_owners_ending() {
 #[test]
 fn another_phase_says_jigs_phase() {
     let mut task = f::task();
-    f::phase(&mut task, c::OwnerChipPhase::Active(c::RunStage::Idle));
-    let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
-    details.ending = Some(c::OwnerChipEnding::Failed(f::document_text(b"Old ending")));
+    f::phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
+    let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
+    details.ending = Some(c::ChipEnding::Failed(f::document_text(b"Old ending")));
     assert_eq!(row_state(&task.chip), State::Phase(task.chip.phase));
     task.chip.phase = c::Phase::Waiting;
-    *task.chip.details = c::ChipPhase::Waiting {
-        dependencies: {
-            let mut dependencies = List::with_capacity(1);
-            dependencies.push(DEPENDENCY).expect("dependency");
-            dependencies
-        },
-        hold: None,
-    };
+    task.chip.details.phase = c::ChipPhase::Waiting { dependencies: List::with_capacity(0), more: false, holds: false };
     assert_eq!(row_state(&task.chip), State::Phase(c::Phase::Waiting));
 }
 #[test]
@@ -247,23 +244,23 @@ fn a_dependencys_state_comes_from_its_link() {
     let mut task = f::task();
     let mut dependencies = List::with_capacity(1);
     dependencies.push(DEPENDENCY).expect("dependency");
-    f::phase(&mut task, c::OwnerChipPhase::Waiting { dependencies, more: false, holds: false });
+    f::phase(&mut task, c::ChipPhase::Waiting { dependencies, more: false, holds: false });
     let chip = task.chip;
     let expected = State::WaitingFor(DEPENDENCY);
-    assert_eq!(link_state(&c::OwnerTaskLink::Live(chip.clone())), Some(expected.clone()));
-    assert_eq!(link_state(&c::OwnerTaskLink::Retained { chip, at: Some(Wall::EPOCH) }), Some(expected.clone()));
-    for status in [c::OwnerTaskStatus::Done, c::OwnerTaskStatus::Failed, c::OwnerTaskStatus::Cancelled] {
+    assert_eq!(link_state(&c::TaskLink::Live(chip.clone())), Some(expected.clone()));
+    assert_eq!(link_state(&c::TaskLink::Retained { chip, at: Some(Wall::EPOCH) }), Some(expected.clone()));
+    for status in [c::TaskStatus::Done, c::TaskStatus::Failed, c::TaskStatus::Cancelled] {
         assert_eq!(
-            link_state(&c::OwnerTaskLink::Stored { number: DEPENDENCY, status: Some(status) }),
+            link_state(&c::TaskLink::Stored { number: DEPENDENCY, status: Some(status) }),
             Some(State::Ended(status))
         );
     }
-    assert_eq!(link_state(&c::OwnerTaskLink::Stored { number: DEPENDENCY, status: None }), None);
+    assert_eq!(link_state(&c::TaskLink::Stored { number: DEPENDENCY, status: None }), None);
 }
 
 const ATTEMPT: u64 = f::ATTEMPT;
-fn observation(work: c::OwnerChipWork) -> c::OwnerChipObservation {
-    c::OwnerChipObservation {
+fn observation(work: c::ChipWork) -> c::ChipObservation {
+    c::ChipObservation {
         channel: skein_lib::Token::new(1),
         work,
         since: Wall::EPOCH,
@@ -275,20 +272,20 @@ fn observation(work: c::OwnerChipWork) -> c::OwnerChipObservation {
 fn a_running_rows_state_says_its_observed_work() {
     for (work, expected) in [
         (None, State::Running),
-        (Some(c::OwnerChipWork::Writing), State::Writing),
+        (Some(c::ChipWork::Writing), State::Writing),
         (
-            Some(c::OwnerChipWork::Tool { call: Box::from(*b"call"), tool: Box::from(*b"read_file") }),
+            Some(c::ChipWork::Tool { call: Box::from(*b"call"), tool: Box::from(*b"read_file") }),
             State::Tool(Box::from(*b"read_file")),
         ),
-        (Some(c::OwnerChipWork::Preparing), State::Running),
-        (Some(c::OwnerChipWork::Starting), State::Running),
-        (Some(c::OwnerChipWork::Active), State::Running),
-        (Some(c::OwnerChipWork::Waiting), State::Running),
-        (Some(c::OwnerChipWork::Ending), State::Running),
+        (Some(c::ChipWork::Preparing), State::Running),
+        (Some(c::ChipWork::Starting), State::Running),
+        (Some(c::ChipWork::Active), State::Running),
+        (Some(c::ChipWork::Waiting), State::Running),
+        (Some(c::ChipWork::Ending), State::Running),
     ] {
         let mut task = f::task();
-        f::phase(&mut task, c::OwnerChipPhase::Active(c::RunStage::Running { attempt: ATTEMPT }));
-        let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+        f::phase(&mut task, c::ChipPhase::Active(c::RunStage::Running { attempt: ATTEMPT }));
+        let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
         if let Some(work) = work {
             details.observation = Some(observation(work));
         } else {
@@ -324,7 +321,7 @@ fn the_headers_delegates_use_the_chips_live_count() {
     for count in [0, 1, 3] {
         let mut task = f::task();
         task.waits_on = c::WaitsOn::Delegates;
-        let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+        let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
         details.live_delegates = count;
         assert_eq!(header_state(&task, None), State::WaitingForDelegates(count));
     }
@@ -368,7 +365,7 @@ fn the_header_says_news_or_falls_back_to_the_row_when_nothing_is_pending() {
     let mut task = f::task();
     task.waits_on = c::WaitsOn::News;
     assert_eq!(header_state(&task, None), State::WaitingForNews);
-    f::phase(&mut task, c::OwnerChipPhase::Waiting { dependencies: pending(&[DEPENDENCY]), more: false, holds: false });
+    f::phase(&mut task, c::ChipPhase::Waiting { dependencies: pending(&[DEPENDENCY]), more: false, holds: false });
     for waits_on in [c::WaitsOn::Nothing, c::WaitsOn::Dependencies { pending: pending(&[]), count: 0 }] {
         task.waits_on = waits_on;
         assert_eq!(header_state(&task, None), State::WaitingFor(DEPENDENCY));
@@ -382,15 +379,15 @@ fn agent_document() -> c::Task {
 }
 fn activity_page(position: u64) -> jig_client::Readout {
     let mut rows = List::with_capacity(1);
-    rows.push(c::ActivityLine {
+    rows.push(crate::tests::documents::line(
         position,
-        at: Wall::EPOCH,
-        event: c::Activity::RunBegan {
+        Wall::EPOCH,
+        jig_client::contract::Activity::RunBegan {
             attempt: ATTEMPT,
-            how: c::RunBeginning::Fresh { tail: 0 },
-            why: c::Text::new(Box::from(*b"Begin"), 5).expect("why"),
+            why: jig_client::contract::RunWhy::Made,
+            resumed: false,
         },
-    })
+    ))
     .expect("activity");
     jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
         rows,
@@ -467,7 +464,7 @@ fn an_agents_task_reads_its_thread_as_a_chat() {
                 call: None,
             }),
         );
-        f::phase(&mut task, c::OwnerChipPhase::Active(c::RunStage::Idle));
+        f::phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
         f::deliver(&mut f.client, f.watch, task);
         page.told(Time::ZERO, &f.client, Told::Changed { handle: page.document }, &mut f.out);
         assert!(!page.thread.live.is_empty(), "unread committed activity keeps the run's text");
@@ -587,56 +584,51 @@ fn a_runs_heading_follows_its_chips_phase() {
     let since = Some(Wall::EPOCH);
     for (phase, attempt, since, expected) in [
         (
-            c::OwnerChipPhase::Active(c::RunStage::Claimed { attempt: ATTEMPT }),
+            c::ChipPhase::Active(c::RunStage::Claimed { attempt: ATTEMPT }),
             Some(LAST),
             since,
             Some(Run::Live { attempt: ATTEMPT, since }),
         ),
         (
-            c::OwnerChipPhase::Active(c::RunStage::Running { attempt: ATTEMPT }),
+            c::ChipPhase::Active(c::RunStage::Running { attempt: ATTEMPT }),
             Some(LAST),
             since,
             Some(Run::Live { attempt: ATTEMPT, since }),
         ),
         (
-            c::OwnerChipPhase::Closing(c::ClosingStage::Run { attempt: ATTEMPT }),
+            c::ChipPhase::Closing(c::ClosingStage::Run { attempt: ATTEMPT }),
             Some(LAST),
             since,
             Some(Run::Live { attempt: ATTEMPT, since }),
         ),
         (
-            c::OwnerChipPhase::Active(c::RunStage::Running { attempt: ATTEMPT }),
+            c::ChipPhase::Active(c::RunStage::Running { attempt: ATTEMPT }),
             None,
             None,
             Some(Run::Live { attempt: ATTEMPT, since: None }),
         ),
-        (c::OwnerChipPhase::Active(c::RunStage::Idle), Some(LAST), since, Some(Run::Waiting { attempt: LAST, since })),
-        (
-            c::OwnerChipPhase::Active(c::RunStage::Idle),
-            Some(LAST),
-            None,
-            Some(Run::Waiting { attempt: LAST, since: None }),
-        ),
-        (c::OwnerChipPhase::Active(c::RunStage::Idle), None, since, Some(Run::NoRun)),
-        (c::OwnerChipPhase::Ended, Some(LAST), since, Some(Run::Ended { attempt: LAST })),
-        (c::OwnerChipPhase::Ended, None, since, None),
+        (c::ChipPhase::Active(c::RunStage::Idle), Some(LAST), since, Some(Run::Waiting { attempt: LAST, since })),
+        (c::ChipPhase::Active(c::RunStage::Idle), Some(LAST), None, Some(Run::Waiting { attempt: LAST, since: None })),
+        (c::ChipPhase::Active(c::RunStage::Idle), None, since, Some(Run::NoRun)),
+        (c::ChipPhase::Ended, Some(LAST), since, Some(Run::Ended { attempt: LAST })),
+        (c::ChipPhase::Ended, None, since, None),
     ] {
         let mut task = agent_document();
         f::phase(&mut task, phase.clone());
-        let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+        let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
         details.attempt = attempt;
         details.run_since = since;
         assert_eq!(run(&task), expected, "{phase:?}, {attempt:?}, {since:?}");
     }
     let mut task = agent_document();
-    *task.chip.details = c::ChipPhase::Starting;
-    assert_eq!(run(&task), None);
+    task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Preparing);
+    assert_eq!(run(&task), Some(Run::NoRun));
 }
 #[test]
-fn an_ended_tasks_historical_document_keeps_its_result() {
+fn an_ended_tasks_ended_document_keeps_its_result() {
     let (mut page, mut f) = opened();
     let mut task = agent_document();
-    f::phase(&mut task, c::OwnerChipPhase::Ended);
+    f::phase(&mut task, c::ChipPhase::Ended);
     task.result = None;
     let result = f::result(&task, c::Ending::Done, Some(c::ResultValue::Report(f::document_text(b"Finished"))));
     page.told(
@@ -644,14 +636,12 @@ fn an_ended_tasks_historical_document_keeps_its_result() {
         &f.client,
         Told::Page {
             handle: page.document,
-            page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Historical(Box::new(
-                c::OwnerHistorical {
-                    key: c::ObjectKey::Task(f::TASK),
-                    value: c::OwnerHistoricalValue::Task { document: Box::new(task), result: Box::new(result.clone()) },
-                    at: None,
-                    by: None,
-                },
-            )))),
+            page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended {
+                key: c::ObjectKey::Task(f::TASK),
+                value: c::EndedValue::Task { document: Box::new(task), result: Box::new(result.clone()) },
+                at: None,
+                by: None,
+            })))),
         },
         &mut f.out,
     );
@@ -721,7 +711,7 @@ fn page_act(pages: &mut Pages, client: &jig_client::Client, act: Act) -> Queue<R
 fn offered_task(kind: c::ActKind, admission: Option<c::Admission>) -> c::Task {
     let mut task = f::task();
     task.priority = None;
-    task.chip.executor = c::Executor::Agent { charter: 1 };
+    task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
     task.acts = match admission {
         Some(admission) => fixtures::acts::offered(kind, admission),
         None => List::with_capacity(0),
@@ -897,7 +887,9 @@ fn a_delivered_message_is_said_by_its_words_not_an_outcome() {
     page_act(&mut pages, &client, Act::Send);
     let key = pages.task().expect("page").pending.as_slice()[0].0;
     let mut out = Queue::with_capacity(OUTPUTS);
-    let done = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Changed)));
+    let done = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+        c::DocumentOutcome::Amended { task: 9 },
+    ))));
     pages::step(
         &mut pages,
         &fixtures::env(&fixtures::limits()),
@@ -997,12 +989,14 @@ fn a_done_amendment_stays_as_its_outcome_until_amend_again() {
     page_act(&mut pages, &client, Act::Amend);
     page_act(&mut pages, &client, Act::AmendWords { words: Box::from(WORDS) });
     page_act(&mut pages, &client, Act::SendAmendment);
-    amend_answer(&mut pages, &client, c::Answer::Done(c::Outcome::Changed));
+    amend_answer(&mut pages, &client, c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 })));
     let open = pages.task().unwrap().amending.as_ref().unwrap();
     assert!(open.done);
     assert_eq!(
         open.outcome,
-        Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Changed))))
+        Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::Amended { task: 9 }
+        )))))
     );
     assert!(pages.task().unwrap().pending.is_empty());
     assert!(page_act(&mut pages, &client, Act::SendAmendment).is_empty());
@@ -1071,7 +1065,7 @@ fn procedure() -> (Task, f::Fixture) {
     let (mut page, mut fixture) = opened();
     while fixture.out.pop().is_some() {}
     let mut task = f::task();
-    task.chip.executor = c::Executor::Procedure { connector: fixtures::FORGE, kind: 2 };
+    task.chip.executor = c::ChipExecutor::Procedure { connector: fixtures::FORGE, kind: 2 };
     f::deliver(&mut fixture.client, fixture.watch, task);
     page.told(Time::ZERO, &fixture.client, Told::Changed { handle: page.document }, &mut fixture.out);
     (page, fixture)
@@ -1122,7 +1116,7 @@ fn every_procedure_reads_its_ended_children_on_its_own_handle() {
         while fixture.out.pop().is_some() {}
         let next = page.next;
         let mut task = f::task();
-        task.chip.executor = c::Executor::Procedure { connector, kind: 2 };
+        task.chip.executor = c::ChipExecutor::Procedure { connector, kind: 2 };
         f::deliver(&mut fixture.client, fixture.watch, task);
         page.told(Time::ZERO, &fixture.client, Told::Changed { handle: page.document }, &mut fixture.out);
         assert_eq!(page.ended.as_ref().unwrap().handle.number, next);
@@ -1136,9 +1130,9 @@ fn every_procedure_reads_its_ended_children_on_its_own_handle() {
 #[test]
 fn agent_and_person_tasks_do_not_read_ended_children() {
     for executor in [
-        c::Executor::Agent { charter: 1 },
-        c::Executor::Party { party: 73 },
-        c::Executor::Role { project: fixtures::PROJECT, role: 1 },
+        c::ChipExecutor::Agent { charter: 1 },
+        c::ChipExecutor::Party { party: 73 },
+        c::ChipExecutor::Role { project: fixtures::PROJECT, role: 1 },
     ] {
         let (mut page, mut fixture) = opened();
         while fixture.out.pop().is_some() {}
@@ -1245,7 +1239,7 @@ fn goal() -> (Task, f::Fixture) {
     let (mut page, mut fixture) = opened();
     while fixture.out.pop().is_some() {}
     let mut task = f::task();
-    task.chip.executor = c::Executor::Agent { charter: 1 };
+    task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
     task.priority = Some(PRIORITY);
     f::deliver(&mut fixture.client, fixture.watch, task);
     page.told(Time::ZERO, &fixture.client, Told::Changed { handle: page.document }, &mut fixture.out);

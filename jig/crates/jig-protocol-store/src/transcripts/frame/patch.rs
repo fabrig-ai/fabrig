@@ -1,5 +1,5 @@
 //! One decode step for every transcript read, including asynchronous sites (store.md 8.6).
-use super::{Unread, body};
+use super::{Unread, WRAPPER_BYTES, body};
 use crate::patching::walk::held_root;
 use crate::transcripts::patches::{Machine, Machines};
 use crate::{Owner, codec};
@@ -69,7 +69,7 @@ fn turns(machine: Option<&Machine>) -> Result<u64, Halt> {
 }
 
 impl Decode {
-    pub(crate) fn begin(record: &[u8], machines: &mut Machines, limits: &codec::Limits) -> Result<Self, Unread> {
+    pub(crate) fn begin(record: &[u8], machines: &mut Machines, limits: &codec::View) -> Result<Self, Unread> {
         let body = body(record)?;
         let size = u32::try_from(record.len()).or(Err(Unread::Lengths))?;
         let remaining = turns(machines.body.as_ref())
@@ -84,7 +84,7 @@ impl Decode {
             let pass = start(machine, bytes::copy_of(body)).or(Err(Unread::Record))?;
             return Ok(Self::Patching(Patch { stage: Stage::Body(pass), turn: None, size, remaining }));
         }
-        let mut turn = codec::core::read_turn(body, &codec::core_limits(limits)).or(Err(Unread::Record))?;
+        let mut turn = codec::core::read_turn(body, limits).or(Err(Unread::Record))?;
         if let Some(machine) = &mut machines.turn
             && behind(machine, &turn.transcript).or(Err(Unread::Record))?
         {
@@ -103,7 +103,7 @@ impl Decode {
     }
 }
 impl Patch {
-    pub(crate) fn next(&mut self, machines: &mut Machines, limits: &codec::Limits) -> Result<Progress, Halt> {
+    pub(crate) fn next(&mut self, machines: &mut Machines, limits: &codec::View) -> Result<Progress, Halt> {
         // Each pass stops at most once per node, followed by Done. The sum
         // of both capacities bounds the whole walk, including held turns.
         for _ in 0..self.remaining {
@@ -135,10 +135,11 @@ impl Patch {
                                 continue;
                             }
                             let body = machine.patcher.as_mut().ok_or(Halt::Order)?.finish()?;
-                            let size =
-                                u32::try_from(body.len()).or(Err(Halt::Room))?.checked_add(12).ok_or(Halt::Room)?;
-                            let turn =
-                                codec::core::read_turn(body, &codec::core_limits(limits)).or(Err(Halt::Order))?;
+                            let size = u32::try_from(body.len())
+                                .or(Err(Halt::Room))?
+                                .checked_add(WRAPPER_BYTES)
+                                .ok_or(Halt::Room)?;
+                            let turn = codec::core::read_turn(body, limits).or(Err(Halt::Order))?;
                             return Ok(Progress::Done { turn, size });
                         }
                     }

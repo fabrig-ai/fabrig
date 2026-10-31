@@ -113,7 +113,7 @@ pub(super) fn decode_note_change(
     })
 }
 
-pub(super) fn encode_resource_role(value: domain::ResourceRole, _limits: &wire::Limits) -> wire::ResourceRole {
+pub(super) fn encode_resource_role(value: domain::ResourceRole) -> wire::ResourceRole {
     match value {
         domain::ResourceRole::Owned => wire::ResourceRole::Owned,
         domain::ResourceRole::Fork => wire::ResourceRole::Fork,
@@ -158,7 +158,7 @@ pub(super) fn encode_adoption(
         limits,
         wire::AdoptionParts {
             resource: encode_resource_name(resource, limits)?,
-            role: encode_resource_role(*role, limits),
+            role: encode_resource_role(*role),
             options: encode_segments(options, limits, limits.parameter_bytes_value, limits.adoption_options)?,
         },
     )
@@ -294,7 +294,6 @@ pub(super) fn decode_escalation_decision(value: wire::EscalationDecision) -> dom
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive arm translates each kind of keyed request")]
-#[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::Ask, wire::Problem> {
     Ok(match value {
         domain::Ask::RemoveProject { project } => wire::Ask::RemoveProject(wire::AskRemoveProject::new(
@@ -514,7 +513,6 @@ pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::As
     })
 }
 #[expect(clippy::too_many_lines, reason = "one exhaustive arm translates each kind of keyed request")]
-#[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask, wire::Problem> {
     Ok(match value {
         wire::Ask::RemoveProject(value) => domain::Ask::RemoveProject { project: value.project() },

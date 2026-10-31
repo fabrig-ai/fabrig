@@ -710,7 +710,7 @@ fn settings_records_and_all_enum_arms_round_trip() {
 fn move_to_newest_records_round_trip() {
     let ask =
         w::Ask::MoveToNewest(w::MoveToNewest::new(&w::CEILINGS, w::MoveToNewestParts { revision: 7 }).expect("move"));
-    let mut out = Writer::new(usize::try_from(ask.measure()).expect("measure"));
+    let mut out = Writer::new(skein_lib::length::usize_of(ask.measure()));
     ask.encode(&mut out).expect("measured ask");
     let bytes = out.finish();
     let mut input = Reader::new(&bytes);
@@ -720,7 +720,7 @@ fn move_to_newest_records_round_trip() {
         w::OutcomeMovedToNewest::new(&w::CEILINGS, w::OutcomeMovedToNewestParts { newest: 9, moved: 3, stayed: 1 })
             .expect("counts"),
     );
-    let mut out = Writer::new(usize::try_from(outcome.measure()).expect("measure"));
+    let mut out = Writer::new(skein_lib::length::usize_of(outcome.measure()));
     outcome.encode(&mut out).expect("measured outcome");
     let bytes = out.finish();
     let mut input = Reader::new(&bytes);

@@ -229,7 +229,9 @@ jig-ops-domain                    the engine's root
   and a person's pool within it.
 
 These are policies as data, in authority's terms
-(`domain/authority.md`). `ops` writes no rule of its own in code.
+(`domain/authority.md`). `ops` writes no rule of its own in code; its
+policy is its configuration's (`limits.rs`), named, and each value the
+design gives is that value.
 
 ## 7. Its stories
 

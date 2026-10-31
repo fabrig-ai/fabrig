@@ -1,14 +1,13 @@
 //! Complete accounts watch translation and independent nested limits.
 use super::fixtures;
 use crate::translate::{accounts, watches};
-use fixtures::list;
 use jig_client_protocol_wire::v19 as w;
 use jig_domain_accounts as a;
 use jig_domain_core::documents as d;
 use jig_domain_people::CapacityAction as A;
 use skein_lib::{Duration, List, Wall};
 fn source_lines() -> List<d::SourceLine> {
-    list([
+    List::from_boxed(Box::new([
         d::SourceLine {
             name: None,
             place: 2,
@@ -31,21 +30,20 @@ fn source_lines() -> List<d::SourceLine> {
             attention: false,
             spent_until: None,
         },
-    ])
+    ]))
 }
-#[expect(clippy::manual_map, reason = "optional fixture facts follow the step crate lint configuration")]
 fn document(end: Option<a::End>) -> d::Accounts {
     d::Accounts {
         readiness: List::with_capacity(0),
         readiness_cut: false,
         program_hosts: List::with_capacity(0),
-        accounts: list([
+        accounts: List::from_boxed(Box::new([
             d::AccountLine {
                 provider_name: None,
                 manage_usage: None,
                 number: 7,
                 place: 3,
-                uses: Some(list([a::Use::Party(23), a::Use::Project(29)])),
+                uses: Some(List::from_boxed(Box::new([a::Use::Party(23), a::Use::Project(29)]))),
                 plan: true,
                 provider: Some(3),
                 display: d::Text { bytes: Box::from(b"Personal".as_slice()), cut: true },
@@ -66,8 +64,8 @@ fn document(end: Option<a::End>) -> d::Accounts {
                 sources: List::with_capacity(0),
                 cut: false,
             },
-        ]),
-        signing: list([d::SignInLine { source: 19, provider: 3, holder: a::Holder::Party(23) }]),
+        ])),
+        signing: List::from_boxed(Box::new([d::SignInLine { source: 19, provider: 3, holder: a::Holder::Party(23) }])),
         last_end: match end {
             Some(end) => Some(d::LastEnd { source: 11, end }),
             None => None,
@@ -125,7 +123,7 @@ fn accounts_deliver_whole_with_every_terminal_outcome() {
         let source = d::Document::Accounts(Box::new(document(Some(end))));
         assert_eq!(
             watches::delivery(&source, 0, 2, &[], &limits),
-            Ok(w::DeliveryValue::OwnerAccounts(jig_client_test_records::accounts_record(Some(expected))))
+            Ok(w::DeliveryValue::Accounts(jig_client_test_records::accounts_record(Some(expected))))
         );
     }
     assert_eq!(accounts::document(&document(None), &limits), Ok(jig_client_test_records::accounts_record(None)));
@@ -135,10 +133,10 @@ fn each_accounts_piece_ceiling_is_refused_at_its_own_path() {
     let source = document(None);
     let limits = jig_client_test_records::limits();
     let rows = [
-        (w::Limits { owner_accounts_accounts: 0, ..limits }, w::Path::OwnerAccountsAccounts),
-        (w::Limits { owner_accounts_signing: 0, ..limits }, w::Path::OwnerAccountsSigning),
-        (w::Limits { owner_account_line_sources: 0, ..limits }, w::Path::OwnerAccountLineSources),
-        (w::Limits { owner_account_line_uses_some: 0, ..limits }, w::Path::OwnerAccountLineUses),
+        (w::Limits { accounts_accounts: 0, ..limits }, w::Path::AccountsAccounts),
+        (w::Limits { accounts_signing: 0, ..limits }, w::Path::AccountsSigning),
+        (w::Limits { account_line_sources: 0, ..limits }, w::Path::AccountLineSources),
+        (w::Limits { account_line_uses_some: 0, ..limits }, w::Path::AccountLineUses),
     ];
     for (limits, path) in rows {
         assert_eq!(accounts::document(&source, &limits), Err(w::Problem { path, reason: skein_codec::Reason::Bound }));
@@ -149,7 +147,7 @@ fn deployment_accounts_keep_identity_uses_and_ordered_sources() {
     let mut source = fixtures::deployment_document();
     let account = source.accounts.get_mut(0).expect("fixture account");
     account.place = 3;
-    account.uses = Some(list([a::Use::Party(23), a::Use::Project(29)]));
+    account.uses = Some(List::from_boxed(Box::new([a::Use::Party(23), a::Use::Project(29)])));
     account.plan = true;
     account.display = d::Text { bytes: Box::from(b"Personal".as_slice()), cut: true };
     account.holder = a::Holder::Party(23);
@@ -164,10 +162,10 @@ fn deployment_accounts_keep_identity_uses_and_ordered_sources() {
     assert_eq!(encoded.display(), line.display());
     assert_eq!(encoded.holder(), line.holder());
     assert_eq!(encoded.sources(), line.sources());
-    let bound = w::Limits { owner_account_sources: 0, ..limits };
+    let bound = w::Limits { account_sources: 0, ..limits };
     assert_eq!(
         crate::translate::deployment::account(account, &bound),
-        Err(w::Problem { path: w::Path::OwnerAccountSources, reason: skein_codec::Reason::Bound })
+        Err(w::Problem { path: w::Path::AccountSources, reason: skein_codec::Reason::Bound })
     );
 }
 
@@ -203,9 +201,9 @@ fn account_capacity_actions_reach_the_wire() {
     let limits = jig_client_test_records::limits();
     let source = fixtures::deployment_document();
     for (action, expected) in [
-        (A::AccountSignIn, w::OwnerPersonCapacityAction::AccountSignIn),
-        (A::AccountSignOut, w::OwnerPersonCapacityAction::AccountSignOut),
-        (A::AccountChange, w::OwnerPersonCapacityAction::AccountChange),
+        (A::AccountSignIn, w::PersonCapacityAction::AccountSignIn),
+        (A::AccountSignOut, w::PersonCapacityAction::AccountSignOut),
+        (A::AccountChange, w::PersonCapacityAction::AccountChange),
     ] {
         let mut refusal = *source.person_room_refusals.get(0).unwrap();
         refusal.action = action;

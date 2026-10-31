@@ -1,4 +1,4 @@
-//! Explicit start's fixed-time and phase controls (engine.md, 6).
+//! The start's fixed-time and phase controls (engine.md, 6).
 use super::{LIMITS, fixtures};
 use crate::*;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -15,7 +15,7 @@ fn fresh() -> (Domain, Queue<Request>) {
 }
 
 #[test]
-#[should_panic(expected = "people start selected once before input")]
+#[should_panic(expected = "people start begins once before input")]
 fn fresh_timer_input_prevents_late_selection() {
     let (mut domain, mut out) = fresh();
     fire(&mut domain, &env(), &mut out);
@@ -24,7 +24,7 @@ fn fresh_timer_input_prevents_late_selection() {
 }
 
 #[test]
-#[should_panic(expected = "people start selected once before input")]
+#[should_panic(expected = "people start begins once before input")]
 fn ending_seeding_prevents_late_selection() {
     let (mut domain, _) = fresh();
     domain.end_seeding();
@@ -32,7 +32,7 @@ fn ending_seeding_prevents_late_selection() {
 }
 
 #[test]
-#[should_panic(expected = "people start selected once before input")]
+#[should_panic(expected = "people start begins once before input")]
 fn cancelling_absent_moves_prevents_late_selection() {
     let (mut domain, _) = fresh();
     domain.cancel_moves(None);
@@ -40,7 +40,7 @@ fn cancelling_absent_moves_prevents_late_selection() {
 }
 
 #[test]
-#[should_panic(expected = "people start selected once before input")]
+#[should_panic(expected = "people start begins once before input")]
 fn refused_application_part_prevents_late_selection() {
     let (mut domain, _) = fresh();
     assert_eq!(
@@ -51,7 +51,7 @@ fn refused_application_part_prevents_late_selection() {
 }
 
 #[test]
-#[should_panic(expected = "people start selected once before input")]
+#[should_panic(expected = "people start begins once before input")]
 fn completing_absent_application_part_prevents_late_selection() {
     let (mut domain, _) = fresh();
     application_part_done(&mut domain, Token::new(1));
@@ -59,8 +59,8 @@ fn completing_absent_application_part_prevents_late_selection() {
 }
 
 #[test]
-#[should_panic(expected = "people projections require start_project before open")]
-fn resolving_ended_conversation_before_open_requires_start_project() {
+#[should_panic(expected = "people start begins once before input")]
+fn resolving_ended_conversation_prevents_a_late_start() {
     let (mut domain, _) = fresh();
     domain.restore_ended_conversation(1);
     assert!(domain.read_conversations().is_empty());
@@ -72,8 +72,8 @@ fn result_entry() -> ResultRef {
 }
 
 #[test]
-#[should_panic(expected = "people start selected once before input")]
-fn ignored_result_before_ready_prevents_late_selection() {
+#[should_panic(expected = "people start begins once before input")]
+fn absent_result_input_prevents_a_late_start() {
     let (mut domain, _) = fresh();
     domain.remember_result(&LIMITS, 1, result_entry());
     assert_eq!(domain.cached_results(1), None);
@@ -85,7 +85,7 @@ fn ended_mark() -> EndedMark {
 }
 
 #[test]
-#[should_panic(expected = "people start selected once before input")]
+#[should_panic(expected = "people start begins once before input")]
 fn absent_ended_mark_context_prevents_late_selection() {
     let (mut domain, mut out) = fresh();
     domain.mark_ended(&env(), ended_mark(), &mut out);
@@ -96,7 +96,7 @@ fn absent_ended_mark_context_prevents_late_selection() {
 #[test]
 fn observations_and_maintenance_allow_selection() {
     let (mut domain, mut out) = fresh();
-    assert!(!domain.ready());
+    assert!(domain.ready());
     assert_eq!(domain.identity(1), None);
     assert_eq!(domain.person(1, Time::ZERO, Wall::EPOCH), None);
     assert!(!domain.has_project(1));
@@ -116,7 +116,7 @@ fn observations_and_maintenance_allow_selection() {
 }
 
 #[test]
-fn selected_start_preserves_direct_noop_and_refusal_behavior() {
+fn the_start_preserves_direct_noop_and_refusal_behavior() {
     let env = env();
     let (mut domain, mut out) = new_start(&env);
     fire(&mut domain, &env, &mut out);
@@ -560,7 +560,7 @@ fn explicit_start_asserts_each_required_local_link_before_sweep() {
         assert!(result.is_err());
         assert!(out.is_empty(), "link panic erases no row");
     }
-    // A successful historical roster retains its members without equating it with today's roster.
+    // The roster of a successful decision retains its members without equating it with today's roster.
     let env = env();
     let (mut domain, mut out) = new_start(&env);
     load(&mut domain, &env, person(1), &mut out);
@@ -688,7 +688,7 @@ fn explicit_start_nested_representation_bounds_are_exact() {
 }
 
 #[test]
-fn selected_ended_witness_preserves_missing_person_until_link() {
+fn loading_ended_witness_preserves_missing_person_until_link() {
     let env = env();
     let (mut domain, mut out) = new_start(&env);
     load(&mut domain, &env, Stored::ReadConversation { party: 99, task: 7, through: 2 }, &mut out);
@@ -1252,4 +1252,22 @@ fn retained_answer_view_borrows_outcomes_in_key_order() {
     assert_eq!(*outcome, Outcome::Stopped { task: 7 });
     assert_eq!(domain.next_answer(Some(second)), None);
     assert!(out.is_empty());
+}
+
+#[test]
+fn never_started_domain_accepts_roles() {
+    let (mut domain, mut out) = fresh();
+    step(&mut domain, &env(), Event::Roles { project: 1, holdings: Box::new([]) }, &mut out);
+    assert!(domain.ready());
+    assert!(domain.has_project(1));
+}
+
+#[test]
+#[should_panic(expected = "people start begins once before input")]
+fn an_open_start_cannot_begin_again() {
+    let (mut domain, _) = new_start(&env());
+    assert!(domain.start_link(&env()));
+    domain.start_sweep();
+    assert!(domain.start_complete(&env()));
+    domain.start_restore(Wall::EPOCH);
 }

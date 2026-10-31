@@ -23,7 +23,7 @@ pub fn create_ask() -> (w::Ask, p::Ask) {
         }
         let mut expected = expected_role.authority.clone();
         expected.deadline = deadline;
-        let (task, member) = member(role, w::OwnerAuthority::new(&super::wire(), wire).unwrap(), expected);
+        let (task, member) = member(role, w::Authority::new(&super::wire(), wire).unwrap(), expected);
         tasks.push(task).unwrap();
         batch.push(member).unwrap();
     }
@@ -40,33 +40,35 @@ pub fn create_ask() -> (w::Ask, p::Ask) {
         p::Ask::Create { project: PROJECT, batch: batch.into_boxed() },
     )
 }
-fn member(role: bool, authority: w::OwnerAuthority, expected: p::Authority) -> (w::NewTask, p::Member) {
+fn member(role: bool, authority: w::Authority, expected: p::Authority) -> (w::NewTask, p::Member) {
     let l = wire();
-    let dependencies = list([
+    let dependencies = List::from_boxed(Box::new([
         w::TaskRef::Member(w::TaskRefMember::new(&l, w::TaskRefMemberParts { value: 1 }).unwrap()),
         w::TaskRef::Task(w::TaskRefTask::new(&l, w::TaskRefTaskParts { value: u64::MAX }).unwrap()),
-    ]);
+    ]));
     let spec = w::Specification::new(
         &l,
         w::SpecificationParts {
             asks: false,
             words: b"new words".as_slice().into(),
-            parameters: list([w::Parameter::Number(
+            parameters: List::from_boxed(Box::new([w::Parameter::Number(
                 w::ParameterNumber::new(&l, w::ParameterNumberParts { name: 9, value: 12 }).unwrap(),
-            )]),
-            inputs: list([77]),
+            )])),
+            inputs: List::from_boxed(Box::new([77])),
         },
     )
     .unwrap();
     let field = w::FieldRule::new(&l, w::FieldRuleParts { name: b"field".as_slice().into(), max: 13 }).unwrap();
-    let choice =
-        w::VerdictChoice::new(&l, w::VerdictChoiceParts { code: 5, words: 16, followups: 2, fields: list([field]) })
-            .unwrap();
+    let choice = w::VerdictChoice::new(
+        &l,
+        w::VerdictChoiceParts { code: 5, words: 16, followups: 2, fields: List::from_boxed(Box::new([field])) },
+    )
+    .unwrap();
     let executor = if role {
-        w::OwnerExecutor::Person(
-            w::OwnerExecutorPerson::new(
+        w::Executor::Person(
+            w::ExecutorPerson::new(
                 &l,
-                w::OwnerExecutorPersonParts {
+                w::ExecutorPersonParts {
                     value: w::PersonAddress::Role(
                         w::PersonAddressRole::new(&l, w::PersonAddressRoleParts { value: ROLE }).unwrap(),
                     ),
@@ -75,9 +77,7 @@ fn member(role: bool, authority: w::OwnerAuthority, expected: p::Authority) -> (
             .unwrap(),
         )
     } else {
-        w::OwnerExecutor::Agent(
-            w::OwnerExecutorAgent::new(&l, w::OwnerExecutorAgentParts { charter: CHARTER }).unwrap(),
-        )
+        w::Executor::Agent(w::ExecutorAgent::new(&l, w::ExecutorAgentParts { charter: CHARTER }).unwrap())
     };
     let task = w::NewTask::new(
         &l,
@@ -87,7 +87,8 @@ fn member(role: bool, authority: w::OwnerAuthority, expected: p::Authority) -> (
             executor,
             spec,
             contract: w::NewContract::Verdict(
-                w::ContractVerdict::new(&l, w::ContractVerdictParts { choices: list([choice]) }).unwrap(),
+                w::ContractVerdict::new(&l, w::ContractVerdictParts { choices: List::from_boxed(Box::new([choice])) })
+                    .unwrap(),
             ),
             authority: authority.clone(),
             budget: w::NewBudget::AsAllowed(
@@ -169,7 +170,6 @@ pub fn careful_and_quick(l: &w::Limits) -> w::LlmChoice {
     llm_choice(l, b"careful", Some(b"high"), b"quick")
 }
 /// A main model and effort, and one sub-agent model at its default effort, by name.
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub fn llm_choice(l: &w::Limits, main: &[u8], effort: Option<&[u8]>, subagent: &[u8]) -> w::LlmChoice {
     let main = w::ModelEffort::new(
         l,
@@ -183,7 +183,8 @@ pub fn llm_choice(l: &w::Limits, main: &[u8], effort: Option<&[u8]>, subagent: &
     )
     .unwrap();
     let subagent = w::ModelEffort::new(l, w::ModelEffortParts { model: subagent.into(), effort: None }).unwrap();
-    w::LlmChoice::new(l, w::LlmChoiceParts { account: None, main, subagents: list([subagent]) }).unwrap()
+    w::LlmChoice::new(l, w::LlmChoiceParts { account: None, main, subagents: List::from_boxed(Box::new([subagent])) })
+        .unwrap()
 }
 
 pub fn create_refusals() -> [(&'static str, p::Refusal, w::Refusal); 5] {
@@ -243,14 +244,14 @@ pub fn create_refusals() -> [(&'static str, p::Refusal, w::Refusal); 5] {
 }
 pub fn created_outcome() -> w::Outcome {
     let l = wire();
-    w::Outcome::Owner(
-        w::OutcomeOwner::new(
+    w::Outcome::Document(
+        w::OutcomeDocument::new(
             &l,
-            w::OutcomeOwnerParts {
-                value: w::OwnerOutcome::Created(
-                    w::OwnerOutcomeCreated::new(
+            w::OutcomeDocumentParts {
+                value: w::DocumentOutcome::Created(
+                    w::OutcomeCreated::new(
                         &l,
-                        w::OwnerOutcomeCreatedParts {
+                        w::OutcomeCreatedParts {
                             first: FIRST_TASK,
                             last: LAST_TASK,
                             given: Some(

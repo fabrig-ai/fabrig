@@ -4,7 +4,7 @@
 //! knows connector facts or effects. A due step may make one whole batch,
 //! finish after its delegates, hold, or wait for changed facts.
 #![expect(clippy::result_large_err, reason = "bounded owner refusal carries exact capacity diagnostics inline")]
-use crate::domain::{Domain, make, publish, record, refused, task_mut};
+use crate::domain::{Domain, make_admitted, publish, record, task_mut};
 use crate::{
     Active, Closing, Ending, Executor, Limits, Party, Phase, ProcedureDecision, ProcedureEnd, Refusal, Request, Stage,
     TaskResult,
@@ -23,111 +23,26 @@ pub(crate) fn stepped(
     decision: ProcedureDecision,
     out: &mut Queue<Request>,
 ) {
-    let token = to.into_token();
-    let mut requests = Queue::uncapped();
-    apply(domain, env, Fence { to: ReplyTo::new(token), number, step, read }, decision, &mut requests);
-    let mut terminal = false;
-    for _ in 0..requests.len() {
-        let request = requests.pop().expect("step output count");
-        if let Request::Done { .. } | Request::Sent { .. } = &request {
-            continue;
-        }
-        if let Request::Refused { problem, .. } = request {
-            terminal = true;
-            out.push(Request::ProcedureRefused { task: number, step, problem });
-        } else {
-            if let Request::Made { .. } = &request {
-                terminal = true;
-            }
-            out.push(request);
-        }
+    if let Err(problem) = fence(domain, number, step, read) {
+        return out.push(Request::ProcedureRefused { task: number, step, problem });
     }
-    if !terminal {
-        out.push(Request::Done { reply_to: ReplyTo::new(token) });
-    }
-}
-
-struct Fence {
-    to: ReplyTo,
-    number: u64,
-    step: u64,
-    read: Option<u64>,
-}
-
-fn apply(domain: &mut Domain, env: &Env<Limits>, fence: Fence, decision: ProcedureDecision, out: &mut Queue<Request>) {
-    let Fence { to, number, step, read } = fence;
-    if !domain.ready() {
-        return refused(to, Some(number), Refusal::NotReady, out);
-    }
-    let Some(task) = record(domain, number) else {
-        return refused(to, Some(number), Refusal::Unknown, out);
+    let staged = match check(domain, env, number, step, read, &decision) {
+        Ok(staged) => staged,
+        Err(problem) => return out.push(Request::ProcedureRefused { task: number, step, problem }),
     };
-    match task.executor {
-        Executor::Procedure { .. } => {}
-        Executor::Agent { .. } | Executor::Person(_) => return refused(to, Some(number), Refusal::Executor, out),
-    }
-    if task.phase != Phase::Active(Active::Due) || task.attempt.checked_add(1) != Some(step) {
-        return refused(to, Some(number), Refusal::Attempt, out);
-    }
-    if read != domain.procedure_offered(number) {
-        return refused(to, Some(number), Refusal::Read, out);
-    }
-    if let Err(problem) = check(domain, env, number, &decision) {
-        return crate::capacity::refused(domain, env, to, problem, out);
-    }
     crate::inbox::keep_refusals(domain, number, &[]);
     let live = task_mut(domain, number).expect("procedure step preflighted");
     live.record.attempt = step;
     crate::inbox::take(&mut live.record, read);
     live.procedure_offered = None;
     task_mut(domain, number).expect("procedure task live").record.phase = Phase::Active(Active::Idle);
-    let made = !decision.batch.is_empty();
-    if made {
-        make(domain, env, to, Party::Task(number), decision.batch, out);
-    }
-    for part in decision.amendments {
-        crate::control::amend(
-            domain,
-            env,
-            ReplyTo::new(skein_lib::Token::new(u64::MAX - 1)),
-            Party::Task(number),
-            crate::control::Amend {
-                places: Box::new([]),
-                number: part.task,
-                message: part.message,
-                stop_run: part.stop_run,
-                funder: None,
-                amendment: part.amendment,
-            },
-            out,
-        );
-    }
-    let project = record(domain, number).expect("procedure task live").project;
-    for part in decision.messages {
-        crate::inbox::message(
-            domain,
-            env,
-            ReplyTo::new(skein_lib::Token::new(u64::MAX - 1)),
-            project,
-            part.task,
-            part.word,
-            false,
-            out,
-        );
-    }
-    for proposal in decision.proposals {
-        crate::proposals::propose(domain, env, ReplyTo::new(skein_lib::Token::new(u64::MAX - 1)), proposal, out);
-    }
-    for part in decision.cancels {
-        crate::control::apply(
-            domain,
-            env,
-            ReplyTo::new(skein_lib::Token::new(u64::MAX - 1)),
-            Party::Task(number),
-            part.task,
-            crate::Control::Cancel { reason: part.reason, grace: part.grace, message: part.message },
-            out,
-        );
+    let numbers = if decision.batch.is_empty() {
+        None
+    } else {
+        Some(make_admitted(domain, env, Party::Task(number), decision.batch, out))
+    };
+    for plan in staged.plans.into_boxed() {
+        crate::compound::apply(domain, env, Party::Task(number), plan, out);
     }
     match decision.end {
         ProcedureEnd::Result(result) => {
@@ -147,6 +62,28 @@ fn apply(domain: &mut Domain, env: &Env<Limits>, fence: Fence, decision: Procedu
         ProcedureEnd::Wait => publish(domain, env, number, out),
     }
     crate::wake::after_step(domain, env, number, out);
+    match numbers {
+        Some(tasks) => out.push(Request::Made { reply_to: to, tasks }),
+        None => out.push(Request::Done { reply_to: to }),
+    }
+}
+
+fn fence(domain: &Domain, number: u64, step: u64, read: Option<u64>) -> Result<(), crate::Problem> {
+    if !domain.ready() {
+        return Err(problem(number, Refusal::NotReady));
+    }
+    let task = record(domain, number).ok_or(problem(number, Refusal::Unknown))?;
+    match task.executor {
+        Executor::Procedure { .. } => {}
+        Executor::Agent { .. } | Executor::Person(_) => return Err(problem(number, Refusal::Executor)),
+    }
+    if task.phase != Phase::Active(Active::Due) || task.attempt.checked_add(1) != Some(step) {
+        return Err(problem(number, Refusal::Attempt));
+    }
+    if read != domain.procedure_offered(number) {
+        return Err(problem(number, Refusal::Read));
+    }
+    Ok(())
 }
 
 fn problem(task: u64, why: Refusal) -> crate::Problem {
@@ -154,15 +91,17 @@ fn problem(task: u64, why: Refusal) -> crate::Problem {
 }
 
 fn check(
-    domain: &mut Domain,
+    domain: &Domain,
     env: &Env<Limits>,
     number: u64,
+    step: u64,
+    read: Option<u64>,
     decision: &ProcedureDecision,
-) -> Result<(), crate::Problem> {
+) -> Result<crate::compound::Staged, crate::Problem> {
     let task = record(domain, number).expect("step task checked");
-    if decision.cancels.len() > usize::try_from(env.limits.batch).expect("batch fits")
-        || decision.amendments.len() > usize::try_from(env.limits.batch).expect("batch fits")
-        || decision.messages.len() > usize::try_from(env.limits.batch).expect("batch fits")
+    if decision.cancels.len() > skein_lib::length::usize_of(env.limits.batch)
+        || decision.amendments.len() > skein_lib::length::usize_of(env.limits.batch)
+        || decision.messages.len() > skein_lib::length::usize_of(env.limits.batch)
         || decision.proposals.len() > 1
     {
         return Err(problem(number, Refusal::Batch));
@@ -189,79 +128,86 @@ fn check(
     if !decision.batch.is_empty() {
         crate::batch::check(domain, &env.limits, Party::Task(number), &decision.batch)?;
     }
-    // Stage only the admission fields; no lifecycle, timer, history or output changes escape preflight.
-    let mut rows = skein_lib::List::with_capacity(env.limits.tasks);
-    for (number, _) in &domain.names {
-        rows.push((*number, record(domain, *number).expect("live task").clone())).expect("bounded preview");
+    let bound = env.limits.tasks.max(env.limits.batch.saturating_mul(3).saturating_add(1));
+    let mut staged = crate::compound::Staged::new(bound);
+    let mut parent = task.clone();
+    parent.attempt = step;
+    parent.phase = Phase::Active(Active::Idle);
+    crate::inbox::take(&mut parent, read);
+    let mut delegates = skein_lib::List::with_capacity(env.limits.delegates);
+    for child in &parent.delegates {
+        delegates.push(*child).expect("bounded delegates");
     }
-    let mut funding = skein_lib::List::with_capacity(env.limits.funders);
-    for (funder, row) in &domain.funding {
-        funding.push((*funder, row.numbers)).expect("bounded funding preview");
+    for member in &decision.batch {
+        delegates.push(member.number).expect("batch checked");
+        staged.batch_members.push((member.number, member.executor)).expect("admitted batch bound");
+        staged.batch_goals = staged.batch_goals.checked_add(u32::from(member.tracked.is_some())).expect("batch bound");
+        let mut numbers = match staged.funding_numbers(member.funder) {
+            Some(numbers) => numbers,
+            None => staged.numbers(domain, member.funder).expect("batch funder checked"),
+        };
+        numbers.reserved = numbers.reserved.checked_add(member.numbers.budget).expect("batch checked");
+        staged.funding.push((member.funder, numbers)).expect("batch bound");
     }
-    let result = check_parts(domain, env, number, decision);
-    for (number, row) in rows.into_boxed() {
-        task_mut(domain, number).expect("preview keeps live tasks").record = row;
-    }
-    for (funder, numbers) in funding.into_boxed() {
-        domain.funding.get_mut(&funder).expect("preview keeps funders").numbers = numbers;
-    }
-    result
+    parent.delegates = delegates.into_boxed();
+    staged.rows.push(parent).expect("one procedure projection");
+    check_parts(domain, &mut staged, env, number, decision)?;
+    Ok(staged)
 }
 
 fn check_parts(
-    domain: &mut Domain,
+    domain: &Domain,
+    staged: &mut crate::compound::Staged,
     env: &Env<Limits>,
     number: u64,
     decision: &ProcedureDecision,
 ) -> Result<(), crate::Problem> {
     let project = record(domain, number).expect("step task checked").project;
-    let parent = &mut task_mut(domain, number).expect("step task checked").record;
-    let mut delegates = skein_lib::List::with_capacity(env.limits.delegates);
-    let mut goals = 0_u32;
-    for task in &parent.delegates {
-        delegates.push(*task).expect("bounded delegates");
-    }
-    for task in &decision.batch {
-        if task.tracked.is_some() {
-            goals = goals.checked_add(1).expect("batch fits u32");
-        }
-        delegates.push(task.number).expect("batch preflighted");
-        parent.numbers.reserved = parent.numbers.reserved.checked_add(task.numbers.budget).expect("batch preflighted");
-    }
-    parent.delegates = delegates.into_boxed();
     for part in &decision.amendments {
-        if let Err(problem) = crate::control::preview_amend(domain, env, Party::Task(number), part) {
-            return Err(*problem);
-        }
-        if let Err(why) = crate::goals::room(domain, project, goals, &env.limits) {
-            return Err(problem(part.task, why));
-        }
+        let plan = match crate::control::check_amend(
+            domain,
+            staged,
+            env,
+            Party::Task(number),
+            crate::control::Amend {
+                places: Box::new([]),
+                number: part.task,
+                message: part.message,
+                stop_run: part.stop_run,
+                funder: None,
+                amendment: part.amendment.clone(),
+            },
+        ) {
+            Ok(plan) => crate::compound::Plan::Amend(Box::new(plan)),
+            Err(problem) => return Err(*problem),
+        };
+        retain(domain, staged, env, plan)?;
     }
     for part in &decision.messages {
         if part.word.from != Party::Task(number) {
             return Err(problem(part.task, Refusal::Reference));
         }
-        crate::inbox::preview_message(domain, env, project, part.task, part.word.clone())?;
+        let plan = match crate::inbox::check_message(
+            domain,
+            staged,
+            env,
+            crate::inbox::Message { project, number: part.task, word: part.word.clone(), authorized: false },
+        ) {
+            Ok(plan) => crate::compound::Plan::Message(Box::new(plan)),
+            Err(problem) => return Err(*problem),
+        };
+        retain(domain, staged, env, plan)?;
     }
     for proposal in &decision.proposals {
         if proposal.proposer != number {
             return Err(problem(number, Refusal::Reference));
         }
-        if let Some(problem) = crate::proposals::admission_problem(domain, &env.limits, proposal) {
+        if let Some(problem) = crate::proposals::admission_problem_staged(domain, staged, &env.limits, proposal) {
             return Err(problem);
         }
+        retain(domain, staged, env, crate::compound::Plan::Proposal(Box::new(proposal.clone())))?;
     }
-    check_cancels(domain, env, number, &decision.cancels)
-}
-
-fn check_cancels(
-    domain: &Domain,
-    env: &Env<Limits>,
-    number: u64,
-    cancels: &[crate::ProcedureCancel],
-) -> Result<(), crate::Problem> {
-    let mut staged = crate::compound::Staged::new(env.limits.tasks);
-    for part in cancels {
+    for part in &decision.cancels {
         if record(domain, part.task).is_none() {
             return Err(problem(part.task, Refusal::Unknown));
         }
@@ -273,7 +219,7 @@ fn check_cancels(
         }
         let plan = match crate::control::check_cancel(
             domain,
-            &staged,
+            staged,
             env,
             Party::Task(number),
             crate::control::Cancel {
@@ -283,12 +229,24 @@ fn check_cancels(
                 message: part.message,
             },
         ) {
-            Ok(plan) => plan,
+            Ok(plan) => crate::compound::Plan::Cancel(Box::new(plan)),
             Err(problem) => return Err(*problem),
         };
-        let plan = crate::compound::Plan::Cancel(Box::new(plan));
-        staged.after(domain, &env.limits, &plan);
-        assert!(staged.plans.push(plan).is_ok(), "cancel batch bounded");
+        retain(domain, staged, env, plan)?;
     }
+    Ok(())
+}
+
+fn retain(
+    domain: &Domain,
+    staged: &mut crate::compound::Staged,
+    env: &Env<Limits>,
+    plan: crate::compound::Plan,
+) -> Result<(), crate::Problem> {
+    if let Err(problem) = staged.check_placed_change(&plan) {
+        return Err(*problem);
+    }
+    staged.after(domain, &env.limits, &plan);
+    assert!(staged.plans.push(plan).is_ok(), "bounded procedure parts");
     Ok(())
 }

@@ -25,7 +25,6 @@ pub struct View {
     infrastructure: Bindings,
     limits: Limits,
     project: u32,
-    native_environments: bool,
 }
 impl View {
     #[must_use]
@@ -42,21 +41,18 @@ impl View {
                 && infrastructure_words.connector == jig_ops_domain_connectors::number(Connector::Infrastructure),
             "phrasebooks belong to their connector owners"
         );
-        assert!(
-            crate::valid(limits, domain, &words, &observability_words, &infrastructure_words),
-            "view capacities are checked"
-        );
+        assert!(crate::valid(&words, &observability_words, &infrastructure_words), "view capacities are checked");
         Self {
             render: skein_ui::View::new(&limits.tree),
-            jig: JigBindings::new(limits.tree.bindings, domain.jig.text),
+            jig: JigBindings::new(limits.tree.bindings, domain.client.domain.text),
             observability: Bindings::new(
                 limits.tree.bindings,
-                domain.observability.text,
+                domain.client.domain.text,
                 jig_ops_domain_connectors::number(Connector::Observability),
             ),
             infrastructure: Bindings::new(
                 limits.tree.bindings,
-                domain.infrastructure.text,
+                domain.client.domain.text,
                 jig_ops_domain_connectors::number(Connector::Infrastructure),
             ),
             words,
@@ -64,13 +60,9 @@ impl View {
             infrastructure_words,
             limits: *limits,
             project,
-            native_environments: false,
         }
     }
-    /// Select the native owner environment vocabulary before building a tree.
-    pub fn native_environments(&mut self) {
-        self.native_environments = true;
-    }
+    /// The current public tree.
     #[must_use]
     pub fn tree(&self) -> &Tree {
         self.render.tree()
@@ -172,7 +164,6 @@ pub fn build(view: &mut View, root: &Domain, out: &mut Queue<Patch>) {
                             infrastructure::navigation(
                                 &mut fragment,
                                 view.project,
-                                view.native_environments,
                                 &view.infrastructure_words,
                                 &mut view.infrastructure,
                             );
@@ -264,7 +255,10 @@ fn task_page(
     b.close();
     jig_client_view::after_page(b, client, words, bindings);
 }
-fn infrastructure_part(bindings: &JigBindings, token: skein_lib::Token) -> Option<jig_client::contract::Part> {
+fn infrastructure_part(
+    bindings: &JigBindings,
+    token: skein_lib::Token,
+) -> Option<jig_client::contract::ApplicationPart> {
     match bindings.part(token) {
         Some(part) => Some(part.clone()),
         None => match bindings.owner_part(token) {
@@ -274,7 +268,6 @@ fn infrastructure_part(bindings: &JigBindings, token: skein_lib::Token) -> Optio
     }
 }
 #[must_use]
-#[expect(clippy::manual_map, reason = "step code explicitly wraps the owner action")]
 pub fn decode(view: &mut View, node: NodeId, act: Act) -> Option<Action> {
     let bound = view.render.act(node, act)?;
     match Owner::from_opaque(bound.binding.owner) {

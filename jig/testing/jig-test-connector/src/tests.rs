@@ -723,7 +723,7 @@ fn restored_outboxes_wait_for_the_scripted_settlement() {
             record: Record::Outbox(crate::OutboxEntry {
                 number: 1,
                 task: 4,
-                key: crate::Key { attempt: 0, completion: 0, position: 0, deployment: [1; 16], task: 4, purpose: 1 },
+                key: crate::Key { origin: crate::Purpose::Procedure, deployment: [1; 16], task: 4, purpose: 1 },
                 effect: crate::Effect {
                     kind: 1,
                     resources: Box::new([]),

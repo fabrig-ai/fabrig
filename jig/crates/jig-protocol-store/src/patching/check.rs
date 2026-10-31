@@ -9,7 +9,7 @@ use jig_domain_core::RestoreRange;
 use skein_io::{file, kernel::Kind};
 use skein_lib::{List, Token};
 
-/// B1's manifest order is the supplied sets' order, then their families'.
+/// The manifest order is the supplied sets' order, then their families'.
 #[derive(Debug)]
 pub(crate) struct Counted {
     pub owner: Owner,
@@ -240,7 +240,7 @@ pub(crate) fn up(checking: &mut Checking, arrived: Arrived, below: &mut Below) -
         }
         Step::Listing => {
             let file::Event::Listed { entries, .. } = arrived.event else { return Err(OpenRefusal::Failed) };
-            checking.last = entries.len() < usize::try_from(PAGE).expect("PAGE fits usize");
+            checking.last = entries.len() < skein_lib::length::usize_of(PAGE);
             checking.entries = entries;
             checking.next = 0;
             next(checking, below);

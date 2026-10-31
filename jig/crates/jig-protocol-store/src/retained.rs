@@ -14,14 +14,10 @@ impl Store {
     pub fn retained_page(&mut self, after: Option<&[u8]>, rows: u32, bytes: u64) -> Result<Page, Failure> {
         restore::ready(self)?;
         if let Some(after) = after
-            && after.len() > usize::try_from(self.limits.store.key).expect("map key allowance fits usize")
+            && after.len() > skein_lib::length::usize_of(self.limits.store.key)
         {
             return Err(Failure::rowless(Cause::Range(restore::RangeFailure::Cursor)));
         }
-        #[expect(
-            clippy::manual_map,
-            reason = "step code translates optional cursors without closures or function pointers"
-        )]
         let cursor = match after {
             Some(after) => Some(Cursor { interval: 0, after: Box::from(after) }),
             None => None,

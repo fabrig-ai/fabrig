@@ -20,14 +20,11 @@ use skein_lib::Writer;
 pub enum Part<'a> {
     Me(&'a contract::Me),
     Inbox(&'a contract::Inbox),
-    OwnerInbox(&'a contract::OwnerInbox),
     InboxPage(&'a contract::InboxPage),
-    OwnerInboxPage(&'a contract::OwnerInboxPage),
     Tasks(&'a contract::Tasks),
     TaskPage(&'a contract::TaskPage),
     Task(&'a contract::Task),
     Tree(&'a contract::Tree),
-    OwnerTree(&'a contract::OwnerTree),
     Run(&'a contract::RunText),
     RunState(&'a contract::RunState),
 }
@@ -36,56 +33,48 @@ impl<'a> Part<'a> {
     pub fn read(value: &'a ReadValue) -> Option<Self> {
         match value {
             ReadValue::Inbox(value) => Some(Self::InboxPage(value)),
-            ReadValue::OwnerInbox(value) => Some(Self::OwnerInboxPage(value)),
             ReadValue::Tasks(value) => Some(Self::TaskPage(value)),
             ReadValue::Task(value) => Some(Self::Task(value)),
-            ReadValue::Historical(value) => Some(Self::Task(historical_task(value)?.0)),
+            ReadValue::Ended(value) => Some(Self::Task(ended_task(value)?.0)),
             ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
             | ReadValue::Revisions(_)
-            | ReadValue::OwnerProject(_)
+            | ReadValue::Project(_)
             | ReadValue::Me(_)
             | ReadValue::Turn(_)
             | ReadValue::Proposal(_)
-            | ReadValue::OwnerProposal(_)
             | ReadValue::Escalation(_)
-            | ReadValue::OwnerEscalation(_)
             | ReadValue::Question(_)
             | ReadValue::PersonTask(_)
-            | ReadValue::OwnerPersonTask(_)
             | ReadValue::Result(_)
-            | ReadValue::Ended(_)
-            | ReadValue::OwnerEnded(_)
+            | ReadValue::EndedPage(_)
             | ReadValue::History(_)
             | ReadValue::Activity(_)
             | ReadValue::Spend(_)
-            | ReadValue::OwnerSpend(_)
-            | ReadValue::Project(_)
             | ReadValue::Notes(_)
-            | ReadValue::Deployment(_)
-            | ReadValue::OwnerDeployment(_) => None,
+            | ReadValue::Deployment(_) => None,
         }
     }
     #[must_use]
     pub fn delivery(delivery: &'a Delivery) -> Option<Self> {
         match delivery {
             Delivery::Me(value) => Some(Self::Me(value)),
+
             Delivery::Inbox(value) => Some(Self::Inbox(value)),
-            Delivery::OwnerInbox(value) => Some(Self::OwnerInbox(value)),
             Delivery::Tasks(value) => Some(Self::Tasks(value)),
             Delivery::Task(value) => Some(Self::Task(value)),
+
             Delivery::Tree(value) => Some(Self::Tree(value)),
-            Delivery::OwnerTree(value) => Some(Self::OwnerTree(value)),
+
             Delivery::Run(value) => Some(Self::Run(value)),
             Delivery::RunState(value) => Some(Self::RunState(value)),
-            Delivery::OwnerProject(_)
-            | Delivery::OwnerProposal(_)
+            Delivery::Project(_)
+            | Delivery::Proposal(_)
             | Delivery::Chips(_)
             | Delivery::Settings(_)
             | Delivery::Deployment(_)
-            | Delivery::OwnerDeployment(_)
-            | Delivery::OwnerAccounts(_) => None,
+            | Delivery::Accounts(_) => None,
         }
     }
 }
@@ -108,21 +97,21 @@ pub(crate) fn read_task(value: &ReadValue) -> Option<(&contract::Task, Option<&c
     if let ReadValue::Task(task) = value {
         return Some((task, None));
     }
-    if let ReadValue::Historical(value) = value {
-        return match historical_task(value) {
+    if let ReadValue::Ended(value) = value {
+        return match ended_task(value) {
             Some((task, result)) => Some((task, Some(result))),
             None => None,
         };
     }
     None
 }
-pub(crate) fn historical_proposal(value: &contract::OwnerHistorical) -> Option<contract::ProposalKey> {
+pub(crate) fn ended_proposal(value: &contract::Ended) -> Option<contract::ProposalKey> {
     match &value.value {
-        contract::OwnerHistoricalValue::Proposal(_) | contract::OwnerHistoricalValue::PersonProposal { .. } => {}
-        contract::OwnerHistoricalValue::Task { .. }
-        | contract::OwnerHistoricalValue::Escalation { .. }
-        | contract::OwnerHistoricalValue::Question { .. }
-        | contract::OwnerHistoricalValue::PersonTask { .. } => return None,
+        contract::EndedValue::Proposal(_) | contract::EndedValue::PersonProposal { .. } => {}
+        contract::EndedValue::Task { .. }
+        | contract::EndedValue::Escalation { .. }
+        | contract::EndedValue::Question { .. }
+        | contract::EndedValue::PersonTask { .. } => return None,
     }
     if let contract::ObjectKey::Proposal(key) = value.key
         && value.matches(value.key)
@@ -131,14 +120,14 @@ pub(crate) fn historical_proposal(value: &contract::OwnerHistorical) -> Option<c
     }
     None
 }
-fn proposal_matches_call(value: &contract::OwnerHistorical, call: &crate::jig::call::Call) -> bool {
+fn proposal_matches_call(value: &contract::Ended, call: &crate::jig::call::Call) -> bool {
     if let Some(crate::jig::call::Value::Proposal(key)) = crate::jig::call::value(call, 0) {
         return value.matches(contract::ObjectKey::Proposal(*key));
     }
     false
 }
-pub(crate) fn historical_task(value: &contract::OwnerHistorical) -> Option<(&contract::Task, &contract::Result)> {
-    if let contract::OwnerHistoricalValue::Task { document, result } = &value.value
+pub(crate) fn ended_task(value: &contract::Ended) -> Option<(&contract::Task, &contract::Result)> {
+    if let contract::EndedValue::Task { document, result } = &value.value
         && value.matches(contract::ObjectKey::Task(document.chip.task))
     {
         return Some((document, result));
@@ -149,14 +138,13 @@ impl Part<'_> {
     #[must_use]
     pub fn rows(&self) -> usize {
         let rows = match self {
-            Self::Inbox(value) => value.entries.len(),
-            Self::OwnerInbox(value) => value.needs.len().checked_add(value.updates.len()).expect("bounded inbox"),
+            Self::Inbox(value) => value.needs.len().checked_add(value.updates.len()).expect("bounded inbox"),
+
             Self::InboxPage(value) => value.rows.len(),
-            Self::OwnerInboxPage(value) => value.rows.len(),
             Self::Tasks(value) => value.rows.len(),
             Self::TaskPage(value) => value.live.len(),
-            Self::Tree(value) => value.nodes.len(),
-            Self::OwnerTree(value) => value.rows.len(),
+
+            Self::Tree(value) => value.rows.len(),
             Self::Me(_) | Self::Task(_) | Self::Run(_) | Self::RunState(_) => 1,
         };
         usize::try_from(rows).expect("row count fits")
@@ -164,14 +152,13 @@ impl Part<'_> {
     #[must_use]
     pub fn more(&self) -> bool {
         match self {
-            Self::Inbox(value) => value.more,
-            Self::OwnerInbox(value) => value.next.is_some(),
+            Self::Inbox(value) => value.next.is_some(),
+
             Self::InboxPage(value) => value.after.is_some(),
-            Self::OwnerInboxPage(value) => value.after.is_some(),
             Self::Tasks(value) => value.more,
             Self::TaskPage(value) => value.live_after.is_some(),
-            Self::OwnerTree(value) => value.next.is_some(),
-            Self::Me(_) | Self::Task(_) | Self::Tree(_) | Self::Run(_) | Self::RunState(_) => false,
+            Self::Tree(value) => value.next.is_some(),
+            Self::Me(_) | Self::Task(_) | Self::Run(_) | Self::RunState(_) => false,
         }
     }
 }
@@ -185,10 +172,10 @@ pub trait Parts: core::fmt::Debug {
         None
     }
     fn task_next(&self, task: &contract::Task, out: &mut Text);
-    fn owner_part(&self, part: &contract::OwnerPart, out: &mut Text);
-    fn part(&self, part: &contract::Part, out: &mut Text);
+    fn owner_part(&self, part: &contract::Part, out: &mut Text);
+    fn part(&self, part: &contract::ApplicationPart, out: &mut Text);
     fn change_kind(&self, connector: u16, kind: u16, out: &mut Text);
-    fn change(&self, kind: u16, part: &contract::OwnerPart, words: &contract::DocumentText, out: &mut Text);
+    fn change(&self, kind: u16, part: &contract::Part, words: &contract::DocumentText, out: &mut Text);
 }
 /// A bounded text result; only free text is cut, never identities or authority.
 pub use settings_form::{Text, text_end};
@@ -255,8 +242,8 @@ pub fn read(
             };
             document::print(document::Document::Task(task, party), json, limits, vocabulary)
         }
-        Readout::Jig(ReadResult::Value(ReadValue::Historical(value))) if historical_task(value).is_some() => {
-            let (task, result) = historical_task(value).expect("matched historical task");
+        Readout::Jig(ReadResult::Value(ReadValue::Ended(value))) if ended_task(value).is_some() => {
+            let (task, result) = ended_task(value).expect("matched ended task");
             let party = match client.document(me) {
                 Some(document) => match document.latest {
                     Some(Latest::Jig(Delivery::Me(me))) => Some(me.as_ref()),
@@ -264,7 +251,7 @@ pub fn read(
                 },
                 None => None,
             };
-            document::print(document::Document::HistoricalTask(task, result, party), json, limits, vocabulary)
+            document::print(document::Document::EndedTask(task, result, party), json, limits, vocabulary)
         }
         Readout::Jig(ReadResult::None(why)) => {
             let (reason, status): (&[u8], u8) = match why {
@@ -344,11 +331,11 @@ pub(crate) fn reads(
         if !current {
             return failure(b"me is not current", reading.called.json, 1);
         }
-        let Some(Delivery::OwnerAccounts(accounts)) = reading.documents.get(&3) else {
+        let Some(Delivery::Accounts(accounts)) = reading.documents.get(&3) else {
             return failure(b"accounts document missing", reading.called.json, 1);
         };
         let deployment = match reading.documents.get(&4) {
-            Some(Delivery::OwnerDeployment(value)) => Some(value.as_ref()),
+            Some(Delivery::Deployment(value)) => Some(value.as_ref()),
             _ => None,
         };
         let models = if reading.called.call.tool == 23 {
@@ -381,10 +368,9 @@ pub(crate) fn reads(
 
 fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) -> Result<(), ()> {
     match (call.tool, local, value) {
-        (crate::jig::rows::PROJECT_SHOW_AT | crate::jig::rows::PROJECT_FUND_AT, 1, ReadValue::OwnerProject(_)) => {
-            Ok(())
-        }
-        (1, _, ReadValue::Inbox(_) | ReadValue::OwnerInbox(_))
+        (1, _, ReadValue::Inbox(_))
+        | (crate::jig::rows::PROPOSAL_AT, 1, ReadValue::Proposal(_))
+        | (crate::jig::rows::PROJECT_SHOW_AT | crate::jig::rows::PROJECT_FUND_AT, 1, ReadValue::Project(_))
         | (2, 1, ReadValue::Tasks(_))
         | (3, 1, ReadValue::Task(_))
         | (3, 2, ReadValue::Activity(_))
@@ -393,11 +379,10 @@ fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) 
         | (crate::jig::rows::SETTINGS_AT, 1, ReadValue::Settings(_))
         | (crate::jig::rows::SETTING_AT, 1, ReadValue::Setting(_))
         | (crate::jig::rows::REVISION_AT, 1, ReadValue::Revision(_))
-        | (crate::jig::rows::REVISIONS_AT, 1, ReadValue::Revisions(_))
-        | (crate::jig::rows::PROPOSAL_AT, 1, ReadValue::Proposal(_) | ReadValue::OwnerProposal(_)) => Ok(()),
-        (3, 1, ReadValue::Historical(value)) if historical_task(value).is_some() => Ok(()),
-        (crate::jig::rows::PROPOSAL_AT, 1, ReadValue::Historical(value))
-            if historical_proposal(value).is_some() && proposal_matches_call(value, call) =>
+        | (crate::jig::rows::REVISIONS_AT, 1, ReadValue::Revisions(_)) => Ok(()),
+        (3, 1, ReadValue::Ended(value)) if ended_task(value).is_some() => Ok(()),
+        (crate::jig::rows::PROPOSAL_AT, 1, ReadValue::Ended(value))
+            if ended_proposal(value).is_some() && proposal_matches_call(value, call) =>
         {
             Ok(())
         }

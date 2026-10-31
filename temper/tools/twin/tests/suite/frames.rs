@@ -50,8 +50,8 @@ fn fixture(tasks: &[u64]) -> (Scratch, Input) {
         Input { data: scratch.path().into(), base: base(), takes: takes.into_boxed_slice(), replaces: Box::new([]) };
     (scratch, input)
 }
-fn limits() -> codec::Limits {
-    codec::Limits {
+fn limits() -> codec::View {
+    codec::View {
         settings: store::settings_v1::CEILINGS,
         core: store::core_v6::CEILINGS,
         tasks: store::tasks_v9::CEILINGS,

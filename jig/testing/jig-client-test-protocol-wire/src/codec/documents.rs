@@ -9,7 +9,6 @@ use super::parts::{
     encode_diagnostic_availability, encode_effect, encode_outbox_entry, encode_procedure_state,
 };
 use super::{Undecodable, d, w};
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn encode_client_document(value: &d::ClientDocument) -> w::ClientDocument {
     match value {
         d::ClientDocument::Object { object, now } => w::ClientDocument::Object(
@@ -102,7 +101,6 @@ pub(super) fn encode_client_document(value: &d::ClientDocument) -> w::ClientDocu
         }
     }
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn decode_client_document(
     value: w::ClientDocument,
     limits: &d::Limits,

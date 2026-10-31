@@ -108,11 +108,7 @@ pub fn message_kind(source: &domain::MessageKind, limits: &wire::Limits) -> Resu
         domain::MessageKind::Proposal { proposer, proposal, kind } => {
             wire::MessageKind::Proposal(wire::ProposalMessage::new(
                 limits,
-                wire::ProposalMessageParts {
-                    proposer: *proposer,
-                    proposal: *proposal,
-                    kind: proposals::kind(kind, limits)?,
-                },
+                wire::ProposalMessageParts { proposer: *proposer, proposal: *proposal, kind: proposals::kind(kind)? },
             )?)
         }
         domain::MessageKind::PersonStalled { task } => wire::MessageKind::PersonStalled(wire::StalledMessage::new(
@@ -199,7 +195,7 @@ pub fn read_message_kind(
         }
         wire::MessageKind::Proposal(source) => {
             let wire::ProposalMessageParts { proposer, proposal, kind } = source.into_parts();
-            domain::MessageKind::Proposal { proposer, proposal, kind: proposals::read_kind(kind, limits)? }
+            domain::MessageKind::Proposal { proposer, proposal, kind: proposals::read_kind(kind)? }
         }
         wire::MessageKind::PersonStalled(source) => {
             let wire::StalledMessageParts { task } = source.into_parts();
@@ -305,7 +301,7 @@ pub fn end_kind(source: &domain::EndKind, limits: &wire::Limits) -> Result<wire:
     })
 }
 /// Read `EndKind` from its durable value.
-pub fn read_end_kind(source: wire::EndKind, _limits: &wire::Limits) -> Result<domain::EndKind, wire::Problem> {
+pub fn read_end_kind(source: wire::EndKind) -> Result<domain::EndKind, wire::Problem> {
     Ok(match source {
         wire::EndKind::Parked => domain::EndKind::Parked,
         wire::EndKind::Finished => domain::EndKind::Finished,
@@ -392,7 +388,7 @@ pub fn read_line(source: wire::Line, limits: &wire::Limits) -> Result<domain::Li
         }
         wire::Line::RunEnded(source) => {
             let wire::EndedLineParts { attempt, end, spent } = source.into_parts();
-            domain::Line::RunEnded { attempt, end: read_end_kind(end, limits)?, spent }
+            domain::Line::RunEnded { attempt, end: read_end_kind(end)?, spent }
         }
         wire::Line::Turn(source) => {
             let wire::TurnLineParts { reply, attempt, turn, read } = source.into_parts();

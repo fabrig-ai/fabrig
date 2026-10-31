@@ -50,7 +50,7 @@ pub(crate) fn party_ask(peers: &crate::Neighbours, key: u8, ask: people::Ask) ->
 
 fn effect(world: &mut World, completion: u32, proposal: bool) {
     let (task, attempt) = parent(world);
-    let mut effect = jig_core_world::effects::World::effect();
+    let mut effect = jig_core_world::world::World::effect();
     if world.peers.scenario == Some(Scenario::OtherHand) {
         effect.condition = Some(0);
     }
@@ -281,7 +281,7 @@ impl Continuation {
                                     parameters: Box::new([]),
                                     inputs: Box::new([]),
                                 }),
-                                ..jig_core_world::fixtures::person_unchanged(b"party evidence")
+                                ..jig_test_profile::fixtures::person_unchanged(b"party evidence")
                             },
                         },
                     );
@@ -407,7 +407,7 @@ impl Continuation {
                 },
                 Action::FinishHolder(index) => {
                     if self.phase == 0 {
-                        self.task = world.peers.children[usize::try_from(index).expect("three holders")];
+                        self.task = world.peers.children[skein_lib::length::usize_of(index)];
                         self.phase = 1;
                     }
                     if self.phase < 4 && self.wake(world) {

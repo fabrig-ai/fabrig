@@ -103,12 +103,14 @@ pub(super) fn activity_answer(nonempty: bool) -> Box<[u8]> {
     let event = w::Activity::RunBegan(
         w::ActivityRunBegan::new(
             &w::CEILINGS,
-            w::ActivityRunBeganParts { attempt: RUN, how: w::RunBeginning::Resumed, why: Box::default() },
+            w::ActivityRunBeganParts { attempt: RUN, why: w::RunWhy::Made, resumed: true },
         )
         .expect("run marker"),
     );
-    let row =
-        w::ActivityLine::new(&w::CEILINGS, w::ActivityLineParts { position: 1, at: 1, event }).expect("activity row");
+    let source = w::ActivityLine::new(&w::CEILINGS, w::ActivityLineParts { task: 9, position: 1, at: 1, line: event })
+        .expect("source row");
+    let row = w::DecodedActivityLine::new(&w::CEILINGS, w::DecodedActivityLineParts { source, decoded: None })
+        .expect("activity row");
     let row_bytes = if nonempty { usize::try_from(row.measure()).expect("row fits") } else { 0 };
     let mut rows = skein_lib::Writer::new(if nonempty { row_bytes + 4 } else { 0 });
     if nonempty {

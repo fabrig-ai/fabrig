@@ -586,26 +586,9 @@ fn clock(value: Wall, writer: &mut Writer) {
     decimal(minutes, writer);
 }
 
-const MONTHS: [&[u8]; 12] =
-    [b"Jan", b"Feb", b"Mar", b"Apr", b"May", b"Jun", b"Jul", b"Aug", b"Sep", b"Oct", b"Nov", b"Dec"];
-
-// March-based Gregorian eras: each 400-year era has 146_097 days.
-// The offset maps the Unix epoch to this civil-day numbering.
 fn civil_date(value: Wall) -> Option<(&'static [u8], u64)> {
-    let days = value.as_secs().checked_div(86_400)?.checked_add(719_468)?;
-    let era_day = days.checked_rem(146_097)?;
-    let year = era_day
-        .checked_sub(era_day.checked_div(1_460)?)?
-        .checked_add(era_day.checked_div(36_524)?)?
-        .checked_sub(era_day.checked_div(146_096)?)?
-        .checked_div(365)?;
-    let year_day = era_day
-        .checked_sub(year.checked_mul(365)?.checked_add(year.checked_div(4)?)?.checked_sub(year.checked_div(100)?)?)?;
-    let march_month = year_day.checked_mul(5)?.checked_add(2)?.checked_div(153)?;
-    let day = year_day.checked_sub(march_month.checked_mul(153)?.checked_add(2)?.checked_div(5)?)?.checked_add(1)?;
-    let month = if march_month < 10 { march_month.checked_add(3)? } else { march_month.checked_sub(9)? };
-    let name = MONTHS.get(usize::try_from(month.checked_sub(1)?).ok()?)?;
-    Some((name, day))
+    let date = crate::date::civil(value)?;
+    Some((crate::date::month_name(date.month)?, u64::from(date.day)))
 }
 fn date_width(value: Wall) -> u32 {
     let (month, day) = civil_date(value).expect("Wall's civil date fits");

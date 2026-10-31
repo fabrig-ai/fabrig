@@ -1,11 +1,10 @@
 //! Direct core starts and connector recovery (jig/docs/design/domain/engine.md, 6).
-use jig_core_world::effects::World;
-use jig_domain_accounts as accounts;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core::{
     self as core,
     start::{Action, Phase, SweepInput},
 };
-use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
 use jig_test_domain as root;
@@ -25,7 +24,7 @@ struct Harness {
     records: BTreeMap<connector::RecordKey, connector::Record>,
     task: u64,
     resource: tasks::Name,
-    outcome: Option<core::connector::OutboxOutcome>,
+    outcome: Option<core::effects::connector::OutboxOutcome>,
     complete: bool,
     wires: bool,
 }
@@ -44,8 +43,8 @@ impl Harness {
         reason = "one fixture loads a sampled core store and hand-built connector records"
     )]
     fn new(recovery: u16) -> Self {
-        let (configuration, limits) = jig_core_world::effects::fixture(SEED, false);
-        let mut source = World::new(SEED, false);
+        let (configuration, limits) = jig_core_world::world::fixture(SEED, false);
+        let mut source = World::new(Setup { seed: SEED, ..Setup::default() });
         let task = source.assigned.as_ref().expect("source run").task;
         source.end(tasks::End::Parked, 0);
         let path = jig_test_connector_world::path(1, 1);
@@ -55,12 +54,12 @@ impl Harness {
             wall: Wall::from_nanos(if recovery == 3 { 1_000 } else { 10 }),
             limits: limits.core,
         };
-        let connector_env = Env { now: env.now, wall: env.wall, limits: limits.connector };
+        let connector_env = env.with(limits.connector);
         let mut core = core::Core::new(configuration.core, &limits.core).expect("configured direct core");
         let mut configured = Queue::uncapped();
         tasks::step(
             &mut core.tasks,
-            &Env { now: env.now, wall: env.wall, limits: limits.core.tasks },
+            &env.with(limits.core.tasks),
             tasks::Event::Kinds {
                 connector: 1,
                 kinds: Box::new([tasks::Kind {
@@ -101,7 +100,7 @@ impl Harness {
         // The settings range precedes every child row, as it does in the store's live walk.
         for row in &rows {
             if let core::Record::Core(row @ (core::CoreRecord::Deployment(_) | core::CoreRecord::Settings(_))) = row {
-                assert!(!matches!(core.restore_core(row.clone(), &limits.core), core::Restored::Rejected));
+                assert!(!matches!(core.restore(&env, core::Record::Core(row.clone())), core::Restore::Refused));
             }
         }
         {}
@@ -113,68 +112,30 @@ impl Harness {
             core::Record::Notes(_) => 4,
         });
         for row in rows {
-            let event = match row {
+            match &row {
                 core::Record::Core(core::CoreRecord::Deployment(_) | core::CoreRecord::Settings(_))
                 | core::Record::Notes(_) => continue,
-                core::Record::Core(row) => {
-                    let key = row.key();
-                    assert!(
-                        !matches!(core.restore_core(row, &limits.core), core::Restored::Rejected),
-                        "core row {key:?}"
-                    );
-                    continue;
-                }
-                core::Record::Tasks(row) => {
-                    if !row.key().live() {
-                        continue;
-                    }
-                    assert!(core.restore_task_row(&row));
-                    core::Event::Tasks(tasks::Event::Restore { record: row })
-                }
-                core::Record::People(people::Stored::Policy { project, name, value }) => {
-                    assert!(core.restore_policy(&limits.core, project, name, value));
-                    continue;
-                }
-                core::Record::People(row) => core::Event::People(people::Event::Restore { record: row }),
-                core::Record::Accounts(record) => core::Event::Account(accounts::Event::Restore { record }),
-            };
-            #[expect(clippy::wildcard_enum_match_arm, reason = "only restore events are built above")]
-            let key = match &event {
-                core::Event::Tasks(tasks::Event::Restore { record }) => core::Key::Tasks(record.key()),
-                core::Event::People(people::Event::Restore { record }) => core::Key::People(record.key()),
-                core::Event::Account(accounts::Event::Restore { record }) => core::Key::Accounts(record.key()),
-                _ => unreachable!("fixture restore event"),
-            };
-            let core::Requests::Out(mut out) = core::step(&mut core, &env, event);
-            let first = out.pop();
-            assert!(
-                matches!(first, Some(core::Request::Decided)),
-                "load {key:?}, output {first:?}, failure {:?}",
-                core.start_failure()
-            );
-            assert!(out.is_empty());
+                core::Record::Tasks(row) if !row.key().live() => continue,
+                core::Record::Core(_)
+                | core::Record::Tasks(_)
+                | core::Record::People(_)
+                | core::Record::Accounts(_) => {}
+            }
+            assert_ne!(core.restore(&env, row), core::Restore::Refused);
         }
         let pool = tasks::Stored::Pool(tasks::PoolSlots {
             number: 1,
             pool: task_name(&jig_test_connector_world::path(1, 2)),
             slots: 0,
         });
-        assert!(core.restore_task_row(&pool));
-        let core::Requests::Out(mut out) =
-            core::step(&mut core, &env, core::Event::Tasks(tasks::Event::Restore { record: pool }));
-        assert!(matches!(out.pop(), Some(core::Request::Decided)));
-        assert!(out.is_empty());
+        assert_eq!(core.restore(&env, core::Record::Tasks(pool)), core::Restore::Kept);
         let writer = tasks::Stored::Writer(tasks::WriterSlot {
             number: 1,
             resource: resource.clone(),
             writer: tasks::Writer::Effect { entry: ENTRY },
             lost: false,
         });
-        assert!(core.restore_task_row(&writer));
-        let core::Requests::Out(mut out) =
-            core::step(&mut core, &env, core::Event::Tasks(tasks::Event::Restore { record: writer }));
-        assert!(matches!(out.pop(), Some(core::Request::Decided)));
-        assert!(out.is_empty());
+        assert_eq!(core.restore(&env, core::Record::Tasks(writer)), core::Restore::Kept);
         let kind = configuration
             .first
             .kinds
@@ -188,9 +149,7 @@ impl Harness {
                 deployment: configuration.first.deployment,
                 task,
                 purpose: 7,
-                attempt: 1,
-                completion: 1,
-                position: 0,
+                origin: jig_test_connector::Purpose::Call { attempt: 1, completion: 1, position: 0 },
             },
             effect: connector::Effect {
                 kind: kind.kind,
@@ -249,14 +208,14 @@ impl Harness {
     }
 
     fn route_core(&mut self, event: core::Event) {
-        let core::Requests::Out(mut out) = core::step(&mut self.core, &self.env, event);
+        let mut out = core::step(&mut self.core, &self.env, event);
         self.outputs(&mut out);
     }
 
     fn outputs(&self, out: &mut Queue<core::Request>) {
         for _ in 0..out.len() {
             match out.pop().expect("core output") {
-                core::Request::Write(_) | core::Request::Decided => {}
+                core::Request::Write(_) => {}
                 core::Request::Now(now) => {
                     assert!(self.wires, "no outward output before durable Wires");
                     assert!(matches!(*now, core::Now::Account(_)));
@@ -282,22 +241,24 @@ impl Harness {
                 match out.pop().expect("connector output") {
                     connector::Request::Resource { project, resource } => {
                         let role = match resource.role {
-                            connector::ResourceRole::Owned => core::connector::ResourceRole::Owned,
-                            connector::ResourceRole::Participating => core::connector::ResourceRole::Participant,
-                            connector::ResourceRole::Context => core::connector::ResourceRole::Context,
-                            connector::ResourceRole::Unavailable => core::connector::ResourceRole::Unavailable,
+                            connector::ResourceRole::Owned => core::effects::connector::ResourceRole::Owned,
+                            connector::ResourceRole::Participating => {
+                                core::effects::connector::ResourceRole::Participant
+                            }
+                            connector::ResourceRole::Context => core::effects::connector::ResourceRole::Context,
+                            connector::ResourceRole::Unavailable => core::effects::connector::ResourceRole::Unavailable,
                         };
                         let hold = match resource.hold {
-                            connector::Hold::None => core::connector::HoldKind::Shared,
-                            connector::Hold::Exclusive { mode } => {
-                                core::connector::HoldKind::Exclusive { wait: mode == connector::HoldMode::Wait }
-                            }
-                            connector::Hold::Pooled { mode } => core::connector::HoldKind::Pooled {
+                            connector::Hold::None => core::effects::connector::HoldKind::Shared,
+                            connector::Hold::Exclusive { mode } => core::effects::connector::HoldKind::Exclusive {
+                                wait: mode == connector::HoldMode::Wait,
+                            },
+                            connector::Hold::Pooled { mode } => core::effects::connector::HoldKind::Pooled {
                                 slots: self.connector.slots(&resource.path).expect("configured pool"),
                                 wait: mode == connector::HoldMode::Wait,
                             },
                         };
-                        self.route_core(core::Event::EffectConnector(core::connector::Event::Resource {
+                        self.route_core(core::Event::EffectConnector(core::effects::connector::Event::Resource {
                             project,
                             name: task_name(&resource.path),
                             role,
@@ -316,15 +277,15 @@ impl Harness {
                     }
                     connector::Request::Outcome { entry, outcome } => {
                         let outcome = match outcome {
-                            connector::Outcome::Made { .. } => core::connector::OutboxOutcome::Made,
-                            connector::Outcome::Held => core::connector::OutboxOutcome::Held { entry },
-                            connector::Outcome::Failed => core::connector::OutboxOutcome::Failed,
-                            connector::Outcome::Uncertain => core::connector::OutboxOutcome::Uncertain,
-                            connector::Outcome::Withdrawn => core::connector::OutboxOutcome::Withdrawn,
-                            connector::Outcome::Skipped => core::connector::OutboxOutcome::NotMade,
+                            connector::Outcome::Made { .. } => core::effects::connector::OutboxOutcome::Made,
+                            connector::Outcome::Held => core::effects::connector::OutboxOutcome::Held { entry },
+                            connector::Outcome::Failed => core::effects::connector::OutboxOutcome::Failed,
+                            connector::Outcome::Uncertain => core::effects::connector::OutboxOutcome::Uncertain,
+                            connector::Outcome::Withdrawn => core::effects::connector::OutboxOutcome::Withdrawn,
+                            connector::Outcome::Skipped => core::effects::connector::OutboxOutcome::NotMade,
                         };
                         self.outcome = Some(outcome);
-                        self.route_core(core::Event::EffectConnector(core::connector::Event::Outbox {
+                        self.route_core(core::Event::EffectConnector(core::effects::connector::Event::Outbox {
                             connector: 1,
                             entry,
                             task: self.task,
@@ -369,12 +330,12 @@ impl Harness {
         self.connector_event(connector::Event::Restart(connector::RestartStep::SettleOutbox));
         assert!(self.complete, "the root advances only after the connector reports settled");
         // The core ignores completion; its root translates it to the matching phase completion.
-        self.route_core(core::Event::EffectConnector(core::connector::Event::RestartDone {
-            stage: core::connector::RestartStage::Settled,
+        self.route_core(core::Event::EffectConnector(core::effects::connector::Event::RestartDone {
+            stage: core::effects::connector::RestartStage::Settled,
         }));
     }
 
-    fn selected(&mut self) {
+    fn started(&mut self) {
         let mut out = Queue::uncapped();
         phase(&self.core.start_done(&self.env, Phase::LoadCore, &mut out), Phase::LoadInbox);
         phase(&self.core.start_done(&self.env, Phase::LoadInbox, &mut out), Phase::RestoreConnector { connector: 1 });
@@ -428,14 +389,14 @@ impl Harness {
 }
 
 fn recovered(recovery: u16, applications: usize, calls: u64) {
-    let mut selected = Harness::new(recovery);
-    selected.selected();
-    assert_eq!(selected.outcome, Some(core::connector::OutboxOutcome::Made));
-    assert!(selected.records.values().any(|row| matches!(row, connector::Record::Made { state: 11, .. })));
-    assert!(!selected.records.values().any(|row| matches!(row, connector::Record::Outbox(_))));
-    assert_eq!(selected.core.tasks.writer(&selected.resource), None);
-    assert_eq!(selected.system.observed().iter().filter(|row| row.applied).count(), applications);
-    assert_eq!(selected.system.calls(), calls);
+    let mut started = Harness::new(recovery);
+    started.started();
+    assert_eq!(started.outcome, Some(core::effects::connector::OutboxOutcome::Made));
+    assert!(started.records.values().any(|row| matches!(row, connector::Record::Made { state: 11, .. })));
+    assert!(!started.records.values().any(|row| matches!(row, connector::Record::Outbox(_))));
+    assert_eq!(started.core.tasks.writer(&started.resource), None);
+    assert_eq!(started.system.observed().iter().filter(|row| row.applied).count(), applications);
+    assert_eq!(started.system.calls(), calls);
 }
 
 #[test]
@@ -455,20 +416,20 @@ fn uncertain_idempotent_effect_repeats_after_its_saved_deadline() {
 
 #[test]
 fn unrecoverable_effect_holds_its_task_and_writer() {
-    let mut selected = Harness::new(4);
-    selected.selected();
-    assert_eq!(selected.outcome, Some(core::connector::OutboxOutcome::Held { entry: ENTRY }));
-    assert!(selected.records.values().any(|row| matches!(
+    let mut started = Harness::new(4);
+    started.started();
+    assert_eq!(started.outcome, Some(core::effects::connector::OutboxOutcome::Held { entry: ENTRY }));
+    assert!(started.records.values().any(|row| matches!(
         row,
         connector::Record::Outbox(connector::OutboxEntry { phase: connector::EffectPhase::Held, .. })
     )));
-    assert!(selected.core.tasks.writer(&selected.resource).is_some());
-    let row = selected.core.tasks.task(selected.task).expect("held task");
+    assert!(started.core.tasks.writer(&started.resource).is_some());
+    let row = started.core.tasks.task(started.task).expect("held task");
     assert!(
         matches!(&row.phase, tasks::Phase::Held { why: tasks::Hold::Uncertain { entry: ENTRY }, source: Some(source), .. } if **source == tasks::HoldSource::Effect { connector: 1, entry: ENTRY })
     );
-    assert_eq!(selected.system.calls(), 2, "an unrecoverable effect is neither looked up nor retried");
-    assert_eq!(selected.system.observed().iter().filter(|row| row.applied).count(), 1);
+    assert_eq!(started.system.calls(), 2, "an unrecoverable effect is neither looked up nor retried");
+    assert_eq!(started.system.observed().iter().filter(|row| row.applied).count(), 1);
 }
 
 #[test]
@@ -482,7 +443,7 @@ fn restored_access_controls_workspace_writers_during_start() {
                 }
             }
             {
-                h.selected();
+                h.started();
             }
             assert_eq!(h.core.tasks.holder(&h.resource), Some(h.task));
             assert_eq!(
@@ -501,7 +462,7 @@ fn restored_access_controls_workspace_writers_during_start() {
                 hits: 1,
                 eligible: true,
             };
-            let env = Env { now: h.env.now, wall: h.env.wall, limits: h.env.limits.tasks };
+            let env = h.env.with(h.env.limits.tasks);
             tasks::step(
                 &mut h.core.tasks,
                 &env,
@@ -565,7 +526,7 @@ fn loading_slot_reports_keep_the_durable_pool_capacity() {
     {
         let mut h = Harness::new(1);
         {
-            h.selected();
+            h.started();
         }
         let pool = task_name(&jig_test_connector_world::path(1, 2));
         assert_eq!(h.connector.slots(&jig_test_connector_world::path(1, 2)), Some(2));
@@ -592,7 +553,7 @@ fn loading_slot_reports_keep_the_durable_pool_capacity() {
             recurring: None,
             tracked: None,
         };
-        let env = Env { now: h.env.now, wall: h.env.wall, limits: h.env.limits.tasks };
+        let env = h.env.with(h.env.limits.tasks);
         let mut out = Queue::uncapped();
         tasks::step(
             &mut h.core.tasks,

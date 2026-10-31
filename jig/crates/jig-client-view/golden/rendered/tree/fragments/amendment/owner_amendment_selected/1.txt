@@ -1,0 +1,57 @@
+== jig == 
+chosen language: :
+  chosen language: 18446744073709551615
+  chosen language: 18446744073709551615
+  chosen language: 
+  live
+  chosen language: 
+  chosen language: 
+  spec
+  chosen language: 4294967295chosen language: 18446744073709551615
+  chosen language: 1
+  bytes
+  chosen language: 2chosen language: 65535chosen language: 18446744073709551615
+  chosen language: 9
+  chosen language: 18446744073709551615
+  chosen language: 
+  chosen language: 
+    chosen language: 18446744073709551615
+    chosen language: 4294967295
+    chosen language: 4294967295
+    chosen language: 18446744073709551615
+    chosen language: 255
+    chosen language: 18446744073709551615
+    chosen language: 
+    chosen language: 
+    chosen language: 65535
+    chosen language: 65535
+    chosen language: 
+    `a/b`
+    `\xFF\x00`
+    
+    chosen language: 
+    `tail`
+    chosen language: 
+    chosen language: 4294967295
+    chosen language: 4294967295
+    chosen language: 4294967295
+    chosen language: 
+    chosen language: 7
+    chosen language: 
+    chosen language: 
+    `*`
+    chosen language: 
+  chosen language: :
+    chosen language: 
+    chosen language: 
+    chosen language: 
+    chosen language: 
+    chosen language: 
+    chosen language: 4294967295chosen language: 18446744073709551615chosen language: 
+    chosen language: 
+    chosen language: 
+    chosen language: 
+    chosen language: 
+  chosen language: 18446744073709551615
+  chosen language: 7
+  chosen language: 

@@ -41,12 +41,12 @@ fn project_names_at_the_byte_bound_and_with_internal_spaces_are_accepted() {
     let mut engine = Engine::new(owned(), 1).unwrap();
     for name in [format!("{}é", "a".repeat(62)), "Ta lly".to_owned(), "١٢".to_owned()] {
         let (answer, _) = engine.decide(1, &make(name.as_bytes(), 1), Wall::EPOCH).unwrap();
-        assert!(matches!(answer, Answer::Done(Outcome::Owner(OwnerOutcome::ProjectMade { .. }))));
+        assert!(matches!(answer, Answer::Done(Outcome::Document(DocumentOutcome::ProjectMade { .. }))));
     }
 }
 
 #[test]
-fn only_the_scoped_owner_can_make_or_rename() {
+fn only_the_scoped_can_make_or_rename() {
     let mut engine = Engine::new(owned(), 1).unwrap();
     for ask in [make(b"Tally", 1), Ask::Rename { project: 1, name: text(b"Tally") }] {
         refused_as(&mut engine, 2, &ask, Refusal::Role { held: Some(HeldRole::Policy { role: 1 }) });
@@ -65,7 +65,7 @@ fn a_make_with_an_unconfigured_policy_is_refused() {
 fn a_make_accepts_the_scripts_configured_policy() {
     let mut engine = configured_policy();
     let (answer, _) = engine.decide(1, &make(b"Tally", 2), Wall::EPOCH).unwrap();
-    assert_eq!(answer, Answer::Done(Outcome::Owner(OwnerOutcome::ProjectMade { project: 2 })));
+    assert_eq!(answer, Answer::Done(Outcome::Document(DocumentOutcome::ProjectMade { project: 2 })));
 }
 
 fn with_hidden_project() -> Engine {
@@ -85,13 +85,13 @@ fn project_names_collide_with_hidden_projects() {
 fn a_rename_excludes_its_own_project_from_collisions() {
     let mut engine = Engine::new(owned(), 1).unwrap();
     let (answer, _) = engine.decide(1, &Ask::Rename { project: 1, name: text(b"PROJECT") }, Wall::EPOCH).unwrap();
-    assert_eq!(answer, Answer::Done(Outcome::Owner(OwnerOutcome::Renamed { project: 1 })));
+    assert_eq!(answer, Answer::Done(Outcome::Document(DocumentOutcome::Renamed { project: 1 })));
 }
 #[test]
 fn a_make_is_numbered_past_every_project_held_by_the_script() {
     let mut engine = with_hidden_project();
     let (answer, _) = engine.decide(1, &make(b"Tally", 1), Wall::EPOCH).unwrap();
-    assert_eq!(answer, Answer::Done(Outcome::Owner(OwnerOutcome::ProjectMade { project: 101 })));
+    assert_eq!(answer, Answer::Done(Outcome::Document(DocumentOutcome::ProjectMade { project: 101 })));
 }
 
 #[test]

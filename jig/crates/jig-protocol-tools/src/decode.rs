@@ -23,11 +23,12 @@ pub fn decode(tool: &[u8], input: &[u8], limits: &Limits) -> Decoded {
 
 fn read(tool: &[u8], input: &[u8], limits: &Limits) -> Result<Decoded, Problem> {
     let value = json::parse(input, limits)?;
+    let value = json::Node::root(&value, limits);
     let action = match tool {
-        b"settings" => core::NamedAction::Settings(settings_read(&value)?),
-        b"propose_settings" => return settings(&value, limits),
+        b"settings" => core::NamedAction::Settings(settings_read(value)?),
+        b"propose_settings" => return settings(value, limits),
         b"delegate" => return Ok(Decoded::Delegate(delegates(value.required(b"batch")?, limits)?)),
-        b"message" => message(&value)?,
+        b"message" => message(value)?,
         b"cancel" => core::NamedAction::Control {
             target: value.required(b"target")?.number()?,
             control: tasks::Control::Cancel {
@@ -53,7 +54,7 @@ fn read(tool: &[u8], input: &[u8], limits: &Limits) -> Result<Decoded, Problem> 
         },
         b"withdraw" => core::NamedAction::WithdrawProposal { proposal: value.required(b"proposal")?.number()? },
         b"unsubscribe" => core::NamedAction::Unsubscribe { subscription: value.required(b"subscription")?.number()? },
-        b"amend" => amend(&value)?,
+        b"amend" => amend(value)?,
         b"decide" => match value.required(b"kind")?.text()?.as_ref() {
             b"proposal" => {
                 let choice = match value.required(b"decision")?.text()?.as_ref() {
@@ -104,13 +105,13 @@ fn read(tool: &[u8], input: &[u8], limits: &Limits) -> Result<Decoded, Problem> 
             };
             core::NamedAction::Subscribe { kind }
         }
-        b"propose" => propose(&value, limits)?,
+        b"propose" => propose(value, limits)?,
         b"note" => {
-            let (entry, recalled) = notes::new(&value)?;
+            let (entry, recalled) = notes::new(value)?;
             core::NamedAction::Note { entry, recalled }
         }
         b"recall" => {
-            let (by, page) = notes::recall(&value)?;
+            let (by, page) = notes::recall(value)?;
             core::NamedAction::Recall { by, page }
         }
         _ => return Err(Problem { field: b"", why: Why::Malformed }),
@@ -120,11 +121,12 @@ fn read(tool: &[u8], input: &[u8], limits: &Limits) -> Result<Decoded, Problem> 
 
 pub fn batch(input: &[u8], limits: &Limits) -> Result<Box<[core::Delegate]>, Problem> {
     let value = json::parse(input, limits)?;
+    let value = json::Node::root(&value, limits);
     delegates(value.required(b"batch")?, limits)
 }
 
-fn delegates(value: &json::Value, limits: &Limits) -> Result<Box<[core::Delegate]>, Problem> {
-    if value.array()?.len() > usize::try_from(limits.batch).expect("u32 fits usize") {
+fn delegates(value: json::Node<'_>, limits: &Limits) -> Result<Box<[core::Delegate]>, Problem> {
+    if value.array()?.len() > skein_lib::length::usize_of(limits.batch) {
         return Err(Problem { field: b"batch", why: Why::TooLarge });
     }
     let batch = nested::delegates(value)?;
@@ -140,7 +142,7 @@ fn delegates(value: &json::Value, limits: &Limits) -> Result<Box<[core::Delegate
     Ok(batch)
 }
 
-fn message(value: &json::Value) -> Result<core::NamedAction, Problem> {
+fn message(value: json::Node<'_>) -> Result<core::NamedAction, Problem> {
     let kind = match value.required(b"form")?.text()?.as_ref() {
         b"words" => tasks::MessageKind::Words,
         b"question" => tasks::MessageKind::Question,
@@ -154,7 +156,7 @@ fn message(value: &json::Value) -> Result<core::NamedAction, Problem> {
     })
 }
 
-fn propose(value: &json::Value, limits: &Limits) -> Result<core::NamedAction, Problem> {
+fn propose(value: json::Node<'_>, limits: &Limits) -> Result<core::NamedAction, Problem> {
     let reason = value.required(b"reason")?.text()?;
     let kind = value.required(b"action")?.text()?;
     Ok(match kind.as_ref() {
@@ -193,7 +195,7 @@ fn propose(value: &json::Value, limits: &Limits) -> Result<core::NamedAction, Pr
     })
 }
 
-fn amend(value: &json::Value) -> Result<core::NamedAction, Problem> {
+fn amend(value: json::Node<'_>) -> Result<core::NamedAction, Problem> {
     let amendment = nested::amendment(value.required(b"amendment")?)?;
     let priority = match amendment.tracked {
         Some(tasks::Tracking::Tracked { .. }) => true,
@@ -216,18 +218,9 @@ fn amend(value: &json::Value) -> Result<core::NamedAction, Problem> {
     Ok(core::NamedAction::Amend { target: value.required(b"target")?.number()?, revision, amendment })
 }
 
-fn settings(value: &json::Value, limits: &Limits) -> Result<Decoded, Problem> {
+fn settings(value: json::Node<'_>, limits: &Limits) -> Result<Decoded, Problem> {
     let set = value.required(b"set")?;
-    let set = match &set.kind {
-        json::Kind::String(value) => value,
-        json::Kind::Object(_)
-        | json::Kind::Array(_)
-        | json::Kind::Number(_)
-        | json::Kind::Boolean(_)
-        | json::Kind::Null => {
-            return Err(Problem { field: b"set", why: Why::Type });
-        }
-    };
+    let set = set.string().or(Err(Problem { field: b"set", why: Why::Type }))?;
     let Ok(count) = u32::try_from(set.len() / 2) else {
         return Err(Problem { field: b"set", why: Why::TooLarge });
     };
@@ -256,7 +249,7 @@ fn hex(byte: u8) -> Result<u8, Problem> {
     }
 }
 
-fn settings_read(value: &json::Value) -> Result<core::SettingsRead, Problem> {
+fn settings_read(value: json::Node<'_>) -> Result<core::SettingsRead, Problem> {
     Ok(match value.required(b"kind")?.text()?.as_ref() {
         b"inventory" => core::SettingsRead::Inventory,
         b"setting" => {

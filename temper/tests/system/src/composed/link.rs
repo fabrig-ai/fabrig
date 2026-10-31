@@ -156,21 +156,7 @@ fn sender(from: tasks::Party) -> Box<[u8]> {
 }
 
 fn grants(grants: &[accounts::Grant]) -> Box<[host::Grant]> {
-    let mut translated = Vec::with_capacity(grants.len());
-    for grant in grants {
-        let form = match grant.form {
-            accounts::Form::Credential(scheme) => host::Form::Credential(match scheme {
-                accounts::Scheme::Bearer => host::Scheme::Bearer,
-                accounts::Scheme::Key => host::Scheme::Key,
-            }),
-            accounts::Form::Application => host::Form::Application,
-            accounts::Form::Program(name) => {
-                host::Form::Program(host::SourceName::new(name.as_bytes()).expect("same source name grammar"))
-            }
-        };
-        translated.push(host::Grant { form, account: grant.account, generation: grant.generation, valid: grant.valid });
-    }
-    translated.into_boxed_slice()
+    Box::from(grants)
 }
 
 fn answered(settled: &[core::Settled]) -> Box<[host::AnsweredCall]> {

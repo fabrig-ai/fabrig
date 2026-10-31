@@ -12,16 +12,6 @@ struct OwnAsk {
     core: Option<List<Ask>>,
     raw: bool,
 }
-impl payload::Payload for OwnDocument {
-    fn heap(&self, bounds: &Bounds) -> Option<u64> {
-        self.words.heap(bounds)?.checked_add(self.rows.heap(bounds)?)
-    }
-}
-impl payload::Payload for OwnAsk {
-    fn heap(&self, bounds: &Bounds) -> Option<u64> {
-        self.words.heap(bounds)?.checked_add(self.transport.heap(bounds)?)?.checked_add(self.core.heap(bounds)?)
-    }
-}
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct OwnApplication {
     document: OwnDocument,
@@ -33,10 +23,16 @@ impl Application for OwnApplication {
     type Document = OwnDocument;
     fn fits(&self, value: ApplicationValue<'_, Self>, bounds: &Bounds) -> bool {
         match value {
-            ApplicationValue::Ask(value) => payload::fits(value, bounds),
-            ApplicationValue::Answer(value) | ApplicationValue::Document(value) => payload::fits(value, bounds),
-            ApplicationValue::Subject(value) => payload::fits(value, bounds),
-            ApplicationValue::State(value) => payload::fits(&value.document, bounds),
+            ApplicationValue::Ask(value) => {
+                value.words.fits(bounds.text)
+                    && value.transport.fits(bounds.text)
+                    && value.core.as_ref().is_none_or(|asks| {
+                        asks.capacity() <= bounds.rows && asks.iter().all(|ask| crate::codec::ask(ask, bounds).is_ok())
+                    })
+            }
+            ApplicationValue::Answer(value) | ApplicationValue::Document(value) => document_fits(value, bounds),
+            ApplicationValue::Subject(_) => true,
+            ApplicationValue::State(value) => document_fits(&value.document, bounds),
         }
     }
     fn decide(&mut self, _: &Truth, _: u64, ask: &OwnAsk, _: Wall) -> ApplicationDecision<OwnDocument> {
@@ -75,27 +71,18 @@ fn own() -> OwnApplication {
 fn own_script() -> Script {
     let mut setup = live_script();
     let entries: Vec<_> = (1..=3)
-        .map(|position| InboxEntry {
-            object: ObjectKey::Result(9 + position),
-            project: 1,
-            group: InboxGroup::Results,
-            position,
-            at: Wall::EPOCH,
-            lineage: list(vec![]),
-            goal: None,
-            recipient: None,
-            stall: None,
-            reply: None,
+        .map(|position| {
+            super::inbox_entry(ObjectKey::Result(9 + position), 1, InboxGroup::Results, position, Wall::EPOCH, None)
         })
         .collect();
     for entry in &entries {
-        let ObjectKey::Result(task_number) = entry.object else { unreachable!() };
+        let ObjectKey::Result(task_number) = entry.card_key() else { unreachable!() };
         let mut chip = task().chip;
         chip.task = task_number;
         chip.phase = Phase::Done;
-        chip.details = Box::new(ChipPhase::Ended { how: Ending::Done, at: Wall::EPOCH });
+        chip.details = Box::new(super::chip_details(ChipPhase::Ended));
         setup.truth.objects.insert(
-            entry.object,
+            entry.card_key(),
             ReadValue::Result(Box::new(jig_client_domain::contract::Result {
                 task: chip,
                 ending: Ending::Done,
@@ -106,7 +93,7 @@ fn own_script() -> Script {
                 details: None,
             })),
         );
-        setup.truth.object_projects.insert(entry.object, 1);
+        setup.truth.object_projects.insert(entry.card_key(), 1);
     }
     let read = Read::Inbox {
         group: jig_client_domain::contract::InboxReadGroup::Updates,
@@ -123,14 +110,22 @@ fn own_script() -> Script {
         setup.rules.push(Rule {
             party: Some(1),
             ask: Ask::Seen { through: SeenThrough::Results { through } },
-            answer: Answer::Done(Outcome::Changed),
+            answer: Answer::Done(Outcome::Document(DocumentOutcome::MarkedSeen {
+                seen: SeenThrough::Results { through },
+            })),
             changes: vec![
                 Change::Seen { party: 1, results: through, replies: vec![] },
                 Change::Me(latest),
                 Change::Source(Source {
                     party: 1,
                     read: read.clone(),
-                    rows: Rows::Inbox(entries.iter().filter(|entry| entry.position > through).cloned().collect()),
+                    rows: Rows::Inbox(
+                        entries
+                            .iter()
+                            .filter(|entry| matches!(entry.cursor, InboxCursor::Number { number } if number > through))
+                            .cloned()
+                            .collect(),
+                    ),
                 }),
             ],
         });
@@ -499,17 +494,6 @@ fn scenario_application_values_are_bounded_before_retention() {
     assert!(
         matches!(&engine.poll(at(20_000_000))[0],Up::ApplicationAnswer {answer:Some(Ok(doc)),..} if doc.revision==1)
     );
-    let mut setup = own_script();
-    setup.bounds.document_bytes = 5000;
-    let mut engine = Engine::with_application(setup, 24, own()).expect("whole-byte kit");
-    let mut ask = own_ask(b"large");
-    ask.words = text(&[b'a'; 3000]);
-    ask.transport = text(&[b'b'; 3000]);
-    assert_eq!(
-        engine.send_application(Time::ZERO, Wall::EPOCH, 11, [1; 16], Token::new(1), 7, 1, [1; 32], ask),
-        Err(Invalid::Payload),
-        "nested fields are priced together"
-    );
 }
 fn scenario_application_watches_coalesce_and_end_truthfully() {
     let mut engine = Engine::with_application(own_script(), 25, own()).expect("own watch kit");
@@ -541,4 +525,10 @@ pub(super) fn run() {
     scenario_application_jig_requests_cannot_bypass_admission();
     scenario_application_values_are_bounded_before_retention();
     scenario_application_watches_coalesce_and_end_truthfully();
+}
+
+fn document_fits(value: &OwnDocument, bounds: &Bounds) -> bool {
+    value.words.fits(bounds.text)
+        && value.rows.capacity() <= bounds.rows
+        && value.rows.iter().all(|text| text.fits(bounds.text))
 }

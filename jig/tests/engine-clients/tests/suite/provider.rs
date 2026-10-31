@@ -236,7 +236,7 @@ impl World {
     fn query(&mut self, query: &[u8]) -> w::AuthorizeAnswer {
         let record =
             w::Authorize::new(&w::CEILINGS, w::AuthorizeParts { query: query.into() }).expect("bounded authorization");
-        let mut bytes = Writer::new(usize::try_from(record.measure()).expect("short record"));
+        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut bytes).expect("measured authorization");
         let exchange = Token::new(self.next);
         self.next += 1;
@@ -313,7 +313,7 @@ impl World {
 }
 fn encode(alphabet: Alphabet, bytes: &[u8]) -> Box<[u8]> {
     let length = base64::encoded_len(alphabet, u32::try_from(bytes.len()).expect("short bytes")).expect("encoded size");
-    let mut writer = Writer::new(usize::try_from(length).expect("short output"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(length));
     base64::encode(alphabet, bytes, &mut writer).expect("measured base64");
     writer.finish()
 }

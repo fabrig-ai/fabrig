@@ -52,7 +52,7 @@ pub enum CallPart {
         connector: u16,
         entry: u64,
         deadline: Wall,
-        outcome: Option<crate::connector::OutboxOutcome>,
+        outcome: Option<crate::effects::connector::OutboxOutcome>,
     },
     /// The application connector owns the answer.
     Connector {
@@ -376,7 +376,7 @@ pub enum Restored {
     Deployment { commits: u64 },
     /// One live core row was retained.
     Live,
-    /// An archive row is outside the startup's live ranges.
+    /// An ended row is outside the startup's live ranges.
     Archive,
     /// The row fails the current live proof or bounded identity checks.
     Rejected,
@@ -415,11 +415,11 @@ impl Core {
     /// Validate a live task-family row against the deployment and retain the
     /// correlations that a later proof and view restoration will need.
     #[must_use]
-    pub fn restore_task_row(&mut self, row: &jig_domain_tasks::Stored) -> bool {
+    pub(crate) fn restore_task_row(&mut self, row: &jig_domain_tasks::Stored) -> bool {
         self.start_input();
         {
             assert!(self.start_loading(), "task rows load before Link");
-            assert!(row.key().live(), "historical task row in live load: {:?}", row.key());
+            assert!(row.key().live(), "ended task row in live load: {:?}", row.key());
         }
         self.remember_task_proof(row)
     }
@@ -463,7 +463,7 @@ impl Core {
 
     /// Retain one of the core's own live rows. The root wraps store bytes and
     /// routes connector rows separately; it cannot alter this live decision.
-    pub fn restore_core(&mut self, record: CoreRecord, limits: &Limits) -> Restored {
+    pub(crate) fn restore_core(&mut self, record: CoreRecord, limits: &Limits) -> Restored {
         self.start_input();
         {
             assert!(self.start_loading(), "core rows load before Link");
@@ -480,7 +480,7 @@ impl Core {
                 }
             }
             CoreRecord::Projection(row) => {
-                if crate::projections::restore(self, limits, row) {
+                if crate::effects::projections::restore(self, limits, row) {
                     Restored::Live
                 } else {
                     Restored::Rejected
@@ -640,7 +640,7 @@ pub struct RunProof {
     /// Exact offers to this attempt not yet read or refused, bounded by `run_inbox`
     /// even after their entries disappear.
     pub outstanding: Box<[u64]>,
-    /// Latest accepted turn, or none before the first turn; no historical body is retained.
+    /// Latest accepted turn, or none before the first turn; no earlier body is retained.
     pub turn: Option<TurnProof>,
     /// Accepted worker offer or root-translated unpriced terminal; present iff the
     /// child answered this current attempt. At most twice task result bytes before normalization;
@@ -661,7 +661,7 @@ pub struct CurrentWindow {
 /// reason is never restored into a live archive map.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct EscalationDecisionRecord {
-    /// Child's project, used to authenticate historical reads rather
+    /// Child's project, used to authenticate ended reads rather
     /// than trust the caller's project.
     pub project: u32,
     /// Person requester from the accepted bounded semantic context;

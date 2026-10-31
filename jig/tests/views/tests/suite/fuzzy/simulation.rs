@@ -1,5 +1,5 @@
 use jig_client_views_world::{LIMITS, World};
-use jig_domain_views::{Call, Event, Follow, TurnName};
+use jig_domain_views::{Call, End, Event, Follow, TurnName};
 use skein_lib::{Rng, Token, Wall};
 use std::boxed::Box;
 fn run(seed: u64) -> Vec<String> {
@@ -43,7 +43,7 @@ fn run(seed: u64) -> Vec<String> {
     }
     world.settle();
     for watcher in 1..=4 {
-        world.step(Event::Unwatch { watcher: Token::new(watcher) });
+        world.step(Event::EndWatch { watcher: Token::new(watcher), end: End::Unwatched });
     }
     world.settle();
     assert_eq!(world.referee.live(), 0, "seed {seed}");

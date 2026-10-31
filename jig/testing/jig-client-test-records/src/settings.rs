@@ -1,28 +1,27 @@
 //! Independent whole settings fixtures (client/domain/contract.md, 3–7).
-use jig_client::contract::{
-    AuthorityModels, ChangeSettings, Charter, DocumentText, EndedBy, HeldRevision, LlmChoice, ModelEffort,
-    OwnerAuthority, OwnerDelegation, OwnerGrant, OwnerKindImplication, OwnerPattern, OwnerPatternEnd, PolicyEditRole,
-    PolicyGuard, PolicyJudge, PolicyPermission, PolicyRequirement, ProposalKey, Proposer, Retention, RevisionDecider,
-    RevisionDocument, RevisionEdit, RevisionHead, RevisionItem, RevisionItemEdit, RevisionItemHead, RevisionParty,
-    RevisionRow, RevisionsPage, Rules, Running, Setting, SettingEdit, SettingFollows, SettingHosts, SettingItem,
-    SettingLine, SettingModel, SettingNumber, SettingPolicy, SettingSet, SettingValue, SettingsDocument, Size,
-    TaskContractDocument, TaskFlags, Template, TemplateBudget, TemplateDeadline, TemplateExecutor, TemplateOverride,
-    Text,
+use jig_client_domain::contract::{
+    Authority, AuthorityModels, ChangeSettings, Charter, Delegation, DocumentText, EndedBy, Grant, HeldRevision,
+    KindImplication, LlmChoice, ModelEffort, Pattern, PatternEnd, PolicyEditRole, PolicyGuard, PolicyJudge,
+    PolicyPermission, PolicyRequirement, ProposalKey, Proposer, Retention, RevisionDecider, RevisionDocument,
+    RevisionEdit, RevisionHead, RevisionItem, RevisionItemEdit, RevisionItemHead, RevisionParty, RevisionRow,
+    RevisionsPage, Rules, Running, Setting, SettingEdit, SettingFollows, SettingHosts, SettingItem, SettingLine,
+    SettingModel, SettingNumber, SettingPolicy, SettingSet, SettingValue, SettingsDocument, Size, TaskContractDocument,
+    TaskFlags, Template, TemplateBudget, TemplateDeadline, TemplateExecutor, TemplateOverride, Text,
 };
 use skein_lib::{Duration, List, Wall};
 fn text(value: &[u8]) -> Text {
     Text::new(value.into(), 4096).expect("fixture UTF-8")
 }
-fn pattern() -> OwnerPattern {
-    OwnerPattern { segments: List::with_capacity(0), last: OwnerPatternEnd::Open(b"a".as_slice().into()) }
+fn pattern() -> Pattern {
+    Pattern { segments: List::with_capacity(0), last: PatternEnd::Open(b"a".as_slice().into()) }
 }
 #[must_use]
-pub fn settings_authority() -> OwnerAuthority {
-    OwnerAuthority {
+pub fn settings_authority() -> Authority {
+    Authority {
         models: Some(AuthorityModels::All),
         tools: 15,
         grants: List::with_capacity(0),
-        delegation: OwnerDelegation { kinds: List::with_capacity(0), tasks: 9, depth: 3 },
+        delegation: Delegation { kinds: List::with_capacity(0), tasks: 9, depth: 3 },
         spend: 101,
         deadline: Some(Wall::from_nanos(7)),
         notes: 3,
@@ -126,7 +125,7 @@ pub fn settings_values() -> List<SettingValue> {
     let mut requirements = List::with_capacity(1);
     requirements.push(requirement()).expect("requirement");
     let mut projections = List::with_capacity(1);
-    projections.push(OwnerGrant { connector: 8, kind: 9, pattern: pattern() }).expect("projection");
+    projections.push(Grant { connector: 8, kind: 9, pattern: pattern() }).expect("projection");
     let mut permissions = List::with_capacity(1);
     permissions.push(PolicyPermission { connector: 10, permission: 11, role: 1 }).expect("permission");
     let mut templates = List::with_capacity(1);
@@ -152,7 +151,7 @@ pub fn settings_values() -> List<SettingValue> {
         })))
         .expect("policy");
     let mut implies = List::with_capacity(1);
-    implies.push(OwnerKindImplication { connector: 2, kind: 4, implies: 3 }).expect("implication");
+    implies.push(KindImplication { connector: 2, kind: 4, implies: 3 }).expect("implication");
     values
         .push(SettingValue::Rules(Box::new(Rules {
             ceiling: settings_authority(),

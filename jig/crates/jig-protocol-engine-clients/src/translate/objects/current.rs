@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code matches optional owner facts without closures")]
 //! Whole single-read owner documents (protocol/client.md, 3 and 6).
 use super::super::{chips, owner, task, w};
 use alloc::boxed::Box;
@@ -99,13 +98,13 @@ pub fn person_task(
     models: &[crate::Model],
     value: &d::PersonTask,
     limits: &w::Limits,
-) -> Result<w::OwnerPersonTask, w::Problem> {
+) -> Result<w::PersonTask, w::Problem> {
     let mut results = List::with_capacity(value.results.len());
     for row in &value.results {
         results
-            .push(w::OwnerShownResult::new(
+            .push(w::ShownResult::new(
                 limits,
-                w::OwnerShownResultParts {
+                w::ShownResultParts {
                     task: task::link(&row.task, limits)?,
                     result: match &row.result {
                         Some(item) => Some(result(models, item, limits)?),
@@ -115,12 +114,11 @@ pub fn person_task(
             )?)
             .expect("supplied rows fit");
     }
-    let results =
-        owner_shown_result_pieces(&results, limits.owner_person_task_results, w::Path::OwnerPersonTaskResults)?;
+    let results = shown_result_pieces(&results, limits.person_task_results, w::Path::PersonTaskResults)?;
 
-    w::OwnerPersonTask::new(
+    w::PersonTask::new(
         limits,
-        w::OwnerPersonTaskParts {
+        w::PersonTaskParts {
             task: chips::chip(&value.task, limits)?,
             revision: w::Revision::new(limits, w::RevisionParts { value: value.revision })?,
             requester: owner::requester(value.requester, limits)?,
@@ -139,13 +137,7 @@ pub fn person_task(
             contract: owner::contract(&value.contract, limits)?,
             results,
             cut: value.cut,
-            acts: task::offered(
-                models,
-                &value.acts,
-                limits,
-                limits.owner_person_task_acts,
-                w::Path::OwnerPersonTaskActs,
-            )?,
+            acts: task::offered(models, &value.acts, limits, limits.person_task_acts, w::Path::PersonTaskActs)?,
         },
     )
 }
@@ -167,29 +159,23 @@ pub fn escalation(
     value: &d::Escalation,
     models: &[crate::Model],
     limits: &w::Limits,
-) -> Result<w::OwnerEscalation, w::Problem> {
-    w::OwnerEscalation::new(
+) -> Result<w::Escalation, w::Problem> {
+    w::Escalation::new(
         limits,
-        w::OwnerEscalationParts {
+        w::EscalationParts {
             task: task::document(&value.task, models, limits)?,
-            acts: task::offered(
-                models,
-                &value.acts,
-                limits,
-                limits.owner_escalation_acts,
-                w::Path::OwnerEscalationActs,
-            )?,
+            acts: task::offered(models, &value.acts, limits, limits.escalation_acts, w::Path::EscalationActs)?,
         },
     )
 }
-pub(super) fn owner_shown_result_pieces(
-    rows: &List<w::OwnerShownResult>,
+pub(super) fn shown_result_pieces(
+    rows: &List<w::ShownResult>,
     bound: u32,
     path: w::Path,
 ) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits usize"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         match row.encode(&mut out) {
             Ok(()) => (),
             Err(_) => return Err(w::Problem { path, reason: skein_codec::Reason::Bound }),

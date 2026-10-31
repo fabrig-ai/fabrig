@@ -155,6 +155,7 @@ fn a_filter_by_goal_shows_only_entries_below_it() {
         rows: rows(ObjectKey::PersonTask(BELOW_TASK), InboxGroup::PersonTasks, PROJECT),
         before: None,
         after: None,
+        selection: None,
     };
     crate::route::told(
         &mut root,
@@ -207,7 +208,9 @@ fn answer_seen(pages: &mut crate::pages::Pages, key: jig_client::Key, outcome: j
     assert!(out.is_empty(), "Seen answers draw and send nothing");
 }
 fn answered() -> jig_client::Outcome {
-    jig_client::Outcome::Answered(jig_client::Answered::Jig(contract::Answer::Done(contract::Outcome::Changed)))
+    jig_client::Outcome::Answered(jig_client::Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+        contract::DocumentOutcome::Amended { task: 9 },
+    ))))
 }
 #[test]
 fn following_a_result_sends_seen_then_shows_its_task() {
@@ -305,14 +308,14 @@ fn reply_counts_and_source_cut_survive_both_inbox_documents() {
         let (mut root, watch) = fixtures::inbox_home(Filter::ALL);
         let mut entries = rows(ObjectKey::Task(TASK), InboxGroup::Replies, PROJECT);
         entries.get_mut(0).unwrap().reply = Some(Box::new(line.clone()));
-        let object = contract::OwnerInboxObject::Reply { message: MESSAGE };
-        let cursor = contract::OwnerInboxCursor::Inbox { task: TASK, object, at: None };
+        let object = contract::InboxObject::Reply { message: MESSAGE };
+        let cursor = contract::InboxCursor::Inbox { task: TASK, object, at: None };
         let delivery = if owner {
             let mut updates = List::with_capacity(1);
             updates
-                .push(contract::OwnerInboxEntry {
+                .push(contract::InboxEntry {
                     reply: Some(Box::new(line.clone())),
-                    task: contract::OwnerTaskLink::Live(line.chip.clone()),
+                    task: contract::TaskLink::Live(line.chip.clone()),
                     project: Some(PROJECT),
                     object,
                     activity: None,
@@ -321,7 +324,7 @@ fn reply_counts_and_source_cut_survive_both_inbox_documents() {
                     cursor,
                 })
                 .unwrap();
-            contract::Delivery::OwnerInbox(Box::new(contract::OwnerInbox {
+            contract::Delivery::Inbox(Box::new(contract::Inbox {
                 party: fixtures::PARTY,
                 needs: List::with_capacity(0),
                 updates,
@@ -333,13 +336,19 @@ fn reply_counts_and_source_cut_survive_both_inbox_documents() {
                 selection: None,
             }))
         } else {
-            contract::Delivery::Inbox(Box::new(contract::Inbox {
-                entries,
-                needs: contract::Needs { proposals: 0, questions: 0, escalations: 0, person_tasks: 0 },
-                updates: count,
-                results_seen: 0,
-                replies_seen: List::with_capacity(0),
-                more: true,
+            contract::Delivery::Inbox(Box::new({
+                let counts = contract::Needs { proposals: 0, questions: 0, escalations: 0, person_tasks: 0 };
+                crate::tests::documents::inbox(
+                    entries,
+                    counts
+                        .questions
+                        .saturating_add(counts.proposals)
+                        .saturating_add(counts.escalations)
+                        .saturating_add(counts.person_tasks),
+                    count,
+                    0,
+                    true,
+                )
             }))
         };
         let mut out = Queue::uncapped();
@@ -367,7 +376,7 @@ fn filtered_cut_is_kept_for_each_section_and_both_page_shapes() {
         let handles = root.pages().inbox().unwrap().queries;
         for (index, handle) in handles.into_iter().enumerate() {
             let page = if owner {
-                contract::ReadValue::OwnerInbox(Box::new(contract::OwnerInboxPage {
+                contract::ReadValue::Inbox(Box::new(contract::InboxPage {
                     selection: None,
                     cut: index == 1,
                     rows: List::with_capacity(0),
@@ -380,6 +389,7 @@ fn filtered_cut_is_kept_for_each_section_and_both_page_shapes() {
                     rows: List::with_capacity(0),
                     before: None,
                     after: None,
+                    selection: None,
                 }))
             };
             crate::route::told(

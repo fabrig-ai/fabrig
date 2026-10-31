@@ -8,7 +8,7 @@ pub fn read_exchange() -> Exchange {
     Exchange::with_env(limits)
 }
 pub fn encoded_read(value: &w::Read) -> Box<[u8]> {
-    let mut out = Writer::new(usize::try_from(value.measure()).expect("read size"));
+    let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut out).expect("read bytes");
     out.finish()
 }
@@ -18,12 +18,12 @@ pub fn owned_read(owner: w::Owner, version: u32, record: Box<[u8]>) -> Box<[u8]>
         w::Owner::Family(_) => family_record(record),
     };
     let value = w::Owned::new(&env().limits.wire, w::OwnedParts { owner, version, record }).expect("read envelope");
-    let mut out = Writer::new(usize::try_from(value.measure()).expect("envelope size"));
+    let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut out).expect("envelope bytes");
     out.finish()
 }
 pub fn value_answer(value: &w::ReadValue) -> w::ReadAnswer {
-    let mut out = Writer::new(usize::try_from(value.measure()).expect("value size"));
+    let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut out).expect("value bytes");
     let limits = w::Limits { owned_record: 4096, ..wire() };
     w::ReadAnswer::Value(
@@ -54,11 +54,11 @@ pub fn held_reads() -> [(&'static str, w::Read, reads::Read, reads::Answer, w::R
             value_answer(&w::ReadValue::Activity(records::carried_activity_page())),
         ),
         (
-            "historical",
+            "ended",
             w::Read::Task(w::ReadTask::new(&limits, w::ReadTaskParts { task: 7 }).expect("task")),
             reads::Read::Task { task: 7 },
-            reads::Answer::Historical(Box::new(historical_task())),
-            value_answer(&w::ReadValue::Historical(Box::new(records::historical_task_record()))),
+            reads::Answer::Ended(Box::new(ended_task())),
+            value_answer(&w::ReadValue::Ended(Box::new(records::ended_task_record()))),
         ),
         (
             "none",
