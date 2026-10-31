@@ -26,7 +26,7 @@ impl Link {
             out.push(Request::Authorized(Authorized::Busy));
             return;
         }
-        let Ok(record) = w::Authorize::new(&self.limits.wire, w::AuthorizeParts { query }) else {
+        let Ok(record) = w::Authorize::new(self.limits.wire(), w::AuthorizeParts { query }) else {
             out.push(Request::Authorized(Authorized::Lost));
             return;
         };
@@ -52,7 +52,7 @@ impl Link {
     }
     pub(super) fn authorized(&self, body: &[u8], out: &mut Queue<Request>) {
         let mut reader = Reader::new(body);
-        let answer = match w::AuthorizeAnswer::decode(&self.limits.wire, &mut reader) {
+        let answer = match w::AuthorizeAnswer::decode(self.limits.wire(), &mut reader) {
             Ok(answer) if reader.is_empty() => match answer {
                 w::AuthorizeAnswer::Go(go) => Authorized::Go { location: go.into_parts().location },
                 w::AuthorizeAnswer::Refused(refused) => Authorized::Refused(match refused.why() {

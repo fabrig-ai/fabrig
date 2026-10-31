@@ -38,7 +38,7 @@ pub(crate) fn owner_word_result_fields(
         }
         w::OwnerWordResult::Report => c::OwnerWordResult::Report,
         w::OwnerWordResult::Verdict(row) => {
-            if row.fields().len() > limits.client.rows {
+            if row.fields().len() > limits.client().rows {
                 return Err(too_large());
             }
             let mut list0 = List::with_capacity(row.fields().len());

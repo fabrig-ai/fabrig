@@ -12,7 +12,7 @@ use jig_client::thread::window::End;
 use skein_lib::{List, Time, Token, Wall};
 
 fn text(bytes: &[u8]) -> Text {
-    Text::new(Box::from(bytes), LIMITS.text).unwrap()
+    Text::new(Box::from(bytes), LIMITS.client.text).unwrap()
 }
 fn change(task: u64, revision: u64) -> HistoryRow {
     HistoryRow::Change(Box::new(OwnerHistoryLine {

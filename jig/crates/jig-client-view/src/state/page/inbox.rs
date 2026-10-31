@@ -388,7 +388,7 @@ pub const fn query_filter(query: Option<&Read>) -> Option<Filter> {
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
-pub(crate) fn valid(limits: &crate::Limits) -> bool {
+pub(crate) fn valid(limits: &jig_client::DomainLimits) -> bool {
     limits.rows.checked_mul(4).is_some()
 }
 

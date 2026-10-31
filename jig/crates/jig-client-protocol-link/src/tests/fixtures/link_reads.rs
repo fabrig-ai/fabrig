@@ -11,7 +11,7 @@ pub fn notes_read() -> c::Read {
     }
 }
 pub fn notes_scope_record() -> w::NoteScope {
-    w::NoteScope::Task(w::NoteScopeTask::new(&limits().wire, w::NoteScopeTaskParts { project: 7, task: 9 }).unwrap())
+    w::NoteScope::Task(w::NoteScopeTask::new(limits().wire(), w::NoteScopeTaskParts { project: 7, task: 9 }).unwrap())
 }
 
 pub fn family_read() -> Family {
@@ -123,11 +123,11 @@ pub fn encoded_read_answer(value: &w::ReadAnswer) -> Box<[u8]> {
 }
 pub fn read_none_answer(value: w::ReadNone) -> Box<[u8]> {
     encoded_read_answer(&w::ReadAnswer::None(
-        w::ReadAnswerNone::new(&limits().wire, w::ReadAnswerNoneParts { value }).unwrap(),
+        w::ReadAnswerNone::new(limits().wire(), w::ReadAnswerNoneParts { value }).unwrap(),
     ))
 }
 pub fn family_read_answer(family: u16, version: u32) -> Box<[u8]> {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let owner = w::Owner::Family(w::Family::new(&lim, w::FamilyParts { number: family }).unwrap());
     let value = w::Owned::new(&lim, w::OwnedParts { owner, version, record: family_read().bytes }).unwrap();
     encoded_read_answer(&w::ReadAnswer::Value(value))
@@ -263,7 +263,7 @@ pub fn malformed_read_values() -> [Box<[u8]>; 4] {
     ]
 }
 pub fn read_byte_limits(document_bytes: u64) -> Limits {
-    let mut client = limits().client;
+    let mut client = *limits().client();
     client.document_bytes = document_bytes;
     Limits::new(client, 4).unwrap()
 }

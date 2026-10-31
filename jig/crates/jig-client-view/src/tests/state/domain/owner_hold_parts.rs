@@ -97,10 +97,6 @@ fn task_watch(domain: &mut Fixture, section: TaskSection) -> jig_client::Handle 
 fn expected(_generation: u32) -> Request {
     Request::ShowPart { part: part(), scope: PartScope::Project(41) }
 }
-fn bounded(domain: &mut Fixture, count: u32, event: impl crate::tests::fixtures::Input) -> Box<[Request]> {
-    domain.ui.limits.parts = count;
-    domain.drive(Time::ZERO, event)
-}
 
 #[test]
 fn native_hold_account_is_shown_once_by_whole_task_reads_in_every_section_and_leaves_with_its_generation() {
@@ -125,7 +121,7 @@ fn native_hold_account_is_shown_once_by_whole_task_reads_in_every_section_and_le
             Time::ZERO,
             ReadPage { read: token, result: ReadResult::Value(ReadValue::Task(Box::new(exact.clone()))) },
         );
-        assert_eq!(crate::tests::fixtures::parts(&shown, LIMITS.parts).as_ref(), &[expected(1)]);
+        assert_eq!(crate::tests::fixtures::parts(&shown, LIMITS.client.parts).as_ref(), &[expected(1)]);
         let id = domain.objects().find(ObjectKey::Task(8)).unwrap();
         assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Task(Box::new(exact.clone()))));
         let left = drive(&mut domain, Time::ZERO, Event::Went { place: Place::Elsewhere });
@@ -175,7 +171,7 @@ fn native_hold_account_application_chips_use_supplied_scope_and_whole_task_and_e
             Time::ZERO,
             Watched { watch, event: WatchEvent::Delivered(Delivery::Chips(list([exact.clone()]))) },
         );
-        assert_eq!(crate::tests::fixtures::parts(&shown, LIMITS.parts).as_ref(), &[expected(1)]);
+        assert_eq!(crate::tests::fixtures::parts(&shown, LIMITS.client.parts).as_ref(), &[expected(1)]);
         let id = domain.objects().find(ObjectKey::Task(8)).unwrap();
         let body = if cached {
             old.chip = exact.clone();
@@ -195,7 +191,7 @@ fn native_hold_account_application_chips_use_supplied_scope_and_whole_task_and_e
             Time::ZERO,
             Watched { watch, event: WatchEvent::Delivered(Delivery::Chips(list([exact]))) },
         );
-        assert!(crate::tests::fixtures::parts(&late, LIMITS.parts).is_empty());
+        assert!(crate::tests::fixtures::parts(&late, LIMITS.client.parts).is_empty());
         assert!(domain.objects().find(ObjectKey::Task(8)).is_none());
     }
     for escalation in [false, true] {
@@ -212,7 +208,7 @@ fn native_hold_account_application_chips_use_supplied_scope_and_whole_task_and_e
             (ReadValue::Task(Box::new(exact.clone())), Body::Task(Box::new(exact)))
         };
         let shown = drive(&mut domain, Time::ZERO, ReadPage { read: token, result: ReadResult::Value(value) });
-        assert_eq!(crate::tests::fixtures::parts(&shown, LIMITS.parts).as_ref(), &[expected(1)]);
+        assert_eq!(crate::tests::fixtures::parts(&shown, LIMITS.client.parts).as_ref(), &[expected(1)]);
         let id = domain.objects().find(key).unwrap();
         assert_eq!(domain.objects().get(id).unwrap().body, Some(body));
     }
@@ -253,7 +249,7 @@ fn native_hold_account_absence_other_families_and_path_keys_never_invent_a_hold_
                     Watched { watch, event: WatchEvent::Delivered(Delivery::Task(Box::new(exact.clone()))) },
                 )
             };
-            assert!(crate::tests::fixtures::parts(&shown, LIMITS.parts).is_empty());
+            assert!(crate::tests::fixtures::parts(&shown, LIMITS.client.parts).is_empty());
             let id = domain.objects().find(ObjectKey::Task(8)).unwrap();
             assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Task(Box::new(exact))));
         }
@@ -263,7 +259,9 @@ fn native_hold_account_absence_other_families_and_path_keys_never_invent_a_hold_
 #[test]
 fn native_hold_accounts_obey_bounded_application_and_task_parts_without_dropping_whole_owner_facts() {
     for escalation in [false, true] {
-        let (mut domain, _) = objects::live();
+        let mut limits = LIMITS;
+        limits.client.parts = 1;
+        let (mut domain, _) = objects::live_with(&limits);
         let key = if escalation { ObjectKey::Escalation(8) } else { ObjectKey::Task(8) };
         let shown = app(&mut domain, key);
         let query = if escalation { Read::Escalation { task: 8 } } else { Read::Task { task: 8 } };
@@ -283,8 +281,8 @@ fn native_hold_accounts_obey_bounded_application_and_task_parts_without_dropping
         } else {
             (ReadValue::Task(Box::new(exact.clone())), Body::Task(Box::new(exact)))
         };
-        let shown = bounded(&mut domain, 1, ReadPage { read: token, result: ReadResult::Value(value) });
-        assert_eq!(crate::tests::fixtures::parts(&shown, LIMITS.parts).as_ref(), &[expected(1)]);
+        let shown = domain.drive(Time::ZERO, ReadPage { read: token, result: ReadResult::Value(value) });
+        assert_eq!(crate::tests::fixtures::parts(&shown, LIMITS.client.parts).as_ref(), &[expected(1)]);
         let (notice, ()) = domain.notices().ids().iter().next().unwrap();
         assert_eq!(
             domain.notices().get(*notice).unwrap().kind,
@@ -293,15 +291,14 @@ fn native_hold_accounts_obey_bounded_application_and_task_parts_without_dropping
         let id = domain.objects().find(key).unwrap();
         assert_eq!(domain.objects().get(id).unwrap().body, Some(body));
     }
-    let (mut domain, _) = objects::live();
+    let mut limits = LIMITS;
+    limits.client.parts = 0;
+    let (mut domain, _) = objects::live_with(&limits);
     let watch = task_watch(&mut domain, TaskSection::Overview);
     let exact = task(Some(account()));
-    let shown = bounded(
-        &mut domain,
-        0,
-        Watched { watch, event: WatchEvent::Delivered(Delivery::Task(Box::new(exact.clone()))) },
-    );
-    assert!(crate::tests::fixtures::parts(&shown, LIMITS.parts).is_empty());
+    let shown = domain
+        .drive(Time::ZERO, Watched { watch, event: WatchEvent::Delivered(Delivery::Task(Box::new(exact.clone()))) });
+    assert!(crate::tests::fixtures::parts(&shown, LIMITS.client.parts).is_empty());
     if let crate::state::page::Page::Work { refused, .. } = domain.page() {
         assert_eq!(*refused, Some(Limit::Objects));
     } else {

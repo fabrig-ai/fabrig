@@ -1,11 +1,14 @@
 use crate::tests::state::domain::conversations::*;
 pub(in crate::tests) fn native_run(rows: u32) -> (Fixture, jig_client::Handle) {
-    let limits = crate::Limits {
-        rows,
-        segments: rows.max(4),
-        watches: 8,
-        text: 100,
-        ..crate::tests::state::domain::spine::LIMITS
+    let limits = crate::tests::fixtures::Profile {
+        view: crate::Config { ..(crate::tests::state::domain::spine::LIMITS).view },
+        client: jig_client::DomainLimits {
+            rows,
+            segments: rows.max(4),
+            watches: 8,
+            text: 100,
+            ..(crate::tests::state::domain::spine::LIMITS).client
+        },
     };
     let mut fixture = Fixture::new(&limits);
     fixture.drive(

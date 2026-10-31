@@ -10,7 +10,7 @@ use crate::{JigBindings, Owner};
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Key, Role, Run};
 
-use crate::{Borrowed, Limits};
+use crate::{Borrowed, Config};
 use hello::hello;
 use jig_client::contract::{
     AdmissionLimit, Funder, OwnerAccountPlace, OwnerAccountState, OwnerAccountUnread, OwnerAttemptState, OwnerCapacity,
@@ -712,44 +712,50 @@ pub fn render(
 }
 /// All nested lists can fill together, with each linked chip's unchanged renderer cost.
 #[must_use]
-pub fn max_nodes(l: &Limits) -> Option<u32> {
-    let link = crate::chip_nodes(l)?.checked_add(3)?;
+pub fn max_nodes(l: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    let link = crate::chip_nodes(l, client)?.checked_add(3)?;
     let run = link.checked_add(14)?;
-    let hosts = run.checked_mul(l.rows)?.checked_add(20)?.checked_add(l.rows.checked_mul(10)?)?.checked_mul(l.rows)?;
-    let attempts = run.checked_mul(l.rows)?;
-    let accounts = crate::chip_nodes(l)?
-        .checked_mul(l.rows)?
+    let hosts = run
+        .checked_mul(client.rows)?
+        .checked_add(20)?
+        .checked_add(client.rows.checked_mul(10)?)?
+        .checked_mul(client.rows)?;
+    let attempts = run.checked_mul(client.rows)?;
+    let accounts = crate::chip_nodes(l, client)?
+        .checked_mul(client.rows)?
         .checked_mul(2)?
-        .checked_add(l.accounts.sources.checked_mul(13)?)?
+        .checked_add(client.accounts.sources.checked_mul(13)?)?
         .checked_add(68)?
-        .checked_mul(l.accounts.accounts)?;
+        .checked_mul(client.accounts.accounts)?;
     hosts
         .checked_add(attempts)?
         .checked_add(accounts)?
-        .checked_add(crate::tree::fragments::account_catalogue::max_nodes(l)?)?
-        .checked_add(l.rows.checked_mul(80)?)?
-        .checked_add(l.rows)?
+        .checked_add(crate::tree::fragments::account_catalogue::max_nodes(l, client)?)?
+        .checked_add(client.rows.checked_mul(80)?)?
+        .checked_add(client.rows)?
         .checked_add(46)
 }
 /// Finite selected-language storage, including opaque fixed-width request keys.
 #[must_use]
 #[cfg(test)]
-pub fn limits(l: &Limits, words: &Words) -> Option<skein_ui::Limits> {
-    let nodes = max_nodes(l)?;
+pub fn limits(l: &Config, client: &jig_client::DomainLimits, words: &Words) -> Option<skein_ui::Limits> {
+    let nodes = max_nodes(l, client)?;
     let phrase = words.jig_capacity()?;
-    let text = phrase.max(crate::words::literal_segment::max_bytes(l.text)?).max(64).checked_mul(2)?;
+    let text = phrase.max(crate::words::literal_segment::max_bytes(client.text)?).max(64).checked_mul(2)?;
     // skein-ui still shares the external-target bound with text-run capacity.
     let text_per_node = text
         .max(jig_client::contract::ACCOUNT_MANAGE_USAGE.checked_add(phrase)?)
         .max(jig_client::contract::PROGRAM_HOST_NAME);
     Some(skein_ui::Limits {
         nodes,
-        depth: l.rows.checked_add(32)?,
+        depth: client.rows.checked_add(32)?,
         text_per_node,
         text_bytes: nodes
             .checked_mul(text)?
-            .checked_add(l.accounts.accounts.checked_mul(2)?.checked_mul(jig_client::contract::ACCOUNT_MANAGE_USAGE)?)?
-            .checked_add(l.rows.checked_mul(jig_client::contract::PROGRAM_HOST_NAME)?)?,
+            .checked_add(
+                client.accounts.accounts.checked_mul(2)?.checked_mul(jig_client::contract::ACCOUNT_MANAGE_USAGE)?,
+            )?
+            .checked_add(client.rows.checked_mul(jig_client::contract::PROGRAM_HOST_NAME)?)?,
         drawing_bytes: 0,
         styles_per_node: 2,
         patches: 0,

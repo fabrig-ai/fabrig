@@ -74,7 +74,7 @@ pub(crate) fn read(domain: &mut Ui, number: u16, what: Read, out: &mut Queue<Req
 /// Leaves in the order the contract requires; shell places replace their current entry.
 pub(crate) fn navigate(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     place: Place,
     replace: bool,
     out: &mut Queue<Request>,
@@ -83,7 +83,7 @@ pub(crate) fn navigate(
     if domain.blocked {
         return;
     }
-    leave_page(domain, out);
+    leave_page(domain, out, lent);
     match place {
         Place::Jig(address) => {
             domain.signin.application = false;
@@ -113,7 +113,7 @@ pub(crate) fn navigate(
     }
 }
 /// Releases a page's handles and owned read pages together (view.md, 18.2).
-pub(crate) fn leave_page(domain: &mut Ui, out: &mut Queue<Request>) {
+pub(crate) fn leave_page(domain: &mut Ui, out: &mut Queue<Request>, lent: &jig_client::Client) {
     domain.leave_handles(false, out);
     domain.handles.leave_reads(out);
     out.push(Request::PartsLeft);
@@ -135,7 +135,11 @@ pub(crate) fn leave_page(domain: &mut Ui, out: &mut Queue<Request>) {
     let words = domain.conversation.words.rows.capacity();
     domain.conversation = jig_client::thread::Thread::new(
         0,
-        &jig_client::thread::Limits { lines: rows, bytes: domain.limits.document_bytes, text: domain.text_limit },
+        &jig_client::thread::Limits {
+            lines: rows,
+            bytes: lent.domain_limits().document_bytes,
+            text: domain.text_limit,
+        },
     );
     domain.conversation.words = jig_client::thread::KeptWords::new(words);
     domain.history_rows.rows.clear();
@@ -143,7 +147,7 @@ pub(crate) fn leave_page(domain: &mut Ui, out: &mut Queue<Request>) {
     domain.history_rows.edges = blank_edges();
 }
 /// Opens only what the selected work page shows; services have no page.
-pub(crate) fn enter(domain: &mut Ui, env: &Env<crate::Limits>, out: &mut Queue<Request>, lent: &jig_client::Client) {
+pub(crate) fn enter(domain: &mut Ui, env: &Env<crate::Config>, out: &mut Queue<Request>, lent: &jig_client::Client) {
     domain.sections.clear();
     let hidden = match domain.confirmed {
         Some(party) => crate::state::ui::foreign_kept_requests(domain, party),
@@ -201,7 +205,7 @@ pub(crate) fn enter(domain: &mut Ui, env: &Env<crate::Limits>, out: &mut Queue<R
 /// Opens the sources one section needs (client/domain/client.md, 5.1).
 pub(crate) fn open_section(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     section: Section,
     owner: Holder,
     out: &mut Queue<Request>,
@@ -224,7 +228,7 @@ pub(crate) fn document_read(key: ObjectKey) -> Read {
 }
 pub(crate) fn names(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    _env: &Env<crate::Config>,
     source: Source,
     keys: List<ObjectKey>,
     out: &mut Queue<Request>,
@@ -268,18 +272,18 @@ pub(crate) fn names(
         refuse(domain, Limit::Objects);
     }
     // The page's names are bounded even when the incoming document has more rows.
-    assert!(domain.object_rows.rows.len() <= env.limits.rows, "page rows fit their window");
+    assert!(domain.object_rows.rows.len() <= lent.domain_limits().rows, "page rows fit their window");
 }
 pub(crate) fn parts(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    _env: &Env<crate::Config>,
     values: &[Part],
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
 ) {
     let mut count = 0_u32;
     for part in values {
-        if count == env.limits.parts {
+        if count == lent.domain_limits().parts {
             refuse(domain, Limit::Objects);
             break;
         }
@@ -295,7 +299,7 @@ pub(crate) fn parts(
 
 fn one(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     source: Source,
     key: ObjectKey,
     body: Body,
@@ -319,7 +323,7 @@ fn one(
 /// Applies one whole delivery to its source, never to an old generation.
 pub(crate) fn delivery(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     watch: jig_client::Handle,
     value: Delivery,
     out: &mut Queue<Request>,
@@ -342,7 +346,7 @@ pub(crate) fn delivery(
         }
         Delivery::OwnerTree(tree) => owner_tree_delivery(domain, env, watch, source, tree, out, lent),
         Delivery::Chips(chips) => {
-            let mut keys = List::with_capacity(env.limits.rows);
+            let mut keys = List::with_capacity(lent.domain_limits().rows);
             for chip in &chips {
                 match keys.push(ObjectKey::Task(chip.task)) {
                     Ok(()) => {}
@@ -388,7 +392,7 @@ fn read_body(domain: &mut Ui, key: ObjectKey, body: Body) {
 }
 fn owner_proposal_read(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     proposal: Box<contract::OwnerProposal>,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
@@ -402,7 +406,7 @@ fn owner_proposal_read(
 #[expect(clippy::too_many_lines, reason = "the closed read terminal table routes every public read explicitly")]
 pub(crate) fn read_result(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     token: Token,
     result: ReadResult,
     out: &mut Queue<Request>,
@@ -515,20 +519,20 @@ pub(crate) fn read_result(
 }
 fn original_read_valid(
     domain: &Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     token: Token,
     result: &ReadResult,
     lent: &jig_client::Client,
 ) -> bool {
     owner_escalation_read_valid(domain, token, result, lent)
         && owner_project_read_valid(domain, token, result)
-        && owner_inbox_read_valid(domain, env, token, result)
-        && historical_read_valid(domain, env, token, result)
+        && owner_inbox_read_valid(domain, env, token, result, lent)
+        && historical_read_valid(domain, env, token, result, lent)
 }
 
 fn read_value(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     source: Source,
     value: ReadValue,
     out: &mut Queue<Request>,
@@ -593,7 +597,7 @@ fn owner_escalation_read(domain: &mut Ui, value: Box<contract::OwnerEscalation>)
 
 fn task_read(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     task: Box<contract::Task>,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
@@ -662,7 +666,13 @@ fn owner_project_read_valid(domain: &Ui, token: Token, result: &ReadResult) -> b
 }
 
 // Validate the original query and entire group before consuming its terminal.
-fn owner_inbox_read_valid(domain: &Ui, env: &Env<crate::Limits>, token: Token, result: &ReadResult) -> bool {
+fn owner_inbox_read_valid(
+    domain: &Ui,
+    _env: &Env<crate::Config>,
+    token: Token,
+    result: &ReadResult,
+    lent: &jig_client::Client,
+) -> bool {
     let page = match result {
         ReadResult::Value(value) => match value {
             ReadValue::OwnerInbox(page) => page,
@@ -727,7 +737,7 @@ fn owner_inbox_read_valid(domain: &Ui, env: &Env<crate::Limits>, token: Token, r
     }
     if super::conversations::inbox_group(number) != Some(group)
         || super::inbox::query_filter(Some(&read.what)) != Some(domain.inbox.filter)
-        || page.rows.capacity() > env.limits.rows
+        || page.rows.capacity() > lent.domain_limits().rows
     {
         return false;
     }
@@ -741,7 +751,7 @@ fn owner_inbox_read_valid(domain: &Ui, env: &Env<crate::Limits>, token: Token, r
 
 fn received_value(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     source: Source,
     query: Read,
     value: ReadValue,
@@ -834,7 +844,7 @@ fn received_value(
 
 fn owner_tree_delivery(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     watch: jig_client::Handle,
     source: Source,
     tree: Box<contract::OwnerTree>,
@@ -861,7 +871,8 @@ fn owner_tree_delivery(
         | Subject::Deployment => return,
     }
     let owner = &tree;
-    let mut keys = List::with_capacity(crate::sizes::limits::ui::tree_names(&env.limits).expect("tree names bounded"));
+    let mut keys =
+        List::with_capacity(crate::sizes::limits::ui::tree_names(lent.domain_limits()).expect("tree names bounded"));
     keys.push(ObjectKey::Task(owner.root.task)).expect("root fits");
     for row in &owner.rows {
         let key = ObjectKey::Task(row.chip.task);
@@ -897,7 +908,13 @@ fn historical_funders_fit(page: &contract::OwnerSpendPage, project: u32) -> bool
 }
 
 /// Validate the retained original request before consuming its terminal.
-fn historical_read_valid(domain: &Ui, env: &Env<crate::Limits>, token: Token, result: &ReadResult) -> bool {
+fn historical_read_valid(
+    domain: &Ui,
+    _env: &Env<crate::Config>,
+    token: Token,
+    result: &ReadResult,
+    lent: &jig_client::Client,
+) -> bool {
     let value = match result {
         ReadResult::Value(value) => value,
         ReadResult::None(_) => return true,
@@ -936,8 +953,8 @@ fn historical_read_valid(domain: &Ui, env: &Env<crate::Limits>, token: Token, re
             };
             source
                 && domain.task_page.ended_task == Some(task)
-                && page.rows.capacity() <= env.limits.rows
-                && historical_edges_fit(page.before.as_ref(), page.after.as_ref(), env.limits.text)
+                && page.rows.capacity() <= lent.domain_limits().rows
+                && historical_edges_fit(page.before.as_ref(), page.after.as_ref(), lent.domain_limits().text)
         }
         ReadValue::OwnerSpend(page) => {
             let project = match &read.what {
@@ -969,8 +986,8 @@ fn historical_read_valid(domain: &Ui, env: &Env<crate::Limits>, token: Token, re
             };
             if !source
                 || super::project::number(domain) != Some(project)
-                || page.rows.capacity() > env.limits.rows
-                || !historical_edges_fit(page.before.as_ref(), page.after.as_ref(), env.limits.text)
+                || page.rows.capacity() > lent.domain_limits().rows
+                || !historical_edges_fit(page.before.as_ref(), page.after.as_ref(), lent.domain_limits().text)
             {
                 return false;
             }

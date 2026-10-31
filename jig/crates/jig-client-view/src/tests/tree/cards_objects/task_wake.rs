@@ -26,7 +26,7 @@ fn whole_wake_channel_edits_preserve_batched_rules_flags_and_separate_subscripti
             drive(&mut domain, Event::Act { action: Action::Intend { object: id.token(), act: ActKind::Amend } });
             drive(&mut domain, Event::Act { action: Action::Edit { field: Purpose::Reason, text: text(b"") } });
             let words = words();
-            let mut bindings = JigBindings::new(limits().bindings, CLIENT.text);
+            let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
             let tree = dialog(&domain, words, &mut bindings);
             assert!(contains(&tree, b"4294967295 messages or 18446744073709551615 ns"));
             assert!(contains(&tree, b"Questions wake"));
@@ -126,7 +126,7 @@ fn task_overview_renders_numbered_standing_interests_independently_of_activation
                 assert_eq!(contains(&tree, b"Repeats every 18446744073709551615 ns"), period.is_some());
             }
         }
-        assert!(tree.len() <= crate::task_nodes(&CLIENT, 0).unwrap());
+        assert!(tree.len() <= crate::task_nodes(&CLIENT, &(CLIENT).client, 0).unwrap());
         let id = domain.task_page().header.unwrap();
         let Some(crate::state::objects::Body::Task(supplied)) = &domain.objects().get(id).unwrap().body else {
             panic!("supplied task remains whole");

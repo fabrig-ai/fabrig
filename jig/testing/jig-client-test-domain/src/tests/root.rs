@@ -932,24 +932,21 @@ pub(super) fn live_first(first: first::Limits) -> (first::Side, jig_client::Clie
 fn valid_refuses_each_unrepresentable_limit() {
     let base = limits();
     assert!(crate::valid(&base));
-    let mut retention = base;
-    retention.jig.kept = base.client.domain.requests.requests - 1;
     let mut jig = base;
     jig.jig.save_delay = Duration::ZERO;
     let mut first = base;
     first.first.retry = Duration::ZERO;
     let mut client = base;
     client.client.domain.heartbeat = Duration::ZERO;
-    for (condition, invalid) in
-        [("retained requests", retention), ("jig limits", jig), ("first limits", first), ("client limits", client)]
-    {
+    for (condition, invalid) in [("jig limits", jig), ("first limits", first), ("client limits", client)] {
         assert!(!crate::valid(&invalid), "{condition}");
     }
 }
 
 #[test]
-fn validity_does_not_price_retained_heap() {
+fn view_retention_does_not_price_the_clients_receiving_bound() {
     let mut bounds = limits();
-    bounds.jig.document_bytes = u64::MAX;
-    assert!(crate::valid(&bounds));
+    bounds.client.domain.document_bytes = u64::MAX;
+    assert!(jig_client_view::valid(&bounds.jig, &bounds.client.domain));
+    assert!(!crate::valid(&bounds));
 }

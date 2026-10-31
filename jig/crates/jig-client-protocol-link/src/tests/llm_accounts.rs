@@ -6,23 +6,23 @@ const DESCRIPTION_BYTES: usize = 512;
 fn me_with_model(prices: w::MePricesParts, description: Option<Box<[u8]>>) -> w::Me {
     let limits = fixtures::limits();
     let model = w::MeModel::new(
-        &limits.wire,
+        limits.wire(),
         w::MeModelParts {
             name: b"chosen".as_slice().into(),
             provider: Some(3),
             window: 8192,
             output: 1024,
             efforts: skein_lib::List::with_capacity(0),
-            prices: w::MePrices::new(&limits.wire, prices).unwrap(),
+            prices: w::MePrices::new(limits.wire(), prices).unwrap(),
             description,
         },
     )
     .unwrap();
     let project = w::MeProject::new(
-        &limits.wire,
+        limits.wire(),
         w::MeProjectParts {
             project: 3,
-            name: w::DocumentText::new(&limits.wire, w::DocumentTextParts { bytes: Box::from(*b"Tally"), cut: false })
+            name: w::DocumentText::new(limits.wire(), w::DocumentTextParts { bytes: Box::from(*b"Tally"), cut: false })
                 .unwrap(),
             role: w::HeldRole::Owner,
             pool: None,
@@ -39,14 +39,14 @@ fn me_with_model(prices: w::MePricesParts, description: Option<Box<[u8]>>) -> w:
     skein_codec::piece::write(&mut pieces, &encoded).unwrap();
     let mut me = fixtures::frame_record().into_parts();
     me.projects = pieces.finish();
-    w::Me::new(&limits.wire, me).unwrap()
+    w::Me::new(limits.wire(), me).unwrap()
 }
 
 #[test]
 fn models_decode_configured_prices_and_optional_descriptions() {
     let limits = fixtures::limits();
     let full: Box<[u8]> = Box::from([b'd'; DESCRIPTION_BYTES].as_slice());
-    let described = c::Text::new(full.clone(), limits.wire.me_model_description_some).unwrap();
+    let described = c::Text::new(full.clone(), limits.wire().me_model_description_some).unwrap();
     for (description, expected) in [(None, None), (Some(full), Some(described))] {
         for cache_write in [None, Some(5)] {
             let me = me_with_model(
@@ -97,7 +97,7 @@ fn an_explicit_account_preference_survives_link_storage() {
     let mut ask = fixtures::create_ask();
     let c::Ask::Create { tasks, .. } = &mut ask else { panic!("create") };
     tasks.get_mut(0).unwrap().llm = Some(choice);
-    let wire = translate::asks::ask(&ask, &limits.wire).unwrap();
+    let wire = translate::asks::ask(&ask, limits.wire()).unwrap();
     assert_eq!(translate::store::restore_ask(wire, &limits).unwrap(), ask);
 }
 
@@ -111,7 +111,7 @@ fn an_account_refusal_keeps_its_reason_in_the_link() {
         (w::AccountWhy::Limited, c::AccountWhy::Limited),
     ] {
         let wire = w::Refusal::Account(
-            w::RefusalAccount::new(&limits.wire, w::RefusalAccountParts { account: 42, why: wire }).unwrap(),
+            w::RefusalAccount::new(limits.wire(), w::RefusalAccountParts { account: 42, why: wire }).unwrap(),
         );
         assert_eq!(
             translate::answers::refusal(&wire, &limits).unwrap(),
@@ -124,16 +124,16 @@ fn an_account_refusal_keeps_its_reason_in_the_link() {
 fn an_unknown_limit_reset_stays_unknown_in_the_task_wait() {
     let limits = fixtures::limits();
     let state = w::TaskSourceState::Limited(
-        w::TaskSourceStateUntil::new(&limits.wire, w::TaskSourceStateUntilParts { until: None }).unwrap(),
+        w::TaskSourceStateUntil::new(limits.wire(), w::TaskSourceStateUntilParts { until: None }).unwrap(),
     );
-    let why = w::TaskWaitWhy::Source(w::TaskWaitSource::new(&limits.wire, w::TaskWaitSourceParts { state }).unwrap());
+    let why = w::TaskWaitWhy::Source(w::TaskWaitSource::new(limits.wire(), w::TaskWaitSourceParts { state }).unwrap());
     let wire = w::TaskRunWait::Account(
-        w::TaskWaitAccount::new(&limits.wire, w::TaskWaitAccountParts { account: Some(42), source: Some(91), why })
+        w::TaskWaitAccount::new(limits.wire(), w::TaskWaitAccountParts { account: Some(42), source: Some(91), why })
             .unwrap(),
     );
     let mut task = fixtures::task_record().into_parts();
     task.run_wait = Some(wire);
-    let wire = w::Task::new(&limits.wire, task).unwrap();
+    let wire = w::Task::new(limits.wire(), task).unwrap();
     assert_eq!(
         translate::documents::task_fields(&wire, &limits).unwrap().run_wait,
         Some(c::TaskRunWait::Account {

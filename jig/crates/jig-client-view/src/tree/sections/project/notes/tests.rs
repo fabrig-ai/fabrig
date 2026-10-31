@@ -10,9 +10,9 @@ fn a_resource_notes_filter_keeps_the_whole_path_behind_its_cut_label() {
     let pattern = jig_client::contract::exact_resource_pattern(&path).unwrap();
     let scope = NoteScope::Resource { project: PROJECT, connector: CONNECTOR, pattern };
     let expected = NoteFilter { scope: scope.clone(), description: None };
-    let capacity = crate::sizes::limits::of_words(&client, words).unwrap();
+    let capacity = crate::sizes::limits::of_words(&client, &(client).client, words).unwrap();
     let mut b = Builder::new(&capacity);
-    let mut bindings = JigBindings::new(capacity.bindings, client.text);
+    let mut bindings = JigBindings::new(capacity.bindings, client.client.text);
     scope_choice(
         &mut b,
         words,

@@ -12,30 +12,20 @@ use jig_ops_client_domain::{self as root, Address, Event, infrastructure, observ
 mod support;
 use skein_lib::{Duration, Env, List, Queue, Time, Wall};
 use support::{Domain, JigOut, Request};
-const JIG: jig_client_view::Limits = jig_client_view::Limits {
-    watches: 4,
+const JIG: jig_client_view::Config = jig_client_view::Config {
     notices: 2,
     notice_life: Duration::from_secs(5),
     linger: Duration::from_secs(5),
     save_delay: Duration::from_secs(1),
     intents: 2,
-    fields: 4,
 
     objects: 3,
     sources: 8,
-    reads: 4,
-    parts: 10,
-    delegates: 2,
-    document_bytes: 65536,
-    records: 2,
-    kept: 4,
+
     drafts: 1,
-    projects: 2,
+
     roles: 2,
-    text: 32,
-    rows: 2,
-    segments: 4,
-    accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
+
     conversation_words: 2,
     navigation_entries: 8,
     updates_count: 99,
@@ -43,29 +33,8 @@ const JIG: jig_client_view::Limits = jig_client_view::Limits {
 fn limits() -> root::Limits {
     root::Limits {
         jig: JIG,
-        infrastructure: infrastructure::Limits {
-            parts: 10,
-            text: 32,
-            objects: 12,
-            watches: 24,
-            reads: 24,
-            requests: 4,
-            rows: 2,
-            segments: 4,
-
-            document_bytes: 65536,
-        },
-        observability: observability::Limits {
-            parts: 10,
-            objects: 12,
-            reads: 24,
-            watches: 24,
-            rows: 2,
-            segments: 4,
-            text: 32,
-
-            document_bytes: 65536,
-        },
+        infrastructure: infrastructure::Limits { objects: 12 },
+        observability: observability::Limits { objects: 12 },
         client: support::client_limits(),
     }
 }
@@ -352,6 +321,47 @@ fn text(bytes: &[u8]) -> Text {
 fn list<T>(rows: impl IntoIterator<Item = T>) -> List<T> {
     List::from_boxed(rows.into_iter().collect::<Vec<_>>().into_boxed_slice())
 }
+fn procedure_phase() -> ChipPhase {
+    ChipPhase {
+        phase: OwnerChipPhase::Active(RunStage::Running { attempt: 1 }),
+        details: Box::new(OwnerChipDetails {
+            dependencies: list([]),
+            project: 1,
+            executor: OwnerExecutor::Procedure { connector: 2, code: 1 },
+            phase_since: Wall::EPOCH,
+            run_since: Some(Wall::EPOCH),
+            attempt: Some(1),
+            retry: None,
+            wake: OwnerWakePolicy {
+                words: WakeRule::Never,
+                notices: WakeRule::Never,
+                news: WakeRule::Never,
+                results: ResultsWake::Never,
+                questions: false,
+                answers: false,
+                timers: false,
+            },
+            person_wait: None,
+            hold: None,
+            budget: OwnerBudget {
+                numbers: OwnerNumbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
+                left: 1,
+                funder: Funder::Pool { project: 1, person: 7, period: 3 },
+                deadline: None,
+            },
+            activity: 0,
+            resources: list([]),
+            resources_cut: false,
+            resources_observed: false,
+            procedure: Some(OwnerPart { connector: 2, kind: OwnerPartKind::Procedure, key: OwnerPartKey::Number(9) }),
+            live_delegates: 0,
+            closing_connectors: None,
+            ending: None,
+            ended_at: None,
+            observation: None,
+        }),
+    }
+}
 fn task() -> Task {
     Task {
         dependency_facts: List::with_capacity(0),
@@ -368,7 +378,7 @@ fn task() -> Task {
             title: DocumentText::complete(text(&[b't'; 32])),
             executor: Executor::Procedure { connector: 2, kind: 1 },
             phase: Phase::Running,
-            details: Box::new(ChipPhase::Procedure { panel: Part::Panel { connector: 2, task: 9 } }),
+            details: Box::new(procedure_phase()),
         },
         goal: None,
         priority: Some(1),
@@ -423,7 +433,6 @@ fn task() -> Task {
         },
         hold: None,
         context: Some(Box::new(TaskContext {
-            escalation: None,
             parts: list([]),
             closing: None,
             spend: list([]),
@@ -605,76 +614,6 @@ fn contains(view: &View, words: &[u8]) -> bool {
         .any(|r| r.text.windows(words.len()).any(|slice| slice == words))
 }
 #[test]
-fn an_incident_with_a_lead_and_an_infrastructure_panel_fills_both_slot_passes() {
-    let mut root = ready();
-    let requests = drive(
-        &mut root,
-        Event::Went {
-            place: root::Place::Address(Address::Observability(observability::Address::Incident {
-                project: 1,
-                incident: 12,
-            })),
-        },
-    );
-    let read = requests
-        .iter()
-        .find_map(|r| match r {
-            Request::Observability(observability::Out::Read { read, .. }) => Some(*read),
-            _ => None,
-        })
-        .unwrap();
-    let mut facts = incident();
-    let observability::values::Value::Incident { incident, .. } = &mut facts.value else { unreachable!() };
-    incident.lead = Some(9);
-    let requests = drive(
-        &mut root,
-        Event::Observability(observability::Event::Read {
-            read,
-            result: observability::ReadResult::Value(Box::new(observability::Document::Value(Box::new(facts)))),
-        }),
-    );
-    let mut pending = requests;
-    while let Some(request) = pending.pop() {
-        let event = match request {
-            Request::Jig(JigOut::Read { read, what: Read::Task { .. } }) => Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::ReadDone {
-                        read,
-                        result: jig_client::Readout::Jig(ReadResult::Value(ReadValue::Task(Box::new(task())))),
-                    },
-                },
-            },
-            Request::Jig(JigOut::Open { watch, subject: Subject::Task { .. } }) => Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::Watched {
-                        watch,
-                        event: WatchEvent::Delivered(Delivery::Task(Box::new(task()))),
-                    },
-                },
-            },
-            Request::Infrastructure(infrastructure::Out::Read { read, subject }) => {
-                Event::Infrastructure(infrastructure::Event::Read {
-                    read,
-                    result: infrastructure::ReadResult::Value(Box::new(infrastructure::Document::Value(Box::new(
-                        waiting_remediation_panel(subject),
-                    )))),
-                })
-            }
-            _ => continue,
-        };
-        pending.extend(drive(&mut root, event));
-    }
-    let mut view = view();
-    let mut patches = Queue::uncapped();
-    build(&mut view, &root, &mut patches);
-    assert!(contains(&view, b"Task 9"));
-    assert!(contains(&view, b"Waiting for healthy"));
-    assert!(view.tree().len() <= view.limits().tree.nodes);
-    while patches.pop().is_some() {}
-    build(&mut view, &root, &mut patches);
-    assert!(patches.is_empty());
-}
-#[test]
 fn moving_an_environment_end_names_the_end_revision_and_waits_for_the_final_envelope() {
     let mut root = ready();
     let requests = drive(
@@ -767,7 +706,7 @@ fn extreme_capacity_is_refused_before_building() {
     let obs = words::Words::english(1, 32).unwrap();
     let infra = words::Words::english(2, 32).unwrap();
     let mut limits = limits();
-    limits.observability.rows = u32::MAX;
+    limits.client.domain.rows = u32::MAX;
     assert!(Limits::of(&limits, &jig, &obs, &infra).is_none());
 }
 
@@ -852,25 +791,6 @@ fn outbox_entry() -> infrastructure::values::Entry {
         phase: n::Phase::Sent,
     }
 }
-fn outbox_document(subject: infrastructure::Subject) -> infrastructure::Document {
-    use infrastructure::values as n;
-    infrastructure::Document::Value(Box::new(n::Document {
-        subject,
-        value: n::Value::Outbox {
-            entry: outbox_entry(),
-            description: n::Description {
-                kind: 1,
-                resources: Box::new([]),
-                condition: false,
-                form: n::Form::Transition,
-                recovery: n::Recovery::Keyed,
-                price: None,
-                state: 1,
-            },
-        },
-    }))
-}
-
 #[test]
 fn resource_slots_preserve_whole_opaque_segments_and_distinct_equal_concatenations_in_both_connectors() {
     let domain_limits = limits();
@@ -885,11 +805,11 @@ fn resource_slots_preserve_whole_opaque_segments_and_distinct_equal_concatenatio
     assert!(tree_limits.slots <= envelope.slots);
     assert!(tree_limits.text_per_node >= 128);
     let mut builder = skein_ui::Builder::new(&tree_limits);
-    let mut jig_bindings = jig_client_view::JigBindings::new(16, JIG.text);
+    let mut jig_bindings = jig_client_view::JigBindings::new(16, domain_limits.client.domain.text);
     let mut obs_bindings = crate::bindings::Bindings::new(16, 32, 1);
     let mut infra_bindings = crate::bindings::Bindings::new(16, 32, 2);
-    let mut obs = observability::Side::new(&domain_limits.observability);
-    let mut infra = infrastructure::Side::new(&domain_limits.infrastructure);
+    let mut obs = observability::Side::new(&domain_limits.observability, &domain_limits.client.domain);
+    let mut infra = infrastructure::Side::new(&domain_limits.infrastructure, &domain_limits.client.domain);
     let mut expected = Vec::new();
     builder.open(skein_ui::Role::Page);
     for connector in [1, 2] {
@@ -904,7 +824,7 @@ fn resource_slots_preserve_whole_opaque_segments_and_distinct_equal_concatenatio
                 let mut out = Queue::uncapped();
                 observability::step(
                     &mut obs,
-                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_limits.observability },
+                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_limits.client.domain },
                     observability::Event::Show { part: part.clone(), scope: observability::Scope::Project(1) },
                     &mut out,
                 );
@@ -914,7 +834,7 @@ fn resource_slots_preserve_whole_opaque_segments_and_distinct_equal_concatenatio
                 let mut out = Queue::uncapped();
                 infrastructure::step(
                     &mut infra,
-                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_limits.infrastructure },
+                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_limits.client.domain },
                     infrastructure::Event::Show { part: part.clone(), scope: infrastructure::Scope::Project(1) },
                     &mut out,
                 );
@@ -1252,11 +1172,11 @@ fn effect_slots_load_infrastructure_without_loading_a_maker_effect_and_keep_obse
             builder.open(skein_ui::Role::Page);
             let mut bindings = crate::bindings::Bindings::new(0, 32, connector);
             if connector == 1 {
-                let mut side = observability::Side::new(&domain_limits.observability);
+                let mut side = observability::Side::new(&domain_limits.observability, &domain_limits.client.domain);
                 let mut out = Queue::uncapped();
                 observability::step(
                     &mut side,
-                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_limits.observability },
+                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_limits.client.domain },
                     observability::Event::Show { part: part.clone(), scope: observability::Scope::Project(0) },
                     &mut out,
                 );
@@ -1264,11 +1184,11 @@ fn effect_slots_load_infrastructure_without_loading_a_maker_effect_and_keep_obse
                 assert!(out.is_empty());
                 crate::observability::part(&mut builder, &side, &part, &obs_words, &mut bindings);
             } else {
-                let mut side = infrastructure::Side::new(&domain_limits.infrastructure);
+                let mut side = infrastructure::Side::new(&domain_limits.infrastructure, &domain_limits.client.domain);
                 let mut out = Queue::uncapped();
                 infrastructure::step(
                     &mut side,
-                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_limits.infrastructure },
+                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_limits.client.domain },
                     infrastructure::Event::Show { part: part.clone(), scope: infrastructure::Scope::Project(0) },
                     &mut out,
                 );
@@ -1349,7 +1269,7 @@ fn effect_facts_have_distinct_proposal_and_state_labels() {
     let side = root.infrastructure();
     let mut builder = skein_ui::Builder::new(&tree_limits);
     builder.open(skein_ui::Role::Page);
-    let mut bindings = crate::bindings::Bindings::new(tree_limits.bindings, limits.infrastructure.text, 2);
+    let mut bindings = crate::bindings::Bindings::new(tree_limits.bindings, limits.client.domain.text, 2);
     crate::infrastructure::part(&mut builder, side, &part, &words, &jig_words, &mut bindings);
     builder.close();
     let tree = builder.finish();
@@ -1438,27 +1358,6 @@ fn environment_form_uses_the_supplied_request_revision_and_keeps_whole_width_sec
             value: u64::MAX - 1
         }))
     );
-}
-
-fn waiting_remediation_panel(subject: infrastructure::Subject) -> infrastructure::values::Document {
-    use infrastructure::values as n;
-    n::Document {
-        subject,
-        value: n::Value::Panel {
-            task: 9,
-            state: n::ProcedureState {
-                task: 9,
-                procedure: n::Procedure::Remediate {
-                    service: n::Service { environment: Box::from(*b"production"), name: Box::from(*b"checkout") },
-                    operation: 17,
-                    deadline: 0,
-                },
-                phase: n::ProcedurePhase::WaitingCondition,
-            },
-            resources: list([]),
-            effects: list([]),
-        },
-    }
 }
 
 fn configured_deployment(connector: u16) -> OwnerDeployment {

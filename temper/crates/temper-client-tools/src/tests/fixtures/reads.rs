@@ -377,20 +377,20 @@ pub(crate) fn document_at_byte_bound() -> c::Task {
     let mut parts = jig_client_test_records::task_record().into_parts();
     parts.instructions = Some(
         w::DocumentText::new(
-            &link.wire,
+            link.wire(),
             w::DocumentTextParts { bytes: maximally_escaped_json_text(client.domain.text), cut: false },
         )
         .expect("worst-case instructions at text bound"),
     );
     parts.resources = resource_pieces(&link, 0);
-    let empty = w::Task::new(&link.wire, parts).expect("task with empty paths");
+    let empty = w::Task::new(link.wire(), parts).expect("task with empty paths");
     let payload = u32::try_from(crate::limits::DOCUMENT)
         .expect("document bound fits")
         .checked_sub(empty.measure())
         .expect("room after framing");
     let mut parts = empty.into_parts();
     parts.resources = resource_pieces(&link, payload);
-    let record = w::Task::new(&link.wire, parts).expect("task at document bound");
+    let record = w::Task::new(link.wire(), parts).expect("task at document bound");
     assert_eq!(u64::from(record.measure()), crate::limits::DOCUMENT, "whole encoded document at the bound");
     jig_client_protocol_link::translate::documents::task(record, &link).expect("document admitted by shipped limits")
 }
@@ -400,20 +400,20 @@ fn resource_pieces(link: &jig_client_protocol_link::Limits, payload: u32) -> Box
     let mut left = payload;
     let mut size = 0_u32;
     for _ in 0..DOCUMENT_RESOURCES {
-        let mut path = List::with_capacity(link.client.segments);
-        for _ in 0..link.client.segments {
-            let bytes = left.min(link.client.text);
+        let mut path = List::with_capacity(link.client().segments);
+        for _ in 0..link.client().segments {
+            let bytes = left.min(link.client().text);
             path.push(maximally_escaped_json_text(bytes)).expect("bounded path");
             left = left.checked_sub(bytes).expect("within payload");
         }
         let key = w::OwnerPartKey::Path(
-            w::OwnerPartKeyPath::new(&link.wire, w::OwnerPartKeyPathParts { value: path }).expect("bounded path"),
+            w::OwnerPartKeyPath::new(link.wire(), w::OwnerPartKeyPathParts { value: path }).expect("bounded path"),
         );
         let part =
-            w::OwnerPart::new(&link.wire, w::OwnerPartParts { connector: 4, kind: w::OwnerPartKind::Resource, key })
+            w::OwnerPart::new(link.wire(), w::OwnerPartParts { connector: 4, kind: w::OwnerPartKind::Resource, key })
                 .expect("bounded resource");
         let row = w::OwnerResourceLine::new(
-            &link.wire,
+            link.wire(),
             w::OwnerResourceLineParts { part, kind: 1, taken: false, holder: None, writer: None, writer_lost: false },
         )
         .expect("resource row");

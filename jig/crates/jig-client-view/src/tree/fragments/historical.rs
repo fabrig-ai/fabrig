@@ -7,7 +7,7 @@ use crate::words::historical_words::HistoricalPhrase as P;
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
-use crate::{Borrowed, Limits};
+use crate::{Borrowed, Config};
 use alloc::boxed::Box;
 use jig_client::contract::{
     OwnerEscalationDecision, OwnerGoalHolding, OwnerHistorical, OwnerHistoricalValue, OwnerMessageProposalKind,
@@ -128,7 +128,7 @@ fn task(b: &mut Builder, client: &Borrowed<'_>, value: &Task, words: &Words, bin
     number(b, words, P::Project, u64::from(value.project));
     crate::tree::cards::chip::chip(b, client, &value.chip, words, bindings);
     crate::tree::sections::task::overview(b, client, value, words, bindings);
-    crate::tree::sections::task::budget(b, value, words, bindings, client.limits.rows);
+    crate::tree::sections::task::budget(b, value, words, bindings, client.client.domain_limits().rows);
 }
 fn outer(b: &mut Builder, value: &OwnerHistorical, words: &Words) {
     match value.at {
@@ -161,14 +161,14 @@ pub fn render(
         }
         OwnerHistoricalValue::Proposal(value) => {
             label(b, words, P::TaskProposal);
-            crate::tree::fragments::history::proposal(b, value, words, bindings, client.limits.rows);
+            crate::tree::fragments::history::proposal(b, value, words, bindings, client.client.domain_limits().rows);
         }
         OwnerHistoricalValue::PersonProposal { proposal, decision } => {
             label(b, words, P::PersonProposal);
             number(b, words, P::Number, proposal.number);
             number(b, words, P::Proposer, proposal.proposer);
             number(b, words, P::Project, u64::from(proposal.project));
-            goal(b, &proposal.goal, words, bindings, client.limits.rows);
+            goal(b, &proposal.goal, words, bindings, client.client.domain_limits().rows);
             match &proposal.state {
                 OwnerPersonProposalState::Pending { since } => {
                     label(b, words, P::Pending);
@@ -296,24 +296,24 @@ pub(crate) fn card(
 /// bounded by the released escalation envelope. Historical embedded sources
 /// remain additional allocations and additional displayed fragments.
 #[must_use]
-pub fn max_nodes(l: &Limits) -> Option<u32> {
-    let result = crate::sizes::sizes::result_facts(l)?;
-    let task = crate::sizes::sizes::owner_escalation_nodes(l)?
+pub fn max_nodes(l: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    let result = crate::sizes::sizes::result_facts(l, client)?;
+    let task = crate::sizes::sizes::owner_escalation_nodes(l, client)?
         .checked_add(result)?
-        .checked_add(result.checked_mul(l.rows)?)?;
-    let escalation = task.checked_add(crate::tree::fragments::milestone::max_nodes(l)?)?.checked_add(12)?;
-    let proposal = crate::tree::fragments::history::proposal_max_nodes(l)?;
-    let person_goal = crate::tree::fragments::specification::nodes(l)?
-        .checked_add(crate::tree::fragments::proposed_task::contract_nodes(l)?)?
-        .checked_add(crate::tree::fragments::authority::document_nodes(l.rows, l.segments)?)?
+        .checked_add(result.checked_mul(client.rows)?)?;
+    let escalation = task.checked_add(crate::tree::fragments::milestone::max_nodes(l, client)?)?.checked_add(12)?;
+    let proposal = crate::tree::fragments::history::proposal_max_nodes(l, client)?;
+    let person_goal = crate::tree::fragments::specification::nodes(l, client)?
+        .checked_add(crate::tree::fragments::proposed_task::contract_nodes(l, client)?)?
+        .checked_add(crate::tree::fragments::authority::document_nodes(client.rows, client.segments)?)?
         .checked_add(crate::tree::fragments::wake::policy_nodes())?
-        .checked_add(l.rows.checked_mul(l.segments.checked_add(5)?)?)?
+        .checked_add(client.rows.checked_mul(client.segments.checked_add(5)?)?)?
         .checked_add(40)?;
-    let question = crate::chip_nodes(l)?
-        .checked_add(skein_ui::markdown::max_nodes(l.text)?)?
+    let question = crate::chip_nodes(l, client)?
+        .checked_add(skein_ui::markdown::max_nodes(client.text)?)?
         .checked_add(result.checked_mul(2)?)?
-        .checked_add(l.rows.checked_mul(4)?)?
+        .checked_add(client.rows.checked_mul(4)?)?
         .checked_add(120)?;
-    let person = crate::tree::fragments::person_task::max_nodes(l)?.checked_add(result)?;
+    let person = crate::tree::fragments::person_task::max_nodes(l, client)?.checked_add(result)?;
     task.max(escalation).max(proposal).max(person_goal).max(question).max(person).checked_add(12)
 }

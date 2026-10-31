@@ -28,7 +28,7 @@ pub(crate) fn owner_spend_page_fields(
     value: &w::OwnerSpendPage,
     limits: &Limits,
 ) -> Result<c::OwnerSpendPage, w::Problem> {
-    if value.rows().len() > limits.client.rows {
+    if value.rows().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.rows().len());
@@ -57,14 +57,14 @@ pub(crate) fn parameter_fields(value: &w::Parameter, limits: &Limits) -> Result<
 }
 
 pub(crate) fn specification_fields(value: &w::Specification, limits: &Limits) -> Result<c::Specification, w::Problem> {
-    if value.parameters().len() > limits.client.rows {
+    if value.parameters().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.parameters().len());
     for item in value.parameters() {
         list0.push(parameter_fields(item, limits)?).expect("reserved supplied list");
     }
-    if value.inputs().len() > limits.client.rows {
+    if value.inputs().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list1 = List::with_capacity(value.inputs().len());
@@ -90,7 +90,7 @@ pub(crate) fn amendment_fields(value: &w::Amendment, limits: &Limits) -> Result<
     };
     let opt3 = match value.dependencies() {
         Some(item) => {
-            if (item).len() > limits.client.rows {
+            if (item).len() > limits.client().rows {
                 return Err(too_large());
             }
             let mut list0 = List::with_capacity((item).len());
@@ -134,7 +134,7 @@ pub(crate) fn owner_proposal_action_fields(
             crate::translate::settings_proposals::restore_owner_proposal_action_settings(row, limits)?,
         )),
         w::OwnerProposalAction::Batch(row) => {
-            c::OwnerProposalAction::Batch(proposed_task_piece(row.value(), limits, limits.client.rows)?)
+            c::OwnerProposalAction::Batch(proposed_task_piece(row.value(), limits, limits.client().rows)?)
         }
         w::OwnerProposalAction::Effect(row) => c::OwnerProposalAction::Effect {
             part: crate::translate::facts::owner_part(row.part()),

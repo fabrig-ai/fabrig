@@ -69,7 +69,7 @@ pub(crate) fn inspect(
     if !reader.is_empty() {
         return Err(malformed);
     }
-    if u64::from(length) > limits.client.document_bytes || bytes > u64::from(limits.wire.turn_carried_bytes) {
+    if u64::from(length) > limits.client().document_bytes || bytes > u64::from(limits.receiving().turn_carried_bytes) {
         return Ok(Some(c::ReadNone::TooLarge { bytes }));
     }
     Ok(None)
@@ -77,8 +77,7 @@ pub(crate) fn inspect(
 
 pub(crate) fn archive(record: w::ArchivedTurn, limits: &Limits) -> Result<c::ArchivedTurn, Undecodable> {
     let w::TurnBytes::Carried(carried) = record.turn() else { return Err(Undecodable::TooLarge) };
-    let bound = limits.wire.turn_carried_bytes.min(u32::try_from(limits.client.document_bytes).expect("checked limit"));
-    let c::TurnRead::Decoded(turn) = decode(carried.bytes(), limits, bound) else {
+    let c::TurnRead::Decoded(turn) = decode(carried.bytes(), limits.archived_turn()) else {
         return Err(Undecodable::Malformed);
     };
     Ok(c::ArchivedTurn {
@@ -91,12 +90,9 @@ pub(crate) fn archive(record: w::ArchivedTurn, limits: &Limits) -> Result<c::Arc
     })
 }
 
-pub(crate) fn decode(value: &[u8], limits: &Limits, bytes: u32) -> c::TurnRead {
-    let turn =
-        c::TurnLimits { messages: limits.client.rows, blocks: limits.client.rows, text: limits.client.turn_text };
+pub(crate) fn decode(value: &[u8], limits: &jig_protocol_transcript::Limits) -> c::TurnRead {
     let source_bytes = u64::try_from(value.len()).expect("payload length fits u64");
-    let limits = jig_protocol_transcript::Limits::new(bytes, turn);
-    let why = match jig_protocol_transcript::decode(&limits, value) {
+    let why = match jig_protocol_transcript::decode(limits, value) {
         Ok(turn) => return c::TurnRead::Decoded(turn),
         Err(jig_protocol_transcript::Undecodable::Version { found }) => c::TurnProblem::Version { found },
         Err(jig_protocol_transcript::Undecodable::Malformed | jig_protocol_transcript::Undecodable::Unknown) => {

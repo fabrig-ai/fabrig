@@ -133,7 +133,7 @@ pub struct Document {
     pub subject: Subject,
     pub value: Value,
 }
-fn service_price(service: &Service, limits: &super::Limits) -> Option<u64> {
+fn service_price(service: &Service, limits: &jig_client::DomainLimits) -> Option<u64> {
     if service.environment.len() > usize::try_from(limits.text).ok()?
         || service.name.len() > usize::try_from(limits.text).ok()?
     {
@@ -141,13 +141,13 @@ fn service_price(service: &Service, limits: &super::Limits) -> Option<u64> {
     }
     u64::try_from(service.environment.len()).ok()?.checked_add(u64::try_from(service.name.len()).ok()?)
 }
-fn fact_price(fact: &Fact, limits: &super::Limits) -> Option<u64> {
+fn fact_price(fact: &Fact, limits: &jig_client::DomainLimits) -> Option<u64> {
     if fact.load.len() > usize::try_from(limits.rows).ok()? {
         return None;
     }
     u64::try_from(fact.load.len()).ok()?.checked_mul(u64::try_from(size_of::<LoadPoint>()).ok()?)
 }
-fn incident_price(incident: &Incident, limits: &super::Limits) -> Option<u64> {
+fn incident_price(incident: &Incident, limits: &jig_client::DomainLimits) -> Option<u64> {
     if incident.timeline.capacity() > limits.rows || incident.alerts.len() > usize::try_from(limits.rows).ok()? {
         return None;
     }
@@ -156,7 +156,7 @@ fn incident_price(incident: &Incident, limits: &super::Limits) -> Option<u64> {
         .checked_add(u64::try_from(incident.alerts.len()).ok()?.checked_mul(8)?)
 }
 #[must_use]
-pub fn price(document: &Document, limits: &super::Limits) -> Option<u64> {
+pub fn price(document: &Document, limits: &jig_client::DomainLimits) -> Option<u64> {
     if !identity(document) {
         return None;
     }
@@ -208,7 +208,7 @@ pub fn price(document: &Document, limits: &super::Limits) -> Option<u64> {
     bytes.checked_add(u64::try_from(size_of::<Document>()).ok()?)
 }
 
-fn text_price(value: &[u8], limits: &super::Limits) -> Option<u64> {
+fn text_price(value: &[u8], limits: &jig_client::DomainLimits) -> Option<u64> {
     if value.len() > usize::try_from(limits.text).ok()? {
         return None;
     }

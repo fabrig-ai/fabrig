@@ -123,7 +123,7 @@ fn a_project_s_tasks_section_watches_one_query_by_last_change() {
                 tracked: None,
                 order: QueryOrder::Changed
             },
-            window: test::limits().jig.rows
+            window: test::limits().client.domain.rows
         }]
     );
 }

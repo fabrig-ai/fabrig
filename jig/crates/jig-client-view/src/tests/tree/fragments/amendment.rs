@@ -88,8 +88,16 @@ fn fixture() -> OwnerAmendmentState {
         cut: false,
     }
 }
-fn client_limits() -> crate::Limits {
-    crate::Limits { rows: 3, segments: 3, text: 8, ..crate::tests::tree::cards::CLIENT }
+fn client_limits() -> crate::tests::fixtures::Profile {
+    crate::tests::fixtures::Profile {
+        view: crate::Config { ..(crate::tests::tree::cards::CLIENT).view },
+        client: jig_client::DomainLimits {
+            rows: 3,
+            segments: 3,
+            text: 8,
+            ..(crate::tests::tree::cards::CLIENT).client
+        },
+    }
 }
 fn phrase_limits() -> PhraseLimits {
     PhraseLimits {
@@ -148,7 +156,7 @@ fn build(value: &OwnerAmendmentState, words: &Words) -> Tree {
     };
 
     let mut builder = Builder::new(&limits);
-    view::render(&mut builder, value, words, client_limits().text, client_limits().rows);
+    view::render(&mut builder, value, words, client_limits().client.text, client_limits().client.rows);
     let tree = builder.finish();
     assert!(tree.len() <= f.nodes);
     assert!(tree.nodes().iter().all(|node| crate::tests::text_bytes(node) <= f.text_per_node));

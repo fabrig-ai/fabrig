@@ -1,3 +1,4 @@
+use crate::tests::fixtures::Profile;
 use crate::tests::fixtures::refusal_answer;
 use crate::tests::fixtures::{AnsweredByEngine, Fixture, Reported, Served, Watched};
 use crate::tests::state::domain::{
@@ -7,7 +8,7 @@ use crate::tests::state::domain::{
     spine::{LIMITS, delivered, drain, drive, frame},
 };
 use crate::{
-    Event, Limits, Request,
+    Event, Request,
     state::{
         action::Act,
         address::{Address, Place},
@@ -96,11 +97,11 @@ fn closing_names_each_live_delegate_once_and_chat_about_sends_only_the_named_fir
 }
 fn custom(
     domain: &mut Fixture,
-    limits: Limits,
+    limits: Profile,
     now: Time,
     event: impl crate::tests::fixtures::Input,
 ) -> Box<[Request]> {
-    domain.ui.limits = limits;
+    domain.ui.limits = limits.view;
     domain.drive(now, event)
 }
 #[test]
@@ -108,7 +109,10 @@ fn drafts_survive_pages_and_restart_evict_oldest_untouched_and_coalesce_only_cur
     check_drafts_survive_pages_and_restart_evict_oldest_untouched_and_coalesce_only_current_records();
 }
 fn check_drafts_survive_pages_and_restart_evict_oldest_untouched_and_coalesce_only_current_records() {
-    let limits = Limits { drafts: 2, records: 3, ..LIMITS };
+    let limits = Profile {
+        view: crate::Config { drafts: 2, ..(LIMITS).view },
+        client: jig_client::DomainLimits { records: 3, ..(LIMITS).client },
+    };
     let mut domain = Fixture::new(&limits);
     let first = custom(
         &mut domain,
@@ -139,7 +143,7 @@ fn check_drafts_survive_pages_and_restart_evict_oldest_untouched_and_coalesce_on
     for _ in 0_u32..3 {
         crate::fire(
             &mut domain.ui,
-            &Env { now: Time::from_nanos(1_000_000_000), wall: Wall::EPOCH, limits },
+            &Env { now: Time::from_nanos(1_000_000_000), wall: Wall::EPOCH, limits: limits.view },
             &mut saves,
             &domain.client,
         );

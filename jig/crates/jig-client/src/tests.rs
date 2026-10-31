@@ -93,3 +93,10 @@ fn valid_refuses_each_unrepresentable_limit() {
         assert!(!valid(&limits), "case {case}");
     }
 }
+
+#[test]
+fn presentation_reads_the_clients_configured_receiving_bounds() {
+    let limits = fixtures::limits();
+    let client = crate::Client::unlinked(&limits, 1).unwrap();
+    assert_eq!(client.domain_limits(), &limits.domain);
+}

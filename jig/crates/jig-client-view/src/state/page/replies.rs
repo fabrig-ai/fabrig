@@ -40,7 +40,7 @@ fn source(domain: &Ui, fallback: Source, conversations: bool, lent: &jig_client:
 
 pub(crate) fn inbox(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     incoming: Source,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
@@ -63,15 +63,15 @@ pub(crate) fn inbox(
 
 pub(crate) fn conversations(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     incoming: Source,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
 ) {
     let source = source(domain, incoming, true, lent);
     let projected = domain.borrow(lent).conversation_rows();
-    let mut keys = List::with_capacity(env.limits.rows);
-    let mut contexts = List::with_capacity(env.limits.rows);
+    let mut keys = List::with_capacity(lent.domain_limits().rows);
+    let mut contexts = List::with_capacity(lent.domain_limits().rows);
     for line in &projected.rows {
         let object = ObjectKey::Task(line.chip.task);
         if keys.push(object).is_err() {

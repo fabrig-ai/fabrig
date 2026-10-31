@@ -3,7 +3,7 @@ use jig_client_test_domain::connector_values as owner;
 
 pub(super) fn limits() -> jig_client_test_domain::Limits {
     let mut limits = super::limits();
-    limits.jig.document_bytes = 65536;
+    limits.client.domain.document_bytes = 65536;
     limits.first.connector.rows = 1;
     limits.first.connector.paths = 1;
     limits.first.connector.segments = 2;

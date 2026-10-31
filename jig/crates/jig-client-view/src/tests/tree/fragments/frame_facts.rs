@@ -12,14 +12,14 @@ fn tree(domain: &Fixture) -> Tree {
 }
 fn frame_tree(domain: &Fixture, words: &crate::words::Words) -> Tree {
     let mut sized = limits();
-    sized.nodes = crate::banner_nodes(&CLIENT)
+    sized.nodes = crate::banner_nodes(&CLIENT, &(CLIENT).client)
         .unwrap()
-        .checked_add(crate::navigation_nodes(&CLIENT).unwrap())
+        .checked_add(crate::navigation_nodes(&CLIENT, &(CLIENT).client).unwrap())
         .unwrap()
         .checked_add(1)
         .unwrap();
     let mut builder = Builder::new(&sized);
-    let mut bindings = JigBindings::new(sized.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(sized.bindings, CLIENT.client.text);
     builder.open(Role::Page);
     crate::tree::frame::banner(&mut builder, &domain.view(), words, &mut bindings);
     crate::tree::frame::navigation(
@@ -179,7 +179,7 @@ fn sign_out_words() -> crate::words::Words {
     let count = u32::try_from(SIGN_OUT_PHRASES.len()).unwrap();
     let mut shapes = List::with_capacity(count);
     for phrase in SIGN_OUT_PHRASES {
-        shapes.push(phrase.shape(CLIENT.text)).unwrap();
+        shapes.push(phrase.shape(CLIENT.client.text)).unwrap();
     }
     let mut language = crate::words::phrases::english::language();
     let mut phrases = List::with_capacity(count);
@@ -198,7 +198,7 @@ fn sign_out_words() -> crate::words::Words {
             holes: 4,
             segments: 128,
             text_bytes: 2048,
-            hole_bytes: CLIENT.text,
+            hole_bytes: CLIENT.client.text,
         },
     )
     .unwrap();
@@ -263,7 +263,7 @@ fn a_named_control_holds_no_node() {
     for role in [Role::Button, Role::Link] {
         let sized = limits();
         let mut b = Builder::new(&sized);
-        let mut bindings = JigBindings::new(sized.bindings, CLIENT.text);
+        let mut bindings = JigBindings::new(sized.bindings, CLIENT.client.text);
         crate::tree::frame::control(
             &mut b,
             words(),

@@ -24,7 +24,7 @@ impl Store {
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
 pub(crate) fn valid(limits: &Limits) -> bool {
-    w::Keyed::encoded_bound(&limits.wire).is_some()
+    w::Keyed::encoded_bound(limits.wire()).is_some()
 }
 
 pub(super) fn key(record: &Saved) -> Box<[u8]> {
@@ -34,8 +34,8 @@ fn encoded(value: &Saved, limits: &Limits) -> Result<Box<[u8]>, w::Problem> {
     let table = translate::store::table(&value.record, limits)?;
     let mut writer = Writer::new(usize::try_from(table.measure()).expect("record fits usize"));
     table.encode(&mut writer).expect("measured table record");
-    let record = w::Kept::new(&limits.wire, w::KeptParts { store_version: value.version, record: writer.finish() })?;
-    if u64::from(record.measure()) > limits.client.document_bytes {
+    let record = w::Kept::new(limits.wire(), w::KeptParts { store_version: value.version, record: writer.finish() })?;
+    if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(translate::too_large());
     }
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("record fits usize"));
@@ -44,7 +44,7 @@ fn encoded(value: &Saved, limits: &Limits) -> Result<Box<[u8]>, w::Problem> {
 }
 fn restore(value: w::Kept, storage_key: &[u8], limits: &Limits) -> Result<Saved, w::Problem> {
     let mut reader = Reader::new(value.record());
-    let record = translate::store::restore_table(w::TableEntry::decode(&limits.wire, &mut reader)?, limits)?;
+    let record = translate::store::restore_table(w::TableEntry::decode(limits.wire(), &mut reader)?, limits)?;
     if reader.remaining() != 0 || record.key.as_slice() != storage_key {
         return Err(translate::piece_problem(skein_codec::Reason::Malformed));
     }
@@ -164,7 +164,7 @@ impl Link {
     }
     pub(super) fn save_stream(&mut self, stream: [u8; 16], out: &mut Queue<Request>) -> Result<(), crate::Undecodable> {
         let Ok(value) = w::Kept::new(
-            &self.limits.wire,
+            self.limits.wire(),
             w::KeptParts { store_version: jig_client_domain::TABLE_VERSION, record: Box::from(stream) },
         ) else {
             return Err(crate::Undecodable::TooLarge);
@@ -175,7 +175,7 @@ impl Link {
         Ok(())
     }
     pub(super) fn start_store(&mut self, kept: List<Record>, out: &mut Queue<Request>) {
-        let mut bound = self.limits.client.requests.requests;
+        let mut bound = self.limits.client().requests.requests;
         for record in &kept {
             if record.key.as_ref() == crate::STREAM_KEY {
                 bound = bound.saturating_add(1);
@@ -189,11 +189,12 @@ impl Link {
         for entry in kept.into_boxed() {
             let mut reader = Reader::new(&entry.bytes);
             let result = if (entry.key.len() != 16 && entry.key.as_ref() != crate::STREAM_KEY)
-                || u64::try_from(entry.bytes.len()).expect("bounded bytes fit u64") > self.limits.client.document_bytes
+                || u64::try_from(entry.bytes.len()).expect("bounded bytes fit u64")
+                    > self.limits.client().document_bytes
             {
                 Err(translate::too_large())
             } else {
-                w::Kept::decode(&self.limits.wire, &mut reader)
+                w::Kept::decode(self.limits.wire(), &mut reader)
             };
             let Ok(value) = result else {
                 out.push(Request::Dropped);

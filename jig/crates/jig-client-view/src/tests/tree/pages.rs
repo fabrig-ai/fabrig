@@ -25,7 +25,7 @@ pub(in crate::tests) fn build(d: &Fixture, kind: u8, words: &crate::words::Words
     limits.bindings = 512;
     limits.text_bytes = 200_000;
     let mut b = Builder::new(&limits);
-    let mut bindings = JigBindings::new(512, CLIENT.text);
+    let mut bindings = JigBindings::new(512, CLIENT.client.text);
     b.open(Role::Page);
     match kind {
         0 | 1 | 3 => {
@@ -139,7 +139,7 @@ fn whole_page(d: &Fixture) -> Tree {
     limits.text_bytes = 200_000;
     limits.bindings = 512;
     let mut b = Builder::new(&limits);
-    let mut bindings = JigBindings::new(limits.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(limits.bindings, CLIENT.client.text);
     b.open(Role::Page);
     assert!(crate::jig(
         &mut b,
@@ -243,7 +243,7 @@ fn the_inbox_header_shows_with_either_group() {
     let (d, _) = crate::tests::tree::work_pages::entered(Address::Inbox { project: None });
     for group in [InboxReadGroup::Needs, InboxReadGroup::Updates] {
         let mut b = Builder::new(&crate::tests::tree::cards::limits());
-        let mut bindings = JigBindings::new(64, CLIENT.text);
+        let mut bindings = JigBindings::new(64, CLIENT.client.text);
         b.open(Role::Page);
         assert!(crate::tree::sections::inbox::header(&mut b, &d.view(), words(), &mut bindings));
         assert!(crate::tree::sections::section(
@@ -264,7 +264,7 @@ fn the_inbox_header_shows_with_either_group() {
     }
     let (other, _) = crate::tests::tree::work_pages::entered(Address::Conversations { project: None });
     let mut b = Builder::new(&crate::tests::tree::cards::limits());
-    let mut bindings = JigBindings::new(64, CLIENT.text);
+    let mut bindings = JigBindings::new(64, CLIENT.client.text);
     assert!(!crate::tree::sections::inbox::header(&mut b, &other.view(), words(), &mut bindings));
     assert_eq!(b.finish().len(), 0);
 }
@@ -301,7 +301,7 @@ fn a_missing_section_says_so_in_its_own_region() {
         .unwrap();
     drive(&mut domain, Ended { watch, end: WatchEnd::NotAllowed });
     let mut builder = Builder::new(&crate::tests::tree::cards::limits());
-    let mut bindings = JigBindings::new(256, CLIENT.text);
+    let mut bindings = JigBindings::new(256, CLIENT.client.text);
     assert!(crate::tree::sections::section(&mut builder, &domain.view(), words(), &mut bindings, section));
     let tree = builder.finish();
     assert_eq!(tree.nodes()[0].region, Some(crate::regions::JigRegion::TaskPlan.region()));

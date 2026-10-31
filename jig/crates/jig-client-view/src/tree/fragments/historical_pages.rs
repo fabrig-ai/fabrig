@@ -9,24 +9,24 @@ use jig_client::words::{DecisionWord as D, Word};
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
-use crate::{Borrowed, Limits};
+use crate::{Borrowed, Config};
 use alloc::boxed::Box;
 use jig_client::contract::{ChipPhase, Funder, OwnerEndedPage, OwnerSpendPage};
 
 /// Brief row identity and phase plus the supplied complete ending/result.
 #[must_use]
-pub fn ended_nodes(l: &Limits) -> Option<u32> {
-    crate::chip_nodes(l)?
-        .checked_add(crate::result_nodes(l)?)?
-        .checked_add(skein_ui::markdown::max_nodes(l.text)?)?
+pub fn ended_nodes(l: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    crate::chip_nodes(l, client)?
+        .checked_add(crate::result_nodes(l, client)?)?
+        .checked_add(skein_ui::markdown::max_nodes(client.text)?)?
         .checked_add(32)?
-        .checked_mul(l.rows)?
+        .checked_mul(client.rows)?
         .checked_add(2)
 }
 /// Every four-counter row, both source identities and supplied period clocks.
 #[must_use]
-pub fn spend_nodes(l: &Limits) -> Option<u32> {
-    l.rows.checked_mul(18)?.checked_add(2)
+pub fn spend_nodes(_l: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    client.rows.checked_mul(18)?.checked_add(2)
 }
 fn saying(words: &Words, phrase: P, holes: &[Hole]) -> Box<[u8]> {
     words

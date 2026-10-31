@@ -18,6 +18,6 @@ pub(crate) fn render(
     }
 }
 /// The complete owner result plus the largest cancellation reason and scalar captions.
-pub(crate) fn nodes(limits: &crate::Limits) -> Option<u32> {
-    crate::result_nodes(limits)?.checked_add(skein_ui::markdown::max_nodes(limits.text)?)?.checked_add(8)
+pub(crate) fn nodes(limits: &crate::Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    crate::result_nodes(limits, client)?.checked_add(skein_ui::markdown::max_nodes(client.text)?)?.checked_add(8)
 }

@@ -27,7 +27,7 @@ fn words(selected: bool) -> Words {
     }
     Words::new(
         Phrasebook::load(
-            crate::words::phrases::jig::shapes(CLIENT.text),
+            crate::words::phrases::jig::shapes(CLIENT.client.text),
             Box::new([english, second]),
             &PhraseLimits {
                 languages: 2,
@@ -35,7 +35,7 @@ fn words(selected: bool) -> Words {
                 holes: 4,
                 segments: crate::tests::english_phrase_segments(2),
                 text_bytes: 100_000,
-                hole_bytes: CLIENT.text,
+                hole_bytes: CLIENT.client.text,
             },
         )
         .unwrap(),
@@ -56,8 +56,8 @@ fn row(object: OwnerInboxObject) -> OwnerInboxEntry {
     }
 }
 fn whole(rows: impl IntoIterator<Item = OwnerInboxEntry>, limited: bool) -> OwnerInbox {
-    let mut needs = List::with_capacity(CLIENT.rows);
-    let mut updates = List::with_capacity(CLIENT.rows);
+    let mut needs = List::with_capacity(CLIENT.client.rows);
+    let mut updates = List::with_capacity(CLIENT.client.rows);
     for row in rows {
         if crate::state::page::inbox::needs(row.group()) {
             needs.push(row).unwrap();
@@ -98,13 +98,13 @@ fn domain(value: OwnerInbox) -> Fixture {
     client
 }
 fn build(client: &Fixture, w: &Words) -> Tree {
-    let mut limits = crate::sizes::limits::of_words(&CLIENT, w).unwrap();
-    limits.nodes = crate::inbox_nodes(&CLIENT, 0).unwrap().checked_add(1).unwrap();
+    let mut limits = crate::sizes::limits::of_words(&CLIENT, &(CLIENT).client, w).unwrap();
+    limits.nodes = crate::inbox_nodes(&CLIENT, &(CLIENT).client, 0).unwrap().checked_add(1).unwrap();
     limits.bindings = limits.nodes;
     limits.slots = limits.nodes;
     limits.text_bytes = limits.nodes.checked_mul(limits.text_per_node).unwrap();
     let mut b = Builder::new(&limits);
-    let mut bindings = JigBindings::new(limits.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(limits.bindings, CLIENT.client.text);
     b.open(Role::Page);
     crate::tree::pages::main(&mut b, &client.view(), w, &mut bindings);
     b.close();
@@ -200,7 +200,7 @@ fn owner_inbox_both_full_groups_two_read_windows_counts_source_cuts_fit_the_whol
             &[254, 0][..],
         ),
     ] {
-        let mut rows = List::with_capacity(CLIENT.rows);
+        let mut rows = List::with_capacity(CLIENT.client.rows);
         for entry in entries {
             rows.push(entry).unwrap();
         }
@@ -212,8 +212,8 @@ fn owner_inbox_both_full_groups_two_read_windows_counts_source_cuts_fit_the_whol
                     selection: None,
                     cut: true,
                     rows,
-                    before: Some(Cursor::new(copy_of(after), CLIENT.text).unwrap()),
-                    after: Some(Cursor::new(copy_of(after), CLIENT.text).unwrap()),
+                    before: Some(Cursor::new(copy_of(after), CLIENT.client.text).unwrap()),
+                    after: Some(Cursor::new(copy_of(after), CLIENT.client.text).unwrap()),
                 }))),
             },
         );
@@ -228,5 +228,19 @@ fn owner_inbox_both_full_groups_two_read_windows_counts_source_cuts_fit_the_whol
     assert!(contains(&tree, b"Escalation revision: 2"));
     assert!(contains(&tree, b"Reply message: 3"));
     assert!(contains(&tree, b"Result position: 4"));
-    assert!(crate::inbox_nodes(&crate::Limits { rows: u32::MAX, ..CLIENT }, 0).is_none());
+    assert!(
+        crate::inbox_nodes(
+            &crate::tests::fixtures::Profile {
+                view: crate::Config { ..(CLIENT).view },
+                client: jig_client::DomainLimits { rows: u32::MAX, ..(CLIENT).client }
+            },
+            &(crate::tests::fixtures::Profile {
+                view: crate::Config { ..(CLIENT).view },
+                client: jig_client::DomainLimits { rows: u32::MAX, ..(CLIENT).client }
+            })
+            .client,
+            0
+        )
+        .is_none()
+    );
 }

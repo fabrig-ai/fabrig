@@ -90,15 +90,7 @@ pub enum Request {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
-    pub parts: u32,
     pub objects: u32,
-    pub reads: u32,
-    pub watches: u32,
-    pub requests: u32,
-    pub rows: u32,
-    pub segments: u32,
-    pub text: u32,
-    pub document_bytes: u64,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Value {
@@ -164,15 +156,15 @@ pub struct Side {
 }
 impl Side {
     #[must_use]
-    pub fn new(limits: &Limits) -> Self {
+    pub fn new(limits: &Limits, client: &jig_client::DomainLimits) -> Self {
         Self {
-            parts: List::with_capacity(limits.parts),
+            parts: List::with_capacity(client.parts),
             objects: Slab::with_capacity(limits.objects.checked_mul(2).expect("object retirement room fits")),
             names: Map::with_capacity(limits.objects),
-            reads: Slab::with_capacity(limits.reads),
-            watches: Slab::with_capacity(limits.watches),
-            watch_ids: Map::with_capacity(limits.watches),
-            pending: Slab::with_capacity(limits.requests),
+            reads: Slab::with_capacity(client.reads),
+            watches: Slab::with_capacity(client.watches),
+            watch_ids: Map::with_capacity(client.watches),
+            pending: Slab::with_capacity(client.requests.requests),
             address: None,
             generation: 0,
             link: Link::Starting,
@@ -239,7 +231,7 @@ impl Side {
 pub const fn shown(side: &Side) -> u64 {
     side.shown
 }
-pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+pub fn step(side: &mut Side, env: &Env<jig_client::DomainLimits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::Show { part, scope } => {
             if !part_fits(&part, env.limits.segments, env.limits.text) {
@@ -403,7 +395,13 @@ fn matches_loading(value: &Value) -> bool {
         Value::Known(_) | Value::Unknown => false,
     }
 }
-fn received(side: &mut Side, env: &Env<Limits>, subject: Subject, document: Document, out: &mut Queue<Request>) {
+fn received(
+    side: &mut Side,
+    env: &Env<jig_client::DomainLimits>,
+    subject: Subject,
+    document: Document,
+    out: &mut Queue<Request>,
+) {
     if document.subject() != subject || !document.fits(&env.limits) {
         out.push(Request::Out(Out::Fact { fact: Fact::InvalidDocument }));
         return;
@@ -608,11 +606,17 @@ pub fn reclaim(side: &mut Side) {
 
 /// Whether the connector's receiving limits and derived capacities are usable.
 #[must_use]
-pub fn valid(limits: &Limits) -> bool {
-    limits.document_bytes != 0 && limits.objects.checked_mul(2).is_some() && limits.rows.checked_add(1).is_some()
+pub fn valid(limits: &Limits, client: &jig_client::DomainLimits) -> bool {
+    client.document_bytes != 0 && limits.objects.checked_mul(2).is_some() && client.rows.checked_add(1).is_some()
 }
 
-fn read_result(side: &mut Side, env: &Env<Limits>, read: Token, result: ReadResult, out: &mut Queue<Request>) {
+fn read_result(
+    side: &mut Side,
+    env: &Env<jig_client::DomainLimits>,
+    read: Token,
+    result: ReadResult,
+    out: &mut Queue<Request>,
+) {
     let id = Id::from_token(read);
     let Some(reading) = side.reads.get_mut(id) else {
         return;
@@ -648,7 +652,13 @@ fn read_result(side: &mut Side, env: &Env<Limits>, read: Token, result: ReadResu
     }
 }
 
-fn watched(side: &mut Side, env: &Env<Limits>, watch: Token, event: WatchEvent, out: &mut Queue<Request>) {
+fn watched(
+    side: &mut Side,
+    env: &Env<jig_client::DomainLimits>,
+    watch: Token,
+    event: WatchEvent,
+    out: &mut Queue<Request>,
+) {
     let id = Id::from_token(watch);
     if side.watch_ids.get(&id).is_none() {
         return;

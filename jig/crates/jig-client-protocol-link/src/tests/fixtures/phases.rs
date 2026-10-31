@@ -8,7 +8,7 @@ pub fn phases() -> [(w::Chip, c::Chip); 1] {
 }
 
 pub fn phase_owner() -> (w::Chip, c::Chip) {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let rows = [
         chip_root_fact(),
         w::Fact::ChipPhase(

@@ -15,13 +15,13 @@ macro_rules! encoded {
 }
 fn answer(value: &w::Final, limits: &Limits) -> c::Answer {
     let record = encoded!(value);
-    let owned =
-        w::Owned::new(&limits.wire, w::OwnedParts { owner: w::Owner::Jig, version: 19, record }).expect("owned answer");
+    let owned = w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 19, record })
+        .expect("owned answer");
     translate::answers::answer(w::KeyedAnswer::FinalAnswer(owned), limits).expect("public answer")
 }
 fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, ()> {
     let final_value =
-        w::Final::Done(w::Done::new(&limits.wire, w::DoneParts { outcome: value.clone() }).expect("done"));
+        w::Final::Done(w::Done::new(limits.wire(), w::DoneParts { outcome: value.clone() }).expect("done"));
     match answer(&final_value, limits) {
         c::Answer::Done(value) => Ok(value),
         c::Answer::Refused { .. } => Err(()),
@@ -29,7 +29,7 @@ fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, ()> {
 }
 fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal, ()> {
     let final_value = w::Final::Refused(
-        w::Refused::new(&limits.wire, w::RefusedParts { refusal: value.clone(), at: None }).expect("refused"),
+        w::Refused::new(limits.wire(), w::RefusedParts { refusal: value.clone(), at: None }).expect("refused"),
     );
     match answer(&final_value, limits) {
         c::Answer::Refused { refusal, .. } => Ok(refusal),
@@ -41,7 +41,7 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
     let mut client = jig_client_world::test::limits().client;
     client.domain.rows = 8;
     let limits = Limits::new(client.domain, client.exchanges).expect("client limits");
-    let t = &limits.wire;
+    let t = limits.wire();
     let ask = c::Ask::ChangeSettings(values::settings_change());
     let wire = translate::asks::ask(&ask, t).expect("settings ask");
     // The retained ask follows the same contract as a newly sent one.
@@ -137,7 +137,7 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     use jig_domain_core::{documents as d, reads, settings as s};
     use jig_protocol_engine_clients::translate::settings as engine;
     let limits = Limits::new(jig_client_world::test::limits().client.domain, 4).expect("client limits");
-    let t = &limits.wire;
+    let t = limits.wire();
     let head = s::Head {
         number: 6,
         against: 5,
@@ -222,17 +222,13 @@ fn an_owner_moves_running_work_through_the_client_and_hears_both_counts() {
         Driver::new(configuration, owner_limits, jig_core_world::peers::Peers::new(Vec::new(), Vec::new()), now, wall);
     let mut limits = jig_client_world::test::limits();
     // The real deployment's frame uses the joint world's document bounds.
-    limits.client.domain.rows = 32;
-    limits.client.domain.projects = 64;
-    limits.client.domain.text = 4096;
     limits.client.domain.turn_text = 4096;
     limits.client.domain.turn_bytes = 4096;
-    limits.client.domain.document_bytes = 1_048_576;
-    limits.jig.rows = 32;
-    limits.jig.projects = 64;
+    limits.client.domain.rows = 32;
+    limits.client.domain.projects = 64;
     limits.jig.roles = 64;
-    limits.jig.text = 4096;
-    limits.jig.document_bytes = 1_048_576;
+    limits.client.domain.text = 4096;
+    limits.client.domain.document_bytes = 1_048_576;
     let mut client = Client::unlinked(&limits.client, 8455).expect("public client");
     let codec =
         jig_protocol_transcript::Limits::new(1_048_576, c::TurnLimits { messages: 64, blocks: 16, text: 65_536 });

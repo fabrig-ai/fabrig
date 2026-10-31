@@ -303,8 +303,8 @@ fn streamed(host: &mut Host, event: &jig_client_protocol_wire::v19::StreamEvent)
 fn the_first_task_activity_answer_survives_transport_sign_in() {
     use jig_client_protocol_wire::{VERSION, v19 as w};
     use skein_lib::{Duration, Reader};
-    // task_record's chip is task 9; the answer carries one committed run marker.
-    const TASK_PATH: &[u8] = b"/tasks/9";
+    // task_record's chip is task 7; the answer carries one committed run marker.
+    const TASK_PATH: &[u8] = b"/tasks/7";
     const RUN: u64 = 44;
     const ONE_LINE: u32 = 1;
     let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, temper_client_view::sign_in::Ways::NONE);
@@ -373,7 +373,7 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
         .expect("run marker"),
     );
     let source =
-        w::OwnerActivityLine::new(&w::CEILINGS, w::OwnerActivityLineParts { task: 9, position: 1, at: 1, line: event })
+        w::OwnerActivityLine::new(&w::CEILINGS, w::OwnerActivityLineParts { task: 7, position: 1, at: 1, line: event })
             .expect("source row");
     let line =
         w::ActivityLine::new(&w::CEILINGS, w::ActivityLineParts { source, decoded: None }).expect("activity row");
@@ -386,7 +386,14 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
         body: encoded(answer.measure(), |writer| answer.encode(writer)),
     });
     build(&mut host);
-    let shown = host.view.tree().nodes().iter().filter(|node| node.name.as_deref() == Some(b"Run 44 began")).count();
+    let shown = host
+        .view
+        .tree()
+        .nodes()
+        .iter()
+        .flat_map(|node| &node.text)
+        .filter(|run| run.text.as_ref() == b"Run 44 began")
+        .count();
     assert_eq!(shown, usize::try_from(ONE_LINE).expect("one line fits"), "first activity answer must reach the page");
 }
 

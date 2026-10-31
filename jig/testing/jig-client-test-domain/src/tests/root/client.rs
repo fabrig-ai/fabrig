@@ -102,6 +102,7 @@ fn a_family_side_reads_the_party_from_its_own_me_handle() {
     root.first = first::Side::new(&limits().first, ME);
     root.jig = jig_client_view::Ui::new(
         &limits().jig,
+        &limits().client.domain,
         jig_client_view::page::navigation::Navigation::new(limits().jig.navigation_entries),
         jig_client_view::address::Address::Inbox { project: None },
         jig_client_view::page::Arrangement::none(),

@@ -158,7 +158,7 @@ pub(crate) fn owner(domain: &Ui) -> crate::state::handles::Holder {
 
 pub(crate) fn show(
     domain: &mut Ui,
-    env: &skein_lib::Env<crate::Limits>,
+    env: &skein_lib::Env<crate::Config>,
     sections: skein_lib::List<Section>,
     out: &mut skein_lib::Queue<crate::Request>,
     lent: &jig_client::Client,
@@ -223,7 +223,7 @@ pub(crate) fn show(
         super::routing::refuse(domain, jig_client::contract::Limit::Objects);
     }
     let owner = owner(domain);
-    let mut leaving = skein_lib::List::with_capacity(domain.limits.watches);
+    let mut leaving = skein_lib::List::with_capacity(lent.domain_limits().watches);
     for (handle, watch) in &domain.handles.watches {
         if watch.owner == owner && !needed(domain, &watch.subject) {
             leaving.push(*handle).expect("held handles fit");

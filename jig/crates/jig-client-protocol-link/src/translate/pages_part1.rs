@@ -56,7 +56,7 @@ pub(crate) fn owner_retained_amendment_fields(
     };
     let opt6 = match value.dependencies() {
         Some(item) => {
-            if (item).len() > limits.client.rows {
+            if (item).len() > limits.client().rows {
                 return Err(too_large());
             }
             let mut list0 = List::with_capacity((item).len());
@@ -89,7 +89,7 @@ pub(crate) fn owner_retained_action_fields(
             crate::translate::settings_proposals::restore_owner_retained_action_settings(row, limits)?,
         ),
         w::OwnerRetainedAction::Batch(row) => {
-            c::OwnerRetainedAction::Batch(proposed_task_piece(row.value(), limits, limits.client.rows)?)
+            c::OwnerRetainedAction::Batch(proposed_task_piece(row.value(), limits, limits.client().rows)?)
         }
         w::OwnerRetainedAction::Effect(row) => c::OwnerRetainedAction::Effect {
             part: crate::translate::facts::owner_part(row.part()),
@@ -128,7 +128,7 @@ pub(crate) fn activity_page_fields(value: &w::ActivityPage, limits: &Limits) -> 
     };
     Ok(c::ActivityPage {
         cut: value.cut(),
-        rows: activity_line_piece(value.rows(), limits, limits.client.rows)?,
+        rows: activity_line_piece(value.rows(), limits, limits.client().rows)?,
         before: opt0,
         after: opt1,
     })
@@ -155,10 +155,10 @@ pub(crate) fn activity_line_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::ActivityLine::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::ActivityLine::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = activity_line_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());

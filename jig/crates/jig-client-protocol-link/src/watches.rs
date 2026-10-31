@@ -17,7 +17,7 @@ pub(crate) struct Opening {
 pub(crate) struct Watches(pub(crate) Map<Token, Opening>);
 impl Watches {
     pub(crate) fn new(limits: &Limits) -> Self {
-        Self(Map::with_capacity(limits.client.watches))
+        Self(Map::with_capacity(limits.client().watches))
     }
     pub(crate) fn named(&self, name: u64) -> Option<Token> {
         for (token, opening) in &self.0 {

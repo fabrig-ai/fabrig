@@ -2,7 +2,7 @@ use crate::tests::tree::cards_objects::*;
 
 #[test]
 fn task_resource_metadata_keeps_each_raw_slot_writer_presence_full_width_and_independent_flags() {
-    let mut segments = List::with_capacity(CLIENT.rows);
+    let mut segments = List::with_capacity(CLIENT.client.rows);
     segments.push(Box::<[u8]>::from(*b"a/b")).unwrap();
     segments.push(Box::<[u8]>::from([255_u8; 32])).unwrap();
     let reference = OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Resource, key: OwnerPartKey::Path(segments) };
@@ -13,7 +13,7 @@ fn task_resource_metadata_keeps_each_raw_slot_writer_presence_full_width_and_ind
     ] {
         for taken in [false, true] {
             let mut row = task_doc(&[]);
-            row.resources = List::with_capacity(CLIENT.rows);
+            row.resources = List::with_capacity(CLIENT.client.rows);
             for holder in [None, Some(u64::MAX)] {
                 row.resources
                     .push(OwnerResourceLine {
@@ -59,9 +59,9 @@ fn task_resource_metadata_keeps_each_raw_slot_writer_presence_full_width_and_ind
                     slots += 1;
                 }
             }
-            assert_eq!(slots, CLIENT.rows);
-            assert!(tree.len() <= crate::task_nodes(&CLIENT, 0).unwrap());
-            assert_eq!(row.resources.capacity(), CLIENT.rows);
+            assert_eq!(slots, CLIENT.client.rows);
+            assert!(tree.len() <= crate::task_nodes(&CLIENT, &(CLIENT).client, 0).unwrap());
+            assert_eq!(row.resources.capacity(), CLIENT.client.rows);
         }
     }
 }

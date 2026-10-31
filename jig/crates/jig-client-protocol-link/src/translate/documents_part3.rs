@@ -115,7 +115,7 @@ pub(crate) fn task_context_fields(value: &w::TaskContext, limits: &Limits) -> Re
         Some(item) => Some(closing_fields(item, limits)?),
         None => None,
     };
-    if value.spend().len() > limits.client.rows {
+    if value.spend().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list2 = List::with_capacity(value.spend().len());
@@ -123,12 +123,12 @@ pub(crate) fn task_context_fields(value: &w::TaskContext, limits: &Limits) -> Re
         list2.push(spend_line_fields(item)).expect("reserved supplied list");
     }
     Ok(c::TaskContext {
-        parts: part_piece(value.parts(), limits, limits.client.rows)?,
+        parts: part_piece(value.parts(), limits, limits.client().rows)?,
         closing: opt1,
         spend: list2,
         runtime: runtime_fields(value.runtime(), limits)?,
         impact: impact_fields(value.impact()),
-        writer_slots: writer_slot_piece(value.writer_slots(), limits, limits.client.rows)?,
+        writer_slots: writer_slot_piece(value.writer_slots(), limits, limits.client().rows)?,
     })
 }
 
@@ -142,7 +142,7 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         Some(item) => Some(*item),
         None => None,
     };
-    if value.lineage().len() > limits.client.rows {
+    if value.lineage().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list2 = List::with_capacity(value.lineage().len());
@@ -165,7 +165,7 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         Some(item) => Some(Box::new(crate::translate::facts::owner_chip_hold(item, limits)?)),
         None => None,
     };
-    if value.proposals().len() > limits.client.rows {
+    if value.proposals().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list7 = List::with_capacity(value.proposals().len());
@@ -200,8 +200,8 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         chip: chip_fields(value.chip(), limits)?,
         goal: opt0,
         priority: opt1,
-        lineage_chips: chip_piece(value.lineage_chips(), limits, limits.client.rows)?,
-        inputs: owner_task_link_piece(value.inputs(), limits, limits.client.rows)?,
+        lineage_chips: chip_piece(value.lineage_chips(), limits, limits.client().rows)?,
+        inputs: owner_task_link_piece(value.inputs(), limits, limits.client().rows)?,
         project: value.project(),
         requester: crate::translate::facts::owner_requester(value.requester()),
         lineage: list2,
@@ -213,10 +213,10 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         wake: crate::translate::facts::owner_wake_policy(value.wake()),
         subscriptions: subscriptions_fields(value.subscriptions(), limits)?,
         result_contract: task_contract_document_fields(value.result_contract(), limits)?,
-        dependencies: owner_task_link_piece(value.dependencies(), limits, limits.client.rows)?,
-        references: owner_task_link_piece(value.references(), limits, limits.client.rows)?,
+        dependencies: owner_task_link_piece(value.dependencies(), limits, limits.client().rows)?,
+        references: owner_task_link_piece(value.references(), limits, limits.client().rows)?,
         cut: value.cut(),
-        resources: task_resource_piece(value.resources(), limits, limits.client.rows)?,
+        resources: task_resource_piece(value.resources(), limits, limits.client().rows)?,
         budget: crate::translate::facts::owner_budget(value.budget()),
         authority: owner_authority_document_fields(value.authority(), limits)?,
         hold: opt6,
@@ -225,7 +225,7 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         changed: Wall::from_nanos(value.changed()),
         acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
         result: opt8,
-        delegates: live_delegate_piece(value.delegates(), limits, limits.client.rows)?,
+        delegates: live_delegate_piece(value.delegates(), limits, limits.client().rows)?,
         context: opt9,
         llm: crate::translate::llm::choice(value.llm().as_ref(), limits)?,
         kept_account: *value.kept_account(),

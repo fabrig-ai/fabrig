@@ -2,7 +2,7 @@ use crate::tests::tree::cards_objects::*;
 
 #[test]
 fn task_overview_shows_only_supplied_ending_facts_with_opaque_state_loss_and_raw_slots() {
-    let mut segments = List::with_capacity(CLIENT.rows);
+    let mut segments = List::with_capacity(CLIENT.client.rows);
     segments.push(Box::from(*b"a/b")).unwrap();
     segments.push(Box::from([255_u8, 0])).unwrap();
     let part = OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Result, key: OwnerPartKey::Path(segments) };
@@ -33,7 +33,7 @@ fn task_overview_shows_only_supplied_ending_facts_with_opaque_state_loss_and_raw
         assert!(contains(&tree, b"Cancellation requester deployment project: 4294967295"));
         assert!(contains(&tree, b"Cancelled at:"));
         assert!(!contains(&tree, b"Result time was not supplied"));
-        assert!(tree.len() <= crate::task_nodes(&CLIENT, 0).unwrap());
+        assert!(tree.len() <= crate::task_nodes(&CLIENT, &(CLIENT).client, 0).unwrap());
         let mut fragment_slots = 0;
         match result {
             Some(ResultValue::Approved { .. }) => {
@@ -69,7 +69,7 @@ fn task_overview_shows_only_supplied_ending_facts_with_opaque_state_loss_and_raw
         let envelope = limits();
         let mut builder = Builder::new(&envelope);
         builder.open(Role::Page);
-        let mut bindings = JigBindings::new(envelope.bindings, CLIENT.text);
+        let mut bindings = JigBindings::new(envelope.bindings, CLIENT.client.text);
         crate::tree::fragments::task_result::render(
             &mut builder,
             &domain.view(),
@@ -79,7 +79,7 @@ fn task_overview_shows_only_supplied_ending_facts_with_opaque_state_loss_and_raw
         );
         builder.close();
         let tree = builder.finish();
-        assert!(tree.len() <= crate::tree::fragments::task_result::nodes(&CLIENT).unwrap());
+        assert!(tree.len() <= crate::tree::fragments::task_result::nodes(&CLIENT, &(CLIENT).client).unwrap());
         assert!(contains(&tree, b"source reason"));
         let slots: Vec<_> = tree.nodes().iter().filter_map(|node| node.slot).collect();
         assert_eq!(slots.len(), fragment_slots);
