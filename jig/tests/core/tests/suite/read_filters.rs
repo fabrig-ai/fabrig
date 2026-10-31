@@ -1,4 +1,4 @@
-use jig_core_world::stories::reads;
+use crate::read_support as reads;
 
 #[test]
 fn scoped_description_search_pages_durable_notes_after_restart() {

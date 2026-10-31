@@ -1,4 +1,5 @@
 //! Entry-point checks for the reference journal and routes.
+mod fixtures;
 mod host_tools;
 mod start;
 use crate::{Config, Domain, Event, Limits, Output, Released, Store, release, step, try_step};
@@ -15,13 +16,13 @@ fn fixture() -> (Domain, Env<Limits>) {
 }
 
 fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
-    let mut core_limits = jig_core_world::world::limits().core;
+    let mut core_limits = jig_test_profile::limits().core;
     core_limits.fleet.engine_slots = 1;
     core_limits.tasks.hold_kinds = 3;
     let limits = Limits {
         core: core_limits,
-        infrastructure: jig_ops_world::infrastructure_limits(),
-        observability: jig_ops_world::limits(),
+        infrastructure: fixtures::infrastructure_limits(),
+        observability: fixtures::limits(),
         host: host::Limits {
             slots: 1,
             accounts: 1,
@@ -51,9 +52,9 @@ fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
         routes: 256,
     };
     let mut config = Config {
-        agent_bounds: jig_ops_world::agent_bounds(),
-        tools: jig_ops_world::protocol::tools(Duration::from_secs(30)),
-        core: jig_core_world::world::config(17).core,
+        agent_bounds: fixtures::agent_bounds(),
+        tools: fixtures::tools(Duration::from_secs(30)),
+        core: jig_test_profile::config(17).core,
         triage_templates: Box::new([]),
         lead_templates: Box::new([]),
         backend: infrastructure::Backend::OperationIds,
@@ -85,14 +86,14 @@ fn name(task: u64) -> Event {
     Event::Infrastructure(infrastructure::Event::Names {
         project: 1,
         task,
-        resources: Box::new([infrastructure::Resource::Service(jig_ops_world::infra_service())]),
+        resources: Box::new([infrastructure::Resource::Service(fixtures::infra_service())]),
     })
 }
 
 fn pressure() -> Event {
     Event::Observability(observability::Event::Subscribe {
         task: 900,
-        topic: observability::Topic::Alerts(jig_ops_world::service()),
+        topic: observability::Topic::Alerts(fixtures::service()),
         wake_at: 5,
         keep_at: 1,
     })
@@ -134,7 +135,7 @@ fn admission_precedes_a_connectors_change_and_its_outputs_wait_for_the_commit() 
     // connector's Names continuation as the rejected probe.
     let event = Event::Observability(observability::Event::Subscribe {
         task: SUBSCRIBER,
-        topic: observability::Topic::Alerts(jig_ops_world::service()),
+        topic: observability::Topic::Alerts(fixtures::service()),
         wake_at: 5,
         keep_at: 1,
     });
@@ -143,7 +144,7 @@ fn admission_precedes_a_connectors_change_and_its_outputs_wait_for_the_commit() 
         panic!("the caller retains its original subscription")
     };
     assert_eq!(*task, SUBSCRIBER);
-    assert_eq!(*topic, observability::Topic::Alerts(jig_ops_world::service()));
+    assert_eq!(*topic, observability::Topic::Alerts(fixtures::service()));
     assert!(take(&mut domain, &env).is_empty(), "refusal changes no child and emits no output");
     try_step(&mut domain, &env, Event::Store(Store::Committed { number: FIRST_COMMIT, fill: 0 }))
         .expect("commit completion enters at the watermark");
@@ -170,7 +171,7 @@ fn connector_read(token: Token) -> Event {
     Event::Observability(observability::Event::Read {
         token,
         read: observability::Read::Logs {
-            service: jig_ops_world::service(),
+            service: fixtures::service(),
             window: observability::Window { from: 0, through: 1 },
             filter: Box::new([]),
             max_bytes: READ_BYTES,
@@ -186,7 +187,7 @@ fn a_failed_commit_stops_the_reference_root_before_held_system_requests_leave() 
         &env,
         Event::Observability(observability::Event::Subscribe {
             task: 1,
-            topic: observability::Topic::Alerts(jig_ops_world::service()),
+            topic: observability::Topic::Alerts(fixtures::service()),
             wake_at: 5,
             keep_at: 1,
         }),
@@ -310,7 +311,7 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
                     if let Some(record) = header.take() {
                         step(&mut domain, &env, Event::Store(Store::Restore(record)));
                         assert!(take(&mut domain, &env).is_empty(), "header restore is an empty admitted decision");
-                        for row in jig_core_world::fixtures::initial_settings_current(&domain.core.current) {
+                        for row in jig_test_profile::fixtures::initial_settings_current(&domain.core.current) {
                             step(&mut domain, &env, Event::Store(Store::Restore(crate::Record::Core(row))));
                         }
                     }
@@ -419,7 +420,7 @@ fn started_chat() -> (Domain, Env<Limits>, Token) {
     use jig_domain_people as people;
     let (mut domain, env) = fixture();
     step(&mut domain, &env, Event::Restart { pending: false });
-    for row in jig_core_world::fixtures::account_rows(&jig_core_world::world::config(17).core.settings.llm_providers) {
+    for row in jig_test_profile::fixtures::account_rows(&jig_test_profile::config(17).core.settings.llm_providers) {
         let jig_test_domain::Record::Core(row) = row else { panic!("core account fixture") };
         step(&mut domain, &env, Event::Store(Store::Restore(crate::Record::Core(row))));
     }
@@ -563,7 +564,7 @@ fn connector_documents_and_reads_share_the_last_connector_commit_barrier() {
     domain.core.people.start_sweep();
     assert!(domain.core.people.start_complete(&people_env));
     assert!(take(&mut domain, &env).is_empty());
-    let service = jig_ops_world::service();
+    let service = fixtures::service();
     step(
         &mut domain,
         &env,
@@ -880,9 +881,9 @@ fn adding_provision_preserves_scale_and_remediate_codes_and_service_hold() {
 }
 
 fn chat_request(limits: &core::Limits, words: &[u8]) -> jig_domain_people::Ask {
-    let config = jig_core_world::world::config(17).core;
-    let members = jig_core_world::fixtures::Creating::new(&config, limits.tasks.tree_tasks);
-    jig_core_world::fixtures::create_chat(&members, 1, 0, words.into())
+    let config = jig_test_profile::config(17).core;
+    let members = jig_test_profile::fixtures::Creating::new(&config, limits.tasks.tree_tasks);
+    jig_test_profile::fixtures::create_chat(&members, 1, 0, words.into())
 }
 
 #[test]

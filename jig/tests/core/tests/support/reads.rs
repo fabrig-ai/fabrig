@@ -1,16 +1,14 @@
 //! Fixtures for durable document and owner-page reads.
-use crate::effects::Setup;
-use crate::{
-    effects::World,
-    reads::{Parties, ask, latest},
-};
+use jig_core_world::reads::Parties;
+use jig_core_world::reads::ask;
+use jig_core_world::reads::latest;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_core::{self as core, documents, reads};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{Duration, ReplyTo, Token};
-
-const DELEGATE: u64 = core::ToolFamilies::JIG.delegate.0;
 
 #[must_use]
 pub fn world(seed: u64) -> World {
@@ -31,59 +29,7 @@ pub fn forgettable_world(seed: u64) -> World {
     world
 }
 
-/// The initial authenticated conversation request, shared by read stories.
-#[must_use]
-pub fn forgettable_conversation() -> people::Ask {
-    people::Ask::Create { project: 1, batch: Box::new([conversation_member(true)]) }
-}
-
-/// One explicitly flagged conversation under the world's agent charter.
-#[must_use]
-pub fn conversation_member(forgettable: bool) -> people::Member {
-    people::Member {
-        deadline: jig_domain_people::Deadline::Named,
-        executor: people::TaskExecutor::Agent { charter: 1 },
-        words: b"make an effect".as_slice().into(),
-        parameters: Box::new([]),
-        inputs: Box::new([]),
-        named: Box::new([]),
-        budget: people::Budget::Named,
-        contract: people::Contract::Report { words: 128 },
-        authority: people::Authority {
-            tools: DELEGATE,
-            models: None,
-            grants: Box::new([]),
-            delegation: people::Delegation {
-                kinds: Box::new([people::Executor::Charter(1), people::Executor::Procedure(1)]),
-                tasks: 1,
-                depth: 1,
-            },
-            spend: 100,
-            deadline: None,
-            notes: 0,
-            note_resources: Box::new([]),
-        },
-        wake: people::WakePolicy {
-            words: people::WakeRule::Immediate,
-            notices: people::WakeRule::Immediate,
-            news: people::WakeRule::Immediate,
-            results: people::ResultsWake::LastOrFailure,
-            questions: true,
-            answers: true,
-            timers: true,
-        },
-        dependencies: Box::new([]),
-        tracked: None,
-        label: jig_client_test_records::CHAT,
-        flags: people::Flags {
-            ended_by: people::EndedBy::Result,
-            conversation: true,
-            listed: false,
-            retention: if forgettable { people::Retention::ForgottenOnceRead } else { people::Retention::Kept },
-        },
-        llm: None,
-    }
-}
+use jig_test_profile::fixtures::forgettable_conversation;
 
 // Eight KiB admits a task owner and fixed evidence; a payload one byte larger cannot fit.
 pub const TURN_READ_BYTES: u32 = 8192;
@@ -96,7 +42,7 @@ pub fn world_with_large_turn(seed: u64) -> World {
 }
 
 fn read_world(seed: u64, reply_bound: Option<u32>, rows: u32, initial: Option<people::Ask>, large_turn: bool) -> World {
-    let (configuration, mut limits) = crate::effects::fixture(seed, false);
+    let (configuration, mut limits) = jig_core_world::world::fixture(seed, false);
     if let Some(bound) = reply_bound {
         limits.core.tasks.inbox_messages = bound;
         limits.core.tasks.run_inbox = bound;
@@ -314,7 +260,7 @@ pub fn result_and_reply_filters_page_their_own_retained_updates() {
     let mut tasks = Vec::new();
     for number in 0..3 {
         if number != 0 {
-            let next_chat = crate::fixtures::chat(&world, 1, b"next chat".as_slice().into());
+            let next_chat = jig_core_world::fixtures::chat(&world, 1, b"next chat".as_slice().into());
             request(&mut world, 40 + number, next_chat);
         }
         let task = world.assigned.as_ref().expect("chat").task;

@@ -14,7 +14,7 @@ fn key(number: u64) -> client::Key {
     client::Key { asker: client::Asker::JIG, number }
 }
 fn configuration() -> root::Config {
-    let mut config = jig_core_world::world::config(8510);
+    let mut config = jig_test_profile::config(8510);
     config.core.settings.llm_providers.providers[0].offers.sign_in = true;
     config
 }
@@ -29,7 +29,7 @@ struct Story {
 }
 impl Story {
     fn new() -> Self {
-        let mut owner_limits = jig_core_world::world::limits();
+        let mut owner_limits = jig_test_profile::limits();
         owner_limits.core.accounts.accounts = 2;
         owner_limits.core.accounts.move_deadline = MOVE_DEADLINE;
         jig_core_world::peers::journal(&mut owner_limits);

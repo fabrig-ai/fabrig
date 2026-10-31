@@ -1,10 +1,10 @@
-use jig_core_world::effects::{Scenario, Setup, World};
+use jig_core_world::world::{Scenario, Setup, World};
 
 fn a_chats_run_answers_once_and_its_turn_is_acknowledged_after_its_commit() {
     let mut world = World::new(Setup {
         seed: 41,
-        configuration: Some(jig_core_world::world::config(41)),
-        limits: jig_core_world::world::limits(),
+        configuration: Some(jig_test_profile::config(41)),
+        limits: jig_test_profile::limits(),
         walking: Some(Scenario::Chat),
         ..Setup::default()
     });
@@ -18,8 +18,8 @@ fn a_chats_run_answers_once_and_its_turn_is_acknowledged_after_its_commit() {
 fn a_person_sets_a_goal_a_procedure_carries_out_and_hears_its_result() {
     let mut world = World::new(Setup {
         seed: 42,
-        configuration: Some(jig_core_world::world::config(42)),
-        limits: jig_core_world::world::limits(),
+        configuration: Some(jig_test_profile::config(42)),
+        limits: jig_test_profile::limits(),
         walking: Some(Scenario::Goal),
         ..Setup::default()
     });
@@ -32,8 +32,8 @@ fn a_person_sets_a_goal_a_procedure_carries_out_and_hears_its_result() {
 fn a_batch_beyond_the_limits_is_refused_whole_and_the_party_told_why() {
     let mut world = World::new(Setup {
         seed: 43,
-        configuration: Some(jig_core_world::world::config(43)),
-        limits: jig_core_world::world::limits(),
+        configuration: Some(jig_test_profile::config(43)),
+        limits: jig_test_profile::limits(),
         walking: Some(Scenario::Batch),
         ..Setup::default()
     });

@@ -348,16 +348,16 @@ fn complete_collector_memory_includes_expected_raw_decoded_and_frame_outputs() {
 #[test]
 fn files_collectors_measure_complete_outputs_beside_the_expected_mirror() {
     for goal in [false, true] {
-        let mut world = jig_core_world::effects::World::new(jig_core_world::effects::Setup {
+        let mut world = jig_core_world::world::World::new(jig_core_world::world::Setup {
             seed: SEED,
-            configuration: Some(jig_core_world::world::config(SEED)),
-            limits: jig_core_world::world::limits(),
+            configuration: Some(jig_test_profile::config(SEED)),
+            limits: jig_test_profile::limits(),
             walking: Some(if goal {
-                jig_core_world::effects::Scenario::Goal
+                jig_core_world::world::Scenario::Goal
             } else {
-                jig_core_world::effects::Scenario::Chat
+                jig_core_world::world::Scenario::Chat
             }),
-            ..jig_core_world::effects::Setup::default()
+            ..jig_core_world::world::Setup::default()
         });
         world.drain();
         let task = world.walking.as_ref().expect("walking peer").chat.expect("scripted task");

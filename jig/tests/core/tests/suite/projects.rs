@@ -1,11 +1,9 @@
 //! Project decisions at the engine's lowest complete boundary (people.md, 5.1–5.3).
 
-use jig_core_world::effects::Setup;
-use jig_core_world::{
-    client_peer::ClientPeer,
-    effects::{Cut, World},
-    world,
-};
+use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::world::Cut;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_authority as authority;
 use jig_domain_core::{self as core, documents, reads};
 use jig_domain_people as people;
@@ -18,7 +16,7 @@ const MADE: u32 = 2;
 const NEXT: u32 = 3;
 const POLICY: u32 = 1;
 const OWNER: u64 = 1;
-const OWNER_SUBJECT: u64 = 7; // world::config's first owner.
+const OWNER_SUBJECT: u64 = 7; // jig_test_profile::config's first owner.
 const OTHER_SUBJECT: u64 = 8;
 const PROJECT_ROOM: u32 = 3; // The seed and two made projects.
 const ROSTER_ROOM: u32 = PROJECT_ROOM + 1; // Includes deployment roles.
@@ -26,8 +24,8 @@ const KEY: u8 = 91;
 const REPLY: Token = Token::new(12_001);
 
 fn configuration() -> (root::Config, root::Limits) {
-    let mut config = world::config(12_001);
-    let mut limits = world::limits();
+    let mut config = jig_test_profile::config(12_001);
+    let mut limits = jig_test_profile::limits();
     limits.core.authority.projects = PROJECT_ROOM;
     limits.core.people.projects = ROSTER_ROOM;
     config.core.defaults.rules = (authority::Domain::new(config.core.defaults.rules.clone(), limits.core.authority)
@@ -56,7 +54,7 @@ fn start(mut config: root::Config, mut limits: root::Limits) -> (World, u64) {
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
-        boot: jig_core_world::effects::Boot::Empty,
+        boot: jig_core_world::world::Boot::Empty,
         rows: Some(Box::new([])),
         ..Setup::default()
     });

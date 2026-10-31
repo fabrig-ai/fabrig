@@ -1,77 +1,23 @@
 //! Seeded configuration and world construction.
 use super::{
-    Boot, Duration, Queue, ReplyTo, Setup, Store, System, Token, VecDeque, World, accounts, authority, connector, core,
-    fleet, people, root,
+    Boot, Duration, ReplyTo, Setup, Store, System, Token, VecDeque, World, accounts, connector, core, fleet, people,
+    root,
 };
-fn grant() -> authority::Grant {
-    authority::Grant {
-        connector: 1,
-        kind: 5,
-        pattern: authority::Pattern { segments: Box::new([]), last: authority::Last::Open(Box::new([])) },
-    }
-}
-
-#[must_use]
-pub fn fixture(seed: u64, requirement: bool) -> (root::Config, root::Limits) {
-    let limits = limits();
-    let mut configuration = crate::world::config(seed);
-    let mut rules = configuration.core.defaults.rules.clone();
-    rules.ceiling.grants = Box::new([grant()]);
-    let mut policy = configuration.core.seed_projects[0].policy.policy.clone();
-    policy.ceiling.grants = Box::new([grant()]);
-    policy.roles[0].authority.grants = Box::new([grant()]);
-    policy.roles[0].authority.budget.spend = 300;
-    if requirement {
-        policy.requirements = Box::new([authority::Requirement {
-            connector: 1,
-            kind: 5,
-            pattern: grant().pattern,
-            judge: authority::Judge { connector: 2, requirement: 9, parameters: 0 },
-            guard: authority::Guard::Observed { freshness: Duration::from_secs(60) },
-            must_be_guarded: false,
-        }]);
-    }
-    let mut domain = authority::Domain::new(rules, limits.core.authority).expect("bounded effect rules");
-    let mut out = Queue::uncapped();
-    authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut out);
-    assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
-    configuration.core.seed_projects[0].policy.policy = domain.policy(1).expect("checked seed policy").clone();
-    configuration.core.defaults.rules = (jig_domain_authority::Domain::new(domain.rules().clone(), *domain.limits())
-        .expect("checked rules"))
-    .rules()
-    .clone();
-    configuration.first.procedures = Box::new([connector::ProcedureSpec {
-        number: 1,
-        actions: Box::new([
-            connector::ProcedureAction::Effect { kind: 5, purpose: 19, target: 13 },
-            connector::ProcedureAction::Finish { result: connector::ProcedureResult::Succeeded },
-        ]),
-        max_steps: 3,
-        stall: Duration::from_secs(1),
-    }]);
-    // Both connectors name the same resource; their facts come from distinct
-    // systems. Connector two is the observer, connector one is the writer.
-    configuration.second.prefix = configuration.first.prefix.clone();
-    configuration.second.resources.clone_from(&configuration.first.resources);
-    configuration.second.pools.clone_from(&configuration.first.pools);
-    configuration.second.requirements =
-        Box::new([connector::RequirementSpec { number: 9, guarded: false, freshness: Duration::from_secs(60) }]);
-    (configuration, limits)
-}
+pub use jig_test_profile::effect_fixture as fixture;
 
 pub(super) fn limits() -> root::Limits {
-    let mut limits = crate::world::limits();
+    let mut limits = jig_test_profile::limits();
     limits.core.authority.segments = 2;
     limits.core.people.requests = 16;
     limits.connector.write_lifetime = Duration::from_secs(1);
     limits
 }
 
-fn initial_request(configuration: &root::Config, creating: &crate::fixtures::Creating) -> people::Ask {
+fn initial_request(configuration: &root::Config, creating: &jig_test_profile::fixtures::Creating) -> people::Ask {
     if configuration.core.seed_projects.is_empty() {
         people::Ask::MarkSeen { seen: people::Seen::Results { through: 0 } }
     } else {
-        crate::fixtures::create_chat(creating, 1, 0, b"make an effect".as_slice().into())
+        jig_test_profile::fixtures::create_chat(creating, 1, 0, b"make an effect".as_slice().into())
     }
 }
 
@@ -104,7 +50,8 @@ impl World {
                     (0..workers).map(|index| format!("worker-{index}").into_bytes().into_boxed_slice()).collect();
             }
         }
-        let rows = rows.unwrap_or_else(|| crate::fixtures::account_rows(&configuration.core.settings.llm_providers));
+        let rows = rows
+            .unwrap_or_else(|| jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers));
         let projects: Vec<_> = configuration
             .core
             .seed_projects
@@ -159,7 +106,7 @@ impl World {
                     worker: 0,
                     channel: Token::new(7),
                     hello: fleet::Hello {
-                        bounds: crate::fixtures::bounds(),
+                        bounds: jig_test_profile::fixtures::bounds(),
                         stop_bound: Duration::from_millis(100),
                         slots: limits.core.fleet.slots,
                         workstreams: Box::new([]),
@@ -198,7 +145,7 @@ impl World {
                 worker: 0,
                 channel: Token::new(0),
                 hello: fleet::Hello {
-                    bounds: crate::fixtures::bounds(),
+                    bounds: jig_test_profile::fixtures::bounds(),
                     stop_bound: Duration::ZERO,
                     slots: self.limits.core.fleet.engine_slots,
                     workstreams: Box::new([]),
@@ -212,7 +159,7 @@ impl World {
     fn empty(configuration: root::Config, limits: &root::Limits, sets: jig_protocol_store::PatchSets) -> World {
         let observer = crate::conformance::Observer::new(&configuration);
         let heap = crate::conformance::Heap::new();
-        let creating = crate::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);
+        let creating = jig_test_profile::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);
         let initial_ask = initial_request(&configuration, &creating);
         let protocol = crate::protocol::Stand::with_models(limits.core, &configuration.core.settings.models);
         let store = Store::starting_with_patch_sets(limits, &configuration.core.settings.models, sets);

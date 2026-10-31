@@ -329,6 +329,7 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-domain-notes",
                 // Reuse the actual root/store/workers/systems and referee, not a harness copy.
                 "jig-core-world",
+                "jig-test-profile",
                 // Scripted parties remain beside the real joint protocol peer.
                 "jig-fake-parties",
                 "jig-fake-workers",

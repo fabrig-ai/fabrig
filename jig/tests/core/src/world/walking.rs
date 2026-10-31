@@ -91,7 +91,7 @@ impl Walking {
             }) => {
                 self.sign_in = Some(sign_in);
                 let people::Ask::Create { project, mut batch } =
-                    crate::fixtures::create_chat(&world.creating, 1, 0, b"hello".as_slice().into())
+                    jig_test_profile::fixtures::create_chat(&world.creating, 1, 0, b"hello".as_slice().into())
                 else {
                     unreachable!()
                 };

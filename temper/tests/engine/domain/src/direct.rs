@@ -14,7 +14,7 @@ use crate::walking::{config, limits};
 pub struct Driver {
     pub(crate) broken: crate::oracle::Fixture,
     pub(crate) restart_config: engine::Config,
-    creating: jig_core_world::fixtures::Creating,
+    creating: jig_test_profile::fixtures::Creating,
     pub forge: Option<crate::forge_stand::ForgeStand>,
     pub root: engine::Domain,
     pub env: Env<engine::Limits>,
@@ -95,7 +95,7 @@ impl Driver {
         Driver {
             broken: crate::oracle::Fixture::Checked,
             restart_config: crate::oracle::config::copy(&config),
-            creating: jig_core_world::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
+            creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             forge: None,
             root: engine::Domain::new(config, limits).expect("valid engine configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },

@@ -25,17 +25,13 @@ impl Protocol {
         match fault {
             FrontFault::Busy => self.engine.driver.scripted_party(crate::stories::pressure(), now, fixtures::wall(now)),
             FrontFault::NotReady => {
-                self.engine.driver.pause_restore(
-                    jig_core_world::world::config(self.engine.seed),
-                    now,
-                    fixtures::wall(now),
-                );
+                self.engine.driver.pause_restore(jig_test_profile::config(self.engine.seed), now, fixtures::wall(now));
                 self.release = Some(now.saturating_add(Duration::from_millis(100)));
             }
             FrontFault::Restart { offline } => {
                 self.net.cut_all();
                 self.advance(now, fixtures::wall(now));
-                self.engine.driver.restart(jig_core_world::world::config(self.engine.seed), now, fixtures::wall(now));
+                self.engine.driver.restart(jig_test_profile::config(self.engine.seed), now, fixtures::wall(now));
                 self.restart = Some(now.saturating_add(*offline));
                 self.net.offline(self.restart.expect("recovery deadline"));
                 self.reset_component();

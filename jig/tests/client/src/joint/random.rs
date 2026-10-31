@@ -54,7 +54,7 @@ pub fn assigned(seed: u64) -> (EngineFault, ClientFault) {
     (engine, client)
 }
 fn configuration() -> jig_test_domain::Config {
-    jig_core_world::world::config(8510)
+    jig_test_profile::config(8510)
 }
 fn answers(world: &mut World<Test, Joint>) -> usize {
     world
@@ -132,7 +132,7 @@ fn pending(
     if engine == EngineFault::Failed {
         world.front().session.driver.world.store.fault(jig_core_world::Fault::Fail { commit: submitted });
     } else {
-        world.front().session.driver.world.cut = Some(jig_core_world::effects::Cut::Submitted(submitted));
+        world.front().session.driver.world.cut = Some(jig_core_world::world::Cut::Submitted(submitted));
     }
     if fault == ClientFault::DoublePress {
         let Found::Node(node) = TreeFace::new(world.tree(client)).find(&Find::exactly_named(Role::Button, b"Confirm"))
@@ -154,7 +154,7 @@ fn pending(
     } else {
         assert_eq!(
             world.front().session.driver.world.reached_cut,
-            Some(jig_core_world::effects::Cut::Submitted(submitted))
+            Some(jig_core_world::world::Cut::Submitted(submitted))
         );
         assert!(world.front().session.driver.withhold_completion().expect("actual applied store").is_none());
         assert_eq!(answers(world), 2);
@@ -176,7 +176,7 @@ fn lost_words(world: &mut World<Test, Joint>, client: crate::ClientId, seed: u64
     assert_eq!(ready.verdict, Verdict::Passed, "ready words {seed}: {ready:?}");
     let prior_answers = answers(world);
     let submitted = world.front().session.driver.world.store.applied + 1;
-    world.front().session.driver.world.cut = Some(jig_core_world::effects::Cut::Submitted(submitted));
+    world.front().session.driver.world.cut = Some(jig_core_world::world::Cut::Submitted(submitted));
     world.person(
         client,
         vec![Step::Press { find: Find::exactly_named(Role::Button, b"Confirm") }, Step::Pause { span: slack }],
@@ -184,10 +184,7 @@ fn lost_words(world: &mut World<Test, Joint>, client: crate::ClientId, seed: u64
     let boundary = world.now().saturating_add(slack);
     let pending = world.run(Until::Time(boundary));
     assert!(matches!(pending.verdict, Verdict::Open { .. }), "pending words seed {seed}: {pending:?}");
-    assert_eq!(
-        world.front().session.driver.world.reached_cut,
-        Some(jig_core_world::effects::Cut::Submitted(submitted))
-    );
+    assert_eq!(world.front().session.driver.world.reached_cut, Some(jig_core_world::world::Cut::Submitted(submitted)));
     assert_eq!(answers(world), prior_answers);
     assert!(world.front().session.driver.withhold_completion().expect("real words commit").is_none());
     assert_eq!(answers(world), prior_answers + 1);

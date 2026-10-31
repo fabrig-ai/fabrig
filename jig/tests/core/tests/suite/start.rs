@@ -1,6 +1,5 @@
 //! Direct Core mechanics only. Real journal/store release, crash recovery and
 //! the durable readback oracle belong to the reference-root integration.
-use jig_core_world::world;
 use jig_domain_accounts as accounts;
 use jig_domain_core::{
     self as core,
@@ -18,9 +17,9 @@ struct Harness {
 
 impl Harness {
     fn new(seed: u64) -> Self {
-        let limits = world::limits().core;
+        let limits = jig_test_profile::limits().core;
         Self {
-            core: core::Core::new(world::config(seed).core, &limits).expect("configured direct Core"),
+            core: core::Core::new(jig_test_profile::config(seed).core, &limits).expect("configured direct Core"),
             env: Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits },
             out: Queue::uncapped(),
         }
@@ -178,7 +177,7 @@ fn cleanup_acknowledgement_blocks_sweep_and_held_account_outputs_are_metered() {
 
 #[test]
 fn an_empty_start_store_seeds_before_opening() {
-    let configured = world::config(204).core;
+    let configured = jig_test_profile::config(204).core;
     let owners = configured.owners.clone();
     let mut h = Harness::new(204);
     phase(&h.core.start_begin(false, h.env.wall), Phase::LoadCore);

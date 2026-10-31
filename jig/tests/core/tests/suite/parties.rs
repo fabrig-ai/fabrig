@@ -1,16 +1,18 @@
-use jig_core_world::effects::Setup;
+use jig_core_world::world::Setup;
 const OWNER_ROLE: u32 = 0;
-use jig_core_world::{
-    effects::World,
-    fixtures::{
-        ask_as,
-        deadlines::{decide, propose},
-        inbox_objects as inbox, live_row, people_member, proposal_object, refusal,
-    },
-    stories::offers::{no_holder_fixture, world_with},
-};
+use jig_core_world::fixtures::ask_as;
+use jig_core_world::fixtures::deadlines::decide;
+use jig_core_world::fixtures::deadlines::propose;
+use jig_core_world::fixtures::inbox_objects as inbox;
+use jig_core_world::fixtures::live_row;
+use jig_core_world::fixtures::refusal;
+use jig_core_world::stories::offers::no_holder_fixture;
+use jig_core_world::stories::offers::world_with;
+use jig_core_world::world::World;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
+use jig_test_profile::fixtures::people_member;
+use jig_test_profile::fixtures::proposal_object;
 const PARTY: u64 = 1;
 const FIRST: u64 = 2;
 const LAST: u64 = 3;
@@ -657,7 +659,7 @@ fn a_goal_beyond_the_pool_is_refused_naming_who_may_accept() {
 }
 
 fn widening() -> people::Amendment {
-    let mut amendment = jig_core_world::fixtures::person_unchanged(b"more work");
+    let mut amendment = jig_test_profile::fixtures::person_unchanged(b"more work");
     amendment.authority = Some(people_member(b"work", 150).authority);
     amendment
 }

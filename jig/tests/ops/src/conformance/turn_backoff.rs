@@ -29,7 +29,7 @@ impl World {
             kept: Vec::new(),
         };
         world.send(root::Event::Restart { pending: false });
-        for row in jig_core_world::fixtures::account_rows(&world_configuration_providers) {
+        for row in jig_test_profile::fixtures::account_rows(&world_configuration_providers) {
             let jig_test_domain::Record::Core(row) = row else { panic!("core account fixture") };
             world.send(root::Event::Store(root::Store::Restore(root::Record::Core(row))));
         }
