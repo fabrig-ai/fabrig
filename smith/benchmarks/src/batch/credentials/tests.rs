@@ -132,20 +132,17 @@ fn two_attempt_processes_meet_before_either_can_finish() {
     std::fs::write(state.join("template.json"), crate::render_result(&result).expect("template"))
         .expect("template file");
     let request = Request {
-        task: Path::new(env!("CARGO_MANIFEST_DIR")).join("tasks/probes/credentials/task.toml"),
-        identity: result.identity,
         program: "/nonexecuted".into(),
-        arguments: vec![],
         logins: Some(state.join("logins/codex")),
-        configuration: None,
         teardown_ms: 100,
         grace_ms: 100,
         settlement_ms: 1000,
         setup_deadline_seconds: 5,
-        max_stdout_bytes: 4096,
-        max_stderr_bytes: 4096,
         disk_estimate_bytes: 0,
-        force_walk: true,
+        ..crate::request_fixture::request(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tasks/probes/credentials/task.toml"),
+            result.identity,
+        )
     };
     let program = state.join("peer");
     std::os::unix::fs::symlink(std::env::current_exe().expect("control executable"), state.join("peer.test"))
