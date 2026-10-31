@@ -21,7 +21,7 @@ fn idle_config(config: Config, seed: u64) -> (Domain, Env<Limits>, Queue<Request
     let mut out = Queue::uncapped();
     crate::resume(&mut domain, &env, &mut out);
     drop(drain_requests(&mut out));
-    crate::step(&mut domain, &env, Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) }, &mut out);
+    crate::step(&mut domain, &env, crate::fixture::loaded(), &mut out);
     (domain, env, out)
 }
 
@@ -389,12 +389,7 @@ pub(super) fn spawned_chat_with_saved_hello() -> (Domain, Env<Limits>, Queue<Req
         Some(Request::Load) => true,
         _ => false,
     });
-    crate::step(
-        &mut domain,
-        &env,
-        Event::Loaded { state: None, transcript: None, deliveries: Box::default() },
-        &mut out,
-    );
+    crate::step(&mut domain, &env, crate::fixture::loaded(), &mut out);
     crate::step(&mut domain, &env, Event::Line { text: Box::from(&b"hello"[..]) }, &mut out);
     assert!(match out.pop() {
         Some(Request::Credential { account: 7 }) => true,
@@ -597,7 +592,7 @@ fn an_inline_runs_facts_wait_for_the_service() {
     let mut out = Queue::uncapped();
     crate::resume(&mut domain, &env, &mut out);
     drop(drain_requests(&mut out));
-    let loaded = Event::Loaded { state: None, transcript: None, deliveries: Box::default() };
+    let loaded = crate::fixture::loaded();
     crate::step(&mut domain, &env, loaded, &mut out);
     crate::step(&mut domain, &env, Event::Line { text: b"hello".as_slice().into() }, &mut out);
     crate::step(
@@ -777,7 +772,7 @@ fn a_headless_start_reading_its_repository_head() -> (Domain, Env<Limits>, Queue
     let mut out = Queue::uncapped();
     crate::resume(&mut domain, &env, &mut out);
     drop(drain_requests(&mut out));
-    crate::step(&mut domain, &env, Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) }, &mut out);
+    crate::step(&mut domain, &env, crate::fixture::loaded(), &mut out);
     drop(drain_requests(&mut out));
     crate::step(
         &mut domain,

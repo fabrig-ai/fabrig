@@ -10,9 +10,7 @@ fn loading() -> Service {
     service
 }
 
-fn loaded() -> local::Event {
-    local::Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) }
-}
+use local::fixture::loaded;
 
 #[test]
 fn a_line_before_interrupt_never_spawns_its_silent_check() {

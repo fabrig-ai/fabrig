@@ -1,6 +1,5 @@
 //! Tests local watermark admission and backlog accounting (protocol/limits.md, section 3.8).
 
-use alloc::boxed::Box;
 use skein_lib::{Time, Wall};
 use smith_local_domain as local;
 
@@ -20,7 +19,7 @@ fn admitted_at_watermark() -> Service {
     for _ in 0..service.shell.capacity() {
         service.shell.push(local::Request::Credential { account: 99 });
     }
-    service.local_event(local::Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) });
+    service.local_event(local::fixture::loaded());
     service.local_event(local::Event::Line { text: b"admitted".as_slice().into() });
     service
 }
@@ -122,7 +121,7 @@ fn a_service_with_held_inline_facts() -> Service {
     local::resume(&mut service.local, &env, &mut service.local_requests);
     while service.local_requests.pop().is_some() {}
     for event in [
-        local::Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) },
+        local::fixture::loaded(),
         local::Event::Line { text: b"hello".as_slice().into() },
         local::Event::Credential {
             form: Form::Credential(Scheme::Bearer),

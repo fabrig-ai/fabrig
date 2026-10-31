@@ -1349,13 +1349,8 @@ impl Domain {
             },
             out,
         );
-        parent_request(
-            self,
-            env,
-            parent::Request::Gone { client: Token::new(1), end: host::End::Settled, detail: Box::default() },
-            out,
-        );
-        step(self, env, Event::Loaded { state: None, transcript: None, deliveries: Box::default() }, out);
+        parent_request(self, env, crate::fixture::gone(host::End::Settled, Box::default()), out);
+        step(self, env, crate::fixture::loaded(), out);
     }
 
     /// A parent-face harness with a live child whose requests are injected by the test.

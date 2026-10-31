@@ -88,3 +88,15 @@ pub fn turn() -> smith_domain::Turn {
         messages: Box::default(),
     }
 }
+
+/// A selected empty chat with no transcript or delivery records.
+#[must_use]
+pub fn loaded() -> crate::Event {
+    crate::Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) }
+}
+
+/// One parent-face child settlement for the fixture's single client.
+#[must_use]
+pub fn gone(end: smith_host_domain::End, detail: Box<[u8]>) -> smith_host_domain::parent::Request {
+    smith_host_domain::parent::Request::Gone { client: skein_lib::Token::new(1), end, detail }
+}
