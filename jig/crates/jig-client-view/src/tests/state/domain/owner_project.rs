@@ -6,6 +6,7 @@
     reason = "ordinary proofs inspect original read tokens and whole keyed requests"
 )]
 use crate::tests::fixtures::{AnsweredByEngine, Fixture, ReadPage, Reported};
+pub(in crate::tests) use crate::tests::kit::list_in as list;
 use crate::tests::state::domain::spine::{LIMITS, delivered, drive, frame, start};
 use crate::{
     Event, Request,
@@ -19,13 +20,7 @@ use crate::{
 use alloc::vec::Vec;
 use jig_client::contract::*;
 use skein_lib::{List, Time, Token, bytes::copy_of};
-fn list<T>(cap: u32, rows: impl IntoIterator<Item = T>) -> List<T> {
-    let mut out = List::with_capacity(cap);
-    for row in rows {
-        assert!(out.push(row).is_ok());
-    }
-    out
-}
+
 fn pattern() -> OwnerPattern {
     OwnerPattern {
         segments: list(2, [copy_of(&[255, 0, b'/']), copy_of(b"")]),

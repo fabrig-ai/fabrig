@@ -1,0 +1,12 @@
+== jig == 
+Wake policy:
+  Words
+  Wakes immediately
+  Notices
+  Wakes immediately
+  News
+  Wakes immediately
+  Each delegate result wakes
+  Questions wake
+  Answers wake
+  Timers wake

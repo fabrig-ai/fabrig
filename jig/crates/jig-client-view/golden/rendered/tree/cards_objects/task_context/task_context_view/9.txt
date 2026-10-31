@@ -1,0 +1,26 @@
+== jig == 
+Review before confirming:
+  Cancel
+  Task 8: Review:
+    [1] Task 8: Review
+    Title is incomplete
+    Person 1
+    Held
+    Held budget
+    Current revision 4
+  Cancel this task and everything below it; already made effects remain
+  1 waiting tasks
+  4294967295 running tasks
+  3 held tasks
+  4 closing tasks
+  5 completed tasks
+  6 failed tasks
+  7 cancelled tasks
+  8 live runs
+  9 proposals will be withdrawn
+  Effects not yet begun will be withdrawn; begun effects will settle
+  [2] Your reason: (empty)
+  * Required words are missing
+  * Dangerous action: review its consequences
+  [-] Confirm (disabled)
+  [3] Dismiss

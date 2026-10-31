@@ -2,11 +2,12 @@
     clippy::disallowed_methods,
     reason = "ordinary proofs inspect public trees and selected checked language data"
 )]
+use crate::tests::kit::Goldens;
 use crate::tree::fragments::amendment as view;
 use crate::words::Words;
 use crate::words::{amendment_words as data, amendment_words::AmendmentPhrase as P};
 use skein_ui::Limits;
-use skein_ui::phrases::{Hole, Invalid, PhraseLimits, Phrasebook, Segment, SpanUnit, WallFormat};
+use skein_ui::phrases::{Invalid, PhraseLimits, Phrasebook, Segment, SpanUnit, WallFormat};
 use skein_ui::{Builder, Tree};
 
 use jig_client::contract::*;
@@ -24,21 +25,20 @@ fn pattern(last: OwnerPatternEnd, capacity: u32) -> OwnerPattern {
     OwnerPattern { segments, last }
 }
 fn fixture() -> OwnerAmendmentState {
-    let mut parameters = List::with_capacity(3);
-    parameters.push(ParameterDocument::Number { name: u32::MAX, value: u64::MAX }).unwrap();
-    parameters.push(ParameterDocument::Bytes { name: 1, value: doc(b"bytes", false) }).unwrap();
-    parameters.push(ParameterDocument::Resource { name: 2, connector: u16::MAX, resource: u64::MAX }).unwrap();
-    let mut inputs = List::with_capacity(3);
-    inputs.push(9).unwrap();
-    inputs.push(u64::MAX).unwrap();
-    let mut grants = List::with_capacity(3);
-    grants
-        .push(OwnerGrant {
+    let parameters = crate::tests::kit::list([
+        ParameterDocument::Number { name: u32::MAX, value: u64::MAX },
+        ParameterDocument::Bytes { name: 1, value: doc(b"bytes", false) },
+        ParameterDocument::Resource { name: 2, connector: u16::MAX, resource: u64::MAX },
+    ]);
+    let inputs = crate::tests::kit::list_in(3, [9, u64::MAX]);
+    let grants = crate::tests::kit::list_in(
+        3,
+        [OwnerGrant {
             connector: u16::MAX,
             kind: u16::MAX,
             pattern: pattern(OwnerPatternEnd::Exact(copy_of(b"tail")), 3),
-        })
-        .unwrap();
+        }],
+    );
     let mut kinds = List::with_capacity(3);
     for kind in [
         OwnerAuthorityExecutor::Charter(u32::MAX),
@@ -47,13 +47,11 @@ fn fixture() -> OwnerAmendmentState {
     ] {
         kinds.push(kind).unwrap();
     }
-    let mut resources = List::with_capacity(3);
-    resources
-        .push(OwnerResourceScope { connector: 7, pattern: pattern(OwnerPatternEnd::Open(copy_of(b"*")), 0) })
-        .unwrap();
-    let mut dependencies = List::with_capacity(3);
-    dependencies.push(u64::MAX).unwrap();
-    dependencies.push(7).unwrap();
+    let resources = crate::tests::kit::list_in(
+        3,
+        [OwnerResourceScope { connector: 7, pattern: pattern(OwnerPatternEnd::Open(copy_of(b"*")), 0) }],
+    );
+    let dependencies = crate::tests::kit::list_in(3, [u64::MAX, 7]);
     OwnerAmendmentState {
         addressed: Some(PersonAddress::Party(u64::MAX)),
         taken_by: Some(u64::MAX),
@@ -118,16 +116,7 @@ fn words(language: u16, selected: bool) -> Words {
     english.wall = WallFormat::Nanos;
     english.span_unit = SpanUnit::Nanos;
     let languages: Box<[skein_ui::phrases::Language]> = if selected {
-        let mut translated = english.clone();
-        for phrase in &mut translated.phrases {
-            for form in &mut phrase.forms {
-                for segment in &mut form.segments {
-                    if let Segment::Text(bytes) = segment {
-                        *bytes = copy_of(b"chosen language: ");
-                    }
-                }
-            }
-        }
+        let translated = crate::tests::kit::translated_language(b"chosen language: ");
         Box::new([english, translated])
     } else {
         Box::new([english])
@@ -168,25 +157,18 @@ fn build(value: &OwnerAmendmentState, words: &Words) -> Tree {
 
     tree
 }
-fn has(tree: &Tree, bytes: &[u8]) -> bool {
-    tree.nodes().iter().any(|node| node.text.iter().any(|run| run.text.as_ref() == bytes))
-}
-fn count(tree: &Tree, bytes: &[u8]) -> usize {
-    tree.nodes().iter().flat_map(|node| &node.text).filter(|run| run.text.as_ref() == bytes).count()
-}
+
 #[test]
 fn owner_amendment_instruction_absence_empty_and_each_loss_keep_context_without_default_substitution() {
+    let mut goldens = Goldens::new("tree/fragments/amendment/owner_amendment_instruction");
     let variants =
         [None, Some(doc(b"", false)), Some(doc(b"live", false)), Some(doc(b"", true)), Some(doc(b"live", true))];
     let mut states = List::with_capacity(5);
     let mut trees: List<Tree> = List::with_capacity(5);
-    for (index, instructions) in variants.into_iter().enumerate() {
+    for instructions in variants {
         let state = OwnerAmendmentState { instructions, ..fixture() };
         let tree = build(&state, normal_words());
-        assert_eq!(has(&tree, b"Instructions were not supplied"), index == 0);
-        assert_eq!(has(&tree, b"Instructions are empty"), index == 1);
-        assert_eq!(has(&tree, b"live"), index == 2 || index == 4);
-        assert_eq!(has(&tree, b"Only part of this text was supplied"), index >= 3);
+        goldens.check(&tree);
         for previous in &states {
             assert_ne!(&state, previous);
         }
@@ -211,6 +193,7 @@ fn owner_amendment_instruction_absence_empty_and_each_loss_keep_context_without_
 }
 #[test]
 fn owner_amendment_each_text_spec_authority_and_dependency_loss_is_independent() {
+    let mut goldens = Goldens::new("tree/fragments/amendment/owner_amendment_each");
     for flag in 0_u32..5 {
         let mut value = fixture();
         match flag {
@@ -227,14 +210,10 @@ fn owner_amendment_each_text_spec_authority_and_dependency_loss_is_independent()
             _ => unreachable!(),
         }
         let tree = build(&value, normal_words());
-        assert_eq!(count(&tree, b"Only part of this text was supplied"), usize::from(flag < 2));
-        assert_eq!(has(&tree, b"The specification is incomplete"), flag == 2);
-        assert_eq!(has(&tree, b"More are held than shown"), flag == 3);
-        assert_eq!(has(&tree, b"Dependency list incomplete"), flag == 4);
+        goldens.check(&tree);
         assert_eq!(value.spec.whole().is_none(), flag <= 2);
         assert!(crate::tree::fragments::instructions::whole(value.instructions.as_ref()).is_some());
-        assert!(has(&tree, b"spec"));
-        assert!(has(&tree, b"bytes"));
+
         assert_eq!(value.dependencies.get(0), Some(&u64::MAX));
         assert_eq!(value.spec.specification.parameters.capacity(), 3);
         assert_eq!(value.spec.specification.inputs.capacity(), 3);
@@ -242,46 +221,14 @@ fn owner_amendment_each_text_spec_authority_and_dependency_loss_is_independent()
 }
 #[test]
 fn owner_amendment_address_taker_spec_wake_and_opaque_authority_keep_full_independent_values() {
+    let mut goldens = Goldens::new("tree/fragments/amendment/owner_amendment_address");
     let words = normal_words();
     let mut value = fixture();
-    for (address, phrase, number) in [
-        (PersonAddress::Party(u64::MAX), P::Party, u64::MAX),
-        (PersonAddress::Role(u32::MAX), P::Role, u64::from(u32::MAX)),
-    ] {
+    for address in [PersonAddress::Party(u64::MAX), PersonAddress::Role(u32::MAX)] {
         value.addressed = Some(address);
         let tree = build(&value, words);
-        let expected = words.book().say(words.language(), phrase.id(), &[Hole::Number(number)]).unwrap();
-        assert!(has(&tree, &expected.text));
-        assert!(has(&tree, b"Taken by party: 18446744073709551615"));
-        for text in [
-            b"a/b".as_slice(),
-            b"\\xFF\\x00",
-            b"tail",
-            b"*",
-            b"Exact ending",
-            b"Open ending",
-            b"Charter: 4294967295",
-            b"Procedure: 4294967295",
-            b"Role: 4294967295",
-            b"Tool bits: 18446744073709551615",
-            b"Note scope bits: 255",
-            b"Dependency task: 18446744073709551615",
-            b"Dependency task: 7",
-        ] {
-            assert!(has(&tree, text));
-        }
-        for text in [
-            b"Parameter 4294967295 has value 18446744073709551615".as_slice(),
-            b"Parameter 1",
-            b"Parameter 2 names connector 65535 resource 18446744073709551615",
-            b"Input task 9",
-            b"Input task 18446744073709551615",
-            b"Spend ceiling: 18446744073709551615",
-            b"Delegate tasks: 4294967295",
-            b"Delegate depth: 4294967295",
-        ] {
-            assert!(has(&tree, text));
-        }
+
+        goldens.check(&tree);
         let input_order: Box<[&[u8]]> = tree
             .nodes()
             .iter()
@@ -290,17 +237,7 @@ fn owner_amendment_address_taker_spec_wake_and_opaque_authority_keep_full_indepe
             .map(|r| r.text.as_ref())
             .collect();
         assert_eq!(input_order.as_ref(), [b"Input task 9".as_slice(), b"Input task 18446744073709551615"].as_slice());
-        for text in [
-            b"Connector: 65535".as_slice(),
-            b"Kind: 65535",
-            b"Connector: 7",
-            b"Deadline: 18446744073709551615",
-            b"Does not wake",
-            b"Wakes immediately",
-            b"Wakes after 4294967295 messages or 18446744073709551615 ns of oldest message age",
-        ] {
-            assert!(has(&tree, text), "each nested authority and wake scalar is displayed whole");
-        }
+
         assert_eq!(value.clone().addressed, Some(address));
         assert_eq!(
             value.authority.authority.grants.get(0).unwrap().pattern.segments.get(1).unwrap().as_ref(),
@@ -320,13 +257,12 @@ fn owner_amendment_address_taker_spec_wake_and_opaque_authority_keep_full_indepe
     value.addressed = None;
     value.taken_by = None;
     let tree = build(&value, words);
-    assert!(has(&tree, b"Address not supplied"));
-    assert!(has(&tree, b"Taker not supplied"));
-    assert!(!has(&tree, b"Taken by party: 18446744073709551615"));
+    goldens.check(&tree);
     assert_wake_fields(&mut value, words);
 }
 
 fn assert_wake_fields(value: &mut OwnerAmendmentState, words: &Words) {
+    let mut goldens = Goldens::new("tree/fragments/amendment/assert_wake_fields");
     for results in [ResultsWake::Never, ResultsWake::Each, ResultsWake::LastOrFailure] {
         for switches in 0_u8..8 {
             value.wake.results = results;
@@ -335,42 +271,26 @@ fn assert_wake_fields(value: &mut OwnerAmendmentState, words: &Words) {
             value.wake.timers = switches & 4 != 0;
             let tree = build(value, words);
             assert_eq!(tree.nodes().iter().filter(|n| n.role == skein_ui::Role::Region).count(), 2);
-            let result_label: &[u8] = match results {
-                ResultsWake::Never => b"Delegate results do not wake",
-                ResultsWake::Each => b"Each delegate result wakes",
-                ResultsWake::LastOrFailure => b"The last delegate result or a failure wakes",
-            };
-            assert!(has(&tree, result_label));
-            assert!(has(&tree, if value.wake.questions { b"Questions wake" } else { b"Questions do not wake" }));
-            assert!(has(&tree, if value.wake.answers { b"Answers wake" } else { b"Answers do not wake" }));
-            assert!(has(&tree, if value.wake.timers { b"Timers wake" } else { b"Timers do not wake" }));
-            assert!(!has(&tree, b"Subscriptions"));
+
+            goldens.check(&tree);
         }
     }
 }
 
 #[test]
 fn owner_amendment_selected_normal_words_preserve_checked_captions_numbers_and_nested_fragments() {
+    let mut goldens = Goldens::new("tree/fragments/amendment/owner_amendment_selected");
     let selected = words(1, true);
     let value = fixture();
     let tree = build(&value, &selected);
-    assert!(
-        tree.nodes().iter().any(|node| node.name.as_ref().is_some_and(|name| name.as_ref() == b"chosen language: "))
-    );
-    assert!(has(&tree, b"chosen language: 18446744073709551615"));
-    assert!(has(&tree, b"chosen language: 4294967295"));
-    assert!(!has(&tree, b"Instructions"));
-    assert!(!has(&tree, b"Exact ending"));
-    for bytes in [b"spec".as_slice(), b"bytes", b"live", b"a/b", b"\\xFF\\x00", b"tail", b"*"] {
-        assert!(has(&tree, bytes));
-    }
+    goldens.check(&tree);
     let mut lost = value;
     lost.cut = true;
     lost.authority.cut = true;
     lost.spec.cut = true;
     lost.instructions.as_mut().unwrap().cut = true;
     let tree = build(&lost, &selected);
-    assert!(count(&tree, b"chosen language: ") >= 6);
+    goldens.check(&tree);
     for phrase in data::ALL {
         assert!(selected.book().capacity(phrase.id()).is_some());
     }

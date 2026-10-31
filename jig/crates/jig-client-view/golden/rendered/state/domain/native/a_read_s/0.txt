@@ -1,0 +1,118 @@
+== Project == Live
+Work:
+  What needs you:
+    Questions: 0; proposals: 0; escalations: 0; person tasks: 0
+    Results read through 0
+    [1] 0 updates not read
+    [2] 0 need you
+  Who is signed in:
+    * Signed in as Pat
+    Person
+    Login: fixture-login
+    [3] Sign out
+  Projects:
+  Go to a task:
+    [4] Go to task number: (empty) (enter sends)
+Project:
+  Project: Tally
+Tally:
+  [5] Overview
+  [6] Goals
+  [7] Tasks
+  [8] Notes
+  [9] Settings (current)
+  [10] Resources
+  [11] Policy
+  [12] Roles and services
+  [13] Spend
+  [14] Recurring tasks
+Settings:
+  ## Settings
+  Project: Tally:
+    Resources:
+      ## Resources
+    Policy:
+      ## Policy
+      Policy:
+          Tool bits: 18446744073709551615
+          Delegate tasks: 4294967295
+          Delegate depth: 4294967295
+          Spend ceiling: 18446744073709551615
+          Note scope bits: 255
+          Keep default models
+          Grants
+          Connector: 65535
+          Kind: 65535
+          Literal segments
+          `\xFF\x00\x2F`
+          
+          Open ending
+          `\xFE\x00`
+          Allowed delegation executors
+          Role: 4294967295
+          Note resources
+        Period spend: 18446744073709551615
+        Escalation role: 4294967295
+        Replace goal projection grants
+        Effect connector 19 kind 23
+        Literal segments
+        `\xFF\x00\x2F`
+        
+        Open ending
+        `\xFE\x00`
+        Replace role 4294967295:
+          Replace role 4294967295
+            Tool bits: 18446744073709551615
+            Delegate tasks: 4294967295
+            Delegate depth: 4294967295
+            Spend ceiling: 18446744073709551615
+            Note scope bits: 255
+            Keep default models
+            Grants
+            Connector: 65535
+            Kind: 65535
+            Literal segments
+            `\xFF\x00\x2F`
+            
+            Open ending
+            `\xFE\x00`
+            Allowed delegation executors
+            Role: 4294967295
+            Note resources
+          Period spend: 17
+          Request flags: 65535
+          Proposal decision flags: 255
+        Replace effect requirements
+        Effect connector 65535 kind 65535
+        Literal segments
+        `\xFF\x00\x2F`
+        
+        Open ending
+        `\xFE\x00`
+        Judge connector 65535 requirement 65535 parameters 4294967295
+        Verdict checked at application
+        Guard is required
+        Permission mappings not supplied
+    Roles and services:
+      ## Roles and services
+    Spend:
+      ## Spend
+      Current period not supplied
+      Configured pool period: 0:
+        Configured pool period: 0
+    Recurring tasks:
+      ## Recurring tasks
+  Period spend: 18446744073709551615:
+    [15] Period spend: 18446744073709551615: 18446744073709551615
+    [16] Review policy change
+  Replace role 4294967295:
+    [17] Period spend: 17: 17
+    [18] Request flags: 65535: 65535
+    [19] Proposal decision flags: 255: 255
+    [20] Review policy change
+  Replace effect requirements:
+    [21] Remove row: 0
+  Replace goal projection grants:
+    [22] Remove row: 0
+  Start of the list
+  End of the list

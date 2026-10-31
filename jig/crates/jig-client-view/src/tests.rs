@@ -1,6 +1,7 @@
 pub(crate) mod binding;
 pub(crate) mod bridge;
 pub(crate) mod fixtures;
+pub(crate) mod kit;
 pub(crate) mod owner;
 pub(crate) mod regions;
 pub(crate) mod shapes;

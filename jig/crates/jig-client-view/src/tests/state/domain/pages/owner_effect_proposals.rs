@@ -5,8 +5,7 @@ use crate::tests::state::domain::pages::*;
 use skein_lib::Wall;
 
 fn proposal(proposer: Proposer, effect: u64) -> OwnerProposal {
-    let mut acts = List::with_capacity(1);
-    acts.push(Offered { effect: None, act: ActKind::Accept, admission: Admission::Allowed }).unwrap();
+    let acts = crate::tests::kit::list([Offered { effect: None, act: ActKind::Accept, admission: Admission::Allowed }]);
     OwnerProposal {
         key: ProposalKey { proposer, number: 7 },
         project: 41,
@@ -26,8 +25,7 @@ fn proposal(proposer: Proposer, effect: u64) -> OwnerProposal {
     }
 }
 fn named(domain: &mut Fixture, watch: jig_client::Handle, key: ProposalKey) -> jig_client::Handle {
-    let mut entries = List::with_capacity(1);
-    entries.push(crate::tests::fixtures::inbox_entry(ObjectKey::Proposal(key))).unwrap();
+    let entries = crate::tests::kit::list([crate::tests::fixtures::inbox_entry(ObjectKey::Proposal(key))]);
     let output = drive(
         domain,
         Time::ZERO,

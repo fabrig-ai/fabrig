@@ -1,0 +1,26 @@
+== jig == 
+Subscriptions:
+  - Subscription 18446744073709551615
+    Task 18446744073709551615
+    Held state is not subscribed
+    Result is not subscribed
+  - Subscription 18446744073709551615
+    Task 2
+    Held state is subscribed
+    Result is not subscribed
+  - Subscription 18446744073709551615
+    Task 3
+    Held state is not subscribed
+    Result is subscribed
+  - Subscription 18446744073709551615
+    Task 4
+    Held state is subscribed
+    Result is subscribed
+  - Subscription 18446744073709551615
+    Timer at 18446744073709551615 ns since epoch
+    Fires once
+  - Subscription 18446744073709551615
+    Timer at 0 ns since epoch
+    Repeats every 18446744073709551615 ns
+  - Subscription 18446744073709551615
+    Connector 65535, topic 18446744073709551615

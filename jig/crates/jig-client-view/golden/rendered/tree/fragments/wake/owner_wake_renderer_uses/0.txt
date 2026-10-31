@@ -1,0 +1,12 @@
+== jig == 
+Wake policy:
+  Words
+  Does not wake
+  Notices
+  Wakes immediately
+  News
+  Age 13; count 7
+  Each delegate result wakes
+  Questions wake
+  Answers do not wake
+  Timers wake

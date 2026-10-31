@@ -1,0 +1,64 @@
+== Inbox == 
+Inbox:
+  [1] All projects
+  [2] Project: One
+  [3] All kinds
+  [4] Question
+  [5] Proposal
+  [6] Escalation
+  [7] Person task
+  [8] Result
+  [9] Reply
+  [10] All goals
+  4294967295 need you
+  More than 17 updates not read
+Needs you:
+  ## Needs you
+  - Question message: 1
+    Stored task 18446744073709551615
+    Stored status unavailable
+    - Object:
+        ## Object
+        * Open
+        * Loading object
+  - Escalation revision: 2
+    Stored task 18446744073709551615
+    Stored status unavailable
+    - Object:
+        ## Object
+        * Open
+        * Loading object
+  - Question message: 5
+    Stored task 18446744073709551615
+    Stored status unavailable
+    - Object:
+        ## Object
+        * Open
+        * Loading object
+  - Person task
+    Stored task 18446744073709551615
+    Stored status unavailable
+  * This page is incomplete
+  * More entries are available
+  [11] Read earlier
+  [12] Read later
+Updates:
+  ## Updates
+  - Reply message: 3
+    Stored task 18446744073709551615
+    Stored status unavailable
+  - Result position: 4
+    Stored task 18446744073709551615
+    Stored status unavailable
+  - Reply message: 6
+    Stored task 18446744073709551615
+    Stored status unavailable
+  - Result position: 7
+    Stored task 18446744073709551615
+    Stored status unavailable
+  * This page is incomplete
+  * More entries are available
+  [13] Read earlier
+  [14] Read later
+* More entries are available
+Working set limit reached

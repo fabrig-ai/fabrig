@@ -1,0 +1,8 @@
+== jig == 
+Replace goal projection grants:
+  Replace goal projection grants
+  Effect connector 7 kind 9
+  `literal/slash`
+  `\xFF`
+  Open ending
+  `end`

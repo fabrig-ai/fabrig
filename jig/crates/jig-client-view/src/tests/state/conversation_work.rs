@@ -5,7 +5,8 @@
     reason = "ordinary view proofs drive public events and inspect selected semantic trees"
 )]
 use crate::tests::fixtures::Fixture;
-use crate::tests::tree::cards::{CLIENT, contains, text};
+use crate::tests::kit::Goldens;
+use crate::tests::tree::cards::{CLIENT, text};
 use crate::words::{Words, chip_words::ChipPhrase as P};
 use crate::{
     Request,
@@ -135,14 +136,15 @@ fn render(domain: &Fixture, words: &Words) -> Tree {
 }
 #[test]
 fn owner_work_activity_without_synthetic_context_shows_all_seven_reports_and_independent_clocks() {
-    for (work, label) in [
-        (OwnerChipWork::Preparing, b"Reported work preparing".as_slice()),
-        (OwnerChipWork::Starting, b"Reported work starting"),
-        (OwnerChipWork::Active, b"Reported work active"),
-        (OwnerChipWork::Writing, b"Reported work writing"),
-        (OwnerChipWork::Tool { call: copy_of(&[255, 0]), tool: copy_of(b"literal/tool") }, b"Reported tool call"),
-        (OwnerChipWork::Waiting, b"Reported work waiting"),
-        (OwnerChipWork::Ending, b"Reported work ending"),
+    let mut goldens = Goldens::new("state/conversation_work/owner_work_activity");
+    for work in [
+        OwnerChipWork::Preparing,
+        OwnerChipWork::Starting,
+        OwnerChipWork::Active,
+        OwnerChipWork::Writing,
+        OwnerChipWork::Tool { call: copy_of(&[255, 0]), tool: copy_of(b"literal/tool") },
+        OwnerChipWork::Waiting,
+        OwnerChipWork::Ending,
     ] {
         for started in [None, Some(Wall::EPOCH), Some(Wall::from_nanos(u64::MAX))] {
             let source = report(work.clone(), started);
@@ -150,26 +152,7 @@ fn owner_work_activity_without_synthetic_context_shows_all_seven_reports_and_ind
             assert!(doc.context.is_none());
             let (domain, _) = page(doc.clone(), TaskSection::Activity);
             let tree = render(&domain, words());
-            assert!(contains(&tree, label));
-            assert!(contains(&tree, b"Current work since: 31"));
-            assert!(contains(&tree, b"Work reported at: 47"));
-            assert_eq!(contains(&tree, b"Actual run start unavailable"), started.is_none());
-            if let Some(at) = started {
-                let caption = words().book().say(0, P::Started.id(), &[skein_ui::phrases::Hole::Wall(at)]).unwrap();
-                assert!(contains(&tree, &caption.text));
-            }
-            match work {
-                OwnerChipWork::Tool { .. } => {
-                    assert!(contains(&tree, b"\\xFF\\x00"));
-                    assert!(contains(&tree, b"literal/tool"));
-                }
-                OwnerChipWork::Preparing
-                | OwnerChipWork::Starting
-                | OwnerChipWork::Active
-                | OwnerChipWork::Writing
-                | OwnerChipWork::Waiting
-                | OwnerChipWork::Ending => {}
-            }
+            goldens.check(&tree);
             let id = domain.objects().find(ObjectKey::Task(8)).unwrap();
             let Some(crate::state::objects::Body::Task(retained)) = &domain.objects().get(id).unwrap().body else {
                 panic!("whole task retained");
@@ -180,21 +163,19 @@ fn owner_work_activity_without_synthetic_context_shows_all_seven_reports_and_ind
 }
 #[test]
 fn owner_work_absence_does_not_fabricate_report_and_preserves_independent_synthetic_runtime() {
+    let mut goldens = Goldens::new("state/conversation_work/owner_work_absence");
     for context in [false, true] {
         for observation in [None, Some(report(OwnerChipWork::Writing, None))] {
-            let present = observation.is_some();
             let (domain, _) = page(task(observation, context), TaskSection::Activity);
             let tree = render(&domain, words());
-            assert_eq!(contains(&tree, b"Reported work writing"), present);
-            assert_eq!(contains(&tree, b"Current work since: 31"), present);
-            assert_eq!(contains(&tree, b"independent synthetic runtime"), context);
-            assert!(!contains(&tree, b"Placed or adopted"));
+            goldens.check(&tree);
             assert!(tree.nodes().iter().any(|node| node.role == skein_ui::Role::Log));
         }
     }
 }
 #[test]
 fn selected_owner_work_activity_preserves_conversation_and_opaque_provisional_text() {
+    let mut goldens = Goldens::new("state/conversation_work/selected_owner_work");
     for work in [
         OwnerChipWork::Starting,
         OwnerChipWork::Writing,
@@ -231,22 +212,16 @@ fn selected_owner_work_activity_preserves_conversation_and_opaque_provisional_te
             }),
         );
         let tree = render(&domain, selected());
-        assert!(contains(&tree, b"Selected work report"));
-        assert!(!contains(&tree, b"Reported work starting"));
-        assert!(!contains(&tree, b"Reported work writing"));
-        assert!(contains(&tree, b"Provisional"));
-        assert!(contains(&tree, b"provisional reply"));
-        assert!(tree.nodes().iter().any(|node| node.role == skein_ui::Role::Log && node.name.is_some()));
+        goldens.check(&tree);
     }
 }
 #[test]
 fn owner_work_overview_and_activity_keep_the_same_supplied_observation_without_full_metadata_in_activity() {
+    let mut goldens = Goldens::new("state/conversation_work/owner_work_overview");
     let value = task(Some(report(OwnerChipWork::Writing, None)), false);
     for section in [TaskSection::Overview, TaskSection::Activity] {
         let (domain, _) = page(value.clone(), section);
         let tree = render(&domain, words());
-        assert!(contains(&tree, b"Reported work writing"));
-        assert_eq!(contains(&tree, b"Resource holder and writer facts unavailable"), section == TaskSection::Overview);
-        assert_eq!(contains(&tree, b"Live delegates: 4294967295"), section == TaskSection::Overview);
+        goldens.check(&tree);
     }
 }

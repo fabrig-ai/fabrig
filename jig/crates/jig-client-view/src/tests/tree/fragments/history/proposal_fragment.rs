@@ -1,11 +1,9 @@
 //! Bare retained proposal fragments remain passive and preserve their old history position.
+use crate::tests::kit::Goldens;
 use crate::tests::tree::fragments::history::*;
 
 use skein_ui::Role;
 
-fn limits(fragment: Limits) -> Limits {
-    fragment
-}
 fn render(value: &OwnerProposalHistory, words: &Words, limits: &Limits) -> (Tree, JigBindings) {
     let mut bindings = JigBindings::new(limits.bindings, 8);
     let mut builder = Builder::new(limits);
@@ -16,7 +14,7 @@ fn bare(value: &OwnerProposalHistory, words: &Words) -> (Tree, JigBindings, Limi
     let source = value.clone();
     let fragment = crate::tests::render_limits(&client_limits(), words).unwrap();
 
-    let (tree, bindings) = render(value, words, &limits(fragment));
+    let (tree, bindings) = render(value, words, &fragment);
     assert_eq!(source, *value);
     assert!(tree.len() <= fragment.nodes);
     let mut bytes = 0_u32;
@@ -43,7 +41,7 @@ fn bare(value: &OwnerProposalHistory, words: &Words) -> (Tree, JigBindings, Limi
     assert!(slots <= fragment.bindings);
     (tree, bindings, fragment)
 }
-fn states(action: OwnerRetainedAction) {
+fn states(action: OwnerRetainedAction, goldens: &mut Goldens) {
     let words = normal_words();
     for state in [
         OwnerProposalHistoryState::Pending {
@@ -59,61 +57,43 @@ fn states(action: OwnerRetainedAction) {
     ] {
         let value = OwnerProposalHistory { state, as_holder: false, ..proposal(action.clone()) };
         let (tree, _, _) = bare(&value, words);
-        saying(&tree, words, P::Proposal, &[Hole::Number(u64::MAX)]);
-        saying(&tree, words, P::Proposer, &[Hole::Number(u64::MAX)]);
-        saying(&tree, words, P::NotAsHolder, &[]);
-        match &value.state {
-            OwnerProposalHistoryState::Pending { .. } => {
-                saying(&tree, words, P::Pending, &[]);
-                saying(&tree, words, P::HolderPolicy, &[Hole::Number(u64::from(u32::MAX))]);
-                saying(&tree, words, P::Since, &[Hole::Wall(Wall::EPOCH)]);
-            }
-            OwnerProposalHistoryState::Accepted { .. } => saying(&tree, words, P::Accepted, &[]),
-            OwnerProposalHistoryState::Rejected { .. } => {
-                saying(&tree, words, P::Rejected, &[]);
-                assert!(has(&tree, b"Only part of this text was supplied"));
-            }
-            OwnerProposalHistoryState::Withdrawn => saying(&tree, words, P::Withdrawn, &[]),
-        }
-        let history_name = words.book().say(words.language(), P::History.id(), &[]).unwrap();
-        assert!(!tree.nodes().iter().any(|node| node.name.as_deref() == Some(history_name.text.as_ref())));
-        let absent_clock = words.book().say(words.language(), P::AtAbsent.id(), &[]).unwrap();
-        assert!(!has(&tree, &absent_clock.text));
+        goldens.check(&tree);
     }
 }
 #[test]
 fn retained_proposal_batch_fragment_keeps_full_nested_values_in_every_state_without_current_controls() {
-    states(actions().into_iter().next().unwrap());
+    let mut goldens = Goldens::new("tree/fragments/history/proposal_fragment/retained_proposal_batch");
+    states(actions().into_iter().next().unwrap(), &mut goldens);
 }
 #[test]
 fn retained_proposal_effect_fragment_keeps_full_width_raw_coordinates_in_every_state_without_scope() {
-    states(actions().into_iter().nth(1).unwrap());
+    let mut goldens = Goldens::new("tree/fragments/history/proposal_fragment/retained_proposal_effect");
+    states(actions().into_iter().nth(1).unwrap(), &mut goldens);
     let action = OwnerRetainedAction::ProcedureEffect {
         part: part(),
         authority: state().authority,
         step: u64::MAX,
         purpose: u64::MAX,
     };
-    states(action.clone());
+    states(action.clone(), &mut goldens);
     let words = normal_words();
     let (tree, _, _) = bare(&proposal(action), words);
-    saying(&tree, words, P::ProcedureStep, &[Hole::Number(u64::MAX)]);
-    saying(&tree, words, P::Purpose, &[Hole::Number(u64::MAX)]);
-    assert!(!has(&tree, b"Effect attempt:"));
-    assert!(!has(&tree, b"Effect completion:"));
-    assert!(!has(&tree, b"Effect position:"));
+    goldens.check(&tree);
 }
 #[test]
 fn retained_proposal_amend_fragment_keeps_boxed_optional_replacements_in_every_state() {
-    states(actions().into_iter().nth(2).unwrap());
+    let mut goldens = Goldens::new("tree/fragments/history/proposal_fragment/retained_proposal_amend");
+    states(actions().into_iter().nth(2).unwrap(), &mut goldens);
 }
 #[test]
 fn retained_proposal_widen_fragment_keeps_whole_authority_in_every_state() {
-    states(actions().into_iter().nth(3).unwrap());
+    let mut goldens = Goldens::new("tree/fragments/history/proposal_fragment/retained_proposal_widen");
+    states(actions().into_iter().nth(3).unwrap(), &mut goldens);
 }
 #[test]
 fn retained_proposal_release_fragment_keeps_named_task_in_every_state() {
-    states(actions().into_iter().nth(4).unwrap());
+    let mut goldens = Goldens::new("tree/fragments/history/proposal_fragment/retained_proposal_release");
+    states(actions().into_iter().nth(4).unwrap(), &mut goldens);
 }
 #[test]
 fn retained_proposal_fragment_delegation_preserves_old_history_nodes_metadata_geometry_and_slots() {
@@ -139,24 +119,22 @@ fn retained_proposal_fragment_delegation_preserves_old_history_nodes_metadata_ge
 }
 #[test]
 fn retained_proposal_bare_fragment_uses_the_selected_checked_language_for_every_retained_action() {
+    let mut goldens = Goldens::new("tree/fragments/history/proposal_fragment/retained_proposal_bare");
     let words = words(true);
     for action in actions() {
         let value = proposal(action);
         let (tree, _, _) = bare(&value, &words);
-        saying(&tree, &words, P::Proposal, &[Hole::Number(u64::MAX)]);
-        saying(&tree, &words, P::Proposer, &[Hole::Number(u64::MAX)]);
-        saying(&tree, &words, P::AsHolder, &[]);
-        saying(&tree, &words, P::Pending, &[]);
-        saying(&tree, &words, P::Since, &[Hole::Wall(Wall::from_nanos(7))]);
+        goldens.check(&tree);
     }
 }
 #[test]
 fn retained_proposal_fragment_selected_language_and_exact_occupied_nodes_refuse_one_under() {
+    let mut goldens = Goldens::new("tree/fragments/history/proposal_fragment/retained_proposal_fragment_selected");
     let words = words(true);
     let value = proposal(OwnerRetainedAction::Amend { task: 0, change: Box::new(delta()) });
     let (tree, _, fragment) = bare(&value, &words);
-    assert!(tree.nodes().iter().flat_map(|node| &node.text).any(|run| run.text.starts_with(b"selected history: ")));
-    let exact = Limits { nodes: tree.len(), ..limits(fragment) };
+    goldens.check(&tree);
+    let exact = Limits { nodes: tree.len(), ..fragment };
     let (again, _) = render(&value, &words, &exact);
     assert_eq!(again.nodes(), tree.nodes());
     let one_under = Limits { nodes: exact.nodes.checked_sub(1).unwrap(), ..exact };
@@ -167,6 +145,7 @@ fn retained_proposal_fragment_selected_language_and_exact_occupied_nodes_refuse_
 }
 #[test]
 fn retained_proposal_fragment_preserves_absent_empty_and_independent_retained_losses() {
+    let mut goldens = Goldens::new("tree/fragments/history/proposal_fragment/retained_proposal_fragment_preserves");
     let words = normal_words();
     let absent = OwnerRetainedAmendment {
         addressed: None,
@@ -218,12 +197,7 @@ fn retained_proposal_fragment_preserves_absent_empty_and_independent_retained_lo
             | OwnerRetainedAction::Widen { .. }
             | OwnerRetainedAction::Release { .. } => unreachable!(),
         }
-        assert_eq!(has(&tree, b"Instruction replacement not supplied"), !supplied);
-        assert_eq!(has(&tree, b"Instructions are empty"), supplied && !text_cut);
-        assert_eq!(has(&tree, b"Dependency replacement not supplied"), !supplied);
-        assert_eq!(has(&tree, b"Retained dependency replacement"), supplied);
-        assert_eq!(has(&tree, b"Only part of this text was supplied"), text_cut);
-        assert_eq!(has(&tree, b"Retained dependency list incomplete"), dependency_cut);
+        goldens.check(&tree);
     }
 }
 

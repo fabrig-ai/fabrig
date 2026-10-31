@@ -1,0 +1,32 @@
+== jig == 
+selected activity: :
+  selected activity: 18446744073709551615
+  selected activity: 18446744073709551615
+  selected activity: 18446744073709551615
+  selected activity: 
+  selected activity: 
+  selected activity: 4294967295
+  selected activity: :
+    selected activity: 18446744073709551615
+    selected activity: 
+    selected activity: 18446744073709551615
+    selected activity: 
+    selected activity: 
+    selected activity: 4294967295
+    selected activity: 
+    `\xFE\xFE\xFE\xFE\xFE\xFE\xFE\xFE`
+    selected activity: 
+    `\xFD\xFD\xFD\xFD\xFD\xFD\xFD\xFD`
+    selected activity: 
+    `\xFE\xFE\xFE\xFE\xFE\xFE\xFE\xFE`
+    selected activity: 
+    `\xFD\xFD\xFD\xFD\xFD\xFD\xFD\xFD`
+    selected activity: 
+    `\xFE\xFE\xFE\xFE\xFE\xFE\xFE\xFE`
+    selected activity: 
+    `\xFD\xFD\xFD\xFD\xFD\xFD\xFD\xFD`
+    selected activity: 
+    `~~~~~~~~`
+    selected activity: 18446744073709551615
+    selected activity: 4294967295
+    selected activity: 

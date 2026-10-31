@@ -1,0 +1,28 @@
+== jig == 
+Task 8: Review:
+  Task 8: Review:
+    [1] Task 8: Review
+    Person 1
+    Held
+    Held budget
+    Current revision 4
+  Failed: whole failure
+  At 01:00
+  Result owner details:
+    Task contract
+    Verdict contract
+    Some contract choices were omitted
+    Requested by person 1
+    Project role 4294967295
+    Choice maker not supplied
+    Delegate task references: 0
+    Follow-up task references: 1
+    Stored task 18446744073709551615
+    Stored status unavailable
+    Proposal from party 18446744073709551615, number 18446744073709551615
+    Some result metadata was omitted
+  Verdict 4294967295
+  actual verdict words
+  Only part of this text was supplied
+  opaque field
+  supplied value

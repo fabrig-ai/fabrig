@@ -1,0 +1,12 @@
+== jig == 
+Lifecycle milestone:
+  Lifecycle milestone
+  Task: 18446744073709551615
+  Activity position: 18446744073709551615
+  Milestone time not supplied
+  Ended
+  Cancelled with reason
+  `stop`
+  Supplied words incomplete
+  Cancellation requester person: 18446744073709551615
+  Cancelled at: 12

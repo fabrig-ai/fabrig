@@ -1,0 +1,13 @@
+== jig == 
+- stored note title: (busy)
+    ## stored note title
+    In project 4
+    * Being decided: waiting for the engine
+    Only part of this text was supplied
+    stored note body
+    Only part of this text was supplied
+    This note has more references; read the whole note before replacing it
+    Written by task 91, attempt 12
+    At 01:00
+    [1] Task 91
+    [2] Task 18446744073709551615

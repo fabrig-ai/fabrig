@@ -3,6 +3,7 @@ use crate::state::{
     address::{Address, TaskSection},
     objects::Body,
 };
+use crate::tests::kit::Goldens;
 use crate::tests::tree::cards_objects::*;
 
 fn sources() -> [Option<DocumentText>; 6] {
@@ -29,20 +30,7 @@ fn sent(out: &[Request]) -> &Amendment {
         })
         .unwrap()
 }
-fn facts(tree: &Tree, source: Option<&DocumentText>) {
-    assert_eq!(contains(tree, b"Instructions were not supplied"), source.is_none());
-    assert_eq!(
-        contains(tree, b"Instructions are empty"),
-        source.is_some_and(|value| value.bytes().is_empty() && !value.cut)
-    );
-    assert_eq!(contains(tree, b"Only part of this text was supplied"), source.is_some_and(|value| value.cut));
-    let Some(value) = source else {
-        return;
-    };
-    if !value.bytes().is_empty() {
-        assert!(contains(tree, value.bytes()));
-    }
-}
+
 fn baseline(tree: &Tree, source: Option<&DocumentText>) {
     let node = tree.nodes().iter().find(|node| node.name.as_deref() == Some(b"New instructions")).unwrap();
     let expected = source.filter(|value| !value.cut).map_or(b"".as_slice(), DocumentText::bytes);
@@ -51,6 +39,7 @@ fn baseline(tree: &Tree, source: Option<&DocumentText>) {
 
 #[test]
 fn task_instruction_updates_distinguish_supplied_effective_empty_unknown_and_partial_text() {
+    let mut goldens = Goldens::new("tree/cards_objects/instruction_facts/task_instruction_updates");
     let (mut domain, out) =
         crate::tests::tree::work_pages::entered(Address::Task { task: 8, section: TaskSection::Overview });
     let watch =
@@ -72,11 +61,7 @@ fn task_instruction_updates_distinguish_supplied_effective_empty_unknown_and_par
         row.instructions = source.clone();
         crate::tests::tree::pages::deliver(&mut domain, watch, Delivery::Task(Box::new(row)));
         let tree = crate::tests::tree::pages::build(&domain, 3, words()).0;
-        facts(&tree, source.as_ref());
-        if source.is_none() {
-            assert!(!contains(&tree, b"supplied local effective text"));
-            assert!(!contains(&tree, b"supplied charter effective text"));
-        }
+        goldens.check(&tree);
         let id = domain.objects().find(ObjectKey::Task(8)).unwrap();
         let projected = domain.objects().get(id).unwrap();
         let Body::Task(retained) = projected.body.as_ref().unwrap() else {
@@ -88,6 +73,7 @@ fn task_instruction_updates_distinguish_supplied_effective_empty_unknown_and_par
 
 #[test]
 fn task_instruction_amendment_uses_only_complete_source_without_selecting_it() {
+    let mut goldens = Goldens::new("tree/cards_objects/instruction_facts/task_instruction_amendment");
     for source in sources() {
         let mut row = task_doc(&[ActKind::Amend]);
         row.instructions = source.clone();
@@ -96,7 +82,7 @@ fn task_instruction_amendment_uses_only_complete_source_without_selecting_it() {
         drive(&mut domain, Event::Act { action: Action::Edit { field: Purpose::Reason, text: text(b"") } });
         let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
         let tree = dialog(&domain, words(), &mut bindings);
-        facts(&tree, source.as_ref());
+        goldens.check(&tree);
         baseline(&tree, source.as_ref());
         assert!(domain.confirmation().unwrap().choices.change.is_none());
         drive(&mut domain, Event::Act { action: input(&tree, b"New budget", b"25", &mut bindings) });

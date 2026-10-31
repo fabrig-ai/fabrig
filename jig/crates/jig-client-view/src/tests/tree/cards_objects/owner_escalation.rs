@@ -1,4 +1,5 @@
 use crate::tests::fixtures::{Fixture, ReadPage, Served, Watched};
+use crate::tests::kit::Goldens;
 use crate::tests::tree::cards_objects::*;
 
 fn escalation() -> OwnerEscalation {
@@ -47,24 +48,17 @@ fn escalation() -> OwnerEscalation {
 
 #[test]
 fn owner_escalation_named_card_keeps_current_holder_prior_stage_and_whole_task_without_other_context() {
+    let mut goldens = Goldens::new("tree/cards_objects/owner_escalation/owner_escalation_named");
     maximum_card_envelope();
     let row = escalation();
     let (domain, id) = loaded(ObjectKey::Escalation(8), ReadValue::OwnerEscalation(Box::new(row.clone())));
     let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
     let tree = render(&domain, id, words(), &mut bindings);
-    assert!(contains(&tree, b"whole task specification"));
-    assert!(contains(&tree, b"whole task instructions"));
-    assert!(contains(&tree, b"Prior closing effects"));
-    assert!(contains(&tree, b"Hold revision: 18446744073709551615"));
-    assert!(contains(&tree, b"18446744073709551615"));
-    assert!(contains(&tree, b"Budget: 20"));
-    assert!(contains(&tree, b"supplied prior task failure"));
-    assert!(tree.nodes().iter().any(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Project: 4")));
+    goldens.check(&tree);
     assert_eq!(domain.objects().get(id).unwrap().body.as_ref().unwrap().ending(), None);
     let names: Vec<_> = tree.nodes().iter().filter_map(|node| node.name.as_deref()).collect();
     assert!(names.contains(&b"Escalation".as_slice()));
-    assert!(tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Release")));
-    assert!(!tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Stop")));
+
     assert!(tree.len() <= crate::sizes::sizes::owner_escalation_nodes(&CLIENT, &(CLIENT).client).unwrap() + 1);
     assert_eq!(
         domain.objects().get(id).unwrap().body,
@@ -74,6 +68,7 @@ fn owner_escalation_named_card_keeps_current_holder_prior_stage_and_whole_task_w
 
 #[test]
 fn owner_escalation_amendment_inputs_keep_whole_source_baselines_and_selected_deltas_and_loss_guards() {
+    let mut goldens = Goldens::new("tree/cards_objects/owner_escalation/owner_escalation_amendment");
     for lost in [false, true] {
         let mut row = escalation();
         if lost {
@@ -86,9 +81,7 @@ fn owner_escalation_amendment_inputs_keep_whole_source_baselines_and_selected_de
         drive(&mut domain, Event::Act { action: Action::AmendRelease { object: id.token() } });
         let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
         let tree = dialog(&domain, words(), &mut bindings);
-        assert!(contains(&tree, b"whole task specification"));
-        assert!(contains(&tree, b"whole task instructions"));
-        assert!(contains(&tree, b"Hold revision: 18446744073709551615"));
+        goldens.check(&tree);
         let inputs: Vec<_> = tree
             .nodes()
             .iter()
@@ -450,6 +443,7 @@ fn owner_escalation_with_repeated_result_key_presence_part_4_keeps_whole_inputs_
 
 #[test]
 fn owner_escalation_closed_outer_controls_and_whole_refusals_fit_finite_view_and_refuse_one_under_storage() {
+    let mut goldens = Goldens::new("tree/cards_objects/owner_escalation/owner_escalation_closed");
     let w = words();
     for refused in [false, true] {
         let row = closed_offers(refused);
@@ -488,23 +482,11 @@ fn owner_escalation_closed_outer_controls_and_whole_refusals_fit_finite_view_and
             .collect();
         if refused {
             assert!(decoded.is_empty());
-            assert!(contains(&tree, b"whole offered failure"));
-            assert!(
-                tree.nodes()
-                    .iter()
-                    .filter(|node| node.text.iter().any(|run| skein_lib::bytes::find(
-                        &run.text,
-                        b"whole offered failure"
-                    )
-                    .is_some()))
-                    .count()
-                    >= usize::try_from(MAX_OFFERED_ACTS).unwrap()
-            );
+            goldens.check(&tree);
         } else {
             assert_eq!(decoded, row.acts.iter().map(|offer| offer.act).collect::<Vec<_>>());
         }
-        assert!(contains(&tree, b"whole task specification"));
-        assert!(contains(&tree, b"supplied prior task failure"));
+        goldens.check(&tree);
         assert_eq!(domain.objects().get(id).unwrap().body.as_ref().unwrap().ending(), None);
         check_exact_storage(&row, allocation, &tree, w);
         assert_eq!(row, original);
@@ -545,6 +527,7 @@ fn owner_escalation_closed_outer_controls_and_whole_refusals_fit_finite_view_and
 }
 
 fn maximum_card_envelope() {
+    let mut goldens = Goldens::new("tree/cards_objects/owner_escalation/maximum_card_envelope");
     let mut row = escalation();
     let whole = vec![b'x'; usize::try_from(CLIENT.client.text).unwrap()];
     row.task.spec = specification(text(&whole));
@@ -580,7 +563,7 @@ fn maximum_card_envelope() {
     let tree = builder.finish();
     crate::tests::tree::cards_access::check(&tree);
     assert!(tree.len() <= bound);
-    assert!(contains(&tree, &whole));
+    goldens.check(&tree);
     assert_eq!(
         domain.objects().get(id).unwrap().body,
         Some(crate::state::objects::Body::OwnerEscalation(Box::new(original)))

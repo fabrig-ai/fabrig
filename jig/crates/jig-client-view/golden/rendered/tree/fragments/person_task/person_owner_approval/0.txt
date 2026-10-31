@@ -1,0 +1,31 @@
+== jig == 
+Person task:
+  Task 8: source title:
+    [1] Task 8: source title
+    Title is incomplete
+    Agent charter 4294967295
+    Project role 4294967295
+  Person revision: 18446744073709551615
+  Requested by deployment in project 4294967295
+  question bytes
+  Only part of this text was supplied
+  Parameter 4294967295
+  ~�/
+  Only part of this text was supplied
+  Input task 18446744073709551615
+  The specification is incomplete
+  Person destination: 18446744073709551615
+  Taken by person: 18446744073709551615
+  Waiting time not supplied
+  Stall duration: 307445734
+  Deadline: 01:00
+  Shown results:
+  Some shown results were omitted
+  Approval of exact state
+  `\xFF\x00\x2F`
+  Outbox reference:
+    Connector 65535
+    Outbox reference
+    `a/b`
+    `\x80\x00`
+    * Loading connector content (busy)

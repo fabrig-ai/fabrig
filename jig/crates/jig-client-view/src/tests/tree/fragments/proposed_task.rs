@@ -4,8 +4,9 @@
     clippy::disallowed_macros,
     reason = "ordinary fixtures inspect public semantic trees"
 )]
+use crate::tests::kit::Goldens;
 use crate::tests::tree::{
-    cards::{CLIENT, contains, limits, words},
+    cards::{CLIENT, limits, words},
     work_pages::list,
 };
 use crate::{JigBindings, tree::fragments::proposed_task};
@@ -28,6 +29,7 @@ fn finish(mut builder: Builder) -> Tree {
 
 #[test]
 fn exact_part_slots_keep_separate_literal_segments_all_owner_kinds_and_numeric_keys() {
+    let mut goldens = Goldens::new("tree/fragments/proposed_task/exact_part_slots");
     let words = words();
     for kind in [
         OwnerPartKind::Resource,
@@ -55,17 +57,11 @@ fn exact_part_slots_keep_separate_literal_segments_all_owner_kinds_and_numeric_k
             match &reference.key {
                 OwnerPartKey::Path(segments) => {
                     assert_eq!(segments.len(), 2);
-                    if segments.get(1).unwrap().as_ref() == b"c\xff" {
-                        assert!(contains(&tree, b"a/b"));
-                        assert!(contains(&tree, b"\\x63\\xFF"));
-                        assert!(!contains(&tree, b"a/b/c"));
-                    } else {
-                        assert!(contains(&tree, b"b/c"));
-                    }
+                    goldens.check(&tree);
                 }
                 OwnerPartKey::Number(number) => {
                     assert_eq!(*number, u64::MAX);
-                    assert!(contains(&tree, b"Part number 18446744073709551615"));
+                    goldens.check(&tree);
                 }
             }
             bindings.begin();
@@ -77,6 +73,7 @@ fn exact_part_slots_keep_separate_literal_segments_all_owner_kinds_and_numeric_k
 
 #[test]
 fn proposed_executor_and_funder_keep_full_width_codes_and_original_period_identity() {
+    let mut goldens = Goldens::new("tree/fragments/proposed_task/proposed_executor_and");
     let words = words();
     let mut b = builder();
     for executor in [
@@ -97,18 +94,12 @@ fn proposed_executor_and_funder_keep_full_width_codes_and_original_period_identi
     }
     let tree = finish(b);
     assert_eq!(tree.len(), 5 + proposed_task::funder_nodes() * 4);
-    assert!(contains(&tree, b"Agent charter 4294967295"));
-    assert!(contains(&tree, b"Procedure connector 65535, code 4294967295"));
-    assert!(contains(&tree, b"Person 18446744073709551615"));
-    assert!(contains(&tree, b"Project role 4294967295"));
-    assert!(contains(&tree, b"Funded by task 18446744073709551615"));
-    assert!(contains(&tree, b"Funded by pool in project 4294967295, person 18446744073709551615, period 83"));
-    assert!(contains(&tree, b"Funded by recurring task in project 4294967295, task 18446744073709551615, period 71"));
-    assert!(contains(&tree, b"Funded by project period 4294967295, period 59"));
+    goldens.check(&tree);
 }
 
 #[test]
 fn exact_contracts_keep_approval_state_verdict_fields_and_each_result_bound() {
+    let mut goldens = Goldens::new("tree/fragments/proposed_task/exact_contracts_keep");
     let words = words();
     let mut b = builder();
     let mut bindings = JigBindings::new(16, CLIENT.client.text);
@@ -140,17 +131,7 @@ fn exact_contracts_keep_approval_state_verdict_fields_and_each_result_bound() {
         proposed_task::contract(&mut b, &contract, words, &mut bindings);
     }
     let tree = finish(b);
-    assert!(contains(&tree, b"Approval of exact state"));
-    assert!(contains(&tree, b"\\x6F\\x70\\x61\\x71\\x75\\x65\\xFF"));
-    assert!(contains(&tree, b"Report word byte limit 4294967295"));
-    assert!(contains(&tree, b"Verdict choice 4294967295, word byte limit 83, follow-up limit 71"));
-    assert!(contains(&tree, b"Verdict choice 31, word byte limit 29, follow-up limit 23"));
-    assert!(contains(&tree, b"field/name"));
-    assert!(contains(&tree, b"Field value byte limit 59"));
-    assert!(contains(&tree, b"\\x6C\\x61\\x73\\x74\\xFF"));
-    assert!(contains(&tree, b"Field value byte limit 19"));
-    assert!(contains(&tree, b"Some contract choices were omitted"));
-    assert!(contains(&tree, b"Change contract 65535, kind 65535, word byte limit 4294967295"));
+    goldens.check(&tree);
 }
 
 #[test]
@@ -213,6 +194,7 @@ fn normal_phrasebooks_require_and_render_exact_owner_words_in_the_selected_langu
     use crate::words::phrases::english;
     use crate::words::phrases::jig::shapes;
     use skein_ui::phrases::{PhraseLimits, Phrasebook};
+    let mut goldens = Goldens::new("tree/fragments/proposed_task/normal_phrasebooks_require");
     let selected = selected_owner_language();
     let limits = PhraseLimits {
         languages: 2,
@@ -245,26 +227,19 @@ fn normal_phrasebooks_require_and_render_exact_owner_words_in_the_selected_langu
     crate::tree::cards::proposal::proposed_task(&mut b, &task, &words, &mut bindings, CLIENT.client.rows);
     b.close();
     let tree = b.finish();
-    assert!(contains(&tree, b"whole template words"));
-    assert!(contains(&tree, b"Selected owner fact: "));
-    assert!(contains(&tree, &[b'L'; 1024]));
-    assert!(!contains(&tree, b"Wake policy"));
-    assert!(!contains(&tree, b"Funded by recurring task"));
-    assert!(!contains(&tree, b"Agent charter"));
-    assert!(!contains(&tree, b"Tool bits: "));
+    goldens.check(&tree);
 }
 
 #[test]
 fn a_proposed_span_is_distinct_from_no_deadline() {
+    let mut goldens = Goldens::new("tree/fragments/proposed_task/a_proposed_span");
     let words = words();
-    for (selector, expected) in
-        [(NewDeadline::Named, false), (NewDeadline::Span(skein_lib::Duration::from_secs(120)), true)]
-    {
+    for selector in [NewDeadline::Named, NewDeadline::Span(skein_lib::Duration::from_secs(120))] {
         let mut task = crate::tests::tree::work_pages::recurring_task(1, b"work");
         task.deadline = selector;
         let mut b = builder();
         proposed_task::authority(&mut b, &task, words, CLIENT.client.text, CLIENT.client.rows);
         let tree = finish(b);
-        assert_eq!(contains(&tree, b"Deadline after acceptance (minutes): 2"), expected, "{selector:?}");
+        goldens.check(&tree);
     }
 }

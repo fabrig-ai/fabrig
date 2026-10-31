@@ -5,8 +5,9 @@
     reason = "ordinary fixtures use public events and inspect semantic nodes"
 )]
 use crate::tests::fixtures::{AnsweredByEngine, Fixture, ReadPage};
+use crate::tests::kit::Goldens;
 use crate::tests::tree::{
-    cards::{contains, drive, text, words},
+    cards::{drive, text, words},
     pages::{build, deliver, named_binding},
     work_pages::{entered, list, part},
 };
@@ -132,6 +133,7 @@ fn access(tree: &Tree) {
 }
 
 fn words_states(words: &Words) {
+    let mut goldens = Goldens::new("tree/turns/words_states");
     let (mut d, _, _, read) = ready();
     drive(
         &mut d,
@@ -158,17 +160,17 @@ fn words_states(words: &Words) {
             _ => None,
         })
         .unwrap();
-    assert!(contains(&build(&d, 3, words).0, b"Being sent"));
+    goldens.check(&build(&d, 3, words).0);
     drive(
         &mut d,
         AnsweredByEngine { request, answer: Answer::Done(Outcome::Owner(OwnerOutcome::Said { task: 8, message: 12 })) },
     );
-    assert!(contains(&build(&d, 3, words).0, b"Sent"));
-    assert!(contains(&build(&d, 3, words).0, b"whole new words"));
+    goldens.check(&build(&d, 3, words).0);
 }
 
 #[test]
 fn raw_live_call_rendering_omits_unsupplied_wall_and_preserves_escaped_literals_loss_and_folds() {
+    let mut goldens = Goldens::new("tree/turns/raw_live_call_rendering");
     let words = words();
     let (mut d, _, run, _) = ready();
     let name = ProvisionalTurnName { retry: 0, attempt: u64::MAX, number: u32::MAX };
@@ -195,9 +197,7 @@ fn raw_live_call_rendering_omits_unsupplied_wall_and_preserves_escaped_literals_
     assert_eq!(d.conversation().live.get(0).unwrap().call, value.call);
     let (folded, bindings) = build(&d, 3, words);
     access(&folded);
-    assert!(contains(&folded, UTF8_TEXTS[1]));
-    assert!(!contains(&folded, UTF8_TEXTS[2]));
-    assert!(contains(&folded, UTF8_TEXTS[0]));
+    goldens.check(&folded);
     let missing_nodes = folded.nodes().len();
     drop(bindings);
     value.began = Some(Wall::EPOCH);
@@ -208,8 +208,7 @@ fn raw_live_call_rendering_omits_unsupplied_wall_and_preserves_escaped_literals_
     drive(&mut d, Event::Act { action: Act::FoldCurrentCall { identity: raw.identity.clone(), open: true } });
     let expanded = build(&d, 3, words).0;
     access(&expanded);
-    assert!(contains(&expanded, UTF8_TEXTS[2]));
-    assert!(expanded.nodes().iter().any(|node| node.states.as_slice().contains(&skein_ui::State::Expanded)));
+    goldens.check(&expanded);
     assert_eq!(d.conversation().parts(4).len(), 0);
     match value.call.as_mut().unwrap() {
         LiveCall::Raw(call) => call.cut = false,
@@ -219,7 +218,7 @@ fn raw_live_call_rendering_omits_unsupplied_wall_and_preserves_escaped_literals_
     deliver(&mut d, run, crate::tests::fixtures::run(value));
     let uncut = build(&d, 3, words).0;
     assert_eq!(uncut.nodes().len() + 4, expanded.nodes().len(), "wall and raw-call loss are independent leaves");
-    assert!(contains(&uncut, UTF8_TEXTS[2]));
+    goldens.check(&uncut);
     let mut first_seen = RunText {
         writing: None,
         attempt: name.attempt,
@@ -245,6 +244,7 @@ fn raw_live_call_rendering_omits_unsupplied_wall_and_preserves_escaped_literals_
 #[test]
 fn maximum_raw_live_calls_fit_whole_page_and_escaped_phrase_capacities() {
     use crate::tests::tree::cards::CLIENT;
+    let mut goldens = Goldens::new("tree/turns/maximum_raw_live");
     let words = words();
     let (mut d, _, run, _) = ready();
     let tool = full_raw_byte(UTF8_TEXTS[3][0]);
@@ -300,7 +300,7 @@ fn maximum_raw_live_calls_fit_whole_page_and_escaped_phrase_capacities() {
     for _ in 0..CLIENT.client.text {
         escaped.push(UTF8_TEXTS[4][0]);
     }
-    assert!(contains(&tree, &escaped));
+    goldens.check(&tree);
     match d.conversation().live.get(0).unwrap().call.as_ref().unwrap() {
         LiveCall::Raw(call) => {
             assert_eq!(call.identity.owner, Token::new(u64::MAX));
@@ -341,6 +341,7 @@ fn raw_live_call_controls_use_selected_normal_language_and_checked_capacity() {
     use crate::words::live_call_words::LiveCallPhrase;
     use crate::words::phrases::english;
     use skein_ui::phrases::{Form, PhraseLimits, Phrasebook, PluralClass, Segment};
+    let mut goldens = Goldens::new("tree/turns/raw_live_call_controls");
 
     let first = english::language();
     let mut selected = english::language();
@@ -394,14 +395,7 @@ fn raw_live_call_controls_use_selected_normal_language_and_checked_capacity() {
         }),
     );
     let (folded, mut bindings) = build(&d, 3, &words);
-    assert!(folded.nodes().iter().any(|node| node.role == Role::Button
-        && node.name.as_deref() == Some(b"Selected language opens actual current input")));
-    assert!(
-        !folded
-            .nodes()
-            .iter()
-            .any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Open current call input"))
-    );
+    goldens.check(&folded);
     let act = crate::decode(
         &mut bindings,
         named_binding(&folded, b"Selected language opens actual current input"),
@@ -410,9 +404,7 @@ fn raw_live_call_controls_use_selected_normal_language_and_checked_capacity() {
     .unwrap();
     drive(&mut d, Event::Act { action: act });
     let opened = build(&d, 3, &words).0;
-    assert!(opened.nodes().iter().any(|node| node.role == Role::Button
-        && node.name.as_deref() == Some(b"Selected language folds actual current input")));
-    assert!(contains(&opened, b"input"));
+    goldens.check(&opened);
     let limits = crate::sizes::limits::of_words(&CLIENT, &(CLIENT).client, &words).unwrap();
     assert!(limits.text_per_node >= words.book().capacity(LiveCallPhrase::OpenCurrentCallInput.id()).unwrap());
 }
@@ -429,6 +421,7 @@ fn current_identity(id: &[u8]) -> CallIdentity {
 
 #[test]
 fn whole_run_call_only_is_visible_once_without_a_turn_and_uses_normal_document_ack() {
+    let mut goldens = Goldens::new("tree/turns/whole_run_call");
     let words = words();
     let (mut d, _, run, _) = ready();
     let raw = CurrentCall {
@@ -458,13 +451,11 @@ fn whole_run_call_only_is_visible_once_without_a_turn_and_uses_normal_document_a
     let folded = build(&d, 3, words).0;
     access(&folded);
     assert!(keys(&folded).is_empty(), "call-only has no invented provisional turn key");
-    assert!(contains(&folded, b"call-only-tool"));
-    assert!(!contains(&folded, b"call-only-input"));
-    let label: &[u8] = b"Observed current tool call";
-    assert_eq!(folded.nodes().iter().filter(|node| node.name.as_deref() == Some(label)).count(), 1);
+    goldens.check(&folded);
+
     drive(&mut d, Event::Act { action: Act::FoldCurrentCall { identity: raw.identity.clone(), open: true } });
     let opened = build(&d, 3, words).0;
-    assert!(contains(&opened, b"call-only-input"));
+    goldens.check(&opened);
     let without_wall = opened.nodes().len();
     state.call.as_mut().unwrap().began = Some(Wall::EPOCH);
     deliver(&mut d, run, Delivery::RunState(Box::new(state.clone())));
@@ -483,25 +474,22 @@ fn whole_run_call_only_is_visible_once_without_a_turn_and_uses_normal_document_a
     deliver(&mut d, run, Delivery::RunState(Box::new(state.clone())));
     let writing = build(&d, 3, words).0;
     assert_eq!(keys(&writing).len(), 1);
-    assert_eq!(
-        writing.nodes().iter().filter(|node| node.name.as_deref() == Some(label)).count(),
-        1,
-        "the full snapshot's independent call is not duplicated inside writing"
-    );
+    goldens.check(&writing);
     state.writing = None;
     state.committed_turn = 1;
     deliver(&mut d, run, Delivery::RunState(Box::new(state.clone())));
     assert_eq!(d.conversation().current_run, Some(&state));
-    assert_eq!(build(&d, 3, words).0.nodes().iter().filter(|node| node.name.as_deref() == Some(label)).count(), 1);
+    goldens.check(&build(&d, 3, words).0);
     state.call = None;
     deliver(&mut d, run, Delivery::RunState(Box::new(state)));
     let cleared = build(&d, 3, words).0;
-    assert!(!contains(&cleared, b"call-only-tool"), "absent whole-document call clears the retained current call");
+    goldens.check(&cleared);
 }
 
 #[test]
 fn maximum_independent_current_call_fits_page_with_all_existing_provisional_rows() {
     use crate::tests::tree::cards::CLIENT;
+    let mut goldens = Goldens::new("tree/turns/maximum_independent_current");
     let words = words();
     let (mut d, _, run, _) = ready();
     for number in 1..=CLIENT.client.rows {
@@ -546,12 +534,13 @@ fn maximum_independent_current_call_fits_page_with_all_existing_provisional_rows
     for _ in 0..CLIENT.client.text {
         escaped.push(UTF8_TEXTS[4][0]);
     }
-    assert!(contains(&tree, &escaped));
+    goldens.check(&tree);
     assert_eq!(d.conversation().live.len(), 2);
 }
 
 #[test]
 fn displayed_retry_replaces_empty_then_resumes_with_exact_actual_watch_position() {
+    let mut goldens = Goldens::new("tree/turns/displayed_retry_replaces");
     let words = words();
     let (mut d, _, run, _) = ready();
     live(&mut d, run, 1);
@@ -561,7 +550,7 @@ fn displayed_retry_replaces_empty_then_resumes_with_exact_actual_watch_position(
             action: Act::FoldCall { name: jig_client::thread::CallName { attempt: 2, turn: 1, call: 1 }, open: true },
         },
     );
-    assert!(contains(&build(&d, 3, words).0, b"whole private input"), "existing rich call detail is still available");
+    goldens.check(&build(&d, 3, words).0);
     let name = ProvisionalTurnName { attempt: 2, number: 1, retry: u32::MAX };
     let mut value = RunText {
         writing: None,
@@ -585,8 +574,7 @@ fn displayed_retry_replaces_empty_then_resumes_with_exact_actual_watch_position(
     assert_eq!(d.conversation().live.get(0).unwrap().text.bytes(), b"");
     let empty = build(&d, 3, words).0;
     access(&empty);
-    assert!(!contains(&empty, b"provisional first"));
-    assert!(!contains(&empty, b"whole private input"), "a removed retry's rich detail cannot remain visible");
+    goldens.check(&empty);
     value.text = text(b"new retry bytes");
     value.through = 15;
     let _out = deliver(&mut d, run, crate::tests::fixtures::run(value.clone()));
@@ -595,7 +583,7 @@ fn displayed_retry_replaces_empty_then_resumes_with_exact_actual_watch_position(
         watch: d.watch_token(run).unwrap(),
         subject: Subject::Run { task: 8, turn: Some(name), offset: 15 }
     }));
-    assert!(contains(&build(&d, 3, words).0, b"new retry bytes"));
+    goldens.check(&build(&d, 3, words).0);
     deliver(&mut d, run, crate::tests::fixtures::run(value));
     assert_eq!(d.conversation().live.get(0).unwrap().text.bytes(), b"new retry bytes");
     assert_eq!(
@@ -610,6 +598,7 @@ fn displayed_retry_replaces_empty_then_resumes_with_exact_actual_watch_position(
 #[test]
 fn whole_owner_activity_and_fetched_archive_keep_numeric_senders_references_and_separate_spend_facts_in_the_public_log()
 {
+    let mut goldens = Goldens::new("tree/turns/whole_owner_activity");
     let (mut domain, _, _, read) = ready();
     let words = words();
     let source = |position, line, decoded| ActivityLine {
@@ -656,19 +645,7 @@ fn whole_owner_activity_and_fetched_archive_keep_numeric_senders_references_and_
         },
     );
     let (tree, _) = build(&domain, 3, words);
-    for label in [
-        b"raw owner words".as_slice(),
-        b"Task: ",
-        b"18446744073709551615",
-        b"Archive cumulative spend:",
-        b"Archive accepted at:",
-        b"Archive read position not supplied",
-        b"Turn spent:",
-        b"committed",
-        b"Read",
-    ] {
-        assert!(contains(&tree, label), "missing {label:?}");
-    }
+    goldens.check(&tree);
     let limits = crate::sizes::limits::of_words(
         &crate::tests::tree::cards::CLIENT,
         &(crate::tests::tree::cards::CLIENT).client,

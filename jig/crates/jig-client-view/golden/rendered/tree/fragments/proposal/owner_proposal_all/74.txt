@@ -1,0 +1,15 @@
+== jig == 
+Pending proposal:
+  Proposal number: 18446744073709551615
+  Proposal project: 4294967295
+  By party 18446744073709551615
+  Proposed as holder
+  Waiting holder
+  Holder policy project: 4294967295
+  Retained amendment
+  Waiting since: 37
+  Proposal reason
+  ### whole proposal reason
+  Only part of this text was supplied
+  Proposed batch
+  Supplied funding offers

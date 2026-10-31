@@ -49,10 +49,9 @@ fn counts() -> OwnerPhaseCounts {
 }
 fn tree(root: u64) -> OwnerTree {
     let mut rows = List::with_capacity(2);
-    let mut proposals = List::with_capacity(2);
-    proposals.push(ProposalKey { proposer: Proposer::Party(u64::MAX), number: u64::MAX }).unwrap();
-    let mut dependencies = List::with_capacity(2);
-    dependencies.push(OwnerTaskLink::Stored { number: 0, status: None }).unwrap();
+    let proposals =
+        crate::tests::kit::list_in(2, [ProposalKey { proposer: Proposer::Party(u64::MAX), number: u64::MAX }]);
+    let dependencies = crate::tests::kit::list_in(2, [OwnerTaskLink::Stored { number: 0, status: None }]);
     rows.push(OwnerTreeRow {
         chip: chip(u64::MAX, Phase::Running),
         parent: root,
@@ -63,15 +62,10 @@ fn tree(root: u64) -> OwnerTree {
         cut: true,
     })
     .unwrap();
-    let mut folded = List::with_capacity(2);
-    folded.push(OwnerTreeFold { parent: 0, phases: counts(), held_below: 11 }).unwrap();
-    folded
-        .push(OwnerTreeFold {
-            parent: u64::MAX,
-            phases: OwnerPhaseCounts { idle: u32::MAX, ..counts() },
-            held_below: 17,
-        })
-        .unwrap();
+    let folded = crate::tests::kit::list([
+        OwnerTreeFold { parent: 0, phases: counts(), held_below: 11 },
+        OwnerTreeFold { parent: u64::MAX, phases: OwnerPhaseCounts { idle: u32::MAX, ..counts() }, held_below: 17 },
+    ]);
     OwnerTree {
         root: chip(root, Phase::Running),
         rows,

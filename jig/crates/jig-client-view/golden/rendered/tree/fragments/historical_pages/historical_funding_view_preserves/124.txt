@@ -1,0 +1,13 @@
+== jig == 
+Historical funding records:
+  Funded by project period 4294967295, period 18446744073709551615:
+    Funded by project period 4294967295, period 18446744073709551615
+    Parent funder not supplied
+    Budget: 1
+    Spent by this funder: 7
+    Spent below this funder: 11
+    Reserved: 18446744073709551615
+    Tasks made: 4294967295
+    Funding record open
+    Period began: 0
+    Next period begins: 0

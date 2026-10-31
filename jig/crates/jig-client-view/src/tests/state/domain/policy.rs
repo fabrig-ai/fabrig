@@ -7,10 +7,10 @@ use skein_lib::{List, Time};
 fn a_whole_policy_edit_enters_as_one_request_and_a_duplicate_joins_that_request() {
     let edit = PolicyEdit::Permissions {
         mappings: {
-            let mut mappings = List::with_capacity(2);
-            mappings.push(PolicyPermission { connector: u16::MAX, permission: u16::MAX, role: u32::MAX }).unwrap();
-            mappings.push(PolicyPermission { connector: 0, permission: 0, role: 0 }).unwrap();
-            mappings
+            crate::tests::kit::list([
+                PolicyPermission { connector: u16::MAX, permission: u16::MAX, role: u32::MAX },
+                PolicyPermission { connector: 0, permission: 0, role: 0 },
+            ])
         },
     };
     let ask = Ask::ChangePolicy { project: u32::MAX, edit };
