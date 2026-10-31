@@ -149,8 +149,8 @@ fn a_manifest_encodes_levels_counts_map_commits_and_write_time_without_growth() 
         Ok(crate::codec::component::Manifest {
             generation: 8,
             from: Some(7),
-            before: crate::format::recorded(before),
-            after: crate::format::recorded(after),
+            before,
+            after,
             counts,
             store: 17,
             secrets: Some(11),

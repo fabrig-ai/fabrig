@@ -26,7 +26,7 @@ pub const WINDOW: u32 = 272_000;
 const SIGN_IN_WAIT: Duration = Duration::from_secs(660);
 const WHOLE: Duration = Duration::from_secs(1200);
 
-pub fn configuration(directory: &Path) -> codec::Limits {
+pub fn configuration(directory: &Path) -> codec::View {
     let address = ("api.openai.com", 443)
         .to_socket_addrs()
         .expect("resolve public Responses endpoint")
@@ -36,7 +36,7 @@ pub fn configuration(directory: &Path) -> codec::Limits {
     configuration_at(directory, &address, Peers::Real)
 }
 
-pub fn configuration_at(directory: &Path, address: &str, peers: Peers) -> codec::Limits {
+pub fn configuration_at(directory: &Path, address: &str, peers: Peers) -> codec::View {
     let mut value = support::configuration_value(directory);
     let path = directory.join("config.json");
     let engine = &mut value["engine"];
@@ -399,7 +399,7 @@ pub fn run(directory: &Path, started: Time, peers: Peers) -> (u32, u32) {
 pub const INSTRUCTIONS: &str = "Report exactly: Process answer";
 pub const WORDS: &str = "Follow the first sentence.";
 
-pub fn store_limits(bytes: &[u8]) -> codec::Limits {
+pub fn store_limits(bytes: &[u8]) -> codec::View {
     let document = config::document(bytes, &config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 })
         .expect("live document");
     let at = config::read::Object::new(&document, 0)
@@ -411,7 +411,7 @@ pub fn store_limits(bytes: &[u8]) -> codec::Limits {
     codec::limits(&engine.limits.core).expect("live store codec limits")
 }
 
-pub fn completions(directory: &Path, limits: &codec::Limits) -> u32 {
+pub fn completions(directory: &Path, limits: &codec::View) -> u32 {
     let path = directory.join("state/transcripts/0000000000000000/0000000000000001");
     let bytes = match fs::read(path) {
         Ok(bytes) => bytes,
@@ -458,7 +458,7 @@ pub fn capture(directory: &Path, destination: &Path) -> bool {
     present
 }
 
-pub fn check(directory: &Path, limits: &codec::Limits, outcome: (u32, u32), peers: Peers) {
+pub fn check(directory: &Path, limits: &codec::View, outcome: (u32, u32), peers: Peers) {
     let count = completions(directory, limits);
     eprintln!("live completions={count}");
     assert!(

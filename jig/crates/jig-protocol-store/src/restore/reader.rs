@@ -109,7 +109,7 @@ pub(crate) fn decode_row(store: &Store, row: skein_kv::Row, source: &RowSite) ->
 }
 
 fn decode_value(store: &Store, key: &Key, value: &[u8]) -> Result<Record, DecodeFailure> {
-    let record = codec::decode(key, value, &store.codec, &store.names).ok_or(DecodeFailure::Value)?;
+    let record = codec::decode(key, value, &store.codec_limits, &store.names).ok_or(DecodeFailure::Value)?;
     if record.key() != *key {
         return Err(DecodeFailure::KeyValueDisagree);
     }

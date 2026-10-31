@@ -98,7 +98,7 @@ fn turn_limits_use_the_worker_channels_body_ceiling() {
 fn a_turn_exceeding_load_bytes_still_reads_back() {
     let mut domain = super::core_limits();
     domain.load_bytes = 1;
-    let limits = codec::limits(&domain).expect("within schema ceilings");
+    let limits = crate::codec::limits(&domain).expect("within schema ceilings");
     let turn = fixtures::turn();
     let bytes = codec::turn(&turn, &limits).expect("within the worker channel bound");
     assert_eq!(codec::read_turn(&bytes, &limits), Ok(turn));

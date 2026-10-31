@@ -132,7 +132,7 @@ fn an_application_key_that_cannot_hold_its_tag_is_refused() {
         Err(sizes::SizeRefusal::Ceiling)
     );
 }
-fn codec_limits() -> codec::Limits {
+fn codec_limits() -> codec::View {
     codec::limits(&fixtures::CORE_LIMITS).expect("fixture bounds")
 }
 #[test]

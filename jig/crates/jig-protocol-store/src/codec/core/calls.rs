@@ -1,6 +1,6 @@
 //! Named calls and settled answers (protocol/store.md, 5.1).
 use super::{
-    Box, Limits, List, Wall, authority, decode_answer, decode_delivery_outcome, decode_escalation_outcome,
+    Box, List, View, Wall, authority, decode_answer, decode_delivery_outcome, decode_escalation_outcome,
     decode_finding, decode_outbox_outcome, decode_proposal_outcome, domain, encode_answer, encode_delivery_outcome,
     encode_escalation_outcome, encode_finding, encode_outbox_outcome, encode_proposal_outcome, note_problem, notes,
     problem, task_problem, tasks, too_large, wire,
@@ -8,7 +8,7 @@ use super::{
 mod moved;
 pub(super) fn encode_settled_answer(
     value: &domain::SettledAnswer,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::SettledAnswer, wire::Problem> {
     Ok(match value {
         domain::SettledAnswer::Host { error, body } => wire::SettledAnswer::Host(wire::SettledAnswerHost::new(
@@ -41,7 +41,7 @@ pub(super) fn decode_settled_answer(value: wire::SettledAnswer) -> domain::Settl
 
 pub(super) fn encode_settled_call(
     value: &domain::SettledCall,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::SettledCall, wire::Problem> {
     let domain::SettledCall { serial, tool, answer } = value;
     wire::SettledCall::new(
@@ -54,7 +54,7 @@ pub(super) fn decode_settled_call(value: wire::SettledCall) -> domain::SettledCa
     domain::SettledCall { serial, tool, answer: decode_settled_answer(answer) }
 }
 
-pub(super) fn encode_call_key(value: &domain::CallKey, limits: &Limits) -> Result<wire::CallKey, wire::Problem> {
+pub(super) fn encode_call_key(value: &domain::CallKey, limits: &View) -> Result<wire::CallKey, wire::Problem> {
     let domain::CallKey { task, attempt, completion, position } = value;
     wire::CallKey::new(
         &limits.core,
@@ -66,7 +66,7 @@ pub(super) fn decode_call_key(value: wire::CallKey) -> domain::CallKey {
     domain::CallKey { task, attempt, completion, position }
 }
 
-pub(super) fn encode_call_part(value: &domain::CallPart, limits: &Limits) -> Result<wire::CallPart, wire::Problem> {
+pub(super) fn encode_call_part(value: &domain::CallPart, limits: &View) -> Result<wire::CallPart, wire::Problem> {
     Ok(match value {
         domain::CallPart::SettingsRefused(value) => encode_settings_refusal(value, limits)?,
         domain::CallPart::Effect { connector, entry, deadline, outcome } => {
@@ -167,7 +167,7 @@ pub(super) fn encode_call_part(value: &domain::CallPart, limits: &Limits) -> Res
     })
 }
 #[expect(clippy::too_many_lines, reason = "one exhaustive translation preserves the stored call vocabulary")]
-pub(super) fn decode_call_part(value: wire::CallPart, limits: &Limits) -> Result<domain::CallPart, wire::Problem> {
+pub(super) fn decode_call_part(value: wire::CallPart, limits: &View) -> Result<domain::CallPart, wire::Problem> {
     Ok(match value {
         wire::CallPart::SettingsRefused(value) => decode_settings_refusal(value)?,
         wire::CallPart::Effect(value) => decode_part_effect(value),
@@ -279,10 +279,7 @@ pub(super) fn decode_call_part(value: wire::CallPart, limits: &Limits) -> Result
     })
 }
 
-pub(super) fn encode_call_record(
-    value: &domain::CallRecord,
-    limits: &Limits,
-) -> Result<wire::CallRecord, wire::Problem> {
+pub(super) fn encode_call_record(value: &domain::CallRecord, limits: &View) -> Result<wire::CallRecord, wire::Problem> {
     let domain::CallRecord { key, part, settled } = value;
     wire::CallRecord::new(
         &limits.core,
@@ -297,10 +294,7 @@ pub(super) fn encode_call_record(
     )
 }
 #[expect(clippy::manual_map, reason = "step code uses concrete matches (programming-model.md, 10)")]
-pub(super) fn decode_call_record(
-    value: wire::CallRecord,
-    limits: &Limits,
-) -> Result<domain::CallRecord, wire::Problem> {
+pub(super) fn decode_call_record(value: wire::CallRecord, limits: &View) -> Result<domain::CallRecord, wire::Problem> {
     let wire::CallRecordParts { key, part, settled } = value.into_parts();
     Ok(domain::CallRecord {
         key: decode_call_key(key),
@@ -314,7 +308,7 @@ pub(super) fn decode_call_record(
 
 fn encode_call_part_effect_denied_findings(
     values: &[authority::Finding],
-    limits: &Limits,
+    limits: &View,
 ) -> Result<List<wire::Finding>, wire::Problem> {
     let mut result = List::with_capacity(match u32::try_from(values.len()) {
         Ok(value) => value,
@@ -335,7 +329,7 @@ fn decode_call_part_effect_denied_findings(values: List<wire::Finding>) -> Box<[
 
 fn encode_call_part_tool_denied_findings(
     values: &[authority::Finding],
-    limits: &Limits,
+    limits: &View,
 ) -> Result<List<wire::Finding>, wire::Problem> {
     let mut result = List::with_capacity(match u32::try_from(values.len()) {
         Ok(value) => value,
@@ -354,10 +348,7 @@ fn decode_call_part_tool_denied_findings(values: List<wire::Finding>) -> Box<[au
     result.into_boxed()
 }
 
-fn encode_call_part_delegated_value(
-    values: &[domain::Made],
-    limits: &Limits,
-) -> Result<List<wire::Made>, wire::Problem> {
+fn encode_call_part_delegated_value(values: &[domain::Made], limits: &View) -> Result<List<wire::Made>, wire::Problem> {
     let mut result = List::with_capacity(match u32::try_from(values.len()) {
         Ok(value) => value,
         Err(error) => return Err(too_large(error)),
@@ -383,7 +374,7 @@ fn decode_call_part_delegated_value(values: List<wire::Made>) -> Box<[domain::Ma
 
 fn encode_call_part_delegation_denied_findings(
     values: &[authority::Finding],
-    limits: &Limits,
+    limits: &View,
 ) -> Result<List<wire::Finding>, wire::Problem> {
     let mut result = List::with_capacity(match u32::try_from(values.len()) {
         Ok(value) => value,
@@ -404,7 +395,7 @@ fn decode_call_part_delegation_denied_findings(values: List<wire::Finding>) -> B
 
 fn encode_call_part_note_recalled_entries(
     values: &[notes::Entry],
-    limits: &Limits,
+    limits: &View,
 ) -> Result<List<wire::NoteBytes>, wire::Problem> {
     let mut result = List::with_capacity(match u32::try_from(values.len()) {
         Ok(value) => value,
@@ -427,7 +418,7 @@ fn encode_call_part_note_recalled_entries(
 }
 fn decode_call_part_note_recalled_entries(
     values: List<wire::NoteBytes>,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<Box<[notes::Entry]>, wire::Problem> {
     let mut result = List::with_capacity(values.len());
     for value in values.into_boxed() {
@@ -445,7 +436,7 @@ fn decode_call_part_note_recalled_entries(
     }
     Ok(result.into_boxed())
 }
-pub(super) fn encode_note_refusal(value: notes::Refusal, limits: &Limits) -> Result<wire::NoteRefusal, wire::Problem> {
+pub(super) fn encode_note_refusal(value: notes::Refusal, limits: &View) -> Result<wire::NoteRefusal, wire::Problem> {
     Ok(match value {
         notes::Refusal::Busy => wire::NoteRefusal::Busy,
         notes::Refusal::Oversized => wire::NoteRefusal::Oversized,
@@ -474,14 +465,14 @@ pub(super) fn decode_note_refusal(value: wire::NoteRefusal) -> notes::Refusal {
     }
 }
 
-fn encode_task_problem(value: &jig_domain_tasks::Problem, limits: &Limits) -> Result<wire::TaskBytes, wire::Problem> {
+fn encode_task_problem(value: &jig_domain_tasks::Problem, limits: &View) -> Result<wire::TaskBytes, wire::Problem> {
     let value = match crate::codec::tasks::carried::problem(value, &limits.tasks) {
         Ok(value) => value,
         Err(error) => return Err(task_problem(error)),
     };
     wire::TaskBytes::new(&limits.core, wire::TaskBytesParts { value })
 }
-fn decode_task_problem(value: wire::TaskBytes, limits: &Limits) -> Result<jig_domain_tasks::Problem, wire::Problem> {
+fn decode_task_problem(value: wire::TaskBytes, limits: &View) -> Result<jig_domain_tasks::Problem, wire::Problem> {
     match crate::codec::tasks::carried::read_problem(&value.into_parts().value, &limits.tasks) {
         Ok(value) => Ok(value),
         Err(error) => Err(task_problem(error)),
@@ -493,7 +484,7 @@ fn encode_part_effect(
     entry: u64,
     deadline: Wall,
     outcome: Option<domain::connector::OutboxOutcome>,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::CallPart, wire::Problem> {
     Ok(wire::CallPart::Effect(wire::CallPartEffect::new(
         &limits.core,
@@ -512,7 +503,7 @@ fn encode_part_effect(
 fn encode_part_effect_denied(
     answer: authority::Answer,
     findings: &[authority::Finding],
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::CallPart, wire::Problem> {
     Ok(wire::CallPart::EffectDenied(wire::CallPartEffectDenied::new(
         &limits.core,
@@ -526,7 +517,7 @@ fn encode_part_effect_denied(
 fn encode_part_tool_denied(
     answer: authority::Answer,
     findings: &[authority::Finding],
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::CallPart, wire::Problem> {
     Ok(wire::CallPart::ToolDenied(wire::CallPartToolDenied::new(
         &limits.core,
@@ -540,7 +531,7 @@ fn encode_part_tool_denied(
 fn encode_part_delegation_denied(
     answer: authority::Answer,
     findings: &[authority::Finding],
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::CallPart, wire::Problem> {
     Ok(wire::CallPart::DelegationDenied(wire::CallPartDelegationDenied::new(
         &limits.core,
@@ -554,7 +545,7 @@ fn encode_part_delegation_denied(
 fn encode_part_note_recalled(
     entries: &[notes::Entry],
     more: bool,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::CallPart, wire::Problem> {
     Ok(wire::CallPart::NoteRecalled(wire::CallPartNoteRecalled::new(
         &limits.core,
@@ -566,7 +557,7 @@ fn encode_part_escalation_decided(
     task: u64,
     revision: u64,
     outcome: tasks::EscalationOutcome,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::CallPart, wire::Problem> {
     Ok(wire::CallPart::EscalationDecided(wire::CallPartEscalationDecided::new(
         &limits.core,
@@ -577,7 +568,7 @@ fn encode_part_escalation_decided(
 fn encode_part_proposal_decided(
     proposal: u64,
     outcome: tasks::ProposalOutcome,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::CallPart, wire::Problem> {
     Ok(wire::CallPart::ProposalDecided(wire::CallPartProposalDecided::new(
         &limits.core,
@@ -608,10 +599,10 @@ fn decode_moved(value: wire::CallPartMoved) -> domain::CallPart {
     domain::CallPart::Moved { task, now: moved::decode_moved(now) }
 }
 
-fn encode_again(task: u64, required: bool, limits: &Limits) -> Result<wire::CallPart, wire::Problem> {
+fn encode_again(task: u64, required: bool, limits: &View) -> Result<wire::CallPart, wire::Problem> {
     Ok(wire::CallPart::Again(wire::CallPartAgain::new(&limits.core, wire::CallPartAgainParts { task, required })?))
 }
-fn encode_passed_up(task: u64, limits: &Limits) -> Result<wire::CallPart, wire::Problem> {
+fn encode_passed_up(task: u64, limits: &View) -> Result<wire::CallPart, wire::Problem> {
     Ok(wire::CallPart::PassedUp(wire::CallPartPassedUp::new(&limits.core, wire::CallPartPassedUpParts { task })?))
 }
 fn decode_again(value: wire::CallPartAgain) -> domain::CallPart {
@@ -623,7 +614,7 @@ fn decode_passed_up(value: wire::CallPartPassedUp) -> domain::CallPart {
     domain::CallPart::PassedUp { task }
 }
 
-fn encode_holder(value: &tasks::ProposalHolder, limits: &Limits) -> Result<wire::ProposalHolder, wire::Problem> {
+fn encode_holder(value: &tasks::ProposalHolder, limits: &View) -> Result<wire::ProposalHolder, wire::Problem> {
     Ok(match value {
         tasks::ProposalHolder::Task(value) => {
             wire::ProposalHolder::Task(wire::Number::new(&limits.core, wire::NumberParts { value: *value })?)
@@ -652,10 +643,7 @@ fn people_problem(value: crate::people_v13::Problem) -> wire::Problem {
     problem(value.reason)
 }
 
-fn encode_settings_refusal(
-    value: &jig_domain_people::Refusal,
-    limits: &Limits,
-) -> Result<wire::CallPart, wire::Problem> {
+fn encode_settings_refusal(value: &jig_domain_people::Refusal, limits: &View) -> Result<wire::CallPart, wire::Problem> {
     let value = match crate::codec::people::refusal_bytes(value) {
         Ok(value) => value,
         Err(problem) => return Err(people_problem(problem)),
@@ -669,7 +657,7 @@ fn decode_settings_refusal(value: wire::SettingsRefusal) -> Result<domain::CallP
     }
 }
 
-fn encode_part_note_refused(value: notes::Refusal, limits: &Limits) -> Result<wire::CallPart, wire::Problem> {
+fn encode_part_note_refused(value: notes::Refusal, limits: &View) -> Result<wire::CallPart, wire::Problem> {
     Ok(wire::CallPart::NoteRefused(wire::CallPartNoteRefused::new(
         &limits.core,
         wire::CallPartNoteRefusedParts { value: encode_note_refusal(value, limits)? },
@@ -681,7 +669,7 @@ fn encode_hold_owner(
     hold: u64,
     revision: u64,
     owner: &jig_domain_people::HoldOwner,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::CallPart, wire::Problem> {
     Ok(wire::CallPart::HoldOwner(wire::CallPartHoldOwner::new(
         &limits.core,
@@ -692,7 +680,7 @@ fn encode_hold_owner(
 fn encode_moved_part(
     task: u64,
     now: &jig_domain_people::Moved,
-    limits: &Limits,
+    limits: &View,
 ) -> Result<wire::CallPart, wire::Problem> {
     Ok(wire::CallPart::Moved(wire::CallPartMoved::new(
         &limits.core,

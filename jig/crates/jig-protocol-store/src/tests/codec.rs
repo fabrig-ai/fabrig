@@ -45,7 +45,7 @@ fn the_format_row_reads_back_with_its_versions_and_deployment() {
         settings: 9,
         application: 6,
         deployment: [7; 16],
-        levels: crate::format::recorded(crate::format::NONE),
+        levels: crate::format::NONE,
     };
     let bytes = row.encode().expect("fixed width fields fit");
     assert_eq!(component::Format::decode(&bytes), Ok(row));
@@ -724,8 +724,8 @@ fn a_people_row_of_another_version_does_not_decode() {
 }
 
 mod record;
-fn call_limits() -> crate::codec::core::Limits {
-    crate::codec::core::limits(&core_limits()).expect("within core ceilings")
+fn call_limits() -> crate::codec::View {
+    crate::codec::limits(&core_limits()).expect("within core ceilings")
 }
 fn core_round_trip(row: jig_domain_core::CoreRecord) {
     let limits = call_limits();
@@ -812,7 +812,7 @@ fn a_carried_change_reads_back_as_its_own_family() {
 fn core_limits_past_the_settled_answer_ceiling_are_refused() {
     let mut domain = core_limits();
     domain.call_answer_bytes = crate::core_v6::CEILINGS.settled_answer_host_body + 1;
-    assert!(crate::codec::core::limits(&domain).is_none());
+    assert!(crate::codec::limits(&domain).is_none());
 }
 
 fn end_round_trip(end: jig_domain_tasks::End) {

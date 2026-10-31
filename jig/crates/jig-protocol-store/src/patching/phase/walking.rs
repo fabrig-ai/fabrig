@@ -112,7 +112,7 @@ pub(super) fn opened(
     let key = Key::Core(CoreKey::Deployment);
     let encoded = keys::encode(&key, store.limits.store.key)?;
     let bytes = open::get_open(store, store.directory.owner, encoded).ok()??;
-    let record = codec::decode(&key, &bytes, &store.codec, &store.names)?;
+    let record = codec::decode(&key, &bytes, &store.codec_limits, &store.names)?;
     let header = match record {
         Record::Core(CoreRecord::Deployment(header)) => header,
         Record::Core(
@@ -334,7 +334,7 @@ fn cross_row(store: &mut Store, walking: &mut Walking, row: pages::WalkRow) -> O
         open::data(store, &row.row.key, crate::restore::DecodeFailure::Key);
         return None;
     };
-    let Some(record) = codec::decode(&key, &row.row.value, &store.codec, &store.names) else {
+    let Some(record) = codec::decode(&key, &row.row.value, &store.codec_limits, &store.names) else {
         open::data(store, &row.row.key, crate::restore::DecodeFailure::Value);
         return None;
     };
@@ -367,7 +367,7 @@ fn cross_row(store: &mut Store, walking: &mut Walking, row: pages::WalkRow) -> O
         window.closed = true;
     }
     if changed {
-        let value = codec::encode(&Record::Core(CoreRecord::RunProof(proof)), &store.codec, &store.names)?;
+        let value = codec::encode(&Record::Core(CoreRecord::RunProof(proof)), &store.codec_limits, &store.names)?;
         walking.deferred = Some(Put { key: row.row.key, value, cursor: row.cursor });
     } else {
         walking.through = Some(row.cursor);
@@ -484,11 +484,12 @@ fn seal(
         return refuse(store, above);
     };
     let mut format = format::current(store.application.version, header.id);
-    format.levels = format::recorded(crate::patching::plan::binary(&store.patch_sets));
+    format.levels = crate::patching::plan::binary(&store.patch_sets);
     let Ok(format) = format.encode() else {
         return refuse(store, above);
     };
-    let Some(header) = codec::encode(&Record::Core(CoreRecord::Deployment(header)), &store.codec, &store.names) else {
+    let Some(header) = codec::encode(&Record::Core(CoreRecord::Deployment(header)), &store.codec_limits, &store.names)
+    else {
         return refuse(store, above);
     };
     let mut size = 26_u64;

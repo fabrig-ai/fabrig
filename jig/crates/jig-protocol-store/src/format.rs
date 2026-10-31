@@ -6,13 +6,6 @@ use crate::{Older, Owner};
 
 pub(crate) const NONE: Levels = Levels { skein: None, smith: None, jig: None, application: None };
 
-pub(crate) fn levels(row: component::Levels) -> Levels {
-    Levels { skein: row.skein, smith: row.smith, jig: row.jig, application: row.application }
-}
-pub(crate) fn recorded(levels: Levels) -> component::Levels {
-    component::Levels { skein: levels.skein, smith: levels.smith, jig: levels.jig, application: levels.application }
-}
-
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Compared {
     Same,
@@ -51,7 +44,7 @@ pub fn current(application: u32, deployment: [u8; 16]) -> component::Format {
         settings: 1,
         application,
         deployment,
-        levels: recorded(NONE),
+        levels: NONE,
     }
 }
 

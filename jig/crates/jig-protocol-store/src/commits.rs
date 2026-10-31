@@ -68,7 +68,7 @@ pub(crate) fn operations(
                 if crate::patching::switch::pending(store) {
                     return Err(Refusal::Failed);
                 }
-                let body = crate::transcripts::frame::encode(&turn, &store.codec).ok_or(Refusal::Failed)?;
+                let body = crate::transcripts::frame::encode(&turn, &store.codec_limits).ok_or(Refusal::Failed)?;
                 let bytes = u32::try_from(body.len()).ok().ok_or(Refusal::Failed)?;
                 let limit = store.limits.store.page.bytes;
                 if bytes > limit {
@@ -108,7 +108,7 @@ pub(crate) fn operations(
     if format_due {
         let id = deployment.expect("the first root commit saves its deployment header");
         let mut row = format::current(store.application.version, id);
-        row.levels = format::recorded(crate::patching::plan::binary(&store.patch_sets));
+        row.levels = crate::patching::plan::binary(&store.patch_sets);
         ops.push(skein_kv::Op::Put {
             key: keys::encode_own(&keys::Own::Format, store.limits.store.key).ok_or(Refusal::Failed)?,
             value: row.encode().ok().ok_or(Refusal::Failed)?,
@@ -146,7 +146,7 @@ fn operation(store: &mut Store, write: Write) -> Option<skein_kv::Op> {
         Write::CopySettingsRevision(number) => copy_settings(store, number),
         Write::Save(record) => Some(skein_kv::Op::Put {
             key: keys::encode(&record.key(), limit)?,
-            value: codec::encode(&record, &store.codec, &store.names)?,
+            value: codec::encode(&record, &store.codec_limits, &store.names)?,
         }),
         Write::Erase(key) => Some(skein_kv::Op::Erase { key: keys::encode(&key, limit)? }),
         Write::Put { key, value } => Some(skein_kv::Op::Put { key: keys::application(&key, limit)?, value }),

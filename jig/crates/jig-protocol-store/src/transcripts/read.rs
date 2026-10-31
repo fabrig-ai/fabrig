@@ -401,7 +401,9 @@ fn advance(
                 read.step = Step::Frame { offset, length, bytes };
                 return Ok(false);
             }
-            match frame::Decode::begin(&bytes.finish(), &mut store.transcripts.machines, &store.codec).or(Err(()))? {
+            match frame::Decode::begin(&bytes.finish(), &mut store.transcripts.machines, &store.codec_limits)
+                .or(Err(()))?
+            {
                 frame::Decode::Done { turn, size } => {
                     let charged_frame =
                         store.transcripts.machines.body.is_some() || store.transcripts.machines.turn.is_some();
@@ -432,8 +434,11 @@ fn length(
         return Ok(false);
     }
     let length = Reader::new(&bytes.finish()).u32().ok_or(())?;
-    let max = crate::core_v6::TurnRecord::encoded_bound(&store.codec.core).ok_or(())?.checked_add(12).ok_or(())?;
-    if length < 12 || u64::from(length) > max {
+    let max = crate::core_v6::TurnRecord::encoded_bound(&store.codec_limits.core)
+        .ok_or(())?
+        .checked_add(u64::from(frame::WRAPPER_BYTES))
+        .ok_or(())?;
+    if length < frame::WRAPPER_BYTES || u64::from(length) > max {
         return Err(());
     }
     let start = if read.backwards { read.position.checked_sub(u64::from(length)).ok_or(())? } else { read.position };
@@ -479,7 +484,7 @@ fn header(
     let mut body = Writer::new(fields.checked_add(4).ok_or(())?);
     body.put(prefix.bytes(u32::try_from(fields).or(Err(()))?).ok_or(())?).or(Err(()))?;
     body.put(&0_u32.to_be_bytes()).or(Err(()))?;
-    let turn = codec::core::read_turn(&body.finish(), &codec::core_limits(&store.codec)).or(Err(()))?;
+    let turn = codec::core::read_turn(&body.finish(), &store.codec_limits).or(Err(()))?;
     let size = prefix.u32().ok_or(())?;
     if let Some(machine) = &store.transcripts.machines.turn {
         if size < 2 {
@@ -500,7 +505,7 @@ fn header(
         .ok_or(())?
         .checked_add(8)
         .ok_or(())?;
-    if u64::from(length) != expected || size > store.codec.core.turn_record_transcript {
+    if u64::from(length) != expected || size > store.codec_limits.core.turn_record_transcript {
         return Err(());
     }
     let charged_frame = store.transcripts.machines.body.is_some() || store.transcripts.machines.turn.is_some();
@@ -819,7 +824,7 @@ fn patching(
     above: &mut Queue<Event>,
     below: &mut Below,
 ) -> Result<bool, ()> {
-    match patch.next(&mut store.transcripts.machines, &store.codec).or(Err(()))? {
+    match patch.next(&mut store.transcripts.machines, &store.codec_limits).or(Err(()))? {
         frame::Progress::Written { of, site, at } => {
             let key = keys::encode_own(&keys::Own::Transcript { task: read.task }, store.limits.store.key).ok_or(())?;
             let mut name = Writer::new(key.len().checked_add(8).ok_or(())?);
