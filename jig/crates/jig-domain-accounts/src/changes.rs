@@ -1,5 +1,5 @@
 //! Holder-owned account changes (accounts.md, section 5).
-use crate::{Answer, Bound, Change, Domain, Holder, Key, Kind, Limits, Refusal, Request, Signing};
+use crate::{Answer, Bound, Change, Domain, Holder, Key, Kind, Limits, Refusal, Request, Signing, Use};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Map, Queue, Token};
 
@@ -123,6 +123,30 @@ pub(crate) fn change(
     match result {
         Ok(()) => out.push(Request::Answer { request, answer: Answer::Done }),
         Err(refusal) => refuse(request, refusal, out),
+    }
+}
+
+/// Project deletion changes explicit uses in every phase (temper/docs/design/draft/playground-reset.md, 5).
+pub(crate) fn drop_project(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    let mut changed = List::with_capacity(domain.accounts.capacity());
+    for (number, account) in &domain.accounts {
+        if let Some(uses) = &account.uses
+            && uses.contains(&Use::Project(project))
+        {
+            changed.push(*number).expect("one entry per changed account");
+        }
+    }
+    for number in &changed {
+        let account = domain.accounts.get_mut(number).expect("a changed account");
+        let uses = account.uses.take().expect("a changed account has explicit uses");
+        let mut remaining = List::with_capacity(u32::try_from(uses.len()).expect("bounded account uses"));
+        for usage in uses {
+            if usage != Use::Project(project) {
+                remaining.push(usage).expect("removal only shrinks uses");
+            }
+        }
+        account.uses = Some(remaining.into_boxed());
+        out.push(Request::Save { record: crate::ordering::account_record(domain, *number) });
     }
 }
 

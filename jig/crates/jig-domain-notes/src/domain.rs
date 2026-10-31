@@ -11,7 +11,7 @@
 //! | idle | index or recall | waiting for store or idle | load or answer |
 //! | waiting for read | loaded | waiting or idle | load or answer |
 
-use skein_lib::{Env, Map, Queue, Token, Wall};
+use skein_lib::{Env, List, Map, Queue, Set, Token, Wall};
 
 use crate::boundary::{Author, Change, Entry, Event, Key, Line, New, Range, Record, Refusal, Request, Rows, Scope};
 use crate::limits::Limits;
@@ -46,13 +46,23 @@ pub struct Domain {
     pub(crate) indexes: Map<Scope, Cached>,
     pub(crate) clock: u64,
     next_load: u64,
+    dropping: Set<u32>,
+    drop_all: bool,
 }
 
 impl Domain {
     /// Create an empty notes child.
     #[must_use]
     pub fn new(limits: &Limits) -> Domain {
-        Domain { pending: None, read: None, indexes: Map::with_capacity(limits.scopes), clock: 0, next_load: 1 }
+        Domain {
+            pending: None,
+            read: None,
+            indexes: Map::with_capacity(limits.scopes),
+            clock: 0,
+            next_load: 1,
+            dropping: Set::with_capacity(limits.scopes),
+            drop_all: false,
+        }
     }
 
     /// Whether a call is waiting for a store page.
@@ -87,6 +97,15 @@ impl Domain {
 /// Decide one event and emit writes or a store load.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::DropProject { project } => {
+            if domain.busy() {
+                if domain.dropping.insert(project).is_err() {
+                    domain.drop_all = true;
+                }
+            } else {
+                drop_project(&mut domain.indexes, project);
+            }
+        }
         Event::Index { owner, scopes, most } => read::index(domain, &env.limits, owner, scopes, most, out),
         Event::Recall { owner, by, page } => read::recall(domain, &env.limits, owner, by, page, out),
         Event::Write { owner, entry, recalled } => {
@@ -128,6 +147,37 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             Record::Entry(_) | Record::Line(_) => {}
         },
         Event::Restored => {}
+    }
+    if !domain.busy() {
+        if domain.drop_all {
+            domain.indexes = Map::with_capacity(env.limits.scopes);
+            domain.drop_all = false;
+        } else {
+            for project in &domain.dropping {
+                drop_project(&mut domain.indexes, *project);
+            }
+        }
+        domain.dropping = Set::with_capacity(env.limits.scopes);
+    }
+}
+
+/// Invalidation waits for the active call (temper/docs/design/draft/playground-reset.md, 5).
+/// More distinct drops than cached scopes coalesce into a full eviction after that call.
+fn drop_project(indexes: &mut Map<Scope, Cached>, project: u32) {
+    let mut removed = List::with_capacity(indexes.capacity());
+    for (scope, _) in &*indexes {
+        let names_project = match scope {
+            Scope::Deployment => false,
+            Scope::Project { project: held }
+            | Scope::Goal { project: held, .. }
+            | Scope::Resources { project: held, .. } => *held == project,
+        };
+        if names_project {
+            removed.push(scope.clone()).expect("one entry per cached scope");
+        }
+    }
+    for scope in &removed {
+        drop(indexes.remove(scope));
     }
 }
 
@@ -328,7 +378,7 @@ pub fn valid_entry(entry: &Entry, limits: &Limits) -> bool {
         && valid_references(&entry.references, limits)
 }
 
-fn valid_references(references: &skein_lib::List<u64>, limits: &Limits) -> bool {
+fn valid_references(references: &List<u64>, limits: &Limits) -> bool {
     if references.capacity() > limits.references {
         return false;
     }

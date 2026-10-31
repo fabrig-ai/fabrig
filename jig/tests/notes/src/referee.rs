@@ -46,7 +46,11 @@ impl Intent {
                 };
                 Intent::Edit { owner: *owner, party: *party, name: *name, recalled }
             }
-            Event::Loaded { .. } | Event::LoadFailed { .. } | Event::Restore { .. } | Event::Restored => {
+            Event::DropProject { .. }
+            | Event::Loaded { .. }
+            | Event::LoadFailed { .. }
+            | Event::Restore { .. }
+            | Event::Restored => {
                 unreachable!("a caller starts with a call")
             }
         }

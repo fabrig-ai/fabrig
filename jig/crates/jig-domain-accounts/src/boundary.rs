@@ -73,6 +73,10 @@ pub struct Grant {
 /// confirmed the revocation (2.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// Remove a deleted project from explicit uses (temper/docs/design/draft/playground-reset.md, 5).
+    DropProject {
+        project: u32,
+    },
     Restore {
         record: Stored,
     },
