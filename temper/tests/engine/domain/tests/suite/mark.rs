@@ -11,7 +11,6 @@ const ENTRY: u64 = 1; // One restored outbox entry.
 const SEED: u64 = 71; // The direct forge fixture's deployment.
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn the_forge_reaches_no_forge_before_the_mark() {
     let limits = fixtures::forge_limits();
     // The outbox needs a live owner and an adopted repository at reconciliation.

@@ -22,7 +22,6 @@ fn assignments(driver: &Driver, task: u64) -> usize {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn both_prerequisite_orders_and_completion_orders_gate_only_the_fourth_delegate() {
     // Five tasks: the director, two prerequisites, unrelated work and their waiter.
     const PLAN_WRITES: u32 = 6_200;
@@ -87,7 +86,6 @@ fn both_prerequisite_orders_and_completion_orders_gate_only_the_fourth_delegate(
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_live_delegate_is_kept_until_both_added_dependencies_are_met() {
     let (mut driver, parent) = batch_fixture_with(4, 1);
     let children = call_batch(
@@ -173,7 +171,6 @@ fn a_live_delegate_is_kept_until_both_added_dependencies_are_met() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_added_dependency_that_closes_a_circle_is_refused() {
     let (mut driver, parent) = batch_fixture_with(3, 1);
     let children = call_batch(

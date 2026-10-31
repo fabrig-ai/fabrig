@@ -533,9 +533,14 @@ pub(super) fn answer(engine: &mut crate::Engine) {
             protocol::Event::Restored { .. } | protocol::Event::Corrupt { .. } => {
                 unreachable!("the service opens its store in start mode")
             }
+            protocol::Event::PageRefused { failure, .. } => {
+                engine.end = Some(crate::End::Stopped(crate::Stop::StorePage {
+                    phase: engine.domain.core_mut().start_phase(),
+                    failure,
+                }));
+            }
             // This shell never hands patch sets; routing answers Site with NoSite.
             other @ (protocol::Event::Page { .. }
-            | protocol::Event::PageRefused { .. }
             | protocol::Event::Site { .. }
             | protocol::Event::Committed { .. }
             | protocol::Event::Failed { .. }

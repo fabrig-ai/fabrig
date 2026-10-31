@@ -38,7 +38,6 @@ pub(super) fn assert_held(driver: &Driver, run: &engine::Assignment, bound: task
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_run_that_meets_a_bound_is_held_after_one_activation() {
     for (host, task) in [
         (host::Bound::Reasoning, tasks::Bound::Reasoning),

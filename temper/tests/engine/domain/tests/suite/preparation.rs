@@ -28,7 +28,6 @@ fn transcript_in_flight(driver: &mut Driver, task: u64) -> Token {
 // A message can end a preparation while its store read is in flight; the
 // read's answer then belongs to none (jig's `examples/ops/domain/src/restart.rs`).
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_transcript_read_landing_after_a_message_ended_its_preparation_is_dropped() {
     let (mut driver, first) = Driver::chat();
     driver.send(protocol::turn(Token::new(7), first.task, first.attempt, 1, 1, None, b"first"));
@@ -52,7 +51,6 @@ fn a_transcript_read_landing_after_a_message_ended_its_preparation_is_dropped() 
 
 // Parts beyond their bounds make the answer invalid; the run fails as invalid.
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_answer_pushing_more_heads_than_a_task_may_hold_fails_its_run_as_invalid() {
     let (mut driver, run) = Driver::chat();
     let pushed = (0..5).map(|tag| temper_engine_domain_forge::Pushed { tag, commit: [7; 32] }).collect();
@@ -82,7 +80,6 @@ fn failed_preparation(run: &engine::Assignment, preparation: engine::Preparation
 // A permanent preparation failure names its repository beside the answer;
 // the root reports it as a fact of the attempt (domain/root.md, 7.4).
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_permanent_preparation_failure_is_reported_as_a_fact_of_its_attempt() {
     let (mut driver, run) = Driver::chat();
     let preparation = engine::Preparation::Missing { tag: 3, missing: engine::Missing::Branch };
@@ -94,7 +91,6 @@ fn a_permanent_preparation_failure_is_reported_as_a_fact_of_its_attempt() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_answer_without_a_preparation_reports_no_fact() {
     let (mut driver, run) = Driver::chat();
     driver.answer(Token::new(7), run.task, run.attempt, 1, tasks::End::Parked, engine::Parts::none());
@@ -103,7 +99,6 @@ fn an_answer_without_a_preparation_reports_no_fact() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_failed_preparation_retries_by_its_answers_class() {
     let (mut driver, run) = Driver::chat();
     let preparation = engine::Preparation::Refused { tag: 3 };

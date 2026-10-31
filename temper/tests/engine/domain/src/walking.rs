@@ -600,8 +600,10 @@ impl World {
         self.observe();
         if self.events.front().is_some_and(|(due, _)| *due <= self.iteration) {
             let (_, event) = self.events.pop_front().expect("due input");
-            self.trace.push(format!("input {event:?}"));
-            if crate::waits_for_open(&self.domain, &event) {
+            if !crate::waits_for_start(&self.domain, &event) {
+                self.trace.push(format!("input {event:?}"));
+            }
+            if crate::waits_for_start(&self.domain, &event) {
                 self.queue(event, 0);
             } else {
                 engine::step(&mut self.domain, &self.environment, event);
@@ -897,6 +899,12 @@ impl World {
                     }
                     TerminalRecovery::Complete => panic!("ACK after both scripted sends completed"),
                 }
+            }
+            Delivery::Link { channel, down: host::LinkDown::Cancel { run, attempt } } => {
+                let assignment = self.assignment.as_ref().expect("retained worker answer");
+                assert_eq!(channel, Token::new(7));
+                assert_eq!((run.raw(), attempt.raw()), (assignment.task, assignment.attempt));
+                assert!(self.terminal_snapshot.is_some(), "only a committed terminal has no adopted claim");
             }
             Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
             Delivery::TurnBusy { turn, .. } => self.turn(turn),

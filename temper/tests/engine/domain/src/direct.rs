@@ -131,7 +131,7 @@ impl Driver {
         if matches!(self.broken, crate::oracle::Fixture::Closed) {
             self.broken = crate::oracle::Fixture::Checked;
         }
-        if crate::waits_for_open(&self.root, &event) {
+        if crate::waits_for_start(&self.root, &event) {
             self.events.push_back(event);
             return;
         }
@@ -148,7 +148,7 @@ impl Driver {
     /// waits ahead of later root inputs (temper-service's `engine.rs:124`,
     /// retried at `engine.rs:320`). Store terminals can still advance durability.
     pub fn send_retaining(&mut self, event: engine::Event) {
-        if crate::waits_for_open(&self.root, &event) {
+        if crate::waits_for_start(&self.root, &event) {
             self.events.push_back(event);
             return;
         }
@@ -266,7 +266,8 @@ impl Driver {
             self.period_sent = true;
             self.period();
         }
-        if let Some(event) = self.events.pop_front() {
+        if let Some(index) = self.events.iter().position(|event| !crate::waits_for_start(&self.root, event)) {
+            let event = self.events.remove(index).expect("eligible queued input");
             self.send(event);
         }
         if apply && !self.store.pending.is_empty() {

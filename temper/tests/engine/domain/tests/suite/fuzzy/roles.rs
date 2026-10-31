@@ -6,7 +6,6 @@ use std::collections::BTreeSet;
 use temper_engine_domain_world::roles::{Base, Settings, reroute_replayed};
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn twelve_small_role_histories_cover_each_holder_owner_order_and_atomic_cut() {
     let bases = [Base::Requester, Base::FinalRole, Base::Rejected];
     let mut covered = BTreeSet::new();
