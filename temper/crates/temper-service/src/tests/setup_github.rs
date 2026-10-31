@@ -122,7 +122,7 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
         engine.step(root::Event::Resume);
         engine.store.iterate();
         crate::engine::answer(engine);
-        engine.clients.advance(&mut engine.events, &engine.workers.forges, &mut engine.accounts);
+        engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
         engine.clients.secrets_step(&mut engine.store);
         advance(engine);
         engine.forge.iterate(engine.env.now, engine.env.wall);

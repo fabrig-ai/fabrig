@@ -1879,6 +1879,7 @@ fn runtime_record(kind: domain::Kind, mode: domain::Mode) -> domain::ForgeRecord
     }
 }
 fn insert_runtime_forge(engine: &mut crate::engine::Engine, record: &domain::ForgeRecord) {
+    root::step(&mut engine.domain, &engine.env, root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(record.clone()) })));
     let mut source = fixtures::forges().into_iter().next().unwrap();
     source.number = record.number;
     source.identity = u32::from(record.number);
@@ -2103,6 +2104,5 @@ pub(super) fn end_domain(engine: &mut crate::engine::Engine) {
         &mut engine.domain,
         &engine.env,
         root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(ended_record()) })),
-        &mut engine.requests,
     );
 }

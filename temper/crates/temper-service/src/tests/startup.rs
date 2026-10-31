@@ -311,12 +311,6 @@ fn an_unanswerable_demo_is_refused_at_its_field() {
     let input = core::str::from_utf8(&input).unwrap();
     for (row, from, to, expected) in [
         (
-            "no repository",
-            "[{\"name\":\"widget\",\"landing\":\"main\"},{\"name\":\"other\",\"landing\":\"main\"}]",
-            "[]".into(),
-            "application.setup[0].mode.fake.repositories: invalid form\n",
-        ),
-        (
             "cue count at bound",
             "\"asked\":[",
             ["\"asked\":[", &"{\"cue\":\"extra\",\"turns\":[\"x\"]},".repeat(5)].concat(),
@@ -339,30 +333,6 @@ fn an_unanswerable_demo_is_refused_at_its_field() {
             "Add CSV export to widget",
             "x".repeat(usize::try_from(CEILINGS.demo_answer_cues_item + 1).unwrap()),
             "application.demo.llm.asked[0].cue: past its bound\n",
-        ),
-        (
-            "owner at bound",
-            "\"owner\":\"demo\"",
-            ["\"owner\":\"", &"x".repeat(usize::try_from(CEILINGS.demo_answer_owner).unwrap()), "\""].concat(),
-            "",
-        ),
-        (
-            "owner past bound",
-            "\"owner\":\"demo\"",
-            ["\"owner\":\"", &"x".repeat(usize::try_from(CEILINGS.demo_answer_owner + 1).unwrap()), "\""].concat(),
-            "application.setup[0].mode.fake.owner: past its bound\n",
-        ),
-        (
-            "name at bound",
-            "\"name\":\"widget\"",
-            ["\"name\":\"", &"x".repeat(usize::try_from(CEILINGS.demo_answer_name).unwrap()), "\""].concat(),
-            "",
-        ),
-        (
-            "name past bound",
-            "\"name\":\"widget\"",
-            ["\"name\":\"", &"x".repeat(usize::try_from(CEILINGS.demo_answer_name + 1).unwrap()), "\""].concat(),
-            "application.setup[0].mode.fake.repositories[0].name: past its bound\n",
         ),
     ] {
         let input = input.replace(from, &to);
@@ -2208,7 +2178,6 @@ fn a_document_without_demo_forge_and_project_is_read() {
     assert_eq!(&*lines(&problems), b"");
     let demo = members.unwrap().demo.unwrap();
     assert_eq!(demo.provider, 3);
-    assert_eq!((demo.project, demo.forge), (0, 0));
     assert_eq!(demo.owner.as_ref(), b"playground");
     assert_eq!(demo.name.as_ref(), b"widget");
     assert_eq!(demo.landing.as_ref(), b"main");

@@ -614,7 +614,7 @@ fn an_ended_forge_finishes_the_admin_run_without_keeping_the_token() {
     let mut service = service(&forge);
     let run = pending(&mut service);
     let engine = service.engine.as_mut().unwrap();
-    super::setup::end_domain(engine);
+    end_domain(engine);
     // Replace the fake host's pending read with its terminal, so no stale Need follows Done.
     while engine.setup.above.pop().is_some() {}
     engine.setup.above.push(host::Event::Done { run, outcome: reconcile::Outcome::Nothing });

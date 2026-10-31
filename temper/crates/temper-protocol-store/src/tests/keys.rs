@@ -190,3 +190,12 @@ fn forge_and_playground_keys_follow_receipt_and_refuse_malformed_bytes() {
     assert_eq!(keys::decode(&[keys::FORGE], &fixtures::LIMITS), None);
     assert_eq!(keys::decode(&[28], &fixtures::LIMITS), None);
 }
+
+#[test]
+fn removed_family_bytes_are_reserved() {
+    for family in [17, 19] {
+        let mut key = skein_kv::KeyWriter::new(u32::MAX);
+        key.tag(family).u64(1);
+        assert_eq!(keys::decode(&key.finish().unwrap(), &fixtures::LIMITS), None);
+    }
+}

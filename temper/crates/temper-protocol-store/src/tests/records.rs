@@ -802,7 +802,7 @@ fn binding_rows_round_trip_at_the_field_bounds() {
     ] {
         let row = forge::Stored::Binding { address, subject };
         let bytes = records::encode(&row);
-        assert_eq!(&bytes[..3], &[0, 11, 18]);
+        assert_eq!(&bytes[..3], &[0, 11, 17]);
         let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
         let other =

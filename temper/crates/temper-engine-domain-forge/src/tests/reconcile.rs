@@ -292,7 +292,7 @@ fn populated_reconciliation_owner_fits_its_heap_ceiling() {
 
 fn ended_domain() -> Domain {
     let mut d = held_domain();
-    let mut row = super::removal::record(1, Mode::Owned);
+    let mut row = removal::record(1, Mode::Owned);
     row.state = ForgeState::Ended { secrets_erased: true, box_removed: true };
     outputs(&mut d, Event::Restore { record: Stored::Forge(row) });
     d

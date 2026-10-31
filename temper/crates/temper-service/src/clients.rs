@@ -491,6 +491,10 @@ impl Clients {
                     Err(value) => self.down(*value),
                 },
                 kit::Request::Application(value) => {
+                    let carried = match &value {
+                        kit::ToApplication::Request { carried, .. } => *carried,
+                        kit::ToApplication::Read { .. } | kit::ToApplication::Watch { .. } => None,
+                    };
                     match crate::family::to_root(
                         value,
                         forges,
@@ -528,7 +532,14 @@ impl Clients {
                                 self.root(value, events);
                             }
                         }
-                        Err(value) => self.down(*value),
+                        Err(value) => {
+                            if let kit::Event::Application(kit::FromApplication::Answered { .. }) = &*value
+                                && let Some(carried) = carried
+                            {
+                                self.down(kit::Event::Application(kit::FromApplication::Unused { number: carried.number }));
+                            }
+                            self.down(*value);
+                        }
                     }
                 }
                 kit::Request::Minted { exchange, credential, expires } => {

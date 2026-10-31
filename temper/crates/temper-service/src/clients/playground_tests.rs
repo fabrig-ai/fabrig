@@ -2,7 +2,7 @@ use super::*;
 use crate::tests::fixtures;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
-const DEMO_SOURCE: u64 = 1;
+const PLAYGROUND_SOURCE: u64 = 1;
 
 fn enqueue(clients: &mut Clients) {
     enqueue_request(clients, w::Request::StartPlayground);
@@ -61,19 +61,19 @@ fn start_reads_the_key(request: w::Request, expected: temper_engine_domain_forge
     // The playground adds its key through accounts, whose store adoption
     // accepts a carried Key alone (jig's protocol/store.md, 9).
     let _later = store.secrets(
-        Token::new(DEMO_SOURCE),
+        Token::new(PLAYGROUND_SOURCE),
         jig_protocol_store::Secrets::Adopt {
             carried: carried.number,
             owner: jig_protocol_store::SecretOwner::Source,
-            number: DEMO_SOURCE,
+            number: PLAYGROUND_SOURCE,
             replaces: None,
         },
     );
     store.iterate();
     let Some(jig_protocol_store::Event::Secret { value: Some(jig_protocol_store::SecretValue::Key(value)), .. }) =
         store.secrets(
-            Token::new(DEMO_SOURCE),
-            jig_protocol_store::Secrets::Get { owner: jig_protocol_store::SecretOwner::Source, number: DEMO_SOURCE },
+            Token::new(PLAYGROUND_SOURCE),
+            jig_protocol_store::Secrets::Get { owner: jig_protocol_store::SecretOwner::Source, number: PLAYGROUND_SOURCE },
         )
     else {
         panic!("the demo key is adoptable as a source")
@@ -104,7 +104,7 @@ fn unreadable_empty_and_oversize_playground_keys_carry_nothing() {
         let engine = service.engine.as_mut().unwrap();
         engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
         let Some(root::Event::Party(root::PartyInput::Application {
-            request: root::Application::Forge(temper_engine_domain_forge::Ask::StartDemo),
+            request: root::Application::Forge(temper_engine_domain_forge::Ask::StartPlayground),
             carried: None,
             ..
         })) = engine.events.pop()

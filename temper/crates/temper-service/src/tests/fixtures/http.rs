@@ -104,7 +104,7 @@ impl Peer {
             if decide {
                 crate::engine::iterate(engine, now, wall);
             } else {
-                engine.clients.iterate(now, wall, &mut engine.events, &engine.workers.forges, &mut engine.accounts);
+                engine.clients.iterate(now, wall, &mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
                 engine.clients.secrets_step(&mut engine.store);
             }
             for _ in 0..engine.clients.io.len() {
