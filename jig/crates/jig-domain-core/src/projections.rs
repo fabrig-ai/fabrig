@@ -459,7 +459,7 @@ fn valid_number(number: u64, maximum: u64) -> bool {
     number != 0 && number <= maximum
 }
 
-fn phase_within(phase: &tasks::Phase, limits: &Limits) -> bool {
+pub(crate) fn phase_within(phase: &tasks::Phase, limits: &Limits) -> bool {
     match tasks::phase_bytes(phase) {
         Some(bytes) => bytes <= u64::from(limits.tasks.result_bytes) * 2,
         None => false,
@@ -467,6 +467,10 @@ fn phase_within(phase: &tasks::Phase, limits: &Limits) -> bool {
 }
 
 pub(crate) fn restore(core: &mut Core, limits: &Limits, row: ProjectionRecord) -> bool {
+    match core.start.mode {
+        crate::start::StartMode::Default => {}
+        crate::start::StartMode::LoadAndLink => return crate::start::projections::start_restore(core, limits, row),
+    }
     match row {
         ProjectionRecord::Goal { goal, pending, changed, fed_at } => {
             restore_goal(core, limits, goal, pending, changed, fed_at)

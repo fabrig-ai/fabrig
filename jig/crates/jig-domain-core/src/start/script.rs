@@ -36,6 +36,7 @@ impl Core {
                 None => Phase::Link,
             },
             Phase::Link => {
+                self.start_projections_link();
                 let before = out.len();
                 self.start_link(env, out);
                 if let Some(failure) = self.start_failure() {
