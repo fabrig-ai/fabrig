@@ -146,7 +146,7 @@ pub(crate) fn call(domain: &mut Domain, env: &Env<Limits>, id: Id<Kit>, read: Re
         let ended = kit.jobs.held.remove(&job.0).expect("one terminal read");
         match ended.state {
             State::Ended { head, tail, dropped, end, .. } => {
-                answer(kit::session(kit), read, Done::Job { head, tail, dropped, end }, &mut domain.facts, out);
+                answer(kit::session(kit), read, head, tail, dropped, end, &mut domain.facts, out);
             }
             State::Running | State::Cancelling => unreachable!("checked ended"),
         }
@@ -264,7 +264,7 @@ pub(crate) fn done(
     }
     if let Some(reader) = job.reader.take() {
         let read = kit.jobs.reads.remove(&reader).expect("an active read owns its reply right");
-        answer(kit::session(kit), read, Done::Job { head, tail, dropped, end }, &mut domain.facts, out);
+        answer(kit::session(kit), read, head, tail, dropped, end, &mut domain.facts, out);
     } else {
         assert!(ended, "only cancellation answers an unpolled job");
         job.state = State::Ended { head, tail, dropped, end, at: env.now };
@@ -374,28 +374,20 @@ fn tell(session: Token, number: JobNumber, job: &Job, facts: &mut facts::Facts) 
     }
 }
 
-fn answer(session: Token, read: Read, done: Done, facts: &mut facts::Facts, out: &mut Queue<Request>) {
-    let (head, tail, dropped, end) = match done {
-        Done::Job { head, tail, dropped, end } => (head, tail, dropped, end),
-        Done::Loaded { .. }
-        | Done::Listed { .. }
-        | Done::Removed
-        | Done::NotEmpty
-        | Done::Stored { .. }
-        | Done::Conflict { .. }
-        | Done::Exited { .. }
-        | Done::Held { .. }
-        | Done::Found { .. }
-        | Done::Missing
-        | Done::NotFile
-        | Done::Linked
-        | Done::NotDirectory
-        | Done::TooLarge { .. }
-        | Done::Escapes
-        | Done::Failed { .. }
-        | Done::TimedOut
-        | Done::Cancelled => unreachable!("retained terminal is a job"),
-    };
+#[expect(
+    clippy::too_many_arguments,
+    reason = "a job answer carries its four terminal fields beside its reply and observation sinks"
+)]
+fn answer(
+    session: Token,
+    read: Read,
+    head: Box<[u8]>,
+    tail: Box<[u8]>,
+    dropped: u64,
+    end: JobEnd,
+    facts: &mut facts::Facts,
+    out: &mut Queue<Request>,
+) {
     let total = head.len().checked_add(tail.len()).expect("bounded output");
     let first = usize::try_from(read.kept.head).expect("head fits").min(if dropped > 0 { head.len() } else { total });
     let last = usize::try_from(read.kept.tail).expect("tail fits").min(if dropped > 0 {
