@@ -694,7 +694,7 @@ fn restart_refuses_each_placed_hold_count_over_its_limit() {
         tasks::Limits { party_placed_holds: 1, ..w.env.limits },
         tasks::Limits { exemptions: 1, ..w.env.limits },
     ] {
-        let env = skein_lib::Env { now: w.env.now, wall: w.env.wall, limits };
+        let env = w.env.with(limits);
         assert!(
             check_rows(rows.clone(), &env).iter().any(|reply| matches!(reply, tasks::Request::RestoreRefused { .. }))
         );

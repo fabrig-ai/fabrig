@@ -401,7 +401,6 @@ pub(crate) fn tag_fleet(
 
 /// A worker's limit reset, a span from its notice, as a time on the
 /// engine's clock.
-#[expect(clippy::manual_map, reason = "the strict subset uses an exhaustive match rather than a closure")]
 fn reset_at(now: Time, reset: Option<Duration>) -> Option<Time> {
     match reset {
         Some(reset) => Some(now.saturating_add(reset)),

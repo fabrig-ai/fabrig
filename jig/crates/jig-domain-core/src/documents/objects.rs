@@ -2,7 +2,6 @@
 //! Closed at once (jig/docs/design/domain/people.md, 5.2).
 //! `client/domain/pages.md`, 5.2). Store readers supply retained rows. Routing
 //! trails and before/after history require those store rows; no trail is cached.
-#![expect(clippy::manual_map, reason = "step code uses explicit matches instead of closures")]
 
 mod party;
 
@@ -260,7 +259,7 @@ pub struct EndedDelegate {
 }
 
 fn bound(limits: &Limits) -> usize {
-    usize::try_from(limits.documents.lines).expect("line bound fits")
+    skein_lib::length::usize_of(limits.documents.lines)
 }
 fn numbers(limits: &Limits, values: &[u64]) -> List<u64> {
     let mut result = List::with_capacity(limits.documents.lines);

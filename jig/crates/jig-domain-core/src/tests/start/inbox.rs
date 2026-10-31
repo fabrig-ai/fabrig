@@ -150,7 +150,7 @@ fn ended_conversation_witness_is_retired_at_link() {
     );
     assert!(core.restore_inbox_row(&env.limits, &Record::Tasks(tasks::Stored::Ended(Box::new(ended())))));
     assert_eq!(core.people.read_conversations().len(), 1);
-    assert!(core.people.start_link(&Env { now: env.now, wall: env.wall, limits: env.limits.people }));
+    assert!(core.people.start_link(&env.with(env.limits.people)));
     assert!(core.people.read_conversations().is_empty());
 }
 
@@ -226,7 +226,7 @@ fn question_membership_is_supplied_by_the_start_census_index() {
         let mut out = Queue::uncapped();
         tasks::step(
             &mut core.tasks,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+            &env.with(env.limits.tasks),
             tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) },
             &mut out,
         );
@@ -257,7 +257,7 @@ fn a_full_question_list_names_its_live_task_record() {
     let mut out = Queue::uncapped();
     tasks::step(
         &mut core.tasks,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+        &env.with(env.limits.tasks),
         tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) },
         &mut out,
     );

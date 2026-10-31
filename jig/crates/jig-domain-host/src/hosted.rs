@@ -1199,7 +1199,7 @@ fn explained(ending: RunEnding, detail: Box<[u8]>) -> RunEnding {
 
 /// The last bytes of `detail`, as many as the limits keep.
 fn tail(detail: Box<[u8]>, limits: &Limits) -> Box<[u8]> {
-    let keep = usize::try_from(limits.detail_bytes).expect("a u32 fits in a usize");
+    let keep = skein_lib::length::usize_of(limits.detail_bytes);
     match detail.len().checked_sub(keep) {
         Some(cut) if cut > 0 => copy_of(detail.get(cut..).expect("cut within the detail")),
         Some(_) | None => detail,

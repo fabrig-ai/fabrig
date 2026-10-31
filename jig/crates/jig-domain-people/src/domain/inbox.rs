@@ -672,10 +672,7 @@ fn addressed(domain: &Domain, person: u64, need: Need) -> bool {
 }
 
 fn replace_needs(domain: &mut Domain, limits: &Limits, task: u64, entries: &[Entry]) {
-    assert!(
-        entries.len() <= usize::try_from(limits.inbox_recipients).expect("projection bound fits"),
-        "root bounds each task projection"
-    );
+    assert!(entries.len() <= skein_lib::length::usize_of(limits.inbox_recipients), "root bounds each task projection");
     let mut tallies: List<Need> = List::with_capacity(limits.inbox_recipients);
     for entry in entries {
         if entry.task != task || entry.project == 0 {
@@ -870,10 +867,7 @@ pub(super) fn project_chat(
 }
 
 fn project_replies(domain: &mut Domain, limits: &Limits, party: u64, replies: Box<[ReplyRef]>) {
-    assert!(
-        replies.len() <= usize::try_from(limits.inbox_recipients).expect("reply projection bound"),
-        "bounded owner hints"
-    );
+    assert!(replies.len() <= skein_lib::length::usize_of(limits.inbox_recipients), "bounded owner hints");
     for reply in replies {
         cache_update(domain, limits, party, Update::ChatReply(reply));
     }

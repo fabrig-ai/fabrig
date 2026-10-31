@@ -254,7 +254,7 @@ fn saved_wire<T>(
     encode: fn(&T, &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow>,
     decode: fn(&crate::tasks_v9::Limits, &mut skein_lib::Reader<'_>) -> Result<T, crate::tasks_v9::Problem>,
 ) -> T {
-    let mut writer = skein_lib::Writer::new(usize::try_from(measure(&value)).expect("measured length"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(measure(&value)));
     encode(&value, &mut writer).expect("measured room");
     decode(&tasks_limits(), &mut skein_lib::Reader::new(&writer.finish())).expect("within bounds")
 }
@@ -583,7 +583,7 @@ fn people_round_trip(row: jig_domain_people::Stored) {
 fn ask_round_trip(ask: jig_domain_people::Ask) {
     let limits = people_limits();
     let value = crate::codec::people::encode_ask(&ask, &limits).expect("bounded ask");
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("bounded length"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured room");
     let bytes = writer.finish();
     let read = crate::people_v14::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("saved ask");
@@ -1427,8 +1427,8 @@ fn an_owing_reminder_survives_storage_with_small_caller_word_limits() {
     let domain =
         jig_domain_tasks::Limits { message_bytes: 16, result_bytes: 32, inbox_bytes: 4096, ..fixtures::TASKS_LIMITS };
     let words = b"You owe your requester a question: ask your plan with message, as a question, and wait.";
-    assert!(words.len() > usize::try_from(domain.message_bytes).expect("word bound"));
-    assert!(words.len() <= usize::try_from(domain.inbox_bytes).expect("inbox bound"));
+    assert!(words.len() > skein_lib::length::usize_of(domain.message_bytes));
+    assert!(words.len() <= skein_lib::length::usize_of(domain.inbox_bytes));
     let limits = crate::codec::tasks::limits(&domain).expect("unchanged inbox envelope fits");
     let row = Stored::Activity(ActivityLine {
         task: 1,

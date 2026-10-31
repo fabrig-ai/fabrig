@@ -40,7 +40,7 @@ fn resource_updates_keep_the_latest_report() {
 #[test]
 fn malformed_resource_reports_are_ignored() {
     let (mut domain, env, mut out) = fresh();
-    let bytes = usize::try_from(env.limits.hold_bytes).expect("fixture byte limit fits usize") + 1;
+    let bytes = skein_lib::length::usize_of(env.limits.hold_bytes) + 1;
     let name = Name { connector: CONNECTOR, path: Box::new([vec![b'x'; bytes].into_boxed_slice()]) };
     step(&mut domain, &env, Event::Resource { name: name.clone(), hold: HoldKind::Shared }, &mut out);
     assert_eq!(domain.resource_hold(&name), None);

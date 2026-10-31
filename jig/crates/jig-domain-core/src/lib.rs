@@ -7,6 +7,7 @@
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 
 pub mod acts;
 mod admission;
@@ -377,7 +378,7 @@ impl Core {
         assert!(config.settings.tools.valid(), "each engine tool has one configured authority bit");
 
         assert!(
-            config.connectors.len() <= usize::try_from(limits.connectors).expect("connector count fits usize"),
+            config.connectors.len() <= skein_lib::length::usize_of(limits.connectors),
             "core prices every configured connector number"
         );
         assert_connector_registry(&config.connectors);
@@ -394,12 +395,12 @@ impl Core {
         );
         charters::assert_catalogue(&config.settings);
         assert!(
-            config.seed_projects.len() <= usize::try_from(limits.authority.projects).expect("project bound"),
+            config.seed_projects.len() <= skein_lib::length::usize_of(limits.authority.projects),
             "core prices seed projects"
         );
         assert!(config.defaults.policies.capacity() <= limits.authority.projects, "core prices configured policies");
         assert!(
-            config.seed_projects.len() < usize::try_from(limits.people.projects).expect("people project bound"),
+            config.seed_projects.len() < skein_lib::length::usize_of(limits.people.projects),
             "people prices seed rosters and the deployment's"
         );
         for (index, project) in config.seed_projects.iter().enumerate() {

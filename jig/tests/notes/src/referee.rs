@@ -153,8 +153,8 @@ impl Referee {
                         assert_eq!(line.description, entry.description, "index describes the committed entry");
                         assert_eq!(line.revision, entry.revision, "index gives the committed revision");
                     }
-                    assert!(entry.description.len() <= usize::try_from(limits.description_bytes).expect("bound fits"));
-                    assert!(entry.body.len() <= usize::try_from(limits.body_bytes).expect("bound fits"));
+                    assert!(entry.description.len() <= skein_lib::length::usize_of(limits.description_bytes));
+                    assert!(entry.body.len() <= skein_lib::length::usize_of(limits.body_bytes));
                     assert!(entry.references.len() <= limits.references);
                 }
                 Record::Line(line) => {

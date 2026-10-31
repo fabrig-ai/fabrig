@@ -1,37 +1,38 @@
 //! Party words are UTF-8 at request admission (client/domain/contract.md, 5.3).
 use crate::{Ask, EscalationDecision, NoteChange, PersonResult, ProposalDecision};
+use skein_lib::bytes::is_utf8;
 
 pub(crate) fn valid(ask: &Ask) -> bool {
     match ask {
-        Ask::Say { words, .. } | Ask::AnswerQuestion { words, .. } => text(words),
-        Ask::Propose { action: crate::Action::Batch(batch), reason, .. } => text(reason) && batch_words(batch),
+        Ask::Say { words, .. } | Ask::AnswerQuestion { words, .. } => is_utf8(words),
+        Ask::Propose { action: crate::Action::Batch(batch), reason, .. } => is_utf8(reason) && batch_words(batch),
         Ask::Create { batch, .. } => batch_words(batch),
-        Ask::MakeService { name, .. } => text(name),
+        Ask::MakeService { name, .. } => is_utf8(name),
         Ask::Propose { action: crate::Action::Settings { .. }, reason, .. }
         | Ask::Move { reason, .. }
-        | Ask::Cancel { reason, .. } => text(reason),
+        | Ask::Cancel { reason, .. } => is_utf8(reason),
         Ask::DecideEscalation { decision, .. } => match decision {
-            EscalationDecision::Reject { reason } => text(reason),
+            EscalationDecision::Reject { reason } => is_utf8(reason),
             EscalationDecision::Release | EscalationDecision::Pass => true,
         },
         Ask::DecideProposal { decision, .. } => match decision {
-            ProposalDecision::Reject { reason } => text(reason),
+            ProposalDecision::Reject { reason } => is_utf8(reason),
             ProposalDecision::Accept | ProposalDecision::Pass => true,
         },
         Ask::AnswerPerson { result, .. } => match result {
-            PersonResult::Report { words } | PersonResult::Verdict { words, .. } => text(words),
-            PersonResult::Failure { reason } => text(reason),
+            PersonResult::Report { words } | PersonResult::Verdict { words, .. } => is_utf8(words),
+            PersonResult::Failure { reason } => is_utf8(reason),
             PersonResult::Approved { words, .. } => match words {
-                Some(words) => text(words),
+                Some(words) => is_utf8(words),
                 None => true,
             },
         },
         Ask::EditNote { change, .. } => match change.as_ref() {
-            NoteChange::Correct { description, body, .. } => text(description) && text(body),
+            NoteChange::Correct { description, body, .. } => is_utf8(description) && is_utf8(body),
             NoteChange::Delete { .. } => true,
         },
         Ask::Propose { action: crate::Action::Amend { amendment, .. }, reason, .. } => {
-            text(reason) && amendment_words(amendment)
+            is_utf8(reason) && amendment_words(amendment)
         }
         Ask::Amend { amendment, .. } => amendment_words(amendment),
         Ask::Compound { .. }
@@ -58,20 +59,15 @@ pub(crate) fn valid(ask: &Ask) -> bool {
     }
 }
 
-#[expect(clippy::disallowed_methods, reason = "client/domain/contract.md, 5.3 requires UTF-8 text validation")]
-fn text(bytes: &[u8]) -> bool {
-    core::str::from_utf8(bytes).is_ok()
-}
-
 fn batch_words(batch: &[crate::Member]) -> bool {
     for member in batch {
-        if !text(&member.words) {
+        if !is_utf8(&member.words) {
             return false;
         }
         for parameter in &member.parameters {
             match parameter {
                 crate::Parameter::Bytes { value, .. } => {
-                    if !text(value) {
+                    if !is_utf8(value) {
                         return false;
                     }
                 }
@@ -83,22 +79,22 @@ fn batch_words(batch: &[crate::Member]) -> bool {
 }
 
 fn amendment_words(amendment: &crate::Amendment) -> bool {
-    if !text(&amendment.reason) {
+    if !is_utf8(&amendment.reason) {
         return false;
     }
     if let Some(instructions) = &amendment.instructions
-        && !text(instructions)
+        && !is_utf8(instructions)
     {
         return false;
     }
     if let Some(spec) = &amendment.spec {
-        if !text(&spec.words) {
+        if !is_utf8(&spec.words) {
             return false;
         }
         for parameter in &spec.parameters {
             match parameter {
                 crate::Parameter::Bytes { value, .. } => {
-                    if !text(value) {
+                    if !is_utf8(value) {
                         return false;
                     }
                 }

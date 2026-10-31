@@ -56,7 +56,7 @@ impl Sources {
 }
 pub(crate) fn replace(domain: &mut Domain, env: &Env<Limits>, names: Box<[SourceName]>, out: &mut Queue<Request>) {
     assert!(
-        names.len() <= usize::try_from(env.limits.program_sources).expect("source bound") && unique(&names),
+        names.len() <= skein_lib::length::usize_of(env.limits.program_sources) && unique(&names),
         "bounded unique source declarations"
     );
     if same_names(&domain.program_sources, &names) {
@@ -136,11 +136,11 @@ pub(crate) fn logins(
         fault(domain, env, channel, out);
         return;
     }
-    let mut bounded = rows.len() <= usize::try_from(env.limits.program_sources).expect("source bound");
+    let mut bounded = rows.len() <= skein_lib::length::usize_of(env.limits.program_sources);
     for row in &rows {
         match &row.state {
             LoginState::Failed { detail, .. } => {
-                if detail.len() > usize::try_from(env.limits.source_detail_bytes).expect("detail bound") {
+                if detail.len() > skein_lib::length::usize_of(env.limits.source_detail_bytes) {
                     bounded = false;
                 }
             }
@@ -209,7 +209,7 @@ pub(crate) fn signed_out(
     let Some(&id) = domain.tokens.get(&channel) else { return };
     match &result {
         SignOutResult::Failed { detail, .. } => {
-            if detail.len() > usize::try_from(env.limits.source_detail_bytes).expect("detail bound") {
+            if detail.len() > skein_lib::length::usize_of(env.limits.source_detail_bytes) {
                 fault(domain, env, channel, out);
                 return;
             }

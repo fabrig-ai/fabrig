@@ -107,7 +107,6 @@ pub(super) fn decode_turn_proof(source: wire::TurnProof) -> domain::TurnProof {
     let wire::TurnProofParts { turn, cumulative, read } = source.into_parts();
     domain::TurnProof { turn, cumulative, read }
 }
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches without closures")]
 pub(super) fn encode_run_proof(source: &domain::RunProof, limits: &View) -> Result<wire::RunProof, wire::Problem> {
     let domain::RunProof {
         task,
@@ -156,7 +155,6 @@ pub(super) fn encode_run_proof(source: &domain::RunProof, limits: &View) -> Resu
         },
     )
 }
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches without closures")]
 pub(super) fn decode_run_proof(source: wire::RunProof, limits: &View) -> Result<domain::RunProof, wire::Problem> {
     let wire::RunProofParts {
         task,

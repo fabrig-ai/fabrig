@@ -21,7 +21,7 @@ pub enum Action {
 pub(crate) fn invalid(limits: &crate::Limits, batch: &[Member]) -> crate::LimitKind {
     if batch.is_empty() {
         crate::LimitKind::Empty
-    } else if batch.len() > usize::try_from(limits.batch).expect("u32 fits usize") {
+    } else if batch.len() > skein_lib::length::usize_of(limits.batch) {
         crate::LimitKind::Batch
     } else {
         crate::LimitKind::Words
@@ -162,13 +162,11 @@ pub fn member_bytes(member: &Member) -> Option<u64> {
     Some(total)
 }
 pub(crate) fn valid(limits: &crate::Limits, batch: &[Member]) -> bool {
-    if batch.is_empty() || batch.len() > usize::try_from(limits.batch).expect("u32 fits usize") {
+    if batch.is_empty() || batch.len() > skein_lib::length::usize_of(limits.batch) {
         return false;
     }
     for member in batch {
-        if member.words.len() > usize::try_from(limits.words).expect("u32 fits usize")
-            || !crate::llm::valid(member.llm.as_ref())
-        {
+        if member.words.len() > skein_lib::length::usize_of(limits.words) || !crate::llm::valid(member.llm.as_ref()) {
             return false;
         }
         match member_bytes(member) {

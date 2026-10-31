@@ -27,7 +27,6 @@ fn load(out: &Queue<Request>) -> (Token, crate::reads::Range) {
     found.expect("one next page")
 }
 
-#[expect(clippy::manual_map, reason = "the fixture spells out the optional store cursor")]
 fn page(
     core: &mut Core,
     limits: &Limits,

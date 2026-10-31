@@ -18,7 +18,6 @@ use alloc::boxed::Box;
 use jig_domain_views as views;
 use skein_lib::{Env, List, Map, Queue, Token};
 
-#[expect(clippy::manual_map, reason = "step code names the optional project without a closure")]
 fn task_project(core: &Core, task: u64) -> Option<u32> {
     match core.tasks.task(task) {
         Some(row) => Some(row.project),

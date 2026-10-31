@@ -181,7 +181,7 @@ fn account_uses_are_bounded_before_admission() {
             AccountHolder::Own,
             AccountChange::SetUses {
                 account: 1,
-                uses: Some(vec![Use::Party(1); usize::try_from(USES).expect("account uses fit usize") + 1].into()),
+                uses: Some(vec![Use::Party(1); skein_lib::length::usize_of(USES) + 1].into()),
             },
         ),
     );

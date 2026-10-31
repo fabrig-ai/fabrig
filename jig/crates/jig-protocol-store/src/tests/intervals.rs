@@ -55,7 +55,6 @@ fn cursor_keys() -> Box<[Key]> {
 }
 
 #[test]
-#[expect(clippy::manual_map, reason = "the strict subset translates optional cursors without closures")]
 fn each_restart_range_holds_the_keys_it_admits_and_no_others() {
     for key in cursor_keys() {
         let bytes = key_bytes(&key);
@@ -302,7 +301,7 @@ fn the_census_holds_the_keys_it_admits_and_no_others() {
                 && let Some(index) = census.interval(&key)
             {
                 assert!(fixtures::within(
-                    core::slice::from_ref(&intervals[usize::try_from(index).expect("bounded interval")]),
+                    core::slice::from_ref(&intervals[skein_lib::length::usize_of(index)]),
                     &bytes
                 ));
             }

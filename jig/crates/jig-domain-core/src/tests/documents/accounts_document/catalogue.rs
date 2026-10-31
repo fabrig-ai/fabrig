@@ -18,7 +18,7 @@ fn hosted_records(records: Vec<accounts::Stored>, granted: bool) -> (Core, Env<L
         grant(&mut core, &env, FIRST_SOURCE);
     }
     let mut out = Queue::uncapped();
-    let host_env = Env { now: env.now, wall: env.wall, limits: env.limits.fleet };
+    let host_env = env.with(env.limits.fleet);
     fleet::step(
         &mut core.fleet,
         &host_env,

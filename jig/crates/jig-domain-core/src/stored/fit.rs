@@ -39,7 +39,7 @@ fn note_excess(entry: &notes::Entry, limits: &notes::Limits) -> Option<(u64, u64
     for (held, limit) in [
         (entry.description.len(), limits.description_bytes),
         (entry.body.len(), limits.body_bytes),
-        (usize::try_from(entry.references.capacity()).expect("reference bound fits usize"), limits.references),
+        (skein_lib::length::usize_of(entry.references.capacity()), limits.references),
     ] {
         if let Some(failure) = excess(held, limit) {
             return Some(failure);

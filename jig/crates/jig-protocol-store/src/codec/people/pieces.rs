@@ -93,7 +93,7 @@ pub(super) fn encode_segments(
     for value in values {
         spend(&mut used, owned(size_of::<Box<[u8]>>(), value.len()), sum)?;
         let value = wire::Segment::new(limits, wire::SegmentParts { bytes: value.clone() })?;
-        let mut item = Writer::new(usize::try_from(value.measure()).expect("measured size"));
+        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut item).expect("measured item");
         items.push(item.finish()).expect("same item count");
     }
@@ -131,7 +131,7 @@ pub(super) fn encode_delegation_kinds(
     for value in values {
         spend(&mut used, u64::try_from(size_of::<domain::Executor>()).ok(), sum)?;
         let value = encode_executor(*value, limits)?;
-        let mut item = Writer::new(usize::try_from(value.measure()).expect("measured size"));
+        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut item).expect("measured item");
         items.push(item.finish()).expect("same item count");
     }
@@ -169,7 +169,7 @@ pub(super) fn encode_authority_note_resources(
     for value in values {
         spend(&mut used, scope_bytes(value), sum)?;
         let value = encode_resource_scope(value, limits)?;
-        let mut item = Writer::new(usize::try_from(value.measure()).expect("measured size"));
+        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut item).expect("measured item");
         items.push(item.finish()).expect("same item count");
     }
@@ -207,7 +207,7 @@ pub(super) fn encode_grant_piece(
     for value in values {
         spend(&mut used, grant_bytes(value), sum)?;
         let value = encode_grant(value, limits)?;
-        let mut item = Writer::new(usize::try_from(value.measure()).expect("measured size"));
+        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut item).expect("measured item");
         items.push(item.finish()).expect("same item count");
     }
@@ -245,7 +245,7 @@ pub(super) fn encode_requirement_piece(
     for value in values {
         spend(&mut used, requirement_bytes(value), sum)?;
         let value = encode_requirement(value, limits)?;
-        let mut item = Writer::new(usize::try_from(value.measure()).expect("measured size"));
+        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut item).expect("measured item");
         items.push(item.finish()).expect("same item count");
     }
@@ -283,7 +283,7 @@ pub(super) fn encode_spec_parameters(
     for value in values {
         spend(&mut used, parameter_bytes(value), sum)?;
         let value = encode_parameter(value, limits)?;
-        let mut item = Writer::new(usize::try_from(value.measure()).expect("measured size"));
+        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut item).expect("measured item");
         items.push(item.finish()).expect("same item count");
     }
@@ -321,7 +321,7 @@ pub(super) fn encode_numbers(
     for value in values {
         spend(&mut used, u64::try_from(size_of::<u64>()).ok(), sum)?;
         let value = wire::Number64::new(limits, wire::Number64Parts { value: *value })?;
-        let mut item = Writer::new(usize::try_from(value.measure()).expect("measured size"));
+        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut item).expect("measured item");
         items.push(item.finish()).expect("same item count");
     }
@@ -355,7 +355,7 @@ pub(super) fn encode_permissions(
     for value in values {
         spend(&mut used, u64::try_from(size_of::<domain::PermissionRole>()).ok(), sum)?;
         let value = encode_permission_role(*value, limits)?;
-        let mut item = Writer::new(usize::try_from(value.measure()).expect("measured size"));
+        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut item).expect("measured item");
         items.push(item.finish()).expect("same item count");
     }

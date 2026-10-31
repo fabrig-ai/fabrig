@@ -222,7 +222,6 @@ impl Core {
         self.start_ask(continuation.phase)
     }
 
-    #[expect(clippy::manual_map, reason = "the step-code subset uses exhaustive matches")]
     pub(crate) fn start_collect_failure(&mut self) {
         if self.start.phase.is_none() || self.start.failure.is_some() {
             return;

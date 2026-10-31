@@ -56,7 +56,7 @@ pub(crate) fn resource(domain: &mut Domain, limits: &Limits, name: Name, hold: H
 /// Install immutable connector configuration before admission.
 pub(crate) fn kinds(domain: &mut Domain, limits: &Limits, connector: u16, kinds: &[Kind]) {
     assert!(
-        kinds.len() <= usize::try_from(limits.hold_kinds).expect("u32 fits usize"),
+        kinds.len() <= skein_lib::length::usize_of(limits.hold_kinds),
         "connector hold kinds fit the configured bound"
     );
     for configured in kinds {
@@ -180,7 +180,7 @@ fn matching(holding: &Holding, rule: HoldKind) -> bool {
 }
 
 fn shape(limits: &Limits, name: &Name) -> bool {
-    if name.path.len() > usize::try_from(limits.hold_segments).expect("u32 fits usize") {
+    if name.path.len() > skein_lib::length::usize_of(limits.hold_segments) {
         return false;
     }
     let mut bytes = 0_u32;
@@ -278,7 +278,7 @@ fn waiting_count(domain: &Domain, holding: &Holding) -> u32 {
 #[expect(clippy::too_many_lines, reason = "whole-batch hold admission checks every resource before mutation")]
 pub(crate) fn check_batch(domain: &Domain, limits: &Limits, creator: Party, batch: &[New]) -> Result<(), Problem> {
     for (at, new) in batch.iter().enumerate() {
-        if new.holdings.len() > usize::try_from(limits.holdings).expect("u32 fits usize") {
+        if new.holdings.len() > skein_lib::length::usize_of(limits.holdings) {
             return Err(crate::capacity::batch_problem(
                 Some(new.number),
                 Refusal::Holds,
@@ -622,7 +622,7 @@ pub(crate) fn retained(
         }
     }
     let capacity = env.limits.tasks.checked_mul(env.limits.holdings).expect("bounded live holds");
-    if parent.holdings.len() >= usize::try_from(capacity).expect("u32 fits usize") {
+    if parent.holdings.len() >= skein_lib::length::usize_of(capacity) {
         return;
     }
     let mut kept = List::with_capacity(capacity);

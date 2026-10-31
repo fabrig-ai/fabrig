@@ -484,13 +484,12 @@ fn an_empty_terminal_page_is_legal() {
 #[test]
 fn the_restore_allowance_fits_maximum_application_rows() {
     let mut store = fixtures::opened();
-    let mut key = skein_lib::bytes::zeroed(usize::try_from(fixtures::APPLICATION.key).expect("fixture key bound"));
+    let mut key = skein_lib::bytes::zeroed(skein_lib::length::usize_of(fixtures::APPLICATION.key));
     key.fill(b'a');
     let first = key.clone();
     *key.last_mut().expect("nonempty key") = b'b';
     let second = key;
-    let mut value =
-        skein_lib::bytes::zeroed(usize::try_from(fixtures::APPLICATION.value).expect("fixture value bound"));
+    let mut value = skein_lib::bytes::zeroed(skein_lib::length::usize_of(fixtures::APPLICATION.value));
     value.fill(7);
     fixtures::committed(
         &mut store,

@@ -172,8 +172,8 @@ pub(crate) fn shaped(hold: &PlacedHold, limits: &Limits) -> bool {
         && hold.project != 0
         && hold.revision != 0
         && hold.revision != u64::MAX
-        && hold.reason.len() <= usize::try_from(limits.message_bytes).expect("bounded bytes")
-        && hold.exempt.len() <= usize::try_from(limits.exemptions).expect("bounded exemptions")
+        && hold.reason.len() <= skein_lib::length::usize_of(limits.message_bytes)
+        && hold.exempt.len() <= skein_lib::length::usize_of(limits.exemptions)
         && match hold.owner {
             Owner::Party { person } => person != 0,
             Owner::Task { task } => task != 0,
@@ -375,7 +375,7 @@ pub(crate) fn check_release(
         hold.lifted = true;
         hold.revision = hold.revision.checked_add(1).ok_or(Refusal::State)?;
     } else if !hold.lifted {
-        if hold.exempt.len() >= usize::try_from(limits.exemptions).expect("bounded exemptions") {
+        if hold.exempt.len() >= skein_lib::length::usize_of(limits.exemptions) {
             return Err(Refusal::Busy);
         }
         let mut exempt = List::with_capacity(limits.exemptions);

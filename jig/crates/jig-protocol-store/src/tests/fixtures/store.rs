@@ -384,7 +384,7 @@ pub fn script(store: &mut Store, mut below: Below, answers: &[Answer]) -> Box<[E
                 let file::Request::ReadAt { owner, max, .. } = request else {
                     panic!("read frame");
                 };
-                assert!(bytes.len() <= usize::try_from(max).expect("read size"));
+                assert!(bytes.len() <= skein_lib::length::usize_of(max));
                 file::Event::Read { owner, bytes: bytes.clone() }
             }
             Answer::Removed => {

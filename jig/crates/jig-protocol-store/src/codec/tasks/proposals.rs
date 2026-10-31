@@ -646,7 +646,6 @@ fn optional_dependencies(
         None => Ok(None),
     }
 }
-#[expect(clippy::manual_map, reason = "step code uses exhaustive matches instead of closures or function pointers")]
 fn read_optional_dependencies(source: Option<List<wire::Number>>) -> Option<Box<[u64]>> {
     match source {
         Some(value) => Some(phase::read_references(value)),
@@ -662,7 +661,6 @@ fn optional_address(
         None => Ok(None),
     }
 }
-#[expect(clippy::manual_map, reason = "step code uses exhaustive matches instead of closures or function pointers")]
 fn read_optional_address(source: Option<wire::PersonAddress>) -> Option<domain::PersonAddress> {
     match source {
         Some(value) => Some(value::read_person_address(value)),
@@ -848,7 +846,7 @@ fn setting_heads(
     items: &[domain::SettingHead],
     limits: &wire::Limits,
 ) -> Result<wire::ProposedSettings, wire::Problem> {
-    if items.len() > usize::try_from(limits.proposed_settings_items).expect("item bound fits") {
+    if items.len() > skein_lib::length::usize_of(limits.proposed_settings_items) {
         return Err(wire::Problem { path: wire::Path::ProposedSettingsItems, reason: skein_codec::Reason::Bound });
     }
     let mut heads = List::with_capacity(domain::SETTINGS_ITEMS);

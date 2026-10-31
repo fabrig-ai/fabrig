@@ -14,14 +14,12 @@ use skein_lib::{Env, Queue, ReplyTo};
 
 pub(crate) fn saved_within(saved: Option<&[SavedResource]>, limits: &Limits) -> bool {
     let Some(resources) = saved else { return true };
-    if resources.len() > usize::try_from(limits.saved_resources).expect("u32 fits usize") {
+    if resources.len() > skein_lib::length::usize_of(limits.saved_resources) {
         return false;
     }
     let mut previous = None;
     for resource in resources {
-        if resource.path.is_empty()
-            || resource.path.len() > usize::try_from(limits.authority_segments).expect("u32 fits usize")
-        {
+        if resource.path.is_empty() || resource.path.len() > skein_lib::length::usize_of(limits.authority_segments) {
             return false;
         }
         let mut bytes = 0usize;
@@ -29,7 +27,7 @@ pub(crate) fn saved_within(saved: Option<&[SavedResource]>, limits: &Limits) -> 
             let Some(sum) = bytes.checked_add(segment.len()) else { return false };
             bytes = sum;
         }
-        if bytes > usize::try_from(limits.authority_bytes).expect("u32 fits usize") {
+        if bytes > skein_lib::length::usize_of(limits.authority_bytes) {
             return false;
         }
         if let Some(before) = previous
@@ -179,7 +177,7 @@ pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &
             Contract::Approval { state: expected, .. } => {
                 if state != expected {
                     Some(InvalidResult::Form)
-                } else if result_bytes(result) > usize::try_from(limits.result_bytes).expect("u32 fits usize") {
+                } else if result_bytes(result) > skein_lib::length::usize_of(limits.result_bytes) {
                     Some(InvalidResult::Words)
                 } else {
                     None
@@ -192,7 +190,7 @@ pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &
             | Contract::Report { .. }
             | Contract::Verdict { .. }
             | Contract::Change { .. } => {
-                if reason.len() <= usize::try_from(limits.result_bytes).expect("u32 fits usize") {
+                if reason.len() <= skein_lib::length::usize_of(limits.result_bytes) {
                     None
                 } else {
                     Some(InvalidResult::Words)
@@ -201,7 +199,7 @@ pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &
         },
         TaskResult::Report { words } => match contract {
             Contract::Report { words: limit } => {
-                if words.len() <= usize::try_from(*limit).expect("u32 fits usize") {
+                if words.len() <= skein_lib::length::usize_of(*limit) {
                     None
                 } else {
                     Some(InvalidResult::Words)
@@ -213,8 +211,8 @@ pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &
             Contract::Verdict { choices } => {
                 for choice in choices {
                     if choice.code == *code {
-                        return if words.len() > usize::try_from(choice.words).expect("u32 fits usize")
-                            || result_bytes(result) > usize::try_from(limits.result_bytes).expect("u32 fits usize")
+                        return if words.len() > skein_lib::length::usize_of(choice.words)
+                            || result_bytes(result) > skein_lib::length::usize_of(limits.result_bytes)
                         {
                             Some(InvalidResult::Words)
                         } else if !crate::verdict::fields_valid(&choice.fields, fields) {
@@ -232,7 +230,7 @@ pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &
             Contract::Change { connector, kind, words: limit } => {
                 if connector != actual_connector || kind != actual_kind {
                     Some(InvalidResult::Change)
-                } else if words.len() > usize::try_from(*limit).expect("u32 fits usize") {
+                } else if words.len() > skein_lib::length::usize_of(*limit) {
                     Some(InvalidResult::Words)
                 } else {
                     None
@@ -272,7 +270,7 @@ pub(crate) fn invalid_followups(
         (Contract::Verdict { choices }, TaskResult::Verdict { code, .. }) => {
             for choice in choices {
                 if choice.code == *code {
-                    return if count > 0 && count <= usize::try_from(choice.followups).expect("u32 fits usize") {
+                    return if count > 0 && count <= skein_lib::length::usize_of(choice.followups) {
                         None
                     } else {
                         Some(InvalidResult::Followups)

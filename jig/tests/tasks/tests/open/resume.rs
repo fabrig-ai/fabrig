@@ -269,11 +269,7 @@ fn circle(w: &mut World) {
 }
 
 fn compound(w: &mut World, operations: Vec<Operation>) {
-    let bound = u32::try_from(operations.len()).expect("fixture operations");
-    let mut staged = List::with_capacity(bound);
-    for operation in operations {
-        staged.push(operation).expect("bounded fixture");
-    }
+    let staged = List::from_boxed(operations.into_boxed_slice());
     let reply_to = w.to();
     let call = reply_to.into_token();
     w.send(Event::Compound {

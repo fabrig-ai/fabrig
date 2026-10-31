@@ -55,11 +55,11 @@ impl Models {
 #[must_use]
 /// Protocols validate UTF-8; the domain checks count, lengths and canonical byte order.
 pub fn valid_model_names(names: &[Box<[u8]>]) -> bool {
-    if names.len() > usize::try_from(MODELS).expect("model bound") {
+    if names.len() > skein_lib::length::usize_of(MODELS) {
         return false;
     }
     for (at, name) in names.iter().enumerate() {
-        if name.is_empty() || name.len() > usize::try_from(MODEL_NAME_BYTES).expect("name bound") {
+        if name.is_empty() || name.len() > skein_lib::length::usize_of(MODEL_NAME_BYTES) {
             return false;
         }
         for earlier in names.iter().take(at) {

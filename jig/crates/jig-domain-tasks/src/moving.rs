@@ -107,7 +107,7 @@ pub(crate) fn check(
     if person == 0 || old.requester == Party::Person(person) || !mutable(&old.phase) {
         return Err(crate::Problem::new(Some(number), Refusal::State));
     }
-    if reason.len() > usize::try_from(env.limits.message_bytes).expect("bounded reason size") {
+    if reason.len() > skein_lib::length::usize_of(env.limits.message_bytes) {
         return Err(crate::Problem::new(Some(number), Refusal::Read));
     }
     let mut unanswered = 0_usize;
@@ -123,7 +123,7 @@ pub(crate) fn check(
             Party::Person(_) | Party::Deployment { .. } => {}
         }
     }
-    if unanswered.saturating_add(carried) > usize::try_from(env.limits.inbox_messages).expect("question bound") {
+    if unanswered.saturating_add(carried) > skein_lib::length::usize_of(env.limits.inbox_messages) {
         return Err(crate::Problem::new(Some(number), Refusal::Busy));
     }
     let received_before = crate::inbox::received_credits(old.requester, &old.question_lines, &old.questions);
@@ -202,12 +202,12 @@ pub(crate) fn check(
                 return Err(crate::Problem::new(Some(number), Refusal::Reference));
             };
             if !staged.reference(domain, parent, number)
-                && staged.references(domain, parent) >= usize::try_from(env.limits.references).expect("reference bound")
+                && staged.references(domain, parent) >= skein_lib::length::usize_of(env.limits.references)
             {
                 return Err(crate::Problem::new(Some(number), Refusal::Reference));
             }
             if !staged.reference(domain, number, parent)
-                && staged.references(domain, number) >= usize::try_from(env.limits.references).expect("reference bound")
+                && staged.references(domain, number) >= skein_lib::length::usize_of(env.limits.references)
             {
                 return Err(crate::Problem::new(Some(number), Refusal::Reference));
             }

@@ -57,7 +57,7 @@ fn delegates_within(tasks: &[Delegate], limits: &Limits) -> bool {
             return false;
         }
         match task.authority.grants.len().checked_add(task.symbolic.len()) {
-            Some(count) if count <= usize::try_from(limits.grants).expect("u32 fits usize") => {}
+            Some(count) if count <= skein_lib::length::usize_of(limits.grants) => {}
             Some(_) | None => return false,
         }
         for grant in &task.symbolic {
@@ -920,7 +920,6 @@ pub fn needs(action: &Action) -> Option<Authority> {
     }
 }
 
-#[expect(clippy::manual_map, reason = "the foundation's step subset uses exhaustive matching without closures")]
 fn batch_needs(tasks: &[Delegate]) -> Option<Authority> {
     let mut grant_count = 0_u32;
     let mut kind_count = 0_u32;

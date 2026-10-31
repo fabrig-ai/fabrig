@@ -40,7 +40,7 @@ fn the_pattern_piece_admits_512_segments_and_refuses_513() {
         let encoded = people::policy::encode_pattern(&value, &limits);
         if passes {
             let encoded = encoded.expect(label);
-            let mut out = Writer::new(usize::try_from(encoded.measure()).expect("measured size"));
+            let mut out = Writer::new(skein_lib::length::usize_of(encoded.measure()));
             encoded.encode(&mut out).expect("measured pattern");
             let bytes = out.finish();
             let decoded = people_v14::Pattern::decode(&limits, &mut Reader::new(&bytes)).expect("encoded pattern");
@@ -57,7 +57,7 @@ fn a_whole_amendment_admits_its_full_sum_and_refuses_one_byte_past_it() {
     let value = amendment();
     assert_eq!(person::amendment_bytes(&value), Some(8192));
     let encoded = people::policy::encode_amendment(&value, &limits).expect("whole sum fits");
-    let mut out = Writer::new(usize::try_from(encoded.measure()).expect("measured size"));
+    let mut out = Writer::new(skein_lib::length::usize_of(encoded.measure()));
     encoded.encode(&mut out).expect("measured amendment");
     let bytes = out.finish();
     let decoded = people_v14::Amendment::decode(&limits, &mut Reader::new(&bytes)).expect("whole amendment");
@@ -90,7 +90,7 @@ fn saved_fields(
 ) -> Result<Box<[task::ResultField]>, tasks_v9::Problem> {
     let value = task::TaskResult::Verdict { code: 7, fields: fields.into(), words: Box::new([]) };
     let encoded = tasks::phase::result(&value, limits)?;
-    let mut out = Writer::new(usize::try_from(encoded.measure()).expect("measured size"));
+    let mut out = Writer::new(skein_lib::length::usize_of(encoded.measure()));
     encoded.encode(&mut out).expect("measured verdict");
     let bytes = out.finish();
     let decoded = tasks_v9::TaskResult::decode(limits, &mut Reader::new(&bytes))?;

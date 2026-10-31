@@ -69,7 +69,6 @@ pub struct Accounts {
     pub readiness_cut: bool,
 }
 
-#[expect(clippy::manual_map, reason = "step code uses exhaustive options without closures")]
 pub(super) fn source_lines(core: &Core, limits: &Limits, account: &accounts::Account) -> List<SourceLine> {
     let mut sources = List::with_capacity(limits.documents.lines);
     for (place, number) in account.sources().iter().take(line_bound(limits)) {
@@ -98,7 +97,6 @@ pub(super) fn source_lines(core: &Core, limits: &Limits, account: &accounts::Acc
     sources
 }
 
-#[expect(clippy::manual_map, reason = "step code has no closures (programming-model.md, section 10)")]
 pub(super) fn make(core: &Core, limits: &Limits, party: u64, owner: u64, window: &Window) -> Result<Accounts, Missing> {
     core.people.identity(party).ok_or(Missing::Unknown)?;
     if super::document_bound(&limits.documents).is_none() || window.rows > limits.documents.rows {
