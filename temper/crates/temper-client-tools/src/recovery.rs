@@ -48,7 +48,7 @@ impl Recovery {
                 }
             }
             jig_client::Request::Exchange { message: jig_client::Message::Request(bytes), .. } => {
-                if let Ok(request) = w::Keyed::decode(&limits.wire, &mut Reader::new(bytes)) {
+                if let Ok(request) = w::Keyed::decode(limits.wire(), &mut Reader::new(bytes)) {
                     self.sent_name(*request.key());
                 }
             }
@@ -119,23 +119,23 @@ impl Recovery {
 #[must_use]
 pub fn restore(entry: &Record, limits: &Limits) -> Option<RequestRecord<Held>> {
     if entry.key.len() != 16
-        || u64::try_from(entry.bytes.len()).expect("record length fits") > limits.client.document_bytes
+        || u64::try_from(entry.bytes.len()).expect("record length fits") > limits.client().document_bytes
     {
         return None;
     }
     let mut reader = Reader::new(&entry.bytes);
-    let kept = w::Kept::decode(&limits.wire, &mut reader).ok()?;
+    let kept = w::Kept::decode(limits.wire(), &mut reader).ok()?;
     if reader.remaining() != 0 || kept.store_version() != jig_client_domain::TABLE_VERSION {
         return None;
     }
     let mut reader = Reader::new(kept.record());
-    let row = translate::store::restore_table(w::TableEntry::decode(&limits.wire, &mut reader).ok()?, limits).ok()?;
+    let row = translate::store::restore_table(w::TableEntry::decode(limits.wire(), &mut reader).ok()?, limits).ok()?;
     if reader.remaining() != 0 || row.key.as_slice() != entry.key.as_ref() {
         return None;
     }
     if let Ask::Family { record, .. } = &row.request.request {
         let mut declared = false;
-        for owner in limits.client.owners {
+        for owner in limits.client().owners {
             if owner.family == record.family && owner.version == record.version {
                 declared = true;
                 break;

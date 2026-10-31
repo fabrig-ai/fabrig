@@ -25,10 +25,10 @@ pub(crate) fn owner_project_resource_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerProjectResource::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerProjectResource::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = owner_project_resource_fields(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -71,10 +71,10 @@ pub(crate) fn owner_project_policy_role_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerProjectPolicyRole::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerProjectPolicyRole::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = owner_project_policy_role_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -126,10 +126,10 @@ pub(crate) fn policy_requirement_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::PolicyRequirement::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::PolicyRequirement::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = policy_requirement_fields(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -153,7 +153,7 @@ pub(crate) fn owner_project_policy_fields(
     };
     let opt1 = match value.permissions() {
         Some(item) => {
-            if (item).len() > limits.client.rows {
+            if (item).len() > limits.client().rows {
                 return Err(too_large());
             }
             let mut list0 = List::with_capacity((item).len());
@@ -169,9 +169,9 @@ pub(crate) fn owner_project_policy_fields(
         ceiling: owner_authority_document_fields(value.ceiling(), limits)?,
         period_spend: value.period_spend(),
         escalation_role: opt0,
-        projections: owner_grant_piece(value.projections(), limits, limits.client.authority)?,
-        roles: owner_project_policy_role_piece(value.roles(), limits, limits.client.rows)?,
-        requirements: policy_requirement_piece(value.requirements(), limits, limits.client.rows)?,
+        projections: owner_grant_piece(value.projections(), limits, limits.client().authority)?,
+        roles: owner_project_policy_role_piece(value.roles(), limits, limits.client().rows)?,
+        requirements: policy_requirement_piece(value.requirements(), limits, limits.client().rows)?,
         permissions: opt1,
         permissions_cut: value.permissions_cut(),
         cut: value.cut(),
@@ -223,10 +223,10 @@ pub(crate) fn owner_project_spend_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerProjectSpend::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerProjectSpend::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = owner_project_spend_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -252,10 +252,10 @@ pub(crate) fn owner_part_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Res
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerPart::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerPart::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = crate::translate::facts::owner_part(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -266,7 +266,7 @@ pub(crate) fn owner_part_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Res
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn proposed_task_fields(value: &w::ProposedTask, limits: &Limits) -> Result<c::ProposedTask, w::Problem> {
-    if value.dependencies().len() > limits.client.rows {
+    if value.dependencies().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.dependencies().len());
@@ -290,7 +290,7 @@ pub(crate) fn proposed_task_fields(value: &w::ProposedTask, limits: &Limits) -> 
         budget: value.budget(),
         funder: crate::translate::facts::funder(value.funder()),
         dependencies: list0,
-        resources: owner_part_piece(value.resources(), limits, limits.client.rows)?,
+        resources: owner_part_piece(value.resources(), limits, limits.client().rows)?,
         wake: crate::translate::facts::owner_wake_policy(value.wake()),
         priority: opt1,
         cut: value.cut(),
@@ -318,10 +318,10 @@ pub(crate) fn proposed_task_piece(
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::ProposedTask::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::ProposedTask::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = proposed_task_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -351,7 +351,7 @@ pub(crate) fn recurring_fields(value: &w::Recurring, limits: &Limits) -> Result<
         Some(item) => Some(*item),
         None => None,
     };
-    if value.last_batch().len() > limits.client.rows {
+    if value.last_batch().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list3 = List::with_capacity(value.last_batch().len());
@@ -361,7 +361,7 @@ pub(crate) fn recurring_fields(value: &w::Recurring, limits: &Limits) -> Result<
     Ok(c::Recurring {
         chip: chip_fields(value.chip(), limits)?,
         key: value.key(),
-        batch: proposed_task_piece(value.batch(), limits, limits.client.rows)?,
+        batch: proposed_task_piece(value.batch(), limits, limits.client().rows)?,
         budget: value.budget(),
         overlap: recurring_overlap_fields(value.overlap()),
         current_period: value.current_period(),
@@ -391,10 +391,10 @@ pub(crate) fn recurring_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Resu
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::Recurring::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::Recurring::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = recurring_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());

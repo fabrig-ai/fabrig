@@ -1,19 +1,16 @@
 //! Single read documents (client/domain/contract.md, 5–6).
 use super::pages::{
     owner_escalation_fields, owner_historical_fields, owner_person_task_fields, owner_proposal_fields, question_fields,
-    receiving,
 };
 use super::{Undecodable, classify};
 use crate::Limits;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
 pub fn owner_proposal(record: w::OwnerProposal, limits: &Limits) -> Result<c::OwnerProposal, Undecodable> {
-    if !crate::limits::valid(limits) || u64::from(record.measure()) > limits.client.document_bytes {
+    if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let checked = receiving(limits)?;
-    let limits = &checked;
-    let record = match w::OwnerProposal::new(&limits.wire, record.into_parts()) {
+    let record = match w::OwnerProposal::new(limits.receiving(), record.into_parts()) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
@@ -24,12 +21,10 @@ pub fn owner_proposal(record: w::OwnerProposal, limits: &Limits) -> Result<c::Ow
 }
 
 pub fn owner_escalation(record: w::OwnerEscalation, limits: &Limits) -> Result<c::OwnerEscalation, Undecodable> {
-    if !crate::limits::valid(limits) || u64::from(record.measure()) > limits.client.document_bytes {
+    if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let checked = receiving(limits)?;
-    let limits = &checked;
-    let record = match w::OwnerEscalation::new(&limits.wire, record.into_parts()) {
+    let record = match w::OwnerEscalation::new(limits.receiving(), record.into_parts()) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
@@ -40,12 +35,10 @@ pub fn owner_escalation(record: w::OwnerEscalation, limits: &Limits) -> Result<c
 }
 
 pub fn question(record: w::Question, limits: &Limits) -> Result<c::Question, Undecodable> {
-    if !crate::limits::valid(limits) || u64::from(record.measure()) > limits.client.document_bytes {
+    if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let checked = receiving(limits)?;
-    let limits = &checked;
-    let record = match w::Question::new(&limits.wire, record.into_parts()) {
+    let record = match w::Question::new(limits.receiving(), record.into_parts()) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
@@ -56,12 +49,10 @@ pub fn question(record: w::Question, limits: &Limits) -> Result<c::Question, Und
 }
 
 pub fn owner_person_task(record: w::OwnerPersonTask, limits: &Limits) -> Result<c::OwnerPersonTask, Undecodable> {
-    if !crate::limits::valid(limits) || u64::from(record.measure()) > limits.client.document_bytes {
+    if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let checked = receiving(limits)?;
-    let limits = &checked;
-    let record = match w::OwnerPersonTask::new(&limits.wire, record.into_parts()) {
+    let record = match w::OwnerPersonTask::new(limits.receiving(), record.into_parts()) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
@@ -72,12 +63,10 @@ pub fn owner_person_task(record: w::OwnerPersonTask, limits: &Limits) -> Result<
 }
 
 pub fn result(record: w::ResultDocument, limits: &Limits) -> Result<c::Result, Undecodable> {
-    if !crate::limits::valid(limits) || u64::from(record.measure()) > limits.client.document_bytes {
+    if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let checked = receiving(limits)?;
-    let limits = &checked;
-    let record = match w::ResultDocument::new(&limits.wire, record.into_parts()) {
+    let record = match w::ResultDocument::new(limits.receiving(), record.into_parts()) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };
@@ -88,12 +77,10 @@ pub fn result(record: w::ResultDocument, limits: &Limits) -> Result<c::Result, U
 }
 
 pub fn owner_historical(record: w::OwnerHistorical, limits: &Limits) -> Result<c::OwnerHistorical, Undecodable> {
-    if !crate::limits::valid(limits) || u64::from(record.measure()) > limits.client.document_bytes {
+    if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let checked = receiving(limits)?;
-    let limits = &checked;
-    let record = match w::OwnerHistorical::new(&limits.wire, record.into_parts()) {
+    let record = match w::OwnerHistorical::new(limits.receiving(), record.into_parts()) {
         Ok(value) => value,
         Err(problem) => return Err(classify(problem)),
     };

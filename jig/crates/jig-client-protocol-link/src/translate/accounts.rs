@@ -199,7 +199,7 @@ pub(crate) fn owner_accounts(value: w::OwnerAccounts, limits: &Limits) -> Result
 /// document by its bytes and account counts (client/domain/client.md, 14), and its domain prices
 /// each document it holds at twice its byte limit (`jig_client_domain::limits`).
 pub(crate) fn document_room(limits: &Limits) -> u64 {
-    limits.client.document_bytes.saturating_mul(2)
+    limits.document_room()
 }
 /// Takes `bytes` from the document's room; a document they would pass is too large.
 pub(crate) fn charge(room: &mut u64, bytes: Option<u64>) -> Result<(), w::Problem> {
@@ -238,7 +238,7 @@ pub(crate) fn owner_account_source_piece(
     room: &mut u64,
 ) -> Result<List<c::OwnerAccountSource>, w::Problem> {
     let count = piece_count(bytes)?;
-    if count > limits.client.accounts.sources {
+    if count > limits.client().accounts.sources {
         return Err(too_large());
     }
     charge(room, List::<c::OwnerAccountSource>::price(count))?;
@@ -246,7 +246,7 @@ pub(crate) fn owner_account_source_piece(
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
         let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else { unreachable!("counted pieces split") };
-        let row = w::OwnerAccountSource::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerAccountSource::decode(limits.receiving(), &mut Reader::new(&item))?;
         rows.push(owner_account_source(&row, room)?).expect("counted pieces fit");
     }
     Ok(rows)
@@ -257,7 +257,7 @@ pub(crate) fn owner_account_line_piece(
     room: &mut u64,
 ) -> Result<List<c::OwnerAccountLine>, w::Problem> {
     let count = piece_count(bytes)?;
-    if count > limits.client.accounts.accounts {
+    if count > limits.client().accounts.accounts {
         return Err(too_large());
     }
     charge(room, List::<c::OwnerAccountLine>::price(count))?;
@@ -265,7 +265,7 @@ pub(crate) fn owner_account_line_piece(
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
         let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else { unreachable!("counted pieces split") };
-        let row = w::OwnerAccountLine::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerAccountLine::decode(limits.receiving(), &mut Reader::new(&item))?;
         rows.push(owner_account_line(&row, limits, room)?).expect("counted pieces fit");
     }
     Ok(rows)
@@ -276,7 +276,7 @@ pub(crate) fn owner_account_sign_in_piece(
     room: &mut u64,
 ) -> Result<List<c::OwnerAccountSignIn>, w::Problem> {
     let count = piece_count(bytes)?;
-    if count > limits.client.accounts.sign_ins {
+    if count > limits.client().accounts.sign_ins {
         return Err(too_large());
     }
     charge(room, List::<c::OwnerAccountSignIn>::price(count))?;
@@ -284,7 +284,7 @@ pub(crate) fn owner_account_sign_in_piece(
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
         let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else { unreachable!("counted pieces split") };
-        let row = w::OwnerAccountSignIn::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerAccountSignIn::decode(limits.receiving(), &mut Reader::new(&item))?;
         rows.push(owner_account_sign_in(&row)).expect("counted pieces fit");
     }
     Ok(rows)

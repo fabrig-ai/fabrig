@@ -10,7 +10,7 @@ pub(crate) fn note_author_fields(value: &w::NoteAuthor) -> c::NoteAuthor {
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn note_fields(value: &w::Note, limits: &Limits) -> Result<c::Note, w::Problem> {
-    if value.tasks().len() > limits.client.rows {
+    if value.tasks().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.tasks().len());
@@ -52,10 +52,10 @@ pub(crate) fn note_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<Li
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::Note::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::Note::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = note_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -75,7 +75,7 @@ pub(crate) fn note_page_fields(value: &w::NotePage, limits: &Limits) -> Result<c
     };
     Ok(c::NotePage {
         cut: value.cut(),
-        rows: note_piece(value.rows(), limits, limits.client.rows)?,
+        rows: note_piece(value.rows(), limits, limits.client().rows)?,
         before: opt0,
         after: opt1,
     })

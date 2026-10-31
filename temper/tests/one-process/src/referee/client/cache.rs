@@ -70,7 +70,7 @@ impl Cache {
             files: BTreeMap::new(),
             history,
             life,
-            limits: super::native_link_limits().wire,
+            limits: *super::native_link_limits().wire(),
         }
     }
     fn path(&self, fd: Fd) -> Option<&Vec<u8>> {

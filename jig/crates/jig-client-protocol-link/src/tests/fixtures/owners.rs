@@ -79,7 +79,7 @@ pub fn owner_project() -> c::OwnerProject {
     }
 }
 pub fn owner_with_account(until: Option<u64>) -> w::OwnerDeployment {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let account = w::OwnerAccount::new(
         &lim,
         w::OwnerAccountParts {

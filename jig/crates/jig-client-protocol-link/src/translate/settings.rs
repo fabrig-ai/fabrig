@@ -842,7 +842,7 @@ fn decode_setting_item_pieces(values: &[u8], limits: &Limits) -> Result<List<c::
             return Ok(rows);
         };
         let mut input = Reader::new(&piece);
-        let row = w::SettingItem::decode(&limits.wire, &mut input)?;
+        let row = w::SettingItem::decode(limits.receiving(), &mut input)?;
         if !input.is_empty() {
             return Err(super::too_large());
         }
@@ -885,7 +885,7 @@ fn decode_revision_item_pieces(values: &[u8], limits: &Limits) -> Result<List<c:
             return Ok(rows);
         };
         let mut input = Reader::new(&piece);
-        let row = w::RevisionItem::decode(&limits.wire, &mut input)?;
+        let row = w::RevisionItem::decode(limits.receiving(), &mut input)?;
         if !input.is_empty() {
             return Err(super::too_large());
         }
@@ -1074,7 +1074,7 @@ fn wire_owner_part(value: &c::OwnerPart, limits: &w::Limits) -> Result<w::OwnerP
 
 // Count the bounded pieces before reserving the actual rows; an empty change allocates no rows.
 fn item_count(values: &[u8], limits: &Limits) -> Result<u32, w::Problem> {
-    if u64::try_from(values.len()).expect("piece bytes fit u64") > limits.client.document_bytes {
+    if u64::try_from(values.len()).expect("piece bytes fit u64") > limits.client().document_bytes {
         return Err(super::too_large());
     }
     let mut reader = Reader::new(values);

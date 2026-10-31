@@ -82,13 +82,10 @@ pub fn ended(value: &w::WatchEnd) -> c::WatchEnd {
 
 /// A delivery's discriminator and its whole record are admitted before decoding.
 pub fn delivery(bytes: &[u8], limits: &Limits) -> Result<c::Delivery, Undecodable> {
-    if !crate::limits::valid(limits)
-        || u64::try_from(bytes.len()).expect("usize fits u64") > limits.client.document_bytes
-    {
+    if u64::try_from(bytes.len()).expect("usize fits u64") > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
-    let receiving = receiving(limits)?;
-    let value = match w::DeliveryValue::decode(&receiving.wire, &mut Reader::new(bytes)) {
+    let value = match w::DeliveryValue::decode(limits.receiving(), &mut Reader::new(bytes)) {
         Ok(value) => value,
         Err(problem) => return Err(super::classify(problem)),
     };
@@ -97,13 +94,13 @@ pub fn delivery(bytes: &[u8], limits: &Limits) -> Result<c::Delivery, Undecodabl
             c::Delivery::OwnerProject(Box::new(documents::owner_project(value, limits)?))
         }
         w::DeliveryValue::OwnerAccounts(value) => {
-            c::Delivery::OwnerAccounts(Box::new(match documents::owner_accounts(value, &receiving) {
+            c::Delivery::OwnerAccounts(Box::new(match documents::owner_accounts(value, limits) {
                 Ok(value) => value,
                 Err(problem) => return Err(super::classify(problem)),
             }))
         }
         w::DeliveryValue::Settings(value) => {
-            c::Delivery::Settings(Box::new(match super::settings::restore_settings_document(&value, &receiving) {
+            c::Delivery::Settings(Box::new(match super::settings::restore_settings_document(&value, limits) {
                 Ok(value) => value,
                 Err(problem) => return Err(super::classify(problem)),
             }))
@@ -121,43 +118,25 @@ pub fn delivery(bytes: &[u8], limits: &Limits) -> Result<c::Delivery, Undecodabl
             c::Delivery::OwnerDeployment(Box::new(documents::owner_deployment(value, limits)?))
         }
         w::DeliveryValue::Chips(value) => {
-            c::Delivery::Chips(match documents::chip_piece(value.rows(), &receiving, limits.client.rows) {
+            c::Delivery::Chips(match documents::chip_piece(value.rows(), limits, limits.client().rows) {
                 Ok(value) => value,
                 Err(problem) => return Err(super::classify(problem)),
             })
         }
     })
 }
-fn receiving(limits: &Limits) -> Result<Limits, Undecodable> {
-    let mut checked = pages::receiving(limits)?;
-    let bytes = u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");
-    checked.wire.chips_rows = bytes;
-    checked.wire.owner_tree_rows = bytes;
-    checked.wire.owner_tree_folded = limits.client.rows;
-    checked.wire.owner_tree_row_proposals = limits.client.rows;
-    checked.wire.owner_tree_row_dependencies = bytes;
-    checked.wire.owner_inbox_needs = bytes;
-    checked.wire.owner_inbox_updates = bytes;
-    checked.wire.owner_inbox_selection_some = bytes;
-    match w::check_limits(&checked.wire) {
-        Ok(value) => value,
-        Err(problem) => return Err(super::classify(problem)),
-    }
-    Ok(checked)
-}
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 fn owner_inbox(record: w::OwnerInbox, limits: &Limits) -> Result<c::OwnerInbox, Undecodable> {
-    let checked = receiving(limits)?;
-    let needs = match pages::owner_inbox_entry_piece(record.needs(), &checked, limits.client.rows) {
+    let needs = match pages::owner_inbox_entry_piece(record.needs(), limits, limits.client().rows) {
         Ok(value) => value,
         Err(problem) => return Err(super::classify(problem)),
     };
-    let updates = match pages::owner_inbox_entry_piece(record.updates(), &checked, limits.client.rows) {
+    let updates = match pages::owner_inbox_entry_piece(record.updates(), limits, limits.client().rows) {
         Ok(value) => value,
         Err(problem) => return Err(super::classify(problem)),
     };
     let selection = match record.selection() {
-        Some(value) => Some(match pages::owner_inbox_selection_piece(value, &checked, limits.client.rows) {
+        Some(value) => Some(match pages::owner_inbox_selection_piece(value, limits, limits.client().rows) {
             Ok(value) => value,
             Err(problem) => return Err(super::classify(problem)),
         }),
@@ -180,12 +159,11 @@ fn owner_inbox(record: w::OwnerInbox, limits: &Limits) -> Result<c::OwnerInbox, 
     })
 }
 fn owner_tree(record: w::OwnerTree, limits: &Limits) -> Result<c::OwnerTree, Undecodable> {
-    let checked = receiving(limits)?;
-    let root = match documents::chip_fields(record.root(), &checked) {
+    let root = match documents::chip_fields(record.root(), limits) {
         Ok(value) => value,
         Err(problem) => return Err(super::classify(problem)),
     };
-    let rows = match tree_rows(record.rows(), &checked) {
+    let rows = match tree_rows(record.rows(), limits) {
         Ok(value) => value,
         Err(problem) => return Err(super::classify(problem)),
     };
@@ -200,7 +178,7 @@ fn owner_tree(record: w::OwnerTree, limits: &Limits) -> Result<c::OwnerTree, Und
             .expect("bounded folds");
     }
     let next = match record.next() {
-        Some(value) => Some(match documents::cursor_fields(value, &checked) {
+        Some(value) => Some(match documents::cursor_fields(value, limits) {
             Ok(value) => value,
             Err(problem) => return Err(super::classify(problem)),
         }),
@@ -210,9 +188,9 @@ fn owner_tree(record: w::OwnerTree, limits: &Limits) -> Result<c::OwnerTree, Und
 }
 fn tree_rows(bytes: &[u8], limits: &Limits) -> Result<List<c::OwnerTreeRow>, w::Problem> {
     let mut reader = Reader::new(bytes);
-    let mut rows = List::with_capacity(limits.client.rows);
+    let mut rows = List::with_capacity(limits.client().rows);
     let mut sum = 0_u64;
-    for _ in 0..=limits.client.rows {
+    for _ in 0..=limits.client().rows {
         let item = match skein_codec::piece::split(&mut reader) {
             Ok(value) => value,
             Err(problem) => return Err(super::piece_problem(problem)),
@@ -225,10 +203,10 @@ fn tree_rows(bytes: &[u8], limits: &Limits) -> Result<List<c::OwnerTreeRow>, w::
             .ok_or(super::too_large())?
             .checked_add(4)
             .ok_or(super::too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(super::too_large());
         }
-        let row = w::OwnerTreeRow::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerTreeRow::decode(limits.receiving(), &mut Reader::new(&item))?;
         let mut proposals = List::with_capacity(row.proposals().len());
         for key in row.proposals() {
             proposals.push(super::facts::proposal_key(key)).expect("bounded proposals");
@@ -239,7 +217,7 @@ fn tree_rows(bytes: &[u8], limits: &Limits) -> Result<List<c::OwnerTreeRow>, w::
             depth: row.depth(),
             proposals,
             spent: row.spent(),
-            dependencies: documents::owner_task_link_piece(row.dependencies(), limits, limits.client.rows)?,
+            dependencies: documents::owner_task_link_piece(row.dependencies(), limits, limits.client().rows)?,
             cut: row.cut(),
         };
         if rows.push(row).is_err() {

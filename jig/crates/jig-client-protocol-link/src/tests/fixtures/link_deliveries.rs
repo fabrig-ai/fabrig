@@ -21,7 +21,7 @@ pub fn jig_delivery(value: &w::DeliveryValue, name: u64) -> Box<[u8]> {
 }
 pub fn run_event(name: u64) -> Box<[u8]> {
     event_bytes(&w::StreamEvent::Text(
-        w::StreamText::new(&limits().wire, w::StreamTextParts { watch: name, value: text_record() }).unwrap(),
+        w::StreamText::new(limits().wire(), w::StreamTextParts { watch: name, value: text_record() }).unwrap(),
     ))
 }
 pub fn owner_tree_record() -> w::OwnerTree {
@@ -93,7 +93,7 @@ fn delivery_cases_last(cases: &mut List<(w::DeliveryValue, c::Delivery)>) {
             c::Delivery::OwnerDeployment(Box::new(owner_deployment())),
         ))
         .unwrap();
-    let value = w::Chips::new(&limits().wire, w::ChipsParts { rows: chip_pieces(1) }).unwrap();
+    let value = w::Chips::new(limits().wire(), w::ChipsParts { rows: chip_pieces(1) }).unwrap();
     let mut chips = List::with_capacity(2);
     chips.push(chip()).unwrap();
     cases.push((w::DeliveryValue::Chips(value), c::Delivery::Chips(chips))).unwrap();
@@ -129,7 +129,7 @@ impl Harness {
     }
 }
 pub fn inbox_row() -> w::OwnerInboxEntry {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let cursor = inbox_cursor();
     let task = w::OwnerTaskLink::Stored(
         w::OwnerTaskLinkStored::new(&lim, w::OwnerTaskLinkStoredParts { number: 41, status: None }).unwrap(),
@@ -151,7 +151,7 @@ pub fn inbox_row() -> w::OwnerInboxEntry {
 }
 pub fn inbox_cursor() -> w::OwnerInboxCursor {
     w::OwnerInboxCursor::Number(
-        w::OwnerInboxCursorNumber::new(&limits().wire, w::OwnerInboxCursorNumberParts { number: u64::MAX }).unwrap(),
+        w::OwnerInboxCursorNumber::new(limits().wire(), w::OwnerInboxCursorNumberParts { number: u64::MAX }).unwrap(),
     )
 }
 pub fn inbox_row_expected() -> c::OwnerInboxEntry {
@@ -183,7 +183,7 @@ pub fn owner_inbox_with_rows(count: u32) -> w::DeliveryValue {
     parts.needs = inbox_pieces(count);
     parts.updates = inbox_pieces(count);
     parts.next = Some(inbox_cursor());
-    w::DeliveryValue::OwnerInbox(w::OwnerInbox::new(&limits().wire, parts).unwrap())
+    w::DeliveryValue::OwnerInbox(w::OwnerInbox::new(limits().wire(), parts).unwrap())
 }
 pub fn owner_inbox_with_rows_expected() -> c::Delivery {
     let mut value = owner_inbox();
@@ -195,7 +195,7 @@ pub fn owner_inbox_with_rows_expected() -> c::Delivery {
 }
 pub fn tree_row() -> w::OwnerTreeRow {
     w::OwnerTreeRow::new(
-        &limits().wire,
+        limits().wire(),
         w::OwnerTreeRowParts {
             chip: chip_record(),
             parent: 41,
@@ -223,7 +223,7 @@ pub fn tree_pieces(count: u32) -> Box<[u8]> {
 pub fn owner_tree_with_rows(count: u32) -> w::DeliveryValue {
     let mut parts = owner_tree_record().into_parts();
     parts.rows = tree_pieces(count);
-    w::DeliveryValue::OwnerTree(w::OwnerTree::new(&limits().wire, parts).unwrap())
+    w::DeliveryValue::OwnerTree(w::OwnerTree::new(limits().wire(), parts).unwrap())
 }
 pub fn owner_tree_with_rows_expected() -> c::Delivery {
     let mut value = owner_tree();
@@ -245,13 +245,13 @@ pub fn malformed_delivery_pieces() -> Box<[w::DeliveryValue]> {
     let mut values = List::with_capacity(3);
     let mut inbox = owner_inbox_record().into_parts();
     inbox.needs = Box::from([0, 0, 0, 1]);
-    values.push(w::DeliveryValue::OwnerInbox(w::OwnerInbox::new(&limits().wire, inbox).unwrap())).unwrap();
+    values.push(w::DeliveryValue::OwnerInbox(w::OwnerInbox::new(limits().wire(), inbox).unwrap())).unwrap();
     let mut tree = owner_tree_record().into_parts();
     tree.rows = Box::from([0, 0, 0, 1]);
-    values.push(w::DeliveryValue::OwnerTree(w::OwnerTree::new(&limits().wire, tree).unwrap())).unwrap();
+    values.push(w::DeliveryValue::OwnerTree(w::OwnerTree::new(limits().wire(), tree).unwrap())).unwrap();
     values
         .push(w::DeliveryValue::Chips(
-            w::Chips::new(&limits().wire, w::ChipsParts { rows: Box::from([0, 0, 0, 1]) }).unwrap(),
+            w::Chips::new(limits().wire(), w::ChipsParts { rows: Box::from([0, 0, 0, 1]) }).unwrap(),
         ))
         .unwrap();
     values.into_boxed()

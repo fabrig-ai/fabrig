@@ -90,7 +90,7 @@ pub fn expected_historical_task() -> c::OwnerHistorical {
 const UTF8_TEXTS: [&[u8]; 1] = [&[b'~'; 48]];
 
 pub fn ended_delegate_record() -> w::OwnerEndedDelegate {
-    let lim = limits().wire;
+    let lim = *limits().wire();
     let mut facts = List::with_capacity(1);
     facts
         .push(w::Fact::OwnerChipEnding(
@@ -146,7 +146,7 @@ pub fn trailing_ended_row() -> Box<[u8]> {
     rows.finish()
 }
 pub fn owner_ended_page_piece(rows: Box<[u8]>) -> w::OwnerEndedPage {
-    w::OwnerEndedPage::new(&limits().wire, w::OwnerEndedPageParts { rows, before: None, after: None, cut: false })
+    w::OwnerEndedPage::new(limits().wire(), w::OwnerEndedPageParts { rows, before: None, after: None, cut: false })
         .unwrap()
 }
 pub fn expected_owner_ended_page(count: u32) -> c::OwnerEndedPage {

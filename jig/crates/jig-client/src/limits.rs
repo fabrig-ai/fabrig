@@ -4,10 +4,7 @@ pub struct Limits {
     pub domain: crate::DomainLimits,
     pub exchanges: u32,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Unusable {
-    Limits,
-}
+pub use jig_client_protocol_link::Unusable;
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]

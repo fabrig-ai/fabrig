@@ -38,10 +38,10 @@ fn a_owner_proposal_record_becomes_its_literal_contract_value() {
 }
 #[test]
 fn owner_escalation_acts_fit_the_contract_bound() {
-    let mut limits = fixtures::limits();
-    limits.client.rows = 32;
+    let base = fixtures::limits();
+    let limits = Limits::new(jig_client_domain::Limits { rows: 32, ..*base.client() }, base.exchanges()).unwrap();
     let offered = w::Offered::new(
-        &limits.wire,
+        limits.wire(),
         w::OfferedParts { effect: None, act: w::ActKind::Accept, admission: w::Admission::Allowed },
     )
     .unwrap();
@@ -54,7 +54,7 @@ fn owner_escalation_acts_fit_the_contract_bound() {
     }
     let mut parts = fixtures::read_wire_owner_escalation().into_parts();
     parts.acts = acts.finish();
-    let record = w::OwnerEscalation::new(&limits.wire, parts).unwrap();
+    let record = w::OwnerEscalation::new(limits.wire(), parts).unwrap();
     let document = translate::pages::owner_escalation_fields(&record, &limits).unwrap();
     assert_eq!(document.acts.len(), 5);
     assert!(document.acts.capacity() <= c::MAX_OFFERED_ACTS);
@@ -145,16 +145,10 @@ fn a_page_with_trailing_row_bytes_is_refused() {
 #[test]
 fn a_page_one_byte_past_the_document_limit_is_refused() {
     let record = fixtures::owner_ended_page_piece(fixtures::ended_rows(1));
-    let mut client = fixtures::limits().client;
+    let mut client = *fixtures::limits().client();
     client.document_bytes = u64::from(record.measure()).checked_sub(1).unwrap();
     let limits = Limits::new(client, 4).unwrap();
     assert_eq!(translate::pages::owner_ended_page(record, &limits), Err(Undecodable::TooLarge));
-}
-#[test]
-fn a_page_with_mutated_original_wire_limits_is_refused() {
-    let mut limits = fixtures::limits();
-    limits.wire.cursor_value = 1;
-    assert_eq!(translate::pages::note_page(fixtures::read_wire_note_page(), &limits), Err(Undecodable::TooLarge));
 }
 
 fn a_activity_page_record_becomes_its_literal_contract_value() {
@@ -287,12 +281,12 @@ fn a_task_page_decodes_its_two_groups_with_their_cursors() {
     let limits = fixtures::limits();
     let mut page = jig_client_test_records::task_page_record().into_parts();
     page.live = jig_client_test_records::tasks_rows_record().into_parts().rows;
-    page.live_after = Some(w::Cursor::new(&limits.wire, w::CursorParts { value: b"live".as_slice().into() }).unwrap());
-    let after = Some(w::Cursor::new(&limits.wire, w::CursorParts { value: b"ended".as_slice().into() }).unwrap());
+    page.live_after = Some(w::Cursor::new(limits.wire(), w::CursorParts { value: b"live".as_slice().into() }).unwrap());
+    let after = Some(w::Cursor::new(limits.wire(), w::CursorParts { value: b"ended".as_slice().into() }).unwrap());
     page.ended = w::EndedGroup::Rows(
-        w::EndedRows::new(&limits.wire, w::EndedRowsParts { rows: Box::new([]), after, cut: true }).unwrap(),
+        w::EndedRows::new(limits.wire(), w::EndedRowsParts { rows: Box::new([]), after, cut: true }).unwrap(),
     );
-    let page = translate::pages::task_page(w::TaskPage::new(&limits.wire, page).unwrap(), &limits).unwrap();
+    let page = translate::pages::task_page(w::TaskPage::new(limits.wire(), page).unwrap(), &limits).unwrap();
     assert_eq!(page.live.len(), 1);
     assert_eq!(page.live_after.as_ref().unwrap().value.bytes(), b"live");
     let c::EndedGroup::Rows { rows, after, cut } = page.ended else { panic!("ended rows") };
@@ -307,9 +301,9 @@ fn an_offer_decodes_the_effect_with_its_counts_or_reservation() {
     let mut impact = fixtures::read_wire_impact().into_parts();
     impact.live_runs = 11;
     impact.proposals = 13;
-    let effect = w::Effect::Cancel(w::Impact::new(&limits.wire, impact).unwrap());
+    let effect = w::Effect::Cancel(w::Impact::new(limits.wire(), impact).unwrap());
     let value = w::Offered::new(
-        &limits.wire,
+        limits.wire(),
         w::OfferedParts { act: w::ActKind::Cancel, admission: w::Admission::Allowed, effect: Some(effect) },
     )
     .unwrap();
@@ -317,6 +311,7 @@ fn an_offer_decodes_the_effect_with_its_counts_or_reservation() {
     let Some(c::Effect::Cancel(impact)) = value.effect else { panic!("cancel effect") };
     assert_eq!((impact.live_runs, impact.proposals), (11, 13));
     assert_eq!(impact.tasks, fixtures::read_value_impact().tasks);
-    let effect = w::Effect::MoveTask(w::EffectMove::new(&limits.wire, w::EffectMoveParts { reservation: 17 }).unwrap());
+    let effect =
+        w::Effect::MoveTask(w::EffectMove::new(limits.wire(), w::EffectMoveParts { reservation: 17 }).unwrap());
     assert_eq!(translate::documents::effect_fields(&effect), c::Effect::Move { reservation: 17 });
 }

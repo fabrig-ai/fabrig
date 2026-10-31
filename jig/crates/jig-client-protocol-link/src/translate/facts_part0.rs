@@ -9,7 +9,7 @@ use skein_lib::Map;
 use skein_lib::{List, Wall, bytes};
 pub(crate) fn document_text(value: &w::DocumentText, limits: &Limits) -> Result<c::DocumentText, w::Problem> {
     Ok(c::DocumentText {
-        bytes: match c::Text::new(bytes::copy_of(value.bytes()), limits.client.text) {
+        bytes: match c::Text::new(bytes::copy_of(value.bytes()), limits.client().text) {
             Ok(value) => value,
             Err(_) => return Err(text_problem()),
         },
@@ -193,7 +193,7 @@ pub(crate) fn call_identity(value: &w::CallIdentity, limits: &Limits) -> Result<
         owner: skein_lib::Token::new(value.owner()),
         sequence: value.sequence(),
         retry: value.retry(),
-        id: match c::Text::new(bytes::copy_of(value.id()), limits.client.text) {
+        id: match c::Text::new(bytes::copy_of(value.id()), limits.client().text) {
             Ok(value) => value,
             Err(_) => return Err(text_problem()),
         },
@@ -208,7 +208,7 @@ pub(crate) fn run_work(value: &w::RunWork, limits: &Limits) -> Result<c::RunWork
         w::RunWork::Writing => c::RunWork::Writing,
         w::RunWork::Tool(row) => c::RunWork::Tool {
             call: call_identity(row.call(), limits)?,
-            tool: match c::Text::new(bytes::copy_of(row.tool()), limits.client.text) {
+            tool: match c::Text::new(bytes::copy_of(row.tool()), limits.client().text) {
                 Ok(value) => value,
                 Err(_) => return Err(text_problem()),
             },

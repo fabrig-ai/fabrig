@@ -11,7 +11,7 @@ pub(crate) fn owner_account_fields(
 ) -> Result<c::OwnerAccount, w::Problem> {
     super::charge_account(value.uses().as_ref(), value.display(), room)?;
     // An account's runs and its waiting tasks stay lists bounded by the rows.
-    let chips = List::<c::Chip>::price(limits.client.rows);
+    let chips = List::<c::Chip>::price(limits.client().rows);
     charge(room, chips)?;
     charge(room, chips)?;
     let opt0 = match value.generation() {
@@ -42,8 +42,8 @@ pub(crate) fn owner_account_fields(
         expiring: value.expiring(),
         attention: value.attention(),
         spent_until: opt1,
-        runs: chip_piece(value.runs(), limits, limits.client.rows)?,
-        waiting: chip_piece(value.waiting(), limits, limits.client.rows)?,
+        runs: chip_piece(value.runs(), limits, limits.client().rows)?,
+        waiting: chip_piece(value.waiting(), limits, limits.client().rows)?,
         cut: value.cut(),
     })
 }
@@ -54,7 +54,7 @@ pub(crate) fn owner_account_piece(
     room: &mut u64,
 ) -> Result<List<c::OwnerAccount>, w::Problem> {
     let count = piece_count(bytes)?;
-    if count > limits.client.accounts.accounts {
+    if count > limits.client().accounts.accounts {
         return Err(too_large());
     }
     charge(room, List::<c::OwnerAccount>::price(count))?;
@@ -62,7 +62,7 @@ pub(crate) fn owner_account_piece(
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
         let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else { unreachable!("counted pieces split") };
-        let row = w::OwnerAccount::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::OwnerAccount::decode(limits.receiving(), &mut Reader::new(&item))?;
         rows.push(owner_account_fields(&row, limits, room)?).expect("counted pieces fit");
     }
     Ok(rows)
@@ -298,35 +298,35 @@ pub(crate) fn owner_deployment_fields(
 ) -> Result<c::OwnerDeployment, w::Problem> {
     let mut room = super::document_room(limits);
     charge(&mut room, u64::try_from(size_of::<c::OwnerDeployment>()).ok())?;
-    if value.projects().len() > limits.client.rows {
+    if value.projects().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.projects().len());
     for item in value.projects() {
         list0.push(owner_project_capacity_fields(item)).expect("reserved supplied list");
     }
-    if value.hello_refusals().len() > limits.client.rows {
+    if value.hello_refusals().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list1 = List::with_capacity(value.hello_refusals().len());
     for item in value.hello_refusals() {
         list1.push(owner_hello_refusal_line_fields(item)).expect("reserved supplied list");
     }
-    if value.person_room_refusals().len() > limits.client.rows {
+    if value.person_room_refusals().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list2 = List::with_capacity(value.person_room_refusals().len());
     for item in value.person_room_refusals() {
         list2.push(owner_person_capacity_refusal_fields(item)).expect("reserved supplied list");
     }
-    if value.task_room_refusals().len() > limits.client.rows {
+    if value.task_room_refusals().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list3 = List::with_capacity(value.task_room_refusals().len());
     for item in value.task_room_refusals() {
         list3.push(owner_task_capacity_refusal_fields(item)).expect("reserved supplied list");
     }
-    if value.connectors().len() > limits.client.rows {
+    if value.connectors().len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list4 = List::with_capacity(value.connectors().len());
@@ -340,8 +340,8 @@ pub(crate) fn owner_deployment_fields(
         readiness: super::catalogue::readiness(value.readiness(), limits, &mut room)?,
         readiness_cut: value.readiness_cut(),
         store: store_fill_fields(value.store()),
-        hosts: owner_host_piece(value.hosts(), limits, limits.client.rows, &mut room)?,
-        attempts: owner_host_run_piece(value.attempts(), limits, limits.client.rows)?,
+        hosts: owner_host_piece(value.hosts(), limits, limits.client().rows, &mut room)?,
+        attempts: owner_host_run_piece(value.attempts(), limits, limits.client().rows)?,
         accounts: owner_account_piece(value.accounts(), limits, &mut room)?,
         tasks: owner_capacity_fields(value.tasks()),
         workers: owner_capacity_fields(value.workers()),

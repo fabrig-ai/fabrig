@@ -2,7 +2,7 @@
 use super::{Limits, List, Reader, bytes, c, piece_problem, too_large, w};
 
 pub(crate) fn cursor_fields(value: &w::Cursor, limits: &Limits) -> Result<c::Cursor, w::Problem> {
-    match c::Cursor::new(bytes::copy_of(value.value()), limits.wire.cursor_value) {
+    match c::Cursor::new(bytes::copy_of(value.value()), limits.wire().cursor_value) {
         Ok(value) => Ok(value),
         Err(_) => Err(too_large()),
     }
@@ -52,10 +52,10 @@ pub(crate) fn task_line_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Resu
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::TaskLine::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::TaskLine::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = crate::translate::queries::line(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -65,5 +65,5 @@ pub(crate) fn task_line_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Resu
 }
 
 pub(crate) fn tasks_fields(value: &w::Tasks, limits: &Limits) -> Result<c::Tasks, w::Problem> {
-    Ok(c::Tasks { rows: task_line_piece(value.rows(), limits, limits.client.rows)?, more: value.more() })
+    Ok(c::Tasks { rows: task_line_piece(value.rows(), limits, limits.client().rows)?, more: value.more() })
 }

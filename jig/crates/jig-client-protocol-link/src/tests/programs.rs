@@ -1,5 +1,5 @@
 //! Program inventories cross bytes intact and share the document's native byte budget.
-use super::{c, fixtures, w};
+use super::{Limits, c, fixtures, w};
 use crate::translate::programs as decode;
 use skein_lib::{List, Writer};
 fn login(name: &[u8], state: Option<w::OwnerProgramState>) -> w::OwnerProgramLogin {
@@ -113,9 +113,9 @@ fn configured_host_names_stay_whole_below_the_text_limit() {
     let mut bytes = Writer::new(usize::try_from(row.measure()).expect("row").checked_add(4).expect("prefix"));
     bytes.put(&row.measure().to_be_bytes()).expect("prefix");
     row.encode(&mut bytes).expect("row");
-    let mut limits = fixtures::limits();
-    limits.client.text = 1;
-    limits.client.turn_text = 1;
+    let base = fixtures::limits();
+    let limits =
+        Limits::new(jig_client_domain::Limits { text: 1, turn_text: 1, ..*base.client() }, base.exchanges()).unwrap();
     let mut room = 4096;
     let rows = decode::hosts(&bytes.finish(), &limits, &mut room).expect("whole name");
     assert_eq!(rows.get(0).expect("host").name.as_ref(), b"configured-worker");
@@ -154,7 +154,7 @@ fn a_host_rule_survives_wire_receipt() {
         let mut room = 4096;
         let limits = fixtures::limits();
         let rows =
-            crate::translate::documents::owner_host_piece(&bytes.finish(), &limits, limits.client.rows, &mut room)
+            crate::translate::documents::owner_host_piece(&bytes.finish(), &limits, limits.client().rows, &mut room)
                 .expect("host receipt");
         assert_eq!(rows.get(0).expect("host").rule, expected);
     }
