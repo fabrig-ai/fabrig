@@ -1300,13 +1300,9 @@ mod tests {
     }
 
     impl Referee<Idle> for Quiet {
-        fn act(&mut self, _now: Time, _procs: &mut [Idle]) {}
         fn observe(&mut self, _now: Time, _procs: &[Idle]) {}
         fn next_deadline(&self) -> Option<Time> {
             self.deadline
-        }
-        fn overdue(&self, _now: Time) -> Option<String> {
-            None
         }
         fn passed(&self) -> bool {
             self.passed
@@ -1402,12 +1398,6 @@ mod tests {
         fn observe(&mut self, _now: Time, procs: &[Idle]) {
             assert!(procs.iter().all(|proc| proc.marked), "act is visible to observe");
             self.0.borrow_mut().push(procs.iter().map(|proc| proc.iterations).collect());
-        }
-        fn next_deadline(&self) -> Option<Time> {
-            None
-        }
-        fn overdue(&self, _now: Time) -> Option<String> {
-            None
         }
         fn passed(&self) -> bool {
             !self.0.borrow().is_empty()
