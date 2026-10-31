@@ -34,6 +34,8 @@ pub const LIMITS: top::Limits = top::Limits {
     holds: 8,
     subscriptions: 8,
     entries: 8,
+    forges: 4,
+    definition_bytes: 8192,
     named_calls: 16,
     changes: 8,
     issues: 8,
@@ -148,7 +150,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(23) {
+    match random.below(27) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -176,7 +178,7 @@ pub fn key(random: &mut Rng) -> top::Key {
         19 => top::Key::DemoAct([u8::try_from(random.below(256)).expect("byte"); 16]),
         20 => top::Key::Flight { task: number, entry: random.next_u64() },
         21 => top::Key::Landing(number),
-        _ => top::Key::Receipt(top::ReceiptKey {
+        22 => top::Key::Receipt(top::ReceiptKey {
             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
             repository: repository(random),
             check: if random.below(2) == 0 {
@@ -186,6 +188,10 @@ pub fn key(random: &mut Rng) -> top::Key {
             },
             key: commit(random),
         }),
+        23 => top::Key::Forge(u16::try_from(random.below(65_536)).expect("u16")),
+        24 => top::Key::ForgeNumbers,
+        25 => top::Key::Playground,
+        _ => top::Key::KeptAct([u8::try_from(random.below(256)).expect("byte"); 16]),
     }
 }
 pub fn core_keys() -> [jig_domain_core::Key; 4] {
@@ -869,4 +875,65 @@ pub fn issue_row() -> top::IssueRow {
             finished: Some("finished λ".into()),
         }),
     }
+}
+
+/// Every state and payload shape of the kept families.
+#[expect(clippy::manual_map, reason = "fixtures use explicit option matches under the step crate lint rules")]
+pub fn kept_rows() -> Box<[(&'static str, top::Stored)]> {
+    let mut rows = List::with_capacity(60);
+    for kind in [top::Kind::Forgejo, top::Kind::GitHub] {
+        for mode in [top::Mode::Connected, top::Mode::Managed, top::Mode::Owned, top::Mode::Fake] {
+            for removing in [false, true] {
+                for project in [
+                    None,
+                    Some(top::SetUpProject::Existing(7)),
+                    Some(top::SetUpProject::New(Box::from(b"project".as_slice()))),
+                ] {
+                    let first = match project {
+                        None => None,
+                        Some(project) => Some(top::FirstIntent {
+                            playground: removing,
+                            org: Box::from(b"org".as_slice()),
+                            repository: Box::from(b"repo".as_slice()),
+                            project,
+                            label: Box::from(b"label".as_slice()),
+                        }),
+                    };
+                    rows.push((
+                        "forge",
+                        top::Stored::Forge(top::ForgeRecord {
+                            number: 5,
+                            kind,
+                            mode,
+                            removing,
+                            definition: Box::from(b"{}".as_slice()),
+                            first,
+                        }),
+                    ))
+                    .expect("kept fixture room");
+                }
+            }
+        }
+    }
+    rows.push(("numbers", top::Stored::ForgeNumbers { next: u16::MAX })).expect("kept fixture room");
+    for state in [
+        top::PlaygroundState::Running,
+        top::PlaygroundState::Resetting(top::ResetStep::Project),
+        top::PlaygroundState::Resetting(top::ResetStep::Forge),
+        top::PlaygroundState::Resetting(top::ResetStep::Account),
+    ] {
+        for (forge, project, account) in [(None, None, None), (Some(5), Some(7), Some(9))] {
+            rows.push(("playground", top::Stored::Playground(top::Playground { state, forge, project, account })))
+                .expect("kept fixture room");
+        }
+    }
+    for act in [
+        top::KeptActKind::Cancel { project: 7, task: 11 },
+        top::KeptActKind::RemoveGroup,
+        top::KeptActKind::EraseSecrets,
+    ] {
+        rows.push(("act", top::Stored::KeptAct(top::KeptAct { key: [255; 16], forge: 5, act })))
+            .expect("kept fixture room");
+    }
+    rows.into_boxed()
 }

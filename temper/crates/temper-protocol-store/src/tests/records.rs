@@ -392,7 +392,7 @@ fn every_family_encodes_and_decodes_to_itself() {
         ("issue", forge::Stored::Issue(fixtures::issue_row())),
     ];
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
-    for (name, row) in fixtures::names_holds_and_topics().into_iter().chain(remaining) {
+    for (name, row) in fixtures::names_holds_and_topics().into_iter().chain(remaining).chain(fixtures::kept_rows()) {
         let bytes = records::encode(&row);
         assert_eq!(records::decode(&bytes, &bounds), Ok(row), "{name}");
     }
@@ -1247,4 +1247,36 @@ fn admitted_binding_and_writer_saves_obey_writer_rules_before_codec_round_trip()
         }
     }
     assert_eq!(saves, 2, "both real writer APIs emitted durable saves");
+}
+
+#[test]
+fn kept_definitions_decode_at_the_bound_and_refuse_one_more() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    for bytes in [fixtures::LIMITS.definition_bytes, fixtures::LIMITS.definition_bytes + 1] {
+        let row = forge::Stored::Forge(forge::ForgeRecord {
+            number: 5,
+            kind: forge::Kind::Forgejo,
+            mode: forge::Mode::Fake,
+            removing: false,
+            definition: skein_lib::bytes::zeroed(usize::try_from(bytes).unwrap()),
+            first: None,
+        });
+        let decoded = records::decode(&records::encode(&row), &bounds);
+        if bytes == fixtures::LIMITS.definition_bytes {
+            assert_eq!(decoded, Ok(row));
+        } else {
+            assert_eq!(decoded, Err(crate::Undecodable));
+        }
+    }
+}
+#[test]
+fn kept_rows_refuse_truncation_and_disagreeing_keys() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    for (name, row) in fixtures::kept_rows() {
+        let bytes = records::encode(&row);
+        for end in 0..bytes.len() {
+            assert_eq!(records::decode(&bytes[..end], &bounds), Err(crate::Undecodable), "{name}: {end}");
+        }
+        assert_eq!(records::row(&[255], &bytes, &bounds), Err(crate::Undecodable), "{name}");
+    }
 }

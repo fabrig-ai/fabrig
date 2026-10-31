@@ -14,6 +14,26 @@ fn name(number: u32) -> Name {
 fn row(kind: RecordKind, number: u32) -> Stored {
     let n = u64::from(number);
     match kind {
+        RecordKind::Forge => Stored::Forge(ForgeRecord {
+            number: u16::try_from(number).unwrap(),
+            kind: Kind::Forgejo,
+            mode: Mode::Fake,
+            removing: false,
+            definition: Box::new([]),
+            first: None,
+        }),
+        RecordKind::ForgeNumbers => Stored::ForgeNumbers { next: 1 },
+        RecordKind::Playground => Stored::Playground(Playground {
+            state: PlaygroundState::Running,
+            forge: None,
+            project: None,
+            account: None,
+        }),
+        RecordKind::KeptAct => Stored::KeptAct(KeptAct {
+            key: [u8::try_from(number).unwrap(); 16],
+            forge: 1,
+            act: KeptActKind::RemoveGroup,
+        }),
         RecordKind::Landing => Stored::Landing(LandingRow {
             landing: policy::Landing {
                 task: n,

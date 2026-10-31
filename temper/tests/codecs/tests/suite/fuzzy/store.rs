@@ -72,6 +72,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
         });
         row_and_key(&demo, &mut rng, &bounds);
         end_act(&mut rng, &bounds);
+        kept_families(&mut rng, &bounds);
         let writer = forge::Stored::Writer(skein_forge_client::Writer {
             forge: u16::try_from(rng.below(65_536)).expect("u16"),
             author: rng.next_u64().max(1),
@@ -154,5 +155,62 @@ fn store_decoders_never_panic_and_reencode_the_same() {
         for _ in 0..8 {
             golden(&temper_codecs_world::mutated(&mut rng, bytes), &bounds);
         }
+    }
+}
+
+fn kept_families(rng: &mut Rng, bounds: &Bounds) {
+    let forge = u16::try_from(rng.below(u64::from(u16::MAX - 1)) + 1).expect("forge number");
+    let project = u32::try_from(rng.below(u64::from(u32::MAX))).expect("u32");
+    let first = if rng.below(2) == 0 {
+        None
+    } else {
+        Some(forge::FirstIntent {
+            playground: rng.below(2) == 0,
+            org: temper_codecs_world::drawn(rng, 128).into_boxed_slice(),
+            repository: temper_codecs_world::drawn(rng, 128).into_boxed_slice(),
+            project: if rng.below(2) == 0 {
+                forge::SetUpProject::Existing(project)
+            } else {
+                forge::SetUpProject::New(temper_codecs_world::drawn(rng, 128).into_boxed_slice())
+            },
+            label: temper_codecs_world::drawn(rng, 128).into_boxed_slice(),
+        })
+    };
+    let mode = match rng.below(4) {
+        0 => forge::Mode::Connected,
+        1 => forge::Mode::Managed,
+        2 => forge::Mode::Owned,
+        _ => forge::Mode::Fake,
+    };
+    let state = match rng.below(4) {
+        0 => forge::PlaygroundState::Running,
+        1 => forge::PlaygroundState::Resetting(forge::ResetStep::Project),
+        2 => forge::PlaygroundState::Resetting(forge::ResetStep::Forge),
+        _ => forge::PlaygroundState::Resetting(forge::ResetStep::Account),
+    };
+    let act = match rng.below(3) {
+        0 => forge::KeptActKind::Cancel { project, task: rng.next_u64() },
+        1 => forge::KeptActKind::RemoveGroup,
+        _ => forge::KeptActKind::EraseSecrets,
+    };
+    for row in [
+        forge::Stored::Forge(forge::ForgeRecord {
+            number: forge,
+            kind: if rng.below(2) == 0 { forge::Kind::Forgejo } else { forge::Kind::GitHub },
+            mode,
+            removing: rng.below(2) == 0,
+            definition: temper_codecs_world::drawn(rng, 512).into_boxed_slice(),
+            first,
+        }),
+        forge::Stored::ForgeNumbers { next: forge },
+        forge::Stored::Playground(forge::Playground {
+            state,
+            forge: if rng.below(2) == 0 { None } else { Some(forge) },
+            project: if rng.below(2) == 0 { None } else { Some(project) },
+            account: if rng.below(2) == 0 { None } else { Some(project) },
+        }),
+        forge::Stored::KeptAct(forge::KeptAct { key: [u8::try_from(rng.below(256)).expect("byte"); 16], forge, act }),
+    ] {
+        row_and_key(&row, rng, bounds);
     }
 }

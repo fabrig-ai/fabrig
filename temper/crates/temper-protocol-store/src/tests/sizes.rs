@@ -194,3 +194,19 @@ fn full_issue_row(limits: &crate::v10::Limits) -> crate::v10::IssueRow {
     )
     .expect("full issue row")
 }
+
+#[test]
+fn kept_record_sizes_follow_definition_and_first_name_bounds() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    // Forge's 28 framing/scalar bytes, definition and four first-intent names.
+    assert_eq!(crate::v10::ForgeRecord::encoded_bound(bounds.limits()), Some(12_316));
+    assert_eq!(crate::v10::ForgeNumbers::encoded_bound(bounds.limits()), Some(2));
+    assert_eq!(crate::v10::Playground::encoded_bound(bounds.limits()), Some(15));
+    assert_eq!(crate::v10::KeptAct::encoded_bound(bounds.limits()), Some(31));
+    let mut limits = fixtures::LIMITS;
+    limits.definition_bytes = 65_536;
+    // At this definition bound Forge is largest: 28 + 65536 + 4096 + 3 row bytes.
+    assert_eq!(application(&limits, limits.client.op_bytes).unwrap().value, 69_663);
+    limits.definition_bytes = crate::v10::CEILINGS.forge_record_definition + 1;
+    assert_eq!(application(&limits, limits.client.op_bytes), None);
+}

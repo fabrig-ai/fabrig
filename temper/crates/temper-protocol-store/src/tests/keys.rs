@@ -196,3 +196,31 @@ fn flight_keys_name_task_then_entry_under_family_twenty_one() {
     assert_eq!(keys::flight(&trailing[..16]), None);
     assert_eq!(keys::flight(&[20]), None);
 }
+
+#[test]
+fn kept_family_keys_use_bytes_thirty_one_through_thirty_four() {
+    for (key, tag, length) in
+        [(Key::Forge(5), 31, 9), (Key::ForgeNumbers, 32, 1), (Key::Playground, 33, 1), (Key::KeptAct([0; 16]), 34, 35)]
+    {
+        let bytes = keys::encode(&key, length).expect("exact key room");
+        assert_eq!(bytes[0], tag);
+        assert_eq!(bytes.len(), usize::try_from(length).unwrap());
+        assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key.clone()));
+        assert_eq!(keys::encode(&key, length - 1), None);
+        let mut trailing = skein_lib::Writer::new(bytes.len() + 1);
+        trailing.put(&bytes).unwrap();
+        trailing.put(&[0]).unwrap();
+        assert_eq!(keys::decode(&trailing.finish(), &fixtures::LIMITS), None);
+    }
+}
+#[test]
+fn kept_keys_refuse_a_wide_number_or_wrong_act_key_width() {
+    let mut wide = skein_kv::KeyWriter::new(u32::MAX);
+    wide.tag(31).u64(65_536);
+    assert_eq!(keys::decode(&wide.finish().unwrap(), &fixtures::LIMITS), None);
+    for length in [0, 15, 17] {
+        let mut writer = skein_kv::KeyWriter::new(u32::MAX);
+        writer.tag(34).bytes(&[0; 17][..length]);
+        assert_eq!(keys::decode(&writer.finish().unwrap(), &fixtures::LIMITS), None);
+    }
+}
