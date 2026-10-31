@@ -90,6 +90,10 @@ impl<'a> Iterator for Iter<'a> {
 /// Record-driven runtime membership (temper/docs/design/draft/playground-reset.md, 3).
 #[expect(clippy::disallowed_methods, reason = "the service protocol layer parses the record's API host")]
 pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_domain_forge::ForgeRecord) {
+    if !engine.store.component.mark_durable() {
+        engine.forge_records.pending.push(record);
+        return;
+    }
     let kept = record.clone();
     let ip = match core::str::from_utf8(&record.place.api.host) {
         Ok(host) => host.parse::<core::net::IpAddr>().ok(),

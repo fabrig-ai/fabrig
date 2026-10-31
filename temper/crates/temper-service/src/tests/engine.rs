@@ -557,7 +557,9 @@ fn nothing_leaves_before_the_mark() {
     assert!(!engine.store.component.mark_durable());
     assert_eq!(engine.accounts.as_ref().expect("accounts").startup_state(), (false, 0));
     assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::Wires));
-    assert!(!engine.credentials.is_empty(), "configured credentials wait for the durable wires");
+    assert!(engine.values.identities.numbers().is_empty(), "restored identities wait for the durable wires");
+    assert!(engine.workers.forges.is_empty(), "runtime forges wait for the durable wires");
+    assert!(!engine.forge_records.pending.is_empty(), "restored forge records await the mark");
     assert_eq!(engine.store.secret_requests, 0);
     assert!(engine.store.forge_loads.is_empty());
     assert!(!engine.forge_records.done());

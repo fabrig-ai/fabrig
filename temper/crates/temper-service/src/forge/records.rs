@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use jig_protocol_store::{Event, SecretOwner, Secrets};
 #[cfg(test)]
 use skein_lib::List;
-use skein_lib::{Secret, Token};
+use skein_lib::{Queue, Secret, Token};
 use temper_protocol_records as records;
 pub(crate) const LOAD: Token = Token::new(crate::tokens::FORGE | 1);
 /// Every forge-family row survives until its record chooses the runtime (temper/docs/design/draft/playground-reset.md, 3).
@@ -30,6 +30,7 @@ impl Rows {
 
 #[derive(Debug)]
 pub(crate) struct Loader {
+    pub(crate) pending: Queue<temper_engine_domain_forge::ForgeRecord>,
     #[cfg(test)]
     pub(crate) inspected: List<u64>,
     pub(crate) rows: Rows,
@@ -47,6 +48,7 @@ enum Phase {
 impl Loader {
     pub(crate) fn new(limits: &crate::limits::Limits) -> Self {
         Self {
+            pending: Queue::uncapped(),
             #[cfg(test)]
             inspected: List::with_capacity(128),
             rows: Rows::new(),
@@ -107,6 +109,10 @@ fn matches_done(phase: &Phase) -> bool {
 pub(crate) fn advance(engine: &mut crate::engine::Engine) {
     if engine.end.is_some() || crate::stop::requested(engine) || !engine.store.component.mark_durable() {
         return;
+    }
+    for _ in 0..engine.forge_records.pending.len() {
+        let record = engine.forge_records.pending.pop().expect("kept forge awaiting durable wires");
+        crate::forges::record(engine, record);
     }
     match engine.forge_records.phase {
         Phase::Load { after } => {

@@ -583,8 +583,7 @@ fn records_service() -> (crate::Service, skein_lib::Secret) {
     settings.forges = forges.into_boxed();
     fixtures::fill_files(&mut settings);
     let file_token = settings.forges[0].api_token.clone().unwrap();
-    let mut service = fixtures::configured_service(settings, &fixtures::seeds(), None, runtime).unwrap();
-    service.engine.as_mut().expect("engine").store = fixtures::records_store();
+    let service = fixtures::configured_service(settings, &fixtures::seeds(), None, runtime).unwrap();
     (service, file_token)
 }
 #[expect(clippy::disallowed_macros, reason = "ordinary fixtures build versioned row bytes")]

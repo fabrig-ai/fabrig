@@ -65,14 +65,19 @@ fn identities_are_announced_after_the_durable_start_wires() {
     }
     let engine = service.engine.as_mut().expect("engine");
     assert_eq!(engine.domain.start_phase(), Some(core::start::Phase::Wires));
-    assert!(!engine.credentials.is_empty(), "identities wait for the Wires continuation");
+    assert!(engine.values.identities.numbers().is_empty(), "identities wait for the durable wires");
+    assert!(engine.workers.forges.is_empty(), "runtime forges wait for the durable wires");
+    assert!(!engine.forge_records.pending.is_empty(), "restored forges await the mark");
     let mark = engine.store.held_mark.take().expect("held startup wires");
     assert!(!engine.store.component.mark_durable());
     engine.store.hold_mark = false;
     assert!(engine.store.down(mark));
     assert!(!service.engine.as_ref().expect("engine").forge_records.done(), "secrets follow the mark");
     fixtures::restart(&mut service);
-    assert!(service.engine.as_ref().expect("engine").credentials.is_empty());
+    let engine = service.engine.as_ref().expect("engine");
+    assert_eq!(engine.values.identities.numbers().as_slice(), &[1]);
+    assert!(engine.forge_records.pending.is_empty());
+    assert!(engine.domain.ready());
     assert!(service.engine.as_ref().expect("engine").store.component.mark_durable());
 }
 
