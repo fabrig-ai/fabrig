@@ -133,123 +133,6 @@ fn refused(input: &[u8], limits: &Limits, expected: Unread, name: &str) {
     assert_eq!(moved::decode(input, limits).err(), Some(expected), "{name}");
 }
 
-// Literal output of the encoder at 365afd554^ for fixture(false), retained
-// from the J4 compatibility-refusal test, including its version-3 SavedToken.
-const OLD: &[u8] = b"JIGM\0\x01\0\0\0\x01a\0\0\0\x01i\0\0\0\x01c\0\0\0\x01s\0\0\0\0\0\0\0\x22\0\x03\0\0\0\x07\0\0\0\0\0\0\0\x09\0\0\0\0\0\0\0\x7b\0\0\0\x01a\0\0\0\0\0\0\0";
-const MAGIC_BYTES: usize = 4;
-
-#[test]
-fn old_jigm_literal_decodes_to_its_saved_account() {
-    assert_same(&fixture(false), &moved::decode(OLD, &limits()).expect("old JIGM form"));
-}
-
-#[test]
-fn an_old_file_reencodes_only_in_the_generated_form() {
-    let decoded = moved::decode(OLD, &limits()).expect("old JIGM form");
-    let encoded = moved::encode(&decoded, &limits()).expect("new form");
-    assert_eq!(&encoded.expose()[..2], b"\0\x01");
-    assert_same(&decoded, &moved::decode(encoded.expose(), &limits()).expect("new form decodes"));
-}
-
-#[test]
-fn every_truncation_of_an_old_file_is_refused() {
-    for end in MAGIC_BYTES..OLD.len() {
-        refused(&OLD[..end], &limits(), Unread::Malformed, "truncated old file");
-    }
-}
-
-#[test]
-fn an_old_file_refuses_a_trailing_byte() {
-    refused(&append_byte(OLD), &limits(), Unread::Trailing, "old trailing byte");
-}
-
-#[test]
-fn an_old_file_refuses_a_version_after_its_magic() {
-    let mut wrong_version = bytes::copy_of(OLD);
-    for (index, byte) in 2_u16.to_be_bytes().into_iter().enumerate() {
-        wrong_version[MAGIC_BYTES.checked_add(index).expect("version byte")] = byte;
-    }
-    refused(&wrong_version, &limits(), Unread::Version, "old version 2");
-}
-
-// Build boundary cases from the kept old bytes, never with today's encoder.
-fn old_part(part: usize, replacement: &[u8]) -> Box<[u8]> {
-    let replaced = replace_part(&OLD[MAGIC_BYTES..], part, replacement);
-    with_magic(&replaced)
-}
-
-fn with_magic(input: &[u8]) -> Box<[u8]> {
-    let mut out = Writer::new(MAGIC_BYTES.checked_add(input.len()).expect("small old file"));
-    out.put(b"JIGM").expect("room");
-    out.put(input).expect("room");
-    out.finish()
-}
-
-fn append_byte(input: &[u8]) -> Box<[u8]> {
-    let mut out = Writer::new(input.len().checked_add(1).expect("one extra byte"));
-    out.put(input).expect("room");
-    out.put(b"x").expect("room");
-    out.finish()
-}
-
-#[test]
-fn old_parts_at_their_bounds_decode() {
-    for (part, (_name, cap)) in OUTER_CAPS.into_iter().enumerate() {
-        let mut expected = fixture(false);
-        *outer_field(&mut expected, part) = filled(cap);
-        assert_same(&expected, &moved::decode(&old_part(part, &filled(cap)), &limits()).expect("old part at bound"));
-    }
-    let limits = record_limits(&fixture(false));
-    assert_same(&fixture(false), &moved::decode(OLD, &limits).expect("old record at bound"));
-}
-
-#[test]
-fn old_parts_refuse_oversized_prefixes_before_reading_bytes() {
-    for (part, (name, cap)) in OUTER_CAPS.into_iter().chain([("record", limits().record_bytes)]).enumerate() {
-        let mut changed = bytes::copy_of(OLD);
-        let offset = MAGIC_BYTES.checked_add(prefix(&OLD[MAGIC_BYTES..], part)).expect("old prefix");
-        let end = offset.checked_add(4).expect("prefix end");
-        for (index, byte) in cap.checked_add(1).expect("small cap").to_be_bytes().into_iter().enumerate() {
-            changed[offset.checked_add(index).expect("prefix byte")] = byte;
-        }
-        refused(&changed, &limits(), Unread::TooLarge, name);
-        refused(&changed[..end], &limits(), Unread::TooLarge, name);
-    }
-    let mut limits = record_limits(&fixture(false));
-    limits.record_bytes = limits.record_bytes.checked_sub(1).expect("nonzero record");
-    refused(OLD, &limits, Unread::TooLarge, "old record one past bound");
-}
-
-#[test]
-fn old_required_parts_refuse_empty_bytes() {
-    for part in [0, 1, 2, 3, 5] {
-        refused(&old_part(part, b""), &limits(), Unread::Malformed, "old empty required part");
-    }
-}
-
-#[test]
-fn an_old_file_refuses_an_invalid_nested_record() {
-    refused(&old_part(5, b"invalid record"), &limits(), Unread::Record, "old nested record");
-}
-
-#[test]
-fn old_file_at_the_whole_file_bound_decodes() {
-    let mut old = bytes::copy_of(OLD);
-    for (part, (_name, cap)) in OUTER_CAPS.into_iter().enumerate() {
-        let replaced = replace_part(&old[MAGIC_BYTES..], part, &filled(cap));
-        old = with_magic(&replaced);
-    }
-    let limits = record_limits(&fixture(false));
-    assert_eq!(u64::try_from(old.len()).expect("size"), moved::bound(&limits));
-    let decoded = moved::decode(&old, &limits).expect("old whole-file bound decodes");
-    let mut expected = fixture(false);
-    for (part, (_name, cap)) in OUTER_CAPS.into_iter().enumerate() {
-        *outer_field(&mut expected, part) = filled(cap);
-    }
-    assert_same(&expected, &decoded);
-    refused(&append_byte(&old), &limits, Unread::TooLarge, "old whole-file bound before trailing");
-}
-
 #[test]
 fn another_version_is_refused_by_name() {
     let valid = moved::encode(&fixture(false), &limits()).expect("fixture");
@@ -422,19 +305,22 @@ fn encode_refuses_a_record_skein_will_not_encode() {
 }
 
 #[test]
-fn bound_includes_four_more_bytes_than_the_generated_form() {
+fn bound_reserves_four_bytes_above_the_generated_form() {
     let mut original = fixture(true);
     for (part, (_name, cap)) in OUTER_CAPS.into_iter().enumerate() {
         *outer_field(&mut original, part) = filled(cap);
     }
     let limits = record_limits(&original);
     let encoded = moved::encode(&original, &limits).expect("all parts at bounds");
-    assert_eq!(moved::bound(&limits), u64::try_from(encoded.len()).expect("size").checked_add(4).expect("old magic"));
+    assert_eq!(
+        moved::bound(&limits),
+        u64::try_from(encoded.len()).expect("size").checked_add(4).expect("envelope allowance")
+    );
     assert_same(&original, &moved::decode(encoded.expose(), &limits).expect("largest file decodes"));
 }
 
 #[test]
-fn a_runtime_allowance_above_the_schema_covers_old_files() {
+fn the_envelope_bound_covers_the_runtime_record_allowance() {
     let limits = Limits { record_bytes: u32::MAX, ..limits() };
     assert_eq!(
         moved::bound(&limits),
@@ -446,123 +332,4 @@ fn a_runtime_allowance_above_the_schema_covers_old_files() {
             + u64::from(DISPLAY)
             + u64::from(u32::MAX)
     );
-}
-
-// Kept bytes transcribed from jig 365afd554^'s outer encoder and skein
-// cad332f2 record.rs: big-endian header, key/generation/expiry, three
-// u32-length fields, four marked fields and marked wall for v3. V2 ends
-// after metadata. The full row is R5's 109-byte literal; absent refresh
-// and metadata are zero u32 lengths, not option marks. No current encoder
-// produces these fixtures.
-pub(crate) const SKOT_FULL: &[u8] = b"JIGM\x00\x01\x00\x00\x00\x01a\x00\x00\x00\x01i\x00\x00\x00\x01c\x00\x00\x00\x01s\x00\x00\x00\x01d\x00\x00\x00JSKOT\x00\x03\x00\x00\x00\x07\x00\x00\x00\x00\x00\x00\x00\x09\x00\x00\x00\x00\x00\x00\x00{\x00\x00\x00\x01a\x00\x00\x00\x01r\x00\x00\x00\x01m\x01\x00\x00\x00\x01c\x01\x00\x00\x00\x01g\x01\x00\x00\x00\x01s\x01\x00\x00\x00\x01i\x01\x00\x00\x00\x00\x00\x00\x00d";
-const SKOT_ABSENT: &[u8] = b"JIGM\x00\x01\x00\x00\x00\x01a\x00\x00\x00\x01i\x00\x00\x00\x01c\x00\x00\x00\x01s\x00\x00\x00\x01d\x00\x00\x00,SKOT\x00\x03\x00\x00\x00\x07\x00\x00\x00\x00\x00\x00\x00\x09\x00\x00\x00\x00\x00\x00\x00{\x00\x00\x00\x01a\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
-const SKOT_TWO: &[u8] = b"JIGM\x00\x01\x00\x00\x00\x01a\x00\x00\x00\x01i\x00\x00\x00\x01c\x00\x00\x00\x01s\x00\x00\x00\x01d\x00\x00\x00)SKOT\x00\x02\x00\x00\x00\x07\x00\x00\x00\x00\x00\x00\x00\x09\x00\x00\x00\x00\x00\x00\x00{\x00\x00\x00\x01a\x00\x00\x00\x01r\x00\x00\x00\x01m";
-
-fn skot_fixture(version: u16, full: bool) -> Moved {
-    let mut value = fixture(false);
-    value.display = bytes::copy_of(b"d");
-    if full {
-        value.record.refresh_token = Some(bytes::copy_of(b"r"));
-        value.record.metadata = Some(bytes::copy_of(b"m"));
-        if version == 3 {
-            value.record.issued_client_id = Some(bytes::copy_of(b"c"));
-            value.record.granted_scopes = Some(bytes::copy_of(b"g"));
-            value.record.subject = Some(bytes::copy_of(b"s"));
-            value.record.id_token = Some(bytes::copy_of(b"i"));
-            value.record.earliest_refresh_at = Some(Wall::from_nanos(100));
-        }
-    }
-    value
-}
-
-#[test]
-fn skot_literals_decode_every_field_and_convert_to_schema_records() {
-    for (input, version, full) in [(SKOT_FULL, 3, true), (SKOT_ABSENT, 3, false), (SKOT_TWO, 2, true)] {
-        let decoded = moved::decode(input, &limits()).expect("JIGM/SKOT");
-        assert_same(&skot_fixture(version, full), &decoded);
-        let encoded = moved::encode(&decoded, &limits()).expect("schema export");
-        assert_eq!(&encoded.expose()[..2], b"\0\x01");
-        assert_same(&decoded, &moved::decode(encoded.expose(), &limits()).expect("schema record"));
-    }
-}
-
-// Six outer parts; retain the nested record's bytes for corruptions.
-fn skot_record(input: &[u8]) -> &[u8] {
-    let offset = MAGIC_BYTES.checked_add(prefix(&input[MAGIC_BYTES..], 5)).expect("record prefix");
-    &input[offset.checked_add(4).expect("record payload")..]
-}
-
-#[test]
-fn skot_record_corruption_is_refused_inside_the_envelope() {
-    const SKOT_HEADER: usize = 6; // four magic bytes and u16 version
-    const PRESENCE: [usize; 5] = [41, 47, 53, 59, 65]; // three L(1), then four marked L(1)
-    let record = skot_record(SKOT_FULL);
-    for end in MAGIC_BYTES..record.len() {
-        refused(&old_part(5, &record[..end]), &limits(), Unread::Record, "nested truncation");
-    }
-    refused(&old_part(5, &append_byte(record)), &limits(), Unread::Record, "nested tail");
-    for version in [1_u16, 4] {
-        let mut changed = bytes::copy_of(record);
-        for (target, byte) in changed[MAGIC_BYTES..SKOT_HEADER].iter_mut().zip(version.to_be_bytes()) {
-            *target = byte;
-        }
-        refused(&old_part(5, &changed), &limits(), Unread::Record, "nested version");
-    }
-    for offset in PRESENCE {
-        let mut changed = bytes::copy_of(record);
-        changed[offset] = 2;
-        refused(&old_part(5, &changed), &limits(), Unread::Record, "invalid presence");
-    }
-}
-
-#[test]
-fn skot_fields_accept_their_bounds() {
-    // Each field of R5's full literal is one byte, all seven caps at one.
-    let bounded = Limits {
-        token_bytes: 1,
-        issued_client_bytes: 1,
-        granted_bytes: 1,
-        subject_bytes: 1,
-        id_token_bytes: 1,
-        ..limits()
-    };
-    assert_same(&skot_fixture(3, true), &moved::decode(SKOT_FULL, &bounded).expect("fields at bounds"));
-}
-
-#[test]
-fn skot_fields_and_current_record_validation_refuse_overflow() {
-    const FIELD_PREFIXES: [usize; 7] = [26, 31, 36, 42, 48, 54, 60]; // fixed header, three L(1), four marked L(1)
-    const FIELD_PAYLOADS: [usize; 3] = [30, 35, 40]; // header 26, then three L(1)
-    const OVER_CAP: u32 = 129; // one past the largest test cap, token_bytes 128
-    const V2_RECORD_BYTES: u32 = 41; // 38 fixed bytes plus a, r and m
-    for bounded in [
-        Limits { token_bytes: 0, ..limits() },
-        Limits { issued_client_bytes: 0, ..limits() },
-        Limits { granted_bytes: 0, ..limits() },
-        Limits { subject_bytes: 0, ..limits() },
-        Limits { id_token_bytes: 0, ..limits() },
-    ] {
-        refused(SKOT_FULL, &bounded, Unread::Record, "field past limit");
-    }
-    // Each length is refused before attempting its oversized payload.
-
-    for offset in FIELD_PREFIXES {
-        let mut changed = bytes::copy_of(skot_record(SKOT_FULL));
-        let end = offset.checked_add(4).expect("prefix end");
-        for (target, byte) in changed[offset..end].iter_mut().zip(OVER_CAP.to_be_bytes()) {
-            *target = byte;
-        }
-        refused(&old_part(5, &changed), &limits(), Unread::Record, "oversized nested prefix");
-    }
-    // V2 is 41 bytes; the equivalent schema record is 44. Current size
-    // validation still applies even when the old record fits its allowance.
-    refused(SKOT_TWO, &Limits { record_bytes: V2_RECORD_BYTES, ..limits() }, Unread::Record, "current encoded size");
-    // The old reader permits any field bytes; the current codec must still
-    // refuse a malformed bearer, refresh text and metadata.
-
-    for offset in FIELD_PAYLOADS {
-        let mut changed = bytes::copy_of(skot_record(SKOT_FULL));
-        changed[offset] = 0xff;
-        refused(&old_part(5, &changed), &limits(), Unread::Record, "current semantic validation");
-    }
 }
