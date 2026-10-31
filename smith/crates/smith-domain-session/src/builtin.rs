@@ -3,12 +3,12 @@
 //! It knows no paths or program policy. Preparation makes stand-ins immediately;
 //! result patches consume their credit, and forgetting settles the remaining stand-ins.
 
-use super::{By, Calls, Conversation, Session, Slot, State, Tools, addressed, history};
+use super::{By, Calls, Conversation, Session, Slot, State as SessionState, Tools, addressed, history};
 use crate::facts::{FactKind, Facts, ToolCall, ToolSource};
 use crate::llm::{Block, Decoded, Returned};
 use crate::{Domain, Limits, Request};
 use alloc::boxed::Box;
-use core::mem::size_of;
+use core::mem::{self, size_of};
 use skein_lib::{Env, Id, List, Map, Queue, Token};
 
 const STAND_IN: &[u8] = b"smith: the program wrote no result for this call";
@@ -25,10 +25,32 @@ struct Claim {
     // The map key owns the id; metadata.id stays empty until an observation is emitted.
     metadata: ToolCall,
     block: u32,
-    credit: u64,
-    kept_bytes: u64,
-    announced: bool,
-    kept: bool,
+    state: State,
+}
+
+/// A program result keeps receiving credit until answered or its stand-in is settled.
+#[derive(Debug)]
+enum State {
+    New { credit: u64, kept_bytes: u64 },
+    Waiting { credit: u64, kept_bytes: u64 },
+    Forgotten { kept_bytes: u64 },
+    Settled { kept_bytes: u64 },
+}
+
+impl State {
+    fn receiving(&self) -> Option<(u64, u64)> {
+        match self {
+            Self::New { credit, kept_bytes } | Self::Waiting { credit, kept_bytes } => Some((*credit, *kept_bytes)),
+            Self::Forgotten { .. } | Self::Settled { .. } => None,
+        }
+    }
+
+    fn kept(&self) -> bool {
+        match self {
+            Self::New { .. } | Self::Waiting { .. } => false,
+            Self::Forgotten { .. } | Self::Settled { .. } => true,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -43,7 +65,7 @@ impl Owed {
 
     pub(super) fn is_empty(&self) -> bool {
         for (_, claim) in &self.entries {
-            if !claim.kept {
+            if !claim.state.kept() {
                 return false;
             }
         }
@@ -127,10 +149,7 @@ pub(super) fn prepare(
                     place: Place::Slot { index: tools.slots.len() },
                     metadata,
                     block: position,
-                    credit,
-                    kept_bytes,
-                    announced: false,
-                    kept: false,
+                    state: State::New { credit, kept_bytes },
                 };
                 let previous =
                     conversation.builtin.entries.insert(id.clone(), claim).expect("one entry per completion call");
@@ -183,18 +202,23 @@ pub(super) fn forget(conversation: &mut Conversation) {
             .0
             .clone();
         let claim = conversation.builtin.entries.get_mut(&key).expect("entry exists");
-        if !claim.kept {
-            conversation.reserved = conversation
-                .reserved
-                .checked_sub(claim.credit.checked_sub(claim.kept_bytes).expect("stand-in credit"))
-                .expect("owed result reserve");
-            claim.kept = true;
-        }
+        let state = mem::replace(&mut claim.state, State::Settled { kept_bytes: 0 });
+        claim.state = match state {
+            State::New { credit, kept_bytes } => {
+                release(&mut conversation.reserved, credit, kept_bytes);
+                State::Forgotten { kept_bytes }
+            }
+            State::Waiting { credit, kept_bytes } => {
+                release(&mut conversation.reserved, credit, kept_bytes);
+                State::Settled { kept_bytes }
+            }
+            state @ (State::Forgotten { .. } | State::Settled { .. }) => state,
+        };
     }
 }
 
 /// Emit starts before any terminal, and release only identities already settled.
-pub(super) fn flush(conversation: &mut Conversation, facts: &mut Facts) {
+pub(super) fn follow(conversation: &mut Conversation, facts: &mut Facts) {
     for index in 0..conversation.builtin.entries.len() {
         let id = conversation
             .builtin
@@ -207,26 +231,28 @@ pub(super) fn flush(conversation: &mut Conversation, facts: &mut Facts) {
         let claim = conversation.builtin.entries.get_mut(&id).expect("entry exists");
         let mut metadata = claim.metadata.clone();
         metadata.id.clone_from(&id);
-        if !claim.announced {
-            facts.push_call(
-                facts.now(),
-                FactKind::BuiltinStarted { opener: conversation.opener, block: claim.block },
-                &metadata,
-            );
-            claim.announced = true;
-        }
-        if claim.kept {
-            facts.push_call(
-                facts.now(),
-                FactKind::BuiltinAnswered { opener: conversation.opener, bytes: claim.kept_bytes, error: true },
-                &metadata,
-            );
-        }
+        let state = mem::replace(&mut claim.state, State::Settled { kept_bytes: 0 });
+        claim.state = match state {
+            State::New { credit, kept_bytes } => {
+                started(facts, conversation.opener, claim.block, &metadata);
+                State::Waiting { credit, kept_bytes }
+            }
+            State::Forgotten { kept_bytes } => {
+                started(facts, conversation.opener, claim.block, &metadata);
+                answered(facts, conversation.opener, kept_bytes, &metadata);
+                State::Settled { kept_bytes }
+            }
+            State::Settled { kept_bytes } => {
+                answered(facts, conversation.opener, kept_bytes, &metadata);
+                State::Settled { kept_bytes }
+            }
+            state @ State::Waiting { .. } => state,
+        };
     }
     for _ in 0..conversation.builtin.entries.capacity() {
         let mut settled = None;
         for (id, claim) in &conversation.builtin.entries {
-            if claim.kept {
+            if claim.state.kept() {
                 settled = Some(id.clone());
                 break;
             }
@@ -255,20 +281,24 @@ pub(crate) fn result(
     let current = domain.sessions.get_mut(session_id).expect("addressed session");
     let conversation = &mut current.conversation;
     let claim = match conversation.builtin.entries.remove(&id) {
-        Some(claim) if !claim.kept => claim,
+        Some(claim) if claim.state.receiving().is_some() => claim,
         Some(_) | None => return,
     };
-    let answer = history::cut_result(Returned::Text { text, error, replay: None }, claim.credit);
+    let (credit, kept_bytes) = claim.state.receiving().expect("only an owed claim accepts a result");
+    let answer = history::cut_result(Returned::Text { text, error, replay: None }, credit);
     let bytes = super::returned_cost(&answer).expect("bounded program result");
-    conversation.bytes = conversation.bytes.checked_sub(claim.kept_bytes).expect("stand-in was counted");
-    conversation.reserved = conversation.reserved.checked_add(claim.kept_bytes).expect("restore full credit");
-    super::receive_result(conversation, claim.credit, &answer, &env.limits);
+    conversation.bytes = conversation.bytes.checked_sub(kept_bytes).expect("stand-in was counted");
+    conversation.reserved = conversation.reserved.checked_add(kept_bytes).expect("restore full credit");
+    super::receive_result(conversation, credit, &answer, &env.limits);
     let block = match claim.place {
         Place::Slot { index } => {
             let tools = match &mut current.state {
-                State::Tooling { tools } | State::Resting { tools } => tools,
-                State::Closing { tools, .. } => tools.as_mut().expect("closing slots retained"),
-                State::Calling { .. } | State::Backoff { .. } | State::Yielded { .. } | State::Closed => {
+                SessionState::Tooling { tools } | SessionState::Resting { tools } => tools,
+                SessionState::Closing { tools, .. } => tools.as_mut().expect("closing slots retained"),
+                SessionState::Calling { .. }
+                | SessionState::Backoff { .. }
+                | SessionState::Yielded { .. }
+                | SessionState::Closed => {
                     unreachable!("owed slot lives with tools")
                 }
             };
@@ -346,4 +376,17 @@ pub(super) fn finish_closing(conversation: &mut Conversation, tools: Option<Tool
 pub(super) fn keep_turn(conversation: &mut Conversation, out: &mut Queue<Request>) -> Option<crate::End> {
     forget(conversation);
     super::tell_turn(conversation, out)
+}
+
+fn release(reserved: &mut u64, credit: u64, kept_bytes: u64) {
+    *reserved =
+        reserved.checked_sub(credit.checked_sub(kept_bytes).expect("stand-in credit")).expect("owed result reserve");
+}
+
+fn started(facts: &mut Facts, opener: Token, block: u32, metadata: &ToolCall) {
+    facts.push_call(facts.now(), FactKind::BuiltinStarted { opener, block }, metadata);
+}
+
+fn answered(facts: &mut Facts, opener: Token, bytes: u64, metadata: &ToolCall) {
+    facts.push_call(facts.now(), FactKind::BuiltinAnswered { opener, bytes, error: true }, metadata);
 }

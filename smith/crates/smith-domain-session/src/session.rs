@@ -525,7 +525,7 @@ pub(crate) fn completed(
     let id = Id::from_token(owner);
     let session = domain.sessions.get_mut(id).expect("a session lives until its requests have ended");
     builtin::forget(&mut session.conversation);
-    builtin::flush(&mut session.conversation, &mut domain.facts);
+    builtin::follow(&mut session.conversation, &mut domain.facts);
     if let Some(end) = tell_turn(&mut session.conversation, out) {
         session.state = finish(end);
     }
@@ -841,7 +841,7 @@ pub(crate) fn failed(
         "adapter terminal obeys failure receiving cap"
     );
     builtin::forget(&mut session.conversation);
-    builtin::flush(&mut session.conversation, &mut domain.facts);
+    builtin::follow(&mut session.conversation, &mut domain.facts);
     if let Some(end) = tell_turn(&mut session.conversation, out) {
         session.state = finish(end);
     }
@@ -1235,7 +1235,7 @@ fn conclude(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out: &mut Q
         | State::Yielded { .. }
         | State::Closed => {}
     }
-    builtin::flush(&mut session.conversation, &mut domain.facts);
+    builtin::follow(&mut session.conversation, &mut domain.facts);
     match session.state {
         State::Closing { waiting: Waiting { call: false, runs: 0, .. }, .. } | State::Yielded { .. } => {
             let tools = match &mut session.state {
