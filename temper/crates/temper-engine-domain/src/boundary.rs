@@ -271,6 +271,12 @@ pub type TranscriptTexts = Box<[Option<Box<[u8]>>]>;
 
 #[derive(Debug)]
 pub enum StoreInput {
+    /// A startup page's missing owner, handed in before that page's Loaded.
+    MissingLink {
+        owner: Token,
+        record: jig_domain_core::Key,
+        target: jig_domain_core::Key,
+    },
     Switched,
     Committed {
         /// Store-echoed positive commit number, at most the latest issued commit; older cumulative

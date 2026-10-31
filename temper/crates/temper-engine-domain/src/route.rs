@@ -206,6 +206,10 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             accept_load(domain, env, decision);
             return;
         }
+        Event::Store(crate::StoreInput::MissingLink { owner: _, record, target }) => {
+            domain.core.start_missing(record, target);
+            return;
+        }
         Event::Store(crate::StoreInput::Switched) => {
             domain.settled = None;
             let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -534,7 +538,8 @@ pub(crate) fn discard_after_stop(domain: &mut Domain, event: Event) {
         | Event::Resume
         | Event::Stop
         | Event::Store(
-            crate::StoreInput::Switched
+            crate::StoreInput::MissingLink { .. }
+            | crate::StoreInput::Switched
             | crate::StoreInput::Committed { .. }
             | crate::StoreInput::Uncommitted { .. }
             | crate::StoreInput::ReadLoaded { .. },

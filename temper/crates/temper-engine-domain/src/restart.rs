@@ -58,6 +58,7 @@ pub(crate) fn request_load(
             | crate::CoreRange::Settings
             | crate::CoreRange::Accounts
             | crate::CoreRange::People
+            | crate::CoreRange::Sweep
             | crate::CoreRange::RunProofs
             | crate::CoreRange::Turns { .. }
             | crate::CoreRange::TaskTranscript { .. },
@@ -89,6 +90,7 @@ pub(crate) fn request_load(
                 | crate::CoreRange::Settings
                 | crate::CoreRange::Accounts
                 | crate::CoreRange::People
+                | crate::CoreRange::Sweep
                 | crate::CoreRange::TaskResult { .. }
                 | crate::CoreRange::EndedRead { .. }
                 | crate::CoreRange::Turns { .. },
@@ -116,6 +118,7 @@ pub(crate) fn request_load(
                 | crate::CoreRange::Settings
                 | crate::CoreRange::Accounts
                 | crate::CoreRange::People
+                | crate::CoreRange::Sweep
                 | crate::CoreRange::RunProofs
                 | crate::CoreRange::Turns { .. }
                 | crate::CoreRange::TaskTranscript { .. }
@@ -256,6 +259,7 @@ pub(crate) fn startup_page(
         Range::Core(crate::CoreRange::Deployment) => Some(Range::Core(crate::CoreRange::Settings)),
         Range::Core(crate::CoreRange::Settings) => Some(Range::Core(crate::CoreRange::Accounts)),
         Range::Core(crate::CoreRange::Accounts) => Some(Range::Core(crate::CoreRange::People)),
+        Range::Core(crate::CoreRange::Sweep) => unreachable!("sweep is driven by the start"),
         Range::Core(crate::CoreRange::People) => Some(Range::Core(crate::CoreRange::Tasks)),
         Range::Core(crate::CoreRange::Tasks) => Some(Range::Core(crate::CoreRange::RunProofs)),
         Range::Forge | Range::Census(_) | Range::Core(crate::CoreRange::Calls) => None,

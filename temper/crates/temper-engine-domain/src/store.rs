@@ -341,6 +341,8 @@ pub enum CoreRange {
     RunProofs,
     /// Root startup reads every people child row before accepting people.
     People,
+    /// The start's second walk of people's live rows for Sweep.
+    Sweep,
     /// Root reads one historical ended task for an authenticated result page.
     EndedRead { task: u64, party: u64 },
     TaskResult {
@@ -413,7 +415,7 @@ impl CoreRange {
             Self::Deployment => &[RestoreRange::Deployment],
             Self::Settings => &[RestoreRange::Settings],
             Self::Accounts => &[RestoreRange::Accounts],
-            Self::People => &[RestoreRange::People],
+            Self::People | Self::Sweep => &[RestoreRange::People],
             Self::Tasks => &[RestoreRange::Core, RestoreRange::Tasks],
             Self::Calls | Self::RunProofs => &[RestoreRange::Core],
             Self::RequesterWord { .. }
@@ -477,7 +479,7 @@ impl CoreRange {
                 Core::Tasks(child) => child.live(),
                 Core::Core(_) | Core::People(_) | Core::Notes(_) | Core::Accounts(_) => false,
             },
-            CoreRange::People => {
+            CoreRange::People | CoreRange::Sweep => {
                 let Core::People(child) = key else { return false };
                 child.live()
             }

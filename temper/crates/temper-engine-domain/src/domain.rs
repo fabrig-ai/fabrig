@@ -20,6 +20,19 @@ use temper_engine_domain_calendar as calendar;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as forge_change;
 
+/// Why a start stopped before decisions opened (temper/docs/design/domain/root.md, 9.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum StartStop {
+    /// jig's start refused a fit at this phase (jig/docs/design/domain/engine.md, 6).
+    Core { phase: Option<jig_domain_core::start::Phase>, failure: jig_domain_core::start::Failure },
+    /// A startup page could not be read.
+    Load(loads::RestoreFailure),
+    /// The forge's restored records do not fit its limits.
+    ForgeFit { phase: Option<jig_domain_core::start::Phase>, failure: forge::RestoreFit },
+    /// The deployment's namespace binding was refused.
+    Binding,
+}
+
 /// Core, forge, journal and bounded child-requested continuation bindings.
 /// The core owns policy and current proofs; the forge owns connector payloads
 /// and timer decisions. Every outbound envelope passes through the journal
@@ -91,6 +104,18 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// The phase the start is in, none before the start and once decisions open.
+    #[must_use]
+    pub fn start_phase(&self) -> Option<jig_domain_core::start::Phase> {
+        self.core.start_phase()
+    }
+
+    /// The start's stop, kept until the service reports it.
+    #[must_use]
+    pub fn start_stop(&self) -> Option<StartStop> {
+        None
+    }
+
     /// The transcript and turn bytes the root and its core hold now
     /// (domain/root.md, 4.1): the root's running total and the core's
     /// `transcript_bytes`. A person's read pages waiting in `store_answers`

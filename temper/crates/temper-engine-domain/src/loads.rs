@@ -105,7 +105,7 @@ pub(crate) fn kind(range: &Range) -> Kind {
         Range::Core(CoreRange::Accounts) => Kind::Accounts,
         Range::Core(CoreRange::Tasks) => Kind::Tasks,
         Range::Core(CoreRange::RunProofs) => Kind::RunProofs,
-        Range::Core(CoreRange::People) => Kind::People,
+        Range::Core(CoreRange::People | CoreRange::Sweep) => Kind::People,
         Range::Core(CoreRange::Calls) => Kind::Calls,
         Range::Core(CoreRange::EndedRead { .. }) => Kind::EndedRead,
         Range::Core(CoreRange::TaskResult { .. }) => Kind::TaskResult,
@@ -434,6 +434,7 @@ fn read_cursor(entry: &Entry, empty: bool, previous: Option<&Key>, cursor: &Key)
             | crate::CoreRange::Settings
             | crate::CoreRange::Accounts
             | crate::CoreRange::People
+            | crate::CoreRange::Sweep
             | crate::CoreRange::RunProofs
             | crate::CoreRange::Calls
             | crate::CoreRange::Notes(jig_domain_notes::Range::Lines { .. }),
@@ -490,6 +491,7 @@ fn valid_range(range: &Range) -> bool {
             | crate::CoreRange::Accounts
             | crate::CoreRange::Tasks
             | crate::CoreRange::People
+            | crate::CoreRange::Sweep
             | crate::CoreRange::RunProofs
             | crate::CoreRange::Calls
             | crate::CoreRange::Notes(jig_domain_notes::Range::Lines { .. }),
