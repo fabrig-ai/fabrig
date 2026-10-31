@@ -5,7 +5,7 @@
 use super::{Backend, Below, Owner, PIPE_BYTES, Pipes, State};
 use alloc::boxed::Box;
 use skein_io::{self as io, kernel};
-use skein_lib::{Env, List, Queue, Token, stream};
+use skein_lib::{Env, Queue, Token, stream};
 use smith_protocol_llm::{self as protocol, ToDomain};
 
 impl Backend {
@@ -200,33 +200,14 @@ impl Backend {
     }
 
     fn keep_error(&mut self, bytes: &[u8]) {
-        for byte in bytes {
-            if self.stderr.room() > 0 {
-                self.stderr.push(*byte).expect("tail room");
-            } else if self.stderr.capacity() > 0 {
-                self.stderr_wrapped = true;
-                *self.stderr.get_mut(self.stderr_next).expect("tail cell") = *byte;
-                self.stderr_next = self
-                    .stderr_next
-                    .checked_add(1)
-                    .expect("tail index")
-                    .checked_rem(self.stderr.capacity())
-                    .expect("positive capacity");
-            }
+        let room = self.stderr.capacity().checked_sub(self.stderr.len()).expect("bounded tail");
+        if self.stderr.capacity() > 0 && bytes.len() > usize::try_from(room).expect("tail capacity fits usize") {
+            self.stderr_wrapped = true;
         }
+        self.stderr.put(bytes);
     }
 
     fn error_tail(&self) -> Box<[u8]> {
-        let mut bytes = List::with_capacity(self.stderr.len());
-        for index in 0..self.stderr.len() {
-            let at = self
-                .stderr_next
-                .checked_add(index)
-                .expect("tail offset")
-                .checked_rem(self.stderr.len())
-                .expect("nonempty tail");
-            bytes.push(*self.stderr.get(at).expect("tail cell")).expect("sized tail");
-        }
-        bytes.into_boxed()
+        self.stderr.to_boxed()
     }
 }

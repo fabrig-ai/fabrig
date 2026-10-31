@@ -6,7 +6,7 @@
 
 use alloc::boxed::Box;
 use skein_io::{self as io, file, kernel};
-use skein_lib::{Duration, Env, List, Map, Queue, Secret, Time, Token};
+use skein_lib::{Duration, Env, List, Map, Queue, Secret, Tail, Time, Token};
 use smith_domain::{GrantName, llm};
 use smith_protocol_llm::{self as protocol, FromDomain, ToDomain};
 
@@ -257,9 +257,7 @@ pub struct Backend {
     calls: List<mcp::Up>,
     ledger: List<calls::Call>,
     turns: turns::Turns,
-    stderr: List<u8>,
-    /// Next byte overwritten when the stderr capture is full.
-    stderr_next: u32,
+    stderr: Tail,
     stderr_wrapped: bool,
     io: Queue<io::Request>,
 }
@@ -336,8 +334,7 @@ impl Backend {
             calls,
             ledger,
             turns,
-            stderr: List::with_capacity(failure_bytes),
-            stderr_next: 0,
+            stderr: Tail::with_capacity(failure_bytes),
             stderr_wrapped: false,
             io: Queue::with_capacity(32),
         }

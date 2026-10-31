@@ -196,8 +196,7 @@ impl Backend {
         self.intake_at = 0;
         self.intake_due = None;
         self.line = List::with_capacity(self.settings.line_bytes);
-        self.stderr = List::with_capacity(self.settings.receiving.max_failure_bytes);
-        self.stderr_next = 0;
+        self.stderr = super::Tail::with_capacity(self.settings.receiving.max_failure_bytes);
         self.stderr_wrapped = false;
         self.written = 0;
         self.interrupt_pending = None;

@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 
 use skein_io::{self as io, file, kernel};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Duration, List, Map, Queue, Time, Token, Writer};
+use skein_lib::{Duration, List, Map, Queue, Tail, Time, Token, Writer};
 use smith_domain::{run, tools};
 
 use crate::boundary::{Below, Spawn, ToDomain};
@@ -60,32 +60,21 @@ pub(crate) enum Why {
 #[derive(Debug)]
 pub(crate) struct Capture {
     head: List<u8>,
-    tail: List<u8>,
-    next: u32,
+    tail: Tail,
     total: u64,
 }
 
 impl Capture {
     pub(crate) fn new(head: u32, tail: u32) -> Capture {
-        Capture { head: List::with_capacity(head), tail: List::with_capacity(tail), next: 0, total: 0 }
+        Capture { head: List::with_capacity(head), tail: Tail::with_capacity(tail), total: 0 }
     }
 
     pub(crate) fn push(&mut self, byte: u8) {
         self.total = self.total.saturating_add(1);
         if self.head.room() > 0 {
             self.head.push(byte).expect("head has room");
-        } else if self.tail.capacity() > 0 {
-            if self.tail.room() > 0 {
-                self.tail.push(byte).expect("tail has room");
-            } else {
-                *self.tail.get_mut(self.next).expect("ring slot exists") = byte;
-                self.next = self
-                    .next
-                    .checked_add(1)
-                    .expect("ring index fits")
-                    .checked_rem(self.tail.capacity())
-                    .expect("tail capacity positive");
-            }
+        } else {
+            self.tail.push(byte);
         }
     }
 
@@ -114,7 +103,6 @@ impl Capture {
             .expect("tail within total");
         self.head.clear();
         self.tail.clear();
-        self.next = 0;
         self.total = 0;
         (leading.finish(), trailing.finish(), dropped)
     }
@@ -124,16 +112,7 @@ impl Capture {
             return *self.head.get(at).expect("head byte");
         }
         let at = at.checked_sub(self.head.len()).expect("tail offset");
-        let index = if self.tail.len() == self.tail.capacity() {
-            self.next
-                .checked_add(at)
-                .expect("ring index fits")
-                .checked_rem(self.tail.len())
-                .expect("tail length positive")
-        } else {
-            at
-        };
-        *self.tail.get(index).expect("tail byte")
+        *self.tail.get(at).expect("tail byte")
     }
 }
 

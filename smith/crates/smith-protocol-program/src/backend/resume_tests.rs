@@ -28,9 +28,8 @@ fn the_tail_goes_as_one_user_message() {
 }
 
 fn stderr_failure(backend: &mut Backend, detail: &[u8]) -> llm::Failure {
-    backend.stderr = List::with_capacity(128);
+    backend.stderr = Tail::with_capacity(128);
     backend.stderr_wrapped = false;
-    backend.stderr_next = 0;
     backend.pipes.errors = Some(Token::new(33));
     backend.io_event(
         &env(0),
@@ -370,7 +369,7 @@ fn a_wrapped_missing_prefix_stays_a_program_error() {
     backend.state = State::Starting;
     backend.exit = Some(1);
     let prefix = b"No conversation found with session ID";
-    backend.stderr = List::with_capacity(u32::try_from(prefix.len()).expect("prefix length"));
+    backend.stderr = Tail::with_capacity(u32::try_from(prefix.len()).expect("prefix length"));
     backend.pipes.errors = Some(Token::new(33));
     for bytes in [[b'x'; b"No conversation found with session ID".len()].as_slice(), prefix.as_slice()] {
         backend.io_event(
@@ -380,8 +379,7 @@ fn a_wrapped_missing_prefix_stays_a_program_error() {
             &mut Queue::with_capacity(64),
         );
     }
-    assert_eq!(backend.stderr_next, 0, "one whole revolution");
-    assert_eq!(backend.stderr.as_slice(), prefix);
+    assert_eq!(backend.stderr.to_boxed().as_ref(), prefix);
     assert!(backend.stderr_wrapped);
     assert_eq!(backend.exit_failure(), llm::Failure::Program { exit: Some(1) });
 }

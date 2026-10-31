@@ -63,7 +63,7 @@ impl Backend {
         if self.state == State::Starting
             && self.resuming
             && !self.stderr_wrapped
-            && self.stderr.as_slice().starts_with(b"No conversation found with session ID")
+            && self.stderr.to_boxed().starts_with(b"No conversation found with session ID")
         {
             return llm::Failure::SessionGone;
         }
