@@ -256,6 +256,18 @@ impl Io {
         !self.tables.refused.is_empty() || self.tables.ready.is_ready()
     }
 
+    /// Entries `resume` can take now, including held refusals.
+    pub(crate) fn ready_len(&self) -> u64 {
+        u64::from(self.tables.ready.now.len())
+            .checked_add(u64::from(self.tables.refused.len()))
+            .expect("two u32 counts fit a u64")
+    }
+
+    /// Deadlines held at the start of a stage.
+    pub(crate) fn deadlines_len(&self) -> u32 {
+        self.tables.deadlines.len()
+    }
+
     /// When the earliest deadline falls due: a graceful close's, or a
     /// retry's.
     #[must_use]
