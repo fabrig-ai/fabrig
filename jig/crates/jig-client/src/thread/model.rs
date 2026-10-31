@@ -17,8 +17,6 @@ pub enum Line<'a> {
     Turn { name: TurnName, turn: &'a Turn, at: Wall },
     Undecoded { name: TurnName, why: TurnProblem, at: Wall },
     Provisional { name: ProvisionalTurnName, text: &'a [u8], cut: bool },
-    RunBegan { attempt: u64 },
-    RunEnded { attempt: u64 },
     Activity { line: &'a ActivityLine },
     Left { lines: u32 },
 }

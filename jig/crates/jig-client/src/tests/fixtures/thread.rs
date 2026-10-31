@@ -13,7 +13,7 @@ pub fn row(position: u64) -> ActivityLine {
     ActivityLine {
         source: Box::new(OwnerActivityLine {
             task: 7,
-            position: position,
+            position,
             at: Wall::EPOCH,
             line: OwnerActivity::RunBegan { attempt: 1, why: OwnerRunWhy::Made, resumed: false },
         }),

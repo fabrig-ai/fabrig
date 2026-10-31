@@ -1,9 +1,5 @@
 use super::*;
 use skein_lib::{List, Wall};
-pub fn read_value_phase() -> c::Phase {
-    c::Phase::Waiting
-}
-
 pub fn read_value_specification_document() -> c::SpecificationDocument {
     c::SpecificationDocument { specification: read_value_document_specification(), cut: false }
 }
@@ -35,10 +31,6 @@ pub fn read_value_wake_rule() -> c::WakeRule {
 
 pub fn read_value_results_wake() -> c::ResultsWake {
     c::ResultsWake::Never
-}
-
-pub fn read_value_owner_authority_document() -> c::OwnerAuthorityDocument {
-    c::OwnerAuthorityDocument { authority: read_value_owner_authority(), cut: false }
 }
 
 pub fn read_value_owner_authority() -> c::OwnerAuthority {
@@ -80,8 +72,4 @@ pub fn read_value_question() -> c::Question {
         acts: List::with_capacity(0),
         ending: None,
     }
-}
-
-pub fn read_value_person_contract() -> c::PersonContract {
-    c::PersonContract::Choice { options: List::with_capacity(0) }
 }

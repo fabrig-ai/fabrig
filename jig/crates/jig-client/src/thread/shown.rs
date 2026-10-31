@@ -9,10 +9,10 @@ impl Thread {
     #[must_use]
     pub fn shows(&self, key: ObjectKey, live: &[crate::thread::LiveTurn]) -> bool {
         for line in &self.lines.rows {
-            if let Some(ArchivedTurn { turn: TurnRead::Decoded(turn), .. }) = &line.decoded {
-                if turn_shows(turn, key) {
-                    return true;
-                }
+            if let Some(ArchivedTurn { turn: TurnRead::Decoded(turn), .. }) = &line.decoded
+                && turn_shows(turn, key)
+            {
+                return true;
             }
         }
         for live in live {

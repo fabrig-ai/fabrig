@@ -64,13 +64,6 @@ pub struct Holding {
     pub role: HeldRole,
 }
 
-/// The policy role for a kind of proposal past a tree.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Decider {
-    pub kind: u16,
-    pub role: u16,
-}
-
 /// The target and decision of a `Decide`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum DecideOn {

@@ -49,17 +49,12 @@ fn activity_document_movement_reads_only_new_lines_and_bridges_small_pages() {
     assert_eq!(c.lines.edges.after, Edge::More(cursor(b"remaining")));
 }
 
-const FIRST_WORDS: crate::Key = crate::Key { asker: crate::Asker::JIG, number: 11 };
-const SECOND_WORDS: crate::Key = crate::Key { asker: crate::Asker::JIG, number: 12 };
-const FULL_WORDS: crate::Key = crate::Key { asker: crate::Asker::JIG, number: 13 };
 const ARCHIVE_WORDS: crate::Key = crate::Key { asker: crate::Asker::JIG, number: 77 };
 const ATTEMPT: u64 = 1;
 const TURN: u32 = 1;
 const MESSAGE: u64 = 41;
 const FIRST_MESSAGE: u64 = 40;
 const TURN_AT: Wall = Wall::from_nanos(17);
-const FIRST_WORDS_AT: Wall = Wall::from_nanos(11);
-const SECOND_WORDS_AT: Wall = Wall::from_nanos(13);
 fn run() -> RunState {
     RunState { task: fixtures::SUBJECT_TASK, attempt: Some(ATTEMPT), committed_turn: 0, writing: None, call: None }
 }
@@ -97,7 +92,7 @@ fn commit(thread: &mut Thread, turn: TurnRead) {
                 cumulative: 0,
                 read: None,
                 at: TURN_AT,
-                turn: turn,
+                turn,
             }),
         })
         .unwrap();
@@ -147,7 +142,7 @@ fn a_live_turn_stays_until_its_staged_commit_merges() {
         }),
         decoded: Some(ArchivedTurn {
             task: 7,
-            name: name,
+            name,
             cumulative: 0,
             read: None,
             at: TURN_AT,

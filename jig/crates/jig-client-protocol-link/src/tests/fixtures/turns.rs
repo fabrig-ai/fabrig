@@ -21,7 +21,7 @@ pub fn expected_turn_line(position: u64, at: u64, number: u32, turn: c::TurnRead
     c::ActivityLine {
         source: Box::new(c::OwnerActivityLine {
             task: 7,
-            position: position,
+            position,
             at: Wall::from_nanos(at),
             line: c::OwnerActivity::Turn {
                 reply: position,
@@ -36,7 +36,7 @@ pub fn expected_turn_line(position: u64, at: u64, number: u32, turn: c::TurnRead
             cumulative: 0,
             read: None,
             at: Wall::from_nanos(at),
-            turn: turn,
+            turn,
         }),
     }
 }

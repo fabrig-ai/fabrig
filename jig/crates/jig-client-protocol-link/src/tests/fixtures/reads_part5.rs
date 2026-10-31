@@ -8,14 +8,6 @@ pub fn read_value_proposer() -> c::Proposer {
     c::Proposer::Task(7)
 }
 
-pub fn read_value_actor() -> c::Actor {
-    c::Actor::Party(7)
-}
-
-pub fn read_value_recipient() -> c::Recipient {
-    c::Recipient::Task(7)
-}
-
 pub fn read_value_owner_proposal() -> c::OwnerProposal {
     c::OwnerProposal {
         key: read_value_proposal_key(),
@@ -43,18 +35,6 @@ pub fn read_value_owner_proposal_waiting() -> c::OwnerProposalWaiting {
 
 pub fn read_value_owner_history_holder() -> c::OwnerHistoryHolder {
     c::OwnerHistoryHolder::Task(7)
-}
-
-pub fn read_value_hold() -> c::Hold {
-    c::Hold {
-        placed: None,
-        revision: read_value_revision(),
-        reason: c::HoldReason::Tries { failures: List::with_capacity(0) },
-        before: read_value_phase(),
-        since: Wall::from_nanos(7),
-        result: None,
-        spend: List::with_capacity(0),
-    }
 }
 
 pub fn read_value_revision() -> c::Revision {

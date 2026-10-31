@@ -173,25 +173,13 @@ pub struct DecisionFacts {
     pub dangerous: bool,
     pub effect: Option<Effect>,
     pub funding: skein_lib::List<crate::contract::OwnerFundingOffer>,
-    pub funds: Option<Funds>,
-}
-/// The proposal document's supplied budget and checked remainder.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Funds {
-    pub needed: u64,
-    pub left: u64,
-    pub after: u64,
 }
 /// Read decision facts; a missing document still carries the act's danger.
 #[must_use]
 pub fn decision(document: Option<&crate::contract::ReadValue>, act: ActKind) -> DecisionFacts {
     use crate::contract::ReadValue;
-    let mut value = DecisionFacts {
-        dangerous: dangerous(act),
-        effect: None,
-        funding: skein_lib::List::with_capacity(0),
-        funds: None,
-    };
+    let mut value =
+        DecisionFacts { dangerous: dangerous(act), effect: None, funding: skein_lib::List::with_capacity(0) };
     if let Some(document) = document {
         if let Some(offers) = decision_offers(document) {
             value.effect = effect(offers.as_slice(), act).copied();

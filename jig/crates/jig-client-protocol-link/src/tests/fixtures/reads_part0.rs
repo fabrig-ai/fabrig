@@ -20,14 +20,6 @@ pub fn read_wire_owner_spend_page() -> w::OwnerSpendPage {
     jig_client_test_records::read_wire_owner_spend_page()
 }
 
-pub fn read_wire_proposal_key() -> w::ProposalKey {
-    jig_client_test_records::read_wire_proposal_key()
-}
-
-pub fn read_wire_proposer() -> w::Proposer {
-    jig_client_test_records::read_wire_proposer()
-}
-
 pub fn read_wire_activity_page() -> w::ActivityPage {
     jig_client_test_records::read_wire_activity_page()
 }

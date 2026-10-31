@@ -167,6 +167,7 @@ pub(crate) fn activity_line_piece(
     Err(too_large())
 }
 
+#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn activity_line_fields(value: &w::ActivityLine, limits: &Limits) -> Result<c::ActivityLine, w::Problem> {
     let decoded = match value.decoded() {
         Some(item) => Some(archived_turn_fields(item, limits)),

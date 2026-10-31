@@ -96,8 +96,6 @@ fn receiving_part1(checked: &mut Limits, limits: &Limits) {
     checked.wire.owner_word_result_approved_state = limits.client.text;
     checked.wire.owner_word_result_verdict_fields = limits.client.rows;
     checked.wire.parameter_bytes_value = limits.client.text;
-    checked.wire.part_resource_path = limits.client.segments;
-    checked.wire.part_resource_path_item = limits.client.text;
     checked.wire.party_name = limits.client.text;
     checked.wire.person_contract_choice_options =
         u32::try_from(limits.client.document_bytes).expect("validated receiving bytes");

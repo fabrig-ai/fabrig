@@ -1,26 +1,6 @@
 use super::*;
 use skein_lib::List;
 
-pub fn read_hold_reason_record() -> w::HoldReason {
-    let lim = w::CEILINGS;
-    let row = w::Fact::HoldReason(
-        w::HoldReasonRow::new(
-            &lim,
-            w::HoldReasonRowParts {
-                parent: None,
-                value: w::HoldReasonFields::Tries(
-                    w::HoldReasonTriesFields::new(
-                        &lim,
-                        w::HoldReasonTriesFieldsParts { failures: List::with_capacity(0) },
-                    )
-                    .unwrap(),
-                ),
-            },
-        )
-        .unwrap(),
-    );
-    w::HoldReason::new(&lim, w::HoldReasonParts { rows: fact_bytes(&row) }).unwrap()
-}
 #[path = "reads_part0.rs"]
 mod part0;
 pub use part0::*;
@@ -148,7 +128,8 @@ pub fn ended_rows(count: u32) -> Box<[u8]> {
     let mut bytes = Writer::new(usize::try_from(row.measure()).unwrap());
     row.encode(&mut bytes).unwrap();
     let bytes = bytes.finish();
-    let mut rows = Writer::new((bytes.len() + 4) * usize::try_from(count).unwrap());
+    let mut rows =
+        Writer::new(bytes.len().checked_add(4).unwrap().checked_mul(usize::try_from(count).unwrap()).unwrap());
     for _ in 0..count {
         skein_codec::piece::write(&mut rows, &bytes).unwrap();
     }
@@ -156,11 +137,11 @@ pub fn ended_rows(count: u32) -> Box<[u8]> {
 }
 pub fn trailing_ended_row() -> Box<[u8]> {
     let row = ended_delegate_record();
-    let mut bytes = Writer::new(usize::try_from(row.measure()).unwrap() + 1);
+    let mut bytes = Writer::new(usize::try_from(row.measure()).unwrap().checked_add(1).unwrap());
     row.encode(&mut bytes).unwrap();
     bytes.put(&[0]).unwrap();
     let bytes = bytes.finish();
-    let mut rows = Writer::new(bytes.len() + 4);
+    let mut rows = Writer::new(bytes.len().checked_add(4).unwrap());
     skein_codec::piece::write(&mut rows, &bytes).unwrap();
     rows.finish()
 }
