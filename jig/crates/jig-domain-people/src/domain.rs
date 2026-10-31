@@ -1305,7 +1305,6 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
         return false;
     }
     match ask {
-        Ask::RemoveProject { .. } => true,
         Ask::Compound { operations, .. } => crate::compound::refusal(limits, operations).is_none(),
         Ask::MarkSeen { seen } => match seen {
             Seen::Results { .. } => true,
@@ -1321,7 +1320,8 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
                     None => false,
                 }
         }
-        Ask::ChangeSettings { .. }
+        Ask::RemoveProject { .. }
+        | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
         | Ask::Application { .. }
         | Ask::AccountSignIn { .. }
@@ -2014,6 +2014,7 @@ fn restore(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Que
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive table restores each admitted people row")]
 fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Queue<Request>) {
     match domain.phase {
         Phase::Ready => {

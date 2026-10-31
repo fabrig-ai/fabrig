@@ -258,6 +258,7 @@ fn permanent(outcome: &Outcome) -> bool {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive table checks every act against its permanent outcome")]
 pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bool {
     if let Outcome::Refused(_) = outcome {
         return true;

@@ -318,8 +318,9 @@ pub fn row_key(row: &Row) -> Option<Position> {
 
 fn is_page(scope: &Scope) -> bool {
     match scope {
-        Scope::EndedTasks | Scope::TaskRows { .. } => true,
-        Scope::EndedDelegates { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::EndedDelegates { .. }
         | Scope::History { .. }
         | Scope::Activity { .. }
         | Scope::Inbox { .. }
@@ -528,7 +529,6 @@ fn object(
     wall: skein_lib::Wall,
 ) -> Result<Option<Answer>, Missing> {
     match &range.scope {
-        Scope::EndedTasks | Scope::TaskRows { .. } => Ok(None),
         Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
             let Some(owner) = row_owner(&row) else {
                 return Ok(None);
@@ -544,7 +544,6 @@ fn object(
                 documents::result_from_row(core, limits, range.party, owner, wall)?,
             )?;
             let answer = match range.scope {
-                Scope::EndedTasks | Scope::TaskRows { .. } => unreachable!("task object scope"),
                 Scope::Task { .. } => historical(
                     Past::Task {
                         document: Box::new(hydrate_task(
@@ -575,7 +574,9 @@ fn object(
                     result_actor(owner),
                 ),
                 Scope::Result { .. } => Answer::Document(Box::new(Document::Result(Box::new(result)))),
-                Scope::Proposal { .. }
+                Scope::EndedTasks
+                | Scope::TaskRows { .. }
+                | Scope::Proposal { .. }
                 | Scope::Escalation { .. }
                 | Scope::Question { .. }
                 | Scope::Reply { .. }
@@ -833,7 +834,9 @@ fn object(
             }
             Ok(Some(historical(Past::Turn(value.clone()), Some(value.at), None)))
         }
-        Scope::EndedDelegates { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::EndedDelegates { .. }
         | Scope::History { .. }
         | Scope::Activity { .. }
         | Scope::Inbox { .. }
@@ -848,7 +851,6 @@ fn object(
 #[expect(clippy::too_many_lines, reason = "exhaustive read construction keeps each owner conversion visible")]
 fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Option<PageRow>, Missing> {
     match &range.scope {
-        Scope::EndedTasks | Scope::TaskRows { .. } => Ok(None),
         Scope::EndedDelegates { task } => super::indexed::ended_delegate_row(limits, *task, &row),
         Scope::History { task, subtree } => {
             let Some(owner) = row_owner(&row) else {
@@ -946,7 +948,9 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
         }
         Scope::Tasks { query } => super::ended::line(core, limits, range.party, query, &row),
         Scope::Inbox { group, filter } => inbox_row(core, limits, range.party, *group, *filter, row),
-        Scope::Task { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }
@@ -960,9 +964,10 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
 
 fn inbox_contexts(scope: &Scope, rows: u32) -> Option<List<documents::InboxSelection>> {
     match &scope {
-        Scope::EndedTasks | Scope::TaskRows { .. } => None,
         Scope::Inbox { .. } => Some(List::with_capacity(rows)),
-        Scope::Task { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }
@@ -1462,9 +1467,10 @@ fn inbox_key_allowed(group: Group, task: u64, object: documents::InboxObject, ke
 pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
     match position {
         Position::Inbox { task, object, key, .. } => match scope {
-            Scope::EndedTasks | Scope::TaskRows { .. } => false,
             Scope::Inbox { group, .. } => inbox_key_allowed(*group, *task, *object, key),
-            Scope::Task { .. }
+            Scope::EndedTasks
+            | Scope::TaskRows { .. }
+            | Scope::Task { .. }
             | Scope::Proposal { .. }
             | Scope::Escalation { .. }
             | Scope::Question { .. }
@@ -1484,7 +1490,6 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
         Position::Owner(key) => {
             let kind = key_kind(key);
             match scope {
-                Scope::EndedTasks | Scope::TaskRows { .. } => false,
                 Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
                     kind == KeyKind::Ended(*task)
                 }
@@ -1524,7 +1529,7 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
                     | Key::People(_)
                     | Key::Accounts(_) => false,
                 },
-                Scope::SettingsHistory { .. } => false,
+                Scope::EndedTasks | Scope::TaskRows { .. } | Scope::SettingsHistory { .. } => false,
                 Scope::Spend { project } => kind == KeyKind::Ledger(*project),
                 Scope::Inbox { group, .. } => group.updates() && super::indexed::is_update(key),
             }
