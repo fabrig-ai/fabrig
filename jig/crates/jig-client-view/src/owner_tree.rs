@@ -11,17 +11,6 @@ use skein_ui::{Builder, Role, Run, State};
 use crate::{Borrowed, Limits, action::Act, ui::borrowed::task::PlanView};
 use jig_client::contract::{Chip, ObjectKey, OwnerPhaseCounts, OwnerTree, OwnerTreeRow, Proposer};
 use skein_lib::{Set, Stack};
-/// Finite complete subtree fragment and its temporary traversal storage.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct TreeFragment {
-    pub nodes: u32,
-    pub text_bytes: u32,
-    pub text_per_node: u32,
-    pub depth: u32,
-    pub bindings: u32,
-    pub slots: u32,
-    pub scratch: u64,
-}
 #[derive(Clone, Copy, Debug)]
 enum Visit {
     Enter(u32),
@@ -46,72 +35,6 @@ pub(crate) fn max_nodes_with_card(l: &Limits, card: u32) -> Option<u32> {
         .checked_add(l.rows.checked_mul(2)?)?
         .checked_add(12)?;
     row.checked_mul(l.rows)?.checked_add(chip)?.checked_add(l.rows.checked_mul(14)?)?.checked_add(8)
-}
-/// Checked envelope across all loaded sayings and full-width opaque source values.
-#[must_use]
-pub fn fragment_bound(l: &Limits, words: &Words) -> Option<TreeFragment> {
-    let nodes = max_nodes(l)?;
-    let phrase = words.jig_capacity()?;
-    let text_per_node = phrase.max(crate::literal_segment::max_bytes(l.text)?).checked_mul(2)?;
-    Some(TreeFragment {
-        nodes,
-        text_bytes: nodes.checked_mul(text_per_node)?,
-        text_per_node,
-        depth: l.rows.checked_add(32)?,
-        bindings: nodes,
-        slots: nodes,
-        scratch: scratch(l.rows)?,
-    })
-}
-/// Reject oversized outer and nested reserved capacities before fragment allocation.
-#[must_use]
-pub fn required(value: &OwnerTree, l: &Limits, words: &Words) -> Option<TreeFragment> {
-    chip_fits(&value.root, l, words)?;
-    if value.rows.capacity() > l.rows || value.folded.capacity() > l.rows {
-        return None;
-    }
-    if let Some(next) = &value.next
-        && !next.value.fits(l.text)
-    {
-        return None;
-    }
-    for row in &value.rows {
-        chip_fits(&row.chip, l, words)?;
-        for link in &row.dependencies {
-            match link {
-                jig_client::contract::OwnerTaskLink::Live(chip)
-                | jig_client::contract::OwnerTaskLink::Retained { chip, .. } => chip_fits(chip, l, words)?,
-                jig_client::contract::OwnerTaskLink::Stored { .. } => {}
-            }
-        }
-        if row.proposals.capacity() > l.rows || row.dependencies.capacity() > l.rows {
-            return None;
-        }
-    }
-    fragment_bound(l, words)
-}
-fn chip_fits(chip: &Chip, limits: &Limits, words: &Words) -> Option<()> {
-    if !chip.title.bytes.fits(limits.text) {
-        return None;
-    }
-    match chip.details.as_ref() {
-        jig_client::contract::ChipPhase::Owner { details, .. } => {
-            crate::owner_chip::required(details, limits, words)?;
-        }
-        jig_client::contract::ChipPhase::Active(_)
-        | jig_client::contract::ChipPhase::Waiting { .. }
-        | jig_client::contract::ChipPhase::Idle { .. }
-        | jig_client::contract::ChipPhase::Starting
-        | jig_client::contract::ChipPhase::Running { .. }
-        | jig_client::contract::ChipPhase::WaitingForWords { .. }
-        | jig_client::contract::ChipPhase::BackingOff { .. }
-        | jig_client::contract::ChipPhase::Procedure { .. }
-        | jig_client::contract::ChipPhase::Person { .. }
-        | jig_client::contract::ChipPhase::Closing(_)
-        | jig_client::contract::ChipPhase::Held { .. }
-        | jig_client::contract::ChipPhase::Ended { .. } => {}
-    }
-    Some(())
 }
 
 fn text(b: &mut Builder, words: &Words, p: P, holes: &[Hole]) {

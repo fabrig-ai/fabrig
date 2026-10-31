@@ -96,6 +96,19 @@ fn trailing_document_bytes_are_refused() {
     assert_eq!(crate::document(b"{} true", &fixtures::LIMITS), Err(Problem { path: Path::root(), what: What::Json }));
 }
 #[test]
+fn document_syntax_and_input_limits_map_to_root_json_problems() {
+    for (input, bounds) in [
+        (b"".as_slice(), fixtures::LIMITS),
+        (b"[1".as_slice(), fixtures::LIMITS),
+        (b"true".as_slice(), DocumentLimits { bytes: 3, ..fixtures::LIMITS }),
+        (b"[[]]".as_slice(), DocumentLimits { depth: 1, ..fixtures::LIMITS }),
+    ] {
+        assert_eq!(crate::document(input, &bounds), Err(Problem { path: Path::root(), what: What::Json }));
+    }
+    crate::document(b"true", &DocumentLimits { bytes: 4, ..fixtures::LIMITS }).expect("input at its byte limit");
+    crate::document(b"[[]]", &DocumentLimits { depth: 2, ..fixtures::LIMITS }).expect("input at its depth limit");
+}
+#[test]
 fn a_host_address_is_read_with_its_port() {
     assert_eq!(
         address(br#"{"host":"issuer.example","port":443}"#),

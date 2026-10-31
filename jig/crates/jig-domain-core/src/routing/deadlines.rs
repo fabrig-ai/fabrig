@@ -5,7 +5,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::Wall;
 
 pub(crate) fn authority(given: &tasks::Authority, deadline: tasks::Deadline, decision: Wall) -> authority::Authority {
-    let mut value = crate::translate::authority_value(given);
+    let mut value = crate::translate::tasks_authority(given);
     if let tasks::Deadline::Span(span) = deadline {
         value.budget.deadline = Some(authority::deadline_after(decision, span));
     }

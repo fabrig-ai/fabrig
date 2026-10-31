@@ -62,12 +62,7 @@ fn pass_time(world: &mut World, duration: Duration) {
     world.fire_due(now.saturating_add(duration), Wall::from_nanos(wall.as_nanos() + duration.as_nanos()));
     // People expires one retained answer per turn; drain each due turn before asking again.
     let (now, wall) = world.clocks();
-    while world
-        .domain
-        .core_deadlines(now, wall)
-        .into_iter()
-        .any(|(timer, due)| timer == core::Timer::People && due.is_some_and(|due| due <= now))
-    {
+    while world.domain.core().due(now, wall) == Some(core::Timer::People) {
         world.send(root::Event::Timer(core::Timer::People));
     }
     fresh_session(world);

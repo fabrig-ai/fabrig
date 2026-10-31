@@ -13,11 +13,18 @@ const AMENDMENT: u64 = 10;
 const MESSAGE: u64 = 11;
 
 fn step(world: &mut World, task: u64, step: u64, decision: ProcedureDecision) -> Reply {
+    let key = stage_step(world, task, step, decision);
+    world.durable();
+    world.deliver();
+    world.replies[&key].clone()
+}
+
+fn stage_step(world: &mut World, task: u64, step: u64, decision: ProcedureDecision) -> u64 {
     let reply_to = world.to();
     let key = reply_to.into_token().raw();
     let read = world.contexts.get(&task).and_then(|context| context.inbox.last().map(|word| word.number));
-    world.send(Event::Procedure { read, reply_to: ReplyTo::new(skein_lib::Token::new(key)), task, step, decision });
-    world.replies[&key].clone()
+    world.stage(Event::Procedure { read, reply_to: ReplyTo::new(skein_lib::Token::new(key)), task, step, decision });
+    key
 }
 
 #[test]
@@ -245,5 +252,151 @@ fn a_step_with_no_room_for_its_proposal_keeps_its_message_uncommitted() {
             "{case}"
         );
         assert_eq!(world.records, before, "{case}");
+    }
+}
+
+fn new_child() -> tasks::New {
+    let mut child = task(NEXT_CHILD, &[]);
+    child.funder = Funder::Task(PROCEDURE);
+    child.numbers.budget = 0;
+    child.authority.budget.spend = 0;
+    child
+}
+
+fn refused_without_writes(world: &mut World, decision: ProcedureDecision, why: tasks::Refusal) {
+    let before = world.records.clone();
+    let capacities = world.capacity_refusals();
+    let key = stage_step(world, PROCEDURE, 2, decision);
+    assert!(matches!(world.staged_requests(), [tasks::Request::Refused { problem, .. }] if problem.why == why));
+    assert_eq!(world.capacity_refusals(), capacities);
+    assert_eq!(world.record(PROCEDURE).attempt, 1);
+    world.durable();
+    world.deliver();
+    assert!(matches!(&world.replies[&key], Reply::Refused(problem) if problem.why == why));
+    assert_eq!(world.records, before);
+}
+
+#[test]
+fn a_step_refuses_a_second_amendment_that_precedes_the_first_without_making_its_batch() {
+    let mut world = procedure_with_child();
+    let mut first = amendment();
+    first.message = MESSAGE;
+    refused_without_writes(
+        &mut world,
+        ProcedureDecision {
+            batch: Box::new([new_child()]),
+            amendments: Box::new([first, amendment()]),
+            ..ProcedureDecision::new(tasks::ProcedureEnd::Wait)
+        },
+        tasks::Refusal::Read,
+    );
+}
+
+#[test]
+fn a_step_refuses_words_made_stale_by_its_amendment_without_making_its_batch() {
+    let mut world = procedure_with_child();
+    let mut part = amendment();
+    part.message = MESSAGE;
+    refused_without_writes(
+        &mut world,
+        ProcedureDecision {
+            batch: Box::new([new_child()]),
+            amendments: Box::new([part]),
+            messages: Box::new([message(b"hello")]),
+            ..ProcedureDecision::new(tasks::ProcedureEnd::Wait)
+        },
+        tasks::Refusal::Read,
+    );
+}
+
+#[test]
+fn a_step_applies_its_batch_amendments_words_proposal_and_cancel_once() {
+    let mut world = procedure_with_child();
+    let mut second = amendment();
+    second.message = MESSAGE;
+    second.amendment.spec.as_mut().expect("amended spec").words = b"second".as_slice().into();
+    let mut sent = message(b"hello");
+    sent.word.number = MESSAGE + 1;
+    let offered = proposal(&world, PROPOSAL);
+    let before = world.record(PROCEDURE).revision;
+    let key = stage_step(
+        &mut world,
+        PROCEDURE,
+        2,
+        ProcedureDecision {
+            batch: Box::new([new_child()]),
+            amendments: Box::new([amendment(), second]),
+            messages: Box::new([sent]),
+            proposals: Box::new([offered.clone()]),
+            cancels: Box::new([tasks::ProcedureCancel {
+                task: CHILD,
+                reason: b"done".as_slice().into(),
+                grace: None,
+                message: None,
+            }]),
+            ..ProcedureDecision::new(tasks::ProcedureEnd::Wait)
+        },
+    );
+    assert_eq!(
+        world.staged_requests().iter().filter(|request| matches!(request, tasks::Request::Made { .. })).count(),
+        1
+    );
+    assert!(!world.staged_requests().iter().any(|request| matches!(
+        request,
+        tasks::Request::Done { .. } | tasks::Request::Sent { .. } | tasks::Request::Refused { .. }
+    )));
+    world.durable();
+    world.deliver();
+    assert_eq!(world.replies[&key], Reply::Made(vec![NEXT_CHILD]));
+    assert_eq!(world.record(CHILD).revisions.spec, 2);
+    assert_eq!(world.record(CHILD).revision, 3);
+    assert_eq!(world.record(CHILD).spec.words.as_ref(), b"second");
+    assert_eq!(world.record(CHILD).inbox.iter().filter(|word| word.number == MESSAGE + 1).count(), 1);
+    assert!(matches!(world.record(CHILD).phase, Phase::Closing(_)));
+    assert_eq!(world.record(PROCEDURE).revision, before + 1);
+    assert_eq!(world.record(PROCEDURE).proposal.as_deref(), Some(&offered));
+    assert_eq!(world.record(PROCEDURE).delegates.as_ref(), [CHILD, NEXT_CHILD]);
+    let records = world.records.clone();
+    world.restart();
+    assert_eq!(world.records, records);
+}
+
+#[test]
+fn a_step_checks_duplicate_cancels_against_the_first_and_keeps_its_batch_unmade() {
+    let mut world = procedure_with_child();
+    let cancel = tasks::ProcedureCancel { task: CHILD, reason: Box::new([]), grace: None, message: None };
+    refused_without_writes(
+        &mut world,
+        ProcedureDecision {
+            batch: Box::new([new_child()]),
+            cancels: Box::new([cancel.clone(), cancel]),
+            ..ProcedureDecision::new(tasks::ProcedureEnd::Wait)
+        },
+        tasks::Refusal::State,
+    );
+}
+
+#[test]
+fn a_step_counts_each_questions_reply_credit_before_its_next_message_or_proposal() {
+    for proposing in [false, true] {
+        let mut world = procedure_with_child();
+        world.env.limits.inbox_messages = 2;
+        let mut first = message(b"first?");
+        first.word.kind = tasks::MessageKind::Question;
+        let mut second = message(b"second?");
+        second.word.kind = tasks::MessageKind::Question;
+        second.word.number = MESSAGE + 1;
+        let offered = proposal(&world, PROPOSAL);
+        let messages = if proposing { vec![first] } else { vec![first, second] };
+        let proposals = if proposing { vec![offered] } else { vec![] };
+        refused_without_writes(
+            &mut world,
+            ProcedureDecision {
+                messages: messages.into_boxed_slice(),
+                proposals: proposals.into_boxed_slice(),
+                ..ProcedureDecision::new(tasks::ProcedureEnd::Wait)
+            },
+            tasks::Refusal::Busy,
+        );
     }
 }

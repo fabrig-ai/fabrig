@@ -181,7 +181,7 @@ fn a_connector_adopts_its_own_resource_into_a_project() {
     // This story scripts the root at the core boundary: it answers the routed Ask::Adopt.
     let (mut core, env) = adoption_core(1804);
     let adoption = adoption();
-    let core::Requests::Out(mut out) = core::step(
+    let mut out = core::step(
         &mut core,
         &env,
         core::Event::Act {
@@ -203,7 +203,7 @@ fn a_connector_adopts_its_own_resource_into_a_project() {
             routed = Some(request);
         }
     }
-    let core::Requests::Out(mut out) = core::step(
+    let mut out = core::step(
         &mut core,
         &env,
         core::Event::People(people::Event::Decided {
@@ -229,8 +229,7 @@ fn a_connector_adopts_its_own_resource_into_a_project() {
             | core::Request::Ask { .. }
             | core::Request::Held(_)
             | core::Request::Now(_)
-            | core::Request::ProjectMade { .. }
-            | core::Request::Decided => {}
+            | core::Request::ProjectMade { .. } => {}
         }
     }
     assert!(answered);
@@ -352,7 +351,7 @@ fn adoption() -> people::Adoption {
 #[test]
 fn a_deployment_adoption_of_an_unknown_project_is_refused() {
     let (mut core, env) = adoption_core(1810);
-    let core::Requests::Out(mut out) = core::step(
+    let mut out = core::step(
         &mut core,
         &env,
         core::Event::Act {
@@ -378,8 +377,7 @@ fn a_deployment_adoption_of_an_unknown_project_is_refused() {
             core::Request::Write(_)
             | core::Request::Held(_)
             | core::Request::Now(_)
-            | core::Request::ProjectMade { .. }
-            | core::Request::Decided => {}
+            | core::Request::ProjectMade { .. } => {}
         }
     }
     assert!(answered);

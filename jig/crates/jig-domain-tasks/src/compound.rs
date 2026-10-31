@@ -35,25 +35,34 @@ pub(crate) enum Plan {
     Release(Box<crate::control::ReleasePlan>),
     Message(Box<crate::inbox::MessagePlan>),
     Stop(Box<crate::placed::Placement>),
+    Proposal(Box<crate::Proposal>),
 }
 
 impl Plan {
     pub(crate) fn placement(&self) -> Option<&crate::placed::Placement> {
         match self {
             Self::Stop(plan) => Some(plan),
-            Self::Cancel(_) | Self::Move { .. } | Self::Amend(_) | Self::Release(_) | Self::Message(_) => None,
+            Self::Proposal(_)
+            | Self::Cancel(_)
+            | Self::Move { .. }
+            | Self::Amend(_)
+            | Self::Release(_)
+            | Self::Message(_) => None,
         }
     }
     pub(crate) fn placed_change(&self) -> Option<&crate::placed::ReleaseChanges> {
         match self {
             Self::Release(plan) => plan.placed.as_deref(),
             Self::Amend(plan) => plan.release.as_ref()?.placed.as_deref(),
-            Self::Cancel(_) | Self::Move { .. } | Self::Message(_) | Self::Stop(_) => None,
+            Self::Proposal(_) | Self::Cancel(_) | Self::Move { .. } | Self::Message(_) | Self::Stop(_) => None,
         }
     }
 }
 
 pub(crate) struct Staged {
+    pub(crate) rows: List<crate::TaskRecord>,
+    pub(crate) batch_goals: u32,
+    pub(crate) batch_members: List<(u64, crate::Executor)>,
     pub(crate) closing: List<u64>,
     pub(crate) moved: List<u64>,
     pub(crate) reserved: u64,
@@ -64,6 +73,9 @@ pub(crate) struct Staged {
 impl Staged {
     pub(crate) fn new(bound: u32) -> Self {
         Self {
+            rows: List::with_capacity(bound),
+            batch_goals: 0,
+            batch_members: List::with_capacity(bound),
             closing: List::with_capacity(bound),
             moved: List::with_capacity(bound),
             reserved: 0,
@@ -136,7 +148,8 @@ impl Staged {
                     self.funding.push((Funder::Task(plan.number), numbers)).expect("task budget per amendment");
                 }
             }
-            Plan::Release(_) | Plan::Message(_) | Plan::Stop(_) => {}
+            Plan::Message(plan) => self.message_credits(domain, limits, plan),
+            Plan::Proposal(_) | Plan::Release(_) | Plan::Stop(_) => {}
         }
     }
 }
@@ -403,7 +416,7 @@ fn check(
     }
 }
 
-fn apply(domain: &mut Domain, env: &Env<Limits>, by: Party, plan: Plan, out: &mut Queue<Request>) {
+pub(crate) fn apply(domain: &mut Domain, env: &Env<Limits>, by: Party, plan: Plan, out: &mut Queue<Request>) {
     match plan {
         Plan::Cancel(plan) => crate::control::apply_cancel(domain, env, by, *plan, out),
         Plan::Move { plan, reason } => crate::moving::make(domain, env, *plan, &reason, out),
@@ -413,6 +426,7 @@ fn apply(domain: &mut Domain, env: &Env<Limits>, by: Party, plan: Plan, out: &mu
             crate::inbox::apply_message(domain, env, *plan, out);
         }
         Plan::Stop(plan) => crate::placed::apply_place(domain, env, *plan, out),
+        Plan::Proposal(proposal) => crate::proposals::apply_proposal(domain, env, *proposal, out),
     }
 }
 

@@ -11,7 +11,7 @@ impl Component {
         out: &mut Queue<Request>,
     ) {
         if self.stopping() {
-            self.respond(env, exchange, routes::not_ready());
+            self.respond(exchange, routes::not_ready());
             return;
         }
         let Some(owner) = self.owner(exchange) else {
@@ -19,13 +19,13 @@ impl Component {
         };
         let active = self.active(sign_in);
         if active >= env.limits.exchanges_per_client || self.admitted() >= env.limits.exchanges {
-            self.respond(env, exchange, routes::busy());
+            self.respond(exchange, routes::busy());
             return;
         }
         let keyed = match w::Keyed::decode(&env.limits.wire, &mut skein_lib::Reader::new(body)) {
             Ok(value) => value.into_parts(),
             Err(_) => {
-                self.not_a_record(env, owner);
+                self.not_a_record(owner);
                 return;
             }
         };
@@ -36,7 +36,7 @@ impl Component {
         if !self.serves(family, keyed.version) {
             let answer =
                 w::KeyedAnswer::NotServed(crate::served::not_served(&self.settings, keyed.owner, &env.limits.wire));
-            self.respond(env, exchange, routes::encoded(&answer));
+            self.respond(exchange, routes::encoded(&answer));
             return;
         }
         let request = match keyed.owner {
@@ -48,7 +48,7 @@ impl Component {
                 let Ok(record) =
                     w::FamilyRequest::decode(&env.limits.wire, &mut skein_lib::Reader::new(&keyed.request))
                 else {
-                    self.not_a_record(env, owner);
+                    self.not_a_record(owner);
                     return;
                 };
                 let scope = crate::served::scope(record.scope());
@@ -71,7 +71,7 @@ impl Component {
                     carried,
                 };
                 if let Some(value) = keyed.value {
-                    self.carry(env, exchange, sign_in, CarriedRequest::Application(request), value, out);
+                    self.carry(exchange, sign_in, CarriedRequest::Application(request), value, out);
                     return;
                 }
                 Request::Application(request)
@@ -107,7 +107,7 @@ impl Component {
                         } =>
                     {
                         if keyed.value.is_some() {
-                            self.not_a_record(env, owner);
+                            self.not_a_record(owner);
                             return;
                         }
                         if let Ok(Some(answer)) = crate::translate::llm::refused(
@@ -115,13 +115,13 @@ impl Component {
                             &self.settings.models,
                             &env.limits.wire,
                         ) {
-                            self.respond(env, exchange, routes::encoded(&answer));
+                            self.respond(exchange, routes::encoded(&answer));
                             return;
                         }
                         let Ok(change) =
                             crate::translate::settings::proposed(value, &self.settings.models, &env.limits.wire)
                         else {
-                            self.not_a_record(env, owner);
+                            self.not_a_record(owner);
                             return;
                         };
                         let digest = sign_in::digest(&keyed.request).expose().try_into().expect("32-byte digest");
@@ -140,13 +140,13 @@ impl Component {
                     }
                     w::Ask::ChangeSettings(value) => {
                         if keyed.value.is_some() {
-                            self.not_a_record(env, owner);
+                            self.not_a_record(owner);
                             return;
                         }
                         let Ok(change) =
                             crate::translate::settings::change(value, &self.settings.models, &env.limits.wire)
                         else {
-                            self.not_a_record(env, owner);
+                            self.not_a_record(owner);
                             return;
                         };
                         let digest = sign_in::digest(&keyed.request).expose().try_into().expect("32-byte digest");
@@ -204,7 +204,7 @@ impl Component {
                     {
                         let reply = people::Reply::Refused(people::Refusal::Limit { which: people::LimitKind::Words });
                         let answer = crate::translate::answers::answer(&reply, &self.settings.models, &env.limits.wire);
-                        self.answer(env, exchange, answer, out);
+                        self.answer(exchange, answer);
                         return;
                     }
                 }
@@ -216,16 +216,16 @@ impl Component {
                     None => keyed.value.is_none(),
                 };
                 if !valid {
-                    self.not_a_record(env, owner);
+                    self.not_a_record(owner);
                     return;
                 }
                 if let Ok(Some(answer)) = crate::translate::operations::refused(&value, &env.limits.wire) {
-                    self.respond(env, exchange, routes::encoded(&answer));
+                    self.respond(exchange, routes::encoded(&answer));
                     return;
                 }
                 let models = &self.settings.models;
                 if let Ok(Some(answer)) = crate::translate::llm::refused(&value, models, &env.limits.wire) {
-                    self.respond(env, exchange, routes::encoded(&answer));
+                    self.respond(exchange, routes::encoded(&answer));
                     return;
                 }
                 crate::translate::asks::named(value, models, &env.limits.wire)
@@ -233,13 +233,13 @@ impl Component {
             Err(problem) => Err(crate::translate::Untranslatable { path: problem.path }),
         };
         let Ok(ask) = ask else {
-            self.not_a_record(env, owner);
+            self.not_a_record(owner);
             return;
         };
         if let Some(value) = keyed.value {
             let digest = skein_lib::sha256::digest(value.expose());
             let request = CarriedRequest::AccountKey { key: keyed.key, ask: Box::new(ask.ask), digest };
-            self.carry(env, exchange, sign_in, request, value, out);
+            self.carry(exchange, sign_in, request, value, out);
             return;
         }
         let request = Request::Core(Box::new(core::Event::People(people::Event::Ask {
@@ -255,15 +255,14 @@ impl Component {
             .expect("get released slot");
         out.push(request);
     }
-    fn not_a_record(&mut self, env: &Env<Limits>, owner: Token) {
-        self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord, &env.limits);
+    fn not_a_record(&mut self, owner: Token) {
+        self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
     }
     /// Keeps the value a request carried before the core sees the
     /// request, which names it by number and digest only
     /// (protocol/client.md, 5; store.md 9).
     fn carry(
         &mut self,
-        env: &Env<Limits>,
         exchange: Token,
         sign_in: u64,
         request: CarriedRequest,
@@ -271,7 +270,7 @@ impl Component {
         out: &mut Queue<Request>,
     ) {
         if self.pending.carried.len() == self.pending.carried.capacity() {
-            self.respond(env, exchange, routes::busy());
+            self.respond(exchange, routes::busy());
             return;
         }
         let (family, version) = match &request {

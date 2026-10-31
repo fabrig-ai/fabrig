@@ -6,8 +6,7 @@ use super::HoldingsNeed;
 use super::runs::{call_decision, named_propose, proposal_refused};
 use super::{BatchKind, DelegateCreation, ProcedureCreation};
 use crate::{
-    Ask, CallKey, CallPart, Core, Delegate, Dependency, Event, Limits, ProcedureStep, Request, Requests, StepRefusal,
-    ToolKind,
+    Ask, CallKey, CallPart, Core, Delegate, Dependency, Event, Limits, ProcedureStep, Request, StepRefusal, ToolKind,
 };
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
@@ -19,7 +18,7 @@ pub(super) fn delegate_refused(
     key: CallKey,
     task: Option<u64>,
     why: tasks::Refusal,
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     call_decision(
         core,
@@ -28,8 +27,7 @@ pub(super) fn delegate_refused(
         key,
         CallPart::DelegationRefused(tasks::Problem { task, why, blocked_by: None, capacity: None }),
     );
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 #[expect(
@@ -43,19 +41,17 @@ pub(super) fn delegate_validated(
     key: CallKey,
     mut batch: Box<[Delegate]>,
     stubs: Box<[tasks::Stub]>,
-) -> Requests {
+) -> Queue<Request> {
     assert!(core.current_proof(key.task, key.attempt), "delegation belongs to current claim");
     if let Some(part) = core.call_parts.get(&key) {
         let mut out = Queue::uncapped();
         out.push(Request::Held(Box::new(crate::Held::CallAnswer { to, key, part: part.clone() })));
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     if let Some(part) = core.authorize_tool(key, ToolKind::Delegate) {
         let mut out = Queue::uncapped();
         call_decision(core, &mut out, to, key, part);
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     core.take_models(key.task, &mut batch);
     core.take_deadline(key.task, &mut batch);
@@ -65,8 +61,7 @@ pub(super) fn delegate_validated(
     if let Err(part) = core.delegate_preflight(&env.limits.tasks, key, &batch, env.wall) {
         let mut out = Queue::uncapped();
         call_decision(core, &mut out, to, key, part);
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     let context = core.tasks.delegation(key.task).expect("preflighted delegator");
     let root = core.tasks.root(key.task).expect("delegator live");
@@ -172,8 +167,7 @@ pub(super) fn delegate_validated(
             ask: Ask::DelegateHoldings { request, from: key.task, members: asked.as_slice().into() },
         });
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 pub(super) fn delegate_holdings(
@@ -183,11 +177,9 @@ pub(super) fn delegate_holdings(
     request: Token,
     connector: u16,
     holdings: Option<Box<[Box<[tasks::Holding]>]>>,
-) -> Requests {
+) -> Queue<Request> {
     let Some(flight) = core.creating_delegates.get_mut(&request) else {
-        let mut out = Queue::uncapped();
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return Queue::uncapped();
     };
     assert!(flight.remaining > 0, "one holdings answer per connector");
     assert!(
@@ -212,9 +204,7 @@ pub(super) fn delegate_holdings(
         Some(_) | None => flight.failed = true,
     }
     if flight.remaining > 0 {
-        let mut out = Queue::uncapped();
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return Queue::uncapped();
     }
     let mut flight = core.creating_delegates.remove(&request).expect("completed delegate holdings");
     if flight.failed {
@@ -239,9 +229,7 @@ pub(super) fn delegate_holdings(
                 creator: tasks::Party::Task(flight.key.task),
                 batch: flight.members,
             }));
-            let mut out = Queue::uncapped();
-            out.push(Request::Decided);
-            Requests::Out(out)
+            Queue::uncapped()
         }
         BatchKind::Proposal { reason, as_holder } => named_propose(
             core,
@@ -269,7 +257,7 @@ pub(super) fn propose_batch(
     reason: Box<[u8]>,
     as_holder: bool,
     tracked: Option<u32>,
-) -> Requests {
+) -> Queue<Request> {
     if reason.len() > usize::try_from(env.limits.tasks.message_bytes).expect("u32 fits usize") {
         return proposal_refused(core, to, key, tasks::Refusal::Read);
     }
@@ -363,8 +351,7 @@ pub(super) fn propose_batch(
             ask: Ask::DelegateHoldings { request, from: key.task, members: asked.as_slice().into() },
         });
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 #[expect(
@@ -381,7 +368,7 @@ pub(super) fn procedure_step(
     connector: u16,
     procedure_code: u32,
     mut decision: ProcedureStep,
-) -> Requests {
+) -> Queue<Request> {
     if core.tasks.procedure_due(task) != Some((connector, procedure_code, step)) {
         if !decision.batch.is_empty() {
             return super::procedure_steps::refused(
@@ -391,9 +378,7 @@ pub(super) fn procedure_step(
                 super::procedure_steps::problem(task, tasks::Refusal::Attempt),
             );
         }
-        let mut out = Queue::uncapped();
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return Queue::uncapped();
     }
     core.take_models(task, &mut decision.batch);
     core.take_deadline(task, &mut decision.batch);
@@ -544,8 +529,7 @@ pub(super) fn procedure_step(
             }
         }
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 pub(super) fn procedure_holdings(
@@ -556,11 +540,9 @@ pub(super) fn procedure_holdings(
     step: u64,
     connector: u16,
     holdings: Option<Box<[Box<[tasks::Holding]>]>>,
-) -> Requests {
+) -> Queue<Request> {
     let Some(flight) = core.creating_procedures.get_mut(&(task, step)) else {
-        let mut out = Queue::uncapped();
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return Queue::uncapped();
     };
     assert!(flight.remaining > 0, "one procedure answer per connector");
     assert!(
@@ -584,7 +566,7 @@ pub(super) fn procedure_holdings(
         }
         Some(_) | None => flight.failed = true,
     }
-    let mut out = Queue::uncapped();
+    let out = Queue::uncapped();
     if flight.remaining == 0 {
         let flight = core.creating_procedures.remove(&(task, step)).expect("completed procedure holdings");
         if flight.failed {
@@ -606,8 +588,7 @@ pub(super) fn procedure_holdings(
             decision,
         }));
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 pub(super) fn start_recurring(
@@ -675,7 +656,7 @@ pub(super) fn route_period(
     period: u64,
     budget: u64,
     next: Option<skein_lib::Wall>,
-) -> Requests {
+) -> Queue<Request> {
     let allowed = match core.authority.policy(project) {
         Some(policy) => budget <= policy.period_spend,
         None => false,
@@ -700,9 +681,7 @@ pub(super) fn route_period(
             work.push(Event::Tasks(tasks::Event::RenewStanding { task, period }));
         }
     }
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+    Queue::uncapped()
 }
 
 pub(super) fn route_start_recurring(
@@ -711,14 +690,12 @@ pub(super) fn route_start_recurring(
     project: u32,
     authority: tasks::Authority,
     template: tasks::RecurringTemplate,
-) -> Requests {
+) -> Queue<Request> {
     start_recurring(core, work, project, authority, template);
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+    Queue::uncapped()
 }
 
-pub(super) fn delegate_input_failed(work: &mut Queue<Event>, to: ReplyTo, key: CallKey) -> Requests {
+pub(super) fn delegate_input_failed(work: &mut Queue<Event>, to: ReplyTo, key: CallKey) -> Queue<Request> {
     work.push(Event::NamedAnswer {
         to,
         key,
@@ -729,9 +706,7 @@ pub(super) fn delegate_input_failed(work: &mut Queue<Event>, to: ReplyTo, key: C
             capacity: None,
         }),
     });
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+    Queue::uncapped()
 }
 
 fn holdings_need(root: u64, members: &[tasks::New], capacity: u32) -> List<HoldingsNeed> {

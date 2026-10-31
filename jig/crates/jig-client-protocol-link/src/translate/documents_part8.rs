@@ -14,7 +14,7 @@ pub(crate) fn owner_project_fields(value: &w::OwnerProject, limits: &Limits) -> 
         list0.push(owner_project_member_fields(item, limits)?).expect("reserved supplied list");
     }
     let opt1 = match value.current_period() {
-        Some(item) => Some(pool_ledger_fields(item, limits)),
+        Some(item) => Some(pool_ledger_fields(item)),
         None => None,
     };
     if value.pools().len() > limits.client.rows {
@@ -22,14 +22,14 @@ pub(crate) fn owner_project_fields(value: &w::OwnerProject, limits: &Limits) -> 
     }
     let mut list2 = List::with_capacity(value.pools().len());
     for item in value.pools() {
-        list2.push(pool_ledger_fields(item, limits)).expect("reserved supplied list");
+        list2.push(pool_ledger_fields(item)).expect("reserved supplied list");
     }
     if value.configured_pools().len() > limits.client.rows {
         return Err(too_large());
     }
     let mut list3 = List::with_capacity(value.configured_pools().len());
     for item in value.configured_pools() {
-        list3.push(pool_ledger_fields(item, limits)).expect("reserved supplied list");
+        list3.push(pool_ledger_fields(item)).expect("reserved supplied list");
     }
     Ok(c::OwnerProject {
         acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
@@ -49,7 +49,7 @@ pub(crate) fn owner_project_fields(value: &w::OwnerProject, limits: &Limits) -> 
     })
 }
 
-pub(crate) fn provisional_turn_name_fields(value: &w::ProvisionalTurnName, _limits: &Limits) -> c::ProvisionalTurnName {
+pub(crate) fn provisional_turn_name_fields(value: &w::ProvisionalTurnName) -> c::ProvisionalTurnName {
     c::ProvisionalTurnName { attempt: value.attempt(), number: value.number(), retry: value.retry() }
 }
 
@@ -63,7 +63,7 @@ pub(crate) fn call_fields(value: &w::Call, limits: &Limits) -> Result<c::Call, w
     }
     let mut list1 = List::with_capacity(value.objects().len());
     for item in value.objects() {
-        list1.push(object_key_fields(item, limits)).expect("reserved supplied list");
+        list1.push(object_key_fields(item)).expect("reserved supplied list");
     }
     Ok(c::Call {
         number: value.number(),
@@ -133,7 +133,7 @@ pub(crate) fn run_text_fields(value: &w::RunText, limits: &Limits) -> Result<c::
         },
         attempt: value.attempt(),
         began: opt0,
-        turn: provisional_turn_name_fields(value.turn(), limits),
+        turn: provisional_turn_name_fields(value.turn()),
         from: value.from(),
         through: value.through(),
         text: text(value.text(), limits)?,

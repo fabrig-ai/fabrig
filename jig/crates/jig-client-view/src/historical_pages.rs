@@ -11,18 +11,8 @@ use skein_ui::{Builder, Role, Run};
 
 use crate::{Borrowed, Limits};
 use alloc::boxed::Box;
-use jig_client::contract::{Chip, ChipPhase, Cursor, Funder, OwnerChipEnding, OwnerEndedPage, OwnerSpendPage};
+use jig_client::contract::{ChipPhase, Funder, OwnerEndedPage, OwnerSpendPage};
 
-/// Finite tree storage for one whole retained page fragment.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct HistoricalFragment {
-    pub nodes: u32,
-    pub text_bytes: u32,
-    pub text_per_node: u32,
-    pub depth: u32,
-    pub bindings: u32,
-    pub slots: u32,
-}
 /// Brief row identity and phase plus the supplied complete ending/result.
 #[must_use]
 pub fn ended_nodes(l: &Limits) -> Option<u32> {
@@ -37,103 +27,6 @@ pub fn ended_nodes(l: &Limits) -> Option<u32> {
 #[must_use]
 pub fn spend_nodes(l: &Limits) -> Option<u32> {
     l.rows.checked_mul(18)?.checked_add(2)
-}
-fn envelope(nodes: u32, l: &Limits, words: &Words) -> Option<HistoricalFragment> {
-    let phrase = words.jig_capacity()?;
-    let text_per_node = phrase.max(crate::literal_segment::max_bytes(l.text)?).checked_mul(2)?;
-    Some(HistoricalFragment {
-        nodes,
-        text_bytes: nodes.checked_mul(text_per_node)?,
-        text_per_node,
-        depth: l.rows.checked_add(32)?,
-        bindings: nodes,
-        slots: nodes,
-    })
-}
-#[must_use]
-pub fn ended_fragment_bound(l: &Limits, words: &Words) -> Option<HistoricalFragment> {
-    envelope(ended_nodes(l)?, l, words)
-}
-#[must_use]
-pub fn spend_fragment_bound(l: &Limits, words: &Words) -> Option<HistoricalFragment> {
-    envelope(spend_nodes(l)?, l, words)
-}
-fn edges_fit(before: Option<&Cursor>, after: Option<&Cursor>, l: &Limits) -> Option<()> {
-    if let Some(edge) = before
-        && !edge.value.fits(l.text)
-    {
-        return None;
-    }
-    if let Some(edge) = after
-        && !edge.value.fits(l.text)
-    {
-        return None;
-    }
-    Some(())
-}
-fn chip_fits(chip: &Chip, l: &Limits, words: &Words) -> Option<()> {
-    if !chip.title.bytes.fits(l.text) {
-        return None;
-    }
-    match chip.details.as_ref() {
-        ChipPhase::Owner { details, .. } => {
-            crate::owner_chip::required(details, l, words)?;
-        }
-        ChipPhase::Active(_)
-        | ChipPhase::Waiting { .. }
-        | ChipPhase::Idle { .. }
-        | ChipPhase::Starting
-        | ChipPhase::Running { .. }
-        | ChipPhase::WaitingForWords { .. }
-        | ChipPhase::BackingOff { .. }
-        | ChipPhase::Procedure { .. }
-        | ChipPhase::Person { .. }
-        | ChipPhase::Closing(_)
-        | ChipPhase::Held { .. }
-        | ChipPhase::Ended { .. } => {}
-    }
-    Some(())
-}
-fn ending_fits(ending: &OwnerChipEnding, l: &Limits) -> Option<()> {
-    match ending {
-        OwnerChipEnding::Done(result) => {
-            crate::owner_chip::result_nodes(result, l)?;
-        }
-        OwnerChipEnding::Failed(reason) => {
-            if !reason.bytes.fits(l.text) {
-                return None;
-            }
-        }
-        OwnerChipEnding::Cancelled { reason, result, .. } => {
-            if !reason.bytes.fits(l.text) {
-                return None;
-            }
-            if let Some(result) = result {
-                crate::owner_chip::result_nodes(result, l)?;
-            }
-        }
-    }
-    Some(())
-}
-#[must_use]
-pub fn ended_required(page: &OwnerEndedPage, l: &Limits, words: &Words) -> Option<HistoricalFragment> {
-    if page.rows.capacity() > l.rows {
-        return None;
-    }
-    edges_fit(page.before.as_ref(), page.after.as_ref(), l)?;
-    for row in &page.rows {
-        chip_fits(&row.chip, l, words)?;
-        ending_fits(&row.ended, l)?;
-    }
-    ended_fragment_bound(l, words)
-}
-#[must_use]
-pub fn spend_required(page: &OwnerSpendPage, l: &Limits, words: &Words) -> Option<HistoricalFragment> {
-    if page.rows.capacity() > l.rows {
-        return None;
-    }
-    edges_fit(page.before.as_ref(), page.after.as_ref(), l)?;
-    spend_fragment_bound(l, words)
 }
 fn saying(words: &Words, phrase: P, holes: &[Hole]) -> Box<[u8]> {
     words

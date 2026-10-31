@@ -203,3 +203,55 @@ fn commit_is_invisible_until_sync() {
     down(&mut store, &env, Request::Get { owner: Token::new(4), key: Box::from(&b"k"[..]) }, &mut above, &mut below);
     assert_eq!(above.pop(), Some(Event::Got { owner: Token::new(4), value: Some(Box::from(&b"v"[..])) }));
 }
+
+#[test]
+fn exported_sizes_match_encoded_frames_and_single_row_chunks() {
+    assert_eq!(frame::encoded_len(&[]), Some(usize::try_from(crate::FRAME_BYTES).expect("frame overhead fits")));
+    for (key, value) in [(&b""[..], &b""[..]), (&b"a"[..], &b"one"[..]), (&b"longer key"[..], &b"value"[..])] {
+        let key_len = u32::try_from(key.len()).expect("small key");
+        let value_len = u32::try_from(value.len()).expect("small value");
+        let put = put(key, value);
+        let erase = Op::Erase { key: Box::from(key) };
+        for (op, size) in [(put, crate::put_bytes(key_len, value_len)), (erase, crate::erase_bytes(key_len))] {
+            let total = crate::FRAME_BYTES.checked_add(size.expect("small op")).expect("small frame");
+            let total = usize::try_from(total).expect("frame fits usize");
+            assert_eq!(frame::encoded_len(core::slice::from_ref(&op)), Some(total));
+            assert_eq!(frame::encode(1, &[op], u32::MAX).expect("frame fits").len(), total);
+        }
+        let size = crate::chunk_bytes(key_len, value_len).expect("small chunk");
+        let rows = [crate::Row { key: Box::from(key), value: Box::from(value) }];
+        assert_eq!(crate::snapshot::chunk(&rows, size).expect("exact fit").len(), usize::try_from(size).expect("fits"));
+        assert_eq!(crate::snapshot::chunk(&rows, size.checked_sub(1).expect("chunk overhead")), None);
+    }
+}
+
+#[test]
+fn exported_sizes_refuse_overflow_and_accept_the_largest_size() {
+    assert_eq!(crate::FRAME_BYTES, 26);
+    assert_eq!(crate::put_bytes(0, 0), Some(9));
+    assert_eq!(crate::erase_bytes(0), Some(5));
+    assert_eq!(crate::chunk_bytes(0, 0), Some(20));
+    for (key, value) in [(u32::MAX, 0), (0, u32::MAX), (u32::MAX, u32::MAX)] {
+        assert_eq!(crate::put_bytes(key, value), None);
+        assert_eq!(crate::chunk_bytes(key, value), None);
+    }
+    assert_eq!(crate::erase_bytes(u32::MAX), None);
+    assert_eq!(crate::put_bytes(u32::MAX - 9, 0), Some(u32::MAX));
+    assert_eq!(crate::put_bytes(0, u32::MAX - 9), Some(u32::MAX));
+    assert_eq!(crate::erase_bytes(u32::MAX - 5), Some(u32::MAX));
+    assert_eq!(crate::chunk_bytes(u32::MAX - 20, 0), Some(u32::MAX));
+    assert_eq!(crate::chunk_bytes(0, u32::MAX - 20), Some(u32::MAX));
+    assert_eq!(crate::put_bytes(u32::MAX - 8, 0), None);
+    assert_eq!(crate::erase_bytes(u32::MAX - 4), None);
+    assert_eq!(crate::chunk_bytes(u32::MAX - 19, 0), None);
+}
+
+#[test]
+fn snapshot_chunks_share_framing_across_rows() {
+    let rows = [
+        crate::Row { key: Box::from(&b"a"[..]), value: Box::from(&b"one"[..]) },
+        crate::Row { key: Box::from(&b"b"[..]), value: Box::from(&b"two"[..]) },
+    ];
+    assert_eq!(crate::snapshot::chunk(&rows, 36).expect("two rows share twelve framing bytes").len(), 36);
+    assert_eq!(crate::snapshot::chunk(&rows, 35), None);
+}

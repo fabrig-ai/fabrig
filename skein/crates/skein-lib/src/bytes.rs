@@ -22,6 +22,28 @@ pub fn zeroed(len: usize) -> Box<[u8]> {
     alloc::vec![0; len].into_boxed_slice()
 }
 
+/// Whether `bytes` are valid UTF-8.
+#[must_use]
+#[expect(clippy::disallowed_methods, reason = "the shared UTF-8 check for skein and its users")]
+pub fn is_utf8(bytes: &[u8]) -> bool {
+    core::str::from_utf8(bytes).is_ok()
+}
+
+/// The longest prefix of valid UTF-8 `bytes` at or below `at_most` bytes
+/// that ends at a character boundary. The caller supplies valid UTF-8.
+#[must_use]
+pub fn utf8_prefix(bytes: &[u8], at_most: usize) -> &[u8] {
+    let mut end = at_most.min(bytes.len());
+    // Valid UTF-8 has at most three continuation bytes after a leading byte.
+    while let Some(&byte) = bytes.get(end) {
+        if byte & 0xc0 != 0x80 {
+            break;
+        }
+        end = end.checked_sub(1).expect("a continuation byte follows a leading byte");
+    }
+    bytes.get(..end).expect("the prefix ends within the input")
+}
+
 /// Where `needle` first occurs in `haystack`, or `None`. An empty needle
 /// occurs at 0.
 ///

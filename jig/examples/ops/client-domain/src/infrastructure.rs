@@ -5,7 +5,7 @@
 //! Entry points: step handles one event; fire retries dropped watches; reclaim frees terminals.
 //! | Event | State change | Requests |
 //! | Went/Show | acquire scoped demand | Read, Open |
-//! | Read/Delivered | validate whole document, retain newest revision | `Named` |
+//! | Read/Delivered | validate and retain whole owner document | `Named` |
 //! | Left/PartsLeft | release demand, retain close obligation | Close |
 //! | Dropped | schedule bounded retry | later Open |
 //! | Closed/Unknown | retire watch; unknown hides supplied facts | replacement Read/Open |
@@ -20,8 +20,6 @@ use jig_client::contract::{Part, Revision};
 use skein_lib::{Env, Id, List, Map, Queue, RequestProgress, Slab, Time, Token};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Address {
-    Environments { project: u32, pool: Option<u32> },
-    Environment { project: u32, environment: u64 },
     NativeEnvironment { project: u32, environment: native::Environment },
     NativeEnvironments { project: u32, pool: Option<native::Pool> },
 }
@@ -29,12 +27,6 @@ impl Address {
     #[must_use]
     pub fn subject(self) -> Subject {
         match self {
-            Self::Environments { project, pool } => {
-                Subject { scope: Scope::Project(project), kind: Kind::Environments { pool } }
-            }
-            Self::Environment { project, environment } => {
-                Subject { scope: Scope::Project(project), kind: Kind::Environment(environment) }
-            }
             Self::NativeEnvironment { project, environment } => {
                 Subject { scope: Scope::Project(project), kind: Kind::NativeEnvironment(environment) }
             }
@@ -47,8 +39,6 @@ impl Address {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
     Go { address: Address },
-    MoveEnd { object: Token, revision: Revision },
-    Until { object: Token, revision: Revision, value: skein_lib::Wall },
     NativeUntil { object: Token, revision: Revision, value: u64 },
     NativeMoveEnd { object: Token, revision: Revision },
 }
@@ -131,7 +121,6 @@ pub struct Object {
     pub subject: Subject,
     pub value: Value,
     pub card: Card,
-    pub draft: Option<skein_lib::Wall>,
     pub native_draft: Option<u64>,
     read: Option<Id<Reading>>,
     watch: Option<Id<Watching>>,
@@ -303,7 +292,6 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
         }
         Event::Act { act } => match act {
             Act::Go { address } => out.push(Request::Show { address }),
-            Act::MoveEnd { object, revision } => move_end(side, Id::from_token(object), revision, out),
             Act::NativeMoveEnd { object, revision } => native_move_end(side, Id::from_token(object), revision, out),
             Act::NativeUntil { object, revision, value } => {
                 let id = Id::from_token(object);
@@ -311,15 +299,6 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                     && native_parameters_revision(&object.value) == Some(revision)
                 {
                     object.native_draft = Some(value);
-                    side.changed();
-                }
-            }
-            Act::Until { object, revision, value } => {
-                let id = Id::from_token(object);
-                if let Some(object) = side.objects.get_mut(id)
-                    && parameters_revision(&object.value) == Some(revision)
-                {
-                    object.draft = Some(value);
                     side.changed();
                 }
             }
@@ -348,18 +327,6 @@ fn save(side: &mut Side, out: &mut Queue<Request>) {
         out.push(Request::Save { record });
     }
 }
-fn parameters_revision(value: &Value) -> Option<Revision> {
-    match value {
-        Value::Known(document) => match document.as_ref() {
-            Document::Environment(environment) => {
-                let end = environment.end?;
-                Some(end.revision)
-            }
-            Document::Environments { .. } | Document::Part(_) | Document::Native(_) => None,
-        },
-        Value::Loading | Value::Unknown => None,
-    }
-}
 fn native_document_revision(document: &Document) -> Option<Revision> {
     match document {
         Document::Native(document) => match &document.value {
@@ -372,7 +339,6 @@ fn native_document_revision(document: &Document) -> Option<Revision> {
             | native::Value::Hold { .. }
             | native::Value::Deployment { .. } => None,
         },
-        Document::Environment(_) | Document::Environments { .. } | Document::Part(_) => None,
     }
 }
 fn native_parameters_revision(value: &Value) -> Option<Revision> {
@@ -391,7 +357,6 @@ fn hold(side: &mut Side, env: &Env<Limits>, subject: Subject, out: &mut Queue<Re
             subject: subject.clone(),
             value: Value::Loading,
             card: Card::Open,
-            draft: None,
             native_draft: None,
             read: None,
             watch: None,
@@ -457,17 +422,8 @@ fn received(side: &mut Side, env: &Env<Limits>, subject: Subject, document: Docu
     let object = side.objects.get_mut(id).expect("named object exists");
     match &object.value {
         Value::Known(current) => {
-            if let Some(current) = current.revision()
-                && let Some(incoming) = document.revision()
-                && current.value > incoming.value
-            {
-                return;
-            }
             if native_document_revision(current) != native_document_revision(&document) {
                 object.native_draft = None;
-            }
-            if current.revision() != document.revision() {
-                object.draft = None;
             }
         }
         Value::Loading | Value::Unknown => {}
@@ -593,11 +549,11 @@ fn ended(side: &mut Side, env: &Env<Limits>, id: Id<Watching>, end: WatchEnd, ou
         retire_watch(side, id);
     } else {
         match end {
-            WatchEnd::Dropped => {
+            WatchEnd::Dropped | WatchEnd::Stopping => {
                 side.watches.get_mut(id).expect("watch exists").state =
                     Following::Dropped { again: env.now.saturating_add(env.limits.retry) }
             }
-            WatchEnd::NotAllowed | WatchEnd::SubjectEnded | WatchEnd::Stopping => {
+            WatchEnd::NotAllowed | WatchEnd::SubjectEnded => {
                 retire_watch(side, id);
                 unknown(side, subject.clone());
                 out.push(Request::Out(Out::Fact { fact: Fact::WatchTerminal { end } }));
@@ -618,7 +574,7 @@ fn ended(side: &mut Side, env: &Env<Limits>, id: Id<Watching>, end: WatchEnd, ou
             WatchEnd::Closed => retire_watch(side, id),
         }
     }
-    if closing || end != WatchEnd::Dropped && end != WatchEnd::Busy {
+    if closing || end != WatchEnd::Dropped && end != WatchEnd::Busy && end != WatchEnd::Stopping {
         if let Some(object) = side.find(subject.clone()) {
             let object = side.objects.get_mut(object).expect("named object exists");
             if object.watch == Some(id) {
@@ -627,49 +583,6 @@ fn ended(side: &mut Side, env: &Env<Limits>, id: Id<Watching>, end: WatchEnd, ou
         }
         acquire(side, env, subject, out);
     }
-    side.changed();
-}
-fn move_end(side: &mut Side, id: Id<Object>, revision: Revision, out: &mut Queue<Request>) {
-    let Some(party) = side.party else {
-        return;
-    };
-    let Some(object) = side.object(id) else {
-        return;
-    };
-    match object.card {
-        Card::Deciding { .. } | Card::Unknown => return,
-        Card::Open | Card::Refused { .. } | Card::Done { .. } => {}
-    }
-    let document = match &object.value {
-        Value::Known(document) => document.as_ref(),
-        Value::Loading | Value::Unknown => return,
-    };
-    let environment = match document {
-        Document::Environment(environment) => environment,
-        Document::Environments { .. } | Document::Part(_) | Document::Native(_) => return,
-    };
-    let project = environment.project;
-    let number = environment.number;
-    let Some(end) = environment.end else { return };
-    if end.revision != revision {
-        side.objects.get_mut(id).expect("named environment exists").card = Card::Refused {
-            answer: Answer::Moved { environment: number, revision: end.revision, until: Some(end.until) },
-        };
-        side.changed();
-        return;
-    }
-    let Some(until) = object.draft else { return };
-    let Ok(request) = side.pending.insert(Pending { live: true, object: id }) else {
-        full(out);
-        return;
-    };
-    side.objects.get_mut(id).expect("named environment exists").card =
-        Card::Deciding { request: request.token(), progress: RequestProgress::Parked };
-    out.push(Request::Send {
-        request: request.token(),
-        scope: party,
-        ask: Ask::MoveEnd { project, environment: number, revision, until },
-    });
     side.changed();
 }
 fn native_move_end(side: &mut Side, id: Id<Object>, revision: Revision, out: &mut Queue<Request>) {
@@ -683,10 +596,7 @@ fn native_move_end(side: &mut Side, id: Id<Object>, revision: Revision, out: &mu
         Value::Known(document) => document.as_ref(),
         Value::Loading | Value::Unknown => return,
     };
-    let native = match document {
-        Document::Native(document) => document,
-        Document::Environment(_) | Document::Environments { .. } | Document::Part(_) => return,
-    };
+    let Document::Native(native) = document;
     let project = match native.subject.scope {
         Scope::Project(project) => project,
         Scope::Deployment => return,
@@ -845,12 +755,10 @@ fn answered(side: &mut Side, _env: &Env<Limits>, request: Token, answer: Answer,
         side.pending.retire(id);
         if let Some(object) = side.objects.get_mut(object) {
             object.card = match &answer {
-                Answer::MovedEnd { .. } | Answer::NativeMovedEnd { .. } => Card::Done { answer: answer.clone() },
-                Answer::Moved { .. }
-                | Answer::NativeMoved { .. }
-                | Answer::Gone
-                | Answer::Refused { .. }
-                | Answer::EntranceRefused(_) => Card::Refused { answer: answer.clone() },
+                Answer::NativeMovedEnd { .. } => Card::Done { answer: answer.clone() },
+                Answer::NativeMoved { .. } | Answer::Gone | Answer::Refused { .. } | Answer::EntranceRefused(_) => {
+                    Card::Refused { answer: answer.clone() }
+                }
             };
             side.changed();
         }

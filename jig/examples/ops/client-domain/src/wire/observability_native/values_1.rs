@@ -121,9 +121,9 @@ pub(crate) fn incident_encode(value: &d::Incident) -> Result<w::ObservabilityNat
             values
         },
         raised: (value.raised).as_nanos(),
-        service: crate::wire::observability_documents::service_encode(&(value.service))?,
+        service: crate::wire::observability_values::service_encode(&(value.service))?,
         severity: (value.severity),
-        state: crate::wire::observability_documents::state_encode(value.state),
+        state: crate::wire::observability_values::state_encode(value.state),
         timeline: {
             let source = &(value.timeline);
             let mut values = List::with_capacity(source.capacity());
@@ -161,9 +161,9 @@ pub(crate) fn incident_decode(value: w::ObservabilityNativeIncident) -> d::Incid
             values.into_boxed()
         },
         raised: skein_lib::Wall::from_nanos(value.raised),
-        service: crate::wire::observability_documents::service_decode(value.service),
+        service: crate::wire::observability_values::service_decode(value.service),
         severity: value.severity,
-        state: crate::wire::observability_documents::state_decode(value.state),
+        state: crate::wire::observability_values::state_decode(value.state),
         timeline: {
             let source = value.timeline;
             let mut values = List::with_capacity(source.capacity());
@@ -179,7 +179,7 @@ pub(crate) fn incident_decode(value: w::ObservabilityNativeIncident) -> d::Incid
 
 pub(crate) fn service_state_encode(value: &d::ServiceState) -> Result<w::ObservabilityNativeServiceState, Invalid> {
     let parts = w::ObservabilityNativeServiceStateParts {
-        service: crate::wire::observability_documents::service_encode(&(value.service))?,
+        service: crate::wire::observability_values::service_encode(&(value.service))?,
         fact: match &(value.fact) {
             Some(item) => Some(fact_encode(item)?),
             None => None,
@@ -192,7 +192,7 @@ pub(crate) fn service_state_encode(value: &d::ServiceState) -> Result<w::Observa
 pub(crate) fn service_state_decode(value: w::ObservabilityNativeServiceState) -> d::ServiceState {
     let value = value.into_parts();
     d::ServiceState {
-        service: crate::wire::observability_documents::service_decode(value.service),
+        service: crate::wire::observability_values::service_decode(value.service),
         fact: match value.fact {
             Some(item) => Some(fact_decode(item)),
             None => None,
@@ -203,7 +203,7 @@ pub(crate) fn service_state_decode(value: w::ObservabilityNativeServiceState) ->
 pub(crate) fn alert_encode(value: &d::Alert) -> Result<w::ObservabilityNativeAlert, Invalid> {
     let parts = w::ObservabilityNativeAlertParts {
         number: (value.number),
-        service: crate::wire::observability_documents::service_encode(&(value.service))?,
+        service: crate::wire::observability_values::service_encode(&(value.service))?,
         severity: (value.severity),
     };
     let Ok(value) = w::ObservabilityNativeAlert::new(&w::CEILINGS, parts) else { return Err(Invalid) };
@@ -213,7 +213,7 @@ pub(crate) fn alert_decode(value: w::ObservabilityNativeAlert) -> d::Alert {
     let value = value.into_parts();
     d::Alert {
         number: value.number,
-        service: crate::wire::observability_documents::service_decode(value.service),
+        service: crate::wire::observability_values::service_decode(value.service),
         severity: value.severity,
     }
 }

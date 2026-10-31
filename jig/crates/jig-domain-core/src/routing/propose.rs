@@ -194,7 +194,7 @@ fn offer_amendment(
     }
     core.party_amend_revision(task, revision, &amendment)?;
     let row = core.tasks.task(task).ok_or(people::Refusal::Unknown)?;
-    let action = authority::Action::Amend(crate::translate::authority_value(
+    let action = authority::Action::Amend(crate::translate::tasks_authority(
         amendment.authority.as_ref().unwrap_or(&row.authority),
     ));
     allowed_action(core, project, &action)?;

@@ -42,7 +42,7 @@ const KINDS: [ActKind; 23] = [
 fn every_closed_offer_control_and_whole_refusal_fits_the_public_card_tree_with_two_paged_rows() {
     assert!(u32::try_from(KINDS.len()).unwrap() <= MAX_OFFERED_ACTS);
     let w = words();
-    let mut limits = crate::limits::of_words(&CLIENT, w).unwrap();
+    let mut limits = crate::tests::render_limits(&CLIENT, w).unwrap();
     limits.nodes = crate::card_nodes(&CLIENT).unwrap() + 1;
     limits.text_bytes = limits.nodes * limits.text_per_node;
     for refused in [false, true] {
@@ -114,30 +114,4 @@ fn every_closed_offer_control_and_whole_refusal_fits_the_public_card_tree_with_t
         assert_eq!(value, before);
         assert_eq!(CLIENT.rows, 2);
     }
-}
-#[test]
-fn pending_proposal_offer_capacity_is_independent_while_funding_rows_stay_bounded() {
-    let mut value = OwnerProposal {
-        key: ProposalKey { proposer: Proposer::Party(u64::MAX), number: u64::MAX },
-        project: u32::MAX,
-        reason: DocumentText::complete(super::cards::text(b"whole reason")),
-        action: OwnerProposalAction::Release {
-            task: OwnerTaskLink::Stored { number: u64::MAX, status: None },
-            hold: None,
-        },
-        as_holder: true,
-        waiting: OwnerProposalWaiting { holder: OwnerHistoryHolder::Task(u64::MAX), since: Wall::from_nanos(u64::MAX) },
-        funding: List::with_capacity(CLIENT.rows),
-        acts: List::with_capacity(MAX_OFFERED_ACTS),
-    };
-    let w = words();
-    let original = value.clone();
-    let requirement = crate::owner_proposal::required(&value, &CLIENT, w).unwrap();
-    assert!(requirement.nodes <= crate::proposal_nodes(&CLIENT).unwrap());
-    value.acts = List::with_capacity(MAX_OFFERED_ACTS + 1);
-    assert!(crate::owner_proposal::required(&value, &CLIENT, w).is_none());
-    value.acts = original.acts.clone();
-    value.funding = List::with_capacity(CLIENT.rows + 1);
-    assert!(crate::owner_proposal::required(&value, &CLIENT, w).is_none());
-    assert_eq!(original.acts.capacity(), MAX_OFFERED_ACTS);
 }

@@ -95,7 +95,7 @@ fn the_four_account_limits_are_read() {
         (w::AdmissionLimit::Sources, c::AdmissionLimit::Sources),
         (w::AdmissionLimit::SignIns, c::AdmissionLimit::SignIns),
     ] {
-        assert_eq!(translate::answers::admission_limit(&wire, &fixtures::limits()), client);
+        assert_eq!(translate::answers::admission_limit(&wire), client);
     }
 }
 
@@ -284,7 +284,7 @@ fn account_move_refusals_keep_each_reason() {
 fn moving_states_cross_into_account_and_task_documents() {
     let limits = fixtures::limits();
     assert_eq!(
-        translate::documents::owner_account_state_fields(&w::OwnerAccountState::Moving, &limits),
+        translate::documents::owner_account_state_fields(&w::OwnerAccountState::Moving),
         c::OwnerAccountState::Moving
     );
     let wait = w::TaskRunWait::Account(

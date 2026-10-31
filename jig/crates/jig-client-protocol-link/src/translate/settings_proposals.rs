@@ -12,7 +12,7 @@ use skein_lib::{List, Reader, Writer};
 pub fn wire_origin_revision(value: &c::OriginRevision, limits: &w::Limits) -> Result<w::OriginRevision, w::Problem> {
     w::OriginRevision::new(limits, w::OriginRevisionParts { revision: value.revision })
 }
-pub fn restore_origin_revision(value: &w::OriginRevision, _limits: &Limits) -> Result<c::OriginRevision, w::Problem> {
+pub fn restore_origin_revision(value: &w::OriginRevision) -> Result<c::OriginRevision, w::Problem> {
     Ok(c::OriginRevision { revision: value.revision() })
 }
 pub fn wire_propose_settings(value: &c::ProposeSettings, limits: &w::Limits) -> Result<w::ProposeSettings, w::Problem> {
@@ -29,7 +29,7 @@ pub fn wire_review_item(value: &c::ReviewItem, limits: &w::Limits) -> Result<w::
         limits,
         w::ReviewItemParts {
             setting: wire_setting(&value.setting, limits)?,
-            edit: wire_revision_item_edit(&value.edit, limits)?,
+            edit: wire_revision_item_edit(&value.edit)?,
             now: wire_review_value(&value.now, limits)?,
             origin: wire_setting_origin(&value.origin, limits)?,
             would_be: wire_review_value(&value.would_be, limits)?,
@@ -38,10 +38,10 @@ pub fn wire_review_item(value: &c::ReviewItem, limits: &w::Limits) -> Result<w::
 }
 pub fn restore_review_item(value: &w::ReviewItem, limits: &Limits) -> Result<c::ReviewItem, w::Problem> {
     Ok(c::ReviewItem {
-        setting: restore_setting(value.setting(), limits)?,
-        edit: restore_revision_item_edit(value.edit(), limits)?,
+        setting: restore_setting(value.setting())?,
+        edit: restore_revision_item_edit(value.edit())?,
         now: restore_review_value(value.now(), limits)?,
-        origin: restore_setting_origin(value.origin(), limits)?,
+        origin: restore_setting_origin(value.origin())?,
         would_be: restore_review_value(value.would_be(), limits)?,
     })
 }
@@ -85,7 +85,7 @@ pub fn restore_owner_proposal_action_settings(
 ) -> Result<c::OwnerProposalActionSettings, w::Problem> {
     Ok(c::OwnerProposalActionSettings {
         against: value.against(),
-        items: decode_heads(value.items(), limits, limits.wire.owner_proposal_action_settings_items)?,
+        items: decode_heads(value.items(), limits.wire.owner_proposal_action_settings_items)?,
         review: match value.review() {
             Some(item) => Some(restore_settings_review(item, limits)?),
             None => None,
@@ -112,7 +112,7 @@ pub fn restore_owner_retained_action_settings(
 ) -> Result<c::OwnerRetainedActionSettings, w::Problem> {
     Ok(c::OwnerRetainedActionSettings {
         against: value.against(),
-        items: decode_heads(value.items(), limits, limits.wire.owner_retained_action_settings_items)?,
+        items: decode_heads(value.items(), limits.wire.owner_retained_action_settings_items)?,
         made: *value.made(),
     })
 }
@@ -123,10 +123,10 @@ pub fn wire_setting_origin(value: &c::SettingOrigin, limits: &w::Limits) -> Resu
         c::SettingOrigin::NotOffered => w::SettingOrigin::NotOffered,
     })
 }
-pub fn restore_setting_origin(value: &w::SettingOrigin, limits: &Limits) -> Result<c::SettingOrigin, w::Problem> {
+pub fn restore_setting_origin(value: &w::SettingOrigin) -> Result<c::SettingOrigin, w::Problem> {
     Ok(match value {
-        w::SettingOrigin::Default(item) => c::SettingOrigin::Default(restore_origin_revision(item, limits)?),
-        w::SettingOrigin::Change(item) => c::SettingOrigin::Change(restore_origin_revision(item, limits)?),
+        w::SettingOrigin::Default(item) => c::SettingOrigin::Default(restore_origin_revision(item)?),
+        w::SettingOrigin::Change(item) => c::SettingOrigin::Change(restore_origin_revision(item)?),
         w::SettingOrigin::NotOffered => c::SettingOrigin::NotOffered,
     })
 }
@@ -140,7 +140,7 @@ pub fn wire_review_value(value: &c::ReviewValue, limits: &w::Limits) -> Result<w
 pub fn restore_review_value(value: &w::ReviewValue, limits: &Limits) -> Result<c::ReviewValue, w::Problem> {
     Ok(match value {
         w::ReviewValue::Value(item) => c::ReviewValue::Value(restore_setting_set(item, limits)?),
-        w::ReviewValue::TooLarge(item) => c::ReviewValue::TooLarge(restore_size(item, limits)?),
+        w::ReviewValue::TooLarge(item) => c::ReviewValue::TooLarge(restore_size(item)?),
         w::ReviewValue::None => c::ReviewValue::None,
     })
 }
@@ -158,17 +158,13 @@ fn encode_heads(
     }
     Ok(rows)
 }
-fn decode_heads(
-    values: &List<w::RevisionItemHead>,
-    limits: &Limits,
-    bound: u32,
-) -> Result<List<c::RevisionItemHead>, w::Problem> {
+fn decode_heads(values: &List<w::RevisionItemHead>, bound: u32) -> Result<List<c::RevisionItemHead>, w::Problem> {
     if values.len() > bound {
         return Err(super::too_large());
     }
     let mut rows = List::with_capacity(values.len());
     for value in values {
-        rows.push(restore_revision_item_head(value, limits)?).expect("same capacity");
+        rows.push(restore_revision_item_head(value)?).expect("same capacity");
     }
     Ok(rows)
 }

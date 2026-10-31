@@ -10,12 +10,12 @@
 //! | Unwatch | child closes after outstanding terminals | held watch ending |
 
 use crate::documents::{self, Missing, Subject, Watched, Window};
-use crate::{Core, Held, Limits, Now, Request, Requests, WatchBinding, WatchRefusal, WatchedSubject};
+use crate::{Core, Held, Limits, Now, Request, WatchBinding, WatchRefusal, WatchedSubject};
 use alloc::boxed::Box;
 use jig_domain_views as views;
 use skein_lib::{Env, List, Map, Queue, Token};
 
-pub(super) fn route_view(core: &mut Core, env: &Env<Limits>, event: views::Event) -> Requests {
+pub(super) fn route_view(core: &mut Core, env: &Env<Limits>, event: views::Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
     views::step(&mut core.views, &Env { now: env.now, wall: env.wall, limits: env.limits.views }, event, &mut out);
     made_outputs(core, env, out)
@@ -23,7 +23,7 @@ pub(super) fn route_view(core: &mut Core, env: &Env<Limits>, event: views::Event
 pub(super) use super::watch_marks::{touch_number, touch_people_event, touch_people_row, touch_task};
 
 // Construct and move each document into the decision that asked for it.
-pub(super) fn made_outputs(core: &mut Core, env: &Env<Limits>, mut child: Queue<views::Request>) -> Requests {
+pub(super) fn made_outputs(core: &mut Core, env: &Env<Limits>, mut child: Queue<views::Request>) -> Queue<Request> {
     let mut ready = Queue::uncapped();
     let mut documents = Map::with_capacity(env.limits.views.watchers);
     let mut out = Queue::uncapped();
@@ -98,25 +98,22 @@ pub(super) fn made_outputs(core: &mut Core, env: &Env<Limits>, mut child: Queue<
             }
         }
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
-fn refused(watcher: Token, why: WatchRefusal) -> Requests {
+fn refused(watcher: Token, why: WatchRefusal) -> Queue<Request> {
     let mut out = Queue::uncapped();
     out.push(Request::Now(Box::new(Now::WatchRefused { watcher, why })));
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
-fn refused_subject(watcher: Token, subject: &Subject, why: WatchRefusal) -> Requests {
+fn refused_subject(watcher: Token, subject: &Subject, why: WatchRefusal) -> Queue<Request> {
     match subject {
         Subject::Application { connector, subject, .. } => {
             let mut out = Queue::uncapped();
             out.push(Request::Ask { connector: *connector, ask: crate::Ask::DropDocument { subject: *subject } });
             out.push(Request::Now(Box::new(Now::WatchRefused { watcher, why })));
-            out.push(Request::Decided);
-            Requests::Out(out)
+            out
         }
         Subject::Frame { .. }
         | Subject::Task { .. }
@@ -145,7 +142,7 @@ pub(super) fn open(
     sign_in: u64,
     subject: Watched,
     window: Window,
-) -> Requests {
+) -> Queue<Request> {
     let follow = match &subject {
         Watched::Run { task } => Some(views::Follow { run: Token::new(*task), turn: None, offset: 0 }),
         Watched::Frame
@@ -170,7 +167,7 @@ pub(super) fn open_run(
     task: u64,
     turn: Option<views::TurnName>,
     offset: u32,
-) -> Requests {
+) -> Queue<Request> {
     open_follow(
         core,
         env,
@@ -191,7 +188,7 @@ fn open_follow(
     subject: Watched,
     window: Window,
     follow: Option<views::Follow>,
-) -> Requests {
+) -> Queue<Request> {
     let Some(party) = core.people.person(sign_in, env.now, env.wall) else {
         return match subject {
             Watched::Application { scope, connector, subject } => {
@@ -364,7 +361,7 @@ fn application_subject(
 }
 
 /// Marks are gathered until all of the decision's connector handoffs finish.
-pub(super) fn marked(core: &mut Core, connector: u16, subjects: List<Token>) -> Requests {
+pub(super) fn marked(core: &mut Core, connector: u16, subjects: List<Token>) -> Queue<Request> {
     for (_, binding) in &core.view_subjects {
         let subject = &core.view_names.get(binding.subject).expect("bound application subject").subject;
         let touched = match subject {
@@ -393,9 +390,7 @@ pub(super) fn marked(core: &mut Core, connector: u16, subjects: List<Token>) -> 
             let _new = core.changed_views.insert(binding.subject).expect("bounded connector marks");
         }
     }
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+    Queue::uncapped()
 }
 
 fn forget_watch(core: &mut Core, watcher: Token) {
@@ -482,7 +477,7 @@ pub(super) fn run_text(
     offset: u32,
     text: Box<[u8]>,
     call: Option<views::Call>,
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     append_stream(super::watch_marks::end_invalid(core, env), &mut out);
     let live = match core.proofs.get(&run.raw()) {
@@ -517,8 +512,7 @@ pub(super) fn run_text(
             changed_run(core, env, run, &mut out);
         }
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 #[expect(clippy::too_many_arguments, reason = "the host reports input with its fenced turn and provider identity")]
@@ -533,7 +527,7 @@ pub(super) fn run_input(
     id: Box<[u8]>,
     tool: Box<[u8]>,
     input: Box<[u8]>,
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     append_stream(super::watch_marks::end_invalid(core, env), &mut out);
     let live = match core.proofs.get(&run.raw()) {
@@ -569,11 +563,16 @@ pub(super) fn run_input(
             changed_run(core, env, run, &mut out);
         }
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
-pub(super) fn run_call(core: &mut Core, env: &Env<Limits>, run: Token, attempt: Token, call: views::Call) -> Requests {
+pub(super) fn run_call(
+    core: &mut Core,
+    env: &Env<Limits>,
+    run: Token,
+    attempt: Token,
+    call: views::Call,
+) -> Queue<Request> {
     let live = match core.proofs.get(&run.raw()) {
         Some(proof) => proof.attempt == attempt.raw() && proof.terminal.is_none(),
         None => false,
@@ -587,8 +586,7 @@ pub(super) fn run_call(core: &mut Core, env: &Env<Limits>, run: Token, attempt: 
             changed_run(core, env, run, &mut out);
         }
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 fn changed_run(core: &mut Core, env: &Env<Limits>, run: Token, out: &mut Queue<Request>) {
@@ -627,26 +625,17 @@ fn changed_run(core: &mut Core, env: &Env<Limits>, run: Token, out: &mut Queue<R
     }
 }
 
-pub(super) fn stream_delivered(core: &mut Core, env: &Env<Limits>, watcher: Token) -> Requests {
+pub(super) fn stream_delivered(core: &mut Core, env: &Env<Limits>, watcher: Token) -> Queue<Request> {
     let mut out = Queue::uncapped();
     append_stream(super::watch_marks::end_invalid(core, env), &mut out);
     append_stream(route_view(core, env, views::Event::StreamDelivered { watcher }), &mut out);
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
-fn append_stream(requests: Requests, out: &mut Queue<Request>) {
-    let Requests::Out(mut requests) = requests;
+fn append_stream(requests: Queue<Request>, out: &mut Queue<Request>) {
+    let mut requests = requests;
     for _ in 0..requests.len() {
-        match requests.pop().expect("stream output count") {
-            Request::Decided => {}
-            request @ (Request::Held(_)
-            | Request::Now(_)
-            | Request::ProjectMade { .. }
-            | Request::Write(_)
-            | Request::Ask { .. }) => {
-                out.push(request);
-            }
-        }
+        let request = requests.pop().expect("stream output count");
+        out.push(request);
     }
 }
 
@@ -683,7 +672,7 @@ pub(crate) fn retained_made(
     env: &Env<Limits>,
     watcher: Token,
     document: Result<documents::Document, views::End>,
-) -> Requests {
+) -> Queue<Request> {
     let mut child = Queue::uncapped();
     let view_env = Env { now: env.now, wall: env.wall, limits: env.limits.views };
     let outcome = match &document {
@@ -700,8 +689,7 @@ pub(crate) fn retained_made(
             views::Request::Deliver { .. } => {
                 let document = document.expect("ready retained document");
                 out.push(Request::Held(Box::new(Held::Delivery { watcher, document: Box::new(document) })));
-                out.push(Request::Decided);
-                return Requests::Out(out);
+                return out;
             }
             views::Request::Ended { end, .. } => {
                 forget_watch(core, watcher);
@@ -713,6 +701,5 @@ pub(crate) fn retained_made(
             | views::Request::Stream { .. } => unreachable!("construction emits delivery or ending"),
         }
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }

@@ -415,7 +415,7 @@ impl Core {
     /// Validate a live task-family row against the deployment and retain the
     /// correlations that a later proof and view restoration will need.
     #[must_use]
-    pub fn restore_task_row(&mut self, row: &jig_domain_tasks::Stored) -> bool {
+    pub(crate) fn restore_task_row(&mut self, row: &jig_domain_tasks::Stored) -> bool {
         self.start_input();
         {
             assert!(self.start_loading(), "task rows load before Link");
@@ -463,7 +463,7 @@ impl Core {
 
     /// Retain one of the core's own live rows. The root wraps store bytes and
     /// routes connector rows separately; it cannot alter this live decision.
-    pub fn restore_core(&mut self, record: CoreRecord, limits: &Limits) -> Restored {
+    pub(crate) fn restore_core(&mut self, record: CoreRecord, limits: &Limits) -> Restored {
         self.start_input();
         {
             assert!(self.start_loading(), "core rows load before Link");

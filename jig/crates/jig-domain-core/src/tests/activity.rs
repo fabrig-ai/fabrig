@@ -1,11 +1,10 @@
 //! Ordinary Rust parent scripts verify the core's immutable activity archives.
-#![allow(
-    clippy::disallowed_macros,
+#![expect(
     clippy::disallowed_methods,
     clippy::disallowed_types,
     clippy::wildcard_enum_match_arm,
     clippy::match_like_matches_macro,
-    reason = "unit-test parent scripts are ordinary Rust under programming-model.md section 10.2"
+    reason = "unit tests build fixtures and inspect selected child events"
 )]
 use super::*;
 
@@ -16,7 +15,7 @@ fn activity_decision(core: &mut Core, env: &Env<Limits>, event: Event) -> Vec<Re
         Event::TurnPayload { read, cumulative, .. } => Some((*read, *cumulative)),
         _ => None,
     };
-    let Requests::Out(mut out) = step(core, env, event);
+    let mut out = step(core, env, event);
     let mut records = Vec::new();
     while let Some(request) = out.pop() {
         match request {
@@ -43,8 +42,7 @@ fn activity_decision(core: &mut Core, env: &Env<Limits>, event: Event) -> Vec<Re
             Request::Write(Write::Erase(_) | Write::CopySettingsRevision(_))
             | Request::Ask { .. }
             | Request::Held(_)
-            | Request::ProjectMade { .. }
-            | Request::Decided => {}
+            | Request::ProjectMade { .. } => {}
         }
     }
     records

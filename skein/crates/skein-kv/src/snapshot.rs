@@ -13,8 +13,21 @@ const MAGIC: &[u8; 4] = b"SKVS";
 const END: &[u8; 4] = b"END!";
 const TRAILER: &[u8; 4] = b"SNPE";
 const VERSION: u16 = 1;
+const CHUNK_BYTES: u32 = 12;
+const ROW_BYTES: u32 = 8;
 pub(crate) const HEADER: usize = 18;
 pub(crate) const TRAILER_LEN: usize = 28;
+
+/// A single-row snapshot chunk's encoded size, including its lengths and checksum
+/// (skein/docs/design/kv.md, 7). Excludes the snapshot header and trailer.
+#[must_use]
+pub fn chunk_bytes(key: u32, value: u32) -> Option<u32> {
+    row_bytes(key, value)?.checked_add(CHUNK_BYTES)
+}
+
+fn row_bytes(key: u32, value: u32) -> Option<u32> {
+    key.checked_add(value)?.checked_add(ROW_BYTES)
+}
 
 #[must_use]
 pub(crate) fn header(start: u64) -> Box<[u8]> {
@@ -30,16 +43,21 @@ pub(crate) fn chunk(rows: &[Row], limit: u32) -> Option<Box<[u8]>> {
     if rows.is_empty() {
         return None;
     }
+    let mut total = CHUNK_BYTES;
+    for row in rows {
+        total =
+            total.checked_add(row_bytes(u32::try_from(row.key.len()).ok()?, u32::try_from(row.value.len()).ok()?)?)?;
+    }
+    if total > limit {
+        return None;
+    }
+    let total = usize::try_from(total).ok()?;
     let mut body = Vec::new();
     for row in rows {
         body.extend_from_slice(&u32::try_from(row.key.len()).ok()?.to_be_bytes());
         body.extend_from_slice(&u32::try_from(row.value.len()).ok()?.to_be_bytes());
         body.extend_from_slice(&row.key);
         body.extend_from_slice(&row.value);
-    }
-    let total = body.len().checked_add(12)?;
-    if total > usize::try_from(limit).ok()? {
-        return None;
     }
     let mut bytes = Vec::with_capacity(total);
     bytes.extend_from_slice(&u32::try_from(rows.len()).ok()?.to_be_bytes());
@@ -94,7 +112,7 @@ pub(crate) fn decode(bytes: &[u8], chunk_limit: u32) -> Option<(u64, Box<[Row]>)
         }
         let count = usize::try_from(u32_at(bytes, at)?).ok()?;
         let len = usize::try_from(u32_at(bytes, at.checked_add(4)?)?).ok()?;
-        let total = len.checked_add(12)?;
+        let total = len.checked_add(usize::try_from(CHUNK_BYTES).ok()?)?;
         if count == 0 || total > usize::try_from(chunk_limit).ok()? {
             return None;
         }

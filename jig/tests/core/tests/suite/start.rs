@@ -31,8 +31,8 @@ impl Harness {
         let mut header = self.core.counters.deployment();
         header.commits = 1;
         assert!(matches!(
-            self.core.restore_core(core::CoreRecord::Deployment(header), &self.env.limits),
-            core::Restored::Deployment { commits: 1 }
+            self.core.restore(&self.env, core::Record::Core(core::CoreRecord::Deployment(header))),
+            core::Restore::Deployment { commits: 1 }
         ));
     }
 
@@ -49,8 +49,7 @@ impl Harness {
     }
 
     fn record(&mut self, record: accounts::Stored) {
-        let core::Requests::Out(out) =
-            core::step(&mut self.core, &self.env, core::Event::Account(accounts::Event::Restore { record }));
+        let out = core::step(&mut self.core, &self.env, core::Event::Account(accounts::Event::Restore { record }));
         assert!(out.len() <= 1);
     }
 }
@@ -143,7 +142,7 @@ fn cleanup_acknowledgement_blocks_sweep_and_held_account_outputs_are_metered() {
     let captured = meter.end();
     meter.check(captured, 18_000, &h.env.limits);
     assert!(captured.held() > 0);
-    println!("selected account loading and held outputs: peak={} held={}", captured.peak(), captured.held());
+    println!("started account loading and held outputs: peak={} held={}", captured.peak(), captured.held());
     let mut saved_counter = false;
     for _ in 0..h.out.len() {
         let core::Request::Write(core::Write::Save(core::Record::Accounts(accounts::Stored::Next { number }))) =
@@ -172,13 +171,13 @@ fn cleanup_acknowledgement_blocks_sweep_and_held_account_outputs_are_metered() {
     phase(&h.core.start_resume(&h.env, wires, &mut h.out), Phase::AdoptRuns);
     let released = meter.end();
     meter.check(released, 18_000, &h.env.limits);
-    println!("selected account release including owned outputs: peak={} held={}", released.peak(), released.held());
+    println!("started account release including owned outputs: peak={} held={}", released.peak(), released.held());
     assert!(!h.core.tasks.checked());
     assert!(!h.out.is_empty());
 }
 
 #[test]
-fn an_empty_selected_store_seeds_before_opening() {
+fn an_empty_start_store_seeds_before_opening() {
     let configured = world::config(204).core;
     let owners = configured.owners.clone();
     let mut h = Harness::new(204);

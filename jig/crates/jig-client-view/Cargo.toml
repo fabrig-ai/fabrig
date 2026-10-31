@@ -1,6 +1,6 @@
 [package]
 name = "jig-client-view"
-description = "Semantic client trees, bindings and patches"
+description = "Reference client UI state, semantic trees and bindings"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

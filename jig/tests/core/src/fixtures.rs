@@ -707,7 +707,18 @@ pub fn project_names() -> skein_lib::Map<u32, Box<str>> {
 pub fn restore_project_policies(core: &mut core::Core, limits: &core::Limits, store: &crate::Store) {
     for row in store.rows.values() {
         if let root::Record::Core(core::Record::People(people::Stored::Policy { project, name, value })) = row {
-            assert!(core.restore_policy(limits, *project, name.clone(), value.clone()), "durable policy restores");
+            assert_eq!(
+                core.restore(
+                    &skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: *limits },
+                    core::Record::People(people::Stored::Policy {
+                        project: *project,
+                        name: name.clone(),
+                        value: value.clone()
+                    }),
+                ),
+                core::Restore::Kept,
+                "durable policy restores"
+            );
         }
     }
 }

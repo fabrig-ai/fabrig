@@ -85,15 +85,12 @@ pub fn engine(
     };
     let mut limits = profile(Profile::Small);
     if let Some(at) = object.required(document, b"limits", &path, &mut problems) {
-        match overrides::parse(document, at, &path.member(b"limits")) {
-            Ok(value) => limits = value,
-            Err(found) => {
-                for problem in &found.problems {
-                    problems.push(problem.path.clone(), problem.what);
-                }
-                problems.past = problems.past.saturating_add(found.past);
-            }
+        let parsed = overrides::parse(document, at, &path.member(b"limits"));
+        limits = parsed.limits;
+        for problem in &parsed.problems.problems {
+            problems.push(problem.path.clone(), problem.what);
         }
+        problems.past = problems.past.saturating_add(parsed.problems.past);
     }
     let mut llm = None;
     if let Some(at) = object.required(document, b"llm", &path, &mut problems) {

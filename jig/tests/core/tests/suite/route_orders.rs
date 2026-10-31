@@ -13,7 +13,7 @@ const LATER: Token = Token::new(9702);
 const FIRST_KEY: [u8; 16] = [71; 16];
 const LATER_KEY: [u8; 16] = [72; 16];
 const PROJECT: u32 = 2;
-// MakeProject fans out to Roles, OpenPeriod, PeriodNext and Decided.
+// MakeProject fans out to Roles, OpenPeriod and PeriodNext.
 const HANDOFFS: usize = 4;
 const ONCE: usize = 1;
 

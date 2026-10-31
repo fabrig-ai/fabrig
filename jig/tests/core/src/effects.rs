@@ -237,12 +237,7 @@ impl World {
     #[must_use]
     pub fn next_due(&self) -> Option<Time> {
         let (now, wall) = self.clocks();
-        let mut next = None;
-        for (_, deadline) in self.domain.core_deadlines(now, wall) {
-            if let Some(deadline) = deadline {
-                next = Some(next.map_or(deadline, |prior: Time| prior.min(deadline)));
-            }
-        }
+        let mut next = self.domain.core().next_deadline(now, wall);
         for deadline in self
             .domain
             .connector_deadlines()
@@ -262,12 +257,17 @@ impl World {
     /// The caller supplies clocks; neither draining nor timer delivery advances them.
     pub fn fire_due(&mut self, now: Time, wall: Wall) {
         self.set_clock(now, wall);
-        let mut events = Vec::new();
-        for (timer, deadline) in self.domain.core_deadlines(now, wall) {
-            if deadline.is_some_and(|deadline| deadline <= now) {
-                events.push(root::Event::Timer(timer));
+        while let Some(timer) = self.domain.core().due(now, wall) {
+            if !self.domain.ready() || self.stopped {
+                break;
+            }
+            let refused = self.busy_events.len();
+            self.send(root::Event::Timer(timer));
+            if self.busy_events.len() != refused {
+                break;
             }
         }
+        let mut events = Vec::new();
         for (number, deadline) in self.domain.connector_deadlines() {
             if deadline.is_some_and(|deadline| deadline <= wall) {
                 events.push(root::Event::ConnectorTimer { number });

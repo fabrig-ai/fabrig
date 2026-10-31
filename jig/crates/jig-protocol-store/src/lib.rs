@@ -284,7 +284,7 @@ pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut 
     match request {
         Request::Switch { owner } => patching::switch::ask(store, env, owner, above, below),
         Request::Open { owner, root, installation } => {
-            directory::open(store, env, owner, root, installation, above, below);
+            directory::open(store, owner, root, installation, above, below);
         }
         Request::Site { owner, patcher, result } => match store.phase {
             Phase::Ready { .. } => transcripts::read::site(store, env, owner, patcher, result, above, below),
@@ -335,9 +335,6 @@ fn memory_env(limits: skein_kv::Limits) -> Env<skein_kv::Limits> {
 #[rustfmt::skip]
 #[path = "generated/accounts_v2.rs"]
 pub mod accounts_v2;
-#[rustfmt::skip]
-#[path = "generated/component_v2.rs"]
-pub mod component_v2;
 #[rustfmt::skip]
 #[path = "generated/notes_v1.rs"]
 pub mod notes_v1;

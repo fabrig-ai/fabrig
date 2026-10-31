@@ -803,6 +803,8 @@ engine's protocol layer calls for every run, on workers and in the
 engine alike, and which reads every run's result back by the path of
 host tools' calls (6.8).
 
+Its `assignment` builds that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes, its checks required to pass, and the workspace tools the run's policy grants. A root calls it and decides none of it.
+
 - **Instructions and brief:** the charter's instructions, and the brief's
   sections rendered as smith's titled sections, in order, the
   connectors' sections among them as their connectors render them.

@@ -99,7 +99,7 @@ const EMPTY_CLOSURE_HEAP_CEILING: u64 = 1_300;
 const FINISHING_QUERIES_HEAP_CEILING: u64 = 5_400;
 
 #[test]
-fn settled_finishing_queries_allocate_nothing_and_empty_closure_holds_one_output() {
+fn settled_finishing_queries_allocate_nothing_and_empty_closure_stays_under_its_heap_ceiling() {
     let limits = world::limits().core;
     let meter = Meter::new();
     meter.start();
@@ -117,11 +117,10 @@ fn settled_finishing_queries_allocate_nothing_and_empty_closure_holds_one_output
     assert_eq!((queries.held(), queries.peak()), (held, held));
     meter.check(queries, bound, &limits);
     meter.start();
-    let core::Requests::Out(mut out) =
-        core::finish_decision(&mut domain, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits });
+    let out = core::finish_decision(&mut domain, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits });
     let closed = meter.end();
-    assert!(matches!(out.pop(), Some(core::Request::Decided)));
     assert!(out.is_empty());
+
     assert!(closed.peak() - held <= EMPTY_CLOSURE_HEAP_CEILING, "empty closure stays under its heap ceiling");
     drop(out);
     meter.check(closed, bound, &limits);

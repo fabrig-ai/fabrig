@@ -173,7 +173,13 @@ fn the_walks_closed_proof_restores_until_the_next_attempt() {
     let mut engine =
         core::Core::new(jig_core_world::effects::fixture(f::SEED, false).0.core, &limits).expect("core configuration");
     let _loading = engine.start_begin(false, skein_lib::Wall::EPOCH);
-    assert!(engine.restore_proof(closed.clone(), limits.tasks.result_bytes));
+    assert_eq!(
+        engine.restore(
+            &skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits },
+            core::Record::Core(core::CoreRecord::RunProof(closed.clone())),
+        ),
+        core::Restore::Kept
+    );
     assert_eq!(engine.proofs.get(&closed.task), Some(&closed));
     world.restart_with_patch_sets(f::SEED, false, f::AFTER);
     assert_eq!(f::proof(&world), &closed, "a later open keeps it closed");

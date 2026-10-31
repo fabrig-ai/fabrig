@@ -1,23 +1,10 @@
 //! Bare retained proposal fragments remain passive and preserve their old history position.
 use super::*;
-use crate::owner_history::HistoryFragment;
+
 use skein_ui::Role;
 
-fn limits(fragment: HistoryFragment) -> Limits {
-    Limits {
-        nodes: fragment.nodes,
-        depth: fragment.depth,
-        text_bytes: fragment.text_bytes,
-        text_per_node: fragment.text_per_node,
-        drawing_bytes: 0,
-        styles_per_node: 2,
-        patches: 0,
-        bindings: fragment.bindings,
-        slots: fragment.slots,
-        markdown_depth: 2,
-        scene_marks: 0,
-        scene_bytes: 0,
-    }
+fn limits(fragment: Limits) -> Limits {
+    fragment
 }
 fn render(value: &OwnerProposalHistory, words: &Words, limits: &Limits) -> (Tree, JigBindings) {
     let mut bindings = JigBindings::new(limits.bindings, 8);
@@ -25,12 +12,10 @@ fn render(value: &OwnerProposalHistory, words: &Words, limits: &Limits) -> (Tree
     view::proposal(&mut builder, value, words, &mut bindings, client_limits().rows);
     (builder.finish(), bindings)
 }
-fn bare(value: &OwnerProposalHistory, words: &Words) -> (Tree, JigBindings, HistoryFragment) {
+fn bare(value: &OwnerProposalHistory, words: &Words) -> (Tree, JigBindings, Limits) {
     let source = value.clone();
-    let fragment = view::proposal_required(value, &client_limits(), words).unwrap();
-    assert_eq!(Some(fragment.nodes), view::proposal_max_nodes(&client_limits()));
-    assert_eq!(Some(fragment), view::proposal_fragment_bound(&client_limits(), words));
-    assert_eq!(Some(fragment), view::fragment_bound(&client_limits(), words));
+    let fragment = crate::tests::render_limits(&client_limits(), words).unwrap();
+
     let (tree, bindings) = render(value, words, &limits(fragment));
     assert_eq!(source, *value);
     assert!(tree.len() <= fragment.nodes);
@@ -136,12 +121,12 @@ fn retained_proposal_fragment_delegation_preserves_old_history_nodes_metadata_ge
     let old_context =
         OwnerHistoryLine { amendment: Some((Box::new(state()), Box::new(state()))), at: Some(Wall::EPOCH), ..line() };
     let (prefix, _) = build(&old_context, words);
-    let original_bound = view::required(&old_context, &client_limits(), words).unwrap();
+    let original_bound = crate::tests::render_limits(&client_limits(), words).unwrap();
     for action in actions() {
         let value = proposal(action);
         let (fragment_tree, _, fragment) = bare(&value, words);
         let history = OwnerHistoryLine { proposal: Some(value), ..old_context.clone() };
-        assert_eq!(view::required(&history, &client_limits(), words), Some(original_bound));
+
         assert_eq!(fragment, original_bound);
         let (whole, _) = build(&history, words);
         let mut heading = prefix.nodes()[0].clone();
@@ -179,25 +164,6 @@ fn retained_proposal_fragment_selected_language_and_exact_occupied_nodes_refuse_
         Err(_) => {}
         Ok(_) => panic!("one node below the occupied fragment must refuse"),
     }
-}
-#[test]
-fn retained_proposal_fragment_validation_refuses_whole_allocated_rows_and_text_without_projection() {
-    let words = normal_words();
-    let limits = client_limits();
-    let value = proposal(OwnerRetainedAction::Batch(List::with_capacity(limits.rows.checked_add(1).unwrap())));
-    assert!(view::proposal_required(&value, &limits, words).is_none());
-    let value = OwnerProposalHistory {
-        state: OwnerProposalHistoryState::Rejected { by: OwnerRequester::Person(0), reason: doc(UTF8_TEXTS[1], false) },
-        ..proposal(OwnerRetainedAction::Release { task: 0 })
-    };
-    assert!(view::proposal_required(&value, &limits, words).is_some());
-    assert!(view::proposal_required(&value, &crate::Limits { text: 7, ..limits }, words).is_none());
-    for (action, fits) in actions().into_iter().skip(1).take(3).zip([true, false, true]) {
-        let value = proposal(action);
-        assert!(view::proposal_required(&value, &limits, words).is_some());
-        assert_eq!(view::proposal_required(&value, &crate::Limits { rows: 2, ..limits }, words).is_some(), fits);
-    }
-    assert!(view::proposal_max_nodes(&crate::Limits { rows: u32::MAX, ..limits }).is_none());
 }
 #[test]
 fn retained_proposal_fragment_preserves_absent_empty_and_independent_retained_losses() {

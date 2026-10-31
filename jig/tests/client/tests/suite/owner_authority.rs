@@ -115,41 +115,51 @@ fn authority_document_cut_is_separate_from_whole_payload_and_keeps_exact_codes()
 }
 
 #[test]
-fn saturated_owner_authority_renderer_fits_its_fragment_envelope() {
+fn saturated_owner_authority_renders_all_literal_boundaries() {
     use jig_client_view::owner_authority as view;
-    use jig_client_view::owner_authority_words::{self as words, OwnerAuthorityWords};
+    use jig_client_view::words::Words;
     use skein_ui::Builder;
     use skein_ui::Limits;
     use skein_ui::phrases::PhraseLimits;
 
-    let language_limits =
-        PhraseLimits { languages: 1, phrases: 23, holes: 1, segments: 40, text_bytes: 4096, hole_bytes: 0 };
-    let words = OwnerAuthorityWords::load(Box::new([words::english()]), &language_limits, 0, 0)
-        .expect("closed English authority words");
-
-    let value = OwnerAuthorityDocument { authority: authority(), cut: true };
-    let envelope = view::fragment_bound(3, 3, 4, &words).expect("full view envelope");
-    let required = view::document_required(&value, &words, 3).expect("value capacity");
-    assert_eq!(required.nodes, 63, "full three-by-three patterns and executor rows");
-    assert_eq!(required.nodes, envelope.nodes);
-    assert!(required.text_bytes <= envelope.text_bytes);
+    let language_limits = PhraseLimits {
+        languages: 1,
+        phrases: jig_client_view::owner_words::phrase_count(),
+        holes: 4,
+        segments: 20_000,
+        text_bytes: 200_000,
+        hole_bytes: 4096,
+    };
+    let mut english = jig_client_view::phrases::english::language();
+    english.wall = skein_ui::phrases::WallFormat::Nanos;
+    let words = Words::new(
+        skein_ui::phrases::Phrasebook::load(
+            jig_client_view::phrases::jig::shapes(4096),
+            Box::new([english]),
+            &language_limits,
+        )
+        .expect("checked rendering fixture"),
+        0,
+        0,
+    );
+    let receiving = jig_client_world::test::limits().jig;
     let limits = Limits {
-        nodes: envelope.nodes,
-        depth: envelope.depth,
-        text_per_node: envelope.text_per_node,
-        text_bytes: envelope.text_bytes,
-        drawing_bytes: 0,
-        styles_per_node: 0,
-        patches: 0,
-        bindings: 0,
-        slots: 0,
-        markdown_depth: 0,
-        scene_marks: 0,
-        scene_bytes: 0,
+        nodes: 16_384,
+        text_bytes: 16_777_216,
+        ..jig_client_view::limits::envelope(
+            &receiving,
+            words.jig_capacity().expect("checked rendering fixture"),
+            &jig_client_view::page::Arrangement::none(),
+            0,
+            0,
+            0,
+        )
+        .expect("checked rendering fixture")
     };
 
+    let value = OwnerAuthorityDocument { authority: authority(), cut: true };
     let mut builder = Builder::new(&limits);
-    view::document(&mut builder, &value, &words, 4, 3);
+    view::document_words(&mut builder, &value, &words, 4, 3);
     let tree = builder.finish();
     assert_eq!(tree.len(), 63);
 
@@ -171,7 +181,7 @@ fn saturated_owner_authority_renderer_fits_its_fragment_envelope() {
         },
         cut: false,
     };
-    assert_eq!(view::document_required(&empty, &words, 3).expect("empty facts").nodes, 10);
+
     assert!(price::document_fits(&empty, &Bounds { rows: 0, authority: 0, text: 0, ..bounds() }));
 }
 

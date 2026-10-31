@@ -1,10 +1,10 @@
 //! Loaded-place admission and its transient reads, scripted by an ordinary Rust parent.
-#![allow(
+#![expect(
     clippy::disallowed_types,
     clippy::disallowed_macros,
     clippy::disallowed_methods,
     clippy::wildcard_enum_match_arm,
-    reason = "input tables and output observations are ordinary Rust tests"
+    reason = "unit tests build fixtures and inspect selected child events"
 )]
 use super::*;
 use crate::routing::amendment_reads::{Evidence, missing};
@@ -141,9 +141,7 @@ fn owner_cleanup_drops_all_waiting_amendments_and_late_answers() {
     assert!(core.result_reads.is_empty());
     assert!(!core.pending_calls.contains_key(&CALL));
     let out = watch_outputs(&mut core, &limits, Event::EndedTaskLoaded { request, row: None, busy: false });
-    for request in &out {
-        let Request::Decided = request else { panic!("late answer produced {request:?}") };
-    }
+    assert!(out.is_empty());
     assert!(!core.call_parts.contains_key(&CALL));
 }
 

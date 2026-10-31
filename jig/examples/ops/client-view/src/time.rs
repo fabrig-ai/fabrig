@@ -1,11 +1,6 @@
 //! Keep: checked time units.
 //! Replace: the application's input format.
 use skein_lib::Wall;
-/// Checked conversion of an entered epoch-seconds value.
-#[must_use]
-pub fn wall(seconds: u64) -> Option<Wall> {
-    Some(Wall::from_nanos(seconds.checked_mul(1_000_000_000)?))
-}
 /// UTC time of day, for the drawing's numeric fallback.
 #[must_use]
 pub fn clock(wall: Wall) -> [u8; 5] {

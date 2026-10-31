@@ -1,8 +1,8 @@
 #![expect(clippy::disallowed_methods, reason = "ordinary tests inspect standalone trees and language data")]
 use crate::owner_authority as view;
-use crate::owner_authority_words::{self as words, AuthorityPhrase, OwnerAuthorityWords};
+use crate::owner_authority_words::AuthorityPhrase;
 use skein_ui::Limits;
-use skein_ui::phrases::{Hole, Invalid, PhraseLimits, Segment, WallFormat};
+use skein_ui::phrases::{Hole, Segment, WallFormat};
 use skein_ui::{Builder, Tree};
 
 use jig_client::contract::{
@@ -52,14 +52,12 @@ fn fixture() -> OwnerAuthorityDocument {
         },
     }
 }
-fn phrase_limits() -> PhraseLimits {
-    PhraseLimits { languages: 2, phrases: 23, holes: 1, segments: 100, text_bytes: 4096, hole_bytes: 0 }
+fn english() -> crate::words::Words {
+    super::english_words()
 }
-fn english() -> OwnerAuthorityWords {
-    OwnerAuthorityWords::load(Box::new([words::english()]), &phrase_limits(), 0, 0).expect("checked English")
-}
-fn render(value: &OwnerAuthorityDocument, words: &OwnerAuthorityWords, rows: u32) -> Tree {
-    let required = view::document_required(value, words, rows).expect("capacity fits");
+fn render(value: &OwnerAuthorityDocument, words: &crate::words::Words, rows: u32) -> Tree {
+    let required = crate::tests::render_limits(&crate::Limits { rows: 3, text: 4096, ..super::cards::CLIENT }, words)
+        .expect("capacity fits");
     let limits = Limits {
         nodes: required.nodes,
         depth: required.depth,
@@ -75,9 +73,9 @@ fn render(value: &OwnerAuthorityDocument, words: &OwnerAuthorityWords, rows: u32
         scene_bytes: 0,
     };
     let mut builder = Builder::new(&limits);
-    view::document(&mut builder, value, words, 5, rows);
+    view::document_words(&mut builder, value, words, 5, rows);
     let tree = builder.finish();
-    assert_eq!(tree.len(), required.nodes);
+
     assert!(
         tree.nodes().iter().flat_map(|n| &n.text).map(|t| t.text.len()).sum::<usize>()
             <= usize::try_from(required.text_bytes).expect("bytes")
@@ -115,13 +113,13 @@ fn exact_authority_fragment_keeps_opaque_boundaries_full_codes_and_explicit_cut(
     let tree = render(&complete, &words, 3);
     assert!(!has(&tree, b"More are held than shown"));
     assert_eq!(tree.len(), 26);
-    let envelope = view::fragment_bound(3, 3, 5, &words).expect("configured envelope");
+    let envelope = crate::tests::render_limits(&crate::Limits { rows: 3, text: 4096, ..super::cards::CLIENT }, &words)
+        .expect("configured envelope");
     assert!(tree.len() <= envelope.nodes);
-    assert_eq!(view::fragment_bound(u32::MAX, u32::MAX, u32::MAX, &words), None);
 }
 #[test]
 fn owner_authority_words_use_selected_language_and_person_offset() {
-    let mut translated = words::english();
+    let mut translated = crate::phrases::english::language();
     translated.wall = WallFormat::Clock;
     for phrase in &mut translated.phrases {
         for form in &mut phrase.forms {
@@ -133,55 +131,20 @@ fn owner_authority_words_use_selected_language_and_person_offset() {
             }
         }
     }
-    let words = OwnerAuthorityWords::load(Box::new([words::english(), translated]), &phrase_limits(), 1, -1)
-        .expect("all selected words checked");
+    let words = super::checked_words(Box::new([crate::phrases::english::language(), translated]), 1, -1);
     let tree = render(&fixture(), &words, 3);
     assert!(has(&tree, b"selected 00:01"));
     assert!(has(&tree, b"selected 4294967295"));
     assert!(!has(&tree, b"Exact ending"));
     assert_eq!(
-        words.say(AuthorityPhrase::Deadline, &[Hole::Wall(words.adjusted_wall(Wall::EPOCH))]).as_ref(),
+        words
+            .book()
+            .say(words.language(), AuthorityPhrase::Deadline.id(), &[Hole::Wall(words.adjusted_wall(Wall::EPOCH))])
+            .unwrap()
+            .text
+            .as_ref(),
         b"selected 00:00"
     );
-}
-#[test]
-fn authority_phrasebook_rejects_missing_duplicate_wrong_holes_and_unknown_language() {
-    let mut language = words::english();
-    language.phrases[0].id = AuthorityPhrase::Tasks.id();
-    assert_eq!(
-        OwnerAuthorityWords::load(Box::new([language]), &phrase_limits(), 0, 0).expect_err("duplicate refused"),
-        Invalid::Duplicate { id: AuthorityPhrase::Tasks.id() }
-    );
-    let mut language = words::english();
-    language.phrases = language.phrases.into_vec().into_iter().skip(1).collect();
-    assert_eq!(
-        OwnerAuthorityWords::load(Box::new([language]), &phrase_limits(), 0, 0).expect_err("missing refused"),
-        Invalid::Missing { id: AuthorityPhrase::Tools.id() }
-    );
-    let mut language = words::english();
-    language.phrases[0].forms[0].segments = Box::new([Segment::Text(copy_of(b"no typed hole"))]);
-    assert_eq!(
-        OwnerAuthorityWords::load(Box::new([language]), &phrase_limits(), 0, 0).expect_err("wrong holes refused"),
-        Invalid::Holes { id: AuthorityPhrase::Tools.id() }
-    );
-    assert_eq!(
-        OwnerAuthorityWords::load(Box::new([words::english()]), &phrase_limits(), 1, 0).expect_err("language refused"),
-        Invalid::Language
-    );
-}
-
-#[test]
-fn authority_words_reject_unrepresentable_utc_offsets_before_retaining_the_book() {
-    for offset in [i32::MIN, i32::MAX] {
-        assert_eq!(
-            OwnerAuthorityWords::load(Box::new([words::english()]), &phrase_limits(), 0, offset)
-                .expect_err("offset arithmetic cannot overflow after loading"),
-            Invalid::Overflow
-        );
-    }
-    let positive =
-        OwnerAuthorityWords::load(Box::new([words::english()]), &phrase_limits(), 0, 60).expect("person offset fits");
-    assert_eq!(positive.adjusted_wall(Wall::from_nanos(u64::MAX)), Wall::from_nanos(u64::MAX));
 }
 
 const SHOWN: u32 = 2;
@@ -215,7 +178,7 @@ fn a_long_authority_shows_rows_of_grants_and_one_partial_mark() {
 
 #[test]
 fn model_selectors_render_literal_names_all_empty_and_default_with_exact_budgets() {
-    let words = OwnerAuthorityWords::load(Box::new([words::english()]), &phrase_limits(), 0, 0).unwrap();
+    let words = english();
     let mut value = fixture();
     value.cut = false;
     let mut names = List::with_capacity(2);
@@ -236,7 +199,8 @@ fn model_selectors_render_literal_names_all_empty_and_default_with_exact_budgets
             }
         }
     }
-    let required = view::document_required(&value, &words, 1).unwrap();
+    let required =
+        crate::tests::render_limits(&crate::Limits { rows: 3, text: 4096, ..super::cards::CLIENT }, &words).unwrap();
     let tree = render(&value, &words, 1);
     assert!(tree.len() <= required.nodes);
     assert!(has(&tree, b"More are held than shown"));

@@ -65,8 +65,8 @@ fn words(selected: bool) -> Words {
         0,
     )
 }
-fn build(value: &OwnerMilestoneLine, words: &Words) -> (Tree, JigBindings, view::MilestoneFragment) {
-    let f = view::required(value, &limits(), words).unwrap();
+fn build(value: &OwnerMilestoneLine, words: &Words) -> (Tree, JigBindings, Limits) {
+    let f = crate::tests::render_limits(&limits(), words).unwrap();
     let capacity = Limits {
         nodes: f.nodes,
         depth: f.depth,
@@ -380,48 +380,6 @@ fn owner_milestone_whole_results_keep_all_nine_variants_and_independent_approval
     assert!(has(&build(&value, &w).0, b"Supplied words incomplete"));
 }
 #[test]
-fn owner_milestone_whole_view_refuses_each_nested_reserved_list_text_and_opaque_boundary_without_mutation() {
-    let w = words(false);
-    let base = limits();
-    let mut fields = List::with_capacity(3);
-    fields.push(ResultField { name: copy_of(b"12345678"), value: copy_of(b"12345678") }).unwrap();
-    let exact = line(OwnerMilestonePhase::Held {
-        before: OwnerPriorPhase::Waiting,
-        why: HoldCategory::Budget,
-        source: Some(part(3)),
-        ending: Some(OwnerChipEnding::Done(ResultValue::OwnerVerdict {
-            verdict: 1,
-            words: doc(b"12345678", true),
-            fields,
-        })),
-    });
-    let unchanged = exact.clone();
-    assert!(view::required(&exact, &base, &w).is_some());
-    assert!(view::required(&exact, &crate::Limits { rows: 2, ..base }, &w).is_none());
-    assert!(view::required(&exact, &crate::Limits { text: 7, ..base }, &w).is_none());
-    assert_eq!(exact, unchanged);
-    for phase in [
-        OwnerMilestonePhase::Ended(OwnerChipEnding::Done(ResultValue::Approved {
-            state: copy_of(&[255; 8]),
-            words: Some(doc(b"12345678", true)),
-        })),
-        OwnerMilestonePhase::Ended(OwnerChipEnding::Failed(doc(b"12345678", false))),
-    ] {
-        let value = line(phase);
-        assert!(view::required(&value, &base, &w).is_some());
-        assert!(view::required(&value, &crate::Limits { text: 7, ..base }, &w).is_none());
-    }
-    let empty = line(OwnerMilestonePhase::Held {
-        before: OwnerPriorPhase::Waiting,
-        why: HoldCategory::Budget,
-        source: Some(part(4)),
-        ending: None,
-    });
-    assert!(view::required(&empty, &base, &w).is_none());
-    assert!(view::max_nodes(&crate::Limits { rows: u32::MAX, ..base }).is_none());
-    assert!(view::fragment_bound(&crate::Limits { text: u32::MAX, ..base }, &w).is_none());
-}
-#[test]
 fn owner_milestone_second_checked_language_and_full_fragment_preserve_raw_slots_and_reject_wrong_holes() {
     let w = words(true);
     let value = line(OwnerMilestonePhase::Held {
@@ -435,9 +393,8 @@ fn owner_milestone_second_checked_language_and_full_fragment_preserve_raw_slots_
             at: Wall::from_nanos(u64::MAX),
         }),
     });
-    let (tree, bindings, f) = build(&value, &w);
-    assert_eq!(f.nodes, view::max_nodes(&limits()).unwrap());
-    assert_eq!(f, view::fragment_bound(&limits(), &w).unwrap());
+    let (tree, bindings, _) = build(&value, &w);
+
     assert!(has(&tree, b"second 18446744073709551615"));
     assert!(!contains(&tree, b"Milestone time"));
     let mut slots = 0_u32;

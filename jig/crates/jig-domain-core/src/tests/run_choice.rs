@@ -1,9 +1,9 @@
 //! The run's data check is pure; the core world only tests routing.
-#![allow(
+#![expect(
     clippy::disallowed_types,
     clippy::disallowed_macros,
     clippy::disallowed_methods,
-    reason = "small input tables are ordinary Rust tests"
+    reason = "unit tests build fixtures and inspect selected child events"
 )]
 use super::*;
 const TASK: u64 = 1;
@@ -1113,12 +1113,11 @@ fn a_stale_grants_refusal_drops_its_payload_without_rechecking() {
     assert_eq!(core.tasks.task(OPEN_TASK).unwrap().tries, tasks::Tries::NONE);
     assert_eq!(core.proofs.get(&OPEN_TASK).unwrap().attempt, current);
     assert_eq!(core.proofs.get(&OPEN_TASK).unwrap().terminal, None);
-    let Requests::Out(mut out) = out;
-    assert_eq!(out.len(), 2);
+    let mut out = out;
+    assert_eq!(out.len(), 1);
     let Some(Request::Now(now)) = out.pop() else { panic!("drop the stale payload") };
     let Now::DropPayload { payload } = *now else { panic!("drop the stale payload") };
     assert_eq!(payload, Token::new(99));
-    let Some(Request::Decided) = out.pop() else { panic!("one terminal decision") };
     assert!(out.is_empty());
 }
 

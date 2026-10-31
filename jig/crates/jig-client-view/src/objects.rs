@@ -602,7 +602,7 @@ pub(crate) fn dropping(domain: &mut crate::Ui, watch: jig_client::Handle, value:
 }
 /// A genuine ending can remove a source without a replacement delivery. Keep
 /// each shown waiting card until its own final read supplies the explanation
-/// (objects.md, 1; view.md, 18.3; Q34).
+/// (objects.md, 1; view.md, 18.3).
 pub(crate) fn ending_source(domain: &mut crate::Ui, watch: jig_client::Handle) {
     let source = Source::Watch(watch);
     for (_, id) in &domain.objects.index {

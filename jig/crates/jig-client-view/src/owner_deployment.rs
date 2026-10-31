@@ -13,10 +13,9 @@ use skein_ui::{Builder, Key, Role, Run};
 use crate::{Borrowed, Limits};
 use hello::hello;
 use jig_client::contract::{
-    AdmissionLimit, Chip, ChipPhase, Funder, OwnerAccountPlace, OwnerAccountState, OwnerAccountUnread,
-    OwnerAttemptState, OwnerCapacity, OwnerChipPhase, OwnerDeployment, OwnerHelloRefusal, OwnerHelloRefusalLine,
-    OwnerHostKind, OwnerHostRun, OwnerPersonCapacityAction, OwnerPersonCapacityCause, OwnerRunLocation,
-    OwnerTaskCapacityAction, OwnerTaskCapacityCause, OwnerTaskLink, Proposer, SeenThrough,
+    AdmissionLimit, Funder, OwnerAccountPlace, OwnerAccountState, OwnerAccountUnread, OwnerAttemptState, OwnerCapacity,
+    OwnerDeployment, OwnerHelloRefusal, OwnerHelloRefusalLine, OwnerHostKind, OwnerHostRun, OwnerPersonCapacityAction,
+    OwnerPersonCapacityCause, OwnerRunLocation, OwnerTaskCapacityAction, OwnerTaskCapacityCause, Proposer, SeenThrough,
 };
 use skein_lib::{Duration, Wall};
 pub(crate) fn text(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
@@ -759,128 +758,4 @@ pub fn limits(l: &Limits, words: &Words) -> Option<skein_ui::Limits> {
         scene_marks: 0,
         scene_bytes: 0,
     })
-}
-
-fn chip_fits(value: &Chip, l: &Limits, words: &Words) -> Option<()> {
-    if !value.title.bytes.fits(l.text) {
-        return None;
-    }
-    match value.details.as_ref() {
-        ChipPhase::Owner { phase, details } => {
-            match phase {
-                OwnerChipPhase::Waiting { dependencies, .. } => {
-                    if dependencies.capacity() > l.rows {
-                        return None;
-                    }
-                }
-                OwnerChipPhase::Active(_)
-                | OwnerChipPhase::Person { .. }
-                | OwnerChipPhase::Closing(_)
-                | OwnerChipPhase::Held { .. }
-                | OwnerChipPhase::Ended => {}
-            }
-            crate::owner_chip::required(details, l, words)?;
-        }
-        ChipPhase::Waiting { dependencies, .. } => {
-            if dependencies.capacity() > l.rows {
-                return None;
-            }
-        }
-        ChipPhase::Closing(value) => {
-            if let Some(connectors) = &value.connectors
-                && connectors.capacity() > l.rows
-            {
-                return None;
-            }
-        }
-        ChipPhase::Active(_)
-        | ChipPhase::Idle { .. }
-        | ChipPhase::Starting
-        | ChipPhase::Running { .. }
-        | ChipPhase::WaitingForWords { .. }
-        | ChipPhase::BackingOff { .. }
-        | ChipPhase::Procedure { .. }
-        | ChipPhase::Person { .. }
-        | ChipPhase::Held { .. }
-        | ChipPhase::Ended { .. } => {}
-    }
-    Some(())
-}
-fn run_fits(value: &OwnerHostRun, l: &Limits, words: &Words) -> Option<()> {
-    match &value.task {
-        OwnerTaskLink::Live(value) | OwnerTaskLink::Retained { chip: value, .. } => chip_fits(value, l, words),
-        OwnerTaskLink::Stored { .. } => Some(()),
-    }
-}
-/// Validate all independently allocated owner lists before using the finite fragment.
-#[must_use]
-pub fn required(value: &OwnerDeployment, l: &Limits, words: &Words) -> Option<skein_ui::Limits> {
-    crate::account_catalogue::fits(&value.providers, &value.readiness, l)?;
-    if value.connectors.capacity() > l.rows
-        || value.hosts.capacity() > l.rows
-        || value.attempts.capacity() > l.rows
-        || value.accounts.capacity() > l.accounts.accounts
-        || value.projects.capacity() > l.rows
-        || value.hello_refusals.capacity() > l.rows
-        || value.person_room_refusals.capacity() > l.rows
-        || value.task_room_refusals.capacity() > l.rows
-    {
-        return None;
-    }
-    for host in &value.hosts {
-        if let Some(name) = &host.name
-            && crate::literal_segment::display_bytes(name)? > jig_client::contract::PROGRAM_HOST_NAME
-        {
-            return None;
-        }
-        programs::fits(&host.programs, l)?;
-        if host.runs.capacity() > l.rows {
-            return None;
-        }
-        for value in &host.runs {
-            run_fits(value, l, words)?;
-        }
-    }
-    for value in &value.attempts {
-        run_fits(value, l, words)?;
-    }
-    for account in &value.accounts {
-        if account.runs.capacity() > l.rows
-            || account.waiting.capacity() > l.rows
-            || account.sources.capacity() > l.accounts.sources
-            || !account.display.bytes.fits(l.text)
-        {
-            return None;
-        }
-        if let Some(name) = &account.provider_name
-            && !name.bytes.fits(l.text)
-        {
-            return None;
-        }
-        if let Some(address) = &account.manage_usage
-            && (address.len() > usize::try_from(jig_client::contract::ACCOUNT_MANAGE_USAGE).ok()?
-                || !skein_ui::markdown::safe_url(address))
-        {
-            return None;
-        }
-        if let Some(uses) = &account.uses
-            && uses.capacity() > jig_client::contract::ACCOUNT_USES
-        {
-            return None;
-        }
-        for source in &account.sources {
-            if let Some(name) = &source.name
-                && !jig_client::contract::valid_program_name(name)
-            {
-                return None;
-            }
-        }
-        for value in &account.runs {
-            chip_fits(value, l, words)?;
-        }
-        for value in &account.waiting {
-            chip_fits(value, l, words)?;
-        }
-    }
-    limits(l, words)
 }

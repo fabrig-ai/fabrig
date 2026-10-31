@@ -1,12 +1,11 @@
 //! A decision can commit before the turn carrying its entry's first read fence
 //! (domain/engine.md, 7.2; domain/hosts.md, section 9).
-#![allow(
+#![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
     clippy::disallowed_types,
     clippy::wildcard_enum_match_arm,
-    clippy::match_like_matches_macro,
-    reason = "unit-test parent scripts are ordinary Rust under programming-model.md section 10.2"
+    reason = "unit tests build fixtures and inspect selected child events"
 )]
 use super::revisions::{Harness, amendment, task, to};
 use crate::{

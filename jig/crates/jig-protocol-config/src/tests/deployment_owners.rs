@@ -10,7 +10,7 @@ use super::{
     fixtures::{ENGINE_SMALL, with},
 };
 use crate::{Profile, profile};
-use jig_domain_core::{Core, CoreRecord, Event, Record, Request, Requests, Write};
+use jig_domain_core::{Core, CoreRecord, Event, Record, Request, Write};
 use jig_domain_people as people;
 use skein_lib::{Env, ReplyTo, Time, Token, Wall};
 
@@ -21,7 +21,7 @@ const SECOND_PERSON: u64 = 2;
 const ONE_SAVE: usize = 1;
 
 fn saves(core: &mut Core, env: &Env<jig_domain_core::Limits>, event: Event) -> Vec<Record> {
-    let Requests::Out(mut out) = jig_domain_core::step(core, env, event);
+    let mut out = jig_domain_core::step(core, env, event);
     let mut records = Vec::new();
     while let Some(request) = out.pop() {
         if let Request::Write(Write::Save(record)) = request {
@@ -213,23 +213,5 @@ fn first_owners_hold_the_deployments_roles_across_start_and_restart() {
 }
 
 fn restore(core: &mut Core, env: &Env<jig_domain_core::Limits>, record: &Record) {
-    match record {
-        Record::Core(record) => {
-            let _restored = core.restore_core(record.clone(), &env.limits);
-        }
-        Record::People(people::Stored::Policy { project, name, value }) => {
-            let _restored = core.restore_policy(&env.limits, *project, name.clone(), value.clone());
-        }
-        Record::People(record) => {
-            drop(saves(core, env, Event::People(people::Event::Restore { record: record.clone() })));
-        }
-        Record::Tasks(record) => {
-            assert!(core.restore_task_row(record));
-            drop(saves(core, env, Event::Tasks(jig_domain_tasks::Event::Restore { record: record.clone() })));
-        }
-        Record::Accounts(record) => {
-            drop(saves(core, env, Event::Account(jig_domain_accounts::Event::Restore { record: record.clone() })));
-        }
-        Record::Notes(_) => panic!("first start creates no notes"),
-    }
+    assert_ne!(core.restore(env, record.clone()), jig_domain_core::Restore::Refused);
 }

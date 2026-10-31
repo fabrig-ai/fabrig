@@ -210,7 +210,7 @@ fn projection_outcomes_settle_only_their_writers_without_holding_or_waking_a_pro
         core.call_parts.insert(key, part.clone()).unwrap();
         let env = Env { now: Time::ZERO, wall: Wall::from_nanos(9), limits };
         for _ in 0_u8..2 {
-            let Requests::Out(mut out) = step(
+            let mut out = step(
                 &mut core,
                 &env,
                 Event::EffectConnector(connector::Event::ProjectionOutbox { connector: 2, entry: entries[0], outcome }),
@@ -363,7 +363,7 @@ fn a_refused_procedure_batch_sends_its_findings_to_its_connector() {
         budget: people::Budget::Named,
     };
     let (_, _, step_number) = core.tasks.procedure_due(1).expect("due procedure");
-    let Requests::Out(mut out) = step(
+    let mut out = step(
         &mut core,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
         Event::ProcedureStep {

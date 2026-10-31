@@ -255,6 +255,6 @@ impl Core {
         if !self.fleet.supports(placement, needs.as_slice()) {
             return false;
         }
-        self.credentials_ready(task)
+        self.credentials_ready(task, self.run_now)
     }
 }

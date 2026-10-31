@@ -15,6 +15,7 @@ use core::slice;
 
 use crate::Id;
 use crate::growth::grown;
+use crate::length::usize_of;
 
 /// Entities of one kind, named by `Id<T>`.
 ///
@@ -85,7 +86,7 @@ impl<T> Slab<T> {
     /// Whether an insert would be refused.
     #[must_use]
     pub fn is_full(&self) -> bool {
-        self.free.is_empty() && self.slots.len() == index(self.capacity)
+        self.free.is_empty() && self.slots.len() == usize_of(self.capacity)
     }
 
     /// Stores `value` and names it, or hands it back when the slab is full.
@@ -93,7 +94,7 @@ impl<T> Slab<T> {
         let slot = match self.free.pop() {
             Some(slot) => slot,
             None => {
-                if self.slots.len() == index(self.capacity) {
+                if self.slots.len() == usize_of(self.capacity) {
                     return Err(value);
                 }
                 if self.slots.len() == self.slots.capacity() {
@@ -104,7 +105,7 @@ impl<T> Slab<T> {
                 slot
             }
         };
-        let entry = self.slots.get_mut(index(slot)).expect("free slots are in range");
+        let entry = self.slots.get_mut(usize_of(slot)).expect("free slots are in range");
         let generation = match entry {
             Slot::Vacant { generation } => *generation,
             Slot::Occupied { .. } | Slot::Spent => unreachable!("the free list holds vacant slots only"),
@@ -117,7 +118,7 @@ impl<T> Slab<T> {
     /// The entity `id` names, or `None` if it has been reclaimed.
     #[must_use]
     pub fn get(&self, id: Id<T>) -> Option<&T> {
-        match self.slots.get(index(id.slot()))? {
+        match self.slots.get(usize_of(id.slot()))? {
             Slot::Occupied { generation, retired: _, value } => (*generation == id.generation()).then_some(value),
             Slot::Vacant { .. } | Slot::Spent => None,
         }
@@ -126,7 +127,7 @@ impl<T> Slab<T> {
     /// The entity `id` names, or `None` if it has been reclaimed.
     #[must_use]
     pub fn get_mut(&mut self, id: Id<T>) -> Option<&mut T> {
-        match self.slots.get_mut(index(id.slot()))? {
+        match self.slots.get_mut(usize_of(id.slot()))? {
             Slot::Occupied { generation, retired: _, value } => (*generation == id.generation()).then_some(value),
             Slot::Vacant { .. } | Slot::Spent => None,
         }
@@ -135,7 +136,7 @@ impl<T> Slab<T> {
     /// Marks a live entity for reclaiming. It stays reachable until
     /// `reclaim`. Retiring anything else is a bug.
     pub fn retire(&mut self, id: Id<T>) {
-        let entry = self.slots.get_mut(index(id.slot())).expect("a handle names a slot of its slab");
+        let entry = self.slots.get_mut(usize_of(id.slot())).expect("a handle names a slot of its slab");
         match entry {
             Slot::Occupied { generation, retired, value: _ } => {
                 assert!(*generation == id.generation(), "only a live entity is retired");
@@ -161,7 +162,7 @@ impl<T> Slab<T> {
     pub fn reclaim(&mut self) {
         // Bounded: each slot is retired at most once between reclaims.
         while let Some(slot) = self.retired.pop() {
-            let entry = self.slots.get_mut(index(slot)).expect("retired slots are in range");
+            let entry = self.slots.get_mut(usize_of(slot)).expect("retired slots are in range");
             let next = match entry {
                 Slot::Occupied { generation, retired: true, value: _ } => generation.checked_add(1),
                 Slot::Occupied { retired: false, .. } | Slot::Vacant { .. } | Slot::Spent => {
@@ -225,7 +226,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let left = index(self.left);
+        let left = usize_of(self.left);
         (left, Some(left))
     }
 }
@@ -233,11 +234,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
 /// Additional storage for a full buffer that has room below its cap.
 fn growth(len: usize, capacity: u32) -> usize {
     let needed = len.checked_add(1).expect("room for another item");
-    grown(len, needed, index(capacity)).checked_sub(len).expect("room for another item")
-}
-
-fn index(slot: u32) -> usize {
-    usize::try_from(slot).expect("a u32 fits in a usize")
+    grown(len, needed, usize_of(capacity)).checked_sub(len).expect("room for another item")
 }
 
 // lib.md, 5.1: slot identity and reuse order are state; capacity and len are not.

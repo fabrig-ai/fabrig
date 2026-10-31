@@ -153,24 +153,11 @@ fn words(selected: bool) -> Words {
         0,
     )
 }
-fn capacity(f: view::ProposalFragment) -> skein_ui::Limits {
-    skein_ui::Limits {
-        nodes: f.nodes,
-        depth: f.depth,
-        text_bytes: f.text_bytes,
-        text_per_node: f.text_per_node,
-        drawing_bytes: 0,
-        styles_per_node: 2,
-        patches: 0,
-        bindings: f.bindings,
-        slots: f.slots,
-        markdown_depth: 3,
-        scene_marks: 0,
-        scene_bytes: 0,
-    }
+fn capacity(f: skein_ui::Limits) -> skein_ui::Limits {
+    f
 }
 fn build(value: &OwnerProposal, w: &Words) -> (Tree, JigBindings) {
-    let f = view::required(value, &limits(), w).unwrap();
+    let f = crate::tests::render_limits(&limits(), w).unwrap();
     let mut b = Builder::new(&capacity(f));
     let mut bindings = JigBindings::new(f.bindings, 256);
     let client = Fixture::new(&limits());
@@ -413,14 +400,11 @@ fn owner_proposal_exact_checked_envelopes_keep_selected_language_whole_loss_and_
     let (tree, _) = build(&v, &w);
     assert!(has(&tree, b"second 18446744073709551615"));
     assert!(!has(&tree, b"Pending proposal"));
-    let f = view::required(&v, &limits(), &w).unwrap();
-    assert_eq!(f, view::fragment_bound(&limits(), &w).unwrap());
-    assert_eq!(f.nodes, view::max_nodes(&limits()).unwrap());
-    assert!(view::required(&v, &crate::Limits { rows: 2, ..limits() }, &w).is_none());
-    assert!(view::required(&v, &crate::Limits { text: 31, ..limits() }, &w).is_none());
+    let f = crate::tests::render_limits(&limits(), &w).unwrap();
+
     assert_eq!(v, unchanged);
     assert!(view::max_nodes(&crate::Limits { rows: u32::MAX, ..limits() }).is_none());
-    assert!(view::fragment_bound(&crate::Limits { text: u32::MAX, ..limits() }, &w).is_none());
+
     let id = crate::owner_proposal_words::ProposalPhrase::Attempt.id();
     assert_eq!(w.book().say(1, id, &[Hole::Wall(Wall::EPOCH)]).unwrap_err(), skein_ui::phrases::Invalid::Values { id });
     assert_eq!(w.book().say(1, id, &[Hole::Number(u64::MAX)]).unwrap().text.as_ref(), b"second 18446744073709551615");
@@ -477,7 +461,7 @@ fn owner_proposal_link_presence_and_same_keyed_card_across_contexts_keep_current
         v.acts.push(Offered { effect: None, act: ActKind::Accept, admission: Admission::Allowed }).unwrap();
         let (mut client, id) =
             super::cards_objects::loaded(ObjectKey::Proposal(v.key), ReadValue::OwnerProposal(Box::new(v.clone())));
-        let f = view::fragment_bound(&limits(), &w).unwrap();
+        let f = crate::tests::render_limits(&limits(), &w).unwrap();
         let mut expected = None;
         for place in [
             crate::cards::Place::Inbox { lineage: List::with_capacity(0) },

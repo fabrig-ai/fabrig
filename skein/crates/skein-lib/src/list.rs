@@ -1,4 +1,5 @@
-//! Bounded sequences: what a step appends to, growing as they fill under a cap.
+//! Bounded sequences (skein/docs/design/lib.md, 5): what a step appends to,
+//! growing as they fill under a cap.
 
 #![expect(clippy::disallowed_types, reason = "a list is a Vec grown exactly as it fills, never past its cap")]
 
@@ -22,6 +23,15 @@ impl<T> List<T> {
     #[must_use]
     pub fn with_capacity(capacity: u32) -> List<T> {
         List { items: Vec::new(), capacity }
+    }
+
+    /// Owned items moved into a list whose capacity is their count.
+    /// The count must fit a `u32`.
+    #[must_use]
+    #[expect(clippy::disallowed_methods, reason = "a list adopts the boxed items as its buffer without copying")]
+    pub fn from_boxed(items: Box<[T]>) -> List<T> {
+        let capacity = u32::try_from(items.len()).expect("a list's item count fits a u32");
+        List { items: items.into_vec(), capacity }
     }
 
     /// For a service's own correlation and collection, never for what a peer can

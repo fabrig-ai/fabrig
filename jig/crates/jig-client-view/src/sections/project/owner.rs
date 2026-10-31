@@ -13,16 +13,6 @@ use jig_client::contract::{
     Ask, OwnerProject, OwnerProjectPolicy, OwnerProjectResourceRole, PartyKind, PolicyEdit, PolicyEditRole, PolicyGuard,
 };
 
-/// Complete standalone fragment including bindings and connector slots.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ProjectFragment {
-    pub nodes: u32,
-    pub text_bytes: u32,
-    pub text_per_node: u32,
-    pub depth: u32,
-    pub bindings: u32,
-    pub slots: u32,
-}
 /// The single edited channel in a whole supplied request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Field {
@@ -139,120 +129,6 @@ fn historical_nodes(l: &Limits, card: u32) -> Option<u32> {
         .checked_mul(l.rows)?
         .checked_add(10)?
         .checked_add(crate::historical_pages::spend_nodes(l)?)
-}
-/// Every loaded saying and escaped source segment contributes to the envelope.
-#[must_use]
-pub fn fragment_bound(l: &Limits, words: &Words) -> Option<ProjectFragment> {
-    let nodes = max_nodes(l)?;
-    let saying = words.jig_capacity()?;
-    let text_per_node = saying.max(crate::literal_segment::max_bytes(l.text)?).checked_mul(2)?;
-    Some(ProjectFragment {
-        nodes,
-        text_bytes: nodes.checked_mul(text_per_node)?,
-        text_per_node,
-        depth: l.rows.checked_add(33)?,
-        bindings: nodes,
-        slots: nodes,
-    })
-}
-/// Check every reserved row, raw path and nested authority/template before allocation.
-#[must_use]
-pub fn required(value: &OwnerProject, l: &Limits, words: &Words) -> Option<ProjectFragment> {
-    if !value.name.bytes.fits(l.text)
-        || value.acts.capacity() > jig_client::contract::MAX_OFFERED_ACTS
-        || value.resources.capacity() > l.rows
-        || value.members.capacity() > l.rows
-        || value.pools.capacity() > l.rows
-        || value.configured_pools.capacity() > l.rows
-        || value.spend.capacity() > l.rows
-        || value.recurring.capacity() > l.rows
-        || value.policy.roles.capacity() > l.rows
-        || value.policy.requirements.capacity() > l.rows
-        || value.policy.projections.capacity() > l.rows
-    {
-        return None;
-    }
-    if let Some(permissions) = &value.policy.permissions
-        && permissions.capacity() > l.rows
-    {
-        return None;
-    }
-    crate::owner_amendment::authority_fits(&value.policy.ceiling, l)?;
-    for row in &value.policy.roles {
-        crate::owner_amendment::authority_fits(&row.authority, l)?;
-    }
-    for resource in &value.resources {
-        crate::owner_chip::part_fits(&resource.part, l)?;
-    }
-    for grant in &value.policy.projections {
-        pattern_fits(&grant.pattern, l)?;
-    }
-    for requirement in &value.policy.requirements {
-        pattern_fits(&requirement.pattern, l)?;
-    }
-    for member in &value.members {
-        if !member.login.bytes.fits(l.text) || !member.name.bytes.fits(l.text) {
-            return None;
-        }
-    }
-    for row in &value.spend {
-        chip_fits(&row.chip, l, words)?;
-    }
-    for row in &value.recurring {
-        chip_fits(&row.chip, l, words)?;
-        if row.batch.capacity() > l.rows || row.last_batch.capacity() > l.rows {
-            return None;
-        }
-        for task in &row.batch {
-            crate::owner_history::proposed_fits(task, l)?;
-        }
-    }
-    for row in &value.acts {
-        super::owner_goals::offer_fits(&row.admission, l)?;
-    }
-    fragment_bound(l, words)
-}
-fn pattern_fits(value: &jig_client::contract::OwnerPattern, l: &Limits) -> Option<()> {
-    if value.segments.capacity() > l.segments {
-        return None;
-    }
-    for segment in &value.segments {
-        if u32::try_from(segment.len()).ok()? > l.text {
-            return None;
-        }
-    }
-    let last = match &value.last {
-        jig_client::contract::OwnerPatternEnd::Exact(bytes) | jig_client::contract::OwnerPatternEnd::Open(bytes) => {
-            bytes
-        }
-    };
-    if u32::try_from(last.len()).ok()? > l.text {
-        return None;
-    }
-    Some(())
-}
-fn chip_fits(value: &jig_client::contract::Chip, l: &Limits, words: &Words) -> Option<()> {
-    if !value.title.bytes.fits(l.text) {
-        return None;
-    }
-    match value.details.as_ref() {
-        jig_client::contract::ChipPhase::Owner { details, .. } => {
-            crate::owner_chip::required(details, l, words)?;
-        }
-        jig_client::contract::ChipPhase::Active(_)
-        | jig_client::contract::ChipPhase::Waiting { .. }
-        | jig_client::contract::ChipPhase::Idle { .. }
-        | jig_client::contract::ChipPhase::Starting
-        | jig_client::contract::ChipPhase::Running { .. }
-        | jig_client::contract::ChipPhase::WaitingForWords { .. }
-        | jig_client::contract::ChipPhase::BackingOff { .. }
-        | jig_client::contract::ChipPhase::Procedure { .. }
-        | jig_client::contract::ChipPhase::Person { .. }
-        | jig_client::contract::ChipPhase::Closing(_)
-        | jig_client::contract::ChipPhase::Held { .. }
-        | jig_client::contract::ChipPhase::Ended { .. } => {}
-    }
-    Some(())
 }
 fn text(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
     let text = words.book().say(words.language(), phrase.id(), holes).expect("checked project words").text;

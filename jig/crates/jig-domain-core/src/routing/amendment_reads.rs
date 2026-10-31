@@ -4,7 +4,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
-use crate::{CallKey, CallPart, Core, Event, Limits, Request, Requests};
+use crate::{CallKey, CallPart, Core, Event, Limits, Request};
 
 #[derive(Debug)]
 pub(crate) enum Replay {
@@ -163,7 +163,12 @@ pub(super) fn busy(core: &mut Core, work: &mut Queue<Event>, out: &mut Queue<Req
     }
 }
 
-pub(super) fn resume(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, read: AmendmentRead) -> Requests {
+pub(super) fn resume(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Event>,
+    read: AmendmentRead,
+) -> Queue<Request> {
     match read.replay {
         Replay::Agent { token, key, target, revision, amendment } => {
             super::runs::named_amend(core, env, work, token, key, target, revision, amendment, read.evidence)
@@ -186,8 +191,7 @@ pub(super) fn resume(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>
                 release,
                 read.evidence,
             );
-            out.push(Request::Decided);
-            Requests::Out(out)
+            out
         }
     }
 }

@@ -5,7 +5,7 @@
 //! Entry points: step handles one event; fire retries dropped watches; reclaim frees terminals.
 //! | Event | State change | Requests |
 //! | Went/Show | acquire scoped demand | Read, Open |
-//! | Read/Delivered | validate whole document, retain newest revision | `Named` |
+//! | Read/Delivered | validate and retain whole owner document | `Named` |
 //! | Left/PartsLeft | release demand, retain close obligation | Close |
 //! | Dropped | schedule bounded retry | later Open |
 //! | Closed/Unknown | retire watch; unknown hides supplied facts | replacement Read/Open |
@@ -358,17 +358,6 @@ fn received(side: &mut Side, env: &Env<Limits>, subject: Subject, document: Docu
         return;
     };
     let object = side.objects.get_mut(id).expect("named object exists");
-    match &object.value {
-        Value::Known(current) => {
-            if let Some(current) = current.revision()
-                && let Some(incoming) = document.revision()
-                && current.value > incoming.value
-            {
-                return;
-            }
-        }
-        Value::Loading | Value::Unknown => {}
-    }
     object.value = Value::Known(Box::new(document));
     if side.page() == Some(id) {
         let object = side.objects.get(id).expect("page object exists");
@@ -479,11 +468,11 @@ fn ended(side: &mut Side, env: &Env<Limits>, id: Id<Watching>, end: WatchEnd, ou
         retire_watch(side, id);
     } else {
         match end {
-            WatchEnd::Dropped => {
+            WatchEnd::Dropped | WatchEnd::Stopping => {
                 side.watches.get_mut(id).expect("watch exists").state =
                     Following::Dropped { again: env.now.saturating_add(env.limits.retry) }
             }
-            WatchEnd::NotAllowed | WatchEnd::SubjectEnded | WatchEnd::Stopping => {
+            WatchEnd::NotAllowed | WatchEnd::SubjectEnded => {
                 retire_watch(side, id);
                 unknown(side, subject);
                 out.push(Request::Out(Out::Fact { fact: Fact::WatchTerminal { end } }));
@@ -504,7 +493,7 @@ fn ended(side: &mut Side, env: &Env<Limits>, id: Id<Watching>, end: WatchEnd, ou
             WatchEnd::Closed => retire_watch(side, id),
         }
     }
-    if closing || end != WatchEnd::Dropped && end != WatchEnd::Busy {
+    if closing || end != WatchEnd::Dropped && end != WatchEnd::Busy && end != WatchEnd::Stopping {
         if let Some(object) = side.find(subject) {
             let object = side.objects.get_mut(object).expect("named object exists");
             if object.watch == Some(id) {

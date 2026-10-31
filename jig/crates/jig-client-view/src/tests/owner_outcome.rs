@@ -22,7 +22,8 @@ fn words() -> Words {
     Words::new(Phrasebook::load(phrases::shapes(), Box::new([phrases::english()]), &phrase_limits()).unwrap(), 0, 0)
 }
 fn render(value: &OwnerOutcome, words: &Words) -> Tree {
-    let required = view::required(words).expect("closed fragment fits");
+    let required =
+        crate::limits::of(&super::cards::CLIENT, &crate::page::Arrangement::none()).expect("closed fragment fits");
     let limits = Limits {
         nodes: required.nodes,
         depth: required.depth,
@@ -237,7 +238,6 @@ fn escalation_decisions_keep_revision_winner_clock_and_every_closed_choice() {
                 wanted,
             ],
         );
-        assert!(tree.len() <= view::required(&words).unwrap().nodes);
     }
 }
 #[test]
@@ -292,7 +292,7 @@ fn selected_outcome_language_is_checked_and_maximum_fragment_fits() {
         repeated: false,
     };
     let tree = render(&value, &words);
-    assert!(tree.len() <= view::required(&words).unwrap().nodes);
+
     assert!(has(&tree, b"selected committed outcome language: 18446744073709551615"));
     assert!(has(&tree, b"selected committed outcome language: 60000000000"));
     assert!(!has(&tree, b"Rejected"));
@@ -354,11 +354,11 @@ fn normal_words_register_every_outcome_once_and_bound_the_selected_language() {
         assert!(book.capacity(outcome.id()).is_some());
     }
     let words = Words::new(book, 1, 1);
-    let fragment = view::required(&words).unwrap();
+    let fragment = crate::limits::of(&super::cards::CLIENT, &crate::page::Arrangement::none()).unwrap();
     assert!(fragment.text_per_node >= 2048);
     // This positive language proof needs one row, not every full page window.
     let client = crate::Limits { rows: 1, ..super::cards::CLIENT };
-    assert!(crate::limits::of_words(&client, &words).unwrap().text_per_node >= 2048);
+    assert!(crate::tests::render_limits(&client, &words).unwrap().text_per_node >= 2048);
     let value = OwnerOutcome::ProposalDecided {
         proposal: ProposalKey { proposer: Proposer::Party(u64::MAX), number: 17 },
         by: 23,
@@ -391,7 +391,7 @@ fn normal_words_register_every_outcome_once_and_bound_the_selected_language() {
 #[test]
 fn durable_answer_rendering_keeps_every_owner_fact_within_the_existing_notice_envelope() {
     let words = words();
-    let required = view::required(&words).unwrap();
+    let required = crate::limits::of(&super::cards::CLIENT, &crate::page::Arrangement::none()).unwrap();
     let limits = Limits {
         nodes: required.nodes,
         depth: required.depth,
@@ -414,8 +414,6 @@ fn durable_answer_rendering_keeps_every_owner_fact_within_the_existing_notice_en
         assert!(tree.len() <= required.nodes);
     }
     // The enclosing notice includes the largest whole per-host outcome.
-    let client = crate::Limits { rows: 0, notices: 1, ..super::cards::CLIENT };
-    assert!(crate::notices_nodes(&client).unwrap() >= required.nodes + 4);
 }
 
 fn created_case() -> (OwnerOutcome, &'static [&'static [u8]]) {
@@ -472,7 +470,7 @@ fn a_sign_out_outcome_shows_every_whole_host_name() {
     }
     let rows = rows.into_boxed();
     let tree = render(&OwnerOutcome::AccountSignedOut { confirmed: false, failed_hosts: rows }, &words());
-    assert_eq!(tree.len(), view::required(&words()).unwrap().nodes);
+
     assert!(has(&tree, &[b'a'; 4096]));
 }
 

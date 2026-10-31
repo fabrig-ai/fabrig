@@ -1,12 +1,12 @@
 //! Finished task and tree watches reuse the bounded durable task load (contract.md, 7.2).
 use super::{Answer, Destination, Loaded, Past, Pending, Range, Row, Scope, rows};
 use crate::documents::{Document, Missing, Subject};
-use crate::{Core, Held, Limits, Request, Requests};
+use crate::{Core, Held, Limits, Request};
 use alloc::boxed::Box;
 use jig_domain_views as views;
 use skein_lib::{Env, Id, Queue, Token};
 
-pub(crate) fn start_watch(core: &mut Core, env: &Env<Limits>, watcher: Token) -> Requests {
+pub(crate) fn start_watch(core: &mut Core, env: &Env<Limits>, watcher: Token) -> Queue<Request> {
     let task = crate::routing::view_routes::retained_task(core, watcher).expect("task construction");
     let binding = core.view_subjects.get(&watcher).expect("bound construction");
     let range = Range {
@@ -29,8 +29,7 @@ pub(crate) fn start_watch(core: &mut Core, env: &Env<Limits>, watcher: Token) ->
     };
     let mut out = Queue::uncapped();
     out.push(Request::Held(Box::new(Held::ReadLoad { load: load.token(), range: Box::new(range) })));
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 pub(super) fn watch_loaded(
@@ -39,7 +38,7 @@ pub(super) fn watch_loaded(
     load: Id<Pending>,
     watcher: Token,
     result: Loaded,
-) -> Requests {
+) -> Queue<Request> {
     let pending = core.reads.get_mut(load).expect("pending watch load");
     pending.destination = Destination::Done;
     let sign_in = pending.sign_in;

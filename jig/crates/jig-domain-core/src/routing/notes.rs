@@ -4,7 +4,7 @@
 use super::refusals::note_person_refusal;
 use super::runs::call_decision;
 use super::{NoteBrief, NoteRoute};
-use crate::{CallPart, Core, Event, Held, Key, Limits, Now, Record, Request, Requests, Write};
+use crate::{CallPart, Core, Event, Held, Key, Limits, Now, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_notes as notes;
@@ -17,7 +17,7 @@ pub(super) fn route_notes(
     env: &Env<Limits>,
     work: &mut Queue<Event>,
     event: notes::Event,
-) -> Requests {
+) -> Queue<Request> {
     let mut child = Queue::uncapped();
     notes::step(&mut core.notes, &Env { now: env.now, wall: env.wall, limits: env.limits.notes }, event, &mut child);
     tag_notes(core, work, child)
@@ -59,7 +59,7 @@ pub(super) fn person_note_change(change: people::NoteChange) -> notes::Change {
     }
 }
 
-pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Event>, mut child: Queue<notes::Request>) -> Requests {
+pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Event>, mut child: Queue<notes::Request>) -> Queue<Request> {
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
         match child.pop().expect("note output count") {
@@ -157,8 +157,7 @@ pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Event>, mut child: Que
             work.push(Event::StartBrief { task });
         }
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 fn defer_brief(core: &mut Core, work: &mut Queue<Event>, task: u64) {

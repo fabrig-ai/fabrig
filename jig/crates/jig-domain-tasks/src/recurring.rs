@@ -1,11 +1,11 @@
-//! Core recurring procedure and its durable period cursor (domain/tasks.md, section 9).
+//! Core recurring procedure and its durable period cursor (domain/tasks.md, section 10).
 //! A period trigger considers only its newest due period. The template and overlap choice live in
 //! the task row; root supplies fresh task numbers, while this child owns the period allotment and
 //! admits the whole batch with its cursor in one decision. It knows no wall clock or connector.
-use crate::domain::{Domain, make, publish, record, task_mut};
+use crate::domain::{Domain, make_admitted, publish, record, task_mut};
 use crate::{Active, Funder, Limits, New, Numbers, Party, Phase, RecurringOverlap, Request};
 use alloc::boxed::Box;
-use skein_lib::{Env, List, Queue, ReplyTo, Token};
+use skein_lib::{Env, List, Queue};
 
 fn active(phase: &Phase) -> bool {
     match phase {
@@ -141,7 +141,7 @@ pub(crate) fn make_batch(
     state.pending_period = None;
     task_mut(domain, task).expect("recurring task live").record.phase = Phase::Active(Active::Idle);
     publish(domain, env, task, out);
-    make(domain, env, ReplyTo::new(Token::new(u64::MAX - 1)), Party::Task(task), batch, out);
+    let _numbers = make_admitted(domain, env, Party::Task(task), batch, out);
 }
 
 pub(crate) fn valid_template(limits: &Limits, project: u32, budget: u64, batch: &[New]) -> bool {

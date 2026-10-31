@@ -8,8 +8,8 @@ const KEY: [u8; 16] = [75; 16];
 const CONNECTOR: u16 = 1;
 const ABSENT_PROJECT: u32 = 2;
 // An unused application admission can erase an expired answer, save its
-// replacement, answer, and drop the owner's input, then end the decision.
-const OUTPUTS: u32 = 6;
+// replacement, answer, and drop the owner's input.
+const OUTPUTS: u32 = 5;
 
 /// A carried value the core leaves unused is handed back before every
 /// other output of its route, the answer included, however many outputs
@@ -21,8 +21,7 @@ fn an_unused_carried_value_leaves_before_the_rest_of_a_wide_route() {
     limits.people.sign_in_lifetime = Duration::from_secs(600);
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let identity = core.people.identity(1).expect("fixture owner").clone();
-    let Requests::Out(mut signed) =
-        step(&mut core, &env, Event::SignIn { reply_to: ReplyTo::new(REPLY), identity, held: None });
+    let mut signed = step(&mut core, &env, Event::SignIn { reply_to: ReplyTo::new(REPLY), identity, held: None });
     let mut sign_in = None;
     while let Some(request) = signed.pop() {
         if let Request::Held(held) = request
@@ -36,8 +35,7 @@ fn an_unused_carried_value_leaves_before_the_rest_of_a_wide_route() {
     let after_retention = Duration::from_secs(121);
     env.now = Time::ZERO.checked_add(after_retention).expect("story time");
     env.wall = Wall::from_nanos(after_retention.as_nanos());
-    let Requests::Out(mut out) =
-        step(&mut core, &env, application(sign_in, Some(Carried { number: VALUE, digest: [7; 32] })));
+    let mut out = step(&mut core, &env, application(sign_in, Some(Carried { number: VALUE, digest: [7; 32] })));
     let mut outputs = List::with_capacity(out.len());
     for _ in 0..out.len() {
         outputs.push(out.pop().expect("route output count")).expect("one place per output");
@@ -49,10 +47,9 @@ fn an_unused_carried_value_leaves_before_the_rest_of_a_wide_route() {
         Request::Write(Write::Save(Record::People(people::Stored::Answer { key, outcome, .. }))),
         Request::Held(answer),
         Request::Ask { connector: CONNECTOR, ask: Ask::DropApplication { owner: OWNER } },
-        Request::Decided,
     ] = outputs.as_slice()
     else {
-        panic!("unused, erase, save, answer, owner drop, decision: {outputs:?}")
+        panic!("unused, erase, save, answer, owner drop: {outputs:?}")
     };
     let Held::CarriedUnused { number: VALUE } = unused.as_ref() else { panic!("unused carried value is first") };
     assert_eq!(*erased, people::RequestKey { person: 1, key: KEY });

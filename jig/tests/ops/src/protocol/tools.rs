@@ -29,37 +29,38 @@ pub fn declarations(timeout: Duration) -> Vec<Tool> {
         }).collect()
 }
 
-fn text(value: &json::Value, field: &'static [u8]) -> Result<Box<[u8]>, Problem> {
-    value.required(field).and_then(json::Value::text).map_err(|why| Problem { field, why })
+fn text(value: json::Node<'_>, field: &'static [u8]) -> Result<Box<[u8]>, Problem> {
+    value.required(field).and_then(json::Node::text).map_err(|why| Problem { field, why })
 }
-fn number(value: &json::Value, field: &'static [u8]) -> Result<u64, Problem> {
-    value.required(field).and_then(json::Value::number).map_err(|why| Problem { field, why })
+fn number(value: json::Node<'_>, field: &'static [u8]) -> Result<u64, Problem> {
+    value.required(field).and_then(json::Node::number).map_err(|why| Problem { field, why })
 }
 
 pub fn decode(tool: &[u8], input: &[u8]) -> Result<Decoded, Problem> {
     if !matches!(tool, b"read_logs" | b"read_series" | b"read_alerts" | b"effect_restart" | b"propose_restart") {
         return Err(Problem { field: b"tool", why: Why::Range });
     }
-    let value = json::parse(input).map_err(|why| Problem { field: b"", why })?;
-    let environment = text(&value, b"environment")?;
-    let service = text(&value, b"service")?;
+    let doc = json::parse(input).map_err(|why| Problem { field: b"", why })?;
+    let value = json::Node::root(&doc);
+    let environment = text(value, b"environment")?;
+    let service = text(value, b"service")?;
     match tool {
         b"effect_restart" | b"propose_restart" => Ok(Decoded::Effect {
             effect: infra::Effect::Restart {
                 service: infra::Service::new(environment, service),
-                operation: number(&value, b"operation")?,
+                operation: number(value, b"operation")?,
             },
-            reason: if tool == b"propose_restart" { Some(text(&value, b"reason")?) } else { None },
+            reason: if tool == b"propose_restart" { Some(text(value, b"reason")?) } else { None },
         }),
         b"read_logs" | b"read_series" | b"read_alerts" => {
             let service = obs::Service::new(environment, service);
-            let window = obs::Window { from: number(&value, b"from")?, through: number(&value, b"through")? };
+            let window = obs::Window { from: number(value, b"from")?, through: number(value, b"through")? };
             let max_bytes = value
                 .required(b"max_bytes")
-                .and_then(json::Value::small)
+                .and_then(json::Node::small)
                 .map_err(|why| Problem { field: b"max_bytes", why })?;
             Ok(Decoded::Read(match tool {
-                b"read_logs" => obs::Read::Logs { service, window, max_bytes, filter: text(&value, b"filter")? },
+                b"read_logs" => obs::Read::Logs { service, window, max_bytes, filter: text(value, b"filter")? },
                 b"read_series" => obs::Read::Series { service, window, max_bytes },
                 b"read_alerts" => obs::Read::Fired { service, window, max_bytes },
                 _ => unreachable!("matched read tool"),

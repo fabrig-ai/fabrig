@@ -5,13 +5,13 @@ use super::{
     owner_message_proposal_kind_fields, owner_retained_action_fields, piece_problem, specification_document_fields,
     too_large, w,
 };
-pub(crate) fn owner_history_holder_fields(value: &w::OwnerHistoryHolder, limits: &Limits) -> c::OwnerHistoryHolder {
+pub(crate) fn owner_history_holder_fields(value: &w::OwnerHistoryHolder) -> c::OwnerHistoryHolder {
     match value {
         w::OwnerHistoryHolder::Task(row) => c::OwnerHistoryHolder::Task(row.value()),
         w::OwnerHistoryHolder::Person(row) => c::OwnerHistoryHolder::Person(row.value()),
         w::OwnerHistoryHolder::Policy(row) => c::OwnerHistoryHolder::Policy {
             project: row.project(),
-            kind: owner_message_proposal_kind_fields(row.kind(), limits),
+            kind: owner_message_proposal_kind_fields(row.kind()),
         },
     }
 }
@@ -22,14 +22,14 @@ pub(crate) fn owner_proposal_history_state_fields(
 ) -> Result<c::OwnerProposalHistoryState, w::Problem> {
     Ok(match value {
         w::OwnerProposalHistoryState::Pending(row) => c::OwnerProposalHistoryState::Pending {
-            holder: owner_history_holder_fields(row.holder(), limits),
+            holder: owner_history_holder_fields(row.holder()),
             since: Wall::from_nanos(row.since()),
         },
         w::OwnerProposalHistoryState::Accepted(row) => {
-            c::OwnerProposalHistoryState::Accepted { by: crate::translate::facts::owner_requester(row.by(), limits) }
+            c::OwnerProposalHistoryState::Accepted { by: crate::translate::facts::owner_requester(row.by()) }
         }
         w::OwnerProposalHistoryState::Rejected(row) => c::OwnerProposalHistoryState::Rejected {
-            by: crate::translate::facts::owner_requester(row.by(), limits),
+            by: crate::translate::facts::owner_requester(row.by()),
             reason: crate::translate::facts::document_text(row.reason(), limits)?,
         },
         w::OwnerProposalHistoryState::Withdrawn => c::OwnerProposalHistoryState::Withdrawn,
@@ -55,7 +55,7 @@ pub(crate) fn owner_amendment_state_fields(
     limits: &Limits,
 ) -> Result<c::OwnerAmendmentState, w::Problem> {
     let opt0 = match value.addressed() {
-        Some(item) => Some(crate::translate::facts::person_address(item, limits)),
+        Some(item) => Some(crate::translate::facts::person_address(item)),
         None => None,
     };
     let opt1 = match value.taken_by() {
@@ -79,7 +79,7 @@ pub(crate) fn owner_amendment_state_fields(
         instructions: opt2,
         spec: specification_document_fields(value.spec(), limits)?,
         authority: owner_authority_document_fields(value.authority(), limits)?,
-        wake: crate::translate::facts::owner_wake_policy(value.wake(), limits),
+        wake: crate::translate::facts::owner_wake_policy(value.wake()),
         dependencies: list3,
         cut: value.cut(),
     })
@@ -108,8 +108,8 @@ pub(crate) fn owner_history_line_fields(
     Ok(c::OwnerHistoryLine {
         task: value.task(),
         revision: value.revision(),
-        by: crate::translate::facts::owner_requester(value.by(), limits),
-        change: owner_history_change_fields(value.change(), limits),
+        by: crate::translate::facts::owner_requester(value.by()),
+        change: owner_history_change_fields(value.change()),
         reason: crate::translate::facts::document_text(value.reason(), limits)?,
         proposal: opt0,
         amendment: opt1,
@@ -125,15 +125,15 @@ pub(crate) fn owner_milestone_phase_fields(
     Ok(match value {
         w::OwnerMilestonePhase::Waiting => c::OwnerMilestonePhase::Waiting,
         w::OwnerMilestonePhase::Active(row) => {
-            c::OwnerMilestonePhase::Active(crate::translate::facts::run_stage(row.value(), limits))
+            c::OwnerMilestonePhase::Active(crate::translate::facts::run_stage(row.value()))
         }
         w::OwnerMilestonePhase::Closing(row) => c::OwnerMilestonePhase::Closing {
-            stage: crate::translate::facts::closing_stage(row.stage(), limits),
+            stage: crate::translate::facts::closing_stage(row.stage()),
             ending: owner_chip_ending_fields(row.ending(), limits)?,
         },
         w::OwnerMilestonePhase::Held(row) => {
             let opt0 = match row.source() {
-                Some(item) => Some(crate::translate::facts::owner_part(item, limits)),
+                Some(item) => Some(crate::translate::facts::owner_part(item)),
                 None => None,
             };
             let opt1 = match row.ending() {
@@ -141,8 +141,8 @@ pub(crate) fn owner_milestone_phase_fields(
                 None => None,
             };
             c::OwnerMilestonePhase::Held {
-                before: crate::translate::facts::owner_prior_phase(row.before(), limits),
-                why: crate::translate::answers::hold_category(row.why(), limits),
+                before: crate::translate::facts::owner_prior_phase(row.before()),
+                why: crate::translate::answers::hold_category(row.why()),
                 source: opt0,
                 ending: opt1,
             }

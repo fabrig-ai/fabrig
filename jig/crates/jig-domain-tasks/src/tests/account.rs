@@ -1,9 +1,5 @@
 //! The pin belongs to the successful claim, separately from the creator's preference.
-#![allow(
-    clippy::disallowed_macros,
-    clippy::disallowed_types,
-    reason = "test scripts are ordinary Rust under programming-model.md section 10.2"
-)]
+#![expect(clippy::disallowed_macros, reason = "unit tests build fixtures and inspect selected child events")]
 use super::revisions::{Harness, task, to};
 use crate::{Event, LlmChoice, ModelEffort, Models};
 const TASK: u64 = 1;

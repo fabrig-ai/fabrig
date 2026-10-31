@@ -53,7 +53,7 @@ pub fn proposal(value: &d::ProposalRef, limits: &w::Limits) -> Result<w::Proposa
         },
     )
 }
-pub fn act(value: acts::Act, _limits: &w::Limits) -> Result<w::ActKind, w::Problem> {
+pub fn act(value: acts::Act) -> Result<w::ActKind, w::Problem> {
     Ok(match value {
         acts::Act::Reorder => w::ActKind::Reorder,
         acts::Act::Message => w::ActKind::Message,
@@ -226,7 +226,7 @@ pub fn offered(
                     Some(value) => Some(effect(value, limits)?),
                     None => None,
                 },
-                act: act(item.act, limits)?,
+                act: act(item.act)?,
                 admission: admission(models, &item.admission, limits)?,
             },
         )?)
@@ -296,7 +296,7 @@ pub fn delegates_pieces(rows: &List<w::LiveDelegate>, bound: u32, path: w::Path)
     pieces(&encoded, bound, path)
 }
 pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) -> Result<w::Task, w::Problem> {
-    // waits_on is carried by the document wire in jig 22.
+    // The task document carries its dependency waits.
     if value.project != value.chip.details.project
         || value.executor != value.chip.details.executor
         || value.words != value.spec.words

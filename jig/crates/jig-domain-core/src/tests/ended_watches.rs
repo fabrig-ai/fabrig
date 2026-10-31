@@ -26,7 +26,7 @@ fn open_retained(core: &mut Core, limits: &Limits, subject: Watched) -> Token {
     let Request::Held(held) = &out[0] else { panic!("held load") };
     let Held::ReadLoad { load, range } = held.as_ref() else { panic!("retained load") };
     assert_eq!(range.scope, reads::Scope::Task { task: RETAINED });
-    assert_eq!(finish_watch_outputs(core, limits).len(), 1, "construction waits for its terminal");
+    assert!(finish_watch_outputs(core, limits).is_empty(), "construction waits for its terminal");
     *load
 }
 
@@ -48,7 +48,7 @@ fn final_document(out: &[Request]) -> &Document {
     let Request::Held(held) = &out[0] else { panic!("held delivery") };
     let Held::Delivery { watcher, document } = held.as_ref() else { panic!("final document") };
     assert_eq!(*watcher, WATCHER);
-    assert_eq!(out.len(), 2, "no end before the delivery terminal");
+    assert_eq!(out.len(), 1, "no end before the delivery terminal");
     document
 }
 
@@ -70,10 +70,9 @@ fn an_ended_root_or_child_has_its_retained_tree_then_one_ending() {
         let out = watch_outputs(&mut core, &limits, Event::Delivered { watcher: WATCHER });
         assert_one_watch_ending(&out, views::End::Gone);
         assert!(core.view_subjects.is_empty());
-        assert_eq!(watch_outputs(&mut core, &limits, Event::Delivered { watcher: WATCHER }).len(), 1);
+        assert!(watch_outputs(&mut core, &limits, Event::Delivered { watcher: WATCHER }).is_empty());
         let late = watch_outputs(&mut core, &limits, Event::ReadLoaded { load, result: reads::Loaded::Gone });
-        assert_eq!(late.len(), 1, "no duplicate terminal");
-        let Request::Decided = &late[0] else { panic!("only a decision terminal") };
+        assert!(late.is_empty(), "no duplicate terminal");
     }
 }
 
@@ -97,7 +96,7 @@ fn leaving_during_retained_construction_drains_without_a_delivery() {
     let (mut core, limits) = watch_core();
     let row = ended_row(&core, false);
     let load = open_retained(&mut core, &limits, Watched::Tree { task: RETAINED });
-    assert_eq!(watch_outputs(&mut core, &limits, Event::Unwatch { watcher: WATCHER }).len(), 1);
+    assert!(watch_outputs(&mut core, &limits, Event::Unwatch { watcher: WATCHER }).is_empty());
     assert_one_watch_ending(&loaded(&mut core, &limits, load, row), views::End::Unwatched);
 }
 

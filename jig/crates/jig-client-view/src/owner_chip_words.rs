@@ -1,12 +1,11 @@
 //! Checked chip metadata sayings (client/domain/view.md, 7).
 //! IDs 7000..7098 are coordinated append-only owner sayings.
 use crate::Owner;
-use crate::words::Words;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::phrases::{
-    Form, HoleKind, HoleShape, Invalid, Language, Phrase, PhraseId, PhraseLimits, PhraseShape, Phrasebook, PluralClass,
-    PluralRule, Segment, SpanUnit, WallFormat,
+    Form, HoleKind, HoleShape, Language, Phrase, PhraseId, PhraseShape, PluralClass, PluralRule, Segment, SpanUnit,
+    WallFormat,
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ChipPhrase {
@@ -557,31 +556,5 @@ pub fn language() -> Language {
         span_unit: SpanUnit::Nanos,
         wall: WallFormat::Nanos,
         phrases: values.into_boxed(),
-    }
-}
-/// A standalone fragment shares the normal complete checked `Words` vocabulary.
-#[derive(Debug)]
-pub struct OwnerChipWords {
-    words: Words,
-}
-impl OwnerChipWords {
-    pub fn load(
-        languages: Box<[Language]>,
-        limits: &PhraseLimits,
-        language: u16,
-        offset_minutes: i32,
-    ) -> Result<Self, Invalid> {
-        if usize::from(language) >= languages.len() {
-            return Err(Invalid::Language);
-        }
-        if u64::from(offset_minutes.unsigned_abs()).checked_mul(60_000_000_000).is_none() {
-            return Err(Invalid::Overflow);
-        }
-        let book = Phrasebook::load(crate::phrases::jig::shapes(limits.hole_bytes), languages, limits)?;
-        Ok(Self { words: Words::new(book, language, offset_minutes) })
-    }
-    #[must_use]
-    pub fn words(&self) -> &Words {
-        &self.words
     }
 }

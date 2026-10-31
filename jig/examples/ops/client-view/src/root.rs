@@ -25,7 +25,6 @@ pub struct View {
     infrastructure: Bindings,
     limits: Limits,
     project: u32,
-    native_environments: bool,
 }
 impl View {
     #[must_use]
@@ -64,13 +63,9 @@ impl View {
             infrastructure_words,
             limits: *limits,
             project,
-            native_environments: false,
         }
     }
-    /// Select the native owner environment vocabulary before building a tree.
-    pub fn native_environments(&mut self) {
-        self.native_environments = true;
-    }
+    /// The current public tree.
     #[must_use]
     pub fn tree(&self) -> &Tree {
         self.render.tree()
@@ -172,7 +167,6 @@ pub fn build(view: &mut View, root: &Domain, out: &mut Queue<Patch>) {
                             infrastructure::navigation(
                                 &mut fragment,
                                 view.project,
-                                view.native_environments,
                                 &view.infrastructure_words,
                                 &mut view.infrastructure,
                             );

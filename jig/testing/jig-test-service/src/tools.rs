@@ -162,12 +162,6 @@ pub(super) fn charter(
     use jig_domain_host as host;
     use jig_protocol_charter as charter;
     use skein_lib::List;
-    let policy = value.run.policy;
-    let sources = value.run.sources;
-    let mut models = List::with_capacity(u32::try_from(policy.alternatives.len()).ok()?);
-    for (index, candidate) in policy.alternatives.into_iter().enumerate() {
-        models.push(charter::Llm { model: model(candidate), grant: *sources.get(index.checked_add(1)?)? }).ok()?;
-    }
     let mut sections = List::with_capacity(u32::try_from(value.brief.len()).ok()?);
     for placed in value.brief {
         let section = match placed {
@@ -182,37 +176,16 @@ pub(super) fn charter(
         };
         sections.push(section).ok()?;
     }
-    let translated = charter::charter(
-        charter::Charter {
-            mode: mode(value.run.ended_by),
-            instructions: policy.instructions,
-            tools: declarations(policy.call_timeout, value.run.authority.tools.0)?,
-            wait: true,
-            agents: policy.agents,
-            workspace: charter::WorkspaceTools { inspect: false, modify: false, shell: false },
-            conventions: None,
-            contract: contract(value.run.contract)?,
-            budget: charter::Budget {
-                turns: policy.turns,
-                spend: value.run.budget,
-                time: policy.time,
-                reserve: charter::Reserve { turns: policy.reserve_turns, time: policy.reserve_time },
-            },
-            model: charter::Llm { model: model(policy.model), grant: *sources.first()? },
-            models: models.into_boxed(),
-            waiting: policy.waiting,
-            resumes: policy.resume,
-        },
-        sections.into_boxed(),
-        !value.transcript.is_empty(),
-    )?;
+    let tools = declarations(value.run.policy.call_timeout, value.run.authority.tools.0)?;
+    let translated =
+        charter::charter(charter::assignment(*value.run, sections.into_boxed(), tools, !value.transcript.is_empty())?)?;
     let encoded = charter::encode(translated, names, &charter::limits())?;
     let mut messages = List::with_capacity(u32::try_from(value.messages.len()).ok()?);
     for word in value.messages {
         messages
             .push(host::StartMessage {
                 name: Token::new(word.number),
-                sender: sender(word.from),
+                sender: charter::sender(word.from),
                 finish_requested: word.finish_requested(),
                 words: jig_protocol_tools::words(&word),
             })
@@ -289,69 +262,6 @@ fn declarations(timeout: skein_lib::Duration, families: u64) -> Option<Box<[jig_
     }
     Some(tools.into_boxed())
 }
-fn model(value: core::Model) -> jig_protocol_charter::Model {
-    jig_protocol_charter::Model {
-        prices: jig_protocol_charter::Prices {
-            input: value.input_price,
-            cached: value.cached_price,
-            cache_write: value.cache_write_price,
-            output: value.output_price,
-            unit: value.price_unit,
-        },
-        dialect: value.dialect,
-        endpoint: value.endpoint,
-        name: value.name,
-        window: value.window,
-        output: value.output,
-        effort: value.effort,
-    }
-}
-fn contract(value: tasks::Contract) -> Option<jig_protocol_charter::Contract> {
-    Some(match value {
-        tasks::Contract::Approval { .. } => return None,
-        tasks::Contract::Report { words } => jig_protocol_charter::Contract {
-            report: Some(jig_protocol_charter::TextRule { max: words, fields: Box::new([]) }),
-            failure: Some(jig_protocol_charter::TextRule { max: words, fields: Box::new([]) }),
-            verdicts: Box::new([]),
-            change: None,
-        },
-        tasks::Contract::Verdict { choices } => {
-            let mut verdicts = skein_lib::List::with_capacity(u32::try_from(choices.len()).expect("verdict choices"));
-            for choice in choices {
-                let mut fields = skein_lib::List::with_capacity(u32::try_from(choice.fields.len()).ok()?);
-                for field in choice.fields {
-                    fields.push(jig_protocol_charter::FieldRule { name: field.name, max: field.max }).ok()?;
-                }
-                verdicts
-                    .push(jig_protocol_charter::VerdictRule {
-                        name: Box::from(skein_lib::Decimal::of(u64::from(choice.code)).as_bytes()),
-                        text_max: choice.words,
-                        fields: fields.into_boxed(),
-                        items: jig_protocol_charter::Items { min: 0, max: 0, kinds: Box::new([]) },
-                    })
-                    .expect("one verdict rule");
-            }
-            jig_protocol_charter::Contract {
-                report: None,
-                failure: Some(jig_protocol_charter::TextRule { max: 1024, fields: Box::new([]) }),
-                verdicts: verdicts.into_boxed(),
-                change: None,
-            }
-        }
-        tasks::Contract::Change { words, .. } => jig_protocol_charter::Contract {
-            report: None,
-            failure: Some(jig_protocol_charter::TextRule { max: words, fields: Box::new([]) }),
-            verdicts: Box::new([]),
-            change: Some(jig_protocol_charter::ChangeRule {
-                checks_must_pass: true,
-                fields: Box::new([
-                    jig_protocol_charter::FieldRule { name: Box::from(&b"title"[..]), max: words },
-                    jig_protocol_charter::FieldRule { name: Box::from(&b"body"[..]), max: words },
-                ]),
-            }),
-        },
-    })
-}
 const fn delivery(value: core::DeliveryOutcome) -> jig_domain_host::DeliveryOutcome {
     match value {
         core::DeliveryOutcome::Delivered => jig_domain_host::DeliveryOutcome::Delivered,
@@ -359,15 +269,6 @@ const fn delivery(value: core::DeliveryOutcome) -> jig_domain_host::DeliveryOutc
         core::DeliveryOutcome::Stale => jig_domain_host::DeliveryOutcome::Stale,
         core::DeliveryOutcome::Refused | core::DeliveryOutcome::Invalid => jig_domain_host::DeliveryOutcome::Refused,
         core::DeliveryOutcome::Failed => jig_domain_host::DeliveryOutcome::Failed,
-    }
-}
-/// Preserve the task-owned message kind when translating its opaque words.
-fn sender(value: tasks::Party) -> Box<[u8]> {
-    match value {
-        tasks::Party::Task(number) | tasks::Party::Person(number) => {
-            Box::from(skein_lib::Decimal::of(number).as_bytes())
-        }
-        tasks::Party::Deployment { .. } => Box::from(&b"deployment"[..]),
     }
 }
 const fn title(kind: jig_domain_brief::Core) -> &'static [u8] {
@@ -409,12 +310,5 @@ fn host_form(form: jig_domain_accounts::Form) -> jig_domain_host::Form {
         jig_domain_accounts::Form::Program(name) => jig_domain_host::Form::Program(
             jig_domain_host::SourceName::new(name.as_bytes()).expect("source name follows the same rules"),
         ),
-    }
-}
-
-fn mode(value: jig_domain_tasks::EndedBy) -> jig_protocol_charter::Mode {
-    match value {
-        jig_domain_tasks::EndedBy::Result => jig_protocol_charter::Mode::Finite,
-        jig_domain_tasks::EndedBy::Requester => jig_protocol_charter::Mode::Open,
     }
 }

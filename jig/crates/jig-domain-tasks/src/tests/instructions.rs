@@ -1,10 +1,10 @@
 //! Instruction amendments through the task owner's public entrance.
-#![allow(
+#![expect(
     clippy::match_like_matches_macro,
     clippy::disallowed_methods,
     clippy::disallowed_types,
     clippy::wildcard_enum_match_arm,
-    reason = "ordinary Rust test parent"
+    reason = "unit tests build fixtures and inspect selected child events"
 )]
 use super::revisions::{Harness, LIMITS, task, to};
 use crate::{Amendment, Event, Executor, Key, Party, Refusal, Request, Revisions, Stored};

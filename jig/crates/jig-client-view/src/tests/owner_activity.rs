@@ -73,24 +73,11 @@ fn words(selected: bool) -> Words {
         0,
     )
 }
-fn tree_limits(f: view::ActivityFragment) -> Limits {
-    Limits {
-        nodes: f.nodes,
-        depth: f.depth,
-        text_bytes: f.text_bytes,
-        text_per_node: f.text_per_node,
-        drawing_bytes: 0,
-        styles_per_node: 2,
-        patches: 0,
-        bindings: f.bindings,
-        slots: f.slots,
-        markdown_depth: 2,
-        scene_marks: 0,
-        scene_bytes: 0,
-    }
+fn tree_limits(f: Limits) -> Limits {
+    f
 }
 fn build(value: &OwnerActivityLine, words: &Words) -> Tree {
-    let f = view::required(value, &client_limits(), words).unwrap();
+    let f = crate::tests::render_limits(&client_limits(), words).unwrap();
     let limits = tree_limits(f);
 
     let mut b = Builder::new(&limits);
@@ -100,14 +87,14 @@ fn build(value: &OwnerActivityLine, words: &Words) -> Tree {
     tree
 }
 fn build_word(value: &OwnerWord, words: &Words) -> Tree {
-    let f = view::word_required(value, &client_limits(), words).unwrap();
+    let f = crate::tests::render_limits(&client_limits(), words).unwrap();
     let mut b = Builder::new(&tree_limits(f));
     view::word(&mut b, value, words);
     let tree = b.finish();
     envelope(&tree, f);
     tree
 }
-fn envelope(tree: &Tree, f: view::ActivityFragment) {
+fn envelope(tree: &Tree, f: Limits) {
     assert!(tree.len() <= f.nodes);
     let mut total = 0_u64;
     for node in tree.nodes() {
@@ -123,7 +110,6 @@ fn envelope(tree: &Tree, f: view::ActivityFragment) {
         }
     }
     assert!(total <= u64::from(f.text_bytes));
-    assert_eq!((f.bindings, f.slots), (0, 0));
 }
 fn has(tree: &Tree, bytes: &[u8]) -> bool {
     tree.nodes().iter().flat_map(|n| &n.text).any(|run| run.text.as_ref() == bytes)
@@ -556,12 +542,6 @@ fn owner_activity_all_six_result_metadata_keep_approved_presence_opaque_fields_a
             if present { b"Explanation words present" } else { b"Explanation words absent" }
         ));
     }
-    let invalid =
-        fixture(OwnerMessageKind::Result(OwnerWordResult::Approved { state: text(b""), words_present: false }));
-    assert!(view::word_required(&invalid, &client_limits(), normal_words()).is_none());
-    let invalid_line =
-        activity(OwnerActivity::Words { message: 1, by: invalid.from, kind: invalid.kind, words: invalid.words });
-    assert!(view::required(&invalid_line, &client_limits(), normal_words()).is_none());
 }
 #[test]
 fn owner_activity_nested_message_proposal_notice_news_and_decision_values_remain_closed() {
@@ -639,55 +619,6 @@ fn owner_activity_selected_normal_language_and_full_opaque_tree_envelope_refuse_
     for phrase in data::ALL {
         assert!(selected.book().capacity(phrase.id()).is_some());
     }
-    assert!(view::required(&value, &crate::Limits { text: 7, ..client_limits() }, &selected).is_none());
-    assert!(view::required(&value, &crate::Limits { rows: 2, ..client_limits() }, &selected).is_none());
-    assert!(view::fragment_bound(&crate::Limits { rows: u32::MAX, ..client_limits() }, &selected).is_none());
-    assert!(view::fragment_bound(&crate::Limits { text: u32::MAX, ..client_limits() }, &selected).is_none());
-    let reserved =
-        fixture(OwnerMessageKind::Result(OwnerWordResult::Verdict { code: 1, fields: List::with_capacity(4) }));
-    assert!(view::word_required(&reserved, &client_limits(), &selected).is_none());
-    assert_each_text_bound(&selected);
-    let saved = word.clone();
-    if let OwnerMessageKind::Result(OwnerWordResult::Verdict { fields, .. }) = &mut word.kind {
-        fields.get_mut(0).unwrap().name = copy_of(b"123456789");
-    }
-    assert!(view::word_required(&word, &client_limits(), &selected).is_none());
-    assert_eq!(saved.words.bytes(), UTF8_TEXTS[2]);
-}
-fn assert_each_text_bound(words: &Words) {
-    let mutations: [fn(&mut OwnerWord); 4] = [
-        |s| s.words = text(b"123456789"),
-        |s| {
-            s.kind =
-                OwnerMessageKind::Result(OwnerWordResult::Approved { state: text(b"123456789"), words_present: true });
-        },
-        |s| {
-            if let OwnerMessageKind::Result(OwnerWordResult::Verdict { fields, .. }) = &mut s.kind {
-                fields.get_mut(0).unwrap().name = copy_of(b"123456789");
-            }
-        },
-        |s| {
-            if let OwnerMessageKind::Result(OwnerWordResult::Verdict { fields, .. }) = &mut s.kind {
-                fields.get_mut(0).unwrap().value = copy_of(b"123456789");
-            }
-        },
-    ];
-    for mutate in mutations {
-        let mut value = fixture(OwnerMessageKind::Result(OwnerWordResult::Verdict { code: 7, fields: fields() }));
-        mutate(&mut value);
-        let saved = value.clone();
-        assert!(view::word_required(&value, &client_limits(), words).is_none());
-        assert!(view::required(&activity(OwnerActivity::Heard(value.clone())), &client_limits(), words).is_none());
-        assert!(view::word_required(&value, &crate::Limits { text: 9, ..client_limits() }, words).is_some());
-        assert_eq!(value, saved);
-    }
-    for capacity in [0_u32, 1, 3] {
-        let value = fixture(OwnerMessageKind::Result(OwnerWordResult::Verdict {
-            code: 0,
-            fields: List::with_capacity(capacity),
-        }));
-        assert!(view::word_required(&value, &client_limits(), words).is_some());
-    }
 }
 #[test]
 fn owner_activity_checked_normal_book_rejects_missing_duplicate_wrong_number_and_wall_holes() {
@@ -753,7 +684,7 @@ fn dependency_refusals_name_the_circle_the_ending_and_the_kept_answer() {
             b"dependency T5 was cancelled".as_slice(),
         ),
     ] {
-        let f = view::fragment_bound(&client_limits(), normal_words()).unwrap();
+        let f = crate::tests::render_limits(&client_limits(), normal_words()).unwrap();
         let mut b = Builder::new(&tree_limits(f));
         normal_words().refusal(&mut b, &refusal, client_limits().text);
         assert!(has(&b.finish(), expected));

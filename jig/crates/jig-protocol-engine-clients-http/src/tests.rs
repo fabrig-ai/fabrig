@@ -130,7 +130,6 @@ fn a_chunked_request_body_read_as_it_arrives_is_the_same_whatever_its_cuts() {
                 call: fixtures::EXCHANGE,
                 head: fixtures::head(Method::Post, b"/jig/v1/request", &fixtures::bearer(), http::Body::Chunked),
             },
-            &mut out,
         );
         fixtures::pump(&mut mount, &mut out);
         for piece in BODY.chunks(size) {
@@ -374,7 +373,7 @@ fn room_is_released_only_after_a_calls_end_is_handled() {
         );
         fixtures::component(&mut out);
     }
-    mount.down(&fixtures::env(), Event::Http { call: Token::new(0), event: http::Event::Closed }, &mut out);
+    mount.down(&fixtures::env(), Event::Http { call: Token::new(0), event: http::Event::Closed });
     assert_eq!(mount.room(), 0);
     fixtures::pump(&mut mount, &mut out);
     assert_eq!(mount.room(), 1);

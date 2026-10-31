@@ -46,10 +46,8 @@ fn answer(core: &mut Core, limits: &Limits, request: Token, row: Option<Box<task
     watch_outputs(core, limits, Event::EndedTaskLoaded { request, row, busy: false })
 }
 
-fn only_decided(out: &[Request]) {
-    for request in out {
-        let Request::Decided = request else { panic!("unexpected output: {request:?}") };
-    }
+fn assert_empty(out: &[Request]) {
+    assert!(out.is_empty());
 }
 
 #[test]
@@ -87,7 +85,7 @@ fn abandoning_preparation_drops_its_read_and_ignores_late_answers() {
     assert!(core.result_reads.is_empty());
     let phase = core.tasks.task(PREPARING).unwrap().phase.clone();
     let out = answer(&mut core, &limits, request, None);
-    only_decided(&out);
+    assert_empty(&out);
     assert_eq!(core.tasks.task(PREPARING).unwrap().phase, phase);
     assert!(core.result_reads.is_empty());
     assert!(core.dependency_results.is_empty());
@@ -101,7 +99,7 @@ fn a_reply_for_a_changed_preparation_is_silently_dropped() {
     let request = start(&mut core, &limits);
     core.contexts.get_mut(&PREPARING).unwrap().last_message = 1;
     let out = answer(&mut core, &limits, request, None);
-    only_decided(&out);
+    assert_empty(&out);
     assert_eq!(core.tasks.task(PREPARING).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
     assert!(core.result_reads.is_empty());
     assert!(core.dependency_results.is_empty());

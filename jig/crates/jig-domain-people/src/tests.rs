@@ -2025,7 +2025,8 @@ fn services_are_not_persons() {
 
 #[test]
 fn restoration_cannot_open_the_one_person_host_exception() {
-    let domain = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    let mut domain = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    domain.start_restore(Wall::EPOCH);
     assert_eq!(domain.persons(), u32::MAX);
 }
 

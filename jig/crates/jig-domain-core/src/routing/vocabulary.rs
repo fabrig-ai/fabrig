@@ -10,7 +10,7 @@ use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_domain_views as views;
-use skein_lib::{List, Queue, ReplyTo, Token, Wall};
+use skein_lib::{List, ReplyTo, Token, Wall};
 
 /// A value a client's request carried, kept in the secrets' store before
 /// the core sees the request (`protocol/client.md`, section 5): the core
@@ -35,8 +35,6 @@ pub enum Request {
     Held(Box<Held>),
     /// Read answer or refusal that decided nothing.
     Now(Box<Now>),
-    /// All synchronous handoffs for this decision have completed.
-    Decided,
 }
 
 /// A question or retained-section command for a numbered connector.
@@ -655,14 +653,6 @@ pub struct HoldingsNeed {
     pub executor: tasks::Executor,
     pub spec: tasks::Spec,
 }
-/// One child's complete bounded request batch, for the root to route before
-/// accepting its journal decision.
-#[derive(Debug)]
-pub enum Requests {
-    /// Fully routed core requests, each bearing its commit mark.
-    Out(Queue<Request>),
-}
-
 /// Connector-free shape of a root-owned host payload after refusal.
 #[derive(Debug)]
 pub enum PayloadRefusal {

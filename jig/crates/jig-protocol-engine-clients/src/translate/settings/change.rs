@@ -160,7 +160,7 @@ fn authority(
         }
         value.models = Some(p::Models::Named(mask));
     }
-    c::authority_to_authority(value).ok_or(bad())
+    c::people_authority(value).ok_or(bad())
 }
 fn requirements(values: List<w::PolicyRequirement>) -> Box<[a::Requirement]> {
     let mut result = List::with_capacity(values.len());

@@ -49,7 +49,7 @@ pub(crate) fn document(
             None,
         ),
     };
-    let core::Requests::Out(mut requests) = core::step(
+    let mut requests = core::step(
         &mut domain.core,
         &Env { now: env.now, wall: env.wall, limits: env.limits.core },
         core::Event::View(views::Event::Made { watcher, outcome }),
@@ -107,8 +107,7 @@ pub(crate) fn document(
             request @ (core::Request::Write(_)
             | core::Request::Ask { .. }
             | core::Request::Now(_)
-            | core::Request::ProjectMade { .. }
-            | core::Request::Decided) => forward(domain, env, decision, request, work),
+            | core::Request::ProjectMade { .. }) => forward(domain, env, decision, request, work),
         }
     }
     assert!(value.is_none(), "every ready document was assembled");
@@ -123,7 +122,7 @@ fn forward(
 ) {
     let mut requests = Queue::uncapped();
     requests.push(request);
-    route_core(domain, env, decision, core::Requests::Out(requests), work);
+    route_core(domain, env, decision, requests, work);
 }
 
 #[expect(clippy::too_many_arguments, reason = "an admitted read completes synchronously with its reply owned here")]

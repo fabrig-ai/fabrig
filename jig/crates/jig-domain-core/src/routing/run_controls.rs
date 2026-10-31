@@ -1,5 +1,5 @@
 //! Task-origin controls fill the finish message before entering the tasks child.
-use crate::{CallKey, CallPart, Core, Event, Request, Requests, RoutedCall};
+use crate::{CallKey, CallPart, Core, Event, Request, RoutedCall};
 use jig_domain_tasks as tasks;
 use skein_lib::{Queue, ReplyTo};
 
@@ -10,7 +10,7 @@ pub(super) fn control(
     key: CallKey,
     target: u64,
     mut control: tasks::Control,
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if let tasks::Control::Cancel { grace: Some(_), message, .. } = &mut control {
         *message = crate::fresh(&mut core.counters, crate::Family::Message);
@@ -27,8 +27,7 @@ pub(super) fn control(
                     capacity: None,
                 }),
             );
-            out.push(Request::Decided);
-            return Requests::Out(out);
+            return out;
         }
     }
     let token = to.into_token();
@@ -43,6 +42,5 @@ pub(super) fn control(
         task: target,
         control,
     }));
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }

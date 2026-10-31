@@ -1,8 +1,10 @@
 //! Shared jig observations and the Test application's family vocabulary.
-#![allow(clippy::wildcard_imports, reason = "boundary adapter covers the owner vocabulary")]
 use crate::harness::{CardKey, CardSeen, Receipt, Seen, Sent};
 use jig_client::contract::{AnswerOn, DecideOn};
-use jig_client_domain::contract::*;
+use jig_client_domain::contract::{
+    Answer, Ask, Delivery, Me, NoteScope, ObjectKey, Outcome, OwnerOutcome, Proposer, ReadNone, ReadResult, ReadValue,
+    Task, WatchEnd, WatchEvent,
+};
 use jig_client_test_domain::{self as domain, Event, Request, family};
 use jig_client_view::Owner;
 use skein_fake_person::{Face, Find, Found, TreeFace};

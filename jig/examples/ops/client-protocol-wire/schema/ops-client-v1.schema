@@ -5,8 +5,6 @@ enum DecisionMaker { task: DecisionTask, party: DecisionParty }
 record DecisionKey { maker: DecisionMaker number: u64 }
 record InfrastructureScopeProject { value: u32 }
 enum InfrastructureScope { project: InfrastructureScopeProject, deployment }
-record InfrastructureKindEnvironments { pool: option u32 }
-record InfrastructureKindEnvironment { value: u64 }
 record InfrastructureKindPanel { value: u64 }
 record InfrastructureKindResult { value: u64 }
 record InfrastructureKindEffect { value: DecisionKey }
@@ -14,35 +12,8 @@ record InfrastructureKindOwnerEffect { value: u64 }
 record InfrastructureKindOutbox { value: u64 }
 record InfrastructureKindHold { value: u64 }
 record InfrastructureKindProject { value: u32 }
-record InfrastructurePool { number: u32 name: bytes 4096 quota: option u32 used: option u32 }
-record InfrastructureEnd { revision: u64 until: u64 }
-record InfrastructureService { environment: bytes 4096 name: bytes 4096 }
-enum InfrastructureBackend { operation_ids, no_operation_ids }
-record InfrastructurePurposeCall { attempt: u64 completion: u64 position: u32 }
-record InfrastructurePurposeProcedure { purpose: u64 }
-record InfrastructurePurposeProjection { purpose: u64 }
-enum InfrastructurePurpose { call: InfrastructurePurposeCall, procedure: InfrastructurePurposeProcedure, projection: InfrastructurePurposeProjection }
-enum InfrastructurePhase { active, reading_facts, facts_ready, effect_outstanding, waiting_condition, holding, done, held }
-record InfrastructureProcedureRemediate { service: InfrastructureService operation: u64 deadline: u64 }
-record InfrastructureProcedureScale { service: InfrastructureService replicas: u32 deadline: u64 }
-record InfrastructureProcedureProvision { environment: u64 until: u64 price: u64 deadline: u64 }
-enum InfrastructureResourceRole { owned, participating, context }
-record InfrastructureResourceFactService { version: option bytes 4096 replicas: option u32 healthy: option bool revision: option u64 observed: option u64 }
-record InfrastructureResourceFactPool { value: option InfrastructurePool }
-record InfrastructureResourceFactQuota { value: option InfrastructurePool }
-enum InfrastructureRecovery { keyed, conditional, unrecoverable }
-enum InfrastructureForm { creation, transition, set }
-record InfrastructureEffectActionRestart { service: InfrastructureService operation: u64 }
-record InfrastructureEffectActionScale { service: InfrastructureService from: u32 to: u32 }
-record InfrastructureEffectActionRollback { service: InfrastructureService from: bytes 4096 to: bytes 4096 }
-record InfrastructureEffectActionCreateEnvironment { environment: u64 until: u64 price: u64 }
-enum InfrastructureEffectState { kept, sent, uncertain, held }
-enum InfrastructureDriftKind { deleted, changed, replaced, ambiguous }
-record InfrastructureAskMoveEnd { project: u32 environment: u64 revision: u64 until: u64 }
 record InfrastructureRefusalRole { held: u32 }
 enum InfrastructureRefusal { role: InfrastructureRefusalRole, past, exhausted, signed_out, not_allowed, conflict, invalid }
-record InfrastructureAnswerMovedEnd { environment: u64 revision: u64 until: u64 }
-record InfrastructureAnswerMoved { environment: u64 revision: u64 until: option u64 }
 record InfrastructureAnswerRefused { why: InfrastructureRefusal }
 record InfrastructureNativeService { environment: bytes 4096 name: bytes 4096 }
 record InfrastructureNativeEnvironment { pool: bytes 4096 name: bytes 4096 }
@@ -114,14 +85,7 @@ record ObservabilityKindProject { value: u32 }
 enum ObservabilityKind { incidents: ObservabilityKindIncidents, incident: ObservabilityKindIncident, panel: ObservabilityKindPanel, result: ObservabilityKindResult, effect: ObservabilityKindEffect, outbox: ObservabilityKindOutbox, hold: ObservabilityKindHold, project: ObservabilityKindProject, deployment }
 record ObservabilitySubject { scope: ObservabilityScope kind: ObservabilityKind }
 record ObservabilityService { environment: bytes 4096 name: bytes 4096 }
-record ObservabilityHealth { observed: u64 healthy_replicas: u32 errors: u32 error_rate_percent: u8 }
-record ObservabilityPoint { at: u64 health: option ObservabilityHealth }
 enum ObservabilityState { alerting, resolved }
-record ObservabilityIncident { project: u32 number: u64 revision: u64 watch: u64 raised: u64 service: ObservabilityService severity: u8 state: ObservabilityState timeline: list 128 ObservabilityPoint cut: bool health: option ObservabilityHealth lead: option u64 proposals: list 128 DecisionKey }
-record ObservabilityServiceState { service: ObservabilityService health: option ObservabilityHealth }
-enum ObservabilityEffectState { kept, sent, uncertain, held }
-record ObservabilityDocumentIncidents { subject: ObservabilitySubject revision: u64 incidents: list 128 ObservabilityIncident }
-record ObservabilityDocumentIncident { value: ObservabilityIncident }
 record ObservabilityNativeLoadPoint { observed: u64 load_percent: u8 }
 record ObservabilityNativeFact { observed: u64 healthy_replicas: u32 errors: u32 error_rate_percent: u8 load_percent: u8 load: list 128 ObservabilityNativeLoadPoint }
 record ObservabilityNativeHealth { observed: u64 healthy_replicas: u32 errors: u32 error_rate_percent: u8 }
@@ -148,42 +112,22 @@ record ObservabilityNativeDocument { subject: ObservabilitySubject value: Observ
 versioned record ObservabilitySubjectRecord { value: ObservabilityKind }
 record InfrastructureKindNativeEnvironment { value: InfrastructureNativeEnvironment }
 record InfrastructureKindNativeEnvironments { pool: option InfrastructureNativePool }
-enum InfrastructureKind { environments: InfrastructureKindEnvironments, environment: InfrastructureKindEnvironment, native_environment: InfrastructureKindNativeEnvironment, native_environments: InfrastructureKindNativeEnvironments, panel: InfrastructureKindPanel, result: InfrastructureKindResult, effect: InfrastructureKindEffect, owner_effect: InfrastructureKindOwnerEffect, outbox: InfrastructureKindOutbox, hold: InfrastructureKindHold, project: InfrastructureKindProject, deployment }
+enum InfrastructureKind { native_environment: InfrastructureKindNativeEnvironment, native_environments: InfrastructureKindNativeEnvironments, panel: InfrastructureKindPanel, result: InfrastructureKindResult, effect: InfrastructureKindEffect, owner_effect: InfrastructureKindOwnerEffect, outbox: InfrastructureKindOutbox, hold: InfrastructureKindHold, project: InfrastructureKindProject, deployment }
 record InfrastructureSubject { scope: InfrastructureScope kind: InfrastructureKind }
-record InfrastructureCreation { deployment: fixed 16 task: u64 origin: InfrastructurePurpose purpose: u64 }
-record InfrastructureProcedureTearDown { environment: u64 created_by: InfrastructureCreation deadline: u64 }
-enum InfrastructureProcedure { remediate: InfrastructureProcedureRemediate, scale: InfrastructureProcedureScale, provision: InfrastructureProcedureProvision, tear_down: InfrastructureProcedureTearDown }
-record InfrastructurePanel { task: u64 procedure: InfrastructureProcedure phase: InfrastructurePhase }
-record InfrastructureDescription { words: bytes 4096 resource: bytes 4096 kind: u16 recovery: InfrastructureRecovery price: option u64 condition: bool form: InfrastructureForm state: u64 }
-record InfrastructureEffectActionTearDown { environment: u64 created_by: InfrastructureCreation }
-enum InfrastructureEffectAction { restart: InfrastructureEffectActionRestart, scale: InfrastructureEffectActionScale, rollback: InfrastructureEffectActionRollback, create_environment: InfrastructureEffectActionCreateEnvironment, tear_down: InfrastructureEffectActionTearDown }
-record InfrastructureEffect { entry: u64 task: u64 project: option u32 origin: InfrastructureCreation description: option InfrastructureDescription state: InfrastructureEffectState attempt: u32 deadline: u64 action: InfrastructureEffectAction }
-record InfrastructureDrift { resource: bytes 4096 kind: InfrastructureDriftKind actor: option bytes 4096 at: option u64 observed: u64 }
 record InfrastructureAskNativeMoveEnd { object: u64 project: u32 environment: InfrastructureNativeEnvironment revision: u64 until: u64 }
-enum InfrastructureAsk { move_end: InfrastructureAskMoveEnd, native_move_end: InfrastructureAskNativeMoveEnd }
+enum InfrastructureAsk { native_move_end: InfrastructureAskNativeMoveEnd }
 record InfrastructureAnswerNativeMovedEnd { environment: InfrastructureNativeEnvironment revision: u64 until: u64 }
 record InfrastructureAnswerNativeMoved { environment: InfrastructureNativeEnvironment revision: u64 until: u64 }
-enum InfrastructureAnswer { moved_end: InfrastructureAnswerMovedEnd, native_moved_end: InfrastructureAnswerNativeMovedEnd, native_moved: InfrastructureAnswerNativeMoved, moved: InfrastructureAnswerMoved, gone, refused: InfrastructureAnswerRefused }
+enum InfrastructureAnswer { native_moved_end: InfrastructureAnswerNativeMovedEnd, native_moved: InfrastructureAnswerNativeMoved, gone, refused: InfrastructureAnswerRefused }
 record InfrastructureNativeDocument { subject: InfrastructureSubject value: InfrastructureNativeValue }
-record ObservabilityEffect { entry: u64 task: u64 project: option u32 alert: u64 until: u64 state: ObservabilityEffectState attempt: u32 deadline: u64 origin: InfrastructureCreation }
 record ObservabilityDocumentNative { value: ObservabilityNativeDocument }
 versioned record InfrastructureAskRecord { value: InfrastructureAsk }
 versioned record InfrastructureAnswerRecord { value: InfrastructureAnswer }
 versioned record InfrastructureSubjectRecord { value: InfrastructureKind }
-record InfrastructureEnvironment { project: u32 number: u64 pool: u32 name: bytes 4096 revision: u64 created_by: InfrastructureCreation ready_at: option u64 ready: option bool cost: option u64 observed_until: option u64 end: option InfrastructureEnd }
-record InfrastructureResourceFactEnvironment { value: option InfrastructureEnvironment }
-enum InfrastructureResourceFact { service: InfrastructureResourceFactService, environment: InfrastructureResourceFactEnvironment, pool: InfrastructureResourceFactPool, quota: InfrastructureResourceFactQuota }
 record InfrastructureDocumentNative { value: InfrastructureNativeDocument }
-record InfrastructureDocumentEnvironments { subject: InfrastructureSubject revision: u64 pools: list 128 InfrastructurePool environments: list 128 InfrastructureEnvironment }
-record InfrastructureDocumentEnvironment { value: InfrastructureEnvironment }
-record ObservabilityPartDocument { subject: ObservabilitySubject revision: u64 service: option ObservabilityService health: option ObservabilityHealth incident: option ObservabilityIncident incidents: list 128 ObservabilityIncident services: list 128 ObservabilityServiceState effects: list 128 ObservabilityEffect watches: option u32 read_limit: option u32 incident_limit: option u32 }
-record ObservabilityDocumentPart { value: ObservabilityPartDocument }
-enum ObservabilityDocument { incidents: ObservabilityDocumentIncidents, incident: ObservabilityDocumentIncident, part: ObservabilityDocumentPart, native: ObservabilityDocumentNative }
+enum ObservabilityDocument { native: ObservabilityDocumentNative }
 versioned record ObservabilityDocumentRecord { value: ObservabilityDocument }
-record InfrastructureResource { name: bytes 4096 role: InfrastructureResourceRole fact: InfrastructureResourceFact }
-record InfrastructurePartDocument { subject: InfrastructureSubject revision: u64 panel: option InfrastructurePanel description: option InfrastructureDescription effect: option InfrastructureEffectAction resources: list 128 InfrastructureResource effects: list 128 InfrastructureEffect drift: list 128 InfrastructureDrift environments: list 128 InfrastructureEnvironment pools: list 128 InfrastructurePool backend: option InfrastructureBackend made: option u32 proposal_limit: option u32 staged_limit: option u32 }
-record InfrastructureDocumentPart { value: InfrastructurePartDocument }
-enum InfrastructureDocument { native: InfrastructureDocumentNative, environments: InfrastructureDocumentEnvironments, environment: InfrastructureDocumentEnvironment, part: InfrastructureDocumentPart }
+enum InfrastructureDocument { native: InfrastructureDocumentNative }
 versioned record InfrastructureDocumentRecord { value: InfrastructureDocument }
 record InfrastructureReadValue { value: InfrastructureDocument }
 enum InfrastructureReadResult { value: boxed InfrastructureReadValue, unknown, not_allowed }

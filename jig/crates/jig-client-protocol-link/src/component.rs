@@ -58,7 +58,7 @@ impl Link {
         }
         Ok(Self {
             limits: *limits,
-            store: crate::store::Store::new(limits),
+            store: crate::store::Store::new(),
             attempts: Map::with_capacity(limits.exchanges),
             next: 1,
             credential: None,
@@ -84,7 +84,6 @@ impl Link {
     pub fn in_flight(&self) -> u32 {
         self.attempts.len()
     }
-    pub fn reclaim(&mut self) {}
     pub fn step(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         if let Event::Reply { exchange, .. } | Event::Lost { exchange } = &event
             && self.retiring == Some(*exchange)
@@ -96,8 +95,8 @@ impl Link {
             return;
         }
         match event {
-            Event::SignIn { with } => self.sign_in(now, with, out),
-            Event::SignOut => self.sign_out(now, out),
+            Event::SignIn { with } => self.sign_in(with, out),
+            Event::SignOut => self.sign_out(out),
             Event::Authorize { query } => self.authorize(query, out),
             Event::Start { kept } => self.start_store(kept, out),
             Event::Save { record } => self.save(record, out),
@@ -109,11 +108,11 @@ impl Link {
                 self.forget(watch, out);
                 self.open(now, watch, Watchable::Jig(subject), out);
             }
-            Event::Close { watch } => self.close(now, watch, out),
+            Event::Close { watch } => self.close(watch, out),
             Event::Streamed { message } => self.streamed(now, message, out),
-            Event::StreamGone => self.drop_stream(now, out),
-            Event::Send { attempt, key, ask, value } => self.send(now, attempt, key, ask, value, out),
-            Event::Read { read, what } => self.read(now, read, what, out),
+            Event::StreamGone => self.drop_stream(out),
+            Event::Send { attempt, key, ask, value } => self.send(attempt, key, ask, value, out),
+            Event::Read { read, what } => self.read(read, what, out),
             Event::Reply { exchange, message } => self.answered(exchange, &message, out),
             Event::Lost { exchange } => {
                 if let Some(attempt) = self.attempts.remove(&exchange) {
@@ -126,18 +125,10 @@ impl Link {
         if let Some(stream) = &self.stream
             && now >= stream.silence()
         {
-            self.drop_stream(now, out);
+            self.drop_stream(out);
         }
     }
-    fn send(
-        &mut self,
-        _now: Time,
-        attempt: Token,
-        key: RequestKey,
-        ask: Ask,
-        value: Option<Secret>,
-        out: &mut Queue<Request>,
-    ) {
+    fn send(&mut self, attempt: Token, key: RequestKey, ask: Ask, value: Option<Secret>, out: &mut Queue<Request>) {
         let mut carrying = value.is_some();
         if let Ask::Jig(ask) = &ask
             && let jig_client_domain::contract::Ask::AccountChange {
@@ -175,7 +166,7 @@ impl Link {
         record.encode(&mut writer).expect("measured envelope");
         self.exchange(exchange, Message::Request(writer.finish()), out);
     }
-    fn read(&mut self, _now: Time, read: Token, what: Readable, out: &mut Queue<Request>) {
+    fn read(&mut self, read: Token, what: Readable, out: &mut Queue<Request>) {
         let turn = if let Readable::Jig(jig_client_domain::contract::Read::Turn { task, attempt, turn }) = &what {
             Some((*task, *attempt, *turn))
         } else {
@@ -472,7 +463,7 @@ impl Link {
                     self.begin_stream(now, out);
                 }
             }
-            Some(stream) if stream.name.is_some() => self.send_open(now, watch, out),
+            Some(stream) if stream.name.is_some() => self.send_open(watch, out),
             None | Some(_) => {}
         }
     }
@@ -480,7 +471,7 @@ impl Link {
         self.stream = Some(crate::silence::Silence::new(self.limits.client.heartbeat, now));
         out.push(Request::OpenStream { credential: self.credential.clone() });
     }
-    fn send_open(&mut self, _now: Time, watch: Token, out: &mut Queue<Request>) {
+    fn send_open(&mut self, watch: Token, out: &mut Queue<Request>) {
         let Some(stream) = &self.stream else { return };
         let Some(stream) = stream.name else { return };
         if self.attempts.len() == self.attempts.capacity() {
@@ -507,7 +498,7 @@ impl Link {
         record.encode(&mut writer).expect("measured opening");
         self.exchange(exchange, Message::Watch(writer.finish()), out);
     }
-    fn close(&mut self, now: Time, watch: Token, out: &mut Queue<Request>) {
+    fn close(&mut self, watch: Token, out: &mut Queue<Request>) {
         let Some(opening) = self.watches.0.get(&watch) else { return };
         if opening.closing {
             return;
@@ -519,12 +510,12 @@ impl Link {
         let name = opening.name;
         let Some(stream) = &self.stream else { return };
         let stream = stream.name.expect("sent opening has hello");
-        self.cancel_open(watch, name, out);
+        self.cancel_open(watch, name);
         if self.attempts.len() == self.attempts.capacity() {
             self.watches.end(watch, jig_client_domain::contract::WatchEnd::Dropped, out);
             return;
         }
-        let Some(exchange) = self.token() else { return self.drop_stream(now, out) };
+        let Some(exchange) = self.token() else { return self.drop_stream(out) };
         let opening = self.watches.0.get_mut(&watch).expect("closing watch");
         opening.closing = true;
         let attempt = Attempt {
@@ -537,7 +528,7 @@ impl Link {
         self.attempts.insert(exchange, attempt).expect("checked closing exchange capacity");
         self.unwatch(exchange, stream, name, out);
     }
-    fn cancel_open(&mut self, watch: Token, name: u64, _out: &mut Queue<Request>) {
+    fn cancel_open(&mut self, watch: Token, name: u64) {
         let mut tokens = skein_lib::List::with_capacity(self.limits.exchanges);
         for (exchange, attempt) in &self.attempts {
             match attempt.kind {
@@ -559,7 +550,7 @@ impl Link {
     }
     fn forget(&mut self, watch: Token, out: &mut Queue<Request>) {
         if let Some(opening) = self.watches.0.remove(&watch) {
-            self.cancel_open(watch, opening.name, out);
+            self.cancel_open(watch, opening.name);
             if opening.subject.is_none()
                 && let Some(stream) = &self.stream
             {
@@ -664,7 +655,7 @@ impl Link {
                 Ok(receiving) => {
                     let mut reader = Reader::new(&record);
                     match w::StreamEvent::decode(&receiving.wire, &mut reader) {
-                        Ok(record) if reader.remaining() == 0 => self.stream_event(now, record, out),
+                        Ok(record) if reader.remaining() == 0 => self.stream_event(record, out),
                         Ok(_) | Err(_) => Err(crate::Undecodable::Malformed),
                     }
                 }
@@ -673,15 +664,10 @@ impl Link {
         };
         if result.is_err() {
             out.push(Request::Fact { fact: Fact::UndecodableEvent });
-            self.drop_stream(now, out);
+            self.drop_stream(out);
         }
     }
-    fn stream_event(
-        &mut self,
-        now: Time,
-        record: w::StreamEvent,
-        out: &mut Queue<Request>,
-    ) -> Result<(), crate::Undecodable> {
+    fn stream_event(&mut self, record: w::StreamEvent, out: &mut Queue<Request>) -> Result<(), crate::Undecodable> {
         let stream = self.stream.as_mut().expect("active stream");
         match record {
             w::StreamEvent::Hello(hello) => {
@@ -712,7 +698,7 @@ impl Link {
                     }
                 }
                 for watch in &pending {
-                    self.send_open(now, *watch, out);
+                    self.send_open(*watch, out);
                 }
             }
             w::StreamEvent::Delivery(value) => {
@@ -726,7 +712,7 @@ impl Link {
                     return Err(crate::Undecodable::Malformed);
                 }
                 if let Some(watch) = self.watches.named(value.watch()) {
-                    self.cancel_open(watch, value.watch(), out);
+                    self.cancel_open(watch, value.watch());
                     if let w::WatchEnd::NotServed(value) = value.why() {
                         translate::envelope::not_served(value, out);
                     }
@@ -790,7 +776,7 @@ impl Link {
             out.push(Request::CloseStream);
         }
     }
-    fn drop_stream(&mut self, _now: Time, out: &mut Queue<Request>) {
+    fn drop_stream(&mut self, out: &mut Queue<Request>) {
         let Some(stream) = self.stream.take() else { return };
         let mut watches = skein_lib::List::with_capacity(self.limits.client.watches);
         for (watch, _) in &self.watches.0 {
@@ -798,7 +784,7 @@ impl Link {
         }
         for watch in &watches {
             let name = self.watches.0.get(watch).expect("collected watch").name;
-            self.cancel_open(*watch, name, out);
+            self.cancel_open(*watch, name);
             self.watches.end(*watch, jig_client_domain::contract::WatchEnd::Dropped, out);
         }
         if let Some(stream) = stream.name

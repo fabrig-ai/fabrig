@@ -295,7 +295,7 @@ fn renew(
 ) {
     let place = match place {
         Place::At(place) => place,
-        Place::Append => crate::ordering::append_place(domain, env, account, out),
+        Place::Append => crate::ordering::append_place(domain, account, out),
     };
     let entry = domain.accounts.get(&account).expect("a renewed account is kept");
     if let Some(old) = entry.sources.get(&place).copied() {
@@ -326,7 +326,7 @@ fn join(
     account_entry.plan |= domain.providers.get(account_entry.provider).expect("a configured provider").signed_in_plan;
     let places = &mut account_entry.sources;
     assert!(places.insert(place, source).is_ok(), "a place checked within the sources' bound");
-    out.push(Request::Save { record: stored(domain, env, source) });
+    out.push(Request::Save { record: stored(domain, source) });
     if hold == Some(Hold::Moving) {
         out.push(Request::Signing(Signing::Refresh { source }));
     }
@@ -358,7 +358,7 @@ pub(crate) fn sign_out(
         }
     };
 
-    crate::changes::detach(domain, env, account, source, out);
+    crate::changes::detach(domain, account, source, out);
     assert!(domain.signing_out.insert(source, crate::changes::Leaving::Source(request)) == Ok(None), "room checked");
     out.push(Request::Signing(Signing::SignOut { source }));
 }
@@ -505,14 +505,7 @@ pub(crate) fn withdrawn(domain: &mut Domain, env: &Env<Limits>, source: u32, rea
 }
 
 /// Written consumes only this holder's answered move, never a withdrawn or cancelled one.
-pub(crate) fn written(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    request: Token,
-    holder: Holder,
-    number: u32,
-    out: &mut Queue<Request>,
-) {
+pub(crate) fn written(domain: &mut Domain, request: Token, holder: Holder, number: u32, out: &mut Queue<Request>) {
     let mut found = None;
     for (source, moving) in &domain.moves {
         if moving.number == number && moving.holder == holder && moving.out {
@@ -523,7 +516,7 @@ pub(crate) fn written(
     domain.moves.remove(&source).expect("a found move");
     domain.move_alarms.cancel(source);
     let account = domain.sources.get(&source).expect("a moved source").account;
-    crate::changes::detach(domain, env, account, source, out);
+    crate::changes::detach(domain, account, source, out);
     out.push(Request::Signing(Signing::Forget { source }));
     out.push(Request::Answer { request, answer: Answer::Done });
 }

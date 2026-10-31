@@ -1,9 +1,9 @@
 //! Opaque shell token routes and the finite Ops protocol adapter, beside the shared world.
-#![allow(clippy::wildcard_imports, reason = "adapter exhaustively translates owner boundary vocabularies")]
 use super::{Document, Ops, OpsScript, Subject};
-use jig_client_domain::contract::*;
+use jig_client_domain::contract::{Activity, ObjectKey, Read, ReadNone, ReadValue, VersionRange, WatchEnd, WatchEvent};
 use jig_client_scripted_engine::{self as engine, ApplicationScope, Envelope, Up};
-use jig_client_world::{harness::*, observe};
+use jig_client_world::harness::{ClientId, Front, FrontFault, Observed};
+use jig_client_world::observe;
 use jig_ops_client_domain::{self as domain, Event, Request, infrastructure as infra, observability as obs};
 use jig_ops_domain_connectors::{Connector, number};
 use sha2::{Digest, Sha256};
@@ -225,15 +225,16 @@ impl Front<Ops> for Scripted {
                     }
                     jig_client::Ask::Family { record, .. } => {
                         let ask = domain::wire::ask_value(&record.bytes).expect("whole infrastructure request");
-                        let infra::Ask::MoveEnd { project, environment, revision, until } = &ask else {
-                            panic!("native environments use joint front")
-                        };
+                        let infra::Ask::NativeMoveEnd { project, environment, revision, until, .. } = &ask;
                         let mut canonical = Sha256::new();
                         canonical.update(b"Ops.MoveEnd.v1");
                         canonical.update(project.to_be_bytes());
-                        canonical.update(environment.to_be_bytes());
+                        canonical.update(u64::try_from(environment.pool.len()).expect("pool length").to_be_bytes());
+                        canonical.update(&environment.pool);
+                        canonical.update(u64::try_from(environment.name.len()).expect("name length").to_be_bytes());
+                        canonical.update(&environment.name);
                         canonical.update(revision.value.to_be_bytes());
-                        canonical.update(until.as_nanos().to_be_bytes());
+                        canonical.update(until.to_be_bytes());
                         self.engine
                             .send_application(
                                 now,

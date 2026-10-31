@@ -31,6 +31,33 @@ fn a_list_refuses_past_its_capacity() {
 }
 
 #[test]
+fn a_list_from_owned_items_is_full_and_keeps_their_order() {
+    let items: Box<[Box<u8>]> = Box::new([Box::new(3), Box::new(7)]);
+    let address = items.as_ptr();
+    let mut list = List::from_boxed(items);
+    assert_eq!(list.as_slice().as_ptr(), address, "ownership transfers without copying items");
+    assert_eq!(list.len(), 2);
+    assert_eq!(list.capacity(), 2);
+    assert_eq!(list.room(), 0);
+    assert_eq!(list.push(Box::new(9)), Err(Box::new(9)));
+    assert_eq!(list.as_slice(), &[Box::new(3), Box::new(7)]);
+    list.clear();
+    assert_eq!(list.room(), 2);
+    assert_eq!(list.push(Box::new(11)), Ok(()));
+    assert_eq!(&*list.into_boxed(), &[Box::new(11)]);
+}
+
+#[test]
+fn a_list_from_no_items_has_no_capacity() {
+    let mut list = List::<u8>::from_boxed(Box::new([]));
+    assert!(list.is_empty());
+    assert_eq!(list.capacity(), 0);
+    assert_eq!(list.room(), 0);
+    assert_eq!(list.push(1), Err(1));
+    assert!(list.into_boxed().is_empty());
+}
+
+#[test]
 fn list_value_derives_compare_and_hash_items() {
     use core::hash::BuildHasher;
 

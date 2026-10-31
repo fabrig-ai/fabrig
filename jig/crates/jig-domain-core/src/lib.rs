@@ -23,6 +23,7 @@ mod brief_text;
 mod compound;
 pub use brief_text::{BriefPart, BriefTextLimits, note_index_text, read_brief_part};
 pub mod connector;
+mod deadlines;
 mod delegation;
 pub use amendments::TaskAmendDenied;
 pub use delegation::{
@@ -55,10 +56,7 @@ mod numbers;
 mod person_task;
 mod policy;
 mod projects;
-pub use policy::{
-    authority_to_authority, authority_to_people, grants_to_authority, pattern_to_people, requirement_to_authority,
-    snapshot as policy_snapshot,
-};
+pub use policy::{grants_to_authority, snapshot as policy_snapshot};
 mod projections;
 pub use projections::{
     MilestoneId, Projection, ProjectionFeed, ProjectionGoal, ProjectionKey, ProjectionMilestone, ProjectionRecord,
@@ -70,11 +68,10 @@ pub mod reads;
 pub use reads::{SettingsAnswer, SettingsRead};
 mod relays;
 mod resources;
-mod restart;
 pub mod start;
 mod stopping;
-pub use restart::{Census, ReadResults, RestoreRange, restore_cursor};
 pub use start::HeldLimit;
+pub use start::{Census, ReadResults, Restore, RestoreRange, restore_cursor};
 mod host_rule;
 mod revisions;
 mod roles;
@@ -89,7 +86,7 @@ mod sibling_routes;
 pub use numbers::{Counters, Deployment, Family, fresh};
 pub use routing::{
     Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, Limits, NamedAction, Now, PayloadRefusal,
-    ProposalChoice, Request, Requests, StepRefusal, Timer, ToolKind, WatchRefusal, Write, fire, resume_fleet, step,
+    ProposalChoice, Request, StepRefusal, Timer, ToolKind, WatchRefusal, Write, fire, resume_fleet, step,
     want_accounts,
 };
 pub use sibling_routes::{MadeRoute, PersonMessage, SentRoute};
@@ -111,7 +108,9 @@ pub use stored::{
     CallKey, CallPart, CallRecord, CallReplay, CoreKey, CoreRecord, CurrentWindow, EscalationDecisionRecord, Key, Made,
     ProposalDecisionRecord, Record, Restored, RunProof, TerminalRecord, TurnProof, TurnRecord,
 };
-pub use translate::task_authority;
+pub use translate::{
+    authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority,
+};
 
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
@@ -312,7 +311,7 @@ pub struct Core {
     pub(crate) settings_holders: u32,
     pub(crate) applications: Map<Token, routing::application_routes::Flight>,
     pub(crate) opened: bool,
-    pub(crate) restart_pending: bool,
+    pub(crate) start_pending: bool,
     pub(crate) restart_attempts: u32,
     /// Application connectors addressed only by number.
     pub connectors: Box<[u16]>,
@@ -421,7 +420,7 @@ pub struct Core {
     /// Child work due to activation.
     pub due: Queue<Box<tasks::RunContext>>,
     /// Host adoption events held through startup.
-    pub adopted: Queue<fleet::Event>,
+    pub(crate) adopted: Queue<fleet::Event>,
     /// The task hub.
     pub tasks: tasks::Domain,
     /// Policy and authority.
@@ -518,7 +517,7 @@ impl Core {
     /// Restore one live named call only after its current task proof was
     /// restored. The connector's separately owned answer is validated by the
     /// application before it asks the core to retain this part.
-    pub fn restore_call(&mut self, key: CallKey, part: CallPart) -> bool {
+    pub(crate) fn restore_call(&mut self, key: CallKey, part: CallPart) -> bool {
         self.start_input();
         {
             assert!(self.start_loading(), "calls load before Link");
@@ -689,7 +688,7 @@ impl Core {
             applications: Map::with_capacity(limits.people.pending),
             start: start::Script::new(),
             opened: false,
-            restart_pending: false,
+            start_pending: false,
             restart_attempts: limits.fleet.attempts,
             counters: Counters::bootstrap(config.deployment),
             seed_owners: config.owners.clone(),
@@ -760,7 +759,7 @@ impl Core {
             due: Queue::uncapped(),
             adopted: Queue::uncapped(),
             tasks: tasks::Domain::new(
-                &settings::task_limits(limits),
+                &limits.tasks,
                 config.seed,
                 current.newest(),
                 charters::models(&current, &config.settings, limits),
@@ -779,7 +778,7 @@ impl Core {
                 config.grants,
             ),
             fleet: {
-                let mut fleet = fleet::Domain::new(&settings::fleet_limits(limits), fleet_needs, {
+                let mut fleet = fleet::Domain::new(&limits.fleet, fleet_needs, {
                     let mut names = List::with_capacity(tasks::MODELS);
                     for model in &config.settings.models {
                         names.push(model.name.clone()).expect("catalogue bound");
@@ -886,7 +885,7 @@ impl Core {
 
     /// Restore one current claim only when it matches the live task's
     /// transient correlation. An archive row can never enter this live map.
-    pub fn restore_proof(&mut self, proof: RunProof, result_bytes: u32) -> bool {
+    pub(crate) fn restore_proof(&mut self, proof: RunProof, result_bytes: u32) -> bool {
         self.start_input();
         {
             assert!(self.start_loading(), "proofs load before Link");

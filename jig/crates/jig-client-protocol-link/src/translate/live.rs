@@ -1,6 +1,7 @@
 //! Provisional current run documents (client/domain/contract.md, 7.3).
 use super::Undecodable;
-use super::documents::{classify, current_call_fields, live_call_fields, receiving, run_state_fields, run_text_fields};
+use super::classify;
+use super::documents::{current_call_fields, live_call_fields, receiving, run_state_fields, run_text_fields};
 use crate::Limits;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;

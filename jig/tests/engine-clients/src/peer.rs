@@ -272,7 +272,7 @@ impl Peer {
         Env { now: self.env.now, wall: self.env.wall, limits: fixtures::http_limits() }
     }
     fn mount_event(&mut self, event: mapping::Event) {
-        self.mount.down(&self.mount_env(), event, &mut self.mount_out);
+        self.mount.down(&self.mount_env(), event);
     }
     fn mount_step(&mut self) -> bool {
         let mut active = self.mount.up(&self.mount_env(), &mut self.mount_out);
@@ -669,7 +669,7 @@ impl Peer {
     }
     pub fn advance_time(&mut self, span: skein_lib::Duration) {
         self.env.now = self.env.now.saturating_add(span);
-        self.component.fire(&self.env, &mut self.out);
+        self.component.fire(&self.env);
         self.pump();
     }
     #[must_use]

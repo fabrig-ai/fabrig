@@ -137,7 +137,7 @@ pub struct Conventions {
     pub checks: Box<[u8]>,
 }
 
-/// Explicit workspace tool rights, all absent for an engine-local run.
+/// Workspace tool rights granted by the core's run policy (domain/hosts.md, 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct WorkspaceTools {
     pub inspect: bool,
@@ -150,6 +150,7 @@ pub struct WorkspaceTools {
 pub struct Charter {
     pub mode: smith_domain_run::Mode,
     pub instructions: Box<[u8]>,
+    pub brief: Box<[Section]>,
     pub tools: Box<[Tool]>,
     pub wait: bool,
     pub agents: bool,
@@ -160,6 +161,7 @@ pub struct Charter {
     pub model: Llm,
     pub models: Box<[Llm]>,
     pub waiting: Duration,
+    /// Policy permits resuming and a validated transcript accompanies the start.
     pub resumes: bool,
 }
 

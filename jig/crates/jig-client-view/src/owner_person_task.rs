@@ -9,19 +9,8 @@ use skein_ui::{Builder, Role, Run, State};
 
 use crate::{Borrowed, Limits, action::Act, fields::Purpose, objects::Object};
 use alloc::boxed::Box;
-use jig_client::contract::{
-    Chip, ChipPhase, OwnerPersonTask, OwnerTaskLink, ParameterDocument, PersonAddress, TaskContractDocument,
-};
+use jig_client::contract::{ChipPhase, OwnerPersonTask, PersonAddress, TaskContractDocument};
 use skein_lib::Id;
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PersonFragment {
-    pub nodes: u32,
-    pub text_bytes: u32,
-    pub text_per_node: u32,
-    pub depth: u32,
-    pub bindings: u32,
-    pub slots: u32,
-}
 /// Every shown link and optional whole result, specification and contract.
 #[must_use]
 pub fn max_nodes(l: &Limits) -> Option<u32> {
@@ -45,130 +34,6 @@ pub fn form_nodes(l: &Limits) -> Option<u32> {
 /// The single confirmation form's controls, alongside its contract.
 pub(crate) fn controls_nodes(l: &Limits) -> Option<u32> {
     l.rows.checked_mul(3)?.checked_add(5)
-}
-#[must_use]
-pub fn fragment_bound(l: &Limits, words: &Words) -> Option<PersonFragment> {
-    let nodes = max_nodes(l)?;
-    let phrase = words.jig_capacity()?;
-    let text_per_node = phrase.max(crate::literal_segment::max_bytes(l.text)?).checked_mul(2)?;
-    Some(PersonFragment {
-        nodes,
-        text_bytes: nodes.checked_mul(text_per_node)?,
-        text_per_node,
-        depth: l.rows.checked_add(32)?,
-        bindings: nodes,
-        slots: nodes,
-    })
-}
-fn chip_fits(chip: &Chip, l: &Limits, words: &Words) -> Option<()> {
-    if !chip.title.bytes.fits(l.text) {
-        return None;
-    }
-    match chip.details.as_ref() {
-        ChipPhase::Owner { details, .. } => {
-            crate::owner_chip::required(details, l, words)?;
-        }
-        ChipPhase::Active(_)
-        | ChipPhase::Waiting { .. }
-        | ChipPhase::Idle { .. }
-        | ChipPhase::Starting
-        | ChipPhase::Running { .. }
-        | ChipPhase::WaitingForWords { .. }
-        | ChipPhase::BackingOff { .. }
-        | ChipPhase::Procedure { .. }
-        | ChipPhase::Person { .. }
-        | ChipPhase::Closing(_)
-        | ChipPhase::Held { .. }
-        | ChipPhase::Ended { .. } => {}
-    }
-    Some(())
-}
-fn link_fits(link: &OwnerTaskLink, l: &Limits, words: &Words) -> Option<()> {
-    match link {
-        OwnerTaskLink::Live(chip) | OwnerTaskLink::Retained { chip, .. } => chip_fits(chip, l, words),
-        OwnerTaskLink::Stored { .. } => Some(()),
-    }
-}
-fn contract_fits(contract: &TaskContractDocument, l: &Limits) -> Option<()> {
-    match contract {
-        TaskContractDocument::Approval { state, part } => {
-            if u32::try_from(state.len()).ok()? > l.text {
-                return None;
-            }
-            crate::owner_chip::part_fits(part, l)?;
-        }
-        TaskContractDocument::Verdict { choices, .. } => {
-            if choices.capacity() > l.rows {
-                return None;
-            }
-            for choice in choices {
-                if choice.fields.capacity() > l.rows {
-                    return None;
-                }
-                for field in &choice.fields {
-                    if u32::try_from(field.name.len()).ok()? > l.text {
-                        return None;
-                    }
-                }
-            }
-        }
-        TaskContractDocument::Report { .. } | TaskContractDocument::Change { .. } => {}
-    }
-    Some(())
-}
-/// Whole outer and nested source capacities; admitted older result fragments
-/// keep their existing envelopes rather than expanding through task pages.
-#[must_use]
-pub fn required(value: &OwnerPersonTask, l: &Limits, words: &Words) -> Option<PersonFragment> {
-    if value.results.capacity() > l.rows || value.acts.capacity() > jig_client::contract::MAX_OFFERED_ACTS {
-        return None;
-    }
-    chip_fits(&value.task, l, words)?;
-    contract_fits(&value.contract, l)?;
-    let spec = &value.spec.specification;
-    if !spec.words.bytes.fits(l.text) || spec.parameters.capacity() > l.rows || spec.inputs.capacity() > l.rows {
-        return None;
-    }
-    for parameter in &spec.parameters {
-        match parameter {
-            ParameterDocument::Bytes { value, .. } => {
-                if !value.bytes.fits(l.text) {
-                    return None;
-                }
-            }
-            ParameterDocument::Number { .. } | ParameterDocument::Resource { .. } => {}
-        }
-    }
-    for shown in &value.results {
-        link_fits(&shown.task, l, words)?;
-        if let Some(result) = &shown.result {
-            chip_fits(&result.task, l, words)?;
-            if result.acts.capacity() > jig_client::contract::MAX_OFFERED_ACTS {
-                return None;
-            }
-            if let Some(value) = &result.value {
-                crate::owner_chip::result_nodes(value, l)?;
-            }
-            if let Some(details) = &result.details {
-                contract_fits(&details.contract, l)?;
-                if details.delegates.capacity() > l.rows {
-                    return None;
-                }
-                for link in &details.delegates {
-                    link_fits(link, l, words)?;
-                }
-                if let Some(followups) = &details.followups {
-                    if followups.capacity() > l.rows {
-                        return None;
-                    }
-                    for link in followups {
-                        link_fits(link, l, words)?;
-                    }
-                }
-            }
-        }
-    }
-    fragment_bound(l, words)
 }
 fn saying(words: &Words, phrase: P, holes: &[Hole]) -> Box<[u8]> {
     words.book().say(words.language(), phrase.id(), holes).expect("checked person words and typed holes").text

@@ -1,5 +1,5 @@
 //! Deployment acts retain the same child decisions as party requests (people.md, 5.3).
-use crate::{Ask, Carried, Core, Event, Held, Limits, PersonTaskRoute, Request, Requests};
+use crate::{Ask, Carried, Core, Event, Held, Limits, PersonTaskRoute, Request};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_people as people;
@@ -16,7 +16,7 @@ pub(super) fn start(
     key: [u8; 16],
     act: Box<people::Act>,
     carried: Option<Carried>,
-) -> Requests {
+) -> Queue<Request> {
     let digest = match &*act {
         people::Act::AddKey { digest, .. } => Some(*digest),
         people::Act::MakeProject { .. }
@@ -34,8 +34,8 @@ pub(super) fn start(
             to: reply_to,
             outcome: people::Outcome::Refused(people::Refusal::NotOffered),
         })));
-        out.push(Request::Decided);
-        return super::application_routes::first(super::application_routes::number(carried), Requests::Out(out));
+
+        return super::application_routes::first(super::application_routes::number(carried), out);
     }
     assert!(core.key_input.is_none(), "one key admission at a time");
     core.key_input = carried;

@@ -8,6 +8,7 @@
 use super::{Chip, Cursor, Missing, Proposer, Text, Window};
 use crate::{Core, Limits};
 use alloc::boxed::Box;
+use jig_domain_authority as authority;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Wall};
 
@@ -358,7 +359,7 @@ pub(super) fn part_path(limits: &Limits, connector: u16, kind: PartKind, bytes: 
     Ok(Part { connector, kind, key: PartKey::Path(path(limits, bytes)?) })
 }
 
-fn path(limits: &Limits, bytes: &[Box<[u8]>]) -> Result<List<Box<[u8]>>, Missing> {
+pub(super) fn path(limits: &Limits, bytes: &[Box<[u8]>]) -> Result<List<Box<[u8]>>, Missing> {
     if bytes.len() > usize::try_from(limits.documents.segments).expect("segment count fits") {
         return Err(Missing::TooLarge);
     }
@@ -372,54 +373,60 @@ fn path(limits: &Limits, bytes: &[Box<[u8]>]) -> Result<List<Box<[u8]>>, Missing
     Ok(result)
 }
 
-fn pattern(limits: &Limits, value: &tasks::Pattern) -> Result<PatternEnd, Missing> {
+pub(super) fn pattern(limits: &Limits, value: &authority::Pattern) -> Result<PatternEnd, Missing> {
     let bytes = match &value.last {
-        tasks::Last::Exact(bytes) | tasks::Last::Open(bytes) => bytes,
+        authority::Last::Exact(bytes) | authority::Last::Open(bytes) => bytes,
     };
     if bytes.len() > usize::try_from(limits.documents.text_bytes).expect("text bound fits") {
         return Err(Missing::TooLarge);
     }
     Ok(match &value.last {
-        tasks::Last::Exact(bytes) => PatternEnd::Exact(skein_lib::bytes::copy_of(bytes)),
-        tasks::Last::Open(bytes) => PatternEnd::Open(skein_lib::bytes::copy_of(bytes)),
+        authority::Last::Exact(bytes) => PatternEnd::Exact(skein_lib::bytes::copy_of(bytes)),
+        authority::Last::Open(bytes) => PatternEnd::Open(skein_lib::bytes::copy_of(bytes)),
     })
 }
 
-pub(super) fn authority(limits: &Limits, value: &tasks::Authority) -> Result<AuthorityLine, Missing> {
+pub(super) fn authority(limits: &Limits, value: &authority::Authority) -> Result<AuthorityLine, Missing> {
     let mut grants = List::with_capacity(limits.documents.grants);
-    for grant in &value.grants {
+    for value in &value.grants {
         grants
             .push(GrantLine {
-                connector: grant.connector,
-                kind: grant.kind,
-                segments: path(limits, &grant.pattern.segments)?,
-                last: pattern(limits, &grant.pattern)?,
+                connector: value.connector,
+                kind: value.kind,
+                segments: path(limits, &value.pattern.segments)?,
+                last: pattern(limits, &value.pattern)?,
             })
             .expect("bounded grants");
     }
     let mut executors = List::with_capacity(limits.documents.executors);
-    for kind in &value.delegation.kinds {
-        executors.push(*kind).expect("bounded executor list");
+    for value in &value.delegation.kinds {
+        executors
+            .push(match value {
+                authority::Executor::Charter(number) => tasks::AuthorityExecutor::Charter(*number),
+                authority::Executor::Procedure(number) => tasks::AuthorityExecutor::Procedure(*number),
+                authority::Executor::Role(number) => tasks::AuthorityExecutor::Role(*number),
+            })
+            .expect("bounded executors");
     }
     let mut note_resources = List::with_capacity(limits.documents.grants);
-    for scope in &value.note_resources {
+    for value in &value.note_resources {
         note_resources
             .push(NoteScope {
-                connector: scope.connector,
-                segments: path(limits, &scope.pattern.segments)?,
-                last: pattern(limits, &scope.pattern)?,
+                connector: value.connector,
+                segments: path(limits, &value.pattern.segments)?,
+                last: pattern(limits, &value.pattern)?,
             })
             .expect("bounded note scopes");
     }
     Ok(AuthorityLine {
-        models: value.models,
-        tools: value.tools,
+        models: tasks::Models::from_parts(value.models.bits(), value.models.is_all()),
+        tools: tasks::Tools(value.tools.0),
         grants,
         executors,
         tasks: value.delegation.tasks,
         depth: value.delegation.depth,
-        ceiling: value.budget,
-        notes: value.notes,
+        ceiling: tasks::Budget { spend: value.budget.spend, deadline: value.budget.deadline },
+        notes: tasks::Scopes(value.notes.0),
         note_resources,
     })
 }
@@ -881,7 +888,7 @@ fn task_with_lineage(
         tasks::Phase::Waiting | tasks::Phase::Active(_) => None,
     };
     let acts = super::offers::task(core, limits, party, row, decision)?;
-    let authority = authority(limits, &row.authority)?;
+    let authority = authority(limits, &crate::translate::tasks_authority(&row.authority))?;
     Ok(Task {
         settings: match row.executor {
             tasks::Executor::Agent { .. } => Some(TaskSettings {

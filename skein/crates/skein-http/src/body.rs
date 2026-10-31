@@ -17,6 +17,7 @@
 
 use alloc::boxed::Box;
 
+use skein_lib::length::usize_of;
 use skein_lib::stream::{Delimiter, Read, Up};
 use skein_lib::{Intake, bytes};
 
@@ -187,7 +188,11 @@ fn piece(face: Face, intake: &Intake, most: u32, left: u64) -> Read {
             }
             // A scan holds its delimiter (lib.md, 7); a shorter read is a
             // fill, which cannot hold one.
-            if index(wanted) >= until.as_bytes().len() { Read::Scan { until, max: wanted } } else { Read::Fill(wanted) }
+            if usize_of(wanted) >= until.as_bytes().len() {
+                Read::Scan { until, max: wanted }
+            } else {
+                Read::Fill(wanted)
+            }
         }
         // A line end is one byte: what is held has none, or the intake would
         // have met the scan, so the rest of the scan is a scan again.
@@ -283,15 +288,15 @@ fn took(face: &mut Face, intake: &mut Intake, bytes: Box<[u8]>, left: u64, up: &
 fn answers(read: Read, bytes: &[u8]) -> bool {
     match read {
         Read::Nothing => false,
-        Read::Fill(n) => index(n) == bytes.len(),
-        Read::Arrived { max } => !bytes.is_empty() && bytes.len() <= index(max),
+        Read::Fill(n) => usize_of(n) == bytes.len(),
+        Read::Arrived { max } => !bytes.is_empty() && bytes.len() <= usize_of(max),
         Read::Scan { until, max } => match bytes::find(bytes, until.as_bytes()) {
             Some(at) => at.saturating_add(until.as_bytes().len()) == bytes.len(),
-            None => bytes.len() == index(max),
+            None => bytes.len() == usize_of(max),
         },
         Read::Line { max } => match bytes::line_end(bytes) {
             Some(at) => at.saturating_add(1) == bytes.len(),
-            None => bytes.len() == index(max),
+            None => bytes.len() == usize_of(max),
         },
     }
 }
@@ -337,8 +342,4 @@ fn at_most(n: u32, left: u64) -> u32 {
 
 fn len(bytes: &[u8]) -> u32 {
     u32::try_from(bytes.len()).expect("a delivery's length fits a u32")
-}
-
-fn index(n: u32) -> usize {
-    usize::try_from(n).expect("a u32 fits a usize")
 }

@@ -95,7 +95,7 @@ impl Engine {
         Env { now: self.env.now, wall: self.env.wall, limits: crate::fixtures::http_limits() }
     }
     fn mount_event(&mut self, event: http::Event) {
-        self.mount.down(&self.mount_env(), event, &mut self.mount_out);
+        self.mount.down(&self.mount_env(), event);
     }
     fn mount_step(&mut self) -> bool {
         let mut active = self.mount.up(&self.mount_env(), &mut self.mount_out);
@@ -377,7 +377,7 @@ impl Engine {
         self.server.fire(&mut self.server_out);
         active |= self.mount_step();
         active |= self.server.advance(&mut self.server_out) || !self.server_out.is_empty();
-        self.component.fire(&self.env, &mut self.out);
+        self.component.fire(&self.env);
         while self.component.up(&self.env, &mut self.out) {}
         active
     }

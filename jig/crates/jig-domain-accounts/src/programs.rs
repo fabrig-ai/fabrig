@@ -89,7 +89,7 @@ pub fn declare(
         }
     };
     let number = domain.take();
-    let place = crate::ordering::append_place(domain, env, account, out);
+    let place = crate::ordering::append_place(domain, account, out);
     let entry = domain.accounts.get_mut(&account).expect("admitted account remains kept");
     assert!(entry.sources.insert(place, number) == Ok(None), "admitted source at the last place");
     entry.plan = true;
@@ -98,7 +98,7 @@ pub fn declare(
     out.push(Request::Save { record: Stored::Issued { number, holder, name: name.clone(), signed_out: false } });
     let source = Source::new(account, Kind::Program, name, &env.limits);
     assert!(domain.sources.insert(number, source) == Ok(None), "admitted source");
-    out.push(Request::Save { record: crate::domain::stored(domain, env, number) });
+    out.push(Request::Save { record: crate::domain::stored(domain, number) });
     domain.counted(out);
     publish(domain, out);
     crate::domain::changed(domain, env, number, None, out);
