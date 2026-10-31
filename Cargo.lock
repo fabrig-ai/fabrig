@@ -4338,6 +4338,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-hub-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
