@@ -34,7 +34,7 @@ pub(crate) fn owner_historical_value_fields(
         }
         w::OwnerHistoricalValue::PersonProposal(row) => {
             let opt0 = match row.decision() {
-                Some(item) => Some(owner_proposal_decision_fields(item, limits)),
+                Some(item) => Some(owner_proposal_decision_fields(item)),
                 None => None,
             };
             c::OwnerHistoricalValue::PersonProposal {
@@ -85,11 +85,11 @@ pub(crate) fn owner_historical_fields(
         None => None,
     };
     let opt1 = match value.by() {
-        Some(item) => Some(crate::translate::facts::owner_requester(item, limits)),
+        Some(item) => Some(crate::translate::facts::owner_requester(item)),
         None => None,
     };
     Ok(c::OwnerHistorical {
-        key: object_key_fields(value.key(), limits),
+        key: object_key_fields(value.key()),
         value: owner_historical_value_fields(value.value(), limits)?,
         at: opt0,
         by: opt1,

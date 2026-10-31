@@ -5,7 +5,7 @@ use super::{
     result_piece, specification_document_fields, task_contract_document_fields, task_fields, text, too_large, w,
 };
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_funding_offer_fields(value: &w::OwnerFundingOffer, limits: &Limits) -> c::OwnerFundingOffer {
+pub(crate) fn owner_funding_offer_fields(value: &w::OwnerFundingOffer) -> c::OwnerFundingOffer {
     let opt0 = match value.left() {
         Some(item) => Some(*item),
         None => None,
@@ -15,7 +15,7 @@ pub(crate) fn owner_funding_offer_fields(value: &w::OwnerFundingOffer, limits: &
         None => None,
     };
     c::OwnerFundingOffer {
-        source: crate::translate::facts::funder(value.source(), limits),
+        source: crate::translate::facts::funder(value.source()),
         needed: value.needed(),
         left: opt0,
         after: opt1,
@@ -28,15 +28,15 @@ pub(crate) fn owner_proposal_fields(value: &w::OwnerProposal, limits: &Limits) -
     }
     let mut list0 = List::with_capacity(value.funding().len());
     for item in value.funding() {
-        list0.push(owner_funding_offer_fields(item, limits)).expect("reserved supplied list");
+        list0.push(owner_funding_offer_fields(item)).expect("reserved supplied list");
     }
     Ok(c::OwnerProposal {
-        key: crate::translate::answers::proposal_key(value.key(), limits),
+        key: crate::translate::answers::proposal_key(value.key()),
         project: value.project(),
         reason: crate::translate::facts::document_text(value.reason(), limits)?,
         action: owner_proposal_action_fields(value.action(), limits)?,
         as_holder: value.as_holder(),
-        waiting: owner_proposal_waiting_fields(value.waiting(), limits),
+        waiting: owner_proposal_waiting_fields(value.waiting()),
         funding: list0,
         acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
     })
@@ -55,7 +55,7 @@ pub(crate) fn owner_escalation_fields(
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn question_fields(value: &w::Question, limits: &Limits) -> Result<c::Question, w::Problem> {
     let opt0 = match value.from() {
-        Some(item) => Some(crate::translate::facts::owner_requester(item, limits)),
+        Some(item) => Some(crate::translate::facts::owner_requester(item)),
         None => None,
     };
     let opt1 = match value.ending() {
@@ -129,7 +129,7 @@ pub(crate) fn person_contract_fields(
         }
         w::PersonContract::Approval(row) => c::PersonContract::Approval {
             state: text(row.state(), limits)?,
-            part: crate::translate::facts::part(row.part(), limits),
+            part: crate::translate::facts::part(row.part()),
         },
         w::PersonContract::Words => c::PersonContract::Words,
     })
@@ -159,12 +159,12 @@ pub(crate) fn person_task_fields(value: &w::PersonTask, limits: &Limits) -> Resu
     };
     Ok(c::PersonTask {
         task: chip_fields(value.task(), limits)?,
-        revision: crate::translate::answers::revision(value.revision(), limits),
-        requester: crate::translate::answers::actor(value.requester(), limits),
+        revision: crate::translate::answers::revision(value.revision()),
+        requester: crate::translate::answers::actor(value.requester()),
         spec: specification_document_fields(value.spec(), limits)?,
         contract: person_contract_fields(value.contract(), limits)?,
         inputs: result_piece(value.inputs(), limits, limits.client.rows)?,
-        addressed: crate::translate::facts::recipient(value.addressed(), limits),
+        addressed: crate::translate::facts::recipient(value.addressed()),
         taken: opt0,
         since: opt1,
         stall: opt2,
@@ -241,10 +241,10 @@ pub(crate) fn owner_person_task_fields(
     };
     Ok(c::OwnerPersonTask {
         task: chip_fields(value.task(), limits)?,
-        revision: crate::translate::answers::revision(value.revision(), limits),
-        requester: crate::translate::facts::owner_requester(value.requester(), limits),
+        revision: crate::translate::answers::revision(value.revision()),
+        requester: crate::translate::facts::owner_requester(value.requester()),
         spec: specification_document_fields(value.spec(), limits)?,
-        address: crate::translate::facts::person_address(value.address(), limits),
+        address: crate::translate::facts::person_address(value.address()),
         taken_by: opt0,
         since: opt1,
         stall: opt2,

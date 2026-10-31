@@ -15,7 +15,7 @@ fn every_settings_proposal_record_translates_both_ways() {
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/record_origin_revision_smallest.bin");
         let wire = w::OriginRevision::decode(&limits.wire, &mut Reader::new(bytes)).expect("wire fixture");
-        let client = t::restore_origin_revision(&wire, &limits).expect("client record");
+        let client = t::restore_origin_revision(&wire).expect("client record");
         assert_eq!(t::wire_origin_revision(&client, &limits.wire), Ok(wire));
     }
     {
@@ -49,20 +49,20 @@ fn every_settings_proposal_record_translates_both_ways() {
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_origin_default_smallest.bin");
         let wire = w::SettingOrigin::decode(&limits.wire, &mut Reader::new(bytes)).expect("wire fixture");
-        let client = t::restore_setting_origin(&wire, &limits).expect("client record");
+        let client = t::restore_setting_origin(&wire).expect("client record");
         assert_eq!(t::wire_setting_origin(&client, &limits.wire), Ok(wire));
     }
     {
         let bytes = include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_origin_change_smallest.bin");
         let wire = w::SettingOrigin::decode(&limits.wire, &mut Reader::new(bytes)).expect("wire fixture");
-        let client = t::restore_setting_origin(&wire, &limits).expect("client record");
+        let client = t::restore_setting_origin(&wire).expect("client record");
         assert_eq!(t::wire_setting_origin(&client, &limits.wire), Ok(wire));
     }
     {
         let bytes =
             include_bytes!("../../../jig-client-protocol-wire/golden/enum_setting_origin_not_offered_smallest.bin");
         let wire = w::SettingOrigin::decode(&limits.wire, &mut Reader::new(bytes)).expect("wire fixture");
-        let client = t::restore_setting_origin(&wire, &limits).expect("client record");
+        let client = t::restore_setting_origin(&wire).expect("client record");
         assert_eq!(t::wire_setting_origin(&client, &limits.wire), Ok(wire));
     }
     {

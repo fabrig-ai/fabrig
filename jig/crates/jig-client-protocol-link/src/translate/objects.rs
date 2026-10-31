@@ -3,7 +3,7 @@ use super::pages::{
     owner_escalation_fields, owner_historical_fields, owner_person_task_fields, owner_proposal_fields,
     person_task_fields, project_fields, proposal_fields, question_fields, receiving,
 };
-use super::{Undecodable, documents::classify};
+use super::{Undecodable, classify};
 use crate::Limits;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;

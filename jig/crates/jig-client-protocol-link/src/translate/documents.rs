@@ -1,5 +1,5 @@
 //! Whole document decoding (protocol/client.md, 3; client/domain/contract.md, 5–7).
-use super::{Undecodable, piece_problem, too_large};
+use super::{Undecodable, classify, piece_problem, too_large};
 use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
@@ -49,18 +49,6 @@ fn raw(value: &[u8], limits: &Limits) -> Result<Box<[u8]>, w::Problem> {
         return Err(too_large());
     }
     Ok(bytes::copy_of(value))
-}
-pub(crate) fn classify(problem: w::Problem) -> Undecodable {
-    match problem.reason {
-        skein_codec::Reason::Bound => Undecodable::TooLarge,
-        skein_codec::Reason::Malformed
-        | skein_codec::Reason::Tag
-        | skein_codec::Reason::Utf8
-        | skein_codec::Reason::Short
-        | skein_codec::Reason::Bool
-        | skein_codec::Reason::Version
-        | skein_codec::Reason::Trailing => Undecodable::Malformed,
-    }
 }
 
 pub fn frame(record: w::Me, limits: &Limits) -> Result<c::Me, Undecodable> {
