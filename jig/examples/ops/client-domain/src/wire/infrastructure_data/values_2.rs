@@ -1,7 +1,6 @@
 //! Whole-value mappings for infrastructure/values.
 use crate::infrastructure::values as d;
 use crate::wire::{Invalid, w};
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn entry_encode(value: &d::Entry) -> Result<w::InfrastructureEntry, Invalid> {
     let parts = w::InfrastructureEntryParts {
         project: match &(value.project) {
@@ -18,7 +17,6 @@ pub(crate) fn entry_encode(value: &d::Entry) -> Result<w::InfrastructureEntry, I
     let Ok(value) = w::InfrastructureEntry::new(&w::CEILINGS, parts) else { return Err(Invalid) };
     Ok(value)
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn entry_decode(value: w::InfrastructureEntry) -> d::Entry {
     let value = value.into_parts();
     d::Entry {
@@ -219,8 +217,6 @@ pub(crate) fn drift_kind_decode(value: w::InfrastructureDriftKind) -> d::DriftKi
         w::InfrastructureDriftKind::Deleted => d::DriftKind::Deleted,
     }
 }
-
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn drift_account_encode(value: &d::DriftAccount) -> Result<w::InfrastructureDriftAccount, Invalid> {
     let parts = w::InfrastructureDriftAccountParts {
         resource: crate::wire::infrastructure_data::resource_encode(&(value.resource))?,
@@ -234,7 +230,6 @@ pub(crate) fn drift_account_encode(value: &d::DriftAccount) -> Result<w::Infrast
     let Ok(value) = w::InfrastructureDriftAccount::new(&w::CEILINGS, parts) else { return Err(Invalid) };
     Ok(value)
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn drift_account_decode(value: w::InfrastructureDriftAccount) -> d::DriftAccount {
     let value = value.into_parts();
     d::DriftAccount {
@@ -324,7 +319,6 @@ pub(crate) fn resource_fact_encode(value: &d::ResourceFact) -> Result<w::Infrast
         }
     })
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn resource_fact_decode(value: w::InfrastructureResourceFact) -> d::ResourceFact {
     match value {
         w::InfrastructureResourceFact::Service(value) => {
@@ -398,7 +392,6 @@ pub(crate) fn client_environment_encode(
     let Ok(value) = w::InfrastructureClientEnvironment::new(&w::CEILINGS, parts) else { return Err(Invalid) };
     Ok(value)
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn client_environment_decode(value: w::InfrastructureClientEnvironment) -> d::ClientEnvironment {
     let value = value.into_parts();
     d::ClientEnvironment {

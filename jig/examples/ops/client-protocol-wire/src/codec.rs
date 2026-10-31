@@ -13,7 +13,7 @@ pub mod infrastructure {
     /// Encode an admitted environment request.
     #[must_use]
     pub fn ask(value: &w::InfrastructureAskRecord) -> Box<[u8]> {
-        let mut writer = Writer::new(usize::try_from(value.measure()).expect("bounded request"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut writer).expect("measured request");
         writer.finish()
     }
@@ -31,7 +31,7 @@ pub mod infrastructure {
     /// Encode the connector's durable answer.
     #[must_use]
     pub fn answer_record(value: &w::InfrastructureAnswerRecord) -> Box<[u8]> {
-        let mut writer = Writer::new(usize::try_from(value.measure()).expect("bounded answer"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut writer).expect("measured answer");
         writer.finish()
     }
@@ -51,7 +51,7 @@ pub mod infrastructure {
     /// Encode a subject kind for a watch or read.
     #[must_use]
     pub fn subject(value: &w::InfrastructureSubjectRecord) -> Box<[u8]> {
-        let mut writer = Writer::new(usize::try_from(value.measure()).expect("bounded subject"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut writer).expect("measured subject");
         writer.finish()
     }
@@ -71,7 +71,7 @@ pub mod infrastructure {
     /// Encode the owner's whole document.
     #[must_use]
     pub fn document_record(value: &w::InfrastructureDocumentRecord) -> Box<[u8]> {
-        let mut writer = Writer::new(usize::try_from(value.measure()).expect("bounded document"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut writer).expect("measured document");
         writer.finish()
     }
@@ -90,7 +90,7 @@ pub mod infrastructure {
     /// Encode the owner's read answer, including a refusal.
     #[must_use]
     pub fn read_answer(value: &w::InfrastructureReadAnswer) -> Box<[u8]> {
-        let mut writer = Writer::new(usize::try_from(value.measure()).expect("bounded read answer"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut writer).expect("measured read answer");
         writer.finish()
     }
@@ -113,7 +113,7 @@ pub mod observability {
     /// Encode an incident, alert or panel subject kind.
     #[must_use]
     pub fn subject(value: &w::ObservabilitySubjectRecord) -> Box<[u8]> {
-        let mut writer = Writer::new(usize::try_from(value.measure()).expect("bounded subject"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut writer).expect("measured subject");
         writer.finish()
     }
@@ -133,7 +133,7 @@ pub mod observability {
     /// Encode the owner's whole incident, alert or panel document.
     #[must_use]
     pub fn document_record(value: &w::ObservabilityDocumentRecord) -> Box<[u8]> {
-        let mut writer = Writer::new(usize::try_from(value.measure()).expect("bounded document"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut writer).expect("measured document");
         writer.finish()
     }
@@ -152,7 +152,7 @@ pub mod observability {
     /// Encode the owner's read answer, including a refusal.
     #[must_use]
     pub fn read_answer(value: &w::ObservabilityReadAnswer) -> Box<[u8]> {
-        let mut writer = Writer::new(usize::try_from(value.measure()).expect("bounded read answer"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut writer).expect("measured read answer");
         writer.finish()
     }

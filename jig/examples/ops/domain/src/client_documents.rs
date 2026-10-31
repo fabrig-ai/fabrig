@@ -106,7 +106,7 @@ pub(crate) fn document(
     };
     let mut requests = core::step(
         &mut domain.core,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.core },
+        &env.with(env.limits.core),
         core::Event::View(views::Event::Made { watcher, outcome }),
     );
     for _ in 0..requests.len() {
@@ -200,7 +200,7 @@ pub(crate) fn read(
             let mut out = Queue::uncapped();
             infrastructure::step(
                 &mut domain.infrastructure,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.infrastructure },
+                &env.with(env.limits.infrastructure),
                 infrastructure::Event::ReadDocument { scope: infrastructure_scope(scope), read, party },
                 &mut out,
             );
@@ -251,7 +251,7 @@ pub(crate) fn read(
             let mut out = Queue::uncapped();
             observability::step(
                 &mut domain.observability,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.observability },
+                &env.with(env.limits.observability),
                 observability::Event::ReadDocument { scope: observability_scope(scope), read, party },
                 &mut out,
             );

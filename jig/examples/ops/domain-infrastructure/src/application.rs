@@ -109,7 +109,6 @@ impl State {
 impl Domain {
     /// The root assembles this value in its admitted decision and journals the answer.
     #[must_use]
-    #[expect(clippy::manual_map, reason = "step code uses explicit matching instead of closures")]
     pub fn application_outcome(&self, token: Token) -> Option<ApplicationOutcome> {
         match self.application.answers.get(&token) {
             Some((_, outcome)) => Some(outcome.clone()),

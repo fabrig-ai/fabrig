@@ -78,7 +78,7 @@ fn holders(world: &World) -> usize {
         .count()
 }
 pub(super) fn finish(world: &mut World, index: u32) -> Result<(), Violation> {
-    let index = usize::try_from(index).expect("three holders");
+    let index = skein_lib::length::usize_of(index);
     let task = state(world).children[index];
     world.advance(if index == 1 { 1_000_000_000 } else { 5_000_000_000 });
     for _ in 0..256 {

@@ -563,7 +563,7 @@ fn connector_documents_and_reads_share_the_last_connector_commit_barrier() {
         let initial = settle(&mut domain, &env);
         assert!(initial.is_empty(), "restore outputs: {initial:?}");
     }
-    let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.core.people };
+    let people_env = env.with(env.limits.core.people);
     assert!(domain.core.people.start_link(&people_env));
     domain.core.people.start_sweep();
     assert!(domain.core.people.start_complete(&people_env));
@@ -805,11 +805,9 @@ fn stopping_ignores_the_starts_mark_continuations() {
     let (mut starting, _) = fixture();
     let _begin = starting.core.start_begin(false, env.wall);
     let mut out = Queue::uncapped();
-    let core::start::Action::Commit(continuation) = starting.core.start_done(
-        &Env { now: env.now, wall: env.wall, limits: env.limits.core },
-        core::start::Phase::LoadCore,
-        &mut out,
-    ) else {
+    let core::start::Action::Commit(continuation) =
+        starting.core.start_done(&env.with(env.limits.core), core::start::Phase::LoadCore, &mut out)
+    else {
         panic!("seed continuation")
     };
     for event in [Event::Store(Store::Switched), Event::Released(Released::Start(continuation))] {

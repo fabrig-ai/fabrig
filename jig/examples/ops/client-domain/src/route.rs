@@ -8,7 +8,7 @@ use crate::{
 use skein_lib::{Env, List, Queue};
 
 fn infrastructure_env(env: &Env<Limits>) -> Env<infrastructure::Limits> {
-    Env { now: env.now, wall: env.wall, limits: env.limits.infrastructure }
+    env.with(env.limits.infrastructure)
 }
 pub(crate) fn jig(root: &mut Domain, env: &Env<Limits>, event: jig_client_view::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
@@ -32,12 +32,7 @@ pub(crate) fn observability(
     out: &mut Queue<Request>,
 ) {
     let mut child = Queue::uncapped();
-    observability::step(
-        &mut root.observability,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.observability },
-        event,
-        &mut child,
-    );
+    observability::step(&mut root.observability, &env.with(env.limits.observability), event, &mut child);
     route_observability(root, env, &mut child, out);
 }
 pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
