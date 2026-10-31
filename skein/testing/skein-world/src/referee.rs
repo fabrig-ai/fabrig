@@ -46,18 +46,24 @@ pub trait Referee<P> {
     /// Injects what belongs to no process, before they run in an iteration.
     /// It changes only what a process lets be changed between iterations (a
     /// flag it acts on in its next one), and allocates nothing of theirs.
-    fn act(&mut self, now: Time, procs: &mut [P]);
+    /// By default, injects nothing.
+    fn act(&mut self, _now: Time, _procs: &mut [P]) {}
 
     /// Watches every process, after one of them iterated: a broken safety
     /// expectation panics, naming the seed.
     fn observe(&mut self, now: Time, procs: &[P]);
 
     /// The earliest of its expectations' deadlines and of what it will act
-    /// on, for the world to wake at.
-    fn next_deadline(&self) -> Option<Time>;
+    /// on, for the world to wake at. By default, no deadline.
+    fn next_deadline(&self) -> Option<Time> {
+        None
+    }
 
     /// What is overdue at `now`, if anything: the test fails with it.
-    fn overdue(&self, now: Time) -> Option<String>;
+    /// By default, nothing is overdue.
+    fn overdue(&self, _now: Time) -> Option<String> {
+        None
+    }
 
     /// Whether every expectation is met.
     fn passed(&self) -> bool;
@@ -185,5 +191,32 @@ impl Controls {
     /// Root ids come from `spawn`; hosted ids follow them in admission order.
     pub fn signal(&self, host: usize, signal: ServiceSignal) {
         self.signals.borrow_mut().push((host, signal));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Referee;
+    use skein_lib::Time;
+
+    struct Observer;
+
+    impl Referee<u8> for Observer {
+        fn observe(&mut self, _now: Time, _procs: &[u8]) {}
+
+        fn passed(&self) -> bool {
+            true
+        }
+    }
+
+    #[test]
+    fn referee_defaults_inject_nothing_and_have_no_deadline_or_overdue_expectation() {
+        let mut referee = Observer;
+        let mut procs = [7];
+        let now = Time::from_nanos(10);
+        referee.act(now, &mut procs);
+        assert_eq!(procs, [7], "the default act leaves processes alone");
+        assert_eq!(referee.next_deadline(), None, "the default has no wakeup");
+        assert_eq!(referee.overdue(now), None, "the default has nothing overdue");
     }
 }
