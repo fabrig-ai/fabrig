@@ -387,7 +387,7 @@ impl Sinks {
     pub fn conversation(&mut self, at: Time, origin: Time, owner: Token, opened: smith_events::ConversationOpened) {
         self.responses.opened(at, owner, &opened);
         self.record(&Record {
-            t_ms: at.saturating_since(origin).as_nanos() / 1_000_000,
+            t_ms: at.saturating_since(origin).as_millis(),
             event: Event::ConversationOpened(opened),
         });
     }
@@ -794,10 +794,10 @@ fn ended_record(now: Time, started: Time, ended: &Ended, emitted: List<smith_eve
     let (cpu_ms, peak_rss_bytes) = match ended.usage {
         io::Measured::Read(usage) => (
             Some(smith_events::Cpu {
-                user: usage.own.user.as_nanos() / 1_000_000,
-                system: usage.own.system.as_nanos() / 1_000_000,
-                children_user: usage.children.user.as_nanos() / 1_000_000,
-                children_system: usage.children.system.as_nanos() / 1_000_000,
+                user: usage.own.user.as_millis(),
+                system: usage.own.system.as_millis(),
+                children_user: usage.children.user.as_millis(),
+                children_system: usage.children.system.as_millis(),
             }),
             Some(smith_events::PeakRss {
                 self_bytes: usage.own.peak_rss_bytes,
@@ -807,13 +807,13 @@ fn ended_record(now: Time, started: Time, ended: &Ended, emitted: List<smith_eve
         io::Measured::Unread => (None, None),
     };
     Record {
-        t_ms: now.saturating_since(started).as_nanos() / 1_000_000,
+        t_ms: now.saturating_since(started).as_millis(),
         event: Event::SessionEnded(smith_events::SessionEnded {
             exit: i64::from(ended.exit),
             answered: ended.answered,
             aborted: Some(ended.aborted),
             teardown_ms: match ended.teardown {
-                Some(duration) => Some(duration.as_nanos() / 1_000_000),
+                Some(duration) => Some(duration.as_millis()),
                 None => None,
             },
             emitted,

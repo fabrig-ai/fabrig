@@ -3,7 +3,7 @@
 //! outcome. Each pass advances what its children have reported, through usage
 //! and the event stream. Contract: smith/docs/design/protocol/agent.md, section 6.
 
-use skein_lib::{Time, Token};
+use skein_lib::Time;
 use smith_domain as domain;
 
 use super::{Failure, Operation, Service, USAGE_OWNER};
@@ -268,7 +268,7 @@ fn close_roots(service: &mut Service) {
             file_layer::down(
                 &mut service.files,
                 service.io_env.now,
-                file::Request::Close { owner: Token::new(u64::MAX), file: root },
+                file::Request::Close { owner: super::ROOT_CLOSE_OWNER, file: root },
                 &mut service.file_events,
                 &mut service.file_submissions,
             );

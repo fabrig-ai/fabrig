@@ -198,6 +198,9 @@ pub struct Service {
     root_close_pending: bool,
 }
 
+const START_REPLY: Token = Token::new(1);
+const ROOT_CLOSE_OWNER: Token = Token::new(u64::MAX);
+
 const USAGE_OWNER: Token = Token::new(u64::MAX - 1);
 
 /// Whether the owned lower parts can be built (skein/docs/foundation/programming-model.md, 6.3).
@@ -563,8 +566,8 @@ impl Service {
         self.run_started = self.domain_env.now;
         self.domain_events.push(domain::Event::Start {
             messages: start.messages,
-            reply_to: ReplyTo::new(Token::new(1)),
-            host_run: Token::new(1),
+            reply_to: ReplyTo::new(START_REPLY),
+            host_run: START_REPLY,
             activation: start.activation,
             identity: start.identity,
             window: start.window,

@@ -327,11 +327,7 @@ fn seen_root_budget_facts_encode_without_content_under_every_capture() {
             assert_eq!(smith_events::read(&line, &limits).expect("valid bounded event fixture"), Some(record.clone()));
             let Event::Budget(value) = &record.event else { panic!("budget projection") };
             let run::facts::FactKind::Budget { standing, .. } = fact.kind else { panic!("budget fact") };
-            assert_eq!(
-                value.time_ms.used,
-                standing.time.as_nanos() / 1_000_000,
-                "run time retains its admission origin"
-            );
+            assert_eq!(value.time_ms.used, standing.time.as_millis(), "run time retains its admission origin");
         }
     }
     assert!(budget_count > 0, "real root/session completions produce charges");

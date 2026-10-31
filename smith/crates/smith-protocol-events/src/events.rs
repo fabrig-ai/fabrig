@@ -210,10 +210,10 @@ impl Producer {
             budget: smith_events::Budget {
                 turns: u64::from(charter.budget.turns),
                 spend: charter.budget.spend,
-                time_ms: charter.budget.time.as_nanos() / 1_000_000,
+                time_ms: charter.budget.time.as_millis(),
                 reserve: smith_events::Reserve {
                     turns: u64::from(charter.reserve.turns),
-                    time_ms: charter.reserve.time.as_nanos() / 1_000_000,
+                    time_ms: charter.reserve.time.as_millis(),
                     spend: run::reserve_spend(charter.reserve, &charter.llm).unwrap_or(0),
                 },
             },
@@ -357,7 +357,7 @@ impl Producer {
                 self.check_at = Some(fact.at);
                 Event::CheckStarted(smith_events::CheckStarted {
                     run: self.activation(),
-                    deadline_ms: Some(deadline.saturating_since(fact.at).as_nanos() / 1_000_000),
+                    deadline_ms: Some(deadline.saturating_since(fact.at).as_millis()),
                 })
             }
             run::facts::FactKind::CheckFinished { run: _, exit } => {
@@ -366,15 +366,14 @@ impl Producer {
                     run: self.activation(),
                     passed,
                     exit,
-                    duration_ms: fact.at.saturating_since(self.check_at.take().expect("one check start")).as_nanos()
-                        / 1_000_000,
+                    duration_ms: fact.at.saturating_since(self.check_at.take().expect("one check start")).as_millis(),
                 })
             }
             run::facts::FactKind::MessageFence { .. }
             | run::facts::FactKind::Prepared { .. }
             | run::facts::FactKind::Answered { .. } => return,
         };
-        self.sinks.record(&Record { t_ms: fact.at.saturating_since(origin).as_nanos() / 1_000_000, event });
+        self.sinks.record(&Record { t_ms: fact.at.saturating_since(origin).as_millis(), event });
     }
 
     fn activation(&self) -> u64 {
@@ -460,7 +459,7 @@ impl Producer {
             run::Answer::Accepted { .. } | run::Answer::Parked { .. } | run::Answer::Refused(_) => None,
         };
         self.sinks.record(&Record {
-            t_ms: now.saturating_since(self.origin()).as_nanos() / 1_000_000,
+            t_ms: now.saturating_since(self.origin()).as_millis(),
             event: Event::RunCompleted(record),
         });
     }
@@ -488,11 +487,11 @@ impl Producer {
             read: answer.read,
             unread: self.unread,
             usage: self.sinks.reported(),
-            duration_ms: now.saturating_since(self.admitted_at.unwrap_or(started)).as_nanos() / 1_000_000,
+            duration_ms: now.saturating_since(self.admitted_at.unwrap_or(started)).as_millis(),
         };
         self.sinks.answer_failure(&mut record);
         self.sinks.record(&Record {
-            t_ms: now.saturating_since(self.origin()).as_nanos() / 1_000_000,
+            t_ms: now.saturating_since(self.origin()).as_millis(),
             event: Event::RunCompleted(record),
         });
     }
@@ -508,10 +507,8 @@ impl Producer {
             | smith_events::NoticeKind::TeardownAborted
             | smith_events::NoticeKind::Unknown(_) => self.admitted,
         };
-        self.sinks.record(&Record {
-            t_ms: now.saturating_since(self.origin()).as_nanos() / 1_000_000,
-            event: Event::Notice(notice),
-        });
+        self.sinks
+            .record(&Record { t_ms: now.saturating_since(self.origin()).as_millis(), event: Event::Notice(notice) });
     }
 }
 

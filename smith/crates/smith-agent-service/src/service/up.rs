@@ -89,7 +89,7 @@ pub(super) fn lower_events(service: &mut Service) {
     }
     for _ in 0..service.limits.queue {
         let Some(event) = service.file_events.pop() else { break };
-        if event.owner() == Token::new(u64::MAX) && service.root_close_pending {
+        if event.owner() == super::ROOT_CLOSE_OWNER && service.root_close_pending {
             service.root_close_pending = false;
             continue;
         }

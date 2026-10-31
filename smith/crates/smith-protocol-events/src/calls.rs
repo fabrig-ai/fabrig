@@ -395,7 +395,7 @@ fn returned_delivery(result: smith_domain::run::facts::Return) -> Option<smith_e
 }
 
 fn millis(at: Time, since: Time) -> u64 {
-    at.saturating_since(since).as_nanos() / 1_000_000
+    at.saturating_since(since).as_millis()
 }
 
 fn metadata_bytes(metadata: &session::ToolCall) -> u64 {

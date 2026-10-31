@@ -65,7 +65,7 @@ pub fn answer_record(meta: AnswerMeta, answer: &run::Answer, capture: Capture) -
         },
         read: meta.read,
         unread: meta.unread,
-        duration_ms: meta.elapsed.as_nanos() / 1_000_000,
+        duration_ms: meta.elapsed.as_millis(),
     }
 }
 
@@ -193,7 +193,7 @@ pub fn failure_record(why: run::Failure, now: skein_lib::Time) -> AnswerFailure 
                 result.account = Some(account);
                 result.state = Some(smith_events::AccountState::Limited);
                 result.reset_ms = match reset_at {
-                    Some(at) => Some(at.saturating_since(now).as_nanos() / 1_000_000),
+                    Some(at) => Some(at.saturating_since(now).as_millis()),
                     None => None,
                 };
                 result
@@ -273,12 +273,12 @@ fn completion(why: run::CompletionFailure, evidence: run::CompletionEvidence) ->
         run::CompletionFailure::Refused => (FailureClass::Refused, None),
         run::CompletionFailure::Unauthorized => (FailureClass::Unauthorized, None),
         run::CompletionFailure::RateLimited { retry_after } => {
-            (FailureClass::RateLimited, Some(retry_after.as_nanos() / 1_000_000))
+            (FailureClass::RateLimited, Some(retry_after.as_millis()))
         }
         run::CompletionFailure::Exhausted { retry_after } => (
             FailureClass::Exhausted,
             match retry_after {
-                Some(reset) => Some(reset.as_nanos() / 1_000_000),
+                Some(reset) => Some(reset.as_millis()),
                 None => None,
             },
         ),

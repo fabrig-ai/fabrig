@@ -669,7 +669,7 @@ impl Book {
             }
             session::FactKind::CompletionRetried { opener, delay, .. } => {
                 let conversation = self.conversations.get_mut(&opener).expect("retry follows opening");
-                let record = terminal(conversation, origin, unknown_usage(), 0, Some(delay.as_nanos() / 1_000_000))
+                let record = terminal(conversation, origin, unknown_usage(), 0, Some(delay.as_millis()))
                     .expect("a retry follows one pending failure");
                 records.push(record).expect("one response terminal");
             }
@@ -865,7 +865,7 @@ fn transport(measures: Option<smith_protocol_llm::Measures>) -> smith_protocol_l
 
 fn duration_ms(duration: Option<skein_lib::Duration>) -> Option<u64> {
     match duration {
-        Some(duration) => Some(duration.as_nanos() / 1_000_000),
+        Some(duration) => Some(duration.as_millis()),
         None => None,
     }
 }
@@ -881,7 +881,7 @@ pub(crate) const fn unknown_usage() -> Usage {
 }
 
 pub(crate) fn millis(at: Time, origin: Time) -> u64 {
-    at.saturating_since(origin).as_nanos() / 1_000_000
+    at.saturating_since(origin).as_millis()
 }
 
 fn stop_kind(stop: llm::Stop) -> Stop {
@@ -909,12 +909,12 @@ pub(crate) fn completion_failure(failure: llm::Failure, evidence: llm::Evidence)
         }
         llm::Failure::SignedOut | llm::Failure::Unauthorized => (smith_events::FailureClass::Unauthorized, None),
         llm::Failure::RateLimited { retry_after } => {
-            (smith_events::FailureClass::RateLimited, Some(retry_after.as_nanos() / 1_000_000))
+            (smith_events::FailureClass::RateLimited, Some(retry_after.as_millis()))
         }
         llm::Failure::Exhausted { retry_after } => (
             smith_events::FailureClass::Exhausted,
             match retry_after {
-                Some(reset) => Some(reset.as_nanos() / 1_000_000),
+                Some(reset) => Some(reset.as_millis()),
                 None => None,
             },
         ),

@@ -110,7 +110,7 @@ pub(super) fn domain_request(service: &mut Service, request: domain::Request) {
         }
         domain::Request::Answer { to, answer, read, detail } => {
             crate::terminal::remember(service, &answer, detail, service.domain_env.now);
-            assert!(to.into_token() == Token::new(1), "one Start reply right per process");
+            assert!(to.into_token() == super::START_REPLY, "one Start reply right per process");
             if let Some(events) = &mut service.events {
                 events.answer(service.domain_env.now, service.run_started, &answer, read);
             }
@@ -361,7 +361,7 @@ fn account_notice(
                 run: None,
                 account: Some(account),
                 reset_ms: match reset {
-                    Some(reset) => Some(reset.as_nanos() / 1_000_000),
+                    Some(reset) => Some(reset.as_millis()),
                     None => None,
                 },
                 code,

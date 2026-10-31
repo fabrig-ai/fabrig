@@ -459,8 +459,8 @@ fn observed_transport_values_survive_each_terminal_and_absent_fields_stay_unknow
             assert_eq!(records.len(), 1);
             assert_eq!(response.outcome, outcome);
             assert_eq!(response.request_bytes, measures.request_bytes);
-            assert_eq!(response.first_byte_ms, measures.first_byte.map(|duration| duration.as_nanos() / 1_000_000));
-            assert_eq!(response.largest_gap_ms, measures.largest_gap.map(|duration| duration.as_nanos() / 1_000_000));
+            assert_eq!(response.first_byte_ms, measures.first_byte.map(|duration| duration.as_millis()));
+            assert_eq!(response.largest_gap_ms, measures.largest_gap.map(|duration| duration.as_millis()));
         }
     }
 }
