@@ -5,10 +5,10 @@ JournalRoom 0
 takes 0
 worst_case 0
 # The component kit's counts (component-kit.md, 4).
-io_resume 39
-earliest_helper 4
-lifecycle_enum 3
+io_resume 8
+earliest_helper 1
+lifecycle_enum 1
 growth_floor 1
-pop_loop 24
-hex_decimal_fn 26
-host_forwarder 11
+pop_loop 0
+hex_decimal_fn 6
+host_forwarder 4
