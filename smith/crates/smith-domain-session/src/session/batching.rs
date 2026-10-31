@@ -132,7 +132,7 @@ pub(super) fn invalid_slot(tools: &mut Tools, block: &Block, call: &[u8], proble
 /// End remaining polls only after the batch's other work has answered.
 pub(super) fn end_waits(
     conversation: &Conversation,
-    calls: &mut super::Calls,
+    calls: &mut super::ToolCalls,
     tools: &Tools,
     env: &skein_lib::Env<super::Limits>,
     out: &mut skein_lib::Queue<super::Request>,
@@ -148,7 +148,7 @@ pub(super) fn end_waits(
                     return;
                 }
             }
-            Slot::Done { .. } | Slot::Withheld => {}
+            Slot::Done { .. } | Slot::Unstarted | Slot::Withheld => {}
         }
     }
     for slot in &tools.slots {
@@ -158,7 +158,7 @@ pub(super) fn end_waits(
                 let heard = super::tools_step(calls, env, event, out);
                 assert!(heard.kit.is_none() && heard.answer.is_none(), "ending a wait owns no answer right");
             }
-            Slot::Done { .. } | Slot::Withheld => {}
+            Slot::Done { .. } | Slot::Unstarted | Slot::Withheld => {}
         }
     }
 }

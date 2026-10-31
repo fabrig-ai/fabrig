@@ -8,25 +8,28 @@ use core::mem::{self, size_of};
 use skein_lib::{List, Queue, Writer};
 
 use super::{Conversation, End, Limits, Request, content_cost, payload_cost, release_provider, spec_cost};
-use crate::llm::{Block, Cap, Evidence, Failure, Limit, Message, Role, Stop, Usage};
-use crate::window::{self, Admission, Stage, Tokens, Window};
+use crate::llm::{Block, Evidence, Failure, Limit, Message, Role, Stop, Usage};
+use crate::window::{self, Admission, Bytes, State as WindowState, Window};
 
 /// Opener text waits beside the old history until its new window opens.
 #[derive(Debug)]
 pub(super) enum Compaction {
     Idle,
     /// A restored foreign window awaits compaction on the charter's LLM.
-    CarryOver,
+    CarryOver {
+        next: Option<crate::record::Llm>,
+    },
     Asking {
         held: List<Box<[u8]>>,
         announced: bool,
+        next: Option<crate::record::Llm>,
     },
 }
 
 impl Compaction {
     pub(super) const fn asking(&self) -> bool {
         match self {
-            Self::Idle | Self::CarryOver => false,
+            Self::Idle | Self::CarryOver { .. } => false,
             Self::Asking { .. } => true,
         }
     }
@@ -39,8 +42,8 @@ pub(super) fn change_model(conversation: &mut Conversation, llm: crate::record::
         None => 0,
     };
     if llm.model.is_empty()
-        || llm.model.len() > 128
-        || effort_bytes > 32
+        || llm.model.len() > crate::llm::MODEL_BYTES
+        || effort_bytes > crate::llm::EFFORT_BYTES
         || llm.window == 0
         || llm.output == 0
         || llm.prices.unit == 0
@@ -57,27 +60,31 @@ pub(super) fn change_model(conversation: &mut Conversation, llm: crate::record::
     if !super::charge(conversation, cost, limits) {
         return Some(End::TranscriptRefused { reason: crate::record::Refusal::TooLarge });
     }
-    conversation.next_llm = Some(crate::record::Llm {
+    let next = crate::record::Llm {
         effort: mem::replace(&mut conversation.effort, llm.effort),
         model: mem::replace(&mut conversation.model, llm.model),
         window: mem::replace(&mut conversation.model_window, llm.window),
         output: mem::replace(&mut conversation.output, llm.output),
-        prices: mem::replace(&mut conversation.recording.prices, llm.prices),
-    });
-    conversation.window.stage = Stage::Used;
+        prices: mem::replace(&mut conversation.spending.prices, llm.prices),
+    };
+    conversation.compaction = match mem::replace(&mut conversation.compaction, Compaction::Idle) {
+        Compaction::Idle | Compaction::CarryOver { .. } => Compaction::CarryOver { next: Some(next) },
+        Compaction::Asking { .. } => unreachable!("the opening chooses its model before asking"),
+    };
+    conversation.window.stage = WindowState::Used;
     conversation.window.following = conversation.transcript.len().saturating_sub(1);
     None
 }
 
 pub(super) fn due(conversation: &mut Conversation, limits: &Limits) -> bool {
     let carried = match conversation.compaction {
-        Compaction::CarryOver => true,
+        Compaction::CarryOver { .. } => true,
         Compaction::Idle | Compaction::Asking { .. } => false,
     };
-    if conversation.next_llm.is_some() || carried {
+    if carried {
         return true;
     }
-    conversation.window.appended = Tokens(appended_bytes(conversation).unwrap_or(u64::MAX));
+    conversation.window.appended = Bytes(appended_bytes(conversation).unwrap_or(u64::MAX));
     match prompt_bytes(conversation) {
         Some(bytes) => {
             window::check(
@@ -149,9 +156,11 @@ pub(super) fn start(
     attempts: u32,
 ) -> Option<End> {
     match conversation.window.stage {
-        Stage::Fresh => return Some(window_limit(conversation, evidence, attempts)),
-        Stage::Used if conversation.compaction.asking() => return Some(window_limit(conversation, evidence, attempts)),
-        Stage::Used => {}
+        WindowState::Fresh => return Some(window_limit(conversation, evidence, attempts)),
+        WindowState::Used if conversation.compaction.asking() => {
+            return Some(window_limit(conversation, evidence, attempts));
+        }
+        WindowState::Used => {}
     }
     super::builtin::forget(conversation);
     let mut blocks = 0_u32;
@@ -198,7 +207,11 @@ pub(super) fn start(
     let text = mem::replace(&mut conversation.summary, Box::new([]));
     let content: Box<[Block]> = Box::new([Block::Text { text, replay: None }]);
     conversation.transcript.push(Message { role: Role::User, content }).expect("summary message slot checked");
-    conversation.compaction = Compaction::Asking { held, announced: false };
+    conversation.compaction = match mem::replace(&mut conversation.compaction, Compaction::Idle) {
+        Compaction::Idle => Compaction::Asking { held, announced: false, next: None },
+        Compaction::CarryOver { next } => Compaction::Asking { held, announced: false, next },
+        Compaction::Asking { .. } => unreachable!("a window compacts once"),
+    };
     None
 }
 
@@ -214,10 +227,10 @@ pub(super) fn open_window(
     let Some(number) = conversation.window.number.checked_add(1) else {
         return Some(super::history::sequence_limit());
     };
-    let asking = Compaction::Asking { held: List::with_capacity(0), announced: true };
-    let held = match mem::replace(&mut conversation.compaction, asking) {
-        Compaction::Asking { held, .. } => held,
-        Compaction::Idle | Compaction::CarryOver => unreachable!("a summary answers a compaction"),
+    let asking = Compaction::Asking { held: List::with_capacity(0), announced: true, next: None };
+    let (held, next) = match mem::replace(&mut conversation.compaction, asking) {
+        Compaction::Asking { held, next, .. } => (held, next),
+        Compaction::Idle | Compaction::CarryOver { .. } => unreachable!("a summary answers a compaction"),
     };
     let count = held.len().checked_add(3).expect("held offer plus task, preamble and summary fits u32");
     let summary_bytes = u64::try_from(text.len()).expect("bounded summary bytes");
@@ -237,12 +250,12 @@ pub(super) fn open_window(
             unreachable!("a compaction asks with the summary text last")
         }
     };
-    if let Some(llm) = conversation.next_llm.take() {
+    if let Some(llm) = next {
         conversation.model = llm.model;
         conversation.effort = llm.effort;
         conversation.model_window = llm.window;
         conversation.output = llm.output;
-        conversation.recording.prices = llm.prices;
+        conversation.spending.prices = llm.prices;
     }
     let Some(bytes) = new_bytes(conversation, &content) else {
         return Some(super::history::limit(limits.history_bytes));
@@ -260,7 +273,7 @@ pub(super) fn open_window(
     conversation.bytes = bytes;
     conversation.window = Window::fresh(number, usage.output_tokens.unwrap_or(u64::from(conversation.output)));
     conversation.window.summary_bytes = summary_bytes;
-    conversation.recording.told = 0;
+    conversation.cursor.told = 0;
     super::tell_turn(conversation, out)
 }
 
@@ -283,28 +296,6 @@ fn new_bytes(conversation: &Conversation, content: &[Block]) -> Option<u64> {
         })
 }
 
-pub(super) fn context_failure(failure: Failure) -> bool {
-    match failure {
-        Failure::ContextTooLong | Failure::Limit { which: Limit::Path(Cap::Request), .. } => true,
-        Failure::Limit { .. }
-        | Failure::ApplicationLimit
-        | Failure::Protocol
-        | Failure::Cancelled
-        | Failure::Overloaded
-        | Failure::RateLimited { .. }
-        | Failure::Unavailable
-        | Failure::TimedOut { .. }
-        | Failure::Refused
-        | Failure::SignedOut
-        | Failure::Program { .. }
-        | Failure::SessionGone
-        | Failure::Unsupported
-        | Failure::Invalid
-        | Failure::Unauthorized
-        | Failure::Exhausted { .. } => false,
-    }
-}
-
 pub(super) fn answered(
     conversation: &mut Conversation,
     id: skein_lib::Id<super::Session>,
@@ -314,7 +305,7 @@ pub(super) fn answered(
 ) -> super::State {
     match accept(conversation, completion, &env.limits, out) {
         Some(end) => super::finish(end),
-        None => super::call(conversation, id, 0, env, out),
+        None => super::ask(conversation, id, 0, env, out),
     }
 }
 
@@ -398,7 +389,7 @@ fn summary_text(content: &[Block]) -> Box<[u8]> {
     written.finish()
 }
 
-pub(super) fn tell(conversation: &mut Conversation, facts: &mut crate::facts::Facts, request: &Request) {
+pub(super) fn follow(conversation: &mut Conversation, facts: &mut crate::facts::Facts, request: &Request) {
     let opener = conversation.opener;
     match request {
         Request::Complete { .. } => match &mut conversation.compaction {
@@ -413,7 +404,7 @@ pub(super) fn tell(conversation: &mut Conversation, facts: &mut crate::facts::Fa
                     conversation.effort.as_deref(),
                 ));
             }
-            Compaction::Asking { .. } | Compaction::Idle | Compaction::CarryOver => {}
+            Compaction::Asking { .. } | Compaction::Idle | Compaction::CarryOver { .. } => {}
         },
         Request::Turn { turn, .. } => match turn.kind {
             crate::record::Kind::Window(_) => facts.push(crate::FactKind::CompactionEnded {
@@ -521,7 +512,7 @@ pub(super) fn carry_over(
         Kind::Ordinary => unreachable!("validated opening kind"),
     };
     if transcript.endpoint == Some(conversation.endpoint)
-        && transcript.dialect == conversation.recording.dialect
+        && transcript.dialect == conversation.cursor.dialect
         && same_opening
     {
         return Ok(0);
@@ -534,9 +525,9 @@ pub(super) fn carry_over(
             released = released.checked_add(portable_message(message)?).ok_or(Refusal::TooLarge)?;
         }
     }
-    conversation.window.stage = Stage::Used;
+    conversation.window.stage = WindowState::Used;
     conversation.window.following = messages;
-    conversation.compaction = Compaction::CarryOver;
+    conversation.compaction = Compaction::CarryOver { next: None };
     Ok(released)
 }
 
@@ -597,8 +588,8 @@ pub(super) fn session_gone(conversation: &mut Conversation) -> Option<End> {
             released.checked_add(portable_message(message).expect("admitted portable content")).expect("history");
     }
     conversation.bytes = conversation.bytes.checked_sub(released).expect("portable history releases its bytes");
-    conversation.window.stage = Stage::Used;
+    conversation.window.stage = WindowState::Used;
     conversation.window.following = messages;
-    conversation.compaction = Compaction::CarryOver;
+    conversation.compaction = Compaction::CarryOver { next: None };
     None
 }

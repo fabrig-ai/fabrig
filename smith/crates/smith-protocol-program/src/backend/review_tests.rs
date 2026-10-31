@@ -139,7 +139,7 @@ fn a_silent_completion_obeys_its_head_deadline() {
     backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
     backend.fire(&env(1), &mut up, &mut below);
     let Some(ToDomain::Failed { failure, .. }) = up.pop() else { panic!("head deadline") };
-    assert_eq!(failure, llm::Failure::TimedOut { phase: llm::Phase::Head });
+    assert_eq!(failure, llm::Failure::TimedOut { phase: llm::CompletionPhase::Head });
 }
 #[test]
 fn an_incomplete_message_obeys_its_idle_deadline() {
@@ -155,7 +155,7 @@ fn an_incomplete_message_obeys_its_idle_deadline() {
     );
     backend.fire(&env(1), &mut up, &mut below);
     let Some(ToDomain::Failed { failure, .. }) = up.pop() else { panic!("idle deadline") };
-    assert_eq!(failure, llm::Failure::TimedOut { phase: llm::Phase::Idle });
+    assert_eq!(failure, llm::Failure::TimedOut { phase: llm::CompletionPhase::Idle });
 }
 #[test]
 fn a_text_message_without_result_obeys_its_idle_deadline() {
@@ -166,7 +166,7 @@ fn a_text_message_without_result_obeys_its_idle_deadline() {
     feed(&mut backend, text(), &mut up, &mut below);
     backend.fire(&env(1), &mut up, &mut below);
     let Some(ToDomain::Failed { failure, .. }) = up.pop() else { panic!("idle terminal") };
-    assert_eq!(failure, llm::Failure::TimedOut { phase: llm::Phase::Idle });
+    assert_eq!(failure, llm::Failure::TimedOut { phase: llm::CompletionPhase::Idle });
 }
 
 pub(super) fn connect_server(backend: &mut Backend) {
@@ -348,7 +348,7 @@ fn stdout_progress_replaces_the_head_with_an_idle_deadline() {
     assert!(up.is_empty());
     backend.fire(&env(4), &mut up, &mut below);
     let Some(ToDomain::Failed { failure, .. }) = up.pop() else { panic!("idle terminal") };
-    assert_eq!(failure, llm::Failure::TimedOut { phase: llm::Phase::Idle });
+    assert_eq!(failure, llm::Failure::TimedOut { phase: llm::CompletionPhase::Idle });
 }
 
 #[test]
@@ -507,7 +507,7 @@ fn bytes_after_init_in_the_same_read_start_the_idle_deadline() {
     assert!(up.is_empty());
     backend.fire(&env(2), &mut up, &mut below);
     let Some(ToDomain::Failed { failure, .. }) = up.pop() else { panic!("idle failure") };
-    assert_eq!(failure, llm::Failure::TimedOut { phase: llm::Phase::Idle });
+    assert_eq!(failure, llm::Failure::TimedOut { phase: llm::CompletionPhase::Idle });
 }
 
 fn finish_verdict(backend: &mut Backend, id: &[u8], text: &[u8], error: bool, below: &mut Queue<Below>) {

@@ -44,9 +44,9 @@ impl World {
         let call = self.wire.name();
         let head = self.now.saturating_add(deadlines.head);
         let phase = if deadlines.whole <= head {
-            smith_domain_session::llm::Phase::Whole
+            smith_domain_session::llm::CompletionPhase::Whole
         } else {
-            smith_domain_session::llm::Phase::Head
+            smith_domain_session::llm::CompletionPhase::Head
         };
         let deadline = self.schedule(deadlines.whole.min(head), Delivery::Deadline { call, phase });
         let opener = *self.openers.get(&owner).expect("a session calls the LLM while it lives");

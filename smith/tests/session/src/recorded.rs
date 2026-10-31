@@ -63,7 +63,7 @@ pub fn opening(transcript: Option<record::Transcript>, budget: u64) -> record::O
 }
 
 /// Real domain plus scripted typed peers, pending terminals and external observations for this component story.
-pub struct World {
+pub struct Scripted {
     /// Real session state under test, advanced only through its declared boundary.
     pub domain: session::Domain,
     /// Injected monotonic and wall times together with immutable session limits.
@@ -118,15 +118,15 @@ pub struct World {
     pub trace: Vec<String>,
 }
 
-impl World {
+impl Scripted {
     /// Constructs empty bounded state under the supplied immutable limits; no IO or clocks are consulted.
     #[must_use]
-    pub fn new(seed: u64) -> World {
+    pub fn new(seed: u64) -> Scripted {
         let mut limits = crate::Settings::calm(seed).agent;
         limits.sessions = 1;
         limits.spend = u64::MAX;
         limits.history_messages = 32;
-        World {
+        Scripted {
             domain: session::Domain::new(&limits, seed),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
@@ -388,8 +388,8 @@ pub fn called() -> Box<[llm::Block]> {
 
 /// Runs the fixed concrete transcript story and returns its external observations.
 #[must_use]
-pub fn scenario(seed: u64) -> World {
-    let mut world = World::new(seed);
+pub fn scenario(seed: u64) -> Scripted {
+    let mut world = Scripted::new(seed);
     world.open(opening(None, 100));
     world.complete(called(), llm::Stop::ToolUse, USAGE);
     assert!(world.turns.is_empty(), "the turn waits for its tool results");
@@ -424,7 +424,7 @@ pub fn scenario(seed: u64) -> World {
 
 /// Copies the settled concrete turns into a replayable transcript.
 #[must_use]
-pub fn transcript(world: &World) -> record::Transcript {
+pub fn transcript(world: &Scripted) -> record::Transcript {
     record::Transcript {
         version: record::VERSION,
         endpoint: Some(llm::Endpoint(7)),

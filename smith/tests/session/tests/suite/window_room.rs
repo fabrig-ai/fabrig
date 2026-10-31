@@ -1,10 +1,14 @@
 //! Startup-derived fresh windows through the real session boundary.
 //! Contract: smith/docs/design/protocol/limits.md, sections 3.2, 3.9 and 4.
 
+use smith_session_world::said;
+
+use smith_session_world::bytes;
+
 use skein_lib::{Duration, Queue};
 use smith_agent_service::profile::{self, Configuration, Endpoint, Model, OversizedReasoning};
 use smith_domain_session::{self as session, llm};
-use smith_session_world::recorded::{World, opening};
+use smith_session_world::recorded::{Scripted, opening};
 
 #[test]
 fn a_window_opened_at_its_largest_makes_its_first_completion() {
@@ -26,7 +30,7 @@ fn a_window_opened_at_its_largest_makes_its_first_completion() {
                 handshake: Duration::from_secs(1),
                 models: Box::new([Model {
                     efforts: Box::new([]),
-                    name: b"model".as_slice().into(),
+                    name: bytes(b"model"),
                     window,
                     output: 512,
                     reasoning_item: 64,
@@ -48,7 +52,7 @@ fn a_window_opened_at_its_largest_makes_its_first_completion() {
         let own = profile::room::own_part(&limits.domain.session.tools, client.input, framing)
             .expect("measured fixed own part");
         let parts = profile::room::room(&profile, &declarations, own, 0).expect("fresh room");
-        let mut world = World::new(4606 + u64::from(window));
+        let mut world = Scripted::new(4606 + u64::from(window));
         world.env.limits = limits.domain.session;
         world.domain = session::Domain::new(&world.env.limits, 4606 + u64::from(window));
         world.out = Queue::uncapped();
@@ -68,15 +72,11 @@ fn a_window_opened_at_its_largest_makes_its_first_completion() {
         assert!(world.completing.is_some(), "largest fresh window admitted: {:?}", world.end);
         let sent = world.prompts.last().expect("the provider receives its first request");
         assert!(sent.input_bytes().expect("bounded input") < world.env.limits.history_bytes);
-        world.complete(
-            Box::new([llm::Block::Text { text: b"done".as_slice().into(), replay: None }]),
-            llm::Stop::EndTurn,
-            llm::Usage::ZERO,
-        );
+        world.complete(said(b"done"), llm::Stop::EndTurn, llm::Usage::ZERO);
         assert_eq!(world.turns.len(), 1, "the completion produces a real transcript turn");
         world.close();
 
-        let mut final_world = World::new(4611 + u64::from(window));
+        let mut final_world = Scripted::new(4611 + u64::from(window));
         final_world.env.limits = limits.domain.session;
         final_world.domain = session::Domain::new(&final_world.env.limits, 4611 + u64::from(window));
         final_world.out = Queue::uncapped();
@@ -85,7 +85,7 @@ fn a_window_opened_at_its_largest_makes_its_first_completion() {
         final_start.spec.budget.turns = 1;
         final_start.spec.window = window;
         final_start.spec.final_turn =
-            Some(session::FinalTurn { note: b"Answer now.".as_slice().into(), allowance: Duration::from_secs(1) });
+            Some(session::FinalTurn { note: bytes(b"Answer now."), allowance: Duration::from_secs(1) });
         final_world.open(final_start);
         final_world.complete(smith_session_world::recorded::called(), llm::Stop::ToolUse, llm::Usage::ZERO);
         final_world.resume();
@@ -94,7 +94,7 @@ fn a_window_opened_at_its_largest_makes_its_first_completion() {
         let mut names = skein_lib::List::with_capacity(1);
         names
             .push(smith_protocol_translate::Endpoint {
-                name: b"model-endpoint".as_slice().into(),
+                name: bytes(b"model-endpoint"),
                 number: turn.endpoint.expect("named endpoint").0,
                 dialect: turn.dialect,
             })

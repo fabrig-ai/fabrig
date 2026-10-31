@@ -255,7 +255,7 @@ fn an_accepted_init_uses_the_completion_head_deadline() {
     assert_eq!(backend.next_deadline(), Some(env(2).now));
     backend.fire(&env(2), &mut up, &mut below);
     let Some(ToDomain::Failed { failure, .. }) = up.pop() else { panic!("completion head deadline") };
-    assert_eq!(failure, llm::Failure::TimedOut { phase: llm::Phase::Head });
+    assert_eq!(failure, llm::Failure::TimedOut { phase: llm::CompletionPhase::Head });
     assert_eq!(backend.phase, Phase::Running);
     assert!(backend.switching, "stops the expired invocation while retaining retry storage");
     assert!(backend.stop == stop::Stop::Closing);

@@ -926,7 +926,10 @@ fn skein_failures_map_to_the_sessions_classes() {
         ),
         (Source::Protocol, Failure::Protocol),
         (Source::Cancelled, Failure::Cancelled),
-        (Source::TimedOut { phase: Phase::Head }, Failure::TimedOut { phase: smith_domain::llm::Phase::Head }),
+        (
+            Source::TimedOut { phase: Phase::Head },
+            Failure::TimedOut { phase: smith_domain::llm::CompletionPhase::Head },
+        ),
     ] {
         assert_eq!(crate::failure::class(source), expected, "{source:?}");
     }

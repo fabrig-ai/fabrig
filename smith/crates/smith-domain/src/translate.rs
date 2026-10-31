@@ -410,13 +410,13 @@ const fn completion_cap(cap: llm::Cap) -> run::Cap {
     }
 }
 
-const fn completion_phase(phase: llm::Phase) -> run::Phase {
+const fn completion_phase(phase: llm::CompletionPhase) -> run::Phase {
     match phase {
-        llm::Phase::Connect => run::Phase::Connect,
-        llm::Phase::Handshake => run::Phase::Handshake,
-        llm::Phase::Head => run::Phase::Head,
-        llm::Phase::Idle => run::Phase::Idle,
-        llm::Phase::Whole => run::Phase::Whole,
+        llm::CompletionPhase::Connect => run::Phase::Connect,
+        llm::CompletionPhase::Handshake => run::Phase::Handshake,
+        llm::CompletionPhase::Head => run::Phase::Head,
+        llm::CompletionPhase::Idle => run::Phase::Idle,
+        llm::CompletionPhase::Whole => run::Phase::Whole,
     }
 }
 

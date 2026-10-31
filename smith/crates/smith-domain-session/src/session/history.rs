@@ -4,7 +4,7 @@
 
 use super::{Conversation, End, Limits, Request, Session, State, compaction};
 use crate::llm::{Block, Cap, Decoded, Evidence, Failure, Limit, Message, NotRun, Returned, Role};
-use crate::window::Stage;
+use crate::window::State as WindowState;
 use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_lib::{Decimal, Env, Id, List, Queue, Writer};
@@ -80,9 +80,9 @@ fn wanted_bytes(conversation: &Conversation, limits: &Limits, summary: bool) -> 
 
 pub(super) fn start(conversation: &mut Conversation, limits: &Limits, bound: u64) -> Option<End> {
     match conversation.window.stage {
-        Stage::Fresh => Some(limit(bound)),
-        Stage::Used if conversation.compaction.asking() => Some(limit(bound)),
-        Stage::Used => compaction::start(conversation, limits, Evidence::Unsent, 0),
+        WindowState::Fresh => Some(limit(bound)),
+        WindowState::Used if conversation.compaction.asking() => Some(limit(bound)),
+        WindowState::Used => compaction::start(conversation, limits, Evidence::Unsent, 0),
     }
 }
 
@@ -94,7 +94,7 @@ pub(super) fn hold_note(conversation: &mut Conversation, text: Box<[u8]>, limits
     }
     match &mut conversation.compaction {
         compaction::Compaction::Asking { held, .. } => held.push(text).expect("one held offer beyond old history"),
-        compaction::Compaction::Idle | compaction::Compaction::CarryOver => {
+        compaction::Compaction::Idle | compaction::Compaction::CarryOver { .. } => {
             unreachable!("successful history trigger asks for a summary")
         }
     }
@@ -111,7 +111,7 @@ pub(super) fn continue_held(
     owe_stopped_calls(conversation);
     match hold_note(conversation, text, &env.limits) {
         Some(end) => super::finish(end),
-        None => super::call(conversation, id, 0, env, out),
+        None => super::ask(conversation, id, 0, env, out),
     }
 }
 

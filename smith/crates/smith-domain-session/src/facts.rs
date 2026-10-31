@@ -55,11 +55,11 @@ pub enum FactKind {
     CompactionStarted {
         opener: Token,
         window: u32,
-        model: [u8; 128],
+        model: [u8; crate::llm::MODEL_BYTES],
         model_bytes: u32,
         model_window: u32,
         output: u32,
-        effort: Option<([u8; 32], u32)>,
+        effort: Option<([u8; crate::llm::EFFORT_BYTES], u32)>,
     },
     /// The one compaction of this window has settled.
     CompactionEnded { opener: Token, window: u32, end: Compacted },
@@ -247,14 +247,14 @@ impl FactKind {
         output: u32,
         effort: Option<&[u8]>,
     ) -> Self {
-        let mut name = [0; 128];
+        let mut name = [0; crate::llm::MODEL_BYTES];
         assert!(model.len() <= name.len(), "admitted model name");
         for (slot, byte) in name.iter_mut().zip(model) {
             *slot = *byte;
         }
         let effort = match effort {
             Some(value) => {
-                let mut bytes = [0; 32];
+                let mut bytes = [0; crate::llm::EFFORT_BYTES];
                 assert!(value.len() <= bytes.len(), "admitted effort name");
                 for (slot, byte) in bytes.iter_mut().zip(value) {
                     *slot = *byte;

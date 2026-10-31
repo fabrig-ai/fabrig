@@ -59,7 +59,7 @@ pub fn seed(checkout: &mut Checkout, at: &[u8]) -> u64 {
 
 /// Whether `text` holds `pattern` whole.
 fn holds(text: &[u8], pattern: &[u8]) -> bool {
-    text.windows(pattern.len()).any(|window| window == pattern)
+    skein_lib::bytes::find(text, pattern).is_some()
 }
 
 /// Where `path` is, relative to the working directory at the repository's
@@ -143,4 +143,16 @@ pub fn fits(call: &Call, outcome: &Outcome) -> bool {
         (Call::Remove { .. } | Call::Write { .. } | Call::Edit { .. }, Outcome::NotRead | Outcome::Stale) => true,
         _ => false,
     }
+}
+
+/// Owned bytes supplied by a scripted neighbour.
+#[must_use]
+pub fn bytes(text: &[u8]) -> Box<[u8]> {
+    text.into()
+}
+
+/// One ordinary provider text block, without an opaque replay envelope.
+#[must_use]
+pub fn said(text: &[u8]) -> Box<[smith_domain_session::llm::Block]> {
+    Box::new([smith_domain_session::llm::Block::Text { text: bytes(text), replay: None }])
 }

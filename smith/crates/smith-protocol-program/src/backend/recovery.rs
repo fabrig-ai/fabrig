@@ -13,8 +13,11 @@ pub(super) fn restartable(failure: llm::Failure) -> bool {
         | llm::Failure::RateLimited { .. }
         | llm::Failure::Unauthorized => true,
         llm::Failure::TimedOut { phase } => match phase {
-            llm::Phase::Connect | llm::Phase::Handshake | llm::Phase::Head | llm::Phase::Idle => true,
-            llm::Phase::Whole => false,
+            llm::CompletionPhase::Connect
+            | llm::CompletionPhase::Handshake
+            | llm::CompletionPhase::Head
+            | llm::CompletionPhase::Idle => true,
+            llm::CompletionPhase::Whole => false,
         },
         llm::Failure::Limit { .. }
         | llm::Failure::ApplicationLimit

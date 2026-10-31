@@ -16,6 +16,12 @@ use alloc::boxed::Box;
 use skein_lib::{Duration, Token};
 use smith_domain_tools as tools;
 
+/// Longest provider model name retained in session observations.
+pub(crate) const MODEL_BYTES: usize = 128;
+
+/// Longest reasoning effort name retained in session observations.
+pub(crate) const EFFORT_BYTES: usize = 32;
+
 /// A provider endpoint the protocol layer is configured with: which provider,
 /// where, with which credentials. The domain only names it.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -166,7 +172,7 @@ pub enum ToolChoice {
 }
 
 /// A tool the opener serves, which the prompt offers the LLM: `ticket` names
-/// it, and its schema is the opener's. Calls to it read or write as `effect`
+/// it, and its schema is the opener's. Tool calls to it read or write as `effect`
 /// says, and are scheduled so.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Descriptor {
@@ -455,7 +461,7 @@ pub enum Evidence {
 /// The protocol's elapsed call phase, carried losslessly in timeout terminals
 /// (smith/docs/design/protocol/llm.md, sections 6 and 10).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Phase {
+pub enum CompletionPhase {
     /// The connection's socket admission deadline.
     Connect,
     /// The connection's TLS handshake deadline.
@@ -517,7 +523,7 @@ pub enum Failure {
     /// HTTP 500). Transient.
     Unavailable,
     /// A phase deadline ended the call; only the whole phase ends the session's time without retry.
-    TimedOut { phase: Phase },
+    TimedOut { phase: CompletionPhase },
     /// The conversation does not fit the model's context window.
     ContextTooLong,
     /// The provider rejected the call as malformed or unsupported (HTTP 400,

@@ -7,7 +7,7 @@ const CODEX_OUTPUT: u32 = 32_000;
 
 #[test]
 fn the_check_reserves_no_output_below_the_threshold() {
-    use crate::window::{Admission, Tokens, Window, check};
+    use crate::window::{Admission, Bytes, Window, check};
     const PROMPT: u64 = 217_000;
     const LAST_OUTPUT: u64 = 224;
     const APPENDED_BYTES: u64 = 376;
@@ -18,13 +18,13 @@ fn the_check_reserves_no_output_below_the_threshold() {
         2,
         PROMPT,
     );
-    window.appended = Tokens(APPENDED_BYTES);
+    window.appended = Bytes(APPENDED_BYTES);
     assert_eq!(check(&window, 0, 0, LIMITS.token_bytes, CODEX_WINDOW, [4, 5]), Admission::Fits);
 }
 
 #[test]
 fn appended_bytes_count_at_the_windows_measured_ratio() {
-    use crate::window::{Tokens, Window, bound};
+    use crate::window::{Bytes, Window, bound};
     const PROMPT: u64 = 152_588;
     const OUTPUT: u64 = 224;
     const APPENDED: u64 = 34_469;
@@ -36,14 +36,14 @@ fn appended_bytes_count_at_the_windows_measured_ratio() {
         2,
         PROMPT_BYTES,
     );
-    window.appended = Tokens(APPENDED);
+    window.appended = Bytes(APPENDED);
     // PROMPT + OUTPUT + ceil(APPENDED / 3.5).
     assert_eq!(bound(&window, 0, 0, LIMITS.token_bytes), Some(162_661));
 }
 
 #[test]
 fn a_ratio_below_one_byte_a_token_is_taken_at_one() {
-    use crate::window::{Tokens, Window, bound};
+    use crate::window::{Bytes, Window, bound};
     const PROMPT: u64 = 200;
     const OUTPUT: u64 = 10;
     const PROMPT_BYTES: u64 = 100;
@@ -55,13 +55,13 @@ fn a_ratio_below_one_byte_a_token_is_taken_at_one() {
         2,
         PROMPT_BYTES,
     );
-    window.appended = Tokens(APPENDED_BYTES);
+    window.appended = Bytes(APPENDED_BYTES);
     assert_eq!(bound(&window, 0, 0, LIMITS.token_bytes), Some(241));
 }
 
 #[test]
 fn a_ratio_above_token_bytes_is_taken_at_token_bytes() {
-    use crate::window::{Tokens, Window, bound};
+    use crate::window::{Bytes, Window, bound};
     const PROMPT: u64 = 100;
     const OUTPUT: u64 = 10;
     const PROMPT_BYTES: u64 = 1_600;
@@ -73,7 +73,7 @@ fn a_ratio_above_token_bytes_is_taken_at_token_bytes() {
         2,
         PROMPT_BYTES,
     );
-    window.appended = Tokens(APPENDED_BYTES);
+    window.appended = Bytes(APPENDED_BYTES);
     // 100 + 10 + ceil(31 / 8).
     assert_eq!(bound(&window, 0, 0, LIMITS.token_bytes), Some(114));
 }
