@@ -207,6 +207,7 @@ fn watch_root((mut domain, env): (Domain, Env<Limits>)) -> (Domain, Env<Limits>)
     use jig_domain_people as people;
     let mut out = Queue::uncapped();
     domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
+    domain.core.people.start_restore(env.wall);
     for record in [
         people::Stored::Person {
             number: 1,
@@ -229,12 +230,10 @@ fn watch_root((mut domain, env): (Domain, Env<Limits>)) -> (Domain, Env<Limits>)
             &mut out,
         );
     }
-    people::step(
-        &mut domain.core.people,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-        people::Event::Restored,
-        &mut out,
-    );
+    let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.people };
+    assert!(domain.core.people.start_link(&people_env));
+    domain.core.people.start_sweep();
+    assert!(domain.core.people.start_complete(&people_env));
     crate::try_step(
         &mut domain,
         &env,

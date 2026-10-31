@@ -2,7 +2,7 @@
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_people as people;
-use skein_lib::{Duration, Env, Map, ReplyTo, Time, Token, Wall};
+use skein_lib::{Duration, Env, Map, Queue, ReplyTo, Time, Token, Wall};
 
 /// The one configured model, which the charter names.
 fn model() -> core::Model {
@@ -118,7 +118,20 @@ pub fn signed_small_core() -> (core::Core, Env<core::Limits>, u64) {
         limits: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core,
     };
     let mut core = core::Core::new(configuration(&env.limits), &env.limits).expect("fixture core configuration");
-    drop(core::step(&mut core, &env, core::Event::People(people::Event::Restored)));
+    let mut action = core.start_begin(false, env.wall);
+    let mut start_out = Queue::uncapped();
+    for _ in 0..32 {
+        action = match action {
+            core::start::Action::Step(core::start::Phase::Sweep) => {
+                core.start_sweep(&env, core::start::SweepInput::Finished, &mut start_out)
+            }
+            core::start::Action::Step(phase) => core.start_done(&env, phase, &mut start_out),
+            core::start::Action::Commit(token) => core.start_resume(&env, token, &mut start_out),
+            core::start::Action::Idle => break,
+            core::start::Action::Refused(failure) => panic!("fixture start refused: {failure:?}"),
+        };
+    }
+    assert!(core.start_opened());
     let core::Requests::Out(mut out) = core::step(
         &mut core,
         &env,

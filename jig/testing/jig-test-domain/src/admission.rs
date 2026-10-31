@@ -359,6 +359,7 @@ mod expiry_tests {
     fn wall_expiry_is_taken_at_the_watermark() {
         let mut env = fixtures::env();
         let mut domain = fixtures::domain();
+        domain.core.people.start_restore(env.wall);
         let expiry = Wall::from_nanos(10);
         let mut ignored = Queue::uncapped();
         for record in [
@@ -379,12 +380,10 @@ mod expiry_tests {
                 &mut ignored,
             );
         }
-        people::step(
-            &mut domain.core.people,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.core.people },
-            people::Event::Restored,
-            &mut ignored,
-        );
+        let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.core.people };
+        assert!(domain.core.people.start_link(&people_env));
+        domain.core.people.start_sweep();
+        assert!(domain.core.people.start_complete(&people_env));
         assert!(domain.core.people.ready());
         let commits = fixtures::fill_to_watermark(&mut domain, &env);
         for _ in 0..commits {
