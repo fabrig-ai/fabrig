@@ -13,7 +13,6 @@ mod read;
 mod run;
 mod sign_in;
 mod spec;
-mod steps;
 mod upgrade;
 
 #[test]
