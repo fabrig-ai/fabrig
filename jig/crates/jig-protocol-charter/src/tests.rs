@@ -440,11 +440,11 @@ fn service_report_fixture_keeps_its_charter() {
 }
 
 #[test]
-fn temper_report_fixture_keeps_its_charter_and_conventions() {
+fn report_fixture_keeps_its_charter_and_conventions() {
     let value = assignment_fixture(b"Do the task", 128, 40, 8);
     let mut assembled = crate::assignment(value, Box::new([]), Box::new([]), false).expect("report charter");
     let conventions =
-        crate::Conventions { guide: b"AGENTS.md".as_slice().into(), checks: b".temper/pre-pr".as_slice().into() };
+        crate::Conventions { guide: b"AGENTS.md".as_slice().into(), checks: b"scripts/check".as_slice().into() };
     assembled.conventions = Some(conventions.clone());
     let sections: Box<[Section]> =
         Box::new([Section { title: b"Task".as_slice().into(), text: b"Say hello".as_slice().into() }]);

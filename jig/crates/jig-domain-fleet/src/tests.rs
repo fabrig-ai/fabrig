@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Time, Token, Wall};
 
 use crate::{
-    Answer, Assignment, Call, Domain, Event, Fact, Hello, HelloRefusal, HostKind, Hosted, Kinds, Limits, Message,
+    Answer, Assignment, Call, Domain, Event, Fact, Hello, HelloRefusal, HostKind, Hosting, Kinds, Limits, Message,
     Phase, Refusal, Request, Undelivered, Withdrawal, fire, resume, step, valid,
 };
 
@@ -153,7 +153,7 @@ impl Harness {
 
     /// A worker says hello on `channel`, with `slots`, holding `workstreams`
     /// and hosting `hosting`.
-    fn hello(&mut self, channel: Token, slots: u32, workstreams: &[u64], hosting: &[Hosted]) -> Box<[Request]> {
+    fn hello(&mut self, channel: Token, slots: u32, workstreams: &[u64], hosting: &[Hosting]) -> Box<[Request]> {
         let mut keys = List::with_capacity(u32::try_from(workstreams.len()).unwrap());
         for key in workstreams {
             keys.push(*key).unwrap();
@@ -245,8 +245,8 @@ impl Harness {
     }
 }
 
-fn hosted(run: Token, attempt: Token, phase: Phase) -> Hosted {
-    Hosted { run, attempt, phase }
+fn hosted(run: Token, attempt: Token, phase: Phase) -> Hosting {
+    Hosting { run, attempt, phase }
 }
 
 fn answered(attempt: Token, run: Token, answer: Answer, raw: u64) -> Request {

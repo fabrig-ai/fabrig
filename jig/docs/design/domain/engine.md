@@ -95,7 +95,7 @@ jig-domain-core             the core: routing among its children, runs, calls, t
 ├── jig-domain-notes        notes: scopes, entries, indexes
 └── jig-domain-views        parties' watches, level-triggered
 
-jig-domain-workers         shared checked names and worker membership values (root.md, 2)
+jig-domain-link            the link's values, shared by the fleet, the hub and accounts (root.md, 2)
 ```
 
 The tree follows programming-model.md, 4.5: each child domain has its

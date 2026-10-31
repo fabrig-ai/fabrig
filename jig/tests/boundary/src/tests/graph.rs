@@ -47,10 +47,10 @@ fn core_breaches(manifests: &[CrateManifest]) -> Vec<String> {
                 .iter()
                 .filter(|name| {
                     if manifest.name.as_deref() == Some("jig-domain-core") {
-                        !["skein-lib", "jig-domain-workers"].contains(&name.as_str())
+                        !["skein-lib", "jig-domain-link"].contains(&name.as_str())
                             && !CORE_FAMILY.contains(&name.as_str())
                     } else {
-                        !["skein-lib", "jig-domain-workers"].contains(&name.as_str())
+                        !["skein-lib", "jig-domain-link"].contains(&name.as_str())
                     }
                 })
                 .map(|name| format!("{}: {name}", manifest.path.display()))
@@ -67,7 +67,7 @@ fn core_and_children_use_only_the_kit_and_foundation_even_when_empty() {
 }
 
 #[test]
-fn hosts_and_translation_use_no_core_crates_even_when_empty() {
+fn hosts_and_translation_use_only_their_core_vocabularies_even_when_empty() {
     let failures: Vec<_> = manifests()
         .into_iter()
         .filter(|manifest| matches!(manifest.name.as_deref(), Some("jig-domain-host" | "jig-protocol-charter")))
@@ -75,7 +75,12 @@ fn hosts_and_translation_use_no_core_crates_even_when_empty() {
             manifest
                 .dependencies
                 .iter()
-                .filter(|name| CORE_FAMILY.contains(&name.as_str()))
+                .filter(|name| {
+                    CORE_FAMILY.contains(&name.as_str())
+                        // jig/docs/design/domain/hosts.md, 8: assignment translates the run charter and task contract.
+                        && !(manifest.name.as_deref() == Some("jig-protocol-charter")
+                            && ["jig-domain-core", "jig-domain-tasks"].contains(&name.as_str()))
+                })
                 .map(|name| format!("{}: {name}", manifest.path.display()))
                 .collect::<Vec<_>>()
         })
@@ -84,7 +89,7 @@ fn hosts_and_translation_use_no_core_crates_even_when_empty() {
 }
 
 #[test]
-fn host_hub_links_only_skein() {
+fn host_hub_links_only_foundation_and_link_values() {
     let failures: Vec<_> = manifests()
         .into_iter()
         .filter(|manifest| manifest.name.as_deref() == Some("jig-domain-host"))
@@ -92,7 +97,7 @@ fn host_hub_links_only_skein() {
             manifest
                 .dependencies
                 .iter()
-                .filter(|name| name.as_str() != "skein-lib")
+                .filter(|name| !["skein-lib", "jig-domain-link"].contains(&name.as_str()))
                 .map(|name| format!("{}: {name}", manifest.path.display()))
                 .collect::<Vec<_>>()
         })
@@ -751,11 +756,11 @@ fn client_crate_links_only_its_domain_link_and_foundation() {
 }
 
 #[test]
-fn worker_values_have_no_dependencies() {
+fn link_values_depend_on_skein_lib_alone() {
     let crates: Vec<_> =
-        manifests().into_iter().filter(|manifest| manifest.name.as_deref() == Some("jig-domain-workers")).collect();
+        manifests().into_iter().filter(|manifest| manifest.name.as_deref() == Some("jig-domain-link")).collect();
     assert_eq!(crates.len(), 1);
-    assert!(crates[0].dependencies.is_empty());
+    assert_eq!(crates[0].dependencies, ["skein-lib"]);
 }
 
 #[test]

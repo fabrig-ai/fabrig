@@ -153,7 +153,7 @@ fn a_kept_delegate_restarts_then_wakes_and_finishes_after_its_dependency_is_done
             slots: limits.core.fleet.slots,
             workstreams: Box::new([]),
             hosting: [parent, dependency_run]
-                .map(|(task, attempt)| jig_domain_fleet::Hosted {
+                .map(|(task, attempt)| jig_domain_fleet::Hosting {
                     run: Token::new(task),
                     attempt: Token::new(attempt),
                     phase: jig_domain_fleet::Phase::Active,

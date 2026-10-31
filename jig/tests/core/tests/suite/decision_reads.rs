@@ -74,7 +74,7 @@ fn reconnect(world: &mut World, seed: u64) {
         .values()
         .filter_map(|row| match row {
             root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof))) if proof.terminal.is_none() => {
-                Some(fleet::Hosted {
+                Some(fleet::Hosting {
                     run: Token::new(proof.task),
                     attempt: Token::new(proof.attempt),
                     phase: fleet::Phase::Active,

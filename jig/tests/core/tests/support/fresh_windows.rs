@@ -71,7 +71,7 @@ pub fn hello(world: &mut World) {
     hello_hosting(world, Box::new([]));
 }
 
-pub fn hello_hosting(world: &mut World, hosting: Box<[jig_domain_fleet::Hosted]>) {
+pub fn hello_hosting(world: &mut World, hosting: Box<[jig_domain_fleet::Hosting]>) {
     world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
         worker: 0,
         channel: Token::new(7),

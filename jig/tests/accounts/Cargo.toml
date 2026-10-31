@@ -12,7 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
-jig-domain-workers.workspace = true
+jig-domain-link.workspace = true
 skein-lib.workspace = true
 skein-world.workspace = true
 jig-domain-accounts.workspace = true

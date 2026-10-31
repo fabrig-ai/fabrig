@@ -1,28 +1,8 @@
 //! Content-free best-effort activity (domain/hosts.md, section 6.5).
+use crate::{CountKind, Operation};
 use crate::{Domain, LinkUp, Phase, Request};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Queue, Token};
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Operation {
-    Checks,
-    Completion,
-    Command,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum CountKind {
-    Admitted,
-    Ended,
-    LlmStarted,
-    LlmRetried,
-    LlmFinished,
-    ToolStarted,
-    ToolFinished,
-    CheckStarted,
-    CheckFinished,
-    TextArrived,
-}
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Activity {

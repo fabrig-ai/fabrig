@@ -810,7 +810,7 @@ pub fn admission(
 ) {
     use fleet::AgentShortfall;
     let needs = jig_domain_core::fleet_needs::configured(core, &engine.limits.core);
-    let bounds = domain::hello_bounds(agent.bounds.clone());
+    let bounds = agent.bounds.clone();
     let Some(why) = fleet::shortfall(&needs, &bounds, fleet::HostKind::Worker) else { return };
     let engine_path = Path::root().member(b"engine");
     let (path, offered, required) = match why {

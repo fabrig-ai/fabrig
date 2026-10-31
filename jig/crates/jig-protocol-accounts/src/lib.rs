@@ -20,3 +20,6 @@ pub mod table;
 #[cfg(test)]
 mod tests;
 pub mod translate;
+
+pub mod component;
+pub use component::Component;

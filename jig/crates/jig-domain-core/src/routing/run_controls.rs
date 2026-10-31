@@ -32,10 +32,7 @@ pub(super) fn control(
     }
     let token = to.into_token();
     assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
-    assert!(
-        core.routing_calls.insert(token, RoutedCall::Control { key, target, revised: false }) == Ok(None),
-        "one live routed call"
-    );
+    let token = core.fly_call(token, RoutedCall::Control { key, target, revised: false });
     work.push(Event::Tasks(tasks::Event::Control {
         reply_to: ReplyTo::new(token),
         by: tasks::Party::Task(key.task),

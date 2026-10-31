@@ -148,7 +148,7 @@ fn a_lower_numbered_goals_waiting_run_starts_first() {
                     stop_bound: Duration::ZERO,
                     slots: SLOTS,
                     workstreams: Box::new([]),
-                    hosting: Box::new([fleet::Hosted {
+                    hosting: Box::new([fleet::Hosting {
                         run: Token::new(TASK),
                         attempt: BUSY_ATTEMPT,
                         phase: fleet::Phase::Active,

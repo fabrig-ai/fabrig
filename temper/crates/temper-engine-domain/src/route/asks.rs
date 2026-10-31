@@ -353,29 +353,9 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
     }
 }
 
-/// Translate a prepared assignment's owned grants for the fleet's start.
+/// Copy a prepared assignment's grants for the fleet's start.
 fn fleet_grants(grants: &[jig_domain_accounts::Grant]) -> Box<[fleet::Grant]> {
-    let mut translated = List::with_capacity(u32::try_from(grants.len()).expect("bounded grants"));
-    for grant in grants {
-        translated
-            .push(fleet::Grant {
-                form: match grant.form {
-                    jig_domain_accounts::Form::Credential(scheme) => fleet::Form::Credential(match scheme {
-                        jig_domain_accounts::Scheme::Bearer => fleet::Scheme::Bearer,
-                        jig_domain_accounts::Scheme::Key => fleet::Scheme::Key,
-                    }),
-                    jig_domain_accounts::Form::Application => fleet::Form::Application,
-                    jig_domain_accounts::Form::Program(name) => {
-                        fleet::Form::Program(fleet::SourceName::new(name.as_bytes()).expect("same source name grammar"))
-                    }
-                },
-                account: grant.account,
-                generation: grant.generation,
-                valid: grant.valid,
-            })
-            .expect("grant room");
-    }
-    translated.into_boxed()
+    Box::from(grants)
 }
 
 fn step_made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>) {

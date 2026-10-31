@@ -395,10 +395,11 @@ than one per shape, buys:
   in the engine: the hello as one value, which a worker's root assembles
   from the hub, its workspace, its agent capability's bounds and its
   link's graces; notices relayed from the agent; facts as outputs, best
-  effort, as well as by query. The engine's root translates its own
-  hub's link as it translates a worker's (`../protocol/channel.md`,
-  section 1), its hello stating the bounds of its `smith-inline-agent`'s
-  configuration.
+  effort, as well as by query. The values are one crate's, `jig-domain-link`, which
+  the hub and the core's fleet share, so the engine's root passes its own
+  hub's link to the fleet unchanged, as a worker's protocol layer decodes a
+  worker's into the same values (`../protocol/channel.md`, section 1); its
+  hello states the bounds of its `smith-inline-agent`'s configuration.
 - **The link vocabulary names only what crosses.** It names a run and an
   attempt by their numbers, and a call, a message or a turn by the name
   or number the run or the engine gave it, which mean the same on both

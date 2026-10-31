@@ -529,12 +529,6 @@ pub enum Event {
     PreparationFailed { task: u64 },
     /// The store could not read the current transcript window.
     TranscriptUnread { task: u64 },
-    /// A task continuation for a person's pending proposal.
-    PersonProposal(tasks::Event),
-    /// A task continuation for a person's pending escalation choice.
-    PersonEscalation(tasks::Event),
-    /// A task continuation for a named escalation call.
-    TaskEscalation(tasks::Event),
     /// Party identity or request.
     People(people::Event),
     /// Host, run or attempt.
@@ -851,9 +845,6 @@ impl Event {
             | Self::ConnectorRepair { .. }
             | Self::PreparationFailed { .. }
             | Self::TranscriptUnread { .. }
-            | Self::PersonProposal(..)
-            | Self::PersonEscalation(..)
-            | Self::TaskEscalation(..)
             | Self::TurnPayload { .. }
             | Self::AnswerPayload { .. }
             | Self::AcceptedTurn { .. }

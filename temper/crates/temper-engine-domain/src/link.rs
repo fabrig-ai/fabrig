@@ -43,7 +43,7 @@ pub(crate) fn settled_resource(heads: &[(forge::Name, skein_forge::api::Commit)]
 /// ([`crate::try_step`]) hands back first, and their host sends again.
 pub(crate) fn receive(domain: &mut Domain, channel: Token, link: Link) -> Option<core::Event> {
     Some(core::Event::Fleet(match link {
-        Link::Hello { worker, hello } => fleet::Event::Hello { channel, worker, hello: self::hello(hello) },
+        Link::Hello { worker, hello } => fleet::Event::Hello { channel, worker, hello },
         Link::Up { up: host::LinkUp::Piece { run, attempt, piece }, .. } => {
             if let Ok(offset) = u32::try_from(piece.offset) {
                 match piece.kind {
@@ -126,78 +126,12 @@ fn parts_within(parts: &Parts, limits: &crate::Limits) -> bool {
     saved && parts.pushed.len() <= usize::try_from(limits.forge.resources_per_task).expect("u32 fits usize")
 }
 
-fn hello(hello: host::Hello) -> fleet::Hello {
-    let mut hosting = List::with_capacity(u32::try_from(hello.hosting.len()).expect("bounded hosted runs"));
-    for run in hello.hosting {
-        hosting
-            .push(fleet::Hosted { run: run.run, attempt: run.attempt, phase: phase(run.phase) })
-            .expect("one slot per hosted run");
-    }
-    fleet::Hello {
-        slots: hello.slots,
-        stop_bound: hello.stop_bound,
-        workstreams: hello.workstreams,
-        hosting: hosting.into_boxed(),
-        bounds: hello_bounds(hello.bounds),
-    }
-}
-
-/// The worker's advertised agent bounds in the fleet's hello vocabulary.
-#[must_use]
-pub fn hello_bounds(bounds: host::Bounds) -> fleet::Bounds {
-    let mut models = List::with_capacity(u32::try_from(bounds.models.len()).expect("bounded models"));
-    for model in bounds.models {
-        models
-            .push(fleet::ModelBound { name: model.name, window: model.window, output: model.output })
-            .expect("one slot per model");
-    }
-    fleet::Bounds {
-        program_endpoints: bounds.program_endpoints,
-        models: models.into_boxed(),
-        turns: bounds.turns,
-        spend: bounds.spend,
-        time: bounds.time,
-        waiting: bounds.waiting,
-        checks: bounds.checks,
-        message_bytes: bounds.message_bytes,
-        inbox: bounds.inbox,
-        unacknowledged: bounds.unacknowledged,
-    }
-}
-
-fn phase(phase: host::Phase) -> fleet::Phase {
-    match phase {
-        host::Phase::Preparing => fleet::Phase::Preparing,
-        host::Phase::Starting => fleet::Phase::Starting,
-        host::Phase::Active => fleet::Phase::Active,
-        host::Phase::Waiting => fleet::Phase::Waiting,
-        host::Phase::Ending => fleet::Phase::Ending,
-        host::Phase::Answered => fleet::Phase::Answered,
-    }
-}
-
 /// Retain a worker's bytes and temper's parts; translate only their metadata.
 fn up(domain: &mut Domain, channel: Token, up: host::LinkUp, parts: Parts) -> Option<fleet::Event> {
     Some(match up {
         host::LinkUp::Piece { .. } => unreachable!("live pieces route directly to the core in receive"),
-        host::LinkUp::Logins { logins } => {
-            let mut rows = List::with_capacity(u32::try_from(logins.len()).expect("bounded source rows"));
-            for login in logins {
-                rows.push(fleet::Login { name: source_name(login.name), state: source_login(login.state) })
-                    .expect("one source row per input");
-            }
-            fleet::Event::Logins { channel, logins: rows.into_boxed() }
-        }
-        host::LinkUp::SignedOut { name, result } => fleet::Event::SignedOut {
-            channel,
-            name: source_name(name),
-            result: match result {
-                host::SignOutResult::SignedOut => fleet::SignOutResult::SignedOut,
-                host::SignOutResult::Failed { reason, detail } => {
-                    fleet::SignOutResult::Failed { reason: source_failure(reason), detail }
-                }
-            },
-        },
+        host::LinkUp::Logins { logins } => fleet::Event::Logins { channel, logins },
+        host::LinkUp::SignedOut { name, result } => fleet::Event::SignedOut { channel, name, result },
 
         host::LinkUp::Turn { run, attempt, turn } => {
             let number = turn.turn;
@@ -428,31 +362,9 @@ fn report(activity: host::Activity) -> fleet::Report {
             host::Phase::Waiting => fleet::Activity::Waiting,
             host::Phase::Ending | host::Phase::Answered => fleet::Activity::Ending,
         }),
-        host::Activity::Long { operation, span } => fleet::Report::Activity(fleet::Activity::Long {
-            operation: match operation {
-                host::Operation::Checks => fleet::Operation::Checks,
-                host::Operation::Completion => fleet::Operation::Completion,
-                host::Operation::Command => fleet::Operation::Command,
-            },
-            span,
-        }),
+        host::Activity::Long { operation, span } => fleet::Report::Activity(fleet::Activity::Long { operation, span }),
         host::Activity::LongDone => fleet::Report::Activity(fleet::Activity::Active),
-        host::Activity::Count { kind, elapsed, count } => fleet::Report::Count {
-            kind: match kind {
-                host::CountKind::Admitted => fleet::CountKind::Admitted,
-                host::CountKind::Ended => fleet::CountKind::Ended,
-                host::CountKind::LlmStarted => fleet::CountKind::LlmStarted,
-                host::CountKind::LlmRetried => fleet::CountKind::LlmRetried,
-                host::CountKind::LlmFinished => fleet::CountKind::LlmFinished,
-                host::CountKind::ToolStarted => fleet::CountKind::ToolStarted,
-                host::CountKind::ToolFinished => fleet::CountKind::ToolFinished,
-                host::CountKind::CheckStarted => fleet::CountKind::CheckStarted,
-                host::CountKind::CheckFinished => fleet::CountKind::CheckFinished,
-                host::CountKind::TextArrived => fleet::CountKind::TextArrived,
-            },
-            elapsed,
-            count,
-        },
+        host::Activity::Count { kind, elapsed, count } => fleet::Report::Count { kind, elapsed, count },
     }
 }
 
@@ -599,34 +511,6 @@ fn sender(value: tasks::Party) -> Box<[u8]> {
     }
 }
 
-fn source_name(name: host::SourceName) -> fleet::SourceName {
-    fleet::SourceName::new(name.as_bytes()).expect("same source name grammar")
-}
-
-fn source_login(state: host::LoginState) -> fleet::LoginState {
-    match state {
-        host::LoginState::Usable => fleet::LoginState::Usable,
-        host::LoginState::NotSignedIn => fleet::LoginState::NotSignedIn,
-        host::LoginState::SignedInOtherwise(method) => fleet::LoginState::SignedInOtherwise(
-            fleet::LoginMethod::new(method.as_bytes()).expect("same printable method grammar"),
-        ),
-        host::LoginState::Failed { reason, detail } => {
-            fleet::LoginState::Failed { reason: source_failure(reason), detail }
-        }
-    }
-}
-const fn source_failure(reason: host::SourceFailure) -> fleet::SourceFailure {
-    match reason {
-        host::SourceFailure::Missing => fleet::SourceFailure::Missing,
-        host::SourceFailure::Deadline => fleet::SourceFailure::Deadline,
-        host::SourceFailure::Unreadable => fleet::SourceFailure::Unreadable,
-        host::SourceFailure::Exited => fleet::SourceFailure::Exited,
-        host::SourceFailure::Unconfigured => fleet::SourceFailure::Unconfigured,
-        host::SourceFailure::Unknown => fleet::SourceFailure::Unknown,
-        host::SourceFailure::Closed => fleet::SourceFailure::Closed,
-    }
-}
-
 fn settings_decision_words(outcome: tasks::SettingsOutcome, reason: &[u8]) -> Box<[u8]> {
     let number = Decimal::of(match outcome {
         tasks::SettingsOutcome::Accepted { revision } => u64::from(revision),
@@ -652,7 +536,6 @@ fn settings_decision_words(outcome: tasks::SettingsOutcome, reason: &[u8]) -> Bo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use skein_lib::Duration;
 
     #[test]
     fn text_pieces_reach_the_core_with_their_identity_and_offsets() {
@@ -897,42 +780,5 @@ mod tests {
             };
             assert_eq!(inbox_words(&word).as_ref(), expected);
         }
-    }
-
-    #[test]
-    fn hello_advertises_the_public_bounds_conversion() {
-        let bounds = host::Bounds {
-            program_endpoints: Box::new([7]),
-            models: Box::new([host::ModelBound { name: Box::from(b"model".as_slice()), window: 8192, output: 1024 }]),
-            turns: 8,
-            spend: 100,
-            time: Duration::from_secs(360),
-            waiting: Duration::from_secs(60),
-            checks: Duration::from_secs(60),
-            message_bytes: 4096,
-            inbox: 8,
-            unacknowledged: 4,
-        };
-        let converted = hello_bounds(bounds.clone());
-        let hello = hello(host::Hello {
-            slots: 2,
-            stop_bound: Duration::from_secs(5),
-            workstreams: Box::new([11]),
-            hosting: Box::new([]),
-            bounds: bounds.clone(),
-        });
-        assert_eq!(hello.bounds, converted);
-        assert_eq!(hello.bounds.program_endpoints.as_ref(), &[7]);
-        assert_eq!(hello.bounds.models[0].name, bounds.models[0].name);
-        assert_eq!(hello.bounds.models[0].window, bounds.models[0].window);
-        assert_eq!(hello.bounds.models[0].output, bounds.models[0].output);
-        assert_eq!(hello.bounds.turns, bounds.turns);
-        assert_eq!(hello.bounds.spend, bounds.spend);
-        assert_eq!(hello.bounds.time, bounds.time);
-        assert_eq!(hello.bounds.waiting, bounds.waiting);
-        assert_eq!(hello.bounds.checks, bounds.checks);
-        assert_eq!(hello.bounds.message_bytes, bounds.message_bytes);
-        assert_eq!(hello.bounds.inbox, bounds.inbox);
-        assert_eq!(hello.bounds.unacknowledged, bounds.unacknowledged);
     }
 }

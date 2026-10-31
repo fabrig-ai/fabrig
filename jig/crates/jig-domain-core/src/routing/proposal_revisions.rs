@@ -29,12 +29,7 @@ pub(super) fn call(
         return false;
     };
     assert!(core.pending_calls.insert(key, true).is_ok(), "stale acceptance call room");
-    assert!(
-        core.routing_calls
-            .insert(token, RoutedCall::Withdraw { key, proposal: proposal.number, moved: Some(moved) })
-            .is_ok(),
-        "one stale acceptance"
-    );
+    let token = core.fly_call(token, RoutedCall::Withdraw { key, proposal: proposal.number, moved: Some(moved) });
     work.push(Event::Tasks(tasks::Event::WithdrawProposal {
         reply_to: ReplyTo::new(token),
         proposer: proposal.proposer,
@@ -52,22 +47,14 @@ pub(super) fn person(
     let Some((_, now)) = moved(core, proposal) else {
         return false;
     };
-    assert!(
-        core.routing_people_proposals
-            .insert(
-                request,
-                PersonProposalRoute::Deciding {
-                    request,
-                    proposer: proposal.proposer,
-                    proposal: proposal.number,
-                    by,
-                    moved: Some(now)
-                }
-            )
-            .is_ok(),
-        "one stale person acceptance"
-    );
-    work.push(Event::PersonProposal(tasks::Event::WithdrawProposal {
+    let request = core.fly_person_proposal(PersonProposalRoute::Deciding {
+        request,
+        proposer: proposal.proposer,
+        proposal: proposal.number,
+        by,
+        moved: Some(now),
+    });
+    work.push(Event::Tasks(tasks::Event::WithdrawProposal {
         reply_to: ReplyTo::new(request),
         proposer: proposal.proposer,
         proposal: proposal.number,
@@ -86,14 +73,9 @@ pub(super) fn party(
     let Err(people::Refusal::Moved { now }) = core.party_amend_revision(*task, *revision, amendment) else {
         return false;
     };
-    assert!(
-        core.goal_routes
-            .insert(
-                request,
-                GoalRoute::Withdrawing { proposer: proposal.proposer, proposal: proposal.number, moved: Some(now) }
-            )
-            .is_ok(),
-        "one stale party acceptance"
+    let request = core.fly_goal(
+        request,
+        GoalRoute::Withdrawing { proposer: proposal.proposer, proposal: proposal.number, moved: Some(now) },
     );
     work.push(Event::Tasks(tasks::Event::WithdrawPersonProposal {
         reply_to: Some(ReplyTo::new(request)),

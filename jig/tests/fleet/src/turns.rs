@@ -5,7 +5,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use jig_domain_fleet::{self as fleet, Answer, Domain, Event, Hello, Hosted, Limits, Phase, Request};
+use jig_domain_fleet::{self as fleet, Answer, Domain, Event, Hello, Hosting, Limits, Phase, Request};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Rng, Time, Token, Wall};
 use skein_world::domain::{Expectations, Judge, Referee};
 
@@ -307,7 +307,7 @@ impl World {
             stop_bound: self.settings.stop_bound,
             slots: 1,
             workstreams: Box::default(),
-            hosting: Box::from([Hosted { run: RUN, attempt: ATTEMPT, phase: Phase::Active }]),
+            hosting: Box::from([Hosting { run: RUN, attempt: ATTEMPT, phase: Phase::Active }]),
         };
         self.see(Seen::Hello { bound: self.settings.stop_bound, grace: self.env.limits.grace });
         self.step(Event::Hello { worker: 0, channel, hello });

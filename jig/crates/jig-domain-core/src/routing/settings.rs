@@ -260,12 +260,10 @@ pub(super) fn propose_admitted(
     let heads = s::proposal_heads(&change.items);
     assert!(core.settings_offering.is_none(), "one settings offering");
     core.settings_offering = Some((request, person, number, s::Proposal { against, items: change.items }));
-    core.goal_routes
-        .insert(
-            request,
-            crate::GoalRoute::Offering { proposal: fresh, to: people::Role::Owner.number(), stubs: Box::new([]) },
-        )
-        .expect("one offering route");
+    let request = core.fly_goal(
+        request,
+        crate::GoalRoute::Offering { proposal: fresh, to: people::Role::Owner.number(), stubs: Box::new([]) },
+    );
     work.push(Event::Tasks(jig_domain_tasks::Event::ProposePerson {
         reply_to: ReplyTo::new(request),
         proposal: jig_domain_tasks::PersonProposal {
@@ -462,7 +460,7 @@ fn move_tasks(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, from
             child.push(request);
         }
     }
-    let mut routed = super::tag_tasks(core, env, child, false, false, false);
+    let mut routed = super::tag_task_outputs(core, env, child);
     for _ in 0..routed.len() {
         let request = routed.pop().expect("routed move output count");
         out.push(request);
@@ -542,7 +540,7 @@ pub(super) fn propose_run(
     let token = to.into_token();
     core.settings_offering = Some((token, key.task, number, set));
     core.pending_calls.insert(key, true).expect("call room reserved");
-    core.routing_calls.insert(token, crate::RoutedCall::Propose { key, proposal: next }).expect("one proposal route");
+    let token = core.fly_call(token, crate::RoutedCall::Propose { key, proposal: next });
     work.push(Event::Tasks(tasks::Event::Propose { reply_to: ReplyTo::new(token), proposal }));
     Queue::uncapped()
 }

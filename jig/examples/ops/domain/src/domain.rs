@@ -467,30 +467,10 @@ fn check_engine_hello(domain: &mut fleet::Domain, limits: &fleet::Limits, agent_
                 stop_bound: skein_lib::Duration::ZERO,
                 workstreams: Box::new([]),
                 hosting: Box::new([]),
-                bounds: bounds(agent_bounds),
+                bounds: agent_bounds,
             },
         },
         &mut out,
     );
     assert!(out.is_empty(), "engine agent bounds must hold its configured charters");
-}
-fn bounds(value: host::Bounds) -> fleet::Bounds {
-    let mut models = skein_lib::List::with_capacity(u32::try_from(value.models.len()).expect("configured model count"));
-    for model in value.models {
-        models
-            .push(fleet::ModelBound { name: model.name, window: model.window, output: model.output })
-            .expect("configured model count");
-    }
-    fleet::Bounds {
-        program_endpoints: value.program_endpoints,
-        models: models.into_boxed(),
-        turns: value.turns,
-        spend: value.spend,
-        time: value.time,
-        waiting: value.waiting,
-        checks: value.checks,
-        message_bytes: value.message_bytes,
-        inbox: value.inbox,
-        unacknowledged: value.unacknowledged,
-    }
 }

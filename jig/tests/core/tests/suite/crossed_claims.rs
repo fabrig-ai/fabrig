@@ -35,9 +35,9 @@ fn live_resumed() -> (World, u64, u64) {
     (world, task, attempt)
 }
 
-fn hosting(world: &World) -> fleet::Hosted {
+fn hosting(world: &World) -> fleet::Hosting {
     let assignment = world.assigned.as_ref().expect("live resumed assignment");
-    fleet::Hosted {
+    fleet::Hosting {
         run: Token::new(assignment.task),
         attempt: Token::new(assignment.attempt),
         phase: fleet::Phase::Active,

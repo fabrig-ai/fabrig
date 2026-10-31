@@ -167,9 +167,6 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::Period { .. }
         | core::Event::PreparationFailed { .. }
         | core::Event::TranscriptUnread { .. }
-        | core::Event::PersonProposal(..)
-        | core::Event::PersonEscalation(..)
-        | core::Event::TaskEscalation(..)
         | core::Event::People(..)
         | core::Event::Fleet(..)
         | core::Event::TurnPayload { .. }
@@ -250,9 +247,6 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::Period { .. }
         | core::Event::PreparationFailed { .. }
         | core::Event::TranscriptUnread { .. }
-        | core::Event::PersonProposal(..)
-        | core::Event::PersonEscalation(..)
-        | core::Event::TaskEscalation(..)
         | core::Event::People(..)
         | core::Event::Fleet(..)
         | core::Event::TurnPayload { .. }

@@ -121,12 +121,8 @@ impl OneShot {
                     );
                     return;
                 }
-                if call.tool == temper_client_tools::jig::rows::IMPORT_AT
-                    && !stripped.starts_with(b"JIGM")
-                    && stripped.len() >= 2
-                {
-                    // The generated form begins with its u16 version; the temporary
-                    // JIGM form goes whole to jig's decoder (decision 1345).
+                if call.tool == temper_client_tools::jig::rows::IMPORT_AT && stripped.len() >= 2 {
+                    // The moved record begins with its u16 version.
                     const READS: u16 = 1;
                     let version = u16::from_be_bytes([stripped[0], stripped[1]]);
                     let reads = READS;

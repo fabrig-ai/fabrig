@@ -34,7 +34,7 @@ use core::mem;
 use skein_lib::{Env, Id, Map, Queue, Set, Slab, Token};
 
 use crate::attempt::{self, Attempt};
-use crate::boundary::{Hello, HostKind, Hosted, Kinds, Phase, Request};
+use crate::boundary::{Hello, HostKind, Hosting, Kinds, Phase, Request};
 use crate::domain::Domain;
 use crate::facts::Fact;
 use crate::limits::Limits;
@@ -220,7 +220,7 @@ pub(crate) fn hello(
     domain.standing_worker = None;
     let most = limits.slots.saturating_mul(2);
     let mut listed: u32 = 0;
-    for Hosted { run, attempt, phase } in hosting {
+    for Hosting { run, attempt, phase } in hosting {
         let answered = match phase {
             Phase::Answered => true,
             Phase::Preparing | Phase::Starting | Phase::Active | Phase::Waiting | Phase::Ending => false,

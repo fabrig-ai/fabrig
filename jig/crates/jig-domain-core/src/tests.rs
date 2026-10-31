@@ -6,6 +6,7 @@ use crate::*;
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
 mod deadlines;
+mod flight;
 mod limits;
 mod start;
 mod translate;
@@ -1907,7 +1908,7 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
                 stop_bound: Duration::from_secs(1),
                 slots: 1,
                 workstreams: Box::new([]),
-                hosting: Box::new([fleet::Hosted {
+                hosting: Box::new([fleet::Hosting {
                     run: Token::new(2),
                     attempt: Token::new(9),
                     phase: fleet::Phase::Active,

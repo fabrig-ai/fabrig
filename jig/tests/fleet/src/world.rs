@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use jig_domain_fleet::{
-    self as fleet, Answer, Domain, Event, Fact, Hello, Hosted, Limits, Phase, Request, Undelivered, Withdrawal,
+    self as fleet, Answer, Domain, Event, Fact, Hello, Limits, Phase, Request, Undelivered, Withdrawal,
 };
 use skein_lib::{Duration, ReplyTo, Rng, Time, Token};
 use skein_world::domain::{Ledger, Referee, Schedule, Span, Stage, Trace};
@@ -874,7 +874,11 @@ impl World {
                 let workstreams = workstreams.into();
                 let hosting = hosting
                     .into_iter()
-                    .map(|(run, attempt, phase)| Hosted { run: Token::new(run), attempt: Token::new(attempt), phase })
+                    .map(|(run, attempt, phase)| fleet::Hosting {
+                        run: Token::new(run),
+                        attempt: Token::new(attempt),
+                        phase,
+                    })
                     .collect();
                 Event::Hello {
                     worker: u32::try_from(self.channels[&channel].worker).expect("configured worker position"),
