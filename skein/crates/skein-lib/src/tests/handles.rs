@@ -75,3 +75,71 @@ fn a_slab_hands_out_slots_in_the_order_it_did() {
     }
     assert_eq!(slab.get(reused_second), Some(&'d'), "a reused slot keeps its generation across growth");
 }
+
+// Three slots leave live entities on both sides of a retired or vacant slot.
+const ITERATION_CAP: u32 = 3;
+
+fn slab_with_retired_middle() -> (Slab<char>, [Id<char>; 3]) {
+    let mut slab = Slab::with_capacity(ITERATION_CAP);
+    let first = slab.insert('a').expect("first slot");
+    let middle = slab.insert('b').expect("middle slot");
+    let last = slab.insert('c').expect("last slot");
+    slab.retire(middle);
+    (slab, [first, middle, last])
+}
+
+#[test]
+fn slab_iteration_skips_retired_entities_before_the_reclaim_point() {
+    let (slab, [first, middle, last]) = slab_with_retired_middle();
+    let mut iter = slab.iter();
+    assert_eq!(iter.next(), Some((first, &'a')));
+    assert_eq!(iter.next(), Some((last, &'c')));
+    assert_eq!(iter.next(), None);
+    assert_eq!(slab.get(middle), Some(&'b'), "retirement keeps lookup alive");
+    for (id, value) in slab.iter() {
+        assert_eq!(slab.get(id), Some(value));
+    }
+}
+
+#[test]
+fn slab_iteration_skips_vacancies_and_keeps_reused_handle_generations() {
+    let (mut slab, [first, middle, last]) = slab_with_retired_middle();
+    slab.reclaim();
+    let mut iter = slab.iter();
+    assert_eq!(iter.next(), Some((first, &'a')));
+    assert_eq!(iter.next(), Some((last, &'c')));
+    assert_eq!(iter.next(), None);
+    let reused = slab.insert('d').expect("reclaimed middle slot");
+    assert_ne!(reused, middle);
+    let mut iter = slab.iter();
+    assert_eq!(iter.next(), Some((first, &'a')));
+    assert_eq!(iter.next(), Some((reused, &'d')));
+    assert_eq!(iter.next(), Some((last, &'c')));
+    assert_eq!(iter.next(), None);
+    for (id, value) in slab.iter() {
+        assert_eq!(slab.get(id), Some(value));
+    }
+}
+
+#[test]
+fn an_empty_slab_yields_no_entities_in_either_iterator() {
+    let mut slab = Slab::<u8>::with_capacity(ITERATION_CAP);
+    assert_eq!(slab.iter().next(), None);
+    assert_eq!(slab.iter_mut().next(), None);
+}
+
+#[test]
+fn mutable_slab_iteration_changes_only_live_entities_in_slot_order() {
+    let (mut slab, [first, middle, last]) = slab_with_retired_middle();
+    let mut iter = slab.iter_mut();
+    let (id, value) = iter.next().expect("first live entity");
+    assert_eq!(id, first);
+    *value = 'x';
+    let (id, value) = iter.next().expect("last live entity");
+    assert_eq!(id, last);
+    *value = 'z';
+    assert_eq!(iter.next(), None);
+    assert_eq!(slab.get(first), Some(&'x'));
+    assert_eq!(slab.get(middle), Some(&'b'));
+    assert_eq!(slab.get(last), Some(&'z'));
+}

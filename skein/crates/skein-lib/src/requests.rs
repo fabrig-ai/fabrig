@@ -43,7 +43,7 @@
 
 use core::hash::{Hash, Hasher};
 
-use crate::{Duration, Id, Map, Rng, Slab, Time, Token, Wall};
+use crate::{Duration, Id, Map, Rng, Slab, Time, Token, Wall, earliest};
 
 /// A request's stable key, preserved across attempts and restoration.
 pub type RequestKey = [u8; 16];
@@ -436,7 +436,7 @@ impl<O: Copy, R> RequestTable<O, R> {
         for (_, id) in &self.order {
             let entry = self.entries.get(*id).expect("order names a held entry");
             match entry.state {
-                State::Retrying(deadline) => earliest(&mut next, deadline),
+                State::Retrying(deadline) => next = earliest(next, Some(deadline)),
                 State::Retired { .. } => continue,
                 State::Parked | State::Ready | State::InFlight(_) => {}
             }
@@ -445,13 +445,13 @@ impl<O: Copy, R> RequestTable<O, R> {
             {
                 let allowance = retention.as_nanos().saturating_sub(self.limits.margin.as_nanos());
                 if anchor.age.as_nanos() > allowance {
-                    earliest(&mut next, anchor.now);
+                    next = earliest(next, Some(anchor.now));
                 } else {
                     let remaining = allowance.checked_sub(anchor.age.as_nanos()).expect("age is within allowance");
                     if let Some(remaining) = remaining.checked_add(1)
                         && let Some(deadline) = anchor.now.checked_add(Duration::from_nanos(remaining))
                     {
-                        earliest(&mut next, deadline);
+                        next = earliest(next, Some(deadline));
                     }
                 }
             }
@@ -712,17 +712,6 @@ impl<O: Copy, R> RequestTake<'_, O, R> {
         entry.progress(RequestProgress::InFlight);
         self.remaining = self.remaining.checked_sub(1).expect("visit has room");
         Some(RequestOut::Send { attempt, key: entry.record.key, request: &entry.record.request })
-    }
-}
-
-fn earliest(next: &mut Option<Time>, deadline: Time) {
-    match *next {
-        Some(current) => {
-            if deadline < current {
-                *next = Some(deadline);
-            }
-        }
-        None => *next = Some(deadline),
     }
 }
 

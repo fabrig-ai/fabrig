@@ -8,6 +8,8 @@ use core::hash::{Hash, Hasher};
 use alloc::vec::Vec;
 use core::mem::size_of;
 
+use crate::growth::growth;
+
 /// A last-in, first-out stack that never grows past its capacity, and
 /// refuses past it: input nested deeper than the capacity is the caller's to
 /// refuse. It allocates as it fills and never shrinks.
@@ -16,8 +18,6 @@ pub struct Stack<T> {
     items: Vec<T>,
     capacity: u32,
 }
-
-const GROWTH_FLOOR: usize = 4;
 
 impl<T> Stack<T> {
     #[must_use]
@@ -30,6 +30,12 @@ impl<T> Stack<T> {
     #[must_use]
     pub fn price(capacity: u32) -> Option<u64> {
         u64::try_from(size_of::<T>()).ok()?.checked_mul(u64::from(capacity))
+    }
+
+    /// The storage allocated so growth tests can check the allocation contract.
+    #[cfg(test)]
+    pub(crate) fn allocated_capacity(&self) -> usize {
+        self.items.capacity()
     }
 
     #[must_use]
@@ -60,11 +66,16 @@ impl<T> Stack<T> {
     /// Grows a full buffer exactly, while the logical capacity has room.
     fn grow(&mut self) {
         if self.items.len() == self.items.capacity() {
-            let cap = usize::try_from(self.capacity).expect("a u32 fits in a usize");
-            let target = self.items.len().saturating_mul(2).max(GROWTH_FLOOR).min(cap);
+            let needed = self.items.len().checked_add(1).expect("room below the cap");
+            let target = growth(self.items.capacity(), needed, self.capacity);
             let additional = target.checked_sub(self.items.len()).expect("room for another item");
             self.items.reserve_exact(additional);
         }
+    }
+
+    /// Drops every item; keeps the cap and the storage.
+    pub fn clear(&mut self) {
+        self.items.clear();
     }
 
     /// Takes the top item.

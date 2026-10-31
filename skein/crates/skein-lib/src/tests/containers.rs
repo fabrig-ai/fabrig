@@ -4,7 +4,7 @@
 use alloc::boxed::Box;
 
 use crate::btree::price;
-use crate::{Buffer, Intake, List, Map, Queue, Set, Stack};
+use crate::{Buffer, Intake, List, Map, Queue, Set, Slab, Stack};
 
 #[test]
 fn a_list_refuses_past_its_capacity() {
@@ -268,4 +268,105 @@ fn a_stack_price_that_overflows_is_none() {
 fn a_buffer_price_fits_the_largest_capacity() {
     // A byte buffer's u32 capacity cannot overflow its u64 price.
     assert_eq!(Buffer::price(u32::MAX), Some(u64::from(u32::MAX)));
+}
+
+// The floor is four, each full buffer doubles, and the final growth stops at ten.
+const GROWTH_CAP: u32 = 10;
+const GROWTH_SEQUENCE: [usize; 10] = [4, 4, 4, 4, 8, 8, 8, 8, 10, 10];
+
+#[test]
+fn growing_containers_keep_their_storage_capacity_sequences() {
+    for (cap, expected) in [(0, &[][..]), (1, &[1][..]), (3, &[3, 3, 3][..]), (GROWTH_CAP, &GROWTH_SEQUENCE[..])] {
+        let mut queue = Queue::with_capacity(cap);
+        let mut stack = Stack::with_capacity(cap);
+        let mut list = List::with_capacity(cap);
+        let mut slab = Slab::with_capacity(cap);
+        let mut intake = Intake::with_capacity(cap);
+        assert_eq!(queue.allocated_capacity(), 0);
+        assert_eq!(stack.allocated_capacity(), 0);
+        assert_eq!(list.allocated_capacity(), 0);
+        assert_eq!(slab.allocated_capacities(), (0, 0, 0));
+        assert_eq!(intake.allocated_capacity(), 0);
+        let mut ids = List::with_capacity(cap);
+        for &storage in expected {
+            queue.push(0_u8);
+            stack.push(0_u8).expect("room below the cap");
+            list.push(0_u8).expect("room below the cap");
+            ids.push(slab.insert(0_u8).expect("room below the cap")).expect("one handle per entity");
+            intake.append(b"x").expect("room below the cap");
+            assert_eq!(queue.allocated_capacity(), storage, "queue cap {cap}");
+            assert_eq!(stack.allocated_capacity(), storage, "stack cap {cap}");
+            assert_eq!(list.allocated_capacity(), storage, "list cap {cap}");
+            assert_eq!(slab.allocated_capacities(), (storage, 0, 0), "slab cap {cap}");
+            assert_eq!(intake.allocated_capacity(), storage, "intake cap {cap}");
+        }
+        for (id, &storage) in ids.iter().zip(expected) {
+            slab.retire(*id);
+            assert_eq!(slab.allocated_capacities(), (usize::try_from(cap).expect("small cap"), 0, storage));
+        }
+        slab.reclaim();
+        let storage = usize::try_from(cap).expect("small cap");
+        assert_eq!(slab.allocated_capacities(), (storage, storage, storage));
+    }
+}
+
+#[test]
+fn intake_growth_fits_batches_and_doubles_allocated_storage() {
+    // A batch exceeds the floor; after consuming bytes growth doubles storage, not length.
+    const CAP: u32 = 20;
+    let mut intake = Intake::with_capacity(CAP);
+    for (bytes, storage) in [(&b"abcdef"[..], 6), (&b"g"[..], 12)] {
+        intake.append(bytes).expect("room");
+        assert_eq!(intake.allocated_capacity(), storage);
+    }
+    drop(intake.meet(crate::stream::Read::Fill(6)));
+    intake.append(b"abcdefghijkl").expect("room after consuming");
+    assert_eq!(intake.allocated_capacity(), 20);
+}
+
+#[test]
+fn clearing_a_queue_keeps_its_room_and_allocated_storage() {
+    let mut queue = Queue::with_capacity(GROWTH_CAP);
+    for item in 0..GROWTH_CAP {
+        queue.push(item);
+    }
+    // Move the ring's head before clearing it.
+    queue.pop().expect("the ring is full");
+    queue.push(GROWTH_CAP);
+    let storage = queue.allocated_capacity();
+    queue.clear();
+    assert_eq!(queue.len(), 0);
+    assert!(queue.is_empty());
+    assert_eq!(queue.room(), GROWTH_CAP);
+    assert_eq!(queue.capacity(), GROWTH_CAP);
+    assert_eq!(queue.allocated_capacity(), storage);
+    for item in 0..GROWTH_CAP {
+        queue.push(item);
+        assert_eq!(queue.allocated_capacity(), storage);
+    }
+    for item in 0..GROWTH_CAP {
+        assert_eq!(queue.pop(), Some(item));
+    }
+}
+
+#[test]
+fn clearing_a_stack_keeps_its_cap_and_allocated_storage() {
+    let mut stack = Stack::with_capacity(GROWTH_CAP);
+    for item in 0..GROWTH_CAP {
+        stack.push(item).expect("room");
+    }
+    let storage = stack.allocated_capacity();
+    stack.clear();
+    assert_eq!(stack.len(), 0);
+    assert!(stack.is_empty());
+    assert_eq!(stack.top(), None);
+    assert_eq!(stack.capacity(), GROWTH_CAP);
+    assert_eq!(stack.allocated_capacity(), storage);
+    for item in 0..GROWTH_CAP {
+        stack.push(item).expect("room after clearing");
+        assert_eq!(stack.allocated_capacity(), storage);
+    }
+    for item in (0..GROWTH_CAP).rev() {
+        assert_eq!(stack.pop(), Some(item));
+    }
 }

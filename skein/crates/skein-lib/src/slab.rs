@@ -8,7 +8,11 @@
 
 use alloc::vec::Vec;
 use core::hash::{Hash, Hasher};
+use core::iter::Enumerate;
 use core::mem::size_of;
+use core::slice;
+
+use crate::growth::growth;
 
 use crate::Id;
 
@@ -44,8 +48,6 @@ enum Slot<T> {
     Spent,
 }
 
-const GROWTH_FLOOR: usize = 4;
-
 impl<T> Slab<T> {
     /// Starts without allocating; slots and lists grow as they fill, up to
     /// `capacity`, and keep their storage when reclaimed.
@@ -62,6 +64,12 @@ impl<T> Slab<T> {
         let slot = u64::try_from(size_of::<Slot<T>>()).ok()?;
         let lists = u64::try_from(size_of::<u32>()).ok()?.checked_mul(2)?;
         u64::from(capacity).checked_mul(slot.checked_add(lists)?)
+    }
+
+    /// Slot, free-list and retired-list storage for the growth contract tests.
+    #[cfg(test)]
+    pub(crate) fn allocated_capacities(&self) -> (usize, usize, usize) {
+        (self.slots.capacity(), self.free.capacity(), self.retired.capacity())
     }
 
     #[must_use]
@@ -95,7 +103,10 @@ impl<T> Slab<T> {
                     return Err(value);
                 }
                 if self.slots.len() == self.slots.capacity() {
-                    self.slots.reserve_exact(growth(self.slots.len(), self.capacity));
+                    let len = self.slots.len();
+                    let needed = len.checked_add(1).expect("room below the cap");
+                    let target = growth(self.slots.capacity(), needed, self.capacity);
+                    self.slots.reserve_exact(target.checked_sub(len).expect("room for another item"));
                 }
                 let slot = u32::try_from(self.slots.len()).expect("fewer slots than the capacity");
                 self.slots.push(Slot::Vacant { generation: 0 });
@@ -130,6 +141,20 @@ impl<T> Slab<T> {
         }
     }
 
+    /// Each live entity (inserted, not retired) with its handle, in slot order.
+    #[must_use]
+    #[expect(clippy::iter_without_into_iter, reason = "the lib contract exposes only named slab iterators")]
+    pub fn iter(&self) -> SlabIter<'_, T> {
+        SlabIter { slots: self.slots.iter().enumerate() }
+    }
+
+    /// Each live entity with its handle, in slot order, for changing in place.
+    #[must_use]
+    #[expect(clippy::iter_without_into_iter, reason = "the lib contract exposes only named slab iterators")]
+    pub fn iter_mut(&mut self) -> SlabIterMut<'_, T> {
+        SlabIterMut { slots: self.slots.iter_mut().enumerate() }
+    }
+
     /// Marks a live entity for reclaiming. It stays reachable until
     /// `reclaim`. Retiring anything else is a bug.
     pub fn retire(&mut self, id: Id<T>) {
@@ -143,7 +168,10 @@ impl<T> Slab<T> {
             Slot::Vacant { .. } | Slot::Spent => unreachable!("only a live entity is retired"),
         }
         if self.retired.len() == self.retired.capacity() {
-            self.retired.reserve_exact(growth(self.retired.len(), self.capacity));
+            let len = self.retired.len();
+            let needed = len.checked_add(1).expect("room below the cap");
+            let target = growth(self.retired.capacity(), needed, self.capacity);
+            self.retired.reserve_exact(target.checked_sub(len).expect("room for another item"));
         }
         self.retired.push(id.slot());
     }
@@ -163,7 +191,10 @@ impl<T> Slab<T> {
             *entry = match next {
                 Some(generation) => {
                     if self.free.len() == self.free.capacity() {
-                        self.free.reserve_exact(growth(self.free.len(), self.capacity));
+                        let len = self.free.len();
+                        let needed = len.checked_add(1).expect("room below the cap");
+                        let target = growth(self.free.capacity(), needed, self.capacity);
+                        self.free.reserve_exact(target.checked_sub(len).expect("room for another item"));
                     }
                     self.free.push(slot);
                     Slot::Vacant { generation }
@@ -173,12 +204,6 @@ impl<T> Slab<T> {
             self.len = self.len.checked_sub(1).expect("a retired entity was counted");
         }
     }
-}
-
-/// Additional storage for a full buffer that has room below its cap.
-fn growth(len: usize, capacity: u32) -> usize {
-    let target = len.saturating_mul(2).max(GROWTH_FLOOR).min(index(capacity));
-    target.checked_sub(len).expect("room for another item")
 }
 
 fn index(slot: u32) -> usize {
@@ -211,5 +236,51 @@ impl<T: Hash> Hash for Slab<T> {
         for slot in &self.retired {
             slot.hash(state);
         }
+    }
+}
+
+/// Live entities and their handles, in slot order (lib.md, 3).
+#[derive(Debug)]
+pub struct SlabIter<'a, T> {
+    slots: Enumerate<slice::Iter<'a, Slot<T>>>,
+}
+
+impl<'a, T> Iterator for SlabIter<'a, T> {
+    type Item = (Id<T>, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for (slot, entry) in self.slots.by_ref() {
+            match entry {
+                Slot::Occupied { generation, retired: false, value } => {
+                    let slot = u32::try_from(slot).expect("a slot fits its slab's u32 capacity");
+                    return Some((Id::new(slot, *generation), value));
+                }
+                Slot::Occupied { retired: true, .. } | Slot::Vacant { .. } | Slot::Spent => {}
+            }
+        }
+        None
+    }
+}
+
+/// Live entities and their handles, in slot order, for mutation (lib.md, 3).
+#[derive(Debug)]
+pub struct SlabIterMut<'a, T> {
+    slots: Enumerate<slice::IterMut<'a, Slot<T>>>,
+}
+
+impl<'a, T> Iterator for SlabIterMut<'a, T> {
+    type Item = (Id<T>, &'a mut T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for (slot, entry) in self.slots.by_ref() {
+            match entry {
+                Slot::Occupied { generation, retired: false, value } => {
+                    let slot = u32::try_from(slot).expect("a slot fits its slab's u32 capacity");
+                    return Some((Id::new(slot, *generation), value));
+                }
+                Slot::Occupied { retired: true, .. } | Slot::Vacant { .. } | Slot::Spent => {}
+            }
+        }
+        None
     }
 }

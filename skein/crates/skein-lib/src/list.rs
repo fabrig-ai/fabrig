@@ -8,6 +8,8 @@ use core::hash::{Hash, Hasher};
 use core::mem::size_of;
 use core::slice;
 
+use crate::growth::growth;
+
 /// A sequence that grows up to a capacity fixed when it is made, and refuses
 /// past it. It allocates as it fills, never past its capacity and never shrinking.
 #[derive(Debug)]
@@ -15,8 +17,6 @@ pub struct List<T> {
     items: Vec<T>,
     capacity: u32,
 }
-
-const GROWTH_FLOOR: usize = 4;
 
 impl<T> List<T> {
     #[must_use]
@@ -36,6 +36,12 @@ impl<T> List<T> {
     #[must_use]
     pub fn price(capacity: u32) -> Option<u64> {
         u64::try_from(size_of::<T>()).ok()?.checked_mul(u64::from(capacity))
+    }
+
+    /// The storage allocated so growth tests can check the allocation contract.
+    #[cfg(test)]
+    pub(crate) fn allocated_capacity(&self) -> usize {
+        self.items.capacity()
     }
 
     #[must_use]
@@ -72,8 +78,8 @@ impl<T> List<T> {
     /// Grows a full buffer exactly, while the logical capacity has room.
     fn grow(&mut self) {
         if self.items.len() == self.items.capacity() {
-            let cap = usize::try_from(self.capacity).expect("a u32 fits in a usize");
-            let target = self.items.len().saturating_mul(2).max(GROWTH_FLOOR).min(cap);
+            let needed = self.items.len().checked_add(1).expect("room below the cap");
+            let target = growth(self.items.capacity(), needed, self.capacity);
             let additional = target.checked_sub(self.items.len()).expect("room for another item");
             self.items.reserve_exact(additional);
         }
