@@ -764,7 +764,6 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
- "jig-engine-clients-world",
  "jig-fake-parties",
  "jig-fake-workers",
  "jig-protocol-engine-clients",

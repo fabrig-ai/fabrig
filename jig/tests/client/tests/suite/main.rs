@@ -11,7 +11,6 @@ mod orders;
 mod owner_authority;
 mod owner_budget;
 mod person_confirmation;
-mod placed_holds;
 mod random;
 mod referee;
 mod settings;
