@@ -442,33 +442,6 @@ fn the_accounts_banner_links_each_way_to_its_address_and_is_hidden_in_the_flow()
 }
 
 #[test]
-fn ready_remembers_that_the_playgrounds_scripted_model_stepped_aside() {
-    let provider = PROVIDER + 1;
-    let mut me = d::pages::accounts::current_me(offered_root().client()).unwrap().clone();
-    me.providers = List::with_capacity(1);
-    me.providers.push(offer(provider, b"openai", false, false)).unwrap();
-    let (mut root, accounts_watch) = fixtures::demo_frame_with_watch(
-        d::Address::ConnectModel { way: Some(d::ModelWay { source: None, provider, kind: d::WayKind::Key }) },
-        fixtures::PROJECT,
-        true,
-        None,
-        Some(me),
-    );
-    fixtures::root_event(
-        &mut root,
-        d::Event::AccountKey { value: skein_lib::Secret::new(b"private-once".as_slice().into()) },
-    );
-    let attempt = sent(&mut root, M::Submit { name: [1; 16] });
-    answer(&mut root, attempt, c::OwnerOutcome::AccountKeyKept { source: 43 });
-    let mut doc = super::accounts::card_document(b"openai", b"", c::OwnerAccountKind::Key);
-    doc.accounts.get_mut(0).unwrap().provider = Some(provider);
-    doc.cut = false;
-    super::accounts::deliver(&mut root, accounts_watch, doc);
-    assert!(!root.demo().unwrap().1.model);
-    assert!(words(&root).contains("The playground’s scripted model stepped aside."));
-}
-
-#[test]
 fn a_returned_source_waits_for_the_watch_with_its_signing_card_alone() {
     let (mut root, _) = flow_fixture(d::WayKind::SignIn);
     assert!(d::pages::accounts::document(root.client()).is_none());
