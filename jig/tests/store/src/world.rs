@@ -552,6 +552,9 @@ impl World {
             let mut answer = None;
             for event in events {
                 match event {
+                    Event::Page { .. } | Event::PageRefused { .. } => {
+                        unreachable!("a start's pages need a start-mode store")
+                    }
                     Event::Site { owner, of, key, site, at, patcher } => {
                         answer = Some(answer_site(owner, of, key, site, at, patcher, &mut contexts));
                     }

@@ -520,5 +520,5 @@ fn an_empty_page_can_advance_its_interval_with_the_same_key() {
     let cursor = Cursor { interval: 1, after: Box::from(b"a".as_slice()) };
     let walked =
         crate::pages::Decoded { rows: Box::new([]), next: Some(Cursor { interval: 2, after: cursor.after.clone() }) };
-    crate::restore::assert_progress(Some(cursor), &walked);
+    crate::restore::assert_progress(Some(&cursor), walked.rows.is_empty(), walked.next.as_ref());
 }

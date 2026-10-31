@@ -744,7 +744,8 @@ admitted within that edge is never refused as too large.
 - **Same step.** skein-kv serves a page from memory in the step that asks
   (skein's `kv.md`, section 2), and the component answers in that step
   too, through its outputs, never by recursion. Only transcripts' bytes
-  take io (section 8).
+  take io (section 8). A store opened with `Store::start_restore()` answers
+  `Restore` with `Event::Page` or `Event::PageRefused`.
 - **The cursor is exclusive.** A page's cursor is the last key it
   returned; the next page starts just past it, and an absent cursor at
   the interval's beginning. skein-kv's ranges start inclusively, and its

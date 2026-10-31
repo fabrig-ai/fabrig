@@ -167,6 +167,7 @@ fn answer_frame(disk: &mut Disk, store: &mut Store, events: Box<[Event]>, refuse
     let mut result = Vec::new();
     for event in events {
         match event {
+            Event::Page { .. } | Event::PageRefused { .. } => unreachable!("a start's pages need a start-mode store"),
             Event::Site { owner, of, key, site, at, mut patcher } => {
                 assert_eq!(owner, OWNER);
                 assert_eq!(of, Owner::Smith);
