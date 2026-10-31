@@ -123,3 +123,17 @@ Not yours: notes, decided proposals and the project's own rows
 The standard report, plus: the page bounds used; every core map you
 taught to forget a task; any row the naming walk still found for an
 erased task, and why.
+
+## Answers
+
+2026-10-31. May this task repair the missing `engine::Change::RemoveProject`
+arm in `jig/tests/ops/src/client/transport.rs` (`change_facts`, E0004 in
+`jig-ops-world`)? Yes. `jp-client` (3fa8fa1d83) added the variant to
+`jig-client-scripted-engine`'s `Change` and left this exhaustive match
+behind; it is merged, so the trunk itself fails to build `jig-ops-world`'s
+tests, and this task's step 5 builds them. Add the one arm,
+`engine::Change::RemoveProject { .. }`, to the group that observes nothing
+(`=> {}`, beside `Tree(_)` and `Seen { .. }`): the ops world's observations
+watch tasks and cards, not project documents, and its scripts never delete
+a project. Nothing else in that file or crate. Commit it on its own, first,
+saying it repairs the trunk after `jp-client`, and name it in the report.
