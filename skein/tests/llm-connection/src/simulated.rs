@@ -255,7 +255,35 @@ pub enum Process {
     Peer(Box<llm::Peer>, Option<(Box<[u8]>, Time)>),
 }
 
+impl Process {
+    fn host(&self) -> &dyn Host {
+        match self {
+            Self::Client(client) => client.as_ref(),
+            Self::Peer(peer, _) => peer.as_ref(),
+        }
+    }
+    fn host_mut(&mut self) -> &mut dyn Host {
+        match self {
+            Self::Client(client) => client.as_mut(),
+            Self::Peer(peer, _) => peer.as_mut(),
+        }
+    }
+}
+
 impl Host for Process {
+    fn state_digest(&self) -> Option<[u8; 32]> {
+        self.host().state_digest()
+    }
+    fn drain(&mut self) {
+        self.host_mut().drain();
+    }
+    fn exit(&self) -> Option<kernel::Exit> {
+        self.host().exit()
+    }
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
+    }
+
     fn iterate(&mut self, now: Time, wall: Wall) {
         match self {
             Self::Client(client) => client.iterate(now, wall),
@@ -269,16 +297,10 @@ impl Host for Process {
         }
     }
     fn completions(&mut self) -> &mut Queue<kernel::Complete> {
-        match self {
-            Self::Client(client) => client.completions(),
-            Self::Peer(peer, _) => peer.completions(),
-        }
+        self.host_mut().completions()
     }
     fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
-        match self {
-            Self::Client(client) => client.submissions(),
-            Self::Peer(peer, _) => peer.submissions(),
-        }
+        self.host_mut().submissions()
     }
     fn work_pending(&self, now: Time) -> bool {
         match self {
@@ -296,23 +318,14 @@ impl Host for Process {
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {
-        match self {
-            Self::Client(client) => client.next_policy_deadline(),
-            Self::Peer(peer, _) => peer.next_policy_deadline(),
-        }
+        self.host().next_policy_deadline()
     }
 
     fn is_empty(&self) -> bool {
-        match self {
-            Self::Client(client) => client.is_empty(),
-            Self::Peer(peer, _) => peer.is_empty(),
-        }
+        self.host().is_empty()
     }
     fn operations(&self) -> u32 {
-        match self {
-            Self::Client(client) => client.operations(),
-            Self::Peer(peer, _) => peer.operations(),
-        }
+        self.host().operations()
     }
 }
 
