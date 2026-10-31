@@ -203,10 +203,10 @@ fn follow(domain: &mut Domain, env: &Env<Limits>, mut reconcile: Reconcile, out:
 }
 
 fn recovery_unknown(domain: &mut Domain, out: &mut Queue<Request>) {
-    domain.stop_failed = true;
+    domain.ending.fail_store();
     crate::person::show_dropped(&mut domain.lines, out);
     domain.chat.phase = ChatState::Done;
-    out.push(Request::Exit { status: crate::end::exit_status(domain.end_cause) });
+    out.push(Request::Exit { status: crate::end::exit_status(domain.ending.cause()) });
 }
 
 fn reconcile_answer(domain: &mut Domain, reconcile: Reconcile, interrupted: Option<u32>, out: &mut Queue<Request>) {

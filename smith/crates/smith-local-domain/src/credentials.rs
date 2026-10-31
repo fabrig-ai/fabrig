@@ -10,9 +10,3 @@ pub(crate) struct Grants {
     pub(crate) values: List<Grant>,
     pub(crate) awaiting: u32,
 }
-
-impl Grants {
-    pub(crate) fn new(capacity: u32) -> Grants {
-        Grants { values: List::with_capacity(capacity), awaiting: 0 }
-    }
-}
