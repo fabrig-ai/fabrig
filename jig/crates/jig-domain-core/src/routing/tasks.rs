@@ -194,7 +194,7 @@ pub(super) fn tag_tasks(
                     asked
                         .push(authority::Delegate {
                             executor,
-                            authority: crate::translate::authority_value(&member.authority),
+                            authority: crate::translate::tasks_authority(&member.authority),
                             symbolic: Box::new([]),
                         })
                         .expect("bounded template");

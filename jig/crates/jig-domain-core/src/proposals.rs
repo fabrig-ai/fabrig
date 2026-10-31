@@ -50,10 +50,10 @@ fn action_for_check(core: &Core, action: &tasks::ProposalAction, decision: Wall)
         tasks::ProposalAction::Effect { authority, .. }
         | tasks::ProposalAction::ProcedureEffect { authority, .. }
         | tasks::ProposalAction::Widen { authority, .. } => {
-            Some(authority::Action::Widen(translate::authority_value(authority)))
+            Some(authority::Action::Widen(translate::tasks_authority(authority)))
         }
         tasks::ProposalAction::Amend { task, amendment, .. } => Some(authority::Action::Amend(
-            translate::authority_value(amendment.authority.as_ref().unwrap_or(&core.tasks.task(*task)?.authority)),
+            translate::tasks_authority(amendment.authority.as_ref().unwrap_or(&core.tasks.task(*task)?.authority)),
         )),
         tasks::ProposalAction::ReleasePlaced { .. } | tasks::ProposalAction::Release { .. } => {
             Some(authority::Action::Escalate { release: None })
@@ -77,7 +77,7 @@ fn covers_task(
             needed,
             &authority::Holder::Task {
                 project,
-                authority: translate::authority_value(&holder.authority),
+                authority: translate::tasks_authority(&holder.authority),
                 numbers: translate::authority_numbers(holder.numbers),
                 tasks_left: holder.tasks_left,
             },

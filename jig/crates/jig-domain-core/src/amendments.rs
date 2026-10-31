@@ -92,8 +92,8 @@ impl Core {
             return Err(TaskAmendDenied::Refused { task: target, why });
         }
         let Some(after) = &amendment.authority else { return Ok(false) };
-        let before = translate::authority_value(&current.authority);
-        let after = translate::authority_value(after);
+        let before = translate::tasks_authority(&current.authority);
+        let after = translate::tasks_authority(after);
         let implies = &self.authority.rules().implies;
         let stop_run = !authority::at_most(&before, &after, implies);
         if !authority::at_most(&after, &before, implies) {
@@ -105,7 +105,7 @@ impl Core {
                 None => false,
             };
             let answer = if hard {
-                if authority::at_most(&after, &translate::authority_value(&holder.authority), implies) {
+                if authority::at_most(&after, &translate::tasks_authority(&holder.authority), implies) {
                     authority::Answer::Allow
                 } else {
                     authority::Answer::Propose
@@ -237,67 +237,30 @@ pub(crate) fn granted(
     models: tasks::Models,
     limits: &tasks::Limits,
 ) -> Option<tasks::Authority> {
-    let mut grants = List::with_capacity(limits.authority_grants);
-    for grant in value.grants {
-        let mut segments = List::with_capacity(limits.authority_segments);
-        for segment in grant.pattern.segments {
-            segments.push(segment).ok()?;
+    let grants_limit = usize::try_from(limits.authority_grants).expect("grant bound fits usize");
+    let segments_limit = usize::try_from(limits.authority_segments).expect("segment bound fits usize");
+    if value.grants.len() > grants_limit
+        || value.note_resources.len() > grants_limit
+        || value.delegation.kinds.len() > usize::try_from(limits.executor_kinds).expect("executor bound fits usize")
+    {
+        return None;
+    }
+    for grant in &value.grants {
+        if grant.pattern.segments.len() > segments_limit {
+            return None;
         }
-        let last = match grant.pattern.last {
-            people::Last::Exact(word) => tasks::Last::Exact(word),
-            people::Last::Open(word) => tasks::Last::Open(word),
-        };
-        grants
-            .push(tasks::Grant {
-                connector: grant.connector,
-                kind: grant.kind,
-                pattern: tasks::Pattern { segments: segments.into_boxed(), last },
-            })
-            .ok()?;
     }
-    let mut note_resources = List::with_capacity(limits.authority_grants);
-    for scope in value.note_resources {
-        let mut segments = List::with_capacity(limits.authority_segments);
-        for segment in scope.pattern.segments {
-            segments.push(segment).ok()?;
+    for scope in &value.note_resources {
+        if scope.pattern.segments.len() > segments_limit {
+            return None;
         }
-        let last = match scope.pattern.last {
-            people::Last::Exact(word) => tasks::Last::Exact(word),
-            people::Last::Open(word) => tasks::Last::Open(word),
-        };
-        note_resources
-            .push(tasks::ResourceScope {
-                connector: scope.connector,
-                pattern: tasks::Pattern { segments: segments.into_boxed(), last },
-            })
-            .ok()?;
     }
-    let mut kinds = List::with_capacity(limits.executor_kinds);
-    for kind in value.delegation.kinds {
-        kinds
-            .push(match kind {
-                people::Executor::Charter(number) => tasks::AuthorityExecutor::Charter(number),
-                people::Executor::Procedure(number) => tasks::AuthorityExecutor::Procedure(number),
-                people::Executor::Role(number) => tasks::AuthorityExecutor::Role(number),
-            })
-            .ok()?;
+    let inherit_models = value.models.is_none();
+    let mut given = translate::task_authority(&translate::people_authority(value)?);
+    if inherit_models {
+        given.models = models;
     }
-    Some(tasks::Authority {
-        tools: tasks::Tools(value.tools),
-        models: match value.models {
-            Some(value) => tasks::Models::from_parts(value.bits(), value.is_all()),
-            None => models,
-        },
-        grants: grants.into_boxed(),
-        delegation: tasks::Delegation {
-            kinds: kinds.into_boxed(),
-            tasks: value.delegation.tasks,
-            depth: value.delegation.depth,
-        },
-        budget: tasks::Budget { spend: value.spend, deadline: value.deadline },
-        notes: tasks::Scopes(value.notes),
-        note_resources: note_resources.into_boxed(),
-    })
+    Some(given)
 }
 
 /// A party's amendment in the task vocabulary; a changed authority keeps the task's `models`.

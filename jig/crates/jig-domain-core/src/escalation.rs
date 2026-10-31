@@ -107,7 +107,7 @@ fn recipient_after(
                         &needed,
                         &authority::Holder::Task {
                             project: context.project,
-                            authority: translate::authority_value(&holder.authority),
+                            authority: translate::tasks_authority(&holder.authority),
                             numbers: translate::authority_numbers(holder.numbers),
                             tasks_left: holder.tasks_left,
                         },

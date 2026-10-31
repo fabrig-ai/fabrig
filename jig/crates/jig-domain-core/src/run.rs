@@ -125,7 +125,7 @@ impl Core {
             &self.authority,
             &authority::RunAsk {
                 project: task.project,
-                authority: translate::authority_value(&task.authority),
+                authority: translate::tasks_authority(&task.authority),
                 numbers,
                 budget: authority::left(numbers).min(self.authority.rules().maximum_run_spend),
                 reserve: self.run_reserve(task.task),
