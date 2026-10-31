@@ -554,6 +554,8 @@ fn groups_fetch_before_preparation() {
                 ]
                 .into_boxed_slice(),
                 asked: Box::new([Group {
+                    kind: None,
+                    remover: None,
                     recorded: true,
                     forge: 3,
                     label: b"Forge 3 (Forgejo)".as_slice().into(),

@@ -148,7 +148,11 @@ fn request_bytes(request: &Request) -> usize {
             | Plan::Adopt { .. }
             | Plan::Reachable { .. } => 0,
         },
-        Request::Answer { answer: Answer::Read(None) | Answer::Written, .. } | Request::Close | Request::Abort => 0,
+        Request::Add(_) => panic!("runtime forge settings are not metered by this world"),
+        Request::Answer { answer: Answer::Read(None) | Answer::Written, .. }
+        | Request::Remove { .. }
+        | Request::Close
+        | Request::Abort => 0,
     }
 }
 

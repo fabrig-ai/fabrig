@@ -816,6 +816,8 @@ pub fn grouped_steps() -> temper_forge_setup::Steps {
     Steps {
         always: Box::new([long(b"serve", &[b"never"])]),
         asked: Box::new([Group {
+            kind: None,
+            remover: None,
             label: bytes::copy_of(b"Forge 3 (Forgejo)"),
             recorded: true,
             forge: 3,

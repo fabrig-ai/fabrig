@@ -76,6 +76,8 @@ pub fn steps(
         };
         asked
             .push(Group {
+                kind: None,
+                remover: None,
                 forge: demo.forge(),
                 label: bytes::copy_of(b"Playground"),
                 recorded: false,

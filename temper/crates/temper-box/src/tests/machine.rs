@@ -240,6 +240,8 @@ fn asked_groups_follow_their_chains_records_failures_and_stop() {
             always: Box::new([step(b"anchor", Kind::Long), step(b"serve", Kind::Long)]),
             asked: Box::new([
                 Group {
+                    kind: None,
+                    remover: None,
                     label: skein_lib::bytes::copy_of(b"Forge 3 (Forgejo)"),
                     recorded: true,
                     forge: 3,
@@ -252,6 +254,8 @@ fn asked_groups_follow_their_chains_records_failures_and_stop() {
                     ]),
                 },
                 Group {
+                    kind: None,
+                    remover: None,
                     label: skein_lib::bytes::copy_of(b"other label"),
                     recorded: true,
                     forge: 4,
@@ -412,6 +416,8 @@ fn asked_groups_follow_their_chains_records_failures_and_stop() {
         let placed = layout::flatten(Steps {
             always: Box::new([]),
             asked: Box::new([Group {
+                kind: None,
+                remover: None,
                 label: skein_lib::bytes::copy_of(b"Forge 3 (Forgejo)"),
                 recorded: true,
                 forge: 9,
@@ -647,6 +653,8 @@ fn a_link_takes_the_first_line_once_across_restarts_and_stop() {
                 step(b"seed", Kind::Link),
             ]),
             asked: Box::new([Group {
+                kind: None,
+                remover: None,
                 label: skein_lib::bytes::copy_of(b"Forge 3 (Forgejo)"),
                 recorded: true,
                 forge: 3,
@@ -738,6 +746,8 @@ fn an_asked_groups_final_once_step_gates_started_and_failure_allows_another_ask(
     let placed = layout::flatten(Steps {
         always: Box::new([]),
         asked: Box::new([Group {
+            kind: None,
+            remover: None,
             label: skein_lib::bytes::copy_of(b"Forge 3 (Forgejo)"),
             recorded: true,
             forge: 3,
@@ -784,16 +794,15 @@ fn an_asked_groups_final_once_step_gates_started_and_failure_allows_another_ask(
     }
 }
 
-#[test]
-fn an_owned_version_gates_the_runner_and_record_on_ask_and_restart() {
+fn version_gated_steps() -> Box<[crate::layout::Placed]> {
     use super::fixtures::step;
     use crate::layout;
-    use crate::machine::{Machine, Said, Why};
-    use skein_lib::{Queue, Time};
     use temper_forge_setup::{Group, Stage, Steps};
-    let placed = layout::flatten(Steps {
+    layout::flatten(Steps {
         always: Box::new([step(b"serve", Kind::Long)]),
         asked: Box::new([Group {
+            kind: None,
+            remover: None,
             label: skein_lib::bytes::copy_of(b"Forge 3 (Forgejo)"),
             recorded: true,
             forge: 3,
@@ -804,7 +813,14 @@ fn an_owned_version_gates_the_runner_and_record_on_ask_and_restart() {
                 (Stage::Run, step(b"once 3", Kind::Once)),
             ]),
         }]),
-    });
+    })
+}
+
+#[test]
+fn an_owned_version_gates_the_runner_and_record_on_ask_and_restart() {
+    use crate::machine::{Machine, Said, Why};
+    use skein_lib::{Queue, Time};
+    let placed = version_gated_steps();
     for recorded in [false, true] {
         for ending in ["ready", "timeout", "stop", "exit"] {
             let mut machine = Machine::new(&limits::small(), &placed).unwrap();
@@ -900,6 +916,8 @@ fn an_unrecorded_group_runs_only_when_asked_even_with_a_stale_record() {
     let placed = layout::flatten(Steps {
         always: Box::new([step(b"serve", Kind::Long)]),
         asked: Box::new([Group {
+            kind: None,
+            remover: None,
             label: skein_lib::bytes::copy_of(b"Forge 3 (Forgejo)"),
             forge: 1,
             before: 0,
@@ -947,6 +965,8 @@ fn stoppable_group(recorded: bool) -> Rig {
         &layout::flatten(Steps {
             always: Box::new([super::fixtures::step(b"serve", Kind::Long)]),
             asked: Box::new([Group {
+                kind: None,
+                remover: None,
                 label: skein_lib::bytes::copy_of(b"Forge 3 (Forgejo)"),
                 forge: 1,
                 recorded,
@@ -1199,6 +1219,8 @@ fn group_failure_facts_keep_exit_spawn_readiness_and_record_reasons_until_closur
     let placed = layout::flatten(Steps {
         always: Box::new([]),
         asked: Box::new([Group {
+            kind: None,
+            remover: None,
             forge: 7,
             before: 0,
             recorded: true,
@@ -1398,6 +1420,8 @@ fn lifecycle_load_steps(grouped: bool, count: u32) -> Box<[crate::layout::Placed
         Steps {
             always: Box::new([]),
             asked: Box::new([Group {
+                kind: None,
+                remover: None,
                 forge: 7,
                 before: 0,
                 recorded: true,
@@ -1535,6 +1559,8 @@ fn an_owned_forge_starting_with_the_box_announces_its_hands_only_after_readiness
             Steps {
                 always: Box::new([]),
                 asked: Box::new([Group {
+                    kind: None,
+                    remover: None,
                     forge: 37,
                     label: b"owned".as_slice().into(),
                     recorded: true,
