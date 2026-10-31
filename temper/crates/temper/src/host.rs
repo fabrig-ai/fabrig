@@ -35,6 +35,12 @@ impl skein_shell::Host for Host {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.now = now;
         temper_service::iterate(&mut self.service, now, wall);
+        for (forge, name, port) in self.service.unresolved() {
+            let address = std::str::from_utf8(&name)
+                .ok()
+                .and_then(|name| std::net::ToSocketAddrs::to_socket_addrs(&(name, port)).ok()?.next());
+            self.service.resolved(forge, address);
+        }
     }
     fn completions(&mut self) -> &mut Queue<Complete> {
         self.service.completions()

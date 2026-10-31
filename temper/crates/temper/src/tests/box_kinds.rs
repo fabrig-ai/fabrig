@@ -33,7 +33,7 @@ fn forge_remove_of_an_absent_directory_succeeds() {
 
 #[test]
 fn forge_commands_compose_the_recorded_kind_with_the_machine() {
-    use temper_forge_setup::{Setup, setup::Mode};
+    use temper_forge_setup::setup::Mode;
     let scratch = skein_scratch::Scratch::new("forge-kind-entry");
     let directories = super::configuration::directories(scratch.path());
     let bytes = serde_json::to_vec(&serde_json::json!({"application":{"machine":{"owned":{
@@ -41,12 +41,11 @@ fn forge_commands_compose_the_recorded_kind_with_the_machine() {
         "person":{"login":"ada","email":"ada@example.invalid"},"forgejo":"fetched","runner":null
     }, "fake":{"listen":{"socket":"127.0.0.1:8369"},"remote":"http://127.0.0.1:8369","git":"demo/bin/git"}}}}))
     .expect("machine JSON");
-    let setup = Setup { entries: Box::new([]) };
     let groups = scratch.path().join("box/groups");
     fs::create_dir_all(&groups).expect("groups");
     for (kind, directory) in [("owned", "forge-17"), ("fake", "playground-17")] {
         fs::write(groups.join("17"), format!("{kind}\n")).expect("group kind");
-        let entry = crate::forge::entry(&directories, &bytes, &setup, 17).expect("composed entry");
+        let entry = crate::forge::entry(&directories, &bytes, 17).expect("composed entry");
         assert_eq!(entry.forge, 17);
         assert_eq!(entry.directory.as_ref(), scratch.path().join(directory).as_os_str().as_encoded_bytes());
         match entry.mode {
@@ -63,5 +62,5 @@ fn forge_commands_compose_the_recorded_kind_with_the_machine() {
         }
     }
     fs::write(groups.join("17"), b"unknown\n").expect("invalid group");
-    assert!(crate::forge::entry(&directories, &bytes, &setup, 17).is_err());
+    assert!(crate::forge::entry(&directories, &bytes, 17).is_err());
 }
