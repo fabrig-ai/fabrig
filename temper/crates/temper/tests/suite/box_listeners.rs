@@ -51,7 +51,7 @@ fn a_fresh_box_holds_serves_clients_port() {
         {
             address = Some(clients(&document));
             owned = Some(
-                document["application"]["setup"][1]["mode"]["owned"]["listen"]["socket"]
+                document["application"]["machine"]["owned"]["listen"]["socket"]
                     .as_str()
                     .expect("owned listener")
                     .parse::<SocketAddr>()
