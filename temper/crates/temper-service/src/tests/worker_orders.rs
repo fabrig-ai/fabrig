@@ -243,9 +243,11 @@ fn a_link_invocations_whole_output_precedes_the_next_invocation() {
     settings.jig.engine = jig_protocol_config::Address::Addr(io::Addr::Ip(([127, 0, 0, 1], 7100).into()));
     settings.jig.limits.core.accounts.accounts = ASSIGNMENT_GRANTS;
     settings.jig.limits.core.accounts.credentials = 0;
+    let mut own = fixtures::worker_limits();
+    own.forge.forges = 0;
     let agent = fixtures::worker_agent();
-    let mut stand = socket_stand_with(&settings, &agent);
-    let mut peer = LinkPeer::with_settings(&settings, &agent);
+    let mut stand = socket_stand_with_limits(&settings, &agent, &own);
+    let mut peer = LinkPeer::with_limits(&settings, &agent, &own);
     peer.open(&mut stand.worker);
     assert!(stand.worker.engine.is_empty());
 
