@@ -1,4 +1,4 @@
-//! The deployment's demo, read whole before any files (protocol/setup.md, 8.4).
+//! The playground's LLM, read before files (temper/docs/design/draft/playground-reset.md, 3).
 use crate::{Refusal, limits, llm, read};
 use alloc::boxed::Box;
 use core::net::SocketAddr;
@@ -6,7 +6,6 @@ use jig_protocol_config::{self as config, Directory, Path};
 use skein_fake_llm_domain::api;
 use skein_json::Document as Json;
 use skein_lib::{List, bytes};
-use temper_forge_setup::setup::{Mode, Setup};
 
 /// The key file's read bound: the largest account key and its newline.
 /// jig's client-v11 Keyed.value ceiling is 4096 bytes; account keys are raw bytes.
@@ -47,8 +46,6 @@ pub fn key(file: &[u8]) -> Result<&[u8], KeyRefused> {
 pub struct Demo {
     llm: llm::Document,
     provider: u32,
-    forge: u16,
-    project: u32,
 }
 impl Demo {
     #[must_use]
@@ -59,22 +56,12 @@ impl Demo {
     pub fn provider(&self) -> u32 {
         self.provider
     }
-    #[must_use]
-    pub fn forge(&self) -> u16 {
-        self.forge
-    }
-    #[must_use]
-    pub fn project(&self) -> u32 {
-        self.project
-    }
 }
 /// What the demo is checked against, all from the checked document.
 /// A borrowed view used only during this read; no service state retains it.
 #[derive(Debug)]
 pub struct Facts<'a> {
     pub llm: &'a config::Llm,
-    pub projects: &'a [u32],
-    pub setup: &'a Setup,
     pub listeners: &'a [SocketAddr],
     pub directories: &'a config::Directories,
 }
@@ -86,8 +73,6 @@ pub fn read(document: &Json, at: u32, facts: &Facts<'_>) -> Result<Option<Demo>,
     let p = Path::root().member(b"application").member(b"demo");
     let mut o = read::object(document, at, &p)?;
     let llm_at = read::required(&mut o, document, b"llm", &p)?;
-    let forge_at = read::required(&mut o, document, b"forge", &p)?;
-    let project_at = read::required(&mut o, document, b"project", &p)?;
     read::finish(o, document, &p)?;
     let lp = p.member(b"llm");
     let mut o = read::object(document, llm_at, &lp)?;
@@ -126,24 +111,7 @@ pub fn read(document: &Json, at: u32, facts: &Facts<'_>) -> Result<Option<Demo>,
     let scripts =
         api::Scripts { cued, asked, otherwise: llm::turns(document, otherwise_at, &lp.member(b"otherwise"))? };
     let llm = llm::Document::checked(listen, key, None, models, scripts, &lp)?;
-    let forge = read::integer(document, forge_at, u64::from(u16::MAX), &p.member(b"forge"))?;
-    let forge = u16::try_from(forge).expect("u16 bound");
-    let fake = match facts.setup.entry(forge) {
-        Some(entry) => match &entry.mode {
-            Mode::Fake(_) => true,
-            Mode::Owned(_) | Mode::Managed { .. } => false,
-        },
-        None => false,
-    };
-    if !fake {
-        return Err(read::why(&p.member(b"forge"), b"names no fake setup entry"));
-    }
-    let project = read::integer(document, project_at, u64::from(u32::MAX), &p.member(b"project"))?;
-    let project = u32::try_from(project).expect("u32 bound");
-    if !facts.projects.contains(&project) {
-        return Err(read::why(&p.member(b"project"), b"names no project"));
-    }
-    Ok(Some(Demo { llm, provider, forge, project }))
+    Ok(Some(Demo { llm, provider }))
 }
 fn data_path(d: &Json, at: u32, directories: &config::Directories, p: &Path) -> Result<Box<[u8]>, Refusal> {
     let text = read::text(d, at, limits::PATH_BYTES, p)?;
@@ -155,16 +123,6 @@ fn data_path(d: &Json, at: u32, directories: &config::Directories, p: &Path) -> 
 fn unique_listen(listen: SocketAddr, facts: &Facts<'_>, p: &Path) -> Result<(), Refusal> {
     if facts.listeners.contains(&listen) {
         return Err(read::why(p, b"must be unique"));
-    }
-    for entry in &facts.setup.entries {
-        let local = match &entry.mode {
-            Mode::Managed { .. } => None,
-            Mode::Owned(owned) => Some(owned.listen),
-            Mode::Fake(fake) => Some(fake.listen),
-        };
-        if local == Some(listen) {
-            return Err(read::why(p, b"must be unique"));
-        }
     }
     Ok(())
 }

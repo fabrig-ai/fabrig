@@ -94,8 +94,6 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
                 root::Request::Party(_) => {}
                 request @ (root::Request::Unsettled(_)
                 | root::Request::Bound { .. }
-                | root::Request::StopGroup { .. }
-                | root::Request::SetUpGroup { .. }
                 | root::Request::ForgeKept(_)
                 | root::Request::ForgeGone { .. }
                 | root::Request::BoxGroup { .. }

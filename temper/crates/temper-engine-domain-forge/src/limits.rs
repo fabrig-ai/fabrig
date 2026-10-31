@@ -63,7 +63,7 @@ pub struct Limits {
 
 /// Whether entrance limits are coherent and retained row counts fit their types.
 /// Names and gates fit the panel; client admissions cover the top's rows.
-/// Demo, reconciliation and landing capacities must be representable
+/// Reconciliation and landing capacities must be representable
 /// (temper/docs/design/domain/forge.md, sections 4, 8 and 16).
 /// Internal output envelopes and retained heap sums do not constrain admission.
 #[must_use]
@@ -91,7 +91,6 @@ pub fn valid(l: &Limits) -> bool {
         // makes, so a held entry made again always finds the client's room.
         || l.entries > l.client.entries
         || l.holds > l.client.resources
-        || demo_act_bound(l).is_none()
         || crate::reconcile::capacity(l).is_none()
         || !crate::landing::valid(l)
     {
@@ -103,10 +102,4 @@ pub fn valid(l: &Limits) -> bool {
 /// Whether the connection owner's installation row count fits its table capacity.
 pub(crate) const fn connection_valid(forges: u32, installations: u32) -> bool {
     forges.checked_mul(installations).is_some()
-}
-
-/// One close per live task and the demo provider's deployment account.
-#[must_use]
-pub const fn demo_act_bound(l: &Limits) -> Option<u32> {
-    l.tasks.checked_add(1)
 }
