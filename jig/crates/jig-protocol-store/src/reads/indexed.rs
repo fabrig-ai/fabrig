@@ -50,6 +50,7 @@ fn selection(scope: &reads::Scope) -> Option<(reads::Group, reads::Filter)> {
         | reads::Scope::Result { .. }
         | reads::Scope::Reply { .. }
         | reads::Scope::Turn { .. }
+        | reads::Scope::DecidedProposals
         | reads::Scope::EndedTasks
         | reads::Scope::TaskRows { .. }
         | reads::Scope::EndedDelegates { .. }
@@ -74,6 +75,7 @@ fn history_root(scope: &reads::Scope) -> Option<u64> {
         | reads::Scope::Result { .. }
         | reads::Scope::Reply { .. }
         | reads::Scope::Turn { .. }
+        | reads::Scope::DecidedProposals
         | reads::Scope::EndedTasks
         | reads::Scope::TaskRows { .. }
         | reads::Scope::EndedDelegates { .. }

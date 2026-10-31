@@ -65,6 +65,8 @@ pub struct Filter {
 pub enum Scope {
     /// Every ended task in task order, for the core's project deletion.
     EndedTasks,
+    /// Every decided person proposal in proposal order, for the core's project deletion.
+    DecidedProposals,
     /// Every row keyed first by this task, for the core's task erasure.
     TaskRows { task: u64 },
     /// Dense inclusive revision interval; held newest and tag-9 predecessors.

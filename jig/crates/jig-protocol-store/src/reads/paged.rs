@@ -219,6 +219,7 @@ pub(super) fn notes(store: &mut Store, range: &reads::Range, spent: &mut Spent) 
             | reads::Scope::Result { .. }
             | reads::Scope::Reply { .. }
             | reads::Scope::Turn { .. }
+            | reads::Scope::DecidedProposals
             | reads::Scope::EndedTasks
             | reads::Scope::TaskRows { .. }
             | reads::Scope::EndedDelegates { .. }

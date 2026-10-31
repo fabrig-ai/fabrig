@@ -140,6 +140,7 @@ fn after(key: &[u8]) -> Box<[u8]> {
 pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
     use core::reads::Scope;
     Some(match scope {
+        Scope::DecidedProposals => Box::new([Range::prefix(&[keys::JIG, 1, 8])]),
         Scope::EndedTasks => Box::new([Range::prefix(&[keys::JIG, 1, 6])]),
         Scope::TaskRows { task } => Box::new([
             point(&core::Key::Tasks(jig_domain_tasks::Key::Stub(*task))),

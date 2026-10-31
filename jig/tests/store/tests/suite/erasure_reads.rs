@@ -74,6 +74,84 @@ fn ended_tasks_page_every_ended_task_in_task_order() {
     }
 }
 
+fn person_proposal(number: u64, project: u32, state: tasks::PersonProposalState) -> tasks::PersonProposal {
+    tasks::PersonProposal {
+        number,
+        proposer: 1,
+        project,
+        action: tasks::PersonAction::Amend {
+            task: TASK,
+            revision: 1,
+            amendment: Box::new(tasks::Amendment {
+                tracked: Some(tasks::Tracking::Tracked { priority: 1 }),
+                addressed: None,
+                instructions: None,
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: None,
+                authority: None,
+                llm: None,
+                reason: Box::from(b"track task".as_slice()),
+            }),
+        },
+        reason: Box::from(b"erase proposal".as_slice()),
+        state,
+    }
+}
+
+#[test]
+fn decided_proposals_page_every_decided_proposal_in_order() {
+    let mut world = World::with_joins(18, 0);
+    let expected = [
+        core::Record::Tasks(tasks::Stored::DecidedProposal(Box::new(person_proposal(
+            2,
+            2,
+            tasks::PersonProposalState::Accepted { by: tasks::Party::Person(1) },
+        )))),
+        core::Record::Tasks(tasks::Stored::DecidedProposal(Box::new(person_proposal(
+            5,
+            1,
+            tasks::PersonProposalState::Rejected {
+                by: tasks::Party::Person(1),
+                reason: Box::from(b"declined".as_slice()),
+                message: 1,
+                at: Wall::EPOCH,
+            },
+        )))),
+        core::Record::Tasks(tasks::Stored::DecidedProposal(Box::new(person_proposal(
+            8,
+            2,
+            tasks::PersonProposalState::Withdrawn { at: Wall::EPOCH },
+        )))),
+    ];
+    world
+        .commit(Box::new([
+            Write::Save(root::header(1)),
+            Write::Save(expected[2].clone()),
+            Write::Save(core::Record::Tasks(tasks::Stored::PersonProposal(Box::new(person_proposal(
+                3,
+                1,
+                tasks::PersonProposalState::Pending { since: Wall::EPOCH },
+            ))))),
+            Write::Save(expected[0].clone()),
+            Write::Save(expected[1].clone()),
+        ]))
+        .expect("decided proposals of two projects and a pending proposal");
+    let mut after = None;
+    for (index, record) in expected.iter().enumerate() {
+        let (rows, next) = page(&mut world, reads::Scope::DecidedProposals, after, 1, PAGE_BYTES);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(&rows[0].value, record);
+        if index + 1 < expected.len() {
+            assert_eq!(next, Some(reads::Position::Owner(record.key())));
+        } else {
+            assert!(next.is_none());
+        }
+        after = next;
+    }
+}
+
 fn task_rows(task: u64) -> Vec<core::Record> {
     let mut records = vec![core::Record::Tasks(tasks::Stored::Stub(tasks::Stub {
         task,

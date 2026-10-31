@@ -265,6 +265,7 @@ fn take_cursor(r: &mut Reader<'_>) -> Option<reads::Cursor> {
 
 fn put_scope(w: &mut Writer, value: &reads::Scope) -> Option<()> {
     match value {
+        reads::Scope::DecidedProposals => w.byte(20)?,
         reads::Scope::EndedTasks => w.byte(18)?,
         reads::Scope::TaskRows { task } => {
             w.byte(19)?;
@@ -356,6 +357,7 @@ fn take_scope(r: &mut Reader<'_>) -> Option<reads::Scope> {
         5 => reads::Scope::Result { task: r.u64()? },
         6 => reads::Scope::Reply { task: r.u64()?, activity: r.u64()? },
         7 => reads::Scope::Turn { task: r.u64()?, attempt: r.u64()?, turn: r.u32()? },
+        20 => reads::Scope::DecidedProposals,
         18 => reads::Scope::EndedTasks,
         19 => reads::Scope::TaskRows { task: r.u64()? },
         8 => reads::Scope::EndedDelegates { task: r.u64()? },
