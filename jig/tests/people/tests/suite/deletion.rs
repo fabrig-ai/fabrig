@@ -240,7 +240,11 @@ fn a_closed_project_refuses_party_asks_as_one_never_made() {
         }
     }
     let done = people.send(Event::Decided { request: pending, outcome: Outcome::Refused(Refusal::Unknown) });
-    assert_eq!(done.iter().filter(|row| matches!(row, Request::Reply { .. })).count(), 2, "routed flights still complete");
+    assert_eq!(
+        done.iter().filter(|row| matches!(row, Request::Reply { .. })).count(),
+        2,
+        "routed flights still complete"
+    );
 }
 
 #[test]
