@@ -1,5 +1,5 @@
 //! Checked store admission bounds (protocol/store.md, 5.4, 6 and 13).
-use crate::{accounts_v2, codec, component_v3, core_v6, notes_v1, people_v13, tasks_v9};
+use crate::{accounts_v2, codec, component_v3, core_v6, notes_v1, people_v14, tasks_v9};
 use jig_domain_core as core;
 
 /// Decoded byte allowance for a two-row restart page (protocol/store.md, 7.2).
@@ -141,7 +141,7 @@ fn largest(
     let value = u32::try_from(
         core_v6::Row::encoded_bound(&map_core)?
             .max(tasks_v9::Row::encoded_bound(&limits.tasks)?)
-            .max(people_v13::Row::encoded_bound(&limits.people)?)
+            .max(people_v14::Row::encoded_bound(&limits.people)?)
             .max(notes_v1::Row::encoded_bound(&limits.notes)?)
             .max(component_v3::encoded_bound(&component_v3::CEILINGS)?)
             .max(accounts_v2::encoded_bound(&accounts_v2::CEILINGS)?)

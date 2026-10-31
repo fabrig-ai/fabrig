@@ -85,7 +85,7 @@ fn a_first_commit_puts_format_layouts_and_installation_with_its_header() {
             component: 3,
             core: 6,
             tasks: 9,
-            people: 13,
+            people: 14,
             notes: 1,
             accounts: 2,
             settings: 1,
