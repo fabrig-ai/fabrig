@@ -1,5 +1,5 @@
 //! Cross-child required links before sweep (jig/docs/design/domain/engine.md, 6).
-//! Kept deletions own remaining project rows (temper/docs/design/draft/playground-reset.md, 5).
+//! Kept deletions own remaining project rows (jig/docs/design/domain/people.md, 5.2).
 use crate::{Core, CoreKey, Key, accounts, people, tasks};
 
 impl Core {
