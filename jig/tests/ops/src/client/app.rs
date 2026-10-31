@@ -334,7 +334,7 @@ impl App for Ops {
             .iter()
             .enumerate()
             .take(at + 1)
-            .filter(|(i, n)| *i + usize::try_from(n.size).expect("subtree") > at)
+            .filter(|(i, n)| *i + skein_lib::length::usize_of(n.size) > at)
             .filter_map(|(_, n)| {
                 n.key.filter(|k| {
                     matches!(Owner::from_opaque(k.owner), Some(Owner::Application { number: connector }) if connector == number(Connector::Infrastructure))
@@ -428,7 +428,7 @@ mod tests {
         measure: fn(&T) -> u32,
         encode: fn(&T, &mut Writer) -> std::result::Result<(), Overflow>,
     ) -> Box<[u8]> {
-        let mut writer = Writer::new(usize::try_from(measure(value)).expect("bounded wire fixture"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(measure(value)));
         encode(value, &mut writer).expect("measured wire fixture");
         writer.finish()
     }

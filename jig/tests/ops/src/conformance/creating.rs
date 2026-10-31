@@ -14,7 +14,7 @@ fn the_environment_chat_template_fits_its_supplied_ready_report() {
         .expect("fixture has a conversation template");
     let Contract::Report { words } = template.contract else { panic!("fixture uses a report") };
     assert!(
-        READY_REPORT.len() <= usize::try_from(words).expect("report limit fits usize"),
+        READY_REPORT.len() <= skein_lib::length::usize_of(words),
         "the supplied {} byte report exceeds its template's {words} byte contract",
         READY_REPORT.len()
     );

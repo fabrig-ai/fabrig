@@ -95,7 +95,6 @@ pub(crate) fn value_encode(value: &d::Value) -> Result<w::ObservabilityValue, In
         }
     })
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn value_decode(value: w::ObservabilityValue) -> d::Value {
     match value {
         w::ObservabilityValue::Service(value) => {

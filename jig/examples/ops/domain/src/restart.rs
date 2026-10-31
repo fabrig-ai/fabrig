@@ -87,8 +87,7 @@ pub(crate) fn done(
     work: &mut Queue<Work>,
 ) {
     let mut out = Queue::uncapped();
-    let action =
-        domain.core.start_done(&Env { now: env.now, wall: env.wall, limits: env.limits.core }, phase, &mut out);
+    let action = domain.core.start_done(&env.with(env.limits.core), phase, &mut out);
     if phase == core::start::Phase::Wires {
         match &action {
             core::start::Action::Commit(_) => crate::domain::write(domain, decision, Write::Wires),
@@ -115,8 +114,7 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision<Write, 
         }
         let input = domain.start.sweep.pop().expect("queued sweep page rows");
         let mut out = Queue::uncapped();
-        let action =
-            domain.core.start_sweep(&Env { now: env.now, wall: env.wall, limits: env.limits.core }, input, &mut out);
+        let action = domain.core.start_sweep(&env.with(env.limits.core), input, &mut out);
         crate::route::core_out(domain, env, decision, out, work);
         match action {
             core::start::Action::Idle => {}
@@ -170,21 +168,19 @@ pub(crate) fn store(
                 return;
             }
             let valid = match record {
-                Record::Core(row) => {
-                    match domain.core.restore(&Env { now: env.now, wall: env.wall, limits: env.limits.core }, row) {
-                        core::Restore::Deployment { commits } => {
-                            domain.restored_commits = Some(commits);
-                            true
-                        }
-                        core::Restore::Kept => true,
-                        core::Restore::Refused => false,
-                        core::Restore::Swept => {
-                            domain.start.sweep.push(core::start::SweepInput::Next);
-                            sweep(domain, env, decision, work);
-                            true
-                        }
+                Record::Core(row) => match domain.core.restore(&env.with(env.limits.core), row) {
+                    core::Restore::Deployment { commits } => {
+                        domain.restored_commits = Some(commits);
+                        true
                     }
-                }
+                    core::Restore::Kept => true,
+                    core::Restore::Refused => false,
+                    core::Restore::Swept => {
+                        domain.start.sweep.push(core::start::SweepInput::Next);
+                        sweep(domain, env, decision, work);
+                        true
+                    }
+                },
                 Record::Infrastructure(record) => {
                     let valid = restore_roles(domain, env, &record);
                     if valid {
@@ -211,7 +207,7 @@ fn restore_roles(domain: &mut Domain, env: &Env<Limits>, record: &infrastructure
         infrastructure::Record::Rely { project, resources, .. } => {
             for named in resources {
                 valid &= domain.core.restore_resource_role(
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.core },
+                    &env.with(env.limits.core),
                     *project,
                     tasks::Name {
                         connector: jig_ops_domain_connectors::number(Connector::Infrastructure),
