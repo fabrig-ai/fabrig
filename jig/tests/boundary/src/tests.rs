@@ -1,6 +1,7 @@
 mod attributes;
 mod client_names;
 mod graph;
+mod kits;
 mod vocabulary;
 
 use crate::manifest::{CrateManifest, parse_manifest, quoted_value, source_files, walk_directory, workspace_manifest};
