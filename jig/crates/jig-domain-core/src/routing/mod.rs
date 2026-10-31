@@ -332,7 +332,7 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
             }
             Event::SettingsCommit { .. } => unreachable!("the start commits settings itself"),
             Event::EffectConnector(crate::connector::Event::Resource { name, .. }) => {
-                assert!(matches_restore_connector(phase, name.connector), "connector resources load before Link");
+                assert!(takes_connector_resource(phase, name.connector), "connector resources load before Link");
             }
             _ => {}
         }
@@ -401,19 +401,19 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Requests {
     Requests::Out(out)
 }
 
-fn matches_restore_connector(phase: crate::start::Phase, connector: u16) -> bool {
+fn takes_connector_resource(phase: crate::start::Phase, connector: u16) -> bool {
     match phase {
         crate::start::Phase::RestoreConnector { connector: expected } => connector == expected,
+        crate::start::Phase::AdoptRuns
+        | crate::start::Phase::ReadAfresh { .. }
+        | crate::start::Phase::SettleOutbox { .. }
+        | crate::start::Phase::Open => true,
         crate::start::Phase::LoadCore
         | crate::start::Phase::LoadInbox
         | crate::start::Phase::Link
         | crate::start::Phase::Sweep
         | crate::start::Phase::Switch
-        | crate::start::Phase::Wires
-        | crate::start::Phase::AdoptRuns
-        | crate::start::Phase::ReadAfresh { .. }
-        | crate::start::Phase::SettleOutbox { .. }
-        | crate::start::Phase::Open => false,
+        | crate::start::Phase::Wires => false,
     }
 }
 
