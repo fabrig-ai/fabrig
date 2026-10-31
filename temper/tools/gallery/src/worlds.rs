@@ -572,7 +572,7 @@ fn finish_document(mut t: c::Task) -> c::Task {
     match executor {
         c::ChipExecutor::Agent { .. } => {}
         c::ChipExecutor::Procedure { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => {
-            t.settings = None
+            t.settings = None;
         }
     }
     let (phase, details) = owner(&mut t.chip);

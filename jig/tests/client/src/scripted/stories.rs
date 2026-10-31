@@ -2,8 +2,8 @@
 use super::Scripted;
 use crate::{stories as fixture, test::list};
 use jig_client_domain::contract::{
-    ActKind, ActivityLine, Admission, Answer, AnswerOn, Ask, Beyond, Block, Call, DecideOn, Decision, DocumentText,
-    Ending, Executor, HeldRole, HoldCategory, InboxGroup, InboxReadGroup, Message, ObjectKey, Offered, Outcome,
+    ActKind, DecodedActivityLine, Admission, Answer, AnswerOn, Ask, Beyond, Block, Call, DecideOn, Decision, DocumentText,
+    Ending, ChipExecutor, HeldRole, HoldCategory, InboxGroup, InboxReadGroup, Message, ObjectKey, Offered, Outcome,
     Activity, ActivityLine, ChipEnding, ChipPhase, Ended, EndedValue,
     HistoryHolder, MessageKind, MessageProposalKind, DocumentOutcome, ProposalAction,
     ProposalChoice, ProposalHistoryState, Requester, RunEnd, RunWhy, PersonAddress,
@@ -113,7 +113,7 @@ pub(super) fn request(front: &mut Scripted, party: u64, ask: &Ask, wall: Wall) {
                     _ => None,
                 })
                 .unwrap_or_default();
-            rows.push(ActivityLine {
+            rows.push(DecodedActivityLine {
                 source: Box::new(ActivityLine {
                     task: *task,
                     position: document.activity,
@@ -204,7 +204,7 @@ fn proposal_for(front: &mut Scripted, proposer: u64, holders: &[u64], words: &[u
             party: proposer,
             read: Read::Activity { task: 1, before: None },
             rows: Rows::Activity(vec![
-                ActivityLine {
+                DecodedActivityLine {
                     source: Box::new(ActivityLine {
                         task: 1,
                         position: 3,
@@ -213,7 +213,7 @@ fn proposal_for(front: &mut Scripted, proposer: u64, holders: &[u64], words: &[u
                     }),
                     decoded: None,
                 },
-                ActivityLine {
+                DecodedActivityLine {
                     source: Box::new(ActivityLine {
                         task: 1,
                         position: 2,
@@ -303,7 +303,7 @@ fn proposal_request(front: &mut Scripted, party: u64, ask: &Ask) -> bool {
         .expect("proposal activity")
         .clone();
     let Rows::Activity(rows) = &mut source.rows else { unreachable!("activity source") };
-    rows.push(ActivityLine {
+    rows.push(DecodedActivityLine {
         source: Box::new(ActivityLine {
             task,
             position: 4,
@@ -378,7 +378,7 @@ fn choice(front: &mut Scripted) {
     };
     let mut document = document.as_ref().clone();
     document.task.task = 2;
-    document.task.executor = Executor::Role { project: 1, role: 1 };
+    document.task.executor = ChipExecutor::Role { project: 1, role: 1 };
     document.address = PersonAddress::Role(1);
     document.taken_by = None;
     document.spec.specification.words = DocumentText::complete(fixture::text(b"first report or second report"));
