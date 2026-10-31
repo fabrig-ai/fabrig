@@ -363,14 +363,59 @@ fn authority_admits_a_named_model() {
     assert_eq!(last.checked_sub(first), Some(1));
 }
 
+fn task_source(session: &mut Session, now: Time, wall: Wall, number: u64) -> Box<core::documents::Task> {
+    session
+        .send(
+            ClientId(0),
+            now,
+            wall,
+            down(jig_client::Down::Read {
+                read: Token::new(92),
+                what: jig_client::Readable::Jig(c::Read::Task { task: number }),
+            }),
+        )
+        .expect("task document request");
+    let source_task = session
+        .driver
+        .world
+        .client_peer
+        .as_ref()
+        .expect("joint peer")
+        .delivered
+        .iter()
+        .find_map(|(_, delivery)| {
+            if let root::Delivery::Core(core::Held::Read { answer: core::reads::Answer::Document(document), .. }) =
+                delivery
+                && let core::documents::Document::Task(task) = document.as_ref()
+            {
+                Some(task.clone())
+            } else {
+                None
+            }
+        })
+        .expect("task from the core");
+    session.poll(now, wall).expect("consume the task read");
+    source_task
+}
+
 #[test]
 fn question_offers_keep_the_named_model() {
-    use crate::joint::wire;
     use jig_domain_core::{acts, documents, reads};
 
-    let (mut session, _, _) = ready(configuration());
-    let mut source = wire::documents::tests::question_source();
-    let mut authority = wire::task::tests::source().authority;
+    let (mut session, now, wall) = ready(configuration());
+    let me = me(&mut session, now, wall);
+    let made = ask(&mut session, now, wall, 90, creating(&me, choice(None)));
+    let number = created(&made);
+    let source_task = task_source(&mut session, now, wall, number);
+    let mut source = documents::Question {
+        acts: List::with_capacity(0),
+        task: source_task.chip.clone(),
+        message: 1,
+        from: jig_domain_tasks::Party::Task(number),
+        at: wall,
+        words: documents::Text { bytes: Box::from(b"Which model?".as_slice()), cut: false },
+    };
+    let mut authority = source_task.authority.clone();
     authority.models = jig_domain_tasks::Models::Named(0b010);
     source.acts = crate::test::list([acts::Offered {
         effect: None,
@@ -386,13 +431,45 @@ fn question_offers_keep_the_named_model() {
             beyond: acts::Beyond::Refused(people::Refusal::KeyConflict),
         },
     }]);
-    let what = c::Read::Question { task: source.task.number, message: source.message };
-    let to =
-        session.driver.transport.reply_to(Reply::Read { client: ClientId(0), read: Token::new(91), what }).into_token();
-    let answer = reads::Answer::Document(Box::new(documents::Document::Question(source)));
-    let Incoming::Callback {
-        event:
-            Event::Client {
+    let now = Time::from_nanos(17);
+    let wall = Wall::from_nanos(1_000_000_000_000);
+    session
+        .send(
+            ClientId(0),
+            now,
+            wall,
+            down(jig_client::Down::Read {
+                read: Token::new(91),
+                what: jig_client::Readable::Jig(c::Read::Question {
+                    task: source.task.number,
+                    message: source.message,
+                }),
+            }),
+        )
+        .expect("question read reaches the component");
+    let token = session
+        .driver
+        .transport
+        .reply_tokens()
+        .into_iter()
+        .find(|token| matches!(session.driver.transport.reply(*token), Some(Reply::Read { .. })))
+        .expect("component read route");
+    session.driver.world.client_peer.as_mut().expect("joint peer").delivered.clear();
+    session
+        .held(
+            root::Delivery::Core(core::Held::Read {
+                reply: skein_lib::ReplyTo::new(token),
+                answer: reads::Answer::Document(Box::new(documents::Document::Question(source))),
+            }),
+            now,
+            wall,
+        )
+        .expect("component question answer");
+    let callbacks = session.poll(now, wall).expect("question decoded by the link");
+    let value = callbacks
+        .iter()
+        .find_map(|(_, event)| {
+            if let Event::Client {
                 event:
                     jig_client::Event::Up {
                         up:
@@ -401,19 +478,14 @@ fn question_offers_keep_the_named_model() {
                                 ..
                             },
                     },
-            },
-        ..
-    } = read_packets::read_with_codec(
-        &mut session.driver.transport,
-        to,
-        &answer,
-        &session.limits.client.domain,
-        &session.codec,
-    )
-    .expect("whole original Question")
-    else {
-        panic!("Question callback")
-    };
+            } = event
+            {
+                Some(value)
+            } else {
+                None
+            }
+        })
+        .expect("question document");
     let c::Admission::Bounded { within: c::Bounds::Amend { authority, .. }, .. } =
         &value.acts.get(0).expect("offered amendment").admission
     else {

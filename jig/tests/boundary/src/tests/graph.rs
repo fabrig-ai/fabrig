@@ -299,6 +299,8 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-client",
                 "jig-client-domain",
                 "jig-client-protocol-link",
+                "jig-client-protocol-wire",
+                "jig-protocol-engine-clients",
                 "jig-client-view",
                 // Whole committed turns use the existing below-domain codec.
                 "jig-protocol-transcript",

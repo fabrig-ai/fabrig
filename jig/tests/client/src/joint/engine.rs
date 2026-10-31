@@ -5,6 +5,7 @@ use super::transport::Transport;
 use jig_client_domain::contract::VersionRange;
 use jig_core_world::{client_peer::ClientPeer, effects::World, peers::Peers};
 use jig_domain_core as core;
+use jig_protocol_engine_clients::{self as clients, Event};
 use jig_test_domain as root;
 use skein_lib::{Time, Wall};
 
@@ -18,6 +19,9 @@ pub enum Packet {
 
 pub struct Driver {
     pub world: World,
+    pub(super) limits: root::Limits,
+    pub(super) key_bytes: u32,
+    pub(super) redirect_bytes: u32,
     pub transport: Transport,
     pub referee: super::referee::Referee,
     paused_sources: Vec<root::Event>,
@@ -27,6 +31,8 @@ pub struct Driver {
 impl Driver {
     #[must_use]
     pub fn new(configuration: root::Config, limits: root::Limits, peers: Peers, now: Time, wall: Wall) -> Self {
+        let key_bytes = configuration.core.settings.key_bytes;
+        let redirect_bytes = configuration.core.settings.redirect_bytes;
         let configured = limits.core.documents.versions;
         let models = configuration.core.settings.models.clone();
         let providers = configuration.core.settings.llm_providers.clone();
@@ -38,6 +44,9 @@ impl Driver {
         world.store_peer = Some(jig_core_world::store_peer::StorePeer::after(world.store.applied));
         Self {
             world,
+            limits,
+            key_bytes,
+            redirect_bytes,
             transport,
             referee: super::referee::Referee::default(),
             paused_sources: Vec::new(),
@@ -47,10 +56,6 @@ impl Driver {
 
     pub(super) fn refuse(&mut self, to: skein_lib::Token, answer: jig_client_domain::contract::Answer) {
         self.refused.push((to, answer));
-    }
-
-    pub(super) fn take_refusals(&mut self) -> Vec<(skein_lib::Token, jig_client_domain::contract::Answer)> {
-        std::mem::take(&mut self.refused)
     }
 
     pub fn send(&mut self, now: Time, wall: Wall, event: root::Event) {
@@ -173,6 +178,95 @@ impl Driver {
             Some(self.world.clocks().0)
         }
     }
+}
+
+#[must_use]
+pub fn held_event(held: core::Held) -> Option<Event> {
+    Some(match held {
+        core::Held::PeopleReply { to, reply } => Event::Reply { to, reply },
+        core::Held::Read { reply, answer } => Event::Read { reply, answer },
+        core::Held::Delivery { watcher, document } => Event::Delivery { watcher, document },
+        core::Held::WatchEnded { watcher, why } => Event::WatchEnded { watcher, why },
+        core::Held::CarriedUnused { number } => Event::Application(clients::FromApplication::Unused { number }),
+        core::Held::Acted { .. }
+        | core::Held::Drained
+        | core::Held::ApplicationDelivery { .. }
+        | core::Held::ApplicationWatchEnded { .. }
+        | core::Held::ReadLoad { .. }
+        | core::Held::Applied { .. }
+        | core::Held::MakeEffect { .. }
+        | core::Held::SettledCall { .. }
+        | core::Held::Assign { .. }
+        | core::Held::Grant { .. }
+        | core::Held::Relayed { .. }
+        | core::Held::Inbound { .. }
+        | core::Held::Relay { .. }
+        | core::Held::CallAnswer { .. }
+        | core::Held::Result { .. }
+        | core::Held::Acknowledge { .. }
+        | core::Held::TaskTerminalAcknowledged { .. }
+        | core::Held::TaskTurnKept { .. }
+        | core::Held::AcknowledgeTurn { .. }
+        | core::Held::Cancel { .. }
+        | core::Held::Sources { .. }
+        | core::Held::CheckSource { .. }
+        | core::Held::SignOutSource { .. }
+        | core::Held::SourceSignedOut { .. }
+        | core::Held::Refuse { .. }
+        | core::Held::TurnBusy { .. }
+        | core::Held::StopRun { .. }
+        | core::Held::Load(..)
+        | core::Held::NotesLoad { .. }
+        | core::Held::NotesWritten { .. }
+        | core::Held::NotesDeleted { .. } => return None,
+    })
+}
+#[must_use]
+pub fn now_event(now: core::Now) -> Option<Event> {
+    Some(match now {
+        core::Now::SignInRefused { to } => Event::SignInRefused { to },
+        core::Now::WatchRefused { watcher, why } => Event::WatchRefused { watcher, why },
+        core::Now::RunText { watcher, turn, from, to, text, cut, call, writing } => {
+            Event::RunText { watcher, turn, from, to, text, cut, call, writing }
+        }
+        core::Now::RelayBusy { .. }
+        | core::Now::CallBusy { .. }
+        | core::Now::Relayed { .. }
+        | core::Now::EffectAnswer { .. }
+        | core::Now::SettingsAnswer { .. }
+        | core::Now::SettledCallRefused { .. }
+        | core::Now::Call { .. }
+        | core::Now::DropCall { .. }
+        | core::Now::Undelivered { .. }
+        | core::Now::Account(_)
+        | core::Now::NotesIndexed { .. }
+        | core::Now::NotesRecalled { .. }
+        | core::Now::NotesRefused { .. }
+        | core::Now::NoteBusy { .. }
+        | core::Now::DropPayload { .. }
+        | core::Now::DropAssignment { .. }
+        | core::Now::TurnPayload { .. }
+        | core::Now::AnswerPayload { .. }
+        | core::Now::AcceptedTurn { .. }
+        | core::Now::RefusedPayload { .. }
+        | core::Now::Activate { .. }
+        | core::Now::PrepareAgent { .. }
+        | core::Now::StartPreparation { .. }
+        | core::Now::SeenConversation { .. }
+        | core::Now::LoadEndedRead { .. }
+        | core::Now::HistoricalProposal { .. }
+        | core::Now::DecidedProposal { .. }
+        | core::Now::HistoricalPersonTask { .. }
+        | core::Now::EndedTask { .. }
+        | core::Now::PartyInputs { .. }
+        | core::Now::CompleteBrief { .. }
+        | core::Now::BriefCorePlanned { .. }
+        | core::Now::WorkspaceRequest { .. }
+        | core::Now::RunPreparationFailed { .. }
+        | core::Now::RunPrepared { .. }
+        | core::Now::HistoricalEscalation { .. }
+        | core::Now::RestoreRefused => return None,
+    })
 }
 
 #[cfg(test)]
