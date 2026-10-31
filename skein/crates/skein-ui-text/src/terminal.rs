@@ -114,7 +114,7 @@ impl Terminal {
             completions: Queue::with_capacity(32),
             submissions: Queue::with_capacity(256),
             raw: Queue::with_capacity(256),
-            events: Queue::with_capacity(32),
+            events: Queue::uncapped(),
             commands: Queue::with_capacity(BATCH),
             lines,
             pending: None,
@@ -238,39 +238,17 @@ impl Terminal {
             if let Op::Cancel { target } = &mut complete.kind {
                 *target = Token::new(target.raw() & !TAG);
             }
-            skein_io::up(
-                &mut self.io,
-                &Env { now, wall: Wall::EPOCH, limits: self.limits },
-                complete,
-                &mut self.events,
-                &mut self.raw,
-            );
-            self.events(now, tree);
+            self.completions.push(complete);
         }
-        for _ in 0..BATCH {
-            if !self.io.is_ready() {
-                break;
-            }
-            skein_io::resume(
-                &mut self.io,
-                &Env { now, wall: Wall::EPOCH, limits: self.limits },
-                &mut self.events,
-                &mut self.raw,
-            );
-            self.events(now, tree);
-        }
-        for _ in 0..BATCH {
-            if !self.io.is_due(now) {
-                break;
-            }
-            skein_io::fire(
-                &mut self.io,
-                &Env { now, wall: Wall::EPOCH, limits: self.limits },
-                &mut self.events,
-                &mut self.raw,
-            );
-            self.events(now, tree);
-        }
+        skein_io::stage::up(
+            &mut self.io,
+            &Env { now, wall: Wall::EPOCH, limits: self.limits },
+            &mut self.completions,
+            &mut self.events,
+            &mut self.raw,
+            now,
+        );
+        self.events(now, tree);
         if self.writing == Output::Writable && self.phase != Phase::Drained {
             if let Some(bytes) = self.pending.take() {
                 self.write(now, bytes);
