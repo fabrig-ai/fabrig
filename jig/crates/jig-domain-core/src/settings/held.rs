@@ -1,6 +1,8 @@
 //! Revisions and charter versions retained by live work (engine.md, 17.3 and 17.8).
-use super::{CharterVersion, Current, Edit, Head, Item, Key, Record, Setting};
-use crate::{Charter, Core, CoreKey, CoreRecord, Limits, Request, Write};
+use crate::{
+    Charter, Core, CoreKey, CoreRecord, Limits, Request, Write,
+    settings::{CharterVersion, Current, Edit, Head, Item, Key, Record, Setting},
+};
 use alloc::boxed::Box;
 use skein_lib::{Env, Map, Queue};
 

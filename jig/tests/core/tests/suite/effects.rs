@@ -44,7 +44,7 @@ fn a_tool_call_whose_answer_is_lost_with_the_channel_and_the_engine_is_asked_aga
     assert!(matches!(
         row,
         root::Record::Core(core::Record::Core(core::CoreRecord::Call(core::CallRecord {
-            part: core::CallPart::Effect { outcome: Some(core::connector::OutboxOutcome::Made), .. },
+            part: core::CallPart::Effect { outcome: Some(core::effects::connector::OutboxOutcome::Made), .. },
             ..
         })))
     ));
@@ -55,7 +55,7 @@ fn a_tool_call_whose_answer_is_lost_with_the_channel_and_the_engine_is_asked_aga
     assert_eq!(world.answers[0].0.raw(), 203);
     assert!(matches!(
         world.answers[0].2,
-        core::CallPart::Effect { outcome: Some(core::connector::OutboxOutcome::Made), .. }
+        core::CallPart::Effect { outcome: Some(core::effects::connector::OutboxOutcome::Made), .. }
     ));
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1);
     assert_eq!(world.store.applied, commits + 1, "only the start's mark commits; replay decides nothing again");
@@ -77,7 +77,7 @@ fn an_effect_call_wait_commits_nothing_and_the_same_name_can_be_asked_again() {
     world.call(1, 205);
     assert!(matches!(
         world.answers.last(),
-        Some((_, _, core::CallPart::Effect { outcome: Some(core::connector::OutboxOutcome::Made), .. }))
+        Some((_, _, core::CallPart::Effect { outcome: Some(core::effects::connector::OutboxOutcome::Made), .. }))
     ));
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1);
 }
@@ -102,7 +102,7 @@ fn an_effect_answers_committed_and_pending_only_past_its_absolute_deadline() {
     world.call(1, 208);
     assert!(matches!(
         world.answers.last(),
-        Some((_, _, core::CallPart::Effect { outcome: Some(core::connector::OutboxOutcome::Made), .. }))
+        Some((_, _, core::CallPart::Effect { outcome: Some(core::effects::connector::OutboxOutcome::Made), .. }))
     ));
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1);
 }
@@ -167,7 +167,7 @@ fn a_full_connector_outbox_is_busy_without_a_record_or_charge_and_can_retry_the_
     world.call(2, 212);
     assert!(matches!(
         world.answers.last(),
-        Some((_, _, core::CallPart::Effect { outcome: Some(core::connector::OutboxOutcome::Failed), .. }))
+        Some((_, _, core::CallPart::Effect { outcome: Some(core::effects::connector::OutboxOutcome::Failed), .. }))
     ));
     assert_eq!(world.spent(), 6);
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1);
@@ -244,14 +244,14 @@ fn kept_effect(
             origin: core::EffectOrigin::Call { to: ReplyTo::new(Token::new(right)), key, deadline },
         },
     );
-    assert!(started.iter().any(|row| matches!(row, core::Request::Ask { connector: 1, ask: core::Ask::Effect(core::connector::Ask::Describe { owner: actual }) } if *actual == owner)));
+    assert!(started.iter().any(|row| matches!(row, core::Request::Ask { connector: 1, ask: core::Ask::Effect(core::effects::connector::Ask::Describe { owner: actual }) } if *actual == owner)));
     let kept = effect_outputs(
         domain,
         limits,
         Wall::EPOCH,
-        core::Event::EffectConnector(core::connector::Event::Described {
+        core::Event::EffectConnector(core::effects::connector::Event::Described {
             owner,
-            description: Box::new(core::connector::EffectDescription {
+            description: Box::new(core::effects::connector::EffectDescription {
                 waits_for_dependencies: false,
                 connector: 1,
                 purpose: 19,
@@ -267,8 +267,8 @@ fn kept_effect(
                     additional: Box::new([]),
                     guards: Box::new([]),
                 },
-                form: core::connector::EffectForm::Set,
-                recovery: core::connector::Recovery::Keyed,
+                form: core::effects::connector::EffectForm::Set,
+                recovery: core::effects::connector::Recovery::Keyed,
             }),
         }),
     );
@@ -410,11 +410,11 @@ fn a_duplicate_keeps_its_exact_deadline_and_latest_right_while_made_removes_only
         &mut domain,
         &limits,
         Wall::from_nanos(1),
-        core::Event::EffectConnector(core::connector::Event::Outbox {
+        core::Event::EffectConnector(core::effects::connector::Event::Outbox {
             connector: 1,
             entry,
             task: second_key.task,
-            outcome: core::connector::OutboxOutcome::Made,
+            outcome: core::effects::connector::OutboxOutcome::Made,
         }),
     );
     let made_answers: Vec<_> = made
@@ -440,7 +440,7 @@ fn a_duplicate_keeps_its_exact_deadline_and_latest_right_while_made_removes_only
                 connector: 1,
                 entry,
                 deadline: Wall::from_nanos(10),
-                outcome: Some(core::connector::OutboxOutcome::Made),
+                outcome: Some(core::effects::connector::OutboxOutcome::Made),
             }
         )]
     );
@@ -565,12 +565,17 @@ fn assignment(world: &World) -> &root::Assignment {
 #[test]
 fn ordinary_failed_and_held_entries_keep_their_call_and_task_routes_across_restart() {
     for (seed, recovery, result, expected) in [
-        (88, connector::Recovery::Keyed, connector::ApplyResult::Conflict, core::connector::OutboxOutcome::Failed),
+        (
+            88,
+            connector::Recovery::Keyed,
+            connector::ApplyResult::Conflict,
+            core::effects::connector::OutboxOutcome::Failed,
+        ),
         (
             89,
             connector::Recovery::Unrecoverable,
             connector::ApplyResult::Uncertain,
-            core::connector::OutboxOutcome::Held { entry: 1 },
+            core::effects::connector::OutboxOutcome::Held { entry: 1 },
         ),
     ] {
         let (mut configuration, limits) = jig_core_world::world::fixture(seed, false);
@@ -600,7 +605,7 @@ fn ordinary_failed_and_held_entries_keep_their_call_and_task_routes_across_resta
             }),
         });
         let expected = if result == connector::ApplyResult::Uncertain {
-            core::connector::OutboxOutcome::Held { entry: entry.number }
+            core::effects::connector::OutboxOutcome::Held { entry: entry.number }
         } else {
             expected
         };

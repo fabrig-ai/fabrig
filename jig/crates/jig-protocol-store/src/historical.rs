@@ -11,14 +11,14 @@ pub fn key(now: &Now) -> Option<Key> {
         Now::LoadEndedRead { task, party, .. } => {
             Some(Key::People(jig_domain_people::Key::EndedRead { task: *task, party: *party }))
         }
-        Now::SeenConversation { task, .. } | Now::HistoricalPersonTask { task, .. } => {
+        Now::SeenConversation { task, .. } | Now::EndedPersonTask { task, .. } => {
             Some(Key::Tasks(tasks::Key::Ended(*task)))
         }
         Now::DecidedProposal { key, .. } => Some(Key::Tasks(tasks::Key::Live(key.task))),
-        Now::HistoricalProposal { proposer, proposal, .. } => {
+        Now::EndedProposal { proposer, proposal, .. } => {
             Some(Key::Core(CoreKey::ProposalDecision { proposer: *proposer, proposal: *proposal }))
         }
-        Now::HistoricalEscalation { task, revision, .. } => {
+        Now::EndedEscalation { task, revision, .. } => {
             Some(Key::Core(CoreKey::EscalationDecision { task: *task, revision: *revision }))
         }
         Now::RelayBusy { .. }
@@ -75,13 +75,13 @@ pub fn answer(now: Now, row: Option<Record>) -> Option<core::Event> {
         Now::SeenConversation { request, .. } => {
             core::Event::SeenConversationLoaded { request, row: ended(row), busy: false }
         }
-        Now::HistoricalPersonTask { request, person, project, task } => {
-            core::Event::HistoricalPersonTask { request, person, project, task, row: ended(row), busy: false }
+        Now::EndedPersonTask { request, person, project, task } => {
+            core::Event::EndedPersonTask { request, person, project, task, row: ended(row), busy: false }
         }
         Now::DecidedProposal { to, key, proposal } => {
             core::Event::DecidedProposal { to, key, proposal, row: task_proposal(row), busy: false }
         }
-        Now::HistoricalProposal { request, person, project, proposer, proposal } => core::Event::HistoricalProposal {
+        Now::EndedProposal { request, person, project, proposer, proposal } => core::Event::EndedProposal {
             request,
             person,
             project,
@@ -90,7 +90,7 @@ pub fn answer(now: Now, row: Option<Record>) -> Option<core::Event> {
             row: proposal_row(row),
             busy: false,
         },
-        Now::HistoricalEscalation { request, person, project, task, revision } => core::Event::HistoricalEscalation {
+        Now::EndedEscalation { request, person, project, task, revision } => core::Event::EndedEscalation {
             request,
             person,
             project,

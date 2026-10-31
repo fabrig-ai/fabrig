@@ -1,10 +1,10 @@
 //! Stored projection fits and links (jig/docs/design/domain/engine.md, 6).
 #![expect(clippy::disallowed_macros, reason = "dynamic stored-row fixtures exercise byte bounds")]
-use super::{Core, Failure, Key, Wall, config, limits, tasks};
-use crate::start::LiveSet;
 use crate::{
     CoreKey, CoreRecord, Limits, MilestoneId, ProjectionGoal, ProjectionMilestone, ProjectionRecord, ProjectionTask,
     Restored,
+    start::LiveSet,
+    tests::start::{Core, Failure, Key, Wall, config, limits, tasks},
 };
 
 fn loaded() -> (Core, Limits) {
@@ -29,7 +29,7 @@ fn loaded_policy(policy: bool) -> (Core, Limits) {
             &limits,
             project.number,
             project.name.clone(),
-            crate::policy::snapshot(&project.policy.policy, &[], &[]).expect("bounded policy")
+            crate::admission::policy::snapshot(&project.policy.policy, &[], &[]).expect("bounded policy")
         ));
     }
     (core, limits)
@@ -83,7 +83,7 @@ fn retained(row: ProjectionRecord, header: bool) {
 }
 
 #[test]
-fn historical_numbers_and_feed_positions_are_not_admission_rules() {
+fn retained_numbers_and_feed_positions_are_not_admission_rules() {
     for number in [0, 101] {
         retained(goal(number), false);
         retained(task(number), true);
@@ -132,7 +132,7 @@ fn policy_is_linked_after_loading_and_deployment_needs_none() {
         &limits,
         1,
         project.name.clone(),
-        crate::policy::snapshot(&project.policy.policy, &[], &[]).expect("bounded policy")
+        crate::admission::policy::snapshot(&project.policy.policy, &[], &[]).expect("bounded policy")
     ));
     core.start_projections_link();
     assert_eq!(core.projections.get(&1).expect("linked goal").goal.project, 1);
@@ -156,8 +156,8 @@ fn pending_closing_projection_loads_without_its_live_task() {
 
 #[test]
 fn pending_on_a_live_tracked_goal_is_retained() {
-    let (mut source, limits) = super::super::core();
-    super::super::make_task(&mut source, &limits, 1);
+    let (mut source, limits) = crate::tests::core();
+    crate::tests::make_task(&mut source, &limits, 1);
     let mut live = source.tasks.task(1).expect("live fixture").clone();
     live.tracked = Some(1);
     let mut row = goal(1);

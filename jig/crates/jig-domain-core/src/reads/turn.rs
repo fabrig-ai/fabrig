@@ -1,6 +1,8 @@
 //! Single-turn failure evidence, authenticated before revealing payload facts.
-use super::{Answer, Range, Scope, TurnFailure, Why};
-use crate::Core;
+use crate::{
+    Core,
+    reads::{Answer, Range, Scope, TurnFailure, Why},
+};
 use jig_domain_tasks::TaskRecord;
 
 pub(super) fn failure(

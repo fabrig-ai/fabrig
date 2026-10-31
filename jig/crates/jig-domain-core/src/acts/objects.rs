@@ -1,11 +1,16 @@
 //! Read-only object judgments shared with authenticated requests.
-use super::{Act, Admission, allowed, standing};
-use crate::{Core, Limits, documents};
-use jig_domain_people as people;
-use jig_domain_tasks as tasks;
 
 mod decisions;
 mod task;
+
+use crate::{
+    Core, Limits,
+    acts::{Act, Admission, allowed, standing},
+    documents,
+};
+use jig_domain_people as people;
+use jig_domain_tasks as tasks;
+
 pub(crate) use decisions::{escalation, proposal};
 pub(crate) use task::{person, question, write, write_in};
 

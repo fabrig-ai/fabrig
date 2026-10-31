@@ -1,8 +1,18 @@
 //! Offers and the authenticated entrance share their current authority facts.
-use super::*;
-use crate::acts as offers;
-use crate::acts::{Act, Admission, Beyond, Bounds};
-use crate::routing::party::Control;
+
+pub(in crate::tests) mod conversations;
+pub(in crate::tests) mod decision_effects;
+pub(in crate::tests) mod escalation;
+pub(in crate::tests) mod kind_order;
+pub(in crate::tests) mod proposals;
+pub(in crate::tests) mod tracking;
+
+use crate::{
+    acts as offers,
+    acts::{Act, Admission, Beyond, Bounds},
+    routing::party::dispatch::Control,
+    tests::*,
+};
 
 fn policy_holder(numbers: &[u32]) -> offers::Recipient {
     let mut roles = List::with_capacity(u32::try_from(numbers.len()).unwrap());
@@ -409,7 +419,12 @@ fn offered_person_handoffs_and_answers_reach_the_child_and_change_the_offer() {
     assert_eq!(offers::admit(&core, &limits, 1, Act::Take, &subject, Wall::EPOCH), Admission::Allowed);
     let event = core
         .person_task(
-            routing::party::Party { request: Token::new(81), person: 1, project: 1, role: Some(people::Role::Owner) },
+            crate::routing::party::dispatch::Party {
+                request: Token::new(81),
+                person: 1,
+                project: 1,
+                role: Some(people::Role::Owner),
+            },
             person_task::Action::Take { task: 5 },
         )
         .unwrap();
@@ -424,7 +439,7 @@ fn offered_person_handoffs_and_answers_reach_the_child_and_change_the_offer() {
     assert_eq!(offers::admit(&core, &limits, 1, Act::HandBack, &subject, Wall::EPOCH), Admission::Allowed);
     let event = core
         .person_task(
-            routing::party::Party {
+            crate::routing::party::dispatch::Party {
                 request: Token::new(82),
                 person: 1,
                 project: 1,
@@ -446,14 +461,24 @@ fn offered_person_handoffs_and_answers_reach_the_child_and_change_the_offer() {
     };
     assert_eq!(
         core.person_task(
-            routing::party::Party { request: Token::new(83), person: 1, project: 1, role: Some(people::Role::Owner) },
+            crate::routing::party::dispatch::Party {
+                request: Token::new(83),
+                person: 1,
+                project: 1,
+                role: Some(people::Role::Owner)
+            },
             answer.clone()
         ),
         Err(why)
     );
     let event = core
         .person_task(
-            routing::party::Party { request: Token::new(84), person: 1, project: 1, role: Some(people::Role::Owner) },
+            crate::routing::party::dispatch::Party {
+                request: Token::new(84),
+                person: 1,
+                project: 1,
+                role: Some(people::Role::Owner),
+            },
             person_task::Action::Take { task: 5 },
         )
         .unwrap();
@@ -462,7 +487,12 @@ fn offered_person_handoffs_and_answers_reach_the_child_and_change_the_offer() {
     assert_eq!(offers::admit(&core, &limits, 1, Act::Answer, &subject, Wall::EPOCH), Admission::Allowed);
     let event = core
         .person_task(
-            routing::party::Party { request: Token::new(85), person: 1, project: 1, role: Some(people::Role::Owner) },
+            crate::routing::party::dispatch::Party {
+                request: Token::new(85),
+                person: 1,
+                project: 1,
+                role: Some(people::Role::Owner),
+            },
             answer,
         )
         .unwrap();
@@ -508,7 +538,10 @@ fn a_named_person_can_answer_without_project_membership() {
         result: people::PersonResult::Report { words: b"done".as_slice().into() },
     };
     let event = core
-        .person_task(routing::party::Party { request: Token::new(87), person: 1, project: 1, role: None }, answer)
+        .person_task(
+            crate::routing::party::dispatch::Party { request: Token::new(87), person: 1, project: 1, role: None },
+            answer,
+        )
         .unwrap();
     send_task(&mut core, &limits, event);
     assert_eq!(person_task_flight(&mut core, Token::new(87)), Some(PersonTaskRoute::Answer(5)));
@@ -698,8 +731,6 @@ fn offered_proposal_decisions_are_made_at_the_named_holder_and_another_holder_is
         );
     }
 }
-
-mod conversations;
 
 #[test]
 fn a_move_offer_tracks_requester_changes_after_adoption() {
@@ -977,12 +1008,12 @@ fn a_task_and_a_party_with_identical_proposal_numbers_are_decided_separately() {
 }
 
 #[test]
-fn a_historical_proposal_decision_requires_the_exact_maker() {
+fn an_ended_proposal_decision_requires_the_exact_maker() {
     for proposer in [Proposer::Task(1), Proposer::Party(1)] {
         for other_store in [false, true] {
             let (mut core, limits) = make_tree();
             sign_in(&mut core, &limits);
-            // Allocate the archived decider and proposal through their real deployment families.
+            // Allocate the ended decider and proposal through their real deployment families.
             assert_eq!(fresh(&mut core.counters, Family::Person), Some(1));
             for _ in 0_u8..10 {
                 fresh(&mut core.counters, Family::Message).unwrap();
@@ -991,10 +1022,10 @@ fn a_historical_proposal_decision_requires_the_exact_maker() {
             let mut named_request = None;
             for output in &out {
                 if let Request::Now(now) = output
-                    && let Now::HistoricalProposal { request, person, project, proposer: named, proposal } = &**now
+                    && let Now::EndedProposal { request, person, project, proposer: named, proposal } = &**now
                 {
                     assert_eq!((*person, *project, *named, *proposal), (1, 1, proposer, 10));
-                    assert!(named_request.replace(*request).is_none(), "one exact historical load");
+                    assert!(named_request.replace(*request).is_none(), "one exact ended load");
                 }
             }
             let request = named_request.expect("only the named absent store falls back to history");
@@ -1027,7 +1058,7 @@ fn a_historical_proposal_decision_requires_the_exact_maker() {
             let out = step(
                 &mut core,
                 &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-                Event::HistoricalProposal {
+                Event::EndedProposal {
                     request,
                     person: 1,
                     project: 1,
@@ -1055,16 +1086,6 @@ fn a_historical_proposal_decision_requires_the_exact_maker() {
         }
     }
 }
-
-mod kind_order;
-
-mod escalation;
-
-mod proposals;
-
-mod tracking;
-
-mod decision_effects;
 
 #[test]
 fn a_procedure_repeat_is_refused_before_authority_and_its_uncertain_effect_keeps_its_choice() {
@@ -1107,13 +1128,13 @@ fn a_procedure_repeat_is_refused_before_authority_and_its_uncertain_effect_keeps
 fn person_task_flight(core: &mut Core, token: Token) -> Option<PersonTaskRoute> {
     let mut found = None;
     for (id, flight) in &core.flights {
-        if let crate::flight::Flight::PersonTask { request, .. } = flight
+        if let flight::Flight::PersonTask { request, .. } = flight
             && *request == token
         {
             found = Some(id);
             break;
         }
     }
-    let crate::flight::Flight::PersonTask { route, .. } = core.land(found?.token())? else { return None };
+    let flight::Flight::PersonTask { route, .. } = core.land(found?.token())? else { return None };
     Some(route)
 }

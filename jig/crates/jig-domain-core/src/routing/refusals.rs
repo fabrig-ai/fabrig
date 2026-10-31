@@ -1,9 +1,8 @@
 //! Total sibling translations into party answer facts
 //! (client/domain/contract.md, section 4; domain/people.md, section 5.1).
-//! The core reads the current live record for an ending; no historical archive
+//! The core reads the current live record for an ending; no retained archive
 //! is retained here. Unknown names disclose no object. Retry answers are unsaved.
-use crate::routing::Work;
-use crate::{Core, Event};
+use crate::{Core, Event, routing::Work};
 use alloc::boxed::Box;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
@@ -18,11 +17,11 @@ pub(crate) fn person_task_refusal(core: &Core, task: Option<u64>, why: tasks::Re
     task_answer(core, tasks::Problem::naming(task, why, &[]))
 }
 
-pub(super) fn person_move_refusal(core: &Core, problem: tasks::Problem) -> people::Outcome {
+pub(crate) fn person_move_refusal(core: &Core, problem: tasks::Problem) -> people::Outcome {
     task_answer(core, problem)
 }
 
-pub(super) fn person_message_refusal(core: &Core, problem: tasks::Problem) -> people::Outcome {
+pub(crate) fn person_message_refusal(core: &Core, problem: tasks::Problem) -> people::Outcome {
     task_answer(core, problem)
 }
 
@@ -47,7 +46,7 @@ fn task_answer(core: &Core, problem: tasks::Problem) -> people::Outcome {
         tasks::Refusal::HoldOwner { hold } => match core.tasks.placed_hold(hold) {
             Some(row) => people::Refusal::Authority {
                 proposable: None,
-                lacking: people::Lack::HoldOwner { hold, owner: crate::roles::hold_owner(row.owner) },
+                lacking: people::Lack::HoldOwner { hold, owner: crate::admission::roles::hold_owner(row.owner) },
             },
             None => people::Refusal::Unknown,
         },
@@ -187,15 +186,15 @@ fn party(by: tasks::Party) -> people::Party {
     }
 }
 
-pub(super) fn pool_refused(work: &mut Queue<Work>, request: Token, why: people::Refusal) {
+pub(crate) fn pool_refused(work: &mut Queue<Work>, request: Token, why: people::Refusal) {
     work.push(Work::Event(Event::People(people::Event::Decided { request, outcome: people::Outcome::Refused(why) })));
 }
 
-pub(super) fn pool_again(work: &mut Queue<Work>, request: Token, why: people::Again) {
+pub(crate) fn pool_again(work: &mut Queue<Work>, request: Token, why: people::Again) {
     work.push(Work::Event(Event::People(people::Event::Decided { request, outcome: people::Outcome::Again(why) })));
 }
 
-pub(super) fn note_person_refusal(why: notes::Refusal) -> people::Outcome {
+pub(crate) fn note_person_refusal(why: notes::Refusal) -> people::Outcome {
     let refusal = match why {
         notes::Refusal::Busy => return people::Outcome::Again(people::Again::Busy),
         notes::Refusal::Oversized => people::Refusal::Limit { which: people::LimitKind::Words },

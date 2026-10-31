@@ -1,6 +1,5 @@
 //! Proposal and escalation choices use their current waiting holder.
-use crate::acts::Act;
-use crate::{Core, Limits, documents};
+use crate::{Core, Limits, acts::Act, documents};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 
@@ -160,7 +159,9 @@ pub(crate) fn proposal(
                     )
                 }
                 Act::Reject => Ok(()),
-                Act::PassUp if crate::proposals::placed_release(&row.action) => Err(people::Refusal::NoFurther),
+                Act::PassUp if crate::admission::proposals::placed_release(&row.action) => {
+                    Err(people::Refusal::NoFurther)
+                }
                 Act::PassUp => match current {
                     tasks::ProposalHolder::Person(_) => Ok(()),
                     tasks::ProposalHolder::Policy { .. } => Err(people::Refusal::NoFurther),

@@ -5,9 +5,13 @@
 //! Pool edits target the configured period independently of the observed
 //! period. Permission mappings come from the core's retained policy entry;
 //! an absent entry remains absent, and each new list states its own loss.
-use super::task_tree::{authority as authority_line, path, pattern};
-use super::{AuthorityLine, Chip, GrantLine, Missing, NoteScope, Part, PartKind, PatternEnd, ProposedTask, Text};
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    documents::{
+        AuthorityLine, Chip, GrantLine, Missing, NoteScope, Part, PartKind, PatternEnd, ProposedTask, Text,
+        task_tree::{authority as authority_line, path, pattern},
+    },
+};
 use jig_domain_authority as authority;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
@@ -273,10 +277,10 @@ pub(super) fn project(
                 .push(ProjectResource {
                     part: super::task_tree::part_path(limits, key.name.connector, PartKind::Resource, &key.name.path)?,
                     role: match role {
-                        crate::connector::ResourceRole::Owned => ResourceRole::Owned,
-                        crate::connector::ResourceRole::Participant => ResourceRole::Participant,
-                        crate::connector::ResourceRole::Context => ResourceRole::Context,
-                        crate::connector::ResourceRole::Unavailable => ResourceRole::Unavailable,
+                        crate::effects::connector::ResourceRole::Owned => ResourceRole::Owned,
+                        crate::effects::connector::ResourceRole::Participant => ResourceRole::Participant,
+                        crate::effects::connector::ResourceRole::Context => ResourceRole::Context,
+                        crate::effects::connector::ResourceRole::Unavailable => ResourceRole::Unavailable,
                     },
                 })
                 .expect("bounded resource roles");

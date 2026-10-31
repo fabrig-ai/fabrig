@@ -1,10 +1,12 @@
 //! Adoption fits and opening use the same state (domain/engine.md, 6, 8).
-use super::{
-    Action, Core, Env, Failure, Key, Phase, Queue, Request, SweepInput, Time, Wall, config, step_phase, tasks,
-    through_link,
+use crate::{
+    CoreRecord, Event, Now, RunProof, fleet, people,
+    start::{Continuation, LiveSet},
+    tests::start::{
+        Action, Core, Env, Failure, Key, Phase, Queue, Request, SweepInput, Time, Wall, config, step_phase, tasks,
+        through_link,
+    },
 };
-use crate::start::{Continuation, LiveSet};
-use crate::{CoreRecord, Event, Now, RunProof, fleet, people};
 use core::panic::AssertUnwindSafe;
 use skein_lib::Token;
 use std::panic::catch_unwind;
@@ -14,15 +16,16 @@ const ENGINE: u64 = 1;
 const DUE: u64 = 3;
 const ATTEMPT: u64 = 7;
 
-pub(super) fn loaded(in_process: bool, attempts: u32) -> (Core, Env<crate::Limits>) {
-    let (mut source, mut limits) = super::super::tree_core();
+pub(in crate::tests) fn loaded(in_process: bool, attempts: u32) -> (Core, Env<crate::Limits>) {
+    let (mut source, mut limits) = crate::tests::tree_core();
     for number in [WORKER, ENGINE, DUE] {
-        super::super::make_task(&mut source, &limits, number);
+        crate::tests::make_task(&mut source, &limits, number);
     }
     limits.fleet.attempts = attempts;
     let mut configured = config(41);
     configured.workers_in_process = in_process;
-    let policy = crate::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[]).expect("project policy");
+    let policy = crate::admission::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[])
+        .expect("project policy");
     let mut core = Core::new(configured, &limits).expect("configured start");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     step_phase(core.start_begin(false, env.wall), Phase::LoadCore);
@@ -67,7 +70,7 @@ pub(super) fn loaded(in_process: bool, attempts: u32) -> (Core, Env<crate::Limit
         }
         restore(&mut core, &env, tasks::Stored::Live(Box::new(row)));
     }
-    super::super::restore_key_account(&mut core, &limits, 0, 1, 1);
+    crate::tests::restore_key_account(&mut core, &limits, 0, 1, 1);
     drop(crate::step(
         &mut core,
         &env,
@@ -81,7 +84,7 @@ fn restore(core: &mut Core, env: &Env<crate::Limits>, record: tasks::Stored) {
     drop(crate::step(core, env, Event::Tasks(tasks::Event::Restore { record })));
 }
 
-pub(super) fn wires(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<Request>) -> Continuation {
+pub(in crate::tests) fn wires(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<Request>) -> Continuation {
     through_link(core, env, out);
     step_phase(core.start_sweep(env, SweepInput::Finished, out), Phase::Switch);
     step_phase(core.start_done(env, Phase::Switch, out), Phase::Wires);
@@ -181,7 +184,7 @@ fn due_agent_preparation_waits_until_open() {
             valid: skein_lib::Duration::from_secs(60),
         })),
     ));
-    super::super::run_choice::host(&mut core, &env.limits, Token::new(7), &[b"scripted"]);
+    crate::tests::runs::run_choice::host(&mut core, &env.limits, Token::new(7), &[b"scripted"]);
     let context = core.tasks.run_context(DUE).expect("due agent");
     let before = crate::step(&mut core, &env, Event::Activate { context, ready: true });
     assert!(before.is_empty());

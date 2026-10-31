@@ -1,6 +1,5 @@
 //! Maximal whole fact envelopes attain the declared allocation, including empty reserves.
-use super::*;
-use crate::documents::{AuthorityLine, GrantLine, NoteScope, PatternEnd, Versions};
+use crate::documents::{AuthorityLine, GrantLine, NoteScope, PatternEnd, Versions, offers::*};
 
 fn bytes(value: u8, count: u32) -> Box<[u8]> {
     let mut result = List::with_capacity(count);

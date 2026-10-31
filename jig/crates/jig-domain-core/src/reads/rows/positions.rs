@@ -1,4 +1,8 @@
 //! Scoped ordering and examined continuations (protocol/store.md, 7.3).
+
+#[cfg(test)]
+mod tests;
+
 use super::{Key, Position, Range, Row, Scope, notes, tasks};
 
 fn subtree(scope: &Scope) -> bool {
@@ -99,6 +103,3 @@ pub(super) fn grouped(range: &Range, raw: &[Row]) -> bool {
     }
     true
 }
-
-#[cfg(test)]
-mod tests;
