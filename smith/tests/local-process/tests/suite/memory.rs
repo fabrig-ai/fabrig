@@ -2,7 +2,7 @@
 use smith_local_process_world::{Authentication, Files, Placement, World};
 #[test]
 fn the_composed_world_including_its_shared_shell_fits_its_bound() {
-    for placement in [Placement::Spawned, Placement::InProcess] {
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
         let files = Files::new();
         let mut world = match placement {
             Placement::Spawned => World::authenticated(10, &files, placement, Authentication::SignIn),
@@ -29,10 +29,5 @@ fn the_shared_processes_select_tls_without_changing_their_referee() {
     world.settle();
     assert_eq!(world.oauth_posts(), 1);
     assert!(world.browser_replied());
-    smith_local_process_world::referee::review(
-        &world.seen(),
-        &world,
-        smith_local_process_world::referee::Ending::Report(b"First answer".to_vec()),
-    )
-    .assert_passed(24);
+    world.assert_ended(smith_local_process_world::referee::Ending::Report(b"First answer".to_vec()));
 }

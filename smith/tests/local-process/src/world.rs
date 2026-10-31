@@ -452,6 +452,11 @@ pub struct World {
     saved_before_query: bool,
 }
 impl World {
+    /// Check the ending using the invocation's retained seed.
+    pub fn assert_ended(&self, ending: Ending) {
+        crate::referee::review(&self.seen(), self, ending).assert_passed(self.scenario.launch.seed);
+    }
+
     /// Adopt the workspace's chats root with its initial private chat.
     pub fn interactive(&mut self) {
         self.scenario.launch.interactive = true;

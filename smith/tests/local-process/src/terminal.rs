@@ -2,6 +2,7 @@
 //! bounded commands and observed output, never a simulator. The world binds
 //! the local child; a real loop can spawn the binary with the same Host.
 
+use crate::fixture::contains;
 use std::collections::VecDeque;
 
 use skein_io::{self as io, kernel};
@@ -526,7 +527,7 @@ fn appeared(shown: &[u8], needle: &[u8], searched: &mut usize) -> bool {
         return false;
     }
     let from = searched.saturating_sub(needle.len() - 1);
-    let found = shown[from..].windows(needle.len()).any(|part| part == needle);
+    let found = contains(&shown[from..], needle);
     *searched = shown.len();
     found
 }

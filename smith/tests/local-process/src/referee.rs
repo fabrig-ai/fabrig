@@ -2,6 +2,7 @@
 //! facts. Repository access is only head/message/files; the referee never
 //! reads Sim or Machine (protocol/hosts.md, section 7).
 
+use crate::fixture::contains;
 use skein_fake_checkout::git::Tree;
 use skein_fake_llm_domain::api::Query;
 use skein_io::kernel;
@@ -254,7 +255,7 @@ impl Meeting {
         });
         judge.check(expected_diagnostic, "only the expected local operator start and failure lines");
         judge.check(
-            shown.windows(expected.len()).any(|part| part == expected)
+            contains(&shown, expected)
                 || (matches!(self.ending, Ending::OlderStore) && errors.ends_with(older.as_bytes()))
                 || (matches!(self.ending, Ending::Budget)
                     && errors.starts_with(b"smith: chat main\n")
@@ -266,7 +267,7 @@ impl Meeting {
         );
         let private = borrowed_text.and_then(|line| shown.strip_suffix(line)).unwrap_or(&shown);
         judge.check(
-            !private.windows(7).any(|part| part == b"refresh") && !private.windows(5).any(|part| part == b"token"),
+            !contains(&private, b"refresh") && !contains(&private, b"token"),
             "terminal never reveals credentials",
         );
         if self.require_facts && !matches!(self.ending, Ending::Unavailable | Ending::OlderStore) {
@@ -282,10 +283,7 @@ impl Meeting {
                 (query.model.as_ref() == b"fake" || query.model.as_ref() == b"alternate") && query.max_tokens > 0,
                 "configured model reaches the provider and its declared ceiling is positive",
             );
-            judge.check(
-                query.system.windows(12).any(|part| part == b"@local-shell"),
-                "configured instructions reach the provider",
-            );
+            judge.check(contains(&query.system, b"@local-shell"), "configured instructions reach the provider");
         }
         if let Some(oauth) = oauth {
             judge.check(
@@ -311,10 +309,7 @@ impl Meeting {
                 message.starts_with(b"Updated result\n\nCreated the result file"),
                 "result fields form the message",
             );
-            judge.check(
-                message.windows(15).any(|part| part == b"Smith-Delivery:"),
-                "commit carries its delivery identity",
-            );
+            judge.check(contains(&message, b"Smith-Delivery:"), "commit carries its delivery identity");
             judge.check(
                 files.get(b"result.txt".as_slice()).is_some_and(|bytes| bytes == b"new\n"),
                 "commit contains the agent's change",
@@ -445,7 +440,7 @@ impl SignIn {
         }
         if self.start.is_none() {
             let suffix = shown.get(self.search..).expect("terminal observations append");
-            if let Some(at) = suffix.windows(9).position(|bytes| bytes == b"Sign in: ") {
+            if let Some(at) = skein_lib::bytes::find(&suffix, b"Sign in: ") {
                 self.start = Some(self.search + at + 9);
             } else {
                 self.search = shown.len().saturating_sub(8);

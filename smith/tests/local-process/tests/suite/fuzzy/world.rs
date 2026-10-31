@@ -1,7 +1,7 @@
 //! Seeded short IO, completion delays and cancellation races in the real
 //! shared shell, replayed using Skein's trace and referee machinery.
 use smith_local_process_world::{
-    Authentication, Files, Placement, World,
+    Authentication, Files, World,
     referee::{CheckoutRead, Ending, review},
     terminal::Action,
 };
@@ -9,7 +9,7 @@ use smith_local_process_world::{
 #[test]
 fn seeded_hosted_and_colocated_runs_settle_and_replay() {
     for seed in 100..116 {
-        for placement in [Placement::Spawned, Placement::InProcess] {
+        for placement in smith_local_process_world::fixture::PLACEMENTS {
             let mut previous = None;
             for _ in 0..2 {
                 let files = Files::new();

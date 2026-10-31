@@ -2,10 +2,7 @@
 use skein_fake_llm_domain::api;
 use skein_io::kernel;
 use smith_events::Event;
-use smith_local_process_world::{
-    Files, Placement, World,
-    referee::{Ending, review},
-};
+use smith_local_process_world::{Files, Placement, World, referee::Ending};
 
 fn write_report(name: &str) -> Box<[api::Script]> {
     Box::new([api::Script {
@@ -36,11 +33,11 @@ fn directory(seed: u64, files: &Files, placement: Placement, name: &str, writabl
 
 #[test]
 fn a_named_writable_root_receives_the_agents_write() {
-    for placement in [Placement::Spawned, Placement::InProcess] {
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
         let files = Files::new();
         let mut world = directory(81, &files, placement, "plan", true);
         world.settle();
-        review(&world.seen(), &world, Ending::Report(b"Wrote it".to_vec())).assert_passed(81);
+        world.assert_ended(Ending::Report(b"Wrote it".to_vec()));
         assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
         assert_eq!(world.file(b"extra/notes.txt").as_deref(), Some(b"noted\n".as_slice()));
         assert_eq!(world.file(b"repo/plan/notes.txt"), None);
@@ -50,11 +47,11 @@ fn a_named_writable_root_receives_the_agents_write() {
 
 #[test]
 fn a_named_read_only_root_refuses_the_agents_write() {
-    for placement in [Placement::Spawned, Placement::InProcess] {
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
         let files = Files::new();
         let mut world = directory(82, &files, placement, "kit", false);
         world.settle();
-        review(&world.seen(), &world, Ending::Report(b"Wrote it".to_vec())).assert_passed(82);
+        world.assert_ended(Ending::Report(b"Wrote it".to_vec()));
         let records = match placement {
             Placement::Spawned => world.agent_records(),
             Placement::InProcess => world.records(),
@@ -76,12 +73,12 @@ fn a_plain_snapshot_at_and_past_its_bound_answers() {
     // smith-local-service's process::plain_limits().file_bytes.
     const SNAPSHOT_FILE_BYTES: usize = 65_536;
     for bytes in [SNAPSHOT_FILE_BYTES, SNAPSHOT_FILE_BYTES + 1] {
-        for placement in [Placement::Spawned, Placement::InProcess] {
+        for placement in smith_local_process_world::fixture::PLACEMENTS {
             let files = Files::new();
             let mut world = directory(83, &files, placement, "plan", true);
             world.fixture_file(b"extra/large", &vec![b'x'; bytes]);
             world.settle();
-            review(&world.seen(), &world, Ending::Report(b"Wrote it".to_vec())).assert_passed(83);
+            world.assert_ended(Ending::Report(b"Wrote it".to_vec()));
             assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
             assert_eq!(world.file(b"extra/notes.txt").as_deref(), Some(b"noted\n".as_slice()));
             assert!(!String::from_utf8_lossy(world.errors()).contains("could not be saved"));
@@ -104,7 +101,7 @@ fn an_accepted_effort_change_reaches_the_next_response() {
         Action::Eof,
     ];
     world.settle();
-    review(&world.seen(), &world, Ending::Report(b"Second answer".to_vec())).assert_passed(84);
+    world.assert_ended(Ending::Report(b"Second answer".to_vec()));
     let queries = world.queries();
     // The script has one finish response for each of the two activations.
     const RESPONSES: usize = 2;
@@ -130,7 +127,7 @@ fn an_older_store_refuses_with_operator_words_and_unchanged_files() {
         "move its directory under smith's state directory aside, whole, and start again: nothing is deleted, ",
         "and the next start makes a new, empty chat, without this chat's history or its deliveries' answers."
     );
-    for placement in [Placement::Spawned, Placement::InProcess] {
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
         let files = Files::new();
         let mut world = World::new(85, &files, placement, b"unused");
         let state = smith_local_domain::ChatState {
