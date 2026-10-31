@@ -225,7 +225,6 @@ fn cancel(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, project:
 }
 
 /// Continue a project's deletion once its tasks are erased whole.
-#[cfg_attr(not(test), expect(dead_code, reason = "the whole-task erasure driver supplies this completion"))]
 pub(crate) fn tasks_erased(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, project: u32) {
     let Some(state) = core.deletions.live.get_mut(&project) else { return };
     assert!(state.step == people::DeletionStep::Tasks, "tasks erased before project rows");

@@ -6,7 +6,6 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, Token};
 
 /// What selects ended tasks for erasure; retention adds its horizon later.
-#[cfg_attr(not(test), expect(dead_code, reason = "project deletion constructs this selection"))]
 #[derive(Debug)]
 pub(crate) enum Select {
     Project(u32),
