@@ -648,6 +648,15 @@ impl Referee<cluster::Root> for Judge {
             configure_engine(&mut document, address);
             fs::write(&self.engine, serde_json::to_vec(&document).expect("engine JSON"))
                 .expect("fixed workers listener");
+            let directory = self.members.dir("engine");
+            super::forgejo::bootstrap(&directory.join("config"), &directory.join("data"), &directory.join("cache"));
+            // temper/docs/design/protocol/setup.md, 17.7; temper/docs/design/draft/playground-reset.md, 3.
+            let mut record = temper_real_loop_world::fixtures::forgejo_record(address);
+            record.kind = temper_engine_domain_forge::Kind::GitHub;
+            record.place.web = Some(format!("http://{address}").into_bytes().into());
+            record.bot.login = b"x-access-token".as_slice().into();
+            record.read_only = true;
+            temper_real_loop_world::fixtures::seed_record(&directory.join("data/state"), record, &[]);
             self.members.up(&["w1"]);
             self.stage = Stage::Worker;
             self.members.act(now, hosts);
@@ -811,8 +820,7 @@ fn configure_engine(value: &mut Value, forge: SocketAddr) {
     engine.insert("projects".into(), init["engine"]["projects"].clone());
     // Four slots hold the stock chat, coding and reviewer charters.
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 4.into();
-    // Keep App setup and log polling aligned with the live GitHub story.
-    value["application"]["forges"][0]["app_read_only"] = true.into();
+    // Keep log polling aligned with the live GitHub story.
     let limits = &mut value["application"]["limits"]["overrides"];
     for (name, millis) in [("poll_ms", 10), ("poll_max_ms", 50), ("slow_ms", 100), ("hinted_ms", 10)] {
         limits[format!("forge.client.{name}")] = millis.into();

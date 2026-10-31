@@ -146,10 +146,9 @@ fn run_owned(directory: &Path) -> io::Result<()> {
     let printed_command =
         std::str::from_utf8(&instructions.stdout).expect("instructions").lines().next().expect("command");
     let running = super::owned::run(directory, "forgejo");
-    let instance = super::owned::attach(directory, forge.port(), running);
+    let mut instance = super::owned::attach(directory, forge.port(), running);
     let past_start = clock.now().now;
-    let reconciled = super::owned::reconcile(directory, 1);
-    success(&reconciled);
+    super::forgejo::seed(directory, &mut instance);
     let log = fs::File::create(directory.join("sign-in-serve.log")).expect("private log");
     let mut serve = Serve {
         child: Command::new(skein_scratch::paths::binary("temper"))
@@ -165,8 +164,9 @@ fn run_owned(directory: &Path) -> io::Result<()> {
     };
     let stdout = serve.child.stdout.take().expect("stdout pipe");
     let link = super::read_line(skein_io::kernel::Fd::new(stdout.as_raw_fd()), super::WITHIN);
+    let printed_command = owned_command(directory, printed_command);
     let added = Command::new("/bin/sh")
-        .args(["-c", printed_command])
+        .args(["-c", &printed_command])
         .current_dir(directory.join("forge-1/forgejo"))
         .output()
         .expect("printed command");
@@ -222,4 +222,22 @@ fn run_owned(directory: &Path) -> io::Result<()> {
         clock.now().now.saturating_since(past_start)
     );
     Ok(())
+}
+
+fn owned_command(directory: &Path, printed_command: &str) -> String {
+    // temper/docs/design/draft/playground-reset.md, 3: sign-in instructions name no kept forge.
+    // Supply this disposable server's binary and work path around that generic command.
+    let quote = |path: &Path| {
+        use std::os::unix::ffi::OsStrExt;
+        String::from_utf8(temper_forge_setup::sign_in::quote(path.as_os_str().as_bytes()).into_vec())
+            .expect("quoted path")
+    };
+    let work = directory.join("forge-1/forgejo");
+    format!(
+        "{} --work-path {} --config {}{}",
+        quote(&super::owned::binaries().0),
+        quote(&work),
+        quote(&work.join("app.ini")),
+        printed_command.strip_prefix("'forgejo'").expect("generic Forgejo command")
+    )
 }

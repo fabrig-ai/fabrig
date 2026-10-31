@@ -29,8 +29,16 @@ pub fn configuration(directory: &Path) -> SocketAddr {
     let path = directory.join("temper.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     value["application"]["webhooks"] = serde_json::json!({"listener":{"socket":address.to_string()}});
-    value["application"]["forges"][0]["webhook_secret"] = "secrets/forge-1.webhook-secret".into();
-    super::write_private(&directory.join("secrets/forge-1.webhook-secret"), SECRET);
+    super::forgejo::bootstrap(directory, directory, directory);
+    let forge = temper_real_loop_world::fixtures::forgejo_record("127.0.0.1:9".parse().expect("unreached forge"));
+    temper_real_loop_world::fixtures::seed_forgejo(
+        &directory.join("state"),
+        forge,
+        1,
+        b"fixture-api-token",
+        SECRET,
+        None,
+    );
     super::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
     address
 }
@@ -124,9 +132,12 @@ impl Referee<Process> for Judge<'_> {
         self.settled
     }
 }
+#[must_use]
 pub fn served(directory: &Path, listener: SocketAddr, posts: &[Post<'_>]) -> Ended {
+    served_binary(super::serve(directory), listener, posts)
+}
+pub fn served_binary(mut binary: skein_world::end_to_end::Binary, listener: SocketAddr, posts: &[Post<'_>]) -> Ended {
     let clock = Clock::new();
-    let mut binary = super::serve(directory);
     let streams = binary.take_streams().expect("pipes");
     let fds = streams.descriptors();
     let Streams::Pipes { input, output } = streams else { panic!("pipes") };
