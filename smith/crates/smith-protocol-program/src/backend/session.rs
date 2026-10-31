@@ -89,14 +89,13 @@ fn quoted(hash: &mut Sha256, text: &[u8]) {
             8 => hash.update(br"\b"),
             12 => hash.update(br"\f"),
             0..=31 => {
-                let hex = b"0123456789abcdef";
                 hash.update(&[
                     b'\\',
                     b'u',
                     b'0',
                     b'0',
-                    *hex.get(usize::from(byte / 16)).expect("high nibble"),
-                    *hex.get(usize::from(byte % 16)).expect("low nibble"),
+                    skein_lib::bytes::hex_digit(byte / 16),
+                    skein_lib::bytes::hex_digit(*byte),
                 ]);
             }
             _ => hash.update(&[*byte]),
@@ -106,15 +105,13 @@ fn quoted(hash: &mut Sha256, text: &[u8]) {
 
 pub(super) fn uuid(id: [u8; 16]) -> [u8; 36] {
     let mut result = [b'-'; 36];
-    let hex = b"0123456789abcdef";
     let mut at = 0_usize;
     for byte in id {
         if [8, 13, 18, 23].contains(&at) {
             at = at.checked_add(1).expect("UUID");
         }
-        *result.get_mut(at).expect("UUID position") = *hex.get(usize::from(byte / 16)).expect("high nibble");
-        *result.get_mut(at.checked_add(1).expect("UUID")).expect("UUID position") =
-            *hex.get(usize::from(byte % 16)).expect("low nibble");
+        *result.get_mut(at).expect("UUID position") = skein_lib::bytes::hex_digit(byte / 16);
+        *result.get_mut(at.checked_add(1).expect("UUID")).expect("UUID position") = skein_lib::bytes::hex_digit(byte);
         at = at.checked_add(2).expect("UUID");
     }
     result

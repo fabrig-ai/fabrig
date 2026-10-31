@@ -630,3 +630,13 @@ fn crlf_empty_deliveries_are_skipped() {
     h.message(br#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#);
     assert_eq!(h.response()["result"], value!({}));
 }
+
+#[test]
+fn member_lookup_rejects_duplicates_and_skips_nested_names() {
+    let document =
+        super::json::collect(br#"{"nested":{"name":"inner"},"name":"first","name":"second"}"#).expect("complete JSON");
+    assert!(super::json::field(&document, 0, b"name").is_none());
+    let nested = super::json::field(&document, 0, b"nested").expect("nested object");
+    let name = super::json::field(&document, nested, b"name").expect("nested name");
+    assert_eq!(super::json::text(&document, name), Some(b"inner".as_slice()));
+}

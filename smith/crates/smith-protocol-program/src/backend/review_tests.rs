@@ -58,9 +58,9 @@ fn assistant_text_redacts_private_values_before_completion() {
     assert_eq!(usize::try_from(bytes).expect("count"), input.len());
     let Some(ToDomain::Completed { completion, .. }) = up.pop() else { panic!("completion") };
     let llm::Said::Text { text, .. } = &completion.content[0] else { panic!("text") };
-    assert!(!text.windows(secret.len()).any(|window| window == secret));
-    assert!(!text.windows(path.len()).any(|window| window == path.as_ref()));
-    assert!(!text.windows(backend.names.run.len()).any(|window| window == backend.names.run));
+    assert!(skein_lib::bytes::find(&text, &secret).is_none());
+    assert!(skein_lib::bytes::find(&text, &path).is_none());
+    assert!(skein_lib::bytes::find(&text, &backend.names.run).is_none());
     assert!(text.ends_with(b" end"));
 }
 #[test]

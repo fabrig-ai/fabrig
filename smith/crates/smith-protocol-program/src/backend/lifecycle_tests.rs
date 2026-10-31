@@ -115,8 +115,8 @@ fn private_diagnostics_redact_known_private_values() {
     let secret = mcp::secret_text(backend.names.mcp.expose().try_into().expect("bounded test fixture"));
     let bytes = mcp::json::join(&[b"stderr ", &secret, b" ", &backend.run_path(b"mcp.json"), b" tail"]);
     let text = backend.private_diagnostic(&bytes);
-    assert!(!text.windows(secret.len()).any(|window| window == secret));
-    assert!(!text.windows(backend.names.run.len()).any(|window| window == backend.names.run));
+    assert!(skein_lib::bytes::find(&text, &secret).is_none());
+    assert!(skein_lib::bytes::find(&text, &backend.names.run).is_none());
     assert!(text.ends_with(b" tail"));
 }
 #[test]

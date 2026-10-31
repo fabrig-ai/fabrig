@@ -184,11 +184,10 @@ impl core::fmt::Debug for Server {
 /// Hexadecimal text used only for authentication and the private MCP file (9).
 #[must_use]
 pub fn secret_text(entropy: &[u8; 32]) -> [u8; SECRET_BYTES] {
-    let digits = b"0123456789abcdef";
     let mut text = [0; SECRET_BYTES];
     for (pair, byte) in text.chunks_exact_mut(2).zip(entropy) {
-        *pair.first_mut().expect("hex pair") = *digits.get(usize::from(byte >> 4_u8)).expect("hex digit");
-        *pair.last_mut().expect("hex pair") = *digits.get(usize::from(byte & 15)).expect("hex digit");
+        *pair.first_mut().expect("hex pair") = skein_lib::bytes::hex_digit(byte >> 4_u8);
+        *pair.last_mut().expect("hex pair") = skein_lib::bytes::hex_digit(*byte);
     }
     text
 }

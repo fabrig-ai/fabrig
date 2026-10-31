@@ -334,21 +334,7 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        let owner = match &event {
-            io::Event::Listening { owner, .. }
-            | io::Event::Accepted { owner, .. }
-            | io::Event::Connecting { owner, .. }
-            | io::Event::Connected { owner }
-            | io::Event::Stream { owner, .. }
-            | io::Event::Output { owner, .. }
-            | io::Event::Spawned { owner, .. }
-            | io::Event::Exited { owner, .. }
-            | io::Event::Usage { owner, .. }
-            | io::Event::Window { owner, .. }
-            | io::Event::Failed { owner, .. }
-            | io::Event::Closed { owner } => *owner,
-            io::Event::Resized | io::Event::Shutdown { .. } => unreachable!("backend has no signals"),
-        };
+        let owner = event.owner().expect("backend has no signals");
         if let Some(check) = &mut self.check
             && check.owns(owner)
         {

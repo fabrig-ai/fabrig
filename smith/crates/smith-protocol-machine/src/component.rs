@@ -450,22 +450,7 @@ impl Component {
         to_domain: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        let owner = match &event {
-            io::Event::Spawned { owner, .. }
-            | io::Event::Exited { owner, .. }
-            | io::Event::Failed { owner, .. }
-            | io::Event::Closed { owner } => *owner,
-            io::Event::Listening { .. }
-            | io::Event::Accepted { .. }
-            | io::Event::Connecting { .. }
-            | io::Event::Connected { .. }
-            | io::Event::Stream { .. }
-            | io::Event::Output { .. }
-            | io::Event::Usage { .. }
-            | io::Event::Resized
-            | io::Event::Window { .. }
-            | io::Event::Shutdown { .. } => unreachable!("child progress carries a domain owner"),
-        };
+        let owner = event.owner().expect("child progress carries a domain owner");
         let process = self.processes.get_mut(&owner).expect("process event has admitted owner");
         match event {
             io::Event::Spawned { child, pipes, .. } => {
@@ -489,21 +474,7 @@ impl Component {
     }
 
     fn pipe_event(&mut self, now: Time, event: io::Event, to_domain: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
-        let pipe = match &event {
-            io::Event::Stream { owner, .. } | io::Event::Closed { owner } => *owner,
-            io::Event::Listening { .. }
-            | io::Event::Accepted { .. }
-            | io::Event::Connecting { .. }
-            | io::Event::Connected { .. }
-            | io::Event::Output { .. }
-            | io::Event::Spawned { .. }
-            | io::Event::Exited { .. }
-            | io::Event::Usage { .. }
-            | io::Event::Resized
-            | io::Event::Window { .. }
-            | io::Event::Failed { .. }
-            | io::Event::Shutdown { .. } => unreachable!("a read pipe emits only stream progress and Closed"),
-        };
+        let pipe = event.owner().expect("a read pipe emits only stream progress and Closed");
         let owner = *self.routes.get(&pipe).expect("pipe event has a live route");
         let process = self.processes.get_mut(&owner).expect("pipe route has admitted process");
         match event {

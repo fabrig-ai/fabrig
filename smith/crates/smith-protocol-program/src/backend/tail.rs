@@ -195,14 +195,13 @@ impl Output {
                 8 => self.put(br"\b")?,
                 12 => self.put(br"\f")?,
                 0..=31 => {
-                    let hex = b"0123456789abcdef";
                     self.put(&[
                         b'\\',
                         b'u',
                         b'0',
                         b'0',
-                        *hex.get(usize::from(byte.checked_div(16)?))?,
-                        *hex.get(usize::from(byte.checked_rem(16)?))?,
+                        skein_lib::bytes::hex_digit(byte.checked_div(16)?),
+                        skein_lib::bytes::hex_digit(*byte),
                     ])?;
                 }
                 _ => self.put(&[*byte])?,

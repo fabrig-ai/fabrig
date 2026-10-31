@@ -324,14 +324,7 @@ fn parse(input: &[u8]) -> Option<tools::Hit> {
 }
 
 fn decimal(input: &[u8]) -> Option<u32> {
-    let mut value = 0_u32;
-    for byte in input {
-        if !byte.is_ascii_digit() {
-            return None;
-        }
-        value = value.checked_mul(10)?.checked_add(u32::from(*byte).checked_sub(u32::from(b'0'))?)?;
-    }
-    Some(value)
+    u32::try_from(bytes::decimal(input)?).ok()
 }
 
 #[cfg(test)]

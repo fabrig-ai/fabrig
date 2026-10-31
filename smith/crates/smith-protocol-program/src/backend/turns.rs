@@ -369,14 +369,7 @@ pub(super) fn number(document: &Document, index: Option<u32>) -> Option<u64> {
     if record.kind != Kind::Number {
         return None;
     }
-    let mut value = 0_u64;
-    for byte in document.text(record)? {
-        if !byte.is_ascii_digit() {
-            return None;
-        }
-        value = value.checked_mul(10)?.checked_add(u64::from(byte.checked_sub(b'0')?))?;
-    }
-    Some(value)
+    skein_lib::bytes::decimal(document.text(record)?)
 }
 
 fn usage(document: &Document, index: Option<u32>) -> llm::Usage {

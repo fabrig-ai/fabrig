@@ -243,7 +243,7 @@ fn private_text_is_redacted_across_delta_boundaries() {
         );
         text.extend(delta_text(&mut backend));
         assert_eq!(text.len(), secret.len());
-        assert!(!text.windows(secret.len()).any(|window| window == secret));
+        assert!(skein_lib::bytes::find(&text, &secret).is_none());
         assert!(text.iter().all(|byte| *byte == b'*'));
     }
 }
