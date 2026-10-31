@@ -811,7 +811,8 @@ impl Referee<Proc> for Judge {
         Lifecycle::release(
             caller,
             service.links(),
-            workers.iter().all(
+            service.fixture_ready()
+                && workers.iter().all(
                 |proc| matches!(&proc.kind, Kind::Service(worker) if !worker_started(worker) || worker.linked() > 0),
             ),
         );
@@ -923,6 +924,7 @@ impl Referee<Proc> for Judge {
             || (peer.address().is_some() && service.address.is_none())
             || (service.links() != 0
                 && !caller.released
+                && service.fixture_ready()
                 && workers.iter().all(|proc| matches!(&proc.kind, Kind::Service(worker) if !worker_started(worker) || worker.linked() > 0)))
             || (caller.watching.is_some() && (!service.watching() || service.delivered() && !caller.watched))
             || (caller.is_empty() && self.children.settled(children) && !self.lifecycle.stopping)
