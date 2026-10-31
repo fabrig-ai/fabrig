@@ -8,9 +8,11 @@
 
 use alloc::vec::Vec;
 use core::hash::{Hash, Hasher};
+use core::iter::Enumerate;
 use core::mem::size_of;
+use core::slice;
 
-use crate::Id;
+use crate::{Id, grow};
 
 /// Entities of one kind, named by `Id<T>`.
 ///
@@ -29,6 +31,18 @@ pub struct Slab<T> {
     len: u32,
 }
 
+/// Live entities in slot order, with their handles; retired and vacant slots are skipped.
+#[derive(Debug)]
+pub struct Iter<'a, T> {
+    slots: Enumerate<slice::Iter<'a, Slot<T>>>,
+}
+
+/// Live entities mutably in slot order, with their handles; retired and vacant slots are skipped.
+#[derive(Debug)]
+pub struct IterMut<'a, T> {
+    slots: Enumerate<slice::IterMut<'a, Slot<T>>>,
+}
+
 #[derive(Debug)]
 enum Slot<T> {
     /// The next entity here gets `generation`.
@@ -43,8 +57,6 @@ enum Slot<T> {
     /// Its generation would wrap: never used again, so no handle is reused.
     Spent,
 }
-
-const GROWTH_FLOOR: usize = 4;
 
 impl<T> Slab<T> {
     /// Starts without allocating; slots and lists grow as they fill, up to
@@ -95,7 +107,9 @@ impl<T> Slab<T> {
                     return Err(value);
                 }
                 if self.slots.len() == self.slots.capacity() {
-                    self.slots.reserve_exact(growth(self.slots.len(), self.capacity));
+                    let target = grow::target(self.slots.capacity(), self.slots.len(), self.capacity);
+                    let additional = target.checked_sub(self.slots.len()).expect("room for another slot");
+                    self.slots.reserve_exact(additional);
                 }
                 let slot = u32::try_from(self.slots.len()).expect("fewer slots than the capacity");
                 self.slots.push(Slot::Vacant { generation: 0 });
@@ -130,6 +144,19 @@ impl<T> Slab<T> {
         }
     }
 
+    /// Every live entity (inserted, not retired), in slot order, with its handle.
+    #[expect(clippy::iter_without_into_iter, reason = "the component kit exposes explicit slab cursors")]
+    #[must_use]
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter { slots: self.slots.iter().enumerate() }
+    }
+
+    /// Every live entity mutably, in slot order, with its handle.
+    #[expect(clippy::iter_without_into_iter, reason = "the component kit exposes explicit slab cursors")]
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
+        IterMut { slots: self.slots.iter_mut().enumerate() }
+    }
+
     /// Marks a live entity for reclaiming. It stays reachable until
     /// `reclaim`. Retiring anything else is a bug.
     pub fn retire(&mut self, id: Id<T>) {
@@ -143,7 +170,9 @@ impl<T> Slab<T> {
             Slot::Vacant { .. } | Slot::Spent => unreachable!("only a live entity is retired"),
         }
         if self.retired.len() == self.retired.capacity() {
-            self.retired.reserve_exact(growth(self.retired.len(), self.capacity));
+            let target = grow::target(self.retired.capacity(), self.retired.len(), self.capacity);
+            let additional = target.checked_sub(self.retired.len()).expect("room for another retired slot");
+            self.retired.reserve_exact(additional);
         }
         self.retired.push(id.slot());
     }
@@ -163,7 +192,9 @@ impl<T> Slab<T> {
             *entry = match next {
                 Some(generation) => {
                     if self.free.len() == self.free.capacity() {
-                        self.free.reserve_exact(growth(self.free.len(), self.capacity));
+                        let target = grow::target(self.free.capacity(), self.free.len(), self.capacity);
+                        let additional = target.checked_sub(self.free.len()).expect("room for another free slot");
+                        self.free.reserve_exact(additional);
                     }
                     self.free.push(slot);
                     Slot::Vacant { generation }
@@ -175,10 +206,38 @@ impl<T> Slab<T> {
     }
 }
 
-/// Additional storage for a full buffer that has room below its cap.
-fn growth(len: usize, capacity: u32) -> usize {
-    let target = len.saturating_mul(2).max(GROWTH_FLOOR).min(index(capacity));
-    target.checked_sub(len).expect("room for another item")
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = (Id<T>, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for (slot, entry) in self.slots.by_ref() {
+            match entry {
+                Slot::Occupied { generation, retired: false, value } => {
+                    let slot = u32::try_from(slot).expect("a slot index fits the slab's capacity");
+                    return Some((Id::new(slot, *generation), value));
+                }
+                Slot::Occupied { retired: true, .. } | Slot::Vacant { .. } | Slot::Spent => {}
+            }
+        }
+        None
+    }
+}
+
+impl<'a, T> Iterator for IterMut<'a, T> {
+    type Item = (Id<T>, &'a mut T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for (slot, entry) in self.slots.by_ref() {
+            match entry {
+                Slot::Occupied { generation, retired: false, value } => {
+                    let slot = u32::try_from(slot).expect("a slot index fits the slab's capacity");
+                    return Some((Id::new(slot, *generation), value));
+                }
+                Slot::Occupied { retired: true, .. } | Slot::Vacant { .. } | Slot::Spent => {}
+            }
+        }
+        None
+    }
 }
 
 fn index(slot: u32) -> usize {

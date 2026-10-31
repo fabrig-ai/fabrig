@@ -1,6 +1,19 @@
 //! Time, deadlines and randomness (lib.md, 8).
 
-use crate::{Deadlines, Duration, Rng, Time, Wall};
+use crate::{Deadlines, Duration, Rng, Time, Wall, earliest};
+
+#[test]
+fn earliest_keeps_the_first_deadline_or_none_when_both_are_absent() {
+    const EARLY: Time = Time::from_nanos(0);
+    const LATE: Time = Time::from_nanos(u64::MAX);
+    const EQUAL: Option<Time> = earliest(Some(EARLY), Some(EARLY));
+    assert_eq!(earliest(None, None), None);
+    assert_eq!(earliest(Some(EARLY), None), Some(EARLY));
+    assert_eq!(earliest(None, Some(LATE)), Some(LATE));
+    assert_eq!(earliest(Some(EARLY), Some(LATE)), Some(EARLY));
+    assert_eq!(earliest(Some(LATE), Some(EARLY)), Some(EARLY));
+    assert_eq!(EQUAL, Some(EARLY));
+}
 
 #[test]
 fn arithmetic_is_checked_or_saturating() {

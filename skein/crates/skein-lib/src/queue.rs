@@ -9,6 +9,8 @@ use alloc::collections::VecDeque;
 use alloc::collections::vec_deque;
 use core::mem::size_of;
 
+use crate::grow;
+
 /// A first-in, first-out queue of at most `capacity` items, which
 /// allocates as it fills: never past its capacity, never shrinking.
 #[derive(Debug)]
@@ -16,8 +18,6 @@ pub struct Queue<T> {
     items: VecDeque<T>,
     capacity: u32,
 }
-
-const GROWTH_FLOOR: usize = 4;
 
 impl<T> Queue<T> {
     #[must_use]
@@ -83,8 +83,7 @@ impl<T> Queue<T> {
     /// Grows a full buffer exactly, while the logical capacity has room.
     fn grow(&mut self) {
         if self.items.len() == self.items.capacity() {
-            let cap = usize::try_from(self.capacity).expect("a u32 fits in a usize");
-            let target = self.items.len().saturating_mul(2).max(GROWTH_FLOOR).min(cap);
+            let target = grow::target(self.items.capacity(), self.items.len(), self.capacity);
             let additional = target.checked_sub(self.items.len()).expect("room for another item");
             self.items.reserve_exact(additional);
         }
@@ -93,6 +92,11 @@ impl<T> Queue<T> {
     /// Takes the oldest item.
     pub fn pop(&mut self) -> Option<T> {
         self.items.pop_front()
+    }
+
+    /// Empties the queue, keeping its grown storage (as `List::clear`).
+    pub fn clear(&mut self) {
+        self.items.clear();
     }
 
     /// The items, oldest first.

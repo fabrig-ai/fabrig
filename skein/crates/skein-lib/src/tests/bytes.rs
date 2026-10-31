@@ -237,6 +237,27 @@ fn finishing_short_is_a_bug() {
 }
 
 #[test]
+fn decimal_parsing_accepts_only_nonempty_digits_within_u64() {
+    for (digits, expected) in [
+        (&b""[..], None),
+        (b"0", Some(0)),
+        (b"007", Some(7)),
+        (b"18446744073709551615", Some(u64::MAX)),
+        (b"18446744073709551616", None),
+        (b"x12", None),
+        (b"12x", None),
+        (b"1x2", None),
+        (b"+7", None),
+        (b"-7", None),
+        (b" 7", None),
+        (b"7 ", None),
+        (b"\xff", None),
+    ] {
+        assert_eq!(Decimal::parse(digits), expected, "{digits:?}");
+    }
+}
+
+#[test]
 fn a_number_is_its_digits_without_leading_zeros() {
     assert_eq!(Decimal::of(0).as_bytes(), b"0");
     assert_eq!(Decimal::of(7).as_bytes(), b"7");
