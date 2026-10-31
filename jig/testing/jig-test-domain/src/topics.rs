@@ -164,7 +164,7 @@ pub(super) fn news(
                 let mut words = Writer::new(size);
                 words.put(b"News on topic ").expect("topic label fits");
                 words.put(digits.as_bytes()).expect("topic number fits");
-                work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::News {
+                work.push(Work::Core(core::Event::EffectConnector(core::effects::connector::Event::News {
                     task: subscriber.task,
                     subscription: interest.number,
                     topic: u64::from(topic),

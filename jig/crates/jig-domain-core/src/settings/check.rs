@@ -1,6 +1,8 @@
 //! One whole-set check, also used after restoring stored changes (engine.md, 17.1).
-use super::{Current, Edit, Failure, Fault, Item, Setting, Value};
-use crate::{Limits, Settings};
+use crate::{
+    Limits, Settings,
+    settings::{Current, Edit, Failure, Fault, Item, Setting, Value},
+};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
@@ -196,7 +198,7 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
 /// Stored values retain their byte and count bounds without judging their writer.
 pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Failure> {
     let valid = match value {
-        Value::Charter(value) => match crate::memory::policy_owned_bytes(&value.policy) {
+        Value::Charter(value) => match crate::limits::policy_owned_bytes(&value.policy) {
             Some(bytes) => bytes <= u64::from(limits.run_bytes),
             None => false,
         },
@@ -207,7 +209,7 @@ pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> R
         Value::Policy(value) => {
             value.permissions.len() <= usize::try_from(limits.settings.permissions).expect("permission bound")
                 && value.templates.len() <= usize::try_from(limits.templates).expect("template override bound")
-                && match crate::policy::snapshot(&value.policy, &value.permissions, &value.templates) {
+                && match crate::admission::policy::snapshot(&value.policy, &value.permissions, &value.templates) {
                     Some(value) => match people::policy_bytes(&value) {
                         Some(bytes) => bytes <= limits.policy_bytes,
                         None => false,
@@ -337,13 +339,13 @@ fn charter_fault(charter: &crate::Charter, settings: &Settings, limits: &Limits)
     if policy.turns <= policy.reserve_turns || policy.time <= policy.reserve_time {
         return Some(Fault::Budget);
     }
-    if match crate::run::reserve_floor(policy) {
+    if match crate::runs::state::reserve_floor(policy) {
         Some(floor) => charter.spend < floor,
         None => true,
     } {
         return Some(Fault::Budget);
     }
-    if crate::memory::policy_owned_bytes(policy)? > u64::from(limits.run_bytes) {
+    if crate::limits::policy_owned_bytes(policy)? > u64::from(limits.run_bytes) {
         return Some(Fault::Shape);
     }
     None
@@ -402,7 +404,7 @@ fn template_fault(
                 Some(Value::Template(_) | Value::Policy(_) | Value::Rules(_)) | None => return Some(Fault::Reference),
             };
             if let Some(choice) = &template.llm
-                && !crate::llm::takes(&settings.models, &charter.policy, choice)
+                && !crate::runs::llm::takes(&settings.models, &charter.policy, choice)
             {
                 return Some(Fault::Reference);
             }
@@ -595,7 +597,7 @@ pub(super) fn count(setting: Setting, counts: &mut [u32; 3], limits: &Limits) ->
 }
 
 fn model_valid(model: &crate::Model, settings: &Settings) -> bool {
-    match crate::charters::configured(settings, model) {
+    match super::charters::configured(settings, model) {
         Some(index) => {
             let configured = settings.models.get(usize::from(index)).expect("configured model");
             model.dialect == configured.dialect
@@ -659,7 +661,7 @@ pub(crate) fn changed_charters(
             Some(Value::Charter(charter)) => charter,
             Some(Value::Template(_) | Value::Policy(_) | Value::Rules(_)) | None => unreachable!("checked charter"),
         };
-        result.push(crate::charters::one_models(charter, current.newest(), settings)).expect("checked charter count");
+        result.push(super::charters::one_models(charter, current.newest(), settings)).expect("checked charter count");
     }
     result.into_boxed()
 }

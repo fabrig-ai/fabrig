@@ -114,16 +114,16 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             decision,
             EndedRead::PartyInput { request, task: *tasks.first().expect("historical input") },
         ),
-        core::Now::HistoricalPersonTask { request, person, project, task } => {
+        core::Now::EndedPersonTask { request, person, project, task } => {
             ended(domain, env, decision, EndedRead::PersonTask { request, person, project, task });
         }
         core::Now::DecidedProposal { to, key, proposal } => {
             proposals::task_begin(domain, env, decision, to, key, proposal);
         }
-        core::Now::HistoricalProposal { request, person, project, proposer, proposal } => {
+        core::Now::EndedProposal { request, person, project, proposer, proposal } => {
             proposals::historical_begin(domain, env, decision, request, person, project, proposer, proposal);
         }
-        core::Now::HistoricalEscalation { request, person, project, task, revision } => {
+        core::Now::EndedEscalation { request, person, project, task, revision } => {
             escalation::historical_begin(domain, env, decision, request, person, project, task, revision);
         }
         core::Now::BriefCorePlanned { task, parent, sections } => {

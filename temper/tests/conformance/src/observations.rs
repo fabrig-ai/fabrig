@@ -280,19 +280,19 @@ pub fn resolved(
             _ => None,
         });
         match answer {
-            Some(Some(core::connector::OutboxOutcome::Held { .. })) => {
+            Some(Some(core::effects::connector::OutboxOutcome::Held { .. })) => {
                 held.insert(key, evidence.kind);
             }
             // A write past its lifetime found not made is settled too (D14).
             Some(Some(
-                core::connector::OutboxOutcome::Made
-                | core::connector::OutboxOutcome::NotMade
-                | core::connector::OutboxOutcome::Failed
-                | core::connector::OutboxOutcome::Withdrawn,
+                core::effects::connector::OutboxOutcome::Made
+                | core::effects::connector::OutboxOutcome::NotMade
+                | core::effects::connector::OutboxOutcome::Failed
+                | core::effects::connector::OutboxOutcome::Withdrawn,
             )) => {
                 settled.insert(key);
             }
-            Some(None | Some(core::connector::OutboxOutcome::Uncertain)) => {}
+            Some(None | Some(core::effects::connector::OutboxOutcome::Uncertain)) => {}
             None if live.contains(&key) => {}
             None => {
                 let projection_failed = evidence.projection

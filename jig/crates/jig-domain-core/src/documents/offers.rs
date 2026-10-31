@@ -1,8 +1,14 @@
 //! Whole party-specific offers (`client/domain/contract.md`, 5.3;
 //! `client/domain/objects.md`, 11). The acts owner supplies every judgment.
-use super::{DocumentLimits, Missing, Subject};
-use crate::acts::{self, Act, Admission, Beyond, Bounds, Offered, Recipient};
-use crate::{Core, Limits};
+
+#[cfg(test)]
+mod tests;
+
+use crate::{
+    Core, Limits,
+    acts::{self, Act, Admission, Beyond, Bounds, Offered, Recipient},
+    documents::{DocumentLimits, Missing, Subject},
+};
 use alloc::boxed::Box;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -334,9 +340,6 @@ pub(super) fn heap_bytes(value: &List<Offered>) -> Option<u64> {
     }
     Some(bytes)
 }
-
-#[cfg(test)]
-mod tests;
 
 fn effect(core: &Core, limits: &Limits, act: Act, subject: &Subject) -> Option<acts::Effect> {
     let number = match subject {

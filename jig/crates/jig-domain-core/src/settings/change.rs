@@ -1,6 +1,8 @@
 //! The edits a settings decision leaves (engine.md, 17.1–17.2).
-use super::{Changed, Current, Edit, Failure, Fault, Item, Key, Record, Setting};
-use crate::{CoreKey, CoreRecord, Limits, Write};
+use crate::{
+    CoreKey, CoreRecord, Limits, Write,
+    settings::{Changed, Current, Edit, Failure, Fault, Item, Key, Record, Setting},
+};
 use skein_lib::List;
 
 pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failure> {

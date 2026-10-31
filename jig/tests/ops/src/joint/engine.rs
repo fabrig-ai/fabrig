@@ -178,7 +178,7 @@ impl Application for OpsApplication {
         let mut conformance = Ops::peers(config, seed);
         // Interactive navigation and the post-action health wait outlive the
         // inline scenario's 2,000 iterations; keep their joint allowance finite.
-        conformance.policy.story_steps = 20_000;
+        conformance.observer.referee.policy.story_steps = 20_000;
         Peers {
             conformance,
             packets: Vec::new(),
@@ -371,9 +371,9 @@ impl Application for OpsApplication {
                 | core::Now::StartPreparation { .. }
                 | core::Now::SeenConversation { .. }
                 | core::Now::LoadEndedRead { .. }
-                | core::Now::HistoricalProposal { .. }
+                | core::Now::EndedProposal { .. }
                 | core::Now::DecidedProposal { .. }
-                | core::Now::HistoricalPersonTask { .. }
+                | core::Now::EndedPersonTask { .. }
                 | core::Now::EndedTask { .. }
                 | core::Now::PartyInputs { .. }
                 | core::Now::CompleteBrief { .. }
@@ -381,7 +381,7 @@ impl Application for OpsApplication {
                 | core::Now::WorkspaceRequest { .. }
                 | core::Now::RunPreparationFailed { .. }
                 | core::Now::RunPrepared { .. }
-                | core::Now::HistoricalEscalation { .. }
+                | core::Now::EndedEscalation { .. }
                 | core::Now::RestoreRefused,
             )
             | root::Output::IncidentAssociationRefused { .. }

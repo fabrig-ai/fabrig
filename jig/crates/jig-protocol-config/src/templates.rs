@@ -66,8 +66,12 @@ pub(crate) fn check_overrides(
             if template.number == entry.template {
                 known = true;
                 let executor = entry.executor.unwrap_or(template.executor);
-                if !jig_domain_core::templates::valid_executor(template, executor, &engine.charters, &engine.llm.models)
-                {
+                if !jig_domain_core::settings::templates::valid_executor(
+                    template,
+                    executor,
+                    &engine.charters,
+                    &engine.llm.models,
+                ) {
                     problems.push(path.member(b"executor"), What::Refers);
                 }
             }

@@ -1,5 +1,8 @@
 //! Project periods from the root and person allotments from policy
 //! (protocol/configuration.md, 3; domain/authority.md, 7).
+
+pub(crate) mod pools;
+
 use crate::{Core, Limits};
 use jig_domain_authority as authority;
 use jig_domain_people as people;

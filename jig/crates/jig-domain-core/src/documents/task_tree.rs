@@ -6,8 +6,10 @@
 
 #![expect(clippy::manual_map, reason = "step code uses explicit matches instead of closures")]
 
-use super::{Chip, Cursor, Missing, Proposer, Text, Window};
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    documents::{Chip, Cursor, Missing, Proposer, Text, Window},
+};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_tasks as tasks;
@@ -94,7 +96,7 @@ pub enum Ending {
     Cancelled { reason: Text, result: Option<ResultValue>, by: tasks::Party, at: Wall },
 }
 
-/// One task reference, including a historical result still named by live work.
+/// One task reference, including a retained result still named by live work.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TaskLink {
     /// An ended task whose stored owner row supplied its identity and wall time.
@@ -669,7 +671,7 @@ pub(super) fn placed(core: &Core, limits: &Limits, party: u64, task: u64) -> Res
     }
     Ok(Some(PlacedLine {
         number: hold.number,
-        owner: crate::roles::hold_owner(hold.owner),
+        owner: crate::admission::roles::hold_owner(hold.owner),
         mode: hold.mode,
         scope: hold.scope,
         reason: hold.reason.clone(),
@@ -902,7 +904,7 @@ fn task_with_lineage(
             }),
             tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => None,
         },
-        waits_on: crate::waits::from_row(core, limits, row),
+        waits_on: crate::runs::waits::from_row(core, limits, row),
         label: row.label,
         flags: row.flags,
         last_activity: row.last_activity,

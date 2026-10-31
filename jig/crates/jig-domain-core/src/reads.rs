@@ -14,27 +14,32 @@
 //! | loading | missing transport range | retired | held gone |
 //! | retired | late duplicate terminal | retired | nothing |
 
+pub(crate) mod activity;
+mod answers;
+pub mod ended;
+pub mod forget;
+pub mod indexed;
+pub(crate) mod indexes;
+mod rows;
 pub mod settings;
-pub use settings::{SettingsAnswer, SettingsRead};
+mod turn;
 mod vocabulary;
+pub(crate) mod watches;
+
+pub use rows::row_key;
+pub use settings::{SettingsAnswer, SettingsRead};
 pub use vocabulary::{
-    Answer, Cursor, EndedGroup, Filter, Group, Historical, Loaded, Page, PageRow, PageTurn, Past, Position, Range,
+    Answer, Cursor, Ended, EndedGroup, EndedValue, Filter, Group, Loaded, Page, PageRow, PageTurn, Position, Range,
     Read, RevisionAnswer, RevisionEdit, RevisionItemHead, RevisionRow, RevisionsPage, Row, Scope, SettingDocument,
     TaskPage, TurnFailure, UnjoinedTurn, Why,
 };
-pub(crate) mod activity;
-mod answers;
-mod watches;
 pub(crate) use watches::start_watch;
 use watches::watch_loaded;
-pub mod ended;
-pub mod indexed;
-mod rows;
-mod turn;
-pub use rows::row_key;
 
-use crate::documents::{self, DocumentClock, Missing, Subject, Window};
-use crate::{Core, Held, Limits, Request};
+use crate::{
+    Core, Held, Limits, Request,
+    documents::{self, DocumentClock, Missing, Subject, Window},
+};
 use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_lib::{Env, Id, List, Queue, ReplyTo, Token};
@@ -551,7 +556,7 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: Lo
     match &pending.destination {
         Destination::Watch(watcher) => return watch_loaded(core, env, name, *watcher, result),
         Destination::Settings { .. } => return settings::run_loaded(core, env, name, result),
-        Destination::Erase => return crate::erase::loaded(core, env, load, result),
+        Destination::Erase => return crate::routing::task::erase::loaded(core, env, load, result),
         Destination::Read(_) => {}
         Destination::Done => return Queue::uncapped(),
     }

@@ -1,12 +1,13 @@
 //! Small live documents and the shared bounded chip construction.
 //! Closed at once (jig/docs/design/domain/people.md, 5.2).
-use super::{Chip, Count, ExecutorKind, Frame, FrameProjectRole, Missing, PhaseLine, Run, Text};
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    documents::{Chip, Count, ExecutorKind, Frame, FrameProjectRole, Missing, PhaseLine, Run, Text},
+};
 use alloc::boxed::Box;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::List;
-use skein_lib::bytes::copy_of;
+use skein_lib::{List, bytes::copy_of};
 
 #[expect(clippy::disallowed_methods, reason = "client/domain/contract.md, 5.3 requires UTF-8 text validation")]
 pub(crate) fn text(bytes: &[u8], maximum: u32) -> Text {
@@ -120,7 +121,7 @@ pub(super) fn frame(core: &Core, limits: &Limits, party: u64) -> Result<Frame, M
             Some(entries) => entries.as_ref(),
             None => &[],
         };
-        let merged = crate::templates::current_merged(&core.current, overrides);
+        let merged = crate::settings::templates::current_merged(&core.current, overrides);
         let mut templates = List::with_capacity(limits.templates);
         for template in merged {
             templates.push(template).expect("configured template bound");
@@ -205,7 +206,7 @@ mod tests {
     #[test]
     fn a_text_cut_inside_a_character_keeps_it_out_and_says_it_was_cut() {
         for (maximum, expected, cut) in [(0, "", true), (1, "a", true), (2, "a", true), (3, "aé", false)] {
-            let actual = super::text("aé".as_bytes(), maximum);
+            let actual = crate::documents::small::text("aé".as_bytes(), maximum);
             assert_eq!(actual.bytes.as_ref(), expected.as_bytes(), "bound {maximum}");
             assert_eq!(actual.cut, cut, "bound {maximum}");
         }

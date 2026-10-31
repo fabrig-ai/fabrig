@@ -312,8 +312,8 @@ fn engine_accepted_party_settings_history_keeps_its_party_key_and_revision() {
         },
         state: t::PersonProposalState::SettingsAccepted { by: t::Party::Person(10), revision: 2 },
     };
-    let historical = reads::Historical {
-        value: reads::Past::PersonProposal { proposal: Box::new(proposal), decision: None },
+    let historical = reads::Ended {
+        value: reads::EndedValue::PersonProposal { proposal: Box::new(proposal), decision: None },
         at: Some(skein_lib::Wall::EPOCH),
         by: Some(t::Party::Person(10)),
     };

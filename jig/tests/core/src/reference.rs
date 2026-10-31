@@ -1,5 +1,5 @@
 //! Independent document reference from the store's durable task rows.
-use jig_domain_core::{self as core, waits::WaitsOn};
+use jig_domain_core::{self as core, runs::waits::WaitsOn};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
