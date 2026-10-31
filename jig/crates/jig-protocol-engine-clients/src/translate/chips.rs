@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code matches optional owner facts without closures")]
 //! Whole owner facts encoded without clipping (protocol/client.md, 3).
 use super::owner;
 use super::{pieces, problem, w};
@@ -299,7 +298,7 @@ pub fn resource(value: &d::ResourceLine, limits: &w::Limits) -> Result<w::Resour
 pub fn resources_pieces(rows: &List<w::ResourceLine>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(usize::try_from(row.measure()).expect("u32 record measure fits usize"));
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
         match row.encode(&mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
@@ -636,7 +635,7 @@ pub(super) fn result_fields(value: &d::ResultValue, limits: &w::Limits) -> Resul
 pub fn fact_pieces(rows: &List<w::Fact>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(usize::try_from(row.measure()).expect("u32 record measure fits usize"));
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
         match row.encode(&mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),

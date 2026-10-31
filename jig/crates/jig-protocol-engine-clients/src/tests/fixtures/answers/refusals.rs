@@ -132,7 +132,7 @@ pub fn ending_refusal(value: w::EndingFields) -> w::Refusal {
     let limits = wire();
     let row =
         w::Fact::Ending(w::EndingRow::new(&limits, w::EndingRowParts { parent: None, value }).expect("ending row"));
-    let mut out = Writer::new(usize::try_from(row.measure().checked_add(4).expect("length")).expect("small row"));
+    let mut out = Writer::new(skein_lib::length::usize_of(row.measure().checked_add(4).expect("length")));
     out.put(&row.measure().to_be_bytes()).expect("row length");
     row.encode(&mut out).expect("row");
     let how = w::Ending::new(&limits, w::EndingParts { rows: out.finish() }).expect("ending");

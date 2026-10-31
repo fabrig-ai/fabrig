@@ -100,7 +100,7 @@ impl Call {
         }));
     }
     pub fn send(&mut self, limits: &Limits) {
-        let end = self.offset.saturating_add(usize::try_from(limits.send).expect("u32 fits")).min(self.response.len());
+        let end = self.offset.saturating_add(skein_lib::length::usize_of(limits.send)).min(self.response.len());
         self.requests.push(http::Request::Reply(Down::Send(bytes::copy_of(
             self.response.get(self.offset..end).expect("response slice"),
         ))));

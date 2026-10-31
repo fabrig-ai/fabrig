@@ -401,7 +401,7 @@ fn a_browser_link_keeps_its_cookie_on_a_tokenless_sign_in() {
         )
         .expect("kept sign-in"),
     );
-    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer size"));
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut bytes).expect("answer");
     fixtures::reply(&mut mount, &mut out, call, kit::Reply::Record(bytes.finish()));
     let (status, body, headers) = fixtures::answered(&mut mount, &mut out, call);

@@ -98,7 +98,7 @@ pub(crate) fn reply(
     let life = skein_lib::Duration::from_nanos(parts.expires.saturating_sub(wall.as_nanos()));
     let cookie = crate::cookie(settings, call.via, &credential, life);
     let answer = w::SignInAnswer::SignedIn(w::SignedIn::new(&w::CEILINGS, parts).expect("token removed"));
-    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("short sign-in"));
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut bytes).expect("measured answer");
     (bytes.finish(), Some(cookie))
 }

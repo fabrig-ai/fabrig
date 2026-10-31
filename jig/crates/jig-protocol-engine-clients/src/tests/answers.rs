@@ -199,7 +199,7 @@ fn done_ending_round_trips(limits: &w::Limits) {
     let refusal =
         crate::translate::refusals::refusal(p::Refusal::Ended { how: p::Ending::Done }, limits).expect("ending fits");
     let value = w::Final::Refused(w::Refused::new(limits, w::RefusedParts { at: None, refusal }).expect("refusal"));
-    let mut out = skein_lib::Writer::new(usize::try_from(value.measure()).expect("short final"));
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut out).expect("final answer");
     let owned = w::Owned::new(
         limits,

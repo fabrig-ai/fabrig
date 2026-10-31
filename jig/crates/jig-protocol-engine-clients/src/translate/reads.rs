@@ -178,7 +178,7 @@ pub(crate) fn answer(
         reads::Answer::Page(page) => pages::page(models, read, page, limits)?,
         reads::Answer::Document(_) | reads::Answer::Ended(_) => objects::document(answer, models, limits)?,
     };
-    let mut out = Writer::new(usize::try_from(value.measure()).expect("wire measure fits"));
+    let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut out).expect("measured value");
     owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)
 }

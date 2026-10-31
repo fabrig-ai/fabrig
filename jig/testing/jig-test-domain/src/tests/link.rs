@@ -196,12 +196,7 @@ fn gather_brief(
         panic!("brief child");
     };
     let mut completed = Queue::uncapped();
-    jig_domain_brief::gather_step(
-        &mut domain.core.brief,
-        &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.core.brief },
-        event,
-        &mut completed,
-    );
+    jig_domain_brief::gather_step(&mut domain.core.brief, &env.with(env.limits.core.brief), event, &mut completed);
     let jig_domain_brief::GatherRequest::Complete { brief, order } = completed.pop().expect("completed brief") else {
         panic!("complete typed sections");
     };
@@ -289,7 +284,7 @@ fn a_restored_program_name_survives_sign_in_and_grant_delivery() {
     let mut domain = fixtures::domain();
     domain.hub_link.connect(fixtures::CHANNEL);
     let env = fixtures::env();
-    let env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.core.accounts };
+    let env = env.with(env.limits.core.accounts);
     let mut out = Queue::uncapped();
     let holder = accounts::Holder::Party(7);
     for record in [
@@ -398,7 +393,7 @@ fn program_source_lifecycle_routes_without_run_payloads() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one admitted projection and Stop decision plus its ordered terminals")]
 fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
-    use skein_lib::{Env, Wall};
+    use skein_lib::Wall;
     let (mut domain, env, watcher) = settled_frame_watch(Wall::from_nanos(u64::MAX));
     let mut out = Queue::uncapped();
     let mut policy_out = Queue::uncapped();
@@ -422,7 +417,7 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
     // Queue a real goal creation and Stop in one admitted decision, with
     // exactly one projection pass before acceptance.
     let mut decision = domain.journal.decide();
-    let core_env = Env { now: env.now, wall: env.wall, limits: env.limits.core };
+    let core_env = env.with(env.limits.core);
     let mut work = fixtures::work();
     for event in [
         tasks::Event::Check,

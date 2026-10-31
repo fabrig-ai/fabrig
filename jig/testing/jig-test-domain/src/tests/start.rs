@@ -312,7 +312,7 @@ fn populated_rows() -> Vec<Record> {
     let mut source = fixtures::domain();
     let env = fixtures::env();
     let mut out = Queue::uncapped();
-    let task_env = Env { now: env.now, wall: env.wall, limits: env.limits.core.tasks };
+    let task_env = env.with(env.limits.core.tasks);
     for event in [
         tasks::Event::Check,
         tasks::Event::Restored,
@@ -459,7 +459,7 @@ fn populated_fixture_contains_a_live_task_and_its_people_and_project() {
 fn wires_commit_holds_its_continuation_before_any_connector_read() {
     use core::start::{Action, SweepInput};
     let mut host = Host::new(Vec::new());
-    let env = Env { now: host.env.now, wall: host.env.wall, limits: host.env.limits.core };
+    let env = host.env.with(host.env.limits.core);
     let mut out = Queue::uncapped();
     // Prepare the core at Wires without asking the host for an inbox census.
     let mut action = host.domain.core.start_begin(false, env.wall);

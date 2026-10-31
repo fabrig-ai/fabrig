@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code matches optional owner facts without closures")]
 //! Whole single-read owner documents (protocol/client.md, 3 and 6).
 use super::super::{chips, owner, task, w};
 use alloc::boxed::Box;

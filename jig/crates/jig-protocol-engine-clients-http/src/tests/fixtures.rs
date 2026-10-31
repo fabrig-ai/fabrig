@@ -217,7 +217,7 @@ pub fn signed_in_reply(token: &[u8; 40], expires: u64) -> kit::Reply {
         )
         .expect("signed in"),
     );
-    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("sign-in size"));
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut bytes).expect("sign in");
     kit::Reply::Record(bytes.finish())
 }

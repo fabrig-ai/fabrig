@@ -1,14 +1,13 @@
 //! Complete accounts watch translation and independent nested limits.
 use super::fixtures;
 use crate::translate::{accounts, watches};
-use fixtures::list;
 use jig_client_protocol_wire::v19 as w;
 use jig_domain_accounts as a;
 use jig_domain_core::documents as d;
 use jig_domain_people::CapacityAction as A;
 use skein_lib::{Duration, List, Wall};
 fn source_lines() -> List<d::SourceLine> {
-    list([
+    List::from_boxed(Box::new([
         d::SourceLine {
             name: None,
             place: 2,
@@ -31,21 +30,20 @@ fn source_lines() -> List<d::SourceLine> {
             attention: false,
             spent_until: None,
         },
-    ])
+    ]))
 }
-#[expect(clippy::manual_map, reason = "optional fixture facts follow the step crate lint configuration")]
 fn document(end: Option<a::End>) -> d::Accounts {
     d::Accounts {
         readiness: List::with_capacity(0),
         readiness_cut: false,
         program_hosts: List::with_capacity(0),
-        accounts: list([
+        accounts: List::from_boxed(Box::new([
             d::AccountLine {
                 provider_name: None,
                 manage_usage: None,
                 number: 7,
                 place: 3,
-                uses: Some(list([a::Use::Party(23), a::Use::Project(29)])),
+                uses: Some(List::from_boxed(Box::new([a::Use::Party(23), a::Use::Project(29)]))),
                 plan: true,
                 provider: Some(3),
                 display: d::Text { bytes: Box::from(b"Personal".as_slice()), cut: true },
@@ -66,8 +64,8 @@ fn document(end: Option<a::End>) -> d::Accounts {
                 sources: List::with_capacity(0),
                 cut: false,
             },
-        ]),
-        signing: list([d::SignInLine { source: 19, provider: 3, holder: a::Holder::Party(23) }]),
+        ])),
+        signing: List::from_boxed(Box::new([d::SignInLine { source: 19, provider: 3, holder: a::Holder::Party(23) }])),
         last_end: match end {
             Some(end) => Some(d::LastEnd { source: 11, end }),
             None => None,
@@ -149,7 +147,7 @@ fn deployment_accounts_keep_identity_uses_and_ordered_sources() {
     let mut source = fixtures::deployment_document();
     let account = source.accounts.get_mut(0).expect("fixture account");
     account.place = 3;
-    account.uses = Some(list([a::Use::Party(23), a::Use::Project(29)]));
+    account.uses = Some(List::from_boxed(Box::new([a::Use::Party(23), a::Use::Project(29)])));
     account.plan = true;
     account.display = d::Text { bytes: Box::from(b"Personal".as_slice()), cut: true };
     account.holder = a::Holder::Party(23);

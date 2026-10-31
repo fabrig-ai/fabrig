@@ -1,3 +1,4 @@
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 //! The testing application's root. It owns two numbered test connectors and
 //! one commit door; the core owns every cross-child decision. The root only
 //! translates connector values and wraps records (`domain/root.md`, 3–4).
@@ -376,7 +377,6 @@ impl Domain {
 
     /// The start's refusal with the phase it refused at.
     #[must_use]
-    #[expect(clippy::manual_map, reason = "the step-code subset uses exhaustive matches")]
     pub fn start_failure(&self) -> Option<(Option<core::start::Phase>, core::start::Failure)> {
         match self.core.start_failure() {
             Some(failure) => Some((self.core.start_phase(), failure)),
@@ -413,7 +413,7 @@ impl Domain {
         let mut out = Queue::uncapped();
         tasks::step(
             &mut self.core.tasks,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.core.tasks },
+            &env.with(env.limits.core.tasks),
             tasks::Event::Kinds { connector, kinds },
             &mut out,
         );
@@ -590,8 +590,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             if !domain.ready() {
                 break;
             }
-            let requests =
-                core::finish_decision(&mut domain.core, &Env { now: env.now, wall: env.wall, limits: env.limits.core });
+            let requests = core::finish_decision(&mut domain.core, &env.with(env.limits.core));
             let done = requests.is_empty();
             route_core(domain, env, &mut decision, requests, &mut work);
             if done && work.is_empty() {
@@ -609,7 +608,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             },
             Work::Start(input) => {
                 let mut out = Queue::uncapped();
-                let core_env = Env { now: env.now, wall: env.wall, limits: env.limits.core };
+                let core_env = env.with(env.limits.core);
                 let action = match input {
                     StartInput::Begin { pending } => domain.core.start_begin(pending, env.wall),
                     StartInput::Done(core::start::Phase::Sweep) => {
@@ -668,11 +667,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             }
             Work::ConnectorFire { number } => {
                 let mut out = Queue::uncapped();
-                connector::fire(
-                    numbered(domain, number),
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.connector },
-                    &mut out,
-                );
+                connector::fire(numbered(domain, number), &env.with(env.limits.connector), &mut out);
                 route_connector(domain, env, &mut decision, number, &mut out, &mut work);
             }
             Work::ProjectionEffect { goal, number, effect } => {
@@ -693,8 +688,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 work.push(Work::Core(core::Event::EffectStart { owner, connector: number, origin }));
             }
             Work::Timer(timer) => {
-                let requests =
-                    core::fire(&mut domain.core, &Env { now: env.now, wall: env.wall, limits: env.limits.core }, timer);
+                let requests = core::fire(&mut domain.core, &env.with(env.limits.core), timer);
                 route_core(domain, env, &mut decision, requests, &mut work);
             }
             Work::CallAnswered { to, call } => {
@@ -702,16 +696,12 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 work.push(Work::Core(core::Event::Fleet(fleet::Event::Relayed { to, answer })));
             }
             Work::Core(event) => {
-                let requests =
-                    core::step(&mut domain.core, &Env { now: env.now, wall: env.wall, limits: env.limits.core }, event);
+                let requests = core::step(&mut domain.core, &env.with(env.limits.core), event);
                 route_core(domain, env, &mut decision, requests, &mut work);
             }
             Work::Finish => finish_only = true,
             Work::ResumeFleet => {
-                let requests = core::resume_fleet(
-                    &mut domain.core,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.core },
-                );
+                let requests = core::resume_fleet(&mut domain.core, &env.with(env.limits.core));
                 route_core(domain, env, &mut decision, requests, &mut work);
             }
             Work::WriterRead { connector, resource, event } => {
@@ -727,12 +717,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             Work::Connector { number, event } => {
                 let mut requests = Queue::uncapped();
                 let connector = numbered(domain, number);
-                connector::step(
-                    connector,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.connector },
-                    event,
-                    &mut requests,
-                );
+                connector::step(connector, &env.with(env.limits.connector), event, &mut requests);
                 route_connector(domain, env, &mut decision, number, &mut requests, &mut work);
             }
             Work::ConnectorResume { number } => {
@@ -1063,20 +1048,18 @@ pub use census::inbox_census;
 
 fn restore_row(domain: &mut Domain, env: &Env<Limits>, record: Record) -> bool {
     match record {
-        Record::Core(row) => {
-            match domain.core.restore(&Env { now: env.now, wall: env.wall, limits: env.limits.core }, row) {
-                core::Restore::Deployment { commits } => {
-                    domain.journal = Journal::uncapped(env.limits.journal.release, commits);
-                    true
-                }
-                core::Restore::Kept => true,
-                core::Restore::Refused => false,
-                core::Restore::Swept => {
-                    decide(domain, env, Work::Start(StartInput::Sweep));
-                    true
-                }
+        Record::Core(row) => match domain.core.restore(&env.with(env.limits.core), row) {
+            core::Restore::Deployment { commits } => {
+                domain.journal = Journal::uncapped(env.limits.journal.release, commits);
+                true
             }
-        }
+            core::Restore::Kept => true,
+            core::Restore::Refused => false,
+            core::Restore::Swept => {
+                decide(domain, env, Work::Start(StartInput::Sweep));
+                true
+            }
+        },
         Record::Connector { number, record } => restore_connector(domain, env, number, record),
     }
 }
@@ -1142,7 +1125,7 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
     let mut out = Queue::uncapped();
     connector::step(
         numbered(domain, number),
-        &Env { now: env.now, wall: env.wall, limits: env.limits.connector },
+        &env.with(env.limits.connector),
         connector::Event::Restore { record },
         &mut out,
     );
@@ -1156,7 +1139,7 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
                     connector::ResourceRole::Unavailable => core::effects::connector::ResourceRole::Unavailable,
                 };
                 if !domain.core.restore_resource_role(
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.core },
+                    &env.with(env.limits.core),
                     project,
                     tasks::Name { connector: number, path: resource.path.segments().into() },
                     role,

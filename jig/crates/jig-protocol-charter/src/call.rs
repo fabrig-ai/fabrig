@@ -30,7 +30,7 @@ pub fn call_name(key: &CallKey) -> Box<[u8]> {
         smith_channel::CallNameParts { activation: key.activation, completion: key.completion, position: key.position },
     )
     .expect("call name integers fit their codec");
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("call name length fits"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured call name room");
     writer.finish()
 }

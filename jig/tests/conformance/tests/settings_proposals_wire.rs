@@ -25,7 +25,7 @@ fn send_proposal(project: u32) -> (Peer, Token) {
                 .expect("remove item"),
         )
         .expect("one item");
-    let size = items.iter().map(|item| usize::try_from(item.measure()).expect("item size")).sum::<usize>();
+    let size = items.iter().map(|item| skein_lib::length::usize_of(item.measure())).sum::<usize>();
     let mut bytes = Writer::new(4 + size);
     bytes.put(&u32::try_from(size).expect("item length").to_be_bytes()).expect("setting item length");
     for item in &items {
@@ -38,14 +38,14 @@ fn send_proposal(project: u32) -> (Peer, Token) {
         w::Propose::new(&limits, w::ProposeParts { project, action, reason: b"scope probe".as_slice().into() })
             .expect("propose"),
     );
-    let mut bytes = Writer::new(usize::try_from(ask.measure()).expect("ask size"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(ask.measure()));
     ask.encode(&mut bytes).expect("ask encoding");
     let request = w::Keyed::new(
         &limits,
         w::KeyedParts { key: [1; 16], owner: w::Owner::Jig, version: 19, request: bytes.finish(), value: None },
     )
     .expect("keyed request");
-    let mut bytes = Writer::new(usize::try_from(request.measure()).expect("request size"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(request.measure()));
     request.encode(&mut bytes).expect("request encoding");
     let exchange = peer.post(b"/jig/v1/request", bytes.finish(), Some(&bearer));
     (peer, exchange)
@@ -117,11 +117,11 @@ fn a_real_pending_review_survives_both_wire_translations() {
     .expect("proposal key");
     let read =
         w::Read::Proposal(w::ReadProposal::new(&limits, w::ReadProposalParts { proposal }).expect("proposal read"));
-    let mut bytes = Writer::new(usize::try_from(read.measure()).expect("read size"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(read.measure()));
     read.encode(&mut bytes).expect("read bytes");
     let envelope = w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 19, record: bytes.finish() })
         .expect("owned read");
-    let mut bytes = Writer::new(usize::try_from(envelope.measure()).expect("owned size"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(envelope.measure()));
     envelope.encode(&mut bytes).expect("owned bytes");
     let exchange = peer.post(b"/jig/v1/read", bytes.finish(), Some(&bearer));
     let Some(core::Event::Read { reply, .. }) = peer.take_core() else { panic!("core read") };

@@ -546,12 +546,12 @@ pub fn authority_ask() -> (w::Ask, people::Ask) {
     .expect("pattern");
     let grant =
         w::Grant::new(&limits, w::GrantParts { connector: 5, kind: 6, pattern: pattern.clone() }).expect("grant");
-    let mut writer = Writer::new(usize::try_from(grant.measure()).expect("grant size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(grant.measure()));
     grant.encode(&mut writer).expect("grant bytes");
     let bytes = writer.finish();
     let grants = piece(&bytes);
     let resource = w::ResourceScope::new(&limits, w::ResourceScopeParts { connector: 7, pattern }).expect("scope");
-    let mut writer = Writer::new(usize::try_from(resource.measure()).expect("scope size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(resource.measure()));
     resource.encode(&mut writer).expect("scope bytes");
     let bytes = writer.finish();
     let note_resources = piece(&bytes);

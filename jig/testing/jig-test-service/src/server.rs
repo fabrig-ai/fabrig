@@ -106,7 +106,7 @@ impl Server {
         name
     }
     fn http_env(&self) -> Env<http::Limits> {
-        Env { now: self.env.now, wall: self.env.wall, limits: self.env.limits.http }
+        self.env.with(self.env.limits.http)
     }
     pub fn up(&mut self, event: io::Event, out: &mut Queue<Routed>) {
         match event {

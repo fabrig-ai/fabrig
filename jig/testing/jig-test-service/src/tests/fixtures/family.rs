@@ -18,15 +18,11 @@ pub fn limits() -> d::Limits {
     }
 }
 pub fn path() -> d::Path {
-    d::Path::new(list([b"one".as_slice().into(), [0, 255].as_slice().into()]), limits().segment_bytes)
-        .expect("literal opaque path")
-}
-pub fn list<T, const N: usize>(rows: [T; N]) -> List<T> {
-    let mut result = List::with_capacity(u32::try_from(N).expect("test list"));
-    for row in rows {
-        assert!(result.push(row).is_ok(), "same count");
-    }
-    result
+    d::Path::new(
+        List::from_boxed(Box::new([b"one".as_slice().into(), [0, 255].as_slice().into()])),
+        limits().segment_bytes,
+    )
+    .expect("literal opaque path")
 }
 pub fn effect() -> d::Effect {
     d::Effect { kind: 9, resources: Box::new([path()]), purpose: u64::MAX, condition: Some(3), target: 4, state: 5 }
@@ -86,19 +82,29 @@ pub fn documents() -> [(&'static str, d::ClientDocument); 8] {
                     deadline: Some(Wall::from_nanos(6)),
                 }),
                 result: Some(7),
-                resources: list([resource()]),
-                effects: list([entry()]),
+                resources: List::from_boxed(Box::new([resource()])),
+                effects: List::from_boxed(Box::new([entry()])),
             },
         ),
         ("result", d::ClientDocument::Result { task: 8, code: u16::MAX }),
         ("effect", d::ClientDocument::Effect { proposal: 9, task: 10, effect: effect(), description: description() }),
         ("outbox", d::ClientDocument::Outbox { entry: entry(), description: description() }),
-        ("hold", d::ClientDocument::Hold { task: 11, resources: list([resource()]), effects: list([entry()]) }),
-        ("project", d::ClientDocument::Project { project: PROJECT, resources: list([resource()]) }),
+        (
+            "hold",
+            d::ClientDocument::Hold {
+                task: 11,
+                resources: List::from_boxed(Box::new([resource()])),
+                effects: List::from_boxed(Box::new([entry()])),
+            },
+        ),
+        (
+            "project",
+            d::ClientDocument::Project { project: PROJECT, resources: List::from_boxed(Box::new([resource()])) },
+        ),
         (
             "deployment",
             d::ClientDocument::Deployment {
-                outbox: list([entry()]),
+                outbox: List::from_boxed(Box::new([entry()])),
                 subject_limit: 12,
                 staged_limit: 13,
                 request_budget: d::DiagnosticAvailability::NotKept,

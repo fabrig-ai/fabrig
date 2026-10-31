@@ -74,7 +74,7 @@ impl Worker {
     ) -> Result<Self, Problems> {
         let config::Address::Addr(address) = config.engine else { return Err(problem(index, b"engine", What::Form)) };
         let secret = files.contents(&config.secret).ok_or(problem(index, b"secret", What::Unreadable))?;
-        if secret.len() > usize::try_from(config.limits.link.secret).expect("secret bound") {
+        if secret.len() > skein_lib::length::usize_of(config.limits.link.secret) {
             return Err(problem(index, b"secret", What::Bound));
         }
         let bodies = &agent.limits.bodies;

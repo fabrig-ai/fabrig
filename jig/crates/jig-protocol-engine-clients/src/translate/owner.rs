@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code matches optional owner facts without closures")]
 //! Whole owner facts encoded without clipping (protocol/client.md, 3).
 use super::{pieces, problem, w};
 use alloc::boxed::Box;
@@ -337,7 +336,7 @@ pub fn authority_executor(value: t::AuthorityExecutor, limits: &w::Limits) -> Re
 pub fn grants_pieces(rows: &List<w::Grant>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(usize::try_from(row.measure()).expect("u32 record measure fits usize"));
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
         match row.encode(&mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
@@ -349,7 +348,7 @@ pub fn grants_pieces(rows: &List<w::Grant>, bound: u32, path: w::Path) -> Result
 pub fn scopes_pieces(rows: &List<w::ResourceScope>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(usize::try_from(row.measure()).expect("u32 record measure fits usize"));
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
         match row.encode(&mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
@@ -490,7 +489,7 @@ pub fn contract(value: &d::ContractLine, limits: &w::Limits) -> Result<w::TaskCo
 pub fn choices_pieces(rows: &List<w::VerdictChoice>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(usize::try_from(row.measure()).expect("u32 record measure fits usize"));
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
         match row.encode(&mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),
@@ -503,7 +502,7 @@ pub fn choices_pieces(rows: &List<w::VerdictChoice>, bound: u32, path: w::Path) 
 pub fn me_projects_pieces(rows: &List<w::MeProject>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = skein_lib::Writer::new(usize::try_from(row.measure()).expect("u32 record measure fits usize"));
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
         match row.encode(&mut out) {
             Ok(()) => (),
             Err(_) => return Err(problem(skein_codec::Reason::Bound)),

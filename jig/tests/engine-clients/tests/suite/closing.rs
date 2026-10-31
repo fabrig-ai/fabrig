@@ -45,14 +45,14 @@ fn keyed() -> Box<[u8]> {
         w::Message::new(&lim, w::MessageParts { project: 3, task: 8, words: Box::from(b"hello".as_slice()) })
             .expect("ask"),
     );
-    let mut bytes = Writer::new(usize::try_from(ask.measure()).expect("ask size"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(ask.measure()));
     ask.encode(&mut bytes).expect("ask bytes");
     let record = w::Keyed::new(
         &lim,
         w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 19, request: bytes.finish(), value: None },
     )
     .expect("keyed");
-    let mut bytes = Writer::new(usize::try_from(record.measure()).expect("keyed size"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut bytes).expect("keyed bytes");
     bytes.finish()
 }
@@ -99,11 +99,11 @@ fn after_stop_a_read_is_served() {
     let mut peer = signed();
     let lim = fixtures::limits().wire;
     let value = w::Read::Me;
-    let mut bytes = Writer::new(usize::try_from(value.measure()).expect("read size"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut bytes).expect("read bytes");
     let record = w::Owned::new(&lim, w::OwnedParts { owner: w::Owner::Jig, version: 19, record: bytes.finish() })
         .expect("read owner");
-    let mut bytes = Writer::new(usize::try_from(record.measure()).expect("owner size"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut bytes).expect("owner bytes");
     let socket = peer.accepted_post(b"/jig/v1/read", bytes.finish());
     peer.event(Event::Stop);
@@ -128,7 +128,7 @@ fn after_stop_a_new_watch_is_ended_as_stopping() {
     let owned = w::Owned::new(&lim, w::OwnedParts { owner: w::Owner::Jig, version: 19, record: Box::new([0]) })
         .expect("frame subject");
     let open = w::Open::new(&lim, w::OpenParts { stream, watch: 1, subject: owned }).expect("watch open");
-    let mut bytes = Writer::new(usize::try_from(open.measure()).expect("open size"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(open.measure()));
     open.encode(&mut bytes).expect("open bytes");
     let socket = peer.accepted_post(b"/jig/v1/watch", bytes.finish());
     peer.event(Event::Stop);

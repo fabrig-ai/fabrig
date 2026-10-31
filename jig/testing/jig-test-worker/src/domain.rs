@@ -212,10 +212,10 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 }
 
 fn hub_env(env: &Env<Limits>) -> Env<host::Limits> {
-    Env { now: env.now, wall: env.wall, limits: env.limits.hub }
+    env.with(env.limits.hub)
 }
 fn agent_env(env: &Env<Limits>) -> Env<smith::Limits> {
-    Env { now: env.now, wall: env.wall, limits: env.limits.agent }
+    env.with(env.limits.agent)
 }
 fn hub(domain: &mut Domain, env: &Env<Limits>, event: HubEvent) {
     host::step(&mut domain.hub, &hub_env(env), event, &mut domain.hub_out);

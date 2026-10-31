@@ -56,7 +56,7 @@ pub enum Undecodable {
 
 /// Decodes a whole record; receiving bounds truncate without losing usage/spend.
 pub fn decode(limits: &Limits, bytes: &[u8]) -> Result<Turn, Undecodable> {
-    if bytes.len() > usize::try_from(limits.bytes).expect("u32 fits usize") {
+    if bytes.len() > skein_lib::length::usize_of(limits.bytes) {
         return Err(Undecodable::TooLarge);
     }
     let version = Reader::new(bytes).u16().ok_or(Undecodable::Malformed)?;
@@ -204,22 +204,14 @@ struct Budget {
 }
 impl Budget {
     fn text(&mut self, bytes: &[u8]) -> Text {
-        let maximum = usize::try_from(self.left).expect("u32 fits usize");
-        let mut length = bytes.len().min(maximum);
-        for _ in 0_u8..3 {
-            match bytes.get(length) {
-                Some(byte) if byte & 0xc0 == 0x80 => length = length.checked_sub(1).expect("UTF-8 prefix"),
-                Some(_) | None => break,
-            }
-        }
+        let maximum = skein_lib::length::usize_of(self.left);
+        let prefix = skein_lib::bytes::utf8_prefix(bytes, maximum);
+        let length = prefix.len();
         self.cut |= length < bytes.len();
         self.left =
             self.left.checked_sub(u32::try_from(length).expect("bounded length")).expect("length within budget");
-        Text::new(
-            Box::from(bytes.get(..length).expect("prefix within bytes")),
-            u32::try_from(length).expect("bounded length"),
-        )
-        .expect("text allocated at receiving length")
+        Text::new(Box::from(prefix), u32::try_from(length).expect("bounded length"))
+            .expect("text allocated at receiving length")
     }
 }
 

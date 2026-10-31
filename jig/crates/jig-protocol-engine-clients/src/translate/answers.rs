@@ -53,7 +53,7 @@ pub(crate) fn answer(
         }
         p::Reply::Signer(_) | p::Reply::Full { .. } | p::Reply::SignedIn { .. } => return Err(problem()),
     };
-    let mut out = Writer::new(usize::try_from(final_answer.measure()).expect("wire size fits"));
+    let mut out = Writer::new(skein_lib::length::usize_of(final_answer.measure()));
     final_answer.encode(&mut out).expect("measured final answer");
     owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)
 }
@@ -72,7 +72,7 @@ pub(crate) fn service(
     let what = w::Made::Service(w::MadeService::new(limits, w::MadeServiceParts { party, credential })?);
     let outcome = w::Outcome::Made(w::OutcomeMade::new(limits, w::OutcomeMadeParts { what })?);
     let answer = w::Final::Done(w::Done::new(limits, w::DoneParts { outcome })?);
-    let mut out = Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
+    let mut out = Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut out).expect("measured final answer");
     owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)
 }
@@ -85,7 +85,7 @@ pub(crate) fn moving_out(
     let what = w::Made::MovingOut(w::MadeMovingOut::new(limits, w::MadeMovingOutParts { account, number, record })?);
     let outcome = w::Outcome::Made(w::OutcomeMade::new(limits, w::OutcomeMadeParts { what })?);
     let answer = w::Final::Done(w::Done::new(limits, w::DoneParts { outcome })?);
-    let mut out = Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
+    let mut out = Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut out).expect("measured final answer");
     owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)
 }

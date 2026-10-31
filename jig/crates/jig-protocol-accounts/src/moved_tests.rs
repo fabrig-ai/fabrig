@@ -119,7 +119,7 @@ fn prefix(input: &[u8], part: usize) -> usize {
         let len = reader.u32().expect("part length");
         reader.skip(len).expect("part bytes");
     }
-    input.len().checked_sub(usize::try_from(reader.remaining()).expect("remaining fits")).expect("cursor")
+    input.len().checked_sub(skein_lib::length::usize_of(reader.remaining())).expect("cursor")
 }
 
 fn length(input: &mut [u8], part: usize, len: u32) {
@@ -181,7 +181,7 @@ fn whole_file_bound_is_checked_before_its_version() {
 }
 
 fn filled(len: u32) -> Box<[u8]> {
-    let mut field = bytes::zeroed(usize::try_from(len).expect("small bound"));
+    let mut field = bytes::zeroed(skein_lib::length::usize_of(len));
     field.fill(b'x');
     field
 }
@@ -249,7 +249,7 @@ fn replace_part(input: &[u8], part: usize, replacement: &[u8]) -> Box<[u8]> {
     let replaced_length = Reader::new(&input[prefix(input, part)..]).u32().expect("replaced part length");
     let size = input
         .len()
-        .checked_sub(usize::try_from(replaced_length).expect("length fits"))
+        .checked_sub(skein_lib::length::usize_of(replaced_length))
         .expect("replaced part fits input")
         .checked_add(replacement.len())
         .expect("replacement capacity");

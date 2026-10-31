@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code translates optional watch facts without closures")]
 //! Watches retain their whole subject and stream record (protocol/client.md, 7).
 use super::{chips, cursor, deployment, inbox, live, objects, owner, task, w};
 use alloc::boxed::Box;
@@ -109,7 +108,7 @@ pub(crate) fn delivery(
             }
             let mut pieces = List::with_capacity(rows.len());
             for row in rows.into_boxed() {
-                let mut bytes = Writer::new(usize::try_from(row.measure()).expect("chip measure fits"));
+                let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure()));
                 row.encode(&mut bytes).expect("measured chip");
                 pieces.push(bytes.finish()).expect("chip pieces fit");
             }
@@ -132,12 +131,12 @@ pub(crate) fn delivery(
     })
 }
 pub(crate) fn owned(value: w::DeliveryValue, version: u32, limits: &w::Limits) -> Result<w::Owned, w::Problem> {
-    let mut record = Writer::new(usize::try_from(value.measure()).expect("wire measure fits"));
+    let mut record = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut record).expect("measured delivery");
     w::Owned::new(limits, w::OwnedParts { owner: w::Owner::Jig, version, record: record.finish() })
 }
 pub(crate) fn packet(value: &w::StreamEvent) -> Box<[u8]> {
-    let mut record = Writer::new(usize::try_from(value.measure()).expect("wire measure fits"));
+    let mut record = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut record).expect("measured stream record");
     record.finish()
 }

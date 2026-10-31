@@ -428,7 +428,6 @@ fn present(value: Option<Box<[u8]>>, name: &[u8], path: &Path, problems: &mut Pr
 }
 
 /// Text is nonempty, UTF-8, and free of control characters; diagnostics name its exact field.
-#[expect(clippy::disallowed_methods, reason = "configuration validates public UTF-8 text (configuration.md, 3)")]
 fn public_text(
     object: &mut read::Object,
     document: &Document,
@@ -445,7 +444,7 @@ fn public_text(
             return None;
         }
     };
-    if value.is_empty() || core::str::from_utf8(&value).is_err() {
+    if value.is_empty() || !skein_lib::bytes::is_utf8(&value) {
         problems.push(path.member(name), What::Form);
         return None;
     }

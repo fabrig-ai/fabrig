@@ -64,7 +64,7 @@ fn create(llm: w::LlmChoice) -> w::Ask {
         },
     )
     .expect("task");
-    let size = usize::try_from(task.measure()).expect("task size");
+    let size = skein_lib::length::usize_of(task.measure());
     let mut out = Writer::new(size.checked_add(4).expect("piece size"));
     out.put(&u32::try_from(size).expect("task size").to_be_bytes()).expect("piece length");
     task.encode(&mut out).expect("task bytes");

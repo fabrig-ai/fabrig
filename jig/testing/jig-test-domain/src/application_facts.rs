@@ -2,7 +2,6 @@
 use jig_domain_people as people;
 use jig_test_connector::application_core as application;
 
-#[expect(clippy::manual_map, reason = "step code translates optional role numbers by matching")]
 pub(super) fn refusal(value: people::Refusal) -> application::Refusal {
     match value {
         people::Refusal::NotWellFormed { why: people::Malformed::Name(_), .. }

@@ -99,7 +99,7 @@ fn a_credential_debug_shows_the_secret_length_only() {
 #[test]
 fn a_credential_keeps_its_secret_through_bytes() {
     let credential = fixtures::credential(fixtures::WORKER_B, b"private");
-    let mut writer = skein_lib::Writer::new(usize::try_from(credential.measure()).expect("small credential"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(credential.measure()));
     credential.encode(&mut writer).expect("measured room");
     let bytes = writer.finish();
     let decoded = crate::Credential::decode(&fixtures::LIMITS, &mut Reader::new(&bytes)).expect("credential");
@@ -133,7 +133,7 @@ fn append_hello_program_endpoint(hello: &Hello, bytes: &[u8], endpoint: u32) -> 
     let prefix = reader.bytes(prefix_bytes).expect("hello before its endpoint list");
     let count = reader.u32().expect("endpoint count");
     assert_eq!(count, endpoints.len(), "edit exactly the hello's endpoint count");
-    let extra_bytes = usize::try_from(U32_BYTES).expect("u32 width");
+    let extra_bytes = skein_lib::length::usize_of(U32_BYTES);
     let edited_bytes = bytes.len().checked_add(extra_bytes).expect("one extra identity");
     let mut writer = skein_lib::Writer::new(edited_bytes);
     writer.put(prefix).expect("unchanged hello prefix");
@@ -237,13 +237,13 @@ fn the_responder_needs_no_sending_hello_term() {
 }
 
 fn answer_through_bytes(answer: &crate::Answer) -> crate::Answer {
-    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("small answer"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut writer).expect("measured room");
     crate::Answer::decode(&fixtures::LIMITS, &mut Reader::new(&writer.finish())).expect("answer within limits")
 }
 
 fn fact_through_bytes(fact: &crate::Fact) -> crate::Fact {
-    let mut writer = skein_lib::Writer::new(usize::try_from(fact.measure()).expect("small fact"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(fact.measure()));
     fact.encode(&mut writer).expect("measured room");
     crate::Fact::decode(&fixtures::LIMITS, &mut Reader::new(&writer.finish())).expect("fact within limits")
 }
@@ -251,7 +251,7 @@ fn fact_through_bytes(fact: &crate::Fact) -> crate::Fact {
 #[test]
 fn a_turn_keeps_its_refusals_and_window_flag_through_bytes() {
     let turn = fixtures::turn_with_refusals();
-    let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).expect("small turn"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(turn.measure()));
     turn.encode(&mut writer).expect("measured room");
     let decoded = crate::Turn::decode(&fixtures::LIMITS, &mut Reader::new(&writer.finish())).expect("turn");
     assert!(decoded.opens_window());
@@ -347,7 +347,7 @@ fn through_bytes<T>(
     encode: fn(&T, &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow>,
     decode: fn(&crate::v9::Limits, &mut Reader<'_>) -> Result<T, crate::v9::Problem>,
 ) -> T {
-    let mut writer = skein_lib::Writer::new(usize::try_from(measure(value)).expect("small notice"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(measure(value)));
     encode(value, &mut writer).expect("measured room");
     decode(&fixtures::LIMITS, &mut Reader::new(&writer.finish())).expect("notice within limits")
 }
@@ -407,7 +407,7 @@ fn an_account_refused_code_or_reason_past_its_bound_or_not_text_is_refused() {
     // The decoder holds the same bound: a seventeen-byte reason written under
     // the ceilings reads back refused under the fixture's sixteen.
     let wide = crate::AccountRefused::new(&crate::CEILINGS, refused_parts(&full, &past)).expect("within the ceilings");
-    let mut writer = skein_lib::Writer::new(usize::try_from(wide.measure()).expect("small notice"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(wide.measure()));
     wide.encode(&mut writer).expect("measured room");
     let decoded = crate::AccountRefused::decode(&fixtures::LIMITS, &mut Reader::new(&writer.finish()));
     assert_eq!(decoded.expect_err("past the fixture bound").reason, skein_codec::Reason::Bound);
@@ -465,13 +465,13 @@ fn the_schema_lists_every_up_kind_from_the_initiator() {
 }
 
 fn assignment_through_bytes(assignment: &crate::Assignment) -> crate::Assignment {
-    let mut writer = skein_lib::Writer::new(usize::try_from(assignment.measure()).expect("small assignment"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(assignment.measure()));
     assignment.encode(&mut writer).expect("measured room");
     crate::Assignment::decode(&fixtures::LIMITS, &mut Reader::new(&writer.finish())).expect("assignment within limits")
 }
 
 fn grant_through_bytes(grant: &crate::Grant) -> crate::Grant {
-    let mut writer = skein_lib::Writer::new(usize::try_from(grant.measure()).expect("small grant"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(grant.measure()));
     grant.encode(&mut writer).expect("measured room");
     crate::Grant::decode(&fixtures::LIMITS, &mut Reader::new(&writer.finish())).expect("grant within limits")
 }
@@ -554,7 +554,7 @@ fn a_relayed_busy_answer_carries_no_text() {
         },
     )
     .expect("busy answer");
-    let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("small relayed"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured room");
     let bytes = writer.finish();
     assert_eq!(bytes.len(), 29);

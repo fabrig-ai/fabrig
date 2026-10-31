@@ -29,19 +29,19 @@ pub(crate) fn message(message: crate::Message) -> (Route, Box<[u8]>) {
 }
 pub(crate) fn refused() -> Box<[u8]> {
     let answer = w::SignInAnswer::Refused;
-    let mut out = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut out).expect("refusal fits");
     out.finish()
 }
 pub(crate) fn signed_out() -> Box<[u8]> {
     let answer = w::KeyedAnswer::SignedOut;
-    let mut out = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut out).expect("signed out fits");
     out.finish()
 }
 pub(crate) fn signed_in(answer: w::SignedIn) -> Box<[u8]> {
     let answer = w::SignInAnswer::SignedIn(answer);
-    let mut out = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut out).expect("admitted sign-in");
     out.finish()
 }
@@ -55,7 +55,7 @@ pub(crate) fn busy() -> Box<[u8]> {
 
 pub(crate) fn read_none(why: jig_domain_core::reads::Why, limits: &w::Limits) -> Box<[u8]> {
     let answer = crate::translate::reads::none(why, limits);
-    let mut out = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut out).expect("measured read refusal");
     out.finish()
 }
@@ -71,7 +71,7 @@ pub(crate) fn open_answer(why: Option<jig_domain_core::WatchRefusal>, limits: &w
         ),
         None => w::OpenAnswer::Admitted,
     };
-    let mut out = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut out).expect("measured watch answer");
     out.finish()
 }
@@ -116,7 +116,7 @@ pub(crate) fn sign_in_full(limits: &w::Limits, sign_ins: u32, earliest: u64, lin
     ))
 }
 fn sign_in_answer(answer: w::SignInAnswer) -> Box<[u8]> {
-    let mut out = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut out).expect("measured sign-in answer");
     out.finish()
 }
@@ -141,25 +141,25 @@ pub(crate) fn stopped(route: Route) -> Option<Box<[u8]>> {
 }
 
 pub(crate) fn encoded(answer: &w::KeyedAnswer) -> Box<[u8]> {
-    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut writer).expect("measured answer");
     writer.finish()
 }
 
 pub(crate) fn encoded_read(answer: &w::ReadAnswer) -> Box<[u8]> {
-    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut writer).expect("measured answer");
     writer.finish()
 }
 
 pub(crate) fn encoded_open(answer: &w::OpenAnswer) -> Box<[u8]> {
-    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut writer).expect("measured answer");
     writer.finish()
 }
 
 pub(crate) fn authorize_answer(answer: w::AuthorizeAnswer) -> Box<[u8]> {
-    let mut out = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut out).expect("measured authorization answer");
     out.finish()
 }

@@ -447,7 +447,7 @@ impl Down {
             Self::Grant(record) => (0x0187, record.measure()),
         };
         let mut writer = skein_channel::frame_writer(kind, length).expect("checked record fits a frame");
-        let mut body = skein_lib::Writer::new(usize::try_from(length).expect("checked body length"));
+        let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(length));
         let encoded = match self {
             Self::Sources(record) => record.encode(&mut body),
             Self::Check(record) => record.encode(&mut body),

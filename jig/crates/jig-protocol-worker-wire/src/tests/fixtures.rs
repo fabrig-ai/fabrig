@@ -65,7 +65,7 @@ pub const LIMITS: v9::Limits = v9::Limits {
 };
 
 pub fn encode(hello: &Hello) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(hello.measure()).expect("small hello"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(hello.measure()));
     hello.encode(&mut writer).expect("measured room");
     writer.finish()
 }
@@ -441,8 +441,7 @@ fn fullest_call(limits: &v9::Limits) -> crate::AnsweredCall {
 fn fullest_grants(limits: &v9::Limits) -> List<crate::Grant> {
     let mut grants = List::with_capacity(2);
     for number in [5, 6] {
-        let mut name =
-            skein_lib::bytes::zeroed(usize::try_from(limits.program_value_name).expect("program name bound"));
+        let mut name = skein_lib::bytes::zeroed(skein_lib::length::usize_of(limits.program_value_name));
         name.fill(b'x');
         let value = crate::ProgramValue::new(limits, crate::ProgramValueParts { name }).expect("full program value");
         let grant = crate::Grant::new(

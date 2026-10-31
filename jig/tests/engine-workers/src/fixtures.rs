@@ -77,7 +77,7 @@ pub fn credential(name: &[u8], secret: &[u8], payload: u32) -> Box<[u8]> {
         },
     )
     .expect("small credential");
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("small credential"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured credential");
     writer.finish()
 }
@@ -185,7 +185,7 @@ pub fn frame(kind: u16, bytes: &[u8]) -> skein_channel::Frame {
 #[must_use]
 pub fn hello_frame() -> skein_channel::Frame {
     let hello = hello_record();
-    let mut writer = Writer::new(usize::try_from(hello.measure()).expect("small hello"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(hello.measure()));
     hello.encode(&mut writer).expect("measured hello");
     frame(0x0100, &writer.finish())
 }
@@ -326,7 +326,7 @@ fn encoded(
     measure: u32,
     encode: impl FnOnce(&mut Writer) -> Result<(), skein_lib::Overflow>,
 ) -> skein_channel::Frame {
-    let mut writer = Writer::new(usize::try_from(measure).expect("small record"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(measure));
     encode(&mut writer).expect("measured record");
     frame(kind, &writer.finish())
 }

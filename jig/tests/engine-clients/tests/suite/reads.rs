@@ -5,11 +5,11 @@ use skein_lib::{Reader, Writer};
 fn read() -> Box<[u8]> {
     let limits = fixtures::limits().wire;
     let read = w::Read::Me;
-    let mut record = Writer::new(usize::try_from(read.measure()).expect("read size"));
+    let mut record = Writer::new(skein_lib::length::usize_of(read.measure()));
     read.encode(&mut record).expect("me read");
     let value = w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 19, record: record.finish() })
         .expect("frame read");
-    let mut bytes = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut bytes).expect("read envelope");
     bytes.finish()
 }

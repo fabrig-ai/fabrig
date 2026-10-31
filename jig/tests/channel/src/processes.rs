@@ -362,10 +362,10 @@ impl Wire {
         let Ok(kernel::Done::Count(count)) = complete.result else { return };
         let (fd, bytes) = match (&complete.kind, worker) {
             (kernel::Op::Send { fd, bytes, from }, _) => {
-                let start = usize::try_from(*from).expect("send offset");
-                (*fd, &bytes[start..start + usize::try_from(count).expect("send length")])
+                let start = skein_lib::length::usize_of(*from);
+                (*fd, &bytes[start..start + skein_lib::length::usize_of(count)])
             }
-            (kernel::Op::Recv { fd, buf }, _) => (*fd, &buf[..usize::try_from(count).expect("receive length")]),
+            (kernel::Op::Recv { fd, buf }, _) => (*fd, &buf[..skein_lib::length::usize_of(count)]),
             _ => return,
         };
         if !self.completed.insert(complete.op) {
@@ -387,7 +387,7 @@ impl Wire {
         }
         while stream.len() >= 8 {
             let header = skein_channel::parse_header(&stream[..8]).expect("channel frame header");
-            let end = 8 + usize::try_from(header.body_len).expect("bounded frame body");
+            let end = 8 + skein_lib::length::usize_of(header.body_len);
             if stream.len() < end {
                 break;
             }

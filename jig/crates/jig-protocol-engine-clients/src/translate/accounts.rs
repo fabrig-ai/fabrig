@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code translates optional facts without closures")]
 //! Whole secret-free accounts documents (client/domain/contract.md, 5.1; domain/accounts.md, 3–5).
 use super::{deployment, owner, pieces, w};
 use alloc::boxed::Box;
@@ -155,7 +154,7 @@ pub fn source_pieces(
     let mut encoded = List::with_capacity(value.len());
     for row in value {
         let row = source(row, limits)?;
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("wire measure fits"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).expect("measured account source");
         encoded.push(out.finish()).expect("supplied source pieces fit");
     }
@@ -186,7 +185,7 @@ pub fn document(value: &d::Accounts, limits: &w::Limits) -> Result<w::Accounts, 
     let mut accounts = List::with_capacity(value.accounts.len());
     for row in &value.accounts {
         let row = line(row, limits)?;
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("wire measure fits"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).expect("measured account line");
         accounts.push(out.finish()).expect("supplied account pieces fit");
     }
@@ -197,7 +196,7 @@ pub fn document(value: &d::Accounts, limits: &w::Limits) -> Result<w::Accounts, 
             limits,
             w::AccountSignInParts { source: row.source, provider: row.provider, holder: holder(row.holder, limits)? },
         )?;
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("wire measure fits"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).expect("measured sign-in line");
         signing.push(out.finish()).expect("supplied sign-in pieces fit");
     }

@@ -237,7 +237,7 @@ impl Component {
             self.pump(now, out);
             return;
         }
-        let mut writer = Writer::new(usize::try_from(self.credential.measure()).expect("checked credential fits"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(self.credential.measure()));
         self.credential.encode(&mut writer).expect("measured credential fits");
         self.command(channel::Request::Open { credential: writer.finish() });
         self.pump(now, out);
@@ -306,7 +306,7 @@ impl Component {
         let limits = sizes::limits(&self.limits.sizes).expect("checked sizes");
         let up = match up {
             host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline } => {
-                if input.len() > usize::try_from(limits.call_input).expect("call bound fits") {
+                if input.len() > skein_lib::length::usize_of(limits.call_input) {
                     self.refuse_call(run, attempt, call, b"call too large", out);
                     return;
                 }
@@ -363,7 +363,7 @@ impl Component {
         }
     }
     fn refuse_call(&self, run: Token, attempt: Token, call: Box<[u8]>, reason: &[u8], out: &mut Queue<Request>) {
-        let bound = usize::try_from(self.limits.sizes.answer).expect("answer bound fits");
+        let bound = skein_lib::length::usize_of(self.limits.sizes.answer);
         let text = bytes::copy_of(reason.get(..reason.len().min(bound)).expect("bounded ASCII reason"));
         out.push(Request::Down {
             down: host::LinkDown::Relayed { run, attempt, call, answer: host::Relayed::Answer { error: true, text } },

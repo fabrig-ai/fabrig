@@ -162,7 +162,7 @@ fn frame(watch: u64, needs: u32) -> w::StreamEvent {
     let mut frame = jig_client_test_records::frame_record().into_parts();
     frame.needs_total = needs;
     let value = w::DeliveryValue::Me(w::Me::new(&lim, frame).expect("literal frame"));
-    let mut record = Writer::new(usize::try_from(value.measure()).expect("literal size"));
+    let mut record = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut record).expect("literal frame bytes");
     let document = w::Owned::new(&lim, w::OwnedParts { owner: w::Owner::Jig, version: 19, record: record.finish() })
         .expect("literal owner");

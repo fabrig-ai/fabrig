@@ -4,7 +4,7 @@ use jig_client_domain::contract::{Block, Speaker, Turn};
 use skein_lib::{Decimal, Writer};
 
 pub(super) fn render(turn: &Turn, bound: u32) -> Box<[u8]> {
-    let bound = usize::try_from(bound).expect("u32 fits usize");
+    let bound = skein_lib::length::usize_of(bound);
     let mut measured = Output { writer: None, left: bound };
     blocks(turn, &mut measured);
     let length = bound.checked_sub(measured.left).expect("rendered length within bound");
@@ -55,15 +55,10 @@ impl Output {
         }
         self.left = self.left.checked_sub(1).expect("room for newline");
         for part in parts {
-            let mut keep = part.len().min(self.left);
-            for _ in 0_u8..3 {
-                match part.get(keep) {
-                    Some(byte) if byte & 0xc0 == 0x80 => keep = keep.checked_sub(1).expect("UTF-8 prefix"),
-                    Some(_) | None => break,
-                }
-            }
+            let prefix = skein_lib::bytes::utf8_prefix(part, self.left);
+            let keep = prefix.len();
             if let Some(writer) = &mut self.writer {
-                writer.put(part.get(..keep).expect("bounded UTF-8 prefix")).expect("measured output");
+                writer.put(prefix).expect("measured output");
             }
             self.left = self.left.checked_sub(keep).expect("remaining output budget");
             if keep < part.len() {
