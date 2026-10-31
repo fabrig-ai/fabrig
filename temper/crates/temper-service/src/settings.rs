@@ -2,53 +2,15 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Secret};
 
-/// The scripted playground settings (temper/docs/design/draft/playground-reset.md, 6.1).
-/// Demo ids and state serve `StartDemo` and `Read::Demo`.
+/// The scripted provider and its key file (temper/docs/design/draft/playground-reset.md, 6.1).
 #[derive(Debug)]
 pub struct Demo {
-    pub project: u32,
-    pub forge: u16,
     pub provider: u32,
     pub owner: Box<[u8]>,
     pub name: Box<[u8]>,
     pub cues: Box<[Box<[u8]>]>,
     pub landing: Box<[u8]>,
     pub key_file: Box<[u8]>,
-    pub state: Option<temper_engine_domain_forge::DemoState>,
-}
-
-impl Demo {
-    pub(crate) fn domain(
-        &self,
-        forges: &[Forge],
-        deadline: skein_lib::Duration,
-    ) -> temper_engine_domain_forge::DemoConfig {
-        use temper_engine_domain_forge as forge;
-        let mut host = Box::default();
-        for forge in forges {
-            if forge.number == self.forge {
-                host = crate::family::host(&forge.git);
-                break;
-            }
-        }
-        forge::DemoConfig {
-            provider: self.provider,
-            deadline,
-            adoption: forge::Adoption {
-                project: self.project,
-                home: true,
-                forge: self.forge,
-                host,
-                owner: self.owner.clone(),
-                name: self.name.clone(),
-                prefix: b"temper/".as_slice().into(),
-                role: forge::Role::Owned,
-                landing: self.landing.clone(),
-                ci: true,
-                checks: Box::new([]),
-            },
-        }
-    }
 }
 
 /// A forge temper works on (protocol/configuration.md, section 3, `forges`).
