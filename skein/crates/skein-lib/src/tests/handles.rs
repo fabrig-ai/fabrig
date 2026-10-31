@@ -1,8 +1,9 @@
 //! Handles and slabs (lib.md, 3): a handle's round trip through a token, a
 //! full slab, a retired entity reachable until it is reclaimed, its handle
-//! stale after, and the slab walked in slot order.
+//! stale after, and the slab walked in slot order; and a component's
+//! lifecycle (programming-model.md, 5.2).
 
-use crate::{Id, Slab};
+use crate::{Id, Lifecycle, Slab, state_digest};
 
 #[test]
 fn a_handle_survives_the_round_trip_through_a_token() {
@@ -114,4 +115,18 @@ fn a_slab_walks_its_entities_in_slot_order_retired_ones_until_reclaimed() {
     slab.retire(fourth);
     slab.reclaim();
     assert_eq!(*walked(&slab), [(reused, 'd'), (third, 'c')], "vacant slots at either end are skipped");
+}
+
+#[test]
+fn each_lifecycle_state_is_its_own_value() {
+    let states = [Lifecycle::Live, Lifecycle::Closing, Lifecycle::Aborting, Lifecycle::Closed];
+    for (index, state) in states.iter().enumerate() {
+        let copy = *state;
+        assert_eq!(copy, *state);
+        for other in &states[index + 1..] {
+            assert_ne!(state, other);
+            assert_ne!(state_digest(state), state_digest(other), "{state:?} and {other:?} digest apart");
+        }
+    }
+    assert_eq!(alloc::fmt::format(format_args!("{:?}", Lifecycle::Aborting)), "Aborting");
 }
