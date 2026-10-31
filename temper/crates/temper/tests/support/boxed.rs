@@ -299,6 +299,7 @@ pub struct StoryOutcome<T> {
 }
 struct StoryJudge<'a, F, T> {
     check: Option<F>,
+    ending: Signal,
     checked: &'a Cell<Option<T>>,
     dormant_checked: &'a Cell<bool>,
     logs: PathBuf,
@@ -307,14 +308,19 @@ struct StoryJudge<'a, F, T> {
     settled: bool,
     deadline: Patience,
 }
-impl<F: FnOnce() -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
+impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
     fn act(&mut self, _now: Time, procs: &mut [Process]) {
         let Process::Person(person) = &procs[1] else { panic!("native person") };
         let finished = person.finished && person.client.as_ref().is_some_and(Host::is_empty);
         let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
         if !self.stopping && finished {
-            self.checked.set(Some(self.check.take().expect("one check before stopping")()));
-            binary.signal(Signal::Terminate);
+            self.checked.set(Some(self.check.take().expect("one check before stopping")(binary)));
+            if self.ending == Signal::Kill {
+                binary.signal_tree(Signal::Kill);
+                self.cleanup = true;
+            } else {
+                binary.signal(Signal::Terminate);
+            }
             self.stopping = true;
         }
         let left = binary.tree_status().live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty());
@@ -332,7 +338,7 @@ impl<F: FnOnce() -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
             for name in ["fake-llm.log", "fake-forge-1.log", "prepare-1.log"] {
                 let path = self.logs.join(name);
                 assert!(
-                    std::fs::read(&path).expect("private step log exists").is_empty(),
+                    std::fs::read(&path).is_ok_and(|bytes| bytes.is_empty()) || !path.exists(),
                     "the demo's fakes stay dormant at the welcome: {}",
                     path.display()
                 );
@@ -351,7 +357,12 @@ impl<F: FnOnce() -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
         }
         assert!(person.failed.is_none(), "{:?}; temper box stderr: {stderr}", person.failed);
         assert!(binary.exit_status().is_none() || self.stopping, "temper box ended before the person: {stderr}");
-        assert!(binary.exit_status().is_none_or(|exit| exit == Exit::Code(0)), "temper box failed: {stderr}");
+        assert!(
+            binary
+                .exit_status()
+                .is_none_or(|exit| exit == if self.ending == Signal::Kill { Exit::Signal(9) } else { Exit::Code(0) }),
+            "temper box failed: {stderr}"
+        );
         assert!(!binary.stderr_overflowed(), "temper box overflowed stderr: {stderr}");
         if !self.settled
             && let Some(figures) = self.deadline.failed()
@@ -377,6 +388,25 @@ pub fn run_story<T>(
     deadline: Duration,
     check: impl FnOnce() -> T,
 ) -> StoryOutcome<T> {
+    run_story_with_box(directory, flags, client, StoryPlan { script, kill: false }, deadline, |_| check())
+}
+
+/// The person's script and the signal sent after the live check.
+pub struct StoryPlan {
+    pub script: super::person::Script,
+    pub kill: bool,
+}
+/// Checks the live supervised box after the person's scripted change lands.
+#[must_use]
+pub fn run_story_with_box<T>(
+    directory: &Path,
+    flags: Vec<String>,
+    client: &Path,
+    plan: StoryPlan,
+    deadline: Duration,
+    check: impl FnOnce(&Binary) -> T,
+) -> StoryOutcome<T> {
+    let StoryPlan { script, kill } = plan;
     let data = flags.windows(2).find(|pair| pair[0] == "--data").expect("explicit data directory");
     let logs = Path::new(&data[1]).join("box/logs");
     let clock = Clock::new();
@@ -406,6 +436,7 @@ pub fn run_story<T>(
         check: Some(check),
         checked: &checked,
         dormant_checked: &dormant_checked,
+        ending: if kill { Signal::Kill } else { Signal::Terminate },
         logs,
         stopping: false,
         cleanup: false,
@@ -441,6 +472,7 @@ pub struct CtlOutcome<T> {
     pub visits: Vec<Vec<super::sign_in_browser::Hop>>,
 }
 struct CtlJudge<'a, F, T> {
+    resuming_playground: Option<[PathBuf; 2]>,
     fail_on_panic: Option<()>,
     expected_exits: Vec<(usize, u8)>,
     release_answers: Option<usize>,
@@ -545,6 +577,19 @@ fn restart_engine(
     }
 }
 impl<F, T> CtlJudge<'_, F, T> {
+    fn resume_playground(&mut self, binary: &Binary) {
+        if skein_lib::bytes::find(binary.stderr(), b"Starting serve\n").is_some()
+            && let Some([config, client]) = self.resuming_playground.take()
+        {
+            let parent = super::playground::interrupt_reset(binary, &config, &client);
+            let continued = std::process::Command::new("/usr/bin/kill")
+                .args(["-CONT", &parent.to_string()])
+                .status()
+                .expect("resume box parent");
+            assert!(continued.success());
+        }
+    }
+
     fn bound(&mut self, calls: &super::ctl::Calls, binary: &Binary, failed: bool) {
         if !self.stopping
             && !calls.idle()
@@ -562,6 +607,8 @@ impl<F, T> CtlJudge<'_, F, T> {
 }
 impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
     fn act(&mut self, now: Time, procs: &mut [Process]) {
+        let Process::Binary(binary) = &procs[0] else { panic!("box") };
+        self.resume_playground(binary);
         let Process::Calls(calls) = &procs[1] else { panic!("ctl") };
         let failed = calls.ends().iter().enumerate().any(|(index, call)| {
             let expected = self.expected_exits.iter().find(|(at, _)| *at == index).map_or(0, |(_, code)| *code);
@@ -635,6 +682,7 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
                 eprintln!("pending scripted release: {:?}", calls.llm_release());
             }
             if calls.idle() && !failed && binary.exit_status().is_none() {
+                assert!(self.resuming_playground.is_none(), "the kept reset was observed after restart");
                 self.checked.set(Some(self.check.take().expect("one live check")(binary)));
             }
             // A held batch keeps its root open for the reply referee. Release
@@ -706,6 +754,29 @@ pub fn run_ctl<T>(
     )
     .0
 }
+/// Observe the kept reset while the restarted box's acknowledgement is held.
+#[must_use]
+pub fn run_ctl_resuming_playground<T>(
+    directory: &Path,
+    flags: Vec<String>,
+    client_root: &Path,
+    steps: Vec<super::ctl::Step>,
+    deadline: Duration,
+    check: impl FnOnce(&Binary) -> T,
+) -> CtlOutcome<T> {
+    let config = flags.windows(2).find(|pair| pair[0] == "--config").expect("explicit configuration");
+    let paths = [PathBuf::from(&config[1]), client_root.into()];
+    run_ctl_peers(
+        directory,
+        flags,
+        client_root,
+        steps,
+        deadline,
+        check,
+        CtlPeers { expected_exits: Vec::new(), model: CtlModel::ResumingPlayground(paths) },
+    )
+    .0
+}
 /// Continues through the exact expected nonzero calls, keeping the normal early-stop rule otherwise.
 #[must_use]
 pub fn run_ctl_with_exits<T>(
@@ -739,6 +810,7 @@ struct CtlPeers {
     model: CtlModel,
 }
 enum CtlModel {
+    ResumingPlayground([PathBuf; 2]),
     None,
     Llm(Box<CtlLlm>),
     Face(Box<super::forge_land::CtlFace>),
@@ -853,6 +925,13 @@ fn configure_face(face: Option<&super::forge_land::Face>, flags: &[String]) {
     }
 }
 
+fn resuming_playground(model: &CtlModel) -> Option<[PathBuf; 2]> {
+    match model {
+        CtlModel::ResumingPlayground(paths) => Some(paths.clone()),
+        CtlModel::None | CtlModel::Llm(_) | CtlModel::Face(_) | CtlModel::Account(_) => None,
+    }
+}
+
 fn run_ctl_peers<T>(
     directory: &Path,
     flags: Vec<String>,
@@ -862,10 +941,11 @@ fn run_ctl_peers<T>(
     check: impl FnOnce(&Binary) -> T,
     peers: CtlPeers,
 ) -> (CtlOutcome<T>, Option<super::forge_land::Seen>) {
+    let resuming_playground = resuming_playground(&peers.model);
     let account_probe = matches!(&peers.model, CtlModel::Account(_));
     let cut = match &peers.model {
         CtlModel::Account(probe) => probe.cut_after_listening.clone(),
-        CtlModel::None | CtlModel::Llm(_) | CtlModel::Face(_) => None,
+        CtlModel::None | CtlModel::Llm(_) | CtlModel::Face(_) | CtlModel::ResumingPlayground(_) => None,
     };
     let fail_on_panic = account_probe.then_some(());
     let (peer, on_link, face, reply) = match peers.model {
@@ -873,7 +953,7 @@ fn run_ctl_peers<T>(
         CtlModel::Face(story) => {
             (None, None, Some(story.face), Some(super::forge_land::Reply::new(story.first, story.reply)))
         }
-        CtlModel::None => (None, None, None, None),
+        CtlModel::None | CtlModel::ResumingPlayground(_) => (None, None, None, None),
         CtlModel::Account(probe) => (None, None, Some(probe.face), None),
     };
     configure_face(face.as_ref(), &flags);
@@ -908,6 +988,7 @@ fn run_ctl_peers<T>(
     let visits = Cell::new(Vec::new());
     let follow_reply = reply.is_some();
     let mut world = real::World::new(CtlJudge {
+        resuming_playground,
         fail_on_panic,
         expected_exits: peers.expected_exits,
         release_answers: None,
@@ -1047,6 +1128,7 @@ pub fn run_ctl_with_cut(
             release_answers: None,
             next_release: None,
             restart_at: None,
+            resuming_playground: None,
             face: None,
             visit: Visit::AwaitingAddress,
             tab: None,

@@ -1602,9 +1602,16 @@ fn a_fresh_init_s_first_chat_reads_its_forge() {
     scratch.remove();
 }
 
+/// temper/docs/design/draft/playground-reset.md, 6.1–6.2 and 8.
 #[test]
-fn a_first_run_answers_on_the_demo() {
-    first_run(false);
+fn a_first_run_plays_the_playground_and_leaves_it_by_its_reset() {
+    playground_reset(false);
+}
+
+/// temper/docs/design/draft/playground-reset.md, 6.2 and 8.
+#[test]
+fn a_box_killed_during_the_reset_ends_it_whole_at_the_next_start() {
+    playground_reset(true);
 }
 
 /// domain/testing.md, 2.6; protocol/setup.md, 13.4, "A first run set up for real".
@@ -1784,152 +1791,6 @@ fn an_imported_records_path_is_printed_as_file() {
     }
 }
 
-/// protocol/setup.md, 8.4 and 13.4: the demo ends on the owned forge's runtime connect.
-#[test]
-fn a_first_run_plays_the_demo_then_sets_up_a_forgejo_here_with_no_restart() {
-    use support::first_repository::{self, Task};
-
-    // The demo's chat is task 1 in project 1; hello gets the next project and task tree.
-    const HELLO: Task = Task { project: 2, chat: 2, change: 3, producer: 4 };
-    // Demo start/chat/reply; six setup reads; two refused starts;
-    // seven calls for hello's task and landed change.
-    const DEMO_CALLS: usize = 6;
-    const SETUP_END: usize = DEMO_CALLS + 6;
-    const END_READS_END: usize = SETUP_END + 2;
-    const ALL_CALLS: usize = END_READS_END + 7;
-    let scratch = support::Scratch::new("demo-then-forgejo");
-    let (paths, flags) = first_run_directories(&scratch);
-    let flags = support::boxed::echo_steps(flags);
-    let (cached, sources) = cache_forgejo_binaries(&paths[2]);
-    let steps = demo_then_forgejo_steps(scratch.path(), HELLO);
-    let mut llm = first_repository::compact_llm(&paths[0]);
-    llm.expected_exits = vec![(END_READS_END - 2, 2), (END_READS_END - 1, 2)];
-    let clock = skein_shell::Clock::new();
-    let began = clock.now().now;
-    let seen = support::boxed::run_ctl_with_llm(
-        scratch.path(),
-        flags,
-        scratch.path(),
-        steps,
-        BOX_DEADLINE,
-        |_| {
-            (
-                first_repository::live_for(&paths[0], &paths[1], scratch.path(), HELLO),
-                first_repository::turns(scratch.path(), "1"),
-            )
-        },
-        llm,
-    );
-    eprintln!("demo then Forgejo box: {} ms", clock.now().now.saturating_since(began).as_nanos() / 1_000_000);
-    let stderr = String::from_utf8_lossy(&seen.stderr);
-    assert_eq!(seen.exit, Some(Exit::Code(0)), "{stderr}");
-    assert_eq!(seen.left, Some(Vec::new()), "no process outlived the box: {stderr}");
-    assert_eq!(seen.calls.len(), ALL_CALLS, "every story read ran: {stderr}");
-    for (index, call) in seen.calls.iter().enumerate() {
-        let code = if (END_READS_END - 2..END_READS_END).contains(&index) { 2 } else { 0 };
-        assert_eq!(
-            call.exit,
-            Some(Exit::Code(code)),
-            "call {index}: stdout {}; stderr {}; box {stderr}",
-            String::from_utf8_lossy(&call.stdout),
-            String::from_utf8_lossy(&call.stderr)
-        );
-        if code == 0 {
-            assert!(call.stderr.is_empty(), "call {index}: {}", String::from_utf8_lossy(&call.stderr));
-        }
-    }
-    assert_eq!(seen.calls[1].stdout, b"running\n");
-    for call in &seen.calls[2..4] {
-        assert_playground_end_forges(call, true);
-    }
-    assert_eq!(support::ctl::json(&seen.calls[5])["met"], true, "the demo chat replied");
-    assert_eq!(support::ctl::json(&seen.calls[4])["outcome"]["done"]["owner"]["created"]["first"], 1);
-    let _bot = support::forge_land::assert_forgejo_setup_after_sign_in(
-        "first",
-        &seen.calls[DEMO_CALLS..SETUP_END],
-        &stderr,
-        None,
-        &paths[1],
-    );
-    assert_playground_end_forges(&seen.calls[SETUP_END - 2], false);
-    assert!(
-        !String::from_utf8_lossy(&seen.calls[SETUP_END - 1].stdout).lines().any(|line| line.starts_with("forge 1 ·")),
-        "the ended demo leaves the text list"
-    );
-    assert_demo_refused_starts(&seen.calls[SETUP_END..END_READS_END]);
-    assert_eq!(
-        stderr.lines().filter(|line| box_notice_words(line) == "Playground: stopped").count(),
-        1,
-        "the runtime connect stops the demo exactly once: {stderr}"
-    );
-    assert!(!stderr.contains("demo end:"), "granted end has no refusal diagnostic: {stderr}");
-    let created = support::ctl::json(&seen.calls[END_READS_END + 2]);
-    assert_eq!(created["outcome"]["done"]["owner"]["created"]["first"], HELLO.chat, "{created}");
-    let (evidence, demo) = seen.checked.expect("live task and demo reads ran before stopping");
-    assert!(
-        demo.contains("I would give widget a dark theme that follows the system's preference"),
-        "the scripted demo model answered: {demo}"
-    );
-    let producer = support::ctl::json(&seen.calls[ALL_CALLS - 1]);
-    assert_eq!(producer["project"], HELLO.project, "hello's task belongs to the new project: {producer}");
-    eprintln!("work/hello's project: {}", producer["project"]);
-    first_repository::assert_task("first", &seen.calls[END_READS_END..], &stderr, &evidence);
-    assert_eq!(
-        evidence.version.expect("live Forgejo version")["version"].as_str().expect("version").split('+').next(),
-        Some(skein_forge::forgejo::pin::VERSION)
-    );
-    assert_eq!(support::boxed::status(evidence.address, "/api/v1/version"), None, "Forgejo stopped with its box");
-    for (path, source) in cached.iter().zip(&sources) {
-        assert_cached_binary_unchanged(path, source);
-        assert!(
-            !path
-                .with_file_name(format!("{}.part", path.file_name().expect("binary name").to_str().expect("UTF-8")))
-                .exists(),
-            "no partial download"
-        );
-    }
-    assert_demo_then_forgejo_streams(&seen.stdout, &stderr);
-    scratch.remove();
-}
-
-fn demo_then_forgejo_steps(root: &std::path::Path, task: support::first_repository::Task) -> Vec<support::ctl::Step> {
-    use support::ctl::{Call, Step};
-    use support::first_repository;
-    let mut steps = playground_end_steps("first");
-    // Detailed demo chat/account state belongs to the domain world.
-    steps.truncate(5);
-    steps.push(Step::Run(Call::new(&["task", "show", "1", "--until", "replied", "--timeout", "30s", "--json"])));
-    // Keep the same signed-in client and box: skip the setup story's mark and sign-in.
-    steps.extend(forgejo_setup_steps("first").into_iter().skip(2));
-    steps.push(Step::Stderr(b"Playground: stopped\n"));
-    // Keep the real refused-start exits after the runtime stop.
-    steps.extend(playground_end_steps("third").into_iter().skip(7));
-    steps.push(Step::Stderr(b" repo is work/hello "));
-    steps.extend(first_repository::task_steps_for(root, task));
-    steps
-}
-
-fn assert_demo_refused_starts(calls: &[support::Ended]) {
-    for start in calls {
-        assert!(start.stdout.is_empty(), "refused start prints no answer on stdout");
-        let diagnostic = String::from_utf8_lossy(&start.stderr);
-        assert!(diagnostic.contains("not offered"), "{diagnostic}");
-    }
-}
-
-fn assert_demo_then_forgejo_streams(stdout: &[u8], stderr: &str) {
-    // The real forge adds its three step prefixes and exact group notices.
-    let demo_streams: String = stderr
-        .split_inclusive('\n')
-        .filter(|line| {
-            !["prepare 3: ", "forgejo 3: ", "runner 3: "].iter().any(|prefix| line.starts_with(prefix))
-                && !["Forge 3 (Forgejo): starting", "Forge 3 (Forgejo): started"]
-                    .contains(&box_notice_words(line.trim_end_matches('\n')))
-        })
-        .collect();
-    assert_demo_streams(stdout, demo_streams.as_bytes());
-}
-
 /// domain/testing.md, 2.6: a plan-backed change on the first owned repository.
 #[test]
 fn a_persons_plan_change_lands_on_the_owned_forge_and_is_found_after_a_restart() {
@@ -2103,7 +1964,7 @@ fn a_change_whose_coder_fails_holds_and_its_chat_answers() {
 }
 
 #[test]
-fn a_first_run_answers_on_the_demo_and_a_second_finds_it_running() {
+fn a_first_run_answers_on_the_playground_and_a_second_finds_it_running() {
     first_run(true);
 }
 #[test]
@@ -2113,15 +1974,12 @@ fn two_first_runs_one_after_the_other_choose_their_own_ports() {
             serde_json::from_slice(&std::fs::read(config.join("temper.json")).expect("written configuration"))
                 .expect("configuration JSON");
         let application = &document["application"];
-        let setup = application["setup"].as_array().expect("forge setup");
-        let fake = setup.iter().find(|entry| entry["forge"] == 1).expect("fake forge 1");
-        let owned = setup.iter().find(|entry| entry["forge"] == 3).expect("owned forge 3");
         [
             &application["clients"]["listener"]["socket"],
-            &fake["mode"]["fake"]["listen"]["socket"],
+            &application["machine"]["fake"]["listen"]["socket"],
             &application["demo"]["llm"]["listen"]["socket"],
             &application["webhooks"]["listener"]["socket"],
-            &owned["mode"]["owned"]["listen"]["socket"],
+            &application["machine"]["owned"]["listen"]["socket"],
         ]
         .map(|value| {
             value.as_str().expect("listener socket").parse::<std::net::SocketAddr>().expect("socket address").port()
@@ -2195,7 +2053,7 @@ fn first_run_directories(scratch: &support::Scratch) -> ([std::path::PathBuf; 3]
 }
 
 #[test]
-fn a_first_run_ctl_demo_start_answers_running_twice() {
+fn a_first_run_ctl_playground_start_answers_running_twice() {
     use support::ctl::{Call, Step};
     let scratch = support::Scratch::new("first-run-ctl");
     let (_, flags) = first_run_directories(&scratch);
@@ -2225,221 +2083,59 @@ fn a_first_run_ctl_demo_start_answers_running_twice() {
     scratch.remove();
 }
 
-// protocol/setup.md, 8.4: an unwatched end keeps its chat and account ended across restarts.
-#[test]
-fn a_second_forge_ends_the_playground_for_good_closing_its_chat_and_account() {
-    use std::{fs, os::unix::fs::PermissionsExt};
-
-    let scratch = support::Scratch::new("playground-end");
+fn playground_reset(kill: bool) {
+    use support::ctl::{Call, Step};
+    let scratch = support::Scratch::new("playground-reset");
     let (paths, flags) = first_run_directories(&scratch);
-    let flags = support::boxed::echo_steps(flags);
-    let mut account = None;
-    for run in ["first", "second", "third"] {
-        let first = run == "first";
-        let third = run == "third";
-        let client = scratch.path().join(run);
-        fs::create_dir(&client).expect("fresh client root");
-        fs::set_permissions(&client, fs::Permissions::from_mode(0o700)).expect("private client root");
-        let steps = playground_end_steps(run);
-        let clock = skein_shell::Clock::new();
-        let began = clock.now().now;
-        let seen = if third {
-            support::boxed::run_ctl_with_exits(
-                scratch.path(),
-                flags.clone(),
-                &client,
-                steps,
-                BOX_DEADLINE,
-                || support::playground::retired_reload(&paths[0], &client),
-                &[(7, 2), (8, 2)],
-            )
-        } else {
-            support::boxed::run_ctl(scratch.path(), flags.clone(), &client, steps, BOX_DEADLINE, |_binary| ())
-        };
-        eprintln!("{run} playground-end box: {} ms", clock.now().now.saturating_since(began).as_nanos() / 1_000_000);
-        let stderr = String::from_utf8_lossy(&seen.stderr);
-        assert_eq!(seen.exit, Some(Exit::Code(0)), "{run}: {stderr}");
-        assert_eq!(seen.left, Some(Vec::new()), "{run}: no process outlived the box: {stderr}");
-        assert_eq!(seen.checked, Some(()), "{run}: all calls finished before stopping: {stderr}");
-        assert_eq!(
-            seen.calls.len(),
-            if first {
-                7
-            } else if third {
-                9
+    let initialized = std::process::Command::new(skein_scratch::paths::binary("temper"))
+        .arg("init")
+        .args(&flags)
+        .stdin(std::process::Stdio::null())
+        .current_dir(scratch.path())
+        .output()
+        .expect("temper init");
+    assert!(initialized.status.success(), "{}", String::from_utf8_lossy(&initialized.stderr));
+    let client = scratch.path().join("person");
+    std::fs::create_dir(&client).expect("fresh client root");
+    let ended = support::boxed::run_story_with_box(
+        scratch.path(),
+        flags.clone(),
+        &client,
+        support::boxed::StoryPlan { script: support::person::demo_change(), kill },
+        BOX_DEADLINE,
+        |binary| {
+            let _bot = demo_bot(&paths[0], &client);
+            demo_landed(&paths[0], &client);
+            if kill {
+                let _parent = support::playground::interrupt_reset(binary, &paths[0], &client);
             } else {
-                3
-            },
-            "{run}: all calls ran: {stderr}"
-        );
-        for (index, call) in seen.calls.iter().enumerate() {
-            let expected = if third && index >= 7 { 2 } else { 0 };
-            assert_eq!(call.exit, Some(Exit::Code(expected)), "{run}: {}", String::from_utf8_lossy(&call.stderr));
-            if expected == 0 {
-                assert!(call.stderr.is_empty(), "{run}: {}", String::from_utf8_lossy(&call.stderr));
+                support::playground::end_and_check(&paths[0], &paths[1], &client);
             }
-        }
-        if first {
-            assert_eq!(seen.calls[1].stdout, b"running\n");
-            account = Some(assert_playground_chat_and_account_open([&seen.calls[4], &seen.calls[5], &seen.calls[6]]));
-        }
-        if third {
-            assert_playground_chat_and_account_ended(run, &seen.calls[3..9], account);
-        }
-        for call in &seen.calls[if first { 2..4 } else { 1..3 }] {
-            assert_playground_end_forges(call, first);
-        }
-        assert_eq!(
-            stderr.lines().filter(|line| box_notice_words(line) == "Playground: stopped").count(),
-            usize::from(run == "second"),
-            "{run}: demo group stops exactly once at the end: {stderr}"
+        },
+    );
+    let stderr = String::from_utf8_lossy(&ended.stderr);
+    assert!(ended.finished && ended.dormant_checked, "the person chose the dormant playground: {stderr}");
+    if kill {
+        assert_eq!(ended.exit, Some(Exit::Signal(9)), "box killed during reset: {stderr}");
+        let resumed = support::boxed::run_ctl_resuming_playground(
+            scratch.path(),
+            flags,
+            &client,
+            vec![Step::Run(Call::sign_in()), Step::Run(Call::new(&["playground", "end", "--key", "playground-reset"]))],
+            BOX_DEADLINE,
+            |_| support::playground::check_empty(&paths[0], &paths[1], &client),
         );
-        assert!(!stderr.contains("demo end:"), "{run}: granted end has no refusal diagnostic: {stderr}");
-        if run == "third" {
-            for prefix in ["fake forge 1: ", "prepare 1: ", "fake llm: "] {
-                assert!(!stderr.lines().any(|line| line.starts_with(prefix)), "{run}: demo stays dormant: {stderr}");
-            }
-        }
-        // These are the additional fake's step names (temper-fake's steps).
-        // Reuse the first-run checker for every remaining diagnostic and stdout.
-        let demo_streams: String = stderr
-            .split_inclusive('\n')
-            .filter(|line| first || !line.starts_with("prepare 3: ") && !line.starts_with("fake forge 3: "))
-            .collect();
-        assert_demo_streams(&seen.stdout, demo_streams.as_bytes());
-        if first {
-            playground_end_second_forge(&paths[0]);
-        }
+        assert_eq!(resumed.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&resumed.stderr));
+        assert_eq!(resumed.left, Some(Vec::new()), "restarted tree drained");
+        ctl_assert_success(&resumed.calls);
+        assert_eq!(resumed.calls.len(), 2, "sign-in and resumed reset");
+        assert_eq!(resumed.calls[1].stdout, b"reset\n");
+        assert_eq!(resumed.checked, Some(()), "empty store and Forge welcome checked");
+    } else {
+        assert_eq!(ended.exit, Some(Exit::Code(0)), "{stderr}");
+        assert_eq!(ended.left, Some(Vec::new()), "all processes drained: {stderr}");
     }
     scratch.remove();
-}
-
-fn playground_end_steps(run: &str) -> Vec<support::ctl::Step> {
-    use support::ctl::{Call, Step};
-    let first = run == "first";
-    let third = run == "third";
-    let mut steps = vec![Step::Run(Call::sign_in())];
-    if run == "second" {
-        // The engine ends the demo before any client reads or watches it.
-        steps.push(Step::Stderr(b"Playground: stopped\n"));
-    }
-    if first {
-        steps.push(Step::Run(Call::new(&["playground", "start", "--key", "first"])));
-    }
-    steps.extend([
-        Step::Run(Call::new(&["forge", "list", "--until", "settled", "--timeout", "30s", "--json"])),
-        Step::Run(Call::new(&["forge", "list", "--json"])),
-    ]);
-    if first {
-        steps.extend([
-            Step::Run(Call::new(&[
-                "chat",
-                "start",
-                "--project",
-                "1",
-                "--key",
-                "chat",
-                "Add a dark theme to widget",
-                "--json",
-            ])),
-            Step::Run(Call::new(&["task", "show", "1", "--json"])),
-            Step::Run(Call::new(&["account", "list", "--json"])),
-        ]);
-    }
-    if third {
-        steps.extend([
-            Step::Run(Call::new(&["task", "show", "1", "--until", "ended", "--timeout", "30s", "--json"])),
-            Step::Run(Call::new(&["task", "show", "1", "--json"])),
-            Step::Run(Call::new(&["task", "list", "--project", "1", "--label", "chat", "--mine", "--ended", "--json"])),
-            Step::Run(Call::new(&["account", "list", "--json"])),
-            // Keep both refused starts, after observing the end without asking for it.
-            Step::Run(Call::new(&["playground", "start", "--key", "second"])),
-            Step::Run(Call::new(&["playground", "start", "--key", "third"])),
-        ]);
-    }
-    steps
-}
-
-fn assert_playground_chat_and_account_open(calls: [&support::Ended; 3]) -> u64 {
-    let [created, task, accounts] = calls.map(support::ctl::json);
-    assert_eq!(created["outcome"]["done"]["owner"]["created"]["first"], 1, "{created}");
-    assert_eq!(task["project"], 1, "the chat belongs to the demo project: {task}");
-    assert_ne!(task["chip"]["phase"], "ended", "the demo's chat is open: {task}");
-    let rows = accounts["accounts"]["deployment"].as_array().expect("deployment accounts");
-    assert_eq!(rows.len(), 1, "the demo model's deployment account: {accounts}");
-    assert_eq!(rows[0]["provider"], 3, "{accounts}");
-    assert_eq!(rows[0]["provider_name"]["bytes"], "demo", "{accounts}");
-    assert_eq!(rows[0]["holder"]["deployment"], true, "{accounts}");
-    rows[0]["number"].as_u64().expect("demo account number")
-}
-
-fn assert_playground_chat_and_account_ended(run: &str, calls: &[support::Ended], account: Option<u64>) {
-    let waited = support::ctl::json(&calls[0]);
-    assert_eq!(waited["met"], true, "the chat ended: {waited}");
-    let task = support::ctl::json(&calls[1]);
-    assert_eq!(task["chip"]["phase"], "ended", "{task}");
-    let cancelled = &task["chip"]["details"]["owner"]["details"]["ending"]["cancelled"];
-    assert_eq!(cancelled["reason"]["bytes"], "Ended with the playground", "{task}");
-    assert_eq!(cancelled["by"]["deployment"]["project"], 1, "the deployment closed its chat: {task}");
-    let tasks = support::ctl::json(&calls[2]);
-    let ended = tasks["ended"]["rows"]["rows"].as_array().expect("ended chats");
-    assert_eq!(tasks["ended"]["rows"]["cut"], false, "{tasks}");
-    assert!(tasks["ended"]["rows"]["after"].is_null(), "all ended chats: {tasks}");
-    assert_eq!(ended.len(), 1, "one ended demo chat: {tasks}");
-    assert_eq!(ended[0]["chip"]["task"], 1, "the same chat ended once: {tasks}");
-    assert_eq!(ended[0]["chip"]["phase"], "ended", "{tasks}");
-    let accounts = support::ctl::json(&calls[3]);
-    let rows = accounts["accounts"]["deployment"].as_array().expect("deployment accounts");
-    assert!(!rows.iter().any(|row| row["number"].as_u64() == account), "demo account removed: {accounts}");
-    assert!(!rows.iter().any(|row| row["provider"] == 3), "demo provider has no account: {accounts}");
-    for start in &calls[4..] {
-        assert!(start.stdout.is_empty(), "{run}: refused start prints no answer on stdout");
-        assert!(
-            String::from_utf8_lossy(&start.stderr).contains("not offered"),
-            "{run}: {}",
-            String::from_utf8_lossy(&start.stderr)
-        );
-    }
-}
-
-fn assert_playground_end_forges(call: &support::Ended, first: bool) {
-    let document = support::ctl::json(call);
-    let document = if let Some(met) = document.get("met") {
-        assert_eq!(met, true, "the forge wait settled: {document}");
-        &document["forges"]
-    } else {
-        &document
-    };
-    let rows = document["forges"].as_array().expect("forge rows");
-    let connected: Vec<_> = rows.iter().filter(|row| row["state"] == "connected").collect();
-    assert_eq!(connected.len(), 1, "one connected forge: {document}");
-    assert_eq!(connected[0]["number"], if first { 1 } else { 3 }, "{document}");
-    if !first {
-        assert!(!rows.iter().any(|row| row["number"] == 1), "the ended demo leaves every list: {document}");
-    }
-}
-
-fn playground_end_second_forge(config: &std::path::Path) {
-    let path = config.join("temper.json");
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&path).expect("written configuration")).expect("JSON");
-    let application = &mut document["application"];
-    let listen = application["forges"]
-        .as_array()
-        .expect("configured forges")
-        .iter()
-        .find(|forge| forge["number"] == 3)
-        .expect("forge 3")["api"]
-        .clone();
-    let setup = application["setup"].as_array_mut().expect("setup entries");
-    let mut second = setup.iter().find(|entry| entry["forge"] == 1).expect("demo setup").clone();
-    second["forge"] = 3.into();
-    second["directory"] = "forge-3".into();
-    second["mode"]["fake"]["listen"] = listen;
-    second["mode"]["fake"]["owner"] = "second-owner".into();
-    // A fake requires at least one repository; keep the cloned widget seed.
-    *setup.iter_mut().find(|entry| entry["forge"] == 3).expect("owned forge 3 setup") = second;
-    support::write_private(&path, &serde_json::to_vec_pretty(&document).expect("configuration JSON"));
 }
 
 fn first_run(restart: bool) {
@@ -2604,7 +2300,7 @@ fn demo_landed(config: &std::path::Path, root: &std::path::Path) {
     let document: serde_json::Value =
         serde_json::from_slice(&std::fs::read(config.join("temper.json")).expect("written configuration"))
             .expect("JSON");
-    let address = document["application"]["forges"][0]["api"]["socket"]
+    let address = document["application"]["machine"]["fake"]["listen"]["socket"]
         .as_str()
         .expect("demo fake address")
         .parse()
@@ -4572,7 +4268,7 @@ fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_f
     let _cached = cache_forgejo_binaries(&paths[2]);
     let mut steps = vec![
         Step::Run(Call::sign_in()),
-        Step::Run(Call::new(&["forge", "setup", "3", "--playground"])),
+        Step::Run(Call::new(&["forge", "setup", "--playground"])),
         Step::Run(Call::new(&["forge", "list", "--json"])),
     ];
     steps.extend(first_repository::playground_read_steps(scratch.path()));
@@ -4600,10 +4296,10 @@ fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_f
     }
     let adoption = String::from_utf8_lossy(&ended.calls[1].stdout);
     assert!(adoption.lines().any(|line| line == "project: 2 · widget"), "{adoption}");
-    assert!(adoption.contains("Adopted playground/widget on forge 3 as owned."), "{adoption}");
+    assert!(adoption.contains("Adopted playground/widget on forge 1 as owned."), "{adoption}");
     assert!(adoption.contains("It is the project's home."), "{adoption}");
     let rows = support::ctl::json(&ended.calls[2]);
-    let row = rows["forges"].as_array().expect("forge rows").iter().find(|row| row["number"] == 3).expect("forge 3");
+    let row = rows["forges"].as_array().expect("forge rows").iter().find(|row| row["number"] == 1).expect("forge 1");
     assert_eq!(row["first"]["project"]["new"], "widget");
     assert_eq!(row["first"]["org"], "playground");
     assert_eq!(row["first"]["repository"], "widget");
