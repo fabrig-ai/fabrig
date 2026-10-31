@@ -1,16 +1,18 @@
-use jig_core_world::effects::Setup;
+use jig_core_world::world::Setup;
 const OWNER_ROLE: u32 = 0;
-use jig_core_world::{
-    effects::World,
-    fixtures::{
-        ask_as,
-        deadlines::{decide, propose},
-        inbox_objects as inbox, live_row, people_member, proposal_object, refusal,
-    },
-    stories::offers::{no_holder_fixture, world_with},
-};
+use jig_core_world::fixtures::ask_as;
+use jig_core_world::fixtures::deadlines::decide;
+use jig_core_world::fixtures::deadlines::propose;
+use jig_core_world::fixtures::inbox_objects as inbox;
+use jig_core_world::fixtures::live_row;
+use jig_core_world::fixtures::refusal;
+use jig_core_world::stories::offers::no_holder_fixture;
+use jig_core_world::stories::offers::world_with;
+use jig_core_world::world::World;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
+use jig_test_profile::fixtures::people_member;
+use jig_test_profile::fixtures::proposal_object;
 const PARTY: u64 = 1;
 const FIRST: u64 = 2;
 const LAST: u64 = 3;
@@ -448,6 +450,28 @@ fn a_partys_batch_beyond_their_role_is_proposed_and_accepted() {
         inbox(&mut world, member_sign_in, jig_domain_core::reads::Group::Updates).contains(&proposal_object(proposal))
     );
 }
+
+#[test]
+fn deleting_a_project_cleans_accepted_party_batches_and_amendments() {
+    for amendment in [false, true] {
+        let mut world = batch_world(330);
+        let member = world.sign_in.expect("member signed in");
+        let owner = owner(&mut world);
+        world.sign_in = Some(member);
+        let proposal = if amendment {
+            create(&mut world, Box::new([people_member(b"work", 20)]));
+            propose_amendment(&mut world, member)
+        } else {
+            propose(&mut world, member, PROPOSE_REQUEST, Box::new([people_member(b"beyond role", 150)]))
+        };
+        decide(&mut world, owner, DECIDE_REQUEST, proposal, people::ProposalDecision::Accept);
+        ask_as(&mut world, owner, 71, people::Ask::RemoveProject { project: PROJECT });
+        super::deletion::finish(&mut world);
+        assert!(!world.store.rows.values().any(|row| matches!(row,
+            jig_test_domain::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::PersonProposal(row) | tasks::Stored::DecidedProposal(row)))
+            if row.project == PROJECT)));
+    }
+}
 #[test]
 fn another_partys_proposal_rejected_reaches_that_party() {
     let mut world = batch_world(331);
@@ -657,7 +681,7 @@ fn a_goal_beyond_the_pool_is_refused_naming_who_may_accept() {
 }
 
 fn widening() -> people::Amendment {
-    let mut amendment = jig_core_world::fixtures::person_unchanged(b"more work");
+    let mut amendment = jig_test_profile::fixtures::person_unchanged(b"more work");
     amendment.authority = Some(people_member(b"work", 150).authority);
     amendment
 }

@@ -1609,8 +1609,22 @@ const FRESH_TASKS: u64 = 5;
 const FRESH_CLOSED_TASK: u64 = 3;
 fn fresh_record(task: u64, crossed: bool) -> jig_domain_core::Record {
     use jig_domain_core::{CoreRecord, Record};
-    let Record::Core(CoreRecord::RunProof(mut proof)) = jig_store_world::root::run_proof(task) else {
-        panic!("run fixture")
+    let mut proof = jig_domain_core::RunProof {
+        accounts: Box::new([]),
+        placement: None,
+        account_failure: None,
+        account_terminal: false,
+        task,
+        attempt: 1,
+        conversation: 1,
+        credentials: Box::new([]),
+        window: Some(jig_domain_core::CurrentWindow { attempt: 1, turn: 1, closed: false }),
+        crossed: false,
+        host: jig_domain_fleet::HostKind::Worker,
+        offered: None,
+        outstanding: Box::new([]),
+        turn: None,
+        terminal: None,
     };
     if task == FRESH_TASKS.checked_sub(1).expect("windowless task") {
         proof.window = None;
@@ -1627,10 +1641,10 @@ fn fresh_baseline() -> Vec<Item> {
     store.patch_sets(FRESH_BEFORE);
     assert_opened(&disk.open(&mut store), 0);
     for task in 1..=FRESH_TASKS {
-        let turn = jig_store_world::root::turn(task, 1, 1, b"committed transcript");
+        let turn = fixtures::window_turn(task, 1, 1, b"committed transcript");
         let writes = Box::new([
             fixtures::header(task),
-            fixtures::save(jig_store_world::root::live_task(task)),
+            fixtures::save(fixtures::live_task(task)),
             fixtures::save(fresh_record(task, false)),
             fixtures::save(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))),
         ]);

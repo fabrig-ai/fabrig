@@ -4,8 +4,6 @@
 use super::{
     component::Composition,
     engine::{Driver, Packet, held_event, now_event},
-    packets::{self, Incoming},
-    read_packets, requests,
     truth::Truth,
 };
 use crate::harness::{ClientId, Observed};
@@ -14,19 +12,33 @@ use jig_client_test_domain::{Event, Limits, Request};
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_test_domain as root;
-use skein_lib::{Duration, Time, Wall};
+use skein_lib::{Duration, List, Time, Wall};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
+mod offers;
 mod offline;
 mod signing;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Invalid {
-    Request(requests::Invalid),
-    Packet(packets::Invalid),
-    Read(read_packets::Invalid),
+    Shell,
     InternalPacket,
 }
 
+/// A terminal provider exchange, outside the keyed request table.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SignInFailure {
+    Refused(client::Refusal),
+    SignedOut,
+    Capacity,
+}
+#[derive(Debug)]
+pub enum Incoming {
+    Authenticated { client: ClientId, person: u64, expires: Wall },
+    SignInAgain { client: ClientId, why: people::Again },
+    SignInFailed { client: ClientId, failure: SignInFailure },
+    Callback { client: ClientId, event: Event },
+    SignedOut { client: ClientId, sign_in: u64 },
+}
 /// Opt-in external packet evidence, copied only after whole admission. Neither
 /// list is reconstructed from a domain or used to decide an offer.
 pub struct TaskOffers {
@@ -34,6 +46,14 @@ pub struct TaskOffers {
     pub native: skein_lib::List<client::Offered>,
     pub source_task: Box<core::documents::Task>,
     pub native_task: Box<client::Task>,
+}
+
+/// Both lists from the same whole admitted owner value.
+pub struct CardOffers {
+    /// The engine's unchanged supplied list.
+    pub source: List<jig_domain_core::acts::Offered>,
+    /// The receiving client's unchanged supplied list.
+    pub native: List<client::Offered>,
 }
 
 /// Protocol queues owned outside the client and engine roots. Business decisions
@@ -49,7 +69,7 @@ pub struct Session {
     unsigned: BTreeSet<ClientId>,
     reloaded: BTreeSet<ClientId>,
     sign_in_again: BTreeMap<ClientId, people::Again>,
-    sign_in_failures: BTreeMap<ClientId, packets::SignInFailure>,
+    sign_in_failures: BTreeMap<ClientId, SignInFailure>,
     callbacks: Vec<(ClientId, Event)>,
     sign_outs: BTreeMap<ClientId, VecDeque<u64>>,
     delayed: Vec<(ClientId, Event)>,
@@ -62,7 +82,7 @@ pub struct Session {
     stopped_seen: bool,
     lifecycle: Vec<Observed>,
     task_offers: Option<BTreeMap<(ClientId, u64), TaskOffers>>,
-    card_offers: Option<super::offered_packets::Captured>,
+    card_offers: Option<BTreeMap<(ClientId, client::ObjectKey), CardOffers>>,
     stream_heartbeat: Option<Duration>,
     stream_due: BTreeMap<ClientId, Time>,
 }
@@ -144,7 +164,7 @@ impl Session {
 
     /// Original engine and receiving offered lists for an admitted card read.
     #[must_use]
-    pub fn card_offers(&self, client: ClientId, key: client::ObjectKey) -> Option<&super::offered_packets::CardOffers> {
+    pub fn card_offers(&self, client: ClientId, key: client::ObjectKey) -> Option<&CardOffers> {
         self.card_offers.as_ref()?.get(&(client, key))
     }
 
@@ -398,7 +418,7 @@ impl Session {
             return Ok(());
         }
         let Request::Client { request: jig_client::Request::Down { down } } = request else {
-            return Err(Invalid::Request(requests::Invalid::Shell));
+            return Err(Invalid::Shell);
         };
         if self.driver.transport.sign_in(client).is_none() && !self.unsigned.contains(&client) {
             self.parked
@@ -430,7 +450,7 @@ impl Session {
                 if let jig_client::Up::ReadDone { read, .. } = up
                     && let Some(source) = self.source_reads.remove(&(*client, *read))
                 {
-                    super::offered_packets::read(&mut self.card_offers, &source, &value);
+                    offers::read(&mut self.card_offers, &source, &value);
                 }
             }
             self.incoming(value, now, wall)?;
@@ -797,11 +817,11 @@ mod tests {
     use skein_lib::Token;
 
     fn session() -> (Session, Time, Wall) {
-        configured_session(jig_core_world::world::config(8455), Peers::new(Vec::new(), Vec::new()))
+        configured_session(jig_test_profile::config(8455), Peers::new(Vec::new(), Vec::new()))
     }
 
     fn configured_session(configuration: root::Config, peers: Peers) -> (Session, Time, Wall) {
-        session_with_limits(configuration, jig_core_world::world::limits(), peers)
+        session_with_limits(configuration, jig_test_profile::limits(), peers)
     }
 
     fn session_with_limits(
@@ -1041,7 +1061,7 @@ mod tests {
             })
         )));
         assert!(session.business_poll(now, wall).expect("provider refusal is a normal exchange terminal").is_empty());
-        assert!(matches!(session.sign_in_failure(ClientId(0)), Some(packets::SignInFailure::Capacity)));
+        assert!(matches!(session.sign_in_failure(ClientId(0)), Some(SignInFailure::Capacity)));
         assert_eq!(session.driver.transport.sign_in(ClientId(0)), None);
         let applied = session.driver.world.store.applied;
         assert!(session.business_poll(now, wall).expect("no automatic retry").is_empty());
@@ -1082,7 +1102,7 @@ mod tests {
         session
             .immediate(core::Now::SignInRefused { to: skein_lib::ReplyTo::new(to) }, now, wall)
             .expect("actual capacity terminal");
-        assert_eq!(session.sign_in_failure(ClientId(0)), Some(&packets::SignInFailure::Capacity));
+        assert_eq!(session.sign_in_failure(ClientId(0)), Some(&SignInFailure::Capacity));
         assert!(session.driver.transport.reply(to).is_none());
         assert_eq!(session.driver.transport.sign_in(ClientId(0)), None);
         assert!(session.business_poll(now, wall).expect("no callback or retry").is_empty());
@@ -1100,8 +1120,7 @@ mod tests {
     #[test]
     fn requests_wait_for_authentication_independently_of_me_durability() {
         let (mut session, now, wall) = session();
-        session.driver.world.cut =
-            Some(jig_core_world::effects::Cut::Submitted(session.driver.world.store.applied + 1));
+        session.driver.world.cut = Some(jig_core_world::world::Cut::Submitted(session.driver.world.store.applied + 1));
         session.bind(ClientId(0), 1, identity(), now, wall);
         let native = Token::new(u64::MAX);
         session.send(ClientId(0), now, wall, frame(native)).expect("original request parks");
@@ -1388,7 +1407,7 @@ mod tests {
         assert_eq!(session.parked.get(&ClientId(0)).expect("parked retry"), &[request(retry)]);
         assert!(session.business_poll(now, wall).expect("no timed fake recovery").is_empty());
         let until = now.saturating_add(skein_lib::Duration::from_secs(1));
-        session.restart(jig_core_world::world::config(8455), now, wall, until).expect("actual cold root");
+        session.restart(jig_test_profile::config(8455), now, wall, until).expect("actual cold root");
         assert!(session.business_poll(now, wall).expect("supplied offline span").is_empty());
         let callbacks = session.business_poll(until, wall).expect("real restart and original retry");
         assert!(callbacks.iter().any(|(client, value)| *client == ClientId(0)
@@ -1461,8 +1480,7 @@ mod tests {
         let first = session.driver.transport.sign_in(ClientId(0)).expect("first owner session");
         let sibling = session.driver.transport.sign_in(ClientId(1)).expect("sibling owner session");
         assert_ne!(first, sibling);
-        session.driver.world.cut =
-            Some(jig_core_world::effects::Cut::Submitted(session.driver.world.store.applied + 1));
+        session.driver.world.cut = Some(jig_core_world::world::Cut::Submitted(session.driver.world.store.applied + 1));
         session.sign_out(ClientId(0), now, wall);
         assert!(session.driver.withhold_completion().expect("actual session erasure is durable").is_none());
         assert!(session.business_poll(now, wall).expect("withheld actual sign-out completion").is_empty());
@@ -1506,7 +1524,7 @@ mod tests {
             1
         );
         let until = now.saturating_add(skein_lib::Duration::from_secs(1));
-        session.restart(jig_core_world::world::config(8455), now, wall, until).expect("actual cold restart");
+        session.restart(jig_test_profile::config(8455), now, wall, until).expect("actual cold restart");
         assert!(session.offline());
         assert_eq!(session.next_due(), Some(until));
         let retry = Token::new(312);
@@ -1556,7 +1574,7 @@ mod tests {
         assert_eq!(old.len(), 2);
         let owner = session.driver.transport.watch_token(ClientId(0), native).expect("original owner token");
         let until = now.saturating_add(skein_lib::Duration::from_secs(1));
-        session.restart(jig_core_world::world::config(8455), now, wall, until).expect("cold root restart");
+        session.restart(jig_test_profile::config(8455), now, wall, until).expect("cold root restart");
         let dropped = session.business_poll(now, wall).expect("only original departed watches");
         assert_eq!(dropped.len(), 2);
         for client in [ClientId(0), ClientId(1)] {

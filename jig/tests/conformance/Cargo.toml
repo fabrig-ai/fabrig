@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+jig-test-profile.workspace = true
 jig-conformance.workspace = true
 jig-core-world = { path = "../core" }
 jig-test-domain.workspace = true

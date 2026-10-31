@@ -60,8 +60,8 @@ impl Store {
         let mut captured = None;
         loop {
             let env = self.env();
-            if self.disk.is_some() {
-                protocol::fire(self.component.as_mut().expect("component"), &env, &mut above, &mut below);
+            if let Some(disk) = &mut self.disk {
+                disk.drive(self.component.as_mut().expect("component"), &env, &mut above);
             }
             if let Some(event) = above.pop() {
                 if matches!(event, Event::Site { .. }) {
@@ -74,15 +74,19 @@ impl Store {
                 continue;
             }
             if let Some(request) = requests.pop_front() {
-                protocol::down(self.component.as_mut().expect("component"), &env, request, &mut above, &mut below);
+                if let Some(disk) = &mut self.disk {
+                    disk.request(self.component.as_mut().expect("component"), &env, request, &mut above);
+                } else {
+                    protocol::down(self.component.as_mut().expect("component"), &env, request, &mut above, &mut below);
+                }
                 continue;
             }
             let io = if let Some(request) = below.transcripts.pop() {
-                protocol::Io::Transcripts(self.file(2, request))
+                protocol::Io::Transcripts(self.file(request))
             } else if let Some(request) = below.store.pop() {
-                protocol::Io::Store(self.file(0, request))
+                protocol::Io::Store(self.file(request))
             } else if let Some(request) = below.secrets.pop() {
-                protocol::Io::Secrets(self.file(1, request))
+                protocol::Io::Secrets(self.file(request))
             } else {
                 break;
             };

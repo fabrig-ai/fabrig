@@ -1,4 +1,5 @@
 //! Explicit party proposals and withdrawals (domain/people.md, section 5.1).
+use super::party::Routed;
 use super::{create, party_inputs, refusals::pool_refused};
 use crate::routing::Work;
 use crate::{Core, Event, GoalRoute, Limits, Now, Request};
@@ -11,8 +12,7 @@ use skein_lib::{Env, List, Queue, ReplyTo, Token};
 pub(super) fn propose_request(
     core: &mut Core,
     env: &Env<Limits>,
-    out: &mut Queue<Request>,
-    work: &mut Queue<Work>,
+    routed: &mut Routed,
     mut creation: create::Creation,
     reason: Box<[u8]>,
 ) {
@@ -22,8 +22,7 @@ pub(super) fn propose_request(
         Ok((members, to)) => party_inputs::begin(
             core,
             env,
-            out,
-            work,
+            routed,
             party_inputs::Inputs {
                 person: creation.person,
                 project: creation.project,
@@ -38,7 +37,7 @@ pub(super) fn propose_request(
             },
             request,
         ),
-        Err(why) => pool_refused(work, request, why),
+        Err(why) => pool_refused(&mut routed.work, request, why),
     }
 }
 fn check(
@@ -132,21 +131,21 @@ pub(super) struct Withdrawal {
     pub project: u32,
     pub proposal: u64,
 }
-pub(super) fn withdraw_request(core: &mut Core, work: &mut Queue<Work>, out: &mut Queue<Request>, value: Withdrawal) {
+pub(super) fn withdraw_request(core: &mut Core, routed: &mut Routed, value: Withdrawal) {
     let Withdrawal { request, person, project, proposal } = value;
     if let Some(row) = core.tasks.person_proposal(person, proposal) {
         if row.project != project {
-            pool_refused(work, request, people::Refusal::Unknown);
+            pool_refused(&mut routed.work, request, people::Refusal::Unknown);
             return;
         }
         let request = core.fly_goal(request, GoalRoute::Withdrawing { proposer: person, proposal, moved: None });
-        work.push(Work::Event(Event::Tasks(tasks::Event::WithdrawPersonProposal {
+        routed.work.push(Work::Event(Event::Tasks(tasks::Event::WithdrawPersonProposal {
             reply_to: Some(ReplyTo::new(request)),
             proposer: person,
             proposal,
         })));
     } else {
-        out.push(Request::Now(Box::new(Now::HistoricalProposal {
+        routed.out.push(Request::Now(Box::new(Now::HistoricalProposal {
             request,
             person,
             project,
@@ -181,7 +180,12 @@ fn offer_amendment(
     let Edit { request, person, project, role, task, revision, amendment, reason } = value;
     let amendment = crate::amendments::translate(amendment, core.kept_models(task), &env.limits.tasks)
         .ok_or(people::Refusal::Limit { which: people::LimitKind::Words })?;
-    match core.amend_admit(person, role, project, task, &amendment, env.limits.tasks.depth, &env.limits.tasks) {
+    match core.amend_admit(
+        crate::compound::PartyTask { person, project, role, task },
+        &amendment,
+        env.limits.tasks.depth,
+        &env.limits.tasks,
+    ) {
         Ok(_) | Err(people::Refusal::Authority { proposable: Some(people::Accepter::Role(_)), .. }) => {}
         Err(why) => return Err(why),
     }

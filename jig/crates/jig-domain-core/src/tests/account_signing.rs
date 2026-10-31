@@ -154,7 +154,7 @@ fn a_value_is_in_no_committed_row() {
             source = Some(number);
         }
     }
-    assert_eq!(core.keys.len(), 1);
+    assert_eq!(core.key_flights(), 1);
     let source = source.expect("the component keeps the LLM key");
     // A duplicate in flight releases only its own carried value and joins the
     // first request's answer; the original value remains owned by the keep.
@@ -178,7 +178,7 @@ fn a_value_is_in_no_committed_row() {
         }
     }
     assert_eq!(unused, 1);
-    assert_eq!(core.keys.len(), 1);
+    assert_eq!(core.key_flights(), 1);
     let mut out = step(
         &mut core,
         &env,
@@ -230,7 +230,7 @@ fn a_value_is_in_no_committed_row() {
         }
     }
     assert_eq!(saved, 1);
-    assert!(core.keys.is_empty() && core.key_input.is_none());
+    assert!((core.key_flights() == 0) && core.key_input.is_none());
 }
 
 #[test]

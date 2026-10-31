@@ -1,17 +1,18 @@
 //! engine.md, 15: a fresh mark stops a live resumed claim before retrying.
 
 use crate::fresh_windows;
-use jig_core_world::effects::Setup;
+use jig_core_world::world::Setup;
 
 use fresh_windows::{AFTER, BEFORE, SEED, TAIL};
-use jig_core_world::{effects::World, fixtures};
+use jig_core_world::fixtures;
+use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{Duration, Token};
 
-// The world's fleet grace (world::limits); check its two sides one nanosecond apart.
+// The world's fleet grace (jig_test_profile::limits); check its two sides one nanosecond apart.
 const GRACE: Duration = Duration::from_secs(5);
 const TICK: Duration = Duration::from_nanos(1);
 const BEFORE_GRACE: Duration = Duration::from_nanos(4_999_999_999);
@@ -96,7 +97,7 @@ fn a_crossed_claim_no_worker_lists_is_lost_once_the_grace_passes() {
     let (mut world, task, attempt) = live_resumed();
     fresh_windows::restart(&mut world, AFTER);
     assert!(fresh_windows::proof(&world).crossed);
-    assert_eq!(jig_core_world::world::limits().core.fleet.grace, GRACE);
+    assert_eq!(jig_test_profile::limits().core.fleet.grace, GRACE);
     world.advance(BEFORE_GRACE);
     assert_eq!(fresh_windows::tries(&world).lost, 0);
     assert_eq!(world.assignments.last(), Some(&(task, attempt)));
@@ -111,7 +112,7 @@ fn an_in_process_crossed_claim_yet_to_commit_a_turn_is_not_started() {
     let (now, wall) = world.clocks();
     world.set_clock(now, wall);
     world.store.patch_sets(AFTER);
-    let mut config = jig_core_world::effects::fixture(SEED, false).0;
+    let mut config = jig_core_world::world::fixture(SEED, false).0;
     config.core.workers_in_process = true;
     world.restart_with(config);
     assert!(world.domain.ready());

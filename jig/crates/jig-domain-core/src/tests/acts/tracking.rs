@@ -55,10 +55,12 @@ fn a_member_amending_a_priority_is_refused_as_not_a_maintainer() {
     };
     assert_eq!(
         core.amend_admit(
-            PRIORITY_PARTY,
-            Some(people::Role::Member),
-            PRIORITY_PROJECT,
-            PRIORITY_TASK,
+            compound::PartyTask {
+                person: PRIORITY_PARTY,
+                role: Some(people::Role::Member),
+                project: PRIORITY_PROJECT,
+                task: PRIORITY_TASK
+            },
             &change,
             limits.tasks.depth,
             &limits.tasks
@@ -76,10 +78,12 @@ fn a_policy_role_amending_tracked_is_refused() {
         tasks::Amendment { tracked: Some(tasks::Tracking::Tracked { priority: 2 }), ..fixtures::unchanged(b"tracked") };
     assert_eq!(
         core.amend_admit(
-            PRIORITY_PARTY,
-            Some(people::Role::Policy { role: POLICY_ROLE }),
-            PRIORITY_PROJECT,
-            PRIORITY_TASK,
+            compound::PartyTask {
+                person: PRIORITY_PARTY,
+                role: Some(people::Role::Policy { role: POLICY_ROLE }),
+                project: PRIORITY_PROJECT,
+                task: PRIORITY_TASK
+            },
             &change,
             limits.tasks.depth,
             &limits.tasks

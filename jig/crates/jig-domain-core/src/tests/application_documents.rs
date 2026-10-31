@@ -103,8 +103,12 @@ fn connector_marks_twice_in_flight_make_one_more_whole_document() {
         },
     );
     assert_eq!(document_asks(&out), 1);
-    let out =
-        watch_outputs(&mut core, &limits, Event::View(views::Event::Made { watcher, outcome: views::Made::Ready }));
+    let internal = core.watch_token(watcher).unwrap();
+    let out = watch_outputs(
+        &mut core,
+        &limits,
+        Event::View(views::Event::Made { watcher: internal, outcome: views::Made::Ready }),
+    );
     let Request::Held(value) = &out[0] else { panic!("delivery is held") };
     let Held::ApplicationDelivery { subject, .. } = value.as_ref() else { panic!("connector construction") };
     assert_eq!(*subject, Token::new(500));
@@ -113,8 +117,12 @@ fn connector_marks_twice_in_flight_make_one_more_whole_document() {
     mark(&mut core, &limits, 2);
     let out = watch_outputs(&mut core, &limits, Event::Delivered { watcher });
     assert_eq!(document_asks(&out), 1);
-    let out =
-        watch_outputs(&mut core, &limits, Event::View(views::Event::Made { watcher, outcome: views::Made::Ready }));
+    let internal = core.watch_token(watcher).unwrap();
+    let out = watch_outputs(
+        &mut core,
+        &limits,
+        Event::View(views::Event::Made { watcher: internal, outcome: views::Made::Ready }),
+    );
     let Request::Held(value) = &out[0] else { panic!("replacement delivery is held") };
     let Held::ApplicationDelivery { .. } = value.as_ref() else { panic!("one replacement whole document") };
     let out = watch_outputs(&mut core, &limits, Event::Delivered { watcher });
@@ -135,10 +143,14 @@ fn a_connector_refusal_ends_its_watch_and_drops_the_owner_binding() {
             window: window(),
         },
     );
+    let internal = core.watch_token(watcher).unwrap();
     let out = watch_outputs(
         &mut core,
         &limits,
-        Event::View(views::Event::Made { watcher, outcome: views::Made::Gone { why: views::End::NotAllowed } }),
+        Event::View(views::Event::Made {
+            watcher: internal,
+            outcome: views::Made::Gone { why: views::End::NotAllowed },
+        }),
     );
     let Request::Held(value) = &out[0] else { panic!("refused construction ends its watch") };
     let Held::ApplicationWatchEnded { watcher: ended, connector, subject, why } = value.as_ref() else {
@@ -162,8 +174,12 @@ fn a_connector_delivery_waits_for_the_last_commit_the_root_made() {
             window: window(),
         },
     );
-    let out =
-        watch_outputs(&mut core, &limits, Event::View(views::Event::Made { watcher, outcome: views::Made::Ready }));
+    let internal = core.watch_token(watcher).unwrap();
+    let out = watch_outputs(
+        &mut core,
+        &limits,
+        Event::View(views::Event::Made { watcher: internal, outcome: views::Made::Ready }),
+    );
     let mut delivery = None;
     for request in out {
         match request {

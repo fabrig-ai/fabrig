@@ -61,6 +61,7 @@ fn operation(value: &c::Operation, limits: &w::Limits) -> Result<w::Operation, w
         | w::Ask::SignIn(_)
         | w::Ask::AccountChange(_)
         | w::Ask::SignOut(_)
+        | w::Ask::RemoveProject(_)
         | w::Ask::Rename(_)
         | w::Ask::MakeProject(_)
         | w::Ask::SetPool(_) => return Err(problem()),
@@ -115,6 +116,7 @@ pub(super) fn restore(value: w::Compound, limits: &Limits) -> Result<c::Ask, w::
             | c::Ask::SignIn { .. }
             | c::Ask::AccountChange { .. }
             | c::Ask::SignOut { .. }
+            | c::Ask::RemoveProject { .. }
             | c::Ask::Rename { .. }
             | c::Ask::MakeProject { .. }
             | c::Ask::SetPool { .. } => return Err(problem()),

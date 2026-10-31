@@ -1403,6 +1403,8 @@ pub enum Accepted {
 /// notifications have no reply destination and may be ignored if stale. (domain/tasks.md, sections 4–5).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    /// Close project rows (jig/docs/design/domain/tasks.md, 7).
+    CloseProject { project: u32 },
     /// Root-checked placement; the root numbers it and judges standing, the child judges room.
     Place { reply_to: ReplyTo, hold: crate::PlacedHold },
     /// Root-checked lift naming the placed hold revision (domain/tasks.md, 5.9).

@@ -24,7 +24,7 @@ pub(crate) struct State {
     deliveries: u32,
 }
 fn query() -> documents::TaskQuery {
-    jig_core_world::fixtures::OWN_TASKS
+    jig_test_profile::fixtures::OWN_TASKS
 }
 fn indexed(store: &Store) -> Vec<u64> {
     store

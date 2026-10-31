@@ -27,51 +27,15 @@ pub struct Subject {
     pub scope: Scope,
     pub kind: Kind,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ItemState {
-    Ready,
-    Held,
-    Ended,
-}
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Item {
-    pub project: u32,
-    pub key: u64,
-    pub revision: Revision,
-    pub state: ItemState,
-    pub value: u64,
-    pub task: u64,
-    pub second: Option<u64>,
-    pub proposals: List<ProposalKey>,
-    pub touchable: bool,
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Parameters {
-    pub item: u64,
-    pub revision: Revision,
-    pub value: u64,
-    pub amendable: bool,
-}
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PartDocument {
-    pub subject: Subject,
-    pub revision: Revision,
-    pub value: u64,
-    pub parameters: Option<Parameters>,
-}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Document {
-    Item(Item),
-    Part(PartDocument),
-    /// Complete actual owner value; seven part variants have no revision.
+    /// The connector's complete value, retaining the supplied subject.
     Connector(crate::connector_values::ConnectorDocument),
 }
 impl Document {
     #[must_use]
     pub fn subject(&self) -> Subject {
         match self {
-            Self::Item(item) => Subject { scope: Scope::Project(item.project), kind: Kind::Item(item.key) },
-            Self::Part(part) => part.subject,
             Self::Connector(value) => value.subject,
         }
     }
@@ -79,86 +43,52 @@ impl Document {
     #[expect(clippy::manual_map, reason = "step code matches optional values explicitly")]
     pub fn revision(&self) -> Option<Revision> {
         match self {
-            Self::Item(item) => Some(item.revision),
-            Self::Part(part) => Some(part.revision),
             Self::Connector(value) => match value.revision() {
                 Some(value) => Some(Revision { value }),
                 None => None,
             },
         }
     }
-    #[must_use]
-    pub fn fits(&self, rows: u32) -> bool {
-        match self {
-            Self::Item(item) => item.proposals.capacity() <= rows,
-            Self::Part(_) => true,
-            // Rows alone cannot admit the owner's nested paths and allocation.
-            Self::Connector(_) => false,
-        }
-    }
+}
+/// Application-owned jig references composed beside a connector object
+/// (jig/docs/design/client/domain/testing.md, 4).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PageComposition {
+    pub task: u64,
+    pub second: Option<u64>,
+    pub proposals: List<ProposalKey>,
+}
+impl PageComposition {
     #[must_use]
     pub fn sections(&self) -> List<jig_client_view::page::Section> {
         let mut sections = List::with_capacity(2);
-        match self {
-            Self::Item(item) => {
-                for task in [Some(item.task), item.second].into_iter().flatten() {
-                    sections
-                        .push(jig_client_view::page::Section::Task {
-                            task,
-                            section: jig_client_view::address::TaskSection::Plan,
-                        })
-                        .expect("two section names fit");
-                }
-            }
-            Self::Part(_) | Self::Connector(_) => {}
+        for task in [Some(self.task), self.second].into_iter().flatten() {
+            sections
+                .push(jig_client_view::page::Section::Task {
+                    task,
+                    section: jig_client_view::address::TaskSection::Plan,
+                })
+                .expect("two section names fit");
         }
         sections
     }
     #[must_use]
-    pub fn objects(&self, capacity: u32) -> List<ObjectKey> {
-        let mut objects = List::with_capacity(capacity.checked_add(1).expect("object names fit"));
-        match self {
-            Self::Item(item) => {
-                if objects.push(ObjectKey::Task(item.task)).is_ok() {
-                    for proposal in &item.proposals {
-                        if objects.push(ObjectKey::Proposal(*proposal)).is_err() {
-                            break;
-                        }
-                    }
-                }
-            }
-            Self::Part(_) | Self::Connector(_) => {}
+    pub fn objects(&self) -> List<ObjectKey> {
+        let mut objects = List::with_capacity(self.proposals.len().checked_add(1).expect("object names fit"));
+        objects.push(ObjectKey::Task(self.task)).expect("reserved task name");
+        for proposal in &self.proposals {
+            objects.push(ObjectKey::Proposal(*proposal)).expect("reserved proposal names");
         }
         objects
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Ask {
-    Touch {
-        project: u32,
-        item: u64,
-        revision: Revision,
-        parameters: Option<u64>,
-    },
     /// The application's complete value-bearing request from its own Object form.
-    ChangeObject {
-        project: u32,
-        object: u64,
-        revision: Revision,
-        value: u64,
-    },
+    ChangeObject { project: u32, object: u64, revision: Revision, value: u64 },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Answer {
-    Touched {
-        item: u64,
-        revision: Revision,
-    },
-    Moved {
-        item: u64,
-        revision: Revision,
-    },
-    Gone,
     /// A refusal at the shared application entrance, retaining its actual facts.
     Refused(EntranceRefusal),
     /// Complete closed application terminal; no maker or role is inferred.
@@ -221,7 +151,7 @@ pub fn subject(part: &Part, scope: Scope) -> Option<Subject> {
     Some(Subject { scope, kind })
 }
 
-/// The explicit held-task account only (root.md, section 6; QUESTIONS.md, 47).
+/// The explicit held-task account only (client/domain/root.md, section 6).
 /// A resource origin is a distinct reference and cannot supply this identity.
 #[must_use]
 pub fn owner_hold(part: &OwnerPart) -> Option<Part> {

@@ -1,9 +1,10 @@
 //! Owner settings decisions, atomic with their keyed answer (engine.md, 17.2).
+use super::party::{Party, Routed};
 use crate::routing::Work;
 use crate::{Core, Event, Limits, Request, settings as s};
 use alloc::boxed::Box;
 use jig_domain_people as people;
-use skein_lib::{Env, Map, Queue, ReplyTo, Token};
+use skein_lib::{Env, Map, Queue, ReplyTo};
 
 #[expect(clippy::too_many_arguments, reason = "the keyed envelope and its value cross admission together")]
 pub(super) fn start(
@@ -44,29 +45,21 @@ pub(super) fn start(
     drop(core.settings_input.take());
     result
 }
-pub(super) fn admitted(
-    core: &mut Core,
-    env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
-    request: Token,
-    person: u64,
-    against: u32,
-) {
+pub(super) fn admitted(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, party: Party, against: u32) {
+    let Party { request, person, .. } = party;
+
     let outcome = match core.settings_input.take() {
         Some(_) if against != core.current.newest() => {
             people::Outcome::Refused(people::Refusal::Stale { newest: core.current.newest() })
         }
-        Some((Ok(change), room)) => {
-            match decide(core, env, work, out, s::Decider::Party(person), None, *change, room) {
-                Ok(revision) => people::Outcome::SettingsChanged { revision },
-                Err(why) => people::Outcome::Refused(why),
-            }
-        }
+        Some((Ok(change), room)) => match decide(core, env, routed, s::Decider::Party(person), None, *change, room) {
+            Ok(revision) => people::Outcome::SettingsChanged { revision },
+            Err(why) => people::Outcome::Refused(why),
+        },
         Some((Err(failure), _)) => malformed(failure),
         None => people::Outcome::Refused(people::Refusal::NotOffered),
     };
-    work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
+    routed.work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
 }
 pub(super) fn malformed(failure: s::Failure) -> people::Outcome {
     people::Outcome::Refused(malformed_refusal(failure))
@@ -77,15 +70,10 @@ fn malformed_refusal(failure: s::Failure) -> people::Refusal {
         why: people::Malformed::Settings { setting: failure.setting, fault: failure.fault },
     }
 }
-#[expect(
-    clippy::too_many_arguments,
-    reason = "the shared whole-set decision carries its decider and proposal identity"
-)]
 pub(super) fn decide(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
+    routed: &mut Routed,
     by: s::Decider,
     proposal: Option<(people::Proposer, u32)>,
     change: s::Change,
@@ -147,9 +135,9 @@ pub(super) fn decide(
             }
         }
     }
-    let before = out.len();
-    charters |= core.held.retain(&core.current, &plan, out);
-    let held_writes = out.len().checked_sub(before).expect("held writes appended");
+    let before = routed.out.len();
+    charters |= core.held.retain(&core.current, &plan, &mut routed.out);
+    let held_writes = routed.out.len().checked_sub(before).expect("held writes appended");
     drop(plan);
     drop(after);
     if keep_previous {
@@ -172,18 +160,18 @@ pub(super) fn decide(
     );
     core.current.oldest = oldest;
     for write in writes.into_boxed() {
-        out.push(Request::Write(write));
+        routed.out.push(Request::Write(write));
     }
-    withdraw_stale(core, env, out, proposal);
+    withdraw_stale(core, env, &mut routed.out, proposal);
     core.tell_replaced_settings(env, rules, charters);
     if moves {
-        move_tasks(core, env, out, None);
+        move_tasks(core, env, &mut routed.out, None);
     }
     if charters || rules {
         core.touch_deployment();
         core.touch_run_waits();
     }
-    super::watch_marks::settings_revised(core, work, templates);
+    super::watch_marks::settings_revised(core, &mut routed.work, templates);
     Ok(number)
 }
 
@@ -228,17 +216,18 @@ pub(super) fn propose_start(
 pub(super) fn propose_admitted(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
+    routed: &mut Routed,
+    party: Party,
     against: u32,
     reason: Box<[u8]>,
 ) {
+    let Party { request, person, .. } = party;
+
     let result = proposal_check(core, env, against);
     let change = match result {
         Ok(change) => change,
         Err(why) => {
-            work.push(Work::Event(Event::People(people::Event::Decided {
+            routed.work.push(Work::Event(Event::People(people::Event::Decided {
                 request,
                 outcome: people::Outcome::Refused(why),
             })));
@@ -247,14 +236,14 @@ pub(super) fn propose_admitted(
     };
     let Some(next) = core.counters.deployment().messages.checked_add(1) else {
         return super::refusals::pool_refused(
-            work,
+            &mut routed.work,
             request,
             people::Refusal::Limit { which: people::LimitKind::Arithmetic },
         );
     };
     let Ok(number) = u32::try_from(next) else {
         return super::refusals::pool_refused(
-            work,
+            &mut routed.work,
             request,
             people::Refusal::Limit { which: people::LimitKind::Arithmetic },
         );
@@ -262,13 +251,18 @@ pub(super) fn propose_admitted(
     let fresh = crate::fresh(&mut core.counters, crate::Family::Message).expect("proposal number preflighted");
     assert!(fresh == u64::from(number), "same proposal sequence");
     let heads = s::proposal_heads(&change.items);
-    assert!(core.settings_offering.is_none(), "one settings offering");
-    core.settings_offering = Some((request, person, number, s::Proposal { against, items: change.items }));
+    assert!(core.settings_offering_flights() == 0, "one settings offering");
+    core.fly(crate::flight::Flight::SettingsOffering {
+        request,
+        by: person,
+        number,
+        value: s::Proposal { against, items: change.items },
+    });
     let request = core.fly_goal(
         request,
         crate::GoalRoute::Offering { proposal: fresh, to: people::Role::Owner.number(), stubs: Box::new([]) },
     );
-    work.push(Work::Event(Event::Tasks(jig_domain_tasks::Event::ProposePerson {
+    routed.work.push(Work::Event(Event::Tasks(jig_domain_tasks::Event::ProposePerson {
         reply_to: ReplyTo::new(request),
         proposal: jig_domain_tasks::PersonProposal {
             number: fresh,
@@ -406,7 +400,7 @@ fn keep_set(core: &mut Core, proposer: people::Proposer, number: u64, pending: b
         if core.settings_proposals.contains_key(&key) {
             return;
         }
-        let (_, offered_by, offered, value) = core.settings_offering.take().expect("admitted held set");
+        let (offered_by, offered, value) = core.take_settings_offering(None).expect("admitted held set");
         let who = match proposer {
             people::Proposer::Party(n) | people::Proposer::Task(n) => n,
         };
@@ -535,9 +529,9 @@ pub(super) fn propose_run(
         return super::runs::route_named_answer(core, to, key, crate::CallPart::ProposalRefused(problem));
     }
     let fresh = crate::fresh(&mut core.counters, crate::Family::Message).expect("preflighted proposal number");
-    assert!(fresh == next && core.settings_offering.is_none(), "one fresh settings offering");
+    assert!(fresh == next && core.settings_offering_flights() == 0, "one fresh settings offering");
     let token = to.into_token();
-    core.settings_offering = Some((token, key.task, number, set));
+    core.fly(crate::flight::Flight::SettingsOffering { request: token, by: key.task, number, value: set });
     core.pending_calls.insert(key, true).expect("call room reserved");
     let token = core.fly_call(token, crate::RoutedCall::Propose { key, proposal: next });
     work.push(Work::Event(Event::Tasks(tasks::Event::Propose { reply_to: ReplyTo::new(token), proposal })));
@@ -548,8 +542,7 @@ pub(super) fn propose_run(
 pub(super) fn accept(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
+    routed: &mut Routed,
     person: u64,
     key: (people::Proposer, u32),
     running: people::Running,
@@ -562,8 +555,7 @@ pub(super) fn accept(
     decide(
         core,
         env,
-        work,
-        out,
+        routed,
         s::Decider::Party(person),
         Some(key),
         s::Change { against: set.against, items: set.items, running },

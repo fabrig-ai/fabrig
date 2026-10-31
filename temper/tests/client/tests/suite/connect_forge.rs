@@ -44,7 +44,7 @@ fn pump(front: &mut Joint, root: &mut Root, now: &mut Time, event: d::Event) -> 
     }
     panic!("forge story did not settle");
 }
-fn view(root: &Root) -> temper_client_view::View {
+pub(super) fn view(root: &Root) -> temper_client_view::View {
     let limits = fixtures::domain_limits();
     let words = fixtures::phrasebooks(&limits);
     let bounds = fixtures::view_bounds(&limits, &words);
@@ -52,12 +52,22 @@ fn view(root: &Root) -> temper_client_view::View {
     temper_client_view::build(&mut view, root.person(), Wall::EPOCH, &mut Queue::with_capacity(bounds.tree.patches));
     view
 }
-fn node(view: &temper_client_view::View, role: Role, name: &[u8]) -> skein_ui::NodeId {
+pub(super) fn node(view: &temper_client_view::View, role: Role, name: &[u8]) -> skein_ui::NodeId {
     view.tree()
         .nodes()
         .iter()
         .find(|n| n.role == role && n.name.as_deref() == Some(name))
-        .unwrap_or_else(|| panic!("missing {role:?}: {}", String::from_utf8_lossy(name)))
+        .unwrap_or_else(|| {
+            panic!(
+                "missing {role:?}: {}; nodes: {:?}",
+                String::from_utf8_lossy(name),
+                view.tree()
+                    .nodes()
+                    .iter()
+                    .map(|node| (node.role, node.name.as_deref().map(String::from_utf8_lossy)))
+                    .collect::<Vec<_>>()
+            )
+        })
         .id
 }
 fn connection(front: &mut Joint, state: Connection) {
@@ -72,25 +82,27 @@ fn run_owned(front: &mut Joint, root: &mut Root, now: &mut Time) {
         d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Forge { forge: None } }) },
     );
     let mut choose = view(root);
-    let heading = node(&choose, Role::Region, b"Forgejo");
-    let index = choose.tree().nodes().iter().position(|n| n.id == heading).expect("choice region");
-    let size = usize::try_from(choose.tree().nodes()[index].size).expect("region size fits");
-    let region = &choose.tree().nodes()[index..][..size];
-    let button = region
-        .iter()
-        .find(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Run on this machine"))
-        .expect("run button")
-        .id;
+    let button = node(&choose, Role::Link, b"Forgejo on this machine");
     let action = temper_client_view::act(&mut choose, button, skein_ui::Act::Press).expect("bound choice");
     pump(front, root, now, d::Event::Act { action });
+    let mut details = view(root);
+    let field = node(&details, Role::TextField, b"Into a new project, named");
+    let action =
+        temper_client_view::act(&mut details, field, skein_ui::Act::Input { value: b"Default".as_slice().into() })
+            .expect("project name");
+    pump(front, root, now, d::Event::Act { action });
+    let mut details = view(root);
+    let button = node(&details, Role::Button, b"Set up a Forgejo here");
+    let action = temper_client_view::act(&mut details, button, skein_ui::Act::Press).expect("setup new forge");
+    pump(front, root, now, d::Event::Act { action });
 }
-fn owned_welcome() -> (Joint, Root, Time) {
-    let (mut front, mut root) = accounts::forge_fixture(fixtures::SEED);
+pub(super) fn owned_welcome() -> (Joint, Root, Time) {
+    let (mut front, mut root) = accounts::fresh_fixture(fixtures::SEED);
     let mut now = Time::ZERO.saturating_add(Duration::from_secs(1));
     run_owned(&mut front, &mut root, &mut now);
     (front, root, now)
 }
-fn accept_owned(front: &mut Joint, root: &mut Root, now: &mut Time) -> bool {
+pub(super) fn accept_owned(front: &mut Joint, root: &mut Root, now: &mut Time) -> bool {
     let (forge, request) = *front.set_ups().first().expect("engine asked the box");
     front.engine.send(temper_engine_domain::Event::Forge(Box::new(forge::Event::SetUpAnswered {
         forge,
@@ -110,7 +122,7 @@ fn accept_owned(front: &mut Joint, root: &mut Root, now: &mut Time) -> bool {
 #[test]
 fn setting_up_forgejo_here_from_the_welcome() {
     let (mut front, mut root, mut now) = owned_welcome();
-    assert_eq!(root.person().pages().address(), &Address::Welcome { step: Step::Forge { forge: None } });
+    assert_eq!(root.person().pages().address(), &Address::Welcome { step: Step::Forge { forge: Some(Choice::Owned) } });
     let setup = root.person().forge().set_up().expect("welcome sent setup");
     assert_eq!(
         (&*setup.org, &*setup.repository, &setup.project, setup.playground),
@@ -143,11 +155,10 @@ fn setting_up_forgejo_here_from_the_welcome() {
         &mut now,
         d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
     );
-    let strip = view(&root);
-    node(&strip, Role::Region, b"Setup");
-    node(&strip, Role::Link, b"View");
-    node(&strip, Role::Paragraph, "Forgejo on this machine · Setting up: preparing".as_bytes());
-    assert!(strip.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&temper_client_view::look::NAV_LIMITED)));
+    let chats = view(&root);
+    assert!(
+        !chats.tree().nodes().iter().any(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Setup"))
+    );
     connection(&mut front, Connection::Connected { id: 1, login: b"temper".as_slice().into() });
     pump(
         &mut front,
@@ -215,43 +226,6 @@ fn model_follows_forgejo_from_setup_to_its_first_repository() {
     let line = made.tree().nodes().iter().find(|n| n.id == line).expect("forge line");
     assert!(line.styles.as_slice().contains(&temper_client_view::look::FLOW_DONE));
     assert!(!made.tree().nodes().iter().any(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Each step")));
-}
-
-#[test]
-fn a_connected_forge_and_usable_model_remove_the_setup_strip_and_dot() {
-    use d::pages::connect_model::Act as A;
-    let (mut front, mut root) = accounts::forge_fixture(fixtures::SEED);
-    let mut now = Time::ZERO.saturating_add(Duration::from_secs(1));
-    connection(&mut front, Connection::Connecting);
-    pump(
-        &mut front,
-        &mut root,
-        &mut now,
-        d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
-    );
-    let strip = view(&root);
-    node(&strip, Role::Region, b"Setup");
-    node(&strip, Role::Link, b"View");
-    let way = d::ModelWay { source: None, provider: accounts::PROVIDER, kind: d::WayKind::Key };
-    for event in [
-        d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: Some(way) } }) },
-        d::Event::AccountKey { value: skein_lib::Secret::new(b"test-private-key".as_slice().into()) },
-        d::Event::Act { action: d::Action::Pages(d::pages::Act::ConnectModel(A::Submit { name: [41; 16] })) },
-    ] {
-        pump(&mut front, &mut root, &mut now, event);
-    }
-    accounts::kept(&mut front);
-    connection(&mut front, Connection::Connected { id: 1, login: b"temper".as_slice().into() });
-    pump(
-        &mut front,
-        &mut root,
-        &mut now,
-        d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
-    );
-    let ready = view(&root);
-    assert!(!ready.tree().nodes().iter().any(|n| n.role == Role::Region && n.name.as_deref() == Some(b"Setup")));
-    assert!(!ready.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&temper_client_view::look::NAV_LIMITED)
-        || n.styles.as_slice().contains(&temper_client_view::look::NAV_NEEDS)));
 }
 
 #[test]
@@ -347,4 +321,36 @@ fn github_ready_picks_adopts_into_a_new_project_and_stays_adopted_after_reload()
     );
     let reloaded_model = view(&root);
     node(&reloaded_model, Role::Paragraph, "GitHub · acme/second, in second".as_bytes());
+}
+
+fn press(front: &mut Joint, root: &mut Root, role: Role, name: &[u8]) {
+    let mut rendered = view(root);
+    let id = node(&rendered, role, name);
+    let action = temper_client_view::act(&mut rendered, id, skein_ui::Act::Press).expect("bound forge action");
+    accounts::event(front, root, d::Event::Act { action }.into());
+}
+#[test]
+fn an_unfinished_forgejo_starts_over_by_removing_its_record() {
+    let (mut front, mut root) = accounts::forge_fixture(fixtures::SEED);
+    node(&view(&root), Role::Button, b"Start over");
+    press(&mut front, &mut root, Role::Button, b"Start over");
+    assert!(matches!(root.person().forges(), d::forge::forges::State::Rows(rows) if rows.is_empty()));
+    assert_eq!(front.leaves.last().map(AsRef::as_ref), Some(b"/welcome?at=forge".as_slice()));
+    accounts::event(&mut front, &mut root, Temper::went(Address::Welcome { step: Step::Forge { forge: None } }));
+    node(&view(&root), Role::Button, b"Connect GitHub");
+}
+#[test]
+fn an_unfinished_github_app_goes_on_to_its_installation() {
+    let (mut front, mut root) = Joint::github_fixture_with(fixtures::SEED, false, false);
+    front.engine.send(temper_engine_domain::Event::Forge(Box::new(forge::Event::AppRecorded {
+        forge: 1,
+        app: forge::AppWay::Pasted,
+    })));
+    front.engine.settle();
+    accounts::event(&mut front, &mut root, Temper::went(Address::Welcome { step: Step::Forge { forge: None } }));
+    node(&view(&root), Role::Button, b"Go on");
+    assert!(front.installs.is_empty());
+    press(&mut front, &mut root, Role::Button, b"Go on");
+    assert_eq!(front.installs.len(), 1);
+    assert_eq!(front.installs[0].0, 1);
 }

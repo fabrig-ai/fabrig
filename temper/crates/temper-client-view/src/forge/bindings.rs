@@ -5,6 +5,9 @@ use skein_ui::{Act, Binding};
 use temper_client_domain::{Action, forge};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Meaning {
+    EndPlayground,
+    Forges(forge::forges::Act),
+    PlaceField(forge::admin::PlaceField),
     Field(forge::Text),
     Role(forge::Role),
     Home,
@@ -60,6 +63,9 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
             continue;
         }
         return match (entry.meaning.clone(), act) {
+            (Meaning::PlaceField(field), Act::Input { value }) => {
+                Some(Action::Forge(forge::Act::Forges(forge::forges::Act::PlaceWrite { field, text: value })))
+            }
             (Meaning::PickerName(forge), Act::Input { value }) => {
                 Some(Action::Forge(forge::Act::Picker { forge, act: forge::picker::Act::Write(value) }))
             }
@@ -81,6 +87,8 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 Some(Action::Forge(forge::Act::Write { field, text: value, typed }))
             }
             (meaning, Act::Press | Act::Toggle) => Some(match meaning {
+                Meaning::EndPlayground => Action::Forge(forge::Act::EndPlayground),
+                Meaning::Forges(act) => Action::Forge(forge::Act::Forges(act)),
                 Meaning::Role(role) => Action::Forge(forge::Act::Choose { role }),
                 Meaning::Home => Action::Forge(forge::Act::Home),
                 Meaning::Ci => Action::Forge(forge::Act::Ci),
@@ -98,7 +106,8 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 Meaning::Adopt => Action::Forge(forge::Act::Adopt),
                 Meaning::Picker { forge, act } => Action::Forge(forge::Act::Picker { forge, act }),
                 Meaning::StartIn(forge) => Action::Forge(forge::Act::StartIn { forge }),
-                Meaning::PickerName(_)
+                Meaning::PlaceField(_)
+                | Meaning::PickerName(_)
                 | Meaning::AdminField(_)
                 | Meaning::AdminToken
                 | Meaning::AppId

@@ -332,18 +332,6 @@ fn verb() {
     let root = scratch("fake-check-verb");
     let agent = agent_metadata_fixture(&root);
     let document = crate::tests::configuration::check_document(&root);
-    let mut no_entry = document.clone();
-    no_entry["application"]["setup"] = serde_json::json!([]);
-    let mut managed = crate::tests::configuration::old_form_check_document(&root);
-    managed["application"]["setup"][0]["orgs"] = serde_json::json!(["playground"]);
-    managed["application"]["setup"][0]["mode"] = serde_json::json!({"managed":{"admin_token":"admin_token"}});
-    let mut owned = crate::tests::configuration::old_form_check_document(&root);
-    owned["application"]["setup"][0]["mode"] = serde_json::json!({"owned":{
-        "forgejo":"/fixture/forgejo", "runner":null, "listen":{"socket":"127.0.0.1:9"},
-        "person":{"login":"ada","email":"ada@example.test"}
-    }});
-    let mut bad_setup = document.clone();
-    bad_setup["application"]["setup"][0]["forge"] = 7.into();
     let current = Some(format::current(temper_protocol_store::STORE_VERSION, [0; 16]));
     let good = || Copy::Store { format: current, rows: deployment(false) };
     let doc = || Some(document.clone());
@@ -388,17 +376,7 @@ fn verb() {
             Copy::Absent,
             refused(&format!("configuration {}: absent", path("absent-document", "temper.json").display())),
         ),
-        ("no-entry", Some(no_entry), checkpoint(), Copy::Absent, refused("forge 1: the setup has no entry for it")),
-        ("managed", Some(managed), checkpoint(), Copy::Absent, refused("forge 1: it is managed, not fake")),
-        ("owned", Some(owned), checkpoint(), Copy::Absent, refused("forge 1: it is owned, not fake")),
         ("invalid-document", Some(serde_json::json!({})), None, Copy::Absent, expected(1, b"", INVALID_DOCUMENT)),
-        (
-            "invalid-setup",
-            Some(bad_setup),
-            None,
-            Copy::Absent,
-            refused("application.setup[0].forge: unknown reference"),
-        ),
     ] {
         let directory = root.join(name);
         fs::create_dir(&directory).expect("row directory");

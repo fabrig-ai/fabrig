@@ -61,14 +61,7 @@ fn action_for_check(core: &Core, action: &tasks::ProposalAction, decision: Wall)
     }
 }
 
-fn covers_task(
-    core: &Core,
-    _limits: &Limits,
-    needed: &authority::Authority,
-    ancestor: u64,
-    distance: u32,
-    project: u32,
-) -> bool {
+fn covers_task(core: &Core, needed: &authority::Authority, ancestor: u64, distance: u32, project: u32) -> bool {
     let Some(holder) = core.tasks.delegation(ancestor) else { return false };
     holder.project == project
         && holder.deciding
@@ -162,7 +155,7 @@ fn holder(
         match next {
             tasks::Party::Task(task) => {
                 let holder = tasks::ProposalHolder::Task(task);
-                if passed && covers_task(core, limits, &needed, task, distance, context.project) {
+                if passed && covers_task(core, &needed, task, distance, context.project) {
                     return Some(holder);
                 }
                 if after == Some(holder) {
@@ -261,7 +254,7 @@ impl Core {
         self.proposal_admit_action(project, action, decision)?;
         self.action_accounts(action, tasks::Funder::Task(holder))?;
         let Some(depth) = distance(self, limits, proposer, holder) else { return Err(tasks::Refusal::Reference) };
-        if covers_task(self, limits, &needed, holder, depth, project) { Ok(()) } else { Err(tasks::Refusal::Funding) }
+        if covers_task(self, &needed, holder, depth, project) { Ok(()) } else { Err(tasks::Refusal::Funding) }
     }
     /// Revisit each pending holder after a project policy or role change.
     #[must_use]
@@ -323,13 +316,12 @@ impl Core {
     #[must_use]
     pub fn proposal_covers_task(
         &self,
-        limits: &Limits,
         needed: &authority::Authority,
         ancestor: u64,
         distance: u32,
         project: u32,
     ) -> bool {
-        covers_task(self, limits, needed, ancestor, distance, project)
+        covers_task(self, needed, ancestor, distance, project)
     }
 
     /// Distance from a proposer to a named ancestor, if live.

@@ -1,6 +1,7 @@
 use super::*;
-use jig_core_world::effects::Setup;
-use jig_core_world::{reads::Parties, stories::instructions::task_document};
+use jig_core_world::reads::Parties;
+use jig_core_world::stories::instructions::task_document;
+use jig_core_world::world::Setup;
 
 #[test]
 fn a_person_task_is_readdressed_after_durability_and_the_previous_taker_cannot_answer_after_restart() {

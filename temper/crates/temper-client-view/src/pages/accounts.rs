@@ -1,4 +1,4 @@
-//! Whole supplied account lists, with no local account or source policy (client/README.md, 5.5).
+//! Supplied accounts and the playground model (temper/docs/design/draft/playground-reset.md, 6.1 and 6.4).
 use crate::{
     accounts::{
         Bindings, Meaning,
@@ -343,7 +343,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     let mut count = 0_u64;
     if let Some(doc) = accounts::document(root.client()) {
         for row in &doc.accounts {
-            if !rows::demo(root, row.provider) {
+            if !rows::playground(root, row.provider) {
                 count = count.checked_add(1).expect("received accounts fit");
             }
         }
@@ -353,7 +353,9 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         b.name(&said);
         b.text(Run::Plain, &said);
         b.close();
-        connect(b, w, bindings, W::ConnectAdd);
+        if root.forge().playground().is_none() {
+            connect(b, w, bindings, W::ConnectAdd);
+        }
     }
     crate::cards::text(b, Role::Paragraph, &w.say(crate::words::Word::AccountLead, &[]));
     b.close();
@@ -363,12 +365,14 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
             b.open(Role::Slot);
             b.style(crate::look::EMPTY);
             text(b, w, Role::Paragraph, W::NoOwn);
-            connect(b, w, bindings, W::Connect);
+            if root.forge().playground().is_none() {
+                connect(b, w, bindings, W::Connect);
+            }
             b.close();
         }
         let mut shown = 0;
         for row in &doc.accounts {
-            if rows::demo(root, row.provider) || shown >= bindings.counts().accounts {
+            if rows::playground(root, row.provider) || shown >= bindings.counts().accounts {
                 continue;
             }
             rows::own(b, root, w, bindings, row, text_per_node);
@@ -396,9 +400,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
             }
         }
     }
-    if let Some((_, halves)) = root.demo()
-        && halves.model
-    {
+    if root.forge().playground().is_some() {
         text(b, w, Role::Heading { level: 2 }, W::Playground);
         b.open(Role::Disclosure);
         b.style(crate::look::ACCOUNT_ROW);
@@ -420,7 +422,7 @@ fn signings_without_rows(
         let mut in_row = false;
         let mut shown = 0_u32;
         for row in &doc.accounts {
-            if rows::demo(root, row.provider) || shown >= counts.accounts {
+            if rows::playground(root, row.provider) || shown >= counts.accounts {
                 continue;
             }
             shown = shown.checked_add(1).expect("displayed rows fit");
@@ -697,36 +699,19 @@ pub(crate) fn account_heading(root: &Domain, w: &Words, row: &c::OwnerAccountLin
 }
 
 /// The welcome names the same first usable account the accounts page draws.
-#[expect(clippy::manual_map, reason = "step code matches optional facts without closures")]
 pub(crate) fn first_usable_heading(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
     let document = accounts::document(root.client())?;
-    let provider = match root.forge().demo() {
-        Some(demo) => Some(demo.provider),
-        None => None,
-    };
     for row in &document.accounts {
-        if !temper_client_domain::forge::demo::usable_account(row, provider) {
+        if rows::playground(root, row.provider) {
             continue;
         }
-        return Some(account_heading(root, w, row));
+        for source in &row.sources {
+            if source.usable {
+                return Some(account_heading(root, w, row));
+            }
+        }
     }
-    let demo = root.forge().demo()?;
-    let deployment = temper_client_domain::forge::demo::owner_deployment(root.forge(), root.client())?;
-    let account = temper_client_domain::forge::demo::deployment_model(deployment, demo.provider)?;
-    let supplied = provider_name(account.provider_name.as_ref()).unwrap_or(b"");
-    let shown = crate::choice::provider_shown(root, account.provider, supplied, w);
-    let name = if supplied.is_empty() { None } else { Some(shown.as_ref()) };
-    Some(heading(
-        w,
-        account.number,
-        account.provider,
-        name,
-        &account.display,
-        account.holder,
-        account.plan,
-        &account.sources,
-        accounts::current_me(root.client()),
-    ))
+    None
 }
 
 /// Ready names an own sign-in with the same provider words as its offered way.
@@ -756,7 +741,7 @@ fn paste_way(root: &Domain, form: &accounts::request::Request) -> Option<account
     {
         for way in &accounts::ways(
             &accounts::current_me(root.client())?.providers,
-            root.forge().demo_provider(),
+            root.forge().playground_provider(),
             c::AccountHolder::Own,
         ) {
             if let accounts::Way::SignIn { provider: number, .. } = *way
@@ -789,7 +774,7 @@ fn paste_restart(
 ) {
     let Some(way) = paste_way(root, form) else { return };
     let Some(me) = accounts::current_me(root.client()) else { return };
-    let ways = accounts::ways(&me.providers, root.forge().demo_provider(), c::AccountHolder::Own);
+    let ways = accounts::ways(&me.providers, root.forge().playground_provider(), c::AccountHolder::Own);
     let meaning = if root.pages().connect_model().is_some() {
         Meaning::Model(temper_client_domain::pages::connect_model::Act::SignIn {
             name: root.pages().account_name(),

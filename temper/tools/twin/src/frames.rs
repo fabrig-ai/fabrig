@@ -13,7 +13,7 @@ fn limits() -> codec::View {
         settings: store::settings_v1::CEILINGS,
         core: store::core_v6::CEILINGS,
         tasks: store::tasks_v9::CEILINGS,
-        people: store::people_v13::CEILINGS,
+        people: store::people_v14::CEILINGS,
         notes: store::notes_v1::CEILINGS,
     }
 }

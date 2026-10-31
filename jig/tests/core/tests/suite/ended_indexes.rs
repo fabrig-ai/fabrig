@@ -1,13 +1,13 @@
 //! The ended indexes commit with the task they name (protocol/store.md, 7.4).
 
-use jig_core_world::stories::reads::world;
+use crate::read_support::world;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 
 const REQUESTER: u64 = 1;
 
-fn ended_rows(world: &jig_core_world::effects::World) -> Vec<tasks::Key> {
+fn ended_rows(world: &jig_core_world::world::World) -> Vec<tasks::Key> {
     world
         .store
         .rows
@@ -21,7 +21,7 @@ fn ended_rows(world: &jig_core_world::effects::World) -> Vec<tasks::Key> {
 
 #[test]
 fn an_ended_chat_is_indexed_by_its_requesting_party_and_label() {
-    let templates = jig_core_world::fixtures::templates();
+    let templates = jig_test_profile::fixtures::templates();
     let label = templates.iter().find(|template| template.number == 1).expect("fixture template").label;
     let mut world = world(820);
     let task = world.assigned.as_ref().expect("chat").task;
@@ -65,7 +65,7 @@ fn an_ended_delegate_of_a_task_saves_no_party_row() {
 
 #[test]
 fn an_ended_goal_is_indexed_by_its_project_and_label() {
-    let templates = jig_core_world::fixtures::templates();
+    let templates = jig_test_profile::fixtures::templates();
     let label = templates.iter().find(|template| template.number == 2).expect("fixture template").label;
     let mut world = world(824);
     world.end(
@@ -75,7 +75,7 @@ fn an_ended_goal_is_indexed_by_its_project_and_label() {
         },
         0,
     );
-    jig_core_world::stories::reads::request(&mut world, 100, jig_core_world::stories::offers::goal(100));
+    crate::read_support::request(&mut world, 100, jig_core_world::stories::offers::goal(100));
     let task = world.assigned.as_ref().expect("goal").task;
     world.end(
         tasks::End::Finished {
@@ -125,7 +125,7 @@ fn an_ended_chat_saves_no_project_row() {
 }
 
 fn query_page(
-    world: &mut jig_core_world::effects::World,
+    world: &mut jig_core_world::world::World,
     query: core::documents::TaskQuery,
     from: Option<core::reads::Cursor>,
 ) -> core::reads::Page {
@@ -150,7 +150,7 @@ fn query_page(
 }
 
 fn query_ended(
-    world: &mut jig_core_world::effects::World,
+    world: &mut jig_core_world::world::World,
     query: core::documents::TaskQuery,
 ) -> Vec<core::documents::TaskLine> {
     let mut from = Some(core::reads::Cursor::Store { scope: core::reads::Scope::Tasks { query }, after: None });
@@ -169,11 +169,11 @@ fn query_ended(
     panic!("bounded ended group");
 }
 
-fn chats(world: &mut jig_core_world::effects::World) -> Vec<u64> {
+fn chats(world: &mut jig_core_world::world::World) -> Vec<u64> {
     let mut numbers = Vec::new();
     for index in 0..3 {
         if index != 0 {
-            jig_core_world::stories::reads::request(
+            crate::read_support::request(
                 world,
                 80 + index,
                 jig_core_world::fixtures::chat(world, 1, b"indexed chat".as_slice().into()),
@@ -193,7 +193,7 @@ fn a_partys_ended_chats_page_newest_first_after_a_restart() {
     let mut world = world(830);
     let expected = chats(&mut world);
     world.restart(830, false);
-    let lines = query_ended(&mut world, jig_core_world::fixtures::OWN_TASKS);
+    let lines = query_ended(&mut world, jig_test_profile::fixtures::OWN_TASKS);
     assert_eq!(lines.iter().map(|line| line.chip.number).collect::<Vec<_>>(), expected);
     for line in lines {
         assert_eq!(
@@ -207,10 +207,11 @@ fn a_partys_ended_chats_page_newest_first_after_a_restart() {
 fn a_projects_ended_goals_page_from_the_project_index() {
     let mut world = world(831);
     jig_core_world::fixtures::finish_chat(&mut world, 0, b"chat complete");
-    jig_core_world::stories::reads::request(&mut world, 100, jig_core_world::stories::offers::goal(100));
+    crate::read_support::request(&mut world, 100, jig_core_world::stories::offers::goal(100));
     let goal = world.assigned.as_ref().expect("goal").task;
     jig_core_world::fixtures::finish_chat(&mut world, 0, b"goal complete");
-    let query = core::documents::TaskQuery { project: Some(1), requester: None, ..jig_core_world::fixtures::OWN_TASKS };
+    let query =
+        core::documents::TaskQuery { project: Some(1), requester: None, ..jig_test_profile::fixtures::OWN_TASKS };
     assert_eq!(query_ended(&mut world, query).iter().map(|line| line.chip.number).collect::<Vec<_>>(), [goal]);
 }
 
@@ -225,7 +226,7 @@ fn a_parents_ended_delegates_page_by_task() {
         project: Some(1),
         requester: None,
         parent: Some(parent),
-        ..jig_core_world::fixtures::OWN_TASKS
+        ..jig_test_profile::fixtures::OWN_TASKS
     };
     assert_eq!(query_ended(&mut world, query).iter().map(|line| line.chip.number).collect::<Vec<_>>(), [child]);
 }
@@ -234,7 +235,7 @@ fn a_parents_ended_delegates_page_by_task() {
 fn a_filter_past_the_prefix_comes_back_cut_and_goes_on() {
     let mut world = world(833);
     chats(&mut world);
-    let query = core::documents::TaskQuery { tracked: Some(true), ..jig_core_world::fixtures::OWN_TASKS };
+    let query = core::documents::TaskQuery { tracked: Some(true), ..jig_test_profile::fixtures::OWN_TASKS };
     let page = query_page(
         &mut world,
         query,
@@ -260,7 +261,7 @@ fn a_query_naming_no_index_says_it_has_no_ended_part() {
     let mut world = world(834);
     let query = core::documents::TaskQuery {
         phase: Some(core::documents::PhaseClass::Working),
-        ..jig_core_world::fixtures::OWN_TASKS
+        ..jig_test_profile::fixtures::OWN_TASKS
     };
     let page = query_page(&mut world, query, None);
     assert_eq!(page.rows.len(), 1);

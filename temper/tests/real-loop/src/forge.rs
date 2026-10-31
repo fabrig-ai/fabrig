@@ -46,18 +46,9 @@ pub fn write(scratch: &Path, forge: SocketAddr, fixture: &Fixture) -> std::io::R
     let mut config: serde_json::Value = serde_json::from_slice(&std::fs::read(scratch.join("temper.json"))?)?;
     let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(scratch.join("agent.json"))?)?;
     config["application"]["webhooks"] = serde_json::json!({"listener":{"socket":"127.0.0.1:0"}});
-    config["application"]["forges"][0]["webhook_secret"] = "secrets/forge-1.webhook-secret".into();
-    config["application"]["identities"][0]["login"] = "worker".into();
+
     (fixture.configure)(&mut config, &mut agent, forge);
     fixtures::turn_bounds::apply(&mut config, fixtures::turn_bounds::turn_body(&agent));
-    for (name, bytes) in [
-        ("forge-1.api-token", temper_fake_git_hosted::fixtures::TOKEN),
-        ("forge-1.git-token", temper_fake_git_hosted::fixtures::TOKEN),
-        ("forge-1.user", b"1\n"),
-        ("forge-1.webhook-secret", HOOK_SECRET),
-    ] {
-        fixtures::private(&scratch.join("secrets").join(name), bytes)?;
-    }
     fixtures::finish_configuration(scratch, &mut config)?;
     fixtures::private(&scratch.join("agent.json"), &serde_json::to_vec(&agent)?)
 }

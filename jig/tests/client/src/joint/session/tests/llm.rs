@@ -6,7 +6,7 @@ use jig_fake_workers::{Script, Worker};
 use skein_lib::{List, Queue};
 
 fn configuration() -> root::Config {
-    let mut config = jig_core_world::world::config(8455);
+    let mut config = jig_test_profile::config(8455);
     let mut alternate = config.core.settings.models[0].clone();
     alternate.name = Box::from(b"alternate".as_slice());
     let mut blocked = alternate.clone();
@@ -29,7 +29,7 @@ fn install_policy(rules: authority::Rules, policy: authority::Policy, limits: au
 }
 
 fn ready(config: root::Config) -> (Session, Time, Wall) {
-    ready_with_limits(config, &jig_core_world::world::limits())
+    ready_with_limits(config, &jig_test_profile::limits())
 }
 fn ready_with_limits(config: root::Config, limits: &root::Limits) -> (Session, Time, Wall) {
     let worker = Worker::new(1, 1, vec![Box::new([Script::Wait])]);
@@ -242,7 +242,7 @@ fn me_lists_allowed_models_in_configuration_order() {
         role.authority.models = authority::Models::Named(0b011);
     }
     config.core.seed_projects[0].policy.policy = policy.clone();
-    let checked = install_policy(rules, policy, jig_core_world::world::limits().core.authority);
+    let checked = install_policy(rules, policy, jig_test_profile::limits().core.authority);
     config.core.defaults.rules =
         (authority::Domain::new(checked.rules().clone(), *checked.limits()).expect("checked rules")).rules().clone();
     let (mut session, now, wall) = ready(config);
@@ -331,13 +331,13 @@ fn authority_admits_a_named_model() {
     let mut config = configuration();
     let rules = config.core.defaults.rules.clone();
     let policy = config.core.seed_projects[0].policy.policy.clone();
-    let mut limits = jig_core_world::world::limits().core.authority;
+    let mut limits = jig_test_profile::limits().core.authority;
     limits.batch = 2;
     config.core.seed_projects[0].policy.policy = policy.clone();
     let checked = install_policy(rules, policy, limits);
     config.core.defaults.rules =
         (authority::Domain::new(checked.rules().clone(), *checked.limits()).expect("checked rules")).rules().clone();
-    let mut owner_limits = jig_core_world::world::limits();
+    let mut owner_limits = jig_test_profile::limits();
     owner_limits.core.authority = limits;
     let (mut session, now, wall) = ready_with_limits(config, &owner_limits);
     let me = me(&mut session, now, wall);

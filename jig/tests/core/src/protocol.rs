@@ -19,7 +19,7 @@ pub struct Stand {
 impl Stand {
     #[must_use]
     pub fn new(limits: core::Limits) -> Self {
-        Self::with_models(limits, &crate::world::config(0).core.settings.models)
+        Self::with_models(limits, &jig_test_profile::config(0).core.settings.models)
     }
     #[must_use]
     pub fn with_models(limits: core::Limits, models: &[core::Model]) -> Self {
@@ -141,7 +141,7 @@ fn unreadable(to: ReplyTo, call: &fleet::Call, problem: &tools::Problem) -> root
     }
 }
 
-impl crate::effects::World {
+impl crate::world::World {
     /// Relay a smith-named call through the fleet and the protocol stand-in.
     pub fn tool_call(&mut self, tool: &[u8], input: &[u8], writes: bool) -> Token {
         let completion = u32::try_from(self.host_answers.len() + 1)

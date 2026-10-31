@@ -1,8 +1,7 @@
 //! Admission fixtures using the core world's controlled store completions.
-use jig_core_world::{
-    effects::{Setup, World},
-    fixtures, world,
-};
+use jig_core_world::fixtures;
+use jig_core_world::world::Setup;
+use jig_core_world::world::World;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
@@ -12,7 +11,7 @@ const WORKER: Token = Token::new(7);
 /// A signed-in party's chat, assigned to the walking world's worker.
 #[must_use]
 pub fn chat(seed: u64) -> World {
-    configured_chat(world::config(seed), &world::limits())
+    configured_chat(jig_test_profile::config(seed), &jig_test_profile::limits())
 }
 
 /// A live chat whose worker can reconnect listing its run and one stray.
@@ -20,9 +19,9 @@ pub fn chat(seed: u64) -> World {
 pub fn reconnecting_chat(seed: u64) -> World {
     // The current run and the stale listing each occupy one host slot.
     const HOSTED: u32 = 2;
-    let mut limits = world::limits();
+    let mut limits = jig_test_profile::limits();
     limits.core.fleet.slots = HOSTED;
-    configured_chat(world::config(seed), &limits)
+    configured_chat(jig_test_profile::config(seed), &limits)
 }
 
 /// A chat fixture with room and a configured policy for two more projects.
@@ -30,10 +29,10 @@ pub fn reconnecting_chat(seed: u64) -> World {
 pub fn project_maker(seed: u64) -> World {
     // The seed plus two makes; the people's rosters also include deployment roles.
     const PROJECTS: u32 = 3;
-    let mut limits = world::limits();
+    let mut limits = jig_test_profile::limits();
     limits.core.authority.projects = PROJECTS;
     limits.core.people.projects = PROJECTS + 1;
-    let mut configuration = world::config(seed);
+    let mut configuration = jig_test_profile::config(seed);
     configuration.core.defaults.rules =
         authority::Domain::new(configuration.core.defaults.rules.clone(), limits.core.authority)
             .expect("project room")

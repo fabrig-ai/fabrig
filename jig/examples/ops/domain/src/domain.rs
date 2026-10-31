@@ -1,39 +1,15 @@
 //! Copy this entry-point shape. Every child hand-off belongs to the admitted
 //! decision, and its synchronous route finishes before the next entrance
 //! (domain/root.md, 3–4; skein's draft `dynamic-memory.md`, 4.6).
-use crate::boundary::Payload;
 use crate::{Event, Limits, Output, Record, Released, Store, Write};
 use alloc::boxed::Box;
-use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_ops_domain_connectors::Connector;
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
-use skein_lib::{Decision, Env, Journal, Map, Queue, Token};
-
-/// Prepared output parts retained under the core's assignment continuation.
-#[derive(Debug)]
-pub(crate) struct Assignment {
-    pub(crate) placement: jig_domain_fleet::PlacementConstraint,
-    pub(crate) attempt: u64,
-    pub(crate) value: host::Assignment,
-}
-
-/// A connector read keeps only its caller continuation and opaque envelope.
-#[derive(Debug)]
-pub(crate) struct ReadCall {
-    pub(crate) to: Token,
-    pub(crate) tool: Box<[u8]>,
-}
-
-/// This relay's fenced destination, in the engine's names.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct HostCall {
-    pub(crate) run: Token,
-    pub(crate) attempt: Token,
-}
+use skein_lib::{Decision, Env, Journal, Queue, Token};
 
 /// Configuration is handed to the child that owns each value.
 #[derive(Debug)]
@@ -83,20 +59,8 @@ pub struct Domain {
     pub(crate) host: host::Hub,
     pub(crate) journal: Journal<Write, Output>,
     pub(crate) charter_endpoints: Box<[jig_protocol_charter::EndpointName]>,
-    pub(crate) assignments: Map<u64, Assignment>,
-    pub(crate) briefs: Map<u64, Box<[jig_protocol_charter::Section]>>,
     pub(crate) tools: Box<[jig_protocol_charter::Tool]>,
-    pub(crate) read_calls: Map<Token, ReadCall>,
-    pub(crate) payloads: Map<Token, Payload>,
-    pub(crate) effects: Map<Token, infrastructure::Effect>,
-    pub(crate) judges: Map<Token, (Token, authority::Judge, [u8; 32])>,
-    pub(crate) procedures: Map<u64, (u64, u16, u32)>,
-    pub(crate) effect_procedures: Map<Token, u64>,
-    pub(crate) close_replies: Map<Token, [u8; 16]>,
-    pub(crate) host_calls: Map<Box<[u8]>, HostCall>,
-    pub(crate) turn_backoffs: skein_lib::Deadlines<(Token, Token, u32)>,
-    pub(crate) turn_rng: skein_lib::Rng,
-    pub(crate) next_token: u64,
+    pub(crate) hub_link: jig_domain_hub_link::Link,
     pub(crate) wrote: bool,
     pub(crate) stopped_reported: bool,
     #[cfg(test)]
@@ -144,7 +108,6 @@ impl Domain {
                 .expect("tool room");
         }
         assert!(tool_bytes <= limits.host.charter_bytes, "configured tools fit the charter byte bound");
-        let host_calls = limits.host.slots.checked_mul(limits.host.run_calls).expect("hub relays");
         let deployment = config.core.deployment;
         let turn_rng = skein_lib::Rng::new(config.core.seed ^ 0x5455_524E_4255_5359);
         let mut core_config = config.core;
@@ -169,6 +132,15 @@ impl Domain {
                 <= observability::message_capacity(&limits.observability).expect("watch news bound"),
             "offered watch inbox fits owner message bound"
         );
+        let mut hub_link = jig_domain_hub_link::Link::new(
+            jig_domain_hub_link::Limits {
+                assignments: limits.core.tasks.tasks,
+                payloads: limits.core.fleet.turns.checked_add(limits.core.fleet.attempts).expect("payloads"),
+                turns: limits.host.slots.checked_mul(limits.host.turns).expect("hub retained turns"),
+            },
+            turn_rng,
+        );
+        hub_link.connect(Token::new(0));
         Ok(Self {
             deployment,
             core,
@@ -178,26 +150,8 @@ impl Domain {
             host: host::Hub::new(&limits.host),
             journal: Journal::uncapped(limits.release, 0),
             charter_endpoints: config.charter_endpoints,
-            assignments: Map::with_capacity(limits.core.tasks.tasks),
-            briefs: Map::with_capacity(limits.core.tasks.tasks),
             tools: config.tools,
-            read_calls: Map::with_capacity(limits.observability.reads),
-            payloads: Map::with_capacity(
-                limits.core.fleet.turns.checked_add(limits.core.fleet.attempts).expect("payloads"),
-            ),
-            effects: Map::with_capacity(
-                limits.core.call_records.checked_add(limits.core.tasks.tasks).expect("effect flights"),
-            ),
-            judges: Map::with_capacity(limits.core.authority.facts),
-            procedures: Map::with_capacity(limits.core.tasks.tasks),
-            effect_procedures: Map::with_capacity(limits.core.tasks.tasks),
-            close_replies: Map::with_capacity(limits.infrastructure.made),
-            host_calls: Map::with_capacity(host_calls),
-            turn_backoffs: skein_lib::Deadlines::with_capacity(
-                limits.host.slots.checked_mul(limits.host.turns).expect("hub retained turns"),
-            ),
-            turn_rng,
-            next_token: 1,
+            hub_link,
             wrote: false,
             stopped_reported: false,
             #[cfg(test)]
@@ -232,7 +186,7 @@ impl Domain {
     /// The protocol timer adapter wakes the root at this hub retry deadline.
     #[must_use]
     pub fn next_turn_deadline(&self) -> Option<skein_lib::Time> {
-        self.turn_backoffs.next()
+        jig_domain_hub_link::next_deadline(&self.hub_link)
     }
 
     /// Reclaim child-retired slots after an iteration.
@@ -242,14 +196,7 @@ impl Domain {
     }
 
     pub(crate) fn token(&mut self) -> Token {
-        let token = Token::new(self.next_token);
-        self.next_token = self.next_token.checked_add(1).expect("continuation numbering");
-        token
-    }
-    pub(crate) fn payload(&mut self, payload: Payload) -> Token {
-        let token = self.token();
-        self.payloads.insert(token, payload).expect("admitted child payload room");
-        token
+        self.hub_link.fresh()
     }
 }
 
@@ -258,6 +205,7 @@ impl Domain {
 pub(crate) enum Work {
     Event(Event),
     Core(core::Event),
+    Effect { owner: Token, origin: core::EffectOrigin, effect: infrastructure::Effect },
     ResumeFleet,
     Finish,
     Infrastructure(infrastructure::Event),
@@ -319,6 +267,7 @@ pub(crate) fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
         Work::Finish => true,
         Work::Event(_)
         | Work::Core(_)
+        | Work::Effect { .. }
         | Work::ResumeFleet
         | Work::Infrastructure(_)
         | Work::Observability(_)

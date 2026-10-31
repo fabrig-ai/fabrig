@@ -138,6 +138,7 @@ pub fn revision(object: &Object, act: ActKind) -> Option<Revision> {
         | ActKind::Reorder
         | ActKind::Seen
         | ActKind::Adopt
+        | ActKind::RemoveProject
         | ActKind::Rename
         | ActKind::ChangePolicy
         | ActKind::SetRoles
@@ -276,6 +277,7 @@ pub fn ask(object: &Object, confirmation: &Confirmation, fields: &Fields) -> Opt
         ActKind::Reorder
         | ActKind::Seen
         | ActKind::Adopt
+        | ActKind::RemoveProject
         | ActKind::Rename
         | ActKind::ChangePolicy
         | ActKind::SetRoles
@@ -309,6 +311,7 @@ fn decide(object: &Object, confirmation: &Confirmation, fields: &Fields, project
                 | ActKind::EditNote
                 | ActKind::DeleteNote
                 | ActKind::Adopt
+                | ActKind::RemoveProject
                 | ActKind::Rename
                 | ActKind::ChangePolicy
                 | ActKind::SetRoles
@@ -439,6 +442,7 @@ pub fn note_ask(project: u32, note: &Note, act: ActKind, description: Text, body
         | ActKind::Reorder
         | ActKind::Seen
         | ActKind::Adopt
+        | ActKind::RemoveProject
         | ActKind::Rename
         | ActKind::ChangePolicy
         | ActKind::SetRoles

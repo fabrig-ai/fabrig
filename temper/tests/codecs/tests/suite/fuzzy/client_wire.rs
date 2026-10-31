@@ -25,18 +25,18 @@ fn reading(bytes: &[u8]) {
         assert_eq!(temper_client_protocol_wire::reading(&record).as_ref(), bytes, "Reading");
     }
 }
-fn demo_answer(bytes: &[u8]) {
-    if let Some(record) = temper_client_protocol_wire::decode_demo_answer(bytes, &v1::CEILINGS) {
-        assert_eq!(temper_client_protocol_wire::demo_answer(&record).as_ref(), bytes, "DemoAnswer");
+fn playground_answer(bytes: &[u8]) {
+    if let Some(record) = temper_client_protocol_wire::decode_playground_answer(bytes, &v1::CEILINGS) {
+        assert_eq!(temper_client_protocol_wire::playground_answer(&record).as_ref(), bytes, "PlaygroundAnswer");
     }
 }
 #[test]
 fn client_wire_decoders_never_panic_and_reencode_the_same() {
-    let decoders: [fn(&[u8]); 7] = [requesting, answer, reading, demo_answer, watching, forges, panel];
+    let decoders: [fn(&[u8]); 7] = [requesting, answer, reading, playground_answer, watching, forges, panel];
     let mut rng = Rng::new(0x7e3d_0302);
     let goldens = temper_codecs_world::goldens("crates/temper-client-protocol-wire/golden");
     for _ in 0..2_000 {
-        let request = v1::Requesting::new(&v1::CEILINGS, v1::RequestingParts { request: v1::Request::StartDemo })
+        let request = v1::Requesting::new(&v1::CEILINGS, v1::RequestingParts { request: v1::Request::StartPlayground })
             .expect("start request");
         requesting(&temper_client_protocol_wire::requesting(&request));
         let why = match rng.below(4) {

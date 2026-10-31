@@ -178,6 +178,8 @@ pub enum ActKind {
     ChangePolicy,
     /// Rename a project.
     Rename,
+    /// Remove a project (jig/docs/design/domain/people.md, 5.2).
+    RemoveProject,
     /// Change roles.
     SetRoles,
     /// Make a service.

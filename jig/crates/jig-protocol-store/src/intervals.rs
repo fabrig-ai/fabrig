@@ -58,7 +58,7 @@ pub fn restore(range: &RestoreRange) -> Box<[Range]> {
         RestoreRange::People => {
             return Box::new([
                 Range { start: Box::new([keys::JIG, 2, 0]), end: Some(Box::new([keys::JIG, 2, 7])) },
-                Range::prefix(&[keys::JIG, 2, 8]),
+                Range { start: Box::new([keys::JIG, 2, 8]), end: Some(Box::new([keys::JIG, 2, 10])) },
             ]);
         }
         RestoreRange::Tasks => {
@@ -100,10 +100,30 @@ fn census_ranges(census: &core::Census) -> Box<[Range]> {
     ranges.into_boxed()
 }
 
-/// One globally named entry or the ordered lines of one exact scope.
+/// One globally named entry or the ordered lines of a scope or project.
 #[must_use]
 pub fn notes(range: &notes::Range) -> Box<[Range]> {
     Box::new([match range {
+        notes::Range::Project { project, after: cursor } => {
+            let mut ranges = List::with_capacity(3);
+            let start = match cursor {
+                Some(key) => after(&encoded(&core::Key::Notes(key.clone()))),
+                None => Box::new([]),
+            };
+            for tag in [1, 2, 3] {
+                let mut range = numbered_prefix(&[keys::JIG, 3, 1, tag], u64::from(*project));
+                if let Some(end) = &range.end
+                    && &start >= end
+                {
+                    continue;
+                }
+                if start > range.start {
+                    range.start.clone_from(&start);
+                }
+                ranges.push(range).expect("three project scope intervals");
+            }
+            return ranges.into_boxed();
+        }
         notes::Range::Entry { name } => point(&core::Key::Notes(notes::Key::Entry { name: *name })),
         notes::Range::Lines { scope, after: cursor } => {
             let first = encoded(&core::Key::Notes(notes::Key::Line { scope: scope.clone(), name: 0 }));
@@ -140,6 +160,19 @@ fn after(key: &[u8]) -> Box<[u8]> {
 pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
     use core::reads::Scope;
     Some(match scope {
+        Scope::EndedTasks => Box::new([Range::prefix(&[keys::JIG, 1, 6])]),
+        Scope::TaskRows { task } => Box::new([
+            numbered_prefix(&[keys::JIG, 0, 5], *task),
+            numbered_prefix(&[keys::JIG, 0, 6, 0], *task),
+            Range::prefix(&[keys::JIG, 0, 6, 1]),
+            numbered_prefix(&[keys::JIG, 0, 7], *task),
+            Range::prefix(&[keys::JIG, 1, 8]),
+            numbered_prefix(&[keys::JIG, 1, 9], *task),
+            numbered_prefix(&[keys::JIG, 1, 10], *task),
+            numbered_prefix(&[keys::JIG, 1, 11], *task),
+            Range::prefix(&[keys::JIG, 1, 12]),
+            numbered_prefix(&[keys::JIG, 2, 7], *task),
+        ]),
         Scope::SettingsHistory { first, last, newest, .. } => {
             let mut ranges = List::with_capacity(2);
             if first < newest {
@@ -183,10 +216,16 @@ pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
         }
         Scope::EndedDelegates { task } => Box::new([numbered_prefix(&[keys::JIG, 1, 17], *task)]),
         Scope::Tasks { query } => ended_tasks(query),
-        Scope::Spend { project } => Box::new([
-            numbered_prefix(&[keys::JIG, 1, 2, 3], u64::from(*project)),
-            numbered_prefix(&[keys::JIG, 1, 7, 3], u64::from(*project)),
-        ]),
+        Scope::Spend { project } => {
+            if *project == jig_domain_people::DEPLOYMENT {
+                Box::new([Range::prefix(&[keys::JIG, 1, 2, 3]), Range::prefix(&[keys::JIG, 1, 7, 3])])
+            } else {
+                Box::new([
+                    numbered_prefix(&[keys::JIG, 1, 2, 3], u64::from(*project)),
+                    numbered_prefix(&[keys::JIG, 1, 7, 3], u64::from(*project)),
+                ])
+            }
+        }
         Scope::Notes { project } => {
             let project_scope = numbered_prefix(&[keys::JIG, 3, 1, 1], u64::from(*project));
             let goals = numbered_prefix(&[keys::JIG, 3, 1, 2], u64::from(*project));

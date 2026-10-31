@@ -101,14 +101,14 @@ pub(super) fn named_proposal_accept(
     match proposal.action {
         tasks::ProposalAction::Effect { connector, .. } | tasks::ProposalAction::ProcedureEffect { connector, .. } => {
             assert!(core.pending_calls.insert(key, true).is_ok(), "effect acceptance call room");
-            let owner = to.into_token();
+            let owner = core.effect_owner();
             return crate::effects::start(
                 core,
                 env,
                 owner,
                 connector,
                 crate::EffectOrigin::Accept {
-                    to: ReplyTo::new(owner),
+                    to,
                     key: Some(key),
                     proposal: Box::new(proposal),
                     by: tasks::Party::Task(key.task),

@@ -154,8 +154,10 @@ fn every_operational_entrance_prevents_late_start() {
         Entrance {
             name: "person_task",
             input: |core, _| {
-                let _refused =
-                    core.person_task(Token::new(1), 1, 1, None, people::Ask::TakePerson { project: 1, task: 1 });
+                let _refused = core.person_task(
+                    crate::routing::party::Party { request: Token::new(1), person: 1, project: 1, role: None },
+                    crate::person_task::Action::Take { task: 1 },
+                );
             },
         },
         Entrance { name: "lost_channel", input: |core, env| core.lost_channel(env, Token::new(1)) },
@@ -170,12 +172,6 @@ fn every_operational_entrance_prevents_late_start() {
             name: "goal_refused",
             input: |core, _| {
                 let _route = core.goal_refused(Token::new(1), tasks::Refusal::Unknown);
-            },
-        },
-        Entrance {
-            name: "made",
-            input: |core, _| {
-                let _route = core.made(Token::new(u64::MAX), Box::new([]));
             },
         },
         Entrance {
@@ -229,7 +225,7 @@ fn every_operational_entrance_prevents_late_start() {
             name: "sent",
             input: |core, env| {
                 let request = Token::new(1);
-                core.saying.insert(request, (1, None)).expect("message route room");
+                let request = core.fly(crate::flight::Flight::Saying { request, task: 1, question: None });
                 let word = tasks::Word {
                     number: 1,
                     from: tasks::Party::Person(1),

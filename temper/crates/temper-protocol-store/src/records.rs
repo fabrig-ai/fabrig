@@ -1,5 +1,5 @@
 //! Total translations between durable domain rows and generated records.
-use crate::{Bounds, Undecodable, v10 as w};
+use crate::{Bounds, Undecodable, v11 as w};
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge as d;
@@ -11,6 +11,7 @@ mod client;
 #[cfg(test)]
 pub(crate) use api::encode_error;
 mod entries;
+mod forges;
 mod issues;
 mod landing;
 mod names;
@@ -21,6 +22,11 @@ const FITS: &str = "admitted fields fit the schema";
 #[must_use]
 pub fn encode(value: &d::Stored) -> Box<[u8]> {
     let value = match value {
+        d::Stored::Forge(row) => w::Value::Forge(forges::encode(row)),
+        d::Stored::ForgeNumber { last } => {
+            w::Value::ForgeNumber(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { last: *last }).expect(FITS))
+        }
+        d::Stored::Playground(row) => w::Value::Playground(forges::encode_playground(row)),
         d::Stored::Landing(row) => w::Value::Landing(landing::encode(row)),
         d::Stored::Receipt { key, receipt } => w::Value::Receipt(landing::encode_receipt(key, receipt)),
         d::Stored::Application { token, until, outcome } => {
@@ -45,36 +51,6 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Flight { task, entry } => {
             w::Value::Flight(w::Flight::new(&w::CEILINGS, w::FlightParts { task: *task, entry: *entry }).expect(FITS))
         }
-        d::Stored::DemoAct(row) => w::Value::DemoAct(
-            w::DemoAct::new(
-                &w::CEILINGS,
-                w::DemoActParts {
-                    key: row.key,
-                    act: match row.act {
-                        d::DemoActKind::Close { project, task } => w::DemoActKind::Close(
-                            w::DemoClose::new(&w::CEILINGS, w::DemoCloseParts { project, task }).expect(FITS),
-                        ),
-                        d::DemoActKind::RemoveAccount { account } => w::DemoActKind::RemoveAccount(
-                            w::DemoRemoveAccount::new(&w::CEILINGS, w::DemoRemoveAccountParts { account }).expect(FITS),
-                        ),
-                    },
-                },
-            )
-            .expect(FITS),
-        ),
-        d::Stored::Demo(value) => w::Value::Demo(
-            w::Demo::new(
-                &w::CEILINGS,
-                w::DemoParts {
-                    forge: value.forge,
-                    state: match value.state {
-                        d::DemoState::Running => w::DemoState::Running,
-                        d::DemoState::Ended => w::DemoState::Ended,
-                    },
-                },
-            )
-            .expect(FITS),
-        ),
         d::Stored::Writer(value) => w::Value::Writer(
             w::ForgeWriter::new(&w::CEILINGS, w::ForgeWriterParts { forge: value.forge, author: value.author })
                 .expect(FITS),
@@ -93,6 +69,12 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
 pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable))?;
     Ok(match row.into_parts().value {
+        w::Value::Forge(row) => d::Stored::Forge(forges::decode(row)),
+        w::Value::ForgeNumber(row) => {
+            let w::ForgeNumberParts { last } = row.into_parts();
+            d::Stored::ForgeNumber { last }
+        }
+        w::Value::Playground(row) => d::Stored::Playground(forges::decode_playground(row)),
         w::Value::Landing(row) => d::Stored::Landing(landing::decode(row)),
         w::Value::Receipt(row) => landing::decode_receipt(row),
         w::Value::Application(value) => application::decode(value, bounds)?,
@@ -105,30 +87,6 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Flight(row) => {
             let w::FlightParts { task, entry } = row.into_parts();
             d::Stored::Flight { task, entry }
-        }
-        w::Value::DemoAct(row) => {
-            let w::DemoActParts { key, act } = row.into_parts();
-            let act = match act {
-                w::DemoActKind::Close(row) => {
-                    let w::DemoCloseParts { project, task } = row.into_parts();
-                    d::DemoActKind::Close { project, task }
-                }
-                w::DemoActKind::RemoveAccount(row) => {
-                    let w::DemoRemoveAccountParts { account } = row.into_parts();
-                    d::DemoActKind::RemoveAccount { account }
-                }
-            };
-            d::Stored::DemoAct(d::DemoAct { key, act })
-        }
-        w::Value::Demo(value) => {
-            let w::DemoParts { forge, state } = value.into_parts();
-            d::Stored::Demo(d::Demo {
-                forge,
-                state: match state {
-                    w::DemoState::Running => d::DemoState::Running,
-                    w::DemoState::Ended => d::DemoState::Ended,
-                },
-            })
         }
         w::Value::Writer(value) => {
             let w::ForgeWriterParts { forge, author } = value.into_parts();
@@ -168,6 +126,9 @@ pub fn row(key: &[u8], value: &[u8], bounds: &Bounds) -> Result<d::Stored, Undec
 
 pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
     Some(w::Limits {
+        new_first_name: forge.name_bytes,
+        first_intent_org: forge.name_bytes,
+        first_intent_repository: forge.name_bytes,
         landing_state_members: forge.landing_members,
         landing_member_gates: forge.gates,
         landing_row_asks: forge.landing_members,

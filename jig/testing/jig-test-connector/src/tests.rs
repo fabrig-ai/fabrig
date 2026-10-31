@@ -466,6 +466,7 @@ fn restored_records_rebuild_adoptions_names_topics_and_pool_slots() {
                 | Request::ApplicationDone { .. }
                 | Request::ApplicationAgain { .. }
                 | Request::ApplicationRelease { .. }
+                | Request::ProjectReleased { .. }
                 | Request::Closed { .. } => {}
             }
         }
@@ -870,5 +871,27 @@ fn a_drift_waiting_through_a_return_to_its_old_state_is_obsolete() {
         run_at(&mut connector, FRESH_OBSERVATION, Event::System(drift.expect("the original change had drift")))
             .is_empty(),
         "a delayed drift checks the fact the connector keeps now"
+    );
+}
+
+#[test]
+fn releasing_a_project_erases_only_its_adoptions_before_answering() {
+    let mut domain = domain();
+    for (project, path) in [(1, service()), (1, pool()), (2, service())] {
+        run(
+            &mut domain,
+            Event::Restore { record: Record::Adoption { project, path, role: ResourceRole::Participating } },
+        );
+    }
+    let out = run(&mut domain, Event::ReleaseProject { project: 1 });
+    for path in [service(), pool()] {
+        assert!(out.contains(&Request::Erase { key: crate::RecordKey::Adoption { project: 1, path } }));
+    }
+    assert_eq!(out.last(), Some(&Request::ProjectReleased { project: 1 }));
+    assert_eq!(domain.adoptions.len(), 1);
+    assert!(domain.adoptions.get(&(2, service())).is_some());
+    assert_eq!(
+        run(&mut domain, Event::ReleaseProject { project: 1 }).as_ref(),
+        &[Request::ProjectReleased { project: 1 }]
     );
 }

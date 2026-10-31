@@ -19,9 +19,18 @@ pub(crate) struct Acted {
 }
 
 impl Acted {
+    pub(super) const fn outcome(&self) -> &Outcome {
+        &self.outcome
+    }
     pub(super) fn project_deadline(&mut self, env: &Env<Limits>) -> Time {
         self.due = deadline(env, answer_expiry(self.at, &env.limits));
         self.due
+    }
+    pub(super) fn project(&self) -> Option<u32> {
+        if let Some(project) = super::deletion::act_project(&self.act) {
+            return Some(project);
+        }
+        super::deletion::made_project(&self.outcome)
     }
     pub(super) const fn at(&self) -> Wall {
         self.at
@@ -30,6 +39,11 @@ impl Acted {
 
 pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
     match act {
+        Act::RemoveProject { project } => {
+            if *project == 0 {
+                return Err(Refusal::Unknown);
+            }
+        }
         Act::Close { task, reason, .. } => {
             if *task == 0 {
                 return Err(Refusal::Unknown);
@@ -55,6 +69,7 @@ pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
 fn kind(act: &Act) -> ActKind {
     match act {
         Act::MakeProject { .. } => ActKind::MakeProject,
+        Act::RemoveProject { .. } => ActKind::RemoveProject,
         Act::Close { .. } => ActKind::Close,
         Act::AddKey { .. } => ActKind::AddKey,
         Act::RemoveAccount { .. } => ActKind::RemoveAccount,
@@ -163,7 +178,11 @@ pub(super) fn decided(
     let replies = core::mem::replace(&mut flight.replies, List::with_capacity(0));
     domain.pending.retire(id);
     assert!(domain.act_flights.remove(&key) == Some(id), "act has one index");
-    if permanent(&outcome) {
+    let gone = match super::deletion::act_project(&act) {
+        Some(project) => !domain.has_project(project) && !domain.deletions.contains_key(&project),
+        None => false,
+    };
+    if permanent(&outcome) && !(gone && outcome == Outcome::Refused(Refusal::Unknown)) {
         save(domain, env, key, act, outcome.clone(), env.wall, out);
     }
     for to in replies.into_boxed() {
@@ -206,6 +225,7 @@ fn permanent(outcome: &Outcome) -> bool {
         | Outcome::PolicyChanged { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }

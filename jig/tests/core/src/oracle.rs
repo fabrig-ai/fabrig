@@ -1,5 +1,5 @@
 //! The cold restart oracle (`jig/docs/design/domain/engine.md`, sections 6 and 15).
-use crate::{effects::World, reads};
+use crate::{reads, world::World};
 use jig_domain_accounts as accounts;
 use jig_domain_core::{self as core, documents::Document};
 use jig_domain_people as people;

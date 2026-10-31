@@ -1,5 +1,5 @@
 //! Populated settings proposals shared by both wire ends (contract.md, 3.2 and 5.1).
-use jig_client::contract as c;
+use jig_client_domain::contract as c;
 use skein_lib::List;
 /// A review's oversized value is described by its size, beyond wire 19's document ceiling.
 pub const OVERSIZED_VALUE: u64 = 16_777_217;

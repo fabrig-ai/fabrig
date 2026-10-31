@@ -135,6 +135,7 @@ fn connector_class(event: &connector::Event) -> Class {
         | connector::Event::Make { .. }
         | connector::Event::Resolve { .. }
         | connector::Event::Withdraw { .. }
+        | connector::Event::ReleaseProject { .. }
         | connector::Event::Restore { .. } => Class::Admitted,
     }
 }

@@ -1,4 +1,5 @@
-//! The owned example, with only setup.md 8.3's edits, and whole JSON string placeholders.
+//! The first-run document names machine parts and keeps the seeded project
+//! (temper/docs/design/draft/playground-reset.md, 3 and 6.3), with whole JSON string placeholders.
 //! The pinned jig and smith parsers require positive prices, so demo uses their
 //! minimum (one per million) until they admit setup.md 8.3's zero prices.
 //! Embedding these fixed templates is init's job (setup.md, 8.2); they are not runtime inputs.

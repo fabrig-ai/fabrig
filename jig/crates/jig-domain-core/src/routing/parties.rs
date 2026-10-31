@@ -3,6 +3,7 @@
 //! (`domain/people.md`, section 5.1). Controls and decisions are separate
 //! families so each route file stays under 1,500 lines.
 
+use super::party::{Party, Routed};
 use super::refusals::pool_refused;
 use super::{Creation, CreationKind};
 use crate::routing::Work;
@@ -20,40 +21,39 @@ pub(super) fn route_holdings(
     connector: u16,
     holdings: Option<Box<[tasks::Holding]>>,
 ) -> Queue<Request> {
-    let mut out = Queue::uncapped();
-    created_holdings(core, env, &mut out, work, request, connector, holdings);
-    out
+    let mut routed = Routed::new(work);
+    created_holdings(core, env, &mut routed, request, connector, holdings);
+    routed.finish(work)
 }
-#[expect(clippy::too_many_arguments, reason = "a keyed pool edit carries its owner, beneficiary and budget")]
 pub(super) fn pool_route(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    request: Token,
-    owner: u64,
-    project: u32,
+    routed: &mut Routed,
+    party: Party,
     person: u64,
     budget: u64,
 ) {
+    let Party { request, person: owner, project, .. } = party;
+
     if let Err(why) = core.role_allowed(owner, project, env.limits.tasks.tree_tasks) {
-        pool_refused(work, request, why);
+        pool_refused(&mut routed.work, request, why);
         return;
     }
     if core.person_task_flights() >= env.limits.tasks.tasks {
-        super::refusals::pool_again(work, request, people::Again::Busy);
+        super::refusals::pool_again(&mut routed.work, request, people::Again::Busy);
         return;
     }
     let Some(role) = core.people.role(person, project) else {
-        pool_refused(work, request, people::Refusal::Unknown);
+        pool_refused(&mut routed.work, request, people::Refusal::Unknown);
         return;
     };
     let Some(allowed) = core.authority.role(project, role.number()) else {
-        pool_refused(work, request, people::Refusal::Unknown);
+        pool_refused(&mut routed.work, request, people::Refusal::Unknown);
         return;
     };
     if budget > allowed.period_spend {
         pool_refused(
-            work,
+            &mut routed.work,
             request,
             people::Refusal::Authority {
                 proposable: None,
@@ -63,12 +63,12 @@ pub(super) fn pool_route(
         return;
     }
     let Some(policy) = core.authority.policy(project) else {
-        pool_refused(work, request, people::Refusal::Unknown);
+        pool_refused(&mut routed.work, request, people::Refusal::Unknown);
         return;
     };
     if core.period_budget(project) > policy.period_spend {
         pool_refused(
-            work,
+            &mut routed.work,
             request,
             people::Refusal::Authority {
                 proposable: None,
@@ -82,12 +82,12 @@ pub(super) fn pool_route(
     let needed =
         u32::from(core.tasks.funding(period).is_none()).saturating_add(u32::from(core.tasks.funding(funder).is_none()));
     if core.tasks.funding_room() < needed {
-        super::refusals::pool_again(work, request, people::Again::Busy);
+        super::refusals::pool_again(&mut routed.work, request, people::Again::Busy);
         return;
     }
     if core.tasks.funding(period).is_none() && budget > core.period_budget(project) {
         pool_refused(
-            work,
+            &mut routed.work,
             request,
             people::Refusal::Authority {
                 proposable: None,
@@ -97,7 +97,7 @@ pub(super) fn pool_route(
         return;
     }
     if core.tasks.funding(period).is_none() {
-        work.push(Work::Event(Event::Tasks(tasks::Event::OpenPeriod {
+        routed.work.push(Work::Event(Event::Tasks(tasks::Event::OpenPeriod {
             reply_to: ReplyTo::new(Token::new(0)),
             project,
             period: core.period(project),
@@ -106,7 +106,7 @@ pub(super) fn pool_route(
     }
     let request = core.fly_person_task(request, PersonTaskRoute::PoolSet { project, person });
     if core.tasks.funding(funder).is_some() {
-        work.push(Work::Event(Event::Tasks(tasks::Event::ResizePool {
+        routed.work.push(Work::Event(Event::Tasks(tasks::Event::ResizePool {
             reply_to: ReplyTo::new(request),
             project,
             person,
@@ -114,7 +114,7 @@ pub(super) fn pool_route(
             budget,
         })));
     } else {
-        work.push(Work::Event(Event::Tasks(tasks::Event::CarvePool {
+        routed.work.push(Work::Event(Event::Tasks(tasks::Event::CarvePool {
             reply_to: ReplyTo::new(request),
             project,
             person,
@@ -127,22 +127,21 @@ pub(super) fn pool_route(
 pub(super) fn begin_creation(
     core: &mut Core,
     env: &Env<Limits>,
-    out: &mut Queue<Request>,
-    work: &mut Queue<Work>,
+    routed: &mut Routed,
     request: Token,
     kind: CreationKind,
     members: Box<[tasks::New]>,
 ) {
-    if core.creating.len() == core.creating.capacity() {
-        super::refusals::pool_again(work, request, people::Again::Busy);
+    if core.creating_flights() == core.flight_people_capacity {
+        super::refusals::pool_again(&mut routed.work, request, people::Again::Busy);
         return;
     }
     let remaining = u32::try_from(core.connectors.len()).expect("configured connector count fits u32");
     assert!(remaining > 0, "task creation has a numbered connector");
-    creation_holdings(core, out, request, members.first().expect("nonempty creation"));
-    let inserted = core.creating.insert(
+    let first = members.first().expect("nonempty creation").clone();
+    let request = core.fly(crate::flight::Flight::Creating {
         request,
-        Creation {
+        route: Creation {
             kind,
             members,
             at: 0,
@@ -151,28 +150,23 @@ pub(super) fn begin_creation(
             answered: List::with_capacity(remaining),
             failed: false,
         },
-    );
-    match inserted {
-        Ok(None) => {}
-        Ok(Some(_)) | Err(_) => unreachable!("one keyed task creation"),
-    }
+    });
+    creation_holdings(core, &mut routed.out, request, &first);
 }
 
 pub(super) fn created_holdings(
     core: &mut Core,
     env: &Env<Limits>,
-    out: &mut Queue<Request>,
-    work: &mut Queue<Work>,
+    routed: &mut Routed,
     request: Token,
     connector: u16,
     holdings: Option<Box<[tasks::Holding]>>,
 ) {
-    let Some(creating) = core.creating.get_mut(&request) else { return };
+    let known = core.connectors.contains(&connector);
+    let connectors = u32::try_from(core.connectors.len()).expect("connector count");
+    let Some((_, creating)) = core.creation_mut(request) else { return };
     assert!(creating.remaining > 0, "one holdings answer per connector");
-    assert!(
-        core.connectors.contains(&connector) && !creating.answered.as_slice().contains(&connector),
-        "one answer from each numbered connector"
-    );
+    assert!(known && !creating.answered.as_slice().contains(&connector), "one answer from each numbered connector");
     creating.answered.push(connector).expect("one answer per configured connector");
     creating.remaining = creating.remaining.checked_sub(1).expect("one holdings answer per connector");
     match holdings {
@@ -193,27 +187,27 @@ pub(super) fn created_holdings(
         core::mem::replace(&mut creating.holdings, List::with_capacity(env.limits.tasks.holdings)).into_boxed();
     creating.at = creating.at.checked_add(1).expect("bounded batch");
     if let Some(member) = creating.members.get(creating.at) {
-        creating.remaining = u32::try_from(core.connectors.len()).expect("connector count");
+        creating.remaining = connectors;
         creating.answered.clear();
         let member = member.clone();
-        creation_holdings(core, out, request, &member);
+        creation_holdings(core, &mut routed.out, request, &member);
         return;
     }
-    let creating = core.creating.remove(&request).expect("completed creation flight");
+    let (request, creating) = core.take_creation(request).expect("completed creation flight");
     if creating.failed {
-        pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Holds });
+        pool_refused(&mut routed.work, request, people::Refusal::Limit { which: people::LimitKind::Holds });
         return;
     }
-    finish_creation(core, env, work, request, creating);
+    finish_creation(core, env, routed, request, creating);
 }
 
-fn finish_creation(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, request: Token, creating: Creation) {
+fn finish_creation(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, request: Token, creating: Creation) {
     match creating.kind {
         CreationKind::Propose { person, reason, to, stubs } => {
             super::propose::keep(
                 core,
                 env,
-                work,
+                &mut routed.work,
                 super::propose::Proposal { request, person, reason, to, batch: creating.members, stubs },
             );
             return;
@@ -225,14 +219,14 @@ fn finish_creation(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, r
         let first = creating.members.first().expect("nonempty batch").number;
         let (period, pool) = core.open_person_pool(creating.members.first().expect("nonempty batch").project, person);
         if let Some(event) = period {
-            work.push(Work::Event(Event::Tasks(event)));
+            routed.work.push(Work::Event(Event::Tasks(event)));
         }
         if let Some(event) = pool {
-            work.push(Work::Event(Event::Tasks(event)));
+            routed.work.push(Work::Event(Event::Tasks(event)));
         }
         let CreationKind::Batch { given, stubs, .. } = creating.kind else { unreachable!("batch creation") };
         let request = core.fly(crate::flight::Flight::Made { request, route: super::Made { first, given, stubs } });
-        work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+        routed.work.push(Work::Event(Event::Tasks(tasks::Event::Make {
             reply_to: ReplyTo::new(request),
             creator: tasks::Party::Person(person),
             batch: creating.members,
@@ -240,26 +234,24 @@ fn finish_creation(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, r
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "one keyed role edit carries the candidate roster and its owner")]
 pub(super) fn roles_route(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
-    request: Token,
-    person: u64,
-    project: u32,
+    routed: &mut Routed,
+    party: Party,
     holdings: Box<[people::Holding]>,
 ) {
+    let Party { request, person, project, .. } = party;
+
     if let Err(why) = core.role_allowed(person, project, env.limits.tasks.tree_tasks) {
-        pool_refused(work, request, why);
+        pool_refused(&mut routed.work, request, why);
         return;
     }
     for holding in &holdings {
         match holding.role {
             people::Role::Policy { role } => {
                 if core.authority.role(project, role).is_none() {
-                    pool_refused(work, request, people::Refusal::Unknown);
+                    pool_refused(&mut routed.work, request, people::Refusal::Unknown);
                     return;
                 }
             }
@@ -270,28 +262,29 @@ pub(super) fn roles_route(
         Ok(contexts) => contexts,
         Err(refusal) => {
             assert!(refusal == tasks::Refusal::NotReady, "project inspection refusal is readiness");
-            super::refusals::pool_again(work, request, people::Again::NotReady);
+            super::refusals::pool_again(&mut routed.work, request, people::Again::NotReady);
             return;
         }
     };
     if let Err(why) = core.roles_preflight(&env.limits, &contexts, &holdings) {
-        pool_refused(work, request, why);
+        pool_refused(&mut routed.work, request, why);
         return;
     }
     drop(contexts);
     drop(holdings);
     if let Err(why) = core.role_allowed(person, project, env.limits.tasks.tree_tasks) {
-        pool_refused(work, request, why);
+        pool_refused(&mut routed.work, request, why);
         return;
     }
     core.touch_accounts(None);
     core.touch_deployment();
     core.touch_project_parties(project);
+    let original = core.people_request(request).expect("party route");
     let mut applied = Queue::uncapped();
-    people::step(
-        &mut core.people,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-        people::Event::ApplyRoles { reply_to: ReplyTo::new(request), request },
+    super::step::step_people(
+        core,
+        env,
+        people::Event::ApplyRoles { reply_to: ReplyTo::new(request), request: original },
         &mut applied,
     );
     let mut terminal = None;
@@ -299,11 +292,11 @@ pub(super) fn roles_route(
         match applied.pop().expect("role application output count") {
             people::Request::Save { record } => {
                 super::view_routes::touch_people_row(core, &record);
-                out.push(Request::Write(Write::Save(Record::People(record))));
+                routed.out.push(Request::Write(Write::Save(Record::People(record))));
             }
             people::Request::RolesApplied { reply_to, request: actual, result } => {
                 assert!(
-                    reply_to.into_token() == request && actual == request && terminal.is_none(),
+                    reply_to.into_token() == request && actual == original && terminal.is_none(),
                     "one role terminal"
                 );
                 terminal = Some(result);
@@ -319,15 +312,17 @@ pub(super) fn roles_route(
         }
     }
     if let Err(why) = terminal.expect("role application terminal") {
-        work.push(Work::Event(Event::People(people::Event::Decided { request, outcome: why })));
+        routed.work.push(Work::Event(Event::People(people::Event::Decided { request, outcome: why })));
         return;
     }
-    work.push(Work::Event(Event::Tasks(tasks::Event::RecheckEscalations { reply_to: ReplyTo::new(request), project })));
+    routed
+        .work
+        .push(Work::Event(Event::Tasks(tasks::Event::RecheckEscalations { reply_to: ReplyTo::new(request), project })));
     let mut reroutes = core.proposal_recheck_project(&env.limits, project, env.wall);
     for _ in 0..reroutes.len() {
-        work.push(Work::Event(Event::Tasks(reroutes.pop().expect("bounded proposal recheck"))));
+        routed.work.push(Work::Event(Event::Tasks(reroutes.pop().expect("bounded proposal recheck"))));
     }
-    work.push(Work::Event(Event::People(people::Event::Decided {
+    routed.work.push(Work::Event(Event::People(people::Event::Decided {
         request,
         outcome: people::Outcome::RolesSet { project },
     })));
@@ -336,25 +331,39 @@ pub(super) fn roles_route(
 pub(super) fn make_service_request(
     core: &mut Core,
     env: &Env<Limits>,
-    request: Token,
-    person: u64,
-    project: u32,
+    party: Party,
     pending: &mut Queue<people::Request>,
     service_role: people::Role,
 ) {
+    let Party { request, person, project, .. } = party;
+    let original = core.people_request(request).expect("party route");
     let outcome = match core.role_allowed(person, project, env.limits.tasks.tree_tasks) {
         Ok(()) if core.authority.role(project, service_role.number()).is_some() => {
             match crate::fresh(&mut core.counters, crate::Family::Person) {
                 Some(candidate) => {
                     let mut follow = Queue::uncapped();
-                    people::step(
-                        &mut core.people,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-                        people::Event::MakeService { request, person: candidate },
+                    super::step::step_people(
+                        core,
+                        env,
+                        people::Event::MakeService { request: original, person: candidate },
                         &mut follow,
                     );
                     for _ in 0..follow.len() {
-                        pending.push(follow.pop().expect("service output count"));
+                        let next = match follow.pop().expect("service output count") {
+                            people::Request::ServiceMade { outcome, .. } => {
+                                people::Request::ServiceMade { request, outcome }
+                            }
+                            other @ (people::Request::Act { .. }
+                            | people::Request::Acted { .. }
+                            | people::Request::RolesApplied { .. }
+                            | people::Request::Route { .. }
+                            | people::Request::Reply { .. }
+                            | people::Request::Save { .. }
+                            | people::Request::Erase { .. }
+                            | people::Request::RolesRefused { .. }
+                            | people::Request::RestoreRefused { .. }) => other,
+                        };
+                        pending.push(next);
                     }
                     None
                 }
@@ -365,39 +374,28 @@ pub(super) fn make_service_request(
         Err(refusal) => Some(people::Outcome::Refused(refusal)),
     };
     if let Some(outcome) = outcome {
-        let mut follow = Queue::uncapped();
-        people::step(
-            &mut core.people,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-            people::Event::Decided { request, outcome },
-            &mut follow,
-        );
-        for _ in 0..follow.len() {
-            pending.push(follow.pop().expect("service decision count"));
-        }
+        pending.push(people::Request::ServiceMade { request, outcome });
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the route retains the admitted party and request fields")]
 pub(super) fn adopt_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    project: u32,
-    out: &mut Queue<Request>,
+    routed: &mut Routed,
+    party: Party,
     adoption: people::Adoption,
 ) {
+    let Party { request, person, project, .. } = party;
+
     match core.role_allowed(person, project, env.limits.tasks.tree_tasks) {
         Ok(()) => {
-            out.push(Request::Ask {
+            routed.out.push(Request::Ask {
                 connector: adoption.resource.connector,
                 ask: Ask::Adopt { request, project, adoption },
             });
         }
         Err(why) => {
-            work.push(Work::Event(Event::People(people::Event::Decided {
+            routed.work.push(Work::Event(Event::People(people::Event::Decided {
                 request,
                 outcome: people::Outcome::Refused(why),
             })));
@@ -405,29 +403,27 @@ pub(super) fn adopt_request(
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the route retains the admitted party and request fields")]
 pub(super) fn change_policy_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    project: u32,
-    out: &mut Queue<Request>,
+    routed: &mut Routed,
+    party: Party,
     change: people::PolicyChange,
 ) {
+    let Party { request, person, project, .. } = party;
+
     let period = core.period(project);
     match core.change_policy(&env.limits, person, project, change) {
         Ok((snapshot, resize)) => {
             core.touch_project_parties(project);
             let name = core.names.get(&project).expect("project policy has a name").clone();
-            out.push(Request::Write(Write::Save(Record::People(people::Stored::Policy {
+            routed.out.push(Request::Write(Write::Save(Record::People(people::Stored::Policy {
                 project,
                 name,
                 value: snapshot,
             }))));
             if let Some(budget) = resize.period {
-                work.push(Work::Event(Event::Tasks(tasks::Event::ResizePeriod {
+                routed.work.push(Work::Event(Event::Tasks(tasks::Event::ResizePeriod {
                     reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Admission)),
                     project,
                     period,
@@ -437,7 +433,7 @@ pub(super) fn change_policy_request(
             for cuts in [true, false] {
                 for pool in &resize.pools {
                     if (pool.to < pool.from) == cuts {
-                        work.push(Work::Event(Event::Tasks(tasks::Event::ResizePool {
+                        routed.work.push(Work::Event(Event::Tasks(tasks::Event::ResizePool {
                             reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Admission)),
                             project,
                             person: pool.person,
@@ -449,14 +445,14 @@ pub(super) fn change_policy_request(
             }
             let mut reroutes = core.proposal_recheck_project(&env.limits, project, env.wall);
             for _ in 0..reroutes.len() {
-                work.push(Work::Event(Event::Tasks(reroutes.pop().expect("policy holder recheck"))));
+                routed.work.push(Work::Event(Event::Tasks(reroutes.pop().expect("policy holder recheck"))));
             }
-            work.push(Work::Event(Event::People(people::Event::Decided {
+            routed.work.push(Work::Event(Event::People(people::Event::Decided {
                 request,
                 outcome: people::Outcome::PolicyChanged { project },
             })));
         }
-        Err(why) => pool_refused(work, request, why),
+        Err(why) => pool_refused(&mut routed.work, request, why),
     }
 }
 

@@ -1,5 +1,4 @@
-use jig_core_world::effects::Setup;
-use jig_core_world::world;
+use jig_core_world::world::Setup;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
@@ -9,10 +8,10 @@ use skein_lib::{Duration, Env, Time, Wall};
 use skein_world::domain::heap::Meter;
 
 fn core_children_routes_and_an_in_flight_decision_stay_under_the_scenario_ceiling() {
-    let limits = world::limits();
+    let limits = jig_test_profile::limits();
     let bound = SCENARIO_FAMILY_HEAP_CEILING;
-    let configuration = world::config(91);
-    let mut observer = jig_core_world::observations::Observer::new(&configuration);
+    let configuration = jig_test_profile::config(91);
+    let mut observer = jig_core_world::conformance::Observer::new(&configuration);
     let config = configuration.core;
     let meter = Meter::new();
     meter.start();
@@ -55,7 +54,7 @@ fn core_children_routes_and_an_in_flight_decision_stay_under_the_scenario_ceilin
 }
 
 fn invalid_limits_are_refused() {
-    let limits = world::limits().core;
+    let limits = jig_test_profile::limits().core;
     assert!(core::valid(&core::Limits { connectors: 0, ..limits }));
     assert!(core::valid(&core::Limits { routes: 1, ..limits }));
     assert!(!core::valid(&core::Limits { routes: 0, ..limits }));
@@ -65,16 +64,16 @@ fn invalid_limits_are_refused() {
 }
 
 fn walking_and_effect_scripts_check_the_counted_heap_at_every_iteration() {
-    let mut walking = jig_core_world::effects::World::new(Setup {
+    let mut walking = jig_core_world::world::World::new(Setup {
         seed: 190,
-        configuration: Some(world::config(190)),
-        limits: world::limits(),
-        walking: Some(jig_core_world::effects::Scenario::Goal),
+        configuration: Some(jig_test_profile::config(190)),
+        limits: jig_test_profile::limits(),
+        walking: Some(jig_core_world::world::Scenario::Goal),
         ..Setup::default()
     });
     walking.drain();
     drop(walking);
-    let mut effects = jig_core_world::effects::World::new(Setup { seed: 191, ..Setup::default() });
+    let mut effects = jig_core_world::world::World::new(Setup { seed: 191, ..Setup::default() });
     effects.delegate();
     effects.call(2, 9000);
     effects.restart(191, false);
@@ -100,10 +99,10 @@ const FINISHING_QUERIES_HEAP_CEILING: u64 = 5_400;
 
 #[test]
 fn settled_finishing_queries_allocate_nothing_and_empty_closure_stays_under_its_heap_ceiling() {
-    let limits = world::limits().core;
+    let limits = jig_test_profile::limits().core;
     let meter = Meter::new();
     meter.start();
-    let mut domain = core::Core::new(world::config(192).core, &limits).expect("fixture core");
+    let mut domain = core::Core::new(jig_test_profile::config(192).core, &limits).expect("fixture core");
     domain.counters = core::Counters::new(domain.counters.deployment());
     let setup = meter.end();
     let bound = FINISHING_QUERIES_HEAP_CEILING;
@@ -155,13 +154,13 @@ fn settled_finishing_queries_allocate_nothing_and_empty_closure_stays_under_its_
 fn populated_projection_and_call_owner_routes_restore_under_the_counted_heap_bound() {
     use jig_test_connector as connector;
     use jig_test_domain as root;
-    let (mut configuration, limits) = jig_core_world::effects::fixture(193, false);
+    let (mut configuration, limits) = jig_core_world::world::fixture(193, false);
     let mut policy = configuration.core.seed_projects[0].policy.policy.clone();
     policy.projections.clone_from(&policy.ceiling.grants);
     configuration.core.seed_projects[0].policy.policy = policy.clone();
-    let mut restart = jig_core_world::effects::fixture(193, false).0;
+    let mut restart = jig_core_world::world::fixture(193, false).0;
     restart.core.seed_projects[0].policy.policy = policy;
-    let mut world = jig_core_world::effects::World::new(Setup {
+    let mut world = jig_core_world::world::World::new(Setup {
         seed: 193,
         configuration: Some(configuration),
         limits,
@@ -174,9 +173,9 @@ fn populated_projection_and_call_owner_routes_restore_under_the_counted_heap_bou
         1,
         b"routing owners".as_slice().into(),
         people::TaskExecutor::Agent { charter: 1 },
-        jig_core_world::fixtures::Goal { budget: 20, priority: 1, ..Default::default() },
+        jig_test_profile::fixtures::Goal { budget: 20, priority: 1, ..Default::default() },
     );
-    jig_core_world::stories::reads::request(&mut world, 94, request);
+    crate::read_support::request(&mut world, 94, request);
     let goal = world
         .people_answers
         .iter()
@@ -193,7 +192,7 @@ fn populated_projection_and_call_owner_routes_restore_under_the_counted_heap_bou
         })
         .expect("tracked goal admitted alongside the caller");
     world.hold_projection_settlements = true;
-    world.send(root::Event::ProjectionEffect { goal, number: 1, effect: jig_core_world::effects::World::effect() });
+    world.send(root::Event::ProjectionEffect { goal, number: 1, effect: jig_core_world::world::World::effect() });
     let pending = std::mem::take(&mut world.pending_writes);
     assert_eq!(
         world

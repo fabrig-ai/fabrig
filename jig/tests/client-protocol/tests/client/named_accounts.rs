@@ -152,10 +152,10 @@ fn a_client_can_switch_after_resuming_the_kept_source() {
 }
 
 #[test]
-fn a_move_rechooses_after_its_financial_payer_changes() {
+fn a_move_keeps_a_project_key_covering_the_new_financial_payer() {
     const PROJECT_PAID: u64 = 100;
     const STOP_PROJECT: Key = Key { asker: Asker::JIG, number: 39 };
-    let (mut story, original, first, _) = prepared();
+    let (mut story, original, _, _) = prepared();
     let mut uses = List::with_capacity(1);
     uses.push(c::OwnerAccountUse::Project(1)).expect("bounded account story fixture");
     story.send(
@@ -205,7 +205,10 @@ fn a_move_rechooses_after_its_financial_payer_changes() {
     );
     assert!(story.run_until(|s| !s.answered(RELEASE).is_empty(), PROOF_WAIT));
     assert!(matches!(answer(&story, RELEASE), c::Answer::Done(_)));
-    assert!(story.run_until(|s| task(s).is_some_and(|t| t.kept_account == Some(first.0)), PROOF_WAIT));
+    assert!(story.run_until(
+        |s| task(s).is_some_and(|t| t.kept_account == Some(0)) && s.phase(PROJECT_PAID) == Some(c::Phase::Running),
+        PROOF_WAIT
+    ));
 }
 
 #[test]

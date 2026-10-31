@@ -150,6 +150,7 @@ fn owner_outcome(b: &mut Builder, words: &Words, value: &c::OwnerOutcome) {
         | O::MarkedSeen { .. }
         | O::NoteEdited { .. }
         | O::ProjectMade { .. }
+        | O::ProjectRemoved { .. }
         | O::Renamed { .. }
         | O::ServiceMade { .. }
         | O::Adopted { .. }

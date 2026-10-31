@@ -22,8 +22,8 @@ INSTALLATION` that accepts it.
 ## forge setup
 
 ```
-forge setup FORGE [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground] [--key KEY]
-  FORGE (forge): a number from 1 to 65535; required. The owned Forgejo's forge number
+forge setup [FORGE] [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground] [--key KEY]
+  FORGE (forge): a number from 1 to 65535; optional. A kept owned Forgejo; a new one when absent
   --org ORG: text, at most 1048576 bytes; optional. The organization; work when absent
   --repository REPOSITORY: text, at most 1048576 bytes; optional. The first repository; hello when absent
   --project PROJECT: a project's name or number; optional. Adopt into this project; a new project named after the repository when absent
@@ -63,14 +63,29 @@ forge connect FORGE forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJE
   --first ORG/REPOSITORY: text, at most 1048576 bytes; optional. Make this first repository, ORG/NAME
   --project PROJECT: a project's name or number; optional. Adopt it into this project; a new one named after it when absent
   --label LABEL: text, at most 1048576 bytes; optional. The runner's label; docker when absent
+forge connect github-app APP FILE --key KEY
+  github-app (way): one of github-app; required. An App of your own, or one another owns
+  APP (id): a number from 1 to 18446744073709551615; required. The App's id
+  FILE (file): a file; required. The private file of the App's PEM key
+forge connect github --key KEY
+  github (way): one of github; required. temper's App, made in a browser from its manifest
+forge connect forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --api HOST:PORT [--tls NAME] --git URL [--web URL] --key KEY
+  forgejo-admin (way): one of forgejo-admin; required. As the Forgejo's site admin
+  FILE (file): a file; required. The private file of the admin's token
+  --first ORG/REPOSITORY: text, at most 1048576 bytes; optional. Make this first repository, ORG/NAME
+  --project PROJECT: a project's name or number; optional. Adopt it into this project; a new one named after it when absent
+  --label LABEL: text, at most 1048576 bytes; optional. The runner's label; docker when absent
+  --api HOST:PORT: text, at most 1048576 bytes; required. The Forgejo API host and port
+  --tls NAME: text, at most 1048576 bytes; optional. The TLS server name; plaintext when absent
+  --git URL: text, at most 1048576 bytes; required. The git address
+  --web URL: text, at most 1048576 bytes; optional. The web address
 Connect GitHub through an App, or a Forgejo as its site admin
 Prints: `connecting`, then the wait to make; for github, the address to open in a browser
 --json: the record forge-connect.
 Key: --key KEY, required.
 The key or token file holds 1 to 4089 bytes after one final
-newline is trimmed. An App another owns is set read-only in the
-configuration before the start (temper help github). Then forge
-list --until connected:FORGE, or, after a browser, --until settled.
+newline is trimmed. Then forge list --until connected:FORGE, or,
+after a browser, --until settled.
 With `--first`, it goes on to make and adopt that repository, and
 prints its project. `connected already` (exit 2): the forge holds a
 key, which this build cannot replace.
@@ -117,4 +132,15 @@ Key: --key KEY, optional.
 It needs no browser, and an installation accepted already answers
 the same. `GitHub has no installation I of this App` (exit 2): read
 forge list for the ids.
+```
+
+## forge remove
+
+```
+forge remove FORGE [--key KEY]
+  FORGE (forge): a number from 1 to 65535; required. The forge's number
+Remove a forge from the deployment
+Prints: `removed`, or `refused: WHY` (exit 2)
+--json: the record forge-remove.
+Key: --key KEY, optional.
 ```

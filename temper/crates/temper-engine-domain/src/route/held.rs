@@ -2,14 +2,19 @@
 //! (jig's `domain/root.md`, 4; `testing/jig-test-domain/src/routes.rs`).
 use super::{Decision, Delivery, Domain, Env, Limits, Read, Token, Work, emit, forge_route, host_route, relay_call};
 use crate::Range;
-use crate::assemble::take_payload;
-use crate::boundary::Payload;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher releases every held core output")]
 pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, held: core::Held) {
+    let held = match jig_domain_hub_link::down(&mut domain.hub_link, held) {
+        Ok((channel, down)) => {
+            emit(decision, &env.limits, Delivery::Link { channel, down });
+            return;
+        }
+        Err(held) => held,
+    };
     match held {
         core::Held::Sources { channel, sources } => {
             emit(decision, &env.limits, Delivery::Link { channel, down: host::LinkDown::Sources { sources } });
@@ -32,20 +37,9 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
             emit(decision, &env.limits, delivery);
         }
         core::Held::Inbound { channel, run, attempt, message } => {
-            let word = match take_payload(domain, message.words) {
-                Some(Payload::InboxWord(word)) => word,
-                Some(
-                    Payload::Busy
-                    | Payload::Call { .. }
-                    | Payload::SettledCall(_)
-                    | Payload::RefusedCall { .. }
-                    | Payload::Turn { .. }
-                    | Payload::Answer { .. },
-                )
-                | None => unreachable!("fleet message payload"),
-            };
-            let down = crate::link::message(run, attempt, &word);
-            emit(decision, &env.limits, Delivery::Link { channel, down });
+            let delivery =
+                crate::link::delivery(domain, jig_domain_hub_link::Event::Inbound { channel, run, attempt, message });
+            emit(decision, &env.limits, delivery);
         }
         core::Held::MakeEffect { connector, entry } => {
             assert!(connector == domain.config.forge_connector, "numbered forge make");
@@ -57,8 +51,8 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::PeopleReply { to, reply } => {
             let token = to.into_token();
             let to = skein_lib::ReplyTo::new(token);
-            if super::demo::owns(token) {
-                super::demo::reply(domain, env, decision, to, reply);
+            if domain.playground_replies.contains_key(&token) {
+                super::playground::reply(domain, env, decision, token, reply);
             } else {
                 emit(decision, &env.limits, Delivery::WebReply { to, reply });
             }
@@ -72,9 +66,8 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
             emit(decision, &env.limits, Delivery::Result { person, task, words });
         }
         core::Held::Assign { channel, run, attempt, .. } => {
-            let assignment = domain.assignments.remove(&run.raw()).expect("durable claim has prepared assignment");
-            assert!(assignment.attempt == attempt.raw(), "assignment names current attempt");
-            emit(decision, &env.limits, Delivery::Assigned { channel, assignment });
+            let delivery = crate::link::delivery(domain, jig_domain_hub_link::Event::Assign { channel, run, attempt });
+            emit(decision, &env.limits, delivery);
         }
         core::Held::Grant { channel, run, attempt, grant } => {
             emit(
@@ -130,9 +123,9 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::Applied { to, token, .. } => {
             let right = to.into_token();
             let to = skein_lib::ReplyTo::new(right);
-            if super::demo::owns(right) {
+            if domain.playground_replies.contains_key(&right) {
                 let outcome = domain.forge.application_answer(token);
-                super::demo::adopted(domain, env, decision, outcome);
+                super::playground::adopted(domain, right, outcome);
             } else {
                 emit(
                     decision,
@@ -147,7 +140,14 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::NotesWritten { .. } | core::Held::NotesDeleted { .. } => {
             unreachable!("the current application has no note caller")
         }
-        core::Held::Acted { to, outcome } => emit(decision, &env.limits, Delivery::DemoActed { to, outcome }),
+        core::Held::Acted { to, outcome } => {
+            let token = to.into_token();
+            if domain.playground_replies.contains_key(&token) {
+                super::playground::acted(domain, env, decision, token, outcome);
+            } else {
+                unreachable!("act reply belongs to the playground");
+            }
+        }
     }
 }
 

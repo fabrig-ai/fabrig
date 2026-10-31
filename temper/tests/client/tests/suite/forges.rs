@@ -1,15 +1,15 @@
 //! The tools' root joined to the engine root; only the box link is scripted
 //! (client/tools.md, 11.2; domain/testing.md, 6.3).
 use jig_client::{self as client, contract as c};
-use jig_client_world::{
-    harness::ClientId,
-    joint::{packets::Incoming, transport::Transport},
-};
+use jig_client_world::{harness::ClientId, joint::transport::Transport};
 use jig_domain_people as people;
 use skein_lib::{Env, List, Queue, Time, Token, Wall};
 use std::collections::{BTreeMap, VecDeque};
 use temper_client_tools::{self as tools, root};
-use temper_client_world::{fixtures, translate};
+use temper_client_world::{
+    component::{Composition, Incoming},
+    fixtures, translate,
+};
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::{direct::Driver, store::Store, walking};
@@ -87,6 +87,7 @@ struct World {
     env: Env<root::Limits>,
     engine: Driver,
     transport: Transport,
+    component: Composition,
     out: Queue<root::Request>,
     printed: BTreeMap<u32, tools::jig::Printed>,
     progress: Vec<Box<[u8]>>,
@@ -119,10 +120,10 @@ impl World {
         });
         transport.models.clone_from(&configuration.core.settings.models);
         transport.providers = configuration.core.settings.llm_providers.clone();
+        let component = Composition::new(&configuration, tools::limits::client().client.domain);
         let mut engine = Driver::configured(store, [config(under_box), configuration], &limits);
         engine.settle();
-        engine.sign_in();
-        engine.settle();
+
         transport.bind(
             CLIENT,
             fixtures::PARTY,
@@ -132,7 +133,7 @@ impl World {
                 name: b"Person".as_slice().into(),
             },
         );
-        transport.signed_in(CLIENT, fixtures::PARTY, engine.session());
+
         engine.delivered.clear();
         engine.immediate.clear();
         let limits = root::Limits::new(tools::limits::client(), tools::limits::tools());
@@ -142,6 +143,7 @@ impl World {
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             engine,
             transport,
+            component,
             out: Queue::with_capacity(OUTPUTS),
             printed: BTreeMap::new(),
             progress: Vec::new(),
@@ -154,6 +156,15 @@ impl World {
         for forge in [FORGE, OTHER, AUTOMATIC] {
             world.connection(forge, forge::Connection::NotSetUp);
         }
+        world.component.sign_in(
+            CLIENT,
+            people::Identity {
+                key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                login: b"person".as_slice().into(),
+                name: b"Person".as_slice().into(),
+            },
+        );
+        world.settle();
         world.client(client::Event::StartUnlinked { kept: List::with_capacity(0) });
         world.client(client::Event::SignIn { with: client::With::Transport });
         world.client(client::Event::Up { up: world.transport.hello() });
@@ -200,42 +211,21 @@ impl World {
     }
     fn callback(&mut self, event: temper_client_domain::Event) {
         let temper_client_domain::Event::Client { event } = event else { panic!("client callback") };
-        if let client::Event::Up { up: client::Up::FamilyDelivered { watch, record } } = &event {
+        if let client::Event::Up { up: client::Up::FamilyDelivered { record, .. } } = &event {
             self.documents.push(record.clone());
-            if let Some(event) = self.transport.application_taken(CLIENT, *watch) {
-                self.engine.send(translate::party(event));
-            }
-        }
-        if let client::Event::Up { up: client::Up::Watched { watch, event: c::WatchEvent::Delivered(_) } } = &event
-            && let Some(event) = self.transport.taken(CLIENT, *watch)
-        {
-            self.engine.send(translate::party(event));
         }
         self.client(event);
     }
     fn packet(&mut self, packet: Incoming) {
-        let Incoming::Callback { client, event } = packet else { panic!("signed-in callback: {packet:?}") };
+        let Incoming::Callback { client, event } = packet else {
+            assert!(matches!(packet, Incoming::Authenticated { .. }));
+            return;
+        };
         assert_eq!(client, CLIENT);
         self.callback(translate::callback(event));
     }
     fn incoming(&mut self, request: engine::Request) {
-        match translate::forge::incoming(&mut self.transport, request, &self.env.limits.domain.client.domain) {
-            Ok(Some((who, event))) => {
-                assert_eq!(who, CLIENT);
-                self.callback(event);
-            }
-            Ok(None) => {}
-            Err(request) => {
-                if let Some(packet) = translate::incoming(
-                    &mut self.transport,
-                    *request,
-                    &self.env.limits.domain.client.domain,
-                    &fixtures::codec_for(&self.env.limits.domain.client.domain),
-                ) {
-                    self.packet(packet);
-                }
-            }
-        }
+        self.component.incoming(&mut self.transport, request);
     }
     fn settle(&mut self) {
         for _ in 0..STEPS {
@@ -252,19 +242,8 @@ impl World {
                         self.saved.remove(&key);
                     }
                     root::Request::Client { request: request @ client::Request::Down { .. } } => {
-                        let mut request = temper_client_domain::Request::Client { request };
-                        let (events, refusal) = translate::request(
-                            &mut self.transport,
-                            CLIENT,
-                            &mut request,
-                            &self.env.limits.domain.client.domain,
-                        );
-                        for event in events {
-                            self.engine.send(event);
-                        }
-                        if let Some(packet) = refusal {
-                            self.packet(packet);
-                        }
+                        let client::Request::Down { down } = request else { unreachable!("down request") };
+                        self.component.send(CLIENT, down);
                     }
                     root::Request::Printed { number, printed } => {
                         assert!(self.printed.insert(number, printed).is_none(), "one answer");
@@ -278,7 +257,29 @@ impl World {
                     }
                 }
             }
+            let packets = self.component.pump(&mut self.transport);
+            let events = self.component.effects();
+            moved |= !packets.is_empty() || !events.is_empty();
+            for event in events {
+                self.engine.send(event);
+            }
             self.engine.settle();
+            let refused: Vec<_> = self
+                .engine
+                .immediate
+                .iter()
+                .filter_map(|request| {
+                    if let engine::Request::Party(engine::PartyRequest::WatchRefused { watcher, .. }) = request {
+                        Some(*watcher)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            self.component.admitted(&refused);
+            for packet in packets {
+                self.packet(packet);
+            }
             let delivered = std::mem::take(&mut self.engine.delivered);
             moved |= !delivered.is_empty();
             for delivery in delivered {
@@ -487,4 +488,33 @@ fn invalid_setup_names_are_refused_without_a_box_effect() {
         ));
     }
     assert_eq!(world.box_calls, 0);
+}
+
+#[test]
+fn a_fresh_deployment_keeps_a_github_row_only_when_connected_and_removes_it_when_confirmed() {
+    use super::connect_forge::{node, view};
+    use jig_client_world::harness::App;
+    use skein_ui::{Act, Role};
+    use temper_client_domain::{self as client, Address};
+    use temper_client_world::{app::Temper, front::account_acts as accounts};
+    let (mut front, mut root) = accounts::fresh_fixture(temper_client_world::fixtures::SEED);
+    accounts::event(&mut front, &mut root, Temper::went(Address::Forges));
+    assert!(matches!(root.person().forges(), client::forge::forges::State::Rows(rows) if rows.is_empty()));
+    accounts::event(&mut front, &mut root, Temper::went(Address::ConnectForge { forge: None }));
+    let mut rendered = view(&root);
+    let id = node(&rendered, Role::Button, b"Connect GitHub");
+    let action = temper_client_view::act(&mut rendered, id, Act::Press).expect("connect GitHub");
+    accounts::event(&mut front, &mut root, client::Event::Act { action }.into());
+    accounts::event(&mut front, &mut root, Temper::went(Address::Forges));
+    let client::forge::forges::State::Rows(rows) = root.person().forges() else { panic!("forge records") };
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].kind, client::forge::forges::Kind::GitHub);
+    for confirmed in [false, true] {
+        let mut rendered = view(&root);
+        let id = node(&rendered, Role::Button, b"Remove");
+        let action = temper_client_view::act(&mut rendered, id, Act::Press).expect("remove control");
+        accounts::event(&mut front, &mut root, client::Event::Act { action }.into());
+        let client::forge::forges::State::Rows(rows) = root.person().forges() else { panic!("forge records") };
+        assert_eq!(rows.is_empty(), confirmed, "the first press only opens confirmation");
+    }
 }

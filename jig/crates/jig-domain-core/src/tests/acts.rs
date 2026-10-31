@@ -2,6 +2,7 @@
 use super::*;
 use crate::acts as offers;
 use crate::acts::{Act, Admission, Beyond, Bounds};
+use crate::routing::party::Control;
 
 fn policy_holder(numbers: &[u32]) -> offers::Recipient {
     let mut roles = List::with_capacity(u32::try_from(numbers.len()).unwrap());
@@ -205,7 +206,12 @@ fn an_amendment_uses_live_pool_and_remaining_task_facts_and_preserves_narrowing(
         reason: Box::new([]),
     };
     assert_eq!(
-        core.amend_admit(1, Some(people::Role::Owner), 1, 1, &change, limits.tasks.depth, &limits.tasks),
+        core.amend_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+            &change,
+            limits.tasks.depth,
+            &limits.tasks
+        ),
         Err(people::Refusal::Authority {
             lacking: people::Lack::Budget { needs: 550, left: 500 },
             proposable: Some(people::Accepter::Role(0))
@@ -223,7 +229,12 @@ fn an_amendment_uses_live_pool_and_remaining_task_facts_and_preserves_narrowing(
         people::Refusal::Authority { lacking: people::Lack::Approver, proposable: Some(people::Accepter::Nobody) }
     );
     assert_eq!(
-        core.amend_admit(1, Some(people::Role::Owner), 1, 1, &change, limits.tasks.depth, &limits.tasks),
+        core.amend_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+            &change,
+            limits.tasks.depth,
+            &limits.tasks
+        ),
         Err(people::Refusal::Authority {
             lacking: people::Lack::Budget { needs: 550, left: 500 },
             proposable: Some(people::Accepter::Nobody)
@@ -231,7 +242,12 @@ fn an_amendment_uses_live_pool_and_remaining_task_facts_and_preserves_narrowing(
     );
     change.authority.as_mut().unwrap().budget.spend = 90;
     assert_eq!(
-        core.amend_admit(1, Some(people::Role::Owner), 1, 1, &change, limits.tasks.depth, &limits.tasks),
+        core.amend_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+            &change,
+            limits.tasks.depth,
+            &limits.tasks
+        ),
         Ok(true)
     );
 }
@@ -392,7 +408,10 @@ fn offered_person_handoffs_and_answers_reach_the_child_and_change_the_offer() {
     let subject = Subject::PersonTask { task: 5 };
     assert_eq!(offers::admit(&core, &limits, 1, Act::Take, &subject, Wall::EPOCH), Admission::Allowed);
     let event = core
-        .person_task(Token::new(81), 1, 1, Some(people::Role::Owner), people::Ask::TakePerson { project: 1, task: 5 })
+        .person_task(
+            routing::party::Party { request: Token::new(81), person: 1, project: 1, role: Some(people::Role::Owner) },
+            person_task::Action::Take { task: 5 },
+        )
         .unwrap();
     send_task(&mut core, &limits, event);
     assert_eq!(person_task_flight(&mut core, Token::new(81)), Some(PersonTaskRoute::Take(5)));
@@ -405,11 +424,13 @@ fn offered_person_handoffs_and_answers_reach_the_child_and_change_the_offer() {
     assert_eq!(offers::admit(&core, &limits, 1, Act::HandBack, &subject, Wall::EPOCH), Admission::Allowed);
     let event = core
         .person_task(
-            Token::new(82),
-            1,
-            1,
-            Some(people::Role::Observer),
-            people::Ask::HandBackPerson { project: 1, task: 5 },
+            routing::party::Party {
+                request: Token::new(82),
+                person: 1,
+                project: 1,
+                role: Some(people::Role::Observer),
+            },
+            person_task::Action::HandBack { task: 5 },
         )
         .unwrap();
     send_task(&mut core, &limits, event);
@@ -418,20 +439,33 @@ fn offered_person_handoffs_and_answers_reach_the_child_and_change_the_offer() {
     holding(&mut core, &limits, people::Role::Owner);
     let why = people::Refusal::NotWaiting;
     assert_eq!(offers::admit(&core, &limits, 1, Act::Answer, &subject, Wall::EPOCH), Admission::Refused(why.clone()));
-    let answer = people::Ask::AnswerPerson {
-        project: 1,
+    let answer = person_task::Action::Answer {
         task: 5,
         revision: core.tasks.task(5).unwrap().revisions.person,
         result: people::PersonResult::Report { words: b"done".as_slice().into() },
     };
-    assert_eq!(core.person_task(Token::new(83), 1, 1, Some(people::Role::Owner), answer.clone()), Err(why));
+    assert_eq!(
+        core.person_task(
+            routing::party::Party { request: Token::new(83), person: 1, project: 1, role: Some(people::Role::Owner) },
+            answer.clone()
+        ),
+        Err(why)
+    );
     let event = core
-        .person_task(Token::new(84), 1, 1, Some(people::Role::Owner), people::Ask::TakePerson { project: 1, task: 5 })
+        .person_task(
+            routing::party::Party { request: Token::new(84), person: 1, project: 1, role: Some(people::Role::Owner) },
+            person_task::Action::Take { task: 5 },
+        )
         .unwrap();
     send_task(&mut core, &limits, event);
     assert_eq!(person_task_flight(&mut core, Token::new(84)), Some(PersonTaskRoute::Take(5)));
     assert_eq!(offers::admit(&core, &limits, 1, Act::Answer, &subject, Wall::EPOCH), Admission::Allowed);
-    let event = core.person_task(Token::new(85), 1, 1, Some(people::Role::Owner), answer).unwrap();
+    let event = core
+        .person_task(
+            routing::party::Party { request: Token::new(85), person: 1, project: 1, role: Some(people::Role::Owner) },
+            answer,
+        )
+        .unwrap();
     send_task(&mut core, &limits, event);
     assert_eq!(person_task_flight(&mut core, Token::new(85)), Some(PersonTaskRoute::Answer(5)));
     let actor = core.tasks.task(5).unwrap().person_answer.unwrap();
@@ -468,13 +502,14 @@ fn a_named_person_can_answer_without_project_membership() {
         offers::admit(&core, &limits, 1, Act::Answer, &Subject::PersonTask { task: 5 }, Wall::EPOCH),
         Admission::Allowed
     );
-    let answer = people::Ask::AnswerPerson {
-        project: 1,
+    let answer = person_task::Action::Answer {
         task: 5,
         revision: core.tasks.task(5).unwrap().revisions.person,
         result: people::PersonResult::Report { words: b"done".as_slice().into() },
     };
-    let event = core.person_task(Token::new(87), 1, 1, None, answer).unwrap();
+    let event = core
+        .person_task(routing::party::Party { request: Token::new(87), person: 1, project: 1, role: None }, answer)
+        .unwrap();
     send_task(&mut core, &limits, event);
     assert_eq!(person_task_flight(&mut core, Token::new(87)), Some(PersonTaskRoute::Answer(5)));
     assert_eq!(core.tasks.task(5).unwrap().person_answer.unwrap().by, 1);
@@ -487,25 +522,24 @@ fn task_controls_owner_changes_priorities_and_note_scopes_share_their_judges() {
     given.delegation.tasks = 3;
     given.delegation.depth = 2;
     set_role_authority(&mut core.authority, given);
-    for (act, ask, number) in [
-        (Act::Stop, people::Ask::Stop { project: 1, task: 2 }, 2),
-        (Act::Cancel, people::Ask::Cancel { project: 1, task: 2, reason: b"done".as_slice().into(), grace: None }, 2),
-        (
-            Act::Release,
-            people::Ask::Release {
-                project: 1,
-                task: 3,
-                revision: core.tasks.task(3).unwrap().revisions.hold,
-                again: None,
-            },
-            3,
-        ),
+    for (act, control, number) in [
+        (Act::Stop, Control::Stop, 2),
+        (Act::Cancel, Control::Cancel { reason_len: b"done".len(), grace: None }, 2),
+        (Act::Release, Control::Release { again: None }, 3),
     ] {
         assert_eq!(
             offers::admit(&core, &limits, 1, act, &Subject::Task { task: number }, Wall::EPOCH),
             Admission::Allowed
         );
-        assert_eq!(core.control_admit(&ask, 1, 1, Some(people::Role::Owner), &limits.tasks), Ok(number));
+        assert_eq!(
+            core.control_admit(
+                compound::PartyTask { person: 1, project: 1, role: Some(people::Role::Owner), task: number },
+                control,
+                &limits.tasks,
+                &tasks::CompoundAdmission::new(&core.tasks, 0)
+            ),
+            Ok(number)
+        );
     }
     let why = people::Refusal::Authority {
         lacking: people::Lack::Tasks { left: 3 },
@@ -516,7 +550,12 @@ fn task_controls_owner_changes_priorities_and_note_scopes_share_their_judges() {
         Admission::Refused(why.clone())
     );
     assert_eq!(
-        core.move_admit(1, Some(people::Role::Owner), 1, 2, limits.tasks.tree_tasks, limits.tasks.depth),
+        core.move_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 2 },
+            limits.tasks.tree_tasks,
+            limits.tasks.depth,
+            &tasks::CompoundAdmission::new(&core.tasks, 0)
+        ),
         Err(why)
     );
     assert_eq!(
@@ -694,7 +733,12 @@ fn a_move_offer_tracks_requester_changes_after_adoption() {
     let why = people::Refusal::NotWaiting;
     assert_eq!(offers::admit(&core, &limits, 1, Act::Move, &object, Wall::EPOCH), Admission::Refused(why.clone()));
     assert_eq!(
-        core.move_admit(1, Some(people::Role::Owner), 1, 5, limits.tasks.tree_tasks, limits.tasks.depth),
+        core.move_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 5 },
+            limits.tasks.tree_tasks,
+            limits.tasks.depth,
+            &tasks::CompoundAdmission::new(&core.tasks, 0)
+        ),
         Err(why)
     );
 }
@@ -1041,7 +1085,15 @@ fn a_procedure_repeat_is_refused_before_authority_and_its_uncertain_effect_keeps
     let mut procedure = core.tasks.task(1).expect("procedure made").clone();
     let ask = people::Ask::Release { project: 1, task: 1, revision: procedure.revisions.hold, again: Some(true) };
     let refusal = people::Refusal::NotOffered;
-    assert_eq!(core.control_admit(&ask, 1, 1, None, &limits.tasks), Err(refusal.clone()));
+    assert_eq!(
+        core.control_admit(
+            compound::PartyTask { person: 1, project: 1, role: None, task: 1 },
+            Control::Release { again: Some(true) },
+            &limits.tasks,
+            &tasks::CompoundAdmission::new(&core.tasks, 0)
+        ),
+        Err(refusal.clone())
+    );
     assert_eq!(offers::request(&core, &limits, 1, 1, None, &ask, Wall::EPOCH), Err(refusal));
     assert_eq!(revisions::release_run(&procedure, None), Ok(()));
     let tasks::Phase::Held { why, .. } = &mut procedure.phase else { panic!("held fixture") };

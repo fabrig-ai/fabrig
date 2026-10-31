@@ -62,6 +62,8 @@ fn labelled(label: &[u8], name: &[u8]) -> Box<[crate::layout::Placed]> {
     crate::layout::flatten(Steps {
         always: Box::new([]),
         asked: Box::new([Group {
+            kind: None,
+            remover: None,
             forge: 37,
             before: 0,
             recorded: false,

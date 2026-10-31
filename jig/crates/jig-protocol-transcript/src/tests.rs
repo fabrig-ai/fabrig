@@ -1,6 +1,6 @@
 use super::*;
 
-use jig_client_test_domain::DIALECT;
+const DIALECT: u32 = 1;
 use smith::{Block as SBlock, CEILINGS, MessageParts, TurnParts, UsageParts};
 
 fn limits() -> Limits {

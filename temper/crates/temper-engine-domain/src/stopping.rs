@@ -29,6 +29,6 @@ pub(crate) fn defer(domain: &Domain, event: Event) -> Result<Event, Box<forge::E
 
 /// The drain answers a relayed call busy; the host retries it after the restart.
 pub(crate) fn call(domain: &mut Domain, to: ReplyTo) {
-    let answer = domain.payloads.insert(Some(Payload::Busy)).expect("fleet call reserved answer room").token();
+    let answer = domain.hub_link.retain(Payload::Busy);
     domain.work.push(Work::Fleet(fleet::Event::Relayed { to, answer }));
 }
