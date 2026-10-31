@@ -1115,3 +1115,68 @@ pub struct Signer {
     pub identity: Identity,
     pub kind: Kind,
 }
+
+/// Semantic outcome of a deployment act (domain/people.md, 5.3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ActStatus {
+    Closed,
+    Again,
+    NotOffered,
+    NoOwner,
+    Ended,
+    Refused,
+}
+impl Outcome {
+    /// Classify an act's answer without interpreting it in an application's root.
+    #[must_use]
+    pub const fn act_status(&self) -> ActStatus {
+        match self {
+            Outcome::Compound { .. } => ActStatus::Closed,
+            Outcome::Again(_) => ActStatus::Again,
+            Outcome::Refused(Refusal::NotOffered) => ActStatus::NotOffered,
+            Outcome::Refused(Refusal::Role { held: None }) => ActStatus::NoOwner,
+            Outcome::Refused(Refusal::Ended { .. }) => ActStatus::Ended,
+            Outcome::CompoundRefused { .. }
+            | Outcome::Created { .. }
+            | Outcome::MarkedSeen { .. }
+            | Outcome::Applied { .. }
+            | Outcome::SignedOut
+            | Outcome::NoteEdited { .. }
+            | Outcome::ServiceMade { .. }
+            | Outcome::Adopted { .. }
+            | Outcome::Proposed { .. }
+            | Outcome::Withdrawn { .. }
+            | Outcome::Stopped { .. }
+            | Outcome::Cancelled { .. }
+            | Outcome::Lifted { .. }
+            | Outcome::Released { .. }
+            | Outcome::PersonTaken { .. }
+            | Outcome::PersonHandedBack { .. }
+            | Outcome::PersonAnswered { .. }
+            | Outcome::Moved { .. }
+            | Outcome::ProposalDecided { .. }
+            | Outcome::Said { .. }
+            | Outcome::QuestionAnswered { .. }
+            | Outcome::Amended { .. }
+            | Outcome::RolesSet { .. }
+            | Outcome::PolicyChanged { .. }
+            | Outcome::PoolSet { .. }
+            | Outcome::Renamed { .. }
+            | Outcome::ProjectMade { .. }
+            | Outcome::ProjectRemoved { .. }
+            | Outcome::SettingsChanged { .. }
+            | Outcome::MovedToNewest { .. }
+            | Outcome::EscalationDecided { .. }
+            | Outcome::AccountSignInStarted { .. }
+            | Outcome::AccountSignedOut { .. }
+            | Outcome::AccountKeyKept { .. }
+            | Outcome::AccountProgramDeclared { .. }
+            | Outcome::AccountChanged
+            | Outcome::AccountMovingOut { .. }
+            | Outcome::AccountFinishing { .. }
+            | Outcome::AccountMovedIn { .. }
+            | Outcome::AccountRemoved { .. }
+            | Outcome::Refused(_) => ActStatus::Refused,
+        }
+    }
+}

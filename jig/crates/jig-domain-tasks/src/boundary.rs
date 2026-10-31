@@ -2136,3 +2136,37 @@ pub enum Bound {
     /// The model's declared output ceiling: tokens.
     Output,
 }
+
+/// The generic inbox inputs consumed by a connector procedure (domain/tasks.md, 8.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ProcedureInput {
+    News,
+    Result(ResultKind),
+}
+impl MessageKind {
+    /// Select connector news and delegate results from a procedure's inbox.
+    #[must_use]
+    pub fn procedure_input(self) -> Option<ProcedureInput> {
+        match self {
+            Self::News { .. } => Some(ProcedureInput::News),
+            Self::Result(result) => Some(ProcedureInput::Result(result)),
+            Self::Escalation { .. }
+            | Self::Proposal { .. }
+            | Self::SettingsDecision { .. }
+            | Self::ProposalDecision { .. }
+            | Self::EffectNotMade { .. }
+            | Self::Words
+            | Self::Met { .. }
+            | Self::FinishRequested { .. }
+            | Self::Amendment { .. }
+            | Self::Question
+            | Self::Answer { .. }
+            | Self::Notice { .. }
+            | Self::QuestionAnswered { .. }
+            | Self::QuestionOwed
+            | Self::QuestionEnded { .. }
+            | Self::Timer { .. }
+            | Self::PersonStalled { .. } => None,
+        }
+    }
+}
