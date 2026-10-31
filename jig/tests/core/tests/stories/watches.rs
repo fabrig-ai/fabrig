@@ -211,7 +211,7 @@ fn inbox_across_projects_stories() {
             project: 2,
             holdings: Box::new([
                 people::Holding { person: 1, role: people::Role::Owner },
-                people::Holding { person: 2, role: people::Role::Owner },
+                people::Holding { person: 3, role: people::Role::Owner },
             ]),
         },
     );
@@ -276,7 +276,7 @@ fn a_proposal_decided_in_one_project_leaves_the_inbox_across_projects(
     assert_eq!(inbox.needs.get(0).expect("other proposal").project, Some(2));
     assert_eq!(
         inbox.needs.get(0).expect("other proposal").object,
-        core::documents::InboxObject::Proposal { proposer: core::documents::Proposer::Party(2), number: other }
+        core::documents::InboxObject::Proposal { proposer: core::documents::Proposer::Party(3), number: other }
     );
     let Document::Frame(frame) = latest(world, 1) else { panic!("frame") };
     assert_eq!(frame.needs, 1);
