@@ -227,9 +227,7 @@ impl Stages {
     }
 
     pub(super) fn next_send(&mut self) -> Token {
-        let token = Token::new(self.next_send);
-        self.next_send = self.next_send.checked_add(1).expect("one run does not exhaust send names");
-        token
+        super::link::token(&mut self.next_send)
     }
 
     pub(super) fn mark_failed(&mut self, reason: Failure) {
@@ -248,13 +246,15 @@ impl Stages {
         if let Some(events) = &mut self.events {
             events.answer(self.domain_env.now, self.run_started, &answer, read);
         }
-        if frame
-            .channel
-            .send_answer(self.domain_env.now, answer, read, token, &mut self.channel_events, &mut self.channel_below)
-            .is_err()
-        {
-            self.mark_failed(Failure::Send);
-        }
+        let result = frame.channel.send_answer(
+            self.domain_env.now,
+            answer,
+            read,
+            token,
+            &mut self.channel_events,
+            &mut self.channel_below,
+        );
+        super::link::sent(self, result.is_ok());
         teardown::answered(self);
     }
 

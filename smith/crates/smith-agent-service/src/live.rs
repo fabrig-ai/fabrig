@@ -2,8 +2,8 @@
 //! Never chooses a completion or retains provider bytes past the held-byte bound.
 //! `act` advances the buffer through a concrete host connection; `deadline` names its oldest hold.
 //! Contracts: smith/docs/design/protocol/channel.md, 7; smith/docs/design/protocol/limits.md, 3.6.
+use crate::service::link::HostLink;
 use alloc::boxed::Box;
-use skein_channel::Lower;
 use skein_lib::{Duration, Map, Queue, Time, Token, Writer};
 use smith_domain::llm;
 use smith_protocol_channel::{self as channel, Piece};
@@ -11,38 +11,6 @@ use smith_protocol_channel::{self as channel, Piece};
 /// Held payload bound, independent of provider delta size (smith/docs/design/protocol/limits.md 3.6).
 const HELD: u32 = 16_384;
 const PIECE: u32 = smith_channel::CEILINGS.live_bytes;
-
-pub(crate) struct Connection<'a> {
-    pub channel: &'a mut channel::Component,
-    pub above: &'a mut Queue<channel::OpenEvent>,
-    pub below: &'a mut Queue<Lower>,
-    pub next: &'a mut u64,
-    pub failed: bool,
-    pub room: channel::EdgeRoom,
-    pub ending: bool,
-}
-
-impl Connection<'_> {
-    fn takes(&self, kind: channel::PieceKind<'_>, bytes: u32) -> bool {
-        let room = self.room;
-        let entrances = if self.ending { 2 } else { 1 };
-        self.above.room() >= room.to_domain.saturating_mul(entrances)
-            && self.below.room() >= room.below.saturating_mul(entrances)
-            && self.channel.takes_live(kind, bytes)
-    }
-
-    fn send(&mut self, piece: Piece<'_>) {
-        let token = Token::new(*self.next);
-        *self.next = self.next.checked_add(1).expect("one run does not exhaust send names");
-        if self.channel.send_live(piece, token, self.above, self.below).is_err() {
-            self.failed = true;
-        }
-    }
-
-    fn lose(&mut self, bytes: u64) {
-        self.channel.lose_live(bytes);
-    }
-}
 
 pub(crate) enum Action<'a> {
     Open { owner: Token, retry: u32 },
@@ -140,7 +108,7 @@ impl Live {
         smith_protocol_llm::Deltas { text: observed || (eligible && text), input: eligible && input }
     }
 
-    pub(crate) fn act(&mut self, action: Action<'_>, now: Time, room: &mut Connection<'_>) {
+    pub(crate) fn act(&mut self, action: Action<'_>, now: Time, room: &mut HostLink<'_>) {
         match action {
             Action::Open { owner, retry } => {
                 self.open(owner, self.last_turn.checked_add(1).expect("bounded turns"), retry, room);
@@ -156,7 +124,7 @@ impl Live {
         }
     }
 
-    fn open(&mut self, owner: Token, turn: u32, retry: u32, room: &mut Connection<'_>) {
+    fn open(&mut self, owner: Token, turn: u32, retry: u32, room: &mut HostLink<'_>) {
         self.end(room);
         self.stream = Some(Stream { owner, turn, retry, ended: false });
         self.next = 0;
@@ -190,7 +158,7 @@ impl Live {
         self.current = Some(index);
     }
 
-    fn arguments(&mut self, owner: Token, index: u32, bytes: &[u8], now: Time, room: &mut Connection<'_>) {
+    fn arguments(&mut self, owner: Token, index: u32, bytes: &[u8], now: Time, room: &mut HostLink<'_>) {
         match &self.stream {
             Some(stream) if stream.owner == owner => {}
             Some(_) | None => return,
@@ -202,14 +170,14 @@ impl Live {
         self.append(owner, Some(index), bytes, now, room);
     }
 
-    fn delta(&mut self, owner: Token, bytes: &[u8], now: Time, room: &mut Connection<'_>) {
+    fn delta(&mut self, owner: Token, bytes: &[u8], now: Time, room: &mut HostLink<'_>) {
         match &self.ask {
             Some(ask) if ask.text() => self.append(owner, None, bytes, now, room),
             Some(_) | None => {}
         }
     }
 
-    fn append(&mut self, owner: Token, call: Option<u32>, bytes: &[u8], now: Time, room: &mut Connection<'_>) {
+    fn append(&mut self, owner: Token, call: Option<u32>, bytes: &[u8], now: Time, room: &mut HostLink<'_>) {
         let Some(stream) = &self.stream else {
             return;
         };
@@ -257,7 +225,7 @@ impl Live {
         Some(self.first.as_ref()?.arrived.saturating_add(self.interval))
     }
 
-    fn pump(&mut self, now: Time, room: &mut Connection<'_>) {
+    fn pump(&mut self, now: Time, room: &mut HostLink<'_>) {
         let Some(stream) = &self.stream else {
             return;
         };
@@ -340,7 +308,7 @@ impl Live {
         }
     }
 
-    fn end(&mut self, room: &mut Connection<'_>) {
+    fn end(&mut self, room: &mut HostLink<'_>) {
         self.pump(Time::from_nanos(u64::MAX), room);
         room.lose(u64::from(self.held_bytes));
         self.first = None;

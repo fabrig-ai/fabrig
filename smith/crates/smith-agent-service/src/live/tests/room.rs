@@ -135,7 +135,7 @@ impl Room {
             Action::End { .. } => true,
             _ => false,
         };
-        let mut connection = super::super::Connection {
+        let mut connection = crate::service::link::HostLink {
             channel: &mut self.channel,
             above: &mut self.above,
             below: &mut self.below,

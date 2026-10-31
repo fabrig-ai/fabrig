@@ -5,8 +5,48 @@
 use super::up::live_step;
 use super::{Failure, Frame, Stages, program, teardown};
 use alloc::boxed::Box;
-use skein_lib::{Duration, Time};
+use skein_channel::Lower;
+use skein_lib::{Duration, Queue, Time, Token};
 use smith_domain as domain;
+use smith_protocol_channel::{self as channel, Piece};
+
+// One entrance borrows the channel edge; no borrow survives a service step.
+pub(crate) struct HostLink<'a> {
+    pub channel: &'a mut channel::Component,
+    pub above: &'a mut Queue<channel::OpenEvent>,
+    pub below: &'a mut Queue<Lower>,
+    pub next: &'a mut u64,
+    pub failed: bool,
+    pub room: channel::EdgeRoom,
+    pub ending: bool,
+}
+
+impl HostLink<'_> {
+    pub(crate) fn takes(&self, kind: channel::PieceKind<'_>, bytes: u32) -> bool {
+        let room = self.room;
+        let entrances = if self.ending { 2 } else { 1 };
+        self.above.room() >= room.to_domain.saturating_mul(entrances)
+            && self.below.room() >= room.below.saturating_mul(entrances)
+            && self.channel.takes_live(kind, bytes)
+    }
+
+    pub(crate) fn send(&mut self, piece: Piece<'_>) {
+        let token = token(self.next);
+        if self.channel.send_live(piece, token, self.above, self.below).is_err() {
+            self.failed = true;
+        }
+    }
+
+    pub(crate) fn lose(&mut self, bytes: u64) {
+        self.channel.lose_live(bytes);
+    }
+}
+
+pub(super) fn token(next: &mut u64) -> Token {
+    let token = Token::new(*next);
+    *next = next.checked_add(1).expect("one run does not exhaust send names");
+    token
+}
 
 fn account_notice(
     service: &mut Stages,
@@ -197,14 +237,14 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
         | domain::Request::Check { .. }
         | domain::Request::Abort { .. } => unreachable!("lower requests are dispatched before the framed face"),
     };
-    sent(service, result);
+    sent(service, result.is_ok());
     if answered {
         teardown::answered(service);
     }
 }
 
-pub(super) fn sent(service: &mut Stages, result: Result<(), smith_protocol_channel::Error>) {
-    if result.is_err() {
+pub(super) fn sent(service: &mut Stages, succeeded: bool) {
+    if !succeeded {
         service.mark_failed(Failure::Send);
     }
 }
