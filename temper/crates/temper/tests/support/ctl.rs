@@ -110,6 +110,12 @@ pub enum Step {
         parent: u64,
         task: u64,
     },
+    /// Resolve a project by name through ctl's me read before waiting for its child.
+    TaskExistsIn {
+        project: &'static str,
+        parent: u64,
+        task: u64,
+    },
     Cut,
     Pause,
     Resume,
@@ -879,9 +885,8 @@ impl Calls {
             },
         });
     }
-    fn wait_for_task(&mut self, project: u64, parent: u64, task: u64) {
-        let call =
-            Call::new(&["task", "list", "--project", &project.to_string(), "--parent", &parent.to_string()]).json();
+    fn wait_for_task(&mut self, project: &str, parent: u64, task: u64) {
+        let call = Call::new(&["task", "list", "--project", project, "--parent", &parent.to_string()]).json();
         self.action = Some(Action::TaskExists(call.clone(), task));
         self.start(call, false);
     }
@@ -971,7 +976,8 @@ impl Calls {
                 self.action = Some(Action::Until(call.clone(), condition));
                 self.start(call, false);
             }
-            Some(Step::TaskExists { project, parent, task }) => self.wait_for_task(project, parent, task),
+            Some(Step::TaskExists { project, parent, task }) => self.wait_for_task(&project.to_string(), parent, task),
+            Some(Step::TaskExistsIn { project, parent, task }) => self.wait_for_task(project, parent, task),
             Some(Step::Cut) => self.cut_started(),
             Some(step @ (Step::Pause | Step::Resume)) => {
                 self.action = Some(Action::Signal);

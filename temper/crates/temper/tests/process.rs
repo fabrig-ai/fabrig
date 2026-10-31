@@ -1580,7 +1580,7 @@ fn a_fresh_init_s_first_chat_reads_its_forge() {
                 "chat",
                 "start",
                 "--project",
-                "1",
+                "Playground",
                 "--key",
                 "first-read",
                 "@first-forge-read Read widget's main branch",

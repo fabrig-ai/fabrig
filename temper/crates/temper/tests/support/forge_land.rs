@@ -60,7 +60,7 @@ pub struct Plan<'a> {
     pub words: &'a [u8],
     /// The unique README line, without its trailing newline.
     pub line: &'a [u8],
-    /// The first repository's resource, its packed tag (`temper_engine_domain_forge::tag(3, first.id)`).
+    /// The first repository's resource, its packed tag (`temper_engine_domain_forge::tag(forge, first.id)`).
     pub repository: u64,
     /// README.md on main before the change.
     pub readme: &'a [u8],
@@ -596,7 +596,7 @@ pub fn forgejo_setup_steps(run: &str) -> Vec<super::ctl::Step> {
         steps.extend([
             Step::Run(Call::new(&["forge", "list"])),
             Step::Run(Call::new(&["forge", "list", "--json"])),
-            Step::Run(Call::new(&["forge", "setup", "3"])),
+            Step::Run(Call::new(&["forge", "setup"])),
         ]);
     }
     // Real preparation, hashing two releases, runner registration and reconcile
@@ -660,42 +660,32 @@ pub fn assert_forgejo_setup_after_sign_in(
         );
     }
     assert_eq!(calls.len(), if run == "first" { 6 } else { 3 }, "all setup calls ran: {stderr}");
+    let made = super::ctl::json(&calls[if run == "first" { 4 } else { 1 }]);
+    let row = super::first_repository::owned_row(&made);
+    let number = row["number"].as_u64().expect("forge number");
     if run == "first" {
-        assert!(
-            String::from_utf8_lossy(&calls[0].stdout)
-                .lines()
-                .any(|line| line == "forge 3 · Forgejo · owned · Not set up")
-        );
         let offered = super::ctl::json(&calls[1]);
-        let forge = offered["forges"]
-            .as_array()
-            .expect("forge rows")
-            .iter()
-            .find(|forge| forge["number"] == 3)
-            .expect("forge 3 row");
-        assert_eq!(forge["offer"], "offered");
-        assert_eq!(forge["state"], "not_set_up");
+        assert_eq!(offered["forges"], serde_json::json!([]), "a fresh store has no forge records");
+        assert!(!String::from_utf8_lossy(&calls[0].stdout).lines().any(|line| line.starts_with("forge ")));
+        assert_eq!(number, 1, "the first forge record is numbered one");
         assert!(calls[2].stdout.starts_with(b"setting up\n"));
         let adoption = String::from_utf8_lossy(&calls[2].stdout);
         assert!(
-            adoption.contains("Adopted work/hello on forge 3 as owned."),
+            adoption.contains(&format!("Adopted work/hello on forge {number} as owned.")),
             "ctl printed the first adoption: {adoption}"
         );
         eprintln!("{run} first repository adoption: {adoption}");
-        let made = super::ctl::json(&calls[4]);
-        let row =
-            made["forges"].as_array().expect("forges rows").iter().find(|row| row["number"] == 3).expect("forge 3");
         eprintln!("{run} first repository read: {}", row["first"]);
         assert_eq!(row["first"]["state"], "made");
         assert_eq!(row["first"]["project"]["new"], "hello");
         assert_eq!(row["first"]["org"], "work");
         assert_eq!(row["first"]["repository"], "hello");
-        assert_eq!(row["first"]["id"], 1, "the script tags forge 3, repository 1");
+        assert_eq!(row["first"]["id"], 1, "the script tags the first forge and repository");
         assert_eq!(row["state"], "connected");
         // Preparation is silent on success; Forgejo's startup
         // and the runner's lines reach the box with their step prefixes.
-        for step in ["forgejo 3: ", "runner 3: "] {
-            assert!(stderr.lines().any(|line| line.starts_with(step)), "group step {step}: {stderr}");
+        for step in [format!("forgejo-{number}: "), format!("runner-{number}: ")] {
+            assert!(stderr.lines().any(|line| line.starts_with(&step)), "group step {step}: {stderr}");
         }
     } else {
         assert!(
@@ -705,7 +695,11 @@ pub fn assert_forgejo_setup_after_sign_in(
     }
     let stdout = String::from_utf8_lossy(&calls.last().expect("forges read").stdout);
     let user = stdout.lines().find_map(|line| {
-        line.strip_prefix("forge 3 · Forgejo · owned · Connected as temper (")?.split(')').next()?.parse::<u64>().ok()
+        line.strip_prefix(&format!("forge {number} · Forgejo · owned · Connected as temper ("))?
+            .split(')')
+            .next()?
+            .parse::<u64>()
+            .ok()
     });
     assert!(user.is_some_and(|user| user != 0), "{run}: forges row: {stdout}; box: {stderr}");
     let user = user.expect("connected bot's ID");
@@ -713,7 +707,7 @@ pub fn assert_forgejo_setup_after_sign_in(
         assert_eq!(user, previous, "the second box connects as the same bot");
     }
     for name in ["admin_token", "api_token", "git_token", "user", "webhook_secret"] {
-        assert!(!data.join("forge-3").join(name).exists(), "{run}: no forge-3/{name}");
+        assert!(!data.join(format!("forge-{number}")).join(name).exists(), "{run}: no forge-{number}/{name}");
     }
     user
 }
@@ -866,12 +860,12 @@ pub fn reserve_live_store(path: &std::path::Path) -> Result<bool, String> {
         ("data", true),
         ("cache", true),
         ("data/deployment", true),
-        ("data/forge-3/forgejo", true),
+        ("data/forge-1/forgejo", true),
         ("config/temper.json", false),
         ("config/agent.json", false),
-        ("data/box/started/3", false),
-        ("data/forge-3/forgejo/app.ini", false),
-        ("data/forge-3/forgejo/forgejo.db", false),
+        ("data/box/started/1", false),
+        ("data/forge-1/forgejo/app.ini", false),
+        ("data/forge-1/forgejo/forgejo.db", false),
     ] {
         let present = fs::symlink_metadata(path.join(name))
             .is_ok_and(|meta| if directory { meta.is_dir() } else { meta.is_file() });
@@ -996,18 +990,18 @@ fn forge_identity(
 
 /// The starter is private. Mint an independent, read-only oracle credential on
 /// this disposable forge, rather than reading temper's stored credentials.
-fn oracle_token(paths: &[PathBuf; 3], first: bool) -> String {
-    scoped_token(paths, first, "temper", "read:repository,read:issue")
+fn oracle_token(paths: &[PathBuf; 3], first: bool, forge: u64) -> String {
+    scoped_token(paths, first, forge, "temper", "read:repository,read:issue")
 }
 
 /// A separate fixture credential, never one of temper's stored credentials.
 #[must_use]
-pub(super) fn scoped_token(paths: &[PathBuf; 3], first: bool, login: &str, scopes: &str) -> String {
+pub(super) fn scoped_token(paths: &[PathBuf; 3], first: bool, number: u64, login: &str, scopes: &str) -> String {
     use std::{
         io::Read,
         process::{Command, Stdio},
     };
-    let forge = paths[1].join("forge-3/forgejo");
+    let forge = paths[1].join(format!("forge-{number}/forgejo"));
     let (binary, _) = super::owned::binaries();
     let mut child = Command::new(binary)
         .arg("--work-path")
@@ -1034,7 +1028,7 @@ pub(super) fn scoped_token(paths: &[PathBuf; 3], first: bool, login: &str, scope
         .env_clear()
         .env("PATH", "/usr/bin:/bin")
         // The owned forge commands use this same private home.
-        .env("HOME", paths[1].join("forge-3/home"))
+        .env("HOME", paths[1].join(format!("forge-{number}/home")))
         .current_dir(&forge)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -1060,7 +1054,7 @@ pub(super) fn scoped_token(paths: &[PathBuf; 3], first: bool, login: &str, scope
 pub fn live_commands(fresh: bool, model: LiveModel<'_>) -> (Vec<Vec<String>>, usize) {
     let mut commands = vec![vec!["sign-in", "-"]];
     if fresh {
-        commands.extend([vec!["forge", "list"], vec!["forge", "list", "--json"], vec!["forge", "setup", "3"]]);
+        commands.extend([vec!["forge", "list"], vec!["forge", "list", "--json"], vec!["forge", "setup"]]);
     }
     commands.extend([
         vec!["forge", "list", "--until", "settled", "--timeout", "180s"],
@@ -1564,19 +1558,16 @@ impl LiveJudge<'_> {
                 &fs::read(self.plan.paths[0].join("temper.json")).map_err(|error| error.to_string())?,
             )
             .map_err(|error| error.to_string())?;
-            document["application"]["forges"]
-                .as_array()
-                .ok_or("forges missing")?
-                .iter()
-                .find(|forge| forge["number"] == 3)
-                .ok_or("owned forge missing")?["api"]["socket"]
+            document["application"]["machine"]["owned"]["listen"]["socket"]
                 .as_str()
                 .ok_or("forge address missing")?
                 .parse()
                 .map_err(|_| "forge socket invalid")?
         };
         self.address = Some(address);
-        let token = oracle_token(self.plan.paths, self.plan.first);
+        let owned = super::first_repository::owned_forge(self.plan.client);
+        let number = owned["number"].as_u64().ok_or("forge number missing")?;
+        let token = oracle_token(self.plan.paths, self.plan.first, number);
         if self.plan.first {
             let pulls = merged_pulls(address, &token);
             self.baseline = pulls.iter().map(pull_number).collect();
@@ -1588,12 +1579,7 @@ impl LiveJudge<'_> {
                 self.tasks.project = kept_project(self.plan.client, &me, &pulls)?;
             } else {
                 let forges = live_json(&calls.ends()[5])?;
-                let forge = forges["forges"]
-                    .as_array()
-                    .ok_or("forges missing")?
-                    .iter()
-                    .find(|forge| forge["number"] == 3)
-                    .ok_or("owned forge missing")?;
+                let forge = super::first_repository::owned_row(&forges);
                 require(
                     forge["first"]["org"] == "work" && forge["first"]["repository"] == "hello",
                     "first repository is work/hello",

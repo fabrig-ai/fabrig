@@ -26,18 +26,15 @@ pub struct Person {
 }
 impl Person {
     #[must_use]
-    pub fn new(root: &Path) -> Self {
+    pub fn new(root: &Path, forge: u64) -> Self {
         let config: Value = serde_json::from_slice(&fs::read(root.join("temper.json")).expect("configuration"))
             .expect("configuration JSON");
-        let forge = config["application"]["forges"]
-            .as_array()
-            .expect("forges")
-            .iter()
-            .find(|forge| forge["number"] == 3)
-            .expect("owned forge");
         Self {
-            api: format!("http://{}/api/v1", forge["api"]["socket"].as_str().expect("forge socket")),
-            header: root.join("forge-3/person_write.header").to_str().expect("header path").into(),
+            api: format!(
+                "http://{}/api/v1",
+                config["application"]["machine"]["owned"]["listen"]["socket"].as_str().expect("forge socket")
+            ),
+            header: root.join(format!("forge-{forge}/person_write.header")).to_str().expect("header path").into(),
         }
     }
     #[must_use]
@@ -87,12 +84,14 @@ impl Person {
 }
 
 pub struct Setup {
+    pub forge: u64,
     pub project: u64,
     pub repository: u64,
 }
 #[must_use]
 pub fn configure_repository(root: &Path) -> Setup {
-    let person = Person::new(root);
+    let forge = first_repository::owned_forge(root)["number"].as_u64().expect("forge number");
+    let person = Person::new(root, forge);
     person.add("check.sh", b"test -s README.md\n");
     person.add(".forgejo/workflows/gate.yaml", WORKFLOW.as_bytes());
     let repo = person.get("");
@@ -107,14 +106,14 @@ pub fn configure_repository(root: &Path) -> Setup {
         .expect("first repository project")["project"]
         .as_u64()
         .expect("project number");
-    Setup { project, repository: repo["id"].as_u64().expect("repository id") }
+    Setup { forge, project, repository: repo["id"].as_u64().expect("repository id") }
 }
 pub fn configure_turn(root: &Path, setup: &Setup) {
     let path = root.join("temper.json");
     let mut config: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     config["application"]["landing"]["projects"].as_array_mut().expect("project landings").push(json!({
         "project":setup.project, "by":"turn", "rules":[],
-        "gates":[{"forge":3, "repository":setup.repository,
+        "gates":[{"forge":setup.forge, "repository":setup.repository,
             "gates":[{"name":"gate", "workflow":"gate.yaml", "ignored":["docs"], "blocking":true}]}]
     }));
     super::write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
@@ -177,7 +176,7 @@ pub fn evidence(root: &Path, setup: &Setup, change: u64) -> Evidence {
     let panel = ctl::alone(root, ctl::Call::new(&["landing", "show", &landing, "--json"]));
     let change = ctl::alone(root, ctl::Call::new(&["change", "show", &change.to_string()]));
     let task = ctl::alone(root, ctl::Call::new(&["task", "show", &landing, "--json"]));
-    let person = Person::new(root);
+    let person = Person::new(root, setup.forge);
     let main = person.get("branches/main");
     let head = main["commit"]["id"].as_str().expect("main tip");
     Evidence {

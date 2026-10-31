@@ -41,8 +41,8 @@ fn a_change_lands_by_turn_on_the_owned_forge() {
                 landing_by_turn::fund_landings(&settings_root, policy, inventory)
             })),
             Step::Run(Call::new(&["help"])),
-            Step::Run(Call::new(&["forge", "setup", "3"])),
-            Step::Run(Call::new(&["forge", "list", "--until", "made:3", "--timeout", "60s", "--json"])),
+            Step::Run(Call::new(&["forge", "setup"])),
+            Step::Run(Call::new(&["forge", "list", "--json"])),
         ],
         Duration::from_secs(180),
         |_binary| landing_by_turn::configure_repository(root),
@@ -62,7 +62,7 @@ fn a_change_lands_by_turn_on_the_owned_forge() {
     steps.push(Step::Until(Call::new(&["change", "show", &task.change.to_string(), "--json"]), br#""pull":{"#));
     let advanced = Rc::new(Cell::new(None));
     let advance = advanced.clone();
-    let person = Person::new(root);
+    let person = Person::new(root, setup.forge);
     steps.push(Step::Then(Box::new(move |calls| {
         let opened = ctl::json(calls.last().expect("opened pull"));
         assert!(!opened["pull"].is_null(), "the branch was pushed and its pull opened: {opened}");
