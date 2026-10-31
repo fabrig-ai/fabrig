@@ -244,15 +244,9 @@ pub(super) fn tag_tasks(
             }
             tasks::Request::Stop { task, attempt } => Request::Held(Box::new(Held::StopRun { task, attempt })),
             tasks::Request::RestoreRefused { .. } => {
-                core.refuse_restore(crate::RestartRequest::Unresolved {
-                    child: crate::RestoreChild::Tasks,
-                    records: 1,
-                });
-                if core.start.mode == crate::start::StartMode::LoadAndLink {
-                    assert!(core.start_failure().is_some(), "tasks refusal names its fit");
-                    continue;
-                }
-                Request::Now(Box::new(Now::RestoreRefused))
+                core.start_collect_failure();
+                assert!(core.start_failure().is_some(), "tasks refusal names its fit");
+                continue;
             }
             tasks::Request::Waiting { .. }
             | tasks::Request::WriterWaiting { task: None, .. }

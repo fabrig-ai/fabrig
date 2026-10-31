@@ -1,5 +1,5 @@
 //! Rebuild live projections once, then name the indexed ended owners (store.md 7.2).
-use crate::start::{LiveSet, Phase, StartMode};
+use crate::start::{LiveSet, Phase};
 use crate::{Census, Core, Limits, ReadResults};
 use alloc::boxed::Box;
 use jig_domain_people as people;
@@ -47,21 +47,12 @@ impl Core {
 
     pub fn census(&mut self, limits: &Limits) -> Census {
         self.start_input();
-        let selected = match self.start.mode {
-            StartMode::Default => {
-                assert!(
-                    self.restart_step() == Some(crate::RestartStep::LoadInbox) && self.people.ready(),
-                    "people restored before census"
-                );
-                false
-            }
-            StartMode::LoadAndLink => {
-                assert!(
-                    self.start_phase() == Some(Phase::LoadInbox) && self.start_failure().is_none(),
-                    "census requires unrefused LoadInbox"
-                );
-                true
-            }
+        let selected = {
+            assert!(
+                self.start_phase() == Some(Phase::LoadInbox) && self.start_failure().is_none(),
+                "census requires unrefused LoadInbox"
+            );
+            true
         };
         self.project_live_inbox(limits);
         if selected && self.start_failure().is_some() {
@@ -186,20 +177,12 @@ impl Core {
     #[must_use]
     pub fn restore_inbox_row(&mut self, limits: &Limits, record: &crate::Record) -> bool {
         self.start_input();
-        let selected = match self.start.mode {
-            StartMode::Default => {
-                if self.restart_step() != Some(crate::RestartStep::LoadInbox) || !self.people.ready() {
-                    return false;
-                }
-                false
-            }
-            StartMode::LoadAndLink => {
-                assert!(
-                    self.start_phase() == Some(Phase::LoadInbox) && self.start_failure().is_none(),
-                    "inbox row requires unrefused LoadInbox"
-                );
-                true
-            }
+        let selected = {
+            assert!(
+                self.start_phase() == Some(Phase::LoadInbox) && self.start_failure().is_none(),
+                "inbox row requires unrefused LoadInbox"
+            );
+            true
         };
         self.load_census_row(limits, record, selected)
     }

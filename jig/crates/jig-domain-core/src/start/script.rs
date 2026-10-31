@@ -4,6 +4,17 @@ use crate::{Core, Key, Limits, Queue, Request, Write, people, tasks};
 use skein_lib::Env;
 
 impl Core {
+    pub(crate) fn next_connector(&self, previous: u16) -> Option<u16> {
+        let mut found = false;
+        for &connector in &self.connectors {
+            if found {
+                return Some(connector);
+            }
+            found = connector == previous;
+        }
+        None
+    }
+
     pub fn start_done(&mut self, env: &Env<Limits>, done: Phase, out: &mut Queue<Request>) -> Action {
         self.start_input();
         self.start_collect_failure();
@@ -210,19 +221,8 @@ impl Core {
                 tasks::RestoreCause::Accounting => Failure::Accounting { key },
                 tasks::RestoreCause::LlmChoice { .. } => Failure::LlmChoice { key },
             })
-        } else if let Some(request) = self.restore_failure {
-            match request {
-                crate::RestartRequest::Settings { failure, changed } => Some(Failure::Settings { failure, changed }),
-                crate::RestartRequest::ProjectPolicy { project } => Some(Failure::ProjectPolicy { project }),
-                crate::RestartRequest::HeldPastLimit { which, held, limit } => {
-                    Some(Failure::HeldPastLimit { which, held, limit })
-                }
-                crate::RestartRequest::UnheldRevision { .. }
-                | crate::RestartRequest::Unresolved { .. }
-                | crate::RestartRequest::Step(_)
-                | crate::RestartRequest::Idle
-                | crate::RestartRequest::Refused { .. } => None,
-            }
+        } else if let Some(failure) = &self.restore_failure {
+            Some(failure.clone())
         } else {
             match self.accounts.restore_limit() {
                 Some(failure) => Some(Failure::AccountsPastLimit { failure }),

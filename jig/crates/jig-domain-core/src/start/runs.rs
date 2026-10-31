@@ -2,14 +2,14 @@
 use crate::{Core, fleet};
 
 impl Core {
-    /// True once a start (either interface) has opened decisions.
+    /// True once a start has opened decisions.
     #[must_use]
     pub fn start_opened(&self) -> bool {
         self.opened
     }
 
     pub(crate) fn start_stopped(&self) -> bool {
-        self.start_failure().is_some() || self.restart_failure().is_some()
+        self.start_failure().is_some()
     }
 
     /// Count every restored worker claim before any reaches the fleet.

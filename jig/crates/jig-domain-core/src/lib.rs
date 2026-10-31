@@ -73,9 +73,8 @@ mod resources;
 mod restart;
 pub mod start;
 mod stopping;
-pub use restart::{
-    Census, HeldLimit, ReadResults, RestartRequest, RestartStep, RestoreChild, RestoreRange, restore_cursor,
-};
+pub use restart::{Census, ReadResults, RestoreRange, restore_cursor};
+pub use start::HeldLimit;
 mod host_rule;
 mod revisions;
 mod roles;
@@ -313,7 +312,6 @@ pub struct Core {
     pub(crate) settings_holders: u32,
     pub(crate) applications: Map<Token, routing::application_routes::Flight>,
     pub(crate) opened: bool,
-    pub(crate) restart: restart::Restart,
     pub(crate) restart_pending: bool,
     pub(crate) restart_attempts: u32,
     /// Application connectors addressed only by number.
@@ -365,7 +363,7 @@ pub struct Core {
     pub(crate) held: settings::Held,
     pub(crate) hub_turns: u32,
     pub(crate) settings_restore: settings::restart::Restore,
-    pub(crate) restore_failure: Option<RestartRequest>,
+    pub(crate) restore_failure: Option<start::Failure>,
     /// Names seeded or restored with the project policies (core.md, 6.1).
     pub(crate) names: Map<u32, Box<str>>,
     /// Mutable connector permission mappings approved by policy edits.
@@ -518,39 +516,19 @@ impl Core {
     /// application before it asks the core to retain this part.
     pub fn restore_call(&mut self, key: CallKey, part: CallPart) -> bool {
         self.start_input();
-        match self.start.mode {
-            start::StartMode::Default => {
-                if !self.call_admitted(key) {
-                    return false;
-                }
-            }
-            start::StartMode::LoadAndLink => {
-                assert!(self.start_loading(), "calls load before Link");
-                assert!(!self.call_parts.contains_key(&key), "duplicate call {:?}", Key::Core(CoreKey::Call(key)));
-                if !self.start_room(
-                    start::LiveSet::Calls,
-                    Key::Core(CoreKey::Call(key)),
-                    self.call_parts.len(),
-                    self.call_parts.capacity(),
-                ) {
-                    return false;
-                }
+        {
+            assert!(self.start_loading(), "calls load before Link");
+            assert!(!self.call_parts.contains_key(&key), "duplicate call {:?}", Key::Core(CoreKey::Call(key)));
+            if !self.start_room(
+                start::LiveSet::Calls,
+                Key::Core(CoreKey::Call(key)),
+                self.call_parts.len(),
+                self.call_parts.capacity(),
+            ) {
+                return false;
             }
         }
         self.call_parts.insert(key, part) == Ok(None)
-    }
-
-    fn call_admitted(&self, key: CallKey) -> bool {
-        let deployment = self.counters.deployment();
-        key.task != 0
-            && key.attempt != 0
-            && key.completion != 0
-            && key.task <= deployment.tasks
-            && key.attempt <= deployment.runs
-            && match self.proofs.get(&key.task) {
-                Some(proof) => proof.attempt >= key.attempt,
-                None => false,
-            }
     }
 
     /// Forget named calls whose answer entered a committed later turn. The
@@ -707,7 +685,6 @@ impl Core {
             applications: Map::with_capacity(limits.people.pending),
             start: start::Script::new(),
             opened: false,
-            restart: restart::Restart::Cold,
             restart_pending: false,
             restart_attempts: limits.fleet.attempts,
             counters: Counters::bootstrap(config.deployment),
@@ -907,171 +884,40 @@ impl Core {
     /// transient correlation. An archive row can never enter this live map.
     pub fn restore_proof(&mut self, proof: RunProof, result_bytes: u32) -> bool {
         self.start_input();
-        match self.start.mode {
-            start::StartMode::Default => {
-                if !self.proof_admitted(&proof, result_bytes) {
-                    return false;
-                }
+        {
+            assert!(self.start_loading(), "proofs load before Link");
+            let key = Key::Core(CoreKey::RunProof(proof.task));
+            assert!(!self.proofs.contains_key(&proof.task), "duplicate {key:?}");
+            if !self.start_room(start::LiveSet::RunProofs, key.clone(), self.proofs.len(), self.proofs.capacity()) {
+                return false;
             }
-            start::StartMode::LoadAndLink => {
-                assert!(self.start_loading(), "proofs load before Link");
-                let key = Key::Core(CoreKey::RunProof(proof.task));
-                assert!(!self.proofs.contains_key(&proof.task), "duplicate {key:?}");
-                if !self.start_room(start::LiveSet::RunProofs, key.clone(), self.proofs.len(), self.proofs.capacity()) {
-                    return false;
-                }
-                let mut bytes = u64::try_from(proof.outstanding.len()).expect("allocated proof fits u64");
-                let mut limit = u64::from(self.run_inbox);
-                if bytes <= limit {
-                    bytes = u64::try_from(proof.accounts.len()).expect("allocated accounts fit u64");
-                    limit = u64::from(tasks::MODELS);
-                }
-                if bytes <= limit {
-                    bytes = u64::try_from(proof.credentials.len()).expect("allocated credentials fit u64");
-                    limit = u64::from(self.accounts.credential_limit());
-                }
-                if bytes <= limit
-                    && let Some(terminal) = &proof.terminal
-                {
-                    bytes =
-                        tasks::terminal_bytes(&terminal.end).expect("allocated terminal has a representable measure");
-                    limit = u64::from(result_bytes).checked_mul(2).expect("result bound");
-                }
-                if bytes > limit {
-                    let _refused = self.start_refuse(start::Failure::LiveSet {
-                        set: start::LiveSet::RunProofs,
-                        key,
-                        held: bytes,
-                        limit,
-                    });
-                    return false;
-                }
+            let mut bytes = u64::try_from(proof.outstanding.len()).expect("allocated proof fits u64");
+            let mut limit = u64::from(self.run_inbox);
+            if bytes <= limit {
+                bytes = u64::try_from(proof.accounts.len()).expect("allocated accounts fit u64");
+                limit = u64::from(tasks::MODELS);
+            }
+            if bytes <= limit {
+                bytes = u64::try_from(proof.credentials.len()).expect("allocated credentials fit u64");
+                limit = u64::from(self.accounts.credential_limit());
+            }
+            if bytes <= limit
+                && let Some(terminal) = &proof.terminal
+            {
+                bytes = tasks::terminal_bytes(&terminal.end).expect("allocated terminal has a representable measure");
+                limit = u64::from(result_bytes).checked_mul(2).expect("result bound");
+            }
+            if bytes > limit {
+                let _refused = self.start_refuse(start::Failure::LiveSet {
+                    set: start::LiveSet::RunProofs,
+                    key,
+                    held: bytes,
+                    limit,
+                });
+                return false;
             }
         }
         self.proofs.insert(proof.task, proof).is_ok()
-    }
-
-    #[expect(clippy::manual_let_else, reason = "the step-code subset uses exhaustive matches")]
-    fn proof_admitted(&mut self, proof: &RunProof, result_bytes: u32) -> bool {
-        let expected = match self.restoring_proofs.remove(&proof.task) {
-            Some(expected) => expected,
-            None => return false,
-        };
-        let turn = match proof.turn {
-            Some(turn) => turn.turn,
-            None => 0,
-        };
-        if proof.accounts.is_empty() || proof.accounts.len() > usize::try_from(tasks::MODELS).expect("model bound") {
-            return false;
-        }
-        let Some(channel) = proof.placement else { return false };
-        if (proof.host == fleet::HostKind::Engine) != (channel == Token::new(0)) {
-            return false;
-        }
-        if proof.account_terminal && proof.account_failure.is_none() {
-            return false;
-        }
-        if let Some(source) = proof.account_failure {
-            let mut recorded = false;
-            for binding in &proof.accounts {
-                if binding.source == source {
-                    recorded = true;
-                }
-            }
-            if !recorded {
-                return false;
-            }
-        }
-        for (at, binding) in proof.accounts.iter().enumerate() {
-            for earlier in proof.accounts.iter().take(at) {
-                if earlier.provider == binding.provider {
-                    return false;
-                }
-            }
-            if let Some(source) = self.accounts.source(binding.source)
-                && source.account != binding.account
-            {
-                return false;
-            }
-            if let Some(account) = self.accounts.account(binding.account)
-                && account.provider() != binding.provider
-            {
-                return false;
-            }
-        }
-        if proof.credentials.len()
-            > usize::try_from(self.accounts.credential_limit()).expect("u32 credential limit fits usize")
-            || proof.attempt != expected.attempt
-            || turn != expected.turn
-            || proof.outstanding.len() > usize::try_from(self.run_inbox).expect("run inbox fits usize")
-            || !valid_proof(proof, &expected, result_bytes)
-        {
-            return false;
-        }
-        true
-    }
-}
-
-fn valid_proof(proof: &RunProof, expected: &RestoringProof, result_bytes: u32) -> bool {
-    if proof.task == 0 || proof.attempt == 0 || proof.conversation == 0 || proof.conversation > proof.attempt {
-        return false;
-    }
-    if proof.offered == Some(0) {
-        return false;
-    }
-    let last_turn = match proof.turn {
-        Some(turn) => turn.turn,
-        None => 0,
-    };
-    if let Some(window) = proof.window
-        && (window.turn == 0
-            || (window.attempt, window.turn) < (proof.conversation, 1)
-            || (window.attempt, window.turn) > (proof.attempt, last_turn))
-    {
-        return false;
-    }
-    let last_read = match proof.turn {
-        Some(turn) => turn.read,
-        None => None,
-    };
-    for (at, &number) in proof.outstanding.iter().enumerate() {
-        if number == 0 || Some(number) > proof.offered || Some(number) <= last_read {
-            return false;
-        }
-        for earlier in proof.outstanding.iter().take(at) {
-            if *earlier == number {
-                return false;
-            }
-        }
-    }
-    let spent = match proof.turn {
-        Some(turn) => {
-            let read_valid = match turn.read {
-                Some(number) => match proof.offered {
-                    Some(high) => number != 0 && number <= high,
-                    None => false,
-                },
-                None => true,
-            };
-            if turn.turn == 0 || !read_valid || turn.cumulative > expected.run_spent {
-                return false;
-            }
-            turn.cumulative
-        }
-        None => 0,
-    };
-    match &proof.terminal {
-        Some(terminal) => {
-            terminal.task == proof.task
-                && terminal.attempt == proof.attempt
-                && terminal.cumulative == expected.run_spent
-                && expected.last_answer == Some(proof.attempt)
-                && match tasks::terminal_bytes(&terminal.end) {
-                    Some(bytes) => bytes <= u64::from(result_bytes).checked_mul(2).expect("result bound representable"),
-                    None => false,
-                }
-        }
-        None => spent == expected.run_spent && expected.last_answer != Some(proof.attempt),
     }
 }
 

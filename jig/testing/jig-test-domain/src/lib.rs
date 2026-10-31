@@ -86,7 +86,6 @@ pub enum Delivery {
     /// One committed inbox word for its current host.
     Message { channel: Token, task: u64, attempt: u64, word: tasks::Word },
     /// Perform this step of the core-owned restart script.
-    Restart(core::RestartStep),
     /// The start's continuation, released with the writes of its decision.
     Start(core::start::Continuation),
     /// Core-held party, host, task or view output.
@@ -143,7 +142,6 @@ pub enum Request {
     /// Return a connector input to its owner during the drain.
     Busy { event: Box<Event> },
     /// First cold load, before the deployment counter is known.
-    Restart(core::RestartStep),
     /// Load records for `LoadCore`, `LoadInbox` (with census),
     /// `RestoreConnector` or `Sweep`, or switch the store at `Switch`.
     Start { phase: core::start::Phase, census: Option<core::Census> },
@@ -162,15 +160,9 @@ pub enum Request {
 #[expect(clippy::large_enum_variant, reason = "the testing root moves admitted core events by value")]
 pub enum Event {
     /// A channel opening, record or loss in the hub vocabulary.
-    Link {
-        channel: Token,
-        link: link::Event,
-    },
+    Link { channel: Token, link: link::Event },
     /// The protocol routing read a fenced result.
-    ResultRead {
-        payload: Token,
-        end: tasks::End,
-    },
+    ResultRead { payload: Token, end: tasks::End },
     /// The service begins its drain.
     Stop,
     /// Prepare and watch the application's typed subject in the client's declared scope.
@@ -205,67 +197,33 @@ pub enum Event {
         carried: Option<core::Carried>,
     },
     /// A correlated reply to the connector's fresh read after a lost writer.
-    WriterRead {
-        connector: u16,
-        resource: tasks::Name,
-        event: connector::SystemEvent,
-    },
+    WriterRead { connector: u16, resource: tasks::Name, event: connector::SystemEvent },
     /// A numbered connector's independent retry deadline elapsed.
-    ConnectorTimer {
-        number: u16,
-    },
-    RestartBegin {
-        pending: bool,
-    },
+    ConnectorTimer { number: u16 },
     /// The generation is active; commit the start’s mark.
-    Switched,
-    RestartDone(core::RestartStep),
     /// Begin jig's start (engine.md 6) at this event's wall time.
-    StartBegin {
-        pending: bool,
-    },
+    StartBegin { pending: bool },
     /// The host finished the requested phase, with pages handed in through
     /// `start_record`/`start_missing`, or the store switched at `Switch`.
     StartDone(core::start::Phase),
     /// A decoded row from the selected start phase.
     StartRecord(Record),
     /// A page's source row names an absent owner.
-    StartMissing {
-        record: core::Key,
-        target: core::Key,
-    },
+    StartMissing { record: core::Key, target: core::Key },
     /// The store refused a page with its own typed cause.
-    StartPageRefused {
-        failure: jig_protocol_store::restore::Failure,
-    },
+    StartPageRefused { failure: jig_protocol_store::restore::Failure },
     /// Drive one due child timer through the same decision barrier.
     Timer(core::Timer),
     /// A party, host, account or other event in jig's vocabulary.
     Core(core::Event),
     /// A generation named by the application's credential source.
-    Credential {
-        number: u32,
-        generation: u64,
-        valid: skein_lib::Duration,
-    },
+    Credential { number: u32, generation: u64, valid: skein_lib::Duration },
     /// One numbered connector's input from its system or a scripted peer.
-    Connector {
-        number: u16,
-        event: connector::Event,
-    },
+    Connector { number: u16, event: connector::Event },
     /// A scripted connector's projection write for a tracked goal.
-    ProjectionEffect {
-        goal: u64,
-        number: u16,
-        effect: connector::Effect,
-    },
+    ProjectionEffect { goal: u64, number: u16, effect: connector::Effect },
     /// A decoded call for an offered topic.
-    TopicCall {
-        to: ReplyTo,
-        key: core::CallKey,
-        number: u16,
-        topic: u16,
-    },
+    TopicCall { to: ReplyTo, key: core::CallKey, number: u16, topic: u16 },
     /// A decoded named effect call, whose payload stays with its connector.
     EffectCall {
         to: ReplyTo,
@@ -276,18 +234,9 @@ pub enum Event {
         proposal: Option<Box<[u8]>>,
     },
     /// The rendered answer to a read or an undecodable call, with no durable call record.
-    CallAnswered {
-        to: ReplyTo,
-        call: core::SettledCall,
-    },
+    CallAnswered { to: ReplyTo, call: core::SettledCall },
     /// A scripted worker's provisional writing, named by its host.
-    Text {
-        task: u64,
-        attempt: u64,
-        turn: u32,
-        offset: u32,
-        text: Box<[u8]>,
-    },
+    Text { task: u64, attempt: u64, turn: u32, offset: u32, text: Box<[u8]> },
     /// A scripted worker's retained turn, including its opaque body.
     Turn {
         channel: Token,
@@ -311,20 +260,11 @@ pub enum Event {
         refused: Box<[u64]>,
     },
     /// A bounded store page of prior opaque turns; pages arrive oldest first.
-    TranscriptLoaded {
-        task: u64,
-        rows: Box<[core::TranscriptRow]>,
-        done: bool,
-    },
+    TranscriptLoaded { task: u64, rows: Box<[core::TranscriptRow]>, done: bool },
     /// Store acknowledgement of this exact commit number.
-    Committed {
-        number: u64,
-        fill: u64,
-    },
+    Committed { number: u64, fill: u64 },
     /// A store failure of this exact commit number.
-    Failed {
-        number: u64,
-    },
+    Failed { number: u64 },
 }
 
 /// The journal's sizes (`domain/root.md` 4, 10).
@@ -429,10 +369,8 @@ pub struct Domain {
     next_payload: u64,
     decision_wrote: bool,
     stopped_reported: bool,
-    restart_active: bool,
     start_opened: bool,
     start_page_failure: Option<(core::start::Phase, jig_protocol_store::restore::Failure)>,
-    restart_load: Option<core::RestartStep>,
 }
 
 impl Domain {
@@ -446,19 +384,7 @@ impl Domain {
     pub fn settings(&self) -> &core::settings::Current {
         &self.core.current
     }
-    #[must_use]
-    pub fn restart_step(&self) -> Option<core::RestartStep> {
-        self.core.restart_step()
-    }
-    /// The step that refused this start, including the pre-switch checks.
-    #[must_use]
-    pub fn restart_failure(&self) -> Option<core::RestartStep> {
-        self.core.restart_failure()
-    }
-    #[must_use]
-    pub fn restore_failure(&self) -> Option<core::RestartRequest> {
-        self.core.restore_failure()
-    }
+
     /// The fixture's journal, for numbered writes made outside a root decision.
     #[must_use]
     pub fn journal_mut(&mut self) -> &mut Journal<Write, Delivery> {
@@ -580,16 +506,14 @@ impl Domain {
             next_payload: 1,
             decision_wrote: false,
             stopped_reported: false,
-            restart_active: false,
             start_opened: false,
             start_page_failure: None,
-            restart_load: None,
         }
     }
 
     #[must_use]
     pub fn ready(&self) -> bool {
-        self.start_opened || (self.starting().is_none() && (!self.restart_active || self.core.restart_ready()))
+        self.start_opened || self.starting().is_none()
     }
 
     /// The client's current held-task context, admitted by the core's visibility rule.
@@ -640,31 +564,6 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         Event::ConnectorTimer { number } => decide(domain, env, Work::ConnectorFire { number }),
         Event::WriterRead { connector, resource, event } => {
             decide(domain, env, Work::WriterRead { connector, resource, event });
-        }
-        Event::Switched => decide(domain, env, Work::Switched),
-        Event::RestartBegin { pending } => {
-            domain.restart_active = true;
-            match domain.core.restart_begin(pending) {
-                core::RestartRequest::Step(step) => domain.restart_load = Some(step),
-                core::RestartRequest::Idle
-                | core::RestartRequest::Settings { .. }
-                | core::RestartRequest::HeldPastLimit { .. }
-                | core::RestartRequest::UnheldRevision { .. }
-                | core::RestartRequest::ProjectPolicy { .. }
-                | core::RestartRequest::Unresolved { .. }
-                | core::RestartRequest::Refused { .. } => {}
-            }
-        }
-        Event::RestartDone(step) => {
-            if step == core::RestartStep::LoadCore {
-                let restored_env = Env { now: env.now, wall: env.wall, limits: env.limits.core };
-                if domain.core.settings_restored(&restored_env) {
-                    let room = env.limits.core.routes;
-                    decide(domain, env, Work::Core(core::Event::SettingsCommit { room }));
-                }
-            }
-            let request = domain.core.restart_done(step);
-            decide(domain, env, Work::Restart(request));
         }
         Event::TranscriptLoaded { task, rows, done } => transcript_loaded(domain, env, task, rows, done),
         Event::Committed { number, fill } => {
@@ -777,10 +676,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                     work.push(Work::Start(StartInput::Done(phase)));
                 }
                 Some(_) => unreachable!("connector completion belongs to SettleOutbox"),
-                None => {
-                    let request = domain.core.restart_done(core::RestartStep::SettleOutbox { connector: number });
-                    work.push(Work::Restart(request));
-                }
+                None => unreachable!("connector completion belongs to SettleOutbox"),
             },
             Work::Start(input) => {
                 let mut out = Queue::uncapped();
@@ -855,70 +751,6 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 );
                 route_connector(domain, env, &mut decision, number, &mut out, &mut work);
             }
-            Work::Switched => {
-                write(domain, &mut decision, Write::Wires);
-                hold(&mut decision, Delivery::Restart(core::RestartStep::AdoptRuns));
-            }
-            Work::Restart(request) => match request {
-                core::RestartRequest::Idle => {}
-                core::RestartRequest::Settings { .. }
-                | core::RestartRequest::HeldPastLimit { .. }
-                | core::RestartRequest::UnheldRevision { .. }
-                | core::RestartRequest::ProjectPolicy { .. }
-                | core::RestartRequest::Unresolved { .. }
-                | core::RestartRequest::Refused { .. } => {
-                    domain.stopped_reported = false;
-                }
-                core::RestartRequest::Step(step) => match step {
-                    core::RestartStep::Switch => {
-                        work.push(Work::Core(core::Event::Tasks(tasks::Event::Check)));
-                        work.push(Work::SwitchChecked);
-                    }
-                    core::RestartStep::AdoptRuns => {
-                        work.push(Work::Core(core::Event::Tasks(tasks::Event::Restored)));
-                        work.push(Work::AdoptRestored);
-                    }
-                    core::RestartStep::Open => {
-                        let _request = domain.core.restart_done(step);
-                    }
-                    core::RestartStep::SettleOutbox { connector: number } => {
-                        work.push(Work::Connector {
-                            number,
-                            event: connector::Event::Restart(connector::RestartStep::SettleOutbox),
-                        });
-                    }
-                    core::RestartStep::LoadInbox => {
-                        // The accounts' records came with the core's ranges:
-                        // want each real source once its account rows are restored.
-                        work.push(Work::Core(core::Event::Account(jig_domain_accounts::Event::Want)));
-                        hold(&mut decision, Delivery::Restart(step));
-                    }
-                    core::RestartStep::LoadCore
-                    | core::RestartStep::RestoreConnector { .. }
-                    | core::RestartStep::ReadAfresh { .. } => hold(&mut decision, Delivery::Restart(step)),
-                },
-            },
-            Work::SwitchChecked => {
-                if domain.core.restart_checked() {
-                    hold(&mut decision, Delivery::Restart(core::RestartStep::Switch));
-                }
-            }
-            Work::AdoptRestored => {
-                if domain.core.restart_admit_claims() {
-                    for _ in 0..domain.core.adopted.len() {
-                        work.push(Work::Core(core::Event::Fleet(
-                            domain.core.adopted.pop().expect("restored claim count"),
-                        )));
-                    }
-                    work.push(Work::Core(core::Event::Fleet(fleet::Event::Loaded)));
-                    work.push(Work::AdoptDone);
-                }
-            }
-            Work::AdoptDone => {
-                let request = domain.core.restart_done(core::RestartStep::AdoptRuns);
-                work.push(Work::Restart(request));
-            }
-
             Work::ProjectionEffect { goal, number, effect } => {
                 let owner = effect_payload(domain, effect);
                 work.push(Work::Core(core::Event::EffectStart {
@@ -1085,29 +917,11 @@ fn start_action(
 impl Domain {
     #[expect(clippy::manual_map, reason = "the step-code subset uses exhaustive matches")]
     fn starting(&self) -> Option<core::start::Phase> {
-        use core::start::Phase;
-        if let Some(phase) = self.core.start_phase() {
-            return Some(phase);
-        }
-        match self.core.restart_step() {
-            Some(step) => Some(match step {
-                core::RestartStep::LoadCore => Phase::LoadCore,
-                core::RestartStep::LoadInbox => Phase::LoadInbox,
-                core::RestartStep::RestoreConnector { connector } => Phase::RestoreConnector { connector },
-                core::RestartStep::Switch => Phase::Switch,
-                core::RestartStep::AdoptRuns => Phase::AdoptRuns,
-                core::RestartStep::ReadAfresh { connector } => Phase::ReadAfresh { connector },
-                core::RestartStep::SettleOutbox { connector } => Phase::SettleOutbox { connector },
-                core::RestartStep::Open => Phase::Open,
-            }),
-            None => None,
-        }
+        self.core.start_phase()
     }
 
     fn start_stopped(&self) -> bool {
-        self.start_page_failure.is_some()
-            || self.core.restart_failure().is_some()
-            || self.core.start_failure().is_some()
+        self.start_page_failure.is_some() || self.core.start_failure().is_some()
     }
 }
 
@@ -1137,10 +951,7 @@ fn numbered(domain: &mut Domain, number: u16) -> &mut connector::Domain {
 pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     admission::resume(domain, env);
     stopping::release(domain, out);
-    if let Some(step) = domain.restart_load.take() {
-        out.push(Request::Restart(step));
-        return;
-    }
+
     if domain.journal.stopped() || domain.start_stopped() {
         if !domain.stopped_reported {
             domain.stopped_reported = true;
@@ -1181,11 +992,6 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
                     })),
                 );
             }
-            // This continuation belongs to the mark decision. Only its durable
-            // release completes Switch; the core then selects AdoptRuns.
-            Delivery::Restart(core::RestartStep::AdoptRuns) => {
-                step(domain, env, Event::RestartDone(core::RestartStep::Switch));
-            }
             Delivery::Fleet(event) => step(domain, env, Event::Core(core::Event::Fleet(event))),
             Delivery::Core(core::Held::StopRun { task, attempt }) => {
                 step(
@@ -1208,7 +1014,6 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
             | Delivery::ProjectMade { .. }
             | Delivery::Projection { .. }
             | Delivery::Message { .. }
-            | Delivery::Restart(_)
             | Delivery::CallBusy { .. }
             | Delivery::CallAnswer { .. }
             | Delivery::Core(_)
@@ -1351,24 +1156,6 @@ pub use census::inbox_census;
 /// supplies header, children, proofs, then calls; the core validates their links.
 #[must_use]
 pub fn restore_record(domain: &mut Domain, env: &Env<Limits>, record: Record) -> bool {
-    if domain.core.restart_step() == Some(core::RestartStep::LoadCore) {
-        let after_settings = match &record {
-            Record::Core(core::Record::Core(core::CoreRecord::Deployment(_) | core::CoreRecord::Settings(_))) => false,
-            Record::Core(_) | Record::Connector { .. } => true,
-        };
-        if after_settings
-            && !domain.core.settings_restored(&Env { now: env.now, wall: env.wall, limits: env.limits.core })
-        {
-            return false;
-        }
-    }
-    if domain.core.restart_step() == Some(core::RestartStep::LoadInbox) {
-        return if let Record::Core(row) = record {
-            domain.core.restore_inbox_row(&env.limits.core, &row)
-        } else {
-            false
-        };
-    }
     restore_row(domain, env, record)
 }
 

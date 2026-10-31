@@ -35,18 +35,12 @@ struct Delayed {
     event: Event,
     delay: u32,
 }
-#[derive(Clone, Copy)]
-enum StartMode {
-    Default,
-    LoadAndLink,
-}
 /// The real component, with a typed mirror of its durable writes.
 #[expect(
     clippy::struct_excessive_bools,
     reason = "generation pending, paused pages, held acknowledgements and failure are independent shell facts"
 )]
 pub struct Store {
-    start_mode: StartMode,
     pub applied: u64,
     /// Whether this open serves a copy awaiting the core’s switch step.
     pub generation_pending: bool,
@@ -103,7 +97,7 @@ impl Store {
         models: &[jig_domain_core::Model],
         sets: protocol::PatchSets,
     ) -> Store {
-        Self::build(limits, models, sets, StartMode::Default)
+        Self::build(limits, models, sets)
     }
     /// Open the real store with typed start pages (protocol/store.md, 7.1).
     #[must_use]
@@ -117,14 +111,9 @@ impl Store {
         models: &[jig_domain_core::Model],
         sets: protocol::PatchSets,
     ) -> Store {
-        Self::build(limits, models, sets, StartMode::LoadAndLink)
+        Self::build(limits, models, sets)
     }
-    fn build(
-        limits: &root::Limits,
-        models: &[jig_domain_core::Model],
-        sets: protocol::PatchSets,
-        start_mode: StartMode,
-    ) -> Store {
+    fn build(limits: &root::Limits, models: &[jig_domain_core::Model], sets: protocol::PatchSets) -> Store {
         let component_limits = component_limits(limits);
         let disk = if sets.sets.is_empty() { None } else { Some(crate::disk::Disk::new(&component_limits)) };
         let application = jig_test_store::application(&limits.connector);
@@ -142,7 +131,6 @@ impl Store {
         routes.configure(limits);
         routes.configure_restore(&component_limits).expect("restart page bounds fit");
         let mut store = Store {
-            start_mode,
             applied: 0,
             generation_pending: false,
             switch_requests: 0,
@@ -313,7 +301,7 @@ impl Store {
     /// Replay durable commits into fresh stores and a fresh filesystem.
     #[must_use]
     pub fn fork(&self) -> Store {
-        let mut fresh = Store::build(&self.limits, &self.models, self.initial_sets, self.start_mode);
+        let mut fresh = Store::build(&self.limits, &self.models, self.initial_sets);
         fresh.wires(self.wires);
         for index in 0..=self.durable.len() {
             for (_, sets) in self.patches.iter().filter(|(at, _)| *at == index) {
@@ -322,14 +310,7 @@ impl Store {
             }
             if let Some((number, writes)) = self.durable.get(index) {
                 if fresh.generation_pending && writes.contains(&root::Write::Wires) {
-                    fresh.ask(match self.start_mode {
-                        StartMode::Default => {
-                            StoreOut::Restart { step: jig_domain_core::RestartStep::Switch, census: None }
-                        }
-                        StartMode::LoadAndLink => {
-                            StoreOut::Start { phase: jig_domain_core::start::Phase::Switch, census: None }
-                        }
-                    });
+                    fresh.ask(StoreOut::Start { phase: jig_domain_core::start::Phase::Switch, census: None });
                     let _answers = fresh.answers();
                 }
                 fresh.submit(*number, writes.clone(), 0);
@@ -363,7 +344,6 @@ impl Store {
         match out {
             StoreOut::Commit { number, writes } => self.submit(number, writes, 0),
             out @ (StoreOut::Start { .. }
-            | StoreOut::Restart { .. }
             | StoreOut::ReadLoad { .. }
             | StoreOut::NotesLoad { .. }
             | StoreOut::Now(_)) => self.request(out),
@@ -376,11 +356,7 @@ impl Store {
             self.replies.push(Up::Root(root::Event::StartDone(jig_domain_core::start::Phase::Switch)));
             return;
         }
-        if matches!(
-            out,
-            StoreOut::Restart { step: jig_domain_core::RestartStep::Switch, .. }
-                | StoreOut::Start { phase: jig_domain_core::start::Phase::Switch, .. }
-        ) {
+        if matches!(out, StoreOut::Start { phase: jig_domain_core::start::Phase::Switch, .. }) {
             self.switch_requests += 1;
         }
         let request = route::down(&mut self.routes, out).expect("root has room for its store request");
@@ -404,9 +380,7 @@ impl Store {
         !self.delayed.is_empty() || !self.routes.idle()
     }
     fn open(&mut self) {
-        if matches!(self.start_mode, StartMode::LoadAndLink) {
-            self.component.as_mut().expect("component exists").start_restore();
-        }
+        self.component.as_mut().expect("component exists").start_restore();
         self.patched = 0;
         let root = match &self.disk {
             Some(disk) => disk.root(),
