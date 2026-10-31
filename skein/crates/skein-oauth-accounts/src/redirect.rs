@@ -145,7 +145,7 @@ pub(crate) fn from_head(call: &skein_http::server::Call, registered: &[u8], limi
 pub(crate) fn port(uri: &[u8]) -> Option<u16> {
     let (_, authority, _) = parts(uri)?;
     let at = colon(authority)?;
-    u16::try_from(skein_lib::Decimal::read(authority.get(at.checked_add(1)?..)?)?).ok()
+    u16::try_from(Decimal::read(authority.get(at.checked_add(1)?..)?)?).ok()
 }
 
 fn parts(uri: &[u8]) -> Option<(&[u8], &[u8], &[u8])> {

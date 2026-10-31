@@ -43,10 +43,7 @@ pub fn route(method: Method, target: &[u8], limits: &Limits) -> Option<Request> 
         Request::LogPage { ask, per_page: query.size()? }
     } else if method == Method::Get && path.starts_with(b"/app/hook/deliveries/") {
         // The listed event is decoder context, absent from this wire target.
-        Request::LogDelivery {
-            id: skein_lib::Decimal::read(path.strip_prefix(b"/app/hook/deliveries/")?)?,
-            event: Box::new([]),
-        }
+        Request::LogDelivery { id: Decimal::read(path.strip_prefix(b"/app/hook/deliveries/")?)?, event: Box::new([]) }
     } else if let Some(request) = app::route(method, path, query.page(), query.size()) {
         request
     } else if let Some(request) = writes::route(method, path) {
@@ -54,9 +51,9 @@ pub fn route(method: Method, target: &[u8], limits: &Limits) -> Option<Request> 
     } else if method != Method::Get {
         return None;
     } else if let Some(number) = path.strip_prefix(b"/repositories/") {
-        Request::Repository { id: skein_lib::Decimal::read(number)? }
+        Request::Repository { id: Decimal::read(number)? }
     } else if let Some(number) = path.strip_prefix(b"/user/") {
-        Request::User { id: skein_lib::Decimal::read(number)? }
+        Request::User { id: Decimal::read(number)? }
     } else {
         let path = path.strip_prefix(b"/repos/")?;
         let (owner, tail) = split(path, b'/');
@@ -106,8 +103,8 @@ fn repo_route(owner: Box<[u8]>, name: Box<[u8]>, tail: &[u8], query: &Query) -> 
     }
     if let Some(tail) = tail.strip_prefix(b"actions/jobs/") {
         return match tail.strip_suffix(b"/logs") {
-            Some(id) => Some(Request::JobLog { owner, name, id: skein_lib::Decimal::read(id)? }),
-            None => Some(Request::Job { owner, name, id: skein_lib::Decimal::read(tail)? }),
+            Some(id) => Some(Request::JobLog { owner, name, id: Decimal::read(id)? }),
+            None => Some(Request::Job { owner, name, id: Decimal::read(tail)? }),
         };
     }
     if tail == b"branches" {
@@ -141,7 +138,7 @@ fn repo_route(owner: Box<[u8]>, name: Box<[u8]>, tail: &[u8], query: &Query) -> 
         return Some(Request::RulesForBranch { owner, name, branch: request::unescape(branch)?, page: query.page()? });
     }
     if let Some(number) = tail.strip_prefix(b"rulesets/") {
-        return Some(Request::Ruleset { owner, name, id: skein_lib::Decimal::read(number)? });
+        return Some(Request::Ruleset { owner, name, id: Decimal::read(number)? });
     }
     if tail == b"collaborators" {
         return Some(Request::Collaborators { owner, name, page: query.page()?, per_page: query.size()? });
@@ -170,7 +167,7 @@ fn item_route(owner: Box<[u8]>, name: Box<[u8]>, tail: &[u8], query: &Query) -> 
     }
     if let Some(tail) = tail.strip_prefix(b"issues/") {
         let (number, suffix) = split(tail, b'/');
-        let number = skein_lib::Decimal::read(number)?;
+        let number = Decimal::read(number)?;
         return match suffix {
             b"" => Some(Request::Issue { owner, name, number }),
             b"comments" => {
@@ -195,14 +192,14 @@ fn item_route(owner: Box<[u8]>, name: Box<[u8]>, tail: &[u8], query: &Query) -> 
     }
     if let Some(tail) = tail.strip_prefix(b"pulls/") {
         let (number, suffix) = split(tail, b'/');
-        let number = skein_lib::Decimal::read(number)?;
+        let number = Decimal::read(number)?;
         return match suffix {
             b"" => Some(Request::Pull { owner, name, number }),
             b"files" => Some(Request::PullFiles { owner, name, number, page: query.page()?, per_page: query.size()? }),
             b"reviews" => Some(Request::Reviews { owner, name, number, page: query.page()?, per_page: query.size()? }),
             _ => {
                 let tail = suffix.strip_prefix(b"reviews/")?;
-                let review = skein_lib::Decimal::read(tail.strip_suffix(b"/comments")?)?;
+                let review = Decimal::read(tail.strip_suffix(b"/comments")?)?;
                 Some(Request::ReviewComments {
                     owner,
                     name,
@@ -256,10 +253,10 @@ impl Query {
         None
     }
     fn page(&self) -> Option<u32> {
-        u32::try_from(skein_lib::Decimal::read(self.get(b"page")?)?).ok()
+        u32::try_from(Decimal::read(self.get(b"page")?)?).ok()
     }
     fn size(&self) -> Option<u32> {
-        u32::try_from(skein_lib::Decimal::read(self.get(b"per_page")?)?).ok()
+        u32::try_from(Decimal::read(self.get(b"per_page")?)?).ok()
     }
 }
 /// Writes the repository fields the GitHub decoder reads.

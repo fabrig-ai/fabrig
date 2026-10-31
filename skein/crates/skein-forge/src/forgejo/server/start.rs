@@ -1,7 +1,7 @@
 use super::{Answer, Route, Unrouted};
 use crate::forgejo::{
     document::{self, User},
-    id::{self, ObjectFormat},
+    id::ObjectFormat,
     limits::Limits,
     path::{self, Pair},
     request::{Method, Repo, Request},

@@ -1,7 +1,7 @@
 //! One signed GitHub payload and its forge hint (forge-github.md, section 9).
 pub use super::decode::delivery::{Decoder, Step, decode, decoder, first, step};
 use super::limits::Limits;
-use crate::{api, forgejo::document::Body};
+use crate::{api, forgejo::document::Body, marker};
 use alloc::boxed::Box;
 use skein_lib::{
     bytes,

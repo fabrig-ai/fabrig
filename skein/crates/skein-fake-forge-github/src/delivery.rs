@@ -385,7 +385,7 @@ fn cursor(id: u64) -> Box<[u8]> {
     out.finish()
 }
 fn cursor_id(value: &[u8]) -> Option<u64> {
-    skein_lib::Decimal::read(value.strip_prefix(b"d-")?)
+    Decimal::read(value.strip_prefix(b"d-")?)
 }
 fn post(
     id: u64,
