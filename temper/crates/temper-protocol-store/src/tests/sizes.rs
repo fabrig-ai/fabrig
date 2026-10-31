@@ -194,3 +194,62 @@ fn full_issue_row(limits: &crate::v11::Limits) -> crate::v11::IssueRow {
     )
     .expect("full issue row")
 }
+
+#[test]
+fn largest_forge_record_fits_the_application_ceiling() {
+    use crate::v11 as w;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let limits = bounds.limits();
+    let bytes = |length| skein_lib::bytes::zeroed(usize::try_from(length).expect("field length"));
+    let row = forge::Stored::Forge(forge::ForgeRecord {
+        number: u16::MAX,
+        kind: forge::Kind::GitHub,
+        mode: forge::Mode::Fake,
+        state: forge::ForgeState::Ended { secrets_erased: true, box_removed: true },
+        place: forge::Place {
+            api: forge::Address {
+                host: bytes(limits.address_host),
+                port: u16::MAX,
+                tls: Some(bytes(limits.address_tls_some)),
+            },
+            git: bytes(limits.place_git),
+            web: Some(bytes(limits.place_web_some)),
+        },
+        read_only: true,
+        bot: forge::Bot {
+            login: bytes(limits.bot_login),
+            name: bytes(limits.bot_name),
+            email: bytes(limits.bot_email),
+        },
+        asked: true,
+        first: Some(forge::FirstIntent {
+            playground: true,
+            org: bytes(limits.first_intent_org),
+            repository: bytes(limits.first_intent_repository),
+            project: forge::SetUpProject::New(bytes(limits.new_first_name)),
+            label: bytes(limits.first_intent_label),
+        }),
+    });
+    let encoded = records::encode(&row);
+    let forge_bound = w::Forge::encoded_bound(limits).expect("forge bound");
+    assert_eq!(u64::try_from(encoded.len()).expect("row length"), forge_bound + 3);
+    assert!(forge_bound + 3 <= w::Row::encoded_bound(limits).expect("application bound"));
+    assert_eq!(records::decode(&encoded, &bounds), Ok(row.clone()));
+    let mut payload = 0_u64;
+    for length in [
+        limits.address_host,
+        limits.address_tls_some,
+        limits.place_git,
+        limits.place_web_some,
+        limits.bot_login,
+        limits.bot_name,
+        limits.bot_email,
+        limits.first_intent_org,
+        limits.first_intent_repository,
+        limits.new_first_name,
+        limits.first_intent_label,
+    ] {
+        payload += u64::from(length);
+    }
+    assert_eq!(forge::stored_bytes(&row), Some(payload));
+}

@@ -874,3 +874,35 @@ pub fn issue_row() -> top::IssueRow {
         }),
     }
 }
+
+pub fn forge_record() -> top::ForgeRecord {
+    top::ForgeRecord {
+        number: u16::MAX,
+        kind: top::Kind::Forgejo,
+        mode: top::Mode::Connected,
+        state: top::ForgeState::Kept,
+        place: top::Place {
+            api: top::Address {
+                host: b"forge.example".as_slice().into(),
+                port: 443,
+                tls: Some(b"forge.example".as_slice().into()),
+            },
+            git: b"https://forge.example".as_slice().into(),
+            web: Some(b"https://forge.example".as_slice().into()),
+        },
+        read_only: false,
+        bot: top::Bot {
+            login: b"bot".as_slice().into(),
+            name: b"Temper".as_slice().into(),
+            email: b"bot@example.com".as_slice().into(),
+        },
+        asked: true,
+        first: Some(top::FirstIntent {
+            playground: true,
+            org: b"playground".as_slice().into(),
+            repository: b"widget".as_slice().into(),
+            project: top::SetUpProject::New(b"project".as_slice().into()),
+            label: b"playground".as_slice().into(),
+        }),
+    }
+}

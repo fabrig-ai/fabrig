@@ -154,7 +154,6 @@ impl Reconciliation {
                 }
                 Ok(())
             }
-            Stored::Forge(_) | Stored::ForgeNumber { .. } | Stored::Playground(_) => Ok(()),
             Stored::Receipt { key, .. } => self.repository(RecordKind::Receipt, key.repository),
             Stored::Call { key, .. } => self.task(RecordKind::Call, key.task, None),
             Stored::ProposedEffect(row) => self.entry(RecordKind::ProposedEffect, &row.entry),
@@ -242,7 +241,12 @@ impl Reconciliation {
             // Landing history outlives tasks (domain/forge.md, 7.2).
             // Bindings outlive members. End acts retry until the saved answer,
             // including after their target ended or was removed.
-            Stored::Landed { .. } | Stored::Binding { .. } | Stored::DemoAct(_) => Ok(()),
+            Stored::Landed { .. }
+            | Stored::Binding { .. }
+            | Stored::DemoAct(_)
+            | Stored::Forge(_)
+            | Stored::ForgeNumber { .. }
+            | Stored::Playground(_) => Ok(()),
             Stored::Flight { task, entry } => self.need(RecordKind::Flight, Need::Entry { task: *task, entry: *entry }),
         }
     }

@@ -139,16 +139,12 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
     use RecordKind as K;
     use RestoreSet::Rows;
     match row {
-        Stored::Forge(_) => {
-            // t-forge-map keeps it
-            Ok(())
-        }
-        Stored::ForgeNumber { .. } => {
-            // t-forge-map keeps it
-            Ok(())
-        }
-        Stored::Playground(_) => {
-            // t-forge-map keeps it
+        // t-forge-map keeps it
+        Stored::Forge(_)
+        // t-forge-map keeps it
+        | Stored::ForgeNumber { .. }
+        // t-forge-map keeps it
+        | Stored::Playground(_) => {
             Ok(())
         }
         Stored::Landing(row) => {

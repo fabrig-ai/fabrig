@@ -84,6 +84,7 @@ pub fn largest(limits: &forge::Limits) -> Option<u32> {
 
 /// Encode one relative key, or refuse it when it exceeds `limit`.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one exhaustive encoder preserves ordered family tags")]
 pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
     let mut writer = KeyWriter::new(limit);
     match key {

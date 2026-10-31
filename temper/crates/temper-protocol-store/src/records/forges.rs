@@ -2,6 +2,7 @@
 use super::{FITS, w};
 use temper_engine_domain_forge as d;
 
+#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn encode(row: &d::ForgeRecord) -> w::Forge {
     let d::ForgeRecord { number, kind, mode, state, place, read_only, bot, asked, first } = row;
     w::Forge::new(
@@ -78,6 +79,7 @@ fn encode_first(row: &d::FirstIntent) -> w::FirstIntent {
     .expect(FITS)
 }
 
+#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn decode(row: w::Forge) -> d::ForgeRecord {
     let w::ForgeParts { number, kind, mode, state, place, read_only, bot, asked, first } = row.into_parts();
     d::ForgeRecord {
