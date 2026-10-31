@@ -286,6 +286,7 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
 }
 fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
     match act {
+        Act::Forges(act) => forges::act(side, limits, act, out),
         Act::Picker { forge, act } => picker::act(side, limits, forge, act, out),
         Act::Go { address } => out.push(Request::Show { address }),
         Act::AdminWrite { field, text } => admin::write(side, limits, field, text),

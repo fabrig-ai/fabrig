@@ -29,7 +29,7 @@ pub(crate) fn main(
     b.style(look::MAIN);
     b.style(look::FORGES);
     connect::text(b, w, Role::Heading { level: 1 }, Word::ForgesTitle);
-    let rows = listed::rows(root.forges(), root.forge().demo());
+    let rows = listed::rows(root.forges(), forge::connect::playground(root.forge()));
     let count = u64::from(rows.len());
     let heading = match root.forges() {
         State::Rows(_) => w.say(Word::YourForges, &[Hole::Number(count)]),

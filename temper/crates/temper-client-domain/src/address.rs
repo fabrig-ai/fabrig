@@ -22,9 +22,12 @@ pub enum Step {
     Model { way: Option<ModelWay> },
     Ready,
 }
-/// A configured forge, or the instructions for adding a Forgejo elsewhere.
+/// A forge kind to make, a kept record, or the Forgejo instructions.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Choice {
+    GitHub,
+    Owned,
+    Managed,
     Forge(u16),
     Elsewhere,
 }
@@ -368,6 +371,9 @@ fn print_choice(base: &[u8], choice: Option<Choice>, separator: &[u8]) -> Box<[u
             digits = Decimal::of(u64::from(number));
             digits.as_bytes()
         }
+        Choice::GitHub => b"github",
+        Choice::Owned => b"owned",
+        Choice::Managed => b"managed",
         Choice::Elsewhere => b"elsewhere",
     };
     let size = base
@@ -397,7 +403,13 @@ fn forge_choice(query: &[u8]) -> Option<Choice> {
                 continue;
             }
             // A value that doesn't read is dropped, so a repeat after it is the first that reads (browser.md, 2.3).
-            choice = if value == b"elsewhere" {
+            choice = if value == b"github" {
+                Some(Choice::GitHub)
+            } else if value == b"owned" {
+                Some(Choice::Owned)
+            } else if value == b"managed" {
+                Some(Choice::Managed)
+            } else if value == b"elsewhere" {
                 Some(Choice::Elsewhere)
             } else {
                 match decimal(value) {
