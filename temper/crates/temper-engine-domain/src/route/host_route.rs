@@ -118,10 +118,7 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     let invalid = body.completion == 0 || !super::current_proof(domain, key.task, key.attempt);
     let reading = crate::translate::is_settings_read(&body.tool);
     let busy = !reading
-        && (domain.core.pending_calls.contains_key(&key)
-            || (!domain.core.call_parts.contains_key(&key)
-                && domain.core.call_parts.len().saturating_add(domain.core.pending_calls.len())
-                    >= env.limits.call_records)
+        && (!domain.core.call_room(key)
             || (super::call_needs_input(&body.tool) && domain.archive_reads.len() >= domain.archive_reads.capacity()));
     if invalid || busy {
         let flight = domain.call_renders.remove(&right).expect("current typed flight");

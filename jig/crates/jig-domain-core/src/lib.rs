@@ -467,6 +467,15 @@ impl Core {
         proof.terminal.clone()
     }
 
+    /// Whether a named call can proceed or replay its retained answer.
+    /// Pending calls wait; new calls share the configured record bound.
+    #[must_use]
+    pub fn call_room(&self, key: CallKey) -> bool {
+        !self.pending_calls.contains_key(&key)
+            && (self.call_parts.contains_key(&key)
+                || self.call_parts.len().saturating_add(self.pending_calls.len()) < self.call_parts.capacity())
+    }
+
     /// Retain one newly accepted named call decision. The application saves
     /// its store row and holds the outward answer behind the same commit.
     pub fn record_call(&mut self, key: CallKey, part: CallPart) {
