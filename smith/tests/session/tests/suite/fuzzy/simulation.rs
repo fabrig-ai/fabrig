@@ -111,10 +111,10 @@ fn random_worlds_settle_with_every_session_ended() {
 #[test]
 fn drawn_small_windows_compact_within_them() {
     use smith_domain_session::{Event, llm, record};
-    use smith_session_world::recorded::{World, opening};
+    use smith_session_world::recorded::{Scripted, opening};
     let mut rng = skein_lib::Rng::new(4712);
     for seed in 0..100 {
-        let mut world = World::new(seed);
+        let mut world = Scripted::new(seed);
         world.env.limits.spend = 10_000;
         let mut start = opening(None, world.env.limits.spend);
         start.spec.window = u32::try_from(rng.between(2_000, 3_000)).expect("small window");
@@ -138,10 +138,10 @@ fn drawn_small_windows_compact_within_them() {
 #[test]
 fn no_drawn_session_ends_because_its_history_grew() {
     use smith_domain_session::{Event, llm, record};
-    use smith_session_world::recorded::{World, opening, written_calls};
+    use smith_session_world::recorded::{Scripted, opening, written_calls};
     let mut rng = skein_lib::Rng::new(4717);
     for seed in 0..100 {
-        let mut world = World::new(seed);
+        let mut world = Scripted::new(seed);
         world.env.limits.history_bytes = rng.between(24_576, 32_768);
         world.open(opening(None, world.env.limits.spend));
         world.complete(written_calls(16), llm::Stop::ToolUse, llm::Usage::ZERO);

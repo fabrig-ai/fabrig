@@ -8,7 +8,7 @@ use super::{
     Conversation, End, Env, Failure, Id, Limits, OUT_OF_TIME, Queue, Request, Rng, Session, State, ask, compaction,
     finish,
 };
-use crate::llm::{Cap, Evidence, Limit, Phase};
+use crate::llm::{Cap, CompletionPhase, Evidence, Limit};
 use skein_lib::{Duration, Time};
 
 /// One policy class for every provider failure.
@@ -26,8 +26,10 @@ fn class(failure: Failure) -> Class {
         Failure::SessionGone => Class::Gone,
         Failure::ContextTooLong | Failure::Limit { which: Limit::Path(Cap::Request), .. } => Class::Context,
         Failure::TimedOut { phase } => match phase {
-            Phase::Whole => Class::TimeUp,
-            Phase::Connect | Phase::Handshake | Phase::Head | Phase::Idle => Class::Transient { floor: Duration::ZERO },
+            CompletionPhase::Whole => Class::TimeUp,
+            CompletionPhase::Connect | CompletionPhase::Handshake | CompletionPhase::Head | CompletionPhase::Idle => {
+                Class::Transient { floor: Duration::ZERO }
+            }
         },
         Failure::Overloaded | Failure::Unavailable | Failure::Unauthorized => {
             Class::Transient { floor: Duration::ZERO }

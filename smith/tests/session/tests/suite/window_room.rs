@@ -4,7 +4,7 @@
 use skein_lib::{Duration, Queue};
 use smith_agent_service::profile::{self, Configuration, Endpoint, Model, OversizedReasoning};
 use smith_domain_session::{self as session, llm};
-use smith_session_world::recorded::{World, opening};
+use smith_session_world::recorded::{Scripted, opening};
 
 #[test]
 fn a_window_opened_at_its_largest_makes_its_first_completion() {
@@ -48,7 +48,7 @@ fn a_window_opened_at_its_largest_makes_its_first_completion() {
         let own = profile::room::own_part(&limits.domain.session.tools, client.input, framing)
             .expect("measured fixed own part");
         let parts = profile::room::room(&profile, &declarations, own, 0).expect("fresh room");
-        let mut world = World::new(4606 + u64::from(window));
+        let mut world = Scripted::new(4606 + u64::from(window));
         world.env.limits = limits.domain.session;
         world.domain = session::Domain::new(&world.env.limits, 4606 + u64::from(window));
         world.out = Queue::uncapped();
@@ -76,7 +76,7 @@ fn a_window_opened_at_its_largest_makes_its_first_completion() {
         assert_eq!(world.turns.len(), 1, "the completion produces a real transcript turn");
         world.close();
 
-        let mut final_world = World::new(4611 + u64::from(window));
+        let mut final_world = Scripted::new(4611 + u64::from(window));
         final_world.env.limits = limits.domain.session;
         final_world.domain = session::Domain::new(&final_world.env.limits, 4611 + u64::from(window));
         final_world.out = Queue::uncapped();

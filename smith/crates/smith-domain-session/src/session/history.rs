@@ -4,7 +4,7 @@
 
 use super::{Conversation, End, Limits, Request, Session, State, compaction};
 use crate::llm::{Block, Cap, Decoded, Evidence, Failure, Limit, Message, NotRun, Returned, Role};
-use crate::window::Stage;
+use crate::window::State as WindowState;
 use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_lib::{Decimal, Env, Id, List, Queue, Writer};
@@ -80,9 +80,9 @@ fn wanted_bytes(conversation: &Conversation, limits: &Limits, summary: bool) -> 
 
 pub(super) fn start(conversation: &mut Conversation, limits: &Limits, bound: u64) -> Option<End> {
     match conversation.window.stage {
-        Stage::Fresh => Some(limit(bound)),
-        Stage::Used if conversation.compaction.asking() => Some(limit(bound)),
-        Stage::Used => compaction::start(conversation, limits, Evidence::Unsent, 0),
+        WindowState::Fresh => Some(limit(bound)),
+        WindowState::Used if conversation.compaction.asking() => Some(limit(bound)),
+        WindowState::Used => compaction::start(conversation, limits, Evidence::Unsent, 0),
     }
 }
 

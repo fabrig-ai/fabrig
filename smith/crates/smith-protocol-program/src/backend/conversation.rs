@@ -453,7 +453,7 @@ impl Backend {
         }
         match &self.request {
             Some(FromDomain::Complete { deadlines, .. }) => {
-                self.response_phase = if head { llm::Phase::Head } else { llm::Phase::Idle };
+                self.response_phase = if head { llm::CompletionPhase::Head } else { llm::CompletionPhase::Idle };
                 self.deadline = Some(
                     env.now.saturating_add(if head { deadlines.head } else { deadlines.idle }).min(deadlines.whole),
                 );

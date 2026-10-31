@@ -298,7 +298,7 @@ fn failure_fields() -> Vec<(smith_domain::llm::Failure, run::CompletionFailure)>
         (llm::Failure::Overloaded, run::CompletionFailure::Overloaded),
         (llm::Failure::Unavailable, run::CompletionFailure::Unavailable),
         (
-            llm::Failure::TimedOut { phase: llm::Phase::Head },
+            llm::Failure::TimedOut { phase: llm::CompletionPhase::Head },
             run::CompletionFailure::TimedOut { phase: run::Phase::Head },
         ),
         (llm::Failure::Invalid, run::CompletionFailure::Invalid),

@@ -90,7 +90,7 @@ fn every_completion_failure_and_transport_evidence_maps_without_inference() {
         (llm::Failure::Overloaded, run::CompletionFailure::Overloaded),
         (llm::Failure::Unavailable, run::CompletionFailure::Unavailable),
         (
-            llm::Failure::TimedOut { phase: llm::Phase::Whole },
+            llm::Failure::TimedOut { phase: llm::CompletionPhase::Whole },
             run::CompletionFailure::TimedOut { phase: run::Phase::Whole },
         ),
         (llm::Failure::ContextTooLong, run::CompletionFailure::ContextTooLong),

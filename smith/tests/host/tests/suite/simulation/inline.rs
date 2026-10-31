@@ -611,7 +611,7 @@ fn an_inline_answer_keeps_its_typed_completion_failure() {
     let start = inline::start(6808, Job::HostTools);
     let mut world = World::new(6808, bounds);
     world.fail_with(
-        smith_domain::llm::Failure::TimedOut { phase: smith_domain::llm::Phase::Head },
+        smith_domain::llm::Failure::TimedOut { phase: smith_domain::llm::CompletionPhase::Head },
         smith_domain::llm::Evidence::Response { status: Some(503) },
     );
     world.event(parent::Event::Spawn { client: Token::new(1), start });

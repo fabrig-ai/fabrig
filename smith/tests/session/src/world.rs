@@ -467,7 +467,7 @@ enum Delivery {
     /// The agent's side gives up on a call.
     Deadline {
         call: u64,
-        phase: smith_domain_session::llm::Phase,
+        phase: smith_domain_session::llm::CompletionPhase,
     },
     /// A cancel that won its race is told.
     Cancelled {

@@ -1,5 +1,5 @@
 use smith_domain_session::{self as session, llm, record};
-use smith_session_world::recorded::{self, World, opening, scenario, transcript};
+use smith_session_world::recorded::{self, Scripted, opening, scenario, transcript};
 
 #[test]
 fn a_domain_turn_round_trips_its_account_and_backend() {
@@ -36,8 +36,8 @@ fn compaction_world(
     previous: Option<record::Llm>,
     window: u32,
     model: &[u8],
-) -> World {
-    let mut world = World::new(SEED);
+) -> Scripted {
+    let mut world = Scripted::new(SEED);
     let mut start = opening(history, BUDGET);
     start.window_llm = previous;
     start.spec.window = window;
@@ -52,7 +52,7 @@ fn compaction_world(
 fn each_compactions_window_turn_names_the_charters_llm() {
     struct Case {
         name: &'static str,
-        world: World,
+        world: Scripted,
         expected: Window,
     }
     let rows = [
@@ -91,7 +91,7 @@ struct Window {
     model: Box<[u8]>,
 }
 
-fn threshold_compaction() -> World {
+fn threshold_compaction() -> Scripted {
     let mut threshold = compaction_world(None, None, 2_000, b"model");
     threshold.complete(
         Box::new([llm::Block::Text { text: b"answer".as_slice().into(), replay: None }]),
@@ -105,7 +105,7 @@ fn threshold_compaction() -> World {
     threshold
 }
 
-fn model_change_compaction() -> World {
+fn model_change_compaction() -> Scripted {
     let saved = same_window();
     compaction_world(
         Some(saved),
@@ -253,7 +253,7 @@ fn metadata(prompt: &llm::Prompt) -> Vec<Box<[u8]>> {
         .collect()
 }
 
-fn summarise(world: &mut World) {
+fn summarise(world: &mut Scripted) {
     world.complete(
         Box::new([llm::Block::Text { text: SUMMARY.into(), replay: None }]),
         llm::Stop::EndTurn,

@@ -9,7 +9,7 @@ use skein_lib::{List, Queue, Writer};
 
 use super::{Conversation, End, Limits, Request, content_cost, payload_cost, release_provider, spec_cost};
 use crate::llm::{Block, Evidence, Failure, Limit, Message, Role, Stop, Usage};
-use crate::window::{self, Admission, Bytes, Stage, Window};
+use crate::window::{self, Admission, Bytes, State as WindowState, Window};
 
 /// Opener text waits beside the old history until its new window opens.
 #[derive(Debug)]
@@ -71,7 +71,7 @@ pub(super) fn change_model(conversation: &mut Conversation, llm: crate::record::
         Compaction::Idle | Compaction::CarryOver { .. } => Compaction::CarryOver { next: Some(next) },
         Compaction::Asking { .. } => unreachable!("the opening chooses its model before asking"),
     };
-    conversation.window.stage = Stage::Used;
+    conversation.window.stage = WindowState::Used;
     conversation.window.following = conversation.transcript.len().saturating_sub(1);
     None
 }
@@ -156,9 +156,11 @@ pub(super) fn start(
     attempts: u32,
 ) -> Option<End> {
     match conversation.window.stage {
-        Stage::Fresh => return Some(window_limit(conversation, evidence, attempts)),
-        Stage::Used if conversation.compaction.asking() => return Some(window_limit(conversation, evidence, attempts)),
-        Stage::Used => {}
+        WindowState::Fresh => return Some(window_limit(conversation, evidence, attempts)),
+        WindowState::Used if conversation.compaction.asking() => {
+            return Some(window_limit(conversation, evidence, attempts));
+        }
+        WindowState::Used => {}
     }
     super::builtin::forget(conversation);
     let mut blocks = 0_u32;
@@ -523,7 +525,7 @@ pub(super) fn carry_over(
             released = released.checked_add(portable_message(message)?).ok_or(Refusal::TooLarge)?;
         }
     }
-    conversation.window.stage = Stage::Used;
+    conversation.window.stage = WindowState::Used;
     conversation.window.following = messages;
     conversation.compaction = Compaction::CarryOver { next: None };
     Ok(released)
@@ -586,7 +588,7 @@ pub(super) fn session_gone(conversation: &mut Conversation) -> Option<End> {
             released.checked_add(portable_message(message).expect("admitted portable content")).expect("history");
     }
     conversation.bytes = conversation.bytes.checked_sub(released).expect("portable history releases its bytes");
-    conversation.window.stage = Stage::Used;
+    conversation.window.stage = WindowState::Used;
     conversation.window.following = messages;
     conversation.compaction = Compaction::CarryOver { next: None };
     None

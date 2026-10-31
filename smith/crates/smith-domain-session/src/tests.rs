@@ -1307,7 +1307,7 @@ fn a_timeout_at_session_expiry_ends_for_time_once_without_retry() {
         h.step(Event::Failed {
             retry_ok: true,
             owner,
-            failure: Failure::TimedOut { phase: crate::llm::Phase::Whole },
+            failure: Failure::TimedOut { phase: crate::llm::CompletionPhase::Whole },
             evidence: crate::llm::Evidence::Response { status: None },
             detail: Box::default(),
         }),
@@ -1319,9 +1319,12 @@ fn a_timeout_at_session_expiry_ends_for_time_once_without_retry() {
 
 #[test]
 fn each_transient_timeout_phase_retries_with_the_same_absolute_expiry() {
-    for phase in
-        [crate::llm::Phase::Connect, crate::llm::Phase::Handshake, crate::llm::Phase::Head, crate::llm::Phase::Idle]
-    {
+    for phase in [
+        crate::llm::CompletionPhase::Connect,
+        crate::llm::CompletionPhase::Handshake,
+        crate::llm::CompletionPhase::Head,
+        crate::llm::CompletionPhase::Idle,
+    ] {
         let mut h = Harness::new(&LIMITS);
         let (owner, _) = h.open(1);
         assert_eq!(
@@ -1340,7 +1343,7 @@ fn each_transient_timeout_phase_retries_with_the_same_absolute_expiry() {
         let end = h.step(Event::Failed {
             retry_ok: true,
             owner,
-            failure: Failure::TimedOut { phase: crate::llm::Phase::Whole },
+            failure: Failure::TimedOut { phase: crate::llm::CompletionPhase::Whole },
             evidence: crate::llm::Evidence::Response { status: None },
             detail: Box::default(),
         });
@@ -1356,15 +1359,15 @@ fn each_transient_timeout_phase_retries_with_the_same_absolute_expiry() {
 #[test]
 fn whole_expiry_or_elapsed_session_time_ends_once_even_with_no_retries() {
     for phase in [
-        crate::llm::Phase::Connect,
-        crate::llm::Phase::Handshake,
-        crate::llm::Phase::Head,
-        crate::llm::Phase::Idle,
-        crate::llm::Phase::Whole,
+        crate::llm::CompletionPhase::Connect,
+        crate::llm::CompletionPhase::Handshake,
+        crate::llm::CompletionPhase::Head,
+        crate::llm::CompletionPhase::Idle,
+        crate::llm::CompletionPhase::Whole,
     ] {
         let mut h = Harness::new(&Limits { retries: 0, ..LIMITS });
         let (owner, _) = h.open(1);
-        if phase != crate::llm::Phase::Whole {
+        if phase != crate::llm::CompletionPhase::Whole {
             h.after(BUDGET.time);
         }
         assert_eq!(

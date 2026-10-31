@@ -304,7 +304,7 @@ fn a_connect_deadline_keeps_timed_out_failure_evidence() {
         up.pop(),
         Some(ToDomain::Failed {
             owner,
-            failure: llm::Failure::TimedOut { phase: llm::Phase::Connect },
+            failure: llm::Failure::TimedOut { phase: llm::CompletionPhase::Connect },
             evidence: llm::Evidence::Unsent,
             ..
         }) if owner == Token::new(7)
@@ -332,17 +332,23 @@ fn shared_failure_cases() -> [(shared::Failure, llm::Failure); 18] {
         (shared::Failure::Cancelled, llm::Failure::Cancelled),
         (
             shared::Failure::TimedOut { phase: shared::Phase::Connect },
-            llm::Failure::TimedOut { phase: llm::Phase::Connect },
+            llm::Failure::TimedOut { phase: llm::CompletionPhase::Connect },
         ),
         (
             shared::Failure::TimedOut { phase: shared::Phase::Handshake },
-            llm::Failure::TimedOut { phase: llm::Phase::Handshake },
+            llm::Failure::TimedOut { phase: llm::CompletionPhase::Handshake },
         ),
-        (shared::Failure::TimedOut { phase: shared::Phase::Head }, llm::Failure::TimedOut { phase: llm::Phase::Head }),
-        (shared::Failure::TimedOut { phase: shared::Phase::Idle }, llm::Failure::TimedOut { phase: llm::Phase::Idle }),
+        (
+            shared::Failure::TimedOut { phase: shared::Phase::Head },
+            llm::Failure::TimedOut { phase: llm::CompletionPhase::Head },
+        ),
+        (
+            shared::Failure::TimedOut { phase: shared::Phase::Idle },
+            llm::Failure::TimedOut { phase: llm::CompletionPhase::Idle },
+        ),
         (
             shared::Failure::TimedOut { phase: shared::Phase::Whole },
-            llm::Failure::TimedOut { phase: llm::Phase::Whole },
+            llm::Failure::TimedOut { phase: llm::CompletionPhase::Whole },
         ),
     ]
 }
@@ -454,7 +460,7 @@ fn a_tls_handshake_deadline_stops_the_unsent_call() {
         up.pop(),
         Some(ToDomain::Failed {
             owner,
-            failure: llm::Failure::TimedOut { phase: llm::Phase::Handshake },
+            failure: llm::Failure::TimedOut { phase: llm::CompletionPhase::Handshake },
             evidence: llm::Evidence::Unsent,
             ..
         }) if owner == Token::new(7)
@@ -476,7 +482,7 @@ fn the_whole_deadline_precedes_a_later_endpoint_connect_deadline() {
     assert!(matches!(
         up.pop(),
         Some(ToDomain::Failed {
-            failure: llm::Failure::TimedOut { phase: llm::Phase::Whole },
+            failure: llm::Failure::TimedOut { phase: llm::CompletionPhase::Whole },
             evidence: llm::Evidence::Unsent,
             ..
         })

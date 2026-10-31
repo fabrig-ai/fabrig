@@ -933,11 +933,11 @@ pub(crate) fn completion_failure(failure: llm::Failure, evidence: llm::Evidence)
     };
     let phase = match failure {
         llm::Failure::TimedOut { phase } => Some(match phase {
-            llm::Phase::Connect => smith_events::FailurePhase::Connect,
-            llm::Phase::Handshake => smith_events::FailurePhase::Handshake,
-            llm::Phase::Head => smith_events::FailurePhase::Head,
-            llm::Phase::Idle => smith_events::FailurePhase::Idle,
-            llm::Phase::Whole => smith_events::FailurePhase::Whole,
+            llm::CompletionPhase::Connect => smith_events::FailurePhase::Connect,
+            llm::CompletionPhase::Handshake => smith_events::FailurePhase::Handshake,
+            llm::CompletionPhase::Head => smith_events::FailurePhase::Head,
+            llm::CompletionPhase::Idle => smith_events::FailurePhase::Idle,
+            llm::CompletionPhase::Whole => smith_events::FailurePhase::Whole,
         }),
         llm::Failure::Limit { .. }
         | llm::Failure::ApplicationLimit
@@ -1824,8 +1824,13 @@ pub(crate) mod tests {
                 }
             }
         }
-        for phase in [llm::Phase::Connect, llm::Phase::Handshake, llm::Phase::Head, llm::Phase::Idle, llm::Phase::Whole]
-        {
+        for phase in [
+            llm::CompletionPhase::Connect,
+            llm::CompletionPhase::Handshake,
+            llm::CompletionPhase::Head,
+            llm::CompletionPhase::Idle,
+            llm::CompletionPhase::Whole,
+        ] {
             let failure = completion_failure(llm::Failure::TimedOut { phase }, llm::Evidence::Unknown);
             assert!(failure.phase.is_some());
             assert_eq!(failure.status, None);

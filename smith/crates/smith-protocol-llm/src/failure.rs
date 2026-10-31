@@ -51,11 +51,11 @@ pub(crate) fn class(failure: shared::Failure) -> llm::Failure {
         shared::Failure::Unavailable => llm::Failure::Unavailable,
         shared::Failure::TimedOut { phase } => llm::Failure::TimedOut {
             phase: match phase {
-                shared::Phase::Connect => llm::Phase::Connect,
-                shared::Phase::Handshake => llm::Phase::Handshake,
-                shared::Phase::Head => llm::Phase::Head,
-                shared::Phase::Idle => llm::Phase::Idle,
-                shared::Phase::Whole => llm::Phase::Whole,
+                shared::Phase::Connect => llm::CompletionPhase::Connect,
+                shared::Phase::Handshake => llm::CompletionPhase::Handshake,
+                shared::Phase::Head => llm::CompletionPhase::Head,
+                shared::Phase::Idle => llm::CompletionPhase::Idle,
+                shared::Phase::Whole => llm::CompletionPhase::Whole,
             },
         },
         shared::Failure::ContextTooLong => llm::Failure::ContextTooLong,

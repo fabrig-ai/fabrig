@@ -3,11 +3,11 @@
 
 use skein_lib::Token;
 use smith_domain_session::{self as session, llm};
-use smith_session_world::recorded::{World, opening};
+use smith_session_world::recorded::{Scripted, opening};
 
 #[test]
 fn a_wind_down_offering_only_some_tools_answers_a_call_outside_them_as_not_run() {
-    let mut world = World::new(71);
+    let mut world = Scripted::new(71);
     let mut start = opening(None, 1000);
     start.spec.authority.grants.inspect = true;
     world.open(start);

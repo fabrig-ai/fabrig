@@ -4,7 +4,7 @@
 use skein_lib::{Duration, Queue, Token};
 use smith_agent_service::profile::{self, Check, Configuration, Endpoint, Model, OversizedReasoning, Refusal, Value};
 use smith_domain_session::{self as session, llm};
-use smith_session_world::recorded::{World, opening};
+use smith_session_world::recorded::{Scripted, opening};
 
 #[test]
 fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns() {
@@ -55,7 +55,7 @@ fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns(
     assert!(limits.domain.session.history_messages > 4, "the defect is not six-message room");
     let allowance = profile::endpoint_allowance(&profile, &configuration.endpoints[0], &limits.domain.session.tools)
         .expect("real fixed schemas and framing");
-    let mut world = World::new(415);
+    let mut world = Scripted::new(415);
     world.env.limits = limits.domain.session;
     world.domain = session::Domain::new(&world.env.limits, 415);
     world.out = Queue::uncapped();

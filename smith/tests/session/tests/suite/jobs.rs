@@ -2,7 +2,7 @@
 use skein_lib::{Duration, Time, Token};
 use smith_domain_session::{self as session, llm, record};
 use smith_domain_tools::{self as tools, Budget, Call, Done, JobEnd, JobNumber, Wait};
-use smith_session_world::recorded::{self, World};
+use smith_session_world::recorded::{self, Scripted};
 
 fn opening(transcript: Option<record::Transcript>) -> record::Opening {
     let mut opening = recorded::opening(transcript, 100);
@@ -12,8 +12,8 @@ fn opening(transcript: Option<record::Transcript>) -> record::Opening {
     opening
 }
 
-fn world() -> World {
-    let mut world = World::new(1);
+fn world() -> Scripted {
+    let mut world = Scripted::new(1);
     world.open(opening(None));
     world
 }
@@ -60,11 +60,11 @@ fn read(id: &[u8]) -> llm::Block {
     )
 }
 
-fn complete(world: &mut World, blocks: Vec<llm::Block>) {
+fn complete(world: &mut Scripted, blocks: Vec<llm::Block>) {
     world.complete(blocks.into_boxed_slice(), llm::Stop::ToolUse, llm::Usage::ZERO);
 }
 
-fn start_job(world: &mut World) -> Token {
+fn start_job(world: &mut Scripted) -> Token {
     complete(world, vec![shell()]);
     let owner = world.operations[0].0;
     world.env.now = Time::from_nanos(1_000_000_000);
@@ -75,14 +75,14 @@ fn start_job(world: &mut World) -> Token {
     owner
 }
 
-fn end_job(world: &mut World, owner: Token, end: JobEnd) {
+fn end_job(world: &mut Scripted, owner: Token, end: JobEnd) {
     world.step(session::Event::Done {
         owner,
         done: Done::Job { head: b"Done\n".as_slice().into(), tail: Box::default(), dropped: 0, end },
     });
 }
 
-fn finish(world: &mut World) {
+fn finish(world: &mut Scripted) {
     world.complete(
         Box::new([llm::Block::Text { text: b"finished".as_slice().into(), replay: None }]),
         llm::Stop::EndTurn,
@@ -91,7 +91,7 @@ fn finish(world: &mut World) {
     world.close();
 }
 
-fn outcomes(world: &World) -> Vec<tools::Outcome> {
+fn outcomes(world: &Scripted) -> Vec<tools::Outcome> {
     world
         .turns
         .iter()
@@ -107,7 +107,7 @@ fn outcomes(world: &World) -> Vec<tools::Outcome> {
         .collect()
 }
 
-fn read_and_edit(world: &mut World) {
+fn read_and_edit(world: &mut Scripted) {
     complete(world, vec![read(b"read"), edit(), job(false)]);
     let read_owner = world.operations[0].0;
     world.step(session::Event::Done {
@@ -268,7 +268,7 @@ fn a_resumed_session_numbers_its_next_job_after_its_last_turns() {
     let old = recorded::scenario(1);
     let mut transcript = recorded::transcript(&old);
     transcript.turns.last_mut().expect("last turn").jobs = 3;
-    let mut world = World::new(1);
+    let mut world = Scripted::new(1);
     world.open(opening(Some(transcript)));
     let owner = start_job(&mut world);
     assert_eq!(world.turns[0].jobs, 4);
@@ -289,7 +289,7 @@ fn a_resumed_session_numbers_its_next_job_after_its_last_turns() {
     world.close();
 }
 
-fn polling(blocks: Vec<llm::Block>) -> (World, Token) {
+fn polling(blocks: Vec<llm::Block>) -> (Scripted, Token) {
     let mut world = world();
     let owner = start_job(&mut world);
     complete(&mut world, blocks);
@@ -329,7 +329,7 @@ fn edit() -> llm::Block {
     )
 }
 
-fn answer_operation(world: &mut World, done: Option<Done>) {
+fn answer_operation(world: &mut Scripted, done: Option<Done>) {
     if let Some(done) = done {
         let owner = world.operations[0].0;
         world.step(session::Event::Done { owner, done });

@@ -3,12 +3,12 @@
 
 use skein_lib::{Duration, Token};
 use smith_domain_session::{self as session, llm};
-use smith_session_world::recorded::{World, opening};
+use smith_session_world::recorded::{Scripted, opening};
 
 #[test]
 fn a_childs_final_turn_is_answered_with_stop_budget() {
     for stop in [llm::Stop::ToolUse, llm::Stop::EndTurn, llm::Stop::MaxTokens, llm::Stop::Refusal] {
-        let mut world = World::new(72);
+        let mut world = Scripted::new(72);
         let mut start = opening(None, 1000);
         start.spec.authority.grants.inspect = true;
         start.spec.budget.turns = 1;

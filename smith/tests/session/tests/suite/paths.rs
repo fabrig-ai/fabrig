@@ -34,7 +34,7 @@ fn a_resolved_missing_path_reaches_the_llm_in_the_fixed_conversation_namespace()
             repos: repos.into(),
             grants: Grants { inspect: true, modify: false, shell: false },
         };
-        let mut world = recorded::World::new(9105);
+        let mut world = recorded::Scripted::new(9105);
         // A failure path exceeds this read window, so its own reservation
         // must keep the whole descriptor rather than price it as one byte.
         world.env.limits.tools.read_bytes = 1;

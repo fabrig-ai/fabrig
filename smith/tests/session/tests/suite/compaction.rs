@@ -1,6 +1,6 @@
 use skein_lib::Token;
 use smith_domain_session::{self as session, llm, record};
-use smith_session_world::recorded::{World, opening, transcript};
+use smith_session_world::recorded::{Scripted, opening, transcript};
 
 const SIMULATION_ITERATIONS: u32 = 10_000;
 
@@ -12,8 +12,8 @@ fn usage() -> llm::Usage {
     llm::Usage { input_tokens: Some(1_300), output_tokens: Some(300), ..llm::Usage::ZERO }
 }
 
-fn started(seed: u64) -> World {
-    let mut world = World::new(seed);
+fn started(seed: u64) -> Scripted {
+    let mut world = Scripted::new(seed);
     world.env.limits.spend = 10_000;
     let mut start = opening(None, world.env.limits.spend);
     start.spec.window = 2_000;
@@ -22,19 +22,19 @@ fn started(seed: u64) -> World {
     world
 }
 
-fn continue_with(world: &mut World, text: &[u8]) {
+fn continue_with(world: &mut Scripted, text: &[u8]) {
     let session = world.session.expect("opened");
     world.step(session::Event::Continue { session, content: text.into() });
 }
 
-fn asked(seed: u64) -> World {
+fn asked(seed: u64) -> Scripted {
     let mut world = started(seed);
     world.complete(said(b"first answer"), llm::Stop::EndTurn, usage());
     continue_with(&mut world, b"go on");
     world
 }
 
-fn context_too_long(world: &mut World) {
+fn context_too_long(world: &mut Scripted) {
     world.step(session::Event::Failed {
         retry_ok: true,
         owner: world.completing.expect("pending request"),
@@ -44,14 +44,14 @@ fn context_too_long(world: &mut World) {
     });
 }
 
-fn is_summary(world: &World) -> bool {
+fn is_summary(world: &Scripted) -> bool {
     world.prompts.last().expect("a prompt").messages.last().expect("a message").content
         == said(b"Summarise the work so far.")
 }
 
 #[test]
 fn a_compaction_is_asked_with_none_and_the_windows_tools() {
-    let mut world = World::new(4840);
+    let mut world = Scripted::new(4840);
     let mut start = opening(None, world.env.limits.spend);
     start.spec.window = 2_000;
     start.spec.output = 512;
@@ -91,7 +91,7 @@ fn a_conversation_narrowed_to_only_asks_only_again_after_its_compaction() {
 
 #[test]
 fn a_childs_final_turn_falling_due_during_a_compaction_waits_for_it() {
-    let mut world = World::new(4842);
+    let mut world = Scripted::new(4842);
     let mut start = opening(None, world.env.limits.spend);
     start.spec.window = 2_000;
     start.spec.output = 512;
@@ -169,7 +169,7 @@ fn context_too_long_on_the_compaction_fails_naming_the_window() {
 
 #[test]
 fn a_fresh_window_that_fails_its_check_fails_naming_the_window() {
-    let mut world = World::new(4704);
+    let mut world = Scripted::new(4704);
     let mut start = opening(None, world.env.limits.spend);
     start.spec.window = 1;
     world.open(start);
@@ -246,7 +246,7 @@ fn a_resumed_window_that_fails_its_check_compacts_first() {
     let mut old = started(4709);
     old.complete(said(b"first answer"), llm::Stop::EndTurn, usage());
     old.close();
-    let mut world = World::new(4710);
+    let mut world = Scripted::new(4710);
     let mut start = opening(Some(transcript(&old)), 10_000);
     start.spec.window = 2_000;
     start.spec.output = 512;
@@ -272,7 +272,7 @@ fn a_budget_with_no_room_for_a_compaction_ends_the_session() {
 
 #[test]
 fn a_child_at_its_threshold_with_two_turns_left_compacts_then_answers() {
-    let mut world = World::new(4712);
+    let mut world = Scripted::new(4712);
     world.env.limits.spend = 10_000;
     let mut start = opening(None, 10_000);
     start.spec.window = 2_000;
@@ -296,7 +296,7 @@ fn a_child_at_its_threshold_with_two_turns_left_compacts_then_answers() {
 
 #[test]
 fn an_oversized_summary_is_charged_without_telling_a_turn() {
-    let mut world = World::new(4713);
+    let mut world = Scripted::new(4713);
     world.env.limits.spend = 10_000;
     world.env.limits.completion_bytes = 256;
     let mut start = opening(None, world.env.limits.spend);
@@ -327,7 +327,7 @@ fn an_oversized_summary_is_charged_without_telling_a_turn() {
 
 #[test]
 fn a_history_at_its_message_bound_compacts_instead_of_ending() {
-    let mut world = World::new(4714);
+    let mut world = Scripted::new(4714);
     world.env.limits.history_messages = 4;
     world.open(opening(None, world.env.limits.spend));
     world.complete(said(b"answer"), llm::Stop::EndTurn, llm::Usage::ZERO);
@@ -348,7 +348,7 @@ fn a_history_at_its_message_bound_compacts_instead_of_ending() {
 
 #[test]
 fn a_fresh_window_at_its_history_bound_fails_naming_history() {
-    let mut world = World::new(4715);
+    let mut world = Scripted::new(4715);
     world.env.limits.history_messages = 2;
     world.open(opening(None, world.env.limits.spend));
     assert!(world.prompts.is_empty());
@@ -365,7 +365,7 @@ fn a_fresh_window_at_its_history_bound_fails_naming_history() {
 
 #[test]
 fn a_childs_final_answer_at_its_message_bound_names_that_bound() {
-    let mut world = World::new(4720);
+    let mut world = Scripted::new(4720);
     world.env.limits.history_messages = 2;
     let mut start = opening(None, world.env.limits.spend);
     start.spec.budget.turns = 1;
@@ -388,7 +388,7 @@ fn a_childs_final_answer_at_its_message_bound_names_that_bound() {
 
 #[test]
 fn a_later_batch_runs_within_what_is_left_of_the_history_then_compacts() {
-    let mut world = World::new(4716);
+    let mut world = Scripted::new(4716);
     world.env.limits.history_bytes = 32_768;
     world.open(opening(None, world.env.limits.spend));
     world.complete(smith_session_world::recorded::written_calls(3), llm::Stop::ToolUse, llm::Usage::ZERO);
@@ -413,7 +413,7 @@ fn a_later_batch_runs_within_what_is_left_of_the_history_then_compacts() {
 
 #[test]
 fn a_continue_past_the_byte_bound_keeps_its_message_and_answers_stopped_calls() {
-    let mut world = World::new(4718);
+    let mut world = Scripted::new(4718);
     world.env.limits.history_bytes = 16_384;
     world.env.limits.completion_bytes = 1024;
     world.env.limits.answer_bytes = 512;
@@ -444,7 +444,7 @@ fn a_continue_past_the_byte_bound_keeps_its_message_and_answers_stopped_calls() 
 
 #[test]
 fn a_final_note_due_during_a_compaction_retry_waits_for_the_new_window() {
-    let mut world = World::new(4719);
+    let mut world = Scripted::new(4719);
     let mut start = opening(None, world.env.limits.spend);
     start.spec.window = 2_000;
     start.spec.output = 512;
@@ -482,7 +482,7 @@ fn a_final_note_due_during_a_compaction_retry_waits_for_the_new_window() {
 }
 
 fn saved_window(seed: u64) -> record::Transcript {
-    let mut world = World::new(seed);
+    let mut world = Scripted::new(seed);
     let mut start = opening(None, world.env.limits.spend);
     start.spec.effort = Some(b"low".as_slice().into());
     world.open(start);
@@ -491,8 +491,8 @@ fn saved_window(seed: u64) -> record::Transcript {
     transcript(&world)
 }
 
-fn model_change(seed: u64) -> World {
-    let mut world = World::new(seed);
+fn model_change(seed: u64) -> Scripted {
+    let mut world = Scripted::new(seed);
     let mut start = opening(Some(saved_window(seed)), world.env.limits.spend);
     start.window_llm = Some(record::Llm {
         model: b"model".as_slice().into(),
@@ -532,7 +532,7 @@ fn a_session_resumed_with_another_model_compacts_first_with_the_windows_model() 
 fn a_later_activation_with_another_effort_keeps_its_window() {
     let history = saved_window(4822);
     let prefix = history.turns[0].messages.clone();
-    let mut world = World::new(4822);
+    let mut world = Scripted::new(4822);
     let mut start = opening(Some(history), world.env.limits.spend);
     start.spec.effort = Some(b"high".as_slice().into());
     world.open(start);
@@ -550,7 +550,7 @@ fn a_resume_after_a_model_change_compaction_does_not_compact_again() {
     let mut first = model_change(4823);
     first.complete(said(b"summary"), llm::Stop::EndTurn, llm::Usage::ZERO);
     first.close();
-    let mut world = World::new(4823);
+    let mut world = Scripted::new(4823);
     let mut start = opening(Some(transcript(&first)), world.env.limits.spend);
     start.spec.model = b"another-model".as_slice().into();
     start.spec.effort = Some(b"high".as_slice().into());
@@ -619,7 +619,7 @@ fn a_restored_window_reads_its_summary_after_the_preamble() {
     let mut old = asked(4852);
     old.complete(said(&[b's'; 2_500]), llm::Stop::EndTurn, llm::Usage { output_tokens: Some(40), ..usage() });
     old.close();
-    let mut world = World::new(4853);
+    let mut world = Scripted::new(4853);
     let mut history = transcript(&old);
     history.turns = Box::new([old.turns.last().expect("window turn").clone()]);
     let mut start = opening(Some(history), 10_000);
@@ -662,7 +662,7 @@ fn the_guards_refusal_compacts_the_window_once() {
 
 #[test]
 fn a_turn_counted_a_byte_a_token_is_refused_by_the_guard_then_compacted() {
-    use smith_session_world::{Settings, World as Simulated, spec};
+    use smith_session_world::{World as Simulated, Settings, spec};
     const LINE: u64 = 200;
     let mut world = Simulated::new(Settings::calm(123));
     let opener = world.submit(skein_lib::Time::ZERO, session::Spec { line: LINE, ..spec(b"fix the build") });
@@ -677,7 +677,7 @@ fn a_turn_counted_a_byte_a_token_is_refused_by_the_guard_then_compacted() {
 
 #[test]
 fn a_new_part_just_within_the_line_is_sent() {
-    use smith_session_world::{Settings, World as Simulated, spec};
+    use smith_session_world::{World as Simulated, Settings, spec};
     const LINE: u64 = 521;
     let mut world = Simulated::new(Settings::calm(104));
     let opener = world.submit(skein_lib::Time::ZERO, session::Spec { line: LINE, ..spec(b"fix the build") });
@@ -690,7 +690,7 @@ fn a_new_part_just_within_the_line_is_sent() {
 
 #[test]
 fn the_most_output_just_within_the_line_then_compacts_within_the_window() {
-    use smith_session_world::{Settings, World as Simulated, spec};
+    use smith_session_world::{World as Simulated, Settings, spec};
     const LINE: u64 = 451;
     const WINDOW: u32 = 1_520;
     const OUTPUT: u32 = 1_024;

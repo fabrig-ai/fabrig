@@ -1,6 +1,6 @@
 use skein_lib::Rng;
 use smith_domain_session::{self as session, llm};
-use smith_session_world::recorded::{self, World, opening};
+use smith_session_world::recorded::{self, Scripted, opening};
 
 #[test]
 fn randomized_priced_turns_and_terminal_races() {
@@ -11,7 +11,7 @@ fn randomized_priced_turns_and_terminal_races() {
     let mut next_stopped = 0;
     for seed in 0..64 {
         let mut rng = Rng::new(seed);
-        let mut world = World::new(seed);
+        let mut world = Scripted::new(seed);
         world.open(opening(None, 20));
         let usage = llm::Usage {
             input_tokens: Some(rng.below(30)),

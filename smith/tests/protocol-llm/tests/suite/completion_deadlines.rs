@@ -7,7 +7,7 @@ use smith_domain::llm;
 use smith_domain::session;
 use smith_protocol_llm::ToDomain;
 use smith_protocol_llm_world::pool_peer::Peer;
-use smith_session_world::recorded::{World, opening};
+use smith_session_world::recorded::{Scripted, opening};
 
 fn body() -> Vec<u8> {
     [
@@ -78,7 +78,7 @@ fn model_head_and_idle_deadlines_fail_only_the_stalled_call() {
     peer.bytes(101, &head_for(body().len()));
     peer.advance(6);
     assert_eq!(peer.terminals.len(), 2);
-    for (owner, phase) in [(Token::new(1), llm::Phase::Head), (Token::new(2), llm::Phase::Idle)] {
+    for (owner, phase) in [(Token::new(1), llm::CompletionPhase::Head), (Token::new(2), llm::CompletionPhase::Idle)] {
         assert!(peer.terminals.iter().any(|event| matches!(event, ToDomain::Failed { owner: observed, failure: llm::Failure::TimedOut { phase: observed_phase }, .. } if *observed == owner && *observed_phase == phase)));
     }
     peer.advance(101);
@@ -101,7 +101,7 @@ fn session_whole_expiry_and_cancel_leave_the_sibling_live() {
     assert!(peer.terminals.is_empty());
     peer.advance(90);
     assert!(
-        matches!(peer.terminals.as_slice(), [ToDomain::Failed { owner, failure: llm::Failure::TimedOut { phase: llm::Phase::Whole }, evidence: llm::Evidence::Response { status: Some(200) }, .. }] if *owner == Token::new(1))
+        matches!(peer.terminals.as_slice(), [ToDomain::Failed { owner, failure: llm::Failure::TimedOut { phase: llm::CompletionPhase::Whole }, evidence: llm::Evidence::Response { status: Some(200) }, .. }] if *owner == Token::new(1))
     );
     peer.bytes(101, &body());
     assert!(matches!(&peer.terminals[1], ToDomain::Completed { owner, .. } if *owner == Token::new(2)));
@@ -122,8 +122,8 @@ fn session_whole_expiry_and_cancel_leave_the_sibling_live() {
     assert_eq!(peer.terminals.len(), 2);
 }
 
-fn session_with_time(seconds: u64) -> World {
-    let mut world = World::new(411);
+fn session_with_time(seconds: u64) -> Scripted {
+    let mut world = Scripted::new(411);
     let mut start = opening(None, u64::MAX);
     start.spec.budget.time = Duration::from_secs(seconds);
     start.spec.progress = session::Progress { head: Duration::from_secs(20), idle: Duration::from_secs(5) };
@@ -131,7 +131,7 @@ fn session_with_time(seconds: u64) -> World {
     world
 }
 
-fn deliver_failure(peer: &mut Peer, world: &mut World) {
+fn deliver_failure(peer: &mut Peer, world: &mut Scripted) {
     let ToDomain::Failed { owner, failure, evidence, detail, .. } = peer.terminals.remove(0) else {
         panic!("one native failed attempt")
     };
@@ -163,7 +163,7 @@ fn a_stall_times_out_idle_and_is_retried() {
     peer.advance(6);
     assert!(matches!(
         peer.terminals.as_slice(),
-        [ToDomain::Failed { failure: llm::Failure::TimedOut { phase: llm::Phase::Idle }, .. }]
+        [ToDomain::Failed { failure: llm::Failure::TimedOut { phase: llm::CompletionPhase::Idle }, .. }]
     ));
     world.env.now = Time::ZERO.saturating_add(Duration::from_secs(6));
     deliver_failure(&mut peer, &mut world);
@@ -205,7 +205,7 @@ fn the_sessions_time_ending_fails_once_without_a_retry() {
     peer.advance(3);
     assert!(matches!(
         peer.terminals.as_slice(),
-        [ToDomain::Failed { failure: llm::Failure::TimedOut { phase: llm::Phase::Whole }, .. }]
+        [ToDomain::Failed { failure: llm::Failure::TimedOut { phase: llm::CompletionPhase::Whole }, .. }]
     ));
     world.env.now = Time::ZERO.saturating_add(Duration::from_secs(3));
     deliver_failure(&mut peer, &mut world);

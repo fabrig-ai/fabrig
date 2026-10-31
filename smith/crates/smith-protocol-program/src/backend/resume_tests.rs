@@ -254,7 +254,7 @@ fn a_retry_after_a_stopped_process_resumes() {
     below = Queue::with_capacity(64);
     backend.fire(&env(1), &mut up, &mut below);
     let Some(ToDomain::Failed { failure, .. }) = up.pop() else { panic!("head failure") };
-    assert_eq!(failure, llm::Failure::TimedOut { phase: llm::Phase::Head });
+    assert_eq!(failure, llm::Failure::TimedOut { phase: llm::CompletionPhase::Head });
     let mut retry = history(&backend);
     let FromDomain::Complete { owner, .. } = &mut retry else { panic!("retry") };
     *owner = Token::new(81);
@@ -390,7 +390,7 @@ fn a_first_call_retry_resumes_the_recorded_session() {
         assert_eq!(backend.recorded, Some(id));
         backend.fire(&env(1), &mut up, &mut below);
         let Some(ToDomain::Failed { failure, .. }) = up.pop() else { panic!("head timeout") };
-        assert_eq!(failure, llm::Failure::TimedOut { phase: llm::Phase::Head });
+        assert_eq!(failure, llm::Failure::TimedOut { phase: llm::CompletionPhase::Head });
         let retry = first_request(&backend);
         backend.from_domain(&env(1), retry, &mut up, &mut below);
         assert!(backend.switching);

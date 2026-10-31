@@ -506,7 +506,6 @@ const RECORDED_DELEGATION_CEILING: u64 = 48_000;
     reason = "one metered fixture keeps delegated ownership and exact emitted copies together"
 )]
 fn recorded_delegated_turns_cut_results_and_hold_history_for_compaction() {
-    use smith_domain_session::record;
     let block = size(size_of::<Block>());
     let spec_charge = spec_bytes(1);
     let turn_charge = block + 1 + block + 3 + block + 1;

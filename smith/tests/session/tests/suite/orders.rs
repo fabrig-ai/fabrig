@@ -7,7 +7,7 @@ use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
 use skein_lib::{Duration, Time, Token};
 use smith_domain_session::{self as session, llm};
 use smith_domain_tools::{self as tools, Budget, Call, Done, JobEnd, JobNumber, Op, Outcome};
-use smith_session_world::recorded::{self, World as Recorded};
+use smith_session_world::recorded::{self, Scripted};
 use smith_session_world::{Reclaim, Settings, Span, World, spec};
 use smith_tools_world::translate as io;
 
@@ -30,11 +30,11 @@ fn read(id: &[u8], path: &[u8]) -> llm::Block {
     called(id, Call::Read { path: io::path(path), offset: 1, window: Budget::Default })
 }
 
-fn complete(world: &mut Recorded, blocks: Vec<llm::Block>) {
+fn complete(world: &mut Scripted, blocks: Vec<llm::Block>) {
     world.complete(blocks.into(), llm::Stop::ToolUse, llm::Usage::ZERO);
 }
 
-fn machine() -> (Recorded, Checkout) {
+fn machine() -> (Scripted, Checkout) {
     let mut checkout = Checkout::new();
     checkout.mkdir(b"/repo");
     checkout.write(b"/repo/README.md", OLD);
@@ -50,17 +50,17 @@ fn machine() -> (Recorded, Checkout) {
         }]),
         grants: tools::Grants { inspect: true, modify: true, shell: true },
     };
-    let mut world = Recorded::new(SEED);
+    let mut world = Scripted::new(SEED);
     world.open(opening);
     (world, checkout)
 }
 
-fn perform(world: &mut Recorded, checkout: &mut Checkout, owner: Token) {
+fn perform(world: &mut Scripted, checkout: &mut Checkout, owner: Token) {
     let op = world.operations.iter().find(|(pending, _)| *pending == owner).expect("pending operation").1.clone();
     world.step(session::Event::Done { owner, done: io::perform(checkout, op) });
 }
 
-fn results(world: &Recorded) -> Vec<(&[u8], &llm::Returned)> {
+fn results(world: &Scripted) -> Vec<(&[u8], &llm::Returned)> {
     world
         .turns
         .last()

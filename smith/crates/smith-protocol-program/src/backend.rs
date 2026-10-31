@@ -195,7 +195,7 @@ pub struct Backend {
     running: Option<[u8; 16]>,
     recorded: Option<[u8; 16]>,
     permitted: u64,
-    response_phase: llm::Phase,
+    response_phase: llm::CompletionPhase,
     run_time: Duration,
     line: List<u8>,
     stdout_demanding: bool,
@@ -273,7 +273,7 @@ impl Backend {
             running: None,
             recorded: None,
             permitted: 1,
-            response_phase: llm::Phase::Head,
+            response_phase: llm::CompletionPhase::Head,
             run_time: Duration::ZERO,
             line,
             stdout_demanding: false,
@@ -488,7 +488,9 @@ impl Backend {
                 Phase::Ending => self.terminate(env.now),
                 Phase::Running => {
                     let phase = match &self.request {
-                        Some(FromDomain::Complete { deadlines, .. }) if env.now >= deadlines.whole => llm::Phase::Whole,
+                        Some(FromDomain::Complete { deadlines, .. }) if env.now >= deadlines.whole => {
+                            llm::CompletionPhase::Whole
+                        }
                         Some(FromDomain::Complete { .. } | FromDomain::Cancel { .. } | FromDomain::Yield { .. })
                         | None => self.response_phase,
                     };

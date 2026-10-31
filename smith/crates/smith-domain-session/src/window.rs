@@ -15,7 +15,7 @@ pub(crate) struct Bytes(pub(crate) u64);
 
 /// Whether this window has made an ordinary completion.
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum Stage {
+pub(crate) enum State {
     /// No ordinary answer has yet been accepted in this window.
     Fresh,
     /// An ordinary answer supplies the retained usage baseline.
@@ -30,7 +30,7 @@ pub(crate) struct Window {
     pub(crate) last_output: Tokens,
     pub(crate) last_prompt_bytes: u64,
     pub(crate) appended: Bytes,
-    pub(crate) stage: Stage,
+    pub(crate) stage: State,
     /// First message after the last ordinary completion.
     pub(crate) following: u32,
     /// Summary bytes replaced by its reported output count in a fresh check.
@@ -52,7 +52,7 @@ impl Window {
             last_output: Tokens(output),
             last_prompt_bytes: 0,
             appended: Bytes(0),
-            stage: Stage::Fresh,
+            stage: State::Fresh,
             following: 0,
             summary_bytes: 0,
         }
@@ -63,7 +63,7 @@ impl Window {
         self.last_prompt_bytes = prompt_bytes;
         self.last_output = Tokens(usage.output_tokens.unwrap_or(u64::from(output)));
         self.appended = Bytes(0);
-        self.stage = Stage::Used;
+        self.stage = State::Used;
         self.following = following;
         self.summary_bytes = 0;
     }
@@ -108,8 +108,8 @@ pub(crate) fn bound(window: &Window, bytes: u64, allowance: u64, token_bytes: u3
             prompt.0.checked_add(window.last_output.0)?.checked_add(appended)
         }
         Some(_) | None => match window.stage {
-            Stage::Used => bytes.checked_add(allowance),
-            Stage::Fresh => {
+            State::Used => bytes.checked_add(allowance),
+            State::Fresh => {
                 bytes.checked_sub(window.summary_bytes)?.checked_add(window.last_output.0)?.checked_add(allowance)
             }
         },
