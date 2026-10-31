@@ -13,6 +13,9 @@ impl Core {
         assert!(self.start.phase == Some(done) && self.start.waiting.is_none(), "start phase completed in order");
         let next = match done {
             Phase::LoadCore => {
+                if let Some(failure) = self.start_settings_finish(env) {
+                    return Action::Refused(failure);
+                }
                 self.counters.finish_restore();
                 if self.counters.dirty() {
                     crate::routing::first_start::start_seed(self, env, out);
@@ -39,6 +42,9 @@ impl Core {
                 let before = out.len();
                 self.start_link(env, out);
                 if let Some(failure) = self.start_failure() {
+                    return Action::Refused(failure);
+                }
+                if let Some(failure) = self.start_settings_commit(env, out) {
                     return Action::Refused(failure);
                 }
                 self.people.start_sweep();

@@ -2,6 +2,7 @@
 use super::{
     CharterVersion, Decider, Default, Edit, Failure, Fault, Head, Item, Key, Record, Revision, Setting, VersionKey,
 };
+use crate::start::StartMode;
 use crate::{Core, CoreKey, CoreRecord, HeldLimit, Limits, Request, Requests, RestartRequest, Write};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -41,19 +42,26 @@ impl Core {
         match record {
             Record::Default { setting, default } => self.restore_default(setting, default, limits),
             Record::Changed { setting, changed } => {
-                if changed.revision == 0 || self.current.changes.get(&setting).is_some() {
-                    return false;
+                match self.start.mode {
+                    StartMode::Default => {
+                        if changed.revision == 0 || self.current.changes.get(&setting).is_some() {
+                            return false;
+                        }
+                    }
+                    StartMode::LoadAndLink => assert!(
+                        !self.current.changes.contains_key(&setting),
+                        "duplicate {:?}",
+                        crate::Key::Core(CoreKey::Settings(Key::Changed(setting)))
+                    ),
                 }
                 if let Err(failure) = super::check::admits_change(&self.current, setting, limits) {
-                    self.restore_failure = Some(RestartRequest::Settings { failure, changed: true });
-                    let _refused = self.restart_refuse();
+                    self.refuse_restore(RestartRequest::Settings { failure, changed: true });
                     return false;
                 }
                 if let Some(value) = &changed.value
-                    && let Err(failure) = super::check::shape(setting, value, limits)
+                    && let Err(failure) = self.restore_setting_fit(setting, value, limits)
                 {
-                    self.restore_failure = Some(RestartRequest::Settings { failure, changed: true });
-                    let _refused = self.restart_refuse();
+                    self.refuse_restore(RestartRequest::Settings { failure, changed: true });
                     return false;
                 }
                 self.current.changes.insert(setting, changed).is_ok()
@@ -73,25 +81,63 @@ impl Core {
                     jig_domain_people::Proposer::Party(person) => person,
                     jig_domain_people::Proposer::Task(task) => task,
                 };
-                if proposal == 0
-                    || person == 0
-                    || value.against == 0
-                    || value.items.is_empty()
-                    || value.items.len() > usize::try_from(tasks::SETTINGS_ITEMS).expect("item bound")
-                    || super::change_shape(&value.items, limits).is_err()
+                if self.start.mode == StartMode::Default
+                    && (proposal == 0
+                        || person == 0
+                        || value.against == 0
+                        || value.items.is_empty()
+                        || value.items.len() > usize::try_from(tasks::SETTINGS_ITEMS).expect("item bound")
+                        || super::change_shape(&value.items, limits).is_err())
                 {
                     return false;
                 }
-                if self.settings_proposals.contains_key(&(proposer, proposal)) {
-                    return false;
+                match self.start.mode {
+                    StartMode::Default => {
+                        if self.settings_proposals.contains_key(&(proposer, proposal)) {
+                            return false;
+                        }
+                    }
+                    StartMode::LoadAndLink => {
+                        assert!(
+                            !self.settings_proposals.contains_key(&(proposer, proposal)),
+                            "duplicate {:?}",
+                            crate::Key::Core(CoreKey::Settings(Key::Proposal { proposer, proposal }))
+                        );
+                        if value.items.len() > usize::try_from(tasks::SETTINGS_ITEMS).expect("item bound")
+                            || self.settings_proposals.len() >= self.settings_proposals.capacity()
+                        {
+                            self.refuse_restore(RestartRequest::Settings {
+                                failure: Failure { setting: Setting::Rules, fault: Fault::Count },
+                                changed: true,
+                            });
+                            return false;
+                        }
+                        for item in &value.items {
+                            if let Edit::Set(value) = &item.edit
+                                && let Err(failure) = super::check::restore_fit(item.setting, value, limits)
+                            {
+                                self.refuse_restore(RestartRequest::Settings { failure, changed: true });
+                                return false;
+                            }
+                        }
+                    }
                 }
                 self.settings_proposals.insert((proposer, proposal), value).is_ok()
             }
         }
     }
     fn restore_default(&mut self, setting: Setting, default: Default, limits: &Limits) -> bool {
-        if default.revision == 0 || self.settings_restore.defaults.contains_key(&setting) {
-            return false;
+        match self.start.mode {
+            StartMode::Default => {
+                if default.revision == 0 || self.settings_restore.defaults.contains_key(&setting) {
+                    return false;
+                }
+            }
+            StartMode::LoadAndLink => assert!(
+                !self.settings_restore.defaults.contains_key(&setting),
+                "duplicate {:?}",
+                crate::Key::Core(CoreKey::Settings(Key::Default(setting)))
+            ),
         }
         match self.current.defaults.get_mut(&setting) {
             Some(given) if given.value == default.value => given.revision = default.revision,
@@ -106,7 +152,7 @@ impl Core {
                 }
             }
         }
-        if let Err(failure) = super::check::shape(setting, &default.value, limits) {
+        if let Err(failure) = self.restore_setting_fit(setting, &default.value, limits) {
             let _refused = self.refuse_settings(failure);
             return false;
         }
@@ -128,10 +174,14 @@ impl Core {
     }
 
     fn restore_head(&mut self, history: bool, revision: Revision, limits: &Limits) -> bool {
-        if history || revision.head.number == 0 || revision.head.against >= revision.head.number {
+        if self.start.mode == StartMode::Default
+            && (history || revision.head.number == 0 || revision.head.against >= revision.head.number)
+        {
             return false;
         }
-        if let Some((proposer, number)) = revision.head.proposal {
+        if self.start.mode == StartMode::Default
+            && let Some((proposer, number)) = revision.head.proposal
+        {
             let valid = match proposer {
                 jig_domain_people::Proposer::Party(person) => person > 0,
                 jig_domain_people::Proposer::Task(task) => task > 0,
@@ -166,8 +216,17 @@ impl Core {
 
     fn restore_charter(&mut self, charter: u32, revision: u32, value: CharterVersion, limits: &Limits) -> bool {
         let key = VersionKey { charter, revision };
-        if charter == 0 || revision == 0 || self.held.versions.contains_key(&key) {
-            return false;
+        match self.start.mode {
+            StartMode::Default => {
+                if charter == 0 || revision == 0 || self.held.versions.contains_key(&key) {
+                    return false;
+                }
+            }
+            StartMode::LoadAndLink => assert!(
+                !self.held.versions.contains_key(&key),
+                "duplicate {:?}",
+                crate::Key::Core(CoreKey::Settings(Key::Charter { charter, revision }))
+            ),
         }
         let held = self.held.versions.len().checked_add(1).expect("version row count");
         if held > limits.settings.versions {
@@ -175,11 +234,11 @@ impl Core {
             return false;
         }
         if let Some(value) = &value.charter {
-            if value.number != charter {
+            if self.start.mode == StartMode::Default && value.number != charter {
                 return false;
             }
             let stored = super::Value::Charter(value.clone());
-            if let Err(failure) = super::check::shape(Setting::Charter(charter), &stored, limits) {
+            if let Err(failure) = self.restore_setting_fit(Setting::Charter(charter), &stored, limits) {
                 let _refused = self.refuse_settings(failure);
                 return false;
             }
@@ -207,10 +266,7 @@ impl Core {
             let _request = self.refuse_settings(Failure { setting: Setting::Rules, fault: Fault::Shape });
             return false;
         }
-        for (&setting, default) in &self.current.defaults {
-            if !self.settings_restore.defaults.contains_key(&setting) {
-                assert!(self.settings_restore.pending.insert(setting, true).is_ok(), "bounded added default");
-            }
+        for (_, default) in &self.current.defaults {
             if default.revision > self.current.newest() {
                 return false;
             }
@@ -241,6 +297,21 @@ impl Core {
                 return false;
             }
         }
+        self.finish_restored_settings(env)
+    }
+
+    pub(crate) fn finish_restored_settings(&mut self, env: &Env<Limits>) -> bool {
+        if self.settings_restore.ready || self.restore_failure.is_some() {
+            return self.restore_failure.is_none();
+        }
+        if self.counters.deployment().commits == 0 && !self.settings_restore.held {
+            return true;
+        }
+        for (&setting, _) in &self.current.defaults {
+            if !self.settings_restore.defaults.contains_key(&setting) {
+                assert!(self.settings_restore.pending.insert(setting, true).is_ok(), "bounded added default");
+            }
+        }
         if let Err(failure) = super::check(&self.current, &self.settings, &self.connectors, &env.limits) {
             let _request = self.refuse_settings(failure);
             return false;
@@ -269,14 +340,29 @@ impl Core {
         self.start_input();
         let changed = self.current.changed(failure.setting);
         let request = RestartRequest::Settings { failure, changed };
-        self.restore_failure = Some(request);
-        let _refused = self.restart_refuse();
+        self.refuse_restore(request);
         request
     }
 
     fn refuse_held(&mut self, which: HeldLimit, held: u32, limit: u32) {
-        self.restore_failure = Some(RestartRequest::HeldPastLimit { which, held, limit });
-        let _refused = self.restart_refuse();
+        self.refuse_restore(RestartRequest::HeldPastLimit { which, held, limit });
+    }
+
+    pub(crate) fn refuse_restore(&mut self, request: RestartRequest) {
+        if self.restore_failure.is_none() {
+            self.restore_failure = Some(request);
+        }
+        if self.restart_step().is_some() || self.restart_failure().is_some() {
+            let _refused = self.restart_refuse();
+        }
+        self.start_collect_failure();
+    }
+
+    fn restore_setting_fit(&self, setting: Setting, value: &super::Value, limits: &Limits) -> Result<(), Failure> {
+        match self.start.mode {
+            StartMode::Default => super::check::shape(setting, value, limits),
+            StartMode::LoadAndLink => super::check::restore_fit(setting, value, limits),
+        }
     }
 
     pub(crate) fn tell_settings(&mut self, env: &Env<Limits>) {
@@ -294,7 +380,21 @@ impl Core {
         }
         let versions = charters || self.tasks.newest() != self.current.newest();
         if versions {
-            let charters = crate::charters::held_models(self, &env.limits);
+            let models = crate::charters::held_models(self, &env.limits);
+            let mut charters: List<tasks::CharterModels> =
+                List::with_capacity(u32::try_from(models.len()).expect("charter model count"));
+            for model in models {
+                let mut present = false;
+                for previous in &charters {
+                    present |= previous.number == model.number && previous.revision == model.revision;
+                }
+                // Current takes precedence over a held copy of the same version,
+                // as charter_at does when selecting the version for a task.
+                if !present {
+                    charters.push(model).expect("charter model count");
+                }
+            }
+            let charters = charters.into_boxed();
             let mut tasks_out = Queue::uncapped();
             tasks::step(
                 &mut self.tasks,
@@ -417,7 +517,7 @@ impl Core {
     }
 
     pub(crate) fn commit_restored_settings(&mut self, env: &Env<Limits>, room: u32) -> Requests {
-        let mut out = Queue::uncapped();
+        let out = Queue::uncapped();
         // First start and completed starts have no staged defaults left.
         if self.settings_restore.ready && self.settings_restore.defaults.is_empty() {
             return Requests::Out(out);
@@ -429,6 +529,14 @@ impl Core {
         }
         if !self.settings_proposals_consistent() {
             let _refused = self.refuse_settings(Failure { setting: Setting::Rules, fault: Fault::Shape });
+            return Requests::Out(out);
+        }
+        self.write_restored_settings(env, room)
+    }
+
+    pub(crate) fn write_restored_settings(&mut self, env: &Env<Limits>, room: u32) -> Requests {
+        let mut out = Queue::uncapped();
+        if !self.settings_restore.held || self.settings_restore.defaults.is_empty() || self.restore_failure.is_some() {
             return Requests::Out(out);
         }
         let oldest_before = self.current.oldest;
