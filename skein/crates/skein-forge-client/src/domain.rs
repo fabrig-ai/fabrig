@@ -94,11 +94,7 @@ impl Domain {
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        match (self.alarms.next(), outbox::stop::deadline(&self.outbox)) {
-            (Some(left), Some(right)) => Some(left.min(right)),
-            (left, None) => left,
-            (None, right) => right,
-        }
+        Time::earliest(self.alarms.next(), outbox::stop::deadline(&self.outbox))
     }
     #[must_use]
     pub fn is_due(&self, now: Time) -> bool {

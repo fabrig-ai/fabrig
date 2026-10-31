@@ -1,7 +1,7 @@
 //! Host fields for forge requests (forge.md, section 5.1).
 use alloc::boxed::Box;
 use core::net::{IpAddr, SocketAddr};
-use skein_lib::{Decimal, List};
+use skein_lib::{Decimal, List, hex};
 /// The configured server name, or bracketed IPv6/address, plus a nondefault port.
 #[must_use]
 pub fn host(address: SocketAddr, name: Option<&[u8]>) -> Option<Box<[u8]>> {
@@ -42,7 +42,7 @@ pub fn host(address: SocketAddr, name: Option<&[u8]>) -> Option<Box<[u8]>> {
                         let digit = u8::try_from((segment >> shift) & 15).ok()?;
                         if begun || digit != 0 || shift == 0 {
                             begun = true;
-                            put(&mut out, &[crate::marker::hex(digit)])?;
+                            put(&mut out, &[hex::lower(digit)])?;
                         }
                     }
                 }
