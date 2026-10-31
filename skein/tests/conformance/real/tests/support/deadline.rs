@@ -1,6 +1,6 @@
 //! Real-clock harness waits (skein/docs/foundation/testing-strategy.md, 2.10).
 
-use skein_io::{self as io, Event, Request};
+use skein_io::{self as io, Event, Request, stage};
 use skein_lib::{Duration, Env, Queue, Token};
 use skein_shell::{Clock, Kernel, Wait};
 use skein_world::{Deadline, Expired};
@@ -61,29 +61,29 @@ pub fn end_io(
     let clock = Clock::new();
     let now = clock.now();
     let env = Env { now: now.now, wall: now.wall, limits };
+    let mut requests = Queue::uncapped();
     for entity in entities {
-        io::down(state, &env, Request::Abort { entity: *entity }, submissions);
+        requests.push(Request::Abort { entity: *entity });
     }
+    stage::down(state, &env, &mut requests, submissions);
     loop {
         let now = clock.now();
         let env = Env { now: now.now, wall: now.wall, limits };
         kernel.reap(completions);
-        while let Some(complete) = completions.pop() {
-            io::up(state, &env, complete, events, submissions);
-        }
+        stage::up(state, &env, completions, events, submissions, now.now);
         while let Some(event) = events.pop() {
             match event {
                 Event::Spawned { child, pipes, .. } => {
-                    io::down(state, &env, Request::Abort { entity: child }, submissions);
+                    requests.push(Request::Abort { entity: child });
                     for pipe in pipes {
-                        io::down(state, &env, Request::Abort { entity: pipe }, submissions);
+                        requests.push(Request::Abort { entity: pipe });
                     }
                 }
                 Event::Accepted { socket, .. } | Event::Connecting { socket, .. } => {
-                    io::down(state, &env, Request::Abort { entity: socket }, submissions);
+                    requests.push(Request::Abort { entity: socket });
                 }
                 Event::Listening { listener, .. } => {
-                    io::down(state, &env, Request::Abort { entity: listener }, submissions);
+                    requests.push(Request::Abort { entity: listener });
                 }
                 Event::Connected { .. }
                 | Event::Stream { .. }
@@ -97,17 +97,12 @@ pub fn end_io(
                 | Event::Closed { .. } => {}
             }
         }
-        while state.is_ready() {
-            io::resume(state, &env, events, submissions);
-        }
-        while state.is_due(now.now) {
-            io::fire(state, &env, events, submissions);
-        }
+        stage::down(state, &env, &mut requests, submissions);
         state.reclaim();
         if state.is_empty() && kernel.in_flight() == 0 && submissions.is_empty() {
             return;
         }
-        let wait = if state.is_ready() || !events.is_empty() {
+        let wait = if state.is_ready() || !events.is_empty() || !completions.is_empty() || !requests.is_empty() {
             Wait::No
         } else {
             Wait::Until(now.now.saturating_add(Duration::from_millis(5)))
