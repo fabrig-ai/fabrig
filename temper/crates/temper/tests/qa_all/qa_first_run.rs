@@ -1,5 +1,5 @@
 //! Design-only process QA: protocol/setup.md 6.4–7.3, 8.4 and 13.4;
-//! draft/first-run.md 2.3 and step 4; client/forge.md 5.4.
+//! temper/docs/design/draft/playground-reset.md, 3 and 6.1–6.3; client/forge.md 5.4.
 use crate::support;
 
 use serde_json::Value;
@@ -18,13 +18,11 @@ fn paths(root: &Path) -> [std::path::PathBuf; 3] {
 fn forge_address(config: &Path) -> SocketAddr {
     let document: Value =
         serde_json::from_slice(&fs::read(config.join("temper.json")).expect("init document")).expect("document JSON");
-    let forge = document["application"]["forges"]
-        .as_array()
-        .expect("configured forges")
-        .iter()
-        .find(|forge| forge["number"] == 3)
-        .expect("owned forge 3");
-    forge["api"]["socket"].as_str().expect("forge socket").parse().expect("socket address")
+    document["application"]["machine"]["owned"]["listen"]["socket"]
+        .as_str()
+        .expect("owned forge socket")
+        .parse()
+        .expect("socket address")
 }
 
 fn row(call: &support::Ended, number: u64) -> Value {
@@ -104,11 +102,9 @@ fn qa_dormant_owned_forge_holds_its_port_before_any_setup() {
     let (address, reservation, running) = outcome.checked.expect("dormant checkpoint");
     assert_eq!(reservation, Some(std::io::ErrorKind::AddrInUse), "box holds dormant forge's {address}");
     assert!(running.is_empty(), "no owned program before asked: {running:?}");
-    let owned = row(&outcome.calls[1], 3);
-    assert_eq!(owned["state"], "not_set_up");
-    assert_eq!(owned["offer"], "offered");
-    assert!(!dirs[1].join("box/started/3").exists());
-    assert!(!dirs[1].join("forge-3").exists());
+    assert_eq!(ctl::json(&outcome.calls[1])["forges"], serde_json::json!([]), "no forge before setup");
+    assert!(!dirs[1].join("box/started/1").exists());
+    assert!(!dirs[1].join("forge-1").exists());
     assert!(!String::from_utf8_lossy(&outcome.stderr).contains("Playground: starting"));
     let released = std::net::TcpListener::bind(address).expect("box releases dormant port at stop");
     drop(released);
@@ -123,20 +119,17 @@ fn qa_bad_cached_release_fails_setup_but_keeps_the_playground_working() {
 #[test]
 fn qa_an_asked_groups_failure_is_named_by_its_label() {
     let stderr = bad_cached_release();
-    assert!(
-        stderr.lines().any(|line| box_notice_words(line) == "Forge 3 (Forgejo): failed, fetch 3 exited 1"),
-        "{stderr}"
-    );
+    assert!(stderr.lines().any(|line| box_notice_words(line) == "Forgejo: failed, fetch-2 exited 1"), "{stderr}");
     let lines = stderr.lines().collect::<Vec<_>>();
     let failed = lines
         .iter()
-        .position(|line| box_notice_words(line) == "Forge 3 (Forgejo): failed, fetch 3 exited 1")
+        .position(|line| box_notice_words(line) == "Forgejo: failed, fetch-2 exited 1")
         .expect("labelled failure");
     let tail = lines[failed + 1..].iter().take_while(|line| line.starts_with("    ")).collect::<Vec<_>>();
     assert!(tail.len() >= 2, "diagnostics and log path directly under failure: {stderr}");
-    assert!(tail[..tail.len() - 1].iter().all(|line| line.starts_with("    fetch 3: ")), "{stderr}");
+    assert!(tail[..tail.len() - 1].iter().all(|line| line.starts_with("    fetch-2: ")), "{stderr}");
     let log = tail.last().expect("log line");
-    assert!(log.starts_with("    Log: ") && log.ends_with("/box/logs/fetch-3.log"), "{stderr}");
+    assert!(log.starts_with("    Log: ") && log.ends_with("/box/logs/fetch-2.log"), "{stderr}");
 }
 
 // Match process.rs: strip only a validated UTC time-of-day prefix.
@@ -163,7 +156,7 @@ fn bad_cached_release() -> String {
     let dirs = paths(scratch.path());
     let (cached, _) = forge_land::cache_forgejo_binaries(&dirs[2]);
     fs::write(&cached[0], b"invalid cached release\n").expect("corrupt this scratch copy only");
-    let expected = [(2, 1)];
+    let expected = [(2, 1), (4, 2)];
     let outcome = boxed::run_ctl_with_exits(
         scratch.path(),
         forge_land::deployment_flags(&dirs),
@@ -171,14 +164,16 @@ fn bad_cached_release() -> String {
         vec![
             Step::Run(Call::sign_in()),
             Step::Run(Call::new(&["playground", "start"])),
-            Step::Run(Call::new(&["forge", "setup", "3"])),
+            Step::Run(Call::new(&["forge", "setup"])),
             Step::Run(Call::new(&["forge", "list", "--json"])),
             Step::Run(Call::new(&["playground", "start"])),
             Step::Run(Call::new(&[
                 "chat",
                 "start",
                 "--project",
-                "1",
+                "2",
+                "--model",
+                "demo",
                 "--key",
                 "after-failed-setup",
                 "Add a dark theme to widget",
@@ -196,14 +191,15 @@ fn bad_cached_release() -> String {
         &expected,
     );
     drained(&outcome, &expected, 7);
-    let owned = row(&outcome.calls[3], 3);
+    let owned = row(&outcome.calls[3], 2);
     assert_eq!(owned["state"], "set_up_failed");
     assert_eq!(owned["offer"], "offered");
+    assert!(String::from_utf8_lossy(&outcome.calls[4].stderr).contains("not offered"));
     assert_eq!(row(&outcome.calls[3], 1)["state"], "connected");
     let (reservation, turns) = outcome.checked.expect("failed setup checkpoint");
     assert_eq!(reservation, Some(std::io::ErrorKind::AddrInUse));
-    assert!(turns.contains("theme"), "demo still answers: {turns}");
-    assert!(!dirs[1].join("box/started/3").exists());
+    assert!(turns.contains("theme"), "the playground still answers: {turns}");
+    assert!(!dirs[1].join("box/started/2").exists());
     assert_eq!(fs::read(&cached[0]).expect("retained corrupt binary"), b"invalid cached release\n");
     let stderr = String::from_utf8_lossy(&outcome.stderr).into_owned();
     assert!(
@@ -219,7 +215,17 @@ fn parent_shutdown(signal: &str) {
     let scratch = Scratch::new(&format!("qa-first-run-parent-{signal}"));
     let dirs = paths(scratch.path());
     let _cached = forge_land::cache_forgejo_binaries(&dirs[2]);
-    let mut steps = forge_land::forgejo_setup_steps("first");
+    // The first setup makes forge 1; no numbered slot precedes the record (section 3).
+    let mut steps = vec![
+        Step::Mark("start"),
+        Step::Run(Call::sign_in()),
+        Step::Run(Call::new(&["forge", "list"])),
+        Step::Run(Call::new(&["forge", "list", "--json"])),
+        Step::Run(Call::new(&["forge", "setup"])),
+        Step::Run(Call::new(&["forge", "list", "--until", "settled", "--timeout", "180s"])),
+        Step::Run(Call::new(&["forge", "list", "--json"])),
+        Step::Run(Call::new(&["forge", "list"])),
+    ];
     steps.push(Step::Run(Call::new(&["playground", "start"])));
     let outcome = boxed::run_ctl_with_exits(
         scratch.path(),
@@ -242,7 +248,7 @@ fn parent_shutdown(signal: &str) {
             let lock = fs::OpenOptions::new()
                 .read(true)
                 .write(true)
-                .open(dirs[1].join("forge-3/forgejo.lock"))
+                .open(dirs[1].join("forge-1/forgejo.lock"))
                 .expect("Forgejo lock file");
             let locked = lock.try_lock().is_err();
             let stopped = match (forge_parent, child) {
