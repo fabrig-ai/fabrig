@@ -28,34 +28,41 @@ fn observed() -> Vec<(Time, Token, Seen)> {
     seen
 }
 
+#[derive(Debug)]
+enum Mutation {
+    MissingRead,
+    DuplicateRead,
+    ForeignFence,
+    ForeignAnswer,
+}
+
 #[test]
 fn every_accepted_message_has_one_terminal_and_the_answer_retains_its_told_fence() {
     let good = observed();
-    for change in 0..4 {
+    for change in [Mutation::MissingRead, Mutation::DuplicateRead, Mutation::ForeignFence, Mutation::ForeignAnswer] {
         let mut bad = good.clone();
         let terminal = bad.iter().position(|(_, _, seen)| matches!(seen, Seen::Read { .. })).expect("read");
         match change {
-            0 => {
+            Mutation::MissingRead => {
                 bad.remove(terminal);
             }
-            1 => {
+            Mutation::DuplicateRead => {
                 bad.insert(terminal, bad[terminal]);
             }
-            2 => {
+            Mutation::ForeignFence => {
                 let (_, _, fence) = bad
                     .iter_mut()
                     .find(|(_, _, seen)| matches!(seen, Seen::Fence { read: Some(_) }))
                     .expect("told fence");
                 *fence = Seen::Fence { read: Some(Token::new(0)) };
             }
-            3 => {
+            Mutation::ForeignAnswer => {
                 let (_, _, answer) =
                     bad.iter_mut().find(|(_, _, seen)| matches!(seen, Seen::Answer { .. })).expect("answer");
                 *answer = Seen::Answer { read: Some(Token::new(0)) };
             }
-            _ => unreachable!(),
         }
-        assert!(judge(&bad).iter().any(|verdict| matches!(verdict, Verdict::Failed(_))), "mutation {change}");
+        assert!(judge(&bad).iter().any(|verdict| matches!(verdict, Verdict::Failed(_))), "mutation {change:?}");
     }
 }
 

@@ -21,6 +21,14 @@ fn clamped_children() -> Settings {
     settings
 }
 
+#[derive(Debug)]
+enum Mutation {
+    Turns,
+    Spend,
+    Time,
+    ReserveSpend,
+}
+
 #[test]
 fn a_child_share_crossing_any_ordinary_part_is_rejected() {
     let mut settings = Settings::calm(34);
@@ -34,16 +42,17 @@ fn a_child_share_crossing_any_ordinary_part_is_rejected() {
     let good = world.share_seen();
     assert!(!good.is_empty(), "the real run opens children");
     assert_eq!(judge(good), Verdict::Passed);
-    for part in 0..3 {
+    for part in [smith_domain_run::Part::Turns, smith_domain_run::Part::Spend, smith_domain_run::Part::Time] {
         let mut bad = good.to_vec();
         let opening = &mut bad[0].1;
         match part {
-            0 => opening.effective.turns = opening.ordinary.turns + 1,
-            1 => opening.effective.spend = opening.ordinary.spend + 1,
-            2 => opening.effective.time = Duration::from_nanos(opening.ordinary.time.as_nanos() + 1),
-            _ => unreachable!(),
+            smith_domain_run::Part::Turns => opening.effective.turns = opening.ordinary.turns + 1,
+            smith_domain_run::Part::Spend => opening.effective.spend = opening.ordinary.spend + 1,
+            smith_domain_run::Part::Time => {
+                opening.effective.time = Duration::from_nanos(opening.ordinary.time.as_nanos() + 1);
+            }
         }
-        assert!(matches!(judge(&bad), Verdict::Failed(_)), "ordinary part {part}");
+        assert!(matches!(judge(&bad), Verdict::Failed(_)), "ordinary part {part:?}");
     }
 }
 
@@ -116,16 +125,15 @@ fn seen_facts_tell_child_shares_and_budget_without_deciding_work() {
         })
         .collect();
     assert_eq!(judge(&observed), Verdict::Passed);
-    for part in 0..4 {
+    for part in [Mutation::Turns, Mutation::Spend, Mutation::Time, Mutation::ReserveSpend] {
         let mut bad = observed.clone();
         match part {
-            0 => bad[0].1.standing.turns += 1,
-            1 => bad[0].1.standing.spend += 1,
-            2 => bad[0].1.standing.time = Duration::from_nanos(bad[0].1.standing.time.as_nanos() + 1),
-            3 => bad[0].1.standing.reserve_spend += 1,
-            _ => unreachable!(),
+            Mutation::Turns => bad[0].1.standing.turns += 1,
+            Mutation::Spend => bad[0].1.standing.spend += 1,
+            Mutation::Time => bad[0].1.standing.time = Duration::from_nanos(bad[0].1.standing.time.as_nanos() + 1),
+            Mutation::ReserveSpend => bad[0].1.standing.reserve_spend += 1,
         }
-        assert!(matches!(judge(&bad), Verdict::Failed(_)), "budget part {part}");
+        assert!(matches!(judge(&bad), Verdict::Failed(_)), "budget part {part:?}");
     }
     check_child_returns(&world);
 }

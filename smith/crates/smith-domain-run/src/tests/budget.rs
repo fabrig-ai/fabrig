@@ -195,21 +195,19 @@ fn final_turns_ignore_ordinary_nudges_and_fail_once_only_after_the_last() {
         panic!("first final permit");
     };
     assert_eq!(note.as_ref(), b"The ordinary budget is spent. Finish now with what you have. You have at most 2 final completions and 10 seconds to finish. Use only finish, or deliver when offered.");
-    for index in 0..2 {
+    for (owner, expected) in [
+        (Token::new(500), Request::Say { peer: PEER, text: crate::prompt::finish_now() }),
+        (Token::new(501), Request::Close { peer: PEER }),
+    ] {
         assert_eq!(
             crate::completion_permit(&mut harness.domain, main, harness.env.now, crate::Most::Bounded(0)),
             crate::CompletionPermit::Final { note: None }
         );
-        let owner = Token::new(500 + index);
         assert_eq!(crate::reserve(&mut harness.domain, main, owner, crate::Most::Bounded(1)), Ok(()));
         assert!(crate::settle_reservation(&mut harness.domain, main, owner, 1));
         drop(harness.step(Event::Used { conversation: main, spend: spend(1) }));
         let requests = harness.step(end_turn(main));
-        if index == 0 {
-            assert_eq!(requests.as_ref(), &[Request::Say { peer: PEER, text: crate::prompt::finish_now() }]);
-        } else {
-            assert_eq!(requests.as_ref(), &[Request::Close { peer: PEER }]);
-        }
+        assert_eq!(requests.as_ref(), &[expected]);
     }
     let seen = Spend {
         turns: 4,

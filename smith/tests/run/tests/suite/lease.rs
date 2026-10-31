@@ -7,6 +7,15 @@ use smith_run_world::{
     lease_referee::{Seen, judge},
 };
 
+#[derive(Debug)]
+enum Mutation {
+    DuplicateChild,
+    UnownedWorkspace,
+    MissingWorkspace,
+    UnownedCheck,
+    UnownedDelivery,
+}
+
 #[test]
 fn the_lease_referee_rejects_overlapping_holders_and_unowned_checks_or_delivery() {
     let mut settings = Settings::calm(734);
@@ -35,29 +44,34 @@ fn the_lease_referee_rejects_overlapping_holders_and_unowned_checks_or_delivery(
         .expect("a workspace operation");
     let check = good.iter().position(|(_, _, seen)| matches!(seen, Seen::Check { .. })).expect("a check");
     let delivery = good.iter().position(|(_, _, seen)| matches!(seen, Seen::Delivery { .. })).expect("a delivery");
-    for change in 0..5 {
+    for change in [
+        Mutation::DuplicateChild,
+        Mutation::UnownedWorkspace,
+        Mutation::MissingWorkspace,
+        Mutation::UnownedCheck,
+        Mutation::UnownedDelivery,
+    ] {
         let mut bad = good.to_vec();
         match change {
-            0 => {
+            Mutation::DuplicateChild => {
                 bad.insert(child + 1, bad[child]);
             }
-            1 => {
+            Mutation::UnownedWorkspace => {
                 bad.insert(
                     child + 1,
                     (bad[child].0, bad[child].1, Seen::WorkspaceOpened { owner: skein_lib::Token::new(u64::MAX) }),
                 );
             }
-            2 => {
+            Mutation::MissingWorkspace => {
                 bad.remove(workspace);
             }
-            3 => {
+            Mutation::UnownedCheck => {
                 bad[check].2 = Seen::Check { owner: skein_lib::Token::new(u64::MAX) };
             }
-            4 => {
+            Mutation::UnownedDelivery => {
                 bad[delivery].2 = Seen::Delivery { owner: skein_lib::Token::new(u64::MAX) };
             }
-            _ => unreachable!(),
         }
-        assert!(judge(&bad).iter().any(|verdict| matches!(verdict, Verdict::Failed(_))), "mutation {change}");
+        assert!(judge(&bad).iter().any(|verdict| matches!(verdict, Verdict::Failed(_))), "mutation {change:?}");
     }
 }
