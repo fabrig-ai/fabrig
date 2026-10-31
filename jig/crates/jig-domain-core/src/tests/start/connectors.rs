@@ -79,6 +79,12 @@ fn roles_follow_each_connector_and_keep_the_name_bound_on_both_paths() {
 fn resource_reports_load_access_slots_and_holds_before_link_without_asking() {
     for selected in [false, true] {
         let (mut core, env) = fresh(selected);
+        if selected {
+            let configured = config(41);
+            let project = &configured.seed_projects[0];
+            let value = crate::policy::snapshot(&project.policy.policy, &[], &[]).expect("stored project policy");
+            assert!(core.restore_policy(&env.limits, project.number, project.name.clone(), value));
+        }
         to_connectors(&mut core, &env, selected);
         for connector in [1, 2] {
             let pool = tasks::PoolSlots { number: u64::from(connector), pool: name(connector), slots: 3 };
