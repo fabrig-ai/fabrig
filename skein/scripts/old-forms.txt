@@ -9,5 +9,5 @@ earliest 1
 Lifecycle 2
 GROWTH_FLOOR 1
 pop_loop 13
-hex_decimal 14
+hex_decimal 12
 forwarded_host 11
