@@ -314,8 +314,8 @@ impl Reachable {
     }
 
     fn github_installation_stop(&mut self, why: Why) -> Need {
-        let subject = app::decimal(self.installation.expect("GitHub picker names its installation"));
-        self.github_stop(Stage::Installation, &subject, why)
+        let subject = Decimal::of(self.installation.expect("GitHub picker names its installation"));
+        self.github_stop(Stage::Installation, subject.as_bytes(), why)
     }
 
     fn github_rows(&mut self, rows: Box<[github_document::Row]>) -> Result<Need, Why> {

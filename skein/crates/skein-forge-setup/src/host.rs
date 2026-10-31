@@ -18,7 +18,7 @@ use connection::{Connection, Refused};
 pub use limits::{Limits, Stacked, Unusable, documents, github, http};
 use run::{Run, Send, forgejo_pair};
 pub use settings::{Forge, Kind, Settings, Transport};
-use skein_lib::{CryptoRng, Env, List, Map, Queue, Secret, Time, Token, bytes};
+use skein_lib::{CryptoRng, Env, List, Map, Queue, Secret, Time, Token, bytes, earliest};
 
 /// A service's setup plans: one writing run and one Reachable per forge (6.3).
 pub struct Host {
@@ -213,16 +213,13 @@ impl Host {
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        let mut earliest = self.wake;
+        let mut next = self.wake;
         for (_, run) in &self.runs {
-            earlier(&mut earliest, run.deadline);
-            if let Some(wait) = run.retry_at
-                && wait < run.deadline
-            {
-                earlier(&mut earliest, wait);
-            }
+            // A retry at or past the run's deadline never comes first.
+            next = earliest(next, Some(run.deadline));
+            next = earliest(next, run.retry_at);
         }
-        earliest
+        next
     }
     fn drive(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
         self.wake = None;
@@ -410,14 +407,6 @@ fn cut(run: &mut Run, connections: &mut Map<Token, Connection>, out: &mut Queue<
         run.step(reconcile::Event::Reply(Reply::Down), out);
     }
     run.halt(Why::Down, out);
-}
-fn earlier(earliest: &mut Option<Time>, time: Time) {
-    if match *earliest {
-        Some(before) => time < before,
-        None => true,
-    } {
-        *earliest = Some(time);
-    }
 }
 impl core::fmt::Debug for Host {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

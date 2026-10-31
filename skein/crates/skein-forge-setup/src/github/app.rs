@@ -4,9 +4,8 @@ use crate::{
     item,
     reconcile::{self, Event, Failure, Need, Reply, Stage, Why},
 };
-use alloc::boxed::Box;
 use core::num::NonZeroU64;
-use skein_lib::{Decimal, Secret, bytes};
+use skein_lib::{Secret, bytes};
 
 /// The App a plan acts as: its id and its key (forge-setup.md, 6.4).
 #[derive(Clone, Debug)]
@@ -33,10 +32,6 @@ pub(crate) fn id_of(read: Option<Secret>) -> Option<NonZeroU64> {
 /// A plan's stop, naming its stage and subject without credentials.
 pub(crate) fn stop(forge: u16, stage: Stage, subject: &[u8], why: Why) -> Need {
     Need::Stop(Failure { forge, step: stage, subject: bytes::copy_of(subject), why })
-}
-/// An installation id as the subject of a failure.
-pub(crate) fn decimal(id: u64) -> Box<[u8]> {
-    bytes::copy_of(Decimal::of(id).as_bytes())
 }
 /// The unauthenticated bot read's nonzero identity (forge-setup.md, 5.3).
 pub(crate) fn bot(event: Event) -> Result<NonZeroU64, Why> {
