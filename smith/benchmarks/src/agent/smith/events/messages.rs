@@ -94,7 +94,7 @@ pub(super) fn before_task(observer: &Observer, task: &str) -> Measure<bool> {
                         }
                     }
                 }
-                _ => return before_receipt(captured),
+                Event::ResponseStarted(_) | Event::ResponseCompleted(_) => return before_receipt(captured),
                 Event::ToolStarted(value) if value.tool.as_ref() == b"wait" => {
                     return before_receipt(captured);
                 }
