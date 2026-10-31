@@ -62,9 +62,6 @@ fn a_kept_delegate_is_woken_by_its_last_dependencys_met() {
         dependency_text.as_ref(),
         format!("waited for task {dependency}, added 123456 by task {}: done\ntask {dependency}: report\nprerequisite done\n\n", parent.0).as_bytes(),
     );
-    // Finding: inbox.rs:524 keeps the corrected wall in last_activity;
-    // tasks/stored/admission.rs:325 rejects it before created_at on restart.
-    world.broken();
     world.close();
 }
 
@@ -274,9 +271,6 @@ fn an_earlier_compound_move_brings_an_added_dependency_within_reach() {
     );
     assert_eq!(live_row(&world, kept).dependencies.as_ref(), [outside]);
     assert_eq!(live_row(&world, outside).requester, live_row(&world, world.assignments[0].0).requester);
-    // Finding: people/inbox/moving.rs:22 saves ReadConversation.through = 0;
-    // people/domain.rs:2028 rejects that retained position on restart.
-    world.broken();
     world.close();
 }
 
@@ -410,9 +404,6 @@ fn an_unknown_added_dependency_is_refused_by_name() {
     };
     assert_eq!((problem.task, problem.why), (Some(UNKNOWN), tasks::Refusal::Unknown));
     assert_eq!(live_row(&world, target), &before);
-    // Finding: core/effects.rs:123 saves ControlRefused.problem.task = UNKNOWN;
-    // core/stored.rs:231 rejects a refusal naming an unallocated task on restart.
-    world.broken();
     world.close();
 }
 

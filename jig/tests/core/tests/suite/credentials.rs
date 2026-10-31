@@ -129,6 +129,18 @@ fn signing_configuration(seed: u64) -> (root::Config, root::Limits) {
             offers: accounts::Offers { sign_in: true, key: true, programs: Box::new([]) },
         }]),
     };
+    // Every membership the account stories assign has an authority policy.
+    let policy = &mut config.core.seed_projects[0].policy.policy;
+    let mut roles = policy.roles.to_vec();
+    for number in [people::Role::Member.number(), people::Role::Observer.number()] {
+        let mut role = roles[0].clone();
+        role.number = number;
+        role.requests = jig_domain_authority::Requests(0);
+        role.decides = jig_domain_authority::Proposals(0);
+        roles.push(role);
+    }
+    policy.roles = roles.into_boxed_slice();
+    limits.core.authority.roles = 4;
     limits.core.accounts.accounts = 2;
     // The accounts story also opens the deployment watch, beside the project role.
     limits.core.people.projects = 2;

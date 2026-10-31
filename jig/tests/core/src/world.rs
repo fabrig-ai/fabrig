@@ -512,10 +512,11 @@ impl World {
         let bootstrap = crate::effects::World::first_start_with_accounts(config(seed), &limits);
         let mut observer = crate::observations::Observer::new(&config(seed));
         observer.fresh_mark(0, &bootstrap.store);
+        let (domain, store) = bootstrap.into_domain_store();
         World {
             creating: crate::fixtures::Creating::new(&config(seed).core, limits.core.tasks.tree_tasks),
-            domain: bootstrap.domain,
-            store: bootstrap.store,
+            domain,
+            store,
             events,
             trace: Vec::new(),
             sign_in: None,

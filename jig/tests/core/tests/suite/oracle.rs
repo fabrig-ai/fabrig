@@ -30,6 +30,7 @@ fn a_writer_forgetting_a_durable_task_field_names_its_document() {
 fn a_deliberately_broken_fixture_skips_the_oracle() {
     let mut world = World::new(1903, false);
     world.stopped = true;
+    // The fixture deliberately leaves the engine stopped.
     world.broken();
     world.close();
 }
@@ -95,4 +96,35 @@ fn close_settles_a_commit_held_before_the_component() {
     world.close();
     assert!(world.store.held.is_empty());
     assert!(world.store.pending.is_empty());
+}
+
+#[test]
+#[should_panic(expected = "restart oracle document Task 1 field chip")]
+fn dropping_a_world_runs_the_restart_oracle() {
+    let mut world = World::new(1907, false);
+    world.end(tasks::End::Parked, 0);
+    let task = world.assigned.as_ref().expect("assigned task").task;
+    let key = root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)));
+    let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(mut row))) = world.store.rows[&key].clone() else {
+        panic!("live task");
+    };
+    row.spec.words = b"writer forgot its answer".as_slice().into();
+    world.seed(Box::new([root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row)))]));
+}
+
+#[test]
+#[should_panic(expected = "the story's own assertion")]
+fn unwinding_preserves_the_storys_failure_without_a_second_panic() {
+    let mut world = World::new(1908, false);
+    world.stopped = true;
+    panic!("the story's own assertion");
+}
+
+#[test]
+fn an_explicit_close_runs_only_one_cold_restart() {
+    let mut world = World::new(1909, false);
+    world.close();
+    let applied = world.store.applied;
+    world.close();
+    assert_eq!(world.store.applied, applied);
 }
