@@ -1,4 +1,5 @@
 //! temper's frame and forge words as checked English data.
+//! Playground and forge setup words (temper/docs/design/draft/playground-reset.md, 4, 6.1, 6.2 and 6.4).
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::{
@@ -10,6 +11,24 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    PlaygroundBanner,
+    PlaygroundSetUp,
+    PlaygroundLeaving,
+    ForgeRemove,
+    ForgeRemoveConfirm,
+    ForgeRemoveOwned,
+    ForgeRemoveManaged,
+    ForgeRemoveGitHub,
+    ForgeRemoveGitHubLink,
+    ForgeNotFinished,
+    ForgeStartOver,
+    ForgeGoOn,
+    ConnectGitHub,
+    ConnectOwned,
+    ConnectManaged,
+    ConnectManagedAddress,
+    ConnectManagedGit,
+    ConnectManagedWeb,
     WelcomeForgejo,
     WelcomeForgejoDescription,
     WelcomeForgejoRun,
@@ -664,9 +683,28 @@ pub enum Word {
 // The paste of a sign-in's address adds fifteen phrases and twenty-one segments.
 // M1's Model details add eight phrases and sixteen segments.
 // The welcome's Forgejo card adds four literal phrases and segments.
-const PHRASES: u32 = 1180;
-const SEGMENTS: u32 = 2079;
-const ALL: [Word; 598] = [
+// Eighteen playground, removal and forge choice literals.
+const PHRASES: u32 = 1198;
+const SEGMENTS: u32 = 2097;
+const ALL: [Word; 616] = [
+    Word::PlaygroundBanner,
+    Word::PlaygroundSetUp,
+    Word::PlaygroundLeaving,
+    Word::ForgeRemove,
+    Word::ForgeRemoveConfirm,
+    Word::ForgeRemoveOwned,
+    Word::ForgeRemoveManaged,
+    Word::ForgeRemoveGitHub,
+    Word::ForgeRemoveGitHubLink,
+    Word::ForgeNotFinished,
+    Word::ForgeStartOver,
+    Word::ForgeGoOn,
+    Word::ConnectGitHub,
+    Word::ConnectOwned,
+    Word::ConnectManaged,
+    Word::ConnectManagedAddress,
+    Word::ConnectManagedGit,
+    Word::ConnectManagedWeb,
     Word::WelcomeForgejo,
     Word::WelcomeForgejoDescription,
     Word::WelcomeForgejoRun,
@@ -1270,6 +1308,24 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::PlaygroundBanner => 2136,
+            Self::PlaygroundSetUp => 2137,
+            Self::PlaygroundLeaving => 2138,
+            Self::ForgeRemove => 2139,
+            Self::ForgeRemoveConfirm => 2140,
+            Self::ForgeRemoveOwned => 2141,
+            Self::ForgeRemoveManaged => 2142,
+            Self::ForgeRemoveGitHub => 2143,
+            Self::ForgeRemoveGitHubLink => 2144,
+            Self::ForgeNotFinished => 2145,
+            Self::ForgeStartOver => 2146,
+            Self::ForgeGoOn => 2147,
+            Self::ConnectGitHub => 2148,
+            Self::ConnectOwned => 2149,
+            Self::ConnectManaged => 2150,
+            Self::ConnectManagedAddress => 2151,
+            Self::ConnectManagedGit => 2152,
+            Self::ConnectManagedWeb => 2153,
             Self::WelcomeForgejo => 2132,
             Self::WelcomeForgejoDescription => 2133,
             Self::WelcomeForgejoRun => 2134,
@@ -2137,6 +2193,24 @@ const DEMO_REQUEST: &[&[u8]] = &[b"Try a request in ", b"/", b". Follow the task
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
+        Word::PlaygroundBanner => (&[b"This is the playground: a scripted model and in-memory forge. Use the wizard to"], &[]),
+        Word::PlaygroundSetUp => (&[b"set up temper"], &[]),
+        Word::PlaygroundLeaving => (&[b"Leaving the playground\xe2\x80\xa6"], &[]),
+        Word::ForgeRemove => (&[b"Remove"], &[]),
+        Word::ForgeRemoveConfirm => (&[b"Remove this forge?"], &[]),
+        Word::ForgeRemoveOwned => (&[b"Its Forgejo, its directory and its repositories' work here go."], &[]),
+        Word::ForgeRemoveManaged => (&[b"Its bot and hooks stay on your Forgejo."], &[]),
+        Word::ForgeRemoveGitHub => (&[b"The GitHub App stays yours: delete it in its settings."], &[]),
+        Word::ForgeRemoveGitHubLink => (&[b"the App's settings"], &[]),
+        Word::ForgeNotFinished => (&[b"not finished"], &[]),
+        Word::ForgeStartOver => (&[b"Start over"], &[]),
+        Word::ForgeGoOn => (&[b"Go on"], &[]),
+        Word::ConnectGitHub => (&[b"GitHub"], &[]),
+        Word::ConnectOwned => (&[b"Forgejo on this machine"], &[]),
+        Word::ConnectManaged => (&[b"Your Forgejo"], &[]),
+        Word::ConnectManagedAddress => (&[b"Its address"], &[]),
+        Word::ConnectManagedGit => (&[b"Its git base"], &[]),
+        Word::ConnectManagedWeb => (&[b"Its web address"], &[]),
         Word::NoProjectYet => (&[b"No project yet"], &[]),
         Word::ModelKeyDescription => (&[b"From ", b"\xe2\x80\x99s platform, under API keys. What temper\xe2\x80\x99s agents use is billed to the key\xe2\x80\x99s organization."], &[Name]),
         Word::ModelKeyField => (&[b"Key (pasted once)"], &[]),
