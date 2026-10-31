@@ -24,4 +24,6 @@ mod world;
 pub use names::kind;
 pub use noisy::noisy_world;
 pub use skein_world::domain::Span;
+/// Shared timed-command state for worlds that use the checkout translator.
+pub use world::jobs;
 pub use world::{Settings, Stats, Step, World, authority, repo};

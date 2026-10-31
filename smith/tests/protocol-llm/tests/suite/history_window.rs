@@ -128,11 +128,12 @@ fn history_edge(provider: skein_llm::Provider) {
             }]),
         };
         let adapter_limits = adapter::Limits {
-            client,
             tool_bytes: 1024,
-            history_bytes: u64::from(client.request),
             rendered_result: 1024,
-            stated: adapter::Stated::from_tools(&tools, client.input).expect("effective numeric descriptions"),
+            ..smith_protocol_llm::fixture::small(
+                client,
+                adapter::Stated::from_tools(&tools, client.input).expect("effective numeric descriptions"),
+            )
         };
         let receiving = adapter::Receiving {
             max_completion_bytes: limits.completion_bytes,

@@ -157,8 +157,8 @@ pub(crate) fn problem(problem: llm::Problem, maximum: u32) -> Result<Box<[u8]>, 
             if printable(byte) {
                 output.put(&[byte]).expect("measured literal field byte");
             } else {
-                let high = hex(byte >> 4_u8);
-                let low = hex(byte & 15_u8);
+                let high = bytes::hex_digit(byte >> 4_u8);
+                let low = bytes::hex_digit(byte & 15_u8);
                 output.put(&[b'\\', b'x', high, low]).expect("measured escaped field byte");
             }
         }
@@ -169,10 +169,6 @@ pub(crate) fn problem(problem: llm::Problem, maximum: u32) -> Result<Box<[u8]>, 
 
 fn printable(byte: u8) -> bool {
     (32..=126).contains(&byte) && byte != b'"' && byte != b'\\'
-}
-
-fn hex(value: u8) -> u8 {
-    *b"0123456789abcdef".get(usize::from(value)).expect("four-bit escaped field byte")
 }
 
 pub(crate) const WRITE_SIZE_SUFFIX: &[u8] = b" bytes; make a smaller write or an edit. For a larger file, write its first part within the bound, then extend it with edits; put as many edits in one call as fit the bound";

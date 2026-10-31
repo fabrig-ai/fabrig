@@ -2,21 +2,26 @@
 use super::{Delivery, Done, Duration, Key, Op, Time, Token, World, tools, translate};
 use tools::{JobAct, JobEnd};
 
-pub(super) struct Job {
-    started: translate::Started,
-    since: Time,
-    deadline: Time,
-    output: Vec<(Duration, Vec<u8>)>,
-    cursor: usize,
-    end: Option<JobEnd>,
-    response: Response,
-    event: Option<Key>,
-    caps: (u32, u32),
+/// A timed fake command and its pending yielded-output response.
+pub struct Job {
+    pub started: translate::Started,
+    pub since: Time,
+    pub deadline: Time,
+    pub output: Vec<(Duration, Vec<u8>)>,
+    pub cursor: usize,
+    pub end: Option<JobEnd>,
+    pub response: Response,
+    pub event: Option<Key>,
+    pub caps: (u32, u32),
 }
 
-enum Response {
+/// The command's pending initial answer, held state or requested read.
+pub enum Response {
+    /// The spawn yields its first answer at this clock.
     Yield { at: Time },
+    /// No answer is owed until the owner reads or stops the command.
     Held,
+    /// A read or stop awaits its answer at this clock.
     Read { at: Time },
 }
 
@@ -196,7 +201,9 @@ impl World {
 }
 
 impl Job {
-    fn written(&self, now: Time) -> usize {
+    /// Bytes written by the injected clock, bounded by the process deadline.
+    #[must_use]
+    pub fn written(&self, now: Time) -> usize {
         let ran = now.min(self.deadline).saturating_since(self.since);
         if self.output.is_empty() {
             let total = self.started.process.program.output.len();

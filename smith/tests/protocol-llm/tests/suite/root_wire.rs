@@ -8,7 +8,7 @@ use skein_fake_llm_domain::api::{Finish, Line, Part, Query, Script, Turn};
 use skein_lib::{Time, Wall};
 use skein_world::domain::Span;
 use smith_domain::{run, session::llm};
-use smith_protocol_llm_world::adapter::{self as adapter, Limits};
+use smith_protocol_llm_world::adapter::{self as adapter};
 use smith_protocol_llm_world::{
     Job, Settings, World,
     wire::{self, Configuration, Observed},
@@ -120,17 +120,16 @@ fn retired_boundary(world: &World, tool_name: &[u8]) {
 
 fn root_story(configuration: Configuration, tool_name: &'static [u8]) {
     let expected_arguments = configuration.continuation_arguments.clone();
-    let mut bounds = Limits {
-        client: skein_llm_world::limits(),
-        tool_bytes: 32768,
-        history_bytes: u64::from(skein_llm_world::limits().request),
-        rendered_result: skein_llm_world::limits().strings,
-        stated: smith_protocol_llm_world::adapter::stated(),
-    };
+    let mut bounds =
+        smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated());
     bounds.client.http.request = 16384;
     bounds.client.request = 16384;
-    let mut settings =
-        Settings { job: Job::HostTools, writable: false, network: Span::millis(1, 1), ..Settings::calm(71) };
+    let mut settings = Settings {
+        job: Job::HostTools,
+        writable: false,
+        network: Span::millis(1, 1),
+        ..smith_protocol_llm_world::fixture::settings(71)
+    };
     settings.host_tool_name = tool_name;
     settings.limits.session.completion_bytes =
         adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)

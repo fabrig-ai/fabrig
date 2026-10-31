@@ -2,6 +2,7 @@
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 mod accounts;
+mod activation_budget;
 mod brief;
 mod budget;
 mod compaction;

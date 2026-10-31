@@ -23,17 +23,12 @@ fn nesting_asked_for_is_answered_as_its_problem_on_observed_provider_requests() 
         }];
         turns.extend(std::mem::take(&mut main.turns).into_vec());
         main.turns = turns.into_boxed_slice();
-        let mut bounds = adapter::Limits {
-            client: skein_llm_world::limits(),
-            tool_bytes: 32768,
-            history_bytes: u64::from(skein_llm_world::limits().request),
-            rendered_result: skein_llm_world::limits().strings,
-            stated: smith_protocol_llm_world::adapter::stated(),
-        };
+        let mut bounds =
+            smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated());
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
         // The byte peer decodes the same complete native documents the client renders.
-        let mut settings = Settings { job: Job::Delegating, ..Settings::calm(704) };
+        let mut settings = Settings { job: Job::Delegating, ..smith_protocol_llm_world::fixture::settings(704) };
         settings.limits.session.completion_bytes =
             adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes).expect("receiving bound");
         settings.limits.session.completion_blocks = bounds.client.output_items;

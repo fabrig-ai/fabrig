@@ -38,7 +38,8 @@ pub(crate) fn seed(disk: &mut Checkout) -> u64 {
 }
 
 pub(crate) fn check(disk: &Checkout, root: u64) -> (bool, Vec<u8>) {
-    let passed = disk.load(root, CODE, u64::MAX).is_ok_and(|(content, _)| content.windows(2).any(|part| part == b"43"));
+    let passed =
+        disk.load(root, CODE, u64::MAX).is_ok_and(|(content, _)| skein_lib::bytes::find(&content, b"43").is_some());
     let output = if passed { b"ok: src/lib.rs\n".as_slice() } else { b"FAILED: src/lib.rs does not hold 43\n" };
     (passed, output.to_vec())
 }

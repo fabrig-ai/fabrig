@@ -1,130 +1,6 @@
-//! Typed fixture wiring between the fixture scripts and the agent conversation
-//! (domain/session.md, section 10; domain/run.md, section 13). This test-only
-//! adapter recognizes the scripts' finite arguments. It owns no production
-//! provider schema adapter. Opaque host inputs
-//! use the skein JSON tokenizer to attest complete object syntax. Tool results keep
-//! call IDs and diagnostic bytes, allowing the provider to check transcript
-//! pairing and the tests to inspect feedback on subsequent requests.
-
+//! Fixture finish grammar for direct-client stories (smith/docs/design/protocol/llm.md, section 10).
 use crate::adapter;
-use skein_fake_llm_domain::api as provider;
 use smith_domain::{llm as agent, run, tools};
-
-pub(crate) fn query(prompt: agent::Prompt, stated: &adapter::Stated) -> provider::Query {
-    let mut tools = Vec::new();
-    for specification in adapter::schemas(&prompt, stated) {
-        tools.push(provider::ToolSpec {
-            name: specification.name,
-            description: specification.description,
-            parameters: specification.schema,
-        });
-    }
-    for served in prompt.served {
-        let specification = match served {
-            agent::Served::Host(tool) => {
-                provider::ToolSpec { name: tool.name, description: tool.description, parameters: tool.schema }
-            }
-            agent::Served::Deliver | agent::Served::Finish | agent::Served::SubAgent | agent::Served::Wait => {
-                continue;
-            }
-        };
-        tools.push(specification);
-    }
-    let messages = prompt
-        .messages
-        .into_iter()
-        .map(|message| provider::Message {
-            role: match message.role {
-                agent::Role::User => provider::Role::User,
-                agent::Role::Assistant => provider::Role::Assistant,
-            },
-            parts: message.content.into_iter().map(part).collect(),
-        })
-        .collect();
-    provider::Query {
-        credential: None,
-        caching: provider::Caching::Scope(prompt.affinity.key),
-        model: prompt.model,
-        system: prompt.system,
-        tools: tools.into(),
-        choice: provider::ToolChoice::Auto,
-        messages,
-        max_tokens: prompt.max_tokens,
-    }
-}
-
-fn part(block: agent::Block) -> provider::Part {
-    match block {
-        agent::Block::Text { text, .. } | agent::Block::Refusal { text, .. } => provider::Part::Text { text },
-        agent::Block::Opaque { bytes } => provider::Part::Opaque { bytes },
-        agent::Block::ToolCall { id, name, input, .. } => provider::Part::ToolCall { id, name, arguments: input },
-        agent::Block::ToolResult { id, result } => {
-            let error = match &result {
-                agent::Returned::Text { error, .. } | agent::Returned::Served { error, .. } => *error,
-                agent::Returned::Withdrawn | agent::Returned::Invalid { .. } | agent::Returned::NotRun { .. } => true,
-                agent::Returned::Owned { outcome } => !matches!(
-                    outcome,
-                    tools::Outcome::Read { .. }
-                        | tools::Outcome::Listed { .. }
-                        | tools::Outcome::Found { .. }
-                        | tools::Outcome::Removed
-                        | tools::Outcome::Written { .. }
-                        | tools::Outcome::Edited { .. }
-                        | tools::Outcome::Exited { exit: tools::Exit::Code { code: 0 }, .. }
-                ),
-            };
-            let output = match &result {
-                agent::Returned::Text { text, .. }
-                | agent::Returned::Served { returned: run::Returned::Answered { text, .. }, .. } => text.clone(),
-                agent::Returned::Withdrawn => b"withdrawn".as_slice().into(),
-                agent::Returned::Served { returned: run::Returned::DeliveryFailed { failure }, .. } => {
-                    failure.diagnostic.output().into()
-                }
-                agent::Returned::Served { returned: run::Returned::HostAnswered(answer), .. } => answer.text().into(),
-                agent::Returned::Owned { .. }
-                | agent::Returned::Served { .. }
-                | agent::Returned::Invalid { .. }
-                | agent::Returned::NotRun { .. } => format!("{result:?}").into_bytes().into(),
-            };
-            provider::Part::ToolOutput { id, output, is_error: error }
-        }
-    }
-}
-
-pub(crate) fn completion(
-    answer: provider::Answer,
-    grants: tools::Grants,
-    served: &[agent::Served],
-    asker: agent::Asker,
-) -> agent::Completion {
-    let stop = match answer.finish {
-        provider::Finish::Stop => agent::Stop::EndTurn,
-        provider::Finish::ToolCalls => agent::Stop::ToolUse,
-        provider::Finish::Length => agent::Stop::MaxTokens,
-        provider::Finish::ContentFilter => agent::Stop::Refusal,
-    };
-    let usage = agent::Usage {
-        input_tokens: answer.usage.input,
-        output_tokens: answer.usage.output,
-        cache_read_tokens: answer.usage.cache_read,
-        cache_write_tokens: answer.usage.cache_write,
-        reasoning_tokens: answer.usage.reasoning,
-    };
-    let content = answer
-        .parts
-        .into_iter()
-        .map(|part| match part {
-            provider::Part::Text { text } => agent::Said::Text { text, replay: None },
-            provider::Part::Opaque { bytes } => agent::Said::Opaque { bytes },
-            provider::Part::ToolCall { id, name, arguments } => {
-                let call = decode(&name, &arguments, grants, served, asker);
-                agent::Said::ToolCall { id, name, input: arguments, call, replay: None }
-            }
-            provider::Part::ToolOutput { .. } => panic!("a fake completion contains no tool result"),
-        })
-        .collect();
-    agent::Completion { reasoning_dropped: Box::default(), content, stop, usage }
-}
 
 pub(crate) fn decode(
     name: &[u8],
@@ -134,7 +10,8 @@ pub(crate) fn decode(
     asker: agent::Asker,
 ) -> agent::Decoded {
     let invalid = || agent::Decoded::Invalid { problem: agent::Problem::UnknownTool };
-    if name == b"sub_agent" && (asker == agent::Asker::Child || arguments.windows(8).any(|part| part == b"\"agents\""))
+    if name == b"sub_agent"
+        && (asker == agent::Asker::Child || skein_lib::bytes::find(arguments, b"\"agents\"").is_some())
     {
         return agent::Decoded::Invalid { problem: agent::Problem::Nesting };
     }
@@ -177,7 +54,7 @@ pub(crate) fn decode(
     }
     if name == b"sub_agent" && served.contains(&agent::Served::SubAgent) {
         let Some(brief) = field(arguments, b"brief") else { return invalid() };
-        let has = |word: &[u8]| arguments.windows(word.len()).any(|part| part == word);
+        let has = |word: &[u8]| skein_lib::bytes::find(arguments, word).is_some();
         let families = run::charter::Families {
             tools: run::charter::Tools {
                 inspect: has(b"\"inspect\""),
@@ -191,13 +68,7 @@ pub(crate) fn decode(
             ask: run::Ask::SubAgent { brief, families, llm: field(arguments, b"llm"), share: run::Share::UNASKED },
         };
     }
-    let limits = adapter::Limits {
-        client: skein_llm_world::limits(),
-        tool_bytes: 32768,
-        history_bytes: u64::from(skein_llm_world::limits().request),
-        rendered_result: skein_llm_world::limits().strings,
-        stated: crate::adapter::stated(),
-    };
+    let limits = smith_protocol_llm::fixture::small(skein_llm_world::limits(), crate::adapter::stated());
     adapter::decode(name, arguments, grants, served, asker, &limits)
 }
 
@@ -230,7 +101,7 @@ fn finish(arguments: &[u8]) -> Option<run::outcome::Declared> {
         }));
     }
     let name = field(arguments, b"verdict")?;
-    let children: Box<[Item]> = if arguments.windows(10).any(|part| part == b"\"children\"") {
+    let children: Box<[Item]> = if skein_lib::bytes::find(arguments, b"\"children\"").is_some() {
         let child = Item {
             kind: field(arguments, b"kind")?,
             fields: Box::new([
@@ -249,80 +120,21 @@ fn finish(arguments: &[u8]) -> Option<run::outcome::Declared> {
 /// fixture language, never arbitrary JSON or production provider documents.
 fn field(arguments: &[u8], name: &[u8]) -> Option<Box<[u8]>> {
     let prefix = [b"\"", name, b"\":\""].concat();
-    let start = arguments.windows(prefix.len()).position(|part| part == prefix)? + prefix.len();
+    let start = skein_lib::bytes::find(arguments, &prefix)? + prefix.len();
     let rest = &arguments[start..];
     let end = rest.iter().position(|byte| *byte == b'"')?;
     Some(rest[..end].into())
 }
 
-pub(crate) fn failure(error: provider::Error) -> agent::Failure {
-    match error {
-        provider::Error::Overloaded => agent::Failure::Overloaded,
-        provider::Error::RateLimited { retry_after } => agent::Failure::RateLimited { retry_after },
-        provider::Error::Unavailable => agent::Failure::Unavailable,
-        provider::Error::ContextTooLong => agent::Failure::ContextTooLong,
-        provider::Error::Unauthorized => agent::Failure::Unauthorized,
-        provider::Error::Exhausted { retry_after } => agent::Failure::Exhausted { retry_after },
-        provider::Error::Refused => agent::Failure::Refused,
-        provider::Error::Unsupported => agent::Failure::Unsupported,
-        provider::Error::InvalidRequest => agent::Failure::Invalid,
-    }
-}
-
-/// This protocol face uses the JSON tokenizer for syntax and object shape;
-/// the domain receives exactly the original bytes, without field extraction.
 fn object(document: &[u8]) -> Option<()> {
-    use skein_json::{Token, tokenizer as json};
-    use skein_lib::{
-        Env, Intake, Queue, Time, Wall,
-        stream::{Down, Up},
-    };
     let length = u32::try_from(document.len()).ok()?;
     if document.len() > run::HostInput::CAPACITY {
         return None;
     }
-    let limits = json::Limits { depth: 32, string: length, number: length, chunk: 1024, length };
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut tokenizer = json::Tokenizer::new(&limits);
-    let mut above = Queue::uncapped();
-    let mut below = Queue::uncapped();
-    let mut intake = Intake::with_capacity(length.max(json::largest_demand(&limits)));
-    intake.append(document).ok()?;
-    let mut demand = None;
-    let mut first = true;
-    for _ in 0..document.len().checked_mul(4)?.checked_add(8)? {
-        match demand.take() {
-            None => json::down(&mut tokenizer, &env, json::Request::Next, &mut above, &mut below),
-            Some(read) => {
-                let event = intake.meet(read).map_or(Up::End, Up::Bytes);
-                json::up(&mut tokenizer, &env, event, &mut above, &mut below);
-            }
-        }
-        match below.pop() {
-            Some(Down::Demand { read, room: 0 }) => demand = Some(read),
-            None => {}
-            Some(Down::Demand { .. } | Down::Send(_) | Down::Finish) => {
-                panic!("JSON tokenizer only demands bounded reads")
-            }
-        }
-        match above.pop() {
-            Some(json::Event::Token(token)) => {
-                if first && token != Token::ObjectStart {
-                    return None;
-                }
-                first = false;
-            }
-            Some(json::Event::Done) => return (!first).then_some(()),
-            Some(json::Event::Failed(_)) => return None,
-            Some(json::Event::Long(_) | json::Event::Skipped(_)) => {
-                unreachable!("fixture decoder requests only Next tokens")
-            }
-            Some(json::Event::Closed) => panic!("parser is not closed by this translator"),
-            None => {}
-        }
-        assert!(above.is_empty() && below.is_empty());
-    }
-    panic!("bounded JSON completes within linear steps");
+    let limits = skein_json::tokenizer::Limits { depth: 32, string: length, number: length, chunk: 1024, length };
+    let retained = skein_json::document::Limits { tokens: length, text: length };
+    let parsed = skein_json::parse(document, &limits, &retained).ok()?;
+    (parsed.token(0)?.kind == skein_json::Kind::ObjectStart).then_some(())
 }
 
 #[cfg(test)]

@@ -8,9 +8,7 @@ use skein_lib::{Env, Queue, Time, Token, Wall};
 use skein_llm::{self as shared, client};
 use skein_llm_world::fake::Exchange;
 use smith_domain::{Event, llm, run, tools};
-use smith_protocol_llm_world::adapter::{
-    self as adapter, Context, Input, Limits, Receiving, ResolvedCall, ToolKind, ToolSchema,
-};
+use smith_protocol_llm_world::adapter::{self as adapter, Context, Input, Limits, ResolvedCall, ToolKind, ToolSchema};
 use smith_protocol_llm_world::wire::{self, Configuration};
 
 const OWNER: Token = Token::new(71);
@@ -19,11 +17,8 @@ const WAIT_SCHEMA: &[u8] = br#"{"type":"object","properties":{},"additionalPrope
 
 fn limits() -> Limits {
     Limits {
-        client: skein_llm_world::limits(),
-        tool_bytes: 32_768,
-        history_bytes: u64::from(skein_llm_world::limits().request),
         rendered_result: 2048,
-        stated: smith_protocol_llm_world::adapter::stated(),
+        ..smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated())
     }
 }
 
@@ -71,13 +66,8 @@ fn input(configuration: &Configuration) -> Input {
             scheme: skein_llm::Scheme::Bearer,
         },
         application: Box::new([schema(ToolKind::Wait, b"wait")]),
-        receiving: Receiving {
-            max_completion_bytes: adapter::completion_bound(&bounds.client, decoded_call_bytes)
-                .expect("compatible full completion receiving allowance"),
-            max_completion_blocks: bounds.client.output_items,
-            decoded_call_bytes,
-            max_failure_bytes: bounds.client.detail_bytes,
-        },
+        receiving: smith_protocol_llm::fixture::receiving(&bounds.client, decoded_call_bytes)
+            .expect("fixture receiving bound"),
     }
 }
 

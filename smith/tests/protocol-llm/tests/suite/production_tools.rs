@@ -2,17 +2,8 @@
 //! scripted provider's finite fixture language.
 
 use smith_domain::{llm, run, tools};
-use smith_protocol_llm_world::adapter::{self as adapter, Limits, ToolKind};
-
-fn limits() -> Limits {
-    Limits {
-        client: skein_llm_world::limits(),
-        tool_bytes: 32768,
-        history_bytes: u64::from(skein_llm_world::limits().request),
-        rendered_result: skein_llm_world::limits().strings,
-        stated: smith_protocol_llm_world::adapter::stated(),
-    }
-}
+use smith_protocol_llm_world::adapter::{self as adapter, ToolKind};
+use smith_protocol_llm_world::fixture::limits;
 
 fn grants() -> tools::Grants {
     tools::Grants { inspect: true, modify: true, shell: true }

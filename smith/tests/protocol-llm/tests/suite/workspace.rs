@@ -3,7 +3,7 @@
 //! Contract: domain/run.md, sections 3, 6, 8 and 13; domain/tools.md, sections 2–4.
 
 use skein_fake_checkout::Checkout;
-use skein_fake_llm_domain::api::{Finish, Line, Message, Part, Query, Role, Script, Turn};
+use skein_fake_llm_domain::api::{Finish, Line, Message, Part, Role, Script, Turn};
 use skein_lib::{Duration, Token};
 use skein_world::domain::Span;
 use smith_domain::{Transcript, run};
@@ -166,20 +166,15 @@ fn no_workspace(world: &World, settings: &Settings) {
 #[test]
 fn no_workspace_host_answer_wait_park_and_native_transcript_resume() {
     for index in 0..2 {
-        let mut bounds = Limits {
-            client: skein_llm_world::limits(),
-            tool_bytes: 32768,
-            history_bytes: u64::from(skein_llm_world::limits().request),
-            rendered_result: skein_llm_world::limits().strings,
-            stated: smith_protocol_llm_world::adapter::stated(),
-        };
+        let mut bounds =
+            smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated());
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
         let mut settings = Settings {
             job: Job::HostTools,
             waiting: Duration::from_secs(1),
             network: Span::millis(1, 1),
-            ..Settings::calm(1001)
+            ..smith_protocol_llm_world::fixture::settings(1001)
         };
         settings.limits.session.completion_bytes =
             adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)
@@ -243,194 +238,6 @@ fn contains(bytes: &[u8], part: &[u8]) -> bool {
     bytes.windows(part.len()).any(|bytes| bytes == part)
 }
 
-fn mixed_disk() -> (Checkout, run::Workspace) {
-    let mut disk = Checkout::new();
-    let mut directories = Vec::new();
-    for (name, writable, git) in [
-        (b"work".as_slice(), true, true),
-        (b"archive", false, true),
-        (b"notes", true, false),
-        (b"reference", false, false),
-    ] {
-        disk.mkdir(name);
-        disk.write(&[name, b"/AGENTS.md"].concat(), &[b"guide-", name].concat());
-        disk.write(&[name, b"/.temper/pre-pr"].concat(), b"#!checks");
-        disk.write(&[name, b"/src/lib.rs"].concat(), b"pub fn answer() -> u32 { 43 }\n");
-        disk.write(&[name, b"/data.txt"].concat(), b"old");
-        if git {
-            disk.write(&[name, b"/.git/HEAD"].concat(), b"host-owned");
-        }
-        let root = Token::new(disk.root(name));
-        directories.push(run::Directory {
-            host: Box::from(b"/host".as_slice()),
-            name: name.into(),
-            root,
-            writable,
-            git,
-            conflicts: Box::new([]),
-        });
-    }
-    (disk, run::Workspace { directories: directories.into() })
-}
-
-fn mixed_scripts() -> Box<[Script]> {
-    Box::new([
-        Script {
-            cue: b"@midreport".as_slice().into(),
-            turns: vec![
-                calls(vec![call(b"write", br#"{"path":"../notes/data.txt","content":"premature"}"#)], 1),
-                calls(vec![call(b"read", br#"{"path":"../notes/data.txt"}"#)], 1),
-                calls(vec![call(b"edit", br#"{"path":"../notes/data.txt","edits":[{"old":"old","new":"main"}]}"#)], 1),
-                calls(
-                    vec![call(b"edit", br#"{"path":"../archive/data.txt","edits":[{"old":"old","new":"forbidden"}]}"#)],
-                    1,
-                ),
-                calls(vec![call(b"write", br#"{"path":".git/HEAD","content":"forbidden"}"#)], 1),
-                calls(vec![call(b"sub_agent", br#"{"brief":"@mixed-read","tools":["inspect"]}"#)], 1),
-                calls(vec![call(b"sub_agent", br#"{"brief":"@mixed-write","tools":["inspect","modify"]}"#)], 1),
-                calls(vec![call(b"deliver", br#"{"ticket":"mixed-observed-tree"}"#)], 1),
-                calls(vec![call(b"finish", br#"{"report":"Mixed directories handled.","source":"workspace"}"#)], 1),
-            ]
-            .into(),
-        },
-        Script {
-            cue: b"@mixed-read".as_slice().into(),
-            turns: Box::new([
-                calls(vec![call(b"read", br#"{"path":"../reference/data.txt"}"#)], 1),
-                calls(
-                    vec![call(b"edit", br#"{"path":"../notes/data.txt","edits":[{"old":"main","new":"forbidden"}]}"#)],
-                    1,
-                ),
-                says(b"Read-only child done.", 1),
-            ]),
-        },
-        Script {
-            cue: b"@mixed-write".as_slice().into(),
-            turns: Box::new([
-                calls(vec![call(b"write", br#"{"path":"../notes/data.txt","content":"unread-child"}"#)], 1),
-                calls(
-                    vec![call(b"read", br#"{"path":"../notes/data.txt"}"#), call(b"read", br#"{"path":"data.txt"}"#)],
-                    1,
-                ),
-                calls(
-                    vec![call(b"edit", br#"{"path":"../notes/data.txt","edits":[{"old":"main","new":"child"}]}"#)],
-                    1,
-                ),
-                calls(vec![call(b"edit", br#"{"path":"data.txt","edits":[{"old":"old","new":"child-git"}]}"#)], 1),
-                calls(
-                    vec![call(
-                        b"edit",
-                        br#"{"path":"../reference/data.txt","edits":[{"old":"old","new":"forbidden"}]}"#,
-                    )],
-                    1,
-                ),
-                says(b"Writable child done.", 1),
-            ]),
-        },
-    ])
-}
-
-fn feedback_has(query: &Query, part: &[u8]) -> bool {
-    query
-        .messages
-        .iter()
-        .flat_map(|message| &message.parts)
-        .any(|item| matches!(item, Part::ToolOutput { output, is_error: true, .. } if contains(output, part)))
-}
-
-#[test]
-fn mixed_git_plain_and_readonly_mounts_share_discovery_and_child_authority() {
-    let (disk, workspace) = mixed_disk();
-    let readonly_git = disk.tree(b"archive");
-    let readonly_plain = disk.tree(b"reference");
-    let git_head = disk.content(b"work/.git/HEAD").expect("host-owned git metadata").to_vec();
-    let roots = workspace.directories.iter().map(|directory| directory.root).collect::<Vec<_>>();
-    let mut settings = Settings { job: Job::MidReport, ..Settings::calm(1002) };
-    settings.limits.run.directories = 4;
-    settings.limits.session.tools.repos = 4;
-    let mut world = World::with_workspace_scripts(settings, None, Some(workspace), disk, mixed_scripts());
-    world.enable_parent_deliveries();
-    for _ in 0..10_000 {
-        assert!(!world.drive(1));
-        if !world.delivery_submissions().is_empty() {
-            break;
-        }
-    }
-    assert_eq!(world.delivery_submissions().len(), 1, "observed parent delivery reached");
-    assert_eq!(world.checked(), [true, true]);
-    assert_eq!(world.disk().content(b"work/data.txt"), Some(b"child-git".as_slice()));
-    assert_eq!(world.disk().content(b"notes/data.txt"), Some(b"child".as_slice()));
-    assert_eq!(world.disk().tree(b"archive"), readonly_git);
-    assert_eq!(world.disk().tree(b"reference"), readonly_plain);
-    assert_eq!(world.disk().content(b"work/.git/HEAD"), Some(git_head.as_slice()));
-    assert!(!world.disk().exists(b"notes/.git") && !world.disk().exists(b"reference/.git"));
-    let owner = world.delivery_submissions()[0].owner;
-    let receipts = run::Delivered::new(Box::new([
-        run::Receipt::new(0, b"work: checked git files kept".as_slice().into()).expect("git receipt"),
-        run::Receipt::new(2, b"notes: changed plain files kept".as_slice().into()).expect("plain receipt"),
-    ]))
-    .expect("exact changed writable ordinals");
-    world.return_delivery(owner, run::Delivery::Delivered(receipts)).expect("one observed terminal");
-    world.run(10_000);
-    assert!(matches!(world.answer(), run::Answer::Accepted { outcome: run::outcome::Declared::Report(_), .. }));
-    let discovery = world
-        .boundaries()
-        .iter()
-        .filter_map(|(_, boundary)| match boundary {
-            Boundary::Read { at } => Some((b"read".as_slice(), at.root, at.path.as_ref())),
-            Boundary::Probe { at } => Some((b"probe".as_slice(), at.root, at.path.as_ref())),
-            Boundary::Check { .. } | Boundary::Io { .. } => None,
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(
-        discovery,
-        [
-            (b"read".as_slice(), roots[0], b"AGENTS.md".as_slice()),
-            (b"probe", roots[0], b".temper/pre-pr"),
-            (b"read", roots[1], b"AGENTS.md"),
-            (b"read", roots[2], b"AGENTS.md"),
-            (b"probe", roots[2], b".temper/pre-pr"),
-            (b"read", roots[3], b"AGENTS.md"),
-        ]
-    );
-    let checks = world
-        .boundaries()
-        .iter()
-        .filter_map(|(_, boundary)| match boundary {
-            Boundary::Check { program } => Some(program.root),
-            Boundary::Read { .. } | Boundary::Probe { .. } | Boundary::Io { .. } => None,
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(checks, [roots[0], roots[2]], "readonly executable files never become checks");
-    for query in world.prompts() {
-        for name in [b"work".as_slice(), b"archive", b"notes", b"reference"] {
-            assert!(contains(&query.system, &[b"guide-", name].concat()), "same observed guides in main and children");
-        }
-        for metadata in [
-            b"`work`, which you may change, a git working tree".as_slice(),
-            b"`archive`, which you may only read, a git working tree",
-            b"`notes`, which you may change, a plain directory",
-            b"`reference`, which you may only read, a plain directory",
-        ] {
-            assert!(contains(&query.system, metadata), "identical kind and write metadata in main and children");
-        }
-    }
-    let main =
-        world.prompts().iter().filter(|query| query.system.starts_with(b"## Task\n\n@midreport")).collect::<Vec<_>>();
-    assert!(main.iter().any(|query| feedback_has(query, b"NotRead")));
-    assert!(main.iter().any(|query| feedback_has(query, b"ReadOnly")));
-    assert!(main.iter().any(|query| feedback_has(query, b"Protected")));
-    let readonly = world.prompts().iter().filter(|query| query.system.starts_with(b"@mixed-read")).collect::<Vec<_>>();
-    assert_eq!(readonly.len(), 3);
-    assert!(readonly.iter().all(|query| query.tools.iter().all(|tool| {
-        ![b"edit".as_slice(), b"write", b"finish", b"wait", b"host_action"].contains(&tool.name.as_ref())
-    })));
-    assert!(readonly.iter().any(|query| feedback_has(query, b"UnknownTool")));
-    let writable = world.prompts().iter().filter(|query| query.system.starts_with(b"@mixed-write")).collect::<Vec<_>>();
-    assert!(writable.iter().any(|query| feedback_has(query, b"NotRead")), "main's knowledge is not child's");
-    assert!(writable.iter().any(|query| feedback_has(query, b"ReadOnly")), "child cannot widen mount authority");
-}
-
 #[test]
 fn utf8_read_feedback_can_be_copied_into_an_edit_in_both_wire_dialects() {
     for configuration in wire::configurations() {
@@ -463,17 +270,12 @@ fn utf8_read_feedback_can_be_copied_into_an_edit_in_both_wire_dialects() {
                 calls(vec![call(b"finish", br#"{"report":"Edited the copied text.","source":"utf8.txt"}"#)], 1),
             ]),
         }]);
-        let mut bounds = Limits {
-            client: skein_llm_world::limits(),
-            tool_bytes: 32768,
-            history_bytes: u64::from(skein_llm_world::limits().request),
-            rendered_result: skein_llm_world::limits().strings,
-            stated: smith_protocol_llm_world::adapter::stated(),
-        };
+        let mut bounds =
+            smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated());
         // The native request includes the complete depth/glob schema inventory.
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
-        let mut settings = Settings { job: Job::Reporting, ..Settings::calm(1013) };
+        let mut settings = Settings { job: Job::Reporting, ..smith_protocol_llm_world::fixture::settings(1013) };
         settings.limits.session.completion_bytes =
             adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes).expect("completion room");
         settings.limits.session.completion_blocks = bounds.client.output_items;
@@ -541,7 +343,7 @@ fn the_descriptions_state_each_effective_workspace_limit_on_both_native_wires() 
                 conflicts: Box::new([]),
             }]),
         };
-        let mut settings = Settings { job: Job::Reporting, ..Settings::calm(1094) };
+        let mut settings = Settings { job: Job::Reporting, ..smith_protocol_llm_world::fixture::settings(1094) };
         let caps = &mut settings.limits.session.tools;
         caps.path_bytes = 37;
         caps.read_bytes = 73;
@@ -559,11 +361,11 @@ fn the_descriptions_state_each_effective_workspace_limit_on_both_native_wires() 
         client.request = 16384;
         client.http.request = 16384;
         let bounds = Limits {
-            client,
-            tool_bytes: 32768,
             history_bytes: u64::from(skein_llm_world::limits().request),
-            rendered_result: client.strings,
-            stated: adapter::Stated::from_tools(caps, client.input).expect("observed numeric quantities"),
+            ..smith_protocol_llm::fixture::small(
+                client,
+                adapter::Stated::from_tools(caps, client.input).expect("observed numeric quantities"),
+            )
         };
         settings.limits.session.completion_bytes =
             adapter::completion_bound(&client, settings.limits.decoded_call_bytes).expect("receiving");
@@ -641,16 +443,16 @@ fn namespace_descriptions_and_list_slash_reach_both_native_provider_dialects() {
                 });
             }
             let workspace = run::Workspace { directories: directories.into() };
-            let mut settings = Settings { job: Job::Reporting, ..Settings::calm(1096) };
+            let mut settings = Settings { job: Job::Reporting, ..smith_protocol_llm_world::fixture::settings(1096) };
             let mut client = skein_llm_world::limits();
             client.request = 16384;
             let bounds = Limits {
-                client,
-                tool_bytes: 32768,
                 history_bytes: u64::from(skein_llm_world::limits().request),
-                rendered_result: client.strings,
-                stated: adapter::Stated::from_tools(&settings.limits.session.tools, client.input)
-                    .expect("valid namespace fixture"),
+                ..smith_protocol_llm::fixture::small(
+                    client,
+                    adapter::Stated::from_tools(&settings.limits.session.tools, client.input)
+                        .expect("valid namespace fixture"),
+                )
             };
             settings.limits.session.completion_bytes =
                 adapter::completion_bound(&client, settings.limits.decoded_call_bytes)

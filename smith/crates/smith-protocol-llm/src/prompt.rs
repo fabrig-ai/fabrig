@@ -225,15 +225,10 @@ fn after_failed_write(call: u16, previous: Option<&shared::Message>, maximum: u3
                 if position == call {
                     let prefix = b"not run: call ";
                     let suffix = b") failed before it; this call's changes were not made";
-                    let mut digits = 0_usize;
-                    for divisor in [10_000_u16, 1_000, 100, 10, 1] {
-                        if call >= divisor {
-                            digits = digits.checked_add(1).ok_or(Error::Limit)?;
-                        }
-                    }
+                    let digits = skein_lib::Decimal::of(u64::from(call));
                     let length = prefix
                         .len()
-                        .checked_add(digits)
+                        .checked_add(digits.as_bytes().len())
                         .ok_or(Error::Limit)?
                         .checked_add(2)
                         .ok_or(Error::Limit)?
@@ -246,15 +241,7 @@ fn after_failed_write(call: u16, previous: Option<&shared::Message>, maximum: u3
                     }
                     let mut writer = skein_lib::Writer::new(length);
                     writer.put(prefix).or(Err(Error::Limit))?;
-                    let mut remaining = call;
-                    for divisor in [10_000_u16, 1_000, 100, 10, 1] {
-                        if call >= divisor {
-                            let digit = u8::try_from(remaining.checked_div(divisor).ok_or(Error::Limit)?)
-                                .or(Err(Error::Limit))?;
-                            writer.put(&[b'0'.checked_add(digit).ok_or(Error::Limit)?]).or(Err(Error::Limit))?;
-                            remaining = remaining.checked_rem(divisor).ok_or(Error::Limit)?;
-                        }
-                    }
+                    writer.put(digits.as_bytes()).or(Err(Error::Limit))?;
                     writer.put(b" (").or(Err(Error::Limit))?;
                     writer.put(name).or(Err(Error::Limit))?;
                     writer.put(suffix).or(Err(Error::Limit))?;
@@ -326,28 +313,7 @@ fn inventory(input: &llm::Prompt, application: &[ToolSchema], limits: &Limits) -
 
 fn served_unique(descriptor: &llm::Served, previous: &[llm::Served]) -> Result<(), Error> {
     for prior in previous {
-        let repeated = match descriptor {
-            llm::Served::Host(tool) => match prior {
-                llm::Served::Host(other) => tool.name == other.name,
-                llm::Served::Finish | llm::Served::Deliver | llm::Served::SubAgent | llm::Served::Wait => false,
-            },
-            llm::Served::Finish => match prior {
-                llm::Served::Finish => true,
-                llm::Served::Host(_) | llm::Served::Deliver | llm::Served::SubAgent | llm::Served::Wait => false,
-            },
-            llm::Served::Deliver => match prior {
-                llm::Served::Deliver => true,
-                llm::Served::Host(_) | llm::Served::Finish | llm::Served::SubAgent | llm::Served::Wait => false,
-            },
-            llm::Served::SubAgent => match prior {
-                llm::Served::SubAgent => true,
-                llm::Served::Host(_) | llm::Served::Finish | llm::Served::Deliver | llm::Served::Wait => false,
-            },
-            llm::Served::Wait => match prior {
-                llm::Served::Wait => true,
-                llm::Served::Host(_) | llm::Served::Finish | llm::Served::Deliver | llm::Served::SubAgent => false,
-            },
-        };
+        let repeated = served_name(descriptor) == served_name(prior);
         if repeated {
             return Err(Error::Invalid);
         }

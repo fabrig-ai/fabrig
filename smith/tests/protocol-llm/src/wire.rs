@@ -139,7 +139,9 @@ pub struct Binding {
 /// Application-owned routing of observed Clients in the existing root world.
 /// Generic transport, peer progress and all clocks remain in shared Exchange.
 /// Active logical callbacks are separate from retained physical bindings.
-pub(crate) struct Composition {
+pub struct Composition {
+    seed: u64,
+    referee: skein_world::domain::Referee<crate::referee::Meeting>,
     configuration: Configuration,
     limits: Limits,
     scripts: Box<[skein_fake_llm_domain::api::Script]>,
@@ -178,12 +180,15 @@ impl Composition {
         configuration: Configuration,
         limits: Limits,
         scripts: Box<[skein_fake_llm_domain::api::Script]>,
+        seed: u64,
     ) -> Self {
         let config = provider::Config { calls: 256, cache_entries: 256, ..skein_llm_world::fake::config() };
         Self {
+            seed,
             provider: provider::Domain::try_scripted(&config, 3, scripts.clone()).expect("bounded composition scripts"),
             provider_stage: Stage::uncapped(config),
             provider_routes: BTreeMap::new(),
+            referee: skein_world::domain::Referee::new(crate::referee::Meeting::default()),
             configuration,
             limits,
             scripts,
@@ -530,4 +535,59 @@ fn resolutions(context: &Context, completion: &shared::Completion) -> Box<[Resol
             | shared::Block::Dropped { .. } => None,
         })
         .collect()
+}
+
+impl smith_agent_world::backend::Backend for Composition {
+    fn start(&mut self, request: smith_domain::Request, now: Time, wall: Wall) -> Vec<provider::api::Query> {
+        let smith_domain::Request::Complete {
+            owner,
+            prompt,
+            max_completion_bytes,
+            max_completion_blocks,
+            max_failure_bytes,
+            decoded_call_bytes,
+            ..
+        } = request
+        else {
+            panic!("wire accepts Complete")
+        };
+        self.start(
+            owner,
+            prompt,
+            Receiving { max_completion_bytes, max_completion_blocks, max_failure_bytes, decoded_call_bytes },
+            now,
+            wall,
+        );
+        Vec::new()
+    }
+    fn advance(&mut self, now: Time, wall: Wall, finished: bool) -> smith_agent_world::backend::Progress {
+        let progress = self.advance(now, wall, finished);
+        for (owner, request) in progress.requests {
+            self.referee.observe(now, crate::referee::Seen::Request { owner, request }, &mut Vec::new());
+        }
+        self.referee.assert_holding(self.seed);
+        smith_agent_world::backend::Progress {
+            queries: progress.queries,
+            terminals: progress.terminals,
+            immediate: progress.immediate,
+            delay_terminals: false,
+        }
+    }
+    fn cancel(&mut self, owner: Token, now: Time, wall: Wall) -> bool {
+        self.cancel(owner, now, wall);
+        true
+    }
+    fn has_events(&self) -> bool {
+        false
+    }
+    fn is_settled(&self) -> bool {
+        self.is_settled()
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        None
+    }
+    fn assert_settled(&self) {
+        assert!(self.is_settled());
+        self.referee.assert_passed(self.seed);
+    }
 }

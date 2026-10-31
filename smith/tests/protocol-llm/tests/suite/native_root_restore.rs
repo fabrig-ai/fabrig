@@ -111,13 +111,8 @@ fn scripts(fixture: &Fixture, tail: bool) -> Box<[Script]> {
 }
 
 fn bounds() -> Limits {
-    let mut bounds = Limits {
-        client: skein_llm_world::limits(),
-        tool_bytes: 32768,
-        history_bytes: u64::from(skein_llm_world::limits().request),
-        rendered_result: skein_llm_world::limits().strings,
-        stated: smith_protocol_llm_world::adapter::stated(),
-    };
+    let mut bounds =
+        smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::adapter::stated());
     bounds.client.http.request = 16384;
     bounds.client.request = 16384;
     bounds
@@ -130,7 +125,7 @@ fn settings(seed: u64, resume: bool, bounds: &Limits) -> Settings {
         writable: false,
         waiting: Duration::from_secs(1),
         network: Span::millis(1, 1),
-        ..Settings::calm(seed)
+        ..smith_protocol_llm_world::fixture::settings(seed)
     };
     settings.limits.session.completion_bytes =
         adapter::completion_bound(&bounds.client, settings.limits.decoded_call_bytes)

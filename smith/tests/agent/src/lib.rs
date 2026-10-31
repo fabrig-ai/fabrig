@@ -2,7 +2,7 @@
 //! (smith/docs/design/domain/run.md, section 13; smith/docs/design/domain/host.md, sections 2 and 10;
 //! skein/docs/foundation/testing-strategy.md, sections 2.2, 6 and 7).
 //!
-//! The world keeps time, seeds, a fake checkout, a fake LLM domain, boundary
+//! The world keeps time, seeds, a fake checkout, a provider face, boundary
 //! observations and pending host replies. It never knows provider grammar or
 //! transport bytes. Its step, fire and resume entrances drive the domain under
 //! bounded output pressure. The parent-delivery entrance exposes root requests
@@ -16,6 +16,8 @@
 //! documents. The independent referee sees only boundary observations. Facts
 //! are checked after settlement against those observations; they never drive
 //! the host. Replay and memory use skein's shared kit, with no local allocator.
+
+pub mod backend;
 
 mod fixture;
 
