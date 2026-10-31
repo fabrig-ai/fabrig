@@ -16,11 +16,11 @@ fn fixture() -> (Core, Limits) {
     limits.documents.rows = 16;
     let mut funding = List::with_capacity(core.tasks.funding_records().len());
     for (_, ledger) in core.tasks.funding_records() {
-        funding.push(ledger.clone()).expect("fixture funding");
+        funding.push(*ledger).expect("fixture funding");
     }
     core.tasks = fixtures::fresh_tasks(&core, &limits);
     for ledger in &funding {
-        send_task(&mut core, &limits, tasks::Event::Restore { record: tasks::Stored::Ledger(ledger.clone()) });
+        send_task(&mut core, &limits, tasks::Event::Restore { record: tasks::Stored::Ledger(*ledger) });
     }
     for (number, requester) in [
         (1, tasks::Party::Person(1)),
