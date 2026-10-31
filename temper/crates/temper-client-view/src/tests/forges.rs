@@ -606,10 +606,10 @@ fn a_pasted_app_hides_the_setup_strips_playground_before_installation_and_the_re
     let root = f::demo_forges_state_root(
         Address::Chats { filter: ChatsFilter::All, start: false },
         rows,
-        w::DemoState::NotStarted,
+        temper_client_domain::forge::demo::DemoState::NotStarted,
     );
     assert!(root.demo_answered());
-    assert!(root.forge().demo().is_some(), "retirement has not been reread yet");
+    assert!(root.forge().demo().is_none(), "an unstarted playground answers no record");
     let setup = d::forge::listed::setup(&root).expect("installation and model remain to set up");
     assert!(!setup.playground, "a connected App ends the playground offer before installation");
     let view = f::page_view(&root);

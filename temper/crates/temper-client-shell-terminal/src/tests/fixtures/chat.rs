@@ -133,7 +133,7 @@ fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
                 && temper_client_protocol_wire::decode_reading(&record.bytes, &wire_limits())
                     .expect("forge reading")
                     .read()
-                    == &temper_client_protocol_wire::v1::Read::Demo =>
+                    == &temper_client_protocol_wire::v1::Read::Playground =>
             {
                 Some(jig_client::Up::ReadDone {
                     read,
@@ -298,20 +298,27 @@ fn demo_answer() -> Box<[u8]> {
     ] {
         cues.push(cue.into()).expect("three demo cues");
     }
-    wire::demo_answer(
-        &w::DemoAnswer::new(
-            &wire_limits(),
-            w::DemoAnswerParts {
-                state: w::DemoState::Running,
-                project: 1,
-                forge: 1,
-                provider: 3,
-                owner: b"playground".as_slice().into(),
-                name: b"widget".as_slice().into(),
-                cues,
+    wire::playground_answer(
+        &w::PlaygroundAnswer::new(
+            &w::CEILINGS,
+            w::PlaygroundAnswerParts {
+                state: w::PlaygroundState::Running(
+                    w::PlaygroundRunning::new(
+                        &wire_limits(),
+                        w::PlaygroundRunningParts {
+                            project: 1,
+                            forge: 1,
+                            provider: 3,
+                            owner: b"playground".as_slice().into(),
+                            name: b"widget".as_slice().into(),
+                            cues,
+                        },
+                    )
+                    .expect("demo answer fits"),
+                ),
             },
         )
-        .expect("demo answer fits"),
+        .expect("running playground answer"),
     )
 }
 
@@ -324,6 +331,7 @@ fn demo_forges() -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    finished: false,
                     number: 1,
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Fake,

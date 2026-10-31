@@ -68,8 +68,13 @@ fn chosen_model_reaches_the_engine() {
     let mut transport = transport();
     let mut change = amendment();
     change.llm = Some(choice(b"scripted"));
-    let (events, _) =
-        super::request(&mut transport, CLIENT, &mut request(change), &crate::fixtures::domain_limits().client.domain);
+    let (events, _) = super::request(
+        &[],
+        &mut transport,
+        CLIENT,
+        &mut request(change),
+        &crate::fixtures::domain_limits().client.domain,
+    );
     let [engine::Event::Party(PartyInput::Ask { ask: people::Ask::Amend { amendment, .. }, .. })] = events.as_slice()
     else {
         panic!("one amended task input")
@@ -99,8 +104,13 @@ fn authority_model_names_reach_the_engine() {
         notes: 0,
         note_resources: List::with_capacity(0),
     });
-    let (events, _) =
-        super::request(&mut transport, CLIENT, &mut request(change), &crate::fixtures::domain_limits().client.domain);
+    let (events, _) = super::request(
+        &[],
+        &mut transport,
+        CLIENT,
+        &mut request(change),
+        &crate::fixtures::domain_limits().client.domain,
+    );
     let [engine::Event::Party(PartyInput::Ask { models, .. })] = events.as_slice() else {
         panic!("one named authority input")
     };
@@ -111,8 +121,13 @@ fn unconfigured_model_uses_its_original_keyed_route() {
     let mut transport = transport();
     let mut change = amendment();
     change.llm = Some(choice(b"missing"));
-    let (events, refusal) =
-        super::request(&mut transport, CLIENT, &mut request(change), &crate::fixtures::domain_limits().client.domain);
+    let (events, refusal) = super::request(
+        &[],
+        &mut transport,
+        CLIENT,
+        &mut request(change),
+        &crate::fixtures::domain_limits().client.domain,
+    );
     let Some(packets::Incoming::Callback {
         client,
         event:

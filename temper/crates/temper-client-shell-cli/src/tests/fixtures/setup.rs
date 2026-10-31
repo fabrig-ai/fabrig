@@ -23,7 +23,9 @@ impl Frame {
             .expect("family envelope");
         let request = wire::decode_requesting(envelope.record(), &f::CEILINGS).expect("forge request");
         let outcome = match request.into_parts().request {
-            f::Request::SetUp(_) => f::Outcome::SettingUp,
+            f::Request::SetUp(_) => f::Outcome::SettingUp(
+                f::ForgeNumber::new(&f::CEILINGS, f::ForgeNumberParts { forge: 0 }).expect("numbered bridge answer"),
+            ),
             f::Request::Adopt(_) if self.wait_task.is_some() => f::Outcome::Adopted(
                 f::Adopted::new(
                     &f::CEILINGS,
@@ -43,7 +45,9 @@ impl Frame {
             ),
             f::Request::Adopt(_)
             | f::Request::Return(_)
-            | f::Request::StartDemo
+            | f::Request::RemoveForge(_)
+            | f::Request::EndPlayground
+            | f::Request::StartPlayground
             | f::Request::Install(_)
             | f::Request::Connect(_)
             | f::Request::Accept(_)
@@ -84,6 +88,7 @@ impl Frame {
                 f::ForgeRow::new(
                     &f::CEILINGS,
                     f::ForgeRowParts {
+                        finished: false,
                         number: FORGE,
                         kind: f::Kind::Forgejo,
                         mode: f::Mode::Owned,

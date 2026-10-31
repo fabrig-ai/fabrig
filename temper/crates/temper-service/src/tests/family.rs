@@ -135,7 +135,7 @@ fn an_unconfigured_or_unknown_family_read_has_no_record() {
             "demo, unconfigured",
             wire::FORGE,
             wire::CLIENT_VERSION,
-            wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Demo }).unwrap()),
+            wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap()),
             people::ApplicationScope::Deployment,
             (REPLY, wire::FORGE, None),
         ),
@@ -162,7 +162,7 @@ fn demo_read(scope: people::ApplicationScope) -> kit::ToApplication {
         sign_in: 3,
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        record: wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Demo }).unwrap()),
+        record: wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap()),
         scope,
         window: jig_domain_core::documents::Window { rows: 2, after: None },
     }
@@ -194,27 +194,35 @@ fn the_demo_read_answers_the_configured_demo() {
     let mut cues = List::with_capacity(2);
     cues.push(b"Add CSV export to widget".as_slice().into()).unwrap();
     cues.push(b"Add a dark theme to widget".as_slice().into()).unwrap();
-    let expected = w::DemoAnswer::new(
+    let expected = w::PlaygroundAnswer::new(
         &w::CEILINGS,
-        w::DemoAnswerParts {
-            state: w::DemoState::Running,
-            project: 1,
-            forge: 2,
-            provider: 3,
-            owner: b"demo".as_slice().into(),
-            name: b"widget".as_slice().into(),
-            cues,
+        w::PlaygroundAnswerParts {
+            state: w::PlaygroundState::Running(
+                w::PlaygroundRunning::new(
+                    &w::CEILINGS,
+                    w::PlaygroundRunningParts {
+                        project: 1,
+                        forge: 2,
+                        provider: 3,
+                        owner: b"demo".as_slice().into(),
+                        name: b"widget".as_slice().into(),
+                        cues,
+                    },
+                )
+                .expect("running fixture"),
+            ),
         },
     )
     .unwrap();
     for scope in [people::ApplicationScope::Deployment, people::ApplicationScope::Project(7)] {
         let record = demo_record(demo_read(scope), &demo);
-        assert_eq!(wire::decode_demo_answer(&record, &w::CEILINGS), Some(expected.clone()), "{scope:?}");
+        assert_eq!(wire::decode_playground_answer(&record, &w::CEILINGS), Some(expected.clone()), "{scope:?}");
     }
 }
 #[test]
 fn the_demo_answer_carries_no_key_path_socket_or_placeholder() {
-    let service = fixtures::demo_service();
+    let mut service = fixtures::demo_service();
+    service.engine.as_mut().unwrap().demo.as_mut().unwrap().state = Some(forge::DemoState::Running);
     let record = demo_record(
         demo_read(people::ApplicationScope::Deployment),
         service.engine.as_ref().expect("engine").demo.as_ref().unwrap(),
@@ -227,7 +235,7 @@ fn the_demo_answer_carries_no_key_path_socket_or_placeholder() {
 #[test]
 fn a_configured_demo_does_not_answer_other_or_malformed_reads() {
     let service = fixtures::demo_service();
-    let reading = wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Demo }).unwrap());
+    let reading = wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap());
     let mut malformed = reading.clone();
     *malformed.last_mut().expect("read tag") = 1;
     let mut writer = skein_lib::Writer::new(reading.len().checked_add(1).expect("one trailing byte fits"));
@@ -848,7 +856,6 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
                     &w::CEILINGS,
                     w::SetUpParts {
                         playground: false,
-                        forge: 3,
                         org: b"work".as_slice().into(),
                         repository: b"hello".as_slice().into(),
                         project: w::SetUpProject::Existing(
@@ -864,7 +871,7 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
     .unwrap();
     let event = family::to_root(
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
-        &[],
+        &owned_forges(),
         None,
         &w::CEILINGS,
     )
@@ -921,7 +928,10 @@ fn setup_outcomes_use_the_family_answer_including_unknown() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
     for (outcome, expected) in [
         (None, w::Outcome::Unknown),
-        (Some(forge::SetUpAnswer::SettingUp), w::Outcome::SettingUp),
+        (
+            Some(forge::SetUpAnswer::SettingUp),
+            w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+        ),
         (
             Some(forge::SetUpAnswer::Refused(forge::SetUpRefusal::NotOffered)),
             w::Outcome::SetUpRefused(
@@ -1076,6 +1086,7 @@ fn expected_forge_row(
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
+            finished: false,
             number,
             kind,
             mode,
@@ -1163,7 +1174,6 @@ fn setup_projects_and_first_repository_states_translate_without_losing_fields() 
                         &w::CEILINGS,
                         w::SetUpParts {
                             playground: false,
-                            forge: 3,
                             org: b"team".as_slice().into(),
                             repository: b"widget".as_slice().into(),
                             project: wire_project.clone(),
@@ -1176,7 +1186,7 @@ fn setup_projects_and_first_repository_states_translate_without_losing_fields() 
         .unwrap();
         let event = family::to_root(
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
-            &[],
+            &owned_forges(),
             None,
             &w::CEILINGS,
         )
@@ -1265,7 +1275,7 @@ fn new_project_and_invalid_setup_refusals_translate_to_the_wire() {
 
 #[test]
 fn demo_start_reaches_the_root_with_its_admission_envelope() {
-    let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::StartDemo }).unwrap();
+    let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::StartPlayground }).unwrap();
     let Ok(root::Event::Party(root::PartyInput::Application {
         reply_to, sign_in, key, digest, request, carried, ..
     })) = family::to_root(
@@ -1291,11 +1301,9 @@ fn demo_read_tracks_not_started_running_and_ended() {
     assert!(record.is_none());
     let mut service = fixtures::demo_service();
     let demo = service.engine.as_mut().unwrap().demo.as_mut().unwrap();
-    for (state, expected) in [
-        (None, Some(w::DemoState::NotStarted)),
-        (Some(forge::DemoState::Running), Some(w::DemoState::Running)),
-        (Some(forge::DemoState::Ended), Some(w::DemoState::Ended)),
-    ] {
+    for (state, expected) in
+        [(None, false), (Some(forge::DemoState::Running), true), (Some(forge::DemoState::Ended), false)]
+    {
         demo.state = state;
         let Err(answer) =
             family::to_root(demo_read(people::ApplicationScope::Deployment), &[], Some(demo), &w::CEILINGS)
@@ -1305,14 +1313,17 @@ fn demo_read_tracks_not_started_running_and_ended() {
         let kit::Event::Application(kit::FromApplication::Read { record, .. }) = *answer else { panic!("demo read") };
         let got = match record {
             Some(record) => {
-                let answer = wire::decode_demo_answer(&record, &w::CEILINGS).unwrap();
+                let answer = wire::decode_playground_answer(&record, &w::CEILINGS).unwrap();
+                let w::PlaygroundState::Running(answer) = answer.into_parts().state else {
+                    panic!("running playground")
+                };
                 assert_eq!(
                     (answer.provider(), answer.project(), answer.forge()),
                     (demo.provider, demo.project, demo.forge)
                 );
-                Some(answer.state().clone())
+                true
             }
-            None => None,
+            None => false,
         };
         assert_eq!(got, expected);
     }
@@ -1407,7 +1418,7 @@ fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener(
                     w::Connect::new(
                         &w::CEILINGS,
                         w::ConnectParts {
-                            forge: 1,
+                            forge: Some(1),
                             how: w::How::GithubManifest(
                                 w::GitHubManifest::new(
                                     &w::CEILINGS,
@@ -1551,7 +1562,7 @@ fn embedded_client_refusals_keep_their_bytes_at_client_eleven() {
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v19::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 11);
+    assert_eq!(wire::CLIENT_VERSION, 12);
 }
 
 #[test]
@@ -1841,4 +1852,11 @@ fn the_landings_subject_names_no_task() {
     };
     let kit::Event::WatchRefused { watcher, why } = *refused else { panic!("unknown watch") };
     assert_eq!((watcher, why), (WATCHER, jig_domain_core::WatchRefusal::Unknown));
+}
+
+fn owned_forges() -> Box<[crate::settings::Forge]> {
+    let mut forges = fixtures::forges();
+    forges[0].number = 3;
+    forges[0].mode = forge::Mode::Owned;
+    forges
 }

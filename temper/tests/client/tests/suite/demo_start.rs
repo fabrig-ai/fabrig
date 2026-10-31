@@ -38,7 +38,7 @@ fn pump_holding_start(
                 && *temper_client_protocol_wire::decode_requesting(&record.bytes, &w::CEILINGS)
                     .expect("demo request")
                     .request()
-                    == w::Request::StartDemo
+                    == w::Request::StartPlayground
             {
                 assert!(held.replace(request).is_none(), "one held playground start");
                 continue;
@@ -97,7 +97,8 @@ fn press(front: &mut Joint, root: &mut Root, name: &[u8]) {
 #[test]
 fn not_started_welcome_and_strip_start_the_playground_in_its_project() {
     for strip in [false, true] {
-        let (mut front, mut root) = accounts::demo_fixture(f::SEED, &w::DemoState::NotStarted);
+        let (mut front, mut root) =
+            accounts::demo_fixture(f::SEED, &temper_client_domain::forge::demo::DemoState::NotStarted);
         assert!(has(&root, Role::Heading { level: 1 }, b"Welcome to temper"));
         assert!(has(&root, Role::Button, b"Try the playground"));
         assert!(!has(&root, Role::Region, b"Playground"));
@@ -119,7 +120,10 @@ fn not_started_welcome_and_strip_start_the_playground_in_its_project() {
 }
 #[test]
 fn failed_start_survives_navigation_and_try_again_uses_a_new_key() {
-    let (mut front, mut root) = accounts::demo_fixture(f::SEED, &w::DemoState::NotStarted);
+    let (mut front, mut root) =
+        accounts::demo_fixture(f::SEED, &temper_client_domain::forge::demo::DemoState::NotStarted);
+    // The start answers with a failure while its next read supplies the running identity.
+    front.demo.as_mut().expect("scripted playground").state = temper_client_domain::forge::demo::DemoState::Running;
     front.demo_outcomes.push_back(w::Outcome::StartFailed(
         w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why: w::StartFailure::Account })
             .expect("account failure"),
@@ -138,7 +142,7 @@ fn failed_start_survives_navigation_and_try_again_uses_a_new_key() {
 }
 #[test]
 fn running_read_sends_no_start_and_welcome_moves_once() {
-    let (mut front, mut root) = accounts::demo_fixture(f::SEED, &w::DemoState::Running);
+    let (mut front, mut root) = accounts::demo_fixture(f::SEED, &temper_client_domain::forge::demo::DemoState::Running);
     assert_eq!(front.demo_starts.len(), 0);
     assert_eq!(root.person().pages().address(), &Address::Chats { filter: ChatsFilter::All, start: false });
     assert!(!has(&root, Role::Status, b"Starting"));
@@ -200,7 +204,7 @@ fn demo_account(front: &mut Joint, root: &mut Root) -> bool {
 }
 #[test]
 fn ready_names_an_owners_deployment_model_never_the_demos() {
-    let (mut front, mut root) = accounts::demo_fixture(f::SEED, &w::DemoState::Running);
+    let (mut front, mut root) = accounts::demo_fixture(f::SEED, &temper_client_domain::forge::demo::DemoState::Running);
     go(&mut front, &mut root, Address::ConnectModel { way: None });
     press(&mut front, &mut root, b"Use deployment accounts");
     add_model(&mut front, &mut root);
@@ -235,7 +239,7 @@ fn ready_names_an_owners_deployment_model_never_the_demos() {
 }
 #[test]
 fn a_model_connected_removes_the_scripted_account_and_leaves_the_playground_forge_banner() {
-    let (mut front, mut root) = accounts::demo_fixture(f::SEED, &w::DemoState::Running);
+    let (mut front, mut root) = accounts::demo_fixture(f::SEED, &temper_client_domain::forge::demo::DemoState::Running);
     assert!(demo_account(&mut front, &mut root));
     assert!(root.person().demo().expect("running playground").1.model);
     add_model(&mut front, &mut root);
@@ -259,7 +263,7 @@ fn a_model_connected_removes_the_scripted_account_and_leaves_the_playground_forg
 }
 #[test]
 fn a_forge_connected_clears_the_demo_everywhere_and_welcome_moves_when_a_model_is_usable() {
-    let (mut front, mut root) = accounts::demo_fixture(f::SEED, &w::DemoState::Running);
+    let (mut front, mut root) = accounts::demo_fixture(f::SEED, &temper_client_domain::forge::demo::DemoState::Running);
     assert!(demo_account(&mut front, &mut root));
     go(&mut front, &mut root, Address::Forges);
     assert!(d::forge::listed::playground(root.person()).is_some());
@@ -336,7 +340,7 @@ fn enter_waits_for_adoption_then_the_chat_can_delegate() {
     );
     assert!(held.is_some(), "startup's adoption has not completed");
     assert!(root.person().forge().demo_starting());
-    assert!(root.person().demo().expect("playground").1.model, "model is usable before adoption");
+    assert!(root.person().demo().is_none(), "identity arrives after the start in the running read");
     assert!(!front.engine_adopted(1, 7));
     pump(
         &mut front,

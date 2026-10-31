@@ -11,6 +11,7 @@ use jig_client_world::{
 use jig_domain_core as core;
 use jig_domain_people as people;
 use temper_client_domain::{Event, Request};
+use temper_client_protocol_wire::{self as family, v1 as w};
 use temper_engine_domain::{self as engine, Delivery, PartyInput, PartyRequest};
 pub mod forge;
 
@@ -130,6 +131,7 @@ fn unsupported_people(event: &people::Event) -> PartyInput {
 /// Retain native shell tokens, then make the real engine's party input.
 #[must_use]
 pub fn request(
+    forges: &[temper_engine_domain_forge::Configured],
     transport: &mut Transport,
     who: ClientId,
     request: &mut Request,
@@ -143,11 +145,32 @@ pub fn request(
             let ask = match ask {
                 Ask::Jig(ask) => ask,
                 Ask::Family { record: ask, scope } => {
+                    // Removal and reset wait for their service tasks, as at the service boundary.
+                    if let Some(decoded) = family::decode_requesting(&ask.bytes, &w::CEILINGS)
+                        && matches!(decoded.request(), w::Request::RemoveForge(_) | w::Request::EndPlayground)
+                    {
+                        return (
+                            events,
+                            Some(packets::Incoming::Callback {
+                                client: who,
+                                event: jig_client_test_domain::Event::Client {
+                                    event: jig_client::Event::Up {
+                                        up: jig_client::Up::Answer {
+                                            attempt: *attempt,
+                                            envelope: skein_lib::RequestEnvelope::Lost,
+                                            answer: None,
+                                            why: Some(jig_client::Retry::Undecodable),
+                                        },
+                                    },
+                                },
+                            }),
+                        );
+                    }
                     let carried = value.take().map(|value| {
                         let digest = skein_lib::sha256::digest(value.expose());
                         core::Carried { number: transport.carry(value), digest }
                     });
-                    events.push(forge::request(transport, who, *attempt, *key, *scope, ask, carried));
+                    events.push(forge::request(forges, transport, who, *attempt, *key, *scope, ask, carried));
                     return (events, None);
                 }
             };

@@ -17,6 +17,7 @@ pub(super) fn row(
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
+            finished: false,
             number,
             kind,
             mode,
@@ -542,6 +543,7 @@ pub(super) fn first_rows(connection: w::Connection, state: w::FirstState) -> Lis
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                finished: false,
                 number: HERE,
                 kind: w::Kind::Forgejo,
                 mode: w::Mode::Owned,
@@ -695,7 +697,7 @@ fn setting_up_names_the_demo_project_playground() {
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
         &f::domain_limits(),
         b"Project 1",
-        Some((f::PROJECT, true, w::DemoState::Running)),
+        Some((f::PROJECT, true, temper_client_domain::forge::demo::DemoState::Running)),
         None,
         Some(first_rows(w::Connection::Connecting, w::FirstState::Making)),
     )
@@ -761,7 +763,11 @@ fn pending_adoption_with_watch() -> (d::Domain, skein_lib::Token, skein_lib::Tok
         rows(w::Connection::NotSetUp, w::Offer::Offered),
     );
     let token = attempt(act(&mut root, d::forge::Act::SetUp { forge: HERE }));
-    answer(&mut root, token, w::Outcome::SettingUp);
+    answer(
+        &mut root,
+        token,
+        w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+    );
     let token = attempt(deliver(&mut root, watch, new_first_rows()));
     let token = attempt(jig_answer(
         &mut root,
@@ -1055,7 +1061,7 @@ fn connect_github_sends_the_flow_address_at_its_forge() {
             }
         }
         let w::Request::Connect(connect) = sent.expect("manifest Connect") else { panic!("Connect") };
-        assert_eq!(connect.forge(), GITHUB);
+        assert_eq!(*connect.forge(), Some(GITHUB));
         let w::How::GithubManifest(manifest) = connect.how() else { panic!("manifest") };
         assert_eq!(manifest.back().as_deref(), Some(back));
     }
@@ -1085,8 +1091,11 @@ fn connect_github_link_leaves_the_tab_once() {
     let (mut root, out) = manifest_started(Address::ConnectForge { forge: None });
     let attempt = attempt(out);
     let outcome = w::Outcome::Link(
-        w::Link::new(&w::CEILINGS, w::LinkParts { address: b"/forges/2/github/manifest?state=fake".as_slice().into() })
-            .unwrap(),
+        w::Link::new(
+            &w::CEILINGS,
+            w::LinkParts { forge: 0, address: b"/forges/2/github/manifest?state=fake".as_slice().into() },
+        )
+        .unwrap(),
     );
     let mut out = drive(&mut root, answer_event(attempt, outcome.clone()));
     let mut leaves = Vec::new();
@@ -1111,8 +1120,9 @@ fn a_whole_address_link_keeps_its_external_link_meanwhile() {
     let (mut root, out) = manifest_started(Address::ConnectForge { forge: None });
     let attempt = attempt(out);
     let address = b"https://github.com/apps/temper-fake/installations/new?state=fake";
-    let outcome =
-        w::Outcome::Link(w::Link::new(&w::CEILINGS, w::LinkParts { address: address.as_slice().into() }).unwrap());
+    let outcome = w::Outcome::Link(
+        w::Link::new(&w::CEILINGS, w::LinkParts { forge: 0, address: address.as_slice().into() }).unwrap(),
+    );
     drive(&mut root, answer_event(attempt, outcome));
     let view = f::browser_page_view(&root);
     let link = node(view.tree(), Role::Link, b"Connect GitHub");
@@ -1171,7 +1181,11 @@ fn ready_keeps_make_project_refusal_and_the_name_with_a_bound_retry_button() {
     {
         let (mut root, watch) = f::forge_root_watch(address, rows(w::Connection::NotSetUp, w::Offer::Offered));
         let token = attempt(act(&mut root, d::forge::Act::SetUp { forge: HERE }));
-        answer(&mut root, token, w::Outcome::SettingUp);
+        answer(
+            &mut root,
+            token,
+            w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+        );
         let token = attempt(deliver(&mut root, watch, new_first_rows()));
         jig_answer(
             &mut root,
@@ -1259,7 +1273,11 @@ fn delivered_steps_keep_making_current_until_adopt_succeeds() {
         rows(w::Connection::NotSetUp, w::Offer::Offered),
     );
     let token = attempt(act(&mut root, d::forge::Act::SetUp { forge: HERE }));
-    answer(&mut root, token, w::Outcome::SettingUp);
+    answer(
+        &mut root,
+        token,
+        w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+    );
     for (connection, done) in [
         (
             w::Connection::SettingUp(
@@ -1404,7 +1422,11 @@ fn standalone_setup_names_the_requested_target_before_the_row_has_it() {
         rows(w::Connection::NotSetUp, w::Offer::Offered),
     );
     let token = attempt(act(&mut root, d::forge::Act::SetUp { forge: HERE }));
-    answer(&mut root, token, w::Outcome::SettingUp);
+    answer(
+        &mut root,
+        token,
+        w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+    );
     deliver(&mut root, watch, rows(w::Connection::Connecting, w::Offer::Offered));
     let view = f::page_view(&root);
     let text = f::text(view.tree());

@@ -319,18 +319,6 @@ fn a_restored_sign_in_address_is_live_only_while_the_watch_names_its_source() {
 }
 
 #[test]
-fn a_reloaded_retirement_excludes_the_demo_way_and_its_submit() {
-    let (mut root, _, _) = root(Way::Key { provider: PROVIDER });
-    crate::tests::demo::deliver_demo_read(
-        &mut root,
-        crate::tests::demo::page_with_state(temper_client_protocol_wire::v1::DemoState::Ended),
-    );
-    assert_eq!(connect_model::way(root.pages(), root.client()), None);
-    key(&mut root, b"fake-demo-key");
-    assert!(sends(act(&mut root, Act::Submit { name: NAME })).is_empty());
-}
-
-#[test]
 fn entering_welcome_discards_the_hidden_deployment_holder_and_key() {
     let (mut root, _, _) = root(Way::Key { provider: PROVIDER });
     act(&mut root, Act::Holder { holder: c::AccountHolder::Deployment });

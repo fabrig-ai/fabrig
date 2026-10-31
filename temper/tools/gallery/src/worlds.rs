@@ -46,7 +46,11 @@ fn model(w: World) -> c::LlmChoice {
     c::LlmChoice {
         account: Some(1),
         main: c::ModelEffort {
-            model: text(if matches_demo(w) { "Scripted model" } else { "Opus" }),
+            model: text(if matches_demo(w) && !matches!(w, FirstRun { step: 0 | 7 }) {
+                "Scripted model"
+            } else {
+                "Opus"
+            }),
             effort: match w {
                 Reference => Some(text("xhigh")),
                 Solo | World::Bare => Some(text("high")),
@@ -292,6 +296,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    finished: false,
                     number: FORGE,
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Fake,
@@ -331,6 +336,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    finished: false,
                     number: 2,
                     kind: w::Kind::Github,
                     mode: w::Mode::Managed,
@@ -360,6 +366,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    finished: false,
                     number: 2,
                     kind: w::Kind::Github,
                     mode: w::Mode::Managed,
@@ -407,6 +414,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    finished: false,
                     number: 3,
                     kind: w::Kind::Forgejo,
                     mode: if step == 23 { w::Mode::Connected } else { w::Mode::Owned },
@@ -540,16 +548,9 @@ fn demo(root: &mut Domain, w: World, read: Token, out: &mut Queue<Request>) {
         for cue in ["Add CSV export to widget", "Add a dark theme to widget", "Fix widget’s empty search state"] {
             cues.push(Box::from(cue.as_bytes())).expect("cue");
         }
-        let value = v1::DemoAnswer::new(
+        let running = v1::PlaygroundRunning::new(
             &v1::CEILINGS,
-            v1::DemoAnswerParts {
-                state: if matches!(w, FirstRun { step: 0 }) {
-                    v1::DemoState::NotStarted
-                } else if w == (FirstRun { step: 7 }) {
-                    v1::DemoState::Ended
-                } else {
-                    v1::DemoState::Running
-                },
+            v1::PlaygroundRunningParts {
                 project: PROJECT,
                 forge: 1,
                 provider: 17,
@@ -559,7 +560,12 @@ fn demo(root: &mut Domain, w: World, read: Token, out: &mut Queue<Request>) {
             },
         )
         .expect("checked demo");
-        Some(wire::demo_answer(&value))
+        let value = v1::PlaygroundAnswer::new(
+            &v1::CEILINGS,
+            v1::PlaygroundAnswerParts { state: v1::PlaygroundState::Running(running) },
+        )
+        .expect("playground fixture");
+        Some(wire::playground_answer(&value))
     } else {
         None
     };
@@ -2600,7 +2606,14 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
         out,
     );
     let attempt = sample_attempt(root, out);
-    sample_forge_answer(root, attempt, w::Outcome::SettingUp, out);
+    sample_forge_answer(
+        root,
+        attempt,
+        w::Outcome::SettingUp(
+            w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).expect("numbered bridge answer"),
+        ),
+        out,
+    );
     // The first row is durable Made; the project's creation and Adopt follow it.
     forges_watched(root, FirstRun { step: 7 }, watch, out);
     let attempt = sample_attempt(root, out);

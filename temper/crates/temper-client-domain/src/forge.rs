@@ -123,7 +123,7 @@ impl Side {
             Some(demo) => {
                 demo.state == demo::DemoState::Running || self.demo.start.is_some() || self.demo.failure.is_some()
             }
-            None => false,
+            None => self.demo.start.is_some() || self.demo.failure.is_some(),
         }
     }
     #[must_use]

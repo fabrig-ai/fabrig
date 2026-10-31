@@ -32,11 +32,10 @@ fn set_up_is_a_deployment_request_and_forges_a_deployment_watch() {
     };
     assert_eq!(scope, c::Scope::Deployment);
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-    let w::Request::SetUp(request) = wire::decode_requesting(&record.bytes, &limits()).unwrap().into_parts().request
+    let w::Request::SetUp(_request) = wire::decode_requesting(&record.bytes, &limits()).unwrap().into_parts().request
     else {
         panic!("set up")
     };
-    assert_eq!(request.forge(), 3);
     let Watchable::Family { scope, window, record } = watch(&fixtures::limits().forge).unwrap() else {
         panic!("family")
     };
@@ -47,7 +46,10 @@ fn set_up_is_a_deployment_request_and_forges_a_deployment_watch() {
 #[test]
 fn set_up_accepts_only_its_outcomes_and_the_shared_unknown() {
     for (wire, expected) in [
-        (w::Outcome::SettingUp, SetUpOutcome::SettingUp),
+        (
+            w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+            SetUpOutcome::SettingUp,
+        ),
         (w::Outcome::Unknown, SetUpOutcome::Unknown),
         (
             w::Outcome::SetUpRefused(
@@ -83,14 +85,15 @@ fn set_up_accepts_only_its_outcomes_and_the_shared_unknown() {
         jig_client_protocol_link::Limits::new(fixtures::limits().client.domain, fixtures::limits().client.exchanges)
             .unwrap();
     for outcome in [
-        w::Outcome::SettingUp,
+        w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
         w::Outcome::SetUpRefused(
             w::SetUpRefused::new(&limits(), w::SetUpRefusedParts { why: w::SetUpRefusal::Busy }).unwrap(),
         ),
     ] {
         assert_eq!(family::answer(&answer(outcome), &limits(), &link), None);
     }
-    let mut record = answer(w::Outcome::SettingUp);
+    let mut record =
+        answer(w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()));
     record.bytes = Box::from(b"bad".as_slice());
     assert_eq!(family::set_up_answer(&record, &limits()), None);
 }
@@ -182,6 +185,7 @@ fn fixture_owned(m: Mode) -> Option<forge::forges::Owned> {
     }
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table checks each connection against its decoded row")]
 fn every_connection_decodes_into_the_forges_words() {
     let mut records = List::with_capacity(10);
     let mut expected = List::with_capacity(10);
@@ -212,6 +216,7 @@ fn every_connection_decodes_into_the_forges_words() {
                 w::ForgeRow::new(
                     &limits(),
                     w::ForgeRowParts {
+                        finished: false,
                         number,
                         kind,
                         mode,
@@ -343,6 +348,7 @@ fn an_out_of_order_document_is_refused() {
                 w::ForgeRow::new(
                     &limits(),
                     w::ForgeRowParts {
+                        finished: false,
                         number,
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Owned,
@@ -389,7 +395,6 @@ fn setup_carries_each_field_and_new_project_names_without_semantic_form_checks()
         else {
             panic!("setup")
         };
-        assert_eq!(request.forge(), 3);
         assert_eq!(request.org(), b"");
         assert_eq!(request.repository(), b"widget");
         match (project, request.project()) {
@@ -452,6 +457,7 @@ fn first_repository_decodes_each_state_project_and_creation_step() {
                     w::ForgeRow::new(
                         &limits(),
                         w::ForgeRowParts {
+                            finished: false,
                             number: 3,
                             kind: w::Kind::Forgejo,
                             mode: w::Mode::Owned,
@@ -536,6 +542,7 @@ fn installation_accounts_flags_and_connect_ends_survive_client_decode() {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    finished: false,
                     number: 1,
                     kind: w::Kind::Github,
                     mode: w::Mode::Connected,
@@ -603,6 +610,7 @@ fn admin_form_and_typed_stops_survive_client_decode() {
                     w::ForgeRow::new(
                         &limits,
                         w::ForgeRowParts {
+                            finished: false,
                             number: 1,
                             kind: w::Kind::Forgejo,
                             mode: w::Mode::Managed,

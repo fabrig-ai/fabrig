@@ -261,7 +261,10 @@ fn an_accepted_set_up_moves_the_welcome_on_to_model() {
         },
     );
     setup(&mut root);
-    let mut out = answered(&mut root, w::Outcome::SettingUp);
+    let mut out = answered(
+        &mut root,
+        w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+    );
     assert_eq!(
         out.pop(),
         Some(Request::Show { address: Address::Welcome { step: Step::Model { way: None } }, replace: false })
@@ -279,7 +282,10 @@ fn a_set_up_survives_page_changes_and_parks_out_of_date() {
     assert_eq!(root.forge().set_up().unwrap().request, request);
     assert_eq!(root.forge().set_up().unwrap().progress, Some(skein_lib::RequestProgress::Parked));
     assert!(setup(&mut root).is_empty());
-    answered(&mut root, w::Outcome::SettingUp);
+    answered(
+        &mut root,
+        w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+    );
     assert!(root.forge().set_up().unwrap().progress.is_none());
     assert_eq!(
         root.forge().set_up().unwrap().answer,
@@ -496,6 +502,7 @@ fn deliver_first_record(
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                finished: false,
                 number: HERE,
                 kind: w::Kind::Forgejo,
                 mode: w::Mode::Owned,
@@ -601,7 +608,11 @@ fn set_up_again_sends_the_same_fields() {
     let (mut root, _, watch) = opened(true);
     write_setup(&mut root, forges::SetupField::Organization, b"team");
     let (attempt, _, w::Request::SetUp(original)) = sent(setup(&mut root)) else { panic!("setup") };
-    reply(&mut root, attempt, w::Outcome::SettingUp);
+    reply(
+        &mut root,
+        attempt,
+        w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+    );
     deliver_first(
         &mut root,
         watch,
@@ -650,7 +661,11 @@ fn a_first_repository_failed_shows_its_step() {
 fn the_client_that_set_up_adopts_the_made_repository_once_on_another_page() {
     let (mut root, _, watch) = opened(true);
     let (attempt, _, _) = sent(setup(&mut root));
-    reply(&mut root, attempt, w::Outcome::SettingUp);
+    reply(
+        &mut root,
+        attempt,
+        w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+    );
     event(&mut root, Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) });
     assert!(deliver_first(&mut root, watch, connected(), w::FirstState::Making).is_empty());
     assert!(deliver_first(&mut root, watch, w::Connection::Connecting, made()).is_empty());
@@ -683,7 +698,11 @@ fn a_client_that_did_not_set_up_adopts_nothing() {
 fn the_adoption_is_keyed_as_ctls_and_retried_once_without_home() {
     let (mut root, _, watch) = opened(true);
     let (attempt, _, _) = sent(setup(&mut root));
-    reply(&mut root, attempt, w::Outcome::SettingUp);
+    reply(
+        &mut root,
+        attempt,
+        w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+    );
     let out = deliver_first(&mut root, watch, connected(), made());
     let (attempt, _, _) = sent_project(out);
     let out = project_reply(
@@ -798,7 +817,11 @@ fn project_reply(root: &mut crate::Domain, attempt: Token, answer: c::Answer) ->
 fn name_taken_keeps_jigs_refusal_and_a_new_name_uses_a_new_key_before_adopting() {
     let (mut root, _, watch) = opened(true);
     let (attempt, _, _) = sent(setup(&mut root));
-    reply(&mut root, attempt, w::Outcome::SettingUp);
+    reply(
+        &mut root,
+        attempt,
+        w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+    );
     let out = deliver_first(&mut root, watch, connected(), made());
     let (attempt, key, _) = sent_project(out);
     let refusal = c::Answer::Refused { refusal: c::Refusal::NameTaken, at: None };
@@ -1011,6 +1034,7 @@ fn deliver_picker(root: &mut crate::Domain, watch: Token, changed: bool) -> Queu
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                finished: false,
                 number: 2,
                 kind: w::Kind::Github,
                 mode: w::Mode::Connected,
@@ -1300,7 +1324,6 @@ fn at_once_sends_fixed_names_without_reading_or_marking_the_form() {
     let (_, _, w::Request::SetUp(value)) = sent(f::form_act(&mut root, forge::Act::SetUpAtOnce { forge: HERE })) else {
         panic!("setup")
     };
-    assert_eq!(value.forge(), HERE);
     assert_eq!((value.org(), value.repository(), value.playground()), (b"work".as_slice(), b"hello".as_slice(), false));
     let w::SetUpProject::New(project) = value.project() else { panic!("new project") };
     assert_eq!(project.name(), b"Default");
@@ -1333,7 +1356,11 @@ fn accepting_at_once_on_either_welcome_forge_address_moves_to_model() {
             Event::Went { place: Place::Address(Address::Welcome { step: Step::Forge { forge: choice } }) },
         );
         let (attempt, _, _) = sent(f::form_act(&mut root, forge::Act::SetUpAtOnce { forge: HERE }));
-        let out = reply(&mut root, attempt, w::Outcome::SettingUp);
+        let out = reply(
+            &mut root,
+            attempt,
+            w::Outcome::SettingUp(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).unwrap()),
+        );
         let mut moved = false;
         for request in &out {
             if let Request::Show { address: Address::Welcome { step: Step::Model { way: None } }, replace: false } =

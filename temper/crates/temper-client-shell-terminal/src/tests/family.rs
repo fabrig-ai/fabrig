@@ -24,7 +24,9 @@ fn an_adoption_round_trips_through_the_family_record() {
             | w::Request::Install(_)
             | w::Request::Return(_)
             | w::Request::SetUp(_)
-            | w::Request::StartDemo => {
+            | w::Request::RemoveForge(_)
+            | w::Request::EndPlayground
+            | w::Request::StartPlayground => {
                 panic!("expected adoption")
             }
         })
@@ -149,7 +151,9 @@ fn each_outcome_decodes_to_the_forge_sides_answer() {
 fn setup_outcomes_are_undecodable_for_an_adoption() {
     let limits = fixtures::wire_limits();
     for outcome in [
-        w::Outcome::SettingUp,
+        w::Outcome::SettingUp(
+            w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { forge: 0 }).expect("numbered bridge answer"),
+        ),
         w::Outcome::SetUpRefused(
             w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::Busy }).expect("refusal"),
         ),

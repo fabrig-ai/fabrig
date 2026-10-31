@@ -7,6 +7,7 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 pub(super) fn forges(world: World) -> Box<[u8]> {
     let World::FirstRun { step } = world else { unreachable!("GitHub sample") };
     let mut parts = w::ForgeRowParts {
+        finished: false,
         number: 2,
         kind: w::Kind::Github,
         mode: w::Mode::Connected,

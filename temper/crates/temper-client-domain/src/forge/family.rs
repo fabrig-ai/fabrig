@@ -111,13 +111,17 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
         w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
         | w::Outcome::Returning
-        | w::Outcome::Connecting
+        | w::Outcome::Connecting(_)
         | w::Outcome::Link(_)
         | w::Outcome::ConnectRefused(_)
-        | w::Outcome::SettingUp
+        | w::Outcome::SettingUp(_)
         | w::Outcome::SetUpRefused(_)
         | w::Outcome::Running
         | w::Outcome::StartRefused(_)
+        | w::Outcome::Removing
+        | w::Outcome::RemoveRefused(_)
+        | w::Outcome::Resetting
+        | w::Outcome::EndRefused(_)
         | w::Outcome::StartFailed(_) => return None,
     })
 }
@@ -162,13 +166,24 @@ const fn role_from(role: &w::Role) -> forge::Role {
 /// Decode the demo's complete record, including its embedded family version.
 #[must_use]
 pub fn demo(record: &[u8], limits: &w::Limits) -> Option<forge::Demo> {
-    let answer = wire::decode_demo_answer(record, limits)?.into_parts();
+    let answer = wire::decode_playground_answer(record, limits)?.into_parts();
+    let (answer, state) = match answer.state {
+        w::PlaygroundState::Running(running) => (running.into_parts(), forge::demo::DemoState::Running),
+        // The client's vocabulary is replaced by cl-playground (playground-reset.md, 6.2).
+        w::PlaygroundState::Resetting => {
+            return Some(forge::Demo {
+                state: forge::demo::DemoState::Ended,
+                project: 0,
+                forge: 0,
+                provider: 0,
+                owner: Box::default(),
+                name: Box::default(),
+                cues: Box::new([]),
+            });
+        }
+    };
     Some(forge::Demo {
-        state: match answer.state {
-            w::DemoState::NotStarted => forge::demo::DemoState::NotStarted,
-            w::DemoState::Running => forge::demo::DemoState::Running,
-            w::DemoState::Ended => forge::demo::DemoState::Ended,
-        },
+        state,
         project: answer.project,
         forge: answer.forge,
         provider: answer.provider,
@@ -180,7 +195,6 @@ pub fn demo(record: &[u8], limits: &w::Limits) -> Option<forge::Demo> {
 
 #[must_use]
 pub fn set_up(
-    forge: u16,
     org: Box<[u8]>,
     repository: Box<[u8]>,
     project: forge::forges::SetUpProject,
@@ -195,7 +209,7 @@ pub fn set_up(
             w::SetUpProject::New(w::NewProject::new(limits, w::NewProjectParts { name }).ok()?)
         }
     };
-    let request = w::SetUp::new(limits, w::SetUpParts { playground, forge, org, repository, project }).ok()?;
+    let request = w::SetUp::new(limits, w::SetUpParts { playground, org, repository, project }).ok()?;
     let record = w::Requesting::new(limits, w::RequestingParts { request: w::Request::SetUp(request) }).ok()?;
     Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
 }
@@ -211,7 +225,7 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
         return None;
     }
     Some(match answer.into_parts().outcome {
-        w::Outcome::SettingUp => O::SettingUp,
+        w::Outcome::SettingUp(_) => O::SettingUp,
         w::Outcome::SetUpRefused(why) => O::Refused(match why.into_parts().why {
             w::SetUpRefusal::NotOffered => R::NotOffered,
             w::SetUpRefusal::NotUnderTheBox => R::NotUnderTheBox,
@@ -223,7 +237,7 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
         w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
         | w::Outcome::Returning
-        | w::Outcome::Connecting
+        | w::Outcome::Connecting(_)
         | w::Outcome::Link(_)
         | w::Outcome::ConnectRefused(_)
         | w::Outcome::Adopted(_)
@@ -231,6 +245,10 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
         | w::Outcome::ForgeRefused(_)
         | w::Outcome::Running
         | w::Outcome::StartRefused(_)
+        | w::Outcome::Removing
+        | w::Outcome::RemoveRefused(_)
+        | w::Outcome::Resetting
+        | w::Outcome::EndRefused(_)
         | w::Outcome::StartFailed(_) => return None,
     })
 }

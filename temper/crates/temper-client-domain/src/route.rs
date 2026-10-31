@@ -334,15 +334,21 @@ fn suggest(root: &mut Domain, env: &Env<Limits>, cue: u8, out: &mut Queue<Reques
     }
 }
 
+#[expect(clippy::manual_map, reason = "the client domain matches retained facts without closures")]
 fn playground(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    let Some(demo) = root.forge.demo() else { return };
     if !root.demo_answered() {
         return;
     }
-    let project = demo.project;
+    let project = match root.forge.demo() {
+        Some(demo) => Some(demo.project),
+        None => None,
+    };
+    root.pending_select = project.is_none();
     forge(root, env, forge::Event::Act { act: forge::Act::StartDemo }, out);
     demo_facts(root);
-    pages(root, env, crate::pages::Event::Act { act: crate::pages::Act::Project { project } }, out);
+    if let Some(project) = project {
+        pages(root, env, crate::pages::Event::Act { act: crate::pages::Act::Project { project } }, out);
+    }
     out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false }, replace: false });
 }
 
@@ -369,6 +375,14 @@ fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, o
 
 #[expect(clippy::manual_map, reason = "step code reads retained identity without closures")]
 fn demo_facts(root: &mut Domain) {
+    // The first running read after a start selects its project once (playground-reset.md, 6.1).
+    if root.pending_select
+        && let Some(demo) = root.forge.demo()
+        && demo.state == forge::demo::DemoState::Running
+    {
+        crate::pages::choose_project(&mut root.pages, &root.client, demo.project);
+        root.pending_select = false;
+    }
     root.pages.demo_provider = root.forge.demo_provider();
     root.pages.retired_project = match root.forge.retired_demo() {
         Some(demo) => Some(demo.project),

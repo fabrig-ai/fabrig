@@ -84,6 +84,7 @@ fn config(under_box: bool) -> engine::Config {
 }
 struct World {
     root: root::Root,
+    configured_forges: Box<[forge::Configured]>,
     env: Env<root::Limits>,
     engine: Driver,
     transport: Transport,
@@ -98,6 +99,9 @@ struct World {
 }
 impl World {
     fn new(under_box: bool) -> Self {
+        Self::with_forges(under_box, &[FORGE, OTHER, CONNECTED_MODE, AUTOMATIC])
+    }
+    fn with_forges(under_box: bool, numbers: &[u16]) -> Self {
         let mut limits = temper_engine_domain_world::fixtures::forge_limits();
         limits.authority = temper_engine_domain_world::walking::limits().authority;
         limits.people.projects = 3;
@@ -111,15 +115,17 @@ impl World {
         limits.documents.lines = tools::limits::client().client.domain.projects;
         limits.journal.writes = FORGE_SETUP_WRITES;
         assert!(engine::valid(&limits), "the story profile covers the larger cohort");
-        let store = temper_engine_domain_world::fixtures::restored_over(Store::new(), config(under_box), &limits);
-        let configuration = config(under_box);
+        let store =
+            temper_engine_domain_world::fixtures::restored_over(Store::new(), config_for(under_box, numbers), &limits);
+        let configuration = config_for(under_box, numbers);
         let mut transport = Transport::new(c::VersionRange {
             first: jig_client_protocol_wire::VERSION,
             last: jig_client_protocol_wire::VERSION,
         });
         transport.models.clone_from(&configuration.core.settings.models);
         transport.providers = configuration.core.settings.llm_providers.clone();
-        let mut engine = Driver::configured(store, [config(under_box), configuration], &limits);
+        let configured_forges = configuration.forges.clone();
+        let mut engine = Driver::configured(store, [config_for(under_box, numbers), configuration], &limits);
         engine.settle();
         engine.sign_in();
         engine.settle();
@@ -138,6 +144,7 @@ impl World {
         let limits = root::Limits::new(tools::limits::client(), tools::limits::tools());
         let root = root::Root::unlinked(&limits, fixtures::SEED).expect("client profile");
         let mut world = Self {
+            configured_forges,
             root,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             engine,
@@ -254,6 +261,7 @@ impl World {
                     root::Request::Client { request: request @ client::Request::Down { .. } } => {
                         let mut request = temper_client_domain::Request::Client { request };
                         let (events, refusal) = translate::request(
+                            &self.configured_forges,
                             &mut self.transport,
                             CLIENT,
                             &mut request,
@@ -372,13 +380,13 @@ fn without_the_box_the_row_and_setup_refusal_name_the_manual_commands() {
 }
 #[test]
 fn a_forge_not_owned_or_not_asked_does_not_offer_setup() {
-    let mut world = World::new(true);
-    for number in [b"5".as_slice(), b"6", b"9"] {
+    for (number, configured) in [(b"5".as_slice(), &[CONNECTED_MODE][..]), (b"6", &[AUTOMATIC][..]), (b"9", &[][..])] {
+        let mut world = World::with_forges(true, configured);
         let printed = world.invoke(&[b"forge", b"setup", number]);
         assert_eq!((printed.status, printed.stderr.as_ref()), (2, b"refused: not offered\n".as_slice()));
+        assert_eq!(world.box_calls, 0);
+        assert!(world.saved.is_empty());
     }
-    assert_eq!(world.box_calls, 0);
-    assert!(world.saved.is_empty());
 }
 
 #[test]
@@ -487,4 +495,10 @@ fn invalid_setup_names_are_refused_without_a_box_effect() {
         ));
     }
     assert_eq!(world.box_calls, 0);
+}
+
+fn config_for(under_box: bool, numbers: &[u16]) -> engine::Config {
+    let mut configuration = config(under_box);
+    configuration.forges = configuration.forges.into_iter().filter(|row| numbers.contains(&row.number)).collect();
+    configuration
 }
