@@ -283,6 +283,7 @@ impl Face {
             for _ in 0..engine.setup.above.len() {
                 let event = engine.setup.above.pop().unwrap();
                 match event {
+                    host::Event::Added { .. } => {} // fr-setup adds forges at runtime
                     done @ host::Event::Done { .. } => self.done = Some(done),
                     other @ (host::Event::Need { .. } | host::Event::Stop { .. } | host::Event::Closed) => {
                         engine.setup.above.push(other);

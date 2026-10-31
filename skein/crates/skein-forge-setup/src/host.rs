@@ -35,8 +35,12 @@ pub struct Host {
     ended: bool,
 }
 impl Host {
-    pub fn new(limits: &Limits, settings: Settings, crypto: CryptoRng) -> Result<Self, Unusable> {
+    pub fn new(limits: &Limits, mut settings: Settings, crypto: CryptoRng) -> Result<Self, Unusable> {
         limits::check(limits, &settings)?;
+        let forges = core::mem::replace(&mut settings.forges, List::with_capacity(limits.forges));
+        for forge in forges.into_boxed() {
+            settings.forges.push(forge).expect("checked forge count");
+        }
         Ok(Self {
             settings,
             crypto,
@@ -62,6 +66,10 @@ impl Host {
             return;
         }
         match request {
+            Request::Add { forge } => {
+                let added = self.add(&env.limits, forge);
+                up.push(added);
+            }
             Request::Run { run, plan } => {
                 let forge = plan.forge();
                 assert!(!self.runs.contains_key(&run), "one live run per owner token");
@@ -149,6 +157,19 @@ impl Host {
             }
         }
         self.drive(env, up, io);
+    }
+    fn add(&mut self, limits: &Limits, forge: Forge) -> Event {
+        let number = forge.number();
+        let checked = if self.settings.forges.room() == 0 {
+            Err(Unusable::Forges { forges: self.settings.forges.capacity() })
+        } else {
+            limits::check_forge(limits, &forge, self.settings.forges.as_slice(), &self.settings.user_agent)
+        };
+        let refused = checked.err();
+        if refused.is_none() {
+            self.settings.forges.push(forge).expect("checked forge count");
+        }
+        Event::Added { forge: number, refused }
     }
     /// Ends every run unheard and aborts every connection (6.3).
     fn close(&mut self) {

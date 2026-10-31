@@ -1,4 +1,5 @@
 //! The owner's plans, answers and retained items (forge-setup.md, 6.3).
+use super::{Unusable, settings};
 use crate::{
     github::manifest::Target,
     item::Item,
@@ -107,8 +108,14 @@ pub(super) enum Dialect {
     GitHub,
     Both,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Debug)]
+#[expect(clippy::large_enum_variant, reason = "the owner's Add request carries one forge's settings by value")]
 pub enum Request {
+    /// Adds one forge to the running host, checked as `Host::new` checks
+    /// each of its settings' forges.
+    Add {
+        forge: settings::Forge,
+    },
     Run {
         run: Token,
         plan: Plan,
@@ -136,8 +143,23 @@ pub enum Need {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Event {
-    Need { run: Token, need: Need },
-    Done { run: Token, outcome: Outcome },
-    Stop { run: Token, failure: Failure },
+    /// `Add`'s one answer; `refused` names what `Host::new` would refuse.
+    /// `forge` is the given's number, as in a `Run`'s plan.
+    Added {
+        forge: u16,
+        refused: Option<Unusable>,
+    },
+    Need {
+        run: Token,
+        need: Need,
+    },
+    Done {
+        run: Token,
+        outcome: Outcome,
+    },
+    Stop {
+        run: Token,
+        failure: Failure,
+    },
     Closed,
 }

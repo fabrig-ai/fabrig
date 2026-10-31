@@ -27,7 +27,7 @@ fn install(world: &mut HostWorld, run: u64) -> Box<[u8]> {
             assert_eq!(url.as_ref(), expected);
             state.clone()
         }
-        event @ (Heard::Done { .. } | Heard::Stop { .. } | Heard::Closed { .. }) => {
+        event @ (Heard::Added { .. } | Heard::Done { .. } | Heard::Stop { .. } | Heard::Closed { .. }) => {
             panic!("install outcome: {event:?}")
         }
     }
