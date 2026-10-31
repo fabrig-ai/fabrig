@@ -11,6 +11,18 @@ impl Domain {
         self.playground_config = config;
     }
 
+    /// Keep completed start acts in the row that a restart resets (6.1–6.2).
+    pub fn playground_progress(&mut self, project: Option<u32>, account: Option<u32>) -> Option<Stored> {
+        let mut row = self.playground?;
+        if row.state != PlaygroundState::Starting {
+            return None;
+        }
+        row.project = project;
+        row.account = account;
+        self.playground = Some(row);
+        Some(Stored::Playground(row))
+    }
+
     #[must_use]
     pub fn playground(&self) -> Option<&Playground> {
         self.playground.as_ref()
@@ -129,7 +141,7 @@ pub(crate) fn connected(d: &mut Domain, out: &mut Queue<Request>) {
         Connection::Connected { .. } => {
             let request = match d.playground_pending.first() {
                 Some((request, _)) => *request,
-                None => Token::new(u64::MAX),
+                None => return,
             };
             d.playground_request = Some(request);
             out.push(Request::PlaygroundActs { request, forge: row.forge });
@@ -293,11 +305,13 @@ pub(crate) fn removed(d: &mut Domain, out: &mut Queue<Request>) {
 }
 
 pub(crate) fn restart(d: &mut Domain, out: &mut Queue<Request>) {
-    let Some(row) = d.playground else { return };
+    let Some(mut row) = d.playground else { return };
     match row.state {
         PlaygroundState::Starting => {
             d.playground_request = None;
-            start_effects(d, Token::new(u64::MAX), out);
+            row.state = PlaygroundState::Resetting(ResetStep::Project);
+            save(d, row, out);
+            reset(d, out);
         }
         PlaygroundState::Running => {
             if needs_group(d, row.forge) {

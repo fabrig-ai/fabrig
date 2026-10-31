@@ -276,33 +276,51 @@ fn failed_and_expired_starts_keep_starting_and_retry_the_same_forge() {
 }
 
 #[test]
-fn starting_and_running_restart_the_group_and_only_starting_makes_acts() {
-    for running in [false, true] {
+fn a_start_cut_by_a_restart_resets_the_playground() {
+    for (project, account) in [(None, None), (None, Some(3)), (Some(5), Some(3))] {
         let mut d = configured();
         ask(&mut d, 1, Ask::StartPlayground);
-        if running {
-            outputs(&mut d, Event::PlaygroundMade { project: 5, account: 3 });
-        }
-        let row = *d.playground().unwrap();
+        let mut row = *d.playground().unwrap();
+        row.project = project;
+        row.account = account;
         let forge = d.record(row.forge).unwrap().clone();
         let mut restored = configured();
         outputs(&mut restored, Event::Restore { record: Stored::Forge(forge) });
         outputs(&mut restored, Event::Restore { record: Stored::Playground(row) });
         outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        assert!(outputs(&mut restored, Event::ReadAfresh).contains(&Request::BoxGroup {
-            forge: 1,
-            kind: BoxKind::Fake,
-            request: Token::new(u64::MAX)
+        let sent = outputs(&mut restored, Event::ReadAfresh);
+        if let Some(project) = project {
+            assert_eq!(reset_act(&sent).1, ResetAct::RemoveProject { project });
+        } else {
+            assert!(sent.contains(&Request::ForgeGone { forge: 1 }));
+        }
+        assert!(!connect(&mut restored).iter().any(|request| if let Request::PlaygroundActs { .. } = request {
+            true
+        } else {
+            false
         }));
-        assert_eq!(
-            connect(&mut restored).iter().any(|request| if let Request::PlaygroundActs { .. } = request {
-                true
-            } else {
-                false
-            }),
-            !running
-        );
     }
+}
+
+#[test]
+fn running_restarts_the_group_without_start_acts() {
+    let d = running();
+    let row = *d.playground().unwrap();
+    let forge = d.record(row.forge).unwrap().clone();
+    let mut restored = configured();
+    outputs(&mut restored, Event::Restore { record: Stored::Forge(forge) });
+    outputs(&mut restored, Event::Restore { record: Stored::Playground(row) });
+    outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    assert!(outputs(&mut restored, Event::ReadAfresh).contains(&Request::BoxGroup {
+        forge: 1,
+        kind: BoxKind::Fake,
+        request: Token::new(u64::MAX),
+    }));
+    assert!(!connect(&mut restored).iter().any(|request| if let Request::PlaygroundActs { .. } = request {
+        true
+    } else {
+        false
+    }));
 }
 
 #[test]
