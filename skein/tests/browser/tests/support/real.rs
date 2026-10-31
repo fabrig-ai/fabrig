@@ -16,7 +16,6 @@ use skein_ui::{Act, Role};
 #[path = "../../src/pages.rs"]
 mod pages;
 
-use std::collections::VecDeque;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
@@ -211,9 +210,11 @@ pub struct Rig {
     browser_env: Env<browser::Limits>,
     io_env: Env<io::Limits>,
     complete: Queue<Complete>,
+    // Completions whose host observations have been recorded, waiting for io.
+    io_complete: Queue<Complete>,
     submits: Queue<Submit>,
     io_events: Queue<io::Event>,
-    io_requests: VecDeque<io::Request>,
+    io_requests: Queue<io::Request>,
     events: Queue<Event>,
     browser_down: Queue<Down>,
     pipes: Option<[Token; 3]>,
@@ -253,8 +254,8 @@ impl Rig {
         let kernel = Kernel::open(Config { operations })
             .unwrap_or_else(|error| panic!("io_uring is required for the browser suite: {error}"));
         let (spawn, root) = spawn(chromium, profile);
-        let mut io_requests = VecDeque::new();
-        io_requests.push_back(io::Request::Spawn { owner: PROCESS, spawn });
+        let mut io_requests = Queue::uncapped();
+        io_requests.push(io::Request::Spawn { owner: PROCESS, spawn });
         Rig {
             browser: Browser::new(BROWSER, &browser_limits),
             pages: serve::Pages::new(pages::pages(), Time::ZERO, Wall::EPOCH),
@@ -264,6 +265,7 @@ impl Rig {
             browser_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: browser_limits },
             io_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             complete: Queue::with_capacity(256),
+            io_complete: Queue::with_capacity(256),
             submits: Queue::with_capacity(256),
             io_events: Queue::uncapped(),
             io_requests,
@@ -312,9 +314,6 @@ impl Rig {
             self.io_env.now = now.now;
             self.io_env.wall = now.wall;
             self.pages.update_time(now.now, now.wall);
-            while self.io.is_ready() {
-                io::resume(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submits);
-            }
             while let Some(complete) = self.complete.pop() {
                 if complete.op == ROOT_CLOSE {
                     assert_eq!(complete.result, Ok(Done::Nothing), "close the process root descriptor");
@@ -324,12 +323,17 @@ impl Rig {
                     {
                         deadline.watch_process(pid);
                     }
-                    io::up(&mut self.io, &self.io_env, complete, &mut self.io_events, &mut self.submits);
+                    self.io_complete.push(complete);
                 }
             }
-            while self.io.is_due(now.now) {
-                io::fire(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submits);
-            }
+            io::stage::up(
+                &mut self.io,
+                &self.io_env,
+                &mut self.io_complete,
+                &mut self.io_events,
+                &mut self.submits,
+                now.now,
+            );
             while let Some(event) = self.io_events.pop() {
                 self.io_event(event);
             }
@@ -339,15 +343,18 @@ impl Rig {
                 self.browser_event(event);
             }
             self.drain_browser_down();
-            while self.io.takes() {
-                let Some(request) = self.io_requests.pop_front().or_else(|| self.pages.take()) else { break };
-                io::down(&mut self.io, &self.io_env, request, &mut self.submits);
+            while let Some(request) = self.pages.take() {
+                self.io_requests.push(request);
             }
+            io::stage::down(&mut self.io, &self.io_env, &mut self.io_requests, &mut self.submits);
             self.io.reclaim();
             if self.stage == Stage::Complete
                 && self.child_closed
                 && self.pages.is_closed()
                 && self.io.is_empty()
+                && self.io_complete.is_empty()
+                && self.io_requests.is_empty()
+                && self.submits.is_empty()
                 && self.kernel.in_flight() == 0
             {
                 return;
@@ -367,6 +374,7 @@ impl Rig {
             }
             let pending = self.io.is_ready()
                 || !self.complete.is_empty()
+                || !self.io_complete.is_empty()
                 || !self.io_events.is_empty()
                 || !self.events.is_empty()
                 || !self.browser_down.is_empty()
@@ -392,11 +400,16 @@ impl Rig {
 
     // testing-strategy.md, 2.10: abort and reap before a starved pass exits.
     fn end(&mut self) {
-        self.io_requests.retain(|request| matches!(request, io::Request::Spawn { .. }));
+        for _ in 0..self.io_requests.len() {
+            let request = self.io_requests.pop().expect("queued io request");
+            if matches!(request, io::Request::Spawn { .. }) {
+                self.io_requests.push(request);
+            }
+        }
         while self.browser_down.pop().is_some() {}
         self.pages.stop();
         for entity in self.child.into_iter().chain(self.pipes.into_iter().flatten()) {
-            self.io_requests.push_back(io::Request::Abort { entity });
+            self.io_requests.push(io::Request::Abort { entity });
         }
         loop {
             self.kernel.reap(&mut self.complete);
@@ -404,19 +417,21 @@ impl Rig {
             self.io_env.now = now.now;
             self.io_env.wall = now.wall;
             self.pages.update_time(now.now, now.wall);
-            while self.io.is_ready() {
-                io::resume(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submits);
-            }
             while let Some(complete) = self.complete.pop() {
                 if complete.op == ROOT_CLOSE {
                     assert_eq!(complete.result, Ok(Done::Nothing), "close the process root descriptor");
                 } else {
-                    io::up(&mut self.io, &self.io_env, complete, &mut self.io_events, &mut self.submits);
+                    self.io_complete.push(complete);
                 }
             }
-            while self.io.is_due(now.now) {
-                io::fire(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submits);
-            }
+            io::stage::up(
+                &mut self.io,
+                &self.io_env,
+                &mut self.io_complete,
+                &mut self.io_events,
+                &mut self.submits,
+                now.now,
+            );
             while let Some(event) = self.io_events.pop() {
                 if let io::Event::Failed { error, .. } = &event {
                     panic!("browser cleanup: {error:?}");
@@ -424,7 +439,7 @@ impl Rig {
                 if let io::Event::Spawned { owner: PROCESS, child, pipes } = &event {
                     self.child = Some(*child);
                     for entity in core::iter::once(*child).chain(pipes.iter().copied()) {
-                        self.io_requests.push_back(io::Request::Abort { entity });
+                        self.io_requests.push(io::Request::Abort { entity });
                     }
                     self.submits.push(Submit { op: ROOT_CLOSE, kind: Op::Close { fd: self.root } });
                     self.root_closed = true;
@@ -440,15 +455,23 @@ impl Rig {
                     self.pages.event(event);
                 }
             }
-            while self.io.takes() {
-                let Some(request) = self.io_requests.pop_front().or_else(|| self.pages.take()) else { break };
-                io::down(&mut self.io, &self.io_env, request, &mut self.submits);
+            while let Some(request) = self.pages.take() {
+                self.io_requests.push(request);
             }
+            io::stage::down(&mut self.io, &self.io_env, &mut self.io_requests, &mut self.submits);
             self.io.reclaim();
-            if self.child_closed && self.io.is_empty() && self.kernel.in_flight() == 0 && self.submits.is_empty() {
+            if self.child_closed
+                && self.io.is_empty()
+                && self.io_complete.is_empty()
+                && self.io_requests.is_empty()
+                && self.submits.is_empty()
+                && self.kernel.in_flight() == 0
+            {
                 return;
             }
-            self.kernel.submit(&mut self.submits, Wait::Until(now.now.saturating_add(Duration::from_millis(10))));
+            let pending = self.io.is_ready() || !self.io_complete.is_empty() || !self.io_requests.is_empty();
+            let wait = if pending { Wait::No } else { Wait::Until(now.now.saturating_add(Duration::from_millis(10))) };
+            self.kernel.submit(&mut self.submits, wait);
         }
     }
 
@@ -538,7 +561,7 @@ impl Rig {
                 );
                 self.exited = true;
                 for pipe in self.pipes.expect("spawned pipes") {
-                    self.io_requests.push_back(io::Request::Close { entity: pipe });
+                    self.io_requests.push(io::Request::Close { entity: pipe });
                 }
             }
             io::Event::Closed { owner: PROCESS } => self.child_closed = true,
@@ -1015,7 +1038,7 @@ impl Rig {
                 Down::Replies(down) => (replies, down),
                 Down::Errors(down) => (errors, down),
             };
-            self.io_requests.push_back(io::Request::Stream { stream: pipe, down });
+            self.io_requests.push(io::Request::Stream { stream: pipe, down });
         }
     }
 }

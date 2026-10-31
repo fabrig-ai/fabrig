@@ -85,15 +85,7 @@ impl Host for Peer {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
-        while self.io.is_ready() {
-            io::resume(&mut self.io, &self.env, &mut self.events, &mut self.submissions);
-        }
-        while let Some(complete) = self.completions.pop() {
-            io::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.submissions);
-        }
-        while self.io.is_due(now) {
-            io::fire(&mut self.io, &self.env, &mut self.events, &mut self.submissions);
-        }
+        io::stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         while let Some(event) = self.events.pop() {
             match event {
                 io::Event::Listening { listener, addr, .. } => {
@@ -120,10 +112,7 @@ impl Host for Peer {
         {
             self.requests.push(io::Request::Close { entity: listener });
         }
-        while self.io.takes() {
-            let Some(request) = self.requests.pop() else { break };
-            io::down(&mut self.io, &self.env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &self.env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
     }
     fn completions(&mut self) -> &mut Queue<Complete> {

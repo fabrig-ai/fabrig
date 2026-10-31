@@ -226,11 +226,13 @@ struct Runtime {
     benv: Env<browser::Limits>,
     ienv: Env<io::Limits>,
     complete: Queue<Complete>,
+    // Completions whose host observations have been recorded, waiting for io.
+    io_complete: Queue<Complete>,
     submits: Queue<Submit>,
     events: Queue<Event>,
     io_events: Queue<io::Event>,
     down: Queue<Down>,
-    requests: VecDeque<io::Request>,
+    requests: Queue<io::Request>,
     roots: [kernel::Fd; 2],
     roots_closing: [bool; 2],
     pipes: Option<[Token; 3]>,
@@ -356,11 +358,12 @@ impl Runtime {
             benv: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bl },
             ienv: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: il },
             complete: Queue::with_capacity(capacity.queue),
+            io_complete: Queue::with_capacity(capacity.queue),
             submits: Queue::with_capacity(capacity.queue),
             events: Queue::with_capacity(capacity.browser_queue),
             io_events: Queue::with_capacity(capacity.queue),
             down: Queue::with_capacity(capacity.browser_queue),
-            requests: VecDeque::new(),
+            requests: Queue::uncapped(),
             roots: [server_root, root],
             roots_closing: [false; 2],
             pipes: None,
@@ -395,7 +398,7 @@ impl Runtime {
         browser::down(&mut self.browser, &self.benv, request, &mut self.events, &mut self.down);
     }
     fn read_server(&mut self, pipe: Token) {
-        self.requests.push_back(io::Request::Stream {
+        self.requests.push(io::Request::Stream {
             stream: pipe,
             down: stream::Down::Demand { read: stream::Read::Arrived { max: 32768 }, room: 0 },
         });
@@ -623,12 +626,12 @@ impl Runtime {
                 if owner == PROCESS {
                     if let Some(pipes) = self.pipes {
                         for entity in pipes {
-                            self.requests.push_back(io::Request::Close { entity });
+                            self.requests.push(io::Request::Close { entity });
                         }
                     }
                 } else {
                     for entity in &self.server_pipes {
-                        self.requests.push_back(io::Request::Close { entity: *entity });
+                        self.requests.push(io::Request::Close { entity: *entity });
                     }
                 }
             }
@@ -759,7 +762,7 @@ impl Runtime {
             ServerAction::Stop => {
                 assert!(self.server_state == ServerState::Running, "server running before stop");
                 self.server_state = ServerState::Stopping;
-                self.requests.push_back(io::Request::Signal {
+                self.requests.push(io::Request::Signal {
                     child: self.closing.server_child().expect("server is running"),
                     signal: kernel::Signal::Terminate,
                     to: kernel::Target::Child,
@@ -774,7 +777,7 @@ impl Runtime {
                 self.raw_lines.clear();
                 let args =
                     restart(&setup.restart, self.address.as_deref().expect("server address"), &self.peer_addresses);
-                self.requests.push_back(io::Request::Spawn {
+                self.requests.push(io::Request::Spawn {
                     owner: SERVER,
                     spawn: Spawn {
                         program: setup.server.as_os_str().as_bytes().into(),
@@ -875,20 +878,15 @@ impl Runtime {
     }
     fn tick(&mut self, setup: &Harness, faces: &mut [BrowserFace<'_>], now: Time) -> bool {
         let mut opened = false;
-        while self.io.is_ready() {
-            io::resume(&mut self.io, &self.ienv, &mut self.io_events, &mut self.submits);
-        }
         while let Some(complete) = self.complete.pop() {
             if complete.op != ROOT && complete.op != SERVER_ROOT {
                 if let Ok(kernel::Done::Spawned { pidfd, .. }) = &complete.result {
                     self.spawned_pids.push_back(pidfd_pid(*pidfd));
                 }
-                io::up(&mut self.io, &self.ienv, complete, &mut self.io_events, &mut self.submits);
+                self.io_complete.push(complete);
             }
         }
-        while self.io.is_due(now) {
-            io::fire(&mut self.io, &self.ienv, &mut self.io_events, &mut self.submits);
-        }
+        io::stage::up(&mut self.io, &self.ienv, &mut self.io_complete, &mut self.io_events, &mut self.submits, now);
         while let Some(event) = self.io_events.pop() {
             self.io_event(event, setup);
         }
@@ -970,12 +968,14 @@ impl Runtime {
     fn origin_requests(&mut self, now: Time, wall: Wall) {
         for exchange in &mut self.exchanges {
             exchange.update(now, wall);
-            self.requests.extend(exchange.requests.drain(..));
+            for request in exchange.requests.drain(..) {
+                self.requests.push(request);
+            }
         }
         for pages in &mut self.origins {
             pages.update_time(now, wall);
             while let Some(request) = pages.take() {
-                self.requests.push_back(request);
+                self.requests.push(request);
             }
         }
     }
@@ -1030,8 +1030,7 @@ impl Runtime {
             self.ienv.wall = time.wall;
             let stop_peers = self.closing.active()
                 && self.closed == self.spawned
-                && self.io.is_empty()
-                && self.requests.is_empty()
+                && self.io_drained()
                 && self.origins.iter().all(crate::origins::Pages::is_closed);
             for report in peers.drive(&mut self.ring, time.now, time.wall, stop_peers) {
                 self.fail(0, 0, report);
@@ -1101,9 +1100,8 @@ impl Runtime {
             if self.closing.active()
                 && self.closed == self.spawned
                 && self.origins.iter().all(crate::origins::Pages::is_closed)
-                && self.io.is_empty()
+                && self.io_drained()
                 && self.ring.is_empty()
-                && self.submits.is_empty()
                 && peers.empty()
             {
                 break;
@@ -1121,23 +1119,30 @@ impl Runtime {
                 Down::Replies(d) => (replies, d),
                 Down::Errors(d) => (errors, d),
             };
-            self.requests.push_back(io::Request::Stream { stream: pipe, down });
+            self.requests.push(io::Request::Stream { stream: pipe, down });
         }
         if started {
             self.origin_requests(now, wall);
         }
         for command in self.commands.iter_mut().flatten() {
-            self.requests.extend(command.requests.drain(..));
+            for request in command.requests.drain(..) {
+                self.requests.push(request);
+            }
         }
-        while self.io.takes() {
-            let Some(request) = self.requests.pop_front() else { break };
-            io::down(&mut self.io, &self.ienv, request, &mut self.submits);
-        }
+        io::stage::down(&mut self.io, &self.ienv, &mut self.requests, &mut self.submits);
         self.io.reclaim();
+    }
+    fn io_drained(&self) -> bool {
+        self.io.is_empty()
+            && self.complete.is_empty()
+            && self.io_complete.is_empty()
+            && self.requests.is_empty()
+            && self.submits.is_empty()
     }
     fn submit(&mut self, peers: &peers::Peers<'_, '_>, now: Time) {
         let pending = self.io.is_ready()
             || !self.complete.is_empty()
+            || !self.io_complete.is_empty()
             || !self.io_events.is_empty()
             || !self.events.is_empty()
             || !self.down.is_empty()
@@ -1191,7 +1196,7 @@ impl Runtime {
                 spawn.args =
                     setup.args.iter().map(|arg| substitute(arg.as_bytes(), None, &self.peer_addresses)).collect();
             }
-            self.requests.push_back(request);
+            self.requests.push(request);
         }
     }
     fn report(self) -> (Outcome, Vec<Kept>, Option<Starved>) {
