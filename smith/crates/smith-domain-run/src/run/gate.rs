@@ -15,7 +15,7 @@ use crate::{CompletionPermit, Domain, Exhausted, Failure, Request, Spend, prompt
 /// Session own prices are monotonic activation totals. Stale names are inert;
 /// subtree updates do not add global spend.
 #[must_use]
-pub(crate) fn completion_overflow(domain: &Domain, conversation: Token, price: u64, usage: Spend) -> Option<Failure> {
+pub fn completion_overflow(domain: &Domain, conversation: Token, price: u64, usage: Spend) -> Option<Failure> {
     let conversation =
         domain.conversations.get(Id::from_token(conversation)).expect("provider owner has a live run conversation");
     let run = domain.runs.get(conversation.run).expect("conversation retains its run");
@@ -183,7 +183,8 @@ impl Most {
 }
 
 /// Admit unsent work, starting the finishing phase before any provider effect.
-pub(crate) fn completion_permit(domain: &mut Domain, conversation: Token, now: Time, most: Most) -> CompletionPermit {
+#[must_use]
+pub fn completion_permit(domain: &mut Domain, conversation: Token, now: Time, most: Most) -> CompletionPermit {
     let id = Id::<Conversation>::from_token(conversation);
     let Some(conversation) = domain.conversations.get(id) else {
         return CompletionPermit::Closing;
@@ -329,7 +330,7 @@ fn completion_held(run: &Run) -> bool {
 
 /// Reserve one completion against the run's shared unspent ceiling before the
 /// parent publishes it. Every live conversation can hold at most one.
-pub(crate) fn reserve(domain: &mut Domain, conversation: Token, owner: Token, most: Most) -> Result<(), Exhausted> {
+pub fn reserve(domain: &mut Domain, conversation: Token, owner: Token, most: Most) -> Result<(), Exhausted> {
     let id = Id::<Conversation>::from_token(conversation);
     let conversation = domain.conversations.get_mut(id).expect("a provider request retains its conversation");
     assert!(conversation.reservation.is_none(), "a conversation sends one completion at a time");
@@ -386,7 +387,7 @@ pub(crate) fn reserve(domain: &mut Domain, conversation: Token, owner: Token, mo
 
 /// Return unused credit after the provider's terminal. An overbound charge is
 /// rejected by the caller before it can enter the session's spend record.
-pub(crate) fn settle_reservation(domain: &mut Domain, conversation: Token, owner: Token, charge: u64) -> bool {
+pub fn settle_reservation(domain: &mut Domain, conversation: Token, owner: Token, charge: u64) -> bool {
     let id = Id::<Conversation>::from_token(conversation);
     let conversation = domain.conversations.get_mut(id).expect("a provider terminal retains its conversation");
     let (reserved_owner, most) = conversation.reservation.take().expect("every sent completion was reserved");
