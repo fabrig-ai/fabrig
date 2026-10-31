@@ -2,6 +2,7 @@
 mod codec;
 mod commits;
 mod directory;
+mod erase_reads;
 pub(crate) mod fixtures;
 mod format;
 mod frames;
