@@ -62,7 +62,7 @@ pub fn world(seed: u64) -> World<Test, Scripted> {
 #[must_use]
 pub fn limits() -> jig_client_test_domain::Limits {
     let mut limits = crate::test::limits();
-    limits.jig.rows = 3;
+    limits.client.domain.rows = 3;
     limits
 }
 /// Builds the root and view with the story's receiving bounds.

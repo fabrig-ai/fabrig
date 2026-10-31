@@ -19,7 +19,7 @@ pub(in crate::tests) fn page(row: Task) -> (Tree, JigBindings) {
     crate::tests::tree::pages::deliver(&mut domain, watch, Delivery::Task(Box::new(row)));
     let built = crate::tests::tree::pages::build(&domain, 3, words());
     crate::tests::tree::cards_access::check(&built.0);
-    assert!(built.0.len() <= crate::task_nodes(&CLIENT, 0).unwrap());
+    assert!(built.0.len() <= crate::task_nodes(&CLIENT, &(CLIENT).client, 0).unwrap());
     built
 }
 
@@ -94,18 +94,18 @@ fn task_header_links_the_supplied_served_goal_without_turning_ancestor_identity_
 
 #[test]
 fn maximum_nested_task_contracts_fit_the_page_bound_and_preserve_every_raw_slot_and_field() {
-    let raw = vec![0xff; usize::try_from(CLIENT.text).unwrap()].into_boxed_slice();
-    let mut segments = List::with_capacity(CLIENT.rows);
-    for _ in 0..CLIENT.rows {
+    let raw = vec![0xff; usize::try_from(CLIENT.client.text).unwrap()].into_boxed_slice();
+    let mut segments = List::with_capacity(CLIENT.client.rows);
+    for _ in 0..CLIENT.client.rows {
         segments.push(raw.clone()).unwrap();
     }
     let reference = OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Resource, key: OwnerPartKey::Path(segments) };
-    let mut fields = List::with_capacity(CLIENT.rows);
-    for _ in 0..CLIENT.rows {
+    let mut fields = List::with_capacity(CLIENT.client.rows);
+    for _ in 0..CLIENT.client.rows {
         fields.push(FieldRule { name: raw.clone(), max: u32::MAX }).unwrap();
     }
-    let mut choices = List::with_capacity(CLIENT.rows);
-    for _ in 0..CLIENT.rows {
+    let mut choices = List::with_capacity(CLIENT.client.rows);
+    for _ in 0..CLIENT.client.rows {
         choices
             .push(VerdictChoice { code: u32::MAX, words: u32::MAX, followups: u32::MAX, fields: fields.clone() })
             .unwrap();
@@ -119,7 +119,7 @@ fn maximum_nested_task_contracts_fit_the_page_bound_and_preserve_every_raw_slot_
         row.spec.specification.words = DocumentText::complete(text(b""));
         row.result_contract = contract.clone();
         let (tree, bindings) = page(row);
-        let expected = "\\xFF".repeat(usize::try_from(CLIENT.text).unwrap());
+        let expected = "\\xFF".repeat(usize::try_from(CLIENT.client.text).unwrap());
         assert!(contains(&tree, expected.as_bytes()));
         match contract {
             TaskContractDocument::Approval { state, .. } => {
@@ -129,7 +129,7 @@ fn maximum_nested_task_contracts_fit_the_page_bound_and_preserve_every_raw_slot_
                 assert_eq!(bindings.owner_part(slots[0].token), Some(&reference));
             }
             TaskContractDocument::Verdict { choices, .. } => {
-                assert_eq!(choices.len(), CLIENT.rows);
+                assert_eq!(choices.len(), CLIENT.client.rows);
                 let fields = tree
                     .nodes()
                     .iter()
@@ -140,7 +140,7 @@ fn maximum_nested_task_contracts_fit_the_page_bound_and_preserve_every_raw_slot_
                             .eq(b"Field value byte limit 4294967295".iter().copied())
                     })
                     .count();
-                assert_eq!(fields, usize::try_from(CLIENT.rows * CLIENT.rows).unwrap());
+                assert_eq!(fields, usize::try_from(CLIENT.client.rows * CLIENT.client.rows).unwrap());
                 assert!(contains(&tree, b"Some contract choices were omitted"));
             }
             TaskContractDocument::Report { .. } | TaskContractDocument::Change { .. } => unreachable!(),

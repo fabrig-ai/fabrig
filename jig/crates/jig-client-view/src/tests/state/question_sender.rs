@@ -26,7 +26,7 @@ fn fixture(from: Option<OwnerRequester>) -> (Fixture, Id<Object>, Question) {
     (d, id, value)
 }
 fn tree(d: &Fixture, id: Id<Object>, w: &Words) -> Tree {
-    render(d, id, w, &mut JigBindings::new(64, CLIENT.text))
+    render(d, id, w, &mut JigBindings::new(64, CLIENT.client.text))
 }
 fn selected() -> Words {
     let mut first = english::language();
@@ -51,7 +51,7 @@ fn selected() -> Words {
     }
     Words::new(
         Phrasebook::load(
-            shapes(CLIENT.text),
+            shapes(CLIENT.client.text),
             Box::new([first, second]),
             &PhraseLimits {
                 languages: 2,
@@ -59,7 +59,7 @@ fn selected() -> Words {
                 holes: 4,
                 segments: 6000,
                 text_bytes: 100_000,
-                hole_bytes: CLIENT.text,
+                hole_bytes: CLIENT.client.text,
             },
         )
         .unwrap(),
@@ -118,7 +118,7 @@ fn question_sender_selected_language_keeps_reordered_numeric_holes_whole_words_a
         assert!(contains(&shown, expected));
         assert!(!contains(&shown, b"Question from "));
         assert!(contains(&shown, value.words.bytes()));
-        let mut b = Builder::new(&crate::sizes::limits::of_words(&CLIENT, &w).unwrap());
+        let mut b = Builder::new(&crate::sizes::limits::of_words(&CLIENT, &(CLIENT).client, &w).unwrap());
         w.waiting(&mut b, d.wall(), value.since);
         for node in b.finish().nodes() {
             for run in &node.text {

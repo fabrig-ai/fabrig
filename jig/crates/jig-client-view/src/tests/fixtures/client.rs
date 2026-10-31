@@ -1,11 +1,11 @@
 //! A reference UI with the real unlinked client and a scripted transport.
-use crate::{Event, Limits, Request, Ui};
+use crate::tests::fixtures::Profile;
+use crate::{Event, Request, Ui};
 use jig_client::{Client, Down, Handle, Key, Readout, Up, Watchable, contract};
 use skein_lib::{Duration, List, Queue, Time, Token, Wall};
 pub(crate) const MOST: Duration = Duration::from_nanos(80);
 const OBSERVATIONS: u32 = 4096;
 const EXCHANGES: u32 = 256;
-const HEARTBEAT: Duration = Duration::from_secs(1000);
 const SEED: u64 = 9;
 #[derive(Debug)]
 pub struct Fixture {
@@ -30,62 +30,41 @@ impl core::ops::DerefMut for Fixture {
     }
 }
 impl Fixture {
-    pub fn new(limits: &Limits) -> Self {
-        Self::with_client_handles(limits, limits.watches.checked_add(limits.reads).unwrap().checked_add(1).unwrap())
+    pub fn new(limits: &Profile) -> Self {
+        Self::with_client_handles(
+            limits,
+            limits.client.watches.checked_add(limits.client.reads).unwrap().checked_add(1).unwrap(),
+        )
     }
-    pub fn with_client_handles(limits: &Limits, handles: u32) -> Self {
+    pub fn with_client_handles(limits: &Profile, handles: u32) -> Self {
         Self::build(limits, handles, None)
     }
     pub fn restored(
-        limits: &Limits,
+        limits: &Profile,
         records: List<crate::state::store::Record>,
         kept: List<skein_lib::RequestRecord<jig_client::Held>>,
     ) -> Self {
         Self::build(
             limits,
-            limits.watches.checked_add(limits.reads).unwrap().checked_add(1).unwrap(),
+            limits.client.watches.checked_add(limits.client.reads).unwrap().checked_add(1).unwrap(),
             Some((records, kept)),
         )
     }
     fn build(
-        limits: &Limits,
+        limits: &Profile,
         handles: u32,
         restored: Option<(List<crate::state::store::Record>, List<skein_lib::RequestRecord<jig_client::Held>>)>,
     ) -> Self {
         let domain = jig_client::DomainLimits {
-            owners: &[],
-            requests: skein_lib::RequestLimits {
-                requests: limits.intents.max(1),
-                bytes: 1 << 20,
-                out: EXCHANGES,
-                first: Duration::from_nanos(10),
-                most: MOST,
-                margin: Duration::from_secs(1),
-            },
-            ask_bytes: 65536,
             handles,
-            watches: limits.watches.checked_add(1).unwrap(),
-            reads: limits.reads,
-            turn_bytes: limits.text,
-            document_bytes: limits.document_bytes,
-            backoff: jig_client::Backoff { first: Duration::from_nanos(10), most: MOST },
-            rows: limits.rows,
-            segments: limits.segments,
-            text: limits.text,
-            turn_text: limits.text,
-            projects: limits.projects,
-            fields: limits.fields,
-            delegates: limits.delegates,
-            records: limits.records,
-            kept: limits.kept,
-            parts: limits.parts,
-            authority: 8,
-            accounts: limits.accounts,
-            heartbeat: HEARTBEAT,
+            turn_bytes: limits.client.text,
+            turn_text: limits.client.text,
+            ..limits.client
         };
         let mut value = Self {
             ui: Ui::new(
-                limits,
+                &limits.view,
+                &domain,
                 crate::state::page::navigation::Navigation::new(limits.navigation_entries),
                 crate::state::address::Address::Inbox { project: None },
                 crate::state::page::Arrangement::none(),

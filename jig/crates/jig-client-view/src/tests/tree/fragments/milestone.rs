@@ -25,8 +25,16 @@ fn part(capacity: u32) -> OwnerPart {
 fn line(phase: OwnerMilestonePhase) -> OwnerMilestoneLine {
     OwnerMilestoneLine { task: u64::MAX, position: u64::MAX, phase, at: None }
 }
-fn limits() -> crate::Limits {
-    crate::Limits { rows: 3, segments: 3, text: 8, ..crate::tests::tree::cards::CLIENT }
+fn limits() -> crate::tests::fixtures::Profile {
+    crate::tests::fixtures::Profile {
+        view: crate::Config { ..(crate::tests::tree::cards::CLIENT).view },
+        client: jig_client::DomainLimits {
+            rows: 3,
+            segments: 3,
+            text: 8,
+            ..(crate::tests::tree::cards::CLIENT).client
+        },
+    }
 }
 fn words(selected: bool) -> Words {
     let mut english = crate::words::phrases::english::language();

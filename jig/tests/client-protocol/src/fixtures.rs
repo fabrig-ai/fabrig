@@ -149,31 +149,10 @@ pub fn family_world(seed: u64) -> World<Test, Protocol> {
 
 #[must_use]
 pub fn domain_limits() -> jig_client_domain::Limits {
-    let profile = jig_client_world::test::limits();
-    let jig = profile.jig;
     jig_client_domain::Limits {
         owners: &[jig_client_domain::Spoken { family: 1, version: jig_client_test_protocol_wire::VERSION }],
-        requests: profile.client.domain.requests,
-        ask_bytes: 16384,
         handles: 8,
-        watches: jig.watches,
-        reads: jig.reads,
-        turn_bytes: 32,
-        document_bytes: jig.document_bytes,
-        backoff: jig_client_world::test::limits().client.domain.backoff,
-        rows: jig.rows,
-        segments: jig.segments,
-        text: jig.text,
-        turn_text: jig.text,
-        projects: jig.projects,
-        fields: jig.fields,
-        delegates: jig.delegates,
-        records: jig.records,
-        kept: jig.kept,
-        parts: jig.parts,
-        authority: 8,
-        accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
-        heartbeat: jig_client_world::test::limits().client.domain.heartbeat,
+        ..jig_client_world::test::limits().client.domain
     }
 }
 

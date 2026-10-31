@@ -2,7 +2,7 @@
 use crate::words::{Words, phrases::jig::JigPhrase};
 use skein_ui::Builder;
 
-use crate::Limits;
+use crate::Config;
 use jig_client::contract::{DocumentText, Text};
 
 /// Show the supplied text, its own loss, known empty text or absence.
@@ -37,6 +37,6 @@ pub(crate) fn whole(value: Option<&DocumentText>) -> Option<Text> {
     }
 }
 /// Markdown and one independently supplied loss or presence explanation.
-pub(crate) fn nodes(limits: &Limits) -> Option<u32> {
-    skein_ui::markdown::max_nodes(limits.text)?.checked_add(1)
+pub(crate) fn nodes(_limits: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    skein_ui::markdown::max_nodes(client.text)?.checked_add(1)
 }

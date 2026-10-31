@@ -99,7 +99,7 @@ pub use binding::{JigBindings, JigMeaning, decode};
 pub use boundary::{Event, How, Refused, Request};
 pub use owner::Owner;
 pub use sizes::limits;
-pub use sizes::limits::ui::{Limits, valid};
+pub use sizes::limits::ui::{Config, valid};
 pub use sizes::sizes::{
     arranged_nodes, banner_nodes, card_nodes, chip_nodes, confirmation_nodes, conversation_nodes, conversations_nodes,
     deployment_nodes, escalation_nodes, go_to_task_nodes, inbox_nodes, link_nodes, navigation_nodes, needs_nodes,

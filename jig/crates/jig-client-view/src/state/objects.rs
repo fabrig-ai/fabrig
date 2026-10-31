@@ -443,7 +443,7 @@ fn retained(object: &Object) -> bool {
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
-pub(crate) fn valid(limits: &crate::Limits) -> bool {
+pub(crate) fn valid(limits: &crate::Config) -> bool {
     limits.objects.checked_mul(2).is_some()
 }
 
@@ -684,7 +684,7 @@ pub(crate) fn is_card_read(domain: &crate::Ui, token: Token, lent: &jig_client::
 /// Applies a card's terminal read without replacing the whole page on failure.
 pub(crate) fn read_card(
     domain: &mut crate::Ui,
-    env: &skein_lib::Env<crate::Limits>,
+    env: &skein_lib::Env<crate::Config>,
     token: Token,
     result: jig_client::contract::ReadResult,
     out: &mut skein_lib::Queue<crate::Request>,

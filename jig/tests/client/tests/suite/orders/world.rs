@@ -45,7 +45,7 @@ impl Mode {
                 version: jig_client_view::store::STORE_VERSION,
                 party: PARTY,
                 task,
-                words: c::Text::new(Box::from(*b"draft"), test::limits().jig.text).expect("fixture words"),
+                words: c::Text::new(Box::from(*b"draft"), test::limits().client.domain.text).expect("fixture words"),
                 touched,
             }));
         }
@@ -166,7 +166,7 @@ impl World {
             Mode::Root(root_kept) => {
                 let mut limits = test::limits();
                 limits.client.exchanges = ROOT_EXCHANGES;
-                limits.jig.records = RESTORED_DRAFTS;
+                limits.client.domain.records = RESTORED_DRAFTS;
                 (
                     Machine::Root(Box::new(root::new(&limits, SEED)), Box::new(limits)),
                     false,

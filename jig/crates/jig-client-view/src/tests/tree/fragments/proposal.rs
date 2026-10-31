@@ -17,8 +17,11 @@ use skein_lib::{
 fn doc(bytes: &[u8], cut: bool) -> DocumentText {
     DocumentText { bytes: Text::new(copy_of(bytes), 32).unwrap(), cut }
 }
-fn limits() -> crate::Limits {
-    crate::Limits { rows: 3, text: 32, ..crate::tests::tree::cards::CLIENT }
+fn limits() -> crate::tests::fixtures::Profile {
+    crate::tests::fixtures::Profile {
+        view: crate::Config { ..(crate::tests::tree::cards::CLIENT).view },
+        client: jig_client::DomainLimits { rows: 3, text: 32, ..(crate::tests::tree::cards::CLIENT).client },
+    }
 }
 fn part() -> OwnerPart {
     let mut segments = List::with_capacity(3);
@@ -403,7 +406,20 @@ fn owner_proposal_exact_checked_envelopes_keep_selected_language_whole_loss_and_
     let f = crate::tests::render_limits(&limits(), &w).unwrap();
 
     assert_eq!(v, unchanged);
-    assert!(view::max_nodes(&crate::Limits { rows: u32::MAX, ..limits() }).is_none());
+    assert!(
+        view::max_nodes(
+            &crate::tests::fixtures::Profile {
+                view: crate::Config { ..(limits()).view },
+                client: jig_client::DomainLimits { rows: u32::MAX, ..(limits()).client }
+            },
+            &(crate::tests::fixtures::Profile {
+                view: crate::Config { ..(limits()).view },
+                client: jig_client::DomainLimits { rows: u32::MAX, ..(limits()).client }
+            })
+            .client
+        )
+        .is_none()
+    );
 
     let id = crate::words::proposal_words::ProposalPhrase::Attempt.id();
     assert_eq!(w.book().say(1, id, &[Hole::Wall(Wall::EPOCH)]).unwrap_err(), skein_ui::phrases::Invalid::Values { id });

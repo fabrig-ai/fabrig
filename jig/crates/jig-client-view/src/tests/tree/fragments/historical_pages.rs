@@ -14,14 +14,18 @@ use skein_ui::{Builder, Tree};
 use jig_client::contract::*;
 use skein_lib::{List, Wall, bytes::copy_of};
 fn doc(bytes: &[u8], cut: bool) -> DocumentText {
-    DocumentText { bytes: Text::new(copy_of(bytes), CLIENT.text).unwrap(), cut }
+    DocumentText { bytes: Text::new(copy_of(bytes), CLIENT.client.text).unwrap(), cut }
 }
 fn words() -> Words {
     let mut language = crate::words::phrases::english::language();
     language.wall = skein_ui::phrases::WallFormat::Nanos;
     Words::new(
-        Phrasebook::load(crate::words::phrases::jig::shapes(CLIENT.text), Box::new([language]), &phrase_limits())
-            .unwrap(),
+        Phrasebook::load(
+            crate::words::phrases::jig::shapes(CLIENT.client.text),
+            Box::new([language]),
+            &phrase_limits(),
+        )
+        .unwrap(),
         0,
         0,
     )
@@ -42,18 +46,18 @@ fn chip() -> Chip {
     chip.title = doc(b"", true);
     chip.phase = Phase::Ended;
     let mut metadata = crate::tests::tree::fragments::chip::details();
-    metadata.resources = List::with_capacity(CLIENT.rows);
-    metadata.closing_connectors = Some(List::with_capacity(CLIENT.rows));
+    metadata.resources = List::with_capacity(CLIENT.client.rows);
+    metadata.closing_connectors = Some(List::with_capacity(CLIENT.client.rows));
     *chip.details = ChipPhase { phase: OwnerChipPhase::Ended, details: Box::new(metadata) };
     chip
 }
 fn ended(value: OwnerChipEnding, at: Option<Wall>) -> OwnerEndedPage {
-    let mut rows = List::with_capacity(CLIENT.rows);
+    let mut rows = List::with_capacity(CLIENT.client.rows);
     rows.push(OwnerEndedDelegate { chip: chip(), ended: value, at }).unwrap();
     OwnerEndedPage { rows, before: None, after: None, cut: true }
 }
 fn funding(funder: Funder, parent: Option<Funder>, period: Option<OwnerPeriodTimes>, closed: bool) -> OwnerSpendPage {
-    let mut rows = List::with_capacity(CLIENT.rows);
+    let mut rows = List::with_capacity(CLIENT.client.rows);
     rows.push(OwnerFundingRecord {
         period,
         funder,
@@ -72,7 +76,7 @@ fn ended_tree(page: &OwnerEndedPage, w: &Words, cap: Option<Limits>) -> Tree {
     let f = crate::tests::render_limits(&CLIENT, w).unwrap();
     let cap = cap.unwrap_or(limits(f));
     let mut b = Builder::new(&cap);
-    let mut bindings = JigBindings::new(cap.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
     view::ended_render(&mut b, &Fixture::new(&CLIENT).view(), page, w, &mut bindings);
     b.finish()
 }
@@ -139,7 +143,7 @@ fn historical_ended_view_keeps_all_owner_causes_requesters_optional_times_loss_a
                 }
                 assert!(tree.nodes().iter().all(|n| n.key.is_none()));
                 assert_eq!(page, untouched);
-                assert_eq!(page.rows.capacity(), CLIENT.rows);
+                assert_eq!(page.rows.capacity(), CLIENT.client.rows);
             }
         }
     }
@@ -225,7 +229,7 @@ fn historical_checked_selected_language_has_no_fallback_and_rejects_a_missing_nu
     }
     let w = Words::new(
         Phrasebook::load(
-            crate::words::phrases::jig::shapes(CLIENT.text),
+            crate::words::phrases::jig::shapes(CLIENT.client.text),
             Box::new([english, selected]),
             &phrase_limits(),
         )
@@ -311,7 +315,20 @@ fn historical_ended_view_exact_node_depth_text_binding_and_slot_storage_refuses_
             .expect_err("each one-under whole view storage refuses");
     }
     assert_eq!(page, original);
-    assert!(view::ended_nodes(&crate::Limits { rows: u32::MAX, ..CLIENT }).is_none());
+    assert!(
+        view::ended_nodes(
+            &crate::tests::fixtures::Profile {
+                view: crate::Config { ..(CLIENT).view },
+                client: jig_client::DomainLimits { rows: u32::MAX, ..(CLIENT).client }
+            },
+            &(crate::tests::fixtures::Profile {
+                view: crate::Config { ..(CLIENT).view },
+                client: jig_client::DomainLimits { rows: u32::MAX, ..(CLIENT).client }
+            })
+            .client
+        )
+        .is_none()
+    );
 }
 #[test]
 fn historical_funding_view_exact_geometry_and_reserved_empty_rows_remain_independent_of_scalar_values() {
@@ -338,7 +355,7 @@ fn historical_funding_view_exact_geometry_and_reserved_empty_rows_remain_indepen
             .expect_err("one-under historical scalar tree refuses");
     }
     let mut reserved = page.clone();
-    reserved.rows = List::with_capacity(CLIENT.rows);
+    reserved.rows = List::with_capacity(CLIENT.client.rows);
     let tree = spend_tree(&reserved, &w, None);
     assert_eq!(tree.len(), 1);
     assert!(!has(&tree, b"Period began:"));
@@ -397,8 +414,8 @@ fn historical_public_plan_keeps_owner_tree_early_return_and_companion_ended_read
             .unwrap();
     let tree = OwnerTree {
         root: crate::tests::tree::cards_objects::task_doc(&[]).chip,
-        rows: List::with_capacity(CLIENT.rows),
-        folded: List::with_capacity(CLIENT.rows),
+        rows: List::with_capacity(CLIENT.client.rows),
+        folded: List::with_capacity(CLIENT.client.rows),
         held_below: 0,
         next: None,
     };
@@ -422,7 +439,7 @@ fn historical_public_plan_keeps_owner_tree_early_return_and_companion_ended_read
     let w = words();
     let cap = crate::tests::render_limits(&CLIENT, &w).unwrap();
     let mut b = Builder::new(&cap);
-    let mut bindings = JigBindings::new(cap.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
     crate::tree::pages::main(&mut b, &client.view(), &w, &mut bindings);
     let rendered = b.finish();
     assert!(has(&rendered, b"companion actual cause"));

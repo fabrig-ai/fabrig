@@ -351,13 +351,13 @@ pub struct Document {
     pub subject: Subject,
     pub value: Value,
 }
-fn text(value: &[u8], limits: &super::Limits) -> Option<u64> {
+fn text(value: &[u8], limits: &jig_client::DomainLimits) -> Option<u64> {
     if value.len() > usize::try_from(limits.text).ok()? {
         return None;
     }
     u64::try_from(value.len()).ok()
 }
-fn resource(value: &Resource, limits: &super::Limits) -> Option<u64> {
+fn resource(value: &Resource, limits: &jig_client::DomainLimits) -> Option<u64> {
     match value {
         Resource::Service(service) => text(&service.environment, limits)?.checked_add(text(&service.name, limits)?),
         Resource::Environment(environment) => {
@@ -366,7 +366,7 @@ fn resource(value: &Resource, limits: &super::Limits) -> Option<u64> {
         Resource::Pool(pool) | Resource::Quota(pool) => text(&pool.0, limits),
     }
 }
-fn effect(value: &Effect, limits: &super::Limits) -> Option<u64> {
+fn effect(value: &Effect, limits: &jig_client::DomainLimits) -> Option<u64> {
     match value {
         Effect::Restart { service, .. } | Effect::Scale { service, .. } => service_price(service, limits),
         Effect::Rollback { service, from, to } => {
@@ -377,7 +377,7 @@ fn effect(value: &Effect, limits: &super::Limits) -> Option<u64> {
         }
     }
 }
-fn description(value: &Description, limits: &super::Limits) -> Option<u64> {
+fn description(value: &Description, limits: &jig_client::DomainLimits) -> Option<u64> {
     if value.resources.len() > usize::try_from(limits.rows).ok()? {
         return None;
     }
@@ -388,7 +388,7 @@ fn description(value: &Description, limits: &super::Limits) -> Option<u64> {
     }
     Some(bytes)
 }
-fn state(value: &ProcedureState, limits: &super::Limits) -> Option<u64> {
+fn state(value: &ProcedureState, limits: &jig_client::DomainLimits) -> Option<u64> {
     match &value.procedure {
         Procedure::Remediate { service, .. } | Procedure::Scale { service, .. } => service_price(service, limits),
         Procedure::Provision { environment, .. } | Procedure::TearDown { environment, .. } => {
@@ -396,7 +396,7 @@ fn state(value: &ProcedureState, limits: &super::Limits) -> Option<u64> {
         }
     }
 }
-fn resources(values: &List<ClientResource>, limits: &super::Limits) -> Option<u64> {
+fn resources(values: &List<ClientResource>, limits: &jig_client::DomainLimits) -> Option<u64> {
     if values.capacity() > limits.rows {
         return None;
     }
@@ -414,7 +414,7 @@ fn resources(values: &List<ClientResource>, limits: &super::Limits) -> Option<u6
     }
     Some(bytes)
 }
-fn effects(values: &List<Entry>, limits: &super::Limits) -> Option<u64> {
+fn effects(values: &List<Entry>, limits: &jig_client::DomainLimits) -> Option<u64> {
     if values.capacity() > limits.rows {
         return None;
     }
@@ -425,7 +425,7 @@ fn effects(values: &List<Entry>, limits: &super::Limits) -> Option<u64> {
     Some(bytes)
 }
 #[must_use]
-pub fn price(document: &Document, limits: &super::Limits) -> Option<u64> {
+pub fn price(document: &Document, limits: &jig_client::DomainLimits) -> Option<u64> {
     if !identity(document) {
         return None;
     }
@@ -526,9 +526,9 @@ fn project_scope(scope: super::documents::Scope) -> bool {
     }
 }
 
-fn service_price(value: &Service, limits: &super::Limits) -> Option<u64> {
+fn service_price(value: &Service, limits: &jig_client::DomainLimits) -> Option<u64> {
     text(&value.environment, limits)?.checked_add(text(&value.name, limits)?)
 }
-fn environment_price(value: &Environment, limits: &super::Limits) -> Option<u64> {
+fn environment_price(value: &Environment, limits: &jig_client::DomainLimits) -> Option<u64> {
     text(&value.pool, limits)?.checked_add(text(&value.name, limits)?)
 }

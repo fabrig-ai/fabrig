@@ -72,7 +72,7 @@ pub(crate) fn document(domain: &mut Ui, task: &Task, out: &mut Queue<Request>, l
 /// Takes an activity terminal and names its live cards and connector slots.
 pub(crate) fn page(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     page: ActivityPage,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
@@ -86,7 +86,7 @@ pub(crate) fn page(
     finish(domain);
     domain.changed();
 }
-fn working_set(domain: &mut Ui, env: &Env<crate::Limits>, out: &mut Queue<Request>, lent: &jig_client::Client) {
+fn working_set(domain: &mut Ui, env: &Env<crate::Config>, out: &mut Queue<Request>, lent: &jig_client::Client) {
     let keys = domain.borrow(lent).conversation().names(env.limits.objects);
     let source = Source::Window { number: ACTIVITY_READ };
     crate::state::page::routing::names(domain, env, source, keys, out, lent);
@@ -112,7 +112,7 @@ fn working_set(domain: &mut Ui, env: &Env<crate::Limits>, out: &mut Queue<Reques
             crate::state::page::routing::refuse(domain, Limit::Reads);
         }
     }
-    let parts = domain.borrow(lent).conversation().parts(env.limits.parts);
+    let parts = domain.borrow(lent).conversation().parts(lent.domain_limits().parts);
     crate::state::page::routing::parts(domain, env, parts.as_slice(), out, lent);
 }
 fn active_finished(stage: &jig_client::contract::RunStage) -> bool {
@@ -165,7 +165,7 @@ fn finish(domain: &mut Ui) {
 /// The client's text changed; only names, parts and local folds change here.
 pub(crate) fn text(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     handle: jig_client::Handle,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,

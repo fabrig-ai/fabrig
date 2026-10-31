@@ -95,7 +95,10 @@ fn inbox(keys: &[ObjectKey]) -> Delivery {
 }
 
 pub(in crate::tests) fn live() -> (Fixture, jig_client::Handle) {
-    let mut domain = Fixture::new(&LIMITS);
+    live_with(&LIMITS)
+}
+pub(in crate::tests) fn live_with(limits: &crate::tests::fixtures::Profile) -> (Fixture, jig_client::Handle) {
+    let mut domain = Fixture::new(limits);
     let f = start(&mut domain, List::with_capacity(0));
     let out = delivered(&mut domain, Time::ZERO, f, frame(7));
     let page = open_token(&out);

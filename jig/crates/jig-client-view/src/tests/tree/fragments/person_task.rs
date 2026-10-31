@@ -28,7 +28,7 @@ fn rows<T>(values: impl IntoIterator<Item = T>) -> List<T> {
     rows
 }
 fn doc(bytes: &[u8]) -> DocumentText {
-    DocumentText { bytes: Text::new(copy_of(bytes), CLIENT.text).unwrap(), cut: true }
+    DocumentText { bytes: Text::new(copy_of(bytes), CLIENT.client.text).unwrap(), cut: true }
 }
 fn chip(task: u64) -> Chip {
     Chip {
@@ -94,13 +94,16 @@ fn value() -> OwnerPersonTask {
         ]),
     }
 }
-fn client_limits() -> crate::Limits {
-    crate::Limits { rows: 8, ..CLIENT }
+fn client_limits() -> crate::tests::fixtures::Profile {
+    crate::tests::fixtures::Profile {
+        view: crate::Config { ..(CLIENT).view },
+        client: jig_client::DomainLimits { rows: 8, ..(CLIENT).client },
+    }
 }
 fn limits(words: &Words) -> Limits {
     limits_for(&client_limits(), words)
 }
-fn limits_for(client: &crate::Limits, words: &Words) -> Limits {
+fn limits_for(client: &crate::tests::fixtures::Profile, words: &Words) -> Limits {
     let f = crate::tests::render_limits(client, words).unwrap();
     Limits {
         nodes: f.nodes,
@@ -120,7 +123,7 @@ fn limits_for(client: &crate::Limits, words: &Words) -> Limits {
 fn build(value: &OwnerPersonTask, words: &Words, cap: Limits) -> Tree {
     let d = Fixture::new(&client_limits());
     let mut b = Builder::new(&cap);
-    let mut bindings = JigBindings::new(cap.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
     view::render(&mut b, &d.view(), value, words, &mut bindings);
     b.finish()
 }
@@ -197,12 +200,12 @@ fn person_owner_card_and_confirmation_show_numeric_rules_and_disable_field_beari
     drive(&mut d, Event::Act { action: Act::Intend { object: id.token(), act: ActKind::Answer } });
     let w = words();
     let mut cap = limits(w);
-    cap.nodes = cap.nodes.checked_add(view::form_nodes(&client_limits()).unwrap()).unwrap();
+    cap.nodes = cap.nodes.checked_add(view::form_nodes(&client_limits(), &(client_limits()).client).unwrap()).unwrap();
     cap.text_bytes = cap.nodes.checked_mul(cap.text_per_node).unwrap();
     cap.bindings = cap.nodes;
     cap.slots = cap.nodes;
     let mut b = Builder::new(&cap);
-    let mut bindings = JigBindings::new(cap.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
     crate::tree::cards::card(&mut b, &d.view(), id, &crate::tree::cards::Place::Elsewhere, w, &mut bindings);
     crate::tree::confirmation::confirmation(&mut b, &d.view(), w, &mut bindings);
     let tree = b.finish();
@@ -230,7 +233,7 @@ fn person_owner_card_and_confirmation_show_numeric_rules_and_disable_field_beari
     drive(
         &mut d,
         Event::Act {
-            action: Act::Edit { field: Purpose::Reason, text: Text::new(copy_of(b"abc"), CLIENT.text).unwrap() },
+            action: Act::Edit { field: Purpose::Reason, text: Text::new(copy_of(b"abc"), CLIENT.client.text).unwrap() },
         },
     );
     let mut b = Builder::new(&cap);
@@ -256,7 +259,7 @@ fn person_owner_approval_renders_opaque_parts_without_inventing_application_scop
     let cap = limits(w);
     let client = Fixture::new(&client_limits());
     let mut b = Builder::new(&cap);
-    let mut bindings = JigBindings::new(cap.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
     view::render(&mut b, &client.view(), &value, w, &mut bindings);
     let tree = b.finish();
     for text in [
@@ -279,43 +282,46 @@ fn person_owner_approval_renders_opaque_parts_without_inventing_application_scop
         }
     );
 }
-fn full_value(l: &crate::Limits) -> OwnerPersonTask {
+fn full_value(l: &crate::tests::fixtures::Profile) -> OwnerPersonTask {
     let mut value = value();
     value.task.title = doc(UTF8_TEXTS[1]);
     value.spec.specification.words = doc(UTF8_TEXTS[2]);
     value.spec.specification.parameters =
-        rows((0..l.rows).map(|name| ParameterDocument::Bytes { name, value: doc(UTF8_TEXTS[1]) }));
-    value.spec.specification.inputs = rows(0..u64::from(l.rows));
+        rows((0..l.client.rows).map(|name| ParameterDocument::Bytes { name, value: doc(UTF8_TEXTS[1]) }));
+    value.spec.specification.inputs = rows(0..u64::from(l.client.rows));
     let contract = TaskContractDocument::Verdict {
-        choices: rows((0..l.rows).map(|code| VerdictChoice {
+        choices: rows((0..l.client.rows).map(|code| VerdictChoice {
             code,
             words: u32::MAX,
             followups: u32::MAX,
-            fields: rows((0..l.rows).map(|_| FieldRule { name: copy_of(&[255; 128]), max: u32::MAX })),
+            fields: rows((0..l.client.rows).map(|_| FieldRule { name: copy_of(&[255; 128]), max: u32::MAX })),
         })),
         cut: true,
     };
     value.contract = contract.clone();
-    value.results = rows((0..l.rows).map(|number| {
+    value.results = rows((0..l.client.rows).map(|number| {
         let number = u64::from(number);
         let mut result = result(number);
         result.value = Some(ResultValue::OwnerVerdict {
             verdict: u32::MAX,
             words: doc(UTF8_TEXTS[3]),
-            fields: rows((0..l.rows).map(|_| ResultField { name: copy_of(&[255; 128]), value: copy_of(&[128; 128]) })),
+            fields: rows(
+                (0..l.client.rows).map(|_| ResultField { name: copy_of(&[255; 128]), value: copy_of(&[128; 128]) }),
+            ),
         });
         let details = result.details.as_mut().unwrap();
         details.contract = contract.clone();
-        details.delegates = rows((0..l.rows).map(|task| OwnerTaskLink::Live(chip(u64::from(task)))));
-        details.followups =
-            Some(rows((0..l.rows).map(|task| OwnerTaskLink::Retained { chip: chip(u64::from(task)), at: None })));
-        result.acts = List::with_capacity(l.rows);
+        details.delegates = rows((0..l.client.rows).map(|task| OwnerTaskLink::Live(chip(u64::from(task)))));
+        details.followups = Some(rows(
+            (0..l.client.rows).map(|task| OwnerTaskLink::Retained { chip: chip(u64::from(task)), at: None }),
+        ));
+        result.acts = List::with_capacity(l.client.rows);
         OwnerShownResult {
             task: OwnerTaskLink::Retained { chip: chip(number), at: None },
             result: Some(Box::new(result)),
         }
     }));
-    value.acts = List::with_capacity(l.rows);
+    value.acts = List::with_capacity(l.client.rows);
     value
 }
 #[test]
@@ -385,16 +391,36 @@ fn person_storage_dimension(selected_dimension: Option<usize>) {
         hole_bytes: 128,
     };
     let w = Words::new(
-        Phrasebook::load(crate::words::phrases::jig::shapes(CLIENT.text), Box::new([normal, selected]), &phrase_limits)
-            .unwrap(),
+        Phrasebook::load(
+            crate::words::phrases::jig::shapes(CLIENT.client.text),
+            Box::new([normal, selected]),
+            &phrase_limits,
+        )
+        .unwrap(),
         1,
         0,
     );
-    let l = crate::Limits { rows: 3, ..client_limits() };
+    let l = crate::tests::fixtures::Profile {
+        view: crate::Config { ..(client_limits()).view },
+        client: jig_client::DomainLimits { rows: 3, ..(client_limits()).client },
+    };
     let value = full_value(&l);
     let untouched = value.clone();
     if selected_dimension == Some(5) {
-        assert_eq!(view::max_nodes(&crate::Limits { rows: u32::MAX, ..client_limits() }), None);
+        assert_eq!(
+            view::max_nodes(
+                &crate::tests::fixtures::Profile {
+                    view: crate::Config { ..(client_limits()).view },
+                    client: jig_client::DomainLimits { rows: u32::MAX, ..(client_limits()).client }
+                },
+                &(crate::tests::fixtures::Profile {
+                    view: crate::Config { ..(client_limits()).view },
+                    client: jig_client::DomainLimits { rows: u32::MAX, ..(client_limits()).client }
+                })
+                .client
+            ),
+            None
+        );
         assert_eq!(value, untouched);
         let mut bad = owner_person_task_words::language();
         bad.phrases[1].forms[0].segments = Box::new([Segment::Text(copy_of(b"missing number"))]);
@@ -472,7 +498,10 @@ fn person_storage_dimension(selected_dimension: Option<usize>) {
 
 #[test]
 fn person_owner_view_admits_closed_offer_capacity_without_expanding_shown_result_rows() {
-    let l = crate::Limits { rows: 3, ..client_limits() };
+    let l = crate::tests::fixtures::Profile {
+        view: crate::Config { ..(client_limits()).view },
+        client: jig_client::DomainLimits { rows: 3, ..(client_limits()).client },
+    };
     let w = words();
     let mut value = value();
     value.results = rows([OwnerShownResult {
@@ -492,13 +521,13 @@ fn person_owner_view_admits_closed_offer_capacity_without_expanding_shown_result
     );
     // Price this single enclosing card with the shared card bound.
     let mut cap = limits(w);
-    cap.nodes = crate::card_nodes(&l).unwrap().checked_add(1).unwrap();
-    cap.depth = l.rows.checked_add(32).unwrap();
+    cap.nodes = crate::card_nodes(&l, &(l).client).unwrap().checked_add(1).unwrap();
+    cap.depth = l.client.rows.checked_add(32).unwrap();
     cap.text_bytes = cap.nodes.checked_mul(cap.text_per_node).unwrap();
     cap.bindings = cap.nodes;
     cap.slots = cap.nodes;
     let mut builder = Builder::new(&cap);
-    let mut bindings = JigBindings::new(cap.bindings, l.text);
+    let mut bindings = JigBindings::new(cap.bindings, l.client.text);
     builder.open(Role::Page);
     assert!(crate::tree::cards::card(
         &mut builder,
@@ -510,10 +539,10 @@ fn person_owner_view_admits_closed_offer_capacity_without_expanding_shown_result
     ));
     builder.close();
     let tree = builder.finish();
-    assert!(tree.len() <= crate::card_nodes(&l).unwrap() + 1);
+    assert!(tree.len() <= crate::card_nodes(&l, &(l).client).unwrap() + 1);
     crate::tests::tree::cards_access::check(&tree);
     assert_eq!(original.acts.capacity(), MAX_OFFERED_ACTS);
-    assert!(MAX_OFFERED_ACTS > l.rows);
+    assert!(MAX_OFFERED_ACTS > l.client.rows);
 }
 
 const UTF8_TEXTS: [&[u8]; 4] = [b"~\0/", &[b'~'; 128], &[b'q'; 128], &[b'w'; 128]];
@@ -546,7 +575,7 @@ fn a_kept_person_card_keeps_take_but_hides_an_answer_offer() {
     let w = words();
     let cap = limits(w);
     let mut b = Builder::new(&cap);
-    let mut bindings = JigBindings::new(cap.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
     crate::tree::cards::card(&mut b, &d.view(), object, &crate::tree::cards::Place::Elsewhere, w, &mut bindings);
     let tree = b.finish();
     let answer = w.say(crate::words::phrases::jig::JigPhrase::ActAnswer, &[]);

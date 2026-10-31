@@ -93,6 +93,10 @@ pub fn render(
 }
 /// Both independent lists fill together; each offer can carry a full program list.
 #[must_use]
-pub fn max_nodes(l: &crate::Limits) -> Option<u32> {
-    l.rows.checked_mul(l.rows.checked_mul(2)?.checked_add(12)?)?.checked_add(l.rows.checked_mul(5)?)?.checked_add(6)
+pub fn max_nodes(_l: &crate::Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    client
+        .rows
+        .checked_mul(client.rows.checked_mul(2)?.checked_add(12)?)?
+        .checked_add(client.rows.checked_mul(5)?)?
+        .checked_add(6)
 }

@@ -271,7 +271,7 @@ fn maximum_raw_live_calls_fit_whole_page_and_escaped_phrase_capacities() {
                 began: Some(Wall::from_nanos(u64::MAX)),
                 turn: name,
                 from: 0,
-                through: CLIENT.text,
+                through: CLIENT.client.text,
                 text: full_raw_byte(b'x'),
                 cut: true,
                 call: Some(LiveCall::Raw(call.clone())),
@@ -281,9 +281,9 @@ fn maximum_raw_live_calls_fit_whole_page_and_escaped_phrase_capacities() {
     }
     assert_eq!(d.conversation().live.len(), 1);
     assert_eq!(d.conversation().current_opened.len(), 1);
-    let limits = crate::sizes::limits::of_words(&CLIENT, words).unwrap();
+    let limits = crate::sizes::limits::of_words(&CLIENT, &(CLIENT).client, words).unwrap();
     let mut b = skein_ui::Builder::new(&limits);
-    let mut bindings = crate::JigBindings::new(limits.bindings, CLIENT.text);
+    let mut bindings = crate::JigBindings::new(limits.bindings, CLIENT.client.text);
     b.open(Role::Page);
     assert!(crate::jig(
         &mut b,
@@ -297,7 +297,7 @@ fn maximum_raw_live_calls_fit_whole_page_and_escaped_phrase_capacities() {
     access(&tree);
     assert!(u32::try_from(tree.nodes().len()).unwrap() <= limits.nodes);
     let mut escaped = Vec::new();
-    for _ in 0..CLIENT.text {
+    for _ in 0..CLIENT.client.text {
         escaped.push(UTF8_TEXTS[4][0]);
     }
     assert!(contains(&tree, &escaped));
@@ -308,7 +308,7 @@ fn maximum_raw_live_calls_fit_whole_page_and_escaped_phrase_capacities() {
         }
         LiveCall::Decoded(_) => panic!("expected the supplied raw current call"),
     }
-    assert!(limits.text_per_node >= CLIENT.text * 4);
+    assert!(limits.text_per_node >= CLIENT.client.text * 4);
     let (mut reloaded, _, run, _) = ready();
     assert!(reloaded.conversation().live.is_empty());
     deliver(
@@ -358,7 +358,7 @@ fn raw_live_call_controls_use_selected_normal_language_and_checked_capacity() {
         }
     }
     let book = Phrasebook::load(
-        crate::words::phrases::jig::shapes(CLIENT.text),
+        crate::words::phrases::jig::shapes(CLIENT.client.text),
         Box::new([first, selected]),
         &PhraseLimits {
             languages: 2,
@@ -366,7 +366,7 @@ fn raw_live_call_controls_use_selected_normal_language_and_checked_capacity() {
             holes: 4,
             segments: 8000,
             text_bytes: 100_000,
-            hole_bytes: CLIENT.text,
+            hole_bytes: CLIENT.client.text,
         },
     )
     .unwrap();
@@ -413,14 +413,14 @@ fn raw_live_call_controls_use_selected_normal_language_and_checked_capacity() {
     assert!(opened.nodes().iter().any(|node| node.role == Role::Button
         && node.name.as_deref() == Some(b"Selected language folds actual current input")));
     assert!(contains(&opened, b"input"));
-    let limits = crate::sizes::limits::of_words(&CLIENT, &words).unwrap();
+    let limits = crate::sizes::limits::of_words(&CLIENT, &(CLIENT).client, &words).unwrap();
     assert!(limits.text_per_node >= words.book().capacity(LiveCallPhrase::OpenCurrentCallInput.id()).unwrap());
 }
 
 fn full_raw_byte(byte: u8) -> Text {
     let mut bytes = Vec::new();
-    bytes.resize(usize::try_from(crate::tests::tree::cards::CLIENT.text).unwrap(), byte);
-    Text::new(bytes.into_boxed_slice(), crate::tests::tree::cards::CLIENT.text).unwrap()
+    bytes.resize(usize::try_from(crate::tests::tree::cards::CLIENT.client.text).unwrap(), byte);
+    Text::new(bytes.into_boxed_slice(), crate::tests::tree::cards::CLIENT.client.text).unwrap()
 }
 
 fn current_identity(id: &[u8]) -> CallIdentity {
@@ -504,7 +504,7 @@ fn maximum_independent_current_call_fits_page_with_all_existing_provisional_rows
     use crate::tests::tree::cards::CLIENT;
     let words = words();
     let (mut d, _, run, _) = ready();
-    for number in 1..=CLIENT.rows {
+    for number in 1..=CLIENT.client.rows {
         live(&mut d, run, number);
     }
     let call = CurrentCall {
@@ -527,9 +527,9 @@ fn maximum_independent_current_call_fits_page_with_all_existing_provisional_rows
         })),
     );
     drive(&mut d, Event::Act { action: Act::FoldCurrentCall { identity: call.identity, open: true } });
-    let limits = crate::sizes::limits::of_words(&CLIENT, words).unwrap();
+    let limits = crate::sizes::limits::of_words(&CLIENT, &(CLIENT).client, words).unwrap();
     let mut b = skein_ui::Builder::new(&limits);
-    let mut bindings = crate::JigBindings::new(limits.bindings, CLIENT.text);
+    let mut bindings = crate::JigBindings::new(limits.bindings, CLIENT.client.text);
     b.open(Role::Page);
     assert!(crate::jig(
         &mut b,
@@ -543,7 +543,7 @@ fn maximum_independent_current_call_fits_page_with_all_existing_provisional_rows
     access(&tree);
     assert!(u32::try_from(tree.nodes().len()).unwrap() <= limits.nodes);
     let mut escaped = Vec::new();
-    for _ in 0..CLIENT.text {
+    for _ in 0..CLIENT.client.text {
         escaped.push(UTF8_TEXTS[4][0]);
     }
     assert!(contains(&tree, &escaped));
@@ -669,7 +669,12 @@ fn whole_owner_activity_and_fetched_archive_keep_numeric_senders_references_and_
     ] {
         assert!(contains(&tree, label), "missing {label:?}");
     }
-    let limits = crate::sizes::limits::of_words(&crate::tests::tree::cards::CLIENT, words).unwrap();
+    let limits = crate::sizes::limits::of_words(
+        &crate::tests::tree::cards::CLIENT,
+        &(crate::tests::tree::cards::CLIENT).client,
+        words,
+    )
+    .unwrap();
     assert!(tree.len() <= limits.nodes);
 }
 

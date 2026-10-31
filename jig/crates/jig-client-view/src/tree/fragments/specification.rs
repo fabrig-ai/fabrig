@@ -4,7 +4,7 @@ use crate::words::phrases::jig::JigPhrase;
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Run};
 
-use crate::Limits;
+use crate::Config;
 use jig_client::contract::{Parameter, ParameterDocument, Specification, SpecificationDocument};
 
 /// Show every supplied parameter and input without interpreting opaque values.
@@ -58,6 +58,6 @@ pub fn document(b: &mut Builder, value: &SpecificationDocument, words: &Words) {
 }
 /// Maximum nodes for whole words, all parameter variants, input rows and loss marker.
 #[must_use]
-pub fn nodes(limits: &Limits) -> Option<u32> {
-    skein_ui::markdown::max_nodes(limits.text)?.checked_add(limits.rows.checked_mul(4)?)?.checked_add(2)
+pub fn nodes(_limits: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    skein_ui::markdown::max_nodes(client.text)?.checked_add(client.rows.checked_mul(4)?)?.checked_add(2)
 }

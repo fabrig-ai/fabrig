@@ -12,30 +12,20 @@ use jig_ops_client_domain::{self as root, Address, Event, infrastructure, observ
 mod support;
 use skein_lib::{Duration, Env, List, Queue, Time, Wall};
 use support::{Domain, JigOut, Request};
-const JIG: jig_client_view::Limits = jig_client_view::Limits {
-    watches: 4,
+const JIG: jig_client_view::Config = jig_client_view::Config {
     notices: 2,
     notice_life: Duration::from_secs(5),
     linger: Duration::from_secs(5),
     save_delay: Duration::from_secs(1),
     intents: 2,
-    fields: 4,
 
     objects: 3,
     sources: 8,
-    reads: 4,
-    parts: 10,
-    delegates: 2,
-    document_bytes: 65536,
-    records: 2,
-    kept: 4,
+
     drafts: 1,
-    projects: 2,
+
     roles: 2,
-    text: 32,
-    rows: 2,
-    segments: 4,
-    accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
+
     conversation_words: 2,
     navigation_entries: 8,
     updates_count: 99,
@@ -43,29 +33,8 @@ const JIG: jig_client_view::Limits = jig_client_view::Limits {
 fn limits() -> root::Limits {
     root::Limits {
         jig: JIG,
-        infrastructure: infrastructure::Limits {
-            parts: 10,
-            text: 32,
-            objects: 12,
-            watches: 24,
-            reads: 24,
-            requests: 4,
-            rows: 2,
-            segments: 4,
-
-            document_bytes: 65536,
-        },
-        observability: observability::Limits {
-            parts: 10,
-            objects: 12,
-            reads: 24,
-            watches: 24,
-            rows: 2,
-            segments: 4,
-            text: 32,
-
-            document_bytes: 65536,
-        },
+        infrastructure: infrastructure::Limits { objects: 12 },
+        observability: observability::Limits { objects: 12 },
         client: support::client_limits(),
     }
 }
@@ -767,7 +736,7 @@ fn extreme_capacity_is_refused_before_building() {
     let obs = words::Words::english(1, 32).unwrap();
     let infra = words::Words::english(2, 32).unwrap();
     let mut limits = limits();
-    limits.observability.rows = u32::MAX;
+    limits.client.domain.rows = u32::MAX;
     assert!(Limits::of(&limits, &jig, &obs, &infra).is_none());
 }
 
@@ -885,11 +854,11 @@ fn resource_slots_preserve_whole_opaque_segments_and_distinct_equal_concatenatio
     assert!(tree_limits.slots <= envelope.slots);
     assert!(tree_limits.text_per_node >= 128);
     let mut builder = skein_ui::Builder::new(&tree_limits);
-    let mut jig_bindings = jig_client_view::JigBindings::new(16, JIG.text);
+    let mut jig_bindings = jig_client_view::JigBindings::new(16, domain_limits.client.domain.text);
     let mut obs_bindings = crate::bindings::Bindings::new(16, 32, 1);
     let mut infra_bindings = crate::bindings::Bindings::new(16, 32, 2);
-    let mut obs = observability::Side::new(&domain_limits.observability);
-    let mut infra = infrastructure::Side::new(&domain_limits.infrastructure);
+    let mut obs = observability::Side::new(&domain_limits.observability, &domain_limits.client.domain);
+    let mut infra = infrastructure::Side::new(&domain_limits.infrastructure, &domain_limits.client.domain);
     let mut expected = Vec::new();
     builder.open(skein_ui::Role::Page);
     for connector in [1, 2] {
@@ -904,7 +873,7 @@ fn resource_slots_preserve_whole_opaque_segments_and_distinct_equal_concatenatio
                 let mut out = Queue::uncapped();
                 observability::step(
                     &mut obs,
-                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_limits.observability },
+                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_limits.client.domain },
                     observability::Event::Show { part: part.clone(), scope: observability::Scope::Project(1) },
                     &mut out,
                 );
@@ -914,7 +883,7 @@ fn resource_slots_preserve_whole_opaque_segments_and_distinct_equal_concatenatio
                 let mut out = Queue::uncapped();
                 infrastructure::step(
                     &mut infra,
-                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_limits.infrastructure },
+                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_limits.client.domain },
                     infrastructure::Event::Show { part: part.clone(), scope: infrastructure::Scope::Project(1) },
                     &mut out,
                 );
@@ -1252,11 +1221,11 @@ fn effect_slots_load_infrastructure_without_loading_a_maker_effect_and_keep_obse
             builder.open(skein_ui::Role::Page);
             let mut bindings = crate::bindings::Bindings::new(0, 32, connector);
             if connector == 1 {
-                let mut side = observability::Side::new(&domain_limits.observability);
+                let mut side = observability::Side::new(&domain_limits.observability, &domain_limits.client.domain);
                 let mut out = Queue::uncapped();
                 observability::step(
                     &mut side,
-                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_limits.observability },
+                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_limits.client.domain },
                     observability::Event::Show { part: part.clone(), scope: observability::Scope::Project(0) },
                     &mut out,
                 );
@@ -1264,11 +1233,11 @@ fn effect_slots_load_infrastructure_without_loading_a_maker_effect_and_keep_obse
                 assert!(out.is_empty());
                 crate::observability::part(&mut builder, &side, &part, &obs_words, &mut bindings);
             } else {
-                let mut side = infrastructure::Side::new(&domain_limits.infrastructure);
+                let mut side = infrastructure::Side::new(&domain_limits.infrastructure, &domain_limits.client.domain);
                 let mut out = Queue::uncapped();
                 infrastructure::step(
                     &mut side,
-                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_limits.infrastructure },
+                    &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: domain_limits.client.domain },
                     infrastructure::Event::Show { part: part.clone(), scope: infrastructure::Scope::Project(0) },
                     &mut out,
                 );
@@ -1349,7 +1318,7 @@ fn effect_facts_have_distinct_proposal_and_state_labels() {
     let side = root.infrastructure();
     let mut builder = skein_ui::Builder::new(&tree_limits);
     builder.open(skein_ui::Role::Page);
-    let mut bindings = crate::bindings::Bindings::new(tree_limits.bindings, limits.infrastructure.text, 2);
+    let mut bindings = crate::bindings::Bindings::new(tree_limits.bindings, limits.client.domain.text, 2);
     crate::infrastructure::part(&mut builder, side, &part, &words, &jig_words, &mut bindings);
     builder.close();
     let tree = builder.finish();

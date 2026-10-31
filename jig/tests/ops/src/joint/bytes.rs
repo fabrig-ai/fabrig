@@ -629,7 +629,7 @@ impl Bytes {
         }
     }
     pub(super) fn restart(&mut self, joint: &Joint, until: Time) {
-        let fresh = Self::new(joint.seed, joint.story, joint.limits.jig.rows);
+        let fresh = Self::new(joint.seed, joint.story, joint.limits.client.domain.rows);
         self.component = fresh.component;
         self.server = fresh.server;
         self.server_out = fresh.server_out;

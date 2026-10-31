@@ -48,7 +48,7 @@ impl Document {
     }
     /// Whole-value admission against configured bounds.
     #[must_use]
-    pub fn fits(&self, limits: &super::Limits) -> bool {
+    pub fn fits(&self, limits: &jig_client::DomainLimits) -> bool {
         let Some(identity) = subject_price(&self.subject(), limits) else { return false };
         let Some(bytes) = (match self {
             Self::Value(document) => super::values::price(document, limits),
@@ -150,7 +150,7 @@ pub fn subject(part: &Part, scope: Scope) -> Option<Subject> {
 }
 
 /// Heap bytes of the opaque owner identity, checked before retaining it.
-pub(crate) fn subject_price(subject: &Subject, limits: &super::Limits) -> Option<u64> {
+pub(crate) fn subject_price(subject: &Subject, limits: &jig_client::DomainLimits) -> Option<u64> {
     match &subject.kind {
         Kind::Environment(environment) => {
             if environment.pool.len() > usize::try_from(limits.text).ok()?

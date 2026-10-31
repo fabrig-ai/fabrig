@@ -3,16 +3,16 @@ use crate::state::address::{Address, TaskSection};
 use crate::tests::tree::cards_objects::*;
 
 fn supplied() -> OwnerAuthorityDocument {
-    let mut segments = List::with_capacity(CLIENT.rows);
+    let mut segments = List::with_capacity(CLIENT.client.rows);
     segments.push(Box::from(*b"a/b")).unwrap();
     segments.push(Box::from(*b"\xff\0")).unwrap();
     let pattern = OwnerPattern { segments, last: OwnerPatternEnd::Open(Box::from(*b"\xff/")) };
-    let mut grants = List::with_capacity(CLIENT.rows);
+    let mut grants = List::with_capacity(CLIENT.client.rows);
     grants.push(OwnerGrant { connector: u16::MAX, kind: u16::MAX, pattern: pattern.clone() }).unwrap();
-    let mut kinds = List::with_capacity(CLIENT.rows);
+    let mut kinds = List::with_capacity(CLIENT.client.rows);
     kinds.push(OwnerAuthorityExecutor::Charter(u32::MAX)).unwrap();
     kinds.push(OwnerAuthorityExecutor::Role(u32::MAX)).unwrap();
-    let mut note_resources = List::with_capacity(CLIENT.rows);
+    let mut note_resources = List::with_capacity(CLIENT.client.rows);
     note_resources.push(OwnerResourceScope { connector: u16::MAX, pattern }).unwrap();
     OwnerAuthorityDocument {
         authority: OwnerAuthority {
@@ -40,7 +40,7 @@ fn task_authority_forms_preserve_all_permissions_and_selected_delta_without_reco
         drive(&mut domain, Event::Act { action: Action::Intend { object: id.token(), act: ActKind::Amend } });
         drive(&mut domain, Event::Act { action: Action::Edit { field: Purpose::Reason, text: text(b"") } });
         let words = words();
-        let mut bindings = JigBindings::new(limits().bindings, CLIENT.text);
+        let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
         let tree = dialog(&domain, words, &mut bindings);
         assert!(contains(&tree, b"Tool bits: 18446744073709551615"));
         assert!(contains(&tree, b"Note scope bits: 255"));
@@ -70,10 +70,10 @@ fn task_authority_forms_preserve_all_permissions_and_selected_delta_without_reco
             let mut expected = before.authority.authority.clone();
             expected.spend = 25;
             assert_eq!(selected.authority, Some(expected));
-            assert_eq!(selected.authority.as_ref().unwrap().grants.capacity(), CLIENT.rows);
+            assert_eq!(selected.authority.as_ref().unwrap().grants.capacity(), CLIENT.client.rows);
             assert_eq!(
                 selected.authority.as_ref().unwrap().grants.get(0).unwrap().pattern.segments.capacity(),
-                CLIENT.rows
+                CLIENT.client.rows
             );
         }
         let expected = selected.clone();
@@ -137,7 +137,7 @@ fn task_budget_section_renders_exact_bitmap_delegation_and_literal_authority_los
             assert!(contains(&tree, b"\\xFF\\x00"));
             assert!(contains(&tree, b"Open ending"));
             assert_eq!(contains(&tree, b"More are held than shown"), cut);
-            assert!(tree.len() <= crate::task_nodes(&CLIENT, 0).unwrap());
+            assert!(tree.len() <= crate::task_nodes(&CLIENT, &(CLIENT).client, 0).unwrap());
             let id = domain.task_page().header.unwrap();
             let Some(crate::state::objects::Body::Task(actual)) = &domain.objects().get(id).unwrap().body else {
                 panic!("whole source remains");

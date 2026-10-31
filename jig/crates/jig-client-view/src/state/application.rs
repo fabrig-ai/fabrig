@@ -15,7 +15,13 @@ pub(crate) const WINDOW: u16 = u16::MAX;
 fn source(_domain: &Ui) -> Source {
     Source::Window { number: WINDOW }
 }
-pub(crate) fn show(domain: &mut Ui, env: &Env<crate::Limits>, objects: List<ObjectKey>, out: &mut Queue<Request>) {
+pub(crate) fn show(
+    domain: &mut Ui,
+    _env: &Env<crate::Config>,
+    objects: List<ObjectKey>,
+    out: &mut Queue<Request>,
+    lent: &jig_client::Client,
+) {
     if domain.confirmed.is_none() || domain.link != jig_client::Link::Live {
         return;
     }
@@ -38,7 +44,7 @@ pub(crate) fn show(domain: &mut Ui, env: &Env<crate::Limits>, objects: List<Obje
     if missed > 0 {
         crate::state::page::routing::refuse(domain, contract::Limit::Objects);
     }
-    let mut tasks = List::with_capacity(env.limits.rows);
+    let mut tasks = List::with_capacity(lent.domain_limits().rows);
     let mut deciding = false;
     for key in &objects {
         if !domain.objects.named(*key, source) {
@@ -63,7 +69,7 @@ pub(crate) fn show(domain: &mut Ui, env: &Env<crate::Limits>, objects: List<Obje
         open(domain, Subject::Chips { tasks }, out);
     }
     if deciding {
-        open(domain, Subject::Inbox { window: env.limits.rows }, out);
+        open(domain, Subject::Inbox { window: lent.domain_limits().rows }, out);
     }
     domain.changed();
 }
@@ -95,7 +101,7 @@ fn read(domain: &mut Ui, key: ObjectKey, out: &mut Queue<Request>) {
 }
 pub(crate) fn delivery(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     delivery: Delivery,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
@@ -144,7 +150,7 @@ pub(crate) fn delivery(
 }
 pub(crate) fn read_result(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     what: Read,
     result: ReadResult,
     out: &mut Queue<Request>,
@@ -240,14 +246,14 @@ fn key(what: &Read) -> Option<ObjectKey> {
 #[must_use]
 pub(crate) fn put(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    _env: &Env<crate::Config>,
     key: ObjectKey,
     body: Body,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
     retain: bool,
 ) -> bool {
-    let parts = parts(&body, env.limits.parts);
+    let parts = parts(&body, lent.domain_limits().parts);
     if parts.full {
         crate::state::page::routing::refuse(domain, contract::Limit::Objects);
     }

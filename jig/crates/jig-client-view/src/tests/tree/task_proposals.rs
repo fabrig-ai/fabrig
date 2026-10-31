@@ -68,11 +68,11 @@ fn build(d: &Fixture) -> Tree {
 }
 fn build_tree(d: &Fixture) -> Tree {
     let w = words();
-    let nodes = crate::task_nodes(&CLIENT, 0)
+    let nodes = crate::task_nodes(&CLIENT, &(CLIENT).client, 0)
         .unwrap()
-        .checked_add(crate::confirmation_nodes(&CLIENT).unwrap())
+        .checked_add(crate::confirmation_nodes(&CLIENT, &(CLIENT).client).unwrap())
         .unwrap()
-        .checked_add(crate::notices_nodes(&CLIENT).unwrap())
+        .checked_add(crate::notices_nodes(&CLIENT, &(CLIENT).client).unwrap())
         .unwrap()
         .checked_add(1)
         .unwrap();
@@ -83,7 +83,7 @@ fn build_tree(d: &Fixture) -> Tree {
     limits.slots = nodes;
     limits.text_bytes = nodes.checked_mul(limits.text_per_node).unwrap();
     let mut b = Builder::new(&limits);
-    let mut bindings = JigBindings::new(nodes, CLIENT.text);
+    let mut bindings = JigBindings::new(nodes, CLIENT.client.text);
     b.open(Role::Page);
     crate::tree::pages::main(&mut b, &d.view(), w, &mut bindings);
     crate::tree::pages::after_page(&mut b, &d.view(), w, &mut bindings);

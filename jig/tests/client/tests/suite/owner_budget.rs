@@ -47,6 +47,7 @@ fn maximal_budget_and_ledger_render_all_accounting_values() {
         text_bytes: 16_777_216,
         ..jig_client_view::limits::envelope(
             &receiving,
+            &jig_client_world::test::limits().client.domain,
             words.jig_capacity().expect("checked rendering fixture"),
             &jig_client_view::page::Arrangement::none(),
             0,

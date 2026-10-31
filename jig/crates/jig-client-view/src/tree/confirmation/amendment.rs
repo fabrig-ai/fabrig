@@ -76,15 +76,15 @@ pub fn form(
         return;
     };
     words.text(b, JigPhrase::Before, &[]);
-    proposal::amendment(b, &before, words, bindings, client.limits.rows);
+    proposal::amendment(b, &before, words, bindings, client.client.domain_limits().rows);
     loss(b, object, words);
     task_loss(b, object, words);
-    authority_loss(b, object, words, text_limit, client.limits.rows);
+    authority_loss(b, object, words, text_limit, client.client.domain_limits().rows);
     let empty = empty();
     let change = open.choices.change.as_ref().unwrap_or(&empty);
     let value = values(&before, change);
     words.text(b, JigPhrase::After, &[]);
-    proposal::amendment(b, change, words, bindings, client.limits.rows);
+    proposal::amendment(b, change, words, bindings, client.client.domain_limits().rows);
     if value.spec.is_some() {
         input(b, &value, open, Field::Words, JigPhrase::NewSpec, words, bindings);
     }

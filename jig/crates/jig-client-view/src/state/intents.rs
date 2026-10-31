@@ -256,7 +256,7 @@ pub(crate) fn progress(
 }
 pub(crate) fn answered(
     domain: &mut crate::Ui,
-    env: &skein_lib::Env<crate::Limits>,
+    env: &skein_lib::Env<crate::Config>,
     request: Token,
     mut answer: Answer,
     out: &mut Queue<Request>,

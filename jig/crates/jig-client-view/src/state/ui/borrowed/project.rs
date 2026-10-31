@@ -25,10 +25,12 @@ impl<'a> Borrowed<'a> {
     pub fn project_page(&self) -> Project<'a> {
         let mut page = Project {
             state: &self.ui.project_page,
-            goals: List::with_capacity(self.ui.limits.rows),
+            goals: List::with_capacity(self.client.domain_limits().rows),
             goals_more: false,
-            listed_goals: List::with_capacity(self.ui.limits.rows.checked_mul(2).expect("two goal windows fit")),
-            tasks: List::with_capacity(self.ui.limits.rows),
+            listed_goals: List::with_capacity(
+                self.client.domain_limits().rows.checked_mul(2).expect("two goal windows fit"),
+            ),
+            tasks: List::with_capacity(self.client.domain_limits().rows),
             tasks_more: false,
         };
         for (handle, watch) in &self.ui.handles.watches {
@@ -37,7 +39,7 @@ impl<'a> Borrowed<'a> {
             };
             match document.latest {
                 Some(Latest::Jig(Delivery::Tasks(goals)))
-                    if goals_watch(&watch.subject, self.ui.shown_project(), self.ui.limits.rows) =>
+                    if goals_watch(&watch.subject, self.ui.shown_project(), self.client.domain_limits().rows) =>
                 {
                     page.goals_more = goals.more;
                     for row in &goals.rows {
@@ -53,7 +55,7 @@ impl<'a> Borrowed<'a> {
                                 project: self.ui.shown_project(),
                                 ..page.task_filter
                             },
-                            window: self.ui.limits.rows,
+                            window: self.client.domain_limits().rows,
                         } =>
                 {
                     page.tasks_more = tasks.more;

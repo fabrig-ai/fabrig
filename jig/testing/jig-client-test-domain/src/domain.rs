@@ -37,6 +37,7 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
     Domain {
         jig: jig_client_view::Ui::new(
             &limits.jig,
+            &limits.client.domain,
             navigation,
             jig_client_view::address::Address::Inbox { project: None },
             jig_client_view::page::Arrangement::none(),

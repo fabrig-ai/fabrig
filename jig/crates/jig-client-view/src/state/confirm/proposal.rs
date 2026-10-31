@@ -13,7 +13,7 @@ pub(crate) fn recipient(object: &Object) -> Option<Recipient> {
         Admission::Allowed | Admission::Bounded { .. } | Admission::Refused(_) => None,
     }
 }
-pub(crate) fn open(domain: &mut Ui, env: &Env<crate::Limits>, id: Id<Object>, lent: &jig_client::Client) {
+pub(crate) fn open(domain: &mut Ui, env: &Env<crate::Config>, id: Id<Object>, lent: &jig_client::Client) {
     let Some(object) = domain.borrow(lent).objects().get(id) else { return };
     let crate::state::objects::Card::Refused {
         refusal: jig_client::contract::Refusal::Authority { proposable: Some(true), .. },

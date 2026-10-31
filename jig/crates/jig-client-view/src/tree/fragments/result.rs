@@ -104,19 +104,19 @@ pub fn render(
 }
 /// Configured envelope for both full link lists, contract and scalar metadata.
 #[must_use]
-pub fn nodes(limits: &crate::Limits) -> Option<u32> {
-    crate::chip_nodes(limits)?
+pub fn nodes(limits: &crate::Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    crate::chip_nodes(limits, client)?
         .checked_add(2)?
-        .checked_mul(limits.rows)?
+        .checked_mul(client.rows)?
         .checked_mul(2)?
-        .checked_add(crate::tree::fragments::proposed_task::contract_nodes(limits)?)?
+        .checked_add(crate::tree::fragments::proposed_task::contract_nodes(limits, client)?)?
         .checked_add(10)
 }
 /// Reserve saying, escaped opaque byte and linked chip storage before rendering.
 #[must_use]
 #[cfg(test)]
-pub fn limits(client: &crate::Limits, words: &Words) -> Option<skein_ui::Limits> {
-    let nodes = nodes(client)?;
+pub fn limits(view: &crate::Config, client: &jig_client::DomainLimits, words: &Words) -> Option<skein_ui::Limits> {
+    let nodes = nodes(view, client)?;
     let phrase = words.jig_capacity()?;
     let text_per_node = phrase.checked_mul(2)?.checked_add(crate::words::literal_segment::max_bytes(client.text)?)?;
     Some(skein_ui::Limits {

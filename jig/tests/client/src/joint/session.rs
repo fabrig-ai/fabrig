@@ -843,17 +843,13 @@ mod tests {
             owner_limits.journal.writes.max(room.checked_add(connectors).expect("fixture writes"));
         let driver = Driver::new(configuration, owner_limits, peers, now, wall);
         let mut limits = crate::test::limits();
-        limits.client.domain.rows = 32;
-        limits.client.domain.projects = 64;
-        limits.client.domain.text = 4096;
         limits.client.domain.turn_text = 4096;
         limits.client.domain.turn_bytes = 4096;
-        limits.client.domain.document_bytes = 1_048_576;
-        limits.jig.rows = 32;
-        limits.jig.projects = 64;
+        limits.client.domain.rows = 32;
+        limits.client.domain.projects = 64;
         limits.jig.roles = 64;
-        limits.jig.text = 4096;
-        limits.jig.document_bytes = 1_048_576;
+        limits.client.domain.text = 4096;
+        limits.client.domain.document_bytes = 1_048_576;
         let codec = jig_protocol_transcript::Limits {
             smith: smith_transcript::v6::CEILINGS,
             bytes: 1_048_576,
