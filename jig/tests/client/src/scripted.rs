@@ -127,8 +127,64 @@ pub struct Scripted {
     recovery: Option<Time>,
     pending_sign_ins: Vec<u64>,
     pending_faults: Vec<FrontFault>,
+    chat_projects: std::collections::BTreeSet<(u64, u32)>,
 }
 impl Scripted {
+    fn seed_chat(&self, party: u64, project: u32, words: &[u8]) -> jig_client_domain::contract::Task {
+        let number = self
+            .engine
+            .truth()
+            .objects
+            .keys()
+            .filter_map(|key| if let ObjectKey::Task(task) = key { Some(*task) } else { None })
+            .max()
+            .unwrap_or(0)
+            .checked_add(1)
+            .expect("seed task number fits");
+        let mut task = crate::stories::conversations::chat(number, words, Wall::EPOCH);
+        task.project = project;
+        task.requester = jig_client_domain::contract::OwnerRequester::Person(party);
+        task.spec = jig_client_domain::contract::SpecificationDocument {
+            specification: jig_client_domain::contract::DocumentSpecification {
+                words: jig_client_domain::contract::DocumentText::complete(crate::stories::text(words)),
+                parameters: crate::test::list([]),
+                inputs: crate::test::list([]),
+                asks: false,
+            },
+            cut: false,
+        };
+        task
+    }
+
+    fn script_chat(&mut self, party: u64, ask: &jig_client_domain::contract::Ask) {
+        use jig_client_domain::contract::{Answer, Made, Outcome};
+        let jig_client_domain::contract::Ask::Create { project, tasks } = ask else { return };
+        if !self.chat_projects.contains(&(party, *project)) || tasks.len() != 1 {
+            return;
+        }
+        let member = tasks.get(0).expect("one batch member");
+        if !member.flags.conversation {
+            return;
+        }
+        let mut task = self.seed_chat(party, *project, member.spec.words.bytes());
+        task.flags = member.flags;
+        task.label = member.label;
+        self.engine
+            .script(engine::Rule {
+                party: Some(party),
+                ask: ask.clone(),
+                answer: Answer::Done(Outcome::Made {
+                    what: Made::Tasks { tasks: crate::test::list([task.chip.task]) },
+                }),
+                changes: vec![engine::Change::Object {
+                    project: *project,
+                    key: ObjectKey::Task(task.chip.task),
+                    value: ReadValue::Task(Box::new(task)),
+                }],
+            })
+            .expect("seeded project's chat rule fits");
+    }
+
     /// Lose the next shell sign-out before it reaches the engine.
     pub fn lose_next_sign_out(&mut self) {
         self.lose_sign_out = true;
@@ -175,6 +231,7 @@ impl Scripted {
             recovery: None,
             pending_sign_ins: Vec::new(),
             pending_faults: Vec::new(),
+            chat_projects: std::collections::BTreeSet::new(),
         }
     }
     fn transport(&mut self, client: ClientId, local: Token, first: bool, fresh: bool) -> Token {
@@ -265,6 +322,36 @@ impl Scripted {
 }
 
 impl Front<Test> for Scripted {
+    fn seed(&mut self, seed: crate::harness::Seed) {
+        use crate::harness::Seed;
+        match seed {
+            Seed::ChatProject { party, project } => {
+                assert_eq!(project, 1, "the scripted frame's project");
+                self.chat_projects.insert((party, project));
+                self.engine
+                    .act(Time::ZERO, Wall::EPOCH, engine::Change::Me(crate::stories::frame(party)))
+                    .expect("seed frame fits");
+                self.engine
+                    .act(Time::ZERO, Wall::EPOCH, engine::Change::SignedOut { sign_in: party })
+                    .expect("seed sign-out fits");
+            }
+            Seed::Conversation { party, project, words } => {
+                assert!(self.chat_projects.contains(&(party, project)), "seed the conversation's project first");
+                let task = self.seed_chat(party, project, &words);
+                self.engine
+                    .act(
+                        Time::ZERO,
+                        Wall::EPOCH,
+                        engine::Change::Object {
+                            project,
+                            key: ObjectKey::Task(task.chip.task),
+                            value: ReadValue::Task(Box::new(task)),
+                        },
+                    )
+                    .expect("seed conversation fits");
+            }
+        }
+    }
     fn bind(&mut self, client: ClientId, party: u64) {
         self.parties.insert(client, party);
     }
@@ -292,6 +379,7 @@ impl Front<Test> for Scripted {
                 self.last_attempt = Some(attempt);
                 match ask {
                     Ask::Jig(ask) => {
+                        self.script_chat(party, &ask);
                         self.engine.send(now, wall, party, key, attempt, *ask).expect("jig send fits");
                     }
                     Ask::Family { scope, record } => {
