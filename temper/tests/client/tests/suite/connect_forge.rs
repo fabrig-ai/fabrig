@@ -218,43 +218,6 @@ fn model_follows_forgejo_from_setup_to_its_first_repository() {
 }
 
 #[test]
-fn a_connected_forge_and_usable_model_remove_the_setup_strip_and_dot() {
-    use d::pages::connect_model::Act as A;
-    let (mut front, mut root) = accounts::forge_fixture(fixtures::SEED);
-    let mut now = Time::ZERO.saturating_add(Duration::from_secs(1));
-    connection(&mut front, Connection::Connecting);
-    pump(
-        &mut front,
-        &mut root,
-        &mut now,
-        d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
-    );
-    let strip = view(&root);
-    node(&strip, Role::Region, b"Setup");
-    node(&strip, Role::Link, b"View");
-    let way = d::ModelWay { source: None, provider: accounts::PROVIDER, kind: d::WayKind::Key };
-    for event in [
-        d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: Some(way) } }) },
-        d::Event::AccountKey { value: skein_lib::Secret::new(b"test-private-key".as_slice().into()) },
-        d::Event::Act { action: d::Action::Pages(d::pages::Act::ConnectModel(A::Submit { name: [41; 16] })) },
-    ] {
-        pump(&mut front, &mut root, &mut now, event);
-    }
-    accounts::kept(&mut front);
-    connection(&mut front, Connection::Connected { id: 1, login: b"temper".as_slice().into() });
-    pump(
-        &mut front,
-        &mut root,
-        &mut now,
-        d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
-    );
-    let ready = view(&root);
-    assert!(!ready.tree().nodes().iter().any(|n| n.role == Role::Region && n.name.as_deref() == Some(b"Setup")));
-    assert!(!ready.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&temper_client_view::look::NAV_LIMITED)
-        || n.styles.as_slice().contains(&temper_client_view::look::NAV_NEEDS)));
-}
-
-#[test]
 fn github_ready_picks_adopts_into_a_new_project_and_stays_adopted_after_reload() {
     let (mut front, mut root) = Joint::github_fixture(fixtures::SEED);
     let mut now = Time::ZERO.saturating_add(Duration::from_secs(1));

@@ -35,6 +35,7 @@ pub enum Broken {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
+    Forges(super::forges::Act),
     Go { address: Address },
     Write { field: Text, text: Box<[u8]>, typed: Typed },
     Choose { role: Role },

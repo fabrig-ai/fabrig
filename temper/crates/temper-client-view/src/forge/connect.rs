@@ -53,7 +53,7 @@ pub(crate) fn link(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Wo
 }
 pub(crate) fn name(w: &Words, row: &Row, root: &Domain) -> Box<[u8]> {
     w.say(
-        match connect::name(row, root.forge().demo()) {
+        match connect::name(row, connect::playground(root.forge())) {
             Name::Here => Word::ForgeHere,
             Name::GitHub => Word::ForgeGitHub,
             Name::Forgejo => Word::ForgeOther,
@@ -63,7 +63,7 @@ pub(crate) fn name(w: &Words, row: &Row, root: &Domain) -> Box<[u8]> {
     )
 }
 pub(crate) fn personal(root: &Domain) -> Option<&Row> {
-    connect::personal(root.forges(), root.forge().demo())
+    connect::personal(root.forges(), connect::playground(root.forge()))
 }
 pub(crate) fn underway(row: &Row) -> bool {
     connect::underway(row)
@@ -81,10 +81,10 @@ pub(crate) fn main(
     b.style(look::MAIN);
     b.style(look::CONNECT_FORGE);
     text(b, w, Role::Heading { level: 1 }, Word::WelcomeForgeTitle);
-    let shown = connect::step(choice, root.forges(), root.forge().demo());
+    let shown = connect::step(choice, root.forges(), connect::playground(root.forge()));
     let connecting = match choice {
-        Some(Choice::Elsewhere) => true,
-        Some(Choice::Forge(number)) => match connect::row(number, root.forges(), root.forge().demo()) {
+        Some(Choice::GitHub | Choice::Owned | Choice::Managed | Choice::Elsewhere) => true,
+        Some(Choice::Forge(number)) => match connect::row(number, root.forges(), connect::playground(root.forge())) {
             Some(row) => row.kind == Kind::GitHub || row.mode != Mode::Owned,
             None => false,
         },
@@ -97,11 +97,11 @@ pub(crate) fn main(
     let current: usize = match shown {
         Shown::Choose => 0,
         Shown::Details(_) => 1,
-        Shown::SettingUp(_) => 2,
+        Shown::Unfinished(_) | Shown::SettingUp(_) => 2,
         Shown::Ready(_) => 3,
     };
     let github = match choice {
-        Some(Choice::Forge(number)) => match connect::row(number, root.forges(), root.forge().demo()) {
+        Some(Choice::Forge(number)) => match connect::row(number, root.forges(), connect::playground(root.forge())) {
             Some(row) => row.kind == Kind::GitHub,
             None => false,
         },
@@ -114,13 +114,13 @@ pub(crate) fn main(
     }
     match shown {
         Shown::Choose | Shown::Details(_) => body(b, root, w, bindings, forge, choice, Place::Connect),
-        Shown::SettingUp(number) => {
-            if let Some(row) = connect::row(number, root.forges(), root.forge().demo()) {
+        Shown::Unfinished(number) | Shown::SettingUp(number) => {
+            if let Some(row) = connect::row(number, root.forges(), connect::playground(root.forge())) {
                 setting_up(b, root, w, forge, row);
             }
         }
         Shown::Ready(number) => {
-            if let Some(row) = connect::row(number, root.forges(), root.forge().demo()) {
+            if let Some(row) = connect::row(number, root.forges(), connect::playground(root.forge())) {
                 ready_card(b, root, w, bindings, forge, row, sign_in);
             }
         }
@@ -137,8 +137,8 @@ pub(crate) fn body(
     place: Place,
 ) {
     let shown = match place {
-        Place::Connect => connect::step(choice, root.forges(), root.forge().demo()),
-        Place::Welcome => connect::welcome_step(choice, root.forges(), root.forge().demo()),
+        Place::Connect => connect::step(choice, root.forges(), connect::playground(root.forge())),
+        Place::Welcome => connect::welcome_step(choice, root.forges(), connect::playground(root.forge())),
     };
     match shown {
         Shown::Choose => choose(b, root, w, bindings, forge, place),
@@ -147,9 +147,9 @@ pub(crate) fn body(
                 link(b, w, bindings, Word::ForgeAll, place.address(None));
             }
             match choice {
-                Choice::Elsewhere => elsewhere(b, root, w),
+                Choice::GitHub | Choice::Owned | Choice::Managed | Choice::Elsewhere => elsewhere(b, root, w),
                 Choice::Forge(number) => {
-                    if let Some(row) = connect::row(number, root.forges(), root.forge().demo()) {
+                    if let Some(row) = connect::row(number, root.forges(), connect::playground(root.forge())) {
                         match row.kind {
                             Kind::GitHub => github(b, root, w, forge, row),
                             Kind::Forgejo if row.admin => admin_details(b, root, w, forge, row),
@@ -159,7 +159,7 @@ pub(crate) fn body(
                 }
             }
         }
-        Shown::SettingUp(_) | Shown::Ready(_) => {}
+        Shown::Unfinished(_) | Shown::SettingUp(_) | Shown::Ready(_) => {}
     }
 }
 /// The welcome keeps GitHub's installation and Ready steps in its own flow.
@@ -174,10 +174,10 @@ pub(crate) fn welcome(
 ) {
     if let Some(row) = personal(root) {
         if row.admin {
-            match connect::step(Some(Choice::Forge(row.number)), root.forges(), root.forge().demo()) {
+            match connect::step(Some(Choice::Forge(row.number)), root.forges(), connect::playground(root.forge())) {
                 Shown::Details(_) => admin_details(b, root, w, forge, row),
                 Shown::Ready(_) => ready_card(b, root, w, bindings, forge, row, sign_in),
-                Shown::SettingUp(_) => setting_up(b, root, w, forge, row),
+                Shown::Unfinished(_) | Shown::SettingUp(_) => setting_up(b, root, w, forge, row),
                 Shown::Choose => {}
             }
         } else if row.kind == Kind::GitHub
@@ -203,9 +203,14 @@ pub(crate) fn welcome(
 fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings, place: Place) {
     b.open(Role::Slot);
     b.style(look::FLOW_CHOICES);
-    for choice in &connect::choices(root.forges(), root.forge().demo()) {
+    for kind in &connect::choices(root.forges(), connect::playground(root.forge()), false) {
+        let choice = &match kind {
+            connect::Choice::GitHub => Choice::GitHub,
+            connect::Choice::Owned => Choice::Owned,
+            connect::Choice::Managed => Choice::Managed,
+        };
         if let Choice::Forge(number) = *choice
-            && let Some(row) = connect::row(number, root.forges(), root.forge().demo())
+            && let Some(row) = connect::row(number, root.forges(), connect::playground(root.forge()))
             && row.admin
         {
             // The welcome draws its mockup's two choices; a configured admin
@@ -226,6 +231,7 @@ fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
             continue;
         }
         let (heading, words, note, action) = match *choice {
+            Choice::GitHub | Choice::Owned | Choice::Managed => continue, // t-view-frame
             Choice::Elsewhere => {
                 // Its address still opens Details on either flow (client/forge.md, 5.4).
                 if let Place::Welcome = place {
@@ -234,7 +240,9 @@ fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
                 (Word::ForgeElsewhere, Word::ForgeElsewhereDescription, Word::ForgeElsewhereTime, Word::ForgeShowHow)
             }
             Choice::Forge(number) => {
-                let Some(row) = connect::row(number, root.forges(), root.forge().demo()) else { continue };
+                let Some(row) = connect::row(number, root.forges(), connect::playground(root.forge())) else {
+                    continue;
+                };
                 match row.kind {
                     Kind::GitHub => {
                         (Word::ForgeGitHub, Word::ForgeGitHubDescription, Word::ForgeGitHubTime, Word::ForgeChoose)
@@ -251,7 +259,7 @@ fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
         if heading == Word::ForgeHere
             && let Place::Welcome = place
             && let Choice::Forge(number) = *choice
-            && let Some(row) = connect::row(number, root.forges(), root.forge().demo())
+            && let Some(row) = connect::row(number, root.forges(), connect::playground(root.forge()))
         {
             welcome_forgejo(b, root, w, bindings, forge, row);
             continue;
@@ -534,7 +542,7 @@ fn setup_disabled(root: &Domain) -> bool {
 }
 fn setup_refusal(b: &mut Builder, root: &Domain, w: &Words, number: u16) {
     if let Some(last) = root.forge().set_up()
-        && last.forge == number
+        && last.forge == Some(number)
         && let Some(answer) = &last.answer
     {
         match answer {
@@ -553,7 +561,7 @@ fn setup_refusal(b: &mut Builder, root: &Domain, w: &Words, number: u16) {
 fn full_setup(b: &mut Builder, root: Option<&Domain>, w: &Words, row: &Row) -> bool {
     let Some(root) = root else { return false };
     let Some(setup) = root.forge().set_up() else { return false };
-    if setup.forge != row.number {
+    if setup.forge != Some(row.number) {
         return false;
     }
     let mut request = setup.request;
@@ -677,7 +685,7 @@ fn stage_mark(current: Option<usize>, failed: Option<usize>, index: usize) -> Ma
 }
 fn setup_target<'a>(root: &'a Domain, row: &Row) -> Option<(&'a [u8], &'a [u8], &'a SetUpProject)> {
     match root.forge().set_up() {
-        Some(last) if last.forge == row.number => Some((&last.org, &last.repository, &last.project)),
+        Some(last) if last.forge == Some(row.number) => Some((&last.org, &last.repository, &last.project)),
         Some(_) | None => None,
     }
 }
@@ -757,7 +765,7 @@ pub(crate) fn ready_card(
         flow::subtitle(b, &w.say(Word::SetupIn, &[Hole::Name(project.clone()), Hole::Name(name(w, row, root))]));
         progress_in(b, Some(root), w, row);
         let pending = match root.forge().set_up() {
-            Some(last) if last.forge == row.number => match &last.adoption {
+            Some(last) if last.forge == Some(row.number) => match &last.adoption {
                 Some(adoption) => adoption.outcome.is_none(),
                 None => true,
             },
@@ -768,7 +776,7 @@ pub(crate) fn ready_card(
             flow::control(b, Control::PrimaryDisabled { name: &open });
         } else {
             let project = match root.forge().set_up() {
-                Some(last) if last.forge == row.number => match &last.adoption {
+                Some(last) if last.forge == Some(row.number) => match &last.adoption {
                     Some(adoption) => match &adoption.outcome {
                         Some(forge::Answer::Adopted(_)) => Some(adoption.value.project),
                         Some(
@@ -846,7 +854,7 @@ pub(crate) fn adopted_project(root: &Domain, row: &Row) -> Option<u32> {
         }
     }
     if let Some(last) = root.forge().set_up()
-        && last.forge == row.number
+        && last.forge == Some(row.number)
         && let Some(adoption) = &last.adoption
         && let Some(forge::Answer::Adopted(_)) = &adoption.outcome
     {
@@ -861,7 +869,7 @@ pub(crate) fn setup_ending(b: &mut Builder, root: &Domain, w: &Words, forge: &mu
     }
     if let Some(first) = &row.first {
         if let Some(last) = root.forge().set_up()
-            && last.forge == row.number
+            && last.forge == Some(row.number)
             && let Some(starting) = &last.starting
             && let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(
                 jig_client::contract::Answer::Refused { refusal, .. },
@@ -875,7 +883,7 @@ pub(crate) fn setup_ending(b: &mut Builder, root: &Domain, w: &Words, forge: &mu
             flow::control(b, Control::PrimaryButton { name: &label, to: forge.insert(Meaning::StartIn(row.number)) });
         }
         if let Some(last) = root.forge().set_up()
-            && last.forge == row.number
+            && last.forge == Some(row.number)
             && let Some(adoption) = &last.adoption
             && let Some(answer) = &adoption.outcome
         {
@@ -923,7 +931,7 @@ pub(crate) fn welcome_target<'a>(root: &'a Domain, row: &'a Row) -> Option<(&'a 
         return Some((&first.org, &first.repository, first.project.clone()));
     }
     let last = root.forge().set_up()?;
-    if last.forge == row.number { Some((&last.org, &last.repository, last.project.clone())) } else { None }
+    if last.forge == Some(row.number) { Some((&last.org, &last.repository, last.project.clone())) } else { None }
 }
 /// The welcome's Model step says what Forge did (client/README.md, 3.5).
 pub(crate) fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
@@ -1019,7 +1027,7 @@ fn setup_field(
 ) {
     let draft = root.forge().setup_form();
     let invalid = match root.forge().set_up() {
-        Some(last) if last.forge == number => {
+        Some(last) if last.forge == Some(number) => {
             last.answer == Some(SetUpAnswer::Outcome(SetUpOutcome::Refused(forge::forges::SetUpRefusal::Invalid)))
         }
         Some(_) | None => false,
@@ -1072,7 +1080,7 @@ pub(crate) fn first_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
     let (org, repository, project) = match &row.first {
         Some(first) => (&first.org, &first.repository, &first.project),
         None => match root.forge().set_up() {
-            Some(last) if last.forge == row.number => (&last.org, &last.repository, &last.project),
+            Some(last) if last.forge == Some(row.number) => (&last.org, &last.repository, &last.project),
             Some(_) | None => return,
         },
     };
