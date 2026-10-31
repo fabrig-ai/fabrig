@@ -7,7 +7,7 @@ use alloc::boxed::Box;
 use skein_fake_llm_domain::api;
 use skein_http::sse::writer::Outgoing;
 use skein_json::{Document, Kind};
-use skein_lib::{Decimal, List, Writer, bytes};
+use skein_lib::{Decimal, List, Writer, bytes, hex};
 use skein_llm::anthropic;
 use skein_llm::openai;
 
@@ -654,20 +654,13 @@ pub(crate) fn parse_uuid(value: &[u8]) -> Option<[u8; 16]> {
             }
             at = at.checked_add(1)?;
         }
-        let high = nibble(*value.get(at)?)?;
+        let high = hex::lower_value(*value.get(at)?)?;
         at = at.checked_add(1)?;
-        let low = nibble(*value.get(at)?)?;
+        let low = hex::lower_value(*value.get(at)?)?;
         at = at.checked_add(1)?;
         *result.get_mut(index).expect("fixed UUID width") = (high << 4_u32) | low;
     }
     Some(result)
-}
-fn nibble(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => byte.checked_sub(b'0'),
-        b'a'..=b'f' => byte.checked_sub(b'a')?.checked_add(10),
-        _ => None,
-    }
 }
 
 #[cfg(test)]

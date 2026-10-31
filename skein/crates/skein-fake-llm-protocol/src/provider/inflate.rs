@@ -342,6 +342,7 @@ fn crc(body: &[u8]) -> u32 {
 mod tests {
     use super::*;
     use alloc::vec::Vec;
+    use skein_lib::hex;
 
     /// `body` through the client's encoder, as the Codex route sends it.
     fn encoded(body: &[u8]) -> Vec<u8> {
@@ -357,7 +358,14 @@ mod tests {
     }
 
     fn hex(text: &str) -> Vec<u8> {
-        (0..text.len()).step_by(2).map(|at| u8::from_str_radix(&text[at..at + 2], 16).expect("hex")).collect()
+        (0..text.len())
+            .step_by(2)
+            .map(|at| {
+                let high = hex::value(text.as_bytes()[at]).expect("hex");
+                let low = hex::value(text.as_bytes()[at + 1]).expect("hex");
+                (high << 4) | low
+            })
+            .collect()
     }
 
     #[test]

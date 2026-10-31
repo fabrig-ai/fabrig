@@ -520,16 +520,8 @@ pub fn close(
         call.active = false;
         service.calls.retire(id);
     }
-    for _slot in 0..server.events.len() {
-        if server.events.pop().is_none() {
-            break;
-        }
-    }
-    for _slot in 0..server.requests.len() {
-        if server.requests.pop().is_none() {
-            break;
-        }
-    }
+    server.events.clear();
+    server.requests.clear();
     server.answer = None;
     server.pieces.clear();
     server.reply = None;
@@ -538,11 +530,7 @@ pub fn close(
         writer_down(server, env, sse::Request::Close);
         server.writer_closed = true;
     }
-    for _slot in 0..server.requests.len() {
-        if server.requests.pop().is_none() {
-            break;
-        }
-    }
+    server.requests.clear();
     http_down(server, env, http::Request::Close, below);
     server.state = State::Closing;
     above.push(Event::Close);
@@ -717,11 +705,7 @@ fn reset_writer(server: &mut Server, env: &Env<Limits>) {
     if !server.writer_closed {
         sse::down(&mut server.writer, &child, sse::Request::Close, &mut server.writer_events, &mut down);
     }
-    for _slot in 0..server.writer_events.len() {
-        if server.writer_events.pop().is_none() {
-            break;
-        }
-    }
+    server.writer_events.clear();
     server.writer = sse::Writer::new(&env.limits.sse);
     server.writer_closed = false;
 }
