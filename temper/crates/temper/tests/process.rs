@@ -1225,7 +1225,7 @@ fn temper_box_prints_its_link_and_stops_its_processes() {
     let owned = boxed_example(&scratch);
     let forgejo = owned.forgejo;
     let ended = support::boxed::run_echo_steps(scratch.path(), Some(forgejo), support::boxed::Plan::Stop, BOX_DEADLINE);
-    assert_box_streams(&ended);
+    assert_box_streams(&ended, forgejo);
     assert_eq!(ended.forgejo_at_link, Some(200), "Forgejo answered its version when the link came");
     assert_eq!(ended.exit, Some(Exit::Code(0)), "stopped as asked: {}", String::from_utf8_lossy(&ended.stderr));
     assert_eq!(ended.left, Some(Vec::new()), "no process the box started outlived it");
@@ -1237,25 +1237,33 @@ fn boxed_example(scratch: &support::Scratch) -> support::owned::Owned {
     support::owned::lay(scratch.path(), &owned);
     std::fs::write(scratch.path().join("temper.json"), support::owned::example_document(scratch.path(), &owned))
         .expect("box example");
+    // A retained group starts only with its started record (temper/docs/design/draft/playground-reset.md, 3).
+    for directory in ["box/groups", "box/started"] {
+        std::fs::create_dir_all(scratch.path().join(directory)).expect("box group directory");
+    }
+    support::write_private(&scratch.path().join("box/groups/1"), b"owned\n");
+    support::write_private(&scratch.path().join("box/started/1"), b"");
     owned
 }
-fn assert_box_streams(ended: &support::boxed::Outcome) {
+fn assert_box_streams(ended: &support::boxed::Outcome, forgejo: std::net::SocketAddr) {
     let link = support::printed_link(&ended.stdout).unwrap_or_else(|| {
         panic!("the box's stdout carries the link: {}", String::from_utf8_lossy(&ended.stderr));
     });
     assert!(skein_lib::bytes::find(link, b"/jig/v1/sign-in/link?secret=").is_some(), "the sign-in link");
     let alone = |line: &[u8]| line.is_empty() || line.starts_with(b"http://127.0.0.1:");
     assert!(ended.stdout.split(|byte| *byte == b'\n').all(alone), "stdout holds links alone");
-    let steps = ["prepare 1: ", "forgejo 1: ", "runner 1: ", "serve: "];
+    let steps = ["prepare-1: ", "forgejo-1: ", "runner-1: ", "serve: "];
+    let api = format!("Forgejo: api http://{forgejo}/api/v1");
+    let notices = ["Forgejo: started", api.as_str(), "Forgejo: person ada"];
     let stderr = std::str::from_utf8(&ended.stderr).expect("box diagnostics");
     assert!(
         stderr.lines().all(|line| {
             steps.iter().any(|step| line.starts_with(step))
-                || box_terminal_line(line, &["prepare 1", "forgejo 1", "runner 1", "serve"], &[])
+                || box_terminal_line(line, &["prepare-1", "forgejo-1", "runner-1", "serve"], &notices)
         }),
         "each stderr line names its step or carries prescribed box words: {stderr}"
     );
-    assert!(stderr.lines().any(|line| line.starts_with("runner 1: ")), "the runner's lines arrive prefixed");
+    assert!(stderr.lines().any(|line| line.starts_with("runner-1: ")), "the runner's lines arrive prefixed");
 }
 
 // Only a valid UTC time-of-day prefix can precede the existing box notices.
