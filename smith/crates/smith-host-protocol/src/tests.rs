@@ -10,25 +10,7 @@ fn a_start_keeps_host_bytes_and_service_values_in_order() {
     use skein_lib::{Duration, Reader, Token};
     use smith_host_domain::channel;
 
-    let limits = Limits {
-        bodies: smith_channel::CEILINGS,
-        charter: smith_charter::CEILINGS,
-        transcript: smith_transcript::CEILINGS,
-        endpoints: 1,
-        calls: 8,
-        start_bytes: u32::try_from(
-            smith_channel::v5::Start::encoded_bound(&smith_channel::CEILINGS).expect("Start ceiling"),
-        )
-        .expect("Start frame range"),
-        channel: skein_channel::Limits {
-            chunk: 8,
-            credential: 0,
-            skip: 8,
-            output_bytes: u32::MAX,
-            output_frames: 2,
-            kinds: 20,
-        },
-    };
+    let limits = process_limits();
     let start = channel::Start {
         live: None,
         messages: Box::default(),
@@ -102,25 +84,7 @@ fn a_start_keeps_host_bytes_and_service_values_in_order() {
 
 #[test]
 fn the_host_sends_open_before_the_domain_hears_anything() {
-    let limits = Limits {
-        bodies: smith_channel::CEILINGS,
-        charter: smith_charter::CEILINGS,
-        transcript: smith_transcript::CEILINGS,
-        endpoints: 1,
-        calls: 8,
-        start_bytes: u32::try_from(
-            smith_channel::v5::Start::encoded_bound(&smith_channel::CEILINGS).expect("Start ceiling"),
-        )
-        .expect("Start frame range"),
-        channel: skein_channel::Limits {
-            chunk: 8,
-            credential: 0,
-            skip: 8,
-            output_bytes: u32::MAX,
-            output_frames: 2,
-            kinds: 20,
-        },
-    };
+    let limits = process_limits();
     let mut component = Component::new(&limits, StreamMode::Two, endpoints()).expect("checked schema");
     let mut to_service = Queue::<OpenEvent>::with_capacity(2);
     let mut below = Queue::<Lower>::with_capacity(8);
@@ -137,25 +101,7 @@ fn the_host_sends_open_before_the_domain_hears_anything() {
 }
 
 pub(super) fn process_limits() -> Limits {
-    Limits {
-        bodies: smith_channel::CEILINGS,
-        charter: smith_charter::CEILINGS,
-        transcript: smith_transcript::CEILINGS,
-        endpoints: 1,
-        calls: 8,
-        start_bytes: u32::try_from(
-            smith_channel::v5::Start::encoded_bound(&smith_channel::CEILINGS).expect("Start ceiling"),
-        )
-        .expect("Start frame range"),
-        channel: skein_channel::Limits {
-            chunk: 8,
-            credential: 0,
-            skip: 8,
-            output_bytes: u32::MAX,
-            output_frames: 2,
-            kinds: 20,
-        },
-    }
+    crate::fixture::small()
 }
 
 pub(super) fn launch() -> crate::Launch {

@@ -17,37 +17,26 @@ fn an_unread_charter_version_is_a_distinct_agent_refusal() {
 
 fn limits() -> crate::Limits {
     crate::Limits {
-        agents: 1,
         directories: 0,
         conflicts: 0,
         path_bytes: 0,
-        name_bytes: 64,
         accounts: 0,
         charter_bytes: 64,
         transcript_bytes: 64,
         answered_bytes: 64,
-        message_bytes: 64,
         messages: 1,
         calls: 1,
         call_bytes: 64,
-        answer_bytes: crate::Delivered::owned_bound(),
         turns: 1,
         turn_bytes: 64,
         unacknowledged_bytes: 64,
-        fact_bytes: 64,
         outcome_bytes: 64,
         detail_bytes: 64,
         spawn_timeout: Duration::from_secs(1),
-        no_progress: Duration::from_secs(10),
-        silence: Duration::ZERO,
         long_span: Duration::from_secs(60),
-        long_open: 64,
         wall_time: Duration::from_secs(100),
-        cancel_grace: Duration::from_secs(5),
-        exit_grace: Duration::from_secs(5),
-        teardown: Duration::ZERO,
-        kill_after: Duration::from_secs(2),
         facts: 4,
+        ..crate::fixture::small()
     }
 }
 

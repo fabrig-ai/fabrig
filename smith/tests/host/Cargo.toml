@@ -10,7 +10,7 @@ publish.workspace = true
 [dependencies]
 skein-lib.workspace = true
 skein-world.workspace = true
-smith-host-domain.workspace = true
+smith-host-domain = { workspace = true, features = ["fixture"] }
 smith-domain.workspace = true
 smith-inline-agent.workspace = true
 smith-agent-world.workspace = true

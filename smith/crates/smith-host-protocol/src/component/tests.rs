@@ -12,10 +12,9 @@ fn mismatched_values() -> [GrantValue; 2] {
     [GrantValue::Key(Box::from(b"key".as_slice())), GrantValue::Program(Box::from(b"claude-code".as_slice()))]
 }
 
-fn channel(phase: Phase) -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
+fn channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
     let limits = crate::tests::process_limits();
-    let mut component = Component::new(&limits, StreamMode::Two, crate::tests::endpoints()).expect("channel limits");
-    component.phase = phase;
+    let component = Component::new(&limits, StreamMode::Two, crate::tests::endpoints()).expect("channel limits");
     (component, Queue::with_capacity(limits.channel.output_frames), Queue::with_capacity(limits.channel.kinds))
 }
 
@@ -28,8 +27,8 @@ const REUSED_CALL: Token = Token::new(2);
 const REPLY: Token = Token::new(11);
 const CANCEL: Token = Token::new(12);
 
-fn admitted_channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
-    let (mut component, mut above, mut below) = channel(Phase::Opening);
+fn opened_channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
+    let (mut component, mut above, mut below) = channel();
     let limits = crate::tests::process_limits();
     let mut entries = List::with_capacity(limits.channel.kinds);
     for kind in &component.schema.version(VERSION).expect("channel version").kinds {
@@ -68,7 +67,37 @@ fn admitted_channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
             }
         }
     }
-    component.phase = Phase::Admitted;
+    while above.pop().is_some() {}
+    (component, above, below)
+}
+
+pub(super) fn admitted_channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
+    let (mut component, mut above, mut below) = opened_channel();
+    let mut start = smith_host_world::start();
+    start.grants = Box::default();
+    start.transcript = None;
+    component
+        .send_start(
+            start,
+            smith_host_domain::Window { turns: 1, bytes: 4096 },
+            Values { paths: Box::default(), credentials: Box::default() },
+            Token::new(1),
+            &mut above,
+            &mut below,
+        )
+        .expect("start");
+    while let Some(request) = below.pop() {
+        match request {
+            Lower::Write(stream::OutputDown::Room { right, .. }) => component.from_below(
+                LowerEvent::Write(stream::OutputUp::Settled { right, outcome: stream::OutputOutcome::Granted }),
+                &mut above,
+                &mut below,
+            ),
+            Lower::Write(stream::OutputDown::Send { .. }) => component.fire(&mut above, &mut below),
+            other => panic!("unexpected start operation: {other:?}"),
+        }
+    }
+    receive(&mut component, 0x0106, Box::default(), &mut above, &mut below);
     while above.pop().is_some() {}
     (component, above, below)
 }
@@ -290,7 +319,7 @@ fn a_program_value_without_a_source_name_has_no_form() {
 
 #[test]
 fn a_start_whose_value_disagrees_with_its_grant_is_refused() {
-    let (mut component, mut to_service, mut below) = channel(Phase::Opened);
+    let (mut component, mut to_service, mut below) = opened_channel();
     for value in mismatched_values() {
         let mut start = smith_host_world::start();
         start.grants[0].form = Form::Credential(Scheme::Bearer);
@@ -311,7 +340,7 @@ fn a_start_whose_value_disagrees_with_its_grant_is_refused() {
 
 #[test]
 fn a_refresh_whose_value_disagrees_with_its_grant_is_refused() {
-    let (mut component, mut to_service, mut below) = channel(Phase::Admitted);
+    let (mut component, mut to_service, mut below) = admitted_channel();
     for value in mismatched_values() {
         let grant = smith_host_domain::Grant {
             account: 1,

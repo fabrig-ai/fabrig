@@ -712,37 +712,13 @@ fn hex(nibble: u8) -> u8 {
 
 #[cfg(test)]
 mod tests {
-    use super::{Component, Event, OpenEvent, Phase};
+    use super::{Component, Event, OpenEvent};
     use alloc::boxed::Box;
-    use skein_channel::{Lower, LowerEvent, StreamMode};
+    use skein_channel::{Lower, LowerEvent};
     use skein_lib::{Queue, Writer, stream};
 
     fn component() -> Component {
-        let mut names = skein_lib::List::with_capacity(1);
-        names.push(smith_protocol_channel::Endpoint { name: Box::new([]), number: 0, dialect: 0 }).expect("endpoint");
-        let limits = crate::Limits {
-            bodies: smith_channel::CEILINGS,
-            charter: smith_charter::CEILINGS,
-            transcript: smith_transcript::CEILINGS,
-            endpoints: 1,
-            calls: 1,
-            start_bytes: u32::try_from(
-                smith_channel::v5::Start::encoded_bound(&smith_channel::CEILINGS).expect("Start ceiling"),
-            )
-            .expect("Start frame range"),
-            channel: skein_channel::Limits {
-                chunk: 8,
-                credential: 0,
-                skip: 8,
-                output_bytes: u32::MAX,
-                output_frames: 2,
-                kinds: 20,
-            },
-        };
-        let mut component =
-            Component::new(&limits, StreamMode::Two, smith_protocol_channel::Endpoints::new(names)).expect("component");
-        component.phase = Phase::Admitted;
-        component.reading = true;
+        let (component, _above, _below) = super::grant_tests::admitted_channel();
         component
     }
 
@@ -783,6 +759,8 @@ mod tests {
             let mut component = component();
             let mut above = Queue::with_capacity(8);
             let mut below = Queue::with_capacity(16);
+            component.read(&mut above, &mut below);
+            while below.pop().is_some() {}
             component.events.push(Event::Body { kind, body });
             component.drain(&mut above, &mut below);
             component.fire(&mut above, &mut below);
@@ -807,7 +785,6 @@ mod tests {
     #[test]
     fn a_closed_reason_waits_for_one_read_without_being_overwritten() {
         let mut component = component();
-        component.reading = false;
         let mut above = Queue::with_capacity(8);
         let mut below = Queue::with_capacity(16);
         component.events.push(Event::Closed { why: skein_channel::Closed::Truncated });
@@ -833,13 +810,14 @@ mod tests {
             .expect("turn codec");
         let mut above = Queue::with_capacity(8);
         let mut below = Queue::with_capacity(16);
+        component.read(&mut above, &mut below);
         component.events.push(Event::Body { kind: 0x0109, body: turn_body(bytes) });
         component.drain(&mut above, &mut below);
         let Some(OpenEvent::Turn { turn }) = above.pop() else { panic!("typed turn") };
         assert_eq!(turn.body.into_value(), source);
         let source = smith_host_world::declared_value(32).into_value();
         let bytes = smith_protocol_channel::encode_result(&source, &component.charter).expect("result codec");
-        component.reading = true;
+        component.read(&mut above, &mut below);
         component.events.push(Event::Body { kind: 0x0110, body: accepted_body(bytes) });
         component.drain(&mut above, &mut below);
         let Some(OpenEvent::Answer { answer, .. }) = above.pop() else { panic!("typed result") };
