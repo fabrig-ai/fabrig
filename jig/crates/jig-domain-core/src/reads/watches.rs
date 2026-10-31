@@ -8,7 +8,7 @@ use skein_lib::{Env, Id, Queue, Token};
 
 pub(crate) fn start_watch(core: &mut Core, env: &Env<Limits>, watcher: Token) -> Queue<Request> {
     let task = crate::routing::view_routes::retained_task(core, watcher).expect("task construction");
-    let binding = core.view_subjects.get(&watcher).expect("bound construction");
+    let binding = core.watch_binding(watcher).expect("bound construction");
     let range = Range {
         party: binding.party,
         scope: Scope::Task { task },
@@ -66,7 +66,7 @@ fn from_store(
             return Err(views::End::Gone);
         }
     };
-    let Some(binding) = core.view_subjects.get(&watcher) else { return Err(views::End::Gone) };
+    let Some(binding) = core.watch_binding(watcher) else { return Err(views::End::Gone) };
     let subject = &core.view_names.get(binding.subject).expect("bound task subject").subject;
     // Validate the same row, byte, identity and visibility bounds as an ordinary task read.
     match subject {

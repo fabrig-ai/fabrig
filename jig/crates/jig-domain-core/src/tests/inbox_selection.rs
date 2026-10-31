@@ -356,18 +356,17 @@ fn mark_chat_seen(core: &mut Core, limits: &Limits, records: &[Record], seen: pe
         limits,
         Event::SeenConversationLoaded { request, row: Some(Box::new(chat_owner(records).clone())), busy: false },
     );
-    let mut joined = false;
+    let mut joined = None;
     for output in &loaded {
         if let Request::Held(held) = output
             && let Held::Load(load) = held.as_ref()
             && let Now::LoadEndedRead { request: wanted, task: CHAT, party: CHAT_PARTY } = load.as_ref()
-            && *wanted == request
         {
-            joined = true;
+            joined = Some(*wanted);
             break;
         }
     }
-    assert!(joined, "the owner join requests the matching ended position");
+    let request = joined.expect("the owner join requests the matching ended position");
     watch_outputs(
         core,
         limits,
@@ -455,17 +454,17 @@ fn overlapping_seen_stays_busy_during_header_and_position_loads() {
         &limits,
         Event::SeenConversationLoaded { request, row: Some(Box::new(row)), busy: false },
     );
-    let mut loading = false;
+    let mut loading = None;
     for output in &outputs {
         if let Request::Held(held) = output
             && let Held::Load(load) = held.as_ref()
             && let Now::LoadEndedRead { request: wanted, task: CHAT, party: CHAT_PARTY } = load.as_ref()
         {
-            assert_eq!(*wanted, request);
-            loading = true;
+            assert_ne!(*wanted, request);
+            loading = Some(*wanted);
         }
     }
-    assert!(loading);
+    let request = loading.expect("ended position load");
     let outputs = start_chat_mark(&mut core, &limits, seen, 2);
     assert_mark_without_writes(&outputs, people::Reply::Again(people::Again::Busy));
     let outputs = watch_outputs(

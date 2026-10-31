@@ -15,9 +15,9 @@ pub(crate) struct Loaded {
 
 pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, answer: Answer) -> Queue<Request> {
     let Answer { request, task, party, through, busy } = answer;
-    let Some(mark) = core.ended_marks.remove(&request) else { return Queue::uncapped() };
+    let Some((request, mark)) = core.take_ended_mark(request) else { return Queue::uncapped() };
     let Some((person, people::Seen::Conversation { task: number, through: wanted })) =
-        core.people.seen_context(request)
+        core.people.seen_context(core.people_request(request).expect("party route"))
     else {
         return Queue::uncapped();
     };
@@ -29,6 +29,9 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>,
         })));
         return Queue::uncapped();
     }
+    let Some(crate::flight::Flight::Party { request }) = core.land_kind(request, crate::flight::Kind::Party) else {
+        return Queue::uncapped();
+    };
     let mut child = Queue::uncapped();
     core.people.mark_ended(
         &env.with(env.limits.people),

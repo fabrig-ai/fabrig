@@ -70,7 +70,7 @@ pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Work>, mut child: Queu
             notes::Request::Load { owner, range } => {
                 out.push(Request::Held(Box::new(Held::NotesLoad { owner, range })));
             }
-            notes::Request::Written { owner, name, revision } => match core.note_routes.remove(&owner) {
+            notes::Request::Written { owner, name, revision } => match core.take_note(owner) {
                 Some(NoteRoute::Call { to, key }) => {
                     call_decision(core, &mut out, to, key, CallPart::NoteWritten { name, revision });
                 }
@@ -79,33 +79,36 @@ pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Work>, mut child: Queu
                     outcome: people::Outcome::NoteEdited { name },
                 }))),
                 Some(NoteRoute::Brief { .. }) => unreachable!("an index cannot write an entry"),
-                None => unreachable!("a note write has a waiting caller"),
+                None => {}
             },
-            notes::Request::Deleted { owner, name } => match core.note_routes.remove(&owner) {
+            notes::Request::Deleted { owner, name } => match core.take_note(owner) {
                 Some(NoteRoute::Person { request }) => work.push(Work::Event(Event::People(people::Event::Decided {
                     request,
                     outcome: people::Outcome::NoteEdited { name },
                 }))),
-                Some(NoteRoute::Call { .. } | NoteRoute::Brief { .. }) | None => {
+                Some(NoteRoute::Call { .. } | NoteRoute::Brief { .. }) => {
                     unreachable!("only a party deletes a note")
                 }
+                None => {}
             },
-            notes::Request::Recalled { owner, entries, more } => match core.note_routes.remove(&owner) {
+            notes::Request::Recalled { owner, entries, more } => match core.take_note(owner) {
                 Some(NoteRoute::Call { to, key }) => {
                     let part = recalled_part(core, key.task, entries, more);
                     call_decision(core, &mut out, to, key, part);
                 }
-                Some(NoteRoute::Person { .. } | NoteRoute::Brief { .. }) | None => {
+                Some(NoteRoute::Person { .. } | NoteRoute::Brief { .. }) => {
                     unreachable!("a run owns this recall")
                 }
+                None => {}
             },
-            notes::Request::Indexed { owner, lines, more } => match core.note_routes.remove(&owner) {
+            notes::Request::Indexed { owner, lines, more } => match core.take_note(owner) {
                 Some(NoteRoute::Brief { task }) => work.push(Work::BriefNotes { task, lines, more }),
-                Some(NoteRoute::Call { .. } | NoteRoute::Person { .. }) | None => {
+                Some(NoteRoute::Call { .. } | NoteRoute::Person { .. }) => {
                     unreachable!("brief preparation owns note index")
                 }
+                None => {}
             },
-            notes::Request::Refused { owner, why } => match core.note_routes.remove(&owner) {
+            notes::Request::Refused { owner, why } => match core.take_note(owner) {
                 Some(NoteRoute::Call { to, key }) => match why {
                     notes::Refusal::Busy => {
                         let _pending = core.pending_calls.remove(&key);

@@ -233,7 +233,7 @@ fn kept_effect(
     right: u64,
 ) -> core::CallPart {
     use skein_lib::{ReplyTo, Token, Wall};
-    let owner = Token::new(right.checked_add(1000).expect("fixture owner"));
+    let owner = domain.effect_owner();
     let started = effect_outputs(
         domain,
         limits,
@@ -388,12 +388,13 @@ fn a_duplicate_keeps_its_exact_deadline_and_latest_right_while_made_removes_only
     let second_key = core::CallKey { completion: 2, ..first_key };
     let first = kept_effect(&mut domain, &limits, first_key, Wall::from_nanos(20), 311);
     let second = kept_effect(&mut domain, &limits, second_key, Wall::from_nanos(10), 312);
+    let duplicate_owner = domain.effect_owner();
     let duplicate = effect_outputs(
         &mut domain,
         &limits,
         Wall::EPOCH,
         core::Event::EffectStart {
-            owner: Token::new(1313),
+            owner: duplicate_owner,
             connector: 1,
             origin: core::EffectOrigin::Call {
                 to: ReplyTo::new(Token::new(313)),

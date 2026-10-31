@@ -69,7 +69,7 @@ fn an_ended_root_or_child_has_its_retained_tree_then_one_ending() {
         assert!(core.tasks.task(RETAINED).is_none(), "retained facts never become live");
         let out = watch_outputs(&mut core, &limits, Event::Delivered { watcher: WATCHER });
         assert_one_watch_ending(&out, views::End::Gone);
-        assert!(core.view_subjects.is_empty());
+        assert!((core.watch_flights() == 0));
         assert!(watch_outputs(&mut core, &limits, Event::Delivered { watcher: WATCHER }).is_empty());
         let late = watch_outputs(&mut core, &limits, Event::ReadLoaded { load, result: reads::Loaded::Gone });
         assert!(late.is_empty(), "no duplicate terminal");
