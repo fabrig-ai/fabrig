@@ -348,7 +348,8 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         // worlds name at start (D10).
         identities: Box::new([temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }]),
         forge_charter: 1,
-        forges: Box::new([]),
+        machine: None,
+        forges: configured_forges(),
         under_box: false,
         demo: None,
     }
@@ -596,4 +597,19 @@ pub fn check_switch(root: &mut engine::Domain, env: &Env<engine::Limits>) {
         jig_domain_core::Event::Tasks(tasks::Event::Check),
     );
     assert!(root.core.restart_checked(), "fixture children checked before switch");
+}
+
+fn configured_forges() -> Box<[forge::Configured]> {
+    Box::new([forge::Configured {
+        number: 1,
+        kind: forge::Kind::Forgejo,
+        mode: forge::Mode::Connected,
+        admin_connect: false,
+        bot: Box::new([]),
+        owned: None,
+        git: Box::new([]),
+        web: None,
+        read_only: false,
+        asked: false,
+    }])
 }

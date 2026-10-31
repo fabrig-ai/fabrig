@@ -14,6 +14,7 @@ fn name(number: u32) -> Name {
 fn row(kind: RecordKind, number: u32) -> Stored {
     let n = u64::from(number);
     match kind {
+        RecordKind::Forge => Stored::Forge(records::record(u16::try_from(number).expect("fixture forge"))),
         RecordKind::Landing => Stored::Landing(LandingRow {
             landing: policy::Landing {
                 task: n,
@@ -114,7 +115,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             effects_settled: true,
             releasing: true,
         }),
-        RecordKind::Forge | RecordKind::Client | RecordKind::Demo => panic!("no own table"),
+        RecordKind::Client | RecordKind::Demo => panic!("no own table"),
     }
 }
 fn application(token: u64, until: Wall) -> Stored {

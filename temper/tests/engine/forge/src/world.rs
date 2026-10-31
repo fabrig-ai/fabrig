@@ -296,7 +296,18 @@ impl World {
             seed,
             skein_forge_client::Config { namespace: Box::from(&b"world"[..]), writers: writer.into_iter().collect() },
             &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
-            &[],
+            &[top::Configured {
+                number: REPO.forge,
+                kind: top::Kind::Forgejo,
+                mode: top::Mode::Connected,
+                admin_connect: false,
+                bot: Box::new([]),
+                owned: None,
+                git: Box::new([]),
+                web: None,
+                read_only: false,
+                asked: false,
+            }],
             false,
         )
         .expect("valid connector configuration");
@@ -510,7 +521,18 @@ impl World {
                 writers: self.writer.into_iter().collect(),
             },
             &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
-            &[],
+            &[top::Configured {
+                number: REPO.forge,
+                kind: top::Kind::Forgejo,
+                mode: top::Mode::Connected,
+                admin_connect: false,
+                bot: Box::new([]),
+                owned: None,
+                git: Box::new([]),
+                web: None,
+                read_only: false,
+                asked: false,
+            }],
             false,
         )
         .expect("same configured connector");
@@ -988,5 +1010,56 @@ pub fn fake_config() -> forge::Config {
         skew: forge::Skew::Ahead(Duration::from_secs(20)),
         status_updates: false,
         edit_updates: false,
+    }
+}
+
+#[cfg(test)]
+mod records {
+    use super::*;
+
+    #[test]
+    fn records_survive_a_restart_with_their_numbers() {
+        let mut world = World::new(71);
+        let mut expected = Vec::new();
+        for number in [3, 2] {
+            let record = top::ForgeRecord {
+                number,
+                kind: top::Kind::Forgejo,
+                mode: top::Mode::Managed,
+                state: top::ForgeState::Kept,
+                place: top::Place {
+                    api: top::Address { host: b"forge.example".as_slice().into(), port: 443, tls: None },
+                    git: b"https://forge.example".as_slice().into(),
+                    web: None,
+                },
+                read_only: false,
+                bot: top::Bot { login: b"temper-bot".as_slice().into(), name: Box::new([]), email: Box::new([]) },
+                asked: false,
+                first: Some(top::FirstIntent {
+                    playground: false,
+                    org: b"org".as_slice().into(),
+                    repository: b"repo".as_slice().into(),
+                    project: top::SetUpProject::Existing(5),
+                    label: b"Work".as_slice().into(),
+                }),
+            };
+            world
+                .stored
+                .insert(top::Key::Forge(number), top::Stored::Forge(record.clone()))
+                .expect("fixture store room");
+            expected.push(record);
+        }
+        world.stored.insert(top::Key::ForgeNumber, top::Stored::ForgeNumber { last: 9 }).expect("fixture number room");
+        for _ in 0..2 {
+            world.take_seen();
+            world.restart();
+            for record in &expected {
+                assert_eq!(world.top.record(record.number), Some(record));
+                assert!(world.seen().contains(&top::Request::ForgeKept(record.clone())));
+            }
+            let listed: Vec<_> = world.top.forges().rows.iter().map(|row| row.number).collect();
+            assert_eq!(listed, [1, 2, 3]);
+            assert_eq!(world.stored().get(&top::Key::ForgeNumber), Some(&top::Stored::ForgeNumber { last: 9 }));
+        }
     }
 }

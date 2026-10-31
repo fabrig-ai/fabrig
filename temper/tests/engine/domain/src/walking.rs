@@ -357,7 +357,19 @@ pub fn config(seed: u64) -> engine::Config {
         // worlds name at start (D10).
         identities: Box::new([temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }]),
         forge_charter: 1,
-        forges: Box::new([]),
+        machine: None,
+        forges: Box::new([temper_engine_domain_forge::Configured {
+            number: 1,
+            kind: temper_engine_domain_forge::Kind::Forgejo,
+            mode: temper_engine_domain_forge::Mode::Connected,
+            admin_connect: false,
+            bot: Box::new([]),
+            owned: None,
+            git: Box::new([]),
+            web: None,
+            read_only: false,
+            asked: false,
+        }]),
         under_box: false,
         demo: None,
     }
