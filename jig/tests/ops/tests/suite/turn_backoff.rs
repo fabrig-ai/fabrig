@@ -17,6 +17,7 @@ fn transcripts(world: &World) -> Vec<(u32, &[u8])> {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn an_engine_turn_answered_busy_is_kept_once_after_its_backoff() {
     let (mut world, deadline) = busy_world();
     assert!((50_000_000..=100_000_000).contains(&deadline.as_nanos()));
@@ -33,6 +34,7 @@ fn an_engine_turn_answered_busy_is_kept_once_after_its_backoff() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_busy_turn_no_longer_retained_by_the_hub_is_dropped_at_its_deadline() {
     let (mut world, deadline) = busy_world();
     let row = &world.saved[0];

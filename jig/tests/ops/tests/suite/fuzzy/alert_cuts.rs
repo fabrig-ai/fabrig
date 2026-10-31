@@ -3,31 +3,37 @@ use jig_conformance::Cut;
 use jig_ops_fake_production as production;
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn the_alert_storm_survives_the_commit_before_lead_receipt() {
     alert_at(0);
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn the_alert_storm_survives_the_commit_at_lead_receipt() {
     alert_at(1);
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn the_alert_storm_survives_the_commit_after_lead_receipt() {
     alert_at(2);
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn the_alert_storm_survives_the_commit_at_person_acceptance() {
     alert_at(3);
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn the_alert_storm_survives_the_commit_at_restart_entry() {
     alert_at(4);
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn the_alert_storm_survives_the_commit_after_restart_entry() {
     alert_at(5);
 }

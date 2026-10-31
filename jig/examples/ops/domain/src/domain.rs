@@ -54,6 +54,25 @@ pub struct Config {
     pub charter_endpoints: Box<[jig_protocol_charter::EndpointName]>,
 }
 
+/// The application's admission gate, distinct from the core's selected phase.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum StartState {
+    Unselected,
+    Starting,
+    Opened,
+    Stopped,
+}
+
+/// Volatile store input waiting on the start's journal continuation.
+#[derive(Debug)]
+pub(crate) struct Start {
+    pub(crate) state: StartState,
+    pub(crate) waiting: bool,
+    pub(crate) sweep_loaded: bool,
+    pub(crate) sweep: Queue<core::start::SweepInput>,
+    pub(crate) fill: Option<u64>,
+}
+
 /// Children, one journal, and opaque child-requested continuation bindings.
 /// No root-owned record or policy is stored (domain/root.md, 2).
 #[derive(Debug)]
@@ -81,7 +100,9 @@ pub struct Domain {
     pub(crate) next_token: u64,
     pub(crate) wrote: bool,
     pub(crate) stopped_reported: bool,
-    pub(crate) restarting: bool,
+    #[cfg(test)]
+    pub(crate) start_phases: skein_lib::List<core::start::Phase>,
+    pub(crate) start: Start,
     /// Header supplied by the core in this step; applied after its empty
     /// restore decision is accepted, so journal admission remains paired.
     pub(crate) restored_commits: Option<u64>,
@@ -180,7 +201,15 @@ impl Domain {
             next_token: 1,
             wrote: false,
             stopped_reported: false,
-            restarting: false,
+            #[cfg(test)]
+            start_phases: skein_lib::List::with_capacity(32),
+            start: Start {
+                state: StartState::Unselected,
+                waiting: false,
+                sweep_loaded: false,
+                sweep: Queue::uncapped(),
+                fill: None,
+            },
             restored_commits: None,
         })
     }
@@ -188,7 +217,10 @@ impl Domain {
     /// Decisions open only when the core's cold-start script says so.
     #[must_use]
     pub fn ready(&self) -> bool {
-        !self.restarting || self.core.restart_ready()
+        match self.start.state {
+            StartState::Unselected | StartState::Opened => true,
+            StartState::Starting | StartState::Stopped => false,
+        }
     }
 
     /// The iterate adapter may park once the journal and immediate work settle.
@@ -232,10 +264,8 @@ pub(crate) enum Work {
     Infrastructure(infrastructure::Event),
     Observability(observability::Event),
     Host(host::Event),
-    Restart(core::RestartRequest),
-    SwitchChecked,
-    AdoptClaims,
-    AdoptDone,
+    Start(core::start::Action),
+    StartDone(core::start::Phase),
 }
 
 /// Store terminals update the journal; every other input admits one decision.
@@ -243,11 +273,15 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
     match event {
         Event::Store(Store::Committed { number, fill }) => {
             domain.journal.committed(number);
-            let _filled = core::step(
-                &mut domain.core,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.core },
-                core::Event::Fill { bytes: fill },
-            );
+            if domain.ready() {
+                let _filled = core::step(
+                    &mut domain.core,
+                    &Env { now: env.now, wall: env.wall, limits: env.limits.core },
+                    core::Event::Fill { bytes: fill },
+                );
+            } else {
+                domain.start.fill = Some(fill);
+            }
         }
         Event::Store(Store::Failed { number }) => domain.journal.failed(number),
         other @ (Event::WatchApplication { .. }
@@ -275,9 +309,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
     }
 }
 
-fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
+pub(crate) fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     // A stopped journal takes no decision and moves no child.
-    if domain.journal.stopped() {
+    if domain.journal.stopped() || domain.start.state == StartState::Stopped || domain.core.start_failure().is_some() {
         return;
     }
     let mut decision = domain.journal.decide();
@@ -290,10 +324,8 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
         | Work::Infrastructure(_)
         | Work::Observability(_)
         | Work::Host(_)
-        | Work::Restart(_)
-        | Work::SwitchChecked
-        | Work::AdoptClaims
-        | Work::AdoptDone => false,
+        | Work::Start(_)
+        | Work::StartDone(_) => false,
     };
     let mut work = Queue::uncapped();
     work.push(first);
@@ -302,6 +334,9 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
         let next = match work.pop() {
             Some(next) => next,
             None => {
+                if !domain.ready() {
+                    break;
+                }
                 // Coalesce projections only after ordinary hand-offs quiesce.
                 let requests = core::finish_decision(
                     &mut domain.core,
@@ -321,7 +356,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     }
     // The cold load must read the durable header before numbering another
     // commit. Copy this guard with the core's restart script.
-    if domain.wrote || (domain.core.counters.dirty() && domain.core.restart_step() != Some(core::RestartStep::LoadCore))
+    if domain.wrote || (domain.core.counters.dirty() && domain.core.start_phase() != Some(core::start::Phase::LoadCore))
     {
         let header = domain.core.counters.next_commit();
         write(
@@ -352,7 +387,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, timer: crate::Timer) {
 
 /// Iterate drains only the journal: one commit and a bounded ordered release.
 pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) {
-    if domain.journal.stopped() || domain.core.restart_failure().is_some() {
+    if domain.journal.stopped() || domain.start.state == StartState::Stopped || domain.core.start_failure().is_some() {
         if !domain.stopped_reported {
             domain.stopped_reported = true;
             out.push(Output::Stop);

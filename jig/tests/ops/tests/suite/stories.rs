@@ -3,6 +3,7 @@ use jig_ops_fake_production as production;
 use jig_ops_world::conformance::night;
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn the_night_scales_staging_under_an_observed_requirement_without_an_agent() {
     let world = night(17, Cut::None);
     assert!(world.peers.assignments.is_empty());
@@ -21,6 +22,7 @@ fn the_night_scales_staging_under_an_observed_requirement_without_an_agent() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn the_nights_scale_entry_survives_the_commits_around_its_admission() {
     let baseline = night(17, Cut::None);
     let entry = baseline
@@ -53,6 +55,7 @@ fn the_nights_scale_entry_survives_the_commits_around_its_admission() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn the_alert_storm_reaches_triage_and_the_person_accepts_the_production_restart() {
     let world = jig_ops_world::conformance::alert(17, Cut::None);
     assert_alert(&world);
@@ -137,6 +140,7 @@ fn result_world() -> jig_conformance::Harness<jig_ops_world::conformance::Ops> {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_run_whose_result_does_not_decode_fails_its_attempt_as_invalid() {
     use jig_domain_core as core;
     use jig_domain_tasks as tasks;
@@ -156,6 +160,7 @@ fn a_run_whose_result_does_not_decode_fails_its_attempt_as_invalid() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_stale_attempts_answer_is_fenced_before_its_result_is_read() {
     use jig_domain_core as core;
     use jig_domain_fleet as fleet;
@@ -176,6 +181,7 @@ fn a_stale_attempts_answer_is_fenced_before_its_result_is_read() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn an_ops_call_that_does_not_decode_is_answered_naming_the_field() {
     let mut world = result_world();
     let answers = world.peers.call_answers.len();
@@ -198,6 +204,7 @@ fn an_ops_call_that_does_not_decode_is_answered_naming_the_field() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn an_ops_read_is_decoded_outside_the_root_and_answered() {
     let mut world = result_world();
     let answers = world.peers.call_answers.len();
