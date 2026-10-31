@@ -670,8 +670,6 @@ impl World {
                 | engine::Request::Party(_)
                 | engine::Request::Store(_)
                 | engine::Request::Account(_)
-                | engine::Request::StopGroup { .. }
-                | engine::Request::SetUpGroup { .. }
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
                 | engine::Request::BoxGroup { .. }
@@ -799,8 +797,7 @@ impl World {
                 .result(&self.store.rows, person, task, &words)
                 .expect("independent exact final report and funding"),
             Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
-            Delivery::DemoActed { .. }
-            | Delivery::DemoNote { .. }
+            Delivery::PlaygroundNote { .. }
             | Delivery::Application { .. }
             | Delivery::Forges { .. }
             | Delivery::ForgeDocument { .. }
@@ -819,6 +816,7 @@ impl World {
             Delivery::Restart(_)
             | Delivery::Fleet(_)
             | Delivery::ProjectMade { .. }
+            | Delivery::ProjectReleased { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::ReadEscalationDecision { .. }

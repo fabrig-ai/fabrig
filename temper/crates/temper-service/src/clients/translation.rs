@@ -129,8 +129,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
 
         // Durable results are read through the core's existing documents and
         // watches, as in the reference's Held::Result routing.
-        root::Delivery::DemoActed { .. }
-        | root::Delivery::DemoNote { .. }
+        root::Delivery::PlaygroundNote { .. }
         | root::Delivery::Forges { .. }
         | root::Delivery::Application { .. }
         | root::Delivery::ForgeDocument { .. }
@@ -140,6 +139,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Host(_)
         | root::Delivery::Link { .. }
         | root::Delivery::ProjectMade { .. }
+        | root::Delivery::ProjectReleased { .. }
         | root::Delivery::ForgeCommitted { .. }
         | root::Delivery::ForgeCall { .. }
         | root::Delivery::Bound { .. }

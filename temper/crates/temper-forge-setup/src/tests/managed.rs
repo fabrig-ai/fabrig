@@ -96,16 +96,6 @@ fn managed_string_accepts_tls() {
     checked(SETUP, &members()).expect("TLS managed Forgejo");
 }
 #[test]
-fn managed_string_starts_serve_without_legacy_reconcile() {
-    let checked = checked(SETUP, &members()).unwrap();
-    let steps = crate::step::steps(&checked.setup, &[], Box::new([]), false);
-    assert_eq!(steps.always.len(), 1);
-    assert_eq!(
-        steps.always[0].arguments(),
-        [Box::from(b"internal".as_slice()), Box::from(b"serve".as_slice()), Box::from(b"--box".as_slice())]
-    );
-}
-#[test]
 fn legacy_managed_still_requires_orgs() {
     let input = fixtures::changed(br#""orgs":["acme"],"#, b"");
     refused(&input, &fixtures::members(), b"application.setup[0].orgs: missing\n");

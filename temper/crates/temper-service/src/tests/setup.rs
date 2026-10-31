@@ -1624,114 +1624,26 @@ mod admin_tests;
 #[path = "setup_create.rs"]
 mod create_tests;
 
-#[test]
-fn the_demo_waits_for_started_only_under_the_box_even_with_retained_access() {
-    for (under_box, retained) in [(false, false), (false, true), (true, false), (true, true)] {
-        let mut config = local_config(true, true);
-        config.demo = Some(crate::settings::Demo {
-            project: 1,
-            forge: 1,
-            provider: 3,
-            owner: b"demo".as_slice().into(),
-            name: b"widget".as_slice().into(),
-            cues: Box::new([]),
-            landing: b"main".as_slice().into(),
-            key_file: b"demo/llm.key".as_slice().into(),
-            state: None,
-        });
-        config.setup[0].handover = Some(Secret::new(b"stale-handover".as_slice().into()));
-        let configured = crate::startup::application::configured(&config);
-        assert!(configured[0].asked);
-        assert_eq!(configured[0].mode, domain::Mode::Fake);
-        let endpoints = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
-        let io = config.jig.limits.io;
-        let mut service = crate::Service::prepared(
-            config,
-            &fixtures::seeds(),
-            None,
-            endpoints,
-            None,
-            io,
-            if under_box { Some(256) } else { None },
-        )
-        .unwrap();
-        service.engine.as_mut().unwrap().store = local_store(retained);
-        restore_local(&mut service);
-        let engine = service.engine.as_ref().unwrap();
-        if !under_box {
-            assert_eq!(
-                engine.setup.runs.first().unwrap().1.kind,
-                Kind::LocalTakeOver,
-                "without the box, the runner has already prepared the fake"
-            );
-            continue;
-        }
-        assert!(
-            told_local(engine, &domain::Connection::NotSetUp)
-                || engine.domain.forge_connection(1) == domain::Connection::NotSetUp
-        );
-        assert_eq!(engine.domain.forges().rows[0].offer, domain::Offer::NotOffered);
-        assert!(engine.setup.runs.is_empty());
-        assert!(engine.forge.starts.is_empty());
-        assert!(engine.notes.is_empty());
-        let read = box_started(&mut service);
-        service.handover_read(1, read.run, Ok(Some(Secret::new(b"test-admin".as_slice().into()))));
-        advance(service.engine.as_mut().unwrap());
-        let mut face = Face::new();
-        let remove = takeover_done(&mut service, &mut face);
-        service.handover_removed(1, remove.run, Ok(()));
-        advance(service.engine.as_mut().unwrap());
-        finish_local(&mut service, &mut face);
-        let engine = service.engine.as_ref().unwrap();
-        assert!(told_local(engine, &domain::Connection::Connected { id: 42, login: b"temper".as_slice().into() }));
-    }
+fn ended_config() -> crate::settings::Engine {
+    local_config(true, true)
 }
-
-fn demo_config() -> crate::settings::Engine {
-    let mut config = local_config(true, true);
-    config.jig.limits.core.people.act_grants = 1;
-    config.jig.acts = Box::new([jig_domain_people::ActGrant {
-        connector: 1,
-        may: Box::new([
-            jig_domain_people::ActKind::Close,
-            jig_domain_people::ActKind::AddKey,
-            jig_domain_people::ActKind::RemoveAccount,
-            jig_domain_people::ActKind::Adopt,
-        ]),
-    }]);
-    config.demo = Some(crate::settings::Demo {
-        project: 1,
-        forge: 1,
-        provider: 3,
-        owner: b"demo".as_slice().into(),
-        name: b"widget".as_slice().into(),
-        cues: Box::new([]),
-        landing: b"main".as_slice().into(),
-        key_file: b"demo/llm.key".as_slice().into(),
-        state: None,
-    });
-    config
-}
-fn ended_demo_store() -> crate::store::Store {
+fn ended_store() -> crate::store::Store {
     let mut store = local_store(true);
     fixtures::commit(
         &mut store,
         2,
-        Box::new([root::Write::Save(root::Record::Forge {
-            row: Box::new(domain::Stored::Demo(domain::Demo { forge: 1, state: domain::DemoState::Ended })),
-        })]),
+        Box::new([root::Write::Save(root::Record::Forge { row: Box::new(domain::Stored::Forge(ended_record())) })]),
     );
     assert!(store.above.pop().is_some());
     store
 }
 #[test]
-fn restored_ended_demo_without_box_skips_setup_adoption_connect_and_handover() {
-    let mut config = demo_config();
+fn restored_ended_forge_without_box_skips_setup_adoption_connect_and_handover() {
+    let mut config = ended_config();
     config.setup[0].handover = Some(Secret::new(b"test-admin".as_slice().into()));
-    let mut service = local_service(config, ended_demo_store());
+    let mut service = local_service(config, ended_store());
     restore_local(&mut service);
     let engine = service.engine.as_mut().unwrap();
-    assert_eq!(engine.demo.as_ref().unwrap().state, Some(domain::DemoState::Ended));
     assert!(engine.domain.forge_ended(1));
     // A stale file or a pending start-time adoption cannot make the scan ready.
     engine
@@ -1755,7 +1667,7 @@ fn restored_ended_demo_without_box_skips_setup_adoption_connect_and_handover() {
 #[test]
 fn an_end_during_handover_or_reconcile_cannot_continue_setup() {
     for during_reconcile in [false, true] {
-        let mut config = demo_config();
+        let mut config = ended_config();
         config.setup[0].handover = Some(Secret::new(b"test-admin".as_slice().into()));
         let mut service = local_service(config, local_store(true));
         restore_local(&mut service);
@@ -1764,7 +1676,7 @@ fn an_end_during_handover_or_reconcile_cannot_continue_setup() {
         if during_reconcile {
             engine.setup.runs.get_mut(&run).unwrap().kind = Kind::LocalReconcile;
         }
-        engine.demo.as_mut().unwrap().state = Some(domain::DemoState::Ended);
+        end_domain(engine);
         lifecycle::done(engine, run, reconcile::Outcome::Nothing);
         assert!(engine.setup.runs.is_empty());
         assert!(engine.setup.writes.is_empty());
@@ -1774,7 +1686,7 @@ fn an_end_during_handover_or_reconcile_cannot_continue_setup() {
 }
 #[test]
 fn ended_forge_calls_are_answered_locally_at_zero_cost_and_hints_are_dropped() {
-    let mut service = local_service(demo_config(), ended_demo_store());
+    let mut service = local_service(ended_config(), ended_store());
     restore_local(&mut service);
     let engine = service.engine.as_mut().unwrap();
     while engine.events.pop().is_some() {}
@@ -1967,6 +1879,11 @@ fn runtime_record(kind: domain::Kind, mode: domain::Mode) -> domain::ForgeRecord
     }
 }
 fn insert_runtime_forge(engine: &mut crate::engine::Engine, record: &domain::ForgeRecord) {
+    root::step(
+        &mut engine.domain,
+        &engine.env,
+        root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(record.clone()) })),
+    );
     let mut source = fixtures::forges().into_iter().next().unwrap();
     source.number = record.number;
     source.identity = u32::from(record.number);
@@ -2072,7 +1989,7 @@ fn the_intent_comes_from_the_record_after_a_restart() {
             assert_eq!(first.label.as_ref(), b"kept-label");
             assert!(first.playground);
             if mode == domain::Mode::Fake {
-                assert_eq!(local.trigger, lifecycle::Trigger::StartDemo);
+                assert_eq!(local.trigger, lifecycle::Trigger::StartFake);
             }
             for _ in 0_u32..8 {
                 crate::forge::records::advance(engine);
@@ -2183,4 +2100,18 @@ fn a_kept_fake_waits_for_the_box_before_reading_its_handover() {
     let read = lifecycle::take_read(engine).unwrap();
     assert_eq!(read.forge, 2);
     assert_eq!(read.path.as_ref(), b"/data/playground-2/admin_token");
+}
+
+pub(super) fn ended_record() -> domain::ForgeRecord {
+    let mut record = runtime_record(domain::Kind::Forgejo, domain::Mode::Fake);
+    record.number = 1;
+    record.state = domain::ForgeState::Ended { secrets_erased: true, box_removed: true };
+    record
+}
+pub(super) fn end_domain(engine: &mut crate::engine::Engine) {
+    root::step(
+        &mut engine.domain,
+        &engine.env,
+        root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(ended_record()) })),
+    );
 }

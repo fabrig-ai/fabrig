@@ -731,9 +731,9 @@ fn demo_start_keeps_drawn_keys_and_recovers_its_own_answer() {
         root.deliver(c::Delivery::Me(Box::new(f::me(f::PARTY))));
         root.adoption_answer(0, w::Outcome::Running);
         let expected = if json {
-            b"{\"operation\":\"demo-start\",\"outcome\":{\"running\":{}}}\n".as_slice()
+            b"{\"operation\":\"playground-start\",\"outcome\":{\"running\":{}}}\n".as_slice()
         } else {
-            b"kept: demo-start running\n"
+            b"kept: playground-start running\n"
         };
         assert_eq!(root.kept_lines.as_slice(), &[Box::<[u8]>::from(expected)]);
     }

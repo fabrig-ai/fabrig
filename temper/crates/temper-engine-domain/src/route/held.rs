@@ -83,8 +83,6 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
             let to = skein_lib::ReplyTo::new(token);
             if domain.playground_replies.contains_key(&token) {
                 super::playground::reply(domain, env, decision, token, reply);
-            } else if super::demo::owns(token) {
-                super::demo::reply(domain, env, decision, to, reply);
             } else {
                 emit(decision, &env.limits, Delivery::WebReply { to, reply });
             }
@@ -174,9 +172,6 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
             if domain.playground_replies.contains_key(&right) {
                 let outcome = domain.forge.application_answer(token);
                 super::playground::adopted(domain, right, outcome);
-            } else if super::demo::owns(right) {
-                let outcome = domain.forge.application_answer(token);
-                super::demo::adopted(domain, env, decision, outcome);
             } else {
                 emit(
                     decision,
@@ -196,7 +191,7 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
             if domain.playground_replies.contains_key(&token) {
                 super::playground::acted(domain, env, decision, token, outcome);
             } else {
-                emit(decision, &env.limits, Delivery::DemoActed { to: skein_lib::ReplyTo::new(token), outcome });
+                unreachable!("act reply belongs to the playground");
             }
         }
     }

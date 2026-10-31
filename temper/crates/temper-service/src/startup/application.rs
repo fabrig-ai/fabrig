@@ -844,7 +844,7 @@ pub fn parse(
         sign_in::check_forges(&sign_in.forges, forges.as_slice(), jig, document, setup_at, problems);
     }
     github_listener(&forges, clients.as_ref(), &path, problems);
-    let demo = demo::parse(document, demo_at, setup_at, &forges, directories, problems);
+    let demo = demo::parse(document, demo_at, directories, problems);
     let workers = workers(document, workers_ats, jig.limits.core.fleet.workers, directories, &path, problems);
     if let Some(charter) = charter
         && forges.len() == forge_count
@@ -1296,10 +1296,7 @@ pub(crate) fn configured(settings: &settings::Engine) -> Box<[temper_engine_doma
         let mut admin_connect = false;
         let mut bot: Box<[u8]> = Box::new([]);
         let mut owned = None;
-        let mut asked = match &settings.demo {
-            Some(demo) => demo.forge == forge.number,
-            None => false,
-        };
+        let mut asked = false;
         for setup in &settings.setup {
             if setup.entry.forge == forge.number {
                 bot.clone_from(&setup.entry.bot.login);

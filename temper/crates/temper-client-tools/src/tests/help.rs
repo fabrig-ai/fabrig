@@ -341,5 +341,14 @@ fn reference_matches(group_name: &[u8], page_name: &[u8]) {
     crate::help::reference(group, &mut out).expect("reference measured");
     let rendered = out.finish();
     let page = temper_docs::find(page_name).expect("reference page");
+    let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
+        Some(value) => value == "1",
+        None => false,
+    };
+    if write {
+        let path = std::path::Path::new("../../docs/help/reference").join(page.name).with_extension("md");
+        std::fs::write(path, &rendered).expect("write group reference");
+        return;
+    }
     assert_eq!(page.text.as_bytes(), rendered.as_ref(), "{}: the lead updates the reference page", page.name);
 }

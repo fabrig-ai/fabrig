@@ -97,7 +97,7 @@ pub const COMMANDS: [Row; 21] = [
         words: &["box"],
         who: Who::Deployment,
         forms: &["[DIRECTORIES] [--echo none|steps]", "[DIRECTORIES] --fake-backends [--bundle BUNDLE]"],
-        line: "Run a deployment on this machine as one box: the forge's setup steps, then temper serve, each a child process.",
+        line: "Run a deployment as one box: the setup steps of each forge it sets up, then temper serve, each a child process.",
         arguments: &[
             DIRECTORIES,
             Argument {

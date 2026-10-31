@@ -48,6 +48,7 @@ pub(crate) fn route(outcome: &Outcome) -> Route {
             | OwnerOutcome::AccountRemoved { .. }
             | OwnerOutcome::AccountSignInStarted { .. }
             | OwnerOutcome::AccountSignedOut { .. }
+            | OwnerOutcome::ProjectRemoved { .. }
             | OwnerOutcome::Renamed { .. }
             | OwnerOutcome::ProjectMade { .. }
             | OwnerOutcome::PoolSet { .. }

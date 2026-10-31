@@ -13,12 +13,12 @@ pub(crate) mod welcome;
 
 pub(crate) fn project_name(
     me: Option<&jig_client::contract::Me>,
-    demo: Option<&temper_client_domain::forge::Demo>,
+    playground: Option<&temper_client_domain::forge::Playground>,
     project: u32,
     words: &crate::words::Words,
 ) -> Option<Box<[u8]>> {
-    if let Some(demo) = demo
-        && demo.project == project
+    if let Some(playground) = playground
+        && playground.project == Some(project)
     {
         return Some(words.say(crate::words::Word::Demo, &[]));
     }
@@ -28,4 +28,12 @@ pub(crate) fn project_name(
         }
     }
     None
+}
+
+/// The playground's forge has no external pages (temper/docs/design/draft/playground-reset.md, 6.1).
+pub(crate) fn serves_pages(root: &temper_client_domain::Domain, forge: u16) -> bool {
+    match root.forge().playground() {
+        Some(playground) => playground.forge != forge,
+        None => true,
+    }
 }

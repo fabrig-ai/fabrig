@@ -7,7 +7,7 @@
 use super::*;
 use jig_domain_people::Role as PartyRole;
 
-fn record(number: u16, mode: Mode) -> ForgeRecord {
+pub(super) fn record(number: u16, mode: Mode) -> ForgeRecord {
     ForgeRecord {
         number,
         kind: Kind::Forgejo,

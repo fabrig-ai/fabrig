@@ -76,8 +76,8 @@ pub fn engine() -> settings::Engine {
             public: None,
         },
         files: settings::Files { entries: skein_lib::List::with_capacity(0) },
-        forges: forges(),
         demo: None,
+        forges: forges(),
         setup: Box::new([]),
         identities: Box::new([settings::Identity {
             number: 1,
@@ -433,7 +433,6 @@ pub fn root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engine_dom
         forges: Box::new([]),
         under_box: false,
         playground: None,
-        demo: None,
     };
     (
         root::Domain::new(config, &limits).expect("valid engine configuration"),
@@ -780,8 +779,6 @@ pub fn settle_root(
                     crate::route::request(engine, request);
                 }
                 root::Request::Setup { .. }
-                | root::Request::StopGroup { .. }
-                | root::Request::SetUpGroup { .. }
                 | root::Request::ForgeKept(_)
                 | root::Request::ForgeGone { .. }
                 | root::Request::BoxGroup { .. }
