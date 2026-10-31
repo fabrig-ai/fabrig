@@ -3080,7 +3080,7 @@ fn release_rejudges_a_still_expired_deadline_and_escalates_the_new_hold() {
 }
 
 #[test]
-fn restored_waiting_rechecks_snapshot_membership_and_same_holder_changes_nothing() {
+fn restored_waiting_keeps_its_committed_holder_despite_current_membership() {
     let store = held_waiting_store();
     let rows = store.rows.clone();
     let mut same = held_driver(store);
@@ -3120,8 +3120,13 @@ fn restored_waiting_rechecks_snapshot_membership_and_same_holder_changes_nothing
     let mut changed = held_driver(store);
     changed.settle();
     assert!(!changed.stopped);
-    // Rerouting keeps the hold's revision (jig 00de0b8c).
-    assert!(changed.store.rows.values().any(|row| matches!(row, Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))) if matches!(task.escalation, tasks::Escalation::Waiting { revision: 1, holder: tasks::EscalationHolder::Role { project: 1, role: 0 }, .. }))));
+    // A restart preserves the committed holder, entry and routing time (jig tasks.md, 12).
+    let original = held_waiting_store();
+    for (key, row) in &original.rows {
+        if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(_))) = row {
+            assert_eq!(changed.store.rows.get(key), Some(row));
+        }
+    }
     assert!(!changed.delivered.iter().any(|delivery| matches!(
         delivery,
         Delivery::Assigned { .. } | Delivery::SourceSignedOut { .. } | Delivery::Result { .. }
