@@ -542,8 +542,8 @@ fn nibble(byte: u8) -> Option<u8> {
 fn hex(rng: &mut Rng, length: usize) -> Option<Secret> {
     let mut out = Writer::new(length);
     for _byte in 0..length {
-        let index = usize::try_from(rng.below(16)).ok()?;
-        out.put(&[*b"0123456789abcdef".get(index)?]).ok()?;
+        let nibble = u8::try_from(rng.below(16)).ok()?;
+        out.put(&[skein_lib::hex::digit(nibble)]).ok()?;
     }
     Some(Secret::new(out.finish()))
 }

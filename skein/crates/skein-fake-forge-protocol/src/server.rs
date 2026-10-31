@@ -381,25 +381,13 @@ pub fn close(
     server.reply = None;
     server.decoder = None;
     server.git_decoder = None;
-    for _ in 0..server.events.len() {
-        drop(server.events.pop());
-    }
-    for _ in 0..server.requests.len() {
-        drop(server.requests.pop());
-    }
-    for _ in 0..server.json_events.len() {
-        drop(server.json_events.pop());
-    }
-    for _ in 0..server.json_down.len() {
-        drop(server.json_down.pop());
-    }
+    server.events.clear();
+    server.requests.clear();
+    server.json_events.clear();
+    server.json_down.clear();
     json_down(server, env, json::Request::Close);
-    for _ in 0..server.json_events.len() {
-        drop(server.json_events.pop());
-    }
-    for _ in 0..server.json_down.len() {
-        drop(server.json_down.pop());
-    }
+    server.json_events.clear();
+    server.json_down.clear();
     http_down(server, env, http::Request::Close, below);
     server.state = State::Closing;
     above.push(Event::Close);
