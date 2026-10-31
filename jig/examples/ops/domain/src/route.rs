@@ -238,6 +238,9 @@ pub(crate) fn core_out(
     let core::Requests::Out(mut out) = requests;
     for _ in 0..out.len() {
         match out.pop().expect("core request count") {
+            core::Request::Write(core::Write::DropTranscript { .. }) => {
+                unreachable!("project deletion does not emit transcript drops yet")
+            }
             core::Request::Write(core::Write::CopySettingsRevision(number)) => {
                 write(domain, decision, Write::CopySettingsRevision(number));
             }
@@ -321,6 +324,7 @@ fn core_held(
                 | jig_domain_people::Outcome::PoolSet { .. }
                 | jig_domain_people::Outcome::Renamed { .. }
                 | jig_domain_people::Outcome::ProjectMade { .. }
+                | jig_domain_people::Outcome::ProjectRemoved { .. }
                 | jig_domain_people::Outcome::SettingsChanged { .. }
                 | jig_domain_people::Outcome::MovedToNewest { .. }
                 | jig_domain_people::Outcome::EscalationDecided { .. }
@@ -890,6 +894,7 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: core::co
         | core::connector::Ask::ProcedureMessage { .. }
         | core::connector::Ask::ProcedureClose { .. }
         | core::connector::Ask::Project { .. }
+        | core::connector::Ask::ProjectRemoved { .. }
         | core::connector::Ask::Release { .. }
         | core::connector::Ask::Subscribe { .. }
         | core::connector::Ask::Unsubscribe { .. }

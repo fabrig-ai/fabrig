@@ -63,6 +63,7 @@ fn header(value: &OwnerOutcome) -> P {
         OwnerOutcome::RolesSet { .. } => P::RolesSet,
         OwnerOutcome::Renamed { .. } => P::Renamed,
         OwnerOutcome::ProjectMade { .. } => P::ProjectMade,
+        OwnerOutcome::ProjectRemoved { .. } => P::ProjectRemoved,
         OwnerOutcome::PolicyChanged { .. } => P::PolicyChanged,
         OwnerOutcome::AccountProgramDeclared { .. } => P::AccountProgramDeclared,
         OwnerOutcome::AccountKeyKept { .. } => P::AccountKeyKept,
@@ -140,7 +141,8 @@ fn details(b: &mut Builder, value: &OwnerOutcome, words: &Words) {
         OwnerOutcome::AccountKeyKept { .. }
         | OwnerOutcome::AccountChanged
         | OwnerOutcome::AccountSignInStarted { .. }
-        | OwnerOutcome::Lifted { .. } => {}
+        | OwnerOutcome::Lifted { .. }
+        | OwnerOutcome::ProjectRemoved { .. } => {}
         OwnerOutcome::AccountFinishing { source } => number(b, words, P::SourceNumber, u64::from(*source)),
         OwnerOutcome::AccountMovedIn { account, .. } => number(b, words, P::AccountNumber, u64::from(*account)),
         OwnerOutcome::AccountProgramDeclared { source, name } => {
@@ -212,7 +214,11 @@ fn details(b: &mut Builder, value: &OwnerOutcome, words: &Words) {
 /// Build one bounded fragment using only the committed value and selected Words.
 pub fn render(b: &mut Builder, value: &OwnerOutcome, words: &Words) {
     b.open(Role::Region);
-    let title = owner_outcome_words::say(words, header(value), &[]);
+    let title = if let OwnerOutcome::ProjectRemoved { project } = value {
+        owner_outcome_words::say(words, P::ProjectRemoved, &[Hole::Number(u64::from(*project))])
+    } else {
+        owner_outcome_words::say(words, header(value), &[])
+    };
     b.open(Role::Status);
     b.name(&title);
     b.text(Run::Plain, &title);

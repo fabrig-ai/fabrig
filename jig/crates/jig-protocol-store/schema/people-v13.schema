@@ -280,6 +280,7 @@ record OutcomeAmended { task: u64 released: bool }
 record OutcomeRolesSet { project: u32 }
 record OutcomeRenamed { project: u32 }
 record OutcomeProjectMade { project: u32 }
+record OutcomeProjectRemoved { project: u32 }
 record OutcomePolicyChanged { project: u32 }
 record OutcomePoolSet { project: u32 person: u64 }
 record OutcomeEscalationDecided { task: u64 revision: u64 by: u64 at: u64 choice: EscalationChoice }
@@ -297,14 +298,16 @@ record OutcomeAccountMovingOut { account: u32 number: u32 source: u32 }
 record OutcomeAccountMovedIn { account: u32 renewed: bool }
 record OutcomeAccountFinishing { source: u32 }
 record OutcomeMovedToNewest { newest: u32 moved: u32 stayed: u32 }
-enum Outcome { renamed: OutcomeRenamed, project_made: OutcomeProjectMade, compound: OutcomeCompound, compound_refused: OutcomeCompoundRefused, created: OutcomeCreated, marked_seen: OutcomeMarkedSeen, applied: OutcomeApplied, again: OutcomeAgain, signed_out, note_edited: OutcomeNoteEdited, service_made: OutcomeServiceMade, adopted: OutcomeAdopted, proposed: OutcomeProposed, stopped: OutcomeStopped, cancelled: OutcomeCancelled, released: OutcomeReleased, person_taken: OutcomePersonTaken, person_handed_back: OutcomePersonHandedBack, person_answered: OutcomePersonAnswered, moved: OutcomeMoved, proposal_decided: OutcomeProposalDecided, said: OutcomeSaid, question_answered: OutcomeQuestionAnswered, amended: OutcomeAmended, roles_set: OutcomeRolesSet, policy_changed: OutcomePolicyChanged, pool_set: OutcomePoolSet, escalation_decided: OutcomeEscalationDecided, refused: OutcomeRefused, withdrawn: OutcomeWithdrawn, account_sign_in_started: OutcomeAccountSignInStarted, account_signed_out: OutcomeAccountSignedOut, account_key_kept: OutcomeAccountKeyKept, account_changed, account_removed: OutcomeAccountRemoved, account_program_declared: OutcomeAccountProgramDeclared, account_moving_out: OutcomeAccountMovingOut, account_moved_in: OutcomeAccountMovedIn, settings_changed: OutcomeSettingsChanged, account_finishing: OutcomeAccountFinishing, moved_to_newest: OutcomeMovedToNewest, lifted: OutcomeLifted }
+enum Outcome { renamed: OutcomeRenamed, project_made: OutcomeProjectMade, compound: OutcomeCompound, compound_refused: OutcomeCompoundRefused, created: OutcomeCreated, marked_seen: OutcomeMarkedSeen, applied: OutcomeApplied, again: OutcomeAgain, signed_out, note_edited: OutcomeNoteEdited, service_made: OutcomeServiceMade, adopted: OutcomeAdopted, proposed: OutcomeProposed, stopped: OutcomeStopped, cancelled: OutcomeCancelled, released: OutcomeReleased, person_taken: OutcomePersonTaken, person_handed_back: OutcomePersonHandedBack, person_answered: OutcomePersonAnswered, moved: OutcomeMoved, proposal_decided: OutcomeProposalDecided, said: OutcomeSaid, question_answered: OutcomeQuestionAnswered, amended: OutcomeAmended, roles_set: OutcomeRolesSet, policy_changed: OutcomePolicyChanged, pool_set: OutcomePoolSet, escalation_decided: OutcomeEscalationDecided, refused: OutcomeRefused, withdrawn: OutcomeWithdrawn, account_sign_in_started: OutcomeAccountSignInStarted, account_signed_out: OutcomeAccountSignedOut, account_key_kept: OutcomeAccountKeyKept, account_changed, account_removed: OutcomeAccountRemoved, account_program_declared: OutcomeAccountProgramDeclared, account_moving_out: OutcomeAccountMovingOut, account_moved_in: OutcomeAccountMovedIn, settings_changed: OutcomeSettingsChanged, account_finishing: OutcomeAccountFinishing, moved_to_newest: OutcomeMovedToNewest, lifted: OutcomeLifted, project_removed: OutcomeProjectRemoved }
 record ActKey { connector: u16 key: fixed 16 }
 record ActClose { project: u32 task: u64 grace: option u64 reason: bytes 8192 }
 record ActAddKey { provider: u32 join: option u32 digest: fixed 32 }
 record ActRemoveAccount { account: u32 }
 record ActAdopt { project: u32 adoption: Adoption }
 record ActMakeProject { maker: u64 name: text 64 policy: u32 }
-enum Act { make_project: ActMakeProject, close: ActClose, add_key: ActAddKey, remove_account: ActRemoveAccount, adopt: ActAdopt }
+record ActRemoveProject { project: u32 }
+record ActCancel { project: u32 task: u64 grace: option u64 reason: bytes 8192 }
+enum Act { make_project: ActMakeProject, close: ActClose, add_key: ActAddKey, remove_account: ActRemoveAccount, adopt: ActAdopt, remove_project: ActRemoveProject, cancel: ActCancel }
 record StoredActed { key: ActKey act: Act outcome: Outcome at: u64 }
 record StoredAnswer { key: RequestKey ask: Ask models: list 64 ModelName outcome: Outcome at: u64 }
 enum Value { person: StoredPerson, read_results: StoredReadResults, read_conversation: StoredReadConversation, sign_in: StoredSignIn, roles: StoredRoles, policy: StoredPolicy, answer: StoredAnswer, ended_read: EndedRead, acted: StoredActed }

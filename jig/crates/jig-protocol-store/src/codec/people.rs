@@ -46,6 +46,7 @@ pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
     let authority = &domain.authority;
     let mut limits = wire::Limits {
         act_close_reason: people.words,
+        act_cancel_reason: people.words,
         refusal_circle_tasks: domain.tasks.circle,
         refusal_full_tasks: domain.tasks.circle,
         refusal_kept_pending: domain.tasks.dependencies,

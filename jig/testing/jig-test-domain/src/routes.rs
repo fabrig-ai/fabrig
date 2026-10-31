@@ -26,6 +26,9 @@ pub(super) fn route_core(
     let core::Requests::Out(mut requests) = requests;
     for _ in 0..requests.len() {
         match requests.pop().expect("core request count") {
+            core::Request::Write(core::Write::DropTranscript { .. }) => {
+                unreachable!("project deletion does not emit transcript drops yet")
+            }
             core::Request::Write(core::Write::CopySettingsRevision(number)) => {
                 write(domain, decision, Write::CopySettingsRevision(number));
             }
@@ -851,6 +854,7 @@ fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::connector::Ask,
         | core::connector::Ask::ProcedureMessage { .. }
         | core::connector::Ask::ProcedureClose { .. }
         | core::connector::Ask::Project { .. }
+        | core::connector::Ask::ProjectRemoved { .. }
         | core::connector::Ask::Release { .. }
         | core::connector::Ask::Subscribe { .. }
         | core::connector::Ask::Unsubscribe { .. }
@@ -1014,6 +1018,7 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::RolesSet { .. }
         | people::Outcome::Renamed { .. }
         | people::Outcome::ProjectMade { .. }
+        | people::Outcome::ProjectRemoved { .. }
         | people::Outcome::SettingsChanged { .. }
         | people::Outcome::MovedToNewest { .. }
         | people::Outcome::PolicyChanged { .. }

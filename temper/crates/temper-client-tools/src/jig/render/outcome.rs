@@ -244,6 +244,7 @@ fn client_reason<'a>(operation: &'a Operation, outcome: &Outcome) -> Option<[&'a
         None => [reason, b"", b"", b""],
     })
 }
+#[expect(clippy::too_many_lines, reason = "one exhaustive committed-outcome renderer")]
 fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &Limits, kept: bool, out: &mut Text) {
     if kept {
         out.put(b"kept: ");
@@ -295,6 +296,11 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
             out.put(limits.program_login);
             out.put(b" ");
             out.put(name);
+        }
+        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectRemoved { project })) => {
+            out.put(b"Project ");
+            out.number(u64::from(*project));
+            out.put(b" deleted");
         }
         c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountChanged)) if operation.word == b"verify" => {
             out.put(b"asked\naccount list --until settled");

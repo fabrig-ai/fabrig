@@ -24,6 +24,8 @@ fn configuration(seed: u64) -> (root::Config, root::Limits) {
         connector: CONNECTOR,
         may: Box::new([
             people::ActKind::Close,
+            people::ActKind::Cancel,
+            people::ActKind::RemoveProject,
             people::ActKind::AddKey,
             people::ActKind::RemoveAccount,
             people::ActKind::Adopt,
@@ -457,4 +459,130 @@ fn a_make_project_act_refuses_a_maker_outside_its_subject() {
     let mut world = project_world(true);
     act(&mut world, KEY, make_project(u64::MAX));
     assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::Unknown));
+}
+
+fn cancel(task: u64, project: u32, grace: Option<Duration>) -> people::Act {
+    people::Act::Cancel { project, task, grace, reason: REASON.into() }
+}
+#[test]
+fn cancel_ends_a_live_task_of_any_requester_with_its_delegates() {
+    let mut person = world(1860);
+    let chat = person.assignments[0].0;
+    let delegates = delegate_pair(&mut person);
+    act(&mut person, KEY, cancel(chat, PROJECT, Some(GRACE)));
+    assert!(matches!(answered(&person), people::Outcome::Compound { project: PROJECT, operations: 3, .. }));
+    for task in [delegates.0, delegates.1] {
+        cancelled(&person, task);
+    }
+    let finish = live_row(&person, chat).grace.as_ref().expect("task finish asked");
+    assert_eq!(finish.by, tasks::Party::Deployment { project: PROJECT });
+    assert_eq!(finish.reason.as_ref(), REASON);
+    person.advance(GRACE);
+    cancelled(&person, chat);
+
+    let mut procedure = world(1861);
+    procedure.hold_procedures = true;
+    let parent = procedure.assignments[0];
+    let mut member = jig_core_world::fixtures::member(
+        &procedure,
+        tasks::Executor::Procedure { connector: CONNECTOR, code: 1 },
+        b"procedure",
+    );
+    member.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    let task = jig_core_world::fixtures::delegate(&mut procedure, parent, 1, member);
+    assert_eq!(live_row(&procedure, task).requester, tasks::Party::Task(parent.0));
+    assert!(!live_row(&procedure, task).flags.conversation);
+    act(&mut procedure, KEY, cancel(task, PROJECT, None));
+    assert!(matches!(answered(&procedure), people::Outcome::Compound { operations: 1, .. }));
+    cancelled(&procedure, task);
+
+    let mut deployment = world(1862);
+    let (task, delegate) = recurring(&mut deployment);
+    assert_eq!(live_row(&deployment, task).requester, tasks::Party::Deployment { project: PROJECT });
+    act(&mut deployment, KEY, cancel(task, PROJECT, None));
+    assert!(matches!(answered(&deployment), people::Outcome::Compound { operations: 2, .. }));
+    cancelled(&deployment, delegate);
+    cancelled(&deployment, task);
+}
+fn recurring(world: &mut World) -> (u64, u64) {
+    let member = jig_core_world::fixtures::member(world, tasks::Executor::Agent { charter: 1 }, b"period work");
+    let mut authority = member.authority.clone();
+    authority.budget.spend = 30;
+    let mut child = member.authority;
+    child.budget.spend = 10;
+    child.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    world.send(root::Event::Core(core::Event::StartRecurring {
+        project: PROJECT,
+        authority,
+        template: tasks::RecurringTemplate {
+            key: 1,
+            overlap: tasks::RecurringOverlap::Skip,
+            batch: Box::new([tasks::New {
+                deadline: tasks::Deadline::Named,
+                label: 0,
+                flags: tasks::Flags::PLAIN,
+                number: 1,
+                project: PROJECT,
+                executor: tasks::Executor::Agent { charter: 1 },
+                llm: None,
+                spec: member.spec,
+                contract: member.contract,
+                authority: child,
+                numbers: tasks::Numbers { budget: 10, spent: 0, spent_below: 0, reserved: 0 },
+                funder: tasks::Funder::Period { project: PROJECT, period: 0 },
+                dependencies: Box::new([]),
+                holdings: Box::new([]),
+                wake: tasks::WakePolicy::DEFAULT,
+                recurring: None,
+                tracked: None,
+            }]),
+        },
+    }));
+    let delegate = world.assignments.last().expect("recurring delegate run").0;
+    let tasks::Party::Task(task) = live_row(world, delegate).requester else { panic!("recurring delegate") };
+    (task, delegate)
+}
+#[test]
+fn cancel_on_an_ended_task_is_refused_ended() {
+    let mut world = world(1863);
+    let task = world.assignments[0].0;
+    act(&mut world, KEY, cancel(task, PROJECT, None));
+    act(&mut world, KEY + 1, cancel(task, PROJECT, None));
+    assert!(matches!(answered(&world), people::Outcome::Refused(people::Refusal::Ended { .. })));
+}
+#[test]
+fn cancel_on_another_projects_task_is_unknown() {
+    let mut world = world(1864);
+    let task = world.assignments[0].0;
+    for (key, task, project) in [(KEY, task, PROJECT + 1), (KEY + 1, u64::MAX, PROJECT)] {
+        act(&mut world, key, cancel(task, project, None));
+        assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::Unknown));
+    }
+    assert!(matches!(live_row(&world, task).phase, tasks::Phase::Active(_)));
+}
+#[test]
+fn cancel_ungranted_is_not_offered() {
+    let (mut config, limits) = configuration(1865);
+    config.core.grants = Box::new([]);
+    let mut world = World::configured(1865, false, config, limits);
+    let task = world.assignments[0].0;
+    act(&mut world, KEY, cancel(task, PROJECT, None));
+    assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::NotOffered));
+    assert!(matches!(live_row(&world, task).phase, tasks::Phase::Active(_)));
+}
+#[test]
+fn remove_project_is_not_offered_and_not_saved() {
+    let mut world = world(1866);
+    let commits = world.commits.len();
+    act(&mut world, KEY, people::Act::RemoveProject { project: PROJECT });
+    assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::NotOffered));
+    assert_eq!(world.commits.len(), commits);
+    assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::People(people::Key::Acted(people::ActKey {
+        connector: CONNECTOR,
+        key: [KEY; 16]
+    })))));
+    // The same key remains free for an implemented act.
+    let task = world.assignments[0].0;
+    act(&mut world, KEY, cancel(task, PROJECT, None));
+    assert!(matches!(answered(&world), people::Outcome::Compound { operations: 1, .. }));
 }

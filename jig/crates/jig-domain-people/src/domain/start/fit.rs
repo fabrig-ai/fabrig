@@ -228,12 +228,14 @@ pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), Restore
 
 pub(super) fn act(key: &Key, limits: &Limits, value: &Act) -> Result<(), RestoreCause> {
     match value {
-        Act::Close { reason, .. } => within(key, RestoreBound::Words, reason.len(), limits.words),
+        Act::Close { reason, .. } | Act::Cancel { reason, .. } => {
+            within(key, RestoreBound::Words, reason.len(), limits.words)
+        }
         Act::Adopt { adoption: value, .. } => adoption(key, limits, value),
         Act::MakeProject { name, .. } => {
             within(key, RestoreBound::NameBytes, name.len(), u32::try_from(crate::NAME_BYTES).expect("name bound fits"))
         }
-        Act::AddKey { .. } | Act::RemoveAccount { .. } => Ok(()),
+        Act::AddKey { .. } | Act::RemoveAccount { .. } | Act::RemoveProject { .. } => Ok(()),
     }
 }
 
@@ -276,6 +278,7 @@ pub(super) fn outcome(key: &Key, limits: &Limits, outcome: &Outcome) -> Result<(
         | Outcome::PolicyChanged { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }
