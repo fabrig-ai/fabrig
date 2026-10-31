@@ -160,17 +160,14 @@ impl std::fmt::Debug for Source {
 }
 
 /// Resolve one account descriptor without exposing a variable's value.
-#[must_use]
-pub fn source(account: &Account, codex: bool, directory: Option<&Directory>) -> Source {
+pub fn source(account: &Account, codex: bool, directory: Option<&Directory>) -> Result<Source, Credential> {
     use settings::resolve::{AccountSource, Provider};
     let fields = &account.fields;
     let name = &account.name;
     let text = |key: &str| fields.get(key).and_then(|field| field.value.as_str()).unwrap_or_default();
-    match account.source() {
+    Ok(match account.source() {
         AccountSource::Env => Source::Env { variable: text("variable").into(), codex },
-        AccountSource::Key => Source::Key {
-            file: directory.map_or_else(|| PathBuf::from("missing-key"), |directory| directory.key(name)),
-        },
+        AccountSource::Key => Source::Key { file: directory.ok_or(Credential::NotSignedIn)?.key(name) },
         AccountSource::Program => Source::Program { name: name.into() },
         AccountSource::Nothing => Source::Nothing,
         AccountSource::SignIn | AccountSource::Unspecified => {
@@ -179,12 +176,9 @@ pub fn source(account: &Account, codex: bool, directory: Option<&Directory>) -> 
             } else {
                 None
             };
-            Source::SignIn {
-                required_scopes,
-                file: directory.map_or_else(|| PathBuf::from("missing-token"), |directory| directory.token(name)),
-            }
+            Source::SignIn { required_scopes, file: directory.ok_or(Credential::NotSignedIn)?.token(name) }
         }
-    }
+    })
 }
 
 /// Read the startup credential once, with clock data supplied by the shell.

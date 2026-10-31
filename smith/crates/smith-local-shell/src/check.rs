@@ -351,7 +351,10 @@ fn derive_invocation(
     {
         return Err("invalid inline limits".to_owned());
     }
-    let handed = handed_accounts(resolved)?;
+    let accounts = crate::local_host::AccountNeeds {
+        handed: true,
+        programs: resolved.accounts.iter().any(|account| account.source() == settings::resolve::AccountSource::Program),
+    };
     if interactive {
         crate::front::interactive::Interactive::new(false, &resolved.agent.service.limits)
             .ok_or_else(|| "interactive view bound overflows".to_owned())?;
@@ -360,35 +363,9 @@ fn derive_invocation(
         smith_local_domain::AgentLimits::Inline(_) => resolved.agent.service.limits.routes,
         smith_local_domain::AgentLimits::Spawned(_) => 0,
     };
-    crate::Local::startup_operations(&limits, lower_routes, Some(&handed), !interactive && files.has_output())
+    crate::Local::startup_operations(&limits, lower_routes, accounts, !interactive && files.has_output())
         .map_err(|why| why.detail().to_owned())?;
     Ok((limits, result_file))
-}
-
-fn handed_accounts(resolved: &settings::resolve::Resolved) -> Result<crate::credentials::Prepared, String> {
-    let count = u32::try_from(resolved.accounts.len()).map_err(|_| "too many account sources".to_owned())?;
-    let mut locations = skein_lib::List::with_capacity(count);
-    let directory = crate::credentials::Directory::of(&resolved.settings);
-    for account in &resolved.accounts {
-        let source = crate::credentials::source(
-            account,
-            crate::credentials::product_codex(resolved, account.number),
-            directory.as_ref(),
-        );
-        locations
-            .push(crate::credentials::Location { account: account.number, name: account.name.clone(), source })
-            .expect("selected locations fit their account bound");
-    }
-    Ok(crate::credentials::Prepared {
-        sources: skein_lib::List::with_capacity(count),
-        lendable: skein_lib::Map::with_capacity(count),
-        locations,
-        limits: crate::credentials::limits(
-            resolved.agent.service.limits.io,
-            count.max(1),
-            resolved.agent.profile.policy.refresh_lead,
-        ),
-    })
 }
 
 fn interactive_header(

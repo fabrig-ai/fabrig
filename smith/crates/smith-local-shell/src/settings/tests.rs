@@ -748,7 +748,7 @@ fn three_dirs_start_beside_the_working_directory() {
         std::fs::create_dir_all(root.join(name)).unwrap();
     }
     let mut resolved = crate::fixture::ready(with_dirs(
-        &root,
+        root,
         "",
         vec![
             dir("plan", root.join("plan"), false),

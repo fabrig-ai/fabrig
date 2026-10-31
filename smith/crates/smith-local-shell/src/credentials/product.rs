@@ -62,7 +62,8 @@ pub fn prepare(
     let mut lendable = Map::with_capacity(count);
     let directory = super::Directory::of(&resolved.settings);
     for account in &resolved.accounts {
-        let descriptor = source(account, codex(resolved, account.number), directory.as_ref());
+        let descriptor = source(account, codex(resolved, account.number), directory.as_ref())
+            .map_err(|credential| unavailable(&account.name, credential))?;
         locations
             .push(Location { account: account.number, name: account.name.clone(), source: descriptor.clone() })
             .expect("selected locations fit their account bound");

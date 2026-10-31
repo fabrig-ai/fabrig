@@ -87,13 +87,8 @@ fn preparing_refuses_a_key_account_without_a_key() {
     }
 }
 
-fn no_source(source: &str) {
-    let files = Files::new("smith-credentials");
-    if source == "key" {
-        private_key(&files);
-    }
-    let prepared =
-        prepare(&resolved_source(&files, source), wall(), false, &ProgramStates::new()).expect("usable source");
+fn no_source(resolved: &settings::resolve::Resolved) {
+    let prepared = prepare(resolved, wall(), false, &ProgramStates::new()).expect("usable source");
     assert!(prepared.sources.is_empty(), "the shell owns this source");
     assert_eq!(prepared.locations.len(), 1, "one selected location");
     assert_eq!(prepared.locations.iter().next().expect("location").name, "codex", "selected account");
@@ -101,7 +96,9 @@ fn no_source(source: &str) {
 
 #[test]
 fn preparing_a_key_account_hands_no_source() {
-    no_source("key");
+    let files = Files::new("smith-credentials");
+    private_key(&files);
+    no_source(&resolved_source(&files, "key"));
 }
 
 #[test]
@@ -114,5 +111,15 @@ fn preparing_a_program_account_hands_no_source() {
 
 #[test]
 fn preparing_a_none_account_hands_no_source() {
-    no_source("none");
+    let files = Files::new("smith-credentials");
+    no_source(&resolved_source(&files, "none"));
+}
+
+#[test]
+fn file_sources_require_a_credentials_directory_before_inspection() {
+    let files = Files::new("smith-credentials");
+    for name in ["key", "sign_in"] {
+        let resolved = resolved_source(&files, name);
+        assert!(matches!(source(&resolved.accounts[0], false, None), Err(Credential::NotSignedIn)));
+    }
 }

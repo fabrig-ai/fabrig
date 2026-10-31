@@ -82,7 +82,8 @@ fn a_record_without_the_plan_scope_is_signed_in_without_it() {
     )]);
     let account = Account::from_fields("work".into(), 0, fields);
     let descriptor =
-        source(&account, false, Some(&Directory::from_base(files.path().to_path_buf()).expect("absolute scratch")));
+        source(&account, false, Some(&Directory::from_base(files.path().to_path_buf()).expect("absolute scratch")))
+            .expect("a credentials directory");
     let descriptor = match descriptor {
         Source::SignIn { required_scopes, .. } => Source::SignIn { file: path.clone(), required_scopes },
         Source::Env { .. } | Source::Key { .. } | Source::Program { .. } | Source::Nothing => {

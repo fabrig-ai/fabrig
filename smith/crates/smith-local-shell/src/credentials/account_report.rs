@@ -94,18 +94,22 @@ fn catalog(
                 directory.as_ref(),
             );
             let (source, kept) = match &descriptor {
-                Source::SignIn { file, .. } => ("sign_in", directory.as_ref().map(|_| Kept::File(file.clone()))),
-                Source::Key { file } => ("key", directory.as_ref().map(|_| Kept::File(file.clone()))),
-                Source::Env { variable, .. } => ("env", Some(Kept::Variable(variable.clone()))),
-                Source::Program { .. } => {
+                Ok(Source::SignIn { file, .. }) => ("sign_in", Some(Kept::File(file.clone()))),
+                Ok(Source::Key { file }) => ("key", Some(Kept::File(file.clone()))),
+                Ok(Source::Env { variable, .. }) => ("env", Some(Kept::Variable(variable.clone()))),
+                Ok(Source::Program { .. }) => {
                     if !include_required && !programs.contains_key(&name) {
                         return None;
                     }
                     ("program", directory.as_ref().map(|directory| Kept::Directory(directory.program(&name))))
                 }
-                Source::Nothing => ("none", None),
+                Ok(Source::Nothing) => ("none", None),
+                Err(_) => (account.source().name(), None),
             };
-            let credential = inspect(&descriptor, wall, programs);
+            let credential = match &descriptor {
+                Ok(descriptor) => inspect(descriptor, wall, programs),
+                Err(credential) => credential.clone(),
+            };
             let provider = account.provider().map(|provider| provider.name().to_owned());
             Some((
                 name,

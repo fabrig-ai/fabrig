@@ -21,6 +21,18 @@ pub enum AccountSource {
     Nothing,
 }
 
+impl AccountSource {
+    pub(crate) const fn name(self) -> &'static str {
+        match self {
+            Self::SignIn | Self::Unspecified => "sign_in",
+            Self::Env => "env",
+            Self::Key => "key",
+            Self::Program => "program",
+            Self::Nothing => "none",
+        }
+    }
+}
+
 /// A provider's preset registration, independent of the selected endpoint.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Provider {

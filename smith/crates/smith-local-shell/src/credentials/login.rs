@@ -85,7 +85,7 @@ fn run(
             })
     });
     let directory = Directory::of(&settings);
-    let source = super::source(&account, codex, directory.as_ref());
+    let source = super::source(&account, codex, directory.as_ref()).map_err(|credential| credential.line(name))?;
     if logout {
         return super::logout::run(&account, &source, &settings, codex, clock, environment);
     }

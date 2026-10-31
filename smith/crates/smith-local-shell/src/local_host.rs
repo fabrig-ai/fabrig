@@ -12,7 +12,7 @@ mod header;
 mod lend;
 pub use header::View;
 mod memory;
-pub(crate) use memory::Admission;
+pub(crate) use memory::{AccountNeeds, Admission};
 mod words;
 
 use skein_io::{self as io, kernel};
@@ -203,7 +203,7 @@ impl Local {
         let operations = Self::startup_operations(
             &config.limits,
             lower_routes,
-            handed.as_ref(),
+            AccountNeeds::prepared(handed.as_ref()),
             front.as_ref().and_then(Front::headless).is_some_and(|front| front.result_file),
         )?;
         if handed.as_ref().is_some_and(memory::has_programs) {
