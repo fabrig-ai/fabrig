@@ -70,7 +70,7 @@ fn every_operational_entrance_consumes_selection() {
         Entrance {
             name: "reserve_connector_subscription",
             input: |core, _| {
-                assert!(core.reserve_connector_subscription(Token::new(1), call_key(), 1));
+                assert!(core.reserve_connector_subscription(Token::new(1), call_key(), 1).is_some());
             },
         },
         Entrance {
@@ -174,26 +174,23 @@ fn every_operational_entrance_consumes_selection() {
         Entrance {
             name: "made",
             input: |core, _| {
-                let _route = core.made(Token::new(u64::MAX), Box::new([]), false);
+                let _route = core.made(Token::new(u64::MAX), Box::new([]));
             },
         },
         Entrance {
             name: "person_proposed",
             input: |core, _| {
-                core.goal_routes
-                    .insert(Token::new(1), crate::GoalRoute::Offering { proposal: 1, to: 1, stubs: Box::new([]) })
-                    .expect("route room");
-                let _route = core.person_proposed(Token::new(1), 1);
+                let token = core
+                    .fly_goal(Token::new(1), crate::GoalRoute::Offering { proposal: 1, to: 1, stubs: Box::new([]) });
+                let _route = core.person_proposed(token, 1);
             },
         },
         Entrance {
             name: "person_proposal_decided",
             input: |core, env| {
-                core.goal_routes
-                    .insert(Token::new(1), crate::GoalRoute::Deciding { proposer: 1, proposal: 1, by: 1 })
-                    .expect("route room");
-                let _route =
-                    core.person_proposal_decided(Token::new(1), 1, 1, tasks::ProposalOutcome::Accepted, env.wall);
+                let token =
+                    core.fly_goal(Token::new(1), crate::GoalRoute::Deciding { proposer: 1, proposal: 1, by: 1 });
+                let _route = core.person_proposal_decided(token, 1, 1, tasks::ProposalOutcome::Accepted, env.wall);
             },
         },
         Entrance {
@@ -205,7 +202,13 @@ fn every_operational_entrance_consumes_selection() {
                     1,
                     tasks::ProposalOutcome::Accepted,
                     env.wall,
-                    false,
+                    crate::PersonProposalRoute::Deciding {
+                        request: Token::new(1),
+                        proposer: 1,
+                        proposal: 1,
+                        by: 1,
+                        moved: None,
+                    },
                 );
             },
         },

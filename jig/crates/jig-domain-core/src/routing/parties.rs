@@ -38,7 +38,7 @@ pub(super) fn pool_route(
         pool_refused(work, request, why);
         return;
     }
-    if core.person_tasks.len() >= env.limits.tasks.tasks {
+    if core.person_task_flights() >= env.limits.tasks.tasks {
         super::refusals::pool_again(work, request, people::Again::Busy);
         return;
     }
@@ -103,10 +103,7 @@ pub(super) fn pool_route(
             budget: core.period_budget(project),
         }));
     }
-    assert!(
-        core.person_tasks.insert(request, PersonTaskRoute::PoolSet { project, person }) == Ok(None),
-        "one admitted pool route"
-    );
+    let request = core.fly_person_task(request, PersonTaskRoute::PoolSet { project, person });
     if core.tasks.funding(funder).is_some() {
         work.push(Event::Tasks(tasks::Event::ResizePool {
             reply_to: ReplyTo::new(request),
@@ -233,7 +230,7 @@ fn finish_creation(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, 
             work.push(Event::Tasks(event));
         }
         let CreationKind::Batch { given, stubs, .. } = creating.kind else { unreachable!("batch creation") };
-        assert!(core.made.insert(request, super::Made { first, given, stubs }).is_ok(), "one batch make flight");
+        let request = core.fly(crate::flight::Flight::Made { request, route: super::Made { first, given, stubs } });
         work.push(Event::Tasks(tasks::Event::Make {
             reply_to: ReplyTo::new(request),
             creator: tasks::Party::Person(person),
@@ -424,7 +421,7 @@ pub(super) fn change_policy_request(
             }))));
             if let Some(budget) = resize.period {
                 work.push(Event::Tasks(tasks::Event::ResizePeriod {
-                    reply_to: ReplyTo::new(Token::new(u64::MAX - 2)),
+                    reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Admission)),
                     project,
                     period,
                     budget,
@@ -434,7 +431,7 @@ pub(super) fn change_policy_request(
                 for pool in &resize.pools {
                     if (pool.to < pool.from) == cuts {
                         work.push(Event::Tasks(tasks::Event::ResizePool {
-                            reply_to: ReplyTo::new(Token::new(u64::MAX - 2)),
+                            reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Admission)),
                             project,
                             person: pool.person,
                             period,

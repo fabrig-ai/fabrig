@@ -10,6 +10,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, Token, Wall};
 
+use crate::flight::Flight;
 use crate::{CallKey, Core, Family, GoalRoute, Limits, PersonProposalRoute, RoutedCall, fresh};
 
 pub(crate) fn fleet_grant(grant: accounts::Grant) -> fleet::Grant {
@@ -25,7 +26,7 @@ pub(crate) fn fleet_grant(grant: accounts::Grant) -> fleet::Grant {
 #[derive(Debug)]
 pub enum SentRoute {
     /// A named host call receives its durable answer.
-    Call { key: CallKey, message: u64 },
+    Call { request: Token, key: CallKey, message: u64 },
     /// A party's keyed request receives its answer from the people child.
     Person(Box<people::Event>),
 }
@@ -36,9 +37,7 @@ pub enum MadeRoute {
     /// Internal connector or deployment admission needs no keyed reply.
     Internal,
     /// The accepted goal needs its semantic proposal decision.
-    Tasks(tasks::Event),
-    /// A person proposal needs its semantic task decision.
-    PersonProposal(tasks::Event),
+    Tasks(Box<tasks::Event>),
     /// A person request receives its keyed result.
     Person { event: Box<people::Event>, stubs: Box<[tasks::Stub]> },
     /// A named run call receives its batch, after remembering historical stubs.
@@ -277,84 +276,92 @@ impl Core {
     /// structural reasons are translated at the core's sibling boundary.
     pub fn goal_refused(&mut self, request: Token, why: tasks::Refusal) -> Option<people::Event> {
         self.start_input();
-        self.goal_routes.remove(&request)?;
+        let Flight::Goal { request, .. } = self.land(request)? else { return None };
         let outcome = crate::routing::refusals::person_task_refusal(self, None, why);
         Some(people::Event::Decided { request, outcome })
     }
 
     /// Advance a successful batch to the child or caller that owns its
     /// continuation. The root only carries the returned event or answer.
-    pub fn made(&mut self, request: Token, tasks: Box<[u64]>, person_proposal: bool) -> MadeRoute {
+    pub fn made(&mut self, token: Token, tasks: Box<[u64]>) -> MadeRoute {
         self.start_input();
-        if request.raw() >= u64::MAX - 3 {
-            return MadeRoute::Internal;
-        }
-        if let Some(GoalRoute::Accepting { proposer, proposal, by }) = self.goal_routes.get(&request).cloned() {
-            let row = self.tasks.person_proposal(proposer, proposal).expect("accepted party proposal");
-            let tasks::PersonAction::Batch(batch) = &row.action else {
-                unreachable!("only a party batch makes tasks");
-            };
-            assert!(batch.len() == tasks.len(), "accepted batch length");
-            for (member, number) in batch.iter().zip(tasks.iter()) {
-                assert!(member.number == *number, "accepted batch made");
-            }
-            let inserted = self.goal_routes.insert(request, GoalRoute::Deciding { proposer, proposal, by });
-            assert!(inserted.is_ok(), "goal route replaced");
-            return MadeRoute::Tasks(tasks::Event::DecidePersonProposal {
-                reply_to: skein_lib::ReplyTo::new(request),
-                proposer,
-                proposal,
-                by: tasks::Party::Person(by),
-                message: None,
-                decision: tasks::ProposalDecision::Accept,
-                revision: None,
-            });
-        }
-        let person_route = if person_proposal { self.routing_people_proposals.remove(&request) } else { None };
-        if let Some(PersonProposalRoute::Accepting { request: named, person, proposer, proposal, message }) =
-            person_route
-        {
-            assert!(request == named, "person acceptance correlation");
-            self.routing_people_proposals
-                .insert(request, PersonProposalRoute::Deciding { request, proposer, proposal, by: person, moved: None })
-                .expect("person route room");
-            return MadeRoute::PersonProposal(tasks::Event::DecideProposal {
-                reply_to: skein_lib::ReplyTo::new(request),
-                proposer,
-                proposal,
-                message: Some(message),
-                by: tasks::Party::Person(person),
-                decision: tasks::ProposalDecision::Accept,
-            });
-        }
-        if let Some(RoutedCall::Accepting { key, proposer, proposal, message }) = self.routing_calls.remove(&request) {
-            self.routing_calls.insert(request, RoutedCall::Decide { key, proposal }).expect("acceptance route room");
-            return MadeRoute::Tasks(tasks::Event::DecideProposal {
-                reply_to: skein_lib::ReplyTo::new(request),
-                proposer,
-                proposal,
-                message: Some(message),
-                by: tasks::Party::Task(key.task),
-                decision: tasks::ProposalDecision::Accept,
-            });
-        }
-        match self.delegating.remove(&request) {
-            Some((key, stubs, given)) => MadeRoute::Delegated { key, tasks, stubs, given },
-            None => {
-                let crate::routing::Made { first: expected, given, stubs } =
-                    self.made.remove(&request).expect("pending make route");
-                MadeRoute::Person {
-                    stubs,
-                    event: Box::new(people::Event::Decided {
-                        request,
-                        outcome: people::Outcome::Created {
-                            first: expected,
-                            given,
-                            last: *tasks.last().expect("nonempty created batch"),
-                        },
-                    }),
+        let flight = self.land(token);
+        self.made_flight(token, flight, tasks)
+    }
+
+    pub(crate) fn made_flight(&mut self, token: Token, flight: Option<Flight>, tasks: Box<[u64]>) -> MadeRoute {
+        match flight {
+            Some(Flight::Goal { request, route: GoalRoute::Accepting { proposer, proposal, by } }) => {
+                let row = self.tasks.person_proposal(proposer, proposal).expect("accepted party proposal");
+                if let tasks::PersonAction::Batch(batch) = &row.action {
+                    assert!(batch.len() == tasks.len(), "accepted batch length");
+                    for (member, number) in batch.iter().zip(tasks.iter()) {
+                        assert!(member.number == *number, "accepted batch made");
+                    }
                 }
+                let token = self.fly_goal(request, GoalRoute::Deciding { proposer, proposal, by });
+                MadeRoute::Tasks(Box::new(tasks::Event::DecidePersonProposal {
+                    reply_to: skein_lib::ReplyTo::new(token),
+                    proposer,
+                    proposal,
+                    by: tasks::Party::Person(by),
+                    message: None,
+                    decision: tasks::ProposalDecision::Accept,
+                    revision: None,
+                }))
             }
+            Some(Flight::PersonProposal(PersonProposalRoute::Accepting {
+                request,
+                person,
+                proposer,
+                proposal,
+                message,
+            })) => {
+                let token = self.fly_person_proposal(PersonProposalRoute::Deciding {
+                    request,
+                    proposer,
+                    proposal,
+                    by: person,
+                    moved: None,
+                });
+                MadeRoute::Tasks(Box::new(tasks::Event::DecideProposal {
+                    reply_to: skein_lib::ReplyTo::new(token),
+                    proposer,
+                    proposal,
+                    message: Some(message),
+                    by: tasks::Party::Person(person),
+                    decision: tasks::ProposalDecision::Accept,
+                }))
+            }
+            Some(Flight::Call {
+                request, route: RoutedCall::Accepting { key, proposer, proposal, message }, ..
+            }) => {
+                let token = self.fly_call(request, RoutedCall::Decide { key, proposal });
+                MadeRoute::Tasks(Box::new(tasks::Event::DecideProposal {
+                    reply_to: skein_lib::ReplyTo::new(token),
+                    proposer,
+                    proposal,
+                    message: Some(message),
+                    by: tasks::Party::Task(key.task),
+                    decision: tasks::ProposalDecision::Accept,
+                }))
+            }
+            Some(Flight::Made { request, route: crate::routing::Made { first, given, stubs } }) => MadeRoute::Person {
+                stubs,
+                event: Box::new(people::Event::Decided {
+                    request,
+                    outcome: people::Outcome::Created {
+                        first,
+                        given,
+                        last: *tasks.last().expect("nonempty created batch"),
+                    },
+                }),
+            },
+            None => match self.delegating.remove(&token) {
+                Some((key, stubs, given)) => MadeRoute::Delegated { key, tasks, stubs, given },
+                None => MadeRoute::Internal,
+            },
+            Some(_) => MadeRoute::Internal,
         }
     }
 
@@ -362,9 +369,13 @@ impl Core {
     /// people child's keyed reply, consuming the in-flight correlation.
     pub fn person_proposed(&mut self, request: Token, proposal: u64) -> (people::Event, Box<[tasks::Stub]>) {
         self.start_input();
-        let route = self.goal_routes.remove(&request).expect("person proposal route");
-        let GoalRoute::Offering { proposal: named, to, stubs } = route else {
-            unreachable!("proposal admission route")
+        let Flight::Goal { request, route: GoalRoute::Offering { proposal: named, to, stubs } } =
+            self.land(request).expect("person proposal flight")
+        else {
+            return (
+                people::Event::Decided { request, outcome: people::Outcome::Refused(people::Refusal::Unknown) },
+                Box::new([]),
+            );
         };
         assert!(named == proposal, "proposal identity");
         (people::Event::Decided { request, outcome: people::Outcome::Proposed { proposal, to } }, stubs)
@@ -381,7 +392,9 @@ impl Core {
         at: Wall,
     ) -> people::Event {
         self.start_input();
-        let route = self.goal_routes.remove(&request).expect("goal decision route");
+        let Flight::Goal { request, route } = self.land(request).expect("goal decision flight") else {
+            return people::Event::Decided { request, outcome: people::Outcome::Refused(people::Refusal::Unknown) };
+        };
         let (named, proposal, by) = match route {
             GoalRoute::Withdrawing { proposer: named, proposal, moved } => {
                 assert!(named == proposer && proposal == number, "withdrawal identity");
@@ -421,15 +434,15 @@ impl Core {
     /// task proposal decisions continue to the named host-call route.
     pub fn task_proposal_decided_for_person(
         &mut self,
-        request: Token,
+        _request: Token,
         proposer: u64,
         number: u64,
         outcome: tasks::ProposalOutcome,
         at: Wall,
-        person_proposal: bool,
+        route: PersonProposalRoute,
     ) -> Option<people::Event> {
         self.start_input();
-        let route = if person_proposal { self.routing_people_proposals.remove(&request) } else { None };
+        let route = Some(route);
         match route {
             Some(PersonProposalRoute::Deciding { request: named, proposer: expected, proposal, by, moved })
                 if expected == proposer && proposal == number =>
@@ -534,20 +547,11 @@ impl Core {
             context.inbox = inbox.into_boxed();
             context.last_message = word.number;
         }
-        match self.routing_calls.remove(&request) {
-            Some(RoutedCall::Message(key)) => SentRoute::Call { key, message: word.number },
-            Some(
-                RoutedCall::Introduce(_)
-                | RoutedCall::Propose { .. }
-                | RoutedCall::Decide { .. }
-                | RoutedCall::Escalation { .. }
-                | RoutedCall::Withdraw { .. }
-                | RoutedCall::Accepting { .. }
-                | RoutedCall::Subscribe { .. }
-                | RoutedCall::Unsubscribe(_)
-                | RoutedCall::Control { .. },
-            ) => unreachable!("only message calls produce Sent"),
-            None => {
+        match self.land(request) {
+            Some(Flight::Call { request, route: RoutedCall::Message(key), .. }) => {
+                SentRoute::Call { request, key, message: word.number }
+            }
+            Some(_) | None => {
                 let route = self.saying.remove(&request);
                 let outcome = match route {
                     Some((named, None)) if named == task => people::Outcome::Said { task, message: word.number },

@@ -96,7 +96,10 @@ pub(super) fn parts(
 }
 
 pub(super) fn apply(core: &mut Core, env: &Env<Limits>, task: u64, step: u64, event: tasks::Event) -> Queue<Request> {
-    let tasks::Event::Procedure { decision, .. } = &event else { unreachable!("procedure event") };
+    let tasks::Event::Procedure { reply_to, task: named, step: named_step, read, decision } = event else {
+        unreachable!("procedure event")
+    };
+    let token = reply_to.into_token();
     let mut revised = List::with_capacity(env.limits.tasks.batch.checked_mul(2).expect("step revision room"));
     let mut first = None;
     for member in &decision.batch {
@@ -111,7 +114,18 @@ pub(super) fn apply(core: &mut Core, env: &Env<Limits>, task: u64, step: u64, ev
         }
     }
     let mut child = Queue::uncapped();
-    tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut child);
+    tasks::step(
+        &mut core.tasks,
+        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+        tasks::Event::Procedure {
+            reply_to: skein_lib::ReplyTo::new(token),
+            task: named,
+            step: named_step,
+            read,
+            decision,
+        },
+        &mut child,
+    );
     let mut kept = Queue::uncapped();
     let mut refusal = None;
     for _ in 0..child.len() {
@@ -123,9 +137,10 @@ pub(super) fn apply(core: &mut Core, env: &Env<Limits>, task: u64, step: u64, ev
         }
     }
     if let Some(why) = refusal {
+        drop(core.land(token));
         return refused(core, task, step, why);
     }
-    let mut routed = super::task_routes::tag_tasks(core, env, kept, false, false, false);
+    let mut routed = super::task_routes::tag_task_outputs(core, env, kept);
     let mut out = Queue::uncapped();
     for _ in 0..routed.len() {
         let request = routed.pop().expect("routed step count");

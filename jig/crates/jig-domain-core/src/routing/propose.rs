@@ -112,10 +112,7 @@ pub(super) fn keep(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, 
         return;
     };
     let project = batch.first().expect("nonempty proposed batch").project;
-    assert!(
-        core.goal_routes.insert(request, GoalRoute::Offering { proposal: number, to, stubs }).is_ok(),
-        "one proposal flight"
-    );
+    let request = core.fly_goal(request, GoalRoute::Offering { proposal: number, to, stubs });
     work.push(Event::Tasks(tasks::Event::ProposePerson {
         reply_to: ReplyTo::new(request),
         proposal: tasks::PersonProposal {
@@ -141,12 +138,7 @@ pub(super) fn withdraw_request(core: &mut Core, work: &mut Queue<Event>, out: &m
             pool_refused(work, request, people::Refusal::Unknown);
             return;
         }
-        assert!(
-            core.goal_routes
-                .insert(request, GoalRoute::Withdrawing { proposer: person, proposal, moved: None })
-                .is_ok(),
-            "one withdrawal flight"
-        );
+        let request = core.fly_goal(request, GoalRoute::Withdrawing { proposer: person, proposal, moved: None });
         work.push(Event::Tasks(tasks::Event::WithdrawPersonProposal {
             reply_to: Some(ReplyTo::new(request)),
             proposer: person,
@@ -206,10 +198,7 @@ fn offer_amendment(
     let to = *roles.iter().min().expect("nonempty recipient roles");
     let number = crate::fresh(&mut core.counters, crate::Family::Message)
         .ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?;
-    assert!(
-        core.goal_routes.insert(request, GoalRoute::Offering { proposal: number, to, stubs: Box::new([]) }).is_ok(),
-        "one amendment proposal"
-    );
+    let request = core.fly_goal(request, GoalRoute::Offering { proposal: number, to, stubs: Box::new([]) });
     work.push(Event::Tasks(tasks::Event::ProposePerson {
         reply_to: ReplyTo::new(request),
         proposal: tasks::PersonProposal {

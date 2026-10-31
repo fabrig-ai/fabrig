@@ -323,24 +323,15 @@ pub struct Core {
     pub(crate) reads: skein_lib::Slab<reads::Pending>,
     /// Historical dependency results held for preparation.
     pub(crate) dependency_results: Map<u64, Box<[HistoricalResult]>>,
-    /// Numbered task creation flights.
-    pub(crate) made: Map<Token, routing::Made>,
-    /// Goal proposal decisions in flight.
-    pub goal_routes: Map<Token, GoalRoute>,
     /// Delegations awaiting input checks.
     pub delegating: Map<Token, Delegating>,
-    /// Person proposal decisions in flight.
-    pub routing_people_proposals: Map<Token, PersonProposalRoute>,
     /// Ended result positions waiting to be delivered.
     pub ending_positions: Map<u64, u64>,
     /// Person messages awaiting task admission.
     pub saying: Map<Token, (u64, Option<u64>)>,
     /// Child requests awaiting their typed continuation.
     pub(crate) flights: skein_lib::Slab<flight::Flight>,
-    /// Person task request routes in flight.
-    pub person_tasks: Map<Token, PersonTaskRoute>,
-    /// Authenticated person escalation choices awaiting task semantics.
-    pub(crate) person_escalations: Map<Token, routing::PersonEscalation>,
+    pub(crate) person_task_capacity: u32,
     /// Ended results waiting on the store for one core-owned read.
     pub(crate) result_reads: Map<Token, routing::result_reads::ResultRead>,
     pub(crate) next_result_request: u64,
@@ -381,8 +372,6 @@ pub struct Core {
     pub call_parts: Map<CallKey, CallPart>,
     /// Settled host answers and opaque delivery evidence under the same retained names.
     pub call_settled: Map<CallKey, SettledCall>,
-    /// Calls routed among the core children.
-    pub routing_calls: Map<Token, RoutedCall>,
     /// Synchronous connector descriptions and verdicts in this decision.
     pub(crate) effect_flights: Map<Token, Box<effects::Flight>>,
     /// Live reply rights waiting for a committed effect or its answer deadline.
@@ -390,9 +379,6 @@ pub struct Core {
     /// Connectors whose outboxes must finish before a task closes.
     pub(crate) closing_connectors: Map<(u64, u16), ()>,
     pub(crate) projections: Map<u64, Box<Projection>>,
-    /// Connector payloads awaiting the task hub's proposal admission.
-    pub(crate) proposing_effects: Map<Token, (u16, Token)>,
-    pub(crate) procedure_proposals: Map<Token, effects::ProcedureProposal>,
     /// Correlations while the notes child loads a page for a caller.
     pub(crate) note_routes: Map<Token, routing::NoteRoute>,
     /// Preparations waiting for notes, or deferring their next activation for load room.
@@ -699,15 +685,11 @@ impl Core {
             changed_views: skein_lib::Set::with_capacity(limits.views.watchers),
             reads: skein_lib::Slab::with_capacity(limits.load_slots),
             dependency_results: Map::with_capacity(limits.tasks.tasks),
-            made: Map::with_capacity(limits.people.pending),
-            goal_routes: Map::with_capacity(limits.people.pending),
             delegating: Map::with_capacity(limits.fleet.calls),
-            routing_people_proposals: Map::with_capacity(limits.people.pending),
             ending_positions: Map::with_capacity(limits.tasks.tasks),
             saying: Map::with_capacity(limits.people.pending),
             flights: skein_lib::Slab::with_capacity(u32::MAX),
-            person_tasks: Map::with_capacity(limits.people.pending),
-            person_escalations: Map::with_capacity(limits.people.pending),
+            person_task_capacity: limits.people.pending,
             result_reads: Map::with_capacity(limits.tasks.tasks),
             next_result_request: 1,
             creating_inputs: Map::with_capacity(limits.people.pending),
@@ -727,7 +709,6 @@ impl Core {
             pending_calls: Map::with_capacity(limits.call_records),
             call_parts: Map::with_capacity(limits.call_records),
             call_settled: Map::with_capacity(limits.call_records),
-            routing_calls: Map::with_capacity(limits.fleet.calls),
             effect_flights: Map::with_capacity(
                 limits
                     .call_records
@@ -741,8 +722,6 @@ impl Core {
                 limits.tasks.tasks.checked_mul(limits.connectors).expect("bounded closing connectors"),
             ),
             projections: Map::with_capacity(limits.tasks.tasks),
-            proposing_effects: Map::with_capacity(limits.call_records),
-            procedure_proposals: Map::with_capacity(limits.tasks.tasks),
             note_routes: Map::with_capacity(2),
             pending_note_briefs: Map::with_capacity(limits.brief.briefs),
             next_note_owner: 1,
@@ -850,21 +829,14 @@ impl Core {
             && self.result_reads.is_empty()
             && self.pending_calls.is_empty()
             && self.effect_flights.is_empty()
-            && self.proposing_effects.is_empty()
-            && self.procedure_proposals.is_empty()
-            && self.routing_calls.is_empty()
             && self.note_routes.is_empty()
             && self.pending_note_briefs.is_empty()
-            && self.routing_people_proposals.is_empty()
             && self.awaiting_resources.is_empty()
-            && self.made.is_empty()
             && self.creating_inputs.is_empty()
-            && self.goal_routes.is_empty()
             && self.delegating.is_empty()
             && self.ending_positions.is_empty()
             && self.saying.is_empty()
             && self.flights.is_empty()
-            && self.person_tasks.is_empty()
             && self.relaying.is_empty()
             && self.adopted.is_empty()
             && self.due.is_empty()

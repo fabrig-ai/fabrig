@@ -240,6 +240,7 @@ pub(super) fn delegate_holdings(
             tasks::ProposalAction::Batch(flight.members),
             reason,
             as_holder,
+            &mut None,
         ),
     }
 }
@@ -394,7 +395,7 @@ pub(super) fn procedure_step(
     match batch.as_ref() {
         [] => {
             work.push(Event::Tasks(tasks::Event::Procedure {
-                reply_to: ReplyTo::new(Token::new(u64::MAX)),
+                reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Delegate)),
                 task,
                 step,
                 read: core.tasks.procedure_offered(task),
@@ -581,7 +582,7 @@ pub(super) fn procedure_holdings(
         decision.batch = flight.members;
         super::deadlines::resolve(&mut decision.batch, env.wall);
         work.push(Event::Tasks(tasks::Event::Procedure {
-            reply_to: ReplyTo::new(Token::new(u64::MAX)),
+            reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Delegate)),
             task,
             step,
             read: core.tasks.procedure_offered(task),
@@ -608,10 +609,9 @@ pub(super) fn start_recurring(
         return;
     }
     let period = core.period(project);
-    let to = ReplyTo::new(Token::new(u64::MAX - 2));
     if core.tasks.funding(tasks::Funder::Period { project, period }).is_none() {
         work.push(Event::Tasks(tasks::Event::OpenPeriod {
-            reply_to: ReplyTo::new(Token::new(u64::MAX - 2)),
+            reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Admission)),
             project,
             period,
             budget: core.period_budget(project),
@@ -619,7 +619,7 @@ pub(super) fn start_recurring(
     }
     let Some(number) = crate::fresh(&mut core.counters, crate::Family::Task) else { return };
     work.push(Event::Tasks(tasks::Event::Make {
-        reply_to: to,
+        reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Admission)),
         creator: tasks::Party::Deployment { project },
         batch: Box::new([tasks::New {
             deadline: jig_domain_tasks::Deadline::Named,
@@ -667,7 +667,7 @@ pub(super) fn route_period(
         }
         if core.tasks.funding(tasks::Funder::Period { project, period }).is_none() {
             work.push(Event::Tasks(tasks::Event::OpenPeriod {
-                reply_to: ReplyTo::new(Token::new(u64::MAX - 2)),
+                reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Admission)),
                 project,
                 period,
                 budget,

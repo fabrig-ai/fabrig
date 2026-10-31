@@ -114,9 +114,6 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::RunText { .. }
         | Event::Tasks(_)
         | Event::ConnectorRepair { .. }
-        | Event::PersonProposal(_)
-        | Event::PersonEscalation(_)
-        | Event::TaskEscalation(_)
         | Event::TurnPayload { .. }
         | Event::AnswerPayload { .. }
         | Event::AcceptedTurn { .. }

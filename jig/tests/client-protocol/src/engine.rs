@@ -523,9 +523,6 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::Period { .. }
         | core::Event::PreparationFailed { .. }
         | core::Event::TranscriptUnread { .. }
-        | core::Event::PersonProposal(_)
-        | core::Event::PersonEscalation(_)
-        | core::Event::TaskEscalation(_)
         | core::Event::People(_)
         | core::Event::Fleet(_)
         | core::Event::TurnPayload { .. }
