@@ -7,9 +7,8 @@
 use crate::DocumentLimits as Limits;
 use crate::openai::DecodeError;
 use alloc::boxed::Box;
-use skein_json::{Compact, Document, Kind, collector, document, tokenizer, writer};
-use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Env, List, Queue, Stack, Time, Wall, bytes};
+use skein_json::{Compact, Document, Kind, ParseError, document, tokenizer, writer};
+use skein_lib::{List, Stack, bytes};
 
 /// A neutral admitted value, owned by a prompt, replay or native codec.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -32,60 +31,21 @@ enum Frame {
 }
 
 impl Json {
-    /// Parses and admits a complete bounded value with the generic collector.
+    /// Parses and admits a complete bounded value (skein/docs/design/json.md, 5.3).
     pub fn from_bytes(input: &[u8], limits: &Limits) -> Result<Json, DecodeError> {
         if input.len() > usize::try_from(limits.bytes).expect("u32 fits usize") {
             return Err(DecodeError::limit(crate::Cap::Retained, limits.bytes));
         }
-        let bounded = collector::Limits {
-            tokenizer: limits.tokenizer_limits(),
-            tokens: limits.tokens,
-            text: limits.bytes,
-            skip: u64::from(limits.bytes),
-        };
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bounded };
-        let mut machine = collector::Collector::new(collector::Filter { root: collector::Keep::Value }, &bounded, &[])
-            .expect("valid filter");
-        let mut above = Queue::uncapped();
-        let mut below = Queue::uncapped();
-        collector::down(&mut machine, &env, collector::Request::Collect, &mut above, &mut below);
-        let mut at: usize = 0;
-        let ticks = input.len().saturating_mul(4).saturating_add(16);
-        for _tick in 0..ticks {
-            match above.pop() {
-                Some(collector::Event::Collected(document)) => return Json::from_document(document, limits),
-                Some(collector::Event::Failed(error)) => return Err(collector_error(error, limits)),
-                Some(collector::Event::Closed) => return Err(DecodeError::Malformed),
-                None => {}
-            }
-            let demand = below.pop().ok_or(DecodeError::Malformed)?;
-            let read = match demand {
-                Down::Demand { read, .. } => read,
-                Down::Send(_) | Down::Finish => return Err(DecodeError::Malformed),
-            };
-            let remaining = input.get(at..).ok_or(DecodeError::Malformed)?;
-            let count = match read {
-                Read::Fill(n) => usize::try_from(n).expect("u32 fits usize"),
-                Read::Scan { until, max } => {
-                    let max = usize::try_from(max).expect("u32 fits usize");
-                    let scanned = remaining.get(..remaining.len().min(max)).ok_or(DecodeError::Malformed)?;
-                    match bytes::find(scanned, until.as_bytes()) {
-                        Some(pos) => pos.saturating_add(until.as_bytes().len()),
-                        None => max,
-                    }
-                }
-                Read::Nothing | Read::Line { .. } | Read::Arrived { .. } => return Err(DecodeError::Malformed),
-            };
-            let delivery = if count <= remaining.len() {
-                let delivery = bytes::copy_of(remaining.get(..count).ok_or(DecodeError::Malformed)?);
-                at = at.checked_add(count).ok_or(DecodeError::Malformed)?;
-                Up::Bytes(delivery)
-            } else {
-                Up::End
-            };
-            collector::up(&mut machine, &env, delivery, &mut above, &mut below);
+        let retained = document::Limits { tokens: limits.tokens, text: limits.bytes };
+        match skein_json::parse(input, &limits.tokenizer_limits(), &retained) {
+            Ok(document) => Json::from_document(document, limits),
+            Err(ParseError::Tokenizer(error)) => Err(tokenizer_error(error, limits)),
+            Err(ParseError::Document(error)) => match error {
+                document::Error::TooManyTokens => Err(DecodeError::limit(crate::Cap::Tokens, limits.tokens)),
+                document::Error::TooMuchText => Err(DecodeError::limit(crate::Cap::Retained, limits.bytes)),
+                document::Error::Range => Err(DecodeError::Malformed),
+            },
         }
-        Err(DecodeError::Malformed)
     }
 
     /// Admits owned compact records, checking their grammar and measured bytes.
@@ -260,16 +220,6 @@ pub(crate) fn write_view(out: &mut writer::Encoder, view: (&Document, Span)) {
     }
 }
 
-fn collector_error(error: collector::Error, limits: &Limits) -> DecodeError {
-    match error {
-        collector::Error::Tokenizer(error) => tokenizer_error(error, limits),
-        collector::Error::TooManyTokens => DecodeError::limit(crate::Cap::Tokens, limits.tokens),
-        collector::Error::TooMuchText { cap: _ } => DecodeError::limit(crate::Cap::Retained, limits.bytes),
-        collector::Error::SkippedTooLong => unreachable!("Value skips no fields"),
-        collector::Error::Duplicate | collector::Error::NotTagged => unreachable!("Value interprets no fields"),
-    }
-}
-
 fn validate(view: (&Document, Span), depth: u32) -> Result<(), DecodeError> {
     let mut open = Stack::with_capacity(depth);
     let mut root = false;
@@ -337,31 +287,15 @@ fn validate(view: (&Document, Span), depth: u32) -> Result<(), DecodeError> {
 }
 
 pub(crate) fn span(view: (&Document, Span), at: u32) -> Result<u32, DecodeError> {
-    let first = kind(view, at).ok_or(DecodeError::Malformed)?;
-    match first {
-        Kind::ObjectStart | Kind::ArrayStart => {
-            let mut depth = 0_u32;
-            for index in at..len(view) {
-                match kind(view, index).ok_or(DecodeError::Malformed)? {
-                    Kind::ObjectStart | Kind::ArrayStart => {
-                        depth = depth.checked_add(1).ok_or(DecodeError::Malformed)?;
-                    }
-                    Kind::ObjectEnd | Kind::ArrayEnd => {
-                        depth = depth.checked_sub(1).ok_or(DecodeError::Malformed)?;
-                        if depth == 0 {
-                            return index.checked_add(1).ok_or(DecodeError::Malformed);
-                        }
-                    }
-                    Kind::Key | Kind::String | Kind::Number | Kind::True | Kind::False | Kind::Null | Kind::Long => {}
-                }
-            }
-            Err(DecodeError::Malformed)
-        }
-        Kind::String | Kind::Number | Kind::True | Kind::False | Kind::Null | Kind::Long => {
-            at.checked_add(1).ok_or(DecodeError::Malformed)
-        }
-        Kind::ObjectEnd | Kind::ArrayEnd | Kind::Key => Err(DecodeError::Malformed),
+    if at >= len(view) {
+        return Err(DecodeError::Malformed);
     }
+    let start = view.1.start.checked_add(at).ok_or(DecodeError::Malformed)?;
+    let end = view.0.value_end(start).ok_or(DecodeError::Malformed)?;
+    if end > view.1.end {
+        return Err(DecodeError::Malformed);
+    }
+    end.checked_sub(view.1.start).ok_or(DecodeError::Malformed)
 }
 
 pub(crate) fn field(view: (&Document, Span), name: &[u8]) -> Result<Option<u32>, DecodeError> {
@@ -369,7 +303,10 @@ pub(crate) fn field(view: (&Document, Span), name: &[u8]) -> Result<Option<u32>,
         return Err(DecodeError::WrongType);
     }
     let mut at = 1_u32;
-    let mut found = None;
+    let found = match view.0.member(view.1.start, name) {
+        Some(index) => Some(index.checked_sub(view.1.start).ok_or(DecodeError::Malformed)?),
+        None => None,
+    };
     for _step in 0..len(view) {
         match kind(view, at) {
             Some(Kind::ObjectEnd) => return Ok(found),
@@ -377,11 +314,8 @@ pub(crate) fn field(view: (&Document, Span), name: &[u8]) -> Result<Option<u32>,
                 let key = record_text(view, at)?;
                 let start = at.checked_add(1).ok_or(DecodeError::Malformed)?;
                 at = span(view, start)?;
-                if key == name {
-                    if found.is_some() {
-                        return Err(DecodeError::Malformed);
-                    }
-                    found = Some(start);
+                if key == name && found != Some(start) {
+                    return Err(DecodeError::Malformed);
                 }
             }
             Some(
