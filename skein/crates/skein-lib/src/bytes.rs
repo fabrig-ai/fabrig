@@ -1,5 +1,6 @@
 //! Owned bytes (programming-model.md, 6.1): a `Box<[u8]>` allocated at its
-//! final length, moved from owner to owner, never shared; and searching them.
+//! final length, moved from owner to owner, never shared; searching them;
+//! and the hex and decimal digits a step writes and reads in them (lib.md, 6).
 
 use alloc::boxed::Box;
 use core::cmp::Ordering;
@@ -101,6 +102,44 @@ pub fn count(haystack: &[u8], needle: &[u8], cap: u32) -> u32 {
         from = add(at, needle.len());
     }
     found
+}
+
+/// The lower-case ASCII hex digit of `nibble`'s low four bits: what a step
+/// writes for each half of a byte.
+#[must_use]
+pub const fn hex_digit(nibble: u8) -> u8 {
+    let low = nibble & 0x0f;
+    if low < 10 { b'0'.wrapping_add(low) } else { b'a'.wrapping_add(low.wrapping_sub(10)) }
+}
+
+/// The value of an ASCII hex digit, in either case, or `None` for any other
+/// byte.
+#[must_use]
+pub const fn hex_value(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte.wrapping_sub(b'0')),
+        b'a'..=b'f' => Some(byte.wrapping_sub(b'a').wrapping_add(10)),
+        b'A'..=b'F' => Some(byte.wrapping_sub(b'A').wrapping_add(10)),
+        _ => None,
+    }
+}
+
+/// `1*DIGIT` as a `u64`, or `None`: no digits, a byte other than an ASCII
+/// digit, or a number past `u64::MAX`. Leading zeros are read as zeros.
+/// [`Decimal`](crate::Decimal) writes the digits this reads.
+#[must_use]
+pub fn decimal(digits: &[u8]) -> Option<u64> {
+    if digits.is_empty() {
+        return None;
+    }
+    let mut value = 0_u64;
+    for &byte in digits {
+        if !byte.is_ascii_digit() {
+            return None;
+        }
+        value = value.checked_mul(10)?.checked_add(u64::from(byte.wrapping_sub(b'0')))?;
+    }
+    Some(value)
 }
 
 /// A needle split for the two-way search (Crochemore and Perrin, 1991), which
