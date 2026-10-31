@@ -672,29 +672,17 @@ impl Host for Client {
         }
         let io_env = Env { now, wall, limits: self.limits.io };
         self.private_io(&env);
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 || !self.io.is_ready() {
-                break;
-            }
-            io::resume(&mut self.io, &io_env, &mut self.events, &mut self.submissions);
-        }
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 {
-                break;
-            }
+        // The file driver shares the kernel's completions: it takes its own (they submit only into its
+        // queue, which `private_io` drains), and io's stage takes the rest in their order.
+        for _ in 0..self.completions.len() {
             let Some(complete) = self.completions.pop() else { break };
             if skein_world::files::Driver::owns(complete.op) {
                 self.file_driver.as_mut().expect("tagged file completion").up(complete);
             } else {
-                io::up(&mut self.io, &io_env, complete, &mut self.events, &mut self.submissions);
+                self.completions.push(complete);
             }
         }
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 || !self.io.is_due(now) {
-                break;
-            }
-            io::fire(&mut self.io, &io_env, &mut self.events, &mut self.submissions);
-        }
+        io::stage::up(&mut self.io, &io_env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         for _ in 0..ROOM {
             let Some(event) = self.events.pop() else { break };
             self.component.as_mut().expect("io follows started component").up(
