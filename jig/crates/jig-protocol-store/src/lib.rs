@@ -10,6 +10,7 @@ pub mod format;
 mod generations;
 mod gets;
 pub mod historical;
+pub mod host;
 pub mod intervals;
 mod loads;
 mod open;

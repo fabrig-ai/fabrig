@@ -954,7 +954,7 @@ pub(crate) fn worker_alone_operations(io: &io::Limits, worker_operations: u32) -
 }
 fn startup_operations(io: &io::Limits, worker_operations: u32) -> Option<u32> {
     // Shared io successors, worker file operations and the three store drivers own the kernel credit.
-    worker_alone_operations(io, worker_operations)?.checked_add(store::OPERATIONS)
+    worker_alone_operations(io, worker_operations)?.checked_add(store::KERNEL_HANDOFF_ENTRIES)
 }
 
 fn forget_handover(settings: &mut settings::Engine) {
