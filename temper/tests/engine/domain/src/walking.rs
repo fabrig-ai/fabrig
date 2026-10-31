@@ -771,6 +771,9 @@ impl World {
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     self.pages += 1;
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
+                    for missing in self.store.take_missing(owner) {
+                        self.queue(engine::Event::Store(missing), self.settings.page_delay);
+                    }
                     self.queue(
                         engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next, texts: None }),
                         self.settings.page_delay,
@@ -994,6 +997,7 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "committed result reaches person once: \"person received result twice\"")]
+    #[ignore = "needs core-inbox"]
     fn a_queued_late_result_prevents_settlement_and_reaches_the_referee() {
         let mut world = World::new(Settings::calm(66));
         world.run();

@@ -61,6 +61,7 @@ pub struct Store {
     inflight: BTreeMap<u64, Box<[Write]>>,
     durable: Vec<(u64, Box<[Write]>)>,
     replies: Vec<engine::StoreInput>,
+    missing: Vec<(jig_domain_core::Key, jig_domain_core::Key)>,
     delayed: VecDeque<Delayed>,
     hold_next: u32,
     holding: bool,
@@ -155,6 +156,7 @@ impl Store {
             inflight: BTreeMap::new(),
             durable: Vec::new(),
             replies: Vec::new(),
+            missing: Vec::new(),
             delayed: VecDeque::new(),
             hold_next: 0,
             holding: false,
@@ -238,6 +240,7 @@ impl Store {
         self.held.clear();
         self.inflight.clear();
         self.replies.clear();
+        self.missing.clear();
         self.delayed.clear();
         self.holding = false;
         self.failed = false;
@@ -300,12 +303,16 @@ impl Store {
             bytes: self.limits.loads.reply_bytes,
         });
         loop {
-            if let Some(reply) = self.replies.pop() {
+            if !self.replies.is_empty() {
+                let reply = self.replies.remove(0);
                 match reply {
                     engine::StoreInput::Loaded { rows, next, .. } => return (rows, next),
+                    engine::StoreInput::MissingLink { record, target, .. } => {
+                        self.missing.push((record, target));
+                        continue;
+                    }
                     engine::StoreInput::Committed { .. } => continue,
-                    reply @ (engine::StoreInput::MissingLink { .. }
-                    | engine::StoreInput::Switched
+                    reply @ (engine::StoreInput::Switched
                     | engine::StoreInput::Uncommitted { .. }
                     | engine::StoreInput::Unloaded { .. }
                     | engine::StoreInput::ReadLoaded { .. }) => {
@@ -317,6 +324,13 @@ impl Store {
             assert!(!self.delayed.is_empty(), "load has a terminal");
             self.tick_pages();
         }
+    }
+    /// Missing owners precede the page terminal at the root's load owner.
+    pub fn take_missing(&mut self, owner: Token) -> Vec<engine::StoreInput> {
+        std::mem::take(&mut self.missing)
+            .into_iter()
+            .map(|(record, target)| engine::StoreInput::MissingLink { owner, record, target })
+            .collect()
     }
     /// The actual component allowance used by party reads in this world.
     #[must_use]
@@ -379,6 +393,7 @@ impl Store {
         self.drive(VecDeque::from([request]), Queue::uncapped());
     }
     fn open(&mut self) {
+        self.component.as_mut().expect("live component").start_restore();
         let root = self.files.root();
         self.drive(
             VecDeque::from([Request::Open { owner: Token::new(0), root, installation: INSTALLATION }]),
@@ -422,7 +437,6 @@ impl Store {
     }
     fn event(&mut self, event: Event, requests: &mut VecDeque<Request>) {
         match event {
-            Event::Page { .. } | Event::PageRefused { .. } => unreachable!("a start's pages need a start-mode store"),
             Event::Opened { last, pending, .. } => {
                 self.applied = last;
                 self.pending_generation = pending;
@@ -469,7 +483,11 @@ impl Store {
             | Event::FrameTooLarge { .. }
             | Event::OpenRefused { .. }
             | Event::SecretsNotReady { .. } => self.failed = true,
-            event @ (Event::Restored { .. } | Event::Loaded { .. } | Event::Turns { .. } | Event::Got { .. })
+            event @ (Event::Page { .. }
+            | Event::Restored { .. }
+            | Event::Loaded { .. }
+            | Event::Turns { .. }
+            | Event::Got { .. })
                 if self.page_delay != 0 =>
             {
                 self.delayed.push_back(Delayed { event, delay: self.page_delay });
@@ -478,7 +496,9 @@ impl Store {
                 self.failed = true;
                 self.route(event, requests);
             }
-            event @ (Event::Switched { .. }
+            event @ (Event::Page { .. }
+            | Event::PageRefused { .. }
+            | Event::Switched { .. }
             | Event::Site { .. }
             | Event::Restored { .. }
             | Event::Loaded { .. }

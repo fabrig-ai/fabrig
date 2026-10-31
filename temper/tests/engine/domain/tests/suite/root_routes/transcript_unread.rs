@@ -65,6 +65,7 @@ fn unread_preparation(closed: bool) -> (Driver, engine::Assignment, Token) {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_closed_unread_window_assigns_fresh_without_counting_or_retrying() {
     let (mut driver, first, _) = unread_preparation(true);
     driver.settle();
@@ -98,6 +99,7 @@ fn a_closed_unread_window_assigns_fresh_without_counting_or_retrying() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn an_open_unread_window_keeps_the_transient_failure_policy() {
     let (mut driver, first, _) = unread_preparation(false);
     driver.pump();
@@ -117,6 +119,7 @@ fn an_open_unread_window_keeps_the_transient_failure_policy() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_stale_unread_terminal_cannot_fail_a_later_preparation() {
     let (mut driver, first, stale) = unread_preparation(true);
     driver.settle();

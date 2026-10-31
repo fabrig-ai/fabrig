@@ -164,6 +164,7 @@ impl Driver {
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, bytes }) => {
                     self.loads.push((owner, range.clone()));
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
+                    self.events.extend(self.store.take_missing(owner).into_iter().map(engine::Event::Store));
                     assert!(rows.len() <= usize::try_from(most).expect("small count"));
                     assert!(bytes >= self.env.limits.loads.bytes);
                     if self.fail_archive_once
