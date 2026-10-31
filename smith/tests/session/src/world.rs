@@ -7,7 +7,7 @@ use skein_world::domain::{Key, Ledger, Schedule, Span, Stage, Trace};
 use smith_domain_session as agent;
 use smith_domain_session::llm::{Block, Decoded, Descriptor, Endpoint, Failure, Prompt, Returned, Usage};
 
-use smith_domain_tools::{self as tools, Authority, Done, Effect, Fault, Grants, Op, Repo};
+use smith_domain_tools::{self as tools, Authority, Directory, Done, Effect, Fault, Grants, Op};
 use smith_tools_world::translate as io;
 
 use crate::fixture;
@@ -219,7 +219,7 @@ impl Settings {
 /// names it in the spec as io names its root.
 #[must_use]
 pub fn spec(prompt: &[u8]) -> agent::Spec {
-    let repo = Repo {
+    let repo = Directory {
         host: Box::new([smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
         mount: io::names(b"/work"),
         root: Token::new(0),

@@ -38,7 +38,7 @@ pub enum FactKind {
     Answered {
         session: Token,
         tool: Tool,
-        /// Content-free classification of the checkout call terminal.
+        /// Content-free classification of the tool call terminal.
         verdict: Verdict,
         /// Owned payload bytes charged against the enclosing session limit.
         bytes: u64,
@@ -179,8 +179,13 @@ pub(crate) fn timeout_clamped(clamp: crate::TimeoutClamp) -> bool {
 
 /// The fact of `outcome` answering a call of `tool` from `session`.
 pub(crate) fn answered(session: Token, tool: Tool, outcome: &Outcome, observation: Observation) -> FactKind {
+    let mut job = None;
+    let mut observed = observation;
     let (verdict, bytes) = match outcome {
-        Outcome::Read { content, .. } => (Verdict::Read, len(content)),
+        Outcome::Read { content, window, .. } => {
+            observed.clamped |= bytes_clamped(*window);
+            (Verdict::Read, len(content))
+        }
         Outcome::Listed { entries, .. } => {
             let mut bytes: u64 = 0;
             for entry in entries {
@@ -198,14 +203,24 @@ pub(crate) fn answered(session: Token, tool: Tool, outcome: &Outcome, observatio
         }
         Outcome::Written { created } => (Verdict::Written { created: *created }, 0),
         Outcome::Edited { replaced } => (Verdict::Edited { replaced: *replaced }, 0),
-        Outcome::Exited { exit, head, tail, dropped: _, timeout: _, output: _ } => (
-            Verdict::Exited { exit: *exit },
-            len(head).checked_add(len(tail)).expect("bounded command output fits u64"),
-        ),
-        Outcome::Running { head, tail, .. } => {
+        Outcome::Exited { exit, head, tail, dropped, timeout, output } => {
+            observed.omitted_bytes = *dropped;
+            observed.clamped |= timeout_clamped(*timeout) || bytes_clamped(*output);
+            (
+                Verdict::Exited { exit: *exit },
+                len(head).checked_add(len(tail)).expect("bounded command output fits u64"),
+            )
+        }
+        Outcome::Running { job: number, head, tail, dropped, timeout, after, output } => {
+            job = Some(*number);
+            observed.omitted_bytes = *dropped;
+            observed.clamped |= timeout_clamped(*timeout) || timeout_clamped(*after) || bytes_clamped(*output);
             (Verdict::Running, len(head).checked_add(len(tail)).expect("bounded job output"))
         }
-        Outcome::Job { head, tail, end, .. } => {
+        Outcome::Job { job: number, head, tail, dropped, end, wait, output } => {
+            job = Some(*number);
+            observed.omitted_bytes = *dropped;
+            observed.clamped |= timeout_clamped(*wait) || bytes_clamped(*output);
             let verdict = match end {
                 crate::JobEnd::Running => Verdict::Running,
                 crate::JobEnd::Ended(exit) => Verdict::Exited { exit: *exit },
@@ -242,8 +257,6 @@ pub(crate) fn answered(session: Token, tool: Tool, outcome: &Outcome, observatio
         Outcome::Busy => (Verdict::Busy, 0),
         Outcome::NulByte => (Verdict::NulByte, 0),
     };
-    let job = outcome_job(outcome);
-    let observed = observed(outcome, observation);
     FactKind::Answered {
         session,
         tool,
@@ -252,86 +265,6 @@ pub(crate) fn answered(session: Token, tool: Tool, outcome: &Outcome, observatio
         job,
         omitted_bytes: observed.omitted_bytes,
         clamped: observed.clamped,
-    }
-}
-
-fn outcome_job(outcome: &Outcome) -> Option<crate::JobNumber> {
-    match outcome {
-        Outcome::Running { job, .. } | Outcome::Job { job, .. } => Some(*job),
-        Outcome::Exited { .. }
-        | Outcome::Read { .. }
-        | Outcome::Listed { .. }
-        | Outcome::Found { .. }
-        | Outcome::Removed
-        | Outcome::NotEmpty
-        | Outcome::Written { .. }
-        | Outcome::Edited { .. }
-        | Outcome::NotGranted
-        | Outcome::Outside { .. }
-        | Outcome::ReadOnly { .. }
-        | Outcome::TooLong
-        | Outcome::NotFound { .. }
-        | Outcome::NotFile
-        | Outcome::Linked
-        | Outcome::Protected
-        | Outcome::NotDirectory { .. }
-        | Outcome::TooLarge { .. }
-        | Outcome::NotRead
-        | Outcome::Stale
-        | Outcome::EditFailed { .. }
-        | Outcome::Failed { .. }
-        | Outcome::TimedOut
-        | Outcome::Cancelled
-        | Outcome::Busy
-        | Outcome::NulByte => None,
-    }
-}
-
-fn observed(outcome: &Outcome, observation: Observation) -> Observation {
-    match outcome {
-        Outcome::Exited { dropped, timeout, output, .. } => Observation {
-            omitted_bytes: *dropped,
-            clamped: observation.clamped || timeout_clamped(*timeout) || bytes_clamped(*output),
-        },
-        Outcome::Running { dropped, timeout, after, output, .. } => Observation {
-            omitted_bytes: *dropped,
-            clamped: observation.clamped
-                || timeout_clamped(*timeout)
-                || timeout_clamped(*after)
-                || bytes_clamped(*output),
-        },
-        Outcome::Job { dropped, wait: after, output, .. } => Observation {
-            omitted_bytes: *dropped,
-            clamped: observation.clamped || timeout_clamped(*after) || bytes_clamped(*output),
-        },
-        Outcome::Read { window, .. } => Observation {
-            omitted_bytes: observation.omitted_bytes,
-            clamped: observation.clamped || bytes_clamped(*window),
-        },
-        Outcome::Listed { .. }
-        | Outcome::Found { .. }
-        | Outcome::Removed
-        | Outcome::NotEmpty
-        | Outcome::Written { .. }
-        | Outcome::Edited { .. }
-        | Outcome::NotGranted
-        | Outcome::Outside { .. }
-        | Outcome::ReadOnly { .. }
-        | Outcome::TooLong
-        | Outcome::NotFound { .. }
-        | Outcome::NotFile
-        | Outcome::Linked
-        | Outcome::Protected
-        | Outcome::NotDirectory { .. }
-        | Outcome::TooLarge { .. }
-        | Outcome::NotRead
-        | Outcome::Stale
-        | Outcome::EditFailed { .. }
-        | Outcome::Failed { .. }
-        | Outcome::TimedOut
-        | Outcome::Cancelled
-        | Outcome::Busy
-        | Outcome::NulByte => observation,
     }
 }
 

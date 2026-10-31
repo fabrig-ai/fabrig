@@ -13,7 +13,7 @@ use core::mem::size_of;
 
 use skein_lib::{Duration, Env, List, Queue, Time, Token, Wall, bytes as owned_bytes};
 use smith_domain_tools::{
-    self as tools, Authority, Call, Done, Effect, Grants, Name, Op, Outcome, Part, Path, Place, Repo, Version,
+    self as tools, Authority, Call, Directory, Done, Effect, Grants, Name, Op, Outcome, Part, Path, Place, Version,
 };
 
 use crate::llm::{
@@ -286,7 +286,9 @@ fn authority(repos: u8) -> Authority {
             Some(other) => Box::new([named(b"other"), named(&[b'a'.checked_add(other).expect("few")])]),
         };
         let root = Token::new(ROOT.raw().checked_add(u64::from(repo)).expect("few"));
-        mounted.push(Repo { host: Box::new([named(b"host")]), mount, root, writable: true }).expect("room for each");
+        mounted
+            .push(Directory { host: Box::new([named(b"host")]), mount, root, writable: true })
+            .expect("room for each");
     }
     Authority {
         cwd: Box::new([named(b"work")]),

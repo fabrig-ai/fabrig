@@ -6,7 +6,7 @@ use skein_fake_checkout::Checkout;
 use skein_lib::{Duration, ReplyTo, Rng, Time, Token};
 use skein_world::domain::{Key, Ledger, Schedule, Span, Stage, Trace};
 use smith_domain_tools as tools;
-use smith_domain_tools::{Authority, Call, Done, Expect, Fault, Grants, Op, Outcome, Refusal, Repo};
+use smith_domain_tools::{Authority, Call, Directory, Done, Expect, Fault, Grants, Op, Outcome, Refusal};
 
 use crate::translate;
 
@@ -42,30 +42,14 @@ impl Settings {
         Settings {
             seed,
             tools: tools::Limits {
-                shell_output: 192,
                 kits: 4,
                 calls: 8,
-                repos: 4,
                 path_bytes: 256,
-                host_path_bytes: 4096,
                 known_files: 16,
                 file_bytes: 4096,
                 tool_payload: 4096,
                 read_bytes: 1024,
-                list_entries: 16,
-                list_bytes: 4096,
-                match_lines: 4,
-                file_timeout: Duration::from_secs(10),
-                jobs: 4,
-                job_poll: Duration::from_secs(30),
-                job_wait: Duration::from_secs(30),
-                shell_timeout: Duration::from_secs(60),
-                tool_deadline: Duration::from_secs(600),
-                shell_head: 64,
-                shell_tail: 128,
-                search_hits: 8,
-                search_bytes: 256,
-                search_timeout: Duration::from_secs(30),
+                ..tools::fixture::SMALL
             },
             io: Span::millis(1, 20),
             faults: 0,
@@ -944,19 +928,14 @@ fn session_of(fact: &tools::Fact) -> Token {
 }
 
 /// A repository of `checkout` at `mount`, made a root.
-pub fn repo(checkout: &mut Checkout, mount: &[u8], writable: bool) -> Repo {
+pub fn repo(checkout: &mut Checkout, mount: &[u8], writable: bool) -> Directory {
     let root = checkout.root(mount.strip_prefix(b"/").expect("a mount is absolute"));
-    Repo {
-        host: Box::new([smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-        mount: translate::names(mount),
-        root: translate::token(root),
-        writable,
-    }
+    crate::fixture::directory(mount, translate::token(root), writable)
 }
 
 /// An authority whose relative paths start at `cwd`; the fake machine owns
 /// the commands' configured environment.
 #[must_use]
-pub fn authority(cwd: &[u8], repos: Vec<Repo>, grants: Grants) -> Authority {
+pub fn authority(cwd: &[u8], repos: Vec<Directory>, grants: Grants) -> Authority {
     Authority { cwd: translate::names(cwd), repos: repos.into(), grants }
 }

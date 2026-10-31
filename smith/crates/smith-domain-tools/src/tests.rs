@@ -13,38 +13,12 @@ use crate::knowledge::Knowledge;
 use crate::path;
 use crate::window::{self, Span};
 use crate::{
-    Authority, Call, Domain, Done, Effect, Entry, Event, Exit, Expect, Fault, Grants, Hit, Kind, Limits, Name, Op,
-    Outcome, Part, Path, Place, Refusal, Repo, Request, Version, effect, step, valid,
+    Authority, Call, Directory, Domain, Done, Effect, Entry, Event, Exit, Expect, Fault, Grants, Hit, Kind, Limits,
+    Name, Op, Outcome, Part, Path, Place, Refusal, Request, Version, effect, step, valid,
 };
 use crate::{FactKind as Fact, Tool, Verdict};
 
-const LIMITS: Limits = Limits {
-    shell_output: 192,
-    kits: 2,
-    calls: 4,
-    repos: 4,
-    path_bytes: 64,
-    host_path_bytes: 4096,
-    known_files: 8,
-    file_bytes: 1024,
-    tool_payload: 1024,
-    read_bytes: 256,
-    list_entries: 16,
-    list_bytes: 4096,
-    match_lines: 4,
-    file_timeout: Duration::from_secs(10),
-
-    jobs: 4,
-    job_poll: Duration::from_secs(30),
-    job_wait: Duration::from_secs(30),
-    shell_timeout: Duration::from_secs(60),
-    tool_deadline: Duration::from_secs(600),
-    shell_head: 64,
-    shell_tail: 128,
-    search_hits: 8,
-    search_bytes: 256,
-    search_timeout: Duration::from_secs(30),
-};
+use crate::fixture::SMALL as LIMITS;
 
 const ALL: Grants = Grants { inspect: true, modify: true, shell: true };
 
@@ -193,6 +167,10 @@ fn push(parts: &mut List<Part>, part: &[u8]) {
 }
 
 /// The names of an absolute path.
+fn repo(mount: &[u8], root: u64, writable: bool) -> Directory {
+    Directory { host: names(b"/host"), mount: names(mount), root: Token::new(root), writable }
+}
+
 fn names(text: &[u8]) -> Box<[Name]> {
     let path = path(text);
     assert!(path.absolute, "names are of absolute paths");
@@ -206,30 +184,15 @@ fn names(text: &[u8]) -> Box<[Name]> {
     names.into_boxed()
 }
 
-/// A checkout at /work, where relative paths start in temper, which may be
+/// A workspace at /work, where relative paths start in temper, which may be
 /// written; a library vendored in it and the docs beside it may not.
 fn authority(grants: Grants) -> Authority {
     Authority {
         cwd: names(b"/work/temper"),
         repos: Box::new([
-            Repo {
-                host: Box::new([Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-                mount: names(b"/work/temper"),
-                root: Token::new(1),
-                writable: true,
-            },
-            Repo {
-                host: Box::new([Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-                mount: names(b"/work/temper/vendor/lib"),
-                root: Token::new(2),
-                writable: false,
-            },
-            Repo {
-                host: Box::new([Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-                mount: names(b"/work/docs"),
-                root: Token::new(3),
-                writable: false,
-            },
+            repo(b"/work/temper", 1, true),
+            repo(b"/work/temper/vendor/lib", 2, false),
+            repo(b"/work/docs", 3, false),
         ]),
         grants,
     }
@@ -376,7 +339,7 @@ fn a_mount_holds_itself_and_what_is_beneath_it() {
 
 #[test]
 fn a_path_is_in_the_repository_with_the_longest_mount_that_holds_it() {
-    let checkout = authority::admit(authority(ALL), &LIMITS).expect("the authority fits");
+    let working = authority::admit(authority(ALL), &LIMITS).expect("the authority fits");
     let table: [(&[u8], Result<Located, Outcome>); 13] = [
         (b"src/lib.rs", Ok(located(1, b"src/lib.rs", true))),
         (b".", Ok(located(1, b"", true))),
@@ -399,7 +362,7 @@ fn a_path_is_in_the_repository_with_the_longest_mount_that_holds_it() {
         (b"a/very/long/path/that/does/not/fit/in/the/sixty/four/bytes/allowed", Err(Outcome::TooLong)),
     ];
     for (text, expected) in table {
-        let located = match authority::locate(&checkout, &path(text), LIMITS.path_bytes) {
+        let located = match authority::locate(&working, &path(text), LIMITS.path_bytes) {
             Ok(Target::Place(located)) => Ok(located),
             Ok(Target::Directories) => panic!("a place row"),
             Err(outcome) => Err(outcome),
@@ -411,21 +374,8 @@ fn a_path_is_in_the_repository_with_the_longest_mount_that_holds_it() {
 #[test]
 fn a_repository_mounted_at_the_root_holds_what_no_other_does() {
     let mut authority = authority(ALL);
-    authority.repos = Box::new([
-        Repo {
-            host: Box::new([Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-            mount: names(b"/"),
-            root: Token::new(7),
-            writable: false,
-        },
-        Repo {
-            host: Box::new([Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-            mount: names(b"/work/temper"),
-            root: Token::new(1),
-            writable: true,
-        },
-    ]);
-    let checkout = authority::admit(authority, &LIMITS).expect("the authority fits");
+    authority.repos = Box::new([repo(b"/", 7, false), repo(b"/work/temper", 1, true)]);
+    let working = authority::admit(authority, &LIMITS).expect("the authority fits");
     let table: [(&[u8], Result<Located, Outcome>); 3] = [
         (b"/etc/passwd", Ok(located(7, b"etc/passwd", false))),
         (b"src", Ok(located(1, b"src", true))),
@@ -433,7 +383,7 @@ fn a_repository_mounted_at_the_root_holds_what_no_other_does() {
     ];
     for (text, expected) in table {
         assert_eq!(
-            authority::locate(&checkout, &path(text), LIMITS.path_bytes),
+            authority::locate(&working, &path(text), LIMITS.path_bytes),
             match expected {
                 Ok(located) => Ok(Target::Place(located)),
                 Err(outcome) => Err(outcome),
@@ -467,36 +417,10 @@ fn authorities_beyond_the_limits_are_refused_as_invalid() {
     invalid(Limits { repos: 2, ..LIMITS }, authority(ALL));
     // Two repositories at one mount, or with one root.
     let mut twice = authority(ALL);
-    twice.repos = Box::new([
-        Repo {
-            host: Box::new([Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-            mount: names(b"/work/temper"),
-            root: Token::new(1),
-            writable: false,
-        },
-        Repo {
-            host: Box::new([Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-            mount: names(b"/work/temper"),
-            root: Token::new(2),
-            writable: true,
-        },
-    ]);
+    twice.repos = Box::new([repo(b"/work/temper", 1, false), repo(b"/work/temper", 2, true)]);
     invalid(LIMITS, twice);
     let mut shared = authority(ALL);
-    shared.repos = Box::new([
-        Repo {
-            host: Box::new([Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-            mount: names(b"/work/temper"),
-            root: Token::new(1),
-            writable: true,
-        },
-        Repo {
-            host: Box::new([Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-            mount: names(b"/work/docs"),
-            root: Token::new(1),
-            writable: false,
-        },
-    ]);
+    shared.repos = Box::new([repo(b"/work/temper", 1, true), repo(b"/work/docs", 1, false)]);
     invalid(LIMITS, shared);
     // The vendored library's mount, work/temper/vendor/lib, is 22 bytes.
     invalid(Limits { path_bytes: 21, ..LIMITS }, authority(ALL));
@@ -1227,7 +1151,7 @@ fn a_path_is_in_git_when_one_of_its_names_is_dot_git() {
         (b"src/.gitx/.gIt/HEAD", true),
         (b".git/config", true),
         (b"src/.git", true),
-        (b"vendor/lib/.git/hooks/post-checkout", true),
+        (b"vendor/lib/.git/hooks/post-working", true),
         (b"", false),
         (b"src/lib.rs", false),
         (b".github/workflows/ci.yml", false),
@@ -1653,26 +1577,7 @@ fn file_calls_on_the_directory_itself_answer_without_io() {
 fn list_slash_answers_sorted_authority_names_without_io_and_obeys_both_caps() {
     let named = Authority {
         cwd: names(b"/zeta"),
-        repos: Box::new([
-            Repo {
-                host: Box::new([Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-                mount: names(b"/zeta"),
-                root: Token::new(1),
-                writable: true,
-            },
-            Repo {
-                host: Box::new([Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-                mount: names(b"/alpha"),
-                root: Token::new(2),
-                writable: false,
-            },
-            Repo {
-                host: Box::new([Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-                mount: names(b"/beta"),
-                root: Token::new(3),
-                writable: false,
-            },
-        ]),
+        repos: Box::new([repo(b"/zeta", 1, true), repo(b"/alpha", 2, false), repo(b"/beta", 3, false)]),
         grants: ALL,
     };
     let alpha = entry(b"alpha", Kind::Directory);
@@ -1723,24 +1628,7 @@ fn failed_paths_are_normalized_and_stay_at_the_admitted_path_bound() {
     let mut h = Harness::new(LIMITS);
     let kit = h.open(
         77,
-        Authority {
-            cwd: names(b"/w"),
-            repos: Box::new([
-                Repo {
-                    host: Box::new([Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-                    mount: names(b"/w"),
-                    root: Token::new(1),
-                    writable: true,
-                },
-                Repo {
-                    host: Box::new([Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-                    mount: names(b"/d"),
-                    root: Token::new(2),
-                    writable: false,
-                },
-            ]),
-            grants: ALL,
-        },
+        Authority { cwd: names(b"/w"), repos: Box::new([repo(b"/w", 1, true), repo(b"/d", 2, false)]), grants: ALL },
     );
     let file = [b'x'; 62];
     let (owner, _) = h.start(kit, 1, read(&file));
@@ -1774,9 +1662,9 @@ fn host_aliases_choose_whole_names_and_keep_the_namespace_root_pure() {
     let mounted = Authority {
         cwd: names(b"/w"),
         repos: Box::new([
-            Repo { host: names(b"/tmp/work"), mount: names(b"/w"), root: Token::new(1), writable: true },
-            Repo { host: names(b"/tmp/work/vendor"), mount: names(b"/d"), root: Token::new(2), writable: false },
-            Repo { host: names(b"/elsewhere"), mount: names(b"/tmp"), root: Token::new(3), writable: true },
+            Directory { host: names(b"/tmp/work"), mount: names(b"/w"), root: Token::new(1), writable: true },
+            Directory { host: names(b"/tmp/work/vendor"), mount: names(b"/d"), root: Token::new(2), writable: false },
+            Directory { host: names(b"/elsewhere"), mount: names(b"/tmp"), root: Token::new(3), writable: true },
         ]),
         grants: ALL,
     };

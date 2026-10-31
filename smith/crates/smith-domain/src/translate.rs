@@ -13,7 +13,7 @@ use skein_lib::{List, Token};
 use smith_domain_run::charter::{Families, Tools};
 use smith_domain_run::{self as run, Ask, Directory, Opening, Spend, Workspace};
 use smith_domain_session::{self as session, Budget, Dimension, Spec, Yield, llm};
-use smith_domain_tools::{Authority, Effect, Grants, Name, Repo};
+use smith_domain_tools::{Authority, Directory as ToolDirectory, Effect, Grants, Name};
 
 /// The ticket of `finish` among the tools a session is offered: tickets are
 /// the top level's, and name values within one session.
@@ -157,7 +157,7 @@ fn authority(workspace: Option<Workspace>, tools: Tools) -> Option<Authority> {
     let mut repos = List::with_capacity(count);
     for Directory { name, host, root, writable, git: _, conflicts: _ } in mounted {
         let name = Name::new(name)?;
-        let repo = Repo { host: host_names(&host)?, mount: Box::new([name]), root, writable };
+        let repo = ToolDirectory { host: host_names(&host)?, mount: Box::new([name]), root, writable };
         repos.push(repo).expect("room for every repository");
     }
     let repos = repos.into_boxed();

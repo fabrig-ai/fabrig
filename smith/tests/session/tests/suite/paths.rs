@@ -6,7 +6,7 @@ use smith_session_world::bytes;
 use skein_fake_llm_domain::api::Part as ProviderPart;
 use skein_lib::Token;
 use smith_domain_session::{Event, llm};
-use smith_domain_tools::{Authority, Call, Done, Grants, Name, Part, Path, Repo};
+use smith_domain_tools::{Authority, Call, Done, Grants, Name, Part, Path, Directory};
 use smith_session_world::{recorded, tickets::Tickets, translate};
 
 #[test]
@@ -15,14 +15,14 @@ fn a_resolved_missing_path_reaches_the_llm_in_the_fixed_conversation_namespace()
         let mut opening = recorded::opening(None, u64::MAX);
         opening.spec.delegated = Box::new([]);
         let name = Name::new(bytes(b"work")).expect("working name");
-        let mut repos = vec![Repo {
+        let mut repos = vec![Directory {
             host: Box::new([smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
             mount: Box::new([name.clone()]),
             root: Token::new(10),
             writable: true,
         }];
         if several {
-            repos.push(Repo {
+            repos.push(Directory {
                 host: Box::new([
                     smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")
                 ]),

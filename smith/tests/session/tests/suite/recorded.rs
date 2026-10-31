@@ -369,14 +369,14 @@ fn cumulative_child_spend_overflow_is_a_typed_failure() {
 
 #[test]
 fn owned_io_cancellation_keeps_terminal_results_in_the_turn() {
-    use smith_domain_tools::{Authority, Call, Done, Grants, Name, Op, Outcome, Part, Path, Repo, Version};
+    use smith_domain_tools::{Authority, Call, Done, Grants, Name, Op, Outcome, Part, Path, Directory, Version};
     for wins in [false, true] {
         let mut world = Scripted::new(32);
         let mut spec = opening(None, 100);
         let name = || Name::new(bytes(b"repo")).expect("a repository mount");
         spec.spec.authority = Authority {
             cwd: Box::new([name()]),
-            repos: Box::new([Repo {
+            repos: Box::new([Directory {
                 host: Box::new([
                     smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")
                 ]),
@@ -686,7 +686,7 @@ fn exact_failure_classes_and_transport_evidence_survive_policy_without_diagnosti
 
 #[test]
 fn fullest_history_keeps_maximum_owned_read_list_search_and_shell_after_cancel() {
-    use smith_domain_tools::{self as tools, Authority, Call, Grants, Name, Repo};
+    use smith_domain_tools::{self as tools, Authority, Call, Grants, Name, Directory};
     for kind in 0..4 {
         let mut world = Scripted::new(110 + kind);
         world.env.limits.history_bytes = 16_384;
@@ -713,7 +713,7 @@ fn fullest_history_keeps_maximum_owned_read_list_search_and_shell_after_cancel()
         let mount = || Name::new(bytes(b"repo")).expect("mount");
         spec.spec.authority = Authority {
             cwd: Box::new([mount()]),
-            repos: Box::new([Repo {
+            repos: Box::new([Directory {
                 host: Box::new([
                     smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")
                 ]),
@@ -937,7 +937,7 @@ fn dropped_reasoning_has_one_fact_per_item_and_never_enters_history() {
     reason = "one corrective completion, initial write and ordered edit batch stay in boundary order"
 )]
 fn a_write_refused_as_too_large_is_made_in_pieces_and_accepted() {
-    use smith_domain_tools::{Authority, Call, Done, Grants, Name, Op, Outcome, Part, Path, Repo, Version};
+    use smith_domain_tools::{Authority, Call, Done, Grants, Name, Op, Outcome, Part, Path, Directory, Version};
     let mut world = Scripted::new(62);
     world.env.limits.tools.tool_payload = 256;
     world.env.limits.tools.file_bytes = 320;
@@ -947,7 +947,7 @@ fn a_write_refused_as_too_large_is_made_in_pieces_and_accepted() {
     let name = || Name::new(bytes(b"repo")).expect("repository mount");
     spec.spec.authority = Authority {
         cwd: Box::new([name()]),
-        repos: Box::new([Repo {
+        repos: Box::new([Directory {
             host: Box::new([smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
             mount: Box::new([name()]),
             root: Token::new(7),

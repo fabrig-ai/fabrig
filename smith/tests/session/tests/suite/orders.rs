@@ -44,7 +44,7 @@ fn machine() -> (Scripted, Checkout) {
     let mut opening = recorded::opening(None, u64::MAX);
     opening.spec.authority = tools::Authority {
         cwd: io::names(b"/repo"),
-        repos: Box::new([tools::Repo {
+        repos: Box::new([tools::Directory {
             host: Box::default(),
             mount: io::names(b"/repo"),
             root: io::token(root),

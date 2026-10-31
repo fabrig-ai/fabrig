@@ -2,13 +2,12 @@
 //! the largest of each thing they take, an authority, a path and a file, so
 //! that a domain fills its configured admission limits.
 
-use skein_lib::{Duration, Token};
-use smith_domain_tools::{Authority, Call, Grants, Limits, Name, Part, Path, Repo};
+use skein_lib::Token;
+use smith_domain_tools::{Authority, Call, Directory, Grants, Limits, Name, Part, Path};
 
 /// Small bounded checkout-tool limits for exercising the memory envelope.
 pub const LIMITS: Limits = Limits {
     shell_output: 64,
-    kits: 2,
     calls: 3,
     repos: 2,
     path_bytes: 63,
@@ -18,20 +17,7 @@ pub const LIMITS: Limits = Limits {
     tool_payload: 256,
     read_bytes: 64,
     list_entries: 4,
-    list_bytes: 4096,
-    match_lines: 4,
-    file_timeout: Duration::from_secs(10),
-
-    jobs: 4,
-    job_poll: Duration::from_secs(30),
-    job_wait: Duration::from_secs(30),
-    shell_timeout: Duration::from_secs(60),
-    tool_deadline: Duration::from_secs(600),
-    shell_head: 64,
-    shell_tail: 128,
-    search_hits: 8,
-    search_bytes: 256,
-    search_timeout: Duration::from_secs(30),
+    ..smith_domain_tools::fixture::SMALL
 };
 
 /// Explicit inspect, modify and shell grants for the memory fixture.
@@ -51,7 +37,7 @@ pub fn authority(limits: &Limits) -> Authority {
     let len = usize::try_from(limits.path_bytes).expect("a small limit");
     let names = len.div_ceil(2);
     let cwd: Box<[Name]> = (0..names).map(|_| name(b"a")).collect();
-    let mut repos = vec![Repo {
+    let mut repos = vec![Directory {
         host: Box::new([name(&vec![b'h'; usize::try_from(limits.host_path_bytes).expect("bounded host path")])]),
         mount: Box::new([]),
         root: Token::new(0),
@@ -59,7 +45,7 @@ pub fn authority(limits: &Limits) -> Authority {
     }];
     for repo in 1..limits.repos {
         let mount = format!("{repo:0>len$}");
-        repos.push(Repo {
+        repos.push(Directory {
             host: Box::new([name(&vec![b'h'; usize::try_from(limits.host_path_bytes).expect("bounded host path")])]),
             mount: Box::new([name(mount.as_bytes())]),
             root: Token::new(repo.into()),

@@ -1,6 +1,6 @@
 //! The smith agent's tools child domain
 //! (skein/docs/foundation/programming-model.md, section 4.5; smith/docs/design/domain/tools.md, sections 1–5): what a session does to the
-//! checkout. It reads, lists, searches, writes and edits files, and runs
+//! workspace. It reads, lists, searches, writes and edits files, and runs
 //! commands, for the calls a session's LLM makes.
 //!
 //! Sans-io: [`step`] turns events into requests and changes nothing but the
@@ -18,7 +18,7 @@
 //! What happens is also told as content-free [`Fact`]s, kept in an uncapped
 //! queue the parent drains ([`Domain::pop_fact`]).
 //!
-//! The checkout is shared, knowledge is not. Files are world state, reached
+//! The workspace is shared, knowledge is not. Files are world state, reached
 //! through io and shared by every session; what a session's LLM has read, and
 //! at which version, belongs to its kit, along with the [`Authority`] the
 //! session was opened with. A write needs its current version
@@ -44,6 +44,8 @@ mod command;
 mod domain;
 mod edit;
 mod facts;
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
 mod flight;
 mod jobs;
 mod kit;
@@ -54,7 +56,7 @@ mod path;
 mod tests;
 mod window;
 
-pub use authority::{Authority, Grants, Repo};
+pub use authority::{Authority, Directory, Grants};
 pub use boundary::{Done, Event, Expect, JobAct, JobProblem, Op, Refusal, Request, Version};
 pub use call::{
     Budget, BytesClamp, Call, Cut, Depth, Effect, Entry, Exit, Fault, Hit, JobEnd, JobNumber, Kind, Mismatch, Next,

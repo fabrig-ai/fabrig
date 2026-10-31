@@ -201,7 +201,7 @@ pub const fn tool(call: &Call) -> Tool {
     }
 }
 
-/// What a call does to the checkout. Calls that only read may run side by
+/// What a call does to the workspace. Calls that only read may run side by
 /// side; a call that writes runs alone.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Effect {
@@ -329,7 +329,7 @@ pub enum Outcome {
 
     /// The kit was not granted the call's family of tools.
     NotGranted,
-    /// The path is outside every repository of the checkout, or a symbolic
+    /// The path is outside every directory of the workspace, or a symbolic
     /// link on the way to it leads out of its repository.
     Outside { path: Resolved },
     /// The path is in a repository the kit may not write.
