@@ -112,27 +112,7 @@ pub enum Delivery {
     Procedure { task: u64, step: u64, connector: u16, code: u16, context: Box<tasks::RunContext> },
 }
 
-/// The root's assembled, worker assignment.
-#[derive(Debug)]
-pub struct Assignment {
-    pub live: core::LiveAsk,
-    /// Ordered sections selected by the brief child, typed until protocol routing.
-    pub brief: Box<[jig_domain_brief::GatherPlaced]>,
-    /// The conversation's first attempt, shared by its resumes.
-    pub conversation: u64,
-    /// Claimed task and activation fence.
-    pub task: u64,
-    pub attempt: u64,
-    /// Charter and task-specific policy and contract.
-    pub charter: u32,
-    pub run: Box<core::RunCharter>,
-    /// Whole words and prior committed conversation offered to the worker.
-    pub messages: Box<[tasks::Word]>,
-    pub transcript: Box<[Box<[u8]>]>,
-    pub answered: Box<[core::Settled]>,
-    /// The selected account and application credential grants.
-    pub grants: Box<[jig_domain_accounts::Grant]>,
-}
+pub use jig_domain_hub_link::Assignment;
 
 /// What the root asks its surrounding world to do.
 #[derive(Debug)]
@@ -342,7 +322,7 @@ fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntr
 /// The root's live components and one commit barrier.
 #[derive(Debug)]
 pub struct Domain {
-    pieces_dropped: u64,
+    hub_link: jig_domain_hub_link::Link,
     core: core::Core,
     first: connector::Domain,
     second: connector::Domain,
@@ -351,8 +331,6 @@ pub struct Domain {
     store_answers: Queue<Box<Event>>,
     links: Set<Token>,
     busy: Queue<Box<Event>>,
-    assignments: Map<u64, Assignment>,
-    briefs: Map<u64, Box<[jig_domain_brief::GatherPlaced]>>,
     workspace_writes: Map<u64, Box<[tasks::Name]>>,
     procedure_steps: Map<u64, (u64, u16)>,
     topic_calls: Map<Token, (ReplyTo, core::CallKey, u16)>,
@@ -361,7 +339,6 @@ pub struct Domain {
     outbox_procedures: Map<u64, u16>,
     judges: Map<Token, (Token, jig_domain_authority::Judge, [u8; 32])>,
     outbox_owners: Map<u64, OutboxOwner>,
-    payloads: Map<Token, Payload>,
     next_payload: u64,
     decision_wrote: bool,
     stopped_reported: bool,
@@ -447,7 +424,7 @@ impl Domain {
     /// Pieces whose kind or offset the core cannot keep (engine.md, 11).
     #[must_use]
     pub fn pieces_dropped(&self) -> u64 {
-        self.pieces_dropped
+        self.hub_link.pieces_dropped()
     }
 
     /// Build the testing application without issuing a store request.
@@ -455,7 +432,14 @@ impl Domain {
     pub fn new(config: Config, limits: &Limits) -> Domain {
         assert!(limits.routes > 0, "synchronous route bound is positive");
         Domain {
-            pieces_dropped: 0,
+            hub_link: jig_domain_hub_link::Link::new(
+                jig_domain_hub_link::Limits {
+                    assignments: limits.core.tasks.tasks,
+                    payloads: limits.core.fleet.turns.checked_add(limits.core.fleet.attempts).expect("payload room"),
+                    turns: limits.core.fleet.turns,
+                },
+                skein_lib::Rng::new(config.core.seed ^ 0x5455_524e_4255_5359),
+            ),
             core: core::Core::new(config.core, &limits.core).expect("fixture core configuration"),
             first: connector::Domain::new(config.first, &limits.connector),
             second: connector::Domain::new(config.second, &limits.connector),
@@ -464,8 +448,6 @@ impl Domain {
             store_answers: Queue::uncapped(),
             links: Set::with_capacity(limits.core.fleet.workers),
             busy: Queue::uncapped(),
-            assignments: Map::with_capacity(limits.core.tasks.tasks),
-            briefs: Map::with_capacity(limits.core.tasks.tasks),
             workspace_writes: Map::with_capacity(limits.core.tasks.tasks),
             procedure_steps: Map::with_capacity(limits.core.tasks.tasks),
             topic_calls: Map::with_capacity(limits.core.call_records),
@@ -476,9 +458,6 @@ impl Domain {
             outbox_procedures: Map::with_capacity(limits.connector.entries.checked_mul(2).expect("outbox procedures")),
             judges: Map::with_capacity(limits.core.authority.facts),
             outbox_owners: Map::with_capacity(limits.connector.entries.checked_mul(2).expect("outboxes")),
-            payloads: Map::with_capacity(
-                limits.core.fleet.turns.checked_add(limits.core.fleet.attempts).expect("payload room"),
-            ),
             next_payload: 1,
             decision_wrote: false,
             stopped_reported: false,
@@ -883,10 +862,7 @@ fn effect_payload(domain: &mut Domain, effect: connector::Effect) -> Token {
 }
 
 fn payload(domain: &mut Domain, value: Payload) -> Token {
-    let token = Token::new(domain.next_payload);
-    domain.next_payload = domain.next_payload.checked_add(1).expect("bounded test flight numbering");
-    assert!(domain.payloads.insert(token, value).is_ok(), "payload room reserved");
-    token
+    domain.hub_link.retain(value)
 }
 
 fn numbered(domain: &mut Domain, number: u16) -> &mut connector::Domain {

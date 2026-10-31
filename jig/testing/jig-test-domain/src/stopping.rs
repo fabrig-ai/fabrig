@@ -63,7 +63,7 @@ pub(super) fn relayed(
     answer: Token,
     writes: bool,
 ) -> Delivery {
-    match domain.payloads.remove(&answer).expect("retained relay answer") {
+    match domain.hub_link.take_payload(answer).expect("retained relay answer") {
         Payload::Busy => Delivery::CallBusy { channel, task: run.raw(), attempt: attempt.raw(), name },
         Payload::SettledCall(call) => {
             Delivery::CallAnswer { channel, task: run.raw(), attempt: attempt.raw(), name, call, writes }

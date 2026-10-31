@@ -48,7 +48,7 @@ pub(super) fn route_core(
                     hold(decision, Delivery::Application { to, number, outcome });
                 }
                 core::Held::Assign { channel, run, attempt, .. } => {
-                    let assignment = domain.assignments.remove(&run.raw()).expect("prepared claim has assignment");
+                    let assignment = domain.hub_link.take_assignment(run.raw()).expect("prepared claim has assignment");
                     assert!(assignment.attempt == attempt.raw(), "current assignment fence");
                     hold(decision, Delivery::Assigned { channel, assignment });
                 }
@@ -64,7 +64,7 @@ pub(super) fn route_core(
                     hold(decision, Delivery::Core(core::Held::MakeEffect { connector, entry }));
                 }
                 core::Held::Inbound { channel, run, attempt, message } => {
-                    let Some(crate::Payload::InboxWord(line)) = domain.payloads.remove(&message.words) else {
+                    let Some(crate::Payload::InboxWord(line)) = domain.hub_link.take_payload(message.words) else {
                         unreachable!("inbox word payload")
                     };
                     hold(
@@ -228,8 +228,8 @@ fn route_ask(
                 hold(
                     decision,
                     Delivery::Fleet(fleet::Event::Start {
-                        placement: Some(domain.assignments.get(&task).expect("prepared assignment").run.placement),
-                        grants: grants::fleet(&domain.assignments.get(&task).expect("prepared assignment").grants),
+                        placement: Some(domain.hub_link.assignment(task).expect("prepared assignment").run.placement),
+                        grants: grants::fleet(&domain.hub_link.assignment(task).expect("prepared assignment").grants),
                         reply_to: ReplyTo::new(Token::new(task)),
                         run: Token::new(task),
                         attempt: Token::new(attempt),
@@ -378,7 +378,7 @@ fn route_now(
             assert!(domain.journal.now(delivery).is_ok(), "reserved relay answer room");
         }
         core::Now::Undelivered { message, .. } => {
-            drop(domain.payloads.remove(&message.words));
+            drop(domain.hub_link.take_payload(message.words));
         }
 
         core::Now::Activate { context } => {
@@ -452,91 +452,47 @@ fn route_now(
             ..
         } => {
             let budget = run.budget;
-            assert!(
-                domain
-                    .assignments
-                    .insert(
-                        task,
-                        crate::Assignment {
-                            live,
-                            task,
-                            attempt,
-                            conversation,
-                            brief: domain.briefs.remove(&task).expect("completed brief"),
-                            charter,
-                            run,
-                            messages,
-                            transcript,
-                            answered: domain.core.settled_calls(task, attempt),
-                            grants
-                        }
-                    )
-                    .is_ok(),
-                "one prepared assignment per task"
-            );
+            let brief = domain.hub_link.take_brief(task).expect("completed brief");
+            let answered = domain.core.settled_calls(task, attempt);
+            domain.hub_link.keep_assignment(crate::Assignment {
+                live,
+                task,
+                attempt,
+                conversation,
+                brief,
+                charter,
+                run,
+                messages,
+                transcript,
+                answered,
+                grants,
+            });
             let writes = domain.workspace_writes.remove(&task).expect("assembled workspace writes");
             work.push(Work::Core(core::Event::ClaimPrepared { task, attempt, budget, writes }));
         }
         core::Now::RunPreparationFailed { task } | core::Now::DropAssignment { task } => {
-            drop(domain.assignments.remove(&task));
-            drop(domain.briefs.remove(&task));
+            drop(domain.hub_link.take_assignment(task));
+            drop(domain.hub_link.take_brief(task));
             drop(domain.workspace_writes.remove(&task));
         }
         core::Now::DropPayload { payload } => {
-            drop(domain.payloads.remove(&payload));
+            drop(domain.hub_link.take_payload(payload));
         }
-        core::Now::TurnPayload { run, attempt, turn, body } => {
-            let payload = domain.payloads.get(&body).expect("fleet retained the turn body");
-            let (cumulative, read, refused) = match payload {
-                crate::Payload::Turn { cumulative, read, refused, .. } => (*cumulative, *read, refused.clone()),
-                crate::Payload::Busy
-                | crate::Payload::InboxWord(_)
-                | crate::Payload::SettledCall(_)
-                | crate::Payload::Answer { .. } => {
-                    unreachable!("turn body family")
-                }
-            };
-            work.push(Work::Core(core::Event::TurnPayload { run, attempt, turn, body, cumulative, read, refused }));
-        }
+        core::Now::TurnPayload { run, attempt, turn, body } => crate::link::route(
+            domain,
+            env.now,
+            jig_domain_hub_link::Event::TurnPayload { run, attempt, turn, body },
+            work,
+        ),
         core::Now::AnswerPayload { run, attempt, payload } => crate::link::answer(domain, run, attempt, payload, work),
-        core::Now::AcceptedTurn { payload, task, attempt, turn, accepted } => {
-            let body = domain.payloads.remove(&payload).expect("accepted turn body");
-            let (cumulative, read, transcript, opens_window) = match body {
-                crate::Payload::Turn { cumulative, read, transcript, opens_window, .. } => {
-                    (cumulative, read, transcript, opens_window)
-                }
-                crate::Payload::Busy
-                | crate::Payload::InboxWord(_)
-                | crate::Payload::SettledCall(_)
-                | crate::Payload::Answer { .. } => {
-                    unreachable!("accepted turn body family")
-                }
-            };
-            work.push(Work::Core(core::Event::AcceptedTurn {
-                task,
-                attempt,
-                turn,
-                accepted,
-                opens_window,
-                cumulative,
-                read,
-                transcript,
-            }));
-        }
+        core::Now::AcceptedTurn { payload, task, attempt, turn, accepted } => crate::link::route(
+            domain,
+            env.now,
+            jig_domain_hub_link::Event::AcceptedTurn { payload, task, attempt, turn, accepted },
+            work,
+        ),
         core::Now::RefusedPayload { request, problem } => {
-            let payload = match domain.payloads.remove(&request) {
-                Some(crate::Payload::Turn { task, attempt, turn, .. }) => {
-                    Some(core::PayloadRefusal::Turn { task, attempt, turn })
-                }
-                Some(crate::Payload::Answer { task, attempt, .. }) => {
-                    Some(core::PayloadRefusal::Answer { task, attempt })
-                }
-                Some(crate::Payload::Busy | crate::Payload::InboxWord(_) | crate::Payload::SettledCall(_)) => {
-                    unreachable!("answer is not a turn or terminal")
-                }
-                None => None,
-            };
-            work.push(Work::Core(core::Event::RefusedPayload { request, problem, payload }));
+            crate::link::route(domain, env.now, jig_domain_hub_link::Event::RefusedPayload { request, problem }, work)
         }
         core::Now::RestoreRefused => {
             assert!(domain.start_stopped(), "a refused restore has stopped the core");

@@ -14,6 +14,6 @@ pub(super) fn plan(env: &Env<Limits>, task: u64, sections: List<brief::Planned>,
     })));
 }
 pub(super) fn complete(domain: &mut Domain, token: Token, order: Box<[brief::GatherPlaced]>, work: &mut Queue<Work>) {
-    domain.briefs.insert(token.raw(), order).expect("one bounded brief per task");
+    domain.hub_link.keep_brief(token.raw(), order);
     work.push(Work::Core(core::Event::BriefAssembled { task: token.raw(), ready: true }));
 }

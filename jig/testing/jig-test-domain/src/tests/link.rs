@@ -46,7 +46,7 @@ fn a_turn_from_a_link_reaches_the_fleet_with_its_refusals() {
         panic!("a turn reaches the fleet");
     };
     assert_eq!((channel, run, attempt, turn), (fixtures::CHANNEL, fixtures::RUN, fixtures::ATTEMPT, 1));
-    let Some(Payload::Turn { cumulative, read, refused, opens_window, transcript, .. }) = domain.payloads.get(&body)
+    let Some(Payload::Turn { cumulative, read, refused, opens_window, transcript, .. }) = domain.hub_link.payload(body)
     else {
         panic!("turn bytes stay in the root");
     };
@@ -58,7 +58,7 @@ fn a_turn_from_a_link_reaches_the_fleet_with_its_refusals() {
 fn an_assignment_for_a_channel_leaves_as_the_hub_s_record() {
     let mut domain = fixtures::domain();
     let env = fixtures::env();
-    domain.assignments.insert(fixtures::RUN.raw(), fixtures::assignment()).expect("one prepared run");
+    domain.hub_link.keep_assignment(fixtures::assignment());
     let mut decision = domain.journal.decide();
     let mut out = Queue::uncapped();
     out.push(core::Request::Held(Box::new(core::Held::Assign {
@@ -103,12 +103,13 @@ fn a_fenced_result_is_handed_out_before_the_answer_is_read() {
     };
     assert_eq!(handed, payload);
     assert_eq!(outcome.as_ref(), b"opaque result");
-    let Some(Payload::Answer { cumulative, read, refused, .. }) = domain.payloads.get(&payload) else {
+    let Some(Payload::Answer { cumulative, read, refused, .. }) = domain.hub_link.payload(payload) else {
         panic!("the answer stays retained");
     };
     assert_eq!((*cumulative, *read), (12, Some(7)));
     assert_eq!(refused.as_ref(), [6]);
-    let event = link::result_event(&domain, payload, tasks::End::Parked).expect("result metadata");
+    let event =
+        jig_domain_hub_link::result_event(&domain.hub_link, payload, tasks::End::Parked).expect("result metadata");
     let core::Event::AnswerPayload { cumulative, end, read, refused, .. } = event else {
         panic!("core result input");
     };
@@ -371,7 +372,7 @@ fn program_source_lifecycle_routes_without_run_payloads() {
         assert_eq!(channel, fixtures::CHANNEL);
         assert_eq!(down, expected);
     }
-    let before = domain.payloads.len();
+    let before = domain.hub_link.payload_count();
     let inventory = link::up(
         &mut domain,
         fixtures::CHANNEL,
@@ -391,7 +392,7 @@ fn program_source_lifecycle_routes_without_run_payloads() {
     assert_eq!(channel, fixtures::CHANNEL);
     assert_eq!(actual, fleet_name);
     assert_eq!(result, SignOutResult::SignedOut);
-    assert_eq!(domain.payloads.len(), before);
+    assert_eq!(domain.hub_link.payload_count(), before);
 }
 
 #[test]
