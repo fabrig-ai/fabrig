@@ -49,7 +49,7 @@ pub(crate) fn receive(domain: &mut Domain, choice: Slash, env: &Env<Limits>, out
 }
 
 pub(crate) fn apply(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    if !domain.chat.phase.is_idle() || domain.child.run().is_some() || domain.chat.state_pending {
+    if !domain.chat.phase.is_idle() || domain.child.run().is_some() || domain.chat.state_pending() {
         return;
     }
     let Some(choice) = domain.choice.take() else { return };

@@ -87,8 +87,8 @@ impl Domain {
 
     /// Reserve the initial chat selection before this invocation sends its first Load.
     pub fn initial_chat(&mut self) -> Box<[u8]> {
-        assert!(self.chat.phase.is_loading() && !self.chat.load_requested, "startup precedes Load");
-        self.chat.load_requested = true;
+        assert!(self.chat.phase.is_loading() && !self.chat.load_requested(), "startup precedes Load");
+        self.chat.request_load();
         self.config.chat.clone()
     }
     /// The existing terminal's verdict for one told tool result.
@@ -212,7 +212,7 @@ impl Domain {
     /// Whether initial loading or the child has deferred work.
     #[must_use]
     pub fn is_ready(&self) -> bool {
-        (self.chat.phase.is_loading() && !self.chat.load_requested) || self.agent.ready()
+        (self.chat.phase.is_loading() && !self.chat.load_requested()) || self.agent.ready()
     }
 
     /// Earliest child deadline.
@@ -405,8 +405,8 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 /// Ask for the initial transcript or advance one ready child handoff.
 pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     drain_agent_content(domain);
-    if domain.chat.phase.is_loading() && !domain.chat.load_requested {
-        domain.chat.load_requested = true;
+    if domain.chat.phase.is_loading() && !domain.chat.load_requested() {
+        domain.chat.request_load();
         out.push(Request::Load);
     } else if domain.agent.ready() {
         domain.agent.resume(env.now, env.wall);
@@ -618,7 +618,7 @@ fn gone(domain: &mut Domain, end: host::End, detail: Box<[u8]>, out: &mut Queue<
     } else {
         match &mut domain.chat.phase {
             State::Answered { detail: held, .. } if held.is_empty() => *held = detail,
-            State::Loading
+            State::Loading(_)
             | State::Idle
             | State::Starting(_)
             | State::Running { .. }

@@ -537,7 +537,7 @@ fn answer_with_a_late_state_save(gone_first: bool) {
     }
     assert!(domain.chat.phase.is_loading());
     assert_eq!(domain.lines.carry()[0].name, Token::new(1));
-    assert!(!domain.chat.state_pending);
+    assert!(!domain.chat.state_pending());
 }
 
 #[test]

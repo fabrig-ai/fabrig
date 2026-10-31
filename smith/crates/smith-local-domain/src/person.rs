@@ -360,13 +360,13 @@ pub(crate) fn show_dropped(lines: &mut Lines, out: &mut Queue<Request>) {
 }
 
 pub(crate) fn finish_answer(domain: &mut Domain, out: &mut Queue<Request>) {
-    if !domain.child.is_gone() || domain.chat.state_pending || !domain.turns.unsaved.is_empty() {
+    if !domain.child.is_gone() || domain.chat.state_pending() || !domain.turns.unsaved.is_empty() {
         return;
     }
     let state = core::mem::replace(&mut domain.chat.phase, State::Done);
     domain.chat.phase = match state {
         State::Answered { answer, detail } => finish_answered(domain, answer, detail, out),
-        state @ (State::Loading
+        state @ (State::Loading(_)
         | State::Idle
         | State::Starting(_)
         | State::Running { .. }
@@ -411,16 +411,15 @@ fn finish_answered(domain: &mut Domain, answer: host::Answer, detail: Box<[u8]>,
         Some(last) => domain.chat.state.activation >= last,
         None => false,
     };
-    if domain.chat.closed && drained {
+    if domain.chat.closed() && drained {
         show_dropped(&mut domain.lines, out);
     }
-    if (domain.chat.closed && domain.lines.is_empty()) || headless {
+    if (domain.chat.closed() && domain.lines.is_empty()) || headless {
         out.push(Request::Exit { status });
         State::Done
     } else {
-        domain.chat.load_requested = true;
         out.push(Request::Load);
-        State::Loading
+        State::Loading(crate::chat::Load::Waiting)
     }
 }
 
@@ -529,7 +528,7 @@ pub(crate) fn answered(domain: &mut Domain, answer: host::Answer, detail: Box<[u
     let state = core::mem::replace(&mut domain.chat.phase, State::Done);
     domain.chat.phase = match state {
         State::Running { .. } | State::Ending(_) => State::Answered { answer, detail },
-        State::Loading | State::Idle | State::Starting(_) | State::Answered { .. } | State::Done => {
+        State::Loading(_) | State::Idle | State::Starting(_) | State::Answered { .. } | State::Done => {
             unreachable!("one answer belongs to the live activation")
         }
     };
