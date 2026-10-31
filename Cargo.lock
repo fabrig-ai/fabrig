@@ -777,6 +777,12 @@ dependencies = [
 name = "jig-conformance"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-core",
+ "jig-domain-notes",
+ "jig-domain-people",
+ "jig-domain-tasks",
  "jig-fake-store",
  "skein-lib",
  "skein-world",

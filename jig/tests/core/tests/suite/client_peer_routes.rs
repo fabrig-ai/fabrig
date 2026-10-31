@@ -2,8 +2,8 @@ use jig_core_world::Fault;
 use jig_core_world::effects::Setup;
 use jig_core_world::{
     client_peer::ClientPeer,
+    conformance::Observer,
     effects::World,
-    observations::Observer,
     peers::{Peers, fixture},
     referee::{Observed, Receipt},
 };
