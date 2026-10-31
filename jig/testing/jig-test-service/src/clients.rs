@@ -439,7 +439,11 @@ pub(super) fn untag(mut event: io::Event) -> io::Event {
 impl Clients {
     pub fn root_event(&mut self, value: &root::Event) -> Option<Token> {
         match value {
-            root::Event::StartBegin { .. } | root::Event::StartDone(_) => {
+            root::Event::StartRecord(_)
+            | root::Event::StartMissing { .. }
+            | root::Event::StartPageRefused { .. }
+            | root::Event::StartBegin { .. }
+            | root::Event::StartDone(_) => {
                 unreachable!("the start driver is not selected here")
             }
             root::Event::Core(value) => translation::watcher(value),
@@ -555,7 +559,11 @@ fn ended(key: &root::Key) -> Option<u64> {
 impl Clients {
     pub fn not_ready(&mut self, value: root::Event) {
         let event = match value {
-            root::Event::StartBegin { .. } | root::Event::StartDone(_) => {
+            root::Event::StartRecord(_)
+            | root::Event::StartMissing { .. }
+            | root::Event::StartPageRefused { .. }
+            | root::Event::StartBegin { .. }
+            | root::Event::StartDone(_) => {
                 unreachable!("the start driver is not selected here")
             }
             root::Event::Core(value) => translation::starting(value),

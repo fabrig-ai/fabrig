@@ -292,3 +292,99 @@ fn readback_rejects_unread_transcript_after_a_successful_prefix() {
     // frame is now missing, so a complete collector must reject its prefix.
     let _found = store.transcript(1, false);
 }
+
+fn starting_snapshot() -> Store {
+    let limits = jig_core_world::world::limits();
+    let mut store = Store::starting(&limits, &[]);
+    let header = core::Deployment {
+        id: [0; 16],
+        tasks: ROWS,
+        people: 0,
+        sign_ins: 0,
+        messages: 0,
+        runs: 0,
+        calls: 0,
+        connector_rows: ROWS,
+        projects: 0,
+        applications: 0,
+        commits: 1,
+    };
+    store.submit(
+        1,
+        Box::new([
+            root::Write::Save(root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))),
+            root::Write::Save(result(1, 1)),
+            root::Write::Save(result(1, 2)),
+            root::Write::Save(result(1, 3)),
+        ]),
+        0,
+    );
+    assert_eq!(store.tick(false), Ok(Some(1)));
+    store
+}
+fn check_start_snapshot(store: &mut Store) {
+    use core::start::Phase;
+    let phase = Phase::RestoreConnector { connector: 1 };
+    store.ask(StoreOut::Start { phase, census: None });
+    let mut records = Vec::new();
+    let mut finished = false;
+    for answer in store.answers() {
+        match answer {
+            Up::Root(root::Event::StartRecord(row)) => {
+                assert!(!finished);
+                records.push(row);
+            }
+            Up::Root(root::Event::StartDone(found)) => {
+                assert!(!finished);
+                assert_eq!(found, phase);
+                finished = true;
+            }
+            Up::Root(_) | Up::Restore(_) | Up::Ask(_) => panic!("typed start page"),
+        }
+    }
+    assert!(finished);
+    assert_eq!(records, [result(1, 1), result(1, 2), result(1, 3)]);
+    assert!(!store.loading());
+}
+#[test]
+fn start_mode_survives_crash_and_fork_with_complete_readback() {
+    let mut store = starting_snapshot();
+    let expected = store.rows.clone();
+    check_start_snapshot(&mut store);
+    assert_eq!(store.readback(), expected);
+    store.crash(CRASH_SEED);
+    check_start_snapshot(&mut store);
+    assert_eq!(store.readback(), expected);
+    let mut forked = store.fork();
+    check_start_snapshot(&mut forked);
+    assert_eq!(forked.readback(), expected);
+}
+#[test]
+fn start_switch_without_a_pending_generation_finishes_without_a_store_switch() {
+    use core::start::Phase;
+    let mut store = starting_snapshot();
+    assert!(!store.generation_pending);
+    store.ask(StoreOut::Start { phase: Phase::Switch, census: None });
+    assert_eq!(store.switch_requests, 0);
+    assert!(matches!(store.answers().as_slice(), [Up::Root(root::Event::StartDone(Phase::Switch))]));
+    assert!(!store.loading());
+}
+#[test]
+fn start_pages_delay_and_a_crash_discards_their_flights() {
+    let mut store = starting_snapshot();
+    store.fault(Fault::SlowPages { by: PAGE_DELAY });
+    store.pause_pages(true);
+    store.ask(StoreOut::Start { phase: core::start::Phase::RestoreConnector { connector: 1 }, census: None });
+    assert!(store.answers().is_empty());
+    assert!(store.loading());
+    store.crash(CRASH_SEED);
+    assert!(!store.loading());
+    assert!(store.answers().is_empty());
+    store.pause_pages(false);
+    for _ in 0..PAGE_DELAY {
+        let _commit = store.tick(false).expect("read-only tick");
+    }
+    assert!(store.answers().is_empty(), "crashed pages never reappear");
+    store.fault(Fault::SlowPages { by: 0 });
+    check_start_snapshot(&mut store);
+}

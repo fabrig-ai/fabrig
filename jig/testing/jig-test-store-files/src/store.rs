@@ -304,7 +304,7 @@ impl Store {
     /// Replay durable commits into fresh stores and a fresh filesystem.
     #[must_use]
     pub fn fork(&self) -> Store {
-        let mut fresh = Store::with_patch_sets(&self.limits, &self.models, self.initial_sets);
+        let mut fresh = Store::build(&self.limits, &self.models, self.initial_sets, self.start_mode);
         fresh.wires(self.wires);
         for index in 0..=self.durable.len() {
             for (_, sets) in self.patches.iter().filter(|(at, _)| *at == index) {
@@ -313,7 +313,14 @@ impl Store {
             }
             if let Some((number, writes)) = self.durable.get(index) {
                 if fresh.generation_pending && writes.contains(&root::Write::Wires) {
-                    fresh.ask(StoreOut::Restart { step: jig_domain_core::RestartStep::Switch, census: None });
+                    fresh.ask(match self.start_mode {
+                        StartMode::Default => {
+                            StoreOut::Restart { step: jig_domain_core::RestartStep::Switch, census: None }
+                        }
+                        StartMode::LoadAndLink => {
+                            StoreOut::Start { phase: jig_domain_core::start::Phase::Switch, census: None }
+                        }
+                    });
                     let _answers = fresh.answers();
                 }
                 fresh.submit(*number, writes.clone(), 0);
@@ -354,7 +361,17 @@ impl Store {
         }
     }
     fn request(&mut self, out: StoreOut) {
-        if matches!(out, StoreOut::Restart { step: jig_domain_core::RestartStep::Switch, .. }) {
+        if matches!(out, StoreOut::Start { phase: jig_domain_core::start::Phase::Switch, .. })
+            && !self.generation_pending
+        {
+            self.replies.push(Up::Root(root::Event::StartDone(jig_domain_core::start::Phase::Switch)));
+            return;
+        }
+        if matches!(
+            out,
+            StoreOut::Restart { step: jig_domain_core::RestartStep::Switch, .. }
+                | StoreOut::Start { phase: jig_domain_core::start::Phase::Switch, .. }
+        ) {
             self.switch_requests += 1;
         }
         let request = route::down(&mut self.routes, out).expect("root has room for its store request");
@@ -466,7 +483,6 @@ impl Store {
     }
     fn event(&mut self, event: Event, requests: &mut VecDeque<Request>) {
         match event {
-            Event::Page { .. } | Event::PageRefused { .. } => unreachable!("a start's pages need a start-mode store"),
             Event::Opened { last, pending, .. } => {
                 self.applied = last;
                 self.generation_pending = pending;
@@ -530,18 +546,19 @@ impl Store {
                 self.route(event, requests);
             }
             Event::OpenRefused { why, .. } => panic!("world store open refused: {why:?}"),
-            event @ (Event::Restored { .. } | Event::Loaded { .. } | Event::Read { .. })
+            event @ (Event::Page { .. } | Event::Restored { .. } | Event::Loaded { .. } | Event::Read { .. })
                 if self.page_delay != 0 || self.pages_paused =>
             {
                 self.delayed.push_back(Delayed { event, delay: self.page_delay });
             }
-            event @ Event::Corrupt { .. } => {
+            event @ (Event::Corrupt { .. } | Event::PageRefused { .. }) => {
                 self.failed = true;
                 self.route(event, requests);
             }
             // These worlds supply sets without written sites; routing answers NoSite.
             event @ (Event::Site { .. }
             | Event::Restored { .. }
+            | Event::Page { .. }
             | Event::Loaded { .. }
             | Event::Read { .. }
             | Event::Got { .. }
