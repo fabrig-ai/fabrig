@@ -4,7 +4,7 @@ use jig_domain_accounts as accounts;
 use jig_domain_fleet as fleet;
 use skein_lib::List;
 
-pub(super) fn fleet(grants: &[accounts::Grant]) -> Box<[fleet::Grant]> {
+pub(crate) fn fleet(grants: &[accounts::Grant]) -> Box<[fleet::Grant]> {
     let mut translated = List::with_capacity(u32::try_from(grants.len()).expect("bounded grants"));
     for grant in grants {
         translated
