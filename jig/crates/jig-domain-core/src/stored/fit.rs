@@ -1,6 +1,5 @@
 //! Retained call payload bounds, independent of admission (domain/engine.md, 6).
-use super::CallPart;
-use crate::Limits;
+use crate::{Limits, stored::CallPart};
 use jig_domain_notes as notes;
 
 impl CallPart {

@@ -1,8 +1,10 @@
 //! Stored core rows load independently of admission (domain/engine.md, 6).
 #![expect(clippy::disallowed_macros, reason = "dynamic unit fixtures exercise stored collection boundaries")]
-use super::{Core, Failure, Key, Wall, call_key, config, limits, proof, tasks};
-use crate::start::LiveSet;
-use crate::{CallPart, CallRecord, CoreKey, CoreRecord, Limits, Restored, SettledAnswer, SettledCall};
+use crate::{
+    CallPart, CallRecord, CoreKey, CoreRecord, Limits, Restored, SettledAnswer, SettledCall,
+    start::LiveSet,
+    tests::start::{Core, Failure, Key, Wall, call_key, config, limits, proof, tasks},
+};
 use jig_domain_authority as authority;
 use jig_domain_notes as notes;
 use skein_lib::List;
@@ -53,7 +55,7 @@ fn retained(record: CallRecord) {
 }
 
 #[test]
-fn stored_calls_ignore_historical_serials_and_tool_shape() {
+fn stored_calls_ignore_retained_serials_and_tool_shape() {
     for call in [settled(0, b"tool"), settled(101, b"tool"), settled(1, b"")] {
         let mut record = row(CallPart::Controlled);
         record.settled = Some(call);
@@ -85,7 +87,7 @@ fn settled_serials_are_not_record_keys() {
 }
 
 #[test]
-fn stored_parts_ignore_historical_counters_and_current_rules() {
+fn stored_parts_ignore_retained_counters_and_current_rules() {
     let problem = tasks::Problem { task: Some(101), why: tasks::Refusal::Grace, blocked_by: None, capacity: None };
     let parts = [
         CallPart::SettingsRefused(crate::people::Refusal::Stale { newest: 0 }),

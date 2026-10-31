@@ -420,12 +420,12 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
     }
 }
 
-pub(crate) fn connector_start_done(domain: &mut Domain, stage: jig_domain_core::connector::RestartStage) {
+pub(crate) fn connector_start_done(domain: &mut Domain, stage: jig_domain_core::effects::connector::RestartStage) {
     let connector = domain.config.forge_connector;
     let phase = match stage {
-        jig_domain_core::connector::RestartStage::Restored => Phase::Link,
-        jig_domain_core::connector::RestartStage::ReadAfresh => Phase::ReadAfresh { connector },
-        jig_domain_core::connector::RestartStage::Settled => Phase::SettleOutbox { connector },
+        jig_domain_core::effects::connector::RestartStage::Restored => Phase::Link,
+        jig_domain_core::effects::connector::RestartStage::ReadAfresh => Phase::ReadAfresh { connector },
+        jig_domain_core::effects::connector::RestartStage::Settled => Phase::SettleOutbox { connector },
     };
     domain.work.push(Work::StartDone(phase));
 }

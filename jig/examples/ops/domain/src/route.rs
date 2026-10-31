@@ -6,6 +6,7 @@ use crate::{Domain, Event, Key, Limits, Output, Record, Released, Write};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
+use jig_domain_core::effects::connector;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_hub_link::{Event as LinkEvent, Procedure};
@@ -100,10 +101,7 @@ fn effect_start(
     // The core selects description or refusal; the typed input moves once.
     for _ in 0..requests.len() {
         match requests.pop().expect("effect start outputs") {
-            core::Request::Ask {
-                connector,
-                ask: core::Ask::Effect(core::connector::Ask::Describe { owner: asked }),
-            } => {
+            core::Request::Ask { connector, ask: core::Ask::Effect(connector::Ask::Describe { owner: asked }) } => {
                 assert!(
                     asked == owner && connector == jig_ops_domain_connectors::number(Connector::Infrastructure),
                     "effect input owner"
@@ -709,10 +707,7 @@ fn core_ask(
             None => {}
         },
         core::Ask::Gather { section, .. } | core::Ask::CutTo { section, .. } => {
-            work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::SectionReady {
-                section,
-                size: None,
-            })));
+            work.push(Work::Core(core::Event::EffectConnector(connector::Event::SectionReady { section, size: None })));
         }
         core::Ask::ProjectGoal { feed } => {
             // These two connectors have no goal projection. Their closing
@@ -768,15 +763,15 @@ fn core_ask(
 }
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher translates this child boundary")]
 #[expect(clippy::manual_map, reason = "step code copies owner scope without closure-taking methods")]
-fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: core::connector::Ask, work: &mut Queue<Work>) {
+fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: connector::Ask, work: &mut Queue<Work>) {
     match ask {
-        core::connector::Ask::Describe { owner } => {
-            work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::DescribeRefused { owner })));
+        connector::Ask::Describe { owner } => {
+            work.push(Work::Core(core::Event::EffectConnector(connector::Event::DescribeRefused { owner })));
         }
-        core::connector::Ask::DescribeProposal { owner, proposal } => {
+        connector::Ask::DescribeProposal { owner, proposal } => {
             work.push(Work::Infrastructure(infrastructure::Event::DescribeProposal { token: owner, number: proposal }));
         }
-        core::connector::Ask::KeepProposal { owner, proposal, task, project: _ } => {
+        connector::Ask::KeepProposal { owner, proposal, task, project: _ } => {
             let _removed = domain.hub_link.take_effect_procedure(owner);
             work.push(Work::Infrastructure(infrastructure::Event::KeepProposal {
                 token: owner,
@@ -784,10 +779,10 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: core::co
                 task,
             }));
         }
-        core::connector::Ask::DropProposal { proposal } => {
+        connector::Ask::DropProposal { proposal } => {
             work.push(Work::Infrastructure(infrastructure::Event::DropProposal { number: proposal }));
         }
-        core::connector::Ask::Keep { owner, entry, key, .. } => {
+        connector::Ask::Keep { owner, entry, key, .. } => {
             let _removed = domain.hub_link.take_effect_procedure(owner);
             match jig_ops_domain_connectors::connector(number) {
                 Some(Connector::Infrastructure) => {
@@ -815,7 +810,7 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: core::co
                 None => {}
             }
         }
-        core::connector::Ask::Drop { owner, answer, .. } => {
+        connector::Ask::Drop { owner, answer, .. } => {
             if let Some(task) = domain.hub_link.take_effect_procedure(owner) {
                 let signal = match answer {
                     authority::Answer::Allow => infrastructure::ProcedureSignal::EffectMade,
@@ -836,7 +831,7 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: core::co
                 None => {}
             }
         }
-        core::connector::Ask::Judge { owner, judge, state, resources } => {
+        connector::Ask::Judge { owner, judge, state, resources } => {
             let token = domain.token();
             match translate::service(&resources) {
                 Some(service) => match translate::requirement(judge.requirement) {
@@ -849,7 +844,7 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: core::co
                             freshness: 30,
                         }));
                     }
-                    None => work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::Verdict {
+                    None => work.push(Work::Core(core::Event::EffectConnector(connector::Event::Verdict {
                         owner,
                         judge,
                         verdict: authority::Verdict::Refuse,
@@ -858,7 +853,7 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: core::co
                         state,
                     }))),
                 },
-                None => work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::Verdict {
+                None => work.push(Work::Core(core::Event::EffectConnector(connector::Event::Verdict {
                     owner,
                     judge,
                     verdict: authority::Verdict::Refuse,
@@ -868,13 +863,13 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: core::co
                 }))),
             }
         }
-        core::connector::Ask::ResolveUncertain { entry, again } => match jig_ops_domain_connectors::connector(number) {
+        connector::Ask::ResolveUncertain { entry, again } => match jig_ops_domain_connectors::connector(number) {
             Some(Connector::Infrastructure) => {
                 work.push(Work::Infrastructure(infrastructure::Event::ResolveEntry { entry, repeat: again }));
             }
             Some(Connector::Observability) | None => {}
         },
-        core::connector::Ask::Make { entry } => match jig_ops_domain_connectors::connector(number) {
+        connector::Ask::Make { entry } => match jig_ops_domain_connectors::connector(number) {
             Some(Connector::Infrastructure) => {
                 work.push(Work::Infrastructure(infrastructure::Event::MakeEntry { entry }));
             }
@@ -883,7 +878,7 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: core::co
             }
             None => {}
         },
-        core::connector::Ask::ReadAfresh => match jig_ops_domain_connectors::connector(number) {
+        connector::Ask::ReadAfresh => match jig_ops_domain_connectors::connector(number) {
             Some(Connector::Infrastructure) => {
                 work.push(Work::Infrastructure(infrastructure::Event::ReadAfresh));
             }
@@ -892,7 +887,7 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: core::co
             }
             None => {}
         },
-        core::connector::Ask::SettleOutbox => match jig_ops_domain_connectors::connector(number) {
+        connector::Ask::SettleOutbox => match jig_ops_domain_connectors::connector(number) {
             Some(Connector::Infrastructure) => {
                 work.push(Work::Infrastructure(infrastructure::Event::Restart));
             }
@@ -901,27 +896,27 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: core::co
             }
             None => {}
         },
-        core::connector::Ask::Names { .. }
-        | core::connector::Ask::Unname { .. }
-        | core::connector::Ask::Hold { .. }
-        | core::connector::Ask::ReleaseHold { .. }
-        | core::connector::Ask::Writer { .. }
-        | core::connector::Ask::ProcedureMade { .. }
-        | core::connector::Ask::ProcedureActivate { .. }
-        | core::connector::Ask::ProcedureMessage { .. }
-        | core::connector::Ask::ProcedureClose { .. }
-        | core::connector::Ask::Project { .. }
-        | core::connector::Ask::Release { .. }
-        | core::connector::Ask::Subscribe { .. }
-        | core::connector::Ask::Unsubscribe { .. }
-        | core::connector::Ask::Read { .. }
-        | core::connector::Ask::Gather { .. }
-        | core::connector::Ask::CutTo { .. }
-        | core::connector::Ask::Take { .. }
-        | core::connector::Ask::Prepare { .. }
-        | core::connector::Ask::Left { .. }
-        | core::connector::Ask::Adopt { .. }
-        | core::connector::Ask::Restore { .. } => {}
+        connector::Ask::Names { .. }
+        | connector::Ask::Unname { .. }
+        | connector::Ask::Hold { .. }
+        | connector::Ask::ReleaseHold { .. }
+        | connector::Ask::Writer { .. }
+        | connector::Ask::ProcedureMade { .. }
+        | connector::Ask::ProcedureActivate { .. }
+        | connector::Ask::ProcedureMessage { .. }
+        | connector::Ask::ProcedureClose { .. }
+        | connector::Ask::Project { .. }
+        | connector::Ask::Release { .. }
+        | connector::Ask::Subscribe { .. }
+        | connector::Ask::Unsubscribe { .. }
+        | connector::Ask::Read { .. }
+        | connector::Ask::Gather { .. }
+        | connector::Ask::CutTo { .. }
+        | connector::Ask::Take { .. }
+        | connector::Ask::Prepare { .. }
+        | connector::Ask::Left { .. }
+        | connector::Ask::Adopt { .. }
+        | connector::Ask::Restore { .. } => {}
     }
 }
 
@@ -973,7 +968,7 @@ pub(crate) fn infrastructure_out(
                 }));
             }
             infrastructure::Request::Closed { task } => {
-                work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::Closed {
+                work.push(Work::Core(core::Event::EffectConnector(connector::Event::Closed {
                     task,
                     connector: jig_ops_domain_connectors::number(Connector::Infrastructure),
                 })));
@@ -987,7 +982,7 @@ pub(crate) fn infrastructure_out(
             infrastructure::Request::Erase { key } => write(domain, decision, Write::Erase(Key::Infrastructure(key))),
             infrastructure::Request::System(request) => held(decision, Output::Infrastructure(request)),
             infrastructure::Request::Described { token, description, waits_for_dependencies } => {
-                work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::Described {
+                work.push(Work::Core(core::Event::EffectConnector(connector::Event::Described {
                     owner: token,
                     description: Box::new(translate::infrastructure_description(
                         jig_ops_domain_connectors::number(Connector::Infrastructure),
@@ -997,15 +992,13 @@ pub(crate) fn infrastructure_out(
                 })));
             }
             infrastructure::Request::Refused { token } => {
-                work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::DescribeRefused {
-                    owner: token,
-                })));
+                work.push(Work::Core(core::Event::EffectConnector(connector::Event::DescribeRefused { owner: token })));
             }
             infrastructure::Request::Make { key } => {
                 child(decision, Released::Infrastructure(infrastructure::Event::Make { key }));
             }
             infrastructure::Request::Outcome { entry, key, outcome } => {
-                work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::Outbox {
+                work.push(Work::Core(core::Event::EffectConnector(connector::Event::Outbox {
                     connector: jig_ops_domain_connectors::number(Connector::Infrastructure),
                     entry,
                     task: key.task,
@@ -1076,7 +1069,7 @@ pub(crate) fn infrastructure_out(
                 }
             }
             infrastructure::Request::Drift { task, resource } => {
-                work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::Drift {
+                work.push(Work::Core(core::Event::EffectConnector(connector::Event::Drift {
                     task,
                     resource: tasks::Name {
                         connector: jig_ops_domain_connectors::number(Connector::Infrastructure),
@@ -1085,7 +1078,7 @@ pub(crate) fn infrastructure_out(
                 })));
             }
             infrastructure::Request::Slots { pool, quota, used: _ } => {
-                work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::PoolSlots {
+                work.push(Work::Core(core::Event::EffectConnector(connector::Event::PoolSlots {
                     name: tasks::Name {
                         connector: jig_ops_domain_connectors::number(Connector::Infrastructure),
                         path: infrastructure::Resource::Pool(pool).segments(),
@@ -1104,11 +1097,11 @@ pub(crate) fn infrastructure_out(
             infrastructure::Request::Named { project, resources, .. } => {
                 for named in resources {
                     let hold = match named.hold {
-                        infrastructure::Hold::None => core::connector::HoldKind::Shared,
-                        infrastructure::Hold::ExclusiveWait => core::connector::HoldKind::Exclusive { wait: true },
-                        infrastructure::Hold::PooledWait => core::connector::HoldKind::Pooled { slots: 0, wait: true },
+                        infrastructure::Hold::None => connector::HoldKind::Shared,
+                        infrastructure::Hold::ExclusiveWait => connector::HoldKind::Exclusive { wait: true },
+                        infrastructure::Hold::PooledWait => connector::HoldKind::Pooled { slots: 0, wait: true },
                     };
-                    work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::Resource {
+                    work.push(Work::Core(core::Event::EffectConnector(connector::Event::Resource {
                         project,
                         role: translate::resource_role(named.role),
                         name: tasks::Name {
@@ -1202,7 +1195,7 @@ pub(crate) fn observability_out(
                 }));
             }
             observability::Request::Closed { task } => {
-                work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::Closed {
+                work.push(Work::Core(core::Event::EffectConnector(connector::Event::Closed {
                     task,
                     connector: jig_ops_domain_connectors::number(Connector::Observability),
                 })));
@@ -1232,7 +1225,7 @@ pub(crate) fn observability_out(
             observability::Request::Verdict { token, verdict } => {
                 let Some((owner, judge, state)) = domain.hub_link.take_judge(token) else { continue };
                 let (verdict, at) = translate::verdict(verdict, env.wall);
-                work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::Verdict {
+                work.push(Work::Core(core::Event::EffectConnector(connector::Event::Verdict {
                     owner,
                     judge,
                     verdict,
@@ -1242,7 +1235,7 @@ pub(crate) fn observability_out(
                 })));
             }
             observability::Request::Described { token, effect, waits_for_dependencies } => {
-                work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::Described {
+                work.push(Work::Core(core::Event::EffectConnector(connector::Event::Described {
                     owner: token,
                     description: Box::new(translate::observability_description(
                         jig_ops_domain_connectors::number(Connector::Observability),
@@ -1255,7 +1248,7 @@ pub(crate) fn observability_out(
                 if let Some(call) = domain.hub_link.take_read_call(token) {
                     crate::assemble::read_answer(domain, call, true, Box::from(&b"unavailable"[..]), work);
                 } else {
-                    work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::DescribeRefused {
+                    work.push(Work::Core(core::Event::EffectConnector(connector::Event::DescribeRefused {
                         owner: token,
                     })));
                 }
@@ -1264,7 +1257,7 @@ pub(crate) fn observability_out(
                 child(decision, Released::Observability(observability::Event::Make { key }));
             }
             observability::Request::Outcome { entry, key, outcome } => {
-                work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::Outbox {
+                work.push(Work::Core(core::Event::EffectConnector(connector::Event::Outbox {
                     connector: jig_ops_domain_connectors::number(Connector::Observability),
                     entry,
                     task: key.task,
@@ -1489,10 +1482,10 @@ fn core_now(
         }
         load @ (core::Now::SeenConversation { .. }
         | core::Now::LoadEndedRead { .. }
-        | core::Now::HistoricalProposal { .. }
+        | core::Now::EndedProposal { .. }
         | core::Now::DecidedProposal { .. }
-        | core::Now::HistoricalEscalation { .. }
-        | core::Now::HistoricalPersonTask { .. }
+        | core::Now::EndedEscalation { .. }
+        | core::Now::EndedPersonTask { .. }
         | core::Now::EndedTask { .. }
         | core::Now::PartyInputs { .. }) => {
             now(domain, Output::CoreLoad(load));

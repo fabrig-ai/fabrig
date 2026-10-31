@@ -2,8 +2,10 @@
 //! (`client/domain/pages.md`, section 3). Live membership follows the bounded
 //! requester walk; retained membership uses the supplied original ancestry.
 
-use super::{Cursor, Missing};
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    documents::{Cursor, Missing},
+};
 use jig_domain_tasks as tasks;
 use skein_lib::List;
 

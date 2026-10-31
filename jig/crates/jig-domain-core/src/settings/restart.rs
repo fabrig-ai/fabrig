@@ -1,8 +1,10 @@
 //! Settings restore precedes live work; stored defaults survive until its holders are known (engine.md, 17.7–17.8).
-use super::{
-    CharterVersion, Decider, Default, Edit, Failure, Fault, Head, Item, Key, Record, Revision, Setting, VersionKey,
+use crate::{
+    Core, CoreKey, CoreRecord, HeldLimit, Limits, Request, Write,
+    settings::{
+        CharterVersion, Decider, Default, Edit, Failure, Fault, Head, Item, Key, Record, Revision, Setting, VersionKey,
+    },
 };
-use crate::{Core, CoreKey, CoreRecord, HeldLimit, Limits, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_fleet as fleet;
@@ -280,7 +282,7 @@ impl Core {
         }
         let versions = charters || self.tasks.newest() != self.current.newest();
         if versions {
-            let models = crate::charters::held_models(self, &env.limits);
+            let models = super::charters::held_models(self, &env.limits);
             let mut charters: List<tasks::CharterModels> =
                 List::with_capacity(u32::try_from(models.len()).expect("charter model count"));
             for model in models {
@@ -302,7 +304,7 @@ impl Core {
                 tasks::Event::Charters {
                     newest: self.current.newest(),
                     charters,
-                    efforts: crate::charters::efforts(&self.settings),
+                    efforts: super::charters::efforts(&self.settings),
                 },
                 &mut tasks_out,
             );
@@ -311,7 +313,7 @@ impl Core {
         if !versions && !rules {
             return;
         }
-        let needs = crate::fleet_needs::current(self, &env.limits);
+        let needs = super::fleet_needs::current(self, &env.limits);
         let mut fleet_out = Queue::uncapped();
         crate::routing::step::step_fleet(self, env, fleet::Event::Needs(needs), &mut fleet_out);
         assert!(fleet_out.is_empty(), "needs replacement retains running attempts");
@@ -344,7 +346,7 @@ impl Core {
                 }
             }
             if let Some(revision) = orphan {
-                let _archived = self.archive_revision(env, revision, out);
+                let _retained = self.archive_revision(env, revision, out);
             }
         }
     }
@@ -361,7 +363,7 @@ impl Core {
         let oldest_before = self.current.oldest;
         let previous = self.current.newest();
         let release = self.settings_restore.release.is_some();
-        if release && !crate::routing::settings::withdrawal_room(self, None) {
+        if release && !crate::routing::settings::dispatch::withdrawal_room(self, None) {
             let _refused = self.refuse_settings(Failure { setting: Setting::Rules, fault: Fault::Count });
             return out;
         }
@@ -437,7 +439,7 @@ impl Core {
         self.finish_extent(oldest_before, &mut out);
         self.tell_settings(env);
         if release {
-            crate::routing::settings::withdraw_stale(self, env, &mut out, None);
+            crate::routing::settings::dispatch::withdraw_stale(self, env, &mut out, None);
         }
         self.settings_restore = Restore::new(&env.limits);
         self.settings_restore.ready = true;

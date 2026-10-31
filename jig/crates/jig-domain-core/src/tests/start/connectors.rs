@@ -1,6 +1,10 @@
 //! Connector loading and the durable output gate (jig/docs/design/domain/engine.md, 6).
-use super::{Action, Core, Env, Phase, Queue, Request, SweepInput, Time, Wall, config, limits, step_phase};
-use crate::{Ask, CoreRecord, Restored, connector, resources, tasks};
+use crate::{
+    Ask, CoreRecord, Restored,
+    effects::{connector, resources},
+    tasks,
+    tests::start::{Action, Core, Env, Phase, Queue, Request, SweepInput, Time, Wall, config, limits, step_phase},
+};
 
 fn fresh() -> (Core, Env<crate::Limits>) {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
@@ -16,7 +20,7 @@ fn fresh() -> (Core, Env<crate::Limits>) {
     header.projects = 1;
     assert_eq!(core.restore_core(CoreRecord::Deployment(header), &env.limits), Restored::Deployment { commits: 1 });
     let project = &config(41).seed_projects[0];
-    let value = crate::policy::snapshot(&project.policy.policy, &[], &[]).expect("fixture policy");
+    let value = crate::admission::policy::snapshot(&project.policy.policy, &[], &[]).expect("fixture policy");
     assert!(core.restore_policy(&env.limits, project.number, project.name.clone(), value));
     (core, env)
 }

@@ -105,7 +105,7 @@ impl Component {
                 | core::reads::Answer::Revisions(_)
                 | core::reads::Answer::Tasks(_)
                 | core::reads::Answer::Document(_)
-                | core::reads::Answer::Historical(_)
+                | core::reads::Answer::Ended(_)
                 | core::reads::Answer::Page(_) => {
                     self.pending.exchanges.insert(exchange, waiting).expect("same unrelated slot");
                 }

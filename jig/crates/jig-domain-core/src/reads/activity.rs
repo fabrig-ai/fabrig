@@ -1,6 +1,9 @@
 //! A page's joined transcript identity belongs to its immutable line (store.md, 7.3).
-use super::{PageRow, PageTurn, Row, UnjoinedTurn};
-use crate::{CoreRecord, Record, documents::Missing};
+use crate::{
+    CoreRecord, Record,
+    documents::Missing,
+    reads::{PageRow, PageTurn, Row, UnjoinedTurn},
+};
 use jig_domain_tasks as tasks;
 
 pub(crate) fn row(line: &tasks::ActivityLine, row: &Row) -> Result<PageRow, Missing> {
