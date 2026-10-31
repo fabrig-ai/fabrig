@@ -390,9 +390,7 @@ fn one_offer_drains_all_eligible_held_answers() {
     for (name, count) in [("all held", 20), ("empty", 0)] {
         h.send(Request::Offer);
         assert_eq!(h.up.len(), count, "{name}: offer batch");
-        for _ in 0..count {
-            drop(h.up.pop());
-        }
+        h.up.clear();
     }
 }
 
