@@ -251,6 +251,7 @@ fn a_name_resolved_at_start_serves_a_later_record_on_its_own_port() {
 #[test]
 fn an_add_refused_by_the_component_drops_the_runtime_and_names_its_host() {
     let mut service = service(b"127.0.0.1");
+    load(&mut service);
     let engine = service.engine.as_mut().unwrap();
     engine.forge.env.limits.forges = 1;
     let mut later = record(b"full.test");
