@@ -4783,11 +4783,11 @@ fn deleting_entry(d: &Domain, task: u64, resource: &skein_forge_client::Resource
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive durable row restoration dispatcher")]
 fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
+    let started = d.restore_started.expect("restore_begin precedes every restored row");
     if d.restore_fit.is_some() {
         return;
     }
     if let Stored::Application { until, .. } = &record
-        && let Some(started) = d.restore_started
         && *until <= started
     {
         return;
