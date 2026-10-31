@@ -95,9 +95,7 @@ pub fn unpaced(bytes: &[u8]) -> Invocation {
 }
 
 pub fn without_input() -> Invocation {
-    let mut invocation = invocation(0);
-    invocation.no_input = true;
-    invocation
+    invocation(0).no_input()
 }
 
 pub fn with_server(story: Story, invocation: Invocation, script: smith_fake_claude::ServerScript) -> Run {
