@@ -132,7 +132,7 @@ pub fn policy(seed: u64, environment_chat: bool) -> r::Policy {
     policy
 }
 
-pub type Store = jig_fake_store::Store<root::Key, root::Record>;
+pub use super::store::Store;
 
 pub fn inbound(
     intents: &mut jig_core_world::observations::intents::Intents,

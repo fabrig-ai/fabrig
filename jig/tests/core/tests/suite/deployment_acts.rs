@@ -460,10 +460,9 @@ fn a_make_project_act_refuses_a_maker_outside_its_subject() {
 }
 
 #[test]
-fn remove_project_is_not_offered_yet_and_saves_nothing() {
+fn remove_project_without_its_grant_is_not_offered_and_saves_nothing() {
     let (mut config, limits) = configuration(1851);
-    config.core.grants =
-        Box::new([people::ActGrant { connector: CONNECTOR, may: Box::new([people::ActKind::RemoveProject]) }]);
+    config.core.grants = Box::new([]);
     let mut world = World::configured_unassigned(1851, false, config, limits);
     let before = world.commits.len();
     act(&mut world, KEY, people::Act::RemoveProject { project: PROJECT });

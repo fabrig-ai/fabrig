@@ -1,4 +1,5 @@
 //! Read-only construction from bounded authenticated owner rows.
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 use super::vocabulary::{row_bytes, row_owner, row_visible};
 use super::{Answer, Cursor, Filter, Group, Historical, Page, PageRow, Past, Position, Range, Read, Row, Scope, Why};
 use crate::documents::{self, Document, Missing, Proposer};
@@ -18,15 +19,20 @@ fn note_project(scope: &notes::Scope) -> u32 {
     }
 }
 
+fn project_allowed(core: &Core, party: u64, project: u32) -> bool {
+    (project == jig_domain_people::DEPLOYMENT || core.open_project(project))
+        && core.people.role(party, project).is_some()
+}
+
 pub(super) fn scope_allowed(core: &Core, party: u64, scope: &Scope) -> bool {
     match scope {
         Scope::EndedTasks | Scope::TaskRows { .. } => false,
         Scope::SettingsHistory { .. } => core.people.role(party, jig_domain_people::DEPLOYMENT).is_some(),
         Scope::Tasks { query } => documents::task_query::admission(core, party, query).is_ok(),
-        Scope::Notes { project } | Scope::Spend { project } => core.people.role(party, *project).is_some(),
-        Scope::ScopedNotes { scope, .. } => core.people.role(party, note_project(scope)).is_some(),
+        Scope::Notes { project } | Scope::Spend { project } => project_allowed(core, party, *project),
+        Scope::ScopedNotes { scope, .. } => project_allowed(core, party, note_project(scope)),
         Scope::Inbox { filter, .. } => match filter.project {
-            Some(project) => core.people.role(party, project).is_some(),
+            Some(project) => project_allowed(core, party, project),
             None => true,
         },
         Scope::Task { task }
@@ -40,7 +46,7 @@ pub(super) fn scope_allowed(core: &Core, party: u64, scope: &Scope) -> bool {
         | Scope::History { task, .. }
         | Scope::Activity { task }
         | Scope::Proposal { proposer: Proposer::Task(task), .. } => match core.tasks.task(*task) {
-            Some(row) => core.people.role(party, row.project).is_some(),
+            Some(row) => project_allowed(core, party, row.project),
             None => true,
         },
         Scope::Proposal { proposer: Proposer::Party(_), .. } => true,
@@ -457,6 +463,11 @@ fn owner_rows(
         page.next = Some(Cursor::Store { scope: range.scope.clone(), after: Some(after) });
     }
     for row in raw {
+        if let Some(owner) = row_owner(&row)
+            && !core.open_project(owner.project)
+        {
+            continue;
+        }
         if !row_visible(core, range.party, &row) {
             continue;
         }
@@ -608,7 +619,8 @@ fn object(
                 })
             }
             Record::Tasks(tasks::Stored::PersonProposal(value) | tasks::Stored::DecidedProposal(value)) => {
-                if *proposer != Proposer::Party(value.proposer)
+                if (value.project != jig_domain_people::DEPLOYMENT && !core.open_project(value.project))
+                    || *proposer != Proposer::Party(value.proposer)
                     || value.number != *proposal
                     || (!value.action.is_settings() && range.party != value.proposer)
                 {
@@ -1174,7 +1186,8 @@ fn person_proposal_need(
 ) -> Result<Option<PageRow>, Missing> {
     let object =
         documents::InboxObject::Proposal { proposer: Proposer::Party(proposal.proposer), number: proposal.number };
-    if !group.includes(object)
+    if (proposal.project != jig_domain_people::DEPLOYMENT && !core.open_project(proposal.project))
+        || !group.includes(object)
         || (filter.project.is_some() && filter.project != Some(proposal.project))
         || (filter.goal.is_some() && filter.goal != Some(proposal.first()))
     {

@@ -26,10 +26,9 @@ fn restoring() -> (Core, Limits, people::PolicyValue) {
 fn a_restored_project_name_cannot_collide_with_another_projects() {
     let (mut core, limits, value) = restoring();
     core.restore_policy(&limits, FIRST_PROJECT, Box::from("Tally"), value.clone());
-    assert!(!core.restore_policy(&limits, SECOND_PROJECT, Box::from("tally"), value));
-    assert_eq!(core.authority.policy(SECOND_PROJECT), None);
-    assert_eq!(core.names.get(&SECOND_PROJECT), None);
-    assert_eq!(core.projects.as_slice(), [FIRST_PROJECT]);
+    assert!(core.restore_policy(&limits, SECOND_PROJECT, Box::from("tally"), value));
+    assert_eq!(core.restart_done(RestartStep::LoadCore), RestartRequest::Refused { step: RestartStep::LoadCore });
+    assert_eq!(core.restore_failure(), Some(RestartRequest::ProjectPolicy { project: FIRST_PROJECT }));
     assert_eq!(core.names.get(&FIRST_PROJECT).expect("restored name").as_ref(), "Tally");
 }
 

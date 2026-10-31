@@ -282,6 +282,7 @@ fn census_fixture() -> (Core, Env<Limits>) {
     let mut configuration = config(79);
     configuration.owners = Box::new([]);
     let mut core = Core::new(configuration, &env.limits).expect("fixture core configuration");
+    core.projects.push(1).expect("open census project");
     assert_eq!(core.restart_begin(false), RestartRequest::Step(RestartStep::LoadCore));
     let mut header = core.counters.deployment();
     header.tasks = 20;

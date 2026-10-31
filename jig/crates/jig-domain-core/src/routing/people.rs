@@ -122,7 +122,7 @@ pub(super) fn sign_in(
     Requests::Out(out)
 }
 #[expect(clippy::too_many_lines, reason = "one exhaustive party vocabulary routes its bounded child decision")]
-pub(super) fn tag_people(
+pub(crate) fn tag_people(
     core: &mut Core,
     env: &Env<Limits>,
     mut child: Queue<people::Request>,
@@ -240,7 +240,12 @@ pub(super) fn tag_people(
                     }));
                     continue;
                 }
-                if let Err(why) = crate::acts::request(core, &env.limits, person, project, role, &ask, env.wall) {
+                let admission = if *ask == (people::Ask::RemoveProject { project }) {
+                    Ok(())
+                } else {
+                    crate::acts::request(core, &env.limits, person, project, role, &ask, env.wall)
+                };
+                if let Err(why) = admission {
                     work.push(Event::People(people::Event::Decided {
                         request,
                         outcome: people::Outcome::Refused(why),
@@ -248,10 +253,21 @@ pub(super) fn tag_people(
                     continue;
                 }
                 match *ask {
-                    people::Ask::RemoveProject { .. } => work.push(Event::People(people::Event::Decided {
-                        request,
-                        outcome: people::Outcome::Refused(people::Refusal::NotOffered),
-                    })),
+                    people::Ask::RemoveProject { project } => {
+                        let result = if !core.open_project(project) {
+                            Err(people::Refusal::Unknown)
+                        } else if role == Some(people::Role::Owner) {
+                            crate::deletion::begin(core, env, work, &mut out, request, project)
+                        } else {
+                            Err(people::Refusal::Role { held: role })
+                        };
+                        if let Err(why) = result {
+                            work.push(Event::People(people::Event::Decided {
+                                request,
+                                outcome: people::Outcome::Refused(why),
+                            }));
+                        }
+                    }
                     people::Ask::Compound { operations, .. } => {
                         crate::compound::route(
                             core,
