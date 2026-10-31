@@ -663,6 +663,9 @@ impl StartStore {
             if let Some(request) = out.pop() {
                 match request {
                     engine::Request::ToChild(released) => engine::step(root, env, engine::Event::Released(released)),
+                    engine::Request::Account(accounts::Request::Signing(accounts::Signing::Restored)) => {
+                        assert!(self.wires > 0, "account restoration follows durable wires");
+                    }
                     engine::Request::Store(engine::StoreRequest::Commit { number, writes }) => {
                         let wires = writes.contains(&engine::Write::Wires);
                         self.apply(&writes);

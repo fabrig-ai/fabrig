@@ -591,7 +591,6 @@ const START_PHASES: [jig_domain_core::start::Phase; 11] = {
 };
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_empty_store_opens_through_every_start_phase_in_order() {
     let (mut domain, env) = cold();
     let mut store = super::resume_fixture::StartStore::new();
@@ -638,7 +637,6 @@ fn repository() -> temper_engine_domain_forge::Repository {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_project_live_task_and_forge_repository_open_together() {
     let (mut first, env) = cold();
     let mut store = super::resume_fixture::StartStore::new();
@@ -673,7 +671,6 @@ fn a_project_live_task_and_forge_repository_open_together() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_crash_after_wires_commit_drops_its_delivery_and_cold_loads_the_same_state() {
     let (mut domain, env) = cold();
     let mut store = super::resume_fixture::StartStore::new();
