@@ -875,20 +875,7 @@ impl Runtime {
     }
     fn tick(&mut self, setup: &Harness, faces: &mut [BrowserFace<'_>], now: Time) -> bool {
         let mut opened = false;
-        while self.io.is_ready() {
-            io::resume(&mut self.io, &self.ienv, &mut self.io_events, &mut self.submits);
-        }
-        while let Some(complete) = self.complete.pop() {
-            if complete.op != ROOT && complete.op != SERVER_ROOT {
-                if let Ok(kernel::Done::Spawned { pidfd, .. }) = &complete.result {
-                    self.spawned_pids.push_back(pidfd_pid(*pidfd));
-                }
-                io::up(&mut self.io, &self.ienv, complete, &mut self.io_events, &mut self.submits);
-            }
-        }
-        while self.io.is_due(now) {
-            io::fire(&mut self.io, &self.ienv, &mut self.io_events, &mut self.submits);
-        }
+        io::stage::up(&mut self.io, &self.ienv, &mut self.complete, &mut self.io_events, &mut self.submits, now);
         while let Some(event) = self.io_events.pop() {
             self.io_event(event, setup);
         }
@@ -1172,7 +1159,15 @@ impl Runtime {
             }
             self.ring.returned(host, complete);
         }
+        // Each spawn's pid is read once, as its completion arrives and in the order io's stage takes
+        // them; the roots' closes are host 1's.
+        let held = self.complete.len();
         self.ring.deliver(0, &mut self.complete);
+        for complete in self.complete.iter().skip(usize::try_from(held).expect("queue length fits usize")) {
+            if let Ok(kernel::Done::Spawned { pidfd, .. }) = &complete.result {
+                self.spawned_pids.push_back(pidfd_pid(*pidfd));
+            }
+        }
         let mut roots = Queue::with_capacity(capacity::ROOT_OPERATIONS);
         self.ring.deliver(1, &mut roots);
         while let Some(complete) = roots.pop() {
