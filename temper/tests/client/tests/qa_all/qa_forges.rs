@@ -84,10 +84,10 @@ fn configured(owner: bool, under_box: bool, mode: forge::Mode) -> Pages {
         ],
     )
 }
-fn configured_with(owner: bool, under_box: bool, rows: &[forge::Configured; 2]) -> Pages {
+fn configured_with(owner: bool, under_box: bool, rows: &[forge::Configured]) -> Pages {
     configured_accounts(owner, under_box, rows, true)
 }
-fn configured_accounts(owner: bool, under_box: bool, rows: &[forge::Configured; 2], account: bool) -> Pages {
+fn configured_accounts(owner: bool, under_box: bool, rows: &[forge::Configured], account: bool) -> Pages {
     let mut world = if owner { f::accounts_world(f::SEED) } else { f::world(f::SEED) };
     let front = world.front();
     let mut store = std::mem::replace(&mut front.engine.store, Store::new());
@@ -100,6 +100,15 @@ fn configured_accounts(owner: bool, under_box: bool, rows: &[forge::Configured; 
             .map(|(key, _)| key.clone())
             .collect();
         store.seed(Box::new([]), accounts);
+    }
+    if rows.is_empty() {
+        let forges = store
+            .rows
+            .iter()
+            .filter(|(_, row)| matches!(row, engine::Record::Forge { .. }))
+            .map(|(key, _)| key.clone())
+            .collect();
+        store.seed(Box::new([]), forges);
     }
     let mut limits = front.engine.env.limits;
     let configs = std::array::from_fn(|_| {
@@ -114,7 +123,7 @@ fn configured_accounts(owner: bool, under_box: bool, rows: &[forge::Configured; 
                 writer
             })
             .collect();
-        config.forges = Box::new((*rows).clone());
+        config.forges = rows.to_vec().into_boxed_slice();
         config.under_box = under_box;
         if rows.iter().any(|row| row.admin_connect) {
             temper_client_world::front::first_run_projects(&mut config, &mut limits);
@@ -300,8 +309,7 @@ fn malformed_first_forge_does_not_shadow_a_readable_repeat() {
 
 #[test]
 fn choose_orders_github_owned_and_elsewhere_and_omits_fakes() {
-    let mut world = world();
-    connection(&mut world, OWNED, forge::Connection::NotSetUp);
+    let mut world = configured_accounts(true, true, &[], true);
     let client = open(&mut world, flow(None));
     follow(
         &mut world,
@@ -309,7 +317,7 @@ fn choose_orders_github_owned_and_elsewhere_and_omits_fakes() {
         vec![
             see(Role::Region, b"GitHub"),
             see(Role::Region, b"Forgejo on this machine"),
-            see(Role::Region, b"A Forgejo elsewhere"),
+            see(Role::Region, b"Your Forgejo"),
             gone(Role::Region, b"Playground forge"),
         ],
     );
@@ -322,7 +330,7 @@ fn choose_orders_github_owned_and_elsewhere_and_omits_fakes() {
         .collect::<Vec<_>>();
     let github = names.iter().position(|name| *name == b"GitHub").expect("GitHub card");
     let owned = names.iter().position(|name| *name == b"Forgejo on this machine").expect("owned card");
-    let remote = names.iter().position(|name| *name == b"A Forgejo elsewhere").expect("elsewhere card");
+    let remote = names.iter().position(|name| *name == b"Your Forgejo").expect("elsewhere card");
     assert!(github < owned && owned < remote, "forge.md 5.4: {names:?}");
 }
 
@@ -334,7 +342,7 @@ fn unknown_and_fake_choices_fall_back_to_choose() {
         follow(
             &mut world,
             client,
-            vec![see(Role::Region, b"A Forgejo elsewhere"), gone(Role::Link, "‹ All forges".as_bytes())],
+            vec![see(Role::Region, b"Your Forgejo"), gone(Role::Link, "‹ All forges".as_bytes())],
         );
     }
 }
@@ -377,12 +385,8 @@ fn not_under_box_explains_all_four_commands_without_action() {
     {
         assert!(words.contains(command), "missing {command}: {words}");
     }
-    follow(
-        &mut world,
-        client,
-        vec![PersonStep::Go { address: flow(None) }, see(Role::Region, b"Forgejo on this machine")],
-    );
-    assert!(text(&world, client).contains("Needs four commands and a restart"));
+    follow(&mut world, client, vec![PersonStep::Go { address: flow(None) }, see(Role::Button, b"Start over")]);
+    assert!(text(&world, client).contains("not finished"));
 }
 
 #[test]
@@ -426,7 +430,7 @@ fn unoffered_forge_has_no_owned_choose_card() {
         follow(
             &mut world,
             client,
-            vec![see(Role::Region, b"A Forgejo elsewhere"), gone(Role::Region, b"Forgejo on this machine")],
+            vec![see(Role::Button, b"Start over"), gone(Role::Region, b"Forgejo on this machine")],
         );
     }
 }
@@ -462,13 +466,11 @@ fn github_details_offer_only_the_app_of_ones_own_with_a_masked_key() {
     node(&world, client, Role::TextField, b"App id");
     assert!(!node(&world, client, Role::Button, b"Connect the App").states.as_slice().contains(&State::Disabled));
     assert_eq!(node(&world, client, Role::TextField, b"Private key").entry, Some(skein_ui::EntryKind::Secret));
-    follow(&mut world, client, vec![PersonStep::Go { address: flow(None) }, see(Role::Button, b"Connect GitHub")]);
-    assert!(!node(&world, client, Role::Button, b"Connect GitHub").states.as_slice().contains(&State::Disabled));
-    let words = text(&world, client);
-    assert!(
-        words.contains("Your repositories on GitHub. temper makes its own App there; you choose the account and the repositories it may use."),
-        "{words}"
-    );
+    let mut fresh = configured_accounts(true, true, &[], true);
+    let client = open(&mut fresh, flow(None));
+    follow(&mut fresh, client, vec![see(Role::Button, b"Connect GitHub")]);
+    assert!(!node(&fresh, client, Role::Button, b"Connect GitHub").states.as_slice().contains(&State::Disabled));
+    assert!(text(&fresh, client).contains("Your repositories on GitHub. temper makes its own App there; you choose the account and the repositories it may use."));
 }
 
 const ADMIN_TOKEN: &[u8] = b"admin-token-placeholder-0123";
@@ -544,7 +546,7 @@ fn admin_private(world: &mut Pages, client: ClientId) {
 fn elsewhere_welcome_after_restart_connects_retries_and_opens_its_new_project() {
     let mut world = admin_world();
     let client = open(&mut world, Address::Welcome { step: Step::Forge { forge: None } });
-    follow(&mut world, client, vec![see(Role::Region, b"GitHub"), gone(Role::Region, b"A Forgejo elsewhere")]);
+    follow(&mut world, client, vec![see(Role::Button, b"Start over"), gone(Role::Region, b"GitHub")]);
     let names = world
         .tree(client)
         .nodes()
@@ -717,7 +719,7 @@ fn connecting_and_connected_rows_select_their_flow_steps() {
 }
 
 #[test]
-fn forges_omit_unstarted_and_fake_rows_and_offer_add_link() {
+fn forges_list_kept_unstarted_rows_and_omit_fakes() {
     let mut world = world_for(FAKE);
     connection(&mut world, OWNED, forge::Connection::NotSetUp);
     connection(&mut world, FAKE, connected());
@@ -727,8 +729,7 @@ fn forges_omit_unstarted_and_fake_rows_and_offer_add_link() {
         client,
         vec![
             see(Role::Link, b"+ Add a forge"),
-            see(Role::Paragraph, b"No forge of yours yet."),
-            gone(Role::Disclosure, b"Forgejo on this machine"),
+            see(Role::Disclosure, b"Forgejo on this machine"),
             gone(Role::Disclosure, b"GitHub"),
             gone(Role::Disclosure, b"Playground forge"),
         ],
@@ -930,7 +931,14 @@ fn welcome_accepted_setup_moves_to_model_and_follows_its_forge() {
     let mut world = world();
     connection(&mut world, OWNED, forge::Connection::NotSetUp);
     let client = open(&mut world, Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(OWNED)) } });
-    press_pending(&mut world, client, b"Run on this machine");
+    world.event(
+        client,
+        temper_client_domain::Event::Act {
+            action: temper_client_domain::Action::Forge(temper_client_domain::forge::Act::SetUpAtOnce { forge: OWNED }),
+        }
+        .into(),
+    );
+    pending(&mut world);
     answer_setup(&mut world, forge::SetUpAnswer::SettingUp);
     connection(&mut world, OWNED, forge::Connection::SettingUp { step: Some(forge::SetUpStep::Prepare) });
     follow(
@@ -971,33 +979,6 @@ fn running_setup_opened_in_second_tab_is_not_resent() {
 }
 
 #[test]
-fn setup_strip_tracks_progress_and_changes_its_continue_step() {
-    let mut world = world();
-    let client = open(&mut world, Address::Chats { filter: ChatsFilter::All, start: false });
-    follow(&mut world, client, vec![see(Role::Region, b"Setup")]);
-    follow(
-        &mut world,
-        client,
-        vec![
-            PersonStep::Press { find: Find::exactly_named(Role::Link, b"Continue setting up") },
-            see(Role::Heading { level: 1 }, b"Connect a forge"),
-            PersonStep::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
-        ],
-    );
-    connection(&mut world, OWNED, forge::Connection::SettingUp { step: Some(forge::SetUpStep::Fetch) });
-    follow(&mut world, client, vec![see(Role::Link, b"View")]);
-    assert!(text(&world, client).contains("Forgejo on this machine · Setting up: fetching"));
-    follow(
-        &mut world,
-        client,
-        vec![
-            PersonStep::Press { find: Find::exactly_named(Role::Link, b"Continue setting up") },
-            see(Role::Heading { level: 1 }, b"Almost ready"),
-        ],
-    );
-}
-
-#[test]
 fn strip_exclusions_and_forges_navigation_current_match_pages() {
     for page in [
         Address::Forges,
@@ -1028,17 +1009,6 @@ fn non_owner_forges_page_explains_the_watch_refusal() {
 }
 
 #[test]
-#[ignore = "needs: a non-owner identity; `configured(false, ..)` still signs in the deployment's owner"]
-fn non_owner_setup_strip_only_names_the_missing_model() {
-    let mut world = configured(false, true, forge::Mode::Owned);
-    let client = open(&mut world, Address::Chats { filter: ChatsFilter::All, start: false });
-    follow(&mut world, client, vec![see(Role::Region, b"Setup")]);
-    let words = text(&world, client);
-    assert!(words.contains("temper has no model yet."), "{words}");
-    assert!(!words.contains("temper has no forge"), "forges are not this person's to set up: {words}");
-}
-
-#[test]
 #[ignore = "needs: Joint per-subject forges watch ledger, hold/release and refused/ended injection; verify one session watch, no retry after terminal and headings before delivery"]
 fn session_watch_survives_pages_and_stays_terminal_without_retry() {
     let mut world = world();
@@ -1053,27 +1023,6 @@ fn session_watch_survives_pages_and_stays_terminal_without_retry() {
     );
     // Hold first delivery: Forges must draw headings only. Refuse/end instead:
     // no rows or stale dot/banner; navigating must not open another watch.
-}
-
-#[test]
-#[ignore = "needs: Joint non-null Demo read fixture and demo lifecycle controls; fake playground row plus independently usable real account"]
-fn playground_forge_disappears_when_real_forge_connects() {
-    let mut world = world_for(FAKE);
-    connection(&mut world, FAKE, connected());
-    let client = open(&mut world, Address::Forges);
-    follow(&mut world, client, vec![see(Role::Disclosure, b"Playground forge")]);
-    connection(&mut world, OWNED, connected());
-    follow(&mut world, client, vec![gone(Role::Disclosure, b"Playground forge")]);
-}
-
-#[test]
-#[ignore = "needs: non-null Demo read fixture to exercise both halves, banner order, Connect a forge href, replacement by progress, exclusions and demo-to-setup/accounts seam"]
-fn playground_banner_replaces_connect_link_with_running_setup() {
-    let mut world = world();
-    let client = open(&mut world, Address::Chats { filter: ChatsFilter::All, start: false });
-    follow(&mut world, client, vec![see(Role::Region, b"Playground"), see(Role::Link, b"Connect a forge")]);
-    connection(&mut world, OWNED, forge::Connection::SettingUp { step: None });
-    follow(&mut world, client, vec![see(Role::Link, b"View"), gone(Role::Link, b"Connect a forge")]);
 }
 
 #[test]
@@ -1101,8 +1050,8 @@ fn browser_reload_preserves_running_setup_without_resending() {
 }
 
 #[test]
-fn accounts_banner_stays_above_setup_strip_on_eligible_pages() {
-    for (page, has_strip) in [
+fn accounts_banner_stays_visible_without_the_setup_strip() {
+    for (page, _had_strip) in [
         (Address::Chats { filter: ChatsFilter::All, start: false }, true),
         (f::inbox(), true),
         (Address::Adopt { project: 1 }, true),
@@ -1148,7 +1097,7 @@ fn accounts_banner_stays_above_setup_strip_on_eligible_pages() {
         });
         assert!(banner.is_some(), "README.md 5.1 requires the accounts banner: {}", text(&world, client));
         let strip = nodes.iter().position(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Setup"));
-        assert_eq!(strip.is_some(), has_strip, "only eligible pages have a setup strip");
+        assert!(strip.is_none(), "the setup strip is absent");
         if let Some(strip) = strip {
             assert!(banner.expect("banner exists") < strip, "accounts banner precedes setup strip");
         }

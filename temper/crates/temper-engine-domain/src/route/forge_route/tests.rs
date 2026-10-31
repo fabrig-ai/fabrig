@@ -302,11 +302,13 @@ fn writable_repositories_exclude_context_and_missing_push() {
 fn writable_repositories_exclude_an_ended_forge() {
     use super::forge;
     let (mut domain, env) = two_forges();
+    let mut record = domain.forge.record(1).expect("kept forge").clone();
+    record.state = forge::ForgeState::Ended { secrets_erased: false, box_removed: false };
     let mut out = skein_lib::Queue::uncapped();
     forge::step(
         &mut domain.forge,
         &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
-        forge::Event::Restore { record: forge::Stored::Forge(ended_record(1)) },
+        forge::Event::Restore { record: forge::Stored::Forge(record) },
         &mut out,
     );
     let repositories = domain.forge.writable_repositories(5);
@@ -929,23 +931,4 @@ fn a_gate_repairs_words_open_with_its_number_kind_and_head() {
         assert!(super::repair_words(&row, Repair::Gate(7), &parameters, 64).is_none());
     }
     assert!(super::repair_words(&row, Repair::Gate(8), &[], 512).is_none(), "an unknown gate cannot be named");
-}
-
-fn ended_record(number: u16) -> super::forge::ForgeRecord {
-    use super::forge;
-    forge::ForgeRecord {
-        number,
-        kind: forge::Kind::Forgejo,
-        mode: forge::Mode::Owned,
-        state: forge::ForgeState::Ended { secrets_erased: true, box_removed: true },
-        place: forge::Place {
-            api: forge::Address { host: b"forge.example".as_slice().into(), port: 443, tls: None },
-            git: b"https://forge.example".as_slice().into(),
-            web: None,
-        },
-        read_only: false,
-        bot: forge::Bot { login: b"bot".as_slice().into(), name: b"Bot".as_slice().into(), email: Box::new([]) },
-        asked: false,
-        first: None,
-    }
 }
