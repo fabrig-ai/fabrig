@@ -5,7 +5,8 @@ fn small() -> Limits {
     profile(Profile::Small)
 }
 fn parse(bytes: &[u8]) -> Result<Limits, Problems> {
-    overrides::parse(&document(bytes), 0, &path(&[b"limits"]))
+    let parsed = overrides::parse(&document(bytes), 0, &path(&[b"limits"]));
+    if parsed.problems.is_empty() { Ok(parsed.limits) } else { Err(parsed.problems) }
 }
 fn problem(bytes: &[u8], segments: &[&[u8]], what: What) {
     let errors = parse(bytes).unwrap_err();
@@ -78,6 +79,24 @@ fn an_unknown_profile_is_refused_naming_it() {
 #[test]
 fn the_standard_profile_can_be_selected() {
     assert_eq!(parse(br#"{"profile":"standard"}"#), Ok(profile(Profile::Standard)));
+}
+
+#[test]
+fn limits_problems_keep_the_named_profile_and_applied_overrides_for_connectors() {
+    use super::fixtures::{ENGINE_SMALL, engine, with};
+
+    let bytes = with(ENGINE_SMALL, br#""connectors": [1]"#, br#""connectors": [1, 2, 3]"#);
+    for limits in [
+        br#"{"profile":"standard","overrides":{"bogus":1}}"#.as_slice(),
+        br#"{"profile":"small","overrides":{"core.connectors":3,"bogus":1}}"#.as_slice(),
+    ] {
+        let bytes = with(&bytes, br#"{"profile": "small"}"#, limits);
+        let problems = engine(&bytes).unwrap_err();
+        assert_eq!(problems.problems.len(), 1, "{limits:?}: {problems:?}");
+        assert_eq!(problems.past, 0);
+        assert_eq!(problems.problems.get(0).unwrap().path, path(&[b"limits", b"overrides", b"bogus"]));
+        assert_eq!(problems.problems.get(0).unwrap().what, What::Override);
+    }
 }
 fn a_missing_profile_is_refused_naming_it() {
     problem(b"{}", &[b"limits", b"profile"], What::Missing);
@@ -502,7 +521,7 @@ fn whole_admission_checks_the_limits_handed_to_the_store() {
 fn codec_admission_keeps_a_composed_documents_override_prefix() {
     let document = document(br#"{"profile":"small","overrides":{"core.policy_bytes":43696}}"#);
     let prefix = path(&[b"engine", b"limits"]);
-    let problems = overrides::parse(&document, 0, &prefix).unwrap_err();
+    let problems = overrides::parse(&document, 0, &prefix).problems;
     assert_eq!(problems.problems.get(0).unwrap().path, prefix.member(b"overrides").member(b"core.policy_bytes"));
 }
 
