@@ -1,16 +1,33 @@
 //! Unit fixtures use the core world's small configuration and child entry points.
 #![expect(clippy::too_many_lines, reason = "tests state complete bounded fixtures")]
-use crate::Settings;
-use crate::documents::*;
-use crate::routing::Work;
-use crate::*;
-use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
-mod deadlines;
-mod flight;
+mod acts;
+mod admission;
+mod documents;
+mod effects;
+mod fill;
+mod fixtures;
+mod funding;
+mod inbox;
 mod limits;
+mod reads;
+mod routing;
+mod runs;
+mod settings;
 mod start;
 mod translate;
+
+use crate::{
+    Settings,
+    admission::{amendments, compound, person_task},
+    documents::*,
+    effects::{connector, projections},
+    routing::Work,
+    runs::state as run,
+    settings::revisions,
+    *,
+};
+use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
 pub(crate) fn limits() -> Limits {
     let retry = tasks::Retry { retries: 1, base: Duration::from_millis(10), max: Duration::from_secs(1) };
@@ -120,7 +137,7 @@ pub(crate) fn limits() -> Limits {
     };
     Limits {
         routes: 20_783,
-        settings: settings::Limits {
+        settings: crate::settings::Limits {
             revisions: 4,
             versions: 8,
             history: 64,
@@ -416,7 +433,7 @@ pub(crate) fn config(seed: u64) -> Config {
                 }]),
             },
         },
-        defaults: settings::Defaults {
+        defaults: crate::settings::Defaults {
             charters: Box::new([Charter {
                 number: 1,
                 hosts: fleet::Kinds::Workers,
@@ -613,7 +630,7 @@ fn documents_frame_carries_roles_retention_and_configured_charters() {
             name: Text { bytes: Box::from(&b"Project 1"[..]), cut: false },
             pool: None,
             creating: Some(crate::acts::Creating {
-                within: frame_facts::owner_creating(limits.documents.lines, 1, 1),
+                within: documents::frame_facts::owner_creating(limits.documents.lines, 1, 1),
                 beyond: crate::acts::Beyond::Proposed {
                     to: crate::acts::Recipient::Roles {
                         project: 1,
@@ -1984,7 +2001,7 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
 #[test]
 fn documents_deployment_accounts_are_secret_free_and_show_unusable_state() {
     let (mut core, mut limits) = make_tree();
-    run_choice::host(&mut core, &limits, Token::new(10), &[b"scripted"]);
+    runs::run_choice::host(&mut core, &limits, Token::new(10), &[b"scripted"]);
     limits.people.projects = 2;
     restore_document_party(&mut core, &limits, &[0, 1]);
     let env = Env { now: Time::from_nanos(100), wall: Wall::from_nanos(1000), limits: limits.accounts };
@@ -2473,7 +2490,7 @@ fn watches_share_subject_tokens_and_expired_signins_end_only_their_own_watch() {
         watch_outputs(&mut core, &limits, Event::Delivered { watcher });
     }
     assert_eq!(core.named_watch(Token::new(30)).unwrap().subject, core.named_watch(Token::new(31)).unwrap().subject);
-    let mut out = routing::finish_watches(
+    let mut out = crate::routing::finish_watches(
         &mut core,
         &Env {
             now: Time::from_nanos(Duration::from_secs(61).as_nanos()),
@@ -2507,11 +2524,6 @@ fn taking_a_changed_delivery_after_signin_expiry_ends_instead_of_making_a_docume
     assert!((core.watch_flights() == 0));
 }
 
-mod activity;
-mod completion_retry;
-mod conversation;
-mod read_filters;
-mod run_positions;
 fn open_run_watch(core: &mut Core, limits: &Limits, number: u64) {
     let watcher = Token::new(number);
     watch_outputs(
@@ -2676,7 +2688,7 @@ fn an_expired_run_signin_receives_no_next_provisional_suffix() {
     assert!(out.is_empty());
 }
 
-fn read_start(core: &mut Core, limits: &Limits, sign_in: u64, read: reads::Read) -> Held {
+fn read_start(core: &mut Core, limits: &Limits, sign_in: u64, read: crate::reads::Read) -> Held {
     let outputs = watch_outputs(core, limits, Event::Read { reply: ReplyTo::new(Token::new(90)), sign_in, read });
     let mut held = None;
     for output in outputs {
@@ -2694,7 +2706,12 @@ fn read_start(core: &mut Core, limits: &Limits, sign_in: u64, read: reads::Read)
     held.expect("one terminal answer")
 }
 
-fn loaded_answer(core: &mut Core, limits: &Limits, load: Token, result: reads::Loaded) -> Option<reads::Answer> {
+fn loaded_answer(
+    core: &mut Core,
+    limits: &Limits,
+    load: Token,
+    result: crate::reads::Loaded,
+) -> Option<crate::reads::Answer> {
     let mut answer = None;
     for output in watch_outputs(core, limits, Event::ReadLoaded { load, result }) {
         match output {
@@ -2712,20 +2729,21 @@ fn loaded_answer(core: &mut Core, limits: &Limits, load: Token, result: reads::L
     answer
 }
 
-fn read_answer(core: &mut Core, limits: &Limits, sign_in: u64, read: reads::Read) -> Held {
+fn read_answer(core: &mut Core, limits: &Limits, sign_in: u64, read: crate::reads::Read) -> Held {
     let held = read_start(core, limits, sign_in, read);
     if let Held::ReadLoad { load, .. } = held {
         return Held::Read {
             reply: ReplyTo::new(Token::new(90)),
-            answer: loaded_answer(core, limits, load, reads::Loaded::Page { rows: Box::new([]), next: None }).unwrap(),
+            answer: loaded_answer(core, limits, load, crate::reads::Loaded::Page { rows: Box::new([]), next: None })
+                .unwrap(),
         };
     }
     held
 }
 
 #[expect(clippy::manual_map, reason = "the test helper follows the exhaustive option style")]
-pub(crate) fn stored_row(value: Record, owner: Option<tasks::TaskRecord>) -> reads::Row {
-    reads::Row {
+pub(crate) fn stored_row(value: Record, owner: Option<tasks::TaskRecord>) -> crate::reads::Row {
+    crate::reads::Row {
         value,
         owner: match owner {
             Some(value) => Some(Box::new(value)),
@@ -2757,7 +2775,7 @@ fn stored_activity_pages_follow_committed_positions_with_exact_continuations() {
         },
     };
     let Held::ReadLoad { load, range } =
-        read_start(&mut core, &limits, 10, reads::Read::Activity { task: 1, before: None })
+        read_start(&mut core, &limits, 10, crate::reads::Read::Activity { task: 1, before: None })
     else {
         panic!()
     };
@@ -2767,27 +2785,27 @@ fn stored_activity_pages_follow_committed_positions_with_exact_continuations() {
         stored_row(Record::Tasks(tasks::Stored::Activity(line(3, 10))), Some(owner.clone())),
         stored_row(Record::Tasks(tasks::Stored::Activity(line(2, 30))), Some(owner.clone())),
     ]);
-    let next = reads::row_key(&rows[1]).unwrap();
-    let reads::Answer::Page(page) =
-        loaded_answer(&mut core, &limits, load, reads::Loaded::Page { rows, next: Some(next.clone()) }).unwrap()
+    let next = crate::reads::row_key(&rows[1]).unwrap();
+    let crate::reads::Answer::Page(page) =
+        loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Page { rows, next: Some(next.clone()) }).unwrap()
     else {
         panic!()
     };
     assert_eq!(page.rows.len(), 2);
-    let reads::PageRow::Activity { line: first, .. } = page.rows.get(0).unwrap() else { panic!() };
+    let crate::reads::PageRow::Activity { line: first, .. } = page.rows.get(0).unwrap() else { panic!() };
     assert_eq!(first.position, 3);
     core.reclaim();
     let Held::ReadLoad { load, range } =
-        read_start(&mut core, &limits, 10, reads::Read::Activity { task: 1, before: page.next })
+        read_start(&mut core, &limits, 10, crate::reads::Read::Activity { task: 1, before: page.next })
     else {
         panic!()
     };
     assert_eq!(range.after, Some(next));
-    let reads::Answer::Page(last) = loaded_answer(
+    let crate::reads::Answer::Page(last) = loaded_answer(
         &mut core,
         &limits,
         load,
-        reads::Loaded::Page {
+        crate::reads::Loaded::Page {
             rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Activity(line(1, 20))), Some(owner))]),
             next: None,
         },
@@ -2797,7 +2815,7 @@ fn stored_activity_pages_follow_committed_positions_with_exact_continuations() {
     };
     assert_eq!(last.rows.len(), 1);
     assert_eq!(last.next, None);
-    assert!(loaded_answer(&mut core, &limits, load, reads::Loaded::Gone).is_none());
+    assert!(loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Gone).is_none());
 }
 
 #[test]
@@ -2806,27 +2824,28 @@ fn store_load_admission_is_bounded_and_each_terminal_consumes_its_slot() {
     limits.load_slots = 1;
     // Reconstruct with the chosen capacity; authentication is restored below.
     core.reads = skein_lib::Slab::with_capacity(1);
-    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, reads::Read::Task { task: 100 }) else {
+    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 100 }) else {
         panic!()
     };
-    let Held::Read { answer, .. } = read_start(&mut core, &limits, 10, reads::Read::Task { task: 101 }) else {
+    let Held::Read { answer, .. } = read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 101 }) else {
         panic!()
     };
-    assert_eq!(answer, reads::Answer::None(reads::Why::Busy));
+    assert_eq!(answer, crate::reads::Answer::None(crate::reads::Why::Busy));
     assert_eq!(core.reads.len(), 1);
     assert_eq!(
-        loaded_answer(&mut core, &limits, load, reads::Loaded::Busy),
-        Some(reads::Answer::None(reads::Why::Busy))
+        loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Busy),
+        Some(crate::reads::Answer::None(crate::reads::Why::Busy))
     );
     core.reclaim();
-    let Held::ReadLoad { load: fresh, .. } = read_start(&mut core, &limits, 10, reads::Read::Task { task: 101 }) else {
+    let Held::ReadLoad { load: fresh, .. } = read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 101 })
+    else {
         panic!()
     };
     assert_ne!(fresh, load);
-    assert!(loaded_answer(&mut core, &limits, load, reads::Loaded::Gone).is_none());
+    assert!(loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Gone).is_none());
     assert_eq!(
-        loaded_answer(&mut core, &limits, fresh, reads::Loaded::Gone),
-        Some(reads::Answer::None(reads::Why::Gone))
+        loaded_answer(&mut core, &limits, fresh, crate::reads::Loaded::Gone),
+        Some(crate::reads::Answer::None(crate::reads::Why::Gone))
     );
 }
 
@@ -2837,7 +2856,7 @@ fn stored_read_refuses_rows_over_either_bound_and_cursors_from_another_query() {
     limits.load_bytes = 1;
     let owner = core.tasks.task(1).unwrap().clone();
     let Held::ReadLoad { load, .. } =
-        read_start(&mut core, &limits, 10, reads::Read::Activity { task: 1, before: None })
+        read_start(&mut core, &limits, 10, crate::reads::Read::Activity { task: 1, before: None })
     else {
         panic!()
     };
@@ -2846,25 +2865,25 @@ fn stored_read_refuses_rows_over_either_bound_and_cursors_from_another_query() {
             &mut core,
             &limits,
             load,
-            reads::Loaded::Page {
+            crate::reads::Loaded::Page {
                 rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Ended(Box::new(owner))), None)]),
                 next: None
             }
         ),
-        Some(reads::Answer::None(reads::Why::Busy))
+        Some(crate::reads::Answer::None(crate::reads::Why::Busy))
     );
     let Held::Read { answer, .. } = read_start(
         &mut core,
         &limits,
         10,
-        reads::Read::Activity {
+        crate::reads::Read::Activity {
             task: 1,
-            before: Some(reads::Cursor::Store { scope: reads::Scope::Activity { task: 2 }, after: None }),
+            before: Some(crate::reads::Cursor::Store { scope: crate::reads::Scope::Activity { task: 2 }, after: None }),
         },
     ) else {
         panic!()
     };
-    assert_eq!(answer, reads::Answer::None(reads::Why::Unknown));
+    assert_eq!(answer, crate::reads::Answer::None(crate::reads::Why::Unknown));
 }
 
 #[test]
@@ -2880,14 +2899,14 @@ fn retained_task_read_keeps_cancellation_actor_time_and_full_spec() {
     });
     owner.ended_at = Some(Wall::from_nanos(13));
     let expected = owner.spec.clone();
-    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, reads::Read::Task { task: 99 }) else {
+    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, crate::reads::Read::Task { task: 99 }) else {
         panic!()
     };
-    let reads::Answer::Historical(value) = loaded_answer(
+    let crate::reads::Answer::Ended(value) = loaded_answer(
         &mut core,
         &limits,
         load,
-        reads::Loaded::Page {
+        crate::reads::Loaded::Page {
             rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Ended(Box::new(owner))), None)]),
             next: None,
         },
@@ -2897,7 +2916,7 @@ fn retained_task_read_keeps_cancellation_actor_time_and_full_spec() {
     };
     assert_eq!(value.by, Some(tasks::Party::Person(1)));
     assert_eq!(value.at, Some(Wall::from_nanos(13)));
-    let reads::Past::Task { document, result } = value.value else { panic!() };
+    let crate::reads::EndedValue::Task { document, result } = value.value else { panic!() };
     assert_eq!(document.chip.number, 99);
     assert_eq!(document.words.bytes, expected.words);
     let Ending::Cancelled { by, at, .. } = result.ending else { panic!() };
@@ -2924,15 +2943,16 @@ fn stored_reply_reads_exact_child_activity_and_preserves_original_word_facts() {
         at: word.at,
         line: tasks::Line::Notified { recipient: tasks::Party::Person(1), word: word.clone() },
     };
-    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, reads::Read::Reply { task: 1, activity: 8 })
+    let Held::ReadLoad { load, .. } =
+        read_start(&mut core, &limits, 10, crate::reads::Read::Reply { task: 1, activity: 8 })
     else {
         panic!()
     };
-    let reads::Answer::Historical(value) = loaded_answer(
+    let crate::reads::Answer::Ended(value) = loaded_answer(
         &mut core,
         &limits,
         load,
-        reads::Loaded::Page {
+        crate::reads::Loaded::Page {
             rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Activity(line)), Some(owner))]),
             next: None,
         },
@@ -2940,7 +2960,7 @@ fn stored_reply_reads_exact_child_activity_and_preserves_original_word_facts() {
     .unwrap() else {
         panic!()
     };
-    assert_eq!(value.value, reads::Past::Reply(word));
+    assert_eq!(value.value, crate::reads::EndedValue::Reply(word));
 }
 
 #[test]
@@ -2962,15 +2982,17 @@ fn stored_person_forms_load_dependency_results_and_retained_links() {
     dependency.ended_at = Some(Wall::from_nanos(8));
     let mut row = stored_row(Record::Tasks(tasks::Stored::Ended(Box::new(owner))), None);
     row.linked = Box::new([Box::new(dependency)]);
-    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, reads::Read::PersonTask { task: 100 }) else {
-        panic!()
-    };
-    let reads::Answer::Historical(value) =
-        loaded_answer(&mut core, &limits, load, reads::Loaded::Page { rows: Box::new([row]), next: None }).unwrap()
+    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, crate::reads::Read::PersonTask { task: 100 })
     else {
         panic!()
     };
-    let reads::Past::PersonTask { document, .. } = value.value else { panic!() };
+    let crate::reads::Answer::Ended(value) =
+        loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Page { rows: Box::new([row]), next: None })
+            .unwrap()
+    else {
+        panic!()
+    };
+    let crate::reads::EndedValue::PersonTask { document, .. } = value.value else { panic!() };
     let shown = document.results.get(0).unwrap();
     assert!(shown.result.is_some());
     let TaskLink::Retained { chip, at } = &shown.task else { panic!() };
@@ -2983,7 +3005,7 @@ fn a_load_completion_rechecks_current_project_visibility() {
     let (mut core, limits) = watch_core();
     let owner = core.tasks.task(1).unwrap().clone();
     let Held::ReadLoad { load, .. } =
-        read_start(&mut core, &limits, 10, reads::Read::Activity { task: 1, before: None })
+        read_start(&mut core, &limits, 10, crate::reads::Read::Activity { task: 1, before: None })
     else {
         panic!()
     };
@@ -2999,12 +3021,12 @@ fn a_load_completion_rechecks_current_project_visibility() {
             &mut core,
             &limits,
             load,
-            reads::Loaded::Page {
+            crate::reads::Loaded::Page {
                 rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Live(Box::new(owner))), None)]),
                 next: None
             }
         ),
-        Some(reads::Answer::None(reads::Why::Unknown))
+        Some(crate::reads::Answer::None(crate::reads::Why::Unknown))
     );
 }
 
@@ -3012,10 +3034,10 @@ fn a_load_completion_rechecks_current_project_visibility() {
 fn live_reads_use_owner_documents_without_a_key_or_state_change() {
     let (mut core, limits) = watch_core();
     for (read, subject) in [
-        (reads::Read::Frame, Subject::Frame { party: 1 }),
-        (reads::Read::Task { task: 1 }, Subject::Task { task: 1 }),
-        (reads::Read::Project { project: 1 }, Subject::Project { project: 1 }),
-        (reads::Read::Deployment, Subject::Deployment),
+        (crate::reads::Read::Frame, Subject::Frame { party: 1 }),
+        (crate::reads::Read::Task { task: 1 }, Subject::Task { task: 1 }),
+        (crate::reads::Read::Project { project: 1 }, Subject::Project { project: 1 }),
+        (crate::reads::Read::Deployment, Subject::Deployment),
     ] {
         let expected = make_with_clock(
             &core,
@@ -3026,7 +3048,8 @@ fn live_reads_use_owner_documents_without_a_key_or_state_change() {
             DocumentClock { now: Time::ZERO, wall: Wall::EPOCH },
         )
         .unwrap();
-        let Held::Read { reply, answer: reads::Answer::Document(document) } = read_answer(&mut core, &limits, 10, read)
+        let Held::Read { reply, answer: crate::reads::Answer::Document(document) } =
+            read_answer(&mut core, &limits, 10, read)
         else {
             panic!("live document expected")
         };
@@ -3039,22 +3062,22 @@ fn live_reads_use_owner_documents_without_a_key_or_state_change() {
 fn invisible_and_absent_reads_have_the_same_unknown_answer() {
     let (mut core, limits) = watch_core();
     for (sign_in, read, why) in [
-        (99, reads::Read::Frame, reads::Why::SignedOut),
-        (10, reads::Read::Project { project: 9 }, reads::Why::Unknown),
-        (10, reads::Read::Task { task: 99 }, reads::Why::Unknown),
+        (99, crate::reads::Read::Frame, crate::reads::Why::SignedOut),
+        (10, crate::reads::Read::Project { project: 9 }, crate::reads::Why::Unknown),
+        (10, crate::reads::Read::Task { task: 99 }, crate::reads::Why::Unknown),
     ] {
         let Held::Read { answer, .. } = read_answer(&mut core, &limits, sign_in, read) else {
             panic!("read terminal expected")
         };
-        assert_eq!(answer, reads::Answer::None(why));
+        assert_eq!(answer, crate::reads::Answer::None(why));
     }
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     let mut out = Queue::uncapped();
     people::step(&mut core.people, &env, people::Event::Roles { project: 1, holdings: Box::new([]) }, &mut out);
-    let Held::Read { answer, .. } = read_answer(&mut core, &limits, 10, reads::Read::Task { task: 1 }) else {
+    let Held::Read { answer, .. } = read_answer(&mut core, &limits, 10, crate::reads::Read::Task { task: 1 }) else {
         panic!("read terminal expected")
     };
-    assert_eq!(answer, reads::Answer::None(reads::Why::Unknown));
+    assert_eq!(answer, crate::reads::Answer::None(crate::reads::Why::Unknown));
 }
 
 #[test]
@@ -3067,7 +3090,7 @@ fn a_core_read_answer_waits_for_the_last_commit_already_made() {
     journal.accept(prior);
     let commit = journal.commit().unwrap().number;
     let mut read = journal.decide();
-    read.push_held(read_answer(&mut core, &limits, 10, reads::Read::Task { task: 1 }));
+    read.push_held(read_answer(&mut core, &limits, 10, crate::reads::Read::Task { task: 1 }));
     journal.accept(read);
     assert!(journal.commit().is_none(), "read makes no commit");
     let mut released = Queue::with_capacity(4);
@@ -3075,7 +3098,7 @@ fn a_core_read_answer_waits_for_the_last_commit_already_made() {
     assert!(released.is_empty());
     journal.committed(commit);
     assert_eq!(journal.release(&mut released), Released::Some);
-    let Some(Held::Read { answer: reads::Answer::Document(_), .. }) = released.pop() else {
+    let Some(Held::Read { answer: crate::reads::Answer::Document(_), .. }) = released.pop() else {
         panic!("held document released after durability")
     };
     assert!(released.is_empty());
@@ -3287,22 +3310,6 @@ fn deployment_capacity_carries_direct_batch_refusals_and_task_history_cut() {
     assert_eq!(fact.request.cause, tasks::CapacityCause::Tasks { limit: 4 });
     assert!(core.tasks.task(7).is_none());
 }
-mod application_documents;
-
-mod acts;
-mod chip_phase;
-mod hold_origin;
-mod live_delegates;
-
-mod document_offers;
-mod last_batch;
-mod periods;
-
-mod frame_deployment_role;
-mod frame_facts;
-mod project_baselines;
-
-mod deployment_connectors;
 
 #[test]
 fn approval_documents_keep_opaque_state_whole_and_refuse_a_smaller_bound() {
@@ -3340,10 +3347,6 @@ fn approval_documents_keep_opaque_state_whole_and_refuse_a_smaller_bound() {
     );
     assert_eq!(result_from_row(&core, &smaller, 1, &row, Wall::EPOCH), Err(Missing::TooLarge));
 }
-
-mod chip_executor;
-mod task_settings;
-mod task_specification;
 
 #[test]
 fn verdict_documents_preserve_machine_field_rules_and_values_whole() {
@@ -3389,20 +3392,6 @@ fn verdict_documents_preserve_machine_field_rules_and_values_whole() {
     assert_eq!(result_from_row(&core, &smaller, 1, &row, Wall::EPOCH), Err(Missing::TooLarge));
 }
 
-mod engine_timers;
-mod sign_ins;
-
-mod fill;
-mod inbox_selection;
-
-mod project_period_watches;
-
-mod fixtures;
-mod reserve;
-mod waits;
-
-mod charters;
-
 #[test]
 fn an_answer_payload_for_a_replaced_attempt_is_dropped() {
     let (mut core, limits) = watch_core();
@@ -3425,40 +3414,7 @@ fn an_answer_payload_for_a_replaced_attempt_is_dropped() {
     assert!(core.current_proof(1, 7), "the replacement proof remains current");
 }
 
-mod account_signing;
-mod accounts_document;
-mod credentials;
-
-mod funding_fixtures;
-mod transcript_bytes;
-mod windows;
-use funding_fixtures::{set_role_authority, set_seed_role_authority};
-
-mod read_activity;
-
-mod own_watches;
-
-mod default_llm;
-mod goal_of;
-mod kept_models;
-mod role_models;
-mod task_query;
-
-mod brief_revisions;
-
-mod escalation_holder;
-mod virtual_words;
-
-mod templates;
-
-mod forget;
-
-mod coverage;
-
-mod open_shape;
-mod run_choice;
-
-mod account_admission;
+use crate::tests::funding::fixtures::{set_role_authority, set_seed_role_authority};
 
 #[test]
 fn outcomes_reserve_one_more_than_configured_workers() {
@@ -3511,11 +3467,6 @@ fn configured_worker_name(length: u32) -> Box<[u8]> {
     name.fill(b'a');
     name
 }
-
-mod notes_room;
-mod result_reads;
-
-mod amendment_reads;
 
 #[test]
 fn finishing_owes_header_changed_marks_and_first_drain_but_not_future_alarms() {
@@ -3704,8 +3655,6 @@ fn assert_one_watch_ending(out: &[Request], expected: views::End) {
     assert_eq!(endings, 1);
 }
 
-mod projects;
-
 #[test]
 fn configured_policies_are_retained_by_the_core() {
     let limits = limits();
@@ -3731,8 +3680,6 @@ fn configured_policies_are_retained_by_the_core() {
     assert!(policy.templates.is_empty());
 }
 
-mod ended_watches;
-
 fn placed(task: u64, person: u64, number: u64) -> tasks::Event {
     tasks::Event::Place {
         reply_to: ReplyTo::new(Token::new(number)),
@@ -3750,12 +3697,6 @@ fn placed(task: u64, person: u64, number: u64) -> tasks::Event {
         },
     }
 }
-
-mod funding;
-
-mod retained_lineage;
-
-mod route_orders;
 
 #[test]
 fn validity_keeps_document_settings_and_route_refusals() {

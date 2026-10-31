@@ -45,8 +45,8 @@ fn queued_read_answers_keep_their_arrival_order_under_load() {
     let replies = read_replies(&driver);
     assert_eq!(replies.iter().map(|(reply, _)| *reply).collect::<Vec<_>>(), [READ_A, READ_B]);
     for (_, answer) in replies {
-        let reads::Answer::Historical(past) = answer else { panic!("historical turn: {answer:?}") };
-        let reads::Past::Turn(row) = &past.value else { panic!("requested turn") };
+        let reads::Answer::Ended(past) = answer else { panic!("historical turn: {answer:?}") };
+        let reads::EndedValue::Turn(row) = &past.value else { panic!("requested turn") };
         assert_eq!((row.task, row.attempt, row.turn), (task, attempt, TURN));
         assert_eq!(row.transcript.as_ref(), TURN_TEXT);
     }

@@ -1,6 +1,5 @@
 //! Authority translations preserve the child values (jig/docs/design/domain/authority.md, 2–4).
-use super::*;
-use crate::translate as values;
+use crate::{tests::*, translate as values};
 
 fn people_pattern(open: bool) -> people::Pattern {
     let bytes = Box::from(b"last\0".as_slice());

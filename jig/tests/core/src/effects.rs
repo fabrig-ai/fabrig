@@ -429,12 +429,12 @@ impl World {
                     root::Request::Now(
                         now @ (core::Now::SeenConversation { .. }
                         | core::Now::LoadEndedRead { .. }
-                        | core::Now::HistoricalPersonTask { .. }
+                        | core::Now::EndedPersonTask { .. }
                         | core::Now::EndedTask { .. }
                         | core::Now::PartyInputs { .. }
-                        | core::Now::HistoricalProposal { .. }
+                        | core::Now::EndedProposal { .. }
                         | core::Now::DecidedProposal { .. }
-                        | core::Now::HistoricalEscalation { .. }),
+                        | core::Now::EndedEscalation { .. }),
                     ) => self.store.ask(StoreOut::Now(now)),
                     root::Request::Now(now) if self.manual => self.released.push(root::Request::Now(now)),
                     root::Request::Now(core::Now::Call { to, run, attempt, call }) => {

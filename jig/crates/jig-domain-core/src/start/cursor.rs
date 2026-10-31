@@ -1,7 +1,6 @@
 //! Typed positions in the restart walk (protocol/store.md, 4.3 and 7.2).
 //! The protocol's encoded intervals are checked against these typed places.
-use super::RestoreRange;
-use crate::Key;
+use crate::{Key, start::RestoreRange};
 
 /// A key's exclusive cursor in a request's concatenated restore ranges.
 /// The interval precedes the typed key in comparisons; no bytes, IO or

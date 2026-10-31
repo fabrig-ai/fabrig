@@ -331,12 +331,12 @@ fn closing_an_open_chat_keeps_its_turns_and_settles_its_delegates() {
     assert_eq!(driver.env.wall, at);
     assert_eq!(committed_replies(&driver, run.task, REPLY), 1);
     assert_ended_conversation(&mut driver, run.task);
-    let reads::Answer::Historical(past) =
+    let reads::Answer::Ended(past) =
         read(&mut driver, reads::Read::Turn { task: run.task, attempt: run.attempt, turn: 1 })
     else {
         panic!("ended conversation's retained turn")
     };
-    let reads::Past::Turn(turn) = past.value else { panic!("historical turn") };
+    let reads::EndedValue::Turn(turn) = past.value else { panic!("historical turn") };
     assert_eq!(turn.transcript.as_ref(), REPLY);
 }
 

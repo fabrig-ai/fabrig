@@ -224,7 +224,7 @@ fn all_replies_read_then_ended_survive_restart_and_forgetting(
         activity.iter().find(|line| matches!(line.line, tasks::Line::Turn { reply: 2, .. })).expect("reply activity");
     ask(world, 72, core::reads::Read::Reply { task, activity: reply.position });
     assert!(
-        matches!(latest(world), core::reads::Answer::Historical(value) if matches!(&value.value, core::reads::Past::Turn(turn) if turn.turn == 2 && turn.transcript.as_ref() == b"the second committed turn"))
+        matches!(latest(world), core::reads::Answer::Ended(value) if matches!(&value.value, core::reads::EndedValue::Turn(turn) if turn.turn == 2 && turn.transcript.as_ref() == b"the second committed turn"))
     );
     let ended_key = root::Key::Core(core::Key::Tasks(tasks::Key::Ended(task)));
     let root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(owner))) = world.store.rows[&ended_key].clone()

@@ -84,9 +84,9 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         | core::Now::StartPreparation { .. }
         | core::Now::SeenConversation { .. }
         | core::Now::LoadEndedRead { .. }
-        | core::Now::HistoricalProposal { .. }
+        | core::Now::EndedProposal { .. }
         | core::Now::DecidedProposal { .. }
-        | core::Now::HistoricalPersonTask { .. }
+        | core::Now::EndedPersonTask { .. }
         | core::Now::EndedTask { .. }
         | core::Now::PartyInputs { .. }
         | core::Now::CompleteBrief { .. }
@@ -94,7 +94,7 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         | core::Now::WorkspaceRequest { .. }
         | core::Now::RunPreparationFailed { .. }
         | core::Now::RunPrepared { .. }
-        | core::Now::HistoricalEscalation { .. }
+        | core::Now::EndedEscalation { .. }
         | core::Now::RestoreRefused => None,
     }
 }
@@ -174,12 +174,12 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::PreparedAgent { .. }
         | core::Event::EndedReadLoaded { .. }
         | core::Event::SeenConversationLoaded { .. }
-        | core::Event::HistoricalProposal { .. }
+        | core::Event::EndedProposal { .. }
         | core::Event::DecidedProposal { .. }
-        | core::Event::HistoricalPersonTask { .. }
+        | core::Event::EndedPersonTask { .. }
         | core::Event::EndedTaskLoaded { .. }
         | core::Event::PartyInputsLoaded { .. }
-        | core::Event::HistoricalEscalation { .. }
+        | core::Event::EndedEscalation { .. }
         | core::Event::NamedAnswer { .. }
         | core::Event::SubscribeTopic { .. }
         | core::Event::NamedAction { .. }
@@ -250,12 +250,12 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::PreparedAgent { .. }
         | core::Event::EndedReadLoaded { .. }
         | core::Event::SeenConversationLoaded { .. }
-        | core::Event::HistoricalProposal { .. }
+        | core::Event::EndedProposal { .. }
         | core::Event::DecidedProposal { .. }
-        | core::Event::HistoricalPersonTask { .. }
+        | core::Event::EndedPersonTask { .. }
         | core::Event::EndedTaskLoaded { .. }
         | core::Event::PartyInputsLoaded { .. }
-        | core::Event::HistoricalEscalation { .. }
+        | core::Event::EndedEscalation { .. }
         | core::Event::NamedAnswer { .. }
         | core::Event::SubscribeTopic { .. }
         | core::Event::NamedAction { .. }

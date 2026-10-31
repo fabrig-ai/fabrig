@@ -537,12 +537,12 @@ impl Application for Testing {
                     now @ (core::Now::StartPreparation { .. }
                     | core::Now::SeenConversation { .. }
                     | core::Now::LoadEndedRead { .. }
-                    | core::Now::HistoricalPersonTask { .. }
+                    | core::Now::EndedPersonTask { .. }
                     | core::Now::EndedTask { .. }
                     | core::Now::PartyInputs { .. }
-                    | core::Now::HistoricalProposal { .. }
+                    | core::Now::EndedProposal { .. }
                     | core::Now::DecidedProposal { .. }
-                    | core::Now::HistoricalEscalation { .. }),
+                    | core::Now::EndedEscalation { .. }),
                 ) => {
                     store.ask(StoreOut::Now(now));
                     Vec::new()

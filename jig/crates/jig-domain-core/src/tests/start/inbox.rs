@@ -1,10 +1,15 @@
 //! Census loading before people's durable opening (domain/engine.md, 6, 11.4).
-use super::{Action, Core, Env, Failure, Phase, Queue, Time, Wall, config, limits, people, step_phase, tasks};
-use crate::tests::fixtures;
-use crate::{CoreRecord, Limits, Record, Restored, start::LiveSet};
+use crate::{
+    CoreRecord, Limits, Record, Restored,
+    start::LiveSet,
+    tests::{
+        fixtures,
+        start::{Action, Core, Env, Failure, Phase, Queue, Time, Wall, config, limits, people, step_phase, tasks},
+    },
+};
 use skein_lib::Map;
 
-pub(super) fn loaded() -> (Core, Env<Limits>) {
+pub(in crate::tests) fn loaded() -> (Core, Env<Limits>) {
     let limits = limits();
     let mut core = Core::new(config(401), &limits).expect("configured core");
     let env = Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits };
@@ -38,7 +43,7 @@ pub(super) fn loaded() -> (Core, Env<Limits>) {
     (core, env)
 }
 
-pub(super) fn inbox(core: &mut Core, env: &Env<Limits>) {
+pub(in crate::tests) fn inbox(core: &mut Core, env: &Env<Limits>) {
     {
         step_phase(core.start_done(env, Phase::LoadCore, &mut Queue::uncapped()), Phase::LoadInbox);
         assert!(!core.people.ready());
@@ -47,7 +52,7 @@ pub(super) fn inbox(core: &mut Core, env: &Env<Limits>) {
     assert_eq!(census.results.as_ref(), [crate::ReadResults { party: 1, after: 0 }]);
 }
 
-pub(super) fn ended() -> tasks::TaskRecord {
+pub(in crate::tests) fn ended() -> tasks::TaskRecord {
     let mut row = fixtures::ended_report(2, tasks::Party::Person(1));
     row.last_reply = 0;
     row.replies = Box::new([]);
@@ -191,7 +196,7 @@ fn census_party_and_read_result_sets_name_the_person_record() {
 fn archive_capacity_refuses_with_the_ended_record_key() {
     let (mut core, env) = loaded();
     inbox(&mut core, &env);
-    core.archived_chats = Map::with_capacity(0);
+    core.ended_chats = Map::with_capacity(0);
     let record = Record::Tasks(tasks::Stored::Ended(Box::new(ended())));
     assert!(!core.restore_inbox_row(&env.limits, &record));
     assert_eq!(

@@ -253,10 +253,7 @@ fn a_historical_escalation_is_read_through_the_store() {
     world.restart(132, false);
     world.enable_tracing();
     release_escalation(&mut world, 65, task, revision);
-    assert!(
-        world.trace.iter().any(|line| line.starts_with("output Now(HistoricalEscalation")),
-        "historical store lookup"
-    );
+    assert!(world.trace.iter().any(|line| line.starts_with("output Now(EndedEscalation")), "historical store lookup");
     assert_eq!(world.people_answers.last().cloned(), answer);
 }
 

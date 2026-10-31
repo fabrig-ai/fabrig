@@ -1,9 +1,12 @@
 //! Dense revision reads (engine.md, 17.7; client/domain/contract.md, section 6).
-use super::{
-    Answer, Range, RevisionAnswer, RevisionEdit, RevisionItemHead, RevisionRow, RevisionsPage, Row, Scope,
-    SettingDocument, Why, terminal,
+use crate::{
+    Core, CoreRecord, Limits, Record, Request,
+    reads::{
+        Answer, Range, RevisionAnswer, RevisionEdit, RevisionItemHead, RevisionRow, RevisionsPage, Row, Scope,
+        SettingDocument, Why, terminal,
+    },
+    settings,
 };
-use crate::{Core, CoreRecord, Limits, Record, Request, settings};
 use alloc::boxed::Box;
 use jig_domain_people as people;
 use skein_lib::{Env, List, Map, Queue, ReplyTo};
@@ -88,7 +91,7 @@ pub(super) fn answer(destination: super::Destination, value: Answer) -> Queue<Re
         Answer::Revisions(value) => SettingsAnswer::Revisions(*value),
         Answer::None(Why::Busy) => return refused(to, key, crate::CallPart::Unavailable),
         Answer::None(_) => SettingsAnswer::Unknown,
-        Answer::Tasks(_) | Answer::Historical(_) | Answer::Page(_) => {
+        Answer::Tasks(_) | Answer::Ended(_) | Answer::Page(_) => {
             unreachable!("settings reads answer settings documents")
         }
     };
@@ -611,7 +614,7 @@ mod tests {
             (settings::Key::Held(7), false),
             (settings::Key::Extent, false),
         ] {
-            assert_eq!(super::super::admits(1, &scope, &Key::Core(CoreKey::Settings(key))), expected);
+            assert_eq!(crate::reads::admits(1, &scope, &Key::Core(CoreKey::Settings(key))), expected);
         }
     }
 }

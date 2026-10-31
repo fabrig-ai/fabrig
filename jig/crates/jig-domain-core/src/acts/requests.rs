@@ -1,6 +1,9 @@
 //! Current object judgments at the one authenticated keyed entrance.
-use super::{Act, Admission, admit, standing};
-use crate::{Core, Limits, documents};
+use crate::{
+    Core, Limits,
+    acts::{Act, Admission, admit, standing},
+    documents,
+};
 use jig_domain_people as people;
 
 #[expect(
@@ -20,7 +23,7 @@ pub(crate) fn request(
         && let Some(row) = core.tasks.task(*task)
         && row.project == project
     {
-        crate::revisions::release_run(row, *again)?;
+        crate::settings::revisions::release_run(row, *again)?;
     }
     let (act, subject) = match ask {
         // An account request's check is its holder's, which people made (domain/authority.md, 8.4).
@@ -125,7 +128,7 @@ pub(crate) fn request(
     };
     match ask {
         // The person-task entrance compares the named revision before phase
-        // eligibility, and preserves the historical ended-task lookup.
+        // eligibility, and preserves the ended-task lookup.
         people::Ask::AnswerPerson { .. } => return Ok(()),
         people::Ask::DecideProposal { proposer, proposal, .. } => {
             let present = match proposer {

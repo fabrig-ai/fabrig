@@ -1,6 +1,5 @@
 //! Store rows enter through the start that owns their child routing (jig/docs/design/domain/engine.md, 6).
-use super::Phase;
-use crate::{Core, Limits, Queue, Record, Restored, accounts, people, tasks};
+use crate::{Core, Limits, Queue, Record, Restored, accounts, people, start::Phase, tasks};
 use skein_lib::Env;
 
 /// The information a root needs after routing one restored row.

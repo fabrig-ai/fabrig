@@ -98,6 +98,30 @@ jig-domain-core             the core: routing among its children, runs, calls, t
 jig-domain-link            the link's values, shared by the fleet, the hub and accounts (root.md, 2)
 ```
 
+```
+jig-domain-core/src/
+├── lib.rs          the core: its state, its configuration and construction
+├── vocabulary.rs   what crosses to the root: Event, Now, Request, Limits (section 4)
+├── routing/        the step, the step helpers and flights; the routes by kind: party/, run/, task/, effect/, view/, settings/ (4.4)
+├── start/          the start: load, restore, census, link, sweep, switch, open (section 6)
+├── runs/           a run's choice, charter, credentials, delegation and preparation; live runs; brief and transcript text (sections 7 and 9)
+├── admission/      what a party or a task may make or change: compound checks, roles, amendments, goals, person tasks, escalations, proposals (4.4, 11.5)
+├── funding/        pools and their funding (sections 12 and 13)
+├── effects/        connectors' effects, resources, relays and projections (section 5)
+├── settings/       settings, revisions, templates and charters (section 17)
+├── documents/      the documents the core makes for parties (section 11)
+├── reads/          parties' reads and watches (section 11)
+├── acts/           acts and their admission (11.5)
+├── inbox/          the inbox and its census (11.4)
+├── numbers.rs      deployment numbers and their counters (5.4)
+├── stored.rs       durable records, keys and run proofs (5.4, 7)
+├── translate.rs    its children's vocabularies translated into each other's
+├── limits.rs       its limits' validity (section 13)
+└── tests/
+```
+
+Each directory is one concept of this document; a route lives under the kind of route it is, whatever child it steps.
+
 The tree follows programming-model.md, 4.5: each child domain has its
 own vocabulary, limits and world; a parent owns its children's state and
 routes between them; siblings share no domain types, and the core

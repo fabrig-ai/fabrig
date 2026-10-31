@@ -1,9 +1,13 @@
 //! Connector-owned keyed requests and their synchronous party parts
 //! (`domain/connectors.md`, section 5.5; `domain/core.md`, section 5).
 
-use super::party::{Party, Routed};
-use crate::routing::Work;
-use crate::{Ask, Core, Event, Family, Held, Limits, Request, fresh};
+use crate::{
+    Ask, Core, Event, Family, Held, Limits, Request, fresh,
+    routing::{
+        Work,
+        party::dispatch::{Party, Routed},
+    },
+};
 use alloc::boxed::Box;
 use jig_domain_people as people;
 use skein_lib::{Env, Queue, ReplyTo, Token};
@@ -28,7 +32,7 @@ pub(crate) struct Input {
 }
 
 #[expect(clippy::too_many_arguments, reason = "metadata envelope without an application value")]
-pub(super) fn start(
+pub(crate) fn start(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
@@ -42,7 +46,7 @@ pub(super) fn start(
     assert!(core.application_input.is_none(), "one admission at a time");
     core.application_input = Some(input);
     let connector = input.connector;
-    let routed = super::people_routes::route_people(
+    let routed = super::party::people::route_people(
         core,
         env,
         work,
@@ -95,7 +99,7 @@ pub(crate) fn first(unused: Option<u64>, requests: Queue<Request>) -> Queue<Requ
     out
 }
 
-pub(super) fn admitted(
+pub(crate) fn admitted(
     core: &mut Core,
     env: &Env<Limits>,
     routed: &mut Routed,
@@ -135,7 +139,7 @@ pub(super) fn admitted(
     };
     let token = Token::new(number);
     let request = core
-        .fly(crate::flight::Flight::Application { request, route: Flight { connector, token, part: false, carried } });
+        .fly(super::flight::Flight::Application { request, route: Flight { connector, token, part: false, carried } });
     routed.out.push(Request::Ask {
         connector,
         ask: Ask::Application {
@@ -150,7 +154,7 @@ pub(super) fn admitted(
     });
 }
 
-pub(super) fn part(
+pub(crate) fn part(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
@@ -167,19 +171,19 @@ pub(super) fn part(
             core.application_mut(request).expect("application part owner").1.part = true;
             let mut child = Queue::uncapped();
             child.push(route);
-            super::people_routes::tag_people_part(core, env, child, work, Some((request, original, connector)))
+            super::party::people::tag_people_part(core, env, child, work, Some((request, original, connector)))
         }
         Err(outcome) => answer(connector, request, outcome),
     }
 }
 
-pub(super) fn answer(connector: u16, request: Token, outcome: people::Outcome) -> Queue<Request> {
+pub(crate) fn answer(connector: u16, request: Token, outcome: people::Outcome) -> Queue<Request> {
     let mut out = Queue::uncapped();
     out.push(Request::Ask { connector, ask: Ask::ApplicationPartAnswered { request, outcome } });
     out
 }
 
-pub(super) fn finished(
+pub(crate) fn finished(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
@@ -195,7 +199,7 @@ pub(super) fn finished(
         }
         Err(why) => (people::Outcome::Again(why), flight.carried),
     };
-    first(unused, super::people_routes::route_people(core, env, work, people::Event::Decided { request, outcome }))
+    first(unused, super::party::people::route_people(core, env, work, people::Event::Decided { request, outcome }))
 }
 
 fn empty() -> Queue<Request> {

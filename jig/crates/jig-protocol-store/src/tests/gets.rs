@@ -63,11 +63,11 @@ fn seen_conversation() -> Now {
 }
 
 fn person_task() -> Now {
-    Now::HistoricalPersonTask { request: HISTORICAL, person: ALICE, project: 2, task: ENDED }
+    Now::EndedPersonTask { request: HISTORICAL, person: ALICE, project: 2, task: ENDED }
 }
 
 fn proposal() -> Now {
-    Now::HistoricalProposal {
+    Now::EndedProposal {
         request: HISTORICAL,
         person: ALICE,
         project: 2,
@@ -77,7 +77,7 @@ fn proposal() -> Now {
 }
 
 fn escalation() -> Now {
-    Now::HistoricalEscalation { request: HISTORICAL, person: ALICE, project: 2, task: 11, revision: 3 }
+    Now::EndedEscalation { request: HISTORICAL, person: ALICE, project: 2, task: 11, revision: 3 }
 }
 
 fn ended_record() -> Box<tasks::TaskRecord> {
@@ -116,7 +116,7 @@ fn an_ended_task_read_is_answered_with_its_ended_row() {
 fn a_historical_escalation_is_answered_with_its_decision() {
     let record = Record::Core(CoreRecord::EscalationDecision(fixtures::core_rows::escalation()));
     let event = historical_answer(escalation(), record);
-    let core::Event::HistoricalEscalation { request, person, project, task, revision, row, busy } = event else {
+    let core::Event::EndedEscalation { request, person, project, task, revision, row, busy } = event else {
         panic!("historical escalation event");
     };
     assert_eq!((request, person, project, task, revision), (HISTORICAL, ALICE, 2, 11, 3));
@@ -128,7 +128,7 @@ fn a_historical_escalation_is_answered_with_its_decision() {
 fn a_historical_proposal_is_answered_with_its_decision() {
     let record = Record::Core(CoreRecord::ProposalDecision(fixtures::core_rows::proposal()));
     let event = historical_answer(proposal(), record);
-    let core::Event::HistoricalProposal { request, person, project, proposer, proposal, row, busy } = event else {
+    let core::Event::EndedProposal { request, person, project, proposer, proposal, row, busy } = event else {
         panic!("historical proposal event");
     };
     assert_eq!((request, person, project, proposer, proposal), (HISTORICAL, ALICE, 2, people::Proposer::Party(12), 13));
@@ -139,7 +139,7 @@ fn a_historical_proposal_is_answered_with_its_decision() {
 #[test]
 fn a_historical_person_task_is_answered_with_its_ended_task() {
     let event = historical_answer(person_task(), fixtures::ended_task(ENDED));
-    let core::Event::HistoricalPersonTask { request, person, project, task, row, busy } = event else {
+    let core::Event::EndedPersonTask { request, person, project, task, row, busy } = event else {
         panic!("historical person task event");
     };
     assert_eq!((request, person, project, task), (HISTORICAL, ALICE, 2, ENDED));
@@ -173,7 +173,7 @@ fn a_missing_historical_record_answers_none_without_busy() {
 fn a_historical_row_from_another_family_answers_none() {
     let row = Some(fixtures::person(ALICE));
     let event = historical::answer(proposal(), row).expect("proposal answer");
-    let core::Event::HistoricalProposal { request, row: None, busy: false, .. } = event else {
+    let core::Event::EndedProposal { request, row: None, busy: false, .. } = event else {
         panic!("another family's row is absent");
     };
     assert_eq!(request, HISTORICAL);

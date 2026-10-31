@@ -1,9 +1,10 @@
 //! Bounded projection assembly and links (jig/docs/design/domain/engine.md, 6).
-use super::{Failure, LiveSet};
-use crate::projections::phase_within;
 use crate::{
     Core, CoreKey, Key, Limits, Projection, ProjectionKey, ProjectionMilestone, ProjectionRecord, ProjectionTask,
-    people, tasks,
+    effects::projections::phase_within,
+    people,
+    start::{Failure, LiveSet},
+    tasks,
 };
 use alloc::boxed::Box;
 use skein_lib::{List, Map};

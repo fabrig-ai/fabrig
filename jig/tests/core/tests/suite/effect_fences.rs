@@ -21,15 +21,15 @@ fn recovered_with(
     (core, env)
 }
 
-fn description() -> core::connector::EffectDescription {
+fn description() -> core::effects::connector::EffectDescription {
     let mut state = [0; 32];
     state[31] = 13;
-    core::connector::EffectDescription {
+    core::effects::connector::EffectDescription {
         waits_for_dependencies: false,
         connector: 1,
         purpose: 19,
-        form: core::connector::EffectForm::Set,
-        recovery: core::connector::Recovery::Keyed,
+        form: core::effects::connector::EffectForm::Set,
+        recovery: core::effects::connector::Recovery::Keyed,
         effect: authority::Effect {
             connector: 1,
             kind: 5,
@@ -49,11 +49,15 @@ fn begin(core: &mut core::Core, env: &Env<core::Limits>, origin: core::EffectOri
     let mut requests = core::step(
         core,
         env,
-        core::Event::EffectConnector(core::connector::Event::Described { owner, description: Box::new(description()) }),
+        core::Event::EffectConnector(core::effects::connector::Event::Described {
+            owner,
+            description: Box::new(description()),
+        }),
     );
     for _ in 0..requests.len() {
-        if let core::Request::Ask { ask: core::Ask::Effect(core::connector::Ask::Judge { judge, .. }), .. } =
-            requests.pop().expect("request count")
+        if let core::Request::Ask {
+            ask: core::Ask::Effect(core::effects::connector::Ask::Judge { judge, .. }), ..
+        } = requests.pop().expect("request count")
         {
             return (owner, judge);
         }
@@ -65,7 +69,7 @@ fn verdict(core: &mut core::Core, env: &Env<core::Limits>, judge: (Token, author
     let mut requests = core::step(
         core,
         env,
-        core::Event::EffectConnector(core::connector::Event::Verdict {
+        core::Event::EffectConnector(core::effects::connector::Event::Verdict {
             owner: judge.0,
             judge: judge.1,
             verdict: authority::Verdict::Met,
@@ -108,13 +112,13 @@ fn a_delayed_judge_cannot_keep_or_charge_an_effect_after_its_calling_run_is_canc
     let outputs = verdict(&mut core, &env, judge);
     assert!(outputs.iter().any(|request| matches!(
         request,
-        core::Request::Ask { ask: core::Ask::Effect(core::connector::Ask::Drop { .. }), .. }
+        core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Drop { .. }), .. }
     )));
     assert!(!outputs.iter().any(|request| matches!(
         request,
         core::Request::Write(_)
             | core::Request::Held(_)
-            | core::Request::Ask { ask: core::Ask::Effect(core::connector::Ask::Keep { .. }), .. }
+            | core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Keep { .. }), .. }
     )));
     assert_eq!(core.tasks.task(key.task).expect("closing task").numbers, before);
     assert!(!core.pending_calls.contains_key(&key));
@@ -140,7 +144,7 @@ fn a_delayed_judge_is_checked_against_the_policy_that_exists_when_it_completes()
     assert!(outputs.iter().any(|request| matches!(request, core::Request::Write(core::Write::Save(core::Record::Core(core::CoreRecord::Call(row)))) if matches!(row.part, core::CallPart::EffectDenied { answer: authority::Answer::Refuse, .. }))));
     assert!(!outputs.iter().any(|request| matches!(
         request,
-        core::Request::Ask { ask: core::Ask::Effect(core::connector::Ask::Keep { .. }), .. }
+        core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Keep { .. }), .. }
     )));
     assert_eq!(core.tasks.task(key.task).expect("live task").numbers, before);
 }
@@ -173,7 +177,10 @@ fn a_delayed_judge_cannot_commit_a_step_of_a_cancelled_procedure() {
     assert!(outputs.iter().any(|request| matches!(
         request,
         core::Request::Ask {
-            ask: core::Ask::Effect(core::connector::Ask::Drop { why: core::connector::EffectRefusal::Obsolete, .. }),
+            ask: core::Ask::Effect(core::effects::connector::Ask::Drop {
+                why: core::effects::connector::EffectRefusal::Obsolete,
+                ..
+            }),
             ..
         }
     )));
@@ -181,7 +188,7 @@ fn a_delayed_judge_cannot_commit_a_step_of_a_cancelled_procedure() {
         request,
         core::Request::Write(_)
             | core::Request::Held(_)
-            | core::Request::Ask { ask: core::Ask::Effect(core::connector::Ask::Keep { .. }), .. }
+            | core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Keep { .. }), .. }
     )));
     assert_eq!(core.tasks.task(task).expect("closing procedure").numbers, before);
 }
@@ -223,7 +230,7 @@ fn every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_miss
         let mut requests = core::step(
             &mut core,
             &env,
-            core::Event::EffectConnector(core::connector::Event::Closed { task: key.task, connector }),
+            core::Event::EffectConnector(core::effects::connector::Event::Closed { task: key.task, connector }),
         );
         for _ in 0..requests.len() {
             assert!(!matches!(
@@ -239,7 +246,7 @@ fn every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_miss
     let mut requests = core::step(
         &mut core,
         &env,
-        core::Event::EffectConnector(core::connector::Event::Closed { task: key.task, connector: 2 }),
+        core::Event::EffectConnector(core::effects::connector::Event::Closed { task: key.task, connector: 2 }),
     );
     let mut releases = 0;
     for _ in 0..requests.len() {
@@ -338,9 +345,9 @@ fn late_busy_or_refused_descriptions_cannot_answer_a_cancelled_run() {
             }),
         );
         let event = if busy {
-            core::connector::Event::DescribeBusy { owner }
+            core::effects::connector::Event::DescribeBusy { owner }
         } else {
-            core::connector::Event::DescribeRefused { owner }
+            core::effects::connector::Event::DescribeRefused { owner }
         };
         let mut requests = core::step(&mut core, &env, core::Event::EffectConnector(event));
         for _ in 0..requests.len() {
@@ -421,7 +428,10 @@ fn describe_effect(
     let mut requests = core::step(
         core,
         env,
-        core::Event::EffectConnector(core::connector::Event::Described { owner, description: Box::new(description) }),
+        core::Event::EffectConnector(core::effects::connector::Event::Described {
+            owner,
+            description: Box::new(description),
+        }),
     );
     let mut outputs = Vec::new();
     while let Some(request) = requests.pop() {
@@ -452,9 +462,9 @@ fn a_kept_procedures_waiting_effect_is_refused_naming_its_pending_dependency() {
     assert!(outputs.iter().any(|request| matches!(
         request,
         core::Request::Ask {
-            ask: core::Ask::Effect(core::connector::Ask::Drop {
+            ask: core::Ask::Effect(core::effects::connector::Ask::Drop {
                 answer: authority::Answer::Refuse,
-                why: core::connector::EffectRefusal::Dependencies,
+                why: core::effects::connector::EffectRefusal::Dependencies,
                 ..
             }),
             ..
@@ -473,7 +483,7 @@ fn a_kept_procedures_non_waiting_effect_is_admitted() {
     let outputs = describe_effect(&mut core, &env, origin, false);
     assert!(outputs.iter().any(|request| matches!(
         request,
-        core::Request::Ask { ask: core::Ask::Effect(core::connector::Ask::Keep { .. }), .. }
+        core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Keep { .. }), .. }
     )));
     assert_eq!(core.tasks.task(task).expect("live procedure").waiting_on.as_ref(), &[dependency]);
 }
@@ -502,7 +512,7 @@ fn a_procedures_waiting_effect_is_admitted_after_its_dependencys_met() {
     let outputs = describe_effect(&mut core, &env, origin, true);
     assert!(outputs.iter().any(|request| matches!(
         request,
-        core::Request::Ask { ask: core::Ask::Effect(core::connector::Ask::Keep { .. }), .. }
+        core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Keep { .. }), .. }
     )));
     assert!(core.tasks.task(task).expect("live procedure").waiting_on.is_empty());
     assert!(
@@ -548,7 +558,10 @@ fn a_kept_tasks_refused_effect_is_denied_rather_than_kept() {
     let _requests = core::step(
         &mut core,
         &env,
-        core::Event::EffectConnector(core::connector::Event::Described { owner, description: Box::new(description) }),
+        core::Event::EffectConnector(core::effects::connector::Event::Described {
+            owner,
+            description: Box::new(description),
+        }),
     );
     assert!(matches!(
         core.call_parts.get(&key),
@@ -573,9 +586,10 @@ fn a_dependency_added_while_judges_answer_refuses_a_waiting_effect() {
     let judge = outputs
         .into_iter()
         .find_map(|request| match request {
-            core::Request::Ask { ask: core::Ask::Effect(core::connector::Ask::Judge { owner, judge, .. }), .. } => {
-                Some((owner, judge))
-            }
+            core::Request::Ask {
+                ask: core::Ask::Effect(core::effects::connector::Ask::Judge { owner, judge, .. }),
+                ..
+            } => Some((owner, judge)),
             core::Request::Write(_)
             | core::Request::Ask { .. }
             | core::Request::Held(_)
@@ -591,6 +605,6 @@ fn a_dependency_added_while_judges_answer_refuses_a_waiting_effect() {
     )));
     assert!(!outputs.iter().any(|request| matches!(
         request,
-        core::Request::Ask { ask: core::Ask::Effect(core::connector::Ask::Keep { .. }), .. }
+        core::Request::Ask { ask: core::Ask::Effect(core::effects::connector::Ask::Keep { .. }), .. }
     )));
 }

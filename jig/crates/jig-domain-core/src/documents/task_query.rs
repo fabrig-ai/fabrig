@@ -1,6 +1,8 @@
 //! Fixed query keys and one bounded live scan per document (engine.md, 11.2).
-use super::{Cursor, DocumentLimits, ExecutorKind, Missing, TaskLine, Window};
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    documents::{Cursor, DocumentLimits, ExecutorKind, Missing, TaskLine, Window},
+};
 use core::cmp::Reverse;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Map, Wall};

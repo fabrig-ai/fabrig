@@ -41,10 +41,10 @@ fn a_task_read_after_it_ended_says_how_and_by_whom() {
     );
     world.end(tasks::End::Parked, 0);
     ask(&mut world, 2, reads::Read::Task { task });
-    let reads::Answer::Historical(value) = latest(&world) else { panic!("retained task") };
+    let reads::Answer::Ended(value) = latest(&world) else { panic!("retained task") };
     assert_eq!(value.by, Some(tasks::Party::Person(1)));
     assert!(value.at.is_some());
-    let reads::Past::Task { document, result } = &value.value else { panic!("full retained task") };
+    let reads::EndedValue::Task { document, result } = &value.value else { panic!("full retained task") };
     assert_eq!(document.chip.number, task);
     let documents::Ending::Cancelled { by, at, reason, .. } = &result.ending else { panic!("cancellation") };
     assert_eq!(*by, tasks::Party::Person(1));
@@ -316,8 +316,8 @@ fn finish_chat(world: &mut jig_core_world::effects::World, task: u64) {
     });
 }
 
-fn past(world: &jig_core_world::effects::World) -> &reads::Past {
-    let reads::Answer::Historical(value) = latest(world) else { panic!("retained document: {:?}", latest(world)) };
+fn past(world: &jig_core_world::effects::World) -> &reads::EndedValue {
+    let reads::Answer::Ended(value) = latest(world) else { panic!("retained document: {:?}", latest(world)) };
     &value.value
 }
 
@@ -337,7 +337,7 @@ fn a_question_read_after_its_task_ended_finds_both_lines_by_key() {
     finish_chat(&mut world, sender);
     finish_chat(&mut world, task);
     ask(&mut world, 901, reads::Read::Question { task, message });
-    let reads::Past::Question { question, answer, ending } = past(&world) else { panic!("question") };
+    let reads::EndedValue::Question { question, answer, ending } = past(&world) else { panic!("question") };
     assert_eq!(question.words.bytes.as_ref(), b"original question?");
     let answer = answer.as_ref().expect("answer by key");
     assert!(matches!(&answer.line, tasks::Line::Words { kind: tasks::MessageKind::Answer { question }, words, .. }
@@ -363,7 +363,7 @@ fn an_escalation_read_shows_its_latest_decision_and_its_hold() {
     );
     request(&mut world, 94, people::Ask::Cancel { project: 1, task, reason: b"end".as_slice().into(), grace: None });
     ask(&mut world, 902, reads::Read::Escalation { task });
-    let reads::Past::Escalation { decision, hold, .. } = past(&world) else { panic!("escalation") };
+    let reads::EndedValue::Escalation { decision, hold, .. } = past(&world) else { panic!("escalation") };
     assert_eq!(decision.revision, 1);
     assert_eq!(decision.decision, people::EscalationDecision::Reject { reason: b"stay stopped".as_slice().into() });
     assert!(hold.is_some());
@@ -377,7 +377,7 @@ fn a_task_proposal_read_finds_its_history_row_by_key() {
     world.decide_proposal(proposal, false, 95);
     finish_chat(&mut world, task);
     ask(&mut world, 903, reads::Read::Proposal { proposer: documents::Proposer::Task(task), proposal });
-    let reads::Past::Proposal(value) = past(&world) else { panic!("proposal") };
+    let reads::EndedValue::Proposal(value) = past(&world) else { panic!("proposal") };
     assert_eq!(value.number, proposal);
     assert!(matches!(&value.state, documents::ProposalHistoryState::Rejected { by, reason }
         if *by == tasks::Party::Person(1) && reason.bytes.as_ref() == b"not now"));
@@ -526,7 +526,7 @@ fn a_question_answered_by_its_task_reads_the_line_in_the_delegates_activity() {
     finish_chat(&mut world, delegate);
     finish_chat(&mut world, task);
     ask(&mut world, 905, reads::Read::Question { task, message });
-    let reads::Past::Question { answer, .. } = past(&world) else { panic!("question") };
+    let reads::EndedValue::Question { answer, .. } = past(&world) else { panic!("question") };
     let answer = answer.as_ref().expect("delegate's answer by key");
     assert_eq!(answer.task, delegate);
     assert!(
@@ -746,7 +746,7 @@ fn with_the_switch_off_the_asked_task_answers_as_before() {
     let reads::Answer::Page(page) = latest(&world) else { panic!("questions inbox") };
     assert!(page.rows.is_empty());
     ask(&mut world, 909, reads::Read::Question { task: director, message });
-    let reads::Past::Question { question, answer, .. } = past(&world) else { panic!("historical question") };
+    let reads::EndedValue::Question { question, answer, .. } = past(&world) else { panic!("historical question") };
     assert!(question.acts.is_empty());
     assert!(answer.is_some());
     reply(&mut world, director, delegate, message, 2);
@@ -775,7 +775,7 @@ fn stored_cut_question(words: &[u8], bound: u32, expected: &[u8]) {
     finish_chat(&mut world, sender);
     finish_chat(&mut world, task);
     ask(&mut world, 901, reads::Read::Question { task, message });
-    let reads::Past::Question { question, answer, .. } = past(&world) else { panic!("stored question") };
+    let reads::EndedValue::Question { question, answer, .. } = past(&world) else { panic!("stored question") };
     assert_eq!(question.words.bytes.as_ref(), expected);
     assert!(question.words.cut);
     assert!(answer.is_some(), "the full stored question remains answerable");
@@ -806,7 +806,7 @@ fn the_persons_answer_reaches_the_asking_task() {
     assert!(row.inbox.iter().any(|word| word.kind == tasks::MessageKind::QuestionAnswered { question }));
     assert_eq!(row.question_lines[0].answer.expect("first answer retained").task, delegate);
     ask(&mut world, 910, reads::Read::Question { task: director, message: question });
-    let reads::Past::Question { answer, .. } = past(&world) else { panic!("answered question") };
+    let reads::EndedValue::Question { answer, .. } = past(&world) else { panic!("answered question") };
     assert!(answer.is_some());
 }
 

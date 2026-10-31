@@ -1,8 +1,12 @@
 //! The party's accounts (`client/domain/contract.md`, 5.1; `domain/accounts.md`, sections 3 and 5).
-use super::deployment::{AccountState, account_state};
-use super::inbox_deployment::line_bound;
-use super::{DocumentLimits, Missing, Text, Window};
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    documents::{
+        DocumentLimits, Missing, Text, Window,
+        deployment::{AccountState, account_state},
+        inbox_deployment::line_bound,
+    },
+};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use skein_lib::{List, Wall};
@@ -172,7 +176,7 @@ fn serves_work(core: &Core, party: u64) -> bool {
         if !fact.usable {
             continue;
         }
-        if crate::coverage::serves(&core.people, account, accounts::Use::Party(party)) {
+        if crate::runs::coverage::serves(&core.people, account, accounts::Use::Party(party)) {
             return true;
         }
     }
@@ -247,7 +251,7 @@ mod tests {
     #[test]
     fn the_accounts_document_is_priced() {
         let limits = crate::tests::limits();
-        let accounts = super::document_bound(&limits.documents).expect("accounts bound");
+        let accounts = crate::documents::document_bound(&limits.documents).expect("accounts bound");
         assert!(accounts <= crate::documents::document_bound(&limits.documents).expect("document bound"));
     }
 }

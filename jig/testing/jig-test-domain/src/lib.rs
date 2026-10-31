@@ -1134,10 +1134,10 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
         match out.pop().expect("restored connector output count") {
             connector::Request::Resource { project, resource } => {
                 let role = match resource.role {
-                    connector::ResourceRole::Owned => core::connector::ResourceRole::Owned,
-                    connector::ResourceRole::Participating => core::connector::ResourceRole::Participant,
-                    connector::ResourceRole::Context => core::connector::ResourceRole::Context,
-                    connector::ResourceRole::Unavailable => core::connector::ResourceRole::Unavailable,
+                    connector::ResourceRole::Owned => core::effects::connector::ResourceRole::Owned,
+                    connector::ResourceRole::Participating => core::effects::connector::ResourceRole::Participant,
+                    connector::ResourceRole::Context => core::effects::connector::ResourceRole::Context,
+                    connector::ResourceRole::Unavailable => core::effects::connector::ResourceRole::Unavailable,
                 };
                 if !domain.core.restore_resource_role(
                     &Env { now: env.now, wall: env.wall, limits: env.limits.core },

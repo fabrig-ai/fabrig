@@ -2,7 +2,7 @@ use jig_core_world::{
     reads::{ask, latest},
     stories::reads::{request, world},
 };
-use jig_domain_core::{self as core, documents, reads, waits::WaitsOn};
+use jig_domain_core::{self as core, documents, reads, runs::waits::WaitsOn};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;

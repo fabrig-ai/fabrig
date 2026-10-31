@@ -76,10 +76,10 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::SeenConversationLoaded { .. }
         | core::Event::EndedReadLoaded { .. }
         | core::Event::PartyInputsLoaded { .. }
-        | core::Event::HistoricalProposal { .. }
+        | core::Event::EndedProposal { .. }
         | core::Event::DecidedProposal { .. }
-        | core::Event::HistoricalPersonTask { .. }
-        | core::Event::HistoricalEscalation { .. }
+        | core::Event::EndedPersonTask { .. }
+        | core::Event::EndedEscalation { .. }
         | core::Event::NamedAnswer { .. }
         | core::Event::NamedAction { .. }
         | core::Event::DelegateValidated { .. }

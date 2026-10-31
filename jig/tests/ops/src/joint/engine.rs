@@ -375,9 +375,9 @@ impl Application for OpsApplication {
                 | core::Now::StartPreparation { .. }
                 | core::Now::SeenConversation { .. }
                 | core::Now::LoadEndedRead { .. }
-                | core::Now::HistoricalProposal { .. }
+                | core::Now::EndedProposal { .. }
                 | core::Now::DecidedProposal { .. }
-                | core::Now::HistoricalPersonTask { .. }
+                | core::Now::EndedPersonTask { .. }
                 | core::Now::EndedTask { .. }
                 | core::Now::PartyInputs { .. }
                 | core::Now::CompleteBrief { .. }
@@ -385,7 +385,7 @@ impl Application for OpsApplication {
                 | core::Now::WorkspaceRequest { .. }
                 | core::Now::RunPreparationFailed { .. }
                 | core::Now::RunPrepared { .. }
-                | core::Now::HistoricalEscalation { .. }
+                | core::Now::EndedEscalation { .. }
                 | core::Now::RestoreRefused,
             )
             | root::Output::IncidentAssociationRefused { .. }

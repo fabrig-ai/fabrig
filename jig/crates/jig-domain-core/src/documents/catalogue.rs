@@ -1,6 +1,8 @@
 //! Public offers and payer readiness (client/domain/contract.md, 5.1 and 7.1).
-use super::{DocumentLimits, Missing, Text};
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    documents::{DocumentLimits, Missing, Text},
+};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_fleet as fleet;
@@ -124,7 +126,7 @@ fn append(
         }
         rows.push(PayerReadiness {
             provider: provider.number,
-            payer: crate::coverage::payer(payer),
+            payer: crate::runs::coverage::payer(payer),
             readiness,
             settled,
         })
@@ -144,7 +146,7 @@ fn readiness(core: &Core, payer: tasks::Payer, provider: u32) -> (Readiness, boo
             continue;
         }
         let candidates = core.accounts.candidates(
-            crate::coverage::payer(payer),
+            crate::runs::coverage::payer(payer),
             provider,
             model.program.as_deref(),
             None,
@@ -164,13 +166,13 @@ fn readiness(core: &Core, payer: tasks::Payer, provider: u32) -> (Readiness, boo
                 continue;
             }
             let placement = fleet::PlacementConstraint { channel: host.channel, kind: host.kind };
-            if !core.fleet.supports(placement, &[crate::fleet_needs::model(model)]) {
+            if !core.fleet.supports(placement, &[crate::settings::fleet_needs::model(model)]) {
                 continue;
             }
             core.host_facts(placement, core.host_rule(placement), &mut facts);
             for account in &candidates {
                 match core.accounts.select(
-                    crate::coverage::payer(payer),
+                    crate::runs::coverage::payer(payer),
                     provider,
                     model.program.as_deref(),
                     Some(*account),

@@ -147,19 +147,19 @@ impl CallAnswer {
             CallAnswer::ForgeEffect { entry, deadline, outcome } => {
                 let outcome = match outcome {
                     Some(skein_forge_client::Outcome::Made { .. }) => {
-                        Some(jig_domain_core::connector::OutboxOutcome::Made)
+                        Some(jig_domain_core::effects::connector::OutboxOutcome::Made)
                     }
                     Some(skein_forge_client::Outcome::Failed(_) | skein_forge_client::Outcome::Raced { .. }) => {
-                        Some(jig_domain_core::connector::OutboxOutcome::Failed)
+                        Some(jig_domain_core::effects::connector::OutboxOutcome::Failed)
                     }
                     Some(skein_forge_client::Outcome::Withdrawn) => {
-                        Some(jig_domain_core::connector::OutboxOutcome::Withdrawn)
+                        Some(jig_domain_core::effects::connector::OutboxOutcome::Withdrawn)
                     }
                     Some(skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued) => {
-                        Some(jig_domain_core::connector::OutboxOutcome::Uncertain)
+                        Some(jig_domain_core::effects::connector::OutboxOutcome::Uncertain)
                     }
                     Some(skein_forge_client::Outcome::Held) => {
-                        Some(jig_domain_core::connector::OutboxOutcome::Held { entry: *entry })
+                        Some(jig_domain_core::effects::connector::OutboxOutcome::Held { entry: *entry })
                     }
                     None => None,
                 };

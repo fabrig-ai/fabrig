@@ -1,15 +1,20 @@
 //! Link obligations and stored diagnostics (jig/docs/design/domain/engine.md, 6).
 #![expect(clippy::disallowed_macros, reason = "stored fixtures exercise byte limits")]
-use super::{Action, Core, Env, Failure, Key, Phase, Queue, Request, Time, Wall, config, people, step_phase, tasks};
-use crate::{CoreRecord, Event, Restored};
+use crate::{
+    CoreRecord, Event, Restored,
+    tests::start::{
+        Action, Core, Env, Failure, Key, Phase, Queue, Request, Time, Wall, config, people, step_phase, tasks,
+    },
+};
 use core::panic::AssertUnwindSafe;
 use skein_lib::Token;
 use std::panic::catch_unwind;
 
 fn loaded() -> (Core, Env<crate::Limits>) {
-    let (_, limits) = super::super::tree_core();
+    let (_, limits) = crate::tests::tree_core();
     let configured = config(41);
-    let policy = crate::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[]).expect("policy");
+    let policy =
+        crate::admission::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[]).expect("policy");
     let mut core = Core::new(configured, &limits).expect("configured core");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     step_phase(core.start_begin(false, env.wall), Phase::LoadCore);
@@ -72,8 +77,8 @@ fn link(core: &mut Core, env: &Env<crate::Limits>) -> Action {
 }
 
 fn task() -> tasks::TaskRecord {
-    let (mut source, limits) = super::super::tree_core();
-    super::super::make_task(&mut source, &limits, 1);
+    let (mut source, limits) = crate::tests::tree_core();
+    crate::tests::make_task(&mut source, &limits, 1);
     source.tasks.task(1).expect("source task").clone()
 }
 
@@ -574,7 +579,7 @@ fn connector_resource_roles_link_their_projects() {
         let connector = core.connectors[0];
         step_phase(core.start_done(&env, Phase::LoadInbox, &mut out), Phase::RestoreConnector { connector });
         let name = tasks::Name { connector, path: Box::new([Box::from(b"resource".as_slice())]) };
-        assert!(core.restore_resource_role(&env, project, name, crate::connector::ResourceRole::Context));
+        assert!(core.restore_resource_role(&env, project, name, crate::effects::connector::ResourceRole::Context));
         let mut previous = Phase::RestoreConnector { connector };
         for connector in core.connectors.clone().into_iter().skip(1) {
             let next = Phase::RestoreConnector { connector };

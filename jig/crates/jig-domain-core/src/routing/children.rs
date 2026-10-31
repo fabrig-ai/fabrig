@@ -1,9 +1,10 @@
 //! Brief, fleet and account outputs translated for the root, with sibling continuations
 //! (`domain/engine.md`, section 4.4).
 
-use super::task_routes::tag_task_outputs;
-use crate::routing::Work;
-use crate::{Ask, Core, CoreRecord, Event, Held, Key, Limits, Now, Record, Request, Write};
+use crate::{
+    Ask, Core, CoreRecord, Event, Held, Key, Limits, Now, Record, Request, Write,
+    routing::{Work, task::tag_task_outputs},
+};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_brief as brief;
@@ -12,9 +13,9 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token};
 
-pub(super) fn append_people(core: &mut Core, env: &Env<Limits>, event: people::Event, out: &mut Queue<Request>) {
+pub(crate) fn append_people(core: &mut Core, env: &Env<Limits>, event: people::Event, out: &mut Queue<Request>) {
     let mut work = Queue::uncapped();
-    let mut routed = super::people_routes::route_people(core, env, &mut work, event);
+    let mut routed = super::party::people::route_people(core, env, &mut work, event);
     assert!(work.is_empty(), "a keyed party terminal does not start a task route");
     for _ in 0..routed.len() {
         let request = routed.pop().expect("party route count");
@@ -22,9 +23,9 @@ pub(super) fn append_people(core: &mut Core, env: &Env<Limits>, event: people::E
     }
 }
 
-pub(super) fn append_tasks(core: &mut Core, env: &Env<Limits>, event: tasks::Event, out: &mut Queue<Request>) {
+pub(crate) fn append_tasks(core: &mut Core, env: &Env<Limits>, event: tasks::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
-    crate::routing::step::step_tasks(core, env, event, &mut child);
+    super::step::step_tasks(core, env, event, &mut child);
     let mut routed = tag_task_outputs(core, env, child);
     for _ in 0..routed.len() {
         let request = routed.pop().expect("task route count");
@@ -32,7 +33,7 @@ pub(super) fn append_tasks(core: &mut Core, env: &Env<Limits>, event: tasks::Eve
     }
 }
 
-pub(super) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<brief::GatherRequest>) -> Queue<Request> {
+pub(crate) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<brief::GatherRequest>) -> Queue<Request> {
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
         let request = match child.pop().expect("brief output count") {
@@ -45,7 +46,7 @@ pub(super) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<bri
             brief::GatherRequest::Drop { connector, section } => Request::Ask { connector, ask: Ask::Drop { section } },
             brief::GatherRequest::Failed { brief, .. } | brief::GatherRequest::Refused { brief } => {
                 let task = brief.raw();
-                super::result_reads::clear(core, task);
+                super::run::results::clear(core, task);
                 drop(core.contexts.remove(&task));
                 drop(core.dependency_results.remove(&task));
                 drop(core.transcripts.remove(&task));
@@ -81,7 +82,7 @@ pub(super) fn tag_brief(core: &mut Core, env: &Env<Limits>, mut child: Queue<bri
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive host vocabulary routes its bounded child decision")]
-pub(super) fn tag_fleet(
+pub(crate) fn tag_fleet(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
@@ -142,7 +143,7 @@ pub(super) fn tag_fleet(
                 // core has the complete proofs needed to reject a stale run.
                 if core.start_opened() && !claimed {
                     let mut follow = Queue::uncapped();
-                    crate::routing::step::step_fleet(core, env, fleet::Event::Cancel { run, attempt }, &mut follow);
+                    super::step::step_fleet(core, env, fleet::Event::Cancel { run, attempt }, &mut follow);
                     for _ in 0..follow.len() {
                         pending.push(follow.pop().expect("fenced listing output count"));
                     }
@@ -151,7 +152,7 @@ pub(super) fn tag_fleet(
             }
             fleet::Request::Observed { run, attempt: _ } => {
                 core.touch_deployment();
-                super::view_routes::touch_number(core, &env.limits, run.raw());
+                super::view::routes::touch_number(core, &env.limits, run.raw());
                 continue;
             }
             fleet::Request::Placed { run, attempt } => {
@@ -165,7 +166,7 @@ pub(super) fn tag_fleet(
                 let _answered = to.into_token();
                 core.remember_unpriced_terminal(run, attempt, tasks::End::Recheck);
                 out.push(Request::Now(Box::new(Now::DropAssignment { task: run.raw() })));
-                let token = core.internal(crate::flight::Internal::Acknowledge);
+                let token = core.internal(super::flight::Internal::Acknowledge);
                 append_tasks(
                     core,
                     env,
@@ -193,7 +194,7 @@ pub(super) fn tag_fleet(
                 let _: Option<u64> = core.unreported_restored.remove(&run.raw());
                 core.remember_unpriced_terminal(run, attempt, tasks::End::Refused);
                 out.push(Request::Now(Box::new(Now::DropAssignment { task: run.raw() })));
-                let token = core.internal(crate::flight::Internal::Acknowledge);
+                let token = core.internal(super::flight::Internal::Acknowledge);
                 append_tasks(
                     core,
                     env,
@@ -228,7 +229,7 @@ pub(super) fn tag_fleet(
                     tasks::End::Failed(tasks::Class::Lost)
                 };
                 core.remember_unpriced_terminal(run, attempt, end.clone());
-                let token = core.internal(crate::flight::Internal::Acknowledge);
+                let token = core.internal(super::flight::Internal::Acknowledge);
                 append_tasks(
                     core,
                     env,
@@ -252,7 +253,7 @@ pub(super) fn tag_fleet(
                 }
                 if !core.claim_bindings_usable(run.raw(), attempt.raw()) {
                     core.remember_unpriced_terminal(run, attempt, tasks::End::Recheck);
-                    let token = core.internal(crate::flight::Internal::Acknowledge);
+                    let token = core.internal(super::flight::Internal::Acknowledge);
                     append_tasks(
                         core,
                         env,
@@ -267,14 +268,14 @@ pub(super) fn tag_fleet(
                         &mut out,
                     );
                     let mut cancelled = Queue::uncapped();
-                    crate::routing::step::step_fleet(core, env, fleet::Event::Cancel { run, attempt }, &mut cancelled);
+                    super::step::step_fleet(core, env, fleet::Event::Cancel { run, attempt }, &mut cancelled);
                     for _ in 0..cancelled.len() {
                         pending.push(cancelled.pop().expect("cancelled placement outputs"));
                     }
                     out.push(Request::Now(Box::new(Now::DropAssignment { task: run.raw() })));
                     continue;
                 }
-                super::view_routes::touch_number(core, &env.limits, run.raw());
+                super::view::routes::touch_number(core, &env.limits, run.raw());
                 Request::Held(Box::new(Held::Assign { channel, run, attempt, activation, assignment }))
             }
             fleet::Request::Inbound { channel, run, attempt, message } => {
@@ -311,7 +312,7 @@ pub(super) fn tag_fleet(
                     out.push(Request::Write(Write::Save(Record::Core(CoreRecord::RunProof(proof.clone())))));
                 }
                 out.push(Request::Held(Box::new(Held::Inbound { channel, run, attempt, message })));
-                if let Some(relay) = crate::relays::next(core, run.raw(), env.limits.tasks.run_inbox) {
+                if let Some(relay) = crate::effects::relays::next(core, run.raw(), env.limits.tasks.run_inbox) {
                     out.push(Request::Held(Box::new(relay)));
                 }
                 continue;
@@ -364,7 +365,7 @@ pub(super) fn tag_fleet(
             }
             fleet::Request::Turned { run, attempt, turn, body } if core.stopping => {
                 let mut follow = Queue::uncapped();
-                crate::routing::step::step_fleet(core, env, fleet::Event::TurnBusy { run, attempt, turn }, &mut follow);
+                super::step::step_fleet(core, env, fleet::Event::TurnBusy { run, attempt, turn }, &mut follow);
                 for _ in 0..follow.len() {
                     pending.push(follow.pop().expect("busy turn outputs"));
                 }
@@ -428,7 +429,7 @@ fn append_account(core: &mut Core, env: &Env<Limits>, event: accounts::Event, ou
     }
 }
 
-pub(super) fn tag_account(
+pub(crate) fn tag_account(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
@@ -461,7 +462,7 @@ pub(super) fn tag_account(
                     core,
                     env,
                     work,
-                    fleet::Event::Grant { grant: crate::sibling_routes::fleet_grant(grant) },
+                    fleet::Event::Grant { grant: super::sibling_routes::fleet_grant(grant) },
                 );
                 for _ in 0..routed.len() {
                     let request = routed.pop().expect("grant output count");
@@ -487,8 +488,10 @@ pub(super) fn tag_account(
             accounts::Request::Erase { key } => out.push(Request::Write(Write::Erase(Key::Accounts(key)))),
             // People keeps the answer under the party's key, and replies once it is durable.
             accounts::Request::Answer { request, answer } => {
-                let outcome = super::account_requests::outcome(core, answer);
-                let Some((request, unused)) = super::key_routes::finished(core, request, &outcome) else { continue };
+                let outcome = super::party::account_requests::outcome(core, answer);
+                let Some((request, unused)) = super::party::key_routes::finished(core, request, &outcome) else {
+                    continue;
+                };
                 if let Some(number) = unused {
                     out.push(super::application_routes::unused(number));
                 }
@@ -499,7 +502,7 @@ pub(super) fn tag_account(
     out
 }
 
-pub(super) fn remember_due(core: &mut Core, context: Box<tasks::RunContext>) {
+pub(crate) fn remember_due(core: &mut Core, context: Box<tasks::RunContext>) {
     for task in &core.due {
         if task.task == context.task {
             return;
@@ -549,7 +552,7 @@ fn account_party(core: &Core, event: &accounts::Event) -> Option<u64> {
     }
 }
 
-pub(super) fn route_account(
+pub(crate) fn route_account(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
@@ -557,20 +560,20 @@ pub(super) fn route_account(
 ) -> Queue<Request> {
     let party = account_party(core, &event);
     let mut out = Queue::uncapped();
-    crate::routing::step::step_accounts(core, env, event, &mut out);
+    super::step::step_accounts(core, env, event, &mut out);
     core.touch_deployment();
     core.touch_run_waits();
     core.touch_accounts(party);
     tag_account(core, env, work, out)
 }
 
-pub(super) fn route_brief(core: &mut Core, env: &Env<Limits>, event: brief::GatherEvent) -> Queue<Request> {
+pub(crate) fn route_brief(core: &mut Core, env: &Env<Limits>, event: brief::GatherEvent) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    crate::routing::step::step_brief(core, env, event, &mut out);
+    super::step::step_brief(core, env, event, &mut out);
     tag_brief(core, env, out)
 }
 
-pub(super) fn route_fleet(
+pub(crate) fn route_fleet(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
@@ -581,7 +584,7 @@ pub(super) fn route_fleet(
     {
         let mut out = Queue::uncapped();
         core.remember_unpriced_terminal(*run, *attempt, tasks::End::Recheck);
-        let token = core.internal(crate::flight::Internal::Acknowledge);
+        let token = core.internal(super::flight::Internal::Acknowledge);
         append_tasks(
             core,
             env,
@@ -603,12 +606,12 @@ pub(super) fn route_fleet(
             match grant.form.table() {
                 fleet::GrantTable::Accounts | fleet::GrantTable::Name => {
                     if let Some(current) = core.accounts.source_grant(grant.account, env.now) {
-                        *grant = crate::sibling_routes::fleet_grant(current);
+                        *grant = super::sibling_routes::fleet_grant(current);
                     }
                 }
                 fleet::GrantTable::Application => {
                     if let Some(current) = core.accounts.credential_grant(grant.account, env.now) {
-                        *grant = crate::sibling_routes::fleet_grant(current);
+                        *grant = super::sibling_routes::fleet_grant(current);
                     }
                 }
             }
@@ -652,16 +655,16 @@ pub(super) fn route_fleet(
     let shape = host_shape(&event);
     let draining = draining_hosts(core);
     let mut out = Queue::uncapped();
-    crate::routing::step::step_fleet(core, env, event, &mut out);
+    super::step::step_fleet(core, env, event, &mut out);
     if shape || draining != draining_hosts(core) {
         core.touch_accounts(None);
     }
     tag_fleet(core, env, work, out)
 }
 
-pub(super) fn route_projection_settled(core: &mut Core, goal: u64, connector: u16) -> Queue<Request> {
+pub(crate) fn route_projection_settled(core: &mut Core, goal: u64, connector: u16) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    crate::projections::settled(core, goal, connector, &mut out);
+    crate::effects::projections::settled(core, goal, connector, &mut out);
     out
 }
 

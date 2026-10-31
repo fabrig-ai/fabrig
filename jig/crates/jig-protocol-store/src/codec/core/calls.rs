@@ -483,7 +483,7 @@ fn encode_part_effect(
     connector: u16,
     entry: u64,
     deadline: Wall,
-    outcome: Option<domain::connector::OutboxOutcome>,
+    outcome: Option<domain::effects::connector::OutboxOutcome>,
     limits: &View,
 ) -> Result<wire::CallPart, wire::Problem> {
     Ok(wire::CallPart::Effect(wire::CallPartEffect::new(

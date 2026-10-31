@@ -215,8 +215,8 @@ fn a_single_turn_read_carries_the_same_archive_as_activity() {
     assert_eq!(read, reads::Read::Turn { task: record.task, attempt: record.attempt, turn: record.turn });
     exchange.release_read(
         reply,
-        reads::Answer::Historical(Box::new(reads::Historical {
-            value: reads::Past::Turn(record.clone()),
+        reads::Answer::Ended(Box::new(reads::Ended {
+            value: reads::EndedValue::Turn(record.clone()),
             at: None,
             by: None,
         })),
