@@ -49,7 +49,7 @@ fn checked_words(
 ) -> crate::words::Words {
     let limits = skein_ui::phrases::PhraseLimits {
         languages: u16::try_from(languages.len()).unwrap(),
-        phrases: crate::words::owner_words::phrase_count(),
+        phrases: crate::words::document_words::phrase_count(),
         holes: 4,
         segments: 20_000,
         text_bytes: 200_000,

@@ -12,30 +12,30 @@ pub(in crate::tests) fn chip(task: u64) -> Chip {
     Chip {
         task,
         title: DocumentText::complete(text(b"title")),
-        executor: Executor::Party { party: 7 },
+        executor: ChipExecutor::Party { party: 7 },
         phase: Phase::Held,
         details: Box::new(phase_details(Phase::Held)),
     }
 }
-pub(in crate::tests) fn phase_details(phase: Phase) -> ChipPhase {
+pub(in crate::tests) fn phase_details(phase: Phase) -> ChipPhaseFacts {
     let owner = match phase {
-        Phase::Waiting => OwnerChipPhase::Waiting { dependencies: List::with_capacity(0), more: false, holds: false },
-        Phase::Idle => OwnerChipPhase::Active(RunStage::Idle),
-        Phase::Due => OwnerChipPhase::Active(RunStage::Due),
-        Phase::Preparing => OwnerChipPhase::Active(RunStage::Preparing),
-        Phase::Claimed => OwnerChipPhase::Active(RunStage::Claimed { attempt: 1 }),
-        Phase::Running => OwnerChipPhase::Active(RunStage::Running { attempt: 1 }),
-        Phase::BackingOff => OwnerChipPhase::Active(RunStage::BackingOff { until: Wall::EPOCH }),
+        Phase::Waiting => ChipPhase::Waiting { dependencies: List::with_capacity(0), more: false, holds: false },
+        Phase::Idle => ChipPhase::Active(RunStage::Idle),
+        Phase::Due => ChipPhase::Active(RunStage::Due),
+        Phase::Preparing => ChipPhase::Active(RunStage::Preparing),
+        Phase::Claimed => ChipPhase::Active(RunStage::Claimed { attempt: 1 }),
+        Phase::Running => ChipPhase::Active(RunStage::Running { attempt: 1 }),
+        Phase::BackingOff => ChipPhase::Active(RunStage::BackingOff { until: Wall::EPOCH }),
         Phase::Active => {
-            OwnerChipPhase::Person { address: PersonAddress::Party(7), taken_by: None, since: Some(Wall::EPOCH) }
+            ChipPhase::Person { address: PersonAddress::Party(7), taken_by: None, since: Some(Wall::EPOCH) }
         }
-        Phase::Closing => OwnerChipPhase::Closing(ClosingStage::Settled),
-        Phase::Held => OwnerChipPhase::Held { reason: HoldCategory::Stopped, revision: 3 },
-        Phase::Ended | Phase::Done | Phase::Failed | Phase::Cancelled => OwnerChipPhase::Ended,
+        Phase::Closing => ChipPhase::Closing(ClosingStage::Settled),
+        Phase::Held => ChipPhase::Held { reason: HoldCategory::Stopped, revision: 3 },
+        Phase::Ended | Phase::Done | Phase::Failed | Phase::Cancelled => ChipPhase::Ended,
     };
     let mut value = crate::tests::fixtures::chip_phase(owner);
     value.details.project = 1;
-    value.details.executor = OwnerExecutor::Person(PersonAddress::Party(7));
+    value.details.executor = Executor::Person(PersonAddress::Party(7));
     if phase == Phase::Held {
         let mut hold = crate::tests::fixtures::hold();
         hold.reason = HoldCategory::Stopped;
@@ -45,13 +45,13 @@ pub(in crate::tests) fn phase_details(phase: Phase) -> ChipPhase {
     value
 }
 
-pub(in crate::tests) fn owner_authority() -> OwnerAuthorityDocument {
-    OwnerAuthorityDocument {
-        authority: OwnerAuthority {
+pub(in crate::tests) fn owner_authority() -> AuthorityDocument {
+    AuthorityDocument {
+        authority: Authority {
             models: None,
             tools: 0,
             grants: List::with_capacity(0),
-            delegation: OwnerDelegation { kinds: List::with_capacity(0), tasks: 1, depth: 1 },
+            delegation: Delegation { kinds: List::with_capacity(0), tasks: 1, depth: 1 },
             spend: 10,
             deadline: None,
             notes: 0,
@@ -90,7 +90,7 @@ fn inbox(keys: &[ObjectKey]) -> Delivery {
         entry.project = Some(1);
         entries.push(entry).unwrap();
     }
-    Delivery::OwnerInbox(Box::new(crate::tests::fixtures::inbox(entries)))
+    Delivery::Inbox(Box::new(crate::tests::fixtures::inbox(entries)))
 }
 
 pub(in crate::tests) fn live() -> (Fixture, jig_client::Handle) {

@@ -25,13 +25,13 @@ fn chip(task: u64) -> Chip {
     Chip {
         task,
         title: DocumentText::complete(text(b"title")),
-        executor: Executor::Party { party: 7 },
+        executor: ChipExecutor::Party { party: 7 },
         phase: Phase::Idle,
         details: Box::new(crate::tests::state::domain::objects::phase_details(Phase::Idle)),
     }
 }
 fn conversation(task: u64) -> TaskLine {
-    crate::tests::fixtures::task_line(chip(task), 1, OwnerRequester::Person(7), Wall::EPOCH)
+    crate::tests::fixtures::task_line(chip(task), 1, Requester::Person(7), Wall::EPOCH)
 }
 
 #[test]

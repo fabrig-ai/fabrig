@@ -32,7 +32,7 @@ fn words(selected: bool) -> Words {
             Box::new([english, second]),
             &PhraseLimits {
                 languages: 2,
-                phrases: crate::words::owner_words::phrase_count(),
+                phrases: crate::words::document_words::phrase_count(),
                 holes: 4,
                 segments: crate::tests::english_phrase_segments(2),
                 text_bytes: 100_000,
@@ -44,19 +44,19 @@ fn words(selected: bool) -> Words {
         0,
     )
 }
-fn row(object: OwnerInboxObject) -> OwnerInboxEntry {
-    OwnerInboxEntry {
+fn row(object: InboxObject) -> InboxEntry {
+    InboxEntry {
         reply: None,
-        task: OwnerTaskLink::Stored { number: u64::MAX, status: None },
+        task: TaskLink::Stored { number: u64::MAX, status: None },
         project: None,
         object,
         activity: None,
         at: None,
         unread: None,
-        cursor: OwnerInboxCursor::Number { number: 0 },
+        cursor: InboxCursor::Number { number: 0 },
     }
 }
-fn whole(rows: impl IntoIterator<Item = OwnerInboxEntry>, limited: bool) -> OwnerInbox {
+fn whole(rows: impl IntoIterator<Item = InboxEntry>, limited: bool) -> Inbox {
     let mut needs = List::with_capacity(CLIENT.client.rows);
     let mut updates = List::with_capacity(CLIENT.client.rows);
     for row in rows {
@@ -66,7 +66,7 @@ fn whole(rows: impl IntoIterator<Item = OwnerInboxEntry>, limited: bool) -> Owne
             updates.push(row).unwrap();
         }
     }
-    OwnerInbox {
+    Inbox {
         party: 1,
         needs,
         updates,
@@ -78,7 +78,7 @@ fn whole(rows: impl IntoIterator<Item = OwnerInboxEntry>, limited: bool) -> Owne
         selection: None,
     }
 }
-fn domain(value: OwnerInbox) -> Fixture {
+fn domain(value: Inbox) -> Fixture {
     let (mut client, frame) = start();
     let out =
         drive(&mut client, Watched { watch: frame, event: WatchEvent::Delivered(Delivery::Me(Box::new(document()))) });
@@ -95,7 +95,7 @@ fn domain(value: OwnerInbox) -> Fixture {
                 _ => None,
             })
             .unwrap();
-    drive(&mut client, Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerInbox(Box::new(value))) });
+    drive(&mut client, Watched { watch, event: WatchEvent::Delivered(Delivery::Inbox(Box::new(value))) });
     client
 }
 fn build(client: &Fixture, w: &Words) -> Tree {
@@ -124,13 +124,13 @@ fn owner_inbox_public_six_objects_equal_makers_full_width_keys_and_missing_facts
     let mut goldens = Goldens::new("tree/sections/inbox/owner_inbox_public");
     let w = words(false);
     let cases = [
-        (OwnerInboxObject::Question { message: u64::MAX }, 50),
-        (OwnerInboxObject::Proposal { proposer: Proposer::Task(u64::MAX), number: u64::MAX }, 51),
-        (OwnerInboxObject::Proposal { proposer: Proposer::Party(u64::MAX), number: u64::MAX }, 52),
-        (OwnerInboxObject::Escalation { revision: u64::MAX }, 53),
-        (OwnerInboxObject::PersonTask, 54),
-        (OwnerInboxObject::Reply { message: u64::MAX }, 55),
-        (OwnerInboxObject::Result { position: u64::MAX }, 56),
+        (InboxObject::Question { message: u64::MAX }, 50),
+        (InboxObject::Proposal { proposer: Proposer::Task(u64::MAX), number: u64::MAX }, 51),
+        (InboxObject::Proposal { proposer: Proposer::Party(u64::MAX), number: u64::MAX }, 52),
+        (InboxObject::Escalation { revision: u64::MAX }, 53),
+        (InboxObject::PersonTask, 54),
+        (InboxObject::Reply { message: u64::MAX }, 55),
+        (InboxObject::Result { position: u64::MAX }, 56),
     ];
     for (object, kind) in cases {
         let value = whole([row(object)], false);
@@ -153,7 +153,7 @@ fn owner_inbox_public_six_objects_equal_makers_full_width_keys_and_missing_facts
 fn owner_inbox_second_checked_language_rejects_wrong_holes_without_fallback() {
     let mut goldens = Goldens::new("tree/sections/inbox/owner_inbox_second");
     let w = words(true);
-    let mut value = row(OwnerInboxObject::Result { position: u64::MAX });
+    let mut value = row(InboxObject::Result { position: u64::MAX });
     value.project = Some(0);
     value.activity = Some(0);
     value.unread = Some(true);
@@ -170,21 +170,17 @@ fn owner_inbox_both_full_groups_two_read_windows_counts_source_cuts_fit_the_whol
     let mut goldens = Goldens::new("tree/sections/inbox/owner_inbox_both");
     let w = words(false);
     let values = [
-        row(OwnerInboxObject::Question { message: 1 }),
-        row(OwnerInboxObject::Escalation { revision: 2 }),
-        row(OwnerInboxObject::Reply { message: 3 }),
-        row(OwnerInboxObject::Result { position: 4 }),
+        row(InboxObject::Question { message: 1 }),
+        row(InboxObject::Escalation { revision: 2 }),
+        row(InboxObject::Reply { message: 3 }),
+        row(InboxObject::Result { position: 4 }),
     ];
     let mut client = domain(whole(values, true));
     let needs = client.inbox().needs_window.reading.unwrap();
     let updates = client.inbox().updates_window.reading.unwrap();
     for (token, entries, after) in [
-        (needs, [row(OwnerInboxObject::Question { message: 5 }), row(OwnerInboxObject::PersonTask)], &[255, 0][..]),
-        (
-            updates,
-            [row(OwnerInboxObject::Reply { message: 6 }), row(OwnerInboxObject::Result { position: 7 })],
-            &[254, 0][..],
-        ),
+        (needs, [row(InboxObject::Question { message: 5 }), row(InboxObject::PersonTask)], &[255, 0][..]),
+        (updates, [row(InboxObject::Reply { message: 6 }), row(InboxObject::Result { position: 7 })], &[254, 0][..]),
     ] {
         let mut rows = List::with_capacity(CLIENT.client.rows);
         for entry in entries {
@@ -194,7 +190,7 @@ fn owner_inbox_both_full_groups_two_read_windows_counts_source_cuts_fit_the_whol
             &mut client,
             ReadPage {
                 read: crate::state::handles::handle(token),
-                result: ReadResult::Value(ReadValue::OwnerInbox(Box::new(OwnerInboxPage {
+                result: ReadResult::Value(ReadValue::Inbox(Box::new(InboxPage {
                     selection: None,
                     cut: true,
                     rows,

@@ -3,7 +3,7 @@ use jig_client::thread::{LiveTurn, Thread};
 
 use jig_client::{
     Latest,
-    contract::{Delivery, LiveCall, ObjectKey, Part, RunState},
+    contract::{ApplicationPart, Delivery, LiveCall, ObjectKey, RunState},
 };
 use skein_lib::List;
 #[derive(Debug)]
@@ -24,7 +24,7 @@ impl Activity<'_> {
         self.state.names(capacity, self.live.as_slice())
     }
     #[must_use]
-    pub fn parts(&self, capacity: u32) -> List<Part> {
+    pub fn parts(&self, capacity: u32) -> List<ApplicationPart> {
         self.state.parts(capacity, self.live.as_slice())
     }
     #[must_use]

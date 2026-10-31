@@ -11,12 +11,12 @@ fn owner_escalation_original_reads_keep_whole_task_and_independent_offers_and_re
     drive(
         &mut domain,
         Time::ZERO,
-        ReadPage { read, result: ReadResult::Value(ReadValue::OwnerEscalation(Box::new(original.clone()))) },
+        ReadPage { read, result: ReadResult::Value(ReadValue::Escalation(Box::new(original.clone()))) },
     );
     let id = domain.objects().find(key).unwrap();
     let object = domain.objects().get(id).unwrap();
     assert_eq!(object.project, Some(1));
-    assert_eq!(object.body, Some(Body::OwnerEscalation(Box::new(original.clone()))));
+    assert_eq!(object.body, Some(Body::Escalation(Box::new(original.clone()))));
     assert_eq!(acts::offered(&object, ActKind::Release), Admission::Allowed);
     assert_eq!(acts::offered(&object, ActKind::Stop), Admission::Refused(Refusal::NotOffered));
     assert_eq!(acts::revision(&object, ActKind::Release), Some(Revision { value: u64::MAX }));
@@ -49,7 +49,7 @@ fn owner_escalation_wrong_task_or_project_never_consumes_the_original_read_and_o
         drive(
             &mut domain,
             Time::ZERO,
-            ReadPage { read, result: ReadResult::Value(ReadValue::OwnerEscalation(Box::new(wrong))) },
+            ReadPage { read, result: ReadResult::Value(ReadValue::Escalation(Box::new(wrong))) },
         );
         assert!(domain.objects().get(domain.objects().find(key).unwrap()).unwrap().body.is_none());
         assert!(domain.handles.reads.get(&read).is_none());
@@ -58,23 +58,23 @@ fn owner_escalation_wrong_task_or_project_never_consumes_the_original_read_and_o
     drive(
         &mut domain,
         Time::ZERO,
-        ReadPage { read, result: ReadResult::Value(ReadValue::OwnerEscalation(Box::new(original.clone()))) },
+        ReadPage { read, result: ReadResult::Value(ReadValue::Escalation(Box::new(original.clone()))) },
     );
     let id = domain.objects().find(key).unwrap();
-    assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::OwnerEscalation(Box::new(original.clone()))));
+    assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Escalation(Box::new(original.clone()))));
     let mut wrong = original.clone();
     wrong.task.activity = u64::MAX;
     drive(
         &mut domain,
         Time::ZERO,
-        ReadPage { read, result: ReadResult::Value(ReadValue::OwnerEscalation(Box::new(wrong))) }.late(),
+        ReadPage { read, result: ReadResult::Value(ReadValue::Escalation(Box::new(wrong))) }.late(),
     );
-    assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::OwnerEscalation(Box::new(original.clone()))));
+    assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Escalation(Box::new(original.clone()))));
     drive(&mut domain, Time::ZERO, Event::Went { place: crate::state::address::Place::Elsewhere });
     drive(
         &mut domain,
         Time::ZERO,
-        ReadPage { read, result: ReadResult::Value(ReadValue::OwnerEscalation(Box::new(original))) }.late(),
+        ReadPage { read, result: ReadResult::Value(ReadValue::Escalation(Box::new(original))) }.late(),
     );
     assert!(domain.objects().find(key).is_none());
 }
@@ -84,7 +84,7 @@ fn owner_escalation_decisions_name_supplied_hold_and_outer_offers_without_guessi
     for act in [ActKind::Release, ActKind::LeaveHeld, ActKind::PassUp] {
         let (mut domain, _) = live();
         let original = row(act, HoldCategory::Uncertain { entry: 37 });
-        let id = install(&mut domain, Body::OwnerEscalation(Box::new(original.clone())));
+        let id = install(&mut domain, Body::Escalation(Box::new(original.clone())));
         intend(&mut domain, id, act);
         if act == ActKind::Release {
             assert_eq!(domain.confirmation().unwrap().missing, Some(Missing::Again));
@@ -139,10 +139,10 @@ fn owner_escalation_decisions_name_supplied_hold_and_outer_offers_without_guessi
             | ActKind::SetPool => unreachable!(),
         };
         assert_eq!(sent(&output), &expected);
-        assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::OwnerEscalation(Box::new(original))));
+        assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Escalation(Box::new(original))));
     }
     let (mut domain, _) = live();
-    let id = install(&mut domain, Body::OwnerEscalation(Box::new(row(ActKind::Release, HoldCategory::Budget))));
+    let id = install(&mut domain, Body::Escalation(Box::new(row(ActKind::Release, HoldCategory::Budget))));
     intend(&mut domain, id, ActKind::PassUp);
     assert!(domain.confirmation().is_none());
     assert_eq!(domain.objects().get(id).unwrap().card, Card::Refused { refusal: Refusal::NotOffered });
@@ -165,7 +165,7 @@ fn owner_escalation_atomic_amend_release_preserves_supplied_reason_and_independe
             beyond: Beyond::Refused(Refusal::NotOffered),
         },
     );
-    let id = install(&mut domain, Body::OwnerEscalation(Box::new(original.clone())));
+    let id = install(&mut domain, Body::Escalation(Box::new(original.clone())));
     intend_amend_release(&mut domain, id);
     drive(&mut domain, Time::ZERO, Event::Act { action: Act::Change { change: Box::new(change()) } });
     assert_eq!(domain.confirmation().unwrap().missing, Some(Missing::Words { field: Purpose::Reason }));
@@ -184,31 +184,31 @@ fn owner_escalation_atomic_amend_release_preserves_supplied_reason_and_independe
             Some(Revision { value: u64::MAX })
         )
     );
-    assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::OwnerEscalation(Box::new(original))));
+    assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::Escalation(Box::new(original))));
 }
 
 use jig_client::contract::DecideOn;
 
-fn row(act: ActKind, reason: HoldCategory) -> OwnerEscalation {
+fn row(act: ActKind, reason: HoldCategory) -> Escalation {
     let mut task = task();
     task.context = None;
     task.person_revision = Some(Revision { value: 23 });
     task.taken_by = Some(u64::MAX);
     task.dependencies = List::with_capacity(2);
-    task.dependencies.push(OwnerTaskLink::Stored { number: 99, status: Some(OwnerTaskStatus::Done) }).unwrap();
+    task.dependencies.push(TaskLink::Stored { number: 99, status: Some(TaskStatus::Done) }).unwrap();
     task.inputs = List::with_capacity(2);
-    task.inputs.push(OwnerTaskLink::Stored { number: 31, status: None }).unwrap();
+    task.inputs.push(TaskLink::Stored { number: 31, status: None }).unwrap();
     task.references = List::with_capacity(2);
-    task.references.push(OwnerTaskLink::Live(chip(32))).unwrap();
+    task.references.push(TaskLink::Live(chip(32))).unwrap();
     task.delegates = List::with_capacity(2);
     task.delegates.push(LiveDelegate { chip: chip(33), takeover_budget: u64::MAX }).unwrap();
     task.lineage_chips = List::with_capacity(2);
     task.lineage_chips.push(chip(34)).unwrap();
     task.resources = List::with_capacity(2);
-    task.result = Some(TaskResult::Ending(Box::new(OwnerChipEnding::Failed(DocumentText::complete(text(
+    task.result = Some(TaskResult::Ending(Box::new(ChipEnding::Failed(DocumentText::complete(text(
         b"supplied retained task failure",
     ))))));
-    let held = OwnerChipHold {
+    let held = ChipHold {
         words: None,
         placed: None,
         circle: None,
@@ -216,23 +216,23 @@ fn row(act: ActKind, reason: HoldCategory) -> OwnerEscalation {
         source: None,
         reason,
         revision: u64::MAX,
-        before: OwnerPriorPhase::Closing(ClosingStage::Effects),
-        escalation: Some(OwnerHoldEscalation::Waiting {
-            holder: OwnerEscalationHolder::Person(7),
+        before: PriorPhase::Closing(ClosingStage::Effects),
+        escalation: Some(HoldEscalation::Waiting {
+            holder: EscalationHolder::Person(7),
             entry: 22,
             since: Wall::EPOCH,
         }),
-        tries: OwnerFailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6 },
+        tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6 },
         hold_wait_since: None,
     };
     let mut details = crate::tests::state::domain::chip_facts::details();
     details.project = task.project;
     details.hold = Some(held.clone());
-    task.chip.details = Box::new(ChipPhase {
-        phase: OwnerChipPhase::Held { reason, revision: held.revision },
+    task.chip.details = Box::new(ChipPhaseFacts {
+        phase: ChipPhase::Held { reason, revision: held.revision },
         details: Box::new(details),
     });
     task.hold = Some(Box::new(held));
     task.acts = offered(ActKind::Stop, Admission::Allowed);
-    OwnerEscalation { acts: offered(act, Admission::Allowed), task: Box::new(task) }
+    Escalation { acts: offered(act, Admission::Allowed), task: Box::new(task) }
 }

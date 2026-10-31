@@ -80,7 +80,7 @@ pub(crate) fn cursors(
 }
 
 // Supplied stage counts stay distinct from the locally folded PhaseCounts.
-pub(crate) fn owner_counts(b: &mut Builder, counts: jig_client::contract::OwnerPhaseCounts, words: &Words) {
+pub(crate) fn owner_counts(b: &mut Builder, counts: jig_client::contract::PhaseCounts, words: &Words) {
     for (phrase, count) in [
         (JigPhrase::Word(Word::Decision(D::TasksWaiting)), counts.waiting),
         (JigPhrase::TasksIdle, counts.idle),

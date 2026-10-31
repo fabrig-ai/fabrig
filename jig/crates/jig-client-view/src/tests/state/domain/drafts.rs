@@ -203,7 +203,7 @@ fn a_words_answer_clears_only_the_submitted_touch_and_refused_or_unknown_words_k
         if case == 2 {
             edit(&mut domain, 8, b"words");
         }
-        let answer = Answer::Done(Outcome::Owner(OwnerOutcome::Said { task: 8, message: 3 }));
+        let answer = Answer::Done(Outcome::Document(DocumentOutcome::Said { task: 8, message: 3 }));
         let rows = if case == 4 {
             drive(&mut domain, Time::ZERO, Reported { request, progress: Progress::Unknown })
         } else if case == 3 {

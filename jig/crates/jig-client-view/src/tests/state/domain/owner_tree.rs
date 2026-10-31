@@ -33,8 +33,8 @@ fn chip(n: u64, phase: Phase) -> Chip {
     c.title.cut = true;
     c
 }
-fn counts() -> OwnerPhaseCounts {
-    OwnerPhaseCounts {
+fn counts() -> PhaseCounts {
+    PhaseCounts {
         waiting: 1,
         idle: 2,
         starting: 3,
@@ -47,12 +47,12 @@ fn counts() -> OwnerPhaseCounts {
         cancelled: u32::MAX,
     }
 }
-fn tree(root: u64) -> OwnerTree {
+fn tree(root: u64) -> Tree {
     let mut rows = List::with_capacity(2);
     let proposals =
         crate::tests::kit::list_in(2, [ProposalKey { proposer: Proposer::Party(u64::MAX), number: u64::MAX }]);
-    let dependencies = crate::tests::kit::list_in(2, [OwnerTaskLink::Stored { number: 0, status: None }]);
-    rows.push(OwnerTreeRow {
+    let dependencies = crate::tests::kit::list_in(2, [TaskLink::Stored { number: 0, status: None }]);
+    rows.push(TreeRow {
         chip: chip(u64::MAX, Phase::Running),
         parent: root,
         depth: u32::MAX,
@@ -63,10 +63,10 @@ fn tree(root: u64) -> OwnerTree {
     })
     .unwrap();
     let folded = crate::tests::kit::list([
-        OwnerTreeFold { parent: 0, phases: counts(), held_below: 11 },
-        OwnerTreeFold { parent: u64::MAX, phases: OwnerPhaseCounts { idle: u32::MAX, ..counts() }, held_below: 17 },
+        TreeFold { parent: 0, phases: counts(), held_below: 11 },
+        TreeFold { parent: u64::MAX, phases: PhaseCounts { idle: u32::MAX, ..counts() }, held_below: 17 },
     ]);
-    OwnerTree {
+    Tree {
         root: chip(root, Phase::Running),
         rows,
         folded,
@@ -120,7 +120,7 @@ fn opened(root: u64) -> (Fixture, jig_client::Handle) {
 fn owner_tree_root_descendants_proposals_parent_depth_spend_cuts_and_two_independent_folds_are_retained_whole() {
     let (mut d, watch) = opened(0);
     let value = tree(0);
-    drive(&mut d, Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerTree(Box::new(value.clone()))) });
+    drive(&mut d, Watched { watch, event: WatchEvent::Delivered(Delivery::Tree(Box::new(value.clone()))) });
     let plan = &d.task_page().plan;
     assert_eq!(plan.owner, Some(&value));
     assert_eq!(plan.owner.as_ref().unwrap().rows.len(), 1);
@@ -137,17 +137,17 @@ fn owner_tree_filter_and_fold_actions_preserve_hidden_source_counts_and_optional
     let (mut d, watch) = opened(8);
     let mut value = tree(8);
     for link in [
-        OwnerTaskLink::Live(chip(7, Phase::Running)),
-        OwnerTaskLink::Retained { chip: chip(7, Phase::Done), at: None },
-        OwnerTaskLink::Retained { chip: chip(7, Phase::Done), at: Some(Wall::EPOCH) },
-        OwnerTaskLink::Stored { number: 7, status: None },
-        OwnerTaskLink::Stored { number: 7, status: Some(OwnerTaskStatus::Done) },
-        OwnerTaskLink::Stored { number: 7, status: Some(OwnerTaskStatus::Failed) },
-        OwnerTaskLink::Stored { number: 7, status: Some(OwnerTaskStatus::Cancelled) },
+        TaskLink::Live(chip(7, Phase::Running)),
+        TaskLink::Retained { chip: chip(7, Phase::Done), at: None },
+        TaskLink::Retained { chip: chip(7, Phase::Done), at: Some(Wall::EPOCH) },
+        TaskLink::Stored { number: 7, status: None },
+        TaskLink::Stored { number: 7, status: Some(TaskStatus::Done) },
+        TaskLink::Stored { number: 7, status: Some(TaskStatus::Failed) },
+        TaskLink::Stored { number: 7, status: Some(TaskStatus::Cancelled) },
     ] {
         value.rows.get_mut(0).unwrap().dependencies.clear();
         value.rows.get_mut(0).unwrap().dependencies.push(link).unwrap();
-        drive(&mut d, Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerTree(Box::new(value.clone()))) });
+        drive(&mut d, Watched { watch, event: WatchEvent::Delivered(Delivery::Tree(Box::new(value.clone()))) });
         for filter in [PlanFilter::Held, PlanFilter::Live, PlanFilter::All] {
             drive(&mut d, Event::Act { action: Act::FilterPlan { filter } });
             assert_eq!(d.task_page().plan.owner, Some(&value));
@@ -163,7 +163,7 @@ fn owner_tree_filter_and_fold_actions_preserve_hidden_source_counts_and_optional
 fn owner_tree_departed_same_task_watch_and_clear_are_fenced() {
     let (mut d, old) = opened(8);
     let value = tree(8);
-    drive(&mut d, Watched { watch: old, event: WatchEvent::Delivered(Delivery::OwnerTree(Box::new(value.clone()))) });
+    drive(&mut d, Watched { watch: old, event: WatchEvent::Delivered(Delivery::Tree(Box::new(value.clone()))) });
     let closed = drive(&mut d, Event::Went { place: Place::Elsewhere });
     assert!(d.task_page().plan.owner.is_none());
     for request in closed {
@@ -172,7 +172,7 @@ fn owner_tree_departed_same_task_watch_and_clear_are_fenced() {
         }
     }
     crate::reclaim(&mut d);
-    drive(&mut d, Watched { watch: old, event: WatchEvent::Delivered(Delivery::OwnerTree(Box::new(value.clone()))) });
+    drive(&mut d, Watched { watch: old, event: WatchEvent::Delivered(Delivery::Tree(Box::new(value.clone()))) });
     assert!(d.task_page().plan.owner.is_none());
     let asks = drive(&mut d, Event::Went { place: Place::Jig(Address::Task { task: 8, section: TaskSection::Plan }) });
     let task =
@@ -203,16 +203,10 @@ fn owner_tree_departed_same_task_watch_and_clear_are_fenced() {
                 _ => None,
             })
             .unwrap();
-    drive(
-        &mut d,
-        Watched { watch: current, event: WatchEvent::Delivered(Delivery::OwnerTree(Box::new(value.clone()))) },
-    );
-    drive(&mut d, Watched { watch: old, event: WatchEvent::Delivered(Delivery::OwnerTree(Box::new(tree(0)))) });
+    drive(&mut d, Watched { watch: current, event: WatchEvent::Delivered(Delivery::Tree(Box::new(value.clone()))) });
+    drive(&mut d, Watched { watch: old, event: WatchEvent::Delivered(Delivery::Tree(Box::new(tree(0)))) });
     assert_eq!(d.task_page().plan.owner, Some(&value));
-    drive(
-        &mut d,
-        Watched { watch: current, event: WatchEvent::Delivered(Delivery::OwnerTree(Box::new(value.clone()))) },
-    );
+    drive(&mut d, Watched { watch: current, event: WatchEvent::Delivered(Delivery::Tree(Box::new(value.clone()))) });
     assert_eq!(d.task_page().plan.owner, Some(&value));
 }
 

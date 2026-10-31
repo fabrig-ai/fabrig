@@ -2,7 +2,7 @@ use super::Borrowed;
 use crate::state::page::task::{Plan, PlanFilter, TaskPage};
 use jig_client::{
     Latest,
-    contract::{Delivery, OwnerTree, Phase},
+    contract::{Delivery, Phase, Tree},
 };
 #[derive(Debug)]
 pub struct Task<'a> {
@@ -18,7 +18,7 @@ impl core::ops::Deref for Task<'_> {
 #[derive(Debug)]
 pub struct PlanView<'a> {
     pub state: &'a Plan,
-    pub owner: Option<&'a OwnerTree>,
+    pub owner: Option<&'a Tree>,
 }
 impl core::ops::Deref for PlanView<'_> {
     type Target = Plan;
@@ -28,7 +28,7 @@ impl core::ops::Deref for PlanView<'_> {
 }
 impl PlanView<'_> {
     #[must_use]
-    pub fn owner_visible(&self, row: &jig_client::contract::OwnerTreeRow) -> bool {
+    pub fn owner_visible(&self, row: &jig_client::contract::TreeRow) -> bool {
         match self.filter {
             PlanFilter::All => true,
             PlanFilter::Live => crate::state::page::conversations::live(row.chip.phase),
@@ -53,7 +53,7 @@ impl<'a> Borrowed<'a> {
                 continue;
             };
             match document.latest {
-                Some(Latest::Jig(Delivery::OwnerTree(tree))) if Some(tree.root.task) == self.ui.shown_task() => {
+                Some(Latest::Jig(Delivery::Tree(tree))) if Some(tree.root.task) == self.ui.shown_task() => {
                     plan.owner = Some(tree);
                 }
 

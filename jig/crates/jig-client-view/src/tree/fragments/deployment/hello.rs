@@ -1,8 +1,8 @@
 //! Advertised host capabilities and the reason a hello was refused.
 use super::{
-    Builder, Hole, Key, Owner, OwnerHelloRefusal, OwnerHelloRefusalLine, P, Words, duration, field_number, region, text,
+    Builder, HelloRefusal, HelloRefusalLine, Hole, Key, Owner, P, Words, duration, field_number, region, text,
 };
-pub(super) fn hello(b: &mut Builder, words: &Words, value: &OwnerHelloRefusalLine, position: u64) {
+pub(super) fn hello(b: &mut Builder, words: &Words, value: &HelloRefusalLine, position: u64) {
     region(
         b,
         words,
@@ -17,26 +17,26 @@ pub(super) fn hello(b: &mut Builder, words: &Words, value: &OwnerHelloRefusalLin
     refusal(b, words, value.why);
     b.close();
 }
-pub(crate) fn refusal(b: &mut Builder, words: &Words, why: OwnerHelloRefusal) {
+pub(crate) fn refusal(b: &mut Builder, words: &Words, why: HelloRefusal) {
     match why {
-        OwnerHelloRefusal::Agent { why } => agent(b, words, why),
-        OwnerHelloRefusal::ReservedChannel => text(b, words, P::HelloRefusalReservedChannel, &[]),
-        OwnerHelloRefusal::Workers { limit } => {
+        HelloRefusal::Agent { why } => agent(b, words, why),
+        HelloRefusal::ReservedChannel => text(b, words, P::HelloRefusalReservedChannel, &[]),
+        HelloRefusal::Workers { limit } => {
             text(b, words, P::HelloRefusalWorkers, &[]);
             field_number(b, words, P::Limit, u64::from(limit));
         }
-        OwnerHelloRefusal::Position { worker } => {
+        HelloRefusal::Position { worker } => {
             text(b, words, P::HelloRefusalPosition, &[Hole::Number(u64::from(worker))]);
         }
-        OwnerHelloRefusal::StopBound { grace } => {
+        HelloRefusal::StopBound { grace } => {
             text(b, words, P::HelloRefusalStopBound, &[]);
             duration(b, words, P::AllowedGrace, grace);
         }
     }
 }
-fn agent(b: &mut Builder, words: &Words, why: jig_client::contract::OwnerAgentShortfall) {
+fn agent(b: &mut Builder, words: &Words, why: jig_client::contract::AgentShortfall) {
     use crate::words::deployment_words::AgentPhrase as A;
-    use jig_client::contract::OwnerAgentShortfall as S;
+    use jig_client::contract::AgentShortfall as S;
     let phrase = match why {
         S::Model { .. } => A::Model,
         S::Window { .. } => A::Window,

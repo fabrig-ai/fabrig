@@ -1,25 +1,21 @@
 use crate::tests::state::domain::confirmation::*;
 
-fn owner(reason: HoldCategory) -> OwnerChipHold {
+fn owner(reason: HoldCategory) -> ChipHold {
     let segments = crate::tests::kit::list([Box::<[u8]>::from(*b"a/b"), Box::<[u8]>::from([255_u8, 0])]);
-    OwnerChipHold {
+    ChipHold {
         words: None,
         placed: None,
         circle: None,
         account: None,
-        source: Some(OwnerPart {
-            connector: u16::MAX,
-            kind: OwnerPartKind::Resource,
-            key: OwnerPartKey::Path(segments),
-        }),
+        source: Some(Part { connector: u16::MAX, kind: PartKind::Resource, key: PartKey::Path(segments) }),
         reason,
         revision: u64::MAX,
-        before: OwnerPriorPhase::Closing(ClosingStage::Effects),
-        escalation: Some(OwnerHoldEscalation::Rejected {
+        before: PriorPhase::Closing(ClosingStage::Effects),
+        escalation: Some(HoldEscalation::Rejected {
             by: u64::MAX,
             reason: DocumentText { bytes: text(b"exact rejected reason"), cut: true },
         }),
-        tries: OwnerFailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX },
+        tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX },
         hold_wait_since: None,
     }
 }
@@ -92,7 +88,7 @@ fn owner_task_hold_live_revision_moves_independently_before_atomic_amend_release
     drive(&mut domain, Time::ZERO, Event::Act { action: Act::Change { change: Box::new(change()) } });
     assert!(domain.confirmation().unwrap().missing.is_none());
     held.revision = u64::MAX;
-    held.before = OwnerPriorPhase::Active(RunStage::Running { attempt: u64::MAX });
+    held.before = PriorPhase::Active(RunStage::Running { attempt: u64::MAX });
     held.hold_wait_since = Some(Wall::from_nanos(u64::MAX));
     row.hold = Some(Box::new(held.clone()));
     reread(&mut domain, Body::Task(Box::new(row.clone())), Read::Task { task: 8 });

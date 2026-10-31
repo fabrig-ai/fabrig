@@ -2,7 +2,7 @@
 use crate::tree::fragments::deployment::{field_number, text};
 use crate::words::Words;
 use crate::words::deployment_words::{AccountPhrase as A, DeploymentPhrase as P};
-use jig_client::contract::{OwnerAccountUse, PayerReadiness, ProviderOffer, Readiness};
+use jig_client::contract::{AccountUse, PayerReadiness, ProviderOffer, Readiness};
 use skein_lib::List;
 use skein_ui::{Builder, Role};
 
@@ -63,8 +63,8 @@ pub fn render(
         b.open(Role::Item);
         field_number(b, words, P::AccountDetail(A::Provider), u64::from(value.provider));
         match value.payer {
-            OwnerAccountUse::Party(party) => field_number(b, words, P::AccountDetail(A::PaysParty), party),
-            OwnerAccountUse::Project(project) => {
+            AccountUse::Party(party) => field_number(b, words, P::AccountDetail(A::PaysParty), party),
+            AccountUse::Project(project) => {
                 field_number(b, words, P::AccountDetail(A::PaysProject), u64::from(project));
             }
         }

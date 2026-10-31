@@ -18,8 +18,8 @@ use crate::{
 use jig_client::contract::*;
 use skein_lib::{Duration, List, Time};
 
-fn document() -> OwnerDeployment {
-    OwnerDeployment {
+fn document() -> Deployment {
+    Deployment {
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,
@@ -29,11 +29,11 @@ fn document() -> OwnerDeployment {
         hosts: List::with_capacity(2),
         attempts: List::with_capacity(2),
         accounts: List::with_capacity(2),
-        tasks: OwnerCapacity { used: 1, limit: 2 },
-        workers: OwnerCapacity { used: 3, limit: 4 },
-        attempts_capacity: OwnerCapacity { used: 5, limit: 6 },
+        tasks: Capacity { used: 1, limit: 2 },
+        workers: Capacity { used: 3, limit: 4 },
+        attempts_capacity: Capacity { used: 5, limit: 6 },
         waiting_attempts: 7,
-        proposals: OwnerCapacity { used: 8, limit: 9 },
+        proposals: Capacity { used: 8, limit: 9 },
         projects: List::with_capacity(2),
         grace_bound: Duration::from_nanos(u64::MAX),
         hello_refusals: List::with_capacity(2),
@@ -52,12 +52,8 @@ fn document() -> OwnerDeployment {
 fn deploy(domain: &mut Fixture) -> Box<[Request]> {
     drive(domain, Time::ZERO, Event::Went { place: Place::Jig(Address::Deployment) })
 }
-fn owner(domain: &mut Fixture, watch: jig_client::Handle, value: OwnerDeployment) {
-    drive(
-        domain,
-        Time::ZERO,
-        Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerDeployment(Box::new(value))) },
-    );
+fn owner(domain: &mut Fixture, watch: jig_client::Handle, value: Deployment) {
+    drive(domain, Time::ZERO, Watched { watch, event: WatchEvent::Delivered(Delivery::Deployment(Box::new(value))) });
 }
 #[test]
 fn native_deployment_authority_none_builtins_and_admitted_policy_numbers_are_independent_of_project_rows() {
@@ -131,7 +127,7 @@ fn native_deployment_wrong_subject_wrong_read_left_generation_and_ended_watch_ne
     drive(
         &mut domain,
         Time::ZERO,
-        ReadPage { read, result: ReadResult::Value(ReadValue::OwnerDeployment(Box::new(document()))) },
+        ReadPage { read, result: ReadResult::Value(ReadValue::Deployment(Box::new(document()))) },
     );
     assert!(domain.deployment_page().owner.is_none());
     let opened = deploy(&mut domain);
@@ -162,7 +158,7 @@ fn native_deployment_only_supplied_configured_references_open_ordered_parts_in_t
     let out = drive(
         &mut domain,
         Time::ZERO,
-        Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerDeployment(Box::new(whole.clone()))) },
+        Watched { watch, event: WatchEvent::Delivered(Delivery::Deployment(Box::new(whole.clone()))) },
     );
     let parts: Vec<_> = out
         .iter()
@@ -174,8 +170,8 @@ fn native_deployment_only_supplied_configured_references_open_ordered_parts_in_t
     assert_eq!(
         parts,
         vec![
-            (Part::Deployment { connector: u16::MAX }, PartScope::Deployment),
-            (Part::Deployment { connector: 0 }, PartScope::Deployment)
+            (ApplicationPart::Deployment { connector: u16::MAX }, PartScope::Deployment),
+            (ApplicationPart::Deployment { connector: 0 }, PartScope::Deployment)
         ]
     );
     assert_eq!(domain.deployment_page().owner, Some(&whole));
@@ -184,7 +180,7 @@ fn native_deployment_only_supplied_configured_references_open_ordered_parts_in_t
     let late = drive(
         &mut domain,
         Time::ZERO,
-        Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerDeployment(Box::new(whole))) },
+        Watched { watch, event: WatchEvent::Delivered(Delivery::Deployment(Box::new(whole))) },
     );
     let mut shown = false;
     for request in &late {

@@ -3,7 +3,7 @@
 //! this module. The root only carries the resulting reads, names and parts.
 //! See client/domain/client.md, 10, and contract.md, 6 and 7.3.
 use crate::{Request, Ui, state::objects::Source};
-use jig_client::contract::{ActivityPage, Executor, Limit, Read, Runtime, Task};
+use jig_client::contract::{ActivityPage, ChipExecutor, Limit, Read, Runtime, Task};
 use jig_client::thread::window::End;
 use skein_lib::{Env, Queue, Token};
 /// The activity window binding, independent of a watch's slab token.
@@ -38,8 +38,8 @@ pub(crate) fn document(domain: &mut Ui, task: &Task, out: &mut Queue<Request>, l
         return;
     }
     match task.chip.executor {
-        Executor::Agent { .. } => {}
-        Executor::Procedure { .. } | Executor::Party { .. } | Executor::Role { .. } => return,
+        ChipExecutor::Agent { .. } => {}
+        ChipExecutor::Procedure { .. } | ChipExecutor::Party { .. } | ChipExecutor::Role { .. } => return,
     }
     domain.conversation.run_finished = match &task.context {
         Some(context) => match &context.runtime {
@@ -61,7 +61,7 @@ pub(crate) fn document(domain: &mut Ui, task: &Task, out: &mut Queue<Request>, l
             | Runtime::Ended => true,
         },
         None => {
-            let jig_client::contract::ChipPhase { phase, details } = task.chip.details.as_ref();
+            let jig_client::contract::ChipPhaseFacts { phase, details } = task.chip.details.as_ref();
             owner_finished(phase, details.hold.as_ref())
         }
     };
@@ -137,24 +137,21 @@ fn closing_finished(stage: Option<jig_client::contract::ClosingStage>) -> bool {
     }
 }
 // Only the supplied lifecycle and prior stages attest whether the live run finished.
-fn owner_finished(
-    phase: &jig_client::contract::OwnerChipPhase,
-    hold: Option<&jig_client::contract::OwnerChipHold>,
-) -> bool {
+fn owner_finished(phase: &jig_client::contract::ChipPhase, hold: Option<&jig_client::contract::ChipHold>) -> bool {
     match phase {
-        jig_client::contract::OwnerChipPhase::Active(stage) => active_finished(stage),
-        jig_client::contract::OwnerChipPhase::Closing(stage) => closing_finished(Some(*stage)),
-        jig_client::contract::OwnerChipPhase::Held { .. } => match hold {
+        jig_client::contract::ChipPhase::Active(stage) => active_finished(stage),
+        jig_client::contract::ChipPhase::Closing(stage) => closing_finished(Some(*stage)),
+        jig_client::contract::ChipPhase::Held { .. } => match hold {
             Some(hold) => match hold.before {
-                jig_client::contract::OwnerPriorPhase::Waiting => true,
-                jig_client::contract::OwnerPriorPhase::Active(stage) => active_finished(&stage),
-                jig_client::contract::OwnerPriorPhase::Closing(stage) => closing_finished(Some(stage)),
+                jig_client::contract::PriorPhase::Waiting => true,
+                jig_client::contract::PriorPhase::Active(stage) => active_finished(&stage),
+                jig_client::contract::PriorPhase::Closing(stage) => closing_finished(Some(stage)),
             },
             None => false,
         },
-        jig_client::contract::OwnerChipPhase::Waiting { .. }
-        | jig_client::contract::OwnerChipPhase::Person { .. }
-        | jig_client::contract::OwnerChipPhase::Ended => true,
+        jig_client::contract::ChipPhase::Waiting { .. }
+        | jig_client::contract::ChipPhase::Person { .. }
+        | jig_client::contract::ChipPhase::Ended => true,
     }
 }
 fn finish(domain: &mut Ui) {

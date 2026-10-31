@@ -55,7 +55,7 @@ fn refusals_keep_every_engine_fact_and_moved_reads_the_current_object_without_lo
     let refusals = [
         Refusal::Circle { tasks: names.clone(), cut: true },
         Refusal::Kept { pending: names },
-        Refusal::Dependency { dependency: 7, how: OwnerTaskStatus::Failed },
+        Refusal::Dependency { dependency: 7, how: TaskStatus::Failed },
         Refusal::Role { held: Some(HeldRole::Policy { role: 2 }) },
         Refusal::Role { held: None },
         Refusal::Taken { by: 71 },
@@ -157,7 +157,8 @@ fn retention_expiry_retires_once_keeps_unknown_distinct_and_inspection_never_res
     );
     assert!(domain.objects().get(id).unwrap().answer.is_none());
     assert!(
-        answered(&mut domain, request, Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 }))).is_empty()
+        answered(&mut domain, request, Answer::Done(Outcome::Document(DocumentOutcome::Released { task: 8 })))
+            .is_empty()
     );
     let rows = drive(&mut domain, Time::ZERO, Event::Act { action: Act::LookAgain { object: id.token() } });
     assert_eq!(rows.len(), 1);
@@ -215,7 +216,7 @@ fn full_requests_refuse_without_queueing_and_hidden_answers_and_unknowns_have_no
         if unknown {
             drive(&mut domain, Time::ZERO, Reported { request, progress: Progress::Unknown });
         } else {
-            answered(&mut domain, request, Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })));
+            answered(&mut domain, request, Answer::Done(Outcome::Document(DocumentOutcome::Released { task: 8 })));
         }
         let (notice, ()) = domain.notices().ids().iter().next().unwrap();
         let expected = if unknown {
@@ -223,7 +224,7 @@ fn full_requests_refuse_without_queueing_and_hidden_answers_and_unknowns_have_no
         } else {
             Kind::Answer {
                 object: ObjectKey::Task(8),
-                answer: Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })),
+                answer: Answer::Done(Outcome::Document(DocumentOutcome::Released { task: 8 })),
             }
         };
         assert_eq!(domain.notices().get(*notice).unwrap().kind, expected);
@@ -233,7 +234,7 @@ fn full_requests_refuse_without_queueing_and_hidden_answers_and_unknowns_have_no
 
 #[test]
 fn every_owner_outcome_remains_whole_on_its_original_card_after_duplicate_terminals() {
-    use OwnerOutcome as O;
+    use DocumentOutcome as O;
     let outcomes = [
         O::MarkedSeen { seen: SeenThrough::Results { through: 103 } },
         O::MarkedSeen { seen: SeenThrough::Conversation { task: 104, through: 105 } },
@@ -252,7 +253,7 @@ fn every_owner_outcome_remains_whole_on_its_original_card_after_duplicate_termin
             proposal: ProposalKey { proposer: Proposer::Party(118), number: 119 },
             by: 120,
             at: Wall::from_nanos(121),
-            choice: OwnerProposalChoice::Stale,
+            choice: ProposalChoice::Stale,
         },
         O::Said { task: 122, message: 123 },
         O::QuestionAnswered { task: 124, question: 125, message: 126 },
@@ -268,14 +269,14 @@ fn every_owner_outcome_remains_whole_on_its_original_card_after_duplicate_termin
             revision: Revision { value: 136 },
             by: 137,
             at: Wall::from_nanos(138),
-            choice: OwnerEscalationChoice::Passed,
+            choice: EscalationChoice::Passed,
         },
     ];
     for value in outcomes {
         let (mut domain, _) = live();
         let id = install(&mut domain, Body::Task(Box::new(task())));
         let request = send(&mut domain, ObjectKey::Task(8));
-        let answer = Answer::Done(Outcome::Owner(value));
+        let answer = Answer::Done(Outcome::Document(value));
         assert!(answered(&mut domain, request, answer.clone()).is_empty());
         assert_eq!(domain.objects().get(id).unwrap().card, Card::Open);
         assert_eq!(domain.objects().get(id).unwrap().answer.as_ref(), Some(&answer));

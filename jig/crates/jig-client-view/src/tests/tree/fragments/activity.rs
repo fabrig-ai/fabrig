@@ -20,10 +20,10 @@ fn fields() -> List<ResultField> {
         ],
     )
 }
-fn fixture(kind: OwnerMessageKind) -> OwnerWord {
-    OwnerWord {
+fn fixture(kind: MessageKind) -> Word {
+    Word {
         number: u64::MAX,
-        from: OwnerRequester::Person(u64::MAX),
+        from: Requester::Person(u64::MAX),
         kind,
         words: text(UTF8_TEXTS[0]),
         at: Wall::from_nanos(u64::MAX),
@@ -31,8 +31,8 @@ fn fixture(kind: OwnerMessageKind) -> OwnerWord {
         eligible: true,
     }
 }
-fn activity(line: OwnerActivity) -> OwnerActivityLine {
-    OwnerActivityLine { task: u64::MAX, position: u64::MAX, at: Wall::from_nanos(u64::MAX), line }
+fn activity(line: Activity) -> ActivityLine {
+    ActivityLine { task: u64::MAX, position: u64::MAX, at: Wall::from_nanos(u64::MAX), line }
 }
 fn client_limits() -> crate::tests::fixtures::Profile {
     crate::tests::fixtures::Profile {
@@ -43,7 +43,7 @@ fn client_limits() -> crate::tests::fixtures::Profile {
 fn phrase_limits() -> PhraseLimits {
     PhraseLimits {
         languages: 2,
-        phrases: crate::words::owner_words::phrase_count(),
+        phrases: crate::words::document_words::phrase_count(),
         holes: 4,
         segments: 8000,
         text_bytes: 150_000,
@@ -71,7 +71,7 @@ fn words(selected: bool) -> Words {
     )
 }
 
-fn build(value: &OwnerActivityLine, words: &Words) -> Tree {
+fn build(value: &ActivityLine, words: &Words) -> Tree {
     let f = crate::tests::render_limits(&client_limits(), words).unwrap();
     let limits = f;
 
@@ -81,7 +81,7 @@ fn build(value: &OwnerActivityLine, words: &Words) -> Tree {
     envelope(&tree, f);
     tree
 }
-fn build_word(value: &OwnerWord, words: &Words) -> Tree {
+fn build_word(value: &Word, words: &Words) -> Tree {
     let f = crate::tests::render_limits(&client_limits(), words).unwrap();
     let mut b = Builder::new(&f);
     view::word(&mut b, value, words);
@@ -107,54 +107,51 @@ fn envelope(tree: &Tree, f: Limits) {
     assert!(total <= u64::from(f.text_bytes));
 }
 
-fn kinds() -> Box<[OwnerMessageKind]> {
+fn kinds() -> Box<[MessageKind]> {
     Box::new([
-        OwnerMessageKind::Escalation { task: u64::MAX, revision: u64::MAX },
-        OwnerMessageKind::Proposal { proposer: u64::MAX, proposal: u64::MAX, kind: OwnerMessageProposalKind::Batch },
-        OwnerMessageKind::PersonStalled { task: u64::MAX },
-        OwnerMessageKind::ProposalDecision { proposal: u64::MAX, accepted: true },
-        OwnerMessageKind::SettingsDecision {
-            proposal: u64::MAX,
-            outcome: SettingsOutcome::Accepted { revision: u32::MAX },
-        },
-        OwnerMessageKind::SettingsDecision { proposal: u64::MAX, outcome: SettingsOutcome::Rejected },
-        OwnerMessageKind::SettingsDecision { proposal: u64::MAX, outcome: SettingsOutcome::Stale { newest: u32::MAX } },
-        OwnerMessageKind::QuestionAnswered { question: u64::MAX },
-        OwnerMessageKind::QuestionEnded { question: u64::MAX },
-        OwnerMessageKind::QuestionOwed,
-        OwnerMessageKind::Words,
-        OwnerMessageKind::Met { dependency: 7, removed: false },
-        OwnerMessageKind::EffectNotMade { entry: u64::MAX },
-        OwnerMessageKind::Amendment { revision: u64::MAX },
-        OwnerMessageKind::Question,
-        OwnerMessageKind::Answer { question: u64::MAX },
-        OwnerMessageKind::Notice { subscription: u64::MAX, target: u64::MAX, state: OwnerNoticeState::Held },
-        OwnerMessageKind::Timer { subscription: u64::MAX },
-        OwnerMessageKind::News { subscription: u64::MAX, class: OwnerNewsClass::Wakes },
-        OwnerMessageKind::Result(OwnerWordResult::Report),
+        MessageKind::Escalation { task: u64::MAX, revision: u64::MAX },
+        MessageKind::Proposal { proposer: u64::MAX, proposal: u64::MAX, kind: MessageProposalKind::Batch },
+        MessageKind::PersonStalled { task: u64::MAX },
+        MessageKind::ProposalDecision { proposal: u64::MAX, accepted: true },
+        MessageKind::SettingsDecision { proposal: u64::MAX, outcome: SettingsOutcome::Accepted { revision: u32::MAX } },
+        MessageKind::SettingsDecision { proposal: u64::MAX, outcome: SettingsOutcome::Rejected },
+        MessageKind::SettingsDecision { proposal: u64::MAX, outcome: SettingsOutcome::Stale { newest: u32::MAX } },
+        MessageKind::QuestionAnswered { question: u64::MAX },
+        MessageKind::QuestionEnded { question: u64::MAX },
+        MessageKind::QuestionOwed,
+        MessageKind::Words,
+        MessageKind::Met { dependency: 7, removed: false },
+        MessageKind::EffectNotMade { entry: u64::MAX },
+        MessageKind::Amendment { revision: u64::MAX },
+        MessageKind::Question,
+        MessageKind::Answer { question: u64::MAX },
+        MessageKind::Notice { subscription: u64::MAX, target: u64::MAX, state: NoticeState::Held },
+        MessageKind::Timer { subscription: u64::MAX },
+        MessageKind::News { subscription: u64::MAX, class: NewsClass::Wakes },
+        MessageKind::Result(WordResult::Report),
     ])
 }
 #[test]
 fn owner_activity_all_nine_lines_keep_task_commit_clock_and_exact_variant_facts() {
     let mut goldens = Goldens::new("tree/fragments/activity/owner_activity_all_nine");
-    let lines: Box<[OwnerActivity]> = Box::new([
-        OwnerActivity::Words {
+    let lines: Box<[Activity]> = Box::new([
+        Activity::Words {
             message: u64::MAX,
-            by: OwnerRequester::Task(u64::MAX),
-            kind: OwnerMessageKind::Words,
+            by: Requester::Task(u64::MAX),
+            kind: MessageKind::Words,
             words: text(UTF8_TEXTS[0]),
         },
-        OwnerActivity::Heard(fixture(OwnerMessageKind::Question)),
-        OwnerActivity::Notified {
-            recipient: OwnerRequester::Deployment { project: u32::MAX },
-            word: fixture(OwnerMessageKind::Words),
+        Activity::Heard(fixture(MessageKind::Question)),
+        Activity::Notified {
+            recipient: Requester::Deployment { project: u32::MAX },
+            word: fixture(MessageKind::Words),
         },
-        OwnerActivity::RunBegan { attempt: u64::MAX, why: OwnerRunWhy::Made, resumed: false },
-        OwnerActivity::RunEnded { attempt: u64::MAX, end: OwnerRunEnd::Refused, spent: u64::MAX },
-        OwnerActivity::Turn { reply: u64::MAX, attempt: u64::MAX, turn: u32::MAX, read: Some(u64::MAX) },
-        OwnerActivity::Decided { revision: u64::MAX },
-        OwnerActivity::Milestone { position: u64::MAX },
-        OwnerActivity::Kept { attempt: u64::MAX, pending: List::with_capacity(0), question: None },
+        Activity::RunBegan { attempt: u64::MAX, why: RunWhy::Made, resumed: false },
+        Activity::RunEnded { attempt: u64::MAX, end: RunEnd::Refused, spent: u64::MAX },
+        Activity::Turn { reply: u64::MAX, attempt: u64::MAX, turn: u32::MAX, read: Some(u64::MAX) },
+        Activity::Decided { revision: u64::MAX },
+        Activity::Milestone { position: u64::MAX },
+        Activity::Kept { attempt: u64::MAX, pending: List::with_capacity(0), question: None },
     ]);
     assert_eq!(lines.len(), 9);
     for line in lines {
@@ -187,23 +184,23 @@ fn owner_activity_all_message_kinds_keep_whole_word_hits_clock_and_flags() {
 #[test]
 fn owner_activity_equal_sender_numbers_keep_task_person_and_deployment_distinct() {
     let mut goldens = Goldens::new("tree/fragments/activity/owner_activity_equal");
-    let senders: Box<[OwnerRequester]> =
-        Box::new([OwnerRequester::Task(7), OwnerRequester::Person(7), OwnerRequester::Deployment { project: 7 }]);
+    let senders: Box<[Requester]> =
+        Box::new([Requester::Task(7), Requester::Person(7), Requester::Deployment { project: 7 }]);
     let mut retained = List::with_capacity(3);
     for from in senders {
-        let word = OwnerWord { from, ..fixture(OwnerMessageKind::Words) };
+        let word = Word { from, ..fixture(MessageKind::Words) };
         let tree = build_word(&word, normal_words());
         goldens.check(&tree);
         for previous in &retained {
             assert_ne!(&word, previous);
         }
-        let notified = activity(OwnerActivity::Notified { recipient: from, word: word.clone() });
+        let notified = activity(Activity::Notified { recipient: from, word: word.clone() });
         goldens.check(&build(&notified, normal_words()));
         retained.push(word).unwrap();
     }
     assert_eq!(retained.len(), 3);
     let tree = build_word(
-        &OwnerWord { from: OwnerRequester::Deployment { project: u32::MAX }, ..fixture(OwnerMessageKind::Words) },
+        &Word { from: Requester::Deployment { project: u32::MAX }, ..fixture(MessageKind::Words) },
         normal_words(),
     );
     goldens.check(&tree);
@@ -211,33 +208,31 @@ fn owner_activity_equal_sender_numbers_keep_task_person_and_deployment_distinct(
 #[test]
 fn owner_activity_closed_run_causes_and_ends_keep_all_six_failure_classes_and_counters() {
     let mut goldens = Goldens::new("tree/fragments/activity/owner_activity_closed");
-    let tries = OwnerFailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX };
-    let causes: Box<[OwnerRunWhy]> = Box::new([
-        OwnerRunWhy::Made,
-        OwnerRunWhy::Ready,
-        OwnerRunWhy::Message { message: u64::MAX },
-        OwnerRunWhy::Released,
-        OwnerRunWhy::Retry { tries },
-        OwnerRunWhy::Narrowed,
-        OwnerRunWhy::Changed,
+    let tries = FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX };
+    let causes: Box<[RunWhy]> = Box::new([
+        RunWhy::Made,
+        RunWhy::Ready,
+        RunWhy::Message { message: u64::MAX },
+        RunWhy::Released,
+        RunWhy::Retry { tries },
+        RunWhy::Narrowed,
+        RunWhy::Changed,
     ]);
     for why in causes {
         for resumed in [false, true] {
-            let value = activity(OwnerActivity::RunBegan { attempt: u64::MAX, why, resumed });
+            let value = activity(Activity::RunBegan { attempt: u64::MAX, why, resumed });
             let tree = build(&value, normal_words());
             goldens.check(&tree);
         }
     }
     let tree = build(
-        &activity(OwnerActivity::RunBegan { attempt: 9, why: OwnerRunWhy::Retry { tries }, resumed: true }),
+        &activity(Activity::RunBegan { attempt: 9, why: RunWhy::Retry { tries }, resumed: true }),
         normal_words(),
     );
     goldens.check(&tree);
-    let ends: Box<[OwnerRunEnd]> =
-        Box::new([OwnerRunEnd::Parked, OwnerRunEnd::Finished, OwnerRunEnd::Cancelled, OwnerRunEnd::Refused]);
+    let ends: Box<[RunEnd]> = Box::new([RunEnd::Parked, RunEnd::Finished, RunEnd::Cancelled, RunEnd::Refused]);
     for end in ends {
-        let tree =
-            build(&activity(OwnerActivity::RunEnded { attempt: u64::MAX, end, spent: u64::MAX }), normal_words());
+        let tree = build(&activity(Activity::RunEnded { attempt: u64::MAX, end, spent: u64::MAX }), normal_words());
         goldens.check(&tree);
     }
     assert_max_tries();
@@ -251,7 +246,7 @@ fn owner_activity_closed_run_causes_and_ends_keep_all_six_failure_classes_and_co
     ]);
     for class in classes {
         let tree = build(
-            &activity(OwnerActivity::RunEnded { attempt: 7, end: OwnerRunEnd::Failed { class }, spent: 0 }),
+            &activity(Activity::RunEnded { attempt: 7, end: RunEnd::Failed { class }, spent: 0 }),
             normal_words(),
         );
         goldens.check(&tree);
@@ -259,7 +254,7 @@ fn owner_activity_closed_run_causes_and_ends_keep_all_six_failure_classes_and_co
 }
 fn assert_max_tries() {
     let mut goldens = Goldens::new("tree/fragments/activity/assert_max_tries");
-    let tries = OwnerFailureTries {
+    let tries = FailureTries {
         transient: u32::MAX,
         permanent: u32::MAX,
         run: u32::MAX,
@@ -268,7 +263,7 @@ fn assert_max_tries() {
         invalid: u32::MAX,
     };
     let tree = build(
-        &activity(OwnerActivity::RunBegan { attempt: 0, why: OwnerRunWhy::Retry { tries }, resumed: false }),
+        &activity(Activity::RunBegan { attempt: 0, why: RunWhy::Retry { tries }, resumed: false }),
         normal_words(),
     );
     goldens.check(&tree);
@@ -278,7 +273,7 @@ fn owner_activity_archive_read_none_zero_and_max_are_distinct_without_decoding_o
     let mut goldens = Goldens::new("tree/fragments/activity/owner_activity_archive");
     let mut retained = List::with_capacity(3);
     for read in [None, Some(0), Some(u64::MAX)] {
-        let value = activity(OwnerActivity::Turn { reply: u64::MAX, attempt: u64::MAX, turn: u32::MAX, read });
+        let value = activity(Activity::Turn { reply: u64::MAX, attempt: u64::MAX, turn: u32::MAX, read });
         let tree = build(&value, normal_words());
         goldens.check(&tree);
         for previous in &retained {
@@ -286,12 +281,8 @@ fn owner_activity_archive_read_none_zero_and_max_are_distinct_without_decoding_o
         }
         retained.push(value).unwrap();
     }
-    let first = OwnerActivityLine {
-        position: 9,
-        at: Wall::from_nanos(100),
-        ..activity(OwnerActivity::Decided { revision: 3 })
-    };
-    let later = OwnerActivityLine { position: 10, at: Wall::from_nanos(0), ..first.clone() };
+    let first = ActivityLine { position: 9, at: Wall::from_nanos(100), ..activity(Activity::Decided { revision: 3 }) };
+    let later = ActivityLine { position: 10, at: Wall::from_nanos(0), ..first.clone() };
     goldens.check(&build(&first, normal_words()));
     goldens.check(&build(&later, normal_words()));
     assert_eq!(first.position, 9);
@@ -300,13 +291,13 @@ fn owner_activity_archive_read_none_zero_and_max_are_distinct_without_decoding_o
 }
 fn assert_time_presentation() {
     let mut goldens = Goldens::new("tree/fragments/activity/assert_time_presentation");
-    let value = OwnerWord { at: Wall::from_nanos(123), ..fixture(OwnerMessageKind::Words) };
+    let value = Word { at: Wall::from_nanos(123), ..fixture(MessageKind::Words) };
     let presentations: Box<[i32]> = Box::new([1_i32, 0_i32, -1_i32]);
     for offset in presentations {
         let mut words = normal_words().clone();
         words.set_offset_minutes(offset);
         goldens.check(&build_word(&value, &words));
-        let line = OwnerActivityLine { at: value.at, ..activity(OwnerActivity::Heard(value.clone())) };
+        let line = ActivityLine { at: value.at, ..activity(Activity::Heard(value.clone())) };
         goldens.check(&build(&line, &words));
         assert_eq!(value.at.as_nanos(), 123);
     }
@@ -314,20 +305,20 @@ fn assert_time_presentation() {
 #[test]
 fn owner_activity_all_six_result_metadata_keep_approved_presence_opaque_fields_and_change_identity() {
     let mut goldens = Goldens::new("tree/fragments/activity/owner_activity_all_six");
-    let variants: Box<[OwnerWordResult]> = Box::new([
-        OwnerWordResult::Approved { state: text(UTF8_TEXTS[1]), words_present: true },
-        OwnerWordResult::Report,
-        OwnerWordResult::Verdict { code: u32::MAX, fields: fields() },
-        OwnerWordResult::Change { connector: u16::MAX, kind: u16::MAX, resource: u64::MAX },
-        OwnerWordResult::Failed,
-        OwnerWordResult::Cancelled,
+    let variants: Box<[WordResult]> = Box::new([
+        WordResult::Approved { state: text(UTF8_TEXTS[1]), words_present: true },
+        WordResult::Report,
+        WordResult::Verdict { code: u32::MAX, fields: fields() },
+        WordResult::Change { connector: u16::MAX, kind: u16::MAX, resource: u64::MAX },
+        WordResult::Failed,
+        WordResult::Cancelled,
     ]);
     for result in variants {
-        let tree = build_word(&fixture(OwnerMessageKind::Result(result)), normal_words());
+        let tree = build_word(&fixture(MessageKind::Result(result)), normal_words());
         goldens.check(&tree);
     }
     let tree = build_word(
-        &fixture(OwnerMessageKind::Result(OwnerWordResult::Verdict { code: u32::MAX, fields: fields() })),
+        &fixture(MessageKind::Result(WordResult::Verdict { code: u32::MAX, fields: fields() })),
         normal_words(),
     );
     goldens.check(&tree);
@@ -340,19 +331,15 @@ fn owner_activity_all_six_result_metadata_keep_approved_presence_opaque_fields_a
         .collect();
     assert_eq!(codes.as_ref(), [b"\\xFF\\x00".as_slice(), b"opaque", b"a/b", b"\\xFE\\x01", UTF8_TEXTS[0]].as_slice());
     let tree = build_word(
-        &fixture(OwnerMessageKind::Result(OwnerWordResult::Change {
-            connector: u16::MAX,
-            kind: u16::MAX,
-            resource: u64::MAX,
-        })),
+        &fixture(MessageKind::Result(WordResult::Change { connector: u16::MAX, kind: u16::MAX, resource: u64::MAX })),
         normal_words(),
     );
     goldens.check(&tree);
     for present in [false, true] {
-        let word = OwnerWord {
-            kind: OwnerMessageKind::Result(OwnerWordResult::Approved { state: text(b""), words_present: present }),
+        let word = Word {
+            kind: MessageKind::Result(WordResult::Approved { state: text(b""), words_present: present }),
             words: text(b""),
-            ..fixture(OwnerMessageKind::Words)
+            ..fixture(MessageKind::Words)
         };
         goldens.check(&build_word(&word, normal_words()));
     }
@@ -360,40 +347,34 @@ fn owner_activity_all_six_result_metadata_keep_approved_presence_opaque_fields_a
 #[test]
 fn owner_activity_nested_message_proposal_notice_news_and_decision_values_remain_closed() {
     let mut goldens = Goldens::new("tree/fragments/activity/owner_activity_nested");
-    let proposals: Box<[OwnerMessageProposalKind]> = Box::new([
-        OwnerMessageProposalKind::Batch,
-        OwnerMessageProposalKind::Effect,
-        OwnerMessageProposalKind::Amend,
-        OwnerMessageProposalKind::Widen,
-        OwnerMessageProposalKind::Release,
+    let proposals: Box<[MessageProposalKind]> = Box::new([
+        MessageProposalKind::Batch,
+        MessageProposalKind::Effect,
+        MessageProposalKind::Amend,
+        MessageProposalKind::Widen,
+        MessageProposalKind::Release,
     ]);
     for kind in proposals {
         let tree =
-            build_word(&fixture(OwnerMessageKind::Proposal { proposer: u64::MAX, proposal: 7, kind }), normal_words());
+            build_word(&fixture(MessageKind::Proposal { proposer: u64::MAX, proposal: 7, kind }), normal_words());
         goldens.check(&tree);
     }
-    let states: Box<[OwnerNoticeState]> = Box::new([
-        OwnerNoticeState::Held,
-        OwnerNoticeState::Done,
-        OwnerNoticeState::Failed,
-        OwnerNoticeState::Cancelled,
-    ]);
+    let states: Box<[NoticeState]> =
+        Box::new([NoticeState::Held, NoticeState::Done, NoticeState::Failed, NoticeState::Cancelled]);
     for state in states {
         let tree = build_word(
-            &fixture(OwnerMessageKind::Notice { subscription: u64::MAX, target: u64::MAX, state }),
+            &fixture(MessageKind::Notice { subscription: u64::MAX, target: u64::MAX, state }),
             normal_words(),
         );
         goldens.check(&tree);
     }
-    let classes: Box<[OwnerNewsClass]> =
-        Box::new([OwnerNewsClass::Wakes, OwnerNewsClass::Kept, OwnerNewsClass::Dropped]);
+    let classes: Box<[NewsClass]> = Box::new([NewsClass::Wakes, NewsClass::Kept, NewsClass::Dropped]);
     for class in classes {
-        let tree = build_word(&fixture(OwnerMessageKind::News { subscription: 8, class }), normal_words());
+        let tree = build_word(&fixture(MessageKind::News { subscription: 8, class }), normal_words());
         goldens.check(&tree);
     }
     for accepted in [false, true] {
-        let tree =
-            build_word(&fixture(OwnerMessageKind::ProposalDecision { proposal: u64::MAX, accepted }), normal_words());
+        let tree = build_word(&fixture(MessageKind::ProposalDecision { proposal: u64::MAX, accepted }), normal_words());
         goldens.check(&tree);
     }
 }
@@ -401,18 +382,16 @@ fn owner_activity_nested_message_proposal_notice_news_and_decision_values_remain
 fn owner_activity_selected_normal_language_and_full_opaque_tree_envelope_refuse_whole_excess() {
     let mut goldens = Goldens::new("tree/fragments/activity/owner_activity_selected");
     let selected = words(true);
-    let mut word = fixture(OwnerMessageKind::Words);
-    word.kind = OwnerMessageKind::Result(OwnerWordResult::Verdict { code: u32::MAX, fields: List::with_capacity(3) });
-    if let OwnerMessageKind::Result(OwnerWordResult::Verdict { fields, .. }) = &mut word.kind {
+    let mut word = fixture(MessageKind::Words);
+    word.kind = MessageKind::Result(WordResult::Verdict { code: u32::MAX, fields: List::with_capacity(3) });
+    if let MessageKind::Result(WordResult::Verdict { fields, .. }) = &mut word.kind {
         for _ in 0_u32..3 {
             fields.push(ResultField { name: copy_of(&[254; 8]), value: copy_of(&[253; 8]) }).unwrap();
         }
     }
     word.words = text(UTF8_TEXTS[2]);
-    let value = activity(OwnerActivity::Notified {
-        recipient: OwnerRequester::Deployment { project: u32::MAX },
-        word: word.clone(),
-    });
+    let value =
+        activity(Activity::Notified { recipient: Requester::Deployment { project: u32::MAX }, word: word.clone() });
     let tree = build(&value, &selected);
     goldens.check(&tree);
     let cloned = selected.clone();
@@ -452,13 +431,11 @@ const UTF8_TEXTS: [&[u8]; 3] = [b"~\0", b"!\0", &[b'~'; 8]];
 fn a_kept_run_is_parked_and_met_names_the_ended_or_removed_dependency() {
     let mut goldens = Goldens::new("tree/fragments/activity/a_kept_run");
     let pending = crate::tests::kit::list([7, 8]);
-    let tree = build(&activity(OwnerActivity::Kept { attempt: 3, pending, question: None }), normal_words());
+    let tree = build(&activity(Activity::Kept { attempt: 3, pending, question: None }), normal_words());
     goldens.check(&tree);
     for removed in [false, true] {
-        let tree = build(
-            &activity(OwnerActivity::Heard(fixture(OwnerMessageKind::Met { dependency: 7, removed }))),
-            normal_words(),
-        );
+        let tree =
+            build(&activity(Activity::Heard(fixture(MessageKind::Met { dependency: 7, removed }))), normal_words());
         goldens.check(&tree);
     }
 }
@@ -470,8 +447,8 @@ fn dependency_refusals_name_the_circle_the_ending_and_the_kept_answer() {
     for refusal in [
         Refusal::Circle { tasks: pending.clone(), cut: true },
         Refusal::Kept { pending },
-        Refusal::Dependency { dependency: 7, how: OwnerTaskStatus::Failed },
-        Refusal::Dependency { dependency: 5, how: OwnerTaskStatus::Cancelled },
+        Refusal::Dependency { dependency: 7, how: TaskStatus::Failed },
+        Refusal::Dependency { dependency: 5, how: TaskStatus::Cancelled },
     ] {
         let f = crate::tests::render_limits(&client_limits(), normal_words()).unwrap();
         let mut b = Builder::new(&f);
@@ -484,7 +461,7 @@ fn dependency_refusals_name_the_circle_the_ending_and_the_kept_answer() {
 fn a_kept_activity_names_its_question_as_a_question() {
     let mut goldens = Goldens::new("tree/fragments/activity/a_kept_activity");
     let tree = build(
-        &activity(OwnerActivity::Kept { attempt: 3, pending: List::with_capacity(0), question: Some(12) }),
+        &activity(Activity::Kept { attempt: 3, pending: List::with_capacity(0), question: Some(12) }),
         normal_words(),
     );
     goldens.check(&tree);

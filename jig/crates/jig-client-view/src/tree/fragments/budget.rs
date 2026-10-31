@@ -7,7 +7,7 @@ use crate::words::budget_words::BudgetPhrase;
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
-use jig_client::contract::{OwnerBudget, OwnerNumbers, PoolLedger};
+use jig_client::contract::{Budget, Numbers, PoolLedger};
 use skein_lib::Wall;
 
 /// Maximum whole budget region: five numbers, the funder and an optional deadline.
@@ -24,7 +24,7 @@ fn text(b: &mut Builder, words: &Words, phrase: BudgetPhrase, holes: &[Hole]) {
         .text;
     b.text(Run::Plain, &text);
 }
-fn numbers(b: &mut Builder, value: &OwnerNumbers, left: u64, words: &Words) {
+fn numbers(b: &mut Builder, value: &Numbers, left: u64, words: &Words) {
     text(b, words, BudgetPhrase::Budget, &[Hole::Amount(value.budget)]);
     text(b, words, BudgetPhrase::Spent, &[Hole::Amount(value.spent)]);
     text(b, words, BudgetPhrase::SpentBelow, &[Hole::Amount(value.spent_below)]);
@@ -36,7 +36,7 @@ fn time(b: &mut Builder, words: &Words, phrase: BudgetPhrase, at: Wall) {
 }
 
 /// Render one exact budget with the caller's normal selected Words.
-pub fn render(b: &mut Builder, value: &OwnerBudget, words: &Words) {
+pub fn render(b: &mut Builder, value: &Budget, words: &Words) {
     b.open(Role::Region);
     let label = words
         .book()

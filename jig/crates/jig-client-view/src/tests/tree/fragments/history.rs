@@ -13,16 +13,16 @@ use skein_lib::{Duration, List, Wall, bytes::copy_of};
 fn doc(bytes: &[u8], cut: bool) -> DocumentText {
     DocumentText { bytes: Text::new(copy_of(bytes), 8).unwrap(), cut }
 }
-fn pattern(last: OwnerPatternEnd, capacity: u32) -> OwnerPattern {
+fn pattern(last: PatternEnd, capacity: u32) -> Pattern {
     let mut segments = List::with_capacity(capacity);
     if capacity != 0 {
         for bytes in [b"a/b".as_slice(), &[255, 0], b""] {
             segments.push(copy_of(bytes)).unwrap();
         }
     }
-    OwnerPattern { segments, last }
+    Pattern { segments, last }
 }
-pub(in crate::tests) fn state() -> OwnerAmendmentState {
+pub(in crate::tests) fn state() -> AmendmentState {
     let parameters = crate::tests::kit::list([
         ParameterDocument::Number { name: u32::MAX, value: u64::MAX },
         ParameterDocument::Bytes { name: 1, value: doc(b"bytes", false) },
@@ -31,26 +31,22 @@ pub(in crate::tests) fn state() -> OwnerAmendmentState {
     let inputs = crate::tests::kit::list_in(3, [9, u64::MAX]);
     let grants = crate::tests::kit::list_in(
         3,
-        [OwnerGrant {
-            connector: u16::MAX,
-            kind: u16::MAX,
-            pattern: pattern(OwnerPatternEnd::Exact(copy_of(b"tail")), 3),
-        }],
+        [Grant { connector: u16::MAX, kind: u16::MAX, pattern: pattern(PatternEnd::Exact(copy_of(b"tail")), 3) }],
     );
     let mut kinds = List::with_capacity(3);
     for kind in [
-        OwnerAuthorityExecutor::Charter(u32::MAX),
-        OwnerAuthorityExecutor::Procedure(u32::MAX),
-        OwnerAuthorityExecutor::Role(u32::MAX),
+        AuthorityExecutor::Charter(u32::MAX),
+        AuthorityExecutor::Procedure(u32::MAX),
+        AuthorityExecutor::Role(u32::MAX),
     ] {
         kinds.push(kind).unwrap();
     }
     let resources = crate::tests::kit::list_in(
         3,
-        [OwnerResourceScope { connector: 7, pattern: pattern(OwnerPatternEnd::Open(copy_of(b"*")), 0) }],
+        [ResourceScope { connector: 7, pattern: pattern(PatternEnd::Open(copy_of(b"*")), 0) }],
     );
     let dependencies = crate::tests::kit::list_in(3, [u64::MAX, 7]);
-    OwnerAmendmentState {
+    AmendmentState {
         addressed: Some(PersonAddress::Party(u64::MAX)),
         taken_by: Some(u64::MAX),
         instructions: Some(doc(b"stored", false)),
@@ -58,12 +54,12 @@ pub(in crate::tests) fn state() -> OwnerAmendmentState {
             specification: DocumentSpecification { asks: false, words: doc(b"spec", false), parameters, inputs },
             cut: false,
         },
-        authority: OwnerAuthorityDocument {
-            authority: OwnerAuthority {
+        authority: AuthorityDocument {
+            authority: Authority {
                 models: None,
                 tools: u64::MAX,
                 grants,
-                delegation: OwnerDelegation { kinds, tasks: u32::MAX, depth: u32::MAX },
+                delegation: Delegation { kinds, tasks: u32::MAX, depth: u32::MAX },
                 spend: u64::MAX,
                 deadline: Some(Wall::from_nanos(u64::MAX)),
                 notes: u8::MAX,
@@ -71,7 +67,7 @@ pub(in crate::tests) fn state() -> OwnerAmendmentState {
             },
             cut: false,
         },
-        wake: OwnerWakePolicy {
+        wake: WakePolicy {
             words: WakeRule::Never,
             notices: WakeRule::Immediate,
             news: WakeRule::Batch { count: u32::MAX, age: Duration::from_nanos(u64::MAX) },
@@ -84,9 +80,9 @@ pub(in crate::tests) fn state() -> OwnerAmendmentState {
         cut: false,
     }
 }
-fn delta() -> OwnerRetainedAmendment {
+fn delta() -> RetainedAmendment {
     let source = state();
-    OwnerRetainedAmendment {
+    RetainedAmendment {
         addressed: Some(AddressChange { revision: Revision { value: 12 }, address: PersonAddress::Party(u64::MAX) }),
         instructions: Some(doc(b"", false)),
         release: Some(4),
@@ -98,12 +94,12 @@ fn delta() -> OwnerRetainedAmendment {
         cut: false,
     }
 }
-pub(in crate::tests) fn part() -> OwnerPart {
+pub(in crate::tests) fn part() -> Part {
     let mut segments = List::with_capacity(3);
     for bytes in [b"a/b".as_slice(), &[255, 0], b""] {
         segments.push(copy_of(bytes)).unwrap();
     }
-    OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Effect, key: OwnerPartKey::Path(segments) }
+    Part { connector: u16::MAX, kind: PartKind::Effect, key: PartKey::Path(segments) }
 }
 pub(in crate::tests) fn task() -> ProposedTask {
     let source = state();
@@ -112,7 +108,7 @@ pub(in crate::tests) fn task() -> ProposedTask {
         deadline: NewDeadline::Named,
         number: u64::MAX,
         spec: source.spec,
-        executor: OwnerExecutor::Procedure { connector: u16::MAX, code: u32::MAX },
+        executor: Executor::Procedure { connector: u16::MAX, code: u32::MAX },
         contract: TaskContractDocument::Approval { state: copy_of(&[255; 8]), part: part() },
         authority: source.authority,
         budget: u64::MAX,
@@ -124,14 +120,14 @@ pub(in crate::tests) fn task() -> ProposedTask {
         cut: false,
     }
 }
-fn actions() -> [OwnerRetainedAction; 5] {
+fn actions() -> [RetainedAction; 5] {
     let mut batch = List::with_capacity(3);
     for _ in 0_u32..3 {
         batch.push(task()).unwrap();
     }
     [
-        OwnerRetainedAction::Batch(batch),
-        OwnerRetainedAction::Effect {
+        RetainedAction::Batch(batch),
+        RetainedAction::Effect {
             part: part(),
             authority: state().authority,
             attempt: u64::MAX,
@@ -139,29 +135,26 @@ fn actions() -> [OwnerRetainedAction; 5] {
             position: u32::MAX,
             purpose: u64::MAX,
         },
-        OwnerRetainedAction::Amend { task: u64::MAX, change: Box::new(delta()) },
-        OwnerRetainedAction::Widen { task: u64::MAX, authority: state().authority },
-        OwnerRetainedAction::Release { task: u64::MAX },
+        RetainedAction::Amend { task: u64::MAX, change: Box::new(delta()) },
+        RetainedAction::Widen { task: u64::MAX, authority: state().authority },
+        RetainedAction::Release { task: u64::MAX },
     ]
 }
-pub(in crate::tests) fn proposal(action: OwnerRetainedAction) -> OwnerProposalHistory {
-    OwnerProposalHistory {
+pub(in crate::tests) fn proposal(action: RetainedAction) -> ProposalHistory {
+    ProposalHistory {
         action,
         number: u64::MAX,
         proposer: u64::MAX,
         as_holder: true,
-        state: OwnerProposalHistoryState::Pending {
-            holder: OwnerHistoryHolder::Task(u64::MAX),
-            since: Wall::from_nanos(7),
-        },
+        state: ProposalHistoryState::Pending { holder: HistoryHolder::Task(u64::MAX), since: Wall::from_nanos(7) },
     }
 }
-pub(in crate::tests) fn line() -> OwnerHistoryLine {
-    OwnerHistoryLine {
+pub(in crate::tests) fn line() -> HistoryLine {
+    HistoryLine {
         task: u64::MAX,
         revision: 6,
-        by: OwnerRequester::Person(u64::MAX),
-        change: OwnerHistoryChange::Amended,
+        by: Requester::Person(u64::MAX),
+        change: HistoryChange::Amended,
         reason: doc(b"reason", false),
         proposal: None,
         amendment: None,
@@ -190,7 +183,7 @@ pub(in crate::tests) fn words(selected: bool) -> Words {
             languages,
             &PhraseLimits {
                 languages: 2,
-                phrases: crate::words::owner_words::phrase_count(),
+                phrases: crate::words::document_words::phrase_count(),
                 holes: 4,
                 segments: 9000,
                 text_bytes: 200_000,
@@ -206,7 +199,7 @@ fn normal_words() -> &'static Words {
     static WORDS: std::sync::OnceLock<Words> = std::sync::OnceLock::new();
     WORDS.get_or_init(|| words(false))
 }
-fn build(value: &OwnerHistoryLine, words: &Words) -> (Tree, JigBindings) {
+fn build(value: &HistoryLine, words: &Words) -> (Tree, JigBindings) {
     let f = crate::tests::render_limits(&client_limits(), words).unwrap();
     let limits = Limits {
         nodes: f.nodes,
@@ -252,19 +245,19 @@ fn build(value: &OwnerHistoryLine, words: &Words) -> (Tree, JigBindings) {
 fn owner_history_all_nine_changes_keep_category_collisions_full_width_identity_and_optional_clock() {
     let mut goldens = Goldens::new("tree/fragments/history/owner_history_all_nine");
     let changes = [
-        OwnerHistoryChange::Cancelled,
-        OwnerHistoryChange::Released,
-        OwnerHistoryChange::Amended,
-        OwnerHistoryChange::Moved,
-        OwnerHistoryChange::Proposed,
-        OwnerHistoryChange::ProposalPassed,
-        OwnerHistoryChange::ProposalAccepted,
-        OwnerHistoryChange::ProposalRejected,
-        OwnerHistoryChange::ProposalWithdrawn,
+        HistoryChange::Cancelled,
+        HistoryChange::Released,
+        HistoryChange::Amended,
+        HistoryChange::Moved,
+        HistoryChange::Proposed,
+        HistoryChange::ProposalPassed,
+        HistoryChange::ProposalAccepted,
+        HistoryChange::ProposalRejected,
+        HistoryChange::ProposalWithdrawn,
     ];
     let words = normal_words();
     for (index, change) in changes.into_iter().enumerate() {
-        let value = OwnerHistoryLine {
+        let value = HistoryLine {
             change,
             revision: u64::MAX,
             at: (index % 2 == 0).then_some(Wall::from_nanos(u64::MAX)),
@@ -275,14 +268,14 @@ fn owner_history_all_nine_changes_keep_category_collisions_full_width_identity_a
     }
     let mut trees: List<Tree> = List::with_capacity(6);
     for by in [
-        OwnerRequester::Task(0),
-        OwnerRequester::Person(0),
-        OwnerRequester::Deployment { project: 0 },
-        OwnerRequester::Task(u64::MAX),
-        OwnerRequester::Person(u64::MAX),
-        OwnerRequester::Deployment { project: u32::MAX },
+        Requester::Task(0),
+        Requester::Person(0),
+        Requester::Deployment { project: 0 },
+        Requester::Task(u64::MAX),
+        Requester::Person(u64::MAX),
+        Requester::Deployment { project: u32::MAX },
     ] {
-        let (tree, _) = build(&OwnerHistoryLine { by, task: 0, revision: 0, ..line() }, words);
+        let (tree, _) = build(&HistoryLine { by, task: 0, revision: 0, ..line() }, words);
         for other in &trees {
             assert_ne!(tree.nodes(), other.nodes());
         }
@@ -290,15 +283,15 @@ fn owner_history_all_nine_changes_keep_category_collisions_full_width_identity_a
     }
 }
 #[test]
-fn owner_history_stored_snapshot_none_empty_bytes_and_loss_never_invent_historical_effective_text() {
+fn owner_history_stored_snapshot_none_empty_bytes_and_loss_never_invent_ended_effective_text() {
     let mut goldens = Goldens::new("tree/fragments/history/owner_history_stored");
     let words = normal_words();
     for instructions in
         [None, Some(doc(b"", false)), Some(doc(b"stored", false)), Some(doc(b"", true)), Some(doc(b"stored", true))]
     {
-        let before = OwnerAmendmentState { instructions, ..state() };
-        let after = OwnerAmendmentState { instructions: None, ..state() };
-        let value = OwnerHistoryLine { amendment: Some((Box::new(before), Box::new(after))), ..line() };
+        let before = AmendmentState { instructions, ..state() };
+        let after = AmendmentState { instructions: None, ..state() };
+        let value = HistoryLine { amendment: Some((Box::new(before), Box::new(after))), ..line() };
         let (tree, _) = build(&value, words);
         goldens.check(&tree);
     }
@@ -311,7 +304,7 @@ fn owner_history_all_retained_actions_keep_whole_batches_raw_effect_coordinates_
     let words = normal_words();
     for (index, action) in actions().into_iter().enumerate() {
         let original = action.clone();
-        let value = OwnerHistoryLine { proposal: Some(proposal(action)), ..line() };
+        let value = HistoryLine { proposal: Some(proposal(action)), ..line() };
         let (tree, bindings) = build(&value, words);
         assert_eq!(value.proposal.as_ref().unwrap().action, original);
         let slots = tree.nodes().iter().filter_map(|n| n.slot).count();
@@ -345,14 +338,14 @@ fn owner_history_retained_optional_delta_keeps_revision_channels_empty_presence_
             5 => delta.cut = true,
             _ => unreachable!(),
         }
-        let value = OwnerHistoryLine {
-            proposal: Some(proposal(OwnerRetainedAction::Amend { task: u64::MAX, change: Box::new(delta) })),
+        let value = HistoryLine {
+            proposal: Some(proposal(RetainedAction::Amend { task: u64::MAX, change: Box::new(delta) })),
             ..line()
         };
         let (tree, _) = build(&value, words);
         goldens.check(&tree);
     }
-    let absent = OwnerRetainedAmendment {
+    let absent = RetainedAmendment {
         addressed: None,
         instructions: None,
         release: None,
@@ -363,15 +356,15 @@ fn owner_history_retained_optional_delta_keeps_revision_channels_empty_presence_
         reason: doc(b"", false),
         cut: false,
     };
-    let empty = OwnerRetainedAmendment {
+    let empty = RetainedAmendment {
         instructions: Some(doc(b"", false)),
         dependencies: Some(List::with_capacity(3)),
         ..absent.clone()
     };
     for delta in [absent, empty] {
         let (tree, _) = build(
-            &OwnerHistoryLine {
-                proposal: Some(proposal(OwnerRetainedAction::Amend { task: 0, change: Box::new(delta) })),
+            &HistoryLine {
+                proposal: Some(proposal(RetainedAction::Amend { task: 0, change: Box::new(delta) })),
                 ..line()
             },
             words,
@@ -383,25 +376,25 @@ fn owner_history_retained_optional_delta_keeps_revision_channels_empty_presence_
 fn owner_history_all_states_holders_policy_kinds_raw_proposer_and_pending_clock_remain_independent() {
     let mut goldens = Goldens::new("tree/fragments/history/owner_history_all_states");
     let words = normal_words();
-    let mut holders = crate::tests::kit::list_in(7, [OwnerHistoryHolder::Task(0), OwnerHistoryHolder::Person(0)]);
+    let mut holders = crate::tests::kit::list_in(7, [HistoryHolder::Task(0), HistoryHolder::Person(0)]);
     for kind in [
-        OwnerMessageProposalKind::Batch,
-        OwnerMessageProposalKind::Effect,
-        OwnerMessageProposalKind::Amend,
-        OwnerMessageProposalKind::Widen,
-        OwnerMessageProposalKind::Release,
+        MessageProposalKind::Batch,
+        MessageProposalKind::Effect,
+        MessageProposalKind::Amend,
+        MessageProposalKind::Widen,
+        MessageProposalKind::Release,
     ] {
-        holders.push(OwnerHistoryHolder::Policy { project: u32::MAX, kind }).unwrap();
+        holders.push(HistoryHolder::Policy { project: u32::MAX, kind }).unwrap();
     }
     for holder in &holders {
         for as_holder in [false, true] {
-            let state = OwnerProposalHistoryState::Pending { holder: *holder, since: Wall::from_nanos(u64::MAX) };
-            let value = OwnerHistoryLine {
-                proposal: Some(OwnerProposalHistory {
+            let state = ProposalHistoryState::Pending { holder: *holder, since: Wall::from_nanos(u64::MAX) };
+            let value = HistoryLine {
+                proposal: Some(ProposalHistory {
                     state,
                     proposer: 0,
                     as_holder,
-                    ..proposal(OwnerRetainedAction::Release { task: 0 })
+                    ..proposal(RetainedAction::Release { task: 0 })
                 }),
                 at: None,
                 ..line()
@@ -411,16 +404,16 @@ fn owner_history_all_states_holders_policy_kinds_raw_proposer_and_pending_clock_
         }
     }
     for state in [
-        OwnerProposalHistoryState::Accepted { by: OwnerRequester::Task(0) },
-        OwnerProposalHistoryState::Accepted { by: OwnerRequester::Person(0) },
-        OwnerProposalHistoryState::Rejected {
-            by: OwnerRequester::Deployment { project: u32::MAX },
+        ProposalHistoryState::Accepted { by: Requester::Task(0) },
+        ProposalHistoryState::Accepted { by: Requester::Person(0) },
+        ProposalHistoryState::Rejected {
+            by: Requester::Deployment { project: u32::MAX },
             reason: doc(b"denied", true),
         },
-        OwnerProposalHistoryState::Withdrawn,
+        ProposalHistoryState::Withdrawn,
     ] {
-        let value = OwnerHistoryLine {
-            proposal: Some(OwnerProposalHistory { state, ..proposal(OwnerRetainedAction::Release { task: 0 }) }),
+        let value = HistoryLine {
+            proposal: Some(ProposalHistory { state, ..proposal(RetainedAction::Release { task: 0 }) }),
             ..line()
         };
         let (tree, _) = build(&value, words);
@@ -454,7 +447,7 @@ fn owner_history_normal_selected_language_checks_all_holes_and_nested_tree_bindi
         );
     }
     for action in actions() {
-        let value = OwnerHistoryLine {
+        let value = HistoryLine {
             proposal: Some(proposal(action)),
             amendment: Some((Box::new(state()), Box::new(state()))),
             ..line()
@@ -467,7 +460,7 @@ fn owner_history_normal_selected_language_checks_all_holes_and_nested_tree_bindi
     }
 }
 
-fn full_state() -> OwnerAmendmentState {
+fn full_state() -> AmendmentState {
     let mut value = state();
     value.instructions = Some(doc(UTF8_TEXTS[0], true));
     value.spec.specification.words = doc(b"**x** y!", true);
@@ -490,14 +483,14 @@ fn full_state() -> OwnerAmendmentState {
         for _ in 0_u32..3 {
             segments.push(copy_of(&[255; 8])).unwrap();
         }
-        let pattern = OwnerPattern { segments, last: OwnerPatternEnd::Open(copy_of(&[253; 8])) };
+        let pattern = Pattern { segments, last: PatternEnd::Open(copy_of(&[253; 8])) };
         value
             .authority
             .authority
             .grants
-            .push(OwnerGrant { connector: u16::MAX, kind: u16::MAX, pattern: pattern.clone() })
+            .push(Grant { connector: u16::MAX, kind: u16::MAX, pattern: pattern.clone() })
             .unwrap();
-        value.authority.authority.note_resources.push(OwnerResourceScope { connector: u16::MAX, pattern }).unwrap();
+        value.authority.authority.note_resources.push(ResourceScope { connector: u16::MAX, pattern }).unwrap();
     }
     value.authority.cut = true;
     value.cut = true;
@@ -519,9 +512,9 @@ fn owner_history_full_row_and_byte_nested_batch_hits_exact_raw_slot_capacity_wit
         }
         batch.push(value).unwrap();
     }
-    let value = OwnerHistoryLine {
+    let value = HistoryLine {
         reason: doc(UTF8_TEXTS[0], true),
-        proposal: Some(proposal(OwnerRetainedAction::Batch(batch))),
+        proposal: Some(proposal(RetainedAction::Batch(batch))),
         amendment: Some((Box::new(source.clone()), Box::new(source))),
         ..line()
     };
@@ -564,7 +557,7 @@ fn owner_history_composed_normal_book_prices_every_entry_segment_literal_and_che
         }
     }
     std::io::stderr().write_fmt(format_args!("whole normal History book: entries={entries}, segments={segments}, literal_bytes={literals}, holes={holes}, languages=1, hole_bytes=8\n")).unwrap();
-    assert_eq!(entries, crate::words::owner_words::phrase_count());
+    assert_eq!(entries, crate::words::document_words::phrase_count());
     assert_eq!(entries, u32::try_from(shapes.len()).unwrap());
     let limits = PhraseLimits { languages: 1, phrases: entries, holes, segments, text_bytes: literals, hole_bytes: 8 };
     let _exact_book = Phrasebook::load(shapes.clone(), Box::new([language.clone()]), &limits).unwrap();

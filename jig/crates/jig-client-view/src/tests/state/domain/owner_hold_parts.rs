@@ -14,20 +14,20 @@ use crate::{
 use jig_client::contract::*;
 use skein_lib::{List, Time};
 
-fn account() -> OwnerPart {
-    OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Hold, key: OwnerPartKey::Number(u64::MAX) }
+fn account() -> Part {
+    Part { connector: u16::MAX, kind: PartKind::Hold, key: PartKey::Number(u64::MAX) }
 }
-fn origin() -> OwnerPart {
-    OwnerPart {
+fn origin() -> Part {
+    Part {
         connector: 2,
-        kind: OwnerPartKind::Resource,
-        key: OwnerPartKey::Path(list([Box::from([255_u8, 0]), Box::from(*b"a/b")])),
+        kind: PartKind::Resource,
+        key: PartKey::Path(list([Box::from([255_u8, 0]), Box::from(*b"a/b")])),
     }
 }
-fn chip(account: Option<OwnerPart>) -> Chip {
+fn chip(account: Option<Part>) -> Chip {
     let mut details = crate::tests::state::domain::chip_facts::details();
     details.project = 41;
-    details.hold = Some(OwnerChipHold {
+    details.hold = Some(ChipHold {
         words: None,
         placed: None,
         circle: None,
@@ -35,26 +35,26 @@ fn chip(account: Option<OwnerPart>) -> Chip {
         source: Some(origin()),
         reason: HoldCategory::Drift,
         revision: 91,
-        before: OwnerPriorPhase::Waiting,
+        before: PriorPhase::Waiting,
         escalation: None,
-        tries: OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
         hold_wait_since: None,
     });
     let mut chip = objects::chip(8);
-    chip.details = Box::new(ChipPhase {
-        phase: OwnerChipPhase::Held { reason: HoldCategory::Drift, revision: 91 },
+    chip.details = Box::new(ChipPhaseFacts {
+        phase: ChipPhase::Held { reason: HoldCategory::Drift, revision: 91 },
         details: Box::new(details),
     });
     chip
 }
-fn task(account: Option<OwnerPart>) -> Task {
+fn task(account: Option<Part>) -> Task {
     let mut task = crate::tests::state::domain::confirmation::task();
     task.project = 41;
     task.chip = chip(account);
     task
 }
-fn part() -> Part {
-    Part::Hold { connector: u16::MAX, task: u64::MAX }
+fn part() -> ApplicationPart {
+    ApplicationPart::Hold { connector: u16::MAX, task: u64::MAX }
 }
 fn read(output: &[Request], expected: Read) -> jig_client::Handle {
     let mut found = None;
@@ -196,8 +196,8 @@ fn native_hold_account_application_chips_use_supplied_scope_and_whole_task_and_e
         let token = read(&shown, query);
         let exact = task(Some(account()));
         let (value, body) = if escalation {
-            let value = OwnerEscalation { task: Box::new(exact), acts: List::with_capacity(0) };
-            (ReadValue::OwnerEscalation(Box::new(value.clone())), Body::OwnerEscalation(Box::new(value)))
+            let value = Escalation { task: Box::new(exact), acts: List::with_capacity(0) };
+            (ReadValue::Escalation(Box::new(value.clone())), Body::Escalation(Box::new(value)))
         } else {
             (ReadValue::Task(Box::new(exact.clone())), Body::Task(Box::new(exact)))
         };
@@ -210,16 +210,11 @@ fn native_hold_account_application_chips_use_supplied_scope_and_whole_task_and_e
 
 #[test]
 fn native_hold_account_absence_other_families_and_path_keys_never_invent_a_hold_from_the_independent_origin() {
-    let mut accounts = crate::tests::kit::list_in(8, [None, Some(OwnerPart { key: origin().key, ..account() })]);
-    for kind in [
-        OwnerPartKind::Resource,
-        OwnerPartKind::Pool,
-        OwnerPartKind::Result,
-        OwnerPartKind::Procedure,
-        OwnerPartKind::Effect,
-        OwnerPartKind::Outbox,
-    ] {
-        accounts.push(Some(OwnerPart { kind, ..account() })).unwrap();
+    let mut accounts = crate::tests::kit::list_in(8, [None, Some(Part { key: origin().key, ..account() })]);
+    for kind in
+        [PartKind::Resource, PartKind::Pool, PartKind::Result, PartKind::Procedure, PartKind::Effect, PartKind::Outbox]
+    {
+        accounts.push(Some(Part { kind, ..account() })).unwrap();
     }
     for account in accounts.into_boxed() {
         for application in [false, true] {
@@ -259,7 +254,7 @@ fn native_hold_accounts_obey_bounded_application_and_task_parts_without_dropping
         let query = if escalation { Read::Escalation { task: 8 } } else { Read::Task { task: 8 } };
         let token = read(&shown, query);
         let mut exact = task(Some(account()));
-        let independent = Part::Outbox { connector: 3, entry: 5, scope: PartScope::Deployment };
+        let independent = ApplicationPart::Outbox { connector: 3, entry: 5, scope: PartScope::Deployment };
         let mut result = objects::result();
         result.value = Some(ResultValue::Connector {
             summary: DocumentText::complete(objects::text(b"result")),
@@ -268,8 +263,8 @@ fn native_hold_accounts_obey_bounded_application_and_task_parts_without_dropping
         exact.result = Some(TaskResult::Document(Box::new(result)));
         exact.context.as_mut().unwrap().parts = list([independent]);
         let (value, body) = if escalation {
-            let value = OwnerEscalation { task: Box::new(exact), acts: List::with_capacity(0) };
-            (ReadValue::OwnerEscalation(Box::new(value.clone())), Body::OwnerEscalation(Box::new(value)))
+            let value = Escalation { task: Box::new(exact), acts: List::with_capacity(0) };
+            (ReadValue::Escalation(Box::new(value.clone())), Body::Escalation(Box::new(value)))
         } else {
             (ReadValue::Task(Box::new(exact.clone())), Body::Task(Box::new(exact)))
         };

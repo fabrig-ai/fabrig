@@ -2,16 +2,16 @@ use crate::tests::fixtures::{Fixture, ReadPage, Served, Watched};
 use crate::tests::kit::Goldens;
 use crate::tests::tree::cards_objects::*;
 
-fn escalation() -> OwnerEscalation {
+fn escalation() -> Escalation {
     let mut task = task_doc(&[ActKind::Stop]);
     task.context = None;
     task.person_revision = Some(Revision { value: 23 });
     task.taken_by = Some(u64::MAX);
-    task.result = Some(TaskResult::Ending(Box::new(OwnerChipEnding::Failed(DocumentText::complete(text(
+    task.result = Some(TaskResult::Ending(Box::new(ChipEnding::Failed(DocumentText::complete(text(
         b"supplied prior task failure",
     ))))));
-    task.chip.executor = Executor::Agent { charter: 1 };
-    let held = OwnerChipHold {
+    task.chip.executor = ChipExecutor::Agent { charter: 1 };
+    let held = ChipHold {
         words: None,
         placed: None,
         circle: None,
@@ -19,25 +19,25 @@ fn escalation() -> OwnerEscalation {
         source: None,
         reason: HoldCategory::Budget,
         revision: u64::MAX,
-        before: OwnerPriorPhase::Closing(ClosingStage::Effects),
-        escalation: Some(OwnerHoldEscalation::Waiting {
-            holder: OwnerEscalationHolder::Person(u64::MAX),
+        before: PriorPhase::Closing(ClosingStage::Effects),
+        escalation: Some(HoldEscalation::Waiting {
+            holder: EscalationHolder::Person(u64::MAX),
             entry: 17,
             since: Wall::EPOCH,
         }),
-        tries: OwnerFailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6 },
+        tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6 },
         hold_wait_since: None,
     };
     let mut details = crate::tests::tree::fragments::chip::details();
     details.project = task.project;
     details.hold = Some(held.clone());
-    details.executor = OwnerExecutor::Agent { charter: 1 };
-    task.chip.details = Box::new(ChipPhase {
-        phase: OwnerChipPhase::Held { reason: HoldCategory::Budget, revision: u64::MAX },
+    details.executor = Executor::Agent { charter: 1 };
+    task.chip.details = Box::new(ChipPhaseFacts {
+        phase: ChipPhase::Held { reason: HoldCategory::Budget, revision: u64::MAX },
         details: Box::new(details),
     });
     task.hold = Some(Box::new(held));
-    OwnerEscalation {
+    Escalation {
         task: Box::new(task),
         acts: list([
             Offered { effect: None, act: ActKind::Release, admission: Admission::Allowed },
@@ -51,7 +51,7 @@ fn owner_escalation_named_card_keeps_current_holder_prior_stage_and_whole_task_w
     let mut goldens = Goldens::new("tree/cards_objects/owner_escalation/owner_escalation_named");
     maximum_card_envelope();
     let row = escalation();
-    let (domain, id) = loaded(ObjectKey::Escalation(8), ReadValue::OwnerEscalation(Box::new(row.clone())));
+    let (domain, id) = loaded(ObjectKey::Escalation(8), ReadValue::Escalation(Box::new(row.clone())));
     let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
     let tree = render(&domain, id, words(), &mut bindings);
     goldens.check(&tree);
@@ -60,10 +60,7 @@ fn owner_escalation_named_card_keeps_current_holder_prior_stage_and_whole_task_w
     assert!(names.contains(&b"Escalation".as_slice()));
 
     assert!(tree.len() <= crate::sizes::sizes::owner_escalation_nodes(&CLIENT, &(CLIENT).client).unwrap() + 1);
-    assert_eq!(
-        domain.objects().get(id).unwrap().body,
-        Some(crate::state::objects::Body::OwnerEscalation(Box::new(row)))
-    );
+    assert_eq!(domain.objects().get(id).unwrap().body, Some(crate::state::objects::Body::Escalation(Box::new(row))));
 }
 
 #[test]
@@ -77,7 +74,7 @@ fn owner_escalation_amendment_inputs_keep_whole_source_baselines_and_selected_de
             row.task.authority.cut = true;
         }
         let original = row.clone();
-        let (mut domain, id) = loaded(ObjectKey::Escalation(8), ReadValue::OwnerEscalation(Box::new(row)));
+        let (mut domain, id) = loaded(ObjectKey::Escalation(8), ReadValue::Escalation(Box::new(row)));
         drive(&mut domain, Event::Act { action: Action::AmendRelease { object: id.token() } });
         let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
         let tree = dialog(&domain, words(), &mut bindings);
@@ -104,13 +101,13 @@ fn owner_escalation_amendment_inputs_keep_whole_source_baselines_and_selected_de
         }
         assert_eq!(
             domain.objects().get(id).unwrap().body,
-            Some(crate::state::objects::Body::OwnerEscalation(Box::new(original)))
+            Some(crate::state::objects::Body::Escalation(Box::new(original)))
         );
     }
 }
 
-fn build_closed_offers(row: &OwnerEscalation, allocation: skein_ui::Limits, w: &crate::words::Words) -> Tree {
-    let (domain, id) = loaded(ObjectKey::Escalation(8), ReadValue::OwnerEscalation(Box::new(row.clone())));
+fn build_closed_offers(row: &Escalation, allocation: skein_ui::Limits, w: &crate::words::Words) -> Tree {
+    let (domain, id) = loaded(ObjectKey::Escalation(8), ReadValue::Escalation(Box::new(row.clone())));
     let mut builder = Builder::new(&allocation);
     let mut bindings = JigBindings::new(allocation.bindings, CLIENT.client.text);
     builder.open(Role::Page);
@@ -119,7 +116,7 @@ fn build_closed_offers(row: &OwnerEscalation, allocation: skein_ui::Limits, w: &
     builder.finish()
 }
 
-fn closed_offers(refused: bool) -> OwnerEscalation {
+fn closed_offers(refused: bool) -> Escalation {
     let kinds = [ActKind::Release, ActKind::LeaveHeld, ActKind::PassUp, ActKind::Amend, ActKind::Cancel];
     let mut row = escalation();
     row.acts = List::with_capacity(MAX_OFFERED_ACTS);
@@ -155,7 +152,7 @@ fn closed_offers(refused: bool) -> OwnerEscalation {
     row
 }
 
-fn check_exact_storage(row: &OwnerEscalation, allocation: skein_ui::Limits, tree: &Tree, w: &crate::words::Words) {
+fn check_exact_storage(row: &Escalation, allocation: skein_ui::Limits, tree: &Tree, w: &crate::words::Words) {
     let depth = u32::try_from(
         tree.nodes()
             .iter()
@@ -201,7 +198,7 @@ fn presence_step(
 fn presence_result(key: ProposalKey) -> Result {
     let mut result = result();
     result.task.task = 42;
-    result.task.details = Box::new(crate::tests::fixtures::chip_phase(OwnerChipPhase::Waiting {
+    result.task.details = Box::new(crate::tests::fixtures::chip_phase(ChipPhase::Waiting {
         dependencies: list([70, 70]),
         more: false,
         holds: false,
@@ -222,10 +219,10 @@ fn presence_result(key: ProposalKey) -> Result {
 
 fn presence_person(result: &Result) -> ReadValue {
     let original = task_doc(&[]);
-    ReadValue::OwnerPersonTask(Box::new(OwnerPersonTask {
+    ReadValue::PersonTask(Box::new(PersonTask {
         task: original.chip,
         revision: Revision { value: 4 },
-        requester: OwnerRequester::Person(1),
+        requester: Requester::Person(1),
         spec: original.spec,
         address: PersonAddress::Party(1),
         taken_by: None,
@@ -233,8 +230,8 @@ fn presence_person(result: &Result) -> ReadValue {
         stall: None,
         deadline: None,
         contract: TaskContractDocument::Report { words: 2 },
-        results: list((0..CLIENT.client.rows).map(|_| OwnerShownResult {
-            task: OwnerTaskLink::Retained { chip: result.task.clone(), at: None },
+        results: list((0..CLIENT.client.rows).map(|_| ShownResult {
+            task: TaskLink::Retained { chip: result.task.clone(), at: None },
             result: Some(Box::new(result.clone())),
         })),
         cut: true,
@@ -302,19 +299,18 @@ fn check_presence_case(present: [bool; 3], loaded: bool) {
     proposal.acts = closed_offers(true).acts;
     let result = presence_result(proposal.key);
     let mut row = closed_offers(true);
-    row.task.chip.executor = Executor::Party { party: 1 };
-    row.task.inputs =
-        list((0..CLIENT.client.rows).map(|_| OwnerTaskLink::Retained { chip: result.task.clone(), at: None }));
+    row.task.chip.executor = ChipExecutor::Party { party: 1 };
+    row.task.inputs = list((0..CLIENT.client.rows).map(|_| TaskLink::Retained { chip: result.task.clone(), at: None }));
     row.task.dependencies = row.task.inputs.clone();
     row.task.references = row.task.inputs.clone();
     row.task.result = Some(TaskResult::Document(Box::new(result.clone())));
-    let ChipPhase { details, .. } = row.task.chip.details.as_mut();
-    details.ending = Some(OwnerChipEnding::Done(result.value.clone().unwrap()));
-    let mut documents = vec![(ObjectKey::Escalation(8), Some(ReadValue::OwnerEscalation(Box::new(row.clone()))))];
+    let ChipPhaseFacts { details, .. } = row.task.chip.details.as_mut();
+    details.ending = Some(ChipEnding::Done(result.value.clone().unwrap()));
+    let mut documents = vec![(ObjectKey::Escalation(8), Some(ReadValue::Escalation(Box::new(row.clone()))))];
     for (yes, key, value) in [
         (present[0], ObjectKey::Result(42), ReadValue::Result(Box::new(result))),
         (present[1], ObjectKey::PersonTask(8), presence_person(&presence_result(proposal.key))),
-        (present[2], ObjectKey::Proposal(proposal.key), ReadValue::OwnerProposal(Box::new(proposal))),
+        (present[2], ObjectKey::Proposal(proposal.key), ReadValue::Proposal(Box::new(proposal))),
     ] {
         if yes {
             documents.push((key, loaded.then_some(value)));
@@ -325,7 +321,7 @@ fn check_presence_case(present: [bool; 3], loaded: bool) {
             let mut task = task_doc(&[]);
             task.chip.task = number;
             task.chip.title = DocumentText::complete(text(b"reachable stored dependency"));
-            task.chip.details = Box::new(crate::tests::fixtures::chip_phase(OwnerChipPhase::Waiting {
+            task.chip.details = Box::new(crate::tests::fixtures::chip_phase(ChipPhase::Waiting {
                 dependencies: list([dependency, dependency]),
                 more: false,
                 holds: false,
@@ -379,10 +375,7 @@ fn check_presence_case(present: [bool; 3], loaded: bool) {
             assert!(repetitions >= 4);
         }
     }
-    assert_eq!(
-        domain.objects().get(id).unwrap().body,
-        Some(crate::state::objects::Body::OwnerEscalation(Box::new(row)))
-    );
+    assert_eq!(domain.objects().get(id).unwrap().body, Some(crate::state::objects::Body::Escalation(Box::new(row))));
 }
 
 fn check_presence_envelopes(result: bool, part: u32) {
@@ -451,7 +444,7 @@ fn owner_escalation_closed_outer_controls_and_whole_refusals_fit_finite_view_and
         assert_eq!(row.acts.capacity(), MAX_OFFERED_ACTS);
         assert_eq!(row.acts.len(), MAX_OFFERED_ACTS);
         assert_eq!(row.task.context, None);
-        let (domain, id) = loaded(ObjectKey::Escalation(8), ReadValue::OwnerEscalation(Box::new(row.clone())));
+        let (domain, id) = loaded(ObjectKey::Escalation(8), ReadValue::Escalation(Box::new(row.clone())));
         let mut allocation = crate::sizes::limits::of_words(&CLIENT, &(CLIENT).client, w).unwrap();
         allocation.nodes = crate::sizes::sizes::owner_escalation_nodes(&CLIENT, &(CLIENT).client).unwrap() + 1;
         allocation.text_bytes = allocation.nodes * allocation.text_per_node;
@@ -492,13 +485,13 @@ fn owner_escalation_closed_outer_controls_and_whole_refusals_fit_finite_view_and
         assert_eq!(row, original);
         assert_eq!(
             domain.objects().get(id).unwrap().body,
-            Some(crate::state::objects::Body::OwnerEscalation(Box::new(original)))
+            Some(crate::state::objects::Body::Escalation(Box::new(original)))
         );
     }
     let mut oversized = escalation();
     oversized.acts = List::with_capacity(MAX_OFFERED_ACTS + 1);
     let original = oversized.clone();
-    let (domain, id) = loaded(ObjectKey::Escalation(8), ReadValue::OwnerEscalation(Box::new(oversized)));
+    let (domain, id) = loaded(ObjectKey::Escalation(8), ReadValue::Escalation(Box::new(oversized)));
     let allocation = crate::sizes::limits::of_words(&CLIENT, &(CLIENT).client, w).unwrap();
     let mut builder = Builder::new(&allocation);
     let mut bindings = JigBindings::new(allocation.bindings, CLIENT.client.text);
@@ -508,7 +501,7 @@ fn owner_escalation_closed_outer_controls_and_whole_refusals_fit_finite_view_and
     assert_eq!(builder.finish().len(), 1);
     assert_eq!(
         domain.objects().get(id).unwrap().body,
-        Some(crate::state::objects::Body::OwnerEscalation(Box::new(original)))
+        Some(crate::state::objects::Body::Escalation(Box::new(original)))
     );
     assert_eq!(
         crate::sizes::sizes::owner_escalation_nodes(
@@ -534,15 +527,15 @@ fn maximum_card_envelope() {
     row.task.instructions = Some(DocumentText::complete(text(&whole)));
     row.task.dependencies = list(
         (0..CLIENT.client.rows)
-            .map(|number| OwnerTaskLink::Stored { number: u64::from(number), status: Some(OwnerTaskStatus::Done) }),
+            .map(|number| TaskLink::Stored { number: u64::from(number), status: Some(TaskStatus::Done) }),
     );
     row.task.references = row.task.dependencies.clone();
     row.task.inputs = row.task.dependencies.clone();
-    row.task.resources = list((0..CLIENT.client.rows).map(|number| OwnerResourceLine {
-        part: OwnerPart {
+    row.task.resources = list((0..CLIENT.client.rows).map(|number| ResourceLine {
+        part: Part {
             connector: u16::try_from(number).unwrap(),
-            kind: OwnerPartKind::Resource,
-            key: OwnerPartKey::Path(list((0..CLIENT.client.rows).map(|_| Box::<[u8]>::from(whole.clone())))),
+            kind: PartKind::Resource,
+            key: PartKey::Path(list((0..CLIENT.client.rows).map(|_| Box::<[u8]>::from(whole.clone())))),
         },
         kind: 1,
         taken: false,
@@ -551,7 +544,7 @@ fn maximum_card_envelope() {
         writer_lost: false,
     }));
     let original = row.clone();
-    let (domain, id) = loaded(ObjectKey::Escalation(8), ReadValue::OwnerEscalation(Box::new(row)));
+    let (domain, id) = loaded(ObjectKey::Escalation(8), ReadValue::Escalation(Box::new(row)));
     let bound = crate::sizes::sizes::owner_escalation_nodes(&CLIENT, &(CLIENT).client).unwrap().checked_add(1).unwrap();
     let allocation =
         skein_ui::Limits { nodes: bound, depth: 32, text_bytes: bound.checked_mul(1024).unwrap(), ..limits() };
@@ -566,6 +559,6 @@ fn maximum_card_envelope() {
     goldens.check(&tree);
     assert_eq!(
         domain.objects().get(id).unwrap().body,
-        Some(crate::state::objects::Body::OwnerEscalation(Box::new(original)))
+        Some(crate::state::objects::Body::Escalation(Box::new(original)))
     );
 }

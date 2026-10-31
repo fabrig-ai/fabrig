@@ -1,7 +1,7 @@
 //! Program observations are content in the existing deployment host row.
 use super::{P, Words, list, text};
 use crate::words::deployment_words::ProgramPhrase as G;
-use jig_client::contract::{OwnerProgramFailure as F, OwnerProgramLogin, OwnerProgramSignOut, OwnerProgramState};
+use jig_client::contract::{ProgramFailure as F, ProgramLogin, ProgramSignOut, ProgramState};
 use skein_lib::List;
 use skein_ui::{Builder, Role};
 fn failure(b: &mut Builder, words: &Words, reason: F) {
@@ -25,7 +25,7 @@ pub(super) fn rule(b: &mut Builder, words: &Words, rule: jig_client::contract::H
         HostRule::Unknown => text(b, words, P::ProgramDetail(G::UnnamedLogin), &[]),
     }
 }
-pub(super) fn render(b: &mut Builder, words: &Words, rows: &List<OwnerProgramLogin>, awaiting: bool) {
+pub(super) fn render(b: &mut Builder, words: &Words, rows: &List<ProgramLogin>, awaiting: bool) {
     if rows.is_empty() && !awaiting {
         return;
     }
@@ -36,13 +36,13 @@ pub(super) fn render(b: &mut Builder, words: &Words, rows: &List<OwnerProgramLog
         crate::words::literal_segment::render(b, &row.name);
         match &row.state {
             None => text(b, words, P::ProgramDetail(G::StatusUnknown), &[]),
-            Some(OwnerProgramState::Usable) => text(b, words, P::ProgramDetail(G::Usable), &[]),
-            Some(OwnerProgramState::NotSignedIn) => text(b, words, P::ProgramDetail(G::NotSignedIn), &[]),
-            Some(OwnerProgramState::SignedInOtherwise { method }) => {
+            Some(ProgramState::Usable) => text(b, words, P::ProgramDetail(G::Usable), &[]),
+            Some(ProgramState::NotSignedIn) => text(b, words, P::ProgramDetail(G::NotSignedIn), &[]),
+            Some(ProgramState::SignedInOtherwise { method }) => {
                 text(b, words, P::ProgramDetail(G::Otherwise), &[]);
                 crate::words::literal_segment::render(b, method);
             }
-            Some(OwnerProgramState::Failed { reason, detail }) => {
+            Some(ProgramState::Failed { reason, detail }) => {
                 text(b, words, P::ProgramDetail(G::Failed), &[]);
                 failure(b, words, *reason);
                 crate::words::literal_segment::render(b, detail);
@@ -53,8 +53,8 @@ pub(super) fn render(b: &mut Builder, words: &Words, rows: &List<OwnerProgramLog
         }
         match &row.sign_out {
             None => {}
-            Some(OwnerProgramSignOut::SignedOut) => text(b, words, P::ProgramDetail(G::SignedOut), &[]),
-            Some(OwnerProgramSignOut::Failed { reason, detail }) => {
+            Some(ProgramSignOut::SignedOut) => text(b, words, P::ProgramDetail(G::SignedOut), &[]),
+            Some(ProgramSignOut::Failed { reason, detail }) => {
                 text(b, words, P::ProgramDetail(G::SignOutFailed), &[]);
                 failure(b, words, *reason);
                 crate::words::literal_segment::render(b, detail);

@@ -12,15 +12,15 @@ pub fn revision(object: &Object) -> Option<jig_client::contract::Revision> {
 
 /// The separate pending owner envelope in this working-set object.
 #[must_use]
-pub fn owner_facts(object: &Object) -> Option<&jig_client::contract::OwnerPersonTask> {
+pub fn owner_facts(object: &Object) -> Option<&jig_client::contract::PersonTask> {
     match &object.body {
-        Some(Body::OwnerPersonTask(document)) => Some(document),
+        Some(Body::PersonTask(document)) => Some(document),
         Some(
-            Body::OwnerEscalation(_)
-            | Body::Historical(_)
+            Body::Escalation(_)
+            | Body::Ended(_)
             | Body::Chip(_)
             | Body::Task(_)
-            | Body::OwnerProposal(_)
+            | Body::Proposal(_)
             | Body::Question(_)
             | Body::Result(_)
             | Body::Note { .. },
@@ -32,7 +32,7 @@ pub fn owner_facts(object: &Object) -> Option<&jig_client::contract::OwnerPerson
 #[expect(clippy::manual_map, reason = "the strict step subset uses explicit Option matches without closures")]
 #[must_use]
 pub fn answer(
-    document: &jig_client::contract::OwnerPersonTask,
+    document: &jig_client::contract::PersonTask,
     option: Option<u32>,
     fields: &crate::state::fields::Fields,
 ) -> Option<jig_client::contract::PersonAnswer> {

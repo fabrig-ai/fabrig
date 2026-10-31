@@ -5,7 +5,7 @@ use crate::tests::tree::cards_objects::*;
 fn task_overview_shows_only_supplied_ending_facts_with_opaque_state_loss_and_raw_slots() {
     let mut goldens = Goldens::new("tree/cards_objects/task_ending/task_overview_shows");
     let segments = crate::tests::kit::list_in(CLIENT.client.rows, [Box::from(*b"a/b"), Box::from([255_u8, 0])]);
-    let part = OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Result, key: OwnerPartKey::Path(segments) };
+    let part = Part { connector: u16::MAX, kind: PartKind::Result, key: PartKey::Path(segments) };
     for result in [
         None,
         Some(ResultValue::Approved { state: Box::from([255_u8; 32]), words: None }),
@@ -20,10 +20,10 @@ fn task_overview_shows_only_supplied_ending_facts_with_opaque_state_loss_and_raw
         }),
     ] {
         let mut row = task_doc(&[]);
-        row.result = Some(TaskResult::Ending(Box::new(OwnerChipEnding::Cancelled {
+        row.result = Some(TaskResult::Ending(Box::new(ChipEnding::Cancelled {
             reason: DocumentText { bytes: text(b"source reason"), cut: true },
             result: result.clone(),
-            by: OwnerRequester::Deployment { project: u32::MAX },
+            by: Requester::Deployment { project: u32::MAX },
             at: Wall::from_nanos(u64::MAX),
         })));
         let (tree, bindings) = task_contract::page(row.clone());

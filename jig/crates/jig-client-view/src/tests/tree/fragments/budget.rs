@@ -4,14 +4,14 @@ use crate::words::Words;
 use skein_ui::phrases::{PhraseLimits, Phrasebook, Segment, WallFormat};
 use skein_ui::{Builder, Tree};
 
-use jig_client::contract::{Funder, OwnerBudget, OwnerNumbers, PoolLedger};
+use jig_client::contract::{Budget, Funder, Numbers, PoolLedger};
 use skein_lib::{Wall, bytes::copy_of};
 
-fn numbers() -> OwnerNumbers {
-    OwnerNumbers { budget: 100, spent: 4, spent_below: 7, reserved: 11 }
+fn numbers() -> Numbers {
+    Numbers { budget: 100, spent: 4, spent_below: 7, reserved: 11 }
 }
-fn budget() -> OwnerBudget {
-    OwnerBudget {
+fn budget() -> Budget {
+    Budget {
         numbers: numbers(),
         left: 17,
         funder: Funder::Task(u64::MAX),
@@ -33,7 +33,7 @@ fn words() -> Words {
     crate::tests::english_words()
 }
 
-fn budget_tree(value: &OwnerBudget, words: &Words) -> Tree {
+fn budget_tree(value: &Budget, words: &Words) -> Tree {
     let required =
         crate::tests::render_limits(&crate::tests::tree::cards::CLIENT, words).expect("whole checked capacity");
     let mut builder = Builder::new(&required);
@@ -118,7 +118,7 @@ fn budget_and_shared_funder_sayings_borrow_selected_normal_words_and_person_offs
     }
     let limits = PhraseLimits {
         languages: 2,
-        phrases: crate::words::owner_words::phrase_count(),
+        phrases: crate::words::document_words::phrase_count(),
         holes: 4,
         segments,
         text_bytes,

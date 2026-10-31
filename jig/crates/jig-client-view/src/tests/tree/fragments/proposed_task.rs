@@ -31,20 +31,15 @@ fn finish(mut builder: Builder) -> Tree {
 fn exact_part_slots_keep_separate_literal_segments_all_owner_kinds_and_numeric_keys() {
     let mut goldens = Goldens::new("tree/fragments/proposed_task/exact_part_slots");
     let words = words();
-    for kind in [
-        OwnerPartKind::Resource,
-        OwnerPartKind::Pool,
-        OwnerPartKind::Result,
-        OwnerPartKind::Procedure,
-        OwnerPartKind::Effect,
-        OwnerPartKind::Outbox,
-    ] {
+    for kind in
+        [PartKind::Resource, PartKind::Pool, PartKind::Result, PartKind::Procedure, PartKind::Effect, PartKind::Outbox]
+    {
         for key in [
-            OwnerPartKey::Path(list([b"a/b".as_slice().into(), b"c\xff".as_slice().into()])),
-            OwnerPartKey::Path(list([b"a".as_slice().into(), b"b/c".as_slice().into()])),
-            OwnerPartKey::Number(u64::MAX),
+            PartKey::Path(list([b"a/b".as_slice().into(), b"c\xff".as_slice().into()])),
+            PartKey::Path(list([b"a".as_slice().into(), b"b/c".as_slice().into()])),
+            PartKey::Number(u64::MAX),
         ] {
-            let reference = OwnerPart { connector: u16::MAX, kind, key };
+            let reference = Part { connector: u16::MAX, kind, key };
             let mut b = builder();
             let mut bindings = JigBindings::new(16, CLIENT.client.text);
             proposed_task::part(&mut b, &reference, words, &mut bindings);
@@ -55,11 +50,11 @@ fn exact_part_slots_keep_separate_literal_segments_all_owner_kinds_and_numeric_k
             assert_eq!(bindings.part(slot.token), None);
             assert_eq!(crate::decode(&mut bindings, slot.token, skein_ui::Act::Press), None);
             match &reference.key {
-                OwnerPartKey::Path(segments) => {
+                PartKey::Path(segments) => {
                     assert_eq!(segments.len(), 2);
                     goldens.check(&tree);
                 }
-                OwnerPartKey::Number(number) => {
+                PartKey::Number(number) => {
                     assert_eq!(*number, u64::MAX);
                     goldens.check(&tree);
                 }
@@ -77,10 +72,10 @@ fn proposed_executor_and_funder_keep_full_width_codes_and_original_period_identi
     let words = words();
     let mut b = builder();
     for executor in [
-        OwnerExecutor::Agent { charter: u32::MAX },
-        OwnerExecutor::Procedure { connector: u16::MAX, code: u32::MAX },
-        OwnerExecutor::Person(PersonAddress::Party(u64::MAX)),
-        OwnerExecutor::Person(PersonAddress::Role(u32::MAX)),
+        Executor::Agent { charter: u32::MAX },
+        Executor::Procedure { connector: u16::MAX, code: u32::MAX },
+        Executor::Person(PersonAddress::Party(u64::MAX)),
+        Executor::Person(PersonAddress::Role(u32::MAX)),
     ] {
         proposed_task::executor(&mut b, executor, words);
     }
@@ -106,7 +101,7 @@ fn exact_contracts_keep_approval_state_verdict_fields_and_each_result_bound() {
     for contract in [
         TaskContractDocument::Approval {
             state: b"opaque\xff".as_slice().into(),
-            part: OwnerPart { connector: 9, kind: OwnerPartKind::Resource, key: OwnerPartKey::Number(83) },
+            part: Part { connector: 9, kind: PartKind::Resource, key: PartKey::Number(83) },
         },
         TaskContractDocument::Report { words: u32::MAX },
         TaskContractDocument::Verdict {
@@ -198,7 +193,7 @@ fn normal_phrasebooks_require_and_render_exact_owner_words_in_the_selected_langu
     let selected = selected_owner_language();
     let limits = PhraseLimits {
         languages: 2,
-        phrases: crate::words::owner_words::phrase_count(),
+        phrases: crate::words::document_words::phrase_count(),
         holes: 4,
         segments: crate::tests::english_phrase_segments(2),
         text_bytes: 200_000,

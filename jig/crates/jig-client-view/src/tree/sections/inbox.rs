@@ -13,9 +13,7 @@ use crate::{
         page::inbox::{Filter, needs},
     },
 };
-use jig_client::contract::{
-    InboxDocument, InboxGroup, InboxReadGroup, InboxRow, OwnerInboxEntry, OwnerInboxObject, Proposer,
-};
+use jig_client::contract::{InboxDocument, InboxEntry, InboxGroup, InboxObject, InboxReadGroup, InboxRow, Proposer};
 /// The inbox's filters and counts while either group is shown.
 pub fn header(b: &mut Builder, client: &Borrowed<'_>, words: &Words, bindings: &mut JigBindings) -> bool {
     let Some(project) = client.shown_inbox() else {
@@ -219,26 +217,26 @@ fn owner_entry(
     client: &Borrowed<'_>,
     words: &Words,
     bindings: &mut JigBindings,
-    entry: &OwnerInboxEntry,
+    entry: &InboxEntry,
     group: bool,
 ) {
     use crate::words::inbox_words::InboxPhrase;
     let task = entry.task_number();
     let (kind, a, value) = match entry.object {
-        OwnerInboxObject::Question { message } => (50, task, message),
-        OwnerInboxObject::Proposal { proposer, number } => match proposer {
+        InboxObject::Question { message } => (50, task, message),
+        InboxObject::Proposal { proposer, number } => match proposer {
             Proposer::Task(task) => (51, task, number),
             Proposer::Party(party) => (52, party, number),
         },
-        OwnerInboxObject::Escalation { revision } => (53, task, revision),
-        OwnerInboxObject::PersonTask => (54, task, 0),
-        OwnerInboxObject::Reply { message } => (55, task, message),
-        OwnerInboxObject::Result { position } => (56, task, position),
+        InboxObject::Escalation { revision } => (53, task, revision),
+        InboxObject::PersonTask => (54, task, 0),
+        InboxObject::Reply { message } => (55, task, message),
+        InboxObject::Result { position } => (56, task, position),
     };
     b.key(skein_ui::Key { owner: crate::Owner::Jig.opaque(), kind, a, b: value });
     match entry.object {
-        OwnerInboxObject::Question { message } => owner_text(b, words, InboxPhrase::Question, &[Hole::Number(message)]),
-        OwnerInboxObject::Proposal { proposer, number } => match proposer {
+        InboxObject::Question { message } => owner_text(b, words, InboxPhrase::Question, &[Hole::Number(message)]),
+        InboxObject::Proposal { proposer, number } => match proposer {
             Proposer::Task(task) => {
                 owner_text(b, words, InboxPhrase::TaskProposal, &[Hole::Number(task), Hole::Number(number)]);
             }
@@ -246,12 +244,12 @@ fn owner_entry(
                 owner_text(b, words, InboxPhrase::PartyProposal, &[Hole::Number(party), Hole::Number(number)]);
             }
         },
-        OwnerInboxObject::Escalation { revision } => {
+        InboxObject::Escalation { revision } => {
             owner_text(b, words, InboxPhrase::Escalation, &[Hole::Number(revision)]);
         }
-        OwnerInboxObject::PersonTask => owner_text(b, words, InboxPhrase::PersonTask, &[]),
-        OwnerInboxObject::Reply { message } => owner_text(b, words, InboxPhrase::Reply, &[Hole::Number(message)]),
-        OwnerInboxObject::Result { position } => owner_text(b, words, InboxPhrase::Result, &[Hole::Number(position)]),
+        InboxObject::PersonTask => owner_text(b, words, InboxPhrase::PersonTask, &[]),
+        InboxObject::Reply { message } => owner_text(b, words, InboxPhrase::Reply, &[Hole::Number(message)]),
+        InboxObject::Result { position } => owner_text(b, words, InboxPhrase::Result, &[Hole::Number(position)]),
     }
     if let Some(project) = entry.project {
         owner_text(b, words, InboxPhrase::Project, &[Hole::Number(u64::from(project))]);

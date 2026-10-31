@@ -1,16 +1,16 @@
 //! Inbox context and filters, without a second copy of an object's card.
-//! Whole live documents replace their source; historical pages carry opaque
+//! Whole live documents replace their source; bounded pages carry opaque
 //! cursors. Needs sort oldest first and updates newest first. Reading results
 //! asks the keyed table to mark the newest displayed position once per opening.
 //! See client/domain/pages.md, 3, and contract.md, 3.2 and 6–7.
 use crate::state::address::{Address, ProjectSection};
 use alloc::boxed::Box;
 use jig_client::contract::{
-    Count, Cursor, InboxDocument, InboxGroup, InboxReadGroup, InboxRow, Needs, ObjectKey, OwnerInbox, OwnerInboxEntry,
-    OwnerInboxPage, OwnerInboxSelection, Read,
+    Count, Cursor, Inbox as InboxFacts, InboxDocument, InboxEntry, InboxGroup, InboxPage, InboxReadGroup, InboxRow,
+    InboxSelection, Needs, ObjectKey, Read,
 };
 use skein_lib::List;
-/// An inbox filter, shared by live rows and historical reads.
+/// An inbox filter, shared by live rows and bounded reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Filter {
     pub project: Option<u32>,
@@ -29,7 +29,7 @@ pub struct InboxWindow {
     /// Original accepted query, including its independent opaque continuation.
     pub query: Option<Read>,
     /// Whole original retained context; never replaced with current requester facts.
-    pub selection: Option<List<OwnerInboxSelection>>,
+    pub selection: Option<List<InboxSelection>>,
 }
 impl InboxWindow {
     fn new(rows: u32) -> Self {
@@ -157,7 +157,7 @@ impl State {
         }
     }
 
-    pub(crate) fn owner_page(&mut self, group: InboxReadGroup, query: Read, page: OwnerInboxPage) {
+    pub(crate) fn owner_page(&mut self, group: InboxReadGroup, query: Read, page: InboxPage) {
         let mut projected = self.snapshot();
         projected.owner_page(group, query, page);
         *self = projected.state;
@@ -215,7 +215,7 @@ impl Inbox {
     }
 
     /// Whole exact owner delivery; both allocated groups remain in the envelope.
-    pub(crate) fn owner(&mut self, value: Box<OwnerInbox>) {
+    pub(crate) fn owner(&mut self, value: Box<InboxFacts>) {
         self.state.results_seen = value.results_seen;
         self.state.marked_results = self.state.marked_results.max(value.results_seen);
         self.live_more = value.next.is_some();
@@ -231,8 +231,8 @@ impl Inbox {
         self.merge();
     }
     /// The source selected these rows using the original query; no guessed goal
-    /// or ancestry is required or used to re-filter a bounded historical page.
-    pub(crate) fn owner_page(&mut self, group: InboxReadGroup, query: Read, page: OwnerInboxPage) {
+    /// or ancestry is required or used to re-filter a bounded bounded page.
+    pub(crate) fn owner_page(&mut self, group: InboxReadGroup, query: Read, page: InboxPage) {
         let window = self.window_mut(group);
         window.selection = page.selection;
         window.cut = page.cut;
@@ -305,8 +305,8 @@ impl Inbox {
 }
 // Match the original cursor, never the card key, Chip, or current requester tree.
 // A missing association remains unknown; an associated empty root list is a
-// supplied negative membership answer. Historical pages keep their own query.
-fn owner_membership(entry: &OwnerInboxEntry, goal: Option<u64>, document: Option<&InboxDocument>) -> Option<bool> {
+// supplied negative membership answer. Bounded pages keep their own query.
+fn owner_membership(entry: &InboxEntry, goal: Option<u64>, document: Option<&InboxDocument>) -> Option<bool> {
     let Some(goal) = goal else { return Some(true) };
     let selection = match document {
         Some(InboxDocument::Owner(value)) => value.selection.as_ref()?,

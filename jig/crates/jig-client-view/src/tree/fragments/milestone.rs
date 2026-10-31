@@ -7,7 +7,7 @@ use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
 use crate::{Borrowed, Config};
-use jig_client::contract::{ClosingStage, OwnerMilestoneLine, OwnerMilestonePhase, RunStage};
+use jig_client::contract::{ClosingStage, MilestoneLine, MilestonePhase, RunStage};
 
 /// Finite whole row envelope, including existing result follow-ups and raw parts.
 #[must_use]
@@ -44,7 +44,7 @@ fn closing(b: &mut Builder, stage: ClosingStage, words: &Words) {
 /// Render only supplied milestone facts, borrowing existing result follow-ups.
 pub fn render(
     b: &mut Builder,
-    value: &OwnerMilestoneLine,
+    value: &MilestoneLine,
     client: &Borrowed<'_>,
     words: &Words,
     bindings: &mut JigBindings,
@@ -60,17 +60,17 @@ pub fn render(
         None => text(b, words, P::AtAbsent, &[]),
     }
     match &value.phase {
-        OwnerMilestonePhase::Waiting => text(b, words, P::Waiting, &[]),
-        OwnerMilestonePhase::Active(stage) => {
+        MilestonePhase::Waiting => text(b, words, P::Waiting, &[]),
+        MilestonePhase::Active(stage) => {
             text(b, words, P::Active, &[]);
             active(b, *stage, words);
         }
-        OwnerMilestonePhase::Closing { stage, ending } => {
+        MilestonePhase::Closing { stage, ending } => {
             text(b, words, P::Closing, &[]);
             closing(b, *stage, words);
             crate::tree::fragments::chip::ending(b, ending, client, words, bindings);
         }
-        OwnerMilestonePhase::Held { before, why, source, ending } => {
+        MilestonePhase::Held { before, why, source, ending } => {
             text(b, words, P::Held, &[]);
             crate::tree::fragments::chip::prior(b, *before, words);
             crate::tree::fragments::chip::reason(b, *why, words);
@@ -83,7 +83,7 @@ pub fn render(
                 None => text(b, words, P::EndingAbsent, &[]),
             }
         }
-        OwnerMilestonePhase::Ended(ending) => {
+        MilestonePhase::Ended(ending) => {
             text(b, words, P::Ended, &[]);
             crate::tree::fragments::chip::ending(b, ending, client, words, bindings);
         }

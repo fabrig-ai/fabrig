@@ -72,7 +72,7 @@ pub(crate) fn told(
                     contract::ReadResult::None(contract::ReadNone::Refused)
                 }
             };
-            if crate::state::objects::historical_read(&result).is_some()
+            if crate::state::objects::ended_read(&result).is_some()
                 || crate::state::objects::is_card_read(domain, read, client)
             {
                 crate::state::objects::read_card(domain, env, read, result, out, client);

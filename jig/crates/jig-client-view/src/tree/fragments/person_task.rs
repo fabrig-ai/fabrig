@@ -12,7 +12,7 @@ use crate::{
     state::{action::Act, fields::Purpose, objects::Object},
 };
 use alloc::boxed::Box;
-use jig_client::contract::{ChipPhase, OwnerPersonTask, PersonAddress, TaskContractDocument};
+use jig_client::contract::{ChipPhaseFacts, PersonAddress, PersonTask, TaskContractDocument};
 use skein_lib::Id;
 /// Every shown link and optional whole result, specification and contract.
 #[must_use]
@@ -45,13 +45,7 @@ fn text(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
     b.text(Run::Plain, &saying(words, phrase, holes));
 }
 /// Render only the supplied facts. Missing results stay beside their whole links.
-pub fn render(
-    b: &mut Builder,
-    client: &Borrowed<'_>,
-    value: &OwnerPersonTask,
-    words: &Words,
-    bindings: &mut JigBindings,
-) {
+pub fn render(b: &mut Builder, client: &Borrowed<'_>, value: &PersonTask, words: &Words, bindings: &mut JigBindings) {
     b.open(Role::Region);
     b.name(&saying(words, P::PersonTask, &[]));
     crate::tree::cards::chip::chip(b, client, &value.task, words, bindings);
@@ -190,7 +184,7 @@ pub fn card(
     crate::tree::cards::common::answer(b, &fact, words, text_limit);
     let mut acts = skein_lib::List::with_capacity(value.acts.capacity());
     let kept = {
-        let ChipPhase { details, .. } = value.task.details.as_ref();
+        let ChipPhaseFacts { details, .. } = value.task.details.as_ref();
 
         let mut kept = false;
         for dependency in &details.dependencies {

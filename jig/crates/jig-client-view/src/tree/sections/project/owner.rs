@@ -13,7 +13,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_client::contract::{
-    Ask, OwnerProject, OwnerProjectPolicy, OwnerProjectResourceRole, PartyKind, PolicyEdit, PolicyEditRole, PolicyGuard,
+    Ask, PartyKind, PolicyEdit, PolicyEditRole, PolicyGuard, Project, ProjectPolicy, ProjectResourceRole,
 };
 
 /// The single edited channel in a whole supplied request.
@@ -120,20 +120,20 @@ pub(crate) fn max_nodes_with_card(l: &Config, client: &jig_client::DomainLimits,
         .checked_add(crate::sizes::sizes::refusal_nodes(l, client)?.checked_mul(3)?)?
         .checked_add(20)?
         .checked_add(128)?
-        .checked_add(historical_nodes(l, client, card)?)
+        .checked_add(ended_nodes(l, client, card)?)
 }
 // Earlier period rows include their task chips/cards and pool budgets. The
 // original cut and two edge controls cost ten nodes, independently of the
 // shared outer offered-action controls. Retained scalar funding adds its own
 // checked fragment exactly once.
-fn historical_nodes(l: &Config, client: &jig_client::DomainLimits, card: u32) -> Option<u32> {
+fn ended_nodes(l: &Config, client: &jig_client::DomainLimits, card: u32) -> Option<u32> {
     card.checked_add(crate::chip_nodes(l, client)?)?
         .checked_add(8)?
         .checked_mul(client.rows)?
         .checked_add(8)?
         .checked_mul(client.rows)?
         .checked_add(10)?
-        .checked_add(crate::tree::fragments::historical_pages::spend_nodes(l, client)?)
+        .checked_add(crate::tree::fragments::ended_pages::spend_nodes(l, client)?)
 }
 fn text(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
     let text = words.book().say(words.language(), phrase.id(), holes).expect("checked project words").text;
@@ -144,7 +144,7 @@ fn region(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
     let text = words.book().say(words.language(), phrase.id(), holes).expect("checked project region").text;
     b.name(&text);
 }
-fn policy(b: &mut Builder, value: &OwnerProjectPolicy, words: &Words, text_limit: u32, rows: u32) {
+fn policy(b: &mut Builder, value: &ProjectPolicy, words: &Words, text_limit: u32, rows: u32) {
     region(b, words, P::Policy, &[]);
     crate::tree::fragments::authority::document_words(b, &value.ceiling, words, text_limit, rows);
     words.text(b, JigPhrase::PolicyPeriodSpend, &[Hole::Amount(value.period_spend)]);
@@ -216,7 +216,7 @@ fn effect(b: &mut Builder, connector: u16, kind: u16, words: &Words) {
     words.text(b, JigPhrase::PolicyEffect, &[Hole::Number(u64::from(connector)), Hole::Number(u64::from(kind))]);
 }
 /// Render all source facts in order, with connector resource slots left raw.
-pub fn render(b: &mut Builder, value: &OwnerProject, client: &Borrowed<'_>, words: &Words, bindings: &mut JigBindings) {
+pub fn render(b: &mut Builder, value: &Project, client: &Borrowed<'_>, words: &Words, bindings: &mut JigBindings) {
     named_region(b, words, JigPhrase::Project, &[crate::words::name(value.name.bytes())]);
     crate::tree::fragments::document_text::loss(b, &value.name, words);
     crate::tree::pages::work::section(
@@ -266,7 +266,7 @@ pub fn render(b: &mut Builder, value: &OwnerProject, client: &Borrowed<'_>, word
     }
     b.close();
 }
-fn configured_ledgers(b: &mut Builder, value: &OwnerProject, words: &Words) {
+fn configured_ledgers(b: &mut Builder, value: &Project, words: &Words) {
     region(b, words, P::ConfiguredPeriod, &[Hole::Number(value.configured_period)]);
     text(b, words, P::ConfiguredPeriod, &[Hole::Number(value.configured_period)]);
     for pool in &value.configured_pools {
@@ -277,7 +277,7 @@ fn configured_ledgers(b: &mut Builder, value: &OwnerProject, words: &Words) {
     }
     b.close();
 }
-fn resources(b: &mut Builder, value: &OwnerProject, _client: &Borrowed<'_>, words: &Words, bindings: &mut JigBindings) {
+fn resources(b: &mut Builder, value: &Project, _client: &Borrowed<'_>, words: &Words, bindings: &mut JigBindings) {
     b.open(Role::List);
     for resource in &value.resources {
         b.open(Role::Item);
@@ -286,10 +286,10 @@ fn resources(b: &mut Builder, value: &OwnerProject, _client: &Borrowed<'_>, word
             b,
             words,
             match resource.role {
-                OwnerProjectResourceRole::Owned => P::Owned,
-                OwnerProjectResourceRole::Participant => P::Participant,
-                OwnerProjectResourceRole::Unavailable => P::Unavailable,
-                OwnerProjectResourceRole::Context => P::Context,
+                ProjectResourceRole::Owned => P::Owned,
+                ProjectResourceRole::Participant => P::Participant,
+                ProjectResourceRole::Unavailable => P::Unavailable,
+                ProjectResourceRole::Context => P::Context,
             },
             &[],
         );
@@ -298,17 +298,11 @@ fn resources(b: &mut Builder, value: &OwnerProject, _client: &Borrowed<'_>, word
     }
     b.close();
 }
-fn policy_section(
-    b: &mut Builder,
-    value: &OwnerProject,
-    client: &Borrowed<'_>,
-    words: &Words,
-    bindings: &mut JigBindings,
-) {
+fn policy_section(b: &mut Builder, value: &Project, client: &Borrowed<'_>, words: &Words, bindings: &mut JigBindings) {
     let text_limit = bindings.text_limit();
     policy(b, &value.policy, words, text_limit, client.client.domain_limits().rows);
 }
-fn members(b: &mut Builder, value: &OwnerProject, _client: &Borrowed<'_>, words: &Words, _bindings: &mut JigBindings) {
+fn members(b: &mut Builder, value: &Project, _client: &Borrowed<'_>, words: &Words, _bindings: &mut JigBindings) {
     b.open(Role::List);
     for member in &value.members {
         b.open(Role::Item);
@@ -334,7 +328,7 @@ fn members(b: &mut Builder, value: &OwnerProject, _client: &Borrowed<'_>, words:
     }
     b.close();
 }
-fn ledgers(b: &mut Builder, value: &OwnerProject, _client: &Borrowed<'_>, words: &Words, _bindings: &mut JigBindings) {
+fn ledgers(b: &mut Builder, value: &Project, _client: &Borrowed<'_>, words: &Words, _bindings: &mut JigBindings) {
     match &value.current_period {
         Some(ledger) => crate::tree::fragments::budget::ledger(b, ledger, words),
         None => text(b, words, P::PeriodAbsent, &[]),
@@ -343,7 +337,7 @@ fn ledgers(b: &mut Builder, value: &OwnerProject, _client: &Borrowed<'_>, words:
         crate::tree::fragments::budget::ledger(b, ledger, words);
     }
 }
-fn spend(b: &mut Builder, value: &OwnerProject, client: &Borrowed<'_>, words: &Words, bindings: &mut JigBindings) {
+fn spend(b: &mut Builder, value: &Project, client: &Borrowed<'_>, words: &Words, bindings: &mut JigBindings) {
     b.open(Role::List);
     for spend in &value.spend {
         b.open(Role::Item);
@@ -359,7 +353,7 @@ fn spend(b: &mut Builder, value: &OwnerProject, client: &Borrowed<'_>, words: &W
     }
     b.close();
 }
-fn recurring(b: &mut Builder, value: &OwnerProject, client: &Borrowed<'_>, words: &Words, bindings: &mut JigBindings) {
+fn recurring(b: &mut Builder, value: &Project, client: &Borrowed<'_>, words: &Words, bindings: &mut JigBindings) {
     for row in &value.recurring {
         whole_recurring(b, client, row, words, bindings);
     }
@@ -426,7 +420,7 @@ fn whole_recurring(
 /// Compose the selected genuine Project section from supplied facts.
 pub(super) fn section(
     b: &mut Builder,
-    value: &OwnerProject,
+    value: &Project,
     selected: crate::state::address::ProjectSection,
     client: &Borrowed<'_>,
     words: &Words,
@@ -438,7 +432,7 @@ pub(super) fn section(
         ProjectSection::Settings => {
             render(b, value, client, words, bindings);
             forms(b, value, client, words, bindings);
-            super::historical_spend(b, client, words, bindings);
+            super::ended_spend(b, client, words, bindings);
         }
         ProjectSection::Resources => resources(b, value, client, words, bindings),
         ProjectSection::Policy => {
@@ -449,7 +443,7 @@ pub(super) fn section(
         ProjectSection::Spend => {
             ledgers(b, value, client, words, bindings);
             spend(b, value, client, words, bindings);
-            super::historical_spend(b, client, words, bindings);
+            super::ended_spend(b, client, words, bindings);
         }
         ProjectSection::Recurring => recurring(b, value, client, words, bindings),
         ProjectSection::Overview => {
@@ -594,7 +588,7 @@ fn requirements_request(ask: &Ask) -> Option<&skein_lib::List<jig_client::contra
         | PolicyEdit::Templates { .. } => None,
     }
 }
-fn projections_request(ask: &Ask) -> Option<&skein_lib::List<jig_client::contract::OwnerGrant>> {
+fn projections_request(ask: &Ask) -> Option<&skein_lib::List<jig_client::contract::Grant>> {
     match policy_request(ask)? {
         PolicyEdit::Projections { grants } => Some(grants),
         PolicyEdit::RoleSpend { .. }
@@ -721,7 +715,7 @@ fn service_request(ask: &Ask) -> Option<(&jig_client::contract::Text, jig_client
 /// Show only complete supplied policy replacements, never absent mappings.
 pub(super) fn forms(
     b: &mut Builder,
-    value: &OwnerProject,
+    value: &Project,
     client: &Borrowed<'_>,
     words: &Words,
     bindings: &mut JigBindings,
@@ -736,7 +730,7 @@ pub(super) fn forms(
 }
 fn policy_fields(
     b: &mut Builder,
-    value: &OwnerProject,
+    value: &Project,
     state: &owner_form::Form,
     words: &Words,
     bindings: &mut JigBindings,
@@ -780,13 +774,7 @@ fn policy_fields(
         }
     }
 }
-fn policy_lists(
-    b: &mut Builder,
-    value: &OwnerProject,
-    state: &owner_form::Form,
-    words: &Words,
-    bindings: &mut JigBindings,
-) {
+fn policy_lists(b: &mut Builder, value: &Project, state: &owner_form::Form, words: &Words, bindings: &mut JigBindings) {
     let requirements = Ask::ChangePolicy {
         project: value.number,
         edit: PolicyEdit::Requirements { requirements: value.policy.requirements.clone() },
@@ -882,7 +870,7 @@ fn policy_lists(
 }
 fn holding_forms(
     b: &mut Builder,
-    value: &OwnerProject,
+    value: &Project,
     state: &owner_form::Form,
     words: &Words,
     bindings: &mut JigBindings,
@@ -972,13 +960,7 @@ fn review_form(
     }
 }
 
-fn pool_forms(
-    b: &mut Builder,
-    value: &OwnerProject,
-    state: &owner_form::Form,
-    words: &Words,
-    bindings: &mut JigBindings,
-) {
+fn pool_forms(b: &mut Builder, value: &Project, state: &owner_form::Form, words: &Words, bindings: &mut JigBindings) {
     for member in &value.members {
         let mut budget = None;
         for pool in &value.configured_pools {
@@ -1073,13 +1055,7 @@ fn holding_control(
     holdings.get_mut(index).expect("bounded selected holding").role = role;
     role_control(b, role, owner_form::action(Ask::SetRoles { project, holdings }), words, bindings);
 }
-fn service_form(
-    b: &mut Builder,
-    value: &OwnerProject,
-    state: &owner_form::Form,
-    words: &Words,
-    bindings: &mut JigBindings,
-) {
+fn service_form(b: &mut Builder, value: &Project, state: &owner_form::Form, words: &Words, bindings: &mut JigBindings) {
     if !owner_form::service_offered(value) {
         return;
     }

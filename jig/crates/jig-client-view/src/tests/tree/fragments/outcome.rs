@@ -8,7 +8,7 @@ use skein_ui::phrases::{Hole, HoleKind, Invalid, Language, PhraseLimits, Phraseb
 use skein_ui::{Builder, Tree};
 
 use jig_client::contract::{
-    OwnerEscalationChoice, OwnerOutcome, OwnerProposalChoice, ProposalKey, Proposer, Revision, SeenThrough,
+    DocumentOutcome, EscalationChoice, ProposalChoice, ProposalKey, Proposer, Revision, SeenThrough,
 };
 use skein_lib::{Wall, bytes::copy_of};
 
@@ -25,7 +25,7 @@ fn phrase_limits() -> PhraseLimits {
 fn words() -> Words {
     Words::new(Phrasebook::load(phrases::shapes(), Box::new([phrases::english()]), &phrase_limits()).unwrap(), 0, 0)
 }
-fn render(value: &OwnerOutcome, words: &Words) -> Tree {
+fn render(value: &DocumentOutcome, words: &Words) -> Tree {
     let required = crate::sizes::limits::of(
         &crate::tests::tree::cards::CLIENT,
         &(crate::tests::tree::cards::CLIENT).client,
@@ -63,42 +63,42 @@ fn render(value: &OwnerOutcome, words: &Words) -> Tree {
     tree
 }
 
-fn max_cases() -> [OwnerOutcome; 23] {
+fn max_cases() -> [DocumentOutcome; 23] {
     [
         created_case(),
-        OwnerOutcome::Withdrawn { proposal: u64::MAX },
-        OwnerOutcome::MarkedSeen { seen: SeenThrough::Results { through: u64::MAX } },
-        OwnerOutcome::MarkedSeen { seen: SeenThrough::Conversation { task: u64::MAX, through: u64::MAX } },
-        OwnerOutcome::NoteEdited { name: u64::MAX },
-        OwnerOutcome::ServiceMade { person: u64::MAX },
-        OwnerOutcome::Adopted { project: u32::MAX },
-        OwnerOutcome::Stopped { task: u64::MAX },
-        OwnerOutcome::Cancelled { task: u64::MAX },
-        OwnerOutcome::Released { task: u64::MAX },
-        OwnerOutcome::PersonTaken { task: u64::MAX },
-        OwnerOutcome::PersonHandedBack { task: u64::MAX },
-        OwnerOutcome::PersonAnswered { task: u64::MAX },
-        OwnerOutcome::Moved { task: u64::MAX },
-        OwnerOutcome::ProposalDecided {
+        DocumentOutcome::Withdrawn { proposal: u64::MAX },
+        DocumentOutcome::MarkedSeen { seen: SeenThrough::Results { through: u64::MAX } },
+        DocumentOutcome::MarkedSeen { seen: SeenThrough::Conversation { task: u64::MAX, through: u64::MAX } },
+        DocumentOutcome::NoteEdited { name: u64::MAX },
+        DocumentOutcome::ServiceMade { person: u64::MAX },
+        DocumentOutcome::Adopted { project: u32::MAX },
+        DocumentOutcome::Stopped { task: u64::MAX },
+        DocumentOutcome::Cancelled { task: u64::MAX },
+        DocumentOutcome::Released { task: u64::MAX },
+        DocumentOutcome::PersonTaken { task: u64::MAX },
+        DocumentOutcome::PersonHandedBack { task: u64::MAX },
+        DocumentOutcome::PersonAnswered { task: u64::MAX },
+        DocumentOutcome::Moved { task: u64::MAX },
+        DocumentOutcome::ProposalDecided {
             proposal: ProposalKey { proposer: Proposer::Task(u64::MAX), number: u64::MAX },
             by: u64::MAX,
             at: Wall::from_nanos(u64::MAX),
-            choice: OwnerProposalChoice::Accepted,
+            choice: ProposalChoice::Accepted,
             repeated: false,
         },
-        OwnerOutcome::Said { task: u64::MAX, message: u64::MAX },
-        OwnerOutcome::QuestionAnswered { task: u64::MAX, question: u64::MAX, message: u64::MAX },
-        OwnerOutcome::Amended { task: u64::MAX },
-        OwnerOutcome::Proposed { proposal: u64::MAX, to: u32::MAX },
-        OwnerOutcome::RolesSet { project: u32::MAX },
-        OwnerOutcome::PolicyChanged { project: u32::MAX },
-        OwnerOutcome::PoolSet { project: u32::MAX, person: u64::MAX },
-        OwnerOutcome::EscalationDecided {
+        DocumentOutcome::Said { task: u64::MAX, message: u64::MAX },
+        DocumentOutcome::QuestionAnswered { task: u64::MAX, question: u64::MAX, message: u64::MAX },
+        DocumentOutcome::Amended { task: u64::MAX },
+        DocumentOutcome::Proposed { proposal: u64::MAX, to: u32::MAX },
+        DocumentOutcome::RolesSet { project: u32::MAX },
+        DocumentOutcome::PolicyChanged { project: u32::MAX },
+        DocumentOutcome::PoolSet { project: u32::MAX, person: u64::MAX },
+        DocumentOutcome::EscalationDecided {
             task: u64::MAX,
             revision: Revision { value: u64::MAX },
             by: u64::MAX,
             at: Wall::from_nanos(u64::MAX),
-            choice: OwnerEscalationChoice::Released,
+            choice: EscalationChoice::Released,
         },
     ]
 }
@@ -117,13 +117,13 @@ fn proposal_decisions_keep_both_makers_and_every_closed_choice_without_explanati
     let words = words();
     for proposer in [Proposer::Task(9), Proposer::Party(9)] {
         for choice in [
-            OwnerProposalChoice::Accepted,
-            OwnerProposalChoice::Rejected,
-            OwnerProposalChoice::Passed,
-            OwnerProposalChoice::Withdrawn,
-            OwnerProposalChoice::Stale,
+            ProposalChoice::Accepted,
+            ProposalChoice::Rejected,
+            ProposalChoice::Passed,
+            ProposalChoice::Withdrawn,
+            ProposalChoice::Stale,
         ] {
-            let value = OwnerOutcome::ProposalDecided {
+            let value = DocumentOutcome::ProposalDecided {
                 proposal: ProposalKey { proposer, number: 17 },
                 by: 23,
                 at: Wall::from_nanos(31),
@@ -141,8 +141,8 @@ fn proposal_decisions_keep_both_makers_and_every_closed_choice_without_explanati
 fn escalation_decisions_keep_revision_winner_clock_and_every_closed_choice() {
     let mut goldens = Goldens::new("tree/fragments/outcome/escalation_decisions_keep");
     let words = words();
-    for choice in [OwnerEscalationChoice::Released, OwnerEscalationChoice::Rejected, OwnerEscalationChoice::Passed] {
-        let value = OwnerOutcome::EscalationDecided {
+    for choice in [EscalationChoice::Released, EscalationChoice::Rejected, EscalationChoice::Passed] {
+        let value = DocumentOutcome::EscalationDecided {
             task: 7,
             revision: Revision { value: 13 },
             by: 19,
@@ -158,25 +158,26 @@ fn released_flags_and_question_message_identities_remain_independent() {
     let mut goldens = Goldens::new("tree/fragments/outcome/released_flags_and");
     let words = words();
     {
-        let cases: [OwnerOutcome; 3] = [
-            OwnerOutcome::Said { task: 7, message: 11 },
-            OwnerOutcome::Amended { task: 13 },
-            OwnerOutcome::Proposed { proposal: 23, to: 0 },
+        let cases: [DocumentOutcome; 3] = [
+            DocumentOutcome::Said { task: 7, message: 11 },
+            DocumentOutcome::Amended { task: 13 },
+            DocumentOutcome::Proposed { proposal: 23, to: 0 },
         ];
         for value in cases {
             goldens.check(&render(&value, &words));
         }
     }
-    let question = render(&OwnerOutcome::QuestionAnswered { task: 7, question: 11, message: 19 }, &words);
+    let question = render(&DocumentOutcome::QuestionAnswered { task: 7, question: 11, message: 19 }, &words);
     goldens.check(&question);
-    let seen = render(&OwnerOutcome::MarkedSeen { seen: SeenThrough::Conversation { task: 13, through: 17 } }, &words);
+    let seen =
+        render(&DocumentOutcome::MarkedSeen { seen: SeenThrough::Conversation { task: 13, through: 17 } }, &words);
     goldens.check(&seen);
 }
 #[test]
 fn pool_person_remains_distinct_from_the_project() {
     let mut goldens = Goldens::new("tree/fragments/outcome/pool_person_remains");
     let words = words();
-    let pool = render(&OwnerOutcome::PoolSet { project: 13, person: 23 }, &words);
+    let pool = render(&DocumentOutcome::PoolSet { project: 13, person: 23 }, &words);
     goldens.check(&pool);
 }
 fn selected_language() -> Language {
@@ -200,11 +201,11 @@ fn selected_outcome_language_is_checked_and_maximum_fragment_fits() {
         Phrasebook::load(phrases::shapes(), Box::new([phrases::english(), selected_language()]), &phrase_limits())
             .unwrap();
     let words = Words::new(book, 1, 1);
-    let value = OwnerOutcome::ProposalDecided {
+    let value = DocumentOutcome::ProposalDecided {
         proposal: ProposalKey { proposer: Proposer::Party(u64::MAX), number: u64::MAX },
         by: u64::MAX,
         at: Wall::EPOCH,
-        choice: OwnerProposalChoice::Rejected,
+        choice: ProposalChoice::Rejected,
         repeated: false,
     };
     let tree = render(&value, &words);
@@ -240,7 +241,7 @@ fn normal_words_register_every_outcome_once_and_bound_the_selected_language() {
     let mut goldens = Goldens::new("tree/fragments/outcome/normal_words_register");
 
     let normal_shapes = jig::shapes(crate::tests::tree::cards::CLIENT.client.text);
-    assert_eq!(normal_shapes.len(), usize::try_from(crate::words::owner_words::phrase_count()).unwrap());
+    assert_eq!(normal_shapes.len(), usize::try_from(crate::words::document_words::phrase_count()).unwrap());
     for outcome in phrases::ALL {
         let mut copies = 0_u32;
         for shape in &normal_shapes {
@@ -252,7 +253,7 @@ fn normal_words_register_every_outcome_once_and_bound_the_selected_language() {
     }
     let limits = PhraseLimits {
         languages: 2,
-        phrases: crate::words::owner_words::phrase_count(),
+        phrases: crate::words::document_words::phrase_count(),
         holes: 4,
         segments: crate::tests::english_phrase_segments(2),
         text_bytes: 200_000,
@@ -282,11 +283,11 @@ fn normal_words_register_every_outcome_once_and_bound_the_selected_language() {
         client: jig_client::DomainLimits { rows: 1, ..(crate::tests::tree::cards::CLIENT).client },
     };
     assert!(crate::tests::render_limits(&client, &words).unwrap().text_per_node >= 2048);
-    let value = OwnerOutcome::ProposalDecided {
+    let value = DocumentOutcome::ProposalDecided {
         proposal: ProposalKey { proposer: Proposer::Party(u64::MAX), number: 17 },
         by: 23,
         at: Wall::EPOCH,
-        choice: OwnerProposalChoice::Rejected,
+        choice: ProposalChoice::Rejected,
         repeated: false,
     };
     let tree = render(&value, &words);
@@ -294,7 +295,7 @@ fn normal_words_register_every_outcome_once_and_bound_the_selected_language() {
     goldens.check(&tree);
 
     let mut incomplete = english::language();
-    let mut kept = List::with_capacity(crate::words::owner_words::phrase_count());
+    let mut kept = List::with_capacity(crate::words::document_words::phrase_count());
     for phrase in incomplete.phrases {
         if phrase.id != phrases::OutcomePhrase::Compound.id() {
             kept.push(phrase).unwrap();
@@ -334,7 +335,7 @@ fn durable_answer_rendering_keeps_every_owner_fact_within_the_existing_notice_en
     };
     for value in max_cases() {
         let mut builder = Builder::new(&limits);
-        words.outcome(&mut builder, &jig_client::contract::Outcome::Owner(value));
+        words.outcome(&mut builder, &jig_client::contract::Outcome::Document(value));
         let tree = builder.finish();
         goldens.check(&tree);
         assert!(tree.len() <= required.nodes);
@@ -342,8 +343,8 @@ fn durable_answer_rendering_keeps_every_owner_fact_within_the_existing_notice_en
     // The enclosing notice includes the largest whole per-host outcome.
 }
 
-fn created_case() -> OwnerOutcome {
-    OwnerOutcome::Created {
+fn created_case() -> DocumentOutcome {
+    DocumentOutcome::Created {
         first: 1,
         last: u64::MAX,
         given: Some(jig_client::contract::CreatedGiven { task: 2, amount: u64::MAX }),
@@ -355,11 +356,11 @@ fn the_account_sign_in_outcomes_say_their_phrases() {
     let mut goldens = Goldens::new("tree/fragments/outcome/the_account_sign");
     let words = words();
     goldens.check(&render(
-        &OwnerOutcome::AccountSignInStarted { source: 7, address: b"http://issuer/visit".as_slice().into() },
+        &DocumentOutcome::AccountSignInStarted { source: 7, address: b"http://issuer/visit".as_slice().into() },
         &words,
     ));
     for confirmed in [false, true] {
-        goldens.check(&render(&OwnerOutcome::AccountSignedOut { confirmed, failed_hosts: Box::new([]) }, &words));
+        goldens.check(&render(&DocumentOutcome::AccountSignedOut { confirmed, failed_hosts: Box::new([]) }, &words));
     }
 }
 
@@ -367,7 +368,7 @@ fn the_account_sign_in_outcomes_say_their_phrases() {
 fn a_program_outcome_shows_its_declared_name() {
     let mut goldens = Goldens::new("tree/fragments/outcome/a_program_outcome");
     let tree =
-        render(&OwnerOutcome::AccountProgramDeclared { source: 0, name: b"personal".as_slice().into() }, &words());
+        render(&DocumentOutcome::AccountProgramDeclared { source: 0, name: b"personal".as_slice().into() }, &words());
     goldens.check(&tree);
 }
 #[test]
@@ -381,7 +382,7 @@ fn a_sign_out_outcome_shows_every_whole_host_name() {
         rows.push(AccountHostFailure { name: Box::from([b'a'; 4096]), why: AccountHostWhy::NotInContact }).unwrap();
     }
     let rows = rows.into_boxed();
-    let tree = render(&OwnerOutcome::AccountSignedOut { confirmed: false, failed_hosts: rows }, &words());
+    let tree = render(&DocumentOutcome::AccountSignedOut { confirmed: false, failed_hosts: rows }, &words());
 
     goldens.check(&tree);
 }
@@ -390,8 +391,8 @@ fn a_sign_out_outcome_shows_every_whole_host_name() {
 fn project_outcomes_say_what_was_made_or_renamed_and_keep_the_number() {
     let mut goldens = Goldens::new("tree/fragments/outcome/project_outcomes_say");
     let words = words();
-    goldens.check(&render(&OwnerOutcome::Renamed { project: 17 }, &words));
-    goldens.check(&render(&OwnerOutcome::ProjectMade { project: 19 }, &words));
+    goldens.check(&render(&DocumentOutcome::Renamed { project: 17 }, &words));
+    goldens.check(&render(&DocumentOutcome::ProjectMade { project: 19 }, &words));
 }
 
 #[test]
@@ -399,7 +400,7 @@ fn moved_in_outcomes_show_whether_the_account_was_renewed() {
     let mut goldens = Goldens::new("tree/fragments/outcome/moved_in_outcomes");
     let words = words();
     for renewed in [false, true] {
-        let tree = render(&OwnerOutcome::AccountMovedIn { account: u32::MAX, renewed }, &words);
+        let tree = render(&DocumentOutcome::AccountMovedIn { account: u32::MAX, renewed }, &words);
         goldens.check(&tree);
     }
 }
@@ -408,10 +409,10 @@ fn moved_in_outcomes_show_whether_the_account_was_renewed() {
 fn the_removed_outcome_has_its_words() {
     let mut goldens = Goldens::new("tree/fragments/outcome/the_removed_outcome");
     let words = words();
-    let outcome = OwnerOutcome::ProjectRemoved { project: 17 };
+    let outcome = DocumentOutcome::ProjectRemoved { project: 17 };
     goldens.check(&render(&outcome, &words));
     assert_eq!(
-        crate::state::outcome::route(&jig_client::contract::Outcome::Owner(outcome)),
+        crate::state::outcome::route(&jig_client::contract::Outcome::Document(outcome)),
         crate::state::outcome::Route::Other
     );
 }

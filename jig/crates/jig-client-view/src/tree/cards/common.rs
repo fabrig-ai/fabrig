@@ -14,7 +14,7 @@ use crate::{
         objects::{Card, Object},
     },
 };
-use jig_client::contract::{ActKind, Admission, Offered, Part, Recipient};
+use jig_client::contract::{ActKind, Admission, ApplicationPart, Offered, Recipient};
 use skein_lib::{Id, List};
 /// The phrase for every offered act, matched whole.
 #[must_use]
@@ -94,21 +94,21 @@ pub fn acts(
     }
 }
 /// Leave a slot and retain the typed part that its owning view root will resolve.
-pub fn part(b: &mut Builder, part: &Part, words: &Words, bindings: &mut JigBindings) {
+pub fn part(b: &mut Builder, part: &ApplicationPart, words: &Words, bindings: &mut JigBindings) {
     let connector = match part {
-        Part::Connector { connector }
-        | Part::Resource { connector, .. }
-        | Part::Kind { connector, .. }
-        | Part::Panel { connector, .. }
-        | Part::Result { connector, .. }
-        | Part::Effect { connector, .. }
-        | Part::OwnerEffect { connector, .. }
-        | Part::Outbox { connector, .. }
-        | Part::Hold { connector, .. }
-        | Part::Project { connector, .. }
-        | Part::Deployment { connector } => *connector,
+        ApplicationPart::Connector { connector }
+        | ApplicationPart::Resource { connector, .. }
+        | ApplicationPart::Kind { connector, .. }
+        | ApplicationPart::Panel { connector, .. }
+        | ApplicationPart::Result { connector, .. }
+        | ApplicationPart::Effect { connector, .. }
+        | ApplicationPart::OwnerEffect { connector, .. }
+        | ApplicationPart::Outbox { connector, .. }
+        | ApplicationPart::Hold { connector, .. }
+        | ApplicationPart::Project { connector, .. }
+        | ApplicationPart::Deployment { connector } => *connector,
     };
-    let token = bindings.insert(JigMeaning::Part(part.clone())).token;
+    let token = bindings.insert(JigMeaning::ApplicationPart(part.clone())).token;
     b.slot(
         SlotRef { owner: (Owner::Application { number: connector }).opaque(), token },
         &words.say(JigPhrase::LoadingPart, &[]),
@@ -139,7 +139,7 @@ pub fn closing(b: &mut Builder, closing: &jig_client::contract::Closing, words: 
             }
             for connector in connectors {
                 words.text(b, JigPhrase::ClosingConnector, &[]);
-                part(b, &Part::Connector { connector: *connector }, words, bindings);
+                part(b, &ApplicationPart::Connector { connector: *connector }, words, bindings);
                 if closing.stage == Some(jig_client::contract::ClosingStage::Effects) {
                     words.text(b, JigPhrase::ClosingEffects, &[]);
                 }

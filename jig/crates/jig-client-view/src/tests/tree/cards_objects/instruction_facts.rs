@@ -57,7 +57,7 @@ fn task_instruction_updates_distinguish_supplied_effective_empty_unknown_and_par
             .unwrap();
     for source in sources() {
         let mut row = task_doc(&[]);
-        row.chip.executor = Executor::Agent { charter: 2 };
+        row.chip.executor = ChipExecutor::Agent { charter: 2 };
         row.instructions = source.clone();
         crate::tests::tree::pages::deliver(&mut domain, watch, Delivery::Task(Box::new(row)));
         let tree = crate::tests::tree::pages::build(&domain, 3, words()).0;

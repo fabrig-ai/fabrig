@@ -6,17 +6,17 @@ use skein_ui::Builder;
 use skein_ui::phrases::Hole;
 
 use crate::Borrowed;
-use jig_client::contract::ActivityLine;
+use jig_client::contract::DecodedActivityLine;
 pub(super) fn activity(
     b: &mut Builder,
     client: &Borrowed<'_>,
-    value: &ActivityLine,
+    value: &DecodedActivityLine,
     words: &Words,
     bindings: &mut JigBindings,
 ) {
     let conversation = client.conversation();
 
-    let ActivityLine { source, decoded } = value;
+    let DecodedActivityLine { source, decoded } = value;
     crate::tree::fragments::activity::render(b, source, words);
     if let Some(archive) = decoded {
         words.text(b, JigPhrase::ArchiveCumulativeSpend, &[Hole::Amount(archive.cumulative)]);

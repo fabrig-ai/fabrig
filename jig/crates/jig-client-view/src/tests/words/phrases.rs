@@ -58,13 +58,13 @@ fn words_capacity_covers_unselected_languages_and_ignores_other_owners() {
     let base = crate::words::phrases::english::english(CLIENT.client.text).unwrap();
     let longer = crate::words::phrases::jig_capacity(&base).unwrap() + 1;
     let unrelated = PhraseId { owner: crate::Owner::Application { number: 0 }.opaque(), number: 0 };
-    let mut shapes = List::with_capacity(crate::words::owner_words::phrase_count() + 1);
+    let mut shapes = List::with_capacity(crate::words::document_words::phrase_count() + 1);
     for shape in crate::words::phrases::jig::shapes(CLIENT.client.text) {
         shapes.push(shape).unwrap();
     }
     shapes.push(PhraseShape { id: unrelated, holes: Box::new([]), plural: None }).unwrap();
     let mut first = crate::words::phrases::english::language();
-    let mut phrases = List::with_capacity(crate::words::owner_words::phrase_count() + 1);
+    let mut phrases = List::with_capacity(crate::words::document_words::phrase_count() + 1);
     for phrase in first.phrases {
         phrases.push(phrase).unwrap();
     }
@@ -89,7 +89,7 @@ fn words_capacity_covers_unselected_languages_and_ignores_other_owners() {
         Box::new([first, second]),
         &PhraseLimits {
             languages: 2,
-            phrases: crate::words::owner_words::phrase_count() + 1,
+            phrases: crate::words::document_words::phrase_count() + 1,
             holes: 4,
             segments: 6000,
             text_bytes: 100_000,

@@ -75,11 +75,7 @@ pub fn amendment(b: &mut Builder, change: &Amendment, words: &Words, bindings: &
 /// A named person revision and exact closed destination; the ask owns its project scope.
 pub(crate) fn address_change(b: &mut Builder, change: &jig_client::contract::AddressChange, words: &Words) {
     words.text(b, JigPhrase::PersonAddressRevision, &[Hole::Number(change.revision.value)]);
-    crate::tree::fragments::proposed_task::executor(
-        b,
-        jig_client::contract::OwnerExecutor::Person(change.address),
-        words,
-    );
+    crate::tree::fragments::proposed_task::executor(b, jig_client::contract::Executor::Person(change.address), words);
 }
 
 /// The same keyed card for the independently supplied pending owner document.
@@ -96,14 +92,14 @@ pub fn owner_proposal(
         return false;
     };
     let document = match &facts.body {
-        Some(crate::state::objects::Body::OwnerProposal(document)) => document,
+        Some(crate::state::objects::Body::Proposal(document)) => document,
         Some(
-            crate::state::objects::Body::Historical(_)
+            crate::state::objects::Body::Ended(_)
             | crate::state::objects::Body::Chip(_)
             | crate::state::objects::Body::Task(_)
-            | crate::state::objects::Body::OwnerEscalation(_)
+            | crate::state::objects::Body::Escalation(_)
             | crate::state::objects::Body::Question(_)
-            | crate::state::objects::Body::OwnerPersonTask(_)
+            | crate::state::objects::Body::PersonTask(_)
             | crate::state::objects::Body::Result(_)
             | crate::state::objects::Body::Note { .. },
         )

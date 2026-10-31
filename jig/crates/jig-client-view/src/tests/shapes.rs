@@ -45,7 +45,7 @@ fn the_goal_prediction_agrees_with_the_shaped_ask() {
         drive(&mut fixture, Event::Act { action: Act::Edit { field: Purpose::NewGoal, text: text(b"goal") } });
         let form = GoalForm {
             project: PROJECT,
-            executor: c::OwnerExecutor::Agent { charter: 1 },
+            executor: c::Executor::Agent { charter: 1 },
             budget: 10,
             deadline: wall,
             priority: 0,

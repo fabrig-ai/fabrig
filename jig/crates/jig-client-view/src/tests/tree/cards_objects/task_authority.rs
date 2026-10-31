@@ -3,25 +3,25 @@ use crate::state::address::{Address, TaskSection};
 use crate::tests::kit::Goldens;
 use crate::tests::tree::cards_objects::*;
 
-fn supplied() -> OwnerAuthorityDocument {
+fn supplied() -> AuthorityDocument {
     let segments = crate::tests::kit::list_in(CLIENT.client.rows, [Box::from(*b"a/b"), Box::from(*b"\xff\0")]);
-    let pattern = OwnerPattern { segments, last: OwnerPatternEnd::Open(Box::from(*b"\xff/")) };
+    let pattern = Pattern { segments, last: PatternEnd::Open(Box::from(*b"\xff/")) };
     let grants = crate::tests::kit::list_in(
         CLIENT.client.rows,
-        [OwnerGrant { connector: u16::MAX, kind: u16::MAX, pattern: pattern.clone() }],
+        [Grant { connector: u16::MAX, kind: u16::MAX, pattern: pattern.clone() }],
     );
     let kinds = crate::tests::kit::list_in(
         CLIENT.client.rows,
-        [OwnerAuthorityExecutor::Charter(u32::MAX), OwnerAuthorityExecutor::Role(u32::MAX)],
+        [AuthorityExecutor::Charter(u32::MAX), AuthorityExecutor::Role(u32::MAX)],
     );
     let note_resources =
-        crate::tests::kit::list_in(CLIENT.client.rows, [OwnerResourceScope { connector: u16::MAX, pattern }]);
-    OwnerAuthorityDocument {
-        authority: OwnerAuthority {
+        crate::tests::kit::list_in(CLIENT.client.rows, [ResourceScope { connector: u16::MAX, pattern }]);
+    AuthorityDocument {
+        authority: Authority {
             models: None,
             tools: u64::MAX,
             grants,
-            delegation: OwnerDelegation { kinds, tasks: u32::MAX, depth: u32::MAX },
+            delegation: Delegation { kinds, tasks: u32::MAX, depth: u32::MAX },
             spend: 10,
             deadline: None,
             notes: u8::MAX,
@@ -96,9 +96,9 @@ fn task_budget_section_renders_exact_bitmap_delegation_and_literal_authority_los
     let mut goldens = Goldens::new("tree/cards_objects/task_authority/task_budget_section");
     for cut in [false, true] {
         for kind in [
-            OwnerAuthorityExecutor::Charter(u32::MAX),
-            OwnerAuthorityExecutor::Procedure(u32::MAX),
-            OwnerAuthorityExecutor::Role(u32::MAX),
+            AuthorityExecutor::Charter(u32::MAX),
+            AuthorityExecutor::Procedure(u32::MAX),
+            AuthorityExecutor::Role(u32::MAX),
         ] {
             let (mut domain, out) =
                 crate::tests::tree::work_pages::entered(Address::Task { task: 8, section: TaskSection::Budget });
@@ -116,7 +116,7 @@ fn task_budget_section_renders_exact_bitmap_delegation_and_literal_authority_los
                 })
                 .unwrap();
             let mut row = task_doc(&[]);
-            row.chip.executor = Executor::Agent { charter: 1 };
+            row.chip.executor = ChipExecutor::Agent { charter: 1 };
             row.authority = supplied();
             row.authority.cut = cut;
             *row.authority.authority.delegation.kinds.get_mut(0).unwrap() = kind;

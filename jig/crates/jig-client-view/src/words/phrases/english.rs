@@ -183,7 +183,7 @@ pub fn language() -> Language {
                 Segment::Hole { index: 1, kind: HoleKind::Wall },
             ]),
             JigPhrase::Word(_) => unreachable!("public words compose their own language"),
-            JigPhrase::OwnerHoldRelease => {
+            JigPhrase::HoldRelease => {
                 Box::new([Segment::Text(copy_of(b"Release continues from the shown lifecycle; failure counts reset"))])
             }
             JigPhrase::QuestionFromTask => Box::new([
@@ -1576,7 +1576,7 @@ pub fn language() -> Language {
             .push(Phrase { id: phrase.id(), forms: Box::new([Form { class: PluralClass::Other, segments }]) })
             .expect("all English phrases fit");
     }
-    crate::words::owner_words::language(Language {
+    crate::words::document_words::language(Language {
         plural: PluralRule::English,
         span_unit: SpanUnit::Minutes,
         wall: WallFormat::Clock,
@@ -1609,7 +1609,7 @@ pub fn english(text: u32) -> Result<Phrasebook, Invalid> {
         Box::new([words]),
         &PhraseLimits {
             languages: 1,
-            phrases: crate::words::owner_words::phrase_count(),
+            phrases: crate::words::document_words::phrase_count(),
             holes: 4,
             segments,
             text_bytes,

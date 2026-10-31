@@ -24,8 +24,8 @@ use crate::{
 use jig_client::contract::*;
 use skein_lib::{Duration, List, Wall, bytes::copy_of};
 
-fn empty() -> OwnerDeployment {
-    OwnerDeployment {
+fn empty() -> Deployment {
+    Deployment {
         providers: List::with_capacity(0),
         providers_cut: false,
         key_bytes: 256,
@@ -35,11 +35,11 @@ fn empty() -> OwnerDeployment {
         hosts: List::with_capacity(2),
         attempts: List::with_capacity(2),
         accounts: List::with_capacity(2),
-        tasks: OwnerCapacity { used: 0, limit: u32::MAX },
-        workers: OwnerCapacity { used: u32::MAX, limit: 1 },
-        attempts_capacity: OwnerCapacity { used: 7, limit: 11 },
+        tasks: Capacity { used: 0, limit: u32::MAX },
+        workers: Capacity { used: u32::MAX, limit: 1 },
+        attempts_capacity: Capacity { used: 7, limit: 11 },
         waiting_attempts: 19,
-        proposals: OwnerCapacity { used: 3, limit: 17 },
+        proposals: Capacity { used: 3, limit: 17 },
         projects: List::with_capacity(2),
         grace_bound: Duration::from_nanos(u64::MAX),
         hello_refusals: List::with_capacity(2),
@@ -55,33 +55,30 @@ fn empty() -> OwnerDeployment {
         connectors_cut: false,
     }
 }
-fn run(task: OwnerTaskLink, state: OwnerAttemptState, location: OwnerRunLocation) -> OwnerHostRun {
-    OwnerHostRun { task, attempt: u64::MAX, kept: u32::MAX, listed: false, state, location, grace_until: None }
+fn run(task: TaskLink, state: AttemptState, location: RunLocation) -> HostRun {
+    HostRun { task, attempt: u64::MAX, kept: u32::MAX, listed: false, state, location, grace_until: None }
 }
-fn person(action: OwnerPersonCapacityAction, cause: OwnerPersonCapacityCause) -> OwnerPersonCapacityRefusal {
-    OwnerPersonCapacityRefusal {
-        key: OwnerRequestKey {
-            person: u64::MAX,
-            key: [0, 255, 1, 254, 2, 253, 3, 252, 4, 251, 5, 250, 6, 249, 7, 248],
-        },
+fn person(action: PersonCapacityAction, cause: PersonCapacityCause) -> PersonCapacityRefusal {
+    PersonCapacityRefusal {
+        key: RequestKey { person: u64::MAX, key: [0, 255, 1, 254, 2, 253, 3, 252, 4, 251, 5, 250, 6, 249, 7, 248] },
         project: None,
         action,
         at: Wall::EPOCH,
         cause,
     }
 }
-fn task(action: OwnerTaskCapacityAction, cause: OwnerTaskCapacityCause) -> OwnerTaskCapacityRefusal {
-    OwnerTaskCapacityRefusal {
-        request: OwnerTaskCapacityRequest {
+fn task(action: TaskCapacityAction, cause: TaskCapacityCause) -> TaskCapacityRefusal {
+    TaskCapacityRefusal {
+        request: TaskCapacityRequest {
             project: Some(u32::MAX),
-            by: OwnerRequester::Deployment { project: u32::MAX },
+            by: Requester::Deployment { project: u32::MAX },
             action,
             cause,
         },
         at: Wall::from_nanos(u64::MAX),
     }
 }
-fn domain(value: OwnerDeployment) -> Fixture {
+fn domain(value: Deployment) -> Fixture {
     let (mut client, frame) = start();
     let mut authoritative = document();
     authoritative.deployment_role = Some(HeldRole::Policy { role: 4 });
@@ -96,7 +93,7 @@ fn domain(value: OwnerDeployment) -> Fixture {
             _ => None,
         })
         .unwrap();
-    drive(&mut client, Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerDeployment(Box::new(value))) });
+    drive(&mut client, Watched { watch, event: WatchEvent::Delivered(Delivery::Deployment(Box::new(value))) });
     client
 }
 fn build(client: &Fixture, w: &Words, limits: skein_ui::Limits) -> Tree {
@@ -105,7 +102,7 @@ fn build(client: &Fixture, w: &Words, limits: skein_ui::Limits) -> Tree {
     view::render(&mut b, &client.view(), client.deployment_page().owner.unwrap(), w, &mut bindings);
     b.finish()
 }
-fn round_trip(value: OwnerDeployment) -> Tree {
+fn round_trip(value: Deployment) -> Tree {
     let untouched = value.clone();
     let client = domain(value);
     assert_eq!(client.deployment_page().owner, Some(&untouched));
@@ -118,11 +115,11 @@ fn round_trip(value: OwnerDeployment) -> Tree {
     );
     tree
 }
-fn waiting_account(until: Option<Wall>) -> OwnerDeployment {
+fn waiting_account(until: Option<Wall>) -> Deployment {
     let mut value = empty();
     value
         .accounts
-        .push(OwnerAccount {
+        .push(Account {
             provider_name: None,
             manage_usage: None,
             place: 0,
@@ -130,11 +127,11 @@ fn waiting_account(until: Option<Wall>) -> OwnerDeployment {
             plan: false,
             provider: None,
             display: DocumentText { bytes: Text::new(Box::from([]), 32).expect("empty display"), cut: false },
-            holder: OwnerAccountHolder::Deployment,
+            holder: AccountHolder::Deployment,
             sources: List::with_capacity(0),
             number: 1,
             generation: None,
-            state: OwnerAccountState::Later { until },
+            state: AccountState::Later { until },
             usable: false,
             expiring: false,
             attention: false,
@@ -160,25 +157,25 @@ fn an_account_waiting_to_ask_again_without_a_clock_shows_later() {
 fn deployment_view_all_attempt_account_hello_states_clocks_keys_and_independent_counts_are_visible() {
     let mut goldens = Goldens::new("tree/fragments/deployment/deployment_view_all");
     let states = [
-        OwnerAttemptState::Waiting,
-        OwnerAttemptState::Adopted,
-        OwnerAttemptState::Claimed,
-        OwnerAttemptState::Cancelled,
-        OwnerAttemptState::Handed,
-        OwnerAttemptState::Acknowledged,
-        OwnerAttemptState::Stray,
-        OwnerAttemptState::Kept,
-        OwnerAttemptState::Fenced,
-        OwnerAttemptState::Closed,
+        AttemptState::Waiting,
+        AttemptState::Adopted,
+        AttemptState::Claimed,
+        AttemptState::Cancelled,
+        AttemptState::Handed,
+        AttemptState::Acknowledged,
+        AttemptState::Stray,
+        AttemptState::Kept,
+        AttemptState::Fenced,
+        AttemptState::Closed,
     ];
     for state in states {
         let mut value = empty();
         value
             .attempts
             .push(run(
-                OwnerTaskLink::Stored { number: u64::MAX, status: None },
+                TaskLink::Stored { number: u64::MAX, status: None },
                 state,
-                OwnerRunLocation::Adrift { channel: None, until: None, remaining: None },
+                RunLocation::Adrift { channel: None, until: None, remaining: None },
             ))
             .unwrap();
         let tree = round_trip(value);
@@ -186,18 +183,18 @@ fn deployment_view_all_attempt_account_hello_states_clocks_keys_and_independent_
         assert!(tree.nodes().iter().any(|n| n.key.is_some_and(|k| k.kind == 96 && k.a == u64::MAX && k.b == u64::MAX)));
     }
     for state in [
-        OwnerAccountState::Granted,
-        OwnerAccountState::Asking,
-        OwnerAccountState::SignInAgain,
-        OwnerAccountState::Misconfigured,
-        OwnerAccountState::Unloaded { at: OwnerAccountPlace::File, why: OwnerAccountUnread::Refused },
-        OwnerAccountState::Closing,
-        OwnerAccountState::Moving,
+        AccountState::Granted,
+        AccountState::Asking,
+        AccountState::SignInAgain,
+        AccountState::Misconfigured,
+        AccountState::Unloaded { at: AccountPlace::File, why: AccountUnread::Refused },
+        AccountState::Closing,
+        AccountState::Moving,
     ] {
         let mut value = empty();
         value
             .accounts
-            .push(OwnerAccount {
+            .push(Account {
                 provider_name: None,
                 manage_usage: None,
                 place: 0,
@@ -205,7 +202,7 @@ fn deployment_view_all_attempt_account_hello_states_clocks_keys_and_independent_
                 plan: false,
                 provider: None,
                 display: DocumentText { bytes: Text::new(Box::from([]), 32).expect("empty display"), cut: false },
-                holder: OwnerAccountHolder::Deployment,
+                holder: AccountHolder::Deployment,
                 sources: List::with_capacity(0),
                 number: u32::MAX,
                 generation: Some(u64::MAX),
@@ -228,15 +225,15 @@ fn deployment_view_all_attempt_account_hello_states_clocks_keys_and_independent_
         );
     }
     for why in [
-        OwnerHelloRefusal::Position { worker: u32::MAX },
-        OwnerHelloRefusal::ReservedChannel,
-        OwnerHelloRefusal::Workers { limit: u32::MAX },
-        OwnerHelloRefusal::StopBound { grace: Duration::from_secs(17) },
+        HelloRefusal::Position { worker: u32::MAX },
+        HelloRefusal::ReservedChannel,
+        HelloRefusal::Workers { limit: u32::MAX },
+        HelloRefusal::StopBound { grace: Duration::from_secs(17) },
     ] {
         let mut value = empty();
         value
             .hello_refusals
-            .push(OwnerHelloRefusalLine {
+            .push(HelloRefusalLine {
                 channel: u64::MAX,
                 at: Wall::EPOCH,
                 slots: u32::MAX,
@@ -255,12 +252,12 @@ fn deployment_view_opaque_history_keys_source_order_and_full_width_requester_pro
     let mut value = empty();
     value.person_room_refusals = list(vec![
         person(
-            OwnerPersonCapacityAction::Proposal { proposer: Proposer::Task(u64::MAX), number: u64::MAX },
-            OwnerPersonCapacityCause::Requests { limit: u32::MAX },
+            PersonCapacityAction::Proposal { proposer: Proposer::Task(u64::MAX), number: u64::MAX },
+            PersonCapacityCause::Requests { limit: u32::MAX },
         ),
         person(
-            OwnerPersonCapacityAction::Proposal { proposer: Proposer::Party(u64::MAX), number: 0 },
-            OwnerPersonCapacityCause::Waiters { limit: 0 },
+            PersonCapacityAction::Proposal { proposer: Proposer::Party(u64::MAX), number: 0 },
+            PersonCapacityCause::Waiters { limit: 0 },
         ),
     ]);
     let tree = round_trip(value);
@@ -278,8 +275,8 @@ fn deployment_view_opaque_history_keys_source_order_and_full_width_requester_pro
         value
             .task_room_refusals
             .push(task(
-                OwnerTaskCapacityAction::Source { funder },
-                OwnerTaskCapacityCause::Inbox { task: u64::MAX, messages: u32::MAX, bytes: u32::MAX },
+                TaskCapacityAction::Source { funder },
+                TaskCapacityCause::Inbox { task: u64::MAX, messages: u32::MAX, bytes: u32::MAX },
             ))
             .unwrap();
         let tree = round_trip(value);
@@ -303,7 +300,7 @@ fn deployment_view_normal_words_select_second_language_and_reject_missing_or_wro
     }
     let phrase_limits = PhraseLimits {
         languages: 2,
-        phrases: crate::words::owner_words::phrase_count(),
+        phrases: crate::words::document_words::phrase_count(),
         holes: 4,
         segments: crate::tests::english_phrase_segments(2),
         text_bytes: 100_000,
@@ -344,19 +341,19 @@ fn deployment_view_all_outer_and_nested_lists_fill_together_with_exact_and_one_u
     let mut value = empty();
     for n in [0, u64::MAX] {
         let attempt = run(
-            OwnerTaskLink::Retained { chip: genuine_owner_chip_fixture(n), at: Some(Wall::EPOCH) },
-            OwnerAttemptState::Acknowledged,
-            OwnerRunLocation::Adrift { channel: Some(n), until: Some(Wall::EPOCH), remaining: Some(Duration::ZERO) },
+            TaskLink::Retained { chip: genuine_owner_chip_fixture(n), at: Some(Wall::EPOCH) },
+            AttemptState::Acknowledged,
+            RunLocation::Adrift { channel: Some(n), until: Some(Wall::EPOCH), remaining: Some(Duration::ZERO) },
         );
         value
             .hosts
-            .push(OwnerHost {
+            .push(Host {
                 name: None,
                 awaiting_logins: false,
                 rule: HostRule::Person(u64::MAX),
                 programs: List::with_capacity(0),
                 channel: n,
-                kind: OwnerHostKind::Worker,
+                kind: HostKind::Worker,
                 slots: u32::MAX,
                 used: u32::MAX,
                 free: u32::MAX,
@@ -367,9 +364,9 @@ fn deployment_view_all_outer_and_nested_lists_fill_together_with_exact_and_one_u
                 runs: list(vec![
                     attempt.clone(),
                     run(
-                        OwnerTaskLink::Live(genuine_owner_chip_fixture(n.wrapping_add(1))),
-                        OwnerAttemptState::Closed,
-                        OwnerRunLocation::Connected { channel: n, kind: OwnerHostKind::Engine },
+                        TaskLink::Live(genuine_owner_chip_fixture(n.wrapping_add(1))),
+                        AttemptState::Closed,
+                        RunLocation::Connected { channel: n, kind: HostKind::Engine },
                     ),
                 ]),
                 cut: true,
@@ -378,7 +375,7 @@ fn deployment_view_all_outer_and_nested_lists_fill_together_with_exact_and_one_u
         value.attempts.push(attempt).unwrap();
         value
             .accounts
-            .push(OwnerAccount {
+            .push(Account {
                 provider_name: None,
                 manage_usage: None,
                 place: 0,
@@ -386,11 +383,11 @@ fn deployment_view_all_outer_and_nested_lists_fill_together_with_exact_and_one_u
                 plan: false,
                 provider: None,
                 display: DocumentText { bytes: Text::new(Box::from([]), 32).expect("empty display"), cut: false },
-                holder: OwnerAccountHolder::Deployment,
+                holder: AccountHolder::Deployment,
                 sources: List::with_capacity(0),
                 number: if n == 0 { 0 } else { u32::MAX },
                 generation: Some(n),
-                state: OwnerAccountState::Closing,
+                state: AccountState::Closing,
                 usable: true,
                 expiring: true,
                 attention: true,
@@ -402,34 +399,34 @@ fn deployment_view_all_outer_and_nested_lists_fill_together_with_exact_and_one_u
             .unwrap();
         value
             .projects
-            .push(OwnerProjectCapacity {
+            .push(ProjectCapacity {
                 project: if n == 0 { 0 } else { u32::MAX },
-                tasks: OwnerCapacity { used: u32::MAX, limit: u32::MAX },
+                tasks: Capacity { used: u32::MAX, limit: u32::MAX },
                 proposals: u32::MAX,
             })
             .unwrap();
         value
             .hello_refusals
-            .push(OwnerHelloRefusalLine {
+            .push(HelloRefusalLine {
                 channel: n,
                 at: Wall::EPOCH,
                 slots: u32::MAX,
                 stop_bound: Duration::from_nanos(u64::MAX),
-                why: OwnerHelloRefusal::StopBound { grace: Duration::from_nanos(u64::MAX) },
+                why: HelloRefusal::StopBound { grace: Duration::from_nanos(u64::MAX) },
             })
             .unwrap();
         value
             .person_room_refusals
             .push(person(
-                OwnerPersonCapacityAction::Question { task: n, question: n },
-                OwnerPersonCapacityCause::Limit { which: AdmissionLimit::ProjectLiveTasks },
+                PersonCapacityAction::Question { task: n, question: n },
+                PersonCapacityCause::Limit { which: AdmissionLimit::ProjectLiveTasks },
             ))
             .unwrap();
         value
             .task_room_refusals
             .push(task(
-                OwnerTaskCapacityAction::Source { funder: Funder::Pool { project: u32::MAX, person: n, period: n } },
-                OwnerTaskCapacityCause::Inbox { task: n, messages: u32::MAX, bytes: u32::MAX },
+                TaskCapacityAction::Source { funder: Funder::Pool { project: u32::MAX, person: n, period: n } },
+                TaskCapacityCause::Inbox { task: n, messages: u32::MAX, bytes: u32::MAX },
             ))
             .unwrap();
     }
@@ -494,28 +491,28 @@ fn deployment_view_all_outer_and_nested_lists_fill_together_with_exact_and_one_u
     assert_eq!(client.deployment_page().owner, Some(&untouched));
 }
 fn genuine_owner_chip_fixture(number: u64) -> Chip {
-    let part = OwnerPart {
+    let part = Part {
         connector: u16::MAX,
-        kind: OwnerPartKind::Resource,
-        key: OwnerPartKey::Path(list(vec![Box::from([0, 255]), Box::from([1, 254, 2])])),
+        kind: PartKind::Resource,
+        key: PartKey::Path(list(vec![Box::from([0, 255]), Box::from([1, 254, 2])])),
     };
-    let resource = OwnerResourceLine {
+    let resource = ResourceLine {
         part: part.clone(),
         kind: u16::MAX,
         taken: true,
         holder: Some(u64::MAX),
-        writer: Some(OwnerResourceWriter::Effect { entry: u64::MAX }),
+        writer: Some(ResourceWriter::Effect { entry: u64::MAX }),
         writer_lost: true,
     };
-    let owner = OwnerChipDetails {
+    let owner = ChipDetails {
         dependencies: List::with_capacity(0),
         project: u32::MAX,
-        executor: OwnerExecutor::Agent { charter: u32::MAX },
+        executor: Executor::Agent { charter: u32::MAX },
         phase_since: Wall::EPOCH,
         run_since: None,
         attempt: Some(u64::MAX),
         retry: None,
-        wake: OwnerWakePolicy {
+        wake: WakePolicy {
             words: WakeRule::Never,
             notices: WakeRule::Immediate,
             news: WakeRule::Batch { count: u32::MAX, age: Duration::ZERO },
@@ -526,8 +523,8 @@ fn genuine_owner_chip_fixture(number: u64) -> Chip {
         },
         person_wait: None,
         hold: None,
-        budget: OwnerBudget {
-            numbers: OwnerNumbers { budget: u64::MAX, spent: 1, spent_below: 2, reserved: 3 },
+        budget: Budget {
+            numbers: Numbers { budget: u64::MAX, spent: 1, spent_below: 2, reserved: 3 },
             left: 5,
             funder: Funder::Task(u64::MAX),
             deadline: Some(Wall::EPOCH),
@@ -539,15 +536,15 @@ fn genuine_owner_chip_fixture(number: u64) -> Chip {
         procedure: None,
         live_delegates: u32::MAX,
         closing_connectors: Some(list(vec![0, u16::MAX])),
-        ending: Some(OwnerChipEnding::Done(ResultValue::Change {
+        ending: Some(ChipEnding::Done(ResultValue::Change {
             kind: u16::MAX,
             part,
             words: DocumentText::complete(Text::new(Box::from(*b"done"), 4).unwrap()),
         })),
         ended_at: None,
-        observation: Some(OwnerChipObservation {
+        observation: Some(ChipObservation {
             channel: skein_lib::Token::new(u64::MAX),
-            work: OwnerChipWork::Tool { call: Box::from(*b"raw"), tool: Box::from(*b"tool") },
+            work: ChipWork::Tool { call: Box::from(*b"raw"), tool: Box::from(*b"tool") },
             since: Wall::EPOCH,
             reported_at: Wall::from_nanos(u64::MAX),
             started: None,
@@ -556,10 +553,10 @@ fn genuine_owner_chip_fixture(number: u64) -> Chip {
     Chip {
         task: number,
         title: DocumentText::complete(Text::new(Box::from(*b"task"), 4).unwrap()),
-        executor: Executor::Agent { charter: u32::MAX },
+        executor: ChipExecutor::Agent { charter: u32::MAX },
         phase: Phase::Waiting,
-        details: Box::new(ChipPhase {
-            phase: OwnerChipPhase::Waiting { dependencies: List::with_capacity(2), more: true, holds: false },
+        details: Box::new(ChipPhaseFacts {
+            phase: ChipPhase::Waiting { dependencies: List::with_capacity(2), more: true, holds: false },
             details: Box::new(owner),
         }),
     }
@@ -568,7 +565,7 @@ fn genuine_owner_chip_fixture(number: u64) -> Chip {
 #[test]
 fn deployment_view_person_actions_four_causes_all_structural_limits_and_opaque_request_keys_survive() {
     use AdmissionLimit as L;
-    use OwnerPersonCapacityAction as A;
+    use PersonCapacityAction as A;
     let actions = [
         A::AccountSignIn,
         A::AccountSignOut,
@@ -600,10 +597,7 @@ fn deployment_view_person_actions_four_causes_all_structural_limits_and_opaque_r
     ];
     for action in actions {
         let mut value = empty();
-        value
-            .person_room_refusals
-            .push(person(action, OwnerPersonCapacityCause::Requests { limit: u32::MAX }))
-            .unwrap();
+        value.person_room_refusals.push(person(action, PersonCapacityCause::Requests { limit: u32::MAX })).unwrap();
         round_trip(value);
     }
     let limits = [
@@ -648,13 +642,11 @@ fn deployment_view_person_actions_four_causes_all_structural_limits_and_opaque_r
         let mut value = empty();
         value
             .person_room_refusals
-            .push(person(A::Application { connector: u16::MAX }, OwnerPersonCapacityCause::Limit { which }))
+            .push(person(A::Application { connector: u16::MAX }, PersonCapacityCause::Limit { which }))
             .unwrap();
         round_trip(value);
     }
-    for cause in
-        [OwnerPersonCapacityCause::Pending { limit: u32::MAX }, OwnerPersonCapacityCause::Waiters { limit: u32::MAX }]
-    {
+    for cause in [PersonCapacityCause::Pending { limit: u32::MAX }, PersonCapacityCause::Waiters { limit: u32::MAX }] {
         let mut value = empty();
         let mut refusal = person(A::Application { connector: u16::MAX }, cause);
         refusal.project = Some(0);
@@ -664,8 +656,8 @@ fn deployment_view_person_actions_four_causes_all_structural_limits_and_opaque_r
 }
 #[test]
 fn deployment_view_task_actions_fourteen_causes_three_requesters_and_four_funders_keep_full_width_values() {
-    use OwnerTaskCapacityAction as A;
-    use OwnerTaskCapacityCause as C;
+    use TaskCapacityAction as A;
+    use TaskCapacityCause as C;
     let actions = [
         A::Batch { first: None, members: u32::MAX },
         A::Batch { first: Some(0), members: 0 },
@@ -710,11 +702,7 @@ fn deployment_view_task_actions_fourteen_causes_three_requesters_and_four_funder
         value.task_room_refusals.push(task(A::Move, cause)).unwrap();
         round_trip(value);
     }
-    for by in [
-        OwnerRequester::Task(u64::MAX),
-        OwnerRequester::Person(u64::MAX),
-        OwnerRequester::Deployment { project: u32::MAX },
-    ] {
+    for by in [Requester::Task(u64::MAX), Requester::Person(u64::MAX), Requester::Deployment { project: u32::MAX }] {
         let mut value = empty();
         let mut refusal = task(A::Release, C::Tasks { limit: 0 });
         refusal.request.by = by;
@@ -783,45 +771,45 @@ fn an_agent_shortfall_refusal_is_worded() {
     let mut value = empty();
     value
         .hello_refusals
-        .push(OwnerHelloRefusalLine {
+        .push(HelloRefusalLine {
             channel: 9,
             at: Wall::EPOCH,
             slots: 1,
             stop_bound: Duration::ZERO,
-            why: OwnerHelloRefusal::Agent { why: OwnerAgentShortfall::Window { charter: 42, model: 3 } },
+            why: HelloRefusal::Agent { why: AgentShortfall::Window { charter: 42, model: 3 } },
         })
         .unwrap();
     let tree = round_trip(value);
     goldens.check(&tree);
 }
 
-fn identity_accounts() -> OwnerDeployment {
+fn identity_accounts() -> Deployment {
     let mut value = waiting_account(None);
     value.cut = false;
     let account = value.accounts.get_mut(0).unwrap();
     account.provider = Some(2);
     account.display = DocumentText { bytes: Text::new(copy_of(b"Personal"), CLIENT.client.text).unwrap(), cut: true };
-    account.holder = OwnerAccountHolder::Party(23);
+    account.holder = AccountHolder::Party(23);
     account.plan = true;
-    account.uses = Some(list(vec![OwnerAccountUse::Party(23), OwnerAccountUse::Project(29)]));
+    account.uses = Some(list(vec![AccountUse::Party(23), AccountUse::Project(29)]));
     account.sources = list(vec![
-        OwnerAccountSource {
+        AccountSource {
             name: None,
             place: 3,
             number: 11,
-            kind: OwnerAccountKind::SignIn,
-            state: OwnerAccountState::Granted,
+            kind: AccountKind::SignIn,
+            state: AccountState::Granted,
             usable: true,
             expiring: true,
             attention: true,
             spent_until: Some(Wall::from_nanos(46_920_000_000_000)),
         },
-        OwnerAccountSource {
+        AccountSource {
             name: None,
             place: 5,
             number: 12,
-            kind: OwnerAccountKind::Key,
-            state: OwnerAccountState::Later { until: None },
+            kind: AccountKind::Key,
+            state: AccountState::Later { until: None },
             usable: false,
             expiring: false,
             attention: false,
@@ -870,7 +858,7 @@ fn deployment_accounts_show_the_default_uses_and_deployment_holder() {
     goldens.check(&tree);
 }
 
-fn deployment_terms() -> OwnerDeployment {
+fn deployment_terms() -> Deployment {
     let mut value = waiting_account(None);
     let account = value.accounts.get_mut(0).unwrap();
     account.provider_name =
@@ -917,7 +905,7 @@ fn deployment_manage_addresses_hold_at_the_whole_address_bound() {
     round_trip(value);
 }
 
-fn catalogue() -> OwnerDeployment {
+fn catalogue() -> Deployment {
     let mut value = empty();
     value.providers = list(vec![ProviderOffer {
         provider: 37,
@@ -934,7 +922,7 @@ fn catalogue() -> OwnerDeployment {
     value.providers_cut = true;
     value.readiness = list(vec![PayerReadiness {
         provider: 37,
-        payer: OwnerAccountUse::Project(91),
+        payer: AccountUse::Project(91),
         readiness: Readiness::Unknown,
         settled: None,
     }]);
@@ -951,7 +939,7 @@ fn deployment_renders_the_public_provider_catalogue() {
         tree.nodes().iter().any(|node| node.external.as_deref() == Some(b"https://usage.example/other".as_slice()))
     );
 }
-fn fragment(value: &OwnerDeployment, limits: skein_ui::Limits) -> Tree {
+fn fragment(value: &Deployment, limits: skein_ui::Limits) -> Tree {
     let mut builder = Builder::new(&limits);
     builder.open(Role::Region);
     crate::tree::fragments::account_catalogue::render(
@@ -1015,14 +1003,14 @@ fn a_none_offer_labels_its_absent_credential() {
     goldens.check(&round_trip(value));
 }
 
-fn program_host() -> OwnerHost {
-    OwnerHost {
+fn program_host() -> Host {
+    Host {
         name: Some(b"configured-worker".as_slice().into()),
         awaiting_logins: false,
         rule: HostRule::Open,
         programs: List::with_capacity(2),
         channel: 17,
-        kind: OwnerHostKind::Worker,
+        kind: HostKind::Worker,
         slots: 1,
         used: 0,
         free: 1,
@@ -1046,11 +1034,11 @@ fn deployment_renders_the_program_observation() {
     let mut goldens = Goldens::new("tree/fragments/deployment/deployment_renders_the_program");
     let mut host = program_host();
     host.programs
-        .push(OwnerProgramLogin {
+        .push(ProgramLogin {
             name: b"personal".as_slice().into(),
-            state: Some(OwnerProgramState::Usable),
-            sign_out: Some(OwnerProgramSignOut::Failed {
-                reason: OwnerProgramFailure::Deadline,
+            state: Some(ProgramState::Usable),
+            sign_out: Some(ProgramSignOut::Failed {
+                reason: ProgramFailure::Deadline,
                 detail: b"bounded failure".as_slice().into(),
             }),
             cleanup: true,
@@ -1069,19 +1057,19 @@ fn a_refused_worker_position_is_shown() {
     let mut value = empty();
     value
         .hello_refusals
-        .push(OwnerHelloRefusalLine {
+        .push(HelloRefusalLine {
             channel: 9,
             at: Wall::EPOCH,
             slots: 1,
             stop_bound: Duration::ZERO,
-            why: OwnerHelloRefusal::Position { worker: u32::MAX },
+            why: HelloRefusal::Position { worker: u32::MAX },
         })
         .unwrap();
     let tree = round_trip(value);
     goldens.check(&tree);
 }
 
-fn account_lists(accounts: u32, sources: u32) -> OwnerDeployment {
+fn account_lists(accounts: u32, sources: u32) -> Deployment {
     let mut value = identity_accounts();
     let mut account = value.accounts.get(0).unwrap().clone();
     let source = account.sources.get(0).unwrap().clone();

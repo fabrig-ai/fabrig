@@ -174,7 +174,7 @@ fn a_read_s_page_stays_until_the_page_is_left_or_its_next_page_replaces_it() {
     drive(
         &mut fixture,
         Time::ZERO,
-        ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProject(Box::new(value.clone()))) },
+        ReadPage { read, result: ReadResult::Value(ReadValue::Project(Box::new(value.clone()))) },
     );
     delivered(&mut fixture, Time::ZERO, frame_handle, frame(ME));
     assert_eq!(fixture.project_page().owner.as_deref(), Some(&value));

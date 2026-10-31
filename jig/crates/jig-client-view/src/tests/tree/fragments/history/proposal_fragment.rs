@@ -4,13 +4,13 @@ use crate::tests::tree::fragments::history::*;
 
 use skein_ui::Role;
 
-fn render(value: &OwnerProposalHistory, words: &Words, limits: &Limits) -> (Tree, JigBindings) {
+fn render(value: &ProposalHistory, words: &Words, limits: &Limits) -> (Tree, JigBindings) {
     let mut bindings = JigBindings::new(limits.bindings, 8);
     let mut builder = Builder::new(limits);
     view::proposal(&mut builder, value, words, &mut bindings, client_limits().client.rows);
     (builder.finish(), bindings)
 }
-fn bare(value: &OwnerProposalHistory, words: &Words) -> (Tree, JigBindings, Limits) {
+fn bare(value: &ProposalHistory, words: &Words) -> (Tree, JigBindings, Limits) {
     let source = value.clone();
     let fragment = crate::tests::render_limits(&client_limits(), words).unwrap();
 
@@ -41,21 +41,21 @@ fn bare(value: &OwnerProposalHistory, words: &Words) -> (Tree, JigBindings, Limi
     assert!(slots <= fragment.bindings);
     (tree, bindings, fragment)
 }
-fn states(action: OwnerRetainedAction, goldens: &mut Goldens) {
+fn states(action: RetainedAction, goldens: &mut Goldens) {
     let words = normal_words();
     for state in [
-        OwnerProposalHistoryState::Pending {
-            holder: OwnerHistoryHolder::Policy { project: u32::MAX, kind: OwnerMessageProposalKind::Amend },
+        ProposalHistoryState::Pending {
+            holder: HistoryHolder::Policy { project: u32::MAX, kind: MessageProposalKind::Amend },
             since: Wall::EPOCH,
         },
-        OwnerProposalHistoryState::Accepted { by: OwnerRequester::Task(u64::MAX) },
-        OwnerProposalHistoryState::Rejected {
-            by: OwnerRequester::Deployment { project: u32::MAX },
+        ProposalHistoryState::Accepted { by: Requester::Task(u64::MAX) },
+        ProposalHistoryState::Rejected {
+            by: Requester::Deployment { project: u32::MAX },
             reason: doc(UTF8_TEXTS[0], true),
         },
-        OwnerProposalHistoryState::Withdrawn,
+        ProposalHistoryState::Withdrawn,
     ] {
-        let value = OwnerProposalHistory { state, as_holder: false, ..proposal(action.clone()) };
+        let value = ProposalHistory { state, as_holder: false, ..proposal(action.clone()) };
         let (tree, _, _) = bare(&value, words);
         goldens.check(&tree);
     }
@@ -69,7 +69,7 @@ fn retained_proposal_batch_fragment_keeps_full_nested_values_in_every_state_with
 fn retained_proposal_effect_fragment_keeps_full_width_raw_coordinates_in_every_state_without_scope() {
     let mut goldens = Goldens::new("tree/fragments/history/proposal_fragment/retained_proposal_effect");
     states(actions().into_iter().nth(1).unwrap(), &mut goldens);
-    let action = OwnerRetainedAction::ProcedureEffect {
+    let action = RetainedAction::ProcedureEffect {
         part: part(),
         authority: state().authority,
         step: u64::MAX,
@@ -99,13 +99,13 @@ fn retained_proposal_release_fragment_keeps_named_task_in_every_state() {
 fn retained_proposal_fragment_delegation_preserves_old_history_nodes_metadata_geometry_and_slots() {
     let words = normal_words();
     let old_context =
-        OwnerHistoryLine { amendment: Some((Box::new(state()), Box::new(state()))), at: Some(Wall::EPOCH), ..line() };
+        HistoryLine { amendment: Some((Box::new(state()), Box::new(state()))), at: Some(Wall::EPOCH), ..line() };
     let (prefix, _) = build(&old_context, words);
     let original_bound = crate::tests::render_limits(&client_limits(), words).unwrap();
     for action in actions() {
         let value = proposal(action);
         let (fragment_tree, _, fragment) = bare(&value, words);
-        let history = OwnerHistoryLine { proposal: Some(value), ..old_context.clone() };
+        let history = HistoryLine { proposal: Some(value), ..old_context.clone() };
 
         assert_eq!(fragment, original_bound);
         let (whole, _) = build(&history, words);
@@ -131,7 +131,7 @@ fn retained_proposal_bare_fragment_uses_the_selected_checked_language_for_every_
 fn retained_proposal_fragment_selected_language_and_exact_occupied_nodes_refuse_one_under() {
     let mut goldens = Goldens::new("tree/fragments/history/proposal_fragment/retained_proposal_fragment_selected");
     let words = words(true);
-    let value = proposal(OwnerRetainedAction::Amend { task: 0, change: Box::new(delta()) });
+    let value = proposal(RetainedAction::Amend { task: 0, change: Box::new(delta()) });
     let (tree, _, fragment) = bare(&value, &words);
     goldens.check(&tree);
     let exact = Limits { nodes: tree.len(), ..fragment };
@@ -147,7 +147,7 @@ fn retained_proposal_fragment_selected_language_and_exact_occupied_nodes_refuse_
 fn retained_proposal_fragment_preserves_absent_empty_and_independent_retained_losses() {
     let mut goldens = Goldens::new("tree/fragments/history/proposal_fragment/retained_proposal_fragment_preserves");
     let words = normal_words();
-    let absent = OwnerRetainedAmendment {
+    let absent = RetainedAmendment {
         addressed: None,
         instructions: None,
         release: None,
@@ -158,15 +158,15 @@ fn retained_proposal_fragment_preserves_absent_empty_and_independent_retained_lo
         reason: doc(b"", false),
         cut: false,
     };
-    let empty = OwnerRetainedAmendment {
+    let empty = RetainedAmendment {
         instructions: Some(doc(b"", true)),
         dependencies: Some(List::with_capacity(3)),
         cut: true,
         ..absent.clone()
     };
-    let complete_empty = OwnerRetainedAmendment { instructions: Some(doc(b"", false)), cut: false, ..empty.clone() };
-    let local_loss = OwnerRetainedAmendment { cut: false, ..empty.clone() };
-    let dependency_loss = OwnerRetainedAmendment { cut: true, ..complete_empty.clone() };
+    let complete_empty = RetainedAmendment { instructions: Some(doc(b"", false)), cut: false, ..empty.clone() };
+    let local_loss = RetainedAmendment { cut: false, ..empty.clone() };
+    let dependency_loss = RetainedAmendment { cut: true, ..complete_empty.clone() };
     for (change, supplied, text_cut, dependency_cut) in [
         (absent, false, false, false),
         (complete_empty, true, false, false),
@@ -174,10 +174,10 @@ fn retained_proposal_fragment_preserves_absent_empty_and_independent_retained_lo
         (dependency_loss, true, false, true),
         (empty, true, true, true),
     ] {
-        let value = proposal(OwnerRetainedAction::Amend { task: 0, change: Box::new(change) });
+        let value = proposal(RetainedAction::Amend { task: 0, change: Box::new(change) });
         let (tree, _, _) = bare(&value, words);
         match &value.action {
-            OwnerRetainedAction::Amend { change, .. } => {
+            RetainedAction::Amend { change, .. } => {
                 assert_eq!(change.instructions.is_some(), supplied);
                 assert_eq!(change.dependencies.is_some(), supplied);
                 if let Some(instructions) = &change.instructions {
@@ -190,12 +190,12 @@ fn retained_proposal_fragment_preserves_absent_empty_and_independent_retained_lo
                     assert_eq!(values.capacity(), 3);
                 }
             }
-            OwnerRetainedAction::Settings(_)
-            | OwnerRetainedAction::Batch(_)
-            | OwnerRetainedAction::Effect { .. }
-            | OwnerRetainedAction::ProcedureEffect { .. }
-            | OwnerRetainedAction::Widen { .. }
-            | OwnerRetainedAction::Release { .. } => unreachable!(),
+            RetainedAction::Settings(_)
+            | RetainedAction::Batch(_)
+            | RetainedAction::Effect { .. }
+            | RetainedAction::ProcedureEffect { .. }
+            | RetainedAction::Widen { .. }
+            | RetainedAction::Release { .. } => unreachable!(),
         }
         goldens.check(&tree);
     }

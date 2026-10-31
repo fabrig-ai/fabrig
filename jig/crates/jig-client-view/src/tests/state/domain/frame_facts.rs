@@ -61,7 +61,7 @@ fn me_preserves_roles_pools_and_independent_owner_counts() {
     }
 }
 #[test]
-fn pending_words_keep_the_local_name_loss_without_inventing_historical_loss_or_blocking_send() {
+fn pending_words_keep_the_local_name_loss_without_inventing_ended_loss_or_blocking_send() {
     let mut words = jig_client::thread::words::KeptWords::new(3);
     let mut author = frame(7).party;
     author.name = DocumentText { bytes: Text::new(Box::from(*b"partial"), 32).unwrap(), cut: true };
