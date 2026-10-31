@@ -194,11 +194,56 @@ impl Engine {
             || !self.store.routed.is_empty()
             || self.begin
             || (!self.first_periods.is_empty() && self.domain.ready() && !self.blocked)
-            || !self.parties.is_empty()
-            || ((!self.events.is_empty() || !self.held.is_empty()) && !self.blocked)
+            || (self.domain.ready() && !self.parties.is_empty())
+            || ((self.event_pending() || !self.held.is_empty()) && !self.blocked)
             || (!self.held.is_empty() && self.passing())
             || self.ready
             || (due && (!self.blocked || !self.held.is_empty()))
+    }
+    fn event_pending(&self) -> bool {
+        if self.domain.ready() || self.store.component.mark_durable() {
+            return !self.events.is_empty();
+        }
+        for event in &self.events {
+            if let root::Event::StartDone(_) = event {
+                return true;
+            }
+        }
+        false
+    }
+    fn next_event(&mut self) -> Option<root::Event> {
+        use core::start::Phase;
+        let loading = match self.domain.core_mut().start_phase() {
+            Some(
+                Phase::LoadCore
+                | Phase::LoadInbox
+                | Phase::RestoreConnector { .. }
+                | Phase::Link
+                | Phase::Sweep
+                | Phase::Switch
+                | Phase::Wires,
+            ) => true,
+            Some(Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open) | None => {
+                false
+            }
+        };
+        if !loading {
+            return self.events.pop();
+        }
+        // Runtime inputs wait behind durable Wires; phase completions still
+        // advance the start without changing the waiting inputs' order.
+        let mut next = None;
+        for _ in 0..self.events.len() {
+            let event = self.events.pop().expect("component input count");
+            if next.is_none()
+                && let root::Event::StartDone(_) = &event
+            {
+                next = Some(event);
+            } else {
+                self.events.push(event);
+            }
+        }
+        next
     }
     fn passing(&self) -> bool {
         match self.events.iter().next() {
@@ -309,7 +354,7 @@ pub fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     }
     if engine.begin {
         engine.begin = false;
-        engine.step(root::Event::RestartBegin { pending: engine.store.pending });
+        engine.step(root::Event::StartBegin { pending: engine.store.pending });
     } else if !engine.blocked && !engine.held.is_empty() {
         // A refused retry remains ahead of every younger held remainder.
         let mut younger = ::core::mem::replace(&mut engine.held, Queue::uncapped());
@@ -324,14 +369,17 @@ pub fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         engine.first_periods.truncate(last);
         engine.step(root::Event::Core(core::Event::Period { project, period: 1, budget, next: None }));
     } else if engine.held.is_empty() && !engine.blocked && !engine.events.is_empty() {
-        let event = engine.events.pop().expect("ready component input");
-        engine.step(event);
-    } else if let Some(event) = engine.parties.pop() {
+        if let Some(event) = engine.next_event() {
+            engine.step(event);
+        }
+    } else if engine.domain.ready()
+        && let Some(event) = engine.parties.pop()
+    {
         engine.root_steps = engine.root_steps.wrapping_add(1);
         if let Err(event) = root::try_step(&mut engine.domain, &engine.env, root::Event::Core(event)) {
             engine.outputs.push(PartyOutput::Busy(Box::new(event)));
         }
-    } else if !engine.blocked || !engine.held.is_empty() {
+    } else if engine.domain.ready() && (!engine.blocked || !engine.held.is_empty()) {
         fire(engine);
     }
     pass(engine);
@@ -397,6 +445,7 @@ fn release(engine: &mut Engine) {
         } else {
             empty = 0;
         }
+        route::count_restart_reads(engine);
         for _ in 0..engine.requests.len() {
             let request = engine.requests.pop().expect("bounded root output");
             route::request(engine, request);

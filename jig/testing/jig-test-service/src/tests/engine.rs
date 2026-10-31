@@ -8,22 +8,164 @@ use skein_lib::Secret;
 
 #[test]
 fn the_restart_asks_one_load_at_a_time() {
+    use core::start::Phase;
     let mut service = fixtures::started(&fixtures::engine_document());
     fixtures::turn(&mut service);
     let engine = fixtures::engine(&mut service);
     assert_eq!(engine.store.above.len(), 1);
-    let Some(StoreEvent::Restored { owner, rows, next }) = engine.store.above.pop() else {
+    let Some(StoreEvent::Page { owner, items, next }) = engine.store.above.pop() else {
         panic!("restart load completed by the real store");
     };
-    assert_eq!(rows.len(), 0);
+    assert_eq!(items.len(), 0);
     assert_eq!(next, None);
-    engine.store.above.push(StoreEvent::Restored { owner, rows, next });
+    engine.store.above.push(StoreEvent::Page { owner, items, next });
     fixtures::turn(&mut service);
     let engine = fixtures::engine(&mut service);
-    let Some(StoreEvent::Committed { .. }) = engine.store.above.pop() else {
-        panic!("restart writes commit first");
+    let Some(committed @ StoreEvent::Committed { .. }) = engine.store.above.pop() else {
+        panic!("start writes commit first");
     };
     assert_eq!(engine.store.above.len(), 0);
+    engine.store.above.push(committed);
+    let mut phases = skein_lib::List::with_capacity(5);
+    phases.push(Phase::LoadCore).expect("phase count");
+    for _ in 0..64_u32 {
+        fixtures::turn(&mut service);
+        let engine = fixtures::engine(&mut service);
+        let mut pages = 0_u32;
+        for event in &engine.store.above {
+            if let StoreEvent::Page { .. } = event {
+                pages = pages.checked_add(1).expect("bounded pages");
+            }
+        }
+        assert!(pages <= 1, "one page outstanding in the selected phase");
+        if pages == 1 {
+            let phase = engine.domain.core_mut().start_phase().expect("page has a phase");
+            if phases.last() != Some(&phase) {
+                phases.push(phase).expect("phase count");
+            }
+        }
+        if engine.domain.ready() {
+            break;
+        }
+    }
+    assert_eq!(
+        phases.as_slice(),
+        [
+            Phase::LoadCore,
+            Phase::LoadInbox,
+            Phase::RestoreConnector { connector: 1 },
+            Phase::RestoreConnector { connector: 2 },
+            Phase::Sweep,
+        ]
+    );
+    assert!(fixtures::engine(&mut service).domain.ready());
+    assert!(fixtures::engine(&mut service).store.component.mark_durable());
+}
+
+#[test]
+fn sweep_rows_wait_for_each_erase_continuation() {
+    use core::start::Phase;
+    use jig_domain_people as people;
+    use jig_protocol_store::{Row, restore::Item};
+    let mut service = fixtures::started(&fixtures::engine_document());
+    for _ in 0..64_u32 {
+        fixtures::turn(&mut service);
+        if fixtures::engine(&mut service).domain.core_mut().start_phase() == Some(Phase::Sweep) {
+            break;
+        }
+    }
+    let engine = fixtures::engine(&mut service);
+    assert_eq!(engine.domain.core_mut().start_phase(), Some(Phase::Sweep));
+    let Some(StoreEvent::Page { owner, .. }) = engine.store.above.pop() else {
+        panic!("sweep page");
+    };
+    // Two expired rows in one terminal page each demand their own erase decision.
+    let items = [7, 8].map(|number| {
+        Item::Row(Row::Jig(core::Record::People(people::Stored::SignIn {
+            number,
+            person: 1,
+            expires: skein_lib::Wall::EPOCH,
+        })))
+    });
+    engine.store.above.push(StoreEvent::Page { owner, items: Box::new(items), next: None });
+    for _ in [7_u64, 8] {
+        let mut committed = None;
+        for _ in 0..64_u32 {
+            fixtures::turn(&mut service);
+            if let Some(event) = fixtures::engine(&mut service).store.above.pop() {
+                let event @ StoreEvent::Committed { .. } = event else {
+                    panic!("one erase commit before another row or EOF: {event:?}");
+                };
+                committed = Some(event);
+                break;
+            }
+        }
+        let committed = committed.expect("sweep erase commits");
+        for _ in 0..2_u32 {
+            fixtures::turn(&mut service);
+            let engine = fixtures::engine(&mut service);
+            assert!(engine.store.above.is_empty(), "no younger erase or page while durability is withheld");
+            assert_eq!(engine.domain.core_mut().start_phase(), Some(Phase::Sweep));
+            assert!(!engine.domain.ready());
+        }
+        fixtures::engine(&mut service).store.above.push(committed);
+    }
+    for _ in 0..64_u32 {
+        fixtures::turn(&mut service);
+        if fixtures::engine(&mut service).domain.ready() {
+            break;
+        }
+    }
+    assert!(fixtures::engine(&mut service).domain.ready());
+    assert_eq!(service.end(), None);
+}
+
+#[test]
+fn each_connectors_fresh_reads_finish_before_the_start_opens() {
+    use core::start::Phase;
+    let document = fixtures::with(&fixtures::accounts_document(),
+        br#"{"prefix":["one"],"resources":[]},{"prefix":["two"],"resources":[]}"#,
+        br#"{"prefix":["one"],"resources":[{"path":["one","a"],"state":1},{"path":["one","b"],"state":2}]},{"prefix":["two"],"resources":[{"path":["two","a"],"state":3}]}"#);
+    let mut service = fixtures::started(&document);
+    let mut phases = skein_lib::List::with_capacity(2);
+    for _ in 0..64_u32 {
+        fixtures::turn(&mut service);
+        let engine = fixtures::engine(&mut service);
+        match engine.domain.core_mut().start_phase() {
+            Some(Phase::Sweep) => {
+                // This fixture supplies no expired people rows in its sweep.
+                if let Some(StoreEvent::Page { owner, .. }) = engine.store.above.pop() {
+                    engine.store.above.push(StoreEvent::Page { owner, items: Box::new([]), next: None });
+                }
+            }
+            Some(Phase::ReadAfresh { connector }) => {
+                if phases.last() != Some(&connector) {
+                    let mut facts = 0_u32;
+                    for event in &engine.events {
+                        if let jig_test_domain::Event::Connector {
+                            number,
+                            event: jig_test_connector::Event::System(jig_test_connector::SystemEvent::Fact { .. }),
+                        } = event
+                        {
+                            assert_eq!(*number, connector);
+                            facts = facts.checked_add(1).expect("configured read count");
+                        }
+                    }
+                    assert_eq!(facts, if connector == 1 { 2 } else { 1 });
+                    phases.push(connector).expect("two connectors");
+                    assert!(!engine.domain.ready());
+                }
+            }
+            Some(_) | None => {}
+        }
+        if engine.domain.ready() {
+            break;
+        }
+    }
+    assert_eq!(phases.as_slice(), [1, 2]);
+    assert!(fixtures::engine(&mut service).domain.ready());
+    assert_eq!(fixtures::engine(&mut service).restart_reads, None);
+    assert_eq!(service.end(), None);
 }
 
 fn period(driven: &mut fixtures::Driven, number: u64) {
@@ -384,7 +526,7 @@ fn the_workers_listener_opens_before_the_restart() {
     // The handed-in record's `Kept` may come in the same pass.
     let mut restored = false;
     for event in &fixtures::engine(&mut service).store.above {
-        if let StoreEvent::Restored { .. } = event {
+        if let StoreEvent::Page { .. } = event {
             restored = true;
         }
     }
@@ -492,14 +634,51 @@ fn a_store_refusal_at_open_ends_the_start() {
         .above
         .push(StoreEvent::OpenRefused { owner: fixtures::OWNER, why: jig_protocol_store::OpenRefusal::Failed });
     fixtures::turn(&mut service);
-    let Some(End::Stopped(Stop::Start(problems))) = service.end() else {
-        panic!("store refused startup");
-    };
-    assert_eq!(problems.problems.len(), 1);
     assert_eq!(
-        problems.problems.get(0).expect("open refusal").path,
-        jig_protocol_config::Path::root().member(b"deployment")
+        service.end(),
+        Some(&End::Stopped(Stop::StoreOpen {
+            phase: None,
+            failure: jig_protocol_store::restore::OpenFailure::Refused(jig_protocol_store::OpenRefusal::Failed),
+        }))
     );
+    assert!(fixtures::engine(&mut service).begin);
+}
+#[test]
+fn a_refused_start_page_keeps_its_phase_and_cause() {
+    let mut service = fixtures::started(&fixtures::engine_document());
+    fixtures::turn(&mut service);
+    let engine = fixtures::engine(&mut service);
+    let Some(StoreEvent::Page { owner, .. }) = engine.store.above.pop() else {
+        panic!("LoadCore has one page outstanding");
+    };
+    let failure = jig_protocol_store::restore::Failure {
+        cause: jig_protocol_store::restore::Cause::Range(jig_protocol_store::restore::RangeFailure::Encoding),
+        row: None,
+    };
+    engine.store.above.push(StoreEvent::PageRefused { owner, failure: failure.clone() });
+    fixtures::turn(&mut service);
+    assert_eq!(
+        service.end(),
+        Some(&End::Stopped(Stop::StorePage { phase: Some(core::start::Phase::LoadCore), failure }))
+    );
+    let engine = fixtures::engine(&mut service);
+    assert!(!engine.domain.ready());
+    assert!(!engine.store.component.mark_durable());
+}
+#[test]
+fn a_core_fit_refusal_keeps_its_phase_and_cause() {
+    let mut service = fixtures::started(&fixtures::engine_document());
+    fixtures::turn(&mut service);
+    let engine = fixtures::engine(&mut service);
+    let _page = engine.store.above.pop().expect("LoadCore page");
+    let failure = core::start::Failure::Accounting { key: core::Key::Core(core::CoreKey::Deployment) };
+    let _refused = engine.domain.core_mut().start_refuse(failure.clone());
+    fixtures::turn(&mut service);
+    assert_eq!(
+        service.end(),
+        Some(&End::Stopped(Stop::StartCore { phase: Some(core::start::Phase::LoadCore), failure }))
+    );
+    assert!(!fixtures::engine(&mut service).domain.ready());
 }
 #[test]
 fn a_commit_reaches_the_store_and_its_answer_the_journal() {
