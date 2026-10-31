@@ -48,7 +48,7 @@ impl Component {
         }
         if settings.served.capacity() > env.limits.families
             || settings.providers.capacity() > env.limits.providers
-            || settings.addresses.len() > usize::try_from(env.limits.providers).expect("u32 fits")
+            || settings.addresses.len() > skein_lib::length::usize_of(env.limits.providers)
             || settings.heartbeat == skein_lib::Duration::ZERO
             || settings.rows == 0
             || settings.redirect_bytes > env.limits.wire.keyed_value_some
@@ -67,7 +67,7 @@ impl Component {
         if let Some(identity) = &settings.link {
             let bytes = identity.key.subject.len().checked_add(identity.login.len()).ok_or(Unusable::Limits)?;
             let bytes = bytes.checked_add(identity.name.len()).ok_or(Unusable::Limits)?;
-            if bytes > usize::try_from(env.limits.identity_bytes).expect("u32 fits") {
+            if bytes > skein_lib::length::usize_of(env.limits.identity_bytes) {
                 return Err(Unusable::Limits);
             }
         }
@@ -346,7 +346,7 @@ impl Component {
         out: &mut Queue<Request>,
     ) {
         let exchange = connection.name;
-        if body.len() > usize::try_from(env.limits.message_bytes).expect("message bound fits") {
+        if body.len() > skein_lib::length::usize_of(env.limits.message_bytes) {
             connection.respond(crate::Reply::NotARecord);
             return;
         }
@@ -570,7 +570,7 @@ impl Component {
         let connection = self.connections.get_mut(&owner).expect("exchange owner");
         match answer {
             Ok(answer) => {
-                let mut body = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
+                let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
                 answer.encode(&mut body).expect("measured answer");
                 connection.respond(crate::Reply::Record(body.finish()));
             }
@@ -663,7 +663,6 @@ impl Component {
         count
     }
     #[must_use]
-    #[expect(clippy::manual_map, reason = "step code matches optional deadlines without closures")]
     pub fn next_deadline(&self) -> Option<Time> {
         let mut next = match &self.link {
             Some(link) => Some(link.until),

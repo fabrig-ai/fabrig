@@ -63,7 +63,7 @@ pub fn worker(document: &Document, at: u32, directories: &Directories) -> Result
     }
     let name = check::text(&mut object, document, b"name", &path, &mut problems);
     if let Some(name) = &name
-        && name.len() > usize::try_from(limits.link.name).expect("name bound fits usize")
+        && name.len() > skein_lib::length::usize_of(limits.link.name)
     {
         problems.push(path.member(b"name"), What::Bound);
     }

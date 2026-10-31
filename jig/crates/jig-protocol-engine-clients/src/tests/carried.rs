@@ -23,7 +23,7 @@ fn keyed_value(owner: w::Owner, version: u32, request: Box<[u8]>, value: &[u8]) 
         w::KeyedParts { key: [5; 16], owner, version, request, value: Some(Secret::new(Box::from(value))) },
     )
     .expect("carrying keyed");
-    let mut out = Writer::new(usize::try_from(record.measure()).expect("short keyed record"));
+    let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut out).expect("bounded keyed");
     out.finish()
 }

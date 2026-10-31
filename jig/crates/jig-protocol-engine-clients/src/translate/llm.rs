@@ -53,7 +53,7 @@ pub(super) fn requested(
                 let at = match bit {
                     Some(at) => at,
                     None => {
-                        let at = usize::try_from(names.len()).expect("model count");
+                        let at = skein_lib::length::usize_of(names.len());
                         if names.push(name).is_err() {
                             return Err(bad);
                         }
@@ -73,9 +73,9 @@ pub(super) fn requested(
 
 /// Whether the configured models fit the core's indices and the wire's bounds.
 pub(crate) fn fits(models: &[Model], limits: &w::Limits) -> bool {
-    if models.len() > usize::try_from(limits.model_set_names_names).expect("u32 fits usize")
-        || models.len() > usize::try_from(t::MODELS).expect("u32 fits usize")
-        || models.len() > usize::try_from(limits.me_project_models).expect("u32 fits usize")
+    if models.len() > skein_lib::length::usize_of(limits.model_set_names_names)
+        || models.len() > skein_lib::length::usize_of(t::MODELS)
+        || models.len() > skein_lib::length::usize_of(limits.me_project_models)
     {
         return false;
     }
@@ -83,13 +83,13 @@ pub(crate) fn fits(models: &[Model], limits: &w::Limits) -> bool {
         let name = model.name.len();
         if model.name.is_empty()
             || !skein_codec::text_is_valid(&model.name)
-            || name > usize::try_from(jig_domain_core::MODEL_NAME_BYTES).expect("u32 fits usize")
-            || name > usize::try_from(limits.model_set_names_names_item).expect("u32 fits usize")
-            || name > usize::try_from(limits.me_model_name).expect("u32 fits usize")
-            || name > usize::try_from(limits.model_effort_model).expect("u32 fits usize")
-            || name > usize::try_from(limits.refusal_llm_model).expect("u32 fits usize")
-            || model.efforts.len() > usize::try_from(jig_domain_core::EFFORTS).expect("u32 fits usize")
-            || model.efforts.len() > usize::try_from(limits.me_model_efforts).expect("u32 fits usize")
+            || name > skein_lib::length::usize_of(jig_domain_core::MODEL_NAME_BYTES)
+            || name > skein_lib::length::usize_of(limits.model_set_names_names_item)
+            || name > skein_lib::length::usize_of(limits.me_model_name)
+            || name > skein_lib::length::usize_of(limits.model_effort_model)
+            || name > skein_lib::length::usize_of(limits.refusal_llm_model)
+            || model.efforts.len() > skein_lib::length::usize_of(jig_domain_core::EFFORTS)
+            || model.efforts.len() > skein_lib::length::usize_of(limits.me_model_efforts)
             || model.prices.unit == 0
             || model.prices.input == 0
             || model.prices.cached == 0
@@ -101,9 +101,8 @@ pub(crate) fn fits(models: &[Model], limits: &w::Limits) -> bool {
         if let Some(description) = &model.description
             && (description.is_empty()
                 || !skein_codec::text_is_valid(description)
-                || description.len()
-                    > usize::try_from(jig_domain_core::MODEL_DESCRIPTION_BYTES).expect("u32 fits usize")
-                || description.len() > usize::try_from(limits.me_model_description_some).expect("u32 fits usize"))
+                || description.len() > skein_lib::length::usize_of(jig_domain_core::MODEL_DESCRIPTION_BYTES)
+                || description.len() > skein_lib::length::usize_of(limits.me_model_description_some))
         {
             return false;
         }
@@ -115,9 +114,9 @@ pub(crate) fn fits(models: &[Model], limits: &w::Limits) -> bool {
         for effort in &model.efforts {
             if effort.is_empty()
                 || !skein_codec::text_is_valid(effort)
-                || effort.len() > usize::try_from(jig_domain_core::EFFORT_BYTES).expect("u32 fits usize")
-                || effort.len() > usize::try_from(limits.me_model_efforts_item).expect("u32 fits usize")
-                || effort.len() > usize::try_from(limits.model_effort_effort_some).expect("u32 fits usize")
+                || effort.len() > skein_lib::length::usize_of(jig_domain_core::EFFORT_BYTES)
+                || effort.len() > skein_lib::length::usize_of(limits.me_model_efforts_item)
+                || effort.len() > skein_lib::length::usize_of(limits.model_effort_effort_some)
             {
                 return false;
             }
@@ -246,7 +245,7 @@ pub(crate) fn refused(
     };
     let refusal = w::Refusal::Llm(w::RefusalLlm::new(limits, w::RefusalLlmParts { model, why })?);
     let answer = w::Final::Refused(w::Refused::new(limits, w::RefusedParts { refusal, at })?);
-    let mut out = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
+    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut out).expect("measured answer");
     match super::answers::owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits) {
         Ok(value) => Ok(Some(value)),

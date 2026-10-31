@@ -12,7 +12,7 @@ use skein_lib::Stack;
 use crate::{Limits, Problem, Why};
 
 pub(crate) fn parse(input: &[u8], bounds: &Limits) -> Result<Document, Problem> {
-    if input.len() > usize::try_from(bounds.input_bytes).expect("u32 fits usize") {
+    if input.len() > skein_lib::length::usize_of(bounds.input_bytes) {
         return Err(Problem { field: b"", why: Why::TooLarge });
     }
     let Ok(length) = u32::try_from(input.len()) else { return Err(Problem { field: b"", why: Why::TooLarge }) };
@@ -110,7 +110,7 @@ impl<'a> Node<'a> {
 
     pub(crate) fn text(self) -> Result<Box<[u8]>, Problem> {
         let text = self.string()?;
-        if text.len() > usize::try_from(self.words).expect("u32 fits usize") {
+        if text.len() > skein_lib::length::usize_of(self.words) {
             return Err(Problem { field: self.field, why: Why::TooLarge });
         }
         Ok(skein_lib::bytes::copy_of(text))

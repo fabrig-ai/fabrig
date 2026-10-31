@@ -263,7 +263,7 @@ pub(crate) fn made(
     revisions: Box<[(u64, u64)]>,
     out: &mut Queue<Request>,
 ) {
-    if revisions.len() > usize::try_from(env.limits.tasks).expect("bounded revisions") {
+    if revisions.len() > skein_lib::length::usize_of(env.limits.tasks) {
         return;
     }
     if let Some(state) = domain.procedures.get(&task) {

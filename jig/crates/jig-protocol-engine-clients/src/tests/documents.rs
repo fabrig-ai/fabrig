@@ -1,6 +1,7 @@
 use super::fixtures;
 use crate::translate;
 use jig_client_protocol_wire::v19 as w;
+use skein_lib::List;
 fn me_preserves_two_projects_in_its_wire_record() {
     let limits = fixtures::wire_limits();
     assert_eq!(
@@ -14,7 +15,7 @@ fn me_encoding_preserves_rows_despite_spare_list_capacity() {
     let limits = fixtures::wire_limits();
     for project_room in PROJECT_ROOM {
         let mut frame = fixtures::frame_two_projects();
-        let mut projects = skein_lib::List::with_capacity(project_room);
+        let mut projects = List::with_capacity(project_room);
         for project in frame.projects.into_boxed() {
             projects.push(project).expect("fixture project room");
         }
@@ -176,7 +177,7 @@ fn a_me_document_carries_each_project_s_template() {
         template.number = TEMPLATE;
         template.budget = jig_domain_people::TemplateBudget::Amount(42);
         template.label = 5;
-        project.templates = fixtures::list([template]);
+        project.templates = List::from_boxed(Box::new([template]));
     }
     let record = translate::owner::frame(&frame, &[], &w::CEILINGS).unwrap();
     let mut reader = skein_lib::Reader::new(record.projects());
@@ -216,13 +217,13 @@ fn a_me_document_carries_each_project_s_creating_bounds() {
 #[test]
 fn a_project_document_carries_its_policy_s_template_overrides() {
     let mut project = fixtures::project_document();
-    project.policy.templates = fixtures::list([jig_domain_people::TemplateOverride {
+    project.policy.templates = List::from_boxed(Box::new([jig_domain_people::TemplateOverride {
         template: TEMPLATE,
         executor: None,
         budget: Some(jig_domain_people::TemplateBudget::Amount(42)),
         deadline: None,
         priority: None,
-    }]);
+    }]));
     let record = translate::objects::project(&fixtures::models(), &project, &w::CEILINGS).unwrap();
     let entry = record.policy().templates().get(0).unwrap();
     assert_eq!(entry.template(), TEMPLATE);
@@ -243,8 +244,8 @@ fn frame_with_creating_bounds() -> jig_domain_core::documents::Frame {
             within: acts::Bounds::Create {
                 authority: Box::new(fixtures::authority()),
                 pool_left: POOL_LEFT,
-                charters: fixtures::list([TEMPLATE_CHARTER]),
-                procedures: skein_lib::List::with_capacity(0),
+                charters: List::from_boxed(Box::new([TEMPLATE_CHARTER])),
+                procedures: List::with_capacity(0),
                 latest: None,
                 budget: BUDGET,
                 maximum_budget: 100,

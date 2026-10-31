@@ -112,7 +112,7 @@ pub fn decimal(mut value: u64) -> Box<[u8]> {
             break;
         }
     }
-    let mut writer = Writer::new(usize::try_from(digits.len()).expect("decimal length"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(digits.len()));
     for digit in digits.iter().rev() {
         writer.put(&[*digit]).expect("decimal length");
     }
@@ -423,7 +423,7 @@ pub fn call(input: &[u8]) -> jig_domain_fleet::Call {
         smith_channel::v5::CallNameParts { activation: 3, completion: 7, position: 2 },
     )
     .expect("call name");
-    let mut writer = Writer::new(usize::try_from(name.measure()).expect("call name length"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(name.measure()));
     name.encode(&mut writer).expect("call name size");
     jig_domain_fleet::Call {
         name: writer.finish(),

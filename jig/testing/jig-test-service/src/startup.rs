@@ -360,7 +360,7 @@ fn check_files(parsed: &Parsed, files: &Files) -> Result<(), Problems> {
             }
         }
         match found {
-            Some(contents) if contents.len() <= usize::try_from(file.max).expect("file bound") => {}
+            Some(contents) if contents.len() <= skein_lib::length::usize_of(file.max) => {}
             Some(_) => problems.push(engine_path(&file.at), What::Bound),
             None => problems.push(engine_path(&file.at), What::Unreadable),
         }
@@ -384,7 +384,7 @@ fn application(parsed: &Parsed, files: &Files) -> Result<skein_lib::Map<(u32, u6
         parsed.limits.root.core.accounts.credentials.checked_mul(2).expect("two application generations"),
     );
     let credential = files.contents(&parsed.credential).expect("credential file checked");
-    if credential.len() > usize::try_from(parsed.limits.root.connector.value_bytes).expect("credential bound") {
+    if credential.len() > skein_lib::length::usize_of(parsed.limits.root.connector.value_bytes) {
         return Err(problem(Path::root().member(b"application").member(b"credential"), What::Bound));
     }
     application.insert((1, 1), config::secret(credential.into())).expect("one application credential");

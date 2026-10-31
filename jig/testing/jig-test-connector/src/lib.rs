@@ -1,3 +1,4 @@
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 //! A configurable application connector for jig's worlds (domain/connectors.md).
 //!
 //! The connector keeps adopted roles, live task names, pool and system facts,

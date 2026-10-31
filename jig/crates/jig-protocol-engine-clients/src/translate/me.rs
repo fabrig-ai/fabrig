@@ -44,7 +44,7 @@ pub fn templates(
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in &rows {
-        let mut out = skein_lib::Writer::new(usize::try_from(row.measure()).expect("record measure fits"));
+        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
         if row.encode(&mut out).is_err() {
             return Err(problem(skein_codec::Reason::Bound));
         }

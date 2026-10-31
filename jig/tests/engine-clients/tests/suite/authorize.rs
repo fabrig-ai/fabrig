@@ -8,7 +8,7 @@ fn record() -> Box<[u8]> {
         w::AuthorizeParts { query: Box::from(b"client_id=app&response_type=code".as_slice()) },
     )
     .expect("bounded fixture");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("record size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("bounded fixture");
     writer.finish()
 }

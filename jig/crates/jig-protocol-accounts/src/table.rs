@@ -40,7 +40,7 @@ impl Table {
         Table { accounts: Map::with_capacity(accounts), token_bytes }
     }
     pub fn granted(&mut self, account: u32, generation: u64, value: Value, expires: Time) -> Result<(), Unfit> {
-        if value.token.len() > usize::try_from(self.token_bytes).expect("u32 fits usize") {
+        if value.token.len() > skein_lib::length::usize_of(self.token_bytes) {
             return Err(Unfit);
         }
         if !self.accounts.contains_key(&account) {

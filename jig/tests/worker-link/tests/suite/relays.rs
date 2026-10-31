@@ -222,8 +222,7 @@ fn encoding_errors_are_bounded_and_local_refusal_has_one_terminal() {
                 writes,
                 input,
                 deadline,
-                tool: vec![b'x'; usize::try_from(limits.sizes.tool_name + 1).expect("small tool bound")]
-                    .into_boxed_slice(),
+                tool: vec![b'x'; skein_lib::length::usize_of(limits.sizes.tool_name + 1)].into_boxed_slice(),
             },
             parts: Box::new([]),
         });

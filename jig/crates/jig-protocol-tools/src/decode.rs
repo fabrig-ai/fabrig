@@ -126,7 +126,7 @@ pub fn batch(input: &[u8], limits: &Limits) -> Result<Box<[core::Delegate]>, Pro
 }
 
 fn delegates(value: json::Node<'_>, limits: &Limits) -> Result<Box<[core::Delegate]>, Problem> {
-    if value.array()?.len() > usize::try_from(limits.batch).expect("u32 fits usize") {
+    if value.array()?.len() > skein_lib::length::usize_of(limits.batch) {
         return Err(Problem { field: b"batch", why: Why::TooLarge });
     }
     let batch = nested::delegates(value)?;

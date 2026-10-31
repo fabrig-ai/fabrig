@@ -218,7 +218,6 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code wraps owned remainders without closures")]
 fn split(domain: &mut Domain, event: Event) -> (Event, Option<Event>) {
     match event {
         Event::Connector {
@@ -354,7 +353,7 @@ mod expiry_tests {
     use crate::{Event, tests::fixtures};
     use jig_domain_core as core;
     use jig_domain_people as people;
-    use skein_lib::{Env, Queue, Time, Wall};
+    use skein_lib::{Queue, Time, Wall};
 
     #[test]
     fn wall_expiry_is_taken_at_the_watermark() {
@@ -376,12 +375,12 @@ mod expiry_tests {
         ] {
             people::step(
                 &mut domain.core.people,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.core.people },
+                &env.with(env.limits.core.people),
                 people::Event::Restore { record },
                 &mut ignored,
             );
         }
-        let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.core.people };
+        let people_env = env.with(env.limits.core.people);
         assert!(domain.core.people.start_link(&people_env));
         domain.core.people.start_sweep();
         assert!(domain.core.people.start_complete(&people_env));

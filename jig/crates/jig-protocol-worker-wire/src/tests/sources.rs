@@ -86,7 +86,7 @@ fn whole_source_lists_enforce_bounds_through_round_trip() {
         assert_eq!(sources.is_ok(), count <= 2);
         assert_eq!(logins.is_ok(), count <= 2);
         if let Ok(sources) = sources {
-            let mut writer = Writer::new(usize::try_from(sources.measure()).expect("measure"));
+            let mut writer = Writer::new(skein_lib::length::usize_of(sources.measure()));
             sources.encode(&mut writer).expect("encode");
             assert_eq!(wire::Sources::decode(&limits, &mut Reader::new(&writer.finish())), Ok(sources));
         }

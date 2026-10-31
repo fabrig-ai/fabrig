@@ -27,14 +27,14 @@ fn request() -> Box<[u8]> {
         w::Message::new(&limits, w::MessageParts { project: 3, task: 8, words: Box::from(b"hello".as_slice()) })
             .expect("ask"),
     );
-    let mut out = Writer::new(usize::try_from(ask.measure()).expect("ask size"));
+    let mut out = Writer::new(skein_lib::length::usize_of(ask.measure()));
     ask.encode(&mut out).expect("ask bytes");
     let record = w::Keyed::new(
         &limits,
         w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 19, request: out.finish(), value: None },
     )
     .expect("keyed request");
-    let mut out = Writer::new(usize::try_from(record.measure()).expect("record size"));
+    let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut out).expect("request bytes");
     out.finish()
 }
@@ -141,14 +141,14 @@ fn amend_request(revision: u64, spend: u64) -> Box<[u8]> {
 /// A keyed request carrying `ask` under `key`.
 fn keyed(key: [u8; 16], ask: &w::Ask) -> Box<[u8]> {
     let limits = fixtures::limits().wire;
-    let mut out = Writer::new(usize::try_from(ask.measure()).expect("ask size"));
+    let mut out = Writer::new(skein_lib::length::usize_of(ask.measure()));
     ask.encode(&mut out).expect("ask bytes");
     let keyed = w::Keyed::new(
         &limits,
         w::KeyedParts { key, owner: w::Owner::Jig, version: 19, request: out.finish(), value: None },
     )
     .expect("keyed");
-    let mut out = Writer::new(usize::try_from(keyed.measure()).expect("keyed size"));
+    let mut out = Writer::new(skein_lib::length::usize_of(keyed.measure()));
     keyed.encode(&mut out).expect("keyed bytes");
     out.finish()
 }
@@ -310,11 +310,11 @@ fn propose_request(revision: u64, spend: u64) -> Box<[u8]> {
         )
         .expect("bounded proposal fixture"),
     );
-    let mut out = Writer::new(usize::try_from(ask.measure()).expect("ask size"));
+    let mut out = Writer::new(skein_lib::length::usize_of(ask.measure()));
     ask.encode(&mut out).expect("bounded proposal fixture");
     let keyed =
         w::Keyed::new(&limits, w::KeyedParts { request: out.finish(), ..keyed }).expect("bounded proposal fixture");
-    let mut out = Writer::new(usize::try_from(keyed.measure()).expect("keyed size"));
+    let mut out = Writer::new(skein_lib::length::usize_of(keyed.measure()));
     keyed.encode(&mut out).expect("bounded proposal fixture");
     out.finish()
 }
@@ -326,7 +326,7 @@ fn carrying_request(value: &[u8]) -> Box<[u8]> {
     let request =
         w::FamilyRequest::new(&limits, w::FamilyRequestParts { scope: w::Scope::Own, record: Box::new([255]) })
             .expect("family request");
-    let mut out = Writer::new(usize::try_from(request.measure()).expect("request size"));
+    let mut out = Writer::new(skein_lib::length::usize_of(request.measure()));
     request.encode(&mut out).expect("family request bytes");
     let owner = w::Owner::Family(w::Family::new(&limits, w::FamilyParts { number: 1 }).expect("family"));
     let keyed = w::Keyed::new(
@@ -340,7 +340,7 @@ fn carrying_request(value: &[u8]) -> Box<[u8]> {
         },
     )
     .expect("carrying request");
-    let mut out = Writer::new(usize::try_from(keyed.measure()).expect("keyed size"));
+    let mut out = Writer::new(skein_lib::length::usize_of(keyed.measure()));
     keyed.encode(&mut out).expect("carrying bytes");
     out.finish()
 }

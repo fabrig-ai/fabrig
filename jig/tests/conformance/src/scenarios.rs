@@ -407,7 +407,7 @@ impl Continuation {
                 },
                 Action::FinishHolder(index) => {
                     if self.phase == 0 {
-                        self.task = world.peers.children[usize::try_from(index).expect("three holders")];
+                        self.task = world.peers.children[skein_lib::length::usize_of(index)];
                         self.phase = 1;
                     }
                     if self.phase < 4 && self.wake(world) {

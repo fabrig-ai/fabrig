@@ -1,3 +1,4 @@
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 //! Native client exchanges and streams (protocol/client.md, sections 2 and 8).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

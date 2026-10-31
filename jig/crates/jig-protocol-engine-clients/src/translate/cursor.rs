@@ -550,7 +550,6 @@ pub(crate) fn decode_window(bytes: &[u8]) -> Option<documents::Cursor> {
     Some(cursor)
 }
 
-#[expect(clippy::manual_map, reason = "step code matches the optional query keys")]
 fn put_query(w: &mut Writer, query: &documents::TaskQuery) -> Option<()> {
     use documents::{ExecutorKind as E, PhaseClass as P, QueryOrder as O};
     w.optional_u32(query.project)?;

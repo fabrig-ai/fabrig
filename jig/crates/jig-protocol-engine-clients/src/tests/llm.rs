@@ -74,7 +74,7 @@ fn a_template_s_and_a_task_s_choice_are_named_by_configuration() {
     let mut frame = fixtures::frame_two_projects();
     let mut template = fixtures::template();
     template.llm = Some(choice());
-    frame.projects.get_mut(0).unwrap().templates = fixtures::list([template]);
+    frame.projects.get_mut(0).unwrap().templates = skein_lib::List::from_boxed(Box::new([template]));
     let record = translate::owner::frame(&frame, &models, &w::CEILINGS).unwrap();
     let first = project(&record, 0);
     let bytes = skein_codec::piece::split(&mut Reader::new(first.templates())).unwrap().unwrap();

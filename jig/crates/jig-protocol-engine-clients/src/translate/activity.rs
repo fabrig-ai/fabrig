@@ -130,7 +130,7 @@ pub fn page_turn(
 pub fn archive(record: &jig_domain_core::TurnRecord, limits: &w::Limits) -> Result<w::ArchivedTurn, w::Problem> {
     let path = w::Path::TurnCarriedBytes;
     if record.transcript.len()
-        > usize::try_from(limits.turn_carried_bytes.min(w::CEILINGS.turn_carried_bytes)).expect("u32 fits usize")
+        > skein_lib::length::usize_of(limits.turn_carried_bytes.min(w::CEILINGS.turn_carried_bytes))
     {
         return Err(w::Problem { path, reason: skein_codec::Reason::Bound });
     }

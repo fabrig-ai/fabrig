@@ -55,7 +55,7 @@ pub fn logins(
     let mut rows = List::with_capacity(value.len());
     for row in value {
         let row = login(row, limits)?;
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("measured row fits"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).expect("measured login row");
         rows.push(out.finish()).expect("one piece per supplied row");
     }
@@ -78,7 +78,7 @@ pub fn hosts(value: &List<d::ProgramHost>, limits: &w::Limits) -> Result<Box<[u8
     let mut rows = List::with_capacity(value.len());
     for row in value {
         let row = host(row, limits)?;
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("measured row fits"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).expect("measured program host");
         rows.push(out.finish()).expect("one piece per supplied row");
     }

@@ -16,7 +16,7 @@ fn frame(names: &[&[u8]]) -> skein_channel::Frame {
         .expect("list");
     }
     let record = wire::Logins::new(&wire::CEILINGS, wire::LoginsParts { logins: rows }).expect("wire rows");
-    let mut body = Writer::new(usize::try_from(record.measure()).expect("body"));
+    let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut body).expect("encode");
     fixtures::frame(0x0108, &body.finish())
 }
@@ -45,7 +45,7 @@ fn source_records_are_host_wide_without_attempt_fences() {
         wire::SignedOutParts { name: b"alice".as_slice().into(), result: wire::SignOutResult::SignedOut },
     )
     .expect("answer");
-    let mut body = Writer::new(usize::try_from(record.measure()).expect("body"));
+    let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut body).expect("encode");
     world.play(connection, fixtures::frame(0x0109, &body.finish()));
     world.run();

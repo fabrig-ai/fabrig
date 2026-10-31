@@ -170,7 +170,7 @@ fn demand(conn: &mut Connection, left: usize, send: u32) {
 pub(super) fn send(bundle: &Bundle, conn: &mut Connection, send: u32) {
     let reply = conn.reply.as_mut().expect("own reply");
     let body = bundle.content(reply);
-    let end = reply.offset.saturating_add(usize::try_from(send).expect("send fits")).min(body.len());
+    let end = reply.offset.saturating_add(skein_lib::length::usize_of(send)).min(body.len());
     let bytes = bytes::copy_of(body.get(reply.offset..end).expect("reply slice"));
     reply.offset = end;
     let left = body.len().checked_sub(end).expect("reply cursor");

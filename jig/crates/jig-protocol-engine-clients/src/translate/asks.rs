@@ -47,7 +47,7 @@ fn decode(
         w::Ask::ChangeSettings(value) => {
             let against = value.against();
             let record = w::Ask::ChangeSettings(value);
-            let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).expect("wire measure"));
+            let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut bytes).expect("measured ask");
             p::Ask::ChangeSettings {
                 against,
@@ -332,7 +332,6 @@ fn address(value: w::AddressChange) -> p::AddressChange {
         },
     }
 }
-#[expect(clippy::manual_map, reason = "optional step fields use named total functions")]
 pub(super) fn amendment(
     value: w::Amendment,
     reason: Box<[u8]>,
@@ -423,7 +422,6 @@ pub(super) fn grants(
     }
     Ok(values.into_boxed())
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields")]
 pub(super) fn authority(
     value: w::Authority,
     limits: &w::Limits,

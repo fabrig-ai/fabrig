@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code carries optional owner facts without closures")]
 //! Bounded owner page pieces (protocol/client.md, 3).
 use super::super::{owner, pieces, task, w};
 use alloc::boxed::Box;
@@ -25,7 +24,7 @@ pub(super) fn activity_pieces(
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits usize"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
         encoded.push(out.finish()).expect("selected rows fit");
     }
@@ -38,7 +37,7 @@ pub(super) fn history_pieces(rows: &List<w::HistoryRow>, bound: u32, path: w::Pa
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits usize"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
         encoded.push(out.finish()).expect("selected rows fit");
     }
@@ -51,7 +50,7 @@ pub(super) fn inbox_pieces(rows: &List<w::InboxEntry>, bound: u32, path: w::Path
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits usize"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
         encoded.push(out.finish()).expect("selected rows fit");
     }
@@ -64,7 +63,7 @@ pub(super) fn ended_pieces(rows: &List<w::EndedDelegate>, bound: u32, path: w::P
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits usize"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
         encoded.push(out.finish()).expect("selected rows fit");
     }
@@ -77,7 +76,7 @@ pub(super) fn note_pieces(rows: &List<w::Note>, bound: u32, path: w::Path) -> Re
     }
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
-        let mut out = Writer::new(usize::try_from(row.measure()).expect("u32 measure fits usize"));
+        let mut out = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut out).or(Err(w::Problem { path, reason: skein_codec::Reason::Bound }))?;
         encoded.push(out.finish()).expect("selected rows fit");
     }

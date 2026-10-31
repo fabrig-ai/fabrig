@@ -1,5 +1,4 @@
 //! Whole settings asks into core values (client/domain/contract.md, 3.2).
-#![expect(clippy::manual_map, reason = "step code translates optional values with matches")]
 use super::super::{Untranslatable, asks, operations, w};
 use alloc::boxed::Box;
 use jig_domain_authority as a;

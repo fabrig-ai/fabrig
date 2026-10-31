@@ -121,7 +121,7 @@ pub fn charter_bytes() -> Box<[u8]> {
     .expect("prices");
     parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, llm).expect("model");
     let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("charter");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("charter size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut writer).expect("measured charter");
     writer.finish()
 }

@@ -74,7 +74,7 @@ pub fn credential(name: &[u8], secret: &[u8], payload: u32) -> Box<[u8]> {
         },
     )
     .expect("small credential");
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("small credential"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured credential");
     writer.finish()
 }

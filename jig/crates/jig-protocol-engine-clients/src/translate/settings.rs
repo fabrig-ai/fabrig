@@ -349,7 +349,7 @@ pub fn revision(
                 };
                 let item =
                     w::RevisionItem::new(limits, w::RevisionItemParts { setting: name(item.setting, limits)?, edit })?;
-                let mut out = Writer::new(usize::try_from(item.measure()).expect("measured item"));
+                let mut out = Writer::new(skein_lib::length::usize_of(item.measure()));
                 item.encode(&mut out).expect("measured item");
                 pieces.push(out.finish()).expect("item count");
             }
@@ -466,7 +466,7 @@ pub(crate) fn review(
             cut = true;
             break;
         }
-        let mut bytes = Writer::new(usize::try_from(row.measure()).expect("measured review item"));
+        let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut bytes).expect("measured review item");
         pieces.push(bytes.finish()).expect("review count");
     }

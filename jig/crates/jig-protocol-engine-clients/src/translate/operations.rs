@@ -52,7 +52,6 @@ pub(super) fn decide(project: u32, on: w::DecideOn) -> Result<p::Ask, Untranslat
 pub(super) fn templates(value: w::PolicyEditTemplates) -> p::PolicyChange {
     p::PolicyChange::Templates { overrides: overrides(value.into_parts().overrides) }
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(super) fn overrides(values: List<w::TemplateOverride>) -> Box<[p::TemplateOverride]> {
     let mut overrides = List::with_capacity(values.capacity());
     for value in values.into_boxed() {
@@ -202,7 +201,7 @@ pub(crate) fn refused(record: &w::Ask, limits: &w::Limits) -> Result<Option<w::K
                 w::RefusalMalformedParts { at, why: w::Malformed::ProjectMismatch },
             )?);
             let answer = w::Final::Refused(w::Refused::new(limits, w::RefusedParts { refusal, at: Some(at) })?);
-            let mut out = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
+            let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
             answer.encode(&mut out).expect("measured answer");
             return match super::answers::owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits) {
                 Ok(value) => Ok(Some(value)),
@@ -358,7 +357,7 @@ pub(super) fn propose(
     let digest = match value.action() {
         w::ProposeAction::Settings(_) => {
             let record = w::Ask::Propose(value.clone());
-            let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).expect("ask size"));
+            let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut bytes).expect("measured ask");
             crate::sign_in::digest(&bytes.finish()).expose().try_into().expect("32-byte digest")
         }
