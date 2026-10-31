@@ -37,22 +37,7 @@ impl Host for Runner {
             io::fire(&mut self.io, &env, &mut self.events, &mut self.submissions);
         }
         while let Some(event) = self.events.pop() {
-            let owner = match &event {
-                io::Event::Spawned { owner, .. }
-                | io::Event::Exited { owner, .. }
-                | io::Event::Failed { owner, .. }
-                | io::Event::Closed { owner }
-                | io::Event::Stream { owner, .. } => *owner,
-                io::Event::Listening { .. }
-                | io::Event::Accepted { .. }
-                | io::Event::Connecting { .. }
-                | io::Event::Connected { .. }
-                | io::Event::Output { .. }
-                | io::Event::Usage { .. }
-                | io::Event::Resized
-                | io::Event::Window { .. }
-                | io::Event::Shutdown { .. } => unreachable!("source events"),
-            };
+            let owner = event.owner().expect("source events have an owner");
             assert!(self.source.owns(owner), "source owns routed event");
             self.source.from_io(event, &mut self.requests);
         }
@@ -65,9 +50,7 @@ impl Host for Runner {
             self.closing = true;
             self.submissions.push(kernel::Submit { op: ROOT_CLOSE, kind: kernel::Op::Close { fd: self.root } });
         }
-        while let Some(request) = self.requests.pop() {
-            io::down(&mut self.io, &env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &env, &mut self.requests, &mut self.submissions);
     }
     fn completions(&mut self) -> &mut Queue<kernel::Complete> {
         &mut self.completions

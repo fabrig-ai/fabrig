@@ -478,21 +478,14 @@ impl Local {
             self.events.push(event);
         }
         if let Some(writer) = &mut self.writer {
-            while writer.is_ready() {
-                io::resume(writer, &self.env, &mut self.events, &mut self.store_submissions);
-            }
-            for _ in 0..self.store_completions.capacity() {
-                let Some(complete) = self.store_completions.pop() else { break };
-                io::up(writer, &self.env, complete, &mut self.events, &mut self.store_submissions);
-            }
-            for _ in 0..self.env.limits.sockets {
-                if writer.is_ready() {
-                    io::resume(writer, &self.env, &mut self.events, &mut self.store_submissions);
-                }
-                if writer.is_due(self.env.now) {
-                    io::fire(writer, &self.env, &mut self.events, &mut self.store_submissions);
-                }
-            }
+            io::stage::up(
+                writer,
+                &self.env,
+                &mut self.store_completions,
+                &mut self.events,
+                &mut self.store_submissions,
+                self.env.now,
+            );
         }
         while let Some(event) = self.events.pop() {
             match event {
@@ -632,10 +625,7 @@ impl Local {
             Terminal::Live | Terminal::Closing(_) | Terminal::Closed => {}
         }
         if let Some(writer) = &mut self.writer {
-            while writer.takes() {
-                let Some(request) = self.requests.pop() else { break };
-                io::down(writer, &self.env, request, &mut self.store_submissions);
-            }
+            io::stage::down(writer, &self.env, &mut self.requests, &mut self.store_submissions);
             writer.reclaim();
         } else {
             while let Some(request) = self.requests.pop() {
