@@ -505,14 +505,6 @@ fn ready_names_the_configured_model_without_an_account_row() {
     node(view.tree(), Role::Paragraph, "Model: the default model");
     assert!(f::find(view.tree(), Role::Link, b"Connect a model").is_none());
 }
-#[test]
-fn the_setup_strip_continues_to_ready_with_a_configured_model() {
-    let root = configured_model_fixture(Address::Chats { filter: ChatsFilter::All, start: false });
-    assert_eq!(
-        press(&root, Role::Link, "Continue setting up"),
-        d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Ready } })
-    );
-}
 
 #[test]
 fn ready_names_the_new_chat_templates_model_and_effort() {

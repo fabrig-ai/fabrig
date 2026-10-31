@@ -3,10 +3,7 @@ use super::{
     Demo, connect,
     forges::{Connection, Mode, Row, State},
 };
-use crate::{
-    Domain, Step,
-    pages::{accounts, welcome},
-};
+use crate::Domain;
 use skein_lib::List;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -71,49 +68,4 @@ pub fn playground(root: &Domain) -> Option<(&Demo, &Row)> {
         }
     }
     None
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Setup {
-    pub playground: bool,
-    pub forge: bool,
-    pub model: bool,
-    pub step: Step,
-}
-#[must_use]
-pub fn setup(root: &Domain) -> Option<Setup> {
-    if !root.demo_answered()
-        || root.forge().demo_running()
-        || match welcome::decision(root) {
-            Some(welcome::FirstRun::Empty | welcome::FirstRun::Unfinished { .. }) => false,
-            Some(welcome::FirstRun::Whole) | None => true,
-        }
-    {
-        return None;
-    }
-    let owner = accounts::current_me(root.client())?.deployment_role == Some(jig_client::contract::HeldRole::Owner);
-    let mut connected = false;
-    let mut started = false;
-    let mut personal_connected = false;
-    for row in &rows(root.forges(), connect::playground(root.forge())) {
-        if let Connection::Connected { .. } = row.connection {
-            personal_connected = true;
-            connected |= !connect::underway(row) && !connect::failed(row);
-            started = true;
-        }
-        started |= connect::underway(row);
-    }
-    let model = !welcome::model_usable(root)?;
-    let step = if owner && !started {
-        Step::Forge { forge: None }
-    } else if model {
-        Step::Model { way: None }
-    } else {
-        Step::Ready
-    };
-    Some(Setup {
-        playground: !personal_connected && root.forge().demo().is_some(),
-        forge: owner && !connected,
-        model,
-        step,
-    })
 }

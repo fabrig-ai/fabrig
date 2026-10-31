@@ -152,9 +152,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         | temper_client_domain::Address::ConnectForge { .. }
         | temper_client_domain::Address::Adopt { .. } => {
             crate::choice::banner(&mut builder, root, &view.forge_words, &mut view.pages);
-            crate::frame::demo_banner(&mut builder, root, &view.forge_words, &mut view.pages);
         }
     }
+    crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
     if let Some(page) = root.authorization() {
         crate::sign_in::authorize(
             &mut builder,
