@@ -143,6 +143,8 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     facts: 16,
 };
 const FORGE: forge::Limits = forge::Limits {
+    // Forges kept at most (temper/docs/design/draft/playground-reset.md, 3).
+    forges: 4,
     // Repositories retained, from the engine forge world fixture.
     repositories: 2,
     // Tasks participating in the forge, from the engine forge world fixture.

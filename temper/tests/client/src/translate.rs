@@ -241,6 +241,10 @@ pub fn incoming(
         | engine::Request::Forge { .. }
         | engine::Request::Account(_)
         | engine::Request::SetUpGroup { .. }
+        | engine::Request::ForgeKept(_)
+        | engine::Request::ForgeGone { .. }
+        | engine::Request::BoxGroup { .. }
+        | engine::Request::BoxRemove { .. }
         | engine::Request::Connect { .. }
         | engine::Request::Manifest { .. }
         | engine::Request::Reachable { .. }

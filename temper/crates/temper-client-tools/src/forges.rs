@@ -503,7 +503,10 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
             let request = request.into_parts();
             Some(Intent {
                 playground: request.playground,
-                forge: request.forge,
+                forge: match request.forge {
+                    temper_client_protocol_wire::v1::Making::Kept(kept) => kept.forge(),
+                    temper_client_protocol_wire::v1::Making::New(_) => return,
+                },
                 org: request.org,
                 repository: request.repository,
                 project: match request.project {
@@ -522,6 +525,9 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
         | temper_client_protocol_wire::v1::Request::Return(_)
         | temper_client_protocol_wire::v1::Request::Connect(_)
         | temper_client_protocol_wire::v1::Request::Accept(_)
+        | temper_client_protocol_wire::v1::Request::RemoveForge(_)
+        | temper_client_protocol_wire::v1::Request::StartPlayground
+        | temper_client_protocol_wire::v1::Request::EndPlayground
         | temper_client_protocol_wire::v1::Request::Install(_) => return,
     };
     state.pending.insert(key, SettingUp { intent, called: None });

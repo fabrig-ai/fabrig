@@ -291,7 +291,8 @@ fn setup_answers_print_their_words_json_and_status() {
             let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family") };
             assert_eq!(*scope, c::Scope::Deployment);
             let w::Request::SetUp(request) = wire::decode_requesting(&record.bytes, &limits).unwrap().into_parts().request else { panic!("set up"); };
-            assert_eq!(request.forge(), 3);
+            let w::Making::Kept(kept) = request.forge() else { panic!("kept forge") };
+    assert_eq!(kept.forge(), 3);
             root.adoption_answer(call, outcome.clone());
             if status == 0 {
                 assert!(root.answer(call).is_none());

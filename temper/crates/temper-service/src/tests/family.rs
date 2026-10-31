@@ -848,7 +848,7 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
                     &w::CEILINGS,
                     w::SetUpParts {
                         playground: false,
-                        forge: 3,
+                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
                         org: b"work".as_slice().into(),
                         repository: b"hello".as_slice().into(),
                         project: w::SetUpProject::Existing(
@@ -882,7 +882,7 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
             [7; 32],
             root::Application::Forge(forge::Ask::SetUp {
                 playground: false,
-                forge: 3,
+                forge: forge::Making::Kept(3),
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
                 project: forge::SetUpProject::Existing(1)
@@ -1163,7 +1163,7 @@ fn setup_projects_and_first_repository_states_translate_without_losing_fields() 
                         &w::CEILINGS,
                         w::SetUpParts {
                             playground: false,
-                            forge: 3,
+                            forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
                             org: b"team".as_slice().into(),
                             repository: b"widget".as_slice().into(),
                             project: wire_project.clone(),
@@ -1186,7 +1186,7 @@ fn setup_projects_and_first_repository_states_translate_without_losing_fields() 
             request,
             root::Application::Forge(forge::Ask::SetUp {
                 playground: false,
-                forge: 3,
+                forge: forge::Making::Kept(3),
                 org: b"team".as_slice().into(),
                 repository: b"widget".as_slice().into(),
                 project: project.clone()
@@ -1407,7 +1407,7 @@ fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener(
                     w::Connect::new(
                         &w::CEILINGS,
                         w::ConnectParts {
-                            forge: 1,
+                            forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 1 }).unwrap()),
                             how: w::How::GithubManifest(
                                 w::GitHubManifest::new(
                                     &w::CEILINGS,
@@ -1438,8 +1438,10 @@ fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener(
                         }
                         root::Application::Forge(ask) => {
                             let (forge::Ask::Install { forge, back: Some(back) }
-                            | forge::Ask::Connect { forge, how: forge::How::GitHubManifest { back: Some(back) } }) =
-                                ask
+                            | forge::Ask::Connect {
+                                forge: forge::Making::Kept(forge),
+                                how: forge::How::GitHubManifest { back: Some(back) },
+                            }) = ask
                             else {
                                 panic!("{name}: install")
                             };
@@ -1841,4 +1843,150 @@ fn the_landings_subject_names_no_task() {
     };
     let kit::Event::WatchRefused { watcher, why } = *refused else { panic!("unknown watch") };
     assert_eq!((watcher, why), (WATCHER, jig_domain_core::WatchRefusal::Unknown));
+}
+
+#[test]
+fn forge_removal_and_playground_requests_keep_their_envelopes() {
+    for (request, expected) in [
+        (
+            w::Request::RemoveForge(w::RemoveForge::new(&w::CEILINGS, w::RemoveForgeParts { forge: 9 }).unwrap()),
+            forge::Ask::RemoveForge { forge: 9 },
+        ),
+        (w::Request::StartPlayground, forge::Ask::StartPlayground),
+        (w::Request::EndPlayground, forge::Ask::EndPlayground),
+    ] {
+        let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
+        let event = family::to_root(
+            exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
+            &[],
+            None,
+            &w::CEILINGS,
+        )
+        .unwrap();
+        let root::Event::Party(root::PartyInput::Application {
+            reply_to, sign_in, key, digest, scope, request, ..
+        }) = event
+        else {
+            panic!("application request")
+        };
+        assert_eq!(
+            (reply_to, sign_in, key, digest, scope),
+            (REPLY, 3, REQUEST_KEY, [7; 32], people::ApplicationScope::Project(7))
+        );
+        assert_eq!(request, root::Application::Forge(expected));
+    }
+}
+#[test]
+fn new_forge_places_reach_both_setup_and_connect_whole() {
+    let managed = w::ForgeAsk::Managed(
+        w::ManagedForge::new(
+            &w::CEILINGS,
+            w::ManagedForgeParts {
+                host: b"forge.example".as_slice().into(),
+                port: 8443,
+                tls: Some(b"forge.example".as_slice().into()),
+                git: b"https://forge.example/git".as_slice().into(),
+                web: Some(b"https://forge.example".as_slice().into()),
+            },
+        )
+        .unwrap(),
+    );
+    let place = forge::Place {
+        api: forge::Address {
+            host: b"forge.example".as_slice().into(),
+            port: 8443,
+            tls: Some(b"forge.example".as_slice().into()),
+        },
+        git: b"https://forge.example/git".as_slice().into(),
+        web: Some(b"https://forge.example".as_slice().into()),
+    };
+    for (asked, expected) in [
+        (w::ForgeAsk::Github, forge::ForgeAsk::GitHub),
+        (w::ForgeAsk::Owned, forge::ForgeAsk::Owned),
+        (managed, forge::ForgeAsk::Managed { place }),
+    ] {
+        let making = w::Making::New(w::NewForge::new(&w::CEILINGS, w::NewForgeParts { forge: asked }).unwrap());
+        let project = w::SetUpProject::Existing(
+            w::ExistingProject::new(&w::CEILINGS, w::ExistingProjectParts { project: 7 }).unwrap(),
+        );
+        for (request, expected) in [
+            (
+                w::Request::SetUp(
+                    w::SetUp::new(
+                        &w::CEILINGS,
+                        w::SetUpParts {
+                            forge: making.clone(),
+                            org: b"work".as_slice().into(),
+                            repository: b"hello".as_slice().into(),
+                            project,
+                            playground: false,
+                        },
+                    )
+                    .unwrap(),
+                ),
+                forge::Ask::SetUp {
+                    forge: forge::Making::New(expected.clone()),
+                    org: b"work".as_slice().into(),
+                    repository: b"hello".as_slice().into(),
+                    project: forge::SetUpProject::Existing(7),
+                    playground: false,
+                },
+            ),
+            (
+                w::Request::Connect(
+                    w::Connect::new(
+                        &w::CEILINGS,
+                        w::ConnectParts {
+                            forge: making,
+                            how: w::How::ForgejoAdmin(
+                                w::ForgejoAdmin::new(&w::CEILINGS, w::ForgejoAdminParts { first: None }).unwrap(),
+                            ),
+                        },
+                    )
+                    .unwrap(),
+                ),
+                forge::Ask::Connect {
+                    forge: forge::Making::New(expected),
+                    how: forge::How::ForgejoAdmin { first: None },
+                },
+            ),
+        ] {
+            let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
+            let event = family::to_root(
+                exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
+                &[],
+                None,
+                &w::CEILINGS,
+            )
+            .unwrap();
+            let root::Event::Party(root::PartyInput::Application { request, .. }) = event else {
+                panic!("application request")
+            };
+            assert_eq!(request, root::Application::Forge(expected));
+        }
+    }
+}
+#[test]
+fn removal_and_playground_answers_use_their_own_outcomes() {
+    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    for (answer, expected) in [
+        (root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Removed), w::Outcome::Removed),
+        (
+            root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(forge::ForgeRefusal::Role)),
+            w::Outcome::RemoveRefused(
+                w::RemoveRefused::new(&w::CEILINGS, w::RemoveRefusedParts { why: w::ForgeRefusal::Role }).unwrap(),
+            ),
+        ),
+        (root::ApplicationAnswer::StartPlayground(forge::StartAnswer::Running), w::Outcome::Running),
+        (root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset), w::Outcome::Reset),
+        (
+            root::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered),
+            w::Outcome::EndRefused(
+                w::EndRefused::new(&w::CEILINGS, w::EndRefusedParts { why: w::EndRefusal::NotOffered }).unwrap(),
+            ),
+        ),
+    ] {
+        let bytes = family::answer(Some(answer), &w::CEILINGS, &jig).unwrap();
+        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome, expected);
+    }
 }

@@ -31,6 +31,7 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     facts: 16,
 };
 pub const LIMITS: top::Limits = top::Limits {
+    forges: 4,
     repositories: 2,
     tasks: 8,
     holds: 8,
@@ -780,6 +781,10 @@ impl World {
                 | top::Request::DemoStart { .. }
                 | top::Request::StopGroup { .. }
                 | top::Request::SetUpGroup { .. }
+                | top::Request::ForgeKept(_)
+                | top::Request::ForgeGone { .. }
+                | top::Request::BoxGroup { .. }
+                | top::Request::BoxRemove { .. }
                 | top::Request::SetUp { .. }
                 | top::Request::Connect { .. }
                 | top::Request::Reachable { .. }
