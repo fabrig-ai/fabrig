@@ -285,6 +285,29 @@ pub struct Observer {
     recorded: Option<Vec<r::Observed>>,
 }
 
+fn connector_policy(policy: &mut r::Policy, number: u16, connector: &connector::Config) {
+    let parts = connector.prefix.segments();
+    // The deployment prefix owns its complete subtree, but not the prefix object itself.
+    policy.owned.push((
+        number,
+        r::Pattern { base: parts.iter().map(|part| part.to_vec()).collect(), terminal: Vec::new(), open: true },
+    ));
+    for kind in &connector.kinds {
+        policy.kinds.insert(
+            (number, kind.kind),
+            r::Kind {
+                price: kind.price.unwrap_or(0),
+                recovery: match kind.recovery {
+                    connector::Recovery::Keyed => r::Recovery::Keyed,
+                    connector::Recovery::Conditional => r::Recovery::Conditional,
+                    connector::Recovery::Idempotent => r::Recovery::Idempotent,
+                    connector::Recovery::Unrecoverable => r::Recovery::Unrecoverable,
+                },
+            },
+        );
+    }
+}
+
 impl Observer {
     /// Capture policy from scenario configuration before constructing the root.
     #[must_use]
@@ -340,26 +363,7 @@ impl Observer {
             }
         }
         for (number, connector) in [(1, &configuration.first), (2, &configuration.second)] {
-            let parts = connector.prefix.segments();
-            // The deployment prefix owns its complete subtree, but not the prefix object itself.
-            policy.owned.push((
-                number,
-                r::Pattern { base: parts.iter().map(|part| part.to_vec()).collect(), terminal: Vec::new(), open: true },
-            ));
-            for kind in &connector.kinds {
-                policy.kinds.insert(
-                    (number, kind.kind),
-                    r::Kind {
-                        price: kind.price.unwrap_or(0),
-                        recovery: match kind.recovery {
-                            connector::Recovery::Keyed => r::Recovery::Keyed,
-                            connector::Recovery::Conditional => r::Recovery::Conditional,
-                            connector::Recovery::Idempotent => r::Recovery::Idempotent,
-                            connector::Recovery::Unrecoverable => r::Recovery::Unrecoverable,
-                        },
-                    },
-                );
-            }
+            connector_policy(&mut policy, number, connector);
         }
         // Enumerate the finite configured kind vocabulary rather than reuse an
         // authority decision function when checking a later observed effect.
