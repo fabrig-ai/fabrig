@@ -1,5 +1,5 @@
 //! Secret-free party account facts (client/domain/contract.md, 5.1; domain/accounts.md, 3–5).
-use super::{DocumentText, OwnerAccountPlace, OwnerAccountState, OwnerAccountUnread};
+use super::{AccountPlace, AccountState, AccountUnread, DocumentText};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Wall};
 /// An account's payers at most: `jig_domain_accounts::USES` (domain/accounts.md, 3).
@@ -26,11 +26,11 @@ pub fn valid_manage_usage(value: &[u8]) -> bool {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[expect(clippy::struct_excessive_bools, reason = "independent aggregate and list loss facts")]
-pub struct OwnerAccounts {
-    pub program_hosts: List<super::OwnerProgramHost>,
-    pub accounts: List<OwnerAccountLine>,
-    pub signing: List<OwnerAccountSignIn>,
-    pub last_end: Option<OwnerAccountLastEnd>,
+pub struct Accounts {
+    pub program_hosts: List<super::ProgramHost>,
+    pub accounts: List<AccountLine>,
+    pub signing: List<AccountSignIn>,
+    pub last_end: Option<AccountLastEnd>,
     pub usable: bool,
     pub settled: bool,
     pub cut: bool,
@@ -40,83 +40,83 @@ pub struct OwnerAccounts {
     pub readiness_cut: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerAccountLine {
+pub struct AccountLine {
     pub number: u32,
     pub place: u32,
-    pub uses: Option<List<OwnerAccountUse>>,
+    pub uses: Option<List<AccountUse>>,
     pub plan: bool,
     pub provider: Option<u32>,
     pub provider_name: Option<DocumentText>,
     pub manage_usage: Option<Box<[u8]>>,
     pub display: DocumentText,
-    pub holder: OwnerAccountHolder,
-    pub sources: List<OwnerAccountSource>,
+    pub holder: AccountHolder,
+    pub sources: List<AccountSource>,
     pub cut: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerAccountSource {
+pub struct AccountSource {
     pub name: Option<Box<[u8]>>,
     pub place: u32,
     pub number: u32,
-    pub kind: OwnerAccountKind,
-    pub state: OwnerAccountState,
+    pub kind: AccountKind,
+    pub state: AccountState,
     pub usable: bool,
     pub expiring: bool,
     pub attention: bool,
     pub spent_until: Option<Wall>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerAccountSignIn {
+pub struct AccountSignIn {
     pub source: u32,
     pub provider: u32,
-    pub holder: OwnerAccountHolder,
+    pub holder: AccountHolder,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerAccountLastEnd {
+pub struct AccountLastEnd {
     pub source: u32,
-    pub end: OwnerAccountEnd,
+    pub end: AccountEnd,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerAccountUse {
+pub enum AccountUse {
     Party(u64),
     Project(u32),
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerAccountHolder {
+pub enum AccountHolder {
     Deployment,
     Party(u64),
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerAccountKind {
+pub enum AccountKind {
     SignIn,
     Key,
     Program,
     None,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerAccountBound {
+pub enum AccountBound {
     Accounts,
     HolderAccounts,
     Sources,
     SignIns,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerAccountKeyFailure {
+pub enum AccountKeyFailure {
     TooLong,
     NotStored,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerAccountRefusal {
+pub enum AccountRefusal {
     NotLimited,
     Uses,
-    NotKept { why: OwnerAccountKeyFailure },
-    Limit { bound: OwnerAccountBound },
+    NotKept { why: AccountKeyFailure },
+    Limit { bound: AccountBound },
     Held { provider: u32 },
     Provider { provider: u32 },
     Subject,
     Unknown,
     Numbers,
-    Kind { kind: OwnerAccountKind },
+    Kind { kind: AccountKind },
     Closing,
     NotStarted,
     NotSignedIn,
@@ -125,18 +125,18 @@ pub enum OwnerAccountRefusal {
     Moving,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerAccountFailure {
+pub enum AccountFailure {
     Later { after: Option<Duration> },
     SignInAgain,
     MissingScope { scope: u32 },
     Misconfigured,
-    Unloaded { at: OwnerAccountPlace, why: OwnerAccountUnread },
+    Unloaded { at: AccountPlace, why: AccountUnread },
     Cancelled,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerAccountEnd {
+pub enum AccountEnd {
     Made { account: u32, declined: bool },
     Renewed { account: u32, declined: bool },
-    Refused { refusal: OwnerAccountRefusal },
-    Failed { failure: OwnerAccountFailure },
+    Refused { refusal: AccountRefusal },
+    Failed { failure: AccountFailure },
 }

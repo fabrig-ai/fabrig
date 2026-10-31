@@ -4,76 +4,71 @@ use jig_domain_core::reads;
 use jig_domain_tasks as t;
 use skein_lib::bytes;
 
-pub fn line(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::OwnerActivityLine, w::Problem> {
+pub fn line(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::ActivityLine, w::Problem> {
     let line = match &value.line {
         t::Line::Words { .. } | t::Line::Heard(_) | t::Line::Notified { .. } => {
             return question_answer::answer(value, limits);
         }
-        t::Line::RunBegan { attempt, why: value, resumed } => {
-            w::OwnerActivity::RunBegan(w::OwnerActivityRunBegan::new(
-                limits,
-                w::OwnerActivityRunBeganParts { attempt: *attempt, why: why(*value, limits)?, resumed: *resumed },
-            )?)
+        t::Line::RunBegan { attempt, why: value, resumed } => w::Activity::RunBegan(w::ActivityRunBegan::new(
+            limits,
+            w::ActivityRunBeganParts { attempt: *attempt, why: why(*value, limits)?, resumed: *resumed },
+        )?),
+        t::Line::RunEnded { attempt, end: value, spent } => w::Activity::RunEnded(w::ActivityRunEnded::new(
+            limits,
+            w::ActivityRunEndedParts { attempt: *attempt, end: end(*value, limits)?, spent: *spent },
+        )?),
+        t::Line::Turn { reply, attempt, turn, read } => w::Activity::Turn(w::ActivityTurn::new(
+            limits,
+            w::ActivityTurnParts { reply: *reply, attempt: *attempt, turn: *turn, read: *read },
+        )?),
+        t::Line::Decided { revision } => {
+            w::Activity::Decided(w::ActivityDecided::new(limits, w::ActivityDecidedParts { revision: *revision })?)
         }
-        t::Line::RunEnded { attempt, end: value, spent } => w::OwnerActivity::RunEnded(w::OwnerActivityRunEnded::new(
-            limits,
-            w::OwnerActivityRunEndedParts { attempt: *attempt, end: end(*value, limits)?, spent: *spent },
-        )?),
-        t::Line::Turn { reply, attempt, turn, read } => w::OwnerActivity::Turn(w::OwnerActivityTurn::new(
-            limits,
-            w::OwnerActivityTurnParts { reply: *reply, attempt: *attempt, turn: *turn, read: *read },
-        )?),
-        t::Line::Decided { revision } => w::OwnerActivity::Decided(w::OwnerActivityDecided::new(
-            limits,
-            w::OwnerActivityDecidedParts { revision: *revision },
-        )?),
         t::Line::Kept { attempt, pending, question } => {
             let mut rows =
                 skein_lib::List::with_capacity(u32::try_from(pending.len()).expect("bounded pending dependencies"));
             for number in pending {
                 rows.push(*number).expect("same pending dependencies");
             }
-            w::OwnerActivity::Kept(w::OwnerActivityKept::new(
+            w::Activity::Kept(w::ActivityKept::new(
                 limits,
-                w::OwnerActivityKeptParts { attempt: *attempt, pending: rows, question: *question },
+                w::ActivityKeptParts { attempt: *attempt, pending: rows, question: *question },
             )?)
         }
-        t::Line::Milestone { position } => w::OwnerActivity::Milestone(w::OwnerActivityMilestone::new(
+        t::Line::Milestone { position } => w::Activity::Milestone(w::ActivityMilestone::new(
             limits,
-            w::OwnerActivityMilestoneParts { position: *position },
+            w::ActivityMilestoneParts { position: *position },
         )?),
     };
-    w::OwnerActivityLine::new(
+    w::ActivityLine::new(
         limits,
-        w::OwnerActivityLineParts { task: value.task, position: value.position, at: value.at.as_nanos(), line },
+        w::ActivityLineParts { task: value.task, position: value.position, at: value.at.as_nanos(), line },
     )
 }
-fn why(value: t::Why, limits: &w::Limits) -> Result<w::OwnerRunWhy, w::Problem> {
+fn why(value: t::Why, limits: &w::Limits) -> Result<w::RunWhy, w::Problem> {
     Ok(match value {
-        t::Why::Made => w::OwnerRunWhy::Made,
-        t::Why::Ready => w::OwnerRunWhy::Ready,
+        t::Why::Made => w::RunWhy::Made,
+        t::Why::Ready => w::RunWhy::Ready,
         t::Why::Message { message } => {
-            w::OwnerRunWhy::Message(w::OwnerRunWhyMessage::new(limits, w::OwnerRunWhyMessageParts { message })?)
+            w::RunWhy::Message(w::RunWhyMessage::new(limits, w::RunWhyMessageParts { message })?)
         }
-        t::Why::Released => w::OwnerRunWhy::Released,
-        t::Why::Retry { tries } => w::OwnerRunWhy::Retry(w::OwnerRunWhyRetry::new(
-            limits,
-            w::OwnerRunWhyRetryParts { tries: chips::tries(tries, limits)? },
-        )?),
-        t::Why::Narrowed => w::OwnerRunWhy::Narrowed,
-        t::Why::Changed => w::OwnerRunWhy::Changed,
+        t::Why::Released => w::RunWhy::Released,
+        t::Why::Retry { tries } => {
+            w::RunWhy::Retry(w::RunWhyRetry::new(limits, w::RunWhyRetryParts { tries: chips::tries(tries, limits)? })?)
+        }
+        t::Why::Narrowed => w::RunWhy::Narrowed,
+        t::Why::Changed => w::RunWhy::Changed,
     })
 }
-fn end(value: t::EndKind, limits: &w::Limits) -> Result<w::OwnerRunEnd, w::Problem> {
+fn end(value: t::EndKind, limits: &w::Limits) -> Result<w::RunEnd, w::Problem> {
     Ok(match value {
-        t::EndKind::Parked => w::OwnerRunEnd::Parked,
-        t::EndKind::Finished => w::OwnerRunEnd::Finished,
-        t::EndKind::Cancelled => w::OwnerRunEnd::Cancelled,
-        t::EndKind::Failed { class } => w::OwnerRunEnd::Failed(w::OwnerRunEndFailed::new(
-            limits,
-            w::OwnerRunEndFailedParts { class: chips::class(class)? },
-        )?),
-        t::EndKind::Refused => w::OwnerRunEnd::Refused,
+        t::EndKind::Parked => w::RunEnd::Parked,
+        t::EndKind::Finished => w::RunEnd::Finished,
+        t::EndKind::Cancelled => w::RunEnd::Cancelled,
+        t::EndKind::Failed { class } => {
+            w::RunEnd::Failed(w::RunEndFailed::new(limits, w::RunEndFailedParts { class: chips::class(class)? })?)
+        }
+        t::EndKind::Refused => w::RunEnd::Refused,
     })
 }
 
@@ -82,8 +77,8 @@ pub fn page_turn(
     value: &t::ActivityLine,
     supplied: Option<&reads::PageTurn>,
     limits: &w::Limits,
-) -> Result<w::ActivityLine, w::Problem> {
-    let invalid = w::Problem { path: w::Path::ActivityLineDecoded, reason: skein_codec::Reason::Tag };
+) -> Result<w::DecodedActivityLine, w::Problem> {
+    let invalid = w::Problem { path: w::Path::DecodedActivityLineDecoded, reason: skein_codec::Reason::Tag };
     if value.task != task {
         return Err(invalid);
     }
@@ -128,7 +123,7 @@ pub fn page_turn(
             None
         }
     };
-    w::ActivityLine::new(limits, w::ActivityLineParts { source: line(value, limits)?, decoded })
+    w::DecodedActivityLine::new(limits, w::DecodedActivityLineParts { source: line(value, limits)?, decoded })
 }
 
 /// The same immutable archive serves a page and a single-turn read.

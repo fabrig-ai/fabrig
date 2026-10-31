@@ -155,11 +155,7 @@ fn unwatch_answers_only_after_its_released_ending() {
     let exchange = world.component.connections.get(&owner).expect("connection").name;
     world.component.down(&world.env, Event::Admitted { watcher }, &mut world.out);
     assert!(world.component.pending.exchanges.get(&exchange).is_some());
-    world.component.down(
-        &world.env,
-        Event::WatchEnded { watcher, why: jig_domain_views::End::Unwatched },
-        &mut world.out,
-    );
+    world.component.down(&world.env, Event::Ended { watcher, why: jig_domain_views::End::Unwatched }, &mut world.out);
     assert_eq!(
         w::CloseAnswer::decode(&fixtures::wire(), &mut Reader::new(world.response(owner).1)),
         Ok(w::CloseAnswer::Closed)
@@ -169,7 +165,7 @@ fn ended_watch() -> (fixtures::Exchange, [u8; 16], Token) {
     let (mut world, stream) = stream_world();
     let (_, watcher) = request_task(&mut world, stream, ENDED_WATCH);
     world.component.down(&world.env, Event::Admitted { watcher }, &mut world.out);
-    world.component.down(&world.env, Event::WatchEnded { watcher, why: jig_domain_views::End::Gone }, &mut world.out);
+    world.component.down(&world.env, Event::Ended { watcher, why: jig_domain_views::End::Gone }, &mut world.out);
     let owner = *world.component.streams.first().expect("stream").0;
     (world, stream, owner)
 }
@@ -291,10 +287,10 @@ fn an_accounts_document_is_watched_but_never_read() {
     let limits = fixtures::wire();
     assert_eq!(
         watches::delivery(&document, 0, 1, &[], &limits),
-        Ok(w::DeliveryValue::OwnerAccounts(
-            w::OwnerAccounts::new(
+        Ok(w::DeliveryValue::Accounts(
+            w::Accounts::new(
                 &limits,
-                w::OwnerAccountsParts {
+                w::AccountsParts {
                     skein_bools: [false, true, false, false],
                     readiness: Box::new([]),
                     accounts: Box::from([]),

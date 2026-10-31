@@ -6,7 +6,7 @@ use skein_lib::Wall;
 
 /// The owner's four separate accounting numbers, in the deployment's unit.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerNumbers {
+pub struct Numbers {
     pub budget: u64,
     pub spent: u64,
     pub spent_below: u64,
@@ -15,8 +15,8 @@ pub struct OwnerNumbers {
 
 /// A task budget's exact owner document fields, independent of its authority.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerBudget {
-    pub numbers: OwnerNumbers,
+pub struct Budget {
+    pub numbers: Numbers,
     pub left: u64,
     pub funder: Funder,
     pub deadline: Option<Wall>,
@@ -27,7 +27,7 @@ pub struct OwnerBudget {
 pub struct PoolLedger {
     pub source: Funder,
     pub parent: Option<Funder>,
-    pub numbers: OwnerNumbers,
+    pub numbers: Numbers,
     pub left: u64,
     pub closed: bool,
     pub began: Option<Wall>,

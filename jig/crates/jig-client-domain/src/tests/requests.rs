@@ -31,7 +31,7 @@ fn a_final_answer_is_told_once_with_its_outcome() {
     let mut c = Client::live();
     let attempt = c.send();
     let answer =
-        Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(contract::OwnerOutcome::AccountChanged)));
+        Answered::Jig(contract::Answer::Done(contract::Outcome::Document(contract::DocumentOutcome::AccountChanged)));
     c.step(Event::Up {
         up: Up::Answer { attempt, envelope: RequestEnvelope::Final, answer: Some(answer.clone()), why: None },
     });
@@ -227,7 +227,7 @@ fn a_name_is_admitted_again_once_its_holder_is_answered() {
     let mut c = Client::live();
     let attempt = c.send_as(KEY, Some(NAME));
     let answer =
-        Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(contract::OwnerOutcome::AccountChanged)));
+        Answered::Jig(contract::Answer::Done(contract::Outcome::Document(contract::DocumentOutcome::AccountChanged)));
     c.step(Event::Up { up: Up::Answer { attempt, envelope: RequestEnvelope::Final, answer: Some(answer), why: None } });
     c.downs();
     c.told();
@@ -282,8 +282,8 @@ fn final_seen(c: &mut Client, attempt: skein_lib::Token) {
         up: Up::Answer {
             attempt,
             envelope: RequestEnvelope::Final,
-            answer: Some(Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
-                contract::OwnerOutcome::AccountChanged,
+            answer: Some(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+                contract::DocumentOutcome::AccountChanged,
             )))),
             why: None,
         },
@@ -415,8 +415,8 @@ fn seen_final_answer_erases_and_releases_its_name_once() {
         c.told().as_ref(),
         &[Told::Answered {
             key: KEY,
-            outcome: Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
-                contract::OwnerOutcome::AccountChanged
+            outcome: Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+                contract::DocumentOutcome::AccountChanged
             )))),
         }]
     );

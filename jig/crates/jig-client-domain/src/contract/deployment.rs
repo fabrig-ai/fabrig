@@ -2,32 +2,32 @@
 //! Core-owned facts; connector diagnostics are supplied independently.
 //! client/domain/contract.md, 5 and 7.1;
 //! client/domain/pages.md, 7.
-use super::{AdmissionLimit, Chip, Funder, OwnerRequester, OwnerTaskLink, Proposer, SeenThrough};
+use super::{AdmissionLimit, Chip, Funder, Proposer, Requester, SeenThrough, TaskLink};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Wall};
 
 /// Whole supplied deployment facts with independent bounded loss counters.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[expect(clippy::struct_excessive_bools, reason = "independent aggregate and list loss facts")]
-pub struct OwnerDeployment {
+pub struct Deployment {
     pub store: StoreFill,
-    pub hosts: List<OwnerHost>,
-    pub attempts: List<OwnerHostRun>,
-    pub accounts: List<OwnerAccount>,
-    pub tasks: OwnerCapacity,
-    pub workers: OwnerCapacity,
-    pub attempts_capacity: OwnerCapacity,
+    pub hosts: List<Host>,
+    pub attempts: List<HostRun>,
+    pub accounts: List<Account>,
+    pub tasks: Capacity,
+    pub workers: Capacity,
+    pub attempts_capacity: Capacity,
     pub waiting_attempts: u32,
-    pub proposals: OwnerCapacity,
-    pub projects: List<OwnerProjectCapacity>,
+    pub proposals: Capacity,
+    pub projects: List<ProjectCapacity>,
     pub grace_bound: Duration,
-    pub hello_refusals: List<OwnerHelloRefusalLine>,
+    pub hello_refusals: List<HelloRefusalLine>,
     pub hosts_forgotten: u64,
     pub hello_refusals_forgotten: u64,
-    pub person_room_refusals: List<OwnerPersonCapacityRefusal>,
+    pub person_room_refusals: List<PersonCapacityRefusal>,
     pub person_room_refusals_forgotten: u64,
     pub person_answer_retention: Duration,
-    pub task_room_refusals: List<OwnerTaskCapacityRefusal>,
+    pub task_room_refusals: List<TaskCapacityRefusal>,
     pub task_room_refusals_forgotten: u64,
     pub cut: bool,
     /// Authentic configured connector numbers, in source configuration order.
@@ -55,16 +55,16 @@ pub struct StoreFill {
 
 /// One independently counted resource capacity.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerCapacity {
+pub struct Capacity {
     pub used: u32,
     pub limit: u32,
 }
 
 /// A project task capacity and pending proposal count.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerProjectCapacity {
+pub struct ProjectCapacity {
     pub project: u32,
-    pub tasks: OwnerCapacity,
+    pub tasks: Capacity,
     pub proposals: u32,
 }
 
@@ -80,13 +80,13 @@ pub enum HostRule {
 /// A connected or retained host and its supplied placement facts.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[expect(clippy::struct_excessive_bools, reason = "independent host, inventory and document facts")]
-pub struct OwnerHost {
+pub struct Host {
     pub name: Option<Box<[u8]>>,
     pub awaiting_logins: bool,
     pub rule: HostRule,
-    pub programs: List<OwnerProgramLogin>,
+    pub programs: List<ProgramLogin>,
     pub channel: u64,
-    pub kind: OwnerHostKind,
+    pub kind: HostKind,
     pub slots: u32,
     pub used: u32,
     pub free: u32,
@@ -94,38 +94,38 @@ pub struct OwnerHost {
     pub connected: bool,
     pub grace_until: Option<Wall>,
     pub grace_remaining: Option<Duration>,
-    pub runs: List<OwnerHostRun>,
+    pub runs: List<HostRun>,
     pub cut: bool,
 }
 
 /// One attempt with its own identity, lifecycle and placement.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerHostRun {
-    pub task: OwnerTaskLink,
+pub struct HostRun {
+    pub task: TaskLink,
     pub attempt: u64,
     pub kept: u32,
     pub listed: bool,
-    pub state: OwnerAttemptState,
-    pub location: OwnerRunLocation,
+    pub state: AttemptState,
+    pub location: RunLocation,
     pub grace_until: Option<Wall>,
 }
 
 /// Secret-free account state and independent attention and spend facts.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[expect(clippy::struct_excessive_bools, reason = "independent account flags and owner list loss")]
-pub struct OwnerAccount {
+pub struct Account {
     pub number: u32,
     pub place: u32,
-    pub uses: Option<List<super::OwnerAccountUse>>,
+    pub uses: Option<List<super::AccountUse>>,
     pub plan: bool,
     pub provider: Option<u32>,
     pub provider_name: Option<super::DocumentText>,
     pub manage_usage: Option<Box<[u8]>>,
     pub display: super::DocumentText,
-    pub holder: super::OwnerAccountHolder,
-    pub sources: List<super::OwnerAccountSource>,
+    pub holder: super::AccountHolder,
+    pub sources: List<super::AccountSource>,
     pub generation: Option<u64>,
-    pub state: OwnerAccountState,
+    pub state: AccountState,
     pub usable: bool,
     pub expiring: bool,
     pub attention: bool,
@@ -137,50 +137,50 @@ pub struct OwnerAccount {
 
 /// One retained refused hello with its original clock and advertised stop bound.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerHelloRefusalLine {
+pub struct HelloRefusalLine {
     pub channel: u64,
     pub at: Wall,
     pub slots: u32,
     pub stop_bound: Duration,
-    pub why: OwnerHelloRefusal,
+    pub why: HelloRefusal,
 }
 
 /// The person and opaque key of a retained request; the bytes are never interpreted.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerRequestKey {
+pub struct RequestKey {
     pub person: u64,
     pub key: [u8; 16],
 }
 
 /// One person request refused for room, in source history order.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerPersonCapacityRefusal {
-    pub key: OwnerRequestKey,
+pub struct PersonCapacityRefusal {
+    pub key: RequestKey,
     pub project: Option<u32>,
-    pub action: OwnerPersonCapacityAction,
+    pub action: PersonCapacityAction,
     pub at: Wall,
-    pub cause: OwnerPersonCapacityCause,
+    pub cause: PersonCapacityCause,
 }
 
 /// One task caller refused for room, in source history order.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerTaskCapacityRefusal {
-    pub request: OwnerTaskCapacityRequest,
+pub struct TaskCapacityRefusal {
+    pub request: TaskCapacityRequest,
     pub at: Wall,
 }
 
 /// The caller, action and room cause supplied for a task request.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerTaskCapacityRequest {
+pub struct TaskCapacityRequest {
     pub project: Option<u32>,
-    pub by: OwnerRequester,
-    pub action: OwnerTaskCapacityAction,
-    pub cause: OwnerTaskCapacityCause,
+    pub by: Requester,
+    pub action: TaskCapacityAction,
+    pub cause: TaskCapacityCause,
 }
 
 /// The supplied closed hostkind vocabulary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerHostKind {
+pub enum HostKind {
     /// Worker as supplied by its owner.
     Worker,
     /// Engine as supplied by its owner.
@@ -189,7 +189,7 @@ pub enum OwnerHostKind {
 
 /// The supplied closed attemptstate vocabulary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerAttemptState {
+pub enum AttemptState {
     /// Waiting as supplied by its owner.
     Waiting,
     /// Adopted as supplied by its owner.
@@ -214,24 +214,24 @@ pub enum OwnerAttemptState {
 
 /// The supplied closed runlocation vocabulary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerRunLocation {
+pub enum RunLocation {
     /// None as supplied by its owner.
     None,
     /// Connected as supplied by its owner.
-    Connected { channel: u64, kind: OwnerHostKind },
+    Connected { channel: u64, kind: HostKind },
     /// Adrift as supplied by its owner.
     Adrift { channel: Option<u64>, until: Option<Wall>, remaining: Option<Duration> },
 }
 
 /// The supplied closed accountstate vocabulary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerAccountState {
+pub enum AccountState {
     Asking,
     Granted,
     Later { until: Option<Wall> },
     SignInAgain,
     Misconfigured,
-    Unloaded { at: OwnerAccountPlace, why: OwnerAccountUnread },
+    Unloaded { at: AccountPlace, why: AccountUnread },
     Cancelled,
     Closing,
     Moving,
@@ -239,9 +239,9 @@ pub enum OwnerAccountState {
 
 /// The supplied closed hellorefusal vocabulary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerHelloRefusal {
+pub enum HelloRefusal {
     Agent {
-        why: OwnerAgentShortfall,
+        why: AgentShortfall,
     },
     /// `ReservedChannel` as supplied by its owner.
     ReservedChannel,
@@ -261,7 +261,7 @@ pub enum OwnerHelloRefusal {
 
 /// The supplied closed personcapacityaction vocabulary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerPersonCapacityAction {
+pub enum PersonCapacityAction {
     Lift {
         hold: u64,
     },
@@ -353,7 +353,7 @@ pub enum OwnerPersonCapacityAction {
 
 /// The supplied closed personcapacitycause vocabulary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerPersonCapacityCause {
+pub enum PersonCapacityCause {
     /// Requests as supplied by its owner.
     Requests { limit: u32 },
     /// Pending as supplied by its owner.
@@ -366,7 +366,7 @@ pub enum OwnerPersonCapacityCause {
 
 /// The supplied closed taskcapacityaction vocabulary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerTaskCapacityAction {
+pub enum TaskCapacityAction {
     /// Batch as supplied by its owner.
     Batch {
         first: Option<u64>,
@@ -417,7 +417,7 @@ pub enum OwnerTaskCapacityAction {
 
 /// The supplied closed taskcapacitycause vocabulary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerTaskCapacityCause {
+pub enum TaskCapacityCause {
     /// Tasks as supplied by its owner.
     Tasks {
         limit: u32,
@@ -492,13 +492,13 @@ pub enum OwnerTaskCapacityCause {
 
 /// Where the account's record could not load.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerAccountPlace {
+pub enum AccountPlace {
     Directory,
     File,
 }
 /// Why the account's record could not load.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerAccountUnread {
+pub enum AccountUnread {
     Unreadable,
     Refused,
     Failed,
@@ -508,7 +508,7 @@ pub enum OwnerAccountUnread {
 
 /// Which advertised agent capability falls short of the deployment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerAgentShortfall {
+pub enum AgentShortfall {
     Model { charter: u32, model: u32 },
     Window { charter: u32, model: u32 },
     Output { charter: u32, model: u32 },
@@ -551,7 +551,7 @@ pub fn valid_program_method(method: &[u8]) -> bool {
     true
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum OwnerProgramFailure {
+pub enum ProgramFailure {
     Missing,
     Deadline,
     Unreadable,
@@ -561,31 +561,31 @@ pub enum OwnerProgramFailure {
     Closed,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum OwnerProgramState {
+pub enum ProgramState {
     Usable,
     NotSignedIn,
     SignedInOtherwise { method: Box<[u8]> },
-    Failed { reason: OwnerProgramFailure, detail: Box<[u8]> },
+    Failed { reason: ProgramFailure, detail: Box<[u8]> },
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum OwnerProgramSignOut {
+pub enum ProgramSignOut {
     SignedOut,
-    Failed { reason: OwnerProgramFailure, detail: Box<[u8]> },
+    Failed { reason: ProgramFailure, detail: Box<[u8]> },
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct OwnerProgramLogin {
+pub struct ProgramLogin {
     pub name: Box<[u8]>,
-    pub state: Option<OwnerProgramState>,
-    pub sign_out: Option<OwnerProgramSignOut>,
+    pub state: Option<ProgramState>,
+    pub sign_out: Option<ProgramSignOut>,
     pub cleanup: bool,
     pub cut: bool,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct OwnerProgramHost {
+pub struct ProgramHost {
     pub name: Box<[u8]>,
     pub channel: u64,
     pub connected: bool,
     pub awaiting_logins: bool,
-    pub programs: List<OwnerProgramLogin>,
+    pub programs: List<ProgramLogin>,
     pub cut: bool,
 }

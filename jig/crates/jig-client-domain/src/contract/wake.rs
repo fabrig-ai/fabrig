@@ -22,7 +22,7 @@ pub enum ResultsWake {
 
 /// Exact policy supplied by the owner, independent of subscriptions.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerWakePolicy {
+pub struct WakePolicy {
     pub words: WakeRule,
     pub notices: WakeRule,
     pub news: WakeRule,

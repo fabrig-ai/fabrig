@@ -211,9 +211,9 @@ from the whole authority payload used for edits (`../client/domain/contract.md`,
 3.2); decoding retains the flag, and `whole()` refuses a cut projection.
 
 Client v11 appends the public provider catalogue and startup key bound to `me`,
-and provider/payer readiness to `accounts`. `OwnerDeployment` includes the same
+and provider/payer readiness to `accounts`. `Deployment` includes the same
 catalogue and viewer readiness for the reference fragment. Each deployment host's
-`OwnerHostRule` is `open`, `person` with an `OwnerHostPerson` party number,
+`HostRule` is `open`, `person` with an `HostPerson` party number,
 `several`, or `unknown`, recording its current kept-login placement rule.
 The `position`
 hello refusal names a worker position that is unconfigured or held by a live
@@ -236,8 +236,8 @@ and whether it was removed (`../domain/tasks.md`, 5.7 and 8.1;
 `../domain/engine.md`, section 7). Existing tags stay fixed.
 
 Client v11 also carries `TaskRunWait.refused`, as either
-`TaskWaitRefused.hello` (`TaskWaitHello`: the existing `OwnerHostKind`, wall
-receipt time and `OwnerHelloRefusal`) or `TaskWaitRefused.program`
+`TaskWaitRefused.hello` (`TaskWaitHello`: the existing `HostKind`, wall
+receipt time and `HelloRefusal`) or `TaskWaitRefused.program`
 (`TaskWaitProgram.model` or `.source`, with account and source numbers).
 The Program arm has no producer: an Open task runs on a program source as any task does (`../domain/hosts.md`, 8.1).
 The server and client reuse the deployment's hello-refusal translations;
@@ -429,7 +429,7 @@ heard:    Reply { exchange, message } | Lost { exchange } | Streamed { message }
 
 ## 5. Keyed requests
 
-An owner proposal outcome carries its proposal number and the original admitted role (`OwnerOutcomeProposed.to`), in the project of the request. Replays retain that original role; the proposal document gives its current recipient. Active client-v19 records change together before first release, without a family/version bump.
+An owner proposal outcome carries its proposal number and the original admitted role (`OutcomeProposed.to`), in the project of the request. Replays retain that original role; the proposal document gives its current recipient. Active client-v19 records change together before first release, without a family/version bump.
 
 
 - **One exchange per attempt.** The request table's send (its attempt,

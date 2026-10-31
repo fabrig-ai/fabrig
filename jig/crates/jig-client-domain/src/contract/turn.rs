@@ -1,7 +1,7 @@
 //! Typed, bounded turns, decoded below the domain; client/domain/client.md, 10.
 //! No transcript library or wire bytes enter the domain. Calls retain the tool and
 //! input as written; the outcome is a summary and optional jig object references.
-use super::{ObjectKey, Part, Text};
+use super::{ApplicationPart, ObjectKey, Text};
 use skein_lib::List;
 /// The client view of one committed model turn.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -91,7 +91,7 @@ pub struct Call {
     pub outcome: Option<Text>,
     pub failed: bool,
     pub objects: List<ObjectKey>,
-    pub parts: List<Part>,
+    pub parts: List<ApplicationPart>,
 }
 
 /// Receiving bounds for a decoded turn; total text counts every retained field.

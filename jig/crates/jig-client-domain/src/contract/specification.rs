@@ -2,7 +2,7 @@
 use super::{DocumentText, Text};
 use skein_lib::List;
 
-/// A complete replacement, with numbered parameters and historical input identities.
+/// A complete replacement, with numbered parameters and ended input identities.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Specification {
     pub words: Text,

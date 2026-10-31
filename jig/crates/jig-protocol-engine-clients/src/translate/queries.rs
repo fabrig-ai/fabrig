@@ -10,9 +10,9 @@ pub(super) fn query(value: w::TaskQuery) -> Option<d::TaskQuery> {
     let value = value.into_parts();
     let requester = match value.requester {
         None => None,
-        Some(w::OwnerRequester::Task(v)) => Some(t::Party::Task(v.value())),
-        Some(w::OwnerRequester::Person(v)) => Some(t::Party::Person(v.value())),
-        Some(w::OwnerRequester::Deployment(_)) => return None,
+        Some(w::Requester::Task(v)) => Some(t::Party::Task(v.value())),
+        Some(w::Requester::Person(v)) => Some(t::Party::Person(v.value())),
+        Some(w::Requester::Deployment(_)) => return None,
     };
     Some(d::TaskQuery {
         project: value.project,

@@ -15,13 +15,10 @@ fn selectors_and_cut_authorities_round_trip_without_becoming_replacements() {
         let mut authority = fixtures::read_value_owner_authority();
         authority.models = models;
         let wire = translate::asks::wire_owner_authority(&authority, limits.wire()).unwrap();
-        assert_eq!(translate::documents::owner_authority_fields(&wire, &limits), Ok(authority.clone()));
-        let document = w::OwnerAuthorityDocument::new(
-            limits.wire(),
-            w::OwnerAuthorityDocumentParts { authority: wire, cut: true },
-        )
-        .unwrap();
-        let read = translate::documents::owner_authority_document_fields(&document, &limits).unwrap();
+        assert_eq!(translate::documents::authority_fields(&wire, &limits), Ok(authority.clone()));
+        let document =
+            w::AuthorityDocument::new(limits.wire(), w::AuthorityDocumentParts { authority: wire, cut: true }).unwrap();
+        let read = translate::documents::authority_document_fields(&document, &limits).unwrap();
         assert!(read.cut);
         assert_eq!(read.whole(), None);
         assert_eq!(read.authority, authority);

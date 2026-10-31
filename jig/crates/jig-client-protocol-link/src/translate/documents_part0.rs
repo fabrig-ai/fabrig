@@ -26,7 +26,7 @@ pub(crate) fn pool_ledger_fields(value: &w::PoolLedger) -> c::PoolLedger {
     c::PoolLedger {
         source: crate::translate::facts::funder(value.source()),
         parent: opt0,
-        numbers: crate::translate::facts::owner_numbers(value.numbers()),
+        numbers: crate::translate::facts::numbers(value.numbers()),
         left: value.left(),
         closed: value.closed(),
         began: opt1,
@@ -105,13 +105,13 @@ pub(crate) fn frame_fields(value: &w::Me, limits: &Limits) -> Result<c::Me, w::P
 pub(crate) fn chip_fields(value: &w::Chip, limits: &Limits) -> Result<c::Chip, w::Problem> {
     match crate::translate::facts::decode(value.rows(), limits)? {
         crate::translate::facts::Node::Chip(value) => Ok(*value),
-        crate::translate::facts::Node::ChipPhase(_)
+        crate::translate::facts::Node::ChipPhaseFacts(_)
         | crate::translate::facts::Node::Closing(_)
         | crate::translate::facts::Node::Ending(_)
         | crate::translate::facts::Node::HeldRuntime(_)
         | crate::translate::facts::Node::HoldReason(_)
-        | crate::translate::facts::Node::OwnerChipDetails(_)
-        | crate::translate::facts::Node::OwnerChipEnding(_)
+        | crate::translate::facts::Node::ChipDetails(_)
+        | crate::translate::facts::Node::ChipEnding(_)
         | crate::translate::facts::Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
     }
 }
@@ -145,43 +145,36 @@ pub(crate) fn chip_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<Li
     Err(too_large())
 }
 
-pub(crate) fn owner_task_status_fields(value: &w::OwnerTaskStatus) -> c::OwnerTaskStatus {
+pub(crate) fn task_status_fields(value: &w::TaskStatus) -> c::TaskStatus {
     match value {
-        w::OwnerTaskStatus::Done => c::OwnerTaskStatus::Done,
-        w::OwnerTaskStatus::Failed => c::OwnerTaskStatus::Failed,
-        w::OwnerTaskStatus::Cancelled => c::OwnerTaskStatus::Cancelled,
+        w::TaskStatus::Done => c::TaskStatus::Done,
+        w::TaskStatus::Failed => c::TaskStatus::Failed,
+        w::TaskStatus::Cancelled => c::TaskStatus::Cancelled,
     }
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_task_link_fields(
-    value: &w::OwnerTaskLink,
-    limits: &Limits,
-) -> Result<c::OwnerTaskLink, w::Problem> {
+pub(crate) fn task_link_fields(value: &w::TaskLink, limits: &Limits) -> Result<c::TaskLink, w::Problem> {
     Ok(match value {
-        w::OwnerTaskLink::Live(row) => c::OwnerTaskLink::Live(chip_fields(row.value(), limits)?),
-        w::OwnerTaskLink::Retained(row) => {
+        w::TaskLink::Live(row) => c::TaskLink::Live(chip_fields(row.value(), limits)?),
+        w::TaskLink::Retained(row) => {
             let opt0 = match row.at() {
                 Some(item) => Some(Wall::from_nanos(*item)),
                 None => None,
             };
-            c::OwnerTaskLink::Retained { chip: chip_fields(row.chip(), limits)?, at: opt0 }
+            c::TaskLink::Retained { chip: chip_fields(row.chip(), limits)?, at: opt0 }
         }
-        w::OwnerTaskLink::Stored(row) => {
+        w::TaskLink::Stored(row) => {
             let opt0 = match row.status() {
-                Some(item) => Some(owner_task_status_fields(item)),
+                Some(item) => Some(task_status_fields(item)),
                 None => None,
             };
-            c::OwnerTaskLink::Stored { number: row.number(), status: opt0 }
+            c::TaskLink::Stored { number: row.number(), status: opt0 }
         }
     })
 }
 
-pub(crate) fn owner_task_link_piece(
-    bytes: &[u8],
-    limits: &Limits,
-    bound: u32,
-) -> Result<List<c::OwnerTaskLink>, w::Problem> {
+pub(crate) fn task_link_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<List<c::TaskLink>, w::Problem> {
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
@@ -201,8 +194,8 @@ pub(crate) fn owner_task_link_piece(
         if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerTaskLink::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let row = owner_task_link_fields(&row, limits)?;
+        let row = w::TaskLink::decode(limits.receiving(), &mut Reader::new(&item))?;
+        let row = task_link_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
         }

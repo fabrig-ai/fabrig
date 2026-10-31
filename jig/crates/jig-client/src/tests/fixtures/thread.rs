@@ -9,13 +9,13 @@ pub fn text(bytes: &[u8]) -> Text {
 pub fn cursor(bytes: &[u8]) -> Cursor {
     Cursor::new(Box::from(bytes), 1024).expect("bounded opaque cursor")
 }
-pub fn row(position: u64) -> ActivityLine {
-    ActivityLine {
-        source: Box::new(OwnerActivityLine {
+pub fn row(position: u64) -> DecodedActivityLine {
+    DecodedActivityLine {
+        source: Box::new(ActivityLine {
             task: 7,
             position,
             at: Wall::EPOCH,
-            line: OwnerActivity::RunBegan { attempt: 1, why: OwnerRunWhy::Made, resumed: false },
+            line: Activity::RunBegan { attempt: 1, why: RunWhy::Made, resumed: false },
         }),
         decoded: None,
     }

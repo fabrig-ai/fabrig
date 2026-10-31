@@ -21,10 +21,10 @@ fn a_create_s_tasks_cross_as_pieces_within_the_request_s_bytes() {
 fn a_new_task_keeps_each_contract_and_executor_through_the_store() {
     let limits = fixtures::limits();
     for (name, executor, contract) in [
-        ("report", c::OwnerExecutor::Person(c::PersonAddress::Party(u64::MAX)), c::NewContract::Report { words: 17 }),
+        ("report", c::Executor::Person(c::PersonAddress::Party(u64::MAX)), c::NewContract::Report { words: 17 }),
         (
             "verdict",
-            c::OwnerExecutor::Procedure { connector: 5, code: 19 },
+            c::Executor::Procedure { connector: 5, code: 19 },
             c::NewContract::Verdict {
                 choices: fixtures::list([c::VerdictChoice {
                     code: 3,
@@ -36,7 +36,7 @@ fn a_new_task_keeps_each_contract_and_executor_through_the_store() {
         ),
         (
             "change",
-            c::OwnerExecutor::Agent { charter: fixtures::CHARTER },
+            c::Executor::Agent { charter: fixtures::CHARTER },
             c::NewContract::Change { connector: 5, kind: 6, words: 18 },
         ),
     ] {

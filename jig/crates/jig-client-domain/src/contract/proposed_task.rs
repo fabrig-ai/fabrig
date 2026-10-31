@@ -1,6 +1,6 @@
 //! Future batch members' contracts and funding (domain/tasks.md, 3 and 10;
 //! client/domain/contract.md, 5). Contract codes and fields belong to their owner.
-use super::{FieldRule, OwnerPart};
+use super::{FieldRule, Part};
 use alloc::boxed::Box;
 use skein_lib::List;
 
@@ -16,7 +16,7 @@ pub struct VerdictChoice {
 /// Result form, owner bounds and explicit projection completeness.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum TaskContractDocument {
-    Approval { state: Box<[u8]>, part: OwnerPart },
+    Approval { state: Box<[u8]>, part: Part },
     Report { words: u32 },
     Verdict { choices: List<VerdictChoice>, cut: bool },
     Change { connector: u16, kind: u16, words: u32 },

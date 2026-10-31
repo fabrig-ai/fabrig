@@ -30,7 +30,7 @@ pub struct Sent {
     pub request: Option<Key>,
     pub place: u32,
     pub by: Option<Party>,
-    /// Name loss supplied by the local Me; historical Party has no such fact.
+    /// Name loss supplied by the local Me; ended Party has no such fact.
     pub by_name_cut: Option<bool>,
     pub words: Text,
     pub state: Words,

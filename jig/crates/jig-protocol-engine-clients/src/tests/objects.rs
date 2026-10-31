@@ -10,24 +10,24 @@ fn a_pending_proposal_becomes_its_owner_record() {
     let answer = reads::Answer::Document(Box::new(d::Document::Proposal(Box::new(fixtures::pending_proposal()))));
     assert_eq!(
         translate::document(&answer, &[], &fixtures::wire_limits()),
-        Ok(w::ReadValue::OwnerProposal(records::pending_proposal_record()))
+        Ok(w::ReadValue::Proposal(records::pending_proposal_record()))
     );
 }
 #[test]
 fn a_decided_escalation_keeps_its_decider_and_wall() {
     let limits = fixtures::wire_limits();
     let source = fixtures::decided_escalation(p::EscalationDecision::Release);
-    let expected_source = records::decided_escalation_record(w::OwnerEscalationDecision::Release);
+    let expected_source = records::decided_escalation_record(w::EscalationDecision::Release);
     let rows = [
-        ("released", p::EscalationDecision::Release, w::OwnerEscalationDecision::Release),
-        ("passed", p::EscalationDecision::Pass, w::OwnerEscalationDecision::Pass),
+        ("released", p::EscalationDecision::Release, w::EscalationDecision::Release),
+        ("passed", p::EscalationDecision::Pass, w::EscalationDecision::Pass),
         (
             "rejected",
             p::EscalationDecision::Reject { reason: Box::from(b"reason".as_slice()) },
-            w::OwnerEscalationDecision::Reject(
-                w::OwnerEscalationDecisionReject::new(
+            w::EscalationDecision::Reject(
+                w::EscalationDecisionReject::new(
                     &limits,
-                    w::OwnerEscalationDecisionRejectParts { reason: Box::from(b"reason".as_slice()) },
+                    w::EscalationDecisionRejectParts { reason: Box::from(b"reason".as_slice()) },
                 )
                 .expect("literal reject"),
             ),
@@ -43,11 +43,11 @@ fn a_decided_escalation_keeps_its_decider_and_wall() {
     }
 }
 #[test]
-fn a_historical_task_keeps_its_ending() {
-    let answer = reads::Answer::Ended(Box::new(fixtures::historical_task()));
+fn a_ended_task_keeps_its_ending() {
+    let answer = reads::Answer::Ended(Box::new(fixtures::ended_task()));
     assert_eq!(
         translate::document(&answer, &[], &fixtures::wire_limits()),
-        Ok(w::ReadValue::Historical(Box::new(records::historical_task_record())))
+        Ok(w::ReadValue::Ended(Box::new(records::ended_task_record())))
     );
 }
 #[test]
@@ -55,7 +55,7 @@ fn a_project_document_becomes_its_record() {
     let answer = reads::Answer::Document(Box::new(d::Document::Project(Box::new(fixtures::project_document()))));
     assert_eq!(
         translate::document(&answer, &[], &fixtures::wire_limits()),
-        Ok(w::ReadValue::OwnerProject(records::owner_project_record()))
+        Ok(w::ReadValue::Project(records::project_record()))
     );
 }
 
@@ -67,18 +67,16 @@ fn with_decision(source: &reads::Ended, decision: p::EscalationDecision) -> read
     target.decision = decision;
     reads::Answer::Ended(Box::new(source))
 }
-fn record_with_decision(source: &w::OwnerHistorical, decision: w::OwnerEscalationDecision) -> w::ReadValue {
+fn record_with_decision(source: &w::Ended, decision: w::EscalationDecision) -> w::ReadValue {
     let limits = fixtures::wire_limits();
     let mut parts = source.clone().into_parts();
-    let w::OwnerHistoricalValue::Escalation(value) = parts.value else { unreachable!("wire literal is an escalation") };
+    let w::EndedValue::Escalation(value) = parts.value else { unreachable!("wire literal is an escalation") };
     let mut value = value.into_parts();
     let mut kept = value.decision.into_parts();
     kept.decision = decision;
-    value.decision = w::OwnerEscalationDecisionRecord::new(&limits, kept).expect("literal decision");
-    parts.value = w::OwnerHistoricalValue::Escalation(
-        w::OwnerHistoricalValueEscalation::new(&limits, value).expect("literal escalation"),
-    );
-    w::ReadValue::Historical(Box::new(w::OwnerHistorical::new(&limits, parts).expect("literal historical")))
+    value.decision = w::EscalationDecisionRecord::new(&limits, kept).expect("literal decision");
+    parts.value = w::EndedValue::Escalation(w::EndedValueEscalation::new(&limits, value).expect("literal escalation"));
+    w::ReadValue::Ended(Box::new(w::Ended::new(&limits, parts).expect("literal ended")))
 }
 
 #[test]
@@ -87,8 +85,8 @@ fn a_person_answer_notice_encodes_its_question_number() {
     for question in [0, 1, u64::MAX] {
         let value = jig_domain_tasks::MessageKind::QuestionAnswered { question };
         let encoded = translate::objects::question_answer::message_kind(&value, &limits).expect("notice");
-        let expected = w::OwnerMessageKind::QuestionAnswered(
-            w::OwnerMessageKindAnswer::new(&limits, w::OwnerMessageKindAnswerParts { question }).expect("number"),
+        let expected = w::MessageKind::QuestionAnswered(
+            w::MessageKindAnswer::new(&limits, w::MessageKindAnswerParts { question }).expect("number"),
         );
         assert_eq!(encoded, expected);
     }

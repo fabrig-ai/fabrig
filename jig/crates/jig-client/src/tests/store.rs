@@ -268,8 +268,8 @@ fn complete_seen(c: &mut Client, exchange: skein_lib::Token) {
         fixtures::answers(c.requests()).as_slice(),
         &[(
             SECOND,
-            Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Owner(
-                contract::OwnerOutcome::MarkedSeen {
+            Outcome::Answered(Answered::Jig(contract::Answer::Done(contract::Outcome::Document(
+                contract::DocumentOutcome::MarkedSeen {
                     seen: contract::SeenThrough::Conversation { task: fixtures::SUBJECT_TASK, through: 1 },
                 }
             )),))

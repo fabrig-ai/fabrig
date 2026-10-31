@@ -6,7 +6,7 @@ use skein_lib::List;
 
 /// A held task and the decisions offered on its escalation.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerEscalation {
+pub struct Escalation {
     pub acts: List<Offered>,
     pub task: Box<Task>,
 }

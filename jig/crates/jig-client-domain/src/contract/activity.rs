@@ -1,40 +1,40 @@
 //! Whole immutable activity and admitted words (domain/engine.md, 5.4 and 7.2;
 //! client/domain/contract.md, 5 and 7). Commit position orders lines; wall time
 //! is supplied metadata. Turns here are archive references, never decoded content.
-use super::{HoldFailure, OwnerFailureTries, OwnerRequester, ResultField, Text};
+use super::{FailureTries, HoldFailure, Requester, ResultField, Text};
 use skein_lib::{List, Wall};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerActivityLine {
+pub struct ActivityLine {
     pub task: u64,
     pub position: u64,
     pub at: Wall,
-    pub line: OwnerActivity,
+    pub line: Activity,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerActivity {
-    Words { message: u64, by: OwnerRequester, kind: OwnerMessageKind, words: Text },
-    Heard(OwnerWord),
-    Notified { recipient: OwnerRequester, word: OwnerWord },
-    RunBegan { attempt: u64, why: OwnerRunWhy, resumed: bool },
-    RunEnded { attempt: u64, end: OwnerRunEnd, spent: u64 },
+pub enum Activity {
+    Words { message: u64, by: Requester, kind: MessageKind, words: Text },
+    Heard(Word),
+    Notified { recipient: Requester, word: Word },
+    RunBegan { attempt: u64, why: RunWhy, resumed: bool },
+    RunEnded { attempt: u64, end: RunEnd, spent: u64 },
     Turn { reply: u64, attempt: u64, turn: u32, read: Option<u64> },
     Decided { revision: u64 },
     Milestone { position: u64 },
     Kept { attempt: u64, pending: List<u64>, question: Option<u64> },
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerRunWhy {
+pub enum RunWhy {
     Made,
     Ready,
     Message { message: u64 },
     Released,
-    Retry { tries: OwnerFailureTries },
+    Retry { tries: FailureTries },
     Narrowed,
     Changed,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerRunEnd {
+pub enum RunEnd {
     Parked,
     Finished,
     Cancelled,
@@ -43,17 +43,17 @@ pub enum OwnerRunEnd {
 }
 /// All bytes are whole admitted words. No text-loss marker exists in this source.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerWord {
+pub struct Word {
     pub number: u64,
-    pub from: OwnerRequester,
-    pub kind: OwnerMessageKind,
+    pub from: Requester,
+    pub kind: MessageKind,
     pub words: Text,
     pub at: Wall,
     pub hits: u32,
     pub eligible: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerMessageKind {
+pub enum MessageKind {
     QuestionOwed,
     SettingsDecision {
         proposal: u64,
@@ -67,7 +67,7 @@ pub enum OwnerMessageKind {
     Proposal {
         proposer: u64,
         proposal: u64,
-        kind: OwnerMessageProposalKind,
+        kind: MessageProposalKind,
     },
     PersonStalled {
         task: u64,
@@ -96,23 +96,23 @@ pub enum OwnerMessageKind {
     Notice {
         subscription: u64,
         target: u64,
-        state: OwnerNoticeState,
+        state: NoticeState,
     },
     Timer {
         subscription: u64,
     },
     News {
         subscription: u64,
-        class: OwnerNewsClass,
+        class: NewsClass,
     },
-    Result(OwnerWordResult),
+    Result(WordResult),
     Met {
         dependency: u64,
         removed: bool,
     },
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerMessageProposalKind {
+pub enum MessageProposalKind {
     Settings,
     Batch,
     Effect,
@@ -121,21 +121,21 @@ pub enum OwnerMessageProposalKind {
     Release,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerNoticeState {
+pub enum NoticeState {
     Held,
     Done,
     Failed,
     Cancelled,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerNewsClass {
+pub enum NewsClass {
     Wakes,
     Kept,
     Dropped,
 }
 /// Message metadata, separate from a result document or its connector's part.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerWordResult {
+pub enum WordResult {
     /// Presence is independent of the associated whole words, including empty words.
     Approved {
         state: Text,

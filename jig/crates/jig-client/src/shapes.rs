@@ -1,7 +1,7 @@
 //! Template recipes over the public contract (client/domain/client.md, 19).
 use crate::contract::{
-    Ask, Beyond, CreateBounds, Creating, LlmChoice, Me, NewBudget, NewContract, NewDeadline, NewTask, Operation,
-    OwnerExecutor, ProposeAction, Recipient, Refusal, Specification, TaskContractDocument, Template, TemplateBudget,
+    Ask, Beyond, CreateBounds, Creating, Executor, LlmChoice, Me, NewBudget, NewContract, NewDeadline, NewTask,
+    Operation, ProposeAction, Recipient, Refusal, Specification, TaskContractDocument, Template, TemplateBudget,
     TemplateDeadline, TemplateExecutor, Text,
 };
 use skein_lib::{List, Wall};
@@ -11,7 +11,7 @@ pub const GOAL: u32 = 2;
 pub enum NotOffered {
     Project,
     Template,
-    Executor,
+    ChipExecutor,
     Ceiling,
     Creating,
 }
@@ -28,7 +28,7 @@ pub struct Delegate {
 #[derive(Debug)]
 pub struct GoalDraft {
     pub words: Text,
-    pub executor: OwnerExecutor,
+    pub executor: Executor,
     pub budget: u64,
     pub deadline: Option<Wall>,
     pub priority: Option<u32>,
@@ -146,11 +146,11 @@ fn fill(
 ) -> Result<NewTask, NotOffered> {
     let executor = match template.executor {
         TemplateExecutor::Charter(charter) => {
-            let executor = OwnerExecutor::Agent { charter };
+            let executor = Executor::Agent { charter };
             if let Some(draft) = draft
                 && draft.executor != executor
             {
-                return Err(NotOffered::Executor);
+                return Err(NotOffered::ChipExecutor);
             }
             executor
         }
@@ -228,7 +228,7 @@ fn fill(
 pub fn fall(creating: &Creating, draft: &GoalDraft, deadline: NewDeadline) -> Fall {
     let within = &creating.within;
     if !listed(within, &draft.executor) {
-        return Fall::NotOffered(NotOffered::Executor);
+        return Fall::NotOffered(NotOffered::ChipExecutor);
     }
     if draft.budget > within.maximum_budget || !within_deadline(deadline, draft.deadline, within.maximum_deadline) {
         return Fall::NotOffered(NotOffered::Ceiling);
@@ -241,23 +241,23 @@ pub fn fall(creating: &Creating, draft: &GoalDraft, deadline: NewDeadline) -> Fa
         Beyond::Refused(why) => Fall::Refused(why.clone()),
     }
 }
-fn listed(within: &CreateBounds, executor: &OwnerExecutor) -> bool {
+fn listed(within: &CreateBounds, executor: &Executor) -> bool {
     match executor {
-        OwnerExecutor::Agent { charter } => {
+        Executor::Agent { charter } => {
             for offered in &within.charters {
                 if offered == charter {
                     return true;
                 }
             }
         }
-        OwnerExecutor::Procedure { connector, code } => {
+        Executor::Procedure { connector, code } => {
             for offered in &within.procedures {
                 if offered.connector == *connector && offered.code == *code {
                     return true;
                 }
             }
         }
-        OwnerExecutor::Person(_) => {}
+        Executor::Person(_) => {}
     }
     false
 }

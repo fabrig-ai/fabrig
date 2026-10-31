@@ -3,38 +3,34 @@
 use super::{objects, owner, w};
 use jig_domain_core::documents as d;
 use jig_domain_tasks as t;
-pub fn line(
-    models: &[crate::Model],
-    value: &d::HistoryLine,
-    limits: &w::Limits,
-) -> Result<w::OwnerHistoryLine, w::Problem> {
+pub fn line(models: &[crate::Model], value: &d::HistoryLine, limits: &w::Limits) -> Result<w::HistoryLine, w::Problem> {
     let change = match value.change {
-        t::Change::Cancelled => w::OwnerHistoryChange::Cancelled,
-        t::Change::Released => w::OwnerHistoryChange::Released,
-        t::Change::Amended => w::OwnerHistoryChange::Amended,
-        t::Change::Moved => w::OwnerHistoryChange::Moved,
-        t::Change::Proposed => w::OwnerHistoryChange::Proposed,
-        t::Change::ProposalPassed => w::OwnerHistoryChange::ProposalPassed,
-        t::Change::ProposalAccepted => w::OwnerHistoryChange::ProposalAccepted,
-        t::Change::ProposalRejected => w::OwnerHistoryChange::ProposalRejected,
-        t::Change::ProposalWithdrawn => w::OwnerHistoryChange::ProposalWithdrawn,
+        t::Change::Cancelled => w::HistoryChange::Cancelled,
+        t::Change::Released => w::HistoryChange::Released,
+        t::Change::Amended => w::HistoryChange::Amended,
+        t::Change::Moved => w::HistoryChange::Moved,
+        t::Change::Proposed => w::HistoryChange::Proposed,
+        t::Change::ProposalPassed => w::HistoryChange::ProposalPassed,
+        t::Change::ProposalAccepted => w::HistoryChange::ProposalAccepted,
+        t::Change::ProposalRejected => w::HistoryChange::ProposalRejected,
+        t::Change::ProposalWithdrawn => w::HistoryChange::ProposalWithdrawn,
     };
-    w::OwnerHistoryLine::new(
+    w::HistoryLine::new(
         limits,
-        w::OwnerHistoryLineParts {
+        w::HistoryLineParts {
             task: value.task,
             revision: value.revision,
             by: owner::requester(value.by, limits)?,
             change,
             reason: owner::text(&value.reason, limits)?,
             proposal: match &value.proposal {
-                Some(item) => Some(objects::historical::proposal_history(models, item, limits)?),
+                Some(item) => Some(objects::ended::proposal_history(models, item, limits)?),
                 None => None,
             },
             amendment: match &value.amendment {
-                Some((before, after)) => Some(w::OwnerHistoryAmendment::new(
+                Some((before, after)) => Some(w::HistoryAmendment::new(
                     limits,
-                    w::OwnerHistoryAmendmentParts {
+                    w::HistoryAmendmentParts {
                         before: objects::proposals::amendment(models, before, limits)?,
                         after: objects::proposals::amendment(models, after, limits)?,
                     },

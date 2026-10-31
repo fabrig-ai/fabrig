@@ -32,7 +32,7 @@ pub enum Event {
         watcher: Token,
         document: Box<core::documents::Document>,
     },
-    WatchEnded {
+    Ended {
         watcher: Token,
         why: views::End,
     },

@@ -1,6 +1,6 @@
 //! Field-for-field client contract translation (protocol/client.md, 3 and 5).
 use super::{
-    Child, active_run, closing_stage, document_text, failure_class, hold_category, owner_chip_phase, person_address,
+    Child, active_run, chip_phase, closing_stage, document_text, failure_class, hold_category, person_address,
     run_stage, take_closing, take_ending, take_owner_chip_details, take_owner_chip_ending,
 };
 use crate::Limits;
@@ -15,17 +15,17 @@ pub(crate) fn chip_phase_fields(
     _limits: &Limits,
     index: u32,
     children: &mut Map<u32, Child>,
-) -> Result<c::ChipPhase, w::Problem> {
-    let phase = owner_chip_phase(value.phase());
+) -> Result<c::ChipPhaseFacts, w::Problem> {
+    let phase = chip_phase(value.phase());
     let details = take_owner_chip_details(value.details(), index, children)?;
     let required_missing = match &phase {
-        c::OwnerChipPhase::Ended => details.ended_at.is_none(),
-        c::OwnerChipPhase::Active(c::RunStage::BackingOff { .. }) => details.retry.is_none(),
-        c::OwnerChipPhase::Waiting { .. }
-        | c::OwnerChipPhase::Person { .. }
-        | c::OwnerChipPhase::Closing(_)
-        | c::OwnerChipPhase::Held { .. }
-        | c::OwnerChipPhase::Active(
+        c::ChipPhase::Ended => details.ended_at.is_none(),
+        c::ChipPhase::Active(c::RunStage::BackingOff { .. }) => details.retry.is_none(),
+        c::ChipPhase::Waiting { .. }
+        | c::ChipPhase::Person { .. }
+        | c::ChipPhase::Closing(_)
+        | c::ChipPhase::Held { .. }
+        | c::ChipPhase::Active(
             c::RunStage::Idle
             | c::RunStage::Due
             | c::RunStage::Preparing
@@ -36,7 +36,7 @@ pub(crate) fn chip_phase_fields(
     if required_missing {
         return Err(crate::translate::piece_problem(skein_codec::Reason::Malformed));
     }
-    Ok(c::ChipPhase { phase, details: Box::new(details) })
+    Ok(c::ChipPhaseFacts { phase, details: Box::new(details) })
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
@@ -232,13 +232,11 @@ pub(crate) fn hold_reason_fields(
     })
 }
 
-pub(crate) fn owner_executor(value: &w::OwnerExecutor) -> c::OwnerExecutor {
+pub(crate) fn executor(value: &w::Executor) -> c::Executor {
     match value {
-        w::OwnerExecutor::Agent(row) => c::OwnerExecutor::Agent { charter: row.charter() },
-        w::OwnerExecutor::Procedure(row) => {
-            c::OwnerExecutor::Procedure { connector: row.connector(), code: row.code() }
-        }
-        w::OwnerExecutor::Person(row) => c::OwnerExecutor::Person(person_address(row.value())),
+        w::Executor::Agent(row) => c::Executor::Agent { charter: row.charter() },
+        w::Executor::Procedure(row) => c::Executor::Procedure { connector: row.connector(), code: row.code() },
+        w::Executor::Person(row) => c::Executor::Person(person_address(row.value())),
     }
 }
 
@@ -258,8 +256,8 @@ pub(crate) fn results_wake(value: &w::ResultsWake) -> c::ResultsWake {
     }
 }
 
-pub(crate) fn owner_wake_policy(value: &w::OwnerWakePolicy) -> c::OwnerWakePolicy {
-    c::OwnerWakePolicy {
+pub(crate) fn wake_policy(value: &w::WakePolicy) -> c::WakePolicy {
+    c::WakePolicy {
         words: wake_rule(value.words()),
         notices: wake_rule(value.notices()),
         news: wake_rule(value.news()),
@@ -270,17 +268,17 @@ pub(crate) fn owner_wake_policy(value: &w::OwnerWakePolicy) -> c::OwnerWakePolic
     }
 }
 
-pub(crate) fn owner_person_stall_notice(value: &w::OwnerPersonStallNotice) -> c::OwnerPersonStallNotice {
-    c::OwnerPersonStallNotice { message: value.message(), at: Wall::from_nanos(value.at()), activity: value.activity() }
+pub(crate) fn person_stall_notice(value: &w::PersonStallNotice) -> c::PersonStallNotice {
+    c::PersonStallNotice { message: value.message(), at: Wall::from_nanos(value.at()), activity: value.activity() }
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_person_wait(value: &w::OwnerPersonWait) -> c::OwnerPersonWait {
+pub(crate) fn person_wait(value: &w::PersonWait) -> c::PersonWait {
     let opt0 = match &value.notice() {
-        Some(item) => Some(owner_person_stall_notice(item)),
+        Some(item) => Some(person_stall_notice(item)),
         None => None,
     };
-    c::OwnerPersonWait {
+    c::PersonWait {
         since: Wall::from_nanos(value.since()),
         stall: value.stall(),
         deadline: Wall::from_nanos(value.deadline()),
@@ -288,72 +286,67 @@ pub(crate) fn owner_person_wait(value: &w::OwnerPersonWait) -> c::OwnerPersonWai
     }
 }
 
-pub(crate) fn owner_part_kind(value: &w::OwnerPartKind) -> c::OwnerPartKind {
+pub(crate) fn part_kind(value: &w::PartKind) -> c::PartKind {
     match value {
-        w::OwnerPartKind::Resource => c::OwnerPartKind::Resource,
-        w::OwnerPartKind::Pool => c::OwnerPartKind::Pool,
-        w::OwnerPartKind::Result => c::OwnerPartKind::Result,
-        w::OwnerPartKind::Procedure => c::OwnerPartKind::Procedure,
-        w::OwnerPartKind::Effect => c::OwnerPartKind::Effect,
-        w::OwnerPartKind::Outbox => c::OwnerPartKind::Outbox,
-        w::OwnerPartKind::Hold => c::OwnerPartKind::Hold,
+        w::PartKind::Resource => c::PartKind::Resource,
+        w::PartKind::Pool => c::PartKind::Pool,
+        w::PartKind::Result => c::PartKind::Result,
+        w::PartKind::Procedure => c::PartKind::Procedure,
+        w::PartKind::Effect => c::PartKind::Effect,
+        w::PartKind::Outbox => c::PartKind::Outbox,
+        w::PartKind::Hold => c::PartKind::Hold,
     }
 }
 
-pub(crate) fn owner_part_key(value: &w::OwnerPartKey) -> c::OwnerPartKey {
+pub(crate) fn part_key(value: &w::PartKey) -> c::PartKey {
     match value {
-        w::OwnerPartKey::Path(row) => {
+        w::PartKey::Path(row) => {
             let mut list0 = List::with_capacity(row.value().len());
             for item in row.value() {
                 list0.push(bytes::copy_of(item)).expect("reserved supplied list");
             }
-            c::OwnerPartKey::Path(list0)
+            c::PartKey::Path(list0)
         }
-        w::OwnerPartKey::Number(row) => c::OwnerPartKey::Number(row.value()),
+        w::PartKey::Number(row) => c::PartKey::Number(row.value()),
     }
 }
 
-pub(crate) fn owner_part(value: &w::OwnerPart) -> c::OwnerPart {
-    c::OwnerPart { connector: value.connector(), kind: owner_part_kind(value.kind()), key: owner_part_key(value.key()) }
+pub(crate) fn part(value: &w::Part) -> c::Part {
+    c::Part { connector: value.connector(), kind: part_kind(value.kind()), key: part_key(value.key()) }
 }
 
-pub(crate) fn owner_prior_phase(value: &w::OwnerPriorPhase) -> c::OwnerPriorPhase {
+pub(crate) fn prior_phase(value: &w::PriorPhase) -> c::PriorPhase {
     match value {
-        w::OwnerPriorPhase::Waiting => c::OwnerPriorPhase::Waiting,
-        w::OwnerPriorPhase::Active(row) => c::OwnerPriorPhase::Active(run_stage(row.value())),
-        w::OwnerPriorPhase::Closing(row) => c::OwnerPriorPhase::Closing(closing_stage(row.value())),
+        w::PriorPhase::Waiting => c::PriorPhase::Waiting,
+        w::PriorPhase::Active(row) => c::PriorPhase::Active(run_stage(row.value())),
+        w::PriorPhase::Closing(row) => c::PriorPhase::Closing(closing_stage(row.value())),
     }
 }
 
-pub(crate) fn owner_escalation_holder(value: &w::OwnerEscalationHolder) -> c::OwnerEscalationHolder {
+pub(crate) fn escalation_holder(value: &w::EscalationHolder) -> c::EscalationHolder {
     match value {
-        w::OwnerEscalationHolder::Task(row) => c::OwnerEscalationHolder::Task(row.value()),
-        w::OwnerEscalationHolder::Person(row) => c::OwnerEscalationHolder::Person(row.value()),
-        w::OwnerEscalationHolder::Role(row) => {
-            c::OwnerEscalationHolder::Role { project: row.project(), role: row.role() }
-        }
+        w::EscalationHolder::Task(row) => c::EscalationHolder::Task(row.value()),
+        w::EscalationHolder::Person(row) => c::EscalationHolder::Person(row.value()),
+        w::EscalationHolder::Role(row) => c::EscalationHolder::Role { project: row.project(), role: row.role() },
     }
 }
 
-pub(crate) fn owner_hold_escalation(
-    value: &w::OwnerHoldEscalation,
-    limits: &Limits,
-) -> Result<c::OwnerHoldEscalation, w::Problem> {
+pub(crate) fn hold_escalation(value: &w::HoldEscalation, limits: &Limits) -> Result<c::HoldEscalation, w::Problem> {
     Ok(match value {
-        w::OwnerHoldEscalation::Routing => c::OwnerHoldEscalation::Routing,
-        w::OwnerHoldEscalation::Waiting(row) => c::OwnerHoldEscalation::Waiting {
-            holder: owner_escalation_holder(row.holder()),
+        w::HoldEscalation::Routing => c::HoldEscalation::Routing,
+        w::HoldEscalation::Waiting(row) => c::HoldEscalation::Waiting {
+            holder: escalation_holder(row.holder()),
             entry: row.entry(),
             since: Wall::from_nanos(row.since()),
         },
-        w::OwnerHoldEscalation::Rejected(row) => {
-            c::OwnerHoldEscalation::Rejected { by: row.by(), reason: document_text(row.reason(), limits)? }
+        w::HoldEscalation::Rejected(row) => {
+            c::HoldEscalation::Rejected { by: row.by(), reason: document_text(row.reason(), limits)? }
         }
     })
 }
 
-pub(crate) fn owner_failure_tries(value: &w::OwnerFailureTries) -> c::OwnerFailureTries {
-    c::OwnerFailureTries {
+pub(crate) fn failure_tries(value: &w::FailureTries) -> c::FailureTries {
+    c::FailureTries {
         transient: value.transient(),
         permanent: value.permanent(),
         run: value.run(),
@@ -364,24 +357,24 @@ pub(crate) fn owner_failure_tries(value: &w::OwnerFailureTries) -> c::OwnerFailu
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_chip_hold(value: &w::OwnerChipHold, limits: &Limits) -> Result<c::OwnerChipHold, w::Problem> {
+pub(crate) fn chip_hold(value: &w::ChipHold, limits: &Limits) -> Result<c::ChipHold, w::Problem> {
     let opt0 = match &value.account() {
-        Some(item) => Some(owner_part(item)),
+        Some(item) => Some(part(item)),
         None => None,
     };
     let opt1 = match &value.source() {
-        Some(item) => Some(owner_part(item)),
+        Some(item) => Some(part(item)),
         None => None,
     };
     let opt2 = match &value.escalation() {
-        Some(item) => Some(owner_hold_escalation(item, limits)?),
+        Some(item) => Some(hold_escalation(item, limits)?),
         None => None,
     };
     let opt3 = match value.hold_wait_since() {
         Some(item) => Some(Wall::from_nanos(*item)),
         None => None,
     };
-    Ok(c::OwnerChipHold {
+    Ok(c::ChipHold {
         placed: crate::translate::answers::placed(value.placed().as_ref(), limits)?,
         words: match value.words() {
             Some(text) => Some(document_text(text, limits)?),
@@ -395,15 +388,15 @@ pub(crate) fn owner_chip_hold(value: &w::OwnerChipHold, limits: &Limits) -> Resu
         source: opt1,
         reason: hold_category(value.reason()),
         revision: value.revision(),
-        before: owner_prior_phase(value.before()),
+        before: prior_phase(value.before()),
         escalation: opt2,
-        tries: owner_failure_tries(value.tries()),
+        tries: failure_tries(value.tries()),
         hold_wait_since: opt3,
     })
 }
 
-pub(crate) fn owner_numbers(value: &w::OwnerNumbers) -> c::OwnerNumbers {
-    c::OwnerNumbers {
+pub(crate) fn numbers(value: &w::Numbers) -> c::Numbers {
+    c::Numbers {
         budget: value.budget(),
         spent: value.spent(),
         spent_below: value.spent_below(),

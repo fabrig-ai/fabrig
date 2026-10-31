@@ -15,7 +15,7 @@ fn charge(size: u32, measure: u32, bound: u32, path: w::Path) -> Result<u32, w::
     Ok(size)
 }
 pub(super) fn activity_pieces(
-    rows: &List<w::ActivityLine>,
+    rows: &List<w::DecodedActivityLine>,
     bound: u32,
     path: w::Path,
 ) -> Result<Box<[u8]>, w::Problem> {
@@ -44,11 +44,7 @@ pub(super) fn history_pieces(rows: &List<w::HistoryRow>, bound: u32, path: w::Pa
     }
     pieces(&encoded, bound, path)
 }
-pub(super) fn inbox_pieces(
-    rows: &List<w::OwnerInboxEntry>,
-    bound: u32,
-    path: w::Path,
-) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn inbox_pieces(rows: &List<w::InboxEntry>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut size = 0;
     for row in rows {
         size = charge(size, row.measure(), bound, path)?;
@@ -61,11 +57,7 @@ pub(super) fn inbox_pieces(
     }
     pieces(&encoded, bound, path)
 }
-pub(super) fn ended_pieces(
-    rows: &List<w::OwnerEndedDelegate>,
-    bound: u32,
-    path: w::Path,
-) -> Result<Box<[u8]>, w::Problem> {
+pub(super) fn ended_pieces(rows: &List<w::EndedDelegate>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut size = 0;
     for row in rows {
         size = charge(size, row.measure(), bound, path)?;
@@ -91,14 +83,14 @@ pub(super) fn note_pieces(rows: &List<w::Note>, bound: u32, path: w::Path) -> Re
     }
     pieces(&encoded, bound, path)
 }
-pub(super) fn funding(value: &t::FundingRecord, limits: &w::Limits) -> Result<w::OwnerFundingRecord, w::Problem> {
-    w::OwnerFundingRecord::new(
+pub(super) fn funding(value: &t::FundingRecord, limits: &w::Limits) -> Result<w::FundingRecord, w::Problem> {
+    w::FundingRecord::new(
         limits,
-        w::OwnerFundingRecordParts {
+        w::FundingRecordParts {
             period: match value.period {
-                Some(value) => Some(w::OwnerPeriodTimes::new(
+                Some(value) => Some(w::PeriodTimes::new(
                     limits,
-                    w::OwnerPeriodTimesParts {
+                    w::PeriodTimesParts {
                         began: value.began.as_nanos(),
                         next: match value.next {
                             Some(value) => Some(value.as_nanos()),

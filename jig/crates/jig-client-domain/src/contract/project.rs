@@ -2,38 +2,38 @@
 //! Lists retain their source order and allocated capacities. Neither a name,
 //! a period nor permission mappings are inferred from these values.
 use super::{
-    Chip, DocumentText, Funder, HeldRole, Offered, OwnerAuthorityDocument, OwnerGrant, OwnerNumbers, OwnerPart,
-    PartyKind, PolicyPermission, PolicyRequirement, PoolLedger, Recurring,
+    AuthorityDocument, Chip, DocumentText, Funder, Grant, HeldRole, Numbers, Offered, Part, PartyKind,
+    PolicyPermission, PolicyRequirement, PoolLedger, Recurring,
 };
 use skein_lib::List;
 
 /// The current project supplied by its owner.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerProject {
+pub struct Project {
     pub acts: List<Offered>,
     pub number: u32,
     pub name: DocumentText,
-    pub resources: List<OwnerProjectResource>,
-    pub policy: OwnerProjectPolicy,
-    pub members: List<OwnerProjectMember>,
+    pub resources: List<ProjectResource>,
+    pub policy: ProjectPolicy,
+    pub members: List<ProjectMember>,
     pub current_period: Option<PoolLedger>,
     pub pools: List<PoolLedger>,
     pub configured_period: u64,
     pub configured_pools: List<PoolLedger>,
     pub configured_pools_cut: bool,
-    pub spend: List<OwnerProjectSpend>,
+    pub spend: List<ProjectSpend>,
     pub recurring: List<Recurring>,
     pub cut: bool,
 }
 /// One resource's whole connector part and independently supplied role.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerProjectResource {
-    pub part: OwnerPart,
-    pub role: OwnerProjectResourceRole,
+pub struct ProjectResource {
+    pub part: Part,
+    pub role: ProjectResourceRole,
 }
 /// The four roles supplied by the resource owner.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum OwnerProjectResourceRole {
+pub enum ProjectResourceRole {
     Owned,
     Participant,
     Unavailable,
@@ -42,13 +42,13 @@ pub enum OwnerProjectResourceRole {
 /// Policy facts, with a loss flag independent of each authority document.
 /// Missing mappings remain absent; reserved lists and loss remain independent.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerProjectPolicy {
+pub struct ProjectPolicy {
     pub templates: List<super::TemplateOverride>,
-    pub ceiling: OwnerAuthorityDocument,
+    pub ceiling: AuthorityDocument,
     pub period_spend: u64,
     pub escalation_role: Option<u32>,
-    pub projections: List<OwnerGrant>,
-    pub roles: List<OwnerProjectPolicyRole>,
+    pub projections: List<Grant>,
+    pub roles: List<ProjectPolicyRole>,
     pub requirements: List<PolicyRequirement>,
     pub permissions: Option<List<PolicyPermission>>,
     pub permissions_cut: bool,
@@ -56,16 +56,16 @@ pub struct OwnerProjectPolicy {
 }
 /// A role's whole authority, allotment and full raw request/decision bits.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerProjectPolicyRole {
+pub struct ProjectPolicyRole {
     pub number: u32,
-    pub authority: OwnerAuthorityDocument,
+    pub authority: AuthorityDocument,
     pub period_spend: u64,
     pub requests: u16,
     pub decides: u8,
 }
 /// The same authentic membership facts for people and services.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerProjectMember {
+pub struct ProjectMember {
     pub party: u64,
     pub kind: PartyKind,
     pub role: HeldRole,
@@ -74,8 +74,8 @@ pub struct OwnerProjectMember {
 }
 /// One expense row in the order its accounting owner supplied.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OwnerProjectSpend {
+pub struct ProjectSpend {
     pub chip: Chip,
     pub funder: Funder,
-    pub numbers: OwnerNumbers,
+    pub numbers: Numbers,
 }

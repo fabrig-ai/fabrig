@@ -47,7 +47,9 @@ pub fn family_delivery(name: u64) -> Box<[u8]> {
     event_bytes(&w::StreamEvent::Delivery(w::Delivery::new(&lim, w::DeliveryParts { watch: name, document }).unwrap()))
 }
 pub fn ending(name: u64, why: w::WatchEnd) -> Box<[u8]> {
-    event_bytes(&w::StreamEvent::Ended(w::Ended::new(limits().wire(), w::EndedParts { watch: name, why }).unwrap()))
+    event_bytes(&w::StreamEvent::Ended(
+        w::WatchEnded::new(limits().wire(), w::WatchEndedParts { watch: name, why }).unwrap(),
+    ))
 }
 pub fn open_answer(value: &w::OpenAnswer) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());

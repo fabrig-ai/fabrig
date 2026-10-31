@@ -1,5 +1,5 @@
 //! Task hold facts (client/domain/objects.md, 5 and 11).
-use super::{HoldCategory, OwnerChipHold, Revision};
+use super::{ChipHold, HoldCategory, Revision};
 use alloc::boxed::Box;
 
 /// Placed hold facts supplied by the engine (client/domain/contract.md, 5.6).
@@ -26,7 +26,7 @@ pub enum HoldScope {
     Project,
 }
 
-impl OwnerChipHold {
+impl ChipHold {
     #[must_use]
     pub fn placed(&self) -> Option<&PlacedHold> {
         self.placed.as_ref()

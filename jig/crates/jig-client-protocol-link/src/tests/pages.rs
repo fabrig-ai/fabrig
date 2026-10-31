@@ -14,30 +14,30 @@ fn a_note_page_record_becomes_its_literal_contract_value() {
 }
 fn a_owner_ended_page_record_becomes_its_literal_contract_value() {
     assert_eq!(
-        translate::pages::owner_ended_page(fixtures::read_wire_owner_ended_page(), &fixtures::limits()),
+        translate::pages::ended_page(fixtures::read_wire_owner_ended_page(), &fixtures::limits()),
         Ok(fixtures::read_value_owner_ended_page())
     );
 }
 fn a_owner_inbox_page_record_becomes_its_literal_contract_value() {
     assert_eq!(
-        translate::pages::owner_inbox_page(fixtures::read_wire_owner_inbox_page(), &fixtures::limits()),
+        translate::pages::inbox_page(fixtures::read_wire_owner_inbox_page(), &fixtures::limits()),
         Ok(fixtures::read_value_owner_inbox_page())
     );
 }
 fn a_owner_spend_page_record_becomes_its_literal_contract_value() {
     assert_eq!(
-        translate::pages::owner_spend_page(fixtures::read_wire_owner_spend_page(), &fixtures::limits()),
+        translate::pages::spend_page(fixtures::read_wire_owner_spend_page(), &fixtures::limits()),
         Ok(fixtures::read_value_owner_spend_page())
     );
 }
 fn a_owner_proposal_record_becomes_its_literal_contract_value() {
     assert_eq!(
-        translate::objects::owner_proposal(fixtures::read_wire_owner_proposal(), &fixtures::limits()),
+        translate::objects::proposal(fixtures::read_wire_owner_proposal(), &fixtures::limits()),
         Ok(fixtures::read_value_owner_proposal())
     );
 }
 #[test]
-fn owner_escalation_acts_fit_the_contract_bound() {
+fn escalation_acts_fit_the_contract_bound() {
     let base = fixtures::limits();
     let limits = Limits::new(jig_client_domain::Limits { rows: 32, ..*base.client() }, base.exchanges()).unwrap();
     let offered = w::Offered::new(
@@ -54,15 +54,15 @@ fn owner_escalation_acts_fit_the_contract_bound() {
     }
     let mut parts = fixtures::read_wire_owner_escalation().into_parts();
     parts.acts = acts.finish();
-    let record = w::OwnerEscalation::new(limits.wire(), parts).unwrap();
-    let document = translate::pages::owner_escalation_fields(&record, &limits).unwrap();
+    let record = w::Escalation::new(limits.wire(), parts).unwrap();
+    let document = translate::pages::escalation_fields(&record, &limits).unwrap();
     assert_eq!(document.acts.len(), 5);
     assert!(document.acts.capacity() <= c::MAX_OFFERED_ACTS);
 }
 
 fn a_owner_escalation_record_becomes_its_literal_contract_value() {
     assert_eq!(
-        translate::objects::owner_escalation(fixtures::read_wire_owner_escalation(), &fixtures::limits()),
+        translate::objects::escalation(fixtures::read_wire_owner_escalation(), &fixtures::limits()),
         Ok(fixtures::read_value_owner_escalation())
     );
 }
@@ -74,7 +74,7 @@ fn a_question_record_becomes_its_literal_contract_value() {
 }
 fn a_owner_person_task_record_becomes_its_literal_contract_value() {
     assert_eq!(
-        translate::objects::owner_person_task(fixtures::read_wire_owner_person_task(), &fixtures::limits()),
+        translate::objects::person_task(fixtures::read_wire_owner_person_task(), &fixtures::limits()),
         Ok(fixtures::read_value_owner_person_task())
     );
 }
@@ -84,10 +84,10 @@ fn a_result_record_becomes_its_literal_contract_value() {
         Ok(fixtures::read_value_result())
     );
 }
-fn a_owner_historical_record_becomes_its_literal_contract_value() {
+fn a_owner_ended_record_becomes_its_literal_contract_value() {
     assert_eq!(
-        translate::objects::owner_historical(fixtures::read_wire_owner_historical(), &fixtures::limits()),
-        Ok(fixtures::read_value_owner_historical())
+        translate::objects::ended(fixtures::read_wire_owner_ended(), &fixtures::limits()),
+        Ok(fixtures::read_value_owner_ended())
     );
 }
 
@@ -99,56 +99,47 @@ fn a_page_keeps_its_two_cursors_as_bytes() {
     );
 }
 #[test]
-fn a_historical_task_keeps_its_ending() {
+fn a_ended_task_keeps_its_ending() {
     assert_eq!(
-        translate::objects::owner_historical(fixtures::historical_task_record(), &fixtures::limits()),
-        Ok(fixtures::expected_historical_task())
+        translate::objects::ended(fixtures::ended_task_record(), &fixtures::limits()),
+        Ok(fixtures::expected_ended_task())
     );
 }
 #[test]
 fn a_page_admits_each_generated_row_at_its_limit() {
     assert_eq!(
-        translate::pages::owner_ended_page(
-            fixtures::owner_ended_page_piece(fixtures::ended_rows(2)),
-            &fixtures::limits()
-        ),
+        translate::pages::ended_page(fixtures::ended_page_piece(fixtures::ended_rows(2)), &fixtures::limits()),
         Ok(fixtures::expected_owner_ended_page(2))
     );
 }
 #[test]
 fn a_page_one_row_past_its_limit_is_refused() {
     assert_eq!(
-        translate::pages::owner_ended_page(
-            fixtures::owner_ended_page_piece(fixtures::ended_rows(3)),
-            &fixtures::limits()
-        ),
+        translate::pages::ended_page(fixtures::ended_page_piece(fixtures::ended_rows(3)), &fixtures::limits()),
         Err(Undecodable::TooLarge)
     );
 }
 #[test]
 fn a_page_with_an_incomplete_piece_header_is_refused() {
     assert_eq!(
-        translate::pages::owner_ended_page(fixtures::owner_ended_page_piece(Box::from([1, 0, 0])), &fixtures::limits()),
+        translate::pages::ended_page(fixtures::ended_page_piece(Box::from([1, 0, 0])), &fixtures::limits()),
         Err(Undecodable::Malformed)
     );
 }
 #[test]
 fn a_page_with_trailing_row_bytes_is_refused() {
     assert_eq!(
-        translate::pages::owner_ended_page(
-            fixtures::owner_ended_page_piece(fixtures::trailing_ended_row()),
-            &fixtures::limits()
-        ),
+        translate::pages::ended_page(fixtures::ended_page_piece(fixtures::trailing_ended_row()), &fixtures::limits()),
         Err(Undecodable::Malformed)
     );
 }
 #[test]
 fn a_page_one_byte_past_the_document_limit_is_refused() {
-    let record = fixtures::owner_ended_page_piece(fixtures::ended_rows(1));
+    let record = fixtures::ended_page_piece(fixtures::ended_rows(1));
     let mut client = *fixtures::limits().client();
     client.document_bytes = u64::from(record.measure()).checked_sub(1).unwrap();
     let limits = Limits::new(client, 4).unwrap();
-    assert_eq!(translate::pages::owner_ended_page(record, &limits), Err(Undecodable::TooLarge));
+    assert_eq!(translate::pages::ended_page(record, &limits), Err(Undecodable::TooLarge));
 }
 
 fn a_activity_page_record_becomes_its_literal_contract_value() {
@@ -209,7 +200,7 @@ fn a_turn_past_its_admission_bound_is_carried_as_too_large() {
 fn an_owner_turn_without_carried_bytes_crosses_up_with_its_problem() {
     let limits = fixtures::limits();
     assert_eq!(fixtures::MARKER_BYTES, u64::from(w::CEILINGS.turn_carried_bytes).checked_add(1).unwrap());
-    for (name, record, expected) in fixtures::owner_turn_pages() {
+    for (name, record, expected) in fixtures::turn_pages() {
         assert_eq!(translate::pages::activity_page(record, &limits), Ok(expected), "{name}");
     }
 }
@@ -252,8 +243,8 @@ fn page_and_object_records_become_their_literal_contract_values() {
         ),
         ("a_result_record_becomes_its_literal_contract_value", a_result_record_becomes_its_literal_contract_value),
         (
-            "a_owner_historical_record_becomes_its_literal_contract_value",
-            a_owner_historical_record_becomes_its_literal_contract_value,
+            "a_owner_ended_record_becomes_its_literal_contract_value",
+            a_owner_ended_record_becomes_its_literal_contract_value,
         ),
         (
             "a_activity_page_record_becomes_its_literal_contract_value",

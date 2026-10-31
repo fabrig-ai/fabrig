@@ -15,7 +15,7 @@
 //! | any read | failed | idle | nothing |
 use self::window::{Edge, Edges, End, TurnWindow};
 use crate::contract::{
-    ActivityLine, ActivityPage, ArchivedTurn, Block, CallIdentity, Cursor, LiveCall, ObjectKey, Part,
+    ActivityPage, ApplicationPart, ArchivedTurn, Block, CallIdentity, Cursor, DecodedActivityLine, LiveCall, ObjectKey,
     ProvisionalTurnName, Read, RunState, RunText, Text, TurnName, TurnRead,
 };
 use skein_lib::{List, Map, Wall, Writer};
@@ -131,7 +131,7 @@ impl Thread {
             chips_pending: false,
         }
     }
-    /// Reads a newer committed tail once, leaving a historical window in place.
+    /// Reads a newer committed tail once, leaving a ended window in place.
     pub fn moved(&mut self, committed: u64) -> Option<Read> {
         self.committed = self.committed.max(committed);
         if self.reading.is_some() || !self.lines.edges.reaches(End::Before) || self.committed <= self.loaded {
@@ -279,7 +279,7 @@ impl Thread {
     }
     /// Connector-owned parts carried by calls, results or news, requested by the root.
     #[must_use]
-    pub fn parts(&self, capacity: u32, live: &[LiveTurn]) -> List<Part> {
+    pub fn parts(&self, capacity: u32, live: &[LiveTurn]) -> List<ApplicationPart> {
         let mut parts = List::with_capacity(capacity);
         for line in &self.lines.rows {
             if let Some(ArchivedTurn { turn: TurnRead::Decoded(turn), .. }) = &line.decoded {
@@ -483,7 +483,7 @@ fn page_edges(newer: Option<Cursor>, older: Option<Cursor>) -> Edges {
         },
     }
 }
-fn order(rows: &mut List<ActivityLine>) {
+fn order(rows: &mut List<DecodedActivityLine>) {
     for first in 0..rows.len() {
         for second in first.saturating_add(1)..rows.len() {
             let a = rows.get(first).expect("bounded row exists");
@@ -496,7 +496,7 @@ fn order(rows: &mut List<ActivityLine>) {
         }
     }
 }
-fn has_call(rows: &List<ActivityLine>, name: CallName) -> bool {
+fn has_call(rows: &List<DecodedActivityLine>, name: CallName) -> bool {
     for row in rows {
         if let Some((turn_name, turn)) = row.decoded_turn()
             && turn_name.attempt == name.attempt
@@ -547,7 +547,7 @@ fn tail(old: &[u8], incoming: &[u8], limit: u32) -> Text {
     writer.put(incoming.get(new_from..).expect("new tail starts within text")).expect("new tail fits allocation");
     Text::new(writer.finish(), limit).expect("tail respects its byte bound")
 }
-fn add_part(parts: &mut List<Part>, part: &Part) {
+fn add_part(parts: &mut List<ApplicationPart>, part: &ApplicationPart) {
     if !parts.as_slice().contains(part) {
         match parts.push(part.clone()) {
             Ok(()) | Err(_) => {}

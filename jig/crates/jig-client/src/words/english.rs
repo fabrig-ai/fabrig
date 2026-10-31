@@ -77,7 +77,7 @@ impl Word {
             Self::Phase(Phase::Claimed) => (4, b"Claimed by a host", &[]),
             Self::Phase(Phase::Running) => (5, b"Running", &[]),
             Self::Phase(Phase::BackingOff) => (6, b"Retrying", &[]),
-            Self::Phase(Phase::Active) => (7, b"Executor active", &[]),
+            Self::Phase(Phase::Active) => (7, b"ChipExecutor active", &[]),
             Self::Phase(Phase::Closing) => (8, b"Closing", &[]),
             Self::Phase(Phase::Held) => (9, b"Held", &[]),
             Self::Phase(Phase::Ended) => (10, b"Ended", &[]),

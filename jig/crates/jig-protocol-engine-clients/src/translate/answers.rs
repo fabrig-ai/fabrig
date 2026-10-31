@@ -48,7 +48,7 @@ pub(crate) fn answer(
         }
         p::Reply::Outcome(value) => {
             let value = owner(value, limits)?;
-            let outcome = w::Outcome::Owner(w::OutcomeOwner::new(limits, w::OutcomeOwnerParts { value })?);
+            let outcome = w::Outcome::Document(w::OutcomeDocument::new(limits, w::OutcomeDocumentParts { value })?);
             w::Final::Done(w::Done::new(limits, w::DoneParts { outcome })?)
         }
         p::Reply::Signer(_) | p::Reply::Full { .. } | p::Reply::SignedIn { .. } => return Err(problem()),
@@ -111,32 +111,32 @@ fn problem() -> w::Problem {
     w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Malformed }
 }
 #[expect(clippy::too_many_lines, reason = "one total match names every people outcome")]
-fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::OwnerOutcome, w::Problem> {
+fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w::Problem> {
     Ok(match value {
-        p::Outcome::ProjectRemoved { project } => w::OwnerOutcome::ProjectRemoved(w::OwnerOutcomeProjectRemoved::new(
+        p::Outcome::ProjectRemoved { project } => w::DocumentOutcome::ProjectRemoved(w::OutcomeProjectRemoved::new(
             limits,
-            w::OwnerOutcomeProjectRemovedParts { project: *project },
+            w::OutcomeProjectRemovedParts { project: *project },
         )?),
-        p::Outcome::AccountFinishing { source } => w::OwnerOutcome::AccountFinishing(
-            w::OwnerOutcomeAccountFinishing::new(limits, w::OwnerOutcomeAccountFinishingParts { source: *source })?,
+        p::Outcome::AccountFinishing { source } => w::DocumentOutcome::AccountFinishing(
+            w::OutcomeAccountFinishing::new(limits, w::OutcomeAccountFinishingParts { source: *source })?,
         ),
         p::Outcome::AccountMovedIn { account, renewed } => {
-            w::OwnerOutcome::AccountMovedIn(w::OwnerOutcomeAccountMovedIn::new(
+            w::DocumentOutcome::AccountMovedIn(w::OutcomeAccountMovedIn::new(
                 limits,
-                w::OwnerOutcomeAccountMovedInParts { account: *account, renewed: *renewed },
+                w::OutcomeAccountMovedInParts { account: *account, renewed: *renewed },
             )?)
         }
-        p::Outcome::Proposed { proposal, to } => w::OwnerOutcome::Proposed(w::OwnerOutcomeProposed::new(
+        p::Outcome::Proposed { proposal, to } => w::DocumentOutcome::Proposed(w::OutcomeProposed::new(
             limits,
-            w::OwnerOutcomeProposedParts { proposal: *proposal, to: *to },
+            w::OutcomeProposedParts { proposal: *proposal, to: *to },
         )?),
-        p::Outcome::Withdrawn { proposal } => w::OwnerOutcome::Withdrawn(w::OwnerOutcomeWithdrawn::new(
+        p::Outcome::Withdrawn { proposal } => w::DocumentOutcome::Withdrawn(w::OutcomeWithdrawn::new(
             limits,
-            w::OwnerOutcomeWithdrawnParts { proposal: *proposal },
+            w::OutcomeWithdrawnParts { proposal: *proposal },
         )?),
-        p::Outcome::Created { first, last, given } => w::OwnerOutcome::Created(w::OwnerOutcomeCreated::new(
+        p::Outcome::Created { first, last, given } => w::DocumentOutcome::Created(w::OutcomeCreated::new(
             limits,
-            w::OwnerOutcomeCreatedParts {
+            w::OutcomeCreatedParts {
                 first: *first,
                 last: *last,
                 given: match given {
@@ -148,92 +148,85 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::OwnerOutcome, w::P
             },
         )?),
         p::Outcome::Compound { project, operations, first_message } => {
-            w::OwnerOutcome::Compound(w::OwnerOutcomeCompound::new(
+            w::DocumentOutcome::Compound(w::OutcomeCompound::new(
                 limits,
-                w::OwnerOutcomeCompoundParts {
-                    project: *project,
-                    operations: *operations,
-                    first_message: *first_message,
-                },
+                w::OutcomeCompoundParts { project: *project, operations: *operations, first_message: *first_message },
             )?)
         }
-        p::Outcome::NoteEdited { name } => w::OwnerOutcome::NoteEdited(w::OwnerOutcomeNoteEdited::new(
+        p::Outcome::NoteEdited { name } => w::DocumentOutcome::NoteEdited(w::OutcomeNoteEdited::new(
             limits,
-            w::OwnerOutcomeNoteEditedParts { name: *name },
+            w::OutcomeNoteEditedParts { name: *name },
         )?),
-        p::Outcome::ServiceMade { person } => w::OwnerOutcome::ServiceMade(w::OwnerOutcomeServiceMade::new(
+        p::Outcome::ServiceMade { person } => w::DocumentOutcome::ServiceMade(w::OutcomeServiceMade::new(
             limits,
-            w::OwnerOutcomeServiceMadeParts { person: *person },
+            w::OutcomeServiceMadeParts { person: *person },
         )?),
-        p::Outcome::Adopted { project } => w::OwnerOutcome::Adopted(w::OwnerOutcomeAdopted::new(
-            limits,
-            w::OwnerOutcomeAdoptedParts { project: *project },
-        )?),
-        p::Outcome::Stopped { task } => {
-            w::OwnerOutcome::Stopped(w::OwnerOutcomeStopped::new(limits, w::OwnerOutcomeStoppedParts { task: *task })?)
+        p::Outcome::Adopted { project } => {
+            w::DocumentOutcome::Adopted(w::OutcomeAdopted::new(limits, w::OutcomeAdoptedParts { project: *project })?)
         }
-        p::Outcome::Cancelled { task } => w::OwnerOutcome::Cancelled(w::OwnerOutcomeCancelled::new(
+        p::Outcome::Stopped { task } => {
+            w::DocumentOutcome::Stopped(w::OutcomeStopped::new(limits, w::OutcomeStoppedParts { task: *task })?)
+        }
+        p::Outcome::Cancelled { task } => {
+            w::DocumentOutcome::Cancelled(w::OutcomeCancelled::new(limits, w::OutcomeCancelledParts { task: *task })?)
+        }
+        p::Outcome::Lifted { hold, released } => w::DocumentOutcome::Lifted(w::OutcomeLifted::new(
             limits,
-            w::OwnerOutcomeCancelledParts { task: *task },
+            w::OutcomeLiftedParts { hold: *hold, released: *released },
         )?),
-        p::Outcome::Lifted { hold, released } => w::OwnerOutcome::Lifted(w::OwnerOutcomeLifted::new(
+        p::Outcome::Released { task } => {
+            w::DocumentOutcome::Released(w::OutcomeReleased::new(limits, w::OutcomeReleasedParts { task: *task })?)
+        }
+        p::Outcome::PersonTaken { task } => w::DocumentOutcome::PersonTaken(w::OutcomePersonTaken::new(
             limits,
-            w::OwnerOutcomeLiftedParts { hold: *hold, released: *released },
+            w::OutcomePersonTakenParts { task: *task },
         )?),
-        p::Outcome::Released { task } => w::OwnerOutcome::Released(w::OwnerOutcomeReleased::new(
+        p::Outcome::PersonHandedBack { task } => w::DocumentOutcome::PersonHandedBack(w::OutcomePersonHandedBack::new(
             limits,
-            w::OwnerOutcomeReleasedParts { task: *task },
+            w::OutcomePersonHandedBackParts { task: *task },
         )?),
-        p::Outcome::PersonTaken { task } => w::OwnerOutcome::PersonTaken(w::OwnerOutcomePersonTaken::new(
+        p::Outcome::PersonAnswered { task } => w::DocumentOutcome::PersonAnswered(w::OutcomePersonAnswered::new(
             limits,
-            w::OwnerOutcomePersonTakenParts { task: *task },
-        )?),
-        p::Outcome::PersonHandedBack { task } => w::OwnerOutcome::PersonHandedBack(
-            w::OwnerOutcomePersonHandedBack::new(limits, w::OwnerOutcomePersonHandedBackParts { task: *task })?,
-        ),
-        p::Outcome::PersonAnswered { task } => w::OwnerOutcome::PersonAnswered(w::OwnerOutcomePersonAnswered::new(
-            limits,
-            w::OwnerOutcomePersonAnsweredParts { task: *task },
+            w::OutcomePersonAnsweredParts { task: *task },
         )?),
         p::Outcome::Moved { task } => {
-            w::OwnerOutcome::Moved(w::OwnerOutcomeMoved::new(limits, w::OwnerOutcomeMovedParts { task: *task })?)
+            w::DocumentOutcome::Moved(w::OutcomeMoved::new(limits, w::OutcomeMovedParts { task: *task })?)
         }
-        p::Outcome::Said { task, message, .. } => w::OwnerOutcome::Said(w::OwnerOutcomeSaid::new(
+        p::Outcome::Said { task, message, .. } => w::DocumentOutcome::Said(w::OutcomeSaid::new(
             limits,
-            w::OwnerOutcomeSaidParts { task: *task, message: *message },
+            w::OutcomeSaidParts { task: *task, message: *message },
         )?),
         p::Outcome::QuestionAnswered { task, question, message } => {
-            w::OwnerOutcome::QuestionAnswered(w::OwnerOutcomeQuestionAnswered::new(
+            w::DocumentOutcome::QuestionAnswered(w::OutcomeQuestionAnswered::new(
                 limits,
-                w::OwnerOutcomeQuestionAnsweredParts { task: *task, question: *question, message: *message },
+                w::OutcomeQuestionAnsweredParts { task: *task, question: *question, message: *message },
             )?)
         }
         p::Outcome::Amended { task, .. } => {
-            w::OwnerOutcome::Amended(w::OwnerOutcomeAmended::new(limits, w::OwnerOutcomeAmendedParts { task: *task })?)
+            w::DocumentOutcome::Amended(w::OutcomeAmended::new(limits, w::OutcomeAmendedParts { task: *task })?)
         }
-        p::Outcome::RolesSet { project } => w::OwnerOutcome::RolesSet(w::OwnerOutcomeRolesSet::new(
+        p::Outcome::RolesSet { project } => w::DocumentOutcome::RolesSet(w::OutcomeRolesSet::new(
             limits,
-            w::OwnerOutcomeRolesSetParts { project: *project },
+            w::OutcomeRolesSetParts { project: *project },
         )?),
-        p::Outcome::Renamed { project } => w::OwnerOutcome::Renamed(w::OwnerOutcomeRenamed::new(
+        p::Outcome::Renamed { project } => {
+            w::DocumentOutcome::Renamed(w::OutcomeRenamed::new(limits, w::OutcomeRenamedParts { project: *project })?)
+        }
+        p::Outcome::ProjectMade { project } => w::DocumentOutcome::ProjectMade(w::OutcomeProjectMade::new(
             limits,
-            w::OwnerOutcomeRenamedParts { project: *project },
+            w::OutcomeProjectMadeParts { project: *project },
         )?),
-        p::Outcome::ProjectMade { project } => w::OwnerOutcome::ProjectMade(w::OwnerOutcomeProjectMade::new(
+        p::Outcome::PolicyChanged { project } => w::DocumentOutcome::PolicyChanged(w::OutcomePolicyChanged::new(
             limits,
-            w::OwnerOutcomeProjectMadeParts { project: *project },
+            w::OutcomePolicyChangedParts { project: *project },
         )?),
-        p::Outcome::PolicyChanged { project } => w::OwnerOutcome::PolicyChanged(w::OwnerOutcomePolicyChanged::new(
+        p::Outcome::PoolSet { project, person } => w::DocumentOutcome::PoolSet(w::OutcomePoolSet::new(
             limits,
-            w::OwnerOutcomePolicyChangedParts { project: *project },
+            w::OutcomePoolSetParts { project: *project, person: *person },
         )?),
-        p::Outcome::PoolSet { project, person } => w::OwnerOutcome::PoolSet(w::OwnerOutcomePoolSet::new(
+        p::Outcome::MarkedSeen { seen } => w::DocumentOutcome::MarkedSeen(w::OutcomeMarkedSeen::new(
             limits,
-            w::OwnerOutcomePoolSetParts { project: *project, person: *person },
-        )?),
-        p::Outcome::MarkedSeen { seen } => w::OwnerOutcome::MarkedSeen(w::OwnerOutcomeMarkedSeen::new(
-            limits,
-            w::OwnerOutcomeMarkedSeenParts { seen: self::seen(*seen, limits)? },
+            w::OutcomeMarkedSeenParts { seen: self::seen(*seen, limits)? },
         )?),
         p::Outcome::ProposalDecided { proposer, proposal, by, at, choice, repeated } => {
             let proposer = match proposer {
@@ -245,9 +238,9 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::OwnerOutcome, w::P
                 }
             };
             let proposal = w::ProposalKey::new(limits, w::ProposalKeyParts { proposer, number: *proposal })?;
-            w::OwnerOutcome::ProposalDecided(w::OwnerOutcomeProposalDecided::new(
+            w::DocumentOutcome::ProposalDecided(w::OutcomeProposalDecided::new(
                 limits,
-                w::OwnerOutcomeProposalDecidedParts {
+                w::OutcomeProposalDecidedParts {
                     proposal,
                     by: *by,
                     at: at.as_nanos(),
@@ -258,9 +251,9 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::OwnerOutcome, w::P
         }
         p::Outcome::EscalationDecided { task, revision, by, at, choice } => {
             let revision = w::Revision::new(limits, w::RevisionParts { value: *revision })?;
-            w::OwnerOutcome::EscalationDecided(w::OwnerOutcomeEscalationDecided::new(
+            w::DocumentOutcome::EscalationDecided(w::OutcomeEscalationDecided::new(
                 limits,
-                w::OwnerOutcomeEscalationDecidedParts {
+                w::OutcomeEscalationDecidedParts {
                     task: *task,
                     revision,
                     by: *by,
@@ -270,38 +263,35 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::OwnerOutcome, w::P
             )?)
         }
         p::Outcome::AccountSignInStarted { source, address } => {
-            w::OwnerOutcome::AccountSignInStarted(w::OwnerOutcomeAccountSignInStarted::new(
+            w::DocumentOutcome::AccountSignInStarted(w::OutcomeAccountSignInStarted::new(
                 limits,
-                w::OwnerOutcomeAccountSignInStartedParts {
-                    source: *source,
-                    address: skein_lib::bytes::copy_of(address),
-                },
+                w::OutcomeAccountSignInStartedParts { source: *source, address: skein_lib::bytes::copy_of(address) },
             )?)
         }
         p::Outcome::AccountSignedOut { confirmed, failed_hosts } => {
-            w::OwnerOutcome::AccountSignedOut(w::OwnerOutcomeAccountSignedOut::new(
+            w::DocumentOutcome::AccountSignedOut(w::OutcomeAccountSignedOut::new(
                 limits,
-                w::OwnerOutcomeAccountSignedOutParts {
+                w::OutcomeAccountSignedOutParts {
                     confirmed: *confirmed,
                     failed_hosts: super::account_hosts::encode(failed_hosts, limits)?,
                 },
             )?)
         }
-        p::Outcome::AccountKeyKept { source } => w::OwnerOutcome::AccountKeyKept(w::OwnerOutcomeAccountKeyKept::new(
+        p::Outcome::AccountKeyKept { source } => w::DocumentOutcome::AccountKeyKept(w::OutcomeAccountKeyKept::new(
             limits,
-            w::OwnerOutcomeAccountKeyKeptParts { source: *source },
+            w::OutcomeAccountKeyKeptParts { source: *source },
         )?),
         p::Outcome::AccountProgramDeclared { source, name } => {
-            w::OwnerOutcome::AccountProgramDeclared(w::OwnerOutcomeAccountProgramDeclared::new(
+            w::DocumentOutcome::AccountProgramDeclared(w::OutcomeAccountProgramDeclared::new(
                 limits,
-                w::OwnerOutcomeAccountProgramDeclaredParts { source: *source, name: name.clone() },
+                w::OutcomeAccountProgramDeclaredParts { source: *source, name: name.clone() },
             )?)
         }
-        p::Outcome::AccountChanged => w::OwnerOutcome::AccountChanged,
+        p::Outcome::AccountChanged => w::DocumentOutcome::AccountChanged,
         p::Outcome::AccountRemoved { confirmed, failed_hosts } => {
-            w::OwnerOutcome::AccountRemoved(w::OwnerOutcomeAccountRemoved::new(
+            w::DocumentOutcome::AccountRemoved(w::OutcomeAccountRemoved::new(
                 limits,
-                w::OwnerOutcomeAccountRemovedParts {
+                w::OutcomeAccountRemovedParts {
                     confirmed: *confirmed,
                     failed_hosts: super::account_hosts::encode(failed_hosts, limits)?,
                 },
@@ -329,19 +319,19 @@ fn seen(value: p::Seen, limits: &w::Limits) -> Result<w::SeenThrough, w::Problem
         }
     })
 }
-fn proposal_choice(value: p::ProposalChoice) -> w::OwnerProposalChoice {
+fn proposal_choice(value: p::ProposalChoice) -> w::ProposalChoice {
     match value {
-        p::ProposalChoice::Accepted => w::OwnerProposalChoice::Accepted,
-        p::ProposalChoice::Rejected => w::OwnerProposalChoice::Rejected,
-        p::ProposalChoice::Passed => w::OwnerProposalChoice::Passed,
-        p::ProposalChoice::Withdrawn => w::OwnerProposalChoice::Withdrawn,
-        p::ProposalChoice::Stale => w::OwnerProposalChoice::Stale,
+        p::ProposalChoice::Accepted => w::ProposalChoice::Accepted,
+        p::ProposalChoice::Rejected => w::ProposalChoice::Rejected,
+        p::ProposalChoice::Passed => w::ProposalChoice::Passed,
+        p::ProposalChoice::Withdrawn => w::ProposalChoice::Withdrawn,
+        p::ProposalChoice::Stale => w::ProposalChoice::Stale,
     }
 }
-fn escalation_choice(value: p::EscalationChoice) -> w::OwnerEscalationChoice {
+fn escalation_choice(value: p::EscalationChoice) -> w::EscalationChoice {
     match value {
-        p::EscalationChoice::Released => w::OwnerEscalationChoice::Released,
-        p::EscalationChoice::Rejected => w::OwnerEscalationChoice::Rejected,
-        p::EscalationChoice::Passed => w::OwnerEscalationChoice::Passed,
+        p::EscalationChoice::Released => w::EscalationChoice::Released,
+        p::EscalationChoice::Rejected => w::EscalationChoice::Rejected,
+        p::EscalationChoice::Passed => w::EscalationChoice::Passed,
     }
 }

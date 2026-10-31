@@ -48,5 +48,5 @@ pub(super) fn readiness(
         row.encode(&mut out).or(Err(super::problem(skein_codec::Reason::Bound)))?;
         rows.push(out.finish()).or(Err(super::problem(skein_codec::Reason::Bound)))?;
     }
-    pieces(&rows, bound, w::Path::OwnerAccountsReadiness)
+    pieces(&rows, bound, w::Path::AccountsReadiness)
 }

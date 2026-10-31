@@ -23,7 +23,7 @@ pub fn create_ask() -> (w::Ask, p::Ask) {
         }
         let mut expected = expected_role.authority.clone();
         expected.deadline = deadline;
-        let (task, member) = member(role, w::OwnerAuthority::new(&super::wire(), wire).unwrap(), expected);
+        let (task, member) = member(role, w::Authority::new(&super::wire(), wire).unwrap(), expected);
         tasks.push(task).unwrap();
         batch.push(member).unwrap();
     }
@@ -40,7 +40,7 @@ pub fn create_ask() -> (w::Ask, p::Ask) {
         p::Ask::Create { project: PROJECT, batch: batch.into_boxed() },
     )
 }
-fn member(role: bool, authority: w::OwnerAuthority, expected: p::Authority) -> (w::NewTask, p::Member) {
+fn member(role: bool, authority: w::Authority, expected: p::Authority) -> (w::NewTask, p::Member) {
     let l = wire();
     let dependencies = list([
         w::TaskRef::Member(w::TaskRefMember::new(&l, w::TaskRefMemberParts { value: 1 }).unwrap()),
@@ -63,10 +63,10 @@ fn member(role: bool, authority: w::OwnerAuthority, expected: p::Authority) -> (
         w::VerdictChoice::new(&l, w::VerdictChoiceParts { code: 5, words: 16, followups: 2, fields: list([field]) })
             .unwrap();
     let executor = if role {
-        w::OwnerExecutor::Person(
-            w::OwnerExecutorPerson::new(
+        w::Executor::Person(
+            w::ExecutorPerson::new(
                 &l,
-                w::OwnerExecutorPersonParts {
+                w::ExecutorPersonParts {
                     value: w::PersonAddress::Role(
                         w::PersonAddressRole::new(&l, w::PersonAddressRoleParts { value: ROLE }).unwrap(),
                     ),
@@ -75,9 +75,7 @@ fn member(role: bool, authority: w::OwnerAuthority, expected: p::Authority) -> (
             .unwrap(),
         )
     } else {
-        w::OwnerExecutor::Agent(
-            w::OwnerExecutorAgent::new(&l, w::OwnerExecutorAgentParts { charter: CHARTER }).unwrap(),
-        )
+        w::Executor::Agent(w::ExecutorAgent::new(&l, w::ExecutorAgentParts { charter: CHARTER }).unwrap())
     };
     let task = w::NewTask::new(
         &l,
@@ -243,14 +241,14 @@ pub fn create_refusals() -> [(&'static str, p::Refusal, w::Refusal); 5] {
 }
 pub fn created_outcome() -> w::Outcome {
     let l = wire();
-    w::Outcome::Owner(
-        w::OutcomeOwner::new(
+    w::Outcome::Document(
+        w::OutcomeDocument::new(
             &l,
-            w::OutcomeOwnerParts {
-                value: w::OwnerOutcome::Created(
-                    w::OwnerOutcomeCreated::new(
+            w::OutcomeDocumentParts {
+                value: w::DocumentOutcome::Created(
+                    w::OutcomeCreated::new(
                         &l,
-                        w::OwnerOutcomeCreatedParts {
+                        w::OutcomeCreatedParts {
                             first: FIRST_TASK,
                             last: LAST_TASK,
                             given: Some(

@@ -337,7 +337,7 @@ impl Client {
                     | Up::ReadDone { .. }
                     | Up::Watched { .. }
                     | Up::FamilyDelivered { .. }
-                    | Up::WatchEnded { .. } => {}
+                    | Up::Ended { .. } => {}
                 }
                 self.up(env, up);
             }
@@ -587,7 +587,7 @@ impl Client {
             }
             link::Request::Watch { watch, event } => self.up(env, Up::Watched { watch, event }),
             link::Request::FamilyDelivery { watch, record } => self.up(env, Up::FamilyDelivered { watch, record }),
-            link::Request::Ended { watch, end } => self.up(env, Up::WatchEnded { watch, end }),
+            link::Request::Ended { watch, end } => self.up(env, Up::Ended { watch, end }),
             link::Request::Read { read, result } => self.up(env, Up::ReadDone { read, result }),
             link::Request::Hello { family: None, versions } => {
                 let served = match versions {

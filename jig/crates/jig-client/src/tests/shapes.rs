@@ -11,7 +11,7 @@ fn words() -> Text {
 fn draft() -> GoalDraft {
     GoalDraft {
         words: words(),
-        executor: OwnerExecutor::Agent { charter: 1 },
+        executor: Executor::Agent { charter: 1 },
         budget: 150,
         deadline: None,
         priority: Some(7),
@@ -25,7 +25,7 @@ fn chat_fills_the_chat_template_into_one_as_allowed_task() {
     assert_eq!(project, PROJECT);
     assert_eq!(tasks.len(), 1);
     let task = tasks.get(0).unwrap();
-    assert_eq!(task.executor, OwnerExecutor::Agent { charter: 1 });
+    assert_eq!(task.executor, Executor::Agent { charter: 1 });
     assert_eq!(
         task.spec,
         Specification {
@@ -84,8 +84,8 @@ fn fall_puts_a_draft_without_a_deadline_beyond_a_bound_that_has_one() {
 #[test]
 fn fall_gives_not_offered_for_an_executor_the_bounds_do_not_list() {
     let mut draft = draft();
-    draft.executor = OwnerExecutor::Agent { charter: 2 };
-    assert_eq!(fall(&creating(), &draft, NewDeadline::Named), Fall::NotOffered(NotOffered::Executor));
+    draft.executor = Executor::Agent { charter: 2 };
+    assert_eq!(fall(&creating(), &draft, NewDeadline::Named), Fall::NotOffered(NotOffered::ChipExecutor));
 }
 #[test]
 fn set_goal_proposes_to_the_holder_the_bounds_name() {
@@ -237,7 +237,14 @@ fn a_goal_span_keeps_the_other_creating_judgments() {
             project.templates.clone(),
             Fall::NotOffered(NotOffered::Ceiling),
         ),
-        ("executor", 10, 2, Some(creating.clone()), project.templates.clone(), Fall::NotOffered(NotOffered::Executor)),
+        (
+            "executor",
+            10,
+            2,
+            Some(creating.clone()),
+            project.templates.clone(),
+            Fall::NotOffered(NotOffered::ChipExecutor),
+        ),
         ("refused", 101, 1, Some(refused), project.templates.clone(), Fall::Refused(Refusal::NotOffered)),
         ("cut authority", 10, 1, Some(cut), project.templates.clone(), Fall::NotOffered(NotOffered::Creating)),
         ("no creating", 10, 1, None, project.templates.clone(), Fall::NotOffered(NotOffered::Creating)),
@@ -250,7 +257,7 @@ fn a_goal_span_keeps_the_other_creating_judgments() {
         project.templates = templates;
         let mut draft = draft();
         draft.budget = budget;
-        draft.executor = OwnerExecutor::Agent { charter };
+        draft.executor = Executor::Agent { charter };
         let judgment = match set_goal(&me, PROJECT, draft, words()) {
             Judged::Create(_) => Fall::Within,
             Judged::Propose { to, .. } => Fall::Proposable(to),

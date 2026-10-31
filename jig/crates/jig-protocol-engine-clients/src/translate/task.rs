@@ -7,15 +7,15 @@ use jig_domain_core::acts;
 use jig_domain_core::documents as d;
 use jig_domain_tasks as t;
 use skein_lib::List;
-pub fn link(value: &d::TaskLink, limits: &w::Limits) -> Result<w::OwnerTaskLink, w::Problem> {
+pub fn link(value: &d::TaskLink, limits: &w::Limits) -> Result<w::TaskLink, w::Problem> {
     Ok(match value {
-        d::TaskLink::Live(value) => w::OwnerTaskLink::Live(w::OwnerTaskLinkLive::new(
+        d::TaskLink::Live(value) => w::TaskLink::Live(w::TaskLinkLive::new(
             limits,
-            w::OwnerTaskLinkLiveParts { value: chips::chip(value, limits)? },
+            w::TaskLinkLiveParts { value: chips::chip(value, limits)? },
         )?),
-        d::TaskLink::Retained { chip, at } => w::OwnerTaskLink::Retained(w::OwnerTaskLinkRetained::new(
+        d::TaskLink::Retained { chip, at } => w::TaskLink::Retained(w::TaskLinkRetained::new(
             limits,
-            w::OwnerTaskLinkRetainedParts {
+            w::TaskLinkRetainedParts {
                 chip: chips::chip(chip, limits)?,
                 at: match *at {
                     Some(item) => Some(item.as_nanos()),
@@ -23,14 +23,14 @@ pub fn link(value: &d::TaskLink, limits: &w::Limits) -> Result<w::OwnerTaskLink,
                 },
             },
         )?),
-        d::TaskLink::Stored { number, status } => w::OwnerTaskLink::Stored(w::OwnerTaskLinkStored::new(
+        d::TaskLink::Stored { number, status } => w::TaskLink::Stored(w::TaskLinkStored::new(
             limits,
-            w::OwnerTaskLinkStoredParts {
+            w::TaskLinkStoredParts {
                 number: *number,
                 status: match status {
-                    Some(t::Status::Done) => Some(w::OwnerTaskStatus::Done),
-                    Some(t::Status::Failed) => Some(w::OwnerTaskStatus::Failed),
-                    Some(t::Status::Cancelled) => Some(w::OwnerTaskStatus::Cancelled),
+                    Some(t::Status::Done) => Some(w::TaskStatus::Done),
+                    Some(t::Status::Failed) => Some(w::TaskStatus::Failed),
+                    Some(t::Status::Cancelled) => Some(w::TaskStatus::Cancelled),
                     None => None,
                 },
             },
@@ -156,13 +156,9 @@ pub(super) fn bounds(
             let mut pairs = List::with_capacity(implications.capacity());
             for item in implications {
                 pairs
-                    .push(w::OwnerKindImplication::new(
+                    .push(w::KindImplication::new(
                         limits,
-                        w::OwnerKindImplicationParts {
-                            connector: item.connector,
-                            kind: item.kind,
-                            implies: item.implies,
-                        },
+                        w::KindImplicationParts { connector: item.connector, kind: item.kind, implies: item.implies },
                     )?)
                     .expect("supplied implications");
             }
@@ -260,7 +256,7 @@ pub fn chips_pieces(rows: &List<w::Chip>, bound: u32, path: w::Path) -> Result<B
     }
     pieces(&encoded, bound, path)
 }
-pub fn links_pieces(rows: &List<w::OwnerTaskLink>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
+pub fn links_pieces(rows: &List<w::TaskLink>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
         let mut out = skein_lib::Writer::new(usize::try_from(row.measure()).expect("u32 record measure fits usize"));
@@ -272,11 +268,7 @@ pub fn links_pieces(rows: &List<w::OwnerTaskLink>, bound: u32, path: w::Path) ->
     }
     pieces(&encoded, bound, path)
 }
-pub fn task_resources_pieces(
-    rows: &List<w::OwnerResourceLine>,
-    bound: u32,
-    path: w::Path,
-) -> Result<Box<[u8]>, w::Problem> {
+pub fn task_resources_pieces(rows: &List<w::ResourceLine>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());
     for row in rows {
         let mut out = skein_lib::Writer::new(usize::try_from(row.measure()).expect("u32 record measure fits usize"));
@@ -453,9 +445,9 @@ pub fn effect(value: &acts::Effect, limits: &w::Limits) -> Result<w::Effect, w::
         acts::Effect::Cancel(value) => w::Effect::Cancel(w::Impact::new(
             limits,
             w::ImpactParts {
-                tasks: w::PhaseCounts::new(
+                tasks: w::ImpactCounts::new(
                     limits,
-                    w::PhaseCountsParts {
+                    w::ImpactCountsParts {
                         ended: 0,
                         waiting: value.tasks.waiting,
                         running: value

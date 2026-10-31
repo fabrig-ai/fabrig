@@ -84,16 +84,16 @@ fn an_application_outcome_is_carried_under_its_family() {
     assert!(exchange.out.is_empty());
 }
 #[test]
-fn owner_outcomes_keep_every_supplied_fact() {
+fn outcomes_keep_every_supplied_fact() {
     for to in [7, 91] {
         let final_answer = f::translated(&p::Reply::Outcome(p::Outcome::Proposed { proposal: 31, to }), &f::wire());
         let w::Final::Done(done) = final_answer else { panic!("done") };
-        let w::Outcome::Owner(owner) = done.outcome() else { panic!("owner outcome") };
-        let w::OwnerOutcome::Proposed(row) = owner.value() else { panic!("proposal") };
+        let w::Outcome::Document(owner) = done.outcome() else { panic!("owner outcome") };
+        let w::DocumentOutcome::Proposed(row) = owner.value() else { panic!("proposal") };
         assert_eq!((row.proposal(), row.to()), (31, to));
     }
     let limits = f::wire();
-    for cases in [f::owner_outcomes().as_slice(), f::decision_outcomes().as_slice(), f::seen_outcomes().as_slice()] {
+    for cases in [f::outcomes().as_slice(), f::decision_outcomes().as_slice(), f::seen_outcomes().as_slice()] {
         for (reply, expected) in cases {
             assert_eq!(f::translated(reply, &limits), *expected);
         }
@@ -118,10 +118,10 @@ fn an_account_sign_in_is_answered_with_its_source_and_address() {
     for length in [0, 1, usize::try_from(p::ADDRESS).unwrap()] {
         let address: Box<[u8]> = skein_lib::bytes::zeroed(length);
         let outcome = p::Outcome::AccountSignInStarted { source: u32::MAX, address: address.clone() };
-        let expected = w::OwnerOutcome::AccountSignInStarted(
-            w::OwnerOutcomeAccountSignInStarted::new(
+        let expected = w::DocumentOutcome::AccountSignInStarted(
+            w::OutcomeAccountSignInStarted::new(
                 &limits,
-                w::OwnerOutcomeAccountSignInStartedParts { source: u32::MAX, address },
+                w::OutcomeAccountSignInStartedParts { source: u32::MAX, address },
             )
             .unwrap(),
         );
@@ -132,10 +132,10 @@ fn an_account_sign_in_is_answered_with_its_source_and_address() {
 fn an_account_sign_out_is_answered_with_whether_it_was_confirmed() {
     let limits = f::wire();
     for confirmed in [false, true] {
-        let expected = w::OwnerOutcome::AccountSignedOut(
-            w::OwnerOutcomeAccountSignedOut::new(
+        let expected = w::DocumentOutcome::AccountSignedOut(
+            w::OutcomeAccountSignedOut::new(
                 &limits,
-                w::OwnerOutcomeAccountSignedOutParts { confirmed, failed_hosts: skein_lib::List::with_capacity(0) },
+                w::OutcomeAccountSignedOutParts { confirmed, failed_hosts: skein_lib::List::with_capacity(0) },
             )
             .unwrap(),
         );
@@ -328,8 +328,8 @@ fn an_opening_outside_its_owners_range_is_answered_not_served() {
     assert!(exchange.out.is_empty());
 }
 
-fn account_sign_in_done(value: w::OwnerOutcome, limits: &w::Limits) -> w::Final {
-    let outcome = w::Outcome::Owner(w::OutcomeOwner::new(limits, w::OutcomeOwnerParts { value }).unwrap());
+fn account_sign_in_done(value: w::DocumentOutcome, limits: &w::Limits) -> w::Final {
+    let outcome = w::Outcome::Document(w::OutcomeDocument::new(limits, w::OutcomeDocumentParts { value }).unwrap());
     w::Final::Done(w::Done::new(limits, w::DoneParts { outcome }).unwrap())
 }
 
@@ -339,7 +339,7 @@ fn an_account_sign_in_answer_over_the_address_bound_is_refused_at_its_address() 
     let result = crate::translate::answers::answer(&p::Reply::Outcome(outcome), &f::models(), &f::wire());
     assert_eq!(
         result.err(),
-        Some(w::Problem { path: w::Path::OwnerOutcomeAccountSignInStartedAddress, reason: skein_codec::Reason::Bound })
+        Some(w::Problem { path: w::Path::OutcomeAccountSignInStartedAddress, reason: skein_codec::Reason::Bound })
     );
 }
 
@@ -358,11 +358,11 @@ fn dependency_refusals_keep_all_names_and_outcomes_through_the_client() {
         (p::Refusal::Kept { pending: Box::new([7, 5]) }, c::Refusal::Kept { pending: names }),
         (
             p::Refusal::Dependency { dependency: 7, how: p::DependencyStatus::Failed },
-            c::Refusal::Dependency { dependency: 7, how: c::OwnerTaskStatus::Failed },
+            c::Refusal::Dependency { dependency: 7, how: c::TaskStatus::Failed },
         ),
         (
             p::Refusal::Dependency { dependency: 5, how: p::DependencyStatus::Cancelled },
-            c::Refusal::Dependency { dependency: 5, how: c::OwnerTaskStatus::Cancelled },
+            c::Refusal::Dependency { dependency: 5, how: c::TaskStatus::Cancelled },
         ),
     ] {
         let reply = p::Reply::Outcome(p::Outcome::Refused(why));
@@ -380,14 +380,14 @@ fn project_outcomes_keep_the_project_number() {
     for (outcome, expected) in [
         (
             p::Outcome::Renamed { project: 3 },
-            w::OwnerOutcome::Renamed(
-                w::OwnerOutcomeRenamed::new(&limits, w::OwnerOutcomeRenamedParts { project: 3 }).expect("renamed"),
+            w::DocumentOutcome::Renamed(
+                w::OutcomeRenamed::new(&limits, w::OutcomeRenamedParts { project: 3 }).expect("renamed"),
             ),
         ),
         (
             p::Outcome::ProjectMade { project: 4 },
-            w::OwnerOutcome::ProjectMade(
-                w::OwnerOutcomeProjectMade::new(&limits, w::OwnerOutcomeProjectMadeParts { project: 4 }).expect("made"),
+            w::DocumentOutcome::ProjectMade(
+                w::OutcomeProjectMade::new(&limits, w::OutcomeProjectMadeParts { project: 4 }).expect("made"),
             ),
         ),
     ] {
@@ -395,8 +395,8 @@ fn project_outcomes_keep_the_project_number() {
             w::Done::new(
                 &limits,
                 w::DoneParts {
-                    outcome: w::Outcome::Owner(
-                        w::OutcomeOwner::new(&limits, w::OutcomeOwnerParts { value: expected }).expect("owner"),
+                    outcome: w::Outcome::Document(
+                        w::OutcomeDocument::new(&limits, w::OutcomeDocumentParts { value: expected }).expect("owner"),
                     ),
                 },
             )
@@ -480,9 +480,8 @@ fn project_removed_encodes_as_its_owner_outcome() {
         let mut exchange = Exchange::new();
         let (owner, to) = exchange.ask();
         exchange.reply(to, p::Reply::Outcome(p::Outcome::ProjectRemoved { project }));
-        let expected = w::OwnerOutcome::ProjectRemoved(
-            w::OwnerOutcomeProjectRemoved::new(&limits, w::OwnerOutcomeProjectRemovedParts { project })
-                .expect("project"),
+        let expected = w::DocumentOutcome::ProjectRemoved(
+            w::OutcomeProjectRemoved::new(&limits, w::OutcomeProjectRemovedParts { project }).expect("project"),
         );
         assert_eq!(
             exchange.final_answer(owner),
@@ -490,8 +489,8 @@ fn project_removed_encodes_as_its_owner_outcome() {
                 w::Done::new(
                     &limits,
                     w::DoneParts {
-                        outcome: w::Outcome::Owner(
-                            w::OutcomeOwner::new(&limits, w::OutcomeOwnerParts { value: expected },)
+                        outcome: w::Outcome::Document(
+                            w::OutcomeDocument::new(&limits, w::OutcomeDocumentParts { value: expected },)
                                 .expect("owner outcome")
                         )
                     },

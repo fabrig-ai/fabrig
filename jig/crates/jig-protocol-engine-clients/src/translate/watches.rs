@@ -100,7 +100,7 @@ pub(crate) fn delivery(
                 )?),
                 None => None,
             };
-            w::DeliveryValue::OwnerTree(live::tree(value, next, limits)?)
+            w::DeliveryValue::Tree(live::tree(value, next, limits)?)
         }
         d::Document::Chips(value) => {
             let mut rows = List::with_capacity(value.len());
@@ -116,13 +116,13 @@ pub(crate) fn delivery(
             let rows = super::pieces(&pieces, limits.chips_rows, w::Path::ChipsRows)?;
             w::DeliveryValue::Chips(w::Chips::new(limits, w::ChipsParts { rows })?)
         }
-        d::Document::Inbox(value) => w::DeliveryValue::OwnerInbox(inbox::document(value, limits)?),
+        d::Document::Inbox(value) => w::DeliveryValue::Inbox(inbox::document(value, limits)?),
         d::Document::Lines(value) => w::DeliveryValue::Tasks(super::queries::lines(value, limits)?),
         d::Document::Run(value) => w::DeliveryValue::RunState(live::run(value, limits)?),
-        d::Document::Accounts(value) => w::DeliveryValue::OwnerAccounts(super::accounts::document(value, limits)?),
+        d::Document::Accounts(value) => w::DeliveryValue::Accounts(super::accounts::document(value, limits)?),
         d::Document::Settings(value) => w::DeliveryValue::Settings(super::settings::document(value, limits)?),
-        d::Document::Deployment(value) => w::DeliveryValue::OwnerDeployment(deployment::document(value, limits)?),
-        d::Document::Proposal(value) => w::DeliveryValue::OwnerProposal(objects::proposal(models, value, limits)?),
+        d::Document::Deployment(value) => w::DeliveryValue::Deployment(deployment::document(value, limits)?),
+        d::Document::Proposal(value) => w::DeliveryValue::Proposal(objects::proposal(models, value, limits)?),
         d::Document::Escalation(_)
         | d::Document::Question(_)
         | d::Document::PersonTask(_)
@@ -175,5 +175,5 @@ pub(crate) fn text_packet(
     Ok(w::StreamEvent::Text(w::StreamText::new(limits, w::StreamTextParts { watch, value })?))
 }
 pub(crate) fn end_packet(why: views::End, watch: u64, limits: &w::Limits) -> Result<w::StreamEvent, w::Problem> {
-    Ok(w::StreamEvent::Ended(w::Ended::new(limits, w::EndedParts { watch, why: ended(why) })?))
+    Ok(w::StreamEvent::Ended(w::WatchEnded::new(limits, w::WatchEndedParts { watch, why: ended(why) })?))
 }

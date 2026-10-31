@@ -47,7 +47,7 @@ pub fn expected_note_page_with_cursors() -> c::NotePage {
         cut: true,
     }
 }
-pub fn historical_task_record() -> w::OwnerHistorical {
+pub fn ended_task_record() -> w::Ended {
     let lim = w::CEILINGS;
     let ending = w::Fact::Ending(
         w::EndingRow::new(
@@ -68,20 +68,19 @@ pub fn historical_task_record() -> w::OwnerHistorical {
     let mut result = read_wire_result().into_parts();
     result.ending = w::Ending::new(&lim, w::EndingParts { rows: fact_bytes(&ending) }).unwrap();
     let result = w::ResultDocument::new(&lim, result).unwrap();
-    let mut historical = read_wire_owner_historical().into_parts();
-    historical.at = Some(u64::MAX);
-    historical.value = w::OwnerHistoricalValue::Task(
-        w::OwnerHistoricalValueTask::new(&lim, w::OwnerHistoricalValueTaskParts { document: task_record(), result })
-            .unwrap(),
+    let mut ended = read_wire_owner_ended().into_parts();
+    ended.at = Some(u64::MAX);
+    ended.value = w::EndedValue::Task(
+        w::EndedValueTask::new(&lim, w::EndedValueTaskParts { document: task_record(), result }).unwrap(),
     );
-    w::OwnerHistorical::new(&lim, historical).unwrap()
+    w::WatchEnded::new(&lim, ended).unwrap()
 }
-pub fn expected_historical_task() -> c::OwnerHistorical {
+pub fn expected_ended_task() -> c::Ended {
     let mut result = read_value_result();
     result.ending = c::Ending::Failed { reason: Some(text(b"failed")) };
-    c::OwnerHistorical {
+    c::Ended {
         key: c::ObjectKey::Task(7),
-        value: c::OwnerHistoricalValue::Task { document: Box::new(task()), result: Box::new(result) },
+        value: c::EndedValue::Task { document: Box::new(task()), result: Box::new(result) },
         at: Some(skein_lib::Wall::from_nanos(u64::MAX)),
         by: None,
     }
@@ -89,21 +88,19 @@ pub fn expected_historical_task() -> c::OwnerHistorical {
 
 const UTF8_TEXTS: [&[u8]; 1] = [&[b'~'; 48]];
 
-pub fn ended_delegate_record() -> w::OwnerEndedDelegate {
+pub fn ended_delegate_record() -> w::EndedDelegate {
     let lim = *limits().wire();
     let mut facts = List::with_capacity(1);
     facts
-        .push(w::Fact::OwnerChipEnding(
-            w::OwnerChipEndingRow::new(
+        .push(w::Fact::ChipEnding(
+            w::ChipEndingRow::new(
                 &lim,
-                w::OwnerChipEndingRowParts {
+                w::ChipEndingRowParts {
                     parent: None,
-                    value: w::OwnerChipEndingFields::Failed(
-                        w::OwnerChipEndingFailedFields::new(
+                    value: w::ChipEndingFields::Failed(
+                        w::ChipEndingFailedFields::new(
                             &lim,
-                            w::OwnerChipEndingFailedFieldsParts {
-                                value: jig_client_test_records::wire_text(b"failed"),
-                            },
+                            w::ChipEndingFailedFieldsParts { value: jig_client_test_records::wire_text(b"failed") },
                         )
                         .unwrap(),
                     ),
@@ -113,11 +110,11 @@ pub fn ended_delegate_record() -> w::OwnerEndedDelegate {
         ))
         .unwrap();
     let rows = jig_client_test_records::chip_from_rows(&facts.into_boxed()).into_parts().rows;
-    w::OwnerEndedDelegate::new(
+    w::EndedDelegate::new(
         &lim,
-        w::OwnerEndedDelegateParts {
+        w::EndedDelegateParts {
             chip: chip_record(),
-            ended: w::OwnerChipEnding::new(&lim, w::OwnerChipEndingParts { rows }).unwrap(),
+            ended: w::ChipEnding::new(&lim, w::ChipEndingParts { rows }).unwrap(),
             at: None,
         },
     )
@@ -145,19 +142,14 @@ pub fn trailing_ended_row() -> Box<[u8]> {
     skein_codec::piece::write(&mut rows, &bytes).unwrap();
     rows.finish()
 }
-pub fn owner_ended_page_piece(rows: Box<[u8]>) -> w::OwnerEndedPage {
-    w::OwnerEndedPage::new(limits().wire(), w::OwnerEndedPageParts { rows, before: None, after: None, cut: false })
-        .unwrap()
+pub fn ended_page_piece(rows: Box<[u8]>) -> w::EndedPage {
+    w::EndedPage::new(limits().wire(), w::EndedPageParts { rows, before: None, after: None, cut: false }).unwrap()
 }
-pub fn expected_owner_ended_page(count: u32) -> c::OwnerEndedPage {
+pub fn expected_owner_ended_page(count: u32) -> c::EndedPage {
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
-        rows.push(c::OwnerEndedDelegate {
-            chip: chip(),
-            ended: c::OwnerChipEnding::Failed(document_text(b"failed")),
-            at: None,
-        })
-        .unwrap();
+        rows.push(c::EndedDelegate { chip: chip(), ended: c::ChipEnding::Failed(document_text(b"failed")), at: None })
+            .unwrap();
     }
-    c::OwnerEndedPage { rows, before: None, after: None, cut: false }
+    c::EndedPage { rows, before: None, after: None, cut: false }
 }

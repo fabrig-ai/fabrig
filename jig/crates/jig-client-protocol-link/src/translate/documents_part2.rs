@@ -1,7 +1,7 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
 use super::{
-    Box, Limits, List, Reader, Wall, c, chip_fields, owner_authority_document_fields, owner_grant_piece,
-    owner_task_link_piece, piece_problem, result_value_fields, task_contract_document_fields, too_large, w,
+    Box, Limits, List, Reader, Wall, authority_document_fields, c, chip_fields, grant_piece, piece_problem,
+    result_value_fields, task_contract_document_fields, task_link_piece, too_large, w,
 };
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn spend_line_fields(value: &w::SpendLine) -> c::SpendLine {
@@ -46,8 +46,8 @@ pub(crate) fn goal_procedure_fields(value: &w::CreateProcedure) -> c::CreateProc
     c::CreateProcedure { connector: value.connector(), code: value.code() }
 }
 
-pub(crate) fn owner_kind_implication_fields(value: &w::OwnerKindImplication) -> c::OwnerKindImplication {
-    c::OwnerKindImplication { connector: value.connector(), kind: value.kind(), implies: value.implies() }
+pub(crate) fn kind_implication_fields(value: &w::KindImplication) -> c::KindImplication {
+    c::KindImplication { connector: value.connector(), kind: value.kind(), implies: value.implies() }
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
@@ -77,7 +77,7 @@ pub(crate) fn bounds_fields(value: &w::Bounds, limits: &Limits) -> Result<c::Bou
                 None => None,
             };
             c::Bounds::Create(c::CreateBounds {
-                authority: Box::new(owner_authority_document_fields(row.authority(), limits)?),
+                authority: Box::new(authority_document_fields(row.authority(), limits)?),
                 pool_left: row.pool_left(),
                 charters: list0,
                 procedures: list1,
@@ -93,14 +93,14 @@ pub(crate) fn bounds_fields(value: &w::Bounds, limits: &Limits) -> Result<c::Bou
             }
             let mut list0 = List::with_capacity(row.implications().len());
             for item in row.implications() {
-                list0.push(owner_kind_implication_fields(item)).expect("reserved supplied list");
+                list0.push(kind_implication_fields(item)).expect("reserved supplied list");
             }
             c::Bounds::Amend {
                 budget_left: row.budget_left(),
-                grants: owner_grant_piece(row.grants(), limits, limits.client().authority)?,
+                grants: grant_piece(row.grants(), limits, limits.client().authority)?,
                 implications: list0,
-                authority: Box::new(owner_authority_document_fields(row.authority(), limits)?),
-                ceiling: Box::new(owner_authority_document_fields(row.ceiling(), limits)?),
+                authority: Box::new(authority_document_fields(row.authority(), limits)?),
+                ceiling: Box::new(authority_document_fields(row.ceiling(), limits)?),
             }
         }
     })
@@ -170,12 +170,12 @@ pub(crate) fn ending_fields(value: &w::Ending, limits: &Limits) -> Result<c::End
     match crate::translate::facts::decode(value.rows(), limits)? {
         crate::translate::facts::Node::Ending(value) => Ok(*value),
         crate::translate::facts::Node::Chip(_)
-        | crate::translate::facts::Node::ChipPhase(_)
+        | crate::translate::facts::Node::ChipPhaseFacts(_)
         | crate::translate::facts::Node::Closing(_)
         | crate::translate::facts::Node::HeldRuntime(_)
         | crate::translate::facts::Node::HoldReason(_)
-        | crate::translate::facts::Node::OwnerChipDetails(_)
-        | crate::translate::facts::Node::OwnerChipEnding(_)
+        | crate::translate::facts::Node::ChipDetails(_)
+        | crate::translate::facts::Node::ChipEnding(_)
         | crate::translate::facts::Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
     }
 }
@@ -187,7 +187,7 @@ pub(crate) fn result_details_fields(value: &w::ResultDetails, limits: &Limits) -
         None => None,
     };
     let opt1 = match value.followups() {
-        Some(item) => Some(owner_task_link_piece(item, limits, limits.client().rows)?),
+        Some(item) => Some(task_link_piece(item, limits, limits.client().rows)?),
         None => None,
     };
     let opt2 = match value.proposal() {
@@ -196,10 +196,10 @@ pub(crate) fn result_details_fields(value: &w::ResultDetails, limits: &Limits) -
     };
     Ok(c::ResultDetails {
         contract: task_contract_document_fields(value.contract(), limits)?,
-        requester: crate::translate::facts::owner_requester(value.requester()),
-        executor: crate::translate::facts::owner_executor(value.executor()),
+        requester: crate::translate::facts::requester(value.requester()),
+        executor: crate::translate::facts::executor(value.executor()),
         chosen_by: opt0,
-        delegates: owner_task_link_piece(value.delegates(), limits, limits.client().rows)?,
+        delegates: task_link_piece(value.delegates(), limits, limits.client().rows)?,
         followups: opt1,
         proposal: opt2,
         cut: value.cut(),
@@ -230,19 +230,16 @@ pub(crate) fn result_fields(value: &w::ResultDocument, limits: &Limits) -> Resul
     })
 }
 
-pub(crate) fn owner_chip_ending_fields(
-    value: &w::OwnerChipEnding,
-    limits: &Limits,
-) -> Result<c::OwnerChipEnding, w::Problem> {
+pub(crate) fn chip_ending_fields(value: &w::ChipEnding, limits: &Limits) -> Result<c::ChipEnding, w::Problem> {
     match crate::translate::facts::decode(value.rows(), limits)? {
-        crate::translate::facts::Node::OwnerChipEnding(value) => Ok(*value),
+        crate::translate::facts::Node::ChipEnding(value) => Ok(*value),
         crate::translate::facts::Node::Chip(_)
-        | crate::translate::facts::Node::ChipPhase(_)
+        | crate::translate::facts::Node::ChipPhaseFacts(_)
         | crate::translate::facts::Node::Closing(_)
         | crate::translate::facts::Node::Ending(_)
         | crate::translate::facts::Node::HeldRuntime(_)
         | crate::translate::facts::Node::HoldReason(_)
-        | crate::translate::facts::Node::OwnerChipDetails(_)
+        | crate::translate::facts::Node::ChipDetails(_)
         | crate::translate::facts::Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
     }
 }
@@ -250,7 +247,7 @@ pub(crate) fn owner_chip_ending_fields(
 pub(crate) fn task_result_fields(value: &w::TaskResult, limits: &Limits) -> Result<c::TaskResult, w::Problem> {
     Ok(match value {
         w::TaskResult::Document(row) => c::TaskResult::Document(Box::new(result_fields(row.value(), limits)?)),
-        w::TaskResult::Ending(row) => c::TaskResult::Ending(Box::new(owner_chip_ending_fields(row.value(), limits)?)),
+        w::TaskResult::Ending(row) => c::TaskResult::Ending(Box::new(chip_ending_fields(row.value(), limits)?)),
     })
 }
 
