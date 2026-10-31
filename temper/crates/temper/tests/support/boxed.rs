@@ -299,6 +299,7 @@ pub struct StoryOutcome<T> {
 }
 struct StoryJudge<'a, F, T> {
     check: Option<F>,
+    kill: bool,
     checked: &'a Cell<Option<T>>,
     dormant_checked: &'a Cell<bool>,
     logs: PathBuf,
@@ -307,14 +308,19 @@ struct StoryJudge<'a, F, T> {
     settled: bool,
     deadline: Patience,
 }
-impl<F: FnOnce() -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
+impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
     fn act(&mut self, _now: Time, procs: &mut [Process]) {
         let Process::Person(person) = &procs[1] else { panic!("native person") };
         let finished = person.finished && person.client.as_ref().is_some_and(Host::is_empty);
         let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
         if !self.stopping && finished {
-            self.checked.set(Some(self.check.take().expect("one check before stopping")()));
-            binary.signal(Signal::Terminate);
+            self.checked.set(Some(self.check.take().expect("one check before stopping")(binary)));
+            if self.kill {
+                binary.signal_tree(Signal::Kill);
+                self.cleanup = true;
+            } else {
+                binary.signal(Signal::Terminate);
+            }
             self.stopping = true;
         }
         let left = binary.tree_status().live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty());
@@ -332,7 +338,7 @@ impl<F: FnOnce() -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
             for name in ["fake-llm.log", "fake-forge-1.log", "prepare-1.log"] {
                 let path = self.logs.join(name);
                 assert!(
-                    std::fs::read(&path).expect("private step log exists").is_empty(),
+                    std::fs::read(&path).is_ok_and(|bytes| bytes.is_empty()) || !path.exists(),
                     "the demo's fakes stay dormant at the welcome: {}",
                     path.display()
                 );
@@ -351,7 +357,10 @@ impl<F: FnOnce() -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
         }
         assert!(person.failed.is_none(), "{:?}; temper box stderr: {stderr}", person.failed);
         assert!(binary.exit_status().is_none() || self.stopping, "temper box ended before the person: {stderr}");
-        assert!(binary.exit_status().is_none_or(|exit| exit == Exit::Code(0)), "temper box failed: {stderr}");
+        assert!(
+            binary.exit_status().is_none_or(|exit| exit == if self.kill { Exit::Signal(9) } else { Exit::Code(0) }),
+            "temper box failed: {stderr}"
+        );
         assert!(!binary.stderr_overflowed(), "temper box overflowed stderr: {stderr}");
         if !self.settled
             && let Some(figures) = self.deadline.failed()
@@ -377,6 +386,25 @@ pub fn run_story<T>(
     deadline: Duration,
     check: impl FnOnce() -> T,
 ) -> StoryOutcome<T> {
+    run_story_with_box(directory, flags, client, StoryPlan { script, kill: false }, deadline, |_| check())
+}
+
+/// The person's script and the signal sent after the live check.
+pub struct StoryPlan {
+    pub script: super::person::Script,
+    pub kill: bool,
+}
+/// Checks the live supervised box after the person's scripted change lands.
+#[must_use]
+pub fn run_story_with_box<T>(
+    directory: &Path,
+    flags: Vec<String>,
+    client: &Path,
+    plan: StoryPlan,
+    deadline: Duration,
+    check: impl FnOnce(&Binary) -> T,
+) -> StoryOutcome<T> {
+    let StoryPlan { script, kill } = plan;
     let data = flags.windows(2).find(|pair| pair[0] == "--data").expect("explicit data directory");
     let logs = Path::new(&data[1]).join("box/logs");
     let clock = Clock::new();
@@ -406,6 +434,7 @@ pub fn run_story<T>(
         check: Some(check),
         checked: &checked,
         dormant_checked: &dormant_checked,
+        kill,
         logs,
         stopping: false,
         cleanup: false,

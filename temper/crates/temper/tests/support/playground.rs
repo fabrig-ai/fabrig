@@ -1,8 +1,9 @@
-//! One fresh native client after the playground's durable retirement.
+//! Playground reset across the shipped processes (temper/docs/design/draft/playground-reset.md, 6.2 and 8).
+use super::{Process, ctl};
 use skein_lib::Time;
 use skein_shell::{Clock, Host};
 use skein_ui::Role;
-use skein_world::{Referee, real};
+use skein_world::{Referee, end_to_end::Binary, real};
 use std::path::Path;
 use temper_client_domain::{Address, Step};
 use temper_client_shell_terminal::client::{NativeClient, Settings, Start};
@@ -10,12 +11,13 @@ use temper_client_shell_terminal::client::{NativeClient, Settings, Start};
 #[derive(Debug)]
 enum Page {
     Waiting,
-    Welcome,
-    Model,
+    Forge,
+    Leaving,
     Done,
 }
 struct Judge {
     page: Page,
+    leaving: bool,
     until: Time,
 }
 fn named(client: &NativeClient, role: Role, name: &[u8]) -> bool {
@@ -26,32 +28,23 @@ impl Referee<NativeClient> for Judge {
         let client = &mut clients[0];
         match self.page {
             Page::Waiting if client.started() && named(client, Role::Status, b"Owner") => {
-                client.go(Address::Welcome { step: Step::Welcome });
-                self.page = Page::Welcome;
+                client.go(Address::Welcome { step: Step::Forge { forge: None } });
+                self.page = if self.leaving { Page::Leaving } else { Page::Forge };
             }
-            // This link waits for Me, Accounts, Forges and the demo read, so
-            // absence below cannot pass before the retirement answer arrives.
-            Page::Welcome if named(client, Role::Link, b"Set up temper") => {
+            Page::Forge if named(client, Role::Button, b"Set up a Forgejo here") => {
                 assert!(!named(client, Role::Button, b"Try the playground"));
-                client.go(Address::Welcome { step: Step::Model { way: None } });
-                self.page = Page::Model;
-            }
-            Page::Model if named(client, Role::Button, b"Continue with ChatGPT") => {
-                assert!(!named(client, Role::Link, b"Use a demo API key"));
-                assert!(!named(client, Role::Button, b"Try the playground"));
-                for node in client.tree().nodes() {
-                    if let Some(name) = &node.name {
-                        assert!(!name.windows(4).any(|part| part == b"demo"), "{name:?}");
-                    }
-                }
                 client.close();
                 self.page = Page::Done;
             }
-            Page::Waiting | Page::Welcome | Page::Model | Page::Done => {}
+            Page::Leaving if named(client, Role::Status, "Leaving the playground…".as_bytes()) => {
+                client.close();
+                self.page = Page::Done;
+            }
+            Page::Waiting | Page::Forge | Page::Leaving | Page::Done => {}
         }
         assert!(
             matches!(self.page, Page::Done) || now < self.until,
-            "retired reload did not reach Model: {:?}; {:?}",
+            "reset reload did not reach its page: {:?}; {:?}",
             self.page,
             client
                 .tree()
@@ -72,6 +65,9 @@ impl Referee<NativeClient> for Judge {
 }
 
 pub fn retired_reload(config: &Path, client: &Path) {
+    reload(config, client, b"client", false);
+}
+fn reload(config: &Path, client: &Path, directory: &[u8], leaving: bool) {
     let document: serde_json::Value =
         serde_json::from_slice(&std::fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
     let engine = document
@@ -83,12 +79,12 @@ pub fn retired_reload(config: &Path, client: &Path) {
     let root = skein_shell::open_root(client).expect("signed-in client's parent root");
     let clock = Clock::new();
     let mut world =
-        real::World::new(Judge { page: Page::Waiting, until: clock.now().now.saturating_add(super::WITHIN) });
+        real::World::new(Judge { page: Page::Waiting, leaving, until: clock.now().now.saturating_add(super::WITHIN) });
     world.spawn_with_fds(vec![root], || {
         NativeClient::new(
             Settings {
                 engine: skein_io::Addr::Ip(engine),
-                directory: b"client".as_slice().into(),
+                directory: directory.into(),
                 limits: temper_client_shell_terminal::limits::native(),
             },
             root,
@@ -100,4 +96,94 @@ pub fn retired_reload(config: &Path, client: &Path) {
     });
     let ended = world.run(&clock, super::WITHIN);
     assert!(ended.procs.iter().all(Host::is_empty), "reloaded native client drained");
+}
+fn call(client: &Path, arguments: &[&str]) -> ctl::Call {
+    let directory = client.join("private");
+    let arguments: Vec<_> =
+        std::iter::once(directory.to_str().expect("client path")).chain(arguments.iter().copied()).collect();
+    ctl::Call::bare(&arguments)
+}
+fn read(client: &Path, arguments: &[&str]) -> serde_json::Value {
+    let ended = ctl::alone(client, call(client, arguments));
+    assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(0)), "{}", String::from_utf8_lossy(&ended.stderr));
+    ctl::json(&ended)
+}
+pub fn end_and_check(config: &Path, data: &Path, client: &Path) {
+    let ended = ctl::alone(client, call(client, &["playground", "end"]));
+    assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(0)), "{}", String::from_utf8_lossy(&ended.stderr));
+    assert_eq!(ended.stdout, b"reset\n");
+    check_empty(config, data, client);
+}
+pub fn check_empty(config: &Path, data: &Path, client: &Path) {
+    let forges = read(client, &["forge", "list", "--json"]);
+    assert_eq!(forges["forges"], serde_json::json!([]), "{forges}");
+    let accounts = read(client, &["account", "list", "--json"]);
+    assert_eq!(accounts["accounts"]["deployment"], serde_json::json!([]), "{accounts}");
+    let me = read(client, &["me", "--json"]);
+    let projects = me["projects"].as_array().expect("projects list");
+    assert!(!projects.iter().any(|row| row["name"]["bytes"] == "Playground"), "{me}");
+    for name in ["playground-1", "box/groups/1", "box/started/1"] {
+        assert!(!data.join(name).exists(), "reset removes {name}");
+    }
+    reload(config, client, b"private", false);
+}
+struct ResetJudge {
+    until: Time,
+    settled: bool,
+}
+impl Referee<Process> for ResetJudge {
+    fn act(&mut self, _now: Time, _procs: &mut [Process]) {}
+    fn observe(&mut self, now: Time, procs: &[Process]) {
+        self.settled = procs.iter().all(Host::is_empty);
+        assert!(self.settled || now < self.until, "reset did not remove its project before the cut");
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        (!self.settled).then_some(self.until)
+    }
+    fn passed(&self) -> bool {
+        self.settled
+    }
+}
+/// Hold the box's acknowledgement while the engine deletes the project, then abandon the waiting caller.
+/// The enclosing box world kills the supervised tree after this check returns.
+pub fn interrupt_reset(binary: &Binary, config: &Path, client: &Path) {
+    let program = std::fs::canonicalize(skein_scratch::paths::binary("temper")).expect("temper binary");
+    let parent = binary
+        .tree_status()
+        .live_pids
+        .iter()
+        .find(|pid| {
+            std::fs::read_link(format!("/proc/{pid}/exe")).ok().as_deref() == Some(program.as_path())
+                && std::fs::read(format!("/proc/{pid}/cmdline"))
+                    .is_ok_and(|bytes| bytes.split(|byte| *byte == 0).any(|arg| arg == b"box"))
+        })
+        .expect("supervised box parent");
+    let stopped = std::process::Command::new("/usr/bin/kill")
+        .args(["-STOP", &parent.to_string()])
+        .status()
+        .expect("pause box parent");
+    assert!(stopped.success());
+    let clock = Clock::new();
+    let root = skein_shell::open_root(client).expect("client root");
+    let mut world =
+        real::World::new(ResetJudge { until: clock.now().now.saturating_add(super::WITHIN), settled: false });
+    world.spawn_with_fds(vec![root], || {
+        Process::Calls(Box::new(ctl::Calls::new(
+            root,
+            vec![
+                ctl::Step::Start(call(client, &["playground", "end"])),
+                ctl::Step::Until(call(client, &["me", "--json"]), b"\"projects\":[]"),
+                ctl::Step::Cut,
+            ],
+            None,
+            None,
+        )))
+    });
+    let ended = world.run(&clock, super::WITHIN);
+    let Process::Calls(calls) = &ended.procs[0] else { panic!("reset calls") };
+    let [reset, me] = calls.ends() else { panic!("reset and project read") };
+    assert_ne!(reset.exit, Some(skein_io::kernel::Exit::Code(0)), "reset still waits for the box");
+    assert!(reset.stdout.is_empty(), "reset has not answered");
+    assert_eq!(ctl::json(me)["projects"], serde_json::json!([]), "project removal committed");
+    reload(config, client, b"private", true);
 }
