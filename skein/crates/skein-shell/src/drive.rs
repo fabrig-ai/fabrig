@@ -67,6 +67,71 @@ pub trait Host {
     fn operations(&self) -> u32;
 }
 
+/// Selects the host whose entire loop contract is forwarded, including
+/// provided methods. Both accessors must select the same host.
+///
+/// This is the documented shell exception to programming-model.md, section 4's
+/// preference for concrete composition (skein/docs/plan/component-kit/notes/decisions.md,
+/// 6.1): typed world dispatchers keep one accessor pair, and forwarding every
+/// method here prevents their exit, digest and diagnostic contracts from drifting.
+pub trait Delegate {
+    /// The host answering observations of this process.
+    fn host(&self) -> &dyn Host;
+
+    /// The same host, receiving this process's iteration and kernel queues.
+    fn host_mut(&mut self) -> &mut dyn Host;
+}
+
+impl<T: Delegate + ?Sized> Host for T {
+    fn state_digest(&self) -> Option<[u8; 32]> {
+        self.host().state_digest()
+    }
+
+    fn drain(&mut self) {
+        self.host_mut().drain();
+    }
+
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        self.host_mut().iterate(now, wall);
+    }
+
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        self.host_mut().completions()
+    }
+
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        self.host_mut().submissions()
+    }
+
+    fn work_pending(&self, now: Time) -> bool {
+        self.host().work_pending(now)
+    }
+
+    fn next_deadline(&self) -> Option<Time> {
+        self.host().next_deadline()
+    }
+
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
+    }
+
+    fn next_policy_deadline(&self) -> Option<Time> {
+        self.host().next_policy_deadline()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.host().is_empty()
+    }
+
+    fn exit(&self) -> Option<Exit> {
+        self.host().exit()
+    }
+
+    fn operations(&self) -> u32 {
+        self.host().operations()
+    }
+}
+
 /// Runs a service until its entities and kernel operations have settled.
 /// Its exit belongs to the host, after its final drain (shell.md, 13).
 #[cfg(unix)]
