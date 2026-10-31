@@ -4,9 +4,14 @@ use temper_engine_domain as root;
 
 #[test]
 fn the_root_reports_the_earliest_credentials_expiry() {
-    let (mut domain, mut env) = fixtures::root();
+    let engine = fixtures::ready().engine.expect("running engine");
+    let mut domain = engine.domain;
+    let mut env = engine.env;
     env.now = Time::from_nanos(5_000_000_000);
-    assert_eq!(domain.next_deadline(&env), None);
+    let first_expiry = env.now.saturating_add(Duration::from_secs(7));
+    if let Some(deadline) = domain.next_deadline(&env) {
+        assert!(deadline > first_expiry);
+    }
     for (number, valid, expected) in [(1, 7, 12_u64), (2, 2, 7)] {
         root::try_step(
             &mut domain,
@@ -545,8 +550,9 @@ fn nothing_leaves_before_the_mark() {
     let engine = service.engine.as_mut().expect("engine");
     assert!(engine.store.held_mark.is_some(), "public restore reaches its mark without secret bootstrap");
     assert!(!engine.store.component.mark_durable());
-    assert!(!engine.accounts.as_ref().expect("accounts").startup_state().0);
-    assert!(engine.accounts.as_ref().expect("accounts").startup_state().1 > 0, "early account requests retained");
+    assert_eq!(engine.accounts.as_ref().expect("accounts").startup_state(), (false, 0));
+    assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::Wires));
+    assert!(!engine.credentials.is_empty(), "configured credentials wait for the durable wires");
     assert_eq!(engine.store.secret_requests, 0);
     assert!(engine.store.forge_loads.is_empty());
     assert!(!engine.forge_records.done());

@@ -77,7 +77,13 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 engine.forge.down(skein_forge_connection::Request::Call { call, repository, op });
             }
         }
-        root::Request::ToChild(released) => engine.events.push(root::Event::Released(released)),
+        root::Request::ToChild(released) => {
+            if engine.start_runtime() {
+                engine.events.push(root::Event::Released(released));
+            } else {
+                engine.step(root::Event::Released(released));
+            }
+        }
         root::Request::Busy(event) => {
             use temper_engine_domain_forge::Event;
             #[expect(clippy::wildcard_enum_match_arm, reason = "only the routing producers below cross this boundary")]
