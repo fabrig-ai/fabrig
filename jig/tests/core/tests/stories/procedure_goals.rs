@@ -123,6 +123,7 @@ fn a_procedure_goal_commits_before_delivery_and_replays_its_exact_owner_facts() 
     assert_eq!(document.executor, row.executor);
     assert_eq!(document.project, 1);
     assert_eq!(world.offers.as_ref().expect("offer referee").checked, 1);
+    world.close();
 }
 
 #[test]
@@ -211,4 +212,5 @@ fn a_procedure_goal_proposal_restores_and_accepts_the_original_executor() {
     assert!(world.procedure_inputs.iter().any(|(_, connector, code, context)| *connector == 1
         && *code == 1
         && context.task == row.batch().first().expect("proposed member").number));
+    world.close();
 }

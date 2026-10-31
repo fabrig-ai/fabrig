@@ -33,6 +33,7 @@ mod instructions;
 mod joint_clock;
 mod memory;
 mod operations;
+mod oracle;
 mod orders;
 mod parties;
 mod peers;

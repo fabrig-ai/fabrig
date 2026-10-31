@@ -304,6 +304,8 @@ impl World {
         let store = Store::starting_with_patch_sets(limits, &configuration.core.settings.models, sets);
         let move_provider = configuration.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         World {
+            broken: false,
+            restart_config: (crate::oracle::configuration(&configuration), *limits),
             startup: None,
             fixture_rows: Box::new([]),
             domain: root::Domain::new(configuration, limits),

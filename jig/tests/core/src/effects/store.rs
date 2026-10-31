@@ -214,6 +214,7 @@ impl World {
     }
 
     pub fn restart_with(&mut self, config: root::Config) {
+        self.restart_config = (crate::oracle::configuration(&config), self.limits);
         self.observer.observe(self.wall, crate::referee::Observed::Restart);
         self.store.reconfigure(18, &config.core.settings.models);
         // The observer may resume A after a crashed pending copy whose

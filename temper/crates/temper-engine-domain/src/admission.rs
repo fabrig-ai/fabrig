@@ -165,7 +165,8 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             Ok(())
         }
         event @ (Event::Store(
-            StoreInput::Committed { .. }
+            StoreInput::MissingLink { .. }
+            | StoreInput::Committed { .. }
             | StoreInput::Uncommitted { .. }
             | StoreInput::Loaded { .. }
             | StoreInput::Unloaded { .. },

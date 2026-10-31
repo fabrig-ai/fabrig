@@ -52,7 +52,10 @@ impl Host {
         rows.sort_by_key(Record::key);
         for row in rows {
             let selected = match (&phase, &row) {
-                (Phase::LoadCore, Record::Core(_)) | (Phase::Sweep, Record::Core(core::Record::People(_))) => true,
+                (Phase::LoadCore, Record::Core(row)) => {
+                    core::RestoreRange::LIVE.iter().any(|range| range.admits(&row.key()))
+                }
+                (Phase::Sweep, Record::Core(core::Record::People(_))) => true,
                 (Phase::RestoreConnector { connector }, Record::Connector { number, .. }) => connector == number,
                 _ => false,
             };
@@ -206,7 +209,6 @@ fn begin_holds_the_seed_until_its_commit_is_released() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn empty_store_opens_after_the_wires_continuation() {
     let mut host = Host::new(Vec::new());
     host.begin();
@@ -330,7 +332,6 @@ fn populated_rows() -> Vec<Record> {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn people_project_and_live_task_open_in_the_core_phase_order() {
     let mut host = Host::new(populated_rows());
     host.begin();
@@ -351,7 +352,6 @@ fn people_project_and_live_task_open_in_the_core_phase_order() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn cold_start_discards_the_unreleased_wires_continuation() {
     let mut first = Host::new(Vec::new());
     first.cut_wires = true;
@@ -371,7 +371,6 @@ fn cold_start_discards_the_unreleased_wires_continuation() {
 }
 
 #[test]
-#[ignore = "needs core-settings"]
 fn project_policy_past_its_bytes_refuses_at_load_core_before_switch() {
     let mut rows = seeded_rows();
     for row in &mut rows {

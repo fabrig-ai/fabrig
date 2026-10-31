@@ -132,7 +132,7 @@ pub struct Wait {
 
 #[derive(Debug)]
 pub struct WaitEngine {
-    pub restart: Option<jig_domain_core::RestartStep>,
+    pub restart: Option<jig_domain_core::start::Phase>,
     pub mark_durable: bool,
     pub store_closed: bool,
     pub clients: WaitOwner,

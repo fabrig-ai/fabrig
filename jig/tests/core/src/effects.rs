@@ -40,6 +40,8 @@ pub struct AssignedTranscript {
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independently held peer traffic and crash cuts")]
 pub struct World {
+    pub(crate) broken: bool,
+    pub(crate) restart_config: (root::Config, root::Limits),
     startup: Option<fn(&mut root::Domain)>,
     fixture_rows: Box<[root::Record]>,
     pub domain: root::Domain,

@@ -53,29 +53,27 @@ fn application_grants_answer_either_retained_generation() {
     assert!(filled[3].is_none());
 }
 #[test]
-fn identities_are_announced_before_the_restart() {
+fn identities_are_announced_after_the_durable_start_wires() {
     let mut service = fixtures::started();
-    service.engine.as_mut().expect("engine").store.opened = true;
-    let _listen = service.engine.as_mut().expect("engine").workers.io.pop().unwrap();
+    service.engine.as_mut().expect("engine").store.hold_mark = true;
     assert_eq!(
         service.engine.as_ref().expect("engine").domain.next_deadline(&service.engine.as_ref().expect("engine").env),
         None
     );
-    for _ in 0_u8..8 {
-        crate::engine::iterate(service.engine.as_mut().expect("engine"), Time::ZERO, skein_lib::Wall::EPOCH);
-        if service.engine.as_mut().expect("engine").credentials.is_empty() {
-            break;
-        }
-        assert!(service.engine.as_ref().expect("engine").store.routed.is_empty(), "records precede Restart");
+    for _ in 0_u32..256 {
+        fixtures::turn(&mut service);
     }
+    let engine = service.engine.as_mut().expect("engine");
+    assert_eq!(engine.domain.start_phase(), Some(core::start::Phase::Wires));
+    assert!(!engine.credentials.is_empty(), "identities wait for the Wires continuation");
+    let mark = engine.store.held_mark.take().expect("held startup wires");
+    assert!(!engine.store.component.mark_durable());
+    engine.store.hold_mark = false;
+    assert!(engine.store.down(mark));
     assert!(!service.engine.as_ref().expect("engine").forge_records.done(), "secrets follow the mark");
-    assert!(service.engine.as_ref().expect("engine").credentials.is_empty());
-    assert_eq!(
-        service.engine.as_ref().expect("engine").domain.next_deadline(&service.engine.as_ref().expect("engine").env),
-        Some(Time::from_nanos(u64::MAX))
-    );
-    assert!(service.engine.as_ref().expect("engine").store.routed.is_empty(), "the restart has not asked for a load");
     fixtures::restart(&mut service);
+    assert!(service.engine.as_ref().expect("engine").credentials.is_empty());
+    assert!(service.engine.as_ref().expect("engine").store.component.mark_durable());
 }
 
 #[test]

@@ -504,6 +504,9 @@ impl World {
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     self.pages += 1;
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
+                    for missing in self.store.take_missing(owner) {
+                        self.queue(engine::Event::Store(missing), self.settings.page_delay);
+                    }
                     self.queue(
                         engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next, texts: None }),
                         self.settings.page_delay,
