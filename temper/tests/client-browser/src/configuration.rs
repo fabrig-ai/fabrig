@@ -161,7 +161,7 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
         serde_json::from_slice(&fs::read(&path).expect("demo deployment")).expect("JSON");
     let sockets = [
         &value["application"]["clients"]["listener"]["socket"],
-        &value["application"]["forges"][0]["api"]["socket"],
+        &value["application"]["machine"]["fake"]["listen"]["socket"],
         &value["application"]["demo"]["llm"]["listen"]["socket"],
         &value["application"]["webhooks"]["listener"]["socket"],
     ];

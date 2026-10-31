@@ -280,7 +280,7 @@ pub(crate) fn header(
     b: &mut Builder,
     task: &c::Task,
     me: Option<&c::Me>,
-    demo: Option<&temper_client_domain::forge::Playground>,
+    playground: Option<&temper_client_domain::forge::Playground>,
     words: &Words,
     bindings: &mut Bindings,
     panel: Option<&temper_client_domain::forge::panel::Panel>,
@@ -314,7 +314,7 @@ pub(crate) fn header(
         executor(b, task.chip.executor, words);
         b.close();
     }
-    let project = match super::project_name(me, demo, task.project, words) {
+    let project = match super::project_name(me, playground, task.project, words) {
         Some(name) => name,
         None => words.say(Word::Project, &[Hole::Number(u64::from(task.project))]),
     };

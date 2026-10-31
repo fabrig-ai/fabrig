@@ -152,8 +152,7 @@ pub fn to_root(
                         | w::Request::Return(_)
                         | w::Request::RemoveForge(_)
                         | w::Request::StartPlayground
-                        | w::Request::EndPlayground
-                        | w::Request::StartDemo => {
+                        | w::Request::EndPlayground => {
                             unreachable!("connect or install")
                         }
                     };
@@ -199,19 +198,6 @@ pub fn to_root(
                         carried,
                         request: root::Application::Forge(forge::Ask::EndPlayground),
                     }));
-                }
-                w::Request::StartDemo => {
-                    let record = answer(
-                        Some(root::ApplicationAnswer::StartPlayground(forge::StartAnswer::NotOffered)),
-                        limits,
-                        &jig_client_protocol_wire::v19::CEILINGS,
-                    )
-                    .expect("fixed start refusal fits");
-                    return Err(Box::new(kit::Event::Application(kit::FromApplication::Answered {
-                        to: reply_to,
-                        family,
-                        record,
-                    })));
                 }
                 w::Request::Reachable(value) => {
                     let value = value.into_parts();

@@ -6,8 +6,8 @@ use crate::forge::{
 use skein_ui::{Act, Role, State};
 use temper_client_domain::{Action, forge};
 #[test]
-fn adoption_names_the_demo_project_playground() {
-    let root = fixtures::root_at_with_demo(
+fn adoption_names_the_playground_project_playground() {
+    let root = fixtures::root_at_with_playground(
         temper_client_domain::Address::Adopt { project: fixtures::PROJECT },
         &fixtures::domain_limits(),
         b"Project 1",

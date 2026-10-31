@@ -96,8 +96,8 @@ pub fn start_playground_chat(words: &[u8]) -> Vec<Step> {
             within: WITHIN,
         }),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Try the playground") }),
-        // The box starts the demo's group only when asked: wait for its start to be answered.
-        Step::Person(PersonStep::See { find: Find::exactly_named(Role::Status, b"Ready"), within: WITHIN }),
+        // The box starts the playground's group when chosen.
+        Step::Person(PersonStep::See { find: Find::exactly_named(Role::Region, b"Playground"), within: WITHIN }),
         Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),
     ];
     steps.extend(start_chat(words).into_iter().skip(2));

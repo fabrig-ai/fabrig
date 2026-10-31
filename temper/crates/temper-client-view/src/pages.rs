@@ -20,7 +20,7 @@ pub(crate) fn project_name(
     if let Some(playground) = playground
         && playground.project == Some(project)
     {
-        return Some(words.say(crate::words::Word::Demo, &[]));
+        return Some(words.say(crate::words::Word::Playground, &[]));
     }
     for row in &me?.projects {
         if row.project == project {

@@ -163,24 +163,6 @@ const fn role_from(role: &w::Role) -> forge::Role {
     }
 }
 
-/// Decode the demo's complete record, including its embedded family version.
-#[must_use]
-pub fn demo(record: &[u8], limits: &w::Limits) -> Option<forge::Demo> {
-    let answer = playground(record, limits)?;
-    Some(forge::Demo {
-        state: match answer.state {
-            forge::PlaygroundState::Starting => forge::demo::DemoState::NotStarted,
-            forge::PlaygroundState::Running | forge::PlaygroundState::Resetting => forge::demo::DemoState::Running,
-        },
-        project: answer.project?,
-        forge: answer.forge,
-        provider: answer.provider,
-        owner: answer.owner,
-        name: answer.name,
-        cues: answer.cues,
-    })
-}
-
 #[must_use]
 pub fn set_up(
     forge: u16,

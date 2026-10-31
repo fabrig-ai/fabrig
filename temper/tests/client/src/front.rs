@@ -1,4 +1,5 @@
 //! Real engine root on its direct store driver, with jig's protocol correlation.
+//! Forge records and playground scripts (temper/docs/design/draft/playground-reset.md, 3 and 8).
 pub mod account_acts;
 use crate::app::Event;
 use crate::{app::Temper, fixtures, translate};
@@ -25,16 +26,19 @@ pub struct Joint {
     pub refuse_return: bool,
     set_ups: Vec<(u16, Token)>,
     pub admin_connects: Vec<(u16, Token)>,
-    pub demo: Option<temper_client_protocol_wire::v1::DemoAnswer>,
-    pub demo_starts: Vec<skein_lib::RequestKey>,
-    pub demo_removals: Vec<skein_lib::RequestKey>,
-    pub demo_reads: usize,
+    pub playground: Option<temper_client_protocol_wire::v1::PlaygroundAnswer>,
+    pub hold_playground_end: bool,
+    held_playground_end: Vec<(ClientId, Event)>,
+    pub playground_ends: Vec<skein_lib::RequestKey>,
+    pub playground_starts: Vec<skein_lib::RequestKey>,
+    pub playground_removals: Vec<skein_lib::RequestKey>,
+    pub playground_reads: usize,
     /// Terminal replies for successive task-document attempts, before the real engine serves one.
     pub task_read_ends: VecDeque<jig_client::contract::ReadNone>,
     pub reachable_reads: Vec<(u16, Option<u64>, u32)>,
     pub reachable_empty: bool,
     pub installs: Vec<(u16, Token)>,
-    pub demo_outcomes: VecDeque<temper_client_protocol_wire::v1::Outcome>,
+    pub playground_outcomes: VecDeque<temper_client_protocol_wire::v1::Outcome>,
     pub answer_runs: bool,
     pub reply_runs: bool,
     pub runs_answered: u32,
@@ -42,8 +46,8 @@ pub struct Joint {
     pub assignments: Vec<engine::Assignment>,
     reply_pieces: Option<&'static [&'static [u8]]>,
     held_reply: Option<HeldReply>,
-    hold_demo_read: bool,
-    held_demo_reads: VecDeque<(ClientId, Event)>,
+    hold_playground_read: bool,
+    held_playground_reads: VecDeque<(ClientId, Event)>,
     pub park_runs: bool,
     settles_with_a_deadline_armed: bool,
     keyed_fault: Option<RequestEnvelope>,
@@ -112,17 +116,52 @@ pub fn first_run_projects(config: &mut engine::Config, limits: &mut engine::Limi
     };
     config.core.defaults.policies.insert(1, policy).expect("first-run policy");
 }
+fn restored_forges(store: Store, bootstrap: engine::Config, config: &engine::Config, limits: &engine::Limits) -> Store {
+    if !store.rows.is_empty() {
+        return store;
+    }
+    let mut store = temper_engine_domain_world::fixtures::restored_over(store, bootstrap, limits);
+    let mut records = Vec::new();
+    let mut last = 0;
+    for forge in &config.forges {
+        last = last.max(forge.number);
+        let row = temper_engine_domain_forge::ForgeRecord {
+            number: forge.number,
+            kind: forge.kind,
+            mode: forge.mode,
+            state: temper_engine_domain_forge::ForgeState::Kept,
+            place: temper_engine_domain_forge::Place {
+                api: temper_engine_domain_forge::Address { host: fixtures::FORGE_HOST.into(), port: 443, tls: None },
+                git: forge.git.clone(),
+                web: forge.web.clone(),
+            },
+            read_only: forge.read_only,
+            bot: temper_engine_domain_forge::Bot { login: forge.bot.clone(), name: Box::new([]), email: Box::new([]) },
+            asked: forge.asked,
+            first: None,
+        };
+        records.push(engine::Record::Forge { row: Box::new(temper_engine_domain_forge::Stored::Forge(row)) });
+    }
+    if last != 0 {
+        records.push(engine::Record::Forge { row: Box::new(temper_engine_domain_forge::Stored::ForgeNumber { last }) });
+        store.seed(records.into_boxed_slice(), Box::new([]));
+    }
+    store
+}
 impl Joint {
-    /// Hold the next demo read's encoded answer, including its original client and read token.
+    pub fn finish_playground_reset(&mut self) {
+        self.callbacks.append(&mut self.held_playground_end);
+    }
+    /// Hold the next playground read's encoded answer, including its original client and read token.
     /// Arming again lets a story hold a newer answer behind the older one.
-    pub fn hold_next_demo_read(&mut self) {
-        assert!(!self.hold_demo_read, "the next demo read is already armed");
-        self.hold_demo_read = true;
+    pub fn hold_next_playground_read(&mut self) {
+        assert!(!self.hold_playground_read, "the next playground read is already armed");
+        self.hold_playground_read = true;
     }
 
     /// Queue the oldest held answer unchanged; the normal client pump delivers it.
-    pub fn release_demo_read(&mut self) -> bool {
-        let Some(answer) = self.held_demo_reads.pop_front() else { return false };
+    pub fn release_playground_read(&mut self) -> bool {
+        let Some(answer) = self.held_playground_reads.pop_front() else { return false };
         self.callbacks.push(answer);
         true
     }
@@ -718,7 +757,10 @@ impl Joint {
         // Smaller text projections still retain the full task spec and brief.
         let mut engine_limits = *engine_limits;
         engine_limits.documents.text_bytes = engine_limits.documents.text_bytes.min(limits.client.domain.text);
-        let mut engine = Driver::with_repositories(store, configs, &engine_limits, fixtures::REPOSITORIES);
+        let [bootstrap, config] = configs;
+        let store = restored_forges(store, bootstrap, &config, &engine_limits);
+        let mut engine = Driver::cold(store, config, &engine_limits);
+        engine.forge = Some(temper_engine_domain_world::forge_stand::ForgeStand::with(fixtures::REPOSITORIES));
         engine.send(hello);
         engine.settle();
         let last_commit = engine.store.header().commits;
@@ -732,23 +774,26 @@ impl Joint {
             refuse_return: false,
             set_ups: Vec::new(),
             admin_connects: Vec::new(),
-            demo: None,
-            demo_starts: Vec::new(),
-            demo_removals: Vec::new(),
-            demo_reads: 0,
+            playground: None,
+            hold_playground_end: false,
+            held_playground_end: Vec::new(),
+            playground_ends: Vec::new(),
+            playground_starts: Vec::new(),
+            playground_removals: Vec::new(),
+            playground_reads: 0,
             task_read_ends: VecDeque::new(),
             reachable_reads: Vec::new(),
             reachable_empty: false,
             installs: Vec::new(),
-            demo_outcomes: VecDeque::new(),
+            playground_outcomes: VecDeque::new(),
             answer_runs: false,
             reply_runs: false,
             runs_answered: 0,
             assignments: Vec::new(),
             reply_pieces: None,
             held_reply: None,
-            hold_demo_read: false,
-            held_demo_reads: VecDeque::new(),
+            hold_playground_read: false,
+            held_playground_reads: VecDeque::new(),
             park_runs: false,
             settles_with_a_deadline_armed: refuse_hello,
             keyed_fault: None,
@@ -884,8 +929,8 @@ impl Joint {
         ));
         true
     }
-    fn start_demo(&mut self, who: ClientId, request: &Request) -> bool {
-        // StartDemo is scripted here until the parallel engine task lands.
+    fn start_playground(&mut self, who: ClientId, request: &Request) -> bool {
+        // The front scripts the playground lifecycle beside the real engine.
         if let Request::Client {
             request:
                 jig_client::Request::Down {
@@ -894,18 +939,26 @@ impl Joint {
         } = request
         {
             use temper_client_protocol_wire::{self as wire, v1 as w};
+            let decoded = wire::decode_requesting(&record.bytes, &w::CEILINGS);
+            let ending = decoded.as_ref().is_some_and(|request| *request.request() == w::Request::EndPlayground);
             if record.family == wire::FORGE
-                && wire::decode_requesting(&record.bytes, &w::CEILINGS)
-                    .is_some_and(|request| *request.request() == w::Request::StartDemo)
+                && decoded.is_some_and(|request| {
+                    matches!(request.request(), w::Request::StartPlayground | w::Request::EndPlayground)
+                })
             {
-                self.demo_starts.push(*key);
-                let outcome = self.demo_outcomes.pop_front().unwrap_or(w::Outcome::Running);
-                if outcome == w::Outcome::Running
-                    && let Some(demo) = self.demo.take()
-                {
-                    let mut parts = demo.into_parts();
-                    parts.state = w::DemoState::Running;
-                    self.demo = Some(w::DemoAnswer::new(&w::CEILINGS, parts).expect("demo fixture"));
+                let outcome = if ending {
+                    self.playground_ends.push(*key);
+                    self.playground = None;
+                    w::Outcome::Reset
+                } else {
+                    self.playground_starts.push(*key);
+                    self.playground_outcomes.pop_front().unwrap_or(w::Outcome::Running)
+                };
+                if outcome == w::Outcome::Running {
+                    let mut parts =
+                        self.playground.take().unwrap_or_else(|| account_acts::playground_answer(true)).into_parts();
+                    parts.state = w::PlaygroundState::Running;
+                    self.playground = Some(w::PlaygroundAnswer::new(&w::CEILINGS, parts).expect("playground fixture"));
                 }
                 self.callbacks.push((
                     who,
@@ -928,6 +981,10 @@ impl Joint {
                     }
                     .into(),
                 ));
+                if ending && self.hold_playground_end {
+                    self.held_playground_end.push(self.callbacks.pop().expect("queued reset answer"));
+                }
+                self.publish_playground_forges();
                 return true;
             }
         }
@@ -997,7 +1054,7 @@ impl Joint {
         }
         false
     }
-    fn demo_read(&mut self, who: ClientId, request: &Request) -> bool {
+    fn playground_read(&mut self, who: ClientId, request: &Request) -> bool {
         if let Request::Client {
             request:
                 jig_client::Request::Down {
@@ -1005,8 +1062,13 @@ impl Joint {
                 },
         } = request
         {
-            // This front supplies the demo read independently of the engine.
-            self.demo_reads += 1;
+            if !temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
+                .is_some_and(|reading| *reading.read() == temper_client_protocol_wire::v1::Read::Playground)
+            {
+                return false;
+            }
+            // The playground is scripted independently of the engine.
+            self.playground_reads += 1;
             self.callbacks.push((
                 who,
                 RootEvent::Client {
@@ -1015,16 +1077,16 @@ impl Joint {
                             read: *read,
                             result: jig_client::Readout::Family {
                                 family: record.family,
-                                record: self.demo.as_ref().map(temper_client_protocol_wire::demo_answer),
+                                record: self.playground.as_ref().map(temper_client_protocol_wire::playground_answer),
                             },
                         },
                     },
                 }
                 .into(),
             ));
-            if self.hold_demo_read {
-                self.hold_demo_read = false;
-                self.held_demo_reads.push_back(self.callbacks.pop().expect("just queued demo answer"));
+            if self.hold_playground_read {
+                self.hold_playground_read = false;
+                self.held_playground_reads.push_back(self.callbacks.pop().expect("just queued playground answer"));
             }
             return true;
         }
@@ -1093,12 +1155,12 @@ impl Joint {
                 }
             )
         {
-            self.demo_removals.push(*key);
+            self.playground_removals.push(*key);
         }
-        if self.reachable(who, &request) || self.start_demo(who, &request) {
+        if self.reachable(who, &request) || self.start_playground(who, &request) {
             return;
         }
-        if self.demo_read(who, &request) || self.task_read_end(who, &request) {
+        if self.playground_read(who, &request) || self.task_read_end(who, &request) {
             return;
         }
         let (events, refusal) =
@@ -1110,9 +1172,26 @@ impl Joint {
             self.send(event);
         }
     }
-    fn demo_forges(&self, event: &mut RootEvent) {
+    fn publish_playground_forges(&mut self) {
+        use jig_client_test_domain::family::{Kind, Scope, Subject};
+        for watcher in self.transport.watches() {
+            if matches!(
+                self.transport.watch(watcher).map(|route| &route.subject),
+                Some(Watched::Application {
+                    subject: Subject { scope: Scope::Deployment, kind: Kind::Deployment },
+                    ..
+                })
+            ) {
+                self.packet(engine::Request::Party(engine::PartyRequest::Deliver(engine::Delivery::Forges {
+                    watcher,
+                    forges: self.engine.root.forges(),
+                })));
+            }
+        }
+    }
+    fn playground_forges(&self, event: &mut RootEvent) {
         use temper_client_protocol_wire::{self as wire, v1 as w};
-        let Some(demo) = &self.demo else { return };
+        let Some(playground) = &self.playground else { return };
         let RootEvent::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { record, .. } } } =
             event
         else {
@@ -1121,12 +1200,12 @@ impl Joint {
         let Some(rows) = wire::decode_forges(&record.bytes, &w::CEILINGS) else { return };
         let mut forges = skein_lib::List::with_capacity(wire::FORGES);
         for row in rows.into_parts().forges.into_boxed() {
-            // A change story can use the engine's fake stand as its demo forge.
-            if row.number() != demo.forge() {
+            // A change story can use the engine's fake stand as its playground forge.
+            if row.number() != playground.forge() {
                 forges.push(row).expect("scripted deployment row");
             }
         }
-        let connection = if *demo.state() == w::DemoState::Running {
+        let connection = if *playground.state() == w::PlaygroundState::Running {
             w::Connection::Connected(
                 w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 2, login: b"playground".as_slice().into() })
                     .expect("fake connection"),
@@ -1139,7 +1218,7 @@ impl Joint {
                 w::ForgeRow::new(
                     &w::CEILINGS,
                     w::ForgeRowParts {
-                        number: demo.forge(),
+                        number: playground.forge(),
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Fake,
                         connection,
@@ -1156,13 +1235,35 @@ impl Joint {
                         ended_stop: None,
                     },
                 )
-                .expect("scripted demo forge"),
+                .expect("scripted playground forge"),
             )
-            .expect("demo row fits");
+            .expect("playground row fits");
         record.bytes = wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges }).expect("scripted forges"));
     }
+    // Runtime records have no host-supplied version or password until the setup host reports them.
+    fn host_forges(event: &mut RootEvent) {
+        use temper_client_protocol_wire::{self as wire, v1 as w};
+        let RootEvent::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { record, .. } } } =
+            event
+        else {
+            return;
+        };
+        let Some(rows) = wire::decode_forges(&record.bytes, &w::CEILINGS) else { return };
+        let mut forges = skein_lib::List::with_capacity(wire::FORGES);
+        for row in rows.into_parts().forges.into_boxed() {
+            let mut parts = row.into_parts();
+            if parts.owned.as_ref().is_some_and(|owned| {
+                owned.forgejo().is_empty() && owned.runner().is_none() && owned.password().is_empty()
+            }) {
+                parts.owned = None;
+            }
+            forges.push(w::ForgeRow::new(&w::CEILINGS, parts).expect("host forge row")).expect("bounded forge rows");
+        }
+        record.bytes = wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges }).expect("host forges"));
+    }
     fn callback(&mut self, client: ClientId, mut event: RootEvent) {
-        self.demo_forges(&mut event);
+        Self::host_forges(&mut event);
+        self.playground_forges(&mut event);
         if let RootEvent::Client {
             event: jig_client::Event::Up { up: jig_client::Up::Answer { attempt, envelope, answer, why } },
         } = &mut event
@@ -1353,6 +1454,19 @@ impl Joint {
     fn immediate(&mut self) {
         let immediate = std::mem::take(&mut self.engine.immediate);
         for request in immediate {
+            if let engine::Request::Manifest { forge, request, .. } = &request {
+                self.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
+                    forge: *forge,
+                    state: temper_engine_domain_forge::Connection::NotConnected,
+                })));
+                self.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::ConnectAnswered {
+                    forge: *forge,
+                    request: *request,
+                    answer: temper_engine_domain_forge::ConnectAnswer::Link(
+                        b"https://github.test/settings/apps/new".as_slice().into(),
+                    ),
+                })));
+            }
             if let engine::Request::Install { forge, request, .. } = &request {
                 self.installs.push((*forge, *request));
             }

@@ -10,7 +10,7 @@ use alloc::boxed::Box;
 use jig_client::Outcome;
 use skein_json::writer::Encoder;
 use temper_client_domain::forge::{
-    demo::{self, StartAnswer, StartFailure},
+    playground::{self as demo, StartAnswer, StartFailure},
     words,
 };
 
