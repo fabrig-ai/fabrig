@@ -2,14 +2,15 @@
 use super::{Call, Walk, boxed, ctl};
 use skein_io::kernel::Exit;
 
-fn adopt(project: &str, role: &str, key: &str) -> Call {
+fn adopt(seen: &[super::Ended], project: &str, role: &str, key: &str) -> Call {
+    let forge = super::adopted_forge(&seen[1]).to_string();
     Call::new(&[
         "repository",
         "adopt",
         "--project",
         project,
         "--forge",
-        "3",
+        &forge,
         "--owner",
         "playground",
         "--name",
@@ -27,7 +28,7 @@ fn adopt(project: &str, role: &str, key: &str) -> Call {
 #[test]
 fn context_preserves_the_writer_and_a_refused_setup_preserves_the_first_key() {
     let walk = Walk::owned("walk-context-and-setup-replay");
-    let setup = Call::new(&["forge", "setup", "3", "--playground", "--key", "first", "--json"]);
+    let setup = Call::new(&["forge", "setup", "--playground", "--key", "first", "--json"]);
     let outcome = boxed::run_ctl_with_exits(
         walk.scratch.path(),
         super::super::flags(&walk.paths[0], &walk.paths[1], &walk.paths[2], Some(&walk.bundle)),
@@ -36,11 +37,11 @@ fn context_preserves_the_writer_and_a_refused_setup_preserves_the_first_key() {
             ctl::Step::Run(Call::sign_in()),
             ctl::Step::Run(setup.clone()),
             ctl::Step::Run(setup.clone()),
-            ctl::Step::Run(adopt("1", "owned", "other")),
-            ctl::Step::Run(adopt("1", "context", "reader")),
-            ctl::Step::Run(adopt("2", "owned", "writer")),
+            ctl::Step::Then(Box::new(|seen| adopt(seen, "1", "owned", "other"))),
+            ctl::Step::Then(Box::new(|seen| adopt(seen, "1", "context", "reader"))),
+            ctl::Step::Then(Box::new(|seen| adopt(seen, "2", "owned", "writer"))),
             ctl::Step::Run(Call::new(&["forge", "list", "--json"])),
-            ctl::Step::Run(Call::new(&["forge", "setup", "3", "--playground", "--key", "second", "--json"])),
+            ctl::Step::Run(Call::new(&["forge", "setup", "--playground", "--key", "second", "--json"])),
             ctl::Step::Run(setup),
             ctl::Step::Run(Call::new(&["forge", "list", "--json"])),
         ],

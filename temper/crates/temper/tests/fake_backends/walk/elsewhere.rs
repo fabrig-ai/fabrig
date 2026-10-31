@@ -1,11 +1,5 @@
 use super::*;
 
-fn adoption(call: &Ended) -> Value {
-    // Connect prints progress before the terminal project/adoption answer.
-    let answer = call.stdout.split(|byte| *byte == b'\n').rfind(|line| !line.is_empty()).expect("adoption answer");
-    serde_json::from_slice(answer).expect("adoption JSON")
-}
-
 fn adopted_project(seen: &[Ended]) -> String {
     let [_, _, connected, ..] = seen else { panic!("connection answered") };
     adoption(connected)["project"].as_u64().expect("adopted project number").to_string()
@@ -21,19 +15,18 @@ fn assert_ready(seen: &[Ended]) {
         panic!("welcome ready reads completed")
     };
     assert!(!usable(before_model), "no model before the key: the welcome must offer its Model step");
-    let offered = forge_number(before_forge, 4);
-    assert_eq!(offered["mode"], "managed");
-    assert_eq!(offered["state"], "not_connected");
-    assert!(offered["first"].is_null(), "no first repository adopted before Connect");
+    assert!(forge_rows(before_forge).is_empty(), "Connect makes the first forge record");
+    let forge = adopted_forge(connected);
     let connected = adoption(connected);
     let adopted = &connected["outcome"]["adopted"];
-    assert_eq!(adopted["forge"], 4);
+    assert_eq!(adopted["forge"], forge);
     assert_eq!(adopted["owner"], "fake-person");
     assert_eq!(adopted["name"], "hello");
     assert_eq!(adopted["role"], "owned");
     assert_eq!(adopted["home"], true);
     assert!(connected["project"].as_u64().expect("adopted project") > 0, "repository adopted into a project");
-    let ready = forge_number(ready_forge, 4);
+    let ready = only_forge(ready_forge);
+    assert_eq!(number(&ready), forge);
     assert_eq!(ready["state"], "connected");
     assert_eq!(ready["first"]["state"], "made");
     assert_eq!(ready["first"]["org"], "fake-person");
@@ -48,19 +41,34 @@ pub(super) fn run() {
     let seen = walk.run(vec![
         Act::Now(Call::new(&["account", "list", "--json"])),
         Act::Now(Call::new(&["forge", "list", "--json"])),
-        Act::Now(Call::new(&[
-            "forge",
-            "connect",
-            "4",
-            "forgejo-admin",
-            path(&admin),
-            "--first",
-            "fake-person/hello",
-            "--key",
-            "walk-forge",
-            "--json",
-        ])),
-        Act::Now(Call::new(&["forge", "list", "--until", "connected:4", "--timeout", "30s"])),
+        Act::After(Box::new(move |_| {
+            let peer = super::super::value(
+                &admin.parent().expect("sandbox data").parent().expect("sandbox").join("config/forgejo.json"),
+            );
+            let socket = peer["listen"]["socket"].as_str().expect("fake Forgejo address");
+            let remote = format!("http://{socket}");
+            Call::new(&[
+                "forge",
+                "connect",
+                "forgejo-admin",
+                path(&admin),
+                "--api",
+                socket,
+                "--git",
+                &remote,
+                "--web",
+                &remote,
+                "--first",
+                "fake-person/hello",
+                "--key",
+                "walk-forge",
+                "--json",
+            ])
+        })),
+        Act::After(Box::new(|seen| {
+            let forge = adopted_forge(seen.last().expect("connection answered"));
+            Call::new(&["forge", "list", "--until", &format!("connected:{forge}"), "--timeout", "30s"])
+        })),
         walk.add_key(),
         Act::Now(Call::new(&["account", "list", "--until", "usable", "--timeout", "10s", "--json"])),
         Act::Now(Call::new(&["forge", "list", "--json"])),
