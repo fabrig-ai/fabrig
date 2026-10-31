@@ -38,7 +38,9 @@ pub fn page(
         let (row, joined, size) = decode(store, item.row, &source)?;
         let total = used.checked_add(size).ok_or(Failure::at(Cause::Arithmetic(Arithmetic::PageBytes), source))?;
         if total > bytes || found.room() < if joined.is_some() { 2 } else { 1 } {
-            return Ok(progress(after, Loaded { items: found.into_boxed(), next: Some(cursor) }));
+            let next = Some(cursor);
+            super::assert_progress(after, found.is_empty(), next.as_ref());
+            return Ok(Loaded { items: found.into_boxed(), next });
         }
         used = total;
         cursor = item.cursor;
@@ -47,22 +49,8 @@ pub fn page(
             found.push(joined).expect("pair room checked");
         }
     }
-    Ok(progress(after, Loaded { items: found.into_boxed(), next: walked.next }))
-}
-
-fn progress(after: Option<&Cursor>, page: Loaded) -> Loaded {
-    if page.items.is_empty()
-        && let Some(next) = &page.next
-    {
-        let advanced = match after {
-            Some(after) => {
-                next.interval > after.interval || (next.interval == after.interval && next.after > after.after)
-            }
-            None => next.interval > 0 || !next.after.is_empty(),
-        };
-        assert!(advanced, "empty nonterminal restore page must advance its cursor");
-    }
-    page
+    super::assert_progress(after, found.is_empty(), walked.next.as_ref());
+    Ok(Loaded { items: found.into_boxed(), next: walked.next })
 }
 
 fn ranges(store: &Store, range: Restore) -> Result<Box<[skein_kv::Range]>, Failure> {

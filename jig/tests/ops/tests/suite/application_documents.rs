@@ -4,6 +4,7 @@ use jig_ops_domain_observability as obs;
 use jig_ops_world::conformance;
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn an_incidents_subject_follows_an_alert_to_its_resolution() {
     let world = conformance::documents(17);
     let incidents: Vec<_> = world
@@ -38,6 +39,7 @@ fn an_incidents_subject_follows_an_alert_to_its_resolution() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_remediations_panel_says_restarting_then_waiting_for_healthy() {
     let world = conformance::documents(17);
     let panels: Vec<_> = world

@@ -486,6 +486,9 @@ pub(super) fn answer(engine: &mut crate::Engine) {
     for _ in 0..engine.store.above.len() {
         let event = engine.store.above.pop().expect("store terminals");
         match event {
+            protocol::Event::Page { .. } | protocol::Event::PageRefused { .. } => {
+                unreachable!("a start's pages need a start-mode store")
+            }
             protocol::Event::Opened { installation, pending, .. } => {
                 engine.store.installation = installation;
                 engine.store.pending = pending;

@@ -438,6 +438,7 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
         crate::release(&mut domain, &env, &mut out);
         while let Some(request) = out.pop() {
             match request {
+                Request::Start { .. } => unreachable!("the start driver is not selected here"),
                 Request::Commit { .. } => panic!("stopping continuation must make zero new commits"),
                 Request::Deliver(Delivery::Core(core::Held::WatchEnded { watcher: got, why })) => {
                     assert_eq!((got, why), (watcher, jig_domain_views::End::Stopping));

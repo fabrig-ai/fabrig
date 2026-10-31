@@ -540,6 +540,18 @@ pub enum Event {
         bytes: u32,
         limit: u32,
     },
+    /// A start's page (store.md 7.1, 7.2): rows typed, an owner missing from the
+    /// map handed up as a link to make; `next` is none once the step's ranges are done.
+    Page {
+        owner: Token,
+        items: Box<[crate::restore::Item]>,
+        next: Option<Cursor>,
+    },
+    /// A start's page that could not be read: the request's terminal; the engine stops.
+    PageRefused {
+        owner: Token,
+        failure: crate::restore::Failure,
+    },
     /// A restore's page; `next` is none once the step's ranges are done.
     Restored {
         owner: Token,

@@ -603,6 +603,7 @@ impl Session {
     #[expect(clippy::too_many_lines, reason = "one exhaustive delivery translation for the joint client session")]
     fn held(&mut self, delivery: root::Delivery, now: Time, wall: Wall) -> Result<(), Invalid> {
         match delivery {
+            root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
             root::Delivery::Core(core::Held::Acted { .. }) | root::Delivery::ProjectMade { .. } => {}
             root::Delivery::Core(core::Held::PeopleReply { to, reply }) => {
                 let to = to.into_token();

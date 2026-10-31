@@ -5,6 +5,7 @@ impl World {
     pub(super) fn delivered(&mut self, mut delivery: root::Delivery) {
         self.observer.delivered(self.iteration * 1_000_000, &mut delivery);
         match delivery {
+            root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
             root::Delivery::Core(core::Held::Sources { channel, sources }) => {
                 assert!(sources.is_empty(), "walking worker source fixture");
                 self.events.push_back(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Logins {
