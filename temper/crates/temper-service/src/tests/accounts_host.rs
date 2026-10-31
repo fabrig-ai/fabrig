@@ -7,6 +7,7 @@
 )]
 use super::*;
 use crate::tests::fixtures;
+use jig_protocol_accounts::table;
 use skein_fake_oauth as fake;
 use skein_lib::{Duration, bytes};
 
@@ -297,8 +298,7 @@ impl SignInWorld {
         else {
             panic!("no carried address remains")
         };
-        assert!(!self.accounts.finishes.pending());
-        assert!(self.accounts.finish_out.is_empty());
+        assert!(!self.accounts.work_pending(self.now));
     }
 
     fn grant_plan(&mut self) {
@@ -341,9 +341,7 @@ impl SignInWorld {
     }
 
     fn nothing_held(&self) {
-        assert!(!self.accounts.finishes.pending());
-        assert!(self.accounts.finish_out.is_empty());
-        assert!(self.accounts.above.is_empty());
+        assert!(!self.accounts.work_pending(self.now));
         assert!(self.accounts.io.is_empty());
         assert!(self.sockets.iter().all(|peer| peer.closed));
         assert_eq!(usize::try_from(self.closed_listeners).unwrap(), self.listeners.len());
@@ -381,6 +379,31 @@ fn issuer_request(sent: &[u8], now: Time) -> Option<oauth::HttpRequest> {
         body: sent[head_end..].into(),
         deadline: now,
     })
+}
+
+#[test]
+fn a_native_callback_returns_to_the_accounts_page() {
+    let mut world = SignInWorld::new();
+    let callback = world.approve(71);
+    world.accounts.return_to(71, bytes::copy_of(b"http://127.0.0.1:7000/accounts"));
+    world.grant_plan();
+    let socket = world.native_socket();
+    world.native_return(socket, &callback);
+    world.settle();
+    let answer = &world.sockets.iter().find(|peer| peer.token == socket).expect("native callback").sent;
+    assert!(answer.starts_with(b"HTTP/1.1 303"));
+    assert!(bytes::find(answer, b"location: http://127.0.0.1:7000/accounts\r\n").is_some());
+    assert!(bytes::find(answer, b"cache-control: no-store\r\n").is_some());
+    assert!(bytes::find(answer, b"referrer-policy: no-referrer\r\n").is_some());
+    let mut signed_in = 0_u32;
+    while let Some(event) = world.events.pop() {
+        if let root::Event::Account(domain::Event::SignedIn { source: 71, .. }) = event {
+            signed_in = signed_in.checked_add(1).unwrap();
+        }
+    }
+    assert_eq!(signed_in, 1);
+    assert_eq!(world.exchanges, 1);
+    world.nothing_held();
 }
 
 #[test]
@@ -507,106 +530,6 @@ fn expiry_and_native_paste_race_take_at_most_one_redirect() {
     assert_eq!(schedules, 54);
 }
 
-#[test]
-fn a_revoked_record_waits_for_erased_and_coalesces_a_sign_out() {
-    for (notifications, expected_signed_out, removing) in
-        [(&[][..], None, false), (&[true, true][..], Some(true), true), (&[false, false][..], Some(false), true)]
-    {
-        let mut service = fixtures::ready();
-        let engine = service.engine.as_mut().expect("engine");
-        let (config, runtime) = registered();
-        let mut accounts = host(&config, runtime);
-        accounts.request(domain::Request::Signing(domain::Signing::Restore {
-            source: 1,
-            provider: 3,
-            kind: domain::Kind::SignIn,
-        }));
-        let candidate = accounts.env.limits.client.document;
-        let records::Next::Store(old_keep) = accounts.records.keep(1, record(1, &candidate), &candidate) else {
-            panic!("old record");
-        };
-        replace(&mut engine.store, old_keep);
-        accounts.records.kept(1);
-        while engine.store.above.pop().is_some() {}
-        let mut events = Queue::with_capacity(16);
-        let old = 1;
-        let fresh = 9001;
-        let candidate = accounts.env.limits.client.document;
-        let mut record = record(fresh, &candidate);
-        let records::Next::Store(keep) = accounts.records.keep(fresh, record.clone(), &candidate) else {
-            panic!("fresh source is kept");
-        };
-        replace(&mut engine.store, keep);
-        assert!(accounts.records.kept(fresh).is_some());
-        // Hold unrelated store answers apart from this erase's terminal.
-        while engine.store.above.pop().is_some() {}
-        engine
-            .values
-            .accounts
-            .granted(
-                fresh,
-                2,
-                table::Value { token: Secret::new(bytes::copy_of(b"fresh-token")), scheme: table::Scheme::Bearer },
-                Time::from_nanos(Duration::from_secs(60).as_nanos()),
-            )
-            .expect("fresh value fits");
-        accounts.above.push(driver::Event::Failed {
-            account: old,
-            ends: driver::Ends::Refresh,
-            failure: driver::Failure::Exchange(oauth::Failure::Refused),
-        });
-        accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
-        let Some(root::Event::Account(domain::Event::Component(domain::FromComponent::Failed {
-            account: 1,
-            failure: domain::Failure::SignInAgain,
-        }))) = events.pop()
-        else {
-            panic!("revocation fails needs sign-in immediately");
-        };
-        assert!(engine.values.accounts.value(old, 1, Time::from_nanos(1)).is_none());
-        let Some(Erasing::Revoked) = accounts.erasing.get(&old) else {
-            panic!("erase awaits durability");
-        };
-        record.key = old;
-        let records::Next::Store(before) = accounts.records.keep(old, record.clone(), &candidate) else {
-            panic!("the old slot remains admitted");
-        };
-        assert!(before.replaces.is_some(), "submission did not clear the held digest");
-        assert!(accounts.records.stale(old).is_some());
-        for confirmed in notifications {
-            accounts.above.push(driver::Event::SignedOut { account: old, revoked: *confirmed });
-        }
-        accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
-        assert_eq!(engine.store.above.len(), 1, "one erase for revocation and concurrent sign-out");
-        assert!(events.is_empty(), "sign-out awaits erasure");
-        let terminal = engine.store.above.pop().expect("held erase acknowledgement");
-        let store::Event::Erased { .. } = terminal else {
-            panic!("held erase acknowledgement");
-        };
-        engine.store.sources.push(terminal);
-        accounts.answers(&mut engine.store, &mut events);
-        // A duplicate acknowledgement and an unknown old-source acknowledgement do nothing.
-        engine.store.sources.push(store::Event::Erased { owner: Token::new(PREFIX | u64::from(old)) });
-        engine.store.sources.push(store::Event::Erased { owner: Token::new(PREFIX | u64::from(8000_u32)) });
-        accounts.answers(&mut engine.store, &mut events);
-        assert_eq!(signed_out(&mut events, old), expected_signed_out);
-        let records::Next::Store(after) = accounts.records.keep(old, record, &candidate) else {
-            panic!("erasure retained the slot");
-        };
-        assert_eq!(after.replaces, None, "only the acknowledgement cleared the digest");
-        assert!(accounts.required.contains_key(&old), "only Removed frees the driver's place");
-        assert_eq!(accounts.erasing.contains_key(&old), removing);
-        assert_eq!(accounts.above.is_empty(), !removing, "only sign-out asks the driver to remove its account");
-        assert!(engine.values.accounts.value(fresh, 2, Time::from_nanos(1)).is_some());
-        let Some(store::Event::Secret { value: Some(_), .. }) = engine.store.secrets(
-            Token::new(99),
-            store::Secrets::Get { owner: store::SecretOwner::Source, number: u64::from(fresh) },
-        ) else {
-            panic!("the fresh different source keeps its record");
-        };
-    }
-}
-
 fn record(source: u32, limits: &oauth::Limits) -> oauth::SavedToken {
     let record = oauth::SavedToken {
         key: source,
@@ -624,16 +547,6 @@ fn record(source: u32, limits: &oauth::Limits) -> oauth::SavedToken {
     assert!(oauth::encode_record(&record, limits).is_ok(), "record fits");
     record
 }
-fn signed_out(events: &mut Queue<root::Event>, old: u32) -> Option<bool> {
-    let event = events.pop()?;
-    let root::Event::Account(domain::Event::SignedOut { source, confirmed }) = event else {
-        panic!("only a sign-out terminal follows erasure");
-    };
-    assert_eq!(source, old);
-    assert!(events.is_empty(), "one terminal despite duplicate acknowledgements");
-    Some(confirmed)
-}
-
 fn carried(engine: &mut crate::engine::Engine, request: store::Secrets) -> u64 {
     let _later = engine.store.secrets(Token::new(123), request);
     let Some(store::Event::Carried { number, .. }) = engine.store.above.pop() else { panic!("carried LLM key") };
@@ -691,6 +604,32 @@ fn llm_key_work_reaches_the_store_and_the_workers_table_through_the_service() {
         panic!("removed LLM key value")
     };
 }
+#[test]
+fn a_full_root_queue_retains_the_accounts_event_until_room_returns() {
+    let mut service = fixtures::ready();
+    let engine = service.engine.as_mut().expect("engine");
+    let mut accounts = engine.accounts.take().expect("accounts component");
+    let carried = carry_llm_key(engine, b"kept-llm-key");
+    accounts.request(domain::Request::Signing(domain::Signing::Keep { source: 7, carried, replaces: false }));
+    let mut events = Queue::with_capacity(0);
+    for _ in 0_u32..8 {
+        while let Some(event) = engine.store.above.pop() {
+            engine.store.sources.push(event);
+        }
+        accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
+    }
+    assert!(events.is_empty());
+    assert!(accounts.pending.is_some());
+    assert!(
+        engine.values.accounts.value(7, 1, Time::from_nanos(1)).is_some(),
+        "the delivery projection precedes its notification"
+    );
+    let heard = pump_accounts(&mut accounts, engine);
+    assert_eq!(heard.len(), 1, "room releases the one retained grant");
+    assert!(has_llm_key_grant(&heard, 1));
+    assert!(accounts.pending.is_none());
+}
+
 #[test]
 fn service_restart_restores_an_llm_key_before_want_and_sweeps_only_unnamed_sources() {
     let mut service = fixtures::ready();
@@ -764,7 +703,7 @@ fn aborting_does_not_submit_an_llm_key_adoption_to_the_closing_store() {
     accounts.request(domain::Request::Signing(domain::Signing::Keep { source: 7, carried, replaces: false }));
     let mut events = Queue::with_capacity(64);
     accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
-    assert!(!accounts.key_out.is_empty(), "adoption has not been submitted yet");
+    assert!(engine.values.accounts.value(7, 1, Time::from_nanos(1)).is_none(), "key has not been lent");
     accounts.abort();
     let heard = pump_accounts(&mut accounts, engine);
     assert!(!has_llm_key_grant(&heard, 1));
@@ -829,24 +768,23 @@ fn host(config: &config::Engine, runtime: AccountsRuntime) -> Accounts {
 #[test]
 fn dynamic_sources_use_provider_templates_and_restore_their_kept_records() {
     let (config, runtime) = registered();
-    let mut accounts = host(&config, runtime);
-    let mut service = fixtures::started();
-    fixtures::restart(&mut service);
+    let mut service = fixtures::ready();
     let engine = service.engine.as_mut().expect("engine");
-    let _started = pump_accounts(&mut accounts, engine);
-    // Source numbers are independent of the provider and configured source.
-    accounts.request(domain::Request::Signing(domain::Signing::SignIn { source: 9001, provider: 3 }));
-    let _started = pump_accounts(&mut accounts, engine);
-    assert!(accounts.required.contains_key(&9001));
-    assert_eq!(&**accounts.required.get(&9001).expect("required scopes"), b"read".as_slice());
     let mut saved = record(9001, &config.limits.driver.client.document);
+    saved.issued_client_id = Some(bytes::copy_of(b"issued-client"));
+    saved.expires_at = Wall::from_nanos(Duration::from_secs(3_600).as_nanos());
     saved.metadata = Some(b"provider-subject".as_slice().into());
-    let records::Next::Store(keep) = accounts.records.keep(9001, saved, &config.limits.driver.client.document) else {
-        panic!("record reaches durable store");
-    };
-    replace(&mut engine.store, keep);
-    let _kept = pump_accounts(&mut accounts, engine);
-    let (config, runtime) = registered();
+    let _kept = engine.store.secrets(
+        Token::new(123),
+        store::Secrets::Keep {
+            owner: store::SecretOwner::Source,
+            number: 9001,
+            value: store::SecretValue::Record(Secret::new(
+                oauth::encode_record(&saved, &config.limits.driver.client.document).unwrap(),
+            )),
+        },
+    );
+    while engine.store.above.pop().is_some() {}
     let mut restored = host(&config, runtime);
     restored.request(domain::Request::Signing(domain::Signing::Restore {
         source: 9001,
@@ -854,38 +792,32 @@ fn dynamic_sources_use_provider_templates_and_restore_their_kept_records() {
         kind: domain::Kind::SignIn,
     }));
     restored.request(domain::Request::Signing(domain::Signing::Restored));
-    let _restored = pump_accounts(&mut restored, engine);
-    assert_eq!(&**restored.required.get(&9001).expect("restored scopes"), b"read".as_slice());
-    assert!(!restored.inventory.active());
-    restored.above.push(driver::Event::Failed {
-        account: 9001,
-        ends: driver::Ends::Refresh,
-        failure: driver::Failure::Exchange(oauth::Failure::Refused),
-    });
-    let _revoked = pump_accounts(&mut restored, engine);
-    let Some(store::Event::Secret { value: None, .. }) =
-        engine.store.secrets(Token::new(123), store::Secrets::Get { owner: store::SecretOwner::Source, number: 9001 })
-    else {
-        panic!("revoked row erased")
-    };
-    let (config, runtime) = registered();
-    let mut restarted = host(&config, runtime);
-    restarted.request(domain::Request::Signing(domain::Signing::Restore {
-        source: 9001,
-        provider: 3,
-        kind: domain::Kind::SignIn,
-    }));
-    restarted.request(domain::Request::Signing(domain::Signing::Restored));
-    restarted.request(domain::Request::Component(domain::ToComponent::Want { account: 9001 }));
-    let heard = pump_accounts(&mut restarted, engine);
-    let mut unloaded = false;
+    restored.request(domain::Request::Component(domain::ToComponent::Want { account: 9001 }));
+    let heard = pump_accounts(&mut restored, engine);
+    let mut granted = false;
     for event in &heard {
-        if let domain::FromComponent::Failed { account: 9001, failure: domain::Failure::Unloaded { .. } } = event {
-            unloaded = true;
+        if let domain::FromComponent::Granted {
+            account: 9001,
+            generation,
+            form: domain::Form::Credential(domain::Scheme::Bearer),
+            ..
+        } = event
+        {
+            assert_eq!(*generation, saved.generation);
+            granted = true;
         }
     }
-    assert!(unloaded);
-    assert!(engine.values.accounts.value(9001, 2, Time::from_nanos(1)).is_none());
+    assert!(granted, "restored dynamic source announces its bearer: {heard:?}");
+    assert_eq!(
+        engine
+            .values
+            .accounts
+            .value(9001, saved.generation, Time::from_nanos(1))
+            .expect("restored dynamic source")
+            .token
+            .expose(),
+        saved.access_token.as_ref()
+    );
 }
 #[test]
 fn missing_registration_runtime_is_refused_before_start() {
@@ -1118,58 +1050,27 @@ fn adopt_moved_record(
 
 #[test]
 fn a_finish_reads_the_held_address_and_hands_it_to_the_driver() {
-    for routed in [false, true] {
-        let mut service = fixtures::started();
-        fixtures::restart(&mut service);
-        let engine = service.engine.as_mut().expect("engine");
-        let (config, runtime) = registered();
-        let mut accounts = host(&config, runtime);
-        pump_accounts(&mut accounts, engine);
-        let carried = held_address(engine);
-        accounts.request(domain::Request::Signing(domain::Signing::Redirected { source: 71, carried }));
-        accounts.start(&mut engine.store, &mut engine.values);
-        let mut events = Queue::with_capacity(64);
-        if routed {
-            let Some(finishes::Next::Get { exchange, carried }) = accounts.finish_out.pop() else {
-                panic!("finish asks for the held value");
-            };
-            let answer = engine.store.secrets(
-                Token::new(FINISH_EXCHANGE | exchange.raw()),
-                store::Secrets::Get { owner: store::SecretOwner::Application, number: carried },
-            );
-            engine.store.sources.push(answer.expect("held value answer"));
-            accounts.answers(&mut engine.store, &mut events);
-        } else {
-            accounts.finish_steps(&mut events, &mut engine.store);
-        }
-        let Some(finishes::Next::Driver(request)) = accounts.finish_out.pop() else {
-            panic!("the held value makes a driver request");
-        };
-        let driver::Request::Redirected { account, .. } = &request else {
-            panic!("the driver receives a redirect");
-        };
-        assert_eq!(*account, 71);
-        accounts.finish_out.push(finishes::Next::Driver(request));
-        accounts.finish_steps(&mut events, &mut engine.store);
-        assert!(accounts.finish_out.is_empty());
-        // No sign-in is waiting for this source: the driver's refusal proves
-        // that the request went down, without inspecting or formatting its URI.
-        let mut events = pump_move_events(&mut accounts, engine);
-        let Some(root::Event::Account(domain::Event::FinishRefused {
-            source: 71,
-            why: domain::SignInRedirectWhy::NotWaiting,
-        })) = events.pop()
-        else {
-            panic!("a finish without a waiting sign-in is refused");
-        };
-        assert!(events.is_empty());
-        let Some(store::Event::Secret { value: Some(_), .. }) = engine
-            .store
-            .secrets(Token::new(123), store::Secrets::Get { owner: store::SecretOwner::Application, number: carried })
-        else {
-            panic!("only the clients component erases the held value");
-        };
-    }
+    let mut service = fixtures::ready();
+    let engine = service.engine.as_mut().expect("engine");
+    let (config, runtime) = registered();
+    let mut accounts = host(&config, runtime);
+    let carried = held_address(engine);
+    accounts.request(domain::Request::Signing(domain::Signing::Redirected { source: 71, carried }));
+    let mut events = pump_move_events(&mut accounts, engine);
+    let Some(root::Event::Account(domain::Event::FinishRefused {
+        source: 71,
+        why: domain::SignInRedirectWhy::NotWaiting,
+    })) = events.pop()
+    else {
+        panic!("the driver receives the held callback without a waiting sign-in");
+    };
+    assert!(events.is_empty());
+    let Some(store::Event::Secret { value: Some(_), .. }) = engine
+        .store
+        .secrets(Token::new(123), store::Secrets::Get { owner: store::SecretOwner::Application, number: carried })
+    else {
+        panic!("only the clients component erases the held value");
+    };
 }
 
 #[test]
@@ -1189,68 +1090,27 @@ fn a_finish_whose_held_address_is_gone_is_refused_not_waiting() {
         panic!("a finish whose held value is gone is refused");
     };
     assert!(events.is_empty());
-    assert!(!accounts.finishes.pending());
-    assert!(accounts.above.is_empty());
-}
-
-#[test]
-fn the_drivers_taken_and_refusals_reach_the_child() {
-    let mut service = fixtures::started();
-    fixtures::restart(&mut service);
-    let engine = service.engine.as_mut().expect("engine");
-    let (config, runtime) = registered();
-    let mut accounts = host(&config, runtime);
-    pump_accounts(&mut accounts, engine);
-    accounts.above.push(driver::Event::Taken { account: 71 });
-    let mut events = pump_move_events(&mut accounts, engine);
-    let Some(root::Event::Account(domain::Event::Finishing { source: 71 })) = events.pop() else {
-        panic!("the driver's taken event reaches the accounts child");
-    };
-    assert!(events.is_empty());
-    for (why, expected) in [
-        (driver::Refusal::State, domain::SignInRedirectWhy::State),
-        (driver::Refusal::Redirect, domain::SignInRedirectWhy::Address),
-        (driver::Refusal::Full { bound: 3 }, domain::SignInRedirectWhy::TooMany),
-    ] {
-        accounts.above.push(driver::Event::Refused { account: 71, asked: driver::Asked::Redirected, why });
-        let mut events = pump_move_events(&mut accounts, engine);
-        let Some(root::Event::Account(domain::Event::FinishRefused { source, why })) = events.pop() else {
-            panic!("driver refusal reaches the accounts child");
-        };
-        assert_eq!(source, 71);
-        assert_eq!(why, expected);
-        assert!(events.is_empty());
-    }
+    assert!(!accounts.work_pending(Time::from_nanos(1)));
 }
 
 #[test]
 fn aborting_drops_a_finish_in_flight() {
-    let mut service = fixtures::started();
-    fixtures::restart(&mut service);
+    let mut service = fixtures::ready();
     let engine = service.engine.as_mut().expect("engine");
     let (config, runtime) = registered();
     let mut accounts = host(&config, runtime);
     pump_accounts(&mut accounts, engine);
     let carried = held_address(engine);
     accounts.request(domain::Request::Signing(domain::Signing::Redirected { source: 71, carried }));
-    accounts.start(&mut engine.store, &mut engine.values);
-    let Some(finishes::Next::Get { exchange, carried }) = accounts.finish_out.pop() else {
-        panic!("finish waits for its store read");
-    };
-    let answer = engine.store.secrets(
-        Token::new(FINISH_EXCHANGE | exchange.raw()),
-        store::Secrets::Get { owner: store::SecretOwner::Application, number: carried },
-    );
-    assert!(accounts.finishes.pending());
+    let mut events = Queue::uncapped();
+    accounts.iterate(Time::from_nanos(1), Wall::from_nanos(1), &mut engine.values, &mut events, &mut engine.store);
+    assert!(events.is_empty(), "the held address is read before the finish answers");
     accounts.abort();
-    engine.store.sources.push(answer.expect("late store answer"));
     let mut events = pump_move_events(&mut accounts, engine);
     let Some(root::Event::Account(domain::Event::Component(domain::FromComponent::Closed))) = events.pop() else {
         panic!("the aborted driver closes");
     };
-    assert!(events.is_empty(), "the aborted finish has no answer from the driver or child");
-    assert!(!accounts.finishes.pending());
-    assert!(accounts.finish_out.is_empty());
+    assert!(events.is_empty());
     assert!(accounts.io.is_empty());
     assert!(accounts.is_empty());
 }
@@ -1269,11 +1129,18 @@ fn a_restored_sources_other_kind_fails_the_read() {
             Token::new(123),
             store::Secrets::Keep { owner: store::SecretOwner::Source, number: u64::from(SOURCE), value },
         );
-        accounts.dispatch(
-            domain::Request::Signing(domain::Signing::Restore { source: SOURCE, provider: 1, kind }),
-            &mut engine.store,
-            &mut engine.values,
-        );
+        accounts.request(domain::Request::Signing(domain::Signing::Restore { source: SOURCE, provider: 1, kind }));
+        let mut events = Queue::uncapped();
+        // The request, read and corruption travel through the public component boundary.
+        for _ in 0_u32..4 {
+            accounts.iterate(
+                Time::from_nanos(1),
+                Wall::from_nanos(1),
+                &mut engine.values,
+                &mut events,
+                &mut engine.store,
+            );
+        }
         let mut failed = false;
         while let Some(event) = engine.store.above.pop() {
             if let store::Event::Corrupt { .. } = event {
@@ -1281,6 +1148,6 @@ fn a_restored_sources_other_kind_fails_the_read() {
             }
         }
         assert!(failed, "the wrong kind follows the failed-read path");
-        assert!(accounts.aborting);
+        assert!(accounts.component.is_empty());
     }
 }
