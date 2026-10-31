@@ -23,6 +23,9 @@ enum Phase {
     BoxClose { forge: u16, fd: Fd, error: Option<Error> },
     Create { forge: u16 },
     Close { forge: u16, fd: Fd },
+    RemoveOpen { forge: u16, groups: bool },
+    Remove { forge: u16, groups: bool, dir: Fd },
+    RemoveClose { forge: u16, groups: bool, dir: Fd, error: Option<Error> },
 }
 #[derive(Debug)]
 pub(crate) struct Records {
@@ -78,6 +81,10 @@ impl Records {
         assert!(self.ready(), "one group records at a time");
         self.phase = Phase::Box { forge };
     }
+    pub fn remove(&mut self, forge: u16) {
+        assert!(self.ready(), "one record operation");
+        self.phase = Phase::RemoveOpen { forge, groups: false };
+    }
     pub fn owns(op: Token) -> bool {
         [PROBE_OPEN, PROBE_CLOSE, MAKE_BOX, MAKE_STARTED, CREATE, RECORD_CLOSE, BOX_OPEN, BOX_CLOSE].contains(&op)
     }
@@ -107,6 +114,19 @@ impl Records {
                 (CREATE, Op::Open { root, path: path(forge), how: OpenHow::Create { mode: Some(0o600) } })
             }
             Phase::Close { fd, .. } => (RECORD_CLOSE, Op::Close { fd }),
+            Phase::RemoveOpen { groups, .. } => (
+                BOX_OPEN,
+                Op::Open {
+                    root,
+                    path: bytes::copy_of(if groups { b"box/groups" } else { b"box/started" }),
+                    how: OpenHow::Directory,
+                },
+            ),
+            Phase::Remove { forge, dir, .. } => (
+                CREATE,
+                Op::Remove { dir, name: bytes::copy_of(Decimal::of(u64::from(forge)).as_bytes()), directory: false },
+            ),
+            Phase::RemoveClose { dir, .. } => (BOX_CLOSE, Op::Close { fd: dir }),
         };
         subs.push(Submit { op, kind });
         self.waiting = true;
@@ -175,8 +195,40 @@ impl Records {
                 Err(error) => self.failed(forge, b"close", error),
                 Ok(_) => unreachable!("close completion shape"),
             },
+            Phase::RemoveOpen { forge, groups } => match complete.result {
+                Ok(Done::Fd(dir)) => self.phase = Phase::Remove { forge, groups, dir },
+                Err(Error::NotFound) => self.removed(forge, groups),
+                Err(error) => self.remove_failed(forge, groups, error),
+                Ok(_) => unreachable!("directory completion"),
+            },
+            Phase::Remove { forge, groups, dir } => {
+                let error = match complete.result {
+                    Ok(Done::Nothing) | Err(Error::NotFound) => None,
+                    Err(error) => Some(error),
+                    Ok(_) => unreachable!("remove completion"),
+                };
+                self.phase = Phase::RemoveClose { forge, groups, dir, error };
+            }
+            Phase::RemoveClose { forge, groups, error, .. } => match error.or(complete.result.err()) {
+                Some(error) => self.remove_failed(forge, groups, error),
+                None => self.removed(forge, groups),
+            },
             Phase::Idle => unreachable!("no record operation while idle"),
         }
+    }
+    fn removed(&mut self, forge: u16, groups: bool) {
+        if groups {
+            self.phase = Phase::Idle;
+            self.answer = Some(Input::Unrecorded { forge });
+        } else {
+            self.phase = Phase::RemoveOpen { forge, groups: true };
+        }
+    }
+    fn remove_failed(&mut self, forge: u16, groups: bool, error: Error) {
+        let path = if groups { temper_forge_setup::group::path(forge) } else { path(forge) };
+        self.notice = Some(joined(&[b"box: remove ", &path, b": ", &error_name(error), b"\n"]));
+        self.phase = Phase::Idle;
+        self.answer = Some(Input::NotUnrecorded { forge });
     }
     fn written(&mut self, forge: u16) {
         self.phase = Phase::Idle;
@@ -192,6 +244,9 @@ fn path(forge: u16) -> Box<[u8]> {
     joined(&[b"box/started/", Decimal::of(u64::from(forge)).as_bytes()])
 }
 fn diagnostic(forge: u16, operation: &[u8], error: Error) -> Box<[u8]> {
+    joined(&[b"box: ", operation, b" ", &path(forge), b": ", &error_name(error), b"\n"])
+}
+pub(crate) fn error_name(error: Error) -> Box<[u8]> {
     let why: &[u8] = match error {
         Error::Permission => b"permission denied",
         Error::NotFound => b"not found",
@@ -221,16 +276,11 @@ fn diagnostic(forge: u16, operation: &[u8], error: Error) -> Box<[u8]> {
         | Error::TooLate => b"unexpected file error",
         Error::Other(code) => {
             return joined(&[
-                b"box: ",
-                operation,
-                b" ",
-                &path(forge),
-                b": error ",
+                b"error ",
                 if code < 0 { b"-" } else { b"" },
                 Decimal::of(u64::from(code.unsigned_abs())).as_bytes(),
-                b"\n",
             ]);
         }
     };
-    joined(&[b"box: ", operation, b" ", &path(forge), b": ", why, b"\n"])
+    bytes::copy_of(why)
 }

@@ -5,6 +5,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_io::kernel::Exit;
 use skein_lib::{Duration, List, Queue, Time, bytes};
+use temper_forge_setup::group;
 use temper_forge_setup::{Kind, Step};
 pub const PREPARE: usize = 0;
 pub const FORGEJO: usize = 1;
@@ -124,6 +125,7 @@ fn command(name: &[u8], arguments: &[&[u8]], kind: Kind) -> Step {
 pub struct Launch {
     pub name: Box<[u8]>,
     pub environment: Box<[Box<[u8]>]>,
+    pub arguments: Box<[Box<[u8]>]>,
     pub pipes: Box<[skein_io::kernel::Pipe]>,
     pub at: Time,
 }
@@ -133,6 +135,7 @@ pub struct Hosted {
     pub stdio: [Option<Fd>; 3],
     pub parent_pipes: Box<[Fd]>,
     pub pid: Pid,
+    pub pidfd: Fd,
     pub descriptors: Box<[Fd]>,
     pub listeners: Box<[Fd]>,
     pub closed: bool,
@@ -160,6 +163,8 @@ pub struct Harness {
     pub calls: Queue<Call>,
     pub answers: Queue<Answer>,
     pub stubborn: bool,
+    pub removal_exit: u8,
+    pub refuse_remove_after: Option<u32>,
     pub hosted: List<Hosted>,
     pub pending: List<Token>,
     pub control_fds: List<Fd>,
@@ -212,6 +217,36 @@ impl Harness {
         limits: &limits::Limits,
         echo: crate::host::Echo,
     ) -> Self {
+        let temper_forge_setup::Steps { always, asked } = steps;
+        let mut groups = List::with_capacity(u32::try_from(asked.len()).unwrap());
+        for group in asked {
+            groups.push(group::Built { group, remove: once(b"remove", &[b"exit", b"0"]) }).unwrap();
+        }
+        let slots = if groups.is_empty() { 0 } else { 4 };
+        Self::with_groups(
+            temper_forge_setup::Steps { always, asked: Box::new([]) },
+            groups.into_boxed(),
+            slots,
+            items,
+            stubborn,
+            buffer,
+            limits,
+            echo,
+            &[],
+        )
+    }
+    #[expect(clippy::too_many_arguments, reason = "fixture exposes independent host boundary inputs")]
+    pub fn with_groups(
+        steps: temper_forge_setup::Steps,
+        groups: Box<[group::Built]>,
+        slots: u32,
+        items: &[skein_fake_machine::Item],
+        stubborn: bool,
+        buffer: u32,
+        limits: &limits::Limits,
+        echo: crate::host::Echo,
+        ports: &[core::net::SocketAddr],
+    ) -> Self {
         let mut config = Config::calm();
         config.buffer = buffer;
         let mut sim = Sim::new(0x12_02, config);
@@ -226,12 +261,23 @@ impl Harness {
         for step in &steps.always {
             open_step_listeners(&mut sim, pid, step, &mut listeners);
         }
-        for group in &steps.asked {
-            for (_, step) in &group.steps {
+        for built in &groups {
+            for (_, step) in &built.group.steps {
                 open_step_listeners(&mut sim, pid, step, &mut listeners);
             }
         }
+        for address in ports {
+            let mut held = false;
+            for (_, port) in &listeners {
+                held |= port == address;
+            }
+            if !held {
+                listeners.push((open_listener(&mut sim, pid, *address), *address)).unwrap();
+            }
+        }
         let settings = Settings {
+            groups: group_machine(),
+            slots,
             echo,
             data: bytes::copy_of(b"/data"),
             program: bytes::copy_of(b"process_fixture"),
@@ -248,7 +294,7 @@ impl Harness {
             stdout,
             stderr,
         };
-        let service = Service::new(limits, steps, settings).expect("valid limits");
+        let service = Service::new(limits, steps, groups, settings).expect("valid limits");
         // Retaining completions cannot exceed the host's operation bound.
         let ending_operations = service.operations();
         Self {
@@ -263,6 +309,8 @@ impl Harness {
             calls: Queue::with_capacity(64),
             answers: Queue::with_capacity(64),
             stubborn,
+            removal_exit: 0,
+            refuse_remove_after: None,
             hosted: List::with_capacity(64),
             pending: List::with_capacity(64),
             control_fds: List::with_capacity(64),
@@ -288,13 +336,17 @@ impl Harness {
             if let Ask::Spawn { args, env, pipes, .. } = &call.ask {
                 self.launches
                     .push(Launch {
-                        name: args.last().expect("step name last").clone(),
+                        name: spawn_name(args),
+                        arguments: args.clone(),
                         environment: env.clone(),
                         pipes: pipes.clone(),
                         at: self.sim.now(),
                     })
                     .expect("bounded launches");
-                if self.stubborn && args.first().expect("program").as_ref() == b"never" {
+                if self.stubborn
+                    && (args.first().expect("program").as_ref() == b"never"
+                        || args.first().expect("program").as_ref() == b"fake")
+                {
                     let (_, token, _) = self.sim.hosted_spawn(call.ticket);
                     self.pending.push(token).expect("bounded hosted launches");
                 }
@@ -329,7 +381,34 @@ impl Harness {
             return;
         }
 
-        skein_fake_machine::step(&mut self.machine, call, &mut self.answers);
+        if let Ask::Remove { .. } = &call.ask
+            && let Some(after) = &mut self.refuse_remove_after
+        {
+            if *after == 0 {
+                self.refuse_remove_after = None;
+                self.answers.push(Answer { ticket: call.ticket, result: Err(skein_io::kernel::Error::Permission) });
+                self.sim.answer(&mut self.answers);
+                return;
+            }
+            *after = after.checked_sub(1).unwrap();
+        }
+        if let Ask::Spawn { args, .. } = &call.ask
+            && let Some(word) = args.first()
+            && (word.as_ref() == b"forge" || word.as_ref() == b"fake")
+        {
+            let program = if word.as_ref() == b"fake" {
+                Program::Service
+            } else {
+                Program::Exit(if args.get(1).expect("group verb").as_ref() == b"remove" {
+                    self.removal_exit
+                } else {
+                    0
+                })
+            };
+            self.answers.push(Answer { ticket: call.ticket, result: Ok(Reply::Program(program)) });
+        } else {
+            skein_fake_machine::step(&mut self.machine, call, &mut self.answers);
+        }
         if self.stubborn {
             let mut answer = self.answers.pop().expect("one answer");
             if let Ok(Reply::Program(Program::Never)) = &answer.result {
@@ -355,7 +434,7 @@ impl Harness {
                 }
                 let control = n.checked_add(3).unwrap();
                 let answer = control.checked_add(1).unwrap();
-                let serve = spawn.args.last().unwrap().as_ref() == b"serve";
+                let serve = spawn_name(&spawn.args).as_ref() == b"serve";
                 let mut descriptors =
                     List::with_capacity(u32::try_from(inherited.len()).unwrap().checked_add(1).unwrap());
                 let mut listeners = List::with_capacity(n);
@@ -392,10 +471,11 @@ impl Harness {
                 let Op::Spawn { spawn } = &complete.kind else { panic!("hosted spawn") };
                 self.hosted
                     .push(Hosted {
-                        name: spawn.args.last().unwrap().clone(),
+                        name: spawn_name(&spawn.args),
                         stdio,
                         parent_pipes: parent_pipes.into_boxed(),
                         pid,
+                        pidfd,
                         descriptors: descriptors.into_boxed(),
                         listeners: listeners.into_boxed(),
                         closed: false,
@@ -682,6 +762,14 @@ impl Harness {
     pub fn terminate(&mut self) {
         self.sim.deliver_service_signal(self.pid, self.signals, ServiceSignal::Terminate, None);
     }
+    pub fn launch(&self, name: &[u8]) -> &Launch {
+        for launch in &self.launches {
+            if launch.name.as_ref() == name {
+                return launch;
+            }
+        }
+        panic!("named launch");
+    }
     pub fn spawn_times(&self, name: &[u8]) -> Box<[Time]> {
         let mut times = List::with_capacity(128);
         for launch in &self.launches {
@@ -829,4 +917,57 @@ pub fn grouped_steps() -> temper_forge_setup::Steps {
             ]),
         }]),
     }
+}
+
+/// The group builder's paths and setup limits for the simulated data root.
+pub fn group_machine() -> group::Machine {
+    group::Machine {
+        flags: Box::new([
+            bytes::copy_of(b"--config"),
+            bytes::copy_of(b"/config"),
+            bytes::copy_of(b"--data"),
+            bytes::copy_of(b"/data"),
+            bytes::copy_of(b"--cache"),
+            bytes::copy_of(b"/cache"),
+        ]),
+        directories: jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap(),
+        limits: skein_forge_setup::limits::Limits {
+            orgs: 8,
+            repositories: 8,
+            reachable: 64,
+            files: 64,
+            file_bytes: 65536,
+            deadline: Duration::from_secs(60),
+            backoff: Duration::from_millis(10),
+            backoff_max: Duration::from_secs(1),
+        },
+        llm: None,
+        forgejo_listens: true,
+    }
+}
+
+fn spawn_name(args: &[Box<[u8]>]) -> Box<[u8]> {
+    if let Some(first) = args.first() {
+        if first.as_ref() == b"forge" {
+            return crate::lines::joined(&[args.get(1).unwrap(), b" ", args.last().unwrap()]);
+        }
+        if first.as_ref() == b"fake" {
+            return crate::lines::joined(&[b"fake ", args.get(1).unwrap(), b" ", args.last().unwrap()]);
+        }
+    }
+    args.last().unwrap().clone()
+}
+
+pub const GROUP_PORT: core::net::SocketAddr =
+    core::net::SocketAddr::V4(core::net::SocketAddrV4::new(core::net::Ipv4Addr::LOCALHOST, 8369));
+pub fn group_bytes(forge: u16) -> Box<[u8]> {
+    let setup = br#"{"directory":"demo/forge","bot":{"login":"temper","email":"temper@localhost"},"mode":{"fake":{"listen":{"socket":"127.0.0.1:8369"},"git":"demo/bin/git","owner":"playground","repositories":[{"name":"widget","landing":"main"}]}}}"#;
+    group::compose(setup, forge, false).unwrap()
+}
+pub fn group_file(forge: u16) -> skein_fake_machine::Item {
+    skein_fake_machine::Item::file(&group::path(forge), &group_bytes(forge)).mode(0o600)
+}
+pub fn built_group(forge: u16) -> group::Built {
+    let file = group::read(&group_bytes(forge), forge, &group_machine()).unwrap();
+    group::build(&file, &group_machine()).unwrap()
 }

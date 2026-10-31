@@ -165,8 +165,8 @@ pub fn why(why: Why, steps: &[Placed]) -> Box<[u8]> {
 /// fit 128 extra bytes. Sum independent label/name maxima conservatively.
 #[must_use]
 pub fn max_bytes(steps: &[Placed]) -> u32 {
-    let mut label = 0_u32;
-    let mut name = 0_u32;
+    let mut label = temper_forge_setup::group::LABEL_BYTES;
+    let mut name = temper_forge_setup::group::NAME_BYTES;
     let mut notice = 0_u32;
     for placed in steps {
         name = name.max(u32::try_from(placed.step.name().len()).expect("bounded step name"));
@@ -289,7 +289,7 @@ pub(crate) fn tail_step(fact: Fact) -> Option<usize> {
     }
 }
 pub(crate) fn failure_bytes(steps: &[Placed], data: &[u8]) -> u32 {
-    let mut name = 0_u32;
+    let mut name = temper_forge_setup::group::NAME_BYTES;
     for step in steps {
         name = name.max(u32::try_from(step.step.name().len()).expect("step name"));
     }
