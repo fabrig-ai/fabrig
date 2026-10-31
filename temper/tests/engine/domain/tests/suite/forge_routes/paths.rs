@@ -86,6 +86,7 @@ fn task_line(world: &mut World, project: u32, task: u64) -> Option<documents::Ta
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_change_on_the_forges_deepest_branch_is_listed_in_a_task_query() {
     for &(source, lines) in LINES {
         let (mut world, _chat, producer, _branch) = change_world_with_lines(lines);
@@ -95,6 +96,7 @@ fn a_change_on_the_forges_deepest_branch_is_listed_in_a_task_query() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_change_on_the_forges_deepest_branch_is_served_in_its_task_document() {
     for &(source, lines) in LINES {
         let (mut world, _chat, producer, _branch) = change_world_with_lines(lines);
