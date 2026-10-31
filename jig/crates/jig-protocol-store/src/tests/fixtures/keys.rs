@@ -30,7 +30,7 @@ pub fn own(rng: &mut Rng) -> Own {
     }
 }
 pub fn core_key(rng: &mut Rng) -> CoreKey {
-    match rng.below(8) {
+    match rng.below(10) {
         0 => CoreKey::Deployment,
         1 => CoreKey::Projection(match rng.below(4) {
             0 => ProjectionKey::Goal(number(rng)),
@@ -54,7 +54,9 @@ pub fn core_key(rng: &mut Rng) -> CoreKey {
             },
             proposal: number(rng),
         },
-        _ => CoreKey::EscalationDecision { task: number(rng), revision: number(rng) },
+        7 => CoreKey::EscalationDecision { task: number(rng), revision: number(rng) },
+        8 => CoreKey::Settings(core::settings::Key::Extent),
+        _ => CoreKey::Removal(narrow(rng)),
     }
 }
 pub fn people_key(rng: &mut Rng) -> people::Key {

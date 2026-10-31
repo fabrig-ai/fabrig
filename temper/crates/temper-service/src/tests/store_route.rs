@@ -328,7 +328,7 @@ fn people_and_task_continuations_cross_into_jigs_later_interval() {
         (
             engine::CoreRange::Tasks,
             [core::Key::Tasks(Tasks::Live(1)), core::Key::Tasks(Tasks::PlacedHold(1))],
-            [1, 2], // Core's interval, then live tasks, then placed holds (tag 21).
+            [2, 3], // Core's two intervals, then live tasks, then placed holds (tag 21).
         ),
     ] {
         let mut routes = fixtures::routes();
@@ -386,7 +386,7 @@ fn a_task_page_keeps_projections_then_live_tasks_and_drops_calls() {
     else {
         panic!("task continuation")
     };
-    assert_eq!(cursor.interval, 1);
+    assert_eq!(cursor.interval, 2);
 }
 
 #[test]

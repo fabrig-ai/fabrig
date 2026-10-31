@@ -10,6 +10,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{List, Reader, Wall, Writer};
 mod calls;
 mod projections;
+mod removal;
 mod runs;
 /// Family bounds used by the core and its carried task and note values.
 #[derive(Clone, Copy, Debug)]
@@ -54,6 +55,7 @@ pub fn limits(domain: &domain::Limits) -> Option<Limits> {
 }
 pub fn encode(row: &domain::CoreRecord, limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
     let value = match row {
+        domain::CoreRecord::Removal(row) => wire::Value::Removal(removal::encode(row, limits)?),
         domain::CoreRecord::Call(call) => wire::Value::Call(calls::encode_call_record(call, limits)?),
         domain::CoreRecord::Settings(_) => {
             return Err(wire::Problem { path: wire::Path::ValueTag, reason: skein_codec::Reason::Bound });
@@ -81,6 +83,7 @@ pub fn encode(row: &domain::CoreRecord, limits: &Limits) -> Result<Box<[u8]>, wi
 pub fn decode(bytes: &[u8], limits: &Limits) -> Result<domain::CoreRecord, wire::Problem> {
     let wire::RowParts { value } = wire::Row::decode(&limits.core, &mut Reader::new(bytes))?.into_parts();
     Ok(match value {
+        wire::Value::Removal(row) => domain::CoreRecord::Removal(removal::decode(row)),
         wire::Value::Call(value) => domain::CoreRecord::Call(calls::decode_call_record(value, limits)?),
         wire::Value::Deployment(value) => domain::CoreRecord::Deployment(runs::decode_deployment(value, limits)),
         wire::Value::Projection(value) => {

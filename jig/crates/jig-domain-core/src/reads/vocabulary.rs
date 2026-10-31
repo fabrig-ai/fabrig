@@ -564,7 +564,9 @@ pub(crate) fn record_bytes(value: &Record) -> Option<u64> {
         Record::Core(CoreRecord::Settings(crate::settings::Record::Proposal { value, .. })) => {
             super::owned::proposal(value)?
         }
-        Record::Core(CoreRecord::Settings(_) | CoreRecord::Deployment(_) | CoreRecord::Projection(_))
+        Record::Core(
+            CoreRecord::Settings(_) | CoreRecord::Deployment(_) | CoreRecord::Removal(_) | CoreRecord::Projection(_),
+        )
         | Record::People(_)
         | Record::Notes(notes::Record::Line(_))
         | Record::Accounts(_) => return None,

@@ -123,5 +123,8 @@ record Created { first: u64 last: u64 }
 record ProposalDecisionRecord { project: u32 proposer: Proposer proposal: u64 kind: ProposalKind by: u64 at: u64 choice: ProposalChoice created: option Created }
 record EscalationDecisionRecord { project: u32 requester: u64 task: u64 revision: u64 by: u64 at: u64 decision: EscalationDecision }
 record ProjectionValue { value: ProjectionRecord }
-enum Value { call: CallRecord, deployment: Deployment, projection: ProjectionValue, run_proof: RunProof, turn: TurnRecord, terminal: TerminalRecord, proposal_decision: ProposalDecisionRecord, escalation_decision: EscalationDecisionRecord }
+record RemovalErasing { after: option u64 }
+enum RemovalStage { ending, erasing: RemovalErasing, notes, rows }
+record ProjectRemoval { project: u32 stage: RemovalStage }
+enum Value { call: CallRecord, deployment: Deployment, projection: ProjectionValue, run_proof: RunProof, turn: TurnRecord, terminal: TerminalRecord, proposal_decision: ProposalDecisionRecord, escalation_decision: EscalationDecisionRecord, removal: ProjectRemoval }
 versioned record Row { value: Value }

@@ -298,6 +298,7 @@ pub fn row_key(row: &Row) -> Option<Position> {
         Record::Core(
             CoreRecord::Settings(_)
             | CoreRecord::Deployment(_)
+            | CoreRecord::Removal(_)
             | CoreRecord::RunProof(_)
             | CoreRecord::Call(_)
             | CoreRecord::Projection(_),
@@ -1295,6 +1296,7 @@ fn proposal_decision(record: &Record) -> Option<&crate::ProposalDecisionRecord> 
             CoreRecord::Settings(_)
             | CoreRecord::Deployment(_)
             | CoreRecord::Projection(_)
+            | CoreRecord::Removal(_)
             | CoreRecord::RunProof(_)
             | CoreRecord::Call(_)
             | CoreRecord::Terminal(_)
@@ -1376,6 +1378,7 @@ fn escalation(record: &Record) -> Option<&crate::EscalationDecisionRecord> {
             | CoreRecord::Settings(_)
             | CoreRecord::Deployment(_)
             | CoreRecord::Call(_)
+            | CoreRecord::Removal(_)
             | CoreRecord::RunProof(_)
             | CoreRecord::Turn(_)
             | CoreRecord::Terminal(_)
@@ -1396,6 +1399,7 @@ fn turn_record(record: &Record) -> Option<&crate::TurnRecord> {
             | CoreRecord::Settings(_)
             | CoreRecord::Deployment(_)
             | CoreRecord::Call(_)
+            | CoreRecord::Removal(_)
             | CoreRecord::RunProof(_)
             | CoreRecord::Terminal(_)
             | CoreRecord::ProposalDecision(_)
@@ -1587,6 +1591,7 @@ fn key_kind(key: &Key) -> KeyKind {
             CoreKey::Settings(_)
             | CoreKey::Projection(_)
             | CoreKey::Deployment
+            | CoreKey::Removal(_)
             | CoreKey::RunProof(_)
             | CoreKey::Call(_)
             | CoreKey::Terminal { .. }
@@ -1694,6 +1699,7 @@ fn terminal_record(record: &Record) -> Option<&crate::TerminalRecord> {
         Record::Core(
             CoreRecord::Settings(_)
             | CoreRecord::Deployment(_)
+            | CoreRecord::Removal(_)
             | CoreRecord::RunProof(_)
             | CoreRecord::Call(_)
             | CoreRecord::Projection(_)

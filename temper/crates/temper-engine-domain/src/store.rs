@@ -613,7 +613,9 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
             })
         }
         Record::Core(jig_domain_core::Record::Core(
-            jig_domain_core::CoreRecord::ProposalDecision(_) | jig_domain_core::CoreRecord::Deployment(_),
+            jig_domain_core::CoreRecord::ProposalDecision(_)
+            | jig_domain_core::CoreRecord::Deployment(_)
+            | jig_domain_core::CoreRecord::Removal(_),
         )) => Some(0),
         Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) => {
             u64::try_from(turn.transcript.len()).ok()
@@ -846,6 +848,7 @@ pub(crate) fn owned_bytes(write: &Write) -> Option<u64> {
                     | jig_domain_core::CoreKey::EscalationDecision { .. }
                     | jig_domain_core::CoreKey::ProposalDecision { .. }
                     | jig_domain_core::CoreKey::Turn { .. }
+                    | jig_domain_core::CoreKey::Removal(_)
                     | jig_domain_core::CoreKey::RunProof(..)
                     | jig_domain_core::CoreKey::Terminal { .. }
                     | jig_domain_core::CoreKey::Projection(_),

@@ -620,6 +620,10 @@ fn take_key(r: &mut Reader<'_>) -> Option<Key> {
 
 fn put_core_key(w: &mut Writer, value: &CoreKey) -> Option<()> {
     match value {
+        CoreKey::Removal(project) => {
+            w.byte(10)?;
+            w.u32(*project)?;
+        }
         CoreKey::Settings(_) => return None,
         CoreKey::Projection(value) => {
             w.byte(1)?;
@@ -663,6 +667,7 @@ fn put_core_key(w: &mut Writer, value: &CoreKey) -> Option<()> {
 fn take_core_key(r: &mut Reader<'_>) -> Option<CoreKey> {
     Some(match r.byte()? {
         0 => CoreKey::Deployment,
+        10 => CoreKey::Removal(r.u32()?),
         1 => CoreKey::Projection(take_projection_key(r)?),
         2 => CoreKey::RunProof(r.u64()?),
         3 => CoreKey::Call(take_call_key(r)?),
