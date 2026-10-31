@@ -340,9 +340,7 @@ fn note_line(note: temper_service::Note) -> String {
         temper_service::Note::ForgeNotConnected { number, why } => {
             format!("temper serve: forge {number}: not connected: {why}\n")
         }
-        temper_service::Note::ForgeUnconfigured { number } => {
-            format!("temper serve: forge {number}: its records are not configured\n")
-        }
+
         temper_service::Note::ForgeUnkept { number, installation } => {
             format!("temper serve: forge {number}: installation {installation}: not kept\n")
         }
@@ -427,10 +425,7 @@ fn records_and_installation_notes_name_the_forge_and_reason() {
         }),
         "temper serve: forge 7: not connected: its records were made for forgejo at fake.test:443\n"
     );
-    assert_eq!(
-        note_line(Note::ForgeUnconfigured { number: 8 }),
-        "temper serve: forge 8: its records are not configured\n"
-    );
+
     assert_eq!(
         note_line(Note::ForgeUnkept { number: 7, installation: 93 }),
         "temper serve: forge 7: installation 93: not kept\n"

@@ -16,7 +16,7 @@ fn a_stopped_forge_is_named_and_only_its_calls_are_not_connected() {
         "a stopped forge never starts the engine's drain"
     );
     let acts = temper_engine_domain_forge::demo_act_bound(&service.engine.as_ref().unwrap().env.limits.forge).unwrap();
-    assert_eq!(service.notes().capacity(), 2 + acts);
+    assert_eq!(service.notes().capacity(), service.engine.as_ref().unwrap().env.limits.forge.forges + acts);
     assert_eq!(
         service.notes().pop(),
         Some(crate::Note::ForgeStopped { number: 1, why: Stopped::Refused { read: StartRead::User, status: 401 } })
@@ -514,7 +514,7 @@ fn a_full_notes_queue_keeps_its_first_diagnostic_and_the_engine_running() {
     let mut service = fixtures::ready();
     let occupied = service.notes().room() - 1;
     for _ in 0..occupied {
-        service.notes().push(crate::Note::ForgeUnconfigured { number: 1 });
+        service.notes().push(crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
     }
     for user in [7, 8] {
         service
@@ -555,6 +555,7 @@ fn records_service() -> (crate::Service, skein_lib::Secret) {
     use skein_lib::List;
     let mut settings = fixtures::engine();
     settings.limits.forge_component.forges = 9;
+    settings.limits.forge.forges = 9;
     settings.limits.forge_component.repositories = 9;
     settings.limits.forge.repositories = 9;
     settings.limits.forge.client.repositories = 9;
@@ -685,8 +686,8 @@ fn records_start_erases_carried_rows_before_connecting_without_decoding_them() {
         "setup retains the loaded rows"
     );
     assert!(
-        service.engine.as_ref().expect("engine").forge_records.rows.forge(77).is_none(),
-        "unconfigured values are not retained"
+        service.engine.as_ref().expect("engine").forge_records.rows.forge(77).is_some(),
+        "all forge-family values are retained"
     );
     assert_eq!(service.engine.as_ref().expect("engine").store.forge_loads.len(), 4);
     assert_eq!(service.engine.as_ref().expect("engine").store.erases, 2);
@@ -748,15 +749,7 @@ fn records_start_erases_carried_rows_before_connecting_without_decoding_them() {
     ] {
         assert!(notes.as_slice().contains(&crate::Note::ForgeNotConnected { number, why }));
     }
-    assert_eq!(notes.len(), 8);
-    assert!(notes.as_slice().contains(&crate::Note::ForgeUnconfigured { number: 77 }));
-    let mut unconfigured = 0_u32;
-    for note in &notes {
-        if *note == (crate::Note::ForgeUnconfigured { number: 77 }) {
-            unconfigured = unconfigured.checked_add(1).unwrap();
-        }
-    }
-    assert_eq!(unconfigured, 1, "all of the unconfigured forge's rows name it once");
+    assert_eq!(notes.len(), 7);
     face.select(1);
     assert!(
         face.sent().windows(b"GET /api/v1/user ".len()).any(|part| part == b"GET /api/v1/user "),

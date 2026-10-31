@@ -209,11 +209,8 @@ fn an_install_can_evict_a_manifests_state_while_its_page_lives() {
     assert!(let_done(terminal(&mut service)));
     assert!(service.setup_page(1, &state, Time::ZERO).is_some());
     // The slug above only made an Install-purpose state; no App remains in this host-state fixture.
-    service.engine.as_mut().expect("engine").forge_records.rows = crate::forge::records::Loader::new(
-        &fixtures::engine().limits,
-        &service.engine.as_ref().expect("engine").workers.forges,
-    )
-    .rows;
+    service.engine.as_mut().expect("engine").forge_records.rows =
+        crate::forge::records::Loader::new(&fixtures::engine().limits).rows;
     start(&mut service, 3, host::Plan::Convert { forge: 1, code: code(), state });
     let root::SetupEnd::Stopped { forge, reason } = terminal(&mut service) else { panic!("evicted state refused") };
     assert_eq!(forge, 1);

@@ -121,7 +121,7 @@ impl Engine {
         values: crate::values::Values,
         first_periods: List<(u32, u64)>,
     ) -> Result<Self, jig_protocol_config::Problems> {
-        let forge_records = crate::forge::records::Loader::new(&children.limits, &children.workers.forges);
+        let forge_records = crate::forge::records::Loader::new(&children.limits);
         let Children { accounts, workers, mut clients, demo, forge, setup, notes, limits: own } = children;
         clients.query_bytes = own.routes.query_bytes;
         let credentials = values.identities.numbers();
@@ -134,8 +134,8 @@ impl Engine {
                 return Err(problems);
             }
         };
-        domain.connection_limits(own.forge_component.forges, own.forge_component.installations);
-        Ok(Self {
+        domain.connection_limits(own.forge.forges, own.forge_component.installations);
+        let mut engine = Self {
             credentials,
             domain,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
@@ -167,7 +167,14 @@ impl Engine {
             aborted: None,
             #[cfg(test)]
             release_trace: None,
-        })
+        };
+        let mut documents =
+            core::mem::replace(&mut engine.workers.forges, crate::forges::Forges::with_capacity(own.forge.forges));
+        for number in &documents.numbers() {
+            let forge = documents.remove(*number).expect("document forge");
+            crate::forges::keep(&mut engine, forge);
+        }
+        Ok(engine)
     }
     pub(crate) fn room(&self) -> bool {
         self.clients.commit_room()
@@ -332,7 +339,14 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     }
     forge_pass(engine);
     engine.workers.iterate(now, &mut engine.events);
-    let open = !engine.begin && engine.domain.ready() && engine.forge_records.done() && engine.first_periods.is_empty();
+    let open = !engine.begin
+        && engine.domain.ready()
+        && engine.forge_records.done()
+        && engine.first_periods.is_empty()
+        && engine.forge.resolving.is_empty();
+    if open {
+        engine.forge.serving = Some(());
+    }
     engine.clients.starting = if open { None } else { Some(()) };
     if let Some(demo) = &mut engine.demo {
         demo.state = engine.domain.demo_state();

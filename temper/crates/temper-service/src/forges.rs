@@ -96,6 +96,158 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
+/// Record-driven runtime membership (temper/docs/design/draft/playground-reset.md, 3).
+#[expect(clippy::disallowed_methods, reason = "the service protocol layer parses the record's API host")]
+pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_domain_forge::ForgeRecord) {
+    let ip = match core::str::from_utf8(&record.place.api.host) {
+        Ok(host) => host.parse::<core::net::IpAddr>().ok(),
+        Err(_) => None,
+    };
+    let api = match ip {
+        Some(ip) => jig_protocol_config::Address::Addr(skein_io::Addr::Ip(core::net::SocketAddr::new(
+            ip,
+            record.place.api.port,
+        ))),
+        None => jig_protocol_config::Address::Host { name: record.place.api.host, port: record.place.api.port },
+    };
+    let identity = crate::settings::Identity {
+        number: u32::from(record.number),
+        forge: record.number,
+        token: skein_lib::Secret::new(Box::new([])),
+        login: record.bot.login,
+        author: crate::settings::Author { name: record.bot.name, email: record.bot.email },
+    };
+    // A document entry is replaced when the connector keeps its record.
+    engine.forge.file_access.remove(&record.number);
+    engine.forge.startup_access.remove(&record.number);
+    if engine.workers.forges.remove(record.number).is_some() {
+        engine.forge.down(skein_forge_connection::Request::Remove { forge: record.number });
+    }
+    let forge = Forge {
+        number: record.number,
+        kind: match record.kind {
+            temper_engine_domain_forge::Kind::Forgejo => crate::settings::Kind::Forgejo,
+            temper_engine_domain_forge::Kind::GitHub => crate::settings::Kind::GitHub,
+        },
+        mode: record.mode,
+        api,
+        transport: match record.place.api.tls {
+            Some(server_name) => crate::settings::Transport::Tls { server_name, trust: None },
+            None => crate::settings::Transport::Plaintext,
+        },
+        git: record.place.git,
+        web: record.place.web,
+        git_program: None,
+        app_read_only: record.read_only,
+        identity: identity.number,
+        user: 0,
+        api_token: None,
+        webhook_secret: None,
+    };
+    if keep(engine, forge) {
+        engine.values.tokens.keep(&identity, engine.forge.env.limits.installations);
+        if engine.forge_records.done() {
+            crate::forge::records::connect(engine, record.number);
+        }
+    }
+}
+
+/// Document forges and kept records share the same admission path (playground-reset.md, 3).
+pub(crate) fn keep(engine: &mut crate::engine::Engine, forge: Forge) -> bool {
+    let number = forge.number;
+    let host = match &forge.api {
+        jig_protocol_config::Address::Host { name, .. } => name.clone(),
+        jig_protocol_config::Address::Addr(skein_io::Addr::Ip(address)) => {
+            skein_forge::host::host(core::net::SocketAddr::new(address.ip(), 80), None).expect("IP host")
+        }
+        jig_protocol_config::Address::Addr(skein_io::Addr::InProcess(_)) => Box::new([]),
+    };
+    if engine.workers.forges.get(number).is_some() {
+        return true;
+    }
+    let endpoint = match engine.forge.endpoints.remove(&number) {
+        Some(endpoint) => Some(endpoint),
+        None => endpoint(engine, &forge),
+    };
+    let Some(mut endpoint) = endpoint else {
+        engine.notes.push(crate::Note::ForgeNotConnected { number, why: crate::NotConnected::Unreachable { host } });
+        return false;
+    };
+    let held = endpoint.address == skein_io::Addr::Ip(crate::forge::HELD_ADDRESS);
+    if !engine.workers.forges.insert(forge) {
+        engine.notes.push(crate::Note::ForgeNotConnected { number, why: crate::NotConnected::Unreachable { host } });
+        return false;
+    }
+    let access = endpoint.access.take();
+    engine.forge.down(skein_forge_connection::Request::Add(endpoint));
+    if engine.forge.component.start(number).is_none() {
+        engine.workers.forges.remove(number);
+        engine.notes.push(crate::Note::ForgeNotConnected { number, why: crate::NotConnected::Unreachable { host } });
+        return false;
+    }
+    if let Some(access) = access {
+        engine.forge.startup_access.insert(number, access).expect("configured forge capacity");
+    }
+    if held {
+        engine.forge.held.insert(number, host).expect("kept forge capacity");
+        if engine.forge.serving.is_none() {
+            engine.forge.resolving.insert(number, ()).expect("kept forge capacity");
+        }
+    } else {
+        engine.forge.held.remove(&number);
+    }
+    true
+}
+
+#[expect(clippy::disallowed_methods, reason = "the service protocol layer validates the record's TLS name")]
+pub(crate) fn endpoint(
+    engine: &crate::engine::Engine,
+    forge: &Forge,
+) -> Option<skein_forge_connection::settings::Forge> {
+    use skein_forge_connection::settings::{Kind, Transport};
+    let (address, name) = match &forge.api {
+        jig_protocol_config::Address::Addr(skein_io::Addr::Ip(address)) => (*address, None),
+        jig_protocol_config::Address::Addr(skein_io::Addr::InProcess(_)) => return None,
+        jig_protocol_config::Address::Host { name, port } => {
+            let mut address = match engine.forge.names.get(name) {
+                Some(ip) => core::net::SocketAddr::new(*ip, *port),
+                None => crate::forge::HELD_ADDRESS,
+            };
+            if let Some(github) = &engine.forge.github {
+                let github_name = match &github.transport {
+                    Transport::Tls { server_name, .. } => match server_name.server() {
+                        skein_tls::Server::Dns(name) => Some(name.as_bytes()),
+                        skein_tls::Server::Ip(_) => None,
+                    },
+                    Transport::Plaintext { name } => name.as_deref(),
+                };
+                if github_name == Some(name.as_ref()) && github.address != crate::forge::HELD_ADDRESS {
+                    address = core::net::SocketAddr::new(github.address.ip(), *port);
+                }
+            }
+            (address, Some(name.clone()))
+        }
+    };
+    let transport = match &forge.transport {
+        crate::settings::Transport::Plaintext => Transport::Plaintext { name },
+        crate::settings::Transport::Tls { server_name, .. } => Transport::Tls {
+            server_name: skein_tls::Name::new(core::str::from_utf8(server_name).ok()?)?,
+            trust: engine.forge.roots.as_ref()?.clone(),
+        },
+    };
+    Some(skein_forge_connection::settings::Forge {
+        number: forge.number,
+        kind: match forge.kind {
+            crate::settings::Kind::Forgejo => Kind::Forgejo,
+            crate::settings::Kind::GitHub => Kind::GitHub,
+        },
+        address: skein_io::Addr::Ip(address),
+        transport,
+        access: None,
+        log_origins: List::with_capacity(0),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
