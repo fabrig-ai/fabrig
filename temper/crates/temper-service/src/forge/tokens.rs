@@ -34,31 +34,15 @@ impl Tokens {
         Self { forges: Map::with_capacity(0) }
     }
     pub(crate) fn new(settings: &settings::Engine) -> Self {
-        let mut forges = Map::with_capacity(settings.limits.forge.forges);
-        for forge in &settings.forges {
-            let mut configured = None;
-            for identity in &settings.identities {
-                if identity.number == forge.identity {
-                    configured = Some(identity);
-                    break;
-                }
+        Self { forges: Map::with_capacity(settings.limits.forge.forges) }
+    }
+    pub(crate) fn same_identity(&self, identity: &settings::Identity) -> bool {
+        match self.forges.get(&identity.forge) {
+            Some(held) => {
+                held.number == identity.number && held.login == identity.login && held.author == identity.author
             }
-            let identity = configured.expect("each forge has an identity");
-            forges
-                .insert(
-                    forge.number,
-                    Forge {
-                        number: identity.number,
-                        login: identity.login.clone(),
-                        author: identity.author.clone(),
-                        entries: Map::with_capacity(settings.limits.forges.installations),
-                        announced: false,
-                        made: List::with_capacity(settings.limits.forges.installations),
-                    },
-                )
-                .expect("configured forges");
+            None => false,
         }
-        Self { forges }
     }
     pub(crate) fn forget(&mut self, forge: u16) -> Option<u32> {
         match self.forges.remove(&forge) {

@@ -88,9 +88,8 @@ fn tokens_before_the_first_connected_are_announced_together_at_it() {
 #[test]
 fn configured_login_and_author_override_the_app_defaults() {
     let mut service = github();
-    let mut settings = fixtures::engine();
-    settings.forges[0].kind = crate::settings::Kind::GitHub;
-    service.engine.as_mut().unwrap().values.tokens = crate::forge::tokens::Tokens::new(&settings);
+    let identity = fixtures::configured_engine().identities.into_iter().next().unwrap();
+    service.engine.as_mut().unwrap().values.tokens.keep(&identity, 8);
     route(&mut service, connection::Event::Connected { forge: 1 });
     let identity = value(&service, 1).unwrap();
     assert_eq!(identity.login(), b"temper");
@@ -245,10 +244,9 @@ fn a_github_repository_carries_its_owners_entrys_account() {
         assert_eq!(*items.repositories().get(0).unwrap().account(), expected);
     }
     let assignment = fixtures::assignment_with(fixtures::repository(7, b"owner", b"repo"));
-    let settings = fixtures::engine();
     let items = crate::translate::items(
         &assignment,
-        &fixtures::forge_table(&settings.forges),
+        &fixtures::forge_table(&fixtures::forges()),
         &engine.values.tokens,
         &engine.workers.encoding.limits,
     )
