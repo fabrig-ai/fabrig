@@ -7,6 +7,8 @@ use skein_lib::{Time, Wall};
 pub enum Seed {
     /// A signed-out owner with a project that permits starting conversations.
     ChatProject { party: u64, project: u32 },
+    /// Project facts shared by person stories.
+    Project(crate::stories::shared::b_seed::Facts),
     /// An existing conversation belonging to the project's owner.
     Conversation { party: u64, project: u32, words: Box<[u8]> },
 }
@@ -15,9 +17,16 @@ pub enum Seed {
 /// The core fixture supplies project 1 and its first owner, party 1.
 pub fn seed_core(driver: &mut Driver, now: Time, wall: Wall, seed: Seed) {
     use jig_fake_parties::{Act, Ask, Party, Role};
-    let (Seed::ChatProject { party, project } | Seed::Conversation { party, project, .. }) = &seed;
+    if let Seed::Project(facts) = seed {
+        crate::stories::shared::b_seed::core(driver, now, wall, facts);
+        return;
+    }
+    let (Seed::ChatProject { party, project } | Seed::Conversation { party, project, .. }) = &seed else {
+        unreachable!("project facts handled above")
+    };
     assert_eq!((*party, *project), (1, 1), "the configured core fixture's project and owner");
     match seed {
+        Seed::Project(_) => unreachable!("project facts handled above"),
         Seed::ChatProject { .. } => {}
         Seed::Conversation { project, words, .. } => {
             let peers = driver.world.peers.as_ref().expect("ordinary core peers");
