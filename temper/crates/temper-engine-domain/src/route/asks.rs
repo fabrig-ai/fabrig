@@ -122,13 +122,22 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::Adopt { request, .. } => {
-            let located =
-                if connector == domain.config.forge_connector { domain.forge.applying(request) } else { None };
+            let located = if connector == domain.config.forge_connector
+                && let Some(application) = domain.core.application_part_request(request)
+                && let Some(repository) = domain.forge.applying(application)
+            {
+                Some((application, repository))
+            } else {
+                None
+            };
             match located {
-                Some(repository) if domain.adoption_restore.len() < env.limits.forge.adoptions => {
+                Some((application, repository)) if domain.adoption_restore.len() < env.limits.forge.adoptions => {
                     let previous = domain.forge.repository(repository).cloned();
-                    assert!(domain.adoption_restore.insert(request, previous) == Ok(None), "one keyed adoption flight");
-                    domain.work.push(Work::Forge(forge::Event::Adopt { request }));
+                    assert!(
+                        domain.adoption_restore.insert(application, (request, previous)) == Ok(None),
+                        "one keyed adoption flight"
+                    );
+                    domain.work.push(Work::Forge(forge::Event::Adopt { request: application }));
                 }
                 Some(_) => domain.work.push(Work::People(people::Event::Decided {
                     request,

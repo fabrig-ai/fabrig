@@ -356,3 +356,56 @@ fn whose_routes_a_read_and_its_whole_reply_and_refuses_it_while_stopping() {
     }
     assert!(answered);
 }
+
+#[test]
+fn a_delivered_watch_permits_idle_but_an_unanswered_request_does_not() {
+    let (mut core, limits, sign_in, _) = started_signed_core();
+    drop(open(&mut core, &limits, sign_in, 30, Watched::Frame));
+    let _committed = core.counters.next_commit();
+    assert!(core.quiescent(true), "a retained watch awaits no answer");
+    let owner = core.effect_owner();
+    assert!(!core.quiescent(true), "a staged effect still needs its answer");
+    drop(core.land_kind(owner, flight::Kind::EffectStaging));
+    assert!(core.quiescent(true));
+    drop(watch_outputs(&mut core, &limits, Event::Unwatch { watcher: Token::new(30) }));
+    drop(watch_outputs(&mut core, &limits, Event::Delivered { watcher: Token::new(30) }));
+    let _committed = core.counters.next_commit();
+    assert!(core.flights.is_empty());
+    assert!(core.quiescent(true));
+}
+
+#[test]
+fn an_application_wait_permits_idle_while_its_effect_is_unanswered() {
+    let (mut core, limits, sign_in, _) = started_signed_core();
+    let mut out = watch_outputs(
+        &mut core,
+        &limits,
+        Event::Application {
+            reply_to: ReplyTo::new(Token::new(91)),
+            sign_in,
+            key: [2; 16],
+            scope: people::ApplicationScope::Own,
+            connector: 1,
+            digest: [3; 32],
+            owner: Token::new(92),
+            carried: None,
+        },
+    );
+    let mut application = None;
+    for row in &mut out {
+        if let Request::Ask { ask: Ask::Application { request, token, .. }, .. } = row {
+            application = Some((*request, *token));
+        }
+    }
+    let (request, token) = application.expect("admitted application");
+    let _committed = core.counters.next_commit();
+    assert!(core.quiescent(true), "external application action is a permitted wait");
+    let effect = core.effect_owner();
+    assert!(!core.quiescent(true), "active application work still prevents idle");
+    drop(core.land_kind(effect, flight::Kind::EffectStaging));
+    assert!(core.quiescent(true));
+    drop(watch_outputs(&mut core, &limits, Event::ApplicationFinished { request, outcome: Ok(token) }));
+    let _committed = core.counters.next_commit();
+    assert!(core.flights.is_empty());
+    assert!(core.quiescent(true));
+}

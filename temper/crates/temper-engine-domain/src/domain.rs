@@ -92,7 +92,7 @@ pub struct Domain {
     pub(crate) playground_policy: Option<u32>,
     pub(crate) next_application_owner: u64,
     pub(crate) returns: Map<Token, (Time, Wall)>,
-    pub(crate) adoption_restore: Map<Token, Option<forge::Repository>>,
+    pub(crate) adoption_restore: Map<Token, (Token, Option<forge::Repository>)>,
     pub(crate) forge_subscribing: Map<Token, forge::Subscriber>,
     pub(crate) forge_unsubscribing: Map<Token, (u64, forge::Topic)>,
     pub(crate) forge_reading: Map<Token, (ReplyTo, CallKey)>,
