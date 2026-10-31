@@ -58,6 +58,7 @@ enum Begin {
     Token,
     Link,
     Playground,
+    RunningPlayground,
 }
 /// The script is separate from the client's production composition.
 pub struct Script {
@@ -159,8 +160,10 @@ pub fn chatgpt_source_ready(heading: &[u8]) -> Step<Address> {
 pub fn demo_chat(task: u64, cue: &[u8], text: &[u8]) -> Script {
     use skein_ui::Role;
     Script {
-        begin: Begin::Link,
+        begin: Begin::RunningPlayground,
         steps: Box::new([
+            Step::See { find: Find::exactly_named(Role::Button, b"Playground"), within: START_WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Playground") },
             Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
             Step::See { find: Find::named(Role::TextArea, b"Start a chat"), within: START_WITHIN },
             Step::See { find: Find::exactly_named(Role::Status, b"Ready"), within: START_WITHIN },
@@ -448,7 +451,7 @@ impl Person {
             signing_retry: None,
             signing_backoff: SIGN_IN_FIRST,
             finished: false,
-            project: if script.begin == Begin::Playground {
+            project: if matches!(script.begin, Begin::Playground | Begin::RunningPlayground) {
                 ProjectSelection::Selected
             } else {
                 ProjectSelection::Pending
@@ -459,7 +462,7 @@ impl Person {
             directory: b"private".as_slice().into(),
             // Fresh demo clients must not reuse the same request names when
             // signing the same owner in again on the same deployment.
-            seed: if matches!(script.begin, Begin::Link | Begin::Playground) {
+            seed: if matches!(script.begin, Begin::Link | Begin::Playground | Begin::RunningPlayground) {
                 let seed = skein_shell::crypto_seed().expect("demo client's fresh seed");
                 u64::from_le_bytes(seed.expose()[..8].try_into().expect("eight seed bytes"))
             } else {

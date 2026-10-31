@@ -181,7 +181,10 @@ pub fn interrupt_reset(binary: &Binary, config: &Path, client: &Path) -> u32 {
             root,
             vec![
                 ctl::Step::Start(call(client, &["playground", "end", "--key", "playground-reset"])),
-                ctl::Step::Until(call(client, &["me", "--json"]), b"\"projects\":[]"),
+                ctl::Step::UntilMatching(
+                    call(client, &["me", "--json"]),
+                    temper_real_loop_world::calls::ReadCondition::NoProjectNamed("Playground"),
+                ),
                 ctl::Step::Cut,
             ],
             None,
@@ -193,7 +196,10 @@ pub fn interrupt_reset(binary: &Binary, config: &Path, client: &Path) -> u32 {
     let [reset, me] = calls.ends() else { panic!("reset and project read") };
     assert_eq!(reset.exit, Some(skein_io::kernel::Exit::Code(143)), "reset still waits for the box");
     assert!(reset.stdout.is_empty(), "reset has not answered");
-    assert_eq!(ctl::json(me)["projects"], serde_json::json!([]), "project removal committed");
+    assert!(
+        temper_real_loop_world::calls::ReadCondition::NoProjectNamed("Playground").matches(&me.stdout),
+        "project removal committed"
+    );
     reload(config, client, b"private", true);
     *parent
 }
