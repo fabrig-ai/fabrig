@@ -454,6 +454,15 @@ fn assert_connector_registry(connectors: &[u16]) {
 }
 
 impl Core {
+    pub(crate) fn ready(&self) -> bool {
+        self.start.phase.is_none()
+            && !self.start_stopped()
+            && match self.restart {
+                restart::Restart::Cold | restart::Restart::Open => true,
+                restart::Restart::Waiting(_) | restart::Restart::Failed(_) => false,
+            }
+    }
+
     /// Enable the person's direct inbox answers (domain/people.md, 6).
     /// Set by the application after `Core::new`, before the first step; off by default.
     pub fn person_answers(&mut self) {
