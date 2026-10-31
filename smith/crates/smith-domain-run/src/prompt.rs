@@ -1055,9 +1055,7 @@ At open, your share is 3 turns and less than a second. Your answer may hold at m
         );
         assert!(child.starts_with(b"own task\n\n## Tools\n\n"));
         for inherited in [b"literal role".as_slice(), b"Repeated", b"parent first body", b"parent last body"] {
-            for window in child.windows(inherited.len()) {
-                assert_ne!(window, inherited, "child scope excludes parent text");
-            }
+            assert!(skein_lib::bytes::find(&child, inherited).is_none(), "child scope excludes parent text");
         }
     }
 

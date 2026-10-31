@@ -1030,8 +1030,8 @@ fn a_run_at_scalar_maxima_emits_its_largest_final_note_within_its_ownership_boun
         smith_domain_run::completion_permit(&mut domain, conversation, env.now, smith_domain_run::Most::Bounded(0));
     let measured = meter.end();
     let smith_domain_run::CompletionPermit::Final { note: Some(note) } = permit else { panic!("maximum note") };
-    assert!(note.windows(b"4294967294".len()).any(|bytes| bytes == b"4294967294"));
-    assert!(note.windows(b"18446744073".len()).any(|bytes| bytes == b"18446744073"));
+    assert!(skein_lib::bytes::find(&note, b"4294967294").is_some());
+    assert!(skein_lib::bytes::find(&note, b"18446744073").is_some());
     drop(note); // The completion receiver owns this output, as it owns Open and Say.
     meter.check(measured, bound, &limits);
     take(&mut domain, &env, Event::Cancel { run });

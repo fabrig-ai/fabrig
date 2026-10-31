@@ -425,7 +425,7 @@ fn unsuccessful_open_ends_keep_the_existing_failure_policy() {
         for _ in 0..LIMITS.nudges {
             let emitted = harness.step(reply(main, stop, text));
             let [Request::Say { text, .. }] = emitted.as_ref() else { panic!("one nudge") };
-            assert!(!text.windows(b"`finish`".len()).any(|bytes| bytes == b"`finish`"));
+            assert!(skein_lib::bytes::find(text, b"`finish`").is_none());
         }
         assert_eq!(harness.step(reply(main, stop, text)).as_ref(), &[Request::Close { peer: Token::new(PEER) }]);
         assert_eq!(

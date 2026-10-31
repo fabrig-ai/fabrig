@@ -64,17 +64,8 @@ fn each_guide_is_read_and_retained_within_its_share_of_the_host_part() {
     }
     let requests = harness.step(Event::Read { owner, read: Read::Text { text: Box::new([b'g'; 16]), whole: false } });
     let [Request::Open { opening, .. }] = requests.as_ref() else { panic!("prepared main") };
-    let mut guides = 0_u32;
-    for piece in opening.system.windows(16) {
-        if piece == [b'g'; 16] {
-            guides = guides.checked_add(1).expect("four guide payloads");
-        }
-    }
-    assert_eq!(guides, 4);
-    assert_eq!(
-        opening.system.windows(b"The file goes on".len()).filter(|piece| *piece == b"The file goes on").count(),
-        4
-    );
+    assert_eq!(skein_lib::bytes::count(&opening.system, &[b'g'; 16], u32::MAX), 4);
+    assert_eq!(skein_lib::bytes::count(&opening.system, b"The file goes on", u32::MAX), 4);
 }
 
 #[test]
@@ -119,8 +110,8 @@ fn one_directory_keeps_a_guide_at_the_bound_whole_when_four_are_available() {
     let requests =
         harness.step(Event::Read { owner: *owner, read: Read::Text { text: Box::new([b'g'; 64]), whole: true } });
     let [Request::Open { opening, .. }] = requests.as_ref() else { panic!("prepared main") };
-    assert!(opening.system.windows(64).any(|piece| piece == [b'g'; 64]));
-    assert!(!opening.system.windows(b"The file goes on".len()).any(|piece| piece == b"The file goes on"));
+    assert!(skein_lib::bytes::find(&opening.system, &[b'g'; 64]).is_some());
+    assert!(skein_lib::bytes::find(&opening.system, b"The file goes on").is_none());
 }
 
 // A one-directory start may now retain a guide larger than the old profile's
@@ -173,7 +164,7 @@ fn child_with_inherited_guide(extra: usize) -> Box<[Request]> {
 fn a_child_at_the_host_part_keeps_its_parents_whole_guide() {
     let requests = child_with_inherited_guide(0);
     let [Request::Open { opening, .. }] = requests.as_ref() else { panic!("child fits: {requests:?}") };
-    assert!(opening.system.windows(CHILD_GUIDE_BYTES).any(|piece| piece == [b'g'; CHILD_GUIDE_BYTES]));
+    assert!(skein_lib::bytes::find(&opening.system, &[b'g'; CHILD_GUIDE_BYTES]).is_some());
 }
 
 #[test]

@@ -438,11 +438,7 @@ fn an_empty_brief_opens_on_carried_messages_or_on_its_instructions_without_wait(
             panic!("one immediate opening")
         };
         assert_eq!(&*opening.prompt, expected);
-        let mut instructions_found = false;
-        for chunk in opening.system.windows(b"Follow these instructions.".len()) {
-            instructions_found |= chunk == b"Follow these instructions.";
-        }
-        assert!(instructions_found);
+        assert!(skein_lib::bytes::find(&opening.system, b"Follow these instructions.").is_some());
     }
 }
 
