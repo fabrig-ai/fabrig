@@ -17,24 +17,20 @@ fn history(input: u64) -> smith_domain::Transcript {
         endpoint: Some(llm::Endpoint(0)),
         dialect: 1,
         turns: Box::new([record::Turn {
-            model: b"fake-1".as_slice().into(),
-            effort: None,
-            version: record::VERSION,
-            kind: record::Kind::First(Box::new(record::Opener {
-                affinity: llm::Affinity { key: [0; 16], thread: 0 },
-                account: Some(0),
-                backend: record::Backend::Direct,
-            })),
-            endpoint: Some(llm::Endpoint(0)),
             dialect: 1,
-            sequence: 1,
             usage: llm::Usage { input_tokens: Some(input), ..llm::Usage::ZERO },
-            spent: 0,
-            jobs: 0,
-            messages: Box::new([
-                llm::Message { role: llm::Role::User, content: content(&[b't'; 200]) },
-                llm::Message { role: llm::Role::Assistant, content: content(b"saved answer") },
-            ]),
+            ..smith_domain::session::fixture::turn(
+                b"fake-1".as_slice().into(),
+                record::Kind::First(Box::new(record::Opener {
+                    affinity: llm::Affinity { key: [0; 16], thread: 0 },
+                    account: Some(0),
+                    backend: record::Backend::Direct,
+                })),
+                Box::new([
+                    llm::Message { role: llm::Role::User, content: content(&[b't'; 200]) },
+                    llm::Message { role: llm::Role::Assistant, content: content(b"saved answer") },
+                ]),
+            )
         }]),
     }
 }

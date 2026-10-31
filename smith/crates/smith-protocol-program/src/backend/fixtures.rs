@@ -8,31 +8,32 @@ pub(super) const COMPLETION: Token = Token::new(80);
 fn limits() -> protocol::ComponentLimits {
     let client = skein_llm_world::limits();
     let adapter = protocol::Limits {
-        client,
         tool_bytes: 4096,
         history_bytes: 4096,
         rendered_result: 4096,
-        stated: protocol::Stated {
-            host_part: 4096,
-            path_bytes: 128,
-            read_window: 128,
-            tool_payload: 128,
-            file_bytes: 128,
-            call_input_bytes: 4096,
-            list_entries: 2,
-            search_hits: 2,
-            search_bytes: 128,
-            shell_timeout: Duration::from_secs(1),
-            tool_deadline: Duration::from_secs(1),
-            job_poll: Duration::from_secs(1),
-            job_wait: Duration::from_secs(1),
-            jobs: 1,
-            shell_output: 128,
-            output_ceiling: 128,
-        },
+        ..smith_protocol_llm::fixture::small(
+            client,
+            protocol::Stated {
+                host_part: 4096,
+                path_bytes: 128,
+                read_window: 128,
+                tool_payload: 128,
+                file_bytes: 128,
+                call_input_bytes: 4096,
+                list_entries: 2,
+                search_hits: 2,
+                search_bytes: 128,
+                shell_timeout: Duration::from_secs(1),
+                tool_deadline: Duration::from_secs(1),
+                job_poll: Duration::from_secs(1),
+                job_wait: Duration::from_secs(1),
+                jobs: 1,
+                shell_output: 128,
+                output_ceiling: 128,
+            },
+        )
     };
     protocol::ComponentLimits {
-        adapter,
         connection: skein_llm_connection::Limits {
             memory: 1 << 30,
             endpoints: 1,
@@ -61,10 +62,7 @@ fn limits() -> protocol::ComponentLimits {
             decoded_call_bytes: 4096,
             max_failure_bytes: 256,
         },
-        contract_bytes: 4096,
-        llms: 1,
-        accounts: 1,
-        grant_value_bytes: 128,
+        ..smith_protocol_llm::fixture::component(adapter, Duration::from_secs(1)).expect("fixture component bounds")
     }
 }
 pub(super) fn backend() -> Backend {

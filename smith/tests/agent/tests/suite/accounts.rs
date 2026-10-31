@@ -53,7 +53,7 @@ fn a_held_grant_serves_a_later_start() {
 
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain::api::{Line, Script};
-use skein_lib::{Duration, ReplyTo, Time, Token};
+use skein_lib::{Duration, Time, Token};
 use smith_agent_world::{World, messages_referee::Seen};
 use smith_domain::{Event, Fact, Grant, GrantName, Window, llm, session};
 
@@ -76,19 +76,11 @@ fn account_world(account: Option<u32>, held: Option<Grant>, failures: u32, failu
     let mut charter = scripted_charter(&settings);
     charter.llm.account = account;
     charter.models = Box::new([]);
-    let start = Event::Start {
-        reply_to: ReplyTo::new(Token::new(1)),
-        host_run: Token::new(1),
-        activation: 1,
-        identity: None,
+    let start = Event::Start(smith_domain::Start {
         window: Window { turns: u32::MAX, bytes: u64::MAX },
-        messages: Box::new([]),
-        charter,
-        workspace: None,
-        transcript: None,
-        answered: Box::new([]),
         grants: held.into_iter().collect(),
-    };
+        ..smith_domain::fixture::start(Token::new(1), charter)
+    });
     let scripts = Box::new([Script {
         cue: b"@report".as_slice().into(),
         turns: Box::new([smith_agent_world::fixture::calls(

@@ -194,7 +194,7 @@ pub(super) fn preparing_message_run() -> (Service, Token) {
     domain::step(
         domain,
         &service.stages.domain_env,
-        domain::Event::Start {
+        domain::Event::Start(domain::Start {
             reply_to: ReplyTo::new(Token::new(9)),
             host_run: Token::new(9),
             activation: 1,
@@ -215,7 +215,7 @@ pub(super) fn preparing_message_run() -> (Service, Token) {
             grants: Box::default(),
             transcript: None,
             answered: Box::default(),
-        },
+        }),
         &mut service.stages.domain_requests,
     );
     let run = match service.stages.domain_requests.pop() {

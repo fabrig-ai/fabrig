@@ -163,7 +163,13 @@ mod tests {
         let limits = SinkLimits {
             destinations: 2,
             output: 8 * 1024 * 1024,
-            records: smith_events::Limits { string: 65536, content: 16384, items: 32 },
+            records: {
+                let mut fixture_limits = smith_events::fixture::SMALL;
+                fixture_limits.string = 65536;
+                fixture_limits.content = 16384;
+                fixture_limits.items = 32;
+                fixture_limits
+            },
             answer_bytes: 16384,
             metadata_string: 64,
             metadata_items: 32,

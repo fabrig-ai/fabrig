@@ -1,10 +1,10 @@
 //! Fake Claude, shipped relay and real MCP server (smith/docs/design/protocol/programs.md, 5.3, 5.4, 9).
 use crate::support::relay::{self, Run};
 use serde_json::{Value, json};
-use smith_fake_claude::{End, Step, Story, Turn};
+use smith_fake_claude::{Step, Story, Turn};
 use smith_protocol_program::mcp::Up;
 fn story(steps: Vec<Step>) -> Story {
-    Story { turns: vec![Turn { steps, end: End::default() }], ..Story::default() }
+    Story { turns: vec![Turn::new(steps)], ..Story::default() }
 }
 
 fn builtin() -> Step {

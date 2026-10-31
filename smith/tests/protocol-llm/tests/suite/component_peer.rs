@@ -18,13 +18,13 @@ use smith_protocol_llm_world::codec::{
 };
 
 fn limits() -> ComponentLimits {
-    let mut limits = smith_protocol_llm_world::fixture::component();
-    limits.connection.calls = 1;
-    limits.connection.connections = 1;
-    limits.connection.per_endpoint = 1;
-    limits.connection.io.sockets = 1;
-    limits.connection.io.backlog = 1;
-    limits
+    let mut fixture_limits = smith_protocol_llm_world::fixture::component();
+    fixture_limits.connection.calls = 1;
+    fixture_limits.connection.connections = 1;
+    fixture_limits.connection.per_endpoint = 1;
+    fixture_limits.connection.io.sockets = 1;
+    fixture_limits.connection.io.backlog = 1;
+    fixture_limits
 }
 
 // Three later owner entrances wait through each seeded sink hold.
@@ -86,7 +86,6 @@ impl Recorder {
         use smith_protocol_events::sinks::{Capture, Delivery, Destination, SinkLimits, Sinks};
         let records = SINK_RECORDS;
         let mut bounds = SinkLimits {
-            destinations: 1,
             output: 0,
             records,
             answer_bytes: records.content,
@@ -94,8 +93,7 @@ impl Recorder {
             metadata_items: records.items,
             scalar_content: records.content,
             observation_line: 0,
-            fact_extra: 0,
-            conversations: 1,
+            ..smith_protocol_events::sinks::fixture::small()
         };
         bounds.output =
             bounds.line_ceiling(Capture::None).expect("marker line").checked_mul(SINK_LINES).expect("sink output");

@@ -4,10 +4,10 @@ use smith_agent_process_world::{
     program_world::{self, Case, Run},
 };
 use smith_events::{Backend, Event, FailureClass, Outcome};
-use smith_fake_claude::{End, Step, Story, Turn};
+use smith_fake_claude::{Step, Story, Turn};
 
 fn run(steps: Vec<Step>, agents: bool) -> Run {
-    scripted(&Story { turns: vec![Turn { steps, end: End::default() }], ..Default::default() }, agents)
+    scripted(&Story { turns: vec![Turn::new(steps)], ..Default::default() }, agents)
 }
 
 fn scripted(story: &Story, agents: bool) -> Run {
@@ -143,7 +143,7 @@ fn a_program_deadline_keeps_unknown_transport_measures() {
     });
     let run = program_world::run(
         Case::Events,
-        &Story { turns: vec![Turn { steps: vec![Step::Hang], end: End::default() }], ..Default::default() },
+        &Story { turns: vec![Turn::new(vec![Step::Hang])], ..Default::default() },
         Some(b"claude.ai"),
         &charter,
         &program(b"source"),
@@ -183,10 +183,7 @@ fn a_retry_abandons_its_partial_attempt() {
 
 #[test]
 fn a_slow_init_precedes_the_response_start() {
-    let mut story = Story {
-        turns: vec![Turn { steps: vec![Step::Text("words".into()), finish()], end: End::default() }],
-        ..Default::default()
-    };
+    let mut story = Story { turns: vec![Turn::new(vec![Step::Text("words".into()), finish()])], ..Default::default() };
     story.init.delay_ms = Some(200);
     let run = scripted(&story, false);
     let started = run
@@ -215,10 +212,7 @@ fn a_slow_init_precedes_the_response_start() {
 fn the_program_referee_checks_sent_message_order() {
     let run = scripted(
         &Story {
-            turns: vec![
-                Turn { steps: vec![Step::Text("first answer".into())], end: End::default() },
-                Turn { steps: vec![finish()], end: End::default() },
-            ],
+            turns: vec![Turn::new(vec![Step::Text("first answer".into())]), Turn::new(vec![finish()])],
             ..Default::default()
         },
         false,

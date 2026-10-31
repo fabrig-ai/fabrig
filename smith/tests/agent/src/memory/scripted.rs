@@ -63,7 +63,7 @@ impl Memory {
         charter.budget = self.env.limits.run.budget;
         charter.conventions = None;
         charter.reserve.time = self.env.limits.run.check_timeout;
-        self.step(Event::Start {
+        self.step(Event::Start(smith_domain::Start {
             messages: Box::new([]),
             answered: Box::new([]),
             workspace: Some(super::workspace()),
@@ -79,7 +79,7 @@ impl Memory {
             window: smith_domain::Window { turns: u32::MAX, bytes: u64::MAX },
             charter,
             transcript: None,
-        });
+        }));
         self.settle();
     }
 

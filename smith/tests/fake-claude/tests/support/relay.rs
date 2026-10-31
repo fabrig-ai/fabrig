@@ -35,13 +35,7 @@ fn limits() -> io::Limits {
 }
 
 fn server_limits() -> mcp::Limits {
-    mcp::Limits {
-        message_bytes: 4096,
-        answer_bytes: 4096,
-        schema_bytes: 4096,
-        calls: 2,
-        unauthenticated: Time::from_nanos(1_000_000_000),
-    }
+    mcp::Limits { unauthenticated: Time::from_nanos(1_000_000_000), ..smith_protocol_program::mcp::fixture::SMALL }
 }
 
 pub struct Agent {

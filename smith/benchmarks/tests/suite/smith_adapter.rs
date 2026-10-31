@@ -476,7 +476,13 @@ fn every_smith_pin_is_a_product_settings_layer() {
 
 #[test]
 fn a_time_breakdown_sums_to_task_wall_within_one_second() {
-    let limits = smith_events::Limits { string: 524_288, content: 4096, items: 512 };
+    let limits = {
+        let mut fixture_limits = smith_events::fixture::SMALL;
+        fixture_limits.string = 524_288;
+        fixture_limits.content = 4096;
+        fixture_limits.items = 512;
+        fixture_limits
+    };
     let mut observer =
         smith_bench::agent::smith::events::Observer::with_ceiling(&limits, 1_048_576).expect("recorded stream bounds");
     observer.feed(include_bytes!("../recorded/smith-time.jsonl")).expect("recorded smith trace");

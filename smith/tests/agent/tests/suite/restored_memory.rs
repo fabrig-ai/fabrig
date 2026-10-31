@@ -3,7 +3,7 @@
 //! Contract: smith/docs/design/domain/run.md, sections 3, 6 and 13;
 //! smith/docs/design/protocol/limits.md, section 11.
 
-use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 use smith_agent_world::LIMITS;
 use smith_domain::{self as root, Domain, Event, Grant, GrantName, Limits, Request, llm, run, session};
@@ -637,23 +637,19 @@ impl Counted {
     }
 
     fn start(&mut self, history: Option<root::Transcript>, restoring: bool) {
-        self.step(Event::Start {
-            messages: Box::default(),
-            answered: Box::default(),
+        self.step(Event::Start(smith_domain::Start {
             workspace: Some(workspace()),
-            reply_to: ReplyTo::new(PARENT),
             host_run: WORKER,
-            identity: None,
             activation: if restoring { 2 } else { 1 },
             window: root::Window { turns: u32::MAX, bytes: u64::MAX },
-            charter: charter(restoring),
             transcript: history,
             grants: Box::new([Grant {
                 renewable: true,
                 name: GrantName { account: 0, generation: 1 },
                 valid: Duration::from_secs(3600),
             }]),
-        });
+            ..smith_domain::fixture::start(PARENT, charter(restoring))
+        }));
         assert!(self.admitted.is_some() && self.read.is_some());
         assert_eq!(self.calls, 0, "selected Start ownership survives outstanding discovery");
         assert!(self.complete.is_none());
@@ -1270,23 +1266,17 @@ fn a_restored_run_keeps_full_brief_and_custom_paths_with_caller_copies() {
     counted.caller_workspace = mounted.clone();
     let active = maximum_caller_start(&caller);
     counted.caller_charter = Some(caller);
-    counted.step(Event::Start {
-        messages: Box::default(),
-        answered: Box::default(),
-        reply_to: ReplyTo::new(PARENT),
+    counted.step(Event::Start(smith_domain::Start {
         host_run: WORKER,
-        identity: None,
-        activation: 1,
         window: root::Window { turns: u32::MAX, bytes: u64::MAX },
-        charter: active,
         workspace: mounted,
-        transcript: None,
         grants: Box::new([Grant {
             renewable: true,
             name: GrantName { account: 0, generation: 1 },
             valid: Duration::from_secs(3600),
         }]),
-    });
+        ..smith_domain::fixture::start(PARENT, active)
+    }));
     assert!(counted.admitted.is_some() && counted.read.is_some());
     assert_eq!(counted.calls, 0, "maximum retained paths and caller Start coexist before any provider effect");
     let owner = counted.read.take().expect("observed maximum-path discovery");

@@ -62,11 +62,9 @@ fn turn(world: &mut World, number: u32, spent: u64, read: Option<Token>, bytes: 
 fn turn_record(number: u32, spent: u64, read: Option<Token>, bytes: usize) -> Up {
     Up::Turn {
         turn: Turn {
-            opens_window: number == 1,
-            number,
             spent,
             read,
-            body: smith_host_world::turn_value(u64::try_from(bytes).expect("fixture bytes")),
+            ..smith_host_world::turn(number, smith_host_world::turn_value(u64::try_from(bytes).expect("fixture bytes")))
         },
     }
 }
@@ -414,15 +412,7 @@ fn an_overflow_name_is_fenced_until_its_busy_answer_terminal_then_reusable() {
 fn payloads_beyond_the_limits_break_the_rules() {
     for record in [
         Up::Fact { body: vec![0; usize::try_from(limits().fact_bytes + 1).expect("fact bound")].into() },
-        Up::Turn {
-            turn: Turn {
-                opens_window: true,
-                number: 1,
-                spent: 0,
-                read: None,
-                body: smith_host_world::turn_value(limits().turn_bytes + 1),
-            },
-        },
+        Up::Turn { turn: smith_host_world::turn(1, smith_host_world::turn_value(limits().turn_bytes + 1)) },
         Up::Call {
             call: Token::new(20),
             name: CallName { activation: 1, completion: 1, position: 1 },

@@ -91,16 +91,15 @@ const TURN_KIND: u16 = 0x0109;
 const FIRST_BYTES: u64 = 3;
 
 fn held_after(first: &[u8], hold: &[u8], last: &[u8]) -> Box<[api::Turn]> {
-    Box::new([api::Turn {
-        lines: Box::new([api::Line::Pieces {
+    Box::new([smith_agent_world::fixture::says(
+        Box::new([api::Line::Pieces {
             pieces: Box::new([
                 api::Piece { text: first.into(), hold: None },
                 api::Piece { text: last.into(), hold: Some(hold.into()) },
             ]),
         }]),
-        finish: api::Finish::Stop,
-        tokens: 1,
-    }])
+        1,
+    )])
 }
 
 fn held_world(queries: usize) -> World {
@@ -161,11 +160,10 @@ fn a_channel_with_no_room_holds_the_bound_and_drops_the_newest() {
         world.observe_facts(TraceCase::Failed, NO_LIVE_ROOM);
         world.output_tokens(PRESSURE_OUTPUT_TOKENS);
         world.ask(true, false, false);
-        world.script(Box::new([api::Turn {
-            lines: Box::new([api::Line::Pieces { pieces: Box::new([api::Piece { text: reply.into(), hold: None }]) }]),
-            finish: api::Finish::Stop,
-            tokens: 1,
-        }]));
+        world.script(Box::new([smith_agent_world::fixture::says(
+            Box::new([api::Line::Pieces { pieces: Box::new([api::Piece { text: reply.into(), hold: None }]) }]),
+            1,
+        )]));
         assert!(world.settle());
         assert_eq!(world.lost_live_bytes(), lost, "reply bytes={}", reply.len());
         assert!(world.pieces().is_empty(), "one frame reserves no live room");

@@ -199,7 +199,13 @@ fn unknown_types_are_skipped_and_version_or_partial_records_fault() {
     let mut partial = Observer::new(&LIMITS).expect("bounds");
     partial.feed(b"{\"v\":4").expect("partial bytes held");
     assert!(partial.finish().is_err());
-    let invalid = Limits { string: 128, content: 65_536, items: 128 };
+    let invalid = {
+        let mut fixture_limits = smith_events::fixture::SMALL;
+        fixture_limits.string = 128;
+        fixture_limits.content = 65_536;
+        fixture_limits.items = 128;
+        fixture_limits
+    };
     assert!(Observer::new(&invalid).is_err(), "receiving cardinalities must fit the codec bound");
 }
 
@@ -213,10 +219,7 @@ fn writer_ceiling_is_independent_and_preserves_every_semantic_cap() {
     let receiving = Receiving { string: 524_288, content: 4096, items: 32, encoded_line: ceiling };
     let limits = receiving.limits().expect("joint aggregate caps");
     assert!(smith_events::largest_record(&limits).is_none(), "independent-maxima overflow is not this writer's bound");
-    assert_eq!(
-        limits,
-        smith_events::Limits { string: receiving.string, content: receiving.content, items: receiving.items }
-    );
+    assert_eq!((limits.string, limits.content, limits.items), (receiving.string, receiving.content, receiving.items));
     let mut observer = Observer::with_ceiling(&limits, receiving.encoded_line).expect("writer ceiling");
     for chunk in encoded.chunks(17) {
         observer.feed(chunk).expect("chunked bounded stream");

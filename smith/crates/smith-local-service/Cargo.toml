@@ -34,6 +34,9 @@ smith-transcript.workspace = true
 smith-channel.workspace = true
 
 [dev-dependencies]
+smith-host-protocol = { workspace = true, features = ["fixture"] }
+smith-local-protocol = { workspace = true, features = ["fixture"] }
+
 smith-local-service = { path = ".", features = ["fixture"] }
 smith-local-domain = { workspace = true, features = ["fixture"] }
 skein-fake-oauth.workspace = true

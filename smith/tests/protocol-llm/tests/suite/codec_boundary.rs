@@ -254,11 +254,10 @@ fn child_completed(configuration: &Configuration, arguments: &[u8]) -> (Context,
     let codec::Prepared { client, context } = codec::prepare(offered, &limits()).expect("observed admission");
     let script = Box::new([api::Script {
         cue: b"@adapter-boundary".as_slice().into(),
-        turns: Box::new([api::Turn {
-            lines: Box::new([api::Line::Call { name: b"sub_agent".as_slice().into(), arguments: arguments.into() }]),
-            finish: api::Finish::ToolCalls,
-            tokens: 7,
-        }]),
+        turns: Box::new([smith_protocol_llm_world::fixture::calls(
+            Box::new([api::Line::Call { name: b"sub_agent".as_slice().into(), arguments: arguments.into() }]),
+            7,
+        )]),
     }]);
     let mut peer = Exchange::prepared(client, endpoint, Some(credential), limits().client, script);
     peer.start();

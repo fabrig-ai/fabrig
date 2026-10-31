@@ -29,7 +29,6 @@ fn charter_limits() -> charter::Limits {
         llm_endpoint: 0,
         llm_effort_some: 32,
         llm_model: 0,
-        charter_instructions: charter::CEILINGS.charter_instructions,
         charter_brief: 0,
         charter_models: 0,
         field_name: 0,
@@ -40,13 +39,13 @@ fn charter_limits() -> charter::Limits {
         run_result_text: 0,
         run_result_fields: 0,
         run_result_items: 0,
+        ..charter::CEILINGS
     }
 }
 
 fn transcript_limits() -> transcript::Limits {
     transcript::Limits {
         replay_bytes: 0,
-        text_text: transcript::CEILINGS.text_text,
         opaque_bytes: 0,
         call_id: 0,
         call_name: 0,
@@ -79,6 +78,7 @@ fn transcript_limits() -> transcript::Limits {
         turn_endpoint: 0,
         program_name: 32,
         turn_messages: 1,
+        ..transcript::CEILINGS
     }
 }
 
@@ -194,7 +194,13 @@ use crate::support::events;
 
 #[test]
 fn every_event_at_its_largest_payload_stays_within_its_encoded_and_heap_bounds() {
-    let limits = smith_events::Limits { string: 32, content: 128, items: 3 };
+    let limits = {
+        let mut fixture_limits = smith_events::fixture::SMALL;
+        fixture_limits.string = 32;
+        fixture_limits.content = 128;
+        fixture_limits.items = 3;
+        fixture_limits
+    };
     let heap = smith_events::codec_bound(&limits).expect("codec heap bound");
     for record in events::largest_samples(&limits) {
         for capture in [smith_events::Capture::None, smith_events::Capture::Calls, smith_events::Capture::Everything] {

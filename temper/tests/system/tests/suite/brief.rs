@@ -78,7 +78,7 @@ fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
         },
         &settings.limits.run,
     );
-    let smith::Event::Start { charter, .. } = &start else { panic!("smith start") };
+    let smith::Event::Start(smith::Start { charter, .. }) = &start else { panic!("smith start") };
     assert_eq!(charter.brief.sections[0].text, uncut.brief.sections[0].text);
     assert_eq!(charter.brief.sections[1].title.as_ref(), b"CI");
     assert!(charter.brief.sections[1].text.ends_with(b" bytes; whole: read_job/read_checks]\n"));

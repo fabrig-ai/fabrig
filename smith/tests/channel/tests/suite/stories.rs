@@ -476,17 +476,6 @@ fn a_run_parked_resumed_and_parked_again_keeps_its_identity_and_numbers_turns_pe
     let charter: Box<[u8]> =
         Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..]);
     let first = record::Turn {
-        model: b"model".as_slice().into(),
-        effort: None,
-        kind: smith_domain_session::record::Kind::First(Box::new(smith_domain_session::record::Opener {
-            affinity: smith_domain_session::llm::Affinity { key: [0; 16], thread: 0 },
-            account: None,
-            backend: smith_domain_session::record::Backend::Direct,
-        })),
-        version: record::VERSION,
-        endpoint: Some(llm::Endpoint(0)),
-        dialect: 0,
-        sequence: 1,
         usage: llm::Usage {
             input_tokens: Some(1),
             output_tokens: Some(2),
@@ -495,8 +484,15 @@ fn a_run_parked_resumed_and_parked_again_keeps_its_identity_and_numbers_turns_pe
             reasoning_tokens: None,
         },
         spent: 3,
-        jobs: 0,
-        messages: Box::default(),
+        ..smith_domain::session::fixture::turn(
+            b"model".as_slice().into(),
+            smith_domain_session::record::Kind::First(Box::new(smith_domain_session::record::Opener {
+                affinity: smith_domain_session::llm::Affinity { key: [0; 16], thread: 0 },
+                account: None,
+                backend: smith_domain_session::record::Backend::Direct,
+            })),
+            Box::default(),
+        )
     };
     let mut one = World::new(CEILINGS, CEILINGS, StreamMode::Two);
     one.settle();
@@ -642,17 +638,6 @@ fn a_concrete_turn_reaches_the_host_and_its_acknowledgement_returns() {
     use smith_domain_session::{llm, record};
 
     let turn = record::Turn {
-        model: b"model".as_slice().into(),
-        effort: None,
-        kind: smith_domain_session::record::Kind::First(Box::new(smith_domain_session::record::Opener {
-            affinity: smith_domain_session::llm::Affinity { key: [0; 16], thread: 0 },
-            account: None,
-            backend: smith_domain_session::record::Backend::Direct,
-        })),
-        version: record::VERSION,
-        endpoint: Some(llm::Endpoint(0)),
-        dialect: 0,
-        sequence: 1,
         usage: llm::Usage {
             input_tokens: None,
             output_tokens: Some(5),
@@ -661,24 +646,31 @@ fn a_concrete_turn_reaches_the_host_and_its_acknowledgement_returns() {
             reasoning_tokens: Some(2),
         },
         spent: 11,
-        jobs: 0,
-        messages: Box::from([llm::Message {
-            role: llm::Role::Assistant,
-            content: Box::from([
-                llm::Block::Text { text: Box::from(*b"hello"), replay: None },
-                llm::Block::ToolCall {
-                    id: Box::from(*b"id"),
-                    name: Box::from(*b"check"),
-                    input: Box::from(*b"{}"),
-                    call: llm::Decoded::Historical,
-                    replay: None,
-                },
-                llm::Block::ToolResult {
-                    id: Box::from(*b"id"),
-                    result: llm::Returned::Invalid { problem: llm::Problem::UnknownTool },
-                },
-            ]),
-        }]),
+        ..smith_domain::session::fixture::turn(
+            b"model".as_slice().into(),
+            smith_domain_session::record::Kind::First(Box::new(smith_domain_session::record::Opener {
+                affinity: smith_domain_session::llm::Affinity { key: [0; 16], thread: 0 },
+                account: None,
+                backend: smith_domain_session::record::Backend::Direct,
+            })),
+            Box::from([llm::Message {
+                role: llm::Role::Assistant,
+                content: Box::from([
+                    llm::Block::Text { text: Box::from(*b"hello"), replay: None },
+                    llm::Block::ToolCall {
+                        id: Box::from(*b"id"),
+                        name: Box::from(*b"check"),
+                        input: Box::from(*b"{}"),
+                        call: llm::Decoded::Historical,
+                        replay: None,
+                    },
+                    llm::Block::ToolResult {
+                        id: Box::from(*b"id"),
+                        result: llm::Returned::Invalid { problem: llm::Problem::UnknownTool },
+                    },
+                ]),
+            }]),
+        )
     };
     let mut world = World::admitted();
     let read = Some(skein_lib::Token::new(31));

@@ -12,12 +12,9 @@ fn scenario() -> Run {
 #[test]
 fn no_credential_variable_reaches_the_program() {
     let story = Story {
-        turns: vec![smith_fake_claude::Turn {
-            steps: vec![smith_fake_claude::Step::Outcome {
-                input: serde_json::json!({"outcome":{"form":"report","text":"done","fields":{}}}),
-            }],
-            end: smith_fake_claude::End::default(),
-        }],
+        turns: vec![smith_fake_claude::Turn::new(vec![smith_fake_claude::Step::Outcome {
+            input: serde_json::json!({"outcome":{"form":"report","text":"done","fields":{}}}),
+        }])],
         ..Story::default()
     };
     let run = program_world::run(Case::Credentials, &story, Some(b"claude.ai"), &charter(), &program(b"source"), None);

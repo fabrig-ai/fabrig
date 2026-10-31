@@ -574,10 +574,7 @@ fn run_scenario(
     let RunOptions { login, refresh, history, releases, change_after_snapshot } = options;
     let mut story = story.clone();
     if !case.completes() && story.turns.is_empty() {
-        story.turns.push(smith_fake_claude::Turn {
-            steps: vec![smith_fake_claude::Step::Hang],
-            end: smith_fake_claude::End::default(),
-        });
+        story.turns.push(smith_fake_claude::Turn::new(vec![smith_fake_claude::Step::Hang]));
     }
     let (mut files, base) = fixture(&story, login, case);
     let root = files.open(base, b".", How::Directory).expect("parent root");

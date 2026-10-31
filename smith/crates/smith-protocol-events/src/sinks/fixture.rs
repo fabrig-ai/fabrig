@@ -12,7 +12,7 @@ pub const DEADLINE: Duration = Duration::from_secs(30);
 
 #[must_use]
 pub fn small() -> SinkLimits {
-    let records = smith_events::Limits { string: 64, content: 1024, items: 19 };
+    let records = smith_events::Limits { items: 19, ..smith_events::fixture::SMALL };
     let line = largest_line(&records, Capture::None, records.content, records.string)
         .expect("bounded fixture input and complete destination output");
     SinkLimits {

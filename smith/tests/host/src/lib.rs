@@ -422,6 +422,12 @@ pub fn charter_value(bytes: u64) -> host::Charter {
     host::Charter::new(value, bytes).expect("bounded charter fixture")
 }
 
+/// One host turn with no spend or read fence; the first turn opens its window.
+#[must_use]
+pub fn turn(number: u32, body: host::TurnValue) -> host::Turn {
+    host::Turn { number, opens_window: number == 1, spent: 0, read: None, body }
+}
+
 /// Concrete turn padded to the requested ownership when one message fits.
 #[must_use]
 pub fn turn_value(bytes: u64) -> host::TurnValue {
@@ -450,23 +456,8 @@ pub fn turn_value(bytes: u64) -> host::TurnValue {
     } else {
         Box::<[llm::Message]>::default()
     };
-    host::TurnValue::new(
-        record::Turn {
-            model: Box::new([]),
-            effort: None,
-            kind,
-            version: record::VERSION,
-            endpoint: Some(llm::Endpoint(0)),
-            dialect: 0,
-            sequence: 1,
-            usage: llm::Usage::ZERO,
-            spent: 0,
-            jobs: 0,
-            messages,
-        },
-        bytes,
-    )
-    .expect("bounded turn fixture")
+    host::TurnValue::new(smith_domain::session::fixture::turn(Box::new([]), kind, messages), bytes)
+        .expect("bounded turn fixture")
 }
 
 /// One saved concrete turn with exactly the requested retained ownership.

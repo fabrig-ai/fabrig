@@ -1,6 +1,6 @@
 //! Real run/session/tools jobs on the shared agent world and fake checkout.
 use skein_fake_checkout::Exit;
-use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Script, Turn};
 use skein_lib::{Duration, Token};
 use skein_world::domain::Verdict;
 use smith_agent_world::{Job, Settings, World, scripted_charter};
@@ -18,11 +18,7 @@ struct Checkout {
 }
 
 fn call(name: &[u8], arguments: &[u8]) -> Turn {
-    Turn {
-        lines: Box::new([Line::Call { name: name.into(), arguments: arguments.into() }]),
-        finish: Finish::ToolCalls,
-        tokens: 1,
-    }
+    smith_agent_world::fixture::calls(Box::new([Line::Call { name: name.into(), arguments: arguments.into() }]), 1)
 }
 
 fn shell() -> Turn {
@@ -171,11 +167,7 @@ fn a_build_run_as_a_job_while_main_reads_and_edits_is_read_to_its_end() {
 fn mains_jobs_are_cancelled_before_a_writing_child_opens() {
     let child = script(
         b"@job-child",
-        vec![Turn {
-            lines: Box::new([Line::Text { text: b"child done".as_slice().into() }]),
-            finish: Finish::Stop,
-            tokens: 1,
-        }],
+        vec![smith_agent_world::fixture::says(Box::new([Line::Text { text: b"child done".as_slice().into() }]), 1)],
     );
     let world = run(
         &Settings { job: Job::Reporting, ..Settings::calm(1002) },
@@ -217,11 +209,7 @@ fn a_writing_childs_job_ends_with_the_child() {
         b"@job-child",
         vec![
             shell(),
-            Turn {
-                lines: Box::new([Line::Text { text: b"child done".as_slice().into() }]),
-                finish: Finish::Stop,
-                tokens: 1,
-            },
+            smith_agent_world::fixture::says(Box::new([Line::Text { text: b"child done".as_slice().into() }]), 1),
         ],
     );
     let world = run(

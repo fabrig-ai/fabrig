@@ -96,6 +96,36 @@ pub struct Grant {
     pub renewable: bool,
 }
 
+/// Host activation input retained until admission (smith/docs/design/domain/run.md, section 13).
+#[derive(PartialEq, Eq, Debug)]
+pub struct Start {
+    /// Single-use right to answer this call; exactly one terminal consumes it.
+    pub reply_to: ReplyTo,
+    /// Parent-supplied stable logical host-run scope, preserved across relay
+    /// recovery and restarted activations; distinct from live run/callback tokens.
+    pub host_run: Token,
+    /// Host-supplied positive number, unique for each activation of `host_run`.
+    pub activation: u64,
+    /// Host identity across activations, or absent to draw one at admission.
+    pub identity: Option<run::Identity>,
+    /// Credit for turns awaiting durable host acknowledgement.
+    pub window: Window,
+    /// Triggering messages admitted before any later live input.
+    pub messages: Box<[run::Message]>,
+    pub charter: run::Charter,
+    /// Optional immutable host mounts and initial conflicts, moved to run admission.
+    pub workspace: Option<run::Workspace>,
+    /// Typed turns, kept without assembling provider messages.
+    /// False charter.resume ignores it; semantic refusal never starts fresh.
+    /// Receiving record/count caps are checked before root retention.
+    pub transcript: Option<smith_domain_session::record::Transcript>,
+    /// Host answers the saved transcript does not hold.
+    pub answered: Box<[AnsweredCall]>,
+    /// Host credential-name and remaining-validity notices, bounded by `Limits.accounts`.
+    /// These select a usable credential generation; they grant no checkout or tool authority.
+    pub grants: Box<[Grant]>,
+}
+
 /// Typed host, provider and IO inputs routed to the owned children. Start yields
 /// one host answer; each lower terminal echoes the owner of its pending request.
 #[derive(PartialEq, Eq, Debug)]
@@ -110,33 +140,7 @@ pub enum Event {
     /// From the host, a call: start a run on `charter`, and answer once it
     /// has ended. `host_run` is the host's name for the run, echoed on
     /// `Admitted`.
-    Start {
-        /// Single-use right to answer this call; exactly one terminal consumes it.
-        reply_to: ReplyTo,
-        /// Parent-supplied stable logical host-run scope, preserved across relay
-        /// recovery and restarted activations; distinct from live run/callback tokens.
-        host_run: Token,
-        /// Host-supplied positive number, unique for each activation of `host_run`.
-        activation: u64,
-        /// Host identity across activations, or absent to draw one at admission.
-        identity: Option<run::Identity>,
-        /// Credit for turns awaiting durable host acknowledgement.
-        window: Window,
-        /// Triggering messages admitted before any later live input.
-        messages: Box<[run::Message]>,
-        charter: run::Charter,
-        /// Optional immutable host mounts and initial conflicts, moved to run admission.
-        workspace: Option<run::Workspace>,
-        /// Typed turns, kept without assembling provider messages.
-        /// False charter.resume ignores it; semantic refusal never starts fresh.
-        /// Receiving record/count caps are checked before root retention.
-        transcript: Option<smith_domain_session::record::Transcript>,
-        /// Host answers the saved transcript does not hold.
-        answered: Box<[AnsweredCall]>,
-        /// Host credential-name and remaining-validity notices, bounded by `Limits.accounts`.
-        /// These select a usable credential generation; they grant no checkout or tool authority.
-        grants: Box<[Grant]>,
-    },
+    Start(Start),
 
     /// Parent-labelled live message, FIFO and bounded before retention by
     /// `Limits.run.messages` and `Limits.run.message_bytes`. Accepted messages

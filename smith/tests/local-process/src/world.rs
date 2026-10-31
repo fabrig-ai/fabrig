@@ -70,8 +70,8 @@ impl Default for Files {
 fn scripts() -> Box<[api::Script]> {
     let mut turns = Vec::new();
     for answer in ["First answer", "Second answer", "Third answer"] {
-        turns.push(api::Turn {
-            lines: Box::new([
+        turns.push(smith_agent_world::fixture::calls(
+            Box::new([
                 api::Line::Text { text: b"Finishing now".as_slice().into() },
                 api::Line::Call {
                     name: b"finish".as_slice().into(),
@@ -80,9 +80,8 @@ fn scripts() -> Box<[api::Script]> {
                         .into(),
                 },
             ]),
-            finish: api::Finish::ToolCalls,
-            tokens: 1,
-        });
+            1,
+        ));
     }
     Box::new([api::Script { cue: b"@local-shell".as_slice().into(), turns: turns.into() }])
 }
@@ -90,26 +89,24 @@ fn scripts() -> Box<[api::Script]> {
 fn reading_scripts() -> Box<[api::Script]> {
     let mut turns = Vec::new();
     for _ in 0..3 {
-        turns.push(api::Turn {
-            lines: Box::new([api::Line::Call {
+        turns.push(smith_agent_world::fixture::calls(
+            Box::new([api::Line::Call {
                 name: b"read".as_slice().into(),
                 arguments: br#"{"path":"original.txt"}"#.as_slice().into(),
             }]),
-            finish: api::Finish::ToolCalls,
-            tokens: 1,
-        });
+            1,
+        ));
     }
-    turns.push(api::Turn {
-        lines: Box::new([
+    turns.push(smith_agent_world::fixture::calls(
+        Box::new([
             api::Line::Text { text: b"Finishing after the reads".as_slice().into() },
             api::Line::Call {
                 name: b"finish".as_slice().into(),
                 arguments: br#"{"form":"report","text":"After three tools","fields":{}}"#.as_slice().into(),
             },
         ]),
-        finish: api::Finish::ToolCalls,
-        tokens: 1,
-    });
+        1,
+    ));
     Box::new([api::Script { cue: b"@local-shell".as_slice().into(), turns: turns.into() }])
 }
 
@@ -135,30 +132,24 @@ fn waiting_scripts() -> Box<[api::Script]> {
     Box::new([api::Script {
         cue: b"@local-shell".as_slice().into(),
         turns: Box::new([
-            api::Turn {
-                lines: Box::new([api::Line::Text { text: b"Starting now".as_slice().into() }]),
-                finish: api::Finish::Stop,
-                tokens: 1,
-            },
-            api::Turn {
-                lines: Box::new([api::Line::Call {
-                    name: b"wait".as_slice().into(),
-                    arguments: b"{}".as_slice().into(),
-                }]),
-                finish: api::Finish::ToolCalls,
-                tokens: 1,
-            },
-            api::Turn {
-                lines: Box::new([
+            smith_agent_world::fixture::says(
+                Box::new([api::Line::Text { text: b"Starting now".as_slice().into() }]),
+                1,
+            ),
+            smith_agent_world::fixture::calls(
+                Box::new([api::Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() }]),
+                1,
+            ),
+            smith_agent_world::fixture::calls(
+                Box::new([
                     api::Line::Text { text: b"Read follow-up".as_slice().into() },
                     api::Line::Call {
                         name: b"finish".as_slice().into(),
                         arguments: br#"{"form":"report","text":"Read follow-up","fields":{}}"#.as_slice().into(),
                     },
                 ]),
-                finish: api::Finish::ToolCalls,
-                tokens: 1,
-            },
+                1,
+            ),
         ]),
     }])
 }
@@ -183,13 +174,14 @@ fn change_scripts() -> Box<[api::Script]> {
         cue: b"@local-shell".as_slice().into(),
         turns: turns
             .into_iter()
-            .map(|(name, arguments)| api::Turn {
-                lines: Box::new([api::Line::Call {
-                    name: name.as_bytes().into(),
-                    arguments: arguments.as_bytes().into(),
-                }]),
-                finish: api::Finish::ToolCalls,
-                tokens: 1,
+            .map(|(name, arguments)| {
+                smith_agent_world::fixture::calls(
+                    Box::new([api::Line::Call {
+                        name: name.as_bytes().into(),
+                        arguments: arguments.as_bytes().into(),
+                    }]),
+                    1,
+                )
             })
             .collect(),
     }])
@@ -212,13 +204,14 @@ fn tool_scripts() -> Box<[api::Script]> {
         cue: b"@local-shell".as_slice().into(),
         turns: turns
             .into_iter()
-            .map(|(name, arguments)| api::Turn {
-                lines: Box::new([api::Line::Call {
-                    name: name.as_bytes().into(),
-                    arguments: arguments.as_bytes().into(),
-                }]),
-                finish: api::Finish::ToolCalls,
-                tokens: 1,
+            .map(|(name, arguments)| {
+                smith_agent_world::fixture::calls(
+                    Box::new([api::Line::Call {
+                        name: name.as_bytes().into(),
+                        arguments: arguments.as_bytes().into(),
+                    }]),
+                    1,
+                )
             })
             .collect(),
     }])
@@ -1135,11 +1128,10 @@ impl Scenario {
         if self.launch.choices {
             let mut combined = vec![api::Script {
                 cue: b"Summarise the work so far".as_slice().into(),
-                turns: Box::new([api::Turn {
-                    lines: Box::new([api::Line::Text { text: b"The task is kept".as_slice().into() }]),
-                    finish: api::Finish::Stop,
-                    tokens: 1,
-                }]),
+                turns: Box::new([smith_agent_world::fixture::says(
+                    Box::new([api::Line::Text { text: b"The task is kept".as_slice().into() }]),
+                    1,
+                )]),
             }];
             combined.extend(Vec::from(provider_scripts));
             provider_scripts = combined.into();
