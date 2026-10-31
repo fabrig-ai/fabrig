@@ -1,7 +1,6 @@
 //! Batch result caps below the guard's line (smith/docs/design/domain/session.md, section 8.1).
 
-#![allow(
-    clippy::disallowed_macros,
+#![expect(
     clippy::disallowed_methods,
     clippy::disallowed_types,
     reason = "programming-model.md, section 10.2: deterministic test harnesses use ordinary Rust"

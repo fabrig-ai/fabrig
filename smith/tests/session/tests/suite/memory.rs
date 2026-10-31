@@ -501,10 +501,6 @@ fn a_domain_with_every_session_full_stays_under_its_scenario_ceilings() {
 const RECORDED_DELEGATION_CEILING: u64 = 48_000;
 
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "one metered fixture keeps delegated ownership and exact emitted copies together"
-)]
 fn recorded_delegated_turns_cut_results_and_hold_history_for_compaction() {
     let block = size(size_of::<Block>());
     let spec_charge = spec_bytes(1);

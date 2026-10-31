@@ -73,7 +73,7 @@ impl Domain {
         self.calls.tools.kits()
     }
 
-    /// ToolCalls the tools are running, answered ones included until they are
+    /// Tool calls the tools are running, answered ones included until they are
     /// reclaimed.
     #[must_use]
     pub fn flights(&self) -> u32 {

@@ -172,7 +172,7 @@ pub enum ToolChoice {
 }
 
 /// A tool the opener serves, which the prompt offers the LLM: `ticket` names
-/// it, and its schema is the opener's. ToolCalls to it read or write as `effect`
+/// it, and its schema is the opener's. Tool calls to it read or write as `effect`
 /// says, and are scheduled so.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Descriptor {

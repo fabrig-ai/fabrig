@@ -1,4 +1,4 @@
-#![allow(
+#![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
     clippy::disallowed_types,
