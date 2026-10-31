@@ -111,6 +111,10 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
         w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
         | w::Outcome::Returning
+        | w::Outcome::Removed
+        | w::Outcome::RemoveRefused(_)
+        | w::Outcome::Reset
+        | w::Outcome::EndRefused(_)
         | w::Outcome::Connecting
         | w::Outcome::Link(_)
         | w::Outcome::ConnectRefused(_)
@@ -195,7 +199,17 @@ pub fn set_up(
             w::SetUpProject::New(w::NewProject::new(limits, w::NewProjectParts { name }).ok()?)
         }
     };
-    let request = w::SetUp::new(limits, w::SetUpParts { playground, forge, org, repository, project }).ok()?;
+    let request = w::SetUp::new(
+        limits,
+        w::SetUpParts {
+            playground,
+            forge: w::Making::Kept(w::Kept::new(limits, w::KeptParts { forge }).ok()?),
+            org,
+            repository,
+            project,
+        },
+    )
+    .ok()?;
     let record = w::Requesting::new(limits, w::RequestingParts { request: w::Request::SetUp(request) }).ok()?;
     Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
 }
@@ -223,6 +237,10 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
         w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
         | w::Outcome::Returning
+        | w::Outcome::Removed
+        | w::Outcome::RemoveRefused(_)
+        | w::Outcome::Reset
+        | w::Outcome::EndRefused(_)
         | w::Outcome::Connecting
         | w::Outcome::Link(_)
         | w::Outcome::ConnectRefused(_)

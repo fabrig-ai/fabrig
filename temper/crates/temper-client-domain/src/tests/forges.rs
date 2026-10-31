@@ -36,7 +36,7 @@ fn set_up_is_a_deployment_request_and_forges_a_deployment_watch() {
     else {
         panic!("set up")
     };
-    assert_eq!(request.forge(), 3);
+    assert_eq!(request.forge(), &w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()));
     let Watchable::Family { scope, window, record } = watch(&fixtures::limits().forge).unwrap() else {
         panic!("family")
     };
@@ -389,7 +389,7 @@ fn setup_carries_each_field_and_new_project_names_without_semantic_form_checks()
         else {
             panic!("setup")
         };
-        assert_eq!(request.forge(), 3);
+        assert_eq!(request.forge(), &w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()));
         assert_eq!(request.org(), b"");
         assert_eq!(request.repository(), b"widget");
         match (project, request.project()) {

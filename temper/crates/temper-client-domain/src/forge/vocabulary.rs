@@ -145,3 +145,21 @@ pub const DEMO_WHY_BYTES: u32 = temper_client_protocol_wire::SET_UP_WHY_BYTES.ch
 /// The first-password file path rendered as text: each invalid byte may need a UTF-8 replacement.
 pub const OWNED_PASSWORD_BYTES: u32 =
     temper_client_protocol_wire::v1::CEILINGS.owned_forge_password.checked_mul(3).expect("password path text fits");
+
+/// The playground as the client reads it (temper/docs/design/draft/playground-reset.md, 6.1).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Playground {
+    pub state: PlaygroundState,
+    pub forge: u16,
+    pub project: Option<u32>,
+    pub provider: u32,
+    pub owner: Box<[u8]>,
+    pub name: Box<[u8]>,
+    pub cues: Box<[Box<[u8]>]>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlaygroundState {
+    Starting,
+    Running,
+    Resetting,
+}

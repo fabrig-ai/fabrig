@@ -47,6 +47,8 @@ pub enum Act {
     StartIn { forge: u16 },
     Picker { forge: u16, act: super::picker::Act },
     StartDemo,
+    StartPlayground,
+    EndPlayground,
     AdminWrite { field: super::admin::Field, text: Box<[u8]> },
     ConnectAdmin { forge: u16 },
     AppWrite { text: Box<[u8]> },
