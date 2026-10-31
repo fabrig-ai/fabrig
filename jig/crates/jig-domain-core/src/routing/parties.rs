@@ -5,6 +5,7 @@
 
 use super::refusals::pool_refused;
 use super::{Creation, CreationKind};
+use crate::routing::Work;
 use crate::{Ask, Core, Event, Limits, PersonTaskRoute, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_people as people;
@@ -14,7 +15,7 @@ use skein_lib::{Env, List, Queue, ReplyTo, Token};
 pub(super) fn route_holdings(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     connector: u16,
     holdings: Option<Box<[tasks::Holding]>>,
@@ -27,7 +28,7 @@ pub(super) fn route_holdings(
 pub(super) fn pool_route(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     owner: u64,
     project: u32,
@@ -96,30 +97,30 @@ pub(super) fn pool_route(
         return;
     }
     if core.tasks.funding(period).is_none() {
-        work.push(Event::Tasks(tasks::Event::OpenPeriod {
+        work.push(Work::Event(Event::Tasks(tasks::Event::OpenPeriod {
             reply_to: ReplyTo::new(Token::new(0)),
             project,
             period: core.period(project),
             budget: core.period_budget(project),
-        }));
+        })));
     }
     let request = core.fly_person_task(request, PersonTaskRoute::PoolSet { project, person });
     if core.tasks.funding(funder).is_some() {
-        work.push(Event::Tasks(tasks::Event::ResizePool {
+        work.push(Work::Event(Event::Tasks(tasks::Event::ResizePool {
             reply_to: ReplyTo::new(request),
             project,
             person,
             period: core.period(project),
             budget,
-        }));
+        })));
     } else {
-        work.push(Event::Tasks(tasks::Event::CarvePool {
+        work.push(Work::Event(Event::Tasks(tasks::Event::CarvePool {
             reply_to: ReplyTo::new(request),
             project,
             person,
             period: core.period(project),
             budget,
-        }));
+        })));
     }
 }
 
@@ -127,7 +128,7 @@ pub(super) fn begin_creation(
     core: &mut Core,
     env: &Env<Limits>,
     out: &mut Queue<Request>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     kind: CreationKind,
     members: Box<[tasks::New]>,
@@ -161,7 +162,7 @@ pub(super) fn created_holdings(
     core: &mut Core,
     env: &Env<Limits>,
     out: &mut Queue<Request>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     connector: u16,
     holdings: Option<Box<[tasks::Holding]>>,
@@ -206,7 +207,7 @@ pub(super) fn created_holdings(
     finish_creation(core, env, work, request, creating);
 }
 
-fn finish_creation(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, request: Token, creating: Creation) {
+fn finish_creation(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, request: Token, creating: Creation) {
     match creating.kind {
         CreationKind::Propose { person, reason, to, stubs } => {
             super::propose::keep(
@@ -224,18 +225,18 @@ fn finish_creation(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, 
         let first = creating.members.first().expect("nonempty batch").number;
         let (period, pool) = core.open_person_pool(creating.members.first().expect("nonempty batch").project, person);
         if let Some(event) = period {
-            work.push(Event::Tasks(event));
+            work.push(Work::Event(Event::Tasks(event)));
         }
         if let Some(event) = pool {
-            work.push(Event::Tasks(event));
+            work.push(Work::Event(Event::Tasks(event)));
         }
         let CreationKind::Batch { given, stubs, .. } = creating.kind else { unreachable!("batch creation") };
         let request = core.fly(crate::flight::Flight::Made { request, route: super::Made { first, given, stubs } });
-        work.push(Event::Tasks(tasks::Event::Make {
+        work.push(Work::Event(Event::Tasks(tasks::Event::Make {
             reply_to: ReplyTo::new(request),
             creator: tasks::Party::Person(person),
             batch: creating.members,
-        }));
+        })));
     }
 }
 
@@ -243,7 +244,7 @@ fn finish_creation(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, 
 pub(super) fn roles_route(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     request: Token,
     person: u64,
@@ -318,15 +319,18 @@ pub(super) fn roles_route(
         }
     }
     if let Err(why) = terminal.expect("role application terminal") {
-        work.push(Event::People(people::Event::Decided { request, outcome: why }));
+        work.push(Work::Event(Event::People(people::Event::Decided { request, outcome: why })));
         return;
     }
-    work.push(Event::Tasks(tasks::Event::RecheckEscalations { reply_to: ReplyTo::new(request), project }));
+    work.push(Work::Event(Event::Tasks(tasks::Event::RecheckEscalations { reply_to: ReplyTo::new(request), project })));
     let mut reroutes = core.proposal_recheck_project(&env.limits, project, env.wall);
     for _ in 0..reroutes.len() {
-        work.push(Event::Tasks(reroutes.pop().expect("bounded proposal recheck")));
+        work.push(Work::Event(Event::Tasks(reroutes.pop().expect("bounded proposal recheck"))));
     }
-    work.push(Event::People(people::Event::Decided { request, outcome: people::Outcome::RolesSet { project } }));
+    work.push(Work::Event(Event::People(people::Event::Decided {
+        request,
+        outcome: people::Outcome::RolesSet { project },
+    })));
 }
 
 pub(super) fn make_service_request(
@@ -378,7 +382,7 @@ pub(super) fn make_service_request(
 pub(super) fn adopt_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     project: u32,
@@ -393,7 +397,10 @@ pub(super) fn adopt_request(
             });
         }
         Err(why) => {
-            work.push(Event::People(people::Event::Decided { request, outcome: people::Outcome::Refused(why) }));
+            work.push(Work::Event(Event::People(people::Event::Decided {
+                request,
+                outcome: people::Outcome::Refused(why),
+            })));
         }
     }
 }
@@ -402,7 +409,7 @@ pub(super) fn adopt_request(
 pub(super) fn change_policy_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     person: u64,
     project: u32,
@@ -420,34 +427,34 @@ pub(super) fn change_policy_request(
                 value: snapshot,
             }))));
             if let Some(budget) = resize.period {
-                work.push(Event::Tasks(tasks::Event::ResizePeriod {
+                work.push(Work::Event(Event::Tasks(tasks::Event::ResizePeriod {
                     reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Admission)),
                     project,
                     period,
                     budget,
-                }));
+                })));
             }
             for cuts in [true, false] {
                 for pool in &resize.pools {
                     if (pool.to < pool.from) == cuts {
-                        work.push(Event::Tasks(tasks::Event::ResizePool {
+                        work.push(Work::Event(Event::Tasks(tasks::Event::ResizePool {
                             reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Admission)),
                             project,
                             person: pool.person,
                             period,
                             budget: pool.to,
-                        }));
+                        })));
                     }
                 }
             }
             let mut reroutes = core.proposal_recheck_project(&env.limits, project, env.wall);
             for _ in 0..reroutes.len() {
-                work.push(Event::Tasks(reroutes.pop().expect("policy holder recheck")));
+                work.push(Work::Event(Event::Tasks(reroutes.pop().expect("policy holder recheck"))));
             }
-            work.push(Event::People(people::Event::Decided {
+            work.push(Work::Event(Event::People(people::Event::Decided {
                 request,
                 outcome: people::Outcome::PolicyChanged { project },
-            }));
+            })));
         }
         Err(why) => pool_refused(work, request, why),
     }

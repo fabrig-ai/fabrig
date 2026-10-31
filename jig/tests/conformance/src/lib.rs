@@ -544,11 +544,8 @@ impl Application for Testing {
                         accounts::FromComponent::Closed,
                     ))))]
                 }
-                Delivery::Now(core::Now::StartPreparation { task, from: None, .. }) => {
-                    vec![Input::Event(root::Event::TranscriptLoaded { task, rows: Box::new([]), done: true })]
-                }
                 Delivery::Now(
-                    now @ (core::Now::StartPreparation { from: Some(_), .. }
+                    now @ (core::Now::StartPreparation { .. }
                     | core::Now::SeenConversation { .. }
                     | core::Now::LoadEndedRead { .. }
                     | core::Now::HistoricalPersonTask { .. }

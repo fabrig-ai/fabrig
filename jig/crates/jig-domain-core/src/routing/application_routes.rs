@@ -1,6 +1,7 @@
 //! Connector-owned keyed requests and their synchronous party parts
 //! (`domain/connectors.md`, section 5.5; `domain/core.md`, section 5).
 
+use crate::routing::Work;
 use crate::{Ask, Core, Event, Family, Held, Limits, Request, fresh};
 use alloc::boxed::Box;
 use jig_domain_people as people;
@@ -29,7 +30,7 @@ pub(crate) struct Input {
 pub(super) fn start(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     reply_to: ReplyTo,
     sign_in: u64,
     key: [u8; 16],
@@ -97,7 +98,7 @@ pub(crate) fn first(unused: Option<u64>, requests: Queue<Request>) -> Queue<Requ
 pub(super) fn admitted(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     out: &mut Queue<Request>,
     request: Token,
     connector: u16,
@@ -116,10 +117,10 @@ pub(super) fn admitted(
             if let Some(number) = carried {
                 out.push(unused(number));
             }
-            work.push(Event::People(people::Event::Decided {
+            work.push(Work::Event(Event::People(people::Event::Decided {
                 request,
                 outcome: people::Outcome::Refused(people::Refusal::NotOffered),
-            }));
+            })));
             return;
         }
     };
@@ -127,10 +128,10 @@ pub(super) fn admitted(
         if let Some(number) = carried {
             out.push(unused(number));
         }
-        work.push(Event::People(people::Event::Decided {
+        work.push(Work::Event(Event::People(people::Event::Decided {
             request,
             outcome: people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Arithmetic }),
-        }));
+        })));
         return;
     };
     let token = Token::new(number);
@@ -155,7 +156,7 @@ pub(super) fn admitted(
 pub(super) fn part(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     ask: people::Ask,
 ) -> Queue<Request> {
@@ -188,7 +189,7 @@ pub(super) fn answer(connector: u16, request: Token, outcome: people::Outcome) -
 pub(super) fn finished(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     outcome: Result<Token, people::Again>,
 ) -> Queue<Request> {

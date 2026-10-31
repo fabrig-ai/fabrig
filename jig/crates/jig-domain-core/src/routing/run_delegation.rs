@@ -2,6 +2,7 @@
 //! and numbered connector holdings (`domain/engine.md`, sections 4.4 and 7).
 
 use super::HoldingsNeed;
+use crate::routing::Work;
 
 use super::runs::{call_decision, named_propose, proposal_refused};
 use super::{BatchKind, DelegateCreation, ProcedureCreation};
@@ -173,7 +174,7 @@ pub(super) fn delegate_validated(
 pub(super) fn delegate_holdings(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     request: Token,
     connector: u16,
     holdings: Option<Box<[Box<[tasks::Holding]>]>>,
@@ -224,11 +225,11 @@ pub(super) fn delegate_holdings(
                 core.delegating.insert(request, (flight.key, stubs, given)) == Ok(None),
                 "one pending delegated call"
             );
-            work.push(Event::Tasks(tasks::Event::Make {
+            work.push(Work::Event(Event::Tasks(tasks::Event::Make {
                 reply_to: ReplyTo::new(request),
                 creator: tasks::Party::Task(flight.key.task),
                 batch: flight.members,
-            }));
+            })));
             Queue::uncapped()
         }
         BatchKind::Proposal { reason, as_holder } => named_propose(
@@ -363,7 +364,7 @@ pub(super) fn propose_batch(
 pub(super) fn procedure_step(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     task: u64,
     step: u64,
     connector: u16,
@@ -394,13 +395,13 @@ pub(super) fn procedure_step(
     let mut out = Queue::uncapped();
     match batch.as_ref() {
         [] => {
-            work.push(Event::Tasks(tasks::Event::Procedure {
+            work.push(Work::Event(Event::Tasks(tasks::Event::Procedure {
                 reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Delegate)),
                 task,
                 step,
                 read: core.tasks.procedure_offered(task),
                 decision: parts,
-            }));
+            })));
         }
         [_, ..] => {
             if let Err(why) = core.procedure_batch_admit(&env.limits.tasks, task, &batch, env.wall) {
@@ -536,7 +537,7 @@ pub(super) fn procedure_step(
 pub(super) fn procedure_holdings(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     task: u64,
     step: u64,
     connector: u16,
@@ -581,20 +582,20 @@ pub(super) fn procedure_holdings(
         let mut decision = flight.decision;
         decision.batch = flight.members;
         super::deadlines::resolve(&mut decision.batch, env.wall);
-        work.push(Event::Tasks(tasks::Event::Procedure {
+        work.push(Work::Event(Event::Tasks(tasks::Event::Procedure {
             reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Delegate)),
             task,
             step,
             read: core.tasks.procedure_offered(task),
             decision,
-        }));
+        })));
     }
     out
 }
 
 pub(super) fn start_recurring(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     project: u32,
     authority: tasks::Authority,
     mut template: tasks::RecurringTemplate,
@@ -610,15 +611,15 @@ pub(super) fn start_recurring(
     }
     let period = core.period(project);
     if core.tasks.funding(tasks::Funder::Period { project, period }).is_none() {
-        work.push(Event::Tasks(tasks::Event::OpenPeriod {
+        work.push(Work::Event(Event::Tasks(tasks::Event::OpenPeriod {
             reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Admission)),
             project,
             period,
             budget: core.period_budget(project),
-        }));
+        })));
     }
     let Some(number) = crate::fresh(&mut core.counters, crate::Family::Task) else { return };
-    work.push(Event::Tasks(tasks::Event::Make {
+    work.push(Work::Event(Event::Tasks(tasks::Event::Make {
         reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Admission)),
         creator: tasks::Party::Deployment { project },
         batch: Box::new([tasks::New {
@@ -645,13 +646,13 @@ pub(super) fn start_recurring(
             recurring: Some(Box::new(template)),
             tracked: None,
         }]),
-    }));
-    work.push(Event::Tasks(tasks::Event::TickRecurring { task: number, period }));
+    })));
+    work.push(Work::Event(Event::Tasks(tasks::Event::TickRecurring { task: number, period })));
 }
 
 pub(super) fn route_period(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     project: u32,
     period: u64,
     budget: u64,
@@ -666,19 +667,19 @@ pub(super) fn route_period(
             core.touch_frames();
         }
         if core.tasks.funding(tasks::Funder::Period { project, period }).is_none() {
-            work.push(Event::Tasks(tasks::Event::OpenPeriod {
+            work.push(Work::Event(Event::Tasks(tasks::Event::OpenPeriod {
                 reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Admission)),
                 project,
                 period,
                 budget,
-            }));
+            })));
         }
-        work.push(Event::Tasks(tasks::Event::PeriodNext { project, period, next }));
+        work.push(Work::Event(Event::Tasks(tasks::Event::PeriodNext { project, period, next })));
         for task in core.tasks.recurring_tasks(project) {
-            work.push(Event::Tasks(tasks::Event::TickRecurring { task, period }));
+            work.push(Work::Event(Event::Tasks(tasks::Event::TickRecurring { task, period })));
         }
         for task in core.tasks.standing_tasks(project) {
-            work.push(Event::Tasks(tasks::Event::RenewStanding { task, period }));
+            work.push(Work::Event(Event::Tasks(tasks::Event::RenewStanding { task, period })));
         }
     }
     Queue::uncapped()
@@ -686,7 +687,7 @@ pub(super) fn route_period(
 
 pub(super) fn route_start_recurring(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     project: u32,
     authority: tasks::Authority,
     template: tasks::RecurringTemplate,
@@ -695,8 +696,8 @@ pub(super) fn route_start_recurring(
     Queue::uncapped()
 }
 
-pub(super) fn delegate_input_failed(work: &mut Queue<Event>, to: ReplyTo, key: CallKey) -> Queue<Request> {
-    work.push(Event::NamedAnswer {
+pub(super) fn delegate_input_failed(work: &mut Queue<Work>, to: ReplyTo, key: CallKey) -> Queue<Request> {
+    work.push(Work::Event(Event::NamedAnswer {
         to,
         key,
         part: CallPart::DelegationRefused(tasks::Problem {
@@ -705,7 +706,7 @@ pub(super) fn delegate_input_failed(work: &mut Queue<Event>, to: ReplyTo, key: C
             blocked_by: None,
             capacity: None,
         }),
-    });
+    }));
     Queue::uncapped()
 }
 

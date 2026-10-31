@@ -25,19 +25,13 @@ fn a_held_delegates_escalation_prepares_its_requesters_next_run() {
     assert_eq!(context.last_message, ENTRY);
     assert_eq!(core.tasks.task(REQUESTER).unwrap().last_message, 0);
     assert_eq!(core.tasks.run_message(REQUESTER), Some(ENTRY));
-    let _out =
-        watch_outputs(&mut core, &limits, Event::PreparedAgent { context, transcript_waiter: None, busy: false });
-    let _out = watch_outputs(
-        &mut core,
-        &limits,
-        Event::Tasks(tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(REQUESTER)), task: REQUESTER }),
-    );
+    let out = watch_outputs(&mut core, &limits, Event::PreparedAgent { context, transcript_waiter: None, busy: false });
     let row = core.tasks.task(REQUESTER).unwrap();
     assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Preparing));
     assert_eq!(row.retry_notice, None);
     assert!(core.contexts.contains_key(&REQUESTER));
     let mut notes = false;
-    for request in watch_outputs(&mut core, &limits, Event::StartBrief { task: REQUESTER }) {
+    for request in out {
         if let Request::Held(held) = request
             && let Held::NotesLoad { .. } = *held
         {

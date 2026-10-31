@@ -2,6 +2,7 @@
 #![expect(clippy::too_many_lines, reason = "tests state complete bounded fixtures")]
 use crate::Settings;
 use crate::documents::*;
+use crate::routing::Work;
 use crate::*;
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 

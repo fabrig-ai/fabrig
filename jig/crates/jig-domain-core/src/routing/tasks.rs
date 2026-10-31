@@ -6,6 +6,7 @@ use super::refusals::{person_message_refusal, person_move_refusal, person_proble
 use super::runs::call_decision;
 use super::view_routes::touch_task;
 use crate::flight::{Flight, Internal};
+use crate::routing::Work;
 use crate::{
     Ask, CallPart, Core, CoreKey, CoreRecord, EscalationDecisionRecord, Event, GoalRoute, Held, Key, Limits, Now,
     PersonProposalRoute, PersonTaskRoute, Record, Request, RoutedCall, SentRoute, Write,
@@ -1174,7 +1175,7 @@ fn route_proposal(core: &mut Core, env: &Env<Limits>, event: tasks::Event) -> Qu
 #[expect(clippy::boxed_local, reason = "the moved route retains its owned event payload")]
 pub(super) fn route_connector_repair(
     core: &mut Core,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     seed: Box<crate::connector::RepairSeed>,
     executor: tasks::Executor,
     spec: tasks::Spec,
@@ -1182,14 +1183,14 @@ pub(super) fn route_connector_repair(
     holdings: Box<[tasks::Holding]>,
 ) -> Queue<Request> {
     if seed.open_period {
-        work.push(Event::Tasks(tasks::Event::OpenPeriod {
+        work.push(Work::Event(Event::Tasks(tasks::Event::OpenPeriod {
             reply_to: ReplyTo::new(core.internal(Internal::Admission)),
             project: seed.project,
             period: seed.period,
             budget: seed.period_budget,
-        }));
+        })));
     }
-    work.push(Event::Tasks(tasks::Event::Make {
+    work.push(Work::Event(Event::Tasks(tasks::Event::Make {
         reply_to: ReplyTo::new(core.internal(Internal::Repair)),
         creator: tasks::Party::Deployment { project: seed.project },
         batch: Box::new([tasks::New {
@@ -1211,14 +1212,14 @@ pub(super) fn route_connector_repair(
             recurring: None,
             tracked: None,
         }]),
-    }));
+    })));
     Queue::uncapped()
 }
 
 pub(super) fn route_tasks(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     mut event: tasks::Event,
 ) -> Queue<Request> {
     if let Some(token) = crate::flight::request_token(&mut event)

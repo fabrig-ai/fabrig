@@ -1,4 +1,5 @@
 //! One party key, with policy and task admission interleaved in operation order.
+use crate::routing::Work;
 use crate::{Core, Counters, Event, Family, Limits, PersonTaskRoute, fresh};
 use alloc::boxed::Box;
 use jig_domain_people as people;
@@ -27,7 +28,7 @@ impl Route {
 pub(crate) fn route(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
     route: Route,
     inputs: List<people::Operation>,
 ) {
@@ -74,7 +75,7 @@ pub(crate) fn route(
         route.request,
         PersonTaskRoute::Compound { project: route.project, operations: operations.len(), first_message },
     );
-    work.push(Event::Tasks(tasks::Event::Compound {
+    work.push(Work::Event(Event::Tasks(tasks::Event::Compound {
         reply_to: ReplyTo::new(token),
         by: context.by,
         project: context.project,
@@ -82,16 +83,16 @@ pub(crate) fn route(
         period: context.period,
         pool_budget: context.pool_budget,
         period_budget: context.period_budget,
-    }));
+    })));
 }
 
-pub(crate) fn refused(work: &mut Queue<Event>, request: Token, at: u32, outcome: people::Outcome) {
+pub(crate) fn refused(work: &mut Queue<Work>, request: Token, at: u32, outcome: people::Outcome) {
     let outcome = if let people::Outcome::Refused(why) = outcome {
         people::Outcome::CompoundRefused { at, why }
     } else {
         outcome
     };
-    work.push(Event::People(people::Event::Decided { request, outcome }));
+    work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
 }
 
 #[expect(clippy::too_many_lines, reason = "the six operations share their standalone policy and revision judges")]

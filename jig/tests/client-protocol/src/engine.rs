@@ -513,16 +513,13 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::RunText { .. }
         | core::Event::Tasks(_)
         | core::Event::StartRecurring { .. }
-        | core::Event::StartBrief { .. }
-        | core::Event::BriefNotes { .. }
         | core::Event::BriefAssembled { .. }
         | core::Event::WorkspacePrepared { .. }
         | core::Event::ClaimPrepared { .. }
         | core::Event::ClaimRefused { .. }
         | core::Event::ConnectorRepair { .. }
         | core::Event::Period { .. }
-        | core::Event::PreparationFailed { .. }
-        | core::Event::TranscriptUnread { .. }
+        | core::Event::TranscriptLoaded { .. }
         | core::Event::People(_)
         | core::Event::Fleet(_)
         | core::Event::TurnPayload { .. }
@@ -531,7 +528,6 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::RefusedPayload { .. }
         | core::Event::Activate { .. }
         | core::Event::PreparedAgent { .. }
-        | core::Event::Forget { .. }
         | core::Event::EndedReadLoaded { .. }
         | core::Event::SeenConversationLoaded { .. }
         | core::Event::HistoricalProposal { .. }

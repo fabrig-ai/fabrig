@@ -692,7 +692,10 @@ impl Application for Ops {
                 if let Some(start) = from
                     && !rows.first().is_some_and(|row| (row.attempt, row.turn) == start && row.opens_window)
                 {
-                    return vec![Input::Event(root::Event::Core(core::Event::TranscriptUnread { task }))];
+                    return vec![Input::Event(root::Event::Core(core::Event::TranscriptLoaded {
+                        task,
+                        load: core::TranscriptLoad::Unread,
+                    }))];
                 }
                 vec![Input::Event(root::Event::Store(root::Store::Transcript {
                     task,

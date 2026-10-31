@@ -39,9 +39,14 @@ fn transcript_bytes_follow_a_preparation_from_allowance_to_zero() {
         retained += u64::try_from(body.len() + text.len()).expect("fixture byte lengths fit u64");
         assert_eq!(core.transcript_bytes(), allowance, "partial loads keep their allowance");
     }
-    let _requests = watch_outputs(&mut core, &limits, Event::StartBrief { task: TASK });
+    let _requests = watch_outputs(
+        &mut core,
+        &limits,
+        Event::TranscriptLoaded { task: TASK, load: TranscriptLoad::Page { rows: Box::new([]), done: true } },
+    );
     assert_eq!(core.transcript_bytes(), retained);
 
-    let _requests = watch_outputs(&mut core, &limits, Event::PreparationFailed { task: TASK });
+    let _requests =
+        watch_outputs(&mut core, &limits, Event::TranscriptLoaded { task: TASK, load: TranscriptLoad::Failed });
     assert_eq!(core.transcript_bytes(), 0);
 }

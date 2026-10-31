@@ -12,7 +12,7 @@ fn an_unread_closed_tail_continues_the_brief_without_counting() {
     core.transcripts.get_mut(&1).unwrap().append_text(Some(b"partial text".as_slice().into()), 128);
     let mut work = Queue::with_capacity(2);
     let _requests = transcript_unread(&mut core, &mut work, 1);
-    let Some(Event::StartBrief { task }) = work.pop() else { panic!("closed tail continues the brief") };
+    let Some(Work::StartBrief { task }) = work.pop() else { panic!("closed tail continues the brief") };
     assert_eq!(task, 1);
     assert!(work.is_empty(), "no PreparationUnread is counted");
     assert!(core.contexts.contains_key(&1));

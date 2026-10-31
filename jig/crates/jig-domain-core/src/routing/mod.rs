@@ -44,9 +44,10 @@ use runs::{named_action, route_named_answer, route_refused_payload};
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 use task_routes::{route_connector_repair, route_tasks, tag_task_outputs};
 use view_routes::{open, route_view};
+pub(crate) use vocabulary::Work;
 pub use vocabulary::{
     Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsNeed, Limits, NamedAction, Now,
-    PayloadRefusal, ProposalChoice, Request, StepRefusal, Timer, ToolKind, WatchRefusal, Write,
+    PayloadRefusal, ProposalChoice, Request, StepRefusal, Timer, ToolKind, TranscriptLoad, WatchRefusal, Write,
 };
 pub(crate) use watch_marks::finish_watches;
 
@@ -339,10 +340,10 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> 
     core.run_wall = env.wall;
     let mut work = Queue::uncapped();
     let mut out = Queue::uncapped();
-    work.push(event);
+    work.push(Work::Event(event));
     for _ in 0..env.limits.routes {
         let Some(next) = work.pop() else { break };
-        let mut batch = step_one(core, env, next, &mut work);
+        let mut batch = step_work(core, env, next, &mut work);
         for _ in 0..batch.len() {
             let request = batch.pop().expect("core route output count");
             out.push(request);
@@ -440,8 +441,21 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     out
 }
 
+fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Work>) -> Queue<Request> {
+    match next {
+        Work::StartBrief { .. } | Work::BriefNotes { .. } | Work::PreparationFailed { .. } if core.stopping => {
+            crate::stopping::empty()
+        }
+        Work::Event(event) => step_one(core, env, event, work),
+        Work::StartBrief { task } => start_brief(core, env, work, task),
+        Work::BriefNotes { task, lines, more } => plan_brief(core, env, work, task, lines, more),
+        Work::PreparationFailed { task } => route_preparation_failed(core, work, task),
+        Work::Forget { owner } => crate::forget::forget(core, env, work, &owner),
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "exhaustive event dispatch delegates each concern")]
-fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<Event>) -> Queue<Request> {
+fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<Work>) -> Queue<Request> {
     let event = match crate::stopping::gate(core, event) {
         Ok(event) => event,
         Err(answer) => return answer,
@@ -516,8 +530,6 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         Event::StartRecurring { project, authority, template } => {
             route_start_recurring(core, work, project, authority, template)
         }
-        Event::StartBrief { task } => start_brief(core, env, work, task),
-        Event::BriefNotes { task, lines, more } => plan_brief(core, env, work, task, lines, more),
         Event::BriefAssembled { task, ready } => brief_assembled(core, work, task, ready),
         Event::WorkspacePrepared { task, attempt, writes, credentials } => {
             workspace_prepared(core, env, work, task, attempt, writes, credentials)
@@ -530,8 +542,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
             route_connector_repair(core, work, seed, executor, spec, contract, holdings)
         }
         Event::Period { project, period, budget, next } => route_period(core, work, project, period, budget, next),
-        Event::PreparationFailed { task } => route_preparation_failed(core, work, task),
-        Event::TranscriptUnread { task } => run_preparation::transcript_unread(core, work, task),
+        Event::TranscriptLoaded { task, load } => run_preparation::transcript_loaded(core, env, work, task, load),
         Event::People(event) => route_people(core, env, work, event),
         Event::Holdings { request, connector, holdings } => {
             route_holdings(core, env, work, request, connector, holdings)
@@ -563,9 +574,8 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         }
         Event::Activate { context, ready } => route_activate(core, env, work, context, ready),
         Event::PreparedAgent { context, transcript_waiter, busy } => {
-            route_prepared_agent(core, context, transcript_waiter, busy)
+            route_prepared_agent(core, work, context, transcript_waiter, busy)
         }
-        Event::Forget { owner } => crate::forget::forget(core, env, work, &owner),
         Event::EndedReadLoaded { request, task, party, through, busy } => crate::ended_marks::loaded(
             core,
             env,
@@ -589,7 +599,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         }
         Event::HistoricalPersonTask { request, person, project, task, row, busy } => {
             let outcome = core.person_task_ended(person, project, task, row, busy);
-            work.push(Event::People(people::Event::Decided { request, outcome }));
+            work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
             Queue::uncapped()
         }
         Event::HistoricalEscalation { request, person, project, task, revision, row, busy } => {
@@ -687,7 +697,7 @@ pub(crate) fn tag_ended_mark(
     core: &mut Core,
     env: &Env<Limits>,
     child: Queue<people::Request>,
-    work: &mut Queue<Event>,
+    work: &mut Queue<Work>,
 ) -> Queue<Request> {
     people_routes::tag_people(core, env, child, work)
 }

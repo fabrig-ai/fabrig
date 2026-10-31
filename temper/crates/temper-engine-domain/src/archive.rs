@@ -253,7 +253,10 @@ pub(crate) fn transcript_failed(domain: &mut Domain, waiter: Token) {
     domain.archive_reads.retire(Id::from_token(waiter));
     // A stale read fails no current preparation.
     if domain.core.transcripts.contains_key(&task) {
-        domain.work.push(Work::Core(jig_domain_core::Event::PreparationFailed { task }));
+        domain.work.push(Work::Core(jig_domain_core::Event::TranscriptLoaded {
+            task,
+            load: jig_domain_core::TranscriptLoad::Failed,
+        }));
     }
 }
 
@@ -262,7 +265,10 @@ pub(crate) fn transcript_unread(domain: &mut Domain, waiter: Token) {
     domain.archive_reads.retire(Id::from_token(waiter));
     // The core owns the closed/open window policy (jig's `domain/engine.md`, 7.2).
     if domain.core.transcripts.contains_key(&task) {
-        domain.work.push(Work::Core(jig_domain_core::Event::TranscriptUnread { task }));
+        domain.work.push(Work::Core(jig_domain_core::Event::TranscriptLoaded {
+            task,
+            load: jig_domain_core::TranscriptLoad::Unread,
+        }));
     }
 }
 
@@ -305,6 +311,7 @@ pub(crate) fn transcript_loaded(
         None => Box::new([]),
     }
     .into_iter();
+    let mut loaded = List::with_capacity(u32::try_from(rows.len()).expect("bounded transcript page"));
     for row in rows {
         let turn = match row {
             Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) => turn,
@@ -329,11 +336,12 @@ pub(crate) fn transcript_loaded(
                 return;
             }
         };
-        if !domain.core.append_transcript(task, turn, texts.next().flatten()) {
-            transcript_failed(domain, waiter);
-            return;
-        }
+        loaded.push((turn, texts.next().flatten())).expect("one transcript item per row");
     }
+    domain.work.push(Work::Core(jig_domain_core::Event::TranscriptLoaded {
+        task,
+        load: jig_domain_core::TranscriptLoad::Page { rows: loaded.into_boxed(), done: next.is_none() },
+    }));
     if let Some(after) = next {
         let Some(Some(Read::Transcript { .. })) = domain.archive_reads.get(Id::from_token(waiter)) else {
             unreachable!("transcript read survives its page")
@@ -350,13 +358,6 @@ pub(crate) fn transcript_loaded(
     }
     let Some(Read::Transcript { .. }) = take_read(domain, waiter) else { unreachable!("finished transcript read") };
     domain.archive_reads.retire(Id::from_token(waiter));
-    // A window the store could not read whole is the core's to settle
-    // (jig's `domain/engine.md`, 7.2).
-    if !domain.core.transcript_readable(task) {
-        domain.work.push(Work::Core(jig_domain_core::Event::TranscriptUnread { task }));
-        return;
-    }
-    domain.work.push(Work::StartBrief { task });
 }
 
 pub(crate) fn take_read(domain: &mut Domain, waiter: Token) -> Option<Read> {
@@ -433,7 +434,9 @@ mod tests {
         let waiter = transcript_read(&mut domain);
         transcript_unread(&mut domain, waiter);
         transcript_unread(&mut domain, waiter);
-        let Some(Work::Core(core::Event::TranscriptUnread { task })) = domain.work.pop() else {
+        let Some(Work::Core(core::Event::TranscriptLoaded { task, load: core::TranscriptLoad::Unread })) =
+            domain.work.pop()
+        else {
             panic!("one core unread terminal")
         };
         assert_eq!(task, TASK);
@@ -452,7 +455,9 @@ mod tests {
         assert!(domain.work.is_empty(), "a retired waiter cannot reach a later preparation");
         assert!(waiting(&domain, current) == Some(Waiting::Transcript));
         transcript_unread(&mut domain, current);
-        let Some(Work::Core(core::Event::TranscriptUnread { task })) = domain.work.pop() else {
+        let Some(Work::Core(core::Event::TranscriptLoaded { task, load: core::TranscriptLoad::Unread })) =
+            domain.work.pop()
+        else {
             panic!("current preparation receives unread")
         };
         assert_eq!(task, TASK);
@@ -489,7 +494,9 @@ mod tests {
             &mut out,
         );
         assert!(out.is_empty(), "no store request issued");
-        let Some(Work::Core(core::Event::PreparationFailed { task })) = domain.work.pop() else {
+        let Some(Work::Core(core::Event::TranscriptLoaded { task, load: core::TranscriptLoad::Failed })) =
+            domain.work.pop()
+        else {
             panic!("unissued load remains preparation failure")
         };
         assert_eq!(task, TASK);

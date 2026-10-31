@@ -32,9 +32,7 @@ fn ready() -> (Core, Limits) {
 
 fn prepare(core: &mut Core, limits: &Limits, task: u64) -> Box<[Request]> {
     let context = core.tasks.run_context(task).expect("live task");
-    watch_outputs(core, limits, Event::PreparedAgent { context, transcript_waiter: None, busy: false });
-    watch_outputs(core, limits, Event::Tasks(tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(task)), task }));
-    watch_outputs(core, limits, Event::StartBrief { task })
+    watch_outputs(core, limits, Event::PreparedAgent { context, transcript_waiter: None, busy: false })
 }
 
 fn load(out: &[Request]) -> Option<Token> {
@@ -204,4 +202,76 @@ fn a_tasks_end_clears_its_unused_activation_marker() {
     watch_outputs(&mut core, &limits, Event::Tasks(tasks::Event::Settled { task: FIRST }));
     assert!(core.tasks.task(FIRST).is_none());
     assert!(core.pending_note_briefs.is_empty());
+}
+
+#[test]
+fn preparation_without_a_transcript_reaches_the_brief_inside_the_core() {
+    let (mut core, limits) = ready();
+    let out = prepare(&mut core, &limits, FIRST);
+    assert_eq!(core.tasks.task(FIRST).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
+    assert!(load(&out).is_some(), "preparation reached the notes stage of the brief");
+    for request in out {
+        if let Request::Now(now) = request
+            && let Now::StartPreparation { .. } = *now
+        {
+            panic!("a preparation without a transcript needs no load handoff");
+        }
+    }
+}
+
+#[test]
+fn preparation_with_a_transcript_requests_one_load_then_reaches_the_brief() {
+    let (mut core, limits) = ready();
+    let mut proof = RunProof::claimed(FIRST, 1, 1, None, fleet::HostKind::Worker);
+    proof.window = Some(CurrentWindow { attempt: 1, turn: 1, closed: false });
+    core.proofs.insert(FIRST, proof).unwrap();
+    let mut context = core.tasks.run_context(FIRST).unwrap();
+    context.previous_attempt = 1;
+    let out = watch_outputs(
+        &mut core,
+        &limits,
+        Event::PreparedAgent { context, transcript_waiter: Some(Token::new(FIRST)), busy: false },
+    );
+    let mut loads = 0_u32;
+    for request in out {
+        match request {
+            Request::Write(_) => {}
+            Request::Now(now) => {
+                let Now::StartPreparation { task: FIRST, from: Some((1, 1)), .. } = *now else {
+                    panic!("only the transcript load leaves preparation");
+                };
+                loads += 1;
+            }
+            other @ (Request::ProjectMade { .. } | Request::Ask { .. } | Request::Held(_)) => {
+                panic!("unexpected preparation output: {other:?}");
+            }
+        }
+    }
+    assert_eq!(loads, 1, "only one transcript load leaves the core");
+    assert!(core.note_routes.is_empty());
+    let out = watch_outputs(
+        &mut core,
+        &limits,
+        Event::TranscriptLoaded {
+            task: FIRST,
+            load: TranscriptLoad::Page {
+                rows: Box::new([(
+                    TurnRecord {
+                        task: FIRST,
+                        attempt: 1,
+                        turn: 1,
+                        spent: 0,
+                        read: None,
+                        opens_window: true,
+                        at: Wall::EPOCH,
+                        transcript: b"turn".as_slice().into(),
+                    },
+                    Some(b"text".as_slice().into()),
+                )]),
+                done: true,
+            },
+        },
+    );
+    assert!(load(&out).is_some(), "the load answer reached the brief");
+    assert!(core.transcripts.get(&FIRST).unwrap().loaded);
 }

@@ -353,7 +353,6 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 let routed = core::step(&mut domain.core, &environment_core(env), core::Event::Brief(event));
                 route_core_requests(domain, env, decision, routed);
             }
-            Work::StartBrief { task } => domain.work.push(Work::Core(core::Event::StartBrief { task })),
             Work::ForgeRestored => {
                 if domain.forge.fit_restored(&env.limits.forge).is_err() {
                     refuse_forge_fit(domain);
