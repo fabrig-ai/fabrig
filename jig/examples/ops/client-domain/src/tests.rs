@@ -400,11 +400,6 @@ fn whole_document_limits_keep_unknown_owner_facts_unknown() {
     bound.jig.kept = bound.client.domain.requests.requests - 1;
     assert!(!crate::valid(&bound));
 }
-#[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "the same exhaustive scoped lifecycle is checked independently for both connector families"
-)]
 fn incidents_naming_sections(lead: Option<u64>) -> [crate::observability::Document; 1] {
     use crate::observability::{documents::*, values};
     let values = values::Document {

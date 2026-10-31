@@ -352,6 +352,47 @@ fn text(bytes: &[u8]) -> Text {
 fn list<T>(rows: impl IntoIterator<Item = T>) -> List<T> {
     List::from_boxed(rows.into_iter().collect::<Vec<_>>().into_boxed_slice())
 }
+fn procedure_phase() -> ChipPhase {
+    ChipPhase {
+        phase: OwnerChipPhase::Active(RunStage::Running { attempt: 1 }),
+        details: Box::new(OwnerChipDetails {
+            dependencies: list([]),
+            project: 1,
+            executor: OwnerExecutor::Procedure { connector: 2, code: 1 },
+            phase_since: Wall::EPOCH,
+            run_since: Some(Wall::EPOCH),
+            attempt: Some(1),
+            retry: None,
+            wake: OwnerWakePolicy {
+                words: WakeRule::Never,
+                notices: WakeRule::Never,
+                news: WakeRule::Never,
+                results: ResultsWake::Never,
+                questions: false,
+                answers: false,
+                timers: false,
+            },
+            person_wait: None,
+            hold: None,
+            budget: OwnerBudget {
+                numbers: OwnerNumbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
+                left: 1,
+                funder: Funder::Pool { project: 1, person: 7, period: 3 },
+                deadline: None,
+            },
+            activity: 0,
+            resources: list([]),
+            resources_cut: false,
+            resources_observed: false,
+            procedure: Some(OwnerPart { connector: 2, kind: OwnerPartKind::Procedure, key: OwnerPartKey::Number(9) }),
+            live_delegates: 0,
+            closing_connectors: None,
+            ending: None,
+            ended_at: None,
+            observation: None,
+        }),
+    }
+}
 fn task() -> Task {
     Task {
         dependency_facts: List::with_capacity(0),
@@ -368,7 +409,7 @@ fn task() -> Task {
             title: DocumentText::complete(text(&[b't'; 32])),
             executor: Executor::Procedure { connector: 2, kind: 1 },
             phase: Phase::Running,
-            details: Box::new(ChipPhase::Procedure { panel: Part::Panel { connector: 2, task: 9 } }),
+            details: Box::new(procedure_phase()),
         },
         goal: None,
         priority: Some(1),
@@ -423,7 +464,6 @@ fn task() -> Task {
         },
         hold: None,
         context: Some(Box::new(TaskContext {
-            escalation: None,
             parts: list([]),
             closing: None,
             spend: list([]),
