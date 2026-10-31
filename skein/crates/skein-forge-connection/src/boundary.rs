@@ -64,7 +64,8 @@ pub enum Request {
     Connect { forge: u16, access: Access },
     /// Replaces the bounded set of accepted installations (forge-connection.md, 4.4).
     Installations { forge: u16, accepted: Box<[u64]> },
-    /// The root's `Request::Forge`: ended by exactly one `Event::Answered`.
+    /// The root's `Request::Forge`: ended by one `Event::Answered`, unless Close or
+    /// Abort ends it with its connection without an answer.
     Call { call: Token, repository: api::Repository, op: api::Op },
     /// An answer the root's admission did not take (`try_step`'s `Err`): held, offered
     /// again at the next `Offer`; at most one per call.
@@ -72,13 +73,17 @@ pub enum Request {
     /// A verified hint refused by root admission, held until the next offer.
     RefusedHint(crate::hooks::Hinted),
     /// An answer the root returned undecided in its drain (`Request::Busy`): kept until
-    /// `Close`, never offered again (forge-connection.md, 2).
+    /// `Close` or `Abort`, never offered again (forge-connection.md, 2).
     Returned(Answered),
     /// The root admits again: held answers awaiting an offer go up again.
     Offer,
     /// After the root's drain: calls in flight end with their connections and no answer
     /// goes up; `Event::Closed` answers it.
     Close,
+    /// A close that does not wait: ends calls without answers and aborts what it keeps.
+    /// After Close, aborts what still closes gracefully; Close or Abort after this
+    /// changes nothing. `Event::Closed` follows once io settles every socket.
+    Abort,
 }
 
 /// To the routing; io's requests go in a queue of their own.
@@ -103,7 +108,7 @@ pub enum Event {
     /// A forge's access refused: at most once per generation, possibly after Connected.
     /// The forge holds no access until the next connect.
     Stopped { forge: u16, why: Stopped },
-    /// The terminal of `Close`: every connection closed.
+    /// The terminal of `Close` or `Abort`: every connection closed.
     Closed,
 }
 

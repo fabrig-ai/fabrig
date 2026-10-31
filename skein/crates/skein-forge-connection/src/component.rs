@@ -111,6 +111,7 @@ pub struct Component {
     held: Map<Token, Held>,
     holders: Map<Token, Token>,
     closed: bool,
+    aborting: bool,
     diagnostics: Diagnostics,
     shared: Shared,
     connections: Map<Token, Id<Connection>>,
@@ -172,6 +173,7 @@ impl Component {
             held: Map::with_capacity(shared.calls),
             holders: Map::with_capacity(shared.calls),
             closed: false,
+            aborting: false,
             diagnostics: Diagnostics { long_bodies: 0, malformed: 0 },
             shared: *shared,
             connections: Map::with_capacity(limits.connections.checked_add(reserved).expect("checked connections")),
@@ -239,7 +241,18 @@ impl Component {
         io: &mut Queue<skein_io::Request>,
     ) {
         if self.closed {
-            return;
+            match &request {
+                Request::Abort if !self.aborting && !self.ended => {}
+                Request::Abort
+                | Request::Close
+                | Request::Connect { .. }
+                | Request::Installations { .. }
+                | Request::Call { .. }
+                | Request::RefusedHint(_)
+                | Request::Refused(_)
+                | Request::Returned(_)
+                | Request::Offer => return,
+            }
         }
         match request {
             Request::Connect { forge, access } => {
@@ -298,27 +311,39 @@ impl Component {
                 self.drive(env, up, io);
             }
             Request::Close => {
-                for _ in 0..self.calls.len() {
-                    let Some((call, id)) = self.calls.first() else {
-                        break;
-                    };
-                    let (call, id) = (*call, *id);
-                    self.waiting.retire(id);
-                    let _removed: Option<Id<Waiting>> = self.calls.remove(&call);
-                }
-                self.held = Map::with_capacity(self.held.capacity());
-                self.holders = Map::with_capacity(self.holders.capacity());
-                for at in 0..self.starts.len() {
-                    self.settings.forges.get_mut(at).expect("forge").access = None;
-                    if let Some(github) = self.github.get_mut(at).expect("forge slot") {
-                        github.forget();
-                    }
-                    *self.own_plans.get_mut(at).expect("forge plan") = None;
-                }
-                self.closed = true;
-                self.hooks.close();
+                self.request_close(false);
                 self.drive(env, up, io);
             }
+            Request::Abort => {
+                self.request_close(true);
+                self.drive(env, up, io);
+            }
+        }
+    }
+    fn request_close(&mut self, abort: bool) {
+        for _ in 0..self.calls.len() {
+            let Some((call, id)) = self.calls.first() else {
+                break;
+            };
+            let (call, id) = (*call, *id);
+            self.waiting.retire(id);
+            let _removed: Option<Id<Waiting>> = self.calls.remove(&call);
+        }
+        self.held = Map::with_capacity(self.held.capacity());
+        self.holders = Map::with_capacity(self.holders.capacity());
+        for at in 0..self.starts.len() {
+            self.settings.forges.get_mut(at).expect("forge").access = None;
+            if let Some(github) = self.github.get_mut(at).expect("forge slot") {
+                github.forget();
+            }
+            *self.own_plans.get_mut(at).expect("forge plan") = None;
+        }
+        self.closed = true;
+        self.aborting = abort;
+        if abort {
+            self.hooks.abort();
+        } else {
+            self.hooks.close();
         }
     }
     fn offer_pullers(&mut self) {
@@ -652,7 +677,7 @@ impl Component {
                 .expect("indexed connection");
             if self.closed {
                 *self.own_plans.get_mut(at).expect("configured forge") = None;
-                c.close(c.in_flight(), io);
+                c.close(self.aborting || c.in_flight(), io);
                 break;
             }
             let state = *self.starts.get(at).expect("configured start");
@@ -907,6 +932,9 @@ fn ready(state: Start) -> bool {
     }
 }
 
+#[cfg(test)]
+#[path = "tests/abort.rs"]
+mod abort_tests;
 #[cfg(test)]
 mod tests;
 

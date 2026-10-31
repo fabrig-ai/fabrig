@@ -113,7 +113,7 @@ impl Component {
                 self.wake = Some(env.now);
             }
             if self.closed || (c.phase == Phase::Idle && c.deadline <= Some(env.now)) || c.phase == Phase::Closed {
-                c.close(c.in_flight(), io);
+                c.close(self.aborting || c.in_flight(), io);
             }
         }
     }

@@ -927,7 +927,7 @@ impl Component {
                     c.deadline = Some(env.now.saturating_add(env.limits.idle));
                 }
                 if self.closed || c.phase != Phase::Idle || c.deadline <= Some(env.now) {
-                    c.close(c.in_flight(), io);
+                    c.close(self.aborting || c.in_flight(), io);
                 }
                 break;
             }

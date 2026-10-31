@@ -112,6 +112,13 @@ struct JsonBody {
     below: bool,
     ended: bool,
 }
+/// Whether shutdown drains an io binding or aborts it.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Close {
+    Graceful,
+    Abort,
+}
+
 /// One connection's machines, socket identity, request and pending output.
 pub(crate) struct Connection {
     pub(crate) forge: u16,
@@ -122,6 +129,7 @@ pub(crate) struct Connection {
     pub(crate) deadline: Option<Time>,
     pub(crate) socket: Option<Token>,
     pub(crate) closing: bool,
+    close: Close,
     pub(crate) written: bool,
     http: http::Client,
     tls: Option<skein_tls::client::Client>,
@@ -179,6 +187,7 @@ impl Connection {
             deadline: Some(deadline),
             socket: None,
             closing: false,
+            close: Close::Graceful,
             written: false,
             http: http::Client::new(&limits::http(l, tls.is_some(), &shared.io)),
             tls,
@@ -918,7 +927,7 @@ impl Connection {
             }
     }
     pub fn close(&mut self, abort: bool, io: &mut Queue<skein_io::Request>) {
-        if self.closing {
+        if self.closing && (!abort || self.close == Close::Abort) {
             return;
         }
         self.clear_json_body();
@@ -927,6 +936,7 @@ impl Connection {
         self.request = None;
         if let Some(socket) = self.socket {
             self.closing = true;
+            self.close = if abort { Close::Abort } else { Close::Graceful };
             io.push(if abort {
                 skein_io::Request::Abort { entity: socket }
             } else {

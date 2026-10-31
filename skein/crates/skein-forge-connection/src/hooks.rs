@@ -1,5 +1,5 @@
 //! Loopback webhook listener and its bounded connections (forge-connection.md, 5, 7 and 8).
-use crate::{Event, Limits};
+use crate::{Event, Limits, connection::Close};
 use skein_forge::api;
 use skein_io::Addr;
 use skein_lib::{Env, Id, Map, Queue, Slab, Time, Token};
@@ -26,6 +26,7 @@ pub(crate) struct Hooks {
     next: u64,
     live: bool,
     closing: bool,
+    close: Close,
     close_sent: bool,
     wake: Option<Time>,
 }
@@ -39,6 +40,7 @@ impl Hooks {
             next: OWNER.raw().saturating_add(1),
             live: false,
             closing: false,
+            close: Close::Graceful,
             close_sent: false,
             wake: None,
         }
@@ -71,7 +73,10 @@ impl Hooks {
                     }
                     self.closing = true;
                 } else if let Some(id) = self.connections.get(&owner) {
-                    self.slab.get_mut(*id).expect("indexed hook").closing = Closing::Pending;
+                    let c = self.slab.get_mut(*id).expect("indexed hook");
+                    if c.closing != Closing::Aborted {
+                        c.closing = Closing::Pending;
+                    }
                 }
             }
             skein_io::Event::Closed { owner } => {
@@ -106,6 +111,14 @@ impl Hooks {
     pub fn close(&mut self) {
         self.closing = true;
     }
+    /// Aborts the listener and hooks, escalating any graceful close still settling.
+    pub fn abort(&mut self) {
+        if self.close != Close::Abort {
+            self.close = Close::Abort;
+            self.close_sent = false;
+        }
+        self.close();
+    }
     pub fn closed(&self) -> bool {
         !self.live && self.connections.is_empty() && self.waiting.is_none()
     }
@@ -113,7 +126,10 @@ impl Hooks {
         let mut earliest = self.wake;
         for (_, id) in &self.connections {
             let c = self.slab.get(*id).expect("indexed hook");
-            if c.closing != Closing::Sent && (earliest.is_none() || Some(c.deadline) < earliest) {
+            if c.closing != Closing::Sent
+                && c.closing != Closing::Aborted
+                && (earliest.is_none() || Some(c.deadline) < earliest)
+            {
                 earliest = Some(c.deadline);
             }
         }
@@ -131,7 +147,11 @@ impl Hooks {
             if let Some(listener) = self.listener
                 && !self.close_sent
             {
-                io.push(skein_io::Request::Close { entity: listener });
+                io.push(if self.close == Close::Abort {
+                    skein_io::Request::Abort { entity: listener }
+                } else {
+                    skein_io::Request::Close { entity: listener }
+                });
                 self.close_sent = true;
             }
             if let Some((socket, _)) = self.waiting.take() {
@@ -152,11 +172,14 @@ impl Hooks {
         }
         for (owner, id) in &self.connections {
             let c = self.slab.get_mut(*id).expect("indexed hook");
-            if c.closing != Closing::Sent && (self.closing || c.deadline <= env.now) {
-                c.closing = Closing::Sent;
+            if c.closing != Closing::Aborted
+                && (c.closing != Closing::Sent || self.close == Close::Abort)
+                && (self.closing || c.deadline <= env.now)
+            {
+                c.closing = Closing::Aborted;
                 io.push(skein_io::Request::Abort { entity: c.socket });
             }
-            if c.closing != Closing::Sent {
+            if c.closing != Closing::Sent && c.closing != Closing::Aborted {
                 c.pump(*owner, env, settings, up, io);
                 if c.pending() {
                     self.wake = Some(env.now);
@@ -165,3 +188,7 @@ impl Hooks {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "tests/abort_hooks.rs"]
+mod abort_tests;
