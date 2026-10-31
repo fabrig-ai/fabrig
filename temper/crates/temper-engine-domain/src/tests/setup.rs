@@ -81,9 +81,7 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
                     crate::try_step(domain, env, Event::Store(StoreInput::Committed { number, fill: 0 })).unwrap();
                 }
                 Request::ToChild(released) => crate::try_step(domain, env, Event::Released(released)).unwrap(),
-                request @ (Request::StopGroup { .. }
-                | Request::SetUpGroup { .. }
-                | Request::ForgeKept(_)
+                request @ (Request::ForgeKept(_)
                 | Request::ForgeGone { .. }
                 | Request::BoxGroup { .. }
                 | Request::PlaygroundActs { .. }
@@ -242,9 +240,7 @@ fn a_party_without_a_deployment_role_cannot_watch_forges_or_ask_the_box() {
     };
     crate::try_step(&mut domain, &env, setup(1)).unwrap();
     for request in settle(&mut domain, &env) {
-        if let Request::SetUpGroup { .. } | Request::SetUp { .. } | Request::Bound { .. } | Request::Return { .. } =
-            request
-        {
+        if let Request::SetUp { .. } | Request::Bound { .. } | Request::Return { .. } = request {
             panic!("a party without a deployment role never reaches the box")
         }
     }
