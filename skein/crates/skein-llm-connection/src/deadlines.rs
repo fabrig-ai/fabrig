@@ -4,7 +4,7 @@
 //! entry point. `due` names a phase that must end through the LLM client;
 //! `sent`, `response_bytes` and `activity` record only existing stream observations.
 
-use skein_lib::Time;
+use skein_lib::{Time, earliest};
 
 use crate::boundary::{Deadlines, Measures};
 
@@ -121,12 +121,12 @@ impl Table {
     }
 
     pub(crate) fn next(&self) -> Option<Time> {
-        let mut earliest = self.connect;
-        earliest = earlier(earliest, self.handshake);
-        earliest = earlier(earliest, self.head);
-        earliest = earlier(earliest, self.idle);
-        earliest = earlier(earliest, self.whole);
-        earlier(earliest, self.keep)
+        let mut next = self.connect;
+        next = earliest(next, self.handshake);
+        next = earliest(next, self.head);
+        next = earliest(next, self.idle);
+        next = earliest(next, self.whole);
+        earliest(next, self.keep)
     }
 
     pub(crate) fn due(&self, now: Time) -> Option<Due> {
@@ -153,16 +153,6 @@ fn at(now: Time, duration: Option<skein_lib::Duration>) -> Option<Time> {
     match duration {
         Some(duration) => Some(now.saturating_add(duration)),
         None => None,
-    }
-}
-
-fn earlier(left: Option<Time>, right: Option<Time>) -> Option<Time> {
-    match left {
-        Some(left) => match right {
-            Some(right) => Some(left.min(right)),
-            None => Some(left),
-        },
-        None => right,
     }
 }
 

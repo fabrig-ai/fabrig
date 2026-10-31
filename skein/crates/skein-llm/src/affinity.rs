@@ -1,6 +1,8 @@
 //! Fixed-size caller identity rendering; no clocks, randomness or allocations.
 //! Contract: llm.md, sections 2.1 and 4.6.
 
+use skein_lib::bytes;
+
 use crate::Affinity;
 
 pub(crate) fn rendered(affinity: Affinity) -> [[u8; 36]; 2] {
@@ -19,16 +21,12 @@ pub(crate) fn uuid(key: &[u8; 16]) -> [u8; 36] {
         if index == 4 || index == 6 || index == 8 || index == 10 {
             at = at.checked_add(1).expect("fixed UUID separator");
         }
-        *out.get_mut(at).expect("fixed UUID high nibble") = hex(byte >> 4);
+        *out.get_mut(at).expect("fixed UUID high nibble") = bytes::hex_digit(byte >> 4);
         at = at.checked_add(1).expect("fixed UUID width");
-        *out.get_mut(at).expect("fixed UUID low nibble") = hex(byte & 15);
+        *out.get_mut(at).expect("fixed UUID low nibble") = bytes::hex_digit(byte & 15);
         at = at.checked_add(1).expect("fixed UUID width");
     }
     out
-}
-
-fn hex(nibble: u8) -> u8 {
-    *b"0123456789abcdef".get(usize::from(nibble)).expect("one hexadecimal nibble")
 }
 
 #[cfg(test)]

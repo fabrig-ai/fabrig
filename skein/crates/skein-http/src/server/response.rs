@@ -434,8 +434,8 @@ pub(super) fn chunk(bytes: &[u8]) -> Box<[u8]> {
     // the eight a u32 has.
     for place in (0..digits).rev() {
         let nibble = len.checked_shr(place.saturating_mul(4)).expect("within a u32") & 0xF;
-        let digit = b"0123456789abcdef".get(usize::try_from(nibble).expect("a nibble fits a usize"));
-        put(&mut chunk, core::slice::from_ref(digit.expect("a nibble is a hexadecimal digit")));
+        let digit = skein_lib::bytes::hex_digit(u8::try_from(nibble).expect("a nibble fits a byte"));
+        put(&mut chunk, core::slice::from_ref(&digit));
     }
     put(&mut chunk, CRLF);
     put(&mut chunk, bytes);

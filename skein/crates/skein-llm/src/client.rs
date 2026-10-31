@@ -1350,7 +1350,7 @@ fn output(
             });
             client.state = State::Draining;
             close_sse(client, env);
-            clear_requests(client);
+            client.requests.clear();
             client.requests.push(http::Request::Discard);
         }
         dialect::Output::Failed { failure, report, detail } => {
@@ -1470,22 +1470,12 @@ fn error_cut(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>) {
     fail(client, failure, detail.finish(), above);
 }
 
-fn clear_requests(client: &mut Client) {
-    for _request in 0..client.requests.len() {
-        if client.requests.pop().is_none() {
-            break;
-        }
-    }
-}
-
 fn close_sse(client: &mut Client, env: &Env<Limits>) {
     if client.sse_closed {
         return;
     }
-    for _event in 0..client.sse_events.len() {
-        drop(client.sse_events.pop());
-    }
-    clear_requests(client);
+    client.sse_events.clear();
+    client.requests.clear();
     let child = Env { now: env.now, wall: env.wall, limits: filter::collector(&env.limits) };
     drop(client.collector_below.pop());
     drop(client.collector_events.pop());
@@ -1508,22 +1498,16 @@ fn close_machines(client: &mut Client, env: &Env<Limits>, below: &mut Queue<Down
         return;
     }
     close_sse(client, env);
-    clear_requests(client);
-    for _event in 0..client.http_events.len() {
-        drop(client.http_events.pop());
-    }
-    for _event in 0..client.outputs.len() {
-        drop(client.outputs.pop());
-    }
+    client.requests.clear();
+    client.http_events.clear();
+    client.outputs.clear();
     client.upload = None;
     client.call = None;
     client.content = None;
     client.decoder = None;
     client.error.clear();
     http_down(client, env, http::Request::Close, below);
-    for _event in 0..client.http_events.len() {
-        drop(client.http_events.pop());
-    }
+    client.http_events.clear();
     client.close_sent = true;
     client.asked = false;
 }

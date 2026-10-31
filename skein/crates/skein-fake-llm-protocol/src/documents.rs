@@ -654,20 +654,17 @@ pub(crate) fn parse_uuid(value: &[u8]) -> Option<[u8; 16]> {
             }
             at = at.checked_add(1)?;
         }
-        let high = nibble(*value.get(at)?)?;
+        let &high = value.get(at)?;
         at = at.checked_add(1)?;
-        let low = nibble(*value.get(at)?)?;
+        let &low = value.get(at)?;
         at = at.checked_add(1)?;
-        *result.get_mut(index).expect("fixed UUID width") = (high << 4_u32) | low;
+        // The promised form is lower case, though lib reads either case.
+        if high.is_ascii_uppercase() || low.is_ascii_uppercase() {
+            return None;
+        }
+        *result.get_mut(index).expect("fixed UUID width") = (bytes::hex_value(high)? << 4_u32) | bytes::hex_value(low)?;
     }
     Some(result)
-}
-fn nibble(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => byte.checked_sub(b'0'),
-        b'a'..=b'f' => byte.checked_sub(b'a')?.checked_add(10),
-        _ => None,
-    }
 }
 
 #[cfg(test)]
