@@ -7,6 +7,28 @@ use temper_engine_domain_forge as domain;
 #[path = "setup_github.rs"]
 mod github_tests;
 
+#[test]
+fn restored_owned_forge_reads_a_present_handover_before_using_kept_admin() {
+    let mut service = local_service(local_config(true, false), local_store(true));
+    restore_local_with_file(&mut service, false);
+    assert!(service.engine.as_ref().unwrap().setup.runs.is_empty(), "no reconcile before the file read");
+    assert!(service.engine.as_ref().unwrap().forge.starts.is_empty());
+    let read = service.take_handover_read().expect("startup reads the handover despite a kept AdminToken");
+    assert_eq!(read.forge, 1);
+    assert_eq!(read.path.as_ref(), b"/data/forge/admin_token");
+    assert!(service.take_handover_read().is_none(), "one correlated read");
+    service.handover_read(1, read.run, Ok(Some(Secret::new(b"fresh-admin".as_slice().into()))));
+    advance(service.engine.as_mut().unwrap());
+    let engine = service.engine.as_ref().unwrap();
+    assert_eq!(engine.setup.runs.len(), 1);
+    assert_eq!(engine.setup.runs.first().unwrap().1.kind, Kind::LocalTakeOver);
+    assert!(engine.forge.starts.is_empty());
+    let mut face = Face::new();
+    local_sent(&mut service, &mut face, b"GET /api/v1/user ");
+    assert!(contains(&face.wire.received, b"fresh-admin"));
+    assert!(!contains(&face.wire.received, b"test-admin"), "kept admin did not bypass the handover");
+}
+
 fn keep_next(service: &mut crate::Service, item: Item) {
     let owner = *service.engine.as_mut().expect("engine").setup.writes.first().unwrap().0;
     assert_eq!(
