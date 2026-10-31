@@ -108,7 +108,16 @@ impl Store {
     /// Open the real store with typed start pages (protocol/store.md, 7.1).
     #[must_use]
     pub fn starting(limits: &root::Limits, models: &[jig_domain_core::Model]) -> Store {
-        Self::build(limits, models, protocol::PatchSets::NONE, StartMode::LoadAndLink)
+        Self::starting_with_patch_sets(limits, models, protocol::PatchSets::NONE)
+    }
+    /// Open typed start pages with the binary's patch sets installed before open.
+    #[must_use]
+    pub fn starting_with_patch_sets(
+        limits: &root::Limits,
+        models: &[jig_domain_core::Model],
+        sets: protocol::PatchSets,
+    ) -> Store {
+        Self::build(limits, models, sets, StartMode::LoadAndLink)
     }
     fn build(
         limits: &root::Limits,
