@@ -10,7 +10,7 @@
 use alloc::boxed::Box;
 
 use skein_io::{Event as IoEvent, Request as IoRequest};
-use skein_lib::{Env, Id, List, Queue, Slab, Token};
+use skein_lib::{Env, Id, Lifecycle, List, Queue, Slab, Token, earliest};
 use skein_llm::{self as llm, Call, Credential, Prompt};
 use skein_tls::client as tls;
 
@@ -18,15 +18,6 @@ use crate::boundary::{Event, Refusal, Request};
 use crate::call::{Connection, Phase};
 use crate::endpoint::{Endpoint, EndpointError, Transport};
 use crate::limits::{Limits, valid};
-
-/// The owner's call pool, ending with Closed after physical socket settlement.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Lifecycle {
-    Live,
-    Closing,
-    Aborting,
-    Closed,
-}
 
 /// An admitted conversation waiting for an endpoint binding; terminal releases it.
 pub(crate) struct Waiting {
@@ -66,6 +57,8 @@ pub struct Component {
     connections: Slab<Connection>,
     slots: List<Option<Id<Connection>>>,
     cursor: u32,
+    /// The owner's call pool's lifecycle, ending with Closed after physical
+    /// socket settlement.
     lifecycle: Lifecycle,
     waiting: List<Option<Waiting>>,
     arrival: u64,
@@ -582,40 +575,23 @@ impl Component {
     /// The first call or idle-connection deadline for the owning loop.
     #[must_use]
     pub fn next_deadline(&self) -> Option<skein_lib::Time> {
-        let mut earliest: Option<skein_lib::Time> = None;
+        let mut next: Option<skein_lib::Time> = None;
         for waiting in &self.waiting {
             match waiting {
-                Some(waiting) => match waiting.deadlines.next() {
-                    Some(next) => {
-                        earliest = Some(match earliest {
-                            Some(prior) => prior.min(next),
-                            None => next,
-                        });
-                    }
-                    None => {}
-                },
+                Some(waiting) => next = earliest(next, waiting.deadlines.next()),
                 None => {}
             }
         }
         for slot in &self.slots {
             match slot {
                 Some(id) => match self.connections.get(*id) {
-                    Some(connection) => {
-                        let next = connection.deadlines.next();
-                        earliest = match earliest {
-                            Some(prior) => match next {
-                                Some(next) => Some(prior.min(next)),
-                                None => Some(prior),
-                            },
-                            None => next,
-                        };
-                    }
+                    Some(connection) => next = earliest(next, connection.deadlines.next()),
                     None => {}
                 },
                 None => {}
             }
         }
-        earliest
+        next
     }
 
     fn request_close(&mut self, abort: bool) {
