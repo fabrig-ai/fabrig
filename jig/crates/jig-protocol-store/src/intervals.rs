@@ -238,9 +238,7 @@ pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
             | core::reads::Group::Questions
             | core::reads::Group::PersonTasks => return None,
         },
-        Scope::EndedTasks
-        | Scope::TaskRows { .. }
-        | Scope::Proposal { proposer: jig_domain_people::Proposer::Task(_), .. }
+        Scope::Proposal { proposer: jig_domain_people::Proposer::Task(_), .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }
         | Scope::Turn { .. }
