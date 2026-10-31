@@ -182,7 +182,6 @@ fn stopping_before_the_mark_does_not_commit_it() {
 }
 
 #[test]
-#[ignore = "start: root routes stopping to the core before durable Wires"]
 fn stopping_with_the_mark_held_does_not_adopt_runs() {
     let mut world = at_switch(f::BEFORE);
     world.store.fault(Fault::Hold { commits: 1 });
@@ -192,7 +191,9 @@ fn stopping_with_the_mark_held_does_not_adopt_runs() {
     world.release_commits();
     assert!(world.domain.stopping());
     assert_eq!(world.store.applied, mark);
-    assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Switch));
+    assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Wires));
+    assert!(!world.domain.ready());
+    assert!(!world.restart_steps.contains(&core::start::Phase::AdoptRuns));
 }
 
 #[test]
