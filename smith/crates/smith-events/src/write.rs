@@ -2,15 +2,12 @@
 //! Contract: protocol/events.md, sections 5.3 and 6.
 
 use crate::records::{
-    AccountState, Agent, AgentExit, AnswerClass, AnswerFailure, Backend, Block, Budget, BudgetStage, BudgetStanding,
-    Capture, CheckCompleted, CheckExit, CheckStarted, ChildCompleted, ChildStop, CommandExit, Completion,
-    CompletionFailure, Containment, ConversationClosed, ConversationEnd, ConversationKind, ConversationOpened, Count,
-    Cpu, Delivered, Delivery, Effect, EffectiveLimit, Event, Evidence, FailureClass, FailurePhase, Family, Field,
-    Forced, Form, JobEnded, Level, LimitValue, Loss, Message, MessageRead, MessageReceived, MessageRefusal,
-    MessageUnread, Mode, Model, Notice, NoticeKind, Outcome, PeakRss, Prompt, Quantity, Record, Requested, Reserve,
-    ResponseCompleted, ResponseStarted, Role, RunCompleted, RunResult, RunStarted, SessionEnded, SessionStarted, Share,
-    ShareBound, SharePart, Source, Status, Stop, TextDelta, ToolChoice, ToolCompleted, ToolStarted, Tools, Usage,
-    Verdict, Versions,
+    Agent, AgentExit, AnswerFailure, Block, Budget, BudgetStanding, Capture, CheckCompleted, CheckExit, CheckStarted,
+    ChildCompleted, CommandExit, Completion, CompletionFailure, ConversationClosed, ConversationOpened, Count, Cpu,
+    EffectiveLimit, Event, Family, Field, Form, JobEnded, LimitValue, Loss, Message, MessageRead, MessageReceived,
+    MessageUnread, Mode, Model, Notice, NoticeKind, PeakRss, Prompt, Quantity, Record, Requested, Reserve,
+    ResponseCompleted, ResponseStarted, RunCompleted, RunResult, RunStarted, SessionEnded, SessionStarted, Share,
+    TextDelta, ToolCompleted, ToolStarted, Tools, Usage, Versions,
 };
 use crate::{Error, Limits};
 use alloc::boxed::Box;
@@ -131,262 +128,6 @@ fn encode(json: &mut Encoder, record: &Record, capture: &Capture) {
     json.object_end();
 }
 
-fn write_capture(json: &mut Encoder, value: &Capture) {
-    match value {
-        Capture::None => json.string(b"none"),
-        Capture::Calls => json.string(b"calls"),
-        Capture::Everything => json.string(b"everything"),
-        Capture::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_delivery(json: &mut Encoder, value: &Delivery) {
-    match value {
-        Delivery::Complete => json.string(b"complete"),
-        Delivery::BestEffort => json.string(b"best_effort"),
-        Delivery::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_mode(json: &mut Encoder, value: &Mode) {
-    match value {
-        Mode::Agent => json.string(b"agent"),
-        Mode::Exec => json.string(b"exec"),
-        Mode::Chat => json.string(b"chat"),
-        Mode::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_containment(json: &mut Encoder, value: &Containment) {
-    match value {
-        Containment::Groups => json.string(b"groups"),
-        Containment::Trees => json.string(b"trees"),
-        Containment::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_family(json: &mut Encoder, value: &Family) {
-    match value {
-        Family::Inspect => json.string(b"inspect"),
-        Family::Modify => json.string(b"modify"),
-        Family::Shell => json.string(b"shell"),
-        Family::SubAgents => json.string(b"sub_agents"),
-        Family::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_form(json: &mut Encoder, value: &Form) {
-    match value {
-        Form::Report => json.string(b"report"),
-        Form::Verdict => json.string(b"verdict"),
-        Form::Change => json.string(b"change"),
-        Form::Failure => json.string(b"failure"),
-        Form::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_status(json: &mut Encoder, value: &Status) {
-    match value {
-        Status::Accepted => json.string(b"accepted"),
-        Status::Parked => json.string(b"parked"),
-        Status::Failed => json.string(b"failed"),
-        Status::Refused => json.string(b"refused"),
-        Status::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_conversation_kind(json: &mut Encoder, value: &ConversationKind) {
-    match value {
-        ConversationKind::Main => json.string(b"main"),
-        ConversationKind::Child => json.string(b"child"),
-        ConversationKind::Compaction => json.string(b"compaction"),
-        ConversationKind::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_conversation_end(json: &mut Encoder, value: &ConversationEnd) {
-    match value {
-        ConversationEnd::Closed => json.string(b"closed"),
-        ConversationEnd::Budget => json.string(b"budget"),
-        ConversationEnd::Failed => json.string(b"failed"),
-        ConversationEnd::Refused => json.string(b"refused"),
-        ConversationEnd::Transcript => json.string(b"transcript"),
-        ConversationEnd::Overflow => json.string(b"overflow"),
-        ConversationEnd::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_tool_choice(json: &mut Encoder, value: &ToolChoice) {
-    match value {
-        ToolChoice::Auto => json.string(b"auto"),
-        ToolChoice::None => json.string(b"none"),
-        ToolChoice::Only => json.string(b"only"),
-        ToolChoice::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_outcome(json: &mut Encoder, value: &Outcome) {
-    match value {
-        Outcome::Completed => json.string(b"completed"),
-        Outcome::Failed => json.string(b"failed"),
-        Outcome::Cancelled => json.string(b"cancelled"),
-        Outcome::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_stop(json: &mut Encoder, value: &Stop) {
-    match value {
-        Stop::End => json.string(b"end"),
-        Stop::Tools => json.string(b"tools"),
-        Stop::MaxTokens => json.string(b"max_tokens"),
-        Stop::Refusal => json.string(b"refusal"),
-        Stop::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_source(json: &mut Encoder, value: &Source) {
-    match value {
-        Source::Workspace => json.string(b"workspace"),
-        Source::Run => json.string(b"run"),
-        Source::Host => json.string(b"host"),
-        Source::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_effect(json: &mut Encoder, value: &Effect) {
-    match value {
-        Effect::Read => json.string(b"read"),
-        Effect::Write => json.string(b"write"),
-        Effect::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_verdict(json: &mut Encoder, value: &Verdict) {
-    match value {
-        Verdict::Read => json.string(b"read"),
-        Verdict::Listed => json.string(b"listed"),
-        Verdict::Found => json.string(b"found"),
-        Verdict::Removed => json.string(b"removed"),
-        Verdict::NotEmpty => json.string(b"not_empty"),
-        Verdict::Written => json.string(b"written"),
-        Verdict::Edited => json.string(b"edited"),
-        Verdict::Exited => json.string(b"exited"),
-        Verdict::Conflict => json.string(b"conflict"),
-        Verdict::Missing => json.string(b"missing"),
-        Verdict::TooLarge => json.string(b"too_large"),
-        Verdict::TimedOut => json.string(b"timed_out"),
-        Verdict::Running => json.string(b"running"),
-        Verdict::Stopped => json.string(b"stopped"),
-        Verdict::Failed => json.string(b"failed"),
-        Verdict::Cancelled => json.string(b"cancelled"),
-        Verdict::Ambiguous => json.string(b"ambiguous"),
-        Verdict::Result => json.string(b"result"),
-        Verdict::Error => json.string(b"error"),
-        Verdict::Invalid => json.string(b"invalid"),
-        Verdict::NotRun => json.string(b"not_run"),
-        Verdict::Withdrawn => json.string(b"withdrawn"),
-        Verdict::NotGranted => json.string(b"not_granted"),
-        Verdict::Outside => json.string(b"outside"),
-        Verdict::ReadOnly => json.string(b"read_only"),
-        Verdict::TooLong => json.string(b"too_long"),
-        Verdict::NotFound => json.string(b"not_found"),
-        Verdict::NotFile => json.string(b"not_file"),
-        Verdict::Linked => json.string(b"linked"),
-        Verdict::Protected => json.string(b"protected"),
-        Verdict::NotDirectory => json.string(b"not_directory"),
-        Verdict::NotRead => json.string(b"not_read"),
-        Verdict::Stale => json.string(b"stale"),
-        Verdict::NoMatch => json.string(b"no_match"),
-        Verdict::Unchanged => json.string(b"unchanged"),
-        Verdict::Busy => json.string(b"busy"),
-        Verdict::NulByte => json.string(b"nul_byte"),
-        Verdict::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_delivered(json: &mut Encoder, value: &Delivered) {
-    match value {
-        Delivered::Delivered => json.string(b"delivered"),
-        Delivered::Nothing => json.string(b"nothing"),
-        Delivered::Refused => json.string(b"refused"),
-        Delivered::Failed => json.string(b"failed"),
-        Delivered::Stale => json.string(b"stale"),
-        Delivered::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_failure_class(json: &mut Encoder, value: &FailureClass) {
-    match value {
-        FailureClass::Overloaded => json.string(b"overloaded"),
-        FailureClass::RateLimited => json.string(b"rate_limited"),
-        FailureClass::Exhausted => json.string(b"exhausted"),
-        FailureClass::Refused => json.string(b"refused"),
-        FailureClass::Unsupported => json.string(b"unsupported"),
-        FailureClass::Unavailable => json.string(b"unavailable"),
-        FailureClass::TimedOut => json.string(b"timed_out"),
-        FailureClass::ContextTooLong => json.string(b"context_too_long"),
-        FailureClass::Invalid => json.string(b"invalid"),
-        FailureClass::Unauthorized => json.string(b"unauthorized"),
-        FailureClass::Limit => json.string(b"limit"),
-        FailureClass::Protocol => json.string(b"protocol"),
-        FailureClass::Cancelled => json.string(b"cancelled"),
-        FailureClass::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_evidence(json: &mut Encoder, value: &Evidence) {
-    match value {
-        Evidence::Unsent => json.string(b"unsent"),
-        Evidence::MaybeSent => json.string(b"maybe_sent"),
-        Evidence::Response => json.string(b"response"),
-        Evidence::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_answer_class(json: &mut Encoder, value: &AnswerClass) {
-    match value {
-        AnswerClass::Model => json.string(b"model"),
-        AnswerClass::Budget => json.string(b"budget"),
-        AnswerClass::Policy => json.string(b"policy"),
-        AnswerClass::Cancelled => json.string(b"cancelled"),
-        AnswerClass::Agent => json.string(b"agent"),
-        AnswerClass::Host => json.string(b"host"),
-        AnswerClass::Stale => json.string(b"stale"),
-        AnswerClass::Transcript => json.string(b"transcript"),
-        AnswerClass::Busy => json.string(b"busy"),
-        AnswerClass::Invalid => json.string(b"invalid"),
-        AnswerClass::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_level(json: &mut Encoder, value: &Level) {
-    match value {
-        Level::Info => json.string(b"info"),
-        Level::Warning => json.string(b"warning"),
-        Level::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_notice_kind(json: &mut Encoder, value: &NoticeKind) {
-    match value {
-        NoticeKind::ReasoningDropped => json.string(b"reasoning_dropped"),
-        NoticeKind::CredentialUnauthorized => json.string(b"credential_unauthorized"),
-        NoticeKind::AccountLimited => json.string(b"account_limited"),
-        NoticeKind::AccountRefused => json.string(b"account_refused"),
-        NoticeKind::TeardownAborted => json.string(b"teardown_aborted"),
-        NoticeKind::ForcedExit => json.string(b"forced_exit"),
-        NoticeKind::Unknown(text) => json.string(text),
-    }
-}
-
-fn write_role(json: &mut Encoder, value: &Role) {
-    match value {
-        Role::User => json.string(b"user"),
-        Role::Assistant => json.string(b"assistant"),
-        Role::Unknown(text) => json.string(text),
-    }
-}
-
 fn write_agent(json: &mut Encoder, value: &Agent) {
     json.object_start();
     json.key(b"name");
@@ -467,11 +208,7 @@ fn write_model(json: &mut Encoder, value: &Model) {
         None => json.null(),
     }
     json.key(b"backend");
-    json.string(match &value.backend {
-        Backend::Direct => b"direct",
-        Backend::ClaudeCode => b"claude_code",
-        Backend::Unknown(name) => name,
-    });
+    json.string(value.backend.spelled().0);
     json.object_end();
 }
 
@@ -518,26 +255,15 @@ fn write_tools(json: &mut Encoder, value: &Tools) {
     json.object_end();
 }
 
-fn write_failure_phase(json: &mut Encoder, value: &FailurePhase) {
-    json.string(match value {
-        FailurePhase::Connect => b"connect",
-        FailurePhase::Handshake => b"handshake",
-        FailurePhase::Head => b"head",
-        FailurePhase::Idle => b"idle",
-        FailurePhase::Whole => b"whole",
-        FailurePhase::Unknown(value) => value,
-    });
-}
-
 fn write_completion_failure(json: &mut Encoder, value: &CompletionFailure, capture: &Capture) {
     json.object_start();
     json.key(b"class");
-    write_failure_class(json, &value.class);
+    json.string(value.class.spelled().0);
     json.key(b"evidence");
-    write_evidence(json, &value.evidence);
+    json.string(value.evidence.spelled().0);
     if let Some(item) = &value.phase {
         json.key(b"phase");
-        write_failure_phase(json, item);
+        json.string(item.spelled().0);
     }
     if let Some(item) = &value.limit {
         json.key(b"limit");
@@ -569,12 +295,7 @@ fn write_answer_failure(json: &mut Encoder, value: &AnswerFailure, capture: &Cap
     json.object_start();
     if let Some(state) = &value.state {
         json.key(b"state");
-        json.string(match state {
-            AccountState::Limited => b"limited",
-            AccountState::Refused => b"refused",
-            AccountState::Unauthorized => b"unauthorized",
-            AccountState::Unknown(value) => value,
-        });
+        json.string(state.spelled().0);
     }
     if let Some(code) = &value.code {
         json.key(b"code");
@@ -610,7 +331,7 @@ fn write_answer_failure(json: &mut Encoder, value: &AnswerFailure, capture: &Cap
         json.unsigned(item);
     }
     json.key(b"class");
-    write_answer_class(json, &value.class);
+    json.string(value.class.spelled().0);
     put_optional_text(json, b"endpoint", value.endpoint.as_deref());
     put_optional_text(json, b"model", value.model.as_deref());
     if let Some(item) = value.attempts {
@@ -654,7 +375,7 @@ fn write_field(json: &mut Encoder, value: &Field) {
 fn write_run_result(json: &mut Encoder, value: &RunResult, capture: &Capture) {
     json.object_start();
     json.key(b"form");
-    write_form(json, &value.form);
+    json.string(value.form.spelled().0);
     put_optional_text(json, b"label", value.label.as_deref());
     if *capture == Capture::Everything
         && let Some(item) = &value.text
@@ -674,7 +395,7 @@ fn write_run_result(json: &mut Encoder, value: &RunResult, capture: &Capture) {
 fn write_message(json: &mut Encoder, value: &Message) {
     json.object_start();
     json.key(b"role");
-    write_role(json, &value.role);
+    json.string(value.role.spelled().0);
     json.key(b"blocks");
     write_list_block(json, &value.blocks);
     json.object_end();
@@ -816,7 +537,7 @@ fn write_list_count(json: &mut Encoder, values: &List<Count>) {
 fn write_list_family(json: &mut Encoder, values: &List<Family>) {
     json.array_start();
     for value in values {
-        write_family(json, value);
+        json.string(value.spelled().0);
     }
     json.array_end();
 }
@@ -832,7 +553,7 @@ fn write_list_field(json: &mut Encoder, values: &List<Field>) {
 fn write_list_form(json: &mut Encoder, values: &List<Form>) {
     json.array_start();
     for value in values {
-        write_form(json, value);
+        json.string(value.spelled().0);
     }
     json.array_end();
 }
@@ -863,7 +584,7 @@ fn check_text(text: &[u8], capacity: u32) -> Result<(), Error> {
 fn validate_record(record: &Record, limits: &Limits) -> Result<(), Error> {
     match &record.event {
         Event::Budget(value) => {
-            validate_budget_stage(&value.stage, limits)?;
+            validate_word(value.stage.spelled(), limits)?;
             if let Some(call) = &value.call {
                 check_text(call, limits.string)?;
             }
@@ -881,7 +602,7 @@ fn validate_record(record: &Record, limits: &Limits) -> Result<(), Error> {
         Event::ToolStarted(value) => validate_tool_started(value, limits),
         Event::JobEnded(value) => {
             check_text(&value.call, limits.string)?;
-            validate_verdict(&value.verdict, limits)
+            validate_word(value.verdict.spelled(), limits)
         }
         Event::ToolCompleted(value) => validate_tool_completed(value, limits),
         Event::CheckCompleted(value) => validate_check_exit(&value.exit, limits),
@@ -902,220 +623,6 @@ fn validate_check_exit(value: &CheckExit, limits: &Limits) -> Result<(), Error> 
     }
 }
 
-fn validate_capture(value: &Capture, limits: &Limits) -> Result<(), Error> {
-    match value {
-        Capture::None | Capture::Calls | Capture::Everything => Ok(()),
-        Capture::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_delivery(value: &Delivery, limits: &Limits) -> Result<(), Error> {
-    match value {
-        Delivery::Complete | Delivery::BestEffort => Ok(()),
-        Delivery::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_mode(value: &Mode, limits: &Limits) -> Result<(), Error> {
-    match value {
-        Mode::Agent | Mode::Exec | Mode::Chat => Ok(()),
-        Mode::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_containment(value: &Containment, limits: &Limits) -> Result<(), Error> {
-    match value {
-        Containment::Groups | Containment::Trees => Ok(()),
-        Containment::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_family(value: &Family, limits: &Limits) -> Result<(), Error> {
-    match value {
-        Family::Inspect | Family::Modify | Family::Shell | Family::SubAgents => Ok(()),
-        Family::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_form(value: &Form, limits: &Limits) -> Result<(), Error> {
-    match value {
-        Form::Report | Form::Verdict | Form::Change | Form::Failure => Ok(()),
-        Form::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_status(value: &Status, limits: &Limits) -> Result<(), Error> {
-    match value {
-        Status::Accepted | Status::Parked | Status::Failed | Status::Refused => Ok(()),
-        Status::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_conversation_kind(value: &ConversationKind, limits: &Limits) -> Result<(), Error> {
-    match value {
-        ConversationKind::Main | ConversationKind::Child | ConversationKind::Compaction => Ok(()),
-        ConversationKind::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_conversation_end(value: &ConversationEnd, limits: &Limits) -> Result<(), Error> {
-    match value {
-        ConversationEnd::Closed
-        | ConversationEnd::Budget
-        | ConversationEnd::Failed
-        | ConversationEnd::Refused
-        | ConversationEnd::Transcript
-        | ConversationEnd::Overflow => Ok(()),
-        ConversationEnd::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_outcome(value: &Outcome, limits: &Limits) -> Result<(), Error> {
-    match value {
-        Outcome::Completed | Outcome::Failed | Outcome::Cancelled => Ok(()),
-        Outcome::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_stop(value: &Stop, limits: &Limits) -> Result<(), Error> {
-    match value {
-        Stop::End | Stop::Tools | Stop::MaxTokens | Stop::Refusal => Ok(()),
-        Stop::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_source(value: &Source, limits: &Limits) -> Result<(), Error> {
-    match value {
-        Source::Workspace | Source::Run | Source::Host => Ok(()),
-        Source::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_effect(value: &Effect, limits: &Limits) -> Result<(), Error> {
-    match value {
-        Effect::Read | Effect::Write => Ok(()),
-        Effect::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_verdict(value: &Verdict, limits: &Limits) -> Result<(), Error> {
-    match value {
-        Verdict::Read
-        | Verdict::Listed
-        | Verdict::Found
-        | Verdict::Removed
-        | Verdict::NotEmpty
-        | Verdict::Written
-        | Verdict::Edited
-        | Verdict::Exited
-        | Verdict::Conflict
-        | Verdict::Missing
-        | Verdict::TooLarge
-        | Verdict::Running
-        | Verdict::Stopped
-        | Verdict::TimedOut
-        | Verdict::Failed
-        | Verdict::Cancelled
-        | Verdict::Ambiguous
-        | Verdict::Result
-        | Verdict::Error
-        | Verdict::Invalid
-        | Verdict::NotRun
-        | Verdict::Withdrawn
-        | Verdict::NotGranted
-        | Verdict::Outside
-        | Verdict::ReadOnly
-        | Verdict::TooLong
-        | Verdict::NotFound
-        | Verdict::NotFile
-        | Verdict::Linked
-        | Verdict::Protected
-        | Verdict::NotDirectory
-        | Verdict::NotRead
-        | Verdict::Stale
-        | Verdict::NoMatch
-        | Verdict::Unchanged
-        | Verdict::Busy
-        | Verdict::NulByte => Ok(()),
-        Verdict::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_delivered(value: &Delivered, limits: &Limits) -> Result<(), Error> {
-    match value {
-        Delivered::Delivered | Delivered::Nothing | Delivered::Refused | Delivered::Failed | Delivered::Stale => Ok(()),
-        Delivered::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_failure_class(value: &FailureClass, limits: &Limits) -> Result<(), Error> {
-    match value {
-        FailureClass::Overloaded
-        | FailureClass::RateLimited
-        | FailureClass::Exhausted
-        | FailureClass::Refused
-        | FailureClass::Unsupported
-        | FailureClass::Unavailable
-        | FailureClass::TimedOut
-        | FailureClass::ContextTooLong
-        | FailureClass::Invalid
-        | FailureClass::Unauthorized
-        | FailureClass::Limit
-        | FailureClass::Protocol
-        | FailureClass::Cancelled => Ok(()),
-        FailureClass::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_evidence(value: &Evidence, limits: &Limits) -> Result<(), Error> {
-    match value {
-        Evidence::Unsent | Evidence::MaybeSent | Evidence::Response => Ok(()),
-        Evidence::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_answer_class(value: &AnswerClass, limits: &Limits) -> Result<(), Error> {
-    match value {
-        AnswerClass::Model
-        | AnswerClass::Budget
-        | AnswerClass::Policy
-        | AnswerClass::Cancelled
-        | AnswerClass::Agent
-        | AnswerClass::Host
-        | AnswerClass::Stale
-        | AnswerClass::Transcript
-        | AnswerClass::Busy
-        | AnswerClass::Invalid => Ok(()),
-        AnswerClass::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_level(value: &Level, limits: &Limits) -> Result<(), Error> {
-    match value {
-        Level::Info | Level::Warning => Ok(()),
-        Level::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_notice_kind(value: &NoticeKind, limits: &Limits) -> Result<(), Error> {
-    match value {
-        NoticeKind::ReasoningDropped
-        | NoticeKind::CredentialUnauthorized
-        | NoticeKind::AccountLimited
-        | NoticeKind::AccountRefused
-        | NoticeKind::TeardownAborted
-        | NoticeKind::ForcedExit => Ok(()),
-        NoticeKind::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
-fn validate_role(value: &Role, limits: &Limits) -> Result<(), Error> {
-    match value {
-        Role::User | Role::Assistant => Ok(()),
-        Role::Unknown(text) => check_text(text, limits.string),
-    }
-}
-
 fn validate_agent(value: &Agent, limits: &Limits) -> Result<(), Error> {
     check_text(&value.name, limits.string)?;
     check_text(&value.version, limits.string)?;
@@ -1131,10 +638,7 @@ fn validate_count(value: &Count, limits: &Limits) -> Result<(), Error> {
 fn validate_model(value: &Model, limits: &Limits) -> Result<(), Error> {
     check_text(&value.endpoint, limits.string)?;
     check_text(&value.model, limits.string)?;
-    match &value.backend {
-        Backend::Direct | Backend::ClaudeCode => {}
-        Backend::Unknown(name) => check_text(name, limits.string)?,
-    }
+    validate_word(value.backend.spelled(), limits)?;
 
     if let Some(item) = &value.effort {
         check_text(item, limits.string)?;
@@ -1151,20 +655,13 @@ fn validate_tools(value: &Tools, limits: &Limits) -> Result<(), Error> {
 }
 
 fn validate_completion_failure(value: &CompletionFailure, limits: &Limits) -> Result<(), Error> {
-    validate_failure_class(&value.class, limits)?;
+    validate_word(value.class.spelled(), limits)?;
     for item in [&value.field, &value.code, &value.request_id].into_iter().flatten() {
         check_text(item, limits.string)?;
     }
-    validate_evidence(&value.evidence, limits)?;
+    validate_word(value.evidence.spelled(), limits)?;
     if let Some(phase) = &value.phase {
-        match phase {
-            FailurePhase::Connect
-            | FailurePhase::Handshake
-            | FailurePhase::Head
-            | FailurePhase::Idle
-            | FailurePhase::Whole => {}
-            FailurePhase::Unknown(text) => check_text(text, limits.string)?,
-        }
+        validate_word(phase.spelled(), limits)?;
     }
     if let Some(limit) = &value.limit {
         check_text(&limit.which, limits.string)?;
@@ -1176,7 +673,7 @@ fn validate_completion_failure(value: &CompletionFailure, limits: &Limits) -> Re
 }
 
 fn validate_answer_failure(value: &AnswerFailure, limits: &Limits) -> Result<(), Error> {
-    validate_answer_class(&value.class, limits)?;
+    validate_word(value.class.spelled(), limits)?;
     if let Some(endpoint) = &value.endpoint {
         check_text(endpoint, limits.string)?;
     }
@@ -1192,9 +689,8 @@ fn validate_answer_failure(value: &AnswerFailure, limits: &Limits) -> Result<(),
     if let Some(item) = &value.reason {
         check_text(item, limits.string)?;
     }
-    match &value.state {
-        Some(AccountState::Unknown(value)) => check_text(value, limits.string)?,
-        Some(AccountState::Limited | AccountState::Refused | AccountState::Unauthorized) | None => {}
+    if let Some(state) = &value.state {
+        validate_word(state.spelled(), limits)?;
     }
     if let Some(code) = &value.code {
         check_text(code, limits.string)?;
@@ -1215,7 +711,7 @@ fn validate_field(value: &Field, limits: &Limits) -> Result<(), Error> {
 }
 
 fn validate_run_result(value: &RunResult, limits: &Limits) -> Result<(), Error> {
-    validate_form(&value.form, limits)?;
+    validate_word(value.form.spelled(), limits)?;
     if let Some(item) = &value.label {
         check_text(item, limits.string)?;
     }
@@ -1229,7 +725,7 @@ fn validate_run_result(value: &RunResult, limits: &Limits) -> Result<(), Error> 
 }
 
 fn validate_message(value: &Message, limits: &Limits) -> Result<(), Error> {
-    validate_role(&value.role, limits)?;
+    validate_word(value.role.spelled(), limits)?;
     validate_list_block(&value.blocks, limits)?;
     Ok(())
 }
@@ -1252,7 +748,7 @@ fn validate_completion(value: &Completion, limits: &Limits) -> Result<(), Error>
 
 fn validate_session_started(value: &SessionStarted, limits: &Limits) -> Result<(), Error> {
     validate_agent(&value.agent, limits)?;
-    validate_mode(&value.mode, limits)?;
+    validate_word(value.mode.spelled(), limits)?;
     match &value.mode {
         Mode::Agent if value.chat.is_some() => return Err(Error::Shape),
         Mode::Agent | Mode::Exec | Mode::Chat | Mode::Unknown(_) => {}
@@ -1260,11 +756,11 @@ fn validate_session_started(value: &SessionStarted, limits: &Limits) -> Result<(
     if let Some(chat) = &value.chat {
         check_text(chat, limits.string)?;
     }
-    validate_containment(&value.containment, limits)?;
+    validate_word(value.containment.spelled(), limits)?;
 
     check_text(&value.profile, limits.string)?;
-    validate_capture(&value.capture, limits)?;
-    validate_delivery(&value.delivery, limits)?;
+    validate_word(value.capture.spelled(), limits)?;
+    validate_word(value.delivery.spelled(), limits)?;
     validate_effective_limits(&value.limits, limits)?;
     Ok(())
 }
@@ -1308,7 +804,7 @@ fn validate_run_started(value: &RunStarted, limits: &Limits) -> Result<(), Error
 }
 
 fn validate_run_completed(value: &RunCompleted, limits: &Limits) -> Result<(), Error> {
-    validate_status(&value.status, limits)?;
+    validate_word(value.status.spelled(), limits)?;
     if let Some(item) = &value.failure {
         validate_answer_failure(item, limits)?;
     }
@@ -1320,7 +816,7 @@ fn validate_run_completed(value: &RunCompleted, limits: &Limits) -> Result<(), E
 }
 
 fn validate_conversation_opened(value: &ConversationOpened, limits: &Limits) -> Result<(), Error> {
-    validate_conversation_kind(&value.kind, limits)?;
+    validate_word(value.kind.spelled(), limits)?;
     if let Some(item) = &value.call {
         check_text(item, limits.string)?;
     }
@@ -1329,14 +825,14 @@ fn validate_conversation_opened(value: &ConversationOpened, limits: &Limits) -> 
         return Err(Error::Limits);
     }
     for clamp in &value.clamped {
-        validate_share_part(&clamp.part, limits)?;
-        validate_share_bound(&clamp.by, limits)?;
+        validate_word(clamp.part.spelled(), limits)?;
+        validate_word(clamp.by.spelled(), limits)?;
     }
     Ok(())
 }
 
 fn validate_conversation_closed(value: &ConversationClosed, limits: &Limits) -> Result<(), Error> {
-    validate_conversation_end(&value.end, limits)?;
+    validate_word(value.end.spelled(), limits)?;
     if let Some(item) = &value.which {
         check_text(item, limits.string)?;
     }
@@ -1349,10 +845,7 @@ fn validate_conversation_closed(value: &ConversationClosed, limits: &Limits) -> 
 
 fn validate_response_started(value: &ResponseStarted, limits: &Limits) -> Result<(), Error> {
     validate_model(&value.model, limits)?;
-    match &value.tool_choice {
-        ToolChoice::Auto | ToolChoice::None | ToolChoice::Only => {}
-        ToolChoice::Unknown(text) => check_text(text, limits.string)?,
-    }
+    validate_word(value.tool_choice.spelled(), limits)?;
 
     if let Some(item) = &value.prompt {
         validate_prompt(item, limits)?;
@@ -1361,9 +854,9 @@ fn validate_response_started(value: &ResponseStarted, limits: &Limits) -> Result
 }
 
 fn validate_response_completed(value: &ResponseCompleted, limits: &Limits) -> Result<(), Error> {
-    validate_outcome(&value.outcome, limits)?;
+    validate_word(value.outcome.spelled(), limits)?;
     if let Some(item) = &value.stop {
-        validate_stop(item, limits)?;
+        validate_word(item.spelled(), limits)?;
     }
 
     if let Some(item) = &value.failure {
@@ -1383,8 +876,8 @@ fn validate_text_delta(value: &TextDelta, limits: &Limits) -> Result<(), Error> 
 fn validate_tool_started(value: &ToolStarted, limits: &Limits) -> Result<(), Error> {
     check_text(&value.call, limits.string)?;
     check_text(&value.tool, limits.string)?;
-    validate_source(&value.source, limits)?;
-    validate_effect(&value.effect, limits)?;
+    validate_word(value.source.spelled(), limits)?;
+    validate_word(value.effect.spelled(), limits)?;
 
     if let Some(item) = &value.input {
         check_text(item, limits.content)?;
@@ -1395,30 +888,20 @@ fn validate_tool_started(value: &ToolStarted, limits: &Limits) -> Result<(), Err
 fn validate_tool_completed(value: &ToolCompleted, limits: &Limits) -> Result<(), Error> {
     check_text(&value.call, limits.string)?;
     check_text(&value.tool, limits.string)?;
-    validate_verdict(&value.verdict, limits)?;
+    validate_word(value.verdict.spelled(), limits)?;
 
     if let Some(item) = &value.child {
-        match &item.stop {
-            ChildStop::End | ChildStop::Budget | ChildStop::Failed | ChildStop::Closed => {}
-            ChildStop::Unknown(text) => check_text(text, limits.string)?,
-        }
+        validate_word(item.stop.spelled(), limits)?;
     }
     if let Some(item) = &value.delivery {
-        validate_delivered(item, limits)?;
+        validate_word(item.spelled(), limits)?;
     }
     Ok(())
 }
 
 fn validate_message_received(value: &MessageReceived, limits: &Limits) -> Result<(), Error> {
     if let Some(refusal) = &value.refused {
-        match refusal {
-            MessageRefusal::TooLarge
-            | MessageRefusal::InboxFull
-            | MessageRefusal::NameInUse
-            | MessageRefusal::Ending
-            | MessageRefusal::StartRefused => {}
-            MessageRefusal::Unknown(text) => check_text(text, limits.string)?,
-        }
+        validate_word(refusal.spelled(), limits)?;
     }
     if let Some(label) = &value.label {
         check_text(label, limits.string)?;
@@ -1433,11 +916,10 @@ fn validate_notice(value: &Notice, limits: &Limits) -> Result<(), Error> {
     if let Some(code) = &value.code {
         check_text(code, limits.string)?;
     }
-    validate_level(&value.level, limits)?;
-    validate_notice_kind(&value.kind, limits)?;
-    match &value.forced {
-        Some(Forced::Unknown(value)) => check_text(value, limits.string)?,
-        Some(Forced::No | Forced::Terminated | Forced::Killed) | None => {}
+    validate_word(value.level.spelled(), limits)?;
+    validate_word(value.kind.spelled(), limits)?;
+    if let Some(forced) = &value.forced {
+        validate_word(forced.spelled(), limits)?;
     }
     match value.kind {
         NoticeKind::ForcedExit if value.forced.is_none() => Err(Error::Shape),
@@ -1517,7 +999,7 @@ fn validate_list_family(values: &List<Family>, limits: &Limits) -> Result<(), Er
         return Err(Error::Limits);
     }
     for value in values {
-        validate_family(value, limits)?;
+        validate_word(value.spelled(), limits)?;
     }
     Ok(())
 }
@@ -1537,7 +1019,7 @@ fn validate_list_form(values: &List<Form>, limits: &Limits) -> Result<(), Error>
         return Err(Error::Limits);
     }
     for value in values {
-        validate_form(value, limits)?;
+        validate_word(value.spelled(), limits)?;
     }
     Ok(())
 }
@@ -1568,21 +1050,21 @@ fn encode_session_started(json: &mut Encoder, value: &SessionStarted) {
     json.key(b"agent");
     write_agent(json, &value.agent);
     json.key(b"mode");
-    write_mode(json, &value.mode);
+    json.string(value.mode.spelled().0);
     if let Some(chat) = &value.chat {
         json.key(b"chat");
         json.string(chat);
     }
     json.key(b"containment");
-    write_containment(json, &value.containment);
+    json.string(value.containment.spelled().0);
     json.key(b"pid");
     json.unsigned(value.pid);
     json.key(b"profile");
     json.string(&value.profile);
     json.key(b"capture");
-    write_capture(json, &value.capture);
+    json.string(value.capture.spelled().0);
     json.key(b"delivery");
-    write_delivery(json, &value.delivery);
+    json.string(value.delivery.spelled().0);
     json.key(b"versions");
     write_versions(json, &value.versions);
     json.key(b"limits");
@@ -1652,7 +1134,7 @@ fn encode_run_completed(json: &mut Encoder, value: &RunCompleted, capture: &Capt
     json.key(b"run");
     json.unsigned(value.run);
     json.key(b"status");
-    write_status(json, &value.status);
+    json.string(value.status.spelled().0);
     if let Some(item) = &value.failure {
         json.key(b"failure");
         write_answer_failure(json, item, capture);
@@ -1684,7 +1166,7 @@ fn encode_conversation_opened(json: &mut Encoder, value: &ConversationOpened) {
     json.key(b"conversation");
     json.unsigned(value.conversation);
     json.key(b"kind");
-    write_conversation_kind(json, &value.kind);
+    json.string(value.kind.spelled().0);
     put_optional_unsigned(json, b"parent", value.parent);
     put_optional_text(json, b"call", value.call.as_deref());
     json.key(b"thread");
@@ -1705,9 +1187,9 @@ fn encode_conversation_opened(json: &mut Encoder, value: &ConversationOpened) {
         for clamp in &value.clamped {
             json.object_start();
             json.key(b"part");
-            write_share_part(json, &clamp.part);
+            json.string(clamp.part.spelled().0);
             json.key(b"by");
-            write_share_bound(json, &clamp.by);
+            json.string(clamp.by.spelled().0);
             json.object_end();
         }
         json.array_end();
@@ -1720,7 +1202,7 @@ fn encode_conversation_closed(json: &mut Encoder, value: &ConversationClosed, ca
     json.key(b"conversation");
     json.unsigned(value.conversation);
     json.key(b"end");
-    write_conversation_end(json, &value.end);
+    json.string(value.end.spelled().0);
     put_optional_text(json, b"which", value.which.as_deref());
     if let Some(item) = &value.failure {
         json.key(b"failure");
@@ -1756,7 +1238,7 @@ fn encode_response_started(json: &mut Encoder, value: &ResponseStarted, capture:
     json.key(b"output_tokens");
     json.unsigned(value.output_tokens);
     json.key(b"tool_choice");
-    write_tool_choice(json, &value.tool_choice);
+    json.string(value.tool_choice.spelled().0);
     if *capture == Capture::Everything
         && let Some(item) = &value.prompt
     {
@@ -1773,10 +1255,10 @@ fn encode_response_completed(json: &mut Encoder, value: &ResponseCompleted, capt
     json.key(b"response");
     json.unsigned(value.response);
     json.key(b"outcome");
-    write_outcome(json, &value.outcome);
+    json.string(value.outcome.spelled().0);
     if let Some(item) = &value.stop {
         json.key(b"stop");
-        write_stop(json, item);
+        json.string(item.spelled().0);
     }
     json.key(b"blocks");
     json.unsigned(value.blocks);
@@ -1836,9 +1318,9 @@ fn encode_tool_started(json: &mut Encoder, value: &ToolStarted, capture: &Captur
     json.key(b"tool");
     json.string(&value.tool);
     json.key(b"source");
-    write_source(json, &value.source);
+    json.string(value.source.spelled().0);
     json.key(b"effect");
-    write_effect(json, &value.effect);
+    json.string(value.effect.spelled().0);
     json.key(b"deadline_ms");
     put_nullable_unsigned(json, value.deadline_ms);
     json.key(b"input_bytes");
@@ -1856,13 +1338,7 @@ fn write_child_completed(json: &mut Encoder, value: &ChildCompleted) {
     json.key(b"conversation");
     json.unsigned(value.conversation);
     json.key(b"stop");
-    match &value.stop {
-        ChildStop::End => json.string(b"end"),
-        ChildStop::Budget => json.string(b"budget"),
-        ChildStop::Failed => json.string(b"failed"),
-        ChildStop::Closed => json.string(b"closed"),
-        ChildStop::Unknown(text) => json.string(text),
-    }
+    json.string(value.stop.spelled().0);
     json.key(b"turns");
     json.unsigned(value.turns);
     json.key(b"time_ms");
@@ -1884,7 +1360,7 @@ fn encode_tool_completed(json: &mut Encoder, value: &ToolCompleted) {
     json.key(b"tool");
     json.string(&value.tool);
     json.key(b"verdict");
-    write_verdict(json, &value.verdict);
+    json.string(value.verdict.spelled().0);
     if let Some(item) = &value.exit {
         json.key(b"exit");
         write_command_exit(json, item);
@@ -1907,7 +1383,7 @@ fn encode_tool_completed(json: &mut Encoder, value: &ToolCompleted) {
     }
     if let Some(item) = &value.delivery {
         json.key(b"delivery");
-        write_delivered(json, item);
+        json.string(item.spelled().0);
     }
 }
 
@@ -1921,7 +1397,7 @@ fn encode_job_ended(json: &mut Encoder, value: &JobEnded) {
     json.key(b"call");
     json.string(&value.call);
     json.key(b"verdict");
-    write_verdict(json, &value.verdict);
+    json.string(value.verdict.spelled().0);
     if let Some(exit) = &value.exit {
         json.key(b"exit");
         write_command_exit(json, exit);
@@ -1959,14 +1435,7 @@ fn encode_message_received(json: &mut Encoder, value: &MessageReceived, capture:
     json.unsigned(value.bytes);
     if let Some(refusal) = &value.refused {
         json.key(b"refused");
-        match refusal {
-            MessageRefusal::TooLarge => json.string(b"too_large"),
-            MessageRefusal::InboxFull => json.string(b"inbox_full"),
-            MessageRefusal::NameInUse => json.string(b"name_in_use"),
-            MessageRefusal::Ending => json.string(b"ending"),
-            MessageRefusal::StartRefused => json.string(b"start_refused"),
-            MessageRefusal::Unknown(text) => json.string(text),
-        }
+        json.string(refusal.spelled().0);
     }
     if *capture == Capture::Everything {
         if let Some(label) = &value.label {
@@ -2011,20 +1480,11 @@ fn write_agent_exit(json: &mut Encoder, exit: AgentExit) {
     json.object_end();
 }
 
-fn write_forced(json: &mut Encoder, forced: &Forced) {
-    match forced {
-        Forced::No => json.string(b"no"),
-        Forced::Terminated => json.string(b"terminated"),
-        Forced::Killed => json.string(b"killed"),
-        Forced::Unknown(value) => json.string(value),
-    }
-}
-
 fn encode_notice(json: &mut Encoder, value: &Notice) {
     json.key(b"level");
-    write_level(json, &value.level);
+    json.string(value.level.spelled().0);
     json.key(b"kind");
-    write_notice_kind(json, &value.kind);
+    json.string(value.kind.spelled().0);
     match value.exit {
         Some(exit) => {
             json.key(b"exit");
@@ -2045,7 +1505,7 @@ fn encode_notice(json: &mut Encoder, value: &Notice) {
     }
     if let Some(forced) = &value.forced {
         json.key(b"forced");
-        write_forced(json, forced);
+        json.string(forced.spelled().0);
     }
     put_optional_unsigned(json, b"run", value.run);
     if let Some(account) = value.account {
@@ -2060,51 +1520,6 @@ fn encode_notice(json: &mut Encoder, value: &Notice) {
     if let Some(code) = &value.code {
         json.key(b"code");
         json.string(code);
-    }
-}
-
-fn write_budget_stage(json: &mut Encoder, value: &BudgetStage) {
-    match value {
-        BudgetStage::Ordinary => json.string(b"ordinary"),
-        BudgetStage::WindDown => json.string(b"wind_down"),
-        BudgetStage::Unknown(value) => json.string(value),
-    }
-}
-
-fn validate_budget_stage(value: &BudgetStage, limits: &Limits) -> Result<(), Error> {
-    match value {
-        BudgetStage::Ordinary | BudgetStage::WindDown => Ok(()),
-        BudgetStage::Unknown(value) => check_text(value, limits.string),
-    }
-}
-
-fn write_share_part(json: &mut Encoder, value: &SharePart) {
-    match value {
-        SharePart::Turns => json.string(b"turns"),
-        SharePart::Time => json.string(b"time"),
-        SharePart::Unknown(value) => json.string(value),
-    }
-}
-
-fn validate_share_part(value: &SharePart, limits: &Limits) -> Result<(), Error> {
-    match value {
-        SharePart::Turns | SharePart::Time => Ok(()),
-        SharePart::Unknown(value) => check_text(value, limits.string),
-    }
-}
-
-fn write_share_bound(json: &mut Encoder, value: &ShareBound) {
-    match value {
-        ShareBound::Reserve => json.string(b"reserve"),
-        ShareBound::Deadline => json.string(b"deadline"),
-        ShareBound::Unknown(value) => json.string(value),
-    }
-}
-
-fn validate_share_bound(value: &ShareBound, limits: &Limits) -> Result<(), Error> {
-    match value {
-        ShareBound::Reserve | ShareBound::Deadline => Ok(()),
-        ShareBound::Unknown(value) => check_text(value, limits.string),
     }
 }
 
@@ -2156,7 +1571,7 @@ fn encode_budget_standing(json: &mut Encoder, value: &BudgetStanding) {
     json.key(b"run");
     json.unsigned(value.run);
     json.key(b"stage");
-    write_budget_stage(json, &value.stage);
+    json.string(value.stage.spelled().0);
     json.key(b"turns");
     write_quantity(json, &value.turns);
     json.key(b"spend");
@@ -2190,4 +1605,8 @@ fn put_nullable_unsigned(json: &mut Encoder, value: Option<u64>) {
         Some(item) => json.unsigned(item),
         None => json.null(),
     }
+}
+
+fn validate_word((text, forward): (&[u8], bool), limits: &Limits) -> Result<(), Error> {
+    if forward { check_text(text, limits.string) } else { Ok(()) }
 }

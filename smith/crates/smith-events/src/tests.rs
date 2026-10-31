@@ -6,13 +6,8 @@ use crate::{Capture, Error, Event, Limits, read, write};
 #[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn provider_failure_metadata_and_capture_detail_survive_the_reader() {
     let limits = Limits { string: 256, items: 16, ..SMALL };
-    let original =
-        core::str::from_utf8(include_bytes!("../golden/v4/outcome_failed.jsonl")).expect("valid deterministic fixture");
-    let source = original.replace(
-        "\"class\":\"overloaded\"",
-        "\"class\":\"invalid\",\"status\":404,\"phase\":\"head\",\"limit\":{\"which\":\"response_head\",\"bound\":1935},\"detail\":\"unknown model 🌍\"",
-    );
-    let record = crate::read_with_ceiling(source.as_bytes(), &limits, 4096)
+    let source = include_bytes!("../golden/v4/failure_phase_head.jsonl");
+    let record = crate::read_with_ceiling(source, &limits, 4096)
         .expect("valid deterministic fixture")
         .expect("valid deterministic fixture");
     for capture in [Capture::None, Capture::Calls, Capture::Everything] {
@@ -22,7 +17,7 @@ fn provider_failure_metadata_and_capture_detail_survive_the_reader() {
         let line = core::str::from_utf8(&encoded).expect("valid deterministic fixture");
         assert!(line.contains("\"status\":404"), "observed HTTP status is typed metadata");
         assert!(line.contains("\"phase\":\"head\""));
-        assert!(line.contains("\"limit\":{\"which\":\"response_head\",\"bound\":1935}"));
+        assert!(line.contains("\"limit\":{\"which\":\"response_head\",\"bound\":18446744073709551615}"));
         assert_eq!(line.contains("\"detail\":\"unknown model 🌍\""), capture != Capture::None);
     }
 }
@@ -58,10 +53,11 @@ fn joint_line_ceiling_is_inclusive_and_one_more_byte_refuses_in_both_paths() {
         assert_eq!(records.as_slice(), core::slice::from_ref(&expected));
         reader.finish().expect("terminated line");
     }
-    let over = core::str::from_utf8(END_WITH_UNREAD_USAGE).expect("fixture UTF-8").replace('\n', " \n");
-    assert_eq!(crate::read_with_ceiling(over.as_bytes(), &limits, ceiling), Err(Error::Limits));
+    let mut over = END_WITH_UNREAD_USAGE.to_vec();
+    over.insert(over.len() - 1, b' ');
+    assert_eq!(crate::read_with_ceiling(&over, &limits, ceiling), Err(Error::Limits));
     let mut reader = crate::Reader::with_ceiling(&limits, ceiling).expect("joint bound");
-    assert_eq!(reader.feed(over.as_bytes()).expect_err("one byte above line ceiling"), Error::Limits);
+    assert_eq!(reader.feed(&over).expect_err("one byte above line ceiling"), Error::Limits);
     reader.finish().expect("refused bytes released");
     let line = reader.feed(END_WITH_UNREAD_USAGE).expect("next bounded line");
     assert_eq!(line.record, expected);
@@ -70,22 +66,24 @@ fn joint_line_ceiling_is_inclusive_and_one_more_byte_refuses_in_both_paths() {
 }
 
 #[test]
-#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn joint_line_bound_never_relaxes_string_content_or_list_caps() {
     let mut limits = Limits { string: 32, content: 8, ..SMALL };
     limits.items = 1;
-    let base = "{\"v\":4,\"type\":\"message.received\",\"t_ms\":0,\"run\":1,\"name\":2,\"bytes\":8,\"label\":\"LABEL\",\"text\":\"12345678\"}\n";
-    let at_cap = base.replace("LABEL", &"x".repeat(32));
-    assert!(crate::read_with_ceiling(at_cap.as_bytes(), &limits, 1024).expect("semantic boundaries").is_some());
-    let metadata_over = base.replace("LABEL", &"x".repeat(33));
-    let content_over = base.replace("12345678", "123456789");
-    let list_over = core::str::from_utf8(END_WITH_UNREAD_USAGE)
-        .expect("fixture UTF-8")
-        .replace("\"session.ended\":1", "\"session.ended\":1,\"run.completed\":1");
+    let at_cap = message_line(&[b'x'; 32], b"12345678");
+    assert!(crate::read_with_ceiling(&at_cap, &limits, 1024).expect("semantic boundaries").is_some());
+    let metadata_over = message_line(&[b'x'; 33], b"12345678");
+    let content_over = message_line(&[b'x'; 32], b"123456789");
+    let mut terminal = read(END_WITH_UNREAD_USAGE, &SMALL).expect("terminal fixture").expect("record");
+    let Event::SessionEnded(end) = &mut terminal.event else { panic!("terminal fixture") };
+    let mut emitted = skein_lib::List::with_capacity(2);
+    emitted.push(end.emitted.get(0).expect("terminal count").clone()).expect("count room");
+    emitted.push(crate::Count { record: Box::from(b"run.completed".as_slice()), count: 1 }).expect("count room");
+    end.emitted = emitted;
+    let list_over = write(&terminal, &Capture::Everything, &SMALL).expect("two counts").expect("terminal");
     for (line, expected) in [
-        (metadata_over.as_bytes(), Error::Shape),
-        (content_over.as_bytes(), Error::Shape),
-        (list_over.as_bytes(), Error::Limits),
+        (metadata_over.as_ref(), Error::Shape),
+        (content_over.as_ref(), Error::Shape),
+        (list_over.as_ref(), Error::Limits),
     ] {
         assert_eq!(crate::read_with_ceiling(line, &limits, 1024), Err(expected));
         let mut reader = crate::Reader::with_ceiling(&limits, 1024).expect("ample aggregate room");
@@ -150,14 +148,15 @@ fn unread_resource_usage_is_null_and_round_trips_without_changing_the_terminal()
 #[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn measured_resource_objects_round_trip_with_exact_values() {
     let limits = SMALL;
-    let known = core::str::from_utf8(END_WITH_UNREAD_USAGE)
-        .expect("fixture UTF-8")
-        .replace("\"cpu_ms\":null", "\"cpu_ms\":{\"user\":1,\"system\":2,\"children_user\":3,\"children_system\":4}")
-        .replace("\"peak_rss_bytes\":null", "\"peak_rss_bytes\":{\"self\":5,\"children\":6}");
-    let record = read(known.as_bytes(), &limits).expect("measured usage remains valid").expect("end record");
+    let mut record = read(END_WITH_UNREAD_USAGE, &limits).expect("terminal fixture").expect("record");
+    let Event::SessionEnded(end) = &mut record.event else { panic!("terminal fixture") };
+    end.cpu_ms = Some(crate::Cpu { user: 1, system: 2, children_user: 3, children_system: 4 });
+    end.peak_rss_bytes = Some(crate::PeakRss { self_bytes: 5, children: 6 });
     for capture in [Capture::None, Capture::Calls, Capture::Everything] {
         let encoded = write(&record, &capture, &limits).expect("bounded end").expect("end retained");
-        assert_eq!(encoded.as_ref(), known.as_bytes());
+        let text = core::str::from_utf8(&encoded).expect("JSON UTF-8");
+        assert!(text.contains("\"cpu_ms\":{\"user\":1,\"system\":2,\"children_user\":3,\"children_system\":4}"));
+        assert!(text.contains("\"peak_rss_bytes\":{\"self\":5,\"children\":6}"));
         assert_eq!(read(&encoded, &limits).expect("read usage"), Some(record.clone()));
     }
 }
@@ -419,4 +418,19 @@ fn receiving_limits() -> Limits {
     let mut limits = Limits { string: 524_288, content: 4096, ..SMALL };
     limits.items = 32;
     limits
+}
+
+fn message_line(label: &[u8], text: &[u8]) -> Box<[u8]> {
+    let record = crate::Record {
+        t_ms: 0,
+        event: Event::MessageReceived(crate::MessageReceived {
+            run: 1,
+            name: 2,
+            bytes: 8,
+            refused: None,
+            label: Some(Box::from(label)),
+            text: Some(Box::from(text)),
+        }),
+    };
+    write(&record, &Capture::Everything, &SMALL).expect("fixture within generous caps").expect("message")
 }

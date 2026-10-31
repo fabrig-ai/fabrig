@@ -13,6 +13,8 @@ use smith_transcript_patches::patches;
 #[path = "support/patches.rs"]
 mod host;
 
+use host::{PLANS, TEXT_BYTES, fixture_capacity, kept_patcher, planned_patcher};
+
 const CURRENT_TEXT: &str = include_str!("../../../crates/smith-transcript/schema/transcript-v6.schema");
 const KEPT_V1: &str = include_str!("../../transcript-patches/schema/kept/fixture-turn-v1.schema");
 const KEPT_V2: &str = include_str!("../../transcript-patches/schema/kept/fixture-turn-v2.schema");
@@ -25,10 +27,6 @@ const HIT_BYTES: u32 = 2_097_152;
 // Both fields of the fixture's kept version 1 have a ceiling of 64 bytes.
 const FIELD_BYTES: usize = 64;
 const PAST_FIELD_BYTES: usize = FIELD_BYTES + 1;
-// skein/docs/design/codec.md, 11.6: two kept versions and one conversion plan for this fixture.
-const VERSIONS: u32 = 2;
-const PLANS: u32 = 1;
-const TEXT_BYTES: u32 = 256;
 const NO_PLANS: u32 = 0;
 const SHORT_NODES: u32 = host::NODES - 1;
 // Version first, then a u32 length before each of the two fields.
@@ -57,26 +55,6 @@ const FROZEN_GOLDEN_PATH: &str = "patches/golden/0001/fixture-turn/record_turn_s
 // Current schema, two kept texts, one patch and its two goldens.
 const OWNER_DATA_FILES: usize = 6;
 static NEXT_DIRECTORY: AtomicU32 = AtomicU32::new(0);
-
-fn fixture_capacity() -> Capacity {
-    Capacity { versions: VERSIONS, patches: PLANS, text: TEXT_BYTES, bytes: host::RECORD_BYTES, nodes: host::NODES }
-}
-
-fn kept_patcher(capacity: Capacity) -> Patcher {
-    let mut patcher = Patcher::new(capacity);
-    for text in patches::kept::fixture_turn::TEXTS {
-        patcher.keep(text.as_bytes()).expect("keep the fixture owner's texts");
-    }
-    patcher
-}
-
-fn planned_patcher(capacity: Capacity) -> Patcher {
-    let mut patcher = kept_patcher(capacity);
-    for text in patches::PATCHES {
-        patcher.plan(text.as_bytes()).expect("plan the fixture owner's set");
-    }
-    patcher
-}
 
 fn kept_turn(said: &[u8], replay: &[u8]) -> Box<[u8]> {
     let mut record = VERSION_ONE.to_be_bytes().to_vec();
