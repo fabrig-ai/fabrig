@@ -1,4 +1,4 @@
-//! Design-only QA of store.md 2, 9, 10.1–10.4 and 16.
+//! Independent checks for store.md 2, 9, 10.1–10.4 and 16.
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{Check, Event, KeptFamily, OpenRefusal, Owner, PatchSet, PatchSets, SecretOwner, Secrets};

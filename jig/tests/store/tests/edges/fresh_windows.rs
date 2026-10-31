@@ -1,4 +1,4 @@
-//! Independent QA from store.md 8.6 and 10.2–10.4.
+//! Independent checks for store.md 8.6 and 10.2–10.4.
 use jig_domain_core as core;
 use jig_protocol_store::{Event, Owner, PatchSet, PatchSets, Request, TranscriptRead, Write, codec};
 use jig_store_world::{World, patches, referee::Referee, root, world::Change};

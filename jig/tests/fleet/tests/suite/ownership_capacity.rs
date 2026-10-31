@@ -7,7 +7,7 @@ fn ownership_and_capacity_pressure_leave_no_unsettled_fleet_work() {
         let mut world = World::new(settings);
         world.run(400_000);
         let stats = world.stats();
-        assert!(stats.capacity_refusals > 0, "seed {seed}: capacity actually reached");
+        assert!(stats.capacity_refusals > 0, "seed {seed}: capacity reached");
         assert!(stats.calls > 0 && stats.replies > 0, "seed {seed}: {stats:?}");
     }
 }

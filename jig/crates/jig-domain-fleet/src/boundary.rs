@@ -369,8 +369,6 @@ pub enum Event {
         attempt: Token,
         turn: u32,
     },
-    /// From a worker: an inbound event for the attempt `attempt` of the run
-    /// `run` was not passed on, for `bounce`.
     /// Best-effort typed activity from the current hosting channel.
     Observe {
         channel: Token,
@@ -594,8 +592,6 @@ pub enum Request {
         attempt: Token,
         refusal: Refusal,
     },
-    /// To the parent: an inbound event its worker did not pass on, for
-    /// `bounce`.
     /// A message reached no live host; all its values remain the parent's.
     Undelivered {
         run: Token,

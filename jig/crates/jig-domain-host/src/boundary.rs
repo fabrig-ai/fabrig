@@ -199,8 +199,6 @@ pub enum Request {
         attempt: Token,
         call: Box<[u8]>,
     },
-    /// To the engine: an inbound event for the run `run`'s attempt `attempt`
-    /// was not passed on, for `reason`.
     /// Prepare `workspace` for the hosted run `owner`.
     Prepare {
         owner: Token,

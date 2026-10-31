@@ -12,4 +12,5 @@
   question's current inbox owner without a stored-format migration.
   Moving a recipient re-points its incoming person-answerer credits to
   its new person.
-- **Not yet:** 3: service credential reissue/removal. 5.1: widening funded by the amender. 6: retention. 5.1: Hold; a party's Propose of a release. lags: 2: `outputs_bound`, reserved by the settings route at the store commit edge, until `ready/jig/c-tail-2` lands.
+- **Not yet:** 3: service credential reissue/removal. 5.1: widening funded by the amender. 6: retention. 5.1: Hold; a party's Propose of a release.
+- **Built:** 2: `outputs_bound` is reserved by the settings route at the store commit edge.
