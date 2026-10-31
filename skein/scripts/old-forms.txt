@@ -17,5 +17,5 @@ earliest 1
 lifecycle 2
 growth_floor 1
 pop_loop 12
-hex_decimal 12
+hex_decimal 11
 forwarding_host 3
