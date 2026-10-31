@@ -164,8 +164,8 @@ fn world_with(
     world.spawn_signals(|signal| {
         let mut proc = Proc::echo(limits, listen(), seed);
         match &mut proc {
-            Proc::Echo { svc, .. } => svc.svc.adopt_signals(signal).expect("signal slot"),
-            Proc::Client { .. } => unreachable!("echo"),
+            Proc::Echo(svc) => svc.svc.adopt_signals(signal).expect("signal slot"),
+            Proc::Client(_) => unreachable!("echo"),
         }
         proc
     });
@@ -423,8 +423,8 @@ pub fn worst_with_memory(seed: u64, config: Config, memory: Memory) -> EchoWorld
     world.spawn_signals(|signal| {
         let mut proc = Proc::echo(limits, listen(), seed);
         match &mut proc {
-            Proc::Echo { svc, .. } => svc.svc.adopt_signals(signal).expect("signal slot"),
-            Proc::Client { .. } => unreachable!("echo"),
+            Proc::Echo(svc) => svc.svc.adopt_signals(signal).expect("signal slot"),
+            Proc::Client(_) => unreachable!("echo"),
         }
         proc
     });

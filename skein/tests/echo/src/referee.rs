@@ -217,12 +217,12 @@ impl Referee<Proc> for EchoReferee {
             };
         for proc in procs {
             match proc {
-                Proc::Client { client, .. } => {
+                Proc::Client(client) => {
                     if let Some(addr) = tell {
-                        client.dial(addr);
+                        client.client.dial(addr);
                     }
                 }
-                Proc::Echo { .. } => {
+                Proc::Echo(_) => {
                     if shut || abort {
                         self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
                     }
@@ -244,12 +244,12 @@ impl Referee<Proc> for EchoReferee {
         let mut done = true;
         for proc in procs {
             match proc {
-                Proc::Echo { svc, .. } => {
+                Proc::Echo(svc) => {
                     if self.listening.is_none() {
                         self.listening = svc.svc.listening();
                     }
                 }
-                Proc::Client { client, .. } => done &= client.done(),
+                Proc::Client(client) => done &= client.client.done(),
             }
         }
         self.done = done;
