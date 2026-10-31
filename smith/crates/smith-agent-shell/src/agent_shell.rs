@@ -126,6 +126,18 @@ impl Agent {
         }
     }
 
+    /// Facts omitted from the host channel by its bounded projection.
+    #[must_use]
+    pub fn lost_channel_facts(&self) -> u64 {
+        self.service.lost_channel_facts()
+    }
+
+    /// Live bytes omitted from the host channel under output pressure.
+    #[must_use]
+    pub fn lost_live_bytes(&self) -> u64 {
+        self.service.lost_live_bytes()
+    }
+
     fn close(&mut self, fd: Fd) {
         self.closing = self.closing.checked_add(1).expect("bounded inherited closes");
         self.submissions.push(Submit {

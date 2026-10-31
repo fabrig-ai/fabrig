@@ -504,20 +504,14 @@ fn make(spawn: &Spawn, inherited: &Inherited) -> Proc {
     }
 }
 
-fn unused_roots(spawn: &Spawn) -> Vec<skein_world::StartupRoot> {
-    let mut roots: Vec<_> = [b"unused-a", b"unused-b"]
+fn unused_roots(_spawn: &Spawn) -> Vec<skein_world::StartupRoot> {
+    let roots: Vec<_> = [b"unused-a", b"unused-b"]
         .into_iter()
         .map(|name| skein_world::StartupRoot {
             name: name.as_slice().into(),
             path: [b"/", name.as_slice()].concat().into(),
         })
         .collect();
-    if Setup::read(spawn).tracing.is_some() {
-        roots.push(skein_world::StartupRoot {
-            name: b"event-trace".as_slice().into(),
-            path: b"event-trace".as_slice().into(),
-        });
-    }
     roots
 }
 
@@ -554,6 +548,12 @@ impl skein_world::Machine for Machine {
 
     fn close_root(&mut self, root: skein_sim::Handle) {
         self.files.close(skein_fake_machine::Opened::new(root.raw()));
+    }
+
+    fn open_append(&mut self, root: skein_sim::Handle, path: &[u8], mode: u32) -> Result<skein_sim::Handle, kernel::Error> {
+        self.files.open(skein_fake_machine::Opened::new(root.raw()), path, skein_fake_machine::How::Append { mode })
+            .map(|file| skein_sim::Handle::new(file.raw()))
+            .map_err(skein_fake_machine::kernel_error)
     }
 
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
@@ -1087,13 +1087,13 @@ impl World {
     /// Facts refused by the channel projection, as counted by that component.
     #[must_use]
     pub fn channel_loss(&self) -> u64 {
-        self.observations().channel_loss
+        self.observations().agent.inner().lost_channel_facts()
     }
 
     /// Live bytes omitted from the owner's channel by the service.
     #[must_use]
     pub fn lost_live_bytes(&self) -> u64 {
-        self.observations().lost_live_bytes
+        self.observations().agent.inner().lost_live_bytes()
     }
 
     /// Destination loss reported in the last stream record.
@@ -1219,7 +1219,7 @@ impl World {
             coding: self.coding,
             checked_files: Vec::new(),
         });
-        world.host_roots(
+        world.host_startup(
             HostedProgram {
                 program: b"smith".as_slice().into(),
                 make,
@@ -1227,6 +1227,16 @@ impl World {
                 operations: crate::limits().routes.checked_add(8).expect("routes, startup trace and inherited closes"),
             },
             unused_roots,
+            |spawn| if Setup::read(spawn).tracing.is_some() {
+                vec![skein_world::StartupAppend {
+                    name: b"trace".as_slice().into(),
+                    root: b"event-trace".as_slice().into(),
+                    path: b"events.jsonl".as_slice().into(),
+                    mode: 0o600,
+                }]
+            } else {
+                Vec::new()
+            },
         );
         world.spawn_root(skein_sim::Handle::new(root.raw()), |root| {
             let mut setup = self.setup;
