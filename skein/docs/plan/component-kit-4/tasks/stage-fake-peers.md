@@ -56,3 +56,23 @@ Acceptance:
 ## Report
 
 As common.md says.
+
+## Answers
+
+2026-10-31. Does the face keep its two-slot gate, or take the shared
+stage's per-entry-point gate? The shared stage's. The face's `room() < 2`
+is its private copy of the kernel-edge check that
+`skein/docs/design/draft/component-kit.md, 3.1` moves into
+`skein_io::stage` (`io::MAX_OUT_*`), a uniform upper bound of the four
+`MAX_OUT`s, not a behaviour of the face's own: no peer depends on it, and
+the order of events and submissions is unchanged. The exact bound is the
+kit's contract (3.3: every site checks the kernel's submission room before
+taking work), so this is the migration, not a change of behaviour under
+`notes/common.md`. Add no guard beside the call. The deleted test's
+blocked assertion is io's gate, covered by tests/io's
+`resume_waits_for_its_submission_room_and_keeps_later_passes_queued` (no
+room) and `completions_wait_for_their_submission_room_after_ready_results`
+(one slot): name both in the report, saying the face now resumes at one
+free slot, as every site on the stage does. Keep the `forwarding_host`
+recount (8 to 6) that `old_forms.py --write` gives: fab recounts where
+merges meet. Commit and push the branch as it stands.
