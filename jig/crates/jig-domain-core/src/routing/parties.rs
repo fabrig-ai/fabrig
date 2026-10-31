@@ -284,9 +284,9 @@ pub(super) fn roles_route(
     core.touch_deployment();
     core.touch_project_parties(project);
     let mut applied = Queue::uncapped();
-    people::step(
-        &mut core.people,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.people },
+    super::step::step_people(
+        core,
+        env,
         people::Event::ApplyRoles { reply_to: ReplyTo::new(request), request },
         &mut applied,
     );
@@ -345,9 +345,9 @@ pub(super) fn make_service_request(
             match crate::fresh(&mut core.counters, crate::Family::Person) {
                 Some(candidate) => {
                     let mut follow = Queue::uncapped();
-                    people::step(
-                        &mut core.people,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.people },
+                    super::step::step_people(
+                        core,
+                        env,
                         people::Event::MakeService { request, person: candidate },
                         &mut follow,
                     );
@@ -364,12 +364,7 @@ pub(super) fn make_service_request(
     };
     if let Some(outcome) = outcome {
         let mut follow = Queue::uncapped();
-        people::step(
-            &mut core.people,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-            people::Event::Decided { request, outcome },
-            &mut follow,
-        );
+        super::step::step_people(core, env, people::Event::Decided { request, outcome }, &mut follow);
         for _ in 0..follow.len() {
             pending.push(follow.pop().expect("service decision count"));
         }

@@ -56,12 +56,12 @@ impl Core {
     /// Recheck the stored owner and current address before answering an act on an ended task.
     pub(crate) fn person_task_ended(
         &self,
-        person: u64,
-        project: u32,
+        party: crate::routing::party::Party,
         task: u64,
         row: Option<Box<tasks::TaskRecord>>,
         busy: bool,
     ) -> people::Outcome {
+        let crate::routing::party::Party { person, project, .. } = party;
         if busy {
             return people::Outcome::Again(people::Again::Busy);
         }

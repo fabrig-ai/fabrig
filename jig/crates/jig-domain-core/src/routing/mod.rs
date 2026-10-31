@@ -606,7 +606,8 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             routed.finish(work)
         }
         Event::HistoricalPersonTask { request, person, project, task, row, busy } => {
-            let outcome = core.person_task_ended(person, project, task, row, busy);
+            let outcome =
+                core.person_task_ended(party::Party { request, person, project, role: None }, task, row, busy);
             work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
             Queue::uncapped()
         }

@@ -69,9 +69,8 @@ pub(super) fn route_people(
         | people::Event::Ask { .. }
         | people::Event::Restore { .. }) => other,
     };
-    super::view_routes::touch_people_event(core, &env.limits, &event);
     let mut child = Queue::uncapped();
-    people::step(&mut core.people, &Env { now: env.now, wall: env.wall, limits: env.limits.people }, event, &mut child);
+    super::step::step_people(core, env, event, &mut child);
     super::application_routes::first(unused, tag_people(core, env, child, work))
 }
 
