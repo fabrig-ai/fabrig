@@ -246,32 +246,32 @@ fn settings_neutral_form_preserves_ctls_bounds() {
         neutral.settings.model_set_names_names_item, ctl.settings.model_set_names_names_item,
         "model_set_names_names_item"
     );
-    assert_eq!(neutral.settings.owner_authority_grants, ctl.settings.owner_authority_grants, "owner_authority_grants");
+    assert_eq!(neutral.settings.authority_grants, ctl.settings.authority_grants, "authority_grants");
     assert_eq!(
-        neutral.settings.owner_authority_note_resources, ctl.settings.owner_authority_note_resources,
-        "owner_authority_note_resources"
+        neutral.settings.authority_note_resources, ctl.settings.authority_note_resources,
+        "authority_note_resources"
     );
-    assert_eq!(neutral.settings.owner_delegation_kinds, ctl.settings.owner_delegation_kinds, "owner_delegation_kinds");
+    assert_eq!(neutral.settings.delegation_kinds, ctl.settings.delegation_kinds, "delegation_kinds");
     assert_eq!(
-        neutral.settings.owner_part_key_path_value, ctl.settings.owner_part_key_path_value,
-        "owner_part_key_path_value"
-    );
-    assert_eq!(
-        neutral.settings.owner_part_key_path_value_item, ctl.settings.owner_part_key_path_value_item,
-        "owner_part_key_path_value_item"
+        neutral.settings.part_key_path_value, ctl.settings.part_key_path_value,
+        "part_key_path_value"
     );
     assert_eq!(
-        neutral.settings.owner_pattern_end_exact_value, ctl.settings.owner_pattern_end_exact_value,
-        "owner_pattern_end_exact_value"
+        neutral.settings.part_key_path_value_item, ctl.settings.part_key_path_value_item,
+        "part_key_path_value_item"
     );
     assert_eq!(
-        neutral.settings.owner_pattern_end_open_value, ctl.settings.owner_pattern_end_open_value,
-        "owner_pattern_end_open_value"
+        neutral.settings.pattern_end_exact_value, ctl.settings.pattern_end_exact_value,
+        "pattern_end_exact_value"
     );
-    assert_eq!(neutral.settings.owner_pattern_segments, ctl.settings.owner_pattern_segments, "owner_pattern_segments");
     assert_eq!(
-        neutral.settings.owner_pattern_segments_item, ctl.settings.owner_pattern_segments_item,
-        "owner_pattern_segments_item"
+        neutral.settings.pattern_end_open_value, ctl.settings.pattern_end_open_value,
+        "pattern_end_open_value"
+    );
+    assert_eq!(neutral.settings.pattern_segments, ctl.settings.pattern_segments, "pattern_segments");
+    assert_eq!(
+        neutral.settings.pattern_segments_item, ctl.settings.pattern_segments_item,
+        "pattern_segments_item"
     );
     assert_eq!(neutral.settings.rules_implies, ctl.settings.rules_implies, "rules_implies");
     assert_eq!(neutral.settings.rules_requirements, ctl.settings.rules_requirements, "rules_requirements");

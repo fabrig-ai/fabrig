@@ -15,7 +15,7 @@ use skein_lib::{List, Wall};
 fn ended(key: c::ObjectKey, value: c::EndedValue) -> c::ReadResult {
     c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended { key, value, at: None, by: None })))
 }
-fn ended() -> c::ReadResult {
+fn ended_task() -> c::ReadResult {
     let mut task = f::ended_task(c::Phase::Cancelled);
     task.acts = List::with_capacity(0);
     f::ended_task_result(task, c::Ending::Done)
@@ -73,12 +73,12 @@ fn retired(call: &call::Call) -> c::ReadResult {
             }),
         );
     }
-    ended()
+    ended_task()
 }
 fn serve(root: &mut f::Harness, number: u32, document: c::ReadResult) {
     root.serve(number, document);
     if root.reads.contains_key(&number) {
-        root.serve(number, ended());
+        root.serve(number, ended_task());
     }
 }
 fn replay(argv: &[&str]) {
@@ -195,7 +195,7 @@ fn task_amend_replays_equal_replacements_after_its_revision_moves() {
 fn unkeyed_cancel_on_an_ended_task_still_asks_the_engine() {
     let mut root = f::chat_root(f::CHAT_BUDGET, f::SEED);
     let call = root.submit(&f::ACT_CALLS[7][..4]);
-    root.serve(call, ended());
+    root.serve(call, ended_task());
     root.answered(call, c::Answer::Refused { refusal: c::Refusal::Unknown, at: None });
     assert_eq!(root.answer(call).unwrap().status, 2);
 }
