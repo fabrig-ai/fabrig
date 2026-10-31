@@ -23,6 +23,9 @@ fn a_revoked_record_waits_for_erased_and_coalesces_a_sign_out() {
         finish_start(&mut service);
         let engine = fixtures::engine(&mut service);
         let mut accounts = engine.accounts.take().expect("accounts runtime");
+        pump_accounts(&mut accounts, engine);
+        assert!(!accounts.inventory.active(), "the start's source sweep finishes before adding runtime records");
+        assert!(accounts.early.is_empty(), "the start's account requests have dispatched");
         let mut events = Queue::with_capacity(16);
         let old = 1;
         let fresh = 9001;
@@ -447,6 +450,16 @@ fn a_restored_sources_wrong_kind_stops_the_engine() {
             &mut engine.values,
         );
         crate::store::answer(engine);
-        let Some(crate::End::Stopped(_)) = &engine.end else { panic!("wrong restored kind must stop: {kind:?}") };
+        assert_eq!(
+            engine.end,
+            Some(crate::End::Stopped(crate::Stop::StorePage {
+                phase: None,
+                failure: store::restore::Failure {
+                    cause: store::restore::Cause::Decode(store::restore::DecodeFailure::Value),
+                    row: None,
+                },
+            })),
+            "wrong restored kind must stop: {kind:?}"
+        );
     }
 }
