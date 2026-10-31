@@ -442,7 +442,7 @@ fn the_accounts_banner_links_each_way_to_its_address_and_is_hidden_in_the_flow()
 }
 
 #[test]
-fn ready_remembers_that_the_playgrounds_scripted_model_stepped_aside() {
+fn adding_a_real_model_keeps_the_playground_running() {
     let provider = PROVIDER + 1;
     let mut me = d::pages::accounts::current_me(offered_root().client()).unwrap().clone();
     me.providers = List::with_capacity(1);
@@ -465,7 +465,9 @@ fn ready_remembers_that_the_playgrounds_scripted_model_stepped_aside() {
     doc.cut = false;
     super::accounts::deliver(&mut root, accounts_watch, doc);
     assert_eq!(d::pages::welcome::model_usable(&root), Some(true));
-    assert!(words(&root).contains("The playground’s scripted model stepped aside."));
+    assert!(root.forge().playground_running());
+    assert!(words(&root).contains("This is the playground: a scripted model and in-memory forge."));
+    assert!(!words(&root).contains("stepped aside"));
 }
 
 #[test]

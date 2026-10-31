@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 81;
+pub const N: usize = 80;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -70,7 +70,6 @@ fn task(task: u64) -> Address {
 }
 
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "one entry per named gallery state, in index order")]
 pub fn samples() -> [Sample; N] {
     [
         Sample { name: "chats-solo", world: Solo, address: CHATS, then: Shown },
@@ -91,7 +90,7 @@ pub fn samples() -> [Sample; N] {
         welcome_sample("welcome-forge-choose", temper_client_domain::Step::Forge { forge: None }),
         welcome_sample(
             "welcome-forge-details",
-            temper_client_domain::Step::Forge { forge: Some(temper_client_domain::Choice::Forge(3)) },
+            temper_client_domain::Step::Forge { forge: Some(temper_client_domain::Choice::Owned) },
         ),
         welcome_sample("welcome-model-choose", temper_client_domain::Step::Model { way: None }),
         welcome_model_sample("welcome-model-key-details", temper_client_domain::WayKind::Key, Shown),
@@ -122,7 +121,6 @@ pub fn samples() -> [Sample; N] {
         owned_sample("welcome-setup-failed", 9, true),
         owned_sample("welcome-ready-under-way", 6, true),
         owned_sample("welcome-ready-adopted", 8, true),
-        Sample { name: "chats-setup-strip", world: Bare, address: CHATS, then: Shown },
         Sample { name: "adoption", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
         Sample { name: "adoption-filled", world: Reference, address: Address::Adopt { project: 1 }, then: Filled },
         Sample { name: "adoption-refused", world: Reference, address: Address::Adopt { project: 1 }, then: Refused },
@@ -132,7 +130,7 @@ pub fn samples() -> [Sample; N] {
         first_chat("chat-first-run-2-T1", 2, 1),
         first_chat("chat-first-run-3-T1", 3, 1),
         first_chat("chat-first-run-4-T4", 4, 4),
-        first_chat("chat-first-run-7-T1", 7, 1),
+        Sample { name: "playground-resetting", world: FirstRun { step: 10 }, address: CHATS, then: Shown },
         Sample { name: "chats-first-run-5", world: FirstRun { step: 5 }, address: CHATS, then: Shown },
         Sample {
             name: "inbox-reference",
@@ -181,7 +179,13 @@ fn github_sample(name: &'static str, step: u8) -> Sample {
     Sample {
         name,
         world: World::FirstRun { step },
-        address: Address::ConnectForge { forge: Some(temper_client_domain::Choice::Forge(2)) },
+        address: Address::ConnectForge {
+            forge: Some(if step == 0 {
+                temper_client_domain::Choice::GitHub
+            } else {
+                temper_client_domain::Choice::Forge(2)
+            }),
+        },
         then: Then::Shown,
     }
 }
@@ -195,7 +199,13 @@ fn owned_sample(name: &'static str, step: u8, ready: bool) -> Sample {
         address: if ready {
             Address::Welcome { step: temper_client_domain::Step::Ready }
         } else {
-            Address::ConnectForge { forge: Some(temper_client_domain::Choice::Forge(3)) }
+            Address::ConnectForge {
+                forge: Some(if step == 0 {
+                    temper_client_domain::Choice::Owned
+                } else {
+                    temper_client_domain::Choice::Forge(3)
+                }),
+            }
         },
         then: Then::Shown,
     }

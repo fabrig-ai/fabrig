@@ -62,6 +62,7 @@ struct Holds {
     parts: &'static [Part],
 }
 enum Part {
+    Text { text: &'static str },
     Named { role: Role, name: &'static str },
     Described { role: Role, name: &'static str, description: &'static str },
     Absent { role: Role, name: &'static str },
@@ -72,14 +73,15 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
-        name: "chat-first-run-7-T1",
-        heading: "T1 · Add CSV export to widget",
-        parts: &[Part::Named { role: Role::Status, name: "Closed 21:19" }],
+        name: "playground-resetting", heading: "Chats", parts: &[Part::Text { text: "Leaving the playground…" }]
     },
     Holds {
         name: "chats-first-run-5",
-        heading: "Chats",
-        parts: &[Part::Named { role: Role::Link, name: "Manage usage" }],
+        heading: "What shall we change?",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Playground" },
+            Part::Absent { role: Role::Link, name: "Manage usage" },
+        ],
     },
     Holds {
         name: "welcome-paste-expired",
@@ -213,7 +215,7 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "github-app-details",
         heading: "Connect a forge",
-        parts: &[Part::Named { role: Role::Region, name: "An App of your own" }],
+        parts: &[Part::Named { role: Role::Button, name: "GitHub" }],
     },
     Holds {
         name: "github-install",
@@ -238,20 +240,18 @@ const HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::Named { role: Role::Region, name: "GitHub" },
-            Part::Named { role: Role::Region, name: "Forgejo" },
-            Part::Named { role: Role::Button, name: "Run on this machine" },
-            Part::Named { role: Role::Link, name: "Or connect your deployment" },
-            Part::Absent { role: Role::Region, name: "A Forgejo elsewhere" },
+            Part::Named { role: Role::Region, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Link, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Region, name: "Your Forgejo" },
         ],
     },
     Holds {
         name: "welcome-forge-details",
         heading: "Connect a forge",
         parts: &[
-            Part::Named { role: Role::Region, name: "Forgejo" },
-            Part::Named { role: Role::Button, name: "Run on this machine" },
-            Part::Named { role: Role::Link, name: "Or connect your deployment" },
-            Part::Absent { role: Role::TextField, name: "Organization" },
+            Part::Named { role: Role::Button, name: "Set up a Forgejo here" },
+            Part::Named { role: Role::TextField, name: "Organization" },
+            Part::Named { role: Role::TextField, name: "Repository" },
         ],
     },
     Holds {
@@ -284,8 +284,8 @@ const HOLDS: [Holds; samples::N] = [
         heading: "Almost ready",
         parts: &[
             Part::Named { role: Role::Disclosure, name: "Each step" },
-            Part::Named { role: Role::Paragraph, name: "Project Playground, with work/hello" },
-            Part::Named { role: Role::Button, name: "Open Playground" },
+            Part::Named { role: Role::Paragraph, name: "Project Default, with work/hello" },
+            Part::Named { role: Role::Button, name: "Open Default" },
             Part::Named { role: Role::Paragraph, name: "It opens once work/hello is made." },
         ],
     },
@@ -305,7 +305,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "Setting up Forgejo on this machine" },
             Part::Named { role: Role::Status, name: "under way" },
-            Part::Named { role: Role::Paragraph, name: "work/hello, into Playground" },
+            Part::Named { role: Role::Paragraph, name: "work/hello, into Default" },
         ],
     },
     Holds {
@@ -327,16 +327,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Region, name: "GitHub" },
             Part::Named { role: Role::Region, name: "Forgejo on this machine" },
-            Part::Named { role: Role::Region, name: "A Forgejo elsewhere" },
-        ],
-    },
-    Holds {
-        name: "chats-setup-strip",
-        heading: "Chats",
-        parts: &[
-            Part::Named { role: Role::Region, name: "Setup" },
-            Part::Named { role: Role::Paragraph, name: "temper has no forge and no model yet." },
-            Part::Named { role: Role::Link, name: "Continue setting up" },
+            Part::Named { role: Role::Region, name: "Your Forgejo" },
         ],
     },
     Holds {
@@ -698,6 +689,9 @@ fn no_state_reads_of_zero() {
         }
     }
 }
+fn has_text(tree: &skein_ui::Tree, text: &str) -> bool {
+    tree.nodes().iter().any(|node| node.text.iter().any(|run| run.text.as_ref() == text.as_bytes()))
+}
 fn in_main(role: Role, name: &str) -> Find {
     Find::named(role, name.as_bytes())
         .within(Box::new([skein_fake_person::Target::Role { role: Role::Main, name: Box::new([]) }]))
@@ -757,6 +751,9 @@ fn each_state_holds_what_its_name_says() {
         let mut described = tree.nodes().iter();
         for part in row.parts {
             match part {
+                Part::Text { text } => {
+                    assert!(has_text(tree, text), "{}: missing text {text:?}", sample.name);
+                }
                 Part::Named { role, name } => {
                     find(tree, *role, name, sample.name);
                 }
@@ -998,9 +995,9 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
     use temper_client_view::look;
     for (name, expected) in [
         ("welcome-forge-choose", vec!["Connect GitHub"]),
-        ("welcome-forge-details", vec!["Connect GitHub"]),
+        ("welcome-forge-details", vec!["Set up a Forgejo here"]),
         ("welcome-model-choose", vec!["Continue with ChatGPT"]),
-        ("github-app-details", vec!["Connect the App"]),
+        ("github-app-details", vec!["GitHub"]),
         ("github-install", vec!["Install on GitHub"]),
         ("github-picker", vec!["Adopt sam/widget"]),
         ("github-adopted", vec!["Open widget"]),
@@ -1019,7 +1016,7 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
         if name == "welcome-forge-details" {
             assert_eq!(
                 view.tree().nodes().iter().filter(|node| node.styles.as_slice().contains(&look::FLOW_PAIR)).count(),
-                0
+                2
             );
         }
     }

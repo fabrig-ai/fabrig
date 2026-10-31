@@ -39,7 +39,6 @@ forge-setup-failed
 welcome-setup-failed
 welcome-ready-under-way
 welcome-ready-adopted
-chats-setup-strip
 adoption
 adoption-filled
 adoption-refused
@@ -49,7 +48,7 @@ chat-solo-T6
 chat-first-run-2-T1
 chat-first-run-3-T1
 chat-first-run-4-T4
-chat-first-run-7-T1
+playground-resetting
 chats-first-run-5
 inbox-reference
 accounts-reference
