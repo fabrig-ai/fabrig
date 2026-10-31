@@ -40,7 +40,10 @@ In `jig-domain-people` (`src/boundary.rs`):
 - The transcript's drop: `jig_domain_core::routing::vocabulary::Write::
   DropTranscript { task: u64 }`, a write of the core's decisions, which
   an application's root carries to `jig_protocol_store::Write::
-  DropTranscript { task }` (it exists there today).
+  DropTranscript { task }` (it exists there today). temper's root
+  `Write::DropTranscript { task }` coalesces on a root key of its own,
+  `temper_engine_domain::Key::Transcript { task }`, beside `Key::Wires`,
+  and never on a task row's key.
 - Spend outlives the project: its funding ledgers are not erased
   (section 9's default). The referee's "no row names the project"
   excludes them, and nothing else.
