@@ -911,26 +911,31 @@ impl World {
             run::Request::Checking { host_run, deadline: _ } => self.send(Lane::Host, Delivery::Checking { host_run }),
             run::Request::ChecksEnded { host_run } => self.send(Lane::Host, Delivery::ChecksEnded { host_run }),
             run::Request::Deliver { host_run, owner, change: _, name: _, deadline } => {
-                let run = current.expect("a delivery is made in a step about its run");
-                self.assert_alone(run);
-                self.workspace_lease(run, owner);
-                self.lease_seen.push((self.now, run, crate::lease_referee::Seen::Delivery { owner }));
-                self.run_of_call.insert(owner, run);
-                self.landing.insert(owner);
-                self.deliveries.open(owner, Delivering { job: host_run });
-                // Checks precede delivery: every repository whose checks the change
-                // must pass passed them, for this landing.
-                let passed = self.io.passed.remove(&owner).unwrap_or_default();
-                let run = &self.views[&self.run_of_call[&owner]];
-                assert!(
-                    run.checks.is_subset(&passed),
-                    "a change is delivered once every repository's checks passed it"
+                self.submit_delivery(
+                    current.expect("a delivery is made in a step about its run"),
+                    host_run,
+                    owner,
+                    deadline,
                 );
-                self.stats.deliveries += 1;
-                self.send(Lane::Host, Delivery::Submit { host_run, owner, deadline });
             }
         }
         current
+    }
+
+    fn submit_delivery(&mut self, run: Token, host_run: Token, owner: Token, deadline: Time) {
+        self.assert_alone(run);
+        self.workspace_lease(run, owner);
+        self.lease_seen.push((self.now, run, crate::lease_referee::Seen::Delivery { owner }));
+        self.run_of_call.insert(owner, run);
+        self.landing.insert(owner);
+        self.deliveries.open(owner, Delivering { job: host_run });
+        // Checks precede delivery: every repository whose checks the change
+        // must pass passed them, for this landing.
+        let passed = self.io.passed.remove(&owner).unwrap_or_default();
+        let run = &self.views[&self.run_of_call[&owner]];
+        assert!(run.checks.is_subset(&passed), "a change is delivered once every repository's checks passed it");
+        self.stats.deliveries += 1;
+        self.send(Lane::Host, Delivery::Submit { host_run, owner, deadline });
     }
 
     fn cancel_jobs(&mut self, peer: Token) {
@@ -1425,7 +1430,6 @@ impl World {
     }
 
     /// Hands every delivery that is due to its destination.
-    #[expect(clippy::too_many_lines, reason = "the scripted world's finite delivery routing stays in one match")]
     fn deliver(&mut self) {
         while let Some(delivery) = self.wire.next(self.now) {
             match delivery {
@@ -1444,7 +1448,7 @@ impl World {
                 Delivery::Checking { host_run } => self.host.checking(host_run),
                 Delivery::ChecksEnded { host_run } => self.host.checks_ended(host_run),
                 Delivery::Submit { host_run, owner, deadline } => {
-                    self.host.deliver(self.now, host_run, owner, deadline)
+                    self.host.deliver(self.now, host_run, owner, deadline);
                 }
                 Delivery::Open { conversation, opening } => {
                     let mut out = Vec::new();

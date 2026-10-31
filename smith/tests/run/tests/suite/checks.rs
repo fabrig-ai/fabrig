@@ -50,7 +50,7 @@ impl PendingCheck {
                 match request {
                     Request::Admitted { .. } => {}
                     Request::Read { owner, .. } => {
-                        next.extend(check.step(Event::Read { owner, read: run::Read::Missing }))
+                        next.extend(check.step(Event::Read { owner, read: run::Read::Missing }));
                     }
                     Request::Probe { owner, .. } => next.extend(check.step(Event::Probed { owner, executable: true })),
                     Request::Open { conversation, .. } => {

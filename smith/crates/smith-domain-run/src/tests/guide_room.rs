@@ -2,7 +2,6 @@
 
 #![expect(
     clippy::disallowed_macros,
-    clippy::disallowed_methods,
     reason = "programming-model.md, section 10.2: deterministic test harnesses are ordinary Rust"
 )]
 
