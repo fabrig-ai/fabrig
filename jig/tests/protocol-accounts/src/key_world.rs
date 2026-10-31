@@ -159,7 +159,7 @@ impl World {
                     Effect::Store { exchange, request } => {
                         match &request {
                             store::Secrets::Erase { owner: store::SecretOwner::Source, number } => {
-                                self.swept.push(*number)
+                                self.swept.push(*number);
                             }
                             store::Secrets::Load { .. } => self.loads += 1,
                             store::Secrets::Get { .. }
