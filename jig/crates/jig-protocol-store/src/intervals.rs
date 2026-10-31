@@ -140,7 +140,6 @@ fn after(key: &[u8]) -> Box<[u8]> {
 pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
     use core::reads::Scope;
     Some(match scope {
-        Scope::EndedTasks | Scope::TaskRows { .. } => return None,
         Scope::SettingsHistory { first, last, newest, .. } => {
             let mut ranges = List::with_capacity(2);
             if first < newest {
@@ -209,7 +208,9 @@ pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
             | core::reads::Group::Questions
             | core::reads::Group::PersonTasks => return None,
         },
-        Scope::Proposal { proposer: jig_domain_people::Proposer::Task(_), .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::Proposal { proposer: jig_domain_people::Proposer::Task(_), .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }
         | Scope::Turn { .. }
