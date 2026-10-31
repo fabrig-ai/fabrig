@@ -43,7 +43,7 @@ fn restarted_transcripts() -> (Driver, Vec<engine::Event>) {
     park(&mut driver, &first);
     let second = chat(&mut driver, 32, b"second chat");
     park(&mut driver, &second);
-    let mut driver = signed_in(driver.store);
+    let mut driver = signed_in(driver.take_store());
     driver.send(say_ask(driver.session(), first.task, 50));
     driver.send(say_ask(driver.session(), second.task, 51));
     hold_transcripts(driver)

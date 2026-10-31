@@ -12,8 +12,8 @@ const MARK_WRITES: usize = 2;
 
 #[test]
 fn every_start_takes_the_switch_step_and_commits_its_wires() {
-    let (running, _) = Driver::chat();
-    for (label, mut store) in [(FIRST_START, Store::new()), (RESTART, running.store)] {
+    let (mut running, _) = Driver::chat();
+    for (label, mut store) in [(FIRST_START, Store::new()), (RESTART, running.take_store())] {
         store.crash(9761);
         let pending = store.pending_generation;
         let mut driver = Driver::cold(store, walking::config(91), &walking::limits());
@@ -58,7 +58,7 @@ fn every_start_takes_the_switch_step_and_commits_its_wires() {
         driver.pump();
         assert!(driver.root.ready(), "{label}: durable mark releases the script");
         assert_eq!(driver.store.header().id, walking::config(91).core.deployment, "{label}: deployment retained");
-        let wires = driver.store.into_wires();
+        let wires = driver.take_store().into_wires();
         let kept: Vec<_> = wires.wires().iter().map(|wire| (wire.name(), wire.version())).collect();
         let expected: Vec<_> =
             temper_service::store::WIRES.iter().map(|wire| (wire.name.as_bytes(), wire.version)).collect();

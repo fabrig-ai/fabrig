@@ -126,9 +126,9 @@ fn twice_released(words: Option<&[u8]>) -> (Driver, u64) {
     (driver, task)
 }
 
-fn cold(driver: Driver) -> Driver {
+fn cold(mut driver: Driver) -> Driver {
     let ([_, configuration], bounds) = settings();
-    let mut restarted = Driver::cold(driver.store, configuration, &bounds);
+    let mut restarted = Driver::cold(driver.take_store(), configuration, &bounds);
     restarted.pump();
     restarted
 }

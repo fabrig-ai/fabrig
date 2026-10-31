@@ -212,11 +212,11 @@ fn an_adoption_sent_again_after_a_restart_is_answered_its_kept_outcome() {
     let outcome = outcomes(&first)[0].clone();
     let calls = first.forge.as_ref().expect("forge stand").calls;
     let mut restarted = Driver::configured(
-        first.store,
+        first.take_store(),
         [temper_engine_domain_world::walking::config(71), temper_engine_domain_world::walking::config(71)],
         &fixtures::forge_limits(),
     );
-    restarted.forge = first.forge;
+    restarted.forge = first.forge.take();
     restarted.settle();
     restarted.sign_in();
     restarted.settle();
@@ -286,11 +286,11 @@ fn a_return_replayed_after_restart_is_unknown_without_a_second_output() {
     first.settle();
     assert_eq!(outcomes(&first), [&Some(engine::ApplicationAnswer::Returning)]);
     let mut restarted = Driver::configured(
-        first.store,
+        first.take_store(),
         [temper_engine_domain_world::walking::config(71), temper_engine_domain_world::walking::config(71)],
         &fixtures::forge_limits(),
     );
-    restarted.forge = first.forge;
+    restarted.forge = first.forge.take();
     restarted.settle();
     restarted.sign_in();
     restarted.settle();

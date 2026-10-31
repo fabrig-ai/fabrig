@@ -102,7 +102,7 @@ fn a_start_past_a_next_start_opens_one_period_from_the_starts_time() {
     reserve_in_a_chat(&mut d);
     let first = ledger(&d, 1, 1);
     let now = 4 * PERIOD_SPAN.as_nanos();
-    let mut d = Driver::from_store_at(d.store, config(10402), &limits(), Wall::from_nanos(now));
+    let mut d = Driver::from_store_at(d.take_store(), config(10402), &limits(), Wall::from_nanos(now));
     d.pump();
     assert_eq!(periods(&d, 1), vec![1, 2]);
     assert_eq!(ledger(&d, 1, 1), first);
@@ -121,7 +121,7 @@ fn a_first_period_with_no_next_start_after_a_crash_is_given_one() {
     let mut first = ledger(&d, 1, 1);
     first.period.as_mut().expect("period times").next = None;
     d.store.seed(Box::new([Record::Core(core::Record::Tasks(tasks::Stored::Ledger(first)))]), Box::new([]));
-    let mut d = Driver::from_store_at(d.store, config(10403), &limits(), Wall::from_nanos(100));
+    let mut d = Driver::from_store_at(d.take_store(), config(10403), &limits(), Wall::from_nanos(100));
     d.settle();
     first.period.as_mut().expect("period times").next = Some(Wall::from_nanos(PERIOD_SPAN.as_nanos()));
     assert_eq!(ledger(&d, 1, 1), first);
@@ -165,6 +165,7 @@ fn nothing_is_armed_while_stopping() {
     let mut d = driver(10405);
     assert!(d.root.next_deadline(&d.env).is_some());
     let calendar_deadline = d.root.next_deadline(&d.env).expect("calendar deadline");
+    d.broken("stopped calendar at an overdue boundary; cold startup legitimately opens the next period");
     d.send(engine::Event::Stop);
     // Accounts may keep their own drain timer; the calendar contributes none.
     assert!(d.root.next_deadline(&d.env).is_none_or(|next| next > calendar_deadline));

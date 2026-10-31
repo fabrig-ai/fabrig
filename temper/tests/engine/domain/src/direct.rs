@@ -43,6 +43,19 @@ pub struct Driver {
 }
 
 impl Driver {
+    /// Replace the cold-start configuration together with the root it describes.
+    pub fn reopen(&mut self, configuration: engine::Config) {
+        self.restart_config = crate::oracle::config::copy(&configuration);
+        self.root = engine::Domain::new(configuration, &self.env.limits).expect("restart configuration");
+        self.events.clear();
+        self.delivered.clear();
+        self.send(engine::Event::Restart { pending: false });
+    }
+    /// Transfer a cold-cut fixture's store; its receiving root runs the oracle.
+    pub fn take_store(&mut self) -> Store {
+        self.broken("cold-cut fixture transfers its store to the receiving root");
+        std::mem::take(&mut self.store)
+    }
     #[must_use]
     pub fn new(store: Store) -> Driver {
         Driver::configured(store, [config(91), config(91)], &limits())
