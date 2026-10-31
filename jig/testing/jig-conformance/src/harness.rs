@@ -123,6 +123,8 @@ pub trait Application {
     /// Prepare the initial durable fixture and begin the cold-load script.
     fn start(config: &Self::Config, store: &mut Self::Store) -> Vec<Self::Event>;
     /// Reconnect retained peers and observe the last durable store on a crash.
+    /// This clears outside correlation only; `start` chooses the application's
+    /// cold-load vocabulary after the harness rebuilds its domain.
     fn cold(peers: &mut Self::Peers, store: &Self::Store, clock: Clock);
     /// Translate the application’s fleet, task and connector timers.
     fn timers(config: &Self::Config) -> Vec<Self::Event>;
@@ -156,7 +158,7 @@ pub trait Application {
     fn submitted(_peers: &mut Self::Peers, _store: &Self::Store, _clock: Clock) {}
     /// Map new system, host and durable-store evidence in arrival order.
     fn observed(peers: &mut Self::Peers, systems: &Self::Systems, store: &Self::Store, clock: Clock) -> Vec<Observed>;
-    /// Report whether the root’s restart script has opened admission.
+    /// Report whether the root’s cold start has opened admission.
     fn ready(domain: &Self::Domain) -> bool;
     /// Report whether the root has immediate work remaining.
     fn quiescent(domain: &Self::Domain) -> bool;
@@ -534,6 +536,7 @@ where
     A::Peers: Clone,
 {
     /// Capture the outside state only; resuming necessarily performs a cold start.
+    /// Held domain continuations are discarded along with the domain.
     #[must_use]
     pub fn cold_snapshot(&self) -> ColdSnapshot<A> {
         ColdSnapshot {
