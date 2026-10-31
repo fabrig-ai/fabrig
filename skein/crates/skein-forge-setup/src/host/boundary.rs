@@ -109,9 +109,21 @@ pub(super) enum Dialect {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Request {
-    Run { run: Token, plan: Plan },
-    Answer { run: Token, answer: Answer },
+    Run {
+        run: Token,
+        plan: Plan,
+    },
+    Answer {
+        run: Token,
+        answer: Answer,
+    },
+    /// Ends every run unheard and aborts every connection, then reports `Event::Closed` once io settles.
     Close,
+    /// A close that does not wait (programming-model.md, 5.2): every run ends
+    /// unheard, every connection is aborted; `Event::Closed` follows once,
+    /// after a `Close` or an `Abort`, when io has settled every socket.
+    /// This host's `Close` already aborts its connections, so both share a path.
+    Abort,
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Answer {
