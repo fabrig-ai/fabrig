@@ -77,3 +77,8 @@ id = 3
 story = "Referee and Host defaults, the forwarding Host, and Abort in both forge components"
 parts = ["world-surfaces", "abort"]
 walk = false
+
+[[question]]
+id = "component-kit-role"
+text = """The draft's 6.2: a "component kit" role in programming-model.md section 4, for shared mechanism between lib and the components (io's stage now; the shared transport later). It changes the code's rules, so it is yours; this run lands nothing of it, and skein_io::stage sits in io meanwhile. Proposed wording, after the lib row: "Component kit: mechanism two or more components share (io's stage, a transport over io and tls), written once as concrete step pieces a component holds by value or calls as free functions; never a trait, a generic item or dyn. A kit depends on lib, io and the protocol machines it composes, never on a component." Options: (1) land it as worded, before the shared-transport run; (2) land it with changes; (3) no new role: kits stay inside io and the protocol crates. Recommended: (1), since the shared transport (theme 1a) needs a home that is neither io nor one of its four components."""
+parts = ["kit-contract"]
