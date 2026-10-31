@@ -40,7 +40,10 @@ pub(crate) enum OwnerLock {
 
 pub(crate) struct Exchange {
     pub(crate) account: u32,
-    pub(crate) next: Option<skein_lib::Id<Exchange>>,
+    /// Its admission number, which orders the walks that serve the oldest
+    /// exchange first; `None` once retired, as the slab still visits it
+    /// until reclaim and every walk skips it.
+    pub(crate) admitted: Option<u64>,
     pub(crate) sign_in_deadline: Option<Time>,
     pub(crate) client: oauth::Client,
     pub(crate) above: Queue<oauth::Request>,
@@ -89,7 +92,7 @@ impl Exchange {
     pub(crate) fn new(account: u32, client: oauth::Client, pending_grant: bool) -> Exchange {
         Exchange {
             account,
-            next: None,
+            admitted: None,
             sign_in_deadline: None,
             client,
             above: Queue::uncapped(),

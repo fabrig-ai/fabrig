@@ -126,7 +126,8 @@ pub struct Component {
     sources: List<Source>,
     bindings: List<Option<Id<Exchange>>>,
     exchanges: Slab<Exchange>,
-    first_exchange: Option<Id<Exchange>>,
+    /// The admission number the next exchange takes.
+    admissions: u64,
     lifecycle: Lifecycle,
     crypto: CryptoRng,
     keepers: List<Store>,
@@ -174,7 +175,7 @@ impl Component {
             sources,
             bindings,
             exchanges: Slab::with_capacity(limits.exchanges),
-            first_exchange: None,
+            admissions: 0,
             lifecycle: Lifecycle::Live,
             crypto,
             keepers,
@@ -532,29 +533,30 @@ impl Component {
         if self.removal_progress(env, up, io) {
             return;
         }
-        let mut next = self.first_exchange;
-        while let Some(id) = next {
-            let exchange = self.exchanges.get_mut(id).expect("live exchange");
-            next = exchange.next;
-            if self.lifecycle == Lifecycle::Aborting && !exchange.aborted {
-                exchange.aborted = true;
-                self.fail_exchange(env, id, Failure::Exchange(oauth::Failure::Cancelled), up, io);
-                self.collect(env, id, up, io);
-                return;
+        // The oldest exchange with a turn takes it.
+        let mut oldest = None;
+        for (id, exchange) in &self.exchanges {
+            let Some(admitted) = exchange.admitted else { continue };
+            let Some(turn) = turn_of(exchange, self.lifecycle, env.now) else { continue };
+            match oldest {
+                Some((older, _, _)) if older < admitted => {}
+                Some(_) | None => oldest = Some((admitted, id, turn)),
             }
-            if let OwnerLock::Waiting { until } = exchange.lock
-                && env.now >= until
-            {
-                exchange.lock = OwnerLock::Released;
-                self.fail_exchange(env, id, Failure::Busy, up, io);
-                self.collect(env, id, up, io);
-                return;
+        }
+        if let Some((_, id, turn)) = oldest {
+            match turn {
+                Turn::Abort => {
+                    self.exchanges.get_mut(id).expect("live exchange").aborted = true;
+                    self.fail_exchange(env, id, Failure::Exchange(oauth::Failure::Cancelled), up, io);
+                }
+                Turn::Busy => {
+                    self.exchanges.get_mut(id).expect("live exchange").lock = OwnerLock::Released;
+                    self.fail_exchange(env, id, Failure::Busy, up, io);
+                }
+                Turn::Progress => self.progress(env, id, up, io),
             }
-            if exchange.has_work() || (!web_closing(exchange.web.as_ref()) && due(exchange.next_deadline(), env.now)) {
-                self.progress(env, id, up, io);
-                self.collect(env, id, up, io);
-                return;
-            }
+            self.collect(env, id, up, io);
+            return;
         }
         if self.private_progress(env, up, io, files) {
             return;
@@ -975,52 +977,37 @@ impl Component {
         }
     }
 
-    // The live exchange chain includes detached sockets; retired slots stay in the slab
-    // until reclaim (programming-model.md, 5.2; oauth.md, 6.5).
-    fn insert_exchange(&mut self, exchange: Exchange) -> Id<Exchange> {
-        let id = match self.exchanges.insert(exchange) {
+    // The live exchanges include detached sockets; a retired one stays in the slab, and in
+    // its walks, until reclaim (programming-model.md, 5.2; oauth.md, 6.5), so each walk
+    // skips it.
+    fn insert_exchange(&mut self, mut exchange: Exchange) -> Id<Exchange> {
+        exchange.admitted = Some(self.admissions);
+        self.admissions = self.admissions.checked_add(1).expect("admissions fit a u64");
+        match self.exchanges.insert(exchange) {
             Ok(id) => id,
             Err(_) => unreachable!("admitted exchange slot"),
-        };
-        let mut next = self.first_exchange;
-        while let Some(previous) = next {
-            let exchange = self.exchanges.get_mut(previous).expect("live exchange");
-            if exchange.next.is_none() {
-                exchange.next = Some(id);
-                return id;
-            }
-            next = exchange.next;
         }
-        self.first_exchange = Some(id);
-        id
     }
 
     fn retire_exchange(&mut self, id: Id<Exchange>) {
-        let following = self.exchanges.get(id).expect("live exchange").next;
-        if self.first_exchange == Some(id) {
-            self.first_exchange = following;
-        } else {
-            let mut next = self.first_exchange;
-            while let Some(previous) = next {
-                let exchange = self.exchanges.get_mut(previous).expect("live exchange");
-                if exchange.next == Some(id) {
-                    exchange.next = following;
-                    break;
-                }
-                next = exchange.next;
-            }
-        }
+        self.exchanges.get_mut(id).expect("live exchange").admitted = None;
         self.exchanges.retire(id);
     }
 
     fn account_has_exchanges(&self, account: u32) -> bool {
-        let mut next = self.first_exchange;
-        while let Some(id) = next {
-            let exchange = self.exchanges.get(id).expect("live exchange");
-            if exchange.account == account {
+        for (_, exchange) in &self.exchanges {
+            if exchange.admitted.is_some() && exchange.account == account {
                 return true;
             }
-            next = exchange.next;
+        }
+        false
+    }
+
+    fn has_exchanges(&self) -> bool {
+        for (_, exchange) in &self.exchanges {
+            if exchange.admitted.is_some() {
+                return true;
+            }
         }
         false
     }
@@ -1069,7 +1056,7 @@ impl Component {
         if self.removing() {
             return;
         }
-        if self.first_exchange.is_some() {
+        if self.has_exchanges() {
             return;
         }
         for keeper in &self.keepers {
@@ -1116,11 +1103,10 @@ impl Component {
                 Store::Owner => {}
             }
         }
-        let mut next = self.first_exchange;
-        while let Some(id) = next {
-            let exchange = self.exchanges.get(id).expect("live exchange");
-            next = exchange.next;
-            if exchange.has_work() || (self.lifecycle == Lifecycle::Aborting && !exchange.aborted) {
+        for (_, exchange) in &self.exchanges {
+            if exchange.admitted.is_some()
+                && (exchange.has_work() || (self.lifecycle == Lifecycle::Aborting && !exchange.aborted))
+            {
                 return true;
             }
         }
@@ -1151,10 +1137,10 @@ impl Component {
                 Store::Owner => {}
             }
         }
-        let mut next = self.first_exchange;
-        while let Some(id) = next {
-            let exchange = self.exchanges.get(id).expect("live exchange");
-            next = exchange.next;
+        for (_, exchange) in &self.exchanges {
+            if exchange.admitted.is_none() {
+                continue;
+            }
             if let OwnerLock::Waiting { until } = exchange.lock {
                 soonest = earliest(soonest, Some(until));
             }
@@ -1216,6 +1202,30 @@ impl Component {
     pub fn reclaim(&mut self) {
         self.exchanges.reclaim();
     }
+}
+
+/// What `fire` does for one exchange, in this order: abort it while the
+/// component aborts, fail it once its wait for the owner's lock ends, or
+/// advance its work or its due deadline.
+enum Turn {
+    Abort,
+    Busy,
+    Progress,
+}
+
+fn turn_of(exchange: &Exchange, lifecycle: Lifecycle, now: Time) -> Option<Turn> {
+    if lifecycle == Lifecycle::Aborting && !exchange.aborted {
+        return Some(Turn::Abort);
+    }
+    if let OwnerLock::Waiting { until } = exchange.lock
+        && now >= until
+    {
+        return Some(Turn::Busy);
+    }
+    if exchange.has_work() || (!web_closing(exchange.web.as_ref()) && due(exchange.next_deadline(), now)) {
+        return Some(Turn::Progress);
+    }
+    None
 }
 
 fn recorded(record: SavedToken, env: &Env<Limits>, held: bool) -> State {
