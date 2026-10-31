@@ -8,11 +8,12 @@
 use crate::tests::fixtures::refusal_answer;
 use crate::tests::fixtures::{Fixture, ReadPage, Watched};
 use crate::tests::kit::Goldens;
+pub(in crate::tests) use crate::tests::kit::card as render;
 pub(in crate::tests) use crate::tests::kit::list;
 use crate::tests::tree::cards::{CLIENT, contains, document, drive, limits, start, text, words};
 use crate::{JigBindings, decode, tree::cards};
 use skein_ui::Act;
-use skein_ui::{Builder, Role, State, Tree};
+use skein_ui::{Builder, Role, Tree};
 
 use crate::{
     Event, Request,
@@ -126,34 +127,6 @@ fn loaded_with_watch(key: ObjectKey, value: ReadValue) -> (Fixture, Id<Object>, 
 pub(in crate::tests) fn loaded(key: ObjectKey, value: ReadValue) -> (Fixture, Id<Object>) {
     let (d, id, _) = loaded_with_watch(key, value);
     (d, id)
-}
-pub(in crate::tests) fn render(
-    d: &Fixture,
-    id: Id<Object>,
-    words: &crate::words::Words,
-    bindings: &mut JigBindings,
-) -> Tree {
-    bindings.begin();
-    let mut b = Builder::new(&limits());
-    b.open(Role::Page);
-    cards::card(&mut b, &d.view(), id, &cards::Place::Elsewhere, words, bindings);
-    b.close();
-    let tree = b.finish();
-    crate::tests::tree::cards_access::check(&tree);
-    assert!(tree.len() <= crate::card_nodes(&CLIENT, &(CLIENT).client).unwrap().checked_add(1).unwrap());
-    let facts = d.objects().get(id).unwrap();
-    match facts.card {
-        crate::state::objects::Card::Deciding { .. } => {
-            assert!(tree.nodes().iter().any(|node| node.styles.as_slice().contains(&crate::JigStyle::Card.token())
-                && node.states.as_slice().contains(&State::Busy)));
-        }
-        crate::state::objects::Card::Open
-        | crate::state::objects::Card::Refused { .. }
-        | crate::state::objects::Card::Unknown { .. }
-        | crate::state::objects::Card::NotSent { .. }
-        | crate::state::objects::Card::Leaving { .. } => {}
-    }
-    tree
 }
 
 fn press(tree: &Tree, label: &[u8], bindings: &mut JigBindings) -> Action {

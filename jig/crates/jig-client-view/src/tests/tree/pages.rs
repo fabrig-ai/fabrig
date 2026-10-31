@@ -8,6 +8,7 @@ use crate::JigBindings;
 use crate::tests::fixtures::refusal_answer;
 use crate::tests::fixtures::{AnsweredByEngine, Ended, Fixture, ReadPage, Served, Watched};
 use crate::tests::kit::Goldens;
+pub(in crate::tests) use crate::tests::kit::page as build;
 use crate::tests::tree::cards::{CLIENT, document, drive, start, text, words};
 use crate::{
     Event, Request,
@@ -19,26 +20,7 @@ use crate::{
 use jig_client::contract::*;
 use skein_lib::{List, Token};
 use skein_ui::{Builder, Role, Tree};
-pub(in crate::tests) fn build(d: &Fixture, kind: u8, words: &crate::words::Words) -> (Tree, JigBindings) {
-    let mut limits = crate::tests::tree::cards::limits();
-    limits.nodes = 2000;
-    limits.depth = 32;
-    limits.bindings = 512;
-    limits.text_bytes = 200_000;
-    let mut b = Builder::new(&limits);
-    let mut bindings = JigBindings::new(512, CLIENT.client.text);
-    b.open(Role::Page);
-    match kind {
-        0 | 1 | 3 => {
-            crate::tree::pages::main(&mut b, &d.view(), words, &mut bindings);
-        }
-        _ => {
-            crate::tree::pages::not_the_work(&mut b, &d.view(), words, &mut bindings);
-        }
-    }
-    b.close();
-    (b.finish(), bindings)
-}
+
 pub(in crate::tests) fn deliver(d: &mut Fixture, token: jig_client::Handle, document: Delivery) -> Vec<Request> {
     drive(d, Watched { watch: token, event: WatchEvent::Delivered(document) })
 }

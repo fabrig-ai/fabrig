@@ -6,11 +6,15 @@
     reason = "ordinary test fixtures collect values and compare golden files"
 )]
 
+use crate::state::objects::Object;
+use crate::tests::fixtures::Fixture;
 use crate::tests::tree::cards::CLIENT;
 use crate::words::Words;
+use crate::{JigBindings, tree::cards};
 use jig_client::contract::Text;
+use skein_lib::Id;
 use skein_lib::List;
-use skein_ui::Tree;
+use skein_ui::{Builder, Role, State, Tree};
 
 pub(crate) fn list<T>(values: impl IntoIterator<Item = T>) -> List<T> {
     List::from_boxed(values.into_iter().collect::<Vec<_>>().into_boxed_slice())
@@ -112,4 +116,49 @@ impl Goldens {
         );
         self.next = self.next.checked_add(1).unwrap();
     }
+}
+
+pub(crate) fn page(d: &Fixture, kind: u8, words: &Words) -> (Tree, JigBindings) {
+    let mut limits = limits();
+    limits.nodes = 2000;
+    limits.depth = 32;
+    limits.bindings = 512;
+    limits.text_bytes = 200_000;
+    let mut b = Builder::new(&limits);
+    let mut bindings = JigBindings::new(512, CLIENT.client.text);
+    b.open(Role::Page);
+    match kind {
+        0 | 1 | 3 => {
+            crate::tree::pages::main(&mut b, &d.view(), words, &mut bindings);
+        }
+        _ => {
+            crate::tree::pages::not_the_work(&mut b, &d.view(), words, &mut bindings);
+        }
+    }
+    b.close();
+    (b.finish(), bindings)
+}
+
+pub(crate) fn card(d: &Fixture, id: Id<Object>, words: &Words, bindings: &mut JigBindings) -> Tree {
+    bindings.begin();
+    let mut b = Builder::new(&limits());
+    b.open(Role::Page);
+    cards::card(&mut b, &d.view(), id, &cards::Place::Elsewhere, words, bindings);
+    b.close();
+    let tree = b.finish();
+    crate::tests::tree::cards_access::check(&tree);
+    assert!(tree.len() <= crate::card_nodes(&CLIENT, &(CLIENT).client).unwrap().checked_add(1).unwrap());
+    let facts = d.objects().get(id).unwrap();
+    match facts.card {
+        crate::state::objects::Card::Deciding { .. } => {
+            assert!(tree.nodes().iter().any(|node| node.styles.as_slice().contains(&crate::JigStyle::Card.token())
+                && node.states.as_slice().contains(&State::Busy)));
+        }
+        crate::state::objects::Card::Open
+        | crate::state::objects::Card::Refused { .. }
+        | crate::state::objects::Card::Unknown { .. }
+        | crate::state::objects::Card::NotSent { .. }
+        | crate::state::objects::Card::Leaving { .. } => {}
+    }
+    tree
 }
