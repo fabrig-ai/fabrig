@@ -1,6 +1,6 @@
 //! Key markers at the head of written bodies (forge.md, section 6).
 use alloc::boxed::Box;
-use skein_lib::{Writer, bytes};
+use skein_lib::{Writer, bytes, hex};
 /// A marker's closing bytes.
 pub const TAIL: &[u8] = b" -->\n";
 /// Whether the owner's marker word has the permitted length and bytes.
@@ -34,7 +34,7 @@ pub fn encode(word: &[u8], key: &[u8], text: &[u8], limit: u32) -> Option<Box<[u
     out.put(word).ok()?;
     out.put(b":key ").ok()?;
     for byte in key {
-        out.put(&[hex(byte / 16), hex(byte % 16)]).ok()?;
+        out.put(&[hex::digit(byte / 16), hex::digit(byte % 16)]).ok()?;
     }
     out.put(TAIL).ok()?;
     out.put(text).ok()?;
@@ -63,7 +63,4 @@ fn digit(byte: u8) -> Option<u8> {
         b'a'..=b'f' => byte.checked_sub(b'a')?.checked_add(10),
         _ => None,
     }
-}
-pub(crate) fn hex(byte: u8) -> u8 {
-    *b"0123456789abcdef".get(usize::from(byte)).expect("one hexadecimal digit")
 }

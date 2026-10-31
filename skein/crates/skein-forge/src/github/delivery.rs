@@ -43,7 +43,7 @@ pub fn sign(secret: &[u8], body: &[u8]) -> [u8; 71] {
     }
     for (pair, byte) in out.get_mut(7..).expect("signature prefix").chunks_exact_mut(2).zip(mac.finish()) {
         for (slot, nibble) in pair.iter_mut().zip([byte / 16, byte % 16]) {
-            *slot = marker::hex(nibble);
+            *slot = skein_lib::hex::digit(nibble);
         }
     }
     out
