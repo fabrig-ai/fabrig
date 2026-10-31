@@ -26,7 +26,7 @@ fn follow_up(world: &mut World) {
 
 #[test]
 fn a_follow_up_sent_as_the_run_finishes_is_read_once() {
-    let mut world = World::finishing(21);
+    let mut world = World::of(smith_local_world::Scenario::Finishing, 21);
     follow_up(&mut world);
     assert!(world.drive_to_exit(2_000), "the unread follow-up opens another activation");
     assert_eq!(world.activation(), 2);
@@ -48,7 +48,7 @@ fn a_line_at_the_moment_of_parking_opens_the_next_activation() {
 
 #[test]
 fn an_interrupt_with_a_line_unread_shows_it_not_delivered_and_starts_nothing() {
-    let mut world = World::finishing(25);
+    let mut world = World::of(smith_local_world::Scenario::Finishing, 25);
     world.line(b"First question");
     world.line(b"Unread question");
     world.person(Person::new(vec![
@@ -64,7 +64,7 @@ fn an_interrupt_with_a_line_unread_shows_it_not_delivered_and_starts_nothing() {
 
 #[test]
 fn a_brief_with_an_early_finish_carries_the_line_to_the_next_activation() {
-    let mut world = World::finishing(27);
+    let mut world = World::of(smith_local_world::Scenario::Finishing, 27);
     follow_up(&mut world);
     assert!(world.drive_to_exit(2_000));
     assert!(world.prompt_texts().iter().any(|text| skein_lib::bytes::find(text, b"And another question").is_some()));
@@ -73,7 +73,7 @@ fn a_brief_with_an_early_finish_carries_the_line_to_the_next_activation() {
 
 #[test]
 fn a_slow_store_racing_the_answer_loses_no_line() {
-    let mut world = World::finishing(29);
+    let mut world = World::of(smith_local_world::Scenario::Finishing, 29);
     world.slow_store();
     follow_up(&mut world);
     assert!(world.drive_to_exit(2_000));
