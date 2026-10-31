@@ -351,25 +351,7 @@ impl Browser {
 impl Host for Browser {
     fn iterate(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: io_limits() };
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 || !self.io.is_ready() {
-                break;
-            }
-            io::resume(&mut self.io, &env, &mut self.events, &mut self.submissions);
-        }
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 {
-                break;
-            }
-            let Some(complete) = self.completions.pop() else { break };
-            io::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
-        }
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 || !self.io.is_due(now) {
-                break;
-            }
-            io::fire(&mut self.io, &env, &mut self.events, &mut self.submissions);
-        }
+        io::stage::up(&mut self.io, &env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         for _ in 0..ROOM {
             let Some(event) = self.events.pop() else { break };
             match event {
@@ -396,13 +378,7 @@ impl Host for Browser {
             }
         }
         self.progress(now, wall);
-        for _ in 0..ROOM {
-            if !self.io.takes() || self.submissions.room() < 2 {
-                break;
-            }
-            let Some(request) = self.requests.pop() else { break };
-            io::down(&mut self.io, &env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
     }
     fn completions(&mut self) -> &mut Queue<kernel::Complete> {
@@ -425,7 +401,7 @@ impl Host for Browser {
                 && self.exchange.as_ref().is_some_and(Exchange::has_work)
                 && (self.stage != 5 || self.story != Story::PasteThenListener || self.callback_permitted))
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
 
