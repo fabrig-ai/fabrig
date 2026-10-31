@@ -148,6 +148,9 @@ impl Host for Child {
     fn is_empty(&self) -> bool {
         self.output.is_none() && self.error.is_none() && self.extra.is_empty() && !self.pending
     }
+    fn exit(&self) -> Option<kernel::Exit> {
+        self.is_empty().then_some(kernel::Exit::Code(self.code()))
+    }
     fn operations(&self) -> u32 {
         1
     }

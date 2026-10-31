@@ -561,7 +561,7 @@ impl skein_world::Referee<crate::process::Proc> for Run {
         }
         let wait = procs.iter().any(|proc| match proc {
             Proc::Local(local) => local.wait_seen(),
-            Proc::Agent(_, _, wait) => *wait,
+            Proc::Agent(agent) => agent.wait_seen(),
             Proc::Terminal(_)
             | Proc::Peer(_)
             | Proc::Issuer(_)
@@ -619,7 +619,7 @@ impl skein_world::Referee<crate::process::Proc> for Run {
                         browser.shutdown();
                     }
                 }
-                Proc::Local(_) | Proc::Agent(_, _, _) | Proc::Ended(_) | Proc::Git(_) | Proc::LingeringAgent(_) => {}
+                Proc::Local(_) | Proc::Agent(_) | Proc::Ended(_) | Proc::Git(_) | Proc::LingeringAgent(_) => {}
             }
         }
     }
@@ -670,7 +670,7 @@ impl skein_world::Referee<crate::process::Proc> for Run {
             && procs.iter().any(|p| matches!(p, Proc::Browser(browser) if browser.pages() == 0));
         let wait = procs.iter().any(|proc| match proc {
             Proc::Local(local) => local.wait_seen(),
-            Proc::Agent(_, _, wait) => *wait,
+            Proc::Agent(agent) => agent.wait_seen(),
             Proc::Terminal(_)
             | Proc::Peer(_)
             | Proc::Issuer(_)
