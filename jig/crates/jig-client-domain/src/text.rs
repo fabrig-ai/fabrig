@@ -79,7 +79,6 @@ fn continuation(byte: u8) -> bool {
 
 fn held(latest: Option<&Latest>) -> Option<&RunText> {
     match latest? {
-        Latest::Jig(Delivery::Run(text)) => Some(text),
         Latest::Jig(Delivery::RunState(state)) => state.writing.as_ref(),
         Latest::Jig(_) | Latest::Family(_) => None,
     }

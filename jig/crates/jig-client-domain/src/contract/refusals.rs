@@ -1,6 +1,6 @@
 //! Durable refusals with facts, never phrases; client/domain/contract.md, 4.
 //! These are final answers; busy and signed out are envelopes below this vocabulary.
-use super::{AdmissionLimit, Ending, Executor, Grant, HoldReason, Revision};
+use super::{AdmissionLimit, Ending, Executor, HoldReason, Revision};
 use alloc::boxed::Box;
 use skein_lib::Wall;
 /// The authority the engine found lacking.
@@ -17,8 +17,6 @@ pub enum Lacking {
         needed: u64,
         left: u64,
     },
-    /// The grant missing.
-    Grant(Grant),
     /// Only the supplied operation kind is known.
     GrantKind {
         kind: u16,

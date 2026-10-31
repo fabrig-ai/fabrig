@@ -1,7 +1,7 @@
 //! Exact Inbox owner facts, separate from application supplied context.
 //! See client/domain/contract.md, 5–7 and pages.md, 3. Raw row identity is
 //! independent of a coarser card address and both continuation cursors.
-use super::{Count, Cursor, Inbox, InboxEntry, InboxGroup, ObjectKey, OwnerTaskLink, ProposalKey, Proposer, TaskLine};
+use super::{Count, Cursor, InboxGroup, ObjectKey, OwnerTaskLink, ProposalKey, Proposer, TaskLine};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 
@@ -62,18 +62,15 @@ pub struct OwnerInboxPage {
 /// A whole live envelope; no owner aggregate is split into per-kind counts.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum InboxDocument {
-    Entry(Box<Inbox>),
     Owner(Box<OwnerInbox>),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum InboxRow {
-    Entry(Box<InboxEntry>),
     Owner(Box<OwnerInboxEntry>),
 }
 /// Raw scoped row identity, independent of row/read cursors or card identity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum InboxIdentity {
-    Entry(ObjectKey),
     Owner { task: u64, object: OwnerInboxObject },
 }
 impl OwnerInboxEntry {
@@ -112,63 +109,48 @@ impl InboxRow {
     #[must_use]
     pub const fn identity(&self) -> InboxIdentity {
         match self {
-            Self::Entry(value) => InboxIdentity::Entry(value.object),
             Self::Owner(value) => InboxIdentity::Owner { task: value.task_number(), object: value.object },
         }
     }
     #[must_use]
     pub const fn card_key(&self) -> ObjectKey {
         match self {
-            Self::Entry(value) => value.object,
             Self::Owner(value) => value.card_key(),
         }
     }
     #[must_use]
     pub const fn group(&self) -> InboxGroup {
         match self {
-            Self::Entry(value) => value.group,
             Self::Owner(value) => value.group(),
         }
     }
     #[must_use]
     pub const fn project(&self) -> Option<u32> {
         match self {
-            Self::Entry(value) => Some(value.project),
             Self::Owner(value) => value.project,
         }
     }
     #[must_use]
     pub const fn at(&self) -> Option<Wall> {
         match self {
-            Self::Entry(value) => Some(value.at),
             Self::Owner(value) => value.at,
         }
     }
     #[must_use]
     pub const fn goal(&self) -> Option<u64> {
         match self {
-            Self::Entry(value) => value.goal,
             Self::Owner(_) => None,
         }
     }
     #[must_use]
     pub fn reply(&self) -> Option<&TaskLine> {
         match self {
-            Self::Entry(value) => value.reply.as_deref(),
             Self::Owner(value) => value.reply.as_deref(),
         }
     }
     #[must_use]
     pub const fn turn_position(&self) -> Option<u64> {
         match self {
-            Self::Entry(value) => match value.group {
-                InboxGroup::Replies => Some(value.position),
-                InboxGroup::Questions
-                | InboxGroup::Proposals
-                | InboxGroup::Escalations
-                | InboxGroup::PersonTasks
-                | InboxGroup::Results => None,
-            },
             Self::Owner(value) => match value.object {
                 OwnerInboxObject::Reply { message } => Some(message),
                 OwnerInboxObject::Question { .. }
@@ -182,14 +164,6 @@ impl InboxRow {
     #[must_use]
     pub const fn result_position(&self) -> Option<u64> {
         match self {
-            Self::Entry(value) => match value.group {
-                InboxGroup::Results => Some(value.position),
-                InboxGroup::Questions
-                | InboxGroup::Proposals
-                | InboxGroup::Escalations
-                | InboxGroup::PersonTasks
-                | InboxGroup::Replies => None,
-            },
             Self::Owner(value) => match value.object {
                 OwnerInboxObject::Result { position } => Some(position),
                 OwnerInboxObject::Question { .. }
