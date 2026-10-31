@@ -126,26 +126,22 @@ fn settings_proposals_keep_the_one_pending_proposal_per_party_rule() {
 }
 
 #[test]
-fn restore_refuses_two_pending_settings_proposals_from_one_party() {
+fn restore_keeps_pending_settings_without_repeating_party_admission() {
     let mut h = Harness::new();
     h.domain = Domain::new(&LIMITS, 91, 1, super::charters(), Box::new([0]));
     h.send(Event::Restore { record: Stored::PersonProposal(Box::new(proposal(1))) });
     let mut second = proposal(1);
     second.number += 1;
-    let out = h.send(Event::Restore { record: Stored::PersonProposal(Box::new(second)) });
-    assert!(out.iter().any(|row| match row {
-        Request::RestoreRefused { .. } => true,
-        _ => false,
-    }));
+    let out = h.send(Event::Restore { record: Stored::PersonProposal(Box::new(second.clone())) });
+    assert!(out.is_empty());
+    assert_eq!(h.domain.person_proposal(PROPOSER, PROPOSAL), Some(proposal(1)));
+    assert_eq!(h.domain.person_proposal(PROPOSER, second.number), Some(second));
     assert!(!h.domain.ready());
 }
 
-fn restored_pending(selected: bool, checked: bool) -> Harness {
+fn restored_pending(checked: bool) -> Harness {
     let mut h = Harness::new();
     h.domain = Domain::new(&LIMITS, 91, 1, super::charters(), Box::new([0]));
-    if selected {
-        h.domain.start_restore();
-    }
     h.send(Event::Restore { record: Stored::PersonProposal(Box::new(proposal(1))) });
     if checked {
         h.send(Event::Check);
@@ -156,8 +152,8 @@ fn restored_pending(selected: bool, checked: bool) -> Harness {
 
 #[test]
 fn a_release_withdraws_restored_settings_before_task_adoption() {
-    for (selected, checked) in [(false, false), (false, true), (true, false), (true, true)] {
-        let mut h = restored_pending(selected, checked);
+    for checked in [false, true] {
+        let mut h = restored_pending(checked);
         let out = h.send(Event::WithdrawPersonProposal { reply_to: None, proposer: PROPOSER, proposal: PROPOSAL });
         assert!(h.domain.person_proposal(PROPOSER, PROPOSAL).is_none());
         assert!(out.iter().any(|row| match row {
@@ -178,8 +174,8 @@ fn a_release_withdraws_restored_settings_before_task_adoption() {
 
 #[test]
 fn explicit_withdrawal_waits_until_task_restoration_finishes() {
-    for (selected, checked) in [(false, false), (false, true), (true, false), (true, true)] {
-        let mut h = restored_pending(selected, checked);
+    for checked in [false, true] {
+        let mut h = restored_pending(checked);
         let out =
             h.send(Event::WithdrawPersonProposal { reply_to: Some(to()), proposer: PROPOSER, proposal: PROPOSAL });
         assert!(out.iter().any(|row| match row {
@@ -281,7 +277,7 @@ fn a_tasks_settings_proposal_waits_for_deployment_owners_and_its_outcome_wakes_i
 fn restore_retains_pending_settings_proposals_without_repeating_party_admission() {
     let mut h = Harness::new();
     h.domain = Domain::new(&LIMITS, 91, 1, super::charters(), Box::new([0]));
-    h.domain.start_restore();
+
     h.send(Event::Restore { record: Stored::PersonProposal(Box::new(proposal(1))) });
     let mut second = proposal(1);
     second.number += 1;

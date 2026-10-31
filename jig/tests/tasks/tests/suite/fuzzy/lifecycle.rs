@@ -49,7 +49,7 @@ fn selected_starts_keep_drawn_choices_and_name_the_first_removed_effort() {
         let mut member = task(number, &[]);
         member.authority.models = tasks::Models::Named(0b11);
         member.llm = Some(choice.clone());
-        let mut world = World::new_start_restore(seed, LIMITS);
+        let mut world = World::new(seed, LIMITS);
         assert_eq!(world.make(Party::Person(9), vec![member]), Reply::Made(vec![number]));
         world.restart();
         assert_eq!(world.record(number).llm, Some(choice));
@@ -57,7 +57,6 @@ fn selected_starts_keep_drawn_choices_and_name_the_first_removed_effort() {
         let mut efforts = EFFORTS;
         efforts[0] = 0;
         let mut restored = Domain::new(&LIMITS, seed, 1, charters(), Box::new(efforts));
-        restored.start_restore();
         let mut out = Queue::uncapped();
         for record in world.records.values().filter(|row| row.key().live()) {
             tasks::step(&mut restored, &world.env, Event::Restore { record: record.clone() }, &mut out);
