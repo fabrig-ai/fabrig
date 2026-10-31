@@ -170,12 +170,21 @@ pub fn component_limits() -> jig_protocol_store::Limits {
     }
 }
 pub fn component() -> Component {
+    build_component(false)
+}
+pub fn starting_component() -> Component {
+    build_component(true)
+}
+fn build_component(starting: bool) -> Component {
     let root = root_limits();
     let limits = component_limits();
     let kv = limits.store;
     let stores =
         jig_protocol_store::Stores { store: skein_kv::Store::memory(&kv), secrets: skein_kv::Store::memory(&kv) };
-    let store = jig_protocol_store::Store::over(&limits, crate::application(&root.connector), &[], stores);
+    let mut store = jig_protocol_store::Store::over(&limits, crate::application(&root.connector), &[], stores);
+    if starting {
+        store.start_restore();
+    }
     let mut component = Component { store, files: jig_test_store_files::Files::new(), limits };
     let root = component.files.root();
     let mut above = skein_lib::Queue::uncapped();
