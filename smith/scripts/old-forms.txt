@@ -9,12 +9,12 @@ genuine 0
 allow 0
 expect_manual_let_else 0
 expect_single_match 0
-full_limits 167
-temp_dir 8
+full_limits 105
+temp_dir 0
 bare_wire_kind 0
-io_resume 19
-test_windows 125
-path_attribute 66
+io_resume 15
+test_windows 35
+path_attribute 58
 domain_while 0
 domain_loop 0
 comment:actual 0
