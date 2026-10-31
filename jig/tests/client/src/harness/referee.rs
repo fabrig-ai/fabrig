@@ -434,31 +434,23 @@ impl Checks {
             ReadValue::OwnerEscalation(value) => ObjectKey::Escalation(value.task.chip.task),
             ReadValue::OwnerPersonTask(value) => ObjectKey::PersonTask(value.task.task),
             ReadValue::OwnerProposal(value) => ObjectKey::Proposal(value.key),
-            ReadValue::Escalation(_)
-            | ReadValue::PersonTask(_)
-            | ReadValue::Proposal(_)
-            | ReadValue::Me(_)
+            ReadValue::Me(_)
             | ReadValue::Tasks(_)
             | ReadValue::Historical(_)
             | ReadValue::Question(_)
             | ReadValue::Result(_)
-            | ReadValue::Ended(_)
             | ReadValue::History(_)
             | ReadValue::Activity(_)
             | ReadValue::Turn(_)
-            | ReadValue::Inbox(_)
             | ReadValue::OwnerInbox(_)
             | ReadValue::Notes(_)
-            | ReadValue::Spend(_)
             | ReadValue::OwnerEnded(_)
             | ReadValue::OwnerSpend(_)
             | ReadValue::OwnerProject(_)
-            | ReadValue::Project(_)
             | ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
             | ReadValue::Revisions(_)
-            | ReadValue::Deployment(_)
             | ReadValue::OwnerDeployment(_) => return,
         };
         assert!(self.documents.contains_key(&key) || self.documents.len() < 256, "world's delivered object bound");

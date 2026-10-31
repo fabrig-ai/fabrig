@@ -193,37 +193,29 @@ pub fn value(bytes: &[u8], limits: &Limits) -> Result<c::ReadValue, Undecodable>
         w::ReadValue::Turn(record) => c::ReadValue::Turn(Box::new(super::turn::archive(record, limits)?)),
         w::ReadValue::Me(record) => c::ReadValue::Me(Box::new(documents::frame(record, limits)?)),
         w::ReadValue::Task(record) => c::ReadValue::Task(Box::new(documents::task(record, limits)?)),
-        w::ReadValue::Proposal(record) => c::ReadValue::Proposal(Box::new(objects::proposal(record, limits)?)),
         w::ReadValue::OwnerProposal(record) => {
             c::ReadValue::OwnerProposal(Box::new(objects::owner_proposal(record, limits)?))
         }
-        w::ReadValue::Escalation(record) => c::ReadValue::Escalation(Box::new(objects::escalation(record, limits)?)),
         w::ReadValue::OwnerEscalation(record) => {
             c::ReadValue::OwnerEscalation(Box::new(objects::owner_escalation(record, limits)?))
         }
         w::ReadValue::Question(record) => c::ReadValue::Question(Box::new(objects::question(record, limits)?)),
-        w::ReadValue::PersonTask(record) => c::ReadValue::PersonTask(Box::new(objects::person_task(record, limits)?)),
         w::ReadValue::OwnerPersonTask(record) => {
             c::ReadValue::OwnerPersonTask(Box::new(objects::owner_person_task(record, limits)?))
         }
         w::ReadValue::Result(record) => c::ReadValue::Result(Box::new(objects::result(record, limits)?)),
-        w::ReadValue::Ended(record) => c::ReadValue::Ended(Box::new(pages::object_page(record, limits)?)),
         w::ReadValue::OwnerEnded(record) => {
             c::ReadValue::OwnerEnded(Box::new(pages::owner_ended_page(record, limits)?))
         }
         w::ReadValue::History(record) => c::ReadValue::History(Box::new(pages::history_page(record, limits)?)),
         w::ReadValue::Activity(record) => c::ReadValue::Activity(Box::new(pages::activity_page(record, limits)?)),
-        w::ReadValue::Inbox(record) => c::ReadValue::Inbox(Box::new(pages::inbox_page(record, limits)?)),
         w::ReadValue::OwnerInbox(record) => {
             c::ReadValue::OwnerInbox(Box::new(pages::owner_inbox_page(record, limits)?))
         }
-        w::ReadValue::Spend(record) => c::ReadValue::Spend(Box::new(pages::spend_page(record, limits)?)),
         w::ReadValue::OwnerSpend(record) => {
             c::ReadValue::OwnerSpend(Box::new(pages::owner_spend_page(record, limits)?))
         }
-        w::ReadValue::Project(record) => c::ReadValue::Project(Box::new(objects::project(record, limits)?)),
         w::ReadValue::Notes(record) => c::ReadValue::Notes(Box::new(pages::note_page(record, limits)?)),
-        w::ReadValue::Deployment(record) => c::ReadValue::Deployment(Box::new(documents::deployment(record, limits)?)),
         w::ReadValue::OwnerDeployment(record) => {
             c::ReadValue::OwnerDeployment(Box::new(documents::owner_deployment(record, limits)?))
         }

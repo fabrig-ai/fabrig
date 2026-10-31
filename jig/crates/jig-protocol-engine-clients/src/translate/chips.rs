@@ -439,10 +439,10 @@ pub fn chip(value: &d::Chip, limits: &w::Limits) -> Result<w::Chip, w::Problem> 
             limits,
             w::ChipPhaseRowParts {
                 parent: Some(0),
-                value: w::ChipPhaseFields::Owner(w::ChipPhaseOwnerFields::new(
+                value: w::ChipPhaseOwnerFields::new(
                     limits,
                     w::ChipPhaseOwnerFieldsParts { phase: phase(&value.phase, limits)?, details: 2 },
-                )?),
+                )?,
             },
         )?))
         .expect("chip phase");

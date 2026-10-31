@@ -125,7 +125,18 @@ pub(super) fn mixed_turn() -> (client::Client, Queue<Request>) {
         })
         .expect("first request sent");
     discard(&mut out);
-    let done = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome: w::Outcome::Changed }).expect("done"));
+    let done = w::Final::Done(
+        w::Done::new(
+            &w::CEILINGS,
+            w::DoneParts {
+                outcome: w::Outcome::Owner(
+                    w::OutcomeOwner::new(&w::CEILINGS, w::OutcomeOwnerParts { value: w::OwnerOutcome::AccountChanged })
+                        .expect("owner outcome"),
+                ),
+            },
+        )
+        .expect("done"),
+    );
     let mut writer = Writer::new(usize::try_from(done.measure()).expect("answer size"));
     done.encode(&mut writer).expect("measured final answer");
     let owned =

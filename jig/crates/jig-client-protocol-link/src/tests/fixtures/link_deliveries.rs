@@ -73,11 +73,11 @@ fn delivery_cases_first(cases: &mut List<(w::DeliveryValue, c::Delivery)>) {
             c::Delivery::OwnerProposal(Box::new(read_value_owner_proposal())),
         ))
         .unwrap();
-    cases.push((w::DeliveryValue::Tree(tree_record()), c::Delivery::Tree(Box::new(tree())))).unwrap();
+
     cases
         .push((w::DeliveryValue::OwnerTree(owner_tree_record()), c::Delivery::OwnerTree(Box::new(owner_tree()))))
         .unwrap();
-    cases.push((w::DeliveryValue::Inbox(inbox_record()), c::Delivery::Inbox(Box::new(inbox())))).unwrap();
+
     cases
         .push((w::DeliveryValue::OwnerInbox(owner_inbox_record()), c::Delivery::OwnerInbox(Box::new(owner_inbox()))))
         .unwrap();
@@ -85,11 +85,8 @@ fn delivery_cases_first(cases: &mut List<(w::DeliveryValue, c::Delivery)>) {
 fn delivery_cases_last(cases: &mut List<(w::DeliveryValue, c::Delivery)>) {
     cases.push((w::DeliveryValue::Tasks(tasks_record()), c::Delivery::Tasks(Box::new(tasks())))).unwrap();
 
-    cases.push((w::DeliveryValue::Run(text_record()), c::Delivery::Run(Box::new(run_text_expected())))).unwrap();
     cases.push((w::DeliveryValue::RunState(run_state_record()), c::Delivery::RunState(Box::new(run_state())))).unwrap();
-    cases
-        .push((w::DeliveryValue::Deployment(deployment_record()), c::Delivery::Deployment(Box::new(deployment()))))
-        .unwrap();
+
     cases
         .push((
             w::DeliveryValue::OwnerDeployment(owner_deployment_record()),

@@ -3,14 +3,14 @@ use crate::payload::{self, Payload};
 use core::mem::size_of;
 
 #[test]
-fn owner_task_resources_price_reserved_variant_rows_boxes_and_raw_segments_at_exact_parent_bounds() {
+fn owner_task_resources_price_reserved_rows_and_raw_segments_at_exact_parent_bounds() {
     let bounds = Bounds { rows: 2, text: 32, document_bytes: u64::MAX, ..Bounds::default() };
     let mut row = task();
     row.resources = List::with_capacity(0);
     let absent = row.heap(&bounds).unwrap();
     row.resources = List::with_capacity(2);
     let reserved = row.heap(&bounds).unwrap();
-    assert_eq!(reserved - absent, 2 * u64::try_from(size_of::<TaskResource>()).unwrap());
+    assert_eq!(reserved - absent, 2 * u64::try_from(size_of::<OwnerResourceLine>()).unwrap());
     let mut segments = List::with_capacity(2);
     segments.push(Box::<[u8]>::from([255_u8; 32])).unwrap();
     segments.push(Box::<[u8]>::from([254_u8; 32])).unwrap();
@@ -22,10 +22,8 @@ fn owner_task_resources_price_reserved_variant_rows_boxes_and_raw_segments_at_ex
         writer: Some(OwnerResourceWriter::Run { task: u64::MAX, attempt: u64::MAX }),
         writer_lost: true,
     };
-    row.resources.push(TaskResource::Owner(Box::new(owner.clone()))).unwrap();
-    let expected = u64::try_from(size_of::<OwnerResourceLine>()).unwrap()
-        + 2 * u64::try_from(size_of::<Box<[u8]>>()).unwrap()
-        + 64;
+    row.resources.push(owner.clone()).unwrap();
+    let expected = 2 * u64::try_from(size_of::<Box<[u8]>>()).unwrap() + 64;
     assert_eq!(row.heap(&bounds).unwrap() - reserved, expected);
     let exact = u64::try_from(size_of::<Task>()).unwrap() + reserved + expected;
     let before = row.clone();
@@ -34,5 +32,5 @@ fn owner_task_resources_price_reserved_variant_rows_boxes_and_raw_segments_at_ex
     assert!(!payload::fits(&row, &Bounds { rows: 1, ..bounds }));
     assert!(!payload::fits(&row, &Bounds { text: 31, ..bounds }));
     assert_eq!(row, before);
-    assert_eq!(row.resources.as_slice(), &[TaskResource::Owner(Box::new(owner))]);
+    assert_eq!(row.resources.as_slice(), &[owner]);
 }

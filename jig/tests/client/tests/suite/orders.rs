@@ -142,7 +142,12 @@ fn a_later_write_holds_its_requests_under_load() {
         world.answers(),
         vec![
             (SECOND, jig_client::Outcome::NotKept),
-            (FIRST, jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Changed)))),
+            (
+                FIRST,
+                jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
+                    c::OwnerOutcome::AccountChanged
+                ))))
+            ),
         ]
     );
     assert_eq!(world.sends(), vec![FIRST_NAME]);

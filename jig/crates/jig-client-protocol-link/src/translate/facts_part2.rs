@@ -1,7 +1,7 @@
 //! Field-for-field client contract translation (protocol/client.md, 3 and 5).
 use super::{
     Child, document_text, owner_chip_hold, owner_executor, owner_numbers, owner_part, owner_person_wait,
-    owner_wake_policy, part, party, proposal_key, retry_notice, take_chip, take_owner_chip_ending, take_result_value,
+    owner_wake_policy, party, proposal_key, retry_notice, take_chip, take_owner_chip_ending, take_result_value,
 };
 use crate::Limits;
 use crate::translate::{piece_problem, too_large};
@@ -267,9 +267,6 @@ pub(crate) fn result_value_fields(
                 tasks: list1,
                 proposal: opt2,
             }
-        }
-        w::ResultValueFields::Connector(row) => {
-            c::ResultValue::Connector { summary: document_text(row.summary(), limits)?, part: part(row.part()) }
         }
         w::ResultValueFields::Change(row) => c::ResultValue::Change {
             kind: row.kind(),

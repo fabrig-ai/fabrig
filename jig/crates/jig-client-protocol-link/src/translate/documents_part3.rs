@@ -1,60 +1,10 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
 use super::{
-    Box, Limits, List, Reader, Wall, c, chip_fields, chip_piece, ending_fields, hold_fields, live_delegate_piece,
-    offered_piece, owner_authority_document_fields, owner_task_link_piece, piece_problem,
-    specification_document_fields, spend_line_fields, subscriptions_fields, task_contract_document_fields,
-    task_hold_fields, task_resource_piece, task_result_fields, text, too_large, w,
+    Box, Limits, List, Wall, c, chip_fields, chip_piece, live_delegate_piece, offered_piece,
+    owner_authority_document_fields, owner_task_link_piece, piece_problem, specification_document_fields,
+    spend_line_fields, subscriptions_fields, task_contract_document_fields, task_resource_piece, task_result_fields,
+    text, too_large, w,
 };
-pub(crate) fn budget_fields(value: &w::Budget) -> c::Budget {
-    c::Budget {
-        total: value.total(),
-        own: value.own(),
-        ended: value.ended(),
-        reserved: value.reserved(),
-        left: value.left(),
-        funder: crate::translate::answers::actor(value.funder()),
-    }
-}
-
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn steering_fields(value: &w::Steering, limits: &Limits) -> Result<c::Steering, w::Problem> {
-    let opt0 = match value.addressed() {
-        Some(item) => Some(crate::translate::facts::recipient(item)),
-        None => None,
-    };
-    let opt1 = match value.person_revision() {
-        Some(item) => Some(crate::translate::answers::revision(item)),
-        None => None,
-    };
-    let opt2 = match value.taken_by() {
-        Some(item) => Some(*item),
-        None => None,
-    };
-    let opt3 = match value.instructions() {
-        Some(item) => Some(crate::translate::facts::document_text(item, limits)?),
-        None => None,
-    };
-    if value.dependencies().len() > limits.client.rows {
-        return Err(too_large());
-    }
-    let mut list4 = List::with_capacity(value.dependencies().len());
-    for item in value.dependencies() {
-        list4.push(*item).expect("reserved supplied list");
-    }
-    Ok(c::Steering {
-        addressed: opt0,
-        person_revision: opt1,
-        taken_by: opt2,
-        revision: crate::translate::answers::revision(value.revision()),
-        spec: specification_document_fields(value.spec(), limits)?,
-        instructions: opt3,
-        wake: crate::translate::facts::owner_wake_policy(value.wake()),
-        dependencies: list4,
-        authority: owner_authority_document_fields(value.authority(), limits)?,
-        budget: budget_fields(value.budget()),
-    })
-}
-
 pub(crate) fn phase_counts_fields(value: &w::PhaseCounts) -> c::PhaseCounts {
     c::PhaseCounts {
         ended: value.ended(),
@@ -72,93 +22,11 @@ pub(crate) fn impact_fields(value: &w::Impact) -> c::Impact {
     c::Impact { tasks: phase_counts_fields(value.tasks()), live_runs: value.live_runs(), proposals: value.proposals() }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn passed_fields(value: &w::Passed, limits: &Limits) -> Result<c::Passed, w::Problem> {
-    let opt0 = match value.lacking() {
-        Some(item) => Some(crate::translate::answers::lacking(item)),
-        None => None,
-    };
-    Ok(c::Passed {
-        by: crate::translate::answers::actor(value.by()),
-        at: Wall::from_nanos(value.at()),
-        reason: text(value.reason(), limits)?,
-        lacking: opt0,
-    })
-}
-
-pub(crate) fn passed_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<List<c::Passed>, w::Problem> {
-    let mut reader = Reader::new(bytes);
-    let mut rows = List::with_capacity(bound);
-    let mut sum = 0_u64;
-    for _ in 0..=bound {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(piece_problem(reason)),
-        };
-        let Some(item) = item else {
-            return Ok(rows);
-        };
-        sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
-            .ok_or(too_large())?
-            .checked_add(4)
-            .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
-            return Err(too_large());
-        }
-        let row = w::Passed::decode(&limits.wire, &mut Reader::new(&item))?;
-        let row = passed_fields(&row, limits)?;
-        if rows.push(row).is_err() {
-            return Err(too_large());
-        }
+pub(crate) fn part_piece(bytes: &[u8], _limits: &Limits, _bound: u32) -> Result<List<c::Part>, w::Problem> {
+    if !bytes.is_empty() {
+        return Err(piece_problem(skein_codec::Reason::Malformed));
     }
-    Err(too_large())
-}
-
-pub(crate) fn escalation_fields(value: &w::Escalation, limits: &Limits) -> Result<c::Escalation, w::Problem> {
-    let opt0 = match value.ending() {
-        Some(item) => Some(ending_fields(item, limits)?),
-        None => None,
-    };
-    Ok(c::Escalation {
-        ending: opt0,
-        task: chip_fields(value.task(), limits)?,
-        hold: hold_fields(value.hold(), limits)?,
-        steering: Box::new(steering_fields(value.steering(), limits)?),
-        impact: impact_fields(value.impact()),
-        waiting: crate::translate::facts::recipient(value.waiting()),
-        trail: passed_piece(value.trail(), limits, limits.client.rows)?,
-        acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
-    })
-}
-
-pub(crate) fn part_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<List<c::Part>, w::Problem> {
-    let mut reader = Reader::new(bytes);
-    let mut rows = List::with_capacity(bound);
-    let mut sum = 0_u64;
-    for _ in 0..=bound {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(piece_problem(reason)),
-        };
-        let Some(item) = item else {
-            return Ok(rows);
-        };
-        sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
-            .ok_or(too_large())?
-            .checked_add(4)
-            .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
-            return Err(too_large());
-        }
-        let row = w::Part::decode(&limits.wire, &mut Reader::new(&item))?;
-        let row = crate::translate::facts::part(&row);
-        if rows.push(row).is_err() {
-            return Err(too_large());
-        }
-    }
-    Err(too_large())
+    Ok(List::with_capacity(0))
 }
 
 pub(crate) fn closing_fields(value: &w::Closing, limits: &Limits) -> Result<c::Closing, w::Problem> {
@@ -193,20 +61,6 @@ pub(crate) fn held_runtime_fields(value: &w::HeldRuntime, limits: &Limits) -> Re
 pub(crate) fn runtime_fields(value: &w::Runtime, limits: &Limits) -> Result<c::Runtime, w::Problem> {
     Ok(match value {
         w::Runtime::Active(row) => c::Runtime::Active(crate::translate::facts::active_run(row.value(), limits)?),
-        w::Runtime::Waiting(row) => {
-            if row.dependencies().len() > limits.client.rows {
-                return Err(too_large());
-            }
-            let mut list0 = List::with_capacity(row.dependencies().len());
-            for item in row.dependencies() {
-                list0.push(*item).expect("reserved supplied list");
-            }
-            let opt1 = match row.hold() {
-                Some(item) => Some(crate::translate::facts::part(item)),
-                None => None,
-            };
-            c::Runtime::Waiting { dependencies: list0, hold: opt1 }
-        }
         w::Runtime::Idle => c::Runtime::Idle,
         w::Runtime::Starting => c::Runtime::Starting,
         w::Runtime::Running(row) => {
@@ -226,7 +80,6 @@ pub(crate) fn runtime_fields(value: &w::Runtime, limits: &Limits) -> Result<c::R
             class: crate::translate::facts::failure_class(row.class()),
             reason: text(row.reason(), limits)?,
         },
-        w::Runtime::Procedure(row) => c::Runtime::Procedure { panel: crate::translate::facts::part(row.panel()) },
         w::Runtime::Person(row) => {
             let opt0 = match row.since() {
                 Some(item) => Some(Wall::from_nanos(*item)),
@@ -246,49 +99,18 @@ pub(crate) fn runtime_fields(value: &w::Runtime, limits: &Limits) -> Result<c::R
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn writer_slot_fields(value: &w::WriterSlot) -> c::WriterSlot {
-    let opt0 = match value.attempt() {
-        Some(item) => Some(*item),
-        None => None,
-    };
-    c::WriterSlot { resource: crate::translate::facts::part(value.resource()), task: value.task(), attempt: opt0 }
-}
-
-pub(crate) fn writer_slot_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<List<c::WriterSlot>, w::Problem> {
-    let mut reader = Reader::new(bytes);
-    let mut rows = List::with_capacity(bound);
-    let mut sum = 0_u64;
-    for _ in 0..=bound {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(piece_problem(reason)),
-        };
-        let Some(item) = item else {
-            return Ok(rows);
-        };
-        sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
-            .ok_or(too_large())?
-            .checked_add(4)
-            .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
-            return Err(too_large());
-        }
-        let row = w::WriterSlot::decode(&limits.wire, &mut Reader::new(&item))?;
-        let row = writer_slot_fields(&row);
-        if rows.push(row).is_err() {
-            return Err(too_large());
-        }
+pub(crate) fn writer_slot_piece(
+    bytes: &[u8],
+    _limits: &Limits,
+    _bound: u32,
+) -> Result<List<c::WriterSlot>, w::Problem> {
+    if !bytes.is_empty() {
+        return Err(piece_problem(skein_codec::Reason::Malformed));
     }
-    Err(too_large())
+    Ok(List::with_capacity(0))
 }
 
 pub(crate) fn task_context_fields(value: &w::TaskContext, limits: &Limits) -> Result<c::TaskContext, w::Problem> {
-    let opt0 = match value.escalation() {
-        Some(item) => Some(escalation_fields(item, limits)?),
-        None => None,
-    };
     let opt1 = match value.closing() {
         Some(item) => Some(closing_fields(item, limits)?),
         None => None,
@@ -301,7 +123,6 @@ pub(crate) fn task_context_fields(value: &w::TaskContext, limits: &Limits) -> Re
         list2.push(spend_line_fields(item)).expect("reserved supplied list");
     }
     Ok(c::TaskContext {
-        escalation: opt0,
         parts: part_piece(value.parts(), limits, limits.client.rows)?,
         closing: opt1,
         spend: list2,
@@ -341,7 +162,7 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         None => None,
     };
     let opt6 = match value.hold() {
-        Some(item) => Some(task_hold_fields(item, limits)?),
+        Some(item) => Some(Box::new(crate::translate::facts::owner_chip_hold(item, limits)?)),
         None => None,
     };
     if value.proposals().len() > limits.client.rows {
@@ -409,74 +230,5 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         llm: crate::translate::llm::choice(value.llm().as_ref(), limits)?,
         kept_account: *value.kept_account(),
         run_wait: crate::translate::task_wait::waiting(value.run_wait().as_ref()),
-    })
-}
-
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn tree_node_fields(value: &w::TreeNode, limits: &Limits) -> Result<c::TreeNode, w::Problem> {
-    let opt0 = match value.parent() {
-        Some(item) => Some(*item),
-        None => None,
-    };
-    if value.dependencies().len() > limits.client.rows {
-        return Err(too_large());
-    }
-    let mut list1 = List::with_capacity(value.dependencies().len());
-    for item in value.dependencies() {
-        list1.push(*item).expect("reserved supplied list");
-    }
-    if value.proposals().len() > limits.client.rows {
-        return Err(too_large());
-    }
-    let mut list2 = List::with_capacity(value.proposals().len());
-    for item in value.proposals() {
-        list2.push(crate::translate::answers::proposal_key(item)).expect("reserved supplied list");
-    }
-    Ok(c::TreeNode {
-        chip: chip_fields(value.chip(), limits)?,
-        parent: opt0,
-        dependencies: list1,
-        proposals: list2,
-        spend: value.spend(),
-        folded: phase_counts_fields(value.folded()),
-        held_below: value.held_below(),
-    })
-}
-
-pub(crate) fn tree_node_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<List<c::TreeNode>, w::Problem> {
-    let mut reader = Reader::new(bytes);
-    let mut rows = List::with_capacity(bound);
-    let mut sum = 0_u64;
-    for _ in 0..=bound {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(piece_problem(reason)),
-        };
-        let Some(item) = item else {
-            return Ok(rows);
-        };
-        sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
-            .ok_or(too_large())?
-            .checked_add(4)
-            .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
-            return Err(too_large());
-        }
-        let row = w::TreeNode::decode(&limits.wire, &mut Reader::new(&item))?;
-        let row = tree_node_fields(&row, limits)?;
-        if rows.push(row).is_err() {
-            return Err(too_large());
-        }
-    }
-    Err(too_large())
-}
-
-pub(crate) fn tree_fields(value: &w::Tree, limits: &Limits) -> Result<c::Tree, w::Problem> {
-    Ok(c::Tree {
-        task: value.task(),
-        nodes: tree_node_piece(value.nodes(), limits, limits.client.rows)?,
-        folded: phase_counts_fields(value.folded()),
-        held_below: value.held_below(),
     })
 }

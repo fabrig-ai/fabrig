@@ -318,7 +318,7 @@ impl<A: crate::Application> Engine<A> {
                     )
                 });
             }
-            if payload::fits(&page, &self.bounds) && crate::engine_set::read(&page) {
+            if payload::fits(&page, &self.bounds) {
                 if before.is_some() {
                     self.positions.insert(self.next_position, Position { party, read: query.clone(), index: start });
                 }
@@ -342,11 +342,10 @@ impl<A: crate::Application> Engine<A> {
             unreachable!("activity rows")
         };
         for row in rows {
-            if let jig_client_domain::contract::Activity::Owner { source, decoded } = row.event
-                && source.task == task
-                && matches!(source.line, jig_client_domain::contract::OwnerActivity::Turn { attempt: found_attempt, turn: found_turn, .. } if (found_attempt, found_turn) == (attempt, turn))
+            if row.source.task == task
+                && matches!(row.source.line, jig_client_domain::contract::OwnerActivity::Turn { attempt: found_attempt, turn: found_turn, .. } if (found_attempt, found_turn) == (attempt, turn))
             {
-                let archive = decoded.ok_or(ReadNone::Malformed)?;
+                let archive = row.decoded.ok_or(ReadNone::Malformed)?;
                 if (archive.task, archive.name.attempt, archive.name.number) != (task, attempt, turn)
                     || matches!(archive.turn, jig_client_domain::contract::TurnRead::Undecodable { .. })
                 {
@@ -404,11 +403,7 @@ impl<A: crate::Application> Engine<A> {
     }
     fn checked_read(&self, value: Option<ReadValue>) -> core::result::Result<ReadValue, ReadNone> {
         let value = value.ok_or(ReadNone::Unknown)?;
-        if payload::fits(&value, &self.bounds) && crate::engine_set::read(&value) {
-            Ok(value)
-        } else {
-            Err(ReadNone::Busy)
-        }
+        if payload::fits(&value, &self.bounds) { Ok(value) } else { Err(ReadNone::Busy) }
     }
     pub(crate) fn read_visible(&self, party: u64, read: &Read) -> bool {
         let key = match read {
