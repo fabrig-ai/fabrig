@@ -77,10 +77,13 @@ fn a_fresh_deployment_lists_no_forge_and_offers_the_kinds() {
     let state = State::Rows(Box::new([]));
     assert!(forge::listed::rows(&state, None).is_empty());
     assert_eq!(
-        connect::choices(&state, None, true).as_slice(),
+        connect::choices(connect::records(&state), None, true).as_ref(),
         &[connect::Choice::GitHub, connect::Choice::Owned, connect::Choice::Managed]
     );
-    assert_eq!(connect::choices(&state, None, false).as_slice(), &[connect::Choice::GitHub, connect::Choice::Managed]);
+    assert_eq!(
+        connect::choices(connect::records(&state), None, false).as_ref(),
+        &[connect::Choice::GitHub, connect::Choice::Managed]
+    );
 }
 fn event(root: &mut crate::Domain, event: Event) -> Queue<Request> {
     event_at(root, event, Time::ZERO)
@@ -303,8 +306,8 @@ fn the_playground_forge_is_listed_with_nothing_to_add() {
     )]));
     assert_eq!(forge::listed::rows(&state, Some(1)).len(), 1);
     assert_eq!(connect::name(forge::listed::rows(&state, Some(1)).get(0).unwrap(), Some(1)), connect::Name::Playground);
-    assert!(connect::choices(&state, Some(1), true).is_empty());
-    assert!(connect::unfinished(&state, Some(1)).is_none());
+    assert!(connect::choices(connect::records(&state), Some(1), true).is_empty());
+    assert!(connect::unfinished(connect::records(&state), Some(1)).is_none());
 }
 #[test]
 fn all_kept_real_records_are_listed() {
@@ -1314,7 +1317,7 @@ fn an_unfinished_github_with_its_app_offers_go_on_first() {
     let mut candidate = row(4, Kind::GitHub, Mode::Connected, C::Stopped { reason: Box::default() }, Offer::NotOffered);
     candidate.app = Some(forges::AppWay::Manifest);
     let state = State::Rows(Box::new([candidate]));
-    let row = connect::unfinished(&state, None).unwrap();
+    let row = connect::unfinished(connect::records(&state), None).unwrap();
     assert_eq!(
         connect::unfinished_acts(row).as_slice(),
         &[connect::UnfinishedAct::GoOn, connect::UnfinishedAct::StartOver]
@@ -1339,7 +1342,7 @@ fn remove_asks_then_sends_remove_forge() {
 fn an_unfinished_forgejo_offers_start_over_which_removes_then_chooses() {
     let (mut root, _, watch) = opened(true);
     deliver_first(&mut root, watch, w::Connection::NotSetUp, w::FirstState::Making);
-    let row = connect::unfinished(root.forges(), None).unwrap();
+    let row = connect::unfinished(connect::records(root.forges()), None).unwrap();
     assert_eq!(connect::unfinished_acts(row).as_slice(), &[connect::UnfinishedAct::StartOver]);
     let (attempt, _, request) =
         sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::StartOver { forge: HERE })));
@@ -1390,7 +1393,10 @@ fn the_welcome_shows_a_kept_forge_without_its_first_adoption_as_unfinished() {
 fn owned_choices_follow_the_existing_rows_offer() {
     for (offer, owned) in [(Offer::Offered, true), (Offer::NotOffered, false), (Offer::NotUnderTheBox, false)] {
         let state = State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Owned, C::NotSetUp, offer)]));
-        assert_eq!(connect::choices(&state, None, !owned).as_slice().contains(&connect::Choice::Owned), owned);
+        assert_eq!(
+            connect::choices(connect::records(&state), None, !owned).as_ref().contains(&connect::Choice::Owned),
+            owned
+        );
     }
 }
 #[test]
