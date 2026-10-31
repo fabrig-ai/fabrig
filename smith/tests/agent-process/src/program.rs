@@ -183,7 +183,7 @@ fn configuration(case: Case) -> smith_agent_service::Config {
         smith_domain::feedback_bound(&config.limits.domain.run).expect("complete bounded feedback");
     if matches!(case, Case::Tools | Case::Events) {
         config.limits.events = Some(
-            smith_agent_service::EventLimits::derive(
+            smith_agent_service::event_limits(
                 &config.limits,
                 if case == Case::Events {
                     smith_protocol_events::sinks::Capture::Everything
