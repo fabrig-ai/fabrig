@@ -1,4 +1,5 @@
 //! The forge component's boundary to the engine (protocol/README.md, 6).
+pub(crate) mod gone;
 pub(crate) mod records;
 pub mod tokens;
 use crate::{limits, settings};
@@ -215,6 +216,8 @@ pub(crate) struct Layer {
     pub(crate) file_access: Map<u16, ()>,
     pub(crate) startup_access: Map<u16, skein_forge_connection::Access>,
     pub(crate) serving: Option<()>,
+    // Some waits for this item; None remembers a completed removal for this run.
+    pub(crate) erasing: Map<u16, Option<temper_protocol_records::Item>>,
     pub(crate) resolving: Map<u16, ()>,
     pub(crate) names: Map<Box<[u8]>, core::net::IpAddr>,
     #[cfg(test)]
@@ -271,6 +274,7 @@ impl Layer {
             file_access,
             startup_access: Map::with_capacity(limits.forges),
             serving: None,
+            erasing: Map::with_capacity(65_536),
             resolving: Map::with_capacity(limits.forges),
             names,
             held: held_hosts,

@@ -20,6 +20,9 @@ impl Rows {
             self.values.push(number, bytes, value_bytes);
         }
     }
+    pub(crate) fn remove(&mut self, forge: u16) {
+        self.values.remove(forge);
+    }
     pub(crate) fn forge(&self, forge: u16) -> Option<&records::ForgeRows> {
         self.values.forge(forge)
     }
