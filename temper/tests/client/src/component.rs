@@ -385,6 +385,7 @@ impl Composition {
 
     fn application(&mut self, request: clients::ToApplication, transport: &mut Transport) {
         match temper_service::family::to_root(
+            &jig_protocol_config::Directories::working(),
             request,
             &crate::fixtures::forge_settings(),
             None,
