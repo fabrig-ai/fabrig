@@ -428,7 +428,7 @@ mod tests {
     const HASH: &[u8] = b"0123456789abcdef0123456789abcdef01234567";
 
     fn limits() -> GitLimits {
-        GitLimits { argument_bytes: 4096, output_bytes: 4096, conflicts: 4, path_bytes: 128, detail_bytes: 128 }
+        GitLimits { output_bytes: 4096, conflicts: 4, path_bytes: 128, detail_bytes: 128, ..crate::fixture::GIT }
     }
 
     fn command(code: Option<u8>, stdout: &[u8], stderr: &[u8]) -> GitCompletion {

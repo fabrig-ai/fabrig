@@ -3548,6 +3548,7 @@ dependencies = [
  "smith-events",
  "smith-host-domain",
  "smith-local-domain",
+ "smith-local-protocol",
  "smith-protocol-channel",
  "smith-transcript",
 ]

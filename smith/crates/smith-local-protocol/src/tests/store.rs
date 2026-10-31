@@ -1,18 +1,12 @@
-use crate::{Action, History, RecordName, Store, StoreFault, StoreLimits, StoreRequest};
+use crate::{Action, History, RecordName, Store, StoreFault, StoreRequest};
 use skein_io::{digest::digest, file, kernel};
 use skein_lib::{Queue, Time, Token};
 use smith_local_domain as local;
 
 const OWNER: Token = Token::new(7);
 fn store() -> Store {
-    Store::new(
-        OWNER,
-        Token::new(8),
-        kernel::Fd::new(9),
-        StoreLimits { file_bytes: 4096, turns: 2, deliveries: 2, scan_bytes: 4096 },
-        crate::store::tests::fixture().0,
-    )
-    .unwrap()
+    Store::new(OWNER, Token::new(8), kernel::Fd::new(9), crate::fixture::STORE, crate::store::tests::fixture().0)
+        .unwrap()
 }
 fn state() -> local::ChatState {
     local::ChatState {

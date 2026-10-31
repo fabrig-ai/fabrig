@@ -44,6 +44,9 @@ mod delivery;
 mod domain;
 mod end;
 mod facts;
+
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
 mod limits;
 mod long;
 mod person;

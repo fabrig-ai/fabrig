@@ -4,7 +4,7 @@ use smith_domain::run;
 use smith_local_domain::{GitOp, GitResult};
 
 fn limits() -> GitLimits {
-    GitLimits { argument_bytes: 4096, output_bytes: 64, conflicts: 2, path_bytes: 64, detail_bytes: 32 }
+    crate::fixture::GIT
 }
 
 fn command(code: Option<u8>, stdout: &[u8], timed_out: bool) -> GitCompletion {
@@ -148,7 +148,7 @@ fn plain_snapshot(files: &[(&[u8], &[u8])]) -> crate::Snapshot {
     let mut scan = crate::Plain::new(
         owner,
         skein_lib::Token::new(19),
-        crate::PlainLimits { entries: 8, path_bytes: 64, file_bytes: 128 },
+        crate::PlainLimits { entries: 8, ..crate::fixture::PLAIN },
         skein_lib::Time::from_nanos(50),
     )
     .unwrap();
@@ -189,7 +189,7 @@ fn plain_snapshots_walk_nested_directories() {
     let mut scan = crate::Plain::new(
         owner,
         skein_lib::Token::new(19),
-        crate::PlainLimits { entries: 8, path_bytes: 64, file_bytes: 128 },
+        crate::PlainLimits { entries: 8, ..crate::fixture::PLAIN },
         skein_lib::Time::from_nanos(50),
     )
     .unwrap();
@@ -244,13 +244,9 @@ fn an_incomplete_or_unsupported_plain_tree_makes_the_snapshot_unknown() {
             0,
         ),
     ] {
-        let mut scan = crate::Plain::new(
-            owner,
-            skein_lib::Token::new(19),
-            crate::PlainLimits { entries: 2, path_bytes: 64, file_bytes: 128 },
-            skein_lib::Time::from_nanos(50),
-        )
-        .unwrap();
+        let mut scan =
+            crate::Plain::new(owner, skein_lib::Token::new(19), crate::fixture::PLAIN, skein_lib::Time::from_nanos(50))
+                .unwrap();
         drop(scan.start());
         let crate::PlainAction::Failed = scan.from_file(skein_io::file::Event::Scanned { owner, entries, more }) else {
             panic!("incomplete tree must be unknown, never unchanged")
@@ -276,7 +272,7 @@ fn invalid_limits_are_refused() {
         }
         assert!(Git::new(GitOp::Head, invalid).is_none(), "positive Git limit {check}");
     }
-    let plain = crate::PlainLimits { entries: 2, path_bytes: 32, file_bytes: 1024 };
+    let plain = crate::PlainLimits { path_bytes: 32, file_bytes: 1024, ..crate::fixture::PLAIN };
     assert!(crate::Plain::new(owner, root, plain, deadline).is_some(), "valid scan limits");
     for check in 0_u8..3 {
         let mut invalid = plain;
@@ -288,7 +284,7 @@ fn invalid_limits_are_refused() {
         }
         assert!(crate::Plain::new(owner, root, invalid, deadline).is_none(), "positive scan limit {check}");
     }
-    let terminal = crate::TerminalLimits { line_bytes: 32, show_bytes: 64 };
+    let terminal = crate::TerminalLimits { show_bytes: 64, ..crate::fixture::TERMINAL };
     assert!(crate::terminal_valid(&terminal));
     assert!(crate::Terminal::new(terminal).is_some(), "valid terminal limits");
     assert!(crate::Terminal::new(crate::TerminalLimits { line_bytes: 0, ..terminal }).is_none(), "positive line limit");
@@ -296,7 +292,7 @@ fn invalid_limits_are_refused() {
         crate::Terminal::new(crate::TerminalLimits { show_bytes: 0, ..terminal }).is_none(),
         "positive display limit"
     );
-    let store = crate::StoreLimits { file_bytes: 4096, turns: 2, deliveries: 2, scan_bytes: 4096 };
+    let store = crate::fixture::STORE;
     let construct = |limits| {
         crate::Store::new(
             owner,

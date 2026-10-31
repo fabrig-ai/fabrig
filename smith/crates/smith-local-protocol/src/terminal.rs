@@ -335,11 +335,11 @@ mod tests {
     use super::*;
 
     fn terminal() -> Terminal {
-        Terminal::new(Limits { line_bytes: 32, show_bytes: 32 }).expect("valid terminal")
+        Terminal::new(crate::fixture::TERMINAL).expect("valid terminal")
     }
 
     fn rendered(notice: local::Notice) -> Box<[u8]> {
-        let terminal = Terminal::new(Limits { line_bytes: 32, show_bytes: 128 }).expect("valid terminal");
+        let terminal = Terminal::new(Limits { show_bytes: 128, ..crate::fixture::TERMINAL }).expect("valid terminal");
         let mut out = Queue::uncapped();
         terminal.notice(&notice, b"main", &[], &mut out);
         let Some(Event::Write(text)) = out.pop() else { panic!("one notice written") };
@@ -488,7 +488,7 @@ mod tests {
 
     #[test]
     fn a_capped_store_notice_ends_on_a_character_boundary_with_a_newline() {
-        let terminal = Terminal::new(Limits { line_bytes: 32, show_bytes: 37 }).expect("valid terminal");
+        let terminal = Terminal::new(Limits { show_bytes: 37, ..crate::fixture::TERMINAL }).expect("valid terminal");
         let mut out = Queue::uncapped();
         terminal.notice(
             &local::Notice::Failure(local::Failure::Store { turn: Some(1), reason: local::StoreFailure::Write }),
@@ -545,7 +545,7 @@ mod tests {
 
     #[test]
     fn an_overlong_line_is_discarded_until_newline() {
-        let mut terminal = Terminal::new(Limits { line_bytes: 3, show_bytes: 32 }).expect("valid terminal");
+        let mut terminal = Terminal::new(Limits { line_bytes: 3, ..crate::fixture::TERMINAL }).expect("valid terminal");
         let mut out = Queue::uncapped();
         for byte in b"abcd\n" {
             terminal.feed(*byte, &mut out);

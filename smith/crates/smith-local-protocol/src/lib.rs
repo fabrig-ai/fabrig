@@ -13,6 +13,9 @@ extern crate alloc;
 
 mod borrowed;
 mod delivery_store;
+
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
 pub mod format;
 
 #[rustfmt::skip]

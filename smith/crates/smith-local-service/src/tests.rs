@@ -50,24 +50,7 @@ fn a_resize_during_a_window_read_is_read_after_its_terminal() {
 const EXTERNAL_QUEUE_SLOTS: u32 = 64;
 
 pub(crate) fn config() -> Config {
-    let mut local_limits = local::Limits {
-        smith: smith_agent_world::LIMITS,
-        agent: local::AgentLimits::inline(
-            smith_agent_world::LIMITS,
-            2,
-            Duration::from_secs(60),
-            Duration::from_secs(5),
-        )
-        .expect("bounded inline child"),
-        endpoints: Box::new([Endpoint(4)]),
-        chat_bytes: 64,
-        text_bytes: 1024,
-        models: 1,
-        line_bytes: 256,
-        show_bytes: 1024,
-        unsaved: 2,
-        facts: 16,
-    };
+    let mut local_limits = local::Limits { models: 1, ..local::fixture::small(smith_agent_world::LIMITS) };
     let mut host_limits = smith_host_world::limits();
     host_limits.agents = 1;
     host_limits.accounts = 1;

@@ -485,17 +485,14 @@ impl World {
         };
         let referee = Referee::new(meeting);
         let limits = local::Limits {
-            smith: agent_world::LIMITS,
-            agent: local::AgentLimits::inline(agent_world::LIMITS, 2, Duration::from_secs(60), Duration::from_secs(5))
-                .expect("bounded inline child"),
             endpoints: Box::new([run::charter::Endpoint(0)]),
-            chat_bytes: 64,
             text_bytes: 4096,
             models: 1,
             line_bytes: 1024,
             show_bytes: 4096,
             unsaved,
             facts,
+            ..local::fixture::small(agent_world::LIMITS)
         };
         let saved_disk = store.disk.take();
         let restored = saved_disk.is_some();
