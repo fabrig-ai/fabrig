@@ -1,0 +1,50 @@
+ready = false
+
+draft = "playground-reset-r3"
+repo = "fabrig"
+sources = [
+  "temper/docs/design/draft/playground-reset.md",
+  "temper/docs/plan/playground-reset-r3/inputs/brief.md",
+  "temper/docs/plan/playground-reset-r3/inputs/README.md",
+  "AGENTS.md",
+]
+
+[[part]]
+id = "forge-records"
+title = "Forges kept in the store as records, numbered at runtime; the document keeps the machine's"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 3"
+
+[[part]]
+id = "project-delete"
+title = "jig's RemoveProject: a project closed, its tasks ended and erased, its rows gone, kept until whole"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 5"
+
+[[part]]
+id = "box-groups"
+title = "The box builds groups by kind from <data>/box/groups/N, and removes one by remove N"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 3"
+
+[[part]]
+id = "client"
+title = "The client on records: Forges, Remove, the welcome's three states, the playground's pages and reset, Delete project"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 6.3"
+
+[[slice]]
+id = 1
+story = "A forge made by SetUp or Connect is a record restored at the next start, and a deleted project leaves no row but its spend"
+parts = ["forge-records", "project-delete"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A group's file starts and removes its forge's steps, and the client speaks the new requests"
+parts = ["box-groups", "client"]
+walk = false
