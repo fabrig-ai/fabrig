@@ -75,7 +75,7 @@ fn routes_an_infrastructure_tell_to_its_side() {
         &mut root,
         &env(),
         Event::Act {
-            action: Action::Infrastructure(infrastructure::Act::NativeMoveEnd {
+            action: Action::Infrastructure(infrastructure::Act::MoveEnd {
                 object: object.token(),
                 revision: contract::Revision { value: 2 },
             }),
@@ -90,7 +90,7 @@ fn routes_an_infrastructure_tell_to_its_side() {
             _ => None,
         })
         .expect("the infrastructure request left");
-    let answer = infrastructure::Answer::NativeMovedEnd {
+    let answer = infrastructure::Answer::MovedEnd {
         environment: super::environment_name(),
         revision: contract::Revision { value: 3 },
         until: 100,

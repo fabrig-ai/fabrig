@@ -3,7 +3,6 @@ use jig_client_domain::contract::{Answer, Ask, Outcome, WatchEnd};
 #[cfg(test)]
 use jig_client_domain::contract::{Operation, Revision, Scope, SeenThrough, Text};
 use jig_client_view::Owner;
-use jig_client_view::boundary::Offset;
 use jig_client_world::harness::{App, CardKey, Duty, Receipt, Seen, Sent, StoreWrite};
 use jig_client_world::observe;
 use jig_ops_client_domain::{
@@ -64,7 +63,6 @@ pub fn limits() -> domain::Limits {
             rows: 2,
             segments: 4,
             text: 32,
-            retry: Duration::from_millis(10),
             document_bytes: 65536,
         },
         infrastructure: infra::Limits {
@@ -76,7 +74,6 @@ pub fn limits() -> domain::Limits {
             rows: 2,
             segments: 4,
             text: 32,
-            retry: Duration::from_millis(10),
             document_bytes: 65536,
         },
         client: client_limits(),
@@ -151,8 +148,8 @@ impl App for Ops {
         domain::configure_arrangement(&mut root, view::arrangement()).expect("ops arrangement before start");
         (root, view::View::new(&bounds, &limits, jig, obs, infra, 1))
     }
-    fn start(address: Address, kept: Vec<Self::Record>, offset: i32) -> Event {
-        Event::Start { address, kept: super::stories::list(kept), offset: Offset { minutes: offset } }
+    fn start(address: Address, kept: Vec<Self::Record>, _offset: i32) -> Event {
+        Event::Start { address, kept: super::stories::list(kept) }
     }
     fn went(address: Address) -> Event {
         Event::Went { place: domain::Place::Address(address) }
@@ -163,8 +160,8 @@ impl App for Ops {
     fn fire(root: &mut Self::Root, env: &Env<Self::Limits>, out: &mut Queue<Request>) {
         domain::fire(root, env, out);
     }
-    fn take(root: &mut Self::Root, env: &Env<Self::Limits>, out: &mut Queue<Request>) {
-        domain::take(root, env, out);
+    fn take(root: &mut Self::Root, _env: &Env<Self::Limits>, _out: &mut Queue<Request>) {
+        domain::take(root);
     }
     fn next_deadline(root: &Self::Root) -> Option<Time> {
         domain::next_deadline(root)
@@ -402,7 +399,7 @@ fn client_received(up: &jig_client::Up) -> Vec<Receipt> {
 }
 fn infrastructure_sent(attempt: skein_lib::Token, key: [u8; 16], ask: &infra::Ask) -> Sent {
     let (card, revision) = match ask {
-        infra::Ask::NativeMoveEnd { object, revision, .. } => (
+        infra::Ask::MoveEnd { object, revision, .. } => (
             CardKey::of(skein_ui::Key {
                 owner: (jig_client_view::Owner::Application { number: 2 }).opaque(),
                 kind: 12,
@@ -521,7 +518,7 @@ mod tests {
 
     #[test]
     fn both_ops_routes_keep_infrastructure_requests() {
-        let ask = infra::Ask::NativeMoveEnd {
+        let ask = infra::Ask::MoveEnd {
             object: skein_lib::Token::new(7),
             project: PROJECT,
             environment: super::super::stories::environment_name(),
@@ -557,7 +554,7 @@ mod tests {
     }
 
     #[test]
-    fn native_link_receipts_keep_version_refusals_and_ended_sessions() {
+    fn link_receipts_keep_version_refusals_and_ended_sessions() {
         let cases = [
             (jig_client::Up::Served { served: false, versions: None }, "[OutOfDate]"),
             (

@@ -479,8 +479,7 @@ fn identity(document: &Document) -> bool {
     use super::documents::{Kind, Scope};
     match &document.value {
         Value::Environment { environment, .. } => {
-            document.subject.kind == Kind::NativeEnvironment(environment.clone())
-                && project_scope(document.subject.scope)
+            document.subject.kind == Kind::Environment(environment.clone()) && project_scope(document.subject.scope)
         }
         Value::Panel { task, state, .. } => {
             document.subject.kind == Kind::Panel(*task) && state.task == *task && project_scope(document.subject.scope)
@@ -503,8 +502,8 @@ fn identity(document: &Document) -> bool {
             document.subject.scope == Scope::Project(*project)
                 && match &document.subject.kind {
                     Kind::Project(number) => *number == *project,
-                    Kind::NativeEnvironments { .. } => true,
-                    Kind::NativeEnvironment(_)
+                    Kind::Environments { .. } => true,
+                    Kind::Environment(_)
                     | Kind::Panel(_)
                     | Kind::Result(_)
                     | Kind::Effect(_)

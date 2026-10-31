@@ -23,11 +23,11 @@ fn open_rate(b: &mut Builder, words: &Words, percent: u8, observed: skein_lib::W
     words.text(b, Word::Since, &[Hole::Name(skein_lib::bytes::copy_of(&crate::time::clock(observed)))]);
 }
 
-pub fn native_rate(
+pub fn rate(
     b: &mut Builder,
     words: &Words,
-    incident: &jig_ops_client_domain::observability::native::Incident,
-    fact: &jig_ops_client_domain::observability::native::Fact,
+    incident: &jig_ops_client_domain::observability::values::Incident,
+    fact: &jig_ops_client_domain::observability::values::Fact,
 ) {
     let observed = skein_lib::Wall::from_nanos(fact.observed.saturating_mul(1_000_000_000));
     open_rate(b, words, fact.error_rate_percent, observed);

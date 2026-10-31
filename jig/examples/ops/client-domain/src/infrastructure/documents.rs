@@ -13,9 +13,9 @@ pub enum Scope {
 /// Whole-document identity; proposed effects and retained entries are distinct.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Kind {
-    NativeEnvironment(super::native::Environment),
-    NativeEnvironments {
-        pool: Option<super::native::Pool>,
+    Environment(super::values::Environment),
+    Environments {
+        pool: Option<super::values::Pool>,
     },
     Panel(u64),
     Result(u64),
@@ -36,14 +36,14 @@ pub struct Subject {
 /// One whole owner document, admitted without partial truncation.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Document {
-    Native(Box<super::native::Document>),
+    Value(Box<super::values::Document>),
 }
 impl Document {
     /// The identity echoed by this whole document.
     #[must_use]
     pub fn subject(&self) -> Subject {
         match self {
-            Self::Native(document) => document.subject.clone(),
+            Self::Value(document) => document.subject.clone(),
         }
     }
     /// Whole-value admission against configured bounds.
@@ -51,7 +51,7 @@ impl Document {
     pub fn fits(&self, limits: &super::Limits) -> bool {
         let Some(identity) = subject_price(&self.subject(), limits) else { return false };
         let Some(bytes) = (match self {
-            Self::Native(document) => super::native::price(document, limits),
+            Self::Value(document) => super::values::price(document, limits),
         }) else {
             return false;
         };
@@ -70,10 +70,10 @@ impl Document {
 /// A keyed request naming exactly the revision the person saw.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Ask {
-    NativeMoveEnd {
+    MoveEnd {
         object: skein_lib::Token,
         project: u32,
-        environment: super::native::Environment,
+        environment: super::values::Environment,
         revision: Revision,
         until: u64,
     },
@@ -92,8 +92,8 @@ pub enum Refusal {
 /// A durable environment-request terminal, or current facts showing its revision moved.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Answer {
-    NativeMovedEnd { environment: super::native::Environment, revision: Revision, until: u64 },
-    NativeMoved { environment: super::native::Environment, revision: Revision, until: u64 },
+    MovedEnd { environment: super::values::Environment, revision: Revision, until: u64 },
+    Moved { environment: super::values::Environment, revision: Revision, until: u64 },
     Gone,
     Refused { why: Refusal },
     EntranceRefused(jig_client::contract::EntranceRefusal),
@@ -110,8 +110,6 @@ pub enum ReadResult {
 /// A level-triggered watch callback.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WatchEvent {
-    Opened,
-    Alive,
     Delivered(Box<Document>),
 }
 /// One terminal for every opened watch.
@@ -119,10 +117,7 @@ pub enum WatchEvent {
 pub enum WatchEnd {
     NotAllowed,
     SubjectEnded,
-    Stopping,
-    Busy,
     Closed,
-    Dropped,
     Unknown,
     SignedOut,
 }
@@ -157,7 +152,7 @@ pub fn subject(part: &Part, scope: Scope) -> Option<Subject> {
 /// Heap bytes of the opaque owner identity, checked before retaining it.
 pub(crate) fn subject_price(subject: &Subject, limits: &super::Limits) -> Option<u64> {
     match &subject.kind {
-        Kind::NativeEnvironment(environment) => {
+        Kind::Environment(environment) => {
             if environment.pool.len() > usize::try_from(limits.text).ok()?
                 || environment.name.len() > usize::try_from(limits.text).ok()?
             {
@@ -165,7 +160,7 @@ pub(crate) fn subject_price(subject: &Subject, limits: &super::Limits) -> Option
             }
             u64::try_from(environment.pool.len()).ok()?.checked_add(u64::try_from(environment.name.len()).ok()?)
         }
-        Kind::NativeEnvironments { pool } => match pool {
+        Kind::Environments { pool } => match pool {
             Some(pool) => {
                 if pool.0.len() > usize::try_from(limits.text).ok()? {
                     return None;

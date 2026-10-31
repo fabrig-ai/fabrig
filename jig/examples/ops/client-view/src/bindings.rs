@@ -8,7 +8,7 @@ use skein_ui::{Act, Binding};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Meaning {
     Action(Action),
-    NativeUntil { object: Token, revision: Revision },
+    Until { object: Token, revision: Revision },
     Object(ObjectKey),
     Section(jig_client_view::page::Section),
 }
@@ -48,7 +48,7 @@ impl Bindings {
             if e.token == token {
                 return match &e.meaning {
                     Meaning::Object(key) => Some(*key),
-                    Meaning::Action(_) | Meaning::NativeUntil { .. } | Meaning::Section(_) => None,
+                    Meaning::Action(_) | Meaning::Until { .. } | Meaning::Section(_) => None,
                 };
             }
         }
@@ -60,7 +60,7 @@ impl Bindings {
             if entry.token == token {
                 return match &entry.meaning {
                     Meaning::Section(section) => Some(*section),
-                    Meaning::Action(_) | Meaning::NativeUntil { .. } | Meaning::Object(_) => None,
+                    Meaning::Action(_) | Meaning::Until { .. } | Meaning::Object(_) => None,
                 };
             }
         }
@@ -76,12 +76,12 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                     Act::Press | Act::Toggle | Act::Submit => Some(action.clone()),
                     Act::Input { .. } | Act::Drawing { .. } => None,
                 },
-                Meaning::NativeUntil { object, revision } => match act {
+                Meaning::Until { object, revision } => match act {
                     Act::Input { value } => {
                         if value.len() > usize::try_from(bindings.text).ok()? {
                             return None;
                         }
-                        Some(Action::Infrastructure(infrastructure::Act::NativeUntil {
+                        Some(Action::Infrastructure(infrastructure::Act::Until {
                             object: *object,
                             revision: *revision,
                             value: skein_ui::number(&value)?,

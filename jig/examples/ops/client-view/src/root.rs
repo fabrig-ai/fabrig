@@ -41,10 +41,7 @@ impl View {
                 && infrastructure_words.connector == jig_ops_domain_connectors::number(Connector::Infrastructure),
             "phrasebooks belong to their connector owners"
         );
-        assert!(
-            crate::valid(limits, domain, &words, &observability_words, &infrastructure_words),
-            "view capacities are checked"
-        );
+        assert!(crate::valid(&words, &observability_words, &infrastructure_words), "view capacities are checked");
         Self {
             render: skein_ui::View::new(&limits.tree),
             jig: JigBindings::new(limits.tree.bindings, domain.jig.text),

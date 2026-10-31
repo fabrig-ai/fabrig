@@ -28,37 +28,37 @@ impl Application for OpsScript {
     type Subject = Subject;
     type Document = Document;
     fn decide(&mut self, _: &Truth, _: u64, ask: &infra::Ask, _: Wall) -> Decision<infra::Answer> {
-        let infra::Ask::NativeMoveEnd { project, environment, revision, until, .. } = ask;
+        let infra::Ask::MoveEnd { project, environment, revision, until, .. } = ask;
         let subject = Subject::Infrastructure(infra::Subject {
             scope: infra::Scope::Project(*project),
-            kind: infra::Kind::NativeEnvironment(environment.clone()),
+            kind: infra::Kind::Environment(environment.clone()),
         });
         let answer = match self.documents.get_mut(&subject) {
-            Some(Document::Infrastructure(infra::Document::Native(document))) => match &mut document.value {
-                infra::native::Value::Environment { end_revision, end, fact, .. } => {
+            Some(Document::Infrastructure(infra::Document::Value(document))) => match &mut document.value {
+                infra::values::Value::Environment { end_revision, end, fact, .. } => {
                     if *end_revision == revision.value {
                         *end_revision = end_revision.checked_add(1).expect("finite fixture revision");
-                        *end = Some(infra::native::EnvironmentEnd { revision: *end_revision, until: *until });
-                        infra::Answer::NativeMovedEnd {
+                        *end = Some(infra::values::EnvironmentEnd { revision: *end_revision, until: *until });
+                        infra::Answer::MovedEnd {
                             environment: environment.clone(),
                             revision: Revision { value: *end_revision },
                             until: *until,
                         }
                     } else {
-                        infra::Answer::NativeMoved {
+                        infra::Answer::Moved {
                             environment: environment.clone(),
                             revision: Revision { value: *end_revision },
                             until: end.map_or(fact.until, |value| value.until),
                         }
                     }
                 }
-                infra::native::Value::Panel { .. }
-                | infra::native::Value::Result { .. }
-                | infra::native::Value::Effect { .. }
-                | infra::native::Value::Outbox { .. }
-                | infra::native::Value::Hold { .. }
-                | infra::native::Value::Project { .. }
-                | infra::native::Value::Deployment { .. } => infra::Answer::Gone,
+                infra::values::Value::Panel { .. }
+                | infra::values::Value::Result { .. }
+                | infra::values::Value::Effect { .. }
+                | infra::values::Value::Outbox { .. }
+                | infra::values::Value::Hold { .. }
+                | infra::values::Value::Project { .. }
+                | infra::values::Value::Deployment { .. } => infra::Answer::Gone,
             },
             Some(Document::Observability(_)) | None => infra::Answer::Gone,
         };

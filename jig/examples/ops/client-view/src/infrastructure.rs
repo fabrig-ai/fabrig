@@ -29,7 +29,7 @@ pub fn navigation(builder: &mut Builder, project: u32, words: &Words, bindings: 
         builder,
         Word::Environments,
         &[],
-        infrastructure::Address::NativeEnvironments { project, pool: None },
+        infrastructure::Address::Environments { project, pool: None },
         words,
         bindings,
     );
@@ -83,13 +83,13 @@ fn show_object(
         Value::Known(document) => {
             document_view(builder, document, words, bindings);
             match document.as_ref() {
-                Document::Native(document) => match &document.value {
-                    infrastructure::native::Value::Environment { end_revision, end, fact, .. } => {
+                Document::Value(document) => match &document.value {
+                    infrastructure::values::Value::Environment { end_revision, end, fact, .. } => {
                         let until = match end {
                             Some(end) => end.until,
                             None => fact.until,
                         };
-                        native_form(
+                        show_form(
                             builder,
                             id,
                             jig_client::contract::Revision { value: *end_revision },
@@ -99,13 +99,13 @@ fn show_object(
                             bindings,
                         );
                     }
-                    infrastructure::native::Value::Project { .. }
-                    | infrastructure::native::Value::Panel { .. }
-                    | infrastructure::native::Value::Result { .. }
-                    | infrastructure::native::Value::Effect { .. }
-                    | infrastructure::native::Value::Outbox { .. }
-                    | infrastructure::native::Value::Hold { .. }
-                    | infrastructure::native::Value::Deployment { .. } => {}
+                    infrastructure::values::Value::Project { .. }
+                    | infrastructure::values::Value::Panel { .. }
+                    | infrastructure::values::Value::Result { .. }
+                    | infrastructure::values::Value::Effect { .. }
+                    | infrastructure::values::Value::Outbox { .. }
+                    | infrastructure::values::Value::Hold { .. }
+                    | infrastructure::values::Value::Deployment { .. } => {}
                 },
             }
         }
@@ -113,7 +113,7 @@ fn show_object(
     show_card(builder, &object.card, words, jig_words, bindings.text_limit());
     builder.close();
 }
-fn native_form(
+fn show_form(
     builder: &mut Builder,
     id: Id<infrastructure::Object>,
     revision: jig_client::contract::Revision,
@@ -128,11 +128,11 @@ fn native_form(
     };
     builder.open(Role::TextField);
     builder.name(&words.say(Word::Until, &[]));
-    builder.value(Decimal::of(object.native_draft.unwrap_or(until)).as_bytes(), revision.value);
+    builder.value(Decimal::of(object.draft.unwrap_or(until)).as_bytes(), revision.value);
     if disabled {
         builder.state(State::Disabled);
     } else {
-        builder.bind(bindings.insert(Meaning::NativeUntil { object: id.token(), revision }));
+        builder.bind(bindings.insert(Meaning::Until { object: id.token(), revision }));
     }
     builder.close();
     builder.open(Role::Button);
@@ -140,7 +140,7 @@ fn native_form(
     if disabled {
         builder.state(State::Disabled);
     } else {
-        builder.bind(bindings.insert(Meaning::Action(Action::Infrastructure(infrastructure::Act::NativeMoveEnd {
+        builder.bind(bindings.insert(Meaning::Action(Action::Infrastructure(infrastructure::Act::MoveEnd {
             object: id.token(),
             revision,
         }))));
@@ -168,12 +168,12 @@ fn show_card(
             &[],
         ),
         Card::Done { answer } | Card::Refused { answer } => match answer {
-            Answer::NativeMovedEnd { revision, until, .. } => {
+            Answer::MovedEnd { revision, until, .. } => {
                 words.status(builder, Word::Done, &[]);
                 words.text(builder, Word::Revision, &[Hole::Number(revision.value)]);
                 words.text(builder, Word::EndSeconds, &[Hole::Number(*until)]);
             }
-            Answer::NativeMoved { revision, .. } => {
+            Answer::Moved { revision, .. } => {
                 words.status(builder, Word::Moved, &[Hole::Number(revision.value)]);
             }
             Answer::Gone => words.status(builder, Word::Gone, &[]),
@@ -203,8 +203,8 @@ fn deployment_diagnostics(builder: &mut Builder, subject: Subject, words: &Words
             words.text(builder, Word::SystemRequestBudgetNotKept, &[]);
             words.text(builder, Word::LastSystemResponseNotKept, &[]);
         }
-        Kind::NativeEnvironment(_)
-        | Kind::NativeEnvironments { .. }
+        Kind::Environment(_)
+        | Kind::Environments { .. }
         | Kind::Panel(_)
         | Kind::Result(_)
         | Kind::Effect(_)
@@ -215,8 +215,8 @@ fn deployment_diagnostics(builder: &mut Builder, subject: Subject, words: &Words
     }
 }
 fn document_view(builder: &mut Builder, document: &Document, words: &Words, bindings: &mut Bindings) {
-    let Document::Native(document) = document;
-    native_document(builder, document, words, bindings);
+    let Document::Value(document) = document;
+    show_document(builder, document, words, bindings);
 }
 pub fn part(
     builder: &mut Builder,
@@ -284,84 +284,84 @@ pub fn key(service: &Subject) -> Option<Key> {
         Kind::Hold(t) => (7, *t),
         Kind::Project(part) => (8, u64::from(*part)),
         Kind::Deployment => (9, 0),
-        Kind::NativeEnvironment(_) | Kind::NativeEnvironments { .. } => return None,
+        Kind::Environment(_) | Kind::Environments { .. } => return None,
     };
     Some(Key { owner: NAV.owner, kind, a: value, b: builder })
 }
-fn native_service(builder: &mut Builder, service: &infrastructure::native::Service, words: &Words) {
+fn show_service(builder: &mut Builder, service: &infrastructure::values::Service, words: &Words) {
     words.text(builder, Word::Service, &[Hole::Name(service.name.clone())]);
     words.text(builder, Word::InEnvironment, &[Hole::Name(service.environment.clone())]);
 }
-fn native_environment(builder: &mut Builder, environment: &infrastructure::native::Environment, words: &Words) {
+fn show_environment(builder: &mut Builder, environment: &infrastructure::values::Environment, words: &Words) {
     words.text(builder, Word::Name, &[Hole::Name(environment.name.clone())]);
     words.text(builder, Word::Name, &[Hole::Name(environment.pool.clone())]);
 }
-fn native_resource(builder: &mut Builder, resource: &infrastructure::native::Resource, words: &Words) {
-    use infrastructure::native::Resource as R;
+fn show_resource(builder: &mut Builder, resource: &infrastructure::values::Resource, words: &Words) {
+    use infrastructure::values::Resource as R;
     match resource {
-        R::Service(service) => native_service(builder, service, words),
-        R::Environment(environment) => native_environment(builder, environment, words),
+        R::Service(service) => show_service(builder, service, words),
+        R::Environment(environment) => show_environment(builder, environment, words),
         R::Pool(pool) | R::Quota(pool) => words.text(builder, Word::Name, &[Hole::Name(pool.0.clone())]),
     }
 }
-fn native_effect(builder: &mut Builder, effect: &infrastructure::native::Effect, words: &Words) {
-    use infrastructure::native::Effect as E;
+fn show_effect(builder: &mut Builder, effect: &infrastructure::values::Effect, words: &Words) {
+    use infrastructure::values::Effect as E;
     match effect {
         E::Restart { service, operation } => {
             words.status(builder, Word::Restart, &[]);
-            native_service(builder, service, words);
+            show_service(builder, service, words);
             words.text(builder, Word::Operation, &[Hole::Number(*operation)]);
         }
         E::Scale { service, from, to } => {
             words.status(builder, Word::Scale, &[]);
-            native_service(builder, service, words);
+            show_service(builder, service, words);
             words.text(builder, Word::Replicas, &[Hole::Number(u64::from(*from))]);
             words.text(builder, Word::Replicas, &[Hole::Number(u64::from(*to))]);
         }
         E::Rollback { service, from, to } => {
             words.status(builder, Word::Rollback, &[]);
-            native_service(builder, service, words);
+            show_service(builder, service, words);
             words.text(builder, Word::From, &[Hole::Name(from.clone())]);
             words.text(builder, Word::To, &[Hole::Name(to.clone())]);
         }
         E::CreateEnvironment { environment, until, price } => {
             words.status(builder, Word::Provision, &[]);
-            native_environment(builder, environment, words);
+            show_environment(builder, environment, words);
             words.text(builder, Word::EndSeconds, &[Hole::Number(*until)]);
             words.text(builder, Word::Cost, &[Hole::Number(*price)]);
         }
         E::TearDown { environment, .. } => {
             words.status(builder, Word::TearDown, &[]);
-            native_environment(builder, environment, words);
+            show_environment(builder, environment, words);
         }
     }
 }
-fn native_state(builder: &mut Builder, state: &infrastructure::native::ProcedureState, words: &Words) {
-    use infrastructure::native::{Procedure as P, ProcedurePhase as Phase};
+fn show_state(builder: &mut Builder, state: &infrastructure::values::ProcedureState, words: &Words) {
+    use infrastructure::values::{Procedure as P, ProcedurePhase as Phase};
     words.text(builder, Word::Task, &[Hole::Number(state.task)]);
     match &state.procedure {
         P::Remediate { service, operation, deadline } => {
             words.status(builder, Word::Remediate, &[]);
-            native_service(builder, service, words);
+            show_service(builder, service, words);
             words.text(builder, Word::Operation, &[Hole::Number(*operation)]);
             words.text(builder, Word::DeadlineSeconds, &[Hole::Number(*deadline)]);
         }
         P::Scale { service, replicas, deadline } => {
             words.status(builder, Word::Scale, &[]);
-            native_service(builder, service, words);
+            show_service(builder, service, words);
             words.text(builder, Word::Replicas, &[Hole::Number(u64::from(*replicas))]);
             words.text(builder, Word::DeadlineSeconds, &[Hole::Number(*deadline)]);
         }
         P::Provision { environment, until, price, deadline } => {
             words.status(builder, Word::Provision, &[]);
-            native_environment(builder, environment, words);
+            show_environment(builder, environment, words);
             words.text(builder, Word::EndSeconds, &[Hole::Number(*until)]);
             words.text(builder, Word::Cost, &[Hole::Number(*price)]);
             words.text(builder, Word::DeadlineSeconds, &[Hole::Number(*deadline)]);
         }
         P::TearDown { environment, deadline, .. } => {
             words.status(builder, Word::TearDown, &[]);
-            native_environment(builder, environment, words);
+            show_environment(builder, environment, words);
             words.text(builder, Word::DeadlineSeconds, &[Hole::Number(*deadline)]);
         }
     }
@@ -386,11 +386,11 @@ fn native_state(builder: &mut Builder, state: &infrastructure::native::Procedure
         &[],
     );
 }
-fn native_entry(builder: &mut Builder, entry: &infrastructure::native::Entry, words: &Words) {
-    use infrastructure::native::Phase;
+fn show_entry(builder: &mut Builder, entry: &infrastructure::values::Entry, words: &Words) {
+    use infrastructure::values::Phase;
     words.text(builder, Word::Entry, &[Hole::Number(entry.number)]);
     words.text(builder, Word::Task, &[Hole::Number(entry.key.task)]);
-    native_effect(builder, &entry.effect, words);
+    show_effect(builder, &entry.effect, words);
     words.status(
         builder,
         match entry.phase {
@@ -404,14 +404,14 @@ fn native_entry(builder: &mut Builder, entry: &infrastructure::native::Entry, wo
     words.text(builder, Word::Attempt, &[Hole::Number(u64::from(entry.attempt))]);
     words.text(builder, Word::DeadlineSeconds, &[Hole::Number(entry.deadline)]);
 }
-fn native_resources(
+fn show_resources(
     builder: &mut Builder,
-    resources: &skein_lib::List<infrastructure::native::ClientResource>,
+    resources: &skein_lib::List<infrastructure::values::ClientResource>,
     words: &Words,
 ) {
-    use infrastructure::native::{ResourceFact as R, ResourceRole};
+    use infrastructure::values::{ResourceFact as R, ResourceRole};
     for resource in resources {
-        native_resource(builder, &resource.named.resource, words);
+        show_resource(builder, &resource.named.resource, words);
         words.status(
             builder,
             match resource.named.role {
@@ -456,21 +456,21 @@ fn native_resources(
         }
     }
 }
-fn native_environment_rows(
+fn show_environment_rows(
     builder: &mut Builder,
-    document: &infrastructure::native::Document,
+    document: &infrastructure::values::Document,
     project: u32,
-    environments: &skein_lib::List<infrastructure::native::ClientEnvironment>,
+    environments: &skein_lib::List<infrastructure::values::ClientEnvironment>,
     words: &Words,
     bindings: &mut Bindings,
 ) {
     for environment in environments {
         let visible = match &document.subject.kind {
-            Kind::NativeEnvironments { pool } => match pool {
+            Kind::Environments { pool } => match pool {
                 Some(pool) => pool.0 == environment.environment.pool,
                 None => true,
             },
-            Kind::NativeEnvironment(_)
+            Kind::Environment(_)
             | Kind::Panel(_)
             | Kind::Result(_)
             | Kind::Effect(_)
@@ -485,25 +485,25 @@ fn native_environment_rows(
                 builder,
                 Word::Name,
                 &[Hole::Name(environment.environment.name.clone())],
-                infrastructure::Address::NativeEnvironment { project, environment: environment.environment.clone() },
+                infrastructure::Address::Environment { project, environment: environment.environment.clone() },
                 words,
                 bindings,
             );
-            native_environment(builder, &environment.environment, words);
+            show_environment(builder, &environment.environment, words);
         }
     }
 }
-fn native_document(
+fn show_document(
     builder: &mut Builder,
-    document: &infrastructure::native::Document,
+    document: &infrastructure::values::Document,
     words: &Words,
     bindings: &mut Bindings,
 ) {
-    use infrastructure::native::Value as V;
+    use infrastructure::values::Value as V;
     deployment_diagnostics(builder, document.subject.clone(), words);
     match &document.value {
         V::Environment { environment, fact, end, pool, end_revision } => {
-            native_environment(builder, environment, words);
+            show_environment(builder, environment, words);
             words.text(builder, Word::ReadyAtSeconds, &[Hole::Number(fact.ready_at)]);
             words.text(builder, Word::Cost, &[Hole::Number(fact.price)]);
             words.text(builder, Word::ObservedEndSeconds, &[Hole::Number(fact.until)]);
@@ -516,51 +516,51 @@ fn native_document(
             }
         }
         V::Panel { state, resources, effects, .. } => {
-            native_state(builder, state, words);
-            native_resources(builder, resources, words);
+            show_state(builder, state, words);
+            show_resources(builder, resources, words);
             for entry in effects {
-                native_entry(builder, entry, words);
+                show_entry(builder, entry, words);
             }
         }
         V::Result { state, resources, .. } => {
-            native_state(builder, state, words);
-            native_resources(builder, resources, words);
+            show_state(builder, state, words);
+            show_resources(builder, resources, words);
         }
         V::Effect { proposal, task, effect, description } => {
             words.text(builder, Word::Task, &[Hole::Number(*task)]);
-            words.text(builder, Word::NativeProposal, &[Hole::Number(*proposal)]);
+            words.text(builder, Word::Proposal, &[Hole::Number(*proposal)]);
             words.text(builder, Word::State, &[Hole::Number(description.state)]);
-            native_effect(builder, effect, words);
+            show_effect(builder, effect, words);
             words.text(builder, Word::Kind, &[Hole::Number(u64::from(description.kind))]);
             if let Some(price) = description.price {
                 words.text(builder, Word::MaximumPrice, &[Hole::Number(price)]);
             }
         }
         V::Outbox { entry, description } => {
-            native_entry(builder, entry, words);
+            show_entry(builder, entry, words);
             words.text(builder, Word::Kind, &[Hole::Number(u64::from(description.kind))]);
         }
         V::Hold { task, resources, drift, effects } => {
             words.text(builder, Word::Task, &[Hole::Number(*task)]);
-            native_resources(builder, resources, words);
+            show_resources(builder, resources, words);
             for account in drift {
-                native_resource(builder, &account.resource, words);
+                show_resource(builder, &account.resource, words);
                 words.text(builder, Word::At, &[Hole::Wall(account.at)]);
             }
             for entry in effects {
-                native_entry(builder, entry, words);
+                show_entry(builder, entry, words);
             }
         }
         V::Project { project, resources, environments } => {
-            native_resources(builder, resources, words);
-            native_environment_rows(builder, document, *project, environments, words, bindings);
+            show_resources(builder, resources, words);
+            show_environment_rows(builder, document, *project, environments, words, bindings);
         }
         V::Deployment { backend, effects, made, proposal_limit, staged_limit } => {
             words.status(
                 builder,
                 match backend {
-                    infrastructure::native::Backend::OperationIds => Word::BackendIds,
-                    infrastructure::native::Backend::NoOperationIds => Word::BackendNoIds,
+                    infrastructure::values::Backend::OperationIds => Word::BackendIds,
+                    infrastructure::values::Backend::NoOperationIds => Word::BackendNoIds,
                 },
                 &[],
             );
@@ -568,7 +568,7 @@ fn native_document(
             words.text(builder, Word::ProposalLimit, &[Hole::Number(u64::from(*proposal_limit))]);
             words.text(builder, Word::StagedLimit, &[Hole::Number(u64::from(*staged_limit))]);
             for entry in effects {
-                native_entry(builder, entry, words);
+                show_entry(builder, entry, words);
             }
         }
     }
