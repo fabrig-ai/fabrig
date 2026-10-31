@@ -97,19 +97,32 @@ fn read_path(reader: &mut KeyReader<'_>, limits: &d::Limits) -> Option<d::Path> 
     None
 }
 fn write_key(writer: &mut KeyWriter, key: &d::Key) {
-    writer
-        .u64(key.attempt)
-        .u64(u64::from(key.completion))
-        .u64(u64::from(key.position))
-        .bytes(&key.deployment)
-        .u64(key.task)
-        .u64(key.purpose);
+    match key.origin {
+        d::Purpose::Procedure => {
+            writer.tag(0);
+        }
+        d::Purpose::Projection => {
+            writer.tag(1);
+        }
+        d::Purpose::Call { attempt, completion, position } => {
+            writer.tag(2).u64(attempt).u64(u64::from(completion)).u64(u64::from(position));
+        }
+    }
+    writer.bytes(&key.deployment).u64(key.task).u64(key.purpose);
 }
 fn read_key(reader: &mut KeyReader<'_>) -> Option<d::Key> {
+    let origin = match reader.tag()? {
+        0 => d::Purpose::Procedure,
+        1 => d::Purpose::Projection,
+        2 => d::Purpose::Call {
+            attempt: reader.u64()?,
+            completion: u32::try_from(reader.u64()?).ok()?,
+            position: u32::try_from(reader.u64()?).ok()?,
+        },
+        _ => return None,
+    };
     Some(d::Key {
-        attempt: reader.u64()?,
-        completion: u32::try_from(reader.u64()?).ok()?,
-        position: u32::try_from(reader.u64()?).ok()?,
+        origin,
         deployment: reader.bytes()?.as_ref().try_into().ok()?,
         task: reader.u64()?,
         purpose: reader.u64()?,

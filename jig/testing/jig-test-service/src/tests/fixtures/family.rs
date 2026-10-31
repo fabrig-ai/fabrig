@@ -47,7 +47,12 @@ pub fn entry() -> d::OutboxEntry {
     d::OutboxEntry {
         number: 10,
         task: 11,
-        key: d::Key { attempt: 12, completion: 13, position: 14, deployment: [15; 16], task: 16, purpose: 17 },
+        key: d::Key {
+            origin: d::Purpose::Call { attempt: 12, completion: 13, position: 14 },
+            deployment: [15; 16],
+            task: 16,
+            purpose: 17,
+        },
         effect: effect(),
         attempt: Some(d::Attempt { number: 18, sent: Wall::from_nanos(19), deadline: Wall::from_nanos(20) }),
         phase: d::EffectPhase::Uncertain,

@@ -382,9 +382,7 @@ impl World {
             deployment: (u128::from(self.seed) + 1).to_be_bytes(),
             task,
             purpose,
-            attempt: 0,
-            completion: 0,
-            position: 0,
+            origin: jig_test_connector::Purpose::Procedure,
         }
     }
 }

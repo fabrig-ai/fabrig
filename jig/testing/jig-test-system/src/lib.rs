@@ -12,58 +12,27 @@ use jig_test_connector::{
     ApplyResult, Effect, Fact, Form, Key, Looked, Origin, Path, Recovery, SystemEvent, SystemRequest,
 };
 
-/// A resource name recorded as bytes by this fake system.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct Name(pub Vec<Vec<u8>>);
+use jig_conformance::referee::EffectOrigin;
+pub use jig_conformance::referee::{Copy, EffectKey as SystemKey, Name, ValueObserved};
 
-impl Name {
-    /// Copies a connector path at the system's boundary.
-    #[must_use]
-    pub fn from_path(path: &Path) -> Name {
-        let mut parts = Vec::new();
-        for part in path.segments() {
-            parts.push(part.to_vec());
-        }
-        Name(parts)
+/// Copies a connector path at the system's boundary.
+fn name(path: &Path) -> Name {
+    Name { connector: 0, path: path.segments().iter().map(|part| part.to_vec()).collect() }
+}
+
+fn system_key(key: Key) -> SystemKey {
+    SystemKey {
+        deployment: key.deployment,
+        task: key.task,
+        purpose: key.purpose,
+        origin: match key.origin {
+            jig_test_connector::Purpose::Procedure => EffectOrigin::Procedure,
+            jig_test_connector::Purpose::Projection => EffectOrigin::Projection,
+            jig_test_connector::Purpose::Call { attempt, completion, position } => {
+                EffectOrigin::Call { attempt, completion, position }
+            }
+        },
     }
-}
-
-/// A key as this system observes it, without a connector's types.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct SystemKey {
-    pub attempt: u64,
-    pub completion: u32,
-    pub position: u32,
-    /// Deployment that made the request.
-    pub deployment: [u8; 16],
-    /// Asking task.
-    pub task: u64,
-    /// Purpose in that task.
-    pub purpose: u64,
-}
-
-impl From<Key> for SystemKey {
-    fn from(key: Key) -> SystemKey {
-        SystemKey {
-            deployment: key.deployment,
-            task: key.task,
-            purpose: key.purpose,
-            attempt: key.attempt,
-            completion: key.completion,
-            position: key.position,
-        }
-    }
-}
-
-/// Which copy of a write the system received.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Copy {
-    /// First attempt delivered on time.
-    First,
-    /// An attempt arrived after its caller timed out.
-    Late,
-    /// The connector sent the effect again.
-    Retried,
 }
 
 /// One effect this fake received, including rejected copies.
@@ -85,13 +54,6 @@ pub struct Observed {
     pub applied: bool,
     /// Delivery class of this copy.
     pub copy: Copy,
-}
-
-/// One system value, including whether this deployment made it.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct ValueObserved {
-    pub state: Option<u64>,
-    pub owner: Option<SystemKey>,
 }
 
 /// One fact read, as observed beneath the connector.
@@ -183,18 +145,18 @@ impl System {
 
     /// Another hand writes a target without this deployment's key.
     pub fn other_hand(&mut self, path: &Path, state: u64) {
-        self.values.insert(Name::from_path(path), Value { state, owner: None });
+        self.values.insert(name(path), Value { state, owner: None });
     }
 
     /// Another hand removes a resource independently of connector events.
     pub fn remove(&mut self, path: &Path) {
-        self.values.remove(&Name::from_path(path));
+        self.values.remove(&name(path));
     }
 
     /// State now visible at one resource.
     #[must_use]
     pub fn state(&self, path: &Path) -> Option<u64> {
-        self.values.get(&Name::from_path(path)).map(|value| value.state)
+        self.values.get(&name(path)).map(|value| value.state)
     }
 
     /// Execute one released connector request under the chosen fault.
@@ -202,9 +164,9 @@ impl System {
         self.calls = self.calls.checked_add(1).expect("test call count fits");
         match request {
             SystemRequest::ReadFact { resource, observed } => {
-                let value = self.values.get(&Name::from_path(&resource));
+                let value = self.values.get(&name(&resource));
                 self.reads.push(ReadObserved {
-                    resource: Name::from_path(&resource),
+                    resource: name(&resource),
                     state: value.map(|row| row.state),
                     at: observed.as_nanos(),
                 });
@@ -231,8 +193,8 @@ impl System {
                 }
             }
             SystemRequest::Look { entry, key, effect, recovery } => {
-                let system_key = SystemKey::from(key);
-                let first = effect.resources.first().map(Name::from_path);
+                let system_key = system_key(key);
+                let first = effect.resources.first().map(name);
                 let value = first.and_then(|name| self.values.get(&name)).copied();
                 let looked = Looked {
                     state: value.map(|row| row.state),
@@ -252,10 +214,10 @@ impl System {
     }
 
     fn apply(&mut self, key: Key, effect: &Effect, form: Form, recovery: Recovery, copy: Copy) -> ApplyResult {
-        let system_key = SystemKey::from(key);
+        let system_key = system_key(key);
         let mut resources = Vec::new();
         for path in &effect.resources {
-            resources.push(Name::from_path(path));
+            resources.push(name(path));
         }
         let before: Vec<_> = resources
             .iter()
@@ -329,9 +291,13 @@ fn to_connector_key(key: SystemKey) -> Key {
         deployment: key.deployment,
         task: key.task,
         purpose: key.purpose,
-        attempt: key.attempt,
-        completion: key.completion,
-        position: key.position,
+        origin: match key.origin {
+            EffectOrigin::Procedure => jig_test_connector::Purpose::Procedure,
+            EffectOrigin::Projection => jig_test_connector::Purpose::Projection,
+            EffectOrigin::Call { attempt, completion, position } => {
+                jig_test_connector::Purpose::Call { attempt, completion, position }
+            }
+        },
     }
 }
 

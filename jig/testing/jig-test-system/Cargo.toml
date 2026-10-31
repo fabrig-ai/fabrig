@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 jig-test-connector.workspace = true
+jig-conformance.workspace = true
 
 [dev-dependencies]
 skein-lib.workspace = true

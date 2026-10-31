@@ -75,7 +75,12 @@ pub(super) fn task(number: u64) -> Task {
 }
 
 pub(super) fn key() -> SystemKey {
-    SystemKey { deployment: [31; 16], task: 1, attempt: 1, completion: 1, position: 0, purpose: 9 }
+    SystemKey {
+        deployment: [31; 16],
+        task: 1,
+        origin: EffectOrigin::Call { attempt: 1, completion: 1, position: 0 },
+        purpose: 9,
+    }
 }
 
 pub(super) fn decision() -> Decision {
@@ -105,7 +110,7 @@ pub(super) fn effect() -> Effect {
     Effect {
         key: key(),
         kind: 5,
-        resources: vec![SystemName(name().path)],
+        resources: vec![name()],
         condition: None,
         target: 13,
         before: vec![ValueObserved { state: None, owner: None }],

@@ -49,9 +49,9 @@ mod values;
 pub use boundary::{
     Added, Adoption, ApplyResult, Attempt, Class, Classed, Config, Description, Effect, EffectPhase, Event, Fact, Form,
     Hold, HoldMode, Item, Key, KindSpec, Looked, Named, Origin, OutboxEntry, Outcome, Path, PoolSpec, ProcedureAction,
-    ProcedureResult, ProcedureSignal, ProcedureSpec, ProcedureState, Read, Record, RecordKey, Recovery, Request,
-    RequirementSpec, ResourceRole, ResourceSpec, RestartStep, StepDecision, StepRefusal, SystemEvent, SystemRequest,
-    TopicSpec, Verdict, split,
+    ProcedureResult, ProcedureSignal, ProcedureSpec, ProcedureState, Purpose, Read, Record, RecordKey, Recovery,
+    Request, RequirementSpec, ResourceRole, ResourceSpec, RestartStep, StepDecision, StepRefusal, SystemEvent,
+    SystemRequest, TopicSpec, Verdict, split,
 };
 pub use domain::{Domain, OUTPUTS_BOUND, closing_ready, fire, next_deadline, resume, step};
 pub use limits::{Limits, valid};

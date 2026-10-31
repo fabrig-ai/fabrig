@@ -9,7 +9,6 @@ publish.workspace = true
 
 [dependencies]
 jig-fake-store.workspace = true
-jig-test-system.workspace = true
 skein-world.workspace = true
 skein-lib.workspace = true
 

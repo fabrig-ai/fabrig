@@ -6,7 +6,7 @@ use jig_domain_tasks as tasks;
 use jig_ops_domain as root;
 use jig_ops_domain_infrastructure as infra;
 use jig_ops_domain_observability as obs;
-use jig_test_system::SystemKey;
+use r::EffectKey;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub fn fact(observed: &mut Vec<r::Observed>, event: &obs::SystemEvent) {
@@ -31,13 +31,15 @@ pub fn fact(observed: &mut Vec<r::Observed>, event: &obs::SystemEvent) {
     }
 }
 
-pub fn key(value: infra::Key) -> SystemKey {
-    let (attempt, completion, position) = match value.origin {
-        infra::Purpose::Call { attempt, completion, position } => (attempt, completion, position),
-        infra::Purpose::Procedure { .. } => (0, 0, 0),
-        infra::Purpose::Projection { .. } => (0, 0, 1),
+pub fn key(value: infra::Key) -> EffectKey {
+    let origin = match value.origin {
+        infra::Purpose::Call { attempt, completion, position } => {
+            r::EffectOrigin::Call { attempt, completion, position }
+        }
+        infra::Purpose::Procedure { .. } => r::EffectOrigin::Procedure,
+        infra::Purpose::Projection { .. } => r::EffectOrigin::Projection,
     };
-    SystemKey { deployment: value.deployment, task: value.task, purpose: value.purpose, attempt, completion, position }
+    EffectKey { deployment: value.deployment, task: value.task, purpose: value.purpose, origin }
 }
 
 pub fn parts(effect: &infra::Effect) -> (u16, Vec<r::Name>, Option<u64>, u64) {
