@@ -17,6 +17,8 @@
 //! are checked after settlement against those observations; they never drive
 //! the host. Replay and memory use skein's shared kit, with no local allocator.
 
+pub mod backend;
+
 mod fixture;
 
 pub mod host_referee;

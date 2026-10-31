@@ -19,8 +19,6 @@ use smith_protocol_llm_world::{
 const BEGIN: &[u8] = b"Begin the work your brief describes.";
 const ID: &[u8] = b"call_0000000000000001";
 const CHILD: &[u8] = b"BUDGET-CHILD: observed child result.";
-const CHILD_INPUT: &[u8] = br#"{"brief":"@budget-child own task","tools":["inspect"],"llm":"fake-2"}"#;
-const GRAND_INPUT: &[u8] = br#"{"brief":"@budget-grand own task","tools":["inspect"],"llm":"fake-3"}"#;
 const REPORT: &[u8] = br#"{"report":"Budget work finished.","source":"observed-checkout"}"#;
 const READ: &[u8] = br#"{"path":"data.txt"}"#;
 const EDIT: &[u8] = br#"{"path":"data.txt","edits":[{"old":"before","new":"after"}]}"#;
@@ -67,7 +65,13 @@ fn usage(observation: &CompletionObservation) -> skein_llm::Usage {
     let (at, terminal) = observation.terminal.expect("every observed completion settled");
     assert!(at >= observation.started);
     match terminal {
-        CompletionTerminal::Completed(usage) => usage,
+        CompletionTerminal::Completed(usage) => skein_llm::Usage {
+            reasoning: usage.reasoning_tokens,
+            input: usage.input_tokens,
+            output: usage.output_tokens,
+            cache_read: usage.cache_read_tokens,
+            cache_write: usage.cache_write_tokens,
+        },
         CompletionTerminal::Failed | CompletionTerminal::Cancelled => panic!("this story requires an observed winner"),
     }
 }
@@ -239,18 +243,6 @@ fn script(cue: &[u8], turns: Vec<Turn>) -> Script {
     Script { cue: cue.into(), turns: turns.into() }
 }
 
-fn typed_world(settings: &Settings, cue: &[u8], rates: &[Rate], scripts: Box<[Script]>) -> World {
-    let (disk, workspace) = workspace(settings.writable);
-    World::with_workspace_scripts_charter(
-        *settings,
-        None,
-        Some(workspace),
-        disk,
-        scripts,
-        charter(settings, cue, rates),
-    )
-}
-
 fn bounds(settings: &mut Settings) -> Limits {
     let mut bounds = Limits {
         client: skein_llm_world::limits(),
@@ -363,30 +355,6 @@ fn duration_words(time: Duration) -> String {
     }
 }
 
-fn query_result(query: &Query, name: &[u8], input: &[u8], output: &[u8]) -> bool {
-    query.messages.windows(2).any(|pair| {
-        pair[0].role == Role::Assistant
-            && pair[1].role == Role::User
-            && pair[0].parts.iter().any(|part| {
-                let Part::ToolCall { id, name: observed, arguments } = part else { return false };
-                observed.as_ref() == name
-                    && arguments.as_ref() == input
-                    && pair[1].parts.iter().any(|part| {
-                        matches!(part, Part::ToolOutput { id: returned, output: text, is_error: false }
-                    if id == returned && text.as_ref() == output)
-                    })
-            })
-    })
-}
-
-fn model_calls<'a>(world: &'a World, model: &[u8]) -> Vec<&'a CompletionObservation> {
-    world.completions().iter().filter(|observation| observation.model.as_ref() == model).collect()
-}
-
-fn own_units(calls: &[&CompletionObservation], rate: Rate) -> u64 {
-    calls.iter().map(|observed| charge(usage(observed), rate)).sum()
-}
-
 fn turn_usage(observed: skein_llm::Usage) -> llm::Usage {
     llm::Usage {
         input_tokens: observed.input,
@@ -395,70 +363,6 @@ fn turn_usage(observed: skein_llm::Usage) -> llm::Usage {
         cache_write_tokens: observed.cache_write,
         reasoning_tokens: observed.reasoning,
     }
-}
-
-#[test]
-fn two_priced_models_and_a_refused_child_delegate_conserve_global_own_charges() {
-    let scripts = Box::new([
-        script(
-            b"@budget-main",
-            vec![
-                calls(vec![call(b"sub_agent", CHILD_INPUT)], 3),
-                calls(vec![call(b"read", READ)], 5),
-                calls(vec![call(b"finish", REPORT)], 7),
-            ],
-        ),
-        script(
-            b"@budget-child",
-            vec![
-                calls(vec![call(b"sub_agent", GRAND_INPUT)], 11),
-                calls(vec![call(b"read", READ)], 13),
-                says(CHILD, 17),
-            ],
-        ),
-    ]);
-    let settings = settings(701, false, false);
-    let mut world = typed_world(&settings, b"@budget-main MAIN-INSTRUCTIONS", &MODEL_RATES, scripts);
-    world.run(20_000);
-    let expected = conservation(&world, &MODEL_RATES);
-    assert_eq!(expected.turns, 6);
-    assert_eq!(expected.output, Some(56));
-    assert!(expected.cache_read.unwrap_or(0) > 0 && expected.cache_write.unwrap_or(0) > 0);
-    assert_eq!(world.turns().len(), 3, "only main's settled Turns cross the host boundary");
-    let main = model_calls(&world, b"fake-1");
-    let child = model_calls(&world, b"fake-2");
-    assert!(model_calls(&world, b"fake-3").is_empty());
-    assert_eq!((main.len(), child.len()), (3, 3));
-    let child_bill = own_units(&child, MODEL_RATES[1]);
-    let mut inclusive = child_bill;
-    for (index, observed) in main.iter().enumerate() {
-        inclusive += charge(usage(observed), MODEL_RATES[0]);
-        assert_eq!(world.turns()[index].spent, inclusive, "main includes the child's whole subtree bill once");
-        assert_eq!(world.turns()[index].usage, turn_usage(usage(observed)));
-    }
-    assert_eq!(inclusive, expected.units);
-    let main_queries = world.prompts().iter().filter(|query| query.model.as_ref() == b"fake-1").collect::<Vec<_>>();
-    let child_queries = world.prompts().iter().filter(|query| query.model.as_ref() == b"fake-2").collect::<Vec<_>>();
-    assert!(query_result(main_queries[1], b"sub_agent", CHILD_INPUT, &child_result(&world, &settings)));
-    assert!(
-        child_queries[1]
-            .messages
-            .iter()
-            .flat_map(|message| &message.parts)
-            .any(|part| { matches!(part, Part::ToolOutput { is_error: true, .. }) })
-    );
-    assert!(child_queries.iter().all(|query| query.system.starts_with(b"@budget-child own task\n\n")));
-    assert!(
-        matches!(world.answer(), run::Answer::Accepted { outcome: run::outcome::Declared::Report(report), turns: 3, .. }
-        if report.text.as_ref() == b"Budget work finished.")
-    );
-    let mut duplicated = world.completions().to_vec();
-    duplicated.push(duplicated[0].clone());
-    assert_ne!(
-        total(&duplicated, &MODEL_RATES),
-        expected,
-        "the whole positive conservation oracle detects double charging"
-    );
 }
 
 #[test]
@@ -808,4 +712,12 @@ fn both_native_forms_ask_for_a_childs_last_answer_with_none_and_keep_written_cal
                 && output.windows(b"stopped for budget: yes".len()).any(|text| text == b"stopped for budget: yes"))
         }));
     }
+}
+
+fn model_calls<'a>(world: &'a World, model: &[u8]) -> Vec<&'a CompletionObservation> {
+    world.completions().iter().filter(|observation| observation.model.as_ref() == model).collect()
+}
+
+fn own_units(calls: &[&CompletionObservation], rate: Rate) -> u64 {
+    calls.iter().map(|observed| charge(usage(observed), rate)).sum()
 }

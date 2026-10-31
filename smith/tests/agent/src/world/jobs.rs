@@ -23,7 +23,7 @@ enum Response {
     Read { at: Time },
 }
 
-impl World {
+impl<B: super::Backend> World<B> {
     pub(super) fn start_job(&mut self, owner: Token, op: &Op, deadline: Time) -> bool {
         let Op::Spawn { cwd, command, head, tail, after: Some(after) } = op else { return false };
         self.boundaries.push((self.now, super::Boundary::Io { op: op.clone() }));

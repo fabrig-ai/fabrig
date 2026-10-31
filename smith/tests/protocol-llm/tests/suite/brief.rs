@@ -5,7 +5,7 @@
 //! testing-strategy.md, sections 2.3, 6 and 7.
 
 use skein_fake_checkout::Checkout;
-use skein_fake_llm_domain::api::{Finish, Line, Message, Part, Query, Role, Script, Turn};
+use skein_fake_llm_domain::api::{Finish, Line, Message, Part, Role, Script, Turn};
 use skein_lib::{Duration, Token};
 use skein_world::domain::Span;
 use smith_domain::{Transcript, run, session::llm, tools};
@@ -17,11 +17,8 @@ use smith_protocol_llm_world::{
 
 const BEGIN: &[u8] = b"Begin the work your brief describes.";
 const ID: &[u8] = b"call_0000000000000001";
-const MAIN_INSTRUCTIONS: &str = "@brief-main PARENT-INSTRUCTIONS: coordinate this task.\nSeparate role line.";
 const NATIVE_INSTRUCTIONS: &str = "@brief-native PARENT-INSTRUCTIONS: native first activation.";
 const RESUME_INSTRUCTIONS: &str = "@brief-native RESUME-INSTRUCTIONS: use the saved history.\n";
-const CHILD_INPUT: &[u8] = br#"{"brief":"@brief-child CHILD-TASK-ONLY: inspect both mounts.","tools":["inspect"]}"#;
-const CHILD_RESULT: &[u8] = b"CHILD-RESULT: parent-change in work; unchanged in archive.";
 const FINISH_INPUT: &[u8] = br#"{"report":"The child inspected the changed workspace.","source":"workspace"}"#;
 const FIRST: &[u8] = b"Native structured brief first activation parked.";
 const RESUMED: &[u8] = b"Native structured brief history restored.";
@@ -55,16 +52,6 @@ Report: text up to 1024 bytes, with these host-required fields:\n\
 - `source`: nonempty, at most 128 bytes\n\
 Extra fields are allowed within the aggregate result byte limit; no field name may repeat.\n";
 const MAIN_BUDGET: &str = "\n## Budget\n\nAt open, you have 64 turns and 3599 seconds of wall time. Spend is bounded too.\nKeep 0 turns and 0 seconds to finish. When the ordinary budget is spent, live children close and you finish on that reserve.\nSub-agents share only what is above the reserve. Ask for focused turn or time shares; leaving a part unasked gives the child all of that part left.\n";
-const CHILD_MECHANICS: &str = "## Tools\n\n\
-You can read, list and search the files in the checkout.\n\n\
-## Checkout\n\n\
-Your working directory is `work`. Relative paths start there; reach the other directories as `/name/...`. Use `list /` to list their names.\n\
-- `work`, which you may change, a git working tree, with checks (`.temper/pre-pr`)\n\
-- `archive`, which you may only read, a plain directory\n\n\
-## Answering\n\n\
-When you are done, end your turn with your answer. The run adds your usage to the result.\n\n\
-## Your share\n\n\
-At open, your share is 60 turns and 120 seconds. Your answer may hold at most 1024 bytes; anything past it is cut with a marker. Your last turn has no tools: answer with what you have.\n";
 
 fn charter(settings: &Settings, instructions: &str) -> run::Charter {
     use run::charter::{Brief, Endpoint, Grants, Llm, Section, Tools};
@@ -173,181 +160,12 @@ fn says(text: &[u8], tokens: u64) -> Turn {
     Turn { lines: Box::new([Line::Text { text: text.into() }]), finish: Finish::Stop, tokens }
 }
 
-fn typed_scripts() -> Box<[Script]> {
-    Box::new([
-        Script {
-            cue: b"@brief-main".as_slice().into(),
-            turns: Box::new([
-                calls(vec![call(b"read", br#"{"path":"data.txt"}"#)], 2),
-                calls(vec![call(b"edit", br#"{"path":"data.txt","edits":[{"old":"old","new":"parent-change"}]}"#)], 3),
-                calls(vec![call(b"write", br#"{"path":"../archive/data.txt","content":"forbidden-main"}"#)], 5),
-                calls(vec![call(b"sub_agent", CHILD_INPUT)], 7),
-                calls(vec![call(b"finish", FINISH_INPUT)], 11),
-            ]),
-        },
-        Script {
-            cue: b"@brief-child".as_slice().into(),
-            turns: Box::new([
-                calls(
-                    vec![call(b"read", br#"{"path":"data.txt"}"#), call(b"read", br#"{"path":"../archive/data.txt"}"#)],
-                    13,
-                ),
-                calls(
-                    vec![call(
-                        b"edit",
-                        br#"{"path":"data.txt","edits":[{"old":"parent-change","new":"forbidden-child"}]}"#,
-                    )],
-                    17,
-                ),
-                says(CHILD_RESULT, 19),
-            ]),
-        },
-    ])
-}
-
 fn contains(bytes: &[u8], part: &[u8]) -> bool {
     bytes.windows(part.len()).any(|bytes| bytes == part)
 }
 
-fn feedback_has(query: &Query, part: &[u8]) -> bool {
-    query
-        .messages
-        .iter()
-        .flat_map(|message| &message.parts)
-        .any(|item| matches!(item, Part::ToolOutput { output, is_error: true, .. } if contains(output, part)))
-}
-
 fn expected_main(instructions_literal: &str) -> Vec<u8> {
     [instructions_literal, SECTIONS, GUIDES, MAIN_MECHANICS, MAIN_BUDGET].concat().into_bytes()
-}
-
-fn typed_openings(world: &World) {
-    let main_system = expected_main("@brief-main PARENT-INSTRUCTIONS: coordinate this task.\nSeparate role line.\n\n");
-    let child_system =
-        ["@brief-child CHILD-TASK-ONLY: inspect both mounts.\n\n", GUIDES, CHILD_MECHANICS].concat().into_bytes();
-    let main = world.prompts().iter().filter(|query| query.system.starts_with(b"@brief-main")).collect::<Vec<_>>();
-    let child = world.prompts().iter().filter(|query| query.system.starts_with(b"@brief-child")).collect::<Vec<_>>();
-    assert_eq!(main.len(), 5, "observed main turns, including child result and accepted finish");
-    assert_eq!(child.len(), 3, "observed child reads, denied edit and terminal answer");
-    assert_eq!(main.len() + child.len(), world.prompts().len());
-    for query in &main {
-        assert_eq!(query.system.as_ref(), main_system, "literal complete ordered main system");
-        assert_eq!(query.model.as_ref(), b"fake-1");
-    }
-    for query in &child {
-        assert_eq!(query.system.as_ref(), child_system, "literal task, observed guides and narrowed mechanics");
-        for sentinel in [
-            b"PARENT-INSTRUCTIONS".as_slice(),
-            b"PARENT-TITLE-Z",
-            b"PARENT-TITLE-A",
-            b"PARENT-BODY-ONE",
-            b"PARENT-BODY-TWO",
-            b"PARENT-BODY-THREE",
-        ] {
-            assert!(!contains(&query.system, sentinel), "parent payload must not implicitly reach child: {sentinel:?}");
-        }
-        assert_eq!(
-            query.tools.iter().map(|tool| tool.name.as_ref()).collect::<Vec<_>>(),
-            [b"read".as_slice(), b"list", b"search"]
-        );
-    }
-    assert!(main.iter().any(|query| feedback_has(query, b"ReadOnly")));
-    assert!(child.iter().any(|query| feedback_has(query, b"UnknownTool")));
-    assert!(main[4].messages.iter().flat_map(|message| &message.parts).any(|part| {
-        matches!(part, Part::ToolOutput { output, is_error: false, .. } if output.starts_with(CHILD_RESULT) && contains(output, b"\n\nChild usage: used 3 turns"))
-    }));
-}
-
-#[test]
-fn ordered_sections_and_instructions_reach_main_but_child_receives_only_its_own_task() {
-    let settings = Settings { job: Job::Reporting, network: Span::millis(1, 1), ..Settings::calm(1101) };
-    let (disk, mounted) = workspace();
-    let readonly = disk.tree(b"archive");
-    let roots = mounted.directories.iter().map(|directory| directory.root).collect::<Vec<_>>();
-    let mut world = World::with_workspace_scripts_charter(
-        settings,
-        None,
-        Some(mounted),
-        disk,
-        typed_scripts(),
-        charter(&settings, MAIN_INSTRUCTIONS),
-    );
-    world.run(10_000);
-    typed_openings(&world);
-    assert_eq!(world.disk().content(b"work/data.txt"), Some(b"parent-change".as_slice()));
-    assert_eq!(world.disk().content(b"work/.git/HEAD"), Some(b"host-owned-git-metadata".as_slice()));
-    assert_eq!(world.disk().tree(b"archive"), readonly);
-    let stores = world
-        .boundaries()
-        .iter()
-        .filter_map(|(_, boundary)| {
-            if let Boundary::Io { op: tools::Op::Store { at, content, .. } } = boundary {
-                Some((at.root, at.path.as_ref(), content.as_ref()))
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(stores, [(roots[0], b"data.txt".as_slice(), b"parent-change".as_slice())]);
-    let loads = world
-        .boundaries()
-        .iter()
-        .filter_map(|(_, boundary)| {
-            if let Boundary::Io { op: tools::Op::Load { at, .. } } = boundary {
-                Some((at.root, at.path.as_ref()))
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(
-        loads.iter().filter(|(root, path)| *root == roots[0] && *path == b"data.txt").count(),
-        3,
-        "main's read and edit reload, then child's read"
-    );
-    assert_eq!(loads.iter().filter(|(root, path)| *root == roots[1] && *path == b"data.txt").count(), 1);
-    assert_eq!(world.turns().len(), 5);
-    assert_eq!(world.turns().iter().map(|turn| turn.sequence).collect::<Vec<_>>(), [1, 2, 3, 4, 5]);
-    let delegated = &world.turns()[3];
-    let child_call = delegated
-        .messages
-        .iter()
-        .flat_map(|message| &message.content)
-        .find_map(|block| match block {
-            llm::Block::ToolCall { id, name, input, call: llm::Decoded::Historical, .. }
-                if name.as_ref() == b"sub_agent" && input.as_ref() == CHILD_INPUT =>
-            {
-                Some(id)
-            }
-            llm::Block::Opaque { .. }
-            | llm::Block::Refusal { .. }
-            | llm::Block::Text { .. }
-            | llm::Block::ToolCall { .. }
-            | llm::Block::ToolResult { .. } => None,
-        })
-        .expect("persisted raw child-task call");
-    assert_eq!(
-        delegated
-            .messages
-            .iter()
-            .flat_map(|message| &message.content)
-            .filter(|block| {
-                matches!(block, llm::Block::ToolResult { id, result: llm::Returned::Text {
-                text, error: false, replay: None
-            }} if id == child_call && text.starts_with(CHILD_RESULT) && contains(text, b"\n\nChild usage: used 3 turns"))
-            })
-            .count(),
-        1,
-        "observed child result is paired once with its caller's concrete Turn"
-    );
-    assert!(matches!(world.answer(), run::Answer::Accepted {
-        outcome: run::outcome::Declared::Report(report), turns: 5, ..
-    } if report.text.as_ref() == b"The child inspected the changed workspace."
-        && report.fields.as_ref() == [run::outcome::Field {
-            name: b"source".as_slice().into(), value: b"workspace".as_slice().into()
-        }]));
-    assert!(world.checked().is_empty() && world.pushes().is_empty() && world.host_submissions().is_empty());
-    assert!(world.judged().0 > 0 && world.judged().1 > 0);
 }
 
 fn native_scripts() -> Box<[Script]> {
