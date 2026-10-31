@@ -3,7 +3,7 @@
 #![forbid(unsafe_code)]
 use jig_conformance::scenarios::Scenario;
 use jig_conformance::{Application, Clock, Input, Output};
-use jig_core_world::{Store, observations::Observer, peers::Peers};
+use jig_core_world::{Store, conformance::Observer, peers::Peers};
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
@@ -212,7 +212,7 @@ impl Neighbours {
                     if let Some(attempt) = row.attempt {
                         receipts.insert(Receipt::Outbox(
                             *number,
-                            jig_core_world::observations::effect_key(row.key),
+                            jig_core_world::conformance::effect_key(row.key),
                             attempt.number,
                         ));
                     }
@@ -527,25 +527,20 @@ impl Application for Testing {
                     .into_iter()
                     .map(Input::Event)
                     .collect(),
-                Delivery::Now(core::Now::Account(accounts::Request::Component(accounts::ToComponent::Want {
-                    account,
-                }))) => {
-                    vec![Input::Event(root::Event::Core(core::Event::Account(accounts::Event::Component(
-                        accounts::FromComponent::Granted {
-                            form: accounts::Form::Credential(accounts::Scheme::Bearer),
-                            account,
-                            generation: 1,
-                            valid: Duration::from_secs(60),
-                        },
-                    ))))]
-                }
-                Delivery::Now(core::Now::Account(accounts::Request::Component(accounts::ToComponent::Close))) => {
-                    vec![Input::Event(root::Event::Core(core::Event::Account(accounts::Event::Component(
-                        accounts::FromComponent::Closed,
-                    ))))]
+                Delivery::Now(core::Now::Account(accounts::Request::Component(request))) => {
+                    jig_conformance::core::peers::account(request, Duration::from_secs(60))
+                        .into_iter()
+                        .map(|event| Input::Event(root::Event::Core(event)))
+                        .collect()
                 }
                 Delivery::Now(core::Now::StartPreparation { task, from: None, .. }) => {
-                    vec![Input::Event(root::Event::TranscriptLoaded { task, rows: Box::new([]), done: true })]
+                    let rows = jig_conformance::core::peers::transcript(&std::collections::BTreeMap::new(), task, None)
+                        .expect("new conversation has no transcript window");
+                    vec![Input::Event(root::Event::TranscriptLoaded {
+                        task,
+                        rows: rows.into_iter().map(|row| (row, None)).collect(),
+                        done: true,
+                    })]
                 }
                 Delivery::Now(
                     now @ (core::Now::StartPreparation { from: Some(_), .. }
@@ -675,6 +670,17 @@ impl Application for Testing {
         let mut events = Vec::new();
         for answer in store.answers() {
             match answer {
+                Up::Root(root::Event::Core(core::Event::Notes(jig_domain_notes::Event::Loaded {
+                    owner,
+                    rows,
+                    more,
+                }))) => {
+                    events.push(Input::Event(root::Event::Core(jig_conformance::core::peers::notes_loaded(
+                        owner,
+                        rows.records,
+                        more,
+                    ))));
+                }
                 Up::Root(event) => {
                     events.push(Input::Event(event));
                 }
