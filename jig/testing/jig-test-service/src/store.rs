@@ -104,7 +104,6 @@ impl Store {
         let seeded = protocol::seed([&mut store.io, &mut secrets.io, &mut transcripts.io], seed);
         let mut component =
             protocol::Store::on_directory(limits, jig_test_store::application(&application.connector), models, seeded);
-        component.start_restore();
         Self {
             component,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
@@ -530,7 +529,7 @@ pub(super) fn answer(engine: &mut crate::Engine) {
                     engine.store.secrets.push(event);
                 }
             }
-            protocol::Event::Restored { .. } | protocol::Event::Corrupt { .. } => {
+            protocol::Event::Corrupt { .. } => {
                 unreachable!("the service opens its store in start mode")
             }
             // This shell never hands patch sets; routing answers Site with NoSite.

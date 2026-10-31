@@ -33,7 +33,7 @@ fn next(store: &mut Store, below: &mut Below) -> Result<bool, ()> {
         None => Box::new([keys::JIG, 0, 2]),
     };
     let range = skein_kv::Range { start, end: Some(Box::new([keys::JIG, 0, 3])) };
-    let page = pages::load(store, range).ok_or(())?;
+    let page = pages::load(store, range).or(Err(()))?;
     let Some(row) = page.rows.into_iter().next() else {
         return Ok(true);
     };

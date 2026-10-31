@@ -79,8 +79,6 @@ pub struct Store {
     wires: &'static [Wire],
     /// This start's first Wires commit, and its durability (store.md 5.3).
     mark: Mark,
-    start_restore: bool,
-    consumed: bool,
     start_open_failure: Option<restore::OpenFailure>,
 }
 
@@ -169,8 +167,6 @@ impl Store {
             patch_sets: PatchSets::NONE,
             wires: &[],
             mark: Mark::Waiting,
-            start_restore: false,
-            consumed: false,
             start_open_failure: None,
         }
     }
@@ -189,28 +185,14 @@ impl Store {
         store
     }
 
-    /// Selects load/fit and deferred links before any operational input
-    /// (jig/docs/design/domain/engine.md, 6; protocol/store.md, 10.2).
-    pub fn start_restore(&mut self) {
-        assert!(
-            !self.start_restore
-                && !self.consumed
-                && self.phase == Phase::Closed
-                && directory::unopened(self)
-                && self.directory.root.is_none(),
-            "start restore is selected once before operational input"
-        );
-        self.start_restore = true;
-    }
-
-    /// The first selected open failure, with no stored values (store.md, 9).
+    /// The first open failure, with no stored values (store.md, 9).
     #[must_use]
     pub fn start_open_failure(&self) -> Option<&restore::OpenFailure> {
         self.start_open_failure.as_ref()
     }
 
     fn open_failed(&mut self, failure: restore::OpenFailure) {
-        if self.start_restore && self.start_open_failure.is_none() {
+        if self.start_open_failure.is_none() {
             self.start_open_failure = Some(failure);
         }
     }
@@ -296,7 +278,6 @@ pub(crate) fn decoded_records_bound(limits: &Limits) -> Option<u64> {
 
 /// The memory component's requests (store.md, section 10).
 pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut Queue<Event>, below: &mut Below) {
-    store.consumed = true;
     if store.phase == Phase::Stopped {
         return;
     }
@@ -327,7 +308,6 @@ pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut 
 
 /// File terminals routed through their independent drivers.
 pub fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
-    store.consumed = true;
     directory::up(store, env, io, above, below);
     if store.phase != Phase::Stopped {
         transcripts::read::fire(store, above, below);
@@ -338,7 +318,6 @@ pub fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>
 
 /// Bounded background store work and the orphan sweep.
 pub fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
-    store.consumed = true;
     if store.phase != Phase::Stopped {
         directory::fire(store, env, above, below);
         secrets::sweep(store, env, above, below);

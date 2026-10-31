@@ -4,7 +4,6 @@ use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use jig_domain_core as core;
 use jig_domain_notes as notes;
-use jig_domain_people as people;
 use jig_protocol_store::{self as store, Event, Request, Restore, Row};
 use jig_test_domain as root;
 use skein_lib::{List, Queue, Token};
@@ -264,7 +263,6 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         Event::Failed { number } | Event::FrameTooLarge { number, .. } => {
             into.push(Up::Root(root::Event::Failed { number }));
         }
-        Event::Restored { owner, rows, next } => restored(routes, owner, rows, next, into),
         Event::Read { owner, result } => {
             if let Some(Flight::Read(load)) = routes.pending.remove(&owner) {
                 into.push(Up::Root(root::Event::Core(core::Event::ReadLoaded { load, result })));
@@ -382,31 +380,6 @@ fn loaded(routes: &mut Routes, owner: Token, rows: Box<[Row]>, next: Option<stor
         }
         let event = notes::Event::Loaded { owner, rows: notes::Rows { records }, more: next.is_some() };
         into.push(Up::Root(root::Event::Core(core::Event::Notes(event))));
-    }
-}
-fn restored(routes: &mut Routes, owner: Token, rows: Box<[Row]>, next: Option<store::Cursor>, into: &mut Queue<Up>) {
-    let Some(Flight::Restart { step, .. }) = routes.pending.get(&owner) else {
-        return;
-    };
-    let step = *step;
-    let limits = routes.limits.expect("configured routing");
-    for row in rows {
-        let Ok(record) = decode(row, &limits) else {
-            stop(routes, into);
-            return;
-        };
-        into.push(Up::Restore(record));
-    }
-    if let Some(after) = next {
-        if let Some(request) = restart(routes, owner, Some(after)) {
-            into.push(Up::Ask(request));
-        }
-    } else {
-        routes.pending.remove(&owner);
-        if step == core::RestartStep::LoadCore {
-            into.push(Up::Root(root::Event::Core(core::Event::People(people::Event::Restored))));
-        }
-        into.push(Up::Root(root::Event::RestartDone(step)));
     }
 }
 fn decode(row: Row, limits: &root::Limits) -> Result<root::Record, store::restore::Failure> {

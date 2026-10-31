@@ -744,8 +744,7 @@ admitted within that edge is never refused as too large.
 - **Same step.** skein-kv serves a page from memory in the step that asks
   (skein's `kv.md`, section 2), and the component answers in that step
   too, through its outputs, never by recursion. Only transcripts' bytes
-  take io (section 8). A store opened with `Store::start_restore()` answers
-  `Restore` with `Event::Page` or `Event::PageRefused`.
+  take io (section 8). The store answers `Restore` with `Event::Page` or `Event::PageRefused`.
 - **The cursor is exclusive.** A page's cursor is the last key it
   returned; the next page starts just past it, and an absent cursor at
   the interval's beginning. skein-kv's ranges start inclusively, and its
@@ -1532,22 +1531,12 @@ one that stands; an older build's is moved aside (section 2). Each
   `<deployment>`, and the generation it patched from stays active, unchanged.
   Every start of this build checks a fresh copy the same way: start the build
   before it again, which opens that generation as it was."
-- `Check { why: Count }`: "The check before the switch found a family whose
-  count of records the patches changed in the copy of the store this start
-  patched in `<deployment>`, and the generation it patched from stays active,
-  unchanged. Every start of this build checks a fresh copy the same way: start
-  the build before it again, which opens that generation as it was."
 - `Check { why: Load }`: "The check before the switch found a record the
   restart could not load within the deployment's limits in the copy of the
   store this start patched in `<deployment>`, and the generation it patched
   from stays active, unchanged. Every start of this build checks a fresh copy
   the same way: start the build before it again, which opens that generation
   as it was."
-- `Check { why: Join }`: "The check before the switch found a record naming an
-  ended task the store does not hold in the copy of the store this start
-  patched in `<deployment>`, and the generation it patched from stays active,
-  unchanged. Every start of this build checks a fresh copy the same way: start
-  the build before it again, which opens that generation as it was."
 - `Check { why: Private }`: "The check before the switch found a file in the
   secrets' store of the copy this start patched in `<deployment>` that is not
   private to the service's user, and the generation it patched from stays
@@ -1573,7 +1562,7 @@ pub enum OpenRefusal {
 }
 pub enum Older { Unrecorded, Layout(Family), Directory, Unleveled }
 pub enum Generations { Busy, Unreadable, Unnamed, Missing { generation: u64 } }
-pub enum Check { Large { key }, Load { key }, Private { name } } // Count and Join, with their words above, go with the restore's checks (L)
+pub enum Check { Large { key }, Load { key }, Private { name } }
 ```
 
 `Older`'s first two compare the layouts' row (5.3); `Check` names what

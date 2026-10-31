@@ -315,16 +315,12 @@ fn page(
     after: Option<&Cursor>,
     rows: u32,
 ) -> Option<pages::Walked> {
-    if store.start_restore {
-        match pages::reader::walk_map(store, map, &[range], after, rows) {
-            Ok(page) => Some(page),
-            Err(failure) => {
-                store.open_failed(crate::restore::OpenFailure::Data(failure));
-                None
-            }
+    match pages::reader::walk_map(store, map, &[range], after, rows) {
+        Ok(page) => Some(page),
+        Err(failure) => {
+            store.open_failed(crate::restore::OpenFailure::Data(failure));
+            None
         }
-    } else {
-        pages::walk_map(store, map, &[range], after, rows)
     }
 }
 

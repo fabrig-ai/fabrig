@@ -120,40 +120,6 @@ impl Directory {
         }
     }
 }
-pub(crate) fn unopened(store: &Store) -> bool {
-    match &store.directory.opening {
-        Opening::Idle => true,
-        Opening::Pending(_)
-        | Opening::Locking
-        | Opening::Reading
-        | Opening::SurveyOpen(_)
-        | Opening::SurveyPage { .. }
-        | Opening::SurveyClose(_)
-        | Opening::Refusing(_)
-        | Opening::LeftoverOpen
-        | Opening::LeftoverRemoving { .. }
-        | Opening::LeftoverClose
-        | Opening::Making(_)
-        | Opening::FirstSecrets
-        | Opening::FirstManifest(_)
-        | Opening::FirstActive
-        | Opening::CheckingOpen
-        | Opening::CheckingPage { .. }
-        | Opening::CheckingClose
-        | Opening::StoreOpen
-        | Opening::SecretsOpen
-        | Opening::Stores
-        | Opening::SweepOpen { .. }
-        | Opening::SweepPage(_)
-        | Opening::SweepFile(_)
-        | Opening::SweepRemoving { .. }
-        | Opening::SweepSync { .. }
-        | Opening::SweepClose(_)
-        | Opening::TranscriptsMade
-        | Opening::TranscriptsOpen
-        | Opening::Patching(_) => false,
-    }
-}
 
 pub(crate) fn env(store: &Store, env: &Env<Limits>, secret: bool) -> Env<skein_kv::Limits> {
     Env { now: env.now, wall: env.wall, limits: if secret { store.limits.secrets } else { store.limits.store } }

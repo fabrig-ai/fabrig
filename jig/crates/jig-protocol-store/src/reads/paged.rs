@@ -72,7 +72,7 @@ pub(super) fn activity(
         if point.start < interval.start {
             break;
         }
-        let walked = pages::walk(store, &[point], None, 1).ok_or(Failure::Corrupt)?;
+        let walked = pages::reader::walk(store, &[point], None, 1).or(Err(Failure::Corrupt))?;
         let mut rows = walked.rows.into_iter();
         let Some(item) = rows.next() else {
             if walked.next.is_some() {
@@ -153,7 +153,7 @@ fn family(
 ) -> Result<reads::Loaded, Failure> {
     let intervals = intervals::scope(range.party, &range.scope).ok_or(Failure::Corrupt)?;
     let after = cursor(range, &intervals)?;
-    let walked = pages::walk(store, &intervals, after.as_ref(), spent.rows).ok_or(Failure::Corrupt)?;
+    let walked = pages::reader::walk(store, &intervals, after.as_ref(), spent.rows).or(Err(Failure::Corrupt))?;
     let mut found = List::with_capacity(u32::try_from(walked.rows.len()).or(Err(Failure::Corrupt))?);
     let mut last = None;
     for item in walked.rows {
@@ -191,7 +191,7 @@ pub(super) fn spend(store: &mut Store, range: &reads::Range, spent: &mut Spent) 
 pub(super) fn notes(store: &mut Store, range: &reads::Range, spent: &mut Spent) -> Result<reads::Loaded, Failure> {
     let intervals = intervals::scope(range.party, &range.scope).ok_or(Failure::Corrupt)?;
     let after = cursor(range, &intervals)?;
-    let walked = pages::walk(store, &intervals, after.as_ref(), spent.rows).ok_or(Failure::Corrupt)?;
+    let walked = pages::reader::walk(store, &intervals, after.as_ref(), spent.rows).or(Err(Failure::Corrupt))?;
     let mut found = List::with_capacity(u32::try_from(walked.rows.len()).or(Err(Failure::Corrupt))?);
     let mut last = None;
     for item in walked.rows {

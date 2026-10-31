@@ -802,7 +802,6 @@ impl Accounts {
             | store::Event::Committed { .. }
             | store::Event::Failed { .. }
             | store::Event::FrameTooLarge { .. }
-            | store::Event::Restored { .. }
             | store::Event::Loaded { .. }
             | store::Event::Read { .. }
             | store::Event::Got { .. }
@@ -1037,7 +1036,6 @@ impl Accounts {
                 | store::Event::Committed { .. }
                 | store::Event::Failed { .. }
                 | store::Event::FrameTooLarge { .. }
-                | store::Event::Restored { .. }
                 | store::Event::Loaded { .. }
                 | store::Event::Read { .. }
                 | store::Event::Got { .. }

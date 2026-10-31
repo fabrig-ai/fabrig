@@ -55,7 +55,7 @@ fn attempt_key(store: &mut Store, task: u64, after: Option<u64>) -> Result<Optio
         }
         None => Box::new([keys::COMPONENT, 3]),
     };
-    let page = pages::load(store, skein_kv::Range { start, end: Some(end) }).ok_or(())?;
+    let page = pages::load(store, skein_kv::Range { start, end: Some(end) }).or(Err(()))?;
     let Some(row) = page.rows.into_iter().next() else {
         return Ok(None);
     };
@@ -110,7 +110,8 @@ pub(crate) fn erases(store: &mut Store, ops: &mut List<skein_kv::Op>) -> Option<
 pub(crate) fn restore(store: &mut Store) -> Result<(), ()> {
     let mut start: Box<[u8]> = Box::new([keys::COMPONENT, 2]);
     for _ in 0..=capacity(&store.limits).ok_or(())? {
-        let page = pages::load(store, skein_kv::Range { start, end: Some(Box::new([keys::COMPONENT, 3])) }).ok_or(())?;
+        let page =
+            pages::load(store, skein_kv::Range { start, end: Some(Box::new([keys::COMPONENT, 3])) }).or(Err(()))?;
         let Some(row) = page.rows.into_iter().next() else {
             return Ok(());
         };

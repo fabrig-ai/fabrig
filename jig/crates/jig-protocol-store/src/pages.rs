@@ -3,7 +3,7 @@ pub(crate) mod reader;
 use crate::{Cursor, KeptMap, Row, Store, codec, keys};
 use alloc::boxed::Box;
 use skein_kv::{KeyWriter, Range};
-use skein_lib::{List, Queue, Token};
+use skein_lib::List;
 
 #[derive(Debug)]
 pub(crate) struct WalkRow {
@@ -21,59 +21,6 @@ pub(crate) struct Decoded {
     pub next: Option<Cursor>,
 }
 
-pub(crate) fn walk(store: &mut Store, intervals: &[Range], after: Option<&Cursor>, rows: u32) -> Option<Walked> {
-    walk_map(store, KeptMap::Store, intervals, after, rows)
-}
-
-pub(crate) fn walk_map(
-    store: &mut Store,
-    map: KeptMap,
-    intervals: &[Range],
-    after: Option<&Cursor>,
-    rows: u32,
-) -> Option<Walked> {
-    // Every encoded row costs at least one byte. The encoded page therefore
-    // bounds the carrier list even when the asker supplies a larger row count.
-    let limits = map_limits(store, map);
-    let capacity = rows.min(limits.page.bytes);
-    let mut found = List::with_capacity(capacity);
-    let mut encoded = 0_u64;
-    let mut last = after.cloned().unwrap_or(Cursor { interval: 0, after: Box::new([]) });
-    let first = usize::try_from(last.interval).ok()?;
-    for (index, interval) in intervals.iter().enumerate().skip(first) {
-        let index = u32::try_from(index).ok()?;
-        let mut range = interval.clone();
-        if index == last.interval && !last.after.is_empty() {
-            range.start = range.start.max(past(&last.after)?);
-        }
-        for _ in 0..=capacity {
-            if let Some(end) = &range.end
-                && range.start >= *end
-            {
-                break;
-            }
-            let page = load_map(store, map, range.clone())?;
-            let mut page_rows = page.rows.into_iter();
-            let Some(row) = page_rows.next() else { break };
-            let size = u64::try_from(row.key.len()).ok()?.checked_add(u64::try_from(row.value.len()).ok()?)?;
-            let total = encoded.checked_add(size)?;
-            if found.len() == capacity || total > u64::from(limits.page.bytes) {
-                return Some(Walked { rows: found.into_boxed(), next: Some(last) });
-            }
-            encoded = total;
-            last = Cursor { interval: index, after: row.key.clone() };
-            range.start = past(&row.key)?;
-            found.push(WalkRow { row, cursor: last.clone() }).expect("encoded and row bounds checked");
-            if page.next.is_none() {
-                break;
-            }
-        }
-        // The interval is exhausted here. Jig 17 sweeps secrets at this
-        // point for the People's interval (prefix [JIG, 2]).
-    }
-    Some(Walked { rows: found.into_boxed(), next: None })
-}
-
 pub(crate) fn past(key: &[u8]) -> Option<Box<[u8]>> {
     let mut writer = KeyWriter::new(u32::MAX);
     for &byte in key {
@@ -88,45 +35,8 @@ pub(crate) struct Page {
     pub(crate) next: Option<Box<[u8]>>,
 }
 
-pub(crate) fn load(store: &mut Store, range: Range) -> Option<Page> {
-    load_map(store, KeptMap::Store, range)
-}
-
-fn load_map(store: &mut Store, map: KeptMap, range: Range) -> Option<Page> {
-    let mut limits = map_limits(store, map);
-    // A valid maximum-length key's exclusive cursor has one extra byte.
-    // This widens range endpoints only; stored keys retain their own bound.
-    limits.key = limits.key.checked_add(1)?;
-    let mut above = Queue::uncapped();
-    let mut below = Queue::uncapped();
-    let kv = match map {
-        KeptMap::Store => &mut store.stores.store,
-        KeptMap::Secrets => &mut store.stores.secrets,
-    };
-    skein_kv::down(
-        kv,
-        &crate::memory_env(limits),
-        skein_kv::Request::Load {
-            owner: Token::new(0),
-            range,
-            max: skein_kv::Page { rows: 1, bytes: limits.page.bytes },
-        },
-        &mut above,
-        &mut below,
-    );
-    assert!(below.is_empty(), "memory pages issue no files");
-    match above.pop()? {
-        skein_kv::Event::Loaded { rows, next, .. } => Some(Page { rows, next }),
-        skein_kv::Event::Opened { .. }
-        | skein_kv::Event::Committed { .. }
-        | skein_kv::Event::Refused { .. }
-        | skein_kv::Event::Failed { .. }
-        | skein_kv::Event::Got { .. }
-        | skein_kv::Event::Closed { .. }
-        | skein_kv::Event::OpenFailed { .. }
-        | skein_kv::Event::Recovered { .. }
-        | skein_kv::Event::RecoveryFailed { .. } => None,
-    }
+pub(crate) fn load(store: &mut Store, range: Range) -> Result<Page, crate::restore::Failure> {
+    reader::load_map(store, KeptMap::Store, range)
 }
 
 pub(crate) fn application(intervals: &[Range], limit: u32) -> Option<Box<[Range]>> {

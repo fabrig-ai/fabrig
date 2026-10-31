@@ -13,23 +13,13 @@ const RECORDS: u64 = 20;
 #[test]
 fn seeded_pages_match_committed_application_rows() {
     for seed in 0..SEEDS {
-        pages_match(seed, false);
+        pages_match(seed);
     }
 }
 
-#[test]
-fn seeded_selected_pages_match_committed_application_rows() {
-    for seed in 0..SEEDS {
-        pages_match(seed, true);
-    }
-}
-
-fn pages_match(seed: u64, selected: bool) {
+fn pages_match(seed: u64) {
     let mut rng = Rng::new(seed);
     let mut world = World::unopened(seed);
-    if selected {
-        world.start_restore();
-    }
     world.open().expect("open");
     world.commit(root::first()).expect("first commit");
     let expected: BTreeMap<Box<[u8]>, Box<[u8]>> = (0..RECORDS)

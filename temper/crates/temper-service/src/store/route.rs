@@ -172,7 +172,6 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
         store::Event::FrameTooLarge { number, task, bytes, limit } => {
             into.push(Up::FrameTooLarge { number, task, bytes, limit });
         }
-        store::Event::Restored { .. } => unreachable!("startup uses typed pages"),
         store::Event::Loaded { owner, rows, next } => {
             page(routes, owner, rows, next, None, into);
         }

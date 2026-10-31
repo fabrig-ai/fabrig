@@ -166,7 +166,6 @@ pub fn memory_store(engine: &mut crate::Engine) {
             secrets: skein_kv::Store::memory(&limits.secrets),
         },
     );
-    engine.store.component.start_restore();
     engine.store.ask(jig_protocol_store::Request::Open {
         owner: OWNER,
         root: jig_protocol_store::Root { token: OWNER, fd: skein_io::kernel::Fd::new(1) },

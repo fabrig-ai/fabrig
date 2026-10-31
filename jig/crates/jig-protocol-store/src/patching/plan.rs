@@ -440,7 +440,14 @@ fn flight_keys(store: &mut crate::Store, owner: Owner, family: &super::sets::Kep
         // One row per page keeps the read's transient room independent of
         // the number named. Each nonterminal page must consume a record.
         for _ in 0..=rows {
-            let page = pages::walk_map(store, family.map, core::slice::from_ref(&range), cursor.as_ref(), 1)?;
+            let page =
+                match pages::reader::walk_map(store, family.map, core::slice::from_ref(&range), cursor.as_ref(), 1) {
+                    Ok(page) => page,
+                    Err(failure) => {
+                        store.open_failed(crate::restore::OpenFailure::Data(failure));
+                        return None;
+                    }
+                };
             if page.rows.is_empty() && page.next.is_some() {
                 return None;
             }

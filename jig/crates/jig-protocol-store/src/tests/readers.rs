@@ -257,7 +257,7 @@ fn restore_pages_panic_when_the_byte_budget_prevents_progress() {
 }
 
 #[test]
-#[should_panic(expected = "empty nonterminal retained page must advance its cursor")]
+#[should_panic(expected = "empty nonterminal restore page must advance its cursor")]
 fn retained_pages_panic_when_the_row_budget_prevents_progress() {
     raw_store(&[]).retained_page(None, 0, BYTES).expect("budget assertion");
 }

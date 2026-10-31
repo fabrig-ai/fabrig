@@ -169,7 +169,7 @@ pub(crate) fn get_open(store: &mut Store, owner: Token, key: Box<[u8]>) -> Resul
 }
 
 fn get_row(store: &mut Store, owner: Token, key: Box<[u8]>, opening: bool) -> Result<Option<Box<[u8]>>, OpenRefusal> {
-    let site = if opening && store.start_restore { Some(restore::site(store, &key)) } else { None };
+    let site = if opening { Some(restore::site(store, &key)) } else { None };
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
     skein_kv::down(
@@ -239,7 +239,7 @@ fn corrupt_header(store: &mut Store, owner: Token, failure: restore::DecodeFailu
 }
 
 pub(crate) fn data(store: &mut Store, key: &[u8], failure: restore::DecodeFailure) {
-    if store.start_restore && store.start_open_failure.is_none() {
+    if store.start_open_failure.is_none() {
         store.open_failed(restore::OpenFailure::Data(restore::Failure::at(
             restore::Cause::Decode(failure),
             restore::site(store, key),

@@ -28,7 +28,7 @@ fn page(store: &mut Store, range: Load, after: Option<&Cursor>, rows: u32, bytes
         Load::Notes(range) => intervals::notes(&range),
         Load::Application(ranges) => pages::application(&ranges, store.limits.store.key)?,
     };
-    let walked = pages::walk(store, &ranges, after, rows)?;
+    let walked = pages::reader::walk(store, &ranges, after, rows).ok()?;
     let mut found = List::with_capacity(u32::try_from(walked.rows.len()).ok()?);
     let mut used = 0_u64;
     let mut cursor = after.cloned().unwrap_or(Cursor { interval: 0, after: Box::new([]) });

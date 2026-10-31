@@ -361,13 +361,6 @@ fn first_bad_live_key_wins_over_commit_insertion_order() {
 }
 
 #[test]
-fn ended_position_without_its_task_refuses_join() {
-    let row = core::Record::People(jig_domain_people::Stored::EndedRead { task: root::LIVE, party: 1, through: 0 });
-    let mut world = empty().committed_with(SEED, patches::BASE, 1, patches::limits(), std::slice::from_ref(&row));
-    refuses_check(&mut world, &Check::Join { key: load_key(&row) });
-}
-
-#[test]
 fn live_decode_failure_precedes_missing_ended_join() {
     let row = root::live_task(root::LIVE);
     let position =
