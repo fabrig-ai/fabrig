@@ -34,8 +34,15 @@ impl Measured {
             } else {
                 (Box::new([]), Box::new([]))
             };
-        let domain = Domain::new(&limits, owners, 1, grants);
+        let mut domain = Domain::new(&limits, owners, 1, grants);
+        domain.start_restore(Wall::EPOCH);
         Measured { domain, env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, out, call: 0 }
+    }
+
+    fn complete(&mut self) {
+        assert!(self.domain.start_link(&self.env));
+        self.domain.start_sweep();
+        assert!(self.domain.start_complete(&self.env));
     }
 
     fn to(&mut self) -> ReplyTo {
@@ -93,7 +100,7 @@ fn full_people_roles_signins_pending_waiters_answers_and_expiry_fit() {
         },
     ] {
         let mut test = Measured::new(limits);
-        test.event(Event::Restored);
+        test.complete();
         for number in 1..=u64::from(limits.people) {
             let reply_to = test.to();
             let identity = Identity {
@@ -211,7 +218,7 @@ fn full_conversation_positions_and_replies_fit(limits: Limits) {
             },
         });
     }
-    restored.event(Event::Restored);
+    restored.complete();
     for project in 1..=limits.projects {
         restored.event(Event::Roles { project, holdings: Box::new([]) });
         for party in 1..=u64::from(limits.people) {
@@ -287,7 +294,7 @@ fn full_conversation_positions_and_replies_fit(limits: Limits) {
 #[test]
 fn retained_account_sign_in_answers_keep_their_longest_addresses() {
     let mut test = Measured::new(LIMITS);
-    test.event(Event::Restored);
+    test.complete();
     let reply_to = test.to();
     test.event(Event::SignedIn {
         held: None,

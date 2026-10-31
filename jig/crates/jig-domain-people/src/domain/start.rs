@@ -8,7 +8,6 @@ use skein_lib::{Env, Queue, Time, Wall};
 
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum Phase {
-    Default,
     Loading,
     Linked,
     Sweeping,
@@ -23,16 +22,13 @@ impl Domain {
     }
 
     pub(super) fn assert_projection_event(&self) {
-        assert!(
-            self.start == Phase::Default || self.ready(),
-            "selected people projections require start_project before open"
-        );
+        assert!(self.ready(), "people projections require start_project before open");
     }
 
     /// Rebuild a bounded volatile census projection while loading, without clocks or effects.
     #[must_use]
     pub fn start_project(&mut self, limits: &Limits, input: RestoreProjection) -> bool {
-        assert!(self.start == Phase::Loading, "people projections require selected loading");
+        assert!(self.start == Phase::Loading && self.start_at.is_some(), "people projections require loading");
         if self.phase == State::Failed {
             return false;
         }
@@ -53,10 +49,10 @@ impl Domain {
         true
     }
 
-    /// Select explicit restoration once before any input, capturing the start's expiry instant.
+    /// Begin restoration once before any input, capturing the start's expiry instant.
     pub fn start_restore(&mut self, at: Wall) {
         assert!(
-            self.start == Phase::Default && !self.touched && self.phase == State::Restoring,
+            self.start_at.is_none() && !self.touched && self.phase == State::Restoring,
             "people start selected once before input"
         );
         self.start = Phase::Loading;
@@ -64,12 +60,12 @@ impl Domain {
     }
 
     pub(super) fn start_lookup(&self) -> bool {
-        self.start != Phase::Default && self.phase != State::Failed
+        self.start_at.is_some() && self.phase != State::Failed
     }
 
     /// Seal loading and assert required retained references. Does not open admission or erase.
     pub fn start_link(&mut self, _env: &Env<Limits>) -> bool {
-        assert!(self.start == Phase::Loading, "people link follows loading once");
+        assert!(self.start == Phase::Loading && self.start_at.is_some(), "people link follows loading once");
         self.start = Phase::Linked;
         if self.phase == State::Failed {
             return false;
@@ -205,7 +201,7 @@ fn link(domain: &Domain, source: Key, person: u64) {
 }
 
 fn expired(domain: &Domain, limits: &Limits, record: &Stored) -> bool {
-    let at = domain.start_at.expect("explicit start captured its wall");
+    let at = domain.start_at.expect("start captured its wall");
     match record {
         Stored::SignIn { expires, .. } => *expires <= at,
         Stored::Answer { at: saved, .. } | Stored::Acted { at: saved, .. } => answer_expiry(*saved, limits) <= at,
@@ -217,7 +213,11 @@ fn expired(domain: &Domain, limits: &Limits, record: &Stored) -> bool {
 }
 
 pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Queue<Request>) {
-    assert!(domain.start == Phase::Loading, "people restore after seal: {:?}", record.key());
+    assert!(
+        domain.start == Phase::Loading && domain.start_at.is_some(),
+        "people restore after seal: {:?}",
+        record.key()
+    );
     if domain.phase == State::Failed {
         return;
     }

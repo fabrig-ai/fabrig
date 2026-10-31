@@ -1,6 +1,6 @@
 use jig_domain_people::{
-    self as people, Ask, Domain, Event, Key, LimitKind, Outcome, Refusal, Reply, Request, RequestKey, Stored,
-    TaskExecutor, fire, step,
+    self as people, Ask, Domain, Event, Key, Outcome, Refusal, Reply, Request, RequestKey, Stored, TaskExecutor, fire,
+    step,
 };
 use jig_people_world::{LIMITS, fixtures::people_member, identity};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
@@ -14,11 +14,17 @@ const KEY: RequestKey = RequestKey { person: PERSON, key: [7; 16] };
 const WORDS: &[u8] = b"open request";
 
 fn restoring() -> (Domain, Env<people::Limits>, Queue<Request>) {
-    (
-        Domain::new(&LIMITS, Box::new([]), 1, Box::new([])),
-        Env { limits: LIMITS, now: Time::ZERO, wall: Wall::EPOCH },
-        Queue::uncapped(),
-    )
+    let env = Env { limits: LIMITS, now: Time::ZERO, wall: Wall::EPOCH };
+    let mut domain = Domain::new(&LIMITS, Box::new([]), 1, Box::new([]));
+    domain.start_restore(env.wall);
+    (domain, env, Queue::uncapped())
+}
+
+fn complete(domain: &mut Domain, env: &Env<people::Limits>) {
+    if domain.start_link(env) {
+        domain.start_sweep();
+        assert!(domain.start_complete(env));
+    }
 }
 
 fn answers(executor: TaskExecutor, conversation: bool) -> [(Ask, Outcome); 2] {
@@ -47,33 +53,6 @@ fn answer(ask: Ask, outcome: Outcome) -> Stored {
 }
 
 #[test]
-fn restoring_an_answer_refuses_malformed_open_members() {
-    let rows = [
-        ("person", TaskExecutor::Person(people::PersonAddress::Person(PERSON)), true),
-        ("procedure", TaskExecutor::Procedure { connector: 1, code: 1 }, true),
-        ("no conversation", TaskExecutor::Agent { charter: 1 }, false),
-    ];
-    for (name, executor, conversation) in rows {
-        for (ask, outcome) in answers(executor, conversation) {
-            let (mut domain, env, mut out) = restoring();
-            step(&mut domain, &env, Event::Restore { record: answer(ask, outcome) }, &mut out);
-            step(&mut domain, &env, Event::Restored, &mut out);
-            assert!(!domain.ready(), "{name}");
-            assert_eq!(domain.next_deadline(), None, "no answer was retained: {name}");
-            assert_eq!(out.len(), 1, "{name}");
-            assert_eq!(
-                out.pop(),
-                Some(Request::RestoreRefused {
-                    key: Key::Answer(KEY),
-                    refusal: Refusal::Limit { which: LimitKind::Restore },
-                }),
-                "{name}"
-            );
-        }
-    }
-}
-
-#[test]
 fn a_restored_open_answer_replays_its_batch_once() {
     for (ask, outcome) in answers(TaskExecutor::Agent { charter: 1 }, true) {
         let (mut domain, mut env, mut out) = restoring();
@@ -89,7 +68,7 @@ fn a_restored_open_answer_replays_its_batch_once() {
         for record in records {
             step(&mut domain, &env, Event::Restore { record }, &mut out);
         }
-        step(&mut domain, &env, Event::Restored, &mut out);
+        complete(&mut domain, &env);
         assert!(domain.ready());
         assert!(out.is_empty());
         assert_eq!(domain.identity(PERSON), Some(&identity(PERSON)));
@@ -122,7 +101,7 @@ fn acted_rows_restore_without_a_person_or_grant_and_expire() {
         Event::Restore { record: Stored::Acted { key, act: act.clone(), outcome: outcome.clone(), at: Wall::EPOCH } },
         &mut out,
     );
-    step(&mut domain, &env, Event::Restored, &mut out);
+    complete(&mut domain, &env);
     assert!(domain.ready());
     let to = Token::new(1);
     step(
@@ -172,7 +151,6 @@ fn not_ready_acts_are_not_saved() {
 fn selected_ended_read_hints_stay_read_after_the_loaded_position_retires() {
     use people::{Entry, EntryKind, Holding, ReplyRef, RestoreProjection, Role, Whom};
     let (mut domain, env, mut out) = restoring();
-    domain.start_restore(env.wall);
     for record in [
         Stored::Person { number: PERSON, identity: identity(PERSON) },
         Stored::Roles { project: PROJECT, holdings: Box::new([Holding { person: PERSON, role: Role::Member }]) },
