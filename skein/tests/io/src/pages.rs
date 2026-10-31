@@ -172,14 +172,7 @@ impl Machine for FileSystem {
 #[derive(Debug)]
 pub struct Judge;
 impl Referee<Owner> for Judge {
-    fn act(&mut self, _now: Time, _procs: &mut [Owner]) {}
     fn observe(&mut self, _now: Time, _procs: &[Owner]) {}
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         true
     }
