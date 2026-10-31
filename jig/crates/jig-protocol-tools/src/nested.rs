@@ -6,9 +6,9 @@ use jig_domain_core as engine;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, List, Wall};
 
-use crate::{Problem, json::Value};
+use crate::{Problem, json::Node};
 
-pub(crate) fn delegate(value: &Value) -> Result<engine::Delegate, Problem> {
+pub(crate) fn delegate(value: Node<'_>) -> Result<engine::Delegate, Problem> {
     let executor = executor(value.required(b"executor")?)?;
     let spec = spec(value.required(b"spec")?)?;
     let contract = contract(value.required(b"contract")?)?;
@@ -19,12 +19,13 @@ pub(crate) fn delegate(value: &Value) -> Result<engine::Delegate, Problem> {
     };
     let dependencies = match value.field(b"dependencies")? {
         Some(items) => {
-            let items = items.array()?;
+            let mut items = items.array()?;
             let Ok(capacity) = u32::try_from(items.len()) else {
                 return Err(Problem { field: b"", why: crate::Why::TooLarge });
             };
             let mut out = List::with_capacity(capacity);
-            for item in items {
+            for _ in 0..items.len() {
+                let item = items.next().expect("counted array element");
                 let kind = item.required(b"kind")?.text()?;
                 let dependency = match kind.as_ref() {
                     b"batch" => engine::Dependency::Batch(item.required(b"number")?.small()?),
@@ -84,19 +85,20 @@ pub(crate) fn delegate(value: &Value) -> Result<engine::Delegate, Problem> {
     })
 }
 
-pub(crate) fn delegates(value: &Value) -> Result<Box<[engine::Delegate]>, Problem> {
-    let items = value.array()?;
+pub(crate) fn delegates(value: Node<'_>) -> Result<Box<[engine::Delegate]>, Problem> {
+    let mut items = value.array()?;
     let Ok(capacity) = u32::try_from(items.len()) else {
         return Err(Problem { field: b"", why: crate::Why::TooLarge });
     };
     let mut out = List::with_capacity(capacity);
-    for item in items {
+    for _ in 0..items.len() {
+        let item = items.next().expect("counted array element");
         let Ok(()) = out.push(delegate(item)?) else { return Err(Problem { field: b"", why: crate::Why::TooLarge }) };
     }
     Ok(out.into_boxed())
 }
 
-pub(crate) fn amendment(value: &Value) -> Result<tasks::Amendment, Problem> {
+pub(crate) fn amendment(value: Node<'_>) -> Result<tasks::Amendment, Problem> {
     let spec = match value.field(b"spec")? {
         Some(value) => Some(spec(value)?),
         None => None,
@@ -119,7 +121,7 @@ pub(crate) fn amendment(value: &Value) -> Result<tasks::Amendment, Problem> {
     };
     Ok(tasks::Amendment {
         tracked: match value.field(b"tracked")? {
-            Some(value @ Value { kind: crate::json::Kind::Object(_), .. }) => {
+            Some(value) if value.object() => {
                 Some(tasks::Tracking::Tracked { priority: value.required(b"priority")?.small()? })
             }
             Some(value) if value.text()?.as_ref() == b"untracked" => Some(tasks::Tracking::Untracked),
@@ -138,7 +140,7 @@ pub(crate) fn amendment(value: &Value) -> Result<tasks::Amendment, Problem> {
     })
 }
 
-fn executor(value: &Value) -> Result<tasks::Executor, Problem> {
+fn executor(value: Node<'_>) -> Result<tasks::Executor, Problem> {
     let kind = value.required(b"kind")?.text()?;
     match kind.as_ref() {
         b"agent" => Ok(tasks::Executor::Agent { charter: value.required(b"charter")?.small()? }),
@@ -152,16 +154,17 @@ fn executor(value: &Value) -> Result<tasks::Executor, Problem> {
     }
 }
 
-fn spec(value: &Value) -> Result<tasks::Spec, Problem> {
+fn spec(value: Node<'_>) -> Result<tasks::Spec, Problem> {
     let words = value.required(b"words")?.text()?;
     let parameters = match value.field(b"parameters")? {
         Some(items) => {
-            let items = items.array()?;
+            let mut items = items.array()?;
             let Ok(capacity) = u32::try_from(items.len()) else {
                 return Err(Problem { field: b"", why: crate::Why::TooLarge });
             };
             let mut out = List::with_capacity(capacity);
-            for item in items {
+            for _ in 0..items.len() {
+                let item = items.next().expect("counted array element");
                 let name = item.required(b"name")?.small()?;
                 let kind = item.required(b"kind")?.text()?;
                 let parameter = match kind.as_ref() {
@@ -195,7 +198,7 @@ fn spec(value: &Value) -> Result<tasks::Spec, Problem> {
     })
 }
 
-fn contract(value: &Value) -> Result<tasks::Contract, Problem> {
+fn contract(value: Node<'_>) -> Result<tasks::Contract, Problem> {
     let kind = value.required(b"kind")?.text()?;
     match kind.as_ref() {
         b"report" => Ok(tasks::Contract::Report { words: value.required(b"words")?.small()? }),
@@ -205,12 +208,13 @@ fn contract(value: &Value) -> Result<tasks::Contract, Problem> {
             words: value.required(b"words")?.small()?,
         }),
         b"verdict" => {
-            let choices = value.required(b"choices")?.array()?;
+            let mut choices = value.required(b"choices")?.array()?;
             let Ok(capacity) = u32::try_from(choices.len()) else {
                 return Err(Problem { field: b"", why: crate::Why::TooLarge });
             };
             let mut out = List::with_capacity(capacity);
-            for choice in choices {
+            for _ in 0..choices.len() {
+                let choice = choices.next().expect("counted array element");
                 let Ok(()) = out.push(tasks::Verdict {
                     fields: field_rules(choice)?,
                     code: choice.required(b"code")?.small()?,
@@ -226,14 +230,15 @@ fn contract(value: &Value) -> Result<tasks::Contract, Problem> {
     }
 }
 
-fn field_rules(value: &Value) -> Result<Box<[tasks::FieldRule]>, Problem> {
+fn field_rules(value: Node<'_>) -> Result<Box<[tasks::FieldRule]>, Problem> {
     let Some(fields) = value.field(b"fields")? else { return Ok(Box::new([])) };
-    let fields = fields.array()?;
+    let mut fields = fields.array()?;
     let Ok(capacity) = u32::try_from(fields.len()) else {
         return Err(Problem { field: b"", why: crate::Why::TooLarge });
     };
     let mut rules = List::with_capacity(capacity);
-    for field in fields {
+    for _ in 0..fields.len() {
+        let field = fields.next().expect("counted array element");
         let Ok(()) = rules
             .push(tasks::FieldRule { name: field.required(b"name")?.text()?, max: field.required(b"max")?.small()? })
         else {
@@ -243,16 +248,17 @@ fn field_rules(value: &Value) -> Result<Box<[tasks::FieldRule]>, Problem> {
     Ok(rules.into_boxed())
 }
 
-pub(crate) fn authority(value: &Value) -> Result<tasks::Authority, Problem> {
+pub(crate) fn authority(value: Node<'_>) -> Result<tasks::Authority, Problem> {
     let tools = tasks::Tools(value.required(b"tools")?.number()?);
     let grants = grants_list(value.required(b"grants")?)?;
     let delegation = value.required(b"delegation")?;
-    let kinds = delegation.required(b"kinds")?.array()?;
+    let mut kinds = delegation.required(b"kinds")?.array()?;
     let Ok(capacity) = u32::try_from(kinds.len()) else {
         return Err(Problem { field: b"", why: crate::Why::TooLarge });
     };
     let mut permitted = List::with_capacity(capacity);
-    for item in kinds {
+    for _ in 0..kinds.len() {
+        let item = kinds.next().expect("counted array element");
         let kind = item.required(b"kind")?.text()?;
         let executor = match kind.as_ref() {
             b"agent" => tasks::AuthorityExecutor::Charter(item.required(b"number")?.small()?),
@@ -290,13 +296,14 @@ pub(crate) fn authority(value: &Value) -> Result<tasks::Authority, Problem> {
     })
 }
 
-fn note_resources_list(value: &Value) -> Result<Box<[tasks::ResourceScope]>, Problem> {
-    let scopes = value.array()?;
+fn note_resources_list(value: Node<'_>) -> Result<Box<[tasks::ResourceScope]>, Problem> {
+    let mut scopes = value.array()?;
     let Ok(capacity) = u32::try_from(scopes.len()) else {
         return Err(Problem { field: b"", why: crate::Why::TooLarge });
     };
     let mut out = List::with_capacity(capacity);
-    for scope in scopes {
+    for _ in 0..scopes.len() {
+        let scope = scopes.next().expect("counted array element");
         let pattern = scope.required(b"pattern")?;
         let terminal = pattern.required(b"terminal")?.text()?;
         let bytes = pattern.required(b"last")?.text()?;
@@ -315,13 +322,14 @@ fn note_resources_list(value: &Value) -> Result<Box<[tasks::ResourceScope]>, Pro
     Ok(out.into_boxed())
 }
 
-fn grants_list(value: &Value) -> Result<Box<[tasks::Grant]>, Problem> {
-    let grants = value.array()?;
+fn grants_list(value: Node<'_>) -> Result<Box<[tasks::Grant]>, Problem> {
+    let mut grants = value.array()?;
     let Ok(capacity) = u32::try_from(grants.len()) else {
         return Err(Problem { field: b"", why: crate::Why::TooLarge });
     };
     let mut out = List::with_capacity(capacity);
-    for grant in grants {
+    for _ in 0..grants.len() {
+        let grant = grants.next().expect("counted array element");
         let segments = texts(grant.required(b"segments")?)?;
         let terminal = grant.required(b"terminal")?.text()?;
         let bytes = grant.required(b"last")?.text()?;
@@ -341,7 +349,7 @@ fn grants_list(value: &Value) -> Result<Box<[tasks::Grant]>, Problem> {
     Ok(out.into_boxed())
 }
 
-fn wake_policy(value: &Value) -> Result<tasks::WakePolicy, Problem> {
+fn wake_policy(value: Node<'_>) -> Result<tasks::WakePolicy, Problem> {
     Ok(tasks::WakePolicy {
         words: wake_rule(value.required(b"words")?)?,
         notices: wake_rule(value.required(b"notices")?)?,
@@ -358,7 +366,7 @@ fn wake_policy(value: &Value) -> Result<tasks::WakePolicy, Problem> {
     })
 }
 
-fn wake_rule(value: &Value) -> Result<tasks::WakeRule, Problem> {
+fn wake_rule(value: Node<'_>) -> Result<tasks::WakeRule, Problem> {
     match value.required(b"kind")?.text()?.as_ref() {
         b"never" => Ok(tasks::WakeRule::Never),
         b"immediate" => Ok(tasks::WakeRule::Immediate),
@@ -370,31 +378,33 @@ fn wake_rule(value: &Value) -> Result<tasks::WakeRule, Problem> {
     }
 }
 
-fn numbers(value: &Value) -> Result<Box<[u64]>, Problem> {
-    let items = value.array()?;
+fn numbers(value: Node<'_>) -> Result<Box<[u64]>, Problem> {
+    let mut items = value.array()?;
     let Ok(capacity) = u32::try_from(items.len()) else {
         return Err(Problem { field: b"", why: crate::Why::TooLarge });
     };
     let mut out = List::with_capacity(capacity);
-    for item in items {
+    for _ in 0..items.len() {
+        let item = items.next().expect("counted array element");
         let Ok(()) = out.push(item.number()?) else { return Err(Problem { field: b"", why: crate::Why::TooLarge }) };
     }
     Ok(out.into_boxed())
 }
 
-fn texts(value: &Value) -> Result<Box<[Box<[u8]>]>, Problem> {
-    let items = value.array()?;
+fn texts(value: Node<'_>) -> Result<Box<[Box<[u8]>]>, Problem> {
+    let mut items = value.array()?;
     let Ok(capacity) = u32::try_from(items.len()) else {
         return Err(Problem { field: b"", why: crate::Why::TooLarge });
     };
     let mut out = List::with_capacity(capacity);
-    for item in items {
+    for _ in 0..items.len() {
+        let item = items.next().expect("counted array element");
         let Ok(()) = out.push(item.text()?) else { return Err(Problem { field: b"", why: crate::Why::TooLarge }) };
     }
     Ok(out.into_boxed())
 }
 
-fn flags(value: &Value) -> Result<tasks::Flags, Problem> {
+fn flags(value: Node<'_>) -> Result<tasks::Flags, Problem> {
     let retention = value.required(b"retention")?.text()?;
     Ok(tasks::Flags {
         ended_by: tasks::EndedBy::Result,
@@ -410,11 +420,11 @@ fn flags(value: &Value) -> Result<tasks::Flags, Problem> {
 
 // Host-tool JSON is described per declaration, inside the unchanged worker call envelope.
 // Model/effort indices are the core's configured order; account numbers are durable names.
-fn llm(value: Option<&Value>) -> Result<Option<tasks::LlmChoice>, Problem> {
+fn llm(value: Option<Node<'_>>) -> Result<Option<tasks::LlmChoice>, Problem> {
     let Some(value) = value else { return Ok(None) };
     let mut subagents = List::with_capacity(0);
     if let Some(values) = value.field(b"subagents")? {
-        let items = values.array()?;
+        let mut items = values.array()?;
         let Ok(count) = u32::try_from(items.len()) else {
             return Err(Problem { field: b"subagents", why: crate::Why::TooLarge });
         };
@@ -422,7 +432,8 @@ fn llm(value: Option<&Value>) -> Result<Option<tasks::LlmChoice>, Problem> {
             return Err(Problem { field: b"subagents", why: crate::Why::TooLarge });
         }
         subagents = List::with_capacity(count);
-        for item in items {
+        for _ in 0..items.len() {
+            let item = items.next().expect("counted array element");
             let Ok(()) = subagents.push(model_effort(item)?) else {
                 return Err(Problem { field: b"subagents", why: crate::Why::TooLarge });
             };
@@ -437,7 +448,7 @@ fn llm(value: Option<&Value>) -> Result<Option<tasks::LlmChoice>, Problem> {
         subagents: subagents.into_boxed(),
     }))
 }
-fn model_effort(value: &Value) -> Result<tasks::ModelEffort, Problem> {
+fn model_effort(value: Node<'_>) -> Result<tasks::ModelEffort, Problem> {
     Ok(tasks::ModelEffort {
         model: model_index(value.required(b"model")?, b"model")?,
         effort: match value.field(b"effort")? {
@@ -446,7 +457,7 @@ fn model_effort(value: &Value) -> Result<tasks::ModelEffort, Problem> {
         },
     })
 }
-fn model_index(value: &Value, field: &'static [u8]) -> Result<u8, Problem> {
+fn model_index(value: Node<'_>, field: &'static [u8]) -> Result<u8, Problem> {
     match u8::try_from(value.small()?) {
         Ok(value) => Ok(value),
         Err(_) => Err(Problem { field, why: crate::Why::Range }),
