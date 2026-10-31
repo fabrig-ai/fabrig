@@ -2,6 +2,7 @@
 //! temper/docs/design/domain/testing.md, 2).
 pub(crate) enum Fixture {
     Checked,
+    Closed,
     Broken,
 }
 
@@ -16,7 +17,7 @@ use jig_domain_core::{
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{ReplyTo, Token};
-use std::collections::BTreeMap;
+use std::{borrow::Cow, collections::BTreeMap};
 use temper_engine_domain::{self as engine, Delivery, Key, Record};
 
 /// The one inventory of rows rebuilt by startup, with the step's reason.
@@ -70,38 +71,9 @@ impl Snapshot {
     }
 
     pub fn compare_rows(&self, rows: &BTreeMap<Key, Record>) {
-        for key in self.rows.keys().chain(rows.keys()) {
-            let mut before = self.rows.get(key).cloned();
-            let mut after = rows.get(key).cloned();
-            // Startup discards sessions whose durable expiry is already past.
-            for row in [&mut before, &mut after] {
-                if let Some(Record::Core(core::Record::People(people::Stored::SignIn { expires, .. }))) = row
-                    && *expires <= self.wall
-                {
-                    *row = None;
-                }
-            }
-            if rebuilt(key).is_some() {
-                for row in [&mut before, &mut after] {
-                    if let Some(Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))) = row {
-                        header.commits = 0;
-                    }
-                    if let Some(Record::Forge { row }) = row
-                        && let temper_engine_domain_forge::Stored::Client(skein_forge_client::Stored::Repository(
-                            record,
-                        )) = row.as_mut()
-                    {
-                        record.clock = skein_lib::Time::ZERO;
-                        record.mark = None;
-                    }
-                    if let Some(Record::Forge { row }) = row
-                        && let temper_engine_domain_forge::Stored::Client(skein_forge_client::Stored::Live(record)) =
-                            row.as_mut()
-                    {
-                        record.listed = skein_lib::Time::ZERO;
-                    }
-                }
-            }
+        for key in self.rows.keys().chain(rows.keys().filter(|key| !self.rows.contains_key(*key))) {
+            let before = self.rows.get(key).and_then(|row| retained(key, row, self.wall));
+            let after = rows.get(key).and_then(|row| retained(key, row, self.wall));
             if before != after {
                 assert_eq!(
                     before,
@@ -128,6 +100,31 @@ impl Snapshot {
     }
 }
 
+// Only the inventory's rebuilt rows need an owned projection.
+fn retained<'a>(key: &Key, row: &'a Record, wall: skein_lib::Wall) -> Option<Cow<'a, Record>> {
+    if matches!(row, Record::Core(core::Record::People(people::Stored::SignIn { expires, .. })) if *expires <= wall) {
+        return None;
+    }
+    if rebuilt(key).is_none() {
+        return Some(Cow::Borrowed(row));
+    }
+    let mut row = row.clone();
+    if let Record::Core(core::Record::Core(core::CoreRecord::Deployment(header))) = &mut row {
+        header.commits = 0;
+    }
+    if let Record::Forge { row } = &mut row {
+        if let temper_engine_domain_forge::Stored::Client(skein_forge_client::Stored::Repository(record)) = row.as_mut()
+        {
+            record.clock = skein_lib::Time::ZERO;
+            record.mark = None;
+        }
+        if let temper_engine_domain_forge::Stored::Client(skein_forge_client::Stored::Live(record)) = row.as_mut() {
+            record.listed = skein_lib::Time::ZERO;
+        }
+    }
+    Some(Cow::Owned(row))
+}
+
 impl Driver {
     /// The restart oracle (jig engine.md 15; temper testing.md 2): settle, snapshot,
     /// restart cold over the same store, read back, compare through `durable`.
@@ -144,7 +141,7 @@ impl Driver {
 
     /// Fixture fault at the snapshot/restart boundary, exercising the same oracle.
     pub fn close_erasing(&mut self, erase: Option<Key>) {
-        if matches!(self.broken, Fixture::Broken) {
+        if !matches!(self.broken, Fixture::Checked) {
             return;
         }
         self.oracle_settle();
@@ -166,15 +163,12 @@ impl Driver {
         self.store.crash(0);
         // Check the crashed inventory before startup can mask a missing writer row.
         snapshot.compare_rows(&self.store.rows);
-        let store = std::mem::take(&mut self.store);
-        let mut fresh = Self::cold(store, config::copy(&self.restart_config), &self.env.limits);
-        fresh.env = skein_lib::Env { now: self.env.now, wall: self.env.wall, limits: self.env.limits };
-        fresh.forge = self.forge.take();
-        fresh.protocol = std::mem::take(&mut self.protocol);
-        fresh.serial = self.serial;
-        fresh.period_sent = true;
-        self.broken = Fixture::Broken;
-        *self = fresh;
+        self.root =
+            engine::Domain::new(config::copy(&self.restart_config), &self.env.limits).expect("restart configuration");
+        self.out.clear();
+        self.events.clear();
+        self.events.push_back(engine::Event::Restart { pending: self.store.pending_generation });
+        self.period_sent = true;
         self.oracle_settle();
         snapshot.compare_rows(&self.store.rows);
         compare_forges(forges, self.root.forges());
@@ -187,6 +181,7 @@ impl Driver {
             compare_forge(*project, *subject, before, after);
         }
         self.oracle_settle();
+        self.broken = Fixture::Closed;
     }
 
     fn oracle_settle(&mut self) {
@@ -412,5 +407,22 @@ impl Drop for Driver {
         if !std::thread::panicking() {
             self.close();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn closing_twice_keeps_the_first_cold_readback() {
+        let mut driver = Driver::new(crate::store::Store::new());
+        driver.close();
+        let rows = driver.store.rows.clone();
+        let commits = driver.store.applied;
+        driver.close();
+        assert_eq!(driver.store.rows, rows);
+        assert_eq!(driver.store.applied, commits, "one cold restart per story");
+        assert!(matches!(driver.broken, Fixture::Closed));
     }
 }

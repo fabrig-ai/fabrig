@@ -33,6 +33,7 @@ struct Artifact {
     surface: &'static str,
     path: Vec<u8>,
     bytes: Vec<u8>,
+    checked_needles: usize,
 }
 struct Stream {
     role: Role,
@@ -115,24 +116,43 @@ impl Observer {
         }
     }
     fn leak(&self, bytes: &[u8]) -> Option<&'static str> {
-        self.needles.iter().find(|needle| skein_lib::bytes::find(bytes, needle.value.expose()).is_some()).map(
-            |needle| match needle.kind {
+        self.leak_since(bytes, 0)
+    }
+    fn leak_since(&self, bytes: &[u8], first: usize) -> Option<&'static str> {
+        if first == self.needles.len() {
+            return None;
+        }
+        let text = String::from_utf8_lossy(bytes);
+        self.needles[first..]
+            .iter()
+            .find(|needle| {
+                // Text surfaces use the standard library's optimized substring search.
+                // Lossy decoding preserves every ASCII run; binary needles compare exact bytes.
+                if needle.value.expose().is_ascii() {
+                    text.contains(std::str::from_utf8(needle.value.expose()).expect("ASCII needle"))
+                } else {
+                    skein_lib::bytes::find(bytes, needle.value.expose()).is_some()
+                }
+            })
+            .map(|needle| match needle.kind {
                 Kind::Key => "App key",
                 Kind::Token => "installation token",
-            },
-        )
+            })
     }
     fn check(&self, surface: &str, path: &[u8], bytes: &[u8]) {
-        assert!(self.leak(path).is_none(), "issued secret in {surface} filename");
+        self.check_since(surface, path, bytes, 0);
+    }
+    fn check_since(&self, surface: &str, path: &[u8], bytes: &[u8], first: usize) {
+        assert!(self.leak_since(path, first).is_none(), "issued secret in {surface} filename");
         assert!(
-            self.leak(bytes).is_none(),
+            self.leak_since(bytes, first).is_none(),
             "{} in {surface} {}",
             self.leak(bytes).unwrap_or("issued secret"),
             String::from_utf8_lossy(path)
         );
     }
     fn save(&mut self, surface: &'static str, path: &[u8], bytes: &[u8]) {
-        self.artifacts.push(Artifact { surface, path: path.to_vec(), bytes: bytes.to_vec() });
+        self.artifacts.push(Artifact { surface, path: path.to_vec(), bytes: bytes.to_vec(), checked_needles: 0 });
     }
     fn wire(&mut self, role: Role, fd: Fd, bytes: &[u8]) {
         let index = *self.wires.entry((role, fd.raw())).or_insert_with(|| {
@@ -211,8 +231,11 @@ impl Observer {
     }
     fn scan(&mut self) {
         assert!(!self.needles.is_empty(), "the fake issued a key");
-        for artifact in &self.artifacts {
-            self.check(artifact.surface, &artifact.path, &artifact.bytes);
+        for index in 0..self.artifacts.len() {
+            let artifact = &self.artifacts[index];
+            // Artifacts are immutable; a newly issued needle checks every earlier version.
+            self.check_since(artifact.surface, &artifact.path, &artifact.bytes, artifact.checked_needles);
+            self.artifacts[index].checked_needles = self.needles.len();
         }
         for stream in &self.streams {
             if stream.role != Role::Forge {
@@ -500,6 +523,16 @@ mod tests {
         assert!(observer.streams.iter().any(|stream| observer.leak(&stream.bytes).is_some()));
         assert!(!observer.wires.contains_key(&(Role::Client, first.raw())));
         assert!(observer.wires.contains_key(&(Role::Client, second.raw())));
+    }
+    #[test]
+    #[should_panic(expected = "installation token in earlier surface")]
+    fn a_new_token_checks_artifacts_saved_before_it_was_issued() {
+        let mut observer = Observer::default();
+        observer.token(b"observer-first-value");
+        observer.save("earlier surface", b"", b"observer-second-value");
+        observer.scan();
+        observer.token(b"observer-second-value");
+        observer.scan();
     }
     #[test]
     fn exact_secret_scans_cover_binary_debug_and_basic_encodings() {
