@@ -347,11 +347,8 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     if open {
         engine.forge.serving = Some(());
     }
-    engine.clients.starting = if open { None } else { Some(()) };
-    if let Some(demo) = &mut engine.demo {
-        demo.state = engine.domain.demo_state();
-    }
     engine.clients.playground = engine.domain.playground().copied();
+    engine.clients.starting = if open { None } else { Some(()) };
     engine.clients.iterate(
         now,
         wall,
@@ -560,6 +557,12 @@ pub(crate) fn answer(engine: &mut Engine) {
             event @ jig_protocol_store::Event::Site { .. } => {
                 crate::store::route::up(&mut engine.store.routes, event, &mut engine.store.routed);
             }
+            jig_protocol_store::Event::Erased { owner } if crate::forge::gone::owns(owner) => {
+                crate::forge::gone::answer(engine, owner);
+            }
+            jig_protocol_store::Event::Corrupt { owner } if crate::forge::gone::owns(owner) => {
+                stop::unavailable(engine, b"forge secrets erase");
+            }
             event @ (jig_protocol_store::Event::SecretsNotReady { owner }
             | jig_protocol_store::Event::Kept { owner }
             | jig_protocol_store::Event::Stale { owner }
@@ -567,7 +570,9 @@ pub(crate) fn answer(engine: &mut Engine) {
             | jig_protocol_store::Event::Carried { owner, .. }
             | jig_protocol_store::Event::Secret { owner, .. }
             | jig_protocol_store::Event::SecretsLoaded { owner, .. }) => {
-                if owner == crate::forge::records::LOAD {
+                if crate::forge::gone::owns(owner) {
+                    stop::unavailable(engine, b"forge secrets erase");
+                } else if owner == crate::forge::records::LOAD {
                     if let jig_protocol_store::Event::SecretsLoaded { rows, next, .. } = event {
                         engine.forge_records.loaded(rows, next);
                     } else if let jig_protocol_store::Event::Erased { .. } = event {
@@ -714,7 +719,7 @@ pub(crate) fn forge_pass(engine: &mut Engine) {
             skein_forge_connection::Event::Hint(hinted) => {
                 if engine.drain.is_some()
                     || engine.end.is_some()
-                    || crate::forge::ended(engine, hinted.hint.repository.forge)
+                    || engine.domain.forge_ended(hinted.hint.repository.forge)
                 {
                     continue;
                 }

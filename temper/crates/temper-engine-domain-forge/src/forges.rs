@@ -1,7 +1,7 @@
 //! Forge records and the machine's places (temper/docs/design/draft/playground-reset.md, 3–4).
 use crate::{
-    Bot, Configured, DemoState, Domain, FirstIntent, ForgeRecord, ForgeState, Key, Kind, Machine, Mode, Owned, Place,
-    Request, Stored,
+    Bot, Configured, Domain, FirstIntent, ForgeRecord, ForgeState, Key, Kind, Machine, Mode, Owned, Place, Request,
+    Stored,
 };
 use alloc::boxed::Box;
 use skein_lib::{Map, Queue};
@@ -18,17 +18,9 @@ impl Domain {
         self.records.get(&forge)
     }
 
-    /// Ended at removal's decision, or absent; the demo's end also ends its forge (domain/forge.md, 4.1).
+    /// Ended at removal's decision, or absent (temper/docs/design/draft/playground-reset.md, 4).
     #[must_use]
     pub fn forge_ended(&self, forge: u16) -> bool {
-        if self.demo_state == Some(DemoState::Ended)
-            && match &self.demo {
-                Some(demo) => demo.adoption.forge == forge,
-                None => false,
-            }
-        {
-            return true;
-        }
         match self.record(forge) {
             Some(record) => match record.state {
                 ForgeState::Kept => false,
@@ -83,7 +75,6 @@ pub(crate) fn save(d: &mut Domain, record: ForgeRecord, out: &mut Queue<Request>
 }
 
 /// Erase a record whole; its number stays spent (section 4).
-#[cfg_attr(not(test), expect(dead_code, reason = "forge removal consumes this shared surface"))]
 pub(crate) fn erase(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
     d.records.remove(&forge);
     d.configured.remove(&forge);

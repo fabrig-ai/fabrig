@@ -24,9 +24,7 @@ pub enum RecordKind {
     Release,
     Application,
     Writer,
-    Demo,
     Binding,
-    DemoAct,
     Flight,
     Landing,
     Receipt,
@@ -40,7 +38,6 @@ pub struct Unresolved {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Need {
     Forge(u16),
-    Demo(u16),
     Repository(Repository),
     Task { task: u64, retired: Option<u16> },
     EntryOwner { task: u64, entry: u64 },
@@ -82,8 +79,7 @@ pub(crate) fn capacity(l: &Limits) -> Option<u32> {
         .checked_add(l.applications)? // Application: adopted repository, if any.
         .checked_add(l.client.repositories)? // Writer: configured forge.
         .checked_add(l.landings.checked_mul(l.landing_members)?)?
-        .checked_add(l.repositories.checked_mul(l.gates)?.checked_mul(l.receipts_per_gate)?)?
-        .checked_add(1) // Demo: configured demo's forge.
+        .checked_add(l.repositories.checked_mul(l.gates)?.checked_mul(l.receipts_per_gate)?)
 }
 impl Reconciliation {
     pub(crate) fn new(l: &Limits) -> Self {
@@ -238,7 +234,6 @@ impl Reconciliation {
                 crate::ApplicationOutcome::CoreRefused(_) | crate::ApplicationOutcome::ForgeRefused(_) => Ok(()),
             },
             Stored::Writer(row) => self.need(RecordKind::Writer, Need::Forge(row.forge)),
-            Stored::Demo(row) => self.need(RecordKind::Demo, Need::Demo(row.forge)),
             // Landing history outlives tasks (domain/forge.md, 7.2).
             // Bindings outlive members. End acts retry until the saved answer,
             // including after their target ended or was removed.
@@ -246,8 +241,7 @@ impl Reconciliation {
             | Stored::ForgeNumber { .. }
             | Stored::Playground(_)
             | Stored::Landed { .. }
-            | Stored::Binding { .. }
-            | Stored::DemoAct(_) => Ok(()),
+            | Stored::Binding { .. } => Ok(()),
             Stored::Flight { task, entry } => self.need(RecordKind::Flight, Need::Entry { task: *task, entry: *entry }),
         }
     }
@@ -273,9 +267,9 @@ impl Domain {
                 Need::Task { task, .. } | Need::EntryOwner { task, .. } | Need::Entry { task, .. } => {
                     tasks.task(task).is_some()
                 }
-                Need::Forge(_) | Need::Demo(_) | Need::Repository(_) => false,
+                Need::Forge(_) | Need::Repository(_) => false,
             };
-            if !self.reference_resolves(reference.need, live) {
+            if !self.reference_resolves(reference.kind, reference.need, live) {
                 return Some(MissingLink {
                     kind: reference.kind,
                     key: self.restored_link_key(
@@ -297,16 +291,16 @@ impl Domain {
     fn configured_forge(&self, forge: u16) -> bool {
         self.configured.contains_key(&forge) || self.identities.contains_key(&forge)
     }
-    fn reference_resolves(&self, need: Need, live: bool) -> bool {
+    fn reference_resolves(&self, kind: RecordKind, need: Need, live: bool) -> bool {
         match need {
             // Identities are constructor facts too; a restored writer is never one.
             Need::Forge(forge) => self.configured_forge(forge),
-            Need::Demo(forge) => match &self.demo {
-                Some(demo) => demo.adoption.forge == forge,
-                None => false,
-            },
             Need::Repository(repository) => {
-                self.configured_forge(repository.forge) && self.repositories.contains_key(&repository)
+                (self.configured_forge(repository.forge) && self.repositories.contains_key(&repository))
+                    || (Self::historical_repository(kind)
+                        && self.forge_ended(repository.forge)
+                        && repository.forge != 0
+                        && repository.forge <= self.forge_number)
             }
             Need::Task { retired, .. } => {
                 live || match retired {
@@ -328,6 +322,35 @@ impl Domain {
                 }
                 None => false,
             },
+        }
+    }
+
+    // History survives removal without retaining its repository's row
+    // (temper/docs/design/draft/playground-reset.md, 4 and 9).
+    const fn historical_repository(kind: RecordKind) -> bool {
+        match kind {
+            RecordKind::BranchHead
+            | RecordKind::PullState
+            | RecordKind::Ci
+            | RecordKind::Change
+            | RecordKind::Issue
+            | RecordKind::Application
+            | RecordKind::Landing
+            | RecordKind::Receipt => true,
+            RecordKind::Forge
+            | RecordKind::Call
+            | RecordKind::ProposedEffect
+            | RecordKind::Repository
+            | RecordKind::Hold
+            | RecordKind::Names
+            | RecordKind::Subscription
+            | RecordKind::Landed
+            | RecordKind::Entry
+            | RecordKind::Client
+            | RecordKind::Release
+            | RecordKind::Writer
+            | RecordKind::Binding
+            | RecordKind::Flight => false,
         }
     }
 
@@ -353,7 +376,7 @@ pub(crate) fn references_resolve(d: &Domain, limits: &Limits, row: &Stored, live
             Need::Task { task, .. } | Need::EntryOwner { task, .. } | Need::Entry { task, .. } => {
                 live_tasks.contains(&task)
             }
-            Need::Forge(_) | Need::Demo(_) | Need::Repository(_) => false,
+            Need::Forge(_) | Need::Repository(_) => false,
         };
         // Writer rules are an oracle concern, separate from runtime target links.
         if let Need::EntryOwner { task, entry } | Need::Entry { task, entry } = reference.need
@@ -362,7 +385,7 @@ pub(crate) fn references_resolve(d: &Domain, limits: &Limits, row: &Stored, live
             let check_owner = match reference.need {
                 Need::Entry { .. } => true,
                 Need::EntryOwner { .. } => !live && !d.forge_ended(row.entry.repository.forge),
-                Need::Forge(_) | Need::Demo(_) | Need::Repository(_) | Need::Task { .. } => false,
+                Need::Forge(_) | Need::Repository(_) | Need::Task { .. } => false,
             };
             if check_owner && row.entry.task != task {
                 return false;
@@ -375,7 +398,7 @@ pub(crate) fn references_resolve(d: &Domain, limits: &Limits, row: &Stored, live
                 return false;
             }
         }
-        if !d.reference_resolves(reference.need, live) {
+        if !d.reference_resolves(reference.kind, reference.need, live) {
             return false;
         }
     }

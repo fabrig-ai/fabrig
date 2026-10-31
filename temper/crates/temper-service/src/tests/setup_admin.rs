@@ -614,17 +614,7 @@ fn an_ended_forge_finishes_the_admin_run_without_keeping_the_token() {
     let mut service = service(&forge);
     let run = pending(&mut service);
     let engine = service.engine.as_mut().unwrap();
-    engine.demo = Some(crate::settings::Demo {
-        project: 1,
-        forge: 1,
-        provider: 1,
-        owner: b"owner".as_slice().into(),
-        name: b"ended".as_slice().into(),
-        cues: Box::new([]),
-        landing: b"main".as_slice().into(),
-        key_file: Box::new([]),
-        state: Some(domain::DemoState::Ended),
-    });
+    end_domain(engine);
     // Replace the fake host's pending read with its terminal, so no stale Need follows Done.
     while engine.setup.above.pop().is_some() {}
     engine.setup.above.push(host::Event::Done { run, outcome: reconcile::Outcome::Nothing });

@@ -815,13 +815,8 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                     panic!("unexpected delegate")
                 }
                 top::Request::Bound { .. }
-                | top::Request::ListDemoActs
-                | top::Request::SendDemoAct(_)
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
-                | top::Request::DemoStart { .. }
-                | top::Request::StopGroup { .. }
-                | top::Request::SetUpGroup { .. }
                 | top::Request::ForgeKept(_)
                 | top::Request::ForgeGone { .. }
                 | top::Request::BoxGroup { .. }
@@ -2241,4 +2236,50 @@ fn a_failed_producer_keeps_its_words_through_restart_and_holds_at_producing() {
     assert!(matches!(&saved.change.state, change::State::Held { was, why: change::Hold::Failed }
         if matches!(was.as_ref(), change::State::Producing { .. })));
     assert_eq!(world.writes(), 0, "no pull request or other write for an inapplicable change");
+}
+
+// Removal retires every live watch (temper/docs/design/draft/playground-reset.md, 4).
+#[test]
+fn a_removed_forge_reads_nothing_after() {
+    let mut world = World::writerless(204);
+    assert!(world.give_writer(skein_forge_client::Writer { forge: 1, author: 1 }));
+    world.adopt();
+    world.event(top::Event::Restore {
+        record: top::Stored::Forge(top::ForgeRecord {
+            number: 1,
+            kind: top::Kind::Forgejo,
+            mode: top::Mode::Connected,
+            state: top::ForgeState::Kept,
+            place: top::Place {
+                api: top::Address { host: b"forge.example".as_slice().into(), port: 443, tls: None },
+                git: b"https://forge.example".as_slice().into(),
+                web: None,
+            },
+            read_only: false,
+            bot: top::Bot { login: b"bot".as_slice().into(), name: Box::new([]), email: Box::new([]) },
+            asked: false,
+            first: None,
+        }),
+    });
+    let name = top::Name { forge: 1, repository: REPO.repository, what: top::What::Issue(1) };
+    world.event(top::Event::Names { task: 42, resources: Box::new([name]) });
+    world.run_for(5);
+    world.event(top::Event::Application {
+        request: Token::new(200),
+        token: Token::new(200),
+        retention: skein_lib::Duration::from_secs(60),
+        ask: top::Ask::RemoveForge { forge: 1 },
+        role: Some(jig_domain_people::Role::Owner),
+        carried: None,
+    });
+    let calls = world.calls();
+    world.event(top::Event::Hint {
+        hint: skein_forge::api::Hint { repository: REPO, change: skein_forge::api::Change::Item(1), key: None },
+    });
+    world.run_for(60);
+    assert_eq!(world.calls(), calls);
+    world.event(top::Event::SecretsErased { forge: 1 });
+    world.restart();
+    world.run_for(60);
+    assert_eq!(world.calls(), calls, "the ended forge stays unread across restart");
 }

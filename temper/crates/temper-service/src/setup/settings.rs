@@ -285,10 +285,6 @@ fn resolved(layer: &mut super::Layer, forges: &skein_forge_connection::Settings)
 
 fn local_starts(config: &crate::settings::Engine, layer: &mut super::Layer, under_box: bool) -> Result<(), Problems> {
     let own = &config.limits;
-    let demo_forge = match &config.demo {
-        Some(demo) if under_box => Some(demo.forge),
-        Some(_) | None => None,
-    };
     for setup in &config.setup {
         if !config.records_only.contains(&setup.entry.forge) {
             continue; // temper-15 removes old-form file startup and its fake adoption.
@@ -325,8 +321,12 @@ fn local_starts(config: &crate::settings::Engine, layer: &mut super::Layer, unde
             path: temper_forge_setup::place::Place { directory: setup.entry.directory.clone(), user: Box::new([]) }
                 .path(temper_forge_setup::place::File::AdminToken),
             file: super::lifecycle::FileStep::Idle,
-            trigger: if demo_forge == Some(setup.entry.forge) {
-                super::lifecycle::Trigger::StartDemo
+            trigger: if under_box
+                && match &setup.entry.mode {
+                    Mode::Fake(_) => true,
+                    Mode::Owned(_) | Mode::Managed { .. } => false,
+                } {
+                super::lifecycle::Trigger::StartFake
             } else if setup.entry.asked {
                 super::lifecycle::Trigger::StartAsked
             } else {

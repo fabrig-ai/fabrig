@@ -218,7 +218,7 @@ impl Runtime {
                 .path(temper_forge_setup::place::File::AdminToken),
             file: lifecycle::FileStep::Idle,
             trigger: if record.mode == domain::Mode::Fake {
-                lifecycle::Trigger::StartDemo
+                lifecycle::Trigger::StartFake
             } else if record.asked {
                 lifecycle::Trigger::StartAsked
             } else {

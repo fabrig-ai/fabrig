@@ -738,7 +738,6 @@ impl World {
                 engine::PartyRequest::SignInRefused { .. } | engine::PartyRequest::WatchRefused { .. },
             )
             | engine::Request::Account(_)
-            | engine::Request::SetUpGroup { .. }
             | engine::Request::ForgeKept(_)
             | engine::Request::ForgeGone { .. }
             | engine::Request::BoxGroup { .. }
@@ -751,7 +750,6 @@ impl World {
             | engine::Request::Install { .. }
             | engine::Request::Accept { .. }
             | engine::Request::EraseCarried { .. }
-            | engine::Request::StopGroup { .. }
             | engine::Request::SetUp { .. }
             | engine::Request::Bound { .. }
             | engine::Request::Return { .. }
@@ -790,7 +788,6 @@ impl World {
             | engine::Request::Party(_)
             | engine::Request::Forge { .. }
             | engine::Request::Account(_)
-            | engine::Request::SetUpGroup { .. }
             | engine::Request::ForgeKept(_)
             | engine::Request::ForgeGone { .. }
             | engine::Request::BoxGroup { .. }
@@ -803,7 +800,6 @@ impl World {
             | engine::Request::Install { .. }
             | engine::Request::Accept { .. }
             | engine::Request::EraseCarried { .. }
-            | engine::Request::StopGroup { .. }
             | engine::Request::SetUp { .. }
             | engine::Request::Bound { .. }
             | engine::Request::Return { .. }
@@ -893,8 +889,7 @@ impl World {
             }
             // A live notice to the requester, with no reply right.
             Delivery::Result { .. } => {}
-            other @ (Delivery::DemoActed { .. }
-            | Delivery::DemoNote { .. }
+            other @ (Delivery::PlaygroundNote { .. }
             | Delivery::Host(_)
             | Delivery::Procedure { .. }
             | Delivery::Forges { .. }
