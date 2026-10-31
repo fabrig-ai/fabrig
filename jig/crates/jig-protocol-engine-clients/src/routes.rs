@@ -27,19 +27,19 @@ pub(crate) fn message(message: crate::Message) -> (Route, Box<[u8]>) {
         crate::Message::Authorize(body) => (Route::Authorize, body),
     }
 }
-pub(crate) fn refused(_limits: &w::Limits) -> Box<[u8]> {
+pub(crate) fn refused() -> Box<[u8]> {
     let answer = w::SignInAnswer::Refused;
     let mut out = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
     answer.encode(&mut out).expect("refusal fits");
     out.finish()
 }
-pub(crate) fn signed_out(_limits: &w::Limits) -> Box<[u8]> {
+pub(crate) fn signed_out() -> Box<[u8]> {
     let answer = w::KeyedAnswer::SignedOut;
     let mut out = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
     answer.encode(&mut out).expect("signed out fits");
     out.finish()
 }
-pub(crate) fn signed_in(_limits: &w::Limits, answer: w::SignedIn) -> Box<[u8]> {
+pub(crate) fn signed_in(answer: w::SignedIn) -> Box<[u8]> {
     let answer = w::SignInAnswer::SignedIn(answer);
     let mut out = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("wire size fits"));
     answer.encode(&mut out).expect("admitted sign-in");
@@ -87,10 +87,10 @@ pub(crate) fn unauthenticated(route: Route, limits: &w::Limits) -> Box<[u8]> {
         Route::Watch => open_answer(Some(jig_domain_core::WatchRefusal::SignedOut), limits),
         Route::Unwatch => close_answer(true),
         Route::Gone | Route::Stream => Box::new([]),
-        Route::Link | Route::Service => refused(limits),
+        Route::Link | Route::Service => refused(),
         Route::SignOut => sign_out_answer(),
         Route::Authorize => authorize_answer(w::AuthorizeAnswer::SignedOut),
-        Route::Request => signed_out(limits),
+        Route::Request => signed_out(),
     }
 }
 

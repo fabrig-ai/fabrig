@@ -213,7 +213,7 @@ pub fn frame(value: &d::Frame, models: &[crate::Model], limits: &w::Limits) -> R
     )
 }
 
-pub fn part_kind(value: t::PartKind, _limits: &w::Limits) -> Result<w::OwnerPartKind, w::Problem> {
+pub fn part_kind(value: t::PartKind) -> Result<w::OwnerPartKind, w::Problem> {
     Ok(match value {
         t::PartKind::Resource => w::OwnerPartKind::Resource,
         t::PartKind::Pool => w::OwnerPartKind::Pool,
@@ -233,10 +233,7 @@ pub fn part(value: &t::Part, limits: &w::Limits) -> Result<w::OwnerPart, w::Prob
             w::OwnerPartKey::Path(w::OwnerPartKeyPath::new(limits, w::OwnerPartKeyPathParts { value: value.clone() })?)
         }
     };
-    w::OwnerPart::new(
-        limits,
-        w::OwnerPartParts { connector: value.connector, kind: part_kind(value.kind, limits)?, key },
-    )
+    w::OwnerPart::new(limits, w::OwnerPartParts { connector: value.connector, kind: part_kind(value.kind)?, key })
 }
 pub fn pattern(
     segments: &List<Box<[u8]>>,

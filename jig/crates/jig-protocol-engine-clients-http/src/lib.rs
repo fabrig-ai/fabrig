@@ -72,7 +72,7 @@ impl Mount {
     pub fn room(&self) -> u32 {
         self.calls.capacity().checked_sub(self.calls.len()).expect("bounded mounted calls")
     }
-    pub fn down(&mut self, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    pub fn down(&mut self, env: &Env<Limits>, event: Event) {
         match event {
             Event::Listening { hosts } => self.hosts = hosts,
             Event::Call { call, head } => {
@@ -125,7 +125,7 @@ impl Mount {
                     value.events.push(event);
                 }
             }
-            Event::Component(message) => self.component(env, message, out),
+            Event::Component(message) => self.component(env, message),
         }
     }
     pub fn up(&mut self, env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
@@ -152,7 +152,7 @@ impl Mount {
         }
         true
     }
-    fn component(&mut self, env: &Env<Limits>, message: kit::ToTransport, _out: &mut Queue<Request>) {
+    fn component(&mut self, env: &Env<Limits>, message: kit::ToTransport) {
         let name = match &message {
             kit::ToTransport::Reply { exchange, .. } => *exchange,
             kit::ToTransport::Streamed { stream, .. } | kit::ToTransport::StreamEnded { stream, .. } => *stream,
@@ -179,7 +179,6 @@ impl Mount {
     pub fn next_deadline(&self) -> Option<Time> {
         None
     }
-    pub fn fire(&mut self, _env: &Env<Limits>, _out: &mut Queue<Request>) {}
 }
 #[must_use]
 pub fn claims(settings: &Settings, call: &http::Call) -> bool {

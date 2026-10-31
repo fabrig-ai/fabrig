@@ -21,17 +21,14 @@ impl Component {
         let Some(owner) = self.owner(exchange) else { return };
         let active = self.active(sign_in);
         if active >= env.limits.exchanges_per_client || self.admitted() >= env.limits.exchanges {
-            self.respond(env, exchange, routes::read_none(core::reads::Why::Busy, &env.limits.wire));
+            self.respond(exchange, routes::read_none(core::reads::Why::Busy, &env.limits.wire));
             return;
         }
         let mut reader = Reader::new(body);
         let record = match w::Owned::decode(&env.limits.wire, &mut reader) {
             Ok(value) if reader.is_empty() => value.into_parts(),
             Ok(_) | Err(_) => {
-                self.connections
-                    .get_mut(&owner)
-                    .expect("exchange owner")
-                    .respond(crate::Reply::NotARecord, &env.limits);
+                self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
                 return;
             }
         };
@@ -42,13 +39,13 @@ impl Component {
         if !self.serves(family, record.version) {
             let answer =
                 w::ReadAnswer::NotServed(crate::served::not_served(&self.settings, record.owner, &env.limits.wire));
-            self.respond(env, exchange, routes::encoded_read(&answer));
+            self.respond(exchange, routes::encoded_read(&answer));
             return;
         }
         let request = match record.owner {
             w::Owner::Jig => {
                 let Some(what) = crate::translate::reads::decode(&record.record, &env.limits.wire) else {
-                    self.respond(env, exchange, routes::read_none(core::reads::Why::Unknown, &env.limits.wire));
+                    self.respond(exchange, routes::read_none(core::reads::Why::Unknown, &env.limits.wire));
                     return;
                 };
                 let request = Request::Core(Box::new(core::Event::Read {
@@ -64,17 +61,11 @@ impl Component {
             }
             w::Owner::Family(value) => {
                 let Ok(body) = w::FamilyRecord::decode(&env.limits.wire, &mut Reader::new(&record.record)) else {
-                    self.connections
-                        .get_mut(&owner)
-                        .expect("exchange owner")
-                        .respond(crate::Reply::NotARecord, &env.limits);
+                    self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
                     return;
                 };
                 let Some(window) = crate::served::window(body.window()) else {
-                    self.connections
-                        .get_mut(&owner)
-                        .expect("exchange owner")
-                        .respond(crate::Reply::NotARecord, &env.limits);
+                    self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
                     return;
                 };
                 let scope = crate::served::scope(body.scope());
@@ -96,26 +87,18 @@ impl Component {
         };
         out.push(request);
     }
-    pub(super) fn read_answer(
-        &mut self,
-        env: &Env<Limits>,
-        exchange: Token,
-        answer: &core::reads::Answer,
-        out: &mut Queue<Request>,
-    ) {
+    pub(super) fn read_answer(&mut self, env: &Env<Limits>, exchange: Token, answer: &core::reads::Answer) {
         let Some(waiting) = self.pending.exchanges.remove(&exchange) else { return };
         match waiting {
             Waiting::Read { what, .. } => {
                 self.read_response(
-                    env,
                     exchange,
                     crate::translate::reads::answer(&what, answer, &self.settings.models, &env.limits.wire),
-                    out,
                 );
             }
             waiting @ Waiting::ApplicationRead { .. } => match answer {
                 core::reads::Answer::None(why) => {
-                    self.respond(env, exchange, routes::read_none(*why, &env.limits.wire));
+                    self.respond(exchange, routes::read_none(*why, &env.limits.wire));
                 }
                 core::reads::Answer::Setting(_)
                 | core::reads::Answer::Revision(_)
@@ -149,7 +132,6 @@ impl Component {
         exchange: Token,
         family: u16,
         record: Option<Box<[u8]>>,
-        out: &mut Queue<Request>,
     ) {
         let Some(waiting) = self.pending.exchanges.remove(&exchange) else { return };
         match waiting {
@@ -163,7 +145,7 @@ impl Component {
                     },
                     None => Ok(crate::translate::reads::none(core::reads::Why::Unknown, &env.limits.wire)),
                 };
-                self.read_response(env, exchange, answer, out);
+                self.read_response(exchange, answer);
             }
             Waiting::Authorize { .. }
             | Waiting::Core { .. }
@@ -183,24 +165,15 @@ impl Component {
             }
         }
     }
-    fn read_response(
-        &mut self,
-        env: &Env<Limits>,
-        exchange: Token,
-        answer: Result<w::ReadAnswer, w::Problem>,
-        out: &mut Queue<Request>,
-    ) {
+    fn read_response(&mut self, exchange: Token, answer: Result<w::ReadAnswer, w::Problem>) {
         let Some(owner) = self.owner(exchange) else { return };
         match answer {
             Ok(value) => {
                 let mut bytes = Writer::new(usize::try_from(value.measure()).expect("wire measure fits"));
                 value.encode(&mut bytes).expect("measured read answer");
-                self.connections
-                    .get_mut(&owner)
-                    .expect("exchange owner")
-                    .respond(crate::Reply::Record(bytes.finish()), &env.limits);
+                self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::Record(bytes.finish()));
             }
-            Err(_) => self.connections.get_mut(&owner).expect("exchange owner").close(out),
+            Err(_) => self.connections.get_mut(&owner).expect("exchange owner").close(),
         }
     }
 }
