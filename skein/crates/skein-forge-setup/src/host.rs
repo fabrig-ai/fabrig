@@ -62,6 +62,7 @@ impl Host {
             return;
         }
         match request {
+            Request::Add(_) | Request::Remove { .. } => {}
             Request::Run { run, plan } => {
                 let forge = plan.forge();
                 assert!(!self.runs.contains_key(&run), "one live run per owner token");

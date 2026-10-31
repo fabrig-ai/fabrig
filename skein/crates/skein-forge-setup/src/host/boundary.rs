@@ -107,8 +107,15 @@ pub(super) enum Dialect {
     GitHub,
     Both,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+/// Runtime forge membership (temper/docs/design/draft/playground-reset.md, 3 and 4).
+#[derive(Clone, Debug)]
 pub enum Request {
+    /// Takes a forge while the host runs; held numbers and excess forges are ignored.
+    Add(super::settings::Forge),
+    /// Ends the forge's runs with their Stop, aborts its connections and drops it.
+    Remove {
+        forge: u16,
+    },
     Run {
         run: Token,
         plan: Plan,
