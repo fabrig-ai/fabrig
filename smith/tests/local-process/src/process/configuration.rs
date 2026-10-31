@@ -5,7 +5,7 @@ use skein_lib::Duration;
 use smith_agent_service as agent;
 use smith_local_domain as local;
 use smith_local_service as service;
-use smith_local_shell::local_host::token_limits;
+use smith_local_shell::credentials::token_limits;
 use std::path::PathBuf;
 
 /// The bounded agent settings shared by both local placements.

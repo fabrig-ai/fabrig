@@ -422,7 +422,7 @@ impl Host for ResultFile {
             && self.submissions.is_empty()
     }
     fn operations(&self) -> u32 {
-        4
+        super::RESULT_FILE_OPERATIONS
     }
 }
 

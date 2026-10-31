@@ -17,7 +17,7 @@ fn a_sign_in_uses_the_page_and_redirect_before_lending_the_saved_token() {
         assert!(world.saved_before_query());
         let saved = smith_local_process_world::credential_fixture::Tokens::new(
             &world.scenario.launch.token_directory,
-            smith_local_shell::local_host::token_limits(),
+            smith_local_shell::credentials::token_limits(),
         )
         .expect("private synthetic token store")
         .load(0)
@@ -73,7 +73,7 @@ fn a_lent_grant_refreshes_while_the_model_is_running_before_it_lapses() {
     assert!(post.as_nanos() < skein_tls_world::pki::VALID.as_nanos() + skein_lib::Duration::from_secs(61).as_nanos());
     let token = smith_local_process_world::credential_fixture::Tokens::new(
         &files.path().join("tokens"),
-        smith_local_shell::local_host::token_limits(),
+        smith_local_shell::credentials::token_limits(),
     )
     .expect("private store")
     .load(0)
@@ -90,7 +90,7 @@ fn a_current_sign_in_record_lends_its_grant_without_a_refresh() {
     let mut world = World::authenticated(42, &files, Placement::InProcess, Authentication::Current);
     let tokens = smith_local_process_world::credential_fixture::Tokens::new(
         &files.path().join("tokens"),
-        smith_local_shell::local_host::token_limits(),
+        smith_local_shell::credentials::token_limits(),
     )
     .expect("private store");
     let before = std::fs::read(files.path().join("tokens/0.json")).expect("synthetic record");

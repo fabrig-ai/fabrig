@@ -16,7 +16,7 @@ pub(super) fn keep(file: &Path, input: &mut dyn Read, terminal: bool) -> Result<
     if terminal {
         return Err("key input must be piped; a terminal echoes credentials".into());
     }
-    let bound = crate::local_host::token_limits().token_bytes;
+    let bound = crate::credentials::token_limits().token_bytes;
     let mut bytes = Vec::new();
     input
         .take(u64::from(bound).checked_add(2).expect("key input bound"))

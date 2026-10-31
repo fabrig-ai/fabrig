@@ -54,7 +54,7 @@ fn a_key_with_a_space_is_unreadable() {
 #[test]
 fn a_key_at_the_token_bound_is_usable() {
     let files = Files::new("smith-credentials");
-    let bound = usize::try_from(crate::local_host::token_limits().token_bytes).expect("token bound");
+    let bound = usize::try_from(crate::credentials::token_limits().token_bytes).expect("token bound");
     let bytes = vec![b'x'; bound];
     assert!(inspect(&file(&files, &bytes, 0o600)).usable(), "key at bound");
 }
@@ -62,7 +62,7 @@ fn a_key_at_the_token_bound_is_usable() {
 #[test]
 fn a_key_past_the_token_bound_is_unreadable() {
     let files = Files::new("smith-credentials");
-    let bound = usize::try_from(crate::local_host::token_limits().token_bytes).expect("token bound");
+    let bound = usize::try_from(crate::credentials::token_limits().token_bytes).expect("token bound");
     let bytes = vec![b'x'; bound + 1];
     assert!(matches!(inspect(&file(&files, &bytes, 0o600)), Credential::KeyUnreadable { .. }), "key past bound");
 }
@@ -82,7 +82,7 @@ fn a_usable_key_report_holds_no_value() {
 #[test]
 fn unusable_key_reports_name_the_problem_without_private_data() {
     let files = Files::new("smith-credentials");
-    let bound = usize::try_from(crate::local_host::token_limits().token_bytes).expect("token bound");
+    let bound = usize::try_from(crate::credentials::token_limits().token_bytes).expect("token bound");
     let oversized = vec![b'x'; bound + 1];
     for (bytes, mode, expected, words) in [
         (b"key-for-work".as_slice(), 0o644, KeyProblem::Mode, "mode"),

@@ -15,7 +15,7 @@ use skein_io::kernel;
 use skein_lib::{Duration, Queue, Wall};
 use skein_world::{HostedProgram, Memory, Outcome};
 use smith_local_domain as local;
-use smith_local_shell::local_host::token_limits;
+use smith_local_shell::credentials::token_limits;
 use smith_local_world::git::History;
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -850,7 +850,8 @@ impl World {
         let local_operations =
             smith_local_shell::local_host::Local::kernel_operations(&lower.limits.io, lower.limits.routes, true)
                 .expect("local shell and handed accounts fit")
-                .checked_add(5)
+                .checked_add(smith_local_shell::compose::RESULT_FILE_OPERATIONS)
+                .and_then(|operations| operations.checked_add(1))
                 .expect("four result-file operations and diagnostic pipe fit");
         world.host_startup(
             HostedProgram {

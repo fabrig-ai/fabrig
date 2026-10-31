@@ -14,7 +14,7 @@ fn settings(scratch: &Scratch, extra: &str) {
 }
 
 fn limits() -> skein_oauth::Limits {
-    let mut limits = smith_local_shell::local_host::token_limits();
+    let mut limits = smith_local_shell::credentials::token_limits();
     limits.issued_client_bytes = 1024;
     limits.subject_bytes = 1024;
     limits

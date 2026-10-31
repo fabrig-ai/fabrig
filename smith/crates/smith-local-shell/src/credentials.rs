@@ -1,6 +1,8 @@
 //! Credential source inspection for startup and check (shell.md, section 7).
 //! Reports retain names, locations and expiry only. Login bytes and variable
 //! values leave this module only for the service's credential storage.
+pub(crate) const PROGRAM_SOCKETS: u32 = 3;
+
 use crate::settings::{self, Sourced};
 use skein_lib::Wall;
 use smith_local_protocol::Borrowed;
@@ -225,7 +227,7 @@ pub fn env_record(value: &[u8], codex: bool, wall: Wall) -> Option<Borrowed> {
             object: b"https://api.openai.com/auth".as_slice().into(),
             field: b"chatgpt_account_id".as_slice().into(),
         };
-        let claims = skein_oauth::read_claims(value, &selector, wall, &crate::local_host::token_limits()).ok()?;
+        let claims = skein_oauth::read_claims(value, &selector, wall, &token_limits()).ok()?;
         if claims.metadata.is_empty() || claims.metadata.len() > smith_local_service::Source::account_id_bytes() {
             return None;
         }
@@ -254,8 +256,7 @@ pub fn env_record(value: &[u8], codex: bool, wall: Wall) -> Option<Borrowed> {
 
 pub(crate) fn valid_key(value: &[u8]) -> bool {
     !value.is_empty()
-        && u64::try_from(value.len()).expect("key length fits u64")
-            <= u64::from(crate::local_host::token_limits().token_bytes)
+        && u64::try_from(value.len()).expect("key length fits u64") <= u64::from(token_limits().token_bytes)
         && value.iter().all(|byte| (0x21..=0x7e).contains(byte))
 }
 
@@ -293,3 +294,22 @@ pub(crate) mod tests;
 
 #[cfg(test)]
 mod state_tests;
+
+/// Bounded saved-token documents shared by both placements and the shell store.
+#[must_use]
+pub fn token_limits() -> skein_oauth::Limits {
+    skein_oauth::Limits {
+        issued_client_bytes: 0,
+        granted_bytes: 1024,
+        subject_bytes: 0,
+        id_token_bytes: 8192,
+        document_bytes: 16_384,
+        string_bytes: 8192,
+        token_bytes: 8192,
+        client_bytes: 1024,
+        detail_bytes: 1024,
+        record_bytes: 32_768,
+        depth: 16,
+        tokens: 1024,
+    }
+}

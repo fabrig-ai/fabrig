@@ -652,7 +652,7 @@ impl skein_world::Referee<crate::process::Proc> for Run {
         if authenticated && !self.saved_before_query && self.queries > 0 {
             let tokens = crate::credential_fixture::Tokens::new(
                 &self.token_directory,
-                smith_local_shell::local_host::token_limits(),
+                smith_local_shell::credentials::token_limits(),
             )
             .expect("private store");
             assert_eq!(

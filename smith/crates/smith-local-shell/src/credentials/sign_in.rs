@@ -158,7 +158,7 @@ fn trust(account: &Account, workspace: &std::path::Path) -> Result<skein_tls::Co
 }
 
 pub(super) fn document_limits() -> oauth::Limits {
-    let mut limits = crate::local_host::token_limits();
+    let mut limits = crate::credentials::token_limits();
     limits.issued_client_bytes = 1024;
     limits.subject_bytes = 1024;
     limits

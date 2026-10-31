@@ -16,7 +16,8 @@ use skein_world::{Inherited, StartupRoot};
 use smith_agent_service as agent;
 use smith_local_domain as local;
 use smith_local_service as service;
-use smith_local_shell::local_host::{Local, Resources, token_limits};
+use smith_local_shell::credentials::token_limits;
+use smith_local_shell::local_host::{Local, Resources};
 use std::{os::unix::ffi::OsStrExt, path::PathBuf};
 
 mod agent_process;

@@ -15,6 +15,9 @@ use skein_lib::Wall;
 use skein_shell::{Clock, Config, Kernel};
 use std::path::{Path, PathBuf};
 
+/// Kernel operations held by the result file owner.
+pub const RESULT_FILE_OPERATIONS: u32 = 4;
+
 /// The agent placement chosen by the product or supplied by a library host.
 #[derive(Clone)]
 pub enum AgentKind {
@@ -121,7 +124,7 @@ fn open_settings(
                 Refused::Local(startup::Failure::Configuration { detail: "local operation bound overflows".into() })
             })?;
     let operations = operations
-        .checked_add(if invocation.output.is_some() { 4 } else { 0 })
+        .checked_add(if invocation.output.is_some() { RESULT_FILE_OPERATIONS } else { 0 })
         .ok_or_else(|| Refused::Usage(Usage("the output operation bound overflows".into())))?;
     let mut kernel = Kernel::open(Config { operations })
         .map_err(|why| Refused::Local(startup::Failure::Host { detail: format!("local kernel: {why}") }))?;

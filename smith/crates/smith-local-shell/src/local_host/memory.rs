@@ -26,11 +26,13 @@ impl Local {
         if programs {
             io_limits.sockets = io_limits
                 .sockets
-                .checked_add(3)
+                .checked_add(crate::credentials::PROGRAM_SOCKETS)
                 .ok_or_else(|| configuration_failure("program I/O count overflows".into()))?;
         }
         let operations = Self::kernel_operations(&io_limits, lower_routes, handed.is_some())
-            .and_then(|operations| operations.checked_add(if result_file { 4 } else { 0 }))
+            .and_then(|operations| {
+                operations.checked_add(if result_file { crate::compose::RESULT_FILE_OPERATIONS } else { 0 })
+            })
             .ok_or_else(|| configuration_failure(derivation_refusal("local_routes")))?;
         if !service::valid(limits) {
             return Err(configuration_failure(derivation_refusal("local_limits")));
