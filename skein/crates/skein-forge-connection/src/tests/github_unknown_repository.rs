@@ -492,6 +492,7 @@ fn discovery_waits_for_installation_changes_and_git_tokens() {
         | Event::Hint(_)
         | Event::Listening { .. }
         | Event::ListenerLost
+        | Event::Added { .. }
         | Event::Connected { .. }
         | Event::Stopped { .. }
         | Event::Closed => unreachable!("installation change"),
@@ -507,6 +508,7 @@ fn discovery_waits_for_installation_changes_and_git_tokens() {
         | Event::Hint(_)
         | Event::Listening { .. }
         | Event::ListenerLost
+        | Event::Added { .. }
         | Event::Connected { .. }
         | Event::Stopped { .. }
         | Event::Closed => unreachable!("git token"),

@@ -177,6 +177,7 @@ fn github_starts_list_mint_both_scopes_then_check_identity() {
         | Event::Hint(_)
         | Event::Listening { .. }
         | Event::ListenerLost
+        | Event::Added { .. }
         | Event::Connected { .. }
         | Event::Stopped { .. }
         | Event::Closed => unreachable!("token collection"),

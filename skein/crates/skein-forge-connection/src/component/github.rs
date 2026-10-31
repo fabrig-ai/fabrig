@@ -1098,6 +1098,7 @@ mod tests {
             | Event::Hint(_)
             | Event::Listening { .. }
             | Event::ListenerLost
+            | Event::Added { .. }
             | Event::Connected { .. }
             | Event::Stopped { .. }
             | Event::Closed => unreachable!("lifecycle"),
@@ -1110,6 +1111,7 @@ mod tests {
                     Event::Installation { installation, change, .. } => {
                         changes.push((installation, change)).expect("bounded changes");
                     }
+                    Event::Added { .. } => unreachable!("no runtime forge added in this fixture"),
                     Event::Connected { .. } => assert_eq!(changes.len(), ROWS),
                     Event::Fact { .. }
                     | Event::GitToken { .. }
@@ -1160,6 +1162,7 @@ mod tests {
             | Event::Hint(_)
             | Event::Listening { .. }
             | Event::ListenerLost
+            | Event::Added { .. }
             | Event::Connected { .. }
             | Event::Stopped { .. }
             | Event::Closed => unreachable!("fact"),
@@ -1185,6 +1188,7 @@ mod tests {
             | Event::Hint(_)
             | Event::Listening { .. }
             | Event::ListenerLost
+            | Event::Added { .. }
             | Event::Connected { .. }
             | Event::Stopped { .. } => unreachable!("Closed last"),
         }
@@ -1311,6 +1315,7 @@ mod tests {
             | Event::Hint(_)
             | Event::Listening { .. }
             | Event::ListenerLost
+            | Event::Added { .. }
             | Event::Connected { .. }
             | Event::Stopped { .. }
             | Event::Closed => unreachable!("one fact"),

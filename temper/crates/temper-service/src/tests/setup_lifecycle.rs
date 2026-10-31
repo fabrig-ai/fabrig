@@ -475,6 +475,7 @@ fn calls_are_not_connected_before_connect_then_wait_until_connected() {
             | connection::Event::Hint(_)
             | connection::Event::ListenerLost
             | connection::Event::Listening { .. }
+            | connection::Event::Added { .. }
             | connection::Event::Connected { .. }
             | connection::Event::Stopped { .. }
             | connection::Event::Closed => panic!("connection start event"),

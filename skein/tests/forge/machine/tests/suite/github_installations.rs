@@ -40,6 +40,7 @@ fn changes(world: &Machine) -> Vec<InstallationChange<'_>> {
             | Event::GitToken { .. }
             | Event::Answered(_)
             | Event::Hint(_)
+            | Event::Added { .. }
             | Event::Connected { .. }
             | Event::Stopped { .. }
             | Event::Listening { .. }
@@ -118,6 +119,7 @@ fn overflow_keeps_a_later_accepted_installation() {
         | Event::GitToken { .. }
         | Event::Answered(_)
         | Event::Hint(_)
+        | Event::Added { .. }
         | Event::Connected { .. }
         | Event::Stopped { .. }
         | Event::Listening { .. }

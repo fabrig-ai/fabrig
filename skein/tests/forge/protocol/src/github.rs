@@ -268,6 +268,7 @@ impl Github {
                 Event::Answered(answer) => {
                     assert!(self.answers.insert(answer.call.raw(), answer).is_none(), "one terminal");
                 }
+                Event::Added { .. } => unreachable!("no runtime forge added in this fixture"),
                 Event::Connected { .. } => self.connected += 1,
                 Event::Closed => self.closed = true,
                 Event::Installation { .. } | Event::GitToken { .. } | Event::Fact { .. } => {}

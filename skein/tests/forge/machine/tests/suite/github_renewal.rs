@@ -36,6 +36,7 @@ fn expiry(world: &Machine, index: usize) -> Wall {
         | Event::Fact { .. }
         | Event::Answered(_)
         | Event::Hint(_)
+        | Event::Added { .. }
         | Event::Connected { .. }
         | Event::Stopped { .. }
         | Event::Listening { .. }

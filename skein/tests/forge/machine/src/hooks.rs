@@ -310,6 +310,7 @@ impl Listener {
                     Event::Installation { .. }
                     | Event::Fact { .. }
                     | Event::GitToken { .. }
+                    | Event::Added { .. }
                     | Event::Connected { .. }
                     | Event::Answered(_)
                     | Event::Stopped { .. } => {

@@ -200,6 +200,7 @@ impl Harness {
         self.count_component(span);
         for _ in 0..self.up.len() {
             match self.up.pop().expect("queued event") {
+                Event::Added { .. } => unreachable!("no runtime forge added in this fixture"),
                 Event::Connected { .. } => {
                     self.connected_count = self.connected_count.checked_add(1).expect("fixture connects");
                 }
@@ -925,6 +926,7 @@ impl HookHarness {
                     Event::Installation { .. }
                     | Event::Fact { .. }
                     | Event::GitToken { .. }
+                    | Event::Added { .. }
                     | Event::Connected { .. }
                     | Event::Answered(_)
                     | Event::Stopped { .. }

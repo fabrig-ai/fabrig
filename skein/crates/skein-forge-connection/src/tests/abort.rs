@@ -48,6 +48,7 @@ fn abort_ends_each_call_in_flight_as_its_deadline_would_and_then_says_closed() {
             | Event::Hint(_)
             | Event::Listening { .. }
             | Event::ListenerLost
+            | Event::Added { .. }
             | Event::Connected { .. }
             | Event::Stopped { .. }
             | Event::Closed) => panic!("only the calls' terminals before io settles: {other:?}"),
@@ -148,6 +149,7 @@ fn matches_closed(event: Option<Event>) -> bool {
             | Event::Hint(_)
             | Event::Listening { .. }
             | Event::ListenerLost
+            | Event::Added { .. }
             | Event::Connected { .. }
             | Event::Stopped { .. },
         )

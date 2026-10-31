@@ -1,4 +1,5 @@
 mod abort;
+mod add;
 mod connection;
 mod contents;
 mod dialects;

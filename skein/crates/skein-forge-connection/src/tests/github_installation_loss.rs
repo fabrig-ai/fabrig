@@ -533,6 +533,7 @@ fn ready_changes_precede_the_held_token() {
             | Event::Hint(_)
             | Event::Listening { .. }
             | Event::ListenerLost
+            | Event::Added { .. }
             | Event::Connected { .. }
             | Event::Stopped { .. }
             | Event::Closed => unreachable!("held outputs"),

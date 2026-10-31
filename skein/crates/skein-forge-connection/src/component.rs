@@ -121,50 +121,38 @@ pub struct Component {
     wake: Option<Time>,
 }
 impl Component {
-    pub fn new(settings: Settings, limits: &Limits, shared: &Shared) -> Result<Self, Unusable> {
+    pub fn new(mut settings: Settings, limits: &Limits, shared: &Shared) -> Result<Self, Unusable> {
         limits::check(limits, shared, &settings)?;
+        if settings.forges.capacity() != limits.forges {
+            let mut forges = List::with_capacity(limits.forges);
+            for forge in settings.forges.into_boxed() {
+                forges.push(forge).expect("checked forge count");
+            }
+            settings.forges = forges;
+        }
         let mut github = List::with_capacity(limits.forges);
-        let mut reserved = 0_u32;
         let mut starts = List::with_capacity(limits.forges);
         let mut own_tokens = List::with_capacity(limits.forges);
         let mut own_plans = List::with_capacity(limits.forges);
         for forge in &settings.forges {
-            let state =
-                if forge.access.is_some() { initial(forge.kind, limits.start_backoff) } else { Start::Unconnected };
-            let state_github = match forge.kind {
-                crate::settings::Kind::Forgejo => None,
-                crate::settings::Kind::GitHub => {
-                    reserved = reserved.checked_add(1).expect("checked connection count");
-                    let mut github = crate::installations::GitHub::new(limits.installations);
-                    github.said_origins = Queue::with_capacity(limits.log_origins);
-                    Some(Box::new(github))
-                }
-            };
-            github.push(state_github).expect("checked forge count");
-            starts.push(state).expect("checked forge count");
+            starts.push(forge_start(forge, limits)).expect("checked forge count");
+            github.push(forge_github(forge, limits)).expect("checked forge count");
             own_tokens.push(None).expect("checked forge count");
             own_plans.push(None).expect("checked forge count");
         }
-        let mut forgejo = false;
-        let mut has_github = false;
-        for forge in &settings.forges {
-            match forge.kind {
-                crate::settings::Kind::Forgejo => forgejo = true,
-                crate::settings::Kind::GitHub => has_github = true,
-            }
-        }
+        let counts = limits::Forges::of(&settings).expect("checked forge counts");
         Ok(Self {
             hooks: crate::hooks::Hooks::new(limits),
             settings,
             starts,
             github,
             forgejo_tables: Tables::new(
-                if forgejo { limits.repositories } else { 0 },
-                if forgejo { limits.users } else { 0 },
+                if counts.forgejo > 0 { limits.repositories } else { 0 },
+                if counts.forgejo > 0 { limits.users } else { 0 },
             ),
             github_tables: skein_forge::github::plans::tables::Tables::new(
-                if has_github { limits.repositories } else { 0 },
-                if has_github { limits.users } else { 0 },
+                if counts.github > 0 { limits.repositories } else { 0 },
+                if counts.github > 0 { limits.users } else { 0 },
             ),
             waiting: Slab::with_capacity(shared.calls),
             calls: Map::with_capacity(shared.calls),
@@ -173,10 +161,10 @@ impl Component {
             lifecycle: Lifecycle::Live,
             diagnostics: Diagnostics { long_bodies: 0, malformed: 0 },
             shared: *shared,
-            connections: Map::with_capacity(limits.connections.checked_add(reserved).expect("checked connections")),
-            connection_slab: Slab::with_capacity(
-                limits.connections.checked_add(reserved).expect("checked connections"),
-            ),
+            // A new GitHub forge reserves one socket at admission. The tables grow
+            // as they fill; a count past their representable room is refused there.
+            connections: Map::with_capacity(limits.connections.saturating_add(limits.forges)),
+            connection_slab: Slab::with_capacity(limits.connections.saturating_add(limits.forges)),
             own_tokens,
             own_plans,
             next_token: 1,
@@ -247,6 +235,10 @@ impl Component {
             Lifecycle::Aborting | Lifecycle::Closed => return,
         }
         match request {
+            Request::Add { forge } => {
+                self.add(env, forge, up);
+                self.drive(env, up, io);
+            }
             Request::Connect { forge, access } => {
                 self.connect(env, forge, access, up, io);
                 self.drive(env, up, io);
@@ -320,6 +312,39 @@ impl Component {
                 self.abort(env, up, io);
             }
         }
+    }
+    fn add(&mut self, env: &Env<Limits>, forge: crate::settings::Forge, up: &mut Queue<Event>) {
+        let number = forge.number;
+        if let Err(refused) =
+            limits::check_forge(&env.limits, &self.shared, &self.settings, &forge, self.settings.forges.as_slice())
+        {
+            up.push(Event::Added { forge: number, refused: Some(refused) });
+            return;
+        }
+        let mut present = false;
+        for configured in &self.settings.forges {
+            if configured.kind == forge.kind {
+                present = true;
+                break;
+            }
+        }
+        if !present {
+            match forge.kind {
+                crate::settings::Kind::Forgejo => {
+                    self.forgejo_tables = Tables::new(env.limits.repositories, env.limits.users);
+                }
+                crate::settings::Kind::GitHub => {
+                    self.github_tables =
+                        skein_forge::github::plans::tables::Tables::new(env.limits.repositories, env.limits.users);
+                }
+            }
+        }
+        self.starts.push(forge_start(&forge, &env.limits)).expect("checked forge count");
+        self.github.push(forge_github(&forge, &env.limits)).expect("checked forge count");
+        self.own_tokens.push(None).expect("checked forge count");
+        self.own_plans.push(None).expect("checked forge count");
+        self.settings.forges.push(forge).expect("checked forge count");
+        up.push(Event::Added { forge: number, refused: None });
     }
     /// Ends each open call with no answer and drops what the component holds for the
     /// owner and each forge (forge-connection.md, 8.5).
@@ -833,6 +858,20 @@ impl Component {
             }
         }
         None
+    }
+}
+
+fn forge_start(forge: &crate::settings::Forge, limits: &Limits) -> Start {
+    if forge.access.is_some() { initial(forge.kind, limits.start_backoff) } else { Start::Unconnected }
+}
+fn forge_github(forge: &crate::settings::Forge, limits: &Limits) -> Option<Box<crate::installations::GitHub>> {
+    match forge.kind {
+        crate::settings::Kind::Forgejo => None,
+        crate::settings::Kind::GitHub => {
+            let mut github = crate::installations::GitHub::new(limits.installations);
+            github.said_origins = Queue::with_capacity(limits.log_origins);
+            Some(Box::new(github))
+        }
     }
 }
 
