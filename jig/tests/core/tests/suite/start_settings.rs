@@ -186,7 +186,7 @@ fn stored_proposals_require_their_links_at_link() {
         ),
         core::Restored::Live
     );
-    let _panic = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| h.link()))
+    let _panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| h.link()))
         .expect_err("a proposal requires its retained links");
     assert_eq!(h.core.start_phase(), Some(Phase::Link));
     assert_eq!(h.core.start_failure(), None);
