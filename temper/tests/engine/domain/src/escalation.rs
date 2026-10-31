@@ -810,7 +810,7 @@ impl World {
             | Delivery::Drained
             | Delivery::Refuse { .. }
             | Delivery::TurnBusy { .. } => panic!("unexpected escalation delivery {delivery:?}"),
-            Delivery::Restart(_)
+            Delivery::Start(_)
             | Delivery::Fleet(_)
             | Delivery::ProjectMade { .. }
             | Delivery::ForgeCommitted { .. }
