@@ -81,10 +81,11 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::StepLanding { .. }
             | forge::Event::Settle
             | forge::Event::AppRecorded { .. }
-            | forge::Event::DemoActs { .. }
-            | forge::Event::DemoActAnswered { .. }
-            | forge::Event::SendDemoActs
-            | forge::Event::DemoAnswered { .. }
+            | forge::Event::PlaygroundMade { .. }
+            | forge::Event::PlaygroundFailed { .. }
+            | forge::Event::ResetActAnswered { .. }
+            | forge::Event::SecretsErased { .. }
+            | forge::Event::BoxRemoved { .. }
             | forge::Event::BoxClosed
             | forge::Event::ConnectAnswered { .. }
             | forge::Event::ReachableAnswered { .. }
@@ -106,6 +107,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::TakeBrief { .. }
             | forge::Event::DropBrief { .. }
             | forge::Event::Adopt { .. }
+            | forge::Event::ReleaseProject { .. }
             | forge::Event::ForgetAdoption { .. }
             | forge::Event::Names { .. }
             | forge::Event::Rename { .. }

@@ -6,10 +6,15 @@ use temper_engine_domain_forge as forge;
 
 /// The `Binding` family's byte, taken at landing as a version is (protocol/store.md, 2).
 pub const BINDING: u8 = 18;
-/// The `DemoAct` family's byte (protocol/setup.md, 8.4).
-pub const DEMO_ACT: u8 = 19;
+// Family bytes 17 and 19 are reserved and are not reused.
 /// A write with a committed attempt (protocol/store.md, 2).
 pub const FLIGHT: u8 = 21;
+/// Forge records (temper/docs/design/draft/playground-reset.md, 3).
+pub const FORGE: u8 = 25;
+/// Last forge number given (temper/docs/design/draft/playground-reset.md, 3).
+pub const FORGE_NUMBER: u8 = 26;
+/// Playground state (temper/docs/design/draft/playground-reset.md, 6.1).
+pub const PLAYGROUND: u8 = 27;
 
 fn write_name(writer: &mut KeyWriter, name: &forge::Name) {
     writer.u64(u64::from(name.forge)).u64(u64::from(name.repository));
@@ -78,9 +83,19 @@ pub fn largest(limits: &forge::Limits) -> Option<u32> {
 
 /// Encode one relative key, or refuse it when it exceeds `limit`.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one exhaustive encoder preserves ordered family tags")]
 pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
     let mut writer = KeyWriter::new(limit);
     match key {
+        forge::Key::Forge(number) => {
+            writer.tag(FORGE).u64(u64::from(*number));
+        }
+        forge::Key::ForgeNumber => {
+            writer.tag(FORGE_NUMBER);
+        }
+        forge::Key::Playground => {
+            writer.tag(PLAYGROUND);
+        }
         forge::Key::Landing(task) => {
             writer.tag(23).u64(*task);
         }
@@ -167,12 +182,6 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
         forge::Key::Flight { task, entry } => {
             writer.tag(FLIGHT).u64(*task).u64(*entry);
         }
-        forge::Key::DemoAct(key) => {
-            writer.tag(DEMO_ACT).bytes(key);
-        }
-        forge::Key::Demo(forge) => {
-            writer.tag(17).u64(u64::from(*forge));
-        }
         forge::Key::Writer(forge) => {
             writer.tag(16).u64(u64::from(*forge));
         }
@@ -185,6 +194,9 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
 pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
     let mut reader = KeyReader::new(bytes);
     let key = match reader.tag()? {
+        FORGE => forge::Key::Forge(u16::try_from(reader.u64()?).ok()?),
+        FORGE_NUMBER => forge::Key::ForgeNumber,
+        PLAYGROUND => forge::Key::Playground,
         0 => forge::Key::Call(forge::NamedCall {
             task: reader.u64()?,
             attempt: reader.u64()?,
@@ -208,8 +220,6 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
         15 => forge::Key::Application(reader.u64()?),
         16 => forge::Key::Writer(u16::try_from(reader.u64()?).ok()?),
         FLIGHT => forge::Key::Flight { task: reader.u64()?, entry: reader.u64()? },
-        DEMO_ACT => forge::Key::DemoAct(reader.bytes()?.as_ref().try_into().ok()?),
-        17 => forge::Key::Demo(u16::try_from(reader.u64()?).ok()?),
         BINDING => {
             let address = reader.bytes()?;
             if address.len() > 254 {

@@ -139,6 +139,16 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
     use RecordKind as K;
     use RestoreSet::Rows;
     match row {
+        Stored::Forge(record) => {
+            room(K::Forge, Rows(K::Forge), d.records.len(), l.forges, d.records.contains_key(&record.number))?;
+            room(
+                K::Forge,
+                Rows(K::Forge),
+                d.configured.len(),
+                d.configured.capacity(),
+                d.configured.contains_key(&record.number),
+            )
+        }
         Stored::Landing(row) => {
             field(
                 K::Landing,
@@ -237,13 +247,6 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.flights.capacity(),
             d.flights.contains_key(&(*task, *entry)),
         ),
-        Stored::DemoAct(row) => room(
-            K::DemoAct,
-            Rows(K::DemoAct),
-            d.demo_acts.len(),
-            d.demo_acts.capacity(),
-            d.demo_acts.contains_key(&row.key),
-        ),
         Stored::Writer(row) => {
             room(K::Writer, Rows(K::Writer), d.writers.len(), d.writers.capacity(), d.writers.contains_key(&row.forge))
         }
@@ -277,7 +280,7 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.releases.capacity(),
             d.releases.contains_key(&row.task),
         ),
-        Stored::Demo(_) | Stored::Client(_) => Ok(()),
+        Stored::ForgeNumber { .. } | Stored::Playground(_) | Stored::Client(_) => Ok(()),
     }
 }
 

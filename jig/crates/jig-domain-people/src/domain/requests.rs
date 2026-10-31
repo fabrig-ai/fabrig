@@ -121,6 +121,7 @@ pub(super) fn outcome_reply(outcome: Outcome) -> Reply {
         | Outcome::PolicyChanged { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }
@@ -197,6 +198,12 @@ pub(super) fn admit_ask(
         }
         flight.replies.push(to).expect("bounded list room checked");
         return;
+    }
+    if let Some(project) = super::deletion::ask_project(&ask)
+        && project != crate::DEPLOYMENT
+        && !domain.has_project(project)
+    {
+        return refused(to, Refusal::Unknown, out);
     }
     let written = written_place(domain, key.person, &ask);
     // A move is admitted whole; Written transfers its already reserved place.
@@ -369,6 +376,7 @@ pub(super) fn reserves_answer(ask: &Ask) -> bool {
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -450,6 +458,7 @@ pub(super) fn answer_decided(
         | Outcome::PolicyChanged { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }

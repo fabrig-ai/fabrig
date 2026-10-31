@@ -31,9 +31,11 @@ pub struct Config {
     /// The charter the forge's procedures start their agent work under, one
     /// of the core's charters (domain/root.md, 6).
     pub forge_charter: u32,
+    /// Machine places for new forge records (temper/docs/design/draft/playground-reset.md, 3).
+    pub machine: Option<forge::Machine>,
     pub forges: Box<[forge::Configured]>,
     pub under_box: bool,
-    pub demo: Option<forge::DemoConfig>,
+    pub playground: Option<forge::PlaygroundConfig>,
 }
 
 /// What the root keeps of its configuration once its children hold theirs.

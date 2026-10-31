@@ -498,7 +498,8 @@ impl World {
             }
             Event::Turn { task, cumulative, .. }
             | Event::Activation { task, cause: Cause::Priced { cumulative }, .. } => Some((*task, *cumulative)),
-            Event::Place { .. }
+            Event::CloseProject { .. }
+            | Event::Place { .. }
             | Event::Lift { .. }
             | Event::MoveToNewest { .. }
             | Event::Charters { .. }
@@ -592,7 +593,8 @@ impl World {
             | Event::Notice { word, .. } => {
                 self.message = self.message.max(word.number);
             }
-            Event::Place { .. }
+            Event::CloseProject { .. }
+            | Event::Place { .. }
             | Event::Lift { .. }
             | Event::Charters { .. }
             | Event::ResourceAccess { .. }

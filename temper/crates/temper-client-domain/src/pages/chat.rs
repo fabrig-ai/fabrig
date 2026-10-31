@@ -642,7 +642,7 @@ impl Chat {
             | Act::SignOut
             | Act::ChatWords { .. }
             | Act::StartChat
-            | Act::RetryDemo
+            | Act::RetryPlayground
             | Act::Playground
             | Act::Suggest { .. }
             | Act::ChatFilter { .. }

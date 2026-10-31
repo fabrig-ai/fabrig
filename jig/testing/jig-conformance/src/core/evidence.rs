@@ -31,6 +31,8 @@ pub enum Write<'a> {
 /// Connector facts translated by the owning adapter.
 #[derive(Clone, Debug, Default)]
 pub struct Effects {
+    /// Application rows whose ownership is checked alongside the core rows.
+    pub naming: Vec<r::Naming>,
     pub receipts: BTreeSet<r::Receipt>,
     pub attempts: BTreeMap<(u16, r::EffectKey), (u32, u64)>,
     pub held_effects: BTreeSet<(u16, r::EffectKey)>,

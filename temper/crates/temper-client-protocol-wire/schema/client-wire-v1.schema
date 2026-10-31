@@ -9,23 +9,30 @@ enum Role { owned, adopted, fork, context }
 record Adopt { project: u32 home: bool forge: u16 owner: bytes 1024 name: bytes 1024 prefix: bytes 1024 role: Role landing: bytes 1024 ci: bool checks: list 64 u32 }
 
 # The family's keyed requests and setup outcome (client/README.md, 4.6).
-# Enum payloads are records in the schema grammar.
+# temper/docs/design/draft/playground-reset.md, 3: kept and new forges.
+record Kept { forge: u16 }
+record ManagedForge { host: bytes 255 port: u16 tls: option bytes 255 git: bytes 2048 web: option bytes 2048 }
+enum ForgeAsk { github, owned, managed: ManagedForge }
+record NewForge { forge: ForgeAsk }
+enum Making { kept: Kept, new: NewForge }
 record ExistingProject { project: u32 }
 record NewProject { name: bytes 1024 }
 enum SetUpProject { existing: ExistingProject, new: NewProject }
-record SetUp { forge: u16 org: bytes 1024 repository: bytes 1024 project: SetUpProject playground: bool }
+record SetUp { forge: Making org: bytes 1024 repository: bytes 1024 project: SetUpProject playground: bool }
 record Return { source: u32 path: bytes 512 }
-# start_demo: the demo document's start (client/README.md, 4.6; protocol/setup.md, 8.4).
 record GitHubApp { id: u64 }
 record GitHubManifest { back: option bytes 512 }
 record FirstAsk { org: bytes 1024 repository: bytes 1024 project: SetUpProject label: bytes 64 }
 record ForgejoAdmin { first: option FirstAsk }
 enum How { github_app: GitHubApp, github_manifest: GitHubManifest, forgejo_admin: ForgejoAdmin }
-record Connect { forge: u16 how: How }
+record Connect { forge: Making how: How }
 record Install { forge: u16 back: option bytes 512 }
 record Reachable { forge: u16 installation: option u64 page: u32 }
 record Accept { forge: u16 installation: u64 }
-enum Request { adopt: Adopt, set_up: SetUp, start_demo, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept }
+
+# temper/docs/design/draft/playground-reset.md, 4 and 6: removal and reset.
+record RemoveForge { forge: u16 }
+enum Request { adopt: Adopt, set_up: SetUp, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground }
 versioned record Requesting { request: Request }
 enum SetUpRefusal { not_offered, not_under_the_box, busy, new_project, invalid }
 record SetUpRefused { why: SetUpRefusal }
@@ -34,7 +41,6 @@ record StartRefused { why: StartRefusal }
 record GroupFailed { why: bytes 256 }
 enum StartFailure { group: GroupFailed, account, adoption, not_connected }
 record StartFailed { why: StartFailure }
-enum DemoState { not_started, running, ended }
 
 
 # The deployment's forges, in number order (client/README.md, 4.6).
@@ -67,11 +73,13 @@ record OwnedForge { forgejo: bytes 64 runner: option bytes 64 password: bytes 51
 record ForgeRow { number: u16 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool }
 versioned record Forges { forges: list 16 ForgeRow }
 
-# The family's read name and its demo answer (client/README.md, 4.6).
-# No demo is the read's empty answer, with no record.
-enum Read { demo }
+# The playground read (temper/docs/design/draft/playground-reset.md, 6.1).
+enum Read { playground }
 versioned record Reading { read: Read }
-versioned record DemoAnswer { project: u32 forge: u16 provider: u32 owner: bytes 1024 name: bytes 1024 state: DemoState cues: list 8 text 256 }
+
+# temper/docs/design/draft/playground-reset.md, 6.1: no playground is no record.
+enum PlaygroundState { starting, running, resetting }
+versioned record PlaygroundAnswer { forge: u16 project: option u32 provider: u32 owner: bytes 1024 name: bytes 1024 state: PlaygroundState cues: list 8 text 256 }
 
 # A change's watched panel (client/README.md, 4.6; client/forge.md, 9.2).
 record ChangeSubject { task: u64 }
@@ -127,5 +135,10 @@ record Page { rows: list 100 Reached more: bool }
 # unknown: the outcome's retention ended (02.2's Delivery::Application
 # outcome None; client/README.md, 4.7, "unknown past the retention").
 record AcceptedInstallation { installation: u64 }
-enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, returning, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation }
+
+# temper/docs/design/draft/playground-reset.md, 4 and 6.2.
+enum EndRefusal { not_offered }
+record EndRefused { why: EndRefusal }
+record RemoveRefused { why: ForgeRefusal }
+enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, returning, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused }
 versioned record Answer { outcome: Outcome }

@@ -24,31 +24,19 @@ pub fn document(value: &mut serde_json::Value, names: &Names<'_>) {
     owned.forgejo_binary = names.forgejo.into();
     let mut members = application(&owned);
     members["webhooks"] = serde_json::Value::Null;
-    members["identities"][0]["login"] = names.bot.into();
-    let setup = &mut members["setup"][0];
-    setup["bot"] = serde_json::json!({"login":names.bot,"email":format!("{}@example.invalid", names.bot)});
-    let mode = &mut setup["mode"]["owned"];
+    let mode = &mut members["machine"]["owned"];
     mode["person"] = serde_json::json!({"login":names.person,"email":format!("{}@example.invalid", names.person)});
     if let Some(binary) = names.runner {
         mode["runner"]["binary"] = serde_json::json!(binary);
     } else {
         mode["runner"] = serde_json::Value::Null;
     }
-    for name in ["forges", "identities", "setup"] {
-        value["application"][name] = members[name].take();
-    }
+    value["application"]["machine"] = members["machine"].take();
 }
 
 // temper-15 removes this old form and temper-01a's Adopt stand-in.
 pub fn old_form(application: &mut serde_json::Value) {
-    let webhooks = !application["webhooks"].is_null();
-    let forge = &mut application["forges"][0];
-    forge["identity"] = 1.into();
-    forge["api_token"] = "forge-1/api_token".into();
-    forge["user"] = serde_json::json!({"file":"forge-1/user"});
-    forge["webhook_secret"] = if webhooks { "forge-1/webhook_secret".into() } else { serde_json::Value::Null };
-    application["identities"][0].as_object_mut().expect("identity").remove("forge");
-    application["identities"][0]["token"] = "forge-1/git_token".into();
+    let _ = application;
 }
 
 pub fn configuration(directory: &Path, names: &Names<'_>) {
@@ -58,6 +46,8 @@ pub fn configuration(directory: &Path, names: &Names<'_>) {
     document(&mut value, names);
     old_form(&mut value["application"]);
     super::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+    fs::create_dir_all(directory.join("box/groups")).expect("groups");
+    super::write_private(&directory.join("box/groups/1"), b"owned\n");
 }
 #[must_use]
 pub fn prepare(directory: &Path, forge: u16) -> Output {
@@ -413,7 +403,7 @@ pub fn recorded_without_runner(directory: &Path) {
 pub fn setup_without_runner(directory: &Path) {
     let path = directory.join("temper.json");
     let mut config: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("config")).expect("JSON");
-    config["application"]["setup"][0]["mode"]["owned"]["runner"] = serde_json::Value::Null;
+    config["application"]["machine"]["owned"]["runner"] = serde_json::Value::Null;
     super::write_private(&path, &serde_json::to_vec(&config).expect("JSON"));
 }
 pub fn refused(directory: &Path, verb: &str, expected: &[u8]) {
@@ -500,22 +490,6 @@ pub fn assert_converged(directory: &Path, instance: &skein_throwaway_forgejo::In
     assert!(account["full_name"].as_str().expect("full name").contains("temper:bot"));
     let org = instance.exchange(&Outgoing::get("/api/v1/orgs/acme", Some(admin))).expect("org answers");
     assert_eq!(org.status, 404);
-}
-/// A managed forge whose directory reconcile must make itself.
-pub fn managed(directory: &Path) {
-    configuration(
-        directory,
-        &Names { forgejo: Path::new("/usr/bin/false"), runner: None, port: 9, bot: "temper", person: "ada" },
-    );
-    let path = directory.join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    value["application"]["setup"][0]["orgs"] = serde_json::json!(["acme"]);
-    value["application"]["setup"][0]["mode"] = serde_json::json!({"managed":{"admin_token":"admin_token"}});
-    value["application"]["limits"]["overrides"]["setup.deadline_ms"] = 300.into();
-    value["application"]["limits"]["overrides"]["setup.backoff_ms"] = 20.into();
-    value["application"]["limits"]["overrides"]["setup.backoff_max_ms"] = 50.into();
-    super::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
-    super::write_private(&directory.join("admin_token"), b"managed-admin-token");
 }
 pub fn configuration_value(directory: &Path, change: fn(&mut serde_json::Value)) {
     let path = directory.join("temper.json");
@@ -802,11 +776,10 @@ pub fn bounded_records(directory: &Path) -> Bounded {
     let owned =
         Owned { forgejo: "127.255.255.254:65535".parse().expect("bounded records fixture"), ..Owned::example() };
     lay(directory, &owned);
-    let mut value: serde_json::Value =
+    let value: serde_json::Value =
         serde_json::from_slice(&example_document(directory, &owned)).expect("bounded records fixture");
-    // The records-only certificate also admits the longest configured directory
-    // and a full records.value_bytes handover, without real filesystem reads.
-    value["application"]["setup"][0]["directory"] = format!("/{}", "p".repeat(4095)).into();
+    // Startup has no setup directory or handover until a forge is kept.
+    assert!(value["application"].get("setup").is_none());
     bounded_document(
         directory,
         value,
@@ -937,7 +910,6 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
             part.files,
             temper_forge_setup::check::Checked {
                 fetch_bytes: 0,
-                records_only: Box::new([]),
                 setup: temper_forge_setup::setup::Setup { entries: Box::new([]) },
                 limits: temper_forge_setup::limits::small(),
             },
@@ -993,24 +965,15 @@ fn bounded_document(directory: &Path, mut value: serde_json::Value, forge: tempe
                 .expect("configured forge count");
         }
     }
-    forges.push(forge).expect("primary forge");
+    if !named.forges.is_empty() {
+        forges.push(forge).expect("primary forge");
+    }
     let mut agent = agent::preflight(&named).expect("ordinary agent declarations");
     assert_eq!(agent.programs.len(), 1, "owned example declares Claude Code");
     agent.programs[0].path = path.as_bytes().into();
     agent.programs[0].directory = path.as_bytes().into();
     let setup = checked_setup(&document, &named);
-    let mut named_files = named.files.into_vec();
-    named_files.extend(temper_service::startup::setup_files(&setup));
-    for read in temper_service::startup::handover_reads(&document, &jig_protocol_config::Directories::working(), &setup)
-        .expect("bounded handover declarations")
-    {
-        named_files.push(jig_protocol_config::File {
-            at: jig_protocol_config::Path::root(),
-            path: read.path,
-            max: read.max,
-            private: true,
-        });
-    }
+    let named_files = named.files.into_vec();
     let mut entries = List::with_capacity(u32::try_from(named_files.len()).expect("file count"));
     let token_bytes =
         temper_service::limits::profile(temper_service::limits::Profile::Small).forge_component.token_bytes;
@@ -1040,69 +1003,15 @@ fn bounded_document(directory: &Path, mut value: serde_json::Value, forge: tempe
     }
 }
 
-// The bounded strings are synthetic, but the setup check is the shell's check on these same members.
-fn checked_setup(bytes: &[u8], named: &temper_service::Named) -> temper_forge_setup::check::Checked {
-    use jig_protocol_config::{self as config, read};
-    use temper_forge_setup::check::{self, Members, User};
-    let document = config::document(bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 })
-        .expect("bounded document");
-    let application = read::Object::new(&document, 0)
-        .expect("bounded root")
-        .member(&document, b"application")
-        .expect("bounded application");
-    let at = read::Object::new(&document, application)
-        .expect("bounded application object")
-        .member(&document, b"setup")
-        .expect("bounded setup");
-    let mut forges = Vec::new();
-    for forge in &named.forges {
-        let mut identity = None;
-        for candidate in &named.identities {
-            if candidate.number == forge.identity {
-                identity = Some(candidate);
-                break;
-            }
-        }
-        let identity = identity.expect("named forge identity");
-        forges.push(check::Forge {
-            number: forge.number,
-            api: match &forge.api {
-                config::Address::Addr(address) => address.socket(),
-                config::Address::Host { .. } => None,
-            },
-            plaintext: matches!(forge.transport, temper_service::startup::Transport::Plaintext),
-            git: forge.git.clone(),
-            user: match &forge.user {
-                temper_service::startup::User::Id(id) => User::Id(*id),
-                temper_service::startup::User::File(path) => User::File(path.clone()),
-            },
-            api_token: forge.api_token.clone(),
-            webhook_secret: forge.webhook_secret.clone(),
-            identity_token: identity.token.clone(),
-            identity_login: identity.login.clone(),
-        });
+// Machine startup has no document forge entries to cross-check.
+fn checked_setup(_bytes: &[u8], named: &temper_service::Named) -> temper_forge_setup::check::Checked {
+    let overrides: Vec<_> = named.overrides.iter().filter(|(name, _)| name.starts_with(b"setup.")).cloned().collect();
+    let (limits, fetch_bytes) = temper_forge_setup::check::limits(&overrides).expect("setup limits");
+    temper_forge_setup::check::Checked {
+        limits,
+        fetch_bytes,
+        setup: temper_forge_setup::Setup { entries: Box::new([]) },
     }
-    let mut listeners = Vec::new();
-    if let config::Address::Addr(address) = &named.clients {
-        listeners.extend(address.socket());
-    }
-    let listener = match &named.webhooks {
-        Some(hooks) => match &hooks.listener {
-            config::Address::Addr(address) => address.socket(),
-            config::Address::Host { .. } => panic!("bounded webhooks use a socket"),
-        },
-        None => None,
-    };
-    listeners.extend(listener);
-    check::checked(
-        &document,
-        at,
-        &config::Directories::working(),
-        &Members { forges: forges.into_boxed_slice(), listeners: listeners.into_boxed_slice() },
-        listener,
-        &named.overrides,
-    )
-    .expect("bounded setup check")
 }
 
 /// temper-01a's Adopt stand-in (forge-setup.md, 4.5 and 4.8); temper-15 removes it.

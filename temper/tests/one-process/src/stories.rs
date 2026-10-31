@@ -173,7 +173,8 @@ pub(crate) fn forge(story: Story) -> temper_fake_git_hosted::Typed {
     );
     let forge = std::rc::Rc::new(std::cell::RefCell::new(skein_fake_peers::forge::Forge::new(domain, config)));
     let mut transport = temper_fake_git_hosted::Typed::new(forge, &forge_table());
-    let identity = temper_fake_git_hosted::fixtures::identity();
+    let mut identity = temper_fake_git_hosted::fixtures::identity();
+    identity.login = b"temper".as_slice().into();
     transport.authenticate(Some(&(identity.login, identity.token)));
     assert_eq!(
         transport.commit_tree(base, None, BTreeMap::from([(b"conflict.txt".to_vec(), b"topic\n".to_vec())]), b"topic"),
@@ -308,18 +309,6 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         overrides.remove(name);
     }
     if STORY.with(|slot| matches!(slot.get(), Story::HeldChange)) {
-        let forge = value["application"]["forges"][0].as_object_mut().expect("forge");
-        for name in ["api_token", "user", "webhook_secret", "identity"] {
-            forge.remove(name);
-        }
-        let identity = value["application"]["identities"][0].as_object_mut().expect("identity");
-        identity.remove("token");
-        identity.insert("forge".into(), 1.into());
-        value["application"]["setup"] = serde_json::json!([
-            {"forge":1,"directory":"forge-1","bot":{"login":"worker","email":"worker@example.invalid"},
-             "mode":{"owned":{"forgejo":"fetched","runner":null,"listen":{"socket":"127.0.0.1:3000"},
-                "person":{"login":"person","email":"person@example.invalid"}}}}
-        ]);
         value["application"]["landing"]["deployment"] = serde_json::json!([{
             "connector": 1, "kind": 4,
             "pattern": {"segments": ["forge", "127.0.0.1:3000"], "last": "open", "value": "acme"},
@@ -344,11 +333,7 @@ pub(crate) fn held_change() -> bool {
     STORY.with(|slot| matches!(slot.get(), Story::HeldChange))
 }
 pub(crate) fn forge_table() -> skein_fake_forge_protocol::Config {
-    if held_change() {
-        crate::restart_control::table()
-    } else {
-        temper_fake_git_hosted::fixtures::table(b"acme/app", None)
-    }
+    crate::restart_control::table()
 }
 
 /// The scripted shell's echo redirection acts on the inherited machine files.
@@ -485,7 +470,7 @@ pub(crate) fn first_start() -> bool {
 thread_local! { static SETTINGS: std::cell::Cell<bool> = const { std::cell::Cell::new(false) }; }
 thread_local! { static REVISION: std::cell::Cell<u32> = const { std::cell::Cell::new(1) }; }
 pub(crate) fn setup_settings(phase: crate::world::Phase) {
-    FIRST_START.with(|slot| slot.set(matches!(phase, crate::world::Phase::Story)));
+    FIRST_START.with(|slot| slot.set(matches!(phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. })));
     SETTINGS.with(|slot| slot.set(matches!(phase, crate::world::Phase::Drain)));
     REVISION.with(|slot| {
         slot.set(if matches!(phase, crate::world::Phase::Drain | crate::world::Phase::Restart) { 2 } else { 1 });

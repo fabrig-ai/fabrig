@@ -14,6 +14,7 @@ mod github;
 mod github_calls;
 mod github_logs;
 mod puller;
+mod runtime;
 use skein_forge::api;
 use skein_forge::forgejo::plans::{
     Body, Heard,
@@ -121,10 +122,14 @@ pub struct Component {
     wake: Option<Time>,
 }
 impl Component {
-    pub fn new(settings: Settings, limits: &Limits, shared: &Shared) -> Result<Self, Unusable> {
+    pub fn new(mut settings: Settings, limits: &Limits, shared: &Shared) -> Result<Self, Unusable> {
         limits::check(limits, shared, &settings)?;
         let mut github = List::with_capacity(limits.forges);
-        let mut reserved = 0_u32;
+        let mut forges = List::with_capacity(limits.forges);
+        for forge in settings.forges.into_boxed() {
+            forges.push(forge).expect("checked forge count");
+        }
+        settings.forges = forges;
         let mut starts = List::with_capacity(limits.forges);
         let mut own_tokens = List::with_capacity(limits.forges);
         let mut own_plans = List::with_capacity(limits.forges);
@@ -134,7 +139,6 @@ impl Component {
             let state_github = match forge.kind {
                 crate::settings::Kind::Forgejo => None,
                 crate::settings::Kind::GitHub => {
-                    reserved = reserved.checked_add(1).expect("checked connection count");
                     let mut github = crate::installations::GitHub::new(limits.installations);
                     github.said_origins = Queue::with_capacity(limits.log_origins);
                     Some(Box::new(github))
@@ -145,26 +149,18 @@ impl Component {
             own_tokens.push(None).expect("checked forge count");
             own_plans.push(None).expect("checked forge count");
         }
-        let mut forgejo = false;
-        let mut has_github = false;
-        for forge in &settings.forges {
-            match forge.kind {
-                crate::settings::Kind::Forgejo => forgejo = true,
-                crate::settings::Kind::GitHub => has_github = true,
-            }
-        }
         Ok(Self {
             hooks: crate::hooks::Hooks::new(limits),
             settings,
             starts,
             github,
             forgejo_tables: Tables::new(
-                if forgejo { limits.repositories } else { 0 },
-                if forgejo { limits.users } else { 0 },
+                if limits.forges > 0 { limits.repositories } else { 0 },
+                if limits.forges > 0 { limits.users } else { 0 },
             ),
             github_tables: skein_forge::github::plans::tables::Tables::new(
-                if has_github { limits.repositories } else { 0 },
-                if has_github { limits.users } else { 0 },
+                if limits.forges > 0 { limits.repositories } else { 0 },
+                if limits.forges > 0 { limits.users } else { 0 },
             ),
             waiting: Slab::with_capacity(shared.calls),
             calls: Map::with_capacity(shared.calls),
@@ -173,9 +169,11 @@ impl Component {
             lifecycle: Lifecycle::Live,
             diagnostics: Diagnostics { long_bodies: 0, malformed: 0 },
             shared: *shared,
-            connections: Map::with_capacity(limits.connections.checked_add(reserved).expect("checked connections")),
+            connections: Map::with_capacity(
+                limits.connections.checked_add(limits.forges).expect("checked connections"),
+            ),
             connection_slab: Slab::with_capacity(
-                limits.connections.checked_add(reserved).expect("checked connections"),
+                limits.connections.checked_add(limits.forges).expect("checked connections"),
             ),
             own_tokens,
             own_plans,
@@ -247,6 +245,14 @@ impl Component {
             Lifecycle::Aborting | Lifecycle::Closed => return,
         }
         match request {
+            Request::Add(forge) => {
+                self.add(env, forge);
+                self.drive(env, up, io);
+            }
+            Request::Remove { forge } => {
+                self.remove(forge, up, io);
+                self.drive(env, up, io);
+            }
             Request::Connect { forge, access } => {
                 self.connect(env, forge, access, up, io);
                 self.drive(env, up, io);
@@ -725,10 +731,11 @@ impl Component {
         }
     }
     fn drive(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
-        if self.lifecycle == Lifecycle::Aborting {
-            // Each pass, so that a connection whose socket io names later is aborted too.
-            for (_, id) in &self.connections {
-                self.connection_slab.get_mut(*id).expect("indexed connection").abort(io);
+        // Each pass includes removed connections whose socket io names later.
+        for (_, id) in &self.connections {
+            let c = self.connection_slab.get_mut(*id).expect("indexed connection");
+            if self.lifecycle == Lifecycle::Aborting || c.membership == connection::Membership::Removed {
+                c.abort(io);
             }
         }
         if self.settings.webhooks.is_some() {
@@ -748,7 +755,11 @@ impl Component {
     }
     fn call_connections(&self) -> u32 {
         let mut count = 0_u32;
-        for (owner, _) in &self.connections {
+        for (owner, id) in &self.connections {
+            if self.connection_slab.get(*id).expect("indexed connection").membership == connection::Membership::Removed
+            {
+                continue;
+            }
             let mut reserved = false;
             for at in 0..self.own_tokens.len() {
                 if self.own_tokens.get(at) == Some(&Some(*owner))

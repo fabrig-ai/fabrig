@@ -1,4 +1,5 @@
 //! Watch admission and construction in the core's vocabulary.
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 //! `client/domain/contract.md`, sections 3.2 and 7. Documents are made when
 //! views asks and moved into held outputs; no document remains in the core.
 //! The child owns pacing and provisional text, and knows no concrete subject.
@@ -15,6 +16,87 @@ use alloc::boxed::Box;
 use jig_domain_views as views;
 use skein_lib::{Env, List, Map, Queue, Token};
 
+#[expect(clippy::manual_map, reason = "step code names the optional project without a closure")]
+fn task_project(core: &Core, task: u64) -> Option<u32> {
+    match core.tasks.task(task) {
+        Some(row) => Some(row.project),
+        None => None,
+    }
+}
+
+fn subject_project(core: &Core, subject: &Subject) -> Option<u32> {
+    match subject {
+        Subject::Application { scope, .. } => match scope {
+            jig_domain_people::ApplicationScope::Project(project) => Some(*project),
+            jig_domain_people::ApplicationScope::Own | jig_domain_people::ApplicationScope::Deployment => None,
+        },
+        Subject::Project { project } => Some(*project),
+        Subject::Task { task }
+        | Subject::Tree { task }
+        | Subject::Run { task }
+        | Subject::Escalation { task }
+        | Subject::Question { task, .. }
+        | Subject::PersonTask { task }
+        | Subject::Result { task }
+        | Subject::Proposal { proposer: jig_domain_people::Proposer::Task(task), .. } => task_project(core, *task),
+        Subject::Query { query } => query.project,
+        Subject::Proposal { proposer: jig_domain_people::Proposer::Party(party), number } => {
+            match core.tasks.person_proposal(*party, *number) {
+                Some(row) if row.project != jig_domain_people::DEPLOYMENT => Some(row.project),
+                Some(_) | None => None,
+            }
+        }
+        Subject::Chips { tasks } => {
+            for task in tasks {
+                if let Some(project) = task_project(core, *task)
+                    && !core.open_project(project)
+                {
+                    return Some(project);
+                }
+            }
+            None
+        }
+        Subject::Frame { .. }
+        | Subject::Inbox { .. }
+        | Subject::Accounts { .. }
+        | Subject::Settings
+        | Subject::Deployment
+        | Subject::Note { .. } => None,
+    }
+}
+
+fn closed_subject(core: &Core, subject: &Subject) -> bool {
+    match subject_project(core, subject) {
+        Some(project) => !core.open_project(project),
+        None => false,
+    }
+}
+
+/// End project subjects at the deletion's decision, before their rows are erased.
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "the deletion driver calls this integration point when beginning deletion")
+)]
+pub(crate) fn close_views(core: &mut Core, env: &Env<Limits>, project: u32) -> Queue<Request> {
+    let mut subjects = List::with_capacity(core.view_names.len());
+    for (name, watched) in &core.view_names {
+        if watched.watchers == 0 {
+            continue;
+        }
+        let belongs = subject_project(core, &watched.subject) == Some(project);
+        if belongs {
+            subjects.push(name.token()).expect("bounded watched subjects");
+        } else {
+            let _new = core.changed_views.insert(name).expect("bounded document list marks");
+        }
+    }
+    let mut out = Queue::uncapped();
+    for subject in subjects.into_boxed() {
+        append_stream(route_view(core, env, views::Event::Gone { subject, why: views::End::Gone }), &mut out);
+    }
+    out
+}
+
 pub(super) fn route_view(core: &mut Core, env: &Env<Limits>, event: views::Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
     crate::routing::step::step_views(core, env, event, &mut out);
@@ -30,7 +112,9 @@ pub(super) fn made_outputs(core: &mut Core, env: &Env<Limits>, mut child: Queue<
     for _ in 0..child.len() {
         match child.pop().expect("view output count") {
             views::Request::Make { watcher, .. } => {
-                if let Some((connector, subject, scope, party, window)) = application_subject(core, watcher) {
+                if let Some((connector, subject, scope, party, window)) = application_subject(core, watcher)
+                    && !watch_closed(core, watcher)
+                {
                     out.push(Request::Ask {
                         connector,
                         ask: crate::Ask::Document { watcher, scope, subject, party, window },
@@ -43,7 +127,7 @@ pub(super) fn made_outputs(core: &mut Core, env: &Env<Limits>, mut child: Queue<
                         assert!(previous.is_none(), "one construction per watcher");
                         views::Made::Ready
                     }
-                    Err(views::End::Gone) if retained_task(core, watcher).is_some() => {
+                    Err(views::End::Gone) if retained_task(core, watcher).is_some() && !watch_closed(core, watcher) => {
                         append_stream(crate::reads::start_watch(core, env, watcher), &mut out);
                         continue;
                     }
@@ -289,6 +373,9 @@ fn open_follow(
 // Construction authenticates jig's named values; connector values remain opaque.
 // Unmakeable documents refuse Unknown (`client/domain/contract.md`, 7.2).
 fn admission(core: &Core, env: &Env<Limits>, party: u64, subject: &Subject, window: &Window) -> Option<WatchRefusal> {
+    if closed_subject(core, subject) {
+        return Some(WatchRefusal::NotAllowed);
+    }
     match subject {
         Subject::Application { scope, connector, .. } => {
             if !core.connectors.as_ref().contains(connector) {
@@ -419,6 +506,13 @@ fn forget_watch(core: &mut Core, watcher: Token) {
     }
 }
 
+fn watch_closed(core: &Core, watcher: Token) -> bool {
+    match core.watch_binding(watcher) {
+        Some(binding) => closed_subject(core, &core.view_names.get(binding.subject).expect("bound subject").subject),
+        None => false,
+    }
+}
+
 fn watch_document(
     core: &Core,
     limits: &Limits,
@@ -431,6 +525,9 @@ fn watch_document(
         return Err(views::End::SignedOut);
     }
     let subject = &core.view_names.get(binding.subject).expect("bound watched subject").subject;
+    if closed_subject(core, subject) {
+        return Err(views::End::Gone);
+    }
     let filtered = match subject {
         Subject::Chips { tasks: named } => {
             let mut tasks = List::with_capacity(named.len());

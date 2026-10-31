@@ -143,6 +143,8 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     facts: 16,
 };
 const FORGE: forge::Limits = forge::Limits {
+    // Forges kept at most (temper/docs/design/draft/playground-reset.md, 3).
+    forges: 3,
     // Repositories retained, from the engine forge world fixture.
     repositories: 2,
     // Tasks participating in the forge, from the engine forge world fixture.
@@ -165,7 +167,7 @@ const FORGE: forge::Limits = forge::Limits {
     paths_per_subscription: 4,
     // Direct connector fixture; engine() takes the configured authority.segments.
     authority_segments: 8,
-    // Leaves 122 bytes for a git base within the checkout's 256 bytes.
+    // Names retained by the forge connector.
     name_bytes: 64,
     // Output records reserved per forge step, from the engine forge world fixture.
     output: 80,
@@ -234,7 +236,7 @@ const CHECKOUT: checkout::Limits = checkout::Limits {
     workspaces: 3,
     // Held to the agent's two repository directories.
     repositories: 2,
-    // Bytes in a checkout key, name, remote or branch: the 256-byte ceiling.
+    // Bytes in a checkout key, name, remote or branch.
     name_bytes: 256,
     // Holds the agent's largest commit-message argument.
     message_bytes: 4096,

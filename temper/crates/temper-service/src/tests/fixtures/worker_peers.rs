@@ -35,7 +35,14 @@ impl LinkPeer {
         Self::with_settings(&fixtures::worker_settings(), &fixtures::worker_agent())
     }
     pub(crate) fn with_settings(settings: &crate::settings::Worker, agent: &crate::settings::Agent) -> Self {
-        let prepared = worker_settings::prepare(settings, agent, &fixtures::worker_limits()).unwrap();
+        Self::with_limits(settings, agent, &fixtures::worker_limits())
+    }
+    pub(crate) fn with_limits(
+        settings: &crate::settings::Worker,
+        agent: &crate::settings::Agent,
+        own: &crate::limits::Limits,
+    ) -> Self {
+        let prepared = worker_settings::prepare(settings, agent, own).unwrap();
         let limits = engine_link::Limits {
             sizes: prepared.link.sizes,
             names: 1,
@@ -624,16 +631,17 @@ pub(crate) fn socket_stand_with(
     settings: &crate::settings::Worker,
     agent: &crate::settings::Agent,
 ) -> fixtures::WorkerStand {
+    socket_stand_with_limits(settings, agent, &fixtures::worker_limits())
+}
+
+pub(crate) fn socket_stand_with_limits(
+    settings: &crate::settings::Worker,
+    agent: &crate::settings::Agent,
+    own: &crate::limits::Limits,
+) -> fixtures::WorkerStand {
     let mut stand = fixtures::WorkerStand::new();
-    stand.worker = crate::Worker::new(
-        settings,
-        agent,
-        &fixtures::worker_limits(),
-        &fixtures::worker_files(),
-        fixtures::worker_runtime(),
-        7,
-    )
-    .unwrap();
+    stand.worker =
+        crate::Worker::new(settings, agent, own, &fixtures::worker_files(), fixtures::worker_runtime(), 7).unwrap();
     for _ in 0_u16..1000 {
         if !stand.turn() {
             return stand;

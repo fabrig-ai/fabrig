@@ -1,5 +1,6 @@
 {
   "engine": {
+    "acts": [{"connector": 1, "may": ["remove_project", "remove_account"]}],
     "limits": {
       "profile": "small",
       "overrides": {
@@ -172,28 +173,35 @@
     }
   ],
   "application": {
-    "forges": [
-      {
-        "number": 1,
-        "kind": "forgejo",
-        "api": {
+    "machine": {
+      "owned": {
+        "forgejo": "/opt/forgejo/forgejo",
+        "runner": {
+          "binary": "/opt/forgejo/forgejo-runner",
+          "labels": [
+            "temper-host:host"
+          ],
+          "capacity": 1,
+          "path": "/usr/local/bin:/usr/bin:/bin"
+        },
+        "listen": {
           "socket": "127.0.0.1:3000"
         },
-        "transport": "plaintext",
-        "git": "http://127.0.0.1:3000"
-      }
-    ],
-    "identities": [
-      {
-        "number": 1,
-        "forge": 1,
-        "login": "temper",
-        "author": {
-          "name": "temper",
-          "email": "temper@example.invalid"
-        }
-      }
-    ],
+        "person": {
+          "login": "ada",
+          "email": "ada@example.invalid"
+        },
+        "remote": "http://127.0.0.1:3000"
+      },
+      "fake": {
+        "listen": {
+          "socket": "127.0.0.1:8369"
+        },
+        "remote": "http://127.0.0.1:8369",
+        "git": "demo/bin/git"
+      },
+      "github": null
+    },
     "landing": {
       "deployment": [],
       "projects": [
@@ -244,36 +252,6 @@
       }
     },
     "demo": null, "sign_in": null,
-    "setup": [
-      {
-        "forge": 1,
-        "directory": "forge-1",
-        "bot": {
-          "login": "temper",
-          "email": "temper@example.invalid"
-        },
-        "mode": {
-          "owned": {
-            "forgejo": "/opt/forgejo/forgejo",
-            "runner": {
-              "binary": "/opt/forgejo/forgejo-runner",
-              "labels": [
-                "temper-host:host"
-              ],
-              "capacity": 1,
-              "path": "/usr/local/bin:/usr/bin:/bin"
-            },
-            "listen": {
-              "socket": "127.0.0.1:3000"
-            },
-            "person": {
-              "login": "ada",
-              "email": "ada@example.invalid"
-            }
-          }
-        }
-      }
-    ],
     "limits": {
       "profile": "small",
       "overrides": {

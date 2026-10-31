@@ -66,6 +66,7 @@ mod batch;
 mod boundary;
 mod capacity;
 mod changed;
+mod close_project;
 
 mod closing;
 mod compound;

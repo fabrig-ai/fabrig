@@ -397,7 +397,8 @@ fn valid_refuses_a_log_page_past_u32() {
 
 #[test]
 fn valid_ignores_heap_call_tables() {
-    let limits = super::Limits { connections: u32::MAX, ..fixtures::limits() };
-    let shared = Shared { calls: u32::MAX, rows: u32::MAX, answer_bytes: u32::MAX, ..fixtures::shared() };
+    let connections = u32::MAX - fixtures::limits().forges;
+    let limits = super::Limits { connections, ..fixtures::limits() };
+    let shared = Shared { calls: connections, rows: u32::MAX, answer_bytes: u32::MAX, ..fixtures::shared() };
     assert_eq!(check(&limits, &shared, &fixtures::settings()), Ok(()));
 }

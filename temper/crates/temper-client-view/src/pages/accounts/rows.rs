@@ -18,9 +18,9 @@ use temper_client_domain::{
     pages::accounts::{self, Act, Operation, Row, SignInState, Way},
 };
 
-pub(super) fn demo(root: &Domain, provider: Option<u32>) -> bool {
-    match root.forge().demo() {
-        Some(demo) => provider == Some(demo.provider),
+pub(super) fn playground(root: &Domain, provider: Option<u32>) -> bool {
+    match root.forge().playground_provider() {
+        Some(number) => provider == Some(number),
         None => false,
     }
 }
@@ -107,7 +107,7 @@ fn draw(
     cut: bool,
     text_bytes: u32,
 ) {
-    if demo(root, provider) {
+    if playground(root, provider) {
         return;
     }
     let name = provider_name(provider_text);

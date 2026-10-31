@@ -149,9 +149,8 @@ pub(crate) fn write(path: &Path, address: SocketAddr, clients: SocketAddr, fixtu
     let mut value: Value = serde_json::from_slice(&std::fs::read(path.join("temper.json"))?)?;
     let mut agent: Value = serde_json::from_slice(&std::fs::read(path.join("agent.json"))?)?;
     value["application"]["clients"]["listener"] = json!({"socket":clients.to_string()});
-    value["application"]["forges"] = json!([{"number":1,"kind":"github","api":{"socket":address.to_string()},
-        "transport":"plaintext","git":format!("http://{address}"),"web":format!("http://{address}")}]);
-    value["application"]["identities"] = json!([{"number":1,"forge":1,"login":null,"author":null}]);
+    value["application"]["machine"]["github"] = json!({"api":{"socket":address.to_string()},
+        "transport":"plaintext","remote":format!("http://{address}"),"web":format!("http://{address}")});
     // Use the landing world's procedure and capacities, without a landing rule.
     (landing::fixture().configure)(&mut value, &mut agent, address);
     value["application"]["landing"]["projects"] = json!([]);

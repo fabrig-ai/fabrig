@@ -63,24 +63,13 @@ fn the_engines_items_past_the_workers_refuse_the_start() {
     assert_eq!(&*lines(&found), b"application.limits.overrides.forge.resources_per_task: must agree with checkout.repositories and checkout.name_bytes\n".as_slice());
 }
 #[test]
-fn an_identity_past_the_grant_bound_is_refused_naming_it() {
-    let mut files = fixtures::files();
-    files.entries = fixtures::without(files.entries, b"secrets/forge-1.git-token");
-    files
-        .entries
-        .push((b"secrets/forge-1.git-token".as_slice().into(), skein_lib::Secret::new(Box::new([b'x'; 8192]))))
-        .unwrap();
-    let found = started(&fixtures::document(), &files, &fixtures::startup_agent());
-    assert_eq!(&*lines(&found), b"application.identities[0]: past its bound\n".as_slice());
-}
-#[test]
 fn default_engine_and_worker_grants_fit_the_channel_and_link() {
     let own = crate::limits::profile(crate::limits::Profile::Small);
     for limits in [crate::translate::limits(&own).unwrap(), crate::worker_settings::payload_limits(&own).unwrap()] {
         assert_eq!(payload::largest(&limits).unwrap().grant, 7057);
         assert_eq!(jig_protocol_worker_wire::CEILINGS.application_value_secret, 8192);
         let worker = fixtures::worker_settings();
-        crate::worker_settings::link_limits(&worker.jig, &limits).unwrap();
+        crate::worker_settings::link_limits(&worker.jig, &limits, own.forge.forges).unwrap();
     }
     assert!(started(&fixtures::document(), &fixtures::files(), &fixtures::startup_agent()).is_empty());
     let worker =
@@ -178,7 +167,7 @@ fn a_channel_limit_past_a_ceiling_names_the_limit() {
     };
     let mut found = Problems::empty();
     let too_many = payload::Bounds { repositories: u32::MAX, ..normal };
-    checks::channel(Some(&too_many), Some(&normal), &[], &own, &mut found);
+    checks::channel(Some(&too_many), Some(&normal), None, &own, &mut found);
     assert_eq!(found.problems.len(), 1);
     assert_eq!(
         found.problems.get(0).unwrap().path,
@@ -275,14 +264,6 @@ fn standalone_shapes() -> [(Shape, Path, What); 8] {
 }
 
 #[test]
-fn a_webhook_secret_without_a_listener_is_refused() {
-    let document = fixtures::with(&fixtures::webhook_document(), b"application.webhooks", b"null");
-    assert_eq!(
-        &*lines(&crate::named(&document, &jig_protocol_config::Directories::working()).unwrap_err()),
-        b"application.forges[0].webhook_secret: needs application.webhooks\n"
-    );
-}
-#[test]
 fn a_webhook_listener_off_loopback_is_refused() {
     let document = fixtures::with(
         &fixtures::webhook_document(),
@@ -313,17 +294,6 @@ fn webhook_listeners_on_port_zero_do_not_clash() {
     let document = fixtures::with(&document, b"application.clients.listener", br#"{"socket":"127.0.0.1:0"}"#);
     let named = crate::named(&document, &jig_protocol_config::Directories::working()).unwrap();
     assert_eq!(named.webhooks.unwrap().listener, named.clients);
-}
-#[test]
-fn a_webhook_secret_past_its_bound_is_refused() {
-    let mut files = fixtures::files();
-    files.entries = fixtures::without(files.entries, b"secrets/forge-1.webhook-secret");
-    files
-        .entries
-        .push((b"secrets/forge-1.webhook-secret".as_slice().into(), skein_lib::Secret::new(Box::new([b'x'; 129]))))
-        .unwrap();
-    let found = started(&fixtures::webhook_document(), &files, &fixtures::startup_agent());
-    assert_eq!(&*lines(&found), b"application.forges[0].webhook_secret: past its bound\n");
 }
 #[test]
 fn hook_connections_past_the_process_sockets_are_refused() {
@@ -363,9 +333,9 @@ fn fixed_redirect_ports_reject_listeners_on_the_reserved_number() {
     for (port, listener, expected) in [
         (7100, Listener::Clients, "redirect_port: fixed port conflicts with application.clients.listener\n"),
         (7101, Listener::Webhooks, "redirect_port: fixed port conflicts with application.webhooks.listener\n"),
-        (7100, Listener::Owned(2), "redirect_port: fixed port conflicts with application.setup[2].mode.owned.listen\n"),
+        (7100, Listener::Owned(2), "redirect_port: fixed port conflicts with application.machine.owned.listen\n"),
         (7100, Listener::Demo, "redirect_port: fixed port conflicts with application.demo.llm.listen\n"),
-        (7100, Listener::Fake(2), "redirect_port: fixed port conflicts with application.setup[2].mode.fake.listen\n"),
+        (7100, Listener::Fake(2), "redirect_port: fixed port conflicts with application.machine.fake.listen\n"),
     ] {
         let mut problems = Problems::empty();
         checks::redirect_ports(&fixed_redirects(), Some(port), listener, &mut problems);

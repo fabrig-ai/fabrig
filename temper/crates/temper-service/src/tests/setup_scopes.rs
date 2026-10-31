@@ -71,7 +71,7 @@ fn start_adoption(
 #[test]
 fn preparations_four_scopes_grant_adopt_and_without_repository_it_is_refused_at_repository() {
     for without_repository in [false, true] {
-        let mut config = fixtures::engine();
+        let mut config = fixtures::configured_engine();
         config.setup = Box::new([fixtures::owned_setup(1)]);
         let Mode::Owned(owned) = &config.setup[0].entry.mode else { panic!("owned fixture") };
         let place = Place { directory: config.setup[0].entry.directory.clone(), user: b"fixture".as_slice().into() };
@@ -94,11 +94,13 @@ fn preparations_four_scopes_grant_adopt_and_without_repository_it_is_refused_at_
                 from = to.saturating_add(1);
             }
         }
+        config.setup = Box::new([]);
         fixtures::fill_files(&mut config);
-        let mut endpoints = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
+        let mut endpoints = fixtures::configured_endpoints(&config, fixtures::forge_runtime()).unwrap();
         let access = endpoints.forges.get_mut(0).unwrap().access.take().expect("file access");
-        let mut service = crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
-        service.engine.as_mut().expect("engine").store = fixtures::records_store();
+        let mut service =
+            fixtures::configured_service(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
+        fixtures::replace_store(&mut service, fixtures::records_store());
         for _ in 0_u32..8 {
             crate::forge::records::advance(service.engine.as_mut().expect("engine"));
         }

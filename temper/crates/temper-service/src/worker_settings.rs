@@ -48,7 +48,7 @@ pub fn prepare(worker: &settings::Worker, agent: &settings::Agent, own: &limits:
     host::Process::new(Token::new(0), &agent.limits, agent.host_limits.detail_bytes, agent.endpoints.clone())
         .or(Err(problem(b"agent", What::Bound)))?;
     let payload = payload_limits(own).ok_or(problem(b"limits", What::Bound))?;
-    let link = link_limits(&worker.jig, &payload).ok_or(problem(b"limits", What::Bound))?;
+    let link = link_limits(&worker.jig, &payload, own.forge.forges).ok_or(problem(b"limits", What::Bound))?;
     if !link::valid(&link) {
         return Err(problem(b"limits", What::Bound));
     }
@@ -98,7 +98,7 @@ pub fn payload_limits(own: &limits::Limits) -> Option<v1::Limits> {
 
 /// Jig's link profile, with every temper part priced by the generated codec.
 #[must_use]
-pub fn link_limits(worker: &config::Worker, payload: &v1::Limits) -> Option<link::Limits> {
+pub fn link_limits(worker: &config::Worker, payload: &v1::Limits, forges: u32) -> Option<link::Limits> {
     let jig = &worker.limits;
     let core = jig.core;
     let hub = jig.hub;
@@ -136,7 +136,7 @@ pub fn link_limits(worker: &config::Worker, payload: &v1::Limits) -> Option<link
         models: ceilings.bounds_models,
         workstreams: core.fleet.workstreams,
         accounts: core.accounts.accounts,
-        credentials: core.accounts.credentials,
+        credentials: forges,
         facts: profile.facts,
     };
     Some(link::Limits {

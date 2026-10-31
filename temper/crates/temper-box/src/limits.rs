@@ -11,6 +11,7 @@ pub struct Limits {
     pub line_bytes: u32,
     pub log_bytes: u32,
     pub tail_lines: u32,
+    pub groups: u32,
 }
 /// The most restarts whose exit times can be retained.
 pub const MAX_RESTARTS: u32 = 64;
@@ -31,6 +32,7 @@ pub enum Unfit {
     LineBytes,
     LogBytes,
     TailLines,
+    Groups,
 }
 /// An unknown name or a value beyond u32.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -49,6 +51,7 @@ impl Unfit {
             Self::LineBytes => &[b"box.line_bytes"],
             Self::LogBytes => &[b"box.log_bytes"],
             Self::TailLines => &[b"box.tail_lines"],
+            Self::Groups => &[b"box.groups"],
         }
     }
 }
@@ -64,6 +67,7 @@ pub fn small() -> Limits {
         line_bytes: 256,
         log_bytes: 4_194_304,
         tail_lines: 10,
+        groups: 8,
     }
 }
 /// Applies one whole dotted name.
@@ -77,6 +81,7 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused
         b"box.line_bytes",
         b"box.log_bytes",
         b"box.tail_lines",
+        b"box.groups",
     ]
     .contains(&name)
     {
@@ -93,6 +98,7 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused
         b"box.line_bytes" => limits.line_bytes = value,
         b"box.log_bytes" => limits.log_bytes = value,
         b"box.tail_lines" => limits.tail_lines = value,
+        b"box.groups" => limits.groups = value,
         _ => return Err(Refused::Unknown),
     }
     Ok(())

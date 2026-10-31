@@ -5,6 +5,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 pub mod diagnostics;
 pub mod forge;
+pub mod forges;
 pub use forge::ForgeRuntime;
 pub mod limits;
 pub mod settings;
@@ -151,8 +152,8 @@ pub enum Note {
         patch: u32,
         counts: jig_protocol_store::Counts,
     },
-    /// A bounded diagnostic from the demo end (protocol/setup.md, 8.4).
-    Demo {
+    /// A bounded reset diagnostic (temper/docs/design/draft/playground-reset.md, 6.2).
+    Playground {
         line: Box<[u8]>,
     },
     /// A listener bound its address (protocol/README.md, 15.3).
@@ -194,9 +195,6 @@ pub enum Note {
         number: u16,
         why: NotConnected,
     },
-    ForgeUnconfigured {
-        number: u16,
-    },
     ForgeUnkept {
         number: u16,
         installation: u64,
@@ -225,3 +223,57 @@ pub enum Refusal {
 pub use jig_protocol_worker_wire::Reason as WorkerRefusalReason;
 
 pub use temper_engine_domain::Unsettled;
+
+impl Service {
+    /// Machine inputs loaded once by the shell (temper/docs/design/draft/playground-reset.md, 3).
+    pub fn configure_forge_runtime(&mut self, github: ForgeRuntime, roots: skein_tls::Config) {
+        if let Some(engine) = &mut self.engine {
+            assert!(engine.forge.serving.is_none(), "machine inputs precede serving");
+            engine.forge.github = Some(github);
+            engine.forge.roots = Some(roots);
+        }
+    }
+
+    /// Kept names awaiting the shell's startup resolution (playground-reset.md, 3).
+    #[must_use]
+    #[expect(clippy::type_complexity, reason = "the startup resolution contract returns numbered host and port tuples")]
+    pub fn unresolved(&self) -> Box<[(u16, Box<[u8]>, u16)]> {
+        let Some(engine) = &self.engine else { return Box::new([]) };
+        if engine.forge.serving.is_some() {
+            return Box::new([]);
+        }
+        let mut names = skein_lib::List::with_capacity(engine.workers.forges.len());
+        for forge in engine.workers.forges.iter() {
+            if engine.forge.resolving.contains_key(&forge.number)
+                && let jig_protocol_config::Address::Host { name, port } = &forge.api
+            {
+                names.push((forge.number, name.clone(), *port)).expect("kept forges");
+            }
+        }
+        names.into_boxed()
+    }
+
+    /// Re-add a kept forge with the shell's answer before serving (playground-reset.md, 3).
+    pub fn resolved(&mut self, forge: u16, address: Option<core::net::SocketAddr>) {
+        let Some(engine) = &mut self.engine else { return };
+        if engine.forge.serving.is_some() || engine.forge.unreachable(forge).is_none() {
+            return;
+        }
+        engine.forge.resolving.remove(&forge);
+        let Some(address) = address else { return };
+        let Some(configured) = engine.workers.forges.remove(forge) else { return };
+        engine.forge.down(skein_forge_connection::Request::Remove { forge });
+        if let jig_protocol_config::Address::Host { name, .. } = &configured.api {
+            engine.forge.names.insert(name.clone(), address.ip()).expect("kept host capacity");
+        }
+        let Some(mut endpoint) = forges::endpoint(engine, &configured) else {
+            assert!(engine.workers.forges.insert(configured), "removed forge has table room");
+            return;
+        };
+        endpoint.address = skein_io::Addr::Ip(address);
+        engine.forge.endpoints.insert(forge, endpoint).expect("kept forge capacity");
+        if forges::keep(engine, configured) && engine.forge_records.done() {
+            forge::records::connect(engine, forge);
+        }
+    }
+}

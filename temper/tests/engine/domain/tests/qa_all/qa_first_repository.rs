@@ -50,7 +50,7 @@ fn setup(driver: &mut Driver, serial: u8, org: &[u8], repository: &[u8]) -> Opti
         carried: None,
         request: engine::Application::Forge(forge::Ask::SetUp {
             playground: false,
-            forge: 1,
+            forge: forge::Making::Kept(1),
             org: org.into(),
             repository: repository.into(),
             project: forge::SetUpProject::Existing(1),
