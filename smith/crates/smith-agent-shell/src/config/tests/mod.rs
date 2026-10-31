@@ -235,9 +235,19 @@ fn zero_group_stop_refuses_before_a_channel_is_opened() {
 }
 
 #[test]
-fn malformed_json_refuses_missing_required_configuration_fields() {
-    assert!(serde_json::from_slice::<Document>(br#"{"profile":"standard"}"#).is_err());
-    assert!(serde_json::from_slice::<Document>(br#"{"profile":"standard","memory_bytes":1,"grace_ms":1,"endpoints":[],"environment":[],"credential":"bad"}"#).is_err());
+fn a_document_without_endpoints_names_the_missing_field() {
+    let mut document = shaped_document();
+    document.as_object_mut().expect("configuration").remove("endpoints");
+    let refusal = decode(&serde_json::to_vec(&document).expect("configuration JSON")).err().expect("missing endpoints");
+    assert!(refusal.contains("missing field `endpoints`"), "{refusal}");
+}
+
+#[test]
+fn a_credential_field_is_not_part_of_configuration() {
+    let mut document = shaped_document();
+    document["credential"] = "bad".into();
+    let refusal = decode(&serde_json::to_vec(&document).expect("configuration JSON")).err().expect("unknown field");
+    assert!(refusal.contains("unknown field `credential`"), "{refusal}");
 }
 
 fn shaped_document() -> serde_json::Value {
@@ -310,29 +320,52 @@ fn quantities_override_one_value_and_derive_through_the_service() {
 }
 
 #[test]
-fn configuration_refuses_old_shape_raw_limits_duplicates_and_zero_quantities() {
-    assert!(
-        parse(br#"{"profile":"standard","memory_bytes":1099511627776,"grace_ms":10,"endpoints":[],"environment":[]}"#)
-            .is_err()
-    );
+fn a_profile_string_is_refused_as_the_old_shape() {
+    let mut document = shaped_document();
+    document["profile"] = "standard".into();
+    let refusal = parse_value(&document).err().expect("old profile shape");
+    assert!(refusal.contains("expected struct ProfileDocument"), "{refusal}");
+}
+
+#[test]
+fn raw_or_unknown_deployment_fields_are_named() {
     for field in ["request_bytes", "unexpected"] {
         let mut document = shaped_document();
         document["profile"]["declared"][field] = 100.into();
-        assert!(parse_value(&document).is_err(), "raw or unknown field {field}");
+        let refusal = parse_value(&document).err().expect("unknown declaration");
+        assert!(refusal.contains(&format!("unknown field `{field}`")), "{refusal}");
     }
+}
+
+#[test]
+fn duplicate_model_declarations_are_refused() {
     let mut document = shaped_document();
     let duplicate = document["endpoints"][0]["models"][0].clone();
     document["endpoints"][0]["models"].as_array_mut().expect("models").push(duplicate);
     assert_eq!(parse_value(&document).err().as_deref(), Some("duplicate declared model"));
-    for field in ["window", "output", "reasoning_item", "head", "idle"] {
+}
+
+#[test]
+fn zero_model_quantities_name_the_refused_setting() {
+    for (field, expected) in [
+        ("window", "model declaration contains an empty or zero quantity"),
+        ("output", "model declaration contains an empty or zero quantity"),
+        ("reasoning_item", "model declaration contains an empty or zero quantity"),
+        ("head", "deadlines: declared.head[endpoint=0,model=0]=0 ns; policy.deadline_minimum=0 ns"),
+        ("idle", "deadlines: declared.idle[endpoint=0,model=0]=0 ns; policy.deadline_minimum=0 ns"),
+    ] {
         let mut document = shaped_document();
         document["endpoints"][0]["models"][0][field] = 0.into();
-        assert!(parse_value(&document).is_err(), "zero model quantity {field}");
+        assert_eq!(parse_value(&document).err().as_deref(), Some(expected), "{field}");
     }
+}
+
+#[test]
+fn zero_deployment_quantities_name_the_refused_setting() {
     for field in ["conversations", "tool_payload", "file_bytes", "calls_per_response", "memory"] {
         let mut document = shaped_document();
         document["profile"]["declared"][field] = 0.into();
-        assert!(parse_value(&document).is_err(), "zero deployment quantity {field}");
+        assert_eq!(parse_value(&document).err(), Some(format!("profile.declared.{field} must be positive")));
     }
 }
 #[test]

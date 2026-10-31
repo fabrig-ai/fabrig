@@ -1,6 +1,6 @@
 //! Pure endpoint preparation from declarations, before native resolution or trust loading.
 //! It retains validated names, request settings and transport sources, never kernel handles.
-//! Contract: smith/docs/design/protocol/agent.md, section 4; protocol/limits.md, sections 2–4.
+//! Contract: smith/docs/design/protocol/agent.md, section 4; smith/docs/design/protocol/limits.md, sections 2–4.
 
 use skein_http::Header;
 use skein_lib::{Duration, List};

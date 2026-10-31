@@ -1,6 +1,6 @@
 //! Generated configuration values or JSON read once before the agent opens its channel.
 //! It retains endpoint names and destinations, program paths, limits, command environment,
-//! and future trace settings; no credential is read here.
+//! and trace settings; no credential is read here.
 //! Durations in JSON are milliseconds. Contract: smith/docs/design/protocol/agent.md, sections 4 and 6.
 
 #[cfg(unix)]
