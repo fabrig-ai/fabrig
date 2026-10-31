@@ -20,8 +20,9 @@ impl Component {
         let record = smith_channel::Unauthorized::new(
             &self.bodies,
             smith_channel::UnauthorizedParts { account: name.account, generation: name.generation },
-        )?;
-        let frame = smith_channel::frame(smith_channel::Body::Unauthorized(record))?;
+        )
+        .map_err(Error::ChannelBody)?;
+        let frame = smith_channel::frame(smith_channel::Body::Unauthorized(record)).map_err(Error::Frame)?;
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -40,8 +41,9 @@ impl Component {
         if !self.state.admitted() {
             return Err(Error::Order);
         }
-        let record = smith_channel::Limited::new(&self.bodies, smith_channel::LimitedParts { account, reset })?;
-        let frame = smith_channel::frame(smith_channel::Body::Limited(record))?;
+        let record = smith_channel::Limited::new(&self.bodies, smith_channel::LimitedParts { account, reset })
+            .map_err(Error::ChannelBody)?;
+        let frame = smith_channel::frame(smith_channel::Body::Limited(record)).map_err(Error::Frame)?;
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -62,7 +64,7 @@ impl Component {
             return Err(Error::Order);
         }
         let record = refused_notice(&self.bodies, account, code, reason)?;
-        let frame = smith_channel::frame(smith_channel::Body::AccountRefused(record))?;
+        let frame = smith_channel::frame(smith_channel::Body::AccountRefused(record)).map_err(Error::Frame)?;
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -92,7 +94,8 @@ fn refused_notice(
             code: Box::from(code),
             reason: Box::from(reason.get(..end).ok_or(Error::Grants)?),
         },
-    )?)
+    )
+    .map_err(Error::ChannelBody)?)
 }
 
 #[cfg(test)]

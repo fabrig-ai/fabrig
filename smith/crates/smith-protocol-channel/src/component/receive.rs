@@ -215,7 +215,7 @@ impl Component {
     fn refresh(&mut self, body: &[u8], to_service: &mut Queue<OpenEvent>) -> Result<(), Broken> {
         let refresh = smith_channel::GrantRefresh::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
         let grant = refresh.grant();
-        let value = crate::GrantValue::try_from(grant.value()).or(Err(Broken))?;
+        let value = crate::GrantValue::from_wire(grant.value()).or(Err(Broken))?;
         self.credentials.keep(grant.account(), grant.generation(), value).or(Err(Broken))?;
         to_service.push(OpenEvent::Grant { grant: smith_protocol_translate::refreshed_grant(grant) });
         Ok(())
@@ -248,8 +248,9 @@ impl Component {
             record::Refusal::Unresolved => run::TranscriptRefusal::Unresolved,
             record::Refusal::TooLarge => run::TranscriptRefusal::TooLarge,
         };
-        let admitted = smith_channel::Admitted::new(&self.bodies, smith_channel::AdmittedParts {})?;
-        let admitted = smith_channel::frame(smith_channel::Body::Admitted(admitted))?;
+        let admitted =
+            smith_channel::Admitted::new(&self.bodies, smith_channel::AdmittedParts {}).map_err(Error::ChannelBody)?;
+        let admitted = smith_channel::frame(smith_channel::Body::Admitted(admitted)).map_err(Error::Frame)?;
         self.machine.down(Request::Send { token: Token::new(0), frame: admitted }, &mut self.events, below);
         let answer = smith_protocol_translate::answer_record(
             Time::ZERO,
@@ -258,7 +259,7 @@ impl Component {
             &self.bodies,
             &self.charter,
         )?;
-        let frame = smith_channel::frame(smith_channel::Body::Answer(answer))?;
+        let frame = smith_channel::frame(smith_channel::Body::Answer(answer)).map_err(Error::Frame)?;
         self.machine.down(Request::Send { token: Token::new(0), frame }, &mut self.events, below);
         self.machine.down(Request::Finish, &mut self.events, below);
         Ok(())

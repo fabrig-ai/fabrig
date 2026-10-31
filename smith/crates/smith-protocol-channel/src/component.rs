@@ -139,7 +139,7 @@ impl Component {
 
     /// The channel has reported its end to its service.
     #[must_use]
-    pub fn ended(&self) -> bool {
+    pub const fn ended(&self) -> bool {
         self.ending.reported()
     }
 
@@ -166,8 +166,9 @@ impl Component {
         if !self.state.started() {
             return Err(Error::Order);
         }
-        let record = smith_channel::Admitted::new(&self.bodies, smith_channel::AdmittedParts {})?;
-        let frame = smith_channel::frame(smith_channel::Body::Admitted(record))?;
+        let record =
+            smith_channel::Admitted::new(&self.bodies, smith_channel::AdmittedParts {}).map_err(Error::ChannelBody)?;
+        let frame = smith_channel::frame(smith_channel::Body::Admitted(record)).map_err(Error::Frame)?;
         self.state.admit();
         self.follow(below);
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
@@ -197,8 +198,9 @@ impl Component {
         let record = smith_channel::MessageRefused::new(
             &self.bodies,
             smith_channel::MessageRefusedParts { name: name.raw(), reason },
-        )?;
-        let frame = smith_channel::frame(smith_channel::Body::MessageRefused(record))?;
+        )
+        .map_err(Error::ChannelBody)?;
+        let frame = smith_channel::frame(smith_channel::Body::MessageRefused(record)).map_err(Error::Frame)?;
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -225,7 +227,7 @@ impl Component {
             return Err(Error::Order);
         }
         let record = answer_record(now, answer, read, &self.bodies, &self.charter)?;
-        let frame = smith_channel::frame(smith_channel::Body::Answer(record))?;
+        let frame = smith_channel::frame(smith_channel::Body::Answer(record)).map_err(Error::Frame)?;
         self.state.answer();
         self.follow(below);
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
@@ -251,8 +253,9 @@ impl Component {
             Some(name) => Some(name.raw()),
             None => None,
         };
-        let record = smith_channel::Waiting::new(&self.bodies, smith_channel::WaitingParts { last_read })?;
-        let frame = smith_channel::frame(smith_channel::Body::Waiting(record))?;
+        let record = smith_channel::Waiting::new(&self.bodies, smith_channel::WaitingParts { last_read })
+            .map_err(Error::ChannelBody)?;
+        let frame = smith_channel::frame(smith_channel::Body::Waiting(record)).map_err(Error::Frame)?;
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -277,8 +280,9 @@ impl Component {
             smith_domain::Operation::Completion => smith_channel::Operation::Completion,
             smith_domain::Operation::Command => smith_channel::Operation::Command,
         };
-        let record = smith_channel::Long::new(&self.bodies, smith_channel::LongParts { operation, span })?;
-        let frame = smith_channel::frame(smith_channel::Body::Long(record))?;
+        let record = smith_channel::Long::new(&self.bodies, smith_channel::LongParts { operation, span })
+            .map_err(Error::ChannelBody)?;
+        let frame = smith_channel::frame(smith_channel::Body::Long(record)).map_err(Error::Frame)?;
         self.state.active_mut()?.long_open = next;
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
@@ -296,8 +300,9 @@ impl Component {
         if !self.state.admitted() || self.state.active()?.long_open == 0 {
             return Err(Error::Order);
         }
-        let record = smith_channel::LongDone::new(&self.bodies, smith_channel::LongDoneParts {})?;
-        let frame = smith_channel::frame(smith_channel::Body::LongDone(record))?;
+        let record =
+            smith_channel::LongDone::new(&self.bodies, smith_channel::LongDoneParts {}).map_err(Error::ChannelBody)?;
+        let frame = smith_channel::frame(smith_channel::Body::LongDone(record)).map_err(Error::Frame)?;
         let active = self.state.active_mut()?;
         active.long_open = active.long_open.checked_sub(1).expect("a begun operation owns this terminal");
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
@@ -333,8 +338,9 @@ impl Component {
         let record = smith_channel::Turn::new(
             &self.bodies,
             smith_channel::TurnParts { number, spent: spent.units, last_read, opens_window, body },
-        )?;
-        let frame = smith_channel::frame(smith_channel::Body::Turn(record))?;
+        )
+        .map_err(Error::ChannelBody)?;
+        let frame = smith_channel::frame(smith_channel::Body::Turn(record)).map_err(Error::Frame)?;
         self.state.turns_mut()?.keep(number, body_bytes)?;
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
@@ -482,8 +488,9 @@ impl Component {
             self.lost_facts = self.lost_facts.saturating_add(1);
             return Ok(false);
         }
-        let record = smith_channel::Fact::new(&self.bodies, smith_channel::FactParts { kind, elapsed, count })?;
-        let frame = smith_channel::frame(smith_channel::Body::Fact(record))?;
+        let record = smith_channel::Fact::new(&self.bodies, smith_channel::FactParts { kind, elapsed, count })
+            .map_err(Error::ChannelBody)?;
+        let frame = smith_channel::frame(smith_channel::Body::Fact(record)).map_err(Error::Frame)?;
         let room = self.machine.room();
         let reserve = match crate::live::frame_bytes(&self.bodies, self.bodies.live_bytes) {
             Some(live) => match self.fact_reserve_bytes.checked_add(live) {
@@ -610,7 +617,7 @@ impl Component {
 
     fn stash_initial_grants(&mut self, start: &smith_channel::Start) -> Result<(), Error> {
         for grant in start.grants() {
-            self.credentials.keep(grant.account(), grant.generation(), crate::GrantValue::try_from(grant.value())?)?;
+            self.credentials.keep(grant.account(), grant.generation(), crate::GrantValue::from_wire(grant.value())?)?;
         }
         Ok(())
     }

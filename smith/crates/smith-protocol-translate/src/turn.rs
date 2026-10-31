@@ -31,7 +31,7 @@ pub fn encode_turn(
     let mut messages = List::with_capacity(count(source.messages.len())?);
     for message in &source.messages {
         if messages.push(encode_message(message, source.dialect, limits)?).is_err() {
-            return Err(Error::ResultCapacity);
+            return Err(Error::Capacity);
         }
     }
     let usage = wire::Usage::new(
@@ -43,7 +43,8 @@ pub fn encode_turn(
             cache_write: source.usage.cache_write_tokens,
             reasoning: source.usage.reasoning_tokens,
         },
-    )?;
+    )
+    .map_err(Error::TranscriptBody)?;
     let (kind, opening) = match &source.kind {
         record::Kind::First(opener) => {
             if source.sequence != 1 {
@@ -76,12 +77,13 @@ pub fn encode_turn(
             jobs: source.jobs,
             messages,
         },
-    )?;
+    )
+    .map_err(Error::TranscriptBody)?;
     let Ok(length) = usize::try_from(turn.measure()) else {
-        return Err(Error::ResultCapacity);
+        return Err(Error::Capacity);
     };
     let mut writer = Writer::new(length);
-    turn.encode(&mut writer)?;
+    turn.encode(&mut writer).map_err(Error::Write)?;
     Ok(writer.finish())
 }
 
@@ -93,38 +95,51 @@ fn encode_message(source: &llm::Message, dialect: u32, limits: &wire::v6::Limits
     let mut blocks = List::with_capacity(count(source.content.len())?);
     for block in &source.content {
         if blocks.push(encode_block(block, dialect, limits)?).is_err() {
-            return Err(Error::ResultCapacity);
+            return Err(Error::Capacity);
         }
     }
-    Ok(wire::Message::new(limits, wire::MessageParts { role, blocks })?)
+    Ok(wire::Message::new(limits, wire::MessageParts { role, blocks }).map_err(Error::TranscriptBody)?)
 }
 
 fn encode_block(source: &llm::Block, dialect: u32, limits: &wire::v6::Limits) -> Result<wire::Block, Error> {
     let block = match source {
-        llm::Block::Text { text, replay } => wire::Block::Text(wire::Text::new(
-            limits,
-            wire::TextParts { text: text.clone(), replay: encode_replay(replay.as_ref(), dialect, limits)? },
-        )?),
-        llm::Block::Refusal { text, replay } => wire::Block::Refusal(wire::Text::new(
-            limits,
-            wire::TextParts { text: text.clone(), replay: encode_replay(replay.as_ref(), dialect, limits)? },
-        )?),
-        llm::Block::ToolCall { id, name, input, call: _, replay } => wire::Block::Call(wire::Call::new(
-            limits,
-            wire::CallParts {
-                id: id.clone(),
-                name: name.clone(),
-                input: input.clone(),
-                replay: encode_replay(replay.as_ref(), dialect, limits)?,
-            },
-        )?),
-        llm::Block::ToolResult { id, result } => wire::Block::Result(wire::ToolResult::new(
-            limits,
-            wire::ToolResultParts { id: id.clone(), returned: encode_returned(result, limits)? },
-        )?),
-        llm::Block::Opaque { bytes } => {
-            wire::Block::Opaque(wire::Opaque::new(limits, wire::OpaqueParts { dialect, bytes: bytes.clone() })?)
-        }
+        llm::Block::Text { text, replay } => wire::Block::Text(
+            wire::Text::new(
+                limits,
+                wire::TextParts { text: text.clone(), replay: encode_replay(replay.as_ref(), dialect, limits)? },
+            )
+            .map_err(Error::TranscriptBody)?,
+        ),
+        llm::Block::Refusal { text, replay } => wire::Block::Refusal(
+            wire::Text::new(
+                limits,
+                wire::TextParts { text: text.clone(), replay: encode_replay(replay.as_ref(), dialect, limits)? },
+            )
+            .map_err(Error::TranscriptBody)?,
+        ),
+        llm::Block::ToolCall { id, name, input, call: _, replay } => wire::Block::Call(
+            wire::Call::new(
+                limits,
+                wire::CallParts {
+                    id: id.clone(),
+                    name: name.clone(),
+                    input: input.clone(),
+                    replay: encode_replay(replay.as_ref(), dialect, limits)?,
+                },
+            )
+            .map_err(Error::TranscriptBody)?,
+        ),
+        llm::Block::ToolResult { id, result } => wire::Block::Result(
+            wire::ToolResult::new(
+                limits,
+                wire::ToolResultParts { id: id.clone(), returned: encode_returned(result, limits)? },
+            )
+            .map_err(Error::TranscriptBody)?,
+        ),
+        llm::Block::Opaque { bytes } => wire::Block::Opaque(
+            wire::Opaque::new(limits, wire::OpaqueParts { dialect, bytes: bytes.clone() })
+                .map_err(Error::TranscriptBody)?,
+        ),
     };
     Ok(block)
 }
@@ -135,31 +150,36 @@ fn encode_replay(
     limits: &wire::v6::Limits,
 ) -> Result<Option<wire::Replay>, Error> {
     match source {
-        Some(replay) => {
-            Ok(Some(wire::Replay::new(limits, wire::ReplayParts { dialect, bytes: replay.bytes.clone() })?))
-        }
+        Some(replay) => Ok(Some(
+            wire::Replay::new(limits, wire::ReplayParts { dialect, bytes: replay.bytes.clone() })
+                .map_err(Error::TranscriptBody)?,
+        )),
         None => Ok(None),
     }
 }
 
 fn encode_returned(source: &llm::Returned, limits: &wire::v6::Limits) -> Result<wire::Returned, Error> {
     let returned = match source {
-        llm::Returned::Owned { outcome } => wire::Returned::Outcome(wire::OwnedOutcome::new(
-            limits,
-            wire::OwnedOutcomeParts { value: encode_outcome(outcome, limits)? },
-        )?),
-        llm::Returned::Invalid { problem } => wire::Returned::Invalid(wire::Invalid::new(
-            limits,
-            wire::InvalidParts { problem: encode_problem(problem, limits)? },
-        )?),
-        llm::Returned::NotRun { why } => {
-            wire::Returned::NotRun(wire::NotRun::new(limits, wire::NotRunParts { why: encode_not_run(why, limits)? })?)
-        }
+        llm::Returned::Owned { outcome } => wire::Returned::Outcome(
+            wire::OwnedOutcome::new(limits, wire::OwnedOutcomeParts { value: encode_outcome(outcome, limits)? })
+                .map_err(Error::TranscriptBody)?,
+        ),
+        llm::Returned::Invalid { problem } => wire::Returned::Invalid(
+            wire::Invalid::new(limits, wire::InvalidParts { problem: encode_problem(problem, limits)? })
+                .map_err(Error::TranscriptBody)?,
+        ),
+        llm::Returned::NotRun { why } => wire::Returned::NotRun(
+            wire::NotRun::new(limits, wire::NotRunParts { why: encode_not_run(why, limits)? })
+                .map_err(Error::TranscriptBody)?,
+        ),
         llm::Returned::Text { text, error, replay } => {
             if replay.is_some() {
                 return Err(Error::Transcript(record::Refusal::Unresolved));
             }
-            wire::Returned::Said(wire::Said::new(limits, wire::SaidParts { text: text.clone(), error: *error })?)
+            wire::Returned::Said(
+                wire::Said::new(limits, wire::SaidParts { text: text.clone(), error: *error })
+                    .map_err(Error::TranscriptBody)?,
+            )
         }
         llm::Returned::Withdrawn => wire::Returned::Withdrawn,
     };
@@ -169,24 +189,32 @@ fn encode_returned(source: &llm::Returned, limits: &wire::v6::Limits) -> Result<
 fn encode_not_run(source: &llm::NotRun, limits: &wire::v6::Limits) -> Result<wire::NotRunWhy, Error> {
     Ok(match source {
         llm::NotRun::Stopped => wire::NotRunWhy::Stopped,
-        llm::NotRun::AfterFailedWrite { call } => wire::NotRunWhy::AfterFailedWrite(wire::AfterFailedWrite::new(
-            limits,
-            wire::AfterFailedWriteParts { call: *call },
-        )?),
+        llm::NotRun::AfterFailedWrite { call } => wire::NotRunWhy::AfterFailedWrite(
+            wire::AfterFailedWrite::new(limits, wire::AfterFailedWriteParts { call: *call })
+                .map_err(Error::TranscriptBody)?,
+        ),
         llm::NotRun::OutsideChoice { choice } => {
             let only = match choice {
                 Some(names) => {
                     let mut allowed = List::with_capacity(count(names.len())?);
                     for name in names {
                         allowed
-                            .push(wire::CallName::new(limits, wire::CallNameParts { name: name.clone() })?)
+                            .push(
+                                wire::CallName::new(limits, wire::CallNameParts { name: name.clone() })
+                                    .map_err(Error::TranscriptBody)?,
+                            )
                             .expect("room for allowed names");
                     }
-                    Some(wire::AllowedCalls::new(limits, wire::AllowedCallsParts { names: allowed })?)
+                    Some(
+                        wire::AllowedCalls::new(limits, wire::AllowedCallsParts { names: allowed })
+                            .map_err(Error::TranscriptBody)?,
+                    )
                 }
                 None => None,
             };
-            wire::NotRunWhy::OutsideChoice(wire::OutsideChoice::new(limits, wire::OutsideChoiceParts { only })?)
+            wire::NotRunWhy::OutsideChoice(
+                wire::OutsideChoice::new(limits, wire::OutsideChoiceParts { only }).map_err(Error::TranscriptBody)?,
+            )
         }
     })
 }
@@ -196,33 +224,34 @@ fn encode_problem(source: &llm::Problem, limits: &wire::v6::Limits) -> Result<wi
         llm::Problem::UnknownTool => wire::CallProblem::UnknownTool,
         llm::Problem::Nesting => wire::CallProblem::Nesting,
         llm::Problem::NotAnObject => wire::CallProblem::NotAnObject,
-        llm::Problem::Missing { field } => wire::CallProblem::Missing(wire::FieldProblem::new(
-            limits,
-            wire::FieldProblemParts { field: field.clone() },
-        )?),
-        llm::Problem::WrongType { field } => wire::CallProblem::WrongType(wire::FieldProblem::new(
-            limits,
-            wire::FieldProblemParts { field: field.clone() },
-        )?),
-        llm::Problem::BadValue { field } => wire::CallProblem::BadValue(wire::FieldProblem::new(
-            limits,
-            wire::FieldProblemParts { field: field.clone() },
-        )?),
-        llm::Problem::JobsFull { jobs } => {
-            wire::CallProblem::JobsFull(wire::JobsFullProblem::new(limits, wire::JobsFullProblemParts { jobs: *jobs })?)
-        }
-        llm::Problem::UnknownJob { job } => wire::CallProblem::UnknownJob(wire::UnknownJobProblem::new(
-            limits,
-            wire::UnknownJobProblemParts { job: *job },
-        )?),
+        llm::Problem::Missing { field } => wire::CallProblem::Missing(
+            wire::FieldProblem::new(limits, wire::FieldProblemParts { field: field.clone() })
+                .map_err(Error::TranscriptBody)?,
+        ),
+        llm::Problem::WrongType { field } => wire::CallProblem::WrongType(
+            wire::FieldProblem::new(limits, wire::FieldProblemParts { field: field.clone() })
+                .map_err(Error::TranscriptBody)?,
+        ),
+        llm::Problem::BadValue { field } => wire::CallProblem::BadValue(
+            wire::FieldProblem::new(limits, wire::FieldProblemParts { field: field.clone() })
+                .map_err(Error::TranscriptBody)?,
+        ),
+        llm::Problem::JobsFull { jobs } => wire::CallProblem::JobsFull(
+            wire::JobsFullProblem::new(limits, wire::JobsFullProblemParts { jobs: *jobs })
+                .map_err(Error::TranscriptBody)?,
+        ),
+        llm::Problem::UnknownJob { job } => wire::CallProblem::UnknownJob(
+            wire::UnknownJobProblem::new(limits, wire::UnknownJobProblemParts { job: *job })
+                .map_err(Error::TranscriptBody)?,
+        ),
         llm::Problem::TooLarge => wire::CallProblem::TooLarge,
-        llm::Problem::Oversize { bytes, bound } => wire::CallProblem::Oversize(wire::OversizeProblem::new(
-            limits,
-            wire::OversizeProblemParts { bytes: *bytes, bound: *bound },
-        )?),
-        llm::Problem::CutOff { bytes } => {
-            wire::CallProblem::CutOff(wire::CutProblem::new(limits, wire::CutProblemParts { bytes: *bytes })?)
-        }
+        llm::Problem::Oversize { bytes, bound } => wire::CallProblem::Oversize(
+            wire::OversizeProblem::new(limits, wire::OversizeProblemParts { bytes: *bytes, bound: *bound })
+                .map_err(Error::TranscriptBody)?,
+        ),
+        llm::Problem::CutOff { bytes } => wire::CallProblem::CutOff(
+            wire::CutProblem::new(limits, wire::CutProblemParts { bytes: *bytes }).map_err(Error::TranscriptBody)?,
+        ),
     };
     Ok(problem)
 }
@@ -230,8 +259,8 @@ fn encode_problem(source: &llm::Problem, limits: &wire::v6::Limits) -> Result<wi
 #[expect(clippy::too_many_lines, reason = "every typed tool outcome has an explicit durable representation")]
 fn encode_outcome(source: &tools::Outcome, limits: &wire::v6::Limits) -> Result<wire::Outcome, Error> {
     let outcome = match source {
-        tools::Outcome::Read { content, first, lines, total, next, cut, window } => {
-            wire::Outcome::Read(wire::Read::new(
+        tools::Outcome::Read { content, first, lines, total, next, cut, window } => wire::Outcome::Read(
+            wire::Read::new(
                 limits,
                 wire::ReadParts {
                     content: content.clone(),
@@ -239,9 +268,10 @@ fn encode_outcome(source: &tools::Outcome, limits: &wire::v6::Limits) -> Result<
                     lines: *lines,
                     total: *total,
                     next: match next {
-                        tools::Next::Line(line) => {
-                            wire::Next::Line(wire::LineNumber::new(limits, wire::LineNumberParts { number: *line })?)
-                        }
+                        tools::Next::Line(line) => wire::Next::Line(
+                            wire::LineNumber::new(limits, wire::LineNumberParts { number: *line })
+                                .map_err(Error::TranscriptBody)?,
+                        ),
                         tools::Next::End => wire::Next::End,
                     },
                     cut: match cut {
@@ -251,12 +281,14 @@ fn encode_outcome(source: &tools::Outcome, limits: &wire::v6::Limits) -> Result<
                     window: match window {
                         tools::BytesClamp::Within => wire::BytesClamp::Within,
                         tools::BytesClamp::Clamped { asked, ceiling } => wire::BytesClamp::Clamped(
-                            wire::ByteClamp::new(limits, wire::ByteClampParts { asked: *asked, ceiling: *ceiling })?,
+                            wire::ByteClamp::new(limits, wire::ByteClampParts { asked: *asked, ceiling: *ceiling })
+                                .map_err(Error::TranscriptBody)?,
                         ),
                     },
                 },
-            )?)
-        }
+            )
+            .map_err(Error::TranscriptBody)?,
+        ),
         tools::Outcome::Listed { entries, more } => {
             let mut output = List::with_capacity(count(entries.len())?);
             for entry in entries {
@@ -267,54 +299,61 @@ fn encode_outcome(source: &tools::Outcome, limits: &wire::v6::Limits) -> Result<
                     tools::Kind::Other => wire::Kind::Other,
                 };
                 if output
-                    .push(wire::Entry::new(limits, wire::EntryParts { name: Box::from(entry.name.as_ref()), kind })?)
+                    .push(
+                        wire::Entry::new(limits, wire::EntryParts { name: Box::from(entry.name.as_ref()), kind })
+                            .map_err(Error::TranscriptBody)?,
+                    )
                     .is_err()
                 {
-                    return Err(Error::ResultCapacity);
+                    return Err(Error::Capacity);
                 }
             }
-            wire::Outcome::Listed(wire::Listed::new(limits, wire::ListedParts { entries: output, more: *more })?)
+            wire::Outcome::Listed(
+                wire::Listed::new(limits, wire::ListedParts { entries: output, more: *more })
+                    .map_err(Error::TranscriptBody)?,
+            )
         }
         tools::Outcome::Found { hits, more, timed_out } => {
             let mut bytes = 0_usize;
             for hit in hits {
                 bytes = bytes
                     .checked_add(12)
-                    .ok_or(Error::ResultCapacity)?
+                    .ok_or(Error::Capacity)?
                     .checked_add(hit.path.len())
-                    .ok_or(Error::ResultCapacity)?
+                    .ok_or(Error::Capacity)?
                     .checked_add(hit.text.len())
-                    .ok_or(Error::ResultCapacity)?;
+                    .ok_or(Error::Capacity)?;
             }
             if bytes
                 > usize::try_from(limits.found_hits.min(wire::CEILINGS.found_hits)).expect("piece bound fits usize")
             {
-                return Err(Error::ResultCapacity);
+                return Err(Error::Capacity);
             }
             let mut output = Writer::new(bytes);
             for hit in hits {
                 let value = wire::Hit::new(
                     limits,
                     wire::HitParts { path: hit.path.clone(), line: hit.line, text: hit.text.clone() },
-                )?;
-                value.encode(&mut output)?;
+                )
+                .map_err(Error::TranscriptBody)?;
+                value.encode(&mut output).map_err(Error::Write)?;
             }
             let output = output.finish();
-            wire::Outcome::Found(wire::Found::new(
-                limits,
-                wire::FoundParts { hits: output, more: *more, timed_out: *timed_out },
-            )?)
+            wire::Outcome::Found(
+                wire::Found::new(limits, wire::FoundParts { hits: output, more: *more, timed_out: *timed_out })
+                    .map_err(Error::TranscriptBody)?,
+            )
         }
         tools::Outcome::Removed => wire::Outcome::Removed,
         tools::Outcome::NotEmpty => wire::Outcome::NotEmpty,
-        tools::Outcome::Written { created } => {
-            wire::Outcome::Written(wire::Written::new(limits, wire::WrittenParts { created: *created })?)
-        }
-        tools::Outcome::Edited { replaced } => {
-            wire::Outcome::Edited(wire::Edited::new(limits, wire::EditedParts { replaced: *replaced })?)
-        }
-        tools::Outcome::Exited { exit, head, tail, dropped, timeout, output } => {
-            wire::Outcome::Exited(wire::CommandEnd::new(
+        tools::Outcome::Written { created } => wire::Outcome::Written(
+            wire::Written::new(limits, wire::WrittenParts { created: *created }).map_err(Error::TranscriptBody)?,
+        ),
+        tools::Outcome::Edited { replaced } => wire::Outcome::Edited(
+            wire::Edited::new(limits, wire::EditedParts { replaced: *replaced }).map_err(Error::TranscriptBody)?,
+        ),
+        tools::Outcome::Exited { exit, head, tail, dropped, timeout, output } => wire::Outcome::Exited(
+            wire::CommandEnd::new(
                 limits,
                 wire::CommandEndParts {
                     exit: encode_exit(*exit, limits)?,
@@ -324,10 +363,11 @@ fn encode_outcome(source: &tools::Outcome, limits: &wire::v6::Limits) -> Result<
                     timeout: encode_timeout(*timeout, limits)?,
                     output: encode_bytes(*output, limits)?,
                 },
-            )?)
-        }
-        tools::Outcome::Running { job, head, tail, dropped, timeout, output, after } => {
-            wire::Outcome::Running(wire::CommandRunning::new(
+            )
+            .map_err(Error::TranscriptBody)?,
+        ),
+        tools::Outcome::Running { job, head, tail, dropped, timeout, output, after } => wire::Outcome::Running(
+            wire::CommandRunning::new(
                 limits,
                 wire::CommandRunningParts {
                     job: job.0,
@@ -338,66 +378,76 @@ fn encode_outcome(source: &tools::Outcome, limits: &wire::v6::Limits) -> Result<
                     output: encode_bytes(*output, limits)?,
                     after: encode_timeout(*after, limits)?,
                 },
-            )?)
-        }
+            )
+            .map_err(Error::TranscriptBody)?,
+        ),
         tools::Outcome::Job { job, head, tail, dropped, output, wait, end } => {
             let end = match end {
                 tools::JobEnd::Running => wire::JobEnd::Running,
-                tools::JobEnd::Ended(exit) => wire::JobEnd::Ended(wire::JobExit::new(
-                    limits,
-                    wire::JobExitParts { exit: encode_exit(*exit, limits)? },
-                )?),
+                tools::JobEnd::Ended(exit) => wire::JobEnd::Ended(
+                    wire::JobExit::new(limits, wire::JobExitParts { exit: encode_exit(*exit, limits)? })
+                        .map_err(Error::TranscriptBody)?,
+                ),
                 tools::JobEnd::Stopped => wire::JobEnd::Stopped,
                 tools::JobEnd::Cancelled => wire::JobEnd::Cancelled,
             };
-            wire::Outcome::Job(wire::JobRead::new(
-                limits,
-                wire::JobReadParts {
-                    job: job.0,
-                    head: head.clone(),
-                    last: tail.clone(),
-                    dropped: *dropped,
-                    output: encode_bytes(*output, limits)?,
-                    wait: encode_timeout(*wait, limits)?,
-                    end,
-                },
-            )?)
+            wire::Outcome::Job(
+                wire::JobRead::new(
+                    limits,
+                    wire::JobReadParts {
+                        job: job.0,
+                        head: head.clone(),
+                        last: tail.clone(),
+                        dropped: *dropped,
+                        output: encode_bytes(*output, limits)?,
+                        wait: encode_timeout(*wait, limits)?,
+                        end,
+                    },
+                )
+                .map_err(Error::TranscriptBody)?,
+            )
         }
         tools::Outcome::NotGranted => wire::Outcome::NotGranted,
-        tools::Outcome::Outside { path } => wire::Outcome::Outside(wire::ResolvedFailure::new(
-            limits,
-            wire::ResolvedFailureParts { path: encode_resolved(path, limits)? },
-        )?),
-        tools::Outcome::ReadOnly { path } => wire::Outcome::ReadOnly(wire::ResolvedFailure::new(
-            limits,
-            wire::ResolvedFailureParts { path: encode_resolved(path, limits)? },
-        )?),
+        tools::Outcome::Outside { path } => wire::Outcome::Outside(
+            wire::ResolvedFailure::new(limits, wire::ResolvedFailureParts { path: encode_resolved(path, limits)? })
+                .map_err(Error::TranscriptBody)?,
+        ),
+        tools::Outcome::ReadOnly { path } => wire::Outcome::ReadOnly(
+            wire::ResolvedFailure::new(limits, wire::ResolvedFailureParts { path: encode_resolved(path, limits)? })
+                .map_err(Error::TranscriptBody)?,
+        ),
         tools::Outcome::TooLong => wire::Outcome::TooLong,
-        tools::Outcome::NotFound { path } => wire::Outcome::NotFound(wire::ResolvedFailure::new(
-            limits,
-            wire::ResolvedFailureParts { path: encode_resolved(path, limits)? },
-        )?),
+        tools::Outcome::NotFound { path } => wire::Outcome::NotFound(
+            wire::ResolvedFailure::new(limits, wire::ResolvedFailureParts { path: encode_resolved(path, limits)? })
+                .map_err(Error::TranscriptBody)?,
+        ),
         tools::Outcome::NotFile => wire::Outcome::NotFile,
         tools::Outcome::Linked => wire::Outcome::Linked,
         tools::Outcome::Protected => wire::Outcome::Protected,
-        tools::Outcome::NotDirectory { path } => wire::Outcome::NotDirectory(wire::ResolvedFailure::new(
-            limits,
-            wire::ResolvedFailureParts { path: encode_resolved(path, limits)? },
-        )?),
-        tools::Outcome::TooLarge { what, size, bound } => wire::Outcome::TooLarge(wire::TooLarge::new(
-            limits,
-            wire::TooLargeParts { what: encode_size_part(*what), size: *size, bound: *bound },
-        )?),
+        tools::Outcome::NotDirectory { path } => wire::Outcome::NotDirectory(
+            wire::ResolvedFailure::new(limits, wire::ResolvedFailureParts { path: encode_resolved(path, limits)? })
+                .map_err(Error::TranscriptBody)?,
+        ),
+        tools::Outcome::TooLarge { what, size, bound } => wire::Outcome::TooLarge(
+            wire::TooLarge::new(
+                limits,
+                wire::TooLargeParts { what: encode_size_part(*what), size: *size, bound: *bound },
+            )
+            .map_err(Error::TranscriptBody)?,
+        ),
         tools::Outcome::NotRead => wire::Outcome::NotRead,
         tools::Outcome::Stale => wire::Outcome::Stale,
         tools::Outcome::EditFailed { edit, why } => {
             if *edit == 0 {
                 return Err(Error::Transcript(record::Refusal::Malformed));
             }
-            wire::Outcome::EditFailed(wire::EditFailed::new(
-                limits,
-                wire::EditFailedParts { edit: *edit, why: encode_mismatch(why, limits)? },
-            )?)
+            wire::Outcome::EditFailed(
+                wire::EditFailed::new(
+                    limits,
+                    wire::EditFailedParts { edit: *edit, why: encode_mismatch(why, limits)? },
+                )
+                .map_err(Error::TranscriptBody)?,
+            )
         }
         tools::Outcome::Failed { fault } => {
             let fault = match fault {
@@ -405,7 +455,9 @@ fn encode_outcome(source: &tools::Outcome, limits: &wire::v6::Limits) -> Result<
                 tools::Fault::NoSpace => wire::Fault::NoSpace,
                 tools::Fault::Other => wire::Fault::Other,
             };
-            wire::Outcome::Failed(wire::Failed::new(limits, wire::FailedParts { fault })?)
+            wire::Outcome::Failed(
+                wire::Failed::new(limits, wire::FailedParts { fault }).map_err(Error::TranscriptBody)?,
+            )
         }
         tools::Outcome::TimedOut => wire::Outcome::TimedOut,
         tools::Outcome::Cancelled => wire::Outcome::Cancelled,
@@ -418,23 +470,28 @@ fn encode_outcome(source: &tools::Outcome, limits: &wire::v6::Limits) -> Result<
 fn count(length: usize) -> Result<u32, Error> {
     match u32::try_from(length) {
         Ok(count) => Ok(count),
-        Err(_) => Err(Error::ResultCapacity),
+        Err(_) => Err(Error::Capacity),
     }
 }
 
 /// Preserve the typed normalized failure descriptor under transcript version 6.
 fn encode_resolved(source: &tools::Resolved, limits: &wire::v6::Limits) -> Result<wire::Resolved, Error> {
     let value = match source {
-        tools::Resolved::Working { path } => {
-            wire::Resolved::Working(wire::WorkingPath::new(limits, wire::WorkingPathParts { path: path.clone() })?)
-        }
-        tools::Resolved::Other { directory, path } => wire::Resolved::Other(wire::OtherPath::new(
-            limits,
-            wire::OtherPathParts { directory: Box::from(directory.as_bytes()), path: path.clone() },
-        )?),
-        tools::Resolved::Outside { path } => {
-            wire::Resolved::Outside(wire::OutsidePath::new(limits, wire::OutsidePathParts { path: path.clone() })?)
-        }
+        tools::Resolved::Working { path } => wire::Resolved::Working(
+            wire::WorkingPath::new(limits, wire::WorkingPathParts { path: path.clone() })
+                .map_err(Error::TranscriptBody)?,
+        ),
+        tools::Resolved::Other { directory, path } => wire::Resolved::Other(
+            wire::OtherPath::new(
+                limits,
+                wire::OtherPathParts { directory: Box::from(directory.as_bytes()), path: path.clone() },
+            )
+            .map_err(Error::TranscriptBody)?,
+        ),
+        tools::Resolved::Outside { path } => wire::Resolved::Outside(
+            wire::OutsidePath::new(limits, wire::OutsidePathParts { path: path.clone() })
+                .map_err(Error::TranscriptBody)?,
+        ),
     };
     Ok(value)
 }
@@ -446,14 +503,20 @@ fn encode_mismatch(source: &tools::Mismatch, limits: &wire::v6::Limits) -> Resul
         tools::Mismatch::Ambiguous { count: found, lines } => {
             let mut output = List::with_capacity(count(lines.len())?);
             for line in lines {
-                if output.push(wire::LineNumber::new(limits, wire::LineNumberParts { number: *line })?).is_err() {
-                    return Err(Error::ResultCapacity);
+                if output
+                    .push(
+                        wire::LineNumber::new(limits, wire::LineNumberParts { number: *line })
+                            .map_err(Error::TranscriptBody)?,
+                    )
+                    .is_err()
+                {
+                    return Err(Error::Capacity);
                 }
             }
-            wire::Mismatch::Ambiguous(wire::Ambiguous::new(
-                limits,
-                wire::AmbiguousParts { count: *found, lines: output },
-            )?)
+            wire::Mismatch::Ambiguous(
+                wire::Ambiguous::new(limits, wire::AmbiguousParts { count: *found, lines: output })
+                    .map_err(Error::TranscriptBody)?,
+            )
         }
     };
     Ok(mismatch)
@@ -474,10 +537,12 @@ fn encode_size_part(what: tools::SizePart) -> wire::SizePart {
 
 fn encode_exit(exit: tools::Exit, limits: &wire::v6::Limits) -> Result<wire::Exit, Error> {
     Ok(match exit {
-        tools::Exit::Code { code } => wire::Exit::Code(wire::ExitCode::new(limits, wire::ExitCodeParts { code })?),
-        tools::Exit::Signal { signal } => {
-            wire::Exit::Signal(wire::ExitSignal::new(limits, wire::ExitSignalParts { signal })?)
+        tools::Exit::Code { code } => {
+            wire::Exit::Code(wire::ExitCode::new(limits, wire::ExitCodeParts { code }).map_err(Error::TranscriptBody)?)
         }
+        tools::Exit::Signal { signal } => wire::Exit::Signal(
+            wire::ExitSignal::new(limits, wire::ExitSignalParts { signal }).map_err(Error::TranscriptBody)?,
+        ),
         tools::Exit::TimedOut => wire::Exit::TimedOut,
     })
 }
@@ -485,19 +550,22 @@ fn encode_exit(exit: tools::Exit, limits: &wire::v6::Limits) -> Result<wire::Exi
 fn encode_timeout(timeout: tools::TimeoutClamp, limits: &wire::v6::Limits) -> Result<wire::TimeoutClamp, Error> {
     Ok(match timeout {
         tools::TimeoutClamp::Within => wire::TimeoutClamp::Within,
-        tools::TimeoutClamp::Clamped { asked, ceiling } => wire::TimeoutClamp::Clamped(wire::DurationClamp::new(
-            limits,
-            wire::DurationClampParts { asked_ns: asked.as_nanos(), ceiling_ns: ceiling.as_nanos() },
-        )?),
+        tools::TimeoutClamp::Clamped { asked, ceiling } => wire::TimeoutClamp::Clamped(
+            wire::DurationClamp::new(
+                limits,
+                wire::DurationClampParts { asked_ns: asked.as_nanos(), ceiling_ns: ceiling.as_nanos() },
+            )
+            .map_err(Error::TranscriptBody)?,
+        ),
     })
 }
 
 fn encode_bytes(output: tools::BytesClamp, limits: &wire::v6::Limits) -> Result<wire::BytesClamp, Error> {
     Ok(match output {
         tools::BytesClamp::Within => wire::BytesClamp::Within,
-        tools::BytesClamp::Clamped { asked, ceiling } => {
-            wire::BytesClamp::Clamped(wire::ByteClamp::new(limits, wire::ByteClampParts { asked, ceiling })?)
-        }
+        tools::BytesClamp::Clamped { asked, ceiling } => wire::BytesClamp::Clamped(
+            wire::ByteClamp::new(limits, wire::ByteClampParts { asked, ceiling }).map_err(Error::TranscriptBody)?,
+        ),
     })
 }
 
@@ -507,12 +575,13 @@ fn encode_opening(
     backend: &record::Backend,
     limits: &wire::v6::Limits,
 ) -> Result<wire::Opening, Error> {
-    let affinity = wire::Affinity::new(limits, wire::AffinityParts { key: affinity.key, thread: affinity.thread })?;
+    let affinity = wire::Affinity::new(limits, wire::AffinityParts { key: affinity.key, thread: affinity.thread })
+        .map_err(Error::TranscriptBody)?;
     let backend = match backend {
         record::Backend::Direct => wire::Backend::Direct,
-        record::Backend::Program { name } => {
-            wire::Backend::Program(wire::Program::new(limits, wire::ProgramParts { name: name.clone() })?)
-        }
+        record::Backend::Program { name } => wire::Backend::Program(
+            wire::Program::new(limits, wire::ProgramParts { name: name.clone() }).map_err(Error::TranscriptBody)?,
+        ),
     };
-    Ok(wire::Opening::new(limits, wire::OpeningParts { affinity, account, backend })?)
+    Ok(wire::Opening::new(limits, wire::OpeningParts { affinity, account, backend }).map_err(Error::TranscriptBody)?)
 }

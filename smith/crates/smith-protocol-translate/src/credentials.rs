@@ -16,7 +16,7 @@ pub enum GrantValue {
     Key(Box<[u8]>),
     /// A host's program source directory name.
     Program(Box<[u8]>),
-    /// Withdrawn: an id and bearer, removed by accounts-sources.
+    /// A withdrawn credential carrying its account id and bearer.
     Withdrawn { account_id: Box<[u8]>, bearer: Box<[u8]> },
 }
 
@@ -39,10 +39,9 @@ pub fn program_name(name: &[u8]) -> Result<&[u8], Error> {
     Ok(name)
 }
 
-impl TryFrom<&smith_channel::GrantValue> for GrantValue {
-    type Error = Error;
-
-    fn try_from(value: &smith_channel::GrantValue) -> Result<Self, Self::Error> {
+impl GrantValue {
+    /// Copy one checked wire credential into its redacted service-owned form.
+    pub fn from_wire(value: &smith_channel::GrantValue) -> Result<GrantValue, Error> {
         Ok(match value {
             smith_channel::GrantValue::Credential(value) => match value.scheme() {
                 smith_channel::Scheme::Bearer => GrantValue::Bearer(Box::from(value.bytes().expose())),

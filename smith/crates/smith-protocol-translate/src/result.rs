@@ -73,9 +73,10 @@ pub fn encode_result(result: &run::outcome::Declared, limits: &wire::v4::Limits)
             for item in &verdict.items {
                 let mut item_fields = List::with_capacity(limits.item_fields);
                 copy_fields(&item.fields, &mut item_fields, limits)?;
-                let item = wire::Item::new(limits, wire::ItemParts { kind: item.kind.clone(), fields: item_fields })?;
+                let item = wire::Item::new(limits, wire::ItemParts { kind: item.kind.clone(), fields: item_fields })
+                    .map_err(Error::CharterBody)?;
                 if items.push(item).is_err() {
-                    return Err(Error::ResultCapacity);
+                    return Err(Error::Capacity);
                 }
             }
             (wire::Form::Verdict, Some(verdict.name.clone()), &verdict.text[..], &verdict.fields[..])
@@ -87,12 +88,13 @@ pub fn encode_result(result: &run::outcome::Declared, limits: &wire::v4::Limits)
     };
     copy_fields(values, &mut fields, limits)?;
     let record =
-        wire::RunResult::new(limits, wire::RunResultParts { form, label, text: Box::from(text), fields, items })?;
+        wire::RunResult::new(limits, wire::RunResultParts { form, label, text: Box::from(text), fields, items })
+            .map_err(Error::CharterBody)?;
     let Ok(length) = usize::try_from(record.measure()) else {
-        return Err(Error::ResultCapacity);
+        return Err(Error::Capacity);
     };
     let mut writer = Writer::new(length);
-    record.encode(&mut writer)?;
+    record.encode(&mut writer).map_err(Error::Write)?;
     Ok(writer.finish())
 }
 
@@ -102,9 +104,10 @@ fn copy_fields(
     limits: &wire::v4::Limits,
 ) -> Result<(), Error> {
     for field in values {
-        let value = wire::Field::new(limits, wire::FieldParts { name: field.name.clone(), text: field.value.clone() })?;
+        let value = wire::Field::new(limits, wire::FieldParts { name: field.name.clone(), text: field.value.clone() })
+            .map_err(Error::CharterBody)?;
         if target.push(value).is_err() {
-            return Err(Error::ResultCapacity);
+            return Err(Error::Capacity);
         }
     }
     Ok(())

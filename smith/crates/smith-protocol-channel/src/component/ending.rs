@@ -11,7 +11,7 @@ pub(super) enum Ending {
 }
 
 impl Ending {
-    pub(super) fn reported(&self) -> bool {
+    pub(super) const fn reported(&self) -> bool {
         match self {
             Ending::Listening => false,
             Ending::Reported => true,

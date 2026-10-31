@@ -1,7 +1,7 @@
 //! Checked wire translation failures (protocol/channel.md, sections 2–7).
 use skein_channel::SchemaError;
 
-/// A checked channel cannot be built from the supplied limits.
+/// A wire translation or channel operation exceeded its bounds or order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
     /// A codec body exceeds the frame range.
@@ -11,9 +11,9 @@ pub enum Error {
     /// Configured endpoint names exceed their count or byte allowance.
     Endpoints,
     /// The accepted result is outside the configured charter codec limits.
-    Result(smith_charter::v4::Problem),
+    CharterBody(smith_charter::v4::Problem),
     /// A bounded result list had no room for a field or item.
-    ResultCapacity,
+    Capacity,
     /// A saved answer decodes but fails the domain's sealed result bounds.
     InvalidSavedAnswer,
     /// A result or delivery record does not form the concrete typed value.
@@ -31,39 +31,9 @@ pub enum Error {
     /// A credential generation is stale, repeated, or exceeds the table.
     Grants,
     /// The measured result did not fit its output writer.
-    ResultWrite(skein_lib::Overflow),
+    Write(skein_lib::Overflow),
     /// A domain answer exceeds the configured channel body limits.
-    Answer(smith_channel::v5::Problem),
+    ChannelBody(smith_channel::v5::Problem),
     /// A measured application frame could not be built.
     Frame(skein_channel::FrameError),
-}
-
-impl From<smith_channel::v5::Problem> for Error {
-    fn from(problem: smith_channel::v5::Problem) -> Error {
-        Error::Answer(problem)
-    }
-}
-
-impl From<smith_transcript::v6::Problem> for Error {
-    fn from(problem: smith_transcript::v6::Problem) -> Error {
-        Error::TranscriptBody(problem)
-    }
-}
-
-impl From<skein_channel::FrameError> for Error {
-    fn from(problem: skein_channel::FrameError) -> Error {
-        Error::Frame(problem)
-    }
-}
-
-impl From<smith_charter::v4::Problem> for Error {
-    fn from(problem: smith_charter::v4::Problem) -> Error {
-        Error::Result(problem)
-    }
-}
-
-impl From<skein_lib::Overflow> for Error {
-    fn from(problem: skein_lib::Overflow) -> Error {
-        Error::ResultWrite(problem)
-    }
 }

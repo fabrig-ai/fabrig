@@ -62,7 +62,7 @@ pub fn start_context(
                     conflicts: directory.conflicts().to_boxed(),
                 };
                 if mounts.push(mount).is_err() {
-                    return Err(Error::ResultCapacity);
+                    return Err(Error::Capacity);
                 }
             }
             Some(mounts.into_boxed())
@@ -77,7 +77,7 @@ pub fn start_context(
             renewable: renewable(grant.value()),
         };
         if grants.push(item).is_err() {
-            return Err(Error::ResultCapacity);
+            return Err(Error::Capacity);
         }
     }
     let mut messages = List::with_capacity(parts.messages.len());
@@ -92,7 +92,7 @@ pub fn start_context(
             })
             .is_err()
         {
-            return Err(Error::ResultCapacity);
+            return Err(Error::Capacity);
         }
     }
     Ok(DecodedStart {
