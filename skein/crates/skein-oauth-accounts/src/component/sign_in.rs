@@ -98,10 +98,7 @@ impl Component {
         let public = registration.client_secret.is_none();
         if public {
             let mut listeners = 0_u32;
-            let mut next = self.first_exchange;
-            while let Some(id) = next {
-                let exchange = self.exchanges.get(id).expect("live exchange");
-                next = exchange.next;
+            for (_, exchange) in self.exchanges.iter() {
                 let reserved = match exchange.stage {
                     Stage::Loading => match self.sources.get(exchange.account).expect("account source") {
                         Source::SignIn { registration, .. } => registration.client_secret.is_none(),
@@ -213,10 +210,7 @@ impl Component {
             let address = listener.address();
             let mut busy = false;
             if listener.fixed() {
-                let mut other = self.first_exchange;
-                while let Some(other_id) = other {
-                    let other_exchange = self.exchanges.get(other_id).expect("live exchange");
-                    other = other_exchange.next;
+                for (other_id, other_exchange) in self.exchanges.iter() {
                     if let Some(other_listener) = &other_exchange.listener
                         && other_id != id
                         && other_listener.sent
