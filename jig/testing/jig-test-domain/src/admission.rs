@@ -75,6 +75,9 @@ pub fn class(event: &Event) -> Class {
         | Event::Stop
         | Event::ConnectorTimer { .. }
         | Event::Switched
+        | Event::StartRecord(_)
+        | Event::StartMissing { .. }
+        | Event::StartPageRefused { .. }
         | Event::StartDone(_)
         | Event::RestartDone(..)
         | Event::CallAnswered { .. }
@@ -148,6 +151,9 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             Ok(())
         }
         event @ (Event::Switched
+        | Event::StartRecord(_)
+        | Event::StartMissing { .. }
+        | Event::StartPageRefused { .. }
         | Event::StartDone(_)
         | Event::RestartDone(_)
         | Event::TranscriptLoaded { .. }
@@ -265,6 +271,9 @@ fn split(domain: &mut Domain, event: Event) -> (Event, Option<Event>) {
         | Event::StartBegin { .. }
         | Event::RestartBegin { .. }
         | Event::Switched
+        | Event::StartRecord(_)
+        | Event::StartMissing { .. }
+        | Event::StartPageRefused { .. }
         | Event::StartDone(_)
         | Event::RestartDone(..)
         | Event::Timer(..)
