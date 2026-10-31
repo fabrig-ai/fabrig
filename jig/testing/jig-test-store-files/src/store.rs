@@ -562,7 +562,7 @@ impl Store {
         while let Some(output) = outputs.pop() {
             match output {
                 Up::Ask(request) => requests.push_back(request),
-                output @ (Up::Root(_)) => self.replies.push(output),
+                output @ Up::Root(_) => self.replies.push(output),
             }
         }
     }

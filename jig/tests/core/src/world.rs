@@ -553,7 +553,7 @@ impl World {
             self.trace.push(format!("output {request:?}"));
             match request {
                 root::Request::Start { phase, census } => {
-                    self.store.ask(jig_test_store::StoreOut::Start { phase, census })
+                    self.store.ask(jig_test_store::StoreOut::Start { phase, census });
                 }
                 root::Request::Commit { number, mut writes } => {
                     let mut rows = Vec::new();
@@ -604,7 +604,7 @@ impl World {
         for answer in self.store.answers() {
             match answer {
                 jig_test_store::Up::Root(event) => self.events.push_back(event),
-                jig_test_store::jig_test_store::Up::Ask(_) => {
+                jig_test_store::Up::Ask(_) => {
                     panic!("walking fixture does not restart")
                 }
             }

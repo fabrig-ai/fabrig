@@ -268,7 +268,7 @@ impl Driver {
         while let Some(request) = out.pop() {
             match request {
                 root::Request::Start { phase, census } => {
-                    self.store.ask(jig_test_store::StoreOut::Start { phase, census })
+                    self.store.ask(StoreOut::Start { phase, census });
                 }
                 root::Request::Commit { number, mut writes } => {
                     let mut rows = Vec::new();

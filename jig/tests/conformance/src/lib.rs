@@ -569,7 +569,6 @@ impl Application for Testing {
         peers.observer.delivered(clock.now, &mut delivery);
         peers.peers.delivered(&delivery);
         match delivery {
-            root::Delivery::Start(_) => {}
             root::Delivery::Projection { connector, feed } => {
                 if feed.closing {
                     vec![Input::Event(root::Event::Core(core::Event::ProjectionSettled {
@@ -654,6 +653,7 @@ impl Application for Testing {
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
             | root::Delivery::CallAnswer { .. }
+            | root::Delivery::Start(_)
             | root::Delivery::Message { .. } => Vec::new(),
             root::Delivery::Fleet(_) => panic!("root consumes fleet continuations"),
         }

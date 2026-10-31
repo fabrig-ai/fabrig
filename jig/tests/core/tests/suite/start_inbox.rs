@@ -259,10 +259,10 @@ fn start_restores_inbox_chats_and_unread_results_from_one_store() {
     assert!(restored.people.needs(person).expect("restored party needs") >= 2);
     assert_eq!(restored.people.cached_results(person).expect("restored party results").len(), 2);
     for record in world.store.rows.values() {
-        if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row))) = record {
-            if row.flags.conversation {
-                assert_eq!(restored.people.chat_owner(row.number), Some(person));
-            }
+        if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row))) = record
+            && row.flags.conversation
+        {
+            assert_eq!(restored.people.chat_owner(row.number), Some(person));
         }
     }
 }

@@ -1,4 +1,4 @@
-//! Decision opening gates stale listings for either start interface (engine.md, 6, 8).
+//! Decision opening gates stale listings when the start opens (engine.md, 6, 8).
 use jig_core_world::{fixtures, world};
 use jig_domain_core::{
     self as core,
@@ -25,7 +25,7 @@ fn selected_to_open(core: &mut core::Core, env: &Env<core::Limits>) {
         };
         out.clear();
     }
-    panic!("bounded true start");
+    panic!("bounded start");
 }
 
 fn listing(core: &mut core::Core, env: &Env<core::Limits>, worker: u32) -> Vec<(Token, Token, Token)> {

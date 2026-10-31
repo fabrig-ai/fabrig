@@ -439,7 +439,7 @@ fn recovered(recovery: u16, applications: usize, calls: u64) {
 }
 
 #[test]
-fn uncertain_keyed_effect_and_writer_settle_as_default_after_fresh_reads() {
+fn uncertain_keyed_effect_and_writer_settle_after_fresh_reads() {
     recovered(1, 1, 3);
 }
 
@@ -454,7 +454,7 @@ fn uncertain_idempotent_effect_repeats_after_its_saved_deadline() {
 }
 
 #[test]
-fn unrecoverable_effect_holds_its_task_and_writer_as_default() {
+fn unrecoverable_effect_holds_its_task_and_writer() {
     let mut selected = Harness::new(4);
     selected.selected();
     assert_eq!(selected.outcome, Some(core::connector::OutboxOutcome::Held { entry: ENTRY }));
@@ -472,7 +472,7 @@ fn unrecoverable_effect_holds_its_task_and_writer_as_default() {
 }
 
 #[test]
-fn restored_access_controls_workspace_writers_on_both_paths() {
+fn restored_access_controls_workspace_writers_during_start() {
     for role in [connector::ResourceRole::Owned, connector::ResourceRole::Context] {
         {
             let mut h = Harness::new(1);
@@ -561,7 +561,7 @@ fn restored_access_controls_workspace_writers_on_both_paths() {
 }
 
 #[test]
-fn loading_slot_reports_keep_the_durable_pool_capacity_as_default() {
+fn loading_slot_reports_keep_the_durable_pool_capacity() {
     {
         let mut h = Harness::new(1);
         {

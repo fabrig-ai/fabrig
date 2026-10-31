@@ -1,6 +1,4 @@
-//! The core's cold-start script (domain/engine.md, 6; domain/root.md, 8).
-//! The application performs each requested step and reports that exact step
-//! done. Only the core chooses the next step or opens decisions.
+//! Live restore ranges and typed walk positions (domain/engine.md, 6; protocol/store.md, 7.2).
 
 mod census;
 mod cursor;

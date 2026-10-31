@@ -56,7 +56,7 @@ pub enum StoreOut {
     NotesLoad { owner: skein_lib::Token, range: jig_domain_notes::Range },
     Now(jig_domain_core::Now),
 }
-/// A restored row, a root terminal or the next store request.
+/// A typed root event or the next store request.
 #[derive(Debug)]
 #[expect(clippy::large_enum_variant, reason = "store replies carry the core's bounded proposal event whole")]
 pub enum Up {

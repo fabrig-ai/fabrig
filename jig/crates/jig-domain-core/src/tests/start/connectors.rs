@@ -34,7 +34,7 @@ fn to_connectors(core: &mut Core, env: &Env<crate::Limits>) {
 }
 
 #[test]
-fn roles_follow_each_connector_and_keep_the_name_bound_on_both_paths() {
+fn roles_follow_each_connector_and_keep_the_name_bound_during_start() {
     {
         let (mut core, env) = fresh();
         assert!(!core.restore_resource_role(&env, 1, name(1), connector::ResourceRole::Context));
