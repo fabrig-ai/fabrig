@@ -1807,8 +1807,8 @@ fn rules_controls(misses: &mut Vec<Miss>, observed: &Observed) {
         (
             number(scope, "/chip/task") == Some(SCOPE)
                 && text(scope, "/chip/phase") == "held"
-                && number(scope, "/hold/owner/reason/placed/hold") == number(held, "/hold/owner/reason/placed/hold")
-                && number(scope, "/hold/owner/revision") == Some(RULES_HOLD_REVISION),
+                && number(scope, "/hold/reason/placed/hold") == number(held, "/hold/reason/placed/hold")
+                && number(scope, "/hold/revision") == Some(RULES_HOLD_REVISION),
             RULES_INBOX,
             "the same hold must stop A before its question can be sent",
         ),
@@ -1972,8 +1972,8 @@ fn rules_held(task: &Value) -> bool {
     use super::{RULES, RULES_HOLD_REVISION};
     number(task, "/chip/task") == Some(RULES)
         && text(task, "/chip/phase") == "held"
-        && number(task, "/hold/owner/reason/placed/hold").is_some_and(|hold| hold != 0)
-        && number(task, "/hold/owner/revision") == Some(RULES_HOLD_REVISION)
+        && number(task, "/hold/reason/placed/hold").is_some_and(|hold| hold != 0)
+        && number(task, "/hold/revision") == Some(RULES_HOLD_REVISION)
 }
 
 fn message_words(told: &Told) -> impl Iterator<Item = &[u8]> {
@@ -2014,8 +2014,8 @@ mod rules_tests {
         Told::new(&system, b"fake", Some(0), history).expect("case cue")
     }
     fn held() -> Value {
-        json!({"chip":{"task":RULES,"phase":"held"}, "hold":{"owner":{
-            "reason":{"placed":{"hold":1}},"revision":RULES_HOLD_REVISION}}})
+        json!({"chip":{"task":RULES,"phase":"held"}, "hold":{
+            "reason":{"placed":{"hold":1}},"revision":RULES_HOLD_REVISION}})
     }
     fn ended(task: u64, report: &str) -> Value {
         json!({"task":{"chip":{"task":task,"phase":"ended"},"result":{"value":{"report":{"bytes":report}}}}})
@@ -2049,7 +2049,7 @@ mod rules_tests {
                 (Read::RulesHeld, held()),
                 (
                     Read::ScopeHeld,
-                    json!({"chip":{"task":SCOPE,"phase":"held"},"hold":{"owner":{"reason":{"placed":{"hold":1}},"revision":RULES_HOLD_REVISION}}}),
+                    json!({"chip":{"task":SCOPE,"phase":"held"},"hold":{"reason":{"placed":{"hold":1}},"revision":RULES_HOLD_REVISION}}),
                 ),
                 (
                     Read::RulesQuestionWaiting,
@@ -2106,11 +2106,11 @@ mod rules_tests {
             (Read::RulesWaiting, "/delegates/0/chip/task", RULES_CONTROL, "wait in its run"),
             (Read::RulesHeld, "/chip/task", RULES_CONTROL, "stopped by the person"),
             (Read::RulesHeld, "/chip/phase", RULES_CONTROL, "stopped by the person"),
-            (Read::RulesHeld, "/hold/owner/reason/placed/hold", RULES_CONTROL, "stopped by the person"),
-            (Read::RulesHeld, "/hold/owner/revision", RULES_CONTROL, "stopped by the person"),
+            (Read::RulesHeld, "/hold/reason/placed/hold", RULES_CONTROL, "stopped by the person"),
+            (Read::RulesHeld, "/hold/revision", RULES_CONTROL, "stopped by the person"),
             (Read::RulesQuestionWaiting, "/task/chip/task", RULES_INBOX, "numbered question"),
             (Read::ScopeHeld, "/chip/phase", RULES_INBOX, "same hold"),
-            (Read::ScopeHeld, "/hold/owner/revision", RULES_INBOX, "same hold"),
+            (Read::ScopeHeld, "/hold/revision", RULES_INBOX, "same hold"),
         ] {
             let saved = passing.documents.get_mut(&read).expect("document").pointer_mut(path).expect("field").take();
             rejects(&passing, promise, what);
@@ -2585,9 +2585,9 @@ fn pause_stop(observed: &Observed, misses: &mut Vec<Miss>) {
             misses,
             "5.2",
             text(task, "/chip/phase") == "held"
-                && number(task, "/hold/owner/revision") == Some(B_HOLD)
-                && number(task, "/hold/owner/reason/placed/hold").is_some_and(|hold| hold != 0)
-                && number(task, "/hold/owner/reason/placed/hold") == number(held, "/hold/owner/reason/placed/hold"),
+                && number(task, "/hold/revision") == Some(B_HOLD)
+                && number(task, "/hold/reason/placed/hold").is_some_and(|hold| hold != 0)
+                && number(task, "/hold/reason/placed/hold") == number(held, "/hold/reason/placed/hold"),
             PERSON_STOP,
             "B must stay held at the person's Stop revision",
         );
@@ -2716,7 +2716,7 @@ fn pause_children(observed: &Observed, misses: &mut Vec<Miss>) {
         DELEGATES_RESUME,
         "h1 must receive its coder's change and its held reviewer's passing verdict",
     );
-    let placed = number(held, "/hold/owner/reason/placed/hold");
+    let placed = number(held, "/hold/reason/placed/hold");
     for (read, running) in [
         (Read::ImplementerHeld, Some(Read::ImplementerRunning)),
         (Read::H1Held, None),
@@ -2728,7 +2728,7 @@ fn pause_children(observed: &Observed, misses: &mut Vec<Miss>) {
             "5.2",
             text(child, "/chip/phase") == "held"
                 && placed.is_some_and(|number| number != 0)
-                && number(child, "/hold/owner/reason/placed/hold") == placed
+                && number(child, "/hold/reason/placed/hold") == placed
                 && child["result"].is_null()
                 && running.is_none_or(|running| {
                     number(child, "/chip/details/owner/details/attempt")
@@ -2868,7 +2868,7 @@ mod pause_tests {
             let document = documents.get_mut(&read).expect("held");
             document["task"]["chip"]["phase"] = "held".into();
             document["task"]["result"] = Value::Null;
-            document["task"]["hold"] = json!({"owner":{"revision":B_HOLD,"reason":{"placed":{"hold":1}}}});
+            document["task"]["hold"] = json!({"revision":B_HOLD,"reason":{"placed":{"hold":1}}});
         }
         documents.get_mut(&Read::BHeld).expect("held")["task"]["activity"] = 7.into();
         documents.get_mut(&Read::BStillHeld).expect("still")["task"]["activity"] = 10.into();
@@ -2957,10 +2957,10 @@ mod pause_tests {
             (Read::BHeld, "/task/project"),
             (Read::BHeld, "/task/requester/task"),
             (Read::BHeld, "/task/chip/phase"),
-            (Read::BHeld, "/task/hold/owner/revision"),
-            (Read::BHeld, "/task/hold/owner/reason/placed/hold"),
+            (Read::BHeld, "/task/hold/revision"),
+            (Read::BHeld, "/task/hold/reason/placed/hold"),
             (Read::BStillHeld, "/task/chip/phase"),
-            (Read::BStillHeld, "/task/hold/owner/revision"),
+            (Read::BStillHeld, "/task/hold/revision"),
             (Read::BStillHeld, "/task/chip/details/owner/details/attempt"),
             (Read::BEnded, "/task/chip/details/owner/details/attempt"),
             (Read::BHeld, "/activity/cut"),
@@ -3065,10 +3065,10 @@ mod pause_tests {
         early.documents.get_mut(&Read::BEnded).expect("ended")["activity"]["rows"][3]["event"]["owner"]["source"]["line"]
             ["decided"]["revision"] = 99.into();
         let mut changed_hold = passing.clone();
-        changed_hold.documents.get_mut(&Read::BStillHeld).expect("still held")["task"]["hold"]["owner"]["reason"]["placed"]
-            ["hold"] = json!(99);
+        changed_hold.documents.get_mut(&Read::BStillHeld).expect("still held")["task"]["hold"]["reason"]["placed"]["hold"] =
+            json!(99);
         let mut a_held = passing.clone();
-        a_held.documents.get_mut(&Read::OwnerEnded).expect("A")["task"]["hold"] = json!({"owner":{}});
+        a_held.documents.get_mut(&Read::OwnerEnded).expect("A")["task"]["hold"] = json!({});
         let mut a_released = passing.clone();
         a_released.documents.get_mut(&Read::OwnerEnded).expect("A")["activity"]["rows"]
             .as_array_mut()
@@ -4581,7 +4581,7 @@ fn direction_commit(commit: u64) -> String {
 }
 fn direction_subtree(observed: &Observed, misses: &mut Vec<Miss>) {
     let root = task_document(observed, Read::DirectionBHeld);
-    let hold = number(root, "/hold/owner/reason/placed/hold");
+    let hold = number(root, "/hold/reason/placed/hold");
     for (before, held) in
         [(Read::PlannedRunning, Read::PlannedHeld), (Read::PlannedCoderRunning, Read::PlannedCoderHeld)]
     {
@@ -4592,7 +4592,7 @@ fn direction_subtree(observed: &Observed, misses: &mut Vec<Miss>) {
             "5.4",
             hold.is_some_and(|hold| hold != 0)
                 && text(doc, "/chip/phase") == "held"
-                && number(doc, "/hold/owner/reason/placed/hold") == hold
+                && number(doc, "/hold/reason/placed/hold") == hold
                 && doc.pointer("/result") == Some(&Value::Null)
                 && number(previous, "/chip/details/owner/details/attempt").is_some()
                 && number(previous, "/chip/details/owner/details/attempt")
@@ -4614,9 +4614,9 @@ fn direction_news(observed: &Observed, misses: &mut Vec<Miss>) {
             misses,
             "5.4",
             text(doc, "/chip/phase") == "held"
-                && number(doc, "/hold/owner/revision") == Some(OVERLAP_HOLD_REVISION)
-                && number(doc, "/hold/owner/reason/placed/hold").is_some_and(|hold| hold != 0)
-                && number(doc, "/hold/owner/reason/placed/hold") == number(held, "/hold/owner/reason/placed/hold"),
+                && number(doc, "/hold/revision") == Some(OVERLAP_HOLD_REVISION)
+                && number(doc, "/hold/reason/placed/hold").is_some_and(|hold| hold != 0)
+                && number(doc, "/hold/reason/placed/hold") == number(held, "/hold/reason/placed/hold"),
             DIRECTION_NEWS,
             format_args!("{read:?}: B must remain held at the person's Stop"),
         );
@@ -4923,7 +4923,7 @@ mod direction_tests {
             let doc = &mut documents.get_mut(&read).expect("held delegate")["task"];
             doc["chip"]["phase"] = json!("held");
             doc["result"] = Value::Null;
-            doc["hold"] = json!({"owner":{"revision":OVERLAP_HOLD_REVISION,"reason":{"placed":{"hold":1}}}});
+            doc["hold"] = json!({"revision":OVERLAP_HOLD_REVISION,"reason":{"placed":{"hold":1}}});
         }
         let news = format!("forge landing {} -> {}", direction_commit(8), direction_commit(9));
         let rows: Vec<_> = [
@@ -4948,7 +4948,7 @@ mod direction_tests {
             let doc = documents.get_mut(&read).expect("held");
             doc["task"]["chip"]["phase"] = json!("held");
             doc["task"]["activity"] = json!(head);
-            doc["task"]["hold"] = json!({"owner":{"revision":OVERLAP_HOLD_REVISION,"reason":{"placed":{"hold":1}}}});
+            doc["task"]["hold"] = json!({"revision":OVERLAP_HOLD_REVISION,"reason":{"placed":{"hold":1}}});
             doc["activity"] = json!({"rows":if head == 4 { vec![rows[3].clone()] } else { Vec::new() }});
         }
         documents.get_mut(&Read::DirectionBEnded).expect("B")["activity"] =
@@ -5174,8 +5174,8 @@ mod direction_tests {
                 Read::DirectionBHeld,
                 vec![
                     "/task/chip/phase",
-                    "/task/hold/owner/revision",
-                    "/task/hold/owner/reason/placed/hold",
+                    "/task/hold/revision",
+                    "/task/hold/reason/placed/hold",
                     "/task/chip/details/owner/details/attempt",
                     "/task/activity",
                 ],
@@ -5184,8 +5184,8 @@ mod direction_tests {
                 Read::DirectionBPending,
                 vec![
                     "/task/chip/phase",
-                    "/task/hold/owner/revision",
-                    "/task/hold/owner/reason/placed/hold",
+                    "/task/hold/revision",
+                    "/task/hold/reason/placed/hold",
                     "/task/chip/details/owner/details/attempt",
                     "/task/activity",
                     "/activity/rows/0/event/owner/source/line/heard/kind/news/class",
@@ -5210,14 +5210,14 @@ mod direction_tests {
     fn descendants_must_share_bs_hold_without_advancing_or_finishing() {
         let passing = met();
         let mut changed = passing.clone();
-        changed.documents.get_mut(&Read::DirectionBPending).expect("still held")["task"]["hold"]["owner"]["reason"]["placed"]
+        changed.documents.get_mut(&Read::DirectionBPending).expect("still held")["task"]["hold"]["reason"]["placed"]
             ["hold"] = json!(99);
         assert!(!step_5_4(&changed).is_empty(), "B keeps the same hold until release");
         for read in [Read::PlannedHeld, Read::PlannedCoderHeld] {
             for (path, replacement) in [
                 ("/task/chip/phase", json!("running")),
                 ("/task/result", json!({"value":{}})),
-                ("/task/hold/owner/reason/placed/hold", json!(99)),
+                ("/task/hold/reason/placed/hold", json!(99)),
                 ("/task/chip/details/owner/details/attempt", json!(99)),
             ] {
                 let mut observed = passing.clone();
@@ -9551,7 +9551,7 @@ fn cap_opening(observed: &Observed, misses: &mut Vec<Miss>) {
             && elapsed.is_some_and(|elapsed| elapsed < CAP_SECONDS * 1_000_000_000)
             && number(waited, "/chip/task") == Some(CAP_SUBOWNER)
             && text(waited, "/chip/phase") == "held"
-            && text(waited, "/hold/owner/reason") == "deadline"
+            && text(waited, "/hold/reason") == "deadline"
             && parked.is_some_and(|parked| {
                 number(parked, "/task") == Some(CAP_SUBOWNER)
                     && cap_before(number(parked, "/at"), deadline)
@@ -9607,8 +9607,8 @@ fn cap_admission(observed: &Observed, misses: &mut Vec<Miss>) {
         "6.7",
         number(held, "/chip/task") == Some(CAP_SUBOWNER)
             && text(held, "/chip/phase") == "held"
-            && text(held, "/hold/owner/reason") == "deadline"
-            && number(held, "/hold/owner/revision") == Some(CAP_HOLD_REVISION)
+            && text(held, "/hold/reason") == "deadline"
+            && number(held, "/hold/revision") == Some(CAP_HOLD_REVISION)
             && held["result"].is_null()
             && milestone.is_some_and(|r| cap_before(number(held, "/authority/authority/deadline"), number(r, "/at")))
             && cap_before(parked.and_then(cap_position), milestone.and_then(|r| cap_position(r)))
@@ -9637,10 +9637,10 @@ fn cap_escalation(observed: &Observed, misses: &mut Vec<Miss>) {
     step_check(
         misses,
         "6.7",
-        number(held, "/hold/owner/escalation/waiting/holder/task") == Some(CAP_OWNER)
-            && number(passed, "/hold/owner/escalation/waiting/holder/task") == Some(CAP_DIRECTOR)
-            && number(passed, "/hold/owner/revision") == Some(CAP_HOLD_REVISION)
-            && text(passed, "/hold/owner/reason") == "deadline"
+        number(held, "/hold/escalation/waiting/holder/task") == Some(CAP_OWNER)
+            && number(passed, "/hold/escalation/waiting/holder/task") == Some(CAP_DIRECTOR)
+            && number(passed, "/hold/revision") == Some(CAP_HOLD_REVISION)
+            && text(passed, "/hold/reason") == "deadline"
             && number(task_document(observed, Read::CapOwnerWaiting), "/chip/task") == Some(CAP_OWNER)
             && told_once
             && decisions.len() == 1
@@ -9846,12 +9846,12 @@ mod cap_tests {
         walls.extend([deadline() + 1; 2]);
         let held_doc = json!({"task":{"chip":{"task":CAP_SUBOWNER,"phase":"held"},"project":PROJECT,
             "spec_revision":{"value":CAP_REVISION-1},"authority":{"authority":{"deadline":deadline()}},
-            "hold":{"owner":{"reason":"deadline","revision":CAP_HOLD_REVISION,
-                "escalation":{"waiting":{"holder":{"task":CAP_OWNER}}}}},"result":null},
+            "hold":{"reason":"deadline","revision":CAP_HOLD_REVISION,
+                "escalation":{"waiting":{"holder":{"task":CAP_OWNER}}}},"result":null},
             "activity":source(CAP_SUBOWNER,&held,&walls)});
         observed.documents.insert(Read::CapHeld, held_doc.clone());
         let mut passed = held_doc;
-        passed["task"]["hold"]["owner"]["escalation"]["waiting"]["holder"]["task"] = json!(CAP_DIRECTOR);
+        passed["task"]["hold"]["escalation"]["waiting"]["holder"]["task"] = json!(CAP_DIRECTOR);
         observed.documents.insert(Read::CapPassed, passed);
         observed.documents.insert(Read::CapHeldWait, observed.documents[&Read::CapHeld].clone());
         // Decode each committed opening turn as ctl's journal does.
@@ -10011,7 +10011,7 @@ mod cap_tests {
         for (read, path) in [
             (Read::CapHeldWait, "/task/chip/phase"),
             (Read::CapHeldWait, "/task/chip/task"),
-            (Read::CapHeldWait, "/task/hold/owner/reason"),
+            (Read::CapHeldWait, "/task/hold/reason"),
             (Read::CapA5Writing, "/task/authority/authority/deadline"),
             (Read::CapOwnerEnded, "/task/goal"),
             (Read::CapOwnerEnded, "/task/authority/authority/deadline"),
@@ -10060,7 +10060,7 @@ mod cap_tests {
     fn the_deadline_hold_is_an_unadmitted_rail_wake() {
         let fixture = met();
         let mut passing = fixture.clone();
-        for path in ["/task/chip/task", "/task/chip/phase", "/task/hold/owner/reason", "/task/hold/owner/revision"] {
+        for path in ["/task/chip/task", "/task/chip/phase", "/task/hold/reason", "/task/hold/revision"] {
             field(&mut passing, Read::CapHeld, path, CAP_ADMISSION);
         }
         for line in [
@@ -10081,7 +10081,7 @@ mod cap_tests {
         let fixture = met();
         let mut passing = fixture.clone();
         for read in [Read::CapHeld, Read::CapPassed] {
-            field(&mut passing, read, "/task/hold/owner/escalation/waiting/holder/task", CAP_ESCALATION);
+            field(&mut passing, read, "/task/hold/escalation/waiting/holder/task", CAP_ESCALATION);
         }
         for agent in [Agent::CapOwner, Agent::CapDirector] {
             let mut missing = fixture.clone();
@@ -10116,8 +10116,7 @@ mod cap_tests {
     fn release_precedes_the_next_run_and_report_and_carries_the_split() {
         let fixture = met();
         let mut held = fixture.clone();
-        held.documents.get_mut(&Read::CapReleased).expect("release")["task"]["hold"] =
-            json!({"owner":{"reason":"deadline"}});
+        held.documents.get_mut(&Read::CapReleased).expect("release")["task"]["hold"] = json!({"reason":"deadline"});
         rejects(&held, CAP_RELEASE);
         let mut before = fixture.clone();
         let rows = before.documents.get_mut(&Read::CapSubownerEnded).expect("A1")["activity"]["rows"]
@@ -10616,7 +10615,7 @@ fn waiting_checkpoint(observed: &Observed, misses: &mut Vec<Miss>) {
             && pending["result"].is_null()
             && pending["delegates"] == serde_json::json!([])
             && pending["resources"].as_array().is_some_and(|resources| {
-                resources.len() == 1 && resources[0].pointer("/owner/taken") == Some(&Value::Bool(false))
+                resources.len() == 1 && resources[0].pointer("/taken") == Some(&Value::Bool(false))
             })
             && waiting_page(observed, Read::WaitingRepinPending, REPIN)
             && pending.pointer("/chip/details/owner/details/attempt") == Some(&Value::Null)
@@ -10965,7 +10964,7 @@ mod waiting_tests {
         let mut pending = docs[&Read::WaitingRepinEnded].clone();
         pending["task"]["chip"] = json!({"task":REPIN,"phase":"waiting","details":{"owner":{"phase":{"waiting":{"dependencies":[E1]}},"details":{"attempt":null}}}});
         pending["task"]["result"] = Value::Null;
-        pending["task"]["resources"] = json!([{"owner":{"taken":false}}]);
+        pending["task"]["resources"] = json!([{"taken":false}]);
         pending["task"]["dependency_facts"][0]["pending"] = true.into();
         pending["task"]["dependencies"] = json!([{"live":{"task":E1}}]);
         pending["activity"] = json!({"cut":false,"before":null,"after":null,"rows":[{"event":{"owner":{"source":{"task":REPIN,"position":1,"line":{"milestone":{"position":1}}}}}}]});
