@@ -1,17 +1,16 @@
 //! Turn wire boundaries (protocol/transcript.md, sections 2, 6 and 7).
 
+use crate::support::goldens::assert_measured;
+
 use skein_codec::Reason;
 use skein_lib::Reader;
 use smith_transcript::v6::{CEILINGS, Path, Turn};
 
 #[test]
 fn turn_goldens_decode_at_their_measured_length() {
-    let root = skein_scratch::paths::tree().join("crates/smith-transcript/golden/v6");
-    for name in ["record_turn_smallest.bin", "record_turn_full.bin"] {
-        let bytes = std::fs::read(root.join(name)).expect("turn golden");
-        let value = Turn::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("turn decodes");
-        assert_eq!(u32::try_from(bytes.len()).expect("golden length fits"), value.measure());
-    }
+    assert_measured("transcript", 6, "turn", |bytes| {
+        Turn::decode(&CEILINGS, &mut Reader::new(bytes)).expect("turn decodes").measure()
+    });
 }
 
 #[test]

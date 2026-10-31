@@ -4,6 +4,7 @@ static HEAP: skein_heap::Counting = skein_heap::Counting;
 #[path = "../support"]
 mod support {
     pub(crate) mod events;
+    pub(crate) mod goldens;
     pub(crate) mod patches;
     pub(crate) mod wire;
 }

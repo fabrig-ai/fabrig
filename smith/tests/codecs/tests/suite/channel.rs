@@ -1,22 +1,19 @@
 //! Channel kind and body checks (protocol/channel.md, sections 2-4).
 
+use crate::support::goldens::assert_measured;
+
 use skein_channel::Direction;
 use skein_lib::Reader;
 use smith_channel::{Answer, CEILINGS, Start, V5, schema};
 
 #[test]
 fn channel_goldens_decode_at_their_measured_length() {
-    let root = skein_scratch::paths::tree().join("crates/smith-channel/golden/v5");
-    for name in ["record_start_smallest.bin", "record_start_full.bin"] {
-        let bytes = std::fs::read(root.join(name)).expect("start golden");
-        let value = Start::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("start decodes");
-        assert_eq!(u32::try_from(bytes.len()).expect("golden length fits"), value.measure());
-    }
-    for name in ["record_answer_smallest.bin", "record_answer_full.bin"] {
-        let bytes = std::fs::read(root.join(name)).expect("answer golden");
-        let value = Answer::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("answer decodes");
-        assert_eq!(u32::try_from(bytes.len()).expect("golden length fits"), value.measure());
-    }
+    assert_measured("channel", 5, "start", |bytes| {
+        Start::decode(&CEILINGS, &mut Reader::new(bytes)).expect("start decodes").measure()
+    });
+    assert_measured("channel", 5, "answer", |bytes| {
+        Answer::decode(&CEILINGS, &mut Reader::new(bytes)).expect("answer decodes").measure()
+    });
 }
 
 #[test]
@@ -46,13 +43,9 @@ fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
 
 #[test]
 fn message_refusal_goldens_keep_each_typed_reason() {
-    let root = skein_scratch::paths::tree().join("crates/smith-channel/golden/v5");
-    for name in ["record_message_refused_smallest.bin", "record_message_refused_full.bin"] {
-        let bytes = std::fs::read(root.join(name)).expect("refusal golden");
-        let value =
-            smith_channel::MessageRefused::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("refusal decodes");
-        assert_eq!(u32::try_from(bytes.len()).expect("golden length fits"), value.measure());
-    }
+    assert_measured("channel", 5, "message_refused", |bytes| {
+        smith_channel::MessageRefused::decode(&CEILINGS, &mut Reader::new(bytes)).expect("refusal decodes").measure()
+    });
 }
 
 #[test]
@@ -89,12 +82,9 @@ fn channel_turn_goldens_keep_the_declared_window_flag() {
 
 #[test]
 fn live_goldens_decode_at_their_measured_length() {
-    let root = skein_scratch::paths::tree().join("crates/smith-channel/golden/v5");
-    for name in ["record_live_smallest.bin", "record_live_full.bin"] {
-        let bytes = std::fs::read(root.join(name)).expect("live golden");
-        let value = smith_channel::Live::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("live decodes");
-        assert_eq!(u32::try_from(bytes.len()).expect("golden length fits"), value.measure());
-    }
+    assert_measured("channel", 5, "live", |bytes| {
+        smith_channel::Live::decode(&CEILINGS, &mut Reader::new(bytes)).expect("live decodes").measure()
+    });
 }
 
 #[test]
