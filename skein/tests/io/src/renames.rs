@@ -258,12 +258,6 @@ impl Referee<Owner> for Judge {
         }
     }
     fn observe(&mut self, _now: Time, _procs: &[Owner]) {}
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         true
     }
