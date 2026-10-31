@@ -15,7 +15,7 @@ skein-fake-machine.workspace = true
 skein-world.workspace = true
 skein-shell.workspace = true
 smith-domain.workspace = true
-smith-protocol-machine.workspace = true
+smith-protocol-machine = { workspace = true, features = ["fixture"] }
 
 [lints.rust]
 unsafe_code = "forbid"

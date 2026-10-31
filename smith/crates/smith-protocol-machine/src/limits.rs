@@ -132,7 +132,6 @@ mod memory {
     fn caps() -> Limits {
         Limits {
             operations: 0,
-            roots: 1,
             path_bytes: 1,
             file_bytes: 65_536,
             tool_payload: 65_536,
@@ -145,6 +144,7 @@ mod memory {
             search_line_bytes: 1,
             env_bytes: 0,
             group_stop: Duration::from_secs(1),
+            ..crate::fixture::SMALL
         }
     }
 

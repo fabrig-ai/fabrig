@@ -6,28 +6,13 @@ mod routing;
 
 use alloc::boxed::Box;
 use skein_io::{digest, file, kernel};
-use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+use skein_lib::{Env, Queue, Time, Token, Wall};
 use smith_domain::{run, tools};
 
 use crate::{Below, BelowEvent, Component, FromDomain, Limits, ToDomain};
 
 fn limits() -> Limits {
-    Limits {
-        operations: 2,
-        roots: 1,
-        path_bytes: 64,
-        file_bytes: 16,
-        tool_payload: 64,
-        entries: 4,
-        entry_bytes: 512,
-        processes: 2,
-        output_bytes: 64,
-        search_hits: 8,
-        search_bytes: 256,
-        search_line_bytes: 512,
-        env_bytes: 512,
-        group_stop: Duration::from_millis(10),
-    }
+    Limits { ..crate::fixture::SMALL }
 }
 
 fn env() -> Env<Limits> {

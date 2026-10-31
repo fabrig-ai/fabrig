@@ -55,6 +55,22 @@ pub struct Limits {
     pub unauthenticated: Time,
 }
 
+/// Small listener limits for deterministic scenarios (testing-strategy.md, 1).
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture {
+    use super::Limits;
+    use skein_lib::Time;
+
+    /// Two calls with bounded JSON and a short authentication deadline.
+    pub const SMALL: Limits = Limits {
+        message_bytes: 4096,
+        answer_bytes: 4096,
+        schema_bytes: 4096,
+        calls: 2,
+        unauthenticated: Time::from_nanos(10),
+    };
+}
+
 /// One unanswered call, sent by the server to its owner (smith/docs/design/protocol/programs.md, 5.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CallId(u32);

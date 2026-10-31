@@ -1,4 +1,4 @@
-use super::{calls::Call, fixtures::backend, fixtures::request, replies, *};
+use super::{calls::Call, fixtures::backend, replies, *};
 
 pub(super) fn call(id: &[u8]) -> Call {
     Call {

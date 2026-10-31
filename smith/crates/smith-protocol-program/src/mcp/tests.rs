@@ -25,13 +25,7 @@ const OWNER: Token = Token::new(11);
 const SOCKET: Token = Token::new(101);
 
 fn limits() -> Limits {
-    Limits {
-        message_bytes: 4096,
-        answer_bytes: 4096,
-        schema_bytes: 4096,
-        calls: 2,
-        unauthenticated: Time::from_nanos(10),
-    }
+    super::fixture::SMALL
 }
 
 fn tool() -> Tool {

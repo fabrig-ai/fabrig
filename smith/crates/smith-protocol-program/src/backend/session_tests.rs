@@ -16,7 +16,6 @@ fn message(role: llm::Role, text: &[u8]) -> llm::Message {
 }
 
 fn ordinary() -> llm::Prompt {
-    let backend = backend();
     let mut prompt = fixtures::prompt_with(Box::default());
     prompt.messages = Box::new([message(llm::Role::User, b"task\n\"quoted\"\t\x01")]);
     prompt

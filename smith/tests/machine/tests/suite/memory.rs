@@ -15,19 +15,17 @@ fn saturated_searches_and_pipe_routes_stay_within_the_machine_bound() {
 
     let limits = Limits {
         operations: 0,
-        roots: 1,
         path_bytes: 16,
         file_bytes: 0,
         tool_payload: 16,
         entries: 0,
         entry_bytes: 0,
-        processes: 2,
         output_bytes: 0,
         search_hits: 0,
-        search_bytes: 256,
         search_line_bytes: 256,
         env_bytes: 128,
         group_stop: Duration::from_millis(1),
+        ..smith_protocol_machine::fixture::SMALL
     };
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
@@ -152,19 +150,18 @@ fn saturated_configured_environments_and_command_check_copies_fit_the_machine_bo
     for many in [false, true] {
         let limits = Limits {
             operations: 0,
-            roots: 1,
             path_bytes: 16,
             file_bytes: 0,
             tool_payload: 16,
             entries: 0,
             entry_bytes: 0,
-            processes: 2,
             output_bytes: 0,
             search_hits: 0,
             search_bytes: 0,
             search_line_bytes: 0,
             env_bytes: 128,
             group_stop: Duration::from_millis(1),
+            ..smith_protocol_machine::fixture::SMALL
         };
         let variables = if many {
             (0_u8..64)

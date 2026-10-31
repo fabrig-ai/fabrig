@@ -28,19 +28,16 @@ const FLOOD_MOST: usize = 1 << 20;
 fn machine_limits() -> Limits {
     Limits {
         operations: 8,
-        roots: 1,
         path_bytes: 128,
         file_bytes: 128,
         tool_payload: 128,
         entries: 16,
         entry_bytes: 2048,
-        processes: 2,
         output_bytes: 32,
-        search_hits: 8,
         search_bytes: 128,
-        search_line_bytes: 512,
         env_bytes: 256,
         group_stop: Duration::from_millis(1),
+        ..smith_protocol_machine::fixture::SMALL
     }
 }
 

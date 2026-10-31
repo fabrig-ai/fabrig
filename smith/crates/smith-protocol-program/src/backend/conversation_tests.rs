@@ -1,5 +1,5 @@
 use super::fixtures::records as active;
-use super::fixtures::{backend, env, records_with as running, request};
+use super::fixtures::{env, records_with as running, request};
 use super::*;
 
 #[test]
