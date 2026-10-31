@@ -18,16 +18,7 @@ use connection::{Connection, Refused};
 pub use limits::{Limits, Stacked, Unusable, documents, github, http};
 use run::{Run, Send, forgejo_pair};
 pub use settings::{Forge, Kind, Settings, Transport};
-use skein_lib::{CryptoRng, Env, List, Map, Queue, Secret, Time, Token, bytes};
-
-/// The host's permanent ending (programming-model.md, 5.2).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Ending {
-    Live,
-    Closing,
-    Aborting,
-    Closed,
-}
+use skein_lib::{CryptoRng, Env, Lifecycle, List, Map, Queue, Secret, Time, Token, bytes};
 
 /// A service's setup plans: one writing run and one Reachable per forge (6.3).
 pub struct Host {
@@ -40,7 +31,7 @@ pub struct Host {
     closing_tokens: List<Token>,
     next_token: u64,
     wake: Option<Time>,
-    ending: Ending,
+    ending: Lifecycle,
 }
 impl Host {
     pub fn new(limits: &Limits, settings: Settings, crypto: CryptoRng) -> Result<Self, Unusable> {
@@ -55,7 +46,7 @@ impl Host {
             closing_tokens: List::with_capacity(limits.runs),
             next_token: 1,
             wake: None,
-            ending: Ending::Live,
+            ending: Lifecycle::Live,
         })
     }
     pub fn down(
@@ -67,7 +58,7 @@ impl Host {
     ) {
         match request {
             Request::Run { run, plan } => {
-                if self.ending != Ending::Live {
+                if self.ending != Lifecycle::Live {
                     return;
                 }
                 let forge = plan.forge();
@@ -118,7 +109,7 @@ impl Host {
                 }
             }
             Request::Answer { run, answer } => {
-                if self.ending != Ending::Live {
+                if self.ending != Lifecycle::Live {
                     return;
                 }
                 if let Some(live) = self.runs.get_mut(&run) {
@@ -127,15 +118,15 @@ impl Host {
             }
             Request::Close => {
                 match self.ending {
-                    Ending::Live => self.ending = Ending::Closing,
-                    Ending::Closing | Ending::Aborting | Ending::Closed => return,
+                    Lifecycle::Live => self.ending = Lifecycle::Closing,
+                    Lifecycle::Closing | Lifecycle::Aborting | Lifecycle::Closed => return,
                 }
                 self.end(false, up);
             }
             Request::Abort => {
                 match self.ending {
-                    Ending::Live | Ending::Closing => self.ending = Ending::Aborting,
-                    Ending::Aborting | Ending::Closed => return,
+                    Lifecycle::Live | Lifecycle::Closing => self.ending = Lifecycle::Aborting,
+                    Lifecycle::Aborting | Lifecycle::Closed => return,
                 }
                 self.end(true, up);
             }
@@ -218,16 +209,16 @@ impl Host {
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        let mut earliest = self.wake;
+        let mut next = self.wake;
         for (_, run) in &self.runs {
-            earlier(&mut earliest, run.deadline);
+            next = skein_lib::earliest(next, Some(run.deadline));
             if let Some(wait) = run.retry_at
                 && wait < run.deadline
             {
-                earlier(&mut earliest, wait);
+                next = skein_lib::earliest(next, Some(wait));
             }
         }
-        earliest
+        next
     }
     fn drive(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
         self.wake = None;
@@ -256,7 +247,7 @@ impl Host {
                 continue;
             }
             if self.ending_pending() && self.connections.is_empty() {
-                self.ending = Ending::Closed;
+                self.ending = Lifecycle::Closed;
                 up.push(Event::Closed);
             }
             return;
@@ -307,8 +298,8 @@ impl Host {
 
     fn ending_pending(&self) -> bool {
         match self.ending {
-            Ending::Live | Ending::Closed => false,
-            Ending::Closing | Ending::Aborting => true,
+            Lifecycle::Live | Lifecycle::Closed => false,
+            Lifecycle::Closing | Lifecycle::Aborting => true,
         }
     }
 
@@ -416,14 +407,6 @@ fn open(run: Token, forge: &Forge, agent: &[u8], send: &Send, env: &Env<Limits>)
             }
             crate::call::Call::Forgejo(_) => Err(Refused::Unexpected),
         },
-    }
-}
-fn earlier(earliest: &mut Option<Time>, time: Time) {
-    if match *earliest {
-        Some(before) => time < before,
-        None => true,
-    } {
-        *earliest = Some(time);
     }
 }
 impl core::fmt::Debug for Host {

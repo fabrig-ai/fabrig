@@ -10,7 +10,7 @@ use crate::{
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
 use skein_forge::github::{document::Document, request::Request};
-use skein_lib::{List, Queue};
+use skein_lib::{Decimal, List, Queue};
 
 #[derive(Debug)]
 enum Phase {
@@ -43,7 +43,7 @@ impl Accept {
         })
     }
     fn stop(&self, why: Why) -> Need {
-        app::stop(self.forge, Stage::Installation, &app::decimal(self.installation.get()), why)
+        app::stop(self.forge, Stage::Installation, Decimal::of(self.installation.get()).as_bytes(), why)
     }
     fn verified(&mut self, ids: &[u64]) -> Need {
         let id = self.installation.get();
