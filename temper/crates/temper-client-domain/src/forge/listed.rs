@@ -78,8 +78,8 @@ pub struct Setup {
 }
 #[must_use]
 pub fn setup(root: &Domain) -> Option<Setup> {
-    if !root.demo_answered()
-        || root.forge().demo_running()
+    if !root.forge().playground_answered()
+        || root.forge().playground_running()
         || match welcome::decision(root) {
             Some(welcome::FirstRun::Empty | welcome::FirstRun::Unfinished { .. }) => false,
             Some(welcome::FirstRun::Whole) | None => true,
@@ -108,7 +108,7 @@ pub fn setup(root: &Domain) -> Option<Setup> {
         Step::Ready
     };
     Some(Setup {
-        playground: !personal_connected && root.forge().demo().is_some(),
+        playground: !personal_connected && root.forge().playground().is_some(),
         forge: owner && !connected,
         model,
         step,
