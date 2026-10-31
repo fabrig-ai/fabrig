@@ -351,6 +351,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     if let Some(demo) = &mut engine.demo {
         demo.state = engine.domain.demo_state();
     }
+    engine.clients.playground = engine.domain.playground().copied();
     engine.clients.iterate(
         now,
         wall,
