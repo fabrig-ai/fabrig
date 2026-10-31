@@ -52,7 +52,7 @@ impl Record {
 /// One mutation in an atomic decision.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Write {
-    /// Drop a task transcript whole (jig/docs/design/protocol/store.md, 11.1; jig/docs/design/protocol/store.md, 8.5, 11.1).
+    /// Drop a task transcript whole (jig/docs/design/domain/people.md, 5.2; jig/docs/design/protocol/store.md, 8.5, 11.1).
     DropTranscript { task: u64 },
     /// Copy the old settings revision into history atomically.
     CopySettingsRevision(u32),

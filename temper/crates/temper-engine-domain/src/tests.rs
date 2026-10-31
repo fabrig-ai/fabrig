@@ -791,3 +791,36 @@ fn zero_watermark_refuses_startup_and_the_default_saturates() {
     let journal = crate::JournalLimits { commits: u32::MAX, ..limits.journal };
     assert_eq!(crate::default_watermark(&journal), u32::MAX);
 }
+
+#[test]
+fn a_dropped_transcript_crosses_the_journal() {
+    use jig_domain_core as core;
+    let (mut domain, env) = resume_fixture::root();
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    let erased = [
+        core::Key::Core(core::CoreKey::EscalationDecision { task: 7, revision: 2 }),
+        core::Key::Core(core::CoreKey::ProposalDecision {
+            proposer: jig_domain_people::Proposer::Party(3),
+            proposal: 9,
+        }),
+    ];
+    let mut requests = Queue::uncapped();
+    requests.push(core::Request::Write(core::Write::DropTranscript { task: 7 }));
+    for key in &erased {
+        requests.push(core::Request::Write(core::Write::Erase(key.clone())));
+    }
+    crate::route::route_core_requests(&mut domain, &env, &mut decision, core::Requests::Out(requests));
+    accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, true).unwrap();
+    let Some(Output::Commit { writes, .. }) = crate::decision::commit(&mut domain.journal, &env.limits.journal) else {
+        panic!("the erasure reaches the store through its journal commit");
+    };
+    assert!(writes.contains(&Write::DropTranscript { task: 7 }));
+    assert_eq!(crate::store::owned_bytes(&Write::DropTranscript { task: 7 }), Some(8));
+    for key in erased {
+        assert!(writes.contains(&Write::Erase(Key::Core(key))));
+    }
+    assert_ne!(
+        Write::DropTranscript { task: 7 }.key(),
+        Key::Core(core::Key::Core(core::CoreKey::Turn { task: 7, attempt: 1, turn: 1 }))
+    );
+}
