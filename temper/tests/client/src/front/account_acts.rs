@@ -249,10 +249,15 @@ fn fixture_root(
         if adoption {
             demo.forge = 1;
         }
-        front.demo = Some(
+        let record = Some(
             temper_client_protocol_wire::v1::PlaygroundAnswer::new(&temper_client_protocol_wire::v1::CEILINGS, demo)
                 .expect("demo fixture"),
         );
+        if running {
+            front.demo = record;
+        } else {
+            front.playground_on_start = record;
+        }
     }
     front.bind(CLIENT, fixtures::PARTY);
     let mut root = if tools {
@@ -434,7 +439,10 @@ pub fn demo_fixture(seed: u64, state: &temper_client_protocol_wire::v1::Playgrou
         2,
         None,
         false,
-        WelcomeForge::Demo { running: *state == temper_client_protocol_wire::v1::PlaygroundState::Running, github: false },
+        WelcomeForge::Demo {
+            running: *state == temper_client_protocol_wire::v1::PlaygroundState::Running,
+            github: false,
+        },
         false,
     )
 }

@@ -1292,7 +1292,10 @@ pub fn playground_kept_root() -> temper_client_domain::Domain {
     let mut task = template.pages().chat().unwrap().task(template.client()).unwrap().clone();
     task.llm = Some(c::LlmChoice {
         account: None,
-        main: c::ModelEffort { model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(), effort: None },
+        main: c::ModelEffort {
+            model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(),
+            effort: None,
+        },
         subagents: List::with_capacity(0),
     });
     for (watch, value) in [
@@ -1321,7 +1324,10 @@ pub fn hidden_playground_root(ready: Option<c::Readiness>, payer: u64) -> temper
     let mut task = template.pages().chat().unwrap().task(template.client()).unwrap().clone();
     task.llm = Some(c::LlmChoice {
         account: None,
-        main: c::ModelEffort { model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(), effort: None },
+        main: c::ModelEffort {
+            model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(),
+            effort: None,
+        },
         subagents: List::with_capacity(0),
     });
     task.budget.funder = c::Funder::Pool { project: PROJECT, person: payer, period: 1 };

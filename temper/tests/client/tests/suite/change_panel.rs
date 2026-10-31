@@ -586,7 +586,6 @@ fn another_forges_change_keeps_its_link() {
     demo_change_page(REPOSITORY.forge + 1);
 }
 
-
 fn silent_forge() -> ForgeStand {
     use skein_fake_forge_domain::api as raw;
     use skein_lib::Duration;

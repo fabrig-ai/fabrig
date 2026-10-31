@@ -12,11 +12,11 @@ use temper_client_world::{app::Temper, fixtures, front::account_acts as accounts
 fn a_first_run_welcome_without_a_demo() {
     let (mut front, mut root) = accounts::welcome_fixture(fixtures::SEED);
     let person = root.person();
-    assert!(person.demo_answered());
+    assert!(person.forge().playground_answered());
     assert!(person.forge().playground().is_none());
     assert!(person.pages().welcome().expect("welcome opened").decided);
     let document = d::pages::accounts::document(person.client()).expect("accounts delivered");
-    assert!(!document.accounts.iter().any(|line| d::forge::playground::usable_account(line, None)));
+    assert!(!document.accounts.iter().any(|line| d::forge::model::usable_account(line, None)));
     let limits = fixtures::domain_limits();
     let words = fixtures::phrasebooks(&limits);
     let bounds = fixtures::view_bounds(&limits, &words);
@@ -68,7 +68,7 @@ fn a_first_run_welcome_without_a_demo() {
             .expect("current account facts")
             .accounts
             .iter()
-            .any(|line| d::forge::playground::usable_account(line, None)),
+            .any(|line| d::forge::model::usable_account(line, None)),
         "key became usable"
     );
     let mut now = skein_lib::Time::ZERO.saturating_add(skein_lib::Duration::from_secs(1));
@@ -115,11 +115,11 @@ fn a_first_run_welcome_without_a_demo() {
 fn a_configured_model_hides_the_account_banner() {
     let (mut front, mut root) = accounts::welcome_fixture(fixtures::SEED);
     let person = root.person();
-    assert!(person.demo_answered());
+    assert!(person.forge().playground_answered());
     assert!(person.forge().playground().is_none());
     let document = d::pages::accounts::document(person.client()).expect("accounts delivered");
     assert!(document.usable, "the configured model is usable");
-    assert!(!document.accounts.iter().any(|line| d::forge::playground::usable_account(line, None)));
+    assert!(!document.accounts.iter().any(|line| d::forge::model::usable_account(line, None)));
     assert_eq!(
         d::pages::welcome::decision(person),
         Some(d::pages::welcome::FirstRun::Unfinished { step: d::Step::Forge { forge: None } }),
@@ -145,5 +145,3 @@ fn a_configured_model_hides_the_account_banner() {
     accounts::settle(&mut front, &mut root);
     assert_eq!(d::pages::welcome::decision(root.person()), Some(d::pages::welcome::FirstRun::Whole));
 }
-
-

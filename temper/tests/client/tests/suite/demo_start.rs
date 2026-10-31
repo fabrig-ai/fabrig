@@ -128,14 +128,6 @@ fn running_read_sends_no_start_and_welcome_moves_once() {
     assert!(!has(&root, Role::Region, b"Setup"));
 }
 
-
-
-
-
-
-
-
-
 fn submit_chat(front: &mut Joint, root: &mut Root) -> bool {
     let mut view = view(root);
     let field = view
@@ -186,7 +178,7 @@ fn enter_waits_for_adoption_then_the_chat_can_delegate() {
         Some(&mut held),
     );
     assert!(held.is_some(), "startup's adoption has not completed");
-    assert!(root.person().forge().demo_starting());
+    assert!(root.person().forge().playground_starting());
     assert!(root.person().forge().playground_running(), "model is usable before adoption");
     assert!(!front.engine_adopted(1, 7));
     pump(
@@ -214,7 +206,7 @@ fn enter_waits_for_adoption_then_the_chat_can_delegate() {
     let Duty::Wire(request) = Temper::duty(held.take().expect("held start")) else { panic!("start wire") };
     front.wire(ClientId(0), Time::from_nanos(1_000_000_000), Wall::EPOCH, request);
     accounts::settle(&mut front, &mut root);
-    assert!(!root.person().forge().demo_starting());
+    assert!(!root.person().forge().playground_starting());
     assert!(has(&root, Role::Status, b"Ready"));
     assert!(submit_chat(&mut front, &mut root), "Enter now starts the kept draft");
     assert_eq!(f::chats(&front.engine), 1);

@@ -127,7 +127,11 @@ fn the_playgrounds_provider_offers_no_way() {
     let names = control_names(&ways_root(providers, true));
     assert!(names.contains(&b"Continue with ChatGPT".to_vec()));
     assert!(names.contains(&b"Use an API key".to_vec()));
-    assert!(!names.iter().any(|name| name.windows(crate::words::SCRIPTED_MODEL.len()).any(|part| part == crate::words::SCRIPTED_MODEL)));
+    assert!(
+        !names.iter().any(|name| name
+            .windows(crate::words::SCRIPTED_MODEL.len())
+            .any(|part| part == crate::words::SCRIPTED_MODEL))
+    );
 }
 #[test]
 fn the_deployment_holder_offers_keys_only() {

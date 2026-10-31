@@ -26,6 +26,7 @@ pub struct Joint {
     set_ups: Vec<(u16, Token)>,
     pub admin_connects: Vec<(u16, Token)>,
     pub demo: Option<temper_client_protocol_wire::v1::PlaygroundAnswer>,
+    pub playground_on_start: Option<temper_client_protocol_wire::v1::PlaygroundAnswer>,
     pub demo_starts: Vec<skein_lib::RequestKey>,
     pub demo_removals: Vec<skein_lib::RequestKey>,
     pub demo_reads: usize,
@@ -733,6 +734,7 @@ impl Joint {
             set_ups: Vec::new(),
             admin_connects: Vec::new(),
             demo: None,
+            playground_on_start: None,
             demo_starts: Vec::new(),
             demo_removals: Vec::new(),
             demo_reads: 0,
@@ -885,7 +887,7 @@ impl Joint {
         true
     }
     fn start_demo(&mut self, who: ClientId, request: &Request) -> bool {
-        // StartDemo is scripted here until the parallel engine task lands.
+        // The front answers playground starts with its scripted outcomes.
         if let Request::Client {
             request:
                 jig_client::Request::Down {
@@ -901,7 +903,7 @@ impl Joint {
                 self.demo_starts.push(*key);
                 let outcome = self.demo_outcomes.pop_front().unwrap_or(w::Outcome::Running);
                 if outcome == w::Outcome::Running
-                    && let Some(demo) = self.demo.take()
+                    && let Some(demo) = self.demo.take().or_else(|| self.playground_on_start.take())
                 {
                     let mut parts = demo.into_parts();
                     parts.state = w::PlaygroundState::Running;

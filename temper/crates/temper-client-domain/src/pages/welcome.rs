@@ -99,7 +99,7 @@ pub fn playground_offered(root: &Domain) -> Option<bool> {
     }
 }
 
-/// The welcome and setup strip use the same model facts, including an ended watch.
+/// The welcome reads model facts, including an ended watch.
 #[must_use]
 pub fn model_usable(root: &Domain) -> Option<bool> {
     let document = root.client().document(accounts::handle())?;
