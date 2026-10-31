@@ -1,9 +1,8 @@
 //! The decoded engine tools, translated into core or connector vocabulary
 //! (domain/root.md, 5.2; jig's `domain/engine.md`, 7.3).
 use super::{
-    Decision, Domain, Env, EscalationChoice, Limits, MessageForm, Payload, ProposalChoice, ProposedAction, ReplyTo,
-    Token, Tool, Work, call_answer, current_proof, delegate_call, forge_route, proposals, relay_call, take_payload,
-    tool_kind,
+    Decision, Domain, Env, EscalationChoice, Limits, MessageForm, ProposalChoice, ProposedAction, ReplyTo, Tool, Work,
+    call_answer, current_proof, delegate_call, forge_route, proposals, relay_call, tool_kind,
 };
 use alloc::boxed::Box;
 use jig_domain_core as core;
@@ -18,14 +17,9 @@ pub(crate) fn relay_payload(
     env: &Env<Limits>,
     decision: &mut Decision,
     reply_to: ReplyTo,
-    run: Token,
-    attempt: Token,
-    body: Token,
+    key: crate::CallKey,
+    body: crate::Call,
 ) {
-    let Some(Payload::Call { key, body }) = take_payload(domain, body) else {
-        unreachable!("fleet returns admitted call payload")
-    };
-    assert!(key.task == run.raw() && key.attempt == attempt.raw(), "fleet call envelope is unchanged");
     assert!(current_proof(domain, key.task, key.attempt), "fleet only relays a current claim");
     // Settings reads enter before replay and admission to the durable call map.
     // The core checks their family and answers denials through its immediate lane.

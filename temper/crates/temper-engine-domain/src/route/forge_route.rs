@@ -1518,7 +1518,7 @@ pub(crate) fn claimed_writes(
     env: &Env<Limits>,
     task: u64,
 ) -> Option<(Box<[forge::Name]>, Box<[u64]>)> {
-    let assignment = domain.assignments.get(&task)?;
+    let assignment = domain.assignment_parts.get(&task)?;
     let mut writes = List::with_capacity(env.limits.forge.resources_per_task);
     let mut holders = List::with_capacity(env.limits.forge.resources_per_task);
     for repository in &assignment.workspace.repositories {
