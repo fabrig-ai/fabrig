@@ -12,6 +12,8 @@ use crate::store::Store;
 use crate::walking::{config, limits};
 
 pub struct Driver {
+    pub(crate) broken: crate::oracle::Fixture,
+    pub(crate) restart_config: engine::Config,
     creating: jig_core_world::fixtures::Creating,
     pub forge: Option<crate::forge_stand::ForgeStand>,
     pub root: engine::Domain,
@@ -75,6 +77,8 @@ impl Driver {
     #[must_use]
     pub fn cold(store: Store, config: engine::Config, limits: &engine::Limits) -> Driver {
         Driver {
+            broken: crate::oracle::Fixture::Checked,
+            restart_config: crate::oracle::config::copy(&config),
             creating: jig_core_world::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             forge: None,
             root: engine::Domain::new(config, limits).expect("valid engine configuration"),
