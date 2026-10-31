@@ -52,6 +52,16 @@ pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
     }
     Ok(())
 }
+fn project(act: &Act) -> u32 {
+    match act {
+        Act::Close { project, .. }
+        | Act::Cancel { project, .. }
+        | Act::Adopt { project, .. }
+        | Act::RemoveProject { project } => *project,
+        Act::MakeProject { .. } | Act::AddKey { .. } | Act::RemoveAccount { .. } => crate::DEPLOYMENT,
+    }
+}
+
 fn kind(act: &Act) -> ActKind {
     match act {
         Act::RemoveProject { .. } => ActKind::RemoveProject,
@@ -89,7 +99,11 @@ pub(super) fn admit(
         out.push(Request::Erase { key: Key::Acted(key) });
     }
     if let Some(saved) = domain.acted.get(&key) {
-        let outcome = if saved.act == act { saved.outcome.clone() } else { Outcome::Refused(Refusal::KeyConflict) };
+        let outcome = if saved.act == act {
+            super::replay::answer(domain, project(&saved.act), &saved.outcome)
+        } else {
+            Outcome::Refused(Refusal::KeyConflict)
+        };
         return answer(to, outcome, out);
     }
     if let Some(id) = domain.act_flights.get(&key).copied() {

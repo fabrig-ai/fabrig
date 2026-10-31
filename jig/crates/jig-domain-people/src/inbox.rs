@@ -1,8 +1,11 @@
 //! Task-derived inbox census, one shared recent prefix, and explicit read marks
 //! (`domain/people.md`, section 6). Owner rows rebuild volatile counts after
 //! positions restore. Ended conversations retain positions until the owner forgets them.
+#[path = "inbox/deletion.rs"]
+mod deletion;
 #[path = "inbox/moving.rs"]
 mod moving;
+pub(super) use deletion::{drop_project, forget_task};
 pub(super) use moving::move_chat;
 
 use super::{ChatTotal, Domain, Need, Pending, Phase, Recent, decided, role};

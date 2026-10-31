@@ -79,6 +79,7 @@ fn a_restored_open_answer_replays_its_batch_once() {
         let (mut domain, mut env, mut out) = restoring();
         let records = [
             answer(ask.clone(), outcome.clone()),
+            Stored::Roles { project: PROJECT, holdings: Box::new([]) },
             Stored::Person { number: PERSON, identity: identity(PERSON) },
             Stored::SignIn {
                 number: SIGN_IN,
@@ -116,6 +117,12 @@ fn acted_rows_restore_without_a_person_or_grant_and_expire() {
     let key = people::ActKey { connector: 1, key: KEY.key };
     let act = people::Act::Close { project: PROJECT, task: TASK, reason: Box::new([]), grace: None };
     let outcome = Outcome::Compound { project: PROJECT, operations: 1, first_message: 1 };
+    step(
+        &mut domain,
+        &env,
+        Event::Restore { record: Stored::Roles { project: PROJECT, holdings: Box::new([]) } },
+        &mut out,
+    );
     step(
         &mut domain,
         &env,

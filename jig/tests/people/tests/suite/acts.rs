@@ -95,6 +95,8 @@ fn any_act_with_no_owner_lacks_the_role_and_is_unsaved() {
 #[test]
 fn a_saved_act_answers_again_whatever_the_grants_since() {
     let mut world = world();
+    world.roles(PROJECT, Box::new([]));
+    world.commit_all();
     world.act(CONNECTOR, KEY, close());
     world.decide_acts(&DECIDED);
     world.commit_all();
@@ -146,6 +148,8 @@ fn another_act_under_the_key_is_a_conflict() {
 #[test]
 fn an_adoption_of_another_connectors_resource_is_not_offered() {
     let mut world = world();
+    world.roles(PROJECT, Box::new([]));
+    world.commit_all();
     let act = Act::Adopt {
         project: PROJECT,
         adoption: jig_domain_people::Adoption {
