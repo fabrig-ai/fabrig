@@ -2,7 +2,7 @@
 //! (`domain/engine.md`, section 4.4).
 
 use super::people_routes::tag_people;
-use super::task_routes::tag_tasks;
+use super::task_routes::tag_task_outputs;
 use crate::{Ask, Core, CoreRecord, Event, Held, Key, Limits, Now, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
@@ -28,7 +28,7 @@ pub(super) fn append_people(core: &mut Core, env: &Env<Limits>, event: people::E
 pub(super) fn append_tasks(core: &mut Core, env: &Env<Limits>, event: tasks::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
     tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut child);
-    let mut routed = tag_tasks(core, env, child, false, false, false);
+    let mut routed = tag_task_outputs(core, env, child);
     for _ in 0..routed.len() {
         let request = routed.pop().expect("task route count");
         out.push(request);
@@ -169,11 +169,12 @@ pub(super) fn tag_fleet(
                 let _answered = to.into_token();
                 core.remember_unpriced_terminal(run, attempt, tasks::End::Recheck);
                 out.push(Request::Now(Box::new(Now::DropAssignment { task: run.raw() })));
+                let token = core.internal(crate::flight::Internal::Acknowledge);
                 append_tasks(
                     core,
                     env,
                     tasks::Event::Activation {
-                        reply_to: ReplyTo::new(Token::new(u64::MAX)),
+                        reply_to: ReplyTo::new(token),
                         task: run.raw(),
                         attempt: attempt.raw(),
                         cause: tasks::Cause::Unpriced,
@@ -196,11 +197,12 @@ pub(super) fn tag_fleet(
                 let _: Option<u64> = core.unreported_restored.remove(&run.raw());
                 core.remember_unpriced_terminal(run, attempt, tasks::End::Refused);
                 out.push(Request::Now(Box::new(Now::DropAssignment { task: run.raw() })));
+                let token = core.internal(crate::flight::Internal::Acknowledge);
                 append_tasks(
                     core,
                     env,
                     tasks::Event::Activation {
-                        reply_to: ReplyTo::new(Token::new(u64::MAX)),
+                        reply_to: ReplyTo::new(token),
                         task: run.raw(),
                         attempt: attempt.raw(),
                         end: tasks::End::Refused,
@@ -230,11 +232,12 @@ pub(super) fn tag_fleet(
                     tasks::End::Failed(tasks::Class::Lost)
                 };
                 core.remember_unpriced_terminal(run, attempt, end.clone());
+                let token = core.internal(crate::flight::Internal::Acknowledge);
                 append_tasks(
                     core,
                     env,
                     tasks::Event::Activation {
-                        reply_to: ReplyTo::new(Token::new(u64::MAX)),
+                        reply_to: ReplyTo::new(token),
                         task: run.raw(),
                         attempt: attempt.raw(),
                         end,
@@ -253,11 +256,12 @@ pub(super) fn tag_fleet(
                 }
                 if !core.claim_bindings_usable(run.raw(), attempt.raw()) {
                     core.remember_unpriced_terminal(run, attempt, tasks::End::Recheck);
+                    let token = core.internal(crate::flight::Internal::Acknowledge);
                     append_tasks(
                         core,
                         env,
                         tasks::Event::Activation {
-                            reply_to: ReplyTo::new(Token::new(u64::MAX)),
+                            reply_to: ReplyTo::new(token),
                             task: run.raw(),
                             attempt: attempt.raw(),
                             cause: tasks::Cause::Unpriced,
@@ -597,11 +601,12 @@ pub(super) fn route_fleet(
     {
         let mut out = Queue::uncapped();
         core.remember_unpriced_terminal(*run, *attempt, tasks::End::Recheck);
+        let token = core.internal(crate::flight::Internal::Acknowledge);
         append_tasks(
             core,
             env,
             tasks::Event::Activation {
-                reply_to: ReplyTo::new(Token::new(u64::MAX)),
+                reply_to: ReplyTo::new(token),
                 task: run.raw(),
                 attempt: attempt.raw(),
                 cause: tasks::Cause::Unpriced,

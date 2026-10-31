@@ -67,9 +67,6 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::Period { .. }
         | core::Event::PreparationFailed { .. }
         | core::Event::TranscriptUnread { .. }
-        | core::Event::PersonProposal(..)
-        | core::Event::PersonEscalation(..)
-        | core::Event::TaskEscalation(..)
         | core::Event::People(..)
         | core::Event::Fleet(..)
         | core::Event::TurnPayload { .. }

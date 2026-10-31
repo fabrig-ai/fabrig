@@ -6,7 +6,7 @@ use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::Queue;
-use skein_lib::{ReplyTo, Token};
+use skein_lib::ReplyTo;
 
 use crate::{Core, translate};
 
@@ -41,11 +41,11 @@ impl Core {
     /// Ask the task child to open a missing period or person pool before a
     /// goal starts; both requests join the same decision as the goal.
     #[must_use]
-    pub fn open_person_pool(&self, project: u32, person: u64) -> (Option<tasks::Event>, Option<tasks::Event>) {
+    pub fn open_person_pool(&mut self, project: u32, person: u64) -> (Option<tasks::Event>, Option<tasks::Event>) {
         let period = tasks::Funder::Period { project, period: self.period(project) };
         let open_period = if self.tasks.funding(period).is_none() {
             Some(tasks::Event::OpenPeriod {
-                reply_to: ReplyTo::new(Token::new(u64::MAX)),
+                reply_to: ReplyTo::new(self.internal(crate::flight::Internal::Delegate)),
                 project,
                 period: self.period(project),
                 budget: self.period_budget(project),
@@ -56,7 +56,7 @@ impl Core {
         let (pool, _) = self.person_pool(project, person);
         let carve_pool = if self.tasks.funding(pool).is_none() {
             Some(tasks::Event::CarvePool {
-                reply_to: ReplyTo::new(Token::new(u64::MAX)),
+                reply_to: ReplyTo::new(self.internal(crate::flight::Internal::Delegate)),
                 project,
                 person,
                 period: self.period(project),

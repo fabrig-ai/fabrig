@@ -60,7 +60,7 @@ pub(super) fn make_project_request(
                 holdings: Box::new([people::Holding { person: maker, role: people::Role::Owner }]),
             }));
             work.push(Event::Tasks(tasks::Event::OpenPeriod {
-                reply_to: ReplyTo::new(Token::new(u64::MAX - 2)),
+                reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Admission)),
                 project,
                 period: 1,
                 budget,
