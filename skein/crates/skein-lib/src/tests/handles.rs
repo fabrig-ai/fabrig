@@ -80,22 +80,22 @@ fn a_slab_hands_out_slots_in_the_order_it_did() {
 #[test]
 fn a_slab_walks_its_live_entities_in_slot_order() {
     let mut slab = Slab::with_capacity(5);
-    let a = slab.insert('a').expect("fresh slot");
-    let b = slab.insert('b').expect("fresh slot");
-    let c = slab.insert('c').expect("fresh slot");
-    let d = slab.insert('d').expect("fresh slot");
-    slab.retire(b);
+    let first = slab.insert('a').expect("fresh slot");
+    let second = slab.insert('b').expect("fresh slot");
+    let third = slab.insert('c').expect("fresh slot");
+    let fourth = slab.insert('d').expect("fresh slot");
+    slab.retire(second);
     slab.reclaim();
-    slab.retire(c);
+    slab.retire(third);
     let mut walk = slab.iter();
-    assert_eq!(walk.next(), Some((a, &'a')));
-    assert_eq!(walk.next(), Some((d, &'d')), "a vacant slot and a retired entity are skipped");
+    assert_eq!(walk.next(), Some((first, &'a')));
+    assert_eq!(walk.next(), Some((fourth, &'d')), "a vacant slot and a retired entity are skipped");
     assert_eq!(walk.next(), None);
-    let e = slab.insert('e').expect("the reclaimed slot");
+    let fifth = slab.insert('e').expect("the reclaimed slot");
     let mut walk = (&slab).into_iter();
-    assert_eq!(walk.next(), Some((a, &'a')));
-    assert_eq!(walk.next(), Some((e, &'e')), "slot order, not the order of insertion");
-    assert_eq!(walk.next(), Some((d, &'d')));
+    assert_eq!(walk.next(), Some((first, &'a')));
+    assert_eq!(walk.next(), Some((fifth, &'e')), "slot order, not the order of insertion");
+    assert_eq!(walk.next(), Some((fourth, &'d')));
     assert_eq!(walk.next(), None);
     for (id, value) in &slab {
         assert_eq!(slab.get(id), Some(value), "each handle names its entity");

@@ -392,8 +392,8 @@ fn a_digit_is_read_in_either_case_or_in_lowercase_alone() {
     }
     for byte in 0..=u8::MAX {
         let [high, low] = hex::pair(byte, Case::Lower);
-        assert_eq!((hex::read_lower(high), hex::read_lower(low)), (Some(byte >> 4), Some(byte & 15)), "{byte}");
+        assert_eq!((hex::read_lower(high), hex::read_lower(low)), (Some(byte >> 4_u8), Some(byte & 15)), "{byte}");
         let [high, low] = hex::pair(byte, Case::Upper);
-        assert_eq!((hex::read(high), hex::read(low)), (Some(byte >> 4), Some(byte & 15)), "{byte}");
+        assert_eq!((hex::read(high), hex::read(low)), (Some(byte >> 4_u8), Some(byte & 15)), "{byte}");
     }
 }
