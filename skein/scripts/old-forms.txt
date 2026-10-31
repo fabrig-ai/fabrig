@@ -5,9 +5,9 @@ JournalRoom 0
 takes 0
 worst_case 0
 io_resume 39
-earliest 3
+earliest 2
 lifecycle 2
 growth_floor 5
 pop_loop 13
-hex_decimal 21
+hex_decimal 18
 host_dispatch 9
