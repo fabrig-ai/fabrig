@@ -1,6 +1,6 @@
 # skein
 
-The io and protocol kit, and the rules every crate in fabrig follows. Read the root `AGENTS.md` first, then the design sections your task names.
+The io and protocol kit, and the rules every crate in fabrig follows. Read the root `AGENTS.md` first, then the design sections your work touches.
 
 - **The design:** `skein/docs/design/`, cited as `skein/docs/design/tls.md, 3.6`.
 - **The rules:** `skein/docs/foundation/programming-model.md` (step machines, states, what step code may use), `testing-strategy.md` (tests, worlds, suites) and `notes.md` (their reasons and open questions).
