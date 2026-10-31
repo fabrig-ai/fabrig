@@ -1670,6 +1670,44 @@ fn role(domain: &Domain, person: u64, project: u32) -> Option<Role> {
     None
 }
 
+fn request_offered(ask: &Ask) -> bool {
+    match ask {
+        Ask::RemoveProject { .. } => false,
+        Ask::ChangeSettings { .. }
+        | Ask::MoveToNewest { .. }
+        | Ask::Compound { .. }
+        | Ask::Create { .. }
+        | Ask::MarkSeen { .. }
+        | Ask::Application { .. }
+        | Ask::EditNote { .. }
+        | Ask::MakeService { .. }
+        | Ask::Adopt { .. }
+        | Ask::Propose { .. }
+        | Ask::Withdraw { .. }
+        | Ask::Stop { .. }
+        | Ask::Cancel { .. }
+        | Ask::Release { .. }
+        | Ask::Lift { .. }
+        | Ask::TakePerson { .. }
+        | Ask::HandBackPerson { .. }
+        | Ask::AnswerPerson { .. }
+        | Ask::Move { .. }
+        | Ask::DecideProposal { .. }
+        | Ask::Say { .. }
+        | Ask::AnswerQuestion { .. }
+        | Ask::Amend { .. }
+        | Ask::SetRoles { .. }
+        | Ask::ChangePolicy { .. }
+        | Ask::Rename { .. }
+        | Ask::MakeProject { .. }
+        | Ask::SetPool { .. }
+        | Ask::DecideEscalation { .. }
+        | Ask::AccountSignIn { .. }
+        | Ask::AccountSignOut { .. }
+        | Ask::AccountChange { .. } => true,
+    }
+}
+
 #[expect(clippy::too_many_arguments, reason = "one keyed request includes its canonical original model context")]
 fn admit_ask(
     domain: &mut Domain,
@@ -1690,7 +1728,7 @@ fn admit_ask(
     if session.expires <= env.wall || session.due <= env.now {
         return signed_out(to, out);
     }
-    if ask == (Ask::RemoveProject { project: project(&ask) }) {
+    if !request_offered(&ask) {
         return refused(to, Refusal::NotOffered, out);
     }
     let key = RequestKey { person: session.person, key: bytes };
@@ -2058,7 +2096,7 @@ fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
         Stored::Roles { project, holdings } => {
             valid_roles(domain, &env.limits, *project, holdings).is_ok() && !domain.roles.contains_key(project)
         }
-        Stored::Deletion { .. } => true,
+        Stored::Deletion { .. } => return,
         Stored::Policy { .. } | Stored::EndedRead { .. } => false,
         Stored::Answer { key, ask, models, outcome, at } => {
             valid_ask(&env.limits, ask)

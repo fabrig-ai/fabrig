@@ -2477,3 +2477,23 @@ fn valid_refuses_each_unrepresentable_limit() {
 
 #[path = "tests/start.rs"]
 mod start;
+
+#[test]
+fn a_remove_project_ask_is_refused_before_any_save() {
+    let mut test = Test::new(LIMITS);
+    test.signin(1, 10, identity(0, 1));
+    test.send(Event::Roles { project: 1, holdings: Box::new([Holding { person: 1, role: Role::Owner }]) });
+    let outputs = test.request(10, 1, Ask::RemoveProject { project: 1 });
+    let [Request::Reply { reply: Reply::Refused(Refusal::NotOffered), .. }] = outputs.as_slice() else {
+        unreachable!("the stub refuses once without saving or routing");
+    };
+    assert!(test.d.deletions().is_empty());
+    for event in [
+        Event::Deleting { project: 1, step: Some(DeletionStep::Tasks) },
+        Event::CloseProject { project: 1 },
+        Event::ForgetProject { project: 1 },
+    ] {
+        assert!(test.send(event).is_empty());
+    }
+    assert!(test.d.deletions().is_empty());
+}
