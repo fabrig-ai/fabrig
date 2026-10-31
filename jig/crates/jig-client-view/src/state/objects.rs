@@ -17,14 +17,11 @@
 //! | other leaving card | linger expires | gone | nothing |
 use crate::state::intents::Progress;
 use alloc::boxed::Box;
-use jig_client::contract::{
-    Chip, Ending, Escalation, ObjectKey, Outcome, PersonTask, Proposal, Question, Refusal, Result, Task,
-};
+use jig_client::contract::{Chip, Ending, ObjectKey, Outcome, Question, Refusal, Result, Task};
 use skein_lib::{Id, List, Map, Set, Slab, Time, Token};
 pub(crate) mod answer;
-#[cfg(test)]
-pub(crate) mod escalation;
 pub(crate) mod person_task;
+#[cfg(test)]
 pub(crate) mod proposal;
 pub(crate) mod question;
 pub(crate) mod result;
@@ -48,17 +45,11 @@ pub enum Body {
     Task(Box<Task>),
     /// Whole historical owner facts for the original object identity.
     Historical(Box<jig_client::contract::OwnerHistorical>),
-    /// A proposal document.
-    Proposal(Box<Proposal>),
     OwnerProposal(Box<jig_client::contract::OwnerProposal>),
-    /// A held task escalation.
-    Escalation(Box<Escalation>),
     /// A task owner’s whole escalation document.
     OwnerEscalation(Box<jig_client::contract::OwnerEscalation>),
     /// A question.
     Question(Box<Question>),
-    /// A person task.
-    PersonTask(Box<PersonTask>),
     /// Pending owner person work.
     OwnerPersonTask(Box<jig_client::contract::OwnerPersonTask>),
     /// A result.
@@ -270,10 +261,9 @@ impl Objects {
             }
             Body::Task(task) => object.project = Some(task.project),
             Body::OwnerEscalation(value) => object.project = Some(value.task.project),
-            Body::Proposal(proposal) => object.project = Some(proposal.project),
             Body::OwnerProposal(proposal) => object.project = Some(proposal.project),
             Body::OwnerPersonTask(task) => object.project = task.project(),
-            Body::Chip(_) | Body::Escalation(_) | Body::Question(_) | Body::PersonTask(_) | Body::Result(_) => {}
+            Body::Chip(_) | Body::Question(_) | Body::Result(_) => {}
             Body::Note { project, .. } => object.project = Some(*project),
         }
         match body {
@@ -282,12 +272,9 @@ impl Objects {
                 Some(Body::Historical(_)) => {}
                 Some(
                     Body::Chip(_)
-                    | Body::Proposal(_)
                     | Body::OwnerProposal(_)
-                    | Body::Escalation(_)
                     | Body::OwnerEscalation(_)
                     | Body::Question(_)
-                    | Body::PersonTask(_)
                     | Body::OwnerPersonTask(_)
                     | Body::Result(_)
                     | Body::Note { .. },
@@ -296,12 +283,9 @@ impl Objects {
             },
             Body::Historical(_)
             | Body::Task(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
-            | Body::Escalation(_)
             | Body::OwnerEscalation(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. } => object.body = Some(body),
@@ -485,10 +469,8 @@ fn delivered_name(value: &jig_client::contract::Delivery, key: ObjectKey) -> Opt
     match value {
         Delivery::OwnerProject(_)
         | Delivery::Me(_)
-        | Delivery::Run(_)
         | Delivery::RunState(_)
         | Delivery::Settings(_)
-        | Delivery::Deployment(_)
         | Delivery::OwnerDeployment(_)
         | Delivery::OwnerAccounts(_) => None,
         Delivery::Task(task) => {
@@ -513,14 +495,6 @@ fn delivered_name(value: &jig_client::contract::Delivery, key: ObjectKey) -> Opt
             }
             Some(false)
         }
-        Delivery::Inbox(inbox) => {
-            for entry in &inbox.entries {
-                if entry.object == key {
-                    return Some(true);
-                }
-            }
-            Some(false)
-        }
         Delivery::OwnerTree(tree) => {
             if key == ObjectKey::Task(tree.root.task) {
                 return Some(true);
@@ -530,19 +504,6 @@ fn delivered_name(value: &jig_client::contract::Delivery, key: ObjectKey) -> Opt
                     return Some(true);
                 }
                 for proposal in &row.proposals {
-                    if key == ObjectKey::Proposal(*proposal) {
-                        return Some(true);
-                    }
-                }
-            }
-            Some(false)
-        }
-        Delivery::Tree(tree) => {
-            for node in &tree.nodes {
-                if key == ObjectKey::Task(node.chip.task) {
-                    return Some(true);
-                }
-                for proposal in &node.proposals {
                     if key == ObjectKey::Proposal(*proposal) {
                         return Some(true);
                     }
@@ -572,19 +533,15 @@ fn delivered_name(value: &jig_client::contract::Delivery, key: ObjectKey) -> Opt
 pub(crate) fn dropping(domain: &mut crate::Ui, watch: jig_client::Handle, value: &jig_client::contract::Delivery) {
     match value {
         jig_client::contract::Delivery::Me(_)
-        | jig_client::contract::Delivery::Run(_)
         | jig_client::contract::Delivery::RunState(_)
         | jig_client::contract::Delivery::Settings(_)
-        | jig_client::contract::Delivery::Deployment(_)
         | jig_client::contract::Delivery::OwnerDeployment(_)
         | jig_client::contract::Delivery::OwnerAccounts(_)
         | jig_client::contract::Delivery::Task(_)
-        | jig_client::contract::Delivery::Tree(_)
         | jig_client::contract::Delivery::OwnerTree(_)
         | jig_client::contract::Delivery::OwnerProject(_)
         | jig_client::contract::Delivery::OwnerProposal(_)
         | jig_client::contract::Delivery::Chips(_)
-        | jig_client::contract::Delivery::Inbox(_)
         | jig_client::contract::Delivery::OwnerInbox(_)
         | jig_client::contract::Delivery::Tasks(_) => {}
     }
@@ -813,12 +770,9 @@ pub(crate) fn read_card(
             }
             body @ (Body::Task(_)
             | Body::Chip(_)
-            | Body::Proposal(_)
             | Body::Historical(_)
-            | Body::Escalation(_)
             | Body::OwnerEscalation(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. }) => domain.objects.put(key, body),
@@ -888,32 +842,24 @@ pub(crate) fn historical_read(
             ReadValue::Tasks(_)
             | ReadValue::Me(_)
             | ReadValue::Task(_)
-            | ReadValue::Proposal(_)
             | ReadValue::OwnerProposal(_)
-            | ReadValue::Escalation(_)
             | ReadValue::OwnerEscalation(_)
             | ReadValue::Question(_)
-            | ReadValue::PersonTask(_)
             | ReadValue::OwnerPersonTask(_)
             | ReadValue::Result(_)
-            | ReadValue::Ended(_)
             | ReadValue::History(_)
             | ReadValue::Activity(_)
             | ReadValue::Turn(_)
-            | ReadValue::Inbox(_)
             | ReadValue::OwnerInbox(_)
-            | ReadValue::Spend(_)
             | ReadValue::OwnerSpend(_)
             | ReadValue::OwnerEnded(_)
             | ReadValue::OwnerProject(_)
-            | ReadValue::Project(_)
             | ReadValue::Notes(_)
             | ReadValue::OwnerDeployment(_)
             | ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
-            | ReadValue::Revisions(_)
-            | ReadValue::Deployment(_) => None,
+            | ReadValue::Revisions(_) => None,
         },
         ReadResult::None(_) => None,
     }
@@ -929,32 +875,24 @@ fn read_body(key: ObjectKey, value: jig_client::contract::ReadValue) -> Option<B
             }
         }
         ReadValue::Task(task) => Some(Body::Task(task)),
-        ReadValue::Proposal(proposal) => Some(Body::Proposal(proposal)),
         ReadValue::OwnerProposal(proposal) => Some(Body::OwnerProposal(proposal)),
-        ReadValue::Escalation(escalation) => Some(Body::Escalation(escalation)),
         ReadValue::OwnerEscalation(value) => Some(Body::OwnerEscalation(value)),
         ReadValue::Question(question) => Some(Body::Question(question)),
-        ReadValue::PersonTask(task) => Some(Body::PersonTask(task)),
         ReadValue::OwnerPersonTask(task) => Some(Body::OwnerPersonTask(task)),
         ReadValue::Result(result) => Some(Body::Result(result)),
         ReadValue::Tasks(_)
         | ReadValue::Me(_)
-        | ReadValue::Inbox(_)
         | ReadValue::OwnerInbox(_)
         | ReadValue::Activity(_)
         | ReadValue::Turn(_)
         | ReadValue::History(_)
-        | ReadValue::Ended(_)
-        | ReadValue::Spend(_)
         | ReadValue::OwnerEnded(_)
         | ReadValue::OwnerSpend(_)
         | ReadValue::OwnerProject(_)
-        | ReadValue::Project(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
-        | ReadValue::Deployment(_)
         | ReadValue::OwnerDeployment(_) => None,
         ReadValue::Notes(page) => {
             let project = match key {
@@ -1105,13 +1043,6 @@ pub(crate) fn contexts(value: &jig_client::contract::Delivery, capacity: u32) ->
                 }
             }
         }
-        jig_client::contract::Delivery::Inbox(inbox) => {
-            for entry in &inbox.entries {
-                if rows.push(Context { object: entry.object, project: entry.project }).is_err() {
-                    break;
-                }
-            }
-        }
         jig_client::contract::Delivery::Tasks(tasks) => {
             for row in &tasks.rows {
                 if rows.push(Context { object: ObjectKey::Task(row.chip.task), project: row.project }).is_err() {
@@ -1123,13 +1054,10 @@ pub(crate) fn contexts(value: &jig_client::contract::Delivery, capacity: u32) ->
         | jig_client::contract::Delivery::Task(_)
         | jig_client::contract::Delivery::OwnerProject(_)
         | jig_client::contract::Delivery::OwnerProposal(_)
-        | jig_client::contract::Delivery::Tree(_)
         | jig_client::contract::Delivery::OwnerTree(_)
         | jig_client::contract::Delivery::Chips(_)
-        | jig_client::contract::Delivery::Run(_)
         | jig_client::contract::Delivery::RunState(_)
         | jig_client::contract::Delivery::Settings(_)
-        | jig_client::contract::Delivery::Deployment(_)
         | jig_client::contract::Delivery::OwnerDeployment(_)
         | jig_client::contract::Delivery::OwnerAccounts(_) => {}
     }
@@ -1146,11 +1074,8 @@ pub(crate) fn apply_contexts(domain: &mut crate::Ui, rows: List<Context>) {
                     Body::Historical(_)
                     | Body::Chip(_)
                     | Body::Task(_)
-                    | Body::Proposal(_)
                     | Body::OwnerProposal(_)
-                    | Body::Escalation(_)
                     | Body::Question(_)
-                    | Body::PersonTask(_)
                     | Body::Result(_)
                     | Body::Note { .. },
                 )

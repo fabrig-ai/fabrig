@@ -21,7 +21,7 @@ const LATER: Wall = Wall::from_nanos(99);
 fn line(task: u64, at: Wall) -> TaskLine {
     let mut chip = crate::tests::tree::work_pages::chip(task);
     chip.phase = Phase::Idle;
-    chip.details = Box::new(ChipPhase::Owner {
+    chip.details = Box::new(ChipPhase {
         phase: OwnerChipPhase::Active(RunStage::Idle),
         details: Box::new(crate::tests::tree::fragments::chip::details()),
     });

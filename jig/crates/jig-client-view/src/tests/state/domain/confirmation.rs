@@ -1,6 +1,6 @@
 use crate::tests::fixtures::{Fixture, ReadPage};
 use crate::tests::state::domain::{
-    objects::{chip, escalation, live, owner_authority, person, proposal, text},
+    objects::{chip, escalation, live, owner_authority, person, text},
     spine::drive,
 };
 use crate::{
@@ -10,11 +10,11 @@ use crate::{
         acts,
         confirm::Missing,
         fields::Purpose,
-        objects::{Body, Card, Object, Source},
+        objects::{Body, Object, Source},
     },
 };
 use jig_client::contract::*;
-use jig_client::contract::{AnswerOn, DecideOn};
+
 use skein_lib::{Id, List, Time, Wall};
 fn offered(act: ActKind, admission: Admission) -> List<Offered> {
     let mut rows = List::with_capacity(2);
@@ -95,7 +95,12 @@ pub(in crate::tests) fn task() -> Task {
             deadline: None,
         },
         authority: owner_authority(),
-        hold: Some(TaskHold::Document(Box::new(escalation().hold))),
+        hold: Some(Box::new({
+            let mut hold = crate::tests::fixtures::hold();
+            hold.reason = HoldCategory::Stopped;
+            hold.revision = 3;
+            hold
+        })),
         proposals: List::with_capacity(0),
         activity: 0,
         changed: Wall::EPOCH,
@@ -123,110 +128,6 @@ fn sent(rows: &[Request]) -> &Ask {
 }
 fn edit(domain: &mut Fixture, field: Purpose, bytes: &[u8]) {
     assert!(drive(domain, Time::ZERO, Event::Act { action: Act::Edit { field, text: text(bytes) } }).is_empty());
-}
-pub(in crate::tests) fn reread(domain: &mut Fixture, body: Body, what: Read) {
-    let read = domain.request_read(Source::Window { number: 4 }, what).unwrap();
-    let value = match body {
-        Body::Escalation(document) => ReadValue::Escalation(document),
-        Body::OwnerEscalation(document) => ReadValue::OwnerEscalation(document),
-        Body::Task(document) => ReadValue::Task(document),
-        Body::PersonTask(document) => ReadValue::PersonTask(document),
-        Body::OwnerPersonTask(document) => ReadValue::OwnerPersonTask(document),
-        Body::Proposal(_)
-        | Body::OwnerProposal(_)
-        | Body::Question(_)
-        | Body::Result(_)
-        | Body::Historical(_)
-        | Body::Chip(_)
-        | Body::Note { .. } => unreachable!(),
-    };
-    drive(domain, Time::ZERO, ReadPage { read, result: ReadResult::Value(value) });
-}
-
-#[test]
-fn each_decision_sends_only_its_recalled_revision_and_double_confirmation_sends_once() {
-    for case in 0_u8..5 {
-        let (mut domain, _) = live();
-        let (body, act) = match case {
-            0 => {
-                let mut row = escalation();
-                row.acts = offered(ActKind::Release, Admission::Allowed);
-                (Body::Escalation(Box::new(row)), ActKind::Release)
-            }
-            1 => {
-                let mut row = task();
-                row.acts = offered(ActKind::Amend, Admission::Allowed);
-                (Body::Task(Box::new(row)), ActKind::Amend)
-            }
-            2 => {
-                let mut row = person();
-                row.acts = offered(ActKind::Answer, Admission::Allowed);
-                (Body::PersonTask(Box::new(row)), ActKind::Answer)
-            }
-            3 => {
-                let mut row = proposal();
-                row.acts = offered(ActKind::Accept, Admission::Allowed);
-                (Body::Proposal(Box::new(row)), ActKind::Accept)
-            }
-            4 => {
-                let mut row = task();
-                row.acts = offered(ActKind::Stop, Admission::Allowed);
-                (Body::Task(Box::new(row)), ActKind::Stop)
-            }
-            _ => unreachable!(),
-        };
-        let id = install(&mut domain, body);
-        assert!(intend(&mut domain, id, act).is_empty());
-        assert_eq!(
-            domain.objects().get(id).unwrap().card,
-            Card::Deciding { request: None, progress: crate::state::intents::Progress::Confirming }
-        );
-        match case {
-            1 => {
-                drive(
-                    &mut domain,
-                    Time::ZERO,
-                    Event::Act { action: Act::Edit { field: Purpose::Reason, text: text(b"") } },
-                );
-                drive(&mut domain, Time::ZERO, Event::Act { action: Act::Change { change: Box::new(change()) } });
-            }
-            2 => edit(&mut domain, Purpose::Answer, b"the answer"),
-            0 | 3 | 4 => {}
-            _ => unreachable!(),
-        }
-        let rows = drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm });
-        let expected = match case {
-            0 => Ask::Release { project: 1, task: 8, revision: Revision { value: 3 }, again: None },
-            1 => Ask::Amend {
-                reason: text(b""),
-                project: 1,
-                task: 8,
-                revision: Some(Revision { value: 9 }),
-                change: Box::new(change()),
-            },
-            2 => Ask::Answer {
-                project: 1,
-                on: AnswerOn::Person {
-                    task: 8,
-                    revision: Revision { value: 4 },
-                    answer: PersonAnswer::Words(text(b"the answer")),
-                },
-            },
-            3 => Ask::Decide {
-                project: 1,
-                on: DecideOn::Proposal { proposal: proposal().key, decision: Decision::Accepted, running: None },
-            },
-            4 => Ask::Stop { project: 1, task: 8 },
-            _ => unreachable!(),
-        };
-        assert_eq!(sent(&rows), &expected);
-        assert!(drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm }).is_empty());
-        assert!(domain.confirmation().is_none());
-        if case == 2 {
-            assert!(domain.fields().get(Purpose::Answer).unwrap().text.bytes().is_empty());
-            assert_eq!(domain.fields().get(Purpose::Answer).unwrap().writes, 1);
-        }
-    }
 }
 
 #[test]
@@ -303,69 +204,6 @@ fn note_corrections_keep_the_supplied_scope_revision_and_all_references() {
             assert!(domain.fields().get(Purpose::NoteBody).unwrap().text.bytes().is_empty());
         }
     }
-}
-
-#[test]
-fn a_changed_revision_refuses_in_the_confirmation_while_spend_changes_only_its_words() {
-    let (mut domain, _) = live();
-    let mut row = escalation();
-    row.acts = offered(ActKind::Release, Admission::Allowed);
-    let id = install(&mut domain, Body::Escalation(Box::new(row.clone())));
-    intend(&mut domain, id, ActKind::Release);
-    row.hold.revision = Revision { value: 8 };
-    reread(&mut domain, Body::Escalation(Box::new(row)), Read::Escalation { task: 8 });
-    assert!(domain.confirmation().unwrap().changed);
-    assert_eq!(domain.confirmation().unwrap().missing, Some(Missing::Changed { now: Some(Revision { value: 8 }) }));
-    assert!(drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm }).is_empty());
-    drive(&mut domain, Time::ZERO, Event::Act { action: Act::Dismiss });
-    domain.objects.clear();
-    domain.objects.reclaim();
-
-    let mut row = task();
-    row.acts = offered(ActKind::Amend, Admission::Proposed { to: Recipient::Party(9) });
-    let id = install(&mut domain, Body::Task(Box::new(row.clone())));
-    intend(&mut domain, id, ActKind::Amend);
-    drive(&mut domain, Time::ZERO, Event::Act { action: Act::Edit { field: Purpose::Reason, text: text(b"") } });
-    drive(&mut domain, Time::ZERO, Event::Act { action: Act::Change { change: Box::new(change()) } });
-    row.budget.numbers.spent = 5;
-    reread(&mut domain, Body::Task(Box::new(row)), Read::Task { task: 8 });
-    let open = domain.confirmation().unwrap();
-    assert!(!open.changed);
-    assert_eq!(open.proposed, Some(Recipient::Party(9)));
-    assert!(open.missing.is_none());
-    assert_eq!(
-        sent(&drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm })),
-        &Ask::Propose {
-            project: 1,
-            action: ProposeAction::Amendment { task: 8, revision: Revision { value: 9 }, change: Box::new(change()) },
-            reason: text(b""),
-        }
-    );
-}
-
-#[test]
-fn only_engine_offers_open_and_new_confirmations_or_dismissals_clear_the_old_fields() {
-    let (mut domain, _) = live();
-    let mut row = proposal();
-    row.acts = offered(ActKind::Reject, Admission::Allowed);
-    let id = install(&mut domain, Body::Proposal(Box::new(row.clone())));
-    assert!(intend(&mut domain, id, ActKind::Accept).is_empty());
-    assert!(domain.confirmation().is_none());
-    assert_eq!(domain.objects().get(id).unwrap().card, Card::Refused { refusal: Refusal::NotOffered });
-    intend(&mut domain, id, ActKind::Reject);
-    assert!(domain.confirmation().unwrap().dangerous);
-    assert_eq!(domain.confirmation().unwrap().missing, Some(Missing::Words { field: Purpose::Reason }));
-    edit(&mut domain, Purpose::Reason, b"reason");
-    drive(&mut domain, Time::ZERO, Event::Act { action: Act::Dismiss });
-    assert!(domain.fields().get(Purpose::Reason).unwrap().text.bytes().is_empty());
-    assert_eq!(domain.fields().get(Purpose::Reason).unwrap().writes, 1);
-    intend(&mut domain, id, ActKind::Reject);
-    edit(&mut domain, Purpose::Reason, b"new reason");
-    // A new act closes the old confirmation even when the new act is not offered.
-    intend(&mut domain, id, ActKind::Accept);
-    assert!(domain.confirmation().is_none());
-    assert!(domain.fields().get(Purpose::Reason).unwrap().text.bytes().is_empty());
-    assert_eq!(domain.fields().get(Purpose::Reason).unwrap().writes, 2);
 }
 
 #[test]
@@ -583,84 +421,6 @@ fn bounded_amendment_keeps_every_supplied_policy_recipient_in_order() {
     );
 }
 
-#[test]
-fn person_verdict_choices_preserve_full_codes_and_refuse_missing_machine_fields() {
-    for required in [false, true] {
-        let (mut domain, _) = live();
-        let mut row = person();
-        let mut options = List::with_capacity(1);
-        let mut fields = List::with_capacity(1);
-        if required {
-            fields.push(FieldRule { name: b"state".as_slice().into(), max: 8 }).unwrap();
-        }
-        options
-            .push(OptionLine { number: u32::MAX, words: text(b"choice"), words_max: 32, followups: 0, fields })
-            .unwrap();
-        row.contract = PersonContract::Choice { options };
-        row.acts = offered(ActKind::Answer, Admission::Allowed);
-        let id = install(&mut domain, Body::PersonTask(Box::new(row)));
-        assert!(intend(&mut domain, id, ActKind::Answer).is_empty());
-        assert!(drive(&mut domain, Time::ZERO, Event::Act { action: Act::Choose { option: u32::MAX } }).is_empty());
-        let rows = drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm });
-        if required {
-            assert!(rows.is_empty(), "machine field choice cannot send an incomplete answer");
-            assert_eq!(domain.confirmation().unwrap().missing, Some(Missing::Choice));
-        } else {
-            assert_eq!(
-                sent(&rows),
-                &Ask::Answer {
-                    project: 1,
-                    on: AnswerOn::Person {
-                        task: 8,
-                        revision: Revision { value: 4 },
-                        answer: PersonAnswer::Choice { option: u32::MAX, reason: text(b"") }
-                    }
-                }
-            );
-        }
-    }
-}
-
-#[test]
-fn approval_confirmation_keeps_the_whole_state_and_actual_optional_explanation() {
-    for (reason, explanation) in [
-        (None, None),
-        (Some(b"".as_slice()), Some(text(b""))),
-        (Some(b"explanation".as_slice()), Some(text(b"explanation"))),
-    ] {
-        let (mut domain, _) = live();
-        let mut row = person();
-        row.contract = PersonContract::Approval {
-            state: text(UTF8_TEXTS[0]),
-            part: Part::Resource {
-                connector: 1,
-                path: {
-                    let mut path = List::with_capacity(1);
-                    path.push(Box::<[u8]>::from(*b"state")).unwrap();
-                    path
-                },
-            },
-        };
-        row.acts = offered(ActKind::Answer, Admission::Allowed);
-        let id = install(&mut domain, Body::PersonTask(Box::new(row)));
-        assert!(intend(&mut domain, id, ActKind::Answer).is_empty());
-        if let Some(reason) = reason {
-            edit(&mut domain, Purpose::Reason, reason);
-        }
-        assert_eq!(
-            sent(&drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm })),
-            &Ask::Answer {
-                project: 1,
-                on: AnswerOn::Person {
-                    task: 8,
-                    revision: Revision { value: 4 },
-                    answer: PersonAnswer::Approved { state: Box::from(UTF8_TEXTS[0]), words: explanation }
-                }
-            }
-        );
-    }
-}
-
 fn specification(words: Text) -> SpecificationDocument {
     SpecificationDocument::complete(Specification {
         asks: false,
@@ -869,3 +629,20 @@ fn bounded_grant() -> OwnerGrant {
 pub(crate) mod compound;
 
 pub(crate) mod cancel_reason;
+
+pub(in crate::tests) fn reread(domain: &mut Fixture, body: Body, what: Read) {
+    let read = domain.request_read(Source::Window { number: 4 }, what).unwrap();
+    let value = match body {
+        Body::OwnerEscalation(document) => ReadValue::OwnerEscalation(document),
+        Body::Task(document) => ReadValue::Task(document),
+
+        Body::OwnerPersonTask(document) => ReadValue::OwnerPersonTask(document),
+        Body::OwnerProposal(_)
+        | Body::Question(_)
+        | Body::Result(_)
+        | Body::Historical(_)
+        | Body::Chip(_)
+        | Body::Note { .. } => unreachable!(),
+    };
+    drive(domain, Time::ZERO, ReadPage { read, result: ReadResult::Value(value) });
+}

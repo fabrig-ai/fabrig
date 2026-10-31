@@ -12,14 +12,6 @@ impl Words {
             Lacking::Budget { needed, left } => {
                 self.text(b, JigPhrase::BudgetMissing, &[Hole::Amount(*left), Hole::Amount(*needed)]);
             }
-            Lacking::Grant(grant) => {
-                self.text(
-                    b,
-                    JigPhrase::LiteralGrantMissing,
-                    &[Hole::Number(u64::from(grant.kind)), Hole::Number(u64::from(grant.connector))],
-                );
-                crate::tree::fragments::authority::pattern(b, self, &grant.pattern, text_limit);
-            }
             Lacking::GrantKind { kind } => self.text(b, JigPhrase::GrantKindMissing, &[Hole::Number(u64::from(*kind))]),
             Lacking::TaskKind { executor } => {
                 self.text(b, JigPhrase::KindMissing, &[]);

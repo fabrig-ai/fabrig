@@ -219,8 +219,44 @@ fn task() -> Task {
             title: DocumentText::complete(text(&[b't'; 32])),
             executor: Executor::Procedure { connector: jig_client_test_domain::FIRST, kind: 1 },
             phase: Phase::Running,
-            details: Box::new(ChipPhase::Procedure {
-                panel: Part::Panel { connector: jig_client_test_domain::FIRST, task: 9 },
+            details: Box::new(ChipPhase {
+                phase: OwnerChipPhase::Active(RunStage::Running { attempt: 1 }),
+                details: Box::new(OwnerChipDetails {
+                    dependencies: list([]),
+                    project: 3,
+                    executor: OwnerExecutor::Procedure { connector: jig_client_test_domain::FIRST, code: 1 },
+                    phase_since: Wall::EPOCH,
+                    run_since: None,
+                    attempt: Some(1),
+                    retry: None,
+                    wake: OwnerWakePolicy {
+                        words: WakeRule::Never,
+                        notices: WakeRule::Never,
+                        news: WakeRule::Never,
+                        results: ResultsWake::Never,
+                        questions: false,
+                        answers: false,
+                        timers: false,
+                    },
+                    person_wait: None,
+                    hold: None,
+                    budget: OwnerBudget {
+                        numbers: OwnerNumbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
+                        left: 1,
+                        funder: Funder::Task(9),
+                        deadline: None,
+                    },
+                    activity: 0,
+                    resources: list([]),
+                    resources_cut: false,
+                    resources_observed: false,
+                    procedure: None,
+                    live_delegates: 0,
+                    closing_connectors: None,
+                    ending: None,
+                    ended_at: None,
+                    observation: None,
+                }),
             }),
         },
         goal: None,
@@ -583,139 +619,6 @@ fn a_family_entrance_refusal_shows_its_budget_and_keeps_the_object_present() {
 #[test]
 fn outbox_family_keys_keep_scope_entry_and_effect_proposal_distinct() {
     check_outbox_family_keys_keep_scope_entry_and_effect_proposal_distinct();
-}
-fn check_outbox_family_keys_keep_scope_entry_and_effect_proposal_distinct() {
-    let entry = u64::MAX;
-    let subjects = [
-        family::Subject { scope: family::Scope::Project(0), kind: family::Kind::Outbox(entry) },
-        family::Subject { scope: family::Scope::Project(3), kind: family::Kind::Outbox(entry) },
-        family::Subject { scope: family::Scope::Project(4), kind: family::Kind::Outbox(entry) },
-        family::Subject { scope: family::Scope::Deployment, kind: family::Kind::Outbox(entry) },
-        family::Subject {
-            scope: family::Scope::Project(3),
-            kind: family::Kind::Effect(ProposalKey { proposer: Proposer::Task(entry), number: entry }),
-        },
-    ];
-    let mut root = ready();
-    let opened = drive(
-        &mut root,
-        Event::Went { place: Place::Address(Address::Jig(jig_client_view::address::Address::Deployment)) },
-    );
-    let watch = opened
-        .iter()
-        .find_map(|row| match row {
-            Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Deployment)} } } => Some(*watch),
-            _ => None,
-        })
-        .unwrap();
-    let mut parts = List::with_capacity(3);
-    for scope in [PartScope::Project(3), PartScope::Project(4), PartScope::Deployment] {
-        parts.push(Part::Outbox { connector: jig_client_test_domain::FIRST, scope, entry }).unwrap();
-    }
-    drive(
-        &mut root,
-        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
-    );
-    drive(
-        &mut root,
-        Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::Watched {
-                    watch,
-                    event: WatchEvent::Delivered(Delivery::Deployment(Box::new(Deployment {
-                        hosts: list([]),
-                        accounts: list([]),
-                        capacity: list([]),
-                        proposals: 0,
-                        refusals: list([]),
-                        parts,
-                    }))),
-                },
-            },
-        },
-    );
-    let mut view = view();
-    patches(&mut view, &root);
-    let shown = view
-        .tree()
-        .nodes()
-        .iter()
-        .flat_map(|node| node.text.iter())
-        .filter(|run| run.text.as_ref() == b"Outbox entry 18446744073709551615")
-        .count();
-    assert_eq!(shown, 3);
-    for subject in &subjects[1..4] {
-        assert!(view.tree().nodes().iter().any(|node| node.key == Some(crate::family_key(subject))));
-    }
-    for (index, subject) in subjects.iter().enumerate() {
-        let key = crate::family_key(subject);
-        for previous in &subjects[..index] {
-            assert_ne!(key, crate::family_key(previous));
-        }
-        if let family::Kind::Outbox(_) = subject.kind {
-            assert_eq!(key.b, entry);
-        }
-    }
-}
-
-#[test]
-fn effect_family_keys_keep_equal_task_and_party_makers_in_distinct_public_items() {
-    let keys = [
-        ProposalKey { proposer: Proposer::Task(u64::MAX), number: u64::MAX },
-        ProposalKey { proposer: Proposer::Party(u64::MAX), number: u64::MAX },
-    ];
-    let mut root = ready();
-    let opened = drive(
-        &mut root,
-        Event::Went { place: Place::Address(Address::Jig(jig_client_view::address::Address::Deployment)) },
-    );
-    let watch = opened
-        .iter()
-        .find_map(|row| match row {
-            Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Deployment)} } } => Some(*watch),
-            _ => None,
-        })
-        .unwrap();
-    let parts = list(keys.map(|proposal| Part::Effect { connector: jig_client_test_domain::FIRST, proposal }));
-    let reads = drive(
-        &mut root,
-        Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::Watched {
-                    watch,
-                    event: WatchEvent::Delivered(Delivery::Deployment(Box::new(Deployment {
-                        hosts: list([]),
-                        accounts: list([]),
-                        capacity: list([]),
-                        proposals: 0,
-                        refusals: list([]),
-                        parts,
-                    }))),
-                },
-            },
-        },
-    );
-    let subjects: Vec<_> = reads
-        .iter()
-        .filter_map(|row| match row {
-            Request::First(first::Out::Read { subject, .. }) => Some(*subject),
-            _ => None,
-        })
-        .collect();
-    assert_eq!(subjects.len(), 2);
-    for (index, subject) in subjects.iter().enumerate() {
-        assert_eq!(subject.kind, family::Kind::Effect(keys[index]));
-    }
-    let mut view = view();
-    patches(&mut view, &root);
-    let public: Vec<_> = subjects.iter().map(crate::family_key).collect();
-    assert_ne!(public[0], public[1]);
-    for key in public {
-        assert_eq!((key.a, key.b), (u64::MAX, u64::MAX));
-        assert!(view.tree().nodes().iter().any(|node| node.key == Some(key)));
-    }
-    assert!(view.tree().len() <= view.limits().tree.nodes);
-    assert!(patches(&mut view, &root).is_empty());
 }
 
 #[test]

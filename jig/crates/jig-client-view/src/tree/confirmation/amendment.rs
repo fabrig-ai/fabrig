@@ -159,14 +159,12 @@ pub fn form(
     match &object.body {
         Some(Body::Task(doc)) => proposed_task::funder(b, doc.budget.funder, words),
         Some(Body::OwnerEscalation(doc)) => proposed_task::funder(b, doc.task.budget.funder, words),
-        Some(Body::Escalation(doc)) => words.actor(b, doc.steering.budget.funder),
+
         Some(
             Body::Historical(_)
             | Body::Chip(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
@@ -178,14 +176,12 @@ fn authority_loss(b: &mut Builder, object: &Object, words: &Words, text_limit: u
     let document = match &object.body {
         Some(Body::Task(doc)) => Some(&doc.authority),
         Some(Body::OwnerEscalation(doc)) => Some(&doc.task.authority),
-        Some(Body::Escalation(doc)) => Some(&doc.steering.authority),
+
         Some(
             Body::Historical(_)
             | Body::Chip(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
@@ -206,12 +202,9 @@ fn task_loss(b: &mut Builder, object: &Object, words: &Words) {
             Body::Task(_)
             | Body::Historical(_)
             | Body::Chip(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
-            | Body::Escalation(_)
             | Body::OwnerEscalation(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
@@ -225,16 +218,12 @@ fn loss(b: &mut Builder, object: &Object, words: &Words) {
         Some(Body::OwnerEscalation(doc)) => {
             crate::tree::fragments::instructions::before(b, doc.task.instructions.as_ref(), words);
         }
-        Some(Body::Escalation(doc)) => {
-            crate::tree::fragments::instructions::before(b, doc.steering.instructions.as_ref(), words);
-        }
+
         Some(
             Body::Historical(_)
             | Body::Chip(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
@@ -244,14 +233,12 @@ fn loss(b: &mut Builder, object: &Object, words: &Words) {
     let doc = match &object.body {
         Some(Body::Task(doc)) => Some(&doc.spec),
         Some(Body::OwnerEscalation(doc)) => Some(&doc.task.spec),
-        Some(Body::Escalation(doc)) => Some(&doc.steering.spec),
+
         Some(
             Body::Historical(_)
             | Body::Chip(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
@@ -348,23 +335,12 @@ fn before(object: &Object) -> Option<Amendment> {
     Some(match &object.body {
         Some(Body::Task(doc)) => task_before(doc),
         Some(Body::OwnerEscalation(doc)) => task_before(&doc.task),
-        Some(Body::Escalation(doc)) => Amendment {
-            addressed: recipient_address(doc.steering.person_revision, doc.steering.addressed.as_ref(), object.project),
-            spec: doc.steering.spec.whole(),
-            instructions: crate::tree::fragments::instructions::whole(doc.steering.instructions.as_ref()),
-            wake: Some(doc.steering.wake),
-            dependencies: Some(doc.steering.dependencies.clone()),
-            authority: doc.steering.authority.whole(),
-            tracked: None,
-            llm: None,
-        },
+
         Some(
             Body::Historical(_)
             | Body::Chip(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },

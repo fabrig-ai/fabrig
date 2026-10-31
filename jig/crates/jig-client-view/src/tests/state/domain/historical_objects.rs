@@ -1,6 +1,7 @@
 use crate::tests::fixtures::ReadPage;
+use crate::tests::state::domain::objects;
 use crate::tests::state::domain::{
-    objects::{self, live, read_token, watched},
+    objects::{live, read_token, watched},
     spine::drive,
 };
 use crate::{
@@ -174,9 +175,11 @@ fn historical_pending_request_and_answered_card_fences_survive_terminal_read_and
     let first = watched(&mut answered, answered_page, &[key]);
     let read = read_token(&first);
     let id = answered.objects().find(key).unwrap();
-    let answer = Answer::Done(Outcome::Changed);
-    let card =
-        Card::Leaving { how: Left::Answered { outcome: Outcome::Changed }, until: Time::from_nanos(5_000_000_000) };
+    let answer = Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 }));
+    let card = Card::Leaving {
+        how: Left::Answered { outcome: Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 }) },
+        until: Time::from_nanos(5_000_000_000),
+    };
     answered.objects.get_mut(id).unwrap().card = card.clone();
     answered.objects.get_mut(id).unwrap().answer = Some(answer.clone());
     drive(

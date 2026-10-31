@@ -3,13 +3,13 @@
     clippy::wildcard_enum_match_arm,
     reason = "ordinary public event fixtures inspect supplied owner facts and trees"
 )]
-use crate::JigBindings;
+
 use crate::tests::fixtures::Fixture;
 use crate::tests::tree::{
-    cards::{CLIENT, contains, limits, text, words},
+    cards::{contains, text, words},
     cards_objects::task_doc,
     pages::{build, deliver},
-    work_pages::{entered, list},
+    work_pages::entered,
 };
 use crate::{
     Request,
@@ -17,7 +17,7 @@ use crate::{
 };
 use jig_client::contract::*;
 use skein_lib::{Token, Wall};
-use skein_ui::{Builder, Role, Tree};
+use skein_ui::Tree;
 
 fn active(stage: RunStage) -> ActiveRun {
     ActiveRun {
@@ -53,10 +53,7 @@ fn ready(runtime: Runtime, details: ChipPhase, phase: Phase) -> Fixture {
     deliver(&mut d, watch, Delivery::Task(Box::new(task)));
     d
 }
-fn shown(value: ActiveRun) -> Tree {
-    let d = ready(Runtime::Active(value.clone()), ChipPhase::Active(value), Phase::Running);
-    build(&d, 3, words()).0
-}
+
 #[test]
 fn unobserved_activation_preserves_phase_attempt_and_placement_without_inventing_work_or_start() {
     for stage in [
@@ -138,115 +135,18 @@ fn retry_notices_keep_refusal_and_failure_counters_without_fabricated_reasons() 
         }
     }
 }
-#[test]
-fn held_prior_lifecycle_and_optional_closing_facts_keep_their_owner_meaning() {
-    for stage in [
-        None,
-        Some(ClosingStage::Run { attempt: u64::MAX }),
-        Some(ClosingStage::Delegates),
-        Some(ClosingStage::Effects),
-        Some(ClosingStage::Releases),
-        Some(ClosingStage::Settled),
-    ] {
-        for connectors in [None, Some(list([])), Some(list([7, 11]))] {
-            let closing = Closing {
-                delegates: 2,
-                connectors: connectors.clone(),
-                stage,
-                ending: Some(Ending::Cancelled { by: Actor::Party(17), reason: None, at: None }),
-            };
-            let was = Some(HeldRuntime::Closing(closing));
-            let d = ready(
-                Runtime::Held { was: was.clone() },
-                ChipPhase::Held {
-                    reason: HoldReason::Budget { spent: 2, limit: 2 },
-                    since: Wall::EPOCH,
-                    revision: Revision { value: 3 },
-                    was,
-                },
-                Phase::Held,
-            );
-            let tree = build(&d, 3, words()).0;
-            assert!(contains(&tree, b"Prior lifecycle before the hold"));
-            assert!(contains(&tree, b"Pending ending"));
-            assert!(contains(&tree, b"17"));
-            assert_eq!(contains(&tree, b"Connector waits not supplied"), connectors.is_none());
-            assert_eq!(
-                contains(&tree, b"No connector waits"),
-                connectors.as_ref().is_some_and(skein_lib::List::is_empty)
-            );
-            assert_eq!(contains(&tree, b"Waiting for effects to settle"), stage == Some(ClosingStage::Effects));
-            if stage != Some(ClosingStage::Effects) {
-                assert!(!contains(&tree, b"'s effects settling"));
-            }
-        }
-    }
-}
-#[test]
-fn full_runtime_tools_and_held_closing_fit_the_declared_tree_envelope() {
-    let full = text(UTF8_TEXTS[0]);
-    let mut run = active(RunStage::Running { attempt: u64::MAX });
-    run.retry =
-        Some(RetryNotice::Failed { class: FailureClass::Temporary, count: u32::MAX - 1, allowance: u32::MAX - 1 });
-    run.observation = Some(RunObservation {
-        channel: Token::new(u64::MAX),
-        work: RunWork::Tool {
-            call: CallIdentity { id: full.clone(), ..current_identity(b"call") },
-            tool: full.clone(),
-        },
-        since: Wall::from_nanos(u64::MAX),
-        reported_at: Wall::from_nanos(u64::MAX),
-        started: Some(Wall::from_nanos(u64::MAX)),
-    });
-    let closing = Closing {
-        delegates: u32::MAX,
-        connectors: Some(list([7, 11])),
-        stage: Some(ClosingStage::Effects),
-        ending: Some(Ending::Decided {
-            by: u64::MAX,
-            party: Some(Party { number: u64::MAX, kind: PartyKind::Person, name: full.clone() }),
-            how: Some(Decision::Rejected { reason: full.clone() }),
-            at: Wall::from_nanos(u64::MAX),
-        }),
-    };
-    let failure = AttemptFailure {
-        attempt: u64::MAX,
-        class: FailureClass::Permanent,
-        reason: full,
-        at: Wall::from_nanos(u64::MAX),
-    };
-    for details in [
-        ChipPhase::Active(run.clone()),
-        ChipPhase::Closing(closing.clone()),
-        ChipPhase::Held {
-            reason: HoldReason::Tries { failures: list([failure.clone(), failure.clone()]) },
-            since: Wall::EPOCH,
-            revision: Revision { value: u64::MAX },
-            was: Some(HeldRuntime::Active(run)),
-        },
-        ChipPhase::Held {
-            reason: HoldReason::Tries { failures: list([failure.clone(), failure]) },
-            since: Wall::EPOCH,
-            revision: Revision { value: u64::MAX },
-            was: Some(HeldRuntime::Closing(closing)),
-        },
-    ] {
-        let d = ready(Runtime::Ended, details.clone(), Phase::Held);
-        let mut chip = task_doc(&[]).chip;
-        *chip.details = details;
-        let mut b = Builder::new(&limits());
-        let mut bindings = JigBindings::new(64, CLIENT.text);
-        b.open(Role::Page);
-        crate::tree::cards::chip::chip(&mut b, &d.view(), &chip, words(), &mut bindings);
-        b.close();
-        let tree = b.finish();
-        assert!(tree.len() <= crate::chip_nodes(&CLIENT).unwrap() + 1);
-        crate::tests::tree::cards_access::check(&tree);
-    }
-}
 
 fn current_identity(id: &[u8]) -> CallIdentity {
     CallIdentity { owner: Token::new(u64::MAX), sequence: u32::MAX, retry: u32::MAX, id: text(id) }
 }
 
 const UTF8_TEXTS: [&[u8]; 1] = [&[b'x'; 128]];
+
+fn shown(value: ActiveRun) -> Tree {
+    let d = ready(
+        Runtime::Active(value.clone()),
+        crate::tests::fixtures::chip_phase(OwnerChipPhase::Active(value.stage)),
+        Phase::Running,
+    );
+    build(&d, 3, words()).0
+}

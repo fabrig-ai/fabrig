@@ -5,83 +5,10 @@ use crate::words::phrases::jig::JigPhrase;
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role};
 
-use crate::{
-    Borrowed,
-    state::objects::{Object, proposal::facts},
-};
-use jig_client::contract::{Amendment, ProposalAction, ProposedTask};
+use crate::{Borrowed, state::objects::Object};
+use jig_client::contract::{Amendment, ProposedTask};
 use skein_lib::Id;
-/// Build the one proposal card at any place, using the document's acts only.
-pub fn proposal(
-    b: &mut Builder,
-    client: &Borrowed<'_>,
-    object: Id<Object>,
-    place: &super::Place,
-    words: &Words,
-    bindings: &mut JigBindings,
-) -> bool {
-    let text_limit = bindings.text_limit();
-    let Some(object_facts) = client.objects().get(object) else {
-        return false;
-    };
-    let Some(document) = facts(&object_facts) else {
-        return false;
-    };
-    let title = words.say(JigPhrase::Proposal, &[]);
-    if !super::open(b, client, object, place, &title, words, bindings) {
-        return false;
-    }
-    words.proposer(b, document.proposer);
-    words.waiting(b, client.wall(), document.since);
-    words.text(b, JigPhrase::ProposalWhy, &[]);
-    skein_ui::markdown::read(document.why.bytes(), 2, b);
-    action(b, &document.action, words, bindings, client.limits.rows);
-    super::common::authority(b, &document.needs, words, bindings);
-    super::common::funding(b, &document.funding, document.needs.budget, words);
-    super::common::recipient(b, &document.waiting, words);
-    super::common::trail(b, &document.trail, words, text_limit);
-    if let Some(ending) = &document.ending {
-        words.ending(b, ending);
-    }
-    super::common::answer(b, &object_facts, words, text_limit);
-    super::common::acts(b, &object_facts.card, &document.acts, object, words, bindings);
-    super::close(b);
-    true
-}
-/// Describe every proposal kind without evaluating the authority it asks for.
-pub fn action(b: &mut Builder, action: &ProposalAction, words: &Words, bindings: &mut JigBindings, rows: u32) {
-    match action {
-        ProposalAction::Batch { tasks, own } => {
-            words.text(b, JigPhrase::Batch, &[]);
-            if *own {
-                words.text(b, JigPhrase::OwnTasks, &[]);
-            }
-            b.open(Role::List);
-            for task in tasks {
-                proposed_task(b, task, words, bindings, rows);
-            }
-            b.close();
-        }
-        ProposalAction::Effect { part } => {
-            words.text(b, JigPhrase::Effect, &[]);
-            super::common::part(b, part, words, bindings);
-        }
-        ProposalAction::Widen { before, after } => {
-            words.text(b, JigPhrase::Widen, &[]);
-            words.text(b, JigPhrase::Before, &[]);
-            super::common::authority(b, before, words, bindings);
-            words.text(b, JigPhrase::After, &[]);
-            super::common::authority(b, after, words, bindings);
-        }
-        ProposalAction::Amend { task, before, change } => {
-            words.text(b, JigPhrase::AmendTask, &[Hole::Number(*task)]);
-            words.text(b, JigPhrase::Before, &[]);
-            skein_ui::markdown::read(before.bytes(), 2, b);
-            words.text(b, JigPhrase::After, &[]);
-            amendment(b, change, words, bindings, rows);
-        }
-    }
-}
+
 pub(crate) fn proposed_task(
     b: &mut Builder,
     task: &ProposedTask,
@@ -174,11 +101,8 @@ pub fn owner_proposal(
             crate::state::objects::Body::Historical(_)
             | crate::state::objects::Body::Chip(_)
             | crate::state::objects::Body::Task(_)
-            | crate::state::objects::Body::Proposal(_)
-            | crate::state::objects::Body::Escalation(_)
             | crate::state::objects::Body::OwnerEscalation(_)
             | crate::state::objects::Body::Question(_)
-            | crate::state::objects::Body::PersonTask(_)
             | crate::state::objects::Body::OwnerPersonTask(_)
             | crate::state::objects::Body::Result(_)
             | crate::state::objects::Body::Note { .. },

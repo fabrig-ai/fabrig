@@ -41,7 +41,6 @@ impl Words {
                     self.text(b, JigPhrase::KeptUntil, &[Hole::Number(*task)]);
                 }
             }
-
             Refusal::NameTaken => self.text(b, JigPhrase::NameTaken, &[]),
             Refusal::Malformed { at, why } => self.malformed(b, *at, *why),
             Refusal::Role { held } => {

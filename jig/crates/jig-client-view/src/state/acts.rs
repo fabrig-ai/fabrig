@@ -12,7 +12,7 @@ use alloc::boxed::Box;
 #[cfg(test)]
 use jig_client::contract::Note;
 use jig_client::contract::{
-    ActKind, Admission, Ask, Decision, ObjectKey, Offered, PersonAnswer, PersonContract, Refusal, Revision, Text,
+    ActKind, Admission, Ask, Decision, ObjectKey, Offered, PersonAnswer, Refusal, Revision, Text,
 };
 use jig_client::contract::{AnswerOn, DecideOn};
 use skein_lib::List;
@@ -31,12 +31,12 @@ pub fn offered(object: &Object, act: ActKind) -> Admission {
 pub(crate) fn offers(object: &Object) -> Option<&List<Offered>> {
     let rows = match &object.body {
         Some(Body::Task(document)) => &document.acts,
-        Some(Body::Proposal(document)) => &document.acts,
+
         Some(Body::OwnerProposal(document)) => &document.acts,
-        Some(Body::Escalation(document)) => &document.acts,
+
         Some(Body::OwnerEscalation(document)) => &document.acts,
         Some(Body::Question(document)) => &document.acts,
-        Some(Body::PersonTask(document)) => &document.acts,
+
         Some(Body::OwnerPersonTask(document)) => &document.acts,
         Some(Body::Result(document)) => &document.acts,
         Some(Body::Note { document, .. }) => &document.acts,
@@ -59,16 +59,13 @@ fn offer_in(rows: &List<Offered>, act: ActKind) -> Option<&Offered> {
 pub fn revision(object: &Object, act: ActKind) -> Option<Revision> {
     match act {
         ActKind::Release | ActKind::LeaveHeld | ActKind::PassUp => match &object.body {
-            Some(Body::Escalation(document)) => Some(document.hold.revision),
             Some(Body::OwnerEscalation(document)) => Some(document.task.hold.as_ref()?.revision()),
             Some(Body::Task(document)) => Some(document.hold.as_ref()?.revision()),
             Some(
                 Body::Historical(_)
                 | Body::Chip(_)
-                | Body::Proposal(_)
                 | Body::OwnerProposal(_)
                 | Body::Question(_)
-                | Body::PersonTask(_)
                 | Body::OwnerPersonTask(_)
                 | Body::Result(_)
                 | Body::Note { .. },
@@ -77,15 +74,13 @@ pub fn revision(object: &Object, act: ActKind) -> Option<Revision> {
         },
         ActKind::Amend => match &object.body {
             Some(Body::Task(document)) => Some(document.spec_revision),
-            Some(Body::Escalation(document)) => Some(document.steering.revision),
+
             Some(Body::OwnerEscalation(document)) => Some(document.task.spec_revision),
             Some(
                 Body::Historical(_)
                 | Body::Chip(_)
-                | Body::Proposal(_)
                 | Body::OwnerProposal(_)
                 | Body::Question(_)
-                | Body::PersonTask(_)
                 | Body::OwnerPersonTask(_)
                 | Body::Result(_)
                 | Body::Note { .. },
@@ -93,15 +88,12 @@ pub fn revision(object: &Object, act: ActKind) -> Option<Revision> {
             | None => None,
         },
         ActKind::Answer => match &object.body {
-            Some(Body::PersonTask(document)) => Some(document.revision),
             Some(Body::OwnerPersonTask(document)) => Some(document.revision),
             Some(
                 Body::Historical(_)
                 | Body::Chip(_)
                 | Body::Task(_)
-                | Body::Proposal(_)
                 | Body::OwnerProposal(_)
-                | Body::Escalation(_)
                 | Body::OwnerEscalation(_)
                 | Body::Question(_)
                 | Body::Result(_)
@@ -115,12 +107,9 @@ pub fn revision(object: &Object, act: ActKind) -> Option<Revision> {
                 Body::Historical(_)
                 | Body::Chip(_)
                 | Body::Task(_)
-                | Body::Proposal(_)
                 | Body::OwnerProposal(_)
-                | Body::Escalation(_)
                 | Body::OwnerEscalation(_)
                 | Body::Question(_)
-                | Body::PersonTask(_)
                 | Body::OwnerPersonTask(_)
                 | Body::Result(_),
             )
@@ -156,15 +145,13 @@ pub fn hold_revision(object: &Object) -> Option<Revision> {
             };
             Some(hold.revision())
         }
-        Some(Body::Escalation(document)) => Some(document.hold.revision),
+
         Some(Body::OwnerEscalation(document)) => Some(document.task.hold.as_ref()?.revision()),
         Some(
             Body::Historical(_)
             | Body::Chip(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
@@ -183,11 +170,8 @@ pub(crate) fn request_project(object: &Object) -> Option<u32> {
             Body::Historical(_)
             | Body::Chip(_)
             | Body::Task(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
-            | Body::Escalation(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
         )
@@ -224,7 +208,6 @@ pub fn ask(object: &Object, confirmation: &Confirmation, fields: &Fields) -> Opt
             Some(Ask::Release { project, task, revision: confirmation.revision?, again: choices.again })
         }
         ActKind::Amend => amend(confirmation, fields, project, task),
-
         ActKind::Answer => answer(object, confirmation, fields, project, task),
         ActKind::Take => Some(Ask::Take { project, task }),
         ActKind::HandBack => Some(Ask::HandBack { project, task }),
@@ -352,44 +335,12 @@ fn answer(object: &Object, confirmation: &Confirmation, fields: &Fields, project
             };
             Some(Ask::Answer { project, on: AnswerOn::Person { task, revision: confirmation.revision?, answer } })
         }
-        Some(Body::PersonTask(document)) => {
-            let answer = if choices.cannot {
-                PersonAnswer::Cannot { reason: words(fields, Purpose::Reason)? }
-            } else {
-                match &document.contract {
-                    PersonContract::Choice { options } => {
-                        let option = choices.option?;
-                        let mut present = false;
-                        for row in options {
-                            if row.number == option && row.fields.is_empty() {
-                                present = true;
-                            }
-                        }
-                        if !present {
-                            return None;
-                        }
-                        let reason = match words(fields, Purpose::Reason) {
-                            Some(words) => words,
-                            None => Text::new(Box::from([]), 0).expect("empty text fits"),
-                        };
-                        PersonAnswer::Choice { option, reason }
-                    }
-                    PersonContract::Approval { state, .. } => PersonAnswer::Approved {
-                        state: state.clone().into_bytes(),
-                        words: words(fields, Purpose::Reason),
-                    },
-                    PersonContract::Words => PersonAnswer::Words(words(fields, Purpose::Answer)?),
-                }
-            };
-            Some(Ask::Answer { project, on: AnswerOn::Person { task, revision: confirmation.revision?, answer } })
-        }
+
         Some(
             Body::Historical(_)
             | Body::Chip(_)
             | Body::Task(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
-            | Body::Escalation(_)
             | Body::OwnerEscalation(_)
             | Body::Result(_)
             | Body::Note { .. },

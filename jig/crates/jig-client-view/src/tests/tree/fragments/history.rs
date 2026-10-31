@@ -621,7 +621,6 @@ fn owner_history_full_row_and_byte_nested_batch_hits_exact_raw_slot_capacity_wit
 
 #[test]
 fn owner_history_composed_normal_book_prices_every_entry_segment_literal_and_checked_hole_at_boundary() {
-    use std::io::Write;
     let language = crate::words::phrases::english::language();
     let shapes = crate::words::phrases::jig::shapes(8);
     let entries = u32::try_from(language.phrases.len()).unwrap();

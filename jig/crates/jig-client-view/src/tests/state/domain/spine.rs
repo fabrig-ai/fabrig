@@ -135,42 +135,6 @@ fn start_opens_me_before_any_other_watch() {
 }
 
 #[test]
-fn a_reopened_page_is_behind_until_its_first_delivery_and_never_changes_the_link() {
-    let mut domain = Fixture::new(&LIMITS);
-    let watch = start(&mut domain, List::with_capacity(0));
-    let page = open_token(&delivered(&mut domain, Time::ZERO, watch, frame(7)));
-    assert!(
-        drive(
-            &mut domain,
-            Time::ZERO,
-            crate::tests::fixtures::Ended { watch: page, end: jig_client::contract::WatchEnd::Dropped }
-        )
-        .is_empty()
-    );
-    assert_eq!(domain.link(), Link::Live);
-    assert_eq!(
-        domain.page(),
-        &Page::Work { address: Address::Inbox { project: None }, behind: true, excess: 0, refused: None }
-    );
-    domain.reopen(page);
-    let retry = Time::ZERO.saturating_add(Duration::from_secs(1));
-    assert!(drive(&mut domain, retry, Watched { watch: page, event: WatchEvent::Opened }).is_empty());
-    assert_eq!(
-        domain.page(),
-        &Page::Work { address: Address::Inbox { project: None }, behind: true, excess: 0, refused: None }
-    );
-    drive(
-        &mut domain,
-        retry,
-        Watched { watch: page, event: WatchEvent::Delivered(Delivery::Inbox(Box::new(inbox()))) },
-    );
-    assert_eq!(
-        domain.page(),
-        &Page::Work { address: Address::Inbox { project: None }, behind: false, excess: 0, refused: None }
-    );
-}
-
-#[test]
 fn a_different_party_keeps_the_previous_partys_work_hidden_until_they_return() {
     let mut kept = List::with_capacity(1);
     kept.push(Record::Place { version: crate::state::store::STORE_VERSION, party: 7, address: Address::Deployment })

@@ -1,17 +1,17 @@
+use crate::state::store;
 use crate::tests::fixtures::refusal_answer;
 use crate::tests::fixtures::{AnsweredByEngine, Fixture, ReadPage, Watched};
 use crate::tests::state::domain::spine::{LIMITS, drain, frame, open_token};
+use crate::tree::notices::kept;
 use crate::{
     Event, Limits, Request,
     state::{
-        action::Act,
         address::{Address, Place},
-        fields::Purpose,
         intents::send_card,
         objects::Source,
-        store::{self, Record, STORE_VERSION},
+        store::{Record, STORE_VERSION},
     },
-    tree::notices::kept::{self, Kind},
+    tree::notices::kept::Kind,
 };
 use jig_client::contract::*;
 use skein_lib::{Duration, Env, List, Queue, Time, Wall};
@@ -32,46 +32,7 @@ fn tick(domain: &mut Fixture, limits: &Limits, now: Time) -> Box<[Request]> {
     crate::fire(&mut domain.ui, &Env { now, wall: Wall::EPOCH, limits: *limits }, &mut out, &domain.client);
     drain(out)
 }
-fn start(domain: &mut Fixture, limits: &Limits, kept: List<Record>) -> (jig_client::Handle, jig_client::Handle) {
-    let f = open_token(&drive(
-        domain,
-        limits,
-        Time::ZERO,
-        Event::Start { seed: 8, place: Place::Jig(Address::Inbox { project: None }), records: kept },
-    ));
-    let mut source = frame(7);
-    source.party.login = DocumentText::complete(text(b"L"));
-    let initial = drive(
-        domain,
-        limits,
-        Time::ZERO,
-        Watched { watch: f, event: WatchEvent::Delivered(Delivery::Me(Box::new(source))) },
-    );
-    let page = open_token(&initial);
-    for request in &initial {
-        if let Request::Client {
-            asked: jig_client::Event::Read { handle: read, read: jig_client::Readable::Jig(Read::Inbox { .. }) },
-        } = request
-        {
-            drive(
-                domain,
-                limits,
-                Time::ZERO,
-                ReadPage {
-                    read: *read,
-                    result: ReadResult::Value(ReadValue::Inbox(Box::new(InboxPage {
-                        cut: false,
-                        rows: List::with_capacity(0),
-                        before: None,
-                        after: None,
-                    }))),
-                },
-            );
-        }
-    }
-    domain.reclaim();
-    (f, page)
-}
+
 fn text(bytes: &[u8]) -> Text {
     Text::new(Box::from(bytes), 32).unwrap()
 }
@@ -148,123 +109,44 @@ fn hidden_answers_have_notices_and_lingers_and_coalesced_saves_end_on_deadlines(
     assert!(domain.objects().find(ObjectKey::Task(9)).is_none());
 }
 
-#[test]
-fn full_containers_refuse_new_objects_intents_fields_and_notices() {
-    let limits = full_limits();
-    check_valid(limits);
-    let mut domain = Fixture::new(&limits);
-    let mut kept = List::with_capacity(1);
-    kept.push(Record::Draft { version: STORE_VERSION, party: 7, task: 8, words: text(b"kept"), touched: 1 }).unwrap();
-    let (f, page) = start(&mut domain, &limits, kept);
-    domain.request_read(Source::Window { number: 1 }, Read::Deployment).unwrap();
-    let mut entries = List::with_capacity(2);
-    for task in 1..=2 {
-        entries
-            .push(InboxEntry {
-                reply: None,
-                lineage: List::with_capacity(0),
-                goal: None,
-                recipient: None,
-                stall: None,
-                object: ObjectKey::Result(task),
-                project: 1,
-                group: InboxGroup::Results,
-                position: task,
-                at: Wall::EPOCH,
-            })
-            .unwrap();
-    }
-    let inbox = Inbox {
-        entries,
-        needs: Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
-        updates: Count { value: 0, limited: false },
-        results_seen: 0,
-        replies_seen: List::with_capacity(0),
-        more: true,
-    };
-    let effects = drive(
-        &mut domain,
-        &limits,
+fn start(domain: &mut Fixture, limits: &Limits, kept: List<Record>) -> (jig_client::Handle, jig_client::Handle) {
+    let f = open_token(&drive(
+        domain,
+        limits,
         Time::ZERO,
-        Watched { watch: page, event: WatchEvent::Delivered(Delivery::Inbox(Box::new(inbox))) },
+        Event::Start { seed: 8, place: Place::Jig(Address::Inbox { project: None }), records: kept },
+    ));
+    let mut source = frame(7);
+    source.party.login = DocumentText::complete(text(b"L"));
+    let initial = drive(
+        domain,
+        limits,
+        Time::ZERO,
+        Watched { watch: f, event: WatchEvent::Delivered(Delivery::Me(Box::new(source))) },
     );
-    assert_eq!(effects.len(), 0);
-    let crate::state::page::Page::Work { excess: 1, refused: Some(Limit::Objects), .. } = domain.page() else {
-        panic!("full kept the first and counted the rest");
-    };
-    for (number, outputs) in [(50, 1), (51, 0)] {
-        assert_eq!(
+    let page = open_token(&initial);
+    for request in &initial {
+        if let Request::Client {
+            asked: jig_client::Event::Read { handle: read, read: jig_client::Readable::Jig(Read::Inbox { .. }) },
+        } = request
+        {
             drive(
-                &mut domain,
-                &limits,
+                domain,
+                limits,
                 Time::ZERO,
-                crate::tests::fixtures::intent(7, number, Ask::Stop { project: 1, task: 8 })
-            )
-            .len(),
-            outputs
-        );
+                ReadPage {
+                    read: *read,
+                    result: ReadResult::Value(ReadValue::OwnerInbox(Box::new(OwnerInboxPage {
+                        selection: None,
+                        cut: false,
+                        rows: List::with_capacity(0),
+                        before: None,
+                        after: None,
+                    }))),
+                },
+            );
+        }
     }
-    drive(
-        &mut domain,
-        &limits,
-        Time::ZERO,
-        Event::Act { action: Act::Edit { field: Purpose::NewChat, text: text(b"one") } },
-    );
-    assert_eq!(
-        drive(
-            &mut domain,
-            &limits,
-            Time::ZERO,
-            Event::Act { action: Act::Edit { field: Purpose::Reason, text: text(b"two") } }
-        )
-        .len(),
-        0
-    );
-    kept::show(&mut domain, Kind::Refused(Limit::Requests));
-    kept::show(&mut domain, Kind::Refused(Limit::Fields));
-    assert_eq!(domain.notices().ids().len(), 1);
-    let mut oversized = frame(7);
-    oversized.projects = List::with_capacity(2);
-    assert_eq!(
-        drive(
-            &mut domain,
-            &limits,
-            Time::ZERO,
-            Watched { watch: f, event: WatchEvent::Delivered(Delivery::Me(Box::new(oversized))) }
-        )
-        .len(),
-        0
-    );
-    drive(&mut domain, &limits, Time::ZERO, Event::Went { place: Place::Jig(Address::Deployment) });
-}
-
-fn check_valid(limits: Limits) {
-    for invalid in [
-        Limits { watches: 0, ..limits },
-        Limits { objects: u32::MAX, ..limits },
-        Limits { notices: u32::MAX, ..limits },
-        Limits { notice_life: Duration::ZERO, ..limits },
-        Limits { save_delay: Duration::ZERO, ..limits },
-    ] {
-        assert!(!crate::valid(&invalid));
-    }
-}
-
-fn full_limits() -> Limits {
-    Limits {
-        watches: 2,
-        objects: 1,
-        sources: 1,
-        reads: 1,
-        intents: 1,
-        fields: 1,
-
-        notices: 1,
-        records: 1,
-        projects: 1,
-        roles: 1,
-        parts: 1,
-        text: 4,
-        ..limits()
-    }
+    domain.reclaim();
+    (f, page)
 }

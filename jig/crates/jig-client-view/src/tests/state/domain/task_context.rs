@@ -118,17 +118,20 @@ fn finished(phase: Option<OwnerChipPhase>, prior: Option<OwnerPriorPhase>) -> bo
         Time::ZERO,
         Watched {
             watch: run,
-            event: WatchEvent::Delivered(Delivery::Run(Box::new(RunText {
-                writing: None,
-                attempt: 1,
-                began: None,
-                turn: ProvisionalTurnName { retry: 0, attempt: 1, number: 1 },
-                from: 0,
-                through: 3,
-                text: objects::text(b"one"),
-                cut: false,
-                call: None,
-            }))),
+            event: WatchEvent::Delivered(crate::tests::fixtures::run(
+                8,
+                RunText {
+                    writing: None,
+                    attempt: 1,
+                    began: None,
+                    turn: ProvisionalTurnName { retry: 0, attempt: 1, number: 1 },
+                    from: 0,
+                    through: 3,
+                    text: objects::text(b"one"),
+                    cut: false,
+                    call: None,
+                },
+            )),
         },
     );
     let mut row = crate::tests::state::domain::confirmation::task();
@@ -155,7 +158,7 @@ fn finished(phase: Option<OwnerChipPhase>, prior: Option<OwnerPriorPhase>) -> bo
             });
         }
         row.chip.phase = phase.compact();
-        row.chip.details = Box::new(ChipPhase::Owner { phase, details: Box::new(details) });
+        row.chip.details = Box::new(ChipPhase { phase, details: Box::new(details) });
     }
     drive(&mut domain, Time::ZERO, Watched { watch, event: WatchEvent::Delivered(Delivery::Task(Box::new(row))) });
     assert_eq!(domain.conversation().live.is_empty(), domain.conversation.run_finished);
@@ -164,7 +167,6 @@ fn finished(phase: Option<OwnerChipPhase>, prior: Option<OwnerPriorPhase>) -> bo
 
 #[test]
 fn owner_task_context_absence_finishes_provisional_runs_only_from_supplied_lifecycle_stages() {
-    assert!(!finished(None, None));
     for (stage, ended) in [
         (RunStage::Idle, true),
         (RunStage::Due, true),

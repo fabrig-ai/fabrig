@@ -8,7 +8,7 @@ use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run, State};
 
 use crate::state::action::Act;
-use jig_client::contract::{Budget, PhaseCounts};
+use jig_client::contract::PhaseCounts;
 pub(crate) fn section(b: &mut Builder, words: &Words, phrase: JigPhrase, region: crate::regions::JigRegion) {
     let title = words.say(phrase, &[]);
     b.open(Role::Region);
@@ -53,18 +53,7 @@ pub(crate) fn control(
     b.bind(bindings.insert(crate::JigMeaning::Action(action)));
     b.close();
 }
-pub(crate) fn budget(b: &mut Builder, value: &Budget, words: &Words) {
-    for (phrase, amount) in [
-        (JigPhrase::TotalBudget, value.total),
-        (JigPhrase::OwnBudget, value.own),
-        (JigPhrase::EndedBudget, value.ended),
-        (JigPhrase::Reserved, value.reserved),
-        (JigPhrase::Left, value.left),
-    ] {
-        words.text(b, phrase, &[Hole::Amount(amount)]);
-    }
-    words.actor(b, value.funder);
-}
+
 pub(crate) fn counts(b: &mut Builder, counts: PhaseCounts, words: &Words) {
     for (phrase, count) in [
         (JigPhrase::Word(Word::Decision(D::TasksWaiting)), counts.waiting),

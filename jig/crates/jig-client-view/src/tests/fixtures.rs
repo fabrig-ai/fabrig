@@ -395,8 +395,8 @@ pub(crate) fn shape_goal_fixture(me: jig_client::contract::Me) -> Fixture {
                 &mut fixture,
                 ReadPage {
                     read,
-                    result: ReadResult::Value(ReadValue::Project(Box::new(
-                        crate::tests::tree::work_pages::project_doc(),
+                    result: ReadResult::Value(ReadValue::OwnerProject(Box::new(
+                        crate::tests::state::domain::owner_project::source(4),
                     ))),
                 },
             );
@@ -404,4 +404,114 @@ pub(crate) fn shape_goal_fixture(me: jig_client::contract::Me) -> Fixture {
         }
     }
     panic!("project read")
+}
+
+pub(crate) fn chip_phase(phase: jig_client::contract::OwnerChipPhase) -> jig_client::contract::ChipPhase {
+    use jig_client::contract::*;
+    let mut details = crate::tests::tree::fragments::chip::details();
+    details.project = 4;
+    details.executor = OwnerExecutor::Person(PersonAddress::Party(1));
+    details.attempt = None;
+    details.run_since = None;
+    details.retry = None;
+    details.live_delegates = 0;
+    jig_client::contract::ChipPhase { phase, details: Box::new(details) }
+}
+pub(crate) fn hold() -> jig_client::contract::OwnerChipHold {
+    use jig_client::contract::*;
+    OwnerChipHold {
+        words: None,
+        placed: None,
+        circle: None,
+        account: None,
+        source: None,
+        reason: HoldCategory::Budget,
+        revision: 4,
+        before: OwnerPriorPhase::Waiting,
+        escalation: None,
+        tries: OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        hold_wait_since: Some(skein_lib::Wall::EPOCH),
+    }
+}
+pub(crate) fn inbox_entry(key: jig_client::contract::ObjectKey) -> jig_client::contract::OwnerInboxEntry {
+    use jig_client::contract::*;
+    let (task, object) = match key {
+        ObjectKey::Task(task) => (task, OwnerInboxObject::Reply { message: 1 }),
+        ObjectKey::Proposal(key) => (8, OwnerInboxObject::Proposal { proposer: key.proposer, number: key.number }),
+        ObjectKey::Escalation(task) => (task, OwnerInboxObject::Escalation { revision: 4 }),
+        ObjectKey::Question { task, message } => (task, OwnerInboxObject::Question { message }),
+        ObjectKey::PersonTask(task) => (task, OwnerInboxObject::PersonTask),
+        ObjectKey::Result(task) => (task, OwnerInboxObject::Result { position: 1 }),
+        ObjectKey::Note { .. } => panic!("notes have their own source"),
+    };
+    OwnerInboxEntry {
+        reply: None,
+        task: OwnerTaskLink::Stored { number: task, status: None },
+        project: Some(4),
+        object,
+        activity: Some(1),
+        at: Some(skein_lib::Wall::EPOCH),
+        unread: None,
+        cursor: OwnerInboxCursor::Number { number: 1 },
+    }
+}
+pub(crate) fn inbox(rows: skein_lib::List<jig_client::contract::OwnerInboxEntry>) -> jig_client::contract::OwnerInbox {
+    use jig_client::contract::*;
+    OwnerInbox {
+        party: 1,
+        cached_needs: rows.len(),
+        needs: rows,
+        updates: skein_lib::List::with_capacity(0),
+        next: None,
+        cached_updates: Count { value: 0, limited: false },
+        results_seen: 0,
+        updates_time_complete: true,
+        selection: None,
+    }
+}
+
+pub(crate) fn run(task: u64, value: jig_client::contract::RunText) -> jig_client::contract::Delivery {
+    jig_client::contract::Delivery::RunState(Box::new(jig_client::contract::RunState {
+        task,
+        attempt: Some(value.attempt),
+        committed_turn: 0,
+        writing: Some(value),
+        call: None,
+    }))
+}
+
+pub(crate) fn archive(
+    task: u64,
+    position: u64,
+    at: skein_lib::Wall,
+    name: jig_client::contract::TurnName,
+    turn: jig_client::contract::TurnRead,
+) -> jig_client::contract::ActivityLine {
+    use jig_client::contract::*;
+    ActivityLine {
+        source: Box::new(OwnerActivityLine {
+            task,
+            position,
+            at,
+            line: OwnerActivity::Turn { reply: position, attempt: name.attempt, turn: name.number, read: None },
+        }),
+        decoded: Some(ArchivedTurn { task, name, cumulative: 0, read: None, at, turn }),
+    }
+}
+
+pub(crate) fn proposal(
+    key: jig_client::contract::ProposalKey,
+    reason: jig_client::contract::Text,
+) -> jig_client::contract::OwnerProposal {
+    use jig_client::contract::*;
+    OwnerProposal {
+        key,
+        project: 4,
+        reason: DocumentText::complete(reason),
+        action: OwnerProposalAction::Batch(skein_lib::List::with_capacity(0)),
+        as_holder: false,
+        waiting: OwnerProposalWaiting { holder: OwnerHistoryHolder::Person(1), since: skein_lib::Wall::EPOCH },
+        funding: skein_lib::List::with_capacity(0),
+        acts: skein_lib::List::with_capacity(0),
+    }
 }

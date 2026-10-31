@@ -30,11 +30,20 @@ fn a_whole_policy_edit_enters_as_one_request_and_a_duplicate_joins_that_request(
     assert_eq!(**sent, ask);
     assert!(drive(&mut domain, Time::ZERO, intent).is_empty());
     assert!(
-        drive(&mut domain, Time::ZERO, AnsweredByEngine { request: *request, answer: Answer::Done(Outcome::Changed) })
-            .is_empty()
+        drive(
+            &mut domain,
+            Time::ZERO,
+            AnsweredByEngine {
+                request: *request,
+                answer: Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::PolicyChanged {
+                    project: u32::MAX
+                }))
+            }
+        )
+        .is_empty()
     );
     assert_eq!(
         domain.intents().get(skein_lib::Id::from_token(domain.intent(*request))).unwrap().answer,
-        Some(Answer::Done(Outcome::Changed))
+        Some(Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::PolicyChanged { project: u32::MAX })))
     );
 }

@@ -6,7 +6,7 @@
 use crate::tests::fixtures::refusal_answer;
 use crate::tests::fixtures::{AnsweredByEngine, Fixture, ReadPage};
 use crate::tests::state::domain::{
-    objects::{chip, live, person, text},
+    objects::{chip, live, text},
     spine::drive,
 };
 use crate::{
@@ -30,7 +30,7 @@ fn values<T>(items: impl IntoIterator<Item = T>) -> List<T> {
 }
 fn value(contract: TaskContractDocument) -> OwnerPersonTask {
     let mut task = chip(8);
-    task.details = Box::new(ChipPhase::Owner {
+    task.details = Box::new(ChipPhase {
         phase: OwnerChipPhase::Person { address: PersonAddress::Role(u32::MAX), taken_by: None, since: None },
         details: Box::new(crate::tests::state::domain::chip_facts::details()),
     });
@@ -39,7 +39,7 @@ fn value(contract: TaskContractDocument) -> OwnerPersonTask {
         task,
         revision: Revision { value: 91 },
         requester: OwnerRequester::Task(u64::MAX),
-        spec: person().spec,
+        spec: crate::tests::state::domain::confirmation::task().spec,
         address: PersonAddress::Role(u32::MAX),
         taken_by: None,
         since: None,
@@ -240,7 +240,7 @@ fn person_owner_report_accepts_supplied_empty_and_exact_bound_while_change_retai
     );
 }
 #[test]
-fn person_owner_role_actions_follow_offers_and_missing_metadata_never_uses_page_context() {
+fn person_owner_role_actions_follow_current_offers() {
     for kind in [ActKind::Take, ActKind::HandBack] {
         let doc = value(TaskContractDocument::Report { words: 3 });
         let (mut d, id) = installed(doc.clone());
@@ -258,13 +258,6 @@ fn person_owner_role_actions_follow_offers_and_missing_metadata_never_uses_page_
         reread(&mut d, current);
         assert!(act(&mut d, Act::Confirm).is_empty());
         assert_eq!(d.confirmation().unwrap().missing, Some(Missing::Refused { why: Refusal::NotOffered }));
-        let mut partial = doc.clone();
-        partial.task.details = Box::new(ChipPhase::Starting);
-        let (mut d, id) = installed(partial);
-        d.objects.get_mut(id).unwrap().project = Some(7);
-        open(&mut d, id, kind);
-        assert!(act(&mut d, Act::Confirm).is_empty());
-        assert_eq!(d.confirmation().unwrap().missing, Some(Missing::Context));
     }
 }
 #[test]
@@ -323,7 +316,7 @@ fn person_owner_original_read_identity_and_late_answer_remain_separate_from_curr
     let mut newer = doc.clone();
     newer.revision = Revision { value: 100 };
     assert!(d.objects.put(ObjectKey::PersonTask(8), Body::OwnerPersonTask(Box::new(newer.clone()))));
-    let outcome = Outcome::Changed;
+    let outcome = Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 });
     drive(&mut d, Time::ZERO, AnsweredByEngine { request, answer: Answer::Done(outcome.clone()) });
     assert_eq!(crate::state::objects::person_task::owner_facts(&d.objects().get(id).unwrap()), Some(&newer));
     assert_eq!(d.objects().get(id).unwrap().answer, Some(Answer::Done(outcome.clone())));

@@ -5,11 +5,10 @@ use jig_client::contract::{self as c, ActKind, Admission, Ask, ObjectKey};
 use skein_lib::{Env, List};
 
 pub(crate) fn admission(domain: &Ui) -> Admission {
-    let rows = match (&domain.project_page.owner, &domain.project_page.document) {
-        (Some(project), _) => &project.acts,
-        (_, Some(project)) => &project.acts,
-        _ => return Admission::Refused(c::Refusal::NotOffered),
+    let Some(project) = &domain.project_page.owner else {
+        return Admission::Refused(c::Refusal::NotOffered);
     };
+    let rows = &project.acts;
     jig_client::facts::offer(rows.as_slice(), ActKind::Reorder)
         .cloned()
         .unwrap_or(Admission::Refused(c::Refusal::NotOffered))

@@ -6,8 +6,8 @@
 use crate::state::address::{Address, ProjectSection};
 use alloc::boxed::Box;
 use jig_client::contract::{
-    Count, Cursor, InboxDocument, InboxEntry, InboxGroup, InboxPage, InboxReadGroup, InboxRow, Needs, ObjectKey,
-    OwnerInbox, OwnerInboxEntry, OwnerInboxPage, OwnerInboxSelection, Read,
+    Count, Cursor, InboxDocument, InboxGroup, InboxReadGroup, InboxRow, Needs, ObjectKey, OwnerInbox, OwnerInboxEntry,
+    OwnerInboxPage, OwnerInboxSelection, Read,
 };
 use skein_lib::List;
 /// An inbox filter, shared by live rows and historical reads.
@@ -55,7 +55,6 @@ impl InboxWindow {
             let mut watched = false;
             for current in live {
                 let membership_known = match current {
-                    InboxRow::Entry(_) => true,
                     InboxRow::Owner(value) => owner_membership(value, goal, document).is_some(),
                 };
                 if current.identity() == row.identity() && membership_known {
@@ -157,11 +156,7 @@ impl State {
             InboxReadGroup::Updates => &mut self.updates_window,
         }
     }
-    pub(crate) fn page(&mut self, group: InboxReadGroup, page: InboxPage) {
-        let mut projected = self.snapshot();
-        projected.page(group, page);
-        *self = projected.state;
-    }
+
     pub(crate) fn owner_page(&mut self, group: InboxReadGroup, query: Read, page: OwnerInboxPage) {
         let mut projected = self.snapshot();
         projected.owner_page(group, query, page);
@@ -196,7 +191,6 @@ impl Inbox {
     #[must_use]
     pub fn includes(&self, entry: &InboxRow) -> bool {
         let membership = match entry {
-            InboxRow::Entry(value) => self.state.filter.goal.is_none() || self.state.filter.goal == value.goal,
             InboxRow::Owner(value) => {
                 owner_membership(value, self.state.filter.goal, self.document.as_ref()) == Some(true)
             }
@@ -219,39 +213,7 @@ impl Inbox {
             InboxReadGroup::Updates => &mut self.state.updates_window,
         }
     }
-    /// The whole live watch replaces its own source, preserving read windows.
-    pub(crate) fn replace(&mut self, entries: List<InboxEntry>, more: bool) {
-        self.live.clear();
-        for entry in entries.into_boxed() {
-            self.live.push(InboxRow::Entry(Box::new(entry))).expect("whole live source fits");
-        }
-        self.live_more = more;
-        self.state.needs_window.past(&self.live, self.state.filter.goal, self.document.as_ref());
-        self.state.updates_window.past(&self.live, self.state.filter.goal, self.document.as_ref());
-        self.merge();
-    }
-    /// A read terminal moves only its group's rows and cursor.
-    pub(crate) fn page(&mut self, group: InboxReadGroup, page: InboxPage) {
-        let window = self.window_mut(group);
-        window.selection = None;
-        window.cut = page.cut;
-        window.rows.clear();
-        for row in page.rows.into_boxed() {
-            window.rows.push(InboxRow::Entry(Box::new(row))).expect("whole historical source fits");
-        }
-        window.before = page.before;
-        window.after = page.after;
-        window.more = window.after.is_some();
-        match group {
-            InboxReadGroup::Needs => {
-                self.state.needs_window.past(&self.live, self.state.filter.goal, self.document.as_ref());
-            }
-            InboxReadGroup::Updates => {
-                self.state.updates_window.past(&self.live, self.state.filter.goal, self.document.as_ref());
-            }
-        }
-        self.merge();
-    }
+
     /// Whole exact owner delivery; both allocated groups remain in the envelope.
     pub(crate) fn owner(&mut self, value: Box<OwnerInbox>) {
         self.state.results_seen = value.results_seen;
@@ -301,7 +263,6 @@ impl Inbox {
                     self.goal_context_pending |=
                         owner_membership(value, self.state.filter.goal, self.document.as_ref()).is_none();
                 }
-                InboxRow::Entry(_) => {}
             }
             if self.includes(entry) {
                 self.rows.push(entry.clone()).expect("bounded live groups fit");
@@ -310,7 +271,6 @@ impl Inbox {
         for window in [&self.state.needs_window, &self.state.updates_window] {
             for entry in &window.rows {
                 let included = match entry {
-                    InboxRow::Entry(_) => self.includes(entry),
                     InboxRow::Owner(_) => query_filter(window.query.as_ref()) == Some(self.state.filter),
                 };
                 if !included {
@@ -350,7 +310,7 @@ fn owner_membership(entry: &OwnerInboxEntry, goal: Option<u64>, document: Option
     let Some(goal) = goal else { return Some(true) };
     let selection = match document {
         Some(InboxDocument::Owner(value)) => value.selection.as_ref()?,
-        Some(InboxDocument::Entry(_)) | None => return None,
+        None => return None,
     };
     for context in selection {
         if context.cursor == entry.cursor {
@@ -387,10 +347,6 @@ fn earlier(a: &InboxRow, b: &InboxRow) -> bool {
                 // Existing supplied rows retain their original tie ordering;
                 // exact owner ties retain the owner's source order.
                 match a {
-                    InboxRow::Entry(a) => match b {
-                        InboxRow::Entry(b) => a.object < b.object,
-                        InboxRow::Owner(_) => false,
-                    },
                     InboxRow::Owner(_) => false,
                 }
             }

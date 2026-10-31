@@ -11,12 +11,7 @@ use crate::words::phrases::english;
 use crate::words::phrases::jig::{JigPhrase, shapes};
 use crate::{
     Event, Request,
-    state::{
-        action::Act as Action,
-        address::Address,
-        intents::Progress,
-        objects::{Card, Left, Source},
-    },
+    state::{action::Act as Action, address::Address},
 };
 use crate::{JigBindings, JigMeaning, Owner, decode};
 use jig_client::contract::*;
@@ -230,162 +225,6 @@ fn frame_builds_statuses_counts_navigation_and_number_submission_in_every_link_s
     }
 }
 
-fn shared_card_frame_says_each_progress_refusal_and_departure_with_context_only_by_place() {
-    let (mut d, frame_watch) = start();
-    let source = Source::Window { number: 1 };
-    // The public object collection is read-only in Fixture; build states through its shared entry point.
-    let mut objects = crate::state::objects::Objects::new(2, 8);
-    let id = objects.name(ObjectKey::Task(7), source).unwrap();
-    let words = words();
-    let mut bindings = JigBindings::new(64, 128);
-    let states = [
-        Card::Open,
-        Card::Deciding { request: None, progress: Progress::Confirming },
-        Card::Deciding { request: Some(Token::new(1)), progress: Progress::InFlight },
-        Card::Deciding { request: Some(Token::new(1)), progress: Progress::Retrying },
-        Card::Deciding { request: Some(Token::new(1)), progress: Progress::Parked },
-        Card::Deciding { request: Some(Token::new(1)), progress: Progress::Unknown },
-        Card::Refused {
-            refusal: Refusal::Authority { lacking: Lacking::Budget { needed: 40, left: 12 }, proposable: None },
-        },
-        Card::Unknown { act: ActKind::Cancel, look: Read::Task { task: 7 } },
-        Card::Leaving {
-            how: Left::Answered {
-                outcome: Outcome::DecidedFirst {
-                    by: Party { number: 2, kind: PartyKind::Person, name: text(b"Lee") },
-                    how: Decision::Rejected { reason: text(b"already decided") },
-                    at: Wall::EPOCH,
-                },
-            },
-            until: Time::ZERO,
-        },
-        Card::Leaving {
-            how: Left::Ended {
-                how: Ending::Cancelled { by: Actor::Party(3), reason: Some(text(b"no longer needed")), at: None },
-            },
-            until: Time::ZERO,
-        },
-        Card::Leaving { how: Left::Looking, until: Time::ZERO },
-        Card::Leaving { how: Left::Unknown, until: Time::ZERO },
-    ];
-    for state in states {
-        let mut b = Builder::new(&limits());
-        b.open(Role::Page);
-        crate::tree::cards::state(&mut b, &state, id, words, &mut bindings);
-        b.close();
-        let tree = b.finish();
-        crate::tests::tree::cards_access::check(&tree);
-        assert!(tree.nodes().iter().any(|n| n.role == Role::Status));
-        if let Card::Refused { .. } = state {
-            assert!(contains(&tree, b"Your pool has 12 left; this needs 40"));
-        }
-        if let Card::Unknown { .. } = state {
-            assert!(
-                tree.nodes()
-                    .iter()
-                    .any(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Inspect current object".as_slice()))
-            );
-        }
-    }
-    card_context(&mut d, frame_watch, words, &mut bindings);
-    // Refused by the domain after its handle has left; a retained tree token still decodes the handle.
-    let binding = bindings.insert(JigMeaning::Action(Action::LookAgain { object: id.token() }));
-    let action = decode(&mut bindings, binding.token, Act::Press).unwrap();
-    drive(&mut d, Event::Act { action });
-}
-
-fn card_context(d: &mut Fixture, frame_watch: jig_client::Handle, words: &Words, bindings: &mut JigBindings) {
-    let out =
-        drive(d, Watched { watch: frame_watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(document()))) });
-    let inbox_watch =
-        out.iter()
-            .find_map(|r| match r {
-                Request::Client {
-                    asked:
-                        jig_client::Event::Watch {
-                            handle: watch,
-                            subject: jig_client::Watchable::Jig(Subject::Inbox { .. }),
-                        },
-                } => Some(*watch),
-                _ => None,
-            })
-            .unwrap();
-    let mut entries = List::with_capacity(1);
-    entries
-        .push(InboxEntry {
-            reply: None,
-            lineage: List::with_capacity(0),
-            goal: None,
-            recipient: None,
-            stall: None,
-            object: ObjectKey::Question { task: 7, message: 1 },
-            project: 4,
-            group: InboxGroup::Questions,
-            position: 1,
-            at: Wall::EPOCH,
-        })
-        .unwrap();
-    drive(
-        d,
-        Watched {
-            watch: inbox_watch,
-            event: WatchEvent::Delivered(Delivery::Inbox(Box::new(Inbox {
-                entries,
-                needs: document().needs,
-                updates: Count { value: 0, limited: false },
-                results_seen: 0,
-                replies_seen: List::with_capacity(0),
-                more: false,
-            }))),
-        },
-    );
-    let shared = d.objects().find(ObjectKey::Question { task: 7, message: 1 }).unwrap();
-    let mut lineage = List::with_capacity(1);
-    lineage
-        .push(Chip {
-            task: 6,
-            title: DocumentText::complete(text(b"Ancestor")),
-            executor: Executor::Party { party: 1 },
-            phase: Phase::Done,
-            details: Box::new(ChipPhase::Ended { how: Ending::Done, at: Wall::EPOCH }),
-        })
-        .unwrap();
-    for place in [
-        crate::tree::cards::Place::Inbox { lineage },
-        crate::tree::cards::Place::Conversation,
-        crate::tree::cards::Place::TaskPage,
-        crate::tree::cards::Place::Elsewhere,
-    ] {
-        let mut b = Builder::new(&limits());
-        b.open(Role::Page);
-        assert!(crate::tree::cards::open(&mut b, &d.view(), shared, &place, b"Question", words, bindings));
-        crate::tree::cards::close(&mut b);
-        b.close();
-        let tree = b.finish();
-        crate::tests::tree::cards_access::check(&tree);
-        assert!(
-            tree.nodes().iter().any(|n| n.role == Role::Region && n.name.as_deref() == Some(b"Question".as_slice()))
-        );
-        assert!(tree.nodes().iter().any(|n| n.role == Role::Item && n.key.is_some()));
-        assert_eq!(
-            contains(&tree, b"In project 4"),
-            match place {
-                crate::tree::cards::Place::Inbox { .. } | crate::tree::cards::Place::Elsewhere => true,
-                crate::tree::cards::Place::Conversation | crate::tree::cards::Place::TaskPage => false,
-            }
-        );
-        assert_eq!(
-            contains(&tree, b"Task 6"),
-            match place {
-                crate::tree::cards::Place::Inbox { .. } => true,
-                crate::tree::cards::Place::Conversation
-                | crate::tree::cards::Place::TaskPage
-                | crate::tree::cards::Place::Elsewhere => false,
-            }
-        );
-    }
-}
-
 fn every_binding_kind_decodes_and_old_tokens_are_retired() {
     let mut bindings = JigBindings::new(64, 4);
     let object = Token::new(7);
@@ -455,14 +294,13 @@ fn jig_phrasebook_requires_every_sentence_and_says_wall_times_in_person_offset()
     assert_eq!(words.say(JigPhrase::Amount, &[Hole::Amount(12)]).as_ref(), b"12");
 }
 
+pub(in crate::tests) fn party() -> Party {
+    Party { number: 1, kind: PartyKind::Person, name: text(b"Pat") }
+}
+
 #[test]
 fn jig_card_frames_bindings_and_phrase_contracts() {
     frame_builds_statuses_counts_navigation_and_number_submission_in_every_link_state();
-    shared_card_frame_says_each_progress_refusal_and_departure_with_context_only_by_place();
     every_binding_kind_decodes_and_old_tokens_are_retired();
     jig_phrasebook_requires_every_sentence_and_says_wall_times_in_person_offset();
-}
-
-pub(in crate::tests) fn party() -> Party {
-    Party { number: 1, kind: PartyKind::Person, name: text(b"Pat") }
 }

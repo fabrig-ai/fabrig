@@ -1,7 +1,7 @@
 use crate::tests::fixtures::refusal_answer;
 use crate::tests::fixtures::{AnsweredByEngine, Fixture, Reported, Served, Watched};
 use crate::tests::state::domain::{
-    confirmation::{change, reread, task},
+    confirmation::task,
     objects::{chip, live, text},
     pages::project,
     spine::{LIMITS, delivered, drain, drive, frame},
@@ -50,95 +50,7 @@ fn steering_document(act: ActKind) -> Task {
     }
     document
 }
-#[test]
-fn steering_sends_one_ask_with_each_choice_and_amend_release_is_atomic() {
-    for act in [ActKind::Message, ActKind::Stop, ActKind::Cancel, ActKind::Move, ActKind::Amend, ActKind::Release] {
-        let (mut domain, _) = live();
-        let mut document = steering_document(act);
-        if act == ActKind::Release {
-            let TaskHold::Document(hold) = document.hold.as_mut().unwrap() else { panic!("supplied legacy hold") };
-            hold.reason = HoldReason::EffectUncertain { part: Part::Kind { connector: 1, kind: 2 } };
-        }
-        let id = install(&mut domain, document);
-        if act == ActKind::Message {
-            assert!(edit(&mut domain, 8, b"wake up").is_empty());
-            assert!(
-                drive(
-                    &mut domain,
-                    Time::ZERO,
-                    Event::Act { action: Act::Submit { field: Purpose::Composer { task: 8 } } }
-                )
-                .is_empty()
-            );
-        } else if act == ActKind::Amend {
-            intend_amend_release(&mut domain, id);
-        } else {
-            intend(&mut domain, id, act);
-        }
-        let expected = prepare_steering(&mut domain, act);
-        let rows = drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm });
-        assert_eq!(only_send(&rows).1, &expected);
-        assert!(drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm }).is_empty());
-    }
-}
-fn prepare_steering(domain: &mut Fixture, act: ActKind) -> Ask {
-    match act {
-        ActKind::Message => {
-            drive(domain, Time::ZERO, Event::Act { action: Act::WriteRelease { release: true } });
-            crate::tests::fixtures::releasing(
-                Ask::Message { project: 1, task: 8, words: text(b"wake up") },
-                Some(Revision { value: 3 }),
-            )
-        }
-        ActKind::Stop => Ask::Stop { project: 1, task: 8 },
-        ActKind::Cancel | ActKind::Move => {
-            drive(domain, Time::ZERO, Event::Act { action: Act::Edit { field: Purpose::Reason, text: text(b"why") } });
-            if act == ActKind::Cancel {
-                Ask::Cancel { project: 1, task: 8, reason: text(b"why"), grace: None }
-            } else {
-                Ask::Move { project: 1, task: 8, reason: text(b"why") }
-            }
-        }
-        ActKind::Amend => {
-            drive(domain, Time::ZERO, Event::Act { action: Act::Edit { field: Purpose::Reason, text: text(b"") } });
-            drive(domain, Time::ZERO, Event::Act { action: Act::Change { change: Box::new(change()) } });
-            crate::tests::fixtures::releasing(
-                Ask::Amend {
-                    reason: text(b""),
-                    project: 1,
-                    task: 8,
-                    revision: Some(Revision { value: 9 }),
-                    change: Box::new(change()),
-                },
-                Some(Revision { value: 3 }),
-            )
-        }
-        ActKind::Release => {
-            assert_eq!(domain.confirmation().unwrap().missing, Some(Missing::Again));
-            drive(domain, Time::ZERO, Event::Act { action: Act::Again { again: false } });
-            Ask::Release { project: 1, task: 8, revision: Revision { value: 3 }, again: Some(false) }
-        }
-        ActKind::Reorder
-        | ActKind::Withdraw
-        | ActKind::Answer
-        | ActKind::Take
-        | ActKind::HandBack
-        | ActKind::Accept
-        | ActKind::Reject
-        | ActKind::PassUp
-        | ActKind::LeaveHeld
-        | ActKind::Seen
-        | ActKind::EditNote
-        | ActKind::DeleteNote
-        | ActKind::Adopt
-        | ActKind::RemoveProject
-        | ActKind::Rename
-        | ActKind::ChangePolicy
-        | ActKind::SetRoles
-        | ActKind::MakeService
-        | ActKind::SetPool => unreachable!(),
-    }
-}
+
 #[test]
 fn closing_names_each_live_delegate_once_and_chat_about_sends_only_the_named_first_words() {
     let (mut domain, _) = live();
@@ -317,68 +229,6 @@ fn a_words_answer_clears_only_the_submitted_touch_and_refused_or_unknown_words_k
             assert_eq!(domain.fields().get(Purpose::Composer { task: 8 }).unwrap().writes, 0);
         }
         assert!(drive(&mut domain, Time::ZERO, AnsweredByEngine { request, answer }).is_empty());
-    }
-}
-
-#[test]
-fn amend_release_recalls_the_hold_independently_and_requires_review_when_either_revision_moves() {
-    for which in 0_u8..3 {
-        let (mut domain, _) = live();
-        let mut document = steering_document(ActKind::Amend);
-        let id = install(&mut domain, document.clone());
-        intend_amend_release(&mut domain, id);
-        assert_eq!(domain.confirmation().unwrap().revision, Some(Revision { value: 9 }));
-        assert_eq!(domain.confirmation().unwrap().release_revision, Some(Revision { value: 3 }));
-        drive(&mut domain, Time::ZERO, Event::Act { action: Act::Edit { field: Purpose::Reason, text: text(b"") } });
-        drive(&mut domain, Time::ZERO, Event::Act { action: Act::Change { change: Box::new(change()) } });
-        match which {
-            0 => {
-                let TaskHold::Document(hold) = document.hold.as_mut().unwrap() else { panic!("supplied legacy hold") };
-                hold.revision = Revision { value: 4 };
-            }
-            1 => document.spec_revision = Revision { value: 10 },
-            2 => document.hold = None,
-            _ => unreachable!(),
-        }
-        reread(&mut domain, Body::Task(Box::new(document.clone())), Read::Task { task: 8 });
-        assert!(drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm }).is_empty());
-        assert_eq!(
-            domain.confirmation().unwrap().missing,
-            match which {
-                0 => Some(Missing::ChangedHold { now: Some(Revision { value: 4 }) }),
-                1 => Some(Missing::Changed { now: Some(Revision { value: 10 }) }),
-                2 => Some(Missing::ChangedHold { now: None }),
-                _ => unreachable!(),
-            }
-        );
-        // Further draft editing does not acknowledge a newly displayed hold.
-        drive(&mut domain, Time::ZERO, Event::Act { action: Act::Edit { field: Purpose::Reason, text: text(b"") } });
-        drive(&mut domain, Time::ZERO, Event::Act { action: Act::Change { change: Box::new(change()) } });
-        assert!(drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm }).is_empty());
-        if which < 2 {
-            drive(&mut domain, Time::ZERO, Event::Act { action: Act::Dismiss });
-            intend_amend_release(&mut domain, id);
-            drive(
-                &mut domain,
-                Time::ZERO,
-                Event::Act { action: Act::Edit { field: Purpose::Reason, text: text(b"") } },
-            );
-            drive(&mut domain, Time::ZERO, Event::Act { action: Act::Change { change: Box::new(change()) } });
-            let rows = drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm });
-            assert_eq!(
-                only_send(&rows).1,
-                &crate::tests::fixtures::releasing(
-                    Ask::Amend {
-                        reason: text(b""),
-                        project: 1,
-                        task: 8,
-                        revision: Some(document.spec_revision),
-                        change: Box::new(change()),
-                    },
-                    Some(document.hold.as_ref().unwrap().revision())
-                )
-            );
-        }
     }
 }
 

@@ -21,9 +21,7 @@ use crate::{
     },
 };
 use alloc::boxed::Box;
-use jig_client::contract::{
-    ActKind, Admission, Amendment, HoldReason, Limit, ObjectKey, PersonContract, Recipient, Refusal, Revision, Text,
-};
+use jig_client::contract::{ActKind, Admission, Amendment, Limit, ObjectKey, Recipient, Refusal, Revision, Text};
 use skein_lib::{Env, Id, List, Queue};
 /// The person choices, bounded independently of the incoming document.
 #[derive(Debug)]
@@ -181,12 +179,9 @@ pub(crate) fn open(domain: &mut Ui, env: &Env<crate::Limits>, id: Id<Object>, ac
             Body::Historical(_)
             | Body::Chip(_)
             | Body::Task(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
-            | Body::Escalation(_)
             | Body::OwnerEscalation(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_),
         )
@@ -298,32 +293,12 @@ fn answer_field(open: &Confirmation, object: &Object) -> Result<Option<Purpose>,
         match &object.body {
             Some(Body::Question(_)) => Some(Purpose::Answer),
             Some(Body::OwnerPersonTask(_)) => None,
-            Some(Body::PersonTask(document)) => match &document.contract {
-                PersonContract::Words => Some(Purpose::Answer),
-                PersonContract::Choice { options } => {
-                    let Some(option) = open.choices.option else {
-                        return Err(Missing::Choice);
-                    };
-                    let mut offered = false;
-                    for line in options {
-                        if line.number == option && line.fields.is_empty() {
-                            offered = true;
-                        }
-                    }
-                    if !offered {
-                        return Err(Missing::Choice);
-                    }
-                    None
-                }
-                PersonContract::Approval { .. } => None,
-            },
+
             Some(
                 Body::Historical(_)
                 | Body::Chip(_)
                 | Body::Task(_)
-                | Body::Proposal(_)
                 | Body::OwnerProposal(_)
-                | Body::Escalation(_)
                 | Body::OwnerEscalation(_)
                 | Body::Result(_)
                 | Body::Note { .. },
@@ -340,12 +315,9 @@ fn delegates_missing(open: &Confirmation, object: &Object) -> Option<Missing> {
         Body::Task(task) => task,
         Body::Historical(_)
         | Body::Chip(_)
-        | Body::Proposal(_)
         | Body::OwnerProposal(_)
-        | Body::Escalation(_)
         | Body::OwnerEscalation(_)
         | Body::Question(_)
-        | Body::PersonTask(_)
         | Body::OwnerPersonTask(_)
         | Body::Result(_)
         | Body::Note { .. } => return Some(Missing::Refused { why: Refusal::NotOffered }),
@@ -382,27 +354,12 @@ fn release_missing(open: &Confirmation, object: &Object) -> Option<Missing> {
             };
             Some(hold.uncertain())
         }
-        Some(Body::Escalation(document)) => Some(match &document.hold.reason {
-            HoldReason::EffectUncertain { .. } => true,
-            HoldReason::Tries { .. }
-            | HoldReason::Stalled { .. }
-            | HoldReason::Dependency { .. }
-            | HoldReason::Drift { .. }
-            | HoldReason::EffectFailed { .. }
-            | HoldReason::Budget { .. }
-            | HoldReason::Deadline { .. }
-            | HoldReason::Stopped { .. }
-            | HoldReason::Resource { .. }
-            | HoldReason::Pool { .. }
-            | HoldReason::Procedure { .. } => false,
-        }),
+
         Some(
             Body::Historical(_)
             | Body::Chip(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
@@ -440,14 +397,12 @@ fn draft_admission(domain: &Ui, object: &Object, open: &Confirmation) -> Admissi
             let before = match &object.body {
                 Some(Body::Task(document)) => &document.authority,
                 Some(Body::OwnerEscalation(document)) => &document.task.authority,
-                Some(Body::Escalation(document)) => &document.steering.authority,
+
                 Some(
                     Body::Historical(_)
                     | Body::Chip(_)
-                    | Body::Proposal(_)
                     | Body::OwnerProposal(_)
                     | Body::Question(_)
-                    | Body::PersonTask(_)
                     | Body::OwnerPersonTask(_)
                     | Body::Result(_)
                     | Body::Note { .. },

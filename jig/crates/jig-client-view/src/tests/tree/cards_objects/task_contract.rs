@@ -170,7 +170,7 @@ fn refused_chat_header_shows_the_supplied_cause_and_receipt_time() {
         row.waits_on = WaitsOn::Nothing;
         row.run_wait = Some(TaskRunWait::Refused(cause));
         row.chip.phase = Phase::Due;
-        row.chip.details = Box::new(ChipPhase::Owner {
+        row.chip.details = Box::new(ChipPhase {
             phase: OwnerChipPhase::Active(RunStage::Due),
             details: Box::new(crate::tests::tree::fragments::chip::details()),
         });

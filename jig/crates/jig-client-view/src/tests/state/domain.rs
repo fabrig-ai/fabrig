@@ -41,7 +41,6 @@ pub(crate) mod answers;
 pub(crate) mod conversations;
 pub(crate) mod drafts;
 
-pub(crate) mod entrance;
 pub(crate) mod policy;
 
 pub(crate) mod frame_facts;

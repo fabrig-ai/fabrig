@@ -14,8 +14,8 @@ use crate::{Borrowed, Limits};
 use hello::hello;
 use jig_client::contract::{
     AdmissionLimit, Funder, OwnerAccountPlace, OwnerAccountState, OwnerAccountUnread, OwnerAttemptState, OwnerCapacity,
-    OwnerDeployment, OwnerHelloRefusal, OwnerHelloRefusalLine, OwnerHostKind, OwnerHostRun, OwnerPersonCapacityAction,
-    OwnerPersonCapacityCause, OwnerRunLocation, OwnerTaskCapacityAction, OwnerTaskCapacityCause, Proposer, SeenThrough,
+    OwnerDeployment, OwnerHostKind, OwnerHostRun, OwnerPersonCapacityAction, OwnerPersonCapacityCause,
+    OwnerRunLocation, OwnerTaskCapacityAction, OwnerTaskCapacityCause, Proposer, SeenThrough,
 };
 use skein_lib::{Duration, Wall};
 pub(crate) fn text(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {

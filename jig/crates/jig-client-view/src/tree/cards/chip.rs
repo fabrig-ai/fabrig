@@ -4,8 +4,7 @@
 use crate::JigBindings;
 use crate::words::phrases::jig::JigPhrase;
 use crate::words::{Words, name};
-use jig_client::contract::Phase;
-use jig_client::words::{StatusWord, Word};
+
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role};
 
@@ -29,20 +28,9 @@ pub fn head(b: &mut Builder, chip: &Chip, words: &Words, bindings: &mut JigBindi
     if chip.title.cut {
         words.text(b, JigPhrase::ChipTitleCut, &[]);
     }
-    match chip.details.as_ref() {
-        ChipPhase::Owner { details, .. } => crate::tree::fragments::proposed_task::executor(b, details.executor, words),
-        ChipPhase::Active(_)
-        | ChipPhase::Waiting { .. }
-        | ChipPhase::Idle { .. }
-        | ChipPhase::Starting
-        | ChipPhase::Running { .. }
-        | ChipPhase::WaitingForWords { .. }
-        | ChipPhase::BackingOff { .. }
-        | ChipPhase::Procedure { .. }
-        | ChipPhase::Person { .. }
-        | ChipPhase::Closing(_)
-        | ChipPhase::Held { .. }
-        | ChipPhase::Ended { .. } => words.executor(b, chip.executor),
+    {
+        let ChipPhase { details, .. } = chip.details.as_ref();
+        crate::tree::fragments::proposed_task::executor(b, details.executor, words)
     }
 }
 /// Build all kept dependency chips with a bounded work list, never recursive traversal.
@@ -69,12 +57,9 @@ fn kept(client: &Borrowed<'_>, task: u64) -> Option<Chip> {
         Some(Body::Task(task)) => Some(task.chip.clone()),
         Some(
             Body::Historical(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
-            | Body::Escalation(_)
             | Body::OwnerEscalation(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
@@ -118,120 +103,32 @@ pub fn details(
     pending: &mut skein_lib::Queue<u64>,
     seen: &mut skein_lib::Set<u64>,
 ) {
-    match phase {
-        ChipPhase::Owner { phase, details } => {
-            crate::tree::fragments::chip_phase::brief(b, phase, words);
-            let mut kept = skein_lib::List::with_capacity(details.dependencies.len());
-            for dependency in &details.dependencies {
-                if dependency.keeps && dependency.pending {
-                    dependency_words(b, dependency, words);
-                    kept.push(dependency.number).expect("bounded kept dependencies");
-                }
-            }
-            dependencies_list(b, client, &kept, words, bindings, pending, seen);
-            if let Some(hold) = &details.hold
-                && let Some(circle) = &hold.circle
-            {
-                words.text(b, JigPhrase::CircleHold, &[]);
-                dependencies_list(b, client, &circle.tasks, words, bindings, pending, seen);
-                words.text(b, JigPhrase::CircleLifts, &[]);
-                if circle.cut {
-                    words.text(b, JigPhrase::TaskListsCut, &[]);
-                }
-            }
-            if let jig_client::contract::OwnerChipPhase::Waiting { dependencies, .. } = phase {
-                dependencies_list(b, client, dependencies, words, bindings, pending, seen);
+    {
+        let ChipPhase { phase, details } = phase;
+        crate::tree::fragments::chip_phase::brief(b, phase, words);
+        let mut kept = skein_lib::List::with_capacity(details.dependencies.len());
+        for dependency in &details.dependencies {
+            if dependency.keeps && dependency.pending {
+                dependency_words(b, dependency, words);
+                kept.push(dependency.number).expect("bounded kept dependencies");
             }
         }
-        ChipPhase::Active(value) => crate::tree::fragments::runtime::active(b, value, words),
-        ChipPhase::Waiting { dependencies, hold } => {
-            words.text(b, JigPhrase::Word(Word::Phase(Phase::Waiting)), &[]);
+        dependencies_list(b, client, &kept, words, bindings, pending, seen);
+        if let Some(hold) = &details.hold
+            && let Some(circle) = &hold.circle
+        {
+            words.text(b, JigPhrase::CircleHold, &[]);
+            dependencies_list(b, client, &circle.tasks, words, bindings, pending, seen);
+            words.text(b, JigPhrase::CircleLifts, &[]);
+            if circle.cut {
+                words.text(b, JigPhrase::TaskListsCut, &[]);
+            }
+        }
+        if let jig_client::contract::OwnerChipPhase::Waiting { dependencies, .. } = phase {
             dependencies_list(b, client, dependencies, words, bindings, pending, seen);
-            if let Some(hold) = hold {
-                super::common::part(b, hold, words, bindings);
-            }
-        }
-        ChipPhase::Idle { wake: policy } => {
-            words.text(b, JigPhrase::Word(Word::Phase(Phase::Idle)), &[]);
-            wake(b, policy, words, bindings);
-        }
-        ChipPhase::Starting => words.text(b, JigPhrase::Word(Word::Status(StatusWord::Starting)), &[]),
-        ChipPhase::Running { attempt, since, tool } => {
-            words.text(b, JigPhrase::Word(Word::Phase(Phase::Running)), &[]);
-            words.text(b, JigPhrase::Attempt, &[Hole::Number(*attempt)]);
-            words.text(
-                b,
-                JigPhrase::ElapsedSpan,
-                &[Hole::Span(skein_lib::Duration::from_nanos(
-                    client.wall().as_nanos().saturating_sub(since.as_nanos()),
-                ))],
-            );
-            match tool {
-                Some(tool) => words.text(b, JigPhrase::Word(Word::Status(StatusWord::Tool)), &[name(tool.bytes())]),
-                None => words.text(b, JigPhrase::Word(Word::Status(StatusWord::Writing)), &[]),
-            }
-        }
-        ChipPhase::WaitingForWords { attempt, since } => {
-            words.text(b, JigPhrase::Word(Word::Status(StatusWord::WaitingForYou)), &[]);
-            words.text(b, JigPhrase::Attempt, &[Hole::Number(*attempt)]);
-            words.text(
-                b,
-                JigPhrase::ElapsedSpan,
-                &[Hole::Span(skein_lib::Duration::from_nanos(
-                    client.wall().as_nanos().saturating_sub(since.as_nanos()),
-                ))],
-            );
-        }
-        ChipPhase::BackingOff { at, attempt, tries, class, reason } => {
-            words.text(
-                b,
-                JigPhrase::RetryAt,
-                &[Hole::Wall(words.adjusted_wall(*at)), Hole::Number(*attempt), Hole::Number(u64::from(*tries))],
-            );
-            failure(b, *class, words);
-            words.text(b, JigPhrase::Reason, &[name(reason.bytes())]);
-        }
-        ChipPhase::Procedure { panel } => super::common::part(b, panel, words, bindings),
-        ChipPhase::Person { addressed, taken, since } => {
-            super::common::recipient(b, addressed, words);
-            if let Some(by) = taken {
-                super::common::taken_by(b, by, words);
-            }
-            if let Some(since) = since {
-                words.text(b, JigPhrase::Since, &[Hole::Wall(words.adjusted_wall(*since))]);
-            }
-        }
-        ChipPhase::Closing(closing) => super::common::closing(b, closing, words, bindings),
-        ChipPhase::Held { reason, since, revision: _, was } => {
-            if let Some(was) = was {
-                crate::tree::fragments::runtime::prior(b, was, words, bindings);
-            }
-            super::hold::reason(b, reason, words, bindings);
-            words.text(b, JigPhrase::Since, &[Hole::Wall(words.adjusted_wall(*since))]);
-        }
-        ChipPhase::Ended { how, at } => {
-            words.ending(b, how);
-            words.wall(b, *at);
         }
     }
 }
-/// Show the wake policy verbatim; which news is enabled comes from the document.
-pub fn wake(b: &mut Builder, wake: &jig_client::contract::WakePolicy, words: &Words, bindings: &mut JigBindings) {
-    if wake.words {
-        words.text(b, JigPhrase::WakeInbox, &[]);
-    }
-    if wake.results {
-        words.text(b, JigPhrase::WakeResult, &[]);
-    }
-    for topic in &wake.topics {
-        words.text(b, JigPhrase::WakeTopic, &[]);
-        words.text(b, JigPhrase::Topic, &[Hole::Number(u64::from(*topic))]);
-    }
-    for part in &wake.subscriptions {
-        super::common::part(b, part, words, bindings);
-    }
-}
-
 fn dependencies_list(
     b: &mut Builder,
     client: &Borrowed<'_>,
@@ -295,7 +192,8 @@ pub(crate) fn named(b: &mut Builder, client: &Borrowed<'_>, number: u64, words: 
     match kept(client, number) {
         Some(chip) => {
             head(b, &chip, words, bindings);
-            if let ChipPhase::Owner { phase, .. } = chip.details.as_ref() {
+            {
+                let ChipPhase { phase, .. } = chip.details.as_ref();
                 crate::tree::fragments::chip_phase::brief(b, phase, words);
             }
         }

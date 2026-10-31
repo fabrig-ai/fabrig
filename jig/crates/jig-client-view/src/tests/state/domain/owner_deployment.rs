@@ -108,7 +108,6 @@ fn native_deployment_authority_none_builtins_and_admitted_policy_numbers_are_ind
             let whole = document();
             owner(&mut domain, token, whole.clone());
             assert_eq!(domain.deployment_page().owner, Some(&whole));
-            assert!(domain.deployment_page().document.is_none());
         }
     }
 }
@@ -148,39 +147,7 @@ fn native_deployment_wrong_subject_wrong_read_left_generation_and_ended_watch_ne
     owner(&mut domain, watch, whole);
     assert!(domain.deployment_page().owner.is_none());
 }
-#[test]
-fn native_deployment_genuine_and_synthetic_documents_replace_each_other_without_inventing_connector_parts() {
-    let mut domain = Fixture::new(&LIMITS);
-    let frame_watch = start(&mut domain, List::with_capacity(0));
-    delivered(&mut domain, Time::ZERO, frame_watch, frame(7));
-    let opened = deploy(&mut domain);
-    let watch = open_token(&opened);
-    let old = Deployment {
-        hosts: List::with_capacity(0),
-        accounts: List::with_capacity(0),
-        capacity: List::with_capacity(0),
-        proposals: 0,
-        refusals: List::with_capacity(0),
-        parts: List::with_capacity(0),
-    };
-    drive(
-        &mut domain,
-        Time::ZERO,
-        Watched { watch, event: WatchEvent::Delivered(Delivery::Deployment(Box::new(old.clone()))) },
-    );
-    assert_eq!(domain.deployment_page().document, Some(&old));
-    let whole = document();
-    owner(&mut domain, watch, whole.clone());
-    assert!(domain.deployment_page().document.is_none());
-    assert_eq!(domain.deployment_page().owner, Some(&whole));
-    drive(
-        &mut domain,
-        Time::ZERO,
-        Watched { watch, event: WatchEvent::Delivered(Delivery::Deployment(Box::new(old.clone()))) },
-    );
-    assert!(domain.deployment_page().owner.is_none());
-    assert_eq!(domain.deployment_page().document, Some(&old));
-}
+
 #[test]
 fn native_deployment_only_supplied_configured_references_open_ordered_parts_in_the_current_generation() {
     let mut domain = Fixture::new(&LIMITS);

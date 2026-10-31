@@ -54,23 +54,10 @@ pub fn ended_render(
     for row in &page.rows {
         b.open(Role::Region);
         b.name(&saying(words, P::EndedRow, &[Hole::Number(row.chip.task)]));
-        match row.chip.details.as_ref() {
-            ChipPhase::Owner { phase, .. } => {
-                crate::tree::cards::chip::head(b, &row.chip, words, bindings);
-                crate::tree::fragments::chip_phase::brief(b, phase, words);
-            }
-            ChipPhase::Active(_)
-            | ChipPhase::Waiting { .. }
-            | ChipPhase::Idle { .. }
-            | ChipPhase::Starting
-            | ChipPhase::Running { .. }
-            | ChipPhase::WaitingForWords { .. }
-            | ChipPhase::BackingOff { .. }
-            | ChipPhase::Procedure { .. }
-            | ChipPhase::Person { .. }
-            | ChipPhase::Closing(_)
-            | ChipPhase::Held { .. }
-            | ChipPhase::Ended { .. } => crate::tree::cards::chip::chip(b, client, &row.chip, words, bindings),
+        {
+            let ChipPhase { phase, .. } = row.chip.details.as_ref();
+            crate::tree::cards::chip::head(b, &row.chip, words, bindings);
+            crate::tree::fragments::chip_phase::brief(b, phase, words);
         }
         crate::tree::fragments::chip::ending(b, &row.ended, client, words, bindings);
         match row.at {

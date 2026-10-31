@@ -16,14 +16,14 @@ fn task_resource_metadata_keeps_each_raw_slot_writer_presence_full_width_and_ind
             row.resources = List::with_capacity(CLIENT.rows);
             for holder in [None, Some(u64::MAX)] {
                 row.resources
-                    .push(TaskResource::Owner(Box::new(OwnerResourceLine {
+                    .push(OwnerResourceLine {
                         part: reference.clone(),
                         kind: u16::MAX,
                         taken,
                         holder,
                         writer,
                         writer_lost: !taken,
-                    })))
+                    })
                     .unwrap();
             }
             let (tree, bindings) = task_contract::page(row.clone());
