@@ -8,6 +8,7 @@ The max_out form exempts only the exact identifiers in EXEMPT: the four
 kernel submission bounds and the provider wire field max_output_tokens.
 The worst_case form exempts the four reserved old bound names in EXEMPT.
 Identifiers containing an exempt name still count.
+Forms may exclude path prefixes in EXCLUDED for the shared form's own crate.
 Recorded raises and other comments stay in place when counts are rewritten.
 Run from the repository root, using only the Python standard library:
 
@@ -24,6 +25,16 @@ FORMS = {
     'JournalRoom': re.compile(r'\bJournalRoom\b'),
     'takes': re.compile(r'\.takes\(&'),
     'worst_case': re.compile(r'\b\w*worst_case\w*\b'),
+    'io_resume': re.compile(r'\b(?:io|skein_io)::resume\b'),
+    'earliest_helper': re.compile(
+        r'\bfn (?:earliest|earlier)\s*\(\s*\w+\s*:\s*(?:&mut\s+)?Option<\s*(?:skein_lib::)?Time\s*>'
+    ),
+    'enum_lifecycle': re.compile(r'\benum Lifecycle\b'),
+    'growth_floor': re.compile(r'\bconst GROWTH_FLOOR\b'),
+    'pop_loop': re.compile(
+        r'for _ in 0\.\.[^{};]*\{\s*(?:drop\(|let _ = )?[\w.\[\]()]+\.pop(?:_front)?\(\)\)?;\s*\}'
+    ),
+    'decimal_hex': re.compile(r'\bfn (?:decimal|hex)\b'),
 }
 EXEMPT = {
     'worst_case': (
@@ -38,6 +49,12 @@ EXEMPT = {
         'max_output_tokens',
     ),
 }
+EXCLUDED = {
+    'io_resume': ('crates/skein-io/',),
+    'earliest_helper': ('crates/skein-lib/',),
+    'enum_lifecycle': ('crates/skein-lib/',),
+    'decimal_hex': ('crates/skein-lib/',),
+}
 BASELINE = Path('scripts/old-forms.txt')
 HEADER = (
     "# Uses of the old forms (skein's docs/design/draft/dynamic-memory.md, 7): each count may only fall.\n"
@@ -46,7 +63,8 @@ HEADER = (
 )
 RULE = (
     "Uses of the old forms may only fall (skein's docs/design/draft/dynamic-memory.md, 7): "
-    'new code takes the new forms (Queue::uncapped, Journal::uncapped, decide, backlog), '
+    'new code takes the new forms (Queue::uncapped, Journal::uncapped, decide, backlog, '
+    "the component kit (skein_io::stage, skein_lib's primitives)), "
     'or removes as many old uses as it adds.'
 )
 # Match whole quoted literals before looking for comment markers inside them.
@@ -99,8 +117,12 @@ def counts():
     for path in paths:
         if not path or b'generated' in path.split(b'/'):
             continue
-        source = Path(path.decode('utf-8')).read_text(encoding='utf-8')
-        if not any(marker in source for marker in (*FORMS, 'MAX_OUT')):
+        decoded_path = path.decode('utf-8')
+        source = Path(decoded_path).read_text(encoding='utf-8')
+        if not any(marker in source for marker in (
+            *FORMS, 'MAX_OUT', 'resume', 'earl', 'Lifecycle', 'GROWTH_FLOOR',
+            'pop', 'fn decimal', 'fn hex',
+        )):
             continue
         source = without_comments(source)
         # Prefilter whole identifiers once: the three identifier patterns
@@ -111,8 +133,11 @@ def counts():
             or 'JournalRoom' in word or 'worst_case' in word
         )
         for form, pattern in FORMS.items():
+            if decoded_path.startswith(EXCLUDED.get(form, ())):
+                continue
+            text = candidates if form in ('max_out', 'JournalRoom', 'worst_case') else source
             totals[form] += sum(
-                1 for match in pattern.finditer(source if form == 'takes' else candidates)
+                1 for match in pattern.finditer(text)
                 if match.group() not in EXEMPT.get(form, ())
             )
     return totals
