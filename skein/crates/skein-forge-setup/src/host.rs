@@ -59,7 +59,10 @@ impl Host {
         io: &mut Queue<skein_io::Request>,
     ) {
         if self.closing {
-            return;
+            match request {
+                Request::Abort if !self.ended => (),
+                Request::Run { .. } | Request::Answer { .. } | Request::Close | Request::Abort => return,
+            }
         }
         match request {
             Request::Run { run, plan } => {
@@ -115,7 +118,7 @@ impl Host {
                     live.answer(answer, &mut self.plan_out);
                 }
             }
-            Request::Close => {
+            Request::Close | Request::Abort => {
                 self.closing = true;
                 self.states.clear();
                 self.runs = Map::with_capacity(self.runs.capacity());
