@@ -10,7 +10,7 @@
 use alloc::boxed::Box;
 
 use skein_io::{Event as IoEvent, Request as IoRequest};
-use skein_lib::{Env, Id, List, Queue, Slab, Token};
+use skein_lib::{Env, Id, Lifecycle, List, Queue, Slab, Time, Token};
 use skein_llm::{self as llm, Call, Credential, Prompt};
 use skein_tls::client as tls;
 
@@ -18,15 +18,6 @@ use crate::boundary::{Event, Refusal, Request};
 use crate::call::{Connection, Phase};
 use crate::endpoint::{Endpoint, EndpointError, Transport};
 use crate::limits::{Limits, valid};
-
-/// The owner's call pool, ending with Closed after physical socket settlement.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Lifecycle {
-    Live,
-    Closing,
-    Aborting,
-    Closed,
-}
 
 /// An admitted conversation waiting for an endpoint binding; terminal releases it.
 pub(crate) struct Waiting {
@@ -337,21 +328,16 @@ impl Component {
         assert!(self.lifecycle != Lifecycle::Closed, "an owner must not send requests after Closed");
         match request {
             Request::Close => {
-                match self.lifecycle {
-                    Lifecycle::Live => self.lifecycle = Lifecycle::Closing,
-                    Lifecycle::Closing | Lifecycle::Aborting => return,
-                    Lifecycle::Closed => unreachable!("checked at the entrance"),
+                if !self.lifecycle.close() {
+                    return;
                 }
                 self.request_close(false);
                 self.fire(env, up, io);
             }
             Request::Abort => {
-                match self.lifecycle {
-                    Lifecycle::Live | Lifecycle::Closing => {}
-                    Lifecycle::Aborting => return,
-                    Lifecycle::Closed => unreachable!("checked at the entrance"),
+                if !self.lifecycle.abort() {
+                    return;
                 }
-                self.lifecycle = Lifecycle::Aborting;
                 self.request_close(true);
                 self.fire(env, up, io);
             }
@@ -581,19 +567,11 @@ impl Component {
 
     /// The first call or idle-connection deadline for the owning loop.
     #[must_use]
-    pub fn next_deadline(&self) -> Option<skein_lib::Time> {
-        let mut earliest: Option<skein_lib::Time> = None;
+    pub fn next_deadline(&self) -> Option<Time> {
+        let mut earliest = None;
         for waiting in &self.waiting {
             match waiting {
-                Some(waiting) => match waiting.deadlines.next() {
-                    Some(next) => {
-                        earliest = Some(match earliest {
-                            Some(prior) => prior.min(next),
-                            None => next,
-                        });
-                    }
-                    None => {}
-                },
+                Some(waiting) => earliest = Time::earliest(earliest, waiting.deadlines.next()),
                 None => {}
             }
         }
@@ -601,14 +579,7 @@ impl Component {
             match slot {
                 Some(id) => match self.connections.get(*id) {
                     Some(connection) => {
-                        let next = connection.deadlines.next();
-                        earliest = match earliest {
-                            Some(prior) => match next {
-                                Some(next) => Some(prior.min(next)),
-                                None => Some(prior),
-                            },
-                            None => next,
-                        };
+                        earliest = Time::earliest(earliest, connection.deadlines.next());
                     }
                     None => {}
                 },
@@ -633,9 +604,8 @@ impl Component {
     }
 
     fn settled(&mut self, up: &mut Queue<Event>) {
-        match self.lifecycle {
-            Lifecycle::Live | Lifecycle::Closed => return,
-            Lifecycle::Closing | Lifecycle::Aborting => {}
+        if !self.lifecycle.is_settling() {
+            return;
         }
         if self.waiting_count() > 0 {
             return;
@@ -645,7 +615,7 @@ impl Component {
                 return;
             }
         }
-        self.lifecycle = Lifecycle::Closed;
+        self.lifecycle.closed();
         up.push(Event::Closed);
     }
 
@@ -961,7 +931,7 @@ mod memory_tests {
         let mut endpoints = List::with_capacity(1);
         endpoints.push(destination).unwrap();
         let mut pool = Component::new(endpoints, &config).unwrap();
-        let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: config };
+        let env = Env { now: Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: config };
         let mut up = Queue::uncapped();
         let mut io = Queue::uncapped();
         for token in [7, 8, 9] {
