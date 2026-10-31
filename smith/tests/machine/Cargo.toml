@@ -14,6 +14,7 @@ skein-sim.workspace = true
 skein-fake-machine.workspace = true
 skein-world.workspace = true
 skein-shell.workspace = true
+skein-scratch.workspace = true
 smith-domain.workspace = true
 smith-protocol-machine = { workspace = true, features = ["fixture"] }
 

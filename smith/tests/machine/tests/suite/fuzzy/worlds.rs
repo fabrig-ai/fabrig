@@ -111,7 +111,7 @@ fn run(seed: u64) -> (usize, ToDomain, Vec<String>) {
         }
         7.. => unreachable!("seven modes"),
     };
-    world.settle();
+
     (mode, terminal, world.trace().to_vec())
 }
 
@@ -180,7 +180,7 @@ fn configured_environment_spawns_replay_and_searches_keep_none() {
             assert!(!seen[0].environment.is_empty());
             assert_eq!(seen[0].environment, seen[1].environment);
             assert!(seen[2].environment.is_empty());
-            world.settle();
+
             (seen, world.trace().to_vec())
         };
         assert_eq!(run(), run(), "environment and complete kernel trace replay for seed {seed}");

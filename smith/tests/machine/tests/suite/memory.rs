@@ -135,7 +135,7 @@ fn shared_harness_meters_file_child_and_flood_runs_through_drop() {
     assert!(matches!(checked, ToDomain::Checked { ran: run::Ran { exit: run::Exit::TimedOut, .. }, .. }));
     let flooded = world.flood(Token::new(23), &[b'x'; 4096], 32, 32);
     assert!(matches!(flooded, ToDomain::Done { done: tools::Done::Exited { dropped: 4032, .. }, .. }));
-    world.settle();
+
     assert_eq!(world.peaks().len(), 4, "every independent run was metered");
     assert!(world.peaks().iter().all(|peak| *peak > 0));
     assert!(!world.trace().is_empty(), "observed kernel operations ran");
@@ -252,6 +252,6 @@ fn a_selected_listing_at_both_caps_stays_within_the_machine_bound() {
     assert!(
         matches!(terminal, ToDomain::Done { done: tools::Done::Listed { ref entries, more }, .. } if entries.len() == 16 && more == 16)
     );
-    world.settle();
+
     assert!(world.peaks().iter().all(|peak| *peak > 0));
 }

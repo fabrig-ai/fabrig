@@ -46,7 +46,6 @@ fn a_file_changed_behind_the_sessions_back_refuses_the_store() {
     });
     assert!(matches!(done, ToDomain::Done { done: tools::Done::Conflict { .. }, .. }), "{done:?}");
     assert_eq!(world.content(b"a"), b"new");
-    world.settle();
 }
 
 #[test]
@@ -85,7 +84,6 @@ fn a_path_with_a_git_part_or_through_a_symbolic_link_is_refused() {
     });
     assert_eq!(linked, ToDomain::Done { owner: Token::new(14), done: tools::Done::Linked });
     assert_eq!(world.content(b"safe"), b"old");
-    world.settle();
 }
 
 #[test]
@@ -110,7 +108,6 @@ fn checks_that_pass_fail_and_time_out() {
             }
         );
     }
-    world.settle();
 }
 
 #[test]
@@ -134,7 +131,6 @@ fn a_command_that_hangs_is_stopped_at_its_deadline_and_answered_once_gone() {
             }
         }
     );
-    world.settle();
 }
 
 #[test]
@@ -154,7 +150,6 @@ fn a_command_that_floods_its_output_keeps_its_head_and_tail() {
             }
         }
     );
-    world.settle();
 }
 
 #[test]
@@ -174,7 +169,6 @@ fn a_megabyte_of_output_takes_few_deliveries() {
         }
     );
     assert!(world.deliveries <= 1024);
-    world.settle();
 }
 
 #[test]
@@ -234,7 +228,7 @@ fn full_kernel_trace_and_file_terminal_replay_through_the_shared_kit() {
             op: tools::Op::Load { at: place(world.root(), b"file"), max: 16 },
             deadline: far(),
         });
-        world.settle();
+
         (world.trace().to_vec(), terminal)
     });
     assert!(!trace.is_empty(), "the complete file IO trace was retained");
@@ -260,7 +254,6 @@ fn successive_harness_runs_preserve_the_absolute_deadline_clock() {
     });
     assert!(matches!(second, ToDomain::Checked { ran: run::Ran { exit: run::Exit::TimedOut, .. }, .. }));
     assert_eq!(world.now(), before, "an expired absolute deadline does not restart its duration");
-    world.settle();
 }
 
 #[test]
@@ -286,7 +279,6 @@ fn listing_and_searching_the_directory_itself_reach_io_as_dot() {
         deadline: far(),
     });
     assert!(matches!(searched, ToDomain::Done { done: tools::Done::Found { .. }, .. }), "{searched:?}");
-    world.settle();
 }
 
 #[test]
@@ -341,7 +333,6 @@ fn the_configured_environment_is_seen_by_commands_and_checks_and_none_by_searche
     }
     assert_eq!(observed[3].program.as_ref(), b"/usr/bin/rg");
     assert!(observed[3].environment.is_empty());
-    world.settle();
 }
 
 #[test]
@@ -360,7 +351,6 @@ fn a_deadline_stops_both_the_leader_and_its_pipe_holding_group_child() {
     });
     assert!(matches!(done, ToDomain::Done { done: tools::Done::Exited { exit: tools::Exit::TimedOut, .. }, .. }));
     assert!(world.trace().iter().any(|entry| entry.contains("to: Group")), "observed native group signal");
-    world.settle();
 }
 
 #[test]
@@ -379,7 +369,6 @@ fn a_stop_reaches_the_group_and_settles_both_output_pipes_before_cancelled() {
     });
     assert_eq!(done, ToDomain::Done { owner: Token::new(81), done: tools::Done::Cancelled });
     assert!(world.trace().iter().any(|entry| entry.contains("to: Group")), "cancel targets the group");
-    world.settle();
 }
 
 #[test]
@@ -401,7 +390,6 @@ fn a_naturally_exited_leader_closes_the_group_while_its_child_still_holds_the_pi
         ToDomain::Done { done: tools::Done::Exited { exit: tools::Exit::Code { code: 0 }, .. }, .. }
     ));
     assert!(world.now() < far(), "group cleanup does not wait for the command deadline");
-    world.settle();
 }
 
 #[test]
@@ -436,7 +424,6 @@ fn selected_paths_form_a_tree_over_the_shared_fake_machine_and_settle_once() {
             assert_eq!(entries.len(), 1);
             assert_eq!(more, 0);
         }
-        world.settle();
     }
 }
 
@@ -525,5 +512,4 @@ fn removal_checks_versions_and_confines_one_file_or_empty_directory() {
             ToDomain::Done { owner, done: tools::Done::Missing }
         );
     }
-    world.settle();
 }
