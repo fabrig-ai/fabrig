@@ -1,4 +1,6 @@
 //! Calibration persists counted results against frozen task inputs.
+//! No agent state is read; benchmark requests and settled public evidence are inputs.
+//! Contract: smith/docs/design/benchmarks.md, sections 5.1 and 11.5.
 
 use super::*;
 

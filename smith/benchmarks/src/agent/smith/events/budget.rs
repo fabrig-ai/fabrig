@@ -151,7 +151,7 @@ fn wind_down(prompt: &smith_events::Prompt, reserve: &smith_events::Reserve) -> 
     Duration::recorded(reserve.time_ms).prose().iter().any(|time| {
         let expected = format!("The ordinary budget is spent. Finish now with what you have. You have at most {} final completions and {time} to finish. Use only finish, or deliver when offered.", reserve.turns);
         prompt.messages.iter().any(|message| message.blocks.iter().any(|block| match block {
-            smith_events::Block::Text { text } => text.windows(expected.len()).any(|text| text == expected.as_bytes()),
+            smith_events::Block::Text { text } => skein_lib::bytes::find(text, expected.as_bytes()).is_some(),
             smith_events::Block::Refusal { .. } | smith_events::Block::Unknown { .. }
             | smith_events::Block::Call { .. } | smith_events::Block::Oversized { .. }
             | smith_events::Block::Cut { .. } | smith_events::Block::Result { .. }

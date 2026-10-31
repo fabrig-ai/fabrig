@@ -57,6 +57,20 @@ pub struct Request {
     pub force_walk: bool,
 }
 
+impl Request {
+    fn bounds(&self, hard: Duration, teardown: Duration) -> Bounds {
+        Bounds {
+            hard,
+            teardown,
+            grace: Duration::from_millis(self.grace_ms),
+            settlement: Duration::from_millis(self.settlement_ms),
+            stdout: self.max_stdout_bytes,
+            stderr: self.max_stderr_bytes,
+            force_walk: self.force_walk,
+        }
+    }
+}
+
 /// The recorded result and whether preparation left the suite incomplete.
 #[derive(Debug)]
 pub struct Recorded {
@@ -178,7 +192,12 @@ fn raw(
     deadline: u64,
     prepared: &Request,
 ) -> Result<ProcessResult, String> {
-    raw_environment(clock, machine, private, arguments, prepared, (deadline, &BTreeMap::new()))
+    raw_environment(clock, machine, private, arguments, prepared, CommandPolicy { deadline_seconds: deadline, environment: &BTreeMap::new() })
+}
+
+struct CommandPolicy<'a> {
+    deadline_seconds: u64,
+    environment: &'a BTreeMap<String, String>,
 }
 
 fn raw_environment(
@@ -187,9 +206,9 @@ fn raw_environment(
     private: &Private,
     arguments: &[String],
     prepared: &Request,
-    policy: (u64, &BTreeMap<String, String>),
+    policy: CommandPolicy<'_>,
 ) -> Result<ProcessResult, String> {
-    let (deadline, environment) = policy;
+    let CommandPolicy { deadline_seconds, environment } = policy;
     let (program, arguments) = arguments.split_first().ok_or("empty author command")?;
     let command = Command {
         program: crate::isolate::program(machine, &private.workspace, Path::new(program))?,
@@ -207,15 +226,7 @@ fn raw_environment(
         command,
         Box::new([]),
         Capture::Raw,
-        Bounds {
-            hard: Duration::from_secs(deadline),
-            teardown: Duration::ZERO,
-            grace: Duration::from_millis(prepared.grace_ms),
-            settlement: Duration::from_millis(prepared.settlement_ms),
-            stdout: prepared.max_stdout_bytes,
-            stderr: prepared.max_stderr_bytes,
-            force_walk: prepared.force_walk,
-        },
+        prepared.bounds(Duration::from_secs(deadline_seconds), Duration::ZERO),
     )
 }
 
@@ -495,7 +506,7 @@ fn prepare(
                 &warming,
                 command,
                 prepared,
-                (prepared.setup_deadline_seconds, &task.environment),
+                CommandPolicy { deadline_seconds: prepared.setup_deadline_seconds, environment: &task.environment },
             )?;
             if !succeeded(&result) {
                 return Err(format!("setup command failed: {:?}, {:?}", result.exit, result.error));
@@ -1009,15 +1020,7 @@ fn afterwards(
                 &grading_private,
                 grading,
                 grade,
-                Bounds {
-                    hard: Duration::ZERO,
-                    teardown: Duration::ZERO,
-                    grace: Duration::from_millis(prepared.grace_ms),
-                    settlement: Duration::from_millis(prepared.settlement_ms),
-                    stdout: prepared.max_stdout_bytes,
-                    stderr: prepared.max_stderr_bytes,
-                    force_walk: prepared.force_walk,
-                },
+                prepared.bounds(Duration::ZERO, Duration::ZERO),
                 &task.environment,
             )?;
             archive(guard, directory, result, &format!("grade-{index}-stdout.log"), &judgment.stdout)?;
@@ -1101,15 +1104,7 @@ pub fn attempt(guard: &Guard, machine: &Machine, state: &Path, prepared: &Reques
                 command,
                 script,
                 capture,
-                Bounds {
-                    hard: Duration::from_secs(task.deadline_seconds),
-                    teardown,
-                    grace: Duration::from_millis(prepared.grace_ms),
-                    settlement: Duration::from_millis(prepared.settlement_ms),
-                    stdout: prepared.max_stdout_bytes,
-                    stderr: prepared.max_stderr_bytes,
-                    force_walk: prepared.force_walk,
-                },
+                prepared.bounds(Duration::from_secs(task.deadline_seconds), teardown),
             )?
         };
         inference = true;
