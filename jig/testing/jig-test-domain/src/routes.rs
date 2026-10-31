@@ -215,7 +215,10 @@ fn route_ask(
                     unreachable!("procedure context has a procedure executor")
                 }
             };
-            domain.hub_link.keep_procedure(context.task, (step, code));
+            domain.hub_link.keep_procedure(
+                context.task,
+                jig_domain_hub_link::Procedure { step, connector: number, code: u32::from(code) },
+            );
             hold(decision, Delivery::Procedure { task: context.task, step, connector: number, code, context });
         }
         core::Ask::ClaimDone { task, attempt, kinds, version } => {
@@ -604,7 +607,8 @@ pub(super) fn route_connector(
                 write(domain, decision, Write::Erase(Key::Connector { number, key }));
             }
             connector::Request::Step { task, decision: step } => {
-                let (numbered_step, code) = *domain.hub_link.procedure(task).expect("procedure chose a step");
+                let procedure = *domain.hub_link.procedure(task).expect("procedure chose a step");
+                let numbered_step = procedure.step;
                 let Some(action) = crate::steps::translate(domain, task, numbered_step, number, step, work) else {
                     continue;
                 };
@@ -612,7 +616,7 @@ pub(super) fn route_connector(
                     task,
                     step: numbered_step,
                     connector: number,
-                    code: u32::from(code),
+                    code: procedure.code,
                     decision: action,
                 }));
             }

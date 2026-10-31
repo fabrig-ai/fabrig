@@ -50,6 +50,19 @@ pub struct HostCall {
     pub run: Token,
     pub attempt: Token,
 }
+/// A procedure's continuation in the core's numbered connector vocabulary.
+#[derive(Clone, Copy, Debug)]
+pub struct Procedure {
+    pub step: u64,
+    pub connector: u16,
+    pub code: u32,
+}
+/// An effect's application-owned encoding, handed back to its connector.
+#[derive(Debug)]
+pub struct Effect {
+    pub connector: u16,
+    pub input: Box<[u8]>,
+}
 /// A connector read's caller and opaque tool envelope.
 #[derive(Debug)]
 pub struct ReadCall {
@@ -78,7 +91,8 @@ pub struct Link {
     close_replies: Map<Token, [u8; 16]>,
     topic_calls: Map<Token, (ReplyTo, core::CallKey, u16)>,
     judges: Map<Token, (Token, jig_domain_authority::Judge, [u8; 32])>,
-    procedures: Map<u64, (u64, u16)>,
+    procedures: Map<u64, Procedure>,
+    effects: Map<Token, Effect>,
     effect_procedures: Map<Token, u64>,
     outbox_procedures: Map<u64, u16>,
     outbox_owners: Map<u64, OutboxOwner>,
@@ -101,6 +115,7 @@ impl Link {
             topic_calls: Map::uncapped(),
             judges: Map::uncapped(),
             procedures: Map::uncapped(),
+            effects: Map::uncapped(),
             effect_procedures: Map::uncapped(),
             outbox_procedures: Map::uncapped(),
             outbox_owners: Map::uncapped(),
@@ -164,18 +179,27 @@ impl Link {
         self.judges.get(&key)
     }
     /// Retain the child's opaque procedure continuation.
-    pub fn keep_procedure(&mut self, key: u64, value: (u64, u16)) {
+    pub fn keep_procedure(&mut self, key: u64, value: Procedure) {
         self.procedures.insert(key, value).expect("uncapped continuation table");
     }
     /// Consume a continuation once its child answers.
     #[must_use]
-    pub fn take_procedure(&mut self, key: u64) -> Option<(u64, u16)> {
+    pub fn take_procedure(&mut self, key: u64) -> Option<Procedure> {
         self.procedures.remove(&key)
     }
     /// Inspect the continuation without consuming its reply right.
     #[must_use]
-    pub fn procedure(&self, key: u64) -> Option<&(u64, u16)> {
+    pub fn procedure(&self, key: u64) -> Option<&Procedure> {
         self.procedures.get(&key)
+    }
+    /// Retain an effect without naming an application's decoded value.
+    pub fn keep_effect(&mut self, owner: Token, effect: Effect) {
+        self.effects.insert(owner, effect).expect("uncapped effect inputs");
+    }
+    /// Hand the opaque input back to the connector selected by the core.
+    #[must_use]
+    pub fn take_effect(&mut self, owner: Token) -> Option<Effect> {
+        self.effects.remove(&owner)
     }
     /// Retain the child's opaque effect procedure continuation.
     pub fn keep_effect_procedure(&mut self, key: Token, value: u64) {
