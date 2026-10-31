@@ -1,4 +1,5 @@
-"""Old forms may only fall (skein's docs/design/draft/dynamic-memory.md, 7).
+"""Old forms may only fall (skein's docs/design/draft/dynamic-memory.md, 7;
+skein/docs/design/draft/component-kit.md, 4).
 
 Count matches in tracked Rust files, excluding generated/ components and
 comments, while keeping string literals. Compare each form independently
@@ -24,6 +25,14 @@ FORMS = {
     'JournalRoom': re.compile(r'\bJournalRoom\b'),
     'takes': re.compile(r'\.takes\(&'),
     'worst_case': re.compile(r'\b\w*worst_case\w*\b'),
+    'io_resume': re.compile(r'\b(?:skein_)?io::resume\s*\('),
+    'earliest': re.compile(r'\bfn\s+(?:earliest|earlier)\s*\([^)]*\bTime\b'),
+    'Lifecycle': re.compile(r'\benum\s+Lifecycle\b'),
+    'GROWTH_FLOOR': re.compile(r'\bconst\s+GROWTH_FLOOR\b'),
+    'pop_loop': re.compile(r'for _ in 0\.\.[^{;]*\{\s*(?:drop\(|let _ = )?'
+                           r'[\w.]+\.pop\(\)\)?;\s*\}'),
+    'hex_decimal': re.compile(r'\bfn\s+(?:hex|decimal)\b'),
+    'forwarded_host': re.compile(r'\bimpl\s+(?:\w+::)*Host\s+for\s+Process\b'),
 }
 EXEMPT = {
     'worst_case': (
@@ -38,15 +47,37 @@ EXEMPT = {
         'max_output_tokens',
     ),
 }
+EXCLUDED_PATHS = {
+    'io_resume': ('crates/skein-io/',),
+    'earliest': ('crates/skein-lib/',),
+    'Lifecycle': ('crates/skein-lib/',),
+    'hex_decimal': ('crates/skein-lib/',),
+}
+MARKERS = {
+    'max_out': ('max_out', 'MAX_OUT'),
+    'JournalRoom': ('JournalRoom',),
+    'takes': ('takes',),
+    'worst_case': ('worst_case',),
+    'io_resume': ('resume',),
+    'earliest': ('earl',),
+    'Lifecycle': ('Lifecycle',),
+    'GROWTH_FLOOR': ('GROWTH_FLOOR',),
+    'pop_loop': ('pop()',),
+    'hex_decimal': ('fn ',),
+    'forwarded_host': ('Host',),
+}
 BASELINE = Path('scripts/old-forms.txt')
 HEADER = (
-    "# Uses of the old forms (skein's docs/design/draft/dynamic-memory.md, 7): each count may only fall.\n"
+    "# Uses of the old forms (skein's docs/design/draft/dynamic-memory.md, 7; "
+    'skein/docs/design/draft/component-kit.md, 4): each count may only fall.\n'
     '# Lower them with `python3 -I -B scripts/old_forms.py --write`; '
     'only the director raises one, recorded in a `# Raised:` line.\n'
 )
 RULE = (
-    "Uses of the old forms may only fall (skein's docs/design/draft/dynamic-memory.md, 7): "
-    'new code takes the new forms (Queue::uncapped, Journal::uncapped, decide, backlog), '
+    "Uses of the old forms may only fall (skein's docs/design/draft/dynamic-memory.md, 7; "
+    'skein/docs/design/draft/component-kit.md, 4): '
+    'new code takes the new forms (Queue::uncapped, Journal::uncapped, decide, backlog, '
+    'and the shared component kit), '
     'or removes as many old uses as it adds.'
 )
 # Match whole quoted literals before looking for comment markers inside them.
@@ -99,8 +130,13 @@ def counts():
     for path in paths:
         if not path or b'generated' in path.split(b'/'):
             continue
-        source = Path(path.decode('utf-8')).read_text(encoding='utf-8')
-        if not any(marker in source for marker in (*FORMS, 'MAX_OUT')):
+        name = path.decode('utf-8')
+        forms = {
+            form: pattern for form, pattern in FORMS.items()
+            if not name.startswith(EXCLUDED_PATHS.get(form, ()))
+        }
+        source = Path(name).read_text(encoding='utf-8')
+        if not any(marker in source for form in forms for marker in MARKERS[form]):
             continue
         source = without_comments(source)
         # Prefilter whole identifiers once: the three identifier patterns
@@ -110,9 +146,11 @@ def counts():
             if 'max_out' in word or 'MAX_OUT' in word
             or 'JournalRoom' in word or 'worst_case' in word
         )
-        for form, pattern in FORMS.items():
+        for form, pattern in forms.items():
             totals[form] += sum(
-                1 for match in pattern.finditer(source if form == 'takes' else candidates)
+                1 for match in pattern.finditer(
+                    candidates if form in ('max_out', 'JournalRoom', 'worst_case') else source
+                )
                 if match.group() not in EXEMPT.get(form, ())
             )
     return totals
