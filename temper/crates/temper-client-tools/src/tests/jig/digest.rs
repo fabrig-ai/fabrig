@@ -70,27 +70,27 @@ fn a_direct_historical_task_prints_its_task_subject_digest() {
 fn a_read_matches_a_watch_windows_digest() {
     let (read, watched) = fixtures::inbox_first_window(fixtures::OVER_WINDOW);
     assert_eq!(
-        digest::part(&Part::InboxPage(&read), &fixtures::limits()),
-        digest::part(&Part::Inbox(&watched), &fixtures::limits())
+        digest::part(&Part::OwnerInboxPage(&read), &fixtures::limits()),
+        digest::part(&Part::OwnerInbox(&watched), &fixtures::limits())
     );
     assert_eq!(read.rows.len(), fixtures::FULL_WINDOW);
-    assert!(Part::InboxPage(&read).more());
+    assert!(Part::OwnerInboxPage(&read).more());
     let last_need = read.rows.get(fixtures::SHORT_WINDOW - fixtures::PAGE_ROWS).expect("last need");
     let first_update = read.rows.get(fixtures::SHORT_WINDOW).expect("first update");
     assert_eq!(
-        last_need.object,
+        last_need.card_key(),
         jig_client::contract::ObjectKey::Question {
             task: fixtures::TASK + u64::from(fixtures::SHORT_WINDOW - fixtures::PAGE_ROWS),
             message: 2
         }
     );
-    assert_eq!(first_update.object, jig_client::contract::ObjectKey::Result(fixtures::TASK + 1));
+    assert_eq!(first_update.card_key(), jig_client::contract::ObjectKey::Result(fixtures::TASK + 1));
 }
 #[test]
 fn an_inbox_read_cut_before_updates_digests_the_watchs_first_window() {
     let printed = fixtures::inbox_json_answer(fixtures::SHORT_WINDOW, fixtures::WINDOW_UPDATES, false);
     let (_, watched) = fixtures::inbox_first_window(fixtures::OVER_WINDOW);
-    let expected = digest::part(&Part::Inbox(&watched), &fixtures::limits()).hex();
+    let expected = digest::part(&Part::OwnerInbox(&watched), &fixtures::limits()).hex();
     assert!(skein_lib::bytes::find(&printed.stdout, &expected).is_some());
     assert_eq!(
         fixtures::occurrences(&printed.stdout, b"\"group\":\"questions\""),
@@ -158,7 +158,7 @@ fn a_task_composite_prints_each_subjects_digest() {
     let tree = fixtures::composite_tree();
     let run = fixtures::no_provisional();
     assert_eq!(fixtures::occurrences(&printed.stdout, b"\"digest\":"), fixtures::SUBJECT_PARTS);
-    for part in [Part::Task(&task), Part::Tree(&tree), Part::delivery(&run).expect("run form")] {
+    for part in [Part::Task(&task), Part::OwnerTree(&tree), Part::delivery(&run).expect("run form")] {
         assert!(
             skein_lib::bytes::find(&printed.stdout, &digest::part(&part, &fixtures::limits()).hex()).is_some(),
             "{part:?}"
@@ -207,9 +207,9 @@ fn a_delivery_hashes_exactly_its_printed_subject_fields() {
     let (_, tasks) = fixtures::tasks_first_window(fixtures::PAGE_ROWS, false);
     for part in [
         Part::Me(&me),
-        Part::Tree(&tree),
+        Part::OwnerTree(&tree),
         Part::delivery(&run).expect("run form"),
-        Part::Inbox(&inbox),
+        Part::OwnerInbox(&inbox),
         Part::OwnerInbox(&owner),
         Part::Tasks(&tasks),
     ] {
@@ -237,7 +237,7 @@ fn an_owner_rows_raw_identity_moves_its_digest() {
 #[test]
 fn inbox_watch_counts_stay_outside_the_digest() {
     let (mut page, mut watched) = fixtures::inbox_first_window(fixtures::OVER_WINDOW);
-    let before = digest::part(&Part::Inbox(&watched), &fixtures::limits());
+    let before = digest::part(&Part::OwnerInbox(&watched), &fixtures::limits());
     watched.needs.proposals = fixtures::FULL_WINDOW;
     watched.updates.value = fixtures::FULL_WINDOW;
     watched.updates.limited = true;
@@ -248,8 +248,8 @@ fn inbox_watch_counts_stay_outside_the_digest() {
             .expect("opaque cursor"),
     );
     page.cut = true;
-    assert_eq!(before, digest::part(&Part::InboxPage(&page), &fixtures::limits()));
-    assert_eq!(before, digest::part(&Part::Inbox(&watched), &fixtures::limits()));
+    assert_eq!(before, digest::part(&Part::OwnerInboxPage(&page), &fixtures::limits()));
+    assert_eq!(before, digest::part(&Part::OwnerInbox(&watched), &fixtures::limits()));
 }
 
 #[test]

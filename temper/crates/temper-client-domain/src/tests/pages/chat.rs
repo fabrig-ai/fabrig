@@ -110,7 +110,7 @@ fn a_chats_stream_suffix_extends_its_provisional_turn_until_committed() {
     let watch = open_run(&mut f);
     run_delivery(&mut f, watch, run_state(Some(run_text(0, b"The answer"))));
     assert_eq!(f.chat.thread.live.get(0).expect("provisional prefix").text.bytes(), b"The answer");
-    run_delivery(&mut f, watch, c::Delivery::Run(Box::new(run_text(10, b" is forty-two."))));
+    run_delivery(&mut f, watch, run_state(Some(run_text(10, b" is forty-two."))));
     let handle = f.chat.run.unwrap();
     assert_eq!(f.client.text(handle).unwrap().text.bytes(), b"The answer is forty-two.");
     assert_eq!(f.chat.thread.live.get(0).expect("whole provisional turn").text.bytes(), b"The answer is forty-two.");
@@ -132,14 +132,14 @@ fn a_chats_first_stream_text_follows_a_state_without_writing() {
     let watch = open_run(&mut f);
     run_delivery(&mut f, watch, run_state(None));
     assert!(f.chat.thread.live.is_empty());
-    run_delivery(&mut f, watch, c::Delivery::Run(Box::new(run_text(0, b"The answer"))));
+    run_delivery(&mut f, watch, run_state(Some(run_text(0, b"The answer"))));
     assert_eq!(f.chat.thread.live.get(0).expect("first provisional turn").text.bytes(), b"The answer");
 }
 #[test]
 fn a_chats_stream_can_arrive_before_its_first_run_state() {
     let mut f = f::opened();
     let watch = open_run(&mut f);
-    run_delivery(&mut f, watch, c::Delivery::Run(Box::new(run_text(0, b"The answer"))));
+    run_delivery(&mut f, watch, run_state(Some(run_text(0, b"The answer"))));
     assert_eq!(f.chat.thread.attempt, Some(f::ATTEMPT));
     assert_eq!(f.chat.thread.live.get(0).expect("first provisional turn").text.bytes(), b"The answer");
 }
@@ -185,13 +185,9 @@ fn chat_told(pages: &mut crate::pages::Pages, client: &jig_client::Client, told:
     out
 }
 fn owner_activity(position: u64, line: c::OwnerActivity) -> c::ActivityLine {
-    c::ActivityLine {
-        position,
-        at: skein_lib::Wall::EPOCH,
-        event: c::Activity::Owner {
-            source: Box::new(c::OwnerActivityLine { task: f::TASK, position, at: skein_lib::Wall::EPOCH, line }),
-            decoded: None,
-        },
+    jig_client::contract::ActivityLine {
+        source: Box::new(c::OwnerActivityLine { task: f::TASK, position, at: skein_lib::Wall::EPOCH, line }),
+        decoded: None,
     }
 }
 fn owner_turn(position: u64, reply: u64) -> c::ActivityLine {
@@ -250,7 +246,9 @@ fn seen_key(pages: &crate::pages::Pages) -> jig_client::Key {
     panic!("automatic Seen pending")
 }
 fn seen_answer() -> jig_client::Outcome {
-    jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Changed)))
+    jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
+        c::OwnerOutcome::Amended { task: 9 },
+    ))))
 }
 fn seen_ask(through: u64) -> c::Ask {
     c::Ask::Seen { through: c::SeenThrough::Conversation { task: f::TASK, through } }
@@ -377,14 +375,12 @@ fn a_chat_with_activity_but_no_numbered_owner_turn_sends_no_seen() {
         },
     ))
     .unwrap();
-    rows.push(c::ActivityLine {
-        position: 4,
-        at: skein_lib::Wall::EPOCH,
-        event: c::Activity::Turn {
-            name: c::TurnName { attempt: f::ATTEMPT, number: 1 },
-            turn: c::TurnRead::Undecodable { why: c::TurnProblem::Malformed },
-        },
-    })
+    rows.push(crate::tests::documents::turn(
+        4,
+        skein_lib::Wall::EPOCH,
+        c::TurnName { attempt: f::ATTEMPT, number: 1 },
+        c::TurnRead::Undecodable { why: c::TurnProblem::Malformed },
+    ))
     .unwrap();
     assert!(fixtures::acts::sent(&mut chat_activity(&mut pages, &client, 4, rows)).is_empty());
     assert_eq!(pages.chat().unwrap().thread.loaded, 4);
@@ -521,7 +517,7 @@ fn an_automatic_seen_and_a_message_can_both_be_pending_and_answered() {
     );
     for (attempt, (_, kind)) in attempts.iter().zip(&pending) {
         let answer = match kind {
-            Sending::Seen => c::Answer::Done(c::Outcome::Changed),
+            Sending::Seen => c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Amended { task: 9 })),
             Sending::Message => c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Said { task: f::TASK, message: 1 })),
             Sending::Stop | Sending::Close => panic!("only Seen and Message pending"),
         };
@@ -919,15 +915,15 @@ fn the_chat_composer_keeps_the_send_bound_when_receiving_grows() {
 fn window_page(chat: &mut Chat, client: &jig_client::Client, out: &mut Queue<Request>, page: u32, pages: u32) {
     let mut rows = skein_lib::List::with_capacity(2);
     for offset in 0..2 {
-        rows.push(c::ActivityLine {
-            position: u64::from(pages.checked_sub(page).unwrap().checked_mul(2).unwrap().checked_sub(offset).unwrap()),
-            at: skein_lib::Wall::EPOCH,
-            event: c::Activity::RunBegan {
+        rows.push(crate::tests::documents::line(
+            u64::from(pages.checked_sub(page).unwrap().checked_mul(2).unwrap().checked_sub(offset).unwrap()),
+            skein_lib::Wall::EPOCH,
+            jig_client::contract::OwnerActivity::RunBegan {
                 attempt: 1,
-                how: c::RunBeginning::Resumed,
-                why: fixtures::acts::text(b"resume"),
+                why: jig_client::contract::OwnerRunWhy::Made,
+                resumed: false,
             },
-        })
+        ))
         .unwrap();
     }
     let cursor = c::Cursor::new(Box::from(*b"older"), 5).unwrap();

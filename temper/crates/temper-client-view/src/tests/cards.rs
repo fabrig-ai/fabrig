@@ -174,29 +174,29 @@ fn a_proposals_title_and_labelled_facts_follow_the_mockup() {
 
 fn document_proposal() -> c::ReadValue {
     let key = fixtures::chat::PROPOSAL;
-    c::ReadValue::Proposal(Box::new(c::Proposal {
-        key,
-        project: fixtures::PROJECT,
-        proposer: key.proposer,
-        why: fixtures::first_run::text(b"It touches sign-in."),
-        action: c::ProposalAction::Batch { tasks: skein_lib::List::with_capacity(0), own: true },
-        needs: c::Authority {
-            models: None,
-            budget: FUNDS,
-            grants: skein_lib::List::with_capacity(0),
-            task_kinds: skein_lib::List::with_capacity(0),
-            depth: 1,
-            tasks: 1,
-            deadline: None,
-            tools: skein_lib::List::with_capacity(0),
-            note_scopes: skein_lib::List::with_capacity(0),
-        },
-        funding: c::Budget { total: LEFT, own: 0, ended: 0, reserved: 0, left: LEFT, funder: c::Actor::Party(73) },
-        waiting: c::Recipient::Party(73),
-        trail: skein_lib::List::with_capacity(0),
-        since: skein_lib::Wall::EPOCH,
-        acts: skein_lib::List::with_capacity(0),
-        ending: None,
+    c::ReadValue::OwnerProposal(Box::new({
+        let mut funding = skein_lib::List::with_capacity(1);
+        funding
+            .push(c::OwnerFundingOffer {
+                source: c::Funder::Pool { project: fixtures::PROJECT, person: 73, period: 1 },
+                needed: FUNDS,
+                left: Some(LEFT),
+                after: Some((LEFT).saturating_sub(FUNDS)),
+            })
+            .expect("one funding source");
+        c::OwnerProposal {
+            key: key,
+            project: fixtures::PROJECT,
+            reason: c::DocumentText::complete(fixtures::first_run::text(b"It touches sign-in.")),
+            action: c::OwnerProposalAction::Batch(skein_lib::List::with_capacity(0)),
+            as_holder: true,
+            waiting: c::OwnerProposalWaiting {
+                holder: c::OwnerHistoryHolder::Person(73),
+                since: skein_lib::Wall::EPOCH,
+            },
+            funding,
+            acts: skein_lib::List::with_capacity(0),
+        }
     }))
 }
 fn occurrences(tree: &skein_ui::Tree, text: &[u8]) -> usize {
@@ -312,12 +312,12 @@ fn proposal_facts_are_labelled_joined_and_contained_in_their_rows() {
     let mut document = document_proposal();
     let c::ReadValue::OwnerProposal(source) = &owner else { panic!("owner proposal") };
     let c::OwnerProposalAction::Batch(tasks) = &source.action else { panic!("batch") };
-    let c::ReadValue::Proposal(target) = &mut document else { panic!("document proposal") };
+    let c::ReadValue::OwnerProposal(target) = &mut document else { panic!("document proposal") };
     let mut tasks = tasks.clone();
     let task = tasks.get_mut(0).unwrap();
     task.authority.authority.delegation.tasks = 0;
     task.authority.authority.delegation.depth = 0;
-    target.action = c::ProposalAction::Batch { tasks, own: true };
+    target.action = c::OwnerProposalAction::Batch(tasks);
     for (page, _delegation, budget) in [
         (owner, "1 task, depth 1", "Funds 40 from your pool · 120 left, 80 after"),
         (document, "0 tasks, depth 0", "Funds 40 from your pool · 120 left, 80 after"),
@@ -370,7 +370,7 @@ fn a_non_batch_proposal_keeps_its_deciding_facts() {
 fn a_budget_held_card_names_the_task_to_amend_and_explains_release() {
     let mut task = fixtures::task::document();
     task.chip.task = OTHER_TASK;
-    task.hold = Some(c::TaskHold::Owner(Box::new(c::OwnerChipHold {
+    task.hold = Some(Box::new(c::OwnerChipHold {
         placed: None,
         words: None,
         circle: None,
@@ -382,7 +382,7 @@ fn a_budget_held_card_names_the_task_to_amend_and_explains_release() {
         escalation: None,
         tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
         hold_wait_since: None,
-    })));
+    }));
     let mut builder = Builder::new(&fixtures::tree_limits());
     crate::cards::proposal(&mut builder, &c::ReadValue::Task(Box::new(task)), &fixtures::words(), 4);
     let text = fixtures::text(&builder.finish());

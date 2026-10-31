@@ -112,9 +112,7 @@ fn fresh_ended_advisor_keeps_its_brief_and_result_across_reload() {
     );
     let task = world.root(client).person().pages().task().expect("advisor page");
     let document = task.document(world.root(client).person().client()).expect("advisor document");
-    let jig_client::contract::ChipPhase::Owner { details, .. } = document.chip.details.as_ref() else {
-        panic!("owner chip")
-    };
+    let jig_client::contract::ChipPhase { details, .. } = document.chip.details.as_ref();
     let ended = format!("Run {} · ended", details.attempt.expect("advisor had a run"));
     let client = world.client(f::PARTY, f::task_page(plan.advisor));
     follow(

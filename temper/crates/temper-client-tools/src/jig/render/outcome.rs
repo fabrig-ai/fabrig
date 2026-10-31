@@ -264,7 +264,7 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
         c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountMovedIn { account, renewed })) => {
             moved_in(*account, *renewed, out);
         }
-        c::Answer::Done(c::Outcome::Proposed { proposal }) => proposed(*proposal, operation, me, out),
+
         c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Proposed { proposal, .. })) => proposed(
             c::ProposalKey {
                 proposer: c::Proposer::Party(operation.party.expect("request party retained")),
@@ -279,14 +279,7 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
         })) => {
             repeated_text(*by, *at, *choice, me, out);
         }
-        c::Answer::Done(c::Outcome::DecidedFirst { by, how, at }) => {
-            out.put(b"decided first: by ");
-            out.put(by.name.bytes());
-            out.put(b", ");
-            decision(how, out);
-            out.put(b", ");
-            document::utc(*at, out);
-        }
+
         c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountProgramDeclared { source, name })) => {
             out.put(b"Program source ");
             out.number(u64::from(*source));
@@ -325,12 +318,7 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
                 }
                 c::Outcome::Made { what: c::Made::Tasks { tasks } } => tasks.get(0).copied(),
                 c::Outcome::Owner(c::OwnerOutcome::Created { first, .. }) => Some(*first),
-                c::Outcome::Owner(_)
-                | c::Outcome::Made { .. }
-                | c::Outcome::Proposed { .. }
-                | c::Outcome::Decided { .. }
-                | c::Outcome::DecidedFirst { .. }
-                | c::Outcome::Changed => operation.task,
+                c::Outcome::Owner(_) | c::Outcome::Made { .. } => operation.task,
             };
             if let Some(task) = task {
                 out.put(b"task ");
@@ -379,15 +367,7 @@ fn proposed(proposal: c::ProposalKey, operation: &Operation, me: Option<&c::Me>,
         acts::recipient(to, me, out);
     }
 }
-fn decision(how: &c::Decision, out: &mut Text) {
-    out.put(match how {
-        c::Decision::Accepted => b"accepted",
-        c::Decision::Rejected { .. } => b"rejected",
-        c::Decision::PassedUp => b"passed up",
-        c::Decision::Released { .. } => b"released",
-        c::Decision::LeftHeld { .. } => b"left held",
-    });
-}
+
 fn encode(
     operation: &Operation,
     outcome: &Outcome,
@@ -427,17 +407,6 @@ fn encode(
             out.key(b"file");
             out.string(operation.file.as_deref().expect("export file"));
             out.object_end();
-        } else if (kept || operation.word == b"propose_settings")
-            && let c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Proposed { proposal, .. })) = answer
-        {
-            // A formatter projection of the actual original result; the client outcome stays intact.
-            let projected = c::Answer::Done(c::Outcome::Proposed {
-                proposal: c::ProposalKey {
-                    proposer: c::Proposer::Party(operation.party.expect("request party retained")),
-                    number: *proposal,
-                },
-            });
-            document::answer_json(&projected, out);
         } else {
             document::answer_json(answer, out);
         }

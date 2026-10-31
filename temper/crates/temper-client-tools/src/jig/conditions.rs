@@ -27,23 +27,7 @@ pub fn holds(condition: &Condition, facts: &Facts<'_>) -> Option<bool> {
             | Condition::Changed
             | Condition::Phase(_) => None,
         },
-        c::Delivery::Inbox(inbox) => match condition {
-            Condition::Waiting => Some(
-                inbox.needs.questions > 0
-                    || inbox.needs.proposals > 0
-                    || inbox.needs.escalations > 0
-                    || inbox.needs.person_tasks > 0,
-            ),
-            Condition::Updates => Some(inbox.updates.value > 0),
-            Condition::Usable
-            | Condition::Settled
-            | Condition::Ended
-            | Condition::WaitingOnMe
-            | Condition::Held
-            | Condition::Replied
-            | Condition::Changed
-            | Condition::Phase(_) => None,
-        },
+
         c::Delivery::OwnerInbox(inbox) => match condition {
             Condition::Waiting => Some(inbox.cached_needs > 0),
             Condition::Updates => Some(inbox.cached_updates.value > 0),
@@ -57,17 +41,7 @@ pub fn holds(condition: &Condition, facts: &Facts<'_>) -> Option<bool> {
             | Condition::Phase(_) => None,
         },
         c::Delivery::Task(task) => task_holds(*condition, task, facts.me),
-        c::Delivery::Tree(tree) => {
-            if *condition != Condition::Ended {
-                return None;
-            }
-            for node in &tree.nodes {
-                if node.chip.task == tree.task {
-                    return Some(ended(node.chip.phase));
-                }
-            }
-            None
-        }
+
         c::Delivery::OwnerTree(tree) => {
             if *condition == Condition::Ended {
                 Some(ended(tree.root.phase))
@@ -98,9 +72,7 @@ pub fn holds(condition: &Condition, facts: &Facts<'_>) -> Option<bool> {
         | c::Delivery::OwnerProposal(_)
         | c::Delivery::Chips(_)
         | c::Delivery::Tasks(_)
-        | c::Delivery::Run(_)
         | c::Delivery::Settings(_)
-        | c::Delivery::Deployment(_)
         | c::Delivery::OwnerDeployment(_) => None,
     }
 }

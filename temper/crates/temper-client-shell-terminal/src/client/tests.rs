@@ -16,8 +16,8 @@ fn held_startup_keeps_the_first_quiet_chat_activity_answer() {
     assert_eq!(chat.thread.lines.rows.len(), 1, "the first activity answer reaches the actual page");
     assert_eq!(credential, Some(fixtures::credential()), "first read uses the installed held credential");
     assert!(matches!(
-        chat.thread.lines.rows.as_slice()[0].event,
-        jig_client::contract::Activity::RunBegan { attempt: fixtures::RUN, .. }
+        chat.thread.lines.rows.as_slice()[0].source.line,
+        jig_client::contract::OwnerActivity::RunBegan { attempt: fixtures::RUN, .. }
     ));
     assert!(
         matches!(chat.thread.lines().as_slice(), [jig_client::thread::Line::RunBegan { attempt: fixtures::RUN }]),

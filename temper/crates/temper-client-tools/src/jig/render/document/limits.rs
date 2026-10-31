@@ -72,10 +72,10 @@ fn encode_lacking_budget(needed: u64, left: u64, out: &mut Encoder, _budget: &mu
     out.object_end();
 }
 
-fn encode_lacking_grant(field_0: &jig_client::contract::Grant, out: &mut Encoder, budget: &mut super::Cut) {
+fn encode_lacking_grant(field_0: &jig_client::contract::OwnerGrant, out: &mut Encoder, budget: &mut super::Cut) {
     out.object_start();
     out.key(b"grant");
-    super::encode_grant(field_0, out, budget);
+    super::encode_owner_grant(field_0, out, budget);
     out.object_end();
 }
 

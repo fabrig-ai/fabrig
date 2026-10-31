@@ -623,8 +623,12 @@ pub fn inbox_facts(
         (Object::Task(INBOX_REPLY_TASK), Group::Replies),
     ] {
         entries
-            .push(contract::InboxEntry {
-                reply: if group == Group::Replies {
+            .push(crate::tests::documents::entry(
+                object,
+                PROJECT,
+                INBOX_POSITION,
+                Wall::EPOCH,
+                if group == Group::Replies {
                     let mut line = super::chats::line();
                     line.chip.task = INBOX_REPLY_TASK;
                     if let Some(unread) = unread {
@@ -634,25 +638,22 @@ pub fn inbox_facts(
                 } else {
                     None
                 },
-                lineage: List::with_capacity(0),
-                goal: None,
-                recipient: None,
-                stall: None,
-                object,
-                project: PROJECT,
-                group,
-                position: INBOX_POSITION,
-                at: Wall::EPOCH,
-            })
+            ))
             .expect("six kinds");
     }
-    let inbox = contract::Inbox {
-        entries,
-        needs: contract::Needs { questions: 1, proposals: 1, escalations: 1, person_tasks: 1 },
-        updates: contract::Count { value: 2, limited: false },
-        results_seen: 0,
-        replies_seen: List::with_capacity(0),
-        more: cut,
+    let inbox = {
+        let counts = contract::Needs { questions: 1, proposals: 1, escalations: 1, person_tasks: 1 };
+        crate::tests::documents::inbox(
+            entries,
+            counts
+                .questions
+                .saturating_add(counts.proposals)
+                .saturating_add(counts.escalations)
+                .saturating_add(counts.person_tasks),
+            contract::Count { value: 2, limited: false },
+            0,
+            cut,
+        )
     };
     temper_client_domain::step(
         &mut root,
@@ -661,7 +662,7 @@ pub fn inbox_facts(
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch: watch.expect("inbox watch"),
-                    event: contract::WatchEvent::Delivered(contract::Delivery::Inbox(Box::new(inbox))),
+                    event: contract::WatchEvent::Delivered(contract::Delivery::OwnerInbox(Box::new(inbox))),
                 },
             },
         },

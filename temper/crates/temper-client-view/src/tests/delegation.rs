@@ -29,7 +29,7 @@ fn change() -> c::Task {
     task.hold = None;
     task.result = None;
     task.result_contract = c::TaskContractDocument::Change { connector: fixtures::FORGE, kind: 1, words: 256 };
-    let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner chip") };
+    let c::ChipPhase { details, .. } = task.chip.details.as_mut();
     details.ending = None;
     task
 }
@@ -155,7 +155,7 @@ fn root_chat_with_reads(
                     chip.task = *task;
                     chat.delegates.push(c::LiveDelegate { chip, takeover_budget: 0 }).expect("delegate");
                 }
-                chat.activity = activity.rows.get(0).expect("newest activity").position;
+                chat.activity = activity.rows.get(0).expect("newest activity").source.position;
                 up(&mut root, task_delivery(watch, chat), receiving, &mut out);
             }
             Request::Client {
@@ -217,35 +217,31 @@ fn activity(called: &[u64], heard: bool) -> c::ActivityPage {
     let mut rows = List::with_capacity(4);
     if heard {
         for (position, from, words) in [(5, CHANGE, b"Carded result".as_slice()), (4, 3, b"Another task's result")] {
-            rows.push(c::ActivityLine {
-                position,
-                at: Wall::EPOCH,
-                event: c::Activity::Owner {
-                    source: Box::new(c::OwnerActivityLine {
-                        task: CHAT,
-                        position,
+            rows.push(jig_client::contract::ActivityLine {
+                source: Box::new(c::OwnerActivityLine {
+                    task: CHAT,
+                    position,
+                    at: Wall::EPOCH,
+                    line: c::OwnerActivity::Heard(c::OwnerWord {
+                        number: position,
+                        from: c::OwnerRequester::Task(from),
+                        kind: c::OwnerMessageKind::Result(c::OwnerWordResult::Report),
+                        words: text(words),
                         at: Wall::EPOCH,
-                        line: c::OwnerActivity::Heard(c::OwnerWord {
-                            number: position,
-                            from: c::OwnerRequester::Task(from),
-                            kind: c::OwnerMessageKind::Result(c::OwnerWordResult::Report),
-                            words: text(words),
-                            at: Wall::EPOCH,
-                            hits: 0,
-                            eligible: false,
-                        }),
+                        hits: 0,
+                        eligible: false,
                     }),
-                    decoded: None,
-                },
+                }),
+                decoded: None,
             })
             .expect("heard line");
         }
         let task = change();
-        rows.push(c::ActivityLine {
-            position: 3,
-            at: Wall::EPOCH,
-            event: c::Activity::Result {
-                result: c::Result {
+        rows.push({
+            let mut line = crate::tests::documents::result(
+                1,
+                skein_lib::Wall::EPOCH,
+                c::Result {
                     task: task.chip,
                     ending: c::Ending::Done,
                     value: Some(c::ResultValue::Report(document(b"Duplicate result"))),
@@ -253,24 +249,25 @@ fn activity(called: &[u64], heard: bool) -> c::ActivityPage {
                     details: None,
                     acts: List::with_capacity(0),
                 },
-            },
+            );
+            line.source.position = 3;
+            line.source.at = Wall::EPOCH;
+            line
         })
         .expect("result line");
     }
-    rows.push(c::ActivityLine {
-        position: 2,
-        at: Wall::EPOCH,
-        event: c::Activity::Turn {
-            name: c::TurnName { attempt: 1, number: 1 },
-            turn: c::TurnRead::Decoded(c::Turn {
-                messages,
-                used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
-                spent: 0,
-                read_through: None,
-                cut: false,
-            }),
-        },
-    })
+    rows.push(crate::tests::documents::turn(
+        2,
+        Wall::EPOCH,
+        c::TurnName { attempt: 1, number: 1 },
+        c::TurnRead::Decoded(c::Turn {
+            messages,
+            used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
+            spent: 0,
+            read_through: None,
+            cut: false,
+        }),
+    ))
     .expect("turn");
     c::ActivityPage { rows, before: None, after: None, cut: false }
 }
@@ -325,11 +322,19 @@ fn steps(view: &crate::View, done: bool) {
 }
 fn after_call() -> c::ActivityPage {
     let mut rows = List::with_capacity(1);
-    rows.push(c::ActivityLine {
-        position: 3,
-        at: Wall::EPOCH,
-        event: c::Activity::News { topic: 0, summary: text(LATER), part: None },
-    })
+    rows.push(crate::tests::documents::line(
+        3,
+        Wall::EPOCH,
+        jig_client::contract::OwnerActivity::Heard(jig_client::contract::OwnerWord {
+            number: 3,
+            from: jig_client::contract::OwnerRequester::Task(0),
+            kind: jig_client::contract::OwnerMessageKind::Words,
+            words: text(LATER),
+            at: Wall::EPOCH,
+            hits: 1,
+            eligible: true,
+        }),
+    ))
     .expect("later activity");
     c::ActivityPage { rows, before: None, after: None, cut: false }
 }
@@ -450,20 +455,18 @@ fn wake(called: bool, summary: &[u8]) -> c::ActivityPage {
     let mut messages = List::with_capacity(1);
     messages.push(c::Message { speaker: c::Speaker::Person, blocks }).expect("wake message");
     let mut rows = List::with_capacity(2);
-    rows.push(c::ActivityLine {
-        position: 3,
-        at: Wall::EPOCH,
-        event: c::Activity::Turn {
-            name: c::TurnName { attempt: 2, number: 1 },
-            turn: c::TurnRead::Decoded(c::Turn {
-                messages,
-                used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
-                spent: 0,
-                read_through: None,
-                cut: false,
-            }),
-        },
-    })
+    rows.push(crate::tests::documents::turn(
+        3,
+        Wall::EPOCH,
+        c::TurnName { attempt: 2, number: 1 },
+        c::TurnRead::Decoded(c::Turn {
+            messages,
+            used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
+            spent: 0,
+            read_through: None,
+            cut: false,
+        }),
+    ))
     .expect("wake turn");
     if called {
         for line in &activity(&[CHANGE], false).rows {
@@ -545,22 +548,32 @@ fn a_partly_carded_result_draws_no_input_work() {
 fn each_state_says_its_words_in_its_status_look() {
     for (ending, held, name, token) in [
         (None, true, b"Held".as_slice(), look::STATUS_HELD),
-        (Some(c::Ending::Done), false, b"Completed", look::STATUS_DONE),
-        (Some(c::Ending::Failed { reason: None }), false, b"Failed", look::STATUS_HELD),
         (
-            Some(c::Ending::Cancelled { reason: None, by: c::Actor::Party(1), at: None }),
+            Some(c::OwnerChipEnding::Done(c::ResultValue::Report(document(b"Done")))),
+            false,
+            b"Completed",
+            look::STATUS_DONE,
+        ),
+        (Some(c::OwnerChipEnding::Failed(document(b"Failed"))), false, b"Failed", look::STATUS_HELD),
+        (
+            Some(c::OwnerChipEnding::Cancelled {
+                reason: document(b"Cancelled"),
+                by: c::OwnerRequester::Person(1),
+                result: None,
+                at: Wall::EPOCH,
+            }),
             false,
             b"Cancelled",
             look::STATUS_QUIET,
         ),
-        (Some(c::Ending::Deleted), false, b"Ended", look::STATUS_QUIET),
     ] {
         let mut task = change();
         if held {
             task.chip.phase = c::Phase::Held;
         }
         if let Some(ending) = ending {
-            task.chip.details = Box::new(c::ChipPhase::Ended { how: ending, at: Wall::EPOCH });
+            task.chip.details.phase = c::OwnerChipPhase::Ended;
+            task.chip.details.details.ending = Some(ending);
         }
         let view = view(Some(task), &[CHANGE], false);
         status(&view, name, token);
@@ -755,9 +768,9 @@ fn csv_chat_hears_its_result(turn_text: u32) {
     let mut activity = run::activity(false, true, receiving.client.domain.turn_text);
     let mut rows = List::with_capacity(6);
     for line in &activity.rows {
-        if line.position <= 6 {
+        if line.source.position <= 6 {
             let mut line = line.clone();
-            if let c::Activity::Owner { source, .. } = &mut line.event
+            if let c::ActivityLine { source, .. } = line
                 && let c::OwnerActivity::Heard(word) = &mut source.line
             {
                 word.words = run::text(b"1d0b14e4db018fed000000000000000300000000");
@@ -771,7 +784,7 @@ fn csv_chat_hears_its_result(turn_text: u32) {
     chat.requester = c::OwnerRequester::Person(fixtures::chat::PARTY);
     chat.waits_on = c::WaitsOn::News;
     chat.wake.words = c::WakeRule::Immediate;
-    let c::ChipPhase::Owner { details, .. } = chat.chip.details.as_mut() else { panic!("owner") };
+    let c::ChipPhase { details, .. } = chat.chip.details.as_mut();
     details.live_delegates = 0;
     let mut task = change();
     task.requester = c::OwnerRequester::Task(CHAT);
@@ -845,7 +858,7 @@ fn the_csv_chat_stops_waiting_when_its_card_lands_before_the_chat_document() {
     chat.requester = c::OwnerRequester::Person(fixtures::chat::PARTY);
     chat.waits_on = c::WaitsOn::Delegates;
     chat.wake.words = c::WakeRule::Immediate;
-    let c::ChipPhase::Owner { details, .. } = chat.chip.details.as_mut() else { panic!("owner") };
+    let c::ChipPhase { details, .. } = chat.chip.details.as_mut();
     details.live_delegates = 1;
     let mut task = change();
     task.requester = c::OwnerRequester::Task(CHAT);

@@ -153,7 +153,7 @@ impl NativeClient {
             let mut retained = List::with_capacity(chat.thread.lines.rows.capacity());
             for row in &chat.thread.lines.rows {
                 retained
-                    .push(Row { position: row.position, committed_turn: row.event.committed_turn() })
+                    .push(Row { position: row.source.position, committed_turn: row.committed_turn() })
                     .expect("one diagnostic per retained row");
             }
             let reading = match &chat.thread.reading {

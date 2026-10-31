@@ -655,7 +655,7 @@ fn a_refused_next_run_says_why() {
         let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
         task.flags.ended_by = c::EndedBy::Requester;
         task.run_wait = Some(c::TaskRunWait::Refused(refusal));
-        let c::ChipPhase::Owner { phase, .. } = task.chip.details.as_mut() else { panic!("owner") };
+        let c::ChipPhase { phase, .. } = task.chip.details.as_mut();
         *phase = c::OwnerChipPhase::Active(c::RunStage::Due);
         let (mut root, _, watch) =
             fixtures::root_at(Address::Chat { task: fixtures::chat::TASK }, &fixtures::domain_limits());
@@ -969,7 +969,9 @@ fn pending_choice_outcome_and_wait_are_siblings_after_the_chooser() {
                 up: jig_client::Up::Answer {
                     attempt,
                     envelope: skein_lib::RequestEnvelope::Final,
-                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Changed))),
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
+                        c::OwnerOutcome::Amended { task: 9 },
+                    )))),
                     why: None,
                 },
             },

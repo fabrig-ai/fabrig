@@ -27,7 +27,7 @@ pub fn task() -> c::Task {
 }
 pub fn phase(task: &mut c::Task, phase: c::OwnerChipPhase) {
     task.chip.phase = phase.compact();
-    let c::ChipPhase::Owner { phase: target, .. } = task.chip.details.as_mut() else { panic!("owner chip") };
+    let c::ChipPhase { phase: target, .. } = task.chip.details.as_mut();
     *target = phase;
 }
 pub struct Fixture {
@@ -183,7 +183,7 @@ pub fn change() -> c::Task {
     task.hold = None;
     task.result = None;
     task.result_contract = c::TaskContractDocument::Change { connector: FORGE, kind: 1, words: 64 };
-    let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner chip") };
+    let c::ChipPhase { details, .. } = task.chip.details.as_mut();
     details.ending = None;
     task
 }
@@ -206,14 +206,12 @@ pub fn activity_reply(speaker: c::Speaker, blocks: List<c::Block>, position: u64
         cut: false,
     };
     let mut rows = List::with_capacity(ONE);
-    rows.push(c::ActivityLine {
+    rows.push(crate::tests::documents::turn(
         position,
-        at: Wall::EPOCH,
-        event: c::Activity::Turn {
-            name: c::TurnName { attempt: ATTEMPT, number: u32::try_from(position).expect("fixture turn") },
-            turn: c::TurnRead::Decoded(turn),
-        },
-    })
+        Wall::EPOCH,
+        c::TurnName { attempt: ATTEMPT, number: u32::try_from(position).expect("fixture turn") },
+        c::TurnRead::Decoded(turn),
+    ))
     .expect("turn");
     jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
         rows,

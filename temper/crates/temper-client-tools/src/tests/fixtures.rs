@@ -701,14 +701,14 @@ pub(crate) fn long_resource(task: &mut c::Task) {
     let path = long_path();
     task.resources = List::with_capacity(RESOURCES);
     task.resources
-        .push(c::TaskResource::Owner(Box::new(c::OwnerResourceLine {
+        .push(c::OwnerResourceLine {
             part: c::OwnerPart { connector: 4, kind: c::OwnerPartKind::Resource, key: c::OwnerPartKey::Path(path) },
             kind: 2,
             taken: false,
             holder: None,
             writer: None,
             writer_lost: false,
-        })))
+        })
         .expect("one owner resource");
 }
 

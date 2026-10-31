@@ -53,11 +53,6 @@ pub(super) fn chip(chip: &c::Chip, book: &Phrasebook, out: &mut Text) {
 pub(super) fn tree(delivery: &c::Delivery, project: Option<u32>, book: &Phrasebook, out: &mut Text) {
     out.put(b"tree:\n");
     match delivery {
-        c::Delivery::Tree(tree) => {
-            for row in &tree.nodes {
-                chip(&row.chip, book, out);
-            }
-        }
         c::Delivery::OwnerTree(tree) => {
             chip(&tree.root, book, out);
             for row in &tree.rows {
@@ -70,13 +65,10 @@ pub(super) fn tree(delivery: &c::Delivery, project: Option<u32>, book: &Phrasebo
         | c::Delivery::Task(_)
         | c::Delivery::OwnerProposal(_)
         | c::Delivery::Chips(_)
-        | c::Delivery::Inbox(_)
         | c::Delivery::OwnerInbox(_)
         | c::Delivery::Tasks(_)
-        | c::Delivery::Run(_)
         | c::Delivery::RunState(_)
         | c::Delivery::Settings(_)
-        | c::Delivery::Deployment(_)
         | c::Delivery::OwnerDeployment(_)
         | c::Delivery::OwnerAccounts(_) => unreachable!("tree watch delivers a tree"),
     }
@@ -133,10 +125,9 @@ fn tree_cut(tree: &c::OwnerTree, project: Option<u32>, book: &Phrasebook, out: &
         }
     }
     out.put(b"); read on with: ");
-    let project = if let c::ChipPhase::Owner { details, .. } = tree.root.details.as_ref() {
+    let project = {
+        let c::ChipPhase { details, .. } = tree.root.details.as_ref();
         details.project
-    } else {
-        project.expect("the tree call read its root's project")
     };
     let values = Box::new([
         Some(Values::One(Value::Project(crate::jig::call::Project::Number(project)))),
@@ -231,14 +222,6 @@ pub(super) fn inboxes(reading: &Reading, limits: &crate::jig::Limits, book: &Phr
             continue;
         }
         match page {
-            Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page))) => {
-                for row in page.rows.as_slice().iter().take(usize::try_from(rows).expect("rows fit")) {
-                    object(row.object, out);
-                    if let c::ObjectKey::Question { task, message } = row.object {
-                        question(reading, (task, message), out);
-                    }
-                }
-            }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::OwnerInbox(page))) => {
                 for row in page.rows.as_slice().iter().take(usize::try_from(rows).expect("rows fit")) {
                     owner_inbox_row(row, book, out);
@@ -284,7 +267,6 @@ pub(super) fn inbox_cursor(reading: &Reading, rows: u32) -> Option<c::Cursor> {
 }
 fn inbox_page(page: &Readout) -> (u32, Option<&c::Cursor>) {
     match page {
-        Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page))) => (page.rows.len(), page.after.as_ref()),
         Readout::Jig(c::ReadResult::Value(c::ReadValue::OwnerInbox(page))) => (page.rows.len(), page.after.as_ref()),
         Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => {
             unreachable!("validated inbox page")
@@ -304,8 +286,7 @@ fn group_cursor(group: u8, after: Option<&c::Cursor>) -> c::Cursor {
 pub(super) fn owner_inbox_row(row: &c::OwnerInboxEntry, book: &Phrasebook, out: &mut Text) {
     object(row.card_key(), out);
     if let c::OwnerTaskLink::Live(chip) | c::OwnerTaskLink::Retained { chip, .. } = &row.task
-        && let c::ChipPhase::Owner { phase, .. } = chip.details.as_ref()
-        && let c::OwnerChipPhase::Held { reason: c::HoldCategory::Budget, .. } = phase
+        && let c::OwnerChipPhase::Held { reason: c::HoldCategory::Budget, .. } = (&(chip.details.as_ref()).phase)
     {
         super::document::budget_hold_text(chip.task, book, out);
     }

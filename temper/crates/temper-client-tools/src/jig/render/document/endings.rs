@@ -84,40 +84,6 @@ pub(super) fn encode_ending(value: &jig_client::contract::Ending, out: &mut Enco
     }
 }
 
-pub(super) fn encode_escalation(value: &jig_client::contract::Escalation, out: &mut Encoder, budget: &mut super::Cut) {
-    out.object_start();
-    out.key(b"ending");
-    match &value.ending {
-        Some(item_1) => {
-            encode_ending(item_1, out, budget);
-        }
-        None => out.null(),
-    }
-    out.key(b"task");
-    super::encode_chip(&value.task, out, budget);
-    out.key(b"hold");
-    super::encode_hold(&value.hold, out, budget);
-    out.key(b"steering");
-    super::encode_steering(&value.steering, out, budget);
-    out.key(b"impact");
-    super::encode_impact(&value.impact, out, budget);
-    out.key(b"waiting");
-    super::encode_recipient(&value.waiting, out, budget);
-    out.key(b"trail");
-    out.array_start();
-    for item_2 in &value.trail {
-        super::encode_passed(item_2, out, budget);
-    }
-    out.array_end();
-    out.key(b"acts");
-    out.array_start();
-    for item_3 in &value.acts {
-        super::encode_offered(item_3, out, budget);
-    }
-    out.array_end();
-    out.object_end();
-}
-
 pub(super) fn encode_executor(value: &jig_client::contract::Executor, out: &mut Encoder, _budget: &mut super::Cut) {
     match value {
         jig_client::contract::Executor::Agent { charter } => {

@@ -2,6 +2,8 @@ mod chats;
 mod choice;
 mod confirm;
 mod delegation;
+#[path = "../../../testing/client_documents.rs"]
+pub mod documents;
 pub(crate) mod fixtures;
 mod forge_page;
 mod forges;

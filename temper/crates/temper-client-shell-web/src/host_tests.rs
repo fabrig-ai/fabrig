@@ -365,15 +365,18 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
             .expect("task delivery"),
         ),
     );
-    let event = w::Activity::RunBegan(
-        w::ActivityRunBegan::new(
+    let event = w::OwnerActivity::RunBegan(
+        w::OwnerActivityRunBegan::new(
             &w::CEILINGS,
-            w::ActivityRunBeganParts { attempt: RUN, how: w::RunBeginning::Resumed, why: Box::from([]) },
+            w::OwnerActivityRunBeganParts { attempt: RUN, why: w::OwnerRunWhy::Made, resumed: true },
         )
         .expect("run marker"),
     );
+    let source =
+        w::OwnerActivityLine::new(&w::CEILINGS, w::OwnerActivityLineParts { task: 9, position: 1, at: 1, line: event })
+            .expect("source row");
     let line =
-        w::ActivityLine::new(&w::CEILINGS, w::ActivityLineParts { position: 1, at: 1, event }).expect("activity line");
+        w::ActivityLine::new(&w::CEILINGS, w::ActivityLineParts { source, decoded: None }).expect("activity row");
     let page = jig_client_test_records::activity_rows(&[line]);
     let value = w::ReadValue::Activity(page);
     let answer = w::ReadAnswer::Value(owned(encoded(value.measure(), |writer| value.encode(writer))));

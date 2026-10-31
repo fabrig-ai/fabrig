@@ -1314,7 +1314,7 @@ fn settings_acceptance_defaults_to_stays_and_preserves_other_decisions() {
                     panic!("proposal decision")
                 };
                 assert_eq!(*running, expected, "settings {settings}, {argv:?}, json {json}");
-                root.done(call, c::Outcome::Changed);
+                root.done(call, c::Outcome::Owner(c::OwnerOutcome::Amended { task: 9 }));
                 assert_eq!(root.answer(call).expect("decision answered").status, 0);
             }
         }

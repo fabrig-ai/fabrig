@@ -323,9 +323,7 @@ pub(crate) fn header(
         if let Some(word) = temper_client_domain::forge::change::unavailable(&panel.state) {
             text(b, Role::Paragraph, &super::change::say(words, word, &[]));
         }
-    } else if let c::ChipPhase::Owner { details, .. } = task.chip.details.as_ref()
-        && let Some(part) = &details.procedure
-    {
+    } else if let Some(part) = &task.chip.details.details.procedure {
         crate::forge::owner_part(b, part, words);
     }
     if let c::Executor::Procedure { .. } = task.chip.executor
@@ -473,10 +471,7 @@ pub(crate) fn asked(b: &mut Builder, task: &c::Task, words: &Words) {
         b.style(look::META);
     }
     for resource in &task.resources {
-        match resource {
-            c::TaskResource::Part(part) => crate::forge::drawn(b, part, words),
-            c::TaskResource::Owner(resource) => crate::forge::owner_part(b, &resource.part, words),
-        }
+        crate::forge::owner_part(b, &resource.part, words);
     }
     if let Some(context) = &task.context {
         for part in &context.parts {
@@ -598,7 +593,8 @@ fn chip(b: &mut Builder, chip: &c::Chip, words: &Words, bindings: &mut Bindings)
     b.close();
     executor(b, chip.executor, words);
     state(b, task::row_state(chip), words);
-    if let c::ChipPhase::Owner { details, .. } = chip.details.as_ref() {
+    {
+        let c::ChipPhase { details, .. } = chip.details.as_ref();
         b.open(Role::Paragraph);
         b.style(look::PLAN_SPEND);
         let name = words.say(Word::RowSpent, &[Hole::Number(details.budget.numbers.spent)]);
@@ -606,9 +602,7 @@ fn chip(b: &mut Builder, chip: &c::Chip, words: &Words, bindings: &mut Bindings)
         b.text(Run::Plain, &name);
         b.close();
     }
-    if let c::ChipPhase::Owner { details, .. } = chip.details.as_ref()
-        && let Some(part) = &details.procedure
-    {
+    if let Some(part) = &chip.details.details.procedure {
         crate::forge::owner_part(b, part, words);
     }
     b.close();
@@ -764,7 +758,8 @@ impl<'a> Plan<'a> {
         };
         let goal = if word == Word::Plan && page.ended.is_some() {
             let mut live = 0;
-            if let c::ChipPhase::Owner { details, .. } = task.chip.details.as_ref() {
+            {
+                let c::ChipPhase { details, .. } = task.chip.details.as_ref();
                 live = details.live_delegates;
             }
             Some((page.filter, live))
@@ -814,10 +809,9 @@ fn owner_plan_row(
     rows: u32,
 ) {
     chip(b, &row.chip, words, bindings);
-    let facts = if let c::ChipPhase::Owner { details, .. } = row.chip.details.as_ref() {
+    let facts = {
+        let c::ChipPhase { details, .. } = row.chip.details.as_ref();
         details.dependencies.as_slice()
-    } else {
-        &[]
     };
     dependencies(b, row.chip.task, &row.dependencies, facts, row.cut, root.pages().me(root.client()), words, bindings);
     controls(b, &row.chip, root, words, bindings, rows);
@@ -866,48 +860,8 @@ pub(crate) fn plan(
             parent(b, &mut stack, None);
             has_tree_content |= folded(b, &[], tree.held_below, words);
         }
-        Some(c::Delivery::Tree(tree)) => {
-            let mut stack = List::with_capacity(tree.nodes.len());
-            let mut rows_by_parent = List::with_capacity(tree.nodes.len());
-            for node in &tree.nodes {
-                rows_by_parent.push((node.chip.task, node.parent)).expect("tree rows fit");
-            }
-            let order = tree_order(tree.task, rows_by_parent.as_slice());
-            for index in &order {
-                let node = tree.nodes.get(*index).expect("ordered tree node");
-                if node.parent == Some(tree.task) && ended_rows.precedes(node.chip.task) {
-                    parent(b, &mut stack, None);
-                    has_tree_content |= ended_rows.before(b, Some(node.chip.task), root, words, bindings, rows);
-                }
-                parent(b, &mut stack, node.parent);
-                if node.chip.task != tree.task {
-                    has_tree_content = true;
-                    chip(b, &node.chip, words, bindings);
-                    controls(b, &node.chip, root, words, bindings, rows);
-                    stack.push(node.chip.task).expect("tree stack fits");
-                }
-                has_tree_content |= counts(b, node.folded, node.held_below, words);
-            }
-            parent(b, &mut stack, None);
-            has_tree_content |= counts(b, tree.folded, tree.held_below, words);
-        }
-        Some(
-            c::Delivery::OwnerProject(_)
-            | c::Delivery::Me(_)
-            | c::Delivery::Task(_)
-            | c::Delivery::OwnerProposal(_)
-            | c::Delivery::Chips(_)
-            | c::Delivery::Inbox(_)
-            | c::Delivery::OwnerInbox(_)
-            | c::Delivery::Tasks(_)
-            | c::Delivery::Run(_)
-            | c::Delivery::RunState(_)
-            | c::Delivery::Settings(_)
-            | c::Delivery::Deployment(_)
-            | c::Delivery::OwnerDeployment(_)
-            | c::Delivery::OwnerAccounts(_),
-        )
-        | None => {}
+
+        None => {}
     }
     has_tree_content |= ended_rows.before(b, None, root, words, bindings, rows);
     b.close();
@@ -951,30 +905,8 @@ impl<'a> EndedRows<'a> {
                     result.mark(row.chip.task);
                 }
             }
-            Some(c::Delivery::Tree(tree)) => {
-                for node in &tree.nodes {
-                    if node.chip.task != tree.task {
-                        result.mark(node.chip.task);
-                    }
-                }
-            }
-            Some(
-                c::Delivery::OwnerProject(_)
-                | c::Delivery::Me(_)
-                | c::Delivery::Task(_)
-                | c::Delivery::OwnerProposal(_)
-                | c::Delivery::Chips(_)
-                | c::Delivery::Inbox(_)
-                | c::Delivery::OwnerInbox(_)
-                | c::Delivery::Tasks(_)
-                | c::Delivery::Run(_)
-                | c::Delivery::RunState(_)
-                | c::Delivery::Settings(_)
-                | c::Delivery::Deployment(_)
-                | c::Delivery::OwnerDeployment(_)
-                | c::Delivery::OwnerAccounts(_),
-            )
-            | None => {}
+
+            None => {}
         }
         result
     }
@@ -1172,9 +1104,9 @@ pub(crate) fn latest(b: &mut Builder, page: Option<&c::ActivityPage>, words: &Wo
         b.style(look::EVENTS);
         for row in &page.rows {
             b.open(Role::Item);
-            text(b, Role::Paragraph, &words.say(Word::ActivityAt, &[Hole::Wall(row.at)]));
+            text(b, Role::Paragraph, &words.say(Word::ActivityAt, &[Hole::Wall(row.source.at)]));
             b.open(Role::Slot);
-            activity(b, &row.event, words, bindings);
+            activity(b, row, words, bindings);
             b.close();
             b.close();
         }
@@ -1182,7 +1114,7 @@ pub(crate) fn latest(b: &mut Builder, page: Option<&c::ActivityPage>, words: &Wo
     }
     b.close();
 }
-fn activity(b: &mut Builder, event: &c::Activity, words: &Words, bindings: &mut Bindings) {
+fn activity(b: &mut Builder, event: &c::ActivityLine, words: &Words, bindings: &mut Bindings) {
     if let Some((_, text)) = event.word_message() {
         text_node(b, text.bytes());
         return;
@@ -1207,38 +1139,17 @@ fn activity(b: &mut Builder, event: &c::Activity, words: &Words, bindings: &mut 
         }
         return;
     }
-    match event {
-        c::Activity::RunBegan { attempt, .. } => {
-            text(b, Role::Paragraph, &words.say(Word::RunBegan, &[Hole::Number(*attempt)]));
-        }
-        c::Activity::RunEnded { attempt, .. } => {
-            text(b, Role::Paragraph, &words.say(Word::RunEnded, &[Hole::Number(*attempt)]));
-        }
-        c::Activity::Owner { source, .. } => {
-            if let c::OwnerActivity::Heard(c::OwnerWord {
-                from: c::OwnerRequester::Task(task),
-                kind: c::OwnerMessageKind::Result(_),
-                ..
-            }) = &source.line
-            {
-                task_link(b, *task, words, bindings);
-            }
-            owner_activity(b, &source.line, words);
-        }
-        c::Activity::News { summary, part, .. } => {
-            text_node(b, summary.bytes());
-            if let Some(part) = part {
-                crate::forge::drawn(b, part, words);
-            }
-        }
-        c::Activity::Result { result } => {
-            task_link(b, result.task.task, words, bindings);
-            text_node(b, result.task.title.bytes());
-        }
-        c::Activity::Decision { .. } => words.text(b, Word::DecisionMade, &[]),
-        c::Activity::Turn { .. } => words.text(b, Word::UnreadTurn, &[]),
-        c::Activity::Words { .. } => {}
+    let source = &event.source;
+
+    if let c::OwnerActivity::Heard(c::OwnerWord {
+        from: c::OwnerRequester::Task(task),
+        kind: c::OwnerMessageKind::Result(_),
+        ..
+    }) = &source.line
+    {
+        task_link(b, *task, words, bindings);
     }
+    owner_activity(b, &source.line, words);
 }
 fn text_node(b: &mut Builder, value: &[u8]) {
     skein_ui::markdown::read(value, 3, b);

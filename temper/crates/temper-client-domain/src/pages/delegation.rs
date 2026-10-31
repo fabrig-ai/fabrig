@@ -59,23 +59,9 @@ pub fn facts(task: &c::Task) -> Facts<'_> {
             Some((state, result.value.as_ref().or(value), reason))
         }
         Some(c::TaskResult::Ending(how)) => Some(owner_ending(how)),
-        None => match task.chip.details.as_ref() {
-            c::ChipPhase::Owner { details, .. } => match &details.ending {
-                Some(how) => Some(owner_ending(how)),
-                None => None,
-            },
-            c::ChipPhase::Ended { how, .. } => Some(ending(how)),
-            c::ChipPhase::Active(_)
-            | c::ChipPhase::Waiting { .. }
-            | c::ChipPhase::Idle { .. }
-            | c::ChipPhase::Starting
-            | c::ChipPhase::Running { .. }
-            | c::ChipPhase::WaitingForWords { .. }
-            | c::ChipPhase::BackingOff { .. }
-            | c::ChipPhase::Procedure { .. }
-            | c::ChipPhase::Person { .. }
-            | c::ChipPhase::Closing(_)
-            | c::ChipPhase::Held { .. } => None,
+        None => match &task.chip.details.details.ending {
+            Some(how) => Some(owner_ending(how)),
+            None => None,
         },
     };
     let (mut state, value, reason) = ended.unwrap_or((

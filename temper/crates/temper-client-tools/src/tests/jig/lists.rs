@@ -50,7 +50,7 @@ fn an_inbox_reads_on_in_needs_while_needs_has_more() {
     root.serve(call, fixtures::inbox_page(true));
     root.deliver_subject(
         &fixtures::inbox_watch(),
-        c::Delivery::Inbox(Box::new(fixtures::inbox_window(fixtures::PAGE_ROWS, 0, true))),
+        c::Delivery::OwnerInbox(Box::new(fixtures::inbox_window(fixtures::PAGE_ROWS, 0, true))),
     );
     let printed = root.answer(call).expect("read and window answered");
     assert_eq!(printed.stdout, fixtures::golden("inbox_needs_next"));
@@ -131,7 +131,7 @@ fn a_kept_activity_is_parked_in_text_and_preserved_in_json() {
         let c::ReadResult::Value(c::ReadValue::Activity(mut page)) = fixtures::activity_words() else {
             panic!("activity")
         };
-        page.rows.get_mut(0).expect("row").event = c::Activity::Owner {
+        *page.rows.get_mut(0).expect("row") = c::ActivityLine {
             source: Box::new(c::OwnerActivityLine {
                 task: fixtures::TASK,
                 position: 1,
@@ -147,7 +147,7 @@ fn a_kept_activity_is_parked_in_text_and_preserved_in_json() {
 #[test]
 fn a_met_notice_keeps_its_dependency_and_removal_flag_in_json() {
     let c::ReadResult::Value(c::ReadValue::Activity(mut page)) = fixtures::activity_words() else { panic!("activity") };
-    page.rows.get_mut(0).expect("row").event = c::Activity::Owner {
+    *page.rows.get_mut(0).expect("row") = c::ActivityLine {
         source: Box::new(c::OwnerActivityLine {
             task: fixtures::TASK,
             position: 1,

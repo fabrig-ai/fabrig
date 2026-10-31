@@ -14,12 +14,7 @@ fn batch(page: &c::ReadValue) -> Option<&skein_lib::List<c::ProposedTask>> {
             | c::OwnerProposalAction::Widen { .. }
             | c::OwnerProposalAction::Release { .. } => None,
         },
-        c::ReadValue::Proposal(proposal) => match &proposal.action {
-            c::ProposalAction::Batch { tasks, .. } => Some(tasks),
-            c::ProposalAction::Effect { .. } | c::ProposalAction::Amend { .. } | c::ProposalAction::Widen { .. } => {
-                None
-            }
-        },
+
         c::ReadValue::Task(_)
         | c::ReadValue::Settings(_)
         | c::ReadValue::Setting(_)
@@ -30,23 +25,16 @@ fn batch(page: &c::ReadValue) -> Option<&skein_lib::List<c::ProposedTask>> {
         | c::ReadValue::Historical(_)
         | c::ReadValue::Me(_)
         | c::ReadValue::Question(_)
-        | c::ReadValue::Escalation(_)
         | c::ReadValue::OwnerEscalation(_)
-        | c::ReadValue::PersonTask(_)
         | c::ReadValue::OwnerPersonTask(_)
         | c::ReadValue::Result(_)
-        | c::ReadValue::Ended(_)
         | c::ReadValue::OwnerEnded(_)
         | c::ReadValue::History(_)
         | c::ReadValue::Turn(_)
         | c::ReadValue::Activity(_)
-        | c::ReadValue::Inbox(_)
         | c::ReadValue::OwnerInbox(_)
-        | c::ReadValue::Spend(_)
         | c::ReadValue::OwnerSpend(_)
-        | c::ReadValue::Project(_)
         | c::ReadValue::Notes(_)
-        | c::ReadValue::Deployment(_)
         | c::ReadValue::OwnerDeployment(_) => None,
     }
 }
@@ -83,7 +71,7 @@ fn title(b: &mut Builder, tasks: &skein_lib::List<c::ProposedTask>, words: &Word
 fn why(b: &mut Builder, page: &c::ReadValue) {
     match page {
         c::ReadValue::OwnerProposal(proposal) => super::document(b, &proposal.reason),
-        c::ReadValue::Proposal(proposal) => text(b, Role::Paragraph, proposal.why.bytes()),
+
         c::ReadValue::Task(_)
         | c::ReadValue::Settings(_)
         | c::ReadValue::Setting(_)
@@ -94,23 +82,16 @@ fn why(b: &mut Builder, page: &c::ReadValue) {
         | c::ReadValue::Historical(_)
         | c::ReadValue::Me(_)
         | c::ReadValue::Question(_)
-        | c::ReadValue::Escalation(_)
         | c::ReadValue::OwnerEscalation(_)
-        | c::ReadValue::PersonTask(_)
         | c::ReadValue::OwnerPersonTask(_)
         | c::ReadValue::Result(_)
-        | c::ReadValue::Ended(_)
         | c::ReadValue::OwnerEnded(_)
         | c::ReadValue::History(_)
         | c::ReadValue::Turn(_)
         | c::ReadValue::Activity(_)
-        | c::ReadValue::Inbox(_)
         | c::ReadValue::OwnerInbox(_)
-        | c::ReadValue::Spend(_)
         | c::ReadValue::OwnerSpend(_)
-        | c::ReadValue::Project(_)
         | c::ReadValue::Notes(_)
-        | c::ReadValue::Deployment(_)
         | c::ReadValue::OwnerDeployment(_) => {}
     }
 }
@@ -145,30 +126,10 @@ pub(super) fn facts(b: &mut Builder, page: &c::ReadValue, words: &Words, rows: u
                 }
             }
         },
-        c::ReadValue::Proposal(proposal) => {
-            match &proposal.action {
-                c::ProposalAction::Batch { tasks, .. } => proposed(b, tasks, words, rows, false),
-                c::ProposalAction::Effect { part } => crate::forge::drawn(b, part, words),
-                c::ProposalAction::Amend { task, .. } => phrase(b, words, P::ProposalAmend, &[Hole::Number(*task)]),
-                c::ProposalAction::Widen { .. } => phrase(b, words, P::Authority, &[]),
-            }
-            phrase(b, words, P::Spend, &[Hole::Number(proposal.needs.budget)]);
-            phrase(
-                b,
-                words,
-                P::Delegation,
-                &[Hole::Number(u64::from(proposal.needs.tasks)), Hole::Number(u64::from(proposal.needs.depth))],
-            );
-            for grant in window(b, words, proposal.needs.grants.as_slice(), rows) {
-                crate::forge::drawn(b, &c::Part::Kind { connector: grant.connector, kind: grant.kind }, words);
-                pattern(b, &grant.pattern, words, rows);
-            }
-        }
+
         c::ReadValue::Task(task) => task_hold(b, task, words, rows),
         c::ReadValue::OwnerEscalation(escalation) => task_hold(b, &escalation.task, words, rows),
-        c::ReadValue::Escalation(escalation) => {
-            phrase(b, words, P::HoldRevision, &[Hole::Number(escalation.hold.revision.value)]);
-        }
+
         c::ReadValue::Settings(_)
         | c::ReadValue::Setting(_)
         | c::ReadValue::Revision(_)
@@ -178,21 +139,15 @@ pub(super) fn facts(b: &mut Builder, page: &c::ReadValue, words: &Words, rows: u
         | c::ReadValue::Historical(_)
         | c::ReadValue::Me(_)
         | c::ReadValue::Question(_)
-        | c::ReadValue::PersonTask(_)
         | c::ReadValue::OwnerPersonTask(_)
         | c::ReadValue::Result(_)
-        | c::ReadValue::Ended(_)
         | c::ReadValue::OwnerEnded(_)
         | c::ReadValue::History(_)
         | c::ReadValue::Turn(_)
         | c::ReadValue::Activity(_)
-        | c::ReadValue::Inbox(_)
         | c::ReadValue::OwnerInbox(_)
-        | c::ReadValue::Spend(_)
         | c::ReadValue::OwnerSpend(_)
-        | c::ReadValue::Project(_)
         | c::ReadValue::Notes(_)
-        | c::ReadValue::Deployment(_)
         | c::ReadValue::OwnerDeployment(_) => {}
     }
 }
@@ -213,9 +168,7 @@ fn batch_facts(
     if let c::ReadValue::OwnerProposal(proposal) = page {
         b.text(skein_ui::Run::Plain, proposal.reason.bytes());
     }
-    if let c::ReadValue::Proposal(proposal) = page {
-        b.text(skein_ui::Run::Plain, proposal.why.bytes());
-    }
+
     b.text(skein_ui::Run::Plain, "”".as_bytes());
     b.close();
     b.close();
@@ -264,11 +217,6 @@ fn landing_pattern(b: &mut Builder, pattern: &c::OwnerPattern, words: &Words) {
     }
 }
 fn owns(page: &c::ReadValue) -> bool {
-    if let c::ReadValue::Proposal(proposal) = page
-        && let c::ProposalAction::Batch { own, .. } = proposal.action
-    {
-        return own;
-    }
     if let c::ReadValue::OwnerProposal(proposal) = page
         && let c::OwnerHistoryHolder::Person(holder) = proposal.waiting.holder
     {
@@ -284,8 +232,8 @@ fn owns(page: &c::ReadValue) -> bool {
 }
 fn task_hold(b: &mut Builder, task: &c::Task, words: &Words, rows: u32) {
     match &task.hold {
-        Some(c::TaskHold::Owner(hold)) => held(b, task.chip.task, hold, words, rows),
-        Some(c::TaskHold::Document(hold)) => phrase(b, words, P::HoldRevision, &[Hole::Number(hold.revision.value)]),
+        Some(hold) => held(b, task.chip.task, hold, words, rows),
+
         None => {}
     }
 }

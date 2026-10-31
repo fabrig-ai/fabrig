@@ -157,10 +157,7 @@ fn the_inbox_waits_use_the_proposal_hold_and_person_task_clocks() {
     document.key = key;
     let task_root = fixtures::task::held_root();
     let mut task = task_root.pages().task().unwrap().document(task_root.client()).unwrap().clone();
-    match task.hold.as_mut().unwrap() {
-        c::TaskHold::Owner(hold) => hold.hold_wait_since = Some(Wall::EPOCH),
-        c::TaskHold::Document(_) => panic!("owner hold"),
-    }
+    task.hold.as_mut().unwrap().hold_wait_since = Some(Wall::EPOCH);
     let mut person_chip = task.chip.clone();
     person_chip.phase = c::Phase::Waiting;
     let person = c::ReadValue::OwnerPersonTask(Box::new(c::OwnerPersonTask {

@@ -202,7 +202,7 @@ fn delegation_task(number: u64, landed: bool) -> contract::Task {
         task.requester = c::OwnerRequester::Person(1);
         task.wake.words = c::WakeRule::Immediate;
         task.waits_on = if landed { c::WaitsOn::News } else { c::WaitsOn::Delegates };
-        let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("chat owner") };
+        let c::ChipPhase { details, .. } = task.chip.details.as_mut();
         // The first-run fixture has one change, still live until its result arrives.
         details.live_delegates = u32::from(!landed);
         details.wake = task.wake;

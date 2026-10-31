@@ -324,23 +324,32 @@ pub fn inbox_home(filter: crate::address::Filter) -> (crate::Domain, Token) {
     }
     (root, watch.expect("temper's inbox watch"))
 }
-pub fn inbox_entries(root: &mut crate::Domain, watch: Token, rows: List<contract::InboxEntry>) -> Queue<Request> {
+pub fn inbox_entries(root: &mut crate::Domain, watch: Token, rows: List<contract::OwnerInboxEntry>) -> Queue<Request> {
     let limits = limits();
     let mut out = Queue::uncapped();
-    let inbox = contract::Inbox {
-        entries: rows,
-        needs: Needs { questions: 1, proposals: 0, escalations: 0, person_tasks: 0 },
-        updates: contract::Count { value: 0, limited: false },
-        results_seen: 0,
-        replies_seen: List::with_capacity(0),
-        more: false,
+    let inbox = {
+        let counts = Needs { questions: 1, proposals: 0, escalations: 0, person_tasks: 0 };
+        crate::tests::documents::inbox(
+            rows,
+            counts
+                .questions
+                .saturating_add(counts.proposals)
+                .saturating_add(counts.escalations)
+                .saturating_add(counts.person_tasks),
+            contract::Count { value: 0, limited: false },
+            0,
+            false,
+        )
     };
     crate::step(
         root,
         &env(&limits),
         Event::Client {
             event: jig_client::Event::Up {
-                up: jig_client::Up::Watched { watch, event: WatchEvent::Delivered(Delivery::Inbox(Box::new(inbox))) },
+                up: jig_client::Up::Watched {
+                    watch,
+                    event: WatchEvent::Delivered(Delivery::OwnerInbox(Box::new(inbox))),
+                },
             },
         },
         &mut out,
@@ -352,19 +361,8 @@ pub fn inbox_entry(
     group: contract::InboxGroup,
     project: u32,
     position: u64,
-) -> contract::InboxEntry {
-    contract::InboxEntry {
-        reply: None,
-        lineage: List::with_capacity(0),
-        goal: None,
-        recipient: None,
-        stall: None,
-        object,
-        project,
-        group,
-        position,
-        at: Wall::EPOCH,
-    }
+) -> contract::OwnerInboxEntry {
+    crate::tests::documents::entry(object, project, position, Wall::EPOCH, None)
 }
 
 pub mod chats;

@@ -50,54 +50,13 @@ fn replay(call: &Call, out: &mut Text) {
 }
 
 fn line(row: &c::ActivityLine, task: u64, call: &Call, limits: &Limits, out: &mut Text) {
-    match &row.event {
-        c::Activity::Turn { name, turn: value } => turn::text(task, *name, value, call, limits, out),
-        c::Activity::Owner { source, decoded } => match decoded {
-            Some(value) => turn::text(task, value.name, &value.turn, call, limits, out),
-            None => owner(source, out),
-        },
-        c::Activity::Words { by, words, .. } => {
-            out.number(row.position);
-            out.put(b" \xc2\xb7 ");
-            out.words(by.name.bytes());
-            out.put(b": ");
-            out.words(words.bytes());
-            out.put(b"\n");
-        }
-        c::Activity::RunBegan { attempt, why, .. } => {
-            out.number(row.position);
-            out.put(b" \xc2\xb7 run ");
-            out.number(*attempt);
-            out.put(b" began: ");
-            out.words(why.bytes());
-            out.put(b"\n");
-        }
-        c::Activity::RunEnded { attempt, .. } => {
-            out.number(row.position);
-            out.put(b" \xc2\xb7 run ");
-            out.number(*attempt);
-            out.put(b" ended\n");
-        }
-        c::Activity::News { summary, .. } => {
-            out.number(row.position);
-            out.put(b" \xc2\xb7 news: ");
-            out.words(summary.bytes());
-            out.put(b"\n");
-        }
-        c::Activity::Result { result } => {
-            out.number(row.position);
-            out.put(b" \xc2\xb7 result of task ");
-            out.number(result.task.task);
-            out.put(b"\n");
-        }
-        c::Activity::Decision { .. } => {
-            out.number(row.position);
-            out.put(b" \xc2\xb7 decision\n");
-        }
+    match &row.decoded {
+        Some(value) => turn::text(task, value.name, &value.turn, call, limits, out),
+        None => owner(&row.source, out),
     }
 }
 fn owner(row: &c::OwnerActivityLine, out: &mut Text) {
-    out.number(row.position);
+    out.number(row.source.position);
     out.put(b" \xc2\xb7 ");
     match &row.line {
         c::OwnerActivity::Words { words, .. } => out.words(words.bytes()),
@@ -192,22 +151,16 @@ pub(super) fn run(delivery: &c::Delivery, text: Option<&c::RunText>, out: &mut T
                 out.put(b"\n");
             }
         }
-        c::Delivery::Run(run) => {
-            out.number(run.attempt);
-            out.put(b"\n");
-        }
+
         c::Delivery::OwnerProject(_)
         | c::Delivery::Me(_)
         | c::Delivery::Task(_)
         | c::Delivery::OwnerProposal(_)
-        | c::Delivery::Tree(_)
         | c::Delivery::OwnerTree(_)
         | c::Delivery::Chips(_)
-        | c::Delivery::Inbox(_)
         | c::Delivery::OwnerInbox(_)
         | c::Delivery::Tasks(_)
         | c::Delivery::Settings(_)
-        | c::Delivery::Deployment(_)
         | c::Delivery::OwnerDeployment(_)
         | c::Delivery::OwnerAccounts(_) => unreachable!("run watch delivers a run"),
     }

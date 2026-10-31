@@ -52,13 +52,10 @@ pub fn proposal(act: ActKind, admission: Admission) -> ReadValue {
     }))
 }
 pub fn chip() -> Chip {
-    Chip {
-        task: TASK,
-        title: DocumentText::complete(text(b"Task")),
-        executor: Executor::Party { party: PARTY },
-        phase: Phase::Held,
-        details: Box::new(ChipPhase::Starting),
-    }
+    let mut chip = super::chat::task().chip;
+    chip.executor = Executor::Party { party: PARTY };
+    chip.phase = Phase::Held;
+    chip
 }
 pub fn spec() -> SpecificationDocument {
     SpecificationDocument::complete(Specification {
@@ -80,93 +77,39 @@ pub fn question() -> ReadValue {
     }))
 }
 pub fn person(act: ActKind) -> ReadValue {
-    ReadValue::PersonTask(Box::new(PersonTask {
+    ReadValue::OwnerPersonTask(Box::new(OwnerPersonTask {
         task: chip(),
         revision: REVISION,
-        requester: Actor::Party(PARTY),
+        requester: OwnerRequester::Person(PARTY),
         spec: spec(),
-        contract: PersonContract::Words,
-        inputs: List::with_capacity(EMPTY_LIST),
-        addressed: Recipient::Party(PARTY),
-        taken: None,
+        address: PersonAddress::Party(PARTY),
+        taken_by: None,
         since: None,
         stall: None,
         deadline: None,
+        contract: TaskContractDocument::Report { words: 32 },
+        results: List::with_capacity(0),
+        cut: false,
         acts: offered(act, Admission::Allowed),
-        ending: None,
     }))
 }
 pub fn held(act: ActKind) -> ReadValue {
-    let authority = OwnerAuthorityDocument::complete(OwnerAuthority {
-        models: None,
-        tools: NO_TOOLS,
-        grants: List::with_capacity(EMPTY_LIST),
-        delegation: OwnerDelegation {
-            kinds: List::with_capacity(EMPTY_LIST),
-            tasks: NO_DELEGATION,
-            depth: NO_DELEGATION,
-        },
-        spend: NO_SPEND,
-        deadline: None,
-        notes: NO_NOTES,
-        note_resources: List::with_capacity(EMPTY_LIST),
-    });
-    let budget = Budget {
-        total: NO_BUDGET,
-        own: NO_BUDGET,
-        ended: NO_BUDGET,
-        reserved: NO_BUDGET,
-        left: NO_BUDGET,
-        funder: Actor::Party(PARTY),
-    };
-    ReadValue::Escalation(Box::new(Escalation {
-        ending: None,
-        task: chip(),
-        hold: Hold {
-            placed: None,
-            revision: NEW_REVISION,
-            reason: HoldReason::Tries { failures: List::with_capacity(EMPTY_LIST) },
-            before: Phase::Running,
-            since: Wall::EPOCH,
-            result: None,
-            spend: List::with_capacity(EMPTY_LIST),
-        },
-        steering: Box::new(Steering {
-            addressed: None,
-            person_revision: None,
-            taken_by: None,
-            revision: REVISION,
-            spec: spec(),
-            instructions: None,
-            wake: OwnerWakePolicy {
-                words: WakeRule::Never,
-                notices: WakeRule::Never,
-                news: WakeRule::Never,
-                results: ResultsWake::Never,
-                questions: false,
-                answers: false,
-                timers: false,
-            },
-            dependencies: List::with_capacity(EMPTY_LIST),
-            authority,
-            budget,
-        }),
-        impact: Impact {
-            tasks: PhaseCounts {
-                waiting: NO_TASKS,
-                running: NO_TASKS,
-                held: NO_TASKS,
-                ended: NO_TASKS,
-                closing: NO_TASKS,
-                done: NO_TASKS,
-                failed: NO_TASKS,
-                cancelled: NO_TASKS,
-            },
-            live_runs: NO_RUNS,
-            proposals: NO_PROPOSALS,
-        },
-        waiting: Recipient::Party(PARTY),
-        trail: List::with_capacity(EMPTY_LIST),
+    let mut task = super::chat::task();
+    task.hold = Some(Box::new(OwnerChipHold {
+        placed: None,
+        words: None,
+        circle: None,
+        account: None,
+        source: None,
+        reason: HoldCategory::Failures { class: HoldFailure::Agent },
+        revision: NEW_REVISION.value,
+        before: OwnerPriorPhase::Active(RunStage::Running { attempt: 1 }),
+        escalation: None,
+        tries: OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        hold_wait_since: None,
+    }));
+    ReadValue::OwnerEscalation(Box::new(OwnerEscalation {
+        task: Box::new(task),
         acts: offered(act, Admission::Allowed),
     }))
 }

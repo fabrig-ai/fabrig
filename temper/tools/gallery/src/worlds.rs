@@ -1,5 +1,7 @@
 //! Mockup documents, answered through the same windows as the engine.
 //! First-run records follow temper/docs/design/draft/playground-reset.md, 3 and 6.
+#[path = "../../../testing/client_documents.rs"]
+mod documents;
 mod github;
 use crate::driver::{answer, deliver, limits, step};
 use crate::samples::{Then, World};
@@ -562,21 +564,8 @@ fn playground(root: &mut Domain, w: World, read: Token, out: &mut Queue<Request>
     );
 }
 fn owner(chip: &mut c::Chip) -> (&mut c::OwnerChipPhase, &mut c::OwnerChipDetails) {
-    match chip.details.as_mut() {
-        c::ChipPhase::Owner { phase, details } => (phase, details),
-        c::ChipPhase::Active(_)
-        | c::ChipPhase::Waiting { .. }
-        | c::ChipPhase::Idle { .. }
-        | c::ChipPhase::Starting
-        | c::ChipPhase::Running { .. }
-        | c::ChipPhase::WaitingForWords { .. }
-        | c::ChipPhase::BackingOff { .. }
-        | c::ChipPhase::Procedure { .. }
-        | c::ChipPhase::Person { .. }
-        | c::ChipPhase::Closing(_)
-        | c::ChipPhase::Held { .. }
-        | c::ChipPhase::Ended { .. } => unreachable!("gallery's owner chip"),
-    }
+    let c::ChipPhase { phase, details } = chip.details.as_mut();
+    (phase, details)
 }
 fn finish_document(mut t: c::Task) -> c::Task {
     let compact = t.chip.phase;
@@ -660,7 +649,7 @@ fn chat_rows(w: World, ended: bool) -> List<c::TaskLine> {
     }
     rows
 }
-fn inbox_document(w: World) -> c::Inbox {
+fn inbox_document(w: World) -> c::OwnerInbox {
     let keys: &[(c::ObjectKey, c::InboxGroup)] = match w {
         Reference => &[(c::ObjectKey::Task(1), c::InboxGroup::Replies)],
         Solo => &[
@@ -672,27 +661,13 @@ fn inbox_document(w: World) -> c::Inbox {
         FirstRun { .. } | World::Bare => &[],
     };
     let mut entries = List::with_capacity(u32::try_from(keys.len()).expect("small inbox"));
-    for (object, group) in keys {
+    for (object, _group) in keys {
         entries
-            .push(c::InboxEntry {
-                reply: match object {
-                    c::ObjectKey::Task(task) => Some(Box::new(reply_line(w, *task))),
-                    c::ObjectKey::Proposal(_)
-                    | c::ObjectKey::Escalation(_)
-                    | c::ObjectKey::Question { .. }
-                    | c::ObjectKey::PersonTask(_)
-                    | c::ObjectKey::Result(_)
-                    | c::ObjectKey::Note { .. } => None,
-                },
-                lineage: List::with_capacity(0),
-                goal: None,
-                recipient: None,
-                stall: None,
-                object: *object,
-                project: PROJECT,
-                group: *group,
-                position: 1,
-                at: match object {
+            .push(documents::entry(
+                *object,
+                PROJECT,
+                1,
+                match object {
                     c::ObjectKey::Proposal(_) => offset(w, -12),
                     c::ObjectKey::Question { .. } => offset(w, -18),
                     c::ObjectKey::Task(task) => document(w, *task).last_activity,
@@ -701,16 +676,31 @@ fn inbox_document(w: World) -> c::Inbox {
                     | c::ObjectKey::Result(_)
                     | c::ObjectKey::Note { .. } => unreachable!("world inbox has proposals, questions and replies"),
                 },
-            })
+                match object {
+                    c::ObjectKey::Task(task) => Some(Box::new(reply_line(w, *task))),
+                    c::ObjectKey::Proposal(_)
+                    | c::ObjectKey::Escalation(_)
+                    | c::ObjectKey::Question { .. }
+                    | c::ObjectKey::PersonTask(_)
+                    | c::ObjectKey::Result(_)
+                    | c::ObjectKey::Note { .. } => None,
+                },
+            ))
             .expect("entry");
     }
-    c::Inbox {
-        entries,
-        needs: needs(w),
-        updates: c::Count { value: if w == Solo { 2 } else { u32::from(w == Reference) }, limited: false },
-        results_seen: 0,
-        replies_seen: List::with_capacity(0),
-        more: false,
+    {
+        let counts = needs(w);
+        documents::inbox(
+            entries,
+            counts
+                .questions
+                .saturating_add(counts.proposals)
+                .saturating_add(counts.escalations)
+                .saturating_add(counts.person_tasks),
+            c::Count { value: if w == Solo { 2 } else { u32::from(w == Reference) }, limited: false },
+            0,
+            false,
+        )
     }
 }
 fn proposed() -> List<c::ProposedTask> {
@@ -749,29 +739,26 @@ fn proposed() -> List<c::ProposedTask> {
     tasks
 }
 fn proposal() -> c::ReadValue {
-    c::ReadValue::Proposal(Box::new(c::Proposal {
-        key: PROPOSAL,
-        project: PROJECT,
-        proposer: PROPOSAL.proposer,
-        why: text(JSON_WHY),
-        action: c::ProposalAction::Batch { tasks: proposed(), own: true },
-        needs: c::Authority {
-            models: None,
-            budget: 6,
-            grants: List::with_capacity(0),
-            task_kinds: List::with_capacity(0),
-            depth: 1,
-            tasks: 1,
-            deadline: None,
-            tools: List::with_capacity(0),
-            note_scopes: List::with_capacity(0),
-        },
-        funding: c::Budget { total: 50, own: 10, ended: 0, reserved: 0, left: 40, funder: c::Actor::Party(73) },
-        waiting: c::Recipient::Party(73),
-        trail: List::with_capacity(0),
-        since: offset(Solo, -12),
-        acts: offers(&[c::ActKind::Accept, c::ActKind::Reject]),
-        ending: None,
+    c::ReadValue::OwnerProposal(Box::new({
+        let mut funding = skein_lib::List::with_capacity(1);
+        funding
+            .push(c::OwnerFundingOffer {
+                source: c::Funder::Pool { project: PROJECT, person: 73, period: 1 },
+                needed: 6,
+                left: Some(40),
+                after: Some((40).saturating_sub(6)),
+            })
+            .expect("one funding source");
+        c::OwnerProposal {
+            key: PROPOSAL,
+            project: PROJECT,
+            reason: c::DocumentText::complete(text(JSON_WHY)),
+            action: c::OwnerProposalAction::Batch(proposed()),
+            as_holder: true,
+            waiting: c::OwnerProposalWaiting { holder: c::OwnerHistoryHolder::Person(73), since: offset(Solo, -12) },
+            funding,
+            acts: offers(&[c::ActKind::Accept, c::ActKind::Reject]),
+        }
     }))
 }
 fn read_value(w: World, what: &c::Read, then: Then) -> Option<c::ReadValue> {
@@ -830,7 +817,7 @@ fn read_value(w: World, what: &c::Read, then: Then) -> Option<c::ReadValue> {
         | c::Read::Deployment => None,
     }
 }
-fn agent_line(words: &str, number: u32, read: Option<u64>) -> c::Activity {
+fn agent_line(words: &str, number: u32, read: Option<u64>) -> jig_client::contract::ActivityLine {
     let mut blocks = List::with_capacity(1);
     let bytes = words.as_bytes();
     let limit = usize::try_from(limits().client.domain.turn_text).expect("turn text limit");
@@ -839,7 +826,12 @@ fn agent_line(words: &str, number: u32, read: Option<u64>) -> c::Activity {
     blocks.push(c::Block::Text(text)).expect("agent text");
     turn_line(&blocks, number, read, length < bytes.len())
 }
-fn turn_line(source: &List<c::Block>, number: u32, read: Option<u64>, mut cut: bool) -> c::Activity {
+fn turn_line(
+    source: &List<c::Block>,
+    number: u32,
+    read: Option<u64>,
+    mut cut: bool,
+) -> jig_client::contract::ActivityLine {
     let mut blocks = List::with_capacity(limits().client.domain.rows.min(source.len()));
     for block in source {
         if blocks.len() == blocks.capacity() {
@@ -850,18 +842,20 @@ fn turn_line(source: &List<c::Block>, number: u32, read: Option<u64>, mut cut: b
     }
     let mut messages = List::with_capacity(1);
     messages.push(c::Message { speaker: c::Speaker::Assistant, blocks }).expect("message");
-    c::Activity::Turn {
-        name: c::TurnName { attempt: 1, number },
-        turn: c::TurnRead::Decoded(c::Turn {
+    documents::turn(
+        1,
+        skein_lib::Wall::EPOCH,
+        c::TurnName { attempt: 1, number },
+        c::TurnRead::Decoded(c::Turn {
             messages,
             used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
             spent: 0,
             read_through: read,
             cut,
         }),
-    }
+    )
 }
-fn tools_line(calls: &[(&str, u32)], made: &[u64], proposes: bool, number: u32) -> c::Activity {
+fn tools_line(calls: &[(&str, u32)], made: &[u64], proposes: bool, number: u32) -> jig_client::contract::ActivityLine {
     let mut blocks = List::with_capacity(32);
     let mut call_number: u64 = 0;
     for (name, count) in calls {
@@ -1799,10 +1793,12 @@ fn activity(w: World, task: u64) -> c::ActivityPage {
     };
     let mut rows = List::with_capacity(events.len());
     for i in (0..events.len()).rev() {
-        rows.push(c::ActivityLine {
-            position: u64::from(i).checked_add(1).expect("position"),
-            at: offset(w, *minutes.get(usize::try_from(i).expect("event index")).expect("transcript time")),
-            event: events.get(i).expect("event").clone(),
+        rows.push({
+            let mut line = events.get(i).expect("event").clone();
+            line.source.position = u64::from(i).checked_add(1).expect("position");
+            line.source.at =
+                offset(w, *minutes.get(usize::try_from(i).expect("event index")).expect("transcript time"));
+            line
         })
         .expect("activity row");
     }
@@ -2193,7 +2189,7 @@ fn base_task(number: u64, title: &str) -> c::Task {
             title: doc(title),
             executor: c::Executor::Agent { charter: 1 },
             phase: c::Phase::Idle,
-            details: Box::new(c::ChipPhase::Owner {
+            details: Box::new(c::ChipPhase {
                 phase: c::OwnerChipPhase::Active(c::RunStage::Idle),
                 details: Box::new(c::OwnerChipDetails {
                     dependencies: List::with_capacity(0),
@@ -2304,31 +2300,22 @@ fn inbox_window(w: World, window: u32) -> c::OwnerInbox {
     let mut needs = List::with_capacity(window);
     let mut updates = List::with_capacity(window);
     let mut more = None;
-    for row in &source.entries {
-        let (task, object) = match row.object {
-            c::ObjectKey::Proposal(key) => {
-                (10, c::OwnerInboxObject::Proposal { proposer: key.proposer, number: key.number })
-            }
-            c::ObjectKey::Question { task, message } => (task, c::OwnerInboxObject::Question { message }),
-            c::ObjectKey::Task(task) => (task, c::OwnerInboxObject::Reply { message: 1 }),
-            c::ObjectKey::Escalation(_)
-            | c::ObjectKey::PersonTask(_)
-            | c::ObjectKey::Result(_)
-            | c::ObjectKey::Note { .. } => unreachable!("world inbox has proposals, questions and replies"),
-        };
-        let cursor = c::OwnerInboxCursor::Inbox { task, object, at: Some(row.at) };
-        let reply = if row.group == c::InboxGroup::Replies { Some(Box::new(reply_line(w, task))) } else { None };
+    for row in source.needs.as_slice().iter().chain(source.updates.as_slice()) {
+        let task = if matches!(row.object, c::OwnerInboxObject::Proposal { .. }) { 10 } else { row.task_number() };
+        let object = row.object;
+        let cursor = c::OwnerInboxCursor::Inbox { task, object, at: row.at };
+        let reply = if row.group() == c::InboxGroup::Replies { Some(Box::new(reply_line(w, task))) } else { None };
         let entry = c::OwnerInboxEntry {
             reply,
             task: c::OwnerTaskLink::Live(chip(w, task)),
             project: Some(PROJECT),
             object,
-            activity: Some(row.position),
-            at: Some(row.at),
+            activity: row.activity,
+            at: row.at,
             unread: Some(true),
             cursor,
         };
-        let group = match row.group {
+        let group = match row.group() {
             c::InboxGroup::Proposals
             | c::InboxGroup::Questions
             | c::InboxGroup::Escalations
@@ -2346,8 +2333,8 @@ fn inbox_window(w: World, window: u32) -> c::OwnerInbox {
         needs,
         updates,
         next: more,
-        cached_needs: source.needs.proposals + source.needs.questions,
-        cached_updates: source.updates,
+        cached_needs: source.cached_needs,
+        cached_updates: source.cached_updates,
         results_seen: source.results_seen,
         updates_time_complete: true,
         selection: None,
@@ -2395,7 +2382,7 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 2, agent: 0, lost: 0, invalid: 0 },
             hold_wait_since: None,
         };
-        t.hold = Some(c::TaskHold::Owner(Box::new(hold.clone())));
+        t.hold = Some(Box::new(hold.clone()));
         t.chip.phase = c::Phase::Held;
         let (phase, details) = owner(&mut t.chip);
         *phase = c::OwnerChipPhase::Held { reason: hold.reason, revision: hold.revision };

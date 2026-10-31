@@ -1,3 +1,5 @@
+#[path = "../../../testing/client_documents.rs"]
+pub mod documents;
 use crate::{
     limits,
     route::{self, Down},

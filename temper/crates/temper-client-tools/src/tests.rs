@@ -1,4 +1,6 @@
 mod boundary;
+#[path = "../../../testing/client_documents.rs"]
+pub mod documents;
 pub(crate) mod fixtures;
 mod help;
 mod jig;
