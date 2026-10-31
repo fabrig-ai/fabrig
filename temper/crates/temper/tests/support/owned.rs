@@ -441,7 +441,7 @@ pub fn dump(directory: &Path) -> (PathBuf, Vec<u8>, fs::Metadata) {
 pub fn run(directory: &Path, program: &str) -> Running {
     Running::start(directory, program)
 }
-/// Prepares and starts, leaving readiness to reconcile's first exchange.
+/// Prepares and starts, leaving readiness to the attachment's first exchange.
 #[must_use]
 pub fn start(directory: &Path) -> Running {
     let clock = skein_shell::Clock::new();
@@ -472,40 +472,11 @@ pub fn attach(directory: &Path, port: u16, running: Running) -> skein_throwaway_
     Instance::attach(running.into_child(), port, directory, Token::new(token.trim().into()), &Settings::small())
         .expect("owned forge answers")
 }
-/// Reads the converged bot, its id, and the absence of an organization.
-pub fn assert_converged(directory: &Path, instance: &skein_throwaway_forgejo::Instance) {
-    use skein_throwaway_forgejo::{Outgoing, Token};
-    let api = fs::read_to_string(directory.join("forge-1/api_token")).expect("API token");
-    let token = Token::new(api.trim().into());
-    let response = instance.exchange(&Outgoing::get("/api/v1/user", Some(&token))).expect("bot answers");
-    assert_eq!(response.status, 200);
-    let bot: serde_json::Value = serde_json::from_slice(&response.body).expect("bot JSON");
-    assert_eq!(bot["login"], "temper");
-    let id = fs::read_to_string(directory.join("forge-1/user")).expect("user").trim().parse::<u64>().expect("id");
-    assert_eq!(bot["id"], id);
-    let admin = &instance.admin().token;
-    let account = instance.exchange(&Outgoing::get("/api/v1/users/temper", Some(admin))).expect("account answers");
-    let account: serde_json::Value = serde_json::from_slice(&account.body).expect("account JSON");
-    assert_eq!(account["is_admin"], false);
-    assert!(account["full_name"].as_str().expect("full name").contains("temper:bot"));
-    let org = instance.exchange(&Outgoing::get("/api/v1/orgs/acme", Some(admin))).expect("org answers");
-    assert_eq!(org.status, 404);
-}
 pub fn configuration_value(directory: &Path, change: fn(&mut serde_json::Value)) {
     let path = directory.join("temper.json");
     let mut value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     change(&mut value);
     super::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
-}
-
-/// A minimal owned document for the reconcile proof, with no runner.
-#[must_use]
-pub fn reconcile_configuration(directory: &Path) -> u16 {
-    let binary = std::env::var_os("TEMPER_FORGEJO").expect("TEMPER_FORGEJO");
-    let [address] = super::free_addresses(&[]);
-    let port = address.port();
-    configuration(directory, &Names { forgejo: Path::new(&binary), runner: None, port, bot: "temper", person: "ada" });
-    port
 }
 
 /// Both pinned executables are required before the process tier starts anything.
@@ -527,6 +498,8 @@ pub fn tier_configuration(directory: &Path) -> std::net::SocketAddr {
             git: format!("http://{}", owned.forgejo),
         },
     );
+    fs::create_dir_all(directory.join("box/groups")).expect("groups");
+    super::write_private(&directory.join("box/groups/1"), b"owned\n");
     owned.forgejo
 }
 

@@ -190,7 +190,6 @@ impl Judge {
                     Call::new(&[
                         "forge",
                         "connect",
-                        "1",
                         "github-app",
                         &self.app.as_ref().expect("made App").id.to_string(),
                         self.scratch.join("github-app.pem").to_str().expect("PEM path"),

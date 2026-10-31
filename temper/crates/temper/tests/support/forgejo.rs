@@ -65,9 +65,9 @@ impl JobBarrier {
     }
 }
 
-/// The owned Forgejo of domain/testing.md 2.6, prepared, run and reconciled
-/// by temper's commands with its runner, attached through skein's `Instance`,
-/// with the person's token and repository.
+/// The owned Forgejo of domain/testing.md 2.6, prepared and run by temper's
+/// commands with its runner, attached through skein's `Instance`, with a kept
+/// bot, the person's token and repository.
 pub struct Throwaway {
     instance: Instance,
     pid: u32,
@@ -100,43 +100,8 @@ impl Throwaway {
 
     fn with_repository(mut self, scratch: &Scratch, sleep_seconds: u64) -> Self {
         let began = skein_shell::Clock::new().now().now;
-        let output_path = scratch.path().join("reconcile.out");
-        let error_path = scratch.path().join("reconcile.err");
-        let mut deadline = skein_world::Deadline::arm("the owned Forgejo's reconcile", super::WITHIN);
-        let mut child = std::process::Command::new(skein_scratch::paths::binary("temper"))
-            .args(["forge", "reconcile"])
-            .args(super::configuration::flags(scratch.path()))
-            .arg("1")
-            .current_dir(scratch.path())
-            .stdin(std::process::Stdio::null())
-            .stdout(fs::File::create(&output_path).expect("reconcile output"))
-            .stderr(fs::File::create(&error_path).expect("reconcile errors"))
-            .spawn()
-            .expect("reconcile starts");
-        deadline.watch_process(child.id());
-        loop {
-            if let Some(status) = child.try_wait().expect("reconcile status") {
-                assert!(
-                    status.success(),
-                    "{}",
-                    String::from_utf8_lossy(&fs::read(&error_path).expect("reconcile errors"))
-                );
-                break;
-            }
-            if deadline.passed() {
-                let expired = deadline.expired();
-                super::parent::end_child(&mut child);
-                match expired {
-                    skein_world::Expired::Starved(starved) => {
-                        self.stop();
-                        starved.pass();
-                    }
-                    skein_world::Expired::Failed(figures) => panic!("reconcile within its bound: {figures}"),
-                }
-            }
-            std::thread::sleep(std::time::Duration::from_millis(5));
-        }
-        stage("reconcile", began);
+        seed(scratch.path(), &mut self.instance);
+        stage("seed forge", began);
         let person = person_token(&self.instance);
         let repository = repository(&self.instance, &person, sleep_seconds);
         owned::adopt(scratch.path(), &self.instance, &person, self.webhooks);
@@ -145,7 +110,7 @@ impl Throwaway {
         self
     }
 
-    /// The pinned server and runner with their original administrator, before Reconcile or adoption.
+    /// The pinned server and runner with their administrator, before the fixture bot or adoption.
     #[must_use]
     pub fn start_bare(scratch: &Scratch) -> Self {
         Self::start_bare_with_webhooks(scratch, None)
@@ -291,7 +256,7 @@ impl Throwaway {
     pub fn repository(&self) -> u64 {
         self.repository.expect("fixture repository")
     }
-    /// The reconciled secret, without its optional final line feed.
+    /// The seeded webhook secret, without its optional final line feed.
     #[must_use]
     pub fn secret(&self) -> Vec<u8> {
         let secret = fs::read(self.directory.join("forge-1/webhook_secret")).expect("webhook secret");
@@ -336,6 +301,73 @@ impl Throwaway {
             .expect("cancel answer");
         assert_eq!(response.status, 204, "cancel running gate");
     }
+}
+
+/// Seed the process fixture's bot and its kept access before serving it.
+pub fn seed(directory: &Path, instance: &mut Instance) {
+    bootstrap(directory, directory, directory);
+    let bot = instance.create_user("temper").expect("fixture bot");
+    let address = ([127, 0, 0, 1], instance.port()).into();
+    let mut record = temper_real_loop_world::fixtures::forgejo_record(address);
+    record.bot.login = b"temper".as_slice().into();
+    record.mode = temper_engine_domain_forge::Mode::Owned;
+    request(
+        instance,
+        &instance.admin().token,
+        "PATCH",
+        "/api/v1/admin/users/temper",
+        &json!({"login_name":"temper","source_id":0,"full_name":"temper:bot","must_change_password":false}),
+        200,
+    );
+    let hook = skein_throwaway_forgejo::fresh_secret().expect("fixture hook secret");
+    write_private(&directory.join("forge-1/webhook_secret"), hook.as_bytes());
+    temper_real_loop_world::fixtures::seed_forgejo(
+        &directory.join("state"),
+        record,
+        bot.id,
+        bot.token.value().as_bytes(),
+        hook.as_bytes(),
+        Some(instance.admin().token.value().as_bytes()),
+    );
+}
+
+/// Let the first service start commit stock settings and owners before adding fixture records.
+/// temper/docs/design/draft/playground-reset.md, 3; jig's start owns the initial store mark.
+pub fn bootstrap(config: &Path, data: &Path, cache: &Path) {
+    use skein_world::end_to_end::{Binary, Command, Mode};
+    let path = config.join("temper.json");
+    let original = fs::read(&path).expect("bootstrap configuration");
+    let mut document: Value = serde_json::from_slice(&original).expect("bootstrap JSON");
+    // A delivery story keeps this listener bound in the enclosing test.
+    document["application"]["webhooks"] = Value::Null;
+    write_private(&path, &serde_json::to_vec(&document).expect("bootstrap JSON"));
+    let binary = Binary::start(
+        Command {
+            program: skein_scratch::paths::binary("temper"),
+            arguments: vec![
+                "serve".into(),
+                "--config".into(),
+                config.into(),
+                "--data".into(),
+                data.into(),
+                "--cache".into(),
+                cache.into(),
+            ],
+            directory: config.into(),
+            environment: Vec::new(),
+        },
+        Mode::Pipes,
+        65_536,
+    )
+    .expect("fixture bootstrap service");
+    let ended = super::webhooks::served_binary(binary, "127.0.0.1:0".parse().expect("unused listener"), &[]);
+    write_private(&path, &original);
+    assert_eq!(
+        ended.exit,
+        Some(skein_io::kernel::Exit::Code(0)),
+        "fixture bootstrap: {}",
+        String::from_utf8_lossy(&ended.stderr)
+    );
 }
 
 pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {

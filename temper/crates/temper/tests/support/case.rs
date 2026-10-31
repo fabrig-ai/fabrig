@@ -159,7 +159,7 @@ fn process_settings(value: &mut Value) -> Value {
     let items = temper_real_loop_world::case::defaults::items(&defaults);
     value.as_object_mut().expect("deployment").remove("world_settings");
     // Settings and the project are established by the owner after sign-in.
-    // Local setup supplies credentials, without adopting an incidental project first.
+    // Fixture records supply credentials without adopting a project before sign-in.
     value["engine"]["projects"] = json!([]);
     let landing = std::mem::take(&mut value["application"]["landing"]["projects"]);
     assert_eq!(value["application"]["landing"]["deployment"], json!([]));
@@ -180,41 +180,6 @@ fn process_settings(value: &mut Value) -> Value {
         value["engine"]["limits"]["overrides"][name] = held.max(minimum).into();
     }
     items
-}
-
-fn reconcile(directory: &Path) {
-    let reconciled = std::process::Command::new(skein_scratch::paths::binary("temper"))
-        .env_clear()
-        .args(["forge", "reconcile", "--config"])
-        .arg(directory.join("config"))
-        .arg("--data")
-        .arg(directory.join("data"))
-        .arg("--cache")
-        .arg(directory.join("cache"))
-        .arg("1")
-        .current_dir(directory)
-        .output()
-        .expect("case forge credentials reconciled");
-    assert!(reconciled.status.success(), "case forge reconcile: {}", String::from_utf8_lossy(&reconciled.stderr));
-}
-
-/// Establish the same forge identity without adopting a project before sign-in.
-fn setup(value: &mut Value, forge: SocketAddr, directory: &Path, admin_token: &Value) {
-    value["application"]["webhooks"] = json!({"listener":{"socket":"127.0.0.1:0"}});
-    value["application"]["forges"] = json!([{
-        "number":1,"kind":"forgejo","api":{"socket":forge.to_string()},
-        "transport":"plaintext","git":format!("http://{forge}"),
-        "api_token":directory.join("api_token"),"user":{"file":directory.join("user")},
-        "webhook_secret":directory.join("webhook_secret")
-    }]);
-    value["application"]["identities"] = json!([{
-        "number":1,"forge":1,"login":"temper","author":{"name":"Temper","email":"temper@example.test"},
-        "token":directory.join("git_token")
-    }]);
-    value["application"]["setup"] = json!([{
-        "forge":1,"directory":directory,"bot":{"login":"temper","email":"temper@example.test"},
-        "orgs":["acme"],"mode":{"managed":{"admin_token":admin_token}}
-    }]);
 }
 
 pub fn run(
@@ -444,7 +409,7 @@ impl Judge {
             fs::read(document["admin_token"].as_str().expect("admin token file")).expect("fake admin token");
         (self.fixture.configure)(&mut value, &mut agent, forge);
         self.settings = process_settings(&mut value);
-        setup(&mut value, forge, &self.members.dir("forge").join("setup"), &document["admin_token"]);
+        value["application"]["webhooks"] = json!({"listener":{"socket":"127.0.0.1:0"}});
         super::configuration::turn_bounds::apply(&mut value, super::configuration::turn_bounds::turn_body(&agent));
         value["engine"]["hosts"]["listener"] = json!([{"socket":self.hosts.to_string()}]);
         for key in ["fleet.workers", "fleet.attempts"] {
@@ -502,8 +467,8 @@ impl Judge {
         value["workers"] = json!([]);
         value["application"]["workers"] = json!([]);
         write(&engine_dir.join("config/temper.json"), &value);
-        reconcile(&engine_dir);
-        permit_repository(forge, &self.admin_token);
+        super::forgejo::bootstrap(&engine_dir.join("config"), &engine_dir.join("data"), &engine_dir.join("cache"));
+        seed_forge(&engine_dir.join("data"), forge, &self.admin_token);
     }
     fn arguments(&self, argv: &calls::Argv) -> Vec<String> {
         argv.0
@@ -1248,8 +1213,7 @@ fn release(address: SocketAddr) {
     assert!(response.starts_with(b"HTTP/1.1 204 "), "PLACED release: {}", String::from_utf8_lossy(&response));
 }
 
-// Managed setup creates the bot but leaves each existing repository's access to
-// its owner. Supply the same collaborator grant the former fake setup supplied.
+// The repository owner grants the fixture bot access to the existing repository.
 fn permit_repository(address: SocketAddr, token: &[u8]) {
     let within = skein_lib::Duration::from_secs(10);
     let mut socket = Socket::connect("fixture forge", within, address, Scope::World).expect("fixture forge");
@@ -1264,4 +1228,54 @@ fn permit_repository(address: SocketAddr, token: &[u8]) {
     let response = socket.read_to_end("the fixture collaborator reply", within, 65_537).expect("collaborator response");
     assert!(response.len() <= 65_536);
     assert!(response.starts_with(b"HTTP/1.1 204 "), "fixture bot collaborator: {}", String::from_utf8_lossy(&response));
+}
+
+// The managed fake is provisioned outside the service, then kept as ordinary records.
+fn forge_request(address: SocketAddr, token: &[u8], method: &str, path: &str, body: &Value, status: u16) -> Value {
+    let within = skein_lib::Duration::from_secs(10);
+    let mut socket = Socket::connect("fixture forge", within, address, Scope::World).expect("fixture forge");
+    let body = serde_json::to_vec(body).expect("fixture request JSON");
+    let request = format!(
+        "{method} {path} HTTP/1.1\r\nHost: {address}\r\nAuthorization: token {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        text(token),
+        body.len()
+    );
+    socket.write_all("fixture request", within, request.as_bytes()).expect("request head");
+    socket.write_all("fixture body", within, &body).expect("request body");
+    let response = socket.read_to_end("fixture response", within, 65_537).expect("response");
+    assert!(response.len() <= 65_536);
+    assert!(response.starts_with(format!("HTTP/1.1 {status} ").as_bytes()), "fixture {method} {path} status");
+    let body = response.windows(4).position(|part| part == b"\r\n\r\n").expect("response head") + 4;
+    serde_json::from_slice(&response[body..]).expect("fixture response JSON")
+}
+
+fn seed_forge(directory: &Path, forge: SocketAddr, admin: &[u8]) {
+    let bot = forge_request(
+        forge,
+        admin,
+        "POST",
+        "/api/v1/admin/users",
+        &json!({"username":"temper","email":"temper@example.test","password":"case-fixture-password","full_name":"temper:bot","must_change_password":false}),
+        201,
+    );
+    let token = forge_request(
+        forge,
+        admin,
+        "POST",
+        "/api/v1/admin/users/temper/tokens",
+        &json!({"name":"case","scopes":["all"]}),
+        201,
+    );
+    let mut record = temper_real_loop_world::fixtures::forgejo_record(forge);
+    record.bot.login = b"temper".as_slice().into();
+    record.mode = temper_engine_domain_forge::Mode::Managed;
+    temper_real_loop_world::fixtures::seed_forgejo(
+        &directory.join("state"),
+        record,
+        bot["id"].as_u64().expect("fixture bot id"),
+        token["sha1"].as_str().expect("fixture bot token").as_bytes(),
+        temper_real_loop_world::forge::HOOK_SECRET,
+        Some(admin),
+    );
+    permit_repository(forge, admin);
 }
