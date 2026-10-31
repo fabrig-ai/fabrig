@@ -51,7 +51,11 @@ fn until(seconds: u64) -> Held {
 }
 #[test]
 fn every_restored_source_is_named_before_it_is_wanted() {
-    let mut world = World::restoring(&[ANALYST, 8]);
+    let mut world = World::with_start(
+        jig_accounts_world::LIMITS,
+        jig_accounts_world::providers(vec![jig_accounts_world::provider(1, true, false)]),
+        &jig_accounts_world::source_rows(&[ANALYST, 8]),
+    );
     let outputs = world.step(Event::Want);
     assert_eq!(
         outputs,

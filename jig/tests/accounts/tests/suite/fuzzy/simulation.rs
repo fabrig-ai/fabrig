@@ -93,7 +93,7 @@ fn changes(seed: u64) -> Vec<Request> {
     use skein_lib::Token;
     let mut offered = provider(1, true, true);
     offered.offers.programs = Box::new([Box::from(b"fake-program".as_slice())]);
-    let mut world = World::with(providers(vec![offered]), &[]);
+    let mut world = World::with_start(jig_accounts_world::LIMITS, providers(vec![offered]), &[]);
     let mut rng = Rng::new(seed);
     let mut trace = world.step(Event::Want);
     for request in 0..160_u64 {

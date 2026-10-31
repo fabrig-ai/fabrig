@@ -13,7 +13,7 @@ const PROGRAM: u32 = 23;
 fn world(plan: bool, records: Vec<Stored>) -> World {
     let mut configured = provider(PROVIDER, true, true);
     configured.signed_in_plan = plan;
-    let mut world = World::with(providers(vec![configured]), &[]);
+    let mut world = World::with_start(jig_accounts_world::LIMITS, providers(vec![configured]), &[]);
     world.restore(records);
     world.step(Event::Want);
     world
