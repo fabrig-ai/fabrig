@@ -30,7 +30,7 @@ impl Acted {
 
 pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
     match act {
-        // This build does not offer project deletion (temper/docs/design/draft/playground-reset.md, 5).
+        // This build does not offer project deletion (jig/docs/design/protocol/store.md, 11.1).
         Act::RemoveProject { .. } => return Err(Refusal::NotOffered),
         Act::Close { task, reason, .. } => {
             if *task == 0 {
