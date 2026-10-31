@@ -2,7 +2,7 @@
     clippy::disallowed_macros,
     clippy::disallowed_types,
     clippy::disallowed_methods,
-    reason = "programming-model.md section 10.2: deterministic harnesses use ordinary Rust"
+    reason = "test modules are ordinary Rust: programming-model.md 10.2"
 )]
 
 use super::*;

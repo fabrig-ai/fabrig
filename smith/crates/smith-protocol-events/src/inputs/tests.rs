@@ -1,7 +1,4 @@
-#![expect(
-    clippy::disallowed_methods,
-    reason = "programming-model.md section10.2: deterministic input-join fixtures use ordinary Rust"
-)]
+#![expect(clippy::disallowed_methods, reason = "test modules are ordinary Rust: programming-model.md 10.2")]
 
 use super::*;
 

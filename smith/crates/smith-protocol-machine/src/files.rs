@@ -275,7 +275,6 @@ fn other() -> tools::Done {
 }
 
 /// Convert the one terminal expected for the admitted operation.
-#[expect(clippy::manual_map, reason = "the strict step subset does not use closures")]
 pub(crate) fn terminal(kind: Kind, event: file::Event) -> tools::Done {
     match event {
         file::Event::Loaded { bytes, .. } => {

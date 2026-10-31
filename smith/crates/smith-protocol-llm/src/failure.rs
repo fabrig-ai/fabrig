@@ -179,7 +179,6 @@ pub(crate) const WRITE_SIZE_SUFFIX: &[u8] = b" bytes; make a smaller write or an
 
 fn call_size_problem(bytes: u64, bound: Option<u32>, maximum: u32) -> Result<Box<[u8]>, Error> {
     let size = Decimal::of(bytes);
-    #[expect(clippy::manual_map, reason = "production subset uses exhaustive matches without mapping callbacks")]
     let bound = match bound {
         Some(bound) => Some(Decimal::of(u64::from(bound))),
         None => None,

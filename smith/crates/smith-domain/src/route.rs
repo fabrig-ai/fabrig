@@ -800,7 +800,6 @@ fn pending_permit(
     }
 }
 
-#[expect(clippy::manual_map, reason = "programming-model.md 10.1 keeps the reservation translation exhaustive")]
 fn complete(domain: &mut Domain, env: &Env<Limits>, pending: PendingCompletion, out: &mut Queue<Request>) {
     let owner = pending.owner;
     let id = *domain.sessions.get(&owner).expect("a session asks for completions once it has opened");

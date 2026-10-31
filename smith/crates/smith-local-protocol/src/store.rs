@@ -43,7 +43,6 @@ pub enum StoreError {
 
 /// The metadata file after the caller has durably stored it.
 #[must_use]
-#[expect(clippy::manual_map, reason = "strict subset keeps optional boundary conversion as an explicit match")]
 pub fn save_state(state: ChatState) -> File {
     let read = match state.read {
         Some(read) => Some(read.raw()),
@@ -65,7 +64,6 @@ pub fn save_state(state: ChatState) -> File {
 }
 
 /// Read a complete generated local metadata file.
-#[expect(clippy::manual_map, reason = "strict subset keeps optional boundary conversion as an explicit match")]
 pub fn decode_state(bytes: &[u8]) -> Result<ChatState, StoreError> {
     let record = crate::local_store_v1::State::decode(&crate::local_store_v1::CEILINGS, &mut Reader::new(bytes))
         .or(Err(StoreError::Malformed))?
@@ -96,7 +94,6 @@ pub fn turn_name(place: u32) -> Box<[u8]> {
 }
 
 /// Encode one concrete turn for a durable numbered file.
-#[expect(clippy::manual_map, reason = "strict subset keeps optional boundary conversion as an explicit match")]
 pub fn save_turn(
     place: u32,
     read: Option<Token>,
@@ -144,7 +141,6 @@ pub fn decode_turns(
     decode_turns_bounded(files, limits, endpoints, crate::local_store_v1::CEILINGS.turn_body)
 }
 
-#[expect(clippy::manual_map, reason = "strict subset keeps optional boundary conversion as an explicit match")]
 pub(super) fn decode_turns_bounded(
     files: &[Box<[u8]>],
     limits: &transcript::v6::Limits,

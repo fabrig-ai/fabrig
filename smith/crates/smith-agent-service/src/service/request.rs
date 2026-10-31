@@ -133,7 +133,6 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
     }
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset requires explicit matches instead of closures")]
 fn account_notice(
     service: &mut Stages,
     now: Time,

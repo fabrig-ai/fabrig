@@ -6,7 +6,7 @@ mod tests {
         clippy::disallowed_macros,
         clippy::disallowed_methods,
         clippy::wildcard_enum_match_arm,
-        reason = "ordinary Rust test fixtures and boundary assertions follow programming-model.md section 10.2"
+        reason = "test modules are ordinary Rust: programming-model.md 10.2"
     )]
     use skein_heap::Meter;
     use skein_io as io;

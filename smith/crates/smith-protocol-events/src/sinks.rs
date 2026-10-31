@@ -789,7 +789,6 @@ impl Sinks {
     }
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset requires an explicit match instead of a closure")]
 fn ended_record(now: Time, started: Time, ended: &Ended, emitted: List<smith_events::Count>, loss: u64) -> Record {
     let (cpu_ms, peak_rss_bytes) = match ended.usage {
         io::Measured::Read(usage) => (

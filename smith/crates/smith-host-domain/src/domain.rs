@@ -369,7 +369,6 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) {
     observations(domain, out, before);
 }
 
-#[expect(clippy::manual_map, reason = "explicit admission cases follow programming-model.md, section 10")]
 fn spawn(domain: &mut Domain, env: &Env<Limits>, client: Token, start: Start, out: &mut Queue<Output>) {
     let refusal = if domain.agents.is_full() {
         Some(End::Busy)

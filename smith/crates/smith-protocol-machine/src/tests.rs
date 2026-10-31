@@ -1031,11 +1031,7 @@ fn a_cancel_before_spawn_reaches_group_close_and_waits_for_every_terminal() {
     assert!(to_domain.is_empty());
 }
 
-#[expect(
-    clippy::manual_map,
-    clippy::too_many_lines,
-    reason = "entry-point fixture orders directory, spawn, pipes and child terminals"
-)]
+#[expect(clippy::too_many_lines, reason = "entry-point fixture orders directory, spawn, pipes and child terminals")]
 fn listed(output: &[u8], depth: tools::Depth, maximum: u32, bytes: u64, glob: Option<&[u8]>) -> tools::Done {
     let mut component = component();
     let mut terminals = Queue::with_capacity(4);

@@ -1,5 +1,5 @@
 //! Rendering properties with deterministic input and the ordinary Rust test kit.
-#![allow(clippy::disallowed_types, reason = "test harnesses use ordinary Rust containers")]
+#![expect(clippy::disallowed_types, reason = "test modules are ordinary Rust: programming-model.md 10.2")]
 
 use skein_lib::{Duration, Rng};
 use smith_domain::tools;

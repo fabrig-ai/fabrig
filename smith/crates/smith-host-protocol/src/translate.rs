@@ -19,10 +19,6 @@ pub struct Values {
 }
 
 /// Encode a domain Start and its service-owned values as the first downlink frame.
-#[expect(
-    clippy::manual_map,
-    reason = "strict subset keeps typed Start translation as explicit matches without higher-order methods"
-)]
 pub fn encode_start(
     start: channel::Start,
     window: channel::Window,

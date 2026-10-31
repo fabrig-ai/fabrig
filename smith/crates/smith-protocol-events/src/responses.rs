@@ -13,8 +13,6 @@
 //! the main failure. Capture none keeps no provider diagnostic content.
 //! Contracts: smith/docs/design/protocol/events.md, sections 3.4–3.5, 3.10–3.11 and 4.
 
-#![expect(clippy::manual_map, reason = "the strict subset keeps bounded entries explicit and uses no closures")]
-
 mod retry;
 
 use alloc::boxed::Box;
