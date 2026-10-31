@@ -4,7 +4,7 @@ use crate::{
     payload::{self, Payload},
 };
 use jig_client_domain::contract::*;
-use skein_lib::{List, Wall};
+use skein_lib::List;
 fn chip(n: u64) -> Chip {
     Chip {
         task: n,

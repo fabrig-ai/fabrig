@@ -183,13 +183,19 @@ fn historical_ended_whole_chip_metadata_prices_reserved_resources_connectors_and
         },
         None,
     );
-    let plain = ended_bytes(&source, &bounds).expect("plain whole page");
+    let initial = ended_bytes(&source, &bounds).expect("initial whole page");
+    let initial_metadata = crate::owner_chip::bytes(&source.rows.get(0).expect("row").chip.details.details, &bounds)
+        .expect("initial metadata");
     *source.rows.get_mut(0).expect("row").chip.details =
         ChipPhase { phase: OwnerChipPhase::Ended, details: Box::new(metadata.clone()) };
     let whole = ended_bytes(&source, &bounds).expect("complete metadata page");
     assert_eq!(
         whole,
-        plain.checked_add(crate::owner_chip::bytes(&metadata, &bounds).expect("whole metadata")).expect("whole sum")
+        initial
+            .checked_sub(initial_metadata)
+            .expect("metadata included")
+            .checked_add(crate::owner_chip::bytes(&metadata, &bounds).expect("whole metadata"))
+            .expect("whole sum")
     );
     let original = source.clone();
     assert!(ended_fits(&source, &Bounds { document_bytes: whole, ..bounds }));

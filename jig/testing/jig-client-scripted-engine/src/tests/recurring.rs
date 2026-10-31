@@ -1,4 +1,4 @@
-use super::{list, specification, task, text};
+use super::{chip_details, list, specification, task, text};
 use crate::{Bounds, payload::fits};
 use jig_client_domain::contract::*;
 use skein_lib::Wall;
@@ -65,7 +65,7 @@ fn recurring() -> Recurring {
 fn recurring_prices_the_whole_template_batch_and_final_members_owned_bytes() {
     let row = recurring();
     let bytes = u64::try_from(core::mem::size_of::<Recurring>()).unwrap()
-        + u64::try_from(core::mem::size_of::<ChipPhase>()).unwrap()
+        + u64::try_from(core::mem::size_of::<ChipPhase>() + core::mem::size_of::<OwnerChipDetails>()).unwrap()
         + skein_lib::List::<ProposedTask>::price(2).unwrap()
         + skein_lib::List::<u64>::price(2).unwrap()
         + 3

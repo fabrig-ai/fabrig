@@ -63,7 +63,7 @@ fn whole_history_page_prices_all_boxes_stored_presence_and_reserved_rows_without
         after: Some(Cursor::new(Box::from(b"opaque after".as_slice()), 1024).expect("bounded opaque cursor")),
     };
     let mut expected = u64::try_from(size_of::<HistoryPage>()).unwrap()
-        + List::<HistoryRow>::price(3).unwrap()
+        + List::<HistoryRow>::price(2).unwrap()
         + u64::try_from(b"opaque before".len() + b"opaque after".len()).unwrap();
     for value in &values {
         match value {
@@ -88,7 +88,7 @@ fn whole_history_page_prices_all_boxes_stored_presence_and_reserved_rows_without
     assert_eq!(source.rows, Rows::History(vec![row]));
 }
 #[test]
-fn scripted_history_pages_keep_all_change_milestone_and_line_rows_under_opaque_source_continuations() {
+fn scripted_history_pages_keep_change_and_milestone_rows_under_opaque_source_continuations() {
     let values = vec![semantic(), milestone()];
     let mut setup = live_script();
     setup.bounds.rows = 1;
@@ -115,7 +115,7 @@ fn scripted_history_pages_keep_all_change_milestone_and_line_rows_under_opaque_s
         };
         assert_eq!(page.rows.as_slice(), core::slice::from_ref(expected));
         assert_eq!(page.before.is_some(), index != 0);
-        assert_eq!(page.after.is_some(), index != 2);
+        assert_eq!(page.after.is_some(), index.saturating_add(1) < values.len());
         assert!(!page.cut);
         cursor = page.after.clone();
     }
