@@ -103,7 +103,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     wire.owner_deployment_providers = wire.owned_record;
     wire.owner_deployment_readiness = wire.owned_record;
     wire.provider_offer_programs = client.rows;
-    wire.model_set_names_names_item = client.text;
+    wire.model_set_names_names_item = client.text.min(w::CEILINGS.model_set_names_names_item);
     wire.owner_chip_phase_waiting_dependencies = client.rows;
     wire.owner_chip_details_fields_dependencies = client.rows;
     wire.task_dependency_facts = client.rows;
@@ -115,8 +115,6 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
 
     wire.call_identity_id = client.text;
     wire.run_work_tool_tool = client.text;
-    wire.part_resource_path = client.segments;
-    wire.part_resource_path_item = client.text;
     wire.recipient_roles_roles = client.rows;
     wire.taken_by_name_some = client.text;
     wire.party_name = client.text;
@@ -153,7 +151,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     wire.person_answer_words_value = client.text;
     wire.person_answer_cannot_reason = client.text;
     wire.parameter_bytes_value = client.text;
-    wire.create_tasks = document_bytes;
+    wire.create_tasks = document_bytes.min(w::CEILINGS.create_tasks);
     wire.new_task_named = document_bytes;
     wire.new_task_dependencies = client.rows;
     wire.contract_verdict_choices = client.rows;
@@ -190,7 +188,6 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     wire.owner_word_result_verdict_fields = client.rows;
     wire.owner_word_words = client.text;
     wire.owner_activity_words_words = client.text;
-    wire.run_ending_failed_reason = client.text;
     wire.field_rule_name = client.text;
     wire.verdict_choice_fields = client.rows;
     wire.task_contract_document_approval_state = client.text;
@@ -204,10 +201,6 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     wire.result_document_acts = document_bytes;
     wire.activity_page_rows = document_bytes;
     wire.hold_spend = client.rows;
-    wire.history_change_amended_before = client.text;
-    wire.history_change_amended_after = client.text;
-    wire.history_change_cancelled_reason = client.text;
-    wire.history_change_moved_reason = client.text;
     wire.document_specification_parameters = client.rows;
     wire.document_specification_inputs = client.rows;
     wire.proposed_task_dependencies = client.rows;
@@ -227,29 +220,29 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     wire.owner_inbox_page_selection_some = document_bytes;
     wire.owner_inbox_page_rows = document_bytes;
     wire.subject_chips_tasks = client.rows;
-    wire.propose_settings_items = ask_bytes;
+    wire.propose_settings_items = ask_bytes.min(w::CEILINGS.propose_settings_items);
     wire.settings_review_items = document_bytes;
     wire.owner_proposal_action_settings_items = w::CEILINGS.owner_proposal_action_settings_items;
     wire.owner_retained_action_settings_items = w::CEILINGS.owner_retained_action_settings_items;
     // Settings share the receiving text, rows and message envelopes.
-    wire.charter_instructions = document_bytes;
-    wire.change_settings_items = ask_bytes;
+    wire.charter_instructions = document_bytes.min(w::CEILINGS.charter_instructions);
+    wire.change_settings_items = ask_bytes.min(w::CEILINGS.change_settings_items);
     wire.revision_document_items = document_bytes;
-    wire.setting_model_name = client.text;
-    wire.setting_model_program_some = client.text;
-    wire.setting_model_effort_some = client.text;
-    wire.setting_model_efforts_item = client.text;
+    wire.setting_model_name = client.text.min(w::CEILINGS.setting_model_name);
+    wire.setting_model_program_some = client.text.min(w::CEILINGS.setting_model_program_some);
+    wire.setting_model_effort_some = client.text.min(w::CEILINGS.setting_model_effort_some);
+    wire.setting_model_efforts_item = client.text.min(w::CEILINGS.setting_model_efforts_item);
     wire.charter_alternatives = client.rows.min(w::CEILINGS.charter_alternatives);
-    wire.setting_model_efforts = client.rows;
+    wire.setting_model_efforts = client.rows.min(w::CEILINGS.setting_model_efforts);
     wire.setting_policy_projections = client.rows;
     wire.setting_policy_roles = client.rows;
     wire.setting_policy_requirements = client.rows;
     wire.setting_policy_permissions = client.rows;
-    wire.setting_policy_templates = client.rows;
+    wire.setting_policy_templates = client.rows.min(w::CEILINGS.setting_policy_templates);
     wire.rules_implies = client.rows;
     wire.rules_requirements = client.rows;
     // Settings are a whole inventory, independent of a page's row limit.
-    wire.settings_document_settings = document_bytes;
+    wire.settings_document_settings = document_bytes.min(w::CEILINGS.settings_document_settings);
     wire.settings_document_held = client.rows;
     wire.settings_document_pending = client.rows;
     wire.revision_row_items = client.rows;

@@ -202,7 +202,7 @@ fn fill(limits: Limits) {
         let agent = Token::new(index);
         assert_eq!(
             host.step(Event::Agent(FromAgent::Started { owner: *owner, agent })).len(),
-            usize::try_from(limits.held).expect("fits")
+            skein_lib::length::usize_of(limits.held)
         );
         assert!(host.step(Event::Agent(FromAgent::Yielded { owner: *owner })).is_empty(), "waiting");
         let [Asked::Delivery { owner: delivery }] = host.step(jig_host_world::fixtures::called(
@@ -319,7 +319,7 @@ fn paths(limits: Limits) {
         owners.push(owner);
     }
     let reported = host.step(jig_host_world::fixtures::opened());
-    assert_eq!(reported, [Asked::Hosting { runs: usize::try_from(limits.slots).expect("fits") }]);
+    assert_eq!(reported, [Asked::Hosting { runs: skein_lib::length::usize_of(limits.slots) }]);
     let first = owners[0];
     let unprepared = Event::Unprepared {
         owner: first,
@@ -382,7 +382,7 @@ fn every_entry_point_preserves_its_lifecycle() {
 fn transcripts_and_delivery_feedback_keep_their_order() {
     use jig_domain_host::{Assignment, Ending, Finish, Turn};
     let limits = Limits { transcript_bytes: 2048, turn_bytes: 128, turns: 1, turn_queue_bytes: 128, ..LIMITS };
-    let mut owners = Vec::with_capacity(usize::try_from(limits.slots).expect("bounded"));
+    let mut owners = Vec::with_capacity(skein_lib::length::usize_of(limits.slots));
     let mut host = Measured::new(limits);
     for run in 0..u64::from(limits.slots) {
         let assignment = assignment(run, &limits);
@@ -538,7 +538,7 @@ fn maximum_input_pieces_keep_their_payloads_and_order() {
     while let Some(record) = host.domain.pop_activity() {
         match record {
             LinkUp::Piece { piece, .. } => {
-                assert_eq!(piece.bytes.len(), usize::try_from(limits.piece_bytes).expect("small bound"));
+                assert_eq!(piece.bytes.len(), skein_lib::length::usize_of(limits.piece_bytes));
                 pieces += 1;
             }
             LinkUp::Activity { .. } => activity += 1,

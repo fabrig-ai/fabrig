@@ -125,7 +125,7 @@ fn retained_malformed_create_keeps_and_replays_the_original_refusal() {
     let mut out = Queue::uncapped();
     people::step(
         &mut h.core.people,
-        &Env { now: h.env.now, wall: h.env.wall, limits: h.env.limits.people },
+        &h.env.with(h.env.limits.people),
         people::Event::Ask {
             reply_to: ReplyTo::new(Token::new(900)),
             sign_in: world.sign_in.expect("owner sign-in"),
@@ -164,7 +164,7 @@ fn recurring_lifetime_count_past_live_capacity_survives_start_link() {
 
 /// Restore the direct core through durable Wires before testing runtime inputs.
 pub(super) fn recovered(world: &World, config: core::Config, env: &Env<core::Limits>) -> core::Core {
-    let mut harness = Harness::stored_with(world, config, Env { now: env.now, wall: env.wall, limits: env.limits });
+    let mut harness = Harness::stored_with(world, config, env.with(env.limits));
     let action = harness.link();
     harness.open(action);
     assert!(harness.core.start_opened());
@@ -174,7 +174,7 @@ pub(super) fn recovered(world: &World, config: core::Config, env: &Env<core::Lim
 pub(super) fn first(config: core::Config, env: &Env<core::Limits>) -> core::Core {
     let mut harness = Harness {
         core: core::Core::new(config, &env.limits).expect("configured core"),
-        env: Env { now: env.now, wall: env.wall, limits: env.limits },
+        env: env.with(env.limits),
         out: Queue::uncapped(),
     };
     let action = harness.core.start_begin(false, harness.env.wall);

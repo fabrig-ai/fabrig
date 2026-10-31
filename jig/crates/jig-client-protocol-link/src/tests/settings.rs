@@ -493,7 +493,7 @@ fn malformed_pieces_counts_and_byte_bounds_are_refused() {
     }
     change.items = items;
     t::wire_change_settings(&change, limits.wire()).expect_err("invalid settings value is refused");
-    let mut tight = limits.wire();
+    let mut tight = *limits.wire();
     tight.change_settings_items = 1;
     t::wire_change_settings(&values::settings_change(), &tight).expect_err("invalid settings value is refused");
     let wire = translate::asks::ask(&c::Ask::ChangeSettings(values::settings_change()), limits.wire()).unwrap();
@@ -525,7 +525,7 @@ fn settings_items_fit_at_the_count_and_byte_bounds() {
     items.push(c::SettingItem { setting: c::Setting::Rules, edit: c::SettingEdit::Reset }).unwrap();
     let change = c::ChangeSettings { against: 1, items, running: c::Running::Stays };
     for (bytes, accepted) in [(RESET_BYTES, true), (RESET_BYTES.checked_sub(1).unwrap(), false)] {
-        let mut wire = limits.wire();
+        let mut wire = *limits.wire();
         wire.change_settings_items = bytes;
         assert_eq!(t::wire_change_settings(&change, &wire).is_ok(), accepted);
     }
@@ -573,7 +573,7 @@ fn settings_inventory_refuses_one_line_past_the_wire_and_receiving_limits() {
     let limits = fixtures::limits();
     let problem = w::Problem { path: w::Path::SettingsDocumentSettings, reason: skein_codec::Reason::Bound };
     assert_eq!(t::wire_settings_document(&settings_inventory(MAX_SETTINGS + 1), limits.wire()), Err(problem));
-    let mut narrow = limits.wire();
+    let mut narrow = *limits.wire();
     narrow.settings_document_settings = STANDARD_SETTINGS - 1;
     let wire = t::wire_settings_document(&settings_inventory(STANDARD_SETTINGS), limits.wire()).unwrap();
     let mut encoded = Writer::new(usize::try_from(wire.measure()).unwrap());

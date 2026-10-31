@@ -31,7 +31,7 @@ fn decoded(second: &[u8]) -> c::TurnRead {
     let base = fixtures::limits();
     let client = jig_client_domain::Limits { text: FIELD_TEXT, turn_text: TURN_TEXT, ..*base.client() };
     let limits = Limits::new(client, base.exchanges()).unwrap();
-    translate::pages::turn_fields(&turn_with(second), &limits)
+    translate::pages::carried_turn_fields(&turn_with(second), &limits)
 }
 
 #[test]

@@ -5,10 +5,10 @@ mod decisions;
 use decisions::{decided, repeated};
 mod priorities;
 mod projects;
-use crate::{Engine, Envelope, Invalid, Keyed, RequestIdentity, Retained, Up, payload};
+use crate::{Engine, Envelope, Invalid, Keyed, RequestIdentity, Retained, Up};
 use jig_client_domain::contract::{
-    ActKind, Admission, Answer, Ask, CurrentHold, Decision, Ending, Moved, ObjectKey, Offered, Outcome, OwnerRequester,
-    ReadValue, Recipient, Refusal, Revision, TaskHold,
+    ActKind, Admission, Answer, Ask, CurrentHold, Decision, Ending, Moved, ObjectKey, Offered, Outcome, OwnerChipHold,
+    OwnerRequester, ReadValue, Recipient, Refusal, Revision,
 };
 use jig_client_domain::contract::{AnswerOn, DecideOn, Operation};
 use skein_lib::{List, Time, Token, Wall};
@@ -25,7 +25,7 @@ impl<A: crate::Application> Engine<A> {
         attempt: Token,
         ask: Ask,
     ) -> core::result::Result<(), Invalid> {
-        if !payload::fits(&ask, &self.bounds) {
+        if crate::codec::ask(&ask, &self.bounds).is_err() {
             return Err(Invalid::Payload);
         }
         self.attempts.insert(attempt, sign_in);
@@ -50,12 +50,21 @@ impl<A: crate::Application> Engine<A> {
                 Answer::Refused { refusal: Refusal::KeyConflict, at: None }
             };
             let commit = old.commit;
-            self.answer(now, commit, attempt, answer);
+            self.answer(now, commit, attempt, crate::codec::answer(&answer, &self.bounds)?);
             return Ok(());
         }
+        let previous_truth = self.truth.clone();
         let (answer, changes) = match self.decide(party, &ask, wall) {
             Ok(decision) => decision,
             Err(error) => {
+                self.attempts.remove(&attempt);
+                return Err(error);
+            }
+        };
+        let answer = match crate::codec::answer(&answer, &self.bounds) {
+            Ok(answer) => answer,
+            Err(error) => {
+                self.truth = previous_truth;
                 self.attempts.remove(&attempt);
                 return Err(error);
             }
@@ -163,42 +172,33 @@ impl<A: crate::Application> Engine<A> {
                     (ReadValue::Task(value), Moved::Spec) => Some(value.spec_revision),
                     (ReadValue::OwnerEscalation(value), Moved::Spec) => Some(value.task.spec_revision),
                     (ReadValue::OwnerEscalation(value), Moved::Hold { .. }) => {
-                        value.task.hold.as_ref().map(TaskHold::revision)
+                        value.task.hold.as_ref().map(|hold| hold.revision())
                     }
-                    (ReadValue::Task(value), Moved::Hold { .. }) => value.hold.as_ref().map(TaskHold::revision),
-                    (ReadValue::Escalation(value), Moved::Hold { .. }) => Some(value.hold.revision),
-                    (ReadValue::PersonTask(value), Moved::PersonTask) => Some(value.revision),
+                    (ReadValue::Task(value), Moved::Hold { .. }) => value.hold.as_ref().map(|hold| hold.revision()),
+
                     (ReadValue::OwnerPersonTask(value), Moved::PersonTask) => Some(value.revision),
                     (
                         ReadValue::Tasks(_)
                         | ReadValue::Me(_)
                         | ReadValue::Task(_)
-                        | ReadValue::Proposal(_)
                         | ReadValue::Historical(_)
                         | ReadValue::OwnerProposal(_)
-                        | ReadValue::Escalation(_)
                         | ReadValue::OwnerEscalation(_)
                         | ReadValue::Question(_)
-                        | ReadValue::PersonTask(_)
                         | ReadValue::OwnerPersonTask(_)
                         | ReadValue::Result(_)
-                        | ReadValue::Ended(_)
                         | ReadValue::History(_)
                         | ReadValue::Activity(_)
                         | ReadValue::Turn(_)
-                        | ReadValue::Inbox(_)
                         | ReadValue::OwnerInbox(_)
-                        | ReadValue::Spend(_)
                         | ReadValue::OwnerEnded(_)
                         | ReadValue::OwnerSpend(_)
                         | ReadValue::OwnerProject(_)
-                        | ReadValue::Project(_)
                         | ReadValue::Notes(_)
                         | ReadValue::Settings(_)
                         | ReadValue::Setting(_)
                         | ReadValue::Revision(_)
                         | ReadValue::Revisions(_)
-                        | ReadValue::Deployment(_)
                         | ReadValue::OwnerDeployment(_),
                         Moved::Hold { .. }
                         | Moved::PlacedHold { .. }
@@ -213,37 +213,30 @@ impl<A: crate::Application> Engine<A> {
                         let what = match what {
                             Moved::Hold { .. } => {
                                 let reason = match value {
-                                    ReadValue::Task(task) => task.hold.as_ref().map(task_hold_reason),
-                                    ReadValue::OwnerEscalation(value) => value.task.hold.as_ref().map(task_hold_reason),
-                                    ReadValue::Escalation(escalation) => {
-                                        Some(CurrentHold::Document(Box::new(escalation.hold.reason.clone())))
+                                    ReadValue::Task(task) => task.hold.as_ref().map(|hold| task_hold_reason(hold)),
+                                    ReadValue::OwnerEscalation(value) => {
+                                        value.task.hold.as_ref().map(|hold| task_hold_reason(hold))
                                     }
+
                                     ReadValue::Tasks(_)
                                     | ReadValue::Me(_)
-                                    | ReadValue::Proposal(_)
                                     | ReadValue::Historical(_)
                                     | ReadValue::OwnerProposal(_)
                                     | ReadValue::Question(_)
-                                    | ReadValue::PersonTask(_)
                                     | ReadValue::OwnerPersonTask(_)
                                     | ReadValue::Result(_)
-                                    | ReadValue::Ended(_)
-                                    | ReadValue::Inbox(_)
                                     | ReadValue::OwnerInbox(_)
                                     | ReadValue::Activity(_)
                                     | ReadValue::Turn(_)
                                     | ReadValue::History(_)
-                                    | ReadValue::Spend(_)
                                     | ReadValue::OwnerEnded(_)
                                     | ReadValue::OwnerSpend(_)
                                     | ReadValue::OwnerProject(_)
-                                    | ReadValue::Project(_)
                                     | ReadValue::Notes(_)
                                     | ReadValue::Settings(_)
                                     | ReadValue::Setting(_)
                                     | ReadValue::Revision(_)
                                     | ReadValue::Revisions(_)
-                                    | ReadValue::Deployment(_)
                                     | ReadValue::OwnerDeployment(_) => None,
                                 };
                                 Moved::Hold { reason }
@@ -283,22 +276,19 @@ impl<A: crate::Application> Engine<A> {
                     jig_client_domain::contract::OwnerHistoryHolder::Task(task) => Some(Recipient::Task(task)),
                     jig_client_domain::contract::OwnerHistoryHolder::Policy { .. } => None,
                 },
-                ReadValue::OwnerEscalation(value) => value.task.hold.as_ref().and_then(|hold| match hold {
-                    TaskHold::Owner(hold) => match hold.escalation {
-                        Some(jig_client_domain::contract::OwnerHoldEscalation::Waiting { holder, .. }) => {
-                            Some(match holder {
-                                jig_client_domain::contract::OwnerEscalationHolder::Person(person) => {
-                                    Recipient::Party(person)
-                                }
-                                jig_client_domain::contract::OwnerEscalationHolder::Task(task) => Recipient::Task(task),
-                                jig_client_domain::contract::OwnerEscalationHolder::Role { project, role } => {
-                                    Recipient::Role { project, role }
-                                }
-                            })
-                        }
-                        _ => None,
-                    },
-                    TaskHold::Document(_) => None,
+                ReadValue::OwnerEscalation(value) => value.task.hold.as_ref().and_then(|hold| match hold.escalation {
+                    Some(jig_client_domain::contract::OwnerHoldEscalation::Waiting { holder, .. }) => {
+                        Some(match holder {
+                            jig_client_domain::contract::OwnerEscalationHolder::Person(person) => {
+                                Recipient::Party(person)
+                            }
+                            jig_client_domain::contract::OwnerEscalationHolder::Task(task) => Recipient::Task(task),
+                            jig_client_domain::contract::OwnerEscalationHolder::Role { project, role } => {
+                                Recipient::Role { project, role }
+                            }
+                        })
+                    }
+                    _ => None,
                 }),
                 ReadValue::Settings(_)
                 | ReadValue::Setting(_)
@@ -310,23 +300,15 @@ impl<A: crate::Application> Engine<A> {
                 | ReadValue::Me(_)
                 | ReadValue::Turn(_)
                 | ReadValue::Task(_)
-                | ReadValue::Proposal(_)
-                | ReadValue::Escalation(_)
                 | ReadValue::Question(_)
-                | ReadValue::PersonTask(_)
                 | ReadValue::OwnerPersonTask(_)
                 | ReadValue::Result(_)
-                | ReadValue::Ended(_)
                 | ReadValue::OwnerEnded(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
-                | ReadValue::Inbox(_)
                 | ReadValue::OwnerInbox(_)
-                | ReadValue::Spend(_)
                 | ReadValue::OwnerSpend(_)
-                | ReadValue::Project(_)
                 | ReadValue::Notes(_)
-                | ReadValue::Deployment(_)
                 | ReadValue::OwnerDeployment(_) => None,
             };
             if waiting.as_ref().is_some_and(|waiting| !recipient(&self.truth, party, waiting)) {
@@ -553,9 +535,7 @@ impl<A: crate::Application> Engine<A> {
                 Some(ReadValue::OwnerEscalation(before)) => {
                     jig_client_domain::contract::admission::amendment(offer, change, &before.task.authority)
                 }
-                Some(ReadValue::Escalation(before)) => {
-                    jig_client_domain::contract::admission::amendment(offer, change, &before.steering.authority)
-                }
+
                 _ => Admission::Refused(Refusal::Unknown),
             },
         }
@@ -583,53 +563,45 @@ pub(crate) fn recipient(truth: &crate::Truth, party: u64, to: &Recipient) -> boo
 fn offers(value: &ReadValue) -> Option<&List<Offered>> {
     match value {
         ReadValue::Task(v) => Some(&v.acts),
-        ReadValue::Proposal(v) => Some(&v.acts),
+
         ReadValue::OwnerProposal(v) => Some(&v.acts),
-        ReadValue::Escalation(v) => Some(&v.acts),
+
         ReadValue::OwnerEscalation(v) => Some(&v.acts),
         ReadValue::Question(v) => Some(&v.acts),
-        ReadValue::PersonTask(v) => Some(&v.acts),
+
         ReadValue::OwnerPersonTask(v) => Some(&v.acts),
         ReadValue::Result(v) => Some(&v.acts),
         ReadValue::Historical(_)
         | ReadValue::Tasks(_)
         | ReadValue::Me(_)
-        | ReadValue::Ended(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
         | ReadValue::Turn(_)
-        | ReadValue::Inbox(_)
         | ReadValue::OwnerInbox(_)
-        | ReadValue::Spend(_)
         | ReadValue::OwnerEnded(_)
         | ReadValue::OwnerSpend(_)
         | ReadValue::OwnerProject(_)
-        | ReadValue::Project(_)
         | ReadValue::Notes(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
-        | ReadValue::Deployment(_)
         | ReadValue::OwnerDeployment(_) => None,
     }
 }
-fn task_hold_reason(value: &TaskHold) -> CurrentHold {
-    match value {
-        TaskHold::Document(value) => CurrentHold::Document(Box::new(value.reason.clone())),
-        TaskHold::Owner(value) => CurrentHold::Reason(value.reason),
-    }
+fn task_hold_reason(value: &OwnerChipHold) -> CurrentHold {
+    CurrentHold::Reason(value.reason)
 }
+
 fn ending(value: &ReadValue) -> Option<Ending> {
     match value {
         ReadValue::Task(v) => match v.result.as_ref()? {
             jig_client_domain::contract::TaskResult::Document(result) => Some(result.ending.clone()),
             jig_client_domain::contract::TaskResult::Ending(ending) => Some(Ending::Task(ending.clone())),
         },
-        ReadValue::Proposal(v) => v.ending.clone(),
-        ReadValue::Escalation(v) => v.ending.clone(),
+
         ReadValue::Question(v) => v.ending.clone(),
-        ReadValue::PersonTask(v) => v.ending.clone(),
+
         ReadValue::Result(v) => Some(v.ending.clone()),
         ReadValue::OwnerPersonTask(_)
         | ReadValue::Historical(_)
@@ -637,23 +609,18 @@ fn ending(value: &ReadValue) -> Option<Ending> {
         | ReadValue::OwnerEscalation(_)
         | ReadValue::Tasks(_)
         | ReadValue::Me(_)
-        | ReadValue::Ended(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
         | ReadValue::Turn(_)
-        | ReadValue::Inbox(_)
         | ReadValue::OwnerInbox(_)
-        | ReadValue::Spend(_)
         | ReadValue::OwnerEnded(_)
         | ReadValue::OwnerSpend(_)
         | ReadValue::OwnerProject(_)
-        | ReadValue::Project(_)
         | ReadValue::Notes(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
-        | ReadValue::Deployment(_)
         | ReadValue::OwnerDeployment(_) => None,
     }
 }

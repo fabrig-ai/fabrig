@@ -79,8 +79,7 @@ pub(crate) fn prepare_staged(
                     unanswered = unanswered.checked_add(1).expect("bounded question positions");
                 }
             }
-            if (word.kind == MessageKind::Question
-                && unanswered >= usize::try_from(limits.inbox_messages).expect("u32 fits usize"))
+            if (word.kind == MessageKind::Question && unanswered >= skein_lib::length::usize_of(limits.inbox_messages))
                 || !room_staged(
                     domain,
                     staged,
@@ -227,7 +226,7 @@ pub(crate) fn room_staged(
     }
     let total_count = total_count.saturating_sub(extra_count);
     let Some(total_count) = total_count.checked_add(subscription_count) else { return false };
-    let Some(total_count) = total_count.checked_add(usize::try_from(count).expect("u32 fits usize")) else {
+    let Some(total_count) = total_count.checked_add(skein_lib::length::usize_of(count)) else {
         return false;
     };
     let mut total_bytes = bytes;
@@ -240,12 +239,10 @@ pub(crate) fn room_staged(
         };
         total_bytes = sum;
     }
-    let Some(result_bytes) = delegates.checked_mul(usize::try_from(limits.result_bytes).expect("u32 fits usize"))
-    else {
+    let Some(result_bytes) = delegates.checked_mul(skein_lib::length::usize_of(limits.result_bytes)) else {
         return false;
     };
-    let Some(answer_bytes) =
-        record.questions.len().checked_mul(usize::try_from(limits.message_bytes).expect("u32 fits usize"))
+    let Some(answer_bytes) = record.questions.len().checked_mul(skein_lib::length::usize_of(limits.message_bytes))
     else {
         return false;
     };
@@ -258,12 +255,11 @@ pub(crate) fn room_staged(
     let Some(total_bytes) = total_bytes.checked_add(answer_bytes) else {
         return false;
     };
-    let proposal_bytes =
-        if record.proposal.is_some() { usize::try_from(limits.message_bytes).expect("u32 fits usize") } else { 0 };
+    let proposal_bytes = if record.proposal.is_some() { skein_lib::length::usize_of(limits.message_bytes) } else { 0 };
     let Some(total_bytes) = total_bytes.checked_add(proposal_bytes) else { return false };
     let Some(total_bytes) = total_bytes.checked_add(subscription_bytes) else { return false };
-    total_count <= usize::try_from(limits.inbox_messages).expect("u32 fits usize")
-        && total_bytes <= usize::try_from(limits.inbox_bytes).expect("u32 fits usize")
+    total_count <= skein_lib::length::usize_of(limits.inbox_messages)
+        && total_bytes <= skein_lib::length::usize_of(limits.inbox_bytes)
 }
 
 #[expect(clippy::too_many_arguments, reason = "one message entrance carries its addressed word and authorization")]
@@ -382,7 +378,7 @@ pub(crate) fn check_message(
     if word.number == 0
         || word.number <= task.last_message
         || word.words.is_empty()
-        || word.words.len() > usize::try_from(env.limits.message_bytes).expect("u32 fits usize")
+        || word.words.len() > skein_lib::length::usize_of(env.limits.message_bytes)
     {
         return Err(Box::new(crate::Problem {
             task: Some(number),
@@ -499,14 +495,7 @@ pub(crate) fn check_message(
                 }));
             }
         };
-        if !room_staged(
-            domain,
-            staged,
-            &env.limits,
-            source,
-            1,
-            usize::try_from(env.limits.message_bytes).expect("u32 fits usize"),
-        ) {
+        if !room_staged(domain, staged, &env.limits, source, 1, skein_lib::length::usize_of(env.limits.message_bytes)) {
             return Err(Box::new(crate::Problem {
                 task: Some(source),
                 why: Refusal::Busy,
@@ -616,7 +605,7 @@ pub(crate) fn delegate_result(
         Party::Person(_) | Party::Deployment { .. } => false,
     } || word.number == 0
         || word.number <= task.last_message
-        || payload_bytes > usize::try_from(env.limits.result_bytes).expect("u32 fits usize")
+        || payload_bytes > skein_lib::length::usize_of(env.limits.result_bytes)
         || !room(domain, &env.limits, number, 1, payload_bytes)
     {
         return;

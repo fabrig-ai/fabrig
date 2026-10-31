@@ -170,7 +170,7 @@ impl<K: Ord + Clone, R: Clone> Store<K, R> {
         self.failed = false;
     }
 
-    /// Read a live range at cold start; historical rows outside it stay in storage.
+    /// Read a live range at cold start; retained rows outside it stay in storage.
     pub fn restore<'a>(&'a self, first: &'a K, last: &'a K) -> impl Iterator<Item = &'a R> {
         self.rows.range(first.clone()..=last.clone()).map(|(_, row)| row)
     }
@@ -179,7 +179,7 @@ impl<K: Ord + Clone, R: Clone> Store<K, R> {
     #[must_use]
     pub fn page(&self, first: &K, last: &K, after: Option<&K>, most: u32, delay: u32) -> Page<K, R> {
         assert!(most > 0, "a store page has positive room");
-        let count = usize::try_from(most).expect("page count fits usize");
+        let count = skein_lib::length::usize_of(most);
         let mut rows = Vec::new();
         let mut keys = Vec::new();
         for (key, row) in self.rows.range(first.clone()..=last.clone()) {

@@ -103,27 +103,6 @@ pub(super) fn encode_waits_on(value: &jig_client::contract::WaitsOn, out: &mut E
     }
 }
 
-pub(super) fn encode_wake_policy(value: &jig_client::contract::WakePolicy, out: &mut Encoder, budget: &mut super::Cut) {
-    out.object_start();
-    out.key(b"words");
-    out.boolean(value.words);
-    out.key(b"results");
-    out.boolean(value.results);
-    out.key(b"topics");
-    out.array_start();
-    for item_1 in &value.topics {
-        out.unsigned(u64::from(*(item_1)));
-    }
-    out.array_end();
-    out.key(b"subscriptions");
-    out.array_start();
-    for item_2 in &value.subscriptions {
-        super::encode_part(item_2, out, budget);
-    }
-    out.array_end();
-    out.object_end();
-}
-
 pub(super) fn encode_wake_rule(value: &jig_client::contract::WakeRule, out: &mut Encoder, _budget: &mut super::Cut) {
     match value {
         jig_client::contract::WakeRule::Never => out.string(b"never"),

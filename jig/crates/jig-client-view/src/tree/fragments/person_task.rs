@@ -106,9 +106,8 @@ fn controls(
 ) {
     if let Some(fact) = client.objects().get(object)
         && let Some(value) = crate::state::objects::person_task::owner_facts(&fact)
-        && let ChipPhase::Owner { details, .. } = value.task.details.as_ref()
     {
-        for dependency in &details.dependencies {
+        for dependency in &value.task.details.details.dependencies {
             if dependency.keeps && dependency.pending {
                 words.text(b, JigPhrase::KeptAnswer, &[]);
                 return;
@@ -190,26 +189,14 @@ pub fn card(
     // The card keeps the whole contract; editable drafts live only in its confirmation.
     crate::tree::cards::common::answer(b, &fact, words, text_limit);
     let mut acts = skein_lib::List::with_capacity(value.acts.capacity());
-    let kept = match value.task.details.as_ref() {
-        ChipPhase::Owner { details, .. } => {
-            let mut kept = false;
-            for dependency in &details.dependencies {
-                kept |= dependency.keeps && dependency.pending;
-            }
-            kept
+    let kept = {
+        let ChipPhase { details, .. } = value.task.details.as_ref();
+
+        let mut kept = false;
+        for dependency in &details.dependencies {
+            kept |= dependency.keeps && dependency.pending;
         }
-        ChipPhase::Active(_)
-        | ChipPhase::Waiting { .. }
-        | ChipPhase::Idle { .. }
-        | ChipPhase::Starting
-        | ChipPhase::Running { .. }
-        | ChipPhase::WaitingForWords { .. }
-        | ChipPhase::BackingOff { .. }
-        | ChipPhase::Procedure { .. }
-        | ChipPhase::Person { .. }
-        | ChipPhase::Closing(_)
-        | ChipPhase::Held { .. }
-        | ChipPhase::Ended { .. } => false,
+        kept
     };
     for act in &value.acts {
         if kept && act.act == jig_client::contract::ActKind::Answer {

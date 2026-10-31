@@ -74,7 +74,6 @@ pub fn language() -> Language {
             JigPhrase::SettingFaultOwner => {
                 Box::new([Segment::Text(copy_of(b"Setting policy owner role cannot be a root requester"))])
             }
-
             JigPhrase::OpenProgramModel => Box::new([Segment::Text(copy_of(b"This model runs through a program"))]),
             JigPhrase::OpenProgramUnavailable => {
                 Box::new([Segment::Text(copy_of(b"A chat can't stay open through a program yet"))])
@@ -116,7 +115,6 @@ pub fn language() -> Language {
                 Segment::Text(copy_of(b"Requester-ended task is not an agent conversation at ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },
             ]),
-
             JigPhrase::KeptUntil => Box::new([
                 Segment::Text(copy_of(b"kept until T")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },
@@ -213,7 +211,6 @@ pub fn language() -> Language {
             JigPhrase::TasksBackingOff => {
                 Box::new([Segment::Text(copy_of(b"Backing off ")), Segment::Hole { index: 0, kind: HoleKind::Number }])
             }
-
             JigPhrase::PageCut => Box::new([Segment::Text(copy_of(b"This page is incomplete"))]),
             JigPhrase::NoteWriterParty => Box::new([
                 Segment::Text(copy_of(b"Written by party ")),
@@ -339,7 +336,6 @@ pub fn language() -> Language {
                 Segment::Text(copy_of(b" maps to role ")),
                 Segment::Hole { index: 2, kind: HoleKind::Number },
             ]),
-
             JigPhrase::RunIdle => Box::new([Segment::Text(copy_of(b"Activation idle"))]),
             JigPhrase::RunDue => Box::new([Segment::Text(copy_of(b"Activation due"))]),
             JigPhrase::RunPreparing => Box::new([Segment::Text(copy_of(b"Preparing an activation"))]),
@@ -412,7 +408,6 @@ pub fn language() -> Language {
             JigPhrase::ClosingPendingEnding => Box::new([Segment::Text(copy_of(b"Pending ending"))]),
             JigPhrase::HeldPriorLifecycle => Box::new([Segment::Text(copy_of(b"Prior lifecycle before the hold"))]),
             JigPhrase::HeldPriorWaiting => Box::new([Segment::Text(copy_of(b"Prior lifecycle: waiting"))]),
-
             JigPhrase::SpecificationNumber => Box::new([
                 Segment::Text(copy_of(b"Parameter ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },
@@ -434,11 +429,9 @@ pub fn language() -> Language {
                 Box::new([Segment::Text(copy_of(b"Input task ")), Segment::Hole { index: 0, kind: HoleKind::Number }])
             }
             JigPhrase::SpecificationCut => Box::new([Segment::Text(copy_of(b"The specification is incomplete"))]),
-
             JigPhrase::FailureRun => Box::new([Segment::Text(copy_of(b"Executor reported failure"))]),
             JigPhrase::FailureAgent => Box::new([Segment::Text(copy_of(b"Agent failed"))]),
             JigPhrase::FailureInvalid => Box::new([Segment::Text(copy_of(b"Result broke its contract"))]),
-
             JigPhrase::RecurringSkip => {
                 Box::new([Segment::Text(copy_of(b"If the preceding batch is still live, skip this period"))])
             }
@@ -463,9 +456,7 @@ pub fn language() -> Language {
             JigPhrase::PanelPart => Box::new([Segment::Text(copy_of(b"Task panel"))]),
             JigPhrase::ResultPart => Box::new([Segment::Text(copy_of(b"Connector result"))]),
             JigPhrase::HoldPart => Box::new([Segment::Text(copy_of(b"Connector hold"))]),
-
             JigPhrase::EngineLimitGoals => Box::new([Segment::Text(copy_of(b"Engine admission limit: goals"))]),
-
             JigPhrase::MalformedTwoAsAllowed => Box::new([
                 Segment::Text(copy_of(b"Two AsAllowed budgets at ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },
@@ -570,7 +561,6 @@ pub fn language() -> Language {
                 Segment::Text(copy_of(b"By deployment in project ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },
             ]),
-
             JigPhrase::NoHeldRole => Box::new([Segment::Text(copy_of(b"No held role was supplied"))]),
             JigPhrase::HeldOwner => Box::new([Segment::Text(copy_of(b"Held role: owner"))]),
             JigPhrase::HeldMaintainer => Box::new([Segment::Text(copy_of(b"Held role: maintainer"))]),
@@ -595,7 +585,6 @@ pub fn language() -> Language {
                 Segment::Hole { index: 0, kind: HoleKind::Number },
                 Segment::Text(copy_of(b" has repeated disposals")),
             ]),
-
             JigPhrase::GrantKindMissing => Box::new([
                 Segment::Text(copy_of(b"No grant covers operation kind ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },
@@ -679,7 +668,6 @@ pub fn language() -> Language {
                 Segment::Text(copy_of(b", number ")),
                 Segment::Hole { index: 1, kind: HoleKind::Number },
             ]),
-
             JigPhrase::ConversationLog => Box::new([Segment::Text(copy_of(b"Conversation"))]),
             JigPhrase::WordsBeingSent => Box::new([Segment::Text(copy_of(b"Being sent"))]),
             JigPhrase::WordsSent => Box::new([Segment::Text(copy_of(b"Sent"))]),
@@ -751,12 +739,10 @@ pub fn language() -> Language {
                 Box::new([Segment::Text(copy_of(b"Turn ")), Segment::Hole { index: 0, kind: HoleKind::Number }])
             }
             JigPhrase::TurnInstructions => Box::new([Segment::Text(copy_of(b"Instructions"))]),
-
             JigPhrase::ProposalsWaiting => Box::new([
                 Segment::Text(copy_of(b"Pending proposals: ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },
             ]),
-
             JigPhrase::ResourceScope => Box::new([
                 Segment::Text(copy_of(b"Resource scope: ")),
                 Segment::Hole { index: 0, kind: HoleKind::Name },
@@ -765,7 +751,6 @@ pub fn language() -> Language {
             JigPhrase::ReportExpected => Box::new([Segment::Text(copy_of(b"A report"))]),
             JigPhrase::WordsExpected => Box::new([Segment::Text(copy_of(b"Words"))]),
             JigPhrase::ApprovalExpected => Box::new([Segment::Text(copy_of(b"Approval of the named state"))]),
-
             JigPhrase::Overview => Box::new([Segment::Text(copy_of(b"Overview"))]),
             JigPhrase::Activity => Box::new([Segment::Text(copy_of(b"Activity"))]),
             JigPhrase::Plan => Box::new([Segment::Text(copy_of(b"Plan"))]),
@@ -896,7 +881,6 @@ pub fn language() -> Language {
                 Segment::Hole { index: 0, kind: HoleKind::Wall },
             ]),
             JigPhrase::WaitingAccount => Box::new([Segment::Text(copy_of(b"Tasks waiting for this account"))]),
-
             JigPhrase::OwnSpend => {
                 Box::new([Segment::Text(copy_of(b"Agent spend: ")), Segment::Hole { index: 0, kind: HoleKind::Amount }])
             }
@@ -904,7 +888,6 @@ pub fn language() -> Language {
                 Segment::Text(copy_of(b"Delegate spend: ")),
                 Segment::Hole { index: 0, kind: HoleKind::Amount },
             ]),
-
             JigPhrase::NeedsYou => Box::new([Segment::Text(copy_of(b"Needs you"))]),
             JigPhrase::InboxUpdates => Box::new([Segment::Text(copy_of(b"Updates"))]),
             JigPhrase::AllKinds => Box::new([Segment::Text(copy_of(b"All kinds"))]),
@@ -939,7 +922,6 @@ pub fn language() -> Language {
             JigPhrase::SomeoneElse => {
                 Box::new([Segment::Text(copy_of(b"Someone else's work: sign in as its owner to continue"))])
             }
-
             JigPhrase::LoadingNavigation => Box::new([Segment::Text(copy_of(b"Loading navigation"))]),
             JigPhrase::ByNamed => {
                 Box::new([Segment::Text(copy_of(b"By ")), Segment::Hole { index: 0, kind: HoleKind::Name }])
@@ -997,7 +979,6 @@ pub fn language() -> Language {
             JigPhrase::Open => Box::new([Segment::Text(copy_of(b"Open"))]),
             JigPhrase::Confirming => Box::new([Segment::Text(copy_of(b"Being decided: review the confirmation"))]),
             JigPhrase::InFlight => Box::new([Segment::Text(copy_of(b"Being decided: waiting for the engine"))]),
-
             JigPhrase::Parked => {
                 Box::new([Segment::Text(copy_of(b"Being decided: waiting for the engine connection or your sign-in"))])
             }
@@ -1044,7 +1025,6 @@ pub fn language() -> Language {
                 Segment::Text(copy_of(b", proposal ")),
                 Segment::Hole { index: 1, kind: HoleKind::Number },
             ]),
-
             JigPhrase::Failed => {
                 Box::new([Segment::Text(copy_of(b"Failed: ")), Segment::Hole { index: 0, kind: HoleKind::Name }])
             }
@@ -1179,7 +1159,6 @@ pub fn language() -> Language {
                 Segment::Text(copy_of(b"Current revision ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },
             ]),
-
             JigPhrase::Amount => Box::new([Segment::Hole { index: 0, kind: HoleKind::Amount }]),
             JigPhrase::WaitingSpan => Box::new([
                 Segment::Text(copy_of(b"Waiting ")),
@@ -1205,13 +1184,11 @@ pub fn language() -> Language {
                 Segment::Text(copy_of(b": ")),
                 Segment::Hole { index: 1, kind: HoleKind::Name },
             ]),
-
             JigPhrase::WakeAny => Box::new([Segment::Text(copy_of(b"Wakes on any news"))]),
             JigPhrase::WakeAt => Box::new([Segment::Text(copy_of(b"Wakes at the next scheduled time"))]),
             JigPhrase::WakeResult => Box::new([Segment::Text(copy_of(b"Wakes on a delegate result"))]),
             JigPhrase::WakeTopic => Box::new([Segment::Text(copy_of(b"Wakes on subscribed news"))]),
             JigPhrase::WakeInbox => Box::new([Segment::Text(copy_of(b"Wakes on inbox messages"))]),
-
             JigPhrase::Attempt => {
                 Box::new([Segment::Text(copy_of(b"Attempt ")), Segment::Hole { index: 0, kind: HoleKind::Number }])
             }
@@ -1223,7 +1200,6 @@ pub fn language() -> Language {
                 Segment::Text(copy_of(b" of ")),
                 Segment::Hole { index: 2, kind: HoleKind::Number },
             ]),
-
             JigPhrase::HostLost => Box::new([Segment::Text(copy_of(b"Host lost"))]),
             JigPhrase::Temporary => Box::new([Segment::Text(copy_of(b"Temporary failure"))]),
             JigPhrase::Permanent => Box::new([Segment::Text(copy_of(b"Permanent failure"))]),
@@ -1242,7 +1218,6 @@ pub fn language() -> Language {
             }
             JigPhrase::NobodyMayAccept => Box::new([Segment::Text(copy_of(b"Nobody in this project may accept it"))]),
             JigPhrase::ClosingEffects => Box::new([Segment::Text(copy_of(b"'s effects settling"))]),
-
             JigPhrase::ChipTitleCut => Box::new([Segment::Text(copy_of(b"Title is incomplete"))]),
             JigPhrase::ChipDependenciesCut => Box::new([Segment::Text(copy_of(b"More dependencies are not shown"))]),
             JigPhrase::ChipWaitingHolds => Box::new([Segment::Text(copy_of(b"Waiting for resource holds"))]),
@@ -1380,7 +1355,6 @@ pub fn language() -> Language {
             JigPhrase::ActMakeService => Box::new([Segment::Text(copy_of(b"Make service"))]),
             JigPhrase::ActSetPool => Box::new([Segment::Text(copy_of(b"Set pool"))]),
             JigPhrase::ChatAbout => Box::new([Segment::Text(copy_of(b"Chat about it"))]),
-
             JigPhrase::Topic => Box::new([
                 Segment::Text(copy_of(b"Subscribed topic ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },
@@ -1395,7 +1369,6 @@ pub fn language() -> Language {
             JigPhrase::Deadline => {
                 Box::new([Segment::Text(copy_of(b"Deadline ")), Segment::Hole { index: 0, kind: HoleKind::Wall }])
             }
-
             JigPhrase::StalledOn => Box::new([
                 Segment::Text(copy_of(b"Held: stalled on ")),
                 Segment::Hole { index: 0, kind: HoleKind::Name },

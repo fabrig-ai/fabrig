@@ -267,7 +267,7 @@ fn an_approval_exceeding_the_tasks_result_bound_leaves_it_answerable() {
     let mut world = World::new(458, LIMITS);
     let mut new = task(1, &[]);
     new.executor = Executor::Person(PersonAddress::Person(9));
-    let state = vec![5; usize::try_from(LIMITS.result_bytes).expect("small bound")].into_boxed_slice();
+    let state = vec![5; skein_lib::length::usize_of(LIMITS.result_bytes)].into_boxed_slice();
     new.contract = Contract::Approval {
         state: state.clone(),
         part: tasks::Part { connector: 1, kind: tasks::PartKind::Resource, key: tasks::PartKey::Number(1) },
@@ -353,7 +353,7 @@ fn a_restart_restores_no_decided_person_proposal() {
         response(&mut world, |reply_to| Event::ProposePerson { reply_to, proposal: goal_proposal(2) }),
         Reply::Done
     );
-    assert!(world.records.contains_key(&tasks::Key::PersonProposal(2)), "startup completed without historical rows");
+    assert!(world.records.contains_key(&tasks::Key::PersonProposal(2)), "startup completed without ended rows");
     assert!(world.records.contains_key(&tasks::Key::DecidedProposal(1)), "history remains durable");
 }
 

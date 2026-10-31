@@ -179,8 +179,7 @@ fn a_malformed_read_body_is_unreachable() {
 }
 #[test]
 fn reads_and_attempts_share_the_exchange_admission_bound() {
-    let mut limits = fixtures::limits();
-    limits = Limits::new(*limits.client(), 1).unwrap();
+    let limits = Limits::new(*fixtures::limits().client(), 1).unwrap();
     let mut h = fixtures::Harness::new(&limits);
     h.send(fixtures::ATTEMPT, fixtures::KEY, fixtures::message());
     h.link.step(
@@ -247,7 +246,6 @@ fn a_read_value_counts_its_discriminator_against_the_document_byte_bound() {
     let short = fixtures::read_byte_limits(bytes.checked_sub(1).unwrap());
     assert_eq!(translate::reads::value(&value, &short), Err(Undecodable::TooLarge));
 }
-
 #[test]
 fn a_read_page_keeps_both_long_cursors_without_parsing_them() {
     let (mut h, exchange) = fixtures::Harness::reading();
@@ -269,7 +267,9 @@ fn a_read_activity_keeps_each_undecodable_turn_in_its_page() {
 #[test]
 fn me_s_projects_past_the_document_bytes_are_refused_as_too_large() {
     let value = jig_client_test_records::frame_two_projects_record();
-    let limits = fixtures::limits_for_document(u64::from(value.measure()).checked_sub(1).unwrap());
+    let mut client = *fixtures::limits().client();
+    client.document_bytes = u64::from(value.measure()).checked_sub(1).unwrap();
+    let limits = Limits::new(client, 4).unwrap();
     assert_eq!(translate::documents::frame(value, &limits), Err(Undecodable::TooLarge));
 }
 
@@ -360,7 +360,7 @@ fn the_turn_inspector_rejects_incomplete_or_false_envelopes() {
 #[test]
 fn the_single_turn_decoder_uses_the_archive_bound() {
     // The archive decoder applies its TurnCarriedBytes bound.
-    let archive_limits = fixtures::turn_limits(32, fixtures::TURN_PAYLOAD_BYTES);
+    let archive_limits = fixtures::limits();
     assert_eq!(
         translate::turn::archive(fixtures::single_turn_record(fixtures::FULL_TURN), &archive_limits),
         Ok(fixtures::expected_single_turn())

@@ -85,7 +85,7 @@ fn chip(number: u64) -> Chip {
         title: doc(b"source chip", true),
         executor: Executor::Role { project: u32::MAX, role: u32::MAX },
         phase: Phase::Preparing,
-        details: Box::new(ChipPhase::Owner {
+        details: Box::new(ChipPhase {
             phase: OwnerChipPhase::Active(RunStage::Preparing),
             details: Box::new(crate::tests::tree::fragments::chip::details()),
         }),
@@ -881,7 +881,6 @@ fn owner_project_public_goal_form_decodes_whole_bounded_procedure_and_keeps_prop
     );
     let mut domain = native_owner_at(value.clone(), ProjectSection::Goals);
     crate::tests::fixtures::set_creating(&mut domain, value.number, &value.acts.get(0).unwrap().admission);
-    assert!(domain.project_page().document.is_none());
     let (tree, mut bindings) = owner_page(&domain);
     let choice = tree
         .nodes()
@@ -998,123 +997,6 @@ fn owner_project_public_offers_preserve_twenty_five_in_order() {
     }
 }
 
-fn historical_old_spend(before: &Cursor, after: &Cursor) -> SpendPage {
-    SpendPage {
-        rows: list(
-            4,
-            [SpendPeriod {
-                period: 997,
-                budget: Budget {
-                    total: 1061,
-                    own: 1063,
-                    ended: 1067,
-                    reserved: 1069,
-                    left: 1087,
-                    funder: Actor::Task(3),
-                },
-                pools: List::with_capacity(4),
-                tasks: List::with_capacity(4),
-            }],
-        ),
-        before: Some(before.clone()),
-        after: Some(after.clone()),
-        cut: true,
-    }
-}
-fn native_historical_project() -> (Fixture, OwnerSpendPage) {
-    use crate::{
-        Event, Request,
-        state::{
-            action::Act,
-            address::{Address, ProjectSection},
-        },
-    };
-    let mut value = source();
-    value.number = 4;
-    let mut domain = Fixture::new(&limits());
-    let start = native_drive(
-        &mut domain,
-        Event::Start {
-            seed: 8,
-            place: crate::state::address::Place::Jig(Address::Project { project: 4, section: ProjectSection::Spend }),
-            records: List::with_capacity(0),
-        },
-    );
-    native_drive(&mut domain, Served { served: true });
-    let watch = start
-        .iter()
-        .find_map(|request| match request {
-            Request::Client {
-                asked: jig_client::Event::Watch { handle: watch, subject: jig_client::Watchable::Jig(Subject::Me) },
-            } => Some(*watch),
-            _ => None,
-        })
-        .unwrap();
-    let ready = native_drive(
-        &mut domain,
-        Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(crate::tests::tree::cards::document()))) },
-    );
-    let read =
-        ready
-            .iter()
-            .find_map(|request| match request {
-                Request::Client {
-                    asked:
-                        jig_client::Event::Read {
-                            handle: read,
-                            read: jig_client::Readable::Jig(Read::Project { project: 4 }),
-                        },
-                } => Some(*read),
-                _ => None,
-            })
-            .unwrap();
-    native_drive(&mut domain, ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProject(Box::new(value))) });
-    let read = ready
-        .iter()
-        .find_map(|request| match request {
-            Request::Client {
-                asked:
-                    jig_client::Event::Read {
-                        handle: read,
-                        read: jig_client::Readable::Jig(Read::Spend { project: 4, after: None }),
-                    },
-            } => Some(*read),
-            _ => None,
-        })
-        .unwrap();
-    let before = Cursor::new(copy_of(UTF8_TEXTS[1]), 32).unwrap();
-    let after = Cursor::new(copy_of(UTF8_TEXTS[2]), 32).unwrap();
-    let old = historical_old_spend(&before, &after);
-    native_drive(&mut domain, ReadPage { read, result: ReadResult::Value(ReadValue::Spend(Box::new(old))) });
-    let requests = native_drive(
-        &mut domain,
-        Event::Act {
-            action: Act::More {
-                window: skein_lib::Token::new(crate::state::page::project::SPEND_WINDOW),
-                end: End::After,
-            },
-        },
-    );
-    let read = requests
-        .iter()
-        .find_map(|request| match request {
-            Request::Client {
-                asked:
-                    jig_client::Event::Read {
-                        handle: read,
-                        read: jig_client::Readable::Jig(Read::Spend { project: 4, after: Some(cursor) }),
-                    },
-            } if cursor == &after => Some(*read),
-            _ => None,
-        })
-        .unwrap();
-    let page = historical_spend_page(before, after);
-    native_drive(
-        &mut domain,
-        ReadPage { read, result: ReadResult::Value(ReadValue::OwnerSpend(Box::new(page.clone()))) },
-    );
-    (domain, page)
-}
 fn historical_project_tree(domain: &Fixture, w: &Words, bound: skein_ui::Limits) -> (Tree, JigBindings) {
     let mut b = Builder::new(&bound);
     let mut bindings = JigBindings::new(bound.bindings, 32);
@@ -1128,25 +1010,23 @@ fn historical_project_bound(w: &Words) -> skein_ui::Limits {
     bound
 }
 #[test]
-fn owner_project_genuine_spend_keeps_live_historical_and_earlier_period_facts_with_both_opaque_edges() {
+fn owner_project_spend_keeps_live_and_retained_funding_with_both_opaque_edges() {
     use crate::{Event, Request, state::action::Act};
     let (mut domain, page) = native_historical_project();
     assert_eq!(domain.project_page().owner_spend.as_deref(), Some(&page));
-    assert_eq!(domain.project_page().spend.get(0).unwrap().period, 997);
     assert_eq!(domain.project_page().spend_before, page.before);
     assert_eq!(domain.project_page().spend_after, page.after);
     assert!(domain.project_page().spend_cut);
     let w = words(false);
     let (tree, mut bindings) = historical_project_tree(&domain, w, historical_project_bound(w));
     crate::tests::tree::cards_access::check(&tree);
-    for supplied in [b"103".as_slice(), b"977", b"979", b"981", b"983", b"985", b"997", b"1087"] {
+    for supplied in [b"103".as_slice(), b"977", b"979", b"981", b"983", b"985"] {
         assert!(has(&tree, supplied), "missing {supplied:?}");
     }
     let position = |bytes: &[u8]| {
         tree.nodes().iter().position(|node| node.text.iter().any(|run| find(&run.text, bytes).is_some())).unwrap()
     };
     assert!(position(b"103") < position(b"977"));
-    assert!(position(b"977") < position(b"997"));
     let edges: Vec<_> = tree
         .nodes()
         .iter()
@@ -1210,16 +1090,9 @@ fn owner_project_historical_companion_prices_whole_languages_and_refuses_one_und
     }
     assert!(view::max_nodes(&crate::Limits { rows: u32::MAX, ..limits() }).is_none());
     assert_eq!(domain.project_page().owner_spend.as_deref(), Some(&page));
-    assert_eq!(domain.project_page().spend.get(0).unwrap().period, 997);
 }
 
 const UTF8_TEXTS: [&[u8]; 6] = [b"~\0/!", b"~\0\x01", b"!\0\x02", b"~\0!", b"!\0~", &[b'~'; 32]];
-
-pub(in crate::tests) fn settings_tree() -> Tree {
-    let mut value = source();
-    value.number = 4;
-    owner_page(&native_owner(value)).0
-}
 
 fn historical_spend_page(before: Cursor, after: Cursor) -> OwnerSpendPage {
     OwnerSpendPage {
@@ -1246,4 +1119,99 @@ fn owner_project_header_and_tabs_show_the_supplied_name() {
     let (tree, _) = owner_page(&domain);
     assert!(has(&tree, b"Project: Tally"));
     assert!(tree.nodes().iter().any(|node| node.role == Role::Tabs && node.name.as_deref() == Some(b"Tally")));
+}
+
+fn native_historical_project() -> (Fixture, OwnerSpendPage) {
+    use crate::{
+        Event, Request,
+        state::{
+            action::Act,
+            address::{Address, ProjectSection},
+        },
+    };
+    let mut value = source();
+    value.number = 4;
+    let mut domain = Fixture::new(&limits());
+    let start = native_drive(
+        &mut domain,
+        Event::Start {
+            seed: 8,
+            place: crate::state::address::Place::Jig(Address::Project { project: 4, section: ProjectSection::Spend }),
+            records: List::with_capacity(0),
+        },
+    );
+    native_drive(&mut domain, Served { served: true });
+    let watch = start
+        .iter()
+        .find_map(|request| match request {
+            Request::Client {
+                asked: jig_client::Event::Watch { handle: watch, subject: jig_client::Watchable::Jig(Subject::Me) },
+            } => Some(*watch),
+            _ => None,
+        })
+        .unwrap();
+    let ready = native_drive(
+        &mut domain,
+        Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(crate::tests::tree::cards::document()))) },
+    );
+    let read =
+        ready
+            .iter()
+            .find_map(|request| match request {
+                Request::Client {
+                    asked:
+                        jig_client::Event::Read {
+                            handle: read,
+                            read: jig_client::Readable::Jig(Read::Project { project: 4 }),
+                        },
+                } => Some(*read),
+                _ => None,
+            })
+            .unwrap();
+    native_drive(&mut domain, ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProject(Box::new(value))) });
+    let read = ready
+        .iter()
+        .find_map(|request| match request {
+            Request::Client {
+                asked:
+                    jig_client::Event::Read {
+                        handle: read,
+                        read: jig_client::Readable::Jig(Read::Spend { project: 4, after: None }),
+                    },
+            } => Some(*read),
+            _ => None,
+        })
+        .unwrap();
+    let before = Cursor::new(copy_of(UTF8_TEXTS[1]), 32).unwrap();
+    let after = Cursor::new(copy_of(UTF8_TEXTS[2]), 32).unwrap();
+    let first = historical_spend_page(before.clone(), after.clone());
+    native_drive(&mut domain, ReadPage { read, result: ReadResult::Value(ReadValue::OwnerSpend(Box::new(first))) });
+    let requests = native_drive(
+        &mut domain,
+        Event::Act {
+            action: Act::More {
+                window: skein_lib::Token::new(crate::state::page::project::SPEND_WINDOW),
+                end: End::After,
+            },
+        },
+    );
+    let read = requests
+        .iter()
+        .find_map(|request| match request {
+            Request::Client {
+                asked:
+                    jig_client::Event::Read {
+                        handle: read,
+                        read: jig_client::Readable::Jig(Read::Spend { project: 4, after: Some(cursor) }),
+                    },
+            } if cursor == &after => Some(*read),
+            _ => None,
+        })
+        .unwrap();
+    let page = historical_spend_page(before, after);
+    native_drive(
+        &mut domain,
+        ReadPage { read, result: ReadResult::Value(ReadValue::OwnerSpend(Box::new(page.clone()))) },
+    );
+    (domain, page)
 }

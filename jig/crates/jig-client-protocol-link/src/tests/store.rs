@@ -142,7 +142,7 @@ fn construction_refuses_unrepresentable_record_limits() {
     let base = fixtures::limits();
     assert!(crate::store::valid(&base));
     let client = jig_client_domain::Limits { document_bytes: u64::MAX, ..*base.client() };
-    assert_eq!(Limits::new(client, base.exchanges()), Err(crate::Unusable::Limits));
+    assert_eq!(Limits::new(client, base.exchanges()), Err(Unusable::Limits));
 }
 
 /// O4: a completed write releases its admitted exchanges in arrival order.

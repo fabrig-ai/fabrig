@@ -120,14 +120,11 @@ impl Domain {
         grants: Box<[crate::ActGrant]>,
     ) -> Domain {
         assert!(crate::valid(limits), "people limits are valid");
-        assert!(
-            owners.len() <= usize::try_from(limits.initial_owners).expect("u32 fits usize"),
-            "configured owners fit"
-        );
+        assert!(owners.len() <= skein_lib::length::usize_of(limits.initial_owners), "configured owners fit");
         for (at, owner) in owners.iter().enumerate() {
             assert!(
                 !owner.identity.subject.is_empty()
-                    && owner.identity.subject.len() <= usize::try_from(limits.identity_bytes).expect("u32 fits usize")
+                    && owner.identity.subject.len() <= skein_lib::length::usize_of(limits.identity_bytes)
                     && owner.identity.provider != deployment_provider,
                 "configured first owners are bounded people"
             );
@@ -138,10 +135,7 @@ impl Domain {
                 );
             }
         }
-        assert!(
-            grants.len() <= usize::try_from(limits.act_grants).expect("u32 fits usize"),
-            "configured act grants fit"
-        );
+        assert!(grants.len() <= skein_lib::length::usize_of(limits.act_grants), "configured act grants fit");
         for (at, grant) in grants.iter().enumerate() {
             assert!(grant.may.len() <= crate::ActKind::ALL.len(), "bounded configured act kinds");
             for earlier in grants.iter().take(at) {
@@ -388,7 +382,7 @@ impl Domain {
     /// Check that one whole adoption seed can commit without displacing current roles.
     #[must_use]
     pub fn can_seed(&self, limits: &Limits, project: u32, collaborators: &[Seed]) -> bool {
-        if !self.ready() || collaborators.len() > usize::try_from(limits.holdings).expect("u32 fits usize") {
+        if !self.ready() || collaborators.len() > skein_lib::length::usize_of(limits.holdings) {
             return false;
         }
         let Some(holdings) = self.roles.get(&project) else { return false };
@@ -396,7 +390,7 @@ impl Domain {
         let mut new_roles = 0_usize;
         for (at, seed) in collaborators.iter().enumerate() {
             if seed.identity.subject.is_empty()
-                || seed.identity.subject.len() > usize::try_from(limits.identity_bytes).expect("u32 fits usize")
+                || seed.identity.subject.len() > skein_lib::length::usize_of(limits.identity_bytes)
                 || seed.identity.provider == self.deployment_provider
                 || seed.candidate == 0
                 || self.people.contains_key(&seed.candidate)
@@ -425,7 +419,7 @@ impl Domain {
             holdings.len().checked_add(new_roles),
         ) {
             (Some(people), Some(roles)) => {
-                people <= limits.people && roles <= usize::try_from(limits.holdings).expect("u32 fits usize")
+                people <= limits.people && roles <= skein_lib::length::usize_of(limits.holdings)
             }
             (None, _) | (_, None) => false,
         }
@@ -499,7 +493,7 @@ pub fn outputs_bound(limits: &Limits) -> u32 {
 /// routing/persistence/replies, never IO; root completes each `Route` once and withholds replies
 /// until required atomic writes are durable. Restore loads decoded rows within representation bounds;
 /// `start_link` checks its project/person references without rechecking current membership or
-/// requiring the historical roster to equal the current one. Refused role asks retain their invalid
+/// requiring the roster at the time to equal the current one. Refused role asks retain their invalid
 /// targets for keyed replay.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.input();

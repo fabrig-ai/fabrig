@@ -1,9 +1,8 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
 use super::{
-    Box, Limits, List, Reader, Wall, c, cursor_fields, history_line_fields, inbox_entry_piece,
-    owner_authority_document_fields, owner_chip_ending_fields, owner_history_change_fields,
-    owner_message_proposal_kind_fields, owner_retained_action_fields, piece_problem, specification_document_fields,
-    too_large, w,
+    Box, Limits, List, Reader, Wall, c, cursor_fields, owner_authority_document_fields, owner_chip_ending_fields,
+    owner_history_change_fields, owner_message_proposal_kind_fields, owner_retained_action_fields, piece_problem,
+    specification_document_fields, too_large, w,
 };
 pub(crate) fn owner_history_holder_fields(value: &w::OwnerHistoryHolder) -> c::OwnerHistoryHolder {
     match value {
@@ -172,7 +171,6 @@ pub(crate) fn owner_milestone_line_fields(
 
 pub(crate) fn history_row_fields(value: &w::HistoryRow, limits: &Limits) -> Result<c::HistoryRow, w::Problem> {
     Ok(match value {
-        w::HistoryRow::Line(row) => c::HistoryRow::Line(Box::new(history_line_fields(row.value(), limits)?)),
         w::HistoryRow::Change(row) => c::HistoryRow::Change(Box::new(owner_history_line_fields(row.value(), limits)?)),
         w::HistoryRow::Milestone(row) => {
             c::HistoryRow::Milestone(Box::new(owner_milestone_line_fields(row.value(), limits)?))
@@ -200,7 +198,7 @@ pub(crate) fn history_row_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Re
         if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::HistoryRow::decode(limits.receiving(), &mut Reader::new(&item))?;
+        let row = w::HistoryRow::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = history_row_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -221,23 +219,6 @@ pub(crate) fn history_page_fields(value: &w::HistoryPage, limits: &Limits) -> Re
     Ok(c::HistoryPage {
         cut: value.cut(),
         rows: history_row_piece(value.rows(), limits, limits.client().rows)?,
-        before: opt0,
-        after: opt1,
-    })
-}
-
-pub(crate) fn inbox_page_fields(value: &w::InboxPage, limits: &Limits) -> Result<c::InboxPage, w::Problem> {
-    let opt0 = match value.before() {
-        Some(item) => Some(cursor_fields(item, limits)?),
-        None => None,
-    };
-    let opt1 = match value.after() {
-        Some(item) => Some(cursor_fields(item, limits)?),
-        None => None,
-    };
-    Ok(c::InboxPage {
-        cut: value.cut(),
-        rows: inbox_entry_piece(value.rows(), limits, limits.client().rows)?,
         before: opt0,
         after: opt1,
     })

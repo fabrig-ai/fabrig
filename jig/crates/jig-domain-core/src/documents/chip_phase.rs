@@ -70,7 +70,7 @@ pub(super) fn from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<ChipD
     };
     let mut resources = List::with_capacity(if needs_resources { limits.documents.lines } else { 0 });
     if needs_resources {
-        for holding in row.holdings.iter().take(usize::try_from(limits.documents.lines).expect("line bound fits")) {
+        for holding in row.holdings.iter().take(skein_lib::length::usize_of(limits.documents.lines)) {
             let (name, kind, part_kind) = match holding {
                 tasks::Holding::Write { resource, kind } => (resource, *kind, PartKind::Resource),
                 tasks::Holding::Slot { pool, kind } => (pool, *kind, PartKind::Pool),
@@ -109,8 +109,7 @@ pub(super) fn from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<ChipD
         hold: super::task_tree::hold(limits, row)?,
         budget: super::task_tree::budget(row),
         activity: row.activity,
-        resources_cut: needs_resources
-            && usize::try_from(resources.len()).expect("line bound fits") < row.holdings.len(),
+        resources_cut: needs_resources && skein_lib::length::usize_of(resources.len()) < row.holdings.len(),
         resources,
         resources_observed: false,
         procedure: match row.executor {
@@ -135,8 +134,7 @@ pub(super) fn observe(
 ) -> Result<(), Missing> {
     details.dependencies = super::task_tree::dependency_facts(core, limits, row);
     for index in 0..details.resources.len() {
-        let holding =
-            row.holdings.get(usize::try_from(index).expect("bounded holding index")).expect("one resource per holding");
+        let holding = row.holdings.get(skein_lib::length::usize_of(index)).expect("one resource per holding");
         let name = match holding {
             tasks::Holding::Write { resource, .. } => resource,
             tasks::Holding::Slot { pool, .. } => pool,
@@ -195,7 +193,7 @@ pub(super) fn observe(
             fleet::Activity::Waiting => ChipWork::Waiting,
             fleet::Activity::Ending => ChipWork::Ending,
             fleet::Activity::Tool { call, tool } => {
-                let bound = usize::try_from(limits.documents.text_bytes).expect("text bound fits");
+                let bound = skein_lib::length::usize_of(limits.documents.text_bytes);
                 if call.len() > bound || tool.len() > bound {
                     return Err(Missing::TooLarge);
                 }

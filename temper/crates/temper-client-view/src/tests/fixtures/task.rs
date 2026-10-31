@@ -10,7 +10,7 @@ pub fn document() -> c::Task {
     let record = w::Task::new(&w::CEILINGS, record).expect("checked fixture");
     let link = jig_client_protocol_link::Limits::new(limits().client.domain, EXCHANGES).expect("link");
     let mut task = jig_client_protocol_link::translate::documents::task(record, &link).expect("task");
-    let c::ChipPhase::Owner { phase, .. } = task.chip.details.as_mut() else { panic!("owner chip") };
+    let c::ChipPhase { phase, .. } = task.chip.details.as_mut();
     *phase = c::OwnerChipPhase::Active(c::RunStage::Idle);
     task.budget.numbers.spent = SPENT;
     task.budget.numbers.spent_below = BELOW;
@@ -52,7 +52,7 @@ fn root_with_hold(executor: c::Executor, priority: Option<u32>, held: bool) -> t
                 revision: HOLD_REVISION.value,
             },
         );
-        document.hold = Some(c::TaskHold::Owner(Box::new(c::OwnerChipHold {
+        document.hold = Some(Box::new(c::OwnerChipHold {
             placed: None,
             words: None,
             circle: None,
@@ -64,7 +64,7 @@ fn root_with_hold(executor: c::Executor, priority: Option<u32>, held: bool) -> t
             escalation: None,
             tries: c::OwnerFailureTries { transient: 0, permanent: 0, run: 2, agent: 0, lost: 0, invalid: 0 },
             hold_wait_since: None,
-        })));
+        }));
         document.acts = List::with_capacity(ONE_OFFER);
         document
             .acts
@@ -183,7 +183,7 @@ pub fn delegate() -> c::Task {
     task.dependencies = List::with_capacity(0);
     task.activity = 1;
     phase(&mut task, c::OwnerChipPhase::Active(c::RunStage::Running { attempt: RUN_ATTEMPT }));
-    let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+    let c::ChipPhase { details, .. } = task.chip.details.as_mut();
     details.attempt = Some(RUN_ATTEMPT);
     details.run_since = Some(RUN_SINCE);
     details.ending = None;
@@ -201,7 +201,7 @@ pub fn document_words(bytes: &[u8]) -> c::DocumentText {
 }
 pub fn phase(task: &mut c::Task, phase: c::OwnerChipPhase) {
     task.chip.phase = phase.compact();
-    let c::ChipPhase::Owner { phase: old, .. } = task.chip.details.as_mut() else { panic!("owner") };
+    let c::ChipPhase { phase: old, .. } = task.chip.details.as_mut();
     *old = phase;
 }
 pub fn agent_root(document: c::Task, tree: Option<c::Delivery>, conversation: bool) -> temper_client_domain::Domain {
@@ -315,20 +315,18 @@ pub fn activity(conversation: bool) -> c::ActivityPage {
             .expect("call");
         let mut messages = List::with_capacity(1);
         messages.push(c::Message { speaker: c::Speaker::Assistant, blocks }).expect("message");
-        rows.push(c::ActivityLine {
-            position: 1,
-            at: RUN_SINCE,
-            event: c::Activity::Turn {
-                name: c::TurnName { attempt: RUN_ATTEMPT, number: 1 },
-                turn: c::TurnRead::Decoded(c::Turn {
-                    messages,
-                    used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
-                    spent: 0,
-                    read_through: None,
-                    cut: false,
-                }),
-            },
-        })
+        rows.push(crate::tests::documents::turn(
+            1,
+            RUN_SINCE,
+            c::TurnName { attempt: RUN_ATTEMPT, number: 1 },
+            c::TurnRead::Decoded(c::Turn {
+                messages,
+                used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
+                spent: 0,
+                read_through: None,
+                cut: false,
+            }),
+        ))
         .expect("turn");
     }
     c::ActivityPage { rows, before: None, after: None, cut: false }

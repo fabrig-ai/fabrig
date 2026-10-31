@@ -587,8 +587,11 @@ name = "jig-client-scripted-engine"
 version = "0.0.0"
 dependencies = [
  "jig-client-domain",
- "jig-client-view",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
+ "skein-codec",
  "skein-lib",
+ "smith-transcript",
 ]
 
 [[package]]
@@ -1024,6 +1027,9 @@ dependencies = [
 [[package]]
 name = "jig-fake-store"
 version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
 
 [[package]]
 name = "jig-fake-workers"
@@ -1222,7 +1228,9 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
+ "jig-fake-parties",
  "jig-fake-store",
+ "jig-fake-workers",
  "jig-ops-client-domain",
  "jig-ops-client-protocol-wire",
  "jig-ops-client-view",

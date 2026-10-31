@@ -72,16 +72,13 @@ fn build(reading: &reads::Reading) -> Result<acts::Request, &'static [u8]> {
             | c::Delivery::Me(_)
             | c::Delivery::Task(_)
             | c::Delivery::OwnerProposal(_)
-            | c::Delivery::Tree(_)
             | c::Delivery::OwnerTree(_)
             | c::Delivery::Chips(_)
-            | c::Delivery::Inbox(_)
             | c::Delivery::OwnerInbox(_)
             | c::Delivery::Tasks(_)
             | c::Delivery::Run(_)
             | c::Delivery::RunState(_)
-            | c::Delivery::Settings(_)
-            | c::Delivery::Deployment(_) => {}
+            | c::Delivery::Settings(_) => {}
         }
     }
     let (holder, sources, cut, provider, provider_name) =

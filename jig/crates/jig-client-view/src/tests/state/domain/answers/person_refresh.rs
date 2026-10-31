@@ -1,7 +1,7 @@
 use crate::tests::fixtures::ReadPage;
 use crate::tests::state::domain::answers::{answered, install, read_token};
 use crate::tests::state::domain::{
-    objects::{chip, live, person},
+    objects::{chip, live},
     spine::{LIMITS, drive},
 };
 use crate::{
@@ -16,7 +16,7 @@ use skein_lib::{List, Queue, Time, Token};
 
 fn document(taken_by: Option<u64>, offered: &[ActKind]) -> OwnerPersonTask {
     let mut task = chip(8);
-    task.details = Box::new(ChipPhase::Owner {
+    task.details = Box::new(ChipPhase {
         phase: OwnerChipPhase::Person { address: PersonAddress::Role(u32::MAX), taken_by, since: None },
         details: Box::new(crate::tests::state::domain::chip_facts::details()),
     });
@@ -28,7 +28,7 @@ fn document(taken_by: Option<u64>, offered: &[ActKind]) -> OwnerPersonTask {
         task,
         revision: Revision { value: 91 },
         requester: OwnerRequester::Task(u64::MAX),
-        spec: person().spec,
+        spec: crate::tests::state::domain::confirmation::task().spec,
         address: PersonAddress::Role(u32::MAX),
         taken_by,
         since: None,
@@ -114,7 +114,7 @@ fn person_take_abandons_older_matching_reads_without_discarding_other_obligation
     let older = domain.request_read(Source::Card(id), Read::PersonTask { task: 8 }).unwrap();
     let other = domain.request_read(Source::Card(id), Read::PersonTask { task: 9 }).unwrap();
     let request = send(&mut domain, ActKind::Take);
-    let rows = answered(&mut domain, request, Answer::Done(Outcome::Changed));
+    let rows = answered(&mut domain, request, Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })));
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0], Request::Client { asked: jig_client::Event::Unwatch { handle: older } });
     assert_ne!(read_token(&rows), older);
@@ -145,7 +145,7 @@ fn person_take_hidden_cards_notify_without_refreshing_and_full_reads_refuse_with
     install(&mut domain, Body::OwnerPersonTask(Box::new(document(None, &[ActKind::Take]))));
     let request = send(&mut domain, ActKind::Take);
     drive(&mut domain, Time::ZERO, Event::Went { place: crate::state::address::Place::Elsewhere });
-    let answer = Answer::Done(Outcome::Changed);
+    let answer = Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 }));
     assert!(answered(&mut domain, request, answer.clone()).is_empty());
     assert!(domain.objects().find(ObjectKey::PersonTask(8)).is_none());
     let (notice, ()) = domain.notices().ids().iter().next().unwrap();
@@ -163,12 +163,14 @@ fn person_take_hidden_cards_notify_without_refreshing_and_full_reads_refuse_with
         assert!(domain.request_read(Source::Card(id), what).is_some());
     }
     let request = send(&mut domain, ActKind::Take);
-    let rows = answered(&mut domain, request, Answer::Done(Outcome::Changed));
+    let rows = answered(&mut domain, request, Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })));
     assert_eq!(rows.as_ref(), &[]);
     assert_eq!(domain.objects().get(id).unwrap().body, Some(Body::OwnerPersonTask(Box::new(original))));
     assert_eq!(domain.objects().get(id).unwrap().card, Card::Open);
     assert!(!domain.handles.pending(&Read::PersonTask { task: 8 }));
     let (notice, ()) = domain.notices().ids().iter().next().unwrap();
     assert_eq!(domain.notices().get(*notice).unwrap().kind, crate::tree::notices::kept::Kind::Refused(Limit::Reads));
-    assert!(answered(&mut domain, request, Answer::Done(Outcome::Changed)).is_empty());
+    assert!(
+        answered(&mut domain, request, Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 }))).is_empty()
+    );
 }

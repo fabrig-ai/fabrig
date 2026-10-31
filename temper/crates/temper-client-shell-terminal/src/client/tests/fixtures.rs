@@ -100,15 +100,17 @@ pub(super) fn activity_reads(host: &mut NativeClient) -> Vec<(skein_lib::Token, 
 }
 
 pub(super) fn activity_answer(nonempty: bool) -> Box<[u8]> {
-    let event = w::Activity::RunBegan(
-        w::ActivityRunBegan::new(
+    let event = w::OwnerActivity::RunBegan(
+        w::OwnerActivityRunBegan::new(
             &w::CEILINGS,
-            w::ActivityRunBeganParts { attempt: RUN, how: w::RunBeginning::Resumed, why: Box::default() },
+            w::OwnerActivityRunBeganParts { attempt: RUN, why: w::OwnerRunWhy::Made, resumed: true },
         )
         .expect("run marker"),
     );
-    let row =
-        w::ActivityLine::new(&w::CEILINGS, w::ActivityLineParts { position: 1, at: 1, event }).expect("activity row");
+    let source =
+        w::OwnerActivityLine::new(&w::CEILINGS, w::OwnerActivityLineParts { task: 9, position: 1, at: 1, line: event })
+            .expect("source row");
+    let row = w::ActivityLine::new(&w::CEILINGS, w::ActivityLineParts { source, decoded: None }).expect("activity row");
     let row_bytes = if nonempty { usize::try_from(row.measure()).expect("row fits") } else { 0 };
     let mut rows = skein_lib::Writer::new(if nonempty { row_bytes + 4 } else { 0 });
     if nonempty {

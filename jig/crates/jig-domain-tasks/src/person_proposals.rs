@@ -174,7 +174,7 @@ pub(crate) fn check(domain: &Domain, env: &Env<Limits>, proposal: &PersonProposa
 }
 
 pub(crate) fn valid_settings(items: &[crate::SettingHead]) -> bool {
-    if items.is_empty() || items.len() > usize::try_from(crate::SETTINGS_ITEMS).expect("settings bound") {
+    if items.is_empty() || items.len() > skein_lib::length::usize_of(crate::SETTINGS_ITEMS) {
         return false;
     }
     for (at, item) in items.iter().enumerate() {

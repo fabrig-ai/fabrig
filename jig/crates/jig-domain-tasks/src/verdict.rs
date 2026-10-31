@@ -14,11 +14,11 @@ pub(crate) fn fields_bytes(fields: &[ResultField]) -> Option<usize> {
 }
 
 pub(crate) fn rules_valid(choice: &Verdict, limit: u32) -> bool {
-    let bound = usize::try_from(limit).expect("u32 fits usize");
+    let bound = skein_lib::length::usize_of(limit);
     if choice.fields.len() > bound {
         return false;
     }
-    let mut bytes = usize::try_from(choice.words).expect("u32 fits usize");
+    let mut bytes = skein_lib::length::usize_of(choice.words);
     for (at, field) in choice.fields.iter().enumerate() {
         if field.name.is_empty() {
             return false;
@@ -27,7 +27,7 @@ pub(crate) fn rules_valid(choice: &Verdict, limit: u32) -> bool {
             Some(bytes) => bytes,
             None => return false,
         };
-        bytes = match bytes.checked_add(usize::try_from(field.max).expect("u32 fits usize")) {
+        bytes = match bytes.checked_add(skein_lib::length::usize_of(field.max)) {
             Some(bytes) if bytes <= bound => bytes,
             Some(_) | None => return false,
         };
@@ -53,7 +53,7 @@ pub(crate) fn fields_valid(rules: &[FieldRule], fields: &[ResultField]) -> bool 
         let mut found = false;
         for rule in rules {
             if field.name == rule.name {
-                if field.value.len() > usize::try_from(rule.max).expect("u32 fits usize") {
+                if field.value.len() > skein_lib::length::usize_of(rule.max) {
                     return false;
                 }
                 found = true;

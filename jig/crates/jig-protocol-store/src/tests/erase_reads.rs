@@ -50,7 +50,7 @@ fn all(store: &mut Store, mut range: reads::Range) -> Box<[Record]> {
     let mut previous = None;
     for _ in 0..MAX_ROWS {
         let (rows, next) = load(store, range.clone());
-        assert!(rows.len() <= usize::try_from(range.rows).expect("row bound"));
+        assert!(rows.len() <= skein_lib::length::usize_of(range.rows));
         let mut bytes = 0_u64;
         for row in rows {
             bytes = bytes.checked_add(row_bytes(&row)).expect("page size");

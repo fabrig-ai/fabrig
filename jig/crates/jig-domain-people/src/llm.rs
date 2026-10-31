@@ -57,7 +57,7 @@ pub(crate) fn valid(choice: Option<&LlmChoice>) -> bool {
     let Some(choice) = choice else {
         return true;
     };
-    choice.subagents.len() <= usize::try_from(MODELS).expect("u32 fits usize")
+    choice.subagents.len() <= skein_lib::length::usize_of(MODELS)
 }
 
 /// Why an explicit account cannot fund the prospective task (domain/accounts.md, 4.3).

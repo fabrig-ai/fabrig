@@ -118,7 +118,7 @@ pub(crate) fn encode(value: SecretValue, limit: u32) -> Option<Box<[u8]>> {
             Some(bytes.finish())
         }
         SecretValue::Application(value) => {
-            if value.len() > usize::try_from(limit).expect("map value limit fits usize") {
+            if value.len() > skein_lib::length::usize_of(limit) {
                 return None;
             }
             Some(Box::from(value.expose()))
@@ -166,7 +166,7 @@ pub(super) fn decode(owner: SecretOwner, number: u64, bytes: Box<[u8]>) -> Optio
 }
 pub(super) fn counter(next: u64) -> Box<[u8]> {
     let row = w::NextCarried::new(&w::CEILINGS, w::NextCarriedParts { next }).expect("fixed next number");
-    let mut bytes = Writer::new(usize::try_from(row.measure()).expect("counter fits usize"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure()));
     row.encode(&mut bytes).expect("measured counter");
     bytes.finish()
 }

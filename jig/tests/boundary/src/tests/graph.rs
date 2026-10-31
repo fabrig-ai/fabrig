@@ -220,7 +220,7 @@ fn client_transcript_is_the_client_only_smith_link() {
 }
 
 #[test]
-fn scripted_engine_links_only_the_client_and_foundation() {
+fn scripted_engine_links_only_the_client_codecs_and_foundation() {
     let engines: Vec<_> = manifests()
         .into_iter()
         .filter(|manifest| manifest.name.as_deref() == Some("jig-client-scripted-engine"))
@@ -228,10 +228,16 @@ fn scripted_engine_links_only_the_client_and_foundation() {
     assert_eq!(engines.len(), 1);
     for manifest in engines {
         assert!(
-            manifest
-                .dependencies
-                .iter()
-                .all(|name| ["skein-lib", "jig-client-view", "jig-client-domain"].contains(&name.as_str())),
+            manifest.dependencies.iter().all(|name| [
+                "skein-lib",
+                "skein-codec",
+                "jig-client-view",
+                "jig-client-domain",
+                "jig-client-protocol-wire",
+                "jig-client-protocol-link",
+                "smith-transcript",
+            ]
+            .contains(&name.as_str())),
             "{}",
             manifest.path.display()
         );

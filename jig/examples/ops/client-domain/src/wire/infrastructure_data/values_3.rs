@@ -94,7 +94,6 @@ pub(crate) fn value_encode(value: &d::Value) -> Result<w::InfrastructureValue, I
         }
     })
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn value_decode(value: w::InfrastructureValue) -> d::Value {
     match value {
         w::InfrastructureValue::Environment(value) => {

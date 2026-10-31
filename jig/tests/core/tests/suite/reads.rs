@@ -652,7 +652,7 @@ fn a_turn_past_the_read_bound_reports_its_size() {
     use crate::read_support::{LARGE_TURN_BYTES, TURN_READ_BYTES, world_with_large_turn};
     let mut world = world_with_large_turn(802);
     let task = world.assigned.as_ref().expect("chat").task;
-    let body = vec![b'x'; usize::try_from(LARGE_TURN_BYTES).expect("bounded fixture")];
+    let body = vec![b'x'; skein_lib::length::usize_of(LARGE_TURN_BYTES)];
     assert!(u64::try_from(body.len()).expect("payload length") > u64::from(TURN_READ_BYTES));
     world.turn(1, 1, None, &body);
     ask(&mut world, 980, reads::Read::Turn { task, attempt: 1, turn: 1 });
@@ -749,7 +749,7 @@ fn with_the_switch_off_the_asked_task_answers_as_before() {
     let reads::Answer::Page(page) = latest(&world) else { panic!("questions inbox") };
     assert!(page.rows.is_empty());
     ask(&mut world, 909, reads::Read::Question { task: director, message });
-    let reads::EndedValue::Question { question, answer, .. } = past(&world) else { panic!("historical question") };
+    let reads::EndedValue::Question { question, answer, .. } = past(&world) else { panic!("ended question") };
     assert!(question.acts.is_empty());
     assert!(answer.is_some());
     reply(&mut world, director, delegate, message, 2);

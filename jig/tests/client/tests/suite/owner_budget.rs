@@ -1,7 +1,5 @@
 use jig_client_domain::contract::{Funder, OwnerBudget, OwnerNumbers, PoolLedger};
-use jig_client_scripted_engine::{Bounds, owner_budget as price};
 use skein_lib::Wall;
-use skein_world::domain::heap::Meter;
 
 fn sources() -> [Funder; 4] {
     [
@@ -14,57 +12,7 @@ fn sources() -> [Funder; 4] {
 fn numbers() -> OwnerNumbers {
     OwnerNumbers { budget: u64::MAX, spent: u64::MAX - 1, spent_below: u64::MAX - 2, reserved: u64::MAX - 3 }
 }
-fn bounds() -> Bounds {
-    Bounds { rows: 0, text: 0, document_bytes: u64::MAX, ..Bounds::default() }
-}
-#[test]
-fn every_exact_budget_funder_and_deadline_prices_as_one_inline_value() {
-    for funder in sources() {
-        for deadline in [None, Some(Wall::from_nanos(u64::MAX))] {
-            let original = OwnerBudget { numbers: numbers(), left: u64::MAX - 4, funder, deadline };
-            let meter = Meter::new();
-            let value = original.clone();
-            assert_eq!(meter.held(), 0, "every source and optional deadline is inline");
-            let bytes = u64::try_from(core::mem::size_of::<OwnerBudget>()).expect("size");
-            assert_eq!(price::bytes(&value, &bounds()), Some(bytes));
-            assert_eq!(price::budget_heap_bound(), Some(bytes));
-            let mut exact = bounds();
-            exact.document_bytes = bytes;
-            assert!(price::fits(&value, &exact));
-            exact.document_bytes -= 1;
-            assert!(!price::fits(&value, &exact));
-            assert_eq!(value, original, "whole refusal preserves owner facts and exact identity");
-            assert_eq!(meter.held(), 0, "pricing and admission borrow without allocation");
-        }
-    }
-}
-#[test]
-fn ledger_parent_state_and_period_options_survive_whole_value_pricing() {
-    for source in sources() {
-        for parent in [None, Some(sources()[0]), Some(sources()[1]), Some(sources()[2]), Some(sources()[3])] {
-            for closed in [false, true] {
-                for began in [None, Some(Wall::EPOCH)] {
-                    for next in [None, Some(Wall::from_nanos(u64::MAX))] {
-                        let original = PoolLedger { source, parent, numbers: numbers(), left: 17, closed, began, next };
-                        let meter = Meter::new();
-                        let value = original.clone();
-                        assert_eq!(meter.held(), 0, "all ledger fields remain inline");
-                        let bytes = u64::try_from(core::mem::size_of::<PoolLedger>()).expect("size");
-                        assert_eq!(price::ledger_bytes(&value, &bounds()), Some(bytes));
-                        assert_eq!(price::ledger_heap_bound(), Some(bytes));
-                        let mut exact = bounds();
-                        exact.document_bytes = bytes;
-                        assert!(price::ledger_fits(&value, &exact));
-                        exact.document_bytes -= 1;
-                        assert!(!price::ledger_fits(&value, &exact));
-                        assert_eq!(value, original, "no actor substitution, inferred period or recalculated left");
-                        assert_eq!(meter.held(), 0);
-                    }
-                }
-            }
-        }
-    }
-}
+
 #[test]
 fn maximal_budget_and_ledger_render_all_accounting_values() {
     use jig_client_view::owner_budget as view;

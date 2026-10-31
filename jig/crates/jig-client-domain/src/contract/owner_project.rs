@@ -7,7 +7,7 @@ use super::{
 };
 use skein_lib::List;
 
-/// The current project, independently supplied from the earlier Project carrier.
+/// The current project supplied by its owner.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct OwnerProject {
     pub acts: List<Offered>,

@@ -363,7 +363,7 @@ fn proof_capacity_failures_keep_the_outer_key() {
 }
 
 fn size(count: u32) -> usize {
-    usize::try_from(count).expect("small fixture count")
+    skein_lib::length::usize_of(count)
 }
 
 fn accepted(part: CallPart) {

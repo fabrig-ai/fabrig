@@ -191,6 +191,7 @@ fn details(b: &mut Builder, value: &OwnerOutcome, words: &Words) {
 pub fn render(b: &mut Builder, value: &OwnerOutcome, words: &Words) {
     b.open(Role::Region);
     let title = owner_outcome_words::say(words, header(value), &[]);
+    b.name(&title);
     b.open(Role::Status);
     b.name(&title);
     b.text(Run::Plain, &title);

@@ -55,7 +55,8 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
         c::OwnerChipPhase::Person { address: c::PersonAddress::Party(7), taken_by: None, since: Some(Wall::EPOCH) },
         None,
     ));
-    if let c::ChipPhase::Owner { details, .. } = person_chip.details.as_mut() {
+    {
+        let c::ChipPhase { details, .. } = person_chip.details.as_mut();
         details.executor = c::OwnerExecutor::Person(c::PersonAddress::Party(7));
     }
     let person = c::OwnerPersonTask {
@@ -77,7 +78,8 @@ fn cards(world: &mut World<Test, Scripted>) -> TaskLine {
     result_chip.task = 11;
     result_chip.phase = Phase::Done;
     result_chip.details = Box::new(super::owner_chip(c::OwnerChipPhase::Ended, None));
-    if let c::ChipPhase::Owner { details, .. } = result_chip.details.as_mut() {
+    {
+        let c::ChipPhase { details, .. } = result_chip.details.as_mut();
         details.ended_at = Some(Wall::EPOCH);
         details.ending = Some(c::OwnerChipEnding::Done(ResultValue::Report(DocumentText::complete(text(b"Finished")))));
     }

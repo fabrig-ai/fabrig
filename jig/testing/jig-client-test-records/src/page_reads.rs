@@ -10,30 +10,9 @@ pub fn read_wire_history_page() -> w::HistoryPage {
 }
 
 #[must_use]
-pub fn read_wire_inbox_page() -> w::InboxPage {
-    let lim = w::CEILINGS;
-    w::InboxPage::new(&lim, w::InboxPageParts { cut: false, rows: Box::from([]), before: None, after: None })
-        .expect("literal fixture fits")
-}
-
-#[must_use]
-pub fn read_wire_spend_page() -> w::SpendPage {
-    let lim = w::CEILINGS;
-    w::SpendPage::new(&lim, w::SpendPageParts { cut: false, rows: Box::from([]), before: None, after: None })
-        .expect("literal fixture fits")
-}
-
-#[must_use]
 pub fn read_wire_note_page() -> w::NotePage {
     let lim = w::CEILINGS;
     w::NotePage::new(&lim, w::NotePageParts { cut: false, rows: Box::from([]), before: None, after: None })
-        .expect("literal fixture fits")
-}
-
-#[must_use]
-pub fn read_wire_object_page() -> w::ObjectPage {
-    let lim = w::CEILINGS;
-    w::ObjectPage::new(&lim, w::ObjectPageParts { cut: false, rows: Box::from([]), before: None, after: None })
         .expect("literal fixture fits")
 }
 

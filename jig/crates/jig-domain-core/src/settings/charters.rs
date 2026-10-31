@@ -20,23 +20,22 @@ const _: () = assert!(fleet::CATALOGUE_MODELS == tasks::MODELS, "fleet evidence 
 const _: () = assert!(fleet::CATALOGUE_NAME_BYTES == crate::MODEL_NAME_BYTES, "fleet evidence prices model names");
 
 pub(crate) fn assert_catalogue(settings: &Settings) {
-    assert!(settings.models.len() <= usize::try_from(tasks::MODELS).expect("model count"), "model count");
+    assert!(settings.models.len() <= skein_lib::length::usize_of(tasks::MODELS), "model count");
     for (at, model) in settings.models.iter().enumerate() {
         for earlier in settings.models.iter().take(at) {
             assert!(earlier.name != model.name, "unique configured model names");
         }
-        assert!(model.name.len() <= usize::try_from(crate::MODEL_NAME_BYTES).expect("name bound"), "model name bound");
+        assert!(model.name.len() <= skein_lib::length::usize_of(crate::MODEL_NAME_BYTES), "model name bound");
         if let Some(program) = &model.program {
             assert!(
-                !program.is_empty()
-                    && program.len() <= usize::try_from(jig_domain_accounts::NAME).expect("program bound"),
+                !program.is_empty() && program.len() <= skein_lib::length::usize_of(jig_domain_accounts::NAME),
                 "program name bound"
             );
         }
-        assert!(model.efforts.len() <= usize::try_from(crate::EFFORTS).expect("effort count"), "effort count");
+        assert!(model.efforts.len() <= skein_lib::length::usize_of(crate::EFFORTS), "effort count");
         for (at, effort) in model.efforts.iter().enumerate() {
             assert!(
-                !effort.is_empty() && effort.len() <= usize::try_from(crate::EFFORT_BYTES).expect("effort bound"),
+                !effort.is_empty() && effort.len() <= skein_lib::length::usize_of(crate::EFFORT_BYTES),
                 "effort name bound"
             );
             for earlier in model.efforts.iter().take(at) {

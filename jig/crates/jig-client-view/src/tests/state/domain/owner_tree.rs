@@ -126,7 +126,6 @@ fn owner_tree_root_descendants_proposals_parent_depth_spend_cuts_and_two_indepen
     drive(&mut d, Watched { watch, event: WatchEvent::Delivered(Delivery::OwnerTree(Box::new(value.clone()))) });
     let plan = &d.task_page().plan;
     assert_eq!(plan.owner, Some(&value));
-    assert!(plan.nodes.is_empty());
     assert_eq!(plan.owner.as_ref().unwrap().rows.len(), 1);
     assert_eq!(plan.owner.as_ref().unwrap().rows.capacity(), 2);
     assert_eq!(plan.owner.as_ref().unwrap().folded.capacity(), 2);
@@ -164,7 +163,7 @@ fn owner_tree_filter_and_fold_actions_preserve_hidden_source_counts_and_optional
     }
 }
 #[test]
-fn owner_tree_departed_same_task_watch_and_clear_are_fenced_and_older_replacement_clears_owner_state() {
+fn owner_tree_departed_same_task_watch_and_clear_are_fenced() {
     let (mut d, old) = opened(8);
     let value = tree(8);
     drive(&mut d, Watched { watch: old, event: WatchEvent::Delivered(Delivery::OwnerTree(Box::new(value.clone()))) });
@@ -213,15 +212,6 @@ fn owner_tree_departed_same_task_watch_and_clear_are_fenced_and_older_replacemen
     );
     drive(&mut d, Watched { watch: old, event: WatchEvent::Delivered(Delivery::OwnerTree(Box::new(tree(0)))) });
     assert_eq!(d.task_page().plan.owner, Some(&value));
-    let older = Tree {
-        task: 8,
-        nodes: List::with_capacity(0),
-        folded: PhaseCounts { ended: 0, waiting: 0, running: 0, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0 },
-        held_below: 13,
-    };
-    drive(&mut d, Watched { watch: current, event: WatchEvent::Delivered(Delivery::Tree(Box::new(older))) });
-    assert!(d.task_page().plan.owner.is_none());
-    assert_eq!(d.task_page().plan.held_below, 13);
     drive(
         &mut d,
         Watched { watch: current, event: WatchEvent::Delivered(Delivery::OwnerTree(Box::new(value.clone()))) },

@@ -35,7 +35,7 @@ fn roster(core: &mut Core, env: &Env<Limits>, members: &[u64]) {
     limits.holdings = 3;
     core.people = people::Domain::new(&limits, Box::new([]), core.settings.deployment_provider, Box::new([]));
     core.people.start_restore(Wall::EPOCH);
-    let people_env = Env { now: env.now, wall: env.wall, limits };
+    let people_env = env.with(limits);
     let mut out = Queue::uncapped();
     for party in [ALICE, BOB, SERVICE] {
         let provider = if party == SERVICE { core.settings.deployment_provider } else { 0 };
@@ -217,7 +217,7 @@ fn a_limited_kept_account_refuses_a_new_account_of_its_provider() {
     ]);
     with_model(&mut core);
     let mut out = Queue::uncapped();
-    let account_env = Env { now: env.now, wall: env.wall, limits: env.limits.accounts };
+    let account_env = env.with(env.limits.accounts);
     accounts::step(
         &mut core.accounts,
         &account_env,

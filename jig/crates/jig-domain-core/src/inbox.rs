@@ -357,7 +357,7 @@ pub(crate) fn valid_header(core: &Core, limits: &Limits, row: &tasks::TaskRecord
         || row.number > deployment.tasks
         || row.project == 0
         || row.last_reply > row.activity
-        || row.replies.len() > usize::try_from(limits.tasks.inbox_messages).expect("hint bound fits")
+        || row.replies.len() > skein_lib::length::usize_of(limits.tasks.inbox_messages)
     {
         return false;
     }

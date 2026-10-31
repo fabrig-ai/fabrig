@@ -79,34 +79,6 @@ pub fn task(record: w::Task, limits: &Limits) -> Result<c::Task, Undecodable> {
     }
 }
 
-pub fn tree(record: w::Tree, limits: &Limits) -> Result<c::Tree, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
-        return Err(Undecodable::TooLarge);
-    }
-    let record = match w::Tree::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
-    match tree_fields(&record, limits) {
-        Ok(value) => Ok(value),
-        Err(problem) => Err(classify(problem)),
-    }
-}
-
-pub fn inbox(record: w::Inbox, limits: &Limits) -> Result<c::Inbox, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
-        return Err(Undecodable::TooLarge);
-    }
-    let record = match w::Inbox::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
-    match inbox_fields(&record, limits) {
-        Ok(value) => Ok(value),
-        Err(problem) => Err(classify(problem)),
-    }
-}
-
 pub fn tasks(record: w::Tasks, limits: &Limits) -> Result<c::Tasks, Undecodable> {
     if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
@@ -116,20 +88,6 @@ pub fn tasks(record: w::Tasks, limits: &Limits) -> Result<c::Tasks, Undecodable>
         Err(problem) => return Err(classify(problem)),
     };
     match tasks_fields(&record, limits) {
-        Ok(value) => Ok(value),
-        Err(problem) => Err(classify(problem)),
-    }
-}
-
-pub fn deployment(record: w::Deployment, limits: &Limits) -> Result<c::Deployment, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
-        return Err(Undecodable::TooLarge);
-    }
-    let record = match w::Deployment::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
-    match deployment_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }

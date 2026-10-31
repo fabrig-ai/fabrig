@@ -227,7 +227,7 @@ impl Core {
             None => Box::new([]),
         };
         if let people::PolicyChange::Templates { overrides } = &change {
-            if overrides.len() > usize::try_from(limits.templates).expect("template bound") {
+            if overrides.len() > skein_lib::length::usize_of(limits.templates) {
                 return Err(people::Refusal::Limit { which: people::LimitKind::Policy });
             }
             for (index, entry) in overrides.iter().enumerate() {
@@ -334,7 +334,7 @@ impl Core {
             requirements: Box::new([]),
         };
         let mut permissions: Box<[people::PermissionRole]> = Box::new([]);
-        if value.templates.len() > usize::try_from(limits.templates).expect("template bound") {
+        if value.templates.len() > skein_lib::length::usize_of(limits.templates) {
             {
                 self.refuse_restore(crate::start::Failure::ProjectPolicy { project });
             }

@@ -1,6 +1,6 @@
 //! Complete accounts receiving admission and field preservation.
 use super::{c, fixtures, w};
-use crate::{Undecodable, translate::watches};
+use crate::{Limits, Undecodable, Unusable, translate::watches};
 use skein_lib::{Duration, List, Wall, Writer};
 fn list<T, const N: usize>(items: [T; N]) -> List<T> {
     let mut out = List::with_capacity(u32::try_from(N).expect("literal rows"));
@@ -387,7 +387,7 @@ fn zero_account_receiving_counts_make_limits_unusable() {
         AccountCounts { sign_ins: 0, ..bounds.client().accounts },
     ] {
         let client = jig_client_domain::Limits { accounts, turn_text: bounds.client().turn_text, ..*bounds.client() };
-        assert_eq!(crate::Limits::new(client, bounds.exchanges()), Err(crate::Unusable::Limits), "{accounts:?}");
+        assert_eq!(Limits::new(client, bounds.exchanges()), Err(Unusable::Limits), "{accounts:?}");
     }
 }
 
@@ -399,7 +399,7 @@ fn counted_accounts() -> Box<[u8]> {
     record.signing = repeated(&record.signing, usize::try_from(ACCOUNT_COUNT).unwrap());
     delivery(w::OwnerAccounts::new(limits.wire(), record).unwrap())
 }
-fn count_limits() -> crate::Limits {
+fn count_limits() -> Limits {
     let bounds = fixtures::limits();
     let client = jig_client_domain::Limits {
         accounts: jig_client_domain::AccountCounts {
@@ -410,7 +410,7 @@ fn count_limits() -> crate::Limits {
         turn_text: bounds.client().turn_text,
         ..*bounds.client()
     };
-    crate::Limits::new(client, bounds.exchanges()).unwrap()
+    Limits::new(client, bounds.exchanges()).unwrap()
 }
 #[test]
 fn account_lists_filling_their_receiving_counts_are_admitted() {
@@ -432,7 +432,7 @@ fn account_lists_one_past_their_receiving_counts_are_refused() {
         jig_client_domain::AccountCounts { sign_ins: ACCOUNT_COUNT - 1, ..bounds.client().accounts },
     ] {
         let client = jig_client_domain::Limits { accounts, turn_text: bounds.client().turn_text, ..*bounds.client() };
-        let limits = crate::Limits::new(client, bounds.exchanges()).unwrap();
+        let limits = Limits::new(client, bounds.exchanges()).unwrap();
         assert_eq!(watches::delivery(&bytes, &limits), Err(Undecodable::TooLarge), "{accounts:?}");
     }
 }
@@ -453,11 +453,11 @@ fn expected_deployment(count: u32) -> c::OwnerDeployment {
     }
     expected
 }
-fn deployment_count_limits() -> crate::Limits {
+fn deployment_count_limits() -> Limits {
     let bounds = fixtures::limits();
     let mut client = *bounds.client();
     client.accounts.accounts = DEPLOYMENT_ACCOUNTS;
-    crate::Limits::new(client, bounds.exchanges()).unwrap()
+    Limits::new(client, bounds.exchanges()).unwrap()
 }
 #[test]
 fn deployment_accounts_filling_the_receiving_count_are_admitted() {

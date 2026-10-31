@@ -753,7 +753,6 @@ impl DeploymentPhrase {
                 Self::AdmissionExemptions => 9494,
                 Self::AdmissionSettingsProposals => 9431,
                 Self::AdmissionProjects => 9430,
-
                 Self::Connectors => 9396,
                 Self::ConnectorsCut => 9397,
                 Self::ConnectorsEmpty => 9398,
@@ -1203,7 +1202,6 @@ impl DeploymentPhrase {
             Self::AdmissionExemptions => b"Structural limit: exemptions",
             Self::AdmissionSettingsProposals => b"Structural limit: pending settings proposals",
             Self::AdmissionProjects => b"The deployment has no room for another project",
-
             Self::Connectors => b"Configured connectors",
             Self::ConnectorsCut => b"Some configured connectors omitted",
             Self::ConnectorsEmpty => b"No configured connectors",

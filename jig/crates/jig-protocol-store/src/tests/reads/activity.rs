@@ -87,7 +87,7 @@ fn joined_page_with_fault(
             frames.push(offset).expect("at most five frame reads");
         }
         let first = usize::try_from(offset).expect("fixture offset");
-        let end = first.checked_add(usize::try_from(max).expect("fixture read")).expect("bounded disk");
+        let end = first.checked_add(skein_lib::length::usize_of(max)).expect("bounded disk");
         let (events, next) = fixtures::answer(
             store,
             Io::Transcripts(Arrived {

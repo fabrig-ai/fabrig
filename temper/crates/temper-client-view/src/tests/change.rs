@@ -20,7 +20,7 @@ fn event(root: &mut Domain, up: Up) -> Queue<Request> {
 fn opened() -> (Domain, Token) {
     let mut task = t::document();
     task.chip.task = TASK;
-    let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+    let c::ChipPhase { details, .. } = task.chip.details.as_mut();
     details.procedure = Some(c::OwnerPart {
         connector: f::FORGE,
         kind: c::OwnerPartKind::Procedure,

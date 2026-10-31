@@ -12,7 +12,7 @@ pub(crate) fn tasks_first_window(rows: u32, more: bool) -> (c::TaskPage, c::Task
     let mut live = List::with_capacity(rows);
     let mut supplied = task_line();
     supplied.chip.phase = c::Phase::Preparing;
-    *supplied.chip.details = c::ChipPhase::Starting;
+    supplied.chip.details.phase = c::OwnerChipPhase::Active(c::RunStage::Preparing);
     for index in 0..rows {
         let mut row = supplied.clone();
         row.chip.task = TASK.checked_add(u64::from(index)).expect("bounded task identity");
@@ -59,24 +59,32 @@ pub(crate) fn limits() -> crate::jig::Limits {
 pub(crate) const WINDOW_UPDATES: u32 = 2;
 /// The next opaque cursor must differ without changing whether more rows follow.
 pub(crate) const OTHER_CURSOR: &[u8] = &[0x33, 0x44];
-pub(crate) fn inbox_first_window(total: u32) -> (c::InboxPage, c::Inbox) {
+pub(crate) fn inbox_first_window(total: u32) -> (c::OwnerInboxPage, c::OwnerInbox) {
     let needs = total.checked_sub(WINDOW_UPDATES).expect("window includes both groups");
     let watched = inbox_window(needs, WINDOW_UPDATES, false);
-    let page = c::InboxPage {
-        rows: watched.entries.clone(),
+    let page = jig_client::contract::OwnerInboxPage {
+        rows: {
+            let mut rows = watched.needs.clone();
+            for row in &watched.updates {
+                rows.push(row.clone()).unwrap();
+            }
+            rows
+        },
         before: None,
-        after: if watched.more { Some(cursor()) } else { None },
+        after: if watched.next.is_some() { Some(cursor()) } else { None },
         cut: false,
+        selection: None,
     };
     (page, watched)
 }
 /// The fake engine's first window, independently of the read's group pages.
-pub(crate) fn inbox_window(needs: u32, updates: u32, more: bool) -> c::Inbox {
-    let c::ReadResult::Value(c::ReadValue::Inbox(needs_page)) = inbox_rows(c::InboxReadGroup::Needs, needs, false)
+pub(crate) fn inbox_window(needs: u32, updates: u32, more: bool) -> c::OwnerInbox {
+    let c::ReadResult::Value(c::ReadValue::OwnerInbox(needs_page)) = inbox_rows(c::InboxReadGroup::Needs, needs, false)
     else {
         panic!("needs page")
     };
-    let c::ReadResult::Value(c::ReadValue::Inbox(updates_page)) = inbox_rows(c::InboxReadGroup::Updates, updates, more)
+    let c::ReadResult::Value(c::ReadValue::OwnerInbox(updates_page)) =
+        inbox_rows(c::InboxReadGroup::Updates, updates, more)
     else {
         panic!("updates page")
     };
@@ -90,13 +98,19 @@ pub(crate) fn inbox_window(needs: u32, updates: u32, more: bool) -> c::Inbox {
     {
         rows.push(row.clone()).expect("bounded first window");
     }
-    c::Inbox {
-        entries: rows,
-        more: more || needs.checked_add(updates).expect("two pages") > crate::limits::ROWS,
-        needs: c::Needs { questions: needs, proposals: 0, escalations: 0, person_tasks: 0 },
-        updates: c::Count { value: updates, limited: false },
-        results_seen: 0,
-        replies_seen: List::with_capacity(EMPTY),
+    {
+        let counts = c::Needs { questions: needs, proposals: 0, escalations: 0, person_tasks: 0 };
+        crate::tests::documents::inbox(
+            rows,
+            counts
+                .questions
+                .saturating_add(counts.proposals)
+                .saturating_add(counts.escalations)
+                .saturating_add(counts.person_tasks),
+            c::Count { value: updates, limited: false },
+            0,
+            more || needs.checked_add(updates).expect("two pages") > crate::limits::ROWS,
+        )
     }
 }
 pub(crate) fn inbox_watch() -> client::Watchable {
@@ -108,7 +122,7 @@ pub(crate) fn inbox_json_answer(needs: u32, updates: u32, more: bool) -> crate::
     let (mut root, call) = read_call(argv.as_slice());
     root.serve(call, inbox_rows(c::InboxReadGroup::Needs, needs, false));
     root.serve(call, inbox_rows(c::InboxReadGroup::Updates, updates, more));
-    root.deliver_subject(&inbox_watch(), c::Delivery::Inbox(Box::new(inbox_window(needs, updates, more))));
+    root.deliver_subject(&inbox_watch(), c::Delivery::OwnerInbox(Box::new(inbox_window(needs, updates, more))));
     root.answer(call).expect("inbox answered")
 }
 

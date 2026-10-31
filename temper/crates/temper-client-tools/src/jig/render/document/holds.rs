@@ -48,17 +48,6 @@ pub(super) fn encode_funder(value: &jig_client::contract::Funder, out: &mut Enco
     }
 }
 
-pub(super) fn encode_grant(value: &jig_client::contract::Grant, out: &mut Encoder, budget: &mut super::Cut) {
-    out.object_start();
-    out.key(b"connector");
-    out.unsigned(u64::from(value.connector));
-    out.key(b"kind");
-    out.unsigned(u64::from(value.kind));
-    out.key(b"pattern");
-    super::encode_owner_pattern(&value.pattern, out, budget);
-    out.object_end();
-}
-
 pub(super) fn encode_held_role(value: jig_client::contract::HeldRole, out: &mut Encoder, _budget: &mut super::Cut) {
     let value = &value;
     match value {
@@ -98,30 +87,4 @@ pub(super) fn encode_held_runtime(
             out.object_end();
         }
     }
-}
-
-pub(super) fn encode_hold(value: &jig_client::contract::Hold, out: &mut Encoder, budget: &mut super::Cut) {
-    out.object_start();
-    out.key(b"revision");
-    super::encode_revision(value.revision, out, budget);
-    out.key(b"reason");
-    super::encode_hold_reason(&value.reason, out, budget);
-    out.key(b"before");
-    super::encode_phase(value.before, out, budget);
-    out.key(b"since");
-    out.unsigned(value.since.as_nanos());
-    out.key(b"result");
-    match &value.result {
-        Some(item_1) => {
-            super::encode_result_value(item_1, out, budget);
-        }
-        None => out.null(),
-    }
-    out.key(b"spend");
-    out.array_start();
-    for item_2 in &value.spend {
-        super::encode_spend_line(item_2, out, budget);
-    }
-    out.array_end();
-    out.object_end();
 }

@@ -10,14 +10,15 @@ use skein_lib::Reader;
 mod part0;
 use part0::chip_fields;
 pub(crate) use part0::{
-    active_run, call_identity, closing_stage, document_text, failure_class, hold_category, owner_chip_phase, part,
-    person_address, phase, proposal_key, recipient, retry_notice, revision, run_stage, taken_by, wake_policy,
+    active_run, call_identity, closing_stage, document_text, failure_class, hold_category, owner_chip_phase,
+    person_address, proposal_key, recipient, retry_notice, run_stage,
 };
 #[path = "facts_part1.rs"]
 mod part1;
+pub(crate) use part1::party;
 use part1::{chip_phase_fields, closing_fields, ending_fields, held_runtime_fields, hold_reason_fields};
 pub(crate) use part1::{
-    owner_chip_hold, owner_executor, owner_numbers, owner_part, owner_person_wait, owner_wake_policy, party,
+    owner_chip_hold, owner_executor, owner_numbers, owner_part, owner_person_wait, owner_wake_policy,
 };
 #[path = "facts_part2.rs"]
 mod part2;
@@ -122,41 +123,6 @@ pub(crate) fn ending(value: &w::Ending, limits: &Limits) -> Result<c::Ending, w:
         | Node::Closing(_)
         | Node::HeldRuntime(_)
         | Node::HoldReason(_)
-        | Node::OwnerChipDetails(_)
-        | Node::OwnerChipEnding(_)
-        | Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
-    }
-}
-fn take_held_runtime(index: u32, parent: u32, children: &mut Map<u32, Child>) -> Result<c::HeldRuntime, w::Problem> {
-    let child = children.remove(&index).ok_or(piece_problem(skein_codec::Reason::Malformed))?;
-    if child.parent != Some(parent) {
-        return Err(piece_problem(skein_codec::Reason::Malformed));
-    }
-    match child.value {
-        Node::HeldRuntime(value) => Ok(*value),
-        Node::Chip(_)
-        | Node::ChipPhase(_)
-        | Node::Closing(_)
-        | Node::Ending(_)
-        | Node::HoldReason(_)
-        | Node::OwnerChipDetails(_)
-        | Node::OwnerChipEnding(_)
-        | Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
-    }
-}
-
-fn take_hold_reason(index: u32, parent: u32, children: &mut Map<u32, Child>) -> Result<c::HoldReason, w::Problem> {
-    let child = children.remove(&index).ok_or(piece_problem(skein_codec::Reason::Malformed))?;
-    if child.parent != Some(parent) {
-        return Err(piece_problem(skein_codec::Reason::Malformed));
-    }
-    match child.value {
-        Node::HoldReason(value) => Ok(*value),
-        Node::Chip(_)
-        | Node::ChipPhase(_)
-        | Node::Closing(_)
-        | Node::Ending(_)
-        | Node::HeldRuntime(_)
         | Node::OwnerChipDetails(_)
         | Node::OwnerChipEnding(_)
         | Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),

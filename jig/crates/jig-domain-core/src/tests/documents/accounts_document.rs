@@ -52,7 +52,7 @@ pub(in crate::tests) fn fixture(records: Vec<accounts::Stored>) -> (Core, Env<Li
     core.accounts = accounts::Domain::new(&limits.accounts, core.settings.llm_providers.clone());
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::uncapped();
-    let people_env = Env { now: env.now, wall: env.wall, limits: limits.people };
+    let people_env = env.with(limits.people);
     for (person, sign_in) in [(ALICE, ALICE_SIGN_IN), (BOB, BOB_SIGN_IN)] {
         let identity = people::Identity {
             key: people::IdentityKey { provider: 0, subject: person.to_be_bytes().into() },
@@ -193,12 +193,7 @@ fn a_partys_accounts_document_lists_its_own_accounts_with_their_sources_in_order
     );
 }
 fn list<T>(items: impl IntoIterator<Item = T>) -> List<T> {
-    let items: Vec<_> = items.into_iter().collect();
-    let mut result = List::with_capacity(u32::try_from(items.len()).expect("small fixture"));
-    for item in items {
-        result.push(item).ok().expect("fixture bound");
-    }
-    result
+    List::from_boxed(items.into_iter().collect())
 }
 
 #[test]
@@ -353,7 +348,7 @@ fn change_account(core: &mut Core, env: &Env<Limits>, holder: accounts::Holder, 
     let mut out = Queue::uncapped();
     accounts::step(
         &mut core.accounts,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.accounts },
+        &env.with(env.limits.accounts),
         accounts::Event::Change { request: Token::new(70), holder, change },
         &mut out,
     );
@@ -521,7 +516,7 @@ fn the_providers_uses_rule_checks_people_and_projects_for_plans_and_llm_keys() {
         limits.holdings = 3;
         core.people = people::Domain::new(&limits, Box::new([]), core.settings.deployment_provider, Box::new([]));
         core.people.start_restore(Wall::EPOCH);
-        let penv = Env { now: env.now, wall: env.wall, limits };
+        let penv = env.with(limits);
         let mut out = Queue::uncapped();
         for (party, provider) in [(ALICE, 0), (BOB, 0), (SERVICE, core.settings.deployment_provider)] {
             people::step(

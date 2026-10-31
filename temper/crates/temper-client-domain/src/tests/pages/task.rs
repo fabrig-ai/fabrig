@@ -131,11 +131,11 @@ fn a_task_held_anew_reads_its_released_card_again() {
     page.held(&held(fixtures::acts::REVISION.value), &mut fixture.out);
     let card = page.cards.get_mut(FIRST_CARD).expect("held card");
     let first = card.handle;
-    let c::ReadValue::Escalation(read) = fixtures::acts::held(c::ActKind::Release) else { panic!("hold") };
-    let mut stopped = read.hold;
-    stopped.revision = fixtures::acts::REVISION;
+    let c::ReadValue::OwnerEscalation(read) = fixtures::acts::held(c::ActKind::Release) else { panic!("hold") };
+    let mut stopped = read.task.hold.expect("owner hold");
+    stopped.revision = fixtures::acts::REVISION.value;
     let mut document = f::task();
-    document.hold = Some(c::TaskHold::Document(Box::new(stopped)));
+    document.hold = Some(stopped);
     card.page = Some(c::ReadValue::Task(Box::new(document)));
     card.outcome = Some(jig_client::Outcome::Unknown);
     while fixture.out.pop().is_some() {}
@@ -217,7 +217,7 @@ fn an_ended_task_says_its_owners_ending() {
     ] {
         let mut task = f::task();
         f::phase(&mut task, c::OwnerChipPhase::Ended);
-        let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+        let c::ChipPhase { details, .. } = task.chip.details.as_mut();
         details.ending = ending;
         assert_eq!(row_state(&task.chip), expected);
         task.waits_on = c::WaitsOn::News;
@@ -228,18 +228,12 @@ fn an_ended_task_says_its_owners_ending() {
 fn another_phase_says_jigs_phase() {
     let mut task = f::task();
     f::phase(&mut task, c::OwnerChipPhase::Active(c::RunStage::Idle));
-    let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+    let c::ChipPhase { details, .. } = task.chip.details.as_mut();
     details.ending = Some(c::OwnerChipEnding::Failed(f::document_text(b"Old ending")));
     assert_eq!(row_state(&task.chip), State::Phase(task.chip.phase));
     task.chip.phase = c::Phase::Waiting;
-    *task.chip.details = c::ChipPhase::Waiting {
-        dependencies: {
-            let mut dependencies = List::with_capacity(1);
-            dependencies.push(DEPENDENCY).expect("dependency");
-            dependencies
-        },
-        hold: None,
-    };
+    task.chip.details.phase =
+        c::OwnerChipPhase::Waiting { dependencies: List::with_capacity(0), more: false, holds: false };
     assert_eq!(row_state(&task.chip), State::Phase(c::Phase::Waiting));
 }
 #[test]
@@ -288,7 +282,7 @@ fn a_running_rows_state_says_its_observed_work() {
     ] {
         let mut task = f::task();
         f::phase(&mut task, c::OwnerChipPhase::Active(c::RunStage::Running { attempt: ATTEMPT }));
-        let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+        let c::ChipPhase { details, .. } = task.chip.details.as_mut();
         if let Some(work) = work {
             details.observation = Some(observation(work));
         } else {
@@ -324,7 +318,7 @@ fn the_headers_delegates_use_the_chips_live_count() {
     for count in [0, 1, 3] {
         let mut task = f::task();
         task.waits_on = c::WaitsOn::Delegates;
-        let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+        let c::ChipPhase { details, .. } = task.chip.details.as_mut();
         details.live_delegates = count;
         assert_eq!(header_state(&task, None), State::WaitingForDelegates(count));
     }
@@ -382,15 +376,15 @@ fn agent_document() -> c::Task {
 }
 fn activity_page(position: u64) -> jig_client::Readout {
     let mut rows = List::with_capacity(1);
-    rows.push(c::ActivityLine {
+    rows.push(crate::tests::documents::line(
         position,
-        at: Wall::EPOCH,
-        event: c::Activity::RunBegan {
+        Wall::EPOCH,
+        jig_client::contract::OwnerActivity::RunBegan {
             attempt: ATTEMPT,
-            how: c::RunBeginning::Fresh { tail: 0 },
-            why: c::Text::new(Box::from(*b"Begin"), 5).expect("why"),
+            why: jig_client::contract::OwnerRunWhy::Made,
+            resumed: false,
         },
-    })
+    ))
     .expect("activity");
     jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
         rows,
@@ -623,14 +617,14 @@ fn a_runs_heading_follows_its_chips_phase() {
     ] {
         let mut task = agent_document();
         f::phase(&mut task, phase.clone());
-        let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { panic!("owner") };
+        let c::ChipPhase { details, .. } = task.chip.details.as_mut();
         details.attempt = attempt;
         details.run_since = since;
         assert_eq!(run(&task), expected, "{phase:?}, {attempt:?}, {since:?}");
     }
     let mut task = agent_document();
-    *task.chip.details = c::ChipPhase::Starting;
-    assert_eq!(run(&task), None);
+    task.chip.details.phase = c::OwnerChipPhase::Active(c::RunStage::Preparing);
+    assert_eq!(run(&task), Some(Run::NoRun));
 }
 #[test]
 fn an_ended_tasks_historical_document_keeps_its_result() {
@@ -897,7 +891,9 @@ fn a_delivered_message_is_said_by_its_words_not_an_outcome() {
     page_act(&mut pages, &client, Act::Send);
     let key = pages.task().expect("page").pending.as_slice()[0].0;
     let mut out = Queue::with_capacity(OUTPUTS);
-    let done = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Changed)));
+    let done = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
+        c::OwnerOutcome::Amended { task: 9 },
+    ))));
     pages::step(
         &mut pages,
         &fixtures::env(&fixtures::limits()),
@@ -997,12 +993,14 @@ fn a_done_amendment_stays_as_its_outcome_until_amend_again() {
     page_act(&mut pages, &client, Act::Amend);
     page_act(&mut pages, &client, Act::AmendWords { words: Box::from(WORDS) });
     page_act(&mut pages, &client, Act::SendAmendment);
-    amend_answer(&mut pages, &client, c::Answer::Done(c::Outcome::Changed));
+    amend_answer(&mut pages, &client, c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Amended { task: 9 })));
     let open = pages.task().unwrap().amending.as_ref().unwrap();
     assert!(open.done);
     assert_eq!(
         open.outcome,
-        Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Changed))))
+        Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(
+            c::OwnerOutcome::Amended { task: 9 }
+        )))))
     );
     assert!(pages.task().unwrap().pending.is_empty());
     assert!(page_act(&mut pages, &client, Act::SendAmendment).is_empty());

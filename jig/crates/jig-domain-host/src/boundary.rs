@@ -521,3 +521,57 @@ pub enum Bound {
     /// The model's declared output ceiling: tokens.
     Output,
 }
+
+impl Event {
+    /// Whether this input starts work, rather than settling admitted work (domain/hosts.md, 6).
+    #[must_use]
+    pub fn new_work(&self) -> bool {
+        match self {
+            Event::Agent(event) => event.new_work(),
+            Event::Opened { .. } => true,
+            Event::Down(event) => match event {
+                crate::LinkDown::Sources { .. }
+                | crate::LinkDown::Check { .. }
+                | crate::LinkDown::SignOut { .. }
+                | crate::LinkDown::Assign { .. }
+                | crate::LinkDown::Message { .. } => true,
+                crate::LinkDown::Relayed { .. }
+                | crate::LinkDown::TurnKept { .. }
+                | crate::LinkDown::Acknowledge { .. }
+                | crate::LinkDown::Cancel { .. }
+                | crate::LinkDown::Grant { .. } => false,
+            },
+            Event::SourceAnswered { .. }
+            | Event::SourceLost
+            | Event::RelayCancelled { .. }
+            | Event::CancelAll { .. }
+            | Event::Prepared { .. }
+            | Event::Unprepared { .. }
+            | Event::Delivered { .. }
+            | Event::Saved { .. } => false,
+        }
+    }
+}
+impl FromAgent {
+    /// Calls start new work; other reports settle hosted work (domain/hosts.md, 6).
+    #[must_use]
+    pub const fn new_work(&self) -> bool {
+        match self {
+            FromAgent::Called { .. } => true,
+            FromAgent::Withdrawn { .. }
+            | FromAgent::Turn { .. }
+            | FromAgent::Piece { .. }
+            | FromAgent::Activity { .. }
+            | FromAgent::Unauthorized { .. }
+            | FromAgent::Limited { .. }
+            | FromAgent::AccountRefused { .. }
+            | FromAgent::Finished { .. }
+            | FromAgent::Started { .. }
+            | FromAgent::StartRefused { .. }
+            | FromAgent::Refused { .. }
+            | FromAgent::Yielded { .. }
+            | FromAgent::Faulted { .. }
+            | FromAgent::Gone { .. } => false,
+        }
+    }
+}

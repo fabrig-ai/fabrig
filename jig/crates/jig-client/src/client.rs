@@ -143,7 +143,7 @@ impl Client {
         let Ok(link) = link::Link::new(&bounds) else {
             return Err(Unusable::Limits);
         };
-        Ok(Self::build(limits, bounds, seed, Some(link)))
+        Ok(Self::build(limits, &bounds, seed, Some(link)))
     }
     /// # Errors
     /// Refuses limits whose queues or receiving bounds cannot be represented.
@@ -152,14 +152,14 @@ impl Client {
             return Err(Unusable::Limits);
         }
         let bounds = link::Limits::new(limits.domain, limits.exchanges)?;
-        Ok(Self::build(limits, bounds, seed, None))
+        Ok(Self::build(limits, &bounds, seed, None))
     }
-    fn build(limits: &Limits, link_limits: link::Limits, seed: u64, link: Option<link::Link>) -> Self {
+    fn build(limits: &Limits, link_limits: &link::Limits, seed: u64, link: Option<link::Link>) -> Self {
         Self {
             domain: domain::Domain::new(&limits.domain, seed),
             link,
             limits: *limits,
-            link_limits,
+            link_limits: *link_limits,
             domain_out: Queue::uncapped(),
             link_out: Queue::uncapped(),
             store: crate::store::Store::new(limits.domain.requests.requests),

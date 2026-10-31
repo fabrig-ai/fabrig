@@ -311,7 +311,7 @@ fn batch_is_atomic_and_cycles_and_limits_refuse_at_entrance() {
 }
 
 #[test]
-fn bounded_historical_inputs_are_left_for_the_roots_archive_check() {
+fn bounded_retained_inputs_are_left_for_the_roots_archive_check() {
     let mut w = World::new(101, LIMITS);
     let mut next = task(2, &[]);
     next.spec.inputs = Box::new([99]);
@@ -821,9 +821,7 @@ fn open_discards_every_raw_finish_before_result_judgment() {
             cancel_delegates: false,
         },
         End::Finished {
-            result: TaskResult::Report {
-                words: vec![1; usize::try_from(LIMITS.result_bytes).expect("result bound fits") + 1].into(),
-            },
+            result: TaskResult::Report { words: vec![1; skein_lib::length::usize_of(LIMITS.result_bytes) + 1].into() },
             cancel_delegates: false,
         },
         End::FinishedWithFollowups {
@@ -908,7 +906,7 @@ fn open_still_refuses_bad_saved_work_before_normalizing_a_finish() {
         saved: Some(
             vec![
                 jig_domain_tasks::SavedResource { connector: 1, path: Box::new([]) };
-                usize::try_from(LIMITS.saved_resources).expect("saved count fits") + 1
+                skein_lib::length::usize_of(LIMITS.saved_resources) + 1
             ]
             .into(),
         ),

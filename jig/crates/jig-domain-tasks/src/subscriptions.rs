@@ -111,7 +111,7 @@ pub(crate) fn subscribe(
         action: crate::CapacityAction::Subscription { number: subscription.number },
         cause: crate::CapacityCause::Subscriptions { limit: env.limits.subscriptions },
     };
-    if task.subscriptions.len() >= usize::try_from(env.limits.subscriptions).expect("u32 fits usize") {
+    if task.subscriptions.len() >= skein_lib::length::usize_of(env.limits.subscriptions) {
         return crate::capacity::refuse(domain, env, to, Some(number), Refusal::Busy, capacity, out);
     }
     match subscription.kind {
@@ -130,7 +130,7 @@ pub(crate) fn subscribe(
         }
         SubscriptionKind::Topic { .. } => {}
     }
-    let reserve = usize::try_from(env.limits.result_bytes.max(env.limits.message_bytes)).expect("u32 fits usize");
+    let reserve = skein_lib::length::usize_of(env.limits.result_bytes.max(env.limits.message_bytes));
     if !crate::inbox::room(domain, &env.limits, number, 1, reserve) {
         return crate::capacity::refuse(
             domain,
@@ -248,7 +248,7 @@ pub(crate) fn notice(domain: &mut Domain, env: &Env<Limits>, number: u64, word: 
             if subscription_number != 0
                 || task.tracked.is_none()
                 || word.kind != (MessageKind::News { subscription: 0, class: NewsClass::Kept })
-                || word.words.len() > usize::try_from(env.limits.message_bytes).expect("u32 fits usize")
+                || word.words.len() > skein_lib::length::usize_of(env.limits.message_bytes)
             {
                 return;
             }
@@ -259,8 +259,7 @@ pub(crate) fn notice(domain: &mut Domain, env: &Env<Limits>, number: u64, word: 
     if !matching
         || word.number == 0
         || word.number <= task.last_message
-        || word.words.len()
-            > usize::try_from(env.limits.result_bytes.max(env.limits.message_bytes)).expect("u32 fits usize")
+        || word.words.len() > skein_lib::length::usize_of(env.limits.result_bytes.max(env.limits.message_bytes))
     {
         return;
     }

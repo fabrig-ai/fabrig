@@ -1,12 +1,12 @@
 //! Field-for-field client contract translation (protocol/client.md, 3 and 5).
 use super::{Child, take_chip_phase};
 use crate::Limits;
-use crate::translate::{piece_problem, text_problem, too_large};
+use crate::translate::text_problem;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::Map;
-use skein_lib::{List, Reader, Wall, bytes};
+use skein_lib::{List, Wall, bytes};
 pub(crate) fn document_text(value: &w::DocumentText, limits: &Limits) -> Result<c::DocumentText, w::Problem> {
     Ok(c::DocumentText {
         bytes: match c::Text::new(bytes::copy_of(value.bytes()), limits.client().text) {
@@ -272,68 +272,6 @@ pub(crate) fn proposal_key(value: &w::ProposalKey) -> c::ProposalKey {
     c::ProposalKey { proposer: proposer(value.proposer()), number: value.number() }
 }
 
-pub(crate) fn part_scope(value: &w::PartScope) -> c::PartScope {
-    match value {
-        w::PartScope::Project(row) => c::PartScope::Project(row.value()),
-        w::PartScope::Deployment => c::PartScope::Deployment,
-    }
-}
-
-pub(crate) fn part(value: &w::Part) -> c::Part {
-    match value {
-        w::Part::Connector(row) => c::Part::Connector { connector: row.connector() },
-        w::Part::Resource(row) => {
-            let mut list0 = List::with_capacity(row.path().len());
-            for item in row.path() {
-                list0.push(bytes::copy_of(item)).expect("reserved supplied list");
-            }
-            c::Part::Resource { connector: row.connector(), path: list0 }
-        }
-        w::Part::Kind(row) => c::Part::Kind { connector: row.connector(), kind: row.kind() },
-        w::Part::Panel(row) => c::Part::Panel { connector: row.connector(), task: row.task() },
-        w::Part::Result(row) => c::Part::Result { connector: row.connector(), task: row.task() },
-        w::Part::Effect(row) => c::Part::Effect { connector: row.connector(), proposal: proposal_key(row.proposal()) },
-        w::Part::OwnerEffect(row) => c::Part::OwnerEffect { connector: row.connector(), proposal: row.proposal() },
-        w::Part::Outbox(row) => {
-            c::Part::Outbox { connector: row.connector(), scope: part_scope(row.scope()), entry: row.entry() }
-        }
-        w::Part::Hold(row) => c::Part::Hold { connector: row.connector(), task: row.task() },
-        w::Part::Project(row) => c::Part::Project { connector: row.connector(), project: row.project() },
-        w::Part::Deployment(row) => c::Part::Deployment { connector: row.connector() },
-    }
-}
-
-pub(crate) fn part_piece(bytes: &[u8], limits: &Limits) -> Result<List<c::Part>, w::Problem> {
-    let mut reader = Reader::new(bytes);
-    let mut rows = List::with_capacity(limits.client().rows);
-    for _ in 0..=limits.client().rows {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(problem) => return Err(piece_problem(problem)),
-        };
-        let Some(item) = item else { return Ok(rows) };
-        let row = w::Part::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let row = part(&row);
-        if rows.push(row).is_err() {
-            return Err(too_large());
-        }
-    }
-    Err(too_large())
-}
-
-pub(crate) fn wake_policy(value: &w::WakePolicy, limits: &Limits) -> Result<c::WakePolicy, w::Problem> {
-    let mut list0 = List::with_capacity(value.topics().len());
-    for item in value.topics() {
-        list0.push(*item).expect("reserved supplied list");
-    }
-    Ok(c::WakePolicy {
-        words: value.words(),
-        results: value.results(),
-        topics: list0,
-        subscriptions: part_piece(value.subscriptions(), limits)?,
-    })
-}
-
 pub(crate) fn recipient(value: &w::Recipient) -> c::Recipient {
     match value {
         w::Recipient::Task(row) => c::Recipient::Task(row.value()),
@@ -347,19 +285,4 @@ pub(crate) fn recipient(value: &w::Recipient) -> c::Recipient {
             c::Recipient::Roles { project: row.project(), roles: list0 }
         }
     }
-}
-
-pub(crate) fn taken_by(value: &w::TakenBy, limits: &Limits) -> Result<c::TakenBy, w::Problem> {
-    let opt0 = match &value.name() {
-        Some(item) => Some(match c::Text::new(bytes::copy_of(item), limits.client().text) {
-            Ok(value) => value,
-            Err(_) => return Err(text_problem()),
-        }),
-        None => None,
-    };
-    Ok(c::TakenBy { number: value.number(), name: opt0 })
-}
-
-pub(crate) fn revision(value: &w::Revision) -> c::Revision {
-    c::Revision { value: value.value() }
 }

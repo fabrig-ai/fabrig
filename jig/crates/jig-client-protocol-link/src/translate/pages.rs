@@ -1,10 +1,9 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
 use super::classify;
 use super::documents::{
-    budget_fields, chip_fields, cursor_fields, ending_fields, field_rule_fields, hold_fields, inbox_entry_piece,
-    object_key_fields, offered_piece, owner_authority_document_fields, owner_authority_fields,
-    owner_chip_ending_fields, owner_task_link_fields, part_piece, passed_piece, proposed_task_piece, recurring_piece,
-    result_fields, specification_document_fields, task_contract_document_fields, task_fields,
+    chip_fields, cursor_fields, ending_fields, object_key_fields, offered_piece, owner_authority_document_fields,
+    owner_authority_fields, owner_chip_ending_fields, owner_task_link_fields, proposed_task_piece, result_fields,
+    specification_document_fields, task_contract_document_fields, task_fields,
 };
 use super::{Undecodable, piece_problem, too_large};
 use crate::Limits;
@@ -67,34 +66,6 @@ pub fn history_page(record: w::HistoryPage, limits: &Limits) -> Result<c::Histor
     }
 }
 
-pub fn inbox_page(record: w::InboxPage, limits: &Limits) -> Result<c::InboxPage, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
-        return Err(Undecodable::TooLarge);
-    }
-    let record = match w::InboxPage::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
-    match inbox_page_fields(&record, limits) {
-        Ok(value) => Ok(value),
-        Err(problem) => Err(classify(problem)),
-    }
-}
-
-pub fn spend_page(record: w::SpendPage, limits: &Limits) -> Result<c::SpendPage, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
-        return Err(Undecodable::TooLarge);
-    }
-    let record = match w::SpendPage::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
-    match spend_page_fields(&record, limits) {
-        Ok(value) => Ok(value),
-        Err(problem) => Err(classify(problem)),
-    }
-}
-
 pub fn note_page(record: w::NotePage, limits: &Limits) -> Result<c::NotePage, Undecodable> {
     if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
@@ -104,20 +75,6 @@ pub fn note_page(record: w::NotePage, limits: &Limits) -> Result<c::NotePage, Un
         Err(problem) => return Err(classify(problem)),
     };
     match note_page_fields(&record, limits) {
-        Ok(value) => Ok(value),
-        Err(problem) => Err(classify(problem)),
-    }
-}
-
-pub fn object_page(record: w::ObjectPage, limits: &Limits) -> Result<c::ObjectPage, Undecodable> {
-    if u64::from(record.measure()) > limits.client().document_bytes {
-        return Err(Undecodable::TooLarge);
-    }
-    let record = match w::ObjectPage::new(limits.receiving(), record.into_parts()) {
-        Ok(value) => value,
-        Err(problem) => return Err(classify(problem)),
-    };
-    match object_page_fields(&record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }
@@ -177,15 +134,6 @@ pub fn activity_page(record: w::ActivityPage, limits: &Limits) -> Result<c::Acti
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }
-}
-
-pub(crate) fn turn_fields(value: &[u8], limits: &Limits) -> c::TurnRead {
-    let bytes = u32::try_from(limits.client().document_bytes)
-        .expect("validated document bytes")
-        .min(limits.receiving().activity_turn_turn);
-    let turn =
-        c::TurnLimits { messages: limits.client().rows, blocks: limits.client().rows, text: limits.client().turn_text };
-    super::turn::decode(value, &jig_protocol_transcript::Limits::new(bytes, turn))
 }
 
 /// An archived turn its page carries, within the archive's bound (`turn::archive`).

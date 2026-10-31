@@ -10,7 +10,7 @@ use crate::{
     Borrowed,
     state::{action::Act, fields::Purpose, page::project::goals::GoalForm},
 };
-use jig_client::contract::{Admission, ObjectKey, OwnerExecutor, Project, TaskLine};
+use jig_client::contract::{Admission, ObjectKey, OwnerExecutor, TaskLine};
 /// The one typed form property changed by an input's complete value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Field {
@@ -34,31 +34,7 @@ pub fn edit(form: GoalForm, field: Field, value: &[u8]) -> Option<Act> {
     }
     Some(Act::GoalForm { form })
 }
-pub(super) fn goals(b: &mut Builder, client: &Borrowed<'_>, doc: &Project, words: &Words, bindings: &mut JigBindings) {
-    if !available(b, client, doc.number, words) {
-        return;
-    }
-    let project_page = client.project_page();
-    words.text(b, JigPhrase::PriorityMeaning, &[]);
-    b.open(Role::List);
-    for goal in &project_page.listed_goals {
-        line(b, client, goal, words, bindings);
-    }
-    b.close();
-    if project_page.goals_more {
-        words.status(b, JigPhrase::MoreRows, &[]);
-    }
-    crate::tree::pages::cut(b, words, project_page.ended_cut);
-    crate::tree::pages::work::cursors(
-        b,
-        words,
-        bindings,
-        project_page.ended_before.as_ref(),
-        project_page.ended_after.as_ref(),
-        crate::state::page::project::GOALS_WINDOW,
-    );
-    form(b, client, doc.number, words, bindings);
-}
+
 pub(super) fn form(b: &mut Builder, client: &Borrowed<'_>, project: u32, words: &Words, bindings: &mut JigBindings) {
     let text_limit = bindings.text_limit();
     b.open(Role::Form);

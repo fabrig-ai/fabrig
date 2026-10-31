@@ -555,7 +555,7 @@ impl World {
                 gone: false,
             });
             let at = settings.redial.draw(&mut world.rng);
-            let worker = usize::try_from(worker).expect("a worker's index");
+            let worker = skein_lib::length::usize_of(worker);
             world.send(Time::ZERO.saturating_add(at), Delivery::Dial { worker });
         }
         let mut at = Time::ZERO;
@@ -563,11 +563,11 @@ impl World {
             let run = world.wire.name();
             world.items.push(Item { run, starts: settings.starts, open: BTreeMap::new(), claim: None, done: false });
             at = at.saturating_add(settings.item_gap.draw(&mut world.rng));
-            world.send(at, Delivery::Start { item: usize::try_from(item).expect("an item's index") });
+            world.send(at, Delivery::Start { item: skein_lib::length::usize_of(item) });
         }
         for _ in 0..settings.drops {
             let at = world.moment();
-            let worker = usize::try_from(world.below(settings.workers)).expect("a worker's index");
+            let worker = skein_lib::length::usize_of(world.below(settings.workers));
             let back = if world.rng.chance(settings.never_back) {
                 None
             } else if world.rng.chance(settings.quick) {

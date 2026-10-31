@@ -35,7 +35,7 @@ fn a_refused_refresh_token_fails_as_sign_in_again() {
         ]
     );
     assert_revoked(owner);
-    // Snapshot the actual store through Get, rather than the historical last_kept capture.
+    // Snapshot the actual store through Get, rather than the earlier last_kept capture.
     let snapshot = world::owner_mut(&mut outcome).read_record();
     assert!(snapshot.is_none());
     let restarted = world::run_from(2, Story::NoRecord, snapshot.as_deref());

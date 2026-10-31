@@ -152,9 +152,6 @@ pub fn close(b: &mut Builder) {
 
 pub(crate) mod chip;
 pub mod common;
-pub(crate) mod escalation;
-pub(crate) mod hold;
-pub(crate) mod person;
 pub(crate) mod proposal;
 pub(crate) mod question;
 pub(crate) mod result;
@@ -180,18 +177,14 @@ pub fn card(
         Some(crate::state::objects::Body::OwnerProposal(_)) => {
             proposal::owner_proposal(b, client, object, place, words, bindings);
         }
-        Some(crate::state::objects::Body::Proposal(_)) => {
-            proposal::proposal(b, client, object, place, words, bindings);
-        }
+
         Some(crate::state::objects::Body::Question(_)) => {
             question::question(b, client, object, place, words, bindings);
         }
         Some(crate::state::objects::Body::OwnerPersonTask(_)) => {
             crate::tree::fragments::person_task::card(b, client, object, place, words, bindings);
         }
-        Some(crate::state::objects::Body::PersonTask(_)) => {
-            person::person_task(b, client, object, place, words, bindings);
-        }
+
         Some(crate::state::objects::Body::Result(_)) => {
             result::result(b, client, object, place, words, bindings);
         }
@@ -220,9 +213,7 @@ pub fn card(
         Some(crate::state::objects::Body::OwnerEscalation(_)) => {
             return owner_escalation::card(b, client, object, place, words, bindings);
         }
-        Some(crate::state::objects::Body::Escalation(_)) => {
-            escalation::escalation(b, client, object, place, words, bindings);
-        }
+
         Some(crate::state::objects::Body::Note { document, .. }) => {
             if open(b, client, object, place, document.description.bytes(), words, bindings) {
                 crate::tree::fragments::document_text::loss(b, &document.description, words);

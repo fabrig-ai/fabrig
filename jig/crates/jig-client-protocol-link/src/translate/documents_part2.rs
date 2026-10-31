@@ -1,8 +1,7 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
 use super::{
-    Box, Limits, List, Reader, Wall, c, chip_fields, hold_reason_fields, owner_authority_document_fields,
-    owner_grant_piece, owner_task_link_piece, piece_problem, result_value_fields, task_contract_document_fields,
-    too_large, w,
+    Box, Limits, List, Reader, Wall, c, chip_fields, owner_authority_document_fields, owner_grant_piece,
+    owner_task_link_piece, piece_problem, result_value_fields, task_contract_document_fields, too_large, w,
 };
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn spend_line_fields(value: &w::SpendLine) -> c::SpendLine {
@@ -11,38 +10,6 @@ pub(crate) fn spend_line_fields(value: &w::SpendLine) -> c::SpendLine {
         None => None,
     };
     c::SpendLine { task: value.task(), attempt: opt0, spent: value.spent() }
-}
-
-pub(crate) fn hold_fields(value: &w::Hold, limits: &Limits) -> Result<c::Hold, w::Problem> {
-    let opt0 = match value.result() {
-        Some(item) => Some(result_value_fields(item, limits)?),
-        None => None,
-    };
-    if value.spend().len() > limits.client().rows {
-        return Err(too_large());
-    }
-    let mut list1 = List::with_capacity(value.spend().len());
-    for item in value.spend() {
-        list1.push(spend_line_fields(item)).expect("reserved supplied list");
-    }
-    Ok(c::Hold {
-        placed: crate::translate::answers::placed(value.placed().as_ref(), limits)?,
-        revision: crate::translate::answers::revision(value.revision()),
-        reason: hold_reason_fields(value.reason(), limits)?,
-        before: crate::translate::facts::phase(value.before()),
-        since: Wall::from_nanos(value.since()),
-        result: opt0,
-        spend: list1,
-    })
-}
-
-pub(crate) fn task_hold_fields(value: &w::TaskHold, limits: &Limits) -> Result<c::TaskHold, w::Problem> {
-    Ok(match value {
-        w::TaskHold::Document(row) => c::TaskHold::Document(Box::new(hold_fields(row.value(), limits)?)),
-        w::TaskHold::Owner(row) => {
-            c::TaskHold::Owner(Box::new(crate::translate::facts::owner_chip_hold(row.value(), limits)?))
-        }
-    })
 }
 
 pub(crate) fn act_kind_fields(value: &w::ActKind) -> c::ActKind {
@@ -190,7 +157,7 @@ pub(crate) fn offered_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result
         if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::Offered::decode(limits.receiving(), &mut Reader::new(&item))?;
+        let row = w::Offered::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = offered_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -315,7 +282,7 @@ pub(crate) fn live_delegate_piece(
         if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::LiveDelegate::decode(limits.receiving(), &mut Reader::new(&item))?;
+        let row = w::LiveDelegate::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = live_delegate_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());

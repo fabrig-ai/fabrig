@@ -183,7 +183,7 @@ pub fn encode(
         domain::Stored::Stub(row) => wire::Value::Stub(state::stub(row, limits)?),
     };
     let row = wire::Row::new(limits, wire::RowParts { value, models })?;
-    let mut writer = Writer::new(usize::try_from(row.measure()).expect("encoded row fits usize"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
     row.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }

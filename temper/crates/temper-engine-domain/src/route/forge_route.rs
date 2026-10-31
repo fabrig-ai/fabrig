@@ -3136,7 +3136,8 @@ pub(crate) fn outputs(
                 }
             }
             forge::Request::Adopted { reply_to, result } => {
-                let previous = domain.adoption_restore.remove(&reply_to).expect("one admitted adoption result");
+                let (request, previous) =
+                    domain.adoption_restore.remove(&reply_to).expect("one admitted adoption result");
                 match result {
                     Ok(adopted) => {
                         let mut parties = List::with_capacity(env.limits.forge.collaborators);
@@ -3163,7 +3164,7 @@ pub(crate) fn outputs(
                                     collaborators: seeds,
                                 }));
                                 domain.work.push(Work::People(people::Event::Decided {
-                                    request: reply_to,
+                                    request,
                                     outcome: people::Outcome::Adopted { project: adopted.repository.project },
                                 }));
                             }
@@ -3172,16 +3173,14 @@ pub(crate) fn outputs(
                                     repository: adopted.repository.provider,
                                     restore: previous,
                                 }));
-                                domain
-                                    .work
-                                    .push(Work::People(people::Event::Decided { request: reply_to, outcome: why }));
+                                domain.work.push(Work::People(people::Event::Decided { request, outcome: why }));
                             }
                         }
                     }
                     Err(error) => {
                         // The forge's adoption errors as jig's facts (brief D12).
                         let outcome = adoption_failure(error);
-                        domain.work.push(Work::People(people::Event::Decided { request: reply_to, outcome }));
+                        domain.work.push(Work::People(people::Event::Decided { request, outcome }));
                     }
                 }
             }

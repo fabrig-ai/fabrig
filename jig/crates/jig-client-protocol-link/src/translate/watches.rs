@@ -110,14 +110,10 @@ pub fn delivery(bytes: &[u8], limits: &Limits) -> Result<c::Delivery, Undecodabl
         w::DeliveryValue::OwnerProposal(value) => {
             c::Delivery::OwnerProposal(Box::new(objects::owner_proposal(value, limits)?))
         }
-        w::DeliveryValue::Tree(value) => c::Delivery::Tree(Box::new(documents::tree(value, limits)?)),
         w::DeliveryValue::OwnerTree(value) => c::Delivery::OwnerTree(Box::new(owner_tree(value, limits)?)),
-        w::DeliveryValue::Inbox(value) => c::Delivery::Inbox(Box::new(documents::inbox(value, limits)?)),
         w::DeliveryValue::OwnerInbox(value) => c::Delivery::OwnerInbox(Box::new(owner_inbox(value, limits)?)),
         w::DeliveryValue::Tasks(value) => c::Delivery::Tasks(Box::new(documents::tasks(value, limits)?)),
-        w::DeliveryValue::Run(value) => c::Delivery::Run(Box::new(live::run_text(value, limits)?)),
         w::DeliveryValue::RunState(value) => c::Delivery::RunState(Box::new(live::run_state(value, limits)?)),
-        w::DeliveryValue::Deployment(value) => c::Delivery::Deployment(Box::new(documents::deployment(value, limits)?)),
         w::DeliveryValue::OwnerDeployment(value) => {
             c::Delivery::OwnerDeployment(Box::new(documents::owner_deployment(value, limits)?))
         }

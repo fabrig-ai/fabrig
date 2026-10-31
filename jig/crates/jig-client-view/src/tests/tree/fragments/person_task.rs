@@ -36,7 +36,7 @@ fn chip(task: u64) -> Chip {
         title: doc(b"source title"),
         executor: Executor::Role { project: u32::MAX, role: u32::MAX },
         phase: Phase::Active,
-        details: Box::new(ChipPhase::Owner {
+        details: Box::new(ChipPhase {
             phase: OwnerChipPhase::Person { address: PersonAddress::Role(u32::MAX), taken_by: None, since: None },
             details: Box::new(crate::tests::tree::fragments::chip::details()),
         }),
@@ -521,7 +521,7 @@ const UTF8_TEXTS: [&[u8]; 4] = [b"~\0/", &[b'~'; 128], &[b'q'; 128], &[b'w'; 128
 #[test]
 fn a_kept_person_chip_names_its_dependency_and_who_added_it() {
     let mut value = value();
-    let ChipPhase::Owner { details, .. } = value.task.details.as_mut() else { panic!("owner") };
+    let ChipPhase { details, .. } = value.task.details.as_mut();
     details.dependencies = rows([Dependency {
         number: 7,
         pending: true,
@@ -537,7 +537,7 @@ fn a_kept_person_chip_names_its_dependency_and_who_added_it() {
 #[test]
 fn a_kept_person_card_keeps_take_but_hides_an_answer_offer() {
     let mut value = value();
-    let ChipPhase::Owner { details, .. } = value.task.details.as_mut() else { panic!("owner") };
+    let ChipPhase { details, .. } = value.task.details.as_mut();
     details.dependencies = rows([Dependency { number: 7, pending: true, keeps: true, added: None, status: None }]);
     let (d, object) = crate::tests::tree::cards_objects::loaded(
         ObjectKey::PersonTask(8),

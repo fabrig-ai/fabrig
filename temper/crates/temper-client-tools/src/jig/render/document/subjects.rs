@@ -31,16 +31,14 @@ pub(crate) fn encode_as(
     match part {
         Part::Me(value) => super::encode_me(value, out, &mut cut, limits),
         Part::Task(value) => super::encode_task(value, out, &mut cut),
-        Part::Tree(value) => super::encode_tree(value, out, &mut cut),
+
         Part::OwnerTree(value) => super::encode_owner_tree(value, out, &mut cut),
+
         Part::Run(value) => super::encode_run_text(value, out, &mut cut),
         Part::RunState(value) => super::encode_run_state(value, out, &mut cut),
-        Part::Inbox(_)
-        | Part::OwnerInbox(_)
-        | Part::InboxPage(_)
-        | Part::OwnerInboxPage(_)
-        | Part::Tasks(_)
-        | Part::TaskPage(_) => rows(part, limits, out, &mut cut),
+        Part::OwnerInbox(_) | Part::OwnerInboxPage(_) | Part::Tasks(_) | Part::TaskPage(_) => {
+            rows(part, limits, out, &mut cut);
+        }
     }
 }
 fn rows(part: &Part<'_>, limits: &Limits, out: &mut Encoder, cut: &mut Cut) {
@@ -50,21 +48,12 @@ fn rows(part: &Part<'_>, limits: &Limits, out: &mut Encoder, cut: &mut Cut) {
     out.key(b"rows");
     out.array_start();
     match part {
-        Part::Inbox(value) => {
-            for row in value.entries.as_slice().iter().take(most) {
-                super::read_inbox::encode_inbox_entry(row, out, cut);
-            }
-        }
         Part::OwnerInbox(value) => {
             for row in value.needs.as_slice().iter().chain(value.updates.as_slice()).take(most) {
                 super::read_inbox::encode_owner_inbox_entry(row, out, cut);
             }
         }
-        Part::InboxPage(value) => {
-            for row in value.rows.as_slice().iter().take(most) {
-                super::read_inbox::encode_inbox_entry(row, out, cut);
-            }
-        }
+
         Part::OwnerInboxPage(value) => {
             for row in value.rows.as_slice().iter().take(most) {
                 super::read_inbox::encode_owner_inbox_entry(row, out, cut);
@@ -80,7 +69,7 @@ fn rows(part: &Part<'_>, limits: &Limits, out: &mut Encoder, cut: &mut Cut) {
                 super::encode_task_line(row, out, cut);
             }
         }
-        Part::Me(_) | Part::Task(_) | Part::Tree(_) | Part::OwnerTree(_) | Part::Run(_) | Part::RunState(_) => {
+        Part::Me(_) | Part::Task(_) | Part::OwnerTree(_) | Part::Run(_) | Part::RunState(_) => {
             unreachable!("list subject")
         }
     }
@@ -102,22 +91,14 @@ pub(crate) fn text_digest(name: &[u8], part: &Part<'_>, limits: &Limits, out: &m
 pub(crate) fn inbox(reading: &crate::jig::runner::reads::Reading, limits: &Limits) -> jig_client::contract::ReadValue {
     use jig_client::{Readout, contract as c};
     let capacity = limits.rows.checked_mul(2).expect("two bounded pages");
-    let mut entries = skein_lib::List::with_capacity(capacity);
     let mut owners = skein_lib::List::with_capacity(capacity);
-    let mut owner = false;
     let fit = super::super::lists::updates_fit(reading, limits.rows);
     for (local, page) in &reading.pages {
         if *local == 5 && !fit {
             continue;
         }
         match page {
-            Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(page))) => {
-                for row in &page.rows {
-                    entries.push(row.clone()).expect("two bounded pages");
-                }
-            }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::OwnerInbox(page))) => {
-                owner = true;
                 for row in &page.rows {
                     owners.push(row.clone()).expect("two bounded pages");
                 }
@@ -128,17 +109,13 @@ pub(crate) fn inbox(reading: &crate::jig::runner::reads::Reading, limits: &Limit
         }
     }
     let after = super::super::lists::inbox_cursor(reading, limits.rows);
-    if owner {
-        c::ReadValue::OwnerInbox(Box::new(c::OwnerInboxPage {
-            rows: owners,
-            after,
-            before: None,
-            cut: false,
-            selection: None,
-        }))
-    } else {
-        c::ReadValue::Inbox(Box::new(c::InboxPage { rows: entries, after, before: None, cut: false }))
-    }
+    c::ReadValue::OwnerInbox(Box::new(c::OwnerInboxPage {
+        rows: owners,
+        after,
+        before: None,
+        cut: false,
+        selection: None,
+    }))
 }
 
 #[must_use]

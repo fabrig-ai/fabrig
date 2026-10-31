@@ -14,6 +14,8 @@ use skein_lib::{Decision, Env, Journal, Queue, Token};
 /// Configuration is handed to the child that owns each value.
 #[derive(Debug)]
 pub struct Config {
+    /// Reason used by the deployment's environment-close acts.
+    pub environment_closed_reason: Box<[u8]>,
     /// Core rules and its children.
     pub core: core::Config,
     /// Agent capability supplied by its configuration, checked by the fleet.
@@ -49,9 +51,10 @@ pub(crate) struct Start {
 }
 
 /// Children, one journal, and opaque child-requested continuation bindings.
-/// No root-owned record or policy is stored (domain/root.md, 2).
+/// No root-owned record is stored (domain/root.md, 2).
 #[derive(Debug)]
 pub struct Domain {
+    pub(crate) environment_closed_reason: Box<[u8]>,
     pub(crate) deployment: [u8; 16],
     pub(crate) core: core::Core,
     pub(crate) observability: observability::Domain,
@@ -80,7 +83,7 @@ impl Domain {
         assert!(limits.routes > 0, "nonempty route");
         assert!(limits.host.slots == limits.core.fleet.engine_slots, "engine slot agreement");
         assert!(
-            config.charter_endpoints.len() <= usize::try_from(limits.endpoints).expect("endpoint count"),
+            config.charter_endpoints.len() <= skein_lib::length::usize_of(limits.endpoints),
             "bounded codec endpoints"
         );
         for endpoint in &config.charter_endpoints {
@@ -122,7 +125,10 @@ impl Domain {
             &Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: limits.core.tasks },
             jig_domain_tasks::Event::Kinds {
                 connector: jig_ops_domain_connectors::number(Connector::Infrastructure),
-                kinds: crate::translate::hold_kinds(jig_ops_domain_connectors::number(Connector::Infrastructure)),
+                kinds: crate::translate::hold_kinds(
+                    jig_ops_domain_connectors::number(Connector::Infrastructure),
+                    &limits.infrastructure.vocabulary,
+                ),
             },
             &mut configured,
         );
@@ -142,6 +148,7 @@ impl Domain {
         );
         hub_link.connect(Token::new(0));
         Ok(Self {
+            environment_closed_reason: config.environment_closed_reason,
             deployment,
             core,
             observability: observability::Domain::with_templates(&limits.observability, config.triage_templates)
@@ -221,11 +228,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         Event::Store(Store::Committed { number, fill }) => {
             domain.journal.committed(number);
             if domain.ready() {
-                let _filled = core::step(
-                    &mut domain.core,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.core },
-                    core::Event::Fill { bytes: fill },
-                );
+                let _filled =
+                    core::step(&mut domain.core, &env.with(env.limits.core), core::Event::Fill { bytes: fill });
             } else {
                 domain.start.fill = Some(fill);
             }
@@ -286,10 +290,7 @@ pub(crate) fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                     break;
                 }
                 // Coalesce projections only after ordinary hand-offs quiesce.
-                let requests = core::finish_decision(
-                    &mut domain.core,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.core },
-                );
+                let requests = core::finish_decision(&mut domain.core, &env.with(env.limits.core));
                 crate::route::core_out(domain, env, &mut decision, requests, &mut work);
                 let Some(next) = work.pop() else { break };
                 next

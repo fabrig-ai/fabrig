@@ -27,10 +27,15 @@ fn proposal(proposer: Proposer, effect: u64) -> OwnerProposal {
 }
 fn named(domain: &mut Fixture, watch: jig_client::Handle, key: ProposalKey) -> jig_client::Handle {
     let mut entries = List::with_capacity(1);
-    let mut row = entry(8, InboxGroup::Proposals, 0);
-    row.object = ObjectKey::Proposal(key);
-    entries.push(row).unwrap();
-    let output = inbox_delivery(domain, watch, entries);
+    entries.push(crate::tests::fixtures::inbox_entry(ObjectKey::Proposal(key))).unwrap();
+    let output = drive(
+        domain,
+        Time::ZERO,
+        Watched {
+            watch,
+            event: WatchEvent::Delivered(Delivery::OwnerInbox(Box::new(crate::tests::fixtures::inbox(entries)))),
+        },
+    );
     let mut found = None;
     for request in &output {
         if let Request::Client {
@@ -62,7 +67,7 @@ fn supplied(_generation: u32, effect: u64) -> Request {
 #[test]
 fn native_proposal_page_reads_and_watches_keep_whole_facts_scope_and_identity_without_late_resurrection() {
     for proposer in [Proposer::Task(8), Proposer::Party(8)] {
-        let (mut domain, watch) = live_inbox();
+        let (mut domain, watch) = crate::tests::state::domain::objects::live();
         let original = proposal(proposer, u64::MAX);
         let read = named(&mut domain, watch, original.key);
         let event = ReadPage { read, result: ReadResult::Value(ReadValue::OwnerProposal(Box::new(original.clone()))) };
@@ -94,7 +99,7 @@ fn native_proposal_page_reads_and_watches_keep_whole_facts_scope_and_identity_wi
 #[test]
 fn native_proposal_page_reads_and_watches_refuse_part_capacity_while_preserving_whole_offered_documents() {
     for watch_delivery in [false, true] {
-        let (mut domain, watch) = live_inbox();
+        let (mut domain, watch) = crate::tests::state::domain::objects::live();
         let value = proposal(Proposer::Party(8), 17);
         let read = named(&mut domain, watch, value.key);
         let Page::Work { refused: None, .. } = domain.page() else {

@@ -115,19 +115,7 @@ impl Inbox {
             Some(document) => document.latest,
             None => None,
         };
-        if let Some(Latest::Jig(Delivery::Inbox(inbox))) = latest {
-            self.cut = [inbox.more; 2];
-            for row in &inbox.entries {
-                self.add(
-                    row.object,
-                    row.group,
-                    Some(row.project),
-                    Some(row.position),
-                    unread(row.reply.as_deref()),
-                    out,
-                );
-            }
-        } else if let Some(Latest::Jig(Delivery::OwnerInbox(inbox))) = latest {
+        if let Some(Latest::Jig(Delivery::OwnerInbox(inbox))) = latest {
             self.cut = [inbox.next.is_some(); 2];
             for rows in [&inbox.needs, &inbox.updates] {
                 for row in rows {
@@ -220,19 +208,7 @@ impl Inbox {
         };
         if self.queries.contains(&handle) && self.filter.goal.is_some() {
             let index = usize::from(handle == self.queries[1]);
-            if let ReadValue::Inbox(page) = value {
-                *self.cut.get_mut(index).expect("query names one section") = page.cut;
-                for row in &page.rows {
-                    self.add(
-                        row.object,
-                        row.group,
-                        Some(row.project),
-                        Some(row.position),
-                        unread(row.reply.as_deref()),
-                        out,
-                    );
-                }
-            } else if let ReadValue::OwnerInbox(page) = value {
+            if let ReadValue::OwnerInbox(page) = value {
                 *self.cut.get_mut(index).expect("query names one section") = page.cut;
                 for row in &page.rows {
                     self.add(

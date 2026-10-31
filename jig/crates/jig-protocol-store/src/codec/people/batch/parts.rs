@@ -45,7 +45,7 @@ pub(super) fn encode_dependencies(
                 wire::DependencyExistingParts { task },
             )?),
         };
-        let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured dependency"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut writer).expect("measured dependency");
         items.push(writer.finish()).expect("dependency count");
     }

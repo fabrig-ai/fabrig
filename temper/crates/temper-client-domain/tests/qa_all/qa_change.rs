@@ -125,9 +125,7 @@ mod tests {
         task.priority = None;
         task.goal = None;
         task.chip.phase = c::Phase::Active;
-        let c::ChipPhase::Owner { phase, details, .. } = task.chip.details.as_mut() else {
-            unreachable!("owner fixture")
-        };
+        let c::ChipPhase { phase, details, .. } = task.chip.details.as_mut();
         *phase = c::OwnerChipPhase::Active(c::RunStage::Idle);
         details.project = 1;
         details.executor = c::OwnerExecutor::Procedure { connector: FORGE, code: 2 };

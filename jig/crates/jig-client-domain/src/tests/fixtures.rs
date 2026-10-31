@@ -174,7 +174,7 @@ fn document(number: u64) -> contract::Task {
             title: contract::DocumentText::complete(text()),
             executor: contract::Executor::Agent { charter: 1 },
             phase: contract::Phase::Waiting,
-            details: Box::new(contract::ChipPhase::Starting),
+            details: Box::new(chip_details(number)),
         },
         goal: None,
         priority: None,
@@ -372,5 +372,47 @@ impl Client {
         };
         *watch = self.name(run_subject());
         self.step(Event::Up { up });
+    }
+}
+
+fn chip_details(number: u64) -> contract::ChipPhase {
+    contract::ChipPhase {
+        phase: contract::OwnerChipPhase::Waiting { dependencies: List::with_capacity(0), more: false, holds: false },
+        details: Box::new(contract::OwnerChipDetails {
+            dependencies: List::with_capacity(0),
+            project: 7,
+            executor: contract::OwnerExecutor::Agent { charter: 1 },
+            phase_since: Wall::from_nanos(0),
+            run_since: None,
+            attempt: None,
+            retry: None,
+            wake: contract::OwnerWakePolicy {
+                words: contract::WakeRule::Never,
+                notices: contract::WakeRule::Never,
+                news: contract::WakeRule::Never,
+                results: contract::ResultsWake::Never,
+                questions: false,
+                answers: false,
+                timers: false,
+            },
+            person_wait: None,
+            hold: None,
+            budget: contract::OwnerBudget {
+                numbers: contract::OwnerNumbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 },
+                left: 0,
+                funder: contract::Funder::Task(number),
+                deadline: None,
+            },
+            activity: 0,
+            resources: List::with_capacity(0),
+            resources_cut: false,
+            resources_observed: false,
+            procedure: None,
+            live_delegates: 0,
+            closing_connectors: None,
+            ending: None,
+            ended_at: None,
+            observation: None,
+        }),
     }
 }

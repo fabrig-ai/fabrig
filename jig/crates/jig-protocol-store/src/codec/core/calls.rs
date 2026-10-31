@@ -293,7 +293,6 @@ pub(super) fn encode_call_record(value: &domain::CallRecord, limits: &View) -> R
         },
     )
 }
-#[expect(clippy::manual_map, reason = "step code uses concrete matches (programming-model.md, 10)")]
 pub(super) fn decode_call_record(value: wire::CallRecord, limits: &View) -> Result<domain::CallRecord, wire::Problem> {
     let wire::CallRecordParts { key, part, settled } = value.into_parts();
     Ok(domain::CallRecord {
@@ -576,7 +575,6 @@ fn encode_part_proposal_decided(
     )?))
 }
 
-#[expect(clippy::manual_map, reason = "step code uses concrete matches (programming-model.md, 10)")]
 fn decode_part_effect(value: wire::CallPartEffect) -> domain::CallPart {
     let wire::CallPartEffectParts { connector, entry, deadline, outcome } = value.into_parts();
     domain::CallPart::Effect {

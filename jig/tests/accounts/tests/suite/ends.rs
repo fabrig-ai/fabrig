@@ -98,7 +98,7 @@ fn a_full_history_of_ends_drops_its_oldest_and_loses_no_fact() {
     }
     assert_eq!(world.domain.last_end(0), None);
     assert!(world.domain.last_end(u64::from(LIMITS.facts)).is_some());
-    assert_eq!(world.ended().len(), usize::try_from(LIMITS.facts).expect("facts fit"));
+    assert_eq!(world.ended().len(), skein_lib::length::usize_of(LIMITS.facts));
     assert_eq!(world.domain.facts_lost(), lost);
 }
 

@@ -11,7 +11,7 @@ fn cursor(store: &Store, map: KeptMap, intervals: &[Range], after: Option<&Curso
         let Some(range) = intervals.get(index) else {
             return Err(Failure::rowless(Cause::Range(RangeFailure::Cursor)));
         };
-        let limit = usize::try_from(pages::map_limits(store, map).key).expect("map key allowance fits usize");
+        let limit = skein_lib::length::usize_of(pages::map_limits(store, map).key);
         if after.after.len() > limit
             || (after.after < range.start
                 || match &range.end {
@@ -58,7 +58,7 @@ pub(crate) fn walk_map(
     let mut found = List::with_capacity(capacity);
     let mut encoded = 0_u64;
     let mut last = after.cloned().unwrap_or(Cursor { interval: 0, after: Box::new([]) });
-    let first = usize::try_from(last.interval).expect("validated interval fits usize");
+    let first = skein_lib::length::usize_of(last.interval);
     for (index, interval) in intervals.iter().enumerate().skip(first) {
         let index = u32::try_from(index).ok().ok_or(Failure::rowless(Cause::Arithmetic(Arithmetic::RangeCount)))?;
         let mut range = interval.clone();

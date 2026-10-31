@@ -80,10 +80,18 @@ pub fn turn(position: u64, attempt: u64, number: u32, messages: &[c::Message], t
         kept.push(c::Message { speaker: message.speaker, blocks }).expect("message");
     }
     c::ActivityLine {
-        position,
-        at: Wall::EPOCH,
-        event: c::Activity::Turn {
+        source: Box::new(c::OwnerActivityLine {
+            task: 1,
+            position,
+            at: Wall::EPOCH,
+            line: c::OwnerActivity::Turn { reply: position, attempt, turn: number, read: None },
+        }),
+        decoded: Some(c::ArchivedTurn {
+            task: 1,
             name: c::TurnName { attempt, number },
+            cumulative: position,
+            read: None,
+            at: Wall::EPOCH,
             turn: c::TurnRead::Decoded(c::Turn {
                 messages: kept,
                 used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
@@ -91,18 +99,11 @@ pub fn turn(position: u64, attempt: u64, number: u32, messages: &[c::Message], t
                 read_through: None,
                 cut,
             }),
-        },
+        }),
     }
 }
 fn owner(task: u64, position: u64, line: c::OwnerActivity) -> c::ActivityLine {
-    c::ActivityLine {
-        position,
-        at: Wall::EPOCH,
-        event: c::Activity::Owner {
-            source: Box::new(c::OwnerActivityLine { task, position, at: Wall::EPOCH, line }),
-            decoded: None,
-        },
-    }
+    c::ActivityLine { source: Box::new(c::OwnerActivityLine { task, position, at: Wall::EPOCH, line }), decoded: None }
 }
 fn result(summary: &[u8]) -> c::Message {
     message(c::Speaker::Person, &[c::Block::Result { call: 3, summary: text(summary), failed: false }])
@@ -176,6 +177,13 @@ pub fn activity(dark: bool, landed: bool, turn_text: u32) -> c::ActivityPage {
     rows.push(owner(task, 2, c::OwnerActivity::RunBegan { attempt, why: c::OwnerRunWhy::Made, resumed: false }))
         .expect("began");
     rows.push(owner(task, 1, c::OwnerActivity::Milestone { position: 1 })).expect("initial milestone");
+    for index in 0..rows.len() {
+        let row = rows.get_mut(index).expect("bounded activity");
+        row.source.task = task;
+        if let Some(decoded) = &mut row.decoded {
+            decoded.task = task;
+        }
+    }
     c::ActivityPage { rows, before: None, after: None, cut: false }
 }
 

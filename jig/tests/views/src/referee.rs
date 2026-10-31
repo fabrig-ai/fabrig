@@ -100,10 +100,7 @@ impl Expectations for Checks {
             Seen::Watching { watcher } => {
                 let watch = self.asked.remove(&watcher).expect("parent admitted this watch");
                 assert!(self.open.insert(watcher, watch).is_none(), "unique open watch");
-                assert!(
-                    self.open.len() <= usize::try_from(self.limits.watchers).expect("watch capacity"),
-                    "global watch capacity"
-                );
+                assert!(self.open.len() <= skein_lib::length::usize_of(self.limits.watchers), "global watch capacity");
                 let mut parties = BTreeMap::<Token, u32>::new();
                 let mut runs = BTreeSet::new();
                 for watch in self.open.values() {
@@ -114,7 +111,7 @@ impl Expectations for Checks {
                 }
                 assert!(parties.values().all(|count| *count <= self.limits.watchers_per_party), "party watch capacity");
                 assert!(
-                    runs.len() <= usize::try_from(self.limits.watchers).expect("watch capacity"),
+                    runs.len() <= skein_lib::length::usize_of(self.limits.watchers),
                     "followed runs are bounded by open watches, independently of retained-run admission"
                 );
             }
@@ -129,7 +126,7 @@ impl Expectations for Checks {
                 let watch = self.open.get_mut(&watcher).expect("open watch");
                 assert!(watch.making, "owner was asked to make");
                 assert!(
-                    document.bytes.len() <= usize::try_from(watch.window.rows).expect("window bound"),
+                    document.bytes.len() <= skein_lib::length::usize_of(watch.window.rows),
                     "document respects its window"
                 );
                 assert_eq!(
@@ -159,7 +156,7 @@ impl Expectations for Checks {
             Seen::Text { run, turn, offset, text, call } => {
                 let known = self.text.contains_key(&(run, turn));
                 let source = self.text.entry((run, turn)).or_default();
-                let offset_index = usize::try_from(offset).expect("text offset");
+                let offset_index = skein_lib::length::usize_of(offset);
                 if offset_index > source.bytes.len() {
                     source.beginning = offset;
                     source.cut |= known;
@@ -204,19 +201,16 @@ impl Expectations for Checks {
                     Some(u32::try_from(text.len()).expect("bounded text")),
                     "absolute positions describe bytes"
                 );
-                assert!(
-                    text.len() <= usize::try_from(self.limits.text_bytes).expect("text bound"),
-                    "bounded retained suffix"
-                );
+                assert!(text.len() <= skein_lib::length::usize_of(self.limits.text_bytes), "bounded retained suffix");
                 assert_eq!(
-                    source.bytes.get(usize::try_from(from).expect("from")..usize::try_from(to).expect("to")),
+                    source.bytes.get(skein_lib::length::usize_of(from)..skein_lib::length::usize_of(to)),
                     Some(text.as_slice()),
                     "provisional bytes are a prefix-consistent source copy"
                 );
                 if let Some(call) = &call {
                     assert!(
                         call.identity.id.len() + call.tool.len() + call.input.len()
-                            <= usize::try_from(self.limits.text_bytes).expect("call bound"),
+                            <= skein_lib::length::usize_of(self.limits.text_bytes),
                         "bounded provisional call"
                     );
                 }

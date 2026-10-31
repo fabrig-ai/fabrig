@@ -101,12 +101,9 @@ fn document(client: &Borrowed<'_>, number: u64) -> Option<Box<Task>> {
         Some(
             Body::Historical(_)
             | Body::Chip(_)
-            | Body::Proposal(_)
             | Body::OwnerProposal(_)
-            | Body::Escalation(_)
             | Body::OwnerEscalation(_)
             | Body::Question(_)
-            | Body::PersonTask(_)
             | Body::OwnerPersonTask(_)
             | Body::Result(_)
             | Body::Note { .. },
@@ -235,12 +232,7 @@ fn slots(b: &mut Builder, doc: &Task, section: TaskSection, words: &Words, bindi
     match section {
         TaskSection::Overview | TaskSection::Panels => {
             for resource in &doc.resources {
-                match resource {
-                    jig_client::contract::TaskResource::Owner(value) => {
-                        crate::tree::fragments::chip::resource(b, value, words, bindings);
-                    }
-                    jig_client::contract::TaskResource::Part(_) => {}
-                }
+                crate::tree::fragments::chip::resource(b, resource, words, bindings);
             }
         }
         TaskSection::Activity | TaskSection::Plan | TaskSection::History | TaskSection::Budget => {}
@@ -248,7 +240,8 @@ fn slots(b: &mut Builder, doc: &Task, section: TaskSection, words: &Words, bindi
 }
 pub(crate) fn overview(b: &mut Builder, client: &Borrowed<'_>, doc: &Task, words: &Words, bindings: &mut JigBindings) {
     let objects = client.objects();
-    if let jig_client::contract::ChipPhase::Owner { details, .. } = doc.chip.details.as_ref() {
+    {
+        let jig_client::contract::ChipPhase { details, .. } = doc.chip.details.as_ref();
         crate::tree::fragments::chip::render(b, details, client, words, bindings);
     }
     crate::tree::fragments::specification::document(b, &doc.spec, words);
@@ -337,24 +330,12 @@ fn activity(b: &mut Builder, client: &Borrowed<'_>, doc: &Task, words: &Words, b
     let objects = client.objects();
     match doc.chip.executor {
         Executor::Agent { .. } => {
-            match doc.chip.details.as_ref() {
-                ChipPhase::Owner { details, .. } => {
-                    if let Some(observation) = &details.observation {
-                        crate::tree::fragments::chip::observation(b, observation, words);
-                    }
+            {
+                let ChipPhase { details, .. } = doc.chip.details.as_ref();
+
+                if let Some(observation) = &details.observation {
+                    crate::tree::fragments::chip::observation(b, observation, words);
                 }
-                ChipPhase::Active(_)
-                | ChipPhase::Waiting { .. }
-                | ChipPhase::Idle { .. }
-                | ChipPhase::Starting
-                | ChipPhase::Running { .. }
-                | ChipPhase::WaitingForWords { .. }
-                | ChipPhase::BackingOff { .. }
-                | ChipPhase::Procedure { .. }
-                | ChipPhase::Person { .. }
-                | ChipPhase::Held { .. }
-                | ChipPhase::Closing(_)
-                | ChipPhase::Ended { .. } => {}
             }
             if let Some(context) = &doc.context {
                 super::conversations::runtime(b, client, &context.runtime, words, bindings);

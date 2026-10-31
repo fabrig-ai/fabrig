@@ -24,20 +24,8 @@ fn a_task_keeps_every_supplied_field() {
     assert_eq!(documents::task(fixtures::task_record(), &fixtures::limits()), Ok(fixtures::task()));
 }
 
-fn a_tree_keeps_every_supplied_field() {
-    assert_eq!(documents::tree(fixtures::tree_record(), &fixtures::limits()), Ok(fixtures::tree()));
-}
-
-fn a_inbox_keeps_every_supplied_field() {
-    assert_eq!(documents::inbox(fixtures::inbox_record(), &fixtures::limits()), Ok(fixtures::inbox()));
-}
-
 fn a_tasks_keeps_every_supplied_field() {
     assert_eq!(documents::tasks(fixtures::tasks_record(), &fixtures::limits()), Ok(fixtures::tasks()));
-}
-
-fn a_deployment_keeps_every_supplied_field() {
-    assert_eq!(documents::deployment(fixtures::deployment_record(), &fixtures::limits()), Ok(fixtures::deployment()));
 }
 
 fn a_owner_deployment_keeps_every_supplied_field() {
@@ -99,7 +87,7 @@ fn document_decodes_borrow_the_kept_bounds() {
 fn invalid_receiving_limits_are_refused_at_construction() {
     let limits = fixtures::limits();
     let client = jig_client_domain::Limits { text: u32::MAX, ..*limits.client() };
-    assert_eq!(crate::Limits::new(client, limits.exchanges()), Err(crate::Unusable::Limits));
+    assert_eq!(Limits::new(client, limits.exchanges()), Err(Unusable::Limits));
 }
 
 #[test]
@@ -168,10 +156,7 @@ fn table<const N: usize>(cases: [Case; N]) {
 fn documents_keep_every_supplied_field() {
     table([
         ("a_task_keeps_every_supplied_field", a_task_keeps_every_supplied_field),
-        ("a_tree_keeps_every_supplied_field", a_tree_keeps_every_supplied_field),
-        ("a_inbox_keeps_every_supplied_field", a_inbox_keeps_every_supplied_field),
         ("a_tasks_keeps_every_supplied_field", a_tasks_keeps_every_supplied_field),
-        ("a_deployment_keeps_every_supplied_field", a_deployment_keeps_every_supplied_field),
         ("a_owner_deployment_keeps_every_supplied_field", a_owner_deployment_keeps_every_supplied_field),
         ("a_owner_project_keeps_every_supplied_field", a_owner_project_keeps_every_supplied_field),
         ("a_run_state_keeps_every_supplied_field", a_run_state_keeps_every_supplied_field),
@@ -310,4 +295,91 @@ fn task_settings_revisions_cross_into_the_client_document() {
         let task = documents::task(record, &fixtures::limits()).expect("task document");
         assert_eq!(task.settings, settings);
     }
+}
+
+#[test]
+fn chip_phases_refuse_missing_end_time_and_retry_notice() {
+    let limits = fixtures::limits();
+    let backing_off = w::OwnerChipPhase::Active(
+        w::OwnerChipPhaseActive::new(
+            limits.wire(),
+            w::OwnerChipPhaseActiveParts {
+                value: w::RunStage::BackingOff(
+                    w::RunStageBackingOff::new(limits.wire(), w::RunStageBackingOffParts { until: 0 }).unwrap(),
+                ),
+            },
+        )
+        .unwrap(),
+    );
+    for (phase, compact) in [(w::OwnerChipPhase::Ended, w::Phase::Ended), (backing_off, w::Phase::BackingOff)] {
+        for present in [false, true] {
+            let w::Fact::Chip(root) = fixtures::chip_root_fact() else { panic!("chip root") };
+            let mut root = root.into_parts();
+            let mut fields = root.value.into_parts();
+            fields.phase = compact.clone();
+            root.value = w::ChipFields::new(limits.wire(), fields).unwrap();
+            let mut details = fixtures::wire_owner_chip_details_row().into_parts();
+            let mut fields = details.value.into_parts();
+            if present {
+                fields.ended_at = Some(0);
+                fields.retry = Some(w::RetryNotice::Refused(
+                    w::RetryNoticeRefused::new(limits.wire(), w::RetryNoticeRefusedParts { count: 0 }).unwrap(),
+                ));
+            }
+            details.value = w::OwnerChipDetailsFields::new(limits.wire(), fields).unwrap();
+            let chip = fixtures::chip_from_rows(&[
+                w::Fact::Chip(w::ChipRow::new(limits.wire(), root).unwrap()),
+                w::Fact::ChipPhase(
+                    w::ChipPhaseRow::new(
+                        limits.wire(),
+                        w::ChipPhaseRowParts {
+                            parent: Some(0),
+                            value: w::ChipPhaseOwnerFields::new(
+                                limits.wire(),
+                                w::ChipPhaseOwnerFieldsParts { phase: phase.clone(), details: 2 },
+                            )
+                            .unwrap(),
+                        },
+                    )
+                    .unwrap(),
+                ),
+                w::Fact::OwnerChipDetails(Box::new(w::OwnerChipDetailsRow::new(limits.wire(), details).unwrap())),
+            ]);
+            let decoded = documents::chip(chip, &limits);
+            if present {
+                assert!(decoded.is_ok(), "zero-valued required facts are supplied");
+            } else {
+                assert_eq!(decoded, Err(Undecodable::Malformed));
+            }
+        }
+    }
+}
+
+#[test]
+fn receiving_inventory_bounds_keep_their_schema_ceilings() {
+    let base = fixtures::limits();
+    let client = jig_client_domain::Limits {
+        rows: 32,
+        text: 8192,
+        turn_text: 8192,
+        turn_bytes: 8192,
+        document_bytes: u64::from(w::CEILINGS.owned_record),
+        ask_bytes: u64::from(u32::MAX),
+        ..*base.client()
+    };
+    let limits = Limits::new(client, base.exchanges()).unwrap();
+    assert_eq!(limits.wire().create_tasks, 1_048_576);
+    assert_eq!(limits.wire().charter_instructions, 1_114_240);
+    assert_eq!(limits.wire().propose_settings_items, 1_114_240);
+    assert_eq!(limits.wire().change_settings_items, 1_114_240);
+    assert_eq!(limits.wire().charter_alternatives, 16);
+    assert_eq!(limits.wire().policy_edit_templates_overrides, 16);
+    assert_eq!(limits.wire().setting_model_efforts, 16);
+    assert_eq!(limits.wire().setting_policy_templates, 16);
+    assert_eq!(limits.receiving().settings_document_settings, 256);
+    assert_eq!(limits.wire().model_set_names_names_item, 4096);
+    assert_eq!(limits.wire().setting_model_name, 4096);
+    assert_eq!(limits.wire().setting_model_program_some, 32);
+    assert_eq!(limits.wire().setting_model_effort_some, 32);
+    assert_eq!(limits.wire().setting_model_efforts_item, 32);
 }

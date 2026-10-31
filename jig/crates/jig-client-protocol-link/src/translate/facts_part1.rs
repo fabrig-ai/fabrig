@@ -1,8 +1,7 @@
 //! Field-for-field client contract translation (protocol/client.md, 3 and 5).
 use super::{
-    Child, active_run, closing_stage, document_text, failure_class, hold_category, owner_chip_phase, part,
-    person_address, recipient, revision, run_stage, take_closing, take_ending, take_held_runtime, take_hold_reason,
-    take_owner_chip_details, take_owner_chip_ending, taken_by, wake_policy,
+    Child, active_run, closing_stage, document_text, failure_class, hold_category, owner_chip_phase, person_address,
+    run_stage, take_closing, take_ending, take_owner_chip_details, take_owner_chip_ending,
 };
 use crate::Limits;
 use crate::translate::text_problem;
@@ -11,84 +10,33 @@ use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::Map;
 use skein_lib::{List, Wall, bytes};
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn chip_phase_fields(
-    value: &w::ChipPhaseFields,
-    limits: &Limits,
+    value: &w::ChipPhaseOwnerFields,
+    _limits: &Limits,
     index: u32,
     children: &mut Map<u32, Child>,
 ) -> Result<c::ChipPhase, w::Problem> {
-    Ok(match value {
-        w::ChipPhaseFields::Owner(row) => c::ChipPhase::Owner {
-            phase: owner_chip_phase(row.phase()),
-            details: Box::new(take_owner_chip_details(row.details(), index, children)?),
-        },
-        w::ChipPhaseFields::Active(row) => c::ChipPhase::Active(active_run(row.value(), limits)?),
-        w::ChipPhaseFields::Waiting(row) => {
-            let mut list0 = List::with_capacity(row.dependencies().len());
-            for item in row.dependencies() {
-                list0.push(*item).expect("reserved supplied list");
-            }
-            let opt1 = match &row.hold() {
-                Some(item) => Some(part(item)),
-                None => None,
-            };
-            c::ChipPhase::Waiting { dependencies: list0, hold: opt1 }
-        }
-        w::ChipPhaseFields::Idle(row) => c::ChipPhase::Idle { wake: wake_policy(row.wake(), limits)? },
-        w::ChipPhaseFields::Starting => c::ChipPhase::Starting,
-        w::ChipPhaseFields::Running(row) => {
-            let opt0 = match &row.tool() {
-                Some(item) => Some(match c::Text::new(bytes::copy_of(item), limits.client().text) {
-                    Ok(value) => value,
-                    Err(_) => return Err(text_problem()),
-                }),
-                None => None,
-            };
-            c::ChipPhase::Running { attempt: row.attempt(), since: Wall::from_nanos(row.since()), tool: opt0 }
-        }
-        w::ChipPhaseFields::WaitingForWords(row) => {
-            c::ChipPhase::WaitingForWords { attempt: row.attempt(), since: Wall::from_nanos(row.since()) }
-        }
-        w::ChipPhaseFields::BackingOff(row) => c::ChipPhase::BackingOff {
-            at: Wall::from_nanos(row.at()),
-            attempt: row.attempt(),
-            tries: row.tries(),
-            class: failure_class(row.class()),
-            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client().text) {
-                Ok(value) => value,
-                Err(_) => return Err(text_problem()),
-            },
-        },
-        w::ChipPhaseFields::Procedure(row) => c::ChipPhase::Procedure { panel: part(row.panel()) },
-        w::ChipPhaseFields::Person(row) => {
-            let opt0 = match &row.taken() {
-                Some(item) => Some(taken_by(item, limits)?),
-                None => None,
-            };
-            let opt1 = match row.since() {
-                Some(item) => Some(Wall::from_nanos(*item)),
-                None => None,
-            };
-            c::ChipPhase::Person { addressed: recipient(row.addressed()), taken: opt0, since: opt1 }
-        }
-        w::ChipPhaseFields::Closing(row) => c::ChipPhase::Closing(take_closing(row.value(), index, children)?),
-        w::ChipPhaseFields::Held(row) => {
-            let opt0 = match &row.was() {
-                Some(item) => Some(take_held_runtime(*item, index, children)?),
-                None => None,
-            };
-            c::ChipPhase::Held {
-                reason: take_hold_reason(row.reason(), index, children)?,
-                since: Wall::from_nanos(row.since()),
-                revision: revision(row.revision()),
-                was: opt0,
-            }
-        }
-        w::ChipPhaseFields::Ended(row) => {
-            c::ChipPhase::Ended { how: take_ending(row.how(), index, children)?, at: Wall::from_nanos(row.at()) }
-        }
-    })
+    let phase = owner_chip_phase(value.phase());
+    let details = take_owner_chip_details(value.details(), index, children)?;
+    let required_missing = match &phase {
+        c::OwnerChipPhase::Ended => details.ended_at.is_none(),
+        c::OwnerChipPhase::Active(c::RunStage::BackingOff { .. }) => details.retry.is_none(),
+        c::OwnerChipPhase::Waiting { .. }
+        | c::OwnerChipPhase::Person { .. }
+        | c::OwnerChipPhase::Closing(_)
+        | c::OwnerChipPhase::Held { .. }
+        | c::OwnerChipPhase::Active(
+            c::RunStage::Idle
+            | c::RunStage::Due
+            | c::RunStage::Preparing
+            | c::RunStage::Claimed { .. }
+            | c::RunStage::Running { .. },
+        ) => false,
+    };
+    if required_missing {
+        return Err(crate::translate::piece_problem(skein_codec::Reason::Malformed));
+    }
+    Ok(c::ChipPhase { phase, details: Box::new(details) })
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
@@ -276,19 +224,11 @@ pub(crate) fn hold_reason_fields(
         w::HoldReasonFields::Dependency(row) => {
             c::HoldReason::Dependency { task: row.task(), how: take_ending(row.how(), index, children)? }
         }
-        w::HoldReasonFields::Drift(row) => c::HoldReason::Drift { part: part(row.part()) },
-        w::HoldReasonFields::EffectFailed(row) => c::HoldReason::EffectFailed { part: part(row.part()) },
-        w::HoldReasonFields::EffectUncertain(row) => c::HoldReason::EffectUncertain { part: part(row.part()) },
         w::HoldReasonFields::Budget(row) => c::HoldReason::Budget { spent: row.spent(), limit: row.limit() },
         w::HoldReasonFields::Deadline(row) => c::HoldReason::Deadline { at: Wall::from_nanos(row.at()) },
         w::HoldReasonFields::Stopped(row) => {
             c::HoldReason::Stopped { by: party(row.by(), limits)?, at: Wall::from_nanos(row.at()) }
         }
-        w::HoldReasonFields::Resource(row) => {
-            c::HoldReason::Resource { resource: part(row.resource()), holder: actor(row.holder()) }
-        }
-        w::HoldReasonFields::Pool(row) => c::HoldReason::Pool { part: part(row.part()) },
-        w::HoldReasonFields::Procedure(row) => c::HoldReason::Procedure { part: part(row.part()) },
     })
 }
 

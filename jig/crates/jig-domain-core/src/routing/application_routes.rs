@@ -88,7 +88,6 @@ pub(crate) fn start(
 }
 
 /// The number of a carried value, which is all the core keeps of it.
-#[expect(clippy::manual_map, reason = "step code has no closures (programming-model.md, section 10)")]
 pub(crate) fn number(carried: Option<crate::Carried>) -> Option<u64> {
     match carried {
         Some(value) => Some(value.number),

@@ -1,6 +1,5 @@
 //! Root admission by variant and backlog (skein/docs/foundation/programming-model.md, 7.1–7.2).
 use crate::{Domain, Event, Limits, step};
-use jig_domain_host as host;
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
 use skein_lib::Env;
@@ -36,24 +35,20 @@ pub fn class(event: &Event) -> Class {
         }
         Event::Observability(event) => observability_class(event),
         Event::Infrastructure(event) => infrastructure_class(event),
-        Event::Host(event) => host_class(event),
-        Event::Agent(event) => match event {
-            host::FromAgent::Called { .. } => Class::New,
-            host::FromAgent::Withdrawn { .. }
-            | host::FromAgent::Turn { .. }
-            | host::FromAgent::Piece { .. }
-            | host::FromAgent::Activity { .. }
-            | host::FromAgent::Unauthorized { .. }
-            | host::FromAgent::Limited { .. }
-            | host::FromAgent::AccountRefused { .. }
-            | host::FromAgent::Finished { .. }
-            | host::FromAgent::Started { .. }
-            | host::FromAgent::StartRefused { .. }
-            | host::FromAgent::Refused { .. }
-            | host::FromAgent::Yielded { .. }
-            | host::FromAgent::Faulted { .. }
-            | host::FromAgent::Gone { .. } => Class::Admitted,
-        },
+        Event::Host(event) => {
+            if event.new_work() {
+                Class::New
+            } else {
+                Class::Admitted
+            }
+        }
+        Event::Agent(event) => {
+            if event.new_work() {
+                Class::New
+            } else {
+                Class::Admitted
+            }
+        }
         Event::WatchApplication { .. }
         | Event::ReadApplication { .. }
         | Event::Application { .. }
@@ -68,48 +63,6 @@ pub fn class(event: &Event) -> Class {
         | Event::ResultRead { .. }
         | Event::ConnectorRead { .. }
         | Event::CallAnswered { .. } => Class::Admitted,
-    }
-}
-
-fn host_class(event: &host::Event) -> Class {
-    match event {
-        host::Event::Agent(host::FromAgent::Called { .. }) | host::Event::Opened { .. } => Class::New,
-        host::Event::Down(event) => match event {
-            host::LinkDown::Sources { .. }
-            | host::LinkDown::Check { .. }
-            | host::LinkDown::SignOut { .. }
-            | host::LinkDown::Assign { .. }
-            | host::LinkDown::Message { .. } => Class::New,
-            host::LinkDown::Relayed { .. }
-            | host::LinkDown::TurnKept { .. }
-            | host::LinkDown::Acknowledge { .. }
-            | host::LinkDown::Cancel { .. }
-            | host::LinkDown::Grant { .. } => Class::Admitted,
-        },
-        host::Event::SourceAnswered { .. }
-        | host::Event::SourceLost
-        | host::Event::Agent(
-            host::FromAgent::Turn { .. }
-            | host::FromAgent::Withdrawn { .. }
-            | host::FromAgent::Piece { .. }
-            | host::FromAgent::Activity { .. }
-            | host::FromAgent::Unauthorized { .. }
-            | host::FromAgent::Limited { .. }
-            | host::FromAgent::AccountRefused { .. }
-            | host::FromAgent::Finished { .. }
-            | host::FromAgent::Started { .. }
-            | host::FromAgent::StartRefused { .. }
-            | host::FromAgent::Refused { .. }
-            | host::FromAgent::Yielded { .. }
-            | host::FromAgent::Faulted { .. }
-            | host::FromAgent::Gone { .. },
-        )
-        | host::Event::RelayCancelled { .. }
-        | host::Event::CancelAll { .. }
-        | host::Event::Prepared { .. }
-        | host::Event::Unprepared { .. }
-        | host::Event::Delivered { .. }
-        | host::Event::Saved { .. } => Class::Admitted,
     }
 }
 
@@ -167,7 +120,10 @@ fn infrastructure_class(event: &infrastructure::Event) -> Class {
             | S::Looked { .. } => Class::Admitted,
         },
         I::ApplicationPrepare { .. } | I::Describe { .. } => Class::New,
-        I::Closed { .. }
+        I::ProcedureAdmission { .. }
+        | I::ResourceChanged { .. }
+        | I::ObservedServiceChanged { .. }
+        | I::Closed { .. }
         | I::SendCloses
         | I::ProcedureDelegateOutcome { .. }
         | I::DocumentPrepare { .. }
@@ -225,17 +181,12 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
         }
     }
 }
-
-#[expect(clippy::manual_map, reason = "step code wraps owned remainders without closures")]
 fn split(domain: &Domain, env: &Env<Limits>, event: Event) -> (Event, Option<Event>) {
     match event {
         Event::Observability(observability::Event::System(system)) => {
-            let (settle, rest) = observability::split(
-                &domain.observability,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.observability },
-                system,
-            )
-            .expect("only a mixed system fact is split");
+            let (settle, rest) =
+                observability::split(&domain.observability, &env.with(env.limits.observability), system)
+                    .expect("only a mixed system fact is split");
             let rest = match rest {
                 Some(rest) => Some(Event::Observability(observability::Event::System(rest))),
                 None => None,
@@ -243,12 +194,9 @@ fn split(domain: &Domain, env: &Env<Limits>, event: Event) -> (Event, Option<Eve
             (Event::Observability(observability::Event::System(settle)), rest)
         }
         Event::Infrastructure(infrastructure::Event::System(system)) => {
-            let (settle, rest) = infrastructure::split(
-                &domain.infrastructure,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.infrastructure },
-                system,
-            )
-            .expect("only a mixed system fact is split");
+            let (settle, rest) =
+                infrastructure::split(&domain.infrastructure, &env.with(env.limits.infrastructure), system)
+                    .expect("only a mixed system fact is split");
             let rest = match rest {
                 Some(rest) => Some(Event::Infrastructure(infrastructure::Event::System(rest))),
                 None => None,

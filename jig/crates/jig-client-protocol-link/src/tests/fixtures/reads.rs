@@ -1,26 +1,6 @@
 use super::*;
 use skein_lib::List;
 
-pub fn read_hold_reason_record() -> w::HoldReason {
-    let lim = w::CEILINGS;
-    let row = w::Fact::HoldReason(
-        w::HoldReasonRow::new(
-            &lim,
-            w::HoldReasonRowParts {
-                parent: None,
-                value: w::HoldReasonFields::Tries(
-                    w::HoldReasonTriesFields::new(
-                        &lim,
-                        w::HoldReasonTriesFieldsParts { failures: List::with_capacity(0) },
-                    )
-                    .unwrap(),
-                ),
-            },
-        )
-        .unwrap(),
-    );
-    w::HoldReason::new(&lim, w::HoldReasonParts { rows: fact_bytes(&row) }).unwrap()
-}
 #[path = "reads_part0.rs"]
 mod part0;
 pub use part0::*;
@@ -67,31 +47,6 @@ pub fn expected_note_page_with_cursors() -> c::NotePage {
         cut: true,
     }
 }
-pub fn object_page_piece(piece: Box<[u8]>) -> w::ObjectPage {
-    let mut parts = read_wire_object_page().into_parts();
-    parts.rows = piece;
-    w::ObjectPage::new(&w::CEILINGS, parts).unwrap()
-}
-pub fn result_rows(count: u32) -> Box<[u8]> {
-    let record = read_wire_result();
-    let mut encoded = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut encoded).unwrap();
-    let encoded = encoded.finish();
-    let size = encoded.len().checked_add(4).unwrap().checked_mul(usize::try_from(count).unwrap()).unwrap();
-    let mut writer = Writer::new(size);
-    for _ in 0..count {
-        skein_codec::piece::write(&mut writer, &encoded).unwrap();
-    }
-    writer.finish()
-}
-pub fn expected_object_page(count: u32) -> c::ObjectPage {
-    let mut rows = List::with_capacity(count);
-    for _ in 0..count {
-        rows.push(read_value_result()).unwrap();
-    }
-    c::ObjectPage { rows, cut: false, before: None, after: None }
-}
-
 pub fn historical_task_record() -> w::OwnerHistorical {
     let lim = w::CEILINGS;
     let ending = w::Fact::Ending(
@@ -132,20 +87,77 @@ pub fn expected_historical_task() -> c::OwnerHistorical {
     }
 }
 
-pub fn trailing_result_row() -> Box<[u8]> {
-    let record = read_wire_result();
-    let length = usize::try_from(record.measure()).unwrap().checked_add(1).unwrap();
-    let mut row = Writer::new(length);
-    record.encode(&mut row).unwrap();
-    row.put(&[255]).unwrap();
-    let mut piece = Writer::new(length.checked_add(4).unwrap());
-    skein_codec::piece::write(&mut piece, &row.finish()).unwrap();
-    piece.finish()
-}
-pub fn proposal_with_words(words: &[u8]) -> w::Proposal {
-    let mut parts = read_wire_proposal().into_parts();
-    parts.why = Box::from(words);
-    w::Proposal::new(&w::CEILINGS, parts).unwrap()
-}
-
 const UTF8_TEXTS: [&[u8]; 1] = [&[b'~'; 48]];
+
+pub fn ended_delegate_record() -> w::OwnerEndedDelegate {
+    let lim = *limits().wire();
+    let mut facts = List::with_capacity(1);
+    facts
+        .push(w::Fact::OwnerChipEnding(
+            w::OwnerChipEndingRow::new(
+                &lim,
+                w::OwnerChipEndingRowParts {
+                    parent: None,
+                    value: w::OwnerChipEndingFields::Failed(
+                        w::OwnerChipEndingFailedFields::new(
+                            &lim,
+                            w::OwnerChipEndingFailedFieldsParts {
+                                value: jig_client_test_records::wire_text(b"failed"),
+                            },
+                        )
+                        .unwrap(),
+                    ),
+                },
+            )
+            .unwrap(),
+        ))
+        .unwrap();
+    let rows = jig_client_test_records::chip_from_rows(&facts.into_boxed()).into_parts().rows;
+    w::OwnerEndedDelegate::new(
+        &lim,
+        w::OwnerEndedDelegateParts {
+            chip: chip_record(),
+            ended: w::OwnerChipEnding::new(&lim, w::OwnerChipEndingParts { rows }).unwrap(),
+            at: None,
+        },
+    )
+    .unwrap()
+}
+pub fn ended_rows(count: u32) -> Box<[u8]> {
+    let row = ended_delegate_record();
+    let mut bytes = Writer::new(usize::try_from(row.measure()).unwrap());
+    row.encode(&mut bytes).unwrap();
+    let bytes = bytes.finish();
+    let mut rows =
+        Writer::new(bytes.len().checked_add(4).unwrap().checked_mul(usize::try_from(count).unwrap()).unwrap());
+    for _ in 0..count {
+        skein_codec::piece::write(&mut rows, &bytes).unwrap();
+    }
+    rows.finish()
+}
+pub fn trailing_ended_row() -> Box<[u8]> {
+    let row = ended_delegate_record();
+    let mut bytes = Writer::new(usize::try_from(row.measure()).unwrap().checked_add(1).unwrap());
+    row.encode(&mut bytes).unwrap();
+    bytes.put(&[0]).unwrap();
+    let bytes = bytes.finish();
+    let mut rows = Writer::new(bytes.len().checked_add(4).unwrap());
+    skein_codec::piece::write(&mut rows, &bytes).unwrap();
+    rows.finish()
+}
+pub fn owner_ended_page_piece(rows: Box<[u8]>) -> w::OwnerEndedPage {
+    w::OwnerEndedPage::new(limits().wire(), w::OwnerEndedPageParts { rows, before: None, after: None, cut: false })
+        .unwrap()
+}
+pub fn expected_owner_ended_page(count: u32) -> c::OwnerEndedPage {
+    let mut rows = List::with_capacity(count);
+    for _ in 0..count {
+        rows.push(c::OwnerEndedDelegate {
+            chip: chip(),
+            ended: c::OwnerChipEnding::Failed(document_text(b"failed")),
+            at: None,
+        })
+        .unwrap();
+    }
+    c::OwnerEndedPage { rows, before: None, after: None, cut: false }
+}

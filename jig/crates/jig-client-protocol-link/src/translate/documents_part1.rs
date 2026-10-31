@@ -1,5 +1,5 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
-use super::{Box, Limits, List, Reader, Wall, c, piece_problem, raw, subscription_kind_fields, too_large, w};
+use super::{Limits, List, Reader, Wall, c, piece_problem, raw, subscription_kind_fields, too_large, w};
 pub(crate) fn subscription_fields(value: &w::Subscription) -> c::Subscription {
     c::Subscription { number: value.number(), kind: subscription_kind_fields(value.kind()) }
 }
@@ -54,7 +54,7 @@ pub(crate) fn verdict_choice_piece(
         if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::VerdictChoice::decode(limits.receiving(), &mut Reader::new(&item))?;
+        let row = w::VerdictChoice::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = verdict_choice_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -83,20 +83,11 @@ pub(crate) fn task_contract_document_fields(
     })
 }
 
-pub(crate) fn task_resource_fields(value: &w::TaskResource) -> c::TaskResource {
-    match value {
-        w::TaskResource::Part(row) => c::TaskResource::Part(crate::translate::facts::part(row.value())),
-        w::TaskResource::Owner(row) => {
-            c::TaskResource::Owner(Box::new(crate::translate::facts::owner_resource_line(row.value())))
-        }
-    }
-}
-
 pub(crate) fn task_resource_piece(
     bytes: &[u8],
     limits: &Limits,
     bound: u32,
-) -> Result<List<c::TaskResource>, w::Problem> {
+) -> Result<List<c::OwnerResourceLine>, w::Problem> {
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
@@ -116,8 +107,8 @@ pub(crate) fn task_resource_piece(
         if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::TaskResource::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let row = task_resource_fields(&row);
+        let row = w::OwnerResourceLine::decode(limits.wire(), &mut Reader::new(&item))?;
+        let row = crate::translate::facts::owner_resource_line(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -153,7 +144,7 @@ pub(crate) fn owner_grant_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Re
         if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerGrant::decode(limits.receiving(), &mut Reader::new(&item))?;
+        let row = w::OwnerGrant::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = owner_grant_fields(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -215,7 +206,7 @@ pub(crate) fn owner_resource_scope_piece(
         if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::OwnerResourceScope::decode(limits.receiving(), &mut Reader::new(&item))?;
+        let row = w::OwnerResourceScope::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = owner_resource_scope_fields(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -250,20 +241,6 @@ pub(crate) fn owner_authority_document_fields(
     limits: &Limits,
 ) -> Result<c::OwnerAuthorityDocument, w::Problem> {
     Ok(c::OwnerAuthorityDocument { authority: owner_authority_fields(value.authority(), limits)?, cut: value.cut() })
-}
-
-pub(crate) fn hold_reason_fields(value: &w::HoldReason, limits: &Limits) -> Result<c::HoldReason, w::Problem> {
-    match crate::translate::facts::decode(value.rows(), limits)? {
-        crate::translate::facts::Node::HoldReason(value) => Ok(*value),
-        crate::translate::facts::Node::Chip(_)
-        | crate::translate::facts::Node::ChipPhase(_)
-        | crate::translate::facts::Node::Closing(_)
-        | crate::translate::facts::Node::Ending(_)
-        | crate::translate::facts::Node::HeldRuntime(_)
-        | crate::translate::facts::Node::OwnerChipDetails(_)
-        | crate::translate::facts::Node::OwnerChipEnding(_)
-        | crate::translate::facts::Node::ResultValue(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
-    }
 }
 
 pub(crate) fn result_value_fields(value: &w::ResultValue, limits: &Limits) -> Result<c::ResultValue, w::Problem> {

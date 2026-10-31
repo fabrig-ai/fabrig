@@ -572,9 +572,7 @@ fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) 
         }
         client::Received::Read(c::ReadValue::Historical(value)) => {
             let c::OwnerHistoricalValue::Task { document, result } = &value.value else { return Vec::new() };
-            let c::ChipPhase::Owner { details, .. } = document.chip.details.as_ref() else {
-                panic!("owner task facts")
-            };
+            let details = &document.chip.details.details;
             assert_eq!(result.task.task, document.chip.task, "result belongs to its task");
             vec![
                 rules::Receipt::Ended(document.chip.task),
@@ -585,11 +583,7 @@ fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) 
             .rows
             .iter()
             .filter_map(|row| {
-                if let c::Activity::Owner { source, .. } = &row.event {
-                    row.event.committed_turn().map(|turn| rules::Receipt::Turn(source.task, turn.attempt, turn.number))
-                } else {
-                    None
-                }
+                row.committed_turn().map(|turn| rules::Receipt::Turn(row.source.task, turn.attempt, turn.number))
             })
             .collect(),
         client::Received::Application { key, .. } => {

@@ -91,7 +91,7 @@ fn task(observation: Option<OwnerChipObservation>, context: bool) -> Task {
     details.executor = OwnerExecutor::Agent { charter: 1 };
     details.observation = observation;
     task.chip.phase = Phase::Running;
-    task.chip.details = Box::new(ChipPhase::Owner {
+    task.chip.details = Box::new(ChipPhase {
         phase: OwnerChipPhase::Active(RunStage::Running { attempt: u64::MAX }),
         details: Box::new(details),
     });
@@ -218,7 +218,7 @@ fn selected_owner_work_activity_preserves_conversation_and_opaque_provisional_te
         crate::tests::tree::pages::deliver(
             &mut domain,
             run,
-            Delivery::Run(Box::new(RunText {
+            crate::tests::fixtures::run(RunText {
                 writing: None,
                 attempt: u64::MAX,
                 began: None,
@@ -228,7 +228,7 @@ fn selected_owner_work_activity_preserves_conversation_and_opaque_provisional_te
                 text: text(b"provisional reply"),
                 cut: false,
                 call: None,
-            })),
+            }),
         );
         let tree = render(&domain, selected());
         assert!(contains(&tree, b"Selected work report"));

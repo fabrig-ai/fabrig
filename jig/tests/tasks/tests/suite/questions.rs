@@ -292,7 +292,7 @@ fn moving_full_credit_lists_publishes_each_affected_task_once() {
             },
         );
         let row = domain.task(asker).expect("moved asker");
-        assert_eq!(row.questions.len(), usize::try_from(env.limits.inbox_messages).expect("credit bound"));
+        assert_eq!(row.questions.len(), skein_lib::length::usize_of(env.limits.inbox_messages));
         assert_eq!(
             row.questions.iter().map(|credit| (credit.number, credit.line)).collect::<Vec<_>>(),
             original.iter().map(|credit| (credit.number, credit.line)).collect::<Vec<_>>()
@@ -334,7 +334,7 @@ fn ending_full_credit_lists_emits_one_batch_per_asker_and_one_publication() {
         .collect::<Vec<_>>();
     assert_eq!(batches.len(), ASKER_COUNT);
     for (task, questions) in batches {
-        assert_eq!(questions.len(), usize::try_from(env.limits.inbox_messages).expect("credit bound") / ASKER_COUNT);
+        assert_eq!(questions.len(), skein_lib::length::usize_of(env.limits.inbox_messages) / ASKER_COUNT);
         assert_eq!(publications(&out, task), 1);
         let notices = questions
             .iter()

@@ -1,5 +1,5 @@
 //! Program inventories cross bytes intact and share the document's native byte budget.
-use super::{c, fixtures, w};
+use super::{Limits, c, fixtures, w};
 use crate::translate::programs as decode;
 use skein_lib::{List, Writer};
 fn login(name: &[u8], state: Option<w::OwnerProgramState>) -> w::OwnerProgramLogin {

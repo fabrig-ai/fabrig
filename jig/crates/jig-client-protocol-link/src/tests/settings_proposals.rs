@@ -157,7 +157,7 @@ fn resets(count: u32) -> c::ProposeSettings {
 fn proposed_items_fit_at_the_count_and_byte_ceilings() {
     let limits = fixtures::limits();
     let proposal = resets(PROPOSAL_ITEMS);
-    let mut wire = limits.wire();
+    let mut wire = *limits.wire();
     wire.propose_settings_items = PROPOSAL_ITEMS * RESET_PIECE;
     let value = t::wire_propose_settings(&proposal, &wire).expect("at both ceilings");
     assert_eq!(t::restore_propose_settings(&value, &limits), Ok(proposal));
@@ -166,7 +166,7 @@ fn proposed_items_fit_at_the_count_and_byte_ceilings() {
 fn proposed_items_refuse_one_past_either_ceiling() {
     let limits = fixtures::limits();
     t::wire_propose_settings(&resets(PROPOSAL_ITEMS + 1), limits.wire()).expect_err("one past the proposal item count");
-    let mut wire = limits.wire();
+    let mut wire = *limits.wire();
     wire.propose_settings_items = PROPOSAL_ITEMS * RESET_PIECE - 1;
     t::wire_propose_settings(&resets(PROPOSAL_ITEMS), &wire).expect_err("one past the proposal byte bound");
     let mut writer = skein_lib::Writer::new(usize::try_from((PROPOSAL_ITEMS + 1) * RESET_PIECE).expect("piece bytes"));

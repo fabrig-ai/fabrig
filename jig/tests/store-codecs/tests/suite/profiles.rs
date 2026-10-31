@@ -86,7 +86,7 @@ fn both_shipped_profiles_round_trip_a_policy_whose_roles_name_models() {
     use jig_domain_people as people;
     // As many models as a role's bits name, each name as long as configuration admits.
     let models = u8::try_from(u64::BITS).expect("one bit per model");
-    let name_bytes = usize::try_from(jig_domain_core::MODEL_NAME_BYTES).expect("name bound");
+    let name_bytes = skein_lib::length::usize_of(jig_domain_core::MODEL_NAME_BYTES);
     let names: Box<[jig_domain_core::settings::ModelName]> = (0..models)
         .map(|model| jig_domain_core::settings::ModelName {
             name: vec![model; name_bytes].into_boxed_slice(),

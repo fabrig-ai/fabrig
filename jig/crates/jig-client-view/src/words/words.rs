@@ -297,20 +297,6 @@ impl Words {
                 Made::PersonResult { task } => self.text(b, JigPhrase::MadeResult, &[Hole::Number(*task)]),
                 Made::Note { note, .. } => self.text(b, JigPhrase::MadeNote, &[Hole::Number(*note)]),
             },
-            Outcome::Proposed { proposal } => {
-                self.proposal(b, *proposal);
-            }
-            Outcome::Decided { by, how, at } => {
-                self.actor(b, *by);
-                self.decision(b, how);
-                self.wall(b, *at);
-            }
-            Outcome::DecidedFirst { by, how, at } => {
-                self.text(b, JigPhrase::DecidedFirst, &[name(by.name.bytes())]);
-                self.decision(b, how);
-                self.wall(b, *at);
-            }
-            Outcome::Changed => self.text(b, JigPhrase::Changed, &[]),
         }
     }
 }

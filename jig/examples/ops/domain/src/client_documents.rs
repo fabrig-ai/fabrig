@@ -1,6 +1,6 @@
 //! Same-decision assembly of the application's client documents.
 use crate::domain::{Work, held};
-use crate::route::{core_out, infrastructure_out, observability_out};
+use crate::route::{ConnectorRequest, connector_out, core_out};
 use crate::{ClientDocument, ClientMissing, ClientSubject, Domain, Limits, Output, Write};
 use alloc::boxed::Box;
 use jig_domain_core as core;
@@ -106,7 +106,7 @@ pub(crate) fn document(
     };
     let mut requests = core::step(
         &mut domain.core,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.core },
+        &env.with(env.limits.core),
         core::Event::View(views::Event::Made { watcher, outcome }),
     );
     for _ in 0..requests.len() {
@@ -200,7 +200,7 @@ pub(crate) fn read(
             let mut out = Queue::uncapped();
             infrastructure::step(
                 &mut domain.infrastructure,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.infrastructure },
+                &env.with(env.limits.infrastructure),
                 infrastructure::Event::ReadDocument { scope: infrastructure_scope(scope), read, party },
                 &mut out,
             );
@@ -242,9 +242,7 @@ pub(crate) fn read(
                     | infrastructure::Request::Save { .. }
                     | infrastructure::Request::Erase { .. }
                     | infrastructure::Request::System(_)) => {
-                        let mut requests = Queue::uncapped();
-                        requests.push(request);
-                        infrastructure_out(domain, env, decision, &mut requests, work);
+                        connector_out(domain, env, decision, ConnectorRequest::Infrastructure(request), work);
                     }
                 }
             }
@@ -253,7 +251,7 @@ pub(crate) fn read(
             let mut out = Queue::uncapped();
             observability::step(
                 &mut domain.observability,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.observability },
+                &env.with(env.limits.observability),
                 observability::Event::ReadDocument { scope: observability_scope(scope), read, party },
                 &mut out,
             );
@@ -296,9 +294,7 @@ pub(crate) fn read(
                     | observability::Request::Erase { .. }
                     | observability::Request::System(_)
                     | observability::Request::Changed { .. }) => {
-                        let mut requests = Queue::uncapped();
-                        requests.push(request);
-                        observability_out(domain, env, decision, &mut requests, work);
+                        connector_out(domain, env, decision, ConnectorRequest::Observability(request), work);
                     }
                 }
             }

@@ -38,17 +38,17 @@ pub fn conversation(b: &mut Builder, client: &Borrowed<'_>, words: &Words, bindi
             .checked_sub(offset)
             .expect("reverse line exists");
         let line = state.lines.rows.get(index).expect("retained line exists");
-        let key = match (line.event.committed_turn(), line.event.word_message()) {
+        let key = match (line.committed_turn(), line.word_message()) {
             (Some(name), _) => turn_key(name),
             (None, Some((message, _))) => word_key(&state, message),
-            (None, None) => Key { owner: Owner::Jig.opaque(), kind: 27, a: state.task, b: line.position },
+            (None, None) => Key { owner: Owner::Jig.opaque(), kind: 27, a: state.task, b: line.source.position },
         };
         b.open(Role::Item);
         b.key(key);
         b.open(Role::Region);
         b.name(&words.say(JigPhrase::ConversationLog, &[]));
-        words.wall(b, line.at);
-        activity::activity(b, client, &line.event, words, bindings);
+        words.wall(b, line.source.at);
+        activity::activity(b, client, line, words, bindings);
         b.close();
         b.close();
     }
@@ -104,7 +104,7 @@ fn pending(b: &mut Builder, state: &Thread, words: &Words) {
         };
         let mut in_activity = false;
         for line in &state.lines.rows {
-            if let Some((seen, _)) = line.event.word_message()
+            if let Some((seen, _)) = line.word_message()
                 && message == Some(seen)
             {
                 in_activity = true;

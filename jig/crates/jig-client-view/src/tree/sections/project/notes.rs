@@ -10,7 +10,7 @@ use crate::{
     state::{action::Act, page::project::NoteFilter},
 };
 use alloc::boxed::Box;
-use jig_client::contract::{NoteScope, Part};
+use jig_client::contract::NoteScope;
 pub(super) fn notes(b: &mut Builder, client: &Borrowed<'_>, project: u32, words: &Words, bindings: &mut JigBindings) {
     let project_page = client.project_page();
     b.open(Role::Search);
@@ -31,33 +31,6 @@ pub(super) fn notes(b: &mut Builder, client: &Borrowed<'_>, project: u32, words:
     b.close();
     for scope in [NoteScope::Deployment, NoteScope::Project(project)] {
         scope_choice(b, words, bindings, &filter, scope);
-    }
-    if let Some(doc) = &project_page.document {
-        for part in &doc.resources {
-            match part {
-                Part::Resource { connector, path } => {
-                    if let Some(pattern) = jig_client::contract::exact_resource_pattern(path) {
-                        scope_choice(
-                            b,
-                            words,
-                            bindings,
-                            &filter,
-                            NoteScope::Resource { project, connector: *connector, pattern },
-                        );
-                    }
-                }
-                Part::Connector { .. }
-                | Part::Kind { .. }
-                | Part::Panel { .. }
-                | Part::Result { .. }
-                | Part::Effect { .. }
-                | Part::OwnerEffect { .. }
-                | Part::Outbox { .. }
-                | Part::Hold { .. }
-                | Part::Project { .. }
-                | Part::Deployment { .. } => {}
-            }
-        }
     }
     for goal in &project_page.goals {
         scope_choice(b, words, bindings, &filter, NoteScope::Task { project, task: goal.chip.task });

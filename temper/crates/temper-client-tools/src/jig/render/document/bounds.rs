@@ -131,23 +131,6 @@ pub(super) fn encode_bounds(value: &jig_client::contract::Bounds, out: &mut Enco
     }
 }
 
-pub(super) fn encode_budget(value: &jig_client::contract::Budget, out: &mut Encoder, budget: &mut super::Cut) {
-    out.object_start();
-    out.key(b"total");
-    out.unsigned(value.total);
-    out.key(b"own");
-    out.unsigned(value.own);
-    out.key(b"ended");
-    out.unsigned(value.ended);
-    out.key(b"reserved");
-    out.unsigned(value.reserved);
-    out.key(b"left");
-    out.unsigned(value.left);
-    out.key(b"funder");
-    super::encode_actor(&value.funder, out, budget);
-    out.object_end();
-}
-
 pub(super) fn encode_call_identity(
     value: &jig_client::contract::CallIdentity,
     out: &mut Encoder,

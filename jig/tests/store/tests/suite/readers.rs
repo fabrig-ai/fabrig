@@ -38,7 +38,7 @@ fn empty_wires() -> Box<[u8]> {
     use jig_protocol_store::component_v3 as wire;
     let wires = wire::Wires::new(&wire::CEILINGS, wire::WiresParts { wires: skein_lib::List::with_capacity(0) })
         .expect("empty wires");
-    let mut writer = skein_lib::Writer::new(usize::try_from(wires.measure()).expect("wires measure"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(wires.measure()));
     wires.encode(&mut writer).expect("measured wires");
     writer.finish()
 }
@@ -127,9 +127,9 @@ fn restore_restore_serves_maximum_writer_rows_above_party_read_limits() {
     let mut world = World::unopened_observed(SEED, limits, None);
     world.open().expect("open");
     world.commit(root::first()).expect("first commit");
-    let first = vec![b'a'; usize::try_from(root::APPLICATION.key).expect("application key")].into_boxed_slice();
+    let first = vec![b'a'; skein_lib::length::usize_of(root::APPLICATION.key)].into_boxed_slice();
     let second = vec![b'b'; first.len()].into_boxed_slice();
-    let value = vec![7; usize::try_from(root::APPLICATION.value).expect("application value")].into_boxed_slice();
+    let value = vec![7; skein_lib::length::usize_of(root::APPLICATION.value)].into_boxed_slice();
     world
         .commit(Box::new([
             Write::Save(root::header(2)),
@@ -168,7 +168,7 @@ fn fixed_pages_hold_bounded_memory_as_inventory_grows() {
         let page = world.retained_page(None, PAGE_ROWS, PAGE_BYTES).expect("bounded inventory page");
         let measured = meter.end();
         eprintln!("retained page over {count} application rows: peak {} held {}", measured.peak(), measured.held());
-        assert_eq!(page.rows.len(), usize::try_from(PAGE_ROWS).expect("page rows"));
+        assert_eq!(page.rows.len(), skein_lib::length::usize_of(PAGE_ROWS));
         peaks.push(measured.peak());
         let meter = skein_heap::Meter::new();
         meter.start();
@@ -177,7 +177,7 @@ fn fixed_pages_hold_bounded_memory_as_inventory_grows() {
             .expect("bounded restore page");
         let measured = meter.end();
         eprintln!("restore page over {count} application rows: peak {} held {}", measured.peak(), measured.held());
-        assert_eq!(restored.items.len(), usize::try_from(PAGE_ROWS).expect("page rows"));
+        assert_eq!(restored.items.len(), skein_lib::length::usize_of(PAGE_ROWS));
         peaks.push(measured.peak());
     }
     for pair in peaks.chunks_exact(2) {
@@ -193,10 +193,9 @@ fn census_pairs_with_writer_sized_payloads_fit_exact_decoded_bytes() {
     let core::Record::Tasks(tasks::Stored::Live(mut task)) = root::live_task(root::LIVE) else {
         panic!("task fixture")
     };
-    task.spec.words =
-        vec![b'w'; usize::try_from(limits.core.tasks.spec_bytes).expect("writer words")].into_boxed_slice();
+    task.spec.words = vec![b'w'; skein_lib::length::usize_of(limits.core.tasks.spec_bytes)].into_boxed_slice();
     task.phase = tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report {
-        words: vec![b'r'; usize::try_from(limits.core.tasks.result_bytes).expect("writer result")].into_boxed_slice(),
+        words: vec![b'r'; skein_lib::length::usize_of(limits.core.tasks.result_bytes)].into_boxed_slice(),
     }));
     task.ended_at = Some(skein_lib::Wall::EPOCH);
     let ended = core::Record::Tasks(tasks::Stored::Ended(task));

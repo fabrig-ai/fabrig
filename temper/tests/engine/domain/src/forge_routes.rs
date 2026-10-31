@@ -1449,7 +1449,7 @@ impl World {
             })),
         }));
         self.until(Until::Adopted);
-        assert!(matches!(self.adopted.as_slice(), [forge_top::ApplicationOutcome::Adopted(_)]));
+        assert!(matches!(self.adopted.as_slice(), [forge_top::ApplicationOutcome::Adopted(_)]), "{:?}", self.adopted);
     }
 }
 
