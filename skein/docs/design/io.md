@@ -200,10 +200,12 @@ pub fn down(io: &mut Io, env: &Env<Limits>, requests: &mut Queue<Request>,
 - **The time is `env.now`,** the one the stage hands every entry point,
   so a deadline is judged due at the instant `fire` fires it.
 - **The entry points alone.** A loop that must see each call calls the
-  entry points itself, in the same order and with the same room checks:
-  a test of io that checks each call's `MAX_OUT` or meters its memory, a
-  harness that plays the kernel one operation at a time, or a host whose
-  completion queue also carries operations that are not io's.
+  entry points itself, in the same order: a test of io that checks each
+  call's `MAX_OUT` or meters its memory; a harness that plays the kernel
+  one operation at a time, or hands io one entry an iteration on purpose;
+  a host whose completion queue also carries operations that are not
+  io's, or that reads each completion or request as io takes it (a
+  spawn's pid, a request counted).
 
 ## 3. Sockets and pipes
 
@@ -1455,6 +1457,15 @@ simulator's machine seam (testing.md, 4).
   focused suite; 150 of each in the fuzzy one, which asserts that every
   fault fell and that a cancel of each operation io cancels was seen to
   stop it, to come too late, and to go unsubmitted.
+- **The stage** (2.1; `tests/io`, `stage.rs`): `stage::up` and
+  `stage::down` driven by hand, the kernel played by the test: the ready
+  list told before a completion and a completion before a deadline, in
+  one stage and with the kernel's queue near full; each entry point's
+  room, one record short of its `MAX_OUT` and exactly it; a deadline due
+  at `env.now` and not a nanosecond before; a listener that readies
+  itself in the stage resumed only in the next; and requests taken oldest
+  first, waiting for room and for io to hold a refusal. A host's world
+  does not retest the stage.
 - **One exchange over the real ring**, in the focused suite.
 - **Memory:** io driven by hand to its limits and back, every call
   checked under its scenario's named ceiling with headroom by the
