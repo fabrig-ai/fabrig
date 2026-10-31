@@ -32,11 +32,7 @@ impl Stream {
     }
 
     pub(super) fn clear(&mut self) {
-        for _piece in 0..self.pending.len() {
-            if self.pending.pop().is_none() {
-                break;
-            }
-        }
+        self.pending.clear();
         self.bytes = 0;
         self.usage = api::Usage::NONE;
         self.opening = 0;
