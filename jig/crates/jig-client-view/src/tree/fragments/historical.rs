@@ -270,12 +270,9 @@ pub(crate) fn card(
             Some(
                 Body::Chip(_)
                 | Body::Task(_)
-                | Body::Proposal(_)
                 | Body::OwnerProposal(_)
-                | Body::Escalation(_)
                 | Body::OwnerEscalation(_)
                 | Body::Question(_)
-                | Body::PersonTask(_)
                 | Body::OwnerPersonTask(_)
                 | Body::Result(_)
                 | Body::Note { .. },

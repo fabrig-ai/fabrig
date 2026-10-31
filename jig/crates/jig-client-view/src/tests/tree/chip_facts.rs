@@ -25,7 +25,7 @@ fn chip(phase: OwnerChipPhase, details: OwnerChipDetails) -> Chip {
         title: DocumentText { bytes: text(b"partial title"), cut: true },
         executor: Executor::Agent { charter: 1 },
         phase: phase.compact(),
-        details: Box::new(ChipPhase::Owner { phase, details: Box::new(details) }),
+        details: Box::new(ChipPhase { phase, details: Box::new(details) }),
     }
 }
 fn brief(value: &Chip) -> Tree {

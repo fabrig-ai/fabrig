@@ -1091,7 +1091,6 @@ impl JigPhrase {
             Self::SettingFaultBudget => 7914,
             Self::SettingFaultGrace => 7915,
             Self::SettingFaultOwner => 7916,
-
             Self::ActRename => 7837,
             Self::ActRemoveProject => 7839,
             Self::NameTaken => 7830,
@@ -1101,7 +1100,6 @@ impl JigPhrase {
             Self::NameSpace => 7834,
             Self::NameDigits => 7835,
             Self::EngineLimitProjects => 7836,
-
             Self::OpenProgramModel => 7816,
             Self::OpenProgramUnavailable => 7817,
             Self::OpenProgramChooseModel => 7818,
@@ -1110,7 +1108,6 @@ impl JigPhrase {
             Self::RefusedWorkerAt => 7821,
             Self::RefusedEngineAt => 7822,
             Self::MalformedEndedBy => 7823,
-
             Self::Word(word) => return word.id(),
             Self::DependencyParked => 7815,
             Self::KeptUntil => 7800,
@@ -1128,7 +1125,6 @@ impl JigPhrase {
             Self::DependencyByTask => 7812,
             Self::DependencyByParty => 7813,
             Self::DependencyByDeployment => 7814,
-
             Self::OwnerHoldRelease => 673,
             Self::NoticesPart => 680,
             Self::NothingKnown => 674,
@@ -1137,7 +1133,6 @@ impl JigPhrase {
             Self::PartyPart => 677,
             Self::ProjectsPart => 678,
             Self::GoToTaskPart => 679,
-
             Self::QuestionFromTask => 670,
             Self::QuestionFromPerson => 671,
             Self::QuestionFromDeployment => 672,
@@ -1145,7 +1140,6 @@ impl JigPhrase {
             Self::TasksIdle => 641,
             Self::TasksStarting => 642,
             Self::TasksBackingOff => 643,
-
             Self::NoteWriterParty => 634,
             Self::NoteWriterTask => 635,
             Self::NoteChangedNotSupplied => 636,
@@ -1185,7 +1179,6 @@ impl JigPhrase {
             Self::PolicyMustGuard => 601,
             Self::PolicyGuardNotRequired => 602,
             Self::PolicyPermission => 603,
-
             Self::ProposedByParty => 570,
             Self::PartProposalTask => 571,
             Self::PartProposalParty => 572,
@@ -1223,7 +1216,6 @@ impl JigPhrase {
             Self::ClosingPendingEnding => 560,
             Self::HeldPriorLifecycle => 561,
             Self::HeldPriorWaiting => 562,
-
             Self::SpecificationNumber => 3200,
             Self::SpecificationBytes => 3201,
             Self::SpecificationResource => 3202,
@@ -1626,7 +1618,6 @@ impl JigPhrase {
             Self::HoldPart => 492,
             Self::OutboxEntry => 508,
             Self::TakenByNumber => 509,
-
             Self::EngineLimitGoals => 7413,
             Self::MalformedTwoAsAllowed => 7415,
             Self::MalformedConversation => 7416,
@@ -1736,11 +1727,9 @@ impl JigPhrase {
     pub fn shape(self, text: u32) -> PhraseShape {
         let holes: Box<[HoleShape]> = match self {
             Self::Word(word) => return word.shape(text),
-
             Self::DependencyByTask | Self::DependencyByParty | Self::DependencyByDeployment | Self::AnswersFull => {
                 Box::new([HoleShape { kind: HoleKind::Number, bytes: 0 }, HoleShape { kind: HoleKind::Wall, bytes: 0 }])
             }
-
             Self::FrameNeedsKinds => Box::new([
                 HoleShape { kind: HoleKind::Number, bytes: 0 },
                 HoleShape { kind: HoleKind::Number, bytes: 0 },

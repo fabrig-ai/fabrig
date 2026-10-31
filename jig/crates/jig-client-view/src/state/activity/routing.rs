@@ -60,21 +60,10 @@ pub(crate) fn document(domain: &mut Ui, task: &Task, out: &mut Queue<Request>, l
             | Runtime::Person { .. }
             | Runtime::Ended => true,
         },
-        None => match task.chip.details.as_ref() {
-            jig_client::contract::ChipPhase::Owner { phase, details } => owner_finished(phase, details.hold.as_ref()),
-            jig_client::contract::ChipPhase::Waiting { .. }
-            | jig_client::contract::ChipPhase::Idle { .. }
-            | jig_client::contract::ChipPhase::Starting
-            | jig_client::contract::ChipPhase::Active(_)
-            | jig_client::contract::ChipPhase::Running { .. }
-            | jig_client::contract::ChipPhase::WaitingForWords { .. }
-            | jig_client::contract::ChipPhase::BackingOff { .. }
-            | jig_client::contract::ChipPhase::Procedure { .. }
-            | jig_client::contract::ChipPhase::Person { .. }
-            | jig_client::contract::ChipPhase::Closing(_)
-            | jig_client::contract::ChipPhase::Held { .. }
-            | jig_client::contract::ChipPhase::Ended { .. } => false,
-        },
+        None => {
+            let jig_client::contract::ChipPhase { phase, details } = task.chip.details.as_ref();
+            owner_finished(phase, details.hold.as_ref())
+        }
     };
     let what = domain.conversation.moved(task.activity);
     ask(domain, what, out);

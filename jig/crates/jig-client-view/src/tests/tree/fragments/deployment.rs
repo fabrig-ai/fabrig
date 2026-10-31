@@ -553,7 +553,7 @@ fn genuine_owner_chip_fixture(number: u64) -> Chip {
         title: DocumentText::complete(Text::new(Box::from(*b"task"), 4).unwrap()),
         executor: Executor::Agent { charter: u32::MAX },
         phase: Phase::Waiting,
-        details: Box::new(ChipPhase::Owner {
+        details: Box::new(ChipPhase {
             phase: OwnerChipPhase::Waiting { dependencies: List::with_capacity(2), more: true, holds: false },
             details: Box::new(owner),
         }),

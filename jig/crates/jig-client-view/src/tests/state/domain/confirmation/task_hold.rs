@@ -50,7 +50,7 @@ fn owner_task_holds_retain_whole_read_facts_and_require_repeat_only_for_uncertai
         let exact = owner(reason);
         let (mut domain, _) = live();
         let mut row = task();
-        row.hold = Some(TaskHold::Owner(Box::new(exact.clone())));
+        row.hold = Some(Box::new(exact.clone()));
         row.person_revision = Some(Revision { value: 23 });
         row.acts = offered(ActKind::Release, Admission::Allowed);
         let id = install(&mut domain, Body::Task(Box::new(row.clone())));
@@ -74,7 +74,7 @@ fn owner_task_holds_retain_whole_read_facts_and_require_repeat_only_for_uncertai
             }
         );
         let Some(Body::Task(retained)) = &domain.objects().get(id).unwrap().body else { panic!("whole task") };
-        assert_eq!(retained.hold, Some(TaskHold::Owner(Box::new(exact))));
+        assert_eq!(retained.hold, Some(Box::new(exact)));
         assert_eq!(retained.person_revision, Some(Revision { value: 23 }));
         assert_eq!(retained.spec_revision, Revision { value: 9 });
     }
@@ -86,7 +86,7 @@ fn owner_task_hold_live_revision_moves_independently_before_atomic_amend_release
     let mut row = task();
     let mut held = owner(HoldCategory::Budget);
     held.revision = u64::MAX - 1;
-    row.hold = Some(TaskHold::Owner(Box::new(held.clone())));
+    row.hold = Some(Box::new(held.clone()));
     row.acts = offered(ActKind::Amend, Admission::Allowed);
     let id = install(&mut domain, Body::Task(Box::new(row.clone())));
     intend_amend_release(&mut domain, id);
@@ -96,7 +96,7 @@ fn owner_task_hold_live_revision_moves_independently_before_atomic_amend_release
     held.revision = u64::MAX;
     held.before = OwnerPriorPhase::Active(RunStage::Running { attempt: u64::MAX });
     held.hold_wait_since = Some(Wall::from_nanos(u64::MAX));
-    row.hold = Some(TaskHold::Owner(Box::new(held.clone())));
+    row.hold = Some(Box::new(held.clone()));
     reread(&mut domain, Body::Task(Box::new(row.clone())), Read::Task { task: 8 });
     assert_eq!(domain.confirmation().unwrap().revision, Some(Revision { value: 9 }));
     assert_eq!(
@@ -122,5 +122,5 @@ fn owner_task_hold_live_revision_moves_independently_before_atomic_amend_release
         )
     );
     let Some(Body::Task(retained)) = &domain.objects().get(id).unwrap().body else { panic!("whole task") };
-    assert_eq!(retained.hold, Some(TaskHold::Owner(Box::new(held))));
+    assert_eq!(retained.hold, Some(Box::new(held)));
 }

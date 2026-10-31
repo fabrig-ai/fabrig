@@ -12,13 +12,10 @@
 //! | any | leave | empty context | parts leave through routing |
 use crate::{
     Request, Ui,
-    state::{
-        address::ProjectSection,
-        objects::{Object, Source},
-    },
+    state::objects::{Object, Source},
 };
 use alloc::boxed::Box;
-use jig_client::contract::{self, Cursor, NoteScope, Part, Project, Read, TaskLine, TaskQuery, Text};
+use jig_client::contract::{self, Cursor, NoteScope, Part, Read, TaskLine, TaskQuery, Text};
 use jig_client::thread::window::End;
 use skein_lib::{Env, Id, List, Queue, Token};
 pub(crate) mod goals;
@@ -34,7 +31,6 @@ pub struct NoteFilter {
 /// Only current project context; pending goal requests survive leaving the page.
 #[derive(Debug)]
 pub struct ProjectPage {
-    pub document: Option<Box<Project>>,
     /// Retained historical funding rows, independent of live project spend.
     pub owner_spend: Option<Box<contract::OwnerSpendPage>>,
     /// Whole owner facts, with no fabricated earlier document.
@@ -53,7 +49,6 @@ pub struct ProjectPage {
     pub notes_cut: bool,
     pub notes_before: Option<Cursor>,
     pub notes_after: Option<Cursor>,
-    pub spend: List<contract::SpendPeriod>,
     pub spend_cut: bool,
     pub spend_before: Option<Cursor>,
     pub spend_after: Option<Cursor>,
@@ -63,7 +58,6 @@ pub struct ProjectPage {
 impl ProjectPage {
     pub(crate) fn new(rows: u32) -> Self {
         Self {
-            document: None,
             owner_spend: None,
             owner: None,
             ended: List::with_capacity(rows),
@@ -87,7 +81,6 @@ impl ProjectPage {
             notes_cut: false,
             notes_before: None,
             notes_after: None,
-            spend: List::with_capacity(rows),
             spend_cut: false,
             spend_before: None,
             spend_after: None,
@@ -96,7 +89,6 @@ impl ProjectPage {
         }
     }
     pub(crate) fn clear(&mut self) {
-        self.document = None;
         self.owner_spend = None;
         self.owner = None;
         self.ended.clear();
@@ -120,7 +112,6 @@ impl ProjectPage {
         self.notes_cut = false;
         self.notes_before = None;
         self.notes_after = None;
-        self.spend.clear();
         self.spend_cut = false;
         self.spend_before = None;
         self.spend_after = None;
@@ -149,75 +140,7 @@ pub(crate) fn ask(domain: &mut Ui, number: u16, what: Read, out: &mut Queue<Requ
         crate::state::page::routing::refuse(domain, contract::Limit::Reads);
     }
 }
-/// Replaces the project document and asks only this section's part references.
-pub(crate) fn document(
-    domain: &mut Ui,
-    env: &Env<crate::Limits>,
-    mut document: Box<Project>,
-    out: &mut Queue<Request>,
-    lent: &jig_client::Client,
-) {
-    if number(domain) != Some(document.number) {
-        return;
-    }
-    order_spend(&mut document.spend_lines);
-    domain.project_page.owner = None;
-    domain.project_page.document = Some(document);
-    goals::sync(domain, lent);
-    let doc = domain.project_page.document.as_ref().expect("stored above");
-    let mut parts_shown = List::with_capacity(env.limits.parts.saturating_add(1));
-    for section in [
-        ProjectSection::Overview,
-        ProjectSection::Goals,
-        ProjectSection::Tasks,
-        ProjectSection::Notes,
-        ProjectSection::Settings,
-        ProjectSection::Resources,
-        ProjectSection::Policy,
-        ProjectSection::Roles,
-        ProjectSection::Spend,
-        ProjectSection::Recurring,
-    ] {
-        if domain.shows(crate::state::page::Section::Project { project: doc.number, section }, lent) {
-            for part in parts(doc, section, env.limits.parts.saturating_add(1)).into_boxed() {
-                if parts_shown.push(part).is_err() {
-                    break;
-                }
-            }
-        }
-    }
-    show(domain, env, parts_shown, out);
-    domain.changed();
-}
-/// Resources, requirements and connector panels are facts, never connector values.
-#[must_use]
-pub fn parts(doc: &Project, section: ProjectSection, limit: u32) -> List<Part> {
-    let mut out = List::with_capacity(limit);
-    match section {
-        ProjectSection::Overview => append(&mut out, &doc.parts),
-        ProjectSection::Resources => append(&mut out, &doc.resources),
-        ProjectSection::Policy => append(&mut out, &doc.policy.requirements),
-        ProjectSection::Settings => {
-            append(&mut out, &doc.parts);
-            append(&mut out, &doc.resources);
-            append(&mut out, &doc.policy.requirements);
-        }
-        ProjectSection::Goals
-        | ProjectSection::Tasks
-        | ProjectSection::Notes
-        | ProjectSection::Roles
-        | ProjectSection::Spend
-        | ProjectSection::Recurring => {}
-    }
-    out
-}
-fn append(out: &mut List<Part>, parts: &List<Part>) {
-    for part in parts {
-        if !out.as_slice().contains(part) && out.room() > 0 {
-            out.push(part.clone()).expect("part fits");
-        }
-    }
-}
+
 pub(crate) fn show(domain: &mut Ui, env: &Env<crate::Limits>, parts: List<Part>, out: &mut Queue<Request>) {
     let mut count = 0_u32;
     for part in parts.into_boxed() {
@@ -394,34 +317,6 @@ pub(crate) fn task_rows(
     crate::state::page::routing::names(domain, env, source, keys, out, lent);
     domain.changed();
 }
-pub(crate) fn spend(domain: &mut Ui, page: contract::SpendPage) {
-    domain.project_page.spend_cut = page.cut;
-    domain.project_page.spend_before = page.before;
-    domain.project_page.spend_after = page.after;
-    domain.project_page.spend.clear();
-    for mut row in page.rows.into_boxed() {
-        order_spend(&mut row.tasks);
-        if domain.project_page.spend.room() == 0 {
-            break;
-        }
-        domain.project_page.spend.push(row).expect("period row fits");
-    }
-    domain.changed();
-}
-
-fn order_spend(rows: &mut List<contract::TaskSpend>) {
-    for first in 0..rows.len() {
-        for second in first.checked_add(1).expect("row index fits")..rows.len() {
-            let a = rows.get(first).expect("row exists");
-            let b = rows.get(second).expect("row exists");
-            if b.spent > a.spent || (b.spent == a.spent && b.chip.task < a.chip.task) {
-                let b = b.clone();
-                let a = core::mem::replace(rows.get_mut(first).expect("row exists"), b);
-                *rows.get_mut(second).expect("row exists") = a;
-            }
-        }
-    }
-}
 
 /// Install the complete historical source page in supplied order.
 pub(crate) fn owner_spend(domain: &mut Ui, page: Box<contract::OwnerSpendPage>) {
@@ -437,7 +332,6 @@ pub(crate) fn owner_document(domain: &mut Ui, value: Box<contract::OwnerProject>
     if number(domain) != Some(value.number) {
         return;
     }
-    domain.project_page.document = None;
     domain.project_page.owner = Some(value);
     domain.changed();
 }

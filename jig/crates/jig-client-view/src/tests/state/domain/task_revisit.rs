@@ -87,7 +87,7 @@ fn cancelled_task() -> Task {
     details.ending = Some(cancelled_ending());
     details.ended_at = Some(Wall::EPOCH);
     task.chip.phase = Phase::Ended;
-    task.chip.details = Box::new(ChipPhase::Owner { phase: OwnerChipPhase::Ended, details: Box::new(details) });
+    task.chip.details = Box::new(ChipPhase { phase: OwnerChipPhase::Ended, details: Box::new(details) });
     task.context = None;
     task.result = Some(TaskResult::Ending(Box::new(cancelled_ending())));
     task

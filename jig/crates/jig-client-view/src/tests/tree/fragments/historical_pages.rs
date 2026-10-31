@@ -44,7 +44,7 @@ fn chip() -> Chip {
     let mut metadata = crate::tests::tree::fragments::chip::details();
     metadata.resources = List::with_capacity(CLIENT.rows);
     metadata.closing_connectors = Some(List::with_capacity(CLIENT.rows));
-    *chip.details = ChipPhase::Owner { phase: OwnerChipPhase::Ended, details: Box::new(metadata) };
+    *chip.details = ChipPhase { phase: OwnerChipPhase::Ended, details: Box::new(metadata) };
     chip
 }
 fn ended(value: OwnerChipEnding, at: Option<Wall>) -> OwnerEndedPage {

@@ -88,7 +88,7 @@ pub fn value_nodes(
             if let Some(key) = proposal
                 && let Some(id) = client.objects().find(jig_client::contract::ObjectKey::Proposal(*key))
             {
-                super::proposal::proposal(b, client, id, &super::Place::Conversation, words, bindings);
+                super::card(b, client, id, &super::Place::Conversation, words, bindings);
             }
         }
         ResultValue::Connector { summary, part } => {
@@ -155,12 +155,9 @@ pub fn reply(
         Some(crate::state::objects::Body::Task(task)) => super::chip::chip(b, client, &task.chip, words, bindings),
         Some(
             crate::state::objects::Body::Historical(_)
-            | crate::state::objects::Body::Proposal(_)
             | crate::state::objects::Body::OwnerProposal(_)
-            | crate::state::objects::Body::Escalation(_)
             | crate::state::objects::Body::OwnerEscalation(_)
             | crate::state::objects::Body::Question(_)
-            | crate::state::objects::Body::PersonTask(_)
             | crate::state::objects::Body::OwnerPersonTask(_)
             | crate::state::objects::Body::Result(_)
             | crate::state::objects::Body::Note { .. },

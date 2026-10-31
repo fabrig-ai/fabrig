@@ -439,7 +439,6 @@ pub fn english() -> Language {
             OutcomePhrase::HostNotInContact => b"Not signed out (not in contact):",
             OutcomePhrase::HostLost => b"Not signed out (lost contact):",
             OutcomePhrase::HostFailed => b"Not signed out (failed):",
-
             OutcomePhrase::AccountSignedOut => b"LLM account signed out",
         };
         let segments: Box<[Segment]> = match phrase.hole() {

@@ -8,7 +8,8 @@ use crate::{
         objects::{Body, Source},
     },
 };
-use jig_client::contract::{self, Delivery, ObjectKey, Part, Read, ReadResult, ReadValue, Subject};
+use jig_client::contract;
+use jig_client::contract::{Delivery, ObjectKey, Part, Read, ReadResult, ReadValue, Subject};
 use skein_lib::{Env, List, Queue};
 pub(crate) const WINDOW: u16 = u16::MAX;
 fn source(_domain: &Ui) -> Source {
@@ -118,7 +119,7 @@ pub(crate) fn delivery(
                 }
             }
         }
-        Delivery::Inbox(_) | Delivery::OwnerInbox(_) => {
+        Delivery::OwnerInbox(_) => {
             let mut keys = List::with_capacity(env.limits.objects);
             for (key, _) in domain.objects.ids() {
                 assert!(keys.push(*key).is_ok(), "objects fit their registry");
@@ -132,13 +133,11 @@ pub(crate) fn delivery(
         Delivery::Me(_)
         | Delivery::OwnerProject(_)
         | Delivery::Task(_)
-        | Delivery::Tree(_)
         | Delivery::OwnerTree(_)
         | Delivery::Tasks(_)
         | Delivery::Run(_)
         | Delivery::RunState(_)
         | Delivery::Settings(_)
-        | Delivery::Deployment(_)
         | Delivery::OwnerDeployment(_)
         | Delivery::OwnerAccounts(_) => {}
     }
@@ -177,40 +176,32 @@ pub(crate) fn read_result(
         ReadResult::Value(value) => {
             let stored = match value {
                 ReadValue::Task(document) => put(domain, env, key, Body::Task(document), out, lent, true),
-                ReadValue::Proposal(document) => put(domain, env, key, Body::Proposal(document), out, lent, true),
                 ReadValue::Historical(document) => put(domain, env, key, Body::Historical(document), out, lent, true),
                 ReadValue::OwnerProposal(document) => {
                     put(domain, env, key, Body::OwnerProposal(document), out, lent, true)
                 }
-                ReadValue::Escalation(document) => put(domain, env, key, Body::Escalation(document), out, lent, true),
                 ReadValue::OwnerEscalation(document) => {
                     put(domain, env, key, Body::OwnerEscalation(document), out, lent, true)
                 }
                 ReadValue::Question(document) => put(domain, env, key, Body::Question(document), out, lent, true),
-                ReadValue::PersonTask(document) => put(domain, env, key, Body::PersonTask(document), out, lent, true),
                 ReadValue::OwnerPersonTask(document) => {
                     put(domain, env, key, Body::OwnerPersonTask(document), out, lent, true)
                 }
                 ReadValue::Result(document) => put(domain, env, key, Body::Result(document), out, lent, true),
                 ReadValue::Tasks(_)
                 | ReadValue::Me(_)
-                | ReadValue::Ended(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
-                | ReadValue::Inbox(_)
                 | ReadValue::OwnerInbox(_)
-                | ReadValue::Spend(_)
                 | ReadValue::OwnerEnded(_)
                 | ReadValue::OwnerSpend(_)
                 | ReadValue::OwnerProject(_)
-                | ReadValue::Project(_)
                 | ReadValue::Notes(_)
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
                 | ReadValue::Revisions(_)
-                | ReadValue::Deployment(_)
                 | ReadValue::OwnerDeployment(_) => false,
             };
             if stored {
@@ -263,28 +254,14 @@ pub(crate) fn put(
     let project = match &body {
         Body::Task(task) => Some(task.project),
         Body::OwnerEscalation(value) => Some(value.task.project),
-        Body::Proposal(proposal) => Some(proposal.project),
         Body::OwnerProposal(proposal) => Some(proposal.project),
         Body::OwnerPersonTask(person) => person.project(),
         Body::Note { project, .. } => Some(*project),
-        Body::Chip(chip) => match chip.details.as_ref() {
-            contract::ChipPhase::Owner { details, .. } => Some(details.project),
-            contract::ChipPhase::Waiting { .. }
-            | contract::ChipPhase::Procedure { .. }
-            | contract::ChipPhase::Held { .. }
-            | contract::ChipPhase::Closing(_)
-            | contract::ChipPhase::Active(_)
-            | contract::ChipPhase::Idle { .. }
-            | contract::ChipPhase::Starting
-            | contract::ChipPhase::Running { .. }
-            | contract::ChipPhase::WaitingForWords { .. }
-            | contract::ChipPhase::BackingOff { .. }
-            | contract::ChipPhase::Person { .. }
-            | contract::ChipPhase::Ended { .. } => object_project(domain, key, lent),
-        },
-        Body::Historical(_) | Body::Escalation(_) | Body::Question(_) | Body::PersonTask(_) | Body::Result(_) => {
-            object_project(domain, key, lent)
+        Body::Chip(chip) => {
+            let contract::ChipPhase { details, .. } = chip.details.as_ref();
+            Some(details.project)
         }
+        Body::Historical(_) | Body::Question(_) | Body::Result(_) => object_project(domain, key, lent),
     };
     if (!retain && domain.objects.find(key).is_some()) || (retain && domain.objects.put(key, body)) {
         for part in parts.values.into_boxed() {
@@ -311,11 +288,6 @@ fn parts(body: &Body, limit: u32) -> Parts {
         Body::Chip(chip) => chip_parts(&mut parts, chip),
         Body::Task(task) => {
             chip_parts(&mut parts, &task.chip);
-            for resource in &task.resources {
-                if let Some(part) = resource.part() {
-                    push(&mut parts, part.clone());
-                }
-            }
             if let Some(context) = &task.context {
                 append(&mut parts, context.parts.as_slice());
             }
@@ -335,12 +307,6 @@ fn parts(body: &Body, limit: u32) -> Parts {
                 .as_slice(),
             );
         }
-        Body::Proposal(proposal) => match &proposal.action {
-            contract::ProposalAction::Effect { part } => push(&mut parts, part.clone()),
-            contract::ProposalAction::Batch { .. }
-            | contract::ProposalAction::Widen { .. }
-            | contract::ProposalAction::Amend { .. } => {}
-        },
         Body::OwnerProposal(proposal) => match &proposal.action {
             contract::OwnerProposalAction::Effect { part, .. }
             | contract::OwnerProposalAction::ProcedureEffect { part, .. } => {
@@ -354,12 +320,7 @@ fn parts(body: &Body, limit: u32) -> Parts {
             | contract::OwnerProposalAction::Widen { .. }
             | contract::OwnerProposalAction::Release { .. } => {}
         },
-        Body::Escalation(escalation) => {
-            chip_parts(&mut parts, &escalation.task);
-            hold_parts(&mut parts, &escalation.hold.reason);
-        }
         Body::Question(question) => chip_parts(&mut parts, &question.task),
-        Body::PersonTask(person) => chip_parts(&mut parts, &person.task),
         Body::OwnerPersonTask(person) => chip_parts(&mut parts, &person.task),
         Body::Result(result) => {
             chip_parts(&mut parts, &result.task);
@@ -383,52 +344,20 @@ fn parts(body: &Body, limit: u32) -> Parts {
     parts
 }
 fn chip_parts(parts: &mut Parts, chip: &contract::Chip) {
-    match chip.details.as_ref() {
-        contract::ChipPhase::Waiting { hold, .. } => {
-            if let Some(part) = hold {
-                push(parts, part.clone());
-            }
+    {
+        let contract::ChipPhase { .. } = chip.details.as_ref();
+
+        if let Some(part) = owner_hold(chip) {
+            push(parts, part);
         }
-        contract::ChipPhase::Procedure { panel } => push(parts, panel.clone()),
-        contract::ChipPhase::Held { reason, was, .. } => {
-            hold_parts(parts, reason);
-            if let Some(contract::HeldRuntime::Closing(closing)) = was {
-                closing_parts(parts, closing);
-            }
-        }
-        contract::ChipPhase::Closing(closing) => closing_parts(parts, closing),
-        contract::ChipPhase::Owner { .. } => {
-            if let Some(part) = owner_hold(chip) {
-                push(parts, part);
-            }
-        }
-        contract::ChipPhase::Active(_)
-        | contract::ChipPhase::Idle { .. }
-        | contract::ChipPhase::Starting
-        | contract::ChipPhase::Running { .. }
-        | contract::ChipPhase::WaitingForWords { .. }
-        | contract::ChipPhase::BackingOff { .. }
-        | contract::ChipPhase::Person { .. }
-        | contract::ChipPhase::Ended { .. } => {}
     }
 }
 // The account is an explicit owner reference, independent of the hold's origin
 // (client/domain/contract.md, 5.1; objects.md, 3).
 pub(crate) fn owner_hold(chip: &contract::Chip) -> Option<Part> {
-    let details = match chip.details.as_ref() {
-        contract::ChipPhase::Owner { details, .. } => details,
-        contract::ChipPhase::Waiting { .. }
-        | contract::ChipPhase::Procedure { .. }
-        | contract::ChipPhase::Held { .. }
-        | contract::ChipPhase::Closing(_)
-        | contract::ChipPhase::Active(_)
-        | contract::ChipPhase::Idle { .. }
-        | contract::ChipPhase::Starting
-        | contract::ChipPhase::Running { .. }
-        | contract::ChipPhase::WaitingForWords { .. }
-        | contract::ChipPhase::BackingOff { .. }
-        | contract::ChipPhase::Person { .. }
-        | contract::ChipPhase::Ended { .. } => return None,
+    let details = {
+        let contract::ChipPhase { details, .. } = chip.details.as_ref();
+        details
     };
     let account = details.hold.as_ref()?.account.as_ref()?;
     match account.kind {
@@ -466,29 +395,7 @@ pub fn owner_effect(part: &contract::OwnerPart) -> Option<Part> {
         | contract::OwnerPartKind::Hold => None,
     }
 }
-fn closing_parts(parts: &mut Parts, closing: &contract::Closing) {
-    if let Some(connectors) = &closing.connectors {
-        for connector in connectors {
-            push(parts, Part::Connector { connector: *connector });
-        }
-    }
-}
-fn hold_parts(parts: &mut Parts, reason: &contract::HoldReason) {
-    match reason {
-        contract::HoldReason::Drift { part }
-        | contract::HoldReason::EffectFailed { part }
-        | contract::HoldReason::EffectUncertain { part }
-        | contract::HoldReason::Pool { part }
-        | contract::HoldReason::Procedure { part } => push(parts, part.clone()),
-        contract::HoldReason::Resource { resource, .. } => push(parts, resource.clone()),
-        contract::HoldReason::Tries { .. }
-        | contract::HoldReason::Stalled { .. }
-        | contract::HoldReason::Dependency { .. }
-        | contract::HoldReason::Budget { .. }
-        | contract::HoldReason::Deadline { .. }
-        | contract::HoldReason::Stopped { .. } => {}
-    }
-}
+
 fn push(parts: &mut Parts, part: Part) {
     if parts.values.push(part).is_err() {
         parts.full = true;

@@ -6,7 +6,7 @@ use crate::state::{
 use crate::tests::fixtures::{Fixture, Served, Watched};
 use crate::{Event, Limits, Request};
 use jig_client::Link;
-use jig_client::contract::{Count, Delivery, DocumentText, HeldRole, Inbox, Me, MeParty, Needs, PartyKind, WatchEvent};
+use jig_client::contract::{Count, Delivery, DocumentText, HeldRole, Me, MeParty, Needs, PartyKind, WatchEvent};
 use skein_lib::{Duration, Env, List, Queue, Time, Wall};
 
 pub(crate) const LIMITS: Limits = Limits {
@@ -103,16 +103,6 @@ pub(in crate::tests) fn delivered(
 ) -> Box<[Request]> {
     drive(domain, now, Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(frame))) })
 }
-fn inbox() -> Inbox {
-    Inbox {
-        entries: List::with_capacity(0),
-        needs: needs(),
-        updates: Count { value: 0, limited: false },
-        results_seen: 0,
-        replies_seen: List::with_capacity(0),
-        more: false,
-    }
-}
 
 #[test]
 fn start_opens_me_before_any_other_watch() {
@@ -132,42 +122,6 @@ fn start_opens_me_before_any_other_watch() {
     assert_eq!(*subject, jig_client::contract::Subject::Me);
     assert_eq!(domain.page(), &Page::Starting);
     assert_eq!(domain.link(), Link::Starting);
-}
-
-#[test]
-fn a_reopened_page_is_behind_until_its_first_delivery_and_never_changes_the_link() {
-    let mut domain = Fixture::new(&LIMITS);
-    let watch = start(&mut domain, List::with_capacity(0));
-    let page = open_token(&delivered(&mut domain, Time::ZERO, watch, frame(7)));
-    assert!(
-        drive(
-            &mut domain,
-            Time::ZERO,
-            crate::tests::fixtures::Ended { watch: page, end: jig_client::contract::WatchEnd::Dropped }
-        )
-        .is_empty()
-    );
-    assert_eq!(domain.link(), Link::Live);
-    assert_eq!(
-        domain.page(),
-        &Page::Work { address: Address::Inbox { project: None }, behind: true, excess: 0, refused: None }
-    );
-    domain.reopen(page);
-    let retry = Time::ZERO.saturating_add(Duration::from_secs(1));
-    assert!(drive(&mut domain, retry, Watched { watch: page, event: WatchEvent::Opened }).is_empty());
-    assert_eq!(
-        domain.page(),
-        &Page::Work { address: Address::Inbox { project: None }, behind: true, excess: 0, refused: None }
-    );
-    drive(
-        &mut domain,
-        retry,
-        Watched { watch: page, event: WatchEvent::Delivered(Delivery::Inbox(Box::new(inbox()))) },
-    );
-    assert_eq!(
-        domain.page(),
-        &Page::Work { address: Address::Inbox { project: None }, behind: false, excess: 0, refused: None }
-    );
 }
 
 #[test]

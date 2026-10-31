@@ -1,10 +1,10 @@
 const OTHER_PENDING: jig_client::Key = jig_client::Key { asker: jig_client::Asker::JIG, number: 999 };
 use crate::Request;
 use crate::state::objects::{Objects, Source};
-use crate::tests::fixtures::{AnsweredByEngine, Ended, Fixture, ReadPage, Reported, Watched};
+use crate::tests::fixtures::{AnsweredByEngine, Fixture, ReadPage, Reported, Watched};
 use jig_client::contract::{
-    Activity, ActivityLine, ActivityPage, Block, Call, Cursor, Message, ObjectKey, ProvisionalTurnName, Read,
-    RunBeginning, RunText, Speaker, Text, Turn, TurnName, TurnRead, Usage,
+    ActivityLine, ActivityPage, Block, Call, Cursor, Message, ObjectKey, ProvisionalTurnName, Read, RunText, Speaker,
+    Text, Turn, TurnName, TurnRead, Usage,
 };
 use jig_client::thread::{CallName, Fold, Thread};
 use skein_lib::{List, Wall};
@@ -14,17 +14,13 @@ fn text(bytes: &[u8]) -> Text {
 fn cursor(bytes: &[u8]) -> Cursor {
     Cursor::new(Box::from(bytes), 1024).expect("bounded opaque cursor")
 }
-fn row(position: u64) -> ActivityLine {
-    ActivityLine {
-        position,
-        at: Wall::EPOCH,
-        event: Activity::RunBegan { attempt: 1, how: RunBeginning::Fresh { tail: 3 }, why: text(b"fresh") },
-    }
-}
+
 fn page(positions: &[u64], older: Option<&[u8]>, newer: Option<&[u8]>) -> ActivityPage {
     let mut rows = List::with_capacity(10);
     for position in positions {
-        rows.push(row(*position)).unwrap();
+        let mut line = row(*position);
+        line.source.task = 8;
+        rows.push(line).unwrap();
     }
     ActivityPage {
         cut: false,
@@ -58,26 +54,7 @@ fn engine_call() -> Call {
         parts: List::with_capacity(0),
     }
 }
-fn calls(position: u64, number: u32) -> ActivityLine {
-    let mut blocks = List::with_capacity(2);
-    blocks.push(Block::Call(engine_call())).unwrap();
-    let mut messages = List::with_capacity(1);
-    messages.push(Message { speaker: Speaker::Assistant, blocks }).unwrap();
-    ActivityLine {
-        position,
-        at: Wall::EPOCH,
-        event: Activity::Turn {
-            name: TurnName { attempt: 1, number },
-            turn: TurnRead::Decoded(Turn {
-                messages,
-                used: Usage { input: 1, output: 2, cached: 0, cache_written: 0 },
-                spent: 3,
-                read_through: None,
-                cut: false,
-            }),
-        },
-    }
-}
+
 #[test]
 fn calls_fold_on_the_page_and_engine_objects_share_one_live_card() {
     let mut c = Thread::new(9, &jig_client::thread::Limits { lines: 3, bytes: 65536, text: 4096 });
@@ -106,13 +83,13 @@ fn calls_fold_on_the_page_and_engine_objects_share_one_live_card() {
 #[test]
 fn provisional_turns_append_by_offset_and_commit_only_replaces_the_same_name() {
     let (mut c, run) = native_run(4);
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(stream(1, 0, 3, b"one", false))));
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(stream(1, 3, 5, b"++", false))));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 0, 3, b"one", false)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 3, 5, b"++", false)));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"one++");
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(stream(1, 3, 5, b"++", false))));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 3, 5, b"++", false)));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"one++");
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(stream(1, 7, 8, b"x", false))));
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(stream(2, 0, 3, b"two", false))));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 7, 8, b"x", false)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(2, 0, 3, b"two", false)));
     assert_eq!(c.conversation().live.len(), 2);
     assert_eq!(c.conversation().live.get(1).unwrap().text.bytes(), b"two");
     assert_eq!(
@@ -128,7 +105,7 @@ fn provisional_turns_append_by_offset_and_commit_only_replaces_the_same_name() {
     assert_eq!(c.ui.conversation.accept(ActivityPage { cut: false, rows, before: None, after: None }), None);
     assert_eq!(c.conversation().live.len(), 1);
     assert_eq!(c.conversation().live.get(0).unwrap().name.number, 2);
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(stream(1, 0, 3, b"old", false))));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 0, 3, b"old", false)));
     assert_eq!(c.conversation().live.len(), 1);
     c.ui.conversation.run_finished = true;
     c.ui.conversation.end_run();
@@ -140,11 +117,11 @@ fn provisional_turns_append_by_offset_and_commit_only_replaces_the_same_name() {
 fn provisional_text_keeps_its_cut_mark_and_recovery_replaces_uncommitted_text() {
     let (mut c, run) = native_run(2);
     c.ui.text_limit = 4;
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(stream(1, 0, 3, b"abc", false))));
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(stream(1, 3, 6, b"def", false))));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 0, 3, b"abc", false)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 3, 6, b"def", false)));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"cdef");
     assert!(c.conversation().live.get(0).unwrap().cut);
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(stream(1, 10, 12, b"xy", true))));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 10, 12, b"xy", true)));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"xy");
     assert_eq!(
         match c.client.text(run) {
@@ -155,14 +132,14 @@ fn provisional_text_keeps_its_cut_mark_and_recovery_replaces_uncommitted_text() 
     );
     c.reopen(run);
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"xy");
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(stream(1, 0, 3, b"new", false))));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 0, 3, b"new", false)));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"new");
     assert!(!c.conversation().live.get(0).unwrap().cut);
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(stream(2, 0, 1, b"x", false))));
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(stream(3, 0, 1, b"y", false))));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(2, 0, 1, b"x", false)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(3, 0, 1, b"y", false)));
     assert_eq!(c.conversation().live.len(), 2);
     c.ui.conversation.end_run();
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(stream(3, 0, 1, b"y", false))));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(3, 0, 1, b"y", false)));
     assert_eq!(c.first_turn(), Some(ProvisionalTurnName { retry: 0, attempt: 1, number: 3 }));
 }
 
@@ -215,7 +192,7 @@ fn routed_conversation() {
     let _requests = drive(
         &mut domain,
         Time::ZERO,
-        Watched { watch: run_watch, event: WatchEvent::Delivered(Delivery::Run(Box::new(live_call))) },
+        Watched { watch: run_watch, event: WatchEvent::Delivered(crate::tests::fixtures::run(live_call)) },
     );
     domain.reopen(run_watch);
     let continued = domain.down.as_slice().contains(&jig_client::Down::Continue {
@@ -245,12 +222,16 @@ fn routed_conversation() {
         Time::ZERO,
         Watched {
             watch: run_watch,
-            event: WatchEvent::Delivered(Delivery::Run(Box::new(stream(2, 0, 3, b"two", false)))),
+            event: WatchEvent::Delivered(crate::tests::fixtures::run(stream(2, 0, 3, b"two", false))),
         },
     );
     let mut rows = List::with_capacity(2);
-    rows.push(calls(2, 1)).unwrap();
-    rows.push(row(1)).unwrap();
+    let mut committed = calls(2, 1);
+    committed.source.task = 8;
+    rows.push(committed).unwrap();
+    let mut began = row(1);
+    began.source.task = 8;
+    rows.push(began).unwrap();
     drive(
         &mut domain,
         Time::ZERO,
@@ -475,123 +456,6 @@ fn routed_pending_restore(domain: &mut Fixture) {
 }
 
 #[test]
-fn calls_share_a_chip_watch_and_deliveries_keep_the_same_task_card_live() {
-    use crate::tests::state::domain::spine::{drive, open_token};
-    use crate::{
-        Event, Request,
-        state::address::{Address, Place, TaskSection},
-    };
-    use jig_client::contract::*;
-    use skein_lib::Time;
-    let (mut domain, inbox) = crate::tests::state::domain::objects::live();
-    drive(
-        &mut domain,
-        Time::ZERO,
-        Event::Went { place: Place::Jig(Address::Task { task: 8, section: TaskSection::Activity }) },
-    );
-    drive(&mut domain, Time::ZERO, Ended { watch: inbox, end: WatchEnd::Closed });
-    domain.reclaim();
-    let mut rows = List::with_capacity(2);
-    rows.push(calls(2, 2)).unwrap();
-    rows.push(calls(1, 1)).unwrap();
-    let page = ActivityPage { cut: false, rows, before: None, after: None };
-    let read = domain.request_read(Source::Window { number: 1 }, Read::Activity { task: 8, before: None }).unwrap();
-    let requests = drive(
-        &mut domain,
-        Time::ZERO,
-        ReadPage { read, result: ReadResult::Value(ReadValue::Activity(Box::new(page))) },
-    );
-    let watch = open_token(&requests);
-    let mut count = 0_u32;
-    for request in &requests {
-        if let Request::Client {
-            asked: jig_client::Event::Watch { subject: jig_client::Watchable::Jig(Subject::Chips { tasks }), .. },
-        } = request
-        {
-            assert_eq!(tasks.as_slice(), &[44]);
-            count += 1;
-        }
-    }
-    assert_eq!(count, 1);
-    let id = domain.objects().find(ObjectKey::Task(44)).unwrap();
-    for phase in [Phase::Running, Phase::Held] {
-        let mut chips = List::with_capacity(1);
-        let mut chip = crate::tests::state::domain::objects::chip(44);
-        chip.phase = phase;
-        *chip.details = crate::tests::state::domain::objects::phase_details(phase);
-        chips.push(chip).unwrap();
-        let requests =
-            drive(&mut domain, Time::ZERO, Watched { watch, event: WatchEvent::Delivered(Delivery::Chips(chips)) });
-        for request in &requests {
-            if let Request::Client { asked: jig_client::Event::Watch { .. } } = request {
-                unreachable!("repeated names share their watch");
-            }
-        }
-        assert_eq!(domain.objects().find(ObjectKey::Task(44)), Some(id));
-        if let Some(crate::state::objects::Body::Chip(chip)) = &domain.objects().get(id).unwrap().body {
-            assert_eq!(chip.phase, phase);
-        } else {
-            unreachable!("chips update the shared task facts");
-        }
-    }
-    let watch = changed_chip_membership(&mut domain, watch);
-    drive(&mut domain, Time::ZERO, Ended { watch, end: WatchEnd::Unknown });
-    domain.reclaim();
-    let requests = drive(&mut domain, Time::ZERO, crate::tests::fixtures::Tick);
-    for request in &requests {
-        if let Request::Client { asked: jig_client::Event::Watch { .. } } = request {
-            unreachable!("a final unavailable subject waits for different names");
-        }
-    }
-}
-fn changed_chip_membership(domain: &mut Fixture, old: jig_client::Handle) -> jig_client::Handle {
-    use crate::Request;
-    use crate::tests::state::domain::spine::drive;
-    use jig_client::contract::*;
-    use skein_lib::Time;
-    let mut rows = List::with_capacity(2);
-    for position in [4_u32, 3] {
-        let mut row = calls(u64::from(position), position);
-        if let Activity::Turn { turn: TurnRead::Decoded(turn), .. } = &mut row.event
-            && let Block::Call(call) = turn.messages.get_mut(0).unwrap().blocks.get_mut(0).unwrap()
-        {
-            call.objects.clear();
-            call.objects.push(ObjectKey::Task(55)).unwrap();
-        }
-        rows.push(row).unwrap();
-    }
-    let what = domain.conversation.moved(4).unwrap();
-    let read = domain.request_read(Source::Window { number: 1 }, what).unwrap();
-    let requests = drive(
-        domain,
-        Time::ZERO,
-        ReadPage {
-            read,
-            result: ReadResult::Value(ReadValue::Activity(Box::new(ActivityPage {
-                cut: false,
-                rows,
-                before: None,
-                after: None,
-            }))),
-        },
-    );
-    let mut closed = false;
-    for request in &requests {
-        if let Request::Client { asked: jig_client::Event::Unwatch { handle: watch } } = request {
-            closed = *watch == old;
-        }
-    }
-    assert!(closed);
-    drive(domain, Time::ZERO, Ended { watch: old, end: WatchEnd::Closed });
-    domain.reclaim();
-    drive(domain, Time::ZERO, crate::tests::fixtures::Tick);
-    let watch = domain.conversation().chips_watch.unwrap();
-    assert_ne!(watch, old);
-    assert_eq!(domain.conversation().chips.as_slice(), &[55]);
-    watch
-}
-
-#[test]
 fn owner_said_receipts_join_only_the_pending_task_and_preserve_later_composer_edits() {
     use crate::tests::state::domain::spine::{LIMITS, drive};
     use crate::{
@@ -661,83 +525,6 @@ fn owner_said_receipts_join_only_the_pending_task_and_preserve_later_composer_ed
     }
 }
 
-#[test]
-fn raw_live_calls_keep_optional_wall_literals_cut_and_full_identity_without_made_values() {
-    use jig_client::contract::{CurrentCall, LiveCall};
-    let (mut c, run) = native_run(4);
-    let name = ProvisionalTurnName { attempt: u64::MAX, number: u32::MAX - 1, retry: 0 };
-    let mut value = stream(name.number, 0, 3, b"one", false);
-    value.attempt = name.attempt;
-    value.turn = name;
-    value.began = None;
-    value.call = Some(LiveCall::Raw(CurrentCall {
-        identity: current_identity(UTF8_TEXTS[0]),
-        began: None,
-        tool: text(UTF8_TEXTS[1]),
-        input: text(UTF8_TEXTS[2]),
-        cut: true,
-    }));
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(value.clone())));
-    let projected = c.conversation();
-    let held = projected.live.get(0).unwrap();
-    assert_eq!(held.began, None);
-    assert_eq!(held.call, value.call);
-    assert!(c.conversation().names(4).is_empty());
-    assert!(c.conversation().parts(4).is_empty());
-    let call = current_identity(UTF8_TEXTS[0]);
-    assert!(fold_current(&mut c, call.clone(), Fold::Open));
-    assert!(!fold_current(
-        &mut c,
-        jig_client::contract::CallIdentity { owner: skein_lib::Token::new(1), ..call.clone() },
-        Fold::Open
-    ));
-    assert!(!fold_call(&mut c, CallName { attempt: name.attempt, turn: name.number, call: u64::MAX }, Fold::Open));
-    value.began = Some(Wall::EPOCH);
-    value.call = Some(LiveCall::Raw(CurrentCall {
-        identity: current_identity(UTF8_TEXTS[0]),
-        began: None,
-        tool: text(UTF8_TEXTS[1]),
-        input: text(b"new literal"),
-        cut: false,
-    }));
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(value.clone())));
-    assert_eq!(c.conversation().live.get(0).unwrap().began, Some(Wall::EPOCH));
-    assert_eq!(c.conversation().live.get(0).unwrap().call, value.call);
-    assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"one");
-    value.from = 1;
-    value.through = 5;
-    value.text = text(b"ne++");
-    value.began = None;
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(value.clone())));
-    assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"one++");
-    assert_eq!(c.conversation().live.get(0).unwrap().began, None);
-    assert_eq!(c.conversation().live.get(0).unwrap().call, value.call);
-    let later = ProvisionalTurnName { number: u32::MAX, ..name };
-    value.turn = later;
-    value.from = 0;
-    value.through = 4;
-    value.text = text(b"next");
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(value)));
-    assert_eq!(c.conversation().live.len(), 2);
-    assert_eq!(c.conversation().live.get(1).unwrap().text.bytes(), b"next");
-    assert!(c.ui.conversation.moved(1).is_some());
-    let mut committed = calls(1, name.number);
-    if let Activity::Turn { name: committed_name, .. } = &mut committed.event {
-        *committed_name = name.turn();
-    }
-    let mut rows = List::with_capacity(1);
-    rows.push(committed).unwrap();
-    assert_eq!(c.ui.conversation.accept(ActivityPage { cut: false, rows, before: None, after: None }), None);
-    assert_eq!(c.conversation().live.len(), 1);
-    assert_eq!(c.conversation().live.get(0).unwrap().name, later);
-    assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"next");
-    c.ui.conversation.run_finished = true;
-    c.ui.conversation.end_run();
-    assert!(c.conversation().live.is_empty());
-    let (reloaded, _) = native_run(4);
-    assert!(reloaded.conversation().live.is_empty(), "provisional facts are read again after reload");
-}
-
 fn current_identity(id: &[u8]) -> jig_client::contract::CallIdentity {
     jig_client::contract::CallIdentity {
         owner: skein_lib::Token::new(u64::MAX),
@@ -762,11 +549,11 @@ fn opaque_current_calls_replace_by_full_owner_completion_and_id_without_numeric_
         began: Some(Wall::EPOCH),
     };
     value.call = Some(LiveCall::Raw(raw.clone()));
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(value.clone())));
+    feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
     assert!(fold_current(&mut c, identity.clone(), Fold::Open));
     assert_eq!(c.ui.conversation.current_fold(&identity), Fold::Open);
     value.call = Some(LiveCall::Raw(CurrentCall { input: text(b"replacement"), cut: true, ..raw.clone() }));
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(value.clone())));
+    feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
     assert_eq!(c.conversation().live.len(), 1);
     assert_eq!(c.conversation().live.get(0).unwrap().call, value.call);
     assert_eq!(c.ui.conversation.current_fold(&identity), Fold::Open);
@@ -778,7 +565,7 @@ fn opaque_current_calls_replace_by_full_owner_completion_and_id_without_numeric_
         CallIdentity { id: text(UTF8_TEXTS[5]), ..identity.clone() },
     ] {
         value.call = Some(LiveCall::Raw(CurrentCall { identity: different.clone(), began: None, ..raw.clone() }));
-        feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(value.clone())));
+        feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
         assert_eq!(c.conversation().live.get(0).unwrap().call, value.call);
         assert_eq!(c.ui.conversation.current_fold(&identity), Fold::Folded);
         assert_eq!(c.ui.conversation.current_fold(&different), Fold::Folded);
@@ -906,11 +693,11 @@ fn whole_current_call_replacement_copies_each_supplied_current_clock_without_a_h
 fn mandatory_empty_retry_replaces_same_turn_and_stale_retries_cannot_restore_old_bytes() {
     let (mut c, run) = native_run(2);
     let old = stream(2, 0, 3, b"old", false);
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(old.clone())));
+    feed_run(&mut c, run, crate::tests::fixtures::run(old.clone()));
     let mut retry = stream(2, 0, 0, b"", false);
     retry.turn.retry = u32::MAX;
     retry.began = None;
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(retry.clone())));
+    feed_run(&mut c, run, crate::tests::fixtures::run(retry.clone()));
     assert_eq!(c.conversation().live.len(), 1);
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"");
     assert_eq!(c.conversation().live.get(0).unwrap().name, retry.turn);
@@ -922,12 +709,12 @@ fn mandatory_empty_retry_replaces_same_turn_and_stale_retries_cannot_restore_old
         },
         0
     );
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(old.clone())));
+    feed_run(&mut c, run, crate::tests::fixtures::run(old.clone()));
     assert_eq!(old.text.bytes(), b"old", "captured earlier delivery stays immutable");
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"");
     retry.text = text(b"new");
     retry.through = 3;
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(retry.clone())));
+    feed_run(&mut c, run, crate::tests::fixtures::run(retry.clone()));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"new");
     assert_eq!(
         match c.client.text(run) {
@@ -936,7 +723,7 @@ fn mandatory_empty_retry_replaces_same_turn_and_stale_retries_cannot_restore_old
         },
         3
     );
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(retry.clone())));
+    feed_run(&mut c, run, crate::tests::fixtures::run(retry.clone()));
     assert_eq!(
         c.conversation().live.get(0).unwrap().text.bytes(),
         b"new",
@@ -944,14 +731,14 @@ fn mandatory_empty_retry_replaces_same_turn_and_stale_retries_cannot_restore_old
     );
     let mut invalid = retry.clone();
     invalid.attempt = 2;
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(invalid)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(invalid));
     assert_eq!(c.first_turn(), Some(retry.turn));
     assert!(c.ui.conversation.moved(1).is_some());
     let mut rows = List::with_capacity(1);
     rows.push(calls(1, 2)).unwrap();
     assert_eq!(c.ui.conversation.accept(ActivityPage { cut: false, rows, before: None, after: None }), None);
     assert!(c.conversation().live.is_empty(), "committed attempt/turn replaces all provisional retries of that turn");
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(retry)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(retry));
     assert!(c.conversation().live.is_empty(), "a retry number cannot evade the committed turn fence");
 }
 
@@ -960,12 +747,12 @@ fn explicit_cut_and_reopened_origin_replace_retry_text_while_valid_suffixes_dedu
     let (mut c, run) = native_run(3);
     let mut value = stream(1, 0, 6, b"abcdef", false);
     value.turn.retry = 7;
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(value.clone())));
+    feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
     value.from = 3;
     value.through = 8;
     value.text = text(b"deXYZ");
     value.cut = true;
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(value.clone())));
+    feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
     assert_eq!(
         c.conversation().live.get(0).unwrap().text.bytes(),
         b"deXYZ",
@@ -976,16 +763,16 @@ fn explicit_cut_and_reopened_origin_replace_retry_text_while_valid_suffixes_dedu
     value.through = 10;
     value.text = text(b"XYZ++");
     value.cut = false;
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(value.clone())));
+    feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"deXYZ++");
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(value.clone())));
+    feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"deXYZ++");
     let mut stale = value.clone();
     stale.from = 3;
     stale.through = 8;
     stale.text = text(b"stale");
     stale.cut = true;
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(stale)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stale));
     assert_eq!(
         c.conversation().live.get(0).unwrap().text.bytes(),
         b"deXYZ++",
@@ -1000,7 +787,7 @@ fn explicit_cut_and_reopened_origin_replace_retry_text_while_valid_suffixes_dedu
     value.from = 0;
     value.through = 4;
     value.text = text(b"boot");
-    feed_run(&mut c, run, jig_client::contract::Delivery::Run(Box::new(value.clone())));
+    feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"boot");
     assert!(!c.conversation().live.get(0).unwrap().cut);
     assert_eq!(c.first_turn(), Some(value.turn));
@@ -1018,3 +805,39 @@ const UTF8_TEXTS: [&[u8]; 8] =
 
 pub(crate) mod native;
 use native::{feed_run, fold_call, fold_current, native_run, stream};
+
+fn row(position: u64) -> ActivityLine {
+    ActivityLine {
+        source: Box::new(jig_client::contract::OwnerActivityLine {
+            task: 9,
+            position,
+            at: Wall::EPOCH,
+            line: jig_client::contract::OwnerActivity::RunBegan {
+                attempt: 1,
+                why: jig_client::contract::OwnerRunWhy::Made,
+                resumed: false,
+            },
+        }),
+        decoded: None,
+    }
+}
+
+fn calls(position: u64, number: u32) -> ActivityLine {
+    let mut blocks = List::with_capacity(2);
+    blocks.push(Block::Call(engine_call())).unwrap();
+    let mut messages = List::with_capacity(1);
+    messages.push(Message { speaker: Speaker::Assistant, blocks }).unwrap();
+    crate::tests::fixtures::archive(
+        9,
+        position,
+        Wall::EPOCH,
+        TurnName { attempt: 1, number },
+        TurnRead::Decoded(Turn {
+            messages,
+            used: Usage { input: 1, output: 2, cached: 0, cache_written: 0 },
+            spent: 3,
+            read_through: None,
+            cut: false,
+        }),
+    )
+}

@@ -69,13 +69,7 @@ impl<'a> Borrowed<'a> {
             };
             match document.latest {
                 Some(Latest::Jig(Delivery::OwnerInbox(value))) => inbox.owner(value.clone()),
-                Some(Latest::Jig(Delivery::Inbox(value))) => {
-                    inbox.needs = value.needs;
-                    inbox.updates = value.updates;
-                    inbox.results_seen = inbox.results_seen.max(value.results_seen);
-                    inbox.document = Some(jig_client::contract::InboxDocument::Entry(value.clone()));
-                    inbox.replace(value.entries.clone(), value.more);
-                }
+
                 Some(Latest::Jig(_) | Latest::Family(_)) | None => {}
             }
         }
@@ -100,23 +94,15 @@ impl<'a> Borrowed<'a> {
     }
     #[must_use]
     pub fn deployment_page(&self) -> Deployment<'a> {
-        let mut page = Deployment {
-            document: self.ui.deployment_page.document.as_deref(),
-            owner: self.ui.deployment_page.owner.as_deref(),
-        };
+        let mut page = Deployment { owner: self.ui.deployment_page.owner.as_deref() };
         for (handle, held) in &self.ui.handles.watches {
             if held.subject != jig_client::contract::Subject::Deployment {
                 continue;
             }
             if let Some(document) = self.client.document(*handle) {
                 match document.latest {
-                    Some(Latest::Jig(Delivery::Deployment(value))) => {
-                        page.document = Some(value);
-                        page.owner = None;
-                    }
                     Some(Latest::Jig(Delivery::OwnerDeployment(value))) => {
                         page.owner = Some(value);
-                        page.document = None;
                     }
                     Some(Latest::Jig(_) | Latest::Family(_)) | None => {}
                 }
@@ -223,14 +209,7 @@ fn body(value: &Delivery, key: ObjectKey) -> Option<Body> {
             }
             None
         }
-        (Delivery::Tree(tree), ObjectKey::Task(number)) => {
-            for row in &tree.nodes {
-                if row.chip.task == number {
-                    return Some(Body::Chip(row.chip.clone()));
-                }
-            }
-            None
-        }
+
         (Delivery::OwnerTree(tree), ObjectKey::Task(number)) => {
             if tree.root.task == number {
                 return Some(Body::Chip(tree.root.clone()));
@@ -256,6 +235,5 @@ fn body(value: &Delivery, key: ObjectKey) -> Option<Body> {
 
 #[derive(Debug)]
 pub struct Deployment<'a> {
-    pub document: Option<&'a jig_client::contract::Deployment>,
     pub owner: Option<&'a jig_client::contract::OwnerDeployment>,
 }

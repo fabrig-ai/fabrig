@@ -27,7 +27,7 @@ fn ended(cut: bool) -> OwnerEndedPage {
     let mut chip = objects::chip(u64::MAX);
     chip.title = DocumentText { bytes: objects::text(b""), cut: true };
     chip.phase = Phase::Ended;
-    chip.details = Box::new(ChipPhase::Ended { how: Ending::Done, at: Wall::EPOCH });
+    chip.details = Box::new(crate::tests::fixtures::chip_phase(OwnerChipPhase::Ended));
     OwnerEndedPage {
         rows: rows([OwnerEndedDelegate {
             chip,
@@ -88,7 +88,7 @@ fn ended_read() -> (Fixture, jig_client::Handle) {
     let mut task = crate::tests::state::domain::confirmation::task();
     task.chip.phase = Phase::Done;
     task.delegates = rows([LiveDelegate { chip: objects::chip(9), takeover_budget: 0 }]);
-    task.chip.details = Box::new(ChipPhase::Ended { how: Ending::Done, at: Wall::EPOCH });
+    task.chip.details = Box::new(crate::tests::fixtures::chip_phase(OwnerChipPhase::Ended));
     let out =
         drive(&mut d, Time::ZERO, Watched { watch, event: WatchEvent::Delivered(Delivery::Task(Box::new(task))) });
     let mut token = None;
@@ -169,7 +169,6 @@ fn historical_owner_original_read_callbacks_keep_complete_rows_cuts_and_two_opaq
         ReadPage { read: token, result: ReadResult::Value(ReadValue::OwnerSpend(Box::new(page))) },
     );
     assert_eq!(d.project_page().owner_spend.as_deref(), Some(&original));
-    assert!(d.project_page().spend.is_empty());
     assert_eq!(d.project_page().spend_before, original.before);
     assert_eq!(d.project_page().spend_after, original.after);
 }
@@ -316,28 +315,6 @@ fn historical_owner_fresh_whole_page_clears_obsolete_page_loss_without_changing_
     drive(&mut d, Time::ZERO, Event::Went { place: Place::Elsewhere });
     assert!(d.task_page().owner_ended.is_none());
 }
-#[test]
-fn historical_owner_old_result_backed_ended_pages_stay_on_their_original_object_path() {
-    let (mut d, token) = ended_read();
-    let result = objects::result();
-    drive(
-        &mut d,
-        Time::ZERO,
-        ReadPage {
-            read: token,
-            result: ReadResult::Value(ReadValue::Ended(Box::new(ObjectPage {
-                rows: rows([result.clone()]),
-                before: None,
-                after: None,
-                cut: true,
-            }))),
-        },
-    );
-    assert!(d.task_page().owner_ended.is_none());
-    let id = d.objects().find(ObjectKey::Result(result.task.task)).unwrap();
-    assert_eq!(d.objects().get(id).unwrap().body, Some(crate::state::objects::Body::Result(Box::new(result))));
-    assert!(d.task_page().ended_cut);
-}
 
 #[test]
 fn historical_owner_wrong_query_and_reserved_capacity_refusals_preserve_the_original_live_read() {
@@ -442,34 +419,6 @@ fn historical_owner_fresh_funding_page_resets_loss_and_navigation_clears_only_it
         ReadPage { read: token, result: ReadResult::Value(ReadValue::OwnerSpend(Box::new(page))) },
     );
     assert!(d.project_page().owner_spend.is_none());
-}
-
-#[test]
-fn historical_owner_old_spend_period_budget_pool_and_task_envelope_stays_independent() {
-    let (mut d, token, _) = spend_read();
-    let period = SpendPeriod {
-        period: u64::MAX,
-        budget: Budget { total: 11, own: 13, ended: 17, reserved: 19, left: 23, funder: Actor::Party(7) },
-        pools: List::with_capacity(2),
-        tasks: List::with_capacity(2),
-    };
-    drive(
-        &mut d,
-        Time::ZERO,
-        ReadPage {
-            read: token,
-            result: ReadResult::Value(ReadValue::Spend(Box::new(SpendPage {
-                rows: rows([period.clone()]),
-                before: None,
-                after: Some(cursor(b"old exact edge")),
-                cut: true,
-            }))),
-        },
-    );
-    assert!(d.project_page().owner_spend.is_none());
-    assert_eq!(d.project_page().spend.get(0), Some(&period));
-    assert!(d.project_page().spend_cut);
-    assert_eq!(d.project_page().spend_after, Some(cursor(b"old exact edge")));
 }
 
 const UTF8_TEXTS: [&[u8]; 2] = [b"\0!", b"~\0/"];
