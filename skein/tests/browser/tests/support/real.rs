@@ -305,17 +305,9 @@ impl Rig {
     pub fn run(&mut self) {
         let mut deadline = Deadline::arm("the Chromium browser conversation", Duration::from_secs(60));
         for _ in 0..50_000_u32 {
-            self.kernel.reap(&mut self.complete);
-            let now = self.clock.now();
-            self.browser_env.now = now.now;
-            self.browser_env.wall = now.wall;
-            self.io_env.now = now.now;
-            self.io_env.wall = now.wall;
-            self.pages.update_time(now.now, now.wall);
-            while self.io.is_ready() {
-                io::resume(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submits);
-            }
-            while let Some(complete) = self.complete.pop() {
+            let mut completed = Queue::with_capacity(self.complete.capacity());
+            self.kernel.reap(&mut completed);
+            while let Some(complete) = completed.pop() {
                 if complete.op == ROOT_CLOSE {
                     assert_eq!(complete.result, Ok(Done::Nothing), "close the process root descriptor");
                 } else {
@@ -324,12 +316,23 @@ impl Rig {
                     {
                         deadline.watch_process(pid);
                     }
-                    io::up(&mut self.io, &self.io_env, complete, &mut self.io_events, &mut self.submits);
+                    self.complete.push(complete);
                 }
             }
-            while self.io.is_due(now.now) {
-                io::fire(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submits);
-            }
+            let now = self.clock.now();
+            self.browser_env.now = now.now;
+            self.browser_env.wall = now.wall;
+            self.io_env.now = now.now;
+            self.io_env.wall = now.wall;
+            self.pages.update_time(now.now, now.wall);
+            io::stage::up(
+                &mut self.io,
+                &self.io_env,
+                &mut self.complete,
+                &mut self.io_events,
+                &mut self.submits,
+                now.now,
+            );
             while let Some(event) = self.io_events.pop() {
                 self.io_event(event);
             }
@@ -339,9 +342,16 @@ impl Rig {
                 self.browser_event(event);
             }
             self.drain_browser_down();
-            while self.io.takes() {
-                let Some(request) = self.io_requests.pop_front().or_else(|| self.pages.take()) else { break };
-                io::down(&mut self.io, &self.io_env, request, &mut self.submits);
+            let mut requests = Queue::uncapped();
+            for request in self.io_requests.drain(..) {
+                requests.push(request);
+            }
+            while let Some(request) = self.pages.take() {
+                requests.push(request);
+            }
+            io::stage::down(&mut self.io, &self.io_env, &mut requests, &mut self.submits);
+            while let Some(request) = requests.pop() {
+                self.io_requests.push_back(request);
             }
             self.io.reclaim();
             if self.stage == Stage::Complete
@@ -399,24 +409,27 @@ impl Rig {
             self.io_requests.push_back(io::Request::Abort { entity });
         }
         loop {
-            self.kernel.reap(&mut self.complete);
+            let mut completed = Queue::with_capacity(self.complete.capacity());
+            self.kernel.reap(&mut completed);
+            while let Some(complete) = completed.pop() {
+                if complete.op == ROOT_CLOSE {
+                    assert_eq!(complete.result, Ok(Done::Nothing), "close the process root descriptor");
+                } else {
+                    self.complete.push(complete);
+                }
+            }
             let now = self.clock.now();
             self.io_env.now = now.now;
             self.io_env.wall = now.wall;
             self.pages.update_time(now.now, now.wall);
-            while self.io.is_ready() {
-                io::resume(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submits);
-            }
-            while let Some(complete) = self.complete.pop() {
-                if complete.op == ROOT_CLOSE {
-                    assert_eq!(complete.result, Ok(Done::Nothing), "close the process root descriptor");
-                } else {
-                    io::up(&mut self.io, &self.io_env, complete, &mut self.io_events, &mut self.submits);
-                }
-            }
-            while self.io.is_due(now.now) {
-                io::fire(&mut self.io, &self.io_env, &mut self.io_events, &mut self.submits);
-            }
+            io::stage::up(
+                &mut self.io,
+                &self.io_env,
+                &mut self.complete,
+                &mut self.io_events,
+                &mut self.submits,
+                now.now,
+            );
             while let Some(event) = self.io_events.pop() {
                 if let io::Event::Failed { error, .. } = &event {
                     panic!("browser cleanup: {error:?}");
@@ -440,9 +453,16 @@ impl Rig {
                     self.pages.event(event);
                 }
             }
-            while self.io.takes() {
-                let Some(request) = self.io_requests.pop_front().or_else(|| self.pages.take()) else { break };
-                io::down(&mut self.io, &self.io_env, request, &mut self.submits);
+            let mut requests = Queue::uncapped();
+            for request in self.io_requests.drain(..) {
+                requests.push(request);
+            }
+            while let Some(request) = self.pages.take() {
+                requests.push(request);
+            }
+            io::stage::down(&mut self.io, &self.io_env, &mut requests, &mut self.submits);
+            while let Some(request) = requests.pop() {
+                self.io_requests.push_back(request);
             }
             self.io.reclaim();
             if self.child_closed && self.io.is_empty() && self.kernel.in_flight() == 0 && self.submits.is_empty() {

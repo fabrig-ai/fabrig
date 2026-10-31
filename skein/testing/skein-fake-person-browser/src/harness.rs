@@ -875,20 +875,7 @@ impl Runtime {
     }
     fn tick(&mut self, setup: &Harness, faces: &mut [BrowserFace<'_>], now: Time) -> bool {
         let mut opened = false;
-        while self.io.is_ready() {
-            io::resume(&mut self.io, &self.ienv, &mut self.io_events, &mut self.submits);
-        }
-        while let Some(complete) = self.complete.pop() {
-            if complete.op != ROOT && complete.op != SERVER_ROOT {
-                if let Ok(kernel::Done::Spawned { pidfd, .. }) = &complete.result {
-                    self.spawned_pids.push_back(pidfd_pid(*pidfd));
-                }
-                io::up(&mut self.io, &self.ienv, complete, &mut self.io_events, &mut self.submits);
-            }
-        }
-        while self.io.is_due(now) {
-            io::fire(&mut self.io, &self.ienv, &mut self.io_events, &mut self.submits);
-        }
+        io::stage::up(&mut self.io, &self.ienv, &mut self.complete, &mut self.io_events, &mut self.submits, now);
         while let Some(event) = self.io_events.pop() {
             self.io_event(event, setup);
         }
@@ -1129,9 +1116,13 @@ impl Runtime {
         for command in self.commands.iter_mut().flatten() {
             self.requests.extend(command.requests.drain(..));
         }
-        while self.io.takes() {
-            let Some(request) = self.requests.pop_front() else { break };
-            io::down(&mut self.io, &self.ienv, request, &mut self.submits);
+        let mut requests = Queue::uncapped();
+        for request in self.requests.drain(..) {
+            requests.push(request);
+        }
+        io::stage::down(&mut self.io, &self.ienv, &mut requests, &mut self.submits);
+        while let Some(request) = requests.pop() {
+            self.requests.push_back(request);
         }
         self.io.reclaim();
     }
@@ -1169,6 +1160,11 @@ impl Runtime {
                 && let Some(report) = peers.completion(host, &complete)
             {
                 self.fail(0, 0, report);
+            }
+            if host == 0
+                && let Ok(kernel::Done::Spawned { pidfd, .. }) = &complete.result
+            {
+                self.spawned_pids.push_back(pidfd_pid(*pidfd));
             }
             self.ring.returned(host, complete);
         }
