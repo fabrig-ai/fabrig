@@ -1,6 +1,6 @@
 //! The terminal startup, drive and restoration path (shell.md, section 6.3).
 use skein_io::kernel::{Complete, Fd, Submit};
-use skein_io::{Event, Io, Limits, Request, Window};
+use skein_io::{Event, Io, Limits, Request, Window, stage};
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_shell::{Clock, Config, Host, Input, Keys, Watch, drive, open_signals, raw_input};
@@ -77,15 +77,7 @@ impl Terminal {
 impl Host for Terminal {
     fn iterate(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: self.limits };
-        while self.io.is_ready() {
-            skein_io::resume(&mut self.io, &env, &mut self.events, &mut self.submissions);
-        }
-        while let Some(complete) = self.completions.pop() {
-            skein_io::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
-        }
-        while self.io.is_due(now) {
-            skein_io::fire(&mut self.io, &env, &mut self.events, &mut self.submissions);
-        }
+        stage::up(&mut self.io, &env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         while let Some(event) = self.events.pop() {
             self.event(event);
         }
@@ -100,9 +92,7 @@ impl Host for Terminal {
                 self.requests.push(Request::Close { entity: self.output });
             }
         }
-        while let Some(request) = self.requests.pop() {
-            skein_io::down(&mut self.io, &env, request, &mut self.submissions);
-        }
+        stage::down(&mut self.io, &env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
     }
     fn completions(&mut self) -> &mut Queue<Complete> {
@@ -112,7 +102,7 @@ impl Host for Terminal {
         &mut self.submissions
     }
     fn work_pending(&self, _now: Time) -> bool {
-        self.io.is_ready() || !self.completions.is_empty()
+        self.io.is_ready() || !self.completions.is_empty() || !self.requests.is_empty()
     }
     fn next_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
