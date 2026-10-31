@@ -2,7 +2,7 @@
 //! (jig's `domain/root.md`, 4; `testing/jig-test-domain/src/routes.rs`).
 use super::{
     Assignment, CallAnswer, Decision, Delivery, Domain, Env, HostRequest, Limits, List, PreparedWorkspace, Read,
-    Request, Token, Work, emit, escalation, forge_route, internal, proposals, relay_call,
+    Request, Token, Work, emit, escalation, forge_route, proposals, relay_call,
 };
 use crate::Range;
 use crate::archive::retire_read;

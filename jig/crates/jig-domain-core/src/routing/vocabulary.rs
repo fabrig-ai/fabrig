@@ -289,7 +289,7 @@ pub enum Now {
     Activate { context: Box<tasks::RunContext> },
     /// Reserve the root's transcript read slot for an admitted agent run.
     PrepareAgent { context: Box<tasks::RunContext>, load_transcript: bool },
-    /// Load the current window in key order from its first turn; None loads nothing.
+    /// Load the current transcript window in key order from its first turn.
     StartPreparation { task: u64, transcript_waiter: Option<Token>, from: Option<(u64, u32)> },
     /// Load one proposal decision that has left live task memory.
     SeenConversation { request: Token, task: u64 },
@@ -1138,7 +1138,7 @@ mod admission_tests {
     }
 }
 
-/// Core-owned continuations drained within one decision (engine.md, 4.3).
+/// Core-owned continuations drained within one decision (jig/docs/design/domain/engine.md, 4.3).
 #[derive(Debug)]
 pub(crate) enum Work {
     Event(Event),
@@ -1168,7 +1168,7 @@ pub(crate) enum Work {
     },
 }
 
-/// The store transport's transcript answer (engine.md, 4.1 and 7.2).
+/// The store transport's transcript answer (jig/docs/design/domain/engine.md, 4.1 and 7.2).
 #[derive(Debug)]
 pub enum TranscriptLoad {
     Page { rows: Box<[crate::TranscriptRow]>, done: bool },

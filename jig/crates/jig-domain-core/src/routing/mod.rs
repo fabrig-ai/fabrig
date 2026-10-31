@@ -446,6 +446,9 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
 
 fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Work>) -> Queue<Request> {
     match next {
+        Work::StartBrief { .. } | Work::BriefNotes { .. } | Work::PreparationFailed { .. } if core.stopping => {
+            crate::stopping::empty()
+        }
         Work::Event(event) => step_one(core, env, event, work),
         Work::StartBrief { task } => start_brief(core, env, work, task),
         Work::BriefNotes { task, lines, more } => plan_brief(core, env, work, task, lines, more),
