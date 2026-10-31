@@ -2499,6 +2499,36 @@ fn valid_refuses_each_unrepresentable_limit() {
 mod start;
 
 #[test]
+fn a_deleting_projects_seen_chat_can_end_before_it_is_forgotten() {
+    let mut test = Test::new(LIMITS);
+    test.member();
+    test.send(Event::ChatState {
+        party: 1,
+        project: 1,
+        task: 9,
+        last_reply: 2,
+        live: true,
+        seen: None,
+        replies: Box::new([]),
+    });
+    let request = route(&test.request(10, 1, Ask::MarkSeen { seen: Seen::Conversation { task: 9, through: 1 } }));
+    test.send(Event::ConversationSeen { request, project: 1, last_reply: 2 });
+    test.send(Event::Deleting { project: 1, step: Some(DeletionStep::Tasks) });
+    test.send(Event::CloseProject { project: 1 });
+    test.send(Event::ChatState {
+        party: 1,
+        project: 1,
+        task: 9,
+        last_reply: 2,
+        live: false,
+        seen: None,
+        replies: Box::new([]),
+    });
+    test.send(Event::Forget { task: 9, project: 1, party: Some(1), last_reply: 2 });
+    assert_eq!(test.d.chat_owner(9), None);
+}
+
+#[test]
 fn an_owners_remove_project_ask_routes_before_the_deletion_is_kept() {
     let mut test = Test::new(LIMITS);
     test.signin(1, 10, identity(0, 1));

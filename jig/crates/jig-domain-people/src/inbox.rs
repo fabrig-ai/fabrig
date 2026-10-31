@@ -467,7 +467,8 @@ fn chat_state(domain: &mut Domain, state: State) {
 
 fn project_chat_state(domain: &mut Domain, state: State) {
     let State { party, project, task, last_reply, live, seen } = state;
-    if !domain.people.contains_key(&party) || !domain.has_project(project) {
+    if !domain.people.contains_key(&party) || !(domain.has_project(project) || domain.deletions.contains_key(&project))
+    {
         return;
     }
     let seen = seen.unwrap_or(*domain.conversations_seen.get(&(party, task)).unwrap_or(&0));

@@ -1,4 +1,4 @@
-//! Project deletion on the real store (`temper/docs/design/draft/playground-reset.md`, 5 and 8).
+//! Project deletion on the real store (`jig/docs/design/domain/people.md`, 5.2 and 8).
 
 use jig_core_world::{
     effects::{Cut, World},
@@ -255,7 +255,7 @@ fn restart_world(world: &mut World) {
     }
 }
 
-fn finish(world: &mut World) {
+pub(super) fn finish(world: &mut World) {
     settle_hosts(world);
     assert!(
         !world.stopped,
@@ -362,7 +362,8 @@ fn rows_naming(world: &World, project: u32) -> Vec<String> {
             let names = match row {
                 root::Record::Core(core::Record::People(row)) => people_names(row, project),
                 root::Record::Core(core::Record::Notes(row)) => match row {
-                    notes::Record::Entry(row) => scope_names(&row.scope, project),
+                    // Globally named bodies can be shared; their scope lines own project membership.
+                    notes::Record::Entry(_) => false,
                     notes::Record::Line(row) => scope_names(&row.scope, project),
                 },
                 root::Record::Core(core::Record::Accounts(accounts::Stored::Account { number, uses, .. })) => {
@@ -741,7 +742,7 @@ fn a_deleted_projects_tasks_leave_every_inbox() {
             );
             let core::reads::Answer::Page(answer) = reads::latest(&world) else { panic!("requester inbox") };
             assert!(answer.rows.is_empty(), "{group:?} after restart={restart}");
-            assert!(answer.next.is_none());
+            assert!(answer.next.is_none(), "{group:?} after restart={restart}: {:?}", answer.next);
         }
         assert!(!world.store.rows.keys().any(|key| matches!(
             key,

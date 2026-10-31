@@ -1,6 +1,6 @@
 //! Read-only construction from bounded authenticated owner rows.
 //! Closed at once (jig/docs/design/domain/people.md, 5.2).
-//! Deployment period spend includes removed projects (temper/docs/design/draft/playground-reset.md, 5).
+//! Deployment period spend includes removed projects (jig/docs/design/domain/people.md, 5.2).
 use super::vocabulary::{row_bytes, row_owner, row_visible};
 use super::{Answer, Cursor, Filter, Group, Historical, Page, PageRow, Past, Position, Range, Read, Row, Scope, Why};
 use crate::documents::{self, Document, Missing, Proposer};
@@ -235,7 +235,11 @@ pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, d
                             Some(Cursor::Store { .. }) | None => None,
                         },
                     };
-                    Some(Cursor::Store { scope, after })
+                    if group.updates() && value.cached_updates != documents::Count::Known(0) {
+                        Some(Cursor::Store { scope, after })
+                    } else {
+                        None
+                    }
                 }
             };
             Answer::Page(Box::new(Page {

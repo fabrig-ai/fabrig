@@ -1,4 +1,4 @@
-//! Every durable family names its owners (temper/docs/design/draft/playground-reset.md, 5).
+//! Every durable family names its owners (jig/docs/design/domain/people.md, 5.2).
 use super::{connector, core, people, r, root, tasks};
 use jig_domain_accounts as accounts;
 use jig_domain_notes as notes;
@@ -23,9 +23,8 @@ pub fn naming(key: &root::Key, record: &root::Record) -> Option<r::Naming> {
             core::CoreKey::Call(key) => name.task = Some(key.task),
             core::CoreKey::ProposalDecision { proposer, .. } => name.task = proposer_task(*proposer),
             core::CoreKey::Settings(key) => match key {
-                core::settings::Key::Default(setting) | core::settings::Key::Changed(setting) => {
-                    name.project = setting_project(*setting);
-                }
+                // Policy settings are deployment templates copied when a project is made.
+                core::settings::Key::Default(_) | core::settings::Key::Changed(_) => {}
                 core::settings::Key::Proposal { proposer, .. } => name.task = proposer_task(*proposer),
                 core::settings::Key::Held(_)
                 | core::settings::Key::Charter { .. }
@@ -109,12 +108,6 @@ fn proposer_task(proposer: people::Proposer) -> Option<u64> {
     match proposer {
         people::Proposer::Task(task) => Some(task),
         people::Proposer::Party(_) => None,
-    }
-}
-fn setting_project(setting: people::Setting) -> Option<u32> {
-    match setting {
-        people::Setting::Policy(project) => Some(project),
-        people::Setting::Charter(_) | people::Setting::Template(_) | people::Setting::Rules => None,
     }
 }
 fn note_scope(scope: &notes::Scope, name: &mut r::Naming) {
@@ -310,8 +303,8 @@ mod tests {
             cases.push((root::Key::Core(K::Core(key)), None, expected, None));
         }
         for (key, owner, task) in [
-            (core::settings::Key::Default(people::Setting::Policy(project)), Some(project), None),
-            (core::settings::Key::Changed(people::Setting::Policy(project)), Some(project), None),
+            (core::settings::Key::Default(people::Setting::Policy(project)), None, None),
+            (core::settings::Key::Changed(people::Setting::Policy(project)), None, None),
             (core::settings::Key::Held(1), None, None),
             (core::settings::Key::Charter { charter: 1, revision: 1 }, None, None),
             (core::settings::Key::Proposal { proposer, proposal: 1 }, None, Some(task)),
