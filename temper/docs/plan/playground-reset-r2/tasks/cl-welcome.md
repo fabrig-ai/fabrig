@@ -107,7 +107,9 @@ D = `temper/crates/temper-client-domain/src`, V =
    project when the running read arrives (in `demo_progress`'s
    neighbourhood: a `pending_select: bool` the route holds, or the pages'
    own selection on the next read; pick the one that needs no file
-   outside yours and say which).
+   outside yours and say which). `cl-wire` bridged this start already
+   (its spec's Answers, 2026-10-31 second): keep what it built where it
+   meets this rule, and say so.
 4. **The view (V/pages/welcome.rs):** the playground card and the footer
    offer only when `playground_offered` is `Some(true)`;
    `real_forge_connected` goes for `store`; the Forge step draws

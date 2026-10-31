@@ -257,3 +257,38 @@ change, stop and ask.
   `setting up` case, text and JSON. Name the bridge, file and line, in
   the report, for the client task that carries the forge's number on
   the answer. The rest of the task stands.
+
+2026-10-31 (second).
+
+- **The read answers no record for a playground not started, but the
+  welcome's offer, the route's `playground` and the domain's `start`
+  need one: may cl-wire bridge the start?** Yes: this narrow client
+  bridge is yours, beyond call sites, and it takes cl-welcome's step 3
+  rule early so that task keeps it rather than replacing it. Contract 5
+  stands; the service bridge still answers no record for any state but
+  running.
+  - `temper-client-domain` `forge/demo.rs` `start`: a held answer that
+    is none (the read answered) sends the start as a not-started one
+    does today; a running one without a failure still sends nothing.
+  - `route.rs` `playground`: once the read has answered, send the start
+    and show the chats at once, as today. A running answer held: select
+    its project as today. None held: set a `pending_select: bool` the
+    route's domain holds, and at the next running read (where
+    `demo_facts` runs after the forge's tells) select its project once
+    and clear it; a start failure or a none read clears nothing, a
+    retry selects when it runs.
+  - `temper-client-view` `pages/welcome.rs` (and every view reader that
+    offers the playground on `forge().demo().is_some()`): the offer
+    holds when the read has answered and no real forge is connected,
+    as `cl-welcome`'s `playground_offered` will say.
+  - A deployment with no demo now shows the offer and its start is
+    refused, as draft 6.3 says the welcome offers it on an empty store:
+    `a_document_with_no_demo_has_neither_the_playground_card_nor_the_closing_line`
+    (`temper-client-view` `tests/welcome.rs`) goes; list it with Steps
+    5's deletions. A domain test that selected the project from a
+    held not-started answer is rebuilt as none, then a running read.
+  - Journeys: the start's exchange order may move (the read after the
+    start now carries the project); Steps 7 holds as written: `again`,
+    and a refusal is a question.
+  - Report each of these bridges, file and line, for `cl-play-domain`
+    and `cl-welcome`.

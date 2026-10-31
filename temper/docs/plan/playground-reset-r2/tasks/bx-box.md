@@ -18,6 +18,7 @@ files = [
   "temper/crates/temper-box/src/tests/logs.rs",
   "temper/crates/temper-box/src/tests/boundary.rs",
   "temper/crates/temper-box/tests/real_loop.rs",
+  "temper/crates/temper-box/Cargo.toml",
   "temper/crates/temper/src/box_command.rs",
   "temper/crates/temper/src/box_command/**",
 ]
@@ -255,3 +256,22 @@ branch.
   process-tier story (`temper/crates/temper/tests/process.rs`, not in
   the gate) depends on behavior the bridge does not keep (the legacy
   managed `forge reconcile` step is gone from the box).
+
+## Answers
+
+2026-10-31.
+
+- **May `temper-box` take dev-dependencies to build a
+  `group::Machine` in its fixtures and `real_loop`?** Yes, option 1:
+  add `jig-protocol-config.workspace = true` and
+  `skein-forge-setup.workspace = true` to `temper-box`'s
+  `[dev-dependencies]` (`Cargo.toml` is yours for these two lines; its
+  `[dependencies]` stay as they are). Both edges point the allowed way
+  (temper to jig and skein), both crates already sit beneath
+  `temper-forge-setup`, and no other crate's surface changes;
+  `temper-forge-setup` gains no constructor. Build `directories` with
+  `jig_protocol_config::Directories::given(config, data, cache)` (it is
+  public; `working()` too) on the fixtures' own paths, and `limits` as a
+  `skein_forge_setup::limits::Limits` literal (its fields are public).
+  `tests::boundary`'s dependency check stays as it is: it bounds the
+  box's temper dependencies only. Say the two lines in the report.
