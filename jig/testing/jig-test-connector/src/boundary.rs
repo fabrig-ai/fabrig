@@ -526,7 +526,9 @@ pub enum SystemEvent {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Event {
     /// Release project adoptions (temper/docs/design/draft/playground-reset.md, 5).
-    ReleaseProject { project: u32 },
+    ReleaseProject {
+        project: u32,
+    },
     /// Retain this root-minted name in the application's own vocabulary.
     DocumentPrepare {
         token: Token,

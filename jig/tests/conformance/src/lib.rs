@@ -61,6 +61,7 @@ impl Config {
     #[must_use]
     pub fn deleting(mut self) -> Self {
         self.deletion = true;
+        self.limits = self.root().1;
         self
     }
 

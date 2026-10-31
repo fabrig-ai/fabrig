@@ -878,7 +878,10 @@ fn a_drift_waiting_through_a_return_to_its_old_state_is_obsolete() {
 fn releasing_a_project_erases_only_its_adoptions_before_answering() {
     let mut domain = domain();
     for (project, path) in [(1, service()), (1, pool()), (2, service())] {
-        run(&mut domain, Event::Restore { record: Record::Adoption { project, path, role: ResourceRole::Participating } });
+        run(
+            &mut domain,
+            Event::Restore { record: Record::Adoption { project, path, role: ResourceRole::Participating } },
+        );
     }
     let out = run(&mut domain, Event::ReleaseProject { project: 1 });
     for path in [service(), pool()] {
@@ -887,5 +890,8 @@ fn releasing_a_project_erases_only_its_adoptions_before_answering() {
     assert_eq!(out.last(), Some(&Request::ProjectReleased { project: 1 }));
     assert_eq!(domain.adoptions.len(), 1);
     assert!(domain.adoptions.get(&(2, service())).is_some());
-    assert_eq!(run(&mut domain, Event::ReleaseProject { project: 1 }).as_ref(), &[Request::ProjectReleased { project: 1 }]);
+    assert_eq!(
+        run(&mut domain, Event::ReleaseProject { project: 1 }).as_ref(),
+        &[Request::ProjectReleased { project: 1 }]
+    );
 }
