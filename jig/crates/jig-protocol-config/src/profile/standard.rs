@@ -1,20 +1,5 @@
-//! A team: eight workers, four slots each, sixteen LLM accounts (configuration.md, 6).
-//! Every field omitted below has the small profile's documented value. Token: 16384 bytes.
-//! Byte limits are bytes; durations below state their units. Counts are items.
-//! **tasks**: `placed_holds=16, project_placed_holds=8, party_placed_holds=4, exemptions=32, tasks=32, funders=32, project_tasks=32, project_goals=16, tree_tasks=128, delegates=8, resource_reports=256, pools=32, hold_waiters=32, charters=8, facts=128, room_refusals=32, batch=4, circle=32, dependencies=16, inputs=16, references=16, holdings=8, parameters=8, saved_resources=8, authority_grants=8, authority_bytes=4096, executor_kinds=8`.
-//! **people**: `operations=16, people=16, inbox_tasks=64, sign_ins=32, projects=9, holdings=32, goals=64, initial_owners=4, requests=128, room_refusals=32, pending=32, facts=128`.
-//! **fleet**: `needs_bytes=262144, grants=32, workers=8, slots=4, workstreams=64, attempts=64, calls=256, turns=128, facts=256, history=64`.
-//! **authority**: `projects=8, accounts=16, roles=8, requirements=8, grants=8, executors=8, batch=4, writes=8`.
-//! **brief**: `briefs=32`.
-//! **accounts**: `credentials=15, accounts=16, sign_ins=4, facts=128`.
-//! **views**: `runs=32, watchers=16, facts=256`.
-//! **notes**: `scopes=16, entries_per_scope=64, body_bytes=8192, lines=8, recalled=8`.
-//! **documents**: `rows=8, text_bytes=8192, chips=8, lines=8`.
-//! **core**: `templates=16, fill_mark=1073741824, connectors=4, load_slots=16, call_records=128, tasks=TASKS, authority=AUTHORITY, people=PEOPLE, fleet=FLEET, brief=BRIEF, accounts=ACCOUNTS, notes=NOTES, views=VIEWS, resume_bytes=262144, run_bytes=65536, documents=DOCUMENTS`.
-//! **hub**: `slots=4, accounts=32, facts=256, told=256`.
-//! **link**: `opening=16, facts=256`.
-//! **driver**: `exchanges=8, listeners=2 × ACCOUNTS.sign_ins`.
-//! **clients**: `provider_codes=256, provider_tokens=1024`.
+//! Limits for a team's shared deployment (configuration.md, 6).
+//! The profile gives workers, concurrent work and retained state room to serve several people.
 use super::small;
 use super::{Limits, Link};
 use jig_domain_accounts as accounts;
