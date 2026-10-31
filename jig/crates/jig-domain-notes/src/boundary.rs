@@ -159,7 +159,7 @@ pub enum Refusal {
 /// Events from the parent and the store.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
-    /// Drop project notes (temper/docs/design/draft/playground-reset.md, 5).
+    /// Drop project notes (jig/docs/design/protocol/store.md, 11.1).
     DropProject { owner: Token, project: u32 },
     /// Lines in the requested scopes, capped to `most`, with a remainder count.
     Index { owner: Token, scopes: List<Scope>, most: u32 },
@@ -182,7 +182,7 @@ pub enum Event {
 /// Requests to the parent, including writes in the current decision.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
-    /// Project notes are dropped (temper/docs/design/draft/playground-reset.md, 5).
+    /// Project notes are dropped (jig/docs/design/protocol/store.md, 11.1).
     ProjectDropped { owner: Token },
     /// The requested index and the number of lines beyond it.
     Indexed { owner: Token, lines: List<Line>, more: u32 },

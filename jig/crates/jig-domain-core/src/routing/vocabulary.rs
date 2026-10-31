@@ -43,7 +43,7 @@ pub enum Request {
 #[derive(Debug)]
 pub enum Ask {
     /// Release every adoption this connector holds for a project being deleted
-    /// (temper/docs/design/draft/playground-reset.md, 5). Answered by
+    /// (jig/docs/design/protocol/store.md, 11.1). Answered by
     /// `Event::ProjectReleased` once the release commits; at once when none are held.
     /// Sent again at each start until answered, so a connector releases idempotently.
     ReleaseProject { project: u32 },
@@ -134,7 +134,7 @@ pub enum Ask {
 #[derive(Debug)]
 pub enum Write {
     /// Drop a task transcript whole with its places (jig/docs/design/protocol/store.md, 8.5, 11.1;
-    /// temper/docs/design/draft/playground-reset.md, 5).
+    /// jig/docs/design/protocol/store.md, 11.1).
     DropTranscript { task: u64 },
     /// Copy the old held revision to history without materialising it in the core.
     CopySettingsRevision(u32),
@@ -414,7 +414,7 @@ pub struct CoreBriefBudgets {
 #[derive(Debug)]
 pub enum Event {
     /// A connector's release of a deleted project's adoptions has committed
-    /// (temper/docs/design/draft/playground-reset.md, 5).
+    /// (jig/docs/design/protocol/store.md, 11.1).
     ProjectReleased { connector: u16, project: u32 },
     /// Owner settings value held only while people admits its keyed digest.
     ChangeSettings {
