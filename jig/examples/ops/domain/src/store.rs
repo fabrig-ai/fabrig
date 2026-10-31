@@ -9,6 +9,8 @@ use jig_ops_domain_observability as observability;
 pub enum Range {
     /// The core's live rows, in its restoration order.
     Core,
+    /// People rows revisited by the expiry sweep.
+    People,
     /// Task owner rows used to rebuild the core's derived inbox after positions restore.
     Census(core::Census),
     /// Observability's live rows.

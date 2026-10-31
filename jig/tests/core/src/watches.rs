@@ -132,6 +132,9 @@ impl Parties {
 
     pub fn inbound(&mut self, event: &root::Event) {
         match event {
+            root::Event::StartBegin { .. } | root::Event::StartDone(_) => {
+                unreachable!("the start driver is not selected here")
+            }
             root::Event::WatchApplication { watcher, number, subject, .. } => {
                 assert!(
                     self.consumers
@@ -313,6 +316,7 @@ impl Parties {
 
     pub fn released(&mut self, delivery: &root::Delivery, durable: u64) {
         match delivery {
+            root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
             root::Delivery::ApplicationDocument { watcher, number, document } => {
                 let consumer = self.consumers.get_mut(&watcher.raw()).expect("admitted application watch");
                 consumer.fence.delivered(durable).expect("application watch's durable prerequisite");

@@ -25,6 +25,7 @@ impl Core {
                 Phase::LoadInbox
             }
             Phase::LoadInbox => {
+                self.start_inbox_done();
                 assert!(self.census_position.is_none(), "census pair complete before Link");
                 match self.connectors.first() {
                     Some(&connector) => Phase::RestoreConnector { connector },
@@ -36,6 +37,7 @@ impl Core {
                 None => Phase::Link,
             },
             Phase::Link => {
+                self.start_projections_link();
                 let before = out.len();
                 self.start_link(env, out);
                 if let Some(failure) = self.start_failure() {

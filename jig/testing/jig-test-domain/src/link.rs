@@ -479,6 +479,10 @@ pub(super) enum Work {
     },
     Switched,
     Restart(core::RestartRequest),
+    Start(crate::StartInput),
+    ConnectorRestartDone {
+        number: u16,
+    },
     CallAnswered {
         to: ReplyTo,
         call: core::SettledCall,

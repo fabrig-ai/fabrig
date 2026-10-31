@@ -101,6 +101,7 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
 
 pub(crate) fn application(value: root::Delivery) -> Option<kit::Event> {
     let value = match value {
+        root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
         root::Delivery::ApplicationDocument { watcher, number, document } => {
             kit::FromApplication::Delivery { watcher, family: number, record: codec::document(&document) }
         }
