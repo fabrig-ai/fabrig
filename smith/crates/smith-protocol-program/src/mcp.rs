@@ -55,6 +55,22 @@ pub struct Limits {
     pub unauthenticated: Time,
 }
 
+/// Small listener limits for deterministic scenarios (testing-strategy.md, 1).
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture {
+    use super::Limits;
+    use skein_lib::Time;
+
+    /// Two calls with bounded JSON and a short authentication deadline.
+    pub const SMALL: Limits = Limits {
+        message_bytes: 4096,
+        answer_bytes: 4096,
+        schema_bytes: 4096,
+        calls: 2,
+        unauthenticated: Time::from_nanos(10),
+    };
+}
+
 /// One unanswered call, sent by the server to its owner (smith/docs/design/protocol/programs.md, 5.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CallId(u32);
@@ -168,11 +184,10 @@ impl core::fmt::Debug for Server {
 /// Hexadecimal text used only for authentication and the private MCP file (9).
 #[must_use]
 pub fn secret_text(entropy: &[u8; 32]) -> [u8; SECRET_BYTES] {
-    let digits = b"0123456789abcdef";
     let mut text = [0; SECRET_BYTES];
     for (pair, byte) in text.chunks_exact_mut(2).zip(entropy) {
-        *pair.first_mut().expect("hex pair") = *digits.get(usize::from(byte >> 4_u8)).expect("hex digit");
-        *pair.last_mut().expect("hex pair") = *digits.get(usize::from(byte & 15)).expect("hex digit");
+        *pair.first_mut().expect("hex pair") = skein_lib::bytes::hex_digit(byte >> 4_u8);
+        *pair.last_mut().expect("hex pair") = skein_lib::bytes::hex_digit(*byte);
     }
     text
 }
@@ -332,7 +347,15 @@ impl Server {
                     below.push(io::Request::Bind { socket, owner: pending.owner });
                     below.push(io::Request::Stream {
                         stream: socket,
-                        down: stream::Down::Demand { read: stream::Read::Line { max: 65 }, room: 0 },
+                        down: stream::Down::Demand {
+                            read: stream::Read::Line {
+                                max: u32::try_from(SECRET_BYTES)
+                                    .expect("secret length")
+                                    .checked_add(1)
+                                    .expect("secret newline"),
+                            },
+                            room: 0,
+                        },
                     });
                     return;
                 }
@@ -355,7 +378,7 @@ impl Server {
     fn authenticate(&mut self, owner: Token, up: stream::Up, below: &mut Queue<io::Request>) {
         let valid = match up {
             stream::Up::Bytes(bytes) => {
-                bytes.len() == 65
+                bytes.len() == SECRET_BYTES.checked_add(1).expect("secret newline")
                     && bytes.last() == Some(&b'\n')
                     && sha256::equal(bytes.get(..SECRET_BYTES).expect("64 authentication bytes"), self.secret.expose())
             }

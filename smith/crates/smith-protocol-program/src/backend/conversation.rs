@@ -2,7 +2,7 @@
 //! Keeps correlation separately from delivered domain blocks; the domain alone
 //! accepts outcomes; cancellation fails unanswered calls before settling the child.
 
-use super::{Backend, Below, Phase, calls, stream, turns};
+use super::{Backend, Below, State, calls, stream, turns};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_json::Kind;
@@ -24,17 +24,11 @@ impl Backend {
         };
         self.begin_prompt(&request);
         self.owner = Some(owner);
-        if self.exit.is_some() || self.child.is_none() || self.pipes[0].is_none() {
-            self.fail(
-                env,
-                llm::Failure::Program { exit: self.exit },
-                b"smith: the program is no longer accepting input",
-                up,
-                below,
-            );
+        if self.exit.is_some() || self.child.is_none() || self.pipes.input.is_none() {
+            self.fail_program(env, b"smith: the program is no longer accepting input", up, below);
             return;
         }
-        self.permitted = self
+        self.permitted_message = self
             .turns
             .closed
             .checked_sub(u64::from(self.turns.ready.len()))
@@ -90,13 +84,7 @@ impl Backend {
     ) {
         let Some(document) = stream::collect(bytes, self.settings.adapter.client.depth, self.settings.stream_tokens)
         else {
-            self.fail(
-                env,
-                llm::Failure::Program { exit: self.exit },
-                b"smith: the program stream does not decode",
-                up,
-                below,
-            );
+            self.fail_program(env, b"smith: the program stream does not decode", up, below);
             return;
         };
         let kind = json::text_in(&document, json::field(&document, 0, b"type"));
@@ -140,13 +128,7 @@ impl Backend {
                     return;
                 }
                 if self.turns.result {
-                    self.fail(
-                        env,
-                        llm::Failure::Program { exit: self.exit },
-                        b"smith: a program turn repeated its result",
-                        up,
-                        below,
-                    );
+                    self.fail_program(env, b"smith: a program turn repeated its result", up, below);
                     return;
                 }
                 self.turns.result = true;
@@ -189,9 +171,7 @@ impl Backend {
                     self.turns.retry();
                     let old = core::mem::replace(
                         &mut self.ledger,
-                        List::with_capacity(
-                            self.settings.receiving.max_completion_blocks.checked_mul(5).expect("call slots"),
-                        ),
+                        List::with_capacity(self.settings.ledger_slots().expect("call slots")),
                     );
                     for call in old.into_boxed() {
                         if call.message <= self.turns.closed {
@@ -233,14 +213,8 @@ impl Backend {
         below: &mut Queue<Below>,
     ) {
         if self.owner.is_some() && self.turns.result && self.turns.ready.is_empty() && self.turns.message.is_none() {
-            if self.exit.is_some() || self.child.is_none() || self.pipes[0].is_none() {
-                self.fail(
-                    env,
-                    llm::Failure::Program { exit: self.exit },
-                    b"smith: the program is no longer accepting input",
-                    up,
-                    below,
-                );
+            if self.exit.is_some() || self.child.is_none() || self.pipes.input.is_none() {
+                self.fail_program(env, b"smith: the program is no longer accepting input", up, below);
                 return;
             }
             // Complete already asks for the next API message. The preceding
@@ -388,7 +362,7 @@ impl Backend {
         // Dropping a call also forgets its allowed native write snapshot.
         let old = core::mem::replace(
             &mut self.ledger,
-            List::with_capacity(self.settings.receiving.max_completion_blocks.checked_mul(5).expect("call slots")),
+            List::with_capacity(self.settings.ledger_slots().expect("call slots")),
         );
         let delivered = self.turns.closed.checked_sub(u64::from(self.turns.ready.len())).expect("delivered message");
         for call in old.into_boxed() {
@@ -408,7 +382,7 @@ impl Backend {
         for call in held.into_boxed() {
             match call {
                 mcp::Up::Call { call, tool, input } => {
-                    if self.phase == Phase::Ending || self.stop != super::stop::Stop::None {
+                    if self.state == State::Ending || self.stop != super::stop::Stop::None {
                         self.server.as_mut().expect("stopped MCP call").answer(
                             call,
                             mcp::Answer::Error(super::stop::INTERRUPTED.into()),
@@ -445,7 +419,7 @@ impl Backend {
 
     pub(super) fn completion_deadline(&mut self, env: &Env<protocol::ComponentLimits>, head: bool) {
         if self.owner.is_none()
-            || self.phase != Phase::Running
+            || self.state != State::Running
             || self.switching
             || self.stop != super::stop::Stop::None
         {
@@ -463,7 +437,7 @@ impl Backend {
     }
 
     pub(super) fn answer_calls(&mut self) {
-        if self.phase == Phase::Ending || self.stop != super::stop::Stop::None {
+        if self.state == State::Ending || self.stop != super::stop::Stop::None {
             return;
         }
         for index in 0..self.ledger.len() {

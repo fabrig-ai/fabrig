@@ -5,9 +5,7 @@
 use super::{Call, CallId, PROMPT_TOOL, PROTOCOL_VERSIONS, Refused, Tool, Up};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind, collector, tokenizer, writer::Encoder};
-use skein_lib::{Env, Intake, List, Queue, Time, Wall, Writer, stream};
-
-const FILTER: collector::Filter = collector::Filter { root: collector::Keep::Value };
+use skein_lib::{List, Writer};
 
 fn limits(bound: u32) -> collector::Limits {
     collector::Limits {
@@ -27,71 +25,33 @@ pub(crate) fn collect(bytes: &[u8]) -> Option<Document> {
 }
 
 pub(crate) fn collect_limited(bytes: &[u8], limits: collector::Limits) -> Option<Document> {
-    let bound = u32::try_from(bytes.len()).ok()?;
-    let mut collector = collector::Collector::new(FILTER, &limits, &[]).ok()?;
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
-    let mut intake = Intake::with_capacity(bound);
-    intake.append(bytes).ok()?;
-    collector::down(&mut collector, &env, collector::Request::Collect, &mut above, &mut below);
-    for _ in 0..u64::from(bound).checked_mul(4)?.checked_add(16)? {
-        match above.pop() {
-            Some(collector::Event::Collected(document)) => return Some(document),
-            Some(collector::Event::Failed(_) | collector::Event::Closed) => return None,
-            None => {}
-        }
-        match below.pop() {
-            Some(stream::Down::Demand { read, room: 0 }) => {
-                let event = match intake.meet(read) {
-                    Some(bytes) => stream::Up::Bytes(bytes),
-                    None => stream::Up::End,
-                };
-                collector::up(&mut collector, &env, event, &mut above, &mut below);
-            }
-            Some(stream::Down::Demand { .. } | stream::Down::Send(_) | stream::Down::Finish) | None => return None,
-        }
+    if limits.tokenizer.chunk == 0 || limits.tokenizer.length == u32::MAX {
+        return None;
     }
-    None
+    skein_json::parse(
+        bytes,
+        &limits.tokenizer,
+        &skein_json::document::Limits { tokens: limits.tokens, text: limits.text },
+    )
+    .ok()
 }
 
 pub(crate) fn after(document: &Document, start: u32) -> Option<u32> {
-    let mut depth = 0_u32;
-    for index in start..document.len() {
-        match document.token(index)?.kind {
-            Kind::ObjectStart | Kind::ArrayStart => depth = depth.checked_add(1)?,
-            Kind::ObjectEnd | Kind::ArrayEnd => depth = depth.checked_sub(1)?,
-            Kind::Key | Kind::String | Kind::Number | Kind::True | Kind::False | Kind::Null | Kind::Long => {}
-        }
-        if depth == 0 {
-            return index.checked_add(1);
-        }
-    }
-    None
+    document.value_end(start)
 }
 
 pub(crate) fn field(document: &Document, object: u32, name: &[u8]) -> Option<u32> {
-    if document.token(object)?.kind != Kind::ObjectStart {
-        return None;
-    }
-    let mut found = None;
-    let mut next = object.checked_add(1)?;
+    let first = document.member(object, name)?;
+    let mut next = document.value_end(first)?;
     for _ in 0..document.len() {
         let key = document.token(next)?;
         if key.kind == Kind::ObjectEnd {
-            return found;
+            return Some(first);
         }
-        if key.kind != Kind::Key {
+        if key.kind != Kind::Key || document.text(key)? == name {
             return None;
         }
-        let value = next.checked_add(1)?;
-        if document.text(key)? == name {
-            if found.is_some() {
-                return None;
-            }
-            found = Some(value);
-        }
-        next = after(document, value)?;
+        next = document.value_end(next.checked_add(1)?)?;
     }
     None
 }

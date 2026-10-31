@@ -4,23 +4,12 @@
     reason = "ordinary Rust step harness, programming-model.md 10.2"
 )]
 #![expect(clippy::match_like_matches_macro, reason = "the no_std test harness uses explicit record filters")]
-use super::lifecycle_tests::{backend, env, request};
+use super::fixtures::window as active;
+use super::fixtures::{connect_server, env, request, server_reply};
 use super::*;
+use crate::backend::fixtures::COMPLETION;
 use serde_json::json;
 
-fn active() -> Backend {
-    let mut backend = backend();
-    backend.phase = Phase::Running;
-    backend.child = Some(Token::new(30));
-    backend.pipes = [Some(Token::new(31)), Some(Token::new(32)), Some(Token::new(33))];
-    backend.owner = Some(Token::new(80));
-    let request = request(&backend);
-    let FromDomain::Complete { prompt, .. } = &request else { panic!("complete") };
-    let session::Opening::New { id } = session::opening(prompt, None, None) else { panic!("new window") };
-    backend.running = Some(id);
-    backend.request = Some(request);
-    backend
-}
 fn feed(backend: &mut Backend, value: serde_json::Value, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
     backend.line(&env(0), &serde_json::to_vec(&value).expect("fixture JSON"), up, below);
 }
@@ -32,12 +21,10 @@ fn tool(id: &str, input: serde_json::Value) -> serde_json::Value {
 }
 #[test]
 fn a_nudge_after_stdin_closes_fails_with_the_exit() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.from_io(
         &env(0),
-        BelowEvent::Io(io::Event::Exited { owner: backend.token(4), exit: kernel::Exit::Code(7) }),
+        BelowEvent::Io(io::Event::Exited { owner: backend.token(Owner::Program), exit: kernel::Exit::Code(7) }),
         &mut up,
         &mut below,
     );
@@ -72,16 +59,14 @@ fn assistant_text_redacts_private_values_before_completion() {
     assert_eq!(usize::try_from(bytes).expect("count"), input.len());
     let Some(ToDomain::Completed { completion, .. }) = up.pop() else { panic!("completion") };
     let llm::Said::Text { text, .. } = &completion.content[0] else { panic!("text") };
-    assert!(!text.windows(secret.len()).any(|window| window == secret));
-    assert!(!text.windows(path.len()).any(|window| window == path.as_ref()));
-    assert!(!text.windows(backend.names.run.len()).any(|window| window == backend.names.run));
+    assert!(skein_lib::bytes::find(text, &secret).is_none());
+    assert!(skein_lib::bytes::find(text, &path).is_none());
+    assert!(skein_lib::bytes::find(text, &backend.names.run).is_none());
     assert!(text.ends_with(b" end"));
 }
 #[test]
 fn an_open_call_matches_before_the_closed_name_fallback() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     feed(&mut backend, tool("a", json!({"value":"A"})), &mut up, &mut below);
     feed(
         &mut backend,
@@ -115,27 +100,23 @@ fn cancelling_an_unjudged_finish_never_accepts_it() {
         .expect("ledger room");
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
-    backend.from_domain(&env(0), FromDomain::Cancel { owner: Token::new(80) }, &mut up, &mut below);
+    backend.from_domain(&env(0), FromDomain::Cancel { owner: COMPLETION }, &mut up, &mut below);
     assert!(backend.ledger.get(0).expect("finish").answer.is_none(), "the program cancels its held call");
 }
 #[test]
 fn a_delivered_assistant_is_not_charged_again_at_result() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     feed(&mut backend, tool("a", json!({})), &mut up, &mut below);
     let Some(ToDomain::Completed { .. }) = up.pop() else { panic!("completion event") };
     backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
     feed(&mut backend, json!({"type":"result","is_error":false}), &mut up, &mut below);
     assert!(up.is_empty(), "result has no second API message");
-    assert_eq!(backend.owner, Some(Token::new(80)));
+    assert_eq!(backend.owner, Some(COMPLETION));
     assert!(backend.outgoing.is_some(), "pending Complete resumes the ended program turn");
 }
 #[test]
 fn a_silent_completion_obeys_its_head_deadline() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
     backend.fire(&env(1), &mut up, &mut below);
     let Some(ToDomain::Failed { failure, .. }) = up.pop() else { panic!("head deadline") };
@@ -143,9 +124,7 @@ fn a_silent_completion_obeys_its_head_deadline() {
 }
 #[test]
 fn an_incomplete_message_obeys_its_idle_deadline() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
     feed(
         &mut backend,
@@ -159,9 +138,7 @@ fn an_incomplete_message_obeys_its_idle_deadline() {
 }
 #[test]
 fn a_text_message_without_result_obeys_its_idle_deadline() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
     feed(&mut backend, text(), &mut up, &mut below);
     backend.fire(&env(1), &mut up, &mut below);
@@ -169,77 +146,6 @@ fn a_text_message_without_result_obeys_its_idle_deadline() {
     assert_eq!(failure, llm::Failure::TimedOut { phase: llm::CompletionPhase::Idle });
 }
 
-pub(super) fn connect_server(backend: &mut Backend) {
-    let first = Token::new(100);
-    let owner = Token::new(101);
-    let mut io = Queue::with_capacity(64);
-    let mut server = mcp::Server::new(
-        first,
-        0,
-        &[7; 32],
-        Box::new([mcp::Tool {
-            name: b"foo".as_slice().into(),
-            description: b"Tool".as_slice().into(),
-            input_schema: br#"{"type":"object"}"#.as_slice().into(),
-        }]),
-        backend.settings.mcp,
-        &mut io,
-    )
-    .expect("server");
-    server.from_io(
-        env(0).now,
-        io::Event::Listening {
-            owner: first,
-            listener: Token::new(200),
-            addr: io::Addr::Ip(core::net::SocketAddr::from(([127, 0, 0, 1], 47100))),
-        },
-        &mut io,
-    );
-    let Some(mcp::Up::Listening { .. }) = server.up() else { panic!("listening") };
-    server.from_io(
-        env(0).now,
-        io::Event::Accepted {
-            owner: first,
-            socket: Token::new(201),
-            peer: io::Addr::Ip(core::net::SocketAddr::from(([127, 0, 0, 1], 50000))),
-        },
-        &mut io,
-    );
-    let secret = mcp::secret_text(&[7; 32]);
-    server.from_io(
-        env(0).now,
-        io::Event::Stream { owner, up: skein_lib::stream::Up::Bytes(mcp::json::join(&[&secret, b"\n"])) },
-        &mut io,
-    );
-    let right = io
-        .iter()
-        .find_map(|request| match request {
-            io::Request::Output { down: skein_lib::stream::OutputDown::Room { right, .. }, .. } => Some(*right),
-            io::Request::Listen { .. }
-            | io::Request::Connect { .. }
-            | io::Request::Bind { .. }
-            | io::Request::Reject { .. }
-            | io::Request::Stream { .. }
-            | io::Request::Output { .. }
-            | io::Request::Spawn { .. }
-            | io::Request::Signal { .. }
-            | io::Request::Usage { .. }
-            | io::Request::Window { .. }
-            | io::Request::Close { .. }
-            | io::Request::Abort { .. } => None,
-        })
-        .expect("ack room");
-    server.from_io(
-        env(0).now,
-        io::Event::Output {
-            owner,
-            up: skein_lib::stream::OutputUp::Settled { right, outcome: skein_lib::stream::OutputOutcome::Granted },
-        },
-        &mut io,
-    );
-    assert_eq!(server.up(), Some(mcp::Up::Connected));
-    backend.server = Some(server);
-}
 #[test]
 fn an_unmatched_call_after_text_closes_is_rejected_immediately() {
     let mut backend = active();
@@ -273,9 +179,7 @@ fn an_unmatched_call_after_text_closes_is_rejected_immediately() {
 
 #[test]
 fn closed_text_expires_the_preceding_messages_calls() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     feed(&mut backend, tool("a", json!({})), &mut up, &mut below);
     feed(&mut backend, text(), &mut up, &mut below);
     assert_eq!(calls::find(&backend.ledger, b"foo", b"{}", 32, 256), None);
@@ -311,15 +215,13 @@ fn an_accepted_finish_receives_its_acceptance_reply() {
 
 #[test]
 fn a_result_before_resume_does_not_charge_another_completion() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     feed(&mut backend, tool("a", json!({})), &mut up, &mut below);
     let Some(ToDomain::Completed { .. }) = up.pop() else { panic!("completion event") };
     feed(&mut backend, json!({"type":"result","is_error":false}), &mut up, &mut below);
     backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
     assert!(up.is_empty());
-    assert_eq!(backend.owner, Some(Token::new(80)));
+    assert_eq!(backend.owner, Some(COMPLETION));
     assert!(backend.outgoing.is_some());
 }
 
@@ -383,7 +285,7 @@ fn failure_never_accepts_an_unjudged_finish() {
 #[test]
 fn an_input_grant_after_stdin_closes_fails_without_writing() {
     let mut backend = active();
-    backend.pipes[0] = None;
+    backend.pipes.input = None;
     backend.exit = Some(7);
     backend.outgoing = Some(b"pending".as_slice().into());
     let mut up = Queue::with_capacity(32);
@@ -411,54 +313,9 @@ fn an_input_grant_after_stdin_closes_fails_without_writing() {
     }));
 }
 
-pub(super) fn server_reply(backend: &mut Backend) -> serde_json::Value {
-    for _ in 0_u8..16 {
-        for _ in 0..backend.io.capacity() {
-            let Some(request) = backend.io.pop() else { break };
-            match request {
-                io::Request::Output { stream, down: skein_lib::stream::OutputDown::Room { right, .. } }
-                    if stream == Token::new(201) =>
-                {
-                    backend.server.as_mut().expect("server").from_io(
-                        env(0).now,
-                        io::Event::Output {
-                            owner: Token::new(101),
-                            up: skein_lib::stream::OutputUp::Settled {
-                                right,
-                                outcome: skein_lib::stream::OutputOutcome::Granted,
-                            },
-                        },
-                        &mut backend.io,
-                    );
-                }
-                io::Request::Output { stream, down: skein_lib::stream::OutputDown::Send { bytes, .. } }
-                    if stream == Token::new(201) =>
-                {
-                    return serde_json::from_slice(&bytes).expect("MCP reply");
-                }
-                io::Request::Listen { .. }
-                | io::Request::Connect { .. }
-                | io::Request::Bind { .. }
-                | io::Request::Reject { .. }
-                | io::Request::Stream { .. }
-                | io::Request::Output { .. }
-                | io::Request::Spawn { .. }
-                | io::Request::Signal { .. }
-                | io::Request::Usage { .. }
-                | io::Request::Window { .. }
-                | io::Request::Close { .. }
-                | io::Request::Abort { .. } => {}
-            }
-        }
-    }
-    panic!("MCP response pending");
-}
-
 #[test]
 fn accepting_one_finish_does_not_accept_an_unjudged_finish() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     feed(
         &mut backend,
         json!({"type":"assistant","message":{"id":"two-finishes","content":[
@@ -484,7 +341,7 @@ fn accepting_one_finish_does_not_accept_an_unjudged_finish() {
 #[test]
 fn bytes_after_init_in_the_same_read_start_the_idle_deadline() {
     let mut backend = active();
-    backend.phase = Phase::Starting;
+    backend.state = State::Starting;
     let Some(FromDomain::Complete { deadlines, .. }) = &mut backend.request else { panic!("completion") };
     deadlines.head = Duration::from_secs(30);
     deadlines.idle = Duration::from_secs(2);

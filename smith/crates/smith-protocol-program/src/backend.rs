@@ -6,7 +6,7 @@
 
 use alloc::boxed::Box;
 use skein_io::{self as io, file, kernel};
-use skein_lib::{Duration, Env, List, Map, Queue, Secret, Time, Token};
+use skein_lib::{Duration, Env, List, Map, Queue, Secret, Tail, Time, Token};
 use smith_domain::{GrantName, llm};
 use smith_protocol_llm::{self as protocol, FromDomain, ToDomain};
 
@@ -33,6 +33,7 @@ mod start;
 mod stop;
 mod stream;
 mod tail;
+mod transport;
 mod turns;
 
 #[cfg(test)]
@@ -42,17 +43,19 @@ mod conversation_tests;
 #[cfg(test)]
 mod exit_tests;
 #[cfg(test)]
+mod fixtures;
+#[cfg(test)]
 mod lifecycle_tests;
 #[cfg(test)]
 mod measure_tests;
 #[cfg(test)]
 mod open_tests;
 #[cfg(test)]
+mod records_tests;
+#[cfg(test)]
 mod reply_tests;
 #[cfg(test)]
 mod resume_tests;
-#[cfg(test)]
-mod review_tests;
 #[cfg(test)]
 mod session_tests;
 #[cfg(test)]
@@ -61,6 +64,46 @@ mod stop_tests;
 mod tests;
 #[cfg(test)]
 mod turns_tests;
+
+const PIPE_BYTES: u32 = 4096;
+const INPUT_RIGHT: Token = Token::new(1);
+const INTERRUPT_RIGHT: Token = Token::new(2);
+
+#[derive(Clone, Copy)]
+enum Owner {
+    Status,
+    Program,
+    Files,
+    Native,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Pipes {
+    input: Option<Token>,
+    output: Option<Token>,
+    errors: Option<Token>,
+}
+
+impl Pipes {
+    const CLOSED: Self = Self { input: None, output: None, errors: None };
+
+    fn from_spawn(pipes: &[Token]) -> Self {
+        assert_eq!(pipes.len(), 3, "program requests three pipes");
+        Self { input: pipes.first().copied(), output: pipes.get(1).copied(), errors: pipes.get(2).copied() }
+    }
+
+    fn all(self) -> [Option<Token>; 3] {
+        [self.input, self.output, self.errors]
+    }
+
+    fn closed(&mut self, owner: Token) {
+        for pipe in [&mut self.input, &mut self.output, &mut self.errors] {
+            if *pipe == Some(owner) {
+                *pipe = None;
+            }
+        }
+    }
+}
 
 /// One normalized start directory, supplied by the service before Complete (smith/docs/design/protocol/programs.md 5.4).
 #[derive(Clone, Debug)]
@@ -101,6 +144,10 @@ pub struct Settings {
 }
 
 impl Settings {
+    fn ledger_slots(&self) -> Option<u32> {
+        self.receiving.max_completion_blocks.checked_mul(5)
+    }
+
     /// Retained program JSON tokens: `N = line_bytes` (smith/docs/design/protocol/programs.md, section 5.5).
     /// Each reader record consumes at least one distinct encoded byte; both
     /// opening and closing container brackets are retained records. With bytes
@@ -144,7 +191,7 @@ pub enum BelowEvent {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Phase {
+enum State {
     Idle,
     Checking,
     Starting,
@@ -164,7 +211,7 @@ pub struct Backend {
     settings: Settings,
     names: start::Names,
     grant: Option<Grant>,
-    phase: Phase,
+    state: State,
     owner: Option<Token>,
     pending_failure: Option<(llm::Failure, Box<[u8]>)>,
     request: Option<FromDomain>,
@@ -176,7 +223,7 @@ pub struct Backend {
     native_writes: Map<Box<[u8]>, smith_domain::tools::Place>,
     child: Option<Token>,
     spawning: bool,
-    pipes: [Option<Token>; 3],
+    pipes: Pipes,
     outgoing: Option<Box<[u8]>>,
     written: u32,
     interrupt_sequence: u64,
@@ -192,9 +239,10 @@ pub struct Backend {
     switching: bool,
     resuming: bool,
     compactions: u32,
-    running: Option<[u8; 16]>,
-    recorded: Option<[u8; 16]>,
-    permitted: u64,
+    running_session: Option<[u8; 16]>,
+    recorded_session: Option<[u8; 16]>,
+    /// One-based index of the next message whose calls may be permitted.
+    permitted_message: u64,
     response_phase: llm::CompletionPhase,
     run_time: Duration,
     line: List<u8>,
@@ -209,8 +257,7 @@ pub struct Backend {
     calls: List<mcp::Up>,
     ledger: List<calls::Call>,
     turns: turns::Turns,
-    stderr: List<u8>,
-    tail: u32,
+    stderr: Tail,
     stderr_wrapped: bool,
     io: Queue<io::Request>,
 }
@@ -219,7 +266,7 @@ impl core::fmt::Debug for Backend {
     fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         formatter
             .debug_struct("Backend")
-            .field("phase", &self.phase)
+            .field("state", &self.state)
             .field("owner", &self.owner)
             .finish_non_exhaustive()
     }
@@ -233,7 +280,7 @@ impl Backend {
         let line = List::with_capacity(settings.line_bytes);
         let calls = List::with_capacity(u32::from(settings.mcp.calls));
         let turns = turns::Turns::new(&settings.receiving, settings.adapter.client.answer);
-        let ledger = List::with_capacity(settings.receiving.max_completion_blocks.checked_mul(5).expect("call ledger"));
+        let ledger = List::with_capacity(settings.ledger_slots().expect("call ledger"));
         let delta_carry = redaction::carries(&settings);
         let measure_capacity = measures::capacity(&settings).expect("measure capacity");
         Self {
@@ -242,7 +289,7 @@ impl Backend {
             settings,
             names: start::Names::new(entropy),
             grant: None,
-            phase: Phase::Idle,
+            state: State::Idle,
             owner: None,
             pending_failure: None,
             request: None,
@@ -254,7 +301,7 @@ impl Backend {
             native_writes: Map::with_capacity(ledger.capacity()),
             child: None,
             spawning: false,
-            pipes: [None; 3],
+            pipes: Pipes::CLOSED,
             outgoing: None,
             written: 0,
             interrupt_sequence: 0,
@@ -270,14 +317,14 @@ impl Backend {
             switching: false,
             resuming: false,
             compactions: 0,
-            running: None,
-            recorded: None,
-            permitted: 1,
+            running_session: None,
+            recorded_session: None,
+            permitted_message: 1,
             response_phase: llm::CompletionPhase::Head,
             run_time: Duration::ZERO,
             line,
             stdout_demanding: false,
-            intake: List::with_capacity(4096),
+            intake: List::with_capacity(PIPE_BYTES),
             intake_at: 0,
             intake_due: None,
             measures: Queue::with_capacity(measure_capacity),
@@ -287,8 +334,7 @@ impl Backend {
             calls,
             ledger,
             turns,
-            stderr: List::with_capacity(failure_bytes),
-            tail: 0,
+            stderr: Tail::with_capacity(failure_bytes),
             stderr_wrapped: false,
             io: Queue::with_capacity(32),
         }
@@ -296,19 +342,19 @@ impl Backend {
 
     /// Adopt the shell's programs directory; its close belongs to this backend.
     pub fn directory(&mut self, root: Root) {
-        assert_eq!(self.phase, Phase::Idle, "programs root is supplied before startup");
+        assert_eq!(self.state, State::Idle, "programs root is supplied before startup");
         self.settings.directory = Some(root);
     }
 
     /// Supply the first admitted workspace directory, borrowed until backend close.
     pub fn workspace(&mut self, root: Root) {
-        assert_eq!(self.phase, Phase::Idle, "workspace is supplied before startup");
+        assert_eq!(self.state, State::Idle, "workspace is supplied before startup");
         self.settings.workspace = Some(root);
     }
 
     /// Supply all admitted host directories, with the working directory first (5.4).
     pub fn mounts(&mut self, mounts: Box<[Mount]>) {
-        assert_eq!(self.phase, Phase::Idle, "mounts precede startup");
+        assert_eq!(self.state, State::Idle, "mounts precede startup");
         self.mounts = mounts;
     }
 
@@ -332,11 +378,11 @@ impl Backend {
     /// Whether the service should route this listener, child, pipe or file owner here.
     #[must_use]
     pub fn owns(&self, owner: Token) -> bool {
-        owner == self.token(3)
-            || owner == self.token(4)
-            || owner == self.token(5)
-            || owner == self.token(6)
-            || self.pipes.contains(&Some(owner))
+        owner == self.token(Owner::Status)
+            || owner == self.token(Owner::Program)
+            || owner == self.token(Owner::Files)
+            || owner == self.token(Owner::Native)
+            || self.pipes.all().contains(&Some(owner))
             || match &self.check {
                 Some(check) => check.owns(owner),
                 None => false,
@@ -397,9 +443,9 @@ impl Backend {
                     });
                     return;
                 }
-                match self.phase {
-                    Phase::Running => self.window_request(env, request, up, below),
-                    Phase::Idle | Phase::Checking | Phase::Starting | Phase::Ending | Phase::Ended => {
+                match self.state {
+                    State::Running => self.window_request(env, request, up, below),
+                    State::Idle | State::Checking | State::Starting | State::Ending | State::Ended => {
                         self.start(env, request, up, below);
                     }
                 }
@@ -433,7 +479,7 @@ impl Backend {
     ) {
         match event {
             BelowEvent::File { event, descriptor } => {
-                if event.owner() == self.token(6) {
+                if event.owner() == self.token(Owner::Native) {
                     self.native_event(event, up);
                 } else {
                     self.file_event(env, event, descriptor, up, below);
@@ -466,7 +512,7 @@ impl Backend {
         };
         if eof_due {
             self.eof_deadline = None;
-            self.fail(env, llm::Failure::Program { exit: self.exit }, b"smith: the MCP server ended", up, below);
+            self.fail_program(env, b"smith: the MCP server ended", up, below);
         }
         let due = match self.deadline {
             Some(deadline) => env.now >= deadline,
@@ -477,26 +523,18 @@ impl Backend {
             self.terminate(env.now);
         } else if due {
             self.deadline = None;
-            match self.phase {
-                Phase::Starting => self.fail(
-                    env,
-                    llm::Failure::Program { exit: self.exit },
-                    b"smith: the program did not initialize",
-                    up,
-                    below,
-                ),
-                Phase::Ending => self.terminate(env.now),
-                Phase::Running => {
+            match self.state {
+                State::Starting => self.fail_program(env, b"smith: the program did not initialize", up, below),
+                State::Ending => self.terminate(env.now),
+                State::Running => {
                     let phase = match &self.request {
-                        Some(FromDomain::Complete { deadlines, .. }) if env.now >= deadlines.whole => {
-                            llm::CompletionPhase::Whole
-                        }
+                        Some(FromDomain::Complete { deadlines, .. }) if env.now >= deadlines.whole => llm::CompletionPhase::Whole,
                         Some(FromDomain::Complete { .. } | FromDomain::Cancel { .. } | FromDomain::Yield { .. })
                         | None => self.response_phase,
                     };
                     self.fail(env, llm::Failure::TimedOut { phase }, b"smith: program completion deadline", up, below);
                 }
-                Phase::Idle | Phase::Checking | Phase::Ended => {}
+                State::Idle | State::Checking | State::Ended => {}
             }
         }
         self.progress(env, up, below);
@@ -511,7 +549,7 @@ impl Backend {
                 Some(_) | None => return,
             }
             self.drain_deadline = None;
-            for pipe in self.pipes.into_iter().flatten() {
+            for pipe in self.pipes.all().into_iter().flatten() {
                 self.io.push(io::Request::Abort { entity: pipe });
             }
             if let Some(child) = self.child {
@@ -527,7 +565,7 @@ impl Backend {
                 signal: if self.stopping == 1 { kernel::Signal::Terminate } else { kernel::Signal::Kill },
             });
             if self.stopping == 2 {
-                for pipe in self.pipes.into_iter().flatten() {
+                for pipe in self.pipes.all().into_iter().flatten() {
                     self.io.push(io::Request::Abort { entity: pipe });
                 }
                 self.io.push(io::Request::Close { entity: child });
@@ -633,12 +671,12 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        match self.phase {
-            Phase::Ending | Phase::Ended => return,
-            Phase::Idle | Phase::Checking | Phase::Starting | Phase::Running => {}
+        match self.state {
+            State::Ending | State::Ended => return,
+            State::Idle | State::Checking | State::Starting | State::Running => {}
         }
         let active = self.active_turn();
-        self.phase = Phase::Ending;
+        self.state = State::Ending;
         if let Some(owner) = self.owner.take() {
             self.terminal_measure(env.now, owner);
             up.push(ToDomain::Cancelled { owner });
@@ -667,10 +705,16 @@ impl Backend {
     /// Every owned resource, including the programs root, has reported closed.
     #[must_use]
     pub fn closed(&self) -> bool {
-        self.phase == Phase::Ended
+        self.state == State::Ended
     }
 
-    fn token(&self, offset: u64) -> Token {
+    fn token(&self, owner: Owner) -> Token {
+        let offset = match owner {
+            Owner::Status => 3,
+            Owner::Program => 4,
+            Owner::Files => 5,
+            Owner::Native => 6,
+        };
         Token::new(self.first.raw().checked_add(offset).expect("backend token range"))
     }
 
@@ -682,6 +726,16 @@ impl Backend {
                 None => break,
             }
         }
+    }
+
+    fn fail_program(
+        &mut self,
+        env: &Env<protocol::ComponentLimits>,
+        detail: &[u8],
+        up: &mut Queue<ToDomain>,
+        below: &mut Queue<Below>,
+    ) {
+        self.fail(env, llm::Failure::Program { exit: self.exit }, detail, up, below);
     }
 
     fn fail(
@@ -709,7 +763,7 @@ impl Backend {
         if restart {
             let active = self.active_turn();
             self.switching = true;
-            self.phase = Phase::Running;
+            self.state = State::Running;
             self.outgoing = None;
             self.stop(env, active, false, up, below);
             self.request = None;

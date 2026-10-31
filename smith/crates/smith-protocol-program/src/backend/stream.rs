@@ -35,19 +35,6 @@ pub(super) fn text_message(text: &[u8], maximum: u32) -> Option<Box<[u8]>> {
     Some(bytes)
 }
 
-#[cfg(test)]
-pub(super) fn init(bytes: &[u8], tools: &[mcp::Tool], depth: u32, tokens: u32) -> bool {
-    super::builtins::init_error(
-        bytes,
-        smith_domain::tools::Grants { inspect: false, modify: false, shell: false },
-        false,
-        depth,
-        tokens,
-    )
-    .is_none()
-        && checked_init(bytes, tools, depth, tokens) == Some(())
-}
-
 /// Claude Code's system/init (`protocol/programs.md`, 5.5) hides the
 /// permission-prompt tool even though it remains callable.
 /// Accept it absent or listed once, alongside every declared server tool.
@@ -115,10 +102,6 @@ pub(super) fn checked_init(bytes: &[u8], tools: &[mcp::Tool], depth: u32, tokens
     }
     Some(())
 }
-
-#[cfg(test)]
-#[path = "stream_tests.rs"]
-pub(super) mod tests;
 
 pub(super) fn user_message(prompt: &llm::Prompt, maximum: u32) -> Option<Box<[u8]>> {
     let limits = skein_json::writer::Limits { depth: 8, length: maximum.checked_sub(1)? };
@@ -196,3 +179,20 @@ fn interrupt(json: &mut Encoder, id: &[u8]) {
     json.object_end();
     json.object_end();
 }
+
+#[cfg(test)]
+pub(super) fn init(bytes: &[u8], tools: &[mcp::Tool], depth: u32, tokens: u32) -> bool {
+    super::builtins::init_error(
+        bytes,
+        smith_domain::tools::Grants { inspect: false, modify: false, shell: false },
+        false,
+        depth,
+        tokens,
+    )
+    .is_none()
+        && checked_init(bytes, tools, depth, tokens) == Some(())
+}
+
+#[cfg(test)]
+#[path = "stream_tests.rs"]
+pub(super) mod tests;

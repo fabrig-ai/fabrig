@@ -30,7 +30,7 @@ fn job(end: tools::JobEnd) -> tools::Done {
 }
 #[test]
 fn a_yielded_command_is_read_to_its_end() {
-    let root = World::new(71, &[]).root();
+    let root = World::ROOT;
     let (replies, _) = run(
         71,
         &[
@@ -57,7 +57,7 @@ fn a_yielded_command_is_read_to_its_end() {
 fn held_output_is_partitioned_and_counted_only_once() {
     // Three alphabets contain 78 bytes: four head, four tail, 70 dropped.
     const DROPPED_BYTES: u64 = 70;
-    let root = World::new(72, &[]).root();
+    let root = World::ROOT;
     let (replies, _) = run(
         72,
         &[
@@ -90,7 +90,7 @@ fn held_output_is_partitioned_and_counted_only_once() {
 }
 #[test]
 fn a_stopped_job_settles_and_answers_stopped() {
-    let root = World::new(73, &[]).root();
+    let root = World::ROOT;
     let (replies, _) = run(
         73,
         &[
@@ -105,7 +105,7 @@ fn a_stopped_job_settles_and_answers_stopped() {
 fn the_original_deadline_ends_a_held_job() {
     // The original fixture yields at 30 ms and expires at 60 ms.
     const DEADLINE: Time = Time::from_nanos(60_000_000);
-    let root = World::new(74, &[]).root();
+    let root = World::ROOT;
     let (replies, now) = run(
         74,
         &[spawn(root, b"sleep 5", KEEP_BYTES, KEEP_BYTES, DEADLINE), read(KEEP_BYTES, KEEP_BYTES, READ_WAIT)],
@@ -138,7 +138,7 @@ fn cancelling_a_finished_job_preserves_its_successful_exit() {
 fn a_hastened_read_finishes_before_its_virtual_wait() {
     // The real counterpart must settle before 500 ms of its one-second wait.
     const BEFORE_END: Time = Time::from_nanos(500_000_000);
-    let root = World::new(78, &[]).root();
+    let root = World::ROOT;
     let (replies, now) = run(
         78,
         &[

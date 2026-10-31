@@ -1,38 +1,23 @@
-use super::lifecycle_tests::{backend, env, request};
+use super::fixtures::records as active;
+use super::fixtures::{env, records_with as running, request};
 use super::*;
-
-fn active() -> Backend {
-    running(backend())
-}
-
-fn running(mut backend: Backend) -> Backend {
-    backend.phase = Phase::Running;
-    backend.child = Some(Token::new(30));
-    backend.pipes[0] = Some(Token::new(31));
-    backend.request = Some(request(&backend));
-    backend.owner = Some(Token::new(80));
-    backend
-}
+use crate::backend::fixtures::COMPLETION;
 
 #[test]
 fn an_unframed_tool_message_completes_without_any_partial() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.line(&env(0),br#"{"type":"assistant","message":{"id":"unframed","content":[{"type":"tool_use","id":"t","name":"mcp__smith__finish","input":{}}],"usage":{"input_tokens":17,"output_tokens":3}}}"#,&mut up,&mut below);
     let Some(ToDomain::Completed { owner, completion }) = up.pop() else {
         panic!("unframed completion");
     };
-    assert_eq!(owner, Token::new(80));
+    assert_eq!(owner, COMPLETION);
     assert_eq!(completion.usage.input_tokens, Some(17));
     assert!(backend.turns.message.is_none());
 }
 
 #[test]
 fn an_open_next_message_does_not_receive_a_duplicate_nudge() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.line(
         &env(0),
         br#"{"type":"assistant","message":{"id":"one","content":[{"type":"text","text":"thinking"}]}}"#,
@@ -63,9 +48,7 @@ fn an_open_next_message_does_not_receive_a_duplicate_nudge() {
 
 #[test]
 fn a_line_outside_the_stream_grammar_is_a_program_failure() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.line(&env(0), br#"{"other":true}"#, &mut up, &mut below);
     let Some(ToDomain::Failed { failure, .. }) = up.pop() else {
         panic!("program failure");
@@ -74,9 +57,7 @@ fn a_line_outside_the_stream_grammar_is_a_program_failure() {
 }
 #[test]
 fn a_result_without_an_assistant_hands_the_nudge_to_the_domain() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.line(&env(0), br#"{"type":"result","subtype":"success","is_error":false}"#, &mut up, &mut below);
     let Some(ToDomain::Completed { completion, .. }) = up.pop() else {
         panic!("no-tool completion");
@@ -152,7 +133,7 @@ fn dense_result(element: &[u8], length: u32) -> alloc::vec::Vec<u8> {
 fn result_in_stdout(element: &[u8], length: u32) -> Queue<ToDomain> {
     // Backend::new owns one 4096-byte deferred stdout intake.
     const READ_BYTES: usize = 4096;
-    let mut backend = running(lifecycle_tests::backend_with_line_bytes(REVIEW_LINE_BYTES));
+    let mut backend = running(fixtures::backend_with_line_bytes(REVIEW_LINE_BYTES));
     let mut bytes = dense_result(element, length);
     bytes.push(b'\n');
     let mut up = Queue::with_capacity(32);
@@ -237,7 +218,7 @@ fn reply_after_notice(notice: &[u8]) -> (Backend, Queue<ToDomain>) {
 fn status_before_a_completion_preserves_the_reply() {
     let (backend, up) = reply_after_notice(STATUS);
     assert_eq!(finished_reply(&up).content, expected_reply());
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
 }
 
 #[test]
@@ -257,7 +238,7 @@ fn status_after_a_tool_result_preserves_the_next_completion() {
     backend.line(&env(0), REPLY, &mut up, &mut below);
     backend.line(&env(0), RESULT, &mut up, &mut below);
     assert_eq!(finished_reply(&up).content, expected_reply());
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
 }
 
 fn second_turn() -> (Backend, Queue<ToDomain>, Queue<Below>) {
@@ -288,7 +269,7 @@ fn a_valid_later_init_allows_the_second_turn() {
     backend.line(&env(0), REPLY, &mut up, &mut below);
     backend.line(&env(0), RESULT, &mut up, &mut below);
     assert_eq!(finished_reply(&up).stop, llm::Stop::EndTurn);
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
 }
 
 fn init_failure(mut up: Queue<ToDomain>) -> (llm::Failure, Box<[u8]>) {
@@ -327,7 +308,7 @@ fn a_later_init_rechecks_the_runs_builtin_grants() {
 fn an_unknown_system_subtype_preserves_the_reply() {
     let (backend, up) = reply_after_notice(br#"{"type":"system","subtype":"something_new"}"#);
     assert_eq!(finished_reply(&up).content, expected_reply());
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
 }
 
 #[test]
@@ -339,7 +320,7 @@ fn thinking_tokens_is_a_notice_without_state_or_measure() {
         &mut up,
         &mut below,
     );
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
     assert!(backend.turns.message.is_none());
     assert_eq!(backend.turns.closed, 0);
     assert!(backend.pop_measure().is_none());

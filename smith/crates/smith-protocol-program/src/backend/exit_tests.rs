@@ -1,36 +1,27 @@
+use super::fixtures::drained_window as active;
 use super::{
-    lifecycle_tests::{backend, env, request},
+    fixtures::{env, request},
     *,
 };
 
-fn active() -> Backend {
-    let mut backend = backend();
-    backend.phase = Phase::Running;
-    backend.child = Some(backend.token(4));
-    backend.owner = Some(Token::new(80));
-    let request = request(&backend);
-    let FromDomain::Complete { prompt, .. } = &request else { panic!("complete") };
-    let session::Opening::New { id } = session::opening(prompt, None, None) else { panic!("new window") };
-    backend.running = Some(id);
-    backend.request = Some(request);
-    backend
-}
-
 #[test]
 fn relay_eof_waits_for_the_programs_exit() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.mcp_ended(&env(0), &mut up, &mut below);
     assert!(up.is_empty());
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.state, State::Running);
     backend.from_io(
         &env(0),
-        BelowEvent::Io(io::Event::Exited { owner: backend.token(4), exit: kernel::Exit::Code(7) }),
+        BelowEvent::Io(io::Event::Exited { owner: backend.token(Owner::Program), exit: kernel::Exit::Code(7) }),
         &mut up,
         &mut below,
     );
-    backend.from_io(&env(0), BelowEvent::Io(io::Event::Closed { owner: backend.token(4) }), &mut up, &mut below);
+    backend.from_io(
+        &env(0),
+        BelowEvent::Io(io::Event::Closed { owner: backend.token(Owner::Program) }),
+        &mut up,
+        &mut below,
+    );
     let Some(ToDomain::Failed { failure, detail, .. }) = up.pop() else { panic!("program terminal") };
     assert_eq!(failure, llm::Failure::Program { exit: Some(7) });
     assert!(detail.is_empty());
@@ -38,9 +29,7 @@ fn relay_eof_waits_for_the_programs_exit() {
 
 #[test]
 fn a_relay_without_a_program_exit_fails_at_its_grace() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     let until = env(0).now.saturating_add(backend.settings.grace);
     backend.mcp_ended(&env(0), &mut up, &mut below);
     assert!(up.is_empty(), "EOF must not fail before its grace");
@@ -63,7 +52,7 @@ fn a_relay_without_a_program_exit_fails_at_its_grace() {
 #[test]
 fn buffered_stdout_cannot_clear_the_relay_eof_grace() {
     let mut backend = active();
-    backend.pipes[0] = Some(Token::new(31));
+    backend.pipes.input = Some(Token::new(31));
     let until = env(0).now.saturating_add(backend.settings.grace);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);

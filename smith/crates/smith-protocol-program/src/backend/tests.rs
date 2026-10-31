@@ -101,7 +101,7 @@ static HEAP: skein_heap::Counting = skein_heap::Counting;
 #[test]
 #[expect(clippy::print_stdout, reason = "record the measured peak beside its bound")]
 fn compaction_rendering_stays_under_its_scenario_ceiling() {
-    use super::lifecycle_tests::{backend, request};
+    use super::fixtures::{backend, request};
     use smith_domain::llm;
     use smith_protocol_llm::{FromDomain, Observation};
 
@@ -159,7 +159,7 @@ fn compaction_rendering_stays_under_its_scenario_ceiling() {
 
 #[test]
 fn invalid_limits_are_refused() {
-    let mut settings = super::lifecycle_tests::backend().settings;
+    let mut settings = super::fixtures::backend().settings;
     assert!(super::backend_valid(&settings));
     let path = settings.path_bytes;
     settings.path_bytes = u32::MAX;

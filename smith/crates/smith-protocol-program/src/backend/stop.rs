@@ -3,7 +3,7 @@
 //! whether a result is owed; knows no run budget. Keeping stops write control
 //! requests, cancel/close signal, and the existing grace escalates both.
 
-use super::{Backend, Below, Phase, stream, tail, turns};
+use super::{Backend, Below, State, stream, tail, turns};
 use crate::mcp;
 use skein_io::{self as io, kernel};
 use skein_lib::{Env, List, Queue};
@@ -40,7 +40,7 @@ impl Backend {
     /// repeating an interrupt already waiting on its result (smith/docs/design/protocol/programs.md 5.9).
     #[must_use]
     fn can_yield_for_wind_down(&self) -> bool {
-        self.phase == Phase::Running
+        self.state == State::Running
             && self.owner.is_some()
             && self.stop == Stop::None
             && self.winding != WindDown::Finishing
@@ -61,7 +61,7 @@ impl Backend {
         self.winding = WindDown::Ordinary;
         if self.active_turn() {
             self.stop(env, true, true, up, below);
-            if self.phase == Phase::Ending {
+            if self.state == State::Ending {
                 return;
             }
             self.stop = Stop::Yielding;
@@ -233,9 +233,9 @@ impl Backend {
     pub(super) fn send_interrupt(&mut self) {
         if let Some(line) = &self.interrupt_line {
             self.io.push(io::Request::Output {
-                stream: self.pipes[0].expect("interrupt input"),
+                stream: self.pipes.input.expect("interrupt input"),
                 down: skein_lib::stream::OutputDown::Room {
-                    right: skein_lib::Token::new(2),
+                    right: super::INTERRUPT_RIGHT,
                     bytes: u32::try_from(line.len()).expect("bounded interrupt line"),
                 },
             });
@@ -279,7 +279,7 @@ impl Backend {
             self.turns.interrupted();
         }
         self.finish_stop();
-        if self.phase == Phase::Running && !self.switching {
+        if self.state == State::Running && !self.switching {
             self.completion_deadline(env, true);
         }
     }
@@ -330,7 +330,7 @@ impl Backend {
         }
         match self.stop {
             Stop::Closing | Stop::Parking => {
-                if let Some(input) = self.pipes[0] {
+                if let Some(input) = self.pipes.input {
                     self.io.push(io::Request::Close { entity: input });
                 }
             }

@@ -1,7 +1,8 @@
 //! Private startup files and ordered cleanup (smith/docs/design/protocol/programs.md, sections 4.2, 5.1).
 //! Keeps only created-file flags and directory handles; never scans old runs.
 
-use super::{Backend, Below, Phase};
+use super::Owner;
+use super::{Backend, Below, State};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_io::{file, kernel};
@@ -196,7 +197,7 @@ impl Backend {
         self.file(
             Step::Runs,
             file::Request::OpenPrivate {
-                owner: self.token(5),
+                owner: self.token(Owner::Files),
                 root: self.settings.directory.expect("checked programs root").file,
                 path: b".runs".as_slice().into(),
             },
@@ -279,7 +280,7 @@ impl Backend {
         self.file(
             Step::Instructions,
             file::Request::Store {
-                owner: self.token(5),
+                owner: self.token(Owner::Files),
                 root: self.files.run.expect("private run root"),
                 path: b"instructions.md".as_slice().into(),
                 bytes,
@@ -301,7 +302,7 @@ impl Backend {
     ) {
         let step = self.files.pending.take().expect("one pending private file request");
         let success = self.files.accept(step, event, descriptor);
-        if self.phase == Phase::Ending {
+        if self.state == State::Ending {
             if success && step == Step::CloseRoot {
                 self.settings.directory = None;
             }
@@ -321,7 +322,7 @@ impl Backend {
             Step::Runs => self.file(
                 Step::Run,
                 file::Request::OpenPrivate {
-                    owner: self.token(5),
+                    owner: self.token(Owner::Files),
                     root: self.files.runs.expect("runs root"),
                     path: self.names.run.as_slice().into(),
                 },
@@ -335,7 +336,7 @@ impl Backend {
                 self.file(
                     Step::Mcp,
                     file::Request::Store {
-                        owner: self.token(5),
+                        owner: self.token(Owner::Files),
                         root: self.files.run.expect("run root"),
                         path: b"mcp.json".as_slice().into(),
                         bytes,
@@ -351,7 +352,7 @@ impl Backend {
                 self.file(
                     Step::Settings,
                     file::Request::Store {
-                        owner: self.token(5),
+                        owner: self.token(Owner::Files),
                         root: self.settings.directory.expect("programs root").file,
                         path,
                         bytes: SETTINGS.into(),
@@ -392,7 +393,7 @@ impl Backend {
             return;
         }
         let Some(root) = self.settings.directory else {
-            self.phase = Phase::Ended;
+            self.state = State::Ended;
             return;
         };
         if let Some(residue) = &self.files.residue {
@@ -403,7 +404,7 @@ impl Backend {
             };
             self.file(
                 Step::RemoveResidue,
-                file::Request::Remove { owner: self.token(5), root, name, directory: false },
+                file::Request::Remove { owner: self.token(Owner::Files), root, name, directory: false },
                 now,
                 below,
             );
@@ -411,7 +412,7 @@ impl Backend {
             self.file(
                 Step::RemoveMcp,
                 file::Request::Remove {
-                    owner: self.token(5),
+                    owner: self.token(Owner::Files),
                     root: self.files.run_descriptor.expect("opened run descriptor"),
                     name: b"mcp.json".as_slice().into(),
                     directory: false,
@@ -423,7 +424,7 @@ impl Backend {
             self.file(
                 Step::RemoveInstructions,
                 file::Request::Remove {
-                    owner: self.token(5),
+                    owner: self.token(Owner::Files),
                     root: self.files.run_descriptor.expect("opened run descriptor"),
                     name: b"instructions.md".as_slice().into(),
                     directory: false,
@@ -432,12 +433,12 @@ impl Backend {
                 below,
             );
         } else if let Some(run) = self.files.run {
-            self.file(Step::CloseRun, file::Request::Close { owner: self.token(5), file: run }, now, below);
+            self.file(Step::CloseRun, file::Request::Close { owner: self.token(Owner::Files), file: run }, now, below);
         } else if self.files.remove_run {
             self.file(
                 Step::RemoveRun,
                 file::Request::Remove {
-                    owner: self.token(5),
+                    owner: self.token(Owner::Files),
                     root: self.files.runs_descriptor.expect("opened runs descriptor"),
                     name: self.names.run.as_slice().into(),
                     directory: true,
@@ -446,9 +447,19 @@ impl Backend {
                 below,
             );
         } else if let Some(runs) = self.files.runs {
-            self.file(Step::CloseRuns, file::Request::Close { owner: self.token(5), file: runs }, now, below);
+            self.file(
+                Step::CloseRuns,
+                file::Request::Close { owner: self.token(Owner::Files), file: runs },
+                now,
+                below,
+            );
         } else {
-            self.file(Step::CloseRoot, file::Request::Close { owner: self.token(5), file: root.file }, now, below);
+            self.file(
+                Step::CloseRoot,
+                file::Request::Close { owner: self.token(Owner::Files), file: root.file },
+                now,
+                below,
+            );
         }
     }
 }
