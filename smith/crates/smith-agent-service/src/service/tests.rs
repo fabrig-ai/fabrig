@@ -2,6 +2,7 @@ use super::down::domain_down;
 use super::routing::io_down;
 use super::stages::backlog;
 use super::up::{component_up, domain_up, lower_events};
+use setup::{Input, enter};
 use skein_lib::ReplyTo;
 mod setup;
 
@@ -76,9 +77,8 @@ fn each_grant_value_installs_its_scheme() {
 
 #[test]
 fn io_routes_preserve_component_owner_and_retire_on_close() {
-    let mut service = service();
-    let route = service.stages.owners.insert(Owner::Llm(Token::new(42))).expect("route");
-    route_owned_io(&mut service.stages, io::Event::Closed { owner: component_owner(route.token()) });
+    let (mut service, route) = setup::llm_route(Token::new(42));
+    route_owned_io(&mut service.stages, io::Event::Closed { owner: route });
     assert_eq!(service.stages.owners.len(), 1);
     service.stages.owners.reclaim();
     assert!(service.stages.owners.is_empty());
@@ -88,7 +88,7 @@ fn io_routes_preserve_component_owner_and_retire_on_close() {
 fn machine_terminal_and_channel_message_keep_their_domain_names() {
     let mut service = service();
     let owner = Token::new(42);
-    service.stages.machine_events.push(machine::ToDomain::Probed { owner, executable: true });
+    enter(&mut service, Input::Machine(machine::ToDomain::Probed { owner, executable: true }));
     component_up(&mut service.stages, Some(&mut service.frame));
     match service.stages.domain_events.pop().expect("terminal") {
         domain::Event::Probed { owner: observed, executable } => {
@@ -126,7 +126,7 @@ fn machine_terminal_and_channel_message_keep_their_domain_names() {
 fn llm_and_host_terminals_reach_the_domain_with_their_owners() {
     let mut service = service();
     let owner = Token::new(73);
-    service.stages.llm_events.push(llm::ToDomain::Cancelled { owner });
+    enter(&mut service, Input::Provider(llm::ToDomain::Cancelled { owner }));
     component_up(&mut service.stages, Some(&mut service.frame));
     match service.stages.domain_events.pop().expect("LLM terminal") {
         domain::Event::Cancelled { owner: observed } => assert_eq!(observed, owner),
@@ -252,7 +252,7 @@ fn a_sent_answer_keeps_its_channel_output_right_until_finish() {
 fn an_answer_requests_its_close_at_once() {
     let mut service = with_input();
     for _ in 0..service.stages.limits.queue {
-        service.stages.io_requests.push(io::Request::Usage { owner: Token::new(1) });
+        enter(&mut service, Input::IoRequest(io::Request::Usage { owner: Token::new(1) }));
     }
     teardown::answered(&mut service.stages);
     teardown::advance(&mut service.stages, Some(&service.frame));
@@ -280,10 +280,10 @@ fn done_is_some_only_when_closed() {
     teardown::answered(&mut service.stages);
     assert_eq!(done(&service), None);
     teardown::advance(&mut service.stages, Some(&service.frame));
-    service.stages.operations.insert(Token::new(77), Operation::Io(Token::new(4))).expect("one route");
+    enter(&mut service, Input::OperationSubmitted { global: Token::new(77), original: Token::new(4) });
     teardown::advance(&mut service.stages, Some(&service.frame));
     assert_eq!(done(&service), None);
-    service.stages.operations.remove(&Token::new(77));
+    enter(&mut service, Input::OperationCompleted { global: Token::new(77) });
     teardown::advance(&mut service.stages, Some(&service.frame));
     assert_eq!(
         service.stages.teardown,
@@ -348,8 +348,8 @@ fn effects_report_their_handoffs_backlog() {
 #[test]
 fn a_message_waits_at_the_watermark_and_is_taken_once_the_backlog_falls() {
     let mut service = at_watermark();
-    service.stages.channel_events.push(host_message(31));
-    service.stages.channel_events.push(host_message(32));
+    enter(&mut service, Input::Host(host_message(31)));
+    enter(&mut service, Input::Host(host_message(32)));
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     assert_eq!(service.stages.channel_events.len(), 2, "neither message entered the domain");
     assert!(service.stages.domain_events.is_empty());
@@ -395,13 +395,16 @@ fn a_domain_entrance_waits_until_the_previous_entrances_facts_reach_the_sinks() 
         });
     }
     for name in [FIRST, SECOND] {
-        service.stages.domain_events.push(domain::Event::Message {
-            finish_requested: false,
-            run,
-            name: Token::new(name),
-            label: Box::from(b"host".as_slice()),
-            text: Box::from(b"hello".as_slice()),
-        });
+        enter(
+            &mut service,
+            Input::Domain(domain::Event::Message {
+                finish_requested: false,
+                run,
+                name: Token::new(name),
+                label: Box::from(b"host".as_slice()),
+                text: Box::from(b"hello".as_slice()),
+            }),
+        );
     }
     domain_up(&mut service.stages, &mut service.frame);
     assert!(!service.stages.events.as_ref().unwrap().takes(), "the complete sink is stalled");
@@ -435,13 +438,16 @@ fn an_answer_is_taken_past_the_watermark() {
     let mut service = at_watermark();
     // These advance admitted work and can increase the backlog.
     let relay = run::RelayName { owner: Token::new(5), attempt: 1 };
-    service
-        .stages
-        .channel_events
-        .push(channel::OpenEvent::HostReturned { relay, reply: run::HostReply::Unanswered(run::Unanswered::Lost) });
-    service.stages.channel_events.push(channel::OpenEvent::Acknowledged { turn: 1 });
-    service.stages.channel_events.push(channel::OpenEvent::Cancel);
-    service.stages.llm_events.push(llm::ToDomain::Cancelled { owner: Token::new(73) });
+    enter(
+        &mut service,
+        Input::Host(channel::OpenEvent::HostReturned {
+            relay,
+            reply: run::HostReply::Unanswered(run::Unanswered::Lost),
+        }),
+    );
+    enter(&mut service, Input::Host(channel::OpenEvent::Acknowledged { turn: 1 }));
+    enter(&mut service, Input::Host(channel::OpenEvent::Cancel));
+    enter(&mut service, Input::Provider(llm::ToDomain::Cancelled { owner: Token::new(73) }));
     component_up(&mut service.stages, Some(&mut service.frame));
     assert!(service.stages.channel_events.is_empty());
     assert!(service.stages.llm_events.is_empty());
@@ -466,12 +472,15 @@ fn an_answer_is_taken_past_the_watermark() {
 #[test]
 fn pending_messages_wait_at_the_watermark() {
     let mut service = at_watermark();
-    service.stages.pending_messages.push(PendingMessage {
-        finish_requested: false,
-        name: Token::new(31),
-        label: Box::from(b"host".as_slice()),
-        text: Box::from(b"hello".as_slice()),
-    });
+    enter(
+        &mut service,
+        Input::PendingMessage(PendingMessage {
+            finish_requested: false,
+            name: Token::new(31),
+            label: Box::from(b"host".as_slice()),
+            text: Box::from(b"hello".as_slice()),
+        }),
+    );
     domain_down(&mut service.stages, Some(&mut service.frame));
     assert_eq!(service.stages.pending_messages.len(), 1);
     assert!(service.stages.domain_events.is_empty());
@@ -518,26 +527,29 @@ fn a_one_entry_watermark_keeps_the_host_edge_capped_and_effects_progressing() {
 #[test]
 fn a_start_waits_at_the_watermark_before_attaching_its_roots() {
     let mut service = watermark(None);
-    service.stages.channel_events.push(channel::OpenEvent::Start {
-        start: Box::new(channel::DecodedStart {
-            live: None,
-            identity: None,
-            messages: Box::default(),
-            activation: 1,
-            charter: charter(&smith_agent_world::Settings::calm(1)),
-            mounts: Some(Box::new([channel::Mount {
-                name: Box::from(b"work".as_slice()),
-                path: Box::from(b"/work".as_slice()),
-                writable: false,
-                git: false,
-                conflicts: Box::default(),
-            }])),
-            transcript: None,
-            answered: Box::default(),
-            grants: Box::default(),
-            window: domain::Window { turns: 8, bytes: 4096 },
+    enter(
+        &mut service,
+        Input::Host(channel::OpenEvent::Start {
+            start: Box::new(channel::DecodedStart {
+                live: None,
+                identity: None,
+                messages: Box::default(),
+                activation: 1,
+                charter: charter(&smith_agent_world::Settings::calm(1)),
+                mounts: Some(Box::new([channel::Mount {
+                    name: Box::from(b"work".as_slice()),
+                    path: Box::from(b"/work".as_slice()),
+                    writable: false,
+                    git: false,
+                    conflicts: Box::default(),
+                }])),
+                transcript: None,
+                answered: Box::default(),
+                grants: Box::default(),
+                window: domain::Window { turns: 8, bytes: 4096 },
+            }),
         }),
-    });
+    );
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     assert_eq!(service.stages.channel_events.len(), 1);
     assert!(service.root_to_open().is_none());
@@ -552,7 +564,7 @@ fn a_start_waits_at_the_watermark_before_attaching_its_roots() {
 fn an_uncapped_drain_stops_at_the_iterations_work_bound() {
     let mut service = at_watermark();
     for _ in 0..=service.stages.limits.queue {
-        service.stages.io_events.push(io::Event::Resized);
+        enter(&mut service, Input::Io(io::Event::Resized));
     }
     lower_events(&mut service.stages, Some(&mut service.frame));
     assert_eq!(service.stages.io_events.len(), 1, "one iteration drains only queue entries");
@@ -563,18 +575,24 @@ fn kernel_submission_credit_holds_both_lower_routes() {
     let mut config = configuration();
     config.limits.queue = 1;
     let mut service = Service::new(config, 1).expect("one kernel-edge cell");
-    service
-        .stages
-        .submissions
-        .push(kernel::Submit { op: Token::new(1), kind: kernel::Op::Close { fd: kernel::Fd::new(90) } });
-    service
-        .stages
-        .io_submissions
-        .push(kernel::Submit { op: Token::new(2), kind: kernel::Op::Close { fd: kernel::Fd::new(91) } });
-    service
-        .stages
-        .file_submissions
-        .push(kernel::Submit { op: Token::new(3), kind: kernel::Op::Close { fd: kernel::Fd::new(92) } });
+    enter(
+        &mut service,
+        Input::KernelSubmission(kernel::Submit {
+            op: Token::new(1),
+            kind: kernel::Op::Close { fd: kernel::Fd::new(90) },
+        }),
+    );
+    enter(
+        &mut service,
+        Input::IoSubmission(kernel::Submit { op: Token::new(2), kind: kernel::Op::Close { fd: kernel::Fd::new(91) } }),
+    );
+    enter(
+        &mut service,
+        Input::FileSubmission(kernel::Submit {
+            op: Token::new(3),
+            kind: kernel::Op::Close { fd: kernel::Fd::new(92) },
+        }),
+    );
     io_down(&mut service.stages, Some(&mut service.frame));
     assert_eq!(service.stages.io_submissions.len(), 1);
     assert_eq!(service.stages.file_submissions.len(), 1);
@@ -594,7 +612,7 @@ fn kernel_submission_credit_holds_both_lower_routes() {
 #[test]
 fn work_pending_waits_on_the_kernel_for_a_message_at_the_watermark() {
     let mut service = at_watermark();
-    service.stages.channel_events.push(host_message(31));
+    enter(&mut service, Input::Host(host_message(31)));
     assert!(!work_pending(&service, Time::ZERO), "the kernel holds the only runnable route");
     assert!(!channel_event_ready(&service.stages));
     service.stages.submissions.pop().expect("kernel takes one submission");
@@ -608,12 +626,15 @@ fn work_pending_waits_on_the_kernel_for_a_message_at_the_watermark() {
 #[test]
 fn work_pending_waits_on_the_kernel_for_a_pending_message_at_the_watermark() {
     let mut service = at_watermark();
-    service.stages.pending_messages.push(PendingMessage {
-        finish_requested: false,
-        name: Token::new(31),
-        label: Box::from(b"host".as_slice()),
-        text: Box::from(b"hello".as_slice()),
-    });
+    enter(
+        &mut service,
+        Input::PendingMessage(PendingMessage {
+            finish_requested: false,
+            name: Token::new(31),
+            label: Box::from(b"host".as_slice()),
+            text: Box::from(b"hello".as_slice()),
+        }),
+    );
     assert!(!work_pending(&service, Time::ZERO));
     service.stages.submissions.pop().expect("kernel takes one submission");
     assert!(work_pending(&service, Time::ZERO));

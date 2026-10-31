@@ -249,3 +249,48 @@ fn end_channel(mut service: Service) -> Service {
     assert!(service.frame.channel.ended(), "the detached fixture has a terminal channel");
     service
 }
+
+/// Typed entrances at the boundaries exercised by the service pass scenarios.
+#[expect(clippy::large_enum_variant, reason = "test entrances are consumed immediately and never retained")]
+pub(super) enum Input {
+    Machine(machine::ToDomain),
+    Provider(llm::ToDomain),
+    Host(channel::OpenEvent),
+    Domain(domain::Event),
+    Io(io::Event),
+    IoRequest(io::Request),
+    KernelSubmission(kernel::Submit),
+    IoSubmission(kernel::Submit),
+    FileSubmission(kernel::Submit),
+    PendingMessage(PendingMessage),
+    OperationSubmitted { global: Token, original: Token },
+    OperationCompleted { global: Token },
+}
+
+pub(super) fn enter(service: &mut Service, input: Input) {
+    let stages = &mut service.stages;
+    match input {
+        Input::Machine(event) => stages.machine_events.push(event),
+        Input::Provider(event) => stages.llm_events.push(event),
+        Input::Host(event) => stages.channel_events.push(event),
+        Input::Domain(event) => stages.domain_events.push(event),
+        Input::Io(event) => stages.io_events.push(event),
+        Input::IoRequest(request) => stages.io_requests.push(request),
+        Input::KernelSubmission(submit) => stages.submissions.push(submit),
+        Input::IoSubmission(submit) => stages.io_submissions.push(submit),
+        Input::FileSubmission(submit) => stages.file_submissions.push(submit),
+        Input::PendingMessage(message) => stages.pending_messages.push(message),
+        Input::OperationSubmitted { global, original } => {
+            stages.operations.insert(global, Operation::Io(original)).expect("one fake kernel operation");
+        }
+        Input::OperationCompleted { global } => {
+            stages.operations.remove(&global);
+        }
+    }
+}
+
+pub(super) fn llm_route(owner: Token) -> (Service, Token) {
+    let mut service = service();
+    let route = service.stages.owners.insert(Owner::Llm(owner)).expect("one routed lower owner");
+    (service, component_owner(route.token()))
+}
