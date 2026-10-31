@@ -7,7 +7,6 @@ mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;
 mod connect;
-mod demo;
 mod fixtures;
 mod flight;
 #[path = "tests/landing.rs"]
@@ -348,8 +347,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ApplicationDone { .. }
         | Request::ApplicationAgain { .. }
         | Request::MarkedForges
-        | Request::StopGroup { .. }
-        | Request::SetUpGroup { .. }
         | Request::Connect { .. }
         | Request::Manifest { .. }
         | Request::Reachable { .. }
@@ -359,11 +356,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::EraseCarried { .. }
         | Request::SetUp { .. }
         | Request::Bound { .. }
-        | Request::ListDemoActs
-        | Request::SendDemoAct(_)
         | Request::PlaygroundActs { .. }
         | Request::ResetAct { .. }
-        | Request::DemoStart { .. }
         | Request::Settled { .. }
         | Request::ForgeKept(_)
         | Request::ForgeGone { .. }
@@ -426,8 +420,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ApplicationDone { .. }
         | Request::ApplicationAgain { .. }
         | Request::MarkedForges
-        | Request::StopGroup { .. }
-        | Request::SetUpGroup { .. }
         | Request::Connect { .. }
         | Request::Manifest { .. }
         | Request::Reachable { .. }
@@ -437,11 +429,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::EraseCarried { .. }
         | Request::SetUp { .. }
         | Request::Bound { .. }
-        | Request::ListDemoActs
-        | Request::SendDemoAct(_)
         | Request::PlaygroundActs { .. }
         | Request::ResetAct { .. }
-        | Request::DemoStart { .. }
         | Request::Settled { .. }
         | Request::ForgeKept(_)
         | Request::ForgeGone { .. }
@@ -501,8 +490,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ApplicationDone { .. }
         | Request::ApplicationAgain { .. }
         | Request::MarkedForges
-        | Request::StopGroup { .. }
-        | Request::SetUpGroup { .. }
         | Request::Connect { .. }
         | Request::Manifest { .. }
         | Request::Reachable { .. }
@@ -512,11 +499,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::EraseCarried { .. }
         | Request::SetUp { .. }
         | Request::Bound { .. }
-        | Request::ListDemoActs
-        | Request::SendDemoAct(_)
         | Request::PlaygroundActs { .. }
         | Request::ResetAct { .. }
-        | Request::DemoStart { .. }
         | Request::Settled { .. }
         | Request::ForgeKept(_)
         | Request::ForgeGone { .. }

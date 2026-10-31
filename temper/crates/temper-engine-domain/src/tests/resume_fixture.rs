@@ -352,7 +352,6 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         forges: configured_forges(),
         under_box: false,
         playground: None,
-        demo: None,
     }
 }
 

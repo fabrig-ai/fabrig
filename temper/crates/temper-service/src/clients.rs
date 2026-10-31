@@ -14,12 +14,14 @@ pub mod bundle;
 pub mod fetch;
 mod github;
 pub mod google;
+#[cfg(test)]
+mod playground_tests;
 pub(crate) mod policy;
 pub(crate) mod printed;
 mod provider;
 pub mod translation;
 const PREFIX: u64 = crate::tokens::CLIENTS;
-pub(crate) const DEMO_STARTS: u32 = 8;
+pub(crate) const PLAYGROUND_STARTS: u32 = 8;
 
 #[expect(missing_debug_implementations, reason = "clients hold pending OAuth secrets")]
 pub struct Clients {
@@ -65,11 +67,13 @@ pub struct Clients {
     next_secret: u64,
     #[cfg(test)]
     pub(crate) secret_terminals: Option<Queue<kit::SecretOwner>>,
-    demo_starts: Map<Token, root::Event>,
-    demo_reads: Queue<crate::HandoverRead>,
-    demo_ready: Queue<root::Event>,
-    next_demo: u64,
-    demo_carries: Queue<kit::SecretsRequest>,
+    // The read view for this clients pass (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+    pub(crate) playground: Option<temper_engine_domain_forge::Playground>,
+    playground_starts: Map<Token, root::Event>,
+    playground_reads: Queue<crate::HandoverRead>,
+    playground_ready: Queue<root::Event>,
+    next_playground: u64,
+    playground_carries: Queue<kit::SecretsRequest>,
 }
 /// What a secrets request in flight was for: a kept value's owner, or the
 /// exchange whose carried value the store numbers itself.
@@ -89,17 +93,17 @@ fn invalid(what: What) -> Problems {
     problems
 }
 impl Clients {
-    pub(crate) fn demo_read(&mut self) -> Option<crate::HandoverRead> {
-        self.demo_reads.pop()
+    pub(crate) fn playground_read(&mut self) -> Option<crate::HandoverRead> {
+        self.playground_reads.pop()
     }
-    pub(crate) fn owns_demo_read(&self, run: Token) -> bool {
-        self.demo_starts.contains_key(&run)
+    pub(crate) fn owns_playground_read(&self, run: Token) -> bool {
+        self.playground_starts.contains_key(&run)
     }
 
     /// The service reads the file at each start and carries its bytes as a
     /// pasted LLM key's (protocol/setup.md, 8.4). The shell's private read removes
     /// one final LF, as it does for a handover.
-    pub(crate) fn demo_read_answer(
+    pub(crate) fn playground_read_answer(
         &mut self,
         run: Token,
         answer: Result<Option<skein_lib::Secret>, crate::HandoverUnread>,
@@ -110,17 +114,21 @@ impl Clients {
         };
         if let Some(value) = value {
             if let Some(root::Event::Party(root::PartyInput::Application { carried, .. })) =
-                self.demo_starts.get_mut(&run)
+                self.playground_starts.get_mut(&run)
             {
                 *carried = Some(core::Carried { number: 0, digest: skein_lib::sha256::digest(value.expose()) });
             }
-            self.demo_carries.push(kit::SecretsRequest::Carry { exchange: run, value, kind: kit::CarriedKind::Key });
+            self.playground_carries.push(kit::SecretsRequest::Carry {
+                exchange: run,
+                value,
+                kind: kit::CarriedKind::Key,
+            });
         } else {
-            self.demo_carried(run, None);
+            self.playground_carried(run, None);
         }
     }
-    fn demo_carried(&mut self, run: Token, number: Option<u64>) {
-        let Some(mut event) = self.demo_starts.remove(&run) else { return };
+    fn playground_carried(&mut self, run: Token, number: Option<u64>) {
+        let Some(mut event) = self.playground_starts.remove(&run) else { return };
         if let root::Event::Party(root::PartyInput::Application { carried, .. }) = &mut event {
             match number {
                 Some(number) => {
@@ -129,7 +137,7 @@ impl Clients {
                 None => *carried = None,
             }
         }
-        self.demo_ready.push(event);
+        self.playground_ready.push(event);
     }
 
     /// The live bound socket survives consumption of the listening notification.
@@ -279,11 +287,12 @@ impl Clients {
             next_secret: 1,
             #[cfg(test)]
             secret_terminals: None,
-            demo_starts: Map::with_capacity(DEMO_STARTS),
-            demo_reads: Queue::with_capacity(DEMO_STARTS),
-            demo_ready: Queue::with_capacity(DEMO_STARTS),
-            next_demo: 1,
-            demo_carries: Queue::with_capacity(DEMO_STARTS),
+            playground: None,
+            playground_starts: Map::with_capacity(PLAYGROUND_STARTS),
+            playground_reads: Queue::with_capacity(PLAYGROUND_STARTS),
+            playground_ready: Queue::with_capacity(PLAYGROUND_STARTS),
+            next_playground: 1,
+            playground_carries: Queue::with_capacity(PLAYGROUND_STARTS),
             durable: 0,
             writes: journal.writes,
         })
@@ -318,8 +327,8 @@ impl Clients {
             }) || self.pending
                 || !self.secrets.is_empty()
                 || self.endings_ready()
-                || !self.demo_carries.is_empty()
-                || !self.demo_ready.is_empty()
+                || !self.playground_carries.is_empty()
+                || !self.playground_ready.is_empty()
                 || !self.out.is_empty()
                 || !self.early.is_empty()
                 || !self.github_calls.is_empty()
@@ -452,15 +461,15 @@ impl Clients {
         demo: Option<&crate::settings::Demo>,
         accounts: &mut Option<crate::accounts::Accounts>,
     ) {
-        for _ in 0..self.demo_ready.len() {
+        for _ in 0..self.playground_ready.len() {
             if events.room() == 0 {
                 break;
             }
-            let value = self.demo_ready.pop().expect("ready demo start");
+            let value = self.playground_ready.pop().expect("ready demo start");
             self.root(value, events);
         }
         for _ in 0..self.out.len() {
-            if self.demo_starts.len().saturating_add(self.demo_ready.len()) >= DEMO_STARTS
+            if self.playground_starts.len().saturating_add(self.playground_ready.len()) >= PLAYGROUND_STARTS
                 || (self.starting.is_none() && events.room() == 0)
             {
                 break;
@@ -486,10 +495,20 @@ impl Clients {
                     Err(value) => self.down(*value),
                 },
                 kit::Request::Application(value) => {
-                    match crate::family::to_root(value, forges, demo, &temper_client_protocol_wire::v1::CEILINGS) {
+                    let carried = match &value {
+                        kit::ToApplication::Request { carried, .. } => *carried,
+                        kit::ToApplication::Read { .. } | kit::ToApplication::Watch { .. } => None,
+                    };
+                    match crate::family::to_root(
+                        value,
+                        forges,
+                        demo,
+                        self.playground.as_ref(),
+                        &temper_client_protocol_wire::v1::CEILINGS,
+                    ) {
                         Ok(mut value) => {
                             if let root::Event::Party(root::PartyInput::Application {
-                                request: root::Application::Forge(temper_engine_domain_forge::Ask::StartDemo),
+                                request: root::Application::Forge(temper_engine_domain_forge::Ask::StartPlayground),
                                 ..
                             }) = &value
                                 && let Some(demo) = demo
@@ -501,11 +520,11 @@ impl Clients {
                                         number: carried.number,
                                     }));
                                 }
-                                let run = Token::new((1_u64 << 63) | self.next_demo);
-                                self.next_demo = self.next_demo.checked_add(1).expect("demo read sequence");
-                                self.demo_starts.insert(run, value).expect("bounded parked starts");
-                                self.demo_reads.push(crate::HandoverRead {
-                                    forge: demo.forge,
+                                let run = Token::new((1_u64 << 63) | self.next_playground);
+                                self.next_playground = self.next_playground.checked_add(1).expect("demo read sequence");
+                                self.playground_starts.insert(run, value).expect("bounded parked starts");
+                                self.playground_reads.push(crate::HandoverRead {
+                                    forge: 0,
                                     run,
                                     path: demo.key_file.clone(),
                                     max: 4097,
@@ -514,7 +533,16 @@ impl Clients {
                                 self.root(value, events);
                             }
                         }
-                        Err(value) => self.down(*value),
+                        Err(value) => {
+                            if let kit::Event::Application(kit::FromApplication::Answered { .. }) = &*value
+                                && let Some(carried) = carried
+                            {
+                                self.down(kit::Event::Application(kit::FromApplication::Unused {
+                                    number: carried.number,
+                                }));
+                            }
+                            self.down(*value);
+                        }
                     }
                 }
                 kit::Request::Minted { exchange, credential, expires } => {
@@ -743,8 +771,8 @@ impl Clients {
         self.advance_secrets(store);
     }
     fn advance_secrets(&mut self, store: &mut crate::store::Store) {
-        for _ in 0..self.demo_carries.len() {
-            let request = self.demo_carries.pop().expect("pending demo carries");
+        for _ in 0..self.playground_carries.len() {
+            let request = self.playground_carries.pop().expect("pending demo carries");
             self.secrets.push(request);
         }
         for _ in 0..self.secrets.len() {
@@ -765,16 +793,16 @@ impl Clients {
             Event::Erased { owner } => kit::SecretsAnswer::Erased { owner: self.owner(owner) },
             Event::Carried { owner, number } => {
                 let exchange = self.carry(owner);
-                if self.owns_demo_read(exchange) {
-                    self.demo_carried(exchange, Some(number));
+                if self.owns_playground_read(exchange) {
+                    self.playground_carried(exchange, Some(number));
                     return;
                 }
                 kit::SecretsAnswer::Carried { exchange, number: Some(number) }
             }
             Event::Stale { owner } => match self.secret_owners.remove(&owner).expect("secret stale owner") {
                 Asked::Carry(exchange) => {
-                    if self.owns_demo_read(exchange) {
-                        self.demo_carried(exchange, None);
+                    if self.owns_playground_read(exchange) {
+                        self.playground_carried(exchange, None);
                         return;
                     }
                     kit::SecretsAnswer::Carried { exchange, number: None }

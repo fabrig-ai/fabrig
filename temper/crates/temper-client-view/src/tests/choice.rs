@@ -1262,7 +1262,7 @@ pub(super) fn playground_offers_root(address: Address, playground: bool) -> (d::
     );
     let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
     me.providers = List::with_capacity(2);
-    for (provider, name, sign_in) in [(17, crate::words::SCRIPTED_MODEL, false), (18, b"openai".as_slice(), true)] {
+    for (provider, name, sign_in) in [(17, b"scripted".as_slice(), false), (18, b"openai".as_slice(), true)] {
         me.providers
             .push(c::ProviderOffer {
                 provider,
@@ -1305,7 +1305,7 @@ fn the_model_choice_leaves_the_scripted_provider_out() {
             let mut view = fixtures::page_view(root);
             let tree = view.tree();
             assert!(fixtures::find(tree, Role::Paragraph, b"Agents need an LLM account to run.").is_some());
-            assert!(fixtures::find(tree, Role::Link, b"Use a playground API key").is_none());
+            assert!(fixtures::find(tree, Role::Link, b"Use a scripted API key").is_none());
             let sign_in = fixtures::find(tree, Role::Link, b"Continue with ChatGPT").unwrap();
             let key = fixtures::find(tree, Role::Link, b"Use an API key").unwrap();
             for (node, kind) in [(sign_in, d::WayKind::SignIn), (key, d::WayKind::Key)] {
@@ -1318,9 +1318,9 @@ fn the_model_choice_leaves_the_scripted_provider_out() {
             }
         };
         check(&root);
-        // A provider named playground in a configuration without a playground is a legitimate key offer.
+        // A provider named scripted in a configuration without a playground is a legitimate key offer.
         let (root, _) = playground_offers_root(address, false);
-        assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Link, b"Use a playground API key").is_some());
+        assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Link, b"Use a scripted API key").is_some());
     }
 }
 

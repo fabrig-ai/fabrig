@@ -477,8 +477,6 @@ fn startup_locate(engine: &mut crate::engine::Engine) -> (skein_forge::api::Repo
                 root::Request::Party(_) => {}
                 other @ (root::Request::Unsettled(_)
                 | root::Request::Bound { .. }
-                | root::Request::StopGroup { .. }
-                | root::Request::SetUpGroup { .. }
                 | root::Request::ForgeKept(_)
                 | root::Request::ForgeGone { .. }
                 | root::Request::BoxGroup { .. }

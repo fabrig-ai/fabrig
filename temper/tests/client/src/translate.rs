@@ -244,7 +244,6 @@ pub fn incoming(
         | engine::Request::Worker(_)
         | engine::Request::Forge { .. }
         | engine::Request::Account(_)
-        | engine::Request::SetUpGroup { .. }
         | engine::Request::ForgeKept(_)
         | engine::Request::ForgeGone { .. }
         | engine::Request::BoxGroup { .. }
@@ -257,7 +256,6 @@ pub fn incoming(
         | engine::Request::Install { .. }
         | engine::Request::Accept { .. }
         | engine::Request::EraseCarried { .. }
-        | engine::Request::StopGroup { .. }
         | engine::Request::SetUp { .. }
         | engine::Request::Bound { .. }
         | engine::Request::Return { .. }
@@ -328,8 +326,7 @@ fn delivery_packet(
             None
         }
         // Jig has no separate live requester Result; the task document carries it.
-        Delivery::DemoActed { .. }
-        | Delivery::DemoNote { .. }
+        Delivery::PlaygroundNote { .. }
         | Delivery::Application { .. }
         | Delivery::Forges { .. }
         | Delivery::ForgeDocument { .. }

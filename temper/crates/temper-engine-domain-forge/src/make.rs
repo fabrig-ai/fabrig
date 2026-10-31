@@ -53,7 +53,6 @@ pub(crate) fn setup(
         | Ask::StartPlayground
         | Ask::EndPlayground
         | Ask::Adopt(_)
-        | Ask::StartDemo
         | Ask::Install { .. }
         | Ask::Accept { .. }
         | Ask::Reachable { .. } => unreachable!("setup routing"),

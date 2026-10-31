@@ -87,7 +87,7 @@ pub(super) struct Local {
 pub(super) enum Trigger {
     Start,
     StartAsked,
-    StartDemo,
+    StartFake,
     Asked,
 }
 #[derive(Debug)]
@@ -287,7 +287,7 @@ pub(super) fn has_app(engine: &crate::engine::Engine, forge: u16) -> bool {
     }
 }
 pub(crate) fn state(engine: &mut crate::engine::Engine, forge: u16, state: domain::Connection) {
-    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
         return;
     }
     engine.events.push(root::Event::Forge(Box::new(domain::Event::Connection { forge, state })));
@@ -337,7 +337,7 @@ fn manifest_back(engine: &crate::engine::Engine, token: Token) -> Option<&[u8]> 
 pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: reconcile::Outcome) {
     let Some(run) = engine.setup.runs.get(&token) else { return };
     let (forge, kind) = (run.forge, run.kind);
-    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
         refused(engine, token, forge, Box::from(b"forge ended".as_slice()));
         return;
     }
@@ -441,7 +441,7 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
 pub(super) fn stopped(engine: &mut crate::engine::Engine, token: Token, failure: reconcile::Failure) {
     super::public::stopped(engine, token, &failure);
     let Some(run) = engine.setup.runs.get(&token) else { return };
-    if crate::forge::ended(engine, run.forge) {
+    if engine.domain.forge_ended(run.forge) {
         let forge = run.forge;
         refused(engine, token, forge, Box::from(b"forge ended".as_slice()));
         return;
@@ -556,7 +556,7 @@ pub(super) fn kept(engine: &mut crate::engine::Engine, purpose: Purpose) {
         Purpose::AdminOrigin(run) => admin_create(engine, run),
         Purpose::Admin(run) => {
             let forge = engine.setup.runs.get(&run).expect("admin waits on Kept").forge;
-            if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
+            if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
                 refused(engine, run, forge, Box::from(b"forge ended".as_slice()));
                 return;
             }
@@ -569,7 +569,7 @@ pub(super) fn kept(engine: &mut crate::engine::Engine, purpose: Purpose) {
         }
         Purpose::LocalOrigin(run) => {
             let active = engine.setup.runs.remove(&run).expect("reconcile waits for Origin Kept");
-            if crate::forge::ended(engine, active.forge) {
+            if engine.domain.forge_ended(active.forge) {
                 return;
             }
             if !create_local(engine, active.forge) {
@@ -638,7 +638,7 @@ pub(super) fn installations(engine: &mut crate::engine::Engine, forge: u16) {
     engine.forge.down(connection::Request::Installations { forge, accepted });
 }
 pub(crate) fn connected(engine: &mut crate::engine::Engine, forge: u16) {
-    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
         return;
     }
     let Some(config) = configured(engine, forge) else { return };
@@ -764,7 +764,7 @@ pub(super) fn advance(engine: &mut crate::engine::Engine) {
     }
     let forges = engine.workers.forges.numbers();
     for forge in &forges {
-        if crate::forge::ended(engine, *forge) {
+        if engine.domain.forge_ended(*forge) {
             continue;
         }
         if engine.events.room() < 4 || engine.notes.room() == 0 {
@@ -889,7 +889,7 @@ fn local_stopped(engine: &mut crate::engine::Engine, forge: u16, why: crate::Set
     let connection = match local.trigger {
         Trigger::Start => domain::Connection::NotConnected,
         Trigger::StartAsked if why == crate::SetupStopped::NotPrepared => domain::Connection::NotSetUp,
-        Trigger::StartDemo | Trigger::StartAsked | Trigger::Asked => {
+        Trigger::StartFake | Trigger::StartAsked | Trigger::Asked => {
             domain::Connection::SetUpFailed { why: local_failure(forge, &why) }
         }
     };
@@ -907,13 +907,13 @@ fn start_pending(engine: &mut crate::engine::Engine, forge: u16) -> bool {
     false
 }
 fn start_local(engine: &mut crate::engine::Engine, forge: u16) {
-    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
         return;
     }
     let local = engine.setup.lifecycle.local_mut(forge).expect("local start");
     assert!(local.source != Source::Managed || local.handover.is_none(), "managed string form never stages TakeOver");
     local.pending = false;
-    if local.trigger == Trigger::StartDemo {
+    if local.trigger == Trigger::StartFake {
         state(engine, forge, domain::Connection::NotSetUp);
         return;
     }
@@ -948,7 +948,7 @@ fn start_local(engine: &mut crate::engine::Engine, forge: u16) {
     reconcile_local(engine, forge);
 }
 fn reconcile_local(engine: &mut crate::engine::Engine, forge: u16) {
-    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
         return;
     }
     let Some(rows) = engine.forge_records.rows.forge(forge) else {
@@ -1138,7 +1138,7 @@ fn create_stopped(engine: &mut crate::engine::Engine, token: Token, failure: rec
     }
 }
 fn adopt_local(engine: &mut crate::engine::Engine, forge: u16) {
-    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
         return;
     }
     let repositories = engine.setup.lifecycle.local(forge).expect("reconciled local").repositories;
@@ -1154,7 +1154,7 @@ fn adopt_local(engine: &mut crate::engine::Engine, forge: u16) {
         .expect("one adoption per local fake");
 }
 pub(super) fn connect_local(engine: &mut crate::engine::Engine, forge: u16) {
-    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
         return;
     }
     let Some(config) = configured(engine, forge) else { return };
@@ -1236,7 +1236,7 @@ pub(super) fn bounded_reason(text: Box<[u8]>) -> Box<[u8]> {
 }
 /// The box's preparation may create a fresh token on every ask.
 pub(crate) fn started(engine: &mut crate::engine::Engine, forge: u16) {
-    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
         return;
     }
     if engine.setup.closing || engine.drain.is_some() || engine.end.is_some() {
@@ -1264,7 +1264,7 @@ pub(crate) fn take_read(engine: &mut crate::engine::Engine) -> Option<crate::Han
     }
     for entry in engine.workers.forges.iter() {
         let forge = entry.number;
-        if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
+        if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
             continue;
         }
         if let Some(local) = engine.setup.lifecycle.local_mut(forge)
@@ -1288,7 +1288,7 @@ pub(crate) fn read(
     run: Token,
     answer: Result<Option<Secret>, crate::HandoverUnread>,
 ) {
-    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
         return;
     }
     if engine.setup.closing || engine.drain.is_some() || engine.end.is_some() {
@@ -1322,7 +1322,7 @@ pub(crate) fn take_removal(engine: &mut crate::engine::Engine) -> Option<crate::
     }
     for entry in engine.workers.forges.iter() {
         let forge = entry.number;
-        if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
+        if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
             continue;
         }
         if let Some(local) = engine.setup.lifecycle.local_mut(forge)
@@ -1336,7 +1336,7 @@ pub(crate) fn take_removal(engine: &mut crate::engine::Engine) -> Option<crate::
     None
 }
 pub(crate) fn removed(engine: &mut crate::engine::Engine, forge: u16, run: Token, result: Result<(), i32>) {
-    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
         return;
     }
     if engine.setup.closing || engine.drain.is_some() || engine.end.is_some() {
@@ -1387,7 +1387,7 @@ pub(crate) fn first(
     repository: Box<[u8]>,
     playground: bool,
 ) {
-    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
         return;
     }
     if let Some(local) = engine.setup.lifecycle.local_mut(forge)
@@ -1456,7 +1456,7 @@ fn missing_admin(engine: &mut crate::engine::Engine, forge: u16) {
 }
 fn keep_admin(engine: &mut crate::engine::Engine, run: Token) {
     let forge = engine.setup.runs.get(&run).expect("admin run").forge;
-    if configured(engine, forge).is_none() || crate::forge::ended(engine, forge) {
+    if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
         refused(engine, run, forge, Box::from(b"forge ended".as_slice()));
         return;
     }
