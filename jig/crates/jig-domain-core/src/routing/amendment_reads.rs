@@ -122,7 +122,8 @@ pub(crate) fn missing(
 }
 
 pub(super) fn waiting(core: &Core, key: CallKey) -> bool {
-    for (_, read) in &core.result_reads {
+    for (_, flight) in &core.flights {
+        let crate::flight::Flight::ResultRead(read) = flight else { continue };
         match &read.why {
             super::result_reads::ReadFor::DeploymentClose { .. } | super::result_reads::ReadFor::Preparation { .. } => {
             }

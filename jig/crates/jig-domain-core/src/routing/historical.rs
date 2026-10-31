@@ -127,7 +127,7 @@ pub(super) fn route_historical_proposal(
                             tasks::ProposalKind::Release => authority::ProposalKind::Escalation,
                         },
                     ));
-            let running_valid = match core.people.pending_ask(request) {
+            let running_valid = match core.people.pending_ask(core.people_request(request).expect("party route")) {
                 Some(people::Ask::DecideProposal { decision, running, .. }) => {
                     let accepting = match decision {
                         people::ProposalDecision::Accept => true,

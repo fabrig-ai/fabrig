@@ -262,8 +262,13 @@ pub(super) fn propose_admitted(
     let fresh = crate::fresh(&mut core.counters, crate::Family::Message).expect("proposal number preflighted");
     assert!(fresh == u64::from(number), "same proposal sequence");
     let heads = s::proposal_heads(&change.items);
-    assert!(core.settings_offering.is_none(), "one settings offering");
-    core.settings_offering = Some((request, person, number, s::Proposal { against, items: change.items }));
+    assert!(core.settings_offering_flights() == 0, "one settings offering");
+    core.fly(crate::flight::Flight::SettingsOffering {
+        request,
+        by: person,
+        number,
+        value: s::Proposal { against, items: change.items },
+    });
     let request = core.fly_goal(
         request,
         crate::GoalRoute::Offering { proposal: fresh, to: people::Role::Owner.number(), stubs: Box::new([]) },
@@ -406,7 +411,7 @@ fn keep_set(core: &mut Core, proposer: people::Proposer, number: u64, pending: b
         if core.settings_proposals.contains_key(&key) {
             return;
         }
-        let (_, offered_by, offered, value) = core.settings_offering.take().expect("admitted held set");
+        let (offered_by, offered, value) = core.take_settings_offering(None).expect("admitted held set");
         let who = match proposer {
             people::Proposer::Party(n) | people::Proposer::Task(n) => n,
         };
@@ -540,9 +545,9 @@ pub(super) fn propose_run(
         return super::runs::route_named_answer(core, to, key, crate::CallPart::ProposalRefused(problem));
     }
     let fresh = crate::fresh(&mut core.counters, crate::Family::Message).expect("preflighted proposal number");
-    assert!(fresh == next && core.settings_offering.is_none(), "one fresh settings offering");
+    assert!(fresh == next && core.settings_offering_flights() == 0, "one fresh settings offering");
     let token = to.into_token();
-    core.settings_offering = Some((token, key.task, number, set));
+    core.fly(crate::flight::Flight::SettingsOffering { request: token, by: key.task, number, value: set });
     core.pending_calls.insert(key, true).expect("call room reserved");
     let token = core.fly_call(token, crate::RoutedCall::Propose { key, proposal: next });
     work.push(Work::Event(Event::Tasks(tasks::Event::Propose { reply_to: ReplyTo::new(token), proposal })));

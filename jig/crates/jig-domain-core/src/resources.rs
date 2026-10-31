@@ -125,12 +125,12 @@ pub(crate) fn defer(
         }
         return Some(kind.event(reply_to, members.into_boxed()));
     }
-    if core.awaiting_resources.len() == core.awaiting_resources.capacity() {
+    if core.awaiting_resources_flights() == core.flight_tasks_capacity {
         let capacity = tasks::Capacity::batch(
             kind.by(),
             &batch,
             None,
-            tasks::CapacityCause::CreationFlights { limit: core.awaiting_resources.capacity() },
+            tasks::CapacityCause::CreationFlights { limit: core.flight_tasks_capacity },
         );
         core.tasks.remember_capacity(env.wall, capacity);
         out.push(tasks::Request::Refused {
@@ -139,23 +139,28 @@ pub(crate) fn defer(
         });
         return None;
     }
-    let token = reply_to.into_token();
-    let batch = Batch { reply_to: ReplyTo::new(token), kind, members: batch };
-    let _previous = core.awaiting_resources.insert(token, batch).expect("pending batch room checked");
+    let batch = Batch { reply_to, kind, members: batch };
+    let _flight = core.fly(crate::flight::Flight::AwaitingResources(batch));
     None
 }
 
 pub(crate) fn resume(core: &mut Core, work: &mut Queue<Work>) {
     // Resume one whole batch per report; later decisions check readiness again.
     let mut ready: Option<Token> = None;
-    for (token, batch) in &core.awaiting_resources {
+    for (id, flight) in &core.flights {
+        let crate::flight::Flight::AwaitingResources(batch) = flight else { continue };
+        let token = id.token();
         if reported(core, &batch.members) {
-            ready = Some(*token);
+            ready = Some(token);
             break;
         }
     }
     if let Some(token) = ready {
-        let batch = core.awaiting_resources.remove(&token).expect("ready pending batch");
+        let Some(crate::flight::Flight::AwaitingResources(batch)) =
+            core.land_kind(token, crate::flight::Kind::AwaitingResources)
+        else {
+            return;
+        };
         work.push(Work::Event(Event::Tasks(batch.kind.event(batch.reply_to, batch.members))));
     }
 }

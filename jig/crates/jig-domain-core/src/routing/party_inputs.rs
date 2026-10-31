@@ -46,26 +46,21 @@ pub(super) fn begin(
     }
     flight.ids = ids.into_boxed();
     flight.stubs = List::with_capacity(capacity);
-    if core.creating_inputs.len() == core.creating_inputs.capacity() {
+    if core.creating_inputs_flights() == core.flight_people_capacity {
         pool_again(work, request, people::Again::Busy);
         return;
     }
-    ask(out, request, &flight);
-    if core.creating_inputs.insert(request, flight).is_err() {
-        pool_again(work, request, people::Again::Busy);
-    }
+    retain(core, out, request, flight);
 }
-fn ask(out: &mut Queue<Request>, request: Token, flight: &Inputs) {
+fn retain(core: &mut Core, out: &mut Queue<Request>, request: Token, flight: Inputs) {
     let tasks: Box<[u64]> = match &flight.row {
         Some(row) => Box::new([row.root]),
         None => flight.ids.get(flight.at..).expect("remaining inputs").into(),
     };
-    out.push(Request::Now(Box::new(Now::PartyInputs {
-        request,
-        person: flight.person,
-        project: flight.project,
-        tasks,
-    })));
+    let person = flight.person;
+    let project = flight.project;
+    let request = core.fly(crate::flight::Flight::CreatingInputs { request, route: flight });
+    out.push(Request::Now(Box::new(Now::PartyInputs { request, person, project, tasks })));
 }
 pub(super) struct Loaded {
     pub request: Token,
@@ -80,7 +75,7 @@ pub(super) fn loaded(
     loaded: Loaded,
 ) {
     let Loaded { request, row, busy } = loaded;
-    let Some(mut flight) = core.creating_inputs.remove(&request) else { return };
+    let Some((request, mut flight)) = core.take_creating_inputs(request) else { return };
     if busy {
         pool_again(work, request, people::Again::Busy);
         return;
@@ -119,8 +114,7 @@ pub(super) fn loaded(
                 return;
             }
             flight.row = Some(row);
-            ask(out, request, &flight);
-            assert!(core.creating_inputs.insert(request, flight).is_ok(), "continuing input load");
+            retain(core, out, request, flight);
             return;
         }
         row
@@ -136,8 +130,7 @@ pub(super) fn loaded(
     flight.stubs.push(tasks::Stub { task: wanted, phase, result: Token::new(wanted) }).expect("one stub per input");
     flight.at = flight.at.checked_add(1).expect("bounded input position");
     if flight.at < flight.ids.len() {
-        ask(out, request, &flight);
-        assert!(core.creating_inputs.insert(request, flight).is_ok(), "continuing input load");
+        retain(core, out, request, flight);
     } else {
         let stubs = core::mem::replace(&mut flight.stubs, List::with_capacity(0)).into_boxed();
         begin_creation(core, env, out, work, request, kind(&mut flight, stubs), flight.members);

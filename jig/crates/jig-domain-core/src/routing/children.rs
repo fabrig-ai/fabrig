@@ -1,7 +1,6 @@
 //! Brief, fleet and account outputs translated for the root, with sibling continuations
 //! (`domain/engine.md`, section 4.4).
 
-use super::people_routes::tag_people;
 use super::task_routes::tag_task_outputs;
 use crate::routing::Work;
 use crate::{Ask, Core, CoreRecord, Event, Held, Key, Limits, Now, Record, Request, Write};
@@ -14,11 +13,8 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token};
 
 pub(super) fn append_people(core: &mut Core, env: &Env<Limits>, event: people::Event, out: &mut Queue<Request>) {
-    super::view_routes::touch_people_event(core, &env.limits, &event);
-    let mut child = Queue::uncapped();
-    people::step(&mut core.people, &Env { now: env.now, wall: env.wall, limits: env.limits.people }, event, &mut child);
     let mut work = Queue::uncapped();
-    let mut routed = tag_people(core, env, child, &mut work);
+    let mut routed = super::people_routes::route_people(core, env, &mut work, event);
     assert!(work.is_empty(), "a keyed party terminal does not start a task route");
     for _ in 0..routed.len() {
         let request = routed.pop().expect("party route count");
@@ -507,6 +503,10 @@ pub(super) fn tag_account(
             // People keeps the answer under the party's key, and replies once it is durable.
             accounts::Request::Answer { request, answer } => {
                 let outcome = super::account_requests::outcome(core, answer);
+                let Some((request, unused)) = super::key_routes::finished(core, request, &outcome) else { continue };
+                if let Some(number) = unused {
+                    out.push(super::application_routes::unused(number));
+                }
                 work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
             }
         }

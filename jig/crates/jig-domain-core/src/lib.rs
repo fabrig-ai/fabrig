@@ -299,55 +299,36 @@ pub struct Core {
     pub(crate) question_activity: Map<(u64, u64), tasks::ActivityLine>,
     pub(crate) census_progress: Map<u64, inbox::Progress>,
     pub(crate) census_position: Option<(u64, u64, u64)>,
-    pub(crate) ended_marks: Map<Token, ended_marks::Loaded>,
     pub(crate) archived_chats: Map<u64, inbox::ArchivedChat>,
     pub(crate) proposed_input: Option<Result<Box<settings::Proposal>, people::Malformed>>,
-    pub(crate) settings_offering: Option<(Token, u64, u32, settings::Proposal)>,
     pub(crate) settings_proposals: Map<(people::Proposer, u32), settings::Proposal>,
     pub(crate) settings_input: Option<(Result<Box<settings::Change>, settings::Failure>, u32)>,
     pub(crate) key_input: Option<Carried>,
-    pub(crate) keys: Map<Token, routing::key_routes::Flight>,
     pub(crate) application_input: Option<routing::application_routes::Input>,
     pub(crate) task_capacity_mark: u64,
     pub(crate) settings_holders: u32,
-    pub(crate) applications: Map<Token, routing::application_routes::Flight>,
     pub(crate) opened: bool,
     pub(crate) start_pending: bool,
     pub(crate) restart_attempts: u32,
     /// Application connectors addressed only by number.
     pub connectors: Box<[u16]>,
     /// Subjects owned by the parent; the child echoes each watch token.
-    pub(crate) view_subjects: Map<Token, WatchBinding>,
     pub(crate) view_names: skein_lib::Slab<WatchedSubject>,
     pub(crate) changed_views: skein_lib::Set<skein_lib::Id<WatchedSubject>>,
     pub(crate) reads: skein_lib::Slab<reads::Pending>,
     /// Historical dependency results held for preparation.
     pub(crate) dependency_results: Map<u64, Box<[HistoricalResult]>>,
-    /// Delegations awaiting input checks.
-    pub delegating: Map<Token, Delegating>,
     /// Ended result positions waiting to be delivered.
     pub ending_positions: Map<u64, u64>,
-    /// Person messages awaiting task admission.
-    pub saying: Map<Token, (u64, Option<u64>)>,
     /// Child requests awaiting their typed continuation.
+    pub(crate) flight_people_capacity: u32,
+    pub(crate) flight_tasks_capacity: u32,
     pub(crate) flights: skein_lib::Slab<flight::Flight>,
     pub(crate) person_task_capacity: u32,
-    /// Ended results waiting on the store for one core-owned read.
-    pub(crate) result_reads: Map<Token, routing::result_reads::ResultRead>,
-    pub(crate) next_result_request: u64,
-    /// Person task creations waiting for their historical inputs.
-    pub(crate) creating_inputs: Map<Token, routing::party_inputs::Inputs>,
-    /// Person task creations waiting for connector-owned resource holdings.
-    pub(crate) creating: Map<Token, routing::Creation>,
     pub(crate) resource_roles: Map<resources::Key, connector::ResourceRole>,
     pub(crate) resource_roles_full: bool,
-    pub(crate) awaiting_resources: Map<Token, resources::Batch>,
-    /// Named task delegation batches awaiting connector-owned holdings.
-    pub(crate) creating_delegates: Map<Token, routing::DelegateCreation>,
-    /// Procedure batches awaiting connector-owned holdings.
-    pub(crate) creating_procedures: Map<(u64, u64), routing::ProcedureCreation>,
     /// At most one committed word per run awaiting host delivery.
-    pub relaying: Map<u64, PendingRelay>,
+    pub(crate) relaying: Map<u64, PendingRelay>,
     /// Configured project identifiers for bootstrap.
     pub projects: List<u32>,
     pub current: settings::Current,
@@ -360,7 +341,7 @@ pub struct Core {
     /// Mutable connector permission mappings approved by policy edits.
     pub permission_roles: Map<u32, Box<[people::PermissionRole]>>,
     /// Template overrides retained with each project policy.
-    pub template_overrides: Map<u32, Box<[people::TemplateOverride]>>,
+    pub(crate) template_overrides: Map<u32, Box<[people::TemplateOverride]>>,
     pub(crate) seed_projects: Box<[SeedProject]>,
     pub(crate) seed_owners: Box<[people::InitialOwner]>,
     /// Immutable settings for core decisions.
@@ -372,25 +353,17 @@ pub struct Core {
     pub call_parts: Map<CallKey, CallPart>,
     /// Settled host answers and opaque delivery evidence under the same retained names.
     pub call_settled: Map<CallKey, SettledCall>,
-    /// Synchronous connector descriptions and verdicts in this decision.
-    pub(crate) effect_flights: Map<Token, Box<effects::Flight>>,
     /// Live reply rights waiting for a committed effect or its answer deadline.
     pub(crate) effect_replies: Map<u64, effects::Waiting>,
     /// Connectors whose outboxes must finish before a task closes.
     pub(crate) closing_connectors: Map<(u64, u16), ()>,
     pub(crate) projections: Map<u64, Box<Projection>>,
-    /// Correlations while the notes child loads a page for a caller.
-    pub(crate) note_routes: Map<Token, routing::NoteRoute>,
     /// Preparations waiting for notes, or deferring their next activation for load room.
     pub(crate) pending_note_briefs: Map<u64, routing::NoteBrief>,
-    /// Transient owner names for notes routes; pending calls are restored from their records.
-    pub(crate) next_note_owner: u64,
     /// Durable deployment numbers.
     pub counters: Counters,
     /// Live task preparation contexts.
-    pub contexts: Map<u64, Box<tasks::RunContext>>,
-    /// Briefs waiting for their application connector's workspace translation.
-    pub(crate) workspace_pending: Map<u64, u64>,
+    pub(crate) contexts: Map<u64, Box<tasks::RunContext>>,
     pub(crate) workspace_credentials: Map<u64, Box<[u32]>>,
     /// Recent transcript windows for runs being prepared.
     pub transcripts: Map<u64, Transcript>,
@@ -399,13 +372,13 @@ pub struct Core {
     /// Durable proof kept aside until a replacement claim commits.
     pub replaced: Map<u64, RunProof>,
     /// Correlation while current proofs are restored.
-    pub restoring_proofs: Map<u64, RestoringProof>,
+    pub(crate) restoring_proofs: Map<u64, RestoringProof>,
     /// Restored claims not yet reported by a host.
-    pub unreported_restored: Map<u64, u64>,
+    pub(crate) unreported_restored: Map<u64, u64>,
     /// Claims awaiting completion of their route.
     pub claiming: Map<u64, u64>,
     /// Child work due to activation.
-    pub due: Queue<Box<tasks::RunContext>>,
+    pub(crate) due: Queue<Box<tasks::RunContext>>,
     /// Host adoption events held through startup.
     pub(crate) adopted: Queue<fleet::Event>,
     /// The task hub.
@@ -653,7 +626,6 @@ impl Core {
             question_activity: Map::with_capacity(inbox::question_capacity(limits).expect("validated question bound")),
             census_progress: Map::with_capacity(limits.people.people),
             census_position: None,
-            ended_marks: Map::with_capacity(limits.people.pending),
             archived_chats: Map::with_capacity(
                 limits
                     .people
@@ -664,15 +636,12 @@ impl Core {
                     .expect("validated archive cache bound"),
             ),
             proposed_input: None,
-            settings_offering: None,
             settings_proposals: Map::with_capacity(limits.settings.proposals),
             settings_input: None,
             key_input: None,
-            keys: Map::with_capacity(limits.people.pending),
             application_input: None,
             task_capacity_mark: 0,
             settings_holders: 0,
-            applications: Map::with_capacity(limits.people.pending),
             start: start::Script::new(),
             opened: false,
             start_pending: false,
@@ -680,25 +649,17 @@ impl Core {
             counters: Counters::bootstrap(config.deployment),
             seed_owners: config.owners.clone(),
             seed_projects: config.seed_projects,
-            view_subjects: Map::with_capacity(limits.views.watchers),
             view_names: skein_lib::Slab::with_capacity(limits.views.watchers),
             changed_views: skein_lib::Set::with_capacity(limits.views.watchers),
             reads: skein_lib::Slab::with_capacity(limits.load_slots),
             dependency_results: Map::with_capacity(limits.tasks.tasks),
-            delegating: Map::with_capacity(limits.fleet.calls),
             ending_positions: Map::with_capacity(limits.tasks.tasks),
-            saying: Map::with_capacity(limits.people.pending),
+            flight_people_capacity: limits.people.pending,
+            flight_tasks_capacity: limits.tasks.tasks,
             flights: skein_lib::Slab::with_capacity(u32::MAX),
             person_task_capacity: limits.people.pending,
-            result_reads: Map::with_capacity(limits.tasks.tasks),
-            next_result_request: 1,
-            creating_inputs: Map::with_capacity(limits.people.pending),
-            creating: Map::with_capacity(limits.people.pending),
             resource_roles: Map::with_capacity(limits.tasks.resource_reports),
             resource_roles_full: false,
-            awaiting_resources: Map::with_capacity(limits.tasks.tasks),
-            creating_delegates: Map::with_capacity(limits.call_records),
-            creating_procedures: Map::with_capacity(limits.tasks.tasks),
             relaying: Map::with_capacity(limits.tasks.tasks),
             projects: List::with_capacity(limits.authority.projects),
 
@@ -709,26 +670,15 @@ impl Core {
             pending_calls: Map::with_capacity(limits.call_records),
             call_parts: Map::with_capacity(limits.call_records),
             call_settled: Map::with_capacity(limits.call_records),
-            effect_flights: Map::with_capacity(
-                limits
-                    .call_records
-                    .checked_add(limits.tasks.tasks)
-                    .expect("call and procedure flights")
-                    .checked_add(limits.people.pending)
-                    .expect("effect flights"),
-            ),
             effect_replies: Map::with_capacity(limits.call_records),
             closing_connectors: Map::with_capacity(
                 limits.tasks.tasks.checked_mul(limits.connectors).expect("bounded closing connectors"),
             ),
             projections: Map::with_capacity(limits.tasks.tasks),
-            note_routes: Map::with_capacity(2),
             pending_note_briefs: Map::with_capacity(limits.brief.briefs),
-            next_note_owner: 1,
             run_now: skein_lib::Time::ZERO,
             run_wall: Wall::EPOCH,
             contexts: Map::with_capacity(limits.tasks.tasks),
-            workspace_pending: Map::with_capacity(limits.tasks.tasks),
             workspace_credentials: Map::with_capacity(limits.tasks.tasks),
             transcripts: Map::with_capacity(limits.tasks.tasks),
             proofs: Map::with_capacity(limits.tasks.tasks),
@@ -811,7 +761,7 @@ impl Core {
     #[must_use]
     pub fn finish_owed(&self) -> bool {
         self.counters.dirty()
-            || (self.draining == Some(true) && self.view_subjects.is_empty())
+            || (self.draining == Some(true) && self.watch_flights() == 0)
             || !self.changed_views.is_empty()
             || projections::owed(self)
             || routing::watch_marks::retention_owed(self)
@@ -826,16 +776,9 @@ impl Core {
         self.counters.quiescent(journal_idle)
             && self.reads.is_empty()
             && self.dependency_results.is_empty()
-            && self.result_reads.is_empty()
             && self.pending_calls.is_empty()
-            && self.effect_flights.is_empty()
-            && self.note_routes.is_empty()
             && self.pending_note_briefs.is_empty()
-            && self.awaiting_resources.is_empty()
-            && self.creating_inputs.is_empty()
-            && self.delegating.is_empty()
             && self.ending_positions.is_empty()
-            && self.saying.is_empty()
             && self.flights.is_empty()
             && self.relaying.is_empty()
             && self.adopted.is_empty()

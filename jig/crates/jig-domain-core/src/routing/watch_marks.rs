@@ -22,7 +22,8 @@ impl Core {
     /// Gather this party's frame, inbox and conversations after owned facts change.
     pub fn touch_party(&mut self, party: u64) {
         self.start_input();
-        for (_, binding) in &self.view_subjects {
+        for (_, flight) in &self.flights {
+            let crate::flight::Flight::Watch { binding, .. } = flight else { continue };
             let subject = &self.view_names.get(binding.subject).expect("bound subject").subject;
             let touched = match subject {
                 Subject::Frame { party: owner } | Subject::Inbox { party: owner } => *owner == party,
@@ -51,7 +52,8 @@ impl Core {
 
     /// The configured creation period governs every project's current pool join.
     pub(crate) fn touch_frames(&mut self) {
-        for (_, binding) in &self.view_subjects {
+        for (_, flight) in &self.flights {
+            let crate::flight::Flight::Watch { binding, .. } = flight else { continue };
             let subject = &self.view_names.get(binding.subject).expect("bound subject").subject;
             let touched = match subject {
                 Subject::Frame { .. } => true,
@@ -82,7 +84,8 @@ impl Core {
     /// Gather every settings watch after the inventory or its holders changes.
     pub fn touch_settings(&mut self) {
         self.start_input();
-        for (_, binding) in &self.view_subjects {
+        for (_, flight) in &self.flights {
+            let crate::flight::Flight::Watch { binding, .. } = flight else { continue };
             let subject = &self.view_names.get(binding.subject).expect("bound subject").subject;
             match subject {
                 Subject::Settings => {
@@ -112,7 +115,8 @@ impl Core {
     /// Gather deployment facts after host, account or capacity changes.
     pub fn touch_deployment(&mut self) {
         self.start_input();
-        for (_, binding) in &self.view_subjects {
+        for (_, flight) in &self.flights {
+            let crate::flight::Flight::Watch { binding, .. } = flight else { continue };
             let subject = &self.view_names.get(binding.subject).expect("bound subject").subject;
             let touched = match subject {
                 Subject::Deployment => true,
@@ -142,7 +146,8 @@ impl Core {
 
     /// Host or account changes can replace a due agent's next-run wait.
     pub(crate) fn touch_run_waits(&mut self) {
-        for (_, binding) in &self.view_subjects {
+        for (_, flight) in &self.flights {
+            let crate::flight::Flight::Watch { binding, .. } = flight else { continue };
             let Subject::Task { task } = &self.view_names.get(binding.subject).expect("bound subject").subject else {
                 continue;
             };
@@ -157,7 +162,8 @@ impl Core {
 
     /// An asker's own sign-in, or shared source state that can serve every party.
     pub(crate) fn touch_accounts(&mut self, party: Option<u64>) {
-        for (_, binding) in &self.view_subjects {
+        for (_, flight) in &self.flights {
+            let crate::flight::Flight::Watch { binding, .. } = flight else { continue };
             let subject = &self.view_names.get(binding.subject).expect("bound subject").subject;
             let touched = match subject {
                 Subject::Accounts { party: owner } => party.is_none() || party == Some(*owner),
@@ -187,8 +193,9 @@ impl Core {
 
     pub(crate) fn touch_project_parties(&mut self, project: u32) {
         self.touch_project_objects(project);
-        let mut parties = List::with_capacity(self.view_subjects.len());
-        for (_, binding) in &self.view_subjects {
+        let mut parties = List::with_capacity(self.watch_flights());
+        for (_, flight) in &self.flights {
+            let crate::flight::Flight::Watch { binding, .. } = flight else { continue };
             if self.people.role(binding.party, project).is_some() {
                 parties.push(binding.party).expect("one party per watch");
             }
@@ -200,7 +207,8 @@ impl Core {
 
     /// Role, policy and funding facts govern offers on every project object.
     pub(crate) fn touch_project_objects(&mut self, project: u32) {
-        for (_, binding) in &self.view_subjects {
+        for (_, flight) in &self.flights {
+            let crate::flight::Flight::Watch { binding, .. } = flight else { continue };
             let subject = &self.view_names.get(binding.subject).expect("bound subject").subject;
             let touched = match subject {
                 Subject::Project { project: owned } => *owned == project,
@@ -249,7 +257,7 @@ impl Core {
 }
 
 pub(super) fn touch_task(core: &mut Core, limits: &Limits, row: &tasks::TaskRecord) {
-    if core.view_subjects.is_empty() {
+    if core.watch_flights() == 0 {
         return;
     }
     core.touch_deployment();
@@ -268,7 +276,8 @@ pub(super) fn touch_task(core: &mut Core, limits: &Limits, row: &tasks::TaskReco
             tasks::Party::Person(_) | tasks::Party::Deployment { .. } => break,
         };
     }
-    for (_, binding) in &core.view_subjects {
+    for (_, flight) in &core.flights {
+        let crate::flight::Flight::Watch { binding, .. } = flight else { continue };
         let subject = &core.view_names.get(binding.subject).expect("bound subject").subject;
         let touched = match subject {
             Subject::Task { task } | Subject::Tree { task } => trees.as_slice().contains(task),
@@ -305,7 +314,7 @@ pub(super) fn touch_task(core: &mut Core, limits: &Limits, row: &tasks::TaskReco
 }
 
 pub(super) fn touch_number(core: &mut Core, limits: &Limits, task: u64) {
-    if core.view_subjects.is_empty() {
+    if core.watch_flights() == 0 {
         return;
     }
     // The row belongs to the hub; this temporary copy ends in this call.
@@ -352,8 +361,9 @@ pub(super) fn touch_people_event(core: &mut Core, limits: &Limits, event: &peopl
             }
         }
         people::Event::Waiting { task, entries } => {
-            let mut parties = List::with_capacity(core.view_subjects.len());
-            for (_, binding) in &core.view_subjects {
+            let mut parties = List::with_capacity(core.watch_flights());
+            for (_, flight) in &core.flights {
+                let crate::flight::Flight::Watch { binding, .. } = flight else { continue };
                 let old = core.people.cached_waiting(&limits.people, binding.party);
                 let mut touched = core.people.task_needs(binding.party, *task)
                     || match old {
@@ -444,7 +454,9 @@ fn timeless_ending(core: &Core, watcher: Token, binding: &crate::WatchBinding) -
 }
 
 pub(crate) fn endings_owed(core: &Core) -> bool {
-    for (watcher, binding) in &core.view_subjects {
+    for (id, flight) in &core.flights {
+        let crate::flight::Flight::Watch { binding, .. } = flight else { continue };
+        let watcher = &id.token();
         if !core.views.is_closing(*watcher) && timeless_ending(core, *watcher, binding).is_some() {
             return true;
         }
@@ -506,8 +518,10 @@ pub(crate) fn finish_watches(core: &mut Core, env: &Env<Limits>) -> Queue<Reques
 }
 
 pub(super) fn end_invalid(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
-    let mut any = core.draining == Some(true) && core.view_subjects.is_empty();
-    for (watcher, binding) in &core.view_subjects {
+    let mut any = core.draining == Some(true) && (core.watch_flights() == 0);
+    for (id, flight) in &core.flights {
+        let crate::flight::Flight::Watch { binding, .. } = flight else { continue };
+        let watcher = &id.token();
         if !core.views.is_closing(*watcher) && ending(core, *watcher, binding, env).is_some() {
             any = true;
             break;
@@ -517,15 +531,17 @@ pub(super) fn end_invalid(core: &mut Core, env: &Env<Limits>) -> Queue<Request> 
         return Queue::uncapped();
     }
     let mut out = Queue::uncapped();
-    let mut watches = List::with_capacity(core.view_subjects.len());
-    for (watcher, binding) in &core.view_subjects {
+    let mut pending = skein_lib::Map::with_capacity(core.watch_flights());
+    for (id, flight) in &core.flights {
+        let crate::flight::Flight::Watch { watcher: external, binding } = flight else { continue };
+        let watcher = &id.token();
         if !core.views.is_closing(*watcher)
             && let Some(end) = ending(core, *watcher, binding, env)
         {
-            watches.push((*watcher, end)).expect("bounded watch endings");
+            pending.insert(*external, (*watcher, end)).expect("bounded watch endings");
         }
     }
-    for &(watcher, end) in &watches {
+    for (_, &(watcher, end)) in &pending {
         append(super::view_routes::route_view(core, env, views::Event::EndWatch { watcher, end }), &mut out);
     }
     crate::stopping::drained(core, &mut out);

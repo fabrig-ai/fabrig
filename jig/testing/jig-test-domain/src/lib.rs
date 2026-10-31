@@ -876,8 +876,7 @@ impl Domain {
 }
 
 fn effect_payload(domain: &mut Domain, effect: connector::Effect) -> Token {
-    let token = Token::new(domain.next_payload);
-    domain.next_payload = domain.next_payload.checked_add(1).expect("bounded owner numbers");
+    let token = domain.core.effect_owner();
     assert!(domain.effects.insert(token, effect).is_ok(), "admitted effect room");
     token
 }

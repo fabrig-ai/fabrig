@@ -34,7 +34,8 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
             }
             tasks::Request::Lifted { reply_to, released } => {
                 let token = reply_to.into_token();
-                let Some(Flight::PersonTask { request, route: PersonTaskRoute::Lift(hold) }) = core.land(token) else {
+                let Some(Flight::PersonTask { request, route: PersonTaskRoute::Lift(hold) }) = core.land_task(token)
+                else {
                     continue;
                 };
                 append_people(
@@ -83,7 +84,7 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
             }
             tasks::Request::EscalationDecided { reply_to, task, revision, outcome } => {
                 let token = reply_to.into_token();
-                let flight = match core.land(token) {
+                let flight = match core.land_task(token) {
                     Some(Flight::PersonEscalation(flight)) => flight,
                     Some(Flight::Call {
                         request,
@@ -197,6 +198,7 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                     SentRoute::Call { request, key, message } => {
                         call_decision(core, &mut out, ReplyTo::new(request), key, CallPart::Sent { message });
                     }
+                    SentRoute::Stale => {}
                     SentRoute::Person(event) => append_people(core, env, *event, &mut out),
                 }
                 continue;
@@ -398,7 +400,7 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
             }
             tasks::Request::Made { reply_to, tasks } => {
                 let request = reply_to.into_token();
-                let flight = core.land(request);
+                let flight = core.land_task(request);
                 if let Some(Flight::PersonProposal(PersonProposalRoute::Accepting {
                     person, proposer, proposal, ..
                 })) = &flight
@@ -424,7 +426,7 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                         },
                     )))));
                 }
-                match core.made_flight(request, flight, tasks) {
+                match core.made_flight(flight, tasks) {
                     crate::MadeRoute::Internal => {}
                     crate::MadeRoute::Tasks(event) => {
                         let mut follow = Queue::uncapped();
@@ -453,7 +455,7 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
                         }
                         append_people(core, env, *event, &mut out);
                     }
-                    crate::MadeRoute::Delegated { key, tasks, stubs, given } => {
+                    crate::MadeRoute::Delegated { request, key, tasks, stubs, given } => {
                         for stub in stubs {
                             let mut follow = Queue::uncapped();
                             tasks::step(
@@ -479,7 +481,7 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
             }
             tasks::Request::ProposalDecided { reply_to, proposer, number, outcome } => {
                 let token = reply_to.into_token();
-                let (token, route) = match core.land(token) {
+                let (token, route) = match core.land_task(token) {
                     Some(Flight::PersonProposal(route)) => {
                         if let Some(event) =
                             core.task_proposal_decided_for_person(token, proposer, number, outcome, env.wall, route)
@@ -525,7 +527,8 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
             }
             tasks::Request::CompoundRefused { reply_to, at, problem } => {
                 let request = reply_to.into_token();
-                let Some(Flight::PersonTask { request, route: PersonTaskRoute::Compound { .. } }) = core.land(request)
+                let Some(Flight::PersonTask { request, route: PersonTaskRoute::Compound { .. } }) =
+                    core.land_task(request)
                 else {
                     continue;
                 };
@@ -540,7 +543,7 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
             }
             tasks::Request::Done { reply_to } => {
                 let token = reply_to.into_token();
-                match core.land(token) {
+                match core.land_task(token) {
                     Some(flight) => tag_tasks(core, env, token, flight, Ok(()), &mut pending, &mut out),
                     None => {
                         if let Some(attempt) = core.claiming.remove(&token.raw()) {
@@ -879,7 +882,7 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
             }
             tasks::Request::Acknowledged { reply_to, task, attempt, .. } => {
                 let token = reply_to.into_token();
-                match core.land(token) {
+                match core.land_task(token) {
                     Some(Flight::Internal(Internal::Acknowledge)) => {}
                     Some(_) | None => out.push(Request::Now(Box::new(Now::DropPayload { payload: token }))),
                 }
@@ -956,21 +959,8 @@ pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Qu
             }
             tasks::Request::Refused { reply_to, problem } => {
                 let token = reply_to.into_token();
-                if let Some(flight) = core.land(token) {
+                if let Some(flight) = core.land_task(token) {
                     tag_tasks(core, env, token, flight, Err(problem), &mut pending, &mut out);
-                    continue;
-                }
-                if let Some((key, _stubs, _given)) = core.delegating.remove(&token) {
-                    call_decision(core, &mut out, ReplyTo::new(token), key, CallPart::DelegationRefused(problem));
-                    continue;
-                }
-                if core.saying.remove(&token).is_some() {
-                    append_people(
-                        core,
-                        env,
-                        people::Event::Decided { request: token, outcome: person_message_refusal(core, problem) },
-                        &mut out,
-                    );
                     continue;
                 }
                 if core.claiming.remove(&token.raw()).is_some() {
@@ -1400,7 +1390,7 @@ fn follow(core: &mut Core, env: &Env<Limits>, event: tasks::Event, pending: &mut
         if let tasks::Request::ProcedureRefused { .. } = &request
             && let Some(token) = procedure
         {
-            drop(core.land(token));
+            drop(core.land_task(token));
         }
         pending.push(request);
     }
@@ -1489,6 +1479,25 @@ fn tag_tasks(
         | Flight::Made { .. }
         | Flight::PersonEscalation(_)
         | Flight::Internal(_)
+        | Flight::Delegating { .. }
+        | Flight::Saying { .. }
+        | Flight::Party { .. }
+        | Flight::PartyPart { .. }
+        | Flight::EndedMark { .. }
+        | Flight::Key { .. }
+        | Flight::Application { .. }
+        | Flight::Watch { .. }
+        | Flight::ResultRead(_)
+        | Flight::CreatingInputs { .. }
+        | Flight::Creating { .. }
+        | Flight::AwaitingResources(_)
+        | Flight::CreatingDelegates { .. }
+        | Flight::EffectStaging
+        | Flight::Effect { .. }
+        | Flight::Note(_)
+        | Flight::Workspace { .. }
+        | Flight::ProcedureCreation { .. }
+        | Flight::SettingsOffering { .. }
         | Flight::Retired => {}
     }
 }
@@ -1579,13 +1588,15 @@ fn refused(
     out: &mut Queue<Request>,
 ) {
     match flight {
+        Flight::Delegating { request, route: (key, _, _) } => {
+            call_decision(core, out, ReplyTo::new(request), key, CallPart::DelegationRefused(problem));
+        }
+        Flight::Saying { request, .. } => {
+            let outcome = person_message_refusal(core, problem);
+            append_people(core, env, people::Event::Decided { request, outcome }, out);
+        }
         Flight::Goal { request, .. } | Flight::PersonTask { request, .. } | Flight::Made { request, .. } => {
-            if match &core.settings_offering {
-                Some((token, ..)) => *token == request,
-                None => false,
-            } {
-                drop(core.settings_offering.take());
-            }
+            drop(core.take_settings_offering(Some(request)));
             let outcome = person_problem_refusal(core, problem);
             append_people(core, env, people::Event::Decided { request, outcome }, out);
         }
@@ -1606,49 +1617,7 @@ fn refused(
             let event = crate::effects::procedure_proposed(core, out, owner, route, false);
             follow(core, env, event, pending);
         }
-        Flight::Call { request, route, effect } => {
-            if let Some((connector, owner)) = effect {
-                out.push(Request::Ask {
-                    connector,
-                    ask: Ask::Effect(crate::connector::Ask::Drop {
-                        owner,
-                        answer: authority::Answer::Refuse,
-                        findings: Box::new([]),
-                        why: crate::connector::EffectRefusal::Proposal,
-                    }),
-                });
-            }
-            let (key, part) = match route {
-                RoutedCall::Message(key) | RoutedCall::Introduce(key) => (key, CallPart::MessageRefused(problem)),
-                RoutedCall::Control { key, target, .. } => {
-                    let part = if let tasks::Refusal::HoldOwner { hold } = problem.why {
-                        let row = core.tasks.placed_hold(hold).expect("owner refusal names retained hold");
-                        CallPart::HoldOwner {
-                            task: target,
-                            hold,
-                            revision: row.revision,
-                            owner: crate::roles::hold_owner(row.owner),
-                        }
-                    } else {
-                        CallPart::ControlRefused(problem)
-                    };
-                    (key, part)
-                }
-                RoutedCall::Escalation { key, .. } => (key, CallPart::EscalationRefused(problem)),
-                RoutedCall::Propose { key, .. }
-                | RoutedCall::Decide { key, .. }
-                | RoutedCall::Withdraw { key, .. }
-                | RoutedCall::Accepting { key, .. } => (key, CallPart::ProposalRefused(problem)),
-                RoutedCall::Subscribe { key, .. } | RoutedCall::Unsubscribe(key) => {
-                    call_decision(core, out, ReplyTo::new(request), key, CallPart::SubscriptionRefused(problem));
-                    for &connector in core.connectors.as_ref() {
-                        out.push(Request::Ask { connector, ask: Ask::DropSubscription { request } });
-                    }
-                    return;
-                }
-            };
-            call_decision(core, out, ReplyTo::new(request), key, part);
-        }
+        Flight::Call { request, route, effect } => call_refused(core, request, route, effect, problem, out),
         Flight::Internal(Internal::Repair) => {
             for &connector in core.connectors.as_ref() {
                 out.push(Request::Ask { connector, ask: Ask::RepairRefused { repair: problem.task } });
@@ -1662,6 +1631,75 @@ fn refused(
         Flight::Internal(Internal::Admission) => {
             out.push(Request::Now(Box::new(Now::RefusedPayload { request: token, problem })));
         }
-        Flight::Retired | Flight::PersonEscalation(_) => {}
+        Flight::Party { .. }
+        | Flight::PartyPart { .. }
+        | Flight::EndedMark { .. }
+        | Flight::Key { .. }
+        | Flight::Application { .. }
+        | Flight::Watch { .. }
+        | Flight::ResultRead(_)
+        | Flight::CreatingInputs { .. }
+        | Flight::Creating { .. }
+        | Flight::AwaitingResources(_)
+        | Flight::CreatingDelegates { .. }
+        | Flight::EffectStaging
+        | Flight::Effect { .. }
+        | Flight::Note(_)
+        | Flight::Workspace { .. }
+        | Flight::ProcedureCreation { .. }
+        | Flight::SettingsOffering { .. }
+        | Flight::Retired
+        | Flight::PersonEscalation(_) => {}
     }
+}
+
+fn call_refused(
+    core: &mut Core,
+    request: Token,
+    route: RoutedCall,
+    effect: Option<(u16, Token)>,
+    problem: tasks::Problem,
+    out: &mut Queue<Request>,
+) {
+    if let Some((connector, owner)) = effect {
+        out.push(Request::Ask {
+            connector,
+            ask: Ask::Effect(crate::connector::Ask::Drop {
+                owner,
+                answer: authority::Answer::Refuse,
+                findings: Box::new([]),
+                why: crate::connector::EffectRefusal::Proposal,
+            }),
+        });
+    }
+    let (key, part) = match route {
+        RoutedCall::Message(key) | RoutedCall::Introduce(key) => (key, CallPart::MessageRefused(problem)),
+        RoutedCall::Control { key, target, .. } => {
+            let part = if let tasks::Refusal::HoldOwner { hold } = problem.why {
+                let row = core.tasks.placed_hold(hold).expect("owner refusal names retained hold");
+                CallPart::HoldOwner {
+                    task: target,
+                    hold,
+                    revision: row.revision,
+                    owner: crate::roles::hold_owner(row.owner),
+                }
+            } else {
+                CallPart::ControlRefused(problem)
+            };
+            (key, part)
+        }
+        RoutedCall::Escalation { key, .. } => (key, CallPart::EscalationRefused(problem)),
+        RoutedCall::Propose { key, .. }
+        | RoutedCall::Decide { key, .. }
+        | RoutedCall::Withdraw { key, .. }
+        | RoutedCall::Accepting { key, .. } => (key, CallPart::ProposalRefused(problem)),
+        RoutedCall::Subscribe { key, .. } | RoutedCall::Unsubscribe(key) => {
+            call_decision(core, out, ReplyTo::new(request), key, CallPart::SubscriptionRefused(problem));
+            for &connector in core.connectors.as_ref() {
+                out.push(Request::Ask { connector, ask: Ask::DropSubscription { request } });
+            }
+            return;
+        }
+    };
+    call_decision(core, out, ReplyTo::new(request), key, part);
 }

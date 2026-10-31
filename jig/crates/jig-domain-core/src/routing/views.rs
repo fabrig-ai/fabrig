@@ -69,32 +69,52 @@ pub(super) fn made_outputs(core: &mut Core, env: &Env<Limits>, mut child: Queue<
             views::Request::Make { .. } => unreachable!("construction answered within the step"),
             views::Request::Deliver { watcher, .. } => match application_subject(core, watcher) {
                 Some((connector, subject, _, _, _)) => {
-                    out.push(Request::Held(Box::new(Held::ApplicationDelivery { watcher, connector, subject })));
+                    out.push(Request::Held(Box::new(Held::ApplicationDelivery {
+                        watcher: core.watcher(watcher).expect("bound watcher"),
+                        connector,
+                        subject,
+                    })));
                 }
                 None => {
                     let document = documents.remove(&watcher).expect("delivery follows construction");
-                    out.push(Request::Held(Box::new(Held::Delivery { watcher, document: Box::new(document) })));
+                    out.push(Request::Held(Box::new(Held::Delivery {
+                        watcher: core.watcher(watcher).expect("bound watcher"),
+                        document: Box::new(document),
+                    })));
                 }
             },
             views::Request::Ended { watcher, end: why } => {
                 let held = match application_subject(core, watcher) {
-                    Some((connector, subject, _, _, _)) => {
-                        Held::ApplicationWatchEnded { watcher, connector, subject, why }
-                    }
-                    None => Held::WatchEnded { watcher, why },
+                    Some((connector, subject, _, _, _)) => Held::ApplicationWatchEnded {
+                        watcher: core.watcher(watcher).expect("bound watcher"),
+                        connector,
+                        subject,
+                        why,
+                    },
+                    None => Held::WatchEnded { watcher: core.watcher(watcher).expect("bound watcher"), why },
                 };
                 forget_watch(core, watcher);
                 out.push(Request::Held(Box::new(held)));
             }
             views::Request::Refused { watcher, refusal } => {
+                let external = core.watcher(watcher).expect("bound watcher");
                 forget_watch(core, watcher);
                 let why = match refusal {
                     views::Refusal::Busy => WatchRefusal::Busy,
                 };
-                out.push(Request::Now(Box::new(Now::WatchRefused { watcher, why })));
+                out.push(Request::Now(Box::new(Now::WatchRefused { watcher: external, why })));
             }
             views::Request::Stream { watcher, turn, from, to, text, cut, call, writing } => {
-                out.push(Request::Now(Box::new(Now::RunText { watcher, turn, from, to, text, cut, call, writing })));
+                out.push(Request::Now(Box::new(Now::RunText {
+                    watcher: core.watcher(watcher).expect("bound watcher"),
+                    turn,
+                    from,
+                    to,
+                    text,
+                    cut,
+                    call,
+                    writing,
+                })));
             }
         }
     }
@@ -208,7 +228,7 @@ fn open_follow(
     };
     let subject = named_subject(subject, party);
     let window = Window { rows: window.rows.min(env.limits.documents.rows), ..window };
-    if core.view_subjects.contains_key(&watcher) || core.view_subjects.len() >= env.limits.views.watchers {
+    if core.watch_token(watcher).is_some() || core.watch_flights() >= env.limits.views.watchers {
         return refused_subject(watcher, &subject, WatchRefusal::Busy);
     }
     if let Some(why) = admission(core, env, party, &subject, &window) {
@@ -241,7 +261,8 @@ fn open_follow(
         | Subject::Application { .. }) => subject,
     };
     let mut existing = None;
-    for (_, binding) in &core.view_subjects {
+    for (_, flight) in &core.flights {
+        let crate::flight::Flight::Watch { binding, .. } = flight else { continue };
         if core.view_names.get(binding.subject).expect("bound subject").subject == subject {
             existing = Some(binding.subject);
             break;
@@ -261,11 +282,8 @@ fn open_follow(
         }
     };
     let view_window = views::Window { rows: window.rows, after: None };
-    let previous = core
-        .view_subjects
-        .insert(watcher, WatchBinding { party, sign_in, subject: name, window })
-        .expect("bounded watch binding");
-    assert!(previous.is_none(), "one binding per watcher");
+    let watcher = core
+        .fly(crate::flight::Flight::Watch { watcher, binding: WatchBinding { party, sign_in, subject: name, window } });
     route_view(
         core,
         env,
@@ -334,7 +352,7 @@ fn application_subject(
     core: &Core,
     watcher: Token,
 ) -> Option<(u16, Token, jig_domain_people::ApplicationScope, u64, Window)> {
-    let binding = core.view_subjects.get(&watcher)?;
+    let binding = core.watch_binding(watcher)?;
     let subject = &core.view_names.get(binding.subject)?.subject;
     match subject {
         Subject::Application { scope, connector, subject } => {
@@ -362,7 +380,8 @@ fn application_subject(
 
 /// Marks are gathered until all of the decision's connector handoffs finish.
 pub(super) fn marked(core: &mut Core, connector: u16, subjects: List<Token>) -> Queue<Request> {
-    for (_, binding) in &core.view_subjects {
+    for (_, flight) in &core.flights {
+        let crate::flight::Flight::Watch { binding, .. } = flight else { continue };
         let subject = &core.view_names.get(binding.subject).expect("bound application subject").subject;
         let touched = match subject {
             Subject::Application { connector: owner, subject, .. } => {
@@ -394,7 +413,9 @@ pub(super) fn marked(core: &mut Core, connector: u16, subjects: List<Token>) -> 
 }
 
 fn forget_watch(core: &mut Core, watcher: Token) {
-    let Some(binding) = core.view_subjects.remove(&watcher) else { return };
+    let Some(crate::flight::Flight::Watch { binding, .. }) = core.land_kind(watcher, crate::flight::Kind::Watch) else {
+        return;
+    };
     let subject = core.view_names.get_mut(binding.subject).expect("bound watched subject");
     subject.watchers = subject.watchers.checked_sub(1).expect("an ending watch owns its subject");
     if subject.watchers == 0 {
@@ -410,7 +431,7 @@ fn watch_document(
     now: skein_lib::Time,
     wall: skein_lib::Wall,
 ) -> Result<documents::Document, views::End> {
-    let binding = core.view_subjects.get(&watcher).ok_or(views::End::Gone)?;
+    let binding = core.watch_binding(watcher).ok_or(views::End::Gone)?;
     if core.people.person(binding.sign_in, now, wall) != Some(binding.party) {
         return Err(views::End::SignedOut);
     }
@@ -591,7 +612,8 @@ pub(super) fn run_call(
 
 fn changed_run(core: &mut Core, env: &Env<Limits>, run: Token, out: &mut Queue<Request>) {
     let mut named = None;
-    for (_, binding) in &core.view_subjects {
+    for (_, flight) in &core.flights {
+        let crate::flight::Flight::Watch { binding, .. } = flight else { continue };
         let subject = &core.view_names.get(binding.subject).expect("bound current-run subject").subject;
         match subject {
             Subject::Run { task } if *task == run.raw() => {
@@ -641,7 +663,7 @@ fn append_stream(requests: Queue<Request>, out: &mut Queue<Request>) {
 
 // Task facts serve both final task and final tree documents, through the same load.
 pub(crate) fn retained_task(core: &Core, watcher: Token) -> Option<u64> {
-    let binding = core.view_subjects.get(&watcher)?;
+    let binding = core.watch_binding(watcher)?;
     retained_subject(&core.view_names.get(binding.subject)?.subject)
 }
 
@@ -688,12 +710,16 @@ pub(crate) fn retained_made(
         match child.pop().expect("made output count") {
             views::Request::Deliver { .. } => {
                 let document = document.expect("ready retained document");
-                out.push(Request::Held(Box::new(Held::Delivery { watcher, document: Box::new(document) })));
+                out.push(Request::Held(Box::new(Held::Delivery {
+                    watcher: core.watcher(watcher).expect("bound watcher"),
+                    document: Box::new(document),
+                })));
                 return out;
             }
             views::Request::Ended { end, .. } => {
+                let external = core.watcher(watcher).expect("bound watcher");
                 forget_watch(core, watcher);
-                out.push(Request::Held(Box::new(Held::WatchEnded { watcher, why: end })));
+                out.push(Request::Held(Box::new(Held::WatchEnded { watcher: external, why: end })));
             }
             views::Request::Watching { .. }
             | views::Request::Refused { .. }

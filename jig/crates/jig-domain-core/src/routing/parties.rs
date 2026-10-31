@@ -133,16 +133,16 @@ pub(super) fn begin_creation(
     kind: CreationKind,
     members: Box<[tasks::New]>,
 ) {
-    if core.creating.len() == core.creating.capacity() {
+    if core.creating_flights() == core.flight_people_capacity {
         super::refusals::pool_again(work, request, people::Again::Busy);
         return;
     }
     let remaining = u32::try_from(core.connectors.len()).expect("configured connector count fits u32");
     assert!(remaining > 0, "task creation has a numbered connector");
-    creation_holdings(core, out, request, members.first().expect("nonempty creation"));
-    let inserted = core.creating.insert(
+    let first = members.first().expect("nonempty creation").clone();
+    let request = core.fly(crate::flight::Flight::Creating {
         request,
-        Creation {
+        route: Creation {
             kind,
             members,
             at: 0,
@@ -151,11 +151,8 @@ pub(super) fn begin_creation(
             answered: List::with_capacity(remaining),
             failed: false,
         },
-    );
-    match inserted {
-        Ok(None) => {}
-        Ok(Some(_)) | Err(_) => unreachable!("one keyed task creation"),
-    }
+    });
+    creation_holdings(core, out, request, &first);
 }
 
 pub(super) fn created_holdings(
@@ -167,12 +164,11 @@ pub(super) fn created_holdings(
     connector: u16,
     holdings: Option<Box<[tasks::Holding]>>,
 ) {
-    let Some(creating) = core.creating.get_mut(&request) else { return };
+    let known = core.connectors.contains(&connector);
+    let connectors = u32::try_from(core.connectors.len()).expect("connector count");
+    let Some((_, creating)) = core.creation_mut(request) else { return };
     assert!(creating.remaining > 0, "one holdings answer per connector");
-    assert!(
-        core.connectors.contains(&connector) && !creating.answered.as_slice().contains(&connector),
-        "one answer from each numbered connector"
-    );
+    assert!(known && !creating.answered.as_slice().contains(&connector), "one answer from each numbered connector");
     creating.answered.push(connector).expect("one answer per configured connector");
     creating.remaining = creating.remaining.checked_sub(1).expect("one holdings answer per connector");
     match holdings {
@@ -193,13 +189,13 @@ pub(super) fn created_holdings(
         core::mem::replace(&mut creating.holdings, List::with_capacity(env.limits.tasks.holdings)).into_boxed();
     creating.at = creating.at.checked_add(1).expect("bounded batch");
     if let Some(member) = creating.members.get(creating.at) {
-        creating.remaining = u32::try_from(core.connectors.len()).expect("connector count");
+        creating.remaining = connectors;
         creating.answered.clear();
         let member = member.clone();
         creation_holdings(core, out, request, &member);
         return;
     }
-    let creating = core.creating.remove(&request).expect("completed creation flight");
+    let (request, creating) = core.take_creation(request).expect("completed creation flight");
     if creating.failed {
         pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Holds });
         return;
@@ -287,11 +283,12 @@ pub(super) fn roles_route(
     core.touch_accounts(None);
     core.touch_deployment();
     core.touch_project_parties(project);
+    let original = core.people_request(request).expect("party route");
     let mut applied = Queue::uncapped();
     people::step(
         &mut core.people,
         &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-        people::Event::ApplyRoles { reply_to: ReplyTo::new(request), request },
+        people::Event::ApplyRoles { reply_to: ReplyTo::new(request), request: original },
         &mut applied,
     );
     let mut terminal = None;
@@ -303,7 +300,7 @@ pub(super) fn roles_route(
             }
             people::Request::RolesApplied { reply_to, request: actual, result } => {
                 assert!(
-                    reply_to.into_token() == request && actual == request && terminal.is_none(),
+                    reply_to.into_token() == request && actual == original && terminal.is_none(),
                     "one role terminal"
                 );
                 terminal = Some(result);
@@ -342,6 +339,7 @@ pub(super) fn make_service_request(
     pending: &mut Queue<people::Request>,
     service_role: people::Role,
 ) {
+    let original = core.people_request(request).expect("party route");
     let outcome = match core.role_allowed(person, project, env.limits.tasks.tree_tasks) {
         Ok(()) if core.authority.role(project, service_role.number()).is_some() => {
             match crate::fresh(&mut core.counters, crate::Family::Person) {
@@ -350,11 +348,25 @@ pub(super) fn make_service_request(
                     people::step(
                         &mut core.people,
                         &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-                        people::Event::MakeService { request, person: candidate },
+                        people::Event::MakeService { request: original, person: candidate },
                         &mut follow,
                     );
                     for _ in 0..follow.len() {
-                        pending.push(follow.pop().expect("service output count"));
+                        let next = match follow.pop().expect("service output count") {
+                            people::Request::ServiceMade { outcome, .. } => {
+                                people::Request::ServiceMade { request, outcome }
+                            }
+                            other @ (people::Request::Act { .. }
+                            | people::Request::Acted { .. }
+                            | people::Request::RolesApplied { .. }
+                            | people::Request::Route { .. }
+                            | people::Request::Reply { .. }
+                            | people::Request::Save { .. }
+                            | people::Request::Erase { .. }
+                            | people::Request::RolesRefused { .. }
+                            | people::Request::RestoreRefused { .. }) => other,
+                        };
+                        pending.push(next);
                     }
                     None
                 }
@@ -365,16 +377,7 @@ pub(super) fn make_service_request(
         Err(refusal) => Some(people::Outcome::Refused(refusal)),
     };
     if let Some(outcome) = outcome {
-        let mut follow = Queue::uncapped();
-        people::step(
-            &mut core.people,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-            people::Event::Decided { request, outcome },
-            &mut follow,
-        );
-        for _ in 0..follow.len() {
-            pending.push(follow.pop().expect("service decision count"));
-        }
+        pending.push(people::Request::ServiceMade { request, outcome });
     }
 }
 
