@@ -4,7 +4,8 @@
     reason = "ordinary tests inspect checked sayings and public tree events"
 )]
 use crate::tests::fixtures::{AnsweredByEngine, Fixture, Watched};
-use crate::tests::tree::cards::{CLIENT, contains, document, drive, start, words};
+use crate::tests::kit::Goldens;
+use crate::tests::tree::cards::{CLIENT, document, drive, start, words};
 use crate::words::Words;
 use crate::{JigBindings, tree::fragments::tree as view};
 use skein_ui::phrases::{PhraseLimits, Phrasebook, Segment};
@@ -41,10 +42,9 @@ fn counts() -> OwnerPhaseCounts {
 }
 fn source() -> OwnerTree {
     let mut rows = List::with_capacity(2);
-    let mut proposals = List::with_capacity(2);
-    proposals.push(ProposalKey { proposer: Proposer::Party(u64::MAX), number: u64::MAX }).unwrap();
-    let mut dependencies = List::with_capacity(2);
-    dependencies.push(OwnerTaskLink::Stored { number: u64::MAX, status: None }).unwrap();
+    let proposals =
+        crate::tests::kit::list_in(2, [ProposalKey { proposer: Proposer::Party(u64::MAX), number: u64::MAX }]);
+    let dependencies = crate::tests::kit::list_in(2, [OwnerTaskLink::Stored { number: u64::MAX, status: None }]);
     rows.push(OwnerTreeRow {
         chip: chip(9),
         parent: 8,
@@ -55,15 +55,10 @@ fn source() -> OwnerTree {
         cut: true,
     })
     .unwrap();
-    let mut folded = List::with_capacity(2);
-    folded.push(OwnerTreeFold { parent: 0, phases: counts(), held_below: 11 }).unwrap();
-    folded
-        .push(OwnerTreeFold {
-            parent: u64::MAX,
-            phases: OwnerPhaseCounts { idle: u32::MAX, ..counts() },
-            held_below: 17,
-        })
-        .unwrap();
+    let folded = crate::tests::kit::list([
+        OwnerTreeFold { parent: 0, phases: counts(), held_below: 11 },
+        OwnerTreeFold { parent: u64::MAX, phases: OwnerPhaseCounts { idle: u32::MAX, ..counts() }, held_below: 17 },
+    ]);
     OwnerTree {
         root: chip(8),
         rows,
@@ -129,60 +124,40 @@ fn build(value: &OwnerTree, d: &Fixture, w: &Words, nodes: Option<u32>) -> Tree 
 }
 #[test]
 fn owner_tree_view_names_root_parent_depth_spend_loss_proposal_and_all_ten_counts_per_parent() {
+    let mut goldens = Goldens::new("tree/fragments/tree/owner_tree_view_names");
     let value = source();
     let d = domain(&value);
     let w = words();
     let tree = build(&value, &d, w, None);
-    for expected in [
-        b"Root task: 8".as_slice(),
-        b"Parent task: 8",
-        b"Depth from root: 4294967295",
-        b"Subtree row spend:",
-        b"Some dependencies are outside this row",
-        b"Waiting: 1",
-        b"Idle: 2",
-        b"Starting: 3",
-        b"Running: 4",
-        b"Backing off: 5",
-        b"Closing: 6",
-        b"Held: 7",
-        b"Done: 8",
-        b"Failed: 9",
-        b"Cancelled: 4294967295",
-        b"Held below: 11",
-        b"Held below: 17",
-        b"Held below: 19",
-        b"More descendants remain",
-        b"18446744073709551615",
-    ] {
-        assert!(contains(&tree, expected), "missing {}", core::str::from_utf8(expected).unwrap());
-    }
+    goldens.check(&tree);
     assert_eq!(tree.nodes().iter().filter(|n| n.role == Role::TreeItem).count(), 2);
     assert_eq!(d.task_page().plan.owner, Some(&value));
 }
 #[test]
 fn owner_tree_view_preserves_all_link_metadata_without_fabricated_stored_chip_or_time() {
+    let mut goldens = Goldens::new("tree/fragments/tree/owner_tree_view_preserves");
     let mut value = source();
     let w = words();
-    for (link, expected) in [
-        (OwnerTaskLink::Live(chip(17)), b"Live task".as_slice()),
-        (OwnerTaskLink::Retained { chip: chip(17), at: None }, b"Ended time unavailable"),
-        (OwnerTaskLink::Retained { chip: chip(17), at: Some(Wall::EPOCH) }, b"Retained ended task"),
-        (OwnerTaskLink::Stored { number: u64::MAX, status: None }, b"Stored status unavailable"),
-        (OwnerTaskLink::Stored { number: u64::MAX, status: Some(OwnerTaskStatus::Done) }, b"Done"),
-        (OwnerTaskLink::Stored { number: u64::MAX, status: Some(OwnerTaskStatus::Failed) }, b"Failed"),
-        (OwnerTaskLink::Stored { number: u64::MAX, status: Some(OwnerTaskStatus::Cancelled) }, b"Cancelled"),
+    for link in [
+        OwnerTaskLink::Live(chip(17)),
+        OwnerTaskLink::Retained { chip: chip(17), at: None },
+        OwnerTaskLink::Retained { chip: chip(17), at: Some(Wall::EPOCH) },
+        OwnerTaskLink::Stored { number: u64::MAX, status: None },
+        OwnerTaskLink::Stored { number: u64::MAX, status: Some(OwnerTaskStatus::Done) },
+        OwnerTaskLink::Stored { number: u64::MAX, status: Some(OwnerTaskStatus::Failed) },
+        OwnerTaskLink::Stored { number: u64::MAX, status: Some(OwnerTaskStatus::Cancelled) },
     ] {
         value.rows.get_mut(0).unwrap().dependencies.clear();
         value.rows.get_mut(0).unwrap().dependencies.push(link).unwrap();
         let d = domain(&value);
         let tree = build(&value, &d, w, None);
-        assert!(contains(&tree, expected), "missing {}", core::str::from_utf8(expected).unwrap());
+        goldens.check(&tree);
         assert_eq!(d.task_page().plan.owner, Some(&value));
     }
 }
 #[test]
 fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_envelopes() {
+    let mut goldens = Goldens::new("tree/fragments/tree/owner_tree_view_uses");
     let mut value = source();
     let first = value.rows.get_mut(0).unwrap();
     first.proposals.push(ProposalKey { proposer: Proposer::Task(u64::MAX), number: u64::MAX }).unwrap();
@@ -231,8 +206,7 @@ fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_e
         0,
     );
     let tree = build(&value, &d, &w, None);
-    assert!(contains(&tree, b"selected tree "));
-    assert!(!contains(&tree, b"Plan subtree"));
+    goldens.check(&tree);
     let f = crate::tests::render_limits(&CLIENT, &w).unwrap();
     assert!(tree.len() <= f.nodes);
 
@@ -269,6 +243,7 @@ fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_e
 }
 #[test]
 fn owner_tree_local_filters_folds_cycles_and_empty_loss_continuations_remain_bounded_and_independent() {
+    let mut goldens = Goldens::new("tree/fragments/tree/owner_tree_local");
     let mut value = source();
     let w = words();
     value.rows.get_mut(0).unwrap().parent = 9;
@@ -281,20 +256,18 @@ fn owner_tree_local_filters_folds_cycles_and_empty_loss_continuations_remain_bou
         value.next = next.clone();
         let d = domain(&value);
         let tree = build(&value, &d, w, None);
-        assert!(contains(&tree, if next.is_some() { b"More descendants remain" } else { b"no continuation" }));
-        assert!(!contains(&tree, b"Some dependencies are outside this row"));
-        assert!(contains(&tree, b"Held below: 19"));
+        goldens.check(&tree);
         assert_eq!(d.task_page().plan.owner, Some(&value));
     }
 }
 
 #[test]
 fn owner_tree_departure_keeps_a_separately_named_deciding_card_until_its_answer_once() {
+    let mut goldens = Goldens::new("tree/fragments/tree/owner_tree_departure");
     let mut value = source();
     let key = value.rows.get(0).unwrap().proposals.get(0).copied().unwrap();
     let (mut d, tree_watch) = domain_and_watch(&value);
-    let mut objects = List::with_capacity(1);
-    objects.push(ObjectKey::Proposal(key)).unwrap();
+    let objects = crate::tests::kit::list([ObjectKey::Proposal(key)]);
     let asks = drive(&mut d, Event::Named { objects, sections: List::with_capacity(0) });
     let proposal_watch =
         asks.iter()
@@ -309,8 +282,7 @@ fn owner_tree_departure_keeps_a_separately_named_deciding_card_until_its_answer_
                 _ => None,
             })
             .unwrap();
-    let mut acts = List::with_capacity(1);
-    acts.push(Offered { effect: None, act: ActKind::Accept, admission: Admission::Allowed }).unwrap();
+    let acts = crate::tests::kit::list([Offered { effect: None, act: ActKind::Accept, admission: Admission::Allowed }]);
     let proposal = OwnerProposal {
         key,
         project: 4,
@@ -355,8 +327,7 @@ fn owner_tree_departure_keeps_a_separately_named_deciding_card_until_its_answer_
     assert!(d.task_page().plan.owner.as_ref().unwrap().rows.get(0).unwrap().proposals.is_empty());
     let pending = deciding_tree_page(&d);
     assert_eq!(pending.nodes().iter().filter(|node| node.key == Some(card_key)).count(), 1);
-    assert!(contains(&pending, b"Being decided"));
-    assert!(contains(&pending, b"supplied pending reason"));
+    goldens.check(&pending);
     drive(
         &mut d,
         AnsweredByEngine {
@@ -372,8 +343,7 @@ fn owner_tree_departure_keeps_a_separately_named_deciding_card_until_its_answer_
     );
     let answered = deciding_tree_page(&d);
     assert_eq!(answered.nodes().iter().filter(|node| node.key == Some(card_key)).count(), 1);
-    assert!(contains(&answered, b"Accepted"));
-    assert!(contains(&answered, b"supplied pending reason"));
+    goldens.check(&answered);
 }
 
 const UTF8_TEXTS: [&[u8]; 1] = [b"~\0/"];

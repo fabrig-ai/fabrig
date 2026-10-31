@@ -1,4 +1,5 @@
 use crate::tests::fixtures::{Fixture, ReadPage, Watched};
+pub(in crate::tests) use crate::tests::kit::text;
 use crate::tests::state::domain::spine::{LIMITS, delivered, drive, frame, open_token, start};
 use crate::{
     Request,
@@ -6,9 +7,7 @@ use crate::{
 };
 use jig_client::contract::*;
 use skein_lib::{List, Time, Wall};
-pub(in crate::tests) fn text(bytes: &[u8]) -> Text {
-    Text::new(Box::from(bytes), 32).unwrap()
-}
+
 pub(in crate::tests) fn chip(task: u64) -> Chip {
     Chip {
         task,

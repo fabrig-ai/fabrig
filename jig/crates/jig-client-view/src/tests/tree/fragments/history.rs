@@ -1,6 +1,7 @@
 #![expect(clippy::disallowed_methods, reason = "ordinary proofs inspect public checked languages and trees")]
+use crate::tests::kit::Goldens;
 use crate::words::Words;
-use crate::words::{history_words as data, history_words::HistoryPhrase as P};
+use crate::words::history_words as data;
 use crate::{JigBindings, tree::fragments::history as view};
 use skein_ui::Limits;
 use skein_ui::phrases::{Hole, Invalid, PhraseLimits, Phrasebook, Segment, SpanUnit, WallFormat};
@@ -22,21 +23,20 @@ fn pattern(last: OwnerPatternEnd, capacity: u32) -> OwnerPattern {
     OwnerPattern { segments, last }
 }
 pub(in crate::tests) fn state() -> OwnerAmendmentState {
-    let mut parameters = List::with_capacity(3);
-    parameters.push(ParameterDocument::Number { name: u32::MAX, value: u64::MAX }).unwrap();
-    parameters.push(ParameterDocument::Bytes { name: 1, value: doc(b"bytes", false) }).unwrap();
-    parameters.push(ParameterDocument::Resource { name: 2, connector: u16::MAX, resource: u64::MAX }).unwrap();
-    let mut inputs = List::with_capacity(3);
-    inputs.push(9).unwrap();
-    inputs.push(u64::MAX).unwrap();
-    let mut grants = List::with_capacity(3);
-    grants
-        .push(OwnerGrant {
+    let parameters = crate::tests::kit::list([
+        ParameterDocument::Number { name: u32::MAX, value: u64::MAX },
+        ParameterDocument::Bytes { name: 1, value: doc(b"bytes", false) },
+        ParameterDocument::Resource { name: 2, connector: u16::MAX, resource: u64::MAX },
+    ]);
+    let inputs = crate::tests::kit::list_in(3, [9, u64::MAX]);
+    let grants = crate::tests::kit::list_in(
+        3,
+        [OwnerGrant {
             connector: u16::MAX,
             kind: u16::MAX,
             pattern: pattern(OwnerPatternEnd::Exact(copy_of(b"tail")), 3),
-        })
-        .unwrap();
+        }],
+    );
     let mut kinds = List::with_capacity(3);
     for kind in [
         OwnerAuthorityExecutor::Charter(u32::MAX),
@@ -45,13 +45,11 @@ pub(in crate::tests) fn state() -> OwnerAmendmentState {
     ] {
         kinds.push(kind).unwrap();
     }
-    let mut resources = List::with_capacity(3);
-    resources
-        .push(OwnerResourceScope { connector: 7, pattern: pattern(OwnerPatternEnd::Open(copy_of(b"*")), 0) })
-        .unwrap();
-    let mut dependencies = List::with_capacity(3);
-    dependencies.push(u64::MAX).unwrap();
-    dependencies.push(7).unwrap();
+    let resources = crate::tests::kit::list_in(
+        3,
+        [OwnerResourceScope { connector: 7, pattern: pattern(OwnerPatternEnd::Open(copy_of(b"*")), 0) }],
+    );
+    let dependencies = crate::tests::kit::list_in(3, [u64::MAX, 7]);
     OwnerAmendmentState {
         addressed: Some(PersonAddress::Party(u64::MAX)),
         taken_by: Some(u64::MAX),
@@ -109,8 +107,7 @@ pub(in crate::tests) fn part() -> OwnerPart {
 }
 pub(in crate::tests) fn task() -> ProposedTask {
     let source = state();
-    let mut resources = List::with_capacity(3);
-    resources.push(part()).unwrap();
+    let resources = crate::tests::kit::list_in(3, [part()]);
     ProposedTask {
         deadline: NewDeadline::Named,
         number: u64::MAX,
@@ -182,16 +179,7 @@ pub(in crate::tests) fn words(selected: bool) -> Words {
     english.wall = WallFormat::Nanos;
     english.span_unit = SpanUnit::Nanos;
     let languages: Box<[skein_ui::phrases::Language]> = if selected {
-        let mut translated = english.clone();
-        for phrase in &mut translated.phrases {
-            for form in &mut phrase.forms {
-                for segment in &mut form.segments {
-                    if let Segment::Text(bytes) = segment {
-                        *bytes = copy_of(b"selected history: ");
-                    }
-                }
-            }
-        }
+        let translated = crate::tests::kit::translated_language(b"selected history: ");
         Box::new([english, translated])
     } else {
         Box::new([english])
@@ -259,18 +247,10 @@ fn build(value: &OwnerHistoryLine, words: &Words) -> (Tree, JigBindings) {
     assert!(slots <= f.bindings);
     (tree, bindings)
 }
-fn has(tree: &Tree, bytes: &[u8]) -> bool {
-    tree.nodes().iter().any(|node| node.text.iter().any(|run| run.text.as_ref() == bytes))
-}
-fn count(tree: &Tree, bytes: &[u8]) -> usize {
-    tree.nodes().iter().flat_map(|node| &node.text).filter(|run| run.text.as_ref() == bytes).count()
-}
-fn saying(tree: &Tree, words: &Words, phrase: P, holes: &[Hole]) {
-    let expected = words.book().say(words.language(), phrase.id(), holes).unwrap();
-    assert!(has(tree, &expected.text));
-}
+
 #[test]
 fn owner_history_all_nine_changes_keep_category_collisions_full_width_identity_and_optional_clock() {
+    let mut goldens = Goldens::new("tree/fragments/history/owner_history_all_nine");
     let changes = [
         OwnerHistoryChange::Cancelled,
         OwnerHistoryChange::Released,
@@ -291,28 +271,7 @@ fn owner_history_all_nine_changes_keep_category_collisions_full_width_identity_a
             ..line()
         };
         let (tree, _) = build(&value, words);
-        saying(&tree, words, P::Task, &[Hole::Number(u64::MAX)]);
-        saying(&tree, words, P::Revision, &[Hole::Number(u64::MAX)]);
-        assert_eq!(has(&tree, b"History time not supplied"), value.at.is_none());
-        if let Some(at) = value.at {
-            saying(&tree, words, P::At, &[Hole::Wall(at)]);
-        }
-        let expected = match change {
-            OwnerHistoryChange::Cancelled => P::Cancelled,
-            OwnerHistoryChange::Released => P::Released,
-            OwnerHistoryChange::Amended => P::Amended,
-            OwnerHistoryChange::Moved => P::Moved,
-            OwnerHistoryChange::Proposed => P::Proposed,
-            OwnerHistoryChange::ProposalPassed => P::Passed,
-            OwnerHistoryChange::ProposalAccepted => P::Accepted,
-            OwnerHistoryChange::ProposalRejected => P::Rejected,
-            OwnerHistoryChange::ProposalWithdrawn => P::Withdrawn,
-        };
-        saying(&tree, words, expected, &[]);
-        assert!(
-            !tree.nodes().iter().any(|node| node.text.iter().any(|run| run.text.windows(9).any(|w| w == b"position:"))),
-            "no history commit position invented"
-        );
+        goldens.check(&tree);
     }
     let mut trees: List<Tree> = List::with_capacity(6);
     for by in [
@@ -332,30 +291,23 @@ fn owner_history_all_nine_changes_keep_category_collisions_full_width_identity_a
 }
 #[test]
 fn owner_history_stored_snapshot_none_empty_bytes_and_loss_never_invent_historical_effective_text() {
+    let mut goldens = Goldens::new("tree/fragments/history/owner_history_stored");
     let words = normal_words();
-    for (index, instructions) in
+    for instructions in
         [None, Some(doc(b"", false)), Some(doc(b"stored", false)), Some(doc(b"", true)), Some(doc(b"stored", true))]
-            .into_iter()
-            .enumerate()
     {
         let before = OwnerAmendmentState { instructions, ..state() };
         let after = OwnerAmendmentState { instructions: None, ..state() };
         let value = OwnerHistoryLine { amendment: Some((Box::new(before), Box::new(after))), ..line() };
         let (tree, _) = build(&value, words);
-        saying(&tree, words, P::Stored, &[]);
-        assert_eq!(count(&tree, b"Instructions were not supplied"), if index == 0 { 2 } else { 1 });
-        assert_eq!(has(&tree, b"Instructions are empty"), index == 1);
-        assert_eq!(has(&tree, b"stored"), index == 2 || index == 4);
-        assert_eq!(has(&tree, b"Only part of this text was supplied"), index >= 3);
-        assert!(!has(&tree, b"live"));
-        assert!(!has(&tree, b"global"));
+        goldens.check(&tree);
     }
     let (tree, _) = build(&line(), words);
-    saying(&tree, words, P::SnapshotsAbsent, &[]);
-    assert!(!has(&tree, b"stored"));
+    goldens.check(&tree);
 }
 #[test]
 fn owner_history_all_retained_actions_keep_whole_batches_raw_effect_coordinates_and_opaque_bindings() {
+    let mut goldens = Goldens::new("tree/fragments/history/owner_history_all_retained");
     let words = normal_words();
     for (index, action) in actions().into_iter().enumerate() {
         let original = action.clone();
@@ -375,28 +327,12 @@ fn owner_history_all_retained_actions_keep_whole_batches_raw_effect_coordinates_
             assert_eq!(bindings.owner_part(slot.token), Some(&part()));
             assert!(bindings.part(slot.token).is_none());
         }
-        if index < 2 {
-            assert!(has(&tree, b"a/b"));
-            assert!(has(&tree, b"\\xFF\\x00"));
-        }
-        if index == 0 {
-            assert_eq!(count(&tree, b"Input task 9"), 3);
-            assert_eq!(count(&tree, b"Input task 18446744073709551615"), 3);
-        }
-        if index == 1 {
-            for (phrase, number) in [
-                (P::Attempt, u64::MAX),
-                (P::Completion, u64::from(u32::MAX)),
-                (P::Position, u64::from(u32::MAX)),
-                (P::Purpose, u64::MAX),
-            ] {
-                saying(&tree, words, phrase, &[Hole::Number(number)]);
-            }
-        }
+        goldens.check(&tree);
     }
 }
 #[test]
 fn owner_history_retained_optional_delta_keeps_revision_channels_empty_presence_order_and_independent_losses() {
+    let mut goldens = Goldens::new("tree/fragments/history/owner_history_retained");
     let words = normal_words();
     for flag in 0_u32..6 {
         let mut delta = delta();
@@ -414,13 +350,7 @@ fn owner_history_retained_optional_delta_keeps_revision_channels_empty_presence_
             ..line()
         };
         let (tree, _) = build(&value, words);
-        saying(&tree, words, P::Revision, &[Hole::Number(6)]);
-        saying(&tree, words, P::AddressRevision, &[Hole::Number(12)]);
-        saying(&tree, words, P::HoldRevision, &[Hole::Number(4)]);
-        assert_eq!(count(&tree, b"Only part of this text was supplied"), usize::from(flag < 3));
-        assert_eq!(has(&tree, b"The specification is incomplete"), flag == 3);
-        assert_eq!(has(&tree, b"More are held than shown"), flag == 4);
-        assert_eq!(has(&tree, b"Retained dependency list incomplete"), flag == 5);
+        goldens.check(&tree);
     }
     let absent = OwnerRetainedAmendment {
         addressed: None,
@@ -438,7 +368,7 @@ fn owner_history_retained_optional_delta_keeps_revision_channels_empty_presence_
         dependencies: Some(List::with_capacity(3)),
         ..absent.clone()
     };
-    for (delta, is_empty) in [(absent, false), (empty, true)] {
+    for delta in [absent, empty] {
         let (tree, _) = build(
             &OwnerHistoryLine {
                 proposal: Some(proposal(OwnerRetainedAction::Amend { task: 0, change: Box::new(delta) })),
@@ -446,18 +376,14 @@ fn owner_history_retained_optional_delta_keeps_revision_channels_empty_presence_
             },
             words,
         );
-        assert_eq!(has(&tree, b"Instruction replacement not supplied"), !is_empty);
-        assert_eq!(has(&tree, b"Instructions are empty"), is_empty);
-        assert_eq!(has(&tree, b"Dependency replacement not supplied"), !is_empty);
-        assert_eq!(has(&tree, b"Retained dependency replacement"), is_empty);
+        goldens.check(&tree);
     }
 }
 #[test]
 fn owner_history_all_states_holders_policy_kinds_raw_proposer_and_pending_clock_remain_independent() {
+    let mut goldens = Goldens::new("tree/fragments/history/owner_history_all_states");
     let words = normal_words();
-    let mut holders = List::with_capacity(7);
-    holders.push(OwnerHistoryHolder::Task(0)).unwrap();
-    holders.push(OwnerHistoryHolder::Person(0)).unwrap();
+    let mut holders = crate::tests::kit::list_in(7, [OwnerHistoryHolder::Task(0), OwnerHistoryHolder::Person(0)]);
     for kind in [
         OwnerMessageProposalKind::Batch,
         OwnerMessageProposalKind::Effect,
@@ -481,10 +407,7 @@ fn owner_history_all_states_holders_policy_kinds_raw_proposer_and_pending_clock_
                 ..line()
             };
             let (tree, _) = build(&value, words);
-            saying(&tree, words, P::Since, &[Hole::Wall(Wall::from_nanos(u64::MAX))]);
-            saying(&tree, words, P::AtAbsent, &[]);
-            saying(&tree, words, P::Proposer, &[Hole::Number(0)]);
-            saying(&tree, words, if as_holder { P::AsHolder } else { P::NotAsHolder }, &[]);
+            goldens.check(&tree);
         }
     }
     for state in [
@@ -496,24 +419,17 @@ fn owner_history_all_states_holders_policy_kinds_raw_proposer_and_pending_clock_
         },
         OwnerProposalHistoryState::Withdrawn,
     ] {
-        let rejected = match &state {
-            OwnerProposalHistoryState::Rejected { .. } => true,
-            OwnerProposalHistoryState::Pending { .. }
-            | OwnerProposalHistoryState::Accepted { .. }
-            | OwnerProposalHistoryState::Withdrawn => false,
-        };
         let value = OwnerHistoryLine {
             proposal: Some(OwnerProposalHistory { state, ..proposal(OwnerRetainedAction::Release { task: 0 }) }),
             ..line()
         };
         let (tree, _) = build(&value, words);
-        assert_eq!(has(&tree, b"denied"), rejected);
-        assert_eq!(has(&tree, b"Only part of this text was supplied"), rejected);
-        assert!(!has(&tree, b"Proposal pending"));
+        goldens.check(&tree);
     }
 }
 #[test]
 fn owner_history_normal_selected_language_checks_all_holes_and_nested_tree_binding_envelope() {
+    let mut goldens = Goldens::new("tree/fragments/history/owner_history_normal");
     let words = words(true);
     for phrase in data::ALL {
         let shape = data::shapes().into_vec().into_iter().find(|s| s.id == phrase.id()).unwrap();
@@ -544,7 +460,7 @@ fn owner_history_normal_selected_language_checks_all_holes_and_nested_tree_bindi
             ..line()
         };
         let (tree, bindings) = build(&value, &words);
-        assert!(tree.nodes().iter().any(|n| n.name.as_deref() == Some(b"selected history: ".as_slice())));
+        goldens.check(&tree);
         for slot in tree.nodes().iter().filter_map(|n| n.slot) {
             assert_eq!(bindings.owner_part(slot.token), Some(&part()));
         }

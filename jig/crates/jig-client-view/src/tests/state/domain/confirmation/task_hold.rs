@@ -1,9 +1,7 @@
 use crate::tests::state::domain::confirmation::*;
 
 fn owner(reason: HoldCategory) -> OwnerChipHold {
-    let mut segments = List::with_capacity(2);
-    segments.push(Box::<[u8]>::from(*b"a/b")).unwrap();
-    segments.push(Box::<[u8]>::from([255_u8, 0])).unwrap();
+    let segments = crate::tests::kit::list([Box::<[u8]>::from(*b"a/b"), Box::<[u8]>::from([255_u8, 0])]);
     OwnerChipHold {
         words: None,
         placed: None,

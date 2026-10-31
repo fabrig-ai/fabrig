@@ -1,0 +1,74 @@
+== jig == 
+Semantic history:
+  Task: 18446744073709551615
+  Revision: 6
+  Requested by person 18446744073709551615
+  Amended
+  Supplied reason
+  reason
+  History time not supplied
+  Stored snapshots not supplied
+  Proposal: 18446744073709551615
+  Raw task-origin proposer: 18446744073709551615
+  Proposed as holder
+  Retained amendment
+  Task: 18446744073709551615
+  Person revision: 12
+  Addressed party: 18446744073709551615
+  Retained instruction replacement
+  Only part of this text was supplied
+  Release hold revision: 4
+  Retained specification replacement
+  spec
+  Parameter 4294967295 has value 18446744073709551615
+  Parameter 1
+  bytes
+  Parameter 2 names connector 65535 resource 18446744073709551615
+  Input task 9
+  Input task 18446744073709551615
+  Retained authority
+    Tool bits: 18446744073709551615
+    Delegate tasks: 4294967295
+    Delegate depth: 4294967295
+    Spend ceiling: 18446744073709551615
+    Note scope bits: 255
+    Deadline: 18446744073709551615
+    Keep default models
+    Grants
+    Connector: 65535
+    Kind: 65535
+    Literal segments
+    `a/b`
+    `\xFF\x00`
+    
+    Exact ending
+    `tail`
+    Allowed delegation executors
+    Charter: 4294967295
+    Procedure: 4294967295
+    Role: 4294967295
+    Note resources
+    Connector: 7
+    Literal segments
+    Open ending
+    `*`
+  Retained wake replacement
+  Wake policy:
+    Words
+    Does not wake
+    Notices
+    Wakes immediately
+    News
+    Wakes after 4294967295 messages or 18446744073709551615 ns of oldest message age
+    The last delegate result or a failure wakes
+    Questions wake
+    Answers do not wake
+    Timers wake
+  Retained dependency replacement
+  Dependency task: 18446744073709551615
+  Dependency task: 7
+  Supplied reason
+  delta
+  Proposal pending
+  Holder task: 18446744073709551615
+  Pending since: 7

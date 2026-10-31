@@ -1,4 +1,5 @@
 use crate::tests::fixtures::{Fixture, ReadPage};
+pub(in crate::tests) use crate::tests::kit::text;
 use crate::tests::state::domain::spine::{LIMITS, delivered, drive, frame, start};
 use crate::{
     Event, Request,
@@ -11,9 +12,6 @@ use jig_client::contract::*;
 use jig_client::thread::window::End;
 use skein_lib::{List, Time, Token, Wall};
 
-fn text(bytes: &[u8]) -> Text {
-    Text::new(Box::from(bytes), LIMITS.client.text).unwrap()
-}
 fn change(task: u64, revision: u64) -> HistoryRow {
     HistoryRow::Change(Box::new(OwnerHistoryLine {
         task,

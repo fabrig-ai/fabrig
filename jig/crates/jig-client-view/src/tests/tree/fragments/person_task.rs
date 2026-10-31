@@ -5,6 +5,7 @@
     reason = "ordinary proofs inspect public trees, source data and checked language selection"
 )]
 use crate::tests::fixtures::Fixture;
+use crate::tests::kit::Goldens;
 use crate::tests::tree::cards::{CLIENT, drive, words};
 use crate::words::Words;
 use crate::words::person_task_words::PersonPhrase;
@@ -127,11 +128,10 @@ fn build(value: &OwnerPersonTask, words: &Words, cap: Limits) -> Tree {
     view::render(&mut b, &d.view(), value, words, &mut bindings);
     b.finish()
 }
-fn contains(tree: &Tree, text: &[u8]) -> bool {
-    tree.nodes().iter().any(|node| node.text.iter().any(|run| run.text.as_ref() == text))
-}
+
 #[test]
 fn person_owner_view_retains_ordered_missing_links_full_results_and_independent_loss() {
+    let mut goldens = Goldens::new("tree/fragments/person_task/person_owner_view");
     let mut value = value();
     value.results = rows([
         OwnerShownResult { task: OwnerTaskLink::Live(chip(101)), result: None },
@@ -149,28 +149,7 @@ fn person_owner_view_retains_ordered_missing_links_full_results_and_independent_
     let unchanged = value.clone();
     let w = words();
     let tree = build(&value, w, limits(w));
-    for text in [
-        b"Result not supplied".as_slice(),
-        b"Ended time unavailable",
-        b"Stored task 104",
-        b"Stored status unavailable",
-        b"Cancelled",
-        b"Some shown results were omitted",
-        b"Some result metadata was omitted",
-        b"result explanation",
-        b"field/a",
-        &[255, 0, 47],
-    ] {
-        assert!(contains(&tree, text), "missing {text:?}");
-    }
-    assert_eq!(
-        tree.nodes()
-            .iter()
-            .flat_map(|node| &node.text)
-            .filter(|run| run.text.as_ref() == b"Result not supplied")
-            .count(),
-        3
-    );
+    goldens.check(&tree);
     let positions =
         [b"Live task".as_slice(), b"Retained ended task", b"Stored task 104", b"Stored task 105"].map(|text| {
             tree.nodes().iter().position(|node| node.text.iter().any(|run| run.text.as_ref() == text)).unwrap()
@@ -180,6 +159,7 @@ fn person_owner_view_retains_ordered_missing_links_full_results_and_independent_
 }
 #[test]
 fn person_owner_card_and_confirmation_show_numeric_rules_and_disable_field_bearing_choices() {
+    let mut goldens = Goldens::new("tree/fragments/person_task/person_owner_card");
     let mut value = value();
     value.contract = TaskContractDocument::Verdict {
         choices: rows([
@@ -209,15 +189,7 @@ fn person_owner_card_and_confirmation_show_numeric_rules_and_disable_field_beari
     crate::tree::cards::card(&mut b, &d.view(), id, &crate::tree::cards::Place::Elsewhere, w, &mut bindings);
     crate::tree::confirmation::confirmation(&mut b, &d.view(), w, &mut bindings);
     let tree = b.finish();
-    for text in [
-        b"Choice code: 4294967295".as_slice(),
-        b"Choice code: 7",
-        b"field/a",
-        b"This choice requires fields the person answer cannot carry",
-        b"Some contract choices were omitted",
-    ] {
-        assert!(contains(&tree, text), "missing {text:?}");
-    }
+    goldens.check(&tree);
     let disabled =
         tree.nodes().iter().find(|n| n.role == Role::Choice && n.name.as_deref() == Some(b"Choice code: 7")).unwrap();
     assert!(disabled.states.as_slice().contains(&State::Disabled));
@@ -239,11 +211,11 @@ fn person_owner_card_and_confirmation_show_numeric_rules_and_disable_field_beari
     let mut b = Builder::new(&cap);
     crate::tree::confirmation::confirmation(&mut b, &d.view(), w, &mut bindings);
     let confirmation = b.finish();
-    assert!(contains(&confirmation, b"Choice code: 7"));
-    assert!(contains(&confirmation, b"field/a"));
+    goldens.check(&confirmation);
 }
 #[test]
 fn person_owner_approval_renders_opaque_parts_without_inventing_application_scope() {
+    let mut goldens = Goldens::new("tree/fragments/person_task/person_owner_approval");
     let mut value = value();
     value.address = PersonAddress::Party(u64::MAX);
     value.taken_by = Some(u64::MAX);
@@ -262,16 +234,7 @@ fn person_owner_approval_renders_opaque_parts_without_inventing_application_scop
     let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
     view::render(&mut b, &client.view(), &value, w, &mut bindings);
     let tree = b.finish();
-    for text in [
-        b"Person destination: 18446744073709551615".as_slice(),
-        b"Taken by person: 18446744073709551615",
-        b"\\xFF\\x00\\x2F",
-        b"a/b",
-        b"\\x80\\x00",
-        b"Outbox reference",
-    ] {
-        assert!(contains(&tree, text), "missing {text:?}");
-    }
+    goldens.check(&tree);
     let slot = tree.nodes().iter().find_map(|node| node.slot).unwrap();
     let meaning = bindings.owner_part(slot.token).unwrap();
     assert_eq!(
@@ -365,6 +328,7 @@ fn person_owner_selected_words_reject_overflow_and_invalid_phrase_holes() {
     reason = "ordinary test entry retains the complete original fixture, assertions and one-under arithmetic"
 )]
 fn person_storage_dimension(selected_dimension: Option<usize>) {
+    let mut goldens = Goldens::new("tree/fragments/person_task/person_storage_dimension");
     let normal = crate::words::phrases::english::language();
     let mut selected = crate::words::phrases::english::language();
     for phrase in &mut selected.phrases {
@@ -433,8 +397,7 @@ fn person_storage_dimension(selected_dimension: Option<usize>) {
     let maximum = limits_for(&l, &w);
     let tree = build(&value, &w, maximum);
     if selected_dimension.is_none() {
-        assert!(contains(&tree, b"selected 4294967295"));
-        assert!(!contains(&tree, b"Taker not supplied"));
+        goldens.check(&tree);
         assert_eq!(value, untouched);
         return;
     }
@@ -549,6 +512,7 @@ const UTF8_TEXTS: [&[u8]; 4] = [b"~\0/", &[b'~'; 128], &[b'q'; 128], &[b'w'; 128
 
 #[test]
 fn a_kept_person_chip_names_its_dependency_and_who_added_it() {
+    let mut goldens = Goldens::new("tree/fragments/person_task/a_kept_person_chip");
     let mut value = value();
     let ChipPhase { details, .. } = value.task.details.as_mut();
     details.dependencies = rows([Dependency {
@@ -559,12 +523,12 @@ fn a_kept_person_chip_names_its_dependency_and_who_added_it() {
         status: None,
     }]);
     let tree = build(&value, words(), limits(words()));
-    assert!(contains(&tree, b"kept until T7 is done"));
-    assert!(tree.nodes().iter().flat_map(|node| &node.text).any(|run| run.text.starts_with(b"added by P5 at ")));
+    goldens.check(&tree);
 }
 
 #[test]
 fn a_kept_person_card_keeps_take_but_hides_an_answer_offer() {
+    let mut goldens = Goldens::new("tree/fragments/person_task/a_kept_person_card");
     let mut value = value();
     let ChipPhase { details, .. } = value.task.details.as_mut();
     details.dependencies = rows([Dependency { number: 7, pending: true, keeps: true, added: None, status: None }]);
@@ -578,10 +542,6 @@ fn a_kept_person_card_keeps_take_but_hides_an_answer_offer() {
     let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
     crate::tree::cards::card(&mut b, &d.view(), object, &crate::tree::cards::Place::Elsewhere, w, &mut bindings);
     let tree = b.finish();
-    let answer = w.say(crate::words::phrases::jig::JigPhrase::ActAnswer, &[]);
-    let take = w.say(crate::words::phrases::jig::JigPhrase::ActTake, &[]);
-    assert!(
-        !tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(answer.as_ref()))
-    );
-    assert!(tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(take.as_ref())));
+
+    goldens.check(&tree);
 }

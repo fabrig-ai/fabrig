@@ -8,7 +8,9 @@
 )]
 //! Native Deployment view proofs; no source translation or connector completion is inferred.
 use crate::tests::fixtures::{Fixture, Watched};
-use crate::tests::tree::cards::{CLIENT, contains, document, drive, shared_words, start};
+use crate::tests::kit::Goldens;
+pub(in crate::tests) use crate::tests::kit::list;
+use crate::tests::tree::cards::{CLIENT, document, drive, shared_words, start};
 use crate::words::Words;
 use crate::words::deployment_words::DeploymentPhrase as P;
 use crate::{JigBindings, tree::fragments::deployment as view};
@@ -21,13 +23,7 @@ use crate::{
 };
 use jig_client::contract::*;
 use skein_lib::{Duration, List, Wall, bytes::copy_of};
-fn list<T>(values: Vec<T>) -> List<T> {
-    let mut list = List::with_capacity(u32::try_from(values.len()).unwrap());
-    for value in values {
-        list.push(value).ok().unwrap();
-    }
-    list
-}
+
 fn empty() -> OwnerDeployment {
     OwnerDeployment {
         providers: List::with_capacity(0),
@@ -152,27 +148,30 @@ fn waiting_account(until: Option<Wall>) -> OwnerDeployment {
 }
 #[test]
 fn an_account_waiting_to_ask_again_shows_the_wall_it_asks_at() {
-    assert!(contains(&round_trip(waiting_account(Some(Wall::from_nanos(46_920_000_000_000)))), b"Asks again at 14:02"));
+    let mut goldens = Goldens::new("tree/fragments/deployment/an_account_waiting_to_ask_again_shows");
+    goldens.check(&round_trip(waiting_account(Some(Wall::from_nanos(46_920_000_000_000)))));
 }
 #[test]
 fn an_account_waiting_to_ask_again_without_a_clock_shows_later() {
-    assert!(contains(&round_trip(waiting_account(None)), b"Asks again later"));
+    let mut goldens = Goldens::new("tree/fragments/deployment/an_account_waiting_to_ask_again_without");
+    goldens.check(&round_trip(waiting_account(None)));
 }
 #[test]
 fn deployment_view_all_attempt_account_hello_states_clocks_keys_and_independent_counts_are_visible() {
+    let mut goldens = Goldens::new("tree/fragments/deployment/deployment_view_all");
     let states = [
-        (OwnerAttemptState::Waiting, b"Attempt State Waiting".as_slice()),
-        (OwnerAttemptState::Adopted, b"Attempt State Adopted"),
-        (OwnerAttemptState::Claimed, b"Attempt State Claimed"),
-        (OwnerAttemptState::Cancelled, b"Attempt State Cancelled"),
-        (OwnerAttemptState::Handed, b"Attempt State Handed"),
-        (OwnerAttemptState::Acknowledged, b"Attempt State Acknowledged"),
-        (OwnerAttemptState::Stray, b"Attempt State Stray"),
-        (OwnerAttemptState::Kept, b"Attempt State Kept"),
-        (OwnerAttemptState::Fenced, b"Attempt State Fenced"),
-        (OwnerAttemptState::Closed, b"Attempt State Closed"),
+        OwnerAttemptState::Waiting,
+        OwnerAttemptState::Adopted,
+        OwnerAttemptState::Claimed,
+        OwnerAttemptState::Cancelled,
+        OwnerAttemptState::Handed,
+        OwnerAttemptState::Acknowledged,
+        OwnerAttemptState::Stray,
+        OwnerAttemptState::Kept,
+        OwnerAttemptState::Fenced,
+        OwnerAttemptState::Closed,
     ];
-    for (state, label) in states {
+    for state in states {
         let mut value = empty();
         value
             .attempts
@@ -183,22 +182,17 @@ fn deployment_view_all_attempt_account_hello_states_clocks_keys_and_independent_
             ))
             .unwrap();
         let tree = round_trip(value);
-        assert!(contains(&tree, label));
-        assert!(contains(&tree, b"Clock not supplied"));
-        assert!(contains(&tree, b"18446744073709551615"));
+        goldens.check(&tree);
         assert!(tree.nodes().iter().any(|n| n.key.is_some_and(|k| k.kind == 96 && k.a == u64::MAX && k.b == u64::MAX)));
     }
-    for (state, label) in [
-        (OwnerAccountState::Granted, b"Account State Granted".as_slice()),
-        (OwnerAccountState::Asking, b"Account State Asking"),
-        (OwnerAccountState::SignInAgain, b"Account State Sign in again"),
-        (OwnerAccountState::Misconfigured, b"Account State Misconfigured"),
-        (
-            OwnerAccountState::Unloaded { at: OwnerAccountPlace::File, why: OwnerAccountUnread::Refused },
-            b"Account State Unloaded",
-        ),
-        (OwnerAccountState::Closing, b"Account State Closing"),
-        (OwnerAccountState::Moving, b"moving"),
+    for state in [
+        OwnerAccountState::Granted,
+        OwnerAccountState::Asking,
+        OwnerAccountState::SignInAgain,
+        OwnerAccountState::Misconfigured,
+        OwnerAccountState::Unloaded { at: OwnerAccountPlace::File, why: OwnerAccountUnread::Refused },
+        OwnerAccountState::Closing,
+        OwnerAccountState::Moving,
     ] {
         let mut value = empty();
         value
@@ -226,12 +220,7 @@ fn deployment_view_all_attempt_account_hello_states_clocks_keys_and_independent_
             })
             .unwrap();
         let tree = round_trip(value);
-        assert!(contains(&tree, label));
-        if label == b"Account State Unloaded" {
-            assert!(contains(&tree, b"Record file"));
-            assert!(contains(&tree, b"Record refused"));
-        }
-        assert!(contains(&tree, b"Spent until:"));
+        goldens.check(&tree);
         assert!(
             tree.nodes()
                 .iter()
@@ -256,12 +245,13 @@ fn deployment_view_all_attempt_account_hello_states_clocks_keys_and_independent_
             })
             .unwrap();
         let tree = round_trip(value);
-        assert!(contains(&tree, b"Hello stop bound:"));
+        goldens.check(&tree);
     }
 }
 #[test]
 fn deployment_view_opaque_history_keys_source_order_and_full_width_requester_proposer_seen_and_funders_do_not_collapse()
 {
+    let mut goldens = Goldens::new("tree/fragments/deployment/deployment_view_opaque");
     let mut value = empty();
     value.person_room_refusals = list(vec![
         person(
@@ -274,8 +264,7 @@ fn deployment_view_opaque_history_keys_source_order_and_full_width_requester_pro
         ),
     ]);
     let tree = round_trip(value);
-    assert!(contains(&tree, b"Task maker: 18446744073709551615"));
-    assert!(contains(&tree, b"Party maker: 18446744073709551615"));
+    goldens.check(&tree);
     let histories: Vec<_> = tree.nodes().iter().filter_map(|n| n.key.filter(|k| k.kind == 99)).collect();
     assert_eq!(histories.iter().map(|k| k.a).collect::<Vec<_>>(), vec![0, 1]);
     assert!(histories.iter().all(|k| k.b == 0));
@@ -294,13 +283,13 @@ fn deployment_view_opaque_history_keys_source_order_and_full_width_requester_pro
             ))
             .unwrap();
         let tree = round_trip(value);
-        assert!(contains(&tree, b"18446744073709551615"));
-        assert!(contains(&tree, b"4294967295"));
+        goldens.check(&tree);
     }
 }
 #[test]
 fn deployment_view_normal_words_select_second_language_and_reject_missing_or_wrong_checked_shapes() {
-    const DEPLOYMENT_PHRASES: usize = 291; // Pending settings and placed-hold capacity facts.
+    const DEPLOYMENT_PHRASES: usize = 291;
+    let mut goldens = Goldens::new("tree/fragments/deployment/deployment_view_normal"); // Pending settings and placed-hold capacity facts.
     let english = crate::words::phrases::english::language();
     let mut second = english.clone();
     for phrase in &mut second.phrases {
@@ -333,8 +322,7 @@ fn deployment_view_normal_words_select_second_language_and_reject_missing_or_wro
     let client = domain(empty());
     let maximum = crate::tests::render_limits(&CLIENT, &words).unwrap();
     let tree = build(&client, &words, maximum);
-    assert!(contains(&tree, b"selected "));
-    assert!(!contains(&tree, b"Deployment diagnostics"));
+    goldens.check(&tree);
     assert_eq!(crate::words::deployment_words::ALL.len(), DEPLOYMENT_PHRASES);
     let mut wrong = crate::words::deployment_words::language();
     let phrase = wrong.phrases.iter_mut().find(|p| p.id == P::Host.id()).unwrap();
@@ -737,13 +725,13 @@ fn deployment_view_task_actions_fourteen_causes_three_requesters_and_four_funder
 }
 #[test]
 fn deployment_view_configured_empty_and_clipped_catalogues_are_distinct_and_slots_preserve_owner_order() {
+    let mut goldens = Goldens::new("tree/fragments/deployment/deployment_view_configured");
     let tree = round_trip(empty());
-    assert!(contains(&tree, b"No configured connectors"));
+    goldens.check(&tree);
     let mut value = empty();
     value.connectors_cut = true;
     let tree = round_trip(value.clone());
-    assert!(!contains(&tree, b"No configured connectors"));
-    assert!(contains(&tree, b"Some configured connectors omitted"));
+    goldens.check(&tree);
     value.connectors.push(u16::MAX).unwrap();
     value.connectors.push(0).unwrap();
     let tree = round_trip(value);
@@ -755,7 +743,7 @@ fn deployment_view_configured_empty_and_clipped_catalogues_are_distinct_and_slot
             (crate::Owner::Application { number: 0 }).opaque()
         ]
     );
-    assert!(!contains(&tree, b"No configured connectors"));
+    goldens.check(&tree);
 }
 
 fn store_words() -> Words {
@@ -781,16 +769,17 @@ fn store_words() -> Words {
 
 #[test]
 fn the_deployment_page_shows_the_store_fill_against_its_mark() {
+    let mut goldens = Goldens::new("tree/fragments/deployment/the_deployment_page");
     let mut value = empty();
     value.store = StoreFill { bytes: 6789, mark: 9012 };
     let client = domain(value);
     let tree = build(&client, &store_words(), crate::tests::tree::cards::limits());
-    assert!(contains(&tree, b"Store map bytes: 6789"));
-    assert!(contains(&tree, b"Store high-water mark in bytes: 9012"));
+    goldens.check(&tree);
 }
 
 #[test]
 fn an_agent_shortfall_refusal_is_worded() {
+    let mut goldens = Goldens::new("tree/fragments/deployment/an_agent_shortfall");
     let mut value = empty();
     value
         .hello_refusals
@@ -803,8 +792,7 @@ fn an_agent_shortfall_refusal_is_worded() {
         })
         .unwrap();
     let tree = round_trip(value);
-    assert!(contains(&tree, b"Agent window too small for charter 42"));
-    assert!(contains(&tree, b"Model position 3"));
+    goldens.check(&tree);
 }
 
 fn identity_accounts() -> OwnerDeployment {
@@ -877,9 +865,9 @@ fn deployment_accounts_show_identity_sources_and_payers_in_order() {
 }
 #[test]
 fn deployment_accounts_show_the_default_uses_and_deployment_holder() {
+    let mut goldens = Goldens::new("tree/fragments/deployment/deployment_accounts_show");
     let tree = round_trip(waiting_account(None));
-    assert!(contains(&tree, b"Default uses"));
-    assert!(contains(&tree, b"Held by the deployment"));
+    goldens.check(&tree);
 }
 
 fn deployment_terms() -> OwnerDeployment {
@@ -892,11 +880,13 @@ fn deployment_terms() -> OwnerDeployment {
 }
 #[test]
 fn deployment_shows_the_supplied_provider_name() {
-    assert!(contains(&round_trip(deployment_terms()), b"Arbitrary provider"));
+    let mut goldens = Goldens::new("tree/fragments/deployment/deployment_shows_the");
+    goldens.check(&round_trip(deployment_terms()));
 }
 #[test]
 fn deployment_marks_a_cut_provider_name() {
-    assert!(contains(&round_trip(deployment_terms()), b"Some rows were omitted"));
+    let mut goldens = Goldens::new("tree/fragments/deployment/deployment_marks_a");
+    goldens.check(&round_trip(deployment_terms()));
 }
 #[test]
 fn deployment_links_the_whole_manage_address() {
@@ -954,18 +944,9 @@ fn catalogue() -> OwnerDeployment {
 }
 #[test]
 fn deployment_renders_the_public_provider_catalogue() {
+    let mut goldens = Goldens::new("tree/fragments/deployment/deployment_renders_the_public");
     let tree = round_trip(catalogue());
-    for words in [
-        b"Quasar Example".as_slice(),
-        b"arbitrary",
-        b"Sign-in",
-        b"Key",
-        b"Sign-ins use plan terms",
-        b"Maximum key bytes 123",
-        b"More provider offers omitted",
-    ] {
-        assert!(contains(&tree, words), "{}", String::from_utf8_lossy(words));
-    }
+    goldens.check(&tree);
     assert!(
         tree.nodes().iter().any(|node| node.external.as_deref() == Some(b"https://usage.example/other".as_slice()))
     );
@@ -987,19 +968,15 @@ fn fragment(value: &OwnerDeployment, limits: skein_ui::Limits) -> Tree {
 }
 #[test]
 fn the_reusable_fragment_labels_payer_readiness() {
-    for (ready, settled, words, settlement) in [
-        (Readiness::Unknown, None, b"Readiness unknown".as_slice(), b"Program checks unknown".as_slice()),
-        (Readiness::Usable, Some(true), b"Ready for this payer", b"Account requests settled"),
-        (Readiness::Unavailable, Some(false), b"No usable account for this payer", b"Account request pending"),
-    ] {
+    let mut goldens = Goldens::new("tree/fragments/deployment/the_reusable_fragment");
+    for (ready, settled) in
+        [(Readiness::Unknown, None), (Readiness::Usable, Some(true)), (Readiness::Unavailable, Some(false))]
+    {
         let mut value = catalogue();
         value.readiness.get_mut(0).unwrap().readiness = ready;
         value.readiness.get_mut(0).unwrap().settled = settled;
         let tree = fragment(&value, view::limits(&CLIENT, &(CLIENT).client, shared_words()).unwrap());
-        assert!(contains(&tree, words));
-        assert!(contains(&tree, settlement));
-        assert!(contains(&tree, b"Pays for project 91"));
-        assert!(contains(&tree, b"More payer readiness omitted"));
+        goldens.check(&tree);
     }
 }
 #[test]
@@ -1016,17 +993,18 @@ fn catalogue_fragment_storage_holds_at_its_exact_size() {
 
 #[test]
 fn a_key_offer_has_no_plan_label() {
+    let mut goldens = Goldens::new("tree/fragments/deployment/a_key_offer");
     let mut value = catalogue();
     let offer = value.providers.get_mut(0).unwrap();
     offer.sign_in = false;
     offer.signed_in_plan = false;
     offer.programs.clear();
     let tree = round_trip(value);
-    assert!(contains(&tree, b"Key"));
-    assert!(!contains(&tree, b"Sign-ins use plan terms"));
+    goldens.check(&tree);
 }
 #[test]
 fn a_none_offer_labels_its_absent_credential() {
+    let mut goldens = Goldens::new("tree/fragments/deployment/a_none_offer");
     let mut value = catalogue();
     let offer = value.providers.get_mut(0).unwrap();
     offer.sign_in = false;
@@ -1034,7 +1012,7 @@ fn a_none_offer_labels_its_absent_credential() {
     offer.key = false;
     offer.programs.clear();
     offer.none = true;
-    assert!(contains(&round_trip(value), b"No credential"));
+    goldens.check(&round_trip(value));
 }
 
 fn program_host() -> OwnerHost {
@@ -1058,12 +1036,14 @@ fn program_host() -> OwnerHost {
 }
 #[test]
 fn deployment_names_the_configured_worker() {
+    let mut goldens = Goldens::new("tree/fragments/deployment/deployment_names_the");
     let mut value = empty();
     value.hosts.push(program_host()).expect("host");
-    assert!(contains(&round_trip(value), b"configured-worker"));
+    goldens.check(&round_trip(value));
 }
 #[test]
 fn deployment_renders_the_program_observation() {
+    let mut goldens = Goldens::new("tree/fragments/deployment/deployment_renders_the_program");
     let mut host = program_host();
     host.programs
         .push(OwnerProgramLogin {
@@ -1080,20 +1060,12 @@ fn deployment_renders_the_program_observation() {
     let mut value = empty();
     value.hosts.push(host).expect("host");
     let tree = round_trip(value);
-    for word in [
-        b"personal".as_slice(),
-        b"Login usable",
-        b"Last sign-out failed",
-        b"Program timed out",
-        b"bounded failure",
-        b"Keep signed out",
-    ] {
-        assert!(contains(&tree, word), "missing {word:?}");
-    }
+    goldens.check(&tree);
 }
 
 #[test]
 fn a_refused_worker_position_is_shown() {
+    let mut goldens = Goldens::new("tree/fragments/deployment/a_refused_worker");
     let mut value = empty();
     value
         .hello_refusals
@@ -1106,7 +1078,7 @@ fn a_refused_worker_position_is_shown() {
         })
         .unwrap();
     let tree = round_trip(value);
-    assert!(contains(&tree, b"Unconfigured or occupied worker position 4294967295"));
+    goldens.check(&tree);
 }
 
 fn account_lists(accounts: u32, sources: u32) -> OwnerDeployment {
@@ -1143,15 +1115,12 @@ fn whole_account_lists_above_rows_fill_the_view_counts() {
 
 #[test]
 fn a_closed_host_says_why() {
-    for (rule, expected) in [
-        (HostRule::Person(u64::MAX), b"Only this person's runs: 18446744073709551615".as_slice()),
-        (HostRule::Several, b"No run: several people's logins".as_slice()),
-        (HostRule::Unknown, b"No run: a login jig cannot name".as_slice()),
-    ] {
+    let mut goldens = Goldens::new("tree/fragments/deployment/a_closed_host");
+    for rule in [HostRule::Person(u64::MAX), HostRule::Several, HostRule::Unknown] {
         let mut value = empty();
         let mut host = program_host();
         host.rule = rule;
         value.hosts.push(host).expect("host");
-        assert!(contains(&round_trip(value), expected), "missing {expected:?}");
+        goldens.check(&round_trip(value));
     }
 }

@@ -1,6 +1,7 @@
 #![expect(clippy::disallowed_methods, reason = "ordinary tests inspect public trees and exact supplied source values")]
 use crate::tests::fixtures::{Fixture, Watched};
-use crate::tests::tree::cards::{CLIENT, contains, document, drive, limits, start, text, words};
+use crate::tests::kit::Goldens;
+use crate::tests::tree::cards::{CLIENT, document, drive, limits, start, text, words};
 use crate::{JigBindings, Owner, words::phrases::jig::JigPhrase};
 use skein_ui::{Builder, Role, SlotRef, Tree};
 
@@ -42,10 +43,11 @@ fn ready(source: Me) -> Fixture {
 }
 #[test]
 fn frame_tree_keeps_project_names_separate_from_identity_loss() {
-    for (name, expected, losses) in [
-        (DocumentText::complete(text(b"Tally")), b"Project: Tally".as_slice(), 1),
-        (DocumentText::complete(text(b"")), b"Project: ".as_slice(), 1),
-        (DocumentText { bytes: text(b"partial-name"), cut: true }, b"Project: partial-name".as_slice(), 2),
+    let mut goldens = Goldens::new("tree/fragments/frame_facts/frame_tree_keeps");
+    for name in [
+        DocumentText::complete(text(b"Tally")),
+        DocumentText::complete(text(b"")),
+        DocumentText { bytes: text(b"partial-name"), cut: true },
     ] {
         let mut source = document();
         source.party.kind = PartyKind::Service;
@@ -55,24 +57,13 @@ fn frame_tree_keeps_project_names_separate_from_identity_loss() {
         source.projects.get_mut(0).unwrap().pool = None;
         let domain = ready(source.clone());
         let shown = tree(&domain);
-        assert!(contains(&shown, b"Login: supplied-login"));
-        assert!(contains(&shown, b"supplied-name"));
-        assert!(contains(&shown, b"Service"));
-        assert!(contains(&shown, b"Pool ledger not supplied"));
-        assert!(shown.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(expected)));
-        assert_eq!(
-            shown
-                .nodes()
-                .iter()
-                .filter(|node| node.text.iter().any(|run| run.text.as_ref() == b"Only part of this text was supplied"))
-                .count(),
-            losses
-        );
+        goldens.check(&shown);
         assert_eq!(domain.frame().document, Some(&source));
     }
 }
 #[test]
 fn frame_tree_uses_supplied_totals_goal_list_loss_and_all_pool_ledger_facts() {
+    let mut goldens = Goldens::new("tree/fragments/frame_facts/frame_tree_uses");
     let mut source = document();
     source.needs_total = 17;
     source.results_seen = u64::MAX;
@@ -90,26 +81,12 @@ fn frame_tree_uses_supplied_totals_goal_list_loss_and_all_pool_ledger_facts() {
     source.projects.get_mut(0).unwrap().pool = Some(ledger.clone());
     let domain = ready(source.clone());
     let shown = tree(&domain);
-    for bytes in [
-        b"17 need you".as_slice(),
-        b"Questions: 1; proposals: 2; escalations: 3; person tasks: 4",
-        b"Results read through 18446744073709551615",
-        b"More project memberships than shown",
-        b"Budget: 101",
-        b"Spent directly: 7",
-        b"Settled spend below: 11",
-        b"Reserved for funded work: 13",
-        b"Left: 17",
-    ] {
-        assert!(contains(&shown, bytes), "missing {bytes:?}");
-    }
-    assert!(!contains(&shown, b"Pool ledger not supplied"));
+    goldens.check(&shown);
     assert_eq!(domain.frame().document.unwrap().projects.get(0).unwrap().pool.as_ref(), Some(&ledger));
     source.projects.get_mut(0).unwrap().pool.as_mut().unwrap().left = 0;
     source.projects.get_mut(0).unwrap().pool.as_mut().unwrap().closed = false;
     let zero = tree(&ready(source));
-    assert!(contains(&zero, b"Left: 0"));
-    assert!(!contains(&zero, b"Pool ledger not supplied"));
+    goldens.check(&zero);
 }
 #[test]
 fn a_service_frame_offers_no_sign_out() {
@@ -245,21 +222,23 @@ fn the_navigation_landmark_ends_with_the_applications_slot() {
 
 #[test]
 fn the_needs_part_says_nothing_is_known_before_the_frame() {
+    let mut goldens = Goldens::new("tree/fragments/frame_facts/the_needs_part");
     let (domain, _) = start();
     let shown = tree(&domain);
     let at =
         shown.nodes().iter().position(|node| node.region == Some(crate::regions::JigRegion::Needs.region())).unwrap();
     assert_eq!(shown.nodes()[at + 1].role, Role::Status);
-    assert_eq!(shown.nodes()[at + 1].name.as_deref(), Some(b"Nothing known yet".as_slice()));
+    goldens.check(&shown);
 }
 
 #[test]
 fn a_named_control_holds_no_node() {
     const CONTROL: usize = 0;
-    const WORDS: usize = 1;
+
     const BUTTON_NODES: u32 = 1;
     const LINK_NODES: u32 = 2;
-    const FIRST_RUN: u32 = 0;
+    let mut goldens = Goldens::new("tree/fragments/frame_facts/a_named_control");
+
     for role in [Role::Button, Role::Link] {
         let sized = limits();
         let mut b = Builder::new(&sized);
@@ -275,25 +254,27 @@ fn a_named_control_holds_no_node() {
         );
         let tree = b.finish();
         let control = &tree.nodes()[CONTROL];
-        assert_eq!(control.name.as_deref(), Some(b"Sign out".as_slice()), "{role:?}");
+        goldens.check(&tree);
         if role == Role::Button {
             assert_eq!(control.size, BUTTON_NODES);
         } else {
             assert_eq!(control.size, LINK_NODES);
-            assert_eq!(tree.nodes()[WORDS].text.get(FIRST_RUN).unwrap().text.as_ref(), b"Sign out");
         }
     }
 }
 
 #[test]
 fn the_banner_shows_a_whole_multibyte_project_name() {
-    // configuration.md, 6: project names admit 64 UTF-8 bytes.
     const NAME: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789é";
     const NAME_BYTES: usize = 64;
+
+    let mut goldens = Goldens::new("tree/fragments/frame_facts/the_banner_shows");
+    // configuration.md, 6: project names admit 64 UTF-8 bytes.
+
     assert_eq!(NAME.len(), NAME_BYTES);
     let mut source = document();
     source.projects.get_mut(0).unwrap().name = DocumentText::complete(text(NAME.as_bytes()));
     let shown = tree(&ready(source));
-    let expected = "Project: abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789é".as_bytes();
-    assert!(shown.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(expected)));
+
+    goldens.check(&shown);
 }

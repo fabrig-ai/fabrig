@@ -1,4 +1,5 @@
 use crate::state::address::{Address, TaskSection};
+use crate::tests::kit::Goldens;
 use crate::tests::tree::cards_objects::*;
 
 fn budget_page(row: Task) -> Tree {
@@ -26,14 +27,12 @@ fn budget_page(row: Task) -> Tree {
 
 #[test]
 fn task_budget_page_renders_all_owner_funders_numbers_and_deadline_presence_within_the_whole_bound() {
-    for (funder, caption) in [
-        (Funder::Task(u64::MAX), b"Funded by task ".as_slice()),
-        (Funder::Pool { project: u32::MAX, person: u64::MAX, period: u64::MAX }, b"Funded by pool in project "),
-        (
-            Funder::Recurring { project: u32::MAX, task: u64::MAX, period: u64::MAX },
-            b"Funded by recurring task in project ",
-        ),
-        (Funder::Period { project: u32::MAX, period: u64::MAX }, b"Funded by project period "),
+    let mut goldens = Goldens::new("tree/cards_objects/task_budget/task_budget_page");
+    for funder in [
+        Funder::Task(u64::MAX),
+        Funder::Pool { project: u32::MAX, person: u64::MAX, period: u64::MAX },
+        Funder::Recurring { project: u32::MAX, task: u64::MAX, period: u64::MAX },
+        Funder::Period { project: u32::MAX, period: u64::MAX },
     ] {
         for deadline in [None, Some(Wall::EPOCH), Some(Wall::from_nanos(u64::MAX))] {
             let mut row = task_doc(&[]);
@@ -45,18 +44,7 @@ fn task_budget_page_renders_all_owner_funders_numbers_and_deadline_presence_with
             };
             row.authority.authority.deadline = Some(Wall::from_nanos(123));
             let tree = budget_page(row);
-            for number in [
-                b"Budget: 18446744073709551615".as_slice(),
-                b"Spent directly: 4",
-                b"Settled spend below: 7",
-                b"Reserved for funded work: 11",
-                b"Left: 17",
-            ] {
-                assert!(contains(&tree, number));
-            }
-            assert!(contains(&tree, caption));
-            assert_eq!(contains(&tree, b"Deadline:"), deadline.is_some());
-            assert!(!contains(&tree, b"Left: 78"));
+            goldens.check(&tree);
         }
     }
 }

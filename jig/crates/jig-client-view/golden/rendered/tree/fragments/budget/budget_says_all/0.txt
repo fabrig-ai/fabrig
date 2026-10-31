@@ -1,0 +1,10 @@
+== jig == 
+Budget: 100:
+  Budget: 100
+  Spent directly: 4
+  Settled spend below: 7
+  Reserved for funded work: 11
+  Left: 17
+  Funded by
+  Funded by task 18446744073709551615
+  Deadline: 120000000000

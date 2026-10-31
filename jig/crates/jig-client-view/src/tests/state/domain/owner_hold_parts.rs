@@ -1,4 +1,5 @@
 use crate::tests::fixtures::{Ended, Fixture, ReadPage, Watched};
+pub(in crate::tests) use crate::tests::kit::list;
 use crate::tests::state::domain::{
     objects,
     spine::{LIMITS, drive},
@@ -13,13 +14,6 @@ use crate::{
 use jig_client::contract::*;
 use skein_lib::{List, Time};
 
-fn list<T>(values: impl IntoIterator<Item = T>) -> List<T> {
-    let mut out = List::with_capacity(2);
-    for value in values {
-        out.push(value).ok().unwrap();
-    }
-    out
-}
 fn account() -> OwnerPart {
     OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Hold, key: OwnerPartKey::Number(u64::MAX) }
 }
@@ -216,9 +210,7 @@ fn native_hold_account_application_chips_use_supplied_scope_and_whole_task_and_e
 
 #[test]
 fn native_hold_account_absence_other_families_and_path_keys_never_invent_a_hold_from_the_independent_origin() {
-    let mut accounts = List::with_capacity(8);
-    accounts.push(None).unwrap();
-    accounts.push(Some(OwnerPart { key: origin().key, ..account() })).unwrap();
+    let mut accounts = crate::tests::kit::list_in(8, [None, Some(OwnerPart { key: origin().key, ..account() })]);
     for kind in [
         OwnerPartKind::Resource,
         OwnerPartKind::Pool,

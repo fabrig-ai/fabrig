@@ -17,8 +17,7 @@ use jig_client::contract::*;
 
 use skein_lib::{Id, List, Time, Wall};
 fn offered(act: ActKind, admission: Admission) -> List<Offered> {
-    let mut rows = List::with_capacity(2);
-    rows.push(Offered { effect: None, act, admission }).unwrap();
+    let mut rows = crate::tests::kit::list_in(2, [Offered { effect: None, act, admission }]);
     if act == ActKind::Amend {
         rows.push(Offered { effect: None, act: ActKind::Release, admission: Admission::Allowed }).unwrap();
     }
@@ -138,12 +137,7 @@ fn note_corrections_keep_the_supplied_scope_revision_and_all_references() {
         description: DocumentText::complete(text(b"before")),
         body: DocumentText::complete(text(b"body")),
         writer: NoteAuthor::Party { party: 7 },
-        tasks: {
-            let mut rows = List::with_capacity(2);
-            rows.push(91).unwrap();
-            rows.push(u64::MAX).unwrap();
-            rows
-        },
+        tasks: { crate::tests::kit::list([91, u64::MAX]) },
         changed: Some(Wall::EPOCH),
         acts: List::with_capacity(2),
         cut: false,
@@ -213,8 +207,7 @@ fn bounded_amendment_confirms_supplied_budget_and_grants_and_refreshes_a_moved_o
         let (mut domain, _) = live();
         let mut row = task();
         let grant = bounded_grant();
-        let mut grants = List::with_capacity(1);
-        grants.push(grant.clone()).unwrap();
+        let grants = crate::tests::kit::list([grant.clone()]);
         row.acts = offered(
             act,
             Admission::Bounded {
@@ -379,9 +372,7 @@ fn bounded_amendment_dimensions() {
 fn bounded_amendment_keeps_every_supplied_policy_recipient_in_order() {
     let (mut domain, _) = live();
     let mut row = task();
-    let mut roles = List::with_capacity(2);
-    roles.push(7).unwrap();
-    roles.push(2).unwrap();
+    let roles = crate::tests::kit::list([7, 2]);
     let recipient = Recipient::Roles { project: 1, roles };
     let mut direct = row.authority.clone();
     direct.authority.spend = 15;
@@ -435,8 +426,7 @@ fn bounded_authority_drafts_use_literal_pattern_order_and_complete_source_facts(
         for spend in [9_u64, 15] {
             let (mut domain, _) = live();
             let mut row = task();
-            let mut segments = List::with_capacity(2);
-            segments.push(Box::from(*b"env\0")).unwrap();
+            let segments = crate::tests::kit::list_in(2, [Box::from(*b"env\0")]);
             let current = OwnerGrant {
                 connector: u16::MAX,
                 kind: u16::MAX,

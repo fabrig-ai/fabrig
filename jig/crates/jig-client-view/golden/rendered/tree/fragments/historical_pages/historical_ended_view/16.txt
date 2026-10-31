@@ -1,0 +1,11 @@
+== jig == 
+Ended delegates:
+  Ended delegate task: 18446744073709551615:
+    [1] Task 18446744073709551615: 
+    Title is incomplete
+    Agent charter 4294967295
+    Ended
+    Failed with reason
+    `actual failure`
+    Supplied words incomplete
+    Recorded ending time: 18446744073709551615

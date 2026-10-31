@@ -1,5 +1,6 @@
 use crate::tests::fixtures::refusal_answer;
 use crate::tests::fixtures::{AnsweredByEngine, Ended, Fixture, ReadPage, Reported};
+pub(in crate::tests) use crate::tests::kit::text;
 use crate::tests::state::domain::spine::{LIMITS, delivered, drain, drive, frame, start};
 use crate::{
     Event, Request,
@@ -15,9 +16,7 @@ use crate::{
 };
 use jig_client::contract::*;
 use skein_lib::{Id, List, Queue, Time};
-fn text(bytes: &[u8]) -> Text {
-    Text::new(Box::from(bytes), 64).unwrap()
-}
+
 fn ask(asked: u64) -> crate::tests::fixtures::SendIntent {
     crate::tests::fixtures::intent(7, asked, Ask::Stop { project: 1, task: 8 })
 }

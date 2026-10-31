@@ -1,0 +1,34 @@
+== jig == 
+Review before confirming:
+  Release
+  Task 8: Review:
+    [1] Task 8: Review
+    Person 1
+    Held
+    Held budget
+    Current revision 4
+  Resource reference:
+    Connector 65535
+    Resource reference
+    `\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF`
+    `\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF`
+    * Loading connector content (busy)
+  Held uncertain entry: 18446744073709551615
+  Hold revision: 18446744073709551615
+  Prior closing effects
+  Left held by: 18446744073709551615
+  `exact held rejection`
+  Supplied words incomplete
+  Transient tries: 1
+  Permanent tries: 2
+  Run tries: 3
+  Agent tries: 4
+  Lost tries: 5
+  Invalid tries: 4294967295
+  Release continues from the shown lifecycle; failure counts reset
+  Inspect the connector's system facts; the engine will do as you choose
+  [2] Make the effect again
+  [3] Release without making the effect again; tell its executor so
+  * Choose whether to make the effect again
+  [-] Confirm (disabled)
+  [4] Dismiss

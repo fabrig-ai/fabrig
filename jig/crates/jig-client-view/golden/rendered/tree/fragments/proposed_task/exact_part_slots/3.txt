@@ -1,0 +1,7 @@
+== jig == 
+Pool reference:
+  Connector 65535
+  Pool reference
+  `a/b`
+  `\x63\xFF`
+  * Loading connector content (busy)

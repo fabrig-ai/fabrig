@@ -1,0 +1,4 @@
+== jig == 
+Deleted the project:
+  * Deleted the project
+  Project: 17

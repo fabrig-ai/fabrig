@@ -1,0 +1,10 @@
+== jig == 
+Semantic history:
+  Task: 18446744073709551615
+  Revision: 18446744073709551615
+  Requested by person 18446744073709551615
+  Proposal withdrawn
+  Supplied reason
+  reason
+  History time: 18446744073709551615
+  Stored snapshots not supplied

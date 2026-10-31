@@ -1,0 +1,43 @@
+== Task 8 == 
+Task 8:
+  - Task 8: Review:
+      ## Task 8: Review
+      * Open
+      Task 8: Review:
+        [1] Task 8: Review
+        Person 1
+        Active attempt 2
+  In project 4
+  Goal
+  Priority 1
+Task 8:
+  [2] Overview
+  [3] Activity (current)
+  [4] Plan
+  [5] History
+  [6] Budget and authority
+Activity:
+  ## Activity
+  - Conversation: (busy)
+  Start of the list
+  End of the list
+  - Proposal:
+      ## Proposal
+      * Open
+      Pending proposal:
+        Proposal number: 1
+        Proposal project: 4
+        By task 8
+        Proposed as holder
+        Waiting holder
+        Holder person: 1
+        Waiting since: 01:00
+        Proposal reason
+        native whole shared reason
+        Proposed batch
+        Supplied funding offers
+        Funded by pool in project 4, person 1, period 3
+        Funding needed: 150
+        Funding left: 250
+        Funding after: 100
+      [7] Accept

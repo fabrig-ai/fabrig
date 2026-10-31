@@ -1,0 +1,15 @@
+== jig == 
+Task activity:
+  Activity task: 18446744073709551615
+  Commit position: 18446744073709551615
+  Recorded at: 18446744073709551615
+  Run began
+  Attempt: 0
+  Cause: retry
+  Transient failures: 4294967295
+  Permanent failures: 4294967295
+  Run failures: 4294967295
+  Agent failures: 4294967295
+  Lost failures: 4294967295
+  Invalid failures: 4294967295
+  Not resumed

@@ -3,12 +3,13 @@
     reason = "ordinary proofs inspect complete public trees and checked language data"
 )]
 use crate::tests::fixtures::{Fixture, ReadPage, Watched};
+use crate::tests::kit::Goldens;
 use crate::tests::tree::cards::CLIENT;
 use crate::words::Words;
 use crate::words::{historical_pages_words as sayings, historical_pages_words::HistoricalPhrase as P};
 use crate::{JigBindings, tree::fragments::historical_pages as view};
 use skein_ui::Limits;
-use skein_ui::phrases::{Hole, Invalid, PhraseLimits, Phrasebook, Segment};
+use skein_ui::phrases::{Invalid, PhraseLimits, Phrasebook, Segment};
 use skein_ui::{Builder, Tree};
 
 use jig_client::contract::*;
@@ -52,29 +53,27 @@ fn chip() -> Chip {
     chip
 }
 fn ended(value: OwnerChipEnding, at: Option<Wall>) -> OwnerEndedPage {
-    let mut rows = List::with_capacity(CLIENT.client.rows);
-    rows.push(OwnerEndedDelegate { chip: chip(), ended: value, at }).unwrap();
+    let rows = crate::tests::kit::list_in(CLIENT.client.rows, [OwnerEndedDelegate { chip: chip(), ended: value, at }]);
     OwnerEndedPage { rows, before: None, after: None, cut: true }
 }
 fn funding(funder: Funder, parent: Option<Funder>, period: Option<OwnerPeriodTimes>, closed: bool) -> OwnerSpendPage {
-    let mut rows = List::with_capacity(CLIENT.client.rows);
-    rows.push(OwnerFundingRecord {
-        period,
-        funder,
-        parent,
-        numbers: OwnerNumbers { budget: 1, spent: 7, spent_below: 11, reserved: u64::MAX },
-        made: u32::MAX,
-        closed,
-    })
-    .unwrap();
+    let rows = crate::tests::kit::list_in(
+        CLIENT.client.rows,
+        [OwnerFundingRecord {
+            period,
+            funder,
+            parent,
+            numbers: OwnerNumbers { budget: 1, spent: 7, spent_below: 11, reserved: u64::MAX },
+            made: u32::MAX,
+            closed,
+        }],
+    );
     OwnerSpendPage { rows, before: None, after: None, cut: true }
 }
-fn limits(f: Limits) -> Limits {
-    f
-}
+
 fn ended_tree(page: &OwnerEndedPage, w: &Words, cap: Option<Limits>) -> Tree {
     let f = crate::tests::render_limits(&CLIENT, w).unwrap();
-    let cap = cap.unwrap_or(limits(f));
+    let cap = cap.unwrap_or(f);
     let mut b = Builder::new(&cap);
     let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
     view::ended_render(&mut b, &Fixture::new(&CLIENT).view(), page, w, &mut bindings);
@@ -82,20 +81,14 @@ fn ended_tree(page: &OwnerEndedPage, w: &Words, cap: Option<Limits>) -> Tree {
 }
 fn spend_tree(page: &OwnerSpendPage, w: &Words, cap: Option<Limits>) -> Tree {
     let f = crate::tests::render_limits(&CLIENT, w).unwrap();
-    let mut b = Builder::new(&cap.unwrap_or(limits(f)));
+    let mut b = Builder::new(&cap.unwrap_or(f));
     view::spend_render(&mut b, page, w);
     b.finish()
 }
-fn has(tree: &Tree, bytes: &[u8]) -> bool {
-    tree.nodes().iter().any(|n| {
-        n.name.as_deref() == Some(bytes) || n.text.iter().any(|r| r.text.windows(bytes.len()).any(|part| part == bytes))
-    })
-}
-fn caption(tree: &Tree, w: &Words, p: P, holes: &[Hole]) {
-    assert!(has(tree, &w.book().say(w.language(), p.id(), holes).unwrap().text));
-}
+
 #[test]
 fn historical_ended_view_keeps_all_owner_causes_requesters_optional_times_loss_and_empty_title_identity() {
+    let mut goldens = Goldens::new("tree/fragments/historical_pages/historical_ended_view");
     let w = words();
     for by in [
         OwnerRequester::Task(u64::MAX),
@@ -117,30 +110,7 @@ fn historical_ended_view_keeps_all_owner_causes_requesters_optional_times_loss_a
                 let untouched = page.clone();
                 let tree = ended_tree(&page, &w, None);
                 crate::tests::tree::cards_access::check(&tree);
-                caption(&tree, &w, P::EndedRow, &[Hole::Number(u64::MAX)]);
-                match at {
-                    Some(at) => caption(&tree, &w, P::At, &[Hole::Wall(at)]),
-                    None => caption(&tree, &w, P::AtAbsent, &[]),
-                }
-                match ending {
-                    OwnerChipEnding::Done(_) => assert!(has(&tree, b"actual result")),
-                    OwnerChipEnding::Failed(_) => assert!(has(&tree, b"actual failure")),
-                    OwnerChipEnding::Cancelled { .. } => {
-                        assert!(has(&tree, b"actual cancellation"));
-                        assert!(has(&tree, b"actual result"));
-                        let requester = match by {
-                            OwnerRequester::Task(_) => b"Cancellation requester task: 18446744073709551615".as_slice(),
-                            OwnerRequester::Person(_) => {
-                                b"Cancellation requester person: 18446744073709551615".as_slice()
-                            }
-                            OwnerRequester::Deployment { .. } => {
-                                b"Cancellation requester deployment project: 4294967295".as_slice()
-                            }
-                        };
-                        assert!(has(&tree, requester));
-                        assert!(has(&tree, b"Cancelled at: 18446744073709551615"));
-                    }
-                }
+                goldens.check(&tree);
                 assert!(tree.nodes().iter().all(|n| n.key.is_none()));
                 assert_eq!(page, untouched);
                 assert_eq!(page.rows.capacity(), CLIENT.client.rows);
@@ -157,11 +127,11 @@ fn historical_ended_view_keeps_all_owner_causes_requesters_optional_times_loss_a
         None,
     );
     let tree = ended_tree(&without, &w, None);
-    assert!(has(&tree, b"reason without result"));
-    assert!(!has(&tree, b"actual result"));
+    goldens.check(&tree);
 }
 #[test]
 fn historical_funding_view_preserves_all_source_parent_coordinates_four_counters_period_absence_and_closed_state() {
+    let mut goldens = Goldens::new("tree/fragments/historical_pages/historical_funding_view_preserves");
     let w = words();
     let kinds = [
         Funder::Task(u64::MAX),
@@ -182,29 +152,7 @@ fn historical_funding_view_preserves_all_source_parent_coordinates_four_counters
                     let original = page.clone();
                     let tree = spend_tree(&page, &w, None);
                     crate::tests::tree::cards_access::check(&tree);
-                    for (p, n) in [(P::Budget, 1), (P::Spent, 7), (P::SpentBelow, 11), (P::Reserved, u64::MAX)] {
-                        caption(&tree, &w, p, &[Hole::Amount(n)]);
-                    }
-                    caption(&tree, &w, P::Made, &[Hole::Number(u64::from(u32::MAX))]);
-                    caption(&tree, &w, if closed { P::Closed } else { P::Open }, &[]);
-                    match period {
-                        None => {
-                            caption(&tree, &w, P::PeriodAbsent, &[]);
-                            assert!(!has(&tree, b"Period began:"));
-                        }
-                        Some(period) => {
-                            caption(&tree, &w, P::Began, &[Hole::Wall(period.began)]);
-                            match period.next {
-                                None => caption(&tree, &w, P::NextAbsent, &[]),
-                                Some(next) => caption(&tree, &w, P::Next, &[Hole::Wall(next)]),
-                            }
-                        }
-                    }
-                    if parent.is_none() {
-                        caption(&tree, &w, P::ParentAbsent, &[]);
-                    }
-                    assert!(!has(&tree, b"Left:"));
-                    assert!(!has(&tree, b"Pools"));
+                    goldens.check(&tree);
                     assert!(tree.nodes().iter().all(|n| n.key.is_none()));
                     assert_eq!(page, original);
                 }
@@ -214,6 +162,7 @@ fn historical_funding_view_preserves_all_source_parent_coordinates_four_counters
 }
 #[test]
 fn historical_checked_selected_language_has_no_fallback_and_rejects_a_missing_number_counter_hole() {
+    let mut goldens = Goldens::new("tree/fragments/historical_pages/historical_checked_selected");
     let english = crate::words::phrases::english::language();
     let mut selected = english.clone();
     for phrase in &mut selected.phrases {
@@ -239,13 +188,10 @@ fn historical_checked_selected_language_has_no_fallback_and_rejects_a_missing_nu
     );
     let page = ended(OwnerChipEnding::Failed(doc(b"source failure", true)), None);
     let tree = ended_tree(&page, &w, None);
-    assert!(has(&tree, b"selected history "));
-    assert!(!has(&tree, b"Ended delegates"));
-    assert!(!has(&tree, b"Ending time not supplied"));
+    goldens.check(&tree);
     let page = funding(Funder::Period { project: 1, period: 9 }, None, None, false);
     let tree = spend_tree(&page, &w, None);
-    assert!(has(&tree, b"selected history "));
-    assert!(!has(&tree, b"Period times not supplied"));
+    goldens.check(&tree);
     let mut broken = sayings::language();
     for phrase in &mut broken.phrases {
         if phrase.id == P::Made.id() {
@@ -300,7 +246,7 @@ fn historical_ended_view_exact_node_depth_text_binding_and_slot_storage_refuses_
     let original = page.clone();
     let f = crate::tests::render_limits(&CLIENT, &w).unwrap();
     let tree = ended_tree(&page, &w, None);
-    let exact = exact_limits(&tree, limits(f));
+    let exact = exact_limits(&tree, f);
     assert!(exact.bindings > 0 && exact.slots > 0);
     assert_eq!(ended_tree(&page, &w, Some(exact)).len(), tree.len());
     for below in [
@@ -332,6 +278,7 @@ fn historical_ended_view_exact_node_depth_text_binding_and_slot_storage_refuses_
 }
 #[test]
 fn historical_funding_view_exact_geometry_and_reserved_empty_rows_remain_independent_of_scalar_values() {
+    let mut goldens = Goldens::new("tree/fragments/historical_pages/historical_funding_view_exact");
     let w = words();
     let page = funding(
         Funder::Period { project: u32::MAX, period: u64::MAX },
@@ -341,7 +288,7 @@ fn historical_funding_view_exact_geometry_and_reserved_empty_rows_remain_indepen
     );
     let f = crate::tests::render_limits(&CLIENT, &w).unwrap();
     let tree = spend_tree(&page, &w, None);
-    let exact = exact_limits(&tree, limits(f));
+    let exact = exact_limits(&tree, f);
     assert_eq!(exact.bindings, 0);
     assert_eq!(exact.slots, 0);
     assert_eq!(spend_tree(&page, &w, Some(exact)).len(), tree.len());
@@ -358,7 +305,7 @@ fn historical_funding_view_exact_geometry_and_reserved_empty_rows_remain_indepen
     reserved.rows = List::with_capacity(CLIENT.client.rows);
     let tree = spend_tree(&reserved, &w, None);
     assert_eq!(tree.len(), 1);
-    assert!(!has(&tree, b"Period began:"));
+    goldens.check(&tree);
 }
 
 #[test]
@@ -375,6 +322,7 @@ fn historical_public_plan_keeps_owner_tree_early_return_and_companion_ended_read
             address::{Address, Place, TaskSection},
         },
     };
+    let mut goldens = Goldens::new("tree/fragments/historical_pages/historical_public_plan");
     let (mut client, frame) = start();
     drive(&mut client, Watched { watch: frame, event: WatchEvent::Delivered(Delivery::Me(Box::new(document()))) });
     let out =
@@ -442,8 +390,7 @@ fn historical_public_plan_keeps_owner_tree_early_return_and_companion_ended_read
     let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
     crate::tree::pages::main(&mut b, &client.view(), &w, &mut bindings);
     let rendered = b.finish();
-    assert!(has(&rendered, b"companion actual cause"));
-    caption(&rendered, &w, P::EndedDelegates, &[]);
+    goldens.check(&rendered);
     assert_eq!(client.task_page().plan.owner, Some(&tree));
     assert_eq!(client.task_page().owner_ended.as_deref(), Some(&page));
     drive(&mut client, Event::Act { action: Act::OpenEnded { task: 8 } });

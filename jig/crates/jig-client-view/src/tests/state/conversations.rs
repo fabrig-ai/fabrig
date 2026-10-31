@@ -1,3 +1,4 @@
+use crate::tests::kit::Goldens;
 use crate::tests::{
     fixtures::{Fixture, ReadPage, task_line},
     tree::{
@@ -115,6 +116,7 @@ fn a_project_tasks_section_keeps_queries_filtered_by_requester_and_label() {
 
 #[test]
 fn a_kept_conversation_names_its_dependencies_without_promising_that_words_resume_it() {
+    let mut goldens = Goldens::new("state/conversations/a_kept_conversation");
     let (mut domain, out) = entered(Address::Conversations { project: None });
     let mut watched = None;
     for request in out {
@@ -129,6 +131,5 @@ fn a_kept_conversation_names_its_dependencies_without_promising_that_words_resum
     kept.waits_on = WaitsOn::Dependencies { pending: list([7]), count: 1 };
     deliver(&mut domain, watched.unwrap(), Delivery::Tasks(Box::new(Tasks { rows: list([kept]), more: false })));
     let (tree, _) = crate::tests::tree::pages::build(&domain, 1, crate::tests::tree::cards::words());
-    assert!(crate::tests::tree::cards::contains(&tree, b"kept until T7 is done"));
-    assert!(!crate::tests::tree::cards::contains(&tree, b"Parked; your words resume it"));
+    goldens.check(&tree);
 }

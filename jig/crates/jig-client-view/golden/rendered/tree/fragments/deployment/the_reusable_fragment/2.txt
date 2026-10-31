@@ -1,0 +1,18 @@
+== jig == 
+LLM provider offers
+Maximum key bytes 123
+- LLM provider 37
+  `Quasar Example`
+  Sign-in
+  Key
+  Program
+  `arbitrary`
+  Some rows were omitted
+  Sign-ins use plan terms
+  Manage usage <https://usage.example/other>
+More provider offers omitted
+- LLM provider 37
+  Pays for project 91
+  No usable account for this payer
+  Account request pending
+More payer readiness omitted

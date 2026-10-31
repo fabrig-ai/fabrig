@@ -37,8 +37,7 @@ fn native(number: u64) -> OwnerPart {
 }
 fn shown(domain: &mut Fixture, key: ProposalKey) -> (jig_client::Handle, jig_client::Handle) {
     drive(domain, Time::ZERO, Event::Went { place: Place::Elsewhere });
-    let mut names = List::with_capacity(1);
-    names.push(ObjectKey::Proposal(key)).unwrap();
+    let names = crate::tests::kit::list([ObjectKey::Proposal(key)]);
     let output = drive(domain, Time::ZERO, Event::Named { sections: List::with_capacity(0), objects: names });
     let mut read = None;
     let mut watch = None;
@@ -138,8 +137,8 @@ fn application_native_effect_parts_preserve_raw_numbers_scope_whole_facts_and_th
 
 #[test]
 fn native_effect_registration_refuses_other_kinds_and_paths_and_preserves_the_separate_maker_effect_key() {
-    let mut invalid = List::with_capacity(7);
-    invalid.push(OwnerPart { key: OwnerPartKey::Path(List::with_capacity(0)), ..native(99) }).unwrap();
+    let mut invalid =
+        crate::tests::kit::list_in(7, [OwnerPart { key: OwnerPartKey::Path(List::with_capacity(0)), ..native(99) }]);
     for kind in [
         OwnerPartKind::Resource,
         OwnerPartKind::Pool,

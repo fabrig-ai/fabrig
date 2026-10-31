@@ -1,0 +1,4 @@
+== jig == 
+Verdict 4294967295
+supplied words
+Only part of this text was supplied
