@@ -147,12 +147,6 @@ pub(super) fn chip(value: &c::Chip, limits: &w::Limits) -> Result<w::Chip, w::Pr
     let rows = pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), w::Fact::measure, w::Fact::encode)?;
     w::Chip::new(limits, w::ChipParts { rows })
 }
-pub(super) fn chip_phase(value: &c::ChipPhase, limits: &w::Limits) -> Result<w::ChipPhase, w::Problem> {
-    let mut facts = Facts { rows: Vec::new() };
-    facts.chip_phase(value, None, limits)?;
-    let rows = pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), w::Fact::measure, w::Fact::encode)?;
-    w::ChipPhase::new(limits, w::ChipPhaseParts { rows })
-}
 pub(super) fn closing(value: &c::Closing, limits: &w::Limits) -> Result<w::Closing, w::Problem> {
     let mut facts = Facts { rows: Vec::new() };
     facts.closing(value, None, limits)?;
@@ -176,15 +170,6 @@ pub(super) fn hold_reason(value: &c::HoldReason, limits: &w::Limits) -> Result<w
     facts.hold_reason(value, None, limits)?;
     let rows = pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), w::Fact::measure, w::Fact::encode)?;
     w::HoldReason::new(limits, w::HoldReasonParts { rows })
-}
-pub(super) fn owner_chip_details(
-    value: &c::OwnerChipDetails,
-    limits: &w::Limits,
-) -> Result<w::OwnerChipDetails, w::Problem> {
-    let mut facts = Facts { rows: Vec::new() };
-    facts.owner_chip_details(value, None, limits)?;
-    let rows = pieces(facts.rows.into_iter().map(|row| row.ok_or(problem())), w::Fact::measure, w::Fact::encode)?;
-    w::OwnerChipDetails::new(limits, w::OwnerChipDetailsParts { rows })
 }
 pub(super) fn owner_chip_ending(
     value: &c::OwnerChipEnding,

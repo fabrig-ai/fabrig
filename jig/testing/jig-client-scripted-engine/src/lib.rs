@@ -352,7 +352,7 @@ impl<A: Application> Engine<A> {
                 }) = change
                     && self.runs.get(task).is_some_and(|run| match run {
                         watches::Run::Text(run) => {
-                            rows.iter().any(|line| line.event.committed_turn() == Some(run.turn.turn()))
+                            rows.iter().any(|line| line.committed_turn() == Some(run.turn.turn()))
                         }
                         watches::Run::State(_) => false,
                     })

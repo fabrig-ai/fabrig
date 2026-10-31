@@ -185,9 +185,13 @@ impl<A: crate::Application> Engine<A> {
         let terminal = if !self.online(now) {
             ReadResult::None(ReadNone::Unreachable)
         } else if let Some(party) = self.truth.sign_ins.get(&sign_in).copied() {
-            self.read_value(party, read).map_or_else(|why| ReadResult::None(crate::codec::none(why)), ReadResult::Value)
+            self.read_value(party, read).map_or_else(ReadResult::None, ReadResult::Value)
         } else {
             ReadResult::None(ReadNone::SignedOut)
+        };
+        let terminal = match terminal {
+            ReadResult::Value(value) => ReadResult::Value(value),
+            ReadResult::None(why) => ReadResult::None(crate::codec::none(why)),
         };
         self.queue(now, self.next_commit - 1, Up::Read { token, terminal });
         Ok(())

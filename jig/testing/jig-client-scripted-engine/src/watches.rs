@@ -368,12 +368,8 @@ impl<A: crate::Application> Engine<A> {
                 | Delivery::OwnerProject(_)
                 | Delivery::OwnerProposal(_)
                 | Delivery::Chips(_)
-                | Delivery::Tree(_)
-                | Delivery::Inbox(_)
-                | Delivery::Run(_)
                 | Delivery::RunState(_)
                 | Delivery::Settings(_)
-                | Delivery::Deployment(_)
                 | Delivery::OwnerDeployment(_)
                 | Delivery::OwnerAccounts(_) => return Err(WatchEnd::Busy),
             }

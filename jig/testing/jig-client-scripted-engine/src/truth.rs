@@ -351,34 +351,29 @@ impl Script {
 pub(crate) fn identity(value: &ReadValue) -> Option<ObjectKey> {
     match value {
         ReadValue::Task(v) => Some(ObjectKey::Task(v.chip.task)),
-        ReadValue::Proposal(v) => Some(ObjectKey::Proposal(v.key)),
+
         ReadValue::Historical(v) => Some(v.key),
         ReadValue::OwnerProposal(v) => Some(ObjectKey::Proposal(v.key)),
-        ReadValue::Escalation(v) => Some(ObjectKey::Escalation(v.task.task)),
+
         ReadValue::OwnerEscalation(v) => Some(ObjectKey::Escalation(v.task.chip.task)),
         ReadValue::Question(v) => Some(ObjectKey::Question { task: v.task.task, message: v.message }),
-        ReadValue::PersonTask(v) => Some(ObjectKey::PersonTask(v.task.task)),
+
         ReadValue::OwnerPersonTask(v) => Some(ObjectKey::PersonTask(v.task.task)),
         ReadValue::Result(v) => Some(ObjectKey::Result(v.task.task)),
         ReadValue::Tasks(_)
         | ReadValue::Me(_)
-        | ReadValue::Ended(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
         | ReadValue::Turn(_)
-        | ReadValue::Inbox(_)
         | ReadValue::OwnerInbox(_)
-        | ReadValue::Spend(_)
         | ReadValue::OwnerEnded(_)
         | ReadValue::OwnerSpend(_)
         | ReadValue::OwnerProject(_)
-        | ReadValue::Project(_)
         | ReadValue::Notes(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
-        | ReadValue::Deployment(_)
         | ReadValue::OwnerDeployment(_) => None,
     }
 }
@@ -387,33 +382,26 @@ fn document_project(value: &ReadValue) -> Option<u32> {
     match value {
         ReadValue::Task(v) => Some(v.project),
         ReadValue::OwnerEscalation(v) => Some(v.task.project),
-        ReadValue::Proposal(v) => Some(v.project),
+
         ReadValue::OwnerProposal(v) => Some(v.project),
         ReadValue::OwnerPersonTask(v) => v.project(),
         ReadValue::Historical(_)
         | ReadValue::Tasks(_)
         | ReadValue::Me(_)
-        | ReadValue::Escalation(_)
         | ReadValue::Question(_)
-        | ReadValue::PersonTask(_)
         | ReadValue::Result(_)
-        | ReadValue::Ended(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
         | ReadValue::Turn(_)
-        | ReadValue::Inbox(_)
         | ReadValue::OwnerInbox(_)
-        | ReadValue::Spend(_)
         | ReadValue::OwnerEnded(_)
         | ReadValue::OwnerSpend(_)
         | ReadValue::OwnerProject(_)
-        | ReadValue::Project(_)
         | ReadValue::Notes(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
-        | ReadValue::Deployment(_)
         | ReadValue::OwnerDeployment(_) => None,
     }
 }

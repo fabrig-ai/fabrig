@@ -60,3 +60,22 @@ fn scripted_answers_and_watch_documents_are_the_links_decoded_values() {
     let value = c::Answer::Refused { refusal: c::Refusal::KeyConflict, at: Some(3) };
     assert_eq!(answer(&value, &bounds), Ok(value));
 }
+
+#[test]
+fn recursive_fact_pieces_preserve_parent_indexes_and_child_order() {
+    let value = c::HoldReason::Dependency { task: 7, how: c::Ending::Done };
+    let record = facts::hold_reason(&value, &w::CEILINGS).expect("recursive facts fit");
+    let mut reader = skein_lib::Reader::new(record.rows());
+    let root = skein_codec::piece::split(&mut reader).expect("piece length").expect("root piece");
+    let root = w::Fact::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&root)).expect("generated root codec");
+    let w::Fact::HoldReason(root) = root else { panic!("hold-reason root") };
+    assert_eq!(*root.parent(), None);
+    let w::HoldReasonFields::Dependency(dependency) = root.value() else { panic!("dependency fields") };
+    assert_eq!(dependency.how(), 1);
+    let child = skein_codec::piece::split(&mut reader).expect("piece length").expect("child piece");
+    let child = w::Fact::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&child)).expect("generated child codec");
+    let w::Fact::Ending(child) = child else { panic!("ending child") };
+    assert_eq!(*child.parent(), Some(0));
+    assert_eq!(child.value(), &w::EndingFields::Done);
+    assert!(reader.is_empty());
+}
