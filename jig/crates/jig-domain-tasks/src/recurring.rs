@@ -145,7 +145,7 @@ pub(crate) fn make_batch(
 }
 
 pub(crate) fn valid_template(limits: &Limits, project: u32, budget: u64, batch: &[New]) -> bool {
-    if batch.is_empty() || batch.len() > usize::try_from(limits.batch).expect("u32 fits") {
+    if batch.is_empty() || batch.len() > skein_lib::length::usize_of(limits.batch) {
         return false;
     }
     let mut spend = 0_u64;

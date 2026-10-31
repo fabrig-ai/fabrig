@@ -203,7 +203,7 @@ fn transcript(turn: u32, spent: u64) -> Box<[u8]> {
         },
     )
     .expect("turn");
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("turn bytes"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured turn");
     writer.finish()
 }

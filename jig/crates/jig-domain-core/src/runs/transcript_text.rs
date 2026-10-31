@@ -27,10 +27,10 @@ pub(crate) fn cut_transcript_text(text: &[u8], bound: usize) -> TranscriptText {
     let room = bound.checked_sub(MARKER.len()).expect("marker fits");
     let mut start = text.len().checked_sub(room).expect("oversized text");
     for _ in 0_u8..3 {
-        match text.get(start) {
-            Some(byte) if byte & 0xc0 == 0x80 => start = start.checked_add(1).expect("inside text"),
-            Some(_) | None => break,
+        if skein_lib::bytes::utf8_prefix(text, start).len() == start {
+            break;
         }
+        start = start.checked_add(1).expect("inside text");
     }
     let suffix = text.get(start..).expect("UTF-8 suffix boundary within text");
     let mut writer = skein_lib::Writer::new(MARKER.len().checked_add(suffix.len()).expect("bounded text"));
@@ -49,10 +49,10 @@ impl Transcript {
             .text_bytes
             .checked_add(u64::try_from(text.len()).expect("text length fits u64"))
             .expect("loaded text count");
-        let kept = if text.len() <= usize::try_from(bound).expect("u32 fits usize") {
+        let kept = if text.len() <= skein_lib::length::usize_of(bound) {
             TranscriptText { shown: u64::try_from(text.len()).expect("bounded text"), bytes: text }
         } else {
-            cut_transcript_text(&text, usize::try_from(bound).expect("u32 fits usize"))
+            cut_transcript_text(&text, skein_lib::length::usize_of(bound))
         };
         if kept.bytes.is_empty() {
             return;

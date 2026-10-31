@@ -280,11 +280,7 @@ fn amendment(world: &World, number: u64, dependencies: &[u64]) -> Operation {
 }
 
 fn compound(world: &mut World, operations: Vec<Operation>) -> Reply {
-    let bound = u32::try_from(operations.len()).expect("bounded fixture");
-    let mut staged = List::with_capacity(bound);
-    for operation in operations {
-        staged.push(operation).expect("compound fixture");
-    }
+    let staged = List::from_boxed(operations.into_boxed_slice());
     let reply_to = world.to();
     let call = reply_to.into_token();
     world.send(Event::Compound {

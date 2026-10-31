@@ -440,7 +440,6 @@ pub(super) fn encode_problem(value: &tasks::Problem, limits: &Limits) -> Result<
         },
     )
 }
-#[expect(clippy::manual_map, reason = "step code uses concrete matches (programming-model.md, 10)")]
 pub(super) fn decode_problem(value: wire::TaskProblem) -> tasks::Problem {
     let wire::TaskProblemParts { task, why, blocked_by, capacity } = value.into_parts();
     tasks::Problem {
@@ -616,7 +615,7 @@ fn decode_result_followups_delegates_value(
 }
 pub fn problem(value: &tasks::Problem, limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
     let value = encode_problem(value, limits)?;
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }
@@ -626,7 +625,7 @@ pub fn read_problem(bytes: &[u8], limits: &Limits) -> Result<tasks::Problem, wir
 }
 pub fn end(value: &tasks::End, limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
     let value = wire::EndRecord::new(limits, wire::EndRecordParts { value: encode_end(value, limits)? })?;
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }
@@ -636,7 +635,7 @@ pub fn read_end(bytes: &[u8], limits: &Limits) -> Result<tasks::End, wire::Probl
 }
 pub fn phase(value: &tasks::Phase, limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
     let value = wire::PhaseRecord::new(limits, wire::PhaseRecordParts { value: super::phase::phase(value, limits)? })?;
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }
@@ -646,7 +645,7 @@ pub fn read_phase(bytes: &[u8], limits: &Limits) -> Result<tasks::Phase, wire::P
 }
 pub fn change(value: &tasks::Change, limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
     let value = wire::ChangeRecord::new(limits, wire::ChangeRecordParts { value: super::proposals::change(value)? })?;
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }

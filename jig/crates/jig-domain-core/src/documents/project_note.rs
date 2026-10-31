@@ -149,7 +149,7 @@ pub struct Note {
 }
 
 fn bound(limits: &Limits) -> usize {
-    usize::try_from(limits.documents.lines).expect("line count fits")
+    skein_lib::length::usize_of(limits.documents.lines)
 }
 fn grant(limits: &Limits, value: &authority::Grant) -> Result<GrantLine, Missing> {
     Ok(GrantLine {
@@ -231,7 +231,6 @@ fn policy(
             || permissions_cut,
     })
 }
-#[expect(clippy::manual_map, reason = "step code matches options without closures")]
 pub(super) fn ledger(value: &tasks::FundingRecord) -> Ledger {
     Ledger {
         source: value.funder,
@@ -473,7 +472,7 @@ pub fn note_from_entry(core: &Core, limits: &Limits, party: u64, value: &notes::
             let bytes = match &pattern.last {
                 notes::Last::Exact(bytes) | notes::Last::Open(bytes) => bytes,
             };
-            if bytes.len() > usize::try_from(limits.documents.text_bytes).expect("text count fits") {
+            if bytes.len() > skein_lib::length::usize_of(limits.documents.text_bytes) {
                 return Err(Missing::TooLarge);
             }
             NoteLocation::Resources {
@@ -518,7 +517,7 @@ pub fn note_from_entry(core: &Core, limits: &Limits, party: u64, value: &notes::
         tasks,
         changed: Some(value.changed),
         revision: value.revision,
-        cut: usize::try_from(value.references.len()).expect("references fit") > bound(limits),
+        cut: skein_lib::length::usize_of(value.references.len()) > bound(limits),
     })
 }
 

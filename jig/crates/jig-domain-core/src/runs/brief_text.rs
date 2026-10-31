@@ -29,7 +29,7 @@ pub enum BriefPart {
 /// Render the bounded note index by durable name so a run can recall entries.
 #[must_use]
 pub fn note_index_text(lines: &List<notes::Line>, more: u32, budget: u32) -> Box<[u8]> {
-    let limit = usize::try_from(budget).expect("brief byte bound fits usize");
+    let limit = skein_lib::length::usize_of(budget);
     let mut kept = 0_u32;
     let mut length = 0_usize;
     for line in lines {
@@ -156,11 +156,11 @@ fn text_part(first: &[u8], second: &[u8], third: &[u8], fourth: &[u8], available
         .expect("bounded part bytes")
         .checked_add(fourth.len())
         .expect("bounded part bytes");
-    let wanted = total.min(usize::try_from(available).expect("u32 fits usize"));
+    let wanted = total.min(skein_lib::length::usize_of(available));
     let mut keep = 0_usize;
     for source in [first, second, third, fourth] {
         let demand = wanted.checked_sub(keep).expect("prefix within demand");
-        let length = prefix(source, demand).len();
+        let length = skein_lib::bytes::utf8_prefix(source, demand).len();
         keep = keep.checked_add(length).expect("bounded part prefix");
         if length < source.len() {
             break;
@@ -168,7 +168,7 @@ fn text_part(first: &[u8], second: &[u8], third: &[u8], fourth: &[u8], available
     }
     let mut text = Writer::new(keep);
     for source in [first, second, third, fourth] {
-        let bytes = prefix(source, text.room());
+        let bytes = skein_lib::bytes::utf8_prefix(source, text.room());
         text.put(bytes).expect("measured exact text part");
         if bytes.len() < source.len() {
             break;
@@ -178,21 +178,6 @@ fn text_part(first: &[u8], second: &[u8], third: &[u8], fourth: &[u8], available
         bytes: text.finish(),
         left: u64::try_from(total.checked_sub(keep).expect("prefix in part")).expect("usize fits u64"),
     }
-}
-
-fn prefix(bytes: &[u8], most: usize) -> &[u8] {
-    let mut end = most.min(bytes.len());
-    for _ in 0_u32..3 {
-        if let Some(byte) = bytes.get(end)
-            && byte & 0b1100_0000 == 0b1000_0000
-        {
-            if end == 0 {
-                break;
-            }
-            end = end.checked_sub(1).expect("positive prefix end");
-        }
-    }
-    bytes.get(..end).expect("UTF-8 prefix within source")
 }
 
 fn task_section(core: &Core, task: u64, part: BriefPart, parts: u32, bytes: u32) -> BriefRead {
@@ -256,16 +241,16 @@ fn attempt_read(tries: tasks::Tries, invalid: Option<tasks::InvalidResult>, byte
         None => b"",
     };
     total = total.checked_add(reason.len()).expect("bounded invalid reason");
-    let mut writer = Writer::new(total.min(usize::try_from(bytes).expect("u32 fits usize")));
+    let mut writer = Writer::new(total.min(skein_lib::length::usize_of(bytes)));
     for (name, count) in classes {
         if count > 0 {
             for fragment in [name, Decimal::of(u64::from(count)).as_bytes(), b"\n"] {
-                let kept = prefix(fragment, writer.room());
+                let kept = skein_lib::bytes::utf8_prefix(fragment, writer.room());
                 writer.put(kept).expect("attempt prefix fits");
             }
         }
     }
-    let kept = prefix(reason, writer.room());
+    let kept = skein_lib::bytes::utf8_prefix(reason, writer.room());
     writer.put(kept).expect("invalid reason prefix fits");
     let text = writer.finish();
     BriefRead::Got(Box::new([BriefFragment {

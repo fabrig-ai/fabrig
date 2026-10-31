@@ -91,7 +91,7 @@ const TABLE: [u32; 256] = [
 pub fn crc32c(bytes: &[u8]) -> u32 {
     let mut crc = !0_u32;
     for byte in bytes {
-        let index = usize::try_from((crc ^ u32::from(*byte)) & 0xff).expect("one byte fits usize");
+        let index = skein_lib::length::usize_of((crc ^ u32::from(*byte)) & 0xff);
         crc = (crc >> 8_u32) ^ *TABLE.get(index).expect("one table entry per byte");
     }
     !crc

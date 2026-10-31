@@ -1024,6 +1024,9 @@ dependencies = [
 [[package]]
 name = "jig-fake-store"
 version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
 
 [[package]]
 name = "jig-fake-workers"

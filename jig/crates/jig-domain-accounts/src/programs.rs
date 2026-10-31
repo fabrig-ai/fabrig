@@ -302,7 +302,6 @@ pub fn sign_out(
 
 /// Original holder evidence remains available after the live source is removed.
 #[must_use]
-#[expect(clippy::manual_map, reason = "the strict subset uses exhaustive matches without closures")]
 pub fn owner(domain: &Domain, name: &[u8]) -> Option<Holder> {
     match issued(domain, name) {
         Some((_, holder)) => Some(holder),

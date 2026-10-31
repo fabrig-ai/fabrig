@@ -38,7 +38,7 @@ pub(crate) fn introduce(
     for (task, peer) in [(left, right), (right, left)] {
         let row = record(domain, task).expect("preflighted live peer");
         if !crate::batch::contains(&row.references, peer)
-            && row.references.len() >= usize::try_from(env.limits.references).expect("u32 fits usize")
+            && row.references.len() >= skein_lib::length::usize_of(env.limits.references)
         {
             let project = row.project;
             return crate::capacity::refuse(

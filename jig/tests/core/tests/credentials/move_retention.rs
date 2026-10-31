@@ -126,7 +126,7 @@ fn two_free_places_admit_the_move_and_written() {
             Some(people::Reply::Outcome(people::Outcome::AccountChanged)),
             Some(people::Reply::Outcome(people::Outcome::AccountChanged)),
             true,
-            usize::try_from(WHOLE_MOVE).expect("tiny answer count"),
+            skein_lib::length::usize_of(WHOLE_MOVE),
             true,
             true
         )
@@ -171,7 +171,7 @@ fn the_deadline_frees_the_unwritten_moves_second_place() {
         (
             true,
             Some(people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotOffered))),
-            usize::try_from(WHOLE_MOVE).expect("tiny answer count")
+            skein_lib::length::usize_of(WHOLE_MOVE)
         )
     );
 }
@@ -185,7 +185,7 @@ fn restarting_keeps_only_the_moves_stored_answer_place() {
         (retry(&mut world, source), answer_count(&world)),
         (
             Some(people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotOffered))),
-            usize::try_from(WHOLE_MOVE).expect("tiny answer count")
+            skein_lib::length::usize_of(WHOLE_MOVE)
         )
     );
 }
@@ -226,7 +226,7 @@ fn a_refused_withdrawal_releases_its_written_answer_place() {
                 why: people::AccountMoveWhy::NotSignedIn
             }))),
             Some(people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotOffered))),
-            usize::try_from(WHOLE_MOVE).expect("tiny answer count")
+            skein_lib::length::usize_of(WHOLE_MOVE)
         )
     );
 }

@@ -38,7 +38,6 @@ pub(crate) fn brief_assembled(core: &mut Core, work: &mut Queue<Work>, task: u64
     clippy::too_many_lines,
     reason = "one fenced preparation builds the exact allowance, grants and claim together"
 )]
-#[expect(clippy::manual_map, reason = "the strict subset translates windows with an explicit match")]
 pub(crate) fn workspace_prepared(
     core: &mut Core,
     env: &Env<Limits>,
@@ -72,7 +71,7 @@ pub(crate) fn workspace_prepared(
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
         return out;
     };
-    if credentials.len() > usize::try_from(env.limits.accounts.credentials).expect("u32 credential limit fits usize") {
+    if credentials.len() > skein_lib::length::usize_of(env.limits.accounts.credentials) {
         work.push(Work::Event(Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects })));
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
         return out;
@@ -561,7 +560,6 @@ pub(crate) fn route_claim_refused(core: &mut Core, work: &mut Queue<Work>, task:
     out
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches without closures")]
 pub(crate) fn route_claim_prepared(
     core: &mut Core,
     env: &Env<Limits>,

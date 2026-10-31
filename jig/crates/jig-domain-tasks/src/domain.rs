@@ -901,7 +901,6 @@ pub(crate) fn entrance(domain: &Domain, to: ReplyTo, number: u64) -> Result<Repl
     Ok(to)
 }
 
-#[expect(clippy::manual_map, reason = "step code does not use closures")]
 pub(crate) fn activate(domain: &mut Domain, number: u64, out: &mut Queue<Request>) {
     let offered = match record(domain, number).expect("activation names live task").inbox.last() {
         Some(word) => Some(word.number),
@@ -1110,7 +1109,6 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
     let escalation = crate::escalation::begin(&mut task.record);
     // Admission permits equality with the wall. Wake just after it, without
     // another alarm or a durable deadline carrier (domain/authority.md, 7).
-    #[expect(clippy::manual_map, reason = "step code has no closures (programming-model.md, section 10)")]
     let wall = match task.record.authority.budget.deadline {
         Some(wall) => match wall.as_nanos().checked_add(1) {
             Some(nanos) => Some(Wall::from_nanos(nanos)),
@@ -1226,7 +1224,6 @@ pub(crate) fn remember_result_followups(domain: &mut Domain, limits: &Limits, nu
 }
 
 /// Construct a whole batch after its entrance and funding were preflighted in this decision.
-#[expect(clippy::manual_map, reason = "the subset uses a closed match instead of a closure")]
 #[expect(clippy::too_many_lines, reason = "one whole admitted batch constructs every durable member")]
 pub(crate) fn make_admitted(
     domain: &mut Domain,
@@ -1496,18 +1493,17 @@ fn append(capacity: u32, old: &[u64], batch: &[New]) -> Box<[u64]> {
 fn validate_charters(limits: &Limits, charters: &[crate::CharterModels], efforts: &[u8]) {
     assert!(
         charters.len()
-            <= usize::try_from(
+            <= skein_lib::length::usize_of(
                 limits
                     .charters
                     .checked_mul(2)
                     .expect("newest charter states")
                     .checked_add(limits.versions)
                     .expect("version bound")
-            )
-            .expect("u32 fits usize"),
+            ),
         "charter versions fit"
     );
-    let models = usize::try_from(crate::MODELS).expect("u32 fits usize");
+    let models = skein_lib::length::usize_of(crate::MODELS);
     assert!(efforts.len() <= models, "configured models fit");
     for (at, charter) in charters.iter().enumerate() {
         for earlier in charters.iter().take(at) {

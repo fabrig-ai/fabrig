@@ -1877,7 +1877,7 @@ fn a_stored_account_sign_in_answer_keeps_its_address() {
     let request = route(&test.request(10, 7, ask.clone()));
     let outcome = Outcome::AccountSignInStarted {
         source: 8,
-        address: skein_lib::bytes::zeroed(usize::try_from(ADDRESS).expect("small bound")),
+        address: skein_lib::bytes::zeroed(skein_lib::length::usize_of(ADDRESS)),
     };
     let rows = test.send(Event::Decided { request, outcome: outcome.clone() });
     assert_eq!(reply(&rows), Reply::Outcome(outcome.clone()));

@@ -143,7 +143,7 @@ impl Core {
         {
             self.party_hold_admit(person, hold)?;
         }
-        if reason_len > usize::try_from(limits.result_bytes).expect("u32 fits usize") {
+        if reason_len > skein_lib::length::usize_of(limits.result_bytes) {
             Err(people::Refusal::Limit { which: people::LimitKind::Words })
         } else {
             Ok(task)

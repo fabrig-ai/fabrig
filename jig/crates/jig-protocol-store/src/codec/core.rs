@@ -70,7 +70,7 @@ pub fn encode(row: &domain::CoreRecord, limits: &View) -> Result<Box<[u8]>, wire
         }
     };
     let row = wire::Row::new(&limits.core, wire::RowParts { value })?;
-    let mut writer = Writer::new(usize::try_from(row.measure()).expect("measured length"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
     row.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }
@@ -514,7 +514,7 @@ pub fn decode_delivery_outcome(value: wire::DeliveryOutcome) -> domain::Delivery
 /// The versioned body stored in a transcript frame (protocol/store.md, 8.3).
 pub fn turn(value: &domain::TurnRecord, limits: &View) -> Result<Box<[u8]>, wire::Problem> {
     let value = runs::encode_turn_record(value, limits)?;
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }

@@ -14,7 +14,7 @@ pub(super) fn join(items: List<Box<[u8]>>, bound: u32) -> Result<Box<[u8]>, Reas
             None => return Err(Reason::Bound),
         };
     }
-    if length > usize::try_from(bound).expect("bound fits usize") {
+    if length > skein_lib::length::usize_of(bound) {
         return Err(Reason::Bound);
     }
     let mut out = Writer::new(length);

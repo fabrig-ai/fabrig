@@ -195,7 +195,7 @@ fn begin(
     for section in &sections {
         match section {
             Planned::Core { text, .. } => {
-                if text.len() > usize::try_from(env.limits.brief_bytes).expect("u32 fits usize") {
+                if text.len() > skein_lib::length::usize_of(env.limits.brief_bytes) {
                     out.push(Request::Refused { brief });
                     return;
                 }
@@ -485,16 +485,16 @@ fn complete(brief: Token, active: Active, out: &mut Queue<Request>) {
 }
 
 fn can_cut(text: &[u8], size: u32) -> bool {
-    if text.len() <= usize::try_from(size).expect("u32 fits usize") {
+    if text.len() <= skein_lib::length::usize_of(size) {
         return true;
     }
     let lost = u64::try_from(text.len()).expect("bounded text");
     let marker = b"[".len().saturating_add(Decimal::of(lost).as_bytes().len()).saturating_add(b" bytes cut]\n".len());
-    marker <= usize::try_from(size).expect("u32 fits usize")
+    marker <= skein_lib::length::usize_of(size)
 }
 
 fn cut_core(kind: Core, text: Box<[u8]>, size: u32) -> Box<[u8]> {
-    let room = usize::try_from(size).expect("u32 fits usize");
+    let room = skein_lib::length::usize_of(size);
     if text.len() <= room {
         return text;
     }

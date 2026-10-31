@@ -106,7 +106,7 @@ pub(crate) fn program_name(name: &[u8]) -> bool {
 /// Explicit uses are bounded and contain no repeated payer.
 pub(crate) fn valid_uses(uses: Option<&[Use]>) -> bool {
     let Some(uses) = uses else { return true };
-    if uses.len() > usize::try_from(USES).expect("uses bound fits usize") {
+    if uses.len() > skein_lib::length::usize_of(USES) {
         return false;
     }
     for (index, payer) in uses.iter().enumerate() {

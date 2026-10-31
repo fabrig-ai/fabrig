@@ -20,7 +20,7 @@ pub(super) fn from_row(
     party: u64,
     row: &tasks::TaskRecord,
 ) -> Result<List<LiveDelegate>, Missing> {
-    if row.delegates.len() > usize::try_from(limits.documents.lines).expect("line count fits") {
+    if row.delegates.len() > skein_lib::length::usize_of(limits.documents.lines) {
         return Err(Missing::TooLarge);
     }
     let mut delegates = List::with_capacity(limits.documents.lines);

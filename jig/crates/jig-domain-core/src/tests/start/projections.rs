@@ -285,7 +285,7 @@ fn words_phase_and_pending_fits_keep_the_row_key() {
                 (&mut milestone.words, limits.tasks.message_bytes.max(limits.tasks.result_bytes))
             }
         };
-        *words = vec![b'x'; usize::try_from(bound + 1).expect("fixture bytes")].into_boxed_slice();
+        *words = vec![b'x'; skein_lib::length::usize_of(bound + 1)].into_boxed_slice();
         refused(&mut core, &limits, row, u64::from(bound) + 1, u64::from(bound));
     }
     let (mut core, _) = loaded();
@@ -308,8 +308,7 @@ fn words_phase_and_pending_fits_keep_the_row_key() {
             ProjectionRecord::Milestone { milestone, .. } => milestone.phase.as_mut().expect("fixture phase"),
         };
         *phase = tasks::Phase::Ended(tasks::Ending::Failed {
-            reason: vec![b'x'; usize::try_from(limits.tasks.result_bytes * 2 + 1).expect("fixture bytes")]
-                .into_boxed_slice(),
+            reason: vec![b'x'; skein_lib::length::usize_of(limits.tasks.result_bytes * 2 + 1)].into_boxed_slice(),
         });
         refused(
             &mut core,
@@ -426,16 +425,15 @@ fn exact_word_and_phase_bounds_remain_loadable() {
                 milestone.phase.as_mut().expect("fixture phase"),
             ),
         };
-        *words = vec![b'x'; usize::try_from(bound).expect("fixture bytes")].into_boxed_slice();
+        *words = vec![b'x'; skein_lib::length::usize_of(bound)].into_boxed_slice();
         *phase = tasks::Phase::Ended(tasks::Ending::Failed {
-            reason: vec![b'x'; usize::try_from(limits.tasks.result_bytes * 2).expect("fixture phase bytes")]
-                .into_boxed_slice(),
+            reason: vec![b'x'; skein_lib::length::usize_of(limits.tasks.result_bytes * 2)].into_boxed_slice(),
         });
         assert_eq!(restore(&mut core, &limits, row), Restored::Live);
     }
     core.start_projections_link();
     let projection = core.projections.get(&1).expect("projection at byte bounds");
-    assert_eq!(projection.goal.words.len(), usize::try_from(limits.tasks.spec_bytes).expect("fixture bytes"));
+    assert_eq!(projection.goal.words.len(), skein_lib::length::usize_of(limits.tasks.spec_bytes));
     assert_eq!(projection.plan.len(), 1);
     assert_eq!(projection.milestones.len(), 1);
 }

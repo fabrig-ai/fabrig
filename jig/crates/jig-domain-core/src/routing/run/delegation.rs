@@ -252,13 +252,13 @@ pub(crate) fn propose_batch(
     as_holder: bool,
     tracked: Option<u32>,
 ) -> Queue<Request> {
-    if reason.len() > usize::try_from(env.limits.tasks.message_bytes).expect("u32 fits usize") {
+    if reason.len() > skein_lib::length::usize_of(env.limits.tasks.message_bytes) {
         return proposal_refused(core, to, key, tasks::Refusal::Read);
     }
     let Some(context) = core.tasks.delegation(key.task) else {
         return proposal_refused(core, to, key, tasks::Refusal::Unknown);
     };
-    if batch.is_empty() || batch.len() > usize::try_from(env.limits.tasks.batch).expect("u32 fits usize") {
+    if batch.is_empty() || batch.len() > skein_lib::length::usize_of(env.limits.tasks.batch) {
         return proposal_refused(core, to, key, tasks::Refusal::Batch);
     }
     core.take_models(key.task, &mut batch);

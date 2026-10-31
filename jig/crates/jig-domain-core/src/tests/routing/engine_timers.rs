@@ -40,7 +40,7 @@ pub(in crate::tests) fn timer_core(answers: bool) -> (Core, Env<Limits>) {
     for record in rows {
         drop(step(&mut core, &env, Event::People(people::Event::Restore { record })));
     }
-    finish_people(&mut core.people, &Env { now: env.now, wall: env.wall, limits: env.limits.people });
+    finish_people(&mut core.people, &env.with(env.limits.people));
     assert!(core.people.ready());
     (core, env)
 }

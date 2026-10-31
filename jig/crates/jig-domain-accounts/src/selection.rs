@@ -60,8 +60,8 @@ impl Domain {
         host: &[HostSource],
         now: Time,
     ) -> Selection {
-        if coverage.len() > usize::try_from(self.accounts.capacity()).expect("account capacity fits")
-            || host.len() > usize::try_from(self.sources.capacity()).expect("source capacity fits")
+        if coverage.len() > skein_lib::length::usize_of(self.accounts.capacity())
+            || host.len() > skein_lib::length::usize_of(self.sources.capacity())
         {
             return Selection::NoAccount;
         }
@@ -127,7 +127,7 @@ impl Domain {
         coverage: &[Coverage],
     ) -> skein_lib::List<u32> {
         let mut result = skein_lib::List::with_capacity(self.accounts.capacity());
-        if coverage.len() > usize::try_from(self.accounts.capacity()).expect("account capacity") {
+        if coverage.len() > skein_lib::length::usize_of(self.accounts.capacity()) {
             return result;
         }
         for (at, proof) in coverage.iter().enumerate() {

@@ -233,11 +233,11 @@ pub(crate) fn granted(
     models: tasks::Models,
     limits: &tasks::Limits,
 ) -> Option<tasks::Authority> {
-    let grants_limit = usize::try_from(limits.authority_grants).expect("grant bound fits usize");
-    let segments_limit = usize::try_from(limits.authority_segments).expect("segment bound fits usize");
+    let grants_limit = skein_lib::length::usize_of(limits.authority_grants);
+    let segments_limit = skein_lib::length::usize_of(limits.authority_segments);
     if value.grants.len() > grants_limit
         || value.note_resources.len() > grants_limit
-        || value.delegation.kinds.len() > usize::try_from(limits.executor_kinds).expect("executor bound fits usize")
+        || value.delegation.kinds.len() > skein_lib::length::usize_of(limits.executor_kinds)
     {
         return None;
     }
@@ -260,7 +260,6 @@ pub(crate) fn granted(
 }
 
 /// A party's amendment in the task vocabulary; a changed authority keeps the task's `models`.
-#[expect(clippy::manual_map, reason = "the step subset spells out both option cases without a closure")]
 pub(crate) fn translate(
     value: people::Amendment,
     models: tasks::Models,

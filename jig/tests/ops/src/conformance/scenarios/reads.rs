@@ -218,8 +218,8 @@ fn page(store: &Store, load: Token, range: &transport::Range) -> root::Event {
     if range.backwards {
         rows.reverse();
     }
-    let more = rows.len() > usize::try_from(range.rows).expect("page count");
-    rows.truncate(usize::try_from(range.rows).expect("page count"));
+    let more = rows.len() > skein_lib::length::usize_of(range.rows);
+    rows.truncate(skein_lib::length::usize_of(range.rows));
     let next = if more { rows.last().and_then(transport::row_key) } else { None };
     root::Event::Core(core::Event::ReadLoaded {
         load,

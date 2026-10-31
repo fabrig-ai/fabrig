@@ -98,7 +98,7 @@ fn a_full_accounts_row_decodes_within_its_decoded_bound() {
 fn the_longest_accounts_rows_decode_within_the_rows_decoded_bound() {
     let ceilings = accounts_v2::CEILINGS;
     let bound = accounts_v2::Row::decoded_bound(&ceilings).expect("accounts heap bound");
-    let bytes = |length: u32| vec![0xa5; usize::try_from(length).expect("ceiling fits")].into_boxed_slice();
+    let bytes = |length: u32| vec![0xa5; skein_lib::length::usize_of(length)].into_boxed_slice();
     let party = accounts_v2::Party::new(&ceilings, accounts_v2::PartyParts { party: u64::MAX }).expect("a party");
     let account = accounts_v2::Account::new(
         &ceilings,
@@ -139,7 +139,7 @@ fn the_longest_accounts_rows_decode_within_the_rows_decoded_bound() {
     .expect("a source at its ceiling");
     for value in [accounts_v2::Value::Account(account), accounts_v2::Value::Source(source)] {
         let row = accounts_v2::Row::new(&ceilings, accounts_v2::RowParts { value }).expect("a row");
-        let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("measured length"));
+        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         let encoded = writer.finish();
         let meter = Meter::new();

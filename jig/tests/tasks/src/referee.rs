@@ -170,7 +170,7 @@ impl Tasks {
                     let current = holder_count(live, pool);
                     let before = self.pool_counts.iter().find(|(name, _)| name == pool).map_or(0, |(_, count)| *count);
                     let slots = pools.iter().find(|row| row.pool == *pool).map_or(0, |row| row.slots);
-                    if current > before && current > usize::try_from(slots).expect("u32 fits usize") {
+                    if current > before && current > skein_lib::length::usize_of(slots) {
                         judge.fail("pool admitted beyond known slots");
                     }
                     counts.push((pool.clone(), current));
@@ -398,7 +398,7 @@ impl Expectations for Tasks {
                 }
             }
             Seen::Limit { live, cap } => {
-                if live > usize::try_from(cap).expect("u32 fits usize") {
+                if live > skein_lib::length::usize_of(cap) {
                     judge.fail("live task limit exceeded");
                 }
             }
@@ -515,20 +515,22 @@ fn within(task: &TaskRecord, limits: &Limits) -> bool {
     ];
     if task.depth > limits.depth
         || task.made > limits.tree_tasks
-        || counts.into_iter().any(|(count, limit)| count > usize::try_from(limit).expect("u32 fits usize"))
-        || task.authority.grants.iter().any(|grant| {
-            grant.pattern.segments.len() > usize::try_from(limits.authority_segments).expect("u32 fits usize")
-        })
+        || counts.into_iter().any(|(count, limit)| count > skein_lib::length::usize_of(limit))
+        || task
+            .authority
+            .grants
+            .iter()
+            .any(|grant| grant.pattern.segments.len() > skein_lib::length::usize_of(limits.authority_segments))
     {
         return false;
     }
-    let result_cap = usize::try_from(limits.result_bytes).expect("u32 fits usize");
+    let result_cap = skein_lib::length::usize_of(limits.result_bytes);
     let contract = match &task.contract {
         Contract::Approval { state, .. } => state.len() <= result_cap,
         Contract::Report { words } | Contract::Change { words, .. } => *words <= limits.result_bytes,
         Contract::Verdict { choices } => {
             !choices.is_empty()
-                && choices.len() <= usize::try_from(limits.contract_choices).expect("u32 fits usize")
+                && choices.len() <= skein_lib::length::usize_of(limits.contract_choices)
                 && choices.iter().all(|choice| choice.words <= limits.result_bytes)
         }
     };
@@ -554,7 +556,7 @@ fn stored(live: &[TaskRecord], limits: &Limits, judge: &mut Judge<Name, Stimulus
     if !live.iter().all(|task| within(task, limits))
         || live.iter().any(|task| {
             live.iter().filter(|other| other.project == task.project).count()
-                > usize::try_from(limits.project_tasks).expect("u32 fits usize")
+                > skein_lib::length::usize_of(limits.project_tasks)
         })
     {
         judge.fail("stored shape exceeds configured limit");
@@ -602,7 +604,7 @@ fn circle_of_waits(live: &[TaskRecord], pools: &[PoolSlots], rules: &Rules) -> b
                     Some(HoldKind::Pooled { .. }) => pools
                         .iter()
                         .find(|pool| pool.pool == *name)
-                        .map_or(1, |pool| usize::try_from(pool.slots.max(1)).expect("u32 fits usize")),
+                        .map_or(1, |pool| skein_lib::length::usize_of(pool.slots.max(1))),
                 };
                 thresholds.insert(name.clone(), threshold);
                 if held.get(name).map_or(0, Vec::len) >= threshold {

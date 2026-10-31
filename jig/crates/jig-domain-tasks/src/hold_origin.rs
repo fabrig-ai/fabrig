@@ -15,7 +15,7 @@ pub(crate) fn valid(limits: &Limits, why: Hold, source: Option<&HoldSource>) -> 
             why != Hold::Circle
                 && *entry != Some(0)
                 && !words.is_empty()
-                && words.len() <= usize::try_from(ACCOUNT_BYTES).expect("bounded account")
+                && words.len() <= skein_lib::length::usize_of(ACCOUNT_BYTES)
         }
         Some(HoldSource::Circle(circle)) => why == Hold::Circle && valid_circle(limits, circle),
         Some(HoldSource::Resource(name)) => why == Hold::Drift && crate::holds::valid_name(limits, name),

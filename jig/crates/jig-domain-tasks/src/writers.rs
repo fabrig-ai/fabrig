@@ -63,7 +63,7 @@ pub(crate) fn claim(
     out: &mut Queue<Request>,
 ) -> Result<(), Option<Name>> {
     let limits = &env.limits;
-    if writes.len() > usize::try_from(limits.holdings).expect("u32 fits usize") {
+    if writes.len() > skein_lib::length::usize_of(limits.holdings) {
         return Err(None);
     }
     for (index, resource) in writes.iter().enumerate() {

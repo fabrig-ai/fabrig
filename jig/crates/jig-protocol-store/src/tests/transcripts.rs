@@ -396,7 +396,7 @@ fn read_answer(store: &mut Store, mut below: Below, disk: &[u8], chunk: u32) -> 
         }
         file::Request::ReadAt { owner, offset, max, .. } => {
             let start = usize::try_from(offset).expect("fixture offset");
-            let count = usize::try_from(max.min(chunk)).expect("fixture count");
+            let count = skein_lib::length::usize_of(max.min(chunk));
             let end = start.checked_add(count).expect("fixture read end").min(disk.len());
             let bytes = Box::from(disk.get(start..end).expect("read within fixture disk"));
             file::Event::Read { owner, bytes }

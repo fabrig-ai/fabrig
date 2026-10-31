@@ -265,7 +265,6 @@ fn infrastructure_part(bindings: &JigBindings, token: skein_lib::Token) -> Optio
     }
 }
 #[must_use]
-#[expect(clippy::manual_map, reason = "step code explicitly wraps the owner action")]
 pub fn decode(view: &mut View, node: NodeId, act: Act) -> Option<Action> {
     let bound = view.render.act(node, act)?;
     match Owner::from_opaque(bound.binding.owner) {

@@ -17,7 +17,7 @@ impl Installation {
     pub fn encode(&self) -> Box<[u8]> {
         let row = wire::Installation::new(&wire::CEILINGS, wire::InstallationParts { id: self.id })
             .expect("a fixed identifier has no bound to break");
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("encoded row fits usize"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         writer.finish()
     }
@@ -32,7 +32,6 @@ impl Installation {
 
 /// Encode one of the accounts child's records (store.md 4.4 item 9) within the
 /// schema's ceilings, which are the child's own bounds.
-#[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub fn encode(row: &domain::Stored) -> Result<Box<[u8]>, wire::Problem> {
     let limits = &wire::CEILINGS;
     let value = match row {
@@ -97,14 +96,13 @@ pub fn encode(row: &domain::Stored) -> Result<Box<[u8]>, wire::Problem> {
         }
     };
     let row = wire::Row::new(limits, wire::RowParts { value })?;
-    let mut writer = Writer::new(usize::try_from(row.measure()).expect("encoded row fits usize"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
     row.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }
 
 /// Decode one of the accounts child's records, refusing another version or
 /// trailing bytes. The child checks the record's rules as it restores it.
-#[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub fn decode(bytes: &[u8]) -> Result<domain::Stored, wire::Problem> {
     let wire::RowParts { value } = wire::Row::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
     Ok(match value {

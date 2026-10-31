@@ -183,7 +183,7 @@ fn new_task(
     for dependency in &member.dependencies {
         let number = match *dependency {
             people::Dependency::Batch(at) => {
-                if usize::try_from(at).expect("u32 fits usize") >= batch.len() {
+                if skein_lib::length::usize_of(at) >= batch.len() {
                     return Err(people::Refusal::Unknown);
                 }
                 first
@@ -308,7 +308,7 @@ fn cycle(batch: &[people::Member], first: u64, bound: u32) -> Result<Option<task
             let Some(last) = pending.len().checked_sub(1) else { break };
             let current = *pending.get(last).expect("pending member");
             pending.truncate(last);
-            let member = batch.get(usize::try_from(current).expect("member fits usize")).expect("batch member");
+            let member = batch.get(skein_lib::length::usize_of(current)).expect("batch member");
             for dependency in &member.dependencies {
                 let people::Dependency::Batch(next) = *dependency else { continue };
                 if next == start {

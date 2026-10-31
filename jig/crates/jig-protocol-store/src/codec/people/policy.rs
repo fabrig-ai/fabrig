@@ -128,7 +128,6 @@ pub(super) fn decode_delegation(
     Ok(domain::Delegation { kinds: decode_delegation_kinds(kinds, limits, shared_sum(limits))?, tasks, depth })
 }
 
-#[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub(super) fn encode_authority(
     value: &domain::Authority,
     limits: &wire::Limits,
@@ -163,7 +162,6 @@ pub(super) fn encode_authority(
         },
     )
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub(super) fn decode_authority(
     value: wire::Authority,
     limits: &wire::Limits,
@@ -681,7 +679,6 @@ pub(crate) fn encode_amendment(
         },
     )
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub(crate) fn decode_amendment(
     value: wire::Amendment,
     limits: &wire::Limits,

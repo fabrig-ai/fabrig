@@ -5,41 +5,41 @@ use std::{fs, path::Path};
 
 fn notes(bytes: &[u8]) {
     if let Ok(row) = notes_v1::Row::decode(&notes_v1::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("measured length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
 }
 fn component(bytes: &[u8]) {
     if let Ok(row) = component_v3::Layouts::decode(&component_v3::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("measured length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
     if let Ok(row) = component_v3::Format::decode(&component_v3::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("measured length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
     if let Ok(row) = component_v3::Transcript::decode(&component_v3::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("measured length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
     if let Ok(row) = component_v3::Attempt::decode(&component_v3::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("measured length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
 }
 fn accounts(bytes: &[u8]) {
     if let Ok(row) = accounts_v2::Installation::decode(&accounts_v2::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("measured length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
     if let Ok(row) = accounts_v2::Row::decode(&accounts_v2::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("measured length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
@@ -109,7 +109,7 @@ fn mutated_accounts_goldens_never_panic() {
 fn tasks(bytes: &[u8]) {
     use jig_protocol_store::tasks_v9;
     if let Ok(row) = tasks_v9::Row::decode(&tasks_v9::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("measured length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
@@ -125,7 +125,7 @@ fn mutated_tasks_goldens_never_panic() {
 
 fn people(bytes: &[u8]) {
     if let Ok(row) = people_v14::Row::decode(&people_v14::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("measured length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
@@ -143,7 +143,7 @@ fn mutated_people_goldens_never_panic() {
 fn core(bytes: &[u8]) {
     use jig_protocol_store::core_v6;
     if let Ok(row) = core_v6::Row::decode(&core_v6::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("measured length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
@@ -198,7 +198,7 @@ fn mutated_and_short_frames_never_panic() {
         },
     )
     .expect("bounded turn");
-    let mut writer = Writer::new(usize::try_from(turn.measure()).expect("body size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(turn.measure()));
     turn.encode(&mut writer).expect("measured body");
     let turn = codec::core::read_turn(&writer.finish(), &limits).expect("valid body");
     let bytes = frame::encode(&turn, &limits).expect("valid frame");
@@ -214,7 +214,7 @@ fn mutated_and_short_frames_never_panic() {
 fn test_connector(bytes: &[u8]) {
     use jig_test_store::v2;
     if let Ok(row) = v2::Row::decode(&v2::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("measured length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
@@ -233,32 +233,32 @@ fn mutated_test_connector_goldens_never_panic() {
 fn settings(bytes: &[u8]) {
     use jig_protocol_store::settings_v1 as wire;
     if let Ok(row) = wire::Default::decode(&wire::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("settings record length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
     if let Ok(row) = wire::Changed::decode(&wire::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("settings record length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
     if let Ok(row) = wire::Revision::decode(&wire::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("settings record length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
     if let Ok(row) = wire::Extent::decode(&wire::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("settings record length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
     if let Ok(row) = wire::CharterVersion::decode(&wire::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("settings record length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
     if let Ok(row) = wire::Proposal::decode(&wire::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("settings record length"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
