@@ -1424,11 +1424,8 @@ fn an_owing_spec_and_its_asked_latch_survive_storage() {
 #[test]
 fn an_owing_reminder_survives_storage_with_small_caller_word_limits() {
     use jig_domain_tasks::{ActivityLine, Line, MessageKind, Party, Stored, Word};
-    let domain = jig_domain_tasks::Limits {
-        message_bytes: 16,
-        result_bytes: 32,
-        ..jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks
-    };
+    let domain =
+        jig_domain_tasks::Limits { message_bytes: 16, result_bytes: 32, inbox_bytes: 4096, ..fixtures::TASKS_LIMITS };
     let words = b"You owe your requester a question: ask your plan with message, as a question, and wait.";
     assert!(words.len() > usize::try_from(domain.message_bytes).expect("word bound"));
     assert!(words.len() <= usize::try_from(domain.inbox_bytes).expect("inbox bound"));

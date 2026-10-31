@@ -660,7 +660,7 @@ dependencies = [
 name = "jig-client-test-records"
 version = "0.0.0"
 dependencies = [
- "jig-client",
+ "jig-client-domain",
  "jig-client-protocol-wire",
  "skein-codec",
  "skein-lib",
@@ -1374,7 +1374,6 @@ name = "jig-protocol-engine-clients-http"
 version = "0.0.0"
 dependencies = [
  "jig-client-protocol-wire",
- "jig-protocol-config",
  "jig-protocol-engine-clients",
  "skein-http",
  "skein-lib",
@@ -1405,8 +1404,6 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
- "jig-protocol-config",
- "jig-store-world",
  "jig-test-patches",
  "jig-test-patches-jig",
  "jig-test-patches-smith",
@@ -1438,7 +1435,6 @@ name = "jig-protocol-transcript"
 version = "0.0.0"
 dependencies = [
  "jig-client-domain",
- "jig-client-test-domain",
  "skein-lib",
  "smith-transcript",
 ]
@@ -1708,16 +1704,12 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-notes",
  "jig-domain-people",
- "jig-domain-tasks",
  "jig-protocol-store",
  "jig-protocol-transcript",
  "jig-test-connector",
  "jig-test-connector-world",
  "jig-test-domain",
- "jig-test-profile",
- "jig-test-store-files",
  "skein-codec",
- "skein-io",
  "skein-kv",
  "skein-lib",
 ]
@@ -1728,8 +1720,12 @@ version = "0.0.0"
 dependencies = [
  "jig-conformance",
  "jig-domain-core",
+ "jig-domain-notes",
+ "jig-domain-people",
+ "jig-domain-tasks",
  "jig-protocol-store",
  "jig-test-connector",
+ "jig-test-connector-world",
  "jig-test-domain",
  "jig-test-profile",
  "jig-test-store",
