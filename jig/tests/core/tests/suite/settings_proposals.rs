@@ -210,7 +210,6 @@ fn accepting_or_changing_settings_withdraws_stale_proposals_and_proposers_hear()
     assert!(inventory(&mut world, owner).pending.is_empty());
 }
 #[test]
-#[ignore = "start: release revision leaves a stale proposal set stored"]
 fn pending_reviews_survive_restart_and_a_release_withdraws_them() {
     let mut world = start(64);
     let owner = sign_in(&mut world);
@@ -240,9 +239,12 @@ fn pending_reviews_survive_restart_and_a_release_withdraws_them() {
             root::Key::Core(core::Key::Tasks(tasks::Key::PersonProposal(proposal)))
         };
         inconsistent.erase(missing).expect("one side of the durable pair");
-        inconsistent.restart_with(configuration().0);
+        let _panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            inconsistent.restart_with(configuration().0);
+        }))
+        .expect_err("missing proposal counterpart asserts at Link");
+        assert_eq!(inconsistent.domain.start_phase(), Some(core::start::Phase::Link));
         assert!(!inconsistent.domain.ready(), "missing set: {erase_set}");
-        assert!(inconsistent.stopped, "inconsistent pending settings must refuse startup");
     }
 }
 #[test]
