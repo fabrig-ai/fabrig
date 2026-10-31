@@ -43,7 +43,7 @@ pub(crate) use runs::named_propose;
 use runs::{named_action, route_named_answer, route_refused_payload};
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 use task_routes::{route_connector_repair, route_tasks, tag_task_outputs};
-use view_routes::{made_outputs, open, route_view};
+use view_routes::{open, route_view};
 pub use vocabulary::{
     Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsNeed, Limits, NamedAction, Now,
     PayloadRefusal, ProposalChoice, Request, StepRefusal, Timer, ToolKind, WatchRefusal, Write,
