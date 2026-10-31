@@ -313,6 +313,8 @@ fn cancel_one(job: &mut Job, limits: &Limits, out: &mut Queue<Request>) {
     match job.state {
         State::Running => {
             if job.reader.is_none() {
+                // An unpolled held owner still owes a cancellation terminal.
+                // Wait for that terminal without a polling timeout winning first.
                 out.push(Request::Job {
                     owner: job.owner.token(),
                     act: JobAct::Read {
