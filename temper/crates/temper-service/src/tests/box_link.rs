@@ -96,7 +96,7 @@ fn a_fault_ask_needs_only_one_forges_diagnostic_slot() {
     let engine = service.engine.as_mut().unwrap();
     let occupied = engine.notes.room() - 1;
     for _ in 0..occupied {
-        engine.notes.push(crate::Note::ForgeUnconfigured { number: 1 });
+        engine.notes.push(crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
     }
     assert_eq!(engine.notes.room(), 1);
     let mut out = Queue::with_capacity(OUTPUTS);

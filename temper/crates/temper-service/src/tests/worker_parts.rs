@@ -313,6 +313,7 @@ fn a_late_older_generation_leaves_the_newest_in_place() {
         );
     }
     assert_eq!(table.newest(2, fixtures::NOW), None);
+    table.granted(u32::from(u16::MAX), 1, None, fixtures::NOW).unwrap();
     for number in [0, 3] {
         assert_eq!(
             table.granted(

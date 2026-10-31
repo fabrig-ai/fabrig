@@ -105,7 +105,7 @@ fn an_unusable_git_stops_the_service_naming_its_program() {
 fn a_socket_workers_bind_announces_its_bound_address_once() {
     let mut service = fixtures::started();
     for _ in 0..service.notes().capacity() {
-        service.notes().push(crate::Note::ForgeUnconfigured { number: 1 });
+        service.notes().push(crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
     }
     assert_eq!(service.notes().room(), 0, "forge diagnostics occupy their whole queue");
     let addr = ([127, 0, 0, 1], 41733).into();
@@ -119,7 +119,7 @@ fn a_socket_workers_bind_announces_its_bound_address_once() {
     assert!(service.listening().is_empty());
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
     assert!(service.listening().is_empty());
-    assert_eq!(service.notes().pop(), Some(crate::Note::ForgeUnconfigured { number: 1 }));
+    assert_eq!(service.notes().pop(), Some(crate::Note::ForgeLacking { number: 1, names: Box::new([]) }));
 }
 
 #[test]
@@ -547,7 +547,7 @@ fn a_blocked_told_head_holds_later_events_for_other_destinations() {
     }
     let read = read.expect("box read published to the kernel");
     for _ in 0..service.notes().capacity() {
-        service.notes().push(crate::Note::ForgeUnconfigured { number: 1 });
+        service.notes().push(crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
     }
     service.completions.push(Complete { op: read.op, kind: read.kind, result: Ok(Done::Count(4)) });
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);

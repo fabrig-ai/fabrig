@@ -1095,7 +1095,7 @@ impl Service {
 
 // One forge cohort and the end's bounded act answers can be named together.
 fn note_bound(settings: &settings::Engine, root: &temper_engine_domain::Limits) -> Option<u32> {
-    u32::try_from(settings.forges.len()).ok()?.checked_add(temper_engine_domain_forge::demo_act_bound(&root.forge)?)
+    settings.limits.forge.forges.checked_add(temper_engine_domain_forge::demo_act_bound(&root.forge)?)
 }
 
 #[cfg(test)]

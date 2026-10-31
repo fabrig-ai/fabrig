@@ -470,6 +470,17 @@ fn prepare_with_limits(
         given,
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    let roots = trust(None)?;
+    let github = config::Address::Host { name: Box::from(b"api.github.com".as_slice()), port: 443 };
+    let github = service::ForgeRuntime {
+        number: 0,
+        address: address(&github).unwrap_or(service::forge::HELD_ADDRESS),
+        transport: skein_forge_connection::settings::Transport::Tls {
+            server_name: server_name(b"api.github.com")?,
+            trust: roots.clone(),
+        },
+    };
+    service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
     if let Some(agent) = &agent
         && let Some(program) = agent.programs.first()
