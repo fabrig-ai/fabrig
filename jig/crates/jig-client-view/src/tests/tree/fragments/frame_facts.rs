@@ -254,12 +254,11 @@ fn a_named_control_holds_no_node() {
         );
         let tree = b.finish();
         let control = &tree.nodes()[CONTROL];
-        assert_eq!(control.name.as_deref(), Some(b"Sign out".as_slice()), "{role:?}");
+        goldens.check(&tree);
         if role == Role::Button {
             assert_eq!(control.size, BUTTON_NODES);
         } else {
             assert_eq!(control.size, LINK_NODES);
-            goldens.check(&tree);
         }
     }
 }

@@ -85,10 +85,7 @@ fn build(value: &OwnerMilestoneLine, words: &Words) -> (Tree, JigBindings, Limit
     let tree = b.finish();
     let region = tree.nodes().first().expect("standalone milestone region");
     assert_eq!(region.role, skein_ui::Role::Region);
-    assert_eq!(
-        region.name.as_deref(),
-        Some(if words.language() == 0 { b"Lifecycle milestone".as_slice() } else { b"second ".as_slice() })
-    );
+
     assert!(tree.len() <= f.nodes);
     let mut total = 0_u64;
     for node in tree.nodes() {

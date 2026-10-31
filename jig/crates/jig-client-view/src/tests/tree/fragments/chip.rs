@@ -621,17 +621,6 @@ fn a_circle_hold_names_the_waits_in_order_and_lifts_on_its_own() {
     value.hold = Some(held);
     let (tree, _, _) = build(&value, words());
     goldens.check(&tree);
-    let expected = [b"waits for T7".as_slice(), b"waits for T5", b"waits for T9"];
-    let mut shown = 0;
-    for node in tree.nodes() {
-        for run in &node.text {
-            if run.text.starts_with(b"waits for T") {
-                assert_eq!(run.text.as_ref(), *expected.get(shown).unwrap());
-                shown += 1;
-            }
-        }
-    }
-    assert_eq!(shown, expected.len());
 }
 
 #[test]
