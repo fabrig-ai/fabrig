@@ -112,6 +112,13 @@ struct JsonBody {
     below: bool,
     ended: bool,
 }
+/// Socket teardown, including the upgrade from close to abort (programming-model.md, 5.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Closing {
+    Open,
+    Graceful,
+    Aborted,
+}
 /// One connection's machines, socket identity, request and pending output.
 pub(crate) struct Connection {
     pub(crate) forge: u16,
@@ -121,7 +128,7 @@ pub(crate) struct Connection {
     pub(crate) phase: Phase,
     pub(crate) deadline: Option<Time>,
     pub(crate) socket: Option<Token>,
-    pub(crate) closing: bool,
+    closing: Closing,
     pub(crate) written: bool,
     http: http::Client,
     tls: Option<skein_tls::client::Client>,
@@ -178,7 +185,7 @@ impl Connection {
             phase: Phase::Connecting,
             deadline: Some(deadline),
             socket: None,
-            closing: false,
+            closing: Closing::Open,
             written: false,
             http: http::Client::new(&limits::http(l, tls.is_some(), &shared.io)),
             tls,
@@ -368,7 +375,7 @@ impl Connection {
         }
     }
     pub fn stream(&mut self, env: &Env<Limits>, event: Up) {
-        if self.closing || self.phase == Phase::Closed {
+        if self.closing() || self.phase == Phase::Closed {
             return;
         }
         match &mut self.tls {
@@ -396,7 +403,7 @@ impl Connection {
     /// Routes at most a fixed number of child-machine movements. Remaining work stays owned.
     pub fn pump(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) {
         for _ in 0_u32..64 {
-            if self.answer_pending() || self.closing || self.phase == Phase::Closed {
+            if self.answer_pending() || self.closing() || self.phase == Phase::Closed {
                 break;
             }
             if let Some(down) = self.tls_down.pop() {
@@ -918,7 +925,7 @@ impl Connection {
             }
     }
     pub fn close(&mut self, abort: bool, io: &mut Queue<skein_io::Request>) {
-        if self.closing {
+        if self.closing == Closing::Aborted || (self.closing == Closing::Graceful && !abort) {
             return;
         }
         self.clear_json_body();
@@ -926,13 +933,16 @@ impl Connection {
         self.deadline = None;
         self.request = None;
         if let Some(socket) = self.socket {
-            self.closing = true;
+            self.closing = if abort { Closing::Aborted } else { Closing::Graceful };
             io.push(if abort {
                 skein_io::Request::Abort { entity: socket }
             } else {
                 skein_io::Request::Close { entity: socket }
             });
         }
+    }
+    pub fn closing(&self) -> bool {
+        self.closing != Closing::Open
     }
     fn answer_pending(&self) -> bool {
         !self.heard.is_empty()

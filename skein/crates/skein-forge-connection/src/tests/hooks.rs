@@ -6,6 +6,7 @@ use crate::{
 use skein_lib::{Env, Queue, Secret, Time, Token, Wall};
 
 const LISTENER: Token = Token::new(90);
+const HOOK_SOCKET: Token = Token::new(91);
 // Repeat the failure to check that it is announced once.
 const LISTENER_FAILURES: u32 = 2;
 const BOUND: skein_io::Addr =
@@ -58,6 +59,94 @@ impl Listening {
             &mut self.io,
         );
     }
+    fn with_hook() -> (Self, Token) {
+        let mut h = Self::new();
+        h.bound();
+        drop(h.up.pop());
+        h.component.up(
+            &h.env,
+            skein_io::Event::Accepted { owner: h.owner, socket: HOOK_SOCKET, peer: BOUND },
+            &mut h.up,
+            &mut h.io,
+        );
+        let Some(skein_io::Request::Bind { owner, .. }) = h.io.pop() else {
+            unreachable!("the accepted hook is bound");
+        };
+        let Some(skein_io::Request::Stream { .. }) = h.io.pop() else {
+            unreachable!("the hook asks for its head");
+        };
+        (h, owner)
+    }
+    fn settled(&mut self, hook: Token) {
+        self.component.up(&self.env, skein_io::Event::Closed { owner: hook }, &mut self.up, &mut self.io);
+        assert!(self.up.is_empty(), "the listener still belongs to io");
+        self.component.up(&self.env, skein_io::Event::Closed { owner: self.owner }, &mut self.up, &mut self.io);
+        let Some(Event::Closed) = self.up.pop() else {
+            unreachable!("the settled listener and hook end the component");
+        };
+        assert!(self.up.is_empty(), "closed once");
+        assert!(self.io.is_empty(), "no more io");
+    }
+}
+
+#[test]
+fn abort_aborts_the_listener_and_every_webhook_connection() {
+    let (mut h, hook) = Listening::with_hook();
+    h.component.down(&h.env, Request::Abort, &mut h.up, &mut h.io);
+    assert!(h.up.is_empty(), "abort waits only for io settlement");
+    for socket in [LISTENER, HOOK_SOCKET] {
+        assert_eq!(h.io.pop(), Some(skein_io::Request::Abort { entity: socket }));
+    }
+    assert!(h.io.is_empty(), "no graceful close");
+    h.settled(hook);
+}
+
+#[test]
+fn abort_upgrades_the_listener_without_aborting_webhooks_twice() {
+    let (mut h, hook) = Listening::with_hook();
+    h.component.down(&h.env, Request::Close, &mut h.up, &mut h.io);
+    assert_eq!(h.io.pop(), Some(skein_io::Request::Close { entity: LISTENER }));
+    assert_eq!(h.io.pop(), Some(skein_io::Request::Abort { entity: HOOK_SOCKET }));
+    h.component.down(&h.env, Request::Abort, &mut h.up, &mut h.io);
+    assert_eq!(h.io.pop(), Some(skein_io::Request::Abort { entity: LISTENER }));
+    assert!(h.io.is_empty(), "the hook was already aborted");
+    assert!(h.up.is_empty(), "io has not settled");
+    h.settled(hook);
+}
+
+#[test]
+fn close_and_repeated_abort_do_not_repeat_webhook_io() {
+    let (mut h, hook) = Listening::with_hook();
+    h.component.down(&h.env, Request::Abort, &mut h.up, &mut h.io);
+    for socket in [LISTENER, HOOK_SOCKET] {
+        assert_eq!(h.io.pop(), Some(skein_io::Request::Abort { entity: socket }));
+    }
+    for request in [Request::Close, Request::Abort] {
+        h.component.down(&h.env, request, &mut h.up, &mut h.io);
+        assert!(h.io.is_empty(), "no repeated abort");
+        assert!(h.up.is_empty(), "io still owns the sockets");
+    }
+    h.settled(hook);
+    for request in [Request::Close, Request::Abort] {
+        h.component.down(&h.env, request, &mut h.up, &mut h.io);
+        assert!(h.io.is_empty(), "no io after closed");
+        assert!(h.up.is_empty(), "no second closed");
+    }
+}
+
+#[test]
+fn a_listener_bound_after_abort_is_aborted_without_announcement() {
+    let mut h = Listening::new();
+    h.component.down(&h.env, Request::Abort, &mut h.up, &mut h.io);
+    h.bound();
+    assert_eq!(h.io.pop(), Some(skein_io::Request::Abort { entity: LISTENER }));
+    assert!(h.io.is_empty());
+    assert!(h.up.is_empty(), "the listener is not announced while ending");
+    h.component.up(&h.env, skein_io::Event::Closed { owner: h.owner }, &mut h.up, &mut h.io);
+    let Some(Event::Closed) = h.up.pop() else {
+        unreachable!("closed after the late listener settles");
+    };
+    assert!(h.up.is_empty(), "closed once");
 }
 
 #[test]

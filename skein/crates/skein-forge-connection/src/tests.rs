@@ -166,6 +166,130 @@ fn closing_waiting_calls_emits_only_the_close_terminal() {
     assert_eq!(h.component.next_deadline(), None, "no live deadlines");
 }
 
+// The ready forge holds a call; the other forge's start keeps its call waiting.
+const ENDING_CONNECTIONS: u32 = 2;
+const WAITING_FORGE: u16 = 2;
+// The forge's completed start leaves one idle socket.
+const ENDING_IDLE_CONNECTIONS: u32 = 1;
+
+fn ending_harness(settings: crate::Settings) -> fixtures::Harness {
+    let mut h = fixtures::Harness::new(settings);
+    h.connected(fixtures::FORGE);
+    h.answer(fixtures::FORGE, &fixtures::user_ok());
+    h.answer(fixtures::FORGE, &fixtures::settings_ok());
+    h.known(fixtures::REPO, fixtures::specimen());
+    h.run(Duration::ZERO);
+    h
+}
+
+fn assert_socket_aborts(h: &mut fixtures::Harness, sockets: u32) {
+    assert_eq!(h.io.len(), sockets, "one abort for every socket");
+    let mut expected = skein_lib::Set::with_capacity(sockets);
+    for (_, peer) in &h.peers {
+        assert!(expected.insert(peer.socket()).expect("fixture sockets fit"));
+    }
+    for _ in 0..sockets {
+        let Some(skein_io::Request::Abort { entity }) = h.io.pop() else {
+            unreachable!("abort, never graceful close");
+        };
+        assert!(expected.remove(&entity), "each owned socket exactly once");
+    }
+    assert!(expected.is_empty(), "every socket aborted");
+    assert!(h.io.is_empty(), "no other io request");
+}
+
+fn settle_ending(h: &mut fixtures::Harness) {
+    for (owner, _) in &h.peers {
+        assert!(h.up.is_empty(), "no terminal before the last socket settles");
+        h.component.up(&h.env, skein_io::Event::Closed { owner: *owner }, &mut h.up, &mut h.io);
+    }
+    let Some(Event::Closed) = h.up.pop() else {
+        unreachable!("closed is the only terminal");
+    };
+    assert!(h.up.is_empty(), "closed once, no call answers");
+    h.env.now = h.env.now.saturating_add(Duration::from_secs(20));
+    h.component.fire(&h.env, &mut h.up, &mut h.io);
+    assert!(h.up.is_empty(), "nothing more after settled");
+    assert!(h.io.is_empty(), "no io after settled");
+    assert_eq!(h.component.next_deadline(), None, "no live deadline");
+}
+
+#[test]
+fn abort_ends_waiting_and_in_flight_calls_without_answers() {
+    let mut settings = fixtures::settings();
+    for mut forge in fixtures::settings().forges.into_boxed() {
+        forge.number = WAITING_FORGE;
+        forge.address = skein_io::Addr::Ip(SocketAddr::from((Ipv4Addr::LOCALHOST, 3001)));
+        settings.forges.push(forge).expect("two configured forges");
+    }
+    let mut h = ending_harness(settings);
+    h.call(1, fixtures::REPO, api::Op::Read(api::Read::Settings));
+    h.call(2, api::Repository { forge: WAITING_FORGE, repository: 1 }, api::Op::Read(api::Read::Settings));
+    h.run(Duration::ZERO);
+    h.send(Request::Abort);
+    assert_socket_aborts(&mut h, ENDING_CONNECTIONS);
+    assert!(h.answers.is_empty(), "no call answered");
+    settle_ending(&mut h);
+}
+
+#[test]
+fn abort_upgrades_sockets_still_closing_gracefully() {
+    let mut h = ending_harness(fixtures::settings());
+    h.send(Request::Close);
+    assert_eq!(h.io.len(), ENDING_IDLE_CONNECTIONS);
+    for (_, peer) in &h.peers {
+        let Some(skein_io::Request::Close { entity }) = h.io.pop() else {
+            unreachable!("idle sockets close gracefully");
+        };
+        assert_eq!(entity, peer.socket());
+    }
+    assert!(h.io.is_empty());
+    h.send(Request::Abort);
+    assert_socket_aborts(&mut h, ENDING_IDLE_CONNECTIONS);
+    settle_ending(&mut h);
+}
+
+#[test]
+fn close_and_repeated_abort_after_abort_change_nothing() {
+    let mut h = ending_harness(fixtures::settings());
+    h.send(Request::Abort);
+    assert_socket_aborts(&mut h, ENDING_IDLE_CONNECTIONS);
+    for request in [Request::Close, Request::Abort] {
+        h.send(request);
+        assert!(h.io.is_empty(), "no second request to io");
+        assert!(h.up.is_empty(), "io has not settled");
+    }
+    settle_ending(&mut h);
+    for request in [Request::Close, Request::Abort] {
+        h.send(request);
+        assert!(h.io.is_empty(), "no io after closed");
+        assert!(h.up.is_empty(), "no second closed");
+    }
+}
+
+#[test]
+fn a_socket_announced_after_abort_is_aborted_before_connecting() {
+    const SOCKET: Token = Token::new(90);
+    let mut h = ending_harness(fixtures::settings());
+    h.run(h.env.limits.idle);
+    h.call(1, fixtures::REPO, api::Op::Read(api::Read::Settings));
+    h.send(Request::Abort);
+    let Some(skein_io::Request::Connect { owner, .. }) = h.io.pop() else {
+        unreachable!("the call opened a connection");
+    };
+    assert!(h.io.is_empty(), "the socket has not been announced");
+    assert!(h.up.is_empty(), "the connection still belongs to io");
+    h.component.up(&h.env, skein_io::Event::Connecting { owner, socket: SOCKET }, &mut h.up, &mut h.io);
+    assert_eq!(h.io.pop(), Some(skein_io::Request::Abort { entity: SOCKET }));
+    assert!(h.io.is_empty(), "no graceful close or stream request");
+    assert!(h.up.is_empty(), "no call answer or early closed");
+    h.component.up(&h.env, skein_io::Event::Closed { owner }, &mut h.up, &mut h.io);
+    let Some(Event::Closed) = h.up.pop() else {
+        unreachable!("closed after the late socket settles");
+    };
+    assert!(h.up.is_empty(), "closed once");
+}
+
 #[test]
 fn unusable_forge_settings_name_the_forge() {
     forge_setting_boundaries();

@@ -139,6 +139,12 @@ pub struct Peer {
     wire: skein_world::stream::Wire,
     connected: bool,
 }
+impl Peer {
+    /// The io identity whose close or abort settles this peer.
+    pub fn socket(&self) -> skein_lib::Token {
+        self.socket
+    }
+}
 impl Harness {
     pub fn new(settings: Settings) -> Self {
         Self::with(limits(), shared(), settings)

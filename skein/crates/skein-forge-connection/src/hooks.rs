@@ -1,4 +1,5 @@
 //! Loopback webhook listener and its bounded connections (forge-connection.md, 5, 7 and 8).
+use crate::connection::Closing as ListenerClose;
 use crate::{Event, Limits};
 use skein_forge::api;
 use skein_io::Addr;
@@ -25,8 +26,8 @@ pub(crate) struct Hooks {
     slab: Slab<Hooked>,
     next: u64,
     live: bool,
-    closing: bool,
-    close_sent: bool,
+    closing: ListenerClose,
+    close_sent: ListenerClose,
     wake: Option<Time>,
 }
 impl Hooks {
@@ -38,8 +39,8 @@ impl Hooks {
             slab: Slab::with_capacity(l.hooks),
             next: OWNER.raw().saturating_add(1),
             live: false,
-            closing: false,
-            close_sent: false,
+            closing: ListenerClose::Open,
+            close_sent: ListenerClose::Open,
             wake: None,
         }
     }
@@ -54,7 +55,7 @@ impl Hooks {
         match event {
             skein_io::Event::Listening { listener, addr, .. } => {
                 self.listener = Some(listener);
-                if !self.closing {
+                if self.closing == ListenerClose::Open {
                     up.push(Event::Listening { addr });
                 }
             }
@@ -66,10 +67,10 @@ impl Hooks {
             }
             skein_io::Event::Failed { owner, .. } => {
                 if owner == OWNER {
-                    if !self.closing {
+                    if self.closing == ListenerClose::Open {
                         up.push(Event::ListenerLost);
                     }
-                    self.closing = true;
+                    self.close(false);
                 } else if let Some(id) = self.connections.get(&owner) {
                     self.slab.get_mut(*id).expect("indexed hook").closing = Closing::Pending;
                 }
@@ -103,8 +104,12 @@ impl Hooks {
             self.slab.get_mut(*id).expect("indexed hook").offer();
         }
     }
-    pub fn close(&mut self) {
-        self.closing = true;
+    pub fn close(&mut self, abort: bool) {
+        if abort {
+            self.closing = ListenerClose::Aborted;
+        } else if self.closing == ListenerClose::Open {
+            self.closing = ListenerClose::Graceful;
+        }
     }
     pub fn closed(&self) -> bool {
         !self.live && self.connections.is_empty() && self.waiting.is_none()
@@ -127,12 +132,16 @@ impl Hooks {
         io: &mut Queue<skein_io::Request>,
     ) {
         self.wake = None;
-        if self.closing {
+        if self.closing != ListenerClose::Open {
             if let Some(listener) = self.listener
-                && !self.close_sent
+                && self.close_sent != self.closing
             {
-                io.push(skein_io::Request::Close { entity: listener });
-                self.close_sent = true;
+                io.push(match self.closing {
+                    ListenerClose::Open => unreachable!("closing listener"),
+                    ListenerClose::Graceful => skein_io::Request::Close { entity: listener },
+                    ListenerClose::Aborted => skein_io::Request::Abort { entity: listener },
+                });
+                self.close_sent = self.closing;
             }
             if let Some((socket, _)) = self.waiting.take() {
                 io.push(skein_io::Request::Reject { socket });
@@ -152,7 +161,7 @@ impl Hooks {
         }
         for (owner, id) in &self.connections {
             let c = self.slab.get_mut(*id).expect("indexed hook");
-            if c.closing != Closing::Sent && (self.closing || c.deadline <= env.now) {
+            if c.closing != Closing::Sent && (self.closing != ListenerClose::Open || c.deadline <= env.now) {
                 c.closing = Closing::Sent;
                 io.push(skein_io::Request::Abort { entity: c.socket });
             }

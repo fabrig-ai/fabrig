@@ -927,11 +927,11 @@ impl Component {
                     c.deadline = Some(env.now.saturating_add(env.limits.idle));
                 }
                 if self.closed || c.phase != Phase::Idle || c.deadline <= Some(env.now) {
-                    c.close(c.in_flight(), io);
+                    c.close(self.aborted || c.in_flight(), io);
                 }
                 break;
             }
-            if c.closing {
+            if c.closing() {
                 break;
             }
             if c.phase != Phase::Idle

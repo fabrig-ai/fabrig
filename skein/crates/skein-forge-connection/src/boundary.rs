@@ -79,6 +79,12 @@ pub enum Request {
     /// After the root's drain: calls in flight end with their connections and no answer
     /// goes up; `Event::Closed` answers it.
     Close,
+    /// After the root's drain, a close that does not wait
+    /// (programming-model.md, 5.2): calls end with their connections and no
+    /// answer goes up; every socket, the listener and each webhook
+    /// connection is aborted. After a `Close` it aborts what still closes;
+    /// `Event::Closed` answers either, once.
+    Abort,
 }
 
 /// To the routing; io's requests go in a queue of their own.
@@ -103,7 +109,7 @@ pub enum Event {
     /// A forge's access refused: at most once per generation, possibly after Connected.
     /// The forge holds no access until the next connect.
     Stopped { forge: u16, why: Stopped },
-    /// The terminal of `Close`: every connection closed.
+    /// The terminal of `Close` or `Abort`: every connection closed.
     Closed,
 }
 

@@ -113,7 +113,7 @@ impl Component {
                 self.wake = Some(env.now);
             }
             if self.closed || (c.phase == Phase::Idle && c.deadline <= Some(env.now)) || c.phase == Phase::Closed {
-                c.close(c.in_flight(), io);
+                c.close(self.aborted || c.in_flight(), io);
             }
         }
     }
@@ -161,7 +161,7 @@ impl Component {
             if reserved {
                 continue;
             }
-            if c.phase == Phase::Idle && !c.closing && !self.holders.contains_key(owner) {
+            if c.phase == Phase::Idle && !c.closing() && !self.holders.contains_key(owner) {
                 if c.forge == forge && c.origin == waiting.origin() {
                     token = Some(*owner);
                     break;
