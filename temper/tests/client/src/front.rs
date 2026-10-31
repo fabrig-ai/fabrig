@@ -719,6 +719,7 @@ impl Joint {
         let mut engine_limits = *engine_limits;
         engine_limits.documents.text_bytes = engine_limits.documents.text_bytes.min(limits.client.domain.text);
         let mut engine = Driver::with_repositories(store, configs, &engine_limits, fixtures::REPOSITORIES);
+        engine.settle();
         engine.send(hello);
         engine.settle();
         let last_commit = engine.store.header().commits;
@@ -1488,6 +1489,7 @@ impl Front<Temper> for Joint {
                     &limits,
                     fixtures::REPOSITORIES,
                 );
+                self.engine.pump();
                 self.engine.send(temper_engine_domain_world::protocol::hello_slots(
                     fixtures::QUESTION_WORKER,
                     limits.fleet.slots,

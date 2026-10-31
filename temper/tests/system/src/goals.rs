@@ -107,7 +107,9 @@ fn configured() -> Driver {
     });
     // Keep room for the goal world's complete decision.
     limits.journal.writes = GOAL_WRITES;
-    Driver::configured(Store::new(), config, &limits)
+    let mut driver = Driver::configured(Store::new(), config, &limits);
+    driver.settle();
+    driver
 }
 
 /// Sign `user` in; the person and session its reply names. Person numbers
