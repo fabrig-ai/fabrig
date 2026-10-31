@@ -25,11 +25,10 @@ fn sign_in(core: &mut Core, limits: &Limits, party: u8) -> (u64, Box<[Record]>) 
                     sign_in = Some(number);
                 }
             }
-            Request::Write(Write::Erase(_) | Write::CopySettingsRevision(_))
+            Request::Write(Write::DropTranscript { .. } | Write::Erase(_) | Write::CopySettingsRevision(_))
             | Request::Ask { .. }
             | Request::Now(_)
             | Request::ProjectMade { .. }
-            | Request::Write(Write::DropTranscript { .. })
             | Request::Decided => {}
         }
     }

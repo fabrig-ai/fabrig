@@ -208,12 +208,13 @@ fn link(domain: &Domain, source: Key, person: u64) {
 fn expired(domain: &Domain, limits: &Limits, record: &Stored) -> bool {
     let at = domain.start_at.expect("explicit start captured its wall");
     match record {
-        Stored::Deletion { .. } => false,
         Stored::SignIn { expires, .. } => *expires <= at,
         Stored::Answer { at: saved, .. } | Stored::Acted { at: saved, .. } => answer_expiry(*saved, limits) <= at,
-        Stored::Person { .. } | Stored::Roles { .. } | Stored::ReadResults { .. } | Stored::ReadConversation { .. } => {
-            false
-        }
+        Stored::Deletion { .. }
+        | Stored::Person { .. }
+        | Stored::Roles { .. }
+        | Stored::ReadResults { .. }
+        | Stored::ReadConversation { .. } => false,
         Stored::Policy { .. } | Stored::EndedRead { .. } => unreachable!("wrong people family: {:?}", record.key()),
     }
 }

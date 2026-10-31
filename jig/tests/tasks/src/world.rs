@@ -483,7 +483,6 @@ impl World {
     #[expect(clippy::too_many_lines, reason = "the world records every closed task input family")]
     fn remember_input(&mut self, event: &Event) {
         self.priced = match event {
-            Event::CloseProject { .. } => None,
             Event::Amend { task, funder, amendment, .. } => {
                 if let Some(Stored::Live(row)) = self.records.get(&Key::Live(*task)) {
                     let destination = funder.unwrap_or(row.funder);
@@ -510,7 +509,8 @@ impl World {
             }
             Event::Turn { task, cumulative, .. }
             | Event::Activation { task, cause: Cause::Priced { cumulative }, .. } => Some((*task, *cumulative)),
-            Event::Place { .. }
+            Event::CloseProject { .. }
+            | Event::Place { .. }
             | Event::Lift { .. }
             | Event::MoveToNewest { .. }
             | Event::Charters { .. }
@@ -585,7 +585,6 @@ impl World {
             | Event::Notice { .. } => None,
         };
         match event {
-            Event::CloseProject { .. } => {}
             Event::QuestionEndedNotice { notices, .. } => {
                 for notice in notices {
                     self.message = self.message.max(notice.message);
@@ -605,7 +604,8 @@ impl World {
             | Event::Notice { word, .. } => {
                 self.message = self.message.max(word.number);
             }
-            Event::Place { .. }
+            Event::CloseProject { .. }
+            | Event::Place { .. }
             | Event::Lift { .. }
             | Event::Charters { .. }
             | Event::ResourceAccess { .. }
