@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use skein_lib::List;
 use smith_domain_run as run;
 
-use crate::boundary::{self, Charter, Section};
+use crate::boundary::{self, Charter};
 
 fn count(len: usize) -> Option<u32> {
     u32::try_from(len).ok()
@@ -83,11 +83,11 @@ fn outcome(contract: boundary::Contract) -> Option<run::outcome::OutcomeSpec> {
 }
 
 /// Move the core's bounded charter and ordered brief into Smith's start.
-/// `resumed` is true only when a validated transcript accompanies the start.
+/// Resume requires both the run policy and its validated transcript.
 #[must_use]
-pub fn charter(charter: Charter, brief: Box<[Section]>, resumed: bool) -> Option<run::Charter> {
-    let mut sections = List::with_capacity(count(brief.len())?);
-    for section in brief {
+pub fn charter(charter: Charter) -> Option<run::Charter> {
+    let mut sections = List::with_capacity(count(charter.brief.len())?);
+    for section in charter.brief {
         sections.push(run::Section { title: section.title, text: section.text }).ok()?;
     }
     let mut tools = List::with_capacity(count(charter.tools.len())?);
@@ -112,7 +112,7 @@ pub fn charter(charter: Charter, brief: Box<[Section]>, resumed: bool) -> Option
     let outcome = outcome(charter.contract)?;
     Some(run::Charter {
         mode: charter.mode,
-        resume: charter.resumes && resumed,
+        resume: charter.resumes,
         waiting: charter.waiting,
         instructions: charter.instructions,
         brief: run::Brief { sections: sections.into_boxed() },

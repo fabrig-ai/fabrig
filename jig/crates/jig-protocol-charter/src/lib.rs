@@ -1,11 +1,13 @@
 //! Translation of a core-owned charter into Smith's run vocabulary
 //! (domain/hosts.md, section 8). The application's root supplies rendered
-//! sections and connector tools; this crate owns no application policy.
+//! sections and connector tools. This crate owns jig's contract text ceiling,
+//! required checks and the application of core-decided workspace tool grants.
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
 
+mod assignment;
 mod boundary;
 mod call;
 mod charter;
@@ -15,6 +17,7 @@ mod result;
 #[cfg(test)]
 mod tests;
 
+pub use assignment::{CONTRACT_CHECKS_MUST_PASS, CONTRACT_TEXT_MAX, WAIT_GRANTED, assignment, sender};
 pub use boundary::{
     Budget, ChangeRule, Charter, Contract, Conventions, FieldRule, ItemRule, Items, Llm, Model, Prices, Reserve,
     Section, TextRule, Tool, ToolEffect, VerdictRule, WorkspaceTools,

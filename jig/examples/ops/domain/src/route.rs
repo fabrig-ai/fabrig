@@ -375,7 +375,7 @@ fn core_held(
                     run,
                     attempt,
                     name: message.name,
-                    sender: crate::assemble::sender(message_word.from),
+                    sender: jig_protocol_charter::sender(message_word.from),
                     finish_requested: message_word.finish_requested(),
                     words: jig_protocol_tools::words(&message_word),
                 })),
