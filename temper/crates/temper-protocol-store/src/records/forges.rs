@@ -24,7 +24,8 @@ pub(super) fn encode(row: &d::ForgeRecord) -> w::Forge {
                     w::EndedForge::new(
                         &w::CEILINGS,
                         w::EndedForgeParts { secrets_erased: *secrets_erased, box_removed: *box_removed },
-                    ).expect(FITS),
+                    )
+                    .expect(FITS),
                 ),
             },
             place: encode_place(place),
@@ -36,22 +37,22 @@ pub(super) fn encode(row: &d::ForgeRecord) -> w::Forge {
                 Some(first) => Some(encode_first(first)),
             },
         },
-    ).expect(FITS)
+    )
+    .expect(FITS)
 }
 
 fn encode_place(row: &d::Place) -> w::Place {
     let d::Place { api, git, web } = row;
     let d::Address { host, port, tls } = api;
-    let api = w::Address::new(
-        &w::CEILINGS,
-        w::AddressParts { host: host.clone(), port: *port, tls: tls.clone() },
-    ).expect(FITS);
+    let api = w::Address::new(&w::CEILINGS, w::AddressParts { host: host.clone(), port: *port, tls: tls.clone() })
+        .expect(FITS);
     w::Place::new(&w::CEILINGS, w::PlaceParts { api, git: git.clone(), web: web.clone() }).expect(FITS)
 }
 
 fn encode_bot(row: &d::Bot) -> w::Bot {
     let d::Bot { login, name, email } = row;
-    w::Bot::new(&w::CEILINGS, w::BotParts { login: login.clone(), name: name.clone(), email: email.clone() }).expect(FITS)
+    w::Bot::new(&w::CEILINGS, w::BotParts { login: login.clone(), name: name.clone(), email: email.clone() })
+        .expect(FITS)
 }
 
 fn encode_first(row: &d::FirstIntent) -> w::FirstIntent {
@@ -60,14 +61,21 @@ fn encode_first(row: &d::FirstIntent) -> w::FirstIntent {
         d::SetUpProject::Existing(project) => w::FirstProject::Existing(
             w::ExistingFirst::new(&w::CEILINGS, w::ExistingFirstParts { project: *project }).expect(FITS),
         ),
-        d::SetUpProject::New(name) => w::FirstProject::New(
-            w::NewFirst::new(&w::CEILINGS, w::NewFirstParts { name: name.clone() }).expect(FITS),
-        ),
+        d::SetUpProject::New(name) => {
+            w::FirstProject::New(w::NewFirst::new(&w::CEILINGS, w::NewFirstParts { name: name.clone() }).expect(FITS))
+        }
     };
     w::FirstIntent::new(
         &w::CEILINGS,
-        w::FirstIntentParts { playground: *playground, org: org.clone(), repository: repository.clone(), project, label: label.clone() },
-    ).expect(FITS)
+        w::FirstIntentParts {
+            playground: *playground,
+            org: org.clone(),
+            repository: repository.clone(),
+            project,
+            label: label.clone(),
+        },
+    )
+    .expect(FITS)
 }
 
 pub(super) fn decode(row: w::Forge) -> d::ForgeRecord {
@@ -134,14 +142,21 @@ pub(super) fn encode_playground(row: &d::Playground) -> w::Playground {
         d::PlaygroundState::Starting => w::PlaygroundState::Starting,
         d::PlaygroundState::Running => w::PlaygroundState::Running,
         d::PlaygroundState::Resetting(step) => w::PlaygroundState::Resetting(
-            w::Resetting::new(&w::CEILINGS, w::ResettingParts { step: match step {
-                d::ResetStep::Project => w::ResetStep::Project,
-                d::ResetStep::Forge => w::ResetStep::Forge,
-                d::ResetStep::Account => w::ResetStep::Account,
-            } }).expect(FITS),
+            w::Resetting::new(
+                &w::CEILINGS,
+                w::ResettingParts {
+                    step: match step {
+                        d::ResetStep::Project => w::ResetStep::Project,
+                        d::ResetStep::Forge => w::ResetStep::Forge,
+                        d::ResetStep::Account => w::ResetStep::Account,
+                    },
+                },
+            )
+            .expect(FITS),
         ),
     };
-    w::Playground::new(&w::CEILINGS, w::PlaygroundParts { state, forge: *forge, project: *project, account: *account }).expect(FITS)
+    w::Playground::new(&w::CEILINGS, w::PlaygroundParts { state, forge: *forge, project: *project, account: *account })
+        .expect(FITS)
 }
 
 pub(super) fn decode_playground(row: w::Playground) -> d::Playground {

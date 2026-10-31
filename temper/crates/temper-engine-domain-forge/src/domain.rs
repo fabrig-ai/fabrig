@@ -4823,6 +4823,15 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         return;
     }
     match record {
+        Stored::Forge(_) => {
+            // t-forge-map keeps it
+        }
+        Stored::ForgeNumber { .. } => {
+            // t-forge-map keeps it
+        }
+        Stored::Playground(_) => {
+            // t-forge-map keeps it
+        }
         Stored::Landing(row) => {
             d.landing.rows.insert(row.landing.task, row).expect("restored landing within limits");
         }
@@ -5262,6 +5271,18 @@ impl Domain {
     }
     fn restored_link_position(&self, row: &Stored) -> Option<(u32, bool)> {
         let (position, inserted) = match row {
+            Stored::Forge(_) => {
+                // t-forge-map keeps it
+                return None;
+            }
+            Stored::ForgeNumber { .. } => {
+                // t-forge-map keeps it
+                return None;
+            }
+            Stored::Playground(_) => {
+                // t-forge-map keeps it
+                return None;
+            }
             Stored::Call { key, .. } => (self.named_calls.range(..key).count(), !self.named_calls.contains_key(key)),
             Stored::ProposedEffect(row) => {
                 (self.proposed_effects.range(..&row.number).count(), !self.proposed_effects.contains_key(&row.number))

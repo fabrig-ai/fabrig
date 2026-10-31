@@ -680,5 +680,8 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Release(row) => top::Key::Release(row.task),
         top::Stored::Application { token, .. } => top::Key::Application(*token),
         top::Stored::Writer(row) => top::Key::Writer(row.forge),
+        top::Stored::Forge(row) => top::Key::Forge(row.number),
+        top::Stored::ForgeNumber { .. } => top::Key::ForgeNumber,
+        top::Stored::Playground(_) => top::Key::Playground,
     }
 }

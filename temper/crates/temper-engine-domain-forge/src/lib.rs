@@ -222,6 +222,9 @@ pub fn effect_access(repository: &Repository, what: &What, kind: u16) -> Access 
 #[must_use]
 pub fn stored_key(row: &Stored) -> Key {
     match row {
+        Stored::Forge(row) => Key::Forge(row.number),
+        Stored::ForgeNumber { .. } => Key::ForgeNumber,
+        Stored::Playground(_) => Key::Playground,
         Stored::Landing(row) => Key::Landing(row.landing.task),
         Stored::Receipt { key, .. } => Key::Receipt(key.clone()),
         Stored::Call { key, .. } => Key::Call(*key),
@@ -319,6 +322,31 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         }
     }
     match record {
+        Stored::Forge(row) => {
+            let mut held = bytes(&row.place.api.host)?
+                .checked_add(bytes(&row.place.git)?)?
+                .checked_add(bytes(&row.bot.login)?)?
+                .checked_add(bytes(&row.bot.name)?)?
+                .checked_add(bytes(&row.bot.email)?)?;
+            if let Some(tls) = &row.place.api.tls {
+                held = held.checked_add(bytes(tls)?)?;
+            }
+            if let Some(web) = &row.place.web {
+                held = held.checked_add(bytes(web)?)?;
+            }
+            if let Some(first) = &row.first {
+                held = held
+                    .checked_add(bytes(&first.org)?)?
+                    .checked_add(bytes(&first.repository)?)?
+                    .checked_add(bytes(&first.label)?)?;
+                match &first.project {
+                    SetUpProject::Existing(_) => {}
+                    SetUpProject::New(name) => held = held.checked_add(bytes(name)?)?,
+                }
+            }
+            Some(held)
+        }
+        Stored::ForgeNumber { .. } | Stored::Playground(_) => Some(0),
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {

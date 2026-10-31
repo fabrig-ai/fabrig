@@ -23,9 +23,9 @@ const FITS: &str = "admitted fields fit the schema";
 pub fn encode(value: &d::Stored) -> Box<[u8]> {
     let value = match value {
         d::Stored::Forge(row) => w::Value::Forge(forges::encode(row)),
-        d::Stored::ForgeNumber { last } => w::Value::ForgeNumber(
-            w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { last: *last }).expect(FITS),
-        ),
+        d::Stored::ForgeNumber { last } => {
+            w::Value::ForgeNumber(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { last: *last }).expect(FITS))
+        }
         d::Stored::Playground(row) => w::Value::Playground(forges::encode_playground(row)),
         d::Stored::Landing(row) => w::Value::Landing(landing::encode(row)),
         d::Stored::Receipt { key, receipt } => w::Value::Receipt(landing::encode_receipt(key, receipt)),

@@ -154,6 +154,7 @@ impl Reconciliation {
                 }
                 Ok(())
             }
+            Stored::Forge(_) | Stored::ForgeNumber { .. } | Stored::Playground(_) => Ok(()),
             Stored::Receipt { key, .. } => self.repository(RecordKind::Receipt, key.repository),
             Stored::Call { key, .. } => self.task(RecordKind::Call, key.task, None),
             Stored::ProposedEffect(row) => self.entry(RecordKind::ProposedEffect, &row.entry),
