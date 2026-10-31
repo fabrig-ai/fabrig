@@ -20,6 +20,7 @@ fn source() -> Charter {
     Charter {
         mode: smith_domain_run::Mode::Finite,
         instructions: Box::from(&b"help"[..]),
+        brief: Box::new([]),
         tools: Box::new([Tool {
             name: Box::from(&b"read"[..]),
             description: Box::from(&b"Read a value"[..]),
@@ -46,15 +47,16 @@ fn source() -> Charter {
         model: crate::Llm { model, grant: Some(5) },
         models: Box::new([]),
         waiting: Duration::ZERO,
-        resumes: true,
+        resumes: false,
     }
 }
 
 #[test]
 fn core_charter_encodes_with_the_same_sections_tools_contract_and_model() {
-    let source = source();
+    let mut source = source();
     let sections = Box::new([Section { title: Box::from(&b"Task"[..]), text: Box::from(&b"Do it"[..]) }]);
-    let charter = charter(source, sections, false).expect("bounded charter");
+    source.brief = sections;
+    let charter = charter(source).expect("bounded charter");
     let names = [EndpointName { number: 7, dialect: 4, name: Box::from(&b"primary"[..]) }];
     let bytes = encode(charter, &names, &wire::CEILINGS).expect("bounded encoding");
     let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).expect("Smith codec accepts it");
@@ -264,7 +266,8 @@ fn selected_source_grants_are_independent_of_endpoint_resolution() {
         let mut other = source.model.clone();
         other.grant = Some(23);
         source.models = Box::new([source.model.clone(), other]);
-        let translated = charter(source, Box::new([]), true).expect("runtime model bindings");
+        source.resumes = true;
+        let translated = charter(source).expect("runtime model bindings");
         let bytes = encode(translated, &names, &wire::CEILINGS).expect("grants do not resolve endpoints");
         let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).expect("charter");
         assert_eq!(*decoded.main().account(), main);
@@ -280,7 +283,8 @@ fn endpoint_resolution_still_refuses_wrong_dialects_and_unknown_numbers() {
         let mut source = source();
         source.model.model.endpoint = number;
         source.model.model.dialect = dialect;
-        let translated = charter(source, Box::new([]), true).expect("bounded charter");
+        source.resumes = true;
+        let translated = charter(source).expect("bounded charter");
         assert!(encode(translated, &names, &wire::CEILINGS).is_none());
     }
 }
@@ -304,8 +308,279 @@ fn encoded_mode(mode: smith_domain_run::Mode) -> wire::Charter {
     let mut value = source();
     value.mode = mode;
     value.contract.change = Some(crate::ChangeRule { checks_must_pass: false, fields: Box::new([]) });
-    let value = charter(value, Box::new([]), false).unwrap();
+    let value = charter(value).unwrap();
     let names = [EndpointName { number: 7, dialect: 4, name: b"primary".as_slice().into() }];
     let bytes = encode(value, &names, &crate::limits()).expect("bounded encoding");
     wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).expect("Smith codec accepts it")
+}
+
+// Run inputs from the roots' report fixtures, with workspace tools configured
+// off where their starts do not prepare a workspace (domain/hosts.md, 8).
+fn assignment_fixture(instructions: &[u8], words: u32, spend: u64, turns: u32) -> jig_domain_core::RunCharter {
+    use jig_domain_core as core;
+    use jig_domain_tasks as tasks;
+    core::RunCharter {
+        revision: 1,
+        ended_by: tasks::EndedBy::Result,
+        sources: Box::new([Some(1)]),
+        accounts: Box::new([]),
+        placement: jig_domain_fleet::PlacementConstraint {
+            channel: skein_lib::Token::new(1),
+            kind: jig_domain_fleet::HostKind::Worker,
+        },
+        policy: core::RunPolicy {
+            instructions: instructions.into(),
+            waiting: Duration::from_secs(1),
+            resume: true,
+            turns,
+            time: Duration::from_secs(60),
+            reserve_turns: 1,
+            reserve_time: Duration::from_secs(10),
+            model: core::Model {
+                program: None,
+                dialect: 1,
+                endpoint: 1,
+                name: b"scripted".as_slice().into(),
+                window: 8192,
+                output: 1024,
+                input_price: 1,
+                cached_price: 1,
+                cache_write_price: None,
+                output_price: 1,
+                price_unit: 1000,
+                efforts: Box::new([]),
+                effort: None,
+            },
+            alternatives: Box::new([]),
+            inspect: false,
+            modify: false,
+            shell: false,
+            agents: false,
+            call_timeout: Duration::from_secs(10),
+        },
+        contract: tasks::Contract::Report { words },
+        authority: tasks::Authority {
+            tools: tasks::Tools(1),
+            models: tasks::Models::NONE,
+            grants: Box::new([]),
+            delegation: tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 },
+            budget: tasks::Budget { spend, deadline: None },
+            notes: tasks::Scopes(0),
+            note_resources: Box::new([]),
+        },
+        budget: spend,
+    }
+}
+
+fn report_fixture_charter(instructions: &[u8], words: u32, spend: u64, turns: u32) -> Charter {
+    Charter {
+        mode: smith_domain_run::Mode::Finite,
+        instructions: instructions.into(),
+        brief: Box::new([]),
+        tools: Box::new([]),
+        wait: true,
+        agents: false,
+        workspace: crate::WorkspaceTools { inspect: false, modify: false, shell: false },
+        conventions: None,
+        contract: Contract {
+            report: Some(TextRule { max: words, fields: Box::new([]) }),
+            failure: Some(TextRule { max: words, fields: Box::new([]) }),
+            verdicts: Box::new([]),
+            change: None,
+        },
+        budget: Budget {
+            turns,
+            spend,
+            time: Duration::from_secs(60),
+            reserve: Reserve { turns: 1, time: Duration::from_secs(10) },
+        },
+        model: crate::Llm {
+            grant: Some(1),
+            model: Model {
+                prices: Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
+                dialect: 1,
+                endpoint: 1,
+                name: b"scripted".as_slice().into(),
+                window: 8192,
+                output: 1024,
+                effort: None,
+            },
+        },
+        models: Box::new([]),
+        waiting: Duration::from_secs(1),
+        resumes: false,
+    }
+}
+
+#[test]
+fn ops_report_fixture_keeps_its_charter() {
+    let instructions = b"Complete the task within its authority.";
+    let mut value = assignment_fixture(instructions, 128, 100, 8);
+    value.policy.model.price_unit = 1_000_000;
+    value.policy.agents = true;
+    let mut expected = report_fixture_charter(instructions, 128, 100, 8);
+    expected.model.model.prices.unit = 1_000_000;
+    expected.agents = true;
+    assert_eq!(crate::assignment(value, Box::new([]), Box::new([]), false), Some(expected));
+}
+
+#[test]
+fn service_report_fixture_keeps_its_charter() {
+    let mut value = assignment_fixture(b"Answer the person", 64, 20, 4);
+    value.policy.model.name = b"small".as_slice().into();
+    value.policy.waiting = Duration::from_secs(10);
+    value.policy.time = Duration::from_secs(30);
+    value.policy.reserve_time = Duration::from_secs(5);
+    let mut expected = report_fixture_charter(b"Answer the person", 64, 20, 4);
+    expected.model.model.name = b"small".as_slice().into();
+    expected.waiting = Duration::from_secs(10);
+    expected.budget.time = Duration::from_secs(30);
+    expected.budget.reserve.time = Duration::from_secs(5);
+    assert_eq!(crate::assignment(value, Box::new([]), Box::new([]), false), Some(expected));
+}
+
+#[test]
+fn temper_report_fixture_keeps_its_charter_and_conventions() {
+    let value = assignment_fixture(b"Do the task", 128, 40, 8);
+    let mut assembled = crate::assignment(value, Box::new([]), Box::new([]), false).expect("report charter");
+    let conventions =
+        crate::Conventions { guide: b"AGENTS.md".as_slice().into(), checks: b".temper/pre-pr".as_slice().into() };
+    assembled.conventions = Some(conventions.clone());
+    let sections: Box<[Section]> =
+        Box::new([Section { title: b"Task".as_slice().into(), text: b"Say hello".as_slice().into() }]);
+    let mut expected = report_fixture_charter(b"Do the task", 128, 40, 8);
+    expected.conventions = Some(conventions);
+    assembled.brief = sections.clone();
+    expected.brief = sections;
+    assert_eq!(assembled, expected);
+    assert_eq!(charter(assembled), charter(expected));
+}
+
+#[test]
+fn workspace_tools_follow_every_combination_of_run_policy() {
+    for inspect in [false, true] {
+        for modify in [false, true] {
+            for shell in [false, true] {
+                let mut value = assignment_fixture(b"Tools", 64, 20, 4);
+                value.policy.inspect = inspect;
+                value.policy.modify = modify;
+                value.policy.shell = shell;
+                let assembled = crate::assignment(value, Box::new([]), Box::new([]), false).expect("report charter");
+                assert_eq!(assembled.workspace, crate::WorkspaceTools { inspect, modify, shell });
+                let translated = charter(assembled).expect("bounded charter");
+                assert_eq!(translated.grants.tools.inspect, inspect);
+                assert_eq!(translated.grants.tools.modify, modify);
+                assert_eq!(translated.grants.tools.shell, shell);
+            }
+        }
+    }
+}
+
+#[test]
+fn contract_text_is_bounded_and_change_checks_are_required() {
+    use jig_domain_tasks as tasks;
+    for words in [1023, 1024, 1025] {
+        let mut value = assignment_fixture(b"Contract", words, 20, 4);
+        let report = crate::assignment(value.clone(), Box::new([]), Box::new([]), false).expect("report");
+        assert_eq!(report.contract.report.expect("report text").max, words.min(crate::CONTRACT_TEXT_MAX));
+        value.contract = tasks::Contract::Change { connector: 1, kind: 1, words };
+        let change = crate::assignment(value, Box::new([]), Box::new([]), false).expect("change");
+        assert_eq!(change.contract.failure.expect("failure text").max, words.min(crate::CONTRACT_TEXT_MAX));
+        let rule = change.contract.change.expect("change rule");
+        assert!(rule.checks_must_pass);
+        assert_eq!(rule.checks_must_pass, crate::CONTRACT_CHECKS_MUST_PASS);
+        assert_eq!(rule.fields[0].max, words.min(crate::CONTRACT_TEXT_MAX));
+        assert_eq!(rule.fields[1].max, words.min(crate::CONTRACT_TEXT_MAX));
+    }
+}
+
+#[test]
+fn alternative_models_keep_their_source_bindings_and_efforts() {
+    let mut value = assignment_fixture(b"Models", 64, 20, 4);
+    let mut alternative = value.policy.model.clone();
+    alternative.endpoint = 2;
+    alternative.effort = Some(b"high".as_slice().into());
+    value.policy.alternatives = Box::new([alternative]);
+    value.sources = Box::new([None, Some(7)]);
+    let assembled = crate::assignment(value.clone(), Box::new([]), Box::new([]), false).expect("bound sources");
+    assert_eq!(assembled.model.grant, None);
+    assert_eq!(assembled.models[0].grant, Some(7));
+    assert_eq!(assembled.models[0].model.endpoint, 2);
+    assert_eq!(assembled.models[0].model.effort.as_deref(), Some(b"high".as_slice()));
+    value.sources = Box::new([None]);
+    assert_eq!(crate::assignment(value, Box::new([]), Box::new([]), false), None);
+}
+
+#[test]
+fn verdicts_keep_named_fields_and_the_failure_text_ceiling() {
+    use jig_domain_tasks as tasks;
+    let mut value = assignment_fixture(b"Verdict", 64, 20, 4);
+    value.contract = tasks::Contract::Verdict {
+        choices: Box::new([tasks::Verdict {
+            code: 7,
+            followups: 0,
+            words: 1025,
+            fields: Box::new([tasks::FieldRule { name: b"reason".as_slice().into(), max: 80 }]),
+        }]),
+    };
+    let assembled = crate::assignment(value, Box::new([]), Box::new([]), false).expect("verdict charter");
+    assert_eq!(assembled.contract.failure.expect("failure").max, crate::CONTRACT_TEXT_MAX);
+    let choice = &assembled.contract.verdicts[0];
+    assert_eq!(choice.name.as_ref(), b"7");
+    assert_eq!(choice.text_max, crate::CONTRACT_TEXT_MAX);
+    assert_eq!(choice.fields[0].name.as_ref(), b"reason");
+    assert_eq!(choice.fields[0].max, 80);
+}
+
+#[test]
+fn a_persons_approval_and_a_missing_main_source_are_not_agent_assignments() {
+    let mut value = assignment_fixture(b"Binding", 64, 20, 4);
+    value.sources = Box::new([]);
+    assert_eq!(crate::assignment(value.clone(), Box::new([]), Box::new([]), false), None);
+    value.sources = Box::new([None]);
+    value.contract = jig_domain_tasks::Contract::Approval {
+        state: Box::new([]),
+        part: jig_domain_tasks::Part {
+            connector: 1,
+            kind: jig_domain_tasks::PartKind::Result,
+            key: jig_domain_tasks::PartKey::Number(1),
+        },
+    };
+    assert_eq!(crate::assignment(value, Box::new([]), Box::new([]), false), None);
+}
+
+#[test]
+fn assignment_keeps_brief_order_tools_mode_and_resume_policy() {
+    for ended_by in [jig_domain_tasks::EndedBy::Result, jig_domain_tasks::EndedBy::Requester] {
+        for resume in [false, true] {
+            for resumed in [false, true] {
+                let mut value = assignment_fixture(b"Brief", 64, 20, 4);
+                value.ended_by = ended_by;
+                value.policy.resume = resume;
+                let sections: Box<[Section]> = Box::new([
+                    Section { title: b"Task".as_slice().into(), text: b"First".as_slice().into() },
+                    Section { title: b"Context".as_slice().into(), text: b"Second".as_slice().into() },
+                ]);
+                let tools = source().tools;
+                let assembled =
+                    crate::assignment(value, sections.clone(), tools.clone(), resumed).expect("report charter");
+                assert_eq!(assembled.brief, sections);
+                assert_eq!(assembled.tools, tools);
+                assert_eq!(assembled.resumes, resume && resumed);
+                assert_eq!(assembled.wait, crate::WAIT_GRANTED);
+                let translated = charter(assembled).expect("bounded charter");
+                assert_eq!(translated.resume, resume && resumed);
+                assert_eq!(
+                    translated.mode,
+                    match ended_by {
+                        jig_domain_tasks::EndedBy::Result => smith_domain_run::Mode::Finite,
+                        jig_domain_tasks::EndedBy::Requester => smith_domain_run::Mode::Open,
+                    }
+                );
+                assert_eq!(translated.brief.sections[0].text.as_ref(), b"First");
+                assert_eq!(translated.brief.sections[1].text.as_ref(), b"Second");
+                assert_eq!(translated.grants.host_tools[0].name.as_ref(), b"read");
+            }
+        }
+    }
 }

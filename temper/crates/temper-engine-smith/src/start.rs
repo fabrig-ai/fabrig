@@ -4,32 +4,10 @@
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_brief as brief;
-use jig_domain_tasks as tasks;
 use skein_lib::{Decimal, List, ReplyTo, Token, Writer, bytes};
 use smith_domain as smith;
 use smith_domain_run as run;
 use temper_engine_domain as engine;
-
-/// Translate one model with the source grant selected for this run.
-#[must_use]
-pub fn model(model: &engine::Model, grant: Option<u32>) -> run::charter::Llm {
-    run::charter::Llm {
-        effort: model.effort.clone(),
-        prices: run::Prices {
-            input: model.input_price,
-            cached: model.cached_price,
-            cache_write: model.cache_write_price,
-            output: model.output_price,
-            unit: model.price_unit,
-        },
-        dialect: model.dialect,
-        account: grant,
-        endpoint: run::charter::Endpoint(model.endpoint),
-        model: model.name.clone(),
-        window: model.window,
-        output: model.output,
-    }
-}
 
 /// Render one already bounded root brief section with its kind as a title.
 #[must_use]
@@ -63,7 +41,7 @@ pub fn section(section: &engine::BriefSection) -> run::Section {
 /// Produce Smith's complete typed start after the root's claim is durable.
 /// The caller owns the live reply right, prepared workspace and concrete
 /// history; the engine deliberately retains its stored transcript as bytes.
-/// This is temper's own charter translation (domain/agent.md, 4.1).
+/// Jig owns the charter policy (jig/docs/design/domain/hosts.md, 8).
 #[must_use]
 pub fn start(
     assignment: &engine::Assignment,
@@ -74,8 +52,7 @@ pub fn start(
     window: smith::Window,
     limits: &run::Limits,
 ) -> smith::Event {
-    let mut charter = charter(assignment);
-    charter.resume = assignment.run.policy.resume && transcript.is_some();
+    let mut charter = charter_with_history(assignment, transcript.is_some());
     fit_brief(&mut charter, workspace.as_ref(), limits);
     let mut messages = List::with_capacity(assignment.messages.len().try_into().expect("bounded start messages"));
     for word in &assignment.messages {
@@ -128,54 +105,42 @@ pub fn start(
 /// only when policy allows and turns are kept (domain/agent.md, 4.6).
 #[must_use]
 pub fn charter(assignment: &engine::Assignment) -> run::Charter {
+    charter_with_history(assignment, !assignment.transcript.is_empty())
+}
+
+fn charter_with_history(assignment: &engine::Assignment, resumed: bool) -> run::Charter {
     let mut sections = List::with_capacity(assignment.sections.len().try_into().expect("bounded brief sections"));
     for item in &assignment.sections {
-        sections.push(section(item)).expect("bounded brief sections");
+        let item = section(item);
+        sections
+            .push(jig_protocol_charter::Section { title: item.title, text: item.text })
+            .expect("bounded brief sections");
     }
     let policy = &assignment.run.policy;
-    let mut models = List::with_capacity(policy.alternatives.len().try_into().expect("bounded model list"));
-    for (index, candidate) in policy.alternatives.iter().enumerate() {
-        let grant = *assignment
-            .run
-            .sources
-            .get(index.checked_add(1).expect("bounded model index"))
-            .expect("retained alternative source binding");
-        models.push(model(candidate, grant)).expect("bounded model list");
+    let declarations = crate::calls::tools_for(policy.call_timeout, assignment.run.authority.tools);
+    let mut tools = List::with_capacity(u32::try_from(declarations.len()).expect("bounded host tools"));
+    for tool in declarations {
+        tools
+            .push(jig_protocol_charter::Tool {
+                name: tool.name,
+                description: tool.description,
+                schema: tool.schema,
+                timeout: tool.timeout,
+                effect: match tool.effect {
+                    run::HostEffect::Read => jig_protocol_charter::ToolEffect::Read,
+                    run::HostEffect::Write => jig_protocol_charter::ToolEffect::Write,
+                },
+            })
+            .expect("bounded host tools");
     }
-    let outcome = contract(&assignment.run.contract);
-    let mode = match assignment.run.ended_by {
-        tasks::EndedBy::Result => run::Mode::Finite,
-        tasks::EndedBy::Requester => run::Mode::Open,
-    };
-    let deliver = match mode {
-        run::Mode::Finite => outcome.change.clone(),
-        run::Mode::Open => None,
-    };
-    // A run that cannot deliver cannot write (temper/docs/design/domain/agent.md, 4.3).
-    let modify = policy.modify && deliver.is_some();
-    run::Charter {
-        mode,
-        resume: policy.resume && !assignment.transcript.is_empty(),
-        waiting: policy.waiting,
-        instructions: policy.instructions.clone(),
-        brief: run::Brief { sections: sections.into_boxed() },
-        conventions: Some(run::Conventions {
-            guide: bytes::copy_of(b"AGENTS.md"),
-            checks: bytes::copy_of(b".temper/pre-pr"),
-        }),
-        grants: run::charter::Grants {
-            wait: true,
-            deliver,
-            tools: run::charter::Tools { inspect: policy.inspect, modify, shell: policy.shell },
-            agents: policy.agents,
-            host_tools: crate::calls::tools_for(policy.call_timeout, assignment.run.authority.tools),
-        },
-        outcome,
-        budget: run::Budget { turns: policy.turns, spend: assignment.run.budget, time: policy.time },
-        reserve: run::charter::Reserve { turns: policy.reserve_turns, time: policy.reserve_time },
-        llm: model(&policy.model, *assignment.run.sources.first().expect("main source binding")),
-        models: models.into_boxed(),
-    }
+    let mut charter =
+        jig_protocol_charter::assignment(*assignment.run.clone(), sections.into_boxed(), tools.into_boxed(), resumed)
+            .expect("agent contract and retained source bindings");
+    charter.conventions = Some(jig_protocol_charter::Conventions {
+        guide: bytes::copy_of(b"AGENTS.md"),
+        checks: bytes::copy_of(b".temper/pre-pr"),
+    });
+    jig_protocol_charter::charter(charter).expect("bounded charter")
 }
 
 /// Fit the brief after the workspace is prepared, using the receiving run's
@@ -323,59 +288,4 @@ fn cut_line(lost: usize, title: &[u8]) -> Box<[u8]> {
     line.put(read).expect("recovery read");
     line.put(b"]\n").expect("cut line");
     line.finish()
-}
-
-fn contract(contract: &tasks::Contract) -> run::outcome::OutcomeSpec {
-    match contract {
-        tasks::Contract::Report { words } => run::outcome::OutcomeSpec {
-            change: None,
-            verdicts: Box::new([]),
-            report: Some(run::outcome::TextSpec { max: *words, fields: Box::new([]) }),
-            failure: Some(run::outcome::TextSpec { max: *words, fields: Box::new([]) }),
-        },
-        tasks::Contract::Verdict { choices } => {
-            let mut verdicts = List::with_capacity(choices.len().try_into().expect("bounded verdict list"));
-            for choice in choices {
-                let mut fields = List::with_capacity(choice.fields.len().try_into().expect("bounded verdict fields"));
-                for field in &choice.fields {
-                    fields
-                        .push(run::outcome::FieldRule { name: field.name.clone(), max: field.max })
-                        .expect("bounded verdict fields");
-                }
-                verdicts
-                    .push(run::outcome::VerdictRule {
-                        name: bytes::copy_of(Decimal::of(u64::from(choice.code)).as_bytes()),
-                        text_max: choice.words,
-                        fields: fields.into_boxed(),
-                        items: run::outcome::ItemSpec { min: 0, max: 0, kinds: Box::new([]) },
-                    })
-                    .expect("bounded verdict list");
-            }
-            run::outcome::OutcomeSpec {
-                change: None,
-                verdicts: verdicts.into_boxed(),
-                report: None,
-                failure: Some(run::outcome::TextSpec { max: 1024, fields: Box::new([]) }),
-            }
-        }
-        tasks::Contract::Change { words, .. } => run::outcome::OutcomeSpec {
-            change: Some(run::outcome::ChangeSpec {
-                checks_must_pass: true,
-                fields: Box::new([
-                    run::outcome::FieldRule { name: bytes::copy_of(b"title"), max: *words },
-                    run::outcome::FieldRule { name: bytes::copy_of(b"body"), max: *words },
-                ]),
-            }),
-            verdicts: Box::new([]),
-            report: None,
-            failure: Some(run::outcome::TextSpec { max: *words, fields: Box::new([]) }),
-        },
-        // An approval is a person's; an agent given one may only fail.
-        tasks::Contract::Approval { .. } => run::outcome::OutcomeSpec {
-            change: None,
-            verdicts: Box::new([]),
-            report: None,
-            failure: Some(run::outcome::TextSpec { max: 1024, fields: Box::new([]) }),
-        },
-    }
 }
