@@ -676,6 +676,9 @@ pub(super) fn route_period(
     budget: u64,
     next: Option<skein_lib::Wall>,
 ) -> Requests {
+    if core.removing(project) {
+        return Requests::Out(Queue::uncapped());
+    }
     let allowed = match core.authority.policy(project) {
         Some(policy) => budget <= policy.period_spend,
         None => false,

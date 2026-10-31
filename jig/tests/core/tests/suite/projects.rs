@@ -347,18 +347,17 @@ fn a_restart_keeps_a_rename() {
 }
 
 #[test]
-fn an_owner_may_ask_to_remove_a_project_which_is_not_offered_yet() {
+fn an_owners_project_removal_retains_its_answer() {
     let (mut world, signed) = setup();
-    let before = world.store.rows.clone();
-    assert_eq!(
-        request(&mut world, signed, KEY, people::Ask::RemoveProject { project: SEED }),
-        people::Reply::Refused(people::Refusal::NotOffered),
-    );
-    assert_eq!(world.store.rows, before, "the placeholder refusal saves no answer or project change");
+    let outcome = people::Reply::Outcome(people::Outcome::ProjectRemoved { project: SEED });
+    assert_eq!(request(&mut world, signed, KEY, people::Ask::RemoveProject { project: SEED }), outcome);
+    assert!(world.domain.core_mut().removing(SEED));
+    let commits = world.commits.len();
+    assert_eq!(request(&mut world, signed, KEY, people::Ask::RemoveProject { project: SEED }), outcome);
+    assert_eq!(world.commits.len(), commits, "the retained answer makes no second removal");
     assert_eq!(
         request(&mut world, signed, KEY, rename(SEED, "Tally")),
-        people::Reply::Outcome(people::Outcome::Renamed { project: SEED }),
-        "the unsaved refusal leaves the key available",
+        people::Reply::Refused(people::Refusal::KeyConflict)
     );
 }
 

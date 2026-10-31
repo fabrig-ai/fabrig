@@ -35,6 +35,9 @@ impl Core {
         admission: &tasks::CompoundAdmission<'_>,
     ) -> Result<(), people::Refusal> {
         let crate::compound::PartyTask { person, project, role, task } = party;
+        if self.removing(project) {
+            return Err(people::Refusal::Unknown);
+        }
         let Some(context) = admission.task(task) else { return Err(people::Refusal::Unknown) };
         if context.project != project {
             return Err(people::Refusal::Unknown);
@@ -115,6 +118,9 @@ impl Core {
         limits: &tasks::Limits,
         admission: &tasks::CompoundAdmission<'_>,
     ) -> Result<u64, people::Refusal> {
+        if self.removing(project) {
+            return Err(people::Refusal::Unknown);
+        }
         let (task, kind, reason_len) = match ask {
             people::Ask::Stop { task, .. } => (*task, authority::RequestKind::Cancel, 0),
             people::Ask::Cancel { task, reason, .. } => (*task, authority::RequestKind::Cancel, reason.len()),
@@ -228,6 +234,9 @@ impl Core {
             && (self.reaches_project(role, project) || Self::person_tree_in(person, task, depth, admission))
     }
     pub(crate) fn reaches_project(&self, role: people::Role, project: u32) -> bool {
+        if self.removing(project) {
+            return false;
+        }
         match role {
             people::Role::Owner | people::Role::Maintainer => true,
             people::Role::Member | people::Role::Observer => false,
@@ -275,6 +284,9 @@ impl Core {
     /// Check a party role's current note scope, including connector paths.
     #[must_use]
     pub fn note_authorized(&self, project: u32, role: Option<people::Role>, scope: &people::NoteScope) -> bool {
+        if self.removing(project) {
+            return false;
+        }
         let Some(role) = role else { return false };
         let Some(policy) = self.authority.role(project, role.number()) else { return false };
         match scope {

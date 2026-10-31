@@ -1945,13 +1945,6 @@ pub(super) fn answer_decided(
         assert!(removed == Some(id), "flight has one key index");
     }
 
-    // Until jp-delete, a removal's not-offered refusal leaves its request key available.
-    if outcome == Outcome::Refused(Refusal::NotOffered) && ask == (Ask::RemoveProject { project: project(&ask) }) {
-        for to in replies.into_boxed() {
-            refused(to, Refusal::NotOffered, out);
-        }
-        return;
-    }
     match outcome {
         // A refused admission is retryable with the same key, including
         // pressure reported by tasks or another child through the root.

@@ -38,6 +38,9 @@ pub fn task_line(
     row: &tasks::TaskRecord,
     ended_read: Option<u64>,
 ) -> Result<TaskLine, Missing> {
+    if core.removing(row.project) {
+        return Err(Missing::Unknown);
+    }
     if core.people.role(party, row.project).is_none() {
         return Err(Missing::NotAllowed);
     }

@@ -499,6 +499,7 @@ fn reviewed_party_action(
     }
     Ok((action, kind))
 }
+#[expect(clippy::too_many_lines, reason = "one proposal document joins task and party authors exhaustively")]
 pub(super) fn proposal(
     core: &Core,
     limits: &Limits,
@@ -531,6 +532,9 @@ pub(super) fn proposal(
         }
         Proposer::Party(person) => {
             let value = core.tasks.person_proposal(person, number).ok_or(Missing::Ended)?;
+            if core.removing(value.project) {
+                return Err(Missing::Unknown);
+            }
             if party != person && core.people.role(party, value.project).is_none() {
                 return Err(Missing::NotAllowed);
             }
@@ -682,6 +686,9 @@ pub fn person_from_row(
     row: &tasks::TaskRecord,
     decision: Wall,
 ) -> Result<PersonTask, Missing> {
+    if core.removing(row.project) {
+        return Err(Missing::Unknown);
+    }
     if core.people.role(party, row.project).is_none() {
         return Err(Missing::NotAllowed);
     }
@@ -739,6 +746,9 @@ pub fn result_from_row(
     row: &tasks::TaskRecord,
     decision: Wall,
 ) -> Result<ResultDoc, Missing> {
+    if core.removing(row.project) {
+        return Err(Missing::Unknown);
+    }
     if core.people.role(party, row.project).is_none() {
         return Err(Missing::NotAllowed);
     }

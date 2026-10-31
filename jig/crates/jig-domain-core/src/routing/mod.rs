@@ -12,6 +12,7 @@ mod deployment_acts;
 pub(crate) mod key_routes;
 pub(crate) mod party_inputs;
 mod propose;
+pub(crate) mod removal;
 pub(crate) mod result_reads;
 pub(crate) mod settings;
 
@@ -175,6 +176,12 @@ impl Core {
                 findings: Box::new([authority::Finding::UnknownProject]),
             });
         };
+        if self.removing(task.project) {
+            return Some(CallPart::ToolDenied {
+                answer: authority::Answer::Refuse,
+                findings: Box::new([authority::Finding::UnknownProject]),
+            });
+        }
         let family = self.tool_family(&kind);
         let call = match kind {
             ToolKind::Message { target } => authority::Call::Message {
@@ -281,6 +288,9 @@ impl Core {
     #[must_use]
     pub fn note_readable(&self, task: u64, scope: &notes::Scope) -> bool {
         let Some(row) = self.tasks.task(task) else { return false };
+        if self.removing(row.project) {
+            return false;
+        }
         match scope {
             notes::Scope::Deployment => true,
             notes::Scope::Project { project } | notes::Scope::Resources { project, .. } => *project == row.project,
@@ -513,7 +523,13 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         }
         Event::EffectDeadline => crate::effects::deadline(core, env),
         Event::SignIn { reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held),
-        Event::ReadLoaded { load, result } => crate::reads::loaded(core, env, load, result),
+        Event::ReadLoaded { load, result } => {
+            if removal::removal_of(load).is_some() {
+                removal::loaded(core, env, load, result)
+            } else {
+                crate::reads::loaded(core, env, load, result)
+            }
+        }
         Event::Read { reply, sign_in, read } => crate::reads::start(core, env, reply, sign_in, read),
         Event::Watch { watcher, sign_in, subject, window } => open(core, env, watcher, sign_in, subject, window),
         Event::WatchRun { watcher, sign_in, task, turn, offset } => {

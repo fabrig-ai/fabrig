@@ -9,6 +9,9 @@ use jig_domain_tasks as tasks;
 use skein_lib::{List, Queue, Wall};
 
 pub(crate) fn recipient(core: &Core, project: u32, kind: authority::ProposalKind) -> Option<Recipient> {
+    if core.removing(project) {
+        return None;
+    }
     let policy = core.authority.policy(project)?;
     let mut roles = List::with_capacity(core.authority.limits().roles);
     for role in &policy.roles {
@@ -26,6 +29,9 @@ pub(crate) fn creating(
     project: u32,
     held: Option<people::Role>,
 ) -> Admission {
+    if core.removing(project) {
+        return Admission::Refused(people::Refusal::Unknown);
+    }
     let Some(held) = held else {
         return Admission::Refused(people::Refusal::Role { held });
     };
@@ -220,6 +226,9 @@ pub(crate) fn creating_charter(
     charter: u32,
 ) -> bool {
     if core.projections.len() >= limits.tasks.tasks {
+        return false;
+    }
+    if core.removing(project) {
         return false;
     }
     let Some(policy) = core.authority.policy(project) else { return false };

@@ -117,10 +117,6 @@ pub(super) fn admit(
     if domain.owners.is_empty() {
         return answer(to, Outcome::Refused(Refusal::Role { held: None }), out);
     }
-    // jp-delete builds deletion; leave no retained answer in its way.
-    if let Act::RemoveProject { .. } = &act {
-        return answer(to, Outcome::Refused(Refusal::NotOffered), out);
-    }
     // Permanent subject refusals also need a reserved answer place.
     if domain.answers.len().saturating_add(domain.acted.len()).saturating_add(answer_reservations(domain))
         >= env.limits.requests

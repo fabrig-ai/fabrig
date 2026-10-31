@@ -211,6 +211,11 @@ pub(super) fn created_holdings(
 }
 
 fn finish_creation(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, request: Token, creating: Creation) {
+    let project = creating.members.first().expect("nonempty batch").project;
+    if core.removing(project) {
+        pool_refused(work, request, people::Refusal::Unknown);
+        return;
+    }
     match creating.kind {
         CreationKind::Propose { person, reason, to, stubs } => {
             super::propose::keep(

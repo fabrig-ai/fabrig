@@ -33,6 +33,9 @@ impl Core {
                 return false;
             }
         }
+        if self.removing(project) {
+            return false;
+        }
         let Some(policy) = self.authority.policy(project) else { return false };
         authority::at_most(&translate::authority_value(given), &policy.ceiling, &self.authority.rules().implies)
             && self.period_budget(project) <= policy.period_spend

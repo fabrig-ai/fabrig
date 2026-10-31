@@ -372,6 +372,12 @@ pub struct Core {
     /// Names seeded or restored with the project policies (core.md, 6.1).
     pub(crate) names: Map<u32, Box<str>>,
     pub(crate) removals: Map<u32, ProjectRemoval>,
+    /// Idle removals have no transient load continuation.
+    pub(crate) removal_work: Map<u32, routing::removal::Work>,
+    /// Suppress nested cancellation passes while their child outputs route.
+    pub(crate) removal_cancelling: skein_lib::Set<u32>,
+    /// Project identity between an ended task save and its terminal request.
+    pub(crate) removal_ending_projects: Map<u64, u32>,
     /// Mutable connector permission mappings approved by policy edits.
     pub permission_roles: Map<u32, Box<[people::PermissionRole]>>,
     /// Template overrides retained with each project policy.
@@ -744,6 +750,9 @@ impl Core {
 
             names: Map::with_capacity(limits.authority.projects),
             removals: Map::with_capacity(limits.authority.projects),
+            removal_work: Map::with_capacity(limits.authority.projects),
+            removal_cancelling: skein_lib::Set::with_capacity(limits.authority.projects),
+            removal_ending_projects: Map::with_capacity(limits.tasks.tasks),
             permission_roles: Map::with_capacity(limits.authority.projects),
             template_overrides: Map::with_capacity(limits.authority.projects),
             connectors: config.connectors,
