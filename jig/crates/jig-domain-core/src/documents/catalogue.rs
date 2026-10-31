@@ -139,7 +139,7 @@ fn append(
 
 /// Full-state selection precedes any document truncation. No task pin is chosen here.
 fn readiness(core: &Core, payer: tasks::Payer, provider: u32) -> (Readiness, bool) {
-    let coverage = core.account_coverage(payer);
+    let coverage = core.account_coverage(payer, None);
     let mut unknown = false;
     let mut refreshing = false;
     let hosts = core.fleet.host_views();
