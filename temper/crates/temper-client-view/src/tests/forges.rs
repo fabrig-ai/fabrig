@@ -24,7 +24,7 @@ fn the_forges_page_says_its_words_and_folds_each_row() {
         view.tree(),
         &[
             "Forges",
-            "Your forges 1",
+            "Your forges 2",
             "Each forge temper is connected to, or setting up. Add one to bring its repositories to temper.",
             "+ Add a forge",
         ],
@@ -118,7 +118,7 @@ fn a_forge_row_opened_offers_its_action() {
 }
 #[test]
 fn no_forge_of_yours_yet_offers_connect_a_forge() {
-    let root = root(Address::Forges, w::Connection::NotSetUp);
+    let root = f::forge_root(Address::Forges, List::with_capacity(0));
     let view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Paragraph, b"No forge of yours yet.").is_some());
     for name in [b"+ Add a forge".as_slice(), b"Connect a forge"] {
@@ -151,24 +151,7 @@ fn the_navigation_has_forges_with_its_dot_and_words() {
         }
     }
 }
-#[test]
-fn the_demo_banners_connect_a_forge_is_a_link() {
-    let root =
-        f::demo_frame_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true, None, None);
-    assert_eq!(action(&root, Role::Link, b"Connect a forge"), go(Address::ConnectForge { forge: None }));
-    assert!(f::find(f::page_view(&root).tree(), Role::Button, b"Connect a forge").is_none());
-}
-#[test]
-fn a_set_up_under_way_shows_in_the_demo_banner_with_view() {
-    {
-        let rows = cf::rows(w::Connection::Connecting, w::Offer::Offered);
-        let root = f::demo_forges_root(Address::Chats { filter: ChatsFilter::All, start: false }, rows);
-        let view = f::page_view(&root);
-        assert!(f::find(view.tree(), Role::Paragraph, "Forgejo on this machine · Connecting".as_bytes()).is_some());
-        assert_eq!(action(&root, Role::Link, b"View"), go(Address::ConnectForge { forge: Some(Choice::Forge(HERE)) }));
-        assert!(f::find(view.tree(), Role::Link, b"Connect a forge").is_none());
-    }
-}
+
 #[test]
 fn the_playground_forge_shows_while_the_forge_half_holds() {
     let mut rows = List::with_capacity(2);
@@ -559,5 +542,56 @@ fn a_repository_making_or_failed_keeps_its_existing_body() {
         let view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Paragraph, message.as_bytes()).is_some());
         assert!(f::find(view.tree(), Role::Term, b"Repositories").is_none());
+    }
+}
+
+#[test]
+fn forges_lists_the_playground_row_with_nothing_to_add() {
+    let mut rows = List::with_capacity(1);
+    rows.push(cf::row(wire::FORGE, w::Kind::Forgejo, w::Mode::Fake, cf::connected(), w::Offer::NotOffered)).unwrap();
+    let root = f::demo_forges_root(Address::Forges, rows);
+    let view = f::page_view(&root);
+    assert!(f::find(view.tree(), Role::Heading { level: 2 }, b"The playground").is_some());
+    for name in [b"+ Add a forge".as_slice(), b"Connect a forge"] {
+        assert!(f::find(view.tree(), Role::Link, name).is_none());
+    }
+    assert!(f::find(view.tree(), Role::Button, b"Remove").is_none());
+    assert_eq!(
+        view.tree()
+            .nodes()
+            .iter()
+            .filter(|n| n.role == Role::Disclosure && n.styles.as_slice().contains(&crate::look::FORGE_ROW))
+            .count(),
+        1
+    );
+}
+#[test]
+fn remove_confirms_with_the_kinds_words_then_sends() {
+    for (kind, mode, words) in [
+        (w::Kind::Forgejo, w::Mode::Owned, "Its Forgejo, its directory and its repositories' work here go."),
+        (w::Kind::Forgejo, w::Mode::Managed, "Its bot and hooks stay on your Forgejo."),
+        (w::Kind::Github, w::Mode::Connected, "The GitHub App stays yours: delete it in its settings."),
+    ] {
+        let mut rows = List::with_capacity(1);
+        let mut row = cf::row(HERE, kind.clone(), mode, cf::connected(), w::Offer::NotOffered).into_parts();
+        row.web = Some(b"https://forge.example/".as_slice().into());
+        rows.push(w::ForgeRow::new(&w::CEILINGS, row).unwrap()).unwrap();
+        let mut root = f::forge_root(Address::Forges, rows);
+        let first = action(&root, Role::Button, b"Remove");
+        assert_eq!(first, d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::Remove { forge: HERE })));
+        f::root_event(&mut root, d::Event::Act { action: first });
+        let mut view = f::page_view(&root);
+        cf::words_in_order(view.tree(), &["Remove this forge?", words, "Remove"]);
+        if kind == w::Kind::Github {
+            let link = f::find(view.tree(), Role::Link, b"the App's settings").unwrap();
+            assert_eq!(
+                crate::href(&mut view, link).as_deref(),
+                Some(b"https://forge.example/settings/apps".as_slice())
+            );
+        }
+        let confirmed = action(&root, Role::Button, b"Remove");
+        assert_eq!(confirmed, d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::ConfirmRemove)));
+        f::root_event(&mut root, d::Event::Act { action: confirmed });
+        assert!(root.forge().setup_form().removal.as_ref().unwrap().request.is_some());
     }
 }

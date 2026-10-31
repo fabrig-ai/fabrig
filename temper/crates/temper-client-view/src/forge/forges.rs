@@ -1,4 +1,4 @@
-//! Folded forge rows and the playground apart (client/forge.md, 5.4).
+//! Kept forge rows and confirmed removal (temper/docs/design/draft/playground-reset.md, 3, 4, 6.1).
 use super::{bindings::Bindings as ForgeBindings, connect};
 use crate::{
     flow,
@@ -30,7 +30,12 @@ pub(crate) fn main(
     b.style(look::FORGES);
     connect::text(b, w, Role::Heading { level: 1 }, Word::ForgesTitle);
     let rows = listed::rows(root.forges(), forge::connect::playground(root.forge()));
-    let count = u64::from(rows.len());
+    let mut count = 0_u64;
+    for row in &rows {
+        if row.mode != Mode::Fake {
+            count = count.checked_add(1).expect("bounded rows");
+        }
+    }
     let heading = match root.forges() {
         State::Rows(_) => w.say(Word::YourForges, &[Hole::Number(count)]),
         State::Unknown | State::Ended => w.say(Word::YourForgesTitle, &[]),
@@ -41,13 +46,17 @@ pub(crate) fn main(
         State::Ended => crate::cards::refusal(b, w, &jig_client::contract::Refusal::NotOffered),
         State::Rows(_) => {
             connect::text(b, w, Role::Paragraph, Word::ForgesDescription);
-            connect::link(b, w, bindings, Word::AddForge, Address::ConnectForge { forge: None });
-            if count == 0 {
+            if !root.forge().demo_running() {
+                connect::link(b, w, bindings, Word::AddForge, Address::ConnectForge { forge: None });
+            }
+            if count == 0 && !root.forge().demo_running() {
                 connect::text(b, w, Role::Paragraph, Word::NoForges);
                 connect::link(b, w, bindings, Word::ConnectForge, Address::ConnectForge { forge: None });
             }
             for row in &rows {
-                personal(b, root, w, bindings, forge, row, sign_in);
+                if row.mode != Mode::Fake {
+                    personal(b, root, w, bindings, forge, row, sign_in);
+                }
             }
             if let Some((demo, row)) = listed::playground(root) {
                 connect::text(b, w, Role::Heading { level: 2 }, Word::ForgePlaygroundHeading);
@@ -180,6 +189,7 @@ fn personal(
             | Connection::Stopped { .. } => {}
         }
     }
+    removal(b, root, w, forge, row);
     b.close();
 }
 fn github(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings, row: &Row) {
@@ -332,4 +342,56 @@ pub(crate) fn open_link(
     b.text(skein_ui::Run::Plain, &label);
     b.close();
     true
+}
+
+fn removal(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
+    use super::bindings::Meaning;
+    use forge::forges::Act;
+    if let Some(removal) = &root.forge().setup_form().removal
+        && removal.forge == row.number
+    {
+        connect::text(b, w, Role::Paragraph, Word::ForgeRemoveConfirm);
+        removal_words(b, w, row);
+        let name = w.say(Word::ForgeRemove, &[]);
+        let control = if removal.request.is_some() {
+            flow::Control::PrimaryDisabled { name: &name }
+        } else {
+            flow::Control::PrimaryButton { name: &name, to: bindings.insert(Meaning::Forges(Act::ConfirmRemove)) }
+        };
+        flow::control(b, control);
+    } else {
+        flow::control(
+            b,
+            flow::Control::Button {
+                name: &w.say(Word::ForgeRemove, &[]),
+                to: bindings.insert(Meaning::Forges(Act::Remove { forge: row.number })),
+            },
+        );
+    }
+}
+pub(crate) fn removal_words(b: &mut Builder, w: &Words, row: &Row) {
+    let word = match row.kind {
+        Kind::GitHub => Word::ForgeRemoveGitHub,
+        Kind::Forgejo => match row.mode {
+            Mode::Owned => Word::ForgeRemoveOwned,
+            Mode::Connected | Mode::Managed | Mode::Fake => Word::ForgeRemoveManaged,
+        },
+    };
+    connect::text(b, w, Role::Paragraph, word);
+    if row.kind == Kind::GitHub
+        && let Some(web) = &row.web
+    {
+        let mut web = web.as_ref();
+        while let Some(prefix) = web.strip_suffix(b"/") {
+            web = prefix;
+        }
+        let suffix = b"/settings/apps";
+        let mut address = skein_lib::Writer::new(web.len().checked_add(suffix.len()).expect("settings address fits"));
+        address.put(web).expect("web counted");
+        address.put(suffix).expect("suffix counted");
+        b.open(Role::Link);
+        b.name(&w.say(Word::ForgeRemoveGitHubLink, &[]));
+        b.external(&address.finish());
+        b.close();
+    }
 }
