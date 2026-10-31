@@ -12,6 +12,7 @@ const SCOPES: u32 = 2;
 
 fn ready() -> (Core, Limits) {
     let (mut core, limits) = core();
+    core.opened = true;
     make_task(&mut core, &limits, FIRST);
     make_task(&mut core, &limits, SECOND);
     run_choice::host(&mut core, &limits, CHANNEL, &[b"scripted"]);
