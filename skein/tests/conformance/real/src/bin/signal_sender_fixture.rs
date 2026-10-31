@@ -164,16 +164,13 @@ fn main() {
     loop {
         let now = clock.now();
         let env = Env { now: now.now, wall: now.wall, limits };
-        while state.is_ready() {
-            io::resume(&mut state, &env, &mut events, &mut submissions);
-        }
         kernel.reap(&mut completions);
-        while let Some(complete) = completions.pop() {
+        for complete in &completions {
             if let Some(patience) = &mut patience {
-                patience.watch_spawn(&complete);
+                patience.watch_spawn(complete);
             }
-            io::up(&mut state, &env, complete, &mut events, &mut submissions);
         }
+        io::stage::up(&mut state, &env, &mut completions, &mut events, &mut submissions);
         while let Some(event) = events.pop() {
             match event {
                 Event::Spawned { child: token, pipes, .. } => {
