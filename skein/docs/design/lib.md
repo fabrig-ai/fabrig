@@ -80,6 +80,8 @@ them (testing.md, section 6).
 
 `Name<N>` is a name of at most `N` bytes held inline, checked once when it is made, against its maker's grammar, and copied freely after: a source's or a method's name, never text a person reads.
 
+A token's top four bits may tag its namespace (`Token::tagged`, `tag`, `untagged`), for a root that hands tokens to several children.
+
 ## 5. Containers
 
 | Container | What | Over |
