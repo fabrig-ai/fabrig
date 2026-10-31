@@ -87,8 +87,8 @@ impl Application for OpsScript {
         limits.client.domain.text = bounds.text;
         limits.client.domain.document_bytes = bounds.document_bytes;
         let fits = |doc: &Document| match doc {
-            Document::Observability(doc) => doc.fits(&limits.observability),
-            Document::Infrastructure(doc) => doc.fits(&limits.infrastructure),
+            Document::Observability(doc) => doc.fits(&limits.client.domain),
+            Document::Infrastructure(doc) => doc.fits(&limits.client.domain),
         };
         match value {
             ApplicationValue::Document(doc) => fits(doc),
