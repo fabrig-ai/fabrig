@@ -32,6 +32,7 @@ mod inbox_selection_memory;
 mod instructions;
 mod joint_clock;
 mod memory;
+mod naming;
 mod operations;
 mod orders;
 mod parties;

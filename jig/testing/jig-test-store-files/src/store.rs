@@ -47,6 +47,7 @@ pub struct Store {
     pub switch_requests: u32,
     wires: &'static [protocol::Wire],
     pub rows: BTreeMap<root::Key, root::Record>,
+    transcript_places: Vec<protocol::keys::Own>,
     pub pending: VecDeque<Pending>,
     pub held: VecDeque<u64>,
     component: Option<protocol::Store>,
@@ -119,6 +120,7 @@ impl Store {
             switch_requests: 0,
             wires: &[],
             rows: BTreeMap::new(),
+            transcript_places: Vec::new(),
             pending: VecDeque::new(),
             held: VecDeque::new(),
             component: Some(component),
@@ -242,9 +244,49 @@ impl Store {
         if self.failed {
             return Err(pending.number);
         }
+        self.refresh_transcript_places();
         assert_eq!(self.applied, pending.number, "the synchronous stand-in settles the commit");
         if self.holding { Ok(None) } else { Ok(Some(pending.number)) }
     }
+    /// Component-owned transcript and attempt rows from the committed map,
+    /// decoded independently of the root's typed write mirror.
+    pub fn transcript_places(&self) -> impl Iterator<Item = protocol::keys::Own> + '_ {
+        self.transcript_places.iter().copied()
+    }
+
+    fn refresh_transcript_places(&mut self) {
+        self.transcript_places.clear();
+        let mut after = None;
+        loop {
+            let page = self
+                .component
+                .as_mut()
+                .expect("component")
+                .retained_page(
+                    after.as_deref(),
+                    self.component_limits.store.page.rows,
+                    u64::from(self.component_limits.store.page.bytes),
+                )
+                .expect("committed component rows");
+            for row in page.rows {
+                match protocol::keys::decode_own(&row.key) {
+                    Some(key @ protocol::keys::Own::Transcript { .. }) => {
+                        protocol::codec::component::Transcript::decode(&row.value).expect("transcript place");
+                        self.transcript_places.push(key);
+                    }
+                    Some(key @ protocol::keys::Own::Attempt { .. }) => {
+                        protocol::codec::component::Attempt::decode(&row.value).expect("attempt place");
+                        self.transcript_places.push(key);
+                    }
+                    Some(protocol::keys::Own::Format | protocol::keys::Own::Layouts | protocol::keys::Own::Wires)
+                    | None => {}
+                }
+            }
+            let Some(next) = page.next else { break };
+            after = Some(next);
+        }
+    }
+
     pub fn release_held(&mut self) -> Option<u64> {
         if self.failed { None } else { self.held.pop_front() }
     }
