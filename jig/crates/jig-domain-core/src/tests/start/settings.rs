@@ -2,6 +2,7 @@
 use super::{Action, Core, Env, Failure, Key, Phase, Queue, Time, Wall, config, limits, people};
 use crate::{CoreRecord, HeldLimit, Limits, RestartRequest, Restored, settings};
 use settings::{Changed, CharterVersion, Edit, Fault, Head, Item, Record, Revision, Setting, Value};
+use skein_lib::List;
 
 fn loaded(selected: bool) -> (Core, Env<Limits>) {
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
@@ -38,18 +39,13 @@ fn head(number: u32) -> Record {
     }
 }
 
-fn stored_defaults(core: &Core) -> Vec<Record> {
-    core.current
-        .defaults
-        .iter()
-        .map(|(&setting, default)| Record::Default { setting, default: default.clone() })
-        .collect()
-}
-
-fn settings_rows(core: &Core) -> Vec<Record> {
-    let mut rows = stored_defaults(core);
-    rows.push(head(1));
-    rows.push(Record::Extent { oldest: 0 });
+fn settings_rows(core: &Core) -> List<Record> {
+    let mut rows = List::with_capacity(core.current.defaults.len().checked_add(3).expect("settings rows"));
+    for (&setting, default) in &core.current.defaults {
+        rows.push(Record::Default { setting, default: default.clone() }).expect("stored defaults");
+    }
+    rows.push(head(1)).expect("stored head");
+    rows.push(Record::Extent { oldest: 0 }).expect("stored extent");
     rows
 }
 
@@ -59,12 +55,12 @@ fn policy() -> people::PolicyValue {
 
 #[test]
 fn stored_policy_names_and_project_counters_are_writers_rules() {
-    for (project, name) in [(1, ""), (11, "Project")] {
+    for (project, name) in [(0, "Zero"), (1, ""), (11, "Project")] {
         let (mut default, env) = loaded(false);
         assert!(!default.restore_policy(&env.limits, project, name.into(), policy()));
         let (mut selected, env) = loaded(true);
         assert!(selected.restore_policy(&env.limits, project, name.into(), policy()));
-        assert_eq!(selected.names.get(&project).map(AsRef::as_ref), Some(name));
+        assert_eq!(selected.names.get(&project).expect("stored name").as_ref(), name);
         assert!(selected.authority.policy(project).is_some());
         assert_eq!(selected.start_failure(), None);
     }
@@ -99,23 +95,28 @@ fn stored_policy_byte_and_template_bounds_refuse_without_failing_the_restart_scr
         assert_eq!(core.start_failure(), Some(Failure::ProjectPolicy { project: 1 }));
         assert_eq!(core.restore_failure(), Some(RestartRequest::ProjectPolicy { project: 1 }));
         assert_eq!(core.restart_failure(), None);
-        assert!(matches!(
-            core.start_done(&env, Phase::LoadCore, &mut Queue::uncapped()),
-            Action::Refused(Failure::ProjectPolicy { project: 1 })
-        ));
+        let Action::Refused(failure) = core.start_done(&env, Phase::LoadCore, &mut Queue::uncapped()) else {
+            panic!("policy fit refused")
+        };
+        assert_eq!(failure, Failure::ProjectPolicy { project: 1 });
     }
 }
 
 #[test]
 fn every_policy_table_reports_the_stored_key_at_capacity() {
-    for table in 0..4 {
+    enum Table {
+        Projects,
+        Names,
+        Permissions,
+        Templates,
+    }
+    for table in [Table::Projects, Table::Names, Table::Permissions, Table::Templates] {
         let (mut core, env) = loaded(true);
         match table {
-            0 => core.projects = skein_lib::List::with_capacity(0),
-            1 => core.names = skein_lib::Map::with_capacity(0),
-            2 => core.permission_roles = skein_lib::Map::with_capacity(0),
-            3 => core.template_overrides = skein_lib::Map::with_capacity(0),
-            _ => unreachable!(),
+            Table::Projects => core.projects = List::with_capacity(0),
+            Table::Names => core.names = skein_lib::Map::with_capacity(0),
+            Table::Permissions => core.permission_roles = skein_lib::Map::with_capacity(0),
+            Table::Templates => core.template_overrides = skein_lib::Map::with_capacity(0),
         }
         assert!(!core.restore_policy(&env.limits, 7, "Project".into(), policy()));
         assert_eq!(
@@ -134,11 +135,11 @@ fn every_policy_table_reports_the_stored_key_at_capacity() {
 fn duplicate_policy_rows_assert_before_replacing_the_key() {
     let (mut core, env) = loaded(true);
     assert!(core.restore_policy(&env.limits, 1, "First".into(), policy()));
-    let duplicate = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+    let duplicate = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
         core.restore_policy(&env.limits, 1, "Second".into(), policy())
     }));
-    assert!(duplicate.is_err());
-    assert_eq!(core.names.get(&1).map(AsRef::as_ref), Some("First"));
+    let _panic = duplicate.expect_err("duplicate policy asserts");
+    assert_eq!(core.names.get(&1).expect("stored name").as_ref(), "First");
 }
 
 #[test]
@@ -146,39 +147,42 @@ fn settings_finish_drops_cross_record_revision_rules() {
     enum Rule {
         DefaultAhead,
         ChangeAhead,
-        VersionAhead,
-        VersionAtOrigin,
+        Version(u32),
         ExtentAtHead,
     }
-    for rule in [Rule::DefaultAhead, Rule::ChangeAhead, Rule::VersionAhead, Rule::VersionAtOrigin, Rule::ExtentAtHead] {
+    for rule in [Rule::DefaultAhead, Rule::ChangeAhead, Rule::Version(2), Rule::Version(1), Rule::ExtentAtHead] {
         for selected in [false, true] {
             let (mut core, env) = loaded(selected);
             let mut rows = settings_rows(&core);
             match rule {
                 Rule::DefaultAhead => {
-                    let Record::Default { default, .. } = rows.first_mut().expect("default row") else {
+                    let Record::Default { default, .. } = rows.get_mut(0).expect("default row") else {
                         panic!("default")
                     };
                     default.revision = 2;
                 }
-                Rule::ChangeAhead => rows.push(Record::Changed {
-                    setting: Setting::Charter(1),
-                    changed: Changed {
-                        revision: 2,
-                        value: Some(Value::Charter(Box::new(core.charter(1).expect("charter").clone()))),
-                    },
-                }),
-                Rule::VersionAhead | Rule::VersionAtOrigin => rows.push(Record::Charter {
-                    charter: 1,
-                    revision: if matches!(rule, Rule::VersionAhead) { 2 } else { 1 },
-                    value: CharterVersion { charter: Some(Box::new(core.charter(1).expect("charter").clone())) },
-                }),
+                Rule::ChangeAhead => rows
+                    .push(Record::Changed {
+                        setting: Setting::Charter(1),
+                        changed: Changed {
+                            revision: 2,
+                            value: Some(Value::Charter(Box::new(core.charter(1).expect("charter").clone()))),
+                        },
+                    })
+                    .expect("one stored change"),
+                Rule::Version(revision) => rows
+                    .push(Record::Charter {
+                        charter: 1,
+                        revision,
+                        value: CharterVersion { charter: Some(Box::new(core.charter(1).expect("charter").clone())) },
+                    })
+                    .expect("one stored version"),
                 Rule::ExtentAtHead => {
-                    let row = rows.last_mut().expect("extent");
+                    let row = rows.get_mut(rows.len() - 1).expect("extent");
                     *row = Record::Extent { oldest: 1 };
                 }
             }
-            for row in rows {
+            for row in rows.into_boxed() {
                 assert_eq!(restore(&mut core, &env, row), Restored::Live);
             }
             if selected {
@@ -200,8 +204,9 @@ fn whole_settings_fit_is_checked_by_load_core() {
     rows.push(Record::Changed {
         setting: Setting::Charter(1),
         changed: Changed { revision: 1, value: Some(Value::Charter(Box::new(charter))) },
-    });
-    for row in rows {
+    })
+    .expect("one stored change");
+    for row in rows.into_boxed() {
         assert_eq!(restore(&mut core, &env, row), Restored::Live);
     }
     let expected = Failure::Settings {
@@ -209,14 +214,17 @@ fn whole_settings_fit_is_checked_by_load_core() {
         changed: true,
     };
     let mut out = Queue::uncapped();
-    assert!(matches!(core.start_done(&env, Phase::LoadCore, &mut out), Action::Refused(found) if found == expected));
+    let Action::Refused(found) = core.start_done(&env, Phase::LoadCore, &mut out) else {
+        panic!("settings fit refused")
+    };
+    assert_eq!(found, expected);
     assert_eq!(core.start_phase(), Some(Phase::LoadCore));
     assert_eq!(core.restart_failure(), None);
     assert!(out.is_empty());
 }
 
 #[test]
-fn held_rows_past_each_limit_keep_their_typed_cause() {
+fn held_rows_past_each_limit_keep_their_refusal_detail() {
     for versions in [false, true] {
         let (mut core, mut env) = loaded(true);
         let (row, which) = if versions {
@@ -237,7 +245,7 @@ fn held_rows_past_each_limit_keep_their_typed_cause() {
 fn a_proposal_without_its_tasks_counterpart_is_a_writer_rule() {
     for selected in [false, true] {
         let (mut core, env) = loaded(selected);
-        for row in settings_rows(&core) {
+        for row in settings_rows(&core).into_boxed() {
             assert_eq!(restore(&mut core, &env, row), Restored::Live);
         }
         let row = Record::Proposal {
@@ -264,4 +272,97 @@ fn a_proposal_without_its_tasks_counterpart_is_a_writer_rule() {
             );
         }
     }
+}
+
+#[test]
+fn stored_policies_fill_the_project_table_and_name_the_first_overflow() {
+    let (mut core, env) = loaded(true);
+    let limit = env.limits.authority.projects;
+    for project in 1..=limit {
+        assert!(core.restore_policy(&env.limits, project, "Same".into(), policy()));
+    }
+    let project = limit + 1;
+    assert!(!core.restore_policy(&env.limits, project, "Same".into(), policy()));
+    assert_eq!(
+        core.start_failure(),
+        Some(Failure::LiveSet {
+            set: crate::start::LiveSet::Projects,
+            key: Key::People(people::Key::Policy(project)),
+            held: u64::from(project),
+            limit: u64::from(limit),
+        })
+    );
+}
+
+#[test]
+fn authority_child_policy_bounds_refuse_at_the_row_entrance() {
+    let (mut core, env) = loaded(true);
+    let mut value = policy();
+    let role = value.roles.first().expect("stored role").clone();
+    value.roles = Box::new([role.clone(), role]);
+    assert!(!core.restore_policy(&env.limits, 7, "Project".into(), value));
+    assert_eq!(core.start_failure(), Some(Failure::ProjectPolicy { project: 7 }));
+    assert_eq!(core.restart_failure(), None);
+}
+
+#[test]
+fn setting_values_keep_their_byte_bound_at_the_row_entrance() {
+    let (mut core, mut env) = loaded(true);
+    let charter = core.charter(1).expect("charter").clone();
+    let bytes = crate::memory::policy_owned_bytes(&charter.policy).expect("charter bytes");
+    env.limits.run_bytes = u32::try_from(bytes).expect("small charter");
+    let record = Record::Changed {
+        setting: Setting::Charter(1),
+        changed: Changed { revision: 1, value: Some(Value::Charter(Box::new(charter))) },
+    };
+    assert_eq!(restore(&mut core, &env, record.clone()), Restored::Live);
+    let (mut core, _) = loaded(true);
+    env.limits.run_bytes -= 1;
+    assert_eq!(restore(&mut core, &env, record), Restored::Rejected);
+    assert_eq!(
+        core.start_failure(),
+        Some(Failure::Settings {
+            failure: settings::Failure { setting: Setting::Charter(1), fault: Fault::Shape },
+            changed: true,
+        })
+    );
+    assert_eq!(core.restart_failure(), None);
+}
+
+#[test]
+fn a_stored_head_does_not_rejudge_revision_order() {
+    let Record::Revision { mut revision, history } = head(1) else { panic!("stored head") };
+    revision.head.against = revision.head.number;
+    for selected in [false, true] {
+        let (mut core, env) = loaded(selected);
+        assert_eq!(
+            restore(&mut core, &env, Record::Revision { history, revision: revision.clone() }),
+            if selected { Restored::Live } else { Restored::Rejected }
+        );
+    }
+}
+
+#[test]
+fn restored_refusals_keep_the_first_cause_across_families() {
+    let (mut core, mut env) = loaded(true);
+    env.limits.settings.versions = 0;
+    let row = Record::Charter { charter: 7, revision: 2, value: CharterVersion { charter: None } };
+    assert_eq!(restore(&mut core, &env, row), Restored::Rejected);
+    env.limits.policy_bytes = 0;
+    assert!(!core.restore_policy(&env.limits, 1, "Project".into(), policy()));
+    assert_eq!(
+        core.restore_failure(),
+        Some(RestartRequest::HeldPastLimit { which: HeldLimit::Versions, held: 1, limit: 0 })
+    );
+    assert_eq!(core.start_failure(), Some(Failure::HeldPastLimit { which: HeldLimit::Versions, held: 1, limit: 0 }));
+    assert_eq!(core.restart_failure(), None);
+}
+
+#[test]
+fn an_empty_settings_range_keeps_the_supplied_defaults() {
+    let (mut core, env) = loaded(true);
+    let before = core.current.rules().clone();
+    super::through_link(&mut core, &env, &mut Queue::uncapped());
+    assert_eq!(core.current.rules(), &before);
+    assert_eq!(core.start_failure(), None);
 }

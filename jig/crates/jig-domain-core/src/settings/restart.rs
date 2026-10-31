@@ -68,8 +68,17 @@ impl Core {
             }
             Record::Revision { history, revision } => self.restore_head(history, revision, limits),
             Record::Extent { oldest } => {
-                if self.settings_restore.extent {
-                    return false;
+                match self.start.mode {
+                    StartMode::Default => {
+                        if self.settings_restore.extent {
+                            return false;
+                        }
+                    }
+                    StartMode::LoadAndLink => assert!(
+                        !self.settings_restore.extent,
+                        "duplicate {:?}",
+                        crate::Key::Core(CoreKey::Settings(Key::Extent))
+                    ),
                 }
                 self.current.oldest = oldest;
                 self.settings_restore.extent = true;
@@ -77,55 +86,66 @@ impl Core {
             }
             Record::Charter { charter, revision, value } => self.restore_charter(charter, revision, value, limits),
             Record::Proposal { proposer, proposal, value } => {
-                let person = match proposer {
-                    jig_domain_people::Proposer::Party(person) => person,
-                    jig_domain_people::Proposer::Task(task) => task,
-                };
-                if self.start.mode == StartMode::Default
-                    && (proposal == 0
-                        || person == 0
-                        || value.against == 0
-                        || value.items.is_empty()
-                        || value.items.len() > usize::try_from(tasks::SETTINGS_ITEMS).expect("item bound")
-                        || super::change_shape(&value.items, limits).is_err())
-                {
-                    return false;
-                }
-                match self.start.mode {
-                    StartMode::Default => {
-                        if self.settings_proposals.contains_key(&(proposer, proposal)) {
-                            return false;
-                        }
-                    }
-                    StartMode::LoadAndLink => {
-                        assert!(
-                            !self.settings_proposals.contains_key(&(proposer, proposal)),
-                            "duplicate {:?}",
-                            crate::Key::Core(CoreKey::Settings(Key::Proposal { proposer, proposal }))
-                        );
-                        if value.items.len() > usize::try_from(tasks::SETTINGS_ITEMS).expect("item bound")
-                            || self.settings_proposals.len() >= self.settings_proposals.capacity()
-                        {
-                            self.refuse_restore(RestartRequest::Settings {
-                                failure: Failure { setting: Setting::Rules, fault: Fault::Count },
-                                changed: true,
-                            });
-                            return false;
-                        }
-                        for item in &value.items {
-                            if let Edit::Set(value) = &item.edit
-                                && let Err(failure) = super::check::restore_fit(item.setting, value, limits)
-                            {
-                                self.refuse_restore(RestartRequest::Settings { failure, changed: true });
-                                return false;
-                            }
-                        }
-                    }
-                }
-                self.settings_proposals.insert((proposer, proposal), value).is_ok()
+                self.restore_settings_proposal(proposer, proposal, value, limits)
             }
         }
     }
+
+    fn restore_settings_proposal(
+        &mut self,
+        proposer: jig_domain_people::Proposer,
+        proposal: u32,
+        value: super::Proposal,
+        limits: &Limits,
+    ) -> bool {
+        let person = match proposer {
+            jig_domain_people::Proposer::Party(person) => person,
+            jig_domain_people::Proposer::Task(task) => task,
+        };
+        if self.start.mode == StartMode::Default
+            && (proposal == 0
+                || person == 0
+                || value.against == 0
+                || value.items.is_empty()
+                || value.items.len() > usize::try_from(tasks::SETTINGS_ITEMS).expect("item bound")
+                || super::change_shape(&value.items, limits).is_err())
+        {
+            return false;
+        }
+        match self.start.mode {
+            StartMode::Default => {
+                if self.settings_proposals.contains_key(&(proposer, proposal)) {
+                    return false;
+                }
+            }
+            StartMode::LoadAndLink => {
+                assert!(
+                    !self.settings_proposals.contains_key(&(proposer, proposal)),
+                    "duplicate {:?}",
+                    crate::Key::Core(CoreKey::Settings(Key::Proposal { proposer, proposal }))
+                );
+                if value.items.len() > usize::try_from(tasks::SETTINGS_ITEMS).expect("item bound")
+                    || self.settings_proposals.len() >= self.settings_proposals.capacity()
+                {
+                    self.refuse_restore(RestartRequest::Settings {
+                        failure: Failure { setting: Setting::Rules, fault: Fault::Count },
+                        changed: true,
+                    });
+                    return false;
+                }
+                for item in &value.items {
+                    if let Edit::Set(value) = &item.edit
+                        && let Err(failure) = super::check::restore_fit(item.setting, value, limits)
+                    {
+                        self.refuse_restore(RestartRequest::Settings { failure, changed: true });
+                        return false;
+                    }
+                }
+            }
+        }
+        self.settings_proposals.insert((proposer, proposal), value).is_ok()
+    }
+
     fn restore_default(&mut self, setting: Setting, default: Default, limits: &Limits) -> bool {
         match self.start.mode {
             StartMode::Default => {
@@ -192,8 +212,16 @@ impl Core {
         }
         let number = revision.head.number;
         if self.settings_restore.held {
-            if number == self.current.newest() || self.held.heads.contains_key(&number) {
-                return false;
+            let duplicate = number == self.current.newest() || self.held.heads.contains_key(&number);
+            match self.start.mode {
+                StartMode::Default => {
+                    if duplicate {
+                        return false;
+                    }
+                }
+                StartMode::LoadAndLink => {
+                    assert!(!duplicate, "duplicate {:?}", crate::Key::Core(CoreKey::Settings(Key::Held(number))));
+                }
             }
             let held = self.held.heads.len().checked_add(1).expect("held row count");
             if held > limits.settings.revisions {
@@ -330,7 +358,9 @@ impl Core {
             // restored against the stored settings and established their holders.
             self.settings_restore.release = Some(previous);
         }
-        core::mem::swap(&mut self.current.defaults, &mut self.settings_restore.defaults);
+        if !self.settings_restore.defaults.is_empty() {
+            core::mem::swap(&mut self.current.defaults, &mut self.settings_restore.defaults);
+        }
         self.settings_restore.ready = true;
         self.tell_settings(env);
         true
