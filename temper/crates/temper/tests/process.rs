@@ -187,7 +187,7 @@ fn the_box_finishes_its_restart_policy_after_a_refused_restore() {
     let alone_stderr = String::from_utf8_lossy(&alone.stderr);
     assert_eq!(alone.exit, Some(Exit::Code(1)), "{alone_stderr}");
     assert!(
-        alone_stderr.contains("temper serve: settings.owner's stored change.policy[1].shape: invalid form"),
+        alone_stderr.contains("temper serve: restart refused during core restore: changed setting Policy(1): Shape"),
         "{alone_stderr}"
     );
     let ended = support::boxed::run_echo_steps(scratch.path(), None, support::boxed::Plan::Exit, BOX_DEADLINE);
@@ -195,7 +195,7 @@ fn the_box_finishes_its_restart_policy_after_a_refused_restore() {
     assert_eq!(ended.exit, Some(Exit::Code(1)), "{stderr}");
     assert_eq!(ended.left, Some(Vec::new()), "{stderr}");
     assert_eq!(
-        stderr.matches("temper serve: settings.owner's stored change.policy[1].shape: invalid form").count(),
+        stderr.matches("temper serve: restart refused during core restore: changed setting Policy(1): Shape").count(),
         ATTEMPTS,
         "{stderr}"
     );

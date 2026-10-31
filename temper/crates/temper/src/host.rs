@@ -1,4 +1,5 @@
 //! The shell's adapter over the temper composition (jig's protocol/service.md, 7).
+//! Start refusals name their cause (temper/docs/design/protocol/README.md, 4).
 use crate::directories::Directories;
 use skein_io::kernel::{Complete, Exit, Submit};
 use skein_lib::{Queue, Time, Wall};
@@ -237,7 +238,6 @@ fn restore_kind(kind: temper_service::RestoreRangeKind) -> &'static str {
         Kind::Forge => "forge",
     }
 }
-// temper/docs/design/protocol/README.md, 4: name the refused fit or the store's cause.
 fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
     use jig_domain_core::start::Failure;
     match failure {
@@ -748,10 +748,10 @@ fn start_failures_name_the_set_key_setting_and_measured_limit() {
         (Failure::HeldPastLimit { which: HeldLimit::Versions, held: 5, limit: 4 }, "Versions, held 5, limit 4"),
         (
             Failure::Settings {
-                failure: settings::Failure { setting: settings::Setting::Policy(3), fault: settings::Fault::Budget },
+                failure: settings::Failure { setting: settings::Setting::Policy(1), fault: settings::Fault::Shape },
                 changed: true,
             },
-            "changed setting Policy(3): Budget",
+            "changed setting Policy(1): Shape",
         ),
         (
             Failure::Settings {
