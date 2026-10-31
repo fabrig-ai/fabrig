@@ -59,7 +59,6 @@ pub struct Config {
 pub(crate) enum StartState {
     Unselected,
     Starting,
-    Opened,
     Stopped,
 }
 
@@ -218,8 +217,9 @@ impl Domain {
     #[must_use]
     pub fn ready(&self) -> bool {
         match self.start.state {
-            StartState::Unselected | StartState::Opened => true,
-            StartState::Starting | StartState::Stopped => false,
+            StartState::Unselected => true,
+            StartState::Starting => self.core.start_opened(),
+            StartState::Stopped => false,
         }
     }
 
