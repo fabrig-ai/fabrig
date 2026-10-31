@@ -859,12 +859,8 @@ impl Host for Local {
     }
 }
 
-fn profile_refusal(error: smith_agent_service::profile::Refusal) -> String {
-    String::from_utf8(smith_agent_service::profile::words(&error).into_vec()).expect("refusal words are UTF-8")
-}
-
 fn derivation_refusal(field: &'static str) -> String {
-    profile_refusal(smith_agent_service::profile::Refusal::Derived {
+    crate::startup::profile_refusal(smith_agent_service::profile::Refusal::Derived {
         limit: smith_agent_service::profile::LimitName::deployment(smith_agent_service::profile::Layer::Service, field),
     })
 }

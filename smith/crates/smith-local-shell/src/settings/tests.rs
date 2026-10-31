@@ -612,8 +612,8 @@ fn refresh_profile(text: &str) -> Result<(smith_agent_service::profile::Profile,
             }]),
         }]),
     };
-    let limits = smith_agent_service::profile::derive(&profile, &configuration)
-        .map_err(|why| String::from_utf8_lossy(&smith_agent_service::profile::words(&why)).into_owned())?;
+    let limits =
+        smith_agent_service::profile::derive(&profile, &configuration).map_err(crate::startup::profile_refusal)?;
     Ok((profile, limits))
 }
 

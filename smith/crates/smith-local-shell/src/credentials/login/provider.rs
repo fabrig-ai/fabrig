@@ -2,7 +2,7 @@
 use super::super::{Account, Directory, host_id, registration, sign_in};
 use super::{Environment, LoginOutcome};
 use crate::settings::Settings;
-use driver::{Login, Stage};
+use driver::{Login, State};
 use skein_lib::{List, Queue};
 use skein_shell::Clock;
 use smith_local_service::Accounts;
@@ -105,7 +105,7 @@ pub(in crate::credentials) fn run(
         driver,
         name: account.name.clone(),
         outcome: None,
-        operation: if logout { Stage::SignOut } else { Stage::SignIn },
+        state: if logout { State::SignOut } else { State::SignIn },
         closing: false,
         notice: provider && first_plan,
         others,

@@ -196,9 +196,7 @@ fn compose(
     deliver_contract(&mut resolved.local, invocation.deliver);
     let WorkspaceRoots { paths, delivery_roots, effect_roots } = workspace_roots(&resolved.local, kind)?;
     let host_limits = host_limits(&resolved.agent, matches!(kind, AgentKind::Spawned { .. })).map_err(|why| {
-        Refused::Local(startup::Failure::Configuration {
-            detail: String::from_utf8_lossy(&smith_agent_service::profile::words(&why)).into_owned(),
-        })
+        Refused::Local(startup::Failure::Configuration { detail: crate::startup::profile_refusal(why) })
     })?;
     if matches!(kind, AgentKind::Spawned { .. }) {
         resolved.limits.agent = smith_local_domain::AgentLimits::Spawned(host_limits);

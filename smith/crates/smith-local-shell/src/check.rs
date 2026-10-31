@@ -251,8 +251,7 @@ pub fn render_text(report: &Report) -> String {
 
 fn startup_agent(resolved: &mut settings::resolve::Resolved) -> Result<(), String> {
     if crate::compose::program_account(&resolved.accounts) {
-        let host = crate::compose::host_limits(&resolved.agent, true)
-            .map_err(|why| String::from_utf8_lossy(&smith_agent_service::profile::words(&why)).into_owned())?;
+        let host = crate::compose::host_limits(&resolved.agent, true).map_err(crate::startup::profile_refusal)?;
         resolved.limits.agent = smith_local_domain::AgentLimits::Spawned(host);
     }
     Ok(())
@@ -330,7 +329,7 @@ fn derive_invocation(
         &resolved.agent,
         matches!(resolved.limits.agent, smith_local_domain::AgentLimits::Spawned(_)),
     )
-    .map_err(|why| String::from_utf8_lossy(&smith_agent_service::profile::words(&why)).into_owned())?;
+    .map_err(crate::startup::profile_refusal)?;
     let mut limits = crate::compose::service_limits(resolved.limits.clone(), host, &resolved.agent.service)?;
     if interactive {
         interactive_header(resolved, &mut limits, result_file)?;

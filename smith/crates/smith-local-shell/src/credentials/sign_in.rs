@@ -169,7 +169,9 @@ pub(crate) enum RecordFailure {
 
 impl RecordFailure {
     pub(crate) fn line(self) -> String {
-        "unreadable sign-in record".into()
+        match self {
+            Self::Invalid | Self::Unreadable => "unreadable sign-in record".into(),
+        }
     }
 }
 
