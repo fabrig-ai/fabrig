@@ -347,8 +347,9 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     if open {
         engine.forge.serving = Some(());
     }
+    engine.clients.playground = engine.domain.playground().copied();
     engine.clients.starting = if open { None } else { Some(()) };
-    engine.clients.iterate(now, wall, &mut engine.events, &engine.workers.forges, &mut engine.accounts);
+    engine.clients.iterate(now, wall, &mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
     clients_pass(engine);
     for _ in 0..engine.clients.early.len() {
         if engine.events.room() == 0 {
@@ -428,11 +429,11 @@ fn completes_pending(engine: &Engine) -> Option<bool> {
     }
 }
 fn clients_pass(engine: &mut Engine) {
-    engine.clients.advance(&mut engine.events, &engine.workers.forges, &mut engine.accounts);
+    engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
     if engine.end.is_none() && engine.store.component.mark_durable() {
         engine.clients.secrets_step(&mut engine.store);
     }
-    engine.clients.advance(&mut engine.events, &engine.workers.forges, &mut engine.accounts);
+    engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
 }
 pub(crate) fn release(engine: &mut Engine) {
     // Clocks are inputs too: Resume can observe a due timer even when normal

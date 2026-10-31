@@ -310,7 +310,7 @@ impl Service {
     }
     pub fn take_handover_read(&mut self) -> Option<crate::HandoverRead> {
         let engine = self.engine.as_mut()?;
-        crate::setup::lifecycle::take_read(engine)
+        match engine.clients.playground_read() { Some(read) => Some(read), None => crate::setup::lifecycle::take_read(engine) }
     }
     pub fn handover_read(
         &mut self,
@@ -319,7 +319,7 @@ impl Service {
         answer: Result<Option<skein_lib::Secret>, crate::HandoverUnread>,
     ) {
         if let Some(engine) = &mut self.engine {
-            crate::setup::lifecycle::read(engine, forge, run, answer);
+            if engine.clients.owns_playground_read(run) { engine.clients.playground_read_answer(run, answer); } else { crate::setup::lifecycle::read(engine, forge, run, answer); }
         }
     }
     pub fn take_handover_removal(&mut self) -> Option<crate::HandoverRemoval> {

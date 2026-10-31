@@ -6,6 +6,10 @@ use skein_lib::{List, Secret};
 #[derive(Debug)]
 pub struct Demo {
     pub provider: u32,
+    pub owner: Box<[u8]>,
+    pub name: Box<[u8]>,
+    pub cues: Box<[Box<[u8]>]>,
+    pub landing: Box<[u8]>,
     pub key_file: Box<[u8]>,
 }
 
