@@ -891,27 +891,24 @@ fn either_start_refusal_cause_assembles_an_invalid_end() {
         let (mut domain, _env) = fixture();
         let run = Token::new(1);
         let attempt = Token::new(7);
-        let payload = Token::new(99);
-        domain
-            .payloads
-            .insert(
-                payload,
-                crate::boundary::Payload::Answer {
-                    task: run.raw(),
-                    attempt: attempt.raw(),
-                    spent: 0,
-                    ending: host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
-                        cause,
-                        why: Box::from(&b"start refused"[..]),
-                    })),
-                    read: None,
-                    refused: Box::new([]),
-                },
-            )
-            .unwrap();
+        let payload = domain.hub_link.retain(jig_domain_hub_link::Payload::Answer {
+            task: run.raw(),
+            attempt: attempt.raw(),
+            cumulative: 0,
+            end: jig_domain_hub_link::Ending::Link(host::Ending::Refused(host::Refusal::Invalid(
+                host::Invalid::Start { cause, why: Box::from(&b"start refused"[..]) },
+            ))),
+            read: None,
+            refused: Box::new([]),
+        });
         let mut work = Queue::with_capacity(1);
-        crate::assemble::answer_payload(&mut domain, run, attempt, payload, &mut work);
-        let Some(crate::domain::Work::Core(core::Event::AnswerPayload {
+        jig_domain_hub_link::step(
+            &mut domain.hub_link,
+            Time::ZERO,
+            jig_domain_hub_link::Event::AnswerPayload { run, attempt, payload },
+            &mut work,
+        );
+        let Some(jig_domain_hub_link::Request::Core(core::Event::AnswerPayload {
             run: answered_run,
             attempt: answered_attempt,
             payload: answered_payload,
@@ -1059,7 +1056,19 @@ fn a_retained_turn_retry_fires_at_the_watermark() {
         })),
     );
     take(&mut domain, &env);
-    crate::turn_backoff::busy(&mut domain, &env, RUN, ATTEMPT, TURN);
+    let mut out = Queue::uncapped();
+    jig_domain_hub_link::step(
+        &mut domain.hub_link,
+        env.now,
+        jig_domain_hub_link::Event::TurnBusy {
+            run: RUN,
+            attempt: ATTEMPT,
+            turn: TURN,
+            retained: domain.host.has_turn(RUN, ATTEMPT, TURN),
+        },
+        &mut out,
+    );
+    assert!(out.is_empty());
     let due = domain.next_turn_deadline().expect("the retained turn has a retry");
     fill_to_watermark(&mut domain, &env);
     env.now = due;
