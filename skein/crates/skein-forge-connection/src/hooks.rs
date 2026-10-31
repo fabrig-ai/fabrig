@@ -2,7 +2,7 @@
 use crate::{Event, Limits};
 use skein_forge::api;
 use skein_io::Addr;
-use skein_lib::{Env, Id, Map, Queue, Slab, Time, Token};
+use skein_lib::{Env, Id, Lifecycle, Map, Queue, Slab, Time, Token};
 pub(crate) mod connection;
 use connection::{Closing, Hooked};
 /// The listener; each forge's webhook secret is in its access.
@@ -17,12 +17,6 @@ pub struct Hinted {
     pub hint: api::Hint,
 }
 const OWNER: Token = Token::new(1_u64 << 59_u32);
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Lifecycle {
-    Live,
-    Closing,
-    Aborting,
-}
 #[derive(Debug)]
 pub(crate) struct Hooks {
     listener: Option<Token>,
@@ -118,13 +112,10 @@ impl Hooks {
         self.lifecycle == Lifecycle::Aborting
     }
     pub fn close(&mut self) {
-        if !self.closing() {
-            self.lifecycle = Lifecycle::Closing;
-        }
+        self.lifecycle.close();
     }
     pub fn abort(&mut self) {
-        if !self.aborting() {
-            self.lifecycle = Lifecycle::Aborting;
+        if self.lifecycle.abort() {
             self.close_sent = false;
         }
     }
@@ -135,11 +126,8 @@ impl Hooks {
         let mut earliest = self.wake;
         for (_, id) in &self.connections {
             let c = self.slab.get(*id).expect("indexed hook");
-            if c.closing != Closing::Sent
-                && c.closing != Closing::Aborted
-                && (earliest.is_none() || Some(c.deadline) < earliest)
-            {
-                earliest = Some(c.deadline);
+            if c.closing != Closing::Sent && c.closing != Closing::Aborted {
+                earliest = Time::earliest(earliest, Some(c.deadline));
             }
         }
         earliest
@@ -232,7 +220,7 @@ mod tests {
         );
         hooks.drive(&env, &settings, &mut up, &mut io);
         let Some(skein_io::Request::Bind { owner, .. }) = io.pop() else { panic!("bind") };
-        while io.pop().is_some() {}
+        io.clear();
         let id = *hooks.connections.get(&owner).expect("hook");
         let c = hooks.slab.get_mut(id).expect("hook");
         c.closing = Closing::Pending;

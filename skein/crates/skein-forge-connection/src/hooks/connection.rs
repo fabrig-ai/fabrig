@@ -12,7 +12,7 @@ use skein_http::{Method, server as http};
 use skein_json::tokenizer::{self as json, Tokenizer};
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{
-    Env, Queue, Time, Token,
+    Env, Queue, Time, Token, hex,
     sha256::{self, Hmac},
 };
 
@@ -201,8 +201,8 @@ impl Hooked {
         let mut signature = [0; 64];
         for (digits, byte) in signature.chunks_exact_mut(2).zip(digest) {
             let [high, low] = digits else { unreachable!("hexadecimal pair") };
-            *high = *b"0123456789abcdef".get(usize::from(byte / 16)).expect("hexadecimal digit");
-            *low = *b"0123456789abcdef".get(usize::from(byte % 16)).expect("hexadecimal digit");
+            *high = hex::lower(byte >> 4);
+            *low = hex::lower(byte & 15);
         }
         let status = if !sha256::equal(&signature, &self.signature) {
             403

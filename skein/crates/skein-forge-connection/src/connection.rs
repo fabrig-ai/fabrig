@@ -346,12 +346,8 @@ impl Connection {
             self.draining = true;
             self.receive = Receiving::Empty;
             self.json_next = None;
-            for _ in 0..self.json_up.len() {
-                drop(self.json_up.pop());
-            }
-            for _ in 0..self.json_down.len() {
-                drop(self.json_down.pop());
-            }
+            self.json_up.clear();
+            self.json_down.clear();
             self.http_down(env, http::Request::Discard);
         }
     }

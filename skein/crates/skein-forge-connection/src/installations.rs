@@ -407,9 +407,7 @@ impl GitHub {
     }
     /// Access replacement drops private work and credentials, keeping the comparison table.
     pub fn forget(&mut self) {
-        for _ in 0..self.said_origins.len() {
-            drop(self.said_origins.pop());
-        }
+        self.said_origins.clear();
         self.connect = self.connect.wrapping_add(1);
         self.jwt.forget();
         self.puller.pause();
@@ -649,7 +647,7 @@ impl GitHub {
         };
         match self.work {
             Work::Waiting { until, .. } => {
-                earliest = Some(earliest.unwrap_or(until).min(until));
+                earliest = Time::earliest(earliest, Some(until));
             }
             Work::Idle | Work::Minting { .. } | Work::Identity { .. } => {}
         }
@@ -658,7 +656,7 @@ impl GitHub {
                 .into_iter()
                 .flatten()
             {
-                earliest = Some(earliest.unwrap_or(time).min(time));
+                earliest = Time::earliest(earliest, Some(time));
             }
         }
         earliest

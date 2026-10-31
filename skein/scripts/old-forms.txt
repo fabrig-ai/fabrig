@@ -6,7 +6,7 @@ takes 0
 worst_case 0
 io_resume 19
 earliest_helper 1
-enum_lifecycle 3
+enum_lifecycle 2
 growth_floor 1
-pop_loop 13
+pop_loop 9
 decimal_hex 16
