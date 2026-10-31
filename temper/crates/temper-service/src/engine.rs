@@ -533,6 +533,9 @@ pub(crate) fn answer(engine: &mut Engine) {
         }
         let event = engine.store.above.pop().expect("store terminals");
         match event {
+            jig_protocol_store::Event::Page { .. } | jig_protocol_store::Event::PageRefused { .. } => {
+                unreachable!("a start's pages need a start-mode store")
+            }
             jig_protocol_store::Event::Opened { installation, pending, .. } => {
                 engine.store.opened = true;
                 engine.store.pending_generation = pending;
