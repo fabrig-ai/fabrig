@@ -127,16 +127,7 @@ pub(super) fn account_state(run: &mut Run, ready: &mut crate::wind_down::Ready, 
         | State::Winding { .. }
         | State::Closed => return false,
     }
-    let ordinary = ordinary_left(run, now);
-    let exhausted = if ordinary.turns == 0 {
-        Some(Exhausted::Turns)
-    } else if ordinary.spend == 0 {
-        Some(Exhausted::Spend)
-    } else if ordinary.time == Duration::ZERO {
-        Some(Exhausted::Time)
-    } else {
-        None
-    };
+    let exhausted = gate(run, now, None);
     match exhausted {
         Some(exhausted) => begin_wind_down(run, ready, id, Cause::Budget(exhausted)),
         None => false,
@@ -216,20 +207,9 @@ pub(crate) fn completion_permit(domain: &mut Domain, conversation: Token, now: T
         | State::Stopping { .. }
         | State::Closed => return CompletionPermit::Closing,
     }
-    let ordinary = ordinary_left(run, now);
-    let spend_left = ordinary.spend.saturating_sub(run.reserved);
-    let spend_exhausted = match most {
-        Most::Bounded(amount) => amount > spend_left,
-        Most::Unreserved => spend_left == 0,
-    };
-    let changed = if ordinary.turns <= run.reserved_turns {
-        begin_wind_down(run, &mut domain.ready, run_id, Cause::Budget(Exhausted::Turns))
-    } else if spend_exhausted {
-        begin_wind_down(run, &mut domain.ready, run_id, Cause::Budget(Exhausted::Spend))
-    } else if ordinary.time == Duration::ZERO {
-        begin_wind_down(run, &mut domain.ready, run_id, Cause::Budget(Exhausted::Time))
-    } else {
-        false
+    let changed = match gate(run, now, Some(most)) {
+        Some(exhausted) => begin_wind_down(run, &mut domain.ready, run_id, Cause::Budget(exhausted)),
+        None => false,
     };
     if changed {
         domain.facts.begin(now);
@@ -243,6 +223,41 @@ pub(crate) fn completion_permit(domain: &mut Domain, conversation: Token, now: T
     }
     follow(&mut domain.runs, &mut domain.alarms, &mut domain.facts, &mut domain.ready, run_id);
     permit
+}
+
+fn gate(run: &Run, now: Time, completion: Option<Most>) -> Option<Exhausted> {
+    let ordinary = ordinary_left(run, now);
+    let held_turns = match completion {
+        Some(_) => run.reserved_turns,
+        None => 0,
+    };
+    let spend_exhausted = match completion {
+        Some(Most::Bounded(amount)) => amount > ordinary.spend.saturating_sub(run.reserved),
+        Some(Most::Unreserved) => ordinary.spend <= run.reserved,
+        None => ordinary.spend == 0,
+    };
+    if ordinary.turns <= held_turns {
+        Some(Exhausted::Turns)
+    } else if spend_exhausted {
+        Some(Exhausted::Spend)
+    } else if ordinary.time == Duration::ZERO {
+        Some(Exhausted::Time)
+    } else {
+        None
+    }
+}
+
+fn final_turn_failure(run: &Run) -> Option<Exhausted> {
+    match &run.wind_down {
+        Some(crate::wind_down::WindDown::Finishing { used, cause, .. }) if *used >= run.charter.reserve.turns => {
+            Some(if run.charter.reserve.turns == 0 && *cause == Cause::Budget(Exhausted::Spend) {
+                Exhausted::Spend
+            } else {
+                Exhausted::Turns
+            })
+        }
+        Some(crate::wind_down::WindDown::Finishing { .. } | crate::wind_down::WindDown::Settling { .. }) | None => None,
+    }
 }
 
 fn working_permit(run: &mut Run, child: bool, now: Time) -> CompletionPermit {
@@ -261,17 +276,12 @@ fn working_permit(run: &mut Run, child: bool, now: Time) -> CompletionPermit {
     if !child && completion_held(run) {
         return CompletionPermit::Held;
     }
+    if let Some(reason) = final_turn_failure(run) {
+        return CompletionPermit::Denied(reason);
+    }
     match &mut run.wind_down {
         Some(crate::wind_down::WindDown::Settling { .. }) => CompletionPermit::Held,
-        Some(crate::wind_down::WindDown::Finishing { used, noted, cause }) => {
-            if *used >= run.charter.reserve.turns {
-                let reason = if run.charter.reserve.turns == 0 && *cause == Cause::Budget(Exhausted::Spend) {
-                    Exhausted::Spend
-                } else {
-                    Exhausted::Turns
-                };
-                return CompletionPermit::Denied(reason);
-            }
+        Some(crate::wind_down::WindDown::Finishing { used: _, noted, cause }) => {
             let note = if *noted {
                 None
             } else {
@@ -298,17 +308,9 @@ pub(super) fn final_remaining(run: &Run, now: Time) -> Result<(), Exhausted> {
     if now >= run.deadline {
         return Err(Exhausted::Time);
     }
-    match &run.wind_down {
-        Some(crate::wind_down::WindDown::Finishing { used, cause, .. }) if *used >= run.charter.reserve.turns => {
-            Err(if run.charter.reserve.turns == 0 && *cause == Cause::Budget(Exhausted::Spend) {
-                Exhausted::Spend
-            } else {
-                Exhausted::Turns
-            })
-        }
-        Some(crate::wind_down::WindDown::Finishing { .. } | crate::wind_down::WindDown::Settling { .. }) | None => {
-            Ok(())
-        }
+    match final_turn_failure(run) {
+        Some(reason) => Err(reason),
+        None => Ok(()),
     }
 }
 
