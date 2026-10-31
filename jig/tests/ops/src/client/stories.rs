@@ -34,7 +34,7 @@ pub fn lead() -> Address {
 /// Explicit environment address, independent of its creation purpose.
 #[must_use]
 pub fn environment() -> Address {
-    Address::Infrastructure(infra::Address::NativeEnvironment { project: 1, environment: environment_name() })
+    Address::Infrastructure(infra::Address::Environment { project: 1, environment: environment_name() })
 }
 pub(super) fn seen(tree: &ViewTree) -> Vec<Seen> {
     let mut seen = observe::jig_seen(tree);
@@ -57,7 +57,7 @@ pub(super) fn seen(tree: &ViewTree) -> Vec<Seen> {
         } else {
             CardSeen::Waiting
         };
-        // The native form supplies the owner's end revision as the public
+        // The form supplies the owner's end revision as the public
         // field's write version, alongside the whole client object identity.
         let revision = tree.nodes()[at..at + usize::try_from(node.size).expect("card subtree")]
             .iter()
@@ -69,12 +69,12 @@ pub(super) fn seen(tree: &ViewTree) -> Vec<Seen> {
     seen
 }
 #[must_use]
-pub fn incident_document() -> obs::native::Document {
-    let previous = obs::native::Health { observed: 36_000, healthy_replicas: 3, errors: 2, error_rate_percent: 2 };
-    obs::native::Document {
+pub fn incident_document() -> obs::values::Document {
+    let previous = obs::values::Health { observed: 36_000, healthy_replicas: 3, errors: 2, error_rate_percent: 2 };
+    obs::values::Document {
         subject: obs::Subject { scope: obs::Scope::Project(1), kind: obs::Kind::Incident(12) },
-        value: obs::native::Value::Incident {
-            incident: obs::native::Incident {
+        value: obs::values::Value::Incident {
+            incident: obs::values::Incident {
                 project: 1,
                 number: 12,
                 watch: 888,
@@ -85,7 +85,7 @@ pub fn incident_document() -> obs::native::Document {
                 },
                 severity: 2,
                 state: obs::documents::State::Alerting,
-                timeline: list([obs::native::Point {
+                timeline: list([obs::values::Point {
                     at: Wall::from_nanos(36_000_000_000_000),
                     health: Some(previous),
                 }]),
@@ -93,7 +93,7 @@ pub fn incident_document() -> obs::native::Document {
                 lead: Some(9),
                 alerts: Box::new([]),
             },
-            fact: Some(obs::native::Fact {
+            fact: Some(obs::values::Fact {
                 observed: 36_120,
                 healthy_replicas: 2,
                 errors: 30,
@@ -105,32 +105,29 @@ pub fn incident_document() -> obs::native::Document {
     }
 }
 #[must_use]
-pub fn environment_name() -> infra::native::Environment {
-    infra::native::Environment { pool: b"Q pool".as_slice().into(), name: b"staging-7".as_slice().into() }
+pub fn environment_name() -> infra::values::Environment {
+    infra::values::Environment { pool: b"Q pool".as_slice().into(), name: b"staging-7".as_slice().into() }
 }
 #[must_use]
-pub fn environment_document() -> infra::native::Document {
-    infra::native::Document {
-        subject: infra::Subject {
-            scope: infra::Scope::Project(1),
-            kind: infra::Kind::NativeEnvironment(environment_name()),
-        },
-        value: infra::native::Value::Environment {
+pub fn environment_document() -> infra::values::Document {
+    infra::values::Document {
+        subject: infra::Subject { scope: infra::Scope::Project(1), kind: infra::Kind::Environment(environment_name()) },
+        value: infra::values::Value::Environment {
             environment: environment_name(),
             end_revision: 5,
-            fact: infra::native::EnvironmentFact {
-                created_by: infra::native::Key {
+            fact: infra::values::EnvironmentFact {
+                created_by: infra::values::Key {
                     deployment: [1; 16],
                     task: 10,
-                    origin: infra::native::Purpose::Procedure { purpose: 2 },
+                    origin: infra::values::Purpose::Procedure { purpose: 2 },
                     purpose: 2,
                 },
                 ready_at: 30,
                 until: 123,
                 price: 40,
             },
-            end: Some(infra::native::EnvironmentEnd { revision: 5, until: 600 }),
-            pool: Some(infra::native::ClientPool { quota: 2, used: 1 }),
+            end: Some(infra::values::EnvironmentEnd { revision: 5, until: 600 }),
+            pool: Some(infra::values::ClientPool { quota: 2, used: 1 }),
         },
     }
 }
@@ -253,29 +250,29 @@ pub fn incident_world(seed: u64) -> ClientWorld {
     });
     let mut ops = OpsScript::default();
     let incident = incident_document();
-    let obs::native::Value::Incident { incident: row, .. } = &incident.value else { unreachable!() };
+    let obs::values::Value::Incident { incident: row, .. } = &incident.value else { unreachable!() };
     let rows = list([row.clone()]);
-    let incident_doc = obs::Document::Native(Box::new(incident));
+    let incident_doc = obs::Document::Value(Box::new(incident));
     ops.documents.insert(Subject::Observability(incident_doc.subject()), Document::Observability(incident_doc));
     let subject = obs::Subject { scope: obs::Scope::Project(1), kind: obs::Kind::Incidents { open: true } };
     ops.documents.insert(
         Subject::Observability(subject),
-        Document::Observability(obs::Document::Native(Box::new(obs::native::Document {
+        Document::Observability(obs::Document::Value(Box::new(obs::values::Document {
             subject,
-            value: obs::native::Value::Project { project: 1, services: list([]), incidents: rows },
+            value: obs::values::Value::Project { project: 1, services: list([]), incidents: rows },
         }))),
     );
     let subject = infra::Subject { scope: infra::Scope::Project(1), kind: infra::Kind::Panel(10) };
     ops.documents.insert(
         Subject::Infrastructure(subject.clone()),
-        Document::Infrastructure(infra::Document::Native(Box::new(infra::native::Document {
+        Document::Infrastructure(infra::Document::Value(Box::new(infra::values::Document {
             subject,
-            value: infra::native::Value::Panel {
+            value: infra::values::Value::Panel {
                 task: 10,
-                state: infra::native::ProcedureState {
+                state: infra::values::ProcedureState {
                     task: 10,
-                    procedure: infra::native::Procedure::Remediate { service: service(), operation: 17, deadline: 900 },
-                    phase: infra::native::ProcedurePhase::WaitingCondition,
+                    procedure: infra::values::Procedure::Remediate { service: service(), operation: 17, deadline: 900 },
+                    phase: infra::values::ProcedurePhase::WaitingCondition,
                 },
                 resources: list([]),
                 effects: list([]),
@@ -285,13 +282,13 @@ pub fn incident_world(seed: u64) -> ClientWorld {
     let subject = infra::Subject { scope: infra::Scope::Project(1), kind: infra::Kind::OwnerEffect(p.key.number) };
     ops.documents.insert(
         Subject::Infrastructure(subject.clone()),
-        Document::Infrastructure(infra::Document::Native(Box::new(infra::native::Document {
+        Document::Infrastructure(infra::Document::Value(Box::new(infra::values::Document {
             subject,
-            value: infra::native::Value::Effect {
+            value: infra::values::Value::Effect {
                 proposal: p.key.number,
                 task: 10,
-                effect: infra::native::Effect::Restart { service: service(), operation: 17 },
-                description: description(1, None, true, infra::native::Form::Transition),
+                effect: infra::values::Effect::Restart { service: service(), operation: 17 },
+                description: description(1, None, true, infra::values::Form::Transition),
             },
         }))),
     );
@@ -345,21 +342,21 @@ fn configured(seed: u64, truth: Truth, ops: OpsScript, rules: Vec<jig_client_scr
         ),
     )
 }
-fn service() -> infra::native::Service {
-    infra::native::Service { environment: b"production".as_slice().into(), name: b"checkout".as_slice().into() }
+fn service() -> infra::values::Service {
+    infra::values::Service { environment: b"production".as_slice().into(), name: b"checkout".as_slice().into() }
 }
 fn description(
     kind: u16,
     price: Option<u64>,
     condition: bool,
-    form: infra::native::Form,
-) -> infra::native::Description {
-    infra::native::Description {
+    form: infra::values::Form,
+) -> infra::values::Description {
+    infra::values::Description {
         kind,
         resources: Box::new([]),
         condition,
         form,
-        recovery: infra::native::Recovery::Keyed,
+        recovery: infra::values::Recovery::Keyed,
         price,
         state: 1,
     }
@@ -458,17 +455,17 @@ pub fn environment_world(seed: u64) -> ClientWorld {
     let subject = infra::Subject { scope: infra::Scope::Project(1), kind: infra::Kind::OwnerEffect(p.key.number) };
     ops.documents.insert(
         Subject::Infrastructure(subject.clone()),
-        Document::Infrastructure(infra::Document::Native(Box::new(infra::native::Document {
+        Document::Infrastructure(infra::Document::Value(Box::new(infra::values::Document {
             subject,
-            value: infra::native::Value::Effect {
+            value: infra::values::Value::Effect {
                 proposal: p.key.number,
                 task: 10,
-                effect: infra::native::Effect::CreateEnvironment {
+                effect: infra::values::Effect::CreateEnvironment {
                     environment: environment_name(),
                     until: 600,
                     price: 40,
                 },
-                description: description(3, Some(40), false, infra::native::Form::Creation),
+                description: description(3, Some(40), false, infra::values::Form::Creation),
             },
         }))),
     );
@@ -479,20 +476,19 @@ pub fn provision(world: &mut ClientWorld) {
     let now = world.now();
     let mut ops = world.front().engine.application().clone();
     let environment = environment_document();
-    let infra::native::Value::Environment { environment: name, fact, end, pool, .. } = &environment.value else {
+    let infra::values::Value::Environment { environment: name, fact, end, pool, .. } = &environment.value else {
         unreachable!()
     };
     let rows =
-        list([infra::native::ClientEnvironment { environment: name.clone(), fact: *fact, end: *end, pool: *pool }]);
-    let document = infra::Document::Native(Box::new(environment));
+        list([infra::values::ClientEnvironment { environment: name.clone(), fact: *fact, end: *end, pool: *pool }]);
+    let document = infra::Document::Value(Box::new(environment));
     ops.documents.insert(Subject::Infrastructure(document.subject()), Document::Infrastructure(document));
-    let subject =
-        infra::Subject { scope: infra::Scope::Project(1), kind: infra::Kind::NativeEnvironments { pool: None } };
+    let subject = infra::Subject { scope: infra::Scope::Project(1), kind: infra::Kind::Environments { pool: None } };
     ops.documents.insert(
         Subject::Infrastructure(subject.clone()),
-        Document::Infrastructure(infra::Document::Native(Box::new(infra::native::Document {
+        Document::Infrastructure(infra::Document::Value(Box::new(infra::values::Document {
             subject,
-            value: infra::native::Value::Project { project: 1, resources: list([]), environments: rows },
+            value: infra::values::Value::Project { project: 1, resources: list([]), environments: rows },
         }))),
     );
     world
@@ -506,9 +502,9 @@ pub fn resolve(world: &mut ClientWorld) {
     let now = world.now();
     let mut ops = world.front().engine.application().clone();
     let mut incident = incident_document();
-    let obs::native::Value::Incident { incident: row, fact } = &mut incident.value else { unreachable!() };
+    let obs::values::Value::Incident { incident: row, fact } = &mut incident.value else { unreachable!() };
     row.state = obs::documents::State::Resolved;
-    *fact = Some(obs::native::Fact {
+    *fact = Some(obs::values::Fact {
         observed: 36_240,
         healthy_replicas: 3,
         errors: 0,
@@ -516,7 +512,7 @@ pub fn resolve(world: &mut ClientWorld) {
         load_percent: 0,
         load: Box::new([]),
     });
-    let document = obs::Document::Native(Box::new(incident));
+    let document = obs::Document::Value(Box::new(incident));
     ops.documents.insert(Subject::Observability(document.subject()), Document::Observability(document));
     let lead = world.front().engine.truth().objects[&ObjectKey::Task(9)].clone();
     let ReadValue::Task(lead) = lead else { unreachable!("supplied lead is task") };

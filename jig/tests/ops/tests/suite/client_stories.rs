@@ -186,21 +186,21 @@ fn q_asks_for_an_environment_in_a_chat_and_accepts_what_it_costs() {
             .documents
             .get(&jig_ops_world::client::Subject::Infrastructure(jig_ops_client_domain::infrastructure::Subject {
                 scope: jig_ops_client_domain::infrastructure::Scope::Project(1),
-                kind: jig_ops_client_domain::infrastructure::Kind::NativeEnvironment(stories::environment_name()),
+                kind: jig_ops_client_domain::infrastructure::Kind::Environment(stories::environment_name()),
             }))
             .expect("original owner environment retained");
-        let jig_ops_world::client::Document::Infrastructure(jig_ops_client_domain::infrastructure::Document::Native(
+        let jig_ops_world::client::Document::Infrastructure(jig_ops_client_domain::infrastructure::Document::Value(
             after,
         )) = doc
         else {
             unreachable!()
         };
-        let jig_ops_client_domain::infrastructure::native::Value::Environment { end, fact, end_revision, .. } =
+        let jig_ops_client_domain::infrastructure::values::Value::Environment { end, fact, end_revision, .. } =
             &after.value
         else {
             unreachable!()
         };
-        let jig_ops_client_domain::infrastructure::native::Value::Environment { fact: before, .. } = &subject.value
+        let jig_ops_client_domain::infrastructure::values::Value::Environment { fact: before, .. } = &subject.value
         else {
             unreachable!()
         };

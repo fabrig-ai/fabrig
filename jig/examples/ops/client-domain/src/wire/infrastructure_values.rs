@@ -24,26 +24,26 @@ pub(crate) fn scope_decode(value: w::InfrastructureScope) -> d::Scope {
 
 pub(crate) fn kind_encode(value: &d::Kind) -> Result<w::InfrastructureKind, Invalid> {
     Ok(match value {
-        d::Kind::NativeEnvironment(value) => {
-            let parts = w::InfrastructureKindNativeEnvironmentParts {
-                value: crate::wire::infrastructure_native::environment_encode(value)?,
+        d::Kind::Environment(value) => {
+            let parts = w::InfrastructureKindEnvironmentParts {
+                value: crate::wire::infrastructure_data::environment_encode(value)?,
             };
-            let Ok(value) = w::InfrastructureKindNativeEnvironment::new(&w::CEILINGS, parts) else {
+            let Ok(value) = w::InfrastructureKindEnvironment::new(&w::CEILINGS, parts) else {
                 return Err(Invalid);
             };
-            w::InfrastructureKind::NativeEnvironment(value)
+            w::InfrastructureKind::Environment(value)
         }
-        d::Kind::NativeEnvironments { pool } => {
-            let parts = w::InfrastructureKindNativeEnvironmentsParts {
+        d::Kind::Environments { pool } => {
+            let parts = w::InfrastructureKindEnvironmentsParts {
                 pool: match pool {
-                    Some(item) => Some(crate::wire::infrastructure_native::pool_encode(item)?),
+                    Some(item) => Some(crate::wire::infrastructure_data::pool_encode(item)?),
                     None => None,
                 },
             };
-            let Ok(value) = w::InfrastructureKindNativeEnvironments::new(&w::CEILINGS, parts) else {
+            let Ok(value) = w::InfrastructureKindEnvironments::new(&w::CEILINGS, parts) else {
                 return Err(Invalid);
             };
-            w::InfrastructureKind::NativeEnvironments(value)
+            w::InfrastructureKind::Environments(value)
         }
         d::Kind::Panel(value) => {
             let parts = w::InfrastructureKindPanelParts { value: (*value) };
@@ -87,15 +87,15 @@ pub(crate) fn kind_encode(value: &d::Kind) -> Result<w::InfrastructureKind, Inva
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn kind_decode(value: w::InfrastructureKind) -> d::Kind {
     match value {
-        w::InfrastructureKind::NativeEnvironment(value) => {
+        w::InfrastructureKind::Environment(value) => {
             let value = value.into_parts();
-            d::Kind::NativeEnvironment(crate::wire::infrastructure_native::environment_decode(value.value))
+            d::Kind::Environment(crate::wire::infrastructure_data::environment_decode(value.value))
         }
-        w::InfrastructureKind::NativeEnvironments(value) => {
+        w::InfrastructureKind::Environments(value) => {
             let value = value.into_parts();
-            d::Kind::NativeEnvironments {
+            d::Kind::Environments {
                 pool: match value.pool {
-                    Some(item) => Some(crate::wire::infrastructure_native::pool_decode(item)),
+                    Some(item) => Some(crate::wire::infrastructure_data::pool_decode(item)),
                     None => None,
                 },
             }
@@ -145,49 +145,49 @@ pub(crate) fn subject_decode(value: w::InfrastructureSubject) -> d::Subject {
 
 pub(crate) fn document_encode(value: &d::Document) -> Result<w::InfrastructureDocument, Invalid> {
     Ok(match value {
-        d::Document::Native(value) => {
-            let parts = w::InfrastructureDocumentNativeParts {
-                value: crate::wire::infrastructure_native::document_encode(value)?,
+        d::Document::Value(value) => {
+            let parts = w::InfrastructureDocumentValueParts {
+                value: crate::wire::infrastructure_data::document_encode(value)?,
             };
-            let Ok(value) = w::InfrastructureDocumentNative::new(&w::CEILINGS, parts) else { return Err(Invalid) };
-            w::InfrastructureDocument::Native(value)
+            let Ok(value) = w::InfrastructureDocumentValue::new(&w::CEILINGS, parts) else { return Err(Invalid) };
+            w::InfrastructureDocument::Value(value)
         }
     })
 }
 
 pub(crate) fn document_decode(value: w::InfrastructureDocument) -> d::Document {
     match value {
-        w::InfrastructureDocument::Native(value) => {
+        w::InfrastructureDocument::Value(value) => {
             let value = value.into_parts();
-            d::Document::Native(Box::new(crate::wire::infrastructure_native::document_decode(value.value)))
+            d::Document::Value(Box::new(crate::wire::infrastructure_data::document_decode(value.value)))
         }
     }
 }
 
 pub(crate) fn ask_encode(value: &d::Ask) -> Result<w::InfrastructureAsk, Invalid> {
     Ok(match value {
-        d::Ask::NativeMoveEnd { object, project, environment, revision, until } => {
-            let parts = w::InfrastructureAskNativeMoveEndParts {
+        d::Ask::MoveEnd { object, project, environment, revision, until } => {
+            let parts = w::InfrastructureAskMoveEndParts {
                 object: (*object).raw(),
                 project: (*project),
-                environment: crate::wire::infrastructure_native::environment_encode(environment)?,
+                environment: crate::wire::infrastructure_data::environment_encode(environment)?,
                 revision: revision.value,
                 until: (*until),
             };
-            let Ok(value) = w::InfrastructureAskNativeMoveEnd::new(&w::CEILINGS, parts) else { return Err(Invalid) };
-            w::InfrastructureAsk::NativeMoveEnd(value)
+            let Ok(value) = w::InfrastructureAskMoveEnd::new(&w::CEILINGS, parts) else { return Err(Invalid) };
+            w::InfrastructureAsk::MoveEnd(value)
         }
     })
 }
 
 pub(crate) fn ask_decode(value: w::InfrastructureAsk) -> d::Ask {
     match value {
-        w::InfrastructureAsk::NativeMoveEnd(value) => {
+        w::InfrastructureAsk::MoveEnd(value) => {
             let value = value.into_parts();
-            d::Ask::NativeMoveEnd {
+            d::Ask::MoveEnd {
                 object: skein_lib::Token::new(value.object),
                 project: value.project,
-                environment: crate::wire::infrastructure_native::environment_decode(value.environment),
+                environment: crate::wire::infrastructure_data::environment_decode(value.environment),
                 revision: jig_client::contract::Revision { value: value.revision },
                 until: value.until,
             }
@@ -228,25 +228,25 @@ pub(crate) fn refusal_decode(value: w::InfrastructureRefusal) -> d::Refusal {
 
 pub(crate) fn answer_encode(value: &d::Answer) -> Result<w::InfrastructureAnswer, Invalid> {
     Ok(match value {
-        d::Answer::NativeMovedEnd { environment, revision, until } => {
-            let parts = w::InfrastructureAnswerNativeMovedEndParts {
-                environment: crate::wire::infrastructure_native::environment_encode(environment)?,
+        d::Answer::MovedEnd { environment, revision, until } => {
+            let parts = w::InfrastructureAnswerMovedEndParts {
+                environment: crate::wire::infrastructure_data::environment_encode(environment)?,
                 revision: revision.value,
                 until: (*until),
             };
-            let Ok(value) = w::InfrastructureAnswerNativeMovedEnd::new(&w::CEILINGS, parts) else {
+            let Ok(value) = w::InfrastructureAnswerMovedEnd::new(&w::CEILINGS, parts) else {
                 return Err(Invalid);
             };
-            w::InfrastructureAnswer::NativeMovedEnd(value)
+            w::InfrastructureAnswer::MovedEnd(value)
         }
-        d::Answer::NativeMoved { environment, revision, until } => {
-            let parts = w::InfrastructureAnswerNativeMovedParts {
-                environment: crate::wire::infrastructure_native::environment_encode(environment)?,
+        d::Answer::Moved { environment, revision, until } => {
+            let parts = w::InfrastructureAnswerMovedParts {
+                environment: crate::wire::infrastructure_data::environment_encode(environment)?,
                 revision: revision.value,
                 until: (*until),
             };
-            let Ok(value) = w::InfrastructureAnswerNativeMoved::new(&w::CEILINGS, parts) else { return Err(Invalid) };
-            w::InfrastructureAnswer::NativeMoved(value)
+            let Ok(value) = w::InfrastructureAnswerMoved::new(&w::CEILINGS, parts) else { return Err(Invalid) };
+            w::InfrastructureAnswer::Moved(value)
         }
         d::Answer::Gone => w::InfrastructureAnswer::Gone,
         d::Answer::Refused { why } => {
@@ -260,18 +260,18 @@ pub(crate) fn answer_encode(value: &d::Answer) -> Result<w::InfrastructureAnswer
 
 pub(crate) fn answer_decode(value: w::InfrastructureAnswer) -> d::Answer {
     match value {
-        w::InfrastructureAnswer::NativeMovedEnd(value) => {
+        w::InfrastructureAnswer::MovedEnd(value) => {
             let value = value.into_parts();
-            d::Answer::NativeMovedEnd {
-                environment: crate::wire::infrastructure_native::environment_decode(value.environment),
+            d::Answer::MovedEnd {
+                environment: crate::wire::infrastructure_data::environment_decode(value.environment),
                 revision: jig_client::contract::Revision { value: value.revision },
                 until: value.until,
             }
         }
-        w::InfrastructureAnswer::NativeMoved(value) => {
+        w::InfrastructureAnswer::Moved(value) => {
             let value = value.into_parts();
-            d::Answer::NativeMoved {
-                environment: crate::wire::infrastructure_native::environment_decode(value.environment),
+            d::Answer::Moved {
+                environment: crate::wire::infrastructure_data::environment_decode(value.environment),
                 revision: jig_client::contract::Revision { value: value.revision },
                 until: value.until,
             }

@@ -1,45 +1,44 @@
-//! Whole-value mappings for observability/native.
-use crate::observability::native as d;
+//! Whole-value mappings for observability/values.
+use crate::observability::values as d;
 use crate::wire::{Invalid, w};
 use skein_lib::List;
-pub(crate) fn value_encode(value: &d::Value) -> Result<w::ObservabilityNativeValue, Invalid> {
+pub(crate) fn value_encode(value: &d::Value) -> Result<w::ObservabilityValue, Invalid> {
     Ok(match value {
         d::Value::Service { service, fact } => {
-            let parts = w::ObservabilityNativeValueServiceParts {
+            let parts = w::ObservabilityValueServiceParts {
                 service: crate::wire::observability_values::service_encode(service)?,
-                fact: crate::wire::observability_native::fact_encode(fact)?,
+                fact: crate::wire::observability_data::fact_encode(fact)?,
             };
-            let Ok(value) = w::ObservabilityNativeValueService::new(&w::CEILINGS, parts) else { return Err(Invalid) };
-            w::ObservabilityNativeValue::Service(value)
+            let Ok(value) = w::ObservabilityValueService::new(&w::CEILINGS, parts) else { return Err(Invalid) };
+            w::ObservabilityValue::Service(value)
         }
         d::Value::Alert { alert, raised, state, fact } => {
-            let parts = w::ObservabilityNativeValueAlertParts {
-                alert: crate::wire::observability_native::alert_encode(alert)?,
+            let parts = w::ObservabilityValueAlertParts {
+                alert: crate::wire::observability_data::alert_encode(alert)?,
                 raised: (*raised).as_nanos(),
                 state: crate::wire::observability_values::state_encode(*state),
                 fact: match fact {
-                    Some(item) => Some(crate::wire::observability_native::fact_encode(item)?),
+                    Some(item) => Some(crate::wire::observability_data::fact_encode(item)?),
                     None => None,
                 },
             };
-            let Ok(value) = w::ObservabilityNativeValueAlert::new(&w::CEILINGS, parts) else { return Err(Invalid) };
-            w::ObservabilityNativeValue::Alert(value)
+            let Ok(value) = w::ObservabilityValueAlert::new(&w::CEILINGS, parts) else { return Err(Invalid) };
+            w::ObservabilityValue::Alert(value)
         }
         d::Value::Outbox { entry } => {
-            let parts = w::ObservabilityNativeValueOutboxParts {
-                entry: crate::wire::observability_native::entry_encode(entry)?,
-            };
-            let Ok(value) = w::ObservabilityNativeValueOutbox::new(&w::CEILINGS, parts) else { return Err(Invalid) };
-            w::ObservabilityNativeValue::Outbox(value)
+            let parts =
+                w::ObservabilityValueOutboxParts { entry: crate::wire::observability_data::entry_encode(entry)? };
+            let Ok(value) = w::ObservabilityValueOutbox::new(&w::CEILINGS, parts) else { return Err(Invalid) };
+            w::ObservabilityValue::Outbox(value)
         }
         d::Value::Deployment { watches, effects, read_limit, incident_limit } => {
-            let parts = w::ObservabilityNativeValueDeploymentParts {
+            let parts = w::ObservabilityValueDeploymentParts {
                 watches: (*watches),
                 effects: {
                     let source = effects;
                     let mut values = List::with_capacity(source.capacity());
                     for item in source {
-                        let value = crate::wire::observability_native::entry_encode(item)?;
+                        let value = crate::wire::observability_data::entry_encode(item)?;
                         if values.push(value).is_err() {
                             return Err(Invalid);
                         }
@@ -49,30 +48,30 @@ pub(crate) fn value_encode(value: &d::Value) -> Result<w::ObservabilityNativeVal
                 read_limit: (*read_limit),
                 incident_limit: (*incident_limit),
             };
-            let Ok(value) = w::ObservabilityNativeValueDeployment::new(&w::CEILINGS, parts) else {
+            let Ok(value) = w::ObservabilityValueDeployment::new(&w::CEILINGS, parts) else {
                 return Err(Invalid);
             };
-            w::ObservabilityNativeValue::Deployment(value)
+            w::ObservabilityValue::Deployment(value)
         }
         d::Value::Incident { incident, fact } => {
-            let parts = w::ObservabilityNativeValueIncidentParts {
-                incident: crate::wire::observability_native::incident_encode(incident)?,
+            let parts = w::ObservabilityValueIncidentParts {
+                incident: crate::wire::observability_data::incident_encode(incident)?,
                 fact: match fact {
-                    Some(item) => Some(crate::wire::observability_native::fact_encode(item)?),
+                    Some(item) => Some(crate::wire::observability_data::fact_encode(item)?),
                     None => None,
                 },
             };
-            let Ok(value) = w::ObservabilityNativeValueIncident::new(&w::CEILINGS, parts) else { return Err(Invalid) };
-            w::ObservabilityNativeValue::Incident(value)
+            let Ok(value) = w::ObservabilityValueIncident::new(&w::CEILINGS, parts) else { return Err(Invalid) };
+            w::ObservabilityValue::Incident(value)
         }
         d::Value::Project { project, services, incidents } => {
-            let parts = w::ObservabilityNativeValueProjectParts {
+            let parts = w::ObservabilityValueProjectParts {
                 project: (*project),
                 services: {
                     let source = services;
                     let mut values = List::with_capacity(source.capacity());
                     for item in source {
-                        let value = crate::wire::observability_native::service_state_encode(item)?;
+                        let value = crate::wire::observability_data::service_state_encode(item)?;
                         if values.push(value).is_err() {
                             return Err(Invalid);
                         }
@@ -83,7 +82,7 @@ pub(crate) fn value_encode(value: &d::Value) -> Result<w::ObservabilityNativeVal
                     let source = incidents;
                     let mut values = List::with_capacity(source.capacity());
                     for item in source {
-                        let value = crate::wire::observability_native::incident_encode(item)?;
+                        let value = crate::wire::observability_data::incident_encode(item)?;
                         if values.push(value).is_err() {
                             return Err(Invalid);
                         }
@@ -91,38 +90,38 @@ pub(crate) fn value_encode(value: &d::Value) -> Result<w::ObservabilityNativeVal
                     values
                 },
             };
-            let Ok(value) = w::ObservabilityNativeValueProject::new(&w::CEILINGS, parts) else { return Err(Invalid) };
-            w::ObservabilityNativeValue::Project(value)
+            let Ok(value) = w::ObservabilityValueProject::new(&w::CEILINGS, parts) else { return Err(Invalid) };
+            w::ObservabilityValue::Project(value)
         }
     })
 }
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn value_decode(value: w::ObservabilityNativeValue) -> d::Value {
+pub(crate) fn value_decode(value: w::ObservabilityValue) -> d::Value {
     match value {
-        w::ObservabilityNativeValue::Service(value) => {
+        w::ObservabilityValue::Service(value) => {
             let value = value.into_parts();
             d::Value::Service {
                 service: crate::wire::observability_values::service_decode(value.service),
-                fact: crate::wire::observability_native::fact_decode(value.fact),
+                fact: crate::wire::observability_data::fact_decode(value.fact),
             }
         }
-        w::ObservabilityNativeValue::Alert(value) => {
+        w::ObservabilityValue::Alert(value) => {
             let value = value.into_parts();
             d::Value::Alert {
-                alert: crate::wire::observability_native::alert_decode(value.alert),
+                alert: crate::wire::observability_data::alert_decode(value.alert),
                 raised: skein_lib::Wall::from_nanos(value.raised),
                 state: crate::wire::observability_values::state_decode(value.state),
                 fact: match value.fact {
-                    Some(item) => Some(crate::wire::observability_native::fact_decode(item)),
+                    Some(item) => Some(crate::wire::observability_data::fact_decode(item)),
                     None => None,
                 },
             }
         }
-        w::ObservabilityNativeValue::Outbox(value) => {
+        w::ObservabilityValue::Outbox(value) => {
             let value = value.into_parts();
-            d::Value::Outbox { entry: crate::wire::observability_native::entry_decode(value.entry) }
+            d::Value::Outbox { entry: crate::wire::observability_data::entry_decode(value.entry) }
         }
-        w::ObservabilityNativeValue::Deployment(value) => {
+        w::ObservabilityValue::Deployment(value) => {
             let value = value.into_parts();
             d::Value::Deployment {
                 watches: value.watches,
@@ -130,7 +129,7 @@ pub(crate) fn value_decode(value: w::ObservabilityNativeValue) -> d::Value {
                     let source = value.effects;
                     let mut values = List::with_capacity(source.capacity());
                     for item in source.into_boxed() {
-                        let value = crate::wire::observability_native::entry_decode(item);
+                        let value = crate::wire::observability_data::entry_decode(item);
                         assert!(values.push(value).is_ok(), "same list capacity");
                     }
                     values
@@ -139,17 +138,17 @@ pub(crate) fn value_decode(value: w::ObservabilityNativeValue) -> d::Value {
                 incident_limit: value.incident_limit,
             }
         }
-        w::ObservabilityNativeValue::Incident(value) => {
+        w::ObservabilityValue::Incident(value) => {
             let value = value.into_parts();
             d::Value::Incident {
-                incident: crate::wire::observability_native::incident_decode(value.incident),
+                incident: crate::wire::observability_data::incident_decode(value.incident),
                 fact: match value.fact {
-                    Some(item) => Some(crate::wire::observability_native::fact_decode(item)),
+                    Some(item) => Some(crate::wire::observability_data::fact_decode(item)),
                     None => None,
                 },
             }
         }
-        w::ObservabilityNativeValue::Project(value) => {
+        w::ObservabilityValue::Project(value) => {
             let value = value.into_parts();
             d::Value::Project {
                 project: value.project,
@@ -157,7 +156,7 @@ pub(crate) fn value_decode(value: w::ObservabilityNativeValue) -> d::Value {
                     let source = value.services;
                     let mut values = List::with_capacity(source.capacity());
                     for item in source.into_boxed() {
-                        let value = crate::wire::observability_native::service_state_decode(item);
+                        let value = crate::wire::observability_data::service_state_decode(item);
                         assert!(values.push(value).is_ok(), "same list capacity");
                     }
                     values
@@ -166,7 +165,7 @@ pub(crate) fn value_decode(value: w::ObservabilityNativeValue) -> d::Value {
                     let source = value.incidents;
                     let mut values = List::with_capacity(source.capacity());
                     for item in source.into_boxed() {
-                        let value = crate::wire::observability_native::incident_decode(item);
+                        let value = crate::wire::observability_data::incident_decode(item);
                         assert!(values.push(value).is_ok(), "same list capacity");
                     }
                     values
@@ -176,15 +175,15 @@ pub(crate) fn value_decode(value: w::ObservabilityNativeValue) -> d::Value {
     }
 }
 
-pub(crate) fn document_encode(value: &d::Document) -> Result<w::ObservabilityNativeDocument, Invalid> {
-    let parts = w::ObservabilityNativeDocumentParts {
+pub(crate) fn document_encode(value: &d::Document) -> Result<w::ObservabilityDocumentData, Invalid> {
+    let parts = w::ObservabilityDocumentDataParts {
         subject: crate::wire::observability_values::subject_encode(&(value.subject))?,
         value: value_encode(&(value.value))?,
     };
-    let Ok(value) = w::ObservabilityNativeDocument::new(&w::CEILINGS, parts) else { return Err(Invalid) };
+    let Ok(value) = w::ObservabilityDocumentData::new(&w::CEILINGS, parts) else { return Err(Invalid) };
     Ok(value)
 }
-pub(crate) fn document_decode(value: w::ObservabilityNativeDocument) -> d::Document {
+pub(crate) fn document_decode(value: w::ObservabilityDocumentData) -> d::Document {
     let value = value.into_parts();
     d::Document {
         subject: crate::wire::observability_values::subject_decode(value.subject),

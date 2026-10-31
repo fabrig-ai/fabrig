@@ -511,7 +511,7 @@ impl Bytes {
                     self.event(clients::Event::Application(FromApplication::Undecodable { to: reply_to }));
                     return;
                 };
-                let (_, value, _) = super::infrastructure::ask(ask).expect("native infrastructure request");
+                let (_, value, _) = super::infrastructure::ask(ask).expect("infrastructure request");
                 root::Event::Application { reply_to, sign_in, key, project, value, digest }
             }
             clients::ToApplication::Read { reply, sign_in, family, record, scope, .. } => {

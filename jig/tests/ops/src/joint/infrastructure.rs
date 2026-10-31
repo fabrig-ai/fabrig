@@ -1,54 +1,54 @@
 //! Infrastructure owner facts translated into the client family vocabulary.
-use jig_ops_client_domain::infrastructure::native;
+use jig_ops_client_domain::infrastructure::values;
 use jig_ops_domain_infrastructure as source;
 
 #[must_use]
-pub fn translate_service(value: source::Service) -> native::Service {
-    native::Service { environment: value.environment, name: value.name }
+pub fn translate_service(value: source::Service) -> values::Service {
+    values::Service { environment: value.environment, name: value.name }
 }
 
 #[must_use]
-pub fn translate_environment(value: source::Environment) -> native::Environment {
-    native::Environment { pool: value.pool, name: value.name }
+pub fn translate_environment(value: source::Environment) -> values::Environment {
+    values::Environment { pool: value.pool, name: value.name }
 }
 
 #[must_use]
-pub fn translate_pool(value: source::Pool) -> native::Pool {
-    native::Pool(value.0)
+pub fn translate_pool(value: source::Pool) -> values::Pool {
+    values::Pool(value.0)
 }
 
 #[must_use]
-pub fn translate_resource(value: source::Resource) -> native::Resource {
+pub fn translate_resource(value: source::Resource) -> values::Resource {
     match value {
-        source::Resource::Service(value) => native::Resource::Service(translate_service(value)),
-        source::Resource::Environment(value) => native::Resource::Environment(translate_environment(value)),
-        source::Resource::Pool(value) => native::Resource::Pool(translate_pool(value)),
-        source::Resource::Quota(value) => native::Resource::Quota(translate_pool(value)),
+        source::Resource::Service(value) => values::Resource::Service(translate_service(value)),
+        source::Resource::Environment(value) => values::Resource::Environment(translate_environment(value)),
+        source::Resource::Pool(value) => values::Resource::Pool(translate_pool(value)),
+        source::Resource::Quota(value) => values::Resource::Quota(translate_pool(value)),
     }
 }
 
 #[must_use]
-pub fn translate_hold(value: source::Hold) -> native::Hold {
+pub fn translate_hold(value: source::Hold) -> values::Hold {
     match value {
-        source::Hold::ExclusiveWait => native::Hold::ExclusiveWait,
-        source::Hold::PooledWait => native::Hold::PooledWait,
-        source::Hold::None => native::Hold::None,
+        source::Hold::ExclusiveWait => values::Hold::ExclusiveWait,
+        source::Hold::PooledWait => values::Hold::PooledWait,
+        source::Hold::None => values::Hold::None,
     }
 }
 
 #[must_use]
-pub fn translate_resource_role(value: source::ResourceRole) -> native::ResourceRole {
+pub fn translate_resource_role(value: source::ResourceRole) -> values::ResourceRole {
     match value {
-        source::ResourceRole::Owned => native::ResourceRole::Owned,
-        source::ResourceRole::Participant => native::ResourceRole::Participant,
-        source::ResourceRole::Context => native::ResourceRole::Context,
-        source::ResourceRole::Unavailable => native::ResourceRole::Unavailable,
+        source::ResourceRole::Owned => values::ResourceRole::Owned,
+        source::ResourceRole::Participant => values::ResourceRole::Participant,
+        source::ResourceRole::Context => values::ResourceRole::Context,
+        source::ResourceRole::Unavailable => values::ResourceRole::Unavailable,
     }
 }
 
 #[must_use]
-pub fn translate_named(value: source::Named) -> native::Named {
-    native::Named {
+pub fn translate_named(value: source::Named) -> values::Named {
+    values::Named {
         resource: translate_resource(value.resource),
         role: translate_resource_role(value.role),
         hold: translate_hold(value.hold),
@@ -56,19 +56,19 @@ pub fn translate_named(value: source::Named) -> native::Named {
 }
 
 #[must_use]
-pub fn translate_purpose(value: source::Purpose) -> native::Purpose {
+pub fn translate_purpose(value: source::Purpose) -> values::Purpose {
     match value {
         source::Purpose::Call { attempt, completion, position } => {
-            native::Purpose::Call { attempt, completion, position }
+            values::Purpose::Call { attempt, completion, position }
         }
-        source::Purpose::Procedure { purpose } => native::Purpose::Procedure { purpose },
-        source::Purpose::Projection { purpose } => native::Purpose::Projection { purpose },
+        source::Purpose::Procedure { purpose } => values::Purpose::Procedure { purpose },
+        source::Purpose::Projection { purpose } => values::Purpose::Projection { purpose },
     }
 }
 
 #[must_use]
-pub fn translate_key(value: source::Key) -> native::Key {
-    native::Key {
+pub fn translate_key(value: source::Key) -> values::Key {
+    values::Key {
         deployment: value.deployment,
         task: value.task,
         origin: translate_purpose(value.origin),
@@ -77,29 +77,29 @@ pub fn translate_key(value: source::Key) -> native::Key {
 }
 
 #[must_use]
-pub fn translate_backend(value: source::Backend) -> native::Backend {
+pub fn translate_backend(value: source::Backend) -> values::Backend {
     match value {
-        source::Backend::OperationIds => native::Backend::OperationIds,
-        source::Backend::NoOperationIds => native::Backend::NoOperationIds,
+        source::Backend::OperationIds => values::Backend::OperationIds,
+        source::Backend::NoOperationIds => values::Backend::NoOperationIds,
     }
 }
 
 #[must_use]
-pub fn translate_effect(value: source::Effect) -> native::Effect {
+pub fn translate_effect(value: source::Effect) -> values::Effect {
     match value {
         source::Effect::Restart { service, operation } => {
-            native::Effect::Restart { service: translate_service(service), operation }
+            values::Effect::Restart { service: translate_service(service), operation }
         }
         source::Effect::Scale { service, from, to } => {
-            native::Effect::Scale { service: translate_service(service), from, to }
+            values::Effect::Scale { service: translate_service(service), from, to }
         }
         source::Effect::Rollback { service, from, to } => {
-            native::Effect::Rollback { service: translate_service(service), from, to }
+            values::Effect::Rollback { service: translate_service(service), from, to }
         }
         source::Effect::CreateEnvironment { environment, until, price } => {
-            native::Effect::CreateEnvironment { environment: translate_environment(environment), until, price }
+            values::Effect::CreateEnvironment { environment: translate_environment(environment), until, price }
         }
-        source::Effect::TearDown { environment, created_by } => native::Effect::TearDown {
+        source::Effect::TearDown { environment, created_by } => values::Effect::TearDown {
             environment: translate_environment(environment),
             created_by: translate_key(created_by),
         },
@@ -107,26 +107,26 @@ pub fn translate_effect(value: source::Effect) -> native::Effect {
 }
 
 #[must_use]
-pub fn translate_form(value: source::Form) -> native::Form {
+pub fn translate_form(value: source::Form) -> values::Form {
     match value {
-        source::Form::Creation => native::Form::Creation,
-        source::Form::Transition => native::Form::Transition,
-        source::Form::Set => native::Form::Set,
+        source::Form::Creation => values::Form::Creation,
+        source::Form::Transition => values::Form::Transition,
+        source::Form::Set => values::Form::Set,
     }
 }
 
 #[must_use]
-pub fn translate_recovery(value: source::Recovery) -> native::Recovery {
+pub fn translate_recovery(value: source::Recovery) -> values::Recovery {
     match value {
-        source::Recovery::Keyed => native::Recovery::Keyed,
-        source::Recovery::Conditional => native::Recovery::Conditional,
-        source::Recovery::Unrecoverable => native::Recovery::Unrecoverable,
+        source::Recovery::Keyed => values::Recovery::Keyed,
+        source::Recovery::Conditional => values::Recovery::Conditional,
+        source::Recovery::Unrecoverable => values::Recovery::Unrecoverable,
     }
 }
 
 #[must_use]
-pub fn translate_description(value: source::Description) -> native::Description {
-    native::Description {
+pub fn translate_description(value: source::Description) -> values::Description {
+    values::Description {
         kind: value.kind,
         resources: value.resources.into_vec().into_iter().map(translate_resource).collect::<Vec<_>>().into(),
         condition: value.condition,
@@ -138,18 +138,18 @@ pub fn translate_description(value: source::Description) -> native::Description 
 }
 
 #[must_use]
-pub fn translate_phase(value: source::Phase) -> native::Phase {
+pub fn translate_phase(value: source::Phase) -> values::Phase {
     match value {
-        source::Phase::Kept => native::Phase::Kept,
-        source::Phase::Sent => native::Phase::Sent,
-        source::Phase::Uncertain => native::Phase::Uncertain,
-        source::Phase::Held => native::Phase::Held,
+        source::Phase::Kept => values::Phase::Kept,
+        source::Phase::Sent => values::Phase::Sent,
+        source::Phase::Uncertain => values::Phase::Uncertain,
+        source::Phase::Held => values::Phase::Held,
     }
 }
 
 #[must_use]
-pub fn translate_entry(value: source::Entry) -> native::Entry {
-    native::Entry {
+pub fn translate_entry(value: source::Entry) -> values::Entry {
+    values::Entry {
         project: value.project,
         number: value.number,
         key: translate_key(value.key),
@@ -161,8 +161,8 @@ pub fn translate_entry(value: source::Entry) -> native::Entry {
 }
 
 #[must_use]
-pub fn translate_service_fact(value: source::ServiceFact) -> native::ServiceFact {
-    native::ServiceFact {
+pub fn translate_service_fact(value: source::ServiceFact) -> values::ServiceFact {
+    values::ServiceFact {
         version: value.version,
         replicas: value.replicas,
         healthy: value.healthy,
@@ -172,8 +172,8 @@ pub fn translate_service_fact(value: source::ServiceFact) -> native::ServiceFact
 }
 
 #[must_use]
-pub fn translate_environment_fact(value: source::EnvironmentFact) -> native::EnvironmentFact {
-    native::EnvironmentFact {
+pub fn translate_environment_fact(value: source::EnvironmentFact) -> values::EnvironmentFact {
+    values::EnvironmentFact {
         created_by: translate_key(value.created_by),
         ready_at: value.ready_at,
         until: value.until,
@@ -182,18 +182,18 @@ pub fn translate_environment_fact(value: source::EnvironmentFact) -> native::Env
 }
 
 #[must_use]
-pub fn translate_procedure(value: source::Procedure) -> native::Procedure {
+pub fn translate_procedure(value: source::Procedure) -> values::Procedure {
     match value {
         source::Procedure::Remediate { service, operation, deadline } => {
-            native::Procedure::Remediate { service: translate_service(service), operation, deadline }
+            values::Procedure::Remediate { service: translate_service(service), operation, deadline }
         }
         source::Procedure::Scale { service, replicas, deadline } => {
-            native::Procedure::Scale { service: translate_service(service), replicas, deadline }
+            values::Procedure::Scale { service: translate_service(service), replicas, deadline }
         }
         source::Procedure::Provision { environment, until, price, deadline } => {
-            native::Procedure::Provision { environment: translate_environment(environment), until, price, deadline }
+            values::Procedure::Provision { environment: translate_environment(environment), until, price, deadline }
         }
-        source::Procedure::TearDown { environment, created_by, deadline } => native::Procedure::TearDown {
+        source::Procedure::TearDown { environment, created_by, deadline } => values::Procedure::TearDown {
             environment: translate_environment(environment),
             created_by: translate_key(created_by),
             deadline,
@@ -202,22 +202,22 @@ pub fn translate_procedure(value: source::Procedure) -> native::Procedure {
 }
 
 #[must_use]
-pub fn translate_procedure_phase(value: source::ProcedurePhase) -> native::ProcedurePhase {
+pub fn translate_procedure_phase(value: source::ProcedurePhase) -> values::ProcedurePhase {
     match value {
-        source::ProcedurePhase::Active => native::ProcedurePhase::Active,
-        source::ProcedurePhase::ReadingFacts => native::ProcedurePhase::ReadingFacts,
-        source::ProcedurePhase::FactsReady => native::ProcedurePhase::FactsReady,
-        source::ProcedurePhase::EffectOutstanding => native::ProcedurePhase::EffectOutstanding,
-        source::ProcedurePhase::WaitingCondition => native::ProcedurePhase::WaitingCondition,
-        source::ProcedurePhase::Holding => native::ProcedurePhase::Holding,
-        source::ProcedurePhase::Done => native::ProcedurePhase::Done,
-        source::ProcedurePhase::Held => native::ProcedurePhase::Held,
+        source::ProcedurePhase::Active => values::ProcedurePhase::Active,
+        source::ProcedurePhase::ReadingFacts => values::ProcedurePhase::ReadingFacts,
+        source::ProcedurePhase::FactsReady => values::ProcedurePhase::FactsReady,
+        source::ProcedurePhase::EffectOutstanding => values::ProcedurePhase::EffectOutstanding,
+        source::ProcedurePhase::WaitingCondition => values::ProcedurePhase::WaitingCondition,
+        source::ProcedurePhase::Holding => values::ProcedurePhase::Holding,
+        source::ProcedurePhase::Done => values::ProcedurePhase::Done,
+        source::ProcedurePhase::Held => values::ProcedurePhase::Held,
     }
 }
 
 #[must_use]
-pub fn translate_procedure_state(value: source::ProcedureState) -> native::ProcedureState {
-    native::ProcedureState {
+pub fn translate_procedure_state(value: source::ProcedureState) -> values::ProcedureState {
+    values::ProcedureState {
         task: value.task,
         procedure: translate_procedure(value.procedure),
         phase: translate_procedure_phase(value.phase),
@@ -225,16 +225,16 @@ pub fn translate_procedure_state(value: source::ProcedureState) -> native::Proce
 }
 
 #[must_use]
-pub fn translate_drift_kind(value: source::DriftKind) -> native::DriftKind {
+pub fn translate_drift_kind(value: source::DriftKind) -> values::DriftKind {
     match value {
-        source::DriftKind::Changed => native::DriftKind::Changed,
-        source::DriftKind::Deleted => native::DriftKind::Deleted,
+        source::DriftKind::Changed => values::DriftKind::Changed,
+        source::DriftKind::Deleted => values::DriftKind::Deleted,
     }
 }
 
 #[must_use]
-pub fn translate_drift_account(value: source::DriftAccount) -> native::DriftAccount {
-    native::DriftAccount {
+pub fn translate_drift_account(value: source::DriftAccount) -> values::DriftAccount {
+    values::DriftAccount {
         resource: translate_resource(value.resource),
         kind: translate_drift_kind(value.kind),
         at: value.at,
@@ -243,36 +243,36 @@ pub fn translate_drift_account(value: source::DriftAccount) -> native::DriftAcco
 }
 
 #[must_use]
-pub fn translate_environment_end(value: source::EnvironmentEnd) -> native::EnvironmentEnd {
-    native::EnvironmentEnd { revision: value.revision, until: value.until }
+pub fn translate_environment_end(value: source::EnvironmentEnd) -> values::EnvironmentEnd {
+    values::EnvironmentEnd { revision: value.revision, until: value.until }
 }
 
 #[must_use]
-pub fn translate_client_pool(value: source::ClientPool) -> native::ClientPool {
-    native::ClientPool { quota: value.quota, used: value.used }
+pub fn translate_client_pool(value: source::ClientPool) -> values::ClientPool {
+    values::ClientPool { quota: value.quota, used: value.used }
 }
 
 #[must_use]
-pub fn translate_resource_fact(value: source::ResourceFact) -> native::ResourceFact {
+pub fn translate_resource_fact(value: source::ResourceFact) -> values::ResourceFact {
     match value {
-        source::ResourceFact::Service(value) => native::ResourceFact::Service(value.map(translate_service_fact)),
-        source::ResourceFact::Environment { fact, end } => native::ResourceFact::Environment {
+        source::ResourceFact::Service(value) => values::ResourceFact::Service(value.map(translate_service_fact)),
+        source::ResourceFact::Environment { fact, end } => values::ResourceFact::Environment {
             fact: fact.map(translate_environment_fact),
             end: end.map(translate_environment_end),
         },
-        source::ResourceFact::Pool(value) => native::ResourceFact::Pool(value.map(translate_client_pool)),
-        source::ResourceFact::Quota(value) => native::ResourceFact::Quota(value.map(translate_client_pool)),
+        source::ResourceFact::Pool(value) => values::ResourceFact::Pool(value.map(translate_client_pool)),
+        source::ResourceFact::Quota(value) => values::ResourceFact::Quota(value.map(translate_client_pool)),
     }
 }
 
 #[must_use]
-pub fn translate_client_resource(value: source::ClientResource) -> native::ClientResource {
-    native::ClientResource { named: translate_named(value.named), fact: translate_resource_fact(value.fact) }
+pub fn translate_client_resource(value: source::ClientResource) -> values::ClientResource {
+    values::ClientResource { named: translate_named(value.named), fact: translate_resource_fact(value.fact) }
 }
 
 #[must_use]
-pub fn translate_client_environment(value: source::ClientEnvironment) -> native::ClientEnvironment {
-    native::ClientEnvironment {
+pub fn translate_client_environment(value: source::ClientEnvironment) -> values::ClientEnvironment {
+    values::ClientEnvironment {
         environment: translate_environment(value.environment),
         fact: translate_environment_fact(value.fact),
         end: value.end.map(translate_environment_end),
@@ -280,7 +280,7 @@ pub fn translate_client_environment(value: source::ClientEnvironment) -> native:
     }
 }
 
-fn translate_resources(source: skein_lib::List<source::ClientResource>) -> skein_lib::List<native::ClientResource> {
+fn translate_resources(source: skein_lib::List<source::ClientResource>) -> skein_lib::List<values::ClientResource> {
     let mut values = skein_lib::List::with_capacity(source.capacity());
     for value in source.into_boxed() {
         values.push(translate_client_resource(value)).expect("source list capacity");
@@ -288,10 +288,10 @@ fn translate_resources(source: skein_lib::List<source::ClientResource>) -> skein
     values
 }
 #[must_use]
-pub fn translate_value(value: source::ClientDocument) -> native::Value {
+pub fn translate_value(value: source::ClientDocument) -> values::Value {
     match value {
         source::ClientDocument::Environment { environment, fact, end, pool, end_revision } => {
-            native::Value::Environment {
+            values::Value::Environment {
                 end_revision,
                 environment: translate_environment(environment),
                 fact: translate_environment_fact(fact),
@@ -299,7 +299,7 @@ pub fn translate_value(value: source::ClientDocument) -> native::Value {
                 pool: pool.map(translate_client_pool),
             }
         }
-        source::ClientDocument::Panel { task, state, resources, effects } => native::Value::Panel {
+        source::ClientDocument::Panel { task, state, resources, effects } => values::Value::Panel {
             task,
             state: translate_procedure_state(state),
             resources: translate_resources(resources),
@@ -312,21 +312,21 @@ pub fn translate_value(value: source::ClientDocument) -> native::Value {
                 values
             },
         },
-        source::ClientDocument::Result { task, state, resources } => native::Value::Result {
+        source::ClientDocument::Result { task, state, resources } => values::Value::Result {
             task,
             state: translate_procedure_state(state),
             resources: translate_resources(resources),
         },
-        source::ClientDocument::Effect { proposal, task, effect, description } => native::Value::Effect {
+        source::ClientDocument::Effect { proposal, task, effect, description } => values::Value::Effect {
             proposal,
             task,
             effect: translate_effect(effect),
             description: translate_description(description),
         },
         source::ClientDocument::Outbox { entry, description } => {
-            native::Value::Outbox { entry: translate_entry(entry), description: translate_description(description) }
+            values::Value::Outbox { entry: translate_entry(entry), description: translate_description(description) }
         }
-        source::ClientDocument::Hold { task, resources, drift, effects } => native::Value::Hold {
+        source::ClientDocument::Hold { task, resources, drift, effects } => values::Value::Hold {
             task,
             resources: translate_resources(resources),
             drift: {
@@ -346,7 +346,7 @@ pub fn translate_value(value: source::ClientDocument) -> native::Value {
                 values
             },
         },
-        source::ClientDocument::Project { project, resources, environments } => native::Value::Project {
+        source::ClientDocument::Project { project, resources, environments } => values::Value::Project {
             project,
             resources: translate_resources(resources),
             environments: {
@@ -359,7 +359,7 @@ pub fn translate_value(value: source::ClientDocument) -> native::Value {
             },
         },
         source::ClientDocument::Deployment { backend, effects, made, proposal_limit, staged_limit } => {
-            native::Value::Deployment {
+            values::Value::Deployment {
                 backend: translate_backend(backend),
                 effects: {
                     let source = effects;
@@ -387,7 +387,7 @@ pub fn ask(
     use sha2::{Digest, Sha256};
     let bytes = jig_ops_client_domain::wire::ask(&value).map_err(|_| "request exceeds family wire bounds")?;
     let (project, value) = match value {
-        Ask::NativeMoveEnd { project, environment, revision, until, object: _ } => (
+        Ask::MoveEnd { project, environment, revision, until, object: _ } => (
             project,
             source::ApplicationRequest {
                 environment: source::Environment { pool: environment.pool, name: environment.name },
@@ -404,12 +404,12 @@ pub fn answer(value: source::ApplicationOutcome) -> jig_ops_client_domain::infra
     use jig_client_domain::contract::Revision;
     use jig_ops_client_domain::infrastructure::{Answer, documents::Refusal};
     match value {
-        source::ApplicationOutcome::MovedEnd { environment, now } => Answer::NativeMovedEnd {
+        source::ApplicationOutcome::MovedEnd { environment, now } => Answer::MovedEnd {
             environment: translate_environment(environment),
             revision: Revision { value: now.revision },
             until: now.until,
         },
-        source::ApplicationOutcome::Moved { environment, now } => Answer::NativeMoved {
+        source::ApplicationOutcome::Moved { environment, now } => Answer::Moved {
             environment: translate_environment(environment),
             revision: Revision { value: now.revision },
             until: now.until,
@@ -428,16 +428,16 @@ mod tests {
     use jig_ops_client_domain::infrastructure::{Answer, Ask, documents::Refusal};
     use skein_lib::Token;
     #[test]
-    fn native_move_end_wire_keeps_scope_raw_names_whole_width_values_and_distinct_terminals() {
-        let environment = native::Environment { pool: b"Q.pool".as_slice().into(), name: b"preview".as_slice().into() };
-        let request = Ask::NativeMoveEnd {
+    fn move_end_wire_keeps_scope_raw_names_whole_width_values_and_distinct_terminals() {
+        let environment = values::Environment { pool: b"Q.pool".as_slice().into(), name: b"preview".as_slice().into() };
+        let request = Ask::MoveEnd {
             object: Token::new(17),
             project: u32::MAX,
             environment: environment.clone(),
             revision: Revision { value: u64::MAX },
             until: u64::MAX,
         };
-        let (project, value, digest) = ask(request.clone()).expect("native ask");
+        let (project, value, digest) = ask(request.clone()).expect("values ask");
         assert_eq!(project, u32::MAX);
         assert_eq!(
             value,
@@ -447,7 +447,7 @@ mod tests {
                 until: u64::MAX
             }
         );
-        let (_, _, replay_digest) = ask(Ask::NativeMoveEnd {
+        let (_, _, replay_digest) = ask(Ask::MoveEnd {
             object: Token::new(29),
             project,
             environment: environment.clone(),
@@ -457,28 +457,28 @@ mod tests {
         .expect("replayed semantic request");
         assert_ne!(digest, replay_digest, "the opaque payload includes the supplied view handle");
         for changed in [
-            Ask::NativeMoveEnd {
+            Ask::MoveEnd {
                 object: Token::new(17),
                 project: project - 1,
                 environment: environment.clone(),
                 revision: Revision { value: u64::MAX },
                 until: u64::MAX,
             },
-            Ask::NativeMoveEnd {
+            Ask::MoveEnd {
                 object: Token::new(17),
                 project,
-                environment: native::Environment { pool: b"P.pool".as_slice().into(), name: environment.name.clone() },
+                environment: values::Environment { pool: b"P.pool".as_slice().into(), name: environment.name.clone() },
                 revision: Revision { value: u64::MAX },
                 until: u64::MAX,
             },
-            Ask::NativeMoveEnd {
+            Ask::MoveEnd {
                 object: Token::new(17),
                 project,
                 environment: environment.clone(),
                 revision: Revision { value: 0 },
                 until: u64::MAX,
             },
-            Ask::NativeMoveEnd {
+            Ask::MoveEnd {
                 object: Token::new(17),
                 project,
                 environment: environment.clone(),
@@ -486,12 +486,12 @@ mod tests {
                 until: 0,
             },
         ] {
-            assert_ne!(digest, ask(changed).expect("changed native ask").2);
+            assert_ne!(digest, ask(changed).expect("changed values ask").2);
         }
         let now = source::EnvironmentEnd { revision: u64::MAX, until: u64::MAX };
         assert_eq!(
             answer(source::ApplicationOutcome::MovedEnd { environment: value.environment.clone(), now }),
-            Answer::NativeMovedEnd {
+            Answer::MovedEnd {
                 environment: environment.clone(),
                 revision: Revision { value: u64::MAX },
                 until: u64::MAX
@@ -499,7 +499,7 @@ mod tests {
         );
         assert_eq!(
             answer(source::ApplicationOutcome::Moved { environment: value.environment, now }),
-            Answer::NativeMoved { environment, revision: Revision { value: u64::MAX }, until: u64::MAX }
+            Answer::Moved { environment, revision: Revision { value: u64::MAX }, until: u64::MAX }
         );
         assert_eq!(
             answer(source::ApplicationOutcome::Role { held: u32::MAX }),

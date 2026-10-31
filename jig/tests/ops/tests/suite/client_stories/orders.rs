@@ -2,7 +2,6 @@
 use jig_client::{Event as ClientEvent, Message, Streamed};
 use jig_client_protocol_wire::v19 as w;
 use jig_client_view::address::Address as JigAddress;
-use jig_client_view::boundary::Offset;
 use jig_ops_client_domain::{self as root, Address, Event, Place, Request, infrastructure, observability};
 use skein_lib::{Duration, Env, List, Queue, Reader, Time, Token, Wall, Writer};
 
@@ -45,7 +44,6 @@ impl World {
         world.step(Event::Start {
             address: Address::Jig(JigAddress::Inbox { project: None }),
             kept: List::with_capacity(0),
-            offset: Offset { minutes: 0 },
         });
         world.client(ClientEvent::SignIn { with: jig_client::With::Transport });
         world.stream(&hello());
@@ -75,14 +73,14 @@ impl World {
     fn step(&mut self, event: Event) {
         let mut out = Queue::uncapped();
         root::step(&mut self.root, &self.env, event, &mut out);
-        root::take(&mut self.root, &self.env, &mut out);
+        root::take(&mut self.root);
         self.drain(out);
     }
 
     fn fire(&mut self) {
         let mut out = Queue::uncapped();
         root::fire(&mut self.root, &self.env, &mut out);
-        root::take(&mut self.root, &self.env, &mut out);
+        root::take(&mut self.root);
         self.drain(out);
     }
 
@@ -243,7 +241,7 @@ fn frame(watch: u64) -> w::StreamEvent {
 fn ops_child_records_precede_transport_within_a_step() {
     let mut world = World::ready();
     world.step(Event::Went {
-        place: Place::Address(Address::Infrastructure(infrastructure::Address::NativeEnvironments {
+        place: Place::Address(Address::Infrastructure(infrastructure::Address::Environments {
             project: PROJECT,
             pool: None,
         })),
@@ -258,7 +256,7 @@ fn ops_child_records_precede_transport_within_a_step() {
 fn ops_client_routes_finish_before_their_caller_continues() {
     let mut world = World::ready();
     world.step(Event::Infrastructure(infrastructure::Event::Went {
-        address: infrastructure::Address::NativeEnvironments { project: PROJECT, pool: None },
+        address: infrastructure::Address::Environments { project: PROJECT, pool: None },
     }));
     world.step(Event::Observability(observability::Event::Went {
         address: observability::Address::Incident { project: PROJECT, incident: INCIDENT },
