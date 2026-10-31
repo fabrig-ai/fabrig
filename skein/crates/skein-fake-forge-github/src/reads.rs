@@ -514,8 +514,8 @@ pub(crate) fn enqueue_finish(
 fn node(id: &[u8]) -> Option<(u32, u64)> {
     let suffix = id.strip_prefix(b"PR_")?;
     let at = bytes::find(suffix, b"_")?;
-    let repository = skein_forge::forgejo::id::unsigned(suffix.get(..at)?)?;
-    let number = skein_forge::forgejo::id::unsigned(suffix.get(at.checked_add(1)?..)?)?;
+    let repository = skein_lib::Decimal::read(suffix.get(..at)?)?;
+    let number = skein_lib::Decimal::read(suffix.get(at.checked_add(1)?..)?)?;
     Some((u32::try_from(repository).ok()?, number))
 }
 
@@ -585,14 +585,7 @@ fn repository(row: Row, answer: Answer, limits: &Limits) -> Response {
     let mut tag = skein_lib::Writer::new(REPOSITORY_ETAG_BYTES);
     tag.put(b"\"").expect("tag");
     for byte in skein_lib::sha256::digest(&response.body) {
-        for nibble in [byte / 16, byte % 16] {
-            tag.put(&[if nibble < 10 {
-                b'0'.saturating_add(nibble)
-            } else {
-                b'a'.saturating_add(nibble.saturating_sub(10))
-            }])
-            .expect("tag");
-        }
+        tag.put(&skein_lib::hex::pair(byte, skein_lib::hex::Case::Lower)).expect("tag");
     }
     tag.put(b"\"").expect("tag");
     response.etag = Some(tag.finish());

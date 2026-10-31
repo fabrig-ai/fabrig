@@ -40,7 +40,6 @@ pub(crate) enum OwnerLock {
 
 pub(crate) struct Exchange {
     pub(crate) account: u32,
-    pub(crate) next: Option<skein_lib::Id<Exchange>>,
     pub(crate) sign_in_deadline: Option<Time>,
     pub(crate) client: oauth::Client,
     pub(crate) above: Queue<oauth::Request>,
@@ -89,7 +88,6 @@ impl Exchange {
     pub(crate) fn new(account: u32, client: oauth::Client, pending_grant: bool) -> Exchange {
         Exchange {
             account,
-            next: None,
             sign_in_deadline: None,
             client,
             above: Queue::uncapped(),
@@ -556,26 +554,12 @@ impl Web {
 
 fn retry_after(response: &http::Response) -> Duration {
     match response.header(b"retry-after") {
-        Some(bytes) => match parse_seconds(bytes) {
+        Some(bytes) => match skein_lib::Decimal::read(bytes) {
             Some(seconds) => Duration::from_secs(seconds),
             None => Duration::ZERO,
         },
         None => Duration::ZERO,
     }
-}
-
-fn parse_seconds(bytes: &[u8]) -> Option<u64> {
-    if bytes.is_empty() {
-        return None;
-    }
-    let mut value = 0_u64;
-    for byte in bytes {
-        if !byte.is_ascii_digit() {
-            return None;
-        }
-        value = value.checked_mul(10)?.checked_add(u64::from(byte.checked_sub(b'0')?))?;
-    }
-    Some(value)
 }
 
 #[cfg(test)]

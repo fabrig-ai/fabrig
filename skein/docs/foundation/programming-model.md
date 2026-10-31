@@ -996,16 +996,19 @@ domain and `iterate`) uses:
   exists once.
 - `assert!`, `unreachable!("why")`, `expect("the invariant relied on")`.
 - Everything lib (skein's `skein-lib`) exports:
-  - entities and names: `Id<T>`, `Slab<T>`, `Token`, `ReplyTo`;
+  - entities and names: `Id<T>`, `Slab<T>` (and its walk over the live
+    entities), `Token`, `ReplyTo`, and a component's `Lifecycle` (5.2);
   - bounded containers: `Queue<T>`, `List<T>`, `Map<K, V>` and `Set<K>`
     (ordered, over B-trees), `Stack<T>`;
   - bytes: the `stream` vocabulary, `Intake`, `Reader`, `Writer` (sized)
-    and its `Overflow`, `Decimal` (a count's digits, for text),
+    and its `Overflow`, `Decimal` (a count's digits, for text, and
+    `Decimal::read` back), `hex` (a byte's hexadecimal digits and back),
     `bytes::copy_of`, `bytes::zeroed` (a buffer for the side below to
     fill), and the byte search `bytes::find`, `find_from` and
     `count` (linear time, no allocation);
-  - time and randomness: `Time`, `Duration`, `Wall` (wall-clock time,
-    never a deadline), `Deadlines`, `Rng`;
+  - time and randomness: `Time` (and `Time::earliest`, the earlier of two
+    deadlines), `Duration`, `Wall` (wall-clock time, never a deadline),
+    `Deadlines`, `Rng`;
   - the environment: `Env<L>`.
 
 lib uses the same, plus generic types, lifetime parameters on its cursors,

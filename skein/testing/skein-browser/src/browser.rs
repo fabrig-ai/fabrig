@@ -250,20 +250,10 @@ impl Browser {
                 Some(op) => op.due,
                 None => None,
             };
-            if let Some(at) = at {
-                next = Some(match next {
-                    Some(old) => old.min(at),
-                    None => at,
-                });
-            }
+            next = Time::earliest(next, at);
         }
         for page in self.pages.iter().flatten() {
-            if let Some(at) = page.load_due {
-                next = Some(match next {
-                    Some(old) => old.min(at),
-                    None => at,
-                });
-            }
+            next = Time::earliest(next, page.load_due);
         }
         next
     }

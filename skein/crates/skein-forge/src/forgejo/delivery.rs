@@ -107,7 +107,7 @@ pub fn hook_target(forge: u16) -> Box<[u8]> {
 #[must_use]
 pub fn hook_forge(target: &[u8]) -> Option<u16> {
     let text = target.strip_prefix(b"/hooks/")?;
-    let number = crate::forgejo::id::unsigned(text)?;
+    let number = Decimal::read(text)?;
     (Decimal::of(number).as_bytes() == text).then_some(())?;
     u16::try_from(number).ok()
 }

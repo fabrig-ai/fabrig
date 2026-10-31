@@ -91,8 +91,8 @@ fn decode(value: &[u8], bound: u32) -> Option<Box<[u8]>> {
         let byte = *value.get(index)?;
         let decoded = match byte {
             b'%' => {
-                let high = hex(*value.get(index.checked_add(1)?)?)?;
-                let low = hex(*value.get(index.checked_add(2)?)?)?;
+                let high = skein_lib::hex::read(*value.get(index.checked_add(1)?)?)?;
+                let low = skein_lib::hex::read(*value.get(index.checked_add(2)?)?)?;
                 skip = 2;
                 high.checked_mul(16)?.checked_add(low)?
             }
@@ -104,15 +104,6 @@ fn decode(value: &[u8], bound: u32) -> Option<Box<[u8]>> {
         }
     }
     Some(output.to_boxed())
-}
-
-fn hex(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => byte.checked_sub(b'0'),
-        b'a'..=b'f' => byte.checked_sub(b'a')?.checked_add(10),
-        b'A'..=b'F' => byte.checked_sub(b'A')?.checked_add(10),
-        _ => None,
-    }
 }
 
 pub(crate) fn from_head(call: &skein_http::server::Call, registered: &[u8], limits: &ClientLimits) -> Option<Redirect> {
@@ -154,18 +145,7 @@ pub(crate) fn from_head(call: &skein_http::server::Call, registered: &[u8], limi
 pub(crate) fn port(uri: &[u8]) -> Option<u16> {
     let (_, authority, _) = parts(uri)?;
     let at = colon(authority)?;
-    let digits = authority.get(at.checked_add(1)?..)?;
-    if digits.is_empty() {
-        return None;
-    }
-    let mut port = 0_u16;
-    for byte in digits {
-        if !byte.is_ascii_digit() {
-            return None;
-        }
-        port = port.checked_mul(10)?.checked_add(u16::from(byte.checked_sub(b'0')?))?;
-    }
-    Some(port)
+    u16::try_from(Decimal::read(authority.get(at.checked_add(1)?..)?)?).ok()
 }
 
 fn parts(uri: &[u8]) -> Option<(&[u8], &[u8], &[u8])> {

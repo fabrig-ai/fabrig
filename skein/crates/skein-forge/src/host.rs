@@ -42,7 +42,7 @@ pub fn host(address: SocketAddr, name: Option<&[u8]>) -> Option<Box<[u8]>> {
                         let digit = u8::try_from((segment >> shift) & 15).ok()?;
                         if begun || digit != 0 || shift == 0 {
                             begun = true;
-                            put(&mut out, &[crate::marker::hex(digit)])?;
+                            put(&mut out, &[skein_lib::hex::digit(digit, skein_lib::hex::Case::Lower)])?;
                         }
                     }
                 }

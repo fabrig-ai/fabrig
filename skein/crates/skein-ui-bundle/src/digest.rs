@@ -25,9 +25,9 @@ pub(crate) fn of(files: &BTreeMap<String, Vec<u8>>) -> Digest {
     let hash = state.finish();
     let mut name = [0; 16];
     for (pair, byte) in name.chunks_exact_mut(2).zip(hash) {
-        const HEX: &[u8; 16] = b"0123456789abcdef";
-        pair[0] = HEX[usize::from(byte >> 4)];
-        pair[1] = HEX[usize::from(byte & 15)];
+        let [high, low] = skein_lib::hex::pair(byte, skein_lib::hex::Case::Lower);
+        pair[0] = high;
+        pair[1] = low;
     }
     Digest(name)
 }

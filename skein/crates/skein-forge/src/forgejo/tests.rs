@@ -95,10 +95,6 @@ fn object_ids_read_40_or_64_lowercase_digits_only() {
         }
     }
     assert_eq!(id::read(&[b'A'; 40]), None);
-    assert_eq!(id::unsigned(b"18446744073709551615"), Some(u64::MAX));
-    for text in [b"18446744073709551616".as_slice(), b"-1", b"1.0", b"1e0", b""] {
-        assert_eq!(id::unsigned(text), None, "{text:?}");
-    }
 }
 #[test]
 fn a_start_document_missing_a_field_is_malformed_naming_it() {

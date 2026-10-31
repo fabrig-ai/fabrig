@@ -1,6 +1,7 @@
 //! Origin targets and percent encoding, segment boundaries preserved.
 use super::limits::Limits;
 use alloc::boxed::Box;
+use skein_lib::hex::{self, Case};
 use skein_lib::{List, Overflow, Writer};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Pair {
@@ -23,9 +24,8 @@ pub fn segment(name: &[u8], out: &mut Writer) -> Result<(), Overflow> {
         if byte.is_ascii_alphanumeric() || b"-._~".contains(byte) {
             out.put(&[*byte])?;
         } else {
-            let digits =
-                [b'%', super::id::hex(byte / 16).to_ascii_uppercase(), super::id::hex(byte % 16).to_ascii_uppercase()];
-            out.put(&digits)?;
+            let [high, low] = hex::pair(*byte, Case::Upper);
+            out.put(&[b'%', high, low])?;
         }
     }
     Ok(())
@@ -64,8 +64,8 @@ fn unescape(text: &[u8], query: bool) -> Result<Box<[u8]>, Unread> {
         let value = if *byte == b'%' {
             let a = *text.get(i.saturating_add(1)).ok_or(Unread::Escape)?;
             let b = *text.get(i.saturating_add(2)).ok_or(Unread::Escape)?;
-            let high = super::id::digit(a.to_ascii_lowercase()).ok_or(Unread::Escape)?;
-            let low = super::id::digit(b.to_ascii_lowercase()).ok_or(Unread::Escape)?;
+            let high = hex::read(a).ok_or(Unread::Escape)?;
+            let low = hex::read(b).ok_or(Unread::Escape)?;
             skip = 2;
             high.saturating_mul(16).saturating_add(low)
         } else if query && *byte == b'+' {

@@ -2,7 +2,7 @@
 use super::{Malformed, walk::Node};
 use crate::{
     api,
-    forgejo::{id::unsigned, time},
+    forgejo::time,
     github::{
         document::{self, Kind, Row},
         id,
@@ -79,7 +79,7 @@ impl State {
     pub(super) fn scalar(&mut self, node: Node, key: &'static [u8], token: Token) -> Result<(), Malformed> {
         match token {
             Token::Number(text) => {
-                let number = unsigned(&text).expect("walker checked integer");
+                let number = skein_lib::Decimal::read(&text).expect("walker checked integer");
                 if node == Node::PullObject {
                     self.pull.number = number;
                 } else if node == Node::Reviewer {

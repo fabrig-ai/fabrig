@@ -234,13 +234,8 @@ fn temp_name(io: &mut FileIo, target: &[u8]) -> Box<[u8]> {
     name.extend_from_slice(b".skein-");
     for index in 0..16_u32 {
         let shift = 60_u32.checked_sub(index.checked_mul(4).expect("hex position fits")).expect("hex position fits");
-        let digit = u8::try_from((random >> shift) & 0xf).expect("hex digit");
-        let ascii = if digit < 10 {
-            b'0'.checked_add(digit).expect("decimal digit")
-        } else {
-            b'a'.checked_add(digit.checked_sub(10).expect("hex letter")).expect("hex letter")
-        };
-        name.push(ascii);
+        let nibble = u8::try_from((random >> shift) & 0xf).expect("hex digit");
+        name.push(skein_lib::hex::digit(nibble, skein_lib::hex::Case::Lower));
     }
     name.into_boxed_slice()
 }

@@ -272,7 +272,7 @@ impl Collector {
         }
         self.tokenizer.reset();
         self.document.clear();
-        clear_walk(&mut self.walk);
+        self.walk.clear();
         self.position = Position::Value(self.filter.root);
         for index in 0..self.tags.len() {
             self.tags.get_mut(index).expect("tag").reset();
@@ -391,7 +391,7 @@ pub fn down(
             }
             stop_tokenizer(collector, env, below);
             collector.document.clear();
-            clear_walk(&mut collector.walk);
+            collector.walk.clear();
             collector.state = State::Closed;
             above.push(Event::Closed);
         }
@@ -400,12 +400,6 @@ pub fn down(
 
 fn tokenizer_env(env: &Env<Limits>) -> Env<json::Limits> {
     Env { now: env.now, wall: env.wall, limits: env.limits.tokenizer }
-}
-
-fn clear_walk(walk: &mut Stack<Frame>) {
-    for _ in 0..walk.len() {
-        walk.pop().expect("the walk's current frame count");
-    }
 }
 
 fn stop_tokenizer(collector: &mut Collector, env: &Env<Limits>, below: &mut Queue<Down>) {

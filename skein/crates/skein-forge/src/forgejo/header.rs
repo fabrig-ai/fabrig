@@ -1,5 +1,5 @@
 //! The response headers read beside Forgejo's documents and byte answers.
-use crate::forgejo::{id, time};
+use crate::forgejo::time;
 use skein_lib::{Duration, Wall};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ContentRange {
@@ -23,11 +23,11 @@ pub fn content_range(value: &[u8]) -> Option<ContentRange> {
     let value = value.strip_prefix(b"bytes ")?;
     let dash = skein_lib::bytes::find(value, b"-")?;
     let slash = skein_lib::bytes::find(value, b"/")?;
-    let first = id::unsigned(value.get(..dash)?)?;
-    let last = id::unsigned(value.get(dash.checked_add(1)?..slash)?)?;
+    let first = skein_lib::Decimal::read(value.get(..dash)?)?;
+    let last = skein_lib::Decimal::read(value.get(dash.checked_add(1)?..slash)?)?;
     let total = match value.get(slash.checked_add(1)?..)? {
         b"*" => None,
-        text => Some(id::unsigned(text)?),
+        text => Some(skein_lib::Decimal::read(text)?),
     };
     if first > last {
         return None;
@@ -41,7 +41,7 @@ pub fn content_range(value: &[u8]) -> Option<ContentRange> {
 }
 #[must_use]
 pub fn retry_after(value: &[u8], date: Wall) -> Option<Duration> {
-    if let Some(seconds) = id::unsigned(value) {
+    if let Some(seconds) = skein_lib::Decimal::read(value) {
         return Some(Duration::from_nanos(seconds.checked_mul(1_000_000_000)?));
     }
     let at = time::http_date(value)?;
@@ -64,7 +64,7 @@ pub fn job_link(target_url: &[u8], html_url: &[u8]) -> Option<(u64, u32)> {
     };
     let numbers = suffix.strip_prefix(b"/actions/runs/")?;
     let split = skein_lib::bytes::find(numbers, b"/jobs/")?;
-    let run = id::unsigned(numbers.get(..split)?)?;
-    let job = id::unsigned(numbers.get(split.checked_add(6)?..)?)?;
+    let run = skein_lib::Decimal::read(numbers.get(..split)?)?;
+    let job = skein_lib::Decimal::read(numbers.get(split.checked_add(6)?..)?)?;
     Some((run, u32::try_from(job).ok()?))
 }

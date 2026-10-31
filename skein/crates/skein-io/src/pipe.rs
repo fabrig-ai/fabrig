@@ -287,7 +287,7 @@ pub(crate) fn close(
     if pipe.closing {
         if abort && pipe.finish {
             pipe.finish = false;
-            while pipe.queued.pop().is_some() {}
+            pipe.queued.clear();
             if let Some(write) = pipe.write {
                 tables.cancel(subs, id, write);
                 pipe.cancels = pipe.cancels.checked_add(1).expect("one cancel per flight");
@@ -311,7 +311,7 @@ pub(crate) fn close(
     }
     pipe.closing = true;
     pipe.finish = false;
-    while pipe.queued.pop().is_some() {}
+    pipe.queued.clear();
     if let Some(read) = pipe.read {
         tables.cancel(subs, id, read);
         pipe.cancels = pipe.cancels.checked_add(1).expect("one cancel per flight");

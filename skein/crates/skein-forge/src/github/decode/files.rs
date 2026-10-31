@@ -2,7 +2,6 @@
 use super::{Malformed, walk::Node};
 use crate::{
     api,
-    forgejo::id::unsigned,
     github::{
         document::{self, Row},
         id,
@@ -65,7 +64,7 @@ impl State {
     pub(super) fn scalar(&mut self, node: Node, key: &'static [u8], token: Token) -> Result<(), Malformed> {
         match token {
             Token::Number(text) => {
-                let value = unsigned(&text).ok_or(Malformed::Range { field: key })?;
+                let value = skein_lib::Decimal::read(&text).ok_or(Malformed::Range { field: key })?;
                 if key == b"total_commits" {
                     self.comparison.total_commits = value;
                 } else {

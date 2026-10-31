@@ -76,18 +76,7 @@ fn text(doc: &Document, at: u32, expected: Kind) -> Result<&[u8], ()> {
     doc.text(record).ok_or(())
 }
 fn number(doc: &Document, at: u32) -> Result<u64, ()> {
-    let value = text(doc, at, Kind::Number)?;
-    if value.is_empty() {
-        return Err(());
-    }
-    let mut result = 0_u64;
-    for digit in value {
-        if !digit.is_ascii_digit() {
-            return Err(());
-        }
-        result = result.checked_mul(10).ok_or(())?.checked_add(u64::from(digit.saturating_sub(b'0'))).ok_or(())?;
-    }
-    Ok(result)
+    skein_lib::Decimal::read(text(doc, at, Kind::Number)?).ok_or(())
 }
 fn optional(doc: &Document, at: u32) -> Result<Option<u64>, ()> {
     if kind(doc, at)? == Kind::Null { Ok(None) } else { Ok(Some(number(doc, at)?)) }

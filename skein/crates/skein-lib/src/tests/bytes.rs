@@ -1,10 +1,12 @@
 //! Bytes (lib.md, 6): the byte search, against a naive one too; the reader,
-//! the writer, and a count's decimal digits.
+//! the writer, a count's decimal digits written and read, and hexadecimal
+//! digits (lib.md, 6.3).
 
 use alloc::boxed::Box;
 
 use super::ROUNDS;
 use crate::bytes::{count, find, find_from};
+use crate::hex::{self, Case};
 use crate::{Decimal, List, Overflow, Reader, Rng, Writer};
 
 #[test]
@@ -337,5 +339,61 @@ fn a_one_byte_needle_is_found_as_the_two_way_search_finds_it() {
                 );
             }
         }
+    }
+}
+
+#[test]
+fn a_count_is_read_from_its_digits() {
+    assert_eq!(Decimal::read(b"0"), Some(0));
+    assert_eq!(Decimal::read(b"007"), Some(7), "leading zeros are digits");
+    assert_eq!(Decimal::read(b"18446744073709551615"), Some(u64::MAX));
+    assert_eq!(Decimal::read(b"18446744073709551616"), None, "past a u64");
+    assert_eq!(Decimal::read(b"99999999999999999999"), None, "past a u64");
+    for refused in [b"".as_slice(), b"+1", b"-1", b" 1", b"1 ", b"1a", b"/", b":"] {
+        assert_eq!(Decimal::read(refused), None, "not a count");
+    }
+    let mut rng = Rng::new(0x0dec);
+    for _ in 0..ROUNDS {
+        let n = rng.next_u64();
+        assert_eq!(Decimal::read(Decimal::of(n).as_bytes()), Some(n));
+    }
+}
+
+#[test]
+fn a_nibble_and_a_byte_are_written_in_either_case() {
+    assert_eq!(hex::digit(0, Case::Lower), b'0');
+    assert_eq!(hex::digit(9, Case::Upper), b'9');
+    assert_eq!(hex::digit(10, Case::Lower), b'a');
+    assert_eq!(hex::digit(15, Case::Upper), b'F');
+    assert_eq!(hex::pair(0x00, Case::Lower), *b"00");
+    assert_eq!(hex::pair(0x5c, Case::Lower), *b"5c");
+    assert_eq!(hex::pair(0xaf, Case::Upper), *b"AF");
+    assert_eq!(hex::pair(0xff, Case::Lower), *b"ff");
+}
+
+#[test]
+#[should_panic(expected = "a nibble is below sixteen")]
+fn a_nibble_past_fifteen_is_a_bug() {
+    assert_eq!(hex::digit(16, Case::Lower), 0, "never reached");
+}
+
+#[test]
+fn a_digit_is_read_in_either_case_or_in_lowercase_alone() {
+    for byte in 0..=u8::MAX {
+        let either = match byte {
+            b'0'..=b'9' => Some(byte - b'0'),
+            b'a'..=b'f' => Some(byte - b'a' + 10),
+            b'A'..=b'F' => Some(byte - b'A' + 10),
+            _ => None,
+        };
+        let lower = if byte.is_ascii_uppercase() { None } else { either };
+        assert_eq!(hex::read(byte), either, "{byte}");
+        assert_eq!(hex::read_lower(byte), lower, "{byte}");
+    }
+    for byte in 0..=u8::MAX {
+        let [high, low] = hex::pair(byte, Case::Lower);
+        assert_eq!((hex::read_lower(high), hex::read_lower(low)), (Some(byte >> 4_u8), Some(byte & 15)), "{byte}");
+        let [high, low] = hex::pair(byte, Case::Upper);
+        assert_eq!((hex::read(high), hex::read(low)), (Some(byte >> 4_u8), Some(byte & 15)), "{byte}");
     }
 }

@@ -47,7 +47,7 @@ pub(crate) fn route(method: Method, target: &[u8]) -> Option<Route> {
         return Some(Route::CreateRules { repository: bytes::copy_of(repository) });
     }
     if method == Method::Delete {
-        let id = skein_forge::forgejo::id::unsigned(suffix.strip_prefix(b"/")?)?;
+        let id = skein_lib::Decimal::read(suffix.strip_prefix(b"/")?)?;
         return Some(Route::DeleteRules { repository: bytes::copy_of(repository), id });
     }
     None
@@ -176,7 +176,7 @@ impl Cursor {
         if let Token::String(value) = self.take()? { Some(value.clone()) } else { None }
     }
     fn number(&mut self) -> Option<u64> {
-        if let Token::Number(value) = self.take()? { skein_forge::forgejo::id::unsigned(value) } else { None }
+        if let Token::Number(value) = self.take()? { skein_lib::Decimal::read(value) } else { None }
     }
     fn key(&mut self) -> Option<Key> {
         let token = self.take()?;

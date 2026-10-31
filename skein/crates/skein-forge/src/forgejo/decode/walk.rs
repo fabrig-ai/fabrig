@@ -500,7 +500,7 @@ fn scalar(field: Field, event: &tokenizer::Event) -> Result<Value, Malformed> {
             if field.read != Read::Number {
                 return Err(wrong);
             }
-            Ok(Value::Number(crate::forgejo::id::unsigned(text).ok_or(Malformed::Range { field: field.key })?))
+            Ok(Value::Number(skein_lib::Decimal::read(text).ok_or(Malformed::Range { field: field.key })?))
         }
         tokenizer::Event::Token(Token::String(text)) => match field.read {
             Read::Text => Ok(Value::Text(text.clone())),

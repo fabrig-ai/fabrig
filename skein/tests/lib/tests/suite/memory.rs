@@ -167,7 +167,8 @@ fn slab<T: Item>(capacity: u32) {
 }
 
 /// Fills a queue to its capacity, refuses one more, and takes half of it
-/// before filling it again, so that it wraps around; then takes all of it.
+/// before filling it again, so that it wraps around; then clears it, fills
+/// it once more, and takes all of it.
 fn queue<T: Item>(capacity: u32) {
     let mut metered = Metered::growing("Queue", type_name::<T>(), capacity, Queue::<T>::price(capacity));
     metered.start();
@@ -191,6 +192,16 @@ fn queue<T: Item>(capacity: u32) {
             let taken = queue.pop();
             metered.end(taken);
         }
+    }
+    metered.start();
+    queue.clear();
+    metered.end(());
+    assert!(queue.is_empty());
+    while queue.room() > 0 {
+        metered.start();
+        queue.push(T::nth(next));
+        metered.end(());
+        next += 1;
     }
     while !queue.is_empty() {
         metered.start();
@@ -233,7 +244,7 @@ fn list<T: Item>(capacity: u32) {
 }
 
 /// Fills a stack to its capacity, refuses one more, pops half of it and fills
-/// it again; then pops all of it.
+/// it again; then clears it, fills it once more, and pops all of it.
 fn stack<T: Item>(capacity: u32) {
     let mut metered = Metered::growing("Stack", type_name::<T>(), capacity, Stack::<T>::price(capacity));
     metered.start();
@@ -253,6 +264,16 @@ fn stack<T: Item>(capacity: u32) {
             let popped = stack.pop();
             metered.end(popped);
         }
+    }
+    metered.start();
+    stack.clear();
+    metered.end(());
+    assert!(stack.is_empty());
+    for n in 0..capacity {
+        metered.start();
+        let pushed = stack.push(T::nth(n));
+        metered.end(());
+        assert!(pushed.is_ok(), "a cleared stack takes its capacity again");
     }
     while !stack.is_empty() {
         metered.start();

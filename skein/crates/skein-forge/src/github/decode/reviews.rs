@@ -1,7 +1,7 @@
 //! One review comment scratch row; long bodies are read through.
 use super::{Malformed, walk::Node};
 use crate::{
-    forgejo::{document::Body, id::unsigned},
+    forgejo::document::Body,
     github::document::{self, Row},
 };
 use alloc::boxed::Box;
@@ -48,7 +48,7 @@ impl State {
         }
         match token {
             Token::Number(text) => {
-                let value = unsigned(&text).ok_or(Malformed::Range { field: key })?;
+                let value = skein_lib::Decimal::read(&text).ok_or(Malformed::Range { field: key })?;
                 if node == Node::RemarkUser {
                     self.remark.author = value;
                 } else if key == b"id" {
@@ -97,7 +97,7 @@ impl State {
     fn review_scalar(&mut self, node: Node, key: &'static [u8], token: Token) -> Result<(), Malformed> {
         match token {
             Token::Number(text) => {
-                let value = unsigned(&text).ok_or(Malformed::Range { field: key })?;
+                let value = skein_lib::Decimal::read(&text).ok_or(Malformed::Range { field: key })?;
                 if node == Node::ReviewUser {
                     self.review.author = value;
                 } else {

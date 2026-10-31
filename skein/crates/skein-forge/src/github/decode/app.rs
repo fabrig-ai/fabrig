@@ -411,7 +411,7 @@ impl State {
     }
 }
 fn unsigned(text: &[u8]) -> u64 {
-    crate::forgejo::id::unsigned(text).expect("walker checked integer")
+    skein_lib::Decimal::read(text).expect("walker checked integer")
 }
 pub(super) fn time(text: &[u8], field: &'static [u8]) -> Result<Wall, Malformed> {
     crate::forgejo::time::read(text).ok_or(Malformed::Time { field })

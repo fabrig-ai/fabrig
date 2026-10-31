@@ -182,11 +182,11 @@ impl Host {
     pub fn next_deadline(&self) -> Option<Time> {
         let mut earliest = self.wake;
         for (_, run) in &self.runs {
-            earlier(&mut earliest, run.deadline);
+            earliest = Time::earliest(earliest, Some(run.deadline));
             if let Some(wait) = run.retry_at
                 && wait < run.deadline
             {
-                earlier(&mut earliest, wait);
+                earliest = Time::earliest(earliest, Some(wait));
             }
         }
         earliest
@@ -371,14 +371,6 @@ fn open(run: Token, forge: &Forge, agent: &[u8], send: &Send, env: &Env<Limits>)
             }
             crate::call::Call::Forgejo(_) => Err(Refused::Unexpected),
         },
-    }
-}
-fn earlier(earliest: &mut Option<Time>, time: Time) {
-    if match *earliest {
-        Some(before) => time < before,
-        None => true,
-    } {
-        *earliest = Some(time);
     }
 }
 impl core::fmt::Debug for Host {

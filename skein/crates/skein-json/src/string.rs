@@ -258,12 +258,7 @@ fn scalar(point: u32) -> Decoded {
 
 /// `unit` with the hex digit `byte` appended.
 fn hex(unit: u16, byte: u8) -> Result<u16, Error> {
-    let value = match byte {
-        b'0'..=b'9' => byte.wrapping_sub(b'0'),
-        b'a'..=b'f' => byte.wrapping_sub(b'a').wrapping_add(10),
-        b'A'..=b'F' => byte.wrapping_sub(b'A').wrapping_add(10),
-        _ => return Err(Error::Escape),
-    };
+    let Some(value) = skein_lib::hex::read(byte) else { return Err(Error::Escape) };
     // At most three digits are in `unit`, so nothing is shifted out.
     Ok(unit.wrapping_shl(4) | u16::from(value))
 }

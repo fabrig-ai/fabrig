@@ -100,16 +100,5 @@ pub fn takes(role: Role, submits_on_enter: bool, act: &Act) -> bool {
 /// A field's ASCII digits as a count; empty, non-digits and overflow are absent.
 #[must_use]
 pub fn number(bytes: &[u8]) -> Option<u64> {
-    if bytes.is_empty() {
-        return None;
-    }
-    let mut value = 0_u64;
-    for byte in bytes {
-        if !byte.is_ascii_digit() {
-            return None;
-        }
-        let digit = byte.checked_sub(b'0')?;
-        value = value.checked_mul(10)?.checked_add(u64::from(digit))?;
-    }
-    Some(value)
+    skein_lib::Decimal::read(bytes)
 }

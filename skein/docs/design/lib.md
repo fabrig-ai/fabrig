@@ -1,6 +1,6 @@
 # lib
 
-Provisional, 2026-10-03, revised 2026-10-23. The design of `skein-lib`:
+Provisional, 2026-10-03, revised 2026-10-31. The design of `skein-lib`:
 the building blocks every step crate shares, in skein and in every
 service built on it. The mechanics are those of programming-model.md;
 this document says what lib holds and what each part promises.
@@ -8,10 +8,11 @@ this document says what lib holds and what each part promises.
 ## 1. In one page
 
 - **Everything step code needs and the subset does not give it.** Typed
-  handles and the slabs that issue them, containers, cursors over
-  owned bytes, secrets' bytes, base64 and SHA-256, the stream vocabulary
-  and its intake, deadlines, time, randomness, the environment a step
-  reads, and the digest of a state that replay compares.
+  handles and the slabs that issue them, a component's lifecycle,
+  containers, cursors over owned bytes, secrets' bytes, decimal and
+  hexadecimal digits, base64 and SHA-256, the stream vocabulary and its
+  intake, deadlines, time, randomness, the environment a step reads, and
+  the digest of a state that replay compares.
 - **Limits at the edges, growth inside.** Containers grow as they fill;
   an edge's container keeps its cap and refuses past it. A capped
   container's `price(capacity)` prices its bookkeeping too; sums
@@ -68,6 +69,33 @@ them (testing.md, section 6).
   - `retire` marks a slot; `reclaim`, at the iteration's reclaim point,
     frees every retired one, so an entity can be looked up until the
     iteration ends.
+  - `iter` (and `for` over `&slab`) walks the entities present and not
+    retired, each with its handle, in slot order: an owner that visits
+    every entity of a kind keeps no list of handles beside its slab. Slot
+    order is not the order of insertion, since a reclaimed slot is
+    reused. The walk borrows the slab, so a step that changes an entity
+    it finds ends the walk first, then looks the entity up by its handle.
+
+### 3.1 A component's lifecycle
+
+**`Lifecycle`** is where a component that keeps entities for its owner
+stands (programming-model.md, 5.2): `Live`, `Closing`, `Aborting`,
+`Closed`. A component holds one, refuses new work at its entrance unless
+it is `Live`, and sets `Closed` when it reports its one terminal.
+
+- `close()` is the owner's close: a live component starts closing and
+  the answer is `true`; a second close, or a close after an abort,
+  changes nothing and answers `false`.
+- `abort()` is the owner's abort: a live or closing component aborts and
+  the answer is `true`; a second abort answers `false`.
+- Either after `Closed` changes nothing and answers `false`. A request
+  after `Closed` is the owner's bug (programming-model.md, 5.2), which a
+  component asserts at its entrance, as llm-connection does; oauth's
+  accounts answer nothing after it (oauth.md, 6.4), so the lifecycle
+  itself does not assert.
+
+What closing and aborting mean for the entities it keeps is the
+component's own; the answer says whether there is anything new to do.
 
 ## 4. Names across boundaries
 
@@ -87,6 +115,14 @@ them (testing.md, section 6).
 | `Map<K, V>` | a table keyed by value, ordered by key | a B-tree, priced in tree nodes |
 | `Set<K>` | a `Map` without values | a B-tree, priced in tree nodes |
 | `Stack<T>` | what a parser keeps instead of recursing | a buffer costing what it holds |
+
+**One growth rule.** A queue, a list, a stack, an intake, and a slab's
+slots and lists allocate as they fill by the same rule: a buffer with
+room grows by nothing; a full one reserves exactly up to twice its
+allocation, at least four items and at least what the push needs, and
+never past its container's cap. `List`, `Queue` and `Stack` `clear`
+empty themselves and keep what they allocated, so refilling to the
+length they had allocates nothing.
 
 Each capped container refuses past its capacity, handing the value back
 rather than panicking, with one exception: `Queue::push` on a full capped
@@ -184,6 +220,11 @@ where it holds it.
   each record in one, a secret's bytes among them (codec.md, section 11).
 - **`Decimal`** holds the decimal digits of a count, for a step that
   writes a number as text without formatting: measure it, then put it.
+  `Decimal::read(digits)` reads one back, `1*DIGIT` as a `u64` (RFC
+  5234): `None` for no digits, for any other byte, or past a `u64`;
+  leading zeros are digits. A protocol that bounds a count lower narrows
+  what it reads (`u16::try_from`, say). skein's crates read counts with
+  it and keep no copy of their own.
 - **`Secret`** holds a secret's owned bytes: a credential, a token, a
   key. Its `Debug` shows its length only, never its bytes, so a record
   that holds one prints, logs and traces without it (codec.md, section 3).
@@ -263,6 +304,23 @@ and keep no copy of their own.
   the bytes differ, for comparing a signature, a state or a token with
   the one expected. `skein-oauth`'s comparison of a returned state uses
   it and keeps no copy.
+
+### 6.3 Hexadecimal
+
+`lib::hex` writes a nibble or a byte as hexadecimal digits and reads a
+digit back, for every crate that spells bytes in hex: object ids and
+signatures (forge-github.md), percent-encoding (oauth.md), JSON's
+`\u` escapes (json.md), chunk sizes (http.md), UUIDs and digests. skein's
+crates use it and keep no copy of their own.
+
+- **Written in a case:** `hex::Case::Lower` (`a`–`f`) for digests, ids
+  and UUIDs, `Case::Upper` (`A`–`F`) for percent-encoding (RFC 3986,
+  2.1). `digit(nibble, case)` gives one digit, a nibble past 15 asserted;
+  `pair(byte, case)` gives a byte's two, the high nibble's first.
+- **Read in either case, or in lowercase alone:** `read(digit)` takes
+  either case; `read_lower(digit)` refuses an uppercase letter, for a
+  spelling that has one form, such as an object id. Both answer `None`
+  for any other byte.
 
 ## 7. Streams
 
@@ -463,7 +521,9 @@ cannot manufacture independent room.
 ## 8. Time, deadlines and randomness
 
 - **`Time`** is nanoseconds on a monotonic clock, in a `u64`, read by the
-  shell or the simulator. **`Duration`** is a span, with checked and
+  shell or the simulator. `Time::earliest(a, b)` is the earlier of two
+  deadlines, either of which may be absent: a step folds each deadline
+  it holds into its next one with it, and keeps no helper of its own. **`Duration`** is a span, with checked and
   saturating arithmetic. **`Wall`** is wall-clock time, nanoseconds since
   the Unix epoch, a type of its own with no arithmetic on spans, so it is
   never mixed with `Time` and never arms a deadline.
@@ -492,7 +552,11 @@ and its layer's `limits: L`. A step gets it behind a shared borrow.
 Step tests drive each container through its operations, at and past a
 cap where it has one: a full edge queue, a stale handle, a slot whose
 generation would wrap, a refusal at the entrance, a deadline that fires
-as it is cancelled, a scan cut at every byte. The step tests are
+as it is cancelled, a scan cut at every byte, a cleared queue and stack
+refilled, a slab walked past vacant and retired slots, a lifecycle's
+closes and aborts in every order, the growth rule at and below a cap,
+the earlier of two deadlines, and every byte read and written as a hex
+digit and a count read back from its digits. The step tests are
 `src/tests.rs`, a module for each area of this document under
 `src/tests/`: handles, containers, bytes, streams, and time.
 

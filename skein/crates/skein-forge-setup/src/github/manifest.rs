@@ -76,7 +76,7 @@ fn form(given: &Given, target: &Target, state: &[u8], random: &[u8]) -> Option<F
     name.put(&given.word).ok()?;
     name.put(b"-").ok()?;
     for byte in random {
-        name.put(&[hex(byte.wrapping_shr(4)), hex(byte & 0x0f)]).ok()?;
+        name.put(&skein_lib::hex::pair(*byte, skein_lib::hex::Case::Lower)).ok()?;
     }
     let name = name.finish();
     let hook_length = b"https://".len().checked_add(name.len())?.checked_add(b".invalid/".len())?;
@@ -105,13 +105,6 @@ fn form(given: &Given, target: &Target, state: &[u8], random: &[u8]) -> Option<F
     };
     let target = dialect::setup::form_target(&given.web, &account, state, given.limits.page_bytes)?;
     Some(Form { target, manifest: json })
-}
-fn hex(value: u8) -> u8 {
-    match value {
-        0..=9 => b'0'.checked_add(value).expect("a decimal digit fits"),
-        10..=15 => b'a'.checked_add(value.checked_sub(10).expect("a hex letter")).expect("a hex letter fits"),
-        16..=255 => unreachable!("a nibble is below sixteen"),
-    }
 }
 fn stop(forge: u16) -> Need {
     app::stop(forge, Stage::App, b"manifest", Why::Unexpected)

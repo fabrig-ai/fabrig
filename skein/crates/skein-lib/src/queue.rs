@@ -9,6 +9,8 @@ use alloc::collections::VecDeque;
 use alloc::collections::vec_deque;
 use core::mem::size_of;
 
+use crate::grow::growth;
+
 /// A first-in, first-out queue of at most `capacity` items, which
 /// allocates as it fills: never past its capacity, never shrinking.
 #[derive(Debug)]
@@ -16,8 +18,6 @@ pub struct Queue<T> {
     items: VecDeque<T>,
     capacity: u32,
 }
-
-const GROWTH_FLOOR: usize = 4;
 
 impl<T> Queue<T> {
     #[must_use]
@@ -60,6 +60,12 @@ impl<T> Queue<T> {
         self.capacity.checked_sub(self.len()).expect("no longer than its capacity")
     }
 
+    /// Empties the queue, keeping its grown buffer: a queue refilled to its
+    /// previous length allocates nothing.
+    pub fn clear(&mut self) {
+        self.items.clear();
+    }
+
     /// Appends an item to a queue that has room for it.
     ///
     /// This is how a step emits: the loop reserved `MAX_OUT` slots before
@@ -80,14 +86,11 @@ impl<T> Queue<T> {
         Ok(())
     }
 
-    /// Grows a full buffer exactly, while the logical capacity has room.
+    /// Makes room for one more item, by lib's growth rule.
     fn grow(&mut self) {
-        if self.items.len() == self.items.capacity() {
-            let cap = usize::try_from(self.capacity).expect("a u32 fits in a usize");
-            let target = self.items.len().saturating_mul(2).max(GROWTH_FLOOR).min(cap);
-            let additional = target.checked_sub(self.items.len()).expect("room for another item");
-            self.items.reserve_exact(additional);
-        }
+        let len = self.items.len();
+        let needed = len.checked_add(1).expect("room for another item");
+        self.items.reserve_exact(growth(len, self.items.capacity(), needed, self.capacity));
     }
 
     /// Takes the oldest item.

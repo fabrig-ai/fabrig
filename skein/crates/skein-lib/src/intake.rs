@@ -14,6 +14,7 @@ use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 
 use crate::Overflow;
+use crate::grow::growth;
 use crate::stream::{Delimiter, Read};
 
 /// The bytes a stream has received and the side above has not yet demanded,
@@ -56,8 +57,6 @@ impl Until {
         }
     }
 }
-
-const GROWTH_FLOOR: usize = 4;
 
 impl Intake {
     #[must_use]
@@ -109,13 +108,9 @@ impl Intake {
         if bytes.len() > index(self.room()) {
             return Err(Overflow);
         }
-        let needed = self.bytes.len().checked_add(bytes.len()).expect("within the cap");
-        if needed > self.bytes.capacity() {
-            let target =
-                self.bytes.capacity().saturating_mul(2).max(needed).max(GROWTH_FLOOR).min(index(self.capacity));
-            let additional = target.checked_sub(self.bytes.len()).expect("room for the received bytes");
-            self.bytes.reserve_exact(additional);
-        }
+        let len = self.bytes.len();
+        let needed = len.checked_add(bytes.len()).expect("within the cap");
+        self.bytes.reserve_exact(growth(len, self.bytes.capacity(), needed, self.capacity));
         self.bytes.extend(bytes);
         Ok(())
     }

@@ -10,7 +10,7 @@
 use alloc::boxed::Box;
 
 use skein_io::{Event as IoEvent, Request as IoRequest};
-use skein_lib::{Env, Id, List, Queue, Slab, Token};
+use skein_lib::{Env, Id, Lifecycle, List, Queue, Slab, Token};
 use skein_llm::{self as llm, Call, Credential, Prompt};
 use skein_tls::client as tls;
 
@@ -18,15 +18,6 @@ use crate::boundary::{Event, Refusal, Request};
 use crate::call::{Connection, Phase};
 use crate::endpoint::{Endpoint, EndpointError, Transport};
 use crate::limits::{Limits, valid};
-
-/// The owner's call pool, ending with Closed after physical socket settlement.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Lifecycle {
-    Live,
-    Closing,
-    Aborting,
-    Closed,
-}
 
 /// An admitted conversation waiting for an endpoint binding; terminal releases it.
 pub(crate) struct Waiting {
@@ -337,21 +328,16 @@ impl Component {
         assert!(self.lifecycle != Lifecycle::Closed, "an owner must not send requests after Closed");
         match request {
             Request::Close => {
-                match self.lifecycle {
-                    Lifecycle::Live => self.lifecycle = Lifecycle::Closing,
-                    Lifecycle::Closing | Lifecycle::Aborting => return,
-                    Lifecycle::Closed => unreachable!("checked at the entrance"),
+                if !self.lifecycle.close() {
+                    return;
                 }
                 self.request_close(false);
                 self.fire(env, up, io);
             }
             Request::Abort => {
-                match self.lifecycle {
-                    Lifecycle::Live | Lifecycle::Closing => {}
-                    Lifecycle::Aborting => return,
-                    Lifecycle::Closed => unreachable!("checked at the entrance"),
+                if !self.lifecycle.abort() {
+                    return;
                 }
-                self.lifecycle = Lifecycle::Aborting;
                 self.request_close(true);
                 self.fire(env, up, io);
             }
@@ -585,31 +571,14 @@ impl Component {
         let mut earliest: Option<skein_lib::Time> = None;
         for waiting in &self.waiting {
             match waiting {
-                Some(waiting) => match waiting.deadlines.next() {
-                    Some(next) => {
-                        earliest = Some(match earliest {
-                            Some(prior) => prior.min(next),
-                            None => next,
-                        });
-                    }
-                    None => {}
-                },
+                Some(waiting) => earliest = skein_lib::Time::earliest(earliest, waiting.deadlines.next()),
                 None => {}
             }
         }
         for slot in &self.slots {
             match slot {
                 Some(id) => match self.connections.get(*id) {
-                    Some(connection) => {
-                        let next = connection.deadlines.next();
-                        earliest = match earliest {
-                            Some(prior) => match next {
-                                Some(next) => Some(prior.min(next)),
-                                None => Some(prior),
-                            },
-                            None => next,
-                        };
-                    }
+                    Some(connection) => earliest = skein_lib::Time::earliest(earliest, connection.deadlines.next()),
                     None => {}
                 },
                 None => {}

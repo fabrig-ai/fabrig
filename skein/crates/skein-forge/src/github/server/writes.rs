@@ -54,7 +54,7 @@ pub(super) fn route(method: super::Method, path: &[u8]) -> Option<Request> {
     }
     if let Some(tail) = tail.strip_prefix(b"pulls/") {
         let (number, suffix) = super::split(tail, b'/');
-        let number = super::unsigned(number)?;
+        let number = skein_lib::Decimal::read(number)?;
         return match suffix {
             b"merge" if method == super::Method::Put => Some(Request::Merge {
                 owner,
@@ -87,7 +87,7 @@ pub(super) fn route(method: super::Method, path: &[u8]) -> Option<Request> {
     }
     let tail = tail.strip_prefix(b"issues/")?;
     let (number, suffix) = super::split(tail, b'/');
-    let number = super::unsigned(number)?;
+    let number = skein_lib::Decimal::read(number)?;
     match suffix {
         b"" if method == super::Method::Patch => Some(Request::Edit { owner, name, number, title: None, body: None }),
         b"comments" if method == super::Method::Post => {

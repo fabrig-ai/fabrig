@@ -52,8 +52,9 @@ impl States {
         };
         let mut text = [0_u8; 32];
         for (pair, byte) in text.chunks_exact_mut(2).zip(random) {
-            *pair.first_mut().expect("two hex digits") = hex(byte.wrapping_shr(4));
-            *pair.get_mut(1).expect("two hex digits") = hex(byte & 0x0f);
+            let [high, low] = skein_lib::hex::pair(*byte, skein_lib::hex::Case::Lower);
+            *pair.first_mut().expect("two hex digits") = high;
+            *pair.get_mut(1).expect("two hex digits") = low;
         }
         for entry in &self.entries {
             if entry.state.as_ref() == text {
@@ -88,9 +89,7 @@ impl States {
     }
     /// Close forgets every binding without arming an expiry timer (5.7).
     pub(super) fn clear(&mut self) {
-        for _ in 0..self.entries.len() {
-            let _entry = self.entries.pop().expect("bounded traversal");
-        }
+        self.entries.clear();
     }
     fn prune(&mut self, now: Time) {
         for _ in 0..self.entries.len() {
@@ -99,13 +98,6 @@ impl States {
                 self.entries.push(entry);
             }
         }
-    }
-}
-fn hex(value: u8) -> u8 {
-    match value {
-        0..=9 => b'0'.checked_add(value).expect("decimal digit"),
-        10..=15 => b'a'.checked_add(value.checked_sub(10).expect("hex letter")).expect("hex digit"),
-        16..=255 => unreachable!("a nibble is below sixteen"),
     }
 }
 

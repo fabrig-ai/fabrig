@@ -1,5 +1,6 @@
 //! Independent form reader: one field scan, exact decoded allocations.
 use alloc::boxed::Box;
+use skein_lib::hex::{self, Case};
 use skein_lib::{List, Writer, bytes};
 
 #[derive(Debug)]
@@ -75,7 +76,7 @@ fn decoded_len(input: &[u8]) -> Option<usize> {
     // The two hex digits are checked before setting aside the final buffer.
     for (at, &byte) in input.iter().enumerate() {
         if escaped > 0 {
-            hex(byte)?;
+            hex::read(byte)?;
             escaped = escaped.checked_sub(1)?;
         } else {
             if byte == b'%' {
@@ -94,10 +95,10 @@ pub(crate) fn decoded(input: &[u8]) -> Option<Box<[u8]>> {
     let mut high = 0_u8;
     for &byte in input {
         if hex_left == 2 {
-            high = hex(byte)?.checked_mul(16)?;
+            high = hex::read(byte)?.checked_mul(16)?;
             hex_left = 1;
         } else if hex_left == 1 {
-            let byte = high | hex(byte)?;
+            let byte = high | hex::read(byte)?;
             out.put(&[byte]).ok()?;
             hex_left = 0;
         } else if byte == b'%' {
@@ -107,14 +108,6 @@ pub(crate) fn decoded(input: &[u8]) -> Option<Box<[u8]>> {
         }
     }
     Some(out.finish())
-}
-fn hex(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => Some(byte.wrapping_sub(b'0')),
-        b'a'..=b'f' => byte.checked_sub(b'a')?.checked_add(10),
-        b'A'..=b'F' => byte.checked_sub(b'A')?.checked_add(10),
-        0..=b'/' | b':'..=b'@' | b'G'..=b'`' | b'g'..=u8::MAX => None,
-    }
 }
 pub(crate) fn unreserved(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'.' || byte == b'_' || byte == b'~'
@@ -134,9 +127,7 @@ fn escape(out: &mut Writer, input: &[u8]) {
         if unreserved(byte) {
             out.put(&[byte]).expect("measured character");
         } else {
-            let digits = b"0123456789ABCDEF";
-            let high = *digits.get(usize::from(byte >> 4_u8)).expect("hex digit");
-            let low = *digits.get(usize::from(byte & 15)).expect("hex digit");
+            let [high, low] = hex::pair(byte, Case::Upper);
             out.put(&[b'%', high, low]).expect("measured escape");
         }
     }

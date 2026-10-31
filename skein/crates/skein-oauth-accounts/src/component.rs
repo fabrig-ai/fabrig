@@ -14,7 +14,7 @@ use crate::exchange::{Exchange, OwnerLock, Stage, Web};
 use crate::keeper::Store;
 use crate::route::{self, Socket};
 use crate::{Account, Asked, Ends, Event, Failure, Keeping, Limits, Refusal, Request, valid};
-use skein_lib::{CryptoRng, Duration, Env, Id, List, Queue, Slab, Time};
+use skein_lib::{CryptoRng, Duration, Env, Id, Lifecycle, List, Queue, Slab, Time};
 use skein_oauth::{self as oauth, SavedToken};
 
 mod accounts;
@@ -118,12 +118,11 @@ pub(crate) enum State {
     },
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Lifecycle {
-    Live,
-    Closing,
-    Aborting,
-    Closed,
+/// What a fire does to the first exchange its walk finds with work.
+enum Turn {
+    Abort,
+    LockExpired,
+    Progress,
 }
 
 /// The owner's bounded accounts, exchanges and holds, ending with one Closed.
@@ -134,7 +133,6 @@ pub struct Component {
     sources: List<Source>,
     bindings: List<Option<Id<Exchange>>>,
     exchanges: Slab<Exchange>,
-    first_exchange: Option<Id<Exchange>>,
     lifecycle: Lifecycle,
     crypto: CryptoRng,
     keepers: List<Store>,
@@ -182,7 +180,6 @@ impl Component {
             sources,
             bindings,
             exchanges: Slab::with_capacity(limits.exchanges),
-            first_exchange: None,
             lifecycle: Lifecycle::Live,
             crypto,
             keepers,
@@ -291,20 +288,16 @@ impl Component {
                 Some(Store::Private(_)) | None => {}
             },
             Request::Locked { account, answer } => self.locked(env, account, answer, up, io),
-            Request::Close => match self.lifecycle {
-                Lifecycle::Live => {
-                    self.lifecycle = Lifecycle::Closing;
+            Request::Close => {
+                if self.lifecycle.close() {
                     self.settled(up);
                 }
-                Lifecycle::Closing | Lifecycle::Aborting | Lifecycle::Closed => {}
-            },
-            Request::Abort => match self.lifecycle {
-                Lifecycle::Live | Lifecycle::Closing => {
-                    self.lifecycle = Lifecycle::Aborting;
+            }
+            Request::Abort => {
+                if self.lifecycle.abort() {
                     self.settled(up);
                 }
-                Lifecycle::Aborting | Lifecycle::Closed => {}
-            },
+            }
         }
     }
 
@@ -540,29 +533,38 @@ impl Component {
         if self.removal_progress(env, up, io) {
             return;
         }
-        let mut next = self.first_exchange;
-        while let Some(id) = next {
-            let exchange = self.exchanges.get_mut(id).expect("live exchange");
-            next = exchange.next;
+        let mut found = None;
+        for (id, exchange) in &self.exchanges {
             if self.lifecycle == Lifecycle::Aborting && !exchange.aborted {
-                exchange.aborted = true;
-                self.fail_exchange(env, id, Failure::Exchange(oauth::Failure::Cancelled), up, io);
-                self.collect(env, id, up, io);
-                return;
+                found = Some((id, Turn::Abort));
+                break;
             }
             if let OwnerLock::Waiting { until } = exchange.lock
                 && env.now >= until
             {
-                exchange.lock = OwnerLock::Released;
-                self.fail_exchange(env, id, Failure::Busy, up, io);
-                self.collect(env, id, up, io);
-                return;
+                found = Some((id, Turn::LockExpired));
+                break;
             }
             if exchange.has_work() || (!web_closing(exchange.web.as_ref()) && due(exchange.next_deadline(), env.now)) {
-                self.progress(env, id, up, io);
-                self.collect(env, id, up, io);
-                return;
+                found = Some((id, Turn::Progress));
+                break;
             }
+        }
+        if let Some((id, turn)) = found {
+            let exchange = self.exchanges.get_mut(id).expect("walked exchange");
+            match turn {
+                Turn::Abort => {
+                    exchange.aborted = true;
+                    self.fail_exchange(env, id, Failure::Exchange(oauth::Failure::Cancelled), up, io);
+                }
+                Turn::LockExpired => {
+                    exchange.lock = OwnerLock::Released;
+                    self.fail_exchange(env, id, Failure::Busy, up, io);
+                }
+                Turn::Progress => self.progress(env, id, up, io),
+            }
+            self.collect(env, id, up, io);
+            return;
         }
         if self.private_progress(env, up, io, files) {
             return;
@@ -896,13 +898,9 @@ impl Component {
                     Store::Owner => {}
                 }
                 exchange.stage = Stage::Finished;
-                for _ in 0..exchange.above.len() {
-                    drop(exchange.above.pop());
-                }
+                exchange.above.clear();
                 exchange.client.step(oauth::Event::Cancel, &mut exchange.above);
-                for _ in 0..exchange.above.len() {
-                    drop(exchange.above.pop());
-                }
+                exchange.above.clear();
                 match &mut exchange.web {
                     Some(web) => web.close(env, true, io),
                     None => {}
@@ -968,13 +966,9 @@ impl Component {
         exchange.visit = None;
         exchange.sign_in = None;
         exchange.return_location = None;
-        for _ in 0..exchange.above.len() {
-            drop(exchange.above.pop());
-        }
+        exchange.above.clear();
         exchange.client.step(oauth::Event::Cancel, &mut exchange.above);
-        for _ in 0..exchange.above.len() {
-            drop(exchange.above.pop());
-        }
+        exchange.above.clear();
         match &mut exchange.web {
             Some(web) => web.close(env, true, io),
             None => {}
@@ -991,52 +985,20 @@ impl Component {
         }
     }
 
-    // The live exchange chain includes detached sockets; retired slots stay in the slab
-    // until reclaim (programming-model.md, 5.2; oauth.md, 6.5).
+    // The live exchanges, detached sockets among them, are the slab's unretired entries;
+    // retired slots stay in the slab until reclaim (programming-model.md, 5.2; oauth.md, 6.5).
     fn insert_exchange(&mut self, exchange: Exchange) -> Id<Exchange> {
-        let id = match self.exchanges.insert(exchange) {
+        match self.exchanges.insert(exchange) {
             Ok(id) => id,
             Err(_) => unreachable!("admitted exchange slot"),
-        };
-        let mut next = self.first_exchange;
-        while let Some(previous) = next {
-            let exchange = self.exchanges.get_mut(previous).expect("live exchange");
-            if exchange.next.is_none() {
-                exchange.next = Some(id);
-                return id;
-            }
-            next = exchange.next;
         }
-        self.first_exchange = Some(id);
-        id
-    }
-
-    fn retire_exchange(&mut self, id: Id<Exchange>) {
-        let following = self.exchanges.get(id).expect("live exchange").next;
-        if self.first_exchange == Some(id) {
-            self.first_exchange = following;
-        } else {
-            let mut next = self.first_exchange;
-            while let Some(previous) = next {
-                let exchange = self.exchanges.get_mut(previous).expect("live exchange");
-                if exchange.next == Some(id) {
-                    exchange.next = following;
-                    break;
-                }
-                next = exchange.next;
-            }
-        }
-        self.exchanges.retire(id);
     }
 
     fn account_has_exchanges(&self, account: u32) -> bool {
-        let mut next = self.first_exchange;
-        while let Some(id) = next {
-            let exchange = self.exchanges.get(id).expect("live exchange");
+        for (_, exchange) in &self.exchanges {
             if exchange.account == account {
                 return true;
             }
-            next = exchange.next;
         }
         false
     }
@@ -1061,7 +1023,7 @@ impl Component {
             if self.bindings.get(exchange.account) == Some(&Some(id)) {
                 *self.bindings.get_mut(exchange.account).expect("account binding") = None;
             }
-            self.retire_exchange(id);
+            self.exchanges.retire(id);
         } else if exchange.signing_in()
             && !exchange.file_active
             && exchange.lock == OwnerLock::Released
@@ -1085,7 +1047,7 @@ impl Component {
         if self.removing() {
             return;
         }
-        if self.first_exchange.is_some() {
+        if self.exchanges.iter().next().is_some() {
             return;
         }
         for keeper in &self.keepers {
@@ -1132,10 +1094,7 @@ impl Component {
                 Store::Owner => {}
             }
         }
-        let mut next = self.first_exchange;
-        while let Some(id) = next {
-            let exchange = self.exchanges.get(id).expect("live exchange");
-            next = exchange.next;
+        for (_, exchange) in &self.exchanges {
             if exchange.has_work() || (self.lifecycle == Lifecycle::Aborting && !exchange.aborted) {
                 return true;
             }
@@ -1158,26 +1117,20 @@ impl Component {
         for keeper in &self.keepers {
             match keeper {
                 Store::Private(keeper) => match &keeper.pending {
-                    Some(pending) => match pending.deadline {
-                        Some(deadline) => earlier(&mut earliest, deadline),
-                        None => {}
-                    },
+                    Some(pending) => earliest = Time::earliest(earliest, pending.deadline),
                     None => {}
                 },
                 Store::Owner => {}
             }
         }
-        let mut next = self.first_exchange;
-        while let Some(id) = next {
-            let exchange = self.exchanges.get(id).expect("live exchange");
-            next = exchange.next;
+        for (_, exchange) in &self.exchanges {
             if let OwnerLock::Waiting { until } = exchange.lock {
-                earlier(&mut earliest, until);
+                earliest = Time::earliest(earliest, Some(until));
             }
             if !web_closing(exchange.web.as_ref())
                 && let Some(at) = exchange.next_deadline()
             {
-                earlier(&mut earliest, at);
+                earliest = Time::earliest(earliest, Some(at));
             }
         }
         for account in 0..self.accounts.len() {
@@ -1223,9 +1176,7 @@ impl Component {
                 }
                 State::Empty | State::Loaded { .. } => None,
             };
-            if let Some(next) = next {
-                earlier(&mut earliest, next);
-            }
+            earliest = Time::earliest(earliest, next);
         }
         earliest
     }
@@ -1234,13 +1185,6 @@ impl Component {
     pub fn reclaim(&mut self) {
         self.exchanges.reclaim();
     }
-}
-
-fn earlier(earliest: &mut Option<Time>, next: Time) {
-    *earliest = Some(match earliest {
-        Some(prior) => (*prior).min(next),
-        None => next,
-    });
 }
 
 fn recorded(record: SavedToken, env: &Env<Limits>, held: bool) -> State {

@@ -56,7 +56,7 @@ impl Exchange {
         if self.client.waiting() != client::Waiting::Nothing {
             client::down(&mut self.client, &self.env, client::Request::Close, &mut self.above, &mut self.below);
         }
-        while self.below.pop().is_some() {}
+        self.below.clear();
         if let Some(entity) = self.socket.take() {
             self.requests.push_back(Request::Abort { entity });
         }

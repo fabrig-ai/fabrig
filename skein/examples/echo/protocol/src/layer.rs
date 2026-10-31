@@ -157,10 +157,7 @@ impl Protocol {
     pub fn next_deadline(&self) -> Option<Time> {
         let idle = self.tables.deadlines.next();
         match self.listener {
-            Listener::Backoff { at, .. } => match idle {
-                Some(idle) => Some(idle.min(at)),
-                None => Some(at),
-            },
+            Listener::Backoff { at, .. } => Time::earliest(idle, Some(at)),
             Listener::Unopened
             | Listener::Opening { .. }
             | Listener::Listening { .. }

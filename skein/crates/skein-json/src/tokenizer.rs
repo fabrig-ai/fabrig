@@ -331,9 +331,7 @@ impl Tokenizer {
             State::Idle(_) | State::Over | State::Closed => {}
             State::Reading(_) => unreachable!("reset has no outstanding stream demand"),
         }
-        for _ in 0..self.document.open.len() {
-            self.document.open.pop().expect("the current open container count");
-        }
+        self.document.open.clear();
         self.document.text.reset(Retention::Discard);
         self.document.expect = Expect::Value;
         self.document.mode = Mode::Next;

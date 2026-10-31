@@ -1,10 +1,10 @@
 //! Matching, line checks and retained conversions (codec.md, 11.2–11.3).
 
-use super::text::{self, Block, Kind, Line, LineKind, Parsed, Range, Token};
+use super::text::{Block, Kind, Line, LineKind, Parsed, Range, Token};
 use super::{Missing, Op, PatchError, PatchWrong, Tables, Target, add, spelled};
 use crate::schema::{DeclIx, FieldIx, Held, Schema, Shape, Span, Type, TypeIx, VariantIx};
 use alloc::boxed::Box;
-use skein_lib::{List, bytes};
+use skein_lib::{Decimal, List, bytes, hex};
 
 #[cfg(test)]
 mod tests;
@@ -824,7 +824,7 @@ fn spells(patch: &[u8], parsed: &Parsed, range: Range, schema: &Schema, mut ty: 
             return false;
         }
         if let Some(bound) = bound {
-            if at >= range.end || text::decimal(spelled(patch, word(parsed, at))) != Some(u64::from(bound)) {
+            if at >= range.end || Decimal::read(spelled(patch, word(parsed, at))) != Some(u64::from(bound)) {
                 return false;
             }
             at = add(at, 1);
@@ -1055,13 +1055,6 @@ fn uint(pool: &mut List<u8>, value: u64, width: u32) {
         emit(pool, *bytes.get(usize::try_from(at).expect("u32 fits usize")).expect("integer byte index"));
     }
 }
-fn hex(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => byte.checked_sub(b'0'),
-        b'a'..=b'f' => byte.checked_sub(b'a')?.checked_add(10),
-        _ => None,
-    }
-}
 fn encoded_hex(pool: &mut List<u8>, value: &[u8], bound: u32, fixed: bool, pieces: bool) -> Result<(), PatchWrong> {
     if !value.starts_with(b"0x") {
         return Err(PatchWrong::Value);
@@ -1079,8 +1072,8 @@ fn encoded_hex(pool: &mut List<u8>, value: &[u8], bound: u32, fixed: bool, piece
         uint(pool, u64::from(length), 4);
     }
     for pair in digits.chunks_exact(2) {
-        let a = hex(*pair.first().expect("two hex digits")).ok_or(PatchWrong::Value)?;
-        let b = hex(*pair.get(1).expect("two hex digits")).ok_or(PatchWrong::Value)?;
+        let a = hex::read_lower(*pair.first().expect("two hex digits")).ok_or(PatchWrong::Value)?;
+        let b = hex::read_lower(*pair.get(1).expect("two hex digits")).ok_or(PatchWrong::Value)?;
         emit(pool, a.checked_mul(16).expect("hex digit").checked_add(b).expect("hex byte"));
     }
     Ok(())
@@ -1164,7 +1157,7 @@ fn value(
                         | Type::Option(_)
                         | Type::Named(_) => unreachable!("integer type"),
                     };
-                    let value = text::decimal(word).ok_or(wrong)?;
+                    let value = Decimal::read(word).ok_or(wrong)?;
                     let maximum = match width {
                         1 => u64::from(u8::MAX),
                         2 => u64::from(u16::MAX),

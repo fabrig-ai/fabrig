@@ -1,7 +1,7 @@
 use super::{Answer, Route, Unrouted};
 use crate::forgejo::{
     document::{self, User},
-    id::{self, ObjectFormat},
+    id::ObjectFormat,
     limits::Limits,
     path::{self, Pair},
     request::{Method, Repo, Request},
@@ -35,7 +35,7 @@ pub(super) fn route(method: Method, target: &[u8], limits: &Limits) -> Result<Ro
             Request::ApiSettings
         }
         [api, v1, repositories, number] if &**api == b"api" && &**v1 == b"v1" && &**repositories == b"repositories" => {
-            Request::RepositoryById { id: id::unsigned(number).ok_or(Unrouted::Malformed)? }
+            Request::RepositoryById { id: skein_lib::Decimal::read(number).ok_or(Unrouted::Malformed)? }
         }
         [api, v1, repos, owner, name] if &**api == b"api" && &**v1 == b"v1" && &**repos == b"repos" => {
             Request::Repository { at: Repo { owner: owner.clone(), name: name.clone() } }
@@ -44,12 +44,12 @@ pub(super) fn route(method: Method, target: &[u8], limits: &Limits) -> Result<Ro
             if &**api == b"api" && &**v1 == b"v1" && &**users == b"users" && &**search == b"search" =>
         {
             let uid = match query(&target.query, b"uid") {
-                Some(text) => id::unsigned(&text).ok_or(Unrouted::Malformed)?,
+                Some(text) => skein_lib::Decimal::read(&text).ok_or(Unrouted::Malformed)?,
                 None => 0,
             };
             let limit = match query(&target.query, b"limit") {
                 Some(text) => {
-                    let n = id::unsigned(&text).ok_or(Unrouted::Malformed)?;
+                    let n = skein_lib::Decimal::read(&text).ok_or(Unrouted::Malformed)?;
                     Some(match u32::try_from(n) {
                         Ok(n) => n,
                         Err(_) => return Err(Unrouted::Malformed),
