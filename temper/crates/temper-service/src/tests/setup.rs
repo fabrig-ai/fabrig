@@ -1868,3 +1868,314 @@ fn setup_reconciliation_waits_for_the_mark() {
     }
     assert_eq!(engine.setup.runs.len(), 1, "no second reconciliation while its file answer is held");
 }
+
+#[test]
+fn forget_drops_the_forge_from_host_and_lifecycle() {
+    let mut service = service(8, Duration::from_secs(3600));
+    let state = manifest(&mut service, 1);
+    let engine = service.engine.as_mut().expect("engine");
+    engine.setup.lifecycle.reconcile.insert(1, lifecycle::Reconcile::GitHub).unwrap();
+    engine
+        .setup
+        .lifecycle
+        .installations
+        .insert((1, 7), domain::Installation { account: None, suspended: false, stray: true })
+        .unwrap();
+    let held = Token::new(93);
+    engine
+        .setup
+        .public
+        .insert(held, public::Caller::Install { forge: 1, request: Token::new(91), back: None })
+        .unwrap();
+    engine.setup.held.push(Held { run: held, forge: 1, until: Time::ZERO });
+    forget(engine, 1);
+    assert!(engine.setup.public.is_empty());
+    assert!(engine.setup.held.is_empty());
+    assert!(!engine.setup.served.contains_key(&1));
+    assert!(!engine.setup.lifecycle.reconcile.contains_key(&1));
+    assert!(!engine.setup.lifecycle.installations.contains_key(&(1, 7)));
+    assert!(engine.setup.page(1, &state, Time::ZERO).is_none());
+    start(&mut service, 19, host::Plan::Manifest { forge: 1, target: Target::Personal });
+    let root::SetupEnd::Stopped { forge: 1, .. } = terminal(&mut service) else {
+        panic!("forgotten forge is not served")
+    };
+}
+
+#[test]
+fn an_event_for_a_forgotten_forge_is_ignored() {
+    let mut service = service(8, Duration::from_secs(3600));
+    start(&mut service, 1, host::Plan::Install { forge: 1 });
+    let engine = service.engine.as_mut().expect("engine");
+    forget(engine, 1);
+    let before = engine.events.len();
+    engine
+        .setup
+        .above
+        .push(host::Event::Need { run: Token::new(1), need: host::Need::Read(skein_forge_setup::item::Item::AppSlug) });
+    engine.setup.above.push(host::Event::Done { run: Token::new(1), outcome: reconcile::Outcome::Nothing });
+    lifecycle::installation(engine, 1, 7, None, skein_forge_connection::Change::Created);
+    advance(engine);
+    assert_eq!(engine.events.len(), before);
+    assert!(engine.setup.runs.is_empty());
+    assert!(engine.setup.lifecycle.installations.is_empty());
+}
+
+fn runtime_config() -> crate::settings::Engine {
+    use temper_forge_setup::{machine, setup};
+    let mut config = fixtures::engine();
+    let setup::Mode::Owned(owned) = fixtures::owned_setup(2).entry.mode else { panic!("owned fixture") };
+    config.machine = Some(machine::Machine {
+        owned: Some(machine::OwnedMachine {
+            listen: owned.listen,
+            remote: b"http://127.0.0.1:9".as_slice().into(),
+            person: owned.person,
+            public: owned.public,
+            fetch: owned.fetch,
+            forgejo: owned.forgejo,
+            runner: owned.runner,
+        }),
+        fake: Some(machine::FakeMachine {
+            listen: ([127, 0, 0, 1], 9).into(),
+            remote: b"http://127.0.0.1:9".as_slice().into(),
+            git: b"/data/fake/git".as_slice().into(),
+        }),
+        github: None,
+    });
+    config.directories = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
+    fixtures::fill_files(&mut config);
+    config
+}
+fn runtime_record(kind: domain::Kind, mode: domain::Mode) -> domain::ForgeRecord {
+    domain::ForgeRecord {
+        number: 2,
+        kind,
+        mode,
+        state: domain::ForgeState::Kept,
+        place: domain::Place {
+            api: domain::Address { host: b"127.0.0.1".as_slice().into(), port: 9, tls: None },
+            git: b"http://127.0.0.1:9".as_slice().into(),
+            web: Some(b"http://127.0.0.1:9".as_slice().into()),
+        },
+        read_only: false,
+        bot: domain::Bot {
+            login: b"kept-bot".as_slice().into(),
+            name: b"Kept Bot".as_slice().into(),
+            email: b"bot@example.invalid".as_slice().into(),
+        },
+        asked: mode == domain::Mode::Owned,
+        first: None,
+    }
+}
+fn insert_runtime_forge(engine: &mut crate::engine::Engine, record: &domain::ForgeRecord) {
+    let mut source = fixtures::forges().into_iter().next().unwrap();
+    source.number = record.number;
+    source.identity = u32::from(record.number);
+    source.mode = record.mode;
+    source.kind = match record.kind {
+        domain::Kind::Forgejo => crate::settings::Kind::Forgejo,
+        domain::Kind::GitHub => crate::settings::Kind::GitHub,
+    };
+    source.api = jig_protocol_config::Address::Host { name: b"127.0.0.1".as_slice().into(), port: 9 };
+    source.web = record.place.web.clone();
+    source.git = record.place.git.clone();
+    source.transport = crate::settings::Transport::Plaintext;
+    source.api_token = None;
+    assert!(engine.workers.forges.insert(source));
+}
+#[test]
+fn a_kept_owned_record_is_served_by_the_host_with_its_entry() {
+    let mut service = local_service(runtime_config(), local_store(false));
+    let record = runtime_record(domain::Kind::Forgejo, domain::Mode::Owned);
+    let engine = service.engine.as_mut().unwrap();
+    insert_runtime_forge(engine, &record);
+    keep(engine, &record);
+    let (settings, _) = engine.setup.pending.as_ref().unwrap();
+    let mut given = None;
+    for forge in &settings.forges {
+        if forge.number() == 2 {
+            given = forge.forgejo();
+        }
+    }
+    let given = given.unwrap();
+    assert_eq!(given.bot_login.as_ref(), b"kept-bot");
+    assert_eq!(given.bot_email.as_ref(), b"bot@example.invalid");
+    assert!(given.orgs.is_empty());
+    let local = engine.setup.lifecycle.local(2).unwrap();
+    assert_eq!(local.path.as_ref(), b"/data/forge-2/admin_token");
+    assert_eq!(local.identity.number, 2);
+    assert_eq!(local.identity.forge, 2);
+    assert_eq!(local.identity.login, record.bot.login);
+    assert_eq!(local.identity.author.name, record.bot.name);
+    assert_eq!(local.identity.author.email, record.bot.email);
+    for _ in 0_u32..8 {
+        crate::forge::records::advance(engine);
+    }
+    advance(engine);
+    assert!(engine.setup.component.is_some());
+    let run = Token::new(94);
+    engine.setup.down(host::Request::Run {
+        run,
+        plan: host::Plan::TakeOver { forge: 2, admin_token: Secret::new(b"admin".as_slice().into()) },
+    });
+    let Some(skein_io::Request::Connect { .. }) = engine.setup.io.pop() else {
+        panic!("kept forge starts its setup connection")
+    };
+}
+#[test]
+fn a_kept_github_record_serves_its_routes() {
+    let mut service = service(8, Duration::from_secs(3600));
+    let record = runtime_record(domain::Kind::GitHub, domain::Mode::Connected);
+    let engine = service.engine.as_mut().unwrap();
+    insert_runtime_forge(engine, &record);
+    keep(engine, &record);
+    keep(engine, &record);
+    let Some(lifecycle::Reconcile::GitHub) = engine.setup.lifecycle.reconcile.get(&2) else {
+        panic!("kept GitHub lifecycle")
+    };
+    start(&mut service, 94, host::Plan::Manifest { forge: 2, target: Target::Personal });
+    let root::SetupEnd::Done { outcome: root::SetupOutcome::Manifest { state }, .. } = terminal(&mut service) else {
+        panic!("runtime manifest")
+    };
+    let page = service.setup_page(2, &state, Time::ZERO).unwrap();
+    for route in
+        [b"/forges/2/github/redirect".as_slice(), b"/forges/2/github/setup", b"http://127.0.0.1:9/settings/apps/new"]
+    {
+        assert!(contains(page, route));
+    }
+}
+#[test]
+fn the_intent_comes_from_the_record_after_a_restart() {
+    for mode in [domain::Mode::Owned, domain::Mode::Fake, domain::Mode::Managed] {
+        let mut record = runtime_record(domain::Kind::Forgejo, mode);
+        record.first = Some(domain::FirstIntent {
+            playground: true,
+            org: b"kept-org".as_slice().into(),
+            repository: b"kept-repository".as_slice().into(),
+            project: domain::SetUpProject::Existing(1),
+            label: b"kept-label".as_slice().into(),
+        });
+        for _restart in 0_u32..2 {
+            let mut service = local_service(runtime_config(), local_store(false));
+            let engine = service.engine.as_mut().unwrap();
+            insert_runtime_forge(engine, &record);
+            keep(engine, &record);
+            lifecycle::first(engine, 2, b"memory-org".as_slice().into(), b"memory-repository".as_slice().into(), false);
+            let local = engine.setup.lifecycle.local(2).unwrap();
+            let first = local.first.as_ref().unwrap();
+            assert_eq!(first.org.as_ref(), b"kept-org");
+            assert_eq!(first.repository.as_ref(), b"kept-repository");
+            assert_eq!(first.label.as_ref(), b"kept-label");
+            assert!(first.playground);
+            if mode == domain::Mode::Fake {
+                assert_eq!(local.trigger, lifecycle::Trigger::StartDemo);
+            }
+            for _ in 0_u32..8 {
+                crate::forge::records::advance(engine);
+            }
+            advance(engine);
+            let run = Token::new(983);
+            engine
+                .setup
+                .runs
+                .insert(
+                    run,
+                    Run {
+                        first: None,
+                        forge: 2,
+                        kind: Kind::LocalReconcile,
+                        internal: true,
+                        previous: domain::Connection::NotConnected,
+                    },
+                )
+                .unwrap();
+            lifecycle::kept(engine, Purpose::LocalOrigin(run));
+            let active = engine.setup.runs.first().unwrap().1;
+            assert_eq!(active.kind, Kind::LocalCreate);
+            let first = active.first.as_ref().unwrap();
+            assert_eq!(first.org.as_ref(), b"kept-org");
+            assert_eq!(first.repository.as_ref(), b"kept-repository");
+            lifecycle::first(engine, 2, b"memory-org".as_slice().into(), b"memory-repository".as_slice().into(), false);
+            keep(engine, &record);
+            assert!(
+                engine.setup.lifecycle.local(2).unwrap().first.is_none(),
+                "consuming a kept intent never admits a memory replacement"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_kept_github_record_uses_its_resolved_tls_endpoint() {
+    let mut service = service(8, Duration::from_secs(3600));
+    let record = runtime_record(domain::Kind::GitHub, domain::Mode::Connected);
+    let engine = service.engine.as_mut().unwrap();
+    insert_runtime_forge(engine, &record);
+    let (_, endpoints) = tls_forges();
+    let mut endpoint = endpoints.into_boxed().into_iter().next().unwrap();
+    endpoint.number = 2;
+    let source = engine.workers.forges.get_mut(2).unwrap();
+    source.api = jig_protocol_config::Address::Host { name: b"first.test".as_slice().into(), port: 443 };
+    source.transport = crate::settings::Transport::Tls { server_name: b"first.test".as_slice().into(), trust: None };
+    engine.setup.resolved(endpoint);
+    keep(engine, &record);
+    start(&mut service, 94, host::Plan::Manifest { forge: 2, target: Target::Personal });
+    let root::SetupEnd::Done { forge: 2, outcome: root::SetupOutcome::Manifest { .. } } = terminal(&mut service) else {
+        panic!("resolved runtime GitHub serves its manifest")
+    };
+}
+#[test]
+fn forgetting_before_the_host_starts_does_not_restore_the_forge() {
+    let mut service = local_service(runtime_config(), local_store(false));
+    let record = runtime_record(domain::Kind::Forgejo, domain::Mode::Owned);
+    let engine = service.engine.as_mut().unwrap();
+    insert_runtime_forge(engine, &record);
+    keep(engine, &record);
+    forget(engine, 2);
+    let before = engine.events.len();
+    lifecycle::started(engine, 2);
+    lifecycle::connected(engine, 2);
+    lifecycle::read(engine, 2, Token::new(7), Ok(None));
+    lifecycle::removed(engine, 2, Token::new(7), Ok(()));
+    assert_eq!(engine.events.len(), before);
+    for _ in 0_u32..8 {
+        crate::forge::records::advance(engine);
+    }
+    advance(engine);
+    assert!(!engine.setup.served.contains_key(&2));
+    assert!(engine.setup.lifecycle.local(2).is_none());
+    engine.setup.down(host::Request::Run { run: Token::new(94), plan: host::Plan::Check { forge: 2 } });
+    let Some(host::Event::Stop { failure, .. }) = engine.setup.above.pop() else {
+        panic!("the host no longer holds the forge")
+    };
+    assert_eq!(failure.forge, 2);
+    assert_eq!(failure.why, reconcile::Why::Unexpected);
+}
+
+#[test]
+fn a_kept_fake_waits_for_the_box_before_reading_its_handover() {
+    let mut service = local_service(runtime_config(), local_store(false));
+    let record = runtime_record(domain::Kind::Forgejo, domain::Mode::Fake);
+    let engine = service.engine.as_mut().unwrap();
+    insert_runtime_forge(engine, &record);
+    keep(engine, &record);
+    for _ in 0_u32..8 {
+        crate::forge::records::advance(engine);
+    }
+    lifecycle::restored(engine);
+    advance(engine);
+    assert!(!engine.setup.lifecycle.local(2).unwrap().pending);
+    let mut not_set_up = false;
+    for event in &engine.events {
+        if let root::Event::Forge(event) = event
+            && let domain::Event::Connection { forge: 2, state: domain::Connection::NotSetUp } = event.as_ref()
+        {
+            not_set_up = true;
+        }
+    }
+    assert!(not_set_up);
+    assert!(lifecycle::take_read(engine).is_none());
+    lifecycle::started(engine, 2);
+    let read = lifecycle::take_read(engine).unwrap();
+    assert_eq!(read.forge, 2);
+    assert_eq!(read.path.as_ref(), b"/data/playground-2/admin_token");
+}
