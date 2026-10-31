@@ -146,7 +146,7 @@ fn uid(config: &Config, login: &[u8]) -> Option<u64> {
         }
     }
     if let Some(digits) = login.strip_prefix(b"u") {
-        return skein_forge::forgejo::id::unsigned(digits);
+        return Decimal::read(digits);
     }
     None
 }

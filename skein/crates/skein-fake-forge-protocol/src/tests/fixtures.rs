@@ -286,7 +286,7 @@ impl Harness {
     pub fn status(&self) -> u16 {
         let bytes = self.output.as_slice();
         let digits = &bytes[9..12];
-        skein_forge::forgejo::id::unsigned(digits).expect("status").try_into().expect("u16")
+        skein_lib::Decimal::read(digits).expect("status").try_into().expect("u16")
     }
     pub fn head(&self) -> Box<[u8]> {
         let out = self.output.as_slice();

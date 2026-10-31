@@ -185,9 +185,7 @@ pub fn select(config: &Config, request: &Request, range: Option<Range>) -> Resul
                 }
             }
             let id = login.strip_prefix(b"u").ok_or(a::Error::Missing(a::What::Repository))?;
-            Ok(Select::Permission(
-                skein_forge::forgejo::id::unsigned(id).ok_or(a::Error::Missing(a::What::Repository))?,
-            ))
+            Ok(Select::Permission(Decimal::read(id).ok_or(a::Error::Missing(a::What::Repository))?))
         }
         Request::Raw { .. } | Request::JobLog { .. } => Ok(Select::Raw(range)),
         Request::Contents { .. }
@@ -552,18 +550,16 @@ pub fn range(value: Option<&[u8]>) -> Result<Option<Range>, a::Error> {
     };
     let value = value.strip_prefix(b"bytes=").ok_or(a::Error::Refused)?;
     if let Some(suffix) = value.strip_prefix(b"-") {
-        let count = skein_forge::forgejo::id::unsigned(suffix).ok_or(a::Error::Refused)?;
+        let count = Decimal::read(suffix).ok_or(a::Error::Refused)?;
         if count == 0 {
             return Err(a::Error::Refused);
         }
         return Ok(Some(Range::Suffix(count)));
     }
     let dash = bytes::find(value, b"-").ok_or(a::Error::Refused)?;
-    let first =
-        skein_forge::forgejo::id::unsigned(value.get(..dash).ok_or(a::Error::Refused)?).ok_or(a::Error::Refused)?;
+    let first = Decimal::read(value.get(..dash).ok_or(a::Error::Refused)?).ok_or(a::Error::Refused)?;
     let last = value.get(dash.saturating_add(1)..).ok_or(a::Error::Refused)?;
-    let last =
-        if last.is_empty() { None } else { Some(skein_forge::forgejo::id::unsigned(last).ok_or(a::Error::Refused)?) };
+    let last = if last.is_empty() { None } else { Some(Decimal::read(last).ok_or(a::Error::Refused)?) };
     if let Some(last) = last
         && last < first
     {
