@@ -662,12 +662,14 @@ pub fn root(
 ) {
     let landing = landing_config(engine);
     let (forge, identities) = crate::forge::config(engine, seeds.deployment);
+    let demo = match &engine.demo {
+        Some(demo) => Some(demo.domain(&engine.forges, engine.limits.setup.deadline)),
+        None => None,
+    };
     let config = domain::Config {
         period_span: crate::stock::PERIOD_SPAN,
-        demo: match &engine.demo {
-            Some(demo) => Some(demo.domain(&engine.forges, engine.limits.setup.deadline)),
-            None => None,
-        },
+        playground: crate::system::playground_config(demo.as_ref()),
+        demo,
         core,
         landing,
         forge,

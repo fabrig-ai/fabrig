@@ -58,6 +58,13 @@ pub struct Domain {
     pub(crate) forge: forge::Domain,
     pub(crate) application: Option<(Token, crate::Application)>,
     pub(crate) application_carried: Option<jig_domain_core::Carried>,
+    pub(crate) application_playground: Option<crate::route::playground::Context>,
+    pub(crate) playground_contexts: Map<Token, crate::route::playground::Context>,
+    pub(crate) playground_start: Option<crate::route::playground::Start>,
+    pub(crate) playground_replies: Map<Token, (Option<Token>, crate::route::playground::Reply)>,
+    pub(crate) next_playground_reply: u64,
+    pub(crate) playground_provider: Option<u32>,
+    pub(crate) playground_policy: Option<u32>,
     pub(crate) application_demo: Option<crate::route::demo::Context>,
     pub(crate) demo_contexts: Map<Token, crate::route::demo::Context>,
     pub(crate) demo_start: Option<crate::route::demo::Start>,
@@ -284,6 +291,17 @@ impl Domain {
         if let Some(machine) = config.machine.take() {
             forge.set_machine(machine);
         }
+        #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
+        let playground_provider = match &config.playground {
+            Some(config) => Some(config.provider),
+            None => None,
+        };
+        #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
+        let playground_policy = match config.core.defaults.policies.first() {
+            Some((number, _)) => Some(*number),
+            None => None,
+        };
+        forge.configure_playground(config.playground.take());
         forge.configure_demo(config.demo.take());
         let built = policy_translate::build_landing(
             &config.landing.deployment,
@@ -406,6 +424,13 @@ impl Domain {
             forge,
             application: None,
             application_carried: None,
+            application_playground: None,
+            playground_contexts: Map::with_capacity(limits.forge.applications),
+            playground_start: None,
+            playground_replies: Map::with_capacity(limits.forge.applications),
+            next_playground_reply: u64::MAX,
+            playground_provider,
+            playground_policy,
             application_demo: None,
             demo_contexts: Map::with_capacity(limits.forge.applications),
             demo_start: None,

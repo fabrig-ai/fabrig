@@ -7,6 +7,7 @@ pub(crate) mod escalation;
 pub(crate) mod forge_route;
 pub(crate) mod held;
 pub(crate) mod host_route;
+pub(crate) mod playground;
 pub use host_route::{HostDelivery, HostRequest};
 mod goal;
 pub(crate) mod landing;
