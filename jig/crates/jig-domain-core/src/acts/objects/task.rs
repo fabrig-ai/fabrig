@@ -1,7 +1,8 @@
 //! Task steering and answer eligibility, without a retained request.
-use super::mutable;
-use crate::acts::{Act, Admission, allowed, bounds, standing};
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    acts::{Act, Admission, allowed, bounds, objects::mutable, standing},
+};
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -29,9 +30,9 @@ pub(super) fn admit(core: &Core, limits: &Limits, party: u64, act: Act, number: 
         }
         Act::Stop | Act::Cancel | Act::Release => {
             let control = match act {
-                Act::Stop => crate::routing::party::Control::Stop,
-                Act::Cancel => crate::routing::party::Control::Cancel { reason_len: 0, grace: None },
-                Act::Release => crate::routing::party::Control::Release { again: None },
+                Act::Stop => crate::routing::party::dispatch::Control::Stop,
+                Act::Cancel => crate::routing::party::dispatch::Control::Cancel { reason_len: 0, grace: None },
+                Act::Release => crate::routing::party::dispatch::Control::Release { again: None },
                 Act::Message
                 | Act::Answer
                 | Act::Take
@@ -56,7 +57,7 @@ pub(super) fn admit(core: &Core, limits: &Limits, party: u64, act: Act, number: 
                 | Act::SetPool => unreachable!("control act selected"),
             };
             if let Err(why) = core.control_admit(
-                crate::compound::PartyTask { person: party, project: row.project, role: held, task: number },
+                crate::admission::compound::PartyTask { person: party, project: row.project, role: held, task: number },
                 control,
                 &limits.tasks,
                 &tasks::CompoundAdmission::new(&core.tasks, 0),
@@ -88,7 +89,7 @@ pub(super) fn admit(core: &Core, limits: &Limits, party: u64, act: Act, number: 
             Admission::Allowed
         }
         Act::Move => allowed(core.move_admit(
-            crate::compound::PartyTask { person: party, role: held, project: row.project, task: number },
+            crate::admission::compound::PartyTask { person: party, role: held, project: row.project, task: number },
             limits.tasks.tree_tasks,
             limits.tasks.depth,
             &tasks::CompoundAdmission::new(&core.tasks, 0),

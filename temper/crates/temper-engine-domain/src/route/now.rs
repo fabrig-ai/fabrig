@@ -1,8 +1,8 @@
 //! The core's immediate outputs: payload reads, preparation and the door
 //! (jig's `domain/root.md`, 4; `testing/jig-test-domain/src/routes.rs`).
 use super::{
-    Assignment, CallAnswer, Decision, Delivery, Domain, Env, HostRequest, Limits, List, PreparedWorkspace, Read,
-    Request, Token, Work, emit, escalation, forge_route, proposals, relay_call,
+    CallAnswer, Decision, Delivery, Domain, Env, HostRequest, Limits, List, PreparedWorkspace, Read, Request, Token,
+    Work, emit, escalation, forge_route, proposals, relay_call,
 };
 use crate::Range;
 use crate::archive::retire_read;
@@ -34,6 +34,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             }
         }
         core::Now::DropCall { call } => {
+            domain.hub_link.forget_call(&call.name);
             let request = Request::Worker(crate::WorkerRequest::Host(Box::new(HostRequest::Dropped { call })));
             let _sent = super::now(domain, request);
         }
@@ -58,83 +59,27 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             }
         }
         core::Now::TurnPayload { run, attempt, turn, body } => {
-            let (cumulative, read, refused) = match domain.payloads.get(skein_lib::Id::from_token(body)) {
-                Some(Some(Payload::Turn { cumulative, read, refused, .. })) => (*cumulative, *read, refused.clone()),
-                Some(
-                    Some(
-                        Payload::Busy
-                        | Payload::Call { .. }
-                        | Payload::SettledCall(_)
-                        | Payload::RefusedCall { .. }
-                        | Payload::InboxWord(_)
-                        | Payload::Answer { .. },
-                    )
-                    | None,
-                )
-                | None => unreachable!("fleet returns its owned turn body"),
-            };
-            domain.work.push(Work::Core(core::Event::TurnPayload {
-                run,
-                attempt,
-                turn,
-                body,
-                read,
-                cumulative,
-                refused,
-            }));
+            crate::link::route(domain, jig_domain_hub_link::Event::TurnPayload { run, attempt, turn, body });
         }
         core::Now::AnswerPayload { run, attempt, payload } => crate::link::answer(domain, run, attempt, payload),
         core::Now::AcceptedTurn { payload, task, attempt, turn, accepted } => {
-            let (cumulative, read, transcript, opens_window) = match take_payload(domain, payload) {
-                Some(Payload::Turn { cumulative, read, transcript, opens_window, .. }) => {
-                    (cumulative, read, transcript, opens_window)
-                }
-                Some(
-                    Payload::Busy
-                    | Payload::Call { .. }
-                    | Payload::SettledCall(_)
-                    | Payload::RefusedCall { .. }
-                    | Payload::InboxWord(_)
-                    | Payload::Answer { .. },
-                )
-                | None => unreachable!("charged turn owns its payload"),
-            };
-            domain.work.push(Work::Core(core::Event::AcceptedTurn {
-                task,
-                attempt,
-                turn,
-                accepted,
-                opens_window,
-                cumulative,
-                read,
-                transcript,
-            }));
+            crate::link::route(
+                domain,
+                jig_domain_hub_link::Event::AcceptedTurn { payload, task, attempt, turn, accepted },
+            );
         }
         core::Now::RefusedPayload { request, problem } => {
-            let payload = match take_payload(domain, request) {
-                Some(Payload::Turn { task, attempt, turn, transcript, .. }) => {
-                    domain.release_bytes(
-                        u64::try_from(transcript.len()).expect("turn body length fits u64"),
-                        "refused turn payload was held",
-                    );
-                    Some(core::PayloadRefusal::Turn { task, attempt, turn })
+            if let Some(value) = domain.hub_link.payload(request) {
+                let bytes = crate::budget::payload_bytes(value);
+                let answer =
+                    if let Payload::Answer { task, attempt, .. } = value { Some((*task, *attempt)) } else { None };
+                domain.release_bytes(bytes, "refused turn payload was held");
+                if let Some(key) = answer {
+                    domain.forge_left.remove(&key);
                 }
-                Some(Payload::Answer { task, attempt, .. }) => {
-                    domain.forge_left.remove(&(task, attempt));
-                    Some(core::PayloadRefusal::Answer { task, attempt })
-                }
-                Some(
-                    Payload::Busy
-                    | Payload::Call { .. }
-                    | Payload::SettledCall(_)
-                    | Payload::RefusedCall { .. }
-                    | Payload::InboxWord(_),
-                ) => {
-                    unreachable!("task refusal owns a task payload")
-                }
-                None => None,
-            };
-            domain.work.push(Work::Core(core::Event::RefusedPayload { request, problem, payload }));
+            }
+            domain.answer_parts.remove(&request);
+            crate::link::route(domain, jig_domain_hub_link::Event::RefusedPayload { request, problem });
         }
         core::Now::Activate { context } => {
             let ready = domain.ready() && crate::domain::within_budget(domain, &env.limits);
@@ -169,16 +114,16 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             decision,
             EndedRead::PartyInput { request, task: *tasks.first().expect("historical input") },
         ),
-        core::Now::HistoricalPersonTask { request, person, project, task } => {
+        core::Now::EndedPersonTask { request, person, project, task } => {
             ended(domain, env, decision, EndedRead::PersonTask { request, person, project, task });
         }
         core::Now::DecidedProposal { to, key, proposal } => {
             proposals::task_begin(domain, env, decision, to, key, proposal);
         }
-        core::Now::HistoricalProposal { request, person, project, proposer, proposal } => {
+        core::Now::EndedProposal { request, person, project, proposer, proposal } => {
             proposals::historical_begin(domain, env, decision, request, person, project, proposer, proposal);
         }
-        core::Now::HistoricalEscalation { request, person, project, task, revision } => {
+        core::Now::EndedEscalation { request, person, project, task, revision } => {
             escalation::historical_begin(domain, env, decision, request, person, project, task, revision);
         }
         core::Now::BriefCorePlanned { task, parent, sections } => {
@@ -191,7 +136,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Now::WorkspaceRequest { task, attempt, context } => workspace(domain, env, task, attempt, &context),
         core::Now::RunPreparationFailed { task } => {
-            if let Some(sections) = domain.brief_sections.remove(&task) {
+            if let Some(sections) = crate::link::take_sections(domain, task) {
                 domain.release_bytes(
                     crate::budget::section_bytes(&sections),
                     "failed preparation's completed sections were held",
@@ -228,7 +173,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             run_prepared(domain, env, prepared);
         }
         core::Now::DropAssignment { task } => {
-            if let Some(assignment) = domain.assignments.remove(&task) {
+            if let Some(assignment) = crate::link::take_assignment(domain, task) {
                 domain.release_bytes(
                     crate::budget::assignment_bytes(&assignment),
                     "dropped assignment turns and sections were held",
@@ -358,7 +303,7 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
     for body in &transcript {
         domain.hold_bytes(u64::try_from(body.len()).expect("resumed transcript body length fits u64"));
     }
-    let sections = domain.brief_sections.remove(&task).expect("prepared brief sections");
+    let brief = domain.hub_link.take_brief(task).expect("prepared brief sections");
     let PreparedWorkspace { workspace, claim_names } =
         domain.run_workspaces.remove(&task).expect("prepared connector workspace");
     let mut records = List::with_capacity(domain.limits.call_records);
@@ -368,26 +313,29 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
             .push(crate::CallRecord { key, answer, settled: domain.core.call_settled.get(&key).cloned() })
             .expect("retained call bound");
     }
-    let assignment = Assignment {
-        task,
-        attempt,
-        conversation,
-        live: jig_domain_host::LiveAsk { text: live.text, reasoning: live.reasoning, input: live.input },
-        charter,
-        run,
-        sections,
-        messages,
+    let parts = crate::boundary::AssignmentParts {
         saved: forge_route::saved_tags(&saved, domain.config.forge_connector)
             .expect("task saved names were admitted by the root"),
         workspace: workspace.workspace.clone(),
         workstream: workspace.workstream,
-        transcript,
         answered: records.into_boxed(),
-        settled: domain.core.settled_calls(task, attempt),
+    };
+    domain.assignment_parts.insert(task, parts).expect("one temper assignment per task");
+    let assignment = jig_domain_hub_link::Assignment {
+        task,
+        attempt,
+        conversation,
+        live,
+        charter,
+        run,
+        brief,
+        messages,
+        transcript,
+        answered: domain.core.settled_calls(task, attempt),
         grants,
     };
     let budget = assignment.run.budget;
-    assert!(domain.assignments.insert(task, assignment).is_ok(), "assignment fits live task room");
+    domain.hub_link.keep_assignment(assignment);
     if workspace.names.is_empty() {
         domain.work.push(Work::Core(core::Event::ClaimPrepared { task, attempt, budget, writes: Box::new([]) }));
         return;

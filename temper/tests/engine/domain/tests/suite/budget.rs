@@ -211,8 +211,8 @@ fn read_history(driver: &mut Driver, run: &engine::Assignment) {
             }
         })
         .expect("the person's read is answered while activation waits");
-    let reads::Answer::Historical(past) = answer else { panic!("historical turn: {answer:?}") };
-    let reads::Past::Turn(turn) = &past.value else { panic!("requested turn") };
+    let reads::Answer::Ended(past) = answer else { panic!("historical turn: {answer:?}") };
+    let reads::EndedValue::Turn(turn) = &past.value else { panic!("requested turn") };
     assert_eq!(turn.transcript.as_ref(), BODY);
 }
 

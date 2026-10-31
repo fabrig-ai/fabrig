@@ -16,7 +16,7 @@ pub(crate) fn step_tasks(core: &mut Core, env: &Env<Limits>, event: tasks::Event
 }
 
 pub(crate) fn step_people(core: &mut Core, env: &Env<Limits>, event: people::Event, out: &mut Queue<people::Request>) {
-    super::watch_marks::touch_people_event(core, &env.limits, &event);
+    super::view::marks::touch_people_event(core, &env.limits, &event);
     people::step(&mut core.people, &env.with(env.limits.people), event, out);
 }
 

@@ -26,7 +26,7 @@ pub(crate) fn historical_begin(
 ) {
     let read = Query { request, person, project, proposer, proposal };
     let Ok(id) = domain.archive_reads.insert(Some(super::Read::Proposal(read))) else {
-        domain.work.push(Work::Core(jig_domain_core::Event::HistoricalProposal {
+        domain.work.push(Work::Core(jig_domain_core::Event::EndedProposal {
             request,
             person,
             project,
@@ -79,7 +79,7 @@ pub(crate) fn historical_loaded(domain: &mut Domain, waiter: Token, rows: Box<[s
     } else {
         None
     };
-    domain.work.push(Work::Core(jig_domain_core::Event::HistoricalProposal {
+    domain.work.push(Work::Core(jig_domain_core::Event::EndedProposal {
         request: query.request,
         person: query.person,
         project: query.project,
@@ -95,7 +95,7 @@ pub(crate) fn historical_failed(domain: &mut Domain, waiter: Token) {
         unreachable!("proposal archive owns its read")
     };
     domain.archive_reads.retire(super::Id::from_token(waiter));
-    domain.work.push(Work::Core(jig_domain_core::Event::HistoricalProposal {
+    domain.work.push(Work::Core(jig_domain_core::Event::EndedProposal {
         request: query.request,
         person: query.person,
         project: query.project,

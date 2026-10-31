@@ -44,7 +44,7 @@ fn a_decided_escalation_keeps_its_decider_and_wall() {
 }
 #[test]
 fn a_historical_task_keeps_its_ending() {
-    let answer = reads::Answer::Historical(Box::new(fixtures::historical_task()));
+    let answer = reads::Answer::Ended(Box::new(fixtures::historical_task()));
     assert_eq!(
         translate::document(&answer, &[], &fixtures::wire_limits()),
         Ok(w::ReadValue::Historical(Box::new(records::historical_task_record())))
@@ -59,13 +59,13 @@ fn a_project_document_becomes_its_record() {
     );
 }
 
-fn with_decision(source: &reads::Historical, decision: p::EscalationDecision) -> reads::Answer {
+fn with_decision(source: &reads::Ended, decision: p::EscalationDecision) -> reads::Answer {
     let mut source = source.clone();
-    let reads::Past::Escalation { decision: target, .. } = &mut source.value else {
+    let reads::EndedValue::Escalation { decision: target, .. } = &mut source.value else {
         unreachable!("fixture is an escalation")
     };
     target.decision = decision;
-    reads::Answer::Historical(Box::new(source))
+    reads::Answer::Ended(Box::new(source))
 }
 fn record_with_decision(source: &w::OwnerHistorical, decision: w::OwnerEscalationDecision) -> w::ReadValue {
     let limits = fixtures::wire_limits();

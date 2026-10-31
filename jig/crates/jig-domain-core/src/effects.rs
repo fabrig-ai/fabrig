@@ -10,10 +10,13 @@
 //! | Judging | Final verdict | Terminal | Keep and committed make, or drop and goal news |
 //! | Kept | Outcome | Settled or uncertain | Writer settlement and task news |
 
-use crate::routing::Work;
+pub mod connector;
+pub(crate) mod relays;
+pub(crate) mod resources;
+
 use crate::{
     Ask, CallKey, CallPart, CallRecord, Core, CoreRecord, Event, Family, Held, Limits, Now, Record, Request, ToolKind,
-    Write, connector, fresh,
+    Write, fresh, routing::Work,
 };
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -137,7 +140,7 @@ fn answer(core: &mut Core, out: &mut Queue<Request>, to: ReplyTo, key: CallKey, 
 
 fn drop_staged(core: &mut Core, out: &mut Queue<Request>, number: u16, owner: Token) {
     drop_effect(out, number, owner, authority::Answer::Refuse);
-    drop(core.land_kind(owner, crate::flight::Kind::EffectStaging));
+    drop(core.land_kind(owner, crate::routing::flight::Kind::EffectStaging));
 }
 fn drop_effect(out: &mut Queue<Request>, number: u16, owner: Token, answer: authority::Answer) {
     drop_with(out, number, owner, answer, connector::EffectRefusal::Unavailable);
@@ -177,7 +180,7 @@ pub(crate) fn start(
         EffectOrigin::Accept { to, key, proposal, by } => {
             let pending = core.tasks.proposal(proposal.proposer, proposal.number);
             if pending.as_ref() != Some(&proposal) {
-                drop(core.land_kind(owner, crate::flight::Kind::EffectStaging));
+                drop(core.land_kind(owner, crate::routing::flight::Kind::EffectStaging));
                 return out;
             }
             let proposal_number = proposal.number;
@@ -251,7 +254,7 @@ pub(crate) fn start(
             };
             if !valid || !numbered {
                 drop_with(&mut out, number, owner, authority::Answer::Refuse, connector::EffectRefusal::Obsolete);
-                drop(core.land_kind(owner, crate::flight::Kind::EffectStaging));
+                drop(core.land_kind(owner, crate::routing::flight::Kind::EffectStaging));
                 return out;
             }
             start_flight(core, env, owner, number, EffectOrigin::Procedure { task, step, entry });
@@ -303,10 +306,10 @@ fn propose_start(
 
 fn start_flight(core: &mut Core, env: &Env<Limits>, owner: Token, number: u16, origin: EffectOrigin) {
     let slot = core.flights.get_mut(skein_lib::Id::from_token(owner)).expect("effect owner allocated before staging");
-    let crate::flight::Flight::EffectStaging = slot else {
+    let crate::routing::flight::Flight::EffectStaging = slot else {
         unreachable!("effects begin with their allocated staging owner")
     };
-    *slot = crate::flight::Flight::Effect {
+    *slot = crate::routing::flight::Flight::Effect {
         route: Box::new(Flight {
             connector: number,
             origin,
@@ -386,8 +389,8 @@ pub(crate) fn connector(
             })));
         }
         connector::Event::Resource { project, name, role, hold } => {
-            crate::resources::role(core, &env.limits, project, name.clone(), role);
-            let access = crate::resources::task_access(role);
+            resources::role(core, &env.limits, project, name.clone(), role);
+            let access = resources::task_access(role);
             work.push(Work::Event(Event::Tasks(tasks::Event::ResourceAccess { project, name: name.clone(), access })));
             let hold = match hold {
                 connector::HoldKind::Shared => tasks::HoldKind::Shared,
@@ -601,7 +604,7 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
             match origin {
                 EffectOrigin::Call { to, key, .. } => answer(core, out, to, key, CallPart::EffectRefused(problem)),
                 EffectOrigin::Procedure { task, step, .. } => {
-                    crate::routing::procedure_steps::append_problem(core, task, step, problem, out);
+                    crate::routing::effect::procedure::append_problem(core, task, step, problem, out);
                 }
                 EffectOrigin::Accept { to, key, .. } => match key {
                     Some(key) => answer(core, out, to, key, CallPart::ProposalRefused(problem)),
@@ -731,7 +734,7 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
     let task = origin.task();
     for resource in held_resources(core, &description) {
         work.push(Work::Event(Event::Tasks(tasks::Event::EffectInFlight {
-            reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Delegate)),
+            reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Delegate)),
             task,
             resource,
             entry,
@@ -1031,7 +1034,8 @@ fn complete_proposal(
         out.push(rows.pop().expect("proposal output count"));
     }
     if let Some(token) = admitted {
-        if let Some(crate::flight::Flight::Call { effect, .. }) = core.flights.get_mut(skein_lib::Id::from_token(token))
+        if let Some(crate::routing::flight::Flight::Call { effect, .. }) =
+            core.flights.get_mut(skein_lib::Id::from_token(token))
         {
             *effect = Some((number, owner));
         }
@@ -1151,7 +1155,7 @@ fn check(
                             project: proposal.project,
                             authority,
                             numbers: crate::translate::authority_numbers(pool),
-                            effect: crate::resources::effect(core, proposal.project, description.effect.clone()),
+                            effect: resources::effect(core, proposal.project, description.effect.clone()),
                             now: env.wall,
                         },
                         given,
@@ -1262,7 +1266,7 @@ pub(crate) fn procedure_propose(
         procedure_wait(core, work, task, step);
         return;
     };
-    let token = core.fly(crate::flight::Flight::ProcedureProposal {
+    let token = core.fly(crate::routing::flight::Flight::ProcedureProposal {
         owner,
         route: ProcedureProposal { task, step, connector, proposal },
     });
@@ -1302,7 +1306,7 @@ pub(crate) fn procedure_proposed(
         drop_effect(out, route.connector, token, authority::Answer::Refuse);
     }
     tasks::Event::Procedure {
-        reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Delegate)),
+        reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Delegate)),
         task: route.task,
         step: route.step,
         read: core.tasks.procedure_offered(route.task),
@@ -1312,7 +1316,7 @@ pub(crate) fn procedure_proposed(
 
 fn procedure_wait(core: &mut Core, work: &mut Queue<Work>, task: u64, step: u64) {
     work.push(Work::Event(Event::Tasks(tasks::Event::Procedure {
-        reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Delegate)),
+        reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Delegate)),
         task,
         step,
         read: core.tasks.procedure_offered(task),
@@ -1467,3 +1471,15 @@ fn projection_refused(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>
         work.push(Work::Event(Event::Tasks(event)));
     }
 }
+
+impl Core {
+    /// Earliest absolute wall time among retained effect reply rights
+    /// (`domain/engine.md`, 4.4). Stale rights remain visible until the
+    /// existing effect-deadline event consumes them; this query changes nothing.
+    #[must_use]
+    pub fn effect_deadline(&self) -> Option<Wall> {
+        next_deadline(self)
+    }
+}
+
+pub(crate) mod projections;

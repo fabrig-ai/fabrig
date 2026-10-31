@@ -1,8 +1,9 @@
 //! Deployment facts and store fill (client/domain/pages.md, 7; protocol/store.md, 11.2).
 //! Closed at once (jig/docs/design/domain/people.md, 5.2).
-use super::inbox_deployment::line_bound;
-use super::{Chip, Missing, TaskLink, Window};
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    documents::{Chip, Missing, TaskLink, Window, inbox_deployment::line_bound},
+};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_fleet as fleet;

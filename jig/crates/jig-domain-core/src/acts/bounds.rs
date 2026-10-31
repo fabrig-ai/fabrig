@@ -1,7 +1,9 @@
 //! Factual direct bounds and the policy holder for supported widening drafts.
-use super::{Admission, Beyond, Bounds, Recipient, standing};
-use crate::translate;
-use crate::{Core, Limits};
+use crate::{
+    Core, Limits,
+    acts::{Admission, Beyond, Bounds, Recipient, standing},
+    translate,
+};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
@@ -130,7 +132,7 @@ pub(crate) fn amend_preflight_in(
     };
     amendment_admit_in(
         core,
-        crate::compound::PartyTask { person: party, role: held, project: row.project, task },
+        crate::admission::compound::PartyTask { person: party, role: held, project: row.project, task },
         &empty,
         limits.tasks.depth,
         &limits.tasks,
@@ -306,7 +308,7 @@ pub(crate) fn create_start(
 /// The amendment's one full judge, used for admission and form standing.
 pub(crate) fn amendment_admit(
     core: &Core,
-    party: crate::compound::PartyTask,
+    party: crate::admission::compound::PartyTask,
     amendment: &tasks::Amendment,
     depth: u32,
     limits: &tasks::Limits,
@@ -315,7 +317,7 @@ pub(crate) fn amendment_admit(
 }
 pub(crate) fn amendment_admit_in(
     core: &Core,
-    party: crate::compound::PartyTask,
+    party: crate::admission::compound::PartyTask,
     amendment: &tasks::Amendment,
     depth: u32,
     limits: &tasks::Limits,
@@ -326,7 +328,7 @@ pub(crate) fn amendment_admit_in(
 
 pub(crate) fn amendment_admit_with_places(
     core: &Core,
-    party: crate::compound::PartyTask,
+    party: crate::admission::compound::PartyTask,
     amendment: &tasks::Amendment,
     depth: u32,
     limits: &tasks::Limits,
@@ -345,14 +347,14 @@ pub(crate) fn amendment_admit_with_places(
 
 pub(crate) fn amendment_admit_places_in(
     core: &Core,
-    party: crate::compound::PartyTask,
+    party: crate::admission::compound::PartyTask,
     amendment: &tasks::Amendment,
     depth: u32,
     limits: &tasks::Limits,
     admission: &tasks::CompoundAdmission<'_>,
     places: &[tasks::DependencyPlace],
 ) -> Result<bool, people::Refusal> {
-    let crate::compound::PartyTask { person, project, role, task } = party;
+    let crate::admission::compound::PartyTask { person, project, role, task } = party;
     standing::role(core, project, role, super::Act::Amend)?;
     if amendment.tracked.is_some() {
         standing::role(core, project, role, super::Act::Reorder)?;
@@ -385,7 +387,7 @@ pub(crate) fn amendment_admit_places_in(
         };
         return Err(why);
     }
-    if let Err(why) = crate::account_preference::executor(row.executor, amendment.llm.as_ref()) {
+    if let Err(why) = crate::runs::account_preference::executor(row.executor, amendment.llm.as_ref()) {
         return Err(core.account_refusal(why));
     }
     if let Some(choice) = &amendment.llm
@@ -470,21 +472,21 @@ pub(crate) fn proposal_has_recipient(core: &Core, holder: tasks::ProposalHolder)
 /// Live names use staged reach; ended names use only their loaded place and root.
 fn amendment_dependencies(
     core: &Core,
-    party: crate::compound::PartyTask,
+    party: crate::admission::compound::PartyTask,
     existing: &[u64],
     dependencies: &[u64],
     depth: u32,
     admission: &tasks::CompoundAdmission<'_>,
     places: &[tasks::DependencyPlace],
 ) -> Result<(), people::Refusal> {
-    let crate::compound::PartyTask { person, project, role, .. } = party;
+    let crate::admission::compound::PartyTask { person, project, role, .. } = party;
     let Some(role) = role else { return Err(people::Refusal::Role { held: None }) };
     for dependency in dependencies {
         if existing.contains(dependency) {
             continue;
         }
         if admission.task(*dependency).is_some() {
-            if !core.reaches(crate::compound::PartyTask { task: *dependency, ..party }, depth, admission) {
+            if !core.reaches(crate::admission::compound::PartyTask { task: *dependency, ..party }, depth, admission) {
                 return Err(people::Refusal::Unknown);
             }
             continue;

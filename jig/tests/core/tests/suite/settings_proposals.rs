@@ -75,12 +75,12 @@ fn accepting_settings_records_the_proposal_accepter_and_revision_atomically() {
         frame(&mut world, owner).projects.get(0).expect("project").templates.get(0).expect("chat template").grace,
         Some(skein_lib::Duration::from_secs(7))
     );
-    let reads::Answer::Historical(history) =
+    let reads::Answer::Ended(history) =
         read(&mut world, owner, reads::Read::Proposal { proposer: people::Proposer::Party(OWNER), proposal })
     else {
         panic!("accepted history")
     };
-    let reads::Past::PersonProposal { proposal: row, .. } = history.value else { panic!("party history") };
+    let reads::EndedValue::PersonProposal { proposal: row, .. } = history.value else { panic!("party history") };
     assert_eq!(
         row.state,
         tasks::PersonProposalState::SettingsAccepted { by: tasks::Party::Person(OWNER), revision: 2 }
@@ -102,12 +102,12 @@ fn rejected_settings_keep_the_reason_and_notify_the_project_member() {
         people::ProposalDecision::Reject { reason: b"Keep the current grace".as_slice().into() },
         None,
     );
-    let reads::Answer::Historical(history) =
+    let reads::Answer::Ended(history) =
         read(&mut world, signed, reads::Read::Proposal { proposer: people::Proposer::Party(member), proposal })
     else {
         panic!("rejection history")
     };
-    let reads::Past::PersonProposal { proposal: row, .. } = history.value else { panic!("party history") };
+    let reads::EndedValue::PersonProposal { proposal: row, .. } = history.value else { panic!("party history") };
     assert!(
         matches!(&row.state, tasks::PersonProposalState::Rejected { reason, .. } if reason.as_ref() == b"Keep the current grace")
     );
@@ -200,12 +200,12 @@ fn accepting_or_changing_settings_withdraws_stale_proposals_and_proposers_hear()
     let entries = updates(&mut world, signed);
     assert!(entries.iter().any(|entry| entry.object
         == documents::InboxObject::Proposal { proposer: people::Proposer::Party(member), number: stale }));
-    let reads::Answer::Historical(history) =
+    let reads::Answer::Ended(history) =
         read(&mut world, signed, reads::Read::Proposal { proposer: people::Proposer::Party(member), proposal: stale })
     else {
         panic!("withdrawn history")
     };
-    let reads::Past::PersonProposal { proposal: row, decision: Some(decision) } = history.value else {
+    let reads::EndedValue::PersonProposal { proposal: row, decision: Some(decision) } = history.value else {
         panic!("withdrawn party proposal")
     };
     assert!(matches!(row.state, tasks::PersonProposalState::Withdrawn { .. }));
@@ -366,8 +366,8 @@ fn settings_proposal_reads_hide_pending_and_retained_values_from_project_only_pa
         None,
     );
     assert_eq!(read(&mut world, outsider, point.clone()), reads::Answer::None(reads::Why::Unknown));
-    assert!(matches!(read(&mut world, owner, point.clone()), reads::Answer::Historical(_)));
-    assert!(matches!(read(&mut world, signed, point.clone()), reads::Answer::Historical(_)));
+    assert!(matches!(read(&mut world, owner, point.clone()), reads::Answer::Ended(_)));
+    assert!(matches!(read(&mut world, signed, point.clone()), reads::Answer::Ended(_)));
     assert_eq!(
         decide(&mut world, owner, 2, member, proposal, people::ProposalDecision::Accept, None),
         people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotWellFormed {
@@ -413,7 +413,7 @@ fn ordinary_party_proposal_history_stays_private_to_its_proposer() {
     );
     let point = reads::Read::Proposal { proposer: people::Proposer::Party(OWNER), proposal };
     assert_eq!(read(&mut world, other, point.clone()), reads::Answer::None(reads::Why::Unknown));
-    assert!(matches!(read(&mut world, owner, point), reads::Answer::Historical(_)));
+    assert!(matches!(read(&mut world, owner, point), reads::Answer::Ended(_)));
     assert_eq!(
         ask(
             &mut world,

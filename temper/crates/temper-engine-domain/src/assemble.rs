@@ -88,7 +88,7 @@ pub(crate) fn brief_outputs(
                 // Text still being gathered in the core or forge is not counted;
                 // completed sections enter the root's ownership here.
                 domain.hold_bytes(crate::budget::section_bytes(sections.as_slice()));
-                assert!(domain.brief_sections.insert(task, sections.into_boxed()) == Ok(None), "one brief assembly");
+                crate::link::keep_sections(domain, task, sections.into_boxed());
                 domain.work.push(Work::Core(jig_domain_core::Event::BriefAssembled { task, ready: true }));
             }
             brief::GatherRequest::Failed { .. } | brief::GatherRequest::Refused { .. } => {
@@ -109,10 +109,9 @@ pub(crate) fn numbered_brief_kind(kind: u16) -> ForgeBriefKind {
 }
 
 pub(crate) fn take_payload(domain: &mut Domain, token: Token) -> Option<Payload> {
-    let id = Id::from_token(token);
-    let payload = domain.payloads.get_mut(id)?.take()?;
-    domain.payloads.retire(id);
-    Some(payload)
+    domain.answer_parts.remove(&token);
+    domain.refused_calls.remove(&token);
+    domain.hub_link.take_payload(token)
 }
 
 fn plan_home_access(

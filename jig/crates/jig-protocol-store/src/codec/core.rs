@@ -459,32 +459,31 @@ pub fn decode_host_kind(value: wire::HostKind) -> fleet::HostKind {
 }
 
 pub fn encode_outbox_outcome(
-    value: &domain::connector::OutboxOutcome,
+    value: &domain::effects::connector::OutboxOutcome,
     limits: &View,
 ) -> Result<wire::OutboxOutcome, wire::Problem> {
     Ok(match value {
-        domain::connector::OutboxOutcome::Made => wire::OutboxOutcome::Made,
-        domain::connector::OutboxOutcome::Failed => wire::OutboxOutcome::Failed,
-        domain::connector::OutboxOutcome::Withdrawn => wire::OutboxOutcome::Withdrawn,
-        domain::connector::OutboxOutcome::NotMade => wire::OutboxOutcome::NotMade,
-        domain::connector::OutboxOutcome::Uncertain => wire::OutboxOutcome::Uncertain,
-        domain::connector::OutboxOutcome::Held { entry } => wire::OutboxOutcome::Held(wire::OutboxOutcomeHeld::new(
-            &limits.core,
-            wire::OutboxOutcomeHeldParts { entry: *entry },
-        )?),
+        domain::effects::connector::OutboxOutcome::Made => wire::OutboxOutcome::Made,
+        domain::effects::connector::OutboxOutcome::Failed => wire::OutboxOutcome::Failed,
+        domain::effects::connector::OutboxOutcome::Withdrawn => wire::OutboxOutcome::Withdrawn,
+        domain::effects::connector::OutboxOutcome::NotMade => wire::OutboxOutcome::NotMade,
+        domain::effects::connector::OutboxOutcome::Uncertain => wire::OutboxOutcome::Uncertain,
+        domain::effects::connector::OutboxOutcome::Held { entry } => wire::OutboxOutcome::Held(
+            wire::OutboxOutcomeHeld::new(&limits.core, wire::OutboxOutcomeHeldParts { entry: *entry })?,
+        ),
     })
 }
 #[must_use]
-pub fn decode_outbox_outcome(value: wire::OutboxOutcome) -> domain::connector::OutboxOutcome {
+pub fn decode_outbox_outcome(value: wire::OutboxOutcome) -> domain::effects::connector::OutboxOutcome {
     match value {
-        wire::OutboxOutcome::Made => domain::connector::OutboxOutcome::Made,
-        wire::OutboxOutcome::Failed => domain::connector::OutboxOutcome::Failed,
-        wire::OutboxOutcome::Withdrawn => domain::connector::OutboxOutcome::Withdrawn,
-        wire::OutboxOutcome::NotMade => domain::connector::OutboxOutcome::NotMade,
-        wire::OutboxOutcome::Uncertain => domain::connector::OutboxOutcome::Uncertain,
+        wire::OutboxOutcome::Made => domain::effects::connector::OutboxOutcome::Made,
+        wire::OutboxOutcome::Failed => domain::effects::connector::OutboxOutcome::Failed,
+        wire::OutboxOutcome::Withdrawn => domain::effects::connector::OutboxOutcome::Withdrawn,
+        wire::OutboxOutcome::NotMade => domain::effects::connector::OutboxOutcome::NotMade,
+        wire::OutboxOutcome::Uncertain => domain::effects::connector::OutboxOutcome::Uncertain,
         wire::OutboxOutcome::Held(value) => {
             let wire::OutboxOutcomeHeldParts { entry } = value.into_parts();
-            domain::connector::OutboxOutcome::Held { entry }
+            domain::effects::connector::OutboxOutcome::Held { entry }
         }
     }
 }

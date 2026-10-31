@@ -92,7 +92,7 @@ fn an_uncertain_effect_across_restarts_is_made_before_its_retry_deadline_and_onc
     let applied = world.systems[0].observed();
     assert_eq!(applied.iter().filter(|row| row.applied).count(), 1);
     assert!(world.trace.iter().any(|line| line.contains("Look")));
-    assert!(world.store.rows.values().any(|record| matches!(record, root::Record::Core(core::Record::Core(core::CoreRecord::Call(row))) if matches!(row.part, core::CallPart::Effect { outcome: Some(core::connector::OutboxOutcome::Made), .. }))));
+    assert!(world.store.rows.values().any(|record| matches!(record, root::Record::Core(core::Record::Core(core::CoreRecord::Call(row))) if matches!(row.part, core::CallPart::Effect { outcome: Some(core::effects::connector::OutboxOutcome::Made), .. }))));
     assert!(deadline > world.wall_time(), "lookup resolved long before the saved retry deadline");
     world.restart(113, false);
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1);
@@ -251,7 +251,7 @@ fn an_uncertain_effect_released_without_making_it_again_tells_its_executor() {
     assert!(!world.store.rows.values().any(
         |row| matches!(row, root::Record::Connector { record: connector::Record::Outbox(row), .. } if row.task == task)
     ));
-    assert!(world.store.rows.values().any(|row| matches!(row, root::Record::Core(core::Record::Core(core::CoreRecord::Call(row))) if row.key.task == task && matches!(row.part, core::CallPart::Effect { outcome: Some(core::connector::OutboxOutcome::NotMade), .. }))));
+    assert!(world.store.rows.values().any(|row| matches!(row, root::Record::Core(core::Record::Core(core::CoreRecord::Call(row))) if row.key.task == task && matches!(row.part, core::CallPart::Effect { outcome: Some(core::effects::connector::OutboxOutcome::NotMade), .. }))));
 }
 
 #[test]

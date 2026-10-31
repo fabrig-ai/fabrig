@@ -181,12 +181,12 @@ fn immediate(engine: &mut Engine, now: core::Now) {
     match now {
         value @ (core::Now::SeenConversation { .. }
         | core::Now::LoadEndedRead { .. }
-        | core::Now::HistoricalPersonTask { .. }
+        | core::Now::EndedPersonTask { .. }
         | core::Now::EndedTask { .. }
         | core::Now::PartyInputs { .. }
-        | core::Now::HistoricalProposal { .. }
+        | core::Now::EndedProposal { .. }
         | core::Now::DecidedProposal { .. }
-        | core::Now::HistoricalEscalation { .. }
+        | core::Now::EndedEscalation { .. }
         | core::Now::StartPreparation { .. }) => {
             crate::store::request(engine, jig_test_store::StoreOut::Now(value));
         }

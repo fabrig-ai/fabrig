@@ -38,12 +38,12 @@ pub fn render(part: &CallPart) -> Rendered {
         CallPart::Effect { entry, outcome, .. } => {
             let status: &[u8] = match outcome {
                 None => b"pending",
-                Some(core::connector::OutboxOutcome::Made) => b"made",
-                Some(core::connector::OutboxOutcome::Failed) => b"failed",
-                Some(core::connector::OutboxOutcome::Withdrawn) => b"withdrawn",
-                Some(core::connector::OutboxOutcome::NotMade) => b"not made",
-                Some(core::connector::OutboxOutcome::Uncertain) => b"uncertain",
-                Some(core::connector::OutboxOutcome::Held { .. }) => b"held",
+                Some(core::effects::connector::OutboxOutcome::Made) => b"made",
+                Some(core::effects::connector::OutboxOutcome::Failed) => b"failed",
+                Some(core::effects::connector::OutboxOutcome::Withdrawn) => b"withdrawn",
+                Some(core::effects::connector::OutboxOutcome::NotMade) => b"not made",
+                Some(core::effects::connector::OutboxOutcome::Uncertain) => b"uncertain",
+                Some(core::effects::connector::OutboxOutcome::Held { .. }) => b"held",
             };
             text(&[b"Effect ", Decimal::of(*entry).as_bytes(), b": ", status], false)
         }

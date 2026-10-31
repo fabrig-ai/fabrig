@@ -1,6 +1,8 @@
-use super::*;
-use crate::tests::{RESTORE_POLICY_BYTES, RESTORE_PROJECT, config, limits, restoring_sized_policy};
-use crate::{Core, CoreRecord, Limits, Restored};
+use crate::{
+    Core, CoreRecord, Limits, Restored,
+    settings::*,
+    tests::{RESTORE_POLICY_BYTES, RESTORE_PROJECT, config, limits, restoring_sized_policy},
+};
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Time};
 
@@ -569,7 +571,7 @@ fn removal_markers_fit_beside_offered_charters_and_held_versions() {
     core.held.heads.insert(1, core.current.head.clone()).unwrap();
     let _writes = apply(&mut core.current, &items, 2);
     core.current.head = version_head(&core, 2);
-    let models = crate::charters::held_models(&core, &limits);
+    let models = charters::held_models(&core, &limits);
     assert_eq!(models.len(), 4);
     assert_eq!(core.held.versions.len(), 1);
     assert!(core.charter_at(7, 1).is_some());
@@ -578,7 +580,7 @@ fn removal_markers_fit_beside_offered_charters_and_held_versions() {
     tasks::step(
         &mut core.tasks,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks },
-        tasks::Event::Charters { newest: 2, charters: models, efforts: crate::charters::efforts(&core.settings) },
+        tasks::Event::Charters { newest: 2, charters: models, efforts: charters::efforts(&core.settings) },
         &mut tasks_out,
     );
     assert!(tasks_out.is_empty());
