@@ -26,7 +26,6 @@ struct Side {
     wire: Wire,
     stored: Vec<d::store::Record>,
     stream_epoch: u64,
-    family_reads: BTreeMap<Token, u16>,
     family_requests: BTreeMap<Token, u16>,
 }
 fn connections_limits() -> jig_client_shell_native::Limits {
@@ -43,7 +42,6 @@ impl Side {
             wire: Wire::default(),
             stored: Vec::new(),
             stream_epoch: 0,
-            family_reads: BTreeMap::new(),
             family_requests: BTreeMap::new(),
         }
     }
@@ -55,19 +53,14 @@ impl Side {
         }
         if let Request::Exchange { exchange, message, .. } = &request {
             match message {
-                Message::Read(bytes) => {
-                    let value = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("whole read bytes");
-                    if let w::Owner::Family(family) = value.owner() {
-                        self.family_reads.insert(*exchange, family.number());
-                    }
-                }
                 Message::Request(bytes) => {
                     let value = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("whole keyed bytes");
                     if let w::Owner::Family(family) = value.owner() {
                         self.family_requests.insert(*exchange, family.number());
                     }
                 }
-                Message::SignInLink(_)
+                Message::Read(_)
+                | Message::SignInLink(_)
                 | Message::SignInService
                 | Message::Authorize(_)
                 | Message::SignOut
@@ -101,20 +94,6 @@ impl Side {
                         final_answer: matches!(value, w::KeyedAnswer::FinalAnswer(_)),
                         words: None,
                     });
-                }
-                if self.family_reads.remove(exchange) == Some(2)
-                    && let Ok(w::ReadAnswer::Value(value)) =
-                        w::ReadAnswer::decode(&w::CEILINGS, &mut Reader::new(message))
-                {
-                    receipts.extend(crate::client::app::infrastructure_read_received(value.record()));
-                }
-            }
-            Event::Streamed { message: Streamed::Record(bytes) } => {
-                if let Ok(w::StreamEvent::Delivery(value)) =
-                    w::StreamEvent::decode(&w::CEILINGS, &mut Reader::new(bytes))
-                    && matches!(value.document().owner(), w::Owner::Family(family) if family.number() == 2)
-                {
-                    receipts.extend(crate::client::app::infrastructure_received(value.document().record()));
                 }
             }
             Event::Start { .. }

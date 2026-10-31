@@ -2,7 +2,16 @@ use crate::v1 as w;
 use skein_lib::List;
 
 pub const PROJECT: u32 = 7;
-pub const ENVIRONMENT: u64 = 17;
+pub fn environment() -> w::InfrastructureNativeEnvironment {
+    w::InfrastructureNativeEnvironment::new(
+        &w::CEILINGS,
+        w::InfrastructureNativeEnvironmentParts {
+            pool: b"Q.pool".as_slice().into(),
+            name: b"preview".as_slice().into(),
+        },
+    )
+    .expect("environment")
+}
 pub const REVISION: u64 = 3;
 pub const UNTIL: u64 = 81;
 const INCIDENT: u64 = 13;
@@ -11,11 +20,12 @@ const RAISED: u64 = 41;
 const LEAD: u64 = 23;
 
 pub fn request() -> w::InfrastructureAskRecord {
-    let value = w::InfrastructureAskMoveEnd::new(
+    let value = w::InfrastructureAskNativeMoveEnd::new(
         &w::CEILINGS,
-        w::InfrastructureAskMoveEndParts {
+        w::InfrastructureAskNativeMoveEndParts {
             project: PROJECT,
-            environment: ENVIRONMENT,
+            object: 17,
+            environment: environment(),
             revision: REVISION,
             until: UNTIL,
         },
@@ -23,7 +33,7 @@ pub fn request() -> w::InfrastructureAskRecord {
     .expect("move end");
     w::InfrastructureAskRecord::new(
         &w::CEILINGS,
-        w::InfrastructureAskRecordParts { value: w::InfrastructureAsk::MoveEnd(value) },
+        w::InfrastructureAskRecordParts { value: w::InfrastructureAsk::NativeMoveEnd(value) },
     )
     .expect("request record")
 }
@@ -39,13 +49,12 @@ pub fn infrastructure_subject() -> w::InfrastructureSubject {
     .expect("subject")
 }
 
-pub fn incident() -> w::ObservabilityIncident {
-    w::ObservabilityIncident::new(
+pub fn incident() -> w::ObservabilityNativeIncident {
+    w::ObservabilityNativeIncident::new(
         &w::CEILINGS,
-        w::ObservabilityIncidentParts {
+        w::ObservabilityNativeIncidentParts {
             project: PROJECT,
             number: INCIDENT,
-            revision: REVISION,
             watch: WATCH,
             raised: RAISED,
             service: w::ObservabilityService::new(
@@ -60,9 +69,8 @@ pub fn incident() -> w::ObservabilityIncident {
             state: w::ObservabilityState::Alerting,
             timeline: List::with_capacity(0),
             cut: true,
-            health: None,
             lead: Some(LEAD),
-            proposals: List::with_capacity(0),
+            alerts: List::with_capacity(0),
         },
     )
     .expect("incident")

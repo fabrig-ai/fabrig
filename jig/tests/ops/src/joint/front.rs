@@ -126,9 +126,6 @@ pub(super) fn subject_route(
                     S::Deployment
                 }
                 infra::Kind::Effect(_) => return Err("maker effect has no native raw identity"),
-                infra::Kind::Environments { .. } | infra::Kind::Environment(_) => {
-                    return Err("legacy numeric identity is absent from the native owner");
-                }
             };
             let scope = match subject.scope {
                 infra::Scope::Project(project) => jig_domain_people::ApplicationScope::Project(project),

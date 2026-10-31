@@ -34,8 +34,7 @@ pub(crate) fn send(
             key: Key { asker: asker(Connector::Infrastructure), number: token.raw() ^ root.salt },
             request: jig_client::Ask::Family {
                 scope: jig_client::contract::Scope::Project(match ask {
-                    crate::infrastructure::Ask::MoveEnd { project, .. }
-                    | crate::infrastructure::Ask::NativeMoveEnd { project, .. } => *project,
+                    crate::infrastructure::Ask::NativeMoveEnd { project, .. } => *project,
                 }),
                 record: owned(Connector::Infrastructure, bytes),
             },

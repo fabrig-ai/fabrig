@@ -1,4 +1,4 @@
-//! Ops own vocabulary translation; jig vocabulary reuses session 45 unchanged.
+//! Infrastructure owner facts translated into the client family vocabulary.
 use jig_ops_client_domain::infrastructure::native;
 use jig_ops_domain_infrastructure as source;
 
@@ -379,13 +379,13 @@ pub fn translate_value(value: source::ClientDocument) -> native::Value {
 
 /// The family wire bytes determine the protocol digest.
 /// # Errors
-/// Numeric fixture identities cannot represent the native owner identity.
+/// The request must fit the family wire bounds.
 pub fn ask(
     value: jig_ops_client_domain::infrastructure::Ask,
 ) -> Result<(u32, source::ApplicationRequest, [u8; 32]), &'static str> {
     use jig_ops_client_domain::infrastructure::Ask;
     use sha2::{Digest, Sha256};
-    let bytes = jig_ops_client_domain::wire::ask(&value).expect("whole family ask");
+    let bytes = jig_ops_client_domain::wire::ask(&value).map_err(|_| "request exceeds family wire bounds")?;
     let (project, value) = match value {
         Ask::NativeMoveEnd { project, environment, revision, until, object: _ } => (
             project,
@@ -395,7 +395,6 @@ pub fn ask(
                 until,
             },
         ),
-        Ask::MoveEnd { .. } => return Err("legacy numeric environment identity is absent from the native owner"),
     };
     let digest = Sha256::new().chain_update(&bytes);
     Ok((project, value, digest.finalize().into()))
@@ -509,15 +508,5 @@ mod tests {
         assert_eq!(answer(source::ApplicationOutcome::Unknown), Answer::Gone);
         assert_eq!(answer(source::ApplicationOutcome::Past), Answer::Refused { why: Refusal::Past });
         assert_eq!(answer(source::ApplicationOutcome::Exhausted), Answer::Refused { why: Refusal::Exhausted });
-        assert!(
-            ask(Ask::MoveEnd {
-                project,
-                environment: 0,
-                revision: Revision { value: 0 },
-                until: skein_lib::Wall::EPOCH
-            })
-            .is_err(),
-            "a numeric fixture identity never becomes an opaque owner identity"
-        );
     }
 }

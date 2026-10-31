@@ -504,9 +504,7 @@ fn identity(document: &Document) -> bool {
                 && match &document.subject.kind {
                     Kind::Project(number) => *number == *project,
                     Kind::NativeEnvironments { .. } => true,
-                    Kind::Environments { .. }
-                    | Kind::Environment(_)
-                    | Kind::NativeEnvironment(_)
+                    Kind::NativeEnvironment(_)
                     | Kind::Panel(_)
                     | Kind::Result(_)
                     | Kind::Effect(_)

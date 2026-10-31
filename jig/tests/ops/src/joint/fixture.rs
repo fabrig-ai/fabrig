@@ -95,9 +95,8 @@ pub fn client(seed: u64) -> (client::Domain, view::View) {
     let profile = profile();
     let mut domain = client::new(&limits, seed);
     client::configure_arrangement(&mut domain, view::arrangement()).expect("ops arrangement before start");
-    let mut view =
+    let view =
         view::View::new(&profile.bounds, &limits, profile.jig.clone(), profile.obs.clone(), profile.infra.clone(), 1);
-    view.native_environments();
     (domain, view)
 }
 #[must_use]

@@ -243,7 +243,7 @@ fn frame(watch: u64) -> w::StreamEvent {
 fn ops_child_records_precede_transport_within_a_step() {
     let mut world = World::ready();
     world.step(Event::Went {
-        place: Place::Address(Address::Infrastructure(infrastructure::Address::Environments {
+        place: Place::Address(Address::Infrastructure(infrastructure::Address::NativeEnvironments {
             project: PROJECT,
             pool: None,
         })),
@@ -258,7 +258,7 @@ fn ops_child_records_precede_transport_within_a_step() {
 fn ops_client_routes_finish_before_their_caller_continues() {
     let mut world = World::ready();
     world.step(Event::Infrastructure(infrastructure::Event::Went {
-        address: infrastructure::Address::Environments { project: PROJECT, pool: None },
+        address: infrastructure::Address::NativeEnvironments { project: PROJECT, pool: None },
     }));
     world.step(Event::Observability(observability::Event::Went {
         address: observability::Address::Incident { project: PROJECT, incident: INCIDENT },

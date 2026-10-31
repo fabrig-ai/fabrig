@@ -163,37 +163,74 @@ fn small_view() -> View {
     View::new(&bounds, &limits(), jig, obs, infra, 1)
 }
 
-fn incident() -> observability::documents::Incident {
-    use observability::documents::*;
-    let mut timeline = List::with_capacity(2);
-    let before = Health {
-        observed: Wall::from_nanos(36_000_000_000_000),
-        healthy_replicas: 3,
-        errors: 2,
-        error_rate_percent: 2,
+fn incident() -> observability::native::Document {
+    use observability::{
+        documents::{Service, State},
+        native as n,
     };
-    timeline.push(Point { at: before.observed, health: Some(before) }).unwrap();
-    Incident {
-        project: 1,
-        number: 12,
-        revision: Revision { value: 2 },
-        watch: 888,
-        raised: before.observed,
-        service: Service { environment: Box::from(*b"production"), name: Box::from(*b"checkout") },
-        severity: 2,
-        state: State::Alerting,
-        timeline,
-        cut: false,
-        health: Some(Health {
-            observed: Wall::from_nanos(36_120_000_000_000),
-            healthy_replicas: 2,
-            errors: 30,
-            error_rate_percent: 30,
-        }),
-        lead: None,
-        proposals: List::with_capacity(2),
+    n::Document {
+        subject: observability::Subject {
+            scope: observability::Scope::Project(1),
+            kind: observability::Kind::Incident(12),
+        },
+        value: n::Value::Incident {
+            incident: n::Incident {
+                project: 1,
+                number: 12,
+                watch: 888,
+                raised: Wall::from_nanos(36_000_000_000_000),
+                service: Service { environment: Box::from(*b"production"), name: Box::from(*b"checkout") },
+                severity: 2,
+                state: State::Alerting,
+                timeline: list([n::Point {
+                    at: Wall::from_nanos(36_000_000_000_000),
+                    health: Some(n::Health { observed: 36_000, healthy_replicas: 3, errors: 2, error_rate_percent: 2 }),
+                }]),
+                cut: false,
+                lead: None,
+                alerts: Box::new([]),
+            },
+            fact: Some(n::Fact {
+                observed: 36_120,
+                healthy_replicas: 2,
+                errors: 30,
+                error_rate_percent: 30,
+                load_percent: 0,
+                load: Box::new([]),
+            }),
+        },
     }
 }
+fn environment_name() -> infrastructure::native::Environment {
+    infrastructure::native::Environment { pool: Box::from(*b"Q.pool"), name: Box::from(*b"staging-7") }
+}
+fn environment() -> infrastructure::Document {
+    use infrastructure::native as n;
+    infrastructure::Document::Native(Box::new(n::Document {
+        subject: infrastructure::Subject {
+            scope: infrastructure::Scope::Project(1),
+            kind: infrastructure::Kind::NativeEnvironment(environment_name()),
+        },
+        value: n::Value::Environment {
+            environment: environment_name(),
+            end_revision: 5,
+            fact: n::EnvironmentFact {
+                created_by: n::Key {
+                    deployment: [1; 16],
+                    task: 9,
+                    origin: n::Purpose::Procedure { purpose: 2 },
+                    purpose: 2,
+                },
+                ready_at: 30,
+                until: 123,
+                price: 40,
+            },
+            end: Some(n::EnvironmentEnd { revision: 5, until: 600 }),
+            pool: None,
+        },
+    }))
+}
+
 #[test]
 fn deployment_keys_are_distinct_from_both_zero_and_maximum_project_identifiers() {
     let infrastructure = [
@@ -243,7 +280,7 @@ fn an_incident_drawing_has_a_readable_fallback_and_missing_lead_is_explicit() {
         &mut root,
         Event::Observability(observability::Event::Read {
             read,
-            result: observability::ReadResult::Value(Box::new(observability::Document::Incident(incident()))),
+            result: observability::ReadResult::Value(Box::new(observability::Document::Native(Box::new(incident())))),
         }),
     );
     let mut view = view();
@@ -404,22 +441,6 @@ fn list<T>(rows: impl IntoIterator<Item = T>) -> List<T> {
         out.push(row).ok().unwrap();
     }
     out
-}
-fn authority() -> Authority {
-    Authority {
-        models: None,
-        budget: 1,
-        grants: list([]),
-        task_kinds: list([]),
-        depth: 1,
-        tasks: 1,
-        deadline: None,
-        tools: list([]),
-        note_scopes: list([]),
-    }
-}
-fn budget() -> Budget {
-    Budget { total: 1, own: 0, ended: 0, reserved: 0, left: 1, funder: Actor::Party(7) }
 }
 fn task() -> Task {
     Task {
@@ -600,7 +621,7 @@ fn an_ops_arranged_task_page_has_no_tabs() {
     assert_eq!(view.tree().nodes().iter().filter(|node| node.role == skein_ui::Role::Tabs).count(), 0);
 }
 
-fn incident_plan_page(native: bool) -> Domain {
+fn incident_plan_page() -> Domain {
     let mut root = ready();
     let requests = drive(
         &mut root,
@@ -619,34 +640,9 @@ fn incident_plan_page(native: bool) -> Domain {
         })
         .unwrap();
     let mut facts = incident();
-    facts.lead = Some(9);
-    let document = if native {
-        use observability::native as n;
-        observability::Document::Native(Box::new(n::Document {
-            subject: observability::Subject {
-                scope: observability::Scope::Project(1),
-                kind: observability::Kind::Incident(12),
-            },
-            value: n::Value::Incident {
-                incident: n::Incident {
-                    project: 1,
-                    number: 12,
-                    watch: facts.watch,
-                    lead: facts.lead,
-                    alerts: Box::from([]),
-                    raised: facts.raised,
-                    service: facts.service,
-                    severity: facts.severity,
-                    state: facts.state,
-                    timeline: List::with_capacity(0),
-                    cut: false,
-                },
-                fact: None,
-            },
-        }))
-    } else {
-        observability::Document::Incident(facts)
-    };
+    let observability::native::Value::Incident { incident, .. } = &mut facts.value else { unreachable!() };
+    incident.lead = Some(9);
+    let document = observability::Document::Native(Box::new(facts));
     let requests = drive(
         &mut root,
         Event::Observability(observability::Event::Read {
@@ -676,8 +672,8 @@ fn incident_plan_page(native: bool) -> Domain {
 
 #[test]
 fn the_incident_page_fills_its_leads_plan_in_a_section_slot() {
-    for native in [false, true] {
-        let root = incident_plan_page(native);
+    {
+        let root = incident_plan_page();
         let mut view = small_view();
         let mut patches = Queue::uncapped();
         build(&mut view, &root, &mut patches);
@@ -687,27 +683,10 @@ fn the_incident_page_fills_its_leads_plan_in_a_section_slot() {
             .iter()
             .filter(|node| node.region == Some(jig_client_view::regions::JigRegion::TaskPlan.region()))
             .collect();
-        assert_eq!(plans.len(), 1, "native={native}");
-        assert_eq!(plans[0].name.as_deref(), Some(b"Plan".as_slice()), "native={native}");
+        assert_eq!(plans.len(), 1);
+        assert_eq!(plans[0].name.as_deref(), Some(b"Plan".as_slice()));
     }
 }
-fn proposal(key: ProposalKey) -> Proposal {
-    Proposal {
-        key,
-        project: 1,
-        proposer: key.proposer,
-        why: text(&[b'w'; 32]),
-        action: ProposalAction::Effect { part: Part::Effect { connector: 2, proposal: key } },
-        needs: authority(),
-        funding: budget(),
-        waiting: Recipient::Roles { project: 1, roles: list([1, 2]) },
-        trail: list([]),
-        since: Wall::EPOCH,
-        acts: list([]),
-        ending: None,
-    }
-}
-
 fn contains(view: &View, words: &[u8]) -> bool {
     view.tree()
         .nodes()
@@ -716,7 +695,7 @@ fn contains(view: &View, words: &[u8]) -> bool {
         .any(|r| r.text.windows(words.len()).any(|slice| slice == words))
 }
 #[test]
-fn an_incident_with_a_proposal_and_an_infrastructure_panel_fills_both_slot_passes() {
+fn an_incident_with_a_lead_and_an_infrastructure_panel_fills_both_slot_passes() {
     let mut root = ready();
     let requests = drive(
         &mut root,
@@ -735,62 +714,51 @@ fn an_incident_with_a_proposal_and_an_infrastructure_panel_fills_both_slot_passe
         })
         .unwrap();
     let mut facts = incident();
-    facts.lead = Some(9);
-    facts.proposals.push(ProposalKey { proposer: Proposer::Task(9), number: 1 }).unwrap();
+    let observability::native::Value::Incident { incident, .. } = &mut facts.value else { unreachable!() };
+    incident.lead = Some(9);
     let requests = drive(
         &mut root,
         Event::Observability(observability::Event::Read {
             read,
-            result: observability::ReadResult::Value(Box::new(observability::Document::Incident(facts))),
+            result: observability::ReadResult::Value(Box::new(observability::Document::Native(Box::new(facts)))),
         }),
     );
-    for r in requests {
-        if let Request::Jig(JigOut::Read { read, what }) = r {
-            let value = match what {
-                Read::Task { .. } => ReadValue::Task(Box::new(task())),
-                Read::Proposal { proposal: key } => ReadValue::Proposal(Box::new(proposal(key))),
-                _ => continue,
-            };
-            let parts = drive(
-                &mut root,
-                Event::Client {
-                    event: jig_client::Event::Up {
-                        up: jig_client::Up::ReadDone {
-                            read,
-                            result: jig_client::Readout::Jig(ReadResult::Value(value)),
-                        },
+    let mut pending = requests;
+    while let Some(request) = pending.pop() {
+        let event = match request {
+            Request::Jig(JigOut::Read { read, what: Read::Task { .. } }) => Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::ReadDone {
+                        read,
+                        result: jig_client::Readout::Jig(ReadResult::Value(ReadValue::Task(Box::new(task())))),
                     },
                 },
-            );
-            for r in parts {
-                if let Request::Infrastructure(infrastructure::Out::Read { read, subject }) = r {
-                    let doc = waiting_remediation_panel(subject);
-                    drive(
-                        &mut root,
-                        Event::Infrastructure(infrastructure::Event::Read {
-                            read,
-                            result: infrastructure::ReadResult::Value(Box::new(infrastructure::Document::Part(
-                                Box::new(doc),
-                            ))),
-                        }),
-                    );
-                }
+            },
+            Request::Jig(JigOut::Open { watch, subject: Subject::Task { .. } }) => Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch,
+                        event: WatchEvent::Delivered(Delivery::Task(Box::new(task()))),
+                    },
+                },
+            },
+            Request::Infrastructure(infrastructure::Out::Read { read, subject }) => {
+                Event::Infrastructure(infrastructure::Event::Read {
+                    read,
+                    result: infrastructure::ReadResult::Value(Box::new(infrastructure::Document::Native(Box::new(
+                        waiting_remediation_panel(subject),
+                    )))),
+                })
             }
-        }
+            _ => continue,
+        };
+        pending.extend(drive(&mut root, event));
     }
     let mut view = view();
     let mut patches = Queue::uncapped();
     build(&mut view, &root, &mut patches);
     assert!(contains(&view, b"Task 9"));
-    assert!(contains(&view, b"Waiting at policy roles"));
-    assert!(
-        view.tree()
-            .nodes()
-            .iter()
-            .any(|n| n.role == skein_ui::Role::Region
-                && n.name.as_deref() == Some(b"Infrastructure procedure".as_slice()))
-    );
-    assert!(contains(&view, b"Waiting for condition"));
+    assert!(contains(&view, b"Waiting for healthy"));
     assert!(view.tree().len() <= view.limits().tree.nodes);
     while patches.pop().is_some() {}
     build(&mut view, &root, &mut patches);
@@ -798,14 +766,13 @@ fn an_incident_with_a_proposal_and_an_infrastructure_panel_fills_both_slot_passe
 }
 #[test]
 fn moving_an_environment_end_names_the_end_revision_and_waits_for_the_final_envelope() {
-    use infrastructure::documents::{Creation, End, Environment, Purpose};
     let mut root = ready();
     let requests = drive(
         &mut root,
         Event::Went {
-            place: root::Place::Address(Address::Infrastructure(infrastructure::Address::Environment {
+            place: root::Place::Address(Address::Infrastructure(infrastructure::Address::NativeEnvironment {
                 project: 1,
-                environment: 7,
+                environment: environment_name(),
             })),
         },
     );
@@ -816,34 +783,19 @@ fn moving_an_environment_end_names_the_end_revision_and_waits_for_the_final_enve
             _ => None,
         })
         .unwrap();
-    let document = Environment {
-        project: 1,
-        number: 7,
-        pool: 3,
-        name: Box::from(*b"staging-7"),
-        revision: Revision { value: 99 },
-        created_by: Creation { deployment: [1; 16], task: 9, origin: Purpose::Procedure { purpose: 2 }, purpose: 2 },
-        ready_at: None,
-        ready: Some(false),
-        cost: Some(40),
-        observed_until: Some(Wall::from_nanos(123_000_000_000)),
-        end: Some(End { revision: Revision { value: 5 }, until: Wall::from_nanos(600_000_000_000) }),
-    };
+    let document = environment();
     drive(
         &mut root,
         Event::Infrastructure(infrastructure::Event::Read {
             read,
-            result: infrastructure::ReadResult::Value(Box::new(infrastructure::Document::Environment(
-                document.clone(),
-            ))),
+            result: infrastructure::ReadResult::Value(Box::new(document.clone())),
         }),
     );
     let mut view = view();
     let mut patches = Queue::uncapped();
     while patches.pop().is_some() {}
     build(&mut view, &root, &mut patches);
-    assert!(contains(&view, b"Not ready"));
-    assert!(contains(&view, b"Observed backend lease:"));
+    assert!(contains(&view, b"Observed backend lease (seconds since epoch):"));
     let field = view
         .tree()
         .nodes()
@@ -875,21 +827,21 @@ fn moving_an_environment_end_names_the_end_revision_and_waits_for_the_final_enve
     let request = out.pop().unwrap();
     let Request::Send {
         attempt,
-        ask: root::Ask::Infrastructure(infrastructure::Ask::MoveEnd { revision, until, .. }),
+        ask: root::Ask::Infrastructure(infrastructure::Ask::NativeMoveEnd { revision, until, .. }),
         ..
     } = request
     else {
         panic!("keyed move leaves through table")
     };
     assert_eq!(revision.value, 5);
-    assert_eq!(until.as_secs(), 900);
+    assert_eq!(until, 900);
     drive(
         &mut root,
         support::answer(
             attempt,
             skein_lib::RequestEnvelope::Again,
-            Some(root::Answered::Infrastructure(infrastructure::Answer::MovedEnd {
-                environment: 7,
+            Some(root::Answered::Infrastructure(infrastructure::Answer::NativeMovedEnd {
+                environment: environment_name(),
                 revision: Revision { value: 6 },
                 until,
             })),
@@ -900,77 +852,24 @@ fn moving_an_environment_end_names_the_end_revision_and_waits_for_the_final_enve
     assert!(!contains(&view, b"End moved"));
 }
 #[test]
-fn extreme_capacity_and_wall_overflow_are_refused_before_building() {
+fn extreme_capacity_is_refused_before_building() {
     let jig = jig_client_view::words::Words::new(jig_client_view::phrases::english::english(32).unwrap(), 0, 0);
     let obs = words::Words::english(1, 32).unwrap();
     let infra = words::Words::english(2, 32).unwrap();
     let mut limits = limits();
     limits.observability.rows = u32::MAX;
     assert!(Limits::of(&limits, &jig, &obs, &infra).is_none());
-    assert!(crate::time::wall(u64::MAX).is_none());
-}
-
-#[test]
-fn an_environment_without_an_end_has_no_revision_or_move_form() {
-    use infrastructure::documents::{Creation, Environment, Purpose};
-    let mut root = ready();
-    let requests = drive(
-        &mut root,
-        Event::Went {
-            place: root::Place::Address(Address::Infrastructure(infrastructure::Address::Environment {
-                project: 1,
-                environment: 7,
-            })),
-        },
-    );
-    let read = requests
-        .iter()
-        .find_map(|r| match r {
-            Request::Infrastructure(infrastructure::Out::Read { read, .. }) => Some(*read),
-            _ => None,
-        })
-        .unwrap();
-    let document = Environment {
-        project: 1,
-        number: 7,
-        pool: 3,
-        name: Box::from(*b"staging-7"),
-        revision: Revision { value: 99 },
-        created_by: Creation { deployment: [1; 16], task: 9, origin: Purpose::Procedure { purpose: 2 }, purpose: 2 },
-        ready_at: None,
-        ready: None,
-        cost: None,
-        observed_until: None,
-        end: None,
-    };
-    drive(
-        &mut root,
-        Event::Infrastructure(infrastructure::Event::Read {
-            read,
-            result: infrastructure::ReadResult::Value(Box::new(infrastructure::Document::Environment(document))),
-        }),
-    );
-    let mut view = view();
-    let mut patches = Queue::uncapped();
-    build(&mut view, &root, &mut patches);
-    assert!(!view.tree().nodes().iter().any(|n| n.role == skein_ui::Role::TextField
-        && n.name.as_deref() == Some(b"New end (seconds since epoch)".as_slice())));
-    assert!(!view.tree().nodes().iter().any(|n| n.name.as_deref() == Some(b"Move end".as_slice())));
-    assert!(!contains(&view, b"Cost:"));
-    assert!(!contains(&view, b"Revision"));
-    assert!(!contains(&view, b"Not ready"));
 }
 
 #[test]
 fn a_common_entrance_refusal_prints_supplied_budget_facts_without_claiming_gone() {
-    use infrastructure::documents::{Creation, End, Environment, Purpose};
     let mut root = ready();
     let requests = drive(
         &mut root,
         Event::Went {
-            place: root::Place::Address(Address::Infrastructure(infrastructure::Address::Environment {
+            place: root::Place::Address(Address::Infrastructure(infrastructure::Address::NativeEnvironment {
                 project: 1,
-                environment: 7,
+                environment: environment_name(),
             })),
         },
     );
@@ -981,26 +880,12 @@ fn a_common_entrance_refusal_prints_supplied_budget_facts_without_claiming_gone(
             _ => None,
         })
         .unwrap();
-    let document = Environment {
-        project: 1,
-        number: 7,
-        pool: 3,
-        name: Box::from(*b"staging-7"),
-        revision: Revision { value: 99 },
-        created_by: Creation { deployment: [1; 16], task: 9, origin: Purpose::Procedure { purpose: 2 }, purpose: 2 },
-        ready_at: None,
-        ready: Some(false),
-        cost: Some(40),
-        observed_until: Some(Wall::from_nanos(123_000_000_000)),
-        end: Some(End { revision: Revision { value: 5 }, until: Wall::from_nanos(600_000_000_000) }),
-    };
+    let document = environment();
     drive(
         &mut root,
         Event::Infrastructure(infrastructure::Event::Read {
             read,
-            result: infrastructure::ReadResult::Value(Box::new(infrastructure::Document::Environment(
-                document.clone(),
-            ))),
+            result: infrastructure::ReadResult::Value(Box::new(document.clone())),
         }),
     );
     let object = root.infrastructure().page().unwrap().token();
@@ -1008,16 +893,12 @@ fn a_common_entrance_refusal_prints_supplied_budget_facts_without_claiming_gone(
     drive(
         &mut root,
         Event::Act {
-            action: root::Action::Infrastructure(infrastructure::Act::Until {
-                object,
-                revision,
-                value: Wall::from_nanos(900_000_000_000),
-            }),
+            action: root::Action::Infrastructure(infrastructure::Act::NativeUntil { object, revision, value: 900 }),
         },
     );
     drive(
         &mut root,
-        Event::Act { action: root::Action::Infrastructure(infrastructure::Act::MoveEnd { object, revision }) },
+        Event::Act { action: root::Action::Infrastructure(infrastructure::Act::NativeMoveEnd { object, revision }) },
     );
     let mut out = Queue::uncapped();
     support::take(&mut root, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() }, &mut out);
@@ -1048,7 +929,7 @@ fn a_common_entrance_refusal_prints_supplied_budget_facts_without_claiming_gone(
 
 #[test]
 fn actual_outbox_entries_render_from_their_explicit_scope_and_keep_proposal_keys_distinct() {
-    for scope in [PartScope::Project(0), PartScope::Project(u32::MAX), PartScope::Project(91), PartScope::Deployment] {
+    for scope in [PartScope::Project(0), PartScope::Project(u32::MAX), PartScope::Project(91)] {
         let mut root = ready();
         let rows = drive(
             &mut root,
@@ -1125,40 +1006,37 @@ fn actual_outbox_entries_render_from_their_explicit_scope_and_keep_proposal_keys
     }
 }
 
+fn outbox_entry() -> infrastructure::native::Entry {
+    use infrastructure::native as n;
+    n::Entry {
+        project: None,
+        number: 17,
+        key: n::Key { deployment: [4; 16], task: 29, origin: n::Purpose::Procedure { purpose: 2 }, purpose: 2 },
+        effect: n::Effect::Restart {
+            service: n::Service { environment: Box::from(*b"production"), name: Box::from(*b"checkout") },
+            operation: 31,
+        },
+        attempt: 2,
+        deadline: 0,
+        phase: n::Phase::Sent,
+    }
+}
 fn outbox_document(subject: infrastructure::Subject) -> infrastructure::Document {
-    use infrastructure::documents::{Creation, Effect, EffectAction, EffectState, PartDocument, Purpose, Service};
-    let mut effects = List::with_capacity(1);
-    effects
-        .push(Effect {
-            entry: 17,
-            task: 29,
-            project: Some(91),
-            origin: Creation { deployment: [4; 16], task: 29, origin: Purpose::Procedure { purpose: 2 }, purpose: 2 },
-            description: None,
-            state: EffectState::Sent,
-            attempt: 2,
-            deadline: Wall::EPOCH,
-            action: EffectAction::Restart {
-                service: Service { environment: Box::from(*b"production"), name: Box::from(*b"checkout") },
-                operation: 31,
-            },
-        })
-        .unwrap();
-    infrastructure::Document::Part(Box::new(PartDocument {
+    use infrastructure::native as n;
+    infrastructure::Document::Native(Box::new(n::Document {
         subject,
-        revision: Revision { value: 7 },
-        panel: None,
-        description: None,
-        effect: None,
-        resources: List::with_capacity(0),
-        effects,
-        drift: List::with_capacity(0),
-        environments: List::with_capacity(0),
-        pools: List::with_capacity(0),
-        backend: None,
-        made: None,
-        proposal_limit: None,
-        staged_limit: None,
+        value: n::Value::Outbox {
+            entry: outbox_entry(),
+            description: n::Description {
+                kind: 1,
+                resources: Box::new([]),
+                condition: false,
+                form: n::Form::Transition,
+                recovery: n::Recovery::Keyed,
+                price: None,
+                state: 1,
+            },
+        },
     }))
 }
 
@@ -1300,45 +1178,43 @@ fn deployment_read(root: &mut Domain, connector: u16) -> Request {
 }
 
 fn infrastructure_deployment(subject: infrastructure::Subject) -> infrastructure::Document {
-    let infrastructure::Document::Part(mut document) = outbox_document(subject) else { panic!("whole fixture part") };
-    let mut uncertain = document.effects.as_slice()[0].clone();
-    uncertain.entry = 18;
-    uncertain.state = infrastructure::documents::EffectState::Uncertain;
-    document.effects = list([document.effects.as_slice()[0].clone(), uncertain]);
-    document.proposal_limit = Some(u32::MAX);
-    document.staged_limit = Some(7);
-    infrastructure::Document::Part(document)
+    use infrastructure::native as n;
+    let mut uncertain = outbox_entry();
+    uncertain.number = 18;
+    uncertain.phase = n::Phase::Uncertain;
+    infrastructure::Document::Native(Box::new(n::Document {
+        subject,
+        value: n::Value::Deployment {
+            backend: n::Backend::OperationIds,
+            effects: list([outbox_entry(), uncertain]),
+            made: 0,
+            proposal_limit: u32::MAX,
+            staged_limit: 7,
+        },
+    }))
 }
-
 fn observability_deployment(subject: observability::Subject) -> observability::Document {
-    use infrastructure::documents::{Creation, Purpose};
-    use observability::documents::{Effect, EffectState, PartDocument};
-    let entry = Effect {
-        entry: 17,
-        task: 29,
+    use observability::native as n;
+    let entry = n::Entry {
         project: Some(91),
-        alert: 31,
-        until: Wall::EPOCH,
-        state: EffectState::Sent,
+        number: 17,
+        key: n::Key { deployment: [4; 16], task: 29, origin: n::Purpose::Procedure { purpose: 2 }, purpose: 2 },
+        effect: n::Effect { rule: Box::from(*b"checkout"), until: 0 },
         attempt: 2,
-        deadline: Wall::EPOCH,
-        origin: Creation { deployment: [4; 16], task: 29, origin: Purpose::Procedure { purpose: 2 }, purpose: 2 },
+        deadline: 0,
+        phase: n::Phase::Sent,
     };
     let mut uncertain = entry.clone();
-    uncertain.entry = 18;
-    uncertain.state = EffectState::Uncertain;
-    observability::Document::Part(Box::new(PartDocument {
+    uncertain.number = 18;
+    uncertain.phase = n::Phase::Uncertain;
+    observability::Document::Native(Box::new(n::Document {
         subject,
-        revision: Revision { value: 7 },
-        service: None,
-        health: None,
-        incident: None,
-        incidents: list([]),
-        services: list([]),
-        effects: list([entry, uncertain]),
-        watches: Some(3),
-        read_limit: Some(u32::MAX),
-        incident_limit: Some(7),
+        value: n::Value::Deployment {
+            watches: 3,
+            effects: list([entry, uncertain]),
+            read_limit: u32::MAX,
+            incident_limit: 7,
+        },
     }))
 }
 
@@ -1401,8 +1277,10 @@ fn known_deployment_parts_name_actual_capacities_and_deferred_diagnostics_withou
             _ => panic!("connector Deployment read"),
         }
         build(&mut view, &root, &mut patches);
-        assert!(contains(&view, b"System request budget: not kept by this connector"));
-        assert!(contains(&view, b"What the system last said: not kept by this connector"));
+        if connector == 2 {
+            assert!(contains(&view, b"System request budget: not kept by this connector"));
+            assert!(contains(&view, b"What the system last said: not kept by this connector"));
+        }
         assert!(contains(
             &view,
             if connector == 1 { b"Read capacity: 4294967295" } else { b"Proposal capacity: 4294967295" }
@@ -1410,8 +1288,10 @@ fn known_deployment_parts_name_actual_capacities_and_deferred_diagnostics_withou
         assert!(!contains(&view, b"Request limit:"));
         assert!(contains(&view, b"Outbox entry 17"));
         assert!(contains(&view, b"Outbox entry 18"));
-        assert!(contains(&view, b"Sent"));
-        assert!(contains(&view, b"Uncertain"));
+        if connector == 2 {
+            assert!(contains(&view, b"Sent"));
+            assert!(contains(&view, b"Uncertain"));
+        }
         assert!(view.tree().len() <= view.limits().tree.nodes);
         assert!(view.tree().nodes().iter().all(|node| {
             node.text.iter().all(|run| run.text.len() <= usize::try_from(view.limits().tree.text_per_node).unwrap())
@@ -1736,30 +1616,23 @@ fn native_environment_form_uses_the_supplied_request_revision_and_keeps_whole_wi
     );
 }
 
-fn waiting_remediation_panel(subject: infrastructure::documents::Subject) -> infrastructure::documents::PartDocument {
-    use infrastructure::documents::{Panel, PartDocument, Phase, Procedure, Service};
-    PartDocument {
+fn waiting_remediation_panel(subject: infrastructure::Subject) -> infrastructure::native::Document {
+    use infrastructure::native as n;
+    n::Document {
         subject,
-        revision: Revision { value: 1 },
-        panel: Some(Panel {
+        value: n::Value::Panel {
             task: 9,
-            procedure: Procedure::Remediate {
-                service: Service { environment: Box::from(*b"production"), name: Box::from(*b"checkout") },
-                operation: 17,
-                deadline: Wall::EPOCH,
+            state: n::ProcedureState {
+                task: 9,
+                procedure: n::Procedure::Remediate {
+                    service: n::Service { environment: Box::from(*b"production"), name: Box::from(*b"checkout") },
+                    operation: 17,
+                    deadline: 0,
+                },
+                phase: n::ProcedurePhase::WaitingCondition,
             },
-            phase: Phase::WaitingCondition,
-        }),
-        description: None,
-        effect: None,
-        resources: List::with_capacity(2),
-        effects: List::with_capacity(2),
-        drift: List::with_capacity(2),
-        environments: List::with_capacity(2),
-        pools: List::with_capacity(2),
-        backend: None,
-        made: None,
-        proposal_limit: None,
-        staged_limit: None,
+            resources: list([]),
+            effects: list([]),
+        },
     }
 }

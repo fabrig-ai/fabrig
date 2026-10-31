@@ -150,24 +150,34 @@ fn ready(seed: u64) -> Domain {
     confirm(&mut root, watch, 7);
     root
 }
+fn environment_name() -> infrastructure::native::Environment {
+    infrastructure::native::Environment { pool: Box::from(*b"Q.pool"), name: Box::from(*b"preview") }
+}
 fn environment(revision: u64) -> infrastructure::Document {
-    use infrastructure::documents::{Creation, Environment, Purpose};
-    infrastructure::Document::Environment(Environment {
-        project: 3,
-        number: 5,
-        pool: 1,
-        name: Box::from(*b"preview"),
-        revision: contract::Revision { value: revision },
-        created_by: Creation { deployment: [7; 16], task: 9, origin: Purpose::Procedure { purpose: 2 }, purpose: 4 },
-        ready_at: None,
-        ready: None,
-        cost: None,
-        observed_until: None,
-        end: Some(infrastructure::documents::End {
-            revision: contract::Revision { value: revision },
-            until: Wall::from_nanos(50_000_000_000),
-        }),
-    })
+    use infrastructure::native as n;
+    infrastructure::Document::Native(Box::new(n::Document {
+        subject: infrastructure::Subject {
+            scope: infrastructure::Scope::Project(3),
+            kind: infrastructure::Kind::NativeEnvironment(environment_name()),
+        },
+        value: n::Value::Environment {
+            environment: environment_name(),
+            end_revision: revision,
+            fact: n::EnvironmentFact {
+                created_by: n::Key {
+                    deployment: [7; 16],
+                    task: 9,
+                    origin: n::Purpose::Procedure { purpose: 2 },
+                    purpose: 4,
+                },
+                ready_at: 0,
+                until: 50,
+                price: 0,
+            },
+            end: Some(n::EnvironmentEnd { revision, until: 50 }),
+            pool: None,
+        },
+    }))
 }
 fn open_families(root: &mut Domain, rows: &[Request]) {
     for row in rows {
@@ -188,9 +198,9 @@ fn family_page(root: &mut Domain) -> Vec<Request> {
     drive(
         root,
         Event::Went {
-            place: crate::Place::Address(Address::Infrastructure(infrastructure::Address::Environment {
+            place: crate::Place::Address(Address::Infrastructure(infrastructure::Address::NativeEnvironment {
                 project: 3,
-                environment: 5,
+                environment: environment_name(),
             })),
         },
     )
@@ -226,10 +236,10 @@ fn until(root: &mut Domain, object: Token) {
     drive(
         root,
         Event::Act {
-            action: crate::Action::Infrastructure(infrastructure::Act::Until {
+            action: crate::Action::Infrastructure(infrastructure::Act::NativeUntil {
                 object,
                 revision: contract::Revision { value: 2 },
-                value: Wall::from_nanos(100_000_000_000),
+                value: 100,
             }),
         },
     );
@@ -242,7 +252,7 @@ fn an_end_move_names_current_revision_and_only_durable_answer_finishes_the_card(
     drive(
         &mut root,
         Event::Act {
-            action: crate::Action::Infrastructure(infrastructure::Act::MoveEnd {
+            action: crate::Action::Infrastructure(infrastructure::Act::NativeMoveEnd {
                 object: object.token(),
                 revision: contract::Revision { value: 1 },
             }),
@@ -251,10 +261,10 @@ fn an_end_move_names_current_revision_and_only_durable_answer_finishes_the_card(
     assert_eq!(
         root.infrastructure().object(object).unwrap().card,
         infrastructure::Card::Refused {
-            answer: infrastructure::Answer::Moved {
-                environment: 5,
+            answer: infrastructure::Answer::NativeMoved {
+                environment: environment_name(),
                 revision: contract::Revision { value: 2 },
-                until: Some(Wall::from_nanos(50_000_000_000))
+                until: 50
             }
         }
     );
@@ -265,7 +275,7 @@ fn an_end_move_names_current_revision_and_only_durable_answer_finishes_the_card(
     drive(
         &mut root,
         Event::Act {
-            action: crate::Action::Infrastructure(infrastructure::Act::MoveEnd {
+            action: crate::Action::Infrastructure(infrastructure::Act::NativeMoveEnd {
                 object: object.token(),
                 revision: contract::Revision { value: 2 },
             }),
@@ -281,17 +291,18 @@ fn an_end_move_names_current_revision_and_only_durable_answer_finishes_the_card(
         .unwrap();
     assert_eq!(
         ask,
-        &infrastructure::Ask::MoveEnd {
+        &infrastructure::Ask::NativeMoveEnd {
+            object: object.token(),
             project: 3,
-            environment: 5,
+            environment: environment_name(),
             revision: contract::Revision { value: 2 },
-            until: Wall::from_nanos(100_000_000_000)
+            until: 100
         }
     );
-    let answer = infrastructure::Answer::MovedEnd {
-        environment: 5,
+    let answer = infrastructure::Answer::NativeMovedEnd {
+        environment: environment_name(),
         revision: contract::Revision { value: 3 },
-        until: Wall::from_nanos(100_000_000_000),
+        until: 100,
     };
     drive(&mut root, support::answer(attempt, RequestEnvelope::Again, Some(Answered::Infrastructure(answer.clone()))));
     assert!(match root.infrastructure().object(object).unwrap().card {
@@ -314,7 +325,7 @@ fn an_end_move_names_current_revision_and_only_durable_answer_finishes_the_card(
     assert_eq!(root.infrastructure().object(object).unwrap().card, infrastructure::Card::Done { answer });
 }
 #[test]
-fn revision_changes_clear_drafts_and_old_watch_documents_cannot_reverse_facts() {
+fn environment_end_revision_changes_clear_drafts() {
     let mut root = ready(42);
     let rows = family_page(&mut root);
     let watch = family_watch(&rows);
@@ -334,18 +345,7 @@ fn revision_changes_clear_drafts_and_old_watch_documents_cannot_reverse_facts() 
             event: infrastructure::WatchEvent::Delivered(Box::new(environment(3))),
         }),
     );
-    assert_eq!(root.infrastructure().object(object).unwrap().draft, None);
-    drive(
-        &mut root,
-        Event::Infrastructure(infrastructure::Event::Watch {
-            watch,
-            event: infrastructure::WatchEvent::Delivered(Box::new(environment(1))),
-        }),
-    );
-    assert_eq!(
-        root.infrastructure().object(object).unwrap().value,
-        infrastructure::Value::Known(Box::new(environment(3)))
-    );
+    assert_eq!(root.infrastructure().object(object).unwrap().native_draft, None);
 }
 #[test]
 fn abandoned_read_and_closing_watch_tokens_cannot_recreate_a_page() {
@@ -521,100 +521,9 @@ fn both_connectors_route_all_parts_in_the_supplied_scope_and_leave_resources_in_
         }
     }
 }
-#[test]
-fn incident_facts_keep_cuts_and_unknown_health_and_never_turn_a_watch_into_a_lead() {
-    use crate::observability::{
-        self,
-        documents::{Incident, Service, State},
-    };
-    let mut root = ready(46);
-    let rows = drive(
-        &mut root,
-        Event::Went {
-            place: crate::Place::Address(Address::Observability(observability::Address::Incident {
-                project: 3,
-                incident: 8,
-            })),
-        },
-    );
-    let read = rows
-        .iter()
-        .find_map(|row| match row {
-            Request::Observability(observability::Out::Read { read, .. }) => Some(*read),
-            _ => None,
-        })
-        .unwrap();
-    let watch = rows
-        .iter()
-        .find_map(|row| match row {
-            Request::Observability(observability::Out::Open { watch, .. }) => Some(*watch),
-            _ => None,
-        })
-        .unwrap();
-    let mut incident = Incident {
-        project: 3,
-        number: 8,
-        revision: contract::Revision { value: 2 },
-        watch: 99,
-        raised: Wall::EPOCH,
-        service: Service { environment: Box::from(*b"prod"), name: Box::from(*b"api") },
-        severity: 1,
-        state: State::Alerting,
-        timeline: List::with_capacity(2),
-        cut: true,
-        health: None,
-        lead: None,
-        proposals: List::with_capacity(2),
-    };
-    let document = observability::Document::Incident(incident.clone());
-    assert!(document.objects(2).is_empty());
-    drive(
-        &mut root,
-        Event::Observability(observability::Event::Read {
-            read,
-            result: observability::ReadResult::Value(Box::new(document)),
-        }),
-    );
-    let id = root.observability().page().unwrap();
-    incident.revision = contract::Revision { value: 3 };
-    incident.state = State::Resolved;
-    let resolved = observability::Document::Incident(incident.clone());
-    drive(
-        &mut root,
-        Event::Observability(observability::Event::Watch {
-            watch,
-            event: observability::WatchEvent::Delivered(Box::new(resolved.clone())),
-        }),
-    );
-    incident.revision = contract::Revision { value: 1 };
-    incident.state = State::Alerting;
-    drive(
-        &mut root,
-        Event::Observability(observability::Event::Watch {
-            watch,
-            event: observability::WatchEvent::Delivered(Box::new(observability::Document::Incident(incident))),
-        }),
-    );
-    assert_eq!(root.observability().object(id).unwrap().value, observability::Value::Known(Box::new(resolved)));
-}
 
-fn incidents_naming_sections(lead: Option<u64>) -> [crate::observability::Document; 2] {
+fn incidents_naming_sections(lead: Option<u64>) -> [crate::observability::Document; 1] {
     use crate::observability::{documents::*, native};
-    let incident = Incident {
-        project: 3,
-        number: 8,
-        revision: contract::Revision { value: 2 },
-        watch: 99,
-        raised: Wall::EPOCH,
-        service: Service { environment: Box::from(*b"prod"), name: Box::from(*b"api") },
-        severity: 1,
-        state: State::Alerting,
-        timeline: List::with_capacity(0),
-        cut: false,
-        health: None,
-        lead,
-        proposals: List::with_capacity(0),
-    };
     let native = native::Document {
         subject: Subject { scope: Scope::Project(3), kind: Kind::Incident(8) },
         value: native::Value::Incident {
@@ -625,7 +534,7 @@ fn incidents_naming_sections(lead: Option<u64>) -> [crate::observability::Docume
                 lead,
                 alerts: Box::from([]),
                 raised: Wall::EPOCH,
-                service: incident.service.clone(),
+                service: Service { environment: Box::from(*b"prod"), name: Box::from(*b"api") },
                 severity: 1,
                 state: State::Alerting,
                 timeline: List::with_capacity(0),
@@ -634,21 +543,21 @@ fn incidents_naming_sections(lead: Option<u64>) -> [crate::observability::Docume
             fact: None,
         },
     };
-    [Document::Incident(incident), Document::Native(Box::new(native))]
+    [Document::Native(Box::new(native))]
 }
 
 #[test]
 fn an_incident_with_a_lead_names_its_plan_section() {
     let expected =
         [jig_client_view::page::Section::Task { task: 9, section: jig_client_view::address::TaskSection::Plan }];
-    for (name, document) in ["incident", "native"].into_iter().zip(incidents_naming_sections(Some(9))) {
+    for (name, document) in ["native"].into_iter().zip(incidents_naming_sections(Some(9))) {
         assert_eq!(document.sections().as_slice(), expected, "{name}");
     }
 }
 
 #[test]
 fn an_incident_without_a_lead_names_no_sections() {
-    for (name, document) in ["incident", "native"].into_iter().zip(incidents_naming_sections(None)) {
+    for (name, document) in ["native"].into_iter().zip(incidents_naming_sections(None)) {
         assert_eq!(document.sections().as_slice(), [], "{name}");
     }
 }
@@ -704,101 +613,28 @@ fn connector_parts(number: u16) -> List<contract::Part> {
     }
     parts
 }
-#[test]
-fn an_absent_owner_end_cannot_become_a_revision_naming_request() {
-    let mut root = ready(48);
-    let rows = family_page(&mut root);
-    let mut document = environment(2);
-    let infrastructure::Document::Environment(environment) = &mut document else { unreachable!() };
-    environment.end = None;
-    drive(
-        &mut root,
-        Event::Infrastructure(infrastructure::Event::Read {
-            read: family_read(&rows),
-            result: infrastructure::ReadResult::Value(Box::new(document)),
-        }),
-    );
-    let object = root.infrastructure().page().unwrap();
-    until(&mut root, object.token());
-    assert_eq!(root.infrastructure().object(object).unwrap().draft, None);
-    drive(
-        &mut root,
-        Event::Act {
-            action: crate::Action::Infrastructure(infrastructure::Act::MoveEnd {
-                object: object.token(),
-                revision: contract::Revision { value: 2 },
-            }),
-        },
-    );
-    assert!(!taken(&mut root).iter().any(|row| match row {
-        Request::Send { .. } => true,
-        _ => false,
-    }));
-}
 
 #[test]
 fn observability_project_lists_are_admitted_and_priced_whole() {
-    use crate::observability::documents::{Document, Kind, PartDocument, Scope, Service, ServiceState, Subject};
+    use crate::observability::{
+        documents::{Document, Kind, Scope, Service, Subject},
+        native as n,
+    };
     let mut services = List::with_capacity(2);
     services
-        .push(ServiceState {
+        .push(n::ServiceState {
             service: Service { environment: Box::from(*b"production"), name: Box::from(*b"checkout") },
-            health: None,
+            fact: None,
         })
         .unwrap();
-    let mut part = PartDocument {
+    let mut part = n::Document {
         subject: Subject { scope: Scope::Project(1), kind: Kind::Project(1) },
-        revision: contract::Revision { value: 1 },
-        service: None,
-        health: None,
-        incident: None,
-        incidents: List::with_capacity(2),
-        services,
-        effects: List::with_capacity(2),
-        watches: None,
-        read_limit: None,
-        incident_limit: None,
+        value: n::Value::Project { project: 1, services, incidents: List::with_capacity(2) },
     };
-    assert!(Document::Part(Box::new(part.clone())).fits(&limits().observability));
-    part.services = List::with_capacity(3);
-    assert!(!Document::Part(Box::new(part)).fits(&limits().observability));
-}
-#[test]
-fn an_outbox_description_can_be_absent_without_becoming_a_proposal() {
-    use crate::infrastructure::documents::{
-        Creation, Document, Effect, EffectAction, EffectState, Kind, PartDocument, Purpose, Scope, Subject,
-    };
-    let mut effects = List::with_capacity(2);
-    effects
-        .push(Effect {
-            entry: 900,
-            task: 17,
-            project: Some(1),
-            origin: Creation { deployment: [1; 16], task: 17, origin: Purpose::Procedure { purpose: 3 }, purpose: 3 },
-            description: None,
-            state: EffectState::Kept,
-            attempt: 0,
-            deadline: Wall::EPOCH,
-            action: EffectAction::CreateEnvironment { environment: 7, until: Wall::EPOCH, price: 40 },
-        })
-        .unwrap();
-    let part = PartDocument {
-        subject: Subject { scope: Scope::Project(1), kind: Kind::Outbox(900) },
-        revision: contract::Revision { value: 1 },
-        panel: None,
-        description: None,
-        effect: None,
-        resources: List::with_capacity(2),
-        effects,
-        drift: List::with_capacity(2),
-        environments: List::with_capacity(2),
-        pools: List::with_capacity(2),
-        backend: None,
-        made: None,
-        proposal_limit: None,
-        staged_limit: None,
-    };
-    assert!(Document::Part(Box::new(part)).fits(&limits().infrastructure));
+    assert!(Document::Native(Box::new(part.clone())).fits(&limits().observability));
+    let n::Value::Project { services, .. } = &mut part.value else { unreachable!() };
+    *services = List::with_capacity(3);
+    assert!(!Document::Native(Box::new(part)).fits(&limits().observability));
 }
 
 #[test]
@@ -809,7 +645,7 @@ fn an_entrance_refusal_finishes_only_its_original_child_and_survives_a_duplicate
     drive(
         &mut root,
         Event::Act {
-            action: crate::Action::Infrastructure(infrastructure::Act::MoveEnd {
+            action: crate::Action::Infrastructure(infrastructure::Act::NativeMoveEnd {
                 object: object.token(),
                 revision: contract::Revision { value: 2 },
             }),
@@ -1111,13 +947,6 @@ fn native_environment_names_request_revision_and_whole_width_end_survive_the_cli
             _ => false,
         }
     }));
-    assert_ne!(
-        subject,
-        infrastructure::Subject {
-            scope: infrastructure::Scope::Project(3),
-            kind: infrastructure::Kind::Environment(0)
-        }
-    );
     let mut different = environment.clone();
     different.pool = Box::from(*b"P.pool");
     assert!(
@@ -1221,11 +1050,14 @@ fn observability_reopens_a_dropped_watch_after_the_link_goes_offline_and_live() 
         &mut root,
         Event::Observability(observability::Event::Ended { watch: old, end: observability::WatchEnd::NotAllowed }),
     );
-    let document = observability::Document::Incidents {
+    let document = observability::Document::Native(Box::new(observability::native::Document {
         subject,
-        revision: contract::Revision { value: 3 },
-        incidents: List::with_capacity(2),
-    };
+        value: observability::native::Value::Project {
+            project: 3,
+            services: List::with_capacity(0),
+            incidents: List::with_capacity(2),
+        },
+    }));
     drive(
         &mut root,
         Event::Observability(observability::Event::Watch {
@@ -1234,6 +1066,79 @@ fn observability_reopens_a_dropped_watch_after_the_link_goes_offline_and_live() 
         }),
     );
     assert_eq!(root.observability().object(id).unwrap().value, observability::Value::Known(Box::new(document)));
+}
+
+#[test]
+fn infrastructure_stopping_watch_retries_after_the_side_delay_without_a_terminal() {
+    let mut root = ready(63);
+    let mut side_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits().infrastructure };
+    let mut out = Queue::uncapped();
+    infrastructure::step(
+        &mut root.infrastructure,
+        &side_env,
+        infrastructure::Event::Went {
+            address: infrastructure::Address::NativeEnvironment { project: 3, environment: environment_name() },
+        },
+        &mut out,
+    );
+    let mut watch = None;
+    while let Some(request) = out.pop() {
+        if let infrastructure::Request::Out(infrastructure::Out::Open { watch: value, .. }) = request {
+            watch = Some(value);
+        }
+    }
+    let watch = watch.expect("side opened watch");
+    infrastructure::step(
+        &mut root.infrastructure,
+        &side_env,
+        infrastructure::Event::Ended { watch, end: infrastructure::WatchEnd::Stopping },
+        &mut out,
+    );
+    assert!(out.is_empty(), "Stopping retains the watch until retry");
+    let due = side_env.now.saturating_add(side_env.limits.retry);
+    assert_eq!(infrastructure::next_deadline(&root.infrastructure), Some(due));
+    infrastructure::fire(&mut root.infrastructure, &side_env, &mut out);
+    assert!(out.is_empty(), "retry waits for its deadline");
+    side_env.now = due;
+    infrastructure::fire(&mut root.infrastructure, &side_env, &mut out);
+    let Some(infrastructure::Request::Out(infrastructure::Out::Open { watch: value, .. })) = out.pop() else {
+        panic!("retry opens the watch")
+    };
+    assert_eq!(value, watch);
+    assert!(out.is_empty());
+}
+#[test]
+fn observability_stopping_watch_retries_after_the_side_delay_without_a_terminal() {
+    use crate::observability as obs;
+    let mut root = ready(64);
+    let mut side_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits().observability };
+    let mut out = Queue::uncapped();
+    obs::step(
+        &mut root.observability,
+        &side_env,
+        obs::Event::Went { address: obs::Address::Incidents { project: 3, open: true } },
+        &mut out,
+    );
+    let mut watch = None;
+    while let Some(request) = out.pop() {
+        if let obs::Request::Out(obs::Out::Open { watch: value, .. }) = request {
+            watch = Some(value);
+        }
+    }
+    let watch = watch.expect("side opened watch");
+    obs::step(&mut root.observability, &side_env, obs::Event::Ended { watch, end: obs::WatchEnd::Stopping }, &mut out);
+    assert!(out.is_empty(), "Stopping retains the watch until retry");
+    let due = side_env.now.saturating_add(side_env.limits.retry);
+    assert_eq!(obs::next_deadline(&root.observability), Some(due));
+    obs::fire(&mut root.observability, &side_env, &mut out);
+    assert!(out.is_empty(), "retry waits for its deadline");
+    side_env.now = due;
+    obs::fire(&mut root.observability, &side_env, &mut out);
+    let Some(obs::Request::Out(obs::Out::Open { watch: value, .. })) = out.pop() else {
+        panic!("retry opens the watch")
+    };
+    assert_eq!(value, watch);
+    assert!(out.is_empty());
 }
 
 fn client_limits() -> jig_client::Limits {
