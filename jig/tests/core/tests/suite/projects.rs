@@ -74,6 +74,18 @@ fn sign_in(world: &mut World, subject: u64) -> (u64, u64) {
     let people::Reply::SignedIn { person, sign_in, .. } = take_reply(world) else { panic!("signed in") };
     (person, sign_in)
 }
+fn other_party(world: &mut World, held: Option<people::Role>) -> u64 {
+    let (person, signed) = sign_in(world, OTHER_SUBJECT);
+    let mut holdings = vec![people::Holding { person: OWNER, role: people::Role::Owner }];
+    if let Some(role) = held {
+        holdings.push(people::Holding { person, role });
+    }
+    world.send(root::Event::Core(core::Event::People(people::Event::Roles {
+        project: SEED,
+        holdings: holdings.into_boxed_slice(),
+    })));
+    signed
+}
 fn take_reply(world: &mut World) -> people::Reply {
     let (_, root::Delivery::Core(core::Held::PeopleReply { reply, .. })) =
         world.client_peer.as_mut().expect("client peer").delivered.pop().expect("party reply")
@@ -282,14 +294,7 @@ fn the_root_hears_a_project_made_after_its_commit() {
 #[test]
 fn an_owner_renames_a_project_and_every_partys_me_says_it() {
     let (mut world, signed) = setup();
-    let (other, other_signed) = sign_in(&mut world, OTHER_SUBJECT);
-    world.send(root::Event::Core(core::Event::People(people::Event::Roles {
-        project: SEED,
-        holdings: Box::new([
-            people::Holding { person: OWNER, role: people::Role::Owner },
-            people::Holding { person: other, role: people::Role::Observer },
-        ]),
-    })));
+    let other_signed = other_party(&mut world, Some(people::Role::Observer));
     assert_eq!(
         request(&mut world, signed, KEY, rename(SEED, "Tally")),
         people::Reply::Outcome(people::Outcome::Renamed { project: SEED })
@@ -339,4 +344,54 @@ fn a_restart_keeps_a_rename() {
     let (config, _) = configuration();
     world.restart_with(config);
     assert_eq!(frame(&mut world, signed).projects.as_slice()[0].name.bytes.as_ref(), b"Tally");
+}
+
+#[test]
+fn an_owner_may_ask_to_remove_a_project_which_is_not_offered_yet() {
+    let (mut world, signed) = setup();
+    let before = world.store.rows.clone();
+    assert_eq!(
+        request(&mut world, signed, KEY, people::Ask::RemoveProject { project: SEED }),
+        people::Reply::Refused(people::Refusal::NotOffered),
+    );
+    assert_eq!(world.store.rows, before, "the placeholder refusal saves no answer or project change");
+    assert_eq!(
+        request(&mut world, signed, KEY, rename(SEED, "Tally")),
+        people::Reply::Outcome(people::Outcome::Renamed { project: SEED }),
+        "the unsaved refusal leaves the key available",
+    );
+}
+
+#[test]
+fn a_non_owner_asking_to_remove_a_project_lacks_the_role() {
+    for held in [Some(people::Role::Maintainer), Some(people::Role::Observer), None] {
+        let (mut world, _) = setup();
+        let other_signed = other_party(&mut world, held);
+        assert_eq!(
+            request(&mut world, other_signed, KEY, people::Ask::RemoveProject { project: SEED }),
+            refused(people::Refusal::Role { held }),
+        );
+        assert_eq!(
+            request(&mut world, other_signed, KEY + 1, rename(SEED, "Tally")),
+            refused(people::Refusal::Role { held }),
+        );
+    }
+}
+
+#[test]
+fn an_owners_project_document_offers_remove_project() {
+    use core::acts::{Act, Admission};
+    let (mut world, signed) = setup();
+    let other_signed = other_party(&mut world, Some(people::Role::Observer));
+    for (party, expected) in [
+        (signed, Admission::Allowed),
+        (other_signed, Admission::Refused(people::Refusal::Role { held: Some(people::Role::Observer) })),
+    ] {
+        let documents::Document::Project(project) = read(&mut world, party, reads::Read::Project { project: SEED })
+        else {
+            panic!("project document")
+        };
+        let offer = project.acts.iter().find(|offer| offer.act == Act::RemoveProject).expect("remove project act");
+        assert_eq!(offer.admission, expected);
+    }
 }

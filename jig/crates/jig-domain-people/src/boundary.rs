@@ -220,6 +220,7 @@ pub enum NoteChange {
 
 /// Authenticated keyed requests admitted by the people child and routed by
 /// the root after role checks (domain/people.md, section 5.1).
+/// Project removal follows temper/docs/design/draft/playground-reset.md, 5.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(
     clippy::large_enum_variant,
@@ -292,6 +293,8 @@ pub enum Ask {
     ChangePolicy { project: u32, change: crate::PolicyChange },
     /// Owner replaces this project's name (people.md, 5.1).
     Rename { project: u32, name: Box<str> },
+    /// Owner removes this project.
+    RemoveProject { project: u32 },
     /// Deployment owner makes a project from a configured policy (people.md, 5.2).
     MakeProject { name: Box<str>, policy: u32 },
     /// Owner changes one person's current-period pool, preserving already spent and reserved funds.
@@ -534,7 +537,7 @@ pub enum Outcome {
     ProjectMade {
         project: u32,
     },
-    /// Project deletion committed (temper/docs/design/draft/playground-reset.md, 5).
+    /// Project deletion committed.
     ProjectRemoved {
         project: u32,
     },
@@ -647,7 +650,7 @@ pub struct ActKey {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Act {
     /// The project's deletion in the deployment's name
-    /// (temper/docs/design/draft/playground-reset.md, 5).
+    ///.
     RemoveProject {
         project: u32,
     },

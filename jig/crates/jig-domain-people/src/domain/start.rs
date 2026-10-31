@@ -277,6 +277,7 @@ fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
         | crate::Ask::MakeService { .. }
         | crate::Ask::Adopt { .. }
         | crate::Ask::ChangePolicy { .. }
+        | crate::Ask::RemoveProject { .. }
         | crate::Ask::Rename { .. }
         | crate::Ask::MakeProject { .. }
         | crate::Ask::ChangeSettings { .. }

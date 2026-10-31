@@ -198,6 +198,7 @@ pub struct SpendLine {
 pub const MAX_OFFERED_ACTS: u32 = 25;
 
 /// An engine offered act kind, without view words.
+/// Project removal follows temper/docs/design/draft/playground-reset.md, 5.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ActKind {
     /// Write to an agent.
@@ -240,6 +241,8 @@ pub enum ActKind {
     ChangePolicy,
     /// Rename a project.
     Rename,
+    /// Remove a project.
+    RemoveProject,
     /// Change roles.
     SetRoles,
     /// Make a service.

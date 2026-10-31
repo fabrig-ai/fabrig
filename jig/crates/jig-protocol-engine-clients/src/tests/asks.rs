@@ -299,3 +299,16 @@ fn project_records_reach_people_with_their_whole_name_and_policy() {
         assert_eq!(ask(record, &f::models(), &limits), Ok(expected));
     }
 }
+
+#[test]
+fn remove_project_reaches_people_and_its_offered_kind_reaches_the_client() {
+    let limits = f::wire();
+    let record = w::Ask::RemoveProject(
+        w::RemoveProject::new(&limits, w::RemoveProjectParts { project: u32::MAX }).expect("remove project"),
+    );
+    assert_eq!(ask(record, &f::models(), &limits), Ok(p::Ask::RemoveProject { project: u32::MAX }));
+    assert_eq!(
+        crate::translate::task::act(jig_domain_core::acts::Act::RemoveProject, &limits),
+        Ok(w::ActKind::RemoveProject)
+    );
+}

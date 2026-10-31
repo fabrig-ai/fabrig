@@ -1,8 +1,8 @@
 //! Admission refuses party proposals with no accepting role (QUESTIONS 31).
 use super::*;
 const READ_CREATING: u64 = 94;
-// Project subject actions, including Rename (people.md, 5.1).
-const PROJECT_ACTS: u32 = 7;
+// Project subject actions (people.md, 5.1; playground-reset.md, 5).
+const PROJECT_ACTS: u32 = 8;
 use jig_core_world::stories::offers::{goal, no_acceptor_fixture, project};
 
 #[test]

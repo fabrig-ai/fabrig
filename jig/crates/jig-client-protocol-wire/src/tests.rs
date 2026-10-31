@@ -524,3 +524,16 @@ fn authorization_query_and_each_answer_round_trip_at_their_bounds() {
         assert_eq!(AuthorizeAnswer::decode(&limits, &mut Reader::new(&bytes)), Ok(answer));
     }
 }
+
+#[test]
+fn remove_project_and_its_offered_act_round_trip() {
+    let limits = fixtures::limits();
+    for project in [1, u32::MAX] {
+        let ask = Ask::RemoveProject(RemoveProject::new(&limits, RemoveProjectParts { project }).unwrap());
+        let bytes = fixtures::encoded(&ask, Ask::measure, Ask::encode);
+        assert_eq!(Ask::decode(&limits, &mut Reader::new(&bytes)), Ok(ask));
+    }
+    let act = ActKind::RemoveProject;
+    let bytes = fixtures::encoded(&act, ActKind::measure, ActKind::encode);
+    assert_eq!(ActKind::decode(&limits, &mut Reader::new(&bytes)), Ok(act));
+}

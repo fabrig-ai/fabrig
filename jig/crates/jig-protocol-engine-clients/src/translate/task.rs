@@ -75,6 +75,7 @@ pub fn act(value: acts::Act, _limits: &w::Limits) -> Result<w::ActKind, w::Probl
         acts::Act::DeleteNote => w::ActKind::DeleteNote,
         acts::Act::Adopt => w::ActKind::Adopt,
         acts::Act::Rename => w::ActKind::Rename,
+        acts::Act::RemoveProject => w::ActKind::RemoveProject,
         acts::Act::ChangePolicy => w::ActKind::ChangePolicy,
         acts::Act::SetRoles => w::ActKind::SetRoles,
         acts::Act::MakeService => w::ActKind::MakeService,
