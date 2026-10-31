@@ -511,7 +511,13 @@ pub fn run(story: Story, cut: Cut, seed: u64) -> Result<Outcome, Violation> {
         }
         Story::IssueCreation => issue_creation(&mut world)?,
     }
-    world.drain()?;
+    // Releases can wait for the forge client's next timer after immediate work drains.
+    wait(&mut world, |world| {
+        !world.store.rows.values().any(|record| {
+            matches!(record, root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row)))
+                if matches!(row.phase, tasks::Phase::Closing(_)))
+        })
+    })?;
     crate::oracle::close(&mut world)?;
     Ok(world.outcome())
 }
