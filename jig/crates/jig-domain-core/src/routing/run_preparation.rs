@@ -510,7 +510,7 @@ pub(super) fn route_activate(
         out.push(Request::Decided);
         return Requests::Out(out);
     }
-    if !ready || core.restart_step().is_some() || core.restart_failure().is_some() {
+    if !ready || !core.start_opened() || core.start_stopped() {
         remember_due(core, context);
     } else if core.tasks.recurring_template(number).is_none() {
         match context.executor {
