@@ -23,12 +23,10 @@ use down::{channel_takes, component_down, domain_down};
 use routing::{component_owner, io_down};
 use up::{component_up, domain_up, io_up, lower_events};
 
-#[path = "program.rs"]
 mod program;
 
 pub(crate) use program::bound;
 pub use program::{AdoptError, ProgramBackend, program_operations, program_valid};
-#[path = "teardown.rs"]
 pub mod teardown;
 
 use teardown::Teardown;

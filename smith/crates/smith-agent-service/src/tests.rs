@@ -1,6 +1,6 @@
 //! Service projection, teardown and profile checks with shared startup fixtures.
 
-#![allow(
+#![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
     clippy::disallowed_types,

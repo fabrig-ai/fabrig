@@ -2,7 +2,7 @@
 //! every owning step is checked by Skein's allocator (smith/docs/design/protocol/events.md, section 5.3).
 #[cfg(test)]
 mod tests {
-    #![allow(
+    #![expect(
         clippy::disallowed_macros,
         clippy::disallowed_methods,
         clippy::wildcard_enum_match_arm,
