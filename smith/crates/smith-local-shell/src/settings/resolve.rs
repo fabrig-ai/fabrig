@@ -49,7 +49,7 @@ pub struct Resolved {
 }
 
 /// Compose selected models through the native configuration and local policy owners.
-pub fn resolve(settings: &Settings, _command: &crate::command::Command) -> Result<Resolved, super::Refusal> {
+pub fn resolve(settings: &Settings) -> Result<Resolved, super::Refusal> {
     build(select(settings)?, false).map(|(resolved, _document)| resolved)
 }
 

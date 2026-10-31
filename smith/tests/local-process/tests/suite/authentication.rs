@@ -4,7 +4,6 @@ use smith_local_process_world::{
     referee::{Ending, review},
 };
 
-/// Lower test of smith-real-world's suite::a_first_run_signs_in_and_keeps_its_token (top tiers test wiring only).
 #[test]
 fn a_sign_in_uses_the_page_and_redirect_before_lending_the_saved_token() {
     for placement in [Placement::Spawned, Placement::InProcess] {

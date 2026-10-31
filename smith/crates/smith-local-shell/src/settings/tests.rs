@@ -296,10 +296,7 @@ fn composed(extra: &str) -> Result<super::resolve::Resolved, super::Refusal> {
         "model='codex/gpt-6-luna'\n{extra}\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n[endpoints.anthropic]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n"
     );
     let decoded = settings(&[source(Layer::User, &text)])?;
-    super::resolve::resolve(
-        &decoded,
-        &crate::command::Command::Check { shared: Shared::default(), json: false, execution: None },
-    )
+    super::resolve::resolve(&decoded)
 }
 
 #[test]
@@ -436,11 +433,7 @@ fn trust_paths_are_resolved_from_the_settings_workspace() {
     let decoded = merge(&Shared::default(), skein_scratch::paths::package(), &[
         source(Layer::User,"model='codex/gpt-6-luna'\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['../../tests/protocol-llm/fixtures/root.der']\n")
     ]).expect("relative root");
-    let resolved = super::resolve::resolve(
-        &decoded,
-        &crate::command::Command::Check { shared: Shared::default(), json: false, execution: None },
-    )
-    .unwrap_or_else(|why| panic!("{}", why.line()));
+    let resolved = super::resolve::resolve(&decoded).unwrap_or_else(|why| panic!("{}", why.line()));
     assert_eq!(resolved.local.models.len(), 3);
 }
 
@@ -506,10 +499,7 @@ fn effort_settings(extra: &str) -> Result<super::resolve::Resolved, super::Refus
 
 fn effort_settings_shared(extra: &str, shared: &Shared) -> Result<super::resolve::Resolved, super::Refusal> {
     let decoded = effort_settings_input(extra, shared)?;
-    super::resolve::resolve(
-        &decoded,
-        &crate::command::Command::Check { shared: Shared::default(), json: false, execution: None },
-    )
+    super::resolve::resolve(&decoded)
 }
 
 fn effort_settings_input(extra: &str, shared: &Shared) -> Result<super::Settings, super::Refusal> {
@@ -716,7 +706,7 @@ fn with_dirs(
     );
     let shared = Shared { dirs, ..Shared::default() };
     let decoded = merge(&shared, root.join("work"), &[source(Layer::User, &text)])?;
-    super::resolve::resolve(&decoded, &crate::command::Command::Check { shared, json: false, execution: None })
+    super::resolve::resolve(&decoded)
 }
 
 fn rows(resolved: &super::resolve::Resolved) -> Vec<(String, bool, bool)> {

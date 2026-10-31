@@ -50,7 +50,7 @@ pub enum Authentication {
     Current,
 }
 
-/// Files surviving separate invocations of the actual shared shell.
+/// Files surviving separate invocations of the shared shell.
 pub struct Files {
     path: PathBuf,
 }
@@ -382,7 +382,6 @@ pub struct Scenario {
     /// Keep the answered spawned process alive until its host sends a signal.
     pub linger_agent: bool,
     pub authentication: Option<Authentication>,
-    /// Explicit provider turns for a composed scenario.
     pub scripts: Option<Box<[api::Script]>>,
 }
 /// Simulated configuration and the settled shared-harness result.

@@ -74,18 +74,6 @@ impl Files {
         }
     }
 
-    pub(crate) fn prepare_stream(
-        &self,
-        agent: &mut smith_agent_shell::config::Configuration,
-        chat: &[u8],
-        limits: &mut smith_local_service::Limits,
-        json: bool,
-        wall: Wall,
-        front: bool,
-    ) -> Result<(Option<smith_agent_shell::trace::TraceConfig>, Option<smith_events::SessionStarted>), Refused> {
-        super::prepare_stream(agent, chat, limits, json, wall, self.teardown_bound()?, front)
-    }
-
     pub(super) fn prepare_output(&mut self, seed: u64) -> Result<(), Refused> {
         if let Some(path) = &self.target {
             self.output = Some(Box::new(ResultFile::open(path, self.maximum, self.timeout, seed)?));
@@ -151,8 +139,7 @@ impl Files {
     }
 }
 
-/// The base of `--ephemeral`'s private directory (shell.md 4.2, revised
-/// 2026-10-20): `$XDG_RUNTIME_DIR` when set and non-empty, else `$TMPDIR`
+/// The base of `--ephemeral`'s private directory (shell.md, section 4.2): `$XDG_RUNTIME_DIR` when set and non-empty, else `$TMPDIR`
 /// when set and non-empty, else `/tmp`. Never the state directory, which
 /// it is not given: a run's chat sits apart from the disk its builds fill.
 fn ephemeral_base(runtime: Option<OsString>, temporary: Option<OsString>) -> PathBuf {

@@ -34,7 +34,6 @@ fn directory(seed: u64, files: &Files, placement: Placement, name: &str, writabl
     world
 }
 
-/// Lower test of smith's end_to_end::a_dir_is_a_named_directory_the_run_writes_unless_it_is_read_only (top tiers test wiring only).
 #[test]
 fn a_named_writable_root_receives_the_agents_write() {
     for placement in [Placement::Spawned, Placement::InProcess] {
@@ -49,7 +48,6 @@ fn a_named_writable_root_receives_the_agents_write() {
     }
 }
 
-/// Lower test of smith's end_to_end::a_dir_is_a_named_directory_the_run_writes_unless_it_is_read_only (top tiers test wiring only).
 #[test]
 fn a_named_read_only_root_refuses_the_agents_write() {
     for placement in [Placement::Spawned, Placement::InProcess] {
@@ -73,7 +71,6 @@ fn a_named_read_only_root_refuses_the_agents_write() {
     }
 }
 
-/// Lower test of smith's end_to_end::a_writable_plain_dir_past_snapshot_bounds_starts_and_answers (top tiers test wiring only).
 #[test]
 fn a_plain_snapshot_at_and_past_its_bound_answers() {
     // smith-local-service's process::plain_limits().file_bytes.
@@ -92,7 +89,6 @@ fn a_plain_snapshot_at_and_past_its_bound_answers() {
     }
 }
 
-/// Lower test of smith's end_to_end::slash_effort_reaches_the_next_request (top tiers test wiring only).
 #[test]
 fn an_accepted_effort_change_reaches_the_next_response() {
     use smith_local_process_world::terminal::Action;
@@ -125,7 +121,6 @@ fn an_accepted_effort_change_reaches_the_next_response() {
     assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
 }
 
-/// Lower test of smith's end_to_end::an_older_local_chat_exits_one_with_operator_words_and_unchanged_store (top tiers test wiring only).
 #[test]
 fn an_older_store_refuses_with_operator_words_and_unchanged_files() {
     const OPERATOR_LINE: &str = concat!(

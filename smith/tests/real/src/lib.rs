@@ -23,7 +23,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Git's actual committed observations, read by the independent referee.
+/// Git's committed observations, read by the independent referee.
 #[derive(Clone, Default)]
 pub struct Checkout {
     path: Option<PathBuf>,

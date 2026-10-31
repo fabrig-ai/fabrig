@@ -212,28 +212,14 @@ pub(super) fn private_source(
     registered: Registered,
     interactive: bool,
 ) -> Result<smith_local_service::Source, String> {
-    private_source_at(number, file, registered, interactive, None)
-}
-
-pub(super) fn private_source_at(
-    number: u32,
-    file: &std::path::Path,
-    registered: Registered,
-    interactive: bool,
-    inherited: Option<skein_io::kernel::Fd>,
-) -> Result<smith_local_service::Source, String> {
     use std::os::unix::fs::DirBuilderExt;
     if !file.is_absolute() || file.as_os_str().as_encoded_bytes().len() > 4095 {
         return Err("HOME or an absolute XDG_STATE_HOME is required for bounded private tokens".into());
     }
     let directory = file.parent().ok_or("private record has no directory")?;
     let base = directory.parent().ok_or("private record has no base")?;
-    let root = if let Some(root) = inherited {
-        root
-    } else {
-        std::fs::DirBuilder::new().recursive(true).mode(0o700).create(base).map_err(|why| why.to_string())?;
-        skein_shell::open_root(base).map_err(|why| format!("private token root: {why:?}"))?
-    };
+    std::fs::DirBuilder::new().recursive(true).mode(0o700).create(base).map_err(|why| why.to_string())?;
+    let root = skein_shell::open_root(base).map_err(|why| format!("private token root: {why:?}"))?;
     Ok(smith_local_service::Source::SignIn {
         account: number,
         root,

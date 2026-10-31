@@ -286,12 +286,12 @@ impl BrowserProcess {
     pub fn shutdown(&mut self) {
         self.stopped = true;
     }
-    /// Whether one authorization page was actually configured.
+    /// Whether one authorization page was configured.
     #[must_use]
     pub fn pages(&self) -> u32 {
         u32::from(self.length > 0)
     }
-    /// The browser's actual loopback callback response.
+    /// The browser's loopback callback response.
     #[must_use]
     pub fn replied(&self) -> bool {
         self.browser.as_ref().is_some_and(Browser::saw_reply)
@@ -426,7 +426,7 @@ impl Host for IssuerProcess {
 pub enum Proc {
     /// The scripted terminal, starting one local invocation and draining its exit.
     Terminal(Box<Terminal>),
-    /// The actual shared local shell, ending after its public result settles.
+    /// The shared local shell, ending after its public result settles.
     Local(Box<LocalProcess>),
     /// The spawned agent service, ending after its channel and descriptors settle.
     Agent(Box<skein_world::PipeHost<smith_agent_shell::Agent>>, smith_agent_process_world::AgentErrors, bool),
@@ -676,7 +676,7 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
         Some(handed),
         interactive,
     )
-    .expect("actual shared local shell");
+    .expect("shared local shell");
     if let Some(configuration) = &spawned
         && launch.traced
     {
@@ -751,7 +751,7 @@ pub fn agent_roots(spawn: &kernel::Spawn) -> Vec<StartupRoot> {
         vec![]
     }
 }
-/// Construct the actual agent service with the local scenario's settings.
+/// Construct the agent service with the local scenario's settings.
 #[must_use]
 #[expect(
     clippy::zero_sized_map_values,

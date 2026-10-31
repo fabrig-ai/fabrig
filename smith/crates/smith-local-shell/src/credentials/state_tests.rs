@@ -78,15 +78,8 @@ fn a_record_without_the_plan_scope_is_signed_in_without_it() {
         "provider".into(),
         Sourced { value: toml::Value::String("openai".into()), origin: settings::Origin::BuiltIn },
     )]);
-    let settings =
-        settings::Settings { paths: settings::Paths::default(), workspace: files.0.clone(), values: BTreeMap::new() };
-    let descriptor = source(
-        &fields,
-        &settings,
-        false,
-        "work",
-        Some(&Directory::from_base(files.0.clone()).expect("absolute scratch")),
-    );
+    let descriptor =
+        source(&fields, false, "work", Some(&Directory::from_base(files.0.clone()).expect("absolute scratch")));
     let descriptor = match descriptor {
         Source::SignIn { required_scopes, .. } => Source::SignIn { file: path.clone(), required_scopes },
         Source::Env { .. } | Source::Key { .. } | Source::Program { .. } | Source::Nothing => {

@@ -37,6 +37,6 @@ fn login_debug_holds_no_key_text() {
     let environment = crate::credentials::Environment { variables: vec![("WORK_KEY".into(), "key-for-work".into())] };
     let report = format!("{environment:?}");
     assert!(!report.contains("key-for-work"), "environment debug is redacted");
-    let words = crate::credentials::credential_words("work", &crate::credentials::Credential::Usable { until: None });
+    let words = crate::credentials::Credential::Usable { until: None }.line("work");
     assert!(!words.contains("key-for-work"), "credential words hold no value");
 }

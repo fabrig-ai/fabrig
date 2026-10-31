@@ -125,7 +125,7 @@ fn configuration_for(
     // A workspace's host path is the checkout's absolute path: production's
     // bound keeps the story independent of where the checkout lives.
     host.path_bytes = 4096;
-    // Actual provider spans carry the charter's whole-session deadline.
+    // provider spans carry the charter's whole-session deadline.
     host.long_span = policy.0.budget.time;
     policy.1.agent = local::AgentLimits::Spawned(host);
     let queue = EXTERNAL_QUEUE_SLOTS;

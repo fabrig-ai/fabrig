@@ -1,5 +1,5 @@
 //! Map native comparisons to settings paths and origins (shell.md, section 5.3).
-//! Refusals keep typed sides; no diagnostic string is used to recover a rule.
+//! Refusals keep typed sides; rules are never recovered from diagnostic strings.
 use super::super::{BudgetComparison, Origin, Problem, Refusal, Relationship, Settings};
 use super::{input, models::Model};
 use skein_lib::Duration;
