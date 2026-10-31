@@ -1,6 +1,6 @@
 //! Grant-form checks and crossing call terminals (protocol/channel.md, sections 3–4).
 
-use super::{Component, Phase};
+use super::{Component, State};
 use crate::{Error, Values, grant_form};
 use alloc::boxed::Box;
 use skein_channel::{Control, Direction, Lower, LowerEvent, StreamMode, Term, control_frame, frame_writer};
@@ -94,7 +94,9 @@ pub(super) fn admitted_channel() -> (Component, Queue<crate::OpenEvent>, Queue<L
                 &mut below,
             ),
             Lower::Write(stream::OutputDown::Send { .. }) => component.fire(&mut above, &mut below),
-            other => panic!("unexpected start operation: {other:?}"),
+            other @ (Lower::Read(_) | Lower::Write(_) | Lower::FinishWrite) => {
+                panic!("unexpected start operation: {other:?}")
+            }
         }
     }
     receive(&mut component, 0x0106, Box::default(), &mut above, &mut below);
@@ -334,7 +336,7 @@ fn a_start_whose_value_disagrees_with_its_grant_is_refused() {
         assert_eq!(result, Err(Error::Grants));
         assert!(to_service.is_empty());
         assert!(below.is_empty());
-        assert_eq!(component.phase, Phase::Opened);
+        assert_eq!(component.state, State::Opened);
     }
 }
 

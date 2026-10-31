@@ -44,7 +44,7 @@ pub enum ProcessEvent {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Phase {
+enum State {
     Idle,
     Spawning,
     Opening,
@@ -60,7 +60,7 @@ pub struct Process {
     channel: Component,
     agent: Token,
     io_owner: Token,
-    phase: Phase,
+    state: State,
     deadline: Time,
     child: Option<Token>,
     input: Option<Token>,
@@ -92,7 +92,7 @@ impl Process {
             channel: Component::new(limits, StreamMode::Two, endpoints)?,
             agent,
             io_owner: Token::new(agent.raw() | (1_u64 << 63_u32)),
-            phase: Phase::Idle,
+            state: State::Idle,
             deadline: Time::ZERO,
             child: None,
             input: None,
@@ -114,8 +114,8 @@ impl Process {
 
     /// Ask io for a child with the three standard pipes.
     pub fn spawn(&mut self, launch: Launch, deadline: Time, below: &mut Queue<IoRequest>) {
-        assert!(self.phase == Phase::Idle, "one launch per agent process");
-        self.phase = Phase::Spawning;
+        assert!(self.state == State::Idle, "one launch per agent process");
+        self.state = State::Spawning;
         self.deadline = deadline;
         below.push(IoRequest::Spawn {
             owner: self.io_owner,
@@ -142,7 +142,7 @@ impl Process {
 
     /// Demand one record, live piece or end from the opened child channel.
     pub fn read(&mut self, above: &mut Queue<ProcessEvent>, below: &mut Queue<IoRequest>) {
-        assert!(self.phase == Phase::Ready, "application reads follow Spawned");
+        assert!(self.state == State::Ready, "application reads follow Spawned");
         assert!(!self.channel_ended, "no read after the delivered channel end");
         self.channel.read(&mut self.channel_events, &mut self.channel_below);
         self.drain_channel(above, below);
@@ -253,7 +253,6 @@ impl Process {
     }
 
     /// Consume an io observation for this child or one of its pipes.
-    #[expect(clippy::too_many_lines, reason = "one exhaustive owner routing table")]
     pub fn from_io(
         &mut self,
         now: Time,
@@ -265,27 +264,27 @@ impl Process {
         match event {
             IoEvent::Spawned { owner, child, pipes } if owner == self.io_owner => {
                 assert!(
-                    (self.phase == Phase::Spawning || self.phase == Phase::Failing) && pipes.len() == 3,
+                    (self.state == State::Spawning || self.state == State::Failing) && pipes.len() == 3,
                     "three standard pipes"
                 );
                 self.child = Some(child);
                 self.input = pipes.first().copied();
                 self.output = pipes.get(1).copied();
                 self.error = pipes.get(2).copied();
-                if self.phase == Phase::Failing || now >= self.deadline {
+                if self.state == State::Failing || now >= self.deadline {
                     self.abort_resources(below);
                 } else {
-                    self.phase = Phase::Opening;
+                    self.state = State::Opening;
                     self.channel.open(&mut self.channel_events, &mut self.channel_below);
                     self.drain_channel(above, below);
                     self.read_stderr(below);
                 }
             }
             IoEvent::Failed { owner, .. } if owner == self.io_owner && self.child.is_none() => {
-                self.phase = Phase::Failing;
+                self.state = State::Failing;
             }
             IoEvent::Failed { owner, .. } if owner == self.io_owner => {
-                if self.phase == Phase::Opening {
+                if self.state == State::Opening {
                     self.fail(below);
                 }
                 self.tree_ended(None, above, below);
@@ -333,7 +332,7 @@ impl Process {
             IoEvent::Closed { owner } if Some(owner) == self.input => self.input_closed = true,
             IoEvent::Closed { owner } if Some(owner) == self.output => {
                 self.output_closed = true;
-                if !self.channel_ended && (self.phase == Phase::Opening || self.phase == Phase::Ready) {
+                if !self.channel_ended && (self.state == State::Opening || self.state == State::Ready) {
                     self.channel.from_below(
                         LowerEvent::Read(stream::Up::End),
                         &mut self.channel_events,
@@ -364,10 +363,10 @@ impl Process {
     /// Expire the opening deadline and progress the channel's output queues.
     pub fn fire(&mut self, now: Time, above: &mut Queue<ProcessEvent>, below: &mut Queue<IoRequest>) {
         self.channel.set_now(now);
-        if (self.phase == Phase::Spawning || self.phase == Phase::Opening) && now >= self.deadline {
+        if (self.state == State::Spawning || self.state == State::Opening) && now >= self.deadline {
             self.fail(below);
         }
-        if self.phase == Phase::Opening || self.phase == Phase::Ready {
+        if self.state == State::Opening || self.state == State::Ready {
             self.channel.fire(&mut self.channel_events, &mut self.channel_below);
             self.drain_channel(above, below);
         }
@@ -377,9 +376,9 @@ impl Process {
     /// The opening deadline, until the channel is ready or failed.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        match self.phase {
-            Phase::Spawning | Phase::Opening => Some(self.deadline),
-            Phase::Idle | Phase::Ready | Phase::Failing | Phase::Gone => None,
+        match self.state {
+            State::Spawning | State::Opening => Some(self.deadline),
+            State::Idle | State::Ready | State::Failing | State::Gone => None,
         }
     }
 
@@ -387,12 +386,12 @@ impl Process {
         let queued = self.channel_events.len();
         for _ in 0..queued {
             let Some(event) = self.channel_events.pop() else { break };
-            if self.phase == Phase::Failing {
+            if self.state == State::Failing {
                 continue;
             }
             match event {
-                OpenEvent::Opened { .. } if self.phase == Phase::Opening => {
-                    self.phase = Phase::Ready;
+                OpenEvent::Opened { .. } if self.state == State::Opening => {
+                    self.state = State::Ready;
                     above.push(ProcessEvent::Spawned {
                         agent: self.agent,
                         process: self.child.expect("opening belongs to child"),
@@ -401,11 +400,11 @@ impl Process {
                         above.push(ProcessEvent::Exited { agent: self.agent, exit: self.exit });
                     }
                 }
-                OpenEvent::Hangup { .. } if self.phase == Phase::Opening => {
+                OpenEvent::Hangup { .. } if self.state == State::Opening => {
                     self.channel_ended = true;
                     self.fail(below);
                 }
-                OpenEvent::Hangup { .. } if self.phase == Phase::Ready => {
+                OpenEvent::Hangup { .. } if self.state == State::Ready => {
                     self.channel_ended = true;
                     if let Some(output) = self.output {
                         below.push(IoRequest::Close { entity: output });
@@ -482,7 +481,7 @@ impl Process {
     ) {
         self.exited = true;
         self.exit = exit;
-        if self.phase == Phase::Ready {
+        if self.state == State::Ready {
             above.push(ProcessEvent::Exited { agent: self.agent, exit });
         }
         if let Some(input) = self.input {
@@ -494,7 +493,7 @@ impl Process {
     }
 
     fn fail(&mut self, below: &mut Queue<IoRequest>) {
-        if self.phase == Phase::Failing || self.phase == Phase::Gone {
+        if self.state == State::Failing || self.state == State::Gone {
             return;
         }
         self.abort_resources(below);
@@ -502,7 +501,7 @@ impl Process {
 
     // A Spawned terminal supplies fresh resources even if opening already failed.
     fn abort_resources(&mut self, below: &mut Queue<IoRequest>) {
-        self.phase = Phase::Failing;
+        self.state = State::Failing;
         if let Some(child) = self.child {
             below.push(IoRequest::Abort { entity: child });
         }
@@ -516,23 +515,23 @@ impl Process {
     }
 
     fn finish(&mut self, above: &mut Queue<ProcessEvent>) {
-        if self.phase == Phase::Gone || !self.child_closed {
+        if self.state == State::Gone || !self.child_closed {
             return;
         }
         if self.child.is_some() && (!self.input_closed || !self.output_closed || !self.error_closed) {
             return;
         }
-        if self.phase == Phase::Ready && !self.channel_ended {
+        if self.state == State::Ready && !self.channel_ended {
             return;
         }
         let detail = self.tail.to_boxed();
-        match self.phase {
-            Phase::Spawning | Phase::Opening | Phase::Failing => {
+        match self.state {
+            State::Spawning | State::Opening | State::Failing => {
                 above.push(ProcessEvent::Unspawned { agent: self.agent, detail });
             }
-            Phase::Ready => above.push(ProcessEvent::Reaped { agent: self.agent, detail }),
-            Phase::Idle | Phase::Gone => unreachable!("a live launch reaches its terminal once"),
+            State::Ready => above.push(ProcessEvent::Reaped { agent: self.agent, detail }),
+            State::Idle | State::Gone => unreachable!("a live launch reaches its terminal once"),
         }
-        self.phase = Phase::Gone;
+        self.state = State::Gone;
     }
 }

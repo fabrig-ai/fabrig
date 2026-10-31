@@ -1,9 +1,9 @@
 //! Checked record dispatch (protocol/channel.md, sections 3–4).
-//! The channel phase admits a record before its handler changes the call,
+//! The channel state admits a record before its handler changes the call,
 //! turn, live-piece or long-operation ledger. No host policy is interpreted.
 #![expect(clippy::manual_map, reason = "the strict step subset spells out optional value moves")]
 
-use super::{CallKey, Component, OpenEvent, Phase};
+use super::{CallKey, Component, OpenEvent, State};
 use crate::Error;
 use alloc::boxed::Box;
 use skein_lib::{Reader, Token};
@@ -30,7 +30,7 @@ impl Component {
             ADMITTED => self.admitted(&body)?,
             ANSWER => self.answer(&body)?,
             _ => {
-                if self.phase != Phase::Admitted {
+                if self.state != State::Admitted {
                     return Err(Error::Order);
                 }
                 match kind {
@@ -58,14 +58,14 @@ impl Component {
     }
 
     fn admitted(&mut self, body: &[u8]) -> Result<OpenEvent, Error> {
-        if self.phase != Phase::Started {
+        if self.state != State::Started {
             return Err(Error::Order);
         }
         match smith_channel::Admitted::decode(&self.bodies, &mut Reader::new(body)) {
             Ok(_) => (),
             Err(problem) => return Err(Error::Body(problem)),
         }
-        self.phase = Phase::Admitted;
+        self.state = State::Admitted;
         Ok(OpenEvent::Admitted)
     }
 
@@ -75,16 +75,16 @@ impl Component {
             Err(problem) => return Err(Error::Body(problem)),
         };
         let permitted = match record.result() {
-            smith_channel::RunResult::Refused(_) => self.phase == Phase::Started,
+            smith_channel::RunResult::Refused(_) => self.state == State::Started,
             smith_channel::RunResult::Accepted(_)
             | smith_channel::RunResult::Parked
-            | smith_channel::RunResult::Failed(_) => self.phase == Phase::Admitted,
+            | smith_channel::RunResult::Failed(_) => self.state == State::Admitted,
         };
         if !permitted {
             return Err(Error::Order);
         }
         let answer = crate::answer::decode_answer(&record, &self.charter)?;
-        self.phase = Phase::Answered;
+        self.state = State::Answered;
         Ok(OpenEvent::Answer { answer, record })
     }
 

@@ -359,7 +359,7 @@ fn two_inline_slots_route_each_roots_requests_to_its_own_slot_under_load() {
         let mut calls = 0;
         for (at, route) in &world.routes {
             match route {
-                Route::Completion { agent, owner, system } if skein_lib::bytes::find(&system, cue).is_some() => {
+                Route::Completion { agent, owner, system } if skein_lib::bytes::find(system, cue).is_some() => {
                     assert_eq!(*agent, handle, "provider right {owner:?} belongs to its script's slot");
                     completions.push(*at);
                 }

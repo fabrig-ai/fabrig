@@ -23,7 +23,7 @@ const LIMITS: u16 = 2;
 const CHILD_TRANSITIONS: u8 = 8;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Phase {
+enum State {
     Opening,
     Opened,
     Started,
@@ -105,7 +105,7 @@ pub struct Component {
     schema: Schema,
     bodies: smith_channel::Limits,
     events: Queue<Event>,
-    phase: Phase,
+    state: State,
     ended: bool,
     reading: bool,
     held: Option<Closed>,
@@ -145,7 +145,7 @@ impl Component {
             schema,
             bodies: limits.bodies,
             events: Queue::uncapped(),
-            phase: Phase::Opening,
+            state: State::Opening,
             ended: false,
             reading: false,
             held: None,
@@ -171,7 +171,7 @@ impl Component {
 
     /// Demand one record, one live piece or the channel's end, answered once.
     pub fn read(&mut self, to_service: &mut Queue<OpenEvent>, below: &mut Queue<Lower>) {
-        assert!(self.phase != Phase::Opening, "application reads follow opening");
+        assert!(self.state != State::Opening, "application reads follow opening");
         assert!(!self.reading, "one application read at a time");
         assert!(!self.ended, "no read after the delivered end");
         self.reading = true;
@@ -210,12 +210,12 @@ impl Component {
         let live = start.live;
         let frame =
             encode_start(start, window, values, &self.bodies, &self.charter, &self.transcript, &self.endpoints)?;
-        if self.phase != Phase::Opened {
+        if self.state != State::Opened {
             return Err(Error::MissingValue);
         }
         self.live = crate::live::Streams::new(live, 0);
         self.sequence = sequence;
-        self.phase = Phase::Started;
+        self.state = State::Started;
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -230,7 +230,7 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted {
+        if self.state != State::Admitted {
             return Err(Error::Order);
         }
         let record = crate::translate::encode_message(message, &self.bodies)?;
@@ -256,7 +256,7 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted {
+        if self.state != State::Admitted {
             return Err(Error::Order);
         }
         let key = *self.calls_by_token.get(&call).ok_or(Error::Calls)?;
@@ -277,7 +277,7 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted {
+        if self.state != State::Admitted {
             return Err(Error::Order);
         }
         let record = smith_channel::Acknowledge::new(&self.bodies, smith_channel::AcknowledgeParts { number: turn })?;
@@ -303,7 +303,7 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted {
+        if self.state != State::Admitted {
             return Err(Error::Order);
         }
         if crate::grant_form(&credential)? != grant.form {
@@ -340,7 +340,7 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Started && self.phase != Phase::Admitted || self.cancelled {
+        if self.state != State::Started && self.state != State::Admitted || self.cancelled {
             return Err(Error::Order);
         }
         let record = smith_channel::Cancel::new(&self.bodies, smith_channel::CancelParts {})?;
@@ -374,7 +374,7 @@ impl Component {
     /// Whether the channel can take application records.
     #[must_use]
     pub fn opened(&self) -> bool {
-        self.phase != Phase::Opening
+        self.state != State::Opening
     }
 
     fn drain(&mut self, to_service: &mut Queue<OpenEvent>, below: &mut Queue<Lower>) {
@@ -400,7 +400,7 @@ impl Component {
                             );
                         }
                         None => {
-                            self.phase = Phase::Opened;
+                            self.state = State::Opened;
                             to_service.push(OpenEvent::Opened { version });
                         }
                     }
@@ -444,7 +444,7 @@ impl Component {
         if self.ended || self.held.is_some() {
             return;
         }
-        if self.phase == Phase::Opening || self.reading {
+        if self.state == State::Opening || self.reading {
             self.reading = false;
             self.ended = true;
             to_service.push(OpenEvent::Hangup { why });
