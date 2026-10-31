@@ -1,7 +1,8 @@
 //! Recovery of saved delivery intents (protocol/hosts.md, section 5.5).
 //! Only inspected commit evidence can establish a landed effect; remote uncertainty
 //! retains the intent rather than claiming a successful delivery.
-use super::{Domain, Phase};
+use super::Domain;
+use crate::chat::State as ChatState;
 use crate::{DeliveryIntent, DeliveryRecord, DeliveryState, GitOp, GitResult, IntentDirectory, Limits, Request};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, Token};
@@ -204,7 +205,7 @@ fn follow(domain: &mut Domain, env: &Env<Limits>, mut reconcile: Reconcile, out:
 fn recovery_unknown(domain: &mut Domain, out: &mut Queue<Request>) {
     domain.stop_failed = true;
     crate::person::show_dropped(&mut domain.lines, out);
-    domain.chat.phase = Phase::Done;
+    domain.chat.phase = ChatState::Done;
     out.push(Request::Exit { status: crate::end::exit_status(domain.end_cause) });
 }
 

@@ -823,7 +823,7 @@ fn a_headless_start_whose_head_cannot_be_read_exits_refused() {
         .filter_map(|request| if let Request::Exit { status } = request { Some(*status) } else { None })
         .collect::<Vec<_>>();
     assert_eq!(exits, [crate::ExitStatus::Refused]);
-    assert_eq!(domain.chat.phase, crate::chat::Phase::Done);
+    assert_eq!(domain.chat.phase, crate::chat::State::Done);
     crate::resume(&mut domain, &env, &mut out);
     assert!(out.is_empty(), "a failed start never opens a run");
 }

@@ -1,6 +1,6 @@
 //! Local policy consumes each typed parent variant; process ownership is
 //! exercised separately by the spawned lifecycle unit and composed worlds.
-use super::{AgentLife, Domain, Phase, parent_request};
+use super::{ChildState, Domain, State, parent_request};
 use crate::{
     AccountFailure, AgentFailure, Checks, Config, Contract, Event, Failure, Limits, Notice, Request, Undelivered,
 };
@@ -252,7 +252,7 @@ fn the_parent_answer_keeps_its_host_spend_until_gone() {
     );
     let Some(Request::Show { text }) = out.pop() else { panic!("answer shown after Gone") };
     assert_eq!(text.as_ref(), b"Chat parked");
-    assert_eq!(domain.agent_life, AgentLife::Gone);
+    assert_eq!(domain.agent_life, ChildState::Gone);
 }
 
 #[test]
@@ -299,7 +299,7 @@ fn every_message_refusal_ends_the_message_without_failing_the_agent() {
             &mut out,
         );
         assert!(domain.agent_failed.is_none());
-        assert_eq!(domain.chat.phase, Phase::Running);
+        assert_eq!(domain.chat.phase, State::Running);
         let Some(Request::Notice { notice }) = out.pop() else { panic!("message terminal notice") };
         assert_eq!(notice, Notice::NotDelivered { line: Some(Token::new(3)), why: Undelivered::Refused(reason) });
         assert!(out.is_empty());
@@ -316,7 +316,7 @@ fn unread_names_reach_the_parent_without_an_agent_failure_or_another_activation(
         &mut out,
     );
     assert!(domain.agent_failed.is_none());
-    assert_eq!(domain.chat.phase, Phase::Running);
+    assert_eq!(domain.chat.phase, State::Running);
     assert!(out.is_empty());
 }
 
@@ -379,7 +379,7 @@ fn a_message_refused_after_the_last_word_keeps_the_single_transcript_reload() {
         Notice::NotDelivered { line: Some(Token::new(3)), why: Undelivered::Refused(host::MessageRefusal::Ending) }
     );
     assert!(out.is_empty());
-    assert_eq!(domain.chat.phase, Phase::Loading);
+    assert_eq!(domain.chat.phase, State::Loading);
     assert!(domain.agent_failed.is_none());
 }
 
@@ -536,7 +536,8 @@ fn answer_with_a_late_state_save(gone_first: bool) {
         },
         &mut out,
     );
-    assert_eq!(domain.chat.phase, Phase::Answered { gone: super::Gone::Owed });
+    assert_eq!(domain.chat.phase, State::Answered);
+    assert_eq!(domain.agent_life, ChildState::Starting);
     let gone = parent::Request::Gone {
         client: Token::new(1),
         end: host::End::Exited { exit: Some(host::Exit::Code(0)), forced: host::Forced::No },
@@ -544,14 +545,15 @@ fn answer_with_a_late_state_save(gone_first: bool) {
     };
     if gone_first {
         parent_request(&mut domain, &env, gone, &mut out);
-        assert_eq!(domain.chat.phase, Phase::Answered { gone: super::Gone::Heard });
+        assert_eq!(domain.chat.phase, State::Answered);
+        assert_eq!(domain.agent_life, ChildState::Gone);
         super::state_saved(&mut domain, &env, &mut out);
     } else {
         super::state_saved(&mut domain, &env, &mut out);
-        assert_eq!(domain.chat.phase, Phase::Answered { gone: super::Gone::Owed });
+        assert_eq!(domain.chat.phase, State::Answered);
         parent_request(&mut domain, &env, gone, &mut out);
     }
-    assert_eq!(domain.chat.phase, Phase::Loading);
+    assert_eq!(domain.chat.phase, State::Loading);
     assert_eq!(domain.lines.carry()[0].name, Token::new(1));
     assert!(!domain.chat.state_pending);
 }
@@ -581,7 +583,7 @@ fn gone_after_a_late_turn_save_shows_the_answer_once() {
         &mut out,
     );
     super::turn_saved(&mut domain, &env, 1, &mut out);
-    assert_eq!(domain.chat.phase, Phase::Answered { gone: super::Gone::Owed });
+    assert_eq!(domain.chat.phase, State::Answered);
     parent_request(
         &mut domain,
         &env,
@@ -592,7 +594,7 @@ fn gone_after_a_late_turn_save_shows_the_answer_once() {
         },
         &mut out,
     );
-    assert_eq!(domain.chat.phase, Phase::Loading);
+    assert_eq!(domain.chat.phase, State::Loading);
     assert_eq!(shown_requests(&mut out), 1);
 }
 

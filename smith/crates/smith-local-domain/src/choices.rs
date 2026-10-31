@@ -1,6 +1,6 @@
 //! One pending local command, applied between activations (shell.md, section 4.1).
 //! It owns only the bounded entered value; the store and run keep their existing owners.
-use crate::chat::Phase;
+use crate::chat::State;
 use crate::{Domain, Limits, Notice, Request};
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue};
@@ -50,7 +50,7 @@ pub(crate) fn receive(domain: &mut Domain, choice: Slash, env: &Env<Limits>, out
 }
 
 pub(crate) fn apply(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    if domain.chat.phase != Phase::Idle || domain.run.is_some() || domain.chat.state_pending {
+    if domain.chat.phase != State::Idle || domain.run.is_some() || domain.chat.state_pending {
         return;
     }
     let Some(choice) = domain.choice.take() else { return };
