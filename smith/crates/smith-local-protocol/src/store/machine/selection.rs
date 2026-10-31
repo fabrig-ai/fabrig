@@ -1,7 +1,7 @@
 //! One chat directory selected between serial store operations (protocol/hosts.md, section 5.3).
 //! The old root stays owned until its replacement opens; both roots settle on close.
 
-use super::{Action, Box, Phase, Queue, Store, Time, Token, file, kernel, local};
+use super::{Action, Box, Queue, State, Store, Time, Token, file, kernel, local};
 use skein_lib::Map;
 
 #[derive(Debug)]
@@ -38,7 +38,7 @@ impl Store {
             out.push(Action::Domain(local::Event::ChatSelected { name, result: Err(reason) }));
             return;
         }
-        self.phase = Phase::Selecting;
+        self.phase = State::Selecting;
         self.selection = Some(Selection {
             name,
             step: if create { Selecting::Making } else { Selecting::Opening },
@@ -161,12 +161,6 @@ impl Store {
         self.root = root;
         self.descriptor = descriptor;
         self.checked = false;
-        self.state = None;
-        self.fresh = None;
-        self.window = Box::new([]);
-        self.entries = Box::new([]);
-        self.turns.clear();
-        self.deliveries.clear();
         self.versions = Map::with_capacity(self.versions.capacity());
         self.finish(local::Event::ChatSelected { name: selection.name, result: Ok(()) }, now, out);
     }

@@ -1,135 +1,109 @@
 //! The pre-recovery layout check (domain/host.md, section 8).
 //! Only complete empty scans and regular reserved marker residue permit creation.
-use super::{Action, Box, Phase, Queue, RecordName, Store, StoreFault, Time, file, kernel, local};
+use super::Terminal;
+use super::{Action, Queue, RecordName, State, Store, file, kernel, local};
+
+#[derive(Debug)]
+pub(super) enum Compatibility {
+    Format,
+    Admit,
+    CreateFormat,
+}
 
 impl Store {
-    pub(super) fn load_current(&mut self, now: Time, out: &mut Queue<Action>) {
-        self.phase = Phase::Journal;
-        self.load(b"fresh".as_slice().into(), now, out);
-    }
-
-    pub(super) fn compatibility_event(&mut self, event: file::Event, now: Time, out: &mut Queue<Action>) {
-        match event {
-            file::Event::Loaded { bytes, .. } => match crate::format::check(&bytes) {
-                Ok(()) => {
-                    self.checked = true;
-                    self.load_current(now, out);
-                }
-                Err(why) => self.older(why, now, out),
-            },
-            file::Event::Failed { error: kernel::Error::NotFound, committed: false, .. } => match self.phase {
-                Phase::Format => {
-                    self.phase = Phase::Admit;
-                    self.scan(now, out);
-                }
-                Phase::Admit => self.older(local::Older::Unrecorded, now, out),
-                Phase::CreateFormat => self.marker_failed(kernel::Error::NotFound, now, out),
-                Phase::Idle
-                | Phase::Selecting
-                | Phase::Journal
-                | Phase::State
-                | Phase::Scan
-                | Phase::Headers
-                | Phase::Records
-                | Phase::Write
-                | Phase::Remove
-                | Phase::SyncOld
-                | Phase::RemoveJournal
-                | Phase::SyncJournal
-                | Phase::Cleaning
-                | Phase::Closing
-                | Phase::Closed => unreachable!("compatibility phases only"),
-            },
-            file::Event::Scanned { entries, more, .. } => {
-                if more != 0 {
-                    self.older(local::Older::Unrecorded, now, out);
-                    return;
-                }
-                for entry in &entries {
-                    if entry.kind != kernel::Kind::File || !marker_residue(&entry.name) {
-                        self.older(local::Older::Unrecorded, now, out);
-                        return;
-                    }
-                }
+    pub(super) fn compatibility_request(&self, state: &Compatibility) -> file::Request {
+        match state {
+            Compatibility::Format => self.load_file(b"format".as_slice().into(), crate::format::max_bytes()),
+            Compatibility::Admit => self.scan_request(true),
+            Compatibility::CreateFormat => {
                 let marker = crate::format::file();
-                self.phase = Phase::CreateFormat;
-                Self::io(
-                    file::Request::Store {
-                        owner: self.owner,
-                        root: self.root,
-                        path: marker.name,
-                        bytes: marker.bytes,
-                        expected: file::Expect::Absent,
-                        no_follow: true,
-                    },
-                    now,
-                    out,
-                );
+                file::Request::Store {
+                    owner: self.owner,
+                    root: self.root,
+                    path: marker.name,
+                    bytes: marker.bytes,
+                    expected: file::Expect::Absent,
+                    no_follow: true,
+                }
             }
-            file::Event::Stored { .. } => {
-                self.checked = true;
-                self.finish(local::Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) }, now, out);
-            }
-            file::Event::Failed { error, .. } => self.marker_failed(error, now, out),
-            file::Event::Conflict { .. } => {
-                self.fail(RecordName::State, StoreFault::Conflict { file: RecordName::State }, now, out);
-            }
-            file::Event::TooLarge { .. } => {
-                self.marker_fault(StoreFault::TooLarge { file: RecordName::State }, now, out);
-            }
-            file::Event::Cancelled { .. } => self.marker_failed(kernel::Error::TimedOut, now, out),
-            file::Event::Refused { .. } => self.marker_failed(kernel::Error::NotAFile, now, out),
-            file::Event::Locked { .. }
-            | file::Event::Busy { .. }
-            | file::Event::Made { .. }
-            | file::Event::Opened { .. }
-            | file::Event::Stated { .. }
-            | file::Event::Written { .. }
-            | file::Event::Read { .. }
-            | file::Event::Renamed { .. }
-            | file::Event::Cut { .. }
-            | file::Event::Listed { .. }
-            | file::Event::Removed { .. }
-            | file::Event::Synced { .. }
-            | file::Event::Closed { .. } => unreachable!("marker loads, scans and stores have whole-file terminals"),
         }
     }
 
-    fn marker_failed(&mut self, error: kernel::Error, now: Time, out: &mut Queue<Action>) {
-        self.marker_fault(StoreFault::Io { file: RecordName::State, error }, now, out);
-    }
-
-    fn marker_fault(&mut self, fault: StoreFault, now: Time, out: &mut Queue<Action>) {
-        match self.phase {
-            Phase::Admit => self.older(local::Older::Unrecorded, now, out),
-            Phase::Format | Phase::CreateFormat => {
-                self.fail(RecordName::State, fault, now, out);
-            }
-            Phase::Idle
-            | Phase::Selecting
-            | Phase::Journal
-            | Phase::State
-            | Phase::Scan
-            | Phase::Headers
-            | Phase::Records
-            | Phase::Write
-            | Phase::Remove
-            | Phase::SyncOld
-            | Phase::RemoveJournal
-            | Phase::SyncJournal
-            | Phase::Cleaning
-            | Phase::Closing
-            | Phase::Closed => unreachable!("compatibility failures only"),
+    pub(super) fn compatibility_event(
+        &mut self,
+        state: Compatibility,
+        event: Terminal,
+        out: &mut Queue<Action>,
+    ) -> State {
+        match state {
+            Compatibility::Format => match event {
+                Terminal::Loaded(bytes) => match crate::format::check(&bytes) {
+                    Ok(()) => {
+                        self.checked = true;
+                        State::Load(super::Loading::Journal)
+                    }
+                    Err(why) => older(why, out),
+                },
+                Terminal::Missing => State::Compatibility(Compatibility::Admit),
+                event @ (Terminal::Scanned { .. }
+                | Terminal::Stored(_)
+                | Terminal::Removed
+                | Terminal::Synced
+                | Terminal::Closed
+                | Terminal::Committed(_)
+                | Terminal::Fault(_)) => {
+                    Self::failure(RecordName::State, super::event_fault(RecordName::State, event), true, out)
+                }
+            },
+            Compatibility::Admit => match event {
+                Terminal::Scanned { entries, more } => {
+                    if more != 0 {
+                        return older(local::Older::Unrecorded, out);
+                    }
+                    for entry in &entries {
+                        if entry.kind != kernel::Kind::File || !marker_residue(&entry.name) {
+                            return older(local::Older::Unrecorded, out);
+                        }
+                    }
+                    State::Compatibility(Compatibility::CreateFormat)
+                }
+                Terminal::Fault(super::Fault::Conflict) => {
+                    Self::failure(RecordName::State, super::StoreFault::Conflict { file: RecordName::State }, true, out)
+                }
+                event @ (Terminal::Loaded(_)
+                | Terminal::Stored(_)
+                | Terminal::Removed
+                | Terminal::Synced
+                | Terminal::Closed
+                | Terminal::Missing
+                | Terminal::Committed(_)
+                | Terminal::Fault(_)) => {
+                    let _: super::StoreFault = super::event_fault(RecordName::State, event);
+                    older(local::Older::Unrecorded, out)
+                }
+            },
+            Compatibility::CreateFormat => match event {
+                Terminal::Stored(_) => {
+                    self.checked = true;
+                    Self::empty(out)
+                }
+                event @ (Terminal::Loaded(_)
+                | Terminal::Scanned { .. }
+                | Terminal::Removed
+                | Terminal::Synced
+                | Terminal::Closed
+                | Terminal::Missing
+                | Terminal::Committed(_)
+                | Terminal::Fault(_)) => {
+                    Self::failure(RecordName::State, super::event_fault(RecordName::State, event), true, out)
+                }
+            },
         }
     }
+}
 
-    fn older(&mut self, why: local::Older, now: Time, out: &mut Queue<Action>) {
-        self.finish(
-            local::Event::StoreFailed { turn: None, reason: local::StoreFailure::OlderBuild { why } },
-            now,
-            out,
-        );
-    }
+fn older(why: local::Older, out: &mut Queue<Action>) -> State {
+    Store::finished(local::Event::StoreFailed { turn: None, reason: local::StoreFailure::OlderBuild { why } }, out)
 }
 
 fn marker_residue(name: &[u8]) -> bool {
