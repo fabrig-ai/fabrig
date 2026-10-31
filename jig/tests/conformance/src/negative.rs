@@ -45,25 +45,29 @@ pub(crate) fn input(
     mut input: Input<root::Event, root::Record>,
 ) -> Input<root::Event, root::Record> {
     match (&mut input, config.fault) {
-        (Input::Restore(root::Record::Connector { record: connector::Record::Outbox(entry), .. }), fault) => {
-            match fault {
-                Fault::ForgottenDeadline => {
-                    if let Some(attempt) = &mut entry.attempt {
-                        attempt.deadline = Wall::from_nanos(attempt.deadline.as_nanos() + 1_000_000_000);
-                    }
+        (
+            Input::Event(root::Event::StartRecord(root::Record::Connector {
+                record: connector::Record::Outbox(entry),
+                ..
+            })),
+            fault,
+        ) => match fault {
+            Fault::ForgottenDeadline => {
+                if let Some(attempt) = &mut entry.attempt {
+                    attempt.deadline = Wall::from_nanos(attempt.deadline.as_nanos() + 1_000_000_000);
                 }
-                Fault::DifferentDecision => entry.effect.target += 1,
-                Fault::None
-                | Fault::EarlyOutput
-                | Fault::SplitDecision
-                | Fault::AdmissionAfterMutation
-                | Fault::WrongRestart
-                | Fault::UncheckedEffect
-                | Fault::WrongKind
-                | Fault::RepeatedEffect
-                | Fault::StaleVerdict => {}
             }
-        }
+            Fault::DifferentDecision => entry.effect.target += 1,
+            Fault::None
+            | Fault::EarlyOutput
+            | Fault::SplitDecision
+            | Fault::AdmissionAfterMutation
+            | Fault::WrongRestart
+            | Fault::UncheckedEffect
+            | Fault::WrongKind
+            | Fault::RepeatedEffect
+            | Fault::StaleVerdict => {}
+        },
         (Input::Event(root::Event::EffectCall { effect, number, key, .. }), Fault::UncheckedEffect) => {
             let token = Token::new(99);
             root::step(
@@ -185,8 +189,8 @@ pub(crate) fn released(
 
 pub(crate) fn delivery(fault: Fault, mut delivery: Delivery) -> Delivery {
     match (&mut delivery, fault) {
-        (Delivery::Held(root::Delivery::Restart(step)), Fault::WrongRestart) => {
-            *step = core::RestartStep::ReadAfresh { connector: 2 };
+        (Delivery::Start { phase, .. }, Fault::WrongRestart) => {
+            *phase = core::start::Phase::RestoreConnector { connector: 2 };
         }
         (
             Delivery::Held(root::Delivery::System { call: connector::SystemRequest::Apply { effect, .. }, .. }),
