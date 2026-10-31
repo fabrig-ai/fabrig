@@ -257,7 +257,7 @@ impl Referee<Process> for Judge {
                     });
                     native.ask_account_sign_in(
                         SIGN_IN,
-                        c::Ask::SignIn { holder: c::AccountHolder::Own, provider: PROVIDER },
+                        c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: PROVIDER },
                     );
                     self.sign_in_deadline = Some(now.saturating_add(self.peers.sign_in_wait()));
                     self.phase = Phase::Address;
@@ -297,7 +297,7 @@ impl Referee<Process> for Judge {
                     native.account_request(jig_client::Event::Unwatch { handle: CHAT });
                     self.ended = None;
                     native.hold_for_account_sign_in();
-                    native.ask_account_sign_in(SIGN_OUT, c::Ask::SignOut { holder: c::AccountHolder::Own, source });
+                    native.ask_account_sign_in(SIGN_OUT, c::Ask::SignOut { holder: c::AskAccountHolder::Own, source });
                     self.phase = Phase::SignOut;
                 }
             }

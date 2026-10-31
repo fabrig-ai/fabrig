@@ -414,7 +414,7 @@ impl Judge {
                 .find_map(|p| if let Proc::Client(client) = p { Some(client) } else { None })
                 .expect("client");
             let ask = jig_client::contract::Ask::SignOut {
-                holder: jig_client::contract::AccountHolder::Own,
+                holder: jig_client::contract::AskAccountHolder::Own,
                 source: self.accounts.source().expect("declared source"),
             };
             client.account_request(jig_client::Event::Send {

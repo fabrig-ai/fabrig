@@ -114,7 +114,7 @@ impl Referee<Process> for Shutdown {
             return;
         }
         if !self.asked {
-            native.ask_account_sign_in(ACCOUNT_SIGN_IN, c::Ask::SignIn { holder: c::AccountHolder::Own, provider: 3 });
+            native.ask_account_sign_in(ACCOUNT_SIGN_IN, c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 3 });
             self.asked = true;
             return;
         }

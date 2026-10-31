@@ -54,7 +54,7 @@ impl Setup {
                 client.account_request(accounts::declare_program(
                     key(1),
                     [71; 16],
-                    c::AccountHolder::Own,
+                    c::AskAccountHolder::Own,
                     1,
                     None,
                     b"alice".as_slice().into(),
@@ -63,7 +63,7 @@ impl Setup {
                 client.account_request(accounts::add_key(
                     key(1),
                     [71; 16],
-                    c::AccountHolder::Deployment,
+                    c::AskAccountHolder::Deployment,
                     1,
                     None,
                     Secret::new(value.into()),
@@ -103,7 +103,7 @@ impl Setup {
                 client.account_request(accounts::add_key(
                     key(2),
                     [72; 16],
-                    c::AccountHolder::Deployment,
+                    c::AskAccountHolder::Deployment,
                     2,
                     None,
                     Secret::new(crate::fixtures::NEXT_KEY.into()),
@@ -113,7 +113,7 @@ impl Setup {
                 client.account_request(accounts::replace_key(
                     key(2),
                     [72; 16],
-                    c::AccountHolder::Deployment,
+                    c::AskAccountHolder::Deployment,
                     *source,
                     Secret::new(crate::fixtures::KEY.into()),
                 ));
@@ -241,7 +241,7 @@ impl Setup {
         client.account_request(accounts::replace_key(
             key(3),
             [73; 16],
-            c::AccountHolder::Deployment,
+            c::AskAccountHolder::Deployment,
             self.source.expect("kept key"),
             Secret::new(crate::fixtures::NEXT_KEY.into()),
         ));
