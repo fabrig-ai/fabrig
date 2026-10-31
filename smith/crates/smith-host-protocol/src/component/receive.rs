@@ -100,7 +100,10 @@ impl Component {
         let ask = crate::translate::decode_ask(&record)?.ok_or(Error::InvalidAnswer)?;
         let call = Token::new(self.next_call);
         self.next_call = self.next_call.checked_add(1).ok_or(Error::Calls)?;
-        if self.calls_by_name.insert(key, call).is_err() || self.calls_by_token.insert(call, key).is_err() {
+        if self.calls_by_name.insert(key, call).is_err() {
+            return Err(Error::Calls);
+        }
+        if self.calls_by_token.insert(call, key).is_err() {
             return Err(Error::Calls);
         }
         Ok(OpenEvent::Call { call, name: key.domain(), deadline: self.now.saturating_add(record.deadline()), ask })
