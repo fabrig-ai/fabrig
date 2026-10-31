@@ -101,34 +101,6 @@ fn full_task() -> jig_client_domain::contract::Task {
         jig_client_domain::contract::LiveDelegate { chip: task.chip.clone(), takeover_budget: 1 },
         jig_client_domain::contract::LiveDelegate { chip: task.chip.clone(), takeover_budget: 1 },
     ]);
-    task.context.as_mut().expect("supplied task context").writer_slots = jig_client_world::test::list([
-        jig_client_domain::contract::WriterSlot {
-            resource: jig_client_domain::contract::Part::Resource {
-                connector: jig_client_test_domain::FIRST,
-                path: {
-                    let mut rows = skein_lib::List::with_capacity(1);
-                    rows.push(stories::text(&[b'r'; 32]).into_bytes())
-                        .expect("one supplied segment fits its reserved slot");
-                    rows
-                },
-            },
-            task: 9,
-            attempt: Some(1),
-        },
-        jig_client_domain::contract::WriterSlot {
-            resource: jig_client_domain::contract::Part::Resource {
-                connector: jig_client_test_domain::FIRST,
-                path: {
-                    let mut rows = skein_lib::List::with_capacity(1);
-                    rows.push(stories::text(&[b'r'; 32]).into_bytes())
-                        .expect("one supplied segment fits its reserved slot");
-                    rows
-                },
-            },
-            task: 9,
-            attempt: Some(2),
-        },
-    ]);
     task
 }
 fn full_world() -> jig_client_world::World<jig_client_world::Test, jig_client_world::Scripted> {
