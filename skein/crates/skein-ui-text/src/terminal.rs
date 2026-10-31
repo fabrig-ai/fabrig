@@ -43,7 +43,8 @@ struct Line {
     bytes: Box<[u8]>,
     application: bool,
 }
-/// A terminal with tagged io; its host drains commands after iteration.
+/// A terminal with tagged io; its host drains commands after iteration
+/// (skein/docs/design/ui-text.md, 7; skein/docs/design/io.md, 2).
 #[derive(Debug)]
 pub struct Terminal {
     settings: Settings,
@@ -53,7 +54,7 @@ pub struct Terminal {
     output: Option<Token>,
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
-    raw: Queue<Submit>,
+    requests: Queue<Request>,
     events: Queue<Event>,
     commands: Queue<Command>,
     lines: Queue<Line>,
@@ -113,8 +114,8 @@ impl Terminal {
             output: None,
             completions: Queue::with_capacity(32),
             submissions: Queue::with_capacity(256),
-            raw: Queue::with_capacity(256),
-            events: Queue::with_capacity(32),
+            requests: Queue::uncapped(),
+            events: Queue::uncapped(),
             commands: Queue::with_capacity(BATCH),
             lines,
             pending: None,
@@ -132,7 +133,7 @@ impl Terminal {
         assert!(self.input.is_none() && self.output.is_none(), "adopt once");
         self.input = Some(self.io.adopt_read_pipe(input)?);
         self.output = Some(self.io.adopt_write_pipe(output, None)?);
-        self.demand_output(Time::ZERO);
+        self.demand_output();
         Ok(())
     }
     #[must_use]
@@ -192,7 +193,7 @@ impl Terminal {
     }
     #[must_use]
     pub fn closed(&self) -> bool {
-        self.phase == Phase::Drained && self.io.is_empty() && self.submissions.is_empty()
+        self.phase == Phase::Drained && self.io.is_empty() && self.requests.is_empty() && self.submissions.is_empty()
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
@@ -208,7 +209,8 @@ impl Terminal {
     }
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
-        !self.completions.is_empty()
+        !self.requests.is_empty()
+            || !self.completions.is_empty()
             || !self.submissions.is_empty()
             || self.io.is_ready()
             || self.io.is_due(now)
@@ -238,60 +240,34 @@ impl Terminal {
             if let Op::Cancel { target } = &mut complete.kind {
                 *target = Token::new(target.raw() & !TAG);
             }
-            skein_io::up(
-                &mut self.io,
-                &Env { now, wall: Wall::EPOCH, limits: self.limits },
-                complete,
-                &mut self.events,
-                &mut self.raw,
-            );
-            self.events(now, tree);
+            self.completions.push(complete);
         }
-        for _ in 0..BATCH {
-            if !self.io.is_ready() {
-                break;
-            }
-            skein_io::resume(
-                &mut self.io,
-                &Env { now, wall: Wall::EPOCH, limits: self.limits },
-                &mut self.events,
-                &mut self.raw,
-            );
-            self.events(now, tree);
-        }
-        for _ in 0..BATCH {
-            if !self.io.is_due(now) {
-                break;
-            }
-            skein_io::fire(
-                &mut self.io,
-                &Env { now, wall: Wall::EPOCH, limits: self.limits },
-                &mut self.events,
-                &mut self.raw,
-            );
-            self.events(now, tree);
-        }
+        // The tagged submissions held for the host reserve their room at the kernel edge.
+        let mut raw = Queue::with_capacity(self.submissions.room());
+        let env = Env { now, wall: Wall::EPOCH, limits: self.limits };
+        skein_io::stage::up(&mut self.io, &env, &mut self.completions, &mut self.events, &mut raw, now);
+        self.events(tree);
         if self.writing == Output::Writable && self.phase != Phase::Drained {
             if let Some(bytes) = self.pending.take() {
-                self.write(now, bytes);
+                self.write(bytes);
             } else if let Some(offset) = self.print_offset {
-                self.write_print(now, offset);
+                self.write_print(offset);
             } else if let Some(line) = self.lines.pop() {
-                self.write(now, line.bytes);
+                self.write(line.bytes);
             } else if self.phase != Phase::Open {
                 self.phase = Phase::Drained;
                 if let Some(input) = self.input {
-                    self.request(now, Request::Abort { entity: input });
+                    self.requests.push(Request::Abort { entity: input });
                 }
                 if let Some(output) = self.output {
-                    self.request(now, Request::Close { entity: output });
+                    self.requests.push(Request::Close { entity: output });
                 }
             } else if self.due(now) {
                 render(tree, &self.settings.name, self.settings.status, &mut self.print);
                 self.printed = Some(now);
                 self.dirty = false;
                 self.immediate = false;
-                self.write_print(now, 0);
+                self.write_print(0);
             }
         }
         if self.phase == Phase::Open
@@ -301,14 +277,15 @@ impl Terminal {
             && let Some(input) = self.input
         {
             self.intake.reading = true;
-            self.request(
-                now,
-                Request::Stream { stream: input, down: Down::Demand { read: Read::Arrived { max: BATCH }, room: 0 } },
-            );
+            self.requests.push(Request::Stream {
+                stream: input,
+                down: Down::Demand { read: Read::Arrived { max: BATCH }, room: 0 },
+            });
         }
+        skein_io::stage::down(&mut self.io, &env, &mut self.requests, &mut raw);
         self.io.reclaim();
-        for _ in 0..self.raw.len() {
-            let mut submit = self.raw.pop().expect("counted submission");
+        for _ in 0..raw.len() {
+            let mut submit = raw.pop().expect("counted submission");
             assert!(submit.op.raw() & TAG == 0, "finite terminal operation namespace");
             submit.op = Token::new(submit.op.raw() | TAG);
             if let Op::Cancel { target } = &mut submit.kind {
@@ -317,16 +294,13 @@ impl Terminal {
             self.submissions.push(submit);
         }
     }
-    fn request(&mut self, now: Time, request: Request) {
-        skein_io::down(&mut self.io, &Env { now, wall: Wall::EPOCH, limits: self.limits }, request, &mut self.raw);
-    }
-    fn demand_output(&mut self, now: Time) {
+    fn demand_output(&mut self) {
         self.writing = Output::Waiting;
         let stream = self.output.expect("adopted output");
         let down = Down::Demand { read: Read::Nothing, room: self.limits.output };
-        self.request(now, Request::Stream { stream, down });
+        self.requests.push(Request::Stream { stream, down });
     }
-    fn write(&mut self, now: Time, bytes: Box<[u8]>) {
+    fn write(&mut self, bytes: Box<[u8]>) {
         let cap = usize::try_from(self.limits.output).expect("output fits memory");
         let bytes = if bytes.len() > cap {
             self.pending = Some(skein_lib::bytes::copy_of(bytes.get(cap..).expect("remaining line")));
@@ -334,18 +308,18 @@ impl Terminal {
         } else {
             bytes
         };
-        self.request(now, Request::Stream { stream: self.output.expect("adopted output"), down: Down::Send(bytes) });
-        self.demand_output(now);
+        self.requests.push(Request::Stream { stream: self.output.expect("adopted output"), down: Down::Send(bytes) });
+        self.demand_output();
     }
-    fn write_print(&mut self, now: Time, offset: u32) {
+    fn write_print(&mut self, offset: u32) {
         let end = offset.saturating_add(self.limits.output).min(self.print.text.len());
         let range = usize::try_from(offset).expect("Print offset fits memory")
             ..usize::try_from(end).expect("Print end fits memory");
         let bytes = skein_lib::bytes::copy_of(self.print.text.as_slice().get(range).expect("Print piece exists"));
         self.print_offset = (end < self.print.text.len()).then_some(end);
-        self.write(now, bytes);
+        self.write(bytes);
     }
-    fn events(&mut self, now: Time, tree: &Tree) {
+    fn events(&mut self, tree: &Tree) {
         for _ in 0..self.events.len() {
             let event = self.events.pop().expect("counted event");
             match event {
@@ -369,7 +343,7 @@ impl Terminal {
                         self.output = None;
                         self.phase = Phase::Drained;
                         if let Some(input) = self.input {
-                            self.request(now, Request::Abort { entity: input });
+                            self.requests.push(Request::Abort { entity: input });
                         }
                     }
                 }
