@@ -2,7 +2,7 @@
 id = "kit-io"
 part = "kit-contract"
 kind = "interface"
-needs = []
+needs = ["counts"]
 files = ["skein/crates/skein-io/src/lib.rs", "skein/crates/skein-io/src/stage.rs", "skein/tests/io/tests/suite/main.rs", "skein/tests/io/tests/suite/stage.rs", "skein/tests/echo/tests/suite/scenarios.rs", "skein/tests/fake-peers/tests/suite/main.rs", "skein/tests/fake-peers/tests/suite/stages.rs"]
 effort = "high"
 minutes = 40
@@ -119,3 +119,12 @@ Pre-approved:
 
 The final signatures, the tests added and removed (names), the checks
 with counts, any helper written and why.
+
+## Answers
+
+2026-10-31 (kit-io-1): the `io_resume` baseline was missing from the base.
+The counts task has since merged into the trunk
+(`component-kit-2/integration` at `23a86bf59`, `io_resume 39`); this task
+now `needs = ["counts"]`. Rerun on a base that holds it, and stop as
+before if `io_resume` is still absent. Do not proceed without the
+baseline.
