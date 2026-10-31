@@ -106,6 +106,16 @@ fn model_says_github_has_no_repository_chosen_yet() {
 }
 
 #[test]
+fn an_installed_github_without_a_repository_opens_the_picker_on_the_welcome() {
+    let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, forge::github_rows(true));
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        node(view.tree(), Role::Heading { level: 2 }, "Choose a repository to start in");
+        for name in [b"Go on".as_slice(), b"Start over"] {
+            assert!(f::find(view.tree(), Role::Button, name).is_none());
+        }
+    }
+}
+#[test]
 fn model_keeps_github_connecting_until_an_installation_is_accepted() {
     let view = model_view(forge::github_rows(false));
     line_before_model(view.tree(), "GitHub · Connecting: no installation accepted yet");

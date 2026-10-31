@@ -224,9 +224,10 @@ fn reloads_in_quick_succession_end_in_one_live_page() {
 fn enter_starts_one_chat_and_empty_or_shift_enter_none() {
     let tier = Tier::new("qa-shell-composer").with_model();
     let words = |find: Find, words: &[u8]| Step::Type { find, words: words.into() };
-    played(
-        tier.setup(),
+    let mut script = Script::new(
         vec![
+            see(Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge")),
+            Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Later") }),
             see(live()),
             Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Chats") }),
             see(composer()),
@@ -245,8 +246,10 @@ fn enter_starts_one_chat_and_empty_or_shift_enter_none() {
             see(composer()),
             see(Find::text(FIRST_CHAT)),
             gone(Find::text(b"T2")),
-        ],
+        ]
+        .into_boxed_slice(),
     );
+    assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
 }
 
 /// browser.md 2.5: the composer's words "are counted within [their] bound" (README.md 5.1, 5.4): words far
