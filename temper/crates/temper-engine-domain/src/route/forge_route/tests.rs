@@ -294,28 +294,11 @@ fn writable_repositories_exclude_context_and_missing_push() {
 fn writable_repositories_exclude_an_ended_forge() {
     use super::forge;
     let (mut domain, env) = two_forges();
-    domain.forge.configure_demo(Some(forge::DemoConfig {
-        provider: 1,
-        adoption: forge::Adoption {
-            project: 5,
-            home: true,
-            forge: 1,
-            host: Box::from(&b"forge.example"[..]),
-            owner: Box::from(&b"org"[..]),
-            name: Box::from(&b"repo"[..]),
-            prefix: Box::from(&b"temper/"[..]),
-            role: forge::Role::Owned,
-            landing: Box::from(&b"main"[..]),
-            ci: true,
-            checks: Box::new([]),
-        },
-        deadline: skein_lib::Duration::from_secs(60),
-    }));
     let mut out = skein_lib::Queue::uncapped();
     forge::step(
         &mut domain.forge,
         &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
-        forge::Event::Restore { record: forge::Stored::Demo(forge::Demo { forge: 1, state: forge::DemoState::Ended }) },
+        forge::Event::Restore { record: forge::Stored::Forge(ended_record(1)) },
         &mut out,
     );
     let repositories = domain.forge.writable_repositories(5);
@@ -938,4 +921,23 @@ fn a_gate_repairs_words_open_with_its_number_kind_and_head() {
         assert!(super::repair_words(&row, Repair::Gate(7), &parameters, 64).is_none());
     }
     assert!(super::repair_words(&row, Repair::Gate(8), &[], 512).is_none(), "an unknown gate cannot be named");
+}
+
+fn ended_record(number: u16) -> super::forge::ForgeRecord {
+    use super::forge;
+    forge::ForgeRecord {
+        number,
+        kind: forge::Kind::Forgejo,
+        mode: forge::Mode::Owned,
+        state: forge::ForgeState::Ended { secrets_erased: true, box_removed: true },
+        place: forge::Place {
+            api: forge::Address { host: b"forge.example".as_slice().into(), port: 443, tls: None },
+            git: b"https://forge.example".as_slice().into(),
+            web: None,
+        },
+        read_only: false,
+        bot: forge::Bot { login: b"bot".as_slice().into(), name: b"Bot".as_slice().into(), email: Box::new([]) },
+        asked: false,
+        first: None,
+    }
 }

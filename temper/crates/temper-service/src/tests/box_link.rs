@@ -340,24 +340,24 @@ fn closing_the_pipe_drops_active_and_held_stops() {
 }
 
 #[test]
-fn demo_end_diagnostics_reach_serves_named_notes() {
+fn reset_diagnostics_reach_serves_named_notes() {
     let mut service = super::fixtures::demo_service();
     let engine = service.engine.as_mut().unwrap();
     for _ in 0..engine.notes.len() {
         engine.notes.pop().unwrap();
     }
-    let line = b"demo end: chat 7 not closed: no first owner configured".as_slice();
-    let cohort = temper_engine_domain_forge::demo_act_bound(&engine.env.limits.forge).unwrap();
+    let line = b"playground reset: project 7 not removed: no first owner configured".as_slice();
+    let cohort = engine.env.limits.forge.forges;
     for _ in 0..cohort {
         crate::route::request(
             engine,
             temper_engine_domain::Request::Party(temper_engine_domain::PartyRequest::Deliver(
-                temper_engine_domain::Delivery::DemoNote { line: line.into() },
+                temper_engine_domain::Delivery::PlaygroundNote { line: line.into() },
             )),
         );
     }
     for _ in 0..cohort {
-        assert_eq!(engine.notes.pop(), Some(crate::Note::Demo { line: line.into() }));
+        assert_eq!(engine.notes.pop(), Some(crate::Note::Playground { line: line.into() }));
     }
     assert!(engine.notes.is_empty());
 }

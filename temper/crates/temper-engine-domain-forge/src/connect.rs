@@ -55,7 +55,6 @@ pub(crate) fn start(
         Ask::Connect { .. }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
-        | Ask::StartDemo
         | Ask::Install { .. }
         | Ask::Accept { .. }
         | Ask::Reachable { .. } => None,
@@ -85,8 +84,7 @@ pub(crate) fn start(
         | Ask::SetUp { .. }
         | Ask::RemoveForge { .. }
         | Ask::StartPlayground
-        | Ask::EndPlayground
-        | Ask::StartDemo => unreachable!("connect admission"),
+        | Ask::EndPlayground => unreachable!("connect admission"),
     };
     let (connected, connecting) = match d.connection(forge) {
         Connection::Connected { .. } => (true, false),
@@ -170,7 +168,6 @@ fn resolve(
         | Ask::EndPlayground
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
-        | Ask::StartDemo
         | Ask::Install { .. }
         | Ask::Accept { .. }
         | Ask::Reachable { .. }) => Ok(ask),
@@ -284,8 +281,7 @@ fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Ca
         | Ask::SetUp { .. }
         | Ask::RemoveForge { .. }
         | Ask::StartPlayground
-        | Ask::EndPlayground
-        | Ask::StartDemo => unreachable!("connect admission"),
+        | Ask::EndPlayground => unreachable!("connect admission"),
     }
 }
 #[expect(clippy::manual_map, reason = "step code uses explicit matches (programming-model.md, 10)")]

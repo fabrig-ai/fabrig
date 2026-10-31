@@ -91,8 +91,6 @@ impl World {
                 limits.brief.gather =
                     temper_service::limits::profile(temper_service::limits::Profile::Small).root.brief.gather;
                 limits.tasks.tasks = 12;
-                // The demo's end may select every live task; engine::valid checks coverage.
-                limits.forge.tasks = limits.tasks.tasks;
                 limits.tasks.project_tasks = 12;
                 limits.tasks.delegates = 4;
                 limits.tasks.tree_tasks = 12;
@@ -420,7 +418,6 @@ impl World {
                     _ => {}
                 },
                 engine::Request::Account(_)
-                | engine::Request::SetUpGroup { .. }
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
                 | engine::Request::BoxGroup { .. }
@@ -433,7 +430,6 @@ impl World {
                 | engine::Request::Install { .. }
                 | engine::Request::Accept { .. }
                 | engine::Request::EraseCarried { .. }
-                | engine::Request::StopGroup { .. }
                 | engine::Request::SetUp { .. }
                 | engine::Request::Bound { .. }
                 | engine::Request::Return { .. }

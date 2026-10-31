@@ -348,17 +348,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         engine.forge.serving = Some(());
     }
     engine.clients.starting = if open { None } else { Some(()) };
-    if let Some(demo) = &mut engine.demo {
-        demo.state = engine.domain.demo_state();
-    }
-    engine.clients.iterate(
-        now,
-        wall,
-        &mut engine.events,
-        &engine.workers.forges,
-        engine.demo.as_ref(),
-        &mut engine.accounts,
-    );
+    engine.clients.iterate(now, wall, &mut engine.events, &engine.workers.forges, &mut engine.accounts);
     clients_pass(engine);
     for _ in 0..engine.clients.early.len() {
         if engine.events.room() == 0 {
@@ -438,11 +428,11 @@ fn completes_pending(engine: &Engine) -> Option<bool> {
     }
 }
 fn clients_pass(engine: &mut Engine) {
-    engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
+    engine.clients.advance(&mut engine.events, &engine.workers.forges, &mut engine.accounts);
     if engine.end.is_none() && engine.store.component.mark_durable() {
         engine.clients.secrets_step(&mut engine.store);
     }
-    engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
+    engine.clients.advance(&mut engine.events, &engine.workers.forges, &mut engine.accounts);
 }
 pub(crate) fn release(engine: &mut Engine) {
     // Clocks are inputs too: Resume can observe a due timer even when normal
@@ -713,7 +703,7 @@ pub(crate) fn forge_pass(engine: &mut Engine) {
             skein_forge_connection::Event::Hint(hinted) => {
                 if engine.drain.is_some()
                     || engine.end.is_some()
-                    || crate::forge::ended(engine, hinted.hint.repository.forge)
+                    || engine.domain.forge_ended(hinted.hint.repository.forge)
                 {
                     continue;
                 }

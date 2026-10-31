@@ -11,12 +11,6 @@ impl Domain {
             return None;
         }
         let mut next = earliest(self.core.accounts.next_deadline(), self.core.views.next_deadline());
-        if let Some(start) = &self.demo_start
-            && let Some(demo) = self.forge.demo()
-            && !crate::route::demo::connected(&self.forge.connection(demo.adoption.forge))
-        {
-            next = earliest(next, Some(start.until));
-        }
         if self.core.stopping() {
             return next;
         }

@@ -35,7 +35,6 @@ pub struct Config {
     pub machine: Option<forge::Machine>,
     pub forges: Box<[forge::Configured]>,
     pub under_box: bool,
-    pub demo: Option<forge::DemoConfig>,
     pub playground: Option<forge::PlaygroundConfig>,
 }
 

@@ -323,7 +323,6 @@ fn a_request_before_decisions_open_is_answered_not_ready() {
         skein_lib::Wall::EPOCH,
         &mut engine.events,
         &engine.workers.forges,
-        engine.demo.as_ref(),
         &mut engine.accounts,
     );
     let Some(skein_io::Request::Listen { owner, addr }) = engine.clients.io.pop() else { panic!("listener") };
@@ -333,7 +332,6 @@ fn a_request_before_decisions_open_is_answered_not_ready() {
         skein_lib::Wall::EPOCH,
         &mut engine.events,
         &engine.workers.forges,
-        engine.demo.as_ref(),
         &mut engine.accounts,
     );
     let link = engine.clients.links.pop().unwrap();

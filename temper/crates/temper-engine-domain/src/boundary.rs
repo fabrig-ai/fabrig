@@ -393,7 +393,6 @@ pub enum Application {
 pub enum ApplicationAnswer {
     Adopt(forge::ApplicationOutcome),
     SetUp(forge::SetUpAnswer),
-    StartDemo(forge::StartAnswer),
     RemoveForge(forge::RemoveAnswer),
     StartPlayground(forge::StartAnswer),
     EndPlayground(forge::EndAnswer),
@@ -560,15 +559,6 @@ pub enum Request {
     Bound {
         request: Token,
         answer: forge::BindAnswer,
-    },
-    /// Stop the ended demo's box group; no request waits for its answer.
-    StopGroup {
-        forge: u16,
-    },
-    /// Start the demo's box group.
-    SetUpGroup {
-        forge: u16,
-        request: Token,
     },
     /// Give this sign-in its checked return path (client/README.md, 8).
     Return {
@@ -836,7 +826,6 @@ pub struct Released(pub(crate) Delivery);
 pub(crate) fn delivery_output(delivery: Delivery) -> Request {
     match delivery {
         delivery @ (Delivery::ProjectMade { .. }
-        | Delivery::DemoActed { .. }
         | Delivery::ForgeCommitted { .. }
         | Delivery::Fleet(_)
         | Delivery::Relay { .. }
@@ -850,7 +839,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Assigned { .. }
         | Delivery::Refuse { .. }
         | Delivery::TurnBusy { .. }) => Request::Worker(WorkerRequest::Deliver(delivery)),
-        delivery @ (Delivery::DemoNote { .. }
+        delivery @ (Delivery::PlaygroundNote { .. }
         | Delivery::Forges { .. }
         | Delivery::ForgeDocument { .. }
         | Delivery::Panel { .. }
