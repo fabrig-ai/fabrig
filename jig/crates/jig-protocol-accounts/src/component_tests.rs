@@ -350,3 +350,105 @@ fn a_wanted_source_refreshes_at_its_deadline_without_an_owner_request() {
         panic!("the component alone asks the timed refresh")
     };
 }
+
+#[test]
+fn the_owners_return_location_reaches_the_sign_in_listener() {
+    use skein_lib::{
+        Intake, Writer,
+        stream::{Down, Up},
+    };
+    let mut component = machine();
+    component.providers.insert(1, template()).ok().expect("provider");
+    let mut out = Queue::uncapped();
+    open(&mut component, &mut out);
+    request(&mut component, domain::Signing::SignIn { source: 7, provider: 1 }, &mut out);
+    let listener = Token::new(100);
+    let socket = Token::new(101);
+    let address = io::Addr::Ip(([127, 0, 0, 1], 31234).into());
+    let mut listener_owner = None;
+    let mut callback_owner = None;
+    let mut input = Intake::with_capacity(2048);
+    let mut answer = List::with_capacity(4096);
+    // A bounded callback head and response settle within these driver turns.
+    for _ in 0_u32..128 {
+        component.fire(&env(), &mut out);
+        for _ in 0..out.len() {
+            match out.pop().expect("component effect") {
+                Effect::Io(io::Request::Listen { owner, .. }) => {
+                    listener_owner = Some(owner);
+                    component.step(
+                        &env(),
+                        Event::Io(io::Event::Listening { owner, listener, addr: address }),
+                        &mut out,
+                    );
+                }
+                Effect::Child(domain::Event::Visited { source: 7, address: visit }) => {
+                    let start = bytes::find(&visit, b"state=").expect("authorization state").checked_add(6).unwrap();
+                    let rest = visit.get(start..).unwrap();
+                    let end = bytes::find(rest, b"&").unwrap_or(rest.len());
+                    let state = rest.get(..end).unwrap();
+                    let prefix = b"GET /callback?state=";
+                    let suffix = b"&error=access_denied HTTP/1.1\r\nHost: localhost:31234\r\n\r\n";
+                    let mut head =
+                        Writer::new(prefix.len().checked_add(state.len()).unwrap().checked_add(suffix.len()).unwrap());
+                    head.put(prefix).unwrap();
+                    head.put(state).unwrap();
+                    head.put(suffix).unwrap();
+                    input.append(&head.finish()).unwrap();
+                    component.step(
+                        &env(),
+                        Event::Return { source: 7, location: bytes::copy_of(b"https://app.example/accounts") },
+                        &mut out,
+                    );
+                    component.step(
+                        &env(),
+                        Event::Io(io::Event::Accepted {
+                            owner: listener_owner.expect("listener"),
+                            socket,
+                            peer: address,
+                        }),
+                        &mut out,
+                    );
+                }
+                Effect::Io(io::Request::Bind { owner, .. }) => callback_owner = Some(owner),
+                Effect::Io(io::Request::Stream { down: Down::Demand { read, room }, .. }) => {
+                    let up = match input.meet(read) {
+                        Some(value) => Some(Up::Bytes(value)),
+                        None if room > 0 => Some(Up::Room),
+                        None => None,
+                    };
+                    if let Some(up) = up {
+                        component.step(
+                            &env(),
+                            Event::Io(io::Event::Stream { owner: callback_owner.expect("callback"), up }),
+                            &mut out,
+                        );
+                    }
+                }
+                Effect::Io(io::Request::Stream { down: Down::Send(value), .. }) => {
+                    for byte in value {
+                        answer.push(byte).unwrap();
+                    }
+                }
+                Effect::Io(io::Request::Close { entity } | io::Request::Abort { entity }) => {
+                    let owner = if entity == listener { listener_owner } else { callback_owner }.expect("io owner");
+                    component.step(&env(), Event::Io(io::Event::Closed { owner }), &mut out);
+                }
+                Effect::Store { exchange, request: store::Secrets::Erase { .. } } => {
+                    component.step(&env(), Event::Store(store::Event::Erased { owner: exchange }), &mut out);
+                }
+                Effect::Removed { .. }
+                | Effect::SourceRemoved { .. }
+                | Effect::Child(_)
+                | Effect::Io(io::Request::Stream { down: Down::Finish, .. }) => (),
+                other @ (Effect::Io(_) | Effect::Store { .. } | Effect::Granted { .. } | Effect::InvalidSecret) => {
+                    panic!("unexpected effect: {other:?}")
+                }
+            }
+        }
+    }
+    assert!(answer.as_slice().starts_with(b"HTTP/1.1 303"));
+    assert!(bytes::find(answer.as_slice(), b"location: https://app.example/accounts\r\n").is_some());
+    assert!(bytes::find(answer.as_slice(), b"cache-control: no-store\r\n").is_some());
+    assert!(bytes::find(answer.as_slice(), b"referrer-policy: no-referrer\r\n").is_some());
+}

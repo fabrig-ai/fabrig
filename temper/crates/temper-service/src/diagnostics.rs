@@ -153,17 +153,10 @@ pub struct WaitOwner {
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "each flag names an independent account lifecycle or readiness term")]
 pub struct WaitAccounts {
-    pub driver: bool,
-    pub loading: bool,
-    pub early: u32,
-    pub moves: u32,
-    pub finishes: u32,
-    pub keys: u32,
-    pub events: u32,
-    pub inventory_active: bool,
-    pub inventory_work: bool,
-    pub above: u32,
+    pub opened: bool,
+    pub work_pending: bool,
+    pub effects: u32,
+    pub pending: bool,
     pub io: u32,
-    pub closed: bool,
     pub empty: bool,
 }
