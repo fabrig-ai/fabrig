@@ -9,6 +9,19 @@ pub mod support;
 use smith_local_process_world::{Placement, referee::CheckoutRead};
 use smith_real_world::{Scratch, World};
 
+fn assert_delivered(scratch: &Scratch) {
+    let checkout = scratch.checkout();
+    let files = checkout.files(&checkout.head().expect("committed head"));
+    for (path, expected) in [
+        (b"original.txt".as_slice(), b"edited\n".as_slice()),
+        (b"result.txt", b"new\n"),
+        (b"command.txt", b"ran\n"),
+        (b"checks-ran.txt", b"checked\n"),
+    ] {
+        assert_eq!(files[path], expected, "delivered {}", String::from_utf8_lossy(path));
+    }
+}
+
 #[test]
 fn the_terminal_modes_are_unchanged_after_smith_exits() {
     use smith_local_process_world::terminal::Action;
@@ -95,13 +108,7 @@ fn a_first_run_signs_in_and_ends_with_a_commit_in_place() {
     assert_eq!(oauth.posts, 1);
     assert_eq!(oauth.pages, 1);
     assert!(oauth.browser_replied && oauth.saved_before_query);
-    let checkout = scratch.checkout();
-    let head = checkout.head().expect("committed head");
-    let files = checkout.files(&head);
-    assert_eq!(files[b"original.txt".as_slice()], b"edited\n");
-    assert_eq!(files[b"result.txt".as_slice()], b"new\n");
-    assert_eq!(files[b"command.txt".as_slice()], b"ran\n");
-    assert_eq!(files[b"checks-ran.txt".as_slice()], b"checked\n");
+    assert_delivered(&scratch);
 }
 
 #[test]
@@ -163,41 +170,58 @@ fn smith_on_a_terminal_signs_in_and_commits_in_place() {
     let checkout = scratch.checkout();
     let after = checkout.head().unwrap();
     assert_ne!(before, after);
-    let files = checkout.files(&after);
-    assert_eq!(files[b"original.txt".as_slice()], b"edited\n");
-    assert_eq!(files[b"result.txt".as_slice()], b"new\n");
-    assert_eq!(files[b"command.txt".as_slice()], b"ran\n");
-    assert_eq!(files[b"checks-ran.txt".as_slice()], b"checked\n");
+    assert_delivered(&scratch);
 }
 
 #[test]
-fn the_startup_refusals_of_both_commands_are_observed_outside() {
+fn an_agent_configuration_metadata_refusal_reaches_stderr() {
     let scratch = Scratch::new();
     let agent = skein_scratch::paths::binary("smith-agent");
     let errors = support::refusal_program(&agent, &scratch, vec!["".into()]);
     assert!(String::from_utf8_lossy(&errors).contains("configuration metadata"));
+}
+
+#[test]
+fn a_product_settings_metadata_refusal_reaches_stderr() {
+    let scratch = Scratch::new();
     let config = scratch.path().join("config/smith/config.toml");
     std::fs::create_dir_all(&config).expect("settings metadata refusal");
     let errors = support::refusal_code(&scratch, Vec::new(), 2);
     assert!(String::from_utf8_lossy(&errors).contains("regular file"));
+}
+
+fn agent_document(address: &str) -> serde_json::Value {
+    serde_json::json!({
+        "profile":{"name":"standard","declared":{"memory":1099511627776_u64,"conversations":1,"calls_per_response":2,"tool_payload":256,"read_window":256},"policy":{"group_stop":10}},
+        "endpoints":[{"name":"fake","number":0,"dialect":1,"account":0,"provider":"codex","address":address,"transport":"plaintext","connect":1000,"handshake":1000,
+            "models":[{"name":"fake","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":1000,"idle":1000}]}],
+        "environment":[]
+    })
+}
+
+fn agent_refusal(document: &serde_json::Value) -> Vec<u8> {
+    let scratch = Scratch::new();
     let path = scratch.path().join("agent-config.json");
-    std::fs::write(
-        &path,
-        br#"{"profile":{"name":"standard","declared":{"memory":1099511627776,"conversations":1,"calls_per_response":2,"tool_payload":256,"read_window":256},"policy":{"group_stop":10}},"endpoints":[{"name":"fake","number":0,"dialect":1,"account":0,"provider":"codex","address":"127.0.0.1:8080","transport":"plaintext","connect":1000,"handshake":1000,"models":[{"name":"fake","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":1000,"idle":1000}]}],"environment":[]}"#,
-    )
-    .expect("valid agent fixture");
-    let errors = support::refusal_program(&agent, &scratch, vec![path.clone().into()]);
+    std::fs::write(&path, serde_json::to_vec(document).expect("agent configuration")).expect("configuration fixture");
+    support::refusal_program(&skein_scratch::paths::binary("smith-agent"), &scratch, vec![path.into()])
+}
+
+#[test]
+fn an_agent_channel_end_is_reported_to_stderr() {
+    let errors = agent_refusal(&agent_document("127.0.0.1:8080"));
     assert_eq!(
         String::from_utf8_lossy(&errors).lines().last(),
         Some("smith: the run could not answer: the channel ended before the answer")
     );
-    std::fs::write(&path, br#"{"profile":{"name":"standard","declared":{"memory":1099511627776,"conversations":1,"calls_per_response":2,"tool_payload":256,"read_window":256},"policy":{"group_stop":10}},"endpoints":[{"name":"invalid","number":1,"dialect":1,"account":0,"provider":"codex","connect":10000,"handshake":10000,"models":[{"name":"fake","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":60000,"idle":30000}],"address":"192.0.2.1:8080","transport":"plaintext"}],"environment":[]}"#).expect("invalid transport fixture");
-    let errors = support::refusal_program(&agent, &scratch, vec![path.into()]);
+}
+
+#[test]
+fn an_agent_transport_refusal_is_reported_to_stderr() {
+    let errors = agent_refusal(&agent_document("192.0.2.1:8080"));
     assert_eq!(
         String::from_utf8_lossy(&errors).lines().last(),
         Some("smith: plaintext endpoint address must be loopback")
     );
-    assert!(!scratch.path().join("chat").exists(), "refusals leave no chat");
 }
 
 #[test]

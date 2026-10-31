@@ -38,8 +38,7 @@ pub(super) fn credential_free(invocation: &Observation) {
     assert_eq!(names.iter().filter(|name| *name == "CLAUDE_CONFIG_DIR").count(), 1, "one account directory setting");
 }
 
-#[test]
-fn program_commands_use_the_fake_program() {
+fn configured_program() -> (Scratch, std::path::PathBuf) {
     let scratch = Scratch::new();
     let executable = skein_scratch::paths::binary("fake-claude");
     let settings = format!(
@@ -47,12 +46,23 @@ fn program_commands_use_the_fake_program() {
         executable.display()
     );
     let _file = support::user_layer(&scratch, settings.as_bytes());
+    let configuration = scratch.path().join("state/smith/programs/work");
+    (scratch, configuration)
+}
+
+fn signed_in_program() -> (Scratch, std::path::PathBuf) {
+    let (scratch, configuration) = configured_program();
+    std::fs::create_dir_all(&configuration).expect("program directory");
+    std::fs::write(configuration.join("fake-claude.login"), b"claude.ai").expect("signed-in fixture");
+    (scratch, configuration)
+}
+
+#[test]
+fn program_login_checks_status_without_inheriting_host_credentials() {
+    let (scratch, configuration) = configured_program();
     let login = with_credentials(&scratch, &["login", "work"]);
     assert_eq!(login.code, 0);
-    let configuration = scratch.path().join("state/smith/programs/work");
     assert!(configuration.join("fake-claude.login").exists());
-    // The fake writes observations under its CLAUDE_CONFIG_DIR. Reading
-    // them here proves the account directory replaced the host's value.
     let login_observations = std::fs::read(configuration.join(OBSERVATIONS_FILE)).expect("login observations");
     let calls = observations(&login_observations);
     assert_eq!(calls.len(), 2, "login and its status check");
@@ -61,6 +71,22 @@ fn program_commands_use_the_fake_program() {
     for call in calls {
         credential_free(&call);
     }
+}
+
+#[test]
+fn program_logout_removes_the_login_and_checks_status() {
+    let (scratch, configuration) = signed_in_program();
+    let logout = support::run_product(&scratch, &["logout", "work"], b"", None);
+    assert_eq!(logout.code, 0);
+    assert!(!configuration.join("fake-claude.login").exists());
+    let bytes = std::fs::read(configuration.join(OBSERVATIONS_FILE)).expect("logout observations");
+    let arguments: Vec<_> = observations(&bytes).into_iter().map(|record| record.arguments).collect();
+    assert_eq!(arguments, [["auth", "logout"], ["auth", "status"]]);
+}
+
+#[test]
+fn a_refused_program_logout_keeps_the_login_and_escapes_its_bounded_detail() {
+    let (scratch, configuration) = signed_in_program();
     std::fs::write(
         configuration.join(STORY_FILE),
         Story {
@@ -69,7 +95,7 @@ fn program_commands_use_the_fake_program() {
         }
         .encode(),
     )
-    .expect("credential fixture");
+    .expect("logout story");
     let failed = support::run_product(&scratch, &["logout", "work"], b"", None);
     assert_eq!(failed.code, 3);
     assert!(String::from_utf8_lossy(&failed.stderr).contains("sign-out failed"));
@@ -82,21 +108,4 @@ fn program_commands_use_the_fake_program() {
     let line = words.lines().find(|line| line.contains("program sign-out failed: ")).expect("sign-out detail");
     let (_, detail) = line.split_once("program sign-out failed: ").expect("detail prefix");
     assert_eq!(detail, format!("{}tail\\x1b[2J\\r\\n\\x07end\\n", "x".repeat(1009)), "1024 raw bytes at the tail");
-    std::fs::remove_file(configuration.join(STORY_FILE)).expect("credential fixture");
-    let logout = support::run_product(&scratch, &["logout", "work"], b"", None);
-    assert_eq!(logout.code, 0);
-    assert!(!configuration.join("fake-claude.login").exists());
-    let bytes = std::fs::read(configuration.join(OBSERVATIONS_FILE)).expect("credential fixture");
-    let arguments: Vec<_> = observations(&bytes).into_iter().map(|record| record.arguments).collect();
-    assert_eq!(
-        arguments,
-        [
-            ["auth", "login"],
-            ["auth", "status"],
-            ["auth", "logout"],
-            ["auth", "status"],
-            ["auth", "logout"],
-            ["auth", "status"]
-        ]
-    );
 }

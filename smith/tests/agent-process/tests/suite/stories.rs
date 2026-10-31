@@ -1,6 +1,20 @@
 use smith_agent_process_world::{World, charter};
 use smith_channel::{RunFailure, RunResult};
 
+fn unopened_resources() -> smith_agent_shell::Resources {
+    smith_agent_shell::Resources {
+        programs: None,
+        input: skein_io::kernel::Fd::new(100),
+        output: skein_io::kernel::Fd::new(101),
+        signals: skein_io::kernel::Fd::new(102),
+        error: None,
+        seed: 1,
+        pid: 101,
+        trace: None,
+        roots: Some(Box::new([])),
+    }
+}
+
 #[test]
 fn an_answered_agent_exits_0_with_no_signal_from_its_host() {
     let charter = charter();
@@ -108,21 +122,11 @@ fn an_agent_whose_host_hangs_up_before_its_answer_says_so_and_exits_1() {
 
 #[test]
 fn a_refused_configuration_writes_one_line_and_exits_1_without_a_channel() {
-    use smith_agent_shell::{Agent, Resources};
+    use smith_agent_shell::Agent;
     let errors = smith_agent_process_world::AgentErrors::default();
     let startup = Agent::read(
         std::path::Path::new(""),
-        Resources {
-            programs: None,
-            input: skein_io::kernel::Fd::new(100),
-            output: skein_io::kernel::Fd::new(101),
-            signals: skein_io::kernel::Fd::new(102),
-            error: None,
-            seed: 1,
-            pid: 101,
-            trace: None,
-            roots: Some(Box::new([])),
-        },
+        unopened_resources(),
         Box::new(errors.clone()),
     );
     let exit = match startup {
@@ -154,22 +158,12 @@ fn the_configured_environment_reaches_the_seen_agents_command_spawn() {
 
 #[test]
 fn a_broken_declared_relationship_is_named_before_channel_adoption() {
-    use smith_agent_shell::{Agent, Resources};
+    use smith_agent_shell::Agent;
     let errors = smith_agent_process_world::AgentErrors::default();
     let path = skein_scratch::paths::package().join("fixtures/read-past-payload.json");
     let startup = Agent::read(
         &path,
-        Resources {
-            programs: None,
-            input: skein_io::kernel::Fd::new(100),
-            output: skein_io::kernel::Fd::new(101),
-            signals: skein_io::kernel::Fd::new(102),
-            error: None,
-            seed: 1,
-            pid: 101,
-            trace: None,
-            roots: Some(Box::new([])),
-        },
+        unopened_resources(),
         Box::new(errors.clone()),
     );
     match startup {
@@ -184,7 +178,7 @@ fn a_broken_declared_relationship_is_named_before_channel_adoption() {
 
 #[test]
 fn an_invalid_io_composition_refuses_before_channel_adoption() {
-    use smith_agent_shell::{Agent, Resources, config};
+    use smith_agent_shell::{Agent, config};
     let errors = smith_agent_process_world::AgentErrors::default();
     let mut configuration = config::parse(
         br#"{"profile":{"name":"standard","declared":{"memory":1099511627776,"tool_payload":256,"read_window":256}},"endpoints":[{"name":"fake","number":0,"dialect":1,"account":0,"provider":"codex","address":"127.0.0.1:8080","transport":"plaintext","connect":1000,"handshake":1000,"models":[{"name":"fake","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":1000,"idle":1000}]}],"environment":[]}"#,
@@ -195,17 +189,7 @@ fn an_invalid_io_composition_refuses_before_channel_adoption() {
     configuration.service.limits.io.output -= 1;
     let startup = Agent::new(
         configuration,
-        Resources {
-            programs: None,
-            input: skein_io::kernel::Fd::new(100),
-            output: skein_io::kernel::Fd::new(101),
-            signals: skein_io::kernel::Fd::new(102),
-            error: None,
-            seed: 1,
-            pid: 101,
-            trace: None,
-            roots: Some(Box::new([])),
-        },
+        unopened_resources(),
         Box::new(errors.clone()),
     );
     let Err(refusal) = startup else {
