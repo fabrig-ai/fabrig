@@ -868,6 +868,17 @@ fn a_queue_grows_to_its_capacity_exactly() {
             assert_eq!(queue.try_push(999), Err(999));
             metered.end(());
             assert_eq!(queue.iter().copied().collect::<Vec<_>>(), (0..u64::from(capacity)).collect::<Vec<_>>());
+            metered.start();
+            queue.clear();
+            metered.end(());
+            assert_eq!(metered.meter.held(), bound, "clear keeps the grown buffer");
+            let reuse = Meter::new();
+            for n in 0..capacity {
+                reuse.start();
+                queue.push(u64::from(n));
+                let measured = reuse.end();
+                assert_eq!(measured.peak(), 0, "refilling allocates nothing");
+            }
         }
     }
 }
@@ -972,6 +983,20 @@ fn a_stack_grows_to_its_capacity_exactly() {
             metered.end(());
         }
         assert_eq!(metered.meter.held(), bound, "popping keeps the buffer");
+        for n in 0..capacity {
+            stack.push(u64::from(n)).expect("refill fits");
+        }
+        metered.start();
+        stack.clear();
+        metered.end(());
+        assert_eq!(metered.meter.held(), bound, "clear keeps the grown buffer");
+        let reuse = Meter::new();
+        for n in 0..capacity {
+            reuse.start();
+            stack.push(u64::from(n)).expect("refill fits");
+            let measured = reuse.end();
+            assert_eq!(measured.peak(), 0, "refilling allocates nothing");
+        }
     }
 }
 

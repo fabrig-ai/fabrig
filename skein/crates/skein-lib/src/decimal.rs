@@ -13,6 +13,22 @@ pub struct Decimal {
 }
 
 impl Decimal {
+    /// One or more ASCII digits as a `u64`, or `None` on empty input, another byte or overflow.
+    #[must_use]
+    pub fn parse(digits: &[u8]) -> Option<u64> {
+        if digits.is_empty() {
+            return None;
+        }
+        let mut value = 0_u64;
+        for &byte in digits {
+            if !byte.is_ascii_digit() {
+                return None;
+            }
+            value = value.checked_mul(10)?.checked_add(u64::from(byte.saturating_sub(b'0')))?;
+        }
+        Some(value)
+    }
+
     /// `n` in decimal digits.
     #[must_use]
     pub fn of(n: u64) -> Decimal {

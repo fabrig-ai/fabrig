@@ -20,6 +20,18 @@ pub struct Duration(u64);
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Wall(u64);
 
+/// The earlier time, or `None` only when neither time is present.
+#[must_use]
+pub fn earliest(a: Option<Time>, b: Option<Time>) -> Option<Time> {
+    match a {
+        Some(a) => match b {
+            Some(b) => Some(a.min(b)),
+            None => Some(a),
+        },
+        None => b,
+    }
+}
+
 impl Wall {
     /// The Unix epoch, 1970-01-01T00:00:00Z.
     pub const EPOCH: Wall = Wall(0);
