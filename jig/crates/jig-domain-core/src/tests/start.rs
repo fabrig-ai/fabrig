@@ -302,7 +302,7 @@ fn every_operational_entrance_prevents_late_start() {
         Entrance {
             name: "fire",
             input: |core, env| {
-                let _out = crate::fire(core, env, crate::Timer::View);
+                let _out = crate::fire(core, env, crate::Timer::Brief);
             },
         },
         Entrance {

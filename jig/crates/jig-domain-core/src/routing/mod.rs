@@ -46,7 +46,7 @@ use task_routes::{
     route_connector_repair, route_person_escalation, route_person_proposal, route_task_escalation, route_tasks,
     tag_tasks,
 };
-use view_routes::{made_outputs, open, route_view};
+use view_routes::{open, route_view};
 pub use vocabulary::{
     Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsNeed, Limits, NamedAction, Now,
     PayloadRefusal, ProposalChoice, Request, StepRefusal, Timer, ToolKind, WatchRefusal, Write,
@@ -503,7 +503,9 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         Event::WatchRun { watcher, sign_in, task, turn, offset } => {
             view_routes::open_run(core, env, watcher, sign_in, task, turn, offset)
         }
-        Event::Unwatch { watcher } => route_view(core, env, views::Event::Unwatch { watcher }),
+        Event::Unwatch { watcher } => {
+            route_view(core, env, views::Event::EndWatch { watcher, end: views::End::Unwatched })
+        }
         Event::Delivered { watcher } => route_view(core, env, views::Event::Delivered { watcher }),
         Event::StreamDelivered { watcher } => view_routes::stream_delivered(core, env, watcher),
         Event::RunCall { run, attempt, call } => view_routes::run_call(core, env, run, attempt, call),
@@ -681,11 +683,6 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
             let requests = tag_account(core, env, &mut work, out);
             assert!(work.is_empty(), "an account's alarm answers no party");
             requests
-        }
-        Timer::View => {
-            let mut out = Queue::uncapped();
-            views::fire(&mut core.views, &Env { now: env.now, wall: env.wall, limits: env.limits.views }, &mut out);
-            made_outputs(core, env, out)
         }
     };
     core.finish_extent(oldest, &mut out);
