@@ -112,16 +112,36 @@ fn usable(call: &Ended) -> bool {
     document["accounts"]["usable"].as_bool().expect("account usability")
 }
 
-fn forge_number(call: &Ended, number: u16) -> Value {
+// A first run keeps no forge until SetUp or Connect makes its record
+// (temper/docs/design/draft/playground-reset.md, 3).
+fn forge_rows(call: &Ended) -> Vec<Value> {
     let document = ctl::json(call);
     let document = if document.get("met").is_some() { &document["forges"] } else { &document };
-    document["forges"]
-        .as_array()
-        .expect("forge rows")
-        .iter()
-        .find(|row| row["number"] == number)
-        .cloned()
-        .expect("configured forge offered")
+    document["forges"].as_array().expect("forge rows").clone()
+}
+
+fn only_forge(call: &Ended) -> Value {
+    let rows = forge_rows(call);
+    let [row] = rows.as_slice() else { panic!("one forge made by this walk: {rows:?}") };
+    row.clone()
+}
+
+fn number(row: &Value) -> u16 {
+    u16::try_from(row["number"].as_u64().expect("forge number")).expect("bounded forge number")
+}
+
+fn adoption(call: &Ended) -> Value {
+    // SetUp and Connect print progress before the terminal adoption answer.
+    serde_json::Deserializer::from_slice(&call.stdout)
+        .into_iter::<Value>()
+        .last()
+        .expect("adoption answer")
+        .expect("adoption JSON")
+}
+
+fn adopted_forge(call: &Ended) -> u16 {
+    u16::try_from(adoption(call)["outcome"]["adopted"]["forge"].as_u64().expect("adopted forge"))
+        .expect("bounded forge number")
 }
 
 #[test]
@@ -167,7 +187,8 @@ fn wait_forges() -> Act {
 }
 fn adopt_github() -> Act {
     Act::After(Box::new(|seen| {
-        let connected = forge_number(seen.last().expect("settled forges"), 2);
+        let connected = only_forge(seen.last().expect("settled forges"));
+        let forge = number(&connected).to_string();
         assert_eq!(connected["state"], "connected", "{connected}");
         let [installation] = connected["installations"].as_array().expect("installations").as_slice() else {
             panic!("one installation: {connected}")
@@ -180,7 +201,7 @@ fn adopt_github() -> Act {
             "--project",
             "1",
             "--forge",
-            "2",
+            &forge,
             "--owner",
             "fake-person",
             "--name",
@@ -237,7 +258,7 @@ fn assert_committed_reply(waited: &Ended, conversation: &Ended) {
             turn
         })
         .collect();
-    assert_eq!(turns.len(), 1, "first reply committed once");
+    assert_eq!(turns.len(), 1, "first reply committed once: {page}");
     let replies: Vec<_> = turns
         .iter()
         .flat_map(|turn| turn["messages"].as_array().expect("turn messages"))
@@ -248,15 +269,23 @@ fn assert_committed_reply(waited: &Ended, conversation: &Ended) {
     assert_eq!(replies, ["Hello from the local fake model."]);
 }
 
-fn assert_adopted(seen: &Seen, number: u16, name: &str) {
+fn assert_adopted(seen: &Seen, name: &str) -> u16 {
     let adopted = seen
         .answers
         .iter()
         .filter_map(|answer| serde_json::from_slice::<Value>(&answer.stdout).ok())
         .find_map(|value| value.get("adopted").cloned())
         .expect("first repository durably adopted");
-    assert_eq!(adopted["forge"], number);
+    let number = u16::try_from(adopted["forge"].as_u64().expect("adopted forge")).expect("bounded forge number");
+    let listed = seen
+        .answers
+        .iter()
+        .rev()
+        .find(|answer| serde_json::from_slice::<Value>(&answer.stdout).is_ok_and(|value| value.get("forges").is_some()))
+        .expect("forge read before adoption");
+    assert_eq!(only_forge(listed)["number"], number);
     assert_eq!(adopted["owner"], "fake-person");
     assert_eq!(adopted["name"], name);
     assert_eq!(adopted["home"], true);
+    number
 }

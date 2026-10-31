@@ -13,8 +13,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-// The stable init identities and five issuer URLs of configuration.md, 12.1.
-const GITHUB_FORGE: u16 = 2;
+// The stable provider identity and five issuer URLs of configuration.md, 12.1.
 const OPENAI_PROVIDER: u16 = 1;
 const OPENAI_ENDPOINT: &str = "openai";
 const ISSUER_URLS: usize = 5;
@@ -267,10 +266,19 @@ fn qa_split_directories_isolate_source_records_and_rewrite_every_public_root() {
     assert_eq!(worker["arguments"], json!(["internal", "agent", effective.join("config/agent.json")]));
     assert_eq!(worker["program"], source["workers"][0]["agent"]["program"]);
 
-    let github = row(&document["application"]["forges"], "number", &json!(GITHUB_FORGE));
+    // The sandbox supplies GitHub's machine place even when init leaves it null
+    // (temper-fake/src/backends.rs, forge); forges are store records
+    // (temper/docs/design/draft/playground-reset.md, 3).
+    assert!(source["application"]["machine"]["github"].is_null());
+    assert!(document["application"].get("forges").is_none());
+    for kind in ["fake", "owned"] {
+        assert_eq!(document["application"]["machine"][kind], source["application"]["machine"][kind]);
+        socket(&document["application"]["machine"][kind]["listen"]);
+    }
+    let github = &document["application"]["machine"]["github"];
     let forge = socket(&github["api"]);
     assert_eq!(github["transport"], "plaintext");
-    assert_eq!(github["git"], format!("http://{forge}"));
+    assert_eq!(github["remote"], format!("http://{forge}"));
     assert_eq!(github["web"], format!("http://{forge}"));
     let engine_model = row(&document["engine"]["llm"]["endpoints"], "name", &json!(OPENAI_ENDPOINT));
     let agent_model = row(&agent["endpoints"], "name", &json!(OPENAI_ENDPOINT));
@@ -457,13 +465,6 @@ fn qa_duplicate_provider_is_rejected_before_preparation() {
     unsupported("duplicate-provider", "provider", |value| {
         let provider = row(&value["engine"]["llm"]["providers"], "number", &json!(OPENAI_PROVIDER)).clone();
         value["engine"]["llm"]["providers"].as_array_mut().expect("providers").push(provider);
-    });
-}
-
-#[test]
-fn qa_missing_github_target_is_rejected_before_preparation() {
-    unsupported("missing-github", "forge", |value| {
-        value["application"]["forges"].as_array_mut().expect("forges").retain(|forge| forge["number"] != GITHUB_FORGE);
     });
 }
 

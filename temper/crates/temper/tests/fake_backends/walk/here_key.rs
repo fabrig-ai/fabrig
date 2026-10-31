@@ -4,30 +4,28 @@ use super::{Act, Call, Ended, Walk, usable};
 pub(super) fn assert_offered(seen: &[Ended]) {
     let [model, forges] = seen else { panic!("welcome model and forge reads") };
     assert!(!usable(model), "the welcome offers its Model step");
-    let forge = super::forge_number(forges, 3);
-    assert_eq!(forge["mode"], "owned");
-    assert_eq!(forge["offer"], "offered");
-    assert_eq!(forge["state"], "not_set_up");
-    assert!(forge["first"].is_null(), "no first repository before setup: {forge}");
+    assert!(super::forge_rows(forges).is_empty(), "SetUp makes the first forge record");
 }
 
-pub(super) fn assert_adopted(call: &Ended) {
+pub(super) fn assert_adopted(call: &Ended) -> u16 {
     // forge setup emits a progress document before its final adoption document.
     let mut answers = serde_json::Deserializer::from_slice(&call.stdout).into_iter::<serde_json::Value>();
     assert_eq!(answers.next().expect("setup progress").expect("progress JSON"), serde_json::json!({"setting_up":{}}));
     let adopted = answers.next().expect("adoption answer").expect("adoption JSON");
     assert!(answers.next().is_none(), "one progress and one final adoption");
     assert!(adopted["project"].as_u64().expect("setup project") > 0);
-    assert_eq!(adopted["outcome"]["adopted"]["forge"], 3, "first repository adopted: {adopted}");
+    let forge = super::adopted_forge(call);
     assert_eq!(adopted["outcome"]["adopted"]["owner"], "work");
     assert_eq!(adopted["outcome"]["adopted"]["name"], "hello");
     assert_eq!(adopted["outcome"]["adopted"]["role"], "owned");
     assert_eq!(adopted["outcome"]["adopted"]["home"], true);
+    forge
 }
 
 pub(super) fn assert_ready(seen: &[Ended]) {
     let [.., forges, accounts] = seen else { panic!("ready reads") };
-    let forge = super::forge_number(forges, 3);
+    let forge = super::only_forge(forges);
+    assert_eq!(super::number(&forge), super::adopted_forge(&seen[2]));
     assert_eq!(forge["state"], "connected", "{forge}");
     assert_eq!(forge["first"]["state"], "made", "{forge}");
     assert_eq!(forge["first"]["org"], "work");
@@ -44,7 +42,7 @@ fn forgejo_here_and_a_key_reach_a_first_chat_on_the_fake_box() {
         Act::Mark("welcome preconditions"),
         Act::After(Box::new(|seen| {
             assert_offered(seen);
-            Call::new(&["forge", "setup", "3", "--key", "walk-here", "--json"])
+            Call::new(&["forge", "setup", "--key", "walk-here", "--json"])
         })),
         Act::Mark("owned forge adopted"),
         walk.add_key(),

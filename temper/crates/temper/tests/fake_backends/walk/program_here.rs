@@ -50,7 +50,7 @@ fn a_program_and_forgejo_here_reach_ready_on_the_fake_box() {
             Act::Mark("welcome preconditions"),
             Act::After(Box::new(|seen| {
                 here_key::assert_offered(seen);
-                Call::new(&["forge", "setup", "3", "--key", "walk-here", "--json"])
+                Call::new(&["forge", "setup", "--key", "walk-here", "--json"])
             })),
             Act::Mark("owned forge adopted"),
             Act::After(Box::new(|seen| {
