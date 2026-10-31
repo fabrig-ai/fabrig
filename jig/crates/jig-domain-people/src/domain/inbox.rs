@@ -1,17 +1,37 @@
 //! Task-derived inbox census, one shared recent prefix, and explicit read marks
 //! (`domain/people.md`, section 6). Owner rows rebuild volatile counts after
 //! positions restore. Ended conversations retain positions until the owner forgets them.
-#[path = "inbox/moving.rs"]
 mod moving;
 pub(super) use moving::move_chat;
 
-use super::{ChatTotal, Domain, Need, Pending, Recent, Start, decided, role};
+use super::{Domain, Pending, Start, decided, role};
 use crate::{
     Again, Ask, Counts, Entry, EntryKind, Key, Limits, Needs, Outcome, ReplyRef, Request, ResultRef, Role, Seen,
     Stored, Update, Whom,
 };
 use alloc::boxed::Box;
 use skein_lib::{Env, Id, List, Map, Queue, Token, Wall};
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub(crate) struct Need {
+    pub(super) project: u32,
+    pub(super) whom: Whom,
+    pub(super) kind: EntryKind,
+    pub(super) at: Wall,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub(crate) struct ChatTotal {
+    pub(super) party: u64,
+    pub(super) project: u32,
+    pub(super) last_reply: u64,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub(crate) struct Recent {
+    pub(super) update: Update,
+    pub(super) gone: bool,
+}
 
 impl Domain {
     /// The person who must answer this received question (domain/people.md, 6).
