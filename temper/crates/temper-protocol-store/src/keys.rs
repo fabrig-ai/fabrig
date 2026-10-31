@@ -71,7 +71,7 @@ fn read_segments(reader: &mut KeyReader<'_>, limit: u32) -> Option<Box<[Box<[u8]
 pub fn largest(limits: &forge::Limits) -> Option<u32> {
     let name = limits.name_bytes.checked_mul(3)?.checked_add(19)?;
     let topic = limits.name_bytes.checked_mul(2)?.checked_add(28)?;
-    // Writer is one family byte and an eight-byte forge number: 9 bytes.
+    // Forge and Writer take 9 bytes; KeptAct takes at most 35 with escaped key bytes.
     // Binding: family byte, two bytes per NUL, and byte-string terminator.
     Some(name.max(topic).max(159).max(1 + 2 * 254 + 2))
 }
@@ -81,6 +81,18 @@ pub fn largest(limits: &forge::Limits) -> Option<u32> {
 pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
     let mut writer = KeyWriter::new(limit);
     match key {
+        forge::Key::Forge(number) => {
+            writer.tag(31).u64(u64::from(*number));
+        }
+        forge::Key::ForgeNumbers => {
+            writer.tag(32);
+        }
+        forge::Key::Playground => {
+            writer.tag(33);
+        }
+        forge::Key::KeptAct(key) => {
+            writer.tag(34).bytes(key);
+        }
         forge::Key::Landing(task) => {
             writer.tag(23).u64(*task);
         }
@@ -185,6 +197,10 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
 pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
     let mut reader = KeyReader::new(bytes);
     let key = match reader.tag()? {
+        31 => forge::Key::Forge(u16::try_from(reader.u64()?).ok()?),
+        32 => forge::Key::ForgeNumbers,
+        33 => forge::Key::Playground,
+        34 => forge::Key::KeptAct(reader.bytes()?.as_ref().try_into().ok()?),
         0 => forge::Key::Call(forge::NamedCall {
             task: reader.u64()?,
             attempt: reader.u64()?,

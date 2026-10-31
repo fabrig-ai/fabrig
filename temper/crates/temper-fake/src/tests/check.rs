@@ -50,6 +50,8 @@ pub const LIMITS: d::Limits = d::Limits {
     holds: 8,
     subscriptions: 8,
     entries: 8,
+    forges: 4,
+    definition_bytes: 8192,
     named_calls: 16,
     changes: 8,
     issues: 8,

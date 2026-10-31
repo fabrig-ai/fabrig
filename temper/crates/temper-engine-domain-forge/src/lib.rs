@@ -246,6 +246,10 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Release(row) => Key::Release(row.task),
         Stored::Application { token, .. } => Key::Application(*token),
         Stored::Writer(row) => Key::Writer(row.forge),
+        Stored::Forge(row) => Key::Forge(row.number),
+        Stored::ForgeNumbers { .. } => Key::ForgeNumbers,
+        Stored::Playground(_) => Key::Playground,
+        Stored::KeptAct(row) => Key::KeptAct(row.key),
         Stored::Demo(row) => Key::Demo(row.forge),
         Stored::Binding { address, .. } => Key::Binding(address.clone()),
         Stored::DemoAct(row) => Key::DemoAct(row.key),
@@ -405,7 +409,24 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Binding { address, subject } => bytes(address)?.checked_add(bytes(subject)?),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
-        Stored::Ci(_)
+        Stored::Forge(row) => {
+            let mut held = bytes(&row.definition)?;
+            if let Some(first) = &row.first {
+                held = held
+                    .checked_add(bytes(&first.org)?)?
+                    .checked_add(bytes(&first.repository)?)?
+                    .checked_add(bytes(&first.label)?)?;
+                match &first.project {
+                    SetUpProject::New(name) => held = held.checked_add(bytes(name)?)?,
+                    SetUpProject::Existing(_) => {}
+                }
+            }
+            Some(held)
+        }
+        Stored::ForgeNumbers { .. }
+        | Stored::Playground(_)
+        | Stored::KeptAct(_)
+        | Stored::Ci(_)
         | Stored::Landed { .. }
         | Stored::Writer(_)
         | Stored::Demo(_)

@@ -154,6 +154,8 @@ const FORGE: forge::Limits = forge::Limits {
     // Durable outbox entries, from the engine forge world fixture.
     entries: 8,
     // At least jig small core.call_records: the root's worst case.
+    forges: 4,
+    definition_bytes: 8192,
     named_calls: 32,
     // Live changes, from the engine forge world fixture.
     changes: 8,
