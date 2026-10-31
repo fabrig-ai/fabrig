@@ -148,7 +148,7 @@ fn request_bytes(request: &Request) -> usize {
             | Plan::Adopt { .. }
             | Plan::Reachable { .. } => 0,
         },
-        Request::Answer { answer: Answer::Read(None) | Answer::Written, .. } | Request::Close => 0,
+        Request::Answer { answer: Answer::Read(None) | Answer::Written, .. } | Request::Close | Request::Abort => 0,
     }
 }
 

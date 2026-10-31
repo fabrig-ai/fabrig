@@ -79,6 +79,22 @@ fn close_mid_run_ends_it_unheard_and_says_closed() {
     assert_eq!(world.aborts(), 1);
 }
 
+#[test]
+fn abort_mid_call_ends_the_run_with_closed_and_releases_what_it_held() {
+    let mut world = HostWorld::new(7, &[Connect::Silent]);
+    world.run(1);
+    world.settle();
+    assert_eq!(world.connects(), &[Duration::ZERO]);
+    assert!(world.heard().is_empty());
+    let needs = world.needs().len();
+    world.abort();
+    world.finish();
+    assert_eq!(world.heard(), &[Heard::Closed { at: Duration::ZERO }]);
+    assert_eq!(world.needs().len(), needs);
+    assert_eq!(world.aborts(), 1);
+    world.assert_closed();
+}
+
 fn connected(world: &mut HostWorld) -> u64 {
     let id = fixtures::seed_connected_tokens(world.store_mut());
     world.put(Item::ApiToken, fixtures::secret(fixtures::API));
