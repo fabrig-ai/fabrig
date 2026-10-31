@@ -914,8 +914,16 @@ fn a_forge_fit_failure_reaches_the_typed_start_ending_before_switch() {
 fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
     use jig_protocol_store as store;
     use skein_lib::{Env, Queue, Token, Wall};
-    let previous = fixtures::ready().engine.unwrap();
+    let mut previous = fixtures::started().engine.unwrap();
     let mut header = previous.domain.deployment();
+    header.commits = 1;
+    previous.store.ask(store::Request::Commit {
+        number: 1,
+        writes: Box::new([store::Write::Save(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
+            header,
+        )))]),
+    });
+    let Some(store::Event::Committed { .. }) = previous.store.above.pop() else { panic!("format and header commit") };
     let application = previous.env.limits;
     let models = previous.domain.models();
     let names = store::codec::names(models);
@@ -946,13 +954,13 @@ fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
         &mut above,
         &mut below,
     );
-    assert!(matches!(above.pop(), Some(skein_kv::Event::Committed { .. })));
+    let Some(skein_kv::Event::Committed { .. }) = above.pop() else { panic!("fixture commit") };
     assert!(below.is_empty());
     let mut reopened = fixtures::memory_store();
     reopened.component = store::Store::over(&limits, families, models, maps);
     let reopened = fixtures::reopened_store(reopened, &application);
     let mut service = fixtures::start_with_store(&[(1, 100)], Some(reopened));
-    for _ in 0..256 {
+    for _ in 0_u32..256 {
         fixtures::turn(&mut service);
         if service.end().is_some() {
             break;
