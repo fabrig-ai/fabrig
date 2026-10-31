@@ -28,13 +28,13 @@ fn the_lease_referee_rejects_overlapping_holders_and_unowned_checks_or_delivery(
     let child = good
         .iter()
         .position(|(_, _, seen)| matches!(seen, Seen::ChildOpened { writing: true, .. }))
-        .expect("an writing child");
+        .expect("a writing child");
     let workspace = good
         .iter()
         .position(|(_, _, seen)| matches!(seen, Seen::WorkspaceOpened { .. }))
-        .expect("an workspace operation");
-    let check = good.iter().position(|(_, _, seen)| matches!(seen, Seen::Check { .. })).expect("an check");
-    let delivery = good.iter().position(|(_, _, seen)| matches!(seen, Seen::Delivery { .. })).expect("an delivery");
+        .expect("a workspace operation");
+    let check = good.iter().position(|(_, _, seen)| matches!(seen, Seen::Check { .. })).expect("a check");
+    let delivery = good.iter().position(|(_, _, seen)| matches!(seen, Seen::Delivery { .. })).expect("a delivery");
     for change in 0..5 {
         let mut bad = good.to_vec();
         match change {

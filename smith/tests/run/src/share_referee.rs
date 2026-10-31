@@ -6,7 +6,7 @@ use skein_lib::{Duration, Time};
 use skein_world::domain::{Expectations, Judge, Referee, Verdict};
 use smith_domain_run::Budget;
 
-/// An child share and independently observed ordinary credit when asked.
+/// A child share and independently observed ordinary credit when asked.
 #[derive(Clone, Copy, Debug)]
 pub struct Seen {
     pub ordinary: Budget,

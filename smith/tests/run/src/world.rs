@@ -1122,7 +1122,7 @@ impl World {
         self.run_of_owner.insert(host_run, run);
     }
 
-    /// Observe waiting after preparation or the settlement of an turn.
+    /// Observe waiting after preparation or the settlement of a turn.
     fn observed_waiting(&mut self, host_run: Token, read: Option<Token>) -> Token {
         let run = self.run_of_owner[&host_run];
         let view = self.views.get_mut(&run).expect("admitted run");
@@ -1130,7 +1130,7 @@ impl World {
         assert!(
             (view.started || (view.main.is_none() && view.turns == 0 && view.read.is_none()))
                 && view.answered.is_none(),
-            "Waiting follows preparation or an started main"
+            "Waiting follows preparation or a started main"
         );
         assert!(
             self.calls.values().all(|call| {

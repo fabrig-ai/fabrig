@@ -46,7 +46,7 @@ fn a_sub_agent_that_spends_the_ordinary_pool_is_closed_then_main_finishes_in_its
             accepted += world.answers().filter(|answer| matches!(answer, Some(Answer::Accepted { .. }))).count();
         }
     }
-    assert!(accepted > 0, "a final result is accepted after an child spent the ordinary pool");
+    assert!(accepted > 0, "a final result is accepted after a child spent the ordinary pool");
 }
 
 #[test]

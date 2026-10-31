@@ -142,7 +142,7 @@ impl Inbox {
         Ok(bytes)
     }
 
-    /// Build one ordered offer and retain each name until an told turn.
+    /// Build one ordered offer and retain each name until a told turn.
     pub(crate) fn offer(&mut self, limits: &Limits) -> Option<Box<[u8]>> {
         assert!(self.offered.is_empty(), "a previous offer ends at its told turn");
         let mut length = 0_usize;

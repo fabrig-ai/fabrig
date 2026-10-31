@@ -971,7 +971,7 @@ impl World {
         session.turns += 1;
         session.usage = add_usage(session.usage, usage);
         session.accepted.push(usage);
-        let (content, stop, late) = session.received.take().expect("usage accepts an provider payload");
+        let (content, stop, late) = session.received.take().expect("usage accepts a provider payload");
         session.accepted_content.push(content);
         session.accepted_stop.push(stop);
         session.accepted_late.push(late);
