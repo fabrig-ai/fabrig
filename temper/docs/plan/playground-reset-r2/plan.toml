@@ -1,0 +1,30 @@
+ready = false
+
+draft = "playground-reset-r2"
+repo = "fabrig"
+sources = [
+  "temper/docs/design/draft/playground-reset.md",
+  "temper/docs/plan/playground-reset-r2/inputs/brief.md",
+  "temper/docs/plan/playground-reset-r2/inputs/README.md",
+  "AGENTS.md",
+]
+
+[[part]]
+id = "forge-records"
+title = "Forges kept in the store as records, numbered at runtime; the document keeps the machine's"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 3"
+
+[[part]]
+id = "project-delete"
+title = "jig's RemoveProject: a project closed, its tasks ended and erased, its rows gone, kept until whole"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 5"
+
+[[slice]]
+id = 1
+story = "A forge made by SetUp or Connect is a record restored at the next start, and a deleted project leaves no row but its spend"
+parts = ["forge-records", "project-delete"]
+walk = false
