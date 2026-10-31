@@ -65,6 +65,7 @@ pub fn class(event: &Event) -> Class {
         Event::WatchApplication { .. }
         | Event::ReadApplication { .. }
         | Event::Application { .. }
+        | Event::StartBegin { .. }
         | Event::RestartBegin { .. }
         | Event::Credential { .. }
         | Event::ProjectionEffect { .. }
@@ -74,6 +75,7 @@ pub fn class(event: &Event) -> Class {
         | Event::Stop
         | Event::ConnectorTimer { .. }
         | Event::Switched
+        | Event::StartDone(_)
         | Event::RestartDone(..)
         | Event::CallAnswered { .. }
         | Event::Text { .. }
@@ -146,6 +148,7 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             Ok(())
         }
         event @ (Event::Switched
+        | Event::StartDone(_)
         | Event::RestartDone(_)
         | Event::TranscriptLoaded { .. }
         | Event::Core(
@@ -174,6 +177,7 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
         | Event::Application { .. }
         | Event::WriterRead { .. }
         | Event::ConnectorTimer { .. }
+        | Event::StartBegin { .. }
         | Event::RestartBegin { .. }
         | Event::Timer(..)
         | Event::Core(..)
@@ -258,8 +262,10 @@ fn split(domain: &mut Domain, event: Event) -> (Event, Option<Event>) {
         | Event::Application { .. }
         | Event::WriterRead { .. }
         | Event::ConnectorTimer { .. }
+        | Event::StartBegin { .. }
         | Event::RestartBegin { .. }
         | Event::Switched
+        | Event::StartDone(_)
         | Event::RestartDone(..)
         | Event::Timer(..)
         | Event::Core(..)

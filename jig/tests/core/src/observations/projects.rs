@@ -25,6 +25,9 @@ impl Makes {
     }
     pub(super) fn inbound(&mut self, store: &Store, event: &root::Event) {
         match event {
+            root::Event::StartBegin { .. } | root::Event::StartDone(_) => {
+                unreachable!("the start driver is not selected here")
+            }
             root::Event::Core(core::Event::People(people::Event::Ask {
                 sign_in,
                 key,

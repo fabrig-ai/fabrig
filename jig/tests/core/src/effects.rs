@@ -305,6 +305,7 @@ impl World {
                     self.trace.push(format!("output {request:?}"));
                 }
                 match request {
+                    root::Request::Start { .. } => unreachable!("the start driver is not selected here"),
                     root::Request::Restart(step) => self.restart_step(step),
                     root::Request::Commit { number, mut writes } => {
                         let mut rows = Vec::new();

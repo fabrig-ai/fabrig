@@ -136,6 +136,7 @@ impl Referee {
     }
     pub fn delivered(&mut self, value: &mut root::Delivery) {
         match value {
+            root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
             root::Delivery::Core(core::Held::Delivery { watcher, document }) => {
                 if let Some((party, subject)) = self.watches.get(&watcher.raw()).cloned() {
                     self.remember(watcher.raw(), party, subject, document);

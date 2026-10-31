@@ -291,7 +291,8 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
             let _removed = domain.links.remove(&channel);
             return Delivery::Core(core::Held::Refuse { channel });
         }
-        other @ (Delivery::Link { .. }
+        other @ (Delivery::Start(_)
+        | Delivery::Link { .. }
         | Delivery::Message { .. }
         | Delivery::CallBusy { .. }
         | Delivery::CallAnswer { .. }
@@ -478,6 +479,10 @@ pub(super) enum Work {
     },
     Switched,
     Restart(core::RestartRequest),
+    Start(crate::StartInput),
+    ConnectorRestartDone {
+        number: u16,
+    },
     CallAnswered {
         to: ReplyTo,
         call: core::SettledCall,

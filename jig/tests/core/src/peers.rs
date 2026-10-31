@@ -178,6 +178,7 @@ impl Peers {
     /// Deliver post-commit observations to the peer that owns the flight.
     pub fn delivered(&mut self, delivery: &root::Delivery) {
         match delivery {
+            root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
             root::Delivery::Assigned { channel, assignment } => {
                 self.worker(channel.raw()).assign(workers::Assignment {
                     task: assignment.task,

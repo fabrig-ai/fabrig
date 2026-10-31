@@ -79,6 +79,7 @@ impl ClientPeer {
     #[must_use]
     pub fn accepts(delivery: &root::Delivery) -> bool {
         match delivery {
+            root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
             root::Delivery::ApplicationDocument { .. }
             | root::Delivery::ApplicationRead { .. }
             | root::Delivery::Application { .. } => true,
