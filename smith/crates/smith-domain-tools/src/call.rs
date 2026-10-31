@@ -7,7 +7,7 @@
 //! it. What an outcome holds, such as how much of a file comes back, is the
 //! tools' decision.
 //!
-//! Contract: domain/tools.md, sections 3 and 4; programming-model.md, sections 4.4 and 6.3.
+//! Contract: smith/docs/design/domain/tools.md, sections 3 and 4; skein/docs/foundation/programming-model.md, sections 4.4 and 6.3.
 
 use alloc::boxed::Box;
 
@@ -172,7 +172,7 @@ pub enum Tool {
     Read,
     /// Directory-listing tool.
     List,
-    /// Contained-search tool.
+    /// Process-group search tool.
     Search,
     /// A call that may modify state and must run alone.
     Write,
@@ -180,7 +180,7 @@ pub enum Tool {
     Remove,
     /// Version-aware file-edit tool.
     Edit,
-    /// Contained shell-command tool.
+    /// Shell-command tool with the agent user's permissions.
     Shell,
     /// Read or stop a command the session left running.
     Job,
@@ -212,7 +212,7 @@ pub enum Effect {
 }
 
 /// The material whose size the tools refused; carried by a `TooLarge` terminal.
-/// Contract: domain/tools.md, section 4.
+/// Contract: smith/docs/design/domain/tools.md, section 4.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SizePart {
     /// A loaded file exceeded the whole-file byte bound.
@@ -272,7 +272,6 @@ pub enum Outcome {
     /// `more` did; `timed_out` if the search ran out of time, and these are
     /// what it had found by then.
     Found {
-        /// Bounded search results, or the caller's maximum retained count.
         hits: Box<[Hit]>,
         /// Problems or matches omitted after the retained bound.
         more: u64,
@@ -285,7 +284,7 @@ pub enum Outcome {
     NotEmpty,
     /// The file holds what was written; it was `created` if there was none.
     Written {
-        /// Whether this write created a previously absent file.
+        /// Whether this write created a absent file.
         created: bool,
     },
     /// The edit `replaced` that many occurrences.
@@ -371,10 +370,7 @@ pub enum Outcome {
     /// The first failed replacement, counting from one; no edit was stored.
     EditFailed { edit: u32, why: Mismatch },
     /// io failed.
-    Failed {
-        /// Typed IO failure; this boundary carries no OS error text.
-        fault: Fault,
-    },
+    Failed { fault: Fault },
     /// The call did not finish by its deadline.
     TimedOut,
     /// The kit closed while the call was running.

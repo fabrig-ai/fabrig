@@ -61,7 +61,7 @@ fn a_command_past_its_yield_is_answered_running_then_read_to_its_end() {
     );
 }
 
-// Distinct small durations exercise domain/tools.md, section 5, Reading it.
+// Distinct small durations exercise smith/docs/design/domain/tools.md, section 5, Reading it.
 fn poll_with_separate_default_and_ceiling(wait: tools::Wait) -> Vec<Result<Outcome, JobProblem>> {
     let mut settings = settings();
     settings.tools.job_poll = Duration::from_secs(1);

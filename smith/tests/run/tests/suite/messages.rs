@@ -1,5 +1,5 @@
-//! Actual run-world message terminals and positive-first mutations.
-//! Contract: domain/run.md, sections 6 and 13.
+//! run-world message terminals and positive-first mutations.
+//! Contract: smith/docs/design/domain/run.md, sections 6 and 13.
 use skein_lib::{Time, Token};
 use skein_world::domain::Verdict;
 use smith_run_world::{
@@ -29,7 +29,7 @@ fn every_accepted_message_has_one_terminal_and_the_answer_retains_its_told_fence
     let good = observed();
     for change in 0..4 {
         let mut bad = good.clone();
-        let terminal = bad.iter().position(|(_, _, seen)| matches!(seen, Seen::Read { .. })).expect("actual read");
+        let terminal = bad.iter().position(|(_, _, seen)| matches!(seen, Seen::Read { .. })).expect("read");
         match change {
             0 => {
                 bad.remove(terminal);
@@ -131,7 +131,7 @@ fn an_empty_brief_parks_at_idle_wall_or_zero_waiting_without_opening() {
 }
 
 #[test]
-fn an_empty_brief_opens_on_the_first_message_after_its_actual_awaiting_notice() {
+fn an_empty_brief_opens_on_the_first_message_after_its_seen_awaiting_notice() {
     let mut settings = Settings::calm(921);
     settings.host.jobs = 1;
     settings.host.turns_min = 8;

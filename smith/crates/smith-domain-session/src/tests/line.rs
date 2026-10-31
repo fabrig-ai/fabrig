@@ -1,4 +1,4 @@
-//! Batch result caps below the guard's line (domain/session.md, section 8.1).
+//! Batch result caps below the guard's line (smith/docs/design/domain/session.md, section 8.1).
 
 #![allow(
     clippy::disallowed_macros,

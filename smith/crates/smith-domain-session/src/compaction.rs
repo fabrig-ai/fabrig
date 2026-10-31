@@ -1,4 +1,4 @@
-//! Whole-window replacement (domain/session.md, section 8.2). The session
+//! Whole-window replacement (smith/docs/design/domain/session.md, section 8.2). The session
 //! keeps opener text aside while the provider summarises the old history.
 //! This module knows no provider wire form or run policy. Admission, `start`,
 //! `open_window` and the content-free facts are the session's call sites.

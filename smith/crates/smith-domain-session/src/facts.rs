@@ -1,4 +1,4 @@
-//! What the sessions tell whoever watches the agent (domain/session.md,
+//! What the sessions tell whoever watches the agent (smith/docs/design/domain/session.md,
 //! sections 3–5): a fact for each thing that happened: bounded provider identity, counts and
 //! classifications, never prompts, tool inputs or results, in an uncapped
 //! queue the parent drains while the named sessions and runs still exist.
@@ -19,7 +19,6 @@ use crate::llm::{Failure, Stop, Usage};
 pub struct Fact {
     /// Emission time, preserved when parents drain this observation later.
     pub at: Time,
-    /// The content-free observation.
     pub kind: FactKind,
     /// Provider call metadata for a workspace or delegated call observation.
     pub call: Option<ToolCall>,
@@ -27,7 +26,7 @@ pub struct Fact {
     pub response: Option<ResponseInfo>,
 }
 
-/// Content-free tool selection on the actual session completion request (protocol/llm.md, section 5).
+/// Content-free tool selection on the session completion request (smith/docs/design/protocol/llm.md, section 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Choice {
     /// Any offered tool may be called.
@@ -70,9 +69,7 @@ pub enum FactKind {
         opener: Token,
         /// Current context window, numbered from one.
         window: u32,
-        /// Retry number for the pending provider completion.
         attempt: u32,
-        /// Oldest-first conversation messages, with provider call/result pairing preserved.
         messages: u32,
         /// Maximum output tokens requested for one completion.
         max_tokens: u32,
@@ -86,7 +83,6 @@ pub enum FactKind {
         stop: Stop,
         /// Count of provider answer blocks, independent of their content.
         blocks: u32,
-        /// Maximum provider calls held at once.
         calls: u32,
         /// Count of calls which could not be decoded or admitted.
         invalid: u32,
@@ -107,7 +103,6 @@ pub enum FactKind {
     /// `attempt`.
     CompletionRetried {
         opener: Token,
-        /// Retry number for the pending provider completion.
         attempt: u32,
         /// Injected backoff interval before retrying the failed completion.
         delay: Duration,
@@ -121,7 +116,7 @@ pub enum FactKind {
         /// Content-free child observation, preserved in reserved output room.
         fact: tools::FactKind,
     },
-    /// A program starts its built-in call at `block` (protocol/programs.md, 5.4–5.5).
+    /// A program starts its built-in call at `block` (smith/docs/design/protocol/programs.md, 5.4–5.5).
     BuiltinStarted { opener: Token, block: u32 },
     /// A program's result, or its retained stand-in, settles that call once.
     BuiltinAnswered { opener: Token, bytes: u64, error: bool },
@@ -137,7 +132,6 @@ pub enum FactKind {
         opener: Token,
         /// Owned payload bytes charged against the enclosing session limit.
         bytes: u64,
-        /// Whether the returned tool result represents a failure.
         error: bool,
     },
     /// The delegated call was withdrawn.

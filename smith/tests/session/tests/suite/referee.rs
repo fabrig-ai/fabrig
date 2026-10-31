@@ -1,4 +1,4 @@
-//! Negative controls for the session's append-only window contract (domain/session.md, section 10).
+//! Negative controls for the session's append-only window contract (smith/docs/design/domain/session.md, section 10).
 use smith_domain_session::llm::{Block, Endpoint, Message, Prompt, Role};
 use smith_session_world::assert_prompt_extends;
 

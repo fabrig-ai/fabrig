@@ -1,4 +1,4 @@
-//! What the agent tells whoever watches it (domain/run.md, section 11): the
+//! What the agent tells whoever watches it (smith/docs/design/domain/run.md, section 11): the
 //! child domains' facts, content-free, gathered after every entry point into one
 //! uncapped queue; every observation is preserved until the owner drains it.
 //!
@@ -16,7 +16,7 @@ use smith_domain_session as session;
 /// Provider observations carry the issued completion snapshot alongside its
 /// session owner token. Neither later completions nor lost facts can rename
 /// queued observations. `Request::Complete` supplies each start independently
-/// of capture, including retries that produce no text (domain/session.md,
+/// of capture, including retries that produce no text (smith/docs/design/domain/session.md,
 /// sections 3–4). Tool observations keep their operation owner instead.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Content {
@@ -90,7 +90,7 @@ pub enum Fact {
     Run {
         /// Content-free child observation preserved in the owner's uncapped queue.
         fact: run::Fact,
-        /// Actual opening metadata, copied before the request passes to its session.
+        /// Opening metadata, copied before the request passes to its session.
         opening: Option<Opening>,
     },
     /// In the session child domain, or its tools.
@@ -111,7 +111,7 @@ impl Fact {
     }
 }
 
-/// The run's actual conversation opening, sent with its opened fact to the parent's sinks.
+/// The run's conversation opening, sent with its opened fact to the parent's sinks.
 /// The model name is one of the root's checked configured declarations; no prompt is retained.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Opening {

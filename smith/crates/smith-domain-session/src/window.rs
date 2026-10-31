@@ -1,4 +1,4 @@
-//! Admission before ordinary completions (domain/session.md, section 8.1).
+//! Admission before ordinary completions (smith/docs/design/domain/session.md, section 8.1).
 //! A window retains reported prompt/output tokens, the byte bound appended
 //! after that output and whether it has made an ordinary completion. It knows
 //! no provider grammar. `check` treats every arithmetic overflow as compaction.

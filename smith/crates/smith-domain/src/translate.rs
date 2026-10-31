@@ -1,5 +1,5 @@
-//! The translations between the run's vocabulary and the session's (programming-model.md, section 4.5;
-//! domain/run.md, sections 5, 6, 9 and 13; domain/session.md, sections 3–6):
+//! The translations between the run's vocabulary and the session's (skein/docs/foundation/programming-model.md, section 4.5;
+//! smith/docs/design/domain/run.md, sections 5, 6, 9 and 13; smith/docs/design/domain/session.md, sections 3–6):
 //! siblings share no types, so the run's conversations and the sessions meet
 //! here, through small total functions, each an exhaustive match, so that a
 //! variant added on either side breaks the build in one place.
@@ -22,10 +22,10 @@ pub(crate) const FINISH: Token = Token::new(0);
 /// The ticket of the sub-agent tool.
 pub(crate) const SUB_AGENT: Token = Token::new(1);
 
-/// The first ticket of a session's calls and answers.
+/// The ticket of `deliver` among the tools a session is offered.
 pub(crate) const DELIVER: Token = Token::new(2);
 
-/// First live ticket, separate from the fixed served-tool descriptors.
+/// The ticket of `wait` among the tools a session is offered.
 pub(crate) const WAIT: Token = Token::new(3);
 
 /// First live descriptor/ask ticket, separate from all fixed tool descriptors.
@@ -210,11 +210,11 @@ pub(crate) fn spend(turns: u32, usage: llm::Usage) -> Spend {
     }
 }
 
+const PROGRAM_NAME: &[u8] = b"claude_code";
+
 /// How the session ended, as the run hears it: a failed call is its
 /// provider's fault, but for a conversation too long for the model, which is
 /// a full context, as is a transcript past the session's limits.
-const PROGRAM_NAME: &[u8] = b"claude_code";
-
 pub(crate) fn end(
     end: session::End,
     model: u32,

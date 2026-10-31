@@ -1,12 +1,12 @@
-//! The domain's state and its entry points (programming-model.md, sections 4.5 and 6.3). Each hands what it is
+//! The domain's state and its entry points (skein/docs/foundation/programming-model.md, sections 4.5 and 6.3). Each hands what it is
 //! given to the child domain it is for, then completes the hand-offs between
-//! the child domains (programming-model.md, section 4.5) before it returns, routing what is for the protocol
+//! the child domains (skein/docs/foundation/programming-model.md, section 4.5) before it returns, routing what is for the protocol
 //! layer out.
 //! It retains the run and session children, conversation and credential
 //! bindings and issued renewal policies, pending starts, turn handoffs, unsent completions waiting for
 //! acknowledgements, uncapped handoff queues, notices and facts awaiting the owner. [`step`],
-//! [`fire`] and [`resume`] are its entries (domain/run.md, sections 2, 3, 10,
-//! 13; domain/session.md, sections 3–5). It never knows provider
+//! [`fire`] and [`resume`] are its entries (smith/docs/design/domain/run.md, sections 2, 3, 10,
+//! 13; smith/docs/design/domain/session.md, sections 3–5). It never knows provider
 //! wire syntax, encoded turn size, credential secrets, forge state or host delivery policy.
 //! Facts are kept losslessly in uncapped queues and drained by their queued count.
 //!
@@ -15,7 +15,7 @@
 //! answers at once, an answer that lets the session start its next batch, a
 //! close that withdraws a call whose sub-agent the run closes in turn. Two of
 //! the run's records therefore reach a session only from the ready list
-//! (programming-model.md, section 2): a `Return`, which the peer's delegated
+//! (skein/docs/foundation/programming-model.md, section 2): a `Return`, which the peer's delegated
 //! call holds as its answer, and a `Close`, which the peer holds. The loop
 //! drains the list with [`resume`] at the start of the domain's stage in a
 //! later iteration, after the reclaim point, so a session starts at most one
@@ -70,7 +70,7 @@ pub struct Domain {
     /// One unsent main completion per run awaiting acknowledgement credit.
     pub(crate) pending: Map<Token, route::PendingCompletion>,
     pub(crate) notices: Queue<Request>,
-    /// Issued command IO tokens retain their logical run until the actual terminal.
+    /// Issued command IO tokens retain their logical run until the terminal.
     pub(crate) commands: Map<Token, Token>,
     pub(crate) ready: Ready,
     /// Tickets the peers hold.
@@ -313,8 +313,8 @@ impl Domain {
         !self.facts.is_empty()
     }
 
-    /// Facts held for the owner to drain (skein's draft dynamic-memory.md
-    /// 4.1): the owner counts them in its backlog.
+    /// Facts held for the owner to drain, counted in its backlog
+    /// (skein/docs/foundation/programming-model.md, 7.1).
     #[must_use]
     pub fn backlog(&self) -> u32 {
         self.facts.len()

@@ -1,4 +1,4 @@
-//! Host policy for relative workspace guide/check paths (domain/run.md,
+//! Host policy for relative workspace guide/check paths (smith/docs/design/domain/run.md,
 //! sections 3.1, 3.3, 8.1 and 12). Admitted charters keep two owning paths;
 //! the absent policy keeps no path allocation and selects Smith defaults.
 //! Discovery, system text and exclusive checks borrow the same selection.
@@ -13,7 +13,7 @@ use crate::delivery::{Marker, relative_path};
 /// Host-supplied workspace conventions, replacing both default relative paths.
 /// The host attests UTF-8, as for the charter's text. Admission refuses unsafe
 /// or oversized spellings before IO; accepted paths are retained unchanged
-/// within Charter's aggregate byte cap. There is no fallback to legacy paths.
+/// within Charter's aggregate byte cap. Only the declared paths are read.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Conventions {
     /// Relative guide path read in every mount and named in its system heading.

@@ -10,7 +10,7 @@
 //! typed call, or into the [`Problem`] that keeps it from being one, and
 //! renders what comes of a call as the text the LLM reads.
 //!
-//! Contract: domain/session.md, section 4; programming-model.md, sections 4.4 and 6.3.
+//! Contract: smith/docs/design/domain/session.md, section 4; skein/docs/foundation/programming-model.md, sections 4.4 and 6.3.
 
 use alloc::boxed::Box;
 
@@ -31,7 +31,6 @@ pub struct Prompt {
     pub asker: Asker,
     pub endpoint: Endpoint,
     pub affinity: Affinity,
-    /// The provider's name for the model.
     pub model: Box<[u8]>,
     /// Reasoning effort supplied by this session’s LLM.
     pub effort: Option<Box<[u8]>>,
@@ -40,7 +39,6 @@ pub struct Prompt {
     /// The families of tools the LLM may call, whose schemas the protocol
     /// layer offers it, and the tools the run serves.
     pub tools: tools::Grants,
-    /// Path presentation fixed from the conversation's workspace authority.
     pub namespace: tools::Namespace,
     /// Typed run tools offered for this completion; only the main conversation offers finish.
     pub served: Box<[Served]>,
@@ -52,7 +50,7 @@ pub struct Prompt {
 }
 
 /// The conversation whose prompt the root sends to the protocol.
-/// Contract: domain/run.md, section 5.3; protocol/llm.md, section 4.
+/// Contract: smith/docs/design/domain/run.md, section 5.3; smith/docs/design/protocol/llm.md, section 4.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Asker {
     /// The run's main conversation, which may be granted sub-agents.
@@ -111,7 +109,6 @@ pub enum Served {
 /// One ordered conversation message, with sender and owned bounded content.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Message {
-    /// Sender of this message in the provider-neutral conversation.
     pub role: Role,
     /// Ordered provider-neutral blocks; boxed storage and owned payloads count
     /// against the receiving session's aggregate ownership limits.
@@ -166,18 +163,18 @@ pub enum Block {
     reason = "fixed diagnostic tails keep boundary records bounded without allocation"
 )]
 pub enum Returned {
-    /// Actual concrete result, copied verbatim with error and optional opaque
+    /// Concrete result, copied verbatim with error and optional opaque
     /// record metadata. Canonical live run feedback carries replay None; an
     /// adapter unable to carry restored metadata refuses before provider work.
     Text {
         /// Attested UTF-8 result bytes, bounded before effects.
         text: Box<[u8]>,
-        /// Actual caller error classification.
+        /// Caller error classification.
         error: bool,
         /// Complete optional concrete replay metadata, never silently discarded.
         replay: Option<Replay>,
     },
-    /// Actual cancellation won the delegated operation; distinct from error text.
+    /// Cancellation won the delegated operation; distinct from error text.
     Withdrawn,
 
     /// The tools' outcome: a success, or a failure, one that ran out of time
@@ -192,14 +189,10 @@ pub enum Returned {
     Served {
         /// Typed result of the delegated run tool, rendered below the domain.
         returned: run::Returned,
-        /// Whether the returned tool result represents a failure.
         error: bool,
     },
     /// The call was malformed, or too large to hold, and this is why.
-    Invalid {
-        /// Typed reason a call could not become an admitted tool operation.
-        problem: Problem,
-    },
+    Invalid { problem: Problem },
     /// Nothing ran for the call: the LLM stopped for another reason than
     /// calling tools, its answer cut short or its turn ended.
     NotRun { why: NotRun },
@@ -254,24 +247,15 @@ pub enum Said {
 /// A tool call, as the protocol layer decoded it.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Decoded {
-    /// A program-owned built-in call; the program reports its result later (protocol/programs.md, 5.3–5.5).
+    /// A program-owned built-in call; the program reports its result later (smith/docs/design/protocol/programs.md, 5.3–5.5).
     Builtin { effect: tools::Effect },
     /// A call to one of the tools a session owns.
-    Owned {
-        /// Typed checkout-tool call decoded below the domain.
-        call: tools::Call,
-    },
+    Owned { call: tools::Call },
     /// A call to one of the tools the run serves.
-    Served {
-        /// Typed run tool ask, validated against the asker's authority and charter.
-        ask: run::Ask,
-    },
+    Served { ask: run::Ask },
     /// A call that is no call: it is answered with its problem, and nothing
     /// runs for it.
-    Invalid {
-        /// Typed reason a call could not become an admitted tool operation.
-        problem: Problem,
-    },
+    Invalid { problem: Problem },
 }
 
 impl Decoded {

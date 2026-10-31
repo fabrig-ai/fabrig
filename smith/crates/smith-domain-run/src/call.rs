@@ -1,5 +1,5 @@
 //! The calls a conversation's LLM makes of the run, its delegated tools
-//! (domain/run.md, sections 5.2, 5.3, 6 and 8.4): each
+//! (smith/docs/design/domain/run.md, sections 5.2, 5.3, 6 and 8.4): each
 //! an entity from its `Delegated` to its one `Return`, under the `calls`
 //! limit, so that a call's slot never waits on the reclaim point.
 //!
@@ -9,7 +9,7 @@
 //! `Withdraw`.
 //!
 //! Each call has a deadline, its conversation's own expiry, and the run runs
-//! the race (programming-model.md, section 5.3): an alarm per call, under the same limit. Past it, the run
+//! the race (skein/docs/foundation/programming-model.md, section 5.3): an alarm per call, under the same limit. Past it, the run
 //! stops what the call is doing, and returns it as timed out once that has
 //! settled, so a call never returns with anything it started still in flight.
 //! A conversation withdraws a call only as it closes, and a call its deadline

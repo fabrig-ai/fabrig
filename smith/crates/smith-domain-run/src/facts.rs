@@ -1,4 +1,4 @@
-//! What the runs tell whoever watches the agent (domain/run.md, section 11):
+//! What the runs tell whoever watches the agent (smith/docs/design/domain/run.md, section 11):
 //! a fact for each thing that happened, content-free (tokens, counts and
 //! classifications, never what an LLM, the charter or the host said), in a
 //! uncapped queue the parent drains at its own pace.
@@ -26,7 +26,6 @@ use crate::run::{self, Conversation, Run};
 pub struct Fact {
     /// Emission time, preserved when parents drain this observation later.
     pub at: Time,
-    /// The content-free observation.
     pub kind: FactKind,
 }
 
@@ -34,9 +33,9 @@ pub struct Fact {
 /// `Admitted` gives it).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum FactKind {
-    /// Each host message covered by an actual told main turn.
+    /// Each host message covered by a told main turn.
     MessageRead { run: Token, name: Token, turn: u32 },
-    /// The final ordered read fence of one actual told main turn.
+    /// The final ordered read fence of one told main turn.
     MessageFence { run: Token, turn: u32, read: Option<Token> },
     /// An accepted host message ended unread at the run answer.
     MessageUnread { run: Token, name: Token },
@@ -57,7 +56,7 @@ pub enum FactKind {
     },
     /// It opened main or a child with its asked and effective share.
     Opened { run: Token, conversation: Token, kind: Kind },
-    /// The run's budget at a charge, stage change, or a child's usage line (domain/run.md, section 9.2).
+    /// The run's budget at a charge, stage change, or a child's usage line (smith/docs/design/domain/run.md, section 9.2).
     Budget {
         run: Token,
         standing: Standing,
@@ -77,7 +76,6 @@ pub enum FactKind {
         conversation: Token,
         /// Run-issued call token, identifying the observed finish or sub-agent ask.
         call: Token,
-        /// Typed run tool ask, validated against the asker's authority and charter.
         ask: Asked,
     },
     /// The call returned.
@@ -99,11 +97,7 @@ pub enum FactKind {
     /// An host delivery ended with its content-free classification.
     Delivered { run: Token, status: crate::DeliveryStatus },
     /// The run answered.
-    Answered {
-        run: Token,
-        /// Single terminal value returned to the caller.
-        answer: Answered,
-    },
+    Answered { run: Token, answer: Answered },
 }
 
 /// The role and share of the conversation the run opened.
@@ -116,7 +110,7 @@ pub enum Kind {
     Child { parent: Token, call: Token, asked: Share, granted: Granted },
 }
 
-/// The run's activation budget snapshot (protocol/events.md, section 3.8).
+/// The run's activation budget snapshot (smith/docs/design/protocol/events.md, section 3.8).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Standing {
     pub stage: Stage,
@@ -164,7 +158,7 @@ pub enum Return {
     Waited,
     /// The run parked while its wait result remained withheld.
     Withheld,
-    /// Actual bounded host text reached the caller.
+    /// Bounded host text reached the caller.
     HostAnswered,
     /// The host decided, but its answer exceeded the receiving cap.
     HostTooLarge,
@@ -172,7 +166,7 @@ pub enum Return {
     HostUnknown,
     /// Host declaration/input refused before effects.
     HostRejected,
-    /// Actual host delivery evidence.
+    /// Host delivery evidence.
     Delivered,
     /// No changed directory.
     Nothing,
@@ -206,7 +200,7 @@ pub enum Return {
     Refused,
 }
 
-/// A conversation terminal's content-free kind (domain/run.md, section 11).
+/// A conversation terminal's content-free kind (smith/docs/design/domain/run.md, section 11).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EndKind {
     /// Price arithmetic failed.
@@ -247,7 +241,7 @@ impl End {
     }
 }
 
-/// A failed answer's content-free kind (domain/run.md, section 11).
+/// A failed answer's content-free kind (smith/docs/design/domain/run.md, section 11).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum FailureKind {
     /// The transcript could not be resumed.
@@ -470,9 +464,9 @@ mod carrier_tests {
     use crate::budget::Budget;
 
     #[test]
-    fn a_child_answer_fact_preserves_the_actual_tool_cap_omission() {
+    fn a_child_answer_fact_preserves_the_seen_tool_cap_omission() {
         let used = Used { turns: 2, time: Duration::from_millis(19), spend: 7 };
-        let actual = Returned::Answered {
+        let seen = Returned::Answered {
             text: b"kept".as_slice().into(),
             cut: 17,
             stop: Stop::EndTurn,
@@ -481,8 +475,8 @@ mod carrier_tests {
         };
         let mut facts = Facts::new();
         facts.begin(Time::from_nanos(23_000_000));
-        child_returned(&mut facts, Token::new(31), Token::new(43), &actual, used);
-        let fact = facts.pop().expect("one actual child terminal");
+        child_returned(&mut facts, Token::new(31), Token::new(43), &seen, used);
+        let fact = facts.pop().expect("one child terminal");
         assert_eq!(fact.at, Time::from_nanos(23_000_000));
         let FactKind::Returned { run, call, result: Return::Answered { used: observed, .. } } = fact.kind else {
             panic!("one child answer")
@@ -490,9 +484,9 @@ mod carrier_tests {
         assert_eq!((run, call, observed), (Token::new(31), Token::new(43), used));
         // This assertion compiles unchanged on the current parent, where the
         // scalar is lost: its runtime failure is the carrier's parent proof.
-        assert!(format!("{:?}", fact.kind).contains("cut: 17"), "actual cut was lost: {:?}", fact.kind);
+        assert!(format!("{:?}", fact.kind).contains("cut: 17"), "cut was lost: {:?}", fact.kind);
         assert_eq!(facts.pop(), None);
-        let Returned::Answered { text, .. } = actual else { panic!("source answer") };
+        let Returned::Answered { text, .. } = seen else { panic!("source answer") };
         assert_eq!(text.as_ref(), b"kept", "the scalar fact leaves source content unchanged");
     }
 }

@@ -1,4 +1,4 @@
-//! Recorded transport and portable restoration (domain/session.md 8.2).
+//! Recorded transport and portable restoration (smith/docs/design/domain/session.md 8.2).
 #![expect(clippy::disallowed_methods, reason = "ordinary deterministic harness, programming-model.md 10.2")]
 use super::*;
 use crate::record::{Backend, Kind, Transcript};

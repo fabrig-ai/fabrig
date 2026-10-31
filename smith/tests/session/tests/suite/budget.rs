@@ -4,7 +4,7 @@ use smith_domain_session::{self as session, BudgetDenial, Dimension, End, llm, r
 use smith_session_world::recorded::{USAGE, World, called, opening};
 
 fn text() -> Box<[llm::Block]> {
-    Box::new([llm::Block::Text { text: b"actual completion".as_slice().into(), replay: None }])
+    Box::new([llm::Block::Text { text: b"completion".as_slice().into(), replay: None }])
 }
 
 fn inert(world: &mut World, event: session::Event) {
@@ -130,10 +130,10 @@ fn a_completion_that_costs_less_than_its_maximum_returns_the_rest() {
     let owner = probe.delegated[0];
     probe.step(session::Event::Answered { owner, text: b"child".as_slice().into(), error: false, spent: 0 });
     let second_maximum = maximum(&probe);
-    let actual = record::Prices { input: 7, cached: 3, cache_write: None, output: 11, unit: 10 }
+    let seen = record::Prices { input: 7, cached: 3, cache_write: None, output: 11, unit: 10 }
         .price(usage)
         .expect("priced usage");
-    let budget = second_maximum.checked_add(actual).expect("small fixture budget");
+    let budget = second_maximum.checked_add(seen).expect("small fixture budget");
     assert!(first_maximum <= budget);
     assert!(first_maximum.checked_add(second_maximum).expect("small fixture maximums") > budget);
     probe.close();
@@ -142,7 +142,7 @@ fn a_completion_that_costs_less_than_its_maximum_returns_the_rest() {
     world.open(opening(None, budget));
     assert_eq!(maximum(&world), first_maximum);
     world.complete(called(), llm::Stop::ToolUse, usage);
-    assert_eq!(world.own_spend, [actual]);
+    assert_eq!(world.own_spend, [seen]);
     let owner = world.delegated[0];
     world.step(session::Event::Answered { owner, text: b"child".as_slice().into(), error: false, spent: 0 });
     assert_eq!(maximum(&world), second_maximum, "unused maximum is available for the next completion");
@@ -266,8 +266,8 @@ fn a_fully_cached_completion_with_the_highest_cached_rate_fits_its_reservation()
         let mut spec = opening(None, u64::MAX);
         spec.prices = record::Prices { input: 1, cached: 1000, cache_write, output: 1, unit: 1 };
         world.open(spec);
-        let prompt = world.prompts.last().expect("actual pending completion");
-        let input = prompt.input_bytes().expect("bounded actual prompt") + world.env.limits.protocol_allowance;
+        let prompt = world.prompts.last().expect("pending completion");
+        let input = prompt.input_bytes().expect("bounded prompt") + world.env.limits.protocol_allowance;
         let output = u64::from(prompt.max_tokens);
         let owner = world.completing.expect("provider right owns the reservation");
         let reserved = session::reserve_completion(&mut world.domain, owner, input, 0, prompt.max_tokens)
@@ -282,7 +282,7 @@ fn a_fully_cached_completion_with_the_highest_cached_rate_fits_its_reservation()
         };
         world.complete(text(), llm::Stop::EndTurn, usage);
         assert_eq!(world.own_spend, [input * 1000 + output]);
-        assert!(world.own_spend[0] <= reserved, "actual fully cached charge never exceeds the maximum");
+        assert!(world.own_spend[0] <= reserved, "fully cached charge never exceeds the maximum");
         assert_eq!(world.turns[0].usage, usage);
         world.close();
     }

@@ -1,4 +1,4 @@
-//! The run's retained write holder (domain/run.md, sections 5.3 and 8.1).
+//! The run's retained write holder (smith/docs/design/domain/run.md, sections 5.3 and 8.1).
 //! It follows from the existing call schedule: acquisition asserts the
 //! schedule, never waits, and the call's terminal releases it. It knows no
 //! paths or locks. A later document changes who may hold it (section 15).

@@ -1,4 +1,4 @@
-//! Render, guard and submit the world's LLM effects (domain/session.md, 10).
+//! Render, guard and submit the world's LLM effects (smith/docs/design/domain/session.md, 10).
 
 use super::{Call, Delivery, Failure, Prompt, Token, World, agent, in_call_order, not_run, translate, window_referee};
 

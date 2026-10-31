@@ -51,7 +51,7 @@ fn random_worlds_settle_with_every_start_answered_once() {
     let (mut waited, mut delivered, mut host_answered) = (0, 0, 0);
     let (mut busy, mut lost, mut answered) = (0, 0, 0);
     // Ordinary expiry now starts wind-down or parks. Retain the noisy corpus
-    // and add a long child turn that actually crosses the full run deadline.
+    // and add a long child turn that crosses the full run deadline.
     for seed in 0..304 {
         let settings = match seed {
             300 => time_pressure(),
@@ -166,7 +166,7 @@ fn random_reserves_keep_parallel_children_above_the_finishing_pool() {
         children += observed.0;
         main_in_reserve += observed.1;
     }
-    assert!(children > 0 && main_in_reserve > 0, "the sweep actually admits children and reserved main turns");
+    assert!(children > 0 && main_in_reserve > 0, "the sweep admits children and reserved main turns");
 }
 
 #[test]
@@ -200,7 +200,7 @@ fn drawn_prices_reserve_main_and_children_without_spending_past_the_ceiling() {
             charged += 1;
         }
     }
-    assert!(charged > 48, "priced main and child callbacks actually enter the shared pool");
+    assert!(charged > 48, "priced main and child callbacks enter the shared pool");
 }
 
 /// A world where the LLM finishes, with outcomes that fit, and changes land

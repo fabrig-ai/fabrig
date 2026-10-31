@@ -1,5 +1,5 @@
 //! Resolved failure feedback through the real session and its provider query.
-//! Contract: domain/tools.md, section 2; protocol/llm.md, section 5.
+//! Contract: smith/docs/design/domain/tools.md, section 2; smith/docs/design/protocol/llm.md, section 5.
 
 use skein_fake_llm_domain::api::Part as ProviderPart;
 use skein_lib::Token;

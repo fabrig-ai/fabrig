@@ -431,7 +431,7 @@ fn owned_io_cancellation_keeps_terminal_results_in_the_turn() {
         let llm::Block::ToolResult { result: llm::Returned::Owned { outcome }, .. } =
             &world.turns[0].messages[2].content[0]
         else {
-            panic!("the actual owned result is recorded");
+            panic!("the owned result is recorded");
         };
         if wins {
             assert_eq!(
@@ -481,8 +481,8 @@ fn repeated_provider_ids_keep_distinct_origins_and_restore_includes_history_pref
     resumed.close();
 }
 
-// Receiving-credit controls use the actual V2 domain and its observed turns,
-// rather than supplied answers as evidence. Contract: domain/session.md, 3/5.
+// Receiving-credit controls use the session domain and its observed turns,
+// rather than supplied answers as evidence. Contract: smith/docs/design/domain/session.md, 3/5.
 fn initial_owned(opening: &record::Opening) -> u64 {
     let spec = &opening.spec;
     u64::try_from(
@@ -522,7 +522,7 @@ fn cap_filled_provider_credit_preserves_replay_completion_that_wins_cancel() {
     world.open(spec);
     assert_eq!(world.prompts.len(), 1);
     let call = recorded::called().into_vec().remove(1);
-    // called() starts with opaque reasoning; the second block is its actual call.
+    // called() starts with opaque reasoning; the second block is its call.
     let call_payload = match &call {
         llm::Block::ToolCall { id, name, input, .. } => {
             assert_eq!(id.as_ref(), b"provider-call");
@@ -627,7 +627,7 @@ fn full_history_batch_credit_keeps_maximum_late_results() {
         world.step(session::Event::Answered { owner, text: vec![byte; 2048].into(), error: byte == b'b', spent: 0 });
     }
     assert_eq!(world.end, Some(session::End::Closed));
-    let turn = world.turns.last().expect("actual final turn survives full history");
+    let turn = world.turns.last().expect("final turn survives full history");
     for (index, id) in [b"first".as_slice(), b"second".as_slice()].into_iter().enumerate() {
         let result = llm::Returned::Text {
             text: vec![if index == 0 { b'a' } else { b'b' }; 2048].into(),
@@ -667,7 +667,7 @@ fn exact_failure_classes_and_transport_evidence_survive_policy_without_diagnosti
                 }
                 world.step(session::Event::Failed {
                     retry_ok: true,
-                    owner: world.completing.expect("one actual provider terminal"),
+                    owner: world.completing.expect("one provider terminal"),
                     failure,
                     evidence,
                     detail: vec![0xff; 512].into(),
@@ -680,7 +680,7 @@ fn exact_failure_classes_and_transport_evidence_survive_policy_without_diagnosti
                 assert_eq!(world.end, Some(expected));
                 assert_eq!(world.prompts.len(), 1, "new classes cannot start retry");
                 assert!(world.turns.is_empty(), "failure does not fabricate assistant content");
-                assert!(!format!("{:?}", world.domain).contains("255, 255"), "policy drops actual detail");
+                assert!(!format!("{:?}", world.domain).contains("255, 255"), "policy drops detail");
                 world.close();
             }
         }
@@ -705,7 +705,7 @@ fn fullest_history_keeps_maximum_owned_read_list_search_and_shell_after_cancel()
         world.env.limits.tools.shell_tail = 2048;
         let (call, done, expected) = maximum_owned_result(kind);
         let credit = tools::result_bound(&call, &world.env.limits.tools).expect("checked complete result cap");
-        let id = b"actual-owned".as_slice();
+        let id = b"-owned".as_slice();
         let name = b"owned".as_slice();
         let input = b"{}".as_slice();
         let skeleton = u64::try_from(2 * core::mem::size_of::<llm::Block>() + 2 * id.len() + name.len() + input.len())
@@ -735,7 +735,7 @@ fn fullest_history_keeps_maximum_owned_read_list_search_and_shell_after_cancel()
                 - 25,
         );
         world.open(spec);
-        assert_eq!(world.prompts.len(), 1, "provider credit secured before actual call");
+        assert_eq!(world.prompts.len(), 1, "provider credit secured before call");
         world.complete(
             Box::new([llm::Block::ToolCall {
                 id: id.into(),
@@ -749,9 +749,9 @@ fn fullest_history_keeps_maximum_owned_read_list_search_and_shell_after_cancel()
         );
         assert_eq!(world.operations.len(), 1);
         let owner = world.operations[0].0;
-        world.step(session::Event::Close { session: world.session.expect("actual admitted handle") });
+        world.step(session::Event::Close { session: world.session.expect("admitted handle") });
         assert_eq!(world.cancelled_operations, [owner]);
-        assert!(world.turns.is_empty(), "close retains the actual pending IO/result right");
+        assert!(world.turns.is_empty(), "close retains the pending IO/result right");
         world.step(session::Event::Done { owner, done });
         assert_eq!(world.end, Some(session::End::Closed));
         assert_eq!(
@@ -833,7 +833,7 @@ fn maximum_owned_result(
 }
 
 #[test]
-fn a_delegated_result_can_yield_after_its_actual_turn_before_the_next_provider_request() {
+fn a_delegated_result_can_yield_after_its_seen_turn_before_the_next_provider_request() {
     let mut world = World::new(26);
     world.open(opening(None, 100));
     world.complete(recorded::called(), llm::Stop::ToolUse, recorded::USAGE);
@@ -1110,7 +1110,7 @@ fn a_parked_wait_preserves_other_results_and_resumes_only_the_missing_result() {
             let owner = first.delegated[0];
             first.step(session::Event::Answered {
                 owner,
-                text: b"actual earlier result".as_slice().into(),
+                text: b"earlier result".as_slice().into(),
                 error: false,
                 spent: 0,
             });
@@ -1175,7 +1175,7 @@ fn a_generic_yield_with_two_unstarted_wait_calls_restores_both_as_not_run() {
         replay: None,
     });
     first.complete(Box::new(content), llm::Stop::EndTurn, llm::Usage::ZERO);
-    assert!(first.delegated.is_empty(), "the actual generic yield starts neither call");
+    assert!(first.delegated.is_empty(), "the generic yield starts neither call");
     first.close();
     let mut restored = World::new(32);
     restored.open(opening(Some(transcript(&first)), 100));

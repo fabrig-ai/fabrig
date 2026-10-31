@@ -370,8 +370,8 @@ impl Harness {
                 Request::Turn { turn, number, .. } => {
                     assert_eq!(
                         number,
-                        self.turns.len().checked_add(1).expect("next actual turn number"),
-                        "actual main output numbering"
+                        self.turns.len().checked_add(1).expect("next turn number"),
+                        "main output numbering"
                     );
                     self.turns.push(turn).expect("bounded activation fixture turns");
                 }
@@ -380,7 +380,7 @@ impl Harness {
                         run::Answer::Parked { turns, .. }
                         | run::Answer::Accepted { turns, .. }
                         | run::Answer::Failed { turns, .. } => {
-                            assert_eq!(*turns, self.turns.len(), "terminal follows every actual Turn");
+                            assert_eq!(*turns, self.turns.len(), "terminal follows every Turn");
                         }
                         run::Answer::Refused(_) => assert!(self.turns.is_empty()),
                     }
@@ -397,7 +397,7 @@ impl Harness {
                     }
                 }
                 Request::LongDone { host_run } => {
-                    self.long.push(None).expect("bounded actual operation terminals");
+                    self.long.push(None).expect("bounded operation terminals");
                     if self.checking {
                         self.checking = false;
                         requests.push(Request::LongDone { host_run });
@@ -1082,7 +1082,7 @@ fn a_finish_the_run_rejects_at_once_comes_back_from_the_ready_list_as_the_sessio
     // The run judges the finish within the step, and rejects it; the answer
     // waits for the next iteration.
     assert!(h.answer(main, Box::new([served(b"f1", verdict(b"merge"))])).is_empty());
-    assert_eq!((h.domain.tickets(), h.domain.flights()), (0, 1), "concrete rejection waits on its actual call right");
+    assert_eq!((h.domain.tickets(), h.domain.flights()), (0, 1), "concrete rejection waits on its call right");
     assert!(!h.domain.is_ready(), "not before the reclaim point");
 
     let (owner, prompt) = completing(h.next());
@@ -1279,7 +1279,7 @@ fn assert_no_provider_completion(emitted: &[Request]) {
 #[expect(clippy::disallowed_methods, reason = "test assembles an independent literal result golden")]
 fn full_history_reserves_every_child_answer_before_effect_and_keeps_late_bytes() {
     // At the old two-result-cap boundary every call now runs with its share.
-    // Actual child replies still survive cancellation before their deferred delivery.
+    // child replies still survive cancellation before their deferred delivery.
     let bound = LIMITS.session.delegated_result_bytes.checked_mul(2).expect("two result caps");
     let limits = Limits { session: session::Limits { history_bytes: bound, ..LIMITS.session }, ..LIMITS };
     let (mut world, run, emitted) = side_by_side_with(&limits, 256);
@@ -1293,23 +1293,17 @@ fn full_history_reserves_every_child_answer_before_effect_and_keeps_late_bytes()
     .into_boxed_slice();
     assert!(world.says(first, &answer).is_empty());
     assert!(world.says(second, &answer).is_empty());
-    assert!(world.next().is_empty(), "actual child endings queue both owning results");
+    assert!(world.next().is_empty(), "child endings queue both owning results");
     assert_eq!(world.domain.flights(), 2);
     assert_eq!(world.domain.run().runs(), 1, "only main remains after both child terminals");
     assert!(world.step(Event::Cancel { run }).is_empty());
     // Cancel emission cannot replace either result which already won its terminal.
     let emitted = world.next();
     assert_no_provider_completion(&emitted);
-    let turn = world.turns.last().expect("actual main Turn precedes its failed final answer");
+    let turn = world.turns.last().expect("main Turn precedes its failed final answer");
     for (index, id) in [b"a1".as_slice(), b"a2".as_slice()].into_iter().enumerate() {
         assert_eq!(
-            *turn
-                .messages
-                .last()
-                .expect("actual result message")
-                .content
-                .get(index)
-                .expect("one result per admitted child"),
+            *turn.messages.last().expect("result message").content.get(index).expect("one result per admitted child"),
             session::llm::Block::ToolResult {
                 id: bytes(id),
                 result: session::llm::Returned::Text { text: expected.clone(), error: false, replay: None }
@@ -1397,8 +1391,8 @@ fn the_runs_deadline_fires_before_the_sessions_expiry_at_the_same_instant() {
 
 #[test]
 fn an_owner_that_drains_late_loses_no_fact() {
-    // Ten thousand single-fact entrances exceed the former composed reserve
-    // for LIMITS; the edge inbox still retains at most LIMITS.run.messages.
+    // Ten thousand single-fact entrances exercise the uncapped facts queue;
+    // the edge inbox retains at most LIMITS.run.messages.
     const ENTRANCES: u32 = 10_000;
     let mut harness = Harness::new();
     let (run, _, _) = harness.admit(7, charter());
@@ -1467,7 +1461,7 @@ fn the_facts_of_both_child_domains_are_gathered() {
         }
     }
     assert!(run > 0 && sessions > 0, "{run} of the run's, {sessions} of the sessions'");
-    assert_eq!(opened, 1, "one actual main opening precedes the provider request");
+    assert_eq!(opened, 1, "one main opening precedes the provider request");
     assert_eq!(h.domain.content_lost(), 0);
 }
 
@@ -1544,12 +1538,12 @@ fn declared_host_reads_run_together_write_waits_and_mismatched_effect_never_rela
     };
     assert!(h.step(Event::HostReturned { relay: *relay, reply: run::HostReply::Answered(answer.clone()) }).is_empty());
     let (owner, prompt) = completing(h.next());
-    let [Block::ToolResult { result: Returned::Text { text: actual, error: true, replay: None }, .. }, ..] =
+    let [Block::ToolResult { result: Returned::Text { text: seen, error: true, replay: None }, .. }, ..] =
         last(&prompt)
     else {
         panic!("exact error reaches next completion");
     };
-    assert_eq!(actual.as_ref(), answer.text());
+    assert_eq!(seen.as_ref(), answer.text());
     assert!(h.answer(owner, Box::new([opaque_call(b"bad", b"outside_write", run::HostEffect::Read)])).is_empty());
     let (_, prompt) = completing(h.next());
     let [Block::ToolResult { result: Returned::Invalid { problem: Problem::UnknownTool }, .. }] = last(&prompt) else {
@@ -1580,7 +1574,7 @@ fn convention_workspace() -> Workspace {
     }
 }
 
-/// Actual composed root entrance; decoy paths belong to the fake filesystem,
+/// Composed root entrance; decoy paths belong to the fake filesystem,
 /// not to Smith's selection. Read-only mounts supply guides but no check probe.
 fn convention_main(harness: &mut Harness, selected: Option<run::Conventions>) -> (Token, Token, Prompt) {
     let (guide_path, check_path) = match &selected {
@@ -1620,7 +1614,7 @@ fn convention_main(harness: &mut Harness, selected: Option<run::Conventions>) ->
         }]),
     });
     let [Request::Admitted { run, .. }, Request::Read { owner, at, max, deadline }] = emitted.as_ref() else {
-        panic!("actual admitted discovery: {emitted:?}");
+        panic!("admitted discovery: {emitted:?}");
     };
     let run = *run;
     assert_eq!(*owner, run);
@@ -1706,7 +1700,7 @@ fn caller_conventions_select_default_custom_and_explicit_legacy_check_delivery_p
             Request::Long { host_run, operation: crate::Operation::Checks, until: said },
         ] = emitted.as_ref()
         else {
-            panic!("actual exclusive Check precedes host delivery: {emitted:?}");
+            panic!("exclusive Check precedes host delivery: {emitted:?}");
         };
         assert_eq!(program.root, Token::new(900), "readonly mount is never checked");
         assert_eq!(program.path.as_ref(), expected_path);
@@ -1722,7 +1716,7 @@ fn caller_conventions_select_default_custom_and_explicit_legacy_check_delivery_p
         let [Request::LongDone { host_run }, Request::Deliver { owner: delivered_owner, change: delivered_change, .. }] =
             emitted.as_ref()
         else {
-            panic!("only actual successful writable Check admits host delivery: {emitted:?}");
+            panic!("only successful writable Check admits host delivery: {emitted:?}");
         };
         assert_eq!(*host_run, Token::new(77));
         assert_eq!(*delivered_owner, owner);
@@ -1730,7 +1724,7 @@ fn caller_conventions_select_default_custom_and_explicit_legacy_check_delivery_p
         assert!(harness.step(Event::Delivered { owner, delivery: delivered() }).is_empty());
         let emitted = harness.next();
         let [Request::Answer { answer: run::Answer::Accepted { outcome, .. }, .. }] = emitted.as_ref() else {
-            panic!("one actual accepted terminal after settled Check and delivery: {emitted:?}");
+            panic!("one accepted terminal after settled Check and delivery: {emitted:?}");
         };
         assert_eq!(outcome, &Declared::Change(change));
         harness.domain.reclaim();
@@ -1753,13 +1747,13 @@ fn custom_check_cancellation_waits_for_the_abort_terminal() {
         )]),
     );
     let [Request::Check { owner, .. }, Request::Long { .. }] = emitted.as_ref() else {
-        panic!("actual custom Check: {emitted:?}");
+        panic!("custom Check: {emitted:?}");
     };
     let owner = *owner;
     assert!(harness.step(Event::Cancel { run }).is_empty());
     let emitted = harness.next();
     let [Request::Abort { owner: aborted }] = emitted.as_ref() else {
-        panic!("one actual check abort request: {emitted:?}");
+        panic!("one check abort request: {emitted:?}");
     };
     assert_eq!(*aborted, owner);
     assert!(harness.next().is_empty(), "cancel requests no settlement or delivery");
@@ -1768,7 +1762,7 @@ fn custom_check_cancellation_waits_for_the_abort_terminal() {
     let [Request::Answer { answer: run::Answer::Failed { failure: run::Failure::Cancelled, .. }, .. }] =
         emitted.as_ref()
     else {
-        panic!("only the actual abort terminal permits the original Start cancellation answer: {emitted:?}");
+        panic!("only the abort terminal permits the original Start cancellation answer: {emitted:?}");
     };
     harness.domain.reclaim();
     assert_eq!((harness.domain.peers(), harness.domain.flights(), harness.domain.tickets()), (0, 0, 0));
@@ -1842,7 +1836,7 @@ fn settle_default_convention_control(harness: &mut Harness, run: Token, main: To
     }
     let cancelled = collected_requests(cancelled);
     let [Request::Cancel { owner }] = cancelled.as_ref() else {
-        panic!("positive default control cancels its actual provider request: {cancelled:?}");
+        panic!("positive default control cancels its provider request: {cancelled:?}");
     };
     assert_eq!(*owner, main);
     let mut ended = Queue::uncapped();
@@ -1860,10 +1854,6 @@ fn settle_default_convention_control(harness: &mut Harness, run: Token, main: To
 }
 
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "one maximum-bound guide scenario retains every receiving and refusal assertion"
-)]
 fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discovery() {
     for maximum_paths in [false, true] {
         let run = run::Limits { run_bytes: 16_384, ..LIMITS.run };
@@ -1926,20 +1916,16 @@ fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discover
             }]),
         });
         let [Request::Admitted { run, .. }, Request::Read { .. }] = emitted.as_ref() else {
-            panic!("valid maximum paths admit before actual opening size is known: {emitted:?}");
+            panic!("valid maximum paths admit before opening size is known: {emitted:?}");
         };
         let run = *run;
-        let emitted = harness.step(Event::Read {
-            owner: run,
-            read: run::Read::Text { text: bytes(b"Small actual guide"), whole: true },
-        });
+        let emitted = harness
+            .step(Event::Read { owner: run, read: run::Read::Text { text: bytes(b"Small guide"), whole: true } });
         let [Request::Read { .. }] = emitted.as_ref() else {
-            panic!("both admitted guide requests occur before actual opening refusal: {emitted:?}");
+            panic!("both admitted guide requests occur before opening refusal: {emitted:?}");
         };
-        let emitted = harness.step(Event::Read {
-            owner: run,
-            read: run::Read::Text { text: bytes(b"Small actual guide"), whole: true },
-        });
+        let emitted = harness
+            .step(Event::Read { owner: run, read: run::Read::Text { text: bytes(b"Small guide"), whole: true } });
         if maximum_paths {
             let [
                 Request::Answer {
@@ -2413,7 +2399,7 @@ fn missing_provider_usage_settles_the_root_reservation_and_keeps_the_raw_fact() 
 }
 
 #[test]
-fn command_span_ends_at_the_actual_io_terminal_after_cancel() {
+fn command_span_ends_at_the_seen_io_terminal_after_cancel() {
     let mut h = Harness::new();
     let mut requested = charter();
     requested.grants.tools.shell = true;
@@ -2432,7 +2418,7 @@ fn command_span_ends_at_the_actual_io_terminal_after_cancel() {
         )]),
     );
     let [Request::Io { owner: command, op: Op::Spawn { .. }, .. }] = emitted.as_ref() else {
-        panic!("actual shell IO: {emitted:?}");
+        panic!("shell IO: {emitted:?}");
     };
     let command = *command;
     assert_eq!(h.long.as_slice(), &[Some(crate::Operation::Completion), None, Some(crate::Operation::Command)]);
@@ -2440,15 +2426,15 @@ fn command_span_ends_at_the_actual_io_terminal_after_cancel() {
     h.env.now = Time::ZERO.saturating_add(Duration::from_secs(11));
     assert!(h.step(Event::Cancel { run }).is_empty());
     assert_eq!(h.next().as_ref(), &[Request::CancelIo { owner: command }]);
-    assert_eq!(h.domain.commands.len(), 1, "cancellation leaves actual IO outstanding");
-    assert_eq!(h.long.len(), 3, "no long terminal before actual IO settlement");
+    assert_eq!(h.domain.commands.len(), 1, "cancellation leaves IO outstanding");
+    assert_eq!(h.long.len(), 3, "no long terminal before IO settlement");
     let ended = h.step(Event::Done { owner: command, done: tools::Done::Cancelled });
     assert_eq!(h.domain.commands.len(), 0);
     assert_eq!(h.long.as_slice(), &[Some(crate::Operation::Completion), None, Some(crate::Operation::Command), None]);
     let ended = if ended.is_empty() { h.next() } else { ended };
     let [Request::Answer { answer: run::Answer::Failed { failure: run::Failure::Cancelled, .. }, .. }] = ended.as_ref()
     else {
-        panic!("only actual IO settlement permits the cancellation answer: {ended:?}");
+        panic!("only IO settlement permits the cancellation answer: {ended:?}");
     };
 }
 

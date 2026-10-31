@@ -1,4 +1,4 @@
-//! Program routing at the root (protocol/programs.md 2, 5.7).
+//! Program routing at the root (smith/docs/design/protocol/programs.md 2, 5.7).
 use super::*;
 
 fn program() -> Harness {

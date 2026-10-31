@@ -960,7 +960,7 @@ fn a_store_that_finds_nothing_on_its_path_is_not_found_and_the_kit_forgets_the_f
 
 #[test]
 fn a_session_keeps_its_first_file_after_seventeen_reads() {
-    // One more file than the old product limit (domain/tools.md, section 4).
+    // A batch of 101 files exercises independent per-file admission (smith/docs/design/domain/tools.md, section 4).
     const READ_FILES: u8 = 17;
     let mut h = Harness::new(derived_limits());
     let kit = h.open(1, authority(ALL));
@@ -1092,7 +1092,7 @@ fn an_edit_matches_the_current_file_and_catches_a_change_after_its_load() {
     let mut h = Harness::new(LIMITS);
     let kit = h.open(1, authority(ALL));
     known(&mut h, kit, b"src/lib.rs", b"fn one() {}\n", 3);
-    // The current bytes no longer match the requested old text.
+    // The current bytes differ from the requested old text.
     let (owner, _) = h.start(kit, 2, change(b"src/lib.rs", b"one", b"uno"));
     let loaded = Done::Loaded { content: bytes(b"fn two() {}\n"), version: version(5) };
     assert_eq!(h.end(owner, loaded), (2, Outcome::EditFailed { edit: 1, why: crate::Mismatch::NoMatch }));
@@ -2124,12 +2124,12 @@ fn read_caps_are_observable_at_the_tools_parent_boundary() {
     drop(told(&mut h));
     drop(h.end(owner, Done::Loaded { content: bytes(b"a\nb\nc\nd\ne\nf\n"), version: version(1) }));
     let terminal = told(&mut h);
-    assert_eq!(terminal.len(), 1, "one actual terminal reaches the parent");
+    assert_eq!(terminal.len(), 1, "one terminal reaches the parent");
     // Use the common parent's existing Debug surface to run the same test
     // before the new fields exist; the typed assertions above check the fixed API.
     let reported = format!("{:?}", terminal.as_slice()[0]);
-    assert!(reported.contains("omitted_bytes: 2"), "missing actual window observation: {reported}");
-    assert!(reported.contains("clamped: true"), "missing actual lowered-cap observation: {reported}");
+    assert!(reported.contains("omitted_bytes: 2"), "missing window observation: {reported}");
+    assert!(reported.contains("clamped: true"), "missing lowered-cap observation: {reported}");
 }
 
 mod jobs;

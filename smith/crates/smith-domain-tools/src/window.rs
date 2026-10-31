@@ -1,7 +1,7 @@
 //! Byte windows selected by a read caller, bounded by the tools' payload ceiling.
 //! It keeps no file state and knows no version; window selects the configured
 //! bytes and read slices a loaded file into whole lines, or one cut line.
-//! Contract: domain/tools.md, sections 3 and 4; programming-model.md, sections 4.4 and 6.3.
+//! Contract: smith/docs/design/domain/tools.md, sections 3 and 4; skein/docs/foundation/programming-model.md, sections 4.4 and 6.3.
 
 use crate::{Budget, BytesClamp, Cut, Limits, Next, Outcome};
 use alloc::boxed::Box;

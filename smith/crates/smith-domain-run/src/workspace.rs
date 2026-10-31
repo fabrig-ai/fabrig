@@ -1,4 +1,4 @@
-//! Host-owned optional workspace metadata (domain/run.md, sections 3.2 and 8.3).
+//! Host-owned optional workspace metadata (smith/docs/design/domain/run.md, sections 3.2 and 8.3).
 //! Admission bounds counts and payloads before comparing names or paths. Retained
 //! roots and write authority are immutable; this module never knows filesystem
 //! contents, host delivery policy or credentials. `check` validates before effects.

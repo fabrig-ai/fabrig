@@ -1,4 +1,4 @@
-//! Failed writes and job waits within a completion (domain/session.md, section 5).
+//! Failed writes and job waits within a completion (smith/docs/design/domain/session.md, section 5).
 //! No state beyond the batch's first failed call is retained here.
 use super::{Block, Conversation, Decoded, Effect, Outcome, Returned, Slot, Tools, call_id, chosen};
 use crate::llm::NotRun;

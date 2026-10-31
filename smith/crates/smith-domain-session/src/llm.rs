@@ -9,7 +9,7 @@
 //! parses: it keeps a call's input as the bytes the LLM wrote, to send back
 //! verbatim, beside what was decoded from it.
 //!
-//! Contract: domain/session.md, section 4; programming-model.md, sections 4.4 and 6.3.
+//! Contract: smith/docs/design/domain/session.md, section 4; skein/docs/foundation/programming-model.md, sections 4.4 and 6.3.
 
 use alloc::boxed::Box;
 
@@ -86,13 +86,10 @@ pub enum Block {
 /// A tool call, as the protocol layer decoded it.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Decoded {
-    /// A program-owned built-in call; the program reports its result later (protocol/programs.md, 5.3–5.5).
+    /// A program-owned built-in call; the program reports its result later (smith/docs/design/protocol/programs.md, 5.3–5.5).
     Builtin { effect: tools::Effect },
     /// A call to one of the tools the session owns.
-    Owned {
-        /// Typed checkout-tool call decoded below the domain.
-        call: tools::Call,
-    },
+    Owned { call: tools::Call },
     /// A call to one of the tools the opener serves, with `effect`: the typed
     /// call is the opener's, kept under `ticket` (a ticket names a value the
     /// session cannot, and the layer that holds it resolves it).
@@ -103,7 +100,7 @@ pub enum Decoded {
         ticket: Token,
         /// Descriptor ticket identifying the offered tool, independent of this call.
         descriptor: Token,
-        /// Whether this delegated call may write, used to serialize writers.
+        /// Whether this delegated call may write, for serializing writers.
         effect: tools::Effect,
     },
     /// A call that is no call: the session answers it with its problem, and
@@ -111,7 +108,6 @@ pub enum Decoded {
     Invalid {
         /// Offered delegated descriptor, retained even when its arguments are invalid.
         descriptor: Option<Token>,
-        /// Typed reason a call could not become an admitted tool operation.
         problem: Problem,
     },
     /// A prior call, kept by provider name and input in its enclosing block.
@@ -131,10 +127,7 @@ pub enum Returned {
         outcome: tools::Outcome,
     },
     /// The call was malformed, and this is why.
-    Invalid {
-        /// Typed reason a call could not become an admitted tool operation.
-        problem: Problem,
-    },
+    Invalid { problem: Problem },
     /// Nothing ran for the call: the LLM stopped for another reason than
     /// calling tools, its answer cut short or its turn ended.
     NotRun { why: NotRun },
@@ -143,7 +136,6 @@ pub enum Returned {
         /// Opaque opener-provided result bytes, preserved in concrete history.
         /// The constructor does not validate UTF-8; session ownership limits bound retention.
         text: Box<[u8]>,
-        /// Whether the returned tool result represents a failure.
         error: bool,
         replay: Option<Replay>,
     },
@@ -151,7 +143,7 @@ pub enum Returned {
     Withdrawn,
 }
 
-/// Why a concrete tool call ran nothing (domain/session.md, section 5).
+/// Why a concrete tool call ran nothing (smith/docs/design/domain/session.md, section 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum NotRun {
     /// A previous failed call stopped this completion's remaining changes.
@@ -180,7 +172,7 @@ pub enum ToolChoice {
 pub struct Descriptor {
     /// Opener-issued opaque name for a tool or delegated call.
     pub ticket: Token,
-    /// Whether this delegated call may write, used to serialize writers.
+    /// Whether this delegated call may write, for serializing writers.
     pub effect: tools::Effect,
 }
 
@@ -196,21 +188,12 @@ pub enum Problem {
     /// The input is not a JSON object.
     NotAnObject,
     /// The input has no `field`, which the tool needs.
-    Missing {
-        /// Name of the required input member which failed validation.
-        field: Box<[u8]>,
-    },
+    Missing { field: Box<[u8]> },
     /// The input's `field` has the wrong type.
-    WrongType {
-        /// Name of the required input member which failed validation.
-        field: Box<[u8]>,
-    },
+    WrongType { field: Box<[u8]> },
     /// The input's `field` has a value the tool cannot take: a path with an
     /// empty name or a NUL in it, a number out of range.
-    BadValue {
-        /// Name of the required input member which failed validation.
-        field: Box<[u8]>,
-    },
+    BadValue { field: Box<[u8]> },
     /// A yielding shell call would exceed its session's job bound.
     JobsFull { jobs: u32 },
     /// A job number was never answered running, or its end was already answered.
@@ -226,7 +209,6 @@ pub enum Problem {
 /// One ordered conversation message, with sender and owned bounded content.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Message {
-    /// Sender of this message in the provider-neutral conversation.
     pub role: Role,
     /// Ordered provider-neutral blocks; boxed storage and owned payloads count
     /// against the receiving session's aggregate ownership limits.
@@ -234,14 +216,14 @@ pub struct Message {
 }
 
 /// The opener's run identity and conversation ordinal, retained across windows
-/// and resumes (domain/session.md, section 2).
+/// and resumes (smith/docs/design/domain/session.md, section 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Affinity {
     pub key: [u8; 16],
     pub thread: u32,
 }
 
-/// Why the session asks for a completion (domain/session.md, section 8.2).
+/// Why the session asks for a completion (smith/docs/design/domain/session.md, section 8.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Purpose {
     /// An ordinary completion, guarded when its window has a reported last prompt.
@@ -250,7 +232,7 @@ pub enum Purpose {
     Compaction { room: u64 },
 }
 
-/// What the protocol layer checks before an ordinary request (domain/session.md, section 8.1).
+/// What the protocol layer checks before an ordinary request (smith/docs/design/domain/session.md, section 8.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Guard {
     /// The conversation's line, in tokens.
@@ -270,7 +252,6 @@ pub struct Prompt {
     pub affinity: Affinity,
     /// The opening's measured protocol contribution, included in input pricing.
     pub protocol_allowance: u64,
-    /// The provider's name for the model.
     pub model: Box<[u8]>,
     /// Reasoning effort requested by this activation, absent for the provider default.
     pub effort: Option<Box<[u8]>>,
@@ -279,7 +260,6 @@ pub struct Prompt {
     /// The families of tools the LLM may call, whose schemas the protocol
     /// layer offers it, and the tools the opener serves.
     pub tools: tools::Grants,
-    /// Path presentation fixed from the conversation's workspace authority.
     pub namespace: tools::Namespace,
     /// Opener-owned tool descriptors; tickets are resolved only by the opener.
     pub delegated: Box<[Descriptor]>,
@@ -327,7 +307,7 @@ impl Prompt {
     }
 }
 
-/// The session's name for a pending completion (domain/session.md, sections 3–4).
+/// The session's name for a pending completion (smith/docs/design/domain/session.md, sections 3–4).
 /// Retries keep the sequence and advance only the retry; accepted completions
 /// advance the transcript sequence before another completion begins.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -427,7 +407,7 @@ pub enum Stop {
     Refusal,
 }
 
-/// Raw provider counts (domain/session.md, section 6); absence stays distinct
+/// Raw provider counts (smith/docs/design/domain/session.md, section 6); absence stays distinct
 /// from reported zero in facts and concrete history. Reasoning is within output.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Usage {
@@ -473,7 +453,7 @@ pub enum Evidence {
 }
 
 /// The protocol's elapsed call phase, carried losslessly in timeout terminals
-/// (protocol/llm.md, sections 6 and 10).
+/// (smith/docs/design/protocol/llm.md, sections 6 and 10).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Phase {
     /// The connection's socket admission deadline.
@@ -488,7 +468,7 @@ pub enum Phase {
     Whole,
 }
 
-/// Bounded provider evidence, kept outside history and content-free facts (domain/session.md, section 4).
+/// Bounded provider evidence, kept outside history and content-free facts (smith/docs/design/domain/session.md, section 4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Report {
     pub code: Box<[u8]>,
@@ -497,7 +477,7 @@ pub struct Report {
 }
 
 impl Report {
-    /// Three provider fields, each at the vocabulary's 128-byte bound (protocol/limits.md, 2.4).
+    /// Three provider fields, each at the vocabulary's 128-byte bound (smith/docs/design/protocol/limits.md, 2.4).
     pub const BYTES: u64 = 3 * 128;
 
     /// No provider evidence was supplied.

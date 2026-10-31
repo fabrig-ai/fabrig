@@ -1,4 +1,4 @@
-//! Memory stays under scenario ceilings (programming-model.md, section 6.3), measured by
+//! Memory stays under scenario ceilings (skein/docs/foundation/programming-model.md, section 6.3), measured by
 //! a counting allocator: the tools child domain with every kit holding the
 //! longest authority, knowing as many files as it may at the longest paths,
 //! and running as many edits, writes and reads as it may. Driven at random,
@@ -102,15 +102,15 @@ fn fill(limits: Limits, bound: u64) {
 }
 
 // Peak 49,922 bytes measured 2026-10-29: full kits with default limits.
-// Ceiling adds a quarter, rounded up to two significant digits (testing-strategy.md, section 6).
+// Ceiling adds a quarter, rounded up to two significant digits (skein/docs/foundation/testing-strategy.md, section 6).
 const FULL_KITS_CEILING: u64 = 63_000;
 
 // Peak 1,562,118 bytes measured 2026-10-29: 16 full kits, eight calls and maximum paths.
-// Ceiling adds a quarter, rounded up to two significant digits (testing-strategy.md, section 6).
+// Ceiling adds a quarter, rounded up to two significant digits (skein/docs/foundation/testing-strategy.md, section 6).
 const LARGE_KITS_CEILING: u64 = 2_000_000;
 
 // Peak 68,526 bytes measured 2026-10-29: four full kits with one call each.
-// Ceiling adds a quarter, rounded up to two significant digits (testing-strategy.md, section 6).
+// Ceiling adds a quarter, rounded up to two significant digits (skein/docs/foundation/testing-strategy.md, section 6).
 const ONE_CALL_CEILING: u64 = 86_000;
 
 #[test]
@@ -143,7 +143,7 @@ fn job_step(
 }
 
 // Peak 11,242 bytes measured 2026-10-29: full held jobs and queued reads.
-// Ceiling adds a quarter, rounded up to two significant digits (testing-strategy.md, section 6).
+// Ceiling adds a quarter, rounded up to two significant digits (skein/docs/foundation/testing-strategy.md, section 6).
 const HELD_JOBS_CEILING: u64 = 15_000;
 
 fn fill_jobs() {

@@ -1,4 +1,4 @@
-//! Memory stays under scenario ceilings (programming-model.md, section 6.3), measured by
+//! Memory stays under scenario ceilings (skein/docs/foundation/programming-model.md, section 6.3), measured by
 //! a counting allocator: the run child domain with every run holding a charter
 //! of exactly its byte limit, and every conversation started and spending.
 
@@ -291,7 +291,7 @@ fn fill(limits: &Limits, bound: u64) {
 fn selected_charter(run_bytes: u64, selected: Option<&smith_domain_run::Conventions>) -> Charter {
     let mut charter = charter(run_bytes);
     if let Some(selected) = selected {
-        let previous = charter.conventions.as_ref().expect("explicit legacy fixture policy");
+        let previous = charter.conventions.as_ref().expect("explicit fixture policy");
         let previous_paths = size(previous.guide.len() + previous.checks.len());
         let selected_paths = size(selected.guide.len() + selected.checks.len());
         // The same exact aggregate cap is attained: move byte room
@@ -456,15 +456,15 @@ fn refuse_oversized_charter(limits: &Limits, env: &Env<Limits>, out: &mut Queue<
     assert_eq!(answer, Answer::Refused(Refusal::Invalid(Invalid::TooLarge)));
 }
 
-// Peak ceiling for one full run (programming-model.md, section 6.3).
+// Peak ceiling for one full run (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 7_324 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const FULL_RUNS_CEILING: u64 = 9_200;
 
-// Peak ceiling for 64 full runs with large charters and guides (programming-model.md, section 6.3).
+// Peak ceiling for 64 full runs with large charters and guides (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 6_446_424 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const LARGE_RUNS_CEILING: u64 = 8_100_000;
 
-// Peak ceiling for 1000 full runs (programming-model.md, section 6.3).
+// Peak ceiling for 1000 full runs (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 4_435_512 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const MANY_RUNS_CEILING: u64 = 5_600_000;
 
@@ -616,7 +616,7 @@ fn delivery_memory_step(
     (token, answered)
 }
 
-// Peak ceiling for full receipt delivery and cancellation (programming-model.md, section 6.3).
+// Peak ceiling for full receipt delivery and cancellation (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 70_940 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const DELIVERY_CEILING: u64 = 89_000;
 
@@ -673,7 +673,7 @@ fn full_receipt_delivery_settles_before_a_cancelled_answer() {
         ask: Ask::Deliver { change: Change { fields: Box::new([]) } },
         deadline: Time::ZERO.saturating_add(BUDGET.time),
     });
-    let owner = owner.expect("first actual writable check");
+    let owner = owner.expect("first writable check");
     for _ in 0..smith_domain_run::MAX_DIRECTORIES {
         take(Event::Checked { owner, ran: Ran { exit: Exit::Code { code: 0 }, output: bytes(0), cut: 0 } });
     }
@@ -806,7 +806,7 @@ fn host_memory_take(
     (token, relay)
 }
 
-// Peak ceiling for maximum immutable host input and retry (programming-model.md, section 6.3).
+// Peak ceiling for maximum immutable host input and retry (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 74_781 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const HOST_RELAY_CEILING: u64 = 94_000;
 
@@ -897,7 +897,7 @@ fn complete_declaration_and_maximum_opaque_input_answer_retries_reach_the_measur
     assert_eq!((domain.runs(), domain.conversations(), domain.calls()), (0, 0, 0));
 }
 
-// Peak ceiling for full owning convention paths (programming-model.md, section 6.3).
+// Peak ceiling for full owning convention paths (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 22_684 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const SELECTED_PATHS_CEILING: u64 = 29_000;
 
@@ -911,7 +911,7 @@ fn maximum_selected_read_probe_and_check_paths_attain_the_full_run_ownership_bou
     fill_selected(&Limits { run_bytes: 16_384, ..LIMITS }, Some(&selected), SELECTED_PATHS_CEILING);
 }
 
-// Peak ceiling for an awaiting run retaining its full charter (programming-model.md, section 6.3).
+// Peak ceiling for an awaiting run retaining its full charter (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 5_644 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const AWAITING_CEILING: u64 = 7_100;
 
@@ -969,7 +969,7 @@ fn an_awaiting_run_retains_its_full_charter_without_allocating_a_session() {
     assert_eq!((domain.runs(), domain.conversations(), domain.calls()), (0, 0, 0));
 }
 
-// Peak ceiling for the largest final note at scalar maxima (programming-model.md, section 6.3).
+// Peak ceiling for the largest final note at scalar maxima (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 7_948 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const FINAL_NOTE_CEILING: u64 = 10_000;
 

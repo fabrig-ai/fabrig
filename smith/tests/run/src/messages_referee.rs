@@ -1,11 +1,11 @@
-//! Message terminal oracle over actual content-free run output. Skein owns
-//! judgments and liveness. Contract: domain/run.md, sections 6 and 13.
+//! Message terminal oracle over content-free run output. Skein owns
+//! judgments and liveness. Contract: smith/docs/design/domain/run.md, sections 6 and 13.
 
 use skein_lib::{Duration, Time, Token};
 use skein_world::domain::{Expectations, Judge, Referee, Verdict};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-/// One actual message fact or the final boundary fence.
+/// One message fact or the final boundary fence.
 #[derive(Clone, Copy, Debug)]
 pub enum Seen {
     /// The run admitted this name into its inbox.
@@ -57,12 +57,12 @@ impl Expectations for Meeting {
                 judge.check(self.terminal.insert(name), "every accepted message has one terminal");
             }
             Seen::Fence { read } => {
-                judge.check(read == self.read, "fences follow actual read terminals in arrival order");
+                judge.check(read == self.read, "fences follow read terminals in arrival order");
                 self.fence = read;
             }
             Seen::Answer { read } => {
                 judge.check(self.queued.is_empty(), "every accepted message ends by the answer");
-                judge.check(read == self.fence && read == self.read, "answer retains the last actual told fence");
+                judge.check(read == self.fence && read == self.read, "answer retains the last told fence");
                 judge.withdraw(&"message terminals");
                 self.answered = true;
             }
@@ -70,7 +70,7 @@ impl Expectations for Meeting {
     }
 }
 
-/// Judge actual per-activation observations through Skein's referee.
+/// Judge per-activation observations through Skein's referee.
 #[must_use]
 pub fn judge(seen: &[(Time, Token, Seen)]) -> Vec<Verdict> {
     let mut meetings = BTreeMap::new();

@@ -1,5 +1,5 @@
 //! Startup-derived fresh windows through the real session boundary.
-//! Contract: protocol/limits.md, sections 3.2, 3.9 and 4.
+//! Contract: smith/docs/design/protocol/limits.md, sections 3.2, 3.9 and 4.
 
 use skein_lib::{Duration, Queue};
 use smith_agent_service::profile::{self, Configuration, Endpoint, Model, OversizedReasoning};
@@ -38,7 +38,7 @@ fn a_window_opened_at_its_largest_makes_its_first_completion() {
         };
         let limits = profile::derive(&profile, &declarations).expect("small real model derives");
         let allowance = profile::endpoint_allowance(&profile, &declarations.endpoints[0], &limits.domain.session.tools)
-            .expect("actual schemas and provider framing");
+            .expect("schemas and provider framing");
         let client =
             profile::endpoint_client(&profile, &declarations.endpoints[0], limits.domain.session.history_blocks)
                 .expect("native client");
@@ -90,7 +90,7 @@ fn a_window_opened_at_its_largest_makes_its_first_completion() {
         final_world.complete(smith_session_world::recorded::called(), llm::Stop::ToolUse, llm::Usage::ZERO);
         final_world.resume();
         assert!(final_world.delegated.is_empty(), "final-turn calls start no effects");
-        let turn = final_world.turns.last().expect("the actual final completion produces a durable turn");
+        let turn = final_world.turns.last().expect("the final completion produces a durable turn");
         let mut names = skein_lib::List::with_capacity(1);
         names
             .push(smith_protocol_channel::Endpoint {

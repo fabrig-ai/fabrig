@@ -412,7 +412,7 @@ fn an_expired_completion_fills_every_fact_inventory() {
     let mut answer = completion(full_batch(&limits), Stop::ToolUse);
     answer.reasoning_dropped = vec![1; usize::try_from(limits.completion_blocks).unwrap()].into_boxed_slice();
     crate::session::completed(&mut harness.domain, &harness.env, session, answer, &mut harness.out);
-    crate::session::pass_on_facts(&mut harness.domain, &harness.env);
+    crate::session::pass_on_facts(&mut harness.domain);
     assert_fact_count(&mut harness, bound);
 }
 

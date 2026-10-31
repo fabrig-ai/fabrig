@@ -1,7 +1,7 @@
 //! Admission limits and checked capacities. This module retains no runtime state.
 //! `valid` checks limit compatibility and representable capacities, without knowing live ownership.
 //!
-//! Contract: domain/session.md, sections 3 and 6; programming-model.md, sections 4.4, 4.5 and 6.3.
+//! Contract: smith/docs/design/domain/session.md, sections 3 and 6; skein/docs/foundation/programming-model.md, sections 4.4, 4.5 and 6.3.
 
 use skein_lib::Duration;
 use smith_domain_tools as tools;
@@ -17,7 +17,7 @@ pub const MAX_PARALLEL: u32 = 8;
 /// session's retained count; the protocol guard still measures the exact request.
 pub const ENCODED_BYTES: [u32; 2] = [5, 4];
 
-/// The session child domain's limits (programming-model.md, sections 4.5 and 6.3), handed by its parent to every
+/// The session child domain's limits (skein/docs/foundation/programming-model.md, sections 4.5 and 6.3), handed by its parent to every
 /// step read-only.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
@@ -96,7 +96,7 @@ pub fn completion_reserve(limits: &Limits) -> Option<u64> {
 }
 
 /// Whether a domain can be built under `limits`: compatible limits and
-/// representable constructor capacities (programming-model.md, section 6.3).
+/// representable constructor capacities (skein/docs/foundation/programming-model.md, section 6.3).
 /// The shell refuses limits for which this is false.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
@@ -143,7 +143,7 @@ pub struct Derivation {
     pub delegated_result_bytes: u64,
     pub output_items: u32,
     pub detail: u32,
-    /// Receiving ceiling for the actual opening's measured protocol contribution.
+    /// Receiving ceiling for the opening's measured protocol contribution.
     pub protocol_allowance: u64,
     /// Numerator and denominator of the compaction share.
     pub threshold: [u32; 2],
@@ -184,7 +184,7 @@ impl Field {
 }
 
 /// Derive this layer from declarations, refusing checked arithmetic overflow.
-/// Contract: protocol/limits.md, sections 2 and 3.
+/// Contract: smith/docs/design/protocol/limits.md, sections 2 and 3.
 pub fn derive(inputs: &Derivation) -> Result<Limits, Field> {
     if inputs.conversations == 0 {
         return Err(Field::Sessions);

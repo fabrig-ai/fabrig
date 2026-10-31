@@ -1,8 +1,8 @@
 //! Main receives literal host instructions; a fresh Open main receives its
 //! ordered titled Brief as the first user message, a Finite main in system text;
-//! a child receives only its caller's raw task (domain/run.md, sections 3.1,
+//! a child receives only its caller's raw task (smith/docs/design/domain/run.md, sections 3.1,
 //! 3.3, 3.4, 5.3 and 9.2). Both then receive selected guides, run mechanics and
-//! budget prose fixed at their actual opening.
+//! budget prose fixed at their opening.
 //! `opening` composes a fresh main brief or begin instruction and its bounded message offer;
 //! with concrete history, it offers only messages or a saved-conversation continuation.
 //! No prompt state is retained here; title/text meaning and authority are never
@@ -10,7 +10,7 @@
 //! session receiving bytes still decide whether the rendered opening fits.
 //!
 //! A text is rendered twice: once to measure it, then into a [`Writer`] of
-//! exactly that length (programming-model.md, section 8).
+//! exactly that length (skein/docs/foundation/programming-model.md, section 8).
 
 use alloc::boxed::Box;
 
@@ -55,7 +55,7 @@ const WAIT: &[u8] = b"Call `wait` when you need another message; its result is w
 
 /// Measure the largest fixed system mechanics and the opening instruction.
 /// Charter forms, names, conventions, guides and their scaffolding are excluded.
-/// Contract: protocol/limits.md, section 3.9.
+/// Contract: smith/docs/design/protocol/limits.md, section 3.9.
 #[must_use]
 pub fn fixed_prompt_bytes() -> Option<u64> {
     let mut measured = Text::measuring();
@@ -248,7 +248,7 @@ fn count_host_bytes(charter: &Charter, mounted: Option<&Workspace>, guide_bytes:
 }
 
 /// Bytes a brief adds to the host part, including each section's heading and
-/// paragraph termination (domain/run.md, sections 3.1 and 4). An empty brief
+/// paragraph termination (smith/docs/design/domain/run.md, sections 3.1 and 4). An empty brief
 /// adds zero bytes, in either message role; the count is additive with the
 /// non-brief host bytes. Returns `None` on overflow.
 #[must_use]
@@ -341,7 +341,7 @@ pub(crate) fn child(
 }
 
 /// Maximum new immutable budget/share prose, measured at scalar maxima without allocation.
-/// The profile adds this to its other fixed prompt bytes (domain/run.md, section 9.2).
+/// The profile adds this to its other fixed prompt bytes (smith/docs/design/domain/run.md, section 9.2).
 #[must_use]
 pub fn budget_prompt_bytes() -> Option<u64> {
     let mut main = Text::measuring();

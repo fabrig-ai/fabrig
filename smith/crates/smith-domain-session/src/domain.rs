@@ -1,5 +1,5 @@
-//! The session child domain's state and its entry points (domain/session.md,
-//! sections 3–7; programming-model.md, sections 4.5 and 6.3). [`Domain`]
+//! The session child domain's state and its entry points (smith/docs/design/domain/session.md,
+//! sections 3–7; skein/docs/foundation/programming-model.md, sections 4.5 and 6.3). [`Domain`]
 //! retains sessions, tools, alarms, deferred ready work, injected randomness
 //! and uncapped facts. [`step`], [`fire`] and [`resume`] emit owned requests.
 //! Facts are kept losslessly and drained by their queued count.
@@ -180,7 +180,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Cancelled { owner } => session::cancelled(domain, env, owner, out),
         Event::Done { owner, done } => session::io_done(domain, env, owner, done, out),
     }
-    session::pass_on_facts(domain, env);
+    session::pass_on_facts(domain);
 }
 
 /// Fires the earliest alarm due at `env.now` into an uncapped request queue.
@@ -196,7 +196,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         Alarm::Expiry { session } => session::expire(domain, env, session, out),
         Alarm::Retry { session } => session::retry(domain, env, session, out),
     }
-    session::pass_on_facts(domain, env);
+    session::pass_on_facts(domain);
 }
 
 /// Starts a session on the ready list again, emitting into an uncapped request
@@ -208,5 +208,5 @@ pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
         return;
     };
     session::rested(domain, env, id, out);
-    session::pass_on_facts(domain, env);
+    session::pass_on_facts(domain);
 }

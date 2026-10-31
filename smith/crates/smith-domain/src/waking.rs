@@ -1,4 +1,4 @@
-//! Bounded text for answers absent from a resumed transcript (domain/run.md, section 6).
+//! Bounded text for answers absent from a resumed transcript (smith/docs/design/domain/run.md, section 6).
 //! The root translates each semantic answer through its live feedback renderer,
 //! then gives the session one first prompt. No provider message is assembled here.
 

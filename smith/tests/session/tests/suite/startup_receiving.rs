@@ -1,5 +1,5 @@
 //! The frozen phase-one control must be refused before effects or service four turns.
-//! Contract: protocol/limits.md, sections 3.2 and 4; domain/session.md, section 5.
+//! Contract: smith/docs/design/protocol/limits.md, sections 3.2 and 4; smith/docs/design/domain/session.md, section 5.
 
 use skein_lib::{Duration, Queue, Token};
 use smith_agent_service::profile::{self, Check, Configuration, Endpoint, Model, OversizedReasoning, Refusal, Value};
@@ -50,7 +50,7 @@ fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns(
             );
             return;
         }
-        Err(refusal) => panic!("the frozen control needs its actual receiving refusal: {refusal:?}"),
+        Err(refusal) => panic!("the frozen control needs its receiving refusal: {refusal:?}"),
     };
     assert!(limits.domain.session.history_messages > 4, "the defect is not six-message room");
     let allowance = profile::endpoint_allowance(&profile, &configuration.endpoints[0], &limits.domain.session.tools)
@@ -103,6 +103,6 @@ fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns(
         error: false,
         spent: 0,
     });
-    assert!(world.delegated.is_empty(), "actual finish receiving right has its terminal");
+    assert!(world.delegated.is_empty(), "finish receiving right has its terminal");
     world.close();
 }

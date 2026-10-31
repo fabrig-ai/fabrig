@@ -1,5 +1,5 @@
-//! The run child domain's state and its entry points (domain/run.md, sections
-//! 3, 5, 6 and 10; programming-model.md, sections 4.5 and 6.3). [`Domain`]
+//! The run child domain's state and its entry points (smith/docs/design/domain/run.md, sections
+//! 3, 5, 6 and 10; skein/docs/foundation/programming-model.md, sections 4.5 and 6.3). [`Domain`]
 //! retains seeded admission randomness, runs, conversations, delegated calls,
 //! alarms, deferred wind-down effects and uncapped facts.
 //! [`step`] accepts parent events, [`fire`] handles due alarms and [`resume`]
@@ -203,7 +203,7 @@ pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
 
 /// Root asks before publishing a completion. This may record the finishing
 /// stage and keep deferred child closures; it never starts provider work.
-/// `most` is its priced maximum, or Unreserved for a program (programs.md 5.7).
+/// `most` is its priced maximum, or Unreserved for a program (smith/docs/design/protocol/programs.md 5.7).
 #[must_use]
 pub fn completion_permit(
     domain: &mut Domain,
@@ -214,7 +214,7 @@ pub fn completion_permit(
     run::completion_permit(domain, conversation, now, most)
 }
 
-/// Admit a completion, reserving a direct backend's priced maximum (programs.md 5.7).
+/// Admit a completion, reserving a direct backend's priced maximum (smith/docs/design/protocol/programs.md 5.7).
 pub fn reserve(
     domain: &mut Domain,
     conversation: Token,

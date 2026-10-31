@@ -1,4 +1,4 @@
-//! Sealed host delivery terminals and durable names (domain/run.md, section 8).
+//! Sealed host delivery terminals and durable names (smith/docs/design/domain/run.md, section 8).
 //! This module keeps no runtime state. Constructors bound owned receipts and
 //! marker feedback before they cross a domain boundary; the receiver additionally
 //! validates directory ordinals against its admitted writable mounts. It never
@@ -16,8 +16,8 @@ pub struct CallName {
     /// The host never reuses it when a run restarts.
     pub activation: u64,
 
-    /// One-based accepted completion sequence, including restored V2 history.
-    /// Exhaustion refuses effects before submission; V1 names only this activation.
+    /// One-based accepted completion sequence, including restored history.
+    /// Exhaustion refuses effects before submission; numbering is local to this activation.
     pub completion: u32,
 
     /// Zero-based assistant block ordinal, bounded by assistant content byte storage and
@@ -213,7 +213,7 @@ impl DeliveryRefusal {
 /// It carries no receipt, path, diagnostic or host policy text.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum DeliveryStatus {
-    /// Actual landing.
+    /// Landing.
     Delivered,
 
     /// No changed directory.
@@ -222,7 +222,7 @@ pub enum DeliveryStatus {
     /// Correctable host refusal.
     Refused,
 
-    /// Actual host failure classification.
+    /// Host failure classification.
     Failed(
         /// Fixed host reason, with no diagnostic or policy bytes.
         DeliveryReason,
@@ -358,7 +358,7 @@ pub enum Delivery {
         DeliveryRefusal,
     ),
 
-    /// Actual failed operation with bounded feedback.
+    /// Failed operation with bounded feedback.
     Failed(
         /// Generic reason and fixed 512-byte diagnostic tail/drop count.
         DeliveryFailure,

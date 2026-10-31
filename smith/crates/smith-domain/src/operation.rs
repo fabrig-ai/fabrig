@@ -1,6 +1,6 @@
-//! Issued provider and command notices (domain/host.md, section 4; protocol/channel.md,
+//! Issued provider and command notices (smith/docs/design/domain/host.md, section 4; smith/docs/design/protocol/channel.md,
 //! section 4). The root's bounded map retains IO owners and logical runs.
-//! These entry points announce actual provider/Spawn issuance and actual terminals,
+//! These entry points announce provider/Spawn issuance and terminals,
 //! never a cancellation request or provider/tool syntax.
 
 use crate::{Domain, Operation, Request, domain::IssuedCompletion, run, tools};
@@ -19,7 +19,7 @@ pub(crate) fn command(domain: &mut Domain, owner: Token, op: &tools::Op, deadlin
         let conversation = domain.session.io_opener(owner).expect("issued command retains its session");
         let host_run = run::host_name(&domain.run, conversation).expect("issued command retains its run");
         let old = domain.commands.insert(owner, host_run).expect("one command per live tools call");
-        assert!(old.is_none(), "the previous operation has actually ended");
+        assert!(old.is_none(), "the previous operation has ended");
         out.push(Request::Long { host_run, operation: Operation::Command, until: deadline });
     }
 }
@@ -44,7 +44,7 @@ pub(crate) fn begin_completion(
     out.push(Request::Long { host_run, operation: Operation::Completion, until });
 }
 
-/// A provider terminal ends the actual issued span before session work proceeds.
+/// A provider terminal ends the issued span before session work proceeds.
 pub(crate) fn completion_done(domain: &mut Domain, owner: Token) -> IssuedCompletion {
     let issued = domain.completions.remove(&owner).expect("provider terminal belongs to an emitted call");
     let id = *domain.sessions.get(&owner).expect("session lives through its provider terminal");

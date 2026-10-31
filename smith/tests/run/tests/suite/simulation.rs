@@ -24,7 +24,7 @@ fn answers(world: &World) -> Vec<&Answer> {
 }
 
 /// A retained host decision outlives the crashed domain. The host writes its
-/// own wake message from the answer it actually recorded.
+/// own wake message from the answer it recorded.
 struct CrashHost {
     starts: Vec<run::Event>,
     decision: Option<run::HostAnswer>,
@@ -616,14 +616,14 @@ fn a_check_deadline_terminal_returns_feedback_without_submitting_to_host() {
             ..settings.checkout
         },
         races: 0,
-        // Actual Root Opened/Started is synchronous. This focused story
+        // Root Opened/Started is synchronous. This focused story
         // adds no artificial session hop, so the IO deadline really ties
         // the run alarm; noisy worlds retain their independent hop races.
         hop: Span::millis(0, 0),
         ..settings
     });
     let stats = world.stats();
-    // IO supplies its deadline terminal before alarms fire (programming-model.md, section 2).
+    // IO supplies its deadline terminal before alarms fire (skein/docs/foundation/programming-model.md, section 2).
     // The stopped check returns feedback; there is no live check to abort or delivery to submit.
     assert!(stats.checks == 4 && stats.partner.checks_failed == 4, "{stats:?}");
     assert_eq!(stats.aborts, 0, "{stats:?}");
@@ -876,9 +876,9 @@ fn a_child_that_reaches_its_final_turn_answers_for_its_budget() {
             };
             (granted.turns >= 2).then_some((run, conversation))
         })
-        .expect("the story actually gives a child at least two turns");
+        .expect("the story gives a child at least two turns");
     bad.push(run::facts::Fact {
-        at: bad.last().expect("actual facts").at,
+        at: bad.last().expect("facts").at,
         kind: run::facts::FactKind::Ended {
             run: opened.0,
             conversation: opened.1,
@@ -963,7 +963,7 @@ fn empty_reports_and_declared_failures_are_terminal_results_without_delivery() {
                 | Answer::Failed { .. }
                 | Answer::Refused(_)
                 | Answer::Parked { .. } => {
-                    panic!("report/failure finish must produce its actual text result: {answer:?}")
+                    panic!("report/failure finish must produce its text result: {answer:?}")
                 }
             }
         }
