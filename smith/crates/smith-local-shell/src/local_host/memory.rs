@@ -14,6 +14,7 @@ pub(crate) struct Admission {
 }
 
 /// Startup resource needs without any credential file locations.
+#[derive(Clone, Copy)]
 pub(crate) struct AccountNeeds {
     pub handed: bool,
     pub programs: bool,
