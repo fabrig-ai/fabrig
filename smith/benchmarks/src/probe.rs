@@ -885,8 +885,8 @@ fn comparison(
         let (before_build, _, before_batch) = before.ok_or("fix lacks parent")?;
         let finding = crate::fix::report(
             order.probe.clone(),
-            crate::fix::actual(&before_build, &before_batch.results, &before_batch)?,
-            crate::fix::actual(&after_build, &batch.results, &batch)?,
+            crate::fix::collected(&before_build, &before_batch.results, &before_batch)?,
+            crate::fix::collected(&after_build, &batch.results, &batch)?,
         );
         print!("{}", crate::fix::body(&finding));
         return Ok(match finding.shown {

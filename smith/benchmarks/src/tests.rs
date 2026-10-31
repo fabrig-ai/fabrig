@@ -988,7 +988,7 @@ fn task_waivers_keep_raw_passive_failures_and_unavailable_judgments() {
         CheckVerdict {
             check: Passive::NoLimitFailure.name().into(),
             passed: Measure::Observed { value: false },
-            evidence: vec!["actual limit record".into()],
+            evidence: vec!["limit record".into()],
         },
         CheckVerdict {
             check: Passive::Paired.name().into(),

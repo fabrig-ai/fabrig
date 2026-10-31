@@ -23,7 +23,7 @@ fn children_overlap_requires_positive_time_in_the_same_run() {
 }
 
 #[test]
-fn parallel_tasks_are_frozen_and_decide_actual_call_and_child_evidence() {
+fn parallel_tasks_are_frozen_and_decide_observed_call_and_child_evidence() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let read =
         smith_bench::check_task(&root.join("tasks/probes/parallel-read/task.toml"), &root.join("../docs/design"))
@@ -123,7 +123,7 @@ fn children(intervals: [(u64, u64, u64); 2]) -> Vec<Record> {
         }
         records.extend([opening, closure]);
     }
-    // Retain actual session framing around the synthetic intervals.
+    // Retain session framing around the synthetic intervals.
     let mut terminal = records.remove(7);
     terminal.t_ms = 100;
     records.sort_by_key(|record| record.t_ms);

@@ -373,9 +373,9 @@ fn captured_native_child_headers_and_usage_keep_each_response_in_its_own_scope()
     let root = "01a121d2-5c3c-74b1-865b-66d8c6f41c3a";
     let child = "01a121d2-6e5a-7e30-abd0-133d08c8c960";
     let (_, responses) =
-        parse_rollout(include_bytes!("../recorded/codex/live-root-rollout.jsonl"), root).expect("actual root");
-    let (link, child_responses) = parse_rollout(include_bytes!("../recorded/codex/live-child-rollout.jsonl"), child)
-        .expect("actual inherited context");
+        parse_rollout(include_bytes!("../recorded/codex/live-root-rollout.jsonl"), root).expect("root");
+    let (link, child_responses) =
+        parse_rollout(include_bytes!("../recorded/codex/live-child-rollout.jsonl"), child).expect("inherited context");
     assert_eq!(link, Link::Linked { parent: root.into() });
     assert_eq!(responses.len(), 4);
     assert_eq!(child_responses.len(), 2);
@@ -393,7 +393,7 @@ fn captured_native_child_headers_and_usage_keep_each_response_in_its_own_scope()
             },
         ],
     };
-    let tokens = collected.token_records(root).expect("actual scope totals");
+    let tokens = collected.token_records(root).expect("scope totals");
     assert!(matches!(
         tokens.iter().find(|r| r.role == ScopeKind::Total).expect("total").usage.output,
         Measure::Observed { value: 186 }
@@ -420,7 +420,6 @@ fn pinned_adapters_usage_collection_and_private_credentials() {
     captured_native_child_headers_and_usage_keep_each_response_in_its_own_scope();
 }
 
-/// Lower test of smith-bench's `codex_adapter::paths_use_the_declared_working_directory_and_refuse_escaped_paths_before_credentials` (top tiers test wiring only).
 #[test]
 fn paths_use_the_declared_working_directory_and_refuse_escaped_paths_before_credentials() {
     use smith_bench::agent::Context;
@@ -443,7 +442,7 @@ fn paths_use_the_declared_working_directory_and_refuse_escaped_paths_before_cred
         &task.seed_sha256,
         &root.join("scratch"),
     )
-    .expect("actual seed materialisation");
+    .expect("seed materialisation");
     // Supply the authored read-only layout; preparation tests no command execution.
     std::fs::set_permissions(private.workspace.join("spec/rules.txt"), std::fs::Permissions::from_mode(0o400))
         .expect("read-only file fixture");
@@ -471,7 +470,7 @@ fn paths_use_the_declared_working_directory_and_refuse_escaped_paths_before_cred
     };
     for task in [&task, &task.with_variant("single").expect("single task")] {
         let context = Context { task, ..context };
-        let prepared = smith_bench::agent::codex::prepare(&context).expect("actual Codex preparation, no invocation");
+        let prepared = smith_bench::agent::codex::prepare(&context).expect("Codex preparation, no invocation");
         assert_eq!(prepared.workspace, private.workspace.join("app"));
         let invocation = prepared.command();
         let index = invocation.arguments.iter().position(|argument| argument == "-C").expect("working directory flag");

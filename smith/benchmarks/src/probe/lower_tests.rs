@@ -66,7 +66,6 @@ impl Fixture {
     }
 }
 
-/// Lower test of smith-bench's `probe_command::a_probe_order_writes_one_request_per_attempt_with_its_pin_and_tier` (top tiers test wiring only).
 #[test]
 fn supplied_arm_plans_each_attempt_with_pin_and_tier() {
     let fixture = Fixture::new("smith");
@@ -93,7 +92,6 @@ fn supplied_arm_plans_each_attempt_with_pin_and_tier() {
     fixture.clean();
 }
 
-/// Lower test of smith-bench's `probe_command::a_codex_order_takes_the_standard_codex_pin` (top tiers test wiring only).
 #[test]
 fn installed_codex_selects_the_standard_pin_without_environment() {
     let fixture = Fixture::new("codex");
@@ -106,7 +104,6 @@ fn installed_codex_selects_the_standard_pin_without_environment() {
     fixture.clean();
 }
 
-/// Lower test of smith-bench's `probe_command::the_program_order_keeps_its_own_arm_identity` (top tiers test wiring only).
 #[test]
 fn program_order_keeps_provider_model_pin_and_arm_identity() {
     let fixture = Fixture::new("program");

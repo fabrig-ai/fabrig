@@ -268,7 +268,7 @@ impl Observer {
         Ok(seen)
     }
 
-    /// Count per-response usage once within each session and run's actual scope.
+    /// Count per-response usage once within each session and run's scope.
     pub fn tokens(&self) -> Result<Vec<TokenRecord>, HarnessFault> {
         usage::tokens(&self.sessions, &mut Vec::new()).map_err(fault)
     }
@@ -298,7 +298,7 @@ impl Observer {
         usage::counts(&self.sessions)
     }
 
-    /// Hold genuine exit and force against the last authoritative run answer.
+    /// Hold exit and force against the last authoritative run answer.
     #[must_use]
     pub fn classify(&self, exit: Exit, forced: Forced) -> Classification {
         classify::classify(self, exit, forced)

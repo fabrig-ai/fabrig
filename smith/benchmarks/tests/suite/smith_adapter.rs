@@ -185,7 +185,7 @@ fn a_terminal_person_closes_after_main_acceptance_and_drains_the_final_file_reco
 }
 
 #[test]
-fn an_incomplete_file_record_faults_after_genuine_tree_settlement_and_retains_its_prefix() {
+fn an_incomplete_file_record_faults_after_observed_tree_settlement_and_retains_its_prefix() {
     let directory = root("partial");
     std::fs::create_dir(&directory).expect("fixture directory");
     let trace = directory.join("trace.jsonl");
@@ -206,7 +206,6 @@ fn an_incomplete_file_record_faults_after_genuine_tree_settlement_and_retains_it
     std::fs::remove_dir_all(directory).expect("fixture cleanup");
 }
 
-/// Lower test of smith-bench's `smith_adapter::path_mounts_reach_native_policy_and_escaped_mounts_refuse_before_credentials` (top tiers test wiring only).
 #[test]
 fn path_mounts_reach_native_policy_and_escaped_mounts_refuse_before_credentials() {
     let fixture = exec::ExecFixture::rendering("path-settings");
@@ -272,9 +271,8 @@ fn mount_refusals(context: &smith_bench::agent::Context<'_>, task: &mut smith_be
     }
 }
 
-/// Lower test of smith-bench's `smith_adapter::every_probe_tasks_overrides_pass_the_actual_public_startup_derivation` (top tiers test wiring only).
 #[test]
-fn every_probe_tasks_overrides_pass_the_actual_public_startup_derivation() {
+fn every_probe_tasks_overrides_pass_the_observed_public_startup_derivation() {
     let fixture = exec::ExecFixture::rendering("all-probe-settings");
     for name in ["app", "spec"] {
         std::fs::create_dir_all(fixture.context().private.workspace.join(name)).expect("probe mount");
@@ -296,9 +294,8 @@ fn every_probe_tasks_overrides_pass_the_actual_public_startup_derivation() {
     fixture.clean();
 }
 
-/// Lower test of smith-bench's `smith_adapter::tool_output_profiles_render_and_pass_the_actual_public_startup_derivation` (top tiers test wiring only).
 #[test]
-fn tool_output_profiles_render_and_pass_the_actual_public_startup_derivation() {
+fn tool_output_profiles_render_and_pass_the_observed_public_startup_derivation() {
     let fixture = exec::ExecFixture::rendering("tool-output-settings");
     let task = authored_task("tool-output");
     for variant in &task.variant {
@@ -316,9 +313,8 @@ fn tool_output_profiles_render_and_pass_the_actual_public_startup_derivation() {
     fixture.clean();
 }
 
-/// Lower test of smith-bench's `smith_adapter::process_tree_profile_renders_and_passes_the_actual_public_startup_derivation` (top tiers test wiring only).
 #[test]
-fn process_tree_profile_renders_and_passes_the_actual_public_startup_derivation() {
+fn process_tree_profile_renders_and_passes_the_observed_public_startup_derivation() {
     let fixture = exec::ExecFixture::rendering("process-tree-settings");
     let task = authored_task("process-tree");
     let context = smith_bench::agent::Context { task: &task, ..fixture.context() };
@@ -332,9 +328,8 @@ fn process_tree_profile_renders_and_passes_the_actual_public_startup_derivation(
     fixture.clean();
 }
 
-/// Lower test of smith-bench's `smith_adapter::slow_completion_profile_renders_and_passes_the_actual_public_startup_derivation` (top tiers test wiring only).
 #[test]
-fn slow_completion_profile_renders_and_passes_the_actual_public_startup_derivation() {
+fn slow_completion_profile_renders_and_passes_the_observed_public_startup_derivation() {
     let fixture = exec::ExecFixture::rendering("slow-completion-settings");
     let task = authored_task("slow-completion");
     let context = smith_bench::agent::Context { task: &task, ..fixture.context() };
@@ -514,7 +509,6 @@ fn a_time_breakdown_sums_to_task_wall_within_one_second() {
     assert!(value(&timing.longest_completion_ms) > 10_000);
 }
 
-/// Lower test of smith-bench's `smith_adapter::a_task_override_reaches_smith_as_a_product_setting` (top tiers test wiring only).
 #[test]
 fn a_task_override_reaches_smith_as_a_product_setting() {
     let fixture = exec::ExecFixture::rendering("task-setting");
@@ -527,7 +521,6 @@ fn a_task_override_reaches_smith_as_a_product_setting() {
     fixture.clean();
 }
 
-/// Lower test of smith-bench's `smith_adapter::a_comparison_pin_keeps_every_preset_value_and_the_default_role` (top tiers test wiring only).
 #[test]
 fn a_comparison_pin_keeps_every_preset_value_and_the_default_role() {
     let fixture = exec::ExecFixture::rendering("comparison-settings");
@@ -575,7 +568,6 @@ fn a_comparison_pin_keeps_every_preset_value_and_the_default_role() {
     fixture.clean();
 }
 
-/// Lower test of smith-bench's `smith_adapter::a_task_without_a_budget_renders_the_products_defaults` (top tiers test wiring only).
 #[test]
 fn a_task_without_a_budget_renders_the_products_defaults() {
     let fixture = exec::ExecFixture::rendering("default-budget");

@@ -1,4 +1,4 @@
-//! Passive judgments use reported boundaries, actual pairs and per-response sums.
+//! Passive judgments use reported boundaries, pairs and per-response sums.
 //! No skipped record, absent limit or unavailable field is proof of compliance.
 //! Contract: benchmarks.md, section11.2; protocol/events.md, sections3/5.2.
 

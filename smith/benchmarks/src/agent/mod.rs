@@ -136,7 +136,7 @@ impl Observing {
         }
     }
 
-    /// The actual root final message, where the selected stream retains it.
+    /// The root final message, where the selected stream retains it.
     #[must_use]
     pub fn answer(&self) -> Option<String> {
         match self {
@@ -166,7 +166,7 @@ impl Observing {
         }
     }
 
-    /// Classify from the selected face, its accepted answer and genuine tree exit.
+    /// Classify from the selected face, its accepted answer and tree exit.
     #[must_use]
     pub fn classify(&self, exit: crate::Exit, forced: crate::Forced) -> crate::Classification {
         match self {

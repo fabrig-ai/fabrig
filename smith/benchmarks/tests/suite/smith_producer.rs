@@ -1,4 +1,4 @@
-//! The published events face receives the actual frozen control's writer bounds.
+//! The published events face receives the frozen control's writer bounds.
 //! This crosses the local settings translation, startup derivation and registry;
 //! it assumes no global range for task-selected model or policy overrides.
 
@@ -69,5 +69,5 @@ capture='everything'
     assert_eq!(receiving.limits().expect("semantic caps"), producer.sinks.records);
     assert_eq!(receiving.encoded_line, producer.sinks.line_ceiling(producer.capture).expect("joint writer ceiling"));
     smith_events::Reader::with_ceiling(&receiving.limits().expect("preserved caps"), receiving.encoded_line)
-        .expect("actual receiving values construct without a Cartesian fallback");
+        .expect("receiving values construct without a Cartesian fallback");
 }

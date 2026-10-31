@@ -68,7 +68,7 @@ names are `<kind>/<id>[/<variant>]`; behaviour selections resolve through
 the task catalogue. Pins freeze each agent's provider, version and exact
 configuration bytes. Unknown fields and unresolved model tiers refuse
 setup. The small tier is pinned for both providers; the Codex working
-tier uses `gpt-6-astra` at high effort.
+tier uses `gpt-6.1-sol` at high effort.
 
 `validate probes/credentials` checks the probe's offline pair controls: an
 unchanged generation and a refused refresh fail, and two completions with
@@ -105,7 +105,7 @@ overwrites. Commit these
 summaries and baselines; raw attempt data stays outside repositories.
 Smoke and fix evidence belongs in commit bodies.
 
-Results are strict version-three JSON documents with observed,
+Results are strict version-four JSON documents with observed,
 lower-bound or unavailable measurements. Missing observations never
 become zero or a root-only fallback. Token records retain their scope
 and convention, deduplicate responses and name missing child evidence.

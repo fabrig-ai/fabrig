@@ -1,5 +1,5 @@
 //! Deciding observations produce pass, fail or incomplete; raw advisory evidence
-//! stays archived. Contract: benchmarks.md sections3.2/11 and the 00.12 exit-code steer.
+//! stays archived. Contract: benchmarks.md sections3.2/11.
 
 use crate::{AttemptResult, End, Measure};
 

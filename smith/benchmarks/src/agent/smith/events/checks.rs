@@ -158,7 +158,7 @@ fn calls_one_response(observer: &Observer, tool: &str, at_least: u32) -> Measure
             let count = completion
                 .blocks
                 .iter()
-                .filter(|block| matches!(block, Block::Call { tool: actual, .. } if actual.as_ref() == tool.as_bytes()))
+                .filter(|block| matches!(block, Block::Call { tool: got, .. } if got.as_ref() == tool.as_bytes()))
                 .count();
             if u64::try_from(count).expect("blocks fit") >= u64::from(at_least) {
                 return measured(true);
@@ -343,10 +343,10 @@ fn evaluate_complete(observer: &Observer, check: &EventCheck, task: &str, curren
             }).collect();
             if let Some(expected) = which {
                 for value in &terminals {
-                    let Some(actual) = value.failure.as_ref().and_then(|failure| failure.which.as_ref()) else {
+                    let Some(got) = value.failure.as_ref().and_then(|failure| failure.which.as_ref()) else {
                         return unavailable("run failure typed identity was not retained");
                     };
-                    if actual.as_ref() != expected.as_bytes() { return measured(false); }
+                    if got.as_ref() != expected.as_bytes() { return measured(false); }
                 }
             }
             if let Some(pattern) = reason {
@@ -408,7 +408,7 @@ fn provider_failure(observer: &Observer, minimum: u16, maximum: u16, detail_boun
             let (Some(status), Some(detail)) = (failure.status, failure.detail.as_ref()) else {
                 return CheckVerdict {
                     check: "provider-failure".into(),
-                    passed: unavailable("actual HTTP status or provider diagnostic was not captured"),
+                    passed: unavailable("HTTP status or provider diagnostic was not captured"),
                     evidence,
                 };
             };
@@ -507,21 +507,21 @@ fn tool_timeout(
                     continue;
                 }
                 if let Some(command) = command {
-                    let Some(actual) = input.get("command").and_then(serde_json::Value::as_str) else {
+                    let Some(got) = input.get("command").and_then(serde_json::Value::as_str) else {
                         return CheckVerdict {
                             check: "tool-timeout".into(),
                             passed: unavailable("shell command identity was not retained"),
                             evidence,
                         };
                     };
-                    passed &= actual == command;
-                    evidence.push(format!("command={actual}"));
+                    passed &= got == command;
+                    evidence.push(format!("command={got}"));
                 }
                 count = count.checked_add(1).expect("retained shell count fits");
                 let Some(deadline) = start.deadline_ms else {
                     return CheckVerdict {
                         check: "tool-timeout".into(),
-                        passed: unavailable("actual shell call bound was not emitted"),
+                        passed: unavailable("shell call bound was not emitted"),
                         evidence,
                     };
                 };

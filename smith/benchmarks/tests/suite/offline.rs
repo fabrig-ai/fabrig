@@ -180,7 +180,7 @@ fn every_committed_suite_and_configuration_pin_is_checked_offline() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let counts = smith_bench::check_benchmark_tree_with_bundles(&root, &design(), &root.join("tests/recorded/bundles"))
         .expect("all benchmark manifests validate");
-    assert!(counts.configurations > 0, "committed pins are actually checked");
+    assert!(counts.configurations > 0, "committed pins are checked");
 }
 
 fn the_recorded_suite_resolves_its_frozen_task_and_pin() {

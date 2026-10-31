@@ -50,7 +50,7 @@ fn failure_variants_keep_their_class_codes_and_do_not_invent_startup_terminals()
 }
 
 #[test]
-fn model_failure_requires_the_run_class_and_the_actual_matching_exit() {
+fn model_failure_requires_the_run_class_and_the_observed_matching_exit() {
     let mut records = common::events::balanced();
     let failure = AnswerFailure {
         state: None,
@@ -136,10 +136,10 @@ fn provider_failure_uses_typed_status_and_retained_bounded_detail() {
         failure.status = status;
         failure.detail = detail.map(Vec::into_boxed_slice);
         set_completion_failure(&mut records, &failure);
-        let actual = observe_provider(&records).check(&check, "task").passed;
+        let got = observe_provider(&records).check(&check, "task").passed;
         match expected {
-            Some(value) => assert_eq!(actual, Measure::Observed { value }),
-            None => assert!(matches!(actual, Measure::Unavailable { .. })),
+            Some(value) => assert_eq!(got, Measure::Observed { value }),
+            None => assert!(matches!(got, Measure::Unavailable { .. })),
         }
     }
     if let Event::RunCompleted(run) = &mut records[6].event {
@@ -248,27 +248,27 @@ fn reserve_refusal_requires_exact_typed_identity_under_every_capture() {
         for which in [None, Some("budget"), Some("budget_reserve_spend"), Some("budget_reserve_time")] {
             let mut changed = records.clone();
             if let Event::RunCompleted(run) = &mut changed[1].event {
-                let failure = run.failure.as_mut().expect("actual refusal");
+                let failure = run.failure.as_mut().expect("refusal");
                 failure.which = which.map(|value| Box::from(value.as_bytes()));
-                // Suggestive prose cannot replace the actual typed identity.
+                // Suggestive prose cannot replace the typed identity.
                 failure.reason = Some(Box::from(&b"budget reserve turns"[..]));
             }
-            let actual = observe_capture(&changed, &capture).check(&check, "task").passed;
+            let got = observe_capture(&changed, &capture).check(&check, "task").passed;
             match which {
-                None => assert!(matches!(actual, Measure::Unavailable { .. })),
-                Some(_) => assert_eq!(actual, Measure::Observed { value: false }),
+                None => assert!(matches!(got, Measure::Unavailable { .. })),
+                Some(_) => assert_eq!(got, Measure::Observed { value: false }),
             }
         }
         let mut changed = records.clone();
         if let Event::RunCompleted(run) = &mut changed[1].event {
-            run.failure.as_mut().expect("actual refusal").class = AnswerClass::Budget;
+            run.failure.as_mut().expect("refusal").class = AnswerClass::Budget;
         }
         assert_eq!(
             observe_capture(&changed, &capture).check(&check, "task").passed,
             Measure::Observed { value: false }
         );
         if let Event::RunCompleted(run) = &mut changed[1].event {
-            run.failure.as_mut().expect("actual refusal").class = AnswerClass::Invalid;
+            run.failure.as_mut().expect("refusal").class = AnswerClass::Invalid;
             run.status = Status::Failed;
         }
         assert_eq!(
@@ -284,7 +284,7 @@ fn observe_capture(records: &[smith_events::Record], capture: &smith_events::Cap
         let line = smith_events::write(record, capture, &common::events::LIMITS)
             .expect("synthetic typed fixture")
             .expect("retained metadata");
-        observer.feed(&line).expect("actual native codec");
+        observer.feed(&line).expect("native codec");
     }
     observer.finish().expect("complete framing");
     observer

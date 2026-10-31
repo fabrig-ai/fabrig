@@ -38,7 +38,7 @@ fn captured(records: &[Record], capture: &smith_events::Capture, limits: &Limits
         .collect();
     let ceiling = u32::try_from(lines.iter().map(|line| line.len()).max().expect("outside records"))
         .expect("bounded encoded lines");
-    let mut observer = Observer::with_ceiling(limits, ceiling).expect("actual writer ceiling");
+    let mut observer = Observer::with_ceiling(limits, ceiling).expect("writer ceiling");
     for line in &lines {
         observer.feed(line).expect("outside captured reader");
     }
@@ -177,14 +177,14 @@ fn child_and_compaction_usage_belongs_to_its_native_scope_and_run() {
     child.t_ms = 4;
     child_response.t_ms = 4;
     values.splice(5..5, [child, child_response]);
-    let records = observe(&values).tokens().expect("actual parent evidence");
+    let records = observe(&values).tokens().expect("parent evidence");
     assert_eq!(records.len(), 3);
     assert!(matches!(&records[1].role, ScopeKind::Child { parent } if parent == "session-0/run-0/conversation-0"));
     assert_eq!(records[2].usage.output, Measure::Observed { value: 13 });
     if let Event::ConversationOpened(value) = &mut values[5].event {
         value.kind = smith_events::ConversationKind::Compaction;
     }
-    let compacted = observe(&values).tokens().expect("actual compaction parent");
+    let compacted = observe(&values).tokens().expect("compaction parent");
     assert!(
         matches!(&compacted[1].role, ScopeKind::Compaction { parent } if parent == "session-0/run-0/conversation-0")
     );
@@ -230,14 +230,14 @@ fn writer_ceiling_is_independent_and_preserves_every_semantic_cap() {
         limits,
         smith_events::Limits { string: receiving.string, content: receiving.content, items: receiving.items }
     );
-    let mut observer = Observer::with_ceiling(&limits, receiving.encoded_line).expect("actual writer ceiling");
+    let mut observer = Observer::with_ceiling(&limits, receiving.encoded_line).expect("writer ceiling");
     for chunk in encoded.chunks(17) {
         observer.feed(chunk).expect("chunked bounded stream");
     }
     observer.finish().expect("complete stream");
     assert_eq!(observer.sessions()[0].records, records);
     let mut short = Observer::with_ceiling(&limits, ceiling - 1).expect("smaller nonzero cap");
-    assert!(short.feed(&encoded).is_err(), "one byte below actual longest line must refuse");
+    assert!(short.feed(&encoded).is_err(), "one byte below longest line must refuse");
     assert!(Observer::with_ceiling(&limits, 0).is_err());
     for bounded in [
         smith_events::Limits { string: 1, ..limits },
@@ -330,7 +330,7 @@ fn every_codec_golden_remains_readable_as_outside_recorded_bytes() {
     files.sort();
     // The codec's independent maximum records have unrelated timestamps and
     // cannot form one native process stream. Read each unchanged line through
-    // the adapter's actual bounded Reader; ordered native Observer behavior is
+    // the adapter's bounded Reader; ordered native Observer behavior is
     // covered by the coherent exchanges below.
     let mut reader = smith_events::Reader::new(&LIMITS).expect("bounded receiving");
     for file in files {
@@ -394,7 +394,7 @@ fn block_cardinalities_use_completion_metadata_under_every_capture_policy() {
         value.oversized = 2;
         value.cut = 3;
         // The content deliberately disagrees: cardinalities are metadata,
-        // retained independently of captured blocks by events.md section3.5.
+        // retained independently of captured blocks by protocol/events.md section3.5.
         value.completion = None;
     }
     for capture in [smith_events::Capture::None, smith_events::Capture::Calls, smith_events::Capture::Everything] {
@@ -499,7 +499,7 @@ fn message_refusals_and_read_unread_each_settle_one_admission_attempt() {
     assert_eq!(passed(&observe(&values), "message-terminals"), Measure::Observed { value: false });
 }
 
-fn prompt_windows_use_exact_disjoint_usage_and_the_actual_request_model() {
+fn prompt_windows_use_exact_disjoint_usage_and_the_observed_request_model() {
     use smith_bench::EventCheck;
     let mut values = balanced();
     for record in &mut values {
@@ -823,7 +823,7 @@ fn spend_ceiling_retains_over_budget_snapshots_and_multiple_run_totals() {
 
 // Encode each unchanged synthetic outside record once. Every control still
 // goes through Reader; mutations are encoded anew instead of borrowing bytes
-// whose fields no longer match. This keeps all cases within the offline budget.
+// whose fields disagree. This keeps all cases within the offline budget.
 struct Visible {
     records: Vec<Record>,
     lines: Vec<Vec<u8>>,
@@ -1076,7 +1076,7 @@ fn budget_visibility_joins_immutable_openings_and_latest_child_usage_without_res
     }
     assert!(
         matches!(observe_visibility(&values).check(&check, "task").passed, Measure::Unavailable { .. }),
-        "rendered text must join the actual parent call"
+        "rendered text must join the parent call"
     );
     let mut values = visible_child();
     let mut later = values[9].clone();
@@ -1201,7 +1201,7 @@ fn health_passed(health: &smith_bench::Health, quantity: &str) -> Measure<bool> 
         .clone()
 }
 
-fn headroom_uses_actual_model_and_admission_bounds_with_exact_half_warnings() {
+fn headroom_uses_observed_model_and_admission_bounds_with_exact_half_warnings() {
     let result = health(&visible_budget());
     for (name, fraction) in [("prompt-tokens", 0.002), ("turns", 0.1), ("spend", 0.03)] {
         assert_eq!(result.headroom[name].fraction_used, Measure::Observed { value: fraction });
@@ -1488,7 +1488,7 @@ fn typed_event_stream_classification_usage_and_author_predicates() {
     author_predicates_use_typed_records_and_missing_content_stays_unavailable();
     block_cardinalities_use_completion_metadata_under_every_capture_policy();
     message_refusals_and_read_unread_each_settle_one_admission_attempt();
-    prompt_windows_use_exact_disjoint_usage_and_the_actual_request_model();
+    prompt_windows_use_exact_disjoint_usage_and_the_observed_request_model();
     child_share_and_main_return_checks_join_the_parent_call_and_emission_order();
     a_capped_child_final_turn_requires_no_tools_and_its_captured_native_answer();
     cache_reuse_sums_eligible_predecessors_with_exact_misses_and_window_boundaries();
@@ -1497,7 +1497,7 @@ fn typed_event_stream_classification_usage_and_author_predicates() {
     spend_ceiling_retains_over_budget_snapshots_and_multiple_run_totals();
     budget_visibility_joins_immutable_openings_and_latest_child_usage_without_reserve_credit();
     budget_visibility_preserves_wind_down_metadata_and_native_request_choice();
-    headroom_uses_actual_model_and_admission_bounds_with_exact_half_warnings();
+    headroom_uses_observed_model_and_admission_bounds_with_exact_half_warnings();
     headroom_preserves_known_violations_and_missing_scope_uncertainty();
     headroom_maxima_compare_each_conversation_ratio_instead_of_aggregating_usage();
 }

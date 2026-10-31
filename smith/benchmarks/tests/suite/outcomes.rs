@@ -159,7 +159,6 @@ fn protected_verdicts(before: &Snapshot, after: &Snapshot) -> Vec<smith_bench::C
     smith_bench::grade::checks(Path::new("/unopened-workspace"), before, after, &checks, &ended)
 }
 
-/// Lower test of smith-bench's `runner::a_repository_attempt_compares_protected_files_with_its_bundle` (top tiers test wiring only).
 #[test]
 fn prepared_protected_snapshot_ignores_changes_outside_its_paths() {
     let before = protected_snapshot();
@@ -174,7 +173,6 @@ fn prepared_protected_snapshot_ignores_changes_outside_its_paths() {
     );
 }
 
-/// Lower test of smith-bench's `runner::a_repository_attempt_compares_protected_files_with_its_bundle` (top tiers test wiring only).
 #[test]
 fn changed_protected_file_fails_against_its_prepared_snapshot() {
     let before = protected_snapshot();
@@ -192,7 +190,6 @@ fn changed_protected_file_fails_against_its_prepared_snapshot() {
     );
 }
 
-/// Lower test of smith-bench's `runner::a_repository_attempt_compares_protected_files_with_its_bundle` (top tiers test wiring only).
 #[test]
 fn protected_directory_detects_missing_added_and_changed_descendants() {
     use smith_bench::grade::Entry;

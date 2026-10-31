@@ -62,7 +62,7 @@ pub struct Rollouts {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-#[allow(clippy::struct_field_names)] // These are the pinned persisted field names.
+#[expect(clippy::struct_field_names, reason = "pinned persisted field names")]
 struct NativeUsage {
     input_tokens: u64,
     cached_input_tokens: u64,

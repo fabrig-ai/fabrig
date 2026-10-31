@@ -2,8 +2,8 @@
 disallowed-types = [
     { path = "std::collections::HashMap", reason = "ordered observations use BTreeMap" },
     { path = "std::collections::HashSet", reason = "ordered observations use BTreeSet" },
-    { path = "std::time::Instant", reason = "all measurement belongs to the clock module" },
-    { path = "std::time::SystemTime", reason = "all measurement belongs to the clock module" },
+    { path = "std::time::Instant", reason = "all measurement uses skein_shell::Clock" },
+    { path = "std::time::SystemTime", reason = "all measurement uses skein_shell::Clock" },
 ]
 
 disallowed-methods = [

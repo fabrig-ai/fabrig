@@ -188,7 +188,7 @@ fn a_return_without_the_join_stays_unavailable() {
 }
 
 #[test]
-fn model_report_compares_actual_last_told_values_without_a_budget_inference() {
+fn model_report_compares_observed_last_told_values_without_a_budget_inference() {
     let mut values = records();
     assert_eq!(checked(&mut values, &EventCheck::BudgetReport), Measure::Observed { value: true });
     assert!(matches!(checked(&mut values, &EventCheck::BudgetTold), Measure::Unavailable { .. }));
@@ -251,7 +251,7 @@ fn model_report_keeps_the_last_told_value_and_excludes_post_report_budget_change
 }
 
 #[test]
-fn model_report_requires_actual_child_identity_captured_usage_and_result() {
+fn model_report_requires_observed_child_identity_captured_usage_and_result() {
     for field in ["call", "run", "parent", "child", "prompt", "report", "usage"] {
         let mut values = records();
         for record in &mut values {
@@ -293,7 +293,7 @@ fn model_report_requires_actual_child_identity_captured_usage_and_result() {
 }
 
 #[test]
-fn model_report_uses_the_last_of_two_actual_child_returns() {
+fn model_report_uses_the_last_of_two_observed_child_returns() {
     let mut values = records();
     let mut opened = values[6].clone();
     if let Event::ConversationOpened(value) = &mut opened.event {

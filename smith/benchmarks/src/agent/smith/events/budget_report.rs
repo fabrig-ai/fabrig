@@ -1,4 +1,4 @@
-//! Visibility retains the last child-usage values actually told before a report.
+//! Visibility retains the last child-usage values told before a report.
 //! Model reports compare that text, independently of later budget charges.
 //! Smith's comparison joins each returned call to its writing-step Budget.
 //! (benchmarks.md, section 11.1; domain/run.md, section 9.2).
@@ -70,8 +70,8 @@ impl State {
                     self.main.insert((value.run, value.conversation));
                 }
                 ConversationKind::Child => {
-                    let parent = value.parent.ok_or("child lacks its actual parent")?;
-                    let call = value.call.clone().ok_or("child lacks its actual parent call")?;
+                    let parent = value.parent.ok_or("child lacks its parent")?;
+                    let call = value.call.clone().ok_or("child lacks its parent call")?;
                     self.children.insert((value.run, value.conversation), Parent { conversation: parent, call });
                 }
                 ConversationKind::Compaction => {}
@@ -82,7 +82,7 @@ impl State {
                     let opening =
                         self.children.get(&(value.run, child.conversation)).ok_or("child return lacks opening")?;
                     if opening.conversation != value.conversation || opening.call != value.call {
-                        return Err("child return does not join its actual parent call");
+                        return Err("child return does not join its parent call");
                     }
                     self.pending.insert((value.run, value.conversation, value.call.clone()));
                 }
@@ -96,17 +96,17 @@ impl State {
                             if self.pending.remove(&identity) {
                                 self.measured = true;
                                 match told(text)? {
-                                    Some(actual) => {
+                                    Some(got) => {
                                         if require_writing_budget {
                                             let expected = self
                                                 .budgets
                                                 .get(&(value.run, call.clone()))
                                                 .ok_or("child usage lacks its identified writing-step Budget")?;
-                                            self.wrong |= actual != *expected;
+                                            self.wrong |= got != *expected;
                                         }
-                                        self.told.insert(value.run, actual);
+                                        self.told.insert(value.run, got);
                                     }
-                                    None => return Err("actual returned child usage values were not captured"),
+                                    None => return Err("returned child usage values were not captured"),
                                 }
                             }
                         }
@@ -172,7 +172,7 @@ pub(super) fn check(observer: &Observer, report: bool) -> Measure<bool> {
             }
         }
         if !state.measured || !state.pending.is_empty() {
-            return Measure::unavailable("visibility lacks actual returned usage or captured report");
+            return Measure::unavailable("visibility lacks returned usage or captured report");
         }
         measured = true;
         let wrong = if report {

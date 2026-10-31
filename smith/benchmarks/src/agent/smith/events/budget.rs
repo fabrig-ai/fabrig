@@ -1,5 +1,5 @@
 //! Budget prose joins its immutable opening and the latest run-scoped charge.
-//! Child returns join rendered results in their actual parent's next request;
+//! Child returns join rendered results in their parent's next request;
 //! their usage retains the return-time budget. Missing capture or links remain
 //! unavailable. Millisecond projections retain their submillisecond uncertainty,
 //! never guessed nanoseconds (domain/run.md, sections5.3/9.2; protocol/events.md,
@@ -184,12 +184,12 @@ struct Returned<'a> {
 impl<'a> State<'a> {
     fn opening(&mut self, value: &'a ConversationOpened, now: u64) -> Checked {
         if !self.runs.contains_key(&value.run) {
-            return Err("conversation opening lacks its actual run admission");
+            return Err("conversation opening lacks its run admission");
         }
         if value.kind == ConversationKind::Child {
-            let parent = value.parent.ok_or("child opening lacks its actual parent")?;
+            let parent = value.parent.ok_or("child opening lacks its parent")?;
             if !self.openings.contains_key(&(value.run, parent)) || value.call.is_none() {
-                return Err("child opening lacks its actual parent call");
+                return Err("child opening lacks its parent call");
             }
             let (budget, at) = self.budgets.get(&value.run).ok_or("child opening lacks a preceding run budget")?;
             if !share(value, budget, *at, now)? {
@@ -204,7 +204,7 @@ impl<'a> State<'a> {
 
     fn request(&mut self, value: &smith_events::ResponseStarted) -> Checked {
         let identity = (value.run, value.conversation);
-        let (opening, at) = self.openings.get(&identity).ok_or("request lacks its actual opening")?;
+        let (opening, at) = self.openings.get(&identity).ok_or("request lacks its opening")?;
         if opening.kind == ConversationKind::Compaction {
             return Ok(true);
         }
@@ -270,9 +270,9 @@ impl<'a> State<'a> {
     fn returned(&mut self, value: &'a ToolCompleted, now: u64) -> Checked {
         let child = value.child.as_ref().expect("child return selected");
         let identity = (value.run, child.conversation);
-        let (opening, _) = self.openings.get(&identity).ok_or("child return lacks its actual opening")?;
+        let (opening, _) = self.openings.get(&identity).ok_or("child return lacks its opening")?;
         if opening.parent != Some(value.conversation) || opening.call.as_ref() != Some(&value.call) {
-            return Err("child return does not join its actual parent call");
+            return Err("child return does not join its parent call");
         }
         let (budget, at) = self.budgets.get(&value.run).ok_or("child usage lacks a preceding run budget")?;
         let identity = (value.run, value.conversation, value.call.clone());
@@ -339,7 +339,7 @@ fn session(session: &Session) -> Checked {
     }
     for (identity, (opening, _)) in &state.openings {
         if !state.budgets.contains_key(&opening.run) {
-            return Err("conversation lacks its actual run budget snapshot");
+            return Err("conversation lacks its run budget snapshot");
         }
         if opening.kind == ConversationKind::Child && !state.returned.contains(identity) {
             return Err("child lacks captured returned usage");
@@ -351,7 +351,7 @@ fn session(session: &Session) -> Checked {
         }
     }
     if state.budgets.is_empty() || state.systems.is_empty() {
-        return Err("budget visibility lacks a captured report and actual budget snapshot");
+        return Err("budget visibility lacks a captured report and budget snapshot");
     }
     Ok(true)
 }

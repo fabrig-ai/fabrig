@@ -149,14 +149,12 @@ mod tests {
         }
     }
 
-    /// Lower test of smith-bench's `smith_adapter::a_binary_older_than_the_product_face_is_refused` (top tiers test wiring only).
     #[test]
     fn all_false_ancestry_refuses_an_unsupported_source() {
         let refusal = select(&arm(), &registry(), &[Some(1), Some(1)]).expect_err("no supported ancestor");
         assert_eq!(refusal, format!("Smith arm {} predates the first supported product face", "a".repeat(40)));
     }
 
-    /// Lower test of smith-bench's `smith_adapter::the_current_source_arm_selects_the_exec_face` (top tiers test wiring only).
     #[test]
     fn newest_proved_ancestor_selects_its_face_and_receiving_bounds() {
         let selected = select(&arm(), &registry(), &[Some(0), Some(0)]).expect("newest matching face");
@@ -165,7 +163,6 @@ mod tests {
         assert_eq!(selected.receiving.encoded_line, 16384);
     }
 
-    /// Lower test of smith-bench's `smith_adapter::the_current_source_arm_selects_the_exec_face` (top tiers test wiring only).
     #[test]
     fn nonancestor_newer_face_falls_back_to_the_older_ancestor() {
         let selected = select(&arm(), &registry(), &[Some(1), Some(0)]).expect("older matching face");
@@ -173,7 +170,6 @@ mod tests {
         assert_eq!(selected.commit, "1".repeat(40));
     }
 
-    /// Lower test of smith-bench's `smith_adapter::a_binary_older_than_the_product_face_is_refused` (top tiers test wiring only).
     #[test]
     fn failed_ancestry_queries_never_admit_an_older_face() {
         for status in [None, Some(2), Some(128)] {

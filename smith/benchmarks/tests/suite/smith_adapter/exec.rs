@@ -190,7 +190,6 @@ impl ExecFixture {
     }
 }
 
-/// Lower test of smith-bench's `smith_adapter::exec::the_credentials_lead_reaches_the_native_policy_boundary` (top tiers test wiring only).
 #[test]
 fn the_credentials_lead_reaches_the_native_policy_boundary() {
     let fixture = ExecFixture::rendering("credentials-policy");

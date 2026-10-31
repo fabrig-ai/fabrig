@@ -839,7 +839,6 @@ mod tests {
         (suite, requests)
     }
 
-    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
     #[test]
     fn seeded_blocks_replay_with_one_request_per_arm() {
         let (suite, requests) = block_requests();
@@ -854,7 +853,6 @@ mod tests {
         }
     }
 
-    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
     #[test]
     fn duplicate_attempt_ids_refuse_before_dispatch() {
         let (suite, mut requests) = block_requests();
@@ -862,7 +860,6 @@ mod tests {
         assert!(ordered(&suite, requests, BLOCK_SEED).expect_err("duplicate").contains("unique"));
     }
 
-    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
     #[test]
     fn mixed_runs_refuse_before_dispatch() {
         let (suite, mut requests) = block_requests();
@@ -870,7 +867,6 @@ mod tests {
         assert!(ordered(&suite, requests, BLOCK_SEED).expect_err("mixed runs").contains("one run"));
     }
 
-    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
     #[test]
     fn incomplete_repetition_blocks_refuse_before_dispatch() {
         let (suite, mut requests) = block_requests();
@@ -888,7 +884,6 @@ mod tests {
         result
     }
 
-    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
     #[test]
     fn observed_token_scopes_sum_before_dispatch() {
         // The supplied total contains 10 fresh, 20 cache-read and 30 output tokens.
@@ -896,7 +891,6 @@ mod tests {
         assert_eq!(known_tokens(&token_result()), Some(TOKENS));
     }
 
-    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
     #[test]
     fn missing_token_scopes_keep_the_total_unknown() {
         let mut result = token_result();
@@ -1024,7 +1018,7 @@ mod native_suite_pin_tests {
         request.identity.task = "probes/failures/unknown-model".into();
         request.identity.task_version = task.version;
         request.identity.seed_sha256 = task.seed_sha256;
-        // The actual closed admission seam refuses a tier-labelled secret override.
+        // The closed admission seam refuses a tier-labelled secret override.
         assert!(check_requests(&suite_file, &suite, std::slice::from_ref(request)).is_err());
         request.identity.model.requested_model = "codex/smith-bench-nonexistent-model-2026-10-11".into();
         let valid = check_requests(&suite_file, &suite, std::slice::from_ref(request));

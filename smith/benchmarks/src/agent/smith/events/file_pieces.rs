@@ -2,10 +2,10 @@
 //! `oversized_check` and `check` join native payload `TooLarge` with captured content
 //! or preserve attested protocol Oversized blocks. They never infer an unrecorded
 //! argument or namespace, and never relabel the protocol block counter.
-//! Protocol-only judgments use the authored actual call-input bound; the elided
+//! Protocol-only judgments use the authored call-input bound; the elided
 //! refusal path is never known. Accepted piece paths remain independently judged.
 //! In protocol-probe mode no trigger is a separate not-exercised observation;
-//! accepted pieces still replay on one actual run/conversation scope.
+//! accepted pieces still replay on one run/conversation scope.
 //! Captured arguments reconstruct only reported successful mutations; a failed
 //! edit is retained as evidence and changes nothing. Missing content stays
 //! unavailable. Replay scratch is bounded by the task's unchanged file cap.
@@ -351,15 +351,15 @@ fn mutation(
     let Ok(input) = serde_json::from_slice::<serde_json::Value>(input) else {
         return Err(Measure::unavailable("piece arguments are not decoded JSON"));
     };
-    let Some(actual_path) = input.get("path").and_then(serde_json::Value::as_str) else {
+    let Some(emitted_path) = input.get("path").and_then(serde_json::Value::as_str) else {
         return Err(Measure::unavailable("piece path is absent"));
     };
-    let actual_path = Path::new(actual_path);
-    let actual_path = actual_path.strip_prefix(workspace).unwrap_or(actual_path);
-    let Some(actual_path) = super::written_file::relative(actual_path) else {
+    let emitted_path = Path::new(emitted_path);
+    let emitted_path = emitted_path.strip_prefix(workspace).unwrap_or(emitted_path);
+    let Some(emitted_path) = super::written_file::relative(emitted_path) else {
         return Err(Measure::unavailable("piece namespace cannot be resolved by this file predicate"));
     };
-    if actual_path != path {
+    if emitted_path != path {
         return Ok(None);
     }
     let ends: Vec<_> = session

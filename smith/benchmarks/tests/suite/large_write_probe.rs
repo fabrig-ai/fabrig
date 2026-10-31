@@ -1,4 +1,4 @@
-//! Historical write cases remain intact; current predicates judge delivered bytes.
+//! Write predicates judge delivered bytes, call bounds and accepted repair pieces.
 
 use std::fmt::Write as _;
 use std::fs;
@@ -37,7 +37,7 @@ fn payload_refusal_within_the_call_bound_is_not_exercised() {
 fn protocol_probe_judges_accepted_pieces_without_inventing_a_refusal() {
     let directory = std::env::temp_dir().join(format!("smith-pieces-unexercised-{}", std::process::id()));
     fs::create_dir(&directory).expect("fresh workspace");
-    fs::write(directory.join("payload.txt"), "hello world").expect("actual settled pieces");
+    fs::write(directory.join("payload.txt"), "hello world").expect("settled pieces");
     let mut records = common::events::balanced();
     piece(
         &mut records,
@@ -63,7 +63,7 @@ fn protocol_probe_judges_accepted_pieces_without_inventing_a_refusal() {
         observe(&records).oversized_write(std::path::Path::new("payload.txt"), 10, Some(15), &directory).passed,
         Measure::Unavailable { reason } if reason.starts_with("not exercised")
     ));
-    // Historical v7/v8 semantics and assertions are unchanged.
+
     assert_eq!(
         observe(&records).file_pieces(std::path::Path::new("payload.txt"), 10, 64, &directory).passed,
         Measure::Observed { value: false }
@@ -86,7 +86,7 @@ fn protocol_probe_judges_accepted_pieces_without_inventing_a_refusal() {
 }
 
 #[test]
-fn version_nine_exercises_the_actual_call_bound_with_small_repair_pieces() {
+fn version_nine_exercises_the_observed_call_bound_with_small_repair_pieces() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let normal =
         smith_bench::check_task(&root.join("tests/fixtures/large-write/v7/task.toml"), &root.join("../docs/design"))
@@ -134,8 +134,7 @@ fn version_nine_exercises_the_actual_call_bound_with_small_repair_pieces() {
         result
     };
     let first = lines(1, 280);
-    let input =
-        serde_json::to_vec(&serde_json::json!({"path":"payload.txt","content":first})).expect("actual JSON framing");
+    let input = serde_json::to_vec(&serde_json::json!({"path":"payload.txt","content":first})).expect("JSON framing");
     assert_eq!(input.len(), 15995);
     assert!(input.len() * 100 >= 13848 * 115);
     assert_eq!(lines(1, 60).len(), 3360);
@@ -365,7 +364,7 @@ fn saved_write_checks_content_size_pairing_and_capture_not_seed() {
     let directory = std::env::temp_dir().join(format!("smith-written-file-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("fresh workspace");
     let content = "A line.\nAnother line.\n";
-    std::fs::write(directory.join("payload.txt"), content).expect("saved actual write");
+    std::fs::write(directory.join("payload.txt"), content).expect("saved write");
     let mut records = common::events::balanced();
     piece(&mut records, "write", "w", &serde_json::json!({"path":"./payload.txt","content":content}), Verdict::Written);
     let checked = |records: &[smith_events::Record], minimum| {
@@ -412,7 +411,7 @@ fn saved_write_checks_content_size_pairing_and_capture_not_seed() {
 fn oversized_pieces_replay_successful_edits_and_keep_failed_edit_measurement() {
     let directory = std::env::temp_dir().join(format!("smith-file-pieces-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("fresh workspace");
-    std::fs::write(directory.join("payload.txt"), "hello wide world").expect("saved actual pieces");
+    std::fs::write(directory.join("payload.txt"), "hello wide world").expect("saved pieces");
     let mut records = common::events::balanced();
     if let Event::ResponseCompleted(value) = &mut records[4].event {
         value.oversized = 1;
@@ -645,10 +644,10 @@ fn tail_repetitions(file: &std::path::Path) -> usize {
 }
 
 #[test]
-fn payload_too_large_write_then_actual_pieces_is_a_valid_oversized_refusal() {
+fn payload_too_large_write_then_observed_pieces_is_a_valid_oversized_refusal() {
     let directory = std::env::temp_dir().join(format!("smith-native-refusal-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("fresh workspace");
-    std::fs::write(directory.join("payload.txt"), "hello world").expect("saved actual pieces");
+    std::fs::write(directory.join("payload.txt"), "hello world").expect("saved pieces");
     let mut records = common::events::balanced();
     piece(
         &mut records,
@@ -672,9 +671,9 @@ fn payload_too_large_write_then_actual_pieces_is_a_valid_oversized_refusal() {
             start.input_bytes = u64::try_from(input.len()).expect("fixture bytes");
         }
     }
-    let actual = observe(&records).file_pieces(std::path::Path::new("payload.txt"), 10, 64, &directory).passed;
+    let got = observe(&records).file_pieces(std::path::Path::new("payload.txt"), 10, 64, &directory).passed;
     std::fs::remove_dir_all(directory).expect("cleanup workspace before assertion");
-    assert_eq!(actual, Measure::Observed { value: true });
+    assert_eq!(got, Measure::Observed { value: true });
 }
 
 #[test]

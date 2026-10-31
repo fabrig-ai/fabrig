@@ -49,7 +49,7 @@ fn named_rollouts_survive_seeded_truncation_corruption_and_response_repetition()
         ("01a121d2-6e5a-7e30-abd0-133d08c8c960", include_str!("../../recorded/codex/live-child-rollout.jsonl")),
         ("01a121bc-04a8-75c2-8fba-d2694fa1ad22", include_str!("../../recorded/codex/repeated-rollout.jsonl")),
     ] {
-        let original = parse_rollout(stream.as_bytes(), thread).expect("actual rollout");
+        let original = parse_rollout(stream.as_bytes(), thread).expect("rollout");
         for end in 0..stream.len() {
             if stream.is_char_boundary(end) {
                 let _ = parse_rollout(&stream.as_bytes()[..end], thread);
@@ -61,7 +61,7 @@ fn named_rollouts_survive_seeded_truncation_corruption_and_response_repetition()
             bytes[index] = u8::try_from(rng.below(128)).expect("ASCII");
             let _ = parse_rollout(&bytes, thread);
         }
-        let response = stream.lines().find(|line| line.contains("token_usage_record")).expect("actual usage");
+        let response = stream.lines().find(|line| line.contains("token_usage_record")).expect("usage");
         let repeated = format!("{stream}{}", format!("{response}\n").repeat(128));
         assert_eq!(parse_rollout(repeated.as_bytes(), thread).expect("immutable repeats"), original);
     }

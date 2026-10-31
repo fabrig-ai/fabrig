@@ -14,7 +14,7 @@ pub fn record(source: &str) -> Record {
 }
 
 fn encoded(record: &Record) -> Vec<u8> {
-    // Keep the synthetic semantic envelope and actual emitted inventory; the
+    // Keep the synthetic semantic envelope and emitted inventory; the
     // independent golden sweep still retains the complete maximum LIMITS.
     {
         let items = match &record.event {
@@ -210,7 +210,7 @@ fn build_balanced() -> Vec<Record> {
     values
 }
 
-/// Synthetic peers report the inventory of the exchange they actually emit.
+/// Synthetic peers report the inventory of the exchange they emit.
 pub fn inventory(records: &mut [Record]) {
     type Names = Vec<(std::mem::Discriminant<Event>, Box<[u8]>)>;
     static NAMES: std::sync::LazyLock<std::sync::Mutex<Names>> = std::sync::LazyLock::new(Default::default);

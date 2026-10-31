@@ -1,4 +1,4 @@
-//! Tool-output fixtures enter the actual codec; none are provider evidence.
+//! Tool-output fixtures enter the codec; none are provider evidence.
 
 use smith_bench::agent::smith::events::Observer;
 use smith_bench::{EventCheck, Measure};
@@ -22,7 +22,7 @@ fn tool_output_inputs_and_deciders_match_the_authored_cases() {
     let models = smith_bench::read_model_tiers(&root.join("agents/models.toml")).expect("tiers");
     assert_eq!(
         smith_bench::validate_suite(&suite_file, &suite, &catalogue, &root.join("agents"), &models)
-            .expect("actual selectors")
+            .expect("selectors")
             .len(),
         4
     );
@@ -48,7 +48,7 @@ fn tool_output_inputs_and_deciders_match_the_authored_cases() {
 }
 
 #[test]
-fn payload_bytes_come_from_the_actual_matching_terminal_not_input_or_another_run() {
+fn payload_bytes_come_from_the_observed_matching_terminal_not_input_or_another_run() {
     let check = EventCheck::ToolResultBytes { tool: "shell".into(), at_least: 10241 };
     let original = common::events::balanced();
     let mut values = original.clone();
@@ -96,16 +96,16 @@ fn observed(records: &[Record], check: &EventCheck) -> Measure<bool> {
         let mut observer = Observer::new(&common::events::LIMITS).expect("reader");
         for record in records {
             let line = smith_events::write(record, &capture, &common::events::LIMITS)
-                .expect("actual Writer")
+                .expect("Writer")
                 .expect("scalar metadata retained");
-            observer.feed(&line).expect("actual Reader");
+            observer.feed(&line).expect("Reader");
         }
         observer.finish().expect("complete stream");
-        let actual = observer.check(check, "task").passed;
+        let got = observer.check(check, "task").passed;
         if let Some(previous) = &previous {
-            assert_eq!(*previous, actual, "payload metadata survives every capture");
+            assert_eq!(*previous, got, "payload metadata survives every capture");
         }
-        previous = Some(actual);
+        previous = Some(got);
     }
     previous.expect("three captures checked")
 }
@@ -215,9 +215,8 @@ fn observed_capture(
 ) -> smith_bench::CheckVerdict {
     let mut observer = Observer::new(&common::events::LIMITS).expect("reader");
     for record in records {
-        let line =
-            smith_events::write(record, capture, &common::events::LIMITS).expect("actual Writer").expect("record");
-        observer.feed(&line).expect("actual Reader");
+        let line = smith_events::write(record, capture, &common::events::LIMITS).expect("Writer").expect("record");
+        observer.feed(&line).expect("Reader");
     }
     observer.finish().expect("complete stream");
     observer.check(check, "task")

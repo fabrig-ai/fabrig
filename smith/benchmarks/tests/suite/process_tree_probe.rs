@@ -93,11 +93,11 @@ fn nested_command_requires_retained_input_and_its_later_exact_terminal() {
                 };
                 value.input = Some(serde_json::to_vec(&input).expect("fixture").into_boxed_slice());
             }
-            let actual = observed(&wrong, &check, &capture);
+            let got = observed(&wrong, &check, &capture);
             if command.is_some() {
-                assert_eq!(actual, Measure::Observed { value: false });
+                assert_eq!(got, Measure::Observed { value: false });
             } else {
-                assert!(matches!(actual, Measure::Unavailable { .. }));
+                assert!(matches!(got, Measure::Unavailable { .. }));
             }
         }
         for field in ["run", "conversation", "call", "tool"] {
@@ -128,11 +128,10 @@ fn nested_command_requires_retained_input_and_its_later_exact_terminal() {
 }
 
 fn observed(records: &[Record], check: &EventCheck, capture: &Capture) -> Measure<bool> {
-    let mut observer = Observer::new(&common::events::LIMITS).expect("actual reader");
+    let mut observer = Observer::new(&common::events::LIMITS).expect("reader");
     for record in records {
-        let line =
-            smith_events::write(record, capture, &common::events::LIMITS).expect("actual writer").expect("record");
-        observer.feed(&line).expect("actual codec input");
+        let line = smith_events::write(record, capture, &common::events::LIMITS).expect("writer").expect("record");
+        observer.feed(&line).expect("codec input");
     }
     observer.finish().expect("complete stream");
     observer.check(check, "task").passed

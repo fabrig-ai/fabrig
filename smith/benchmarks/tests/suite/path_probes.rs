@@ -61,9 +61,9 @@ fn observed(records: &[Record], capture: &Capture) -> Observer {
         .map(|record| smith_events::write(record, capture, &LIMITS).expect("bounded controls").expect("metadata"))
         .collect();
     let ceiling = u32::try_from(lines.iter().map(|line| line.len()).max().expect("session")).expect("bounded");
-    let mut observer = Observer::with_ceiling(&LIMITS, ceiling).expect("actual outside reader");
+    let mut observer = Observer::with_ceiling(&LIMITS, ceiling).expect("outside reader");
     for line in lines {
-        observer.feed(&line).expect("actual captured codec");
+        observer.feed(&line).expect("captured codec");
     }
     observer.finish().expect("finished stream");
     observer
@@ -118,11 +118,11 @@ fn a_path_requires_captured_input_and_its_exact_successful_terminal() {
                 _ => unreachable!("bounded test cases"),
             }
         }
-        let actual = observed(&records, &Capture::Everything).check(&path_check(), "").passed;
+        let got = observed(&records, &Capture::Everything).check(&path_check(), "").passed;
         if mutation == 4 {
-            assert_eq!(actual, Measure::Observed { value: false });
+            assert_eq!(got, Measure::Observed { value: false });
         } else {
-            assert!(matches!(actual, Measure::Unavailable { .. }), "{mutation}: {actual:?}");
+            assert!(matches!(got, Measure::Unavailable { .. }), "{mutation}: {got:?}");
         }
     }
     let mut no_terminal = records.clone();
@@ -169,7 +169,7 @@ fn a_path_requires_captured_input_and_its_exact_successful_terminal() {
 fn the_frozen_path_tasks_keep_namespace_authority_and_two_completion_bounds() {
     let project = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let task = smith_bench::check_task(&project.join("tasks/probes/paths/task.toml"), &project.join("../docs/design"))
-        .expect("actual task validation");
+        .expect("task validation");
     let suite = smith_bench::read_suite(&project.join("suites/probes.toml")).expect("native suite");
     let agent =
         suite.agents.iter().find(|agent| agent.tasks.iter().any(|name| name == "probes/paths")).expect("probe pin");

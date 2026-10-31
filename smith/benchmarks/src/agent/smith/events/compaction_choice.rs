@@ -1,4 +1,4 @@
-//! Compaction conversations retain the tool choice of every actual request.
+//! Compaction conversations retain the tool choice of every request.
 //! No conversation means the predicate was not exercised; the first request
 //! that permits tools supplies failure evidence (benchmarks.md, section 11.1).
 

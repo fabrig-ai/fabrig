@@ -1,7 +1,7 @@
-//! Task manifests and their offline validation; no agent or credentials are read.
-//! The harness keeps task specifications, never an agent's internal state.
-//! `read_task` parses strictly and `check_task` validates the frozen inputs,
-//! following benchmarks.md, sections 5.2 and 14.
+//! Task validation, isolated attempts, event observation and evidence summaries.
+//! Adapters collect public agent outputs; the harness keeps frozen inputs and
+//! measured results, never an agent's internal state. `check_task` validates
+//! inputs and `run::attempt` executes them (benchmarks.md, sections 5.2 and 14).
 
 #![forbid(unsafe_code)]
 

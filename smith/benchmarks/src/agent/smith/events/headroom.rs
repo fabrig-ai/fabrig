@@ -1,4 +1,4 @@
-//! Independent headroom uses each request's actual model and admitted run
+//! Independent headroom uses each request's model and admitted run
 //! allowances. Startup-key names, ordinal joins and unavailable bounds are never
 //! guessed. Integer comparisons decide violations and half warnings; only the
 //! displayed fraction is approximate (protocol/events.md, sections3.3/3.5/3.8/3.10;
@@ -99,7 +99,7 @@ struct Readings {
 
 fn prompt(readings: &mut Peak, value: &smith_events::ResponseCompleted, window: Option<&u64>, scope: String) {
     let Some(bound) = window else {
-        readings.missing.push(format!("{scope}: response lacks its request's actual model window"));
+        readings.missing.push(format!("{scope}: response lacks its request's model window"));
         return;
     };
     match (value.usage.input_tokens, value.usage.cache_read_tokens, value.usage.cache_write_tokens) {
@@ -192,10 +192,7 @@ fn collect(totals: &mut Readings, session: &Session, index: usize) {
                         scope: format!("session-{index}/run-{}", value.run),
                     });
                 } else if value.status != smith_events::Status::Refused {
-                    totals
-                        .spend
-                        .missing
-                        .push(format!("session-{index}/run-{}: answer lacks its actual admission", value.run));
+                    totals.spend.missing.push(format!("session-{index}/run-{}: answer lacks its admission", value.run));
                 }
                 // RunCompleted.turns counts durable activation turns, not
                 // completion-budget charges (domain/run.md, section9.1).
@@ -217,10 +214,7 @@ fn collect(totals: &mut Readings, session: &Session, index: usize) {
     }
     for run in budgets.keys() {
         if !charged.contains(run) {
-            totals
-                .turns
-                .missing
-                .push(format!("session-{index}/run-{run}: no actual completion-budget charges reported"));
+            totals.turns.missing.push(format!("session-{index}/run-{run}: no completion-budget charges reported"));
         }
         if !ended.contains(run) {
             for reading in [&mut totals.turns, &mut totals.spend] {

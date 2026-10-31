@@ -18,7 +18,7 @@ fn archived_streams_preserve_root_only_evidence_and_real_failure() {
     let completed = observed(COMPLETED);
     assert_eq!(completed.classify(Exit::Code(0), Forced::No).end, End::Completed);
     let native = smith_bench::agent::codex::parse_rollout(REPEATED.as_bytes(), "01a121bc-04a8-75c2-8fba-d2694fa1ad22")
-        .expect("actual repeated usage fields");
+        .expect("repeated usage fields");
     assert_eq!(native.1.len(), 2);
     let tokens = completed.token_records().expect("root-only usage");
     assert_eq!(tokens[0].usage.fresh, Measure::Observed { value: 18_802 });

@@ -26,11 +26,10 @@ fn fixture() -> Vec<Record> {
 }
 
 fn observed(records: &[Record], capture: &Capture) -> CheckVerdict {
-    let mut observer = Observer::new(&common::events::LIMITS).expect("actual reader");
+    let mut observer = Observer::new(&common::events::LIMITS).expect("reader");
     for record in records {
-        let line =
-            smith_events::write(record, capture, &common::events::LIMITS).expect("actual writer").expect("record");
-        observer.feed(&line).expect("actual input");
+        let line = smith_events::write(record, capture, &common::events::LIMITS).expect("writer").expect("record");
+        observer.feed(&line).expect("input");
     }
     observer.finish().expect("complete stream");
     observer.check(&check(), "task")

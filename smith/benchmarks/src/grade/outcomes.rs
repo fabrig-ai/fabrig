@@ -5,12 +5,12 @@ use crate::{CheckVerdict, End, Exit, Measure, OutcomeCheck};
 
 use super::Ended;
 
-fn pattern(actual: Option<&str>, expected: &str, missing: &str) -> Measure<bool> {
-    let Some(actual) = actual else {
+fn pattern(got: Option<&str>, expected: &str, missing: &str) -> Measure<bool> {
+    let Some(got) = got else {
         return Measure::unavailable(missing);
     };
     match regex::Regex::new(expected) {
-        Ok(pattern) => Measure::Observed { value: pattern.is_match(actual) },
+        Ok(pattern) => Measure::Observed { value: pattern.is_match(got) },
         Err(error) => Measure::unavailable(format!("invalid outcome pattern: {error}")),
     }
 }
@@ -18,7 +18,7 @@ fn pattern(actual: Option<&str>, expected: &str, missing: &str) -> Measure<bool>
 pub(super) fn check(check: &OutcomeCheck, ended: &Ended) -> CheckVerdict {
     let (name, passed) = match check {
         OutcomeCheck::End { end } => {
-            let actual = match &ended.end {
+            let got = match &ended.end {
                 End::Completed => "completed",
                 End::Failed { .. } => "failed",
                 End::Budget { .. } => "budget",
@@ -26,7 +26,7 @@ pub(super) fn check(check: &OutcomeCheck, ended: &Ended) -> CheckVerdict {
                 End::Timeout => "timeout",
                 End::HarnessError { .. } => "harness-error",
             };
-            ("end", Measure::Observed { value: actual == end })
+            ("end", Measure::Observed { value: got == end })
         }
         OutcomeCheck::ExitCode { code } => (
             "exit-code",

@@ -63,15 +63,15 @@ fn evaluate(
             let Ok(input) = serde_json::from_slice::<serde_json::Value>(input) else {
                 return Measure::unavailable("captured write arguments are not decoded JSON");
             };
-            let Some(actual_path) = input.get("path").and_then(serde_json::Value::as_str) else {
+            let Some(emitted_path) = input.get("path").and_then(serde_json::Value::as_str) else {
                 return Measure::unavailable("captured write path is absent");
             };
-            let actual_path = Path::new(actual_path);
-            let actual_path = actual_path.strip_prefix(workspace).unwrap_or(actual_path);
-            let Some(actual_path) = relative(actual_path) else {
+            let emitted_path = Path::new(emitted_path);
+            let emitted_path = emitted_path.strip_prefix(workspace).unwrap_or(emitted_path);
+            let Some(emitted_path) = relative(emitted_path) else {
                 return Measure::unavailable("captured write namespace cannot be resolved by this file predicate");
             };
-            if actual_path != path {
+            if emitted_path != path {
                 continue;
             }
             let Some(content) = input.get("content").and_then(serde_json::Value::as_str) else {
