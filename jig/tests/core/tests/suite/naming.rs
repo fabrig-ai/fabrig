@@ -235,6 +235,7 @@ fn rows(project: u32) -> Vec<(&'static str, core::Record)> {
                 },
             }),
         ),
+        ("Removal", core::CoreRecord::Removal(core::ProjectRemoval { project, stage: core::RemovalStage::Ending })),
         ("RunProof", core::CoreRecord::RunProof(proof)),
         (
             "Call",
