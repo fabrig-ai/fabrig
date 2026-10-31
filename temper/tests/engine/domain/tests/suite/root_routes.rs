@@ -2797,6 +2797,7 @@ fn a_missing_current_proof_panics_before_any_restored_closing_effect_or_result()
     store.seed(rows.into_values().collect(), Box::new([Key::Core(proof_key.clone())]));
     let before = store.rows.clone();
     let mut restarted = Driver::new(store);
+    restarted.broken("the fixture removes a live task's required run proof");
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         for _ in 0..100 {
             restarted.advance(true);
