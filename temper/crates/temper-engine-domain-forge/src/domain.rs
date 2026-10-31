@@ -197,7 +197,8 @@ pub struct Domain {
 impl Domain {
     /// Before the first input, size the volatile routing tables by the connection component's bounds.
     /// The product of the connection bounds must fit the installation row count.
-    pub fn connection_limits(&mut self, forges: u32, installations: u32) {
+    pub fn connection_limits(&mut self, _forges: u32, installations: u32) {
+        let forges = self.records.capacity();
         assert!(self.connections.is_empty() && self.installations.is_empty(), "connection limits before inputs");
         assert!(crate::limits::connection_valid(forges, installations), "connection bounds");
         self.connections = Map::with_capacity(forges);
@@ -507,17 +508,7 @@ impl Domain {
         {
             return Err(skein_forge::api::Error::TooLarge);
         }
-        let mut configured = Map::with_capacity(l.forges);
-        let mut forge_number = 0;
-        for forge in forges {
-            forge_number = forge_number.max(forge.number);
-            if forge.git.len() > usize::try_from(crate::PULL_ADDRESS_BYTES).expect("u32 fits usize") {
-                return Err(skein_forge::api::Error::TooLarge);
-            }
-            if configured.insert(forge.number, forge.clone()).is_err() {
-                return Err(skein_forge::api::Error::TooLarge);
-            }
-        }
+        let (configured, forge_number) = crate::forges::document(l.forges, forges)?;
         let mut credentials = Map::with_capacity(l.repositories);
         for identity in identities {
             if credentials.insert(identity.forge, identity.credential).is_err() {
@@ -5285,18 +5276,6 @@ impl Domain {
     }
     fn restored_link_position(&self, row: &Stored) -> Option<(u32, bool)> {
         let (position, inserted) = match row {
-            Stored::Forge(_) => {
-                // t-forge-map keeps it
-                return None;
-            }
-            Stored::ForgeNumber { .. } => {
-                // t-forge-map keeps it
-                return None;
-            }
-            Stored::Playground(_) => {
-                // t-forge-map keeps it
-                return None;
-            }
             Stored::Call { key, .. } => (self.named_calls.range(..key).count(), !self.named_calls.contains_key(key)),
             Stored::ProposedEffect(row) => {
                 (self.proposed_effects.range(..&row.number).count(), !self.proposed_effects.contains_key(&row.number))
@@ -5341,7 +5320,10 @@ impl Domain {
                 }
                 (position, inserted)
             }
-            Stored::Client(_)
+            Stored::Forge(_)
+            | Stored::ForgeNumber { .. }
+            | Stored::Playground(_)
+            | Stored::Client(_)
             | Stored::Flight { .. }
             | Stored::Writer(_)
             | Stored::Demo(_)
