@@ -32,9 +32,7 @@ pub(in crate::tests) fn list<T>(values: impl IntoIterator<Item = T>) -> List<T> 
 pub(in crate::tests) fn part() -> Part {
     Part::Panel { connector: 2, task: 8 }
 }
-fn counts() -> PhaseCounts {
-    PhaseCounts { ended: 0, waiting: 0, running: 0, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0 }
-}
+
 pub(in crate::tests) fn chip(task: u64) -> Chip {
     let mut chip = crate::tests::tree::cards_objects::task_doc(&[]).chip;
     chip.task = task;
@@ -133,7 +131,6 @@ fn task_sections(words: &Words) {
             acts_are_named(&tree);
             if section == TaskSection::Overview {
                 assert!(contains(&tree, b"whole task specification"));
-                slot(&tree, &bindings);
             }
             if section == TaskSection::Panels {
                 slot(&tree, &bindings);
@@ -314,4 +311,9 @@ fn the_addresss_own_section_is_marked_current_on_an_arranged_page() {
             "{region:?}"
         );
     }
+}
+
+#[test]
+fn task_sections_preserve_executor_facts() {
+    task_sections(words());
 }

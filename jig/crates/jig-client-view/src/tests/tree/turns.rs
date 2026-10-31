@@ -107,20 +107,17 @@ fn live(d: &mut Fixture, run: jig_client::Handle, number: u32) {
     deliver(
         d,
         run,
-        crate::tests::fixtures::run(
-            8,
-            RunText {
-                writing: None,
-                attempt: 2,
-                began: Some(Wall::EPOCH),
-                turn: ProvisionalTurnName { retry: 0, attempt: 2, number },
-                from: 0,
-                through: length,
-                text: value,
-                cut: true,
-                call: if number == 1 { Some(LiveCall::Decoded(call())) } else { None },
-            },
-        ),
+        crate::tests::fixtures::run(RunText {
+            writing: None,
+            attempt: 2,
+            began: Some(Wall::EPOCH),
+            turn: ProvisionalTurnName { retry: 0, attempt: 2, number },
+            from: 0,
+            through: length,
+            text: value,
+            cut: true,
+            call: if number == 1 { Some(LiveCall::Decoded(call())) } else { None },
+        }),
     );
 }
 fn keys(tree: &Tree) -> Vec<Key> {
@@ -193,7 +190,7 @@ fn raw_live_call_rendering_omits_unsupplied_wall_and_preserves_escaped_literals_
         cut: false,
         call: Some(LiveCall::Raw(raw.clone())),
     };
-    deliver(&mut d, run, crate::tests::fixtures::run(8, value.clone()));
+    deliver(&mut d, run, crate::tests::fixtures::run(value.clone()));
     assert_eq!(d.conversation().live.get(0).unwrap().began, None);
     assert_eq!(d.conversation().live.get(0).unwrap().call, value.call);
     let (folded, bindings) = build(&d, 3, words);
@@ -204,7 +201,7 @@ fn raw_live_call_rendering_omits_unsupplied_wall_and_preserves_escaped_literals_
     let missing_nodes = folded.nodes().len();
     drop(bindings);
     value.began = Some(Wall::EPOCH);
-    deliver(&mut d, run, crate::tests::fixtures::run(8, value.clone()));
+    deliver(&mut d, run, crate::tests::fixtures::run(value.clone()));
     let supplied = build(&d, 3, words).0;
     assert_eq!(supplied.nodes().len(), missing_nodes + 2, "an actual epoch gets its own time and text nodes");
     assert_eq!(d.conversation().live.get(0).unwrap().began, Some(Wall::EPOCH));
@@ -219,7 +216,7 @@ fn raw_live_call_rendering_omits_unsupplied_wall_and_preserves_escaped_literals_
         LiveCall::Decoded(_) => unreachable!(),
     }
     value.began = None;
-    deliver(&mut d, run, crate::tests::fixtures::run(8, value));
+    deliver(&mut d, run, crate::tests::fixtures::run(value));
     let uncut = build(&d, 3, words).0;
     assert_eq!(uncut.nodes().len() + 4, expanded.nodes().len(), "wall and raw-call loss are independent leaves");
     assert!(contains(&uncut, UTF8_TEXTS[2]));
@@ -234,14 +231,14 @@ fn raw_live_call_rendering_omits_unsupplied_wall_and_preserves_escaped_literals_
         cut: false,
         call: Some(LiveCall::Raw(CurrentCall { began: Some(Wall::EPOCH), cut: false, ..raw })),
     };
-    deliver(&mut d, run, crate::tests::fixtures::run(8, first_seen.clone()));
+    deliver(&mut d, run, crate::tests::fixtures::run(first_seen.clone()));
     let observed = build(&d, 3, words).0;
     assert_eq!(observed.nodes().len(), uncut.nodes().len() + 2);
     assert_eq!(d.conversation().live.get(0).unwrap().began, None);
     if let Some(LiveCall::Raw(call)) = &mut first_seen.call {
         call.began = None;
     }
-    deliver(&mut d, run, crate::tests::fixtures::run(8, first_seen));
+    deliver(&mut d, run, crate::tests::fixtures::run(first_seen));
     assert_eq!(build(&d, 3, words).0.nodes().len(), uncut.nodes().len());
 }
 
@@ -268,20 +265,17 @@ fn maximum_raw_live_calls_fit_whole_page_and_escaped_phrase_capacities() {
         deliver(
             &mut d,
             run,
-            crate::tests::fixtures::run(
-                8,
-                RunText {
-                    writing: None,
-                    attempt: name.attempt,
-                    began: Some(Wall::from_nanos(u64::MAX)),
-                    turn: name,
-                    from: 0,
-                    through: CLIENT.text,
-                    text: full_raw_byte(b'x'),
-                    cut: true,
-                    call: Some(LiveCall::Raw(call.clone())),
-                },
-            ),
+            crate::tests::fixtures::run(RunText {
+                writing: None,
+                attempt: name.attempt,
+                began: Some(Wall::from_nanos(u64::MAX)),
+                turn: name,
+                from: 0,
+                through: CLIENT.text,
+                text: full_raw_byte(b'x'),
+                cut: true,
+                call: Some(LiveCall::Raw(call.clone())),
+            }),
         );
         drive(&mut d, Event::Act { action: Act::FoldCurrentCall { identity: call.identity.clone(), open: true } });
     }
@@ -320,26 +314,23 @@ fn maximum_raw_live_calls_fit_whole_page_and_escaped_phrase_capacities() {
     deliver(
         &mut reloaded,
         run,
-        crate::tests::fixtures::run(
-            8,
-            RunText {
-                writing: None,
-                attempt: u64::MAX,
+        crate::tests::fixtures::run(RunText {
+            writing: None,
+            attempt: u64::MAX,
+            began: None,
+            turn: ProvisionalTurnName { retry: 0, attempt: u64::MAX, number: 1 },
+            from: 0,
+            through: 0,
+            text: text(b""),
+            cut: false,
+            call: Some(LiveCall::Raw(CurrentCall {
+                identity: current_identity(UTF8_TEXTS[0]),
                 began: None,
-                turn: ProvisionalTurnName { retry: 0, attempt: u64::MAX, number: 1 },
-                from: 0,
-                through: 0,
-                text: text(b""),
+                tool,
+                input,
                 cut: false,
-                call: Some(LiveCall::Raw(CurrentCall {
-                    identity: current_identity(UTF8_TEXTS[0]),
-                    began: None,
-                    tool,
-                    input,
-                    cut: false,
-                })),
-            },
-        ),
+            })),
+        }),
     );
     assert_eq!(reloaded.conversation().live.get(0).unwrap().began, None);
 }
@@ -384,26 +375,23 @@ fn raw_live_call_controls_use_selected_normal_language_and_checked_capacity() {
     deliver(
         &mut d,
         run,
-        crate::tests::fixtures::run(
-            8,
-            RunText {
-                writing: None,
-                attempt: 2,
+        crate::tests::fixtures::run(RunText {
+            writing: None,
+            attempt: 2,
+            began: None,
+            turn: ProvisionalTurnName { retry: 0, attempt: 2, number: 1 },
+            from: 0,
+            through: 0,
+            text: text(b""),
+            cut: false,
+            call: Some(LiveCall::Raw(CurrentCall {
+                identity: current_identity(UTF8_TEXTS[0]),
                 began: None,
-                turn: ProvisionalTurnName { retry: 0, attempt: 2, number: 1 },
-                from: 0,
-                through: 0,
-                text: text(b""),
+                tool: text(b"literal/tool"),
+                input: text(b"input"),
                 cut: false,
-                call: Some(LiveCall::Raw(CurrentCall {
-                    identity: current_identity(UTF8_TEXTS[0]),
-                    began: None,
-                    tool: text(b"literal/tool"),
-                    input: text(b"input"),
-                    cut: false,
-                })),
-            },
-        ),
+            })),
+        }),
     );
     let (folded, mut bindings) = build(&d, 3, &words);
     assert!(folded.nodes().iter().any(|node| node.role == Role::Button
@@ -586,7 +574,7 @@ fn displayed_retry_replaces_empty_then_resumes_with_exact_actual_watch_position(
         cut: false,
         call: None,
     };
-    let _out = deliver(&mut d, run, crate::tests::fixtures::run(8, value.clone()));
+    let _out = deliver(&mut d, run, crate::tests::fixtures::run(value.clone()));
     d.reopen(run);
     assert!(d.down.as_slice().contains(&jig_client::Down::Continue {
         watch: d.watch_token(run).unwrap(),
@@ -601,14 +589,14 @@ fn displayed_retry_replaces_empty_then_resumes_with_exact_actual_watch_position(
     assert!(!contains(&empty, b"whole private input"), "a removed retry's rich detail cannot remain visible");
     value.text = text(b"new retry bytes");
     value.through = 15;
-    let _out = deliver(&mut d, run, crate::tests::fixtures::run(8, value.clone()));
+    let _out = deliver(&mut d, run, crate::tests::fixtures::run(value.clone()));
     d.reopen(run);
     assert!(d.down.as_slice().contains(&jig_client::Down::Continue {
         watch: d.watch_token(run).unwrap(),
         subject: Subject::Run { task: 8, turn: Some(name), offset: 15 }
     }));
     assert!(contains(&build(&d, 3, words).0, b"new retry bytes"));
-    deliver(&mut d, run, crate::tests::fixtures::run(8, value));
+    deliver(&mut d, run, crate::tests::fixtures::run(value));
     assert_eq!(d.conversation().live.get(0).unwrap().text.bytes(), b"new retry bytes");
     assert_eq!(
         match d.client.text(run) {

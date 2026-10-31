@@ -508,7 +508,7 @@ fn family_card_keys_are_public_subjects_across_page_and_fragment_positions() {
     load_cards(&mut root, rows);
     let mut view = view();
     patches(&mut view, &root);
-    for kind in [family::Kind::Item(5), family::Kind::Panel(9)] {
+    for kind in [family::Kind::Item(5), family::Kind::OwnerEffect(2)] {
         let subject = family::Subject { scope: family::Scope::Project(3), kind };
         let key = crate::family_key(&subject);
         assert!(
@@ -517,8 +517,8 @@ fn family_card_keys_are_public_subjects_across_page_and_fragment_positions() {
         );
     }
     assert_ne!(
-        crate::family_key(&family::Subject { scope: family::Scope::Project(3), kind: family::Kind::Panel(9) }),
-        crate::family_key(&family::Subject { scope: family::Scope::Project(4), kind: family::Kind::Panel(9) })
+        crate::family_key(&family::Subject { scope: family::Scope::Project(3), kind: family::Kind::OwnerEffect(2) }),
+        crate::family_key(&family::Subject { scope: family::Scope::Project(4), kind: family::Kind::OwnerEffect(2) })
     );
 }
 

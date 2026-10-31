@@ -218,20 +218,17 @@ fn selected_owner_work_activity_preserves_conversation_and_opaque_provisional_te
         crate::tests::tree::pages::deliver(
             &mut domain,
             run,
-            crate::tests::fixtures::run(
-                8,
-                RunText {
-                    writing: None,
-                    attempt: u64::MAX,
-                    began: None,
-                    turn: ProvisionalTurnName { retry: u32::MAX, attempt: u64::MAX, number: 1 },
-                    from: 0,
-                    through: 17,
-                    text: text(b"provisional reply"),
-                    cut: false,
-                    call: None,
-                },
-            ),
+            crate::tests::fixtures::run(RunText {
+                writing: None,
+                attempt: u64::MAX,
+                began: None,
+                turn: ProvisionalTurnName { retry: u32::MAX, attempt: u64::MAX, number: 1 },
+                from: 0,
+                through: 17,
+                text: text(b"provisional reply"),
+                cut: false,
+                call: None,
+            }),
         );
         let tree = render(&domain, selected());
         assert!(contains(&tree, b"Selected work report"));

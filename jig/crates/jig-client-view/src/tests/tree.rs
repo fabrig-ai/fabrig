@@ -6,7 +6,6 @@ pub(crate) mod fragments;
 pub(crate) mod offered;
 pub(crate) mod pages;
 pub(crate) mod refusal_facts;
-pub(crate) mod resource_facts;
 pub(crate) mod sections;
 pub(crate) mod task_proposals;
 pub(crate) mod turns;

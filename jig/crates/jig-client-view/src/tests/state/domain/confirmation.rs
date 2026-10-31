@@ -1,6 +1,6 @@
 use crate::tests::fixtures::{Fixture, ReadPage};
 use crate::tests::state::domain::{
-    objects::{chip, escalation, live, owner_authority, person, text},
+    objects::{chip, live, owner_authority, text},
     spine::drive,
 };
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
         acts,
         confirm::Missing,
         fields::Purpose,
-        objects::{Body, Object, Source},
+        objects::{Body, Card, Object, Source},
     },
 };
 use jig_client::contract::*;
@@ -109,7 +109,6 @@ pub(in crate::tests) fn task() -> Task {
         delegates: List::with_capacity(0),
 
         context: Some(Box::new(TaskContext {
-            escalation: None,
             parts: List::with_capacity(0),
             closing: None,
             spend: List::with_capacity(0),
@@ -591,8 +590,6 @@ pub(crate) mod amendment_reason;
 pub(crate) mod task_hold;
 
 pub(crate) mod owner_escalation;
-
-const UTF8_TEXTS: [&[u8]; 1] = [b"\0~\x01"];
 
 #[test]
 fn an_amendment_beyond_the_offer_says_to_whom_it_will_be_proposed() {

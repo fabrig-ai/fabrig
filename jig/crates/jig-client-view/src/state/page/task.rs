@@ -19,7 +19,7 @@ use crate::{
     },
 };
 use alloc::boxed::Box;
-use jig_client::contract::{self, Executor, Limit, ObjectKey, Part, PhaseCounts, ProposalKey, Read, Task};
+use jig_client::contract::{self, Executor, Limit, ObjectKey, Part, ProposalKey, Read, Task};
 use skein_lib::{Env, Id, List, Map, Queue, Token};
 /// Which plan rows a person has asked to see.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -100,9 +100,7 @@ impl TaskPage {
         self.ended_task = None;
     }
 }
-pub(crate) fn counts() -> PhaseCounts {
-    PhaseCounts { ended: 0, waiting: 0, running: 0, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0 }
-}
+
 /// Whether a section has content for this executor and its current facts.
 #[must_use]
 pub fn offers(task: &Task) -> Offered {
@@ -490,7 +488,6 @@ pub(crate) fn fold(domain: &mut Ui, object: Token, open: bool, lent: &jig_client
         if retained && domain.task_page.plan.folds.insert(task, open).is_ok() {
             domain.changed();
         }
-        return;
     }
 }
 /// Selects a plan filter and reopens its live source without inventing history.

@@ -2,7 +2,6 @@ use crate::state::store;
 use crate::tests::fixtures::refusal_answer;
 use crate::tests::fixtures::{AnsweredByEngine, Fixture, ReadPage, Watched};
 use crate::tests::state::domain::spine::{LIMITS, drain, frame, open_token};
-use crate::tree::notices::kept;
 use crate::{
     Event, Limits, Request,
     state::{

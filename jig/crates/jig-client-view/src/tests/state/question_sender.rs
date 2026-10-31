@@ -1,8 +1,4 @@
-#![expect(
-    clippy::disallowed_methods,
-    clippy::disallowed_types,
-    reason = "ordinary tests inspect complete typed cards and loaded language data"
-)]
+#![expect(clippy::disallowed_methods, reason = "ordinary tests inspect complete typed cards and loaded language data")]
 use crate::JigBindings;
 use crate::state::objects::{Object, question::facts};
 use crate::tests::fixtures::Fixture;

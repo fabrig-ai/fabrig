@@ -88,7 +88,7 @@ pub fn value_nodes(
             if let Some(key) = proposal
                 && let Some(id) = client.objects().find(jig_client::contract::ObjectKey::Proposal(*key))
             {
-                super::proposal::proposal(b, client, id, &super::Place::Conversation, words, bindings);
+                super::card(b, client, id, &super::Place::Conversation, words, bindings);
             }
         }
         ResultValue::Connector { summary, part } => {

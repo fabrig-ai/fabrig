@@ -105,16 +105,16 @@ fn a_request_shows_the_progress_the_client_reports() {
     );
     fixture.drive(Time::from_nanos(MOST.as_nanos()), FireClient { wall: Wall::EPOCH });
     let next = attempt(&fixture);
-    answer(&mut fixture, next, Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 })));
+    answer(&mut fixture, next, Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })));
     assert_eq!(fixture.client.pending(key), None);
     assert_eq!(
         fixture.objects().get(id).unwrap().answer,
-        Some(Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 })))
+        Some(Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })))
     );
     answer(&mut fixture, next, refusal_answer(Refusal::NotOffered));
     assert_eq!(
         fixture.objects().get(id).unwrap().answer,
-        Some(Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 })))
+        Some(Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })))
     );
 }
 
@@ -249,15 +249,11 @@ fn a_repeated_explicit_act_consumes_the_client_s_joined_kept_answer() {
     assert_eq!(key(&press(&mut fixture, id)), first);
     assert_eq!(fixture.intents().ids().len(), 1);
     assert_eq!(fixture.kept_requests.len(), 1);
-    answer(
-        &mut fixture,
-        attempt,
-        Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 })),
-    );
+    answer(&mut fixture, attempt, Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })));
     assert_eq!(fixture.objects().get(id).unwrap().card, Card::Open);
     assert_eq!(
         fixture.objects().get(id).unwrap().answer,
-        Some(Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 })))
+        Some(Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })))
     );
     assert!(fixture.intents().ids().is_empty());
     assert!(fixture.kept_requests.is_empty());

@@ -140,8 +140,6 @@ fn current_identity(id: &[u8]) -> CallIdentity {
     CallIdentity { owner: Token::new(u64::MAX), sequence: u32::MAX, retry: u32::MAX, id: text(id) }
 }
 
-const UTF8_TEXTS: [&[u8]; 1] = [&[b'x'; 128]];
-
 fn shown(value: ActiveRun) -> Tree {
     let d = ready(
         Runtime::Active(value.clone()),

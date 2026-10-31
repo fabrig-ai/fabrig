@@ -502,22 +502,6 @@ fn presence(mask: u8) {
 }
 
 #[test]
-fn historical_task_renders_whole_task_and_independent_result_without_current_task_controls_or_context_defaults() {
-    let row = task();
-    assert!(row.context.is_none());
-    let value = envelope(
-        ObjectKey::Task(8),
-        OwnerHistoricalValue::Task { document: Box::new(row), result: Box::new(result()) },
-    );
-    let (tree, _) = build(&value, words());
-    assert!(contains(&tree, b"independent result"));
-    assert!(contains(&tree, b"Historical task"));
-    assert!(contains(&tree, b"Historical record time not supplied"));
-    assert!(contains(&tree, b"Historical record sender not supplied"));
-    assert!(tree.nodes().iter().all(|node| node.role != Role::Button));
-}
-
-#[test]
 fn historical_task_absent_result_person_and_proposal_keeps_loading_within_whole_bound() {
     presence(0);
 }

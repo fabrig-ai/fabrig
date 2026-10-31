@@ -202,10 +202,7 @@ fn owner_project_whole_role_review_keeps_raw_flags_authority_and_other_edited_ch
     drive(
         &mut domain,
         Time::ZERO,
-        AnsweredByEngine {
-            request,
-            answer: Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 })),
-        },
+        AnsweredByEngine { request, answer: Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })) },
     );
     assert!(domain.project_page().settings.pending.is_none());
     assert_eq!(domain.project_page().owner.as_deref(), Some(&value));
@@ -388,10 +385,7 @@ fn owner_project_settings_unknown_retires_only_matching_pending_and_late_answer_
         drive(
             &mut domain,
             Time::ZERO,
-            AnsweredByEngine {
-                request,
-                answer: Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 }))
-            }
+            AnsweredByEngine { request, answer: Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })) }
         )
         .is_empty()
     );

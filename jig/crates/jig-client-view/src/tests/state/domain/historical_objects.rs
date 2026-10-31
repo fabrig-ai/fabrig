@@ -175,9 +175,9 @@ fn historical_pending_request_and_answered_card_fences_survive_terminal_read_and
     let first = watched(&mut answered, answered_page, &[key]);
     let read = read_token(&first);
     let id = answered.objects().find(key).unwrap();
-    let answer = Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 }));
+    let answer = Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 }));
     let card = Card::Leaving {
-        how: Left::Answered { outcome: Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 }) },
+        how: Left::Answered { outcome: Outcome::Owner(OwnerOutcome::Released { task: 8 }) },
         until: Time::from_nanos(5_000_000_000),
     };
     answered.objects.get_mut(id).unwrap().card = card.clone();

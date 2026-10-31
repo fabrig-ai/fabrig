@@ -1,8 +1,7 @@
-use crate::state::objects;
 use crate::tests::fixtures::{Fixture, ReadPage, Watched};
 use crate::tests::state::domain::spine::{LIMITS, delivered, drive, frame, open_token, start};
 use crate::{
-    Event, Request,
+    Request,
     state::objects::{Card, Left},
 };
 use jig_client::contract::*;

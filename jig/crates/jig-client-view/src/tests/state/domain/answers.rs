@@ -2,7 +2,7 @@ use crate::tests::fixtures::refusal_answer;
 use crate::tests::fixtures::{AnsweredByEngine, Fixture, ReadPage, Reported};
 use crate::tests::state::domain::{
     confirmation::task,
-    objects::{live, person, proposal},
+    objects::live,
     spine::{LIMITS, drain, drive},
 };
 use crate::{
@@ -159,12 +159,7 @@ fn retention_expiry_retires_once_keeps_unknown_distinct_and_inspection_never_res
     );
     assert!(domain.objects().get(id).unwrap().answer.is_none());
     assert!(
-        answered(
-            &mut domain,
-            request,
-            Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 }))
-        )
-        .is_empty()
+        answered(&mut domain, request, Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 }))).is_empty()
     );
     let rows = drive(&mut domain, Time::ZERO, Event::Act { action: Act::LookAgain { object: id.token() } });
     assert_eq!(rows.len(), 1);
@@ -222,11 +217,7 @@ fn full_requests_refuse_without_queueing_and_hidden_answers_and_unknowns_have_no
         if unknown {
             drive(&mut domain, Time::ZERO, Reported { request, progress: Progress::Unknown });
         } else {
-            answered(
-                &mut domain,
-                request,
-                Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 })),
-            );
+            answered(&mut domain, request, Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })));
         }
         let (notice, ()) = domain.notices().ids().iter().next().unwrap();
         let expected = if unknown {
@@ -234,7 +225,7 @@ fn full_requests_refuse_without_queueing_and_hidden_answers_and_unknowns_have_no
         } else {
             Kind::Answer {
                 object: ObjectKey::Task(8),
-                answer: Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 })),
+                answer: Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })),
             }
         };
         assert_eq!(domain.notices().get(*notice).unwrap().kind, expected);

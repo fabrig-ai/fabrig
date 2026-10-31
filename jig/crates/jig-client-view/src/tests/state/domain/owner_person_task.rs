@@ -316,7 +316,7 @@ fn person_owner_original_read_identity_and_late_answer_remain_separate_from_curr
     let mut newer = doc.clone();
     newer.revision = Revision { value: 100 };
     assert!(d.objects.put(ObjectKey::PersonTask(8), Body::OwnerPersonTask(Box::new(newer.clone()))));
-    let outcome = Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 });
+    let outcome = Outcome::Owner(OwnerOutcome::Released { task: 8 });
     drive(&mut d, Time::ZERO, AnsweredByEngine { request, answer: Answer::Done(outcome.clone()) });
     assert_eq!(crate::state::objects::person_task::owner_facts(&d.objects().get(id).unwrap()), Some(&newer));
     assert_eq!(d.objects().get(id).unwrap().answer, Some(Answer::Done(outcome.clone())));
@@ -329,7 +329,6 @@ fn person_owner_original_read_identity_and_late_answer_remain_separate_from_curr
         crate::state::objects::person_task::revision(&d.objects().get(id).unwrap()),
         Some(Revision { value: 100 })
     );
-    assert!(crate::state::objects::person_task::facts(&d.objects().get(id).unwrap()).is_none());
 }
 
 use jig_client::contract::AnswerOn;

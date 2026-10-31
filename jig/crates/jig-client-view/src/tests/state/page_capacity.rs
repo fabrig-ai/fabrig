@@ -1,14 +1,13 @@
 #![expect(
     clippy::disallowed_methods,
     clippy::disallowed_types,
-    clippy::wildcard_enum_match_arm,
     reason = "ordinary maximum fixtures script public sources and inspect node budgets"
 )]
 use crate::tests::fixtures::{Fixture, ReadPage};
 use crate::tests::tree::{
     cards::{CLIENT, document, drive, start, words},
     pages::deliver,
-    work_pages::{chip, list},
+    work_pages::list,
 };
 use crate::{JigBindings, Owner, words::Words};
 use skein_ui::{Builder, Role, SlotRef, Tree};

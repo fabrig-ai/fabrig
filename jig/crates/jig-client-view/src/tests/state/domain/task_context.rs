@@ -36,7 +36,6 @@ fn whole_task_context_absence_and_supplied_empty_are_distinct_in_original_reads(
     }
     assert!(supplied.parts.is_empty());
     assert_eq!(supplied.closing, None);
-    assert_eq!(supplied.escalation, None);
 }
 
 #[test]
@@ -118,20 +117,17 @@ fn finished(phase: Option<OwnerChipPhase>, prior: Option<OwnerPriorPhase>) -> bo
         Time::ZERO,
         Watched {
             watch: run,
-            event: WatchEvent::Delivered(crate::tests::fixtures::run(
-                8,
-                RunText {
-                    writing: None,
-                    attempt: 1,
-                    began: None,
-                    turn: ProvisionalTurnName { retry: 0, attempt: 1, number: 1 },
-                    from: 0,
-                    through: 3,
-                    text: objects::text(b"one"),
-                    cut: false,
-                    call: None,
-                },
-            )),
+            event: WatchEvent::Delivered(crate::tests::fixtures::run(RunText {
+                writing: None,
+                attempt: 1,
+                began: None,
+                turn: ProvisionalTurnName { retry: 0, attempt: 1, number: 1 },
+                from: 0,
+                through: 3,
+                text: objects::text(b"one"),
+                cut: false,
+                call: None,
+            })),
         },
     );
     let mut row = crate::tests::state::domain::confirmation::task();

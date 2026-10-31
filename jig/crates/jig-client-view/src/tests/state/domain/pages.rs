@@ -1,7 +1,6 @@
 //! Page policies exercised through the client boundary.
 use crate::state::page;
 
-pub(crate) mod creating;
 pub(crate) mod owner_effect_proposals;
 pub(crate) mod task_proposals;
 
@@ -317,18 +316,7 @@ fn project_open(section: ProjectSection) -> (Fixture, Box<[Request]>) {
         drive(&mut domain, Time::ZERO, Event::Went { place: Place::Jig(Address::Project { project: 1, section }) });
     (domain, opened)
 }
-fn project_read(requests: &[Request]) -> jig_client::Handle {
-    for request in requests {
-        if let Request::Client {
-            asked:
-                jig_client::Event::Read { handle: read, read: jig_client::Readable::Jig(Read::Project { project: 1 }) },
-        } = request
-        {
-            return *read;
-        }
-    }
-    panic!("project read")
-}
+
 fn goal_line(number: u64, priority: u32, phase: Phase, changed: u64) -> TaskLine {
     let mut chip = super::objects::chip(number);
     chip.phase = phase;
@@ -356,10 +344,6 @@ fn goal_line(number: u64, priority: u32, phase: Phase, changed: u64) -> TaskLine
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "whole existing story preserves every assertion and explicit page-loss fields"
-)]
 // One process per page family keeps startup costs within this session's share;
 // each scenario above still allocates its own state and retains every assertion.
 #[test]
@@ -381,21 +365,6 @@ pub(in crate::tests) fn read_named(requests: &[Request], expected: &Read) -> jig
         }
     }
     panic!("expected the named read");
-}
-
-#[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "whole existing story preserves every assertion and explicit page-loss fields"
-)]
-
-fn specification(words: Text) -> SpecificationDocument {
-    SpecificationDocument::complete(Specification {
-        asks: false,
-        words,
-        parameters: List::with_capacity(0),
-        inputs: List::with_capacity(0),
-    })
 }
 
 #[test]
@@ -437,13 +406,6 @@ fn goal_read_from_start_merges_live_watch_by_key() {
     assert_eq!(chip.phase, Phase::Running);
 }
 
-fn send(domain: &mut Fixture, event: impl crate::tests::fixtures::Input) -> Box<[Request]> {
-    domain.drive(Time::ZERO, event)
-}
-#[expect(
-    clippy::too_many_lines,
-    reason = "one scenario follows both independent cursor positions and watch precedence"
-)]
 #[test]
 fn owner_started_chat_navigates_from_the_original_request_and_keeps_late_answers_whole() {
     use crate::{

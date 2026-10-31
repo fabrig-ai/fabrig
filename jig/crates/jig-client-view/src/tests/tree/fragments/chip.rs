@@ -610,7 +610,8 @@ fn owner_retry_keeps_all_six_classes_and_independent_zero_max_counts_in_chip_and
 fn owner_retry_absence_refusal_and_all_supplied_failure_classes_remain_independent() {
     let mut value = details();
     value.retry = None;
-    for tree in [build(&value, words()).0] {
+    {
+        let tree = build(&value, words()).0;
         assert!(!contains(&tree, b"Failure count"));
         assert!(!contains(&tree, b"Activation refusal count"));
     }
@@ -618,7 +619,8 @@ fn owner_retry_absence_refusal_and_all_supplied_failure_classes_remain_independe
         [(0, b"Activation refusal count 0".as_slice()), (u32::MAX, b"Activation refusal count 4294967295")]
     {
         value.retry = Some(RetryNotice::Refused { count });
-        for tree in [build(&value, words()).0] {
+        {
+            let tree = build(&value, words()).0;
             assert!(has(&tree, caption));
             assert!(!contains(&tree, b"Failure count"));
         }
@@ -630,7 +632,8 @@ fn owner_retry_absence_refusal_and_all_supplied_failure_classes_remain_independe
         (FailureClass::Stall, b"Stalled"),
     ] {
         value.retry = Some(RetryNotice::Failed { class, count: 7, allowance: 9 });
-        for tree in [build(&value, words()).0] {
+        {
+            let tree = build(&value, words()).0;
             assert!(has(&tree, label));
             assert!(has(&tree, b"Failure count 7 of allowance 9"));
             assert!(!contains(&tree, b"Activation refusal count"));
@@ -668,7 +671,8 @@ fn owner_retry_borrows_selected_checked_six_class_words_and_both_count_holes() {
     for (class, _, label) in cases {
         let mut value = details();
         value.retry = Some(RetryNotice::OwnerFailed { class, count: 0, allowance: u32::MAX });
-        for tree in [build(&value, &checked).0] {
+        {
+            let tree = build(&value, &checked).0;
             assert!(has(&tree, label));
             assert!(has(&tree, b"chosen count 0 versus 4294967295"));
             assert!(!contains(&tree, b"Failure count"));

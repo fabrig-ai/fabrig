@@ -3,8 +3,8 @@ use crate::Request;
 use crate::state::objects::{Objects, Source};
 use crate::tests::fixtures::{AnsweredByEngine, Fixture, ReadPage, Reported, Watched};
 use jig_client::contract::{
-    ActivityLine, ActivityPage, Block, Call, Cursor, Message, ObjectKey, ProvisionalTurnName, Read, Speaker, Text,
-    Turn, TurnName, TurnRead, Usage,
+    ActivityLine, ActivityPage, Block, Call, Cursor, Message, ObjectKey, ProvisionalTurnName, Read, RunText, Speaker,
+    Text, Turn, TurnName, TurnRead, Usage,
 };
 use jig_client::thread::{CallName, Fold, Thread};
 use skein_lib::{List, Wall};
@@ -83,13 +83,13 @@ fn calls_fold_on_the_page_and_engine_objects_share_one_live_card() {
 #[test]
 fn provisional_turns_append_by_offset_and_commit_only_replaces_the_same_name() {
     let (mut c, run) = native_run(4);
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, stream(1, 0, 3, b"one", false)));
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, stream(1, 3, 5, b"++", false)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 0, 3, b"one", false)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 3, 5, b"++", false)));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"one++");
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, stream(1, 3, 5, b"++", false)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 3, 5, b"++", false)));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"one++");
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, stream(1, 7, 8, b"x", false)));
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, stream(2, 0, 3, b"two", false)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 7, 8, b"x", false)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(2, 0, 3, b"two", false)));
     assert_eq!(c.conversation().live.len(), 2);
     assert_eq!(c.conversation().live.get(1).unwrap().text.bytes(), b"two");
     assert_eq!(
@@ -105,7 +105,7 @@ fn provisional_turns_append_by_offset_and_commit_only_replaces_the_same_name() {
     assert_eq!(c.ui.conversation.accept(ActivityPage { cut: false, rows, before: None, after: None }), None);
     assert_eq!(c.conversation().live.len(), 1);
     assert_eq!(c.conversation().live.get(0).unwrap().name.number, 2);
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, stream(1, 0, 3, b"old", false)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 0, 3, b"old", false)));
     assert_eq!(c.conversation().live.len(), 1);
     c.ui.conversation.run_finished = true;
     c.ui.conversation.end_run();
@@ -117,11 +117,11 @@ fn provisional_turns_append_by_offset_and_commit_only_replaces_the_same_name() {
 fn provisional_text_keeps_its_cut_mark_and_recovery_replaces_uncommitted_text() {
     let (mut c, run) = native_run(2);
     c.ui.text_limit = 4;
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, stream(1, 0, 3, b"abc", false)));
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, stream(1, 3, 6, b"def", false)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 0, 3, b"abc", false)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 3, 6, b"def", false)));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"cdef");
     assert!(c.conversation().live.get(0).unwrap().cut);
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, stream(1, 10, 12, b"xy", true)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 10, 12, b"xy", true)));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"xy");
     assert_eq!(
         match c.client.text(run) {
@@ -132,14 +132,14 @@ fn provisional_text_keeps_its_cut_mark_and_recovery_replaces_uncommitted_text() 
     );
     c.reopen(run);
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"xy");
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, stream(1, 0, 3, b"new", false)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 0, 3, b"new", false)));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"new");
     assert!(!c.conversation().live.get(0).unwrap().cut);
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, stream(2, 0, 1, b"x", false)));
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, stream(3, 0, 1, b"y", false)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(2, 0, 1, b"x", false)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(3, 0, 1, b"y", false)));
     assert_eq!(c.conversation().live.len(), 2);
     c.ui.conversation.end_run();
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, stream(3, 0, 1, b"y", false)));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stream(3, 0, 1, b"y", false)));
     assert_eq!(c.first_turn(), Some(ProvisionalTurnName { retry: 0, attempt: 1, number: 3 }));
 }
 
@@ -192,7 +192,7 @@ fn routed_conversation() {
     let _requests = drive(
         &mut domain,
         Time::ZERO,
-        Watched { watch: run_watch, event: WatchEvent::Delivered(crate::tests::fixtures::run(8, live_call)) },
+        Watched { watch: run_watch, event: WatchEvent::Delivered(crate::tests::fixtures::run(live_call)) },
     );
     domain.reopen(run_watch);
     let continued = domain.down.as_slice().contains(&jig_client::Down::Continue {
@@ -222,7 +222,7 @@ fn routed_conversation() {
         Time::ZERO,
         Watched {
             watch: run_watch,
-            event: WatchEvent::Delivered(crate::tests::fixtures::run(8, stream(2, 0, 3, b"two", false))),
+            event: WatchEvent::Delivered(crate::tests::fixtures::run(stream(2, 0, 3, b"two", false))),
         },
     );
     let mut rows = List::with_capacity(2);
@@ -549,11 +549,11 @@ fn opaque_current_calls_replace_by_full_owner_completion_and_id_without_numeric_
         began: Some(Wall::EPOCH),
     };
     value.call = Some(LiveCall::Raw(raw.clone()));
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, value.clone()));
+    feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
     assert!(fold_current(&mut c, identity.clone(), Fold::Open));
     assert_eq!(c.ui.conversation.current_fold(&identity), Fold::Open);
     value.call = Some(LiveCall::Raw(CurrentCall { input: text(b"replacement"), cut: true, ..raw.clone() }));
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, value.clone()));
+    feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
     assert_eq!(c.conversation().live.len(), 1);
     assert_eq!(c.conversation().live.get(0).unwrap().call, value.call);
     assert_eq!(c.ui.conversation.current_fold(&identity), Fold::Open);
@@ -565,7 +565,7 @@ fn opaque_current_calls_replace_by_full_owner_completion_and_id_without_numeric_
         CallIdentity { id: text(UTF8_TEXTS[5]), ..identity.clone() },
     ] {
         value.call = Some(LiveCall::Raw(CurrentCall { identity: different.clone(), began: None, ..raw.clone() }));
-        feed_run(&mut c, run, crate::tests::fixtures::run(9, value.clone()));
+        feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
         assert_eq!(c.conversation().live.get(0).unwrap().call, value.call);
         assert_eq!(c.ui.conversation.current_fold(&identity), Fold::Folded);
         assert_eq!(c.ui.conversation.current_fold(&different), Fold::Folded);
@@ -693,11 +693,11 @@ fn whole_current_call_replacement_copies_each_supplied_current_clock_without_a_h
 fn mandatory_empty_retry_replaces_same_turn_and_stale_retries_cannot_restore_old_bytes() {
     let (mut c, run) = native_run(2);
     let old = stream(2, 0, 3, b"old", false);
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, old.clone()));
+    feed_run(&mut c, run, crate::tests::fixtures::run(old.clone()));
     let mut retry = stream(2, 0, 0, b"", false);
     retry.turn.retry = u32::MAX;
     retry.began = None;
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, retry.clone()));
+    feed_run(&mut c, run, crate::tests::fixtures::run(retry.clone()));
     assert_eq!(c.conversation().live.len(), 1);
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"");
     assert_eq!(c.conversation().live.get(0).unwrap().name, retry.turn);
@@ -709,12 +709,12 @@ fn mandatory_empty_retry_replaces_same_turn_and_stale_retries_cannot_restore_old
         },
         0
     );
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, old.clone()));
+    feed_run(&mut c, run, crate::tests::fixtures::run(old.clone()));
     assert_eq!(old.text.bytes(), b"old", "captured earlier delivery stays immutable");
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"");
     retry.text = text(b"new");
     retry.through = 3;
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, retry.clone()));
+    feed_run(&mut c, run, crate::tests::fixtures::run(retry.clone()));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"new");
     assert_eq!(
         match c.client.text(run) {
@@ -723,7 +723,7 @@ fn mandatory_empty_retry_replaces_same_turn_and_stale_retries_cannot_restore_old
         },
         3
     );
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, retry.clone()));
+    feed_run(&mut c, run, crate::tests::fixtures::run(retry.clone()));
     assert_eq!(
         c.conversation().live.get(0).unwrap().text.bytes(),
         b"new",
@@ -731,14 +731,14 @@ fn mandatory_empty_retry_replaces_same_turn_and_stale_retries_cannot_restore_old
     );
     let mut invalid = retry.clone();
     invalid.attempt = 2;
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, invalid));
+    feed_run(&mut c, run, crate::tests::fixtures::run(invalid));
     assert_eq!(c.first_turn(), Some(retry.turn));
     assert!(c.ui.conversation.moved(1).is_some());
     let mut rows = List::with_capacity(1);
     rows.push(calls(1, 2)).unwrap();
     assert_eq!(c.ui.conversation.accept(ActivityPage { cut: false, rows, before: None, after: None }), None);
     assert!(c.conversation().live.is_empty(), "committed attempt/turn replaces all provisional retries of that turn");
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, retry));
+    feed_run(&mut c, run, crate::tests::fixtures::run(retry));
     assert!(c.conversation().live.is_empty(), "a retry number cannot evade the committed turn fence");
 }
 
@@ -747,12 +747,12 @@ fn explicit_cut_and_reopened_origin_replace_retry_text_while_valid_suffixes_dedu
     let (mut c, run) = native_run(3);
     let mut value = stream(1, 0, 6, b"abcdef", false);
     value.turn.retry = 7;
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, value.clone()));
+    feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
     value.from = 3;
     value.through = 8;
     value.text = text(b"deXYZ");
     value.cut = true;
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, value.clone()));
+    feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
     assert_eq!(
         c.conversation().live.get(0).unwrap().text.bytes(),
         b"deXYZ",
@@ -763,16 +763,16 @@ fn explicit_cut_and_reopened_origin_replace_retry_text_while_valid_suffixes_dedu
     value.through = 10;
     value.text = text(b"XYZ++");
     value.cut = false;
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, value.clone()));
+    feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"deXYZ++");
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, value.clone()));
+    feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"deXYZ++");
     let mut stale = value.clone();
     stale.from = 3;
     stale.through = 8;
     stale.text = text(b"stale");
     stale.cut = true;
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, stale));
+    feed_run(&mut c, run, crate::tests::fixtures::run(stale));
     assert_eq!(
         c.conversation().live.get(0).unwrap().text.bytes(),
         b"deXYZ++",
@@ -787,7 +787,7 @@ fn explicit_cut_and_reopened_origin_replace_retry_text_while_valid_suffixes_dedu
     value.from = 0;
     value.through = 4;
     value.text = text(b"boot");
-    feed_run(&mut c, run, crate::tests::fixtures::run(9, value.clone()));
+    feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"boot");
     assert!(!c.conversation().live.get(0).unwrap().cut);
     assert_eq!(c.first_turn(), Some(value.turn));

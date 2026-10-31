@@ -17,7 +17,7 @@ use crate::{
     state::{action::Act as Action, fields::Purpose, objects::Object},
 };
 use jig_client::contract::*;
-use skein_lib::{Id, List, Wall};
+use skein_lib::{Duration, Id, List, Wall};
 
 fn list<T>(rows: impl IntoIterator<Item = T>) -> List<T> {
     let rows: Vec<T> = rows.into_iter().collect();
@@ -296,7 +296,6 @@ pub(in crate::tests) fn task_doc(acts: &[ActKind]) -> Task {
         delegates: list([LiveDelegate { chip: chip(), takeover_budget: 13 }]),
 
         context: Some(Box::new(TaskContext {
-            escalation: None,
             parts: list([]),
             closing: None,
             spend: list([]),
@@ -311,27 +310,6 @@ fn input(tree: &Tree, label: &[u8], value: &[u8], bindings: &mut JigBindings) ->
     decode(bindings, node.binding.unwrap().token, Act::Input { value: Box::from(value) }).unwrap()
 }
 
-const CONFIRMATION_ACTS: [(ActKind, bool); 18] = [
-    (ActKind::Message, false),
-    (ActKind::Take, false),
-    (ActKind::HandBack, false),
-    (ActKind::Release, false),
-    (ActKind::LeaveHeld, false),
-    (ActKind::Amend, false),
-    (ActKind::Amend, true),
-    (ActKind::Stop, false),
-    (ActKind::Cancel, false),
-    (ActKind::Move, false),
-    (ActKind::Reorder, false),
-    (ActKind::Reorder, false),
-    (ActKind::Seen, false),
-    (ActKind::Adopt, false),
-    (ActKind::ChangePolicy, false),
-    (ActKind::SetRoles, false),
-    (ActKind::MakeService, false),
-    (ActKind::SetPool, false),
-];
-
 fn notice_scenarios(words: &crate::words::Words) {
     use crate::tree::notices::kept::Kind;
     for kind in [
@@ -339,7 +317,7 @@ fn notice_scenarios(words: &crate::words::Words) {
         Kind::Link(jig_client::Link::Live),
         Kind::Answer {
             object: ObjectKey::Task(8),
-            answer: Answer::Done(Outcome::Owner(jig_client::contract::OwnerOutcome::Released { task: 8 })),
+            answer: Answer::Done(Outcome::Owner(OwnerOutcome::Released { task: 8 })),
         },
         Kind::PageAnswer {
             answer: refusal_answer(Refusal::Authority {
@@ -405,11 +383,6 @@ fn note_loaded(note: Note) -> (Fixture, Id<Object>) {
     let id = d.objects().find(ObjectKey::Note { project: 4, note: number }).unwrap();
     (d, id)
 }
-
-#[expect(
-    clippy::match_like_matches_macro,
-    reason = "ordinary scenario patterns use matches with an explicit catch-all; the macro is disallowed"
-)]
 
 fn closing_connectors_use_their_owners_words(words: &crate::words::Words) {
     let mut b = Builder::new(&limits());

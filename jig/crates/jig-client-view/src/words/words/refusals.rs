@@ -53,7 +53,7 @@ impl Words {
             Refusal::NotWaiting => self.text(b, JigPhrase::Word(Word::Refusal(RefusalWord::NotWaiting)), &[]),
             Refusal::NoFurther => self.text(b, JigPhrase::Word(Word::Refusal(RefusalWord::NoFurther)), &[]),
             Refusal::Authority { lacking, proposable } => {
-                self.lacking(b, lacking, text_limit);
+                self.lacking(b, lacking);
                 if let Some(false) = proposable {
                     self.text(b, JigPhrase::NobodyMayAccept, &[]);
                 }

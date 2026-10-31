@@ -1,6 +1,6 @@
 //! The one named review dialog, from recalled facts (view.md, 18.5; objects.md, 2).
 //! Adoption belongs to the application slot rather than this jig form (client/domain/pages.md, 6.5).
-use crate::tree::cards::{common, proposal};
+use crate::tree::cards::common;
 use crate::words::Words;
 use crate::words::phrases::jig::JigPhrase;
 use crate::{JigBindings, JigMeaning, JigStyle};
@@ -172,7 +172,7 @@ fn action(
             }
         }
         ActKind::Release => {
-            release_object(b, client, object, words, bindings);
+            release_object(b, object, words, bindings);
             if let Some(again) = open.choices.again {
                 words.text(b, if again { JigPhrase::RepeatEffect } else { JigPhrase::SkipEffect }, &[]);
             }
@@ -185,7 +185,7 @@ fn action(
                 words.text(b, JigPhrase::HoldRevision, &[Hole::Number(revision.value)]);
             }
             if open.choices.release {
-                release_object(b, client, object, words, bindings);
+                release_object(b, object, words, bindings);
             }
         }
         ActKind::Answer => {
@@ -338,7 +338,7 @@ fn held(object: &Object) -> bool {
         | None => false,
     }
 }
-fn release_object(b: &mut Builder, client: &Borrowed<'_>, object: &Object, words: &Words, bindings: &mut JigBindings) {
+fn release_object(b: &mut Builder, object: &Object, words: &Words, bindings: &mut JigBindings) {
     if let Some(offers) = crate::state::acts::offers(object)
         && let Some(Effect::Release(effect)) = jig_client::facts::effect(offers.as_slice(), ActKind::Release)
     {
@@ -349,15 +349,17 @@ fn release_object(b: &mut Builder, client: &Borrowed<'_>, object: &Object, words
         }
     }
     match &object.body {
-        Some(Body::Task(doc)) => match &doc.hold {
-            Some(hold) => release_owner(b, hold, words, bindings),
-            None => {}
-        },
+        Some(Body::Task(doc)) => {
+            if let Some(hold) = &doc.hold {
+                release_owner(b, hold, words, bindings);
+            }
+        }
 
-        Some(Body::OwnerEscalation(doc)) => match &doc.task.hold {
-            Some(hold) => release_owner(b, hold, words, bindings),
-            None => {}
-        },
+        Some(Body::OwnerEscalation(doc)) => {
+            if let Some(hold) = &doc.task.hold {
+                release_owner(b, hold, words, bindings);
+            }
+        }
         Some(
             Body::Historical(_)
             | Body::Chip(_)

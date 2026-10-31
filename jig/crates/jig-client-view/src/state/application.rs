@@ -135,6 +135,7 @@ pub(crate) fn delivery(
         | Delivery::Task(_)
         | Delivery::OwnerTree(_)
         | Delivery::Tasks(_)
+        | Delivery::Run(_)
         | Delivery::RunState(_)
         | Delivery::Settings(_)
         | Delivery::OwnerDeployment(_)

@@ -469,6 +469,7 @@ fn delivered_name(value: &jig_client::contract::Delivery, key: ObjectKey) -> Opt
     match value {
         Delivery::OwnerProject(_)
         | Delivery::Me(_)
+        | Delivery::Run(_)
         | Delivery::RunState(_)
         | Delivery::Settings(_)
         | Delivery::OwnerDeployment(_)
@@ -533,6 +534,7 @@ fn delivered_name(value: &jig_client::contract::Delivery, key: ObjectKey) -> Opt
 pub(crate) fn dropping(domain: &mut crate::Ui, watch: jig_client::Handle, value: &jig_client::contract::Delivery) {
     match value {
         jig_client::contract::Delivery::Me(_)
+        | jig_client::contract::Delivery::Run(_)
         | jig_client::contract::Delivery::RunState(_)
         | jig_client::contract::Delivery::Settings(_)
         | jig_client::contract::Delivery::OwnerDeployment(_)
@@ -920,12 +922,9 @@ impl Body {
             Self::Historical(value) => value.matches(key),
             Self::Chip(_)
             | Self::Task(_)
-            | Self::Proposal(_)
             | Self::OwnerProposal(_)
-            | Self::Escalation(_)
             | Self::OwnerEscalation(_)
             | Self::Question(_)
-            | Self::PersonTask(_)
             | Self::OwnerPersonTask(_)
             | Self::Result(_)
             | Self::Note { .. } => self.key() == key,
@@ -936,12 +935,9 @@ impl Body {
             Self::Historical(value) => !value.is_terminal(),
             Self::Chip(_)
             | Self::Task(_)
-            | Self::Proposal(_)
             | Self::OwnerProposal(_)
-            | Self::Escalation(_)
             | Self::OwnerEscalation(_)
             | Self::Question(_)
-            | Self::PersonTask(_)
             | Self::OwnerPersonTask(_)
             | Self::Result(_)
             | Self::Note { .. } => false,
@@ -955,12 +951,12 @@ impl Body {
             Self::Historical(value) => value.key,
             Self::Chip(chip) => ObjectKey::Task(chip.task),
             Self::Task(task) => ObjectKey::Task(task.chip.task),
-            Self::Proposal(proposal) => ObjectKey::Proposal(proposal.key),
+
             Self::OwnerProposal(proposal) => ObjectKey::Proposal(proposal.key),
-            Self::Escalation(escalation) => ObjectKey::Escalation(escalation.task.task),
+
             Self::OwnerEscalation(value) => ObjectKey::Escalation(value.task.chip.task),
             Self::Question(question) => ObjectKey::Question { task: question.task.task, message: question.message },
-            Self::PersonTask(task) => ObjectKey::PersonTask(task.task.task),
+
             Self::OwnerPersonTask(task) => ObjectKey::PersonTask(task.task.task),
             Self::Result(result) => ObjectKey::Result(result.task.task),
             Self::Note { project, document } => ObjectKey::Note { project: *project, note: document.number },
@@ -986,11 +982,8 @@ impl Body {
             }
             Self::OwnerEscalation(_) => None,
             Self::Chip(_)
-            | Self::Proposal(_)
             | Self::OwnerProposal(_)
-            | Self::Escalation(_)
             | Self::Question(_)
-            | Self::PersonTask(_)
             | Self::OwnerPersonTask(_)
             | Self::Result(_)
             | Self::Note { .. } => {
@@ -1007,11 +1000,11 @@ impl Body {
                 Some(jig_client::contract::TaskResult::Document(result)) => Some(&result.ending),
                 Some(jig_client::contract::TaskResult::Ending(_)) | None => None,
             },
-            Self::Proposal(proposal) => proposal.ending.as_ref(),
+
             Self::Question(question) => question.ending.as_ref(),
-            Self::PersonTask(task) => task.ending.as_ref(),
+
             Self::Result(result) => Some(&result.ending),
-            Self::Escalation(escalation) => escalation.ending.as_ref(),
+
             Self::Historical(_)
             | Self::Chip(_)
             | Self::OwnerProposal(_)
@@ -1056,6 +1049,7 @@ pub(crate) fn contexts(value: &jig_client::contract::Delivery, capacity: u32) ->
         | jig_client::contract::Delivery::OwnerProposal(_)
         | jig_client::contract::Delivery::OwnerTree(_)
         | jig_client::contract::Delivery::Chips(_)
+        | jig_client::contract::Delivery::Run(_)
         | jig_client::contract::Delivery::RunState(_)
         | jig_client::contract::Delivery::Settings(_)
         | jig_client::contract::Delivery::OwnerDeployment(_)

@@ -270,6 +270,12 @@ fn native_hold_accounts_obey_bounded_application_and_task_parts_without_dropping
         let token = read(&shown, query);
         let mut exact = task(Some(account()));
         let independent = Part::Outbox { connector: 3, entry: 5, scope: PartScope::Deployment };
+        let mut result = objects::result();
+        result.value = Some(ResultValue::Connector {
+            summary: DocumentText::complete(objects::text(b"result")),
+            part: independent.clone(),
+        });
+        exact.result = Some(TaskResult::Document(Box::new(result)));
         exact.context.as_mut().unwrap().parts = list([independent]);
         let (value, body) = if escalation {
             let value = OwnerEscalation { task: Box::new(exact), acts: List::with_capacity(0) };

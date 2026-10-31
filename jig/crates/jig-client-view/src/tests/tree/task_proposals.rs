@@ -13,7 +13,7 @@ use crate::tests::tree::{
     work_pages::{entered, list},
 };
 use crate::{
-    Event, Request,
+    Request,
     state::address::{Address, TaskSection},
 };
 use jig_client::contract::*;

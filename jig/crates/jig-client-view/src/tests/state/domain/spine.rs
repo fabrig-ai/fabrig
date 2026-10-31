@@ -6,7 +6,7 @@ use crate::state::{
 use crate::tests::fixtures::{Fixture, Served, Watched};
 use crate::{Event, Limits, Request};
 use jig_client::Link;
-use jig_client::contract::{Count, Delivery, DocumentText, HeldRole, Inbox, Me, MeParty, Needs, PartyKind, WatchEvent};
+use jig_client::contract::{Count, Delivery, DocumentText, HeldRole, Me, MeParty, Needs, PartyKind, WatchEvent};
 use skein_lib::{Duration, Env, List, Queue, Time, Wall};
 
 pub(crate) const LIMITS: Limits = Limits {
@@ -102,16 +102,6 @@ pub(in crate::tests) fn delivered(
     frame: Me,
 ) -> Box<[Request]> {
     drive(domain, now, Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(frame))) })
-}
-fn inbox() -> Inbox {
-    Inbox {
-        entries: List::with_capacity(0),
-        needs: needs(),
-        updates: Count { value: 0, limited: false },
-        results_seen: 0,
-        replies_seen: List::with_capacity(0),
-        more: false,
-    }
 }
 
 #[test]

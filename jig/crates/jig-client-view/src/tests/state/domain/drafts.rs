@@ -26,9 +26,7 @@ fn install(domain: &mut Fixture, document: Task) -> Id<Object> {
     assert!(domain.objects.put(key, Body::Task(Box::new(document))));
     id
 }
-fn intend(domain: &mut Fixture, id: Id<Object>, act: ActKind) {
-    assert!(drive(domain, Time::ZERO, Event::Act { action: Act::Intend { object: id.token(), act } }).is_empty());
-}
+
 fn edit(domain: &mut Fixture, task: u64, words: &[u8]) -> Box<[Request]> {
     drive(domain, Time::ZERO, Event::Act { action: Act::Edit { field: Purpose::Composer { task }, text: text(words) } })
 }
@@ -230,8 +228,4 @@ fn a_words_answer_clears_only_the_submitted_touch_and_refused_or_unknown_words_k
         }
         assert!(drive(&mut domain, Time::ZERO, AnsweredByEngine { request, answer }).is_empty());
     }
-}
-
-fn intend_amend_release(domain: &mut Fixture, id: Id<Object>) {
-    assert!(drive(domain, Time::ZERO, Event::Act { action: Act::AmendRelease { object: id.token() } }).is_empty());
 }

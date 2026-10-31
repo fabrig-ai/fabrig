@@ -17,9 +17,7 @@ use crate::{
     },
 };
 use alloc::boxed::Box;
-use jig_client::contract::{
-    AddressChange, Amendment, Executor, PersonAddress, Recipient, ResultsWake, Revision, Task, Text, WakeRule,
-};
+use jig_client::contract::{AddressChange, Amendment, Executor, PersonAddress, ResultsWake, Task, Text, WakeRule};
 /// The one property replaced by an input's whole value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Field {
@@ -356,19 +354,6 @@ fn task_address(doc: &Task) -> Option<AddressChange> {
         Executor::Party { party } => PersonAddress::Party(party),
         Executor::Role { project, role } if project == doc.project => PersonAddress::Role(role),
         Executor::Role { .. } | Executor::Agent { .. } | Executor::Procedure { .. } => return None,
-    };
-    Some(AddressChange { revision, address })
-}
-fn recipient_address(
-    revision: Option<Revision>,
-    to: Option<&Recipient>,
-    project: Option<u32>,
-) -> Option<AddressChange> {
-    let revision = revision?;
-    let address = match to? {
-        Recipient::Party(party) => PersonAddress::Party(*party),
-        Recipient::Role { project: scope, role } if Some(*scope) == project => PersonAddress::Role(*role),
-        Recipient::Role { .. } | Recipient::Task(_) | Recipient::Roles { .. } => return None,
     };
     Some(AddressChange { revision, address })
 }

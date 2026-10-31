@@ -5,6 +5,7 @@ use crate::{JigBindings, tree::fragments::history as view};
 use skein_ui::Limits;
 use skein_ui::phrases::{Hole, Invalid, PhraseLimits, Phrasebook, Segment, SpanUnit, WallFormat};
 use skein_ui::{Builder, Tree};
+use std::io::Write;
 
 use jig_client::contract::*;
 use skein_lib::{Duration, List, Wall, bytes::copy_of};

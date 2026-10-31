@@ -6,7 +6,7 @@ use skein_ui::Builder;
 use skein_ui::phrases::Hole;
 impl Words {
     /// Say missing authority, keeping unavailable requested facts absent.
-    pub fn lacking(&self, b: &mut Builder, lacking: &Lacking, text_limit: u32) {
+    pub fn lacking(&self, b: &mut Builder, lacking: &Lacking) {
         match lacking {
             Lacking::Approver => self.text(b, JigPhrase::ApprovalAuthorityMissing, &[]),
             Lacking::Budget { needed, left } => {

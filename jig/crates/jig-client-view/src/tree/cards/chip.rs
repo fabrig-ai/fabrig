@@ -30,7 +30,7 @@ pub fn head(b: &mut Builder, chip: &Chip, words: &Words, bindings: &mut JigBindi
     }
     {
         let ChipPhase { details, .. } = chip.details.as_ref();
-        crate::tree::fragments::proposed_task::executor(b, details.executor, words)
+        crate::tree::fragments::proposed_task::executor(b, details.executor, words);
     }
 }
 /// Build all kept dependency chips with a bounded work list, never recursive traversal.

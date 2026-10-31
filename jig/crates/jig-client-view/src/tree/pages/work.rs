@@ -8,7 +8,6 @@ use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run, State};
 
 use crate::state::action::Act;
-use jig_client::contract::PhaseCounts;
 pub(crate) fn section(b: &mut Builder, words: &Words, phrase: JigPhrase, region: crate::regions::JigRegion) {
     let title = words.say(phrase, &[]);
     b.open(Role::Region);
@@ -54,22 +53,6 @@ pub(crate) fn control(
     b.close();
 }
 
-pub(crate) fn counts(b: &mut Builder, counts: PhaseCounts, words: &Words) {
-    for (phrase, count) in [
-        (JigPhrase::Word(Word::Decision(D::TasksWaiting)), counts.waiting),
-        (JigPhrase::Word(Word::Decision(D::TasksRunning)), counts.running),
-        (JigPhrase::Word(Word::Decision(D::TasksHeld)), counts.held),
-        (JigPhrase::Word(Word::Decision(D::TasksClosing)), counts.closing),
-        (JigPhrase::Word(Word::Decision(D::TasksEnded)), counts.ended),
-        (JigPhrase::Word(Word::Decision(D::TasksDone)), counts.done),
-        (JigPhrase::Word(Word::Decision(D::TasksFailed)), counts.failed),
-        (JigPhrase::Word(Word::Decision(D::TasksCancelled)), counts.cancelled),
-    ] {
-        if count > 0 {
-            words.text(b, phrase, &[Hole::Number(u64::from(count))]);
-        }
-    }
-}
 pub(crate) fn cursors(
     b: &mut Builder,
     words: &Words,

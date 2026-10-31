@@ -8,7 +8,7 @@
 )]
 use crate::{Address, Domain, Event, Request, first, unlinked};
 use jig_client::Link;
-use jig_client::contract::{self, Answer, Delivery, Outcome, WatchEnd, WatchEvent};
+use jig_client::contract::{self, Answer, Outcome, WatchEnd};
 use skein_lib::{Duration, List, Queue, RequestEnvelope, Time, Token};
 #[test]
 fn keyed_requests_leave_only_through_the_table_after_their_records() {
@@ -242,26 +242,7 @@ fn item(revision: u64) -> crate::family::Document {
         }),
     })
 }
-fn open_families(root: &mut Domain, rows: &[Request]) {
-    for row in rows {
-        if let Request::Client {
-            request:
-                jig_client::Request::Down {
-                    down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { .. } },
-                },
-        } = row
-        {
-            drive(
-                root,
-                Event::Client {
-                    event: jig_client::Event::Up {
-                        up: jig_client::Up::Watched { watch: *watch, event: WatchEvent::Opened },
-                    },
-                },
-            );
-        }
-    }
-}
+
 fn family_page(root: &mut Domain) -> Vec<Request> {
     drive(
         root,

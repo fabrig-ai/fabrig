@@ -415,7 +415,7 @@ pub(crate) fn chip_phase(phase: jig_client::contract::OwnerChipPhase) -> jig_cli
     details.run_since = None;
     details.retry = None;
     details.live_delegates = 0;
-    jig_client::contract::ChipPhase { phase, details: Box::new(details) }
+    ChipPhase { phase, details: Box::new(details) }
 }
 pub(crate) fn hold() -> jig_client::contract::OwnerChipHold {
     use jig_client::contract::*;
@@ -470,14 +470,8 @@ pub(crate) fn inbox(rows: skein_lib::List<jig_client::contract::OwnerInboxEntry>
     }
 }
 
-pub(crate) fn run(task: u64, value: jig_client::contract::RunText) -> jig_client::contract::Delivery {
-    jig_client::contract::Delivery::RunState(Box::new(jig_client::contract::RunState {
-        task,
-        attempt: Some(value.attempt),
-        committed_turn: 0,
-        writing: Some(value),
-        call: None,
-    }))
+pub(crate) fn run(value: jig_client::contract::RunText) -> jig_client::contract::Delivery {
+    jig_client::contract::Delivery::Run(Box::new(value))
 }
 
 pub(crate) fn archive(
@@ -499,10 +493,7 @@ pub(crate) fn archive(
     }
 }
 
-pub(crate) fn proposal(
-    key: jig_client::contract::ProposalKey,
-    reason: jig_client::contract::Text,
-) -> jig_client::contract::OwnerProposal {
+pub(crate) fn proposal(key: jig_client::contract::ProposalKey, reason: Text) -> jig_client::contract::OwnerProposal {
     use jig_client::contract::*;
     OwnerProposal {
         key,

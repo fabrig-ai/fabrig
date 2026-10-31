@@ -6,6 +6,7 @@ use crate::tests::fixtures::Fixture;
 use crate::words::Words;
 use crate::words::{result_words, result_words::ResultPhrase};
 use crate::{JigBindings, tree::fragments::result as view};
+use jig_client::contract::{OwnerChipPhase, RunStage};
 use skein_ui::Limits;
 use skein_ui::phrases::{Invalid, Language, PhraseLimits, Phrasebook, Segment, WallFormat};
 use skein_ui::{Builder, Tree};

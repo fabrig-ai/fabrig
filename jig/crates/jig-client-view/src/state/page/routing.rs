@@ -328,7 +328,7 @@ pub(crate) fn delivery(
     let source = Source::Watch(watch);
     match value {
         Delivery::Me(_) | Delivery::OwnerProject(_) | Delivery::OwnerAccounts(_) | Delivery::Settings(_) => {}
-        Delivery::RunState(_) => {
+        Delivery::Run(_) | Delivery::RunState(_) => {
             crate::state::activity::routing::text(domain, env, watch, out, lent);
         }
         Delivery::OwnerProposal(proposal) => {
@@ -897,7 +897,6 @@ fn historical_funders_fit(page: &contract::OwnerSpendPage, project: u32) -> bool
 }
 
 /// Validate the retained original request before consuming its terminal.
-#[expect(clippy::too_many_lines, reason = "the original query checks all closed read variants before applying history")]
 fn historical_read_valid(domain: &Ui, env: &Env<crate::Limits>, token: Token, result: &ReadResult) -> bool {
     let value = match result {
         ReadResult::Value(value) => value,

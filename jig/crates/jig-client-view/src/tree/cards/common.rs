@@ -1,10 +1,10 @@
 //! Shared card facts, acts and part slots (client/domain/objects.md, sections 2–9).
+use crate::words::Words;
 use crate::words::phrases::jig::JigPhrase;
-use crate::words::{Words, name};
 use crate::{JigBindings, JigMeaning, Owner};
 
 use skein_ui::phrases::Hole;
-use skein_ui::{Builder, Role, Run, SlotRef};
+use skein_ui::{Builder, Role, SlotRef};
 
 use crate::{
     Borrowed,
