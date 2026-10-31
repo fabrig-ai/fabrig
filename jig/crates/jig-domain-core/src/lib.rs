@@ -794,7 +794,7 @@ impl Core {
             && self.pending_calls.is_empty()
             && self.pending_note_briefs.is_empty()
             && self.ending_positions.is_empty()
-            && self.flights.is_empty()
+            && self.flights_idle()
             && self.relaying.is_empty()
             && self.adopted.is_empty()
             && self.due.is_empty()

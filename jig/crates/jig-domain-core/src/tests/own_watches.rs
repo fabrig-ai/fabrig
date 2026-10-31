@@ -356,3 +356,20 @@ fn whose_routes_a_read_and_its_whole_reply_and_refuses_it_while_stopping() {
     }
     assert!(answered);
 }
+
+#[test]
+fn a_delivered_watch_permits_idle_but_an_unanswered_request_does_not() {
+    let (mut core, limits, sign_in, _) = started_signed_core();
+    drop(open(&mut core, &limits, sign_in, 30, Watched::Frame));
+    let _committed = core.counters.next_commit();
+    assert!(core.quiescent(true), "a retained watch awaits no answer");
+    let owner = core.effect_owner();
+    assert!(!core.quiescent(true), "a staged effect still needs its answer");
+    drop(core.land_kind(owner, crate::flight::Kind::EffectStaging));
+    assert!(core.quiescent(true));
+    drop(watch_outputs(&mut core, &limits, Event::Unwatch { watcher: Token::new(30) }));
+    drop(watch_outputs(&mut core, &limits, Event::Delivered { watcher: Token::new(30) }));
+    let _committed = core.counters.next_commit();
+    assert!(core.flights.is_empty());
+    assert!(core.quiescent(true));
+}

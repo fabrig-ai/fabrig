@@ -48,6 +48,15 @@ pub(crate) enum Internal {
 }
 
 impl Core {
+    pub(crate) fn flights_idle(&self) -> bool {
+        for (_, flight) in &self.flights {
+            if flight.kind() != Kind::Watch {
+                return false;
+            }
+        }
+        true
+    }
+
     pub(crate) fn person_task_flights(&self) -> u32 {
         let mut count = 0_u32;
         for (_, flight) in &self.flights {
