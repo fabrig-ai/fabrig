@@ -39,7 +39,6 @@ pub(crate) enum Word {
     MisconfiguredPlan,
     HeldPlan,
     DeclinedPlan,
-    SteppedAside,
     PaysFor,
     ReadyModel,
     ReadyAccount,
@@ -234,7 +233,7 @@ const ROWS: &[(Word, &[u8])] = &[
     (Word::NoOwn, b"No model of yours yet."),
     (Word::Connect, b"Connect a model"),
     (Word::Playground, b"The playground"),
-    (Word::PlaygroundAccount, "Scripted model · the playground’s, until a model of yours connects · held by the deployment".as_bytes()),
+    (Word::PlaygroundAccount, "Scripted model · the playground’s · held by the deployment".as_bytes()),
     (Word::PlaygroundWords, "It plays the playground’s scripts: it answers the suggested requests, and nothing else. It costs nothing, and nothing leaves this machine.".as_bytes()),
     (Word::AddApiKey, b"Add an API key"),
     (Word::Replace, b"Replace"),
@@ -250,7 +249,6 @@ const ROWS: &[(Word, &[u8])] = &[
     (Word::MisconfiguredPlan, "OpenAI refused temper’s sign-in. Check the configuration’s registration.".as_bytes()),
     (Word::HeldPlan, "Another person here holds that ChatGPT account. To use one of yours, sign out of ChatGPT in your browser first, then Continue with ChatGPT.".as_bytes()),
     (Word::DeclinedPlan, "You signed in without plan usage.".as_bytes()),
-    (Word::SteppedAside, "The playground’s scripted model stepped aside.".as_bytes()),
     (Word::PaysFor, "Pays for".as_bytes()),
     (Word::ReadyModel, "Model".as_bytes()),
     (Word::ReadyAccount, "Account".as_bytes()),
@@ -662,13 +660,12 @@ pub(crate) fn mark(root: &temper_client_domain::Domain) -> Option<Mark> {
     use jig_client::contract::{OwnerAccountHolder, OwnerAccountState};
     let document = root.pages().accounts_document(root.client())?;
     let party = root.pages().me(root.client())?.party.number;
-    let mut demo = None;
-    if let Some(answer) = root.forge().demo() {
-        demo = Some(answer.provider);
-    }
+    let playground = root.forge().playground_provider();
     let mut limited = false;
     for account in &document.accounts {
-        if account.holder != OwnerAccountHolder::Party(party) || (demo.is_some() && account.provider == demo) {
+        if account.holder != OwnerAccountHolder::Party(party)
+            || (playground.is_some() && account.provider == playground)
+        {
             continue;
         }
         // The deciding source is the first supplied in order (client/README.md, 5.3).
