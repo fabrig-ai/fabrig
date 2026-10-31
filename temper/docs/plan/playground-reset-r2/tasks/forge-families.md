@@ -404,3 +404,21 @@ The spec’s Answers, “2026-10-31 (fourth),” explicitly authorizes:
 The next run adds that expectation, names it in the report, and completes the remaining checks, commits and branch push.
 
 Could not write the requested report file because this run’s filesystem permissions are read-only.
+
+## Answers
+
+2026-10-31 (fifth, the answerer; the user's call, 10-31).
+
+- **The run cap: does this task get another run?** Yes. The user chose
+  fresh runs; the loop of foreman sections above was fab's, fixed in
+  agents 749198c, and those sections are harmless and stay. Nothing in
+  the task changes: the fourth answer stands. Add, on
+  `temper-fake/src/check.rs`'s `evidence` beside its `type_complexity`
+  expectation, `#[expect(clippy::too_many_lines, reason = "one
+  exhaustive evidence map for every durable forge family")]`, no
+  refactor, and finish what run 4's report left unrun: the full
+  `temper-protocol-store`, `temper-engine-domain-forge --lib` and
+  `temper-codecs-world` runs (the schema and golden drift test with
+  them), the `--tests` checks on the dependents, clippy on every edited
+  package, `old_forms.py`, then the commits and the push. If run 4's
+  uncommitted work is not in the slot, rebuild it from its report.
