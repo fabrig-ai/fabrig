@@ -6,116 +6,8 @@ use super::*;
 use skein_lib::Duration;
 use teardown::{Answer, Close};
 
-#[expect(clippy::too_many_lines, reason = "complete composed test limits keep each owned layer visible")]
 fn limits() -> Limits {
-    let client = skein_llm_world::limits();
-    let decoded_call_bytes = 4096;
-    let channel_bodies = smith_channel::CEILINGS;
-    let schema = smith_channel::schema(&channel_bodies).expect("bounded channel schema");
-    let version = schema.version(5).expect("v5");
-    let mut largest = 0;
-    for kind in &version.kinds {
-        largest = largest.max(kind.largest);
-    }
-    let llm_io = io::Limits {
-        sockets: 3,
-        names: 0,
-        refusals: 1,
-        intake: 19_000,
-        receive: 1024,
-        output: 19_000,
-        sends: 2,
-        accepts: 1,
-        backlog: 2,
-        close_timeout: Duration::from_secs(1),
-        retry: Duration::from_millis(10),
-    };
-    let io = io::Limits { sockets: 16, ..llm_io };
-    Limits {
-        domain: smith_agent_world::LIMITS,
-        channel: channel::Limits {
-            bodies: channel_bodies,
-            start_bytes: u32::try_from(
-                smith_channel::Start::encoded_bound(&channel_bodies).expect("fixture Start bound"),
-            )
-            .expect("fixture frame"),
-            charter: smith_charter::CEILINGS,
-            transcript: smith_transcript::CEILINGS,
-            resume_turns: 64,
-            search_hits: 256,
-            channel: skein_channel::Limits {
-                chunk: 4096,
-                credential: 0,
-                skip: 4096,
-                output_bytes: largest.checked_add(8).expect("largest frame"),
-                output_frames: 4,
-                kinds: 20,
-            },
-            endpoints: 1,
-            calls: 8,
-            turns: 8,
-            fact_reserve_frames: 1,
-            fact_reserve_bytes: 128,
-            grants: 8,
-        },
-        llm: llm::ComponentLimits {
-            adapter: llm::Limits {
-                client,
-                tool_bytes: 32_768,
-                history_bytes: u64::from(client.request),
-                rendered_result: client.strings,
-                stated: llm::Stated::from_tools(&smith_agent_world::LIMITS.session.tools, client.input)
-                    .expect("test effective quantities fit"),
-            },
-            connection: skein_llm_connection::Limits {
-                memory: 1 << 40,
-                endpoints: 1,
-                connections: 2,
-                calls: 2,
-                per_endpoint: 2,
-                idle_keep: Duration::from_secs(1),
-                io: llm_io,
-                tls: skein_tls::client::Limits { read: 4096, send: 4096, records: skein_tls::client::MAX_RECORD },
-            },
-            receiving: llm::Receiving {
-                max_completion_bytes: llm::completion_bound(&client, decoded_call_bytes).expect("receiving bound"),
-                max_completion_blocks: client.output_items,
-                decoded_call_bytes,
-                max_failure_bytes: client.detail_bytes,
-            },
-            contract_bytes: 4096,
-            llms: smith_agent_world::LIMITS.run.models.checked_add(1).expect("main LLM fits"),
-            accounts: 1,
-            grant_value_bytes: 128,
-        },
-        machine: machine::Limits {
-            operations: 2,
-            roots: 1,
-            path_bytes: 64,
-            file_bytes: 16,
-            tool_payload: smith_agent_world::LIMITS.session.tools.tool_payload,
-            entries: 2,
-            entry_bytes: 512,
-            processes: 2,
-            output_bytes: 64,
-            search_hits: 8,
-            search_bytes: 256,
-            search_line_bytes: 512,
-            env_bytes: 512,
-            group_stop: Duration::from_millis(10),
-        },
-        io,
-        file_slots: 4,
-        file_read: 64,
-        file_entries: 2,
-        file_bytes: 512,
-        file_timeout: Duration::from_secs(1),
-        live_interval: crate::profile::standard().policy.live_interval,
-        queue: crate::profile::DEFAULT_PACING,
-        routes: io::operations(&io).expect("bounded test IO").checked_add(2).expect("file routes fit"),
-        memory: u64::MAX,
-        events: None,
-    }
+    crate::fixture::small()
 }
 
 pub(crate) fn configuration() -> Config {
@@ -131,6 +23,13 @@ pub(crate) fn configuration() -> Config {
         environment: machine::Environment::encode(&[], &limits.machine).expect("empty environment fits"),
         stream_mode: StreamMode::Two,
     }
+}
+
+pub(crate) fn charter(settings: &smith_agent_world::Settings) -> run::Charter {
+    let mut charter = smith_agent_world::scripted_charter(settings);
+    charter.llm.window = 2_097_152;
+    charter.llm.output = 65_536;
+    charter
 }
 
 fn service() -> Service {
@@ -585,7 +484,7 @@ fn a_message_waits_at_the_watermark_and_is_taken_once_the_backlog_falls() {
 }
 
 fn preparing_message_run(service: &mut Service) -> Token {
-    let mut charter = smith_agent_world::scripted_charter(&smith_agent_world::Settings::calm(1));
+    let mut charter = charter(&smith_agent_world::Settings::calm(1));
     charter.models = Box::default();
     charter.llm.account = None;
     let model = &charter.llm;
@@ -799,7 +698,7 @@ fn a_start_waits_at_the_watermark_before_attaching_its_roots() {
             identity: None,
             messages: Box::default(),
             activation: 1,
-            charter: smith_agent_world::scripted_charter(&smith_agent_world::Settings::calm(1)),
+            charter: charter(&smith_agent_world::Settings::calm(1)),
             mounts: Some(Box::new([channel::Mount {
                 name: Box::from(b"work".as_slice()),
                 path: Box::from(b"/work".as_slice()),
@@ -925,8 +824,7 @@ mod validity {
             limits.events = Some(smith_protocol_events::EventLimits {
                 sinks: smith_protocol_events::sinks::fixture::limits(1),
                 capture: smith_protocol_events::sinks::Capture::None,
-                front: false,
-                write_deadline: Duration::from_secs(1),
+                ..smith_protocol_events::fixture::event_limits()
             });
             limits.events.as_mut().unwrap().sinks.output = 0;
             cases.push(limits);
@@ -974,8 +872,7 @@ mod validity {
             limits.events = Some(smith_protocol_events::EventLimits {
                 sinks: smith_protocol_events::sinks::fixture::limits(u32::MAX),
                 capture: smith_protocol_events::sinks::Capture::None,
-                front: false,
-                write_deadline: Duration::from_secs(1),
+                ..smith_protocol_events::fixture::event_limits()
             });
             assert!(!io_valid(&limits));
             limits.events.as_mut().unwrap().sinks.destinations = base.io.sockets - base.llm.connection.connections;

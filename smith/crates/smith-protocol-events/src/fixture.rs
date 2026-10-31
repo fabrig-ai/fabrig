@@ -22,3 +22,14 @@ pub fn prompt(thread: u32) -> llm::Prompt {
         max_tokens: 7,
     }
 }
+
+/// A complete scalar destination with a one-second write deadline.
+#[must_use]
+pub fn event_limits() -> crate::EventLimits {
+    crate::EventLimits {
+        sinks: crate::sinks::fixture::small(),
+        capture: crate::sinks::Capture::None,
+        front: false,
+        write_deadline: skein_lib::Duration::from_secs(1),
+    }
+}

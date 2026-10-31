@@ -11,12 +11,12 @@ use alloc::vec::Vec;
 pub const DEADLINE: Duration = Duration::from_secs(30);
 
 #[must_use]
-pub fn limits(destinations: u32) -> SinkLimits {
+pub fn small() -> SinkLimits {
     let records = smith_events::Limits { string: 64, content: 1024, items: 19 };
     let line = largest_line(&records, Capture::None, records.content, records.string)
         .expect("bounded fixture input and complete destination output");
     SinkLimits {
-        destinations,
+        destinations: 1,
         output: line.checked_mul(6).expect("bounded fixture input and complete destination output"),
         records,
         answer_bytes: records.content,
@@ -27,6 +27,12 @@ pub fn limits(destinations: u32) -> SinkLimits {
         fact_extra: 0,
         conversations: 1,
     }
+}
+
+/// Destination count override on the small projection preset.
+#[must_use]
+pub fn limits(destinations: u32) -> SinkLimits {
+    SinkLimits { destinations, ..small() }
 }
 
 pub fn grant(sinks: &mut Sinks, token: Token) {

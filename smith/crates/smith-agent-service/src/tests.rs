@@ -33,12 +33,7 @@ fn every_settled_check_exit_preserves_its_kind_and_only_zero_passes() {
     }
 }
 
-use crate as profile_service;
-
-#[path = "../tests/support/declarations.rs"]
-mod profile_declarations;
-
-pub(crate) use profile_declarations::declarations;
+pub(crate) use crate::fixture::declarations;
 
 pub(crate) fn priced_charter() -> smith_domain::run::Charter {
     use skein_lib::Duration;

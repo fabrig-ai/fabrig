@@ -3166,6 +3166,7 @@ dependencies = [
  "skein-llm-connection",
  "skein-llm-world",
  "skein-tls",
+ "smith-agent-service",
  "smith-agent-world",
  "smith-channel",
  "smith-charter",

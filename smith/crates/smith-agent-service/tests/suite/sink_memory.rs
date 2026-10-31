@@ -168,9 +168,8 @@ mod tests {
             metadata_string: 64,
             metadata_items: 32,
             scalar_content: 16384,
-            observation_line: 0,
-            fact_extra: 0,
             conversations: 6,
+            ..smith_protocol_events::sinks::fixture::small()
         };
         let record = Record {
             t_ms: 1,

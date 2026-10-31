@@ -554,8 +554,7 @@ mod tests {
         limits.events = Some(EventLimits {
             sinks: crate::sinks::tests::limits(1),
             capture: Capture::Everything,
-            front: false,
-            write_deadline: Duration::from_secs(1),
+            ..crate::fixture::event_limits()
         });
         assert!(valid(&limits));
         let base = limits;

@@ -524,7 +524,7 @@ fn one_legacy_content_drain_empties_the_root_beyond_the_service_fact_allowance()
     let mut service = Service::new(super::tests::configuration(), 1).expect("bounded service");
     let settings =
         smith_agent_world::Settings { job: smith_agent_world::Job::HostTools, ..smith_agent_world::Settings::calm(1) };
-    let mut charter = smith_agent_world::scripted_charter(&settings);
+    let mut charter = super::tests::charter(&settings);
     charter.conventions = None;
     charter.models = Box::default();
     charter.llm.account = None;
