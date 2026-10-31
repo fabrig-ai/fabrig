@@ -473,13 +473,10 @@ mod carrier_tests {
         child_returned(&mut facts, Token::new(31), Token::new(43), &seen, used);
         let fact = facts.pop().expect("one child terminal");
         assert_eq!(fact.at, Time::from_nanos(23_000_000));
-        let FactKind::Returned { run, call, result: Return::Answered { used: observed, .. } } = fact.kind else {
+        let FactKind::Returned { run, call, result: Return::Answered { used: observed, cut } } = fact.kind else {
             panic!("one child answer")
         };
-        assert_eq!((run, call, observed), (Token::new(31), Token::new(43), used));
-        // This assertion compiles unchanged on the current parent, where the
-        // scalar is lost: its runtime failure is the carrier's parent proof.
-        assert!(format!("{:?}", fact.kind).contains("cut: 17"), "cut was lost: {:?}", fact.kind);
+        assert_eq!((run, call, observed, cut), (Token::new(31), Token::new(43), used, 17));
         assert_eq!(facts.pop(), None);
         let Returned::Answered { text, .. } = seen else { panic!("source answer") };
         assert_eq!(text.as_ref(), b"kept", "the scalar fact leaves source content unchanged");

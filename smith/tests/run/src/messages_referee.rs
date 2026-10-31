@@ -2,8 +2,8 @@
 //! judgments and liveness. Contract: smith/docs/design/domain/run.md, sections 6 and 13.
 
 use skein_lib::{Duration, Time, Token};
-use skein_world::domain::{Expectations, Judge, Referee, Verdict};
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use skein_world::domain::{Expectations, Judge, Verdict};
+use std::collections::{BTreeSet, VecDeque};
 
 /// One message fact or the final boundary fence.
 #[derive(Clone, Copy, Debug)]
@@ -73,10 +73,5 @@ impl Expectations for Meeting {
 /// Judge per-activation observations through Skein's referee.
 #[must_use]
 pub fn judge(seen: &[(Time, Token, Seen)]) -> Vec<Verdict> {
-    let mut meetings = BTreeMap::new();
-    for (at, run, seen) in seen {
-        let meeting = meetings.entry(*run).or_insert_with(|| Referee::new(Meeting::default()));
-        meeting.observe(*at, *seen, &mut Vec::new());
-    }
-    meetings.values().map(Referee::verdict).collect()
+    crate::referee::judge::<Meeting>(seen)
 }

@@ -1,10 +1,10 @@
 //! What a run finds in its checkout before it opens its main conversation
-//! (smith/docs/design/domain/run.md, sections 3.3 and 8.1). The engine never reads a repository, so the
+//! (smith/docs/design/domain/run.md, sections 3.3 and 8.1). The engine never reads a directory, so the
 //! run looks for itself:
 //!
-//! - For each repository, the start of its selected guide, which the system text
+//! - For each directory, the start of its selected guide, which the system text
 //!   carries after the brief.
-//! - For each writable repository, whether its selected relative check path
+//! - For each writable directory, whether its selected relative check path
 //!   names an executable. No executable, no checks.
 //!
 //! One operation at a time, in the checkout's order, each with its deadline.
@@ -22,11 +22,11 @@ use crate::conventions;
 use crate::limits::Limits;
 use crate::workspace::{self, Directory, Workspace};
 
-/// One thing a run looks for: in the repository at `repository` in its
+/// One thing a run looks for: in the directory at `directory` in its
 /// checkout, its guide or its checks.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Step {
-    pub(crate) repository: u32,
+    pub(crate) directory: u32,
     pub(crate) look: Look,
 }
 
@@ -46,11 +46,11 @@ pub(crate) struct Found {
     pub(crate) checks: List<u32>,
 }
 
-/// The start of a repository's selected guide.
+/// The start of a directory's selected guide.
 #[derive(Debug)]
 pub(crate) struct Guide {
-    /// The repository's place in the checkout.
-    pub(crate) repository: u32,
+    /// The directory's place in the checkout.
+    pub(crate) directory: u32,
     pub(crate) text: Box<[u8]>,
     /// Whether `text` is all of the file.
     pub(crate) whole: bool,
@@ -68,18 +68,18 @@ impl Found {
 pub(crate) fn next(mounted: Option<&Workspace>, after: Option<Step>) -> Option<Step> {
     let repositories = count(workspace::directories(mounted).len());
     let candidate = match after {
-        None => Step { repository: 0, look: Look::Guide },
-        Some(Step { repository, look: Look::Guide }) => Step { repository, look: Look::Checks },
-        Some(Step { repository, look: Look::Checks }) => {
-            Step { repository: repository.saturating_add(1), look: Look::Guide }
+        None => Step { directory: 0, look: Look::Guide },
+        Some(Step { directory, look: Look::Guide }) => Step { directory, look: Look::Checks },
+        Some(Step { directory, look: Look::Checks }) => {
+            Step { directory: directory.saturating_add(1), look: Look::Guide }
         }
     };
     let step = match candidate.look {
         Look::Guide => candidate,
-        Look::Checks if wants_checks(mounted, candidate.repository) => candidate,
-        Look::Checks => Step { repository: candidate.repository.saturating_add(1), look: Look::Guide },
+        Look::Checks if wants_checks(mounted, candidate.directory) => candidate,
+        Look::Checks => Step { directory: candidate.directory.saturating_add(1), look: Look::Guide },
     };
-    (step.repository < repositories).then_some(step)
+    (step.directory < repositories).then_some(step)
 }
 
 /// The request that takes `step`, for the run `owner`.
@@ -92,7 +92,7 @@ pub(crate) fn request(
     limits: &Limits,
     guide_bytes: u32,
 ) -> Request {
-    let root = repository(mounted, step.repository).root;
+    let root = directory(mounted, step.directory).root;
     let deadline = now.saturating_add(limits.io_timeout);
     match step.look {
         Look::Guide => {
@@ -111,8 +111,8 @@ pub(crate) fn guide(found: &mut Found, step: Step, read: Read, guide_bytes: u32)
     match read {
         Read::Text { text, whole } => {
             assert!(count(text.len()) <= guide_bytes, "io reads no more than it is asked for");
-            let guide = Guide { repository: step.repository, text, whole };
-            found.guides.push(guide).expect("room for a guide per repository");
+            let guide = Guide { directory: step.directory, text, whole };
+            found.guides.push(guide).expect("room for a guide per directory");
         }
         Read::Missing | Read::NotText | Read::Failed => {}
     }
@@ -122,16 +122,16 @@ pub(crate) fn guide(found: &mut Found, step: Step, read: Read, guide_bytes: u32)
 pub(crate) fn checks(found: &mut Found, step: Step, executable: bool) {
     assert!(step.look == Look::Checks, "a probe answers a checks' step");
     if executable {
-        found.checks.push(step.repository).expect("room for checks per repository");
+        found.checks.push(step.directory).expect("room for checks per directory");
     }
 }
 
-/// Whether the run looks for the checks of the repository at `index`.
+/// Whether the run looks for the checks of the directory at `index`.
 fn wants_checks(mounted: Option<&Workspace>, index: u32) -> bool {
-    repository(mounted, index).writable
+    directory(mounted, index).writable
 }
 
-fn repository(mounted: Option<&Workspace>, index: u32) -> &Directory {
+fn directory(mounted: Option<&Workspace>, index: u32) -> &Directory {
     let index = usize::try_from(index).expect("a u32 fits in a usize");
     workspace::directories(mounted).get(index).expect("steps are within the checkout")
 }

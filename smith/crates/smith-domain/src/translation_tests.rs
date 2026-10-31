@@ -91,7 +91,7 @@ fn every_completion_failure_and_transport_evidence_maps_without_inference() {
         (llm::Failure::Unavailable, run::CompletionFailure::Unavailable),
         (
             llm::Failure::TimedOut { phase: llm::Phase::Whole },
-            run::CompletionFailure::TimedOut { phase: run::Phase::Whole },
+            run::CompletionFailure::TimedOut { phase: run::CompletionPhase::Whole },
         ),
         (llm::Failure::ContextTooLong, run::CompletionFailure::ContextTooLong),
         (llm::Failure::Invalid, run::CompletionFailure::Invalid),

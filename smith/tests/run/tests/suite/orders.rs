@@ -156,7 +156,7 @@ fn run_inputs_drained_before_alarms_at_the_check_deadline() {
     assert_eq!(world.stats().checks, CHECK_RUNS);
     assert_eq!(world.stats().partner.checks_failed, CHECK_RUNS, "every terminal supplies feedback");
     assert_eq!(world.stats().aborts, 0, "no alarm decides a check is still live");
-    assert_eq!(world.stats().pushes, 0);
+    assert_eq!(world.stats().deliveries, 0);
     assert!(world.answers().all(|answer| matches!(
         answer,
         Some(Answer::Failed { failure: Failure::Budget { exhausted: Exhausted::Time, .. }, .. })

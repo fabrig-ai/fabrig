@@ -3320,8 +3320,6 @@ name = "smith-domain-run"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
- "smith-charter",
- "smith-machine-world",
 ]
 
 [[package]]
@@ -3763,6 +3761,7 @@ dependencies = [
  "smith-agent-world",
  "smith-domain",
  "smith-domain-run",
+ "smith-machine-world",
  "smith-tools-world",
 ]
 

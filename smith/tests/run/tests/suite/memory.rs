@@ -55,11 +55,6 @@ const LIMITS: Limits = Limits {
     runs: 1,
     conversations: 2,
     run_bytes: 1024,
-    brief_sections: 4,
-    host_part: 1 << 20,
-    room: 0,
-    compaction_threshold: [4, 5],
-    compaction_material: 0,
     schema_costs: smith_domain_run::SchemaCosts::NONE,
     directories: 1,
     directory_name_bytes: 64,
@@ -67,17 +62,8 @@ const LIMITS: Limits = Limits {
     conflicts: 1,
     conflict_path_bytes: 64,
     host_tools: 1,
-    host_input_bytes: 65_536,
-    host_reply_bytes: 65_536,
-    answered_calls: 16,
-    answered_bytes: 4096,
-    host_timeout: Duration::from_secs(60),
-    host_timeout_max: Duration::from_secs(60),
-    host_backoff: Duration::from_millis(50),
     verdicts: 1,
-    calls: 2,
     budget: BUDGET,
-
     models: 1,
     run_conversations: 2,
     answer_bytes: 128,
@@ -87,13 +73,8 @@ const LIMITS: Limits = Limits {
     outcome_bytes: 256,
     delivery_timeout: Duration::from_secs(60),
     check_timeout: Duration::from_secs(60),
-    wrap_up: Duration::from_secs(60),
     check_tail: 1024,
-    messages: 8,
-    message_bytes: 4096,
-    offer_messages: 8,
-    offer_bytes: 32_782,
-    waiting: skein_lib::Duration::from_secs(300),
+    ..smith_domain_run::fixture::SMALL
 };
 
 /// A charter that holds exactly `held` bytes, as the run counts them: one of
@@ -277,7 +258,7 @@ fn observed_request(request: Request, selected: Option<&smith_domain_run::Conven
 /// byte limit and a guide of exactly its limit too, and has each one's main
 /// conversation start, spend, yield, be nudged, ask for a sub-agent that
 /// answers with more than the answer limit, and finish with a change of
-/// exactly the outcome limit, which is checked and pushed. A sub-agent's call
+/// exactly the outcome limit, which is checked and delivered. A sub-agent's call
 /// holds the answer, cut at the limit, while the child is being closed, and
 /// moves it into its return once the child has ended. Each run ends winding
 /// down with the change, while its landing, returned, still holds its copy
@@ -420,7 +401,7 @@ fn fill_selected(limits: &Limits, selected: Option<&smith_domain_run::Convention
             panic!("the change is being checked");
         };
         let ran = Ran { exit: Exit::Code { code: 0 }, output: bytes(0), cut: 0 };
-        assert_eq!(step(Event::Checked { owner, ran }), [Asked::Other, Asked::Other], "checked, it is pushed");
+        assert_eq!(step(Event::Checked { owner, ran }), [Asked::Other, Asked::Other], "checked, it is delivered");
         assert_eq!(step(Event::Delivered { owner, delivery: delivered() }), [Asked::Other, Asked::Other], "accepted");
     }
     assert_eq!(domain.runs(), limits.runs, "every run slot is held");
@@ -1049,8 +1030,8 @@ fn a_run_at_scalar_maxima_emits_its_largest_final_note_within_its_ownership_boun
         smith_domain_run::completion_permit(&mut domain, conversation, env.now, smith_domain_run::Most::Bounded(0));
     let measured = meter.end();
     let smith_domain_run::CompletionPermit::Final { note: Some(note) } = permit else { panic!("maximum note") };
-    assert!(note.windows(b"4294967294".len()).any(|bytes| bytes == b"4294967294"));
-    assert!(note.windows(b"18446744073".len()).any(|bytes| bytes == b"18446744073"));
+    assert!(skein_lib::bytes::find(&note, b"4294967294").is_some());
+    assert!(skein_lib::bytes::find(&note, b"18446744073").is_some());
     drop(note); // The completion receiver owns this output, as it owns Open and Say.
     meter.check(measured, bound, &limits);
     take(&mut domain, &env, Event::Cancel { run });
