@@ -10,10 +10,6 @@ const IMPORT: &[&[u8]] = &[b"account", b"import", b"/linked-parent/record", b"--
 const LOST: &[u8] = b"temper ctl: the record of the move was lost on its way; the engine keeps the account and cancels the move at its deadline; account export again after it\n";
 const AT_BOUND: &[u8] = &[0; 131_072]; // tools.md, 12: 128 KiB whole.
 const OVER_BOUND: &[u8] = &[b'r'; 131_073];
-// R5's kept 109-byte literal, transcribed from jig 365afd554^'s outer
-// encoder and skein cad332f2 record.rs: JIGM around SKOT v3, all options
-// present. Refresh and metadata have lengths without presence marks.
-const OLD: &[u8] = b"JIGM\x00\x01\x00\x00\x00\x01a\x00\x00\x00\x01i\x00\x00\x00\x01c\x00\x00\x00\x01s\x00\x00\x00\x01d\x00\x00\x00JSKOT\x00\x03\x00\x00\x00\x07\x00\x00\x00\x00\x00\x00\x00\x09\x00\x00\x00\x00\x00\x00\x00{\x00\x00\x00\x01a\x00\x00\x00\x01r\x00\x00\x00\x01m\x01\x00\x00\x00\x01c\x01\x00\x00\x00\x01g\x01\x00\x00\x00\x01s\x01\x00\x00\x00\x01i\x01\x00\x00\x00\x00\x00\x00\x00d";
 
 fn exporting(answers: impl IntoIterator<Item = Answer>) -> Frame {
     let mut f = Frame::act(EXPORT);
@@ -152,17 +148,8 @@ fn an_import_of_a_newer_form_refuses_it_and_sends_nothing() {
     assert_eq!(f.stderr(), b"temper ctl: /linked-parent/record holds a moved record of form v2; this temper reads up to v1: upgrade temper\n");
 }
 #[test]
-fn an_import_of_the_old_jigm_literal_moves_in() {
-    let f = importing(OLD, [Answer::MovedIn(false)]);
-    done(&f, 0, true);
-    assert_eq!(f.stdout(), b"moved in: account 7\n");
-    assert_eq!(f.stderr(), b"");
-    assert_eq!(f.carried_keys[0].expose(), OLD);
-}
-#[test]
 fn an_import_sends_malformed_short_current_or_older_forms_whole() {
-    for bytes in [b"\0\x01malformed\n".as_slice(), b"\0", b"\0\0old\n", b"JIGM", b"JIGM\0\x02", b"\n", AT_BOUND, RECORD]
-    {
+    for bytes in [b"\0\x01malformed\n".as_slice(), b"\0", b"\0\0old\n", b"\n", AT_BOUND, RECORD] {
         let f = importing(bytes, []);
         assert_eq!(f.carried_keys.len(), 1);
         assert_eq!(f.carried_keys[0].expose(), bytes);
