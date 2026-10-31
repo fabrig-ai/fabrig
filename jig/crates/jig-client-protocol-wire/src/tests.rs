@@ -206,17 +206,6 @@ fn each_watch_end_but_dropped_round_trips() {
 }
 
 #[test]
-fn a_deployment_document_past_its_rows_is_refused() {
-    let limits = fixtures::stream_limits();
-    let parts =
-        fixtures::deployment_parts(&limits, limits.deployment_capacity.checked_add(1).expect("small row bound"));
-    assert_eq!(
-        Deployment::new(&limits, parts),
-        Err(Problem { path: Path::DeploymentCapacity, reason: skein_codec::Reason::Bound })
-    );
-}
-
-#[test]
 fn an_account_waiting_to_ask_again_carries_the_wall_it_asks_at() {
     let limits = fixtures::stream_limits();
     for until in [None, Some(0), Some(u64::MAX)] {

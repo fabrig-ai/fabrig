@@ -159,7 +159,8 @@ pub fn incident_world(seed: u64) -> ClientWorld {
     p.reason = DocumentText::complete(text(b"Restart checkout in production"));
     let mut lead = task();
     lead.chip.title = DocumentText::complete(text(b"I incident lead"));
-    if let ChipPhase::Owner { phase, .. } = lead.chip.details.as_mut() {
+    {
+        let ChipPhase { phase, .. } = lead.chip.details.as_mut();
         *phase = OwnerChipPhase::Active(RunStage::Idle);
     }
     let mut restart = task();
@@ -168,7 +169,8 @@ pub fn incident_world(seed: u64) -> ClientWorld {
     restart.requester = OwnerRequester::Task(9);
     restart.proposals = list([p.key]);
     restart.chip.executor = Executor::Procedure { connector: number(Connector::Infrastructure), kind: 1 };
-    if let ChipPhase::Owner { details, .. } = restart.chip.details.as_mut() {
+    {
+        let ChipPhase { details, .. } = restart.chip.details.as_mut();
         details.procedure = Some(OwnerPart {
             connector: number(Connector::Infrastructure),
             kind: OwnerPartKind::Procedure,
@@ -381,7 +383,8 @@ pub fn environment_world(seed: u64) -> ClientWorld {
     }
     let mut chat = task();
     chat.chip.title = DocumentText::complete(text(b"Q staging chat"));
-    if let ChipPhase::Owner { phase, .. } = chat.chip.details.as_mut() {
+    {
+        let ChipPhase { phase, .. } = chat.chip.details.as_mut();
         *phase = OwnerChipPhase::Active(RunStage::Idle);
     }
     let mut p = proposal();

@@ -608,7 +608,7 @@ impl World {
                     attempt: exchange,
                     envelope: if final_answer { RequestEnvelope::Final } else { RequestEnvelope::Lost },
                     answer: if final_answer {
-                        Some(client::Answered::Jig(c::Answer::Done(c::Outcome::Changed)))
+                        Some(client::Answered::Jig(c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::AccountChanged))))
                     } else {
                         None
                     },
@@ -808,8 +808,18 @@ fn read_answer() -> Box<[u8]> {
 }
 
 fn keyed_answer() -> Box<[u8]> {
-    let final_answer =
-        w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome: w::Outcome::Changed }).expect("done"));
+    let final_answer = w::Final::Done(
+        w::Done::new(
+            &w::CEILINGS,
+            w::DoneParts {
+                outcome: w::Outcome::Owner(
+                    w::OutcomeOwner::new(&w::CEILINGS, w::OutcomeOwnerParts { value: w::OwnerOutcome::AccountChanged })
+                        .expect("owner outcome"),
+                ),
+            },
+        )
+        .expect("done"),
+    );
     let mut writer = Writer::new(usize::try_from(final_answer.measure()).expect("measured answer"));
     final_answer.encode(&mut writer).expect("final bytes");
     let owned = w::Owned::new(

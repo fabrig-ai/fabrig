@@ -50,24 +50,19 @@ fn milestone() -> HistoryRow {
         at: Some(Wall::EPOCH),
     }))
 }
-fn line() -> HistoryRow {
-    HistoryRow::Line(Box::new(HistoryLine {
-        position: u64::MAX,
-        task: 8,
-        by: Actor::Party(7),
-        at: Wall::from_nanos(u64::MAX),
-        change: HistoryChange::Made { batch: u64::MAX },
-    }))
-}
 #[test]
 fn whole_history_page_prices_all_boxes_stored_presence_and_reserved_rows_without_trimming() {
     let mut bounds = live_script().bounds;
     bounds.rows = 3;
     bounds.document_bytes = u64::MAX;
-    let values = [semantic(), milestone(), line()];
+    let values = [semantic(), milestone()];
+    let mut rows = List::with_capacity(3);
+    for value in &values {
+        rows.push(value.clone()).unwrap();
+    }
     let page = HistoryPage {
         cut: true,
-        rows: list(values.to_vec()),
+        rows,
         before: Some(Cursor::new(Box::from(b"opaque before".as_slice()), 1024).expect("bounded opaque cursor")),
         after: Some(Cursor::new(Box::from(b"opaque after".as_slice()), 1024).expect("bounded opaque cursor")),
     };
@@ -78,10 +73,6 @@ fn whole_history_page_prices_all_boxes_stored_presence_and_reserved_rows_without
         match value {
             HistoryRow::Change(line) => expected += crate::owner_history::bytes(line, &bounds).unwrap(),
             HistoryRow::Milestone(line) => expected += crate::owner_milestone::bytes(line, &bounds).unwrap(),
-            HistoryRow::Line(_) => {
-                // The supplied Made row has only inline scalar fields; its one box is charged once.
-                expected += u64::try_from(size_of::<HistoryLine>()).unwrap();
-            }
         }
     }
     assert_eq!(page.heap(&bounds).unwrap() + u64::try_from(size_of::<HistoryPage>()).unwrap(), expected);
@@ -101,8 +92,8 @@ fn whole_history_page_prices_all_boxes_stored_presence_and_reserved_rows_without
     assert_eq!(source.rows, Rows::History(vec![row]));
 }
 #[test]
-fn scripted_history_pages_keep_all_change_milestone_and_line_rows_under_opaque_source_continuations() {
-    let values = vec![semantic(), milestone(), line()];
+fn scripted_history_pages_keep_change_and_milestone_rows_under_opaque_source_continuations() {
+    let values = vec![semantic(), milestone()];
     let mut setup = live_script();
     setup.bounds.rows = 1;
     setup.truth.sources.push(Source {
@@ -128,52 +119,8 @@ fn scripted_history_pages_keep_all_change_milestone_and_line_rows_under_opaque_s
         };
         assert_eq!(page.rows.as_slice(), core::slice::from_ref(expected));
         assert_eq!(page.before.is_some(), index != 0);
-        assert_eq!(page.after.is_some(), index != 2);
+        assert_eq!(page.after.is_some(), index.saturating_add(1) < values.len());
         assert!(!page.cut);
         cursor = page.after.clone();
     }
-}
-
-#[test]
-fn a_history_hold_prices_its_box_and_nested_reason_before_admission() {
-    let bounds = live_script().bounds;
-    let reason = b"pause";
-    let hold = Hold {
-        placed: Some(PlacedHold {
-            number: 12,
-            owner: HoldOwner::Party { person: 1 },
-            mode: HoldMode::Stop,
-            scope: HoldScope::Subtree { task: 8 },
-            reason: reason.as_slice().into(),
-            placed_at: Wall::EPOCH,
-            revision: Revision { value: 1 },
-            lifted: false,
-            may_lift: true,
-        }),
-        revision: Revision { value: 1 },
-        reason: HoldReason::Budget { spent: 1, limit: 1 },
-        before: Phase::Idle,
-        since: Wall::EPOCH,
-        result: None,
-        spend: List::with_capacity(0),
-    };
-    let row = HistoryRow::Line(Box::new(HistoryLine {
-        position: 1,
-        task: 8,
-        by: Actor::Party(1),
-        at: Wall::EPOCH,
-        change: HistoryChange::Held(Box::new(hold)),
-    }));
-    let required = u64::try_from(size_of::<HistoryRow>() + size_of::<HistoryLine>() + size_of::<Hold>()).unwrap()
-        + u64::try_from(reason.len()).unwrap()
-        + List::<SpendLine>::price(0).unwrap();
-    assert_eq!(row.heap(&bounds).unwrap() + u64::try_from(size_of::<HistoryRow>()).unwrap(), required);
-    let source = Source {
-        party: 1,
-        read: Read::History { task: 8, subtree: false, after: None },
-        rows: Rows::History(vec![row.clone()]),
-    };
-    assert!(source.validate(&Bounds { document_bytes: required, ..bounds }).is_ok());
-    assert_eq!(source.validate(&Bounds { document_bytes: required - 1, ..bounds }), Err(Invalid::Payload));
-    assert_eq!(source.rows, Rows::History(vec![row]));
 }

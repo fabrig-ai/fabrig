@@ -53,35 +53,6 @@ pub fn read_value_result() -> c::Result {
     }
 }
 
-pub fn read_value_project() -> c::Project {
-    c::Project {
-        period: 7,
-        spend_lines: List::with_capacity(0),
-        number: 7,
-        name: text(b""),
-        policy: read_value_policy(),
-        roles: List::with_capacity(0),
-        spend: read_value_budget(),
-        pools: List::with_capacity(0),
-        resources: List::with_capacity(0),
-        services: List::with_capacity(0),
-        recurring: List::with_capacity(0),
-        parts: List::with_capacity(0),
-        acts: List::with_capacity(0),
-    }
-}
-
-pub fn read_value_policy() -> c::Policy {
-    c::Policy {
-        ceiling: read_value_authority(),
-        period: 7,
-        spend: 7,
-        roles: List::with_capacity(0),
-        requirements: List::with_capacity(0),
-        deciders: List::with_capacity(0),
-    }
-}
-
 pub fn read_value_owner_historical() -> c::OwnerHistorical {
     c::OwnerHistorical { key: read_value_object_key(), value: read_value_owner_historical_value(), at: None, by: None }
 }

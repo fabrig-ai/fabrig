@@ -207,28 +207,6 @@ pub enum Part {
     Deployment { connector: u16 },
 }
 
-/// Permission for a numbered kind on a resource pattern.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Grant {
-    pub connector: u16,
-    pub kind: u16,
-    pub pattern: super::OwnerPattern,
-}
-
-/// Authority facts to show or ask to amend, never evaluated here.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Authority {
-    pub models: Option<super::AuthorityModels>,
-    pub budget: u64,
-    pub grants: List<Grant>,
-    pub task_kinds: List<Executor>,
-    pub depth: u32,
-    pub tasks: u32,
-    pub deadline: Option<Wall>,
-    pub tools: List<u16>,
-    pub note_scopes: List<NoteScope>,
-}
-
 /// The scope of a note.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum NoteScope {

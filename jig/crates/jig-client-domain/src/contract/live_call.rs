@@ -1,8 +1,8 @@
 //! A supplied current call is provisional, not a committed transcript call.
-//! See client/domain/contract.md, 7.3, client.md, 10, and QUESTIONS.md, 42.
+//! See client/domain/contract.md, 7.3, client.md, 10.
 use super::{Call, Text};
 use skein_lib::{Token, Wall};
-/// The provider's id within its actual owner and issued completion.
+/// The provider's id within its owner and issued completion.
 /// Equality alone names a call; no field is a routing or transcript number.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CallIdentity {

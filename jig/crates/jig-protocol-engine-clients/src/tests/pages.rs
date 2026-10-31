@@ -119,12 +119,12 @@ fn kept_lines_and_met_notices_cross_both_client_translations() {
         let record = w::ActivityPage::decode(&limits, &mut Reader::new(&bytes)).unwrap();
         let actual =
             jig_client_protocol_link::translate::pages::activity_page(record, &fixtures::client_limits()).unwrap();
-        let c::Activity::Owner { source, decoded } = &actual.rows.get(0).unwrap().event else { panic!("owner") };
+        let c::ActivityLine { source, decoded } = actual.rows.get(0).unwrap();
         assert!(decoded.is_none());
         let c::OwnerActivity::Kept { attempt, pending, question: kept_question } = &source.line else { panic!("kept") };
         assert_eq!((*attempt, pending.as_slice()), (3, [19, 23].as_slice()));
         assert_eq!(*kept_question, question);
-        let c::Activity::Owner { source, .. } = &actual.rows.get(1).unwrap().event else { panic!("owner") };
+        let c::ActivityLine { source, .. } = actual.rows.get(1).unwrap();
         let c::OwnerActivity::Heard(word) = &source.line else { panic!("heard") };
         assert_eq!(word.kind, c::OwnerMessageKind::Met { dependency: 19, removed });
         assert_eq!(word.from, c::OwnerRequester::Task(29));

@@ -12,7 +12,6 @@ pub fn stream_limits() -> Limits {
     limits.call_tool = 32;
     limits.call_input = 32;
     limits.call_outcome_some = 32;
-    limits.deployment_capacity = 2;
     check_limits(&limits).expect("stream fixture limits below ceilings");
     limits
 }
@@ -143,19 +142,6 @@ pub fn open_tree(limits: &Limits) -> Open {
     let subject = Owned::new(limits, OwnedParts { owner: Owner::Jig, version: VERSION, record })
         .expect("jig subject in its owner's version");
     Open::new(limits, OpenParts { stream: [7; 16], watch: u64::MAX, subject }).expect("open named tree")
-}
-
-pub fn deployment_parts(limits: &Limits, row_count: u32) -> DeploymentParts {
-    let row = Capacity::new(limits, CapacityParts { project: Some(u32::MAX), live: u32::MAX, limit: u32::MAX })
-        .expect("whole capacity row");
-    DeploymentParts {
-        hosts: Box::from([]),
-        accounts: Box::from([]),
-        capacity: repeated(row, row_count),
-        proposals: u32::MAX,
-        refusals: Box::from([]),
-        parts: Box::from([]),
-    }
 }
 
 pub fn waiting_account_state(limits: &Limits, until: Option<u64>) -> OwnerAccountState {

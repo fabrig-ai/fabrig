@@ -1,7 +1,7 @@
 //! Pending person work and shown results (client/domain/objects.md, 7;
 //! contract.md, 5–6). Optional facts and source order stay independent.
 use super::{
-    Chip, ChipPhase, Offered, OwnerRequester, OwnerTaskLink, PersonAddress, Result, Revision, SpecificationDocument,
+    Chip, Offered, OwnerRequester, OwnerTaskLink, PersonAddress, Result, Revision, SpecificationDocument,
     TaskContractDocument,
 };
 use alloc::boxed::Box;
@@ -32,20 +32,6 @@ impl OwnerPersonTask {
     /// Routing comes only from the supplied task metadata.
     #[must_use]
     pub fn project(&self) -> Option<u32> {
-        match self.task.details.as_ref() {
-            ChipPhase::Owner { details, .. } => Some(details.project),
-            ChipPhase::Active(_)
-            | ChipPhase::Waiting { .. }
-            | ChipPhase::Idle { .. }
-            | ChipPhase::Starting
-            | ChipPhase::Running { .. }
-            | ChipPhase::WaitingForWords { .. }
-            | ChipPhase::BackingOff { .. }
-            | ChipPhase::Procedure { .. }
-            | ChipPhase::Person { .. }
-            | ChipPhase::Closing(_)
-            | ChipPhase::Held { .. }
-            | ChipPhase::Ended { .. } => None,
-        }
+        Some(self.task.details.details.project)
     }
 }

@@ -26,33 +26,23 @@ fn activity_row(position: u64, attempt: u64, number: u32, decoded: Option<w::Arc
     w::ActivityLine::new(
         &l,
         w::ActivityLineParts {
-            position,
-            at: 17,
-            event: w::Activity::Owner(
-                w::ActivityOwner::new(
-                    &l,
-                    w::ActivityOwnerParts {
-                        source: w::OwnerActivityLine::new(
+            source: w::OwnerActivityLine::new(
+                &l,
+                w::OwnerActivityLineParts {
+                    task: 7,
+                    position,
+                    at: 17,
+                    line: w::OwnerActivity::Turn(
+                        w::OwnerActivityTurn::new(
                             &l,
-                            w::OwnerActivityLineParts {
-                                task: 7,
-                                position,
-                                at: 17,
-                                line: w::OwnerActivity::Turn(
-                                    w::OwnerActivityTurn::new(
-                                        &l,
-                                        w::OwnerActivityTurnParts { reply: 61, attempt, turn: number, read: Some(0) },
-                                    )
-                                    .expect("literal"),
-                                ),
-                            },
+                            w::OwnerActivityTurnParts { reply: 61, attempt, turn: number, read: Some(0) },
                         )
                         .expect("literal"),
-                        decoded,
-                    },
-                )
-                .expect("literal"),
-            ),
+                    ),
+                },
+            )
+            .expect("literal"),
+            decoded,
         },
     )
     .expect("literal")

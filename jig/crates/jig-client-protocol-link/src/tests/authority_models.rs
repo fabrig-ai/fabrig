@@ -16,11 +16,6 @@ fn selectors_and_cut_authorities_round_trip_without_becoming_replacements() {
         authority.models = models;
         let wire = translate::asks::wire_owner_authority(&authority, &limits.wire).unwrap();
         assert_eq!(translate::documents::owner_authority_fields(&wire, &limits), Ok(authority.clone()));
-        let mut common = fixtures::read_wire_authority().into_parts();
-        common.models = wire.models().clone();
-        let common = w::Authority::new(&limits.wire, common).unwrap();
-        assert_eq!(translate::pages::authority_fields(&common, &limits).unwrap().models, authority.models);
-
         let document =
             w::OwnerAuthorityDocument::new(&limits.wire, w::OwnerAuthorityDocumentParts { authority: wire, cut: true })
                 .unwrap();

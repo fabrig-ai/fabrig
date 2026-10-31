@@ -10,7 +10,16 @@ fn owner_escalation_prices_whole_boxed_task_and_separate_reserved_offers_and_ref
     task.resources = List::with_capacity(2);
     let mut path = List::with_capacity(2);
     path.push(Box::<[u8]>::from([255_u8; 32])).unwrap();
-    task.resources.push(TaskResource::Part(Part::Resource { connector: u16::MAX, path })).unwrap();
+    task.resources
+        .push(OwnerResourceLine {
+            part: OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Resource, key: OwnerPartKey::Path(path) },
+            kind: u16::MAX,
+            taken: false,
+            holder: None,
+            writer: None,
+            writer_lost: false,
+        })
+        .unwrap();
     let row = OwnerEscalation { task: Box::new(task.clone()), acts: List::with_capacity(2) };
     let independent =
         u64::try_from(size_of::<Task>()).unwrap() + task.heap(&bounds).unwrap() + List::<Offered>::price(2).unwrap();

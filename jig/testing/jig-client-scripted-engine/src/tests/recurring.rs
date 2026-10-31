@@ -1,4 +1,4 @@
-use super::{list, specification, task, text};
+use super::{chip_details, list, specification, task, text};
 use crate::{Bounds, payload::fits};
 use jig_client_domain::contract::*;
 use skein_lib::Wall;
@@ -44,7 +44,7 @@ fn template(number: u64, words: &[u8]) -> ProposedTask {
 fn recurring() -> Recurring {
     let mut chip = task().chip;
     chip.title = DocumentText::complete(text(b"job"));
-    chip.details = Box::new(ChipPhase::Starting);
+    chip.details = Box::new(chip_details(OwnerChipPhase::Active(RunStage::Due)));
     Recurring {
         chip,
         key: u32::MAX,
@@ -65,7 +65,7 @@ fn recurring() -> Recurring {
 fn recurring_prices_the_whole_template_batch_and_final_members_owned_bytes() {
     let row = recurring();
     let bytes = u64::try_from(core::mem::size_of::<Recurring>()).unwrap()
-        + u64::try_from(core::mem::size_of::<ChipPhase>()).unwrap()
+        + u64::try_from(core::mem::size_of::<ChipPhase>() + core::mem::size_of::<OwnerChipDetails>()).unwrap()
         + skein_lib::List::<ProposedTask>::price(2).unwrap()
         + skein_lib::List::<u64>::price(2).unwrap()
         + 3
@@ -137,7 +137,11 @@ fn recurring_checks_allocated_batch_last_batch_and_nested_member_capacities() {
     };
     assert!(!fits(&row, &bounds), "the final member's opaque approval bytes are admitted whole");
     let mut row = recurring();
-    *row.chip.details = ChipPhase::Waiting { dependencies: skein_lib::List::with_capacity(3), hold: None };
+    *row.chip.details = chip_details(OwnerChipPhase::Waiting {
+        dependencies: skein_lib::List::with_capacity(3),
+        more: false,
+        holds: false,
+    });
     assert!(!fits(&row, &bounds));
     let mut row = recurring();
     row.batch.get_mut(1).unwrap().spec.specification.words.bytes =

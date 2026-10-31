@@ -147,9 +147,7 @@ fn progress(previous: &mut String, document: &c::OwnerAccounts, source: u32) {
 /// The chat's run in words: its phase, attempt, retry, work, hold, ending and run wait. A
 /// result's words are the page's; no grant or credential is in the task document.
 pub(super) fn run_line(task: &c::Task) -> String {
-    let c::ChipPhase::Owner { phase, details } = task.chip.details.as_ref() else {
-        return format!("phase={:?}; wait={:?}", task.chip.phase, task.run_wait);
-    };
+    let c::ChipPhase { phase, details } = task.chip.details.as_ref();
     format!(
         "phase={phase:?}; attempt={:?}; retry={:?}; work={:?}; hold={:?}; ending={}; wait={:?}",
         details.attempt,
@@ -176,7 +174,7 @@ fn ending(ending: &c::OwnerChipEnding) -> String {
 /// ending other than a report, or a host's refusal. Each fails the test at once, in words.
 pub(super) fn failed(task: &c::Task) -> bool {
     let refused = matches!(task.run_wait, Some(c::TaskRunWait::Refused(_)));
-    let c::ChipPhase::Owner { phase, details } = task.chip.details.as_ref() else { return refused };
+    let c::ChipPhase { phase, details } = task.chip.details.as_ref();
     refused
         || details.retry.is_some()
         || details.hold.is_some()
@@ -186,7 +184,7 @@ pub(super) fn failed(task: &c::Task) -> bool {
         })
 }
 fn reported(task: &c::Task) -> bool {
-    matches!(task.chip.details.as_ref(), c::ChipPhase::Owner { details, .. } if details.ending.is_some())
+    task.chip.details.details.ending.is_some()
 }
 impl Judge {
     /// One line per change of the chat's run; a run that can't answer fails here, with its words.
@@ -636,7 +634,7 @@ mod tests {
             &jig_client_protocol_world::fixtures::link_limits(),
         )
         .expect("owner task fixture");
-        let c::ChipPhase::Owner { phase, details } = task.chip.details.as_mut() else { panic!("owner chip") };
+        let c::ChipPhase { phase, details } = task.chip.details.as_mut();
         *phase = c::OwnerChipPhase::Active(c::RunStage::BackingOff { until: skein_lib::Wall::from_nanos(17) });
         details.attempt = Some(1);
         details.retry = Some(c::RetryNotice::OwnerFailed { class: c::HoldFailure::Run, count: 1, allowance: 3 });
