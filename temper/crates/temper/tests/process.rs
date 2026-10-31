@@ -3,6 +3,8 @@
 mod box_kinds;
 #[path = "fake_backends/mod.rs"]
 mod fake_backends;
+#[path = "suite/github_goon.rs"]
+mod github_goon;
 pub mod support;
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::Duration;
