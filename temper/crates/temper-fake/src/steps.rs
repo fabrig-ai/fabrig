@@ -4,8 +4,33 @@ use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Writer, bytes};
 use temper_forge_setup::{
     Group, Kind, Stage, Step, Steps,
+    machine::{BoxKind, FakeMachine},
     setup::{Mode, Setup},
 };
+
+/// The fake kind's slot: the playground's fakes, bound to a forge by the box
+/// (temper/docs/design/draft/playground-reset.md, 3).
+#[must_use]
+pub fn fake_slot(machine: &FakeMachine, llm: core::net::SocketAddr, flags: &[Box<[u8]>]) -> Group {
+    let forge = Some(temper_forge_setup::step::FORGE_ARGUMENT);
+    Group {
+        kind: Some(BoxKind::Fake),
+        remover: Some(argument_command(b"remove", &[b"forge", b"remove"], flags, forge, Kind::Once)),
+        forge: 0,
+        label: bytes::copy_of(b"Playground"),
+        recorded: false,
+        before: 0,
+        steps: Box::new([
+            (Stage::Run, command(b"fake llm", &[b"fake", b"llm"], flags, None, Kind::Long).listening(Box::new([llm]))),
+            (Stage::Prepare, argument_command(b"prepare", &[b"forge", b"prepare"], flags, forge, Kind::Once)),
+            (
+                Stage::Run,
+                argument_command(b"fake forge", &[b"fake", b"forge"], flags, forge, Kind::Long)
+                    .listening(Box::new([machine.listen])),
+            ),
+        ]),
+    }
+}
 
 /// The demo's group, the fake LLM, then the demo forge's preparation
 /// and its fake forge (`application.demo.forge`, 8.4), is always asked,
@@ -109,6 +134,13 @@ pub fn steps(
 }
 
 fn command(name: &[u8], words: &[&[u8]], flags: &[Box<[u8]>], forge: Option<u16>, kind: Kind) -> Step {
+    match forge {
+        Some(number) => argument_command(name, words, flags, Some(Decimal::of(u64::from(number)).as_bytes()), kind),
+        None => argument_command(name, words, flags, None, kind),
+    }
+}
+
+fn argument_command(name: &[u8], words: &[&[u8]], flags: &[Box<[u8]>], forge: Option<&[u8]>, kind: Kind) -> Step {
     let capacity = u32::try_from(words.len())
         .expect("command words")
         .checked_add(u32::try_from(flags.len()).expect("bounded flags"))
@@ -124,8 +156,6 @@ fn command(name: &[u8], words: &[&[u8]], flags: &[Box<[u8]>], forge: Option<u16>
     }
     let name = match forge {
         Some(number) => {
-            let digits = Decimal::of(u64::from(number));
-            let number = digits.as_bytes();
             arguments.push(bytes::copy_of(number)).expect("forge number counted");
             let length =
                 name.len().checked_add(1).expect("name and space").checked_add(number.len()).expect("bounded name");
