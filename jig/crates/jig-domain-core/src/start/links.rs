@@ -2,6 +2,70 @@
 use crate::{Core, CoreKey, Key, accounts, people, tasks};
 
 impl Core {
+    /// Re-derive a waiting holder through the same selection used while serving.
+    pub(crate) fn route_waiting_escalation(
+        &mut self,
+        env: &skein_lib::Env<crate::Limits>,
+        context: &tasks::EscalationContext,
+        out: &mut skein_lib::Queue<tasks::Request>,
+    ) -> bool {
+        let role = self.people.role(context.requester, context.project);
+        let Some(holder) = self.escalation_recipient(&env.limits, context, role) else { return false };
+        match context.escalation {
+            tasks::Escalation::Waiting { holder: old, .. } if old == holder => return true,
+            tasks::Escalation::Waiting { revision: u64::MAX, .. } => return false,
+            tasks::Escalation::Unheld { .. }
+            | tasks::Escalation::Routing { .. }
+            | tasks::Escalation::Waiting { .. }
+            | tasks::Escalation::Rejected { .. } => {}
+        }
+        let Some(entry) = crate::fresh(&mut self.counters, crate::Family::Message) else { return false };
+        tasks::step(
+            &mut self.tasks,
+            &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+            tasks::Event::RoutedEscalation {
+                task: context.task,
+                revision: context.escalation.revision(),
+                holder,
+                entry,
+            },
+            out,
+        );
+        true
+    }
+
+    /// First live task or call whose required run proof is absent (engine.md, 6).
+    #[must_use]
+    pub fn missing_proof_link(&self) -> Option<(Key, Key)> {
+        for (task, _) in &self.restoring_proofs {
+            if !self.proofs.contains_key(task) {
+                return Some((Key::Tasks(tasks::Key::Live(*task)), Key::Core(CoreKey::RunProof(*task))));
+            }
+        }
+        for (key, _) in &self.call_parts {
+            if !self.proofs.contains_key(&key.task) {
+                return Some((Key::Core(CoreKey::Call(*key)), Key::Core(CoreKey::RunProof(key.task))));
+            }
+        }
+        None
+    }
+
+    /// First live task whose charter is absent from its held settings (engine.md, 6).
+    #[must_use]
+    pub fn missing_charter_link(&self) -> Option<(Key, u32, u32)> {
+        for view in self.tasks.view_tasks() {
+            let row = self.tasks.task(view.number).expect("live view owner");
+            if let tasks::Executor::Agent { charter } = row.executor {
+                for revision in [Some(row.settings.task), row.settings.run].into_iter().flatten() {
+                    if self.held(revision) && self.charter_at(charter, revision).is_none() {
+                        return Some((Key::Tasks(tasks::Key::Live(row.number)), charter, revision));
+                    }
+                }
+            }
+        }
+        None
+    }
+
     pub(super) fn start_cross_links(&self) {
         for view in self.tasks.view_tasks() {
             self.link_task_row(self.tasks.task(view.number).expect("live view owner"));
@@ -271,21 +335,8 @@ impl Core {
             let source = Key::Core(CoreKey::RunProof(*number));
             self.link_task(&source, proof.task);
         }
-        for (task, _) in &self.restoring_proofs {
-            assert!(
-                self.proofs.contains_key(task),
-                "{:?} links missing {:?}",
-                Key::Tasks(tasks::Key::Live(*task)),
-                Key::Core(CoreKey::RunProof(*task))
-            );
-        }
-        for (key, _) in &self.call_parts {
-            let source = Key::Core(CoreKey::Call(*key));
-            assert!(
-                self.proofs.contains_key(&key.task),
-                "{source:?} links missing {:?}",
-                Key::Core(CoreKey::RunProof(key.task))
-            );
+        if let Some((record, target)) = self.missing_proof_link() {
+            assert!(self.missing_proof_link().is_none(), "{record:?} links missing {target:?}");
         }
         for ((party, task), _) in self.people.read_conversations() {
             self.link_task(&Key::People(people::Key::ReadConversation { party: *party, task: *task }), *task);

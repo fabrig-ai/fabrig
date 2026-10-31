@@ -2777,129 +2777,86 @@ fn calls_under_backpressure_are_handed_back_and_decided_once_on_retry() {
 }
 
 #[test]
-fn invalid_current_proof_stops_before_any_restored_closing_effect_or_result() {
+fn a_missing_current_proof_panics_before_any_restored_closing_effect_or_result() {
     let (driver, assignment) = running_fixture();
-    for corruption in 0..5 {
-        let mut store = driver.store.fork();
-        let mut rows = store.rows.clone();
-        let key = temper_engine_domain::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)));
-        let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))) = rows.get_mut(&key) else {
-            panic!("live task");
-        };
-        task.last_answer = Some(assignment.attempt);
-        task.phase = tasks::Phase::Closing(tasks::Closing {
-            stage: tasks::Stage::Effects,
-            ending: tasks::Ending::Done(tasks::TaskResult::Report { words: REPORT.into() }),
-        });
-        let proof_key = temper_engine_domain::Key::Core(jig_domain_core::Key::Core(
-            jig_domain_core::CoreKey::RunProof(assignment.task),
-        ));
-        let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof)))) =
-            rows.get_mut(&proof_key)
-        else {
-            panic!("proof");
-        };
-        proof.terminal = Some(temper_engine_domain::TerminalRecord {
-            task: assignment.task,
-            attempt: assignment.attempt,
-            cumulative: 3,
-            end: tasks::End::Finished {
-                result: tasks::TaskResult::Report { words: REPORT.into() },
-                cancel_delegates: false,
-            },
-        });
-        match corruption {
-            0 => {
-                rows.remove(&proof_key);
-            }
-            1 => {
-                let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof)))) =
-                    rows.get_mut(&proof_key)
-                else {
-                    panic!("proof");
-                };
-                proof.turn.as_mut().expect("kept turn").cumulative = 999;
-            }
-            2 => {
-                let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof)))) =
-                    rows.get_mut(&proof_key)
-                else {
-                    panic!("proof");
-                };
-                proof.terminal = Some(temper_engine_domain::TerminalRecord {
-                    task: assignment.task,
-                    attempt: assignment.attempt,
-                    cumulative: 999,
-                    end: tasks::End::Parked,
-                });
-            }
-            3 => {
-                let header = store.header();
-                let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))) = rows.get_mut(&key)
-                else {
-                    panic!("task");
-                };
-                task.attempt = header.runs + 1;
-                task.last_answer = Some(task.attempt);
-                let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof)))) =
-                    rows.get_mut(&proof_key)
-                else {
-                    panic!("proof");
-                };
-                proof.attempt = header.runs + 1;
-            }
-            4 => {
-                let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof)))) =
-                    rows.get_mut(&proof_key)
-                else {
-                    panic!("proof");
-                };
-                proof.terminal = None;
-            }
-            _ => unreachable!(),
-        }
-        let erases = store.rows.keys().filter(|key| !rows.contains_key(*key)).cloned().collect();
-        store.seed(rows.into_values().collect(), erases);
-        let header = store.header();
-        let before = store.rows.clone();
-        let mut restarted = Driver::new(store);
+    let mut store = driver.store.fork();
+    let mut rows = store.rows.clone();
+    let task_key = jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task));
+    let proof_key = jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(assignment.task));
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))) =
+        rows.get_mut(&Key::Core(task_key.clone()))
+    else {
+        panic!("live task");
+    };
+    task.last_answer = Some(assignment.attempt);
+    task.phase = tasks::Phase::Closing(tasks::Closing {
+        stage: tasks::Stage::Effects,
+        ending: tasks::Ending::Done(tasks::TaskResult::Report { words: REPORT.into() }),
+    });
+    assert!(rows.remove(&Key::Core(proof_key.clone())).is_some());
+    store.seed(rows.into_values().collect(), Box::new([Key::Core(proof_key.clone())]));
+    let before = store.rows.clone();
+    let mut restarted = Driver::new(store);
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         for _ in 0..100 {
             restarted.advance(true);
         }
-        assert!(restarted.stopped, "corruption {corruption}");
-        assert_eq!(restarted.store.rows, before, "no child restoration consequences committed");
-        assert_eq!(restarted.store.header(), header);
-        assert!(restarted.delivered.is_empty(), "no cancellation/result before root proof validation");
-    }
+    }))
+    .expect_err("a missing required proof is a writer bug");
+    assert_eq!(restarted.root.core_missing_proof_link(), Some((task_key, proof_key)));
+    assert_eq!(restarted.root.start_stop(), None);
+    assert_eq!(restarted.root.start_phase(), Some(jig_domain_core::start::Phase::Link));
+    assert_eq!(restarted.store.rows, before, "no closing consequence committed");
+    assert!(restarted.switches.is_empty());
+    assert!(restarted.delivered.is_empty());
 }
 
 #[test]
-fn root_restore_refuses_malformed_task_shapes() {
+fn root_restore_loads_linked_task_shapes_and_panics_at_a_missing_charter() {
     let (driver, assignment) = running_fixture();
-    for malformed in 0..3 {
+    for (requester, executor, contract) in [
+        (Some(tasks::Party::Task(assignment.task)), None, None),
+        (None, None, Some(tasks::Contract::Verdict { choices: Box::new([]) })),
+        (None, Some(tasks::Executor::Agent { charter: 99 }), None),
+    ] {
         let mut store = driver.store.fork();
         let mut rows = store.rows.clone();
-        let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))) = rows
-            .get_mut(&temper_engine_domain::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task))))
+        let task_key = jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task));
+        let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))) =
+            rows.get_mut(&Key::Core(task_key.clone()))
         else {
             panic!("task");
         };
-        match malformed {
-            0 => task.requester = tasks::Party::Task(assignment.task),
-            1 => task.executor = tasks::Executor::Agent { charter: 99 },
-            2 => task.contract = tasks::Contract::Verdict { choices: Box::new([]) },
-            _ => unreachable!(),
+        if let Some(requester) = requester {
+            task.requester = requester;
         }
-        let erases = store.rows.keys().filter(|key| !rows.contains_key(*key)).cloned().collect();
-        store.seed(rows.into_values().collect(), erases);
-        let before = store.rows.clone();
+        if let Some(executor) = executor {
+            task.executor = executor;
+        }
+        if let Some(contract) = contract {
+            task.contract = contract;
+        }
+        let expected = task.clone();
+        store.seed(rows.into_values().collect(), Box::new([]));
         let mut restarted = Driver::new(store);
-        for _ in 0..100 {
-            restarted.advance(true);
+        if executor.is_some() {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                restarted.settle();
+            }))
+            .expect_err("the task's absent charter cannot link");
+            assert_eq!(restarted.root.core_missing_charter_link(), Some((task_key, 99, expected.settings.task)));
+            assert_eq!(restarted.root.start_phase(), Some(jig_domain_core::start::Phase::Link));
+            assert!(restarted.switches.is_empty());
+            assert!(restarted.delivered.is_empty());
+        } else {
+            restarted.settle();
+            assert!(restarted.root.ready());
+            let loaded = restarted.root.tasks().task(assignment.task).expect("linked task serves");
+            assert_eq!(loaded.requester, expected.requester);
+            assert_eq!(loaded.contract, expected.contract);
+            assert_eq!(loaded.attempt, expected.attempt);
         }
-        assert!(restarted.stopped);
-        assert_eq!(restarted.store.rows, before);
-        assert!(restarted.delivered.is_empty());
+        assert_eq!(restarted.root.start_stop(), None);
     }
 }
 

@@ -122,6 +122,18 @@ impl Domain {
         self.core.start_phase()
     }
 
+    /// First unmade core run-proof link before startup can open.
+    #[must_use]
+    pub fn core_missing_proof_link(&self) -> Option<(jig_domain_core::Key, jig_domain_core::Key)> {
+        self.core.missing_proof_link()
+    }
+
+    /// First task's charter absent from its held settings at startup.
+    #[must_use]
+    pub fn core_missing_charter_link(&self) -> Option<(jig_domain_core::Key, u32, u32)> {
+        self.core.missing_charter_link()
+    }
+
     /// The start's stop, kept until the service reports it.
     #[must_use]
     pub fn start_stop(&self) -> Option<StartStop> {

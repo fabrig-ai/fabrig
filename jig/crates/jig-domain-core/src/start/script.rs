@@ -275,6 +275,24 @@ impl Core {
             return;
         }
         self.start_cross_links();
+        let mut escalations = Queue::uncapped();
+        for view in self.tasks.view_tasks() {
+            if let Some(context) = self.tasks.escalation(view.number)
+                && let tasks::Escalation::Waiting { .. } = context.escalation
+            {
+                escalations.push(tasks::Request::EscalationNeeded { context });
+            }
+        }
+        while let Some(request) = escalations.pop() {
+            let tasks::Request::EscalationNeeded { context } = request else {
+                unreachable!("waiting escalation contexts")
+            };
+            if !self.route_waiting_escalation(env, &context, &mut child) {
+                let _refused =
+                    self.start_refuse(Failure::Accounting { key: Key::Tasks(tasks::Key::Live(context.task)) });
+                return;
+            }
+        }
         let crate::Requests::Out(mut accounts) = crate::want_accounts(self, env);
         self.start_collect_failure();
         if self.start.failure.is_some() {
