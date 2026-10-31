@@ -700,7 +700,7 @@ fn deployment_spend_pages_live_and_closed_periods_across_projects() {
     let mut range = fixtures::read(ALICE, reads::Scope::Spend { project: 0 });
     range.rows = 1;
     let mut found = skein_lib::List::uncapped();
-    for _ in 0..4 {
+    for _ in 0_u32..4 {
         let (rows, next) = page(load(&mut store, range.clone()));
         for value in values(&rows) {
             found.push(value).expect("one period per page");

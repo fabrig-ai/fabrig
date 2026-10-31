@@ -8,8 +8,8 @@ use jig_core_world::{
 };
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
-use jig_domain_fleet as fleet;
 use jig_domain_core::{self as core, documents};
+use jig_domain_fleet as fleet;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -112,12 +112,7 @@ fn deleted_world(seed: u64) -> World {
     world.turn(1, 7, None, b"retained reply");
     request(&mut world, 60, people::Ask::MarkSeen { seen: people::Seen::Conversation { task: ended, through: 1 } });
     fixtures::finish_chat(&mut world, 7, b"retained result");
-    world.send(root::Event::Core(core::Event::Period {
-        project: PROJECT,
-        period: 2,
-        budget: 1000,
-        next: None,
-    }));
+    world.send(root::Event::Core(core::Event::Period { project: PROJECT, period: 2, budget: 1000, next: None }));
     let next = fixtures::chat(&world, PROJECT, b"live conversation".as_slice().into());
     world.assignments.clear();
     request(&mut world, 61, next);
@@ -191,20 +186,28 @@ fn removed(world: &World) {
 }
 
 fn settle_hosts(world: &mut World) {
-    let answers = world.store.rows.values().filter_map(|row| {
-        if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = row
-            && matches!(row.phase, tasks::Phase::Closing(tasks::Closing { stage: tasks::Stage::Run { .. }, .. })) {
-            Some(root::Event::Answer {
-                read: None,
-                refused: Box::new([]),
-                channel: Token::new(7),
-                task: row.number,
-                attempt: row.attempt,
-                cumulative: row.numbers.spent,
-                end: tasks::End::Parked,
-            })
-        } else { None }
-    }).collect();
+    let answers = world
+        .store
+        .rows
+        .values()
+        .filter_map(|row| {
+            if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = row
+                && matches!(row.phase, tasks::Phase::Closing(tasks::Closing { stage: tasks::Stage::Run { .. }, .. }))
+            {
+                Some(root::Event::Answer {
+                    read: None,
+                    refused: Box::new([]),
+                    channel: Token::new(7),
+                    task: row.number,
+                    attempt: row.attempt,
+                    cumulative: row.numbers.spent,
+                    end: tasks::End::Parked,
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
     let cut = world.cut;
     world.send_all(answers);
     if cut.is_some() && world.reached_cut == cut {
@@ -215,12 +218,24 @@ fn settle_hosts(world: &mut World) {
 
 fn restart_world(world: &mut World) {
     world.restart_with(configuration(SEED).0);
-    let hosting: Box<[_]> = world.store.rows.values().filter_map(|row| {
-        if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = row
-            && matches!(row.phase, tasks::Phase::Closing(tasks::Closing { stage: tasks::Stage::Run { .. }, .. })) {
-            Some(fleet::Hosted { run: Token::new(row.number), attempt: Token::new(row.attempt), phase: fleet::Phase::Ending })
-        } else { None }
-    }).collect();
+    let hosting: Box<[_]> = world
+        .store
+        .rows
+        .values()
+        .filter_map(|row| {
+            if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = row
+                && matches!(row.phase, tasks::Phase::Closing(tasks::Closing { stage: tasks::Stage::Run { .. }, .. }))
+            {
+                Some(fleet::Hosted {
+                    run: Token::new(row.number),
+                    attempt: Token::new(row.attempt),
+                    phase: fleet::Phase::Ending,
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
     if !hosting.is_empty() {
         world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
             worker: 0,
@@ -238,13 +253,30 @@ fn restart_world(world: &mut World) {
 
 fn finish(world: &mut World) {
     settle_hosts(world);
-    assert!(!world.stopped, "restart {:?}; restore {:?}", world.domain.restart_failure(), world.domain.restore_failure());
-    assert!(!world.store.rows.contains_key(&deletion()), "deletion reached its last step: {:?}; live {:?}; busy {:?}",
-        world.store.rows.get(&deletion()), world.store.rows.values().filter_map(|row| {
-            if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = row {
-                Some((row.number, &row.phase))
-            } else { None }
-        }).collect::<Vec<_>>(), world.busy_events);
+    assert!(
+        !world.stopped,
+        "restart {:?}; restore {:?}",
+        world.domain.restart_failure(),
+        world.domain.restore_failure()
+    );
+    assert!(
+        !world.store.rows.contains_key(&deletion()),
+        "deletion reached its last step: {:?}; live {:?}; busy {:?}",
+        world.store.rows.get(&deletion()),
+        world
+            .store
+            .rows
+            .values()
+            .filter_map(|row| {
+                if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = row {
+                    Some((row.number, &row.phase))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>(),
+        world.busy_events
+    );
     assert!(!world.stopped, "the store stayed writable");
 }
 
@@ -493,7 +525,11 @@ fn a_closed_project_refuses_every_entry_as_one_never_made() {
         let key = 100 + u8::try_from(index * 2).expect("five entrances");
         let expected = party_answer(&mut world, key, unknown);
         assert_eq!(party_answer(&mut world, key + 1, closed), expected, "party entrance {index}");
-        assert!(matches!(expected, people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Unknown)) | people::Reply::Refused(people::Refusal::Unknown)));
+        assert!(matches!(
+            expected,
+            people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Unknown))
+                | people::Reply::Refused(people::Refusal::Unknown)
+        ));
     }
     let mut application = Vec::new();
     for (project, key) in [(UNKNOWN, 110), (PROJECT, 111)] {
@@ -512,7 +548,10 @@ fn a_closed_project_refuses_every_entry_as_one_never_made() {
         application.push(world.people_answers.last().expect("application refused").clone());
     }
     assert_eq!(application.first(), application.last());
-    assert!(matches!(application.first(), Some(people::Reply::Outcome(people::Outcome::Refused(_))) | Some(people::Reply::Refused(_))));
+    assert!(matches!(
+        application.first(),
+        Some(people::Reply::Outcome(people::Outcome::Refused(_)) | people::Reply::Refused(_))
+    ));
     for (index, (closed, unknown)) in [
         (
             people::Act::Close { project: PROJECT, task: chat, grace: None, reason: Box::new([]) },
@@ -610,11 +649,25 @@ fn spend(world: &mut World) -> BTreeMap<u64, u64> {
 fn a_deleted_projects_spend_stays_in_the_totals() {
     let mut world = deleted_world(SEED);
     let before = spend(&mut world);
-    assert!(before.values().any(|spent| *spent > 0), "nonzero deployment spend: {before:?}; ledgers {:?}", world.store.rows.values().filter_map(|row| {
-            if let root::Record::Core(core::Record::Tasks(tasks::Stored::Ledger(row) | tasks::Stored::ClosedLedger(row))) = row {
-                Some(row)
-            } else { None }
-        }).collect::<Vec<_>>());
+    assert!(
+        before.values().any(|spent| *spent > 0),
+        "nonzero deployment spend: {before:?}; ledgers {:?}",
+        world
+            .store
+            .rows
+            .values()
+            .filter_map(|row| {
+                if let root::Record::Core(core::Record::Tasks(
+                    tasks::Stored::Ledger(row) | tasks::Stored::ClosedLedger(row),
+                )) = row
+                {
+                    Some(row)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+    );
     remove(&mut world, REMOVE);
     finish(&mut world);
     assert_eq!(spend(&mut world), before);
