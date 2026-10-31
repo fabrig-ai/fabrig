@@ -61,6 +61,7 @@ fn operation(value: &c::Operation, limits: &w::Limits) -> Result<w::Operation, w
         | w::Ask::SignIn(_)
         | w::Ask::AccountChange(_)
         | w::Ask::SignOut(_)
+        | w::Ask::RemoveProject(_)
         | w::Ask::Rename(_)
         | w::Ask::MakeProject(_)
         | w::Ask::SetPool(_) => return Err(problem()),
