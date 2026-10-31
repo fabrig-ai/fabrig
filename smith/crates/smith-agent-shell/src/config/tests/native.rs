@@ -103,3 +103,44 @@ fn trust_arrays_keep_one_combined_certificate_bound() {
     let built = from_value(document);
     assert_eq!(built.err().expect("combined root bound").detail(), "trust roots exceed their combined bound");
 }
+
+#[test]
+fn decoding_keeps_unresolved_names_and_unread_trust_sources() {
+    let scratch = skein_scratch::Scratch::new("smith-decode");
+    let mut document = shaped_document();
+    document["endpoints"][0]["address"] = serde_json::json!("unresolved.invalid:443");
+    document["endpoints"][0]["transport"] = serde_json::json!("tls");
+    document["endpoints"][0]["server_name"] = serde_json::json!("example.test");
+    document["endpoints"][0]["trust_der"] = serde_json::json!(scratch.path().join("absent.der"));
+    let bytes = serde_json::to_vec(&document).expect("configuration JSON");
+    super::decode(&bytes).expect("decode neither resolves the name nor opens the absent trust source");
+}
+
+#[test]
+fn resolving_reports_trust_only_to_the_supplied_writer() {
+    let mut document = shaped_document();
+    document["endpoints"][0]["transport"] = serde_json::json!("tls");
+    document["endpoints"][0]["server_name"] = serde_json::json!("example.test");
+    document["endpoints"][0]["trust_der"] =
+        serde_json::json!(skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der"));
+    let decoded = super::decode(&serde_json::to_vec(&document).expect("configuration JSON")).expect("pure decode");
+    let mut errors = Vec::new();
+    decoded.resolve(&mut errors).expect("native configuration");
+    assert_eq!(errors, b"smith: trust roots: 1 taken, 0 skipped, 0 malformed blocks, 0 other blocks\n");
+}
+
+#[test]
+fn decoding_rejects_an_invalid_later_endpoint_before_loading_trust() {
+    let scratch = skein_scratch::Scratch::new("smith-decode-refusal");
+    let mut document = shaped_document();
+    let mut invalid = document["endpoints"][0].clone();
+    invalid["name"] = serde_json::json!("invalid");
+    invalid["number"] = serde_json::json!(1);
+    invalid["headers"] = serde_json::json!([{ "name": "session-id", "value": "override" }]);
+    document["endpoints"].as_array_mut().expect("endpoints").push(invalid);
+    document["endpoints"][0]["transport"] = serde_json::json!("tls");
+    document["endpoints"][0]["server_name"] = serde_json::json!("example.test");
+    document["endpoints"][0]["trust_der"] = serde_json::json!(scratch.path().join("absent.der"));
+    let refusal = super::decode(&serde_json::to_vec(&document).expect("configuration JSON")).err();
+    assert_eq!(refusal.as_deref(), Some("invalid endpoint HTTP header"));
+}

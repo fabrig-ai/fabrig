@@ -121,7 +121,7 @@ impl Process {
     }
 
     fn event(&mut self, event: Event) {
-        if self.relay.as_ref().is_some_and(|relay| owner(&event).is_some_and(|owner| relay.owns(owner))) {
+        if self.relay.as_ref().is_some_and(|relay| event.owner().is_some_and(|owner| relay.owns(owner))) {
             self.relay.as_mut().expect("relay owns event").from_io(event, &mut self.requests);
             return;
         }
@@ -195,24 +195,6 @@ impl Process {
                 self.diagnostic_done = true;
             }
         }
-    }
-}
-
-fn owner(event: &Event) -> Option<Token> {
-    match event {
-        Event::Listening { owner, .. }
-        | Event::Accepted { owner, .. }
-        | Event::Connecting { owner, .. }
-        | Event::Connected { owner }
-        | Event::Stream { owner, .. }
-        | Event::Output { owner, .. }
-        | Event::Spawned { owner, .. }
-        | Event::Exited { owner, .. }
-        | Event::Failed { owner, .. }
-        | Event::Closed { owner }
-        | Event::Usage { owner, .. }
-        | Event::Window { owner, .. } => Some(*owner),
-        Event::Shutdown { .. } | Event::Resized => None,
     }
 }
 

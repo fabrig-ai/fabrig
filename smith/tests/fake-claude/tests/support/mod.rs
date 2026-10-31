@@ -44,6 +44,11 @@ impl Invocation {
         self
     }
 
+    pub fn no_input(mut self) -> Self {
+        self.no_input = true;
+        self
+    }
+
     pub fn environment(mut self, environment: &[&str]) -> Self {
         self.env = environment.iter().map(|entry| (*entry).into()).collect();
         self
@@ -188,8 +193,11 @@ impl Parent {
                 if self.invocations.front().expect("invocation").terminate {
                     self.signal_at = Some(now.saturating_add(Duration::from_millis(20)));
                 }
-                self.state =
-                    if self.invocations.front().expect("invocation").stream { State::Stdout } else { State::Input };
+                self.state = if self.input_closed || self.invocations.front().expect("invocation").stream {
+                    State::Stdout
+                } else {
+                    State::Input
+                };
             }
             State::Input => {
                 let Done::Count(count) = result else { panic!("input write") };

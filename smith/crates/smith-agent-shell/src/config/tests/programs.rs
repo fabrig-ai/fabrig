@@ -26,19 +26,12 @@ fn an_unbound_program_root_is_closed_by_the_shell() {
     let mut agent = crate::Agent::new(
         configuration,
         crate::Resources {
-            input: Fd::new(0),
-            output: Fd::new(1),
-            signals: Fd::new(2),
-            seed: 1,
-            pid: 1,
-            trace: None,
-            error: None,
-            roots: None,
             programs: Some(crate::ProgramResources {
                 relay: "/smith-agent".into(),
                 entropy: Secret::new(Box::new([7; 32])),
                 directory: Some(Fd::new(3)),
             }),
+            ..super::resources()
         },
         Box::new(std::io::sink()),
     )

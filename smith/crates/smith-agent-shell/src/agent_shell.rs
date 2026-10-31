@@ -126,6 +126,18 @@ impl Agent {
         }
     }
 
+    /// Facts omitted from the host channel by its bounded projection.
+    #[must_use]
+    pub fn lost_channel_facts(&self) -> u64 {
+        self.service.lost_channel_facts()
+    }
+
+    /// Live bytes omitted from the host channel under output pressure.
+    #[must_use]
+    pub fn lost_live_bytes(&self) -> u64 {
+        self.service.lost_live_bytes()
+    }
+
     fn close(&mut self, fd: Fd) {
         self.closing = self.closing.checked_add(1).expect("bounded inherited closes");
         self.submissions.push(Submit {
@@ -150,17 +162,14 @@ impl Agent {
 }
 
 fn effective_header(configuration: &config::Configuration) -> Result<List<smith_events::EffectiveLimit>, String> {
-    let named = service::profile::effective(
+    config::effective_header(
         &configuration.profile,
         &configuration.declarations,
         &configuration.service.limits,
+        &configuration.service.channel_endpoints,
         &configuration.service.llm_endpoints,
     )
-    .ok_or_else(|| derivation_refusal("effective"))?;
-    let header_limits =
-        service::profile::header(&named, &configuration.service.channel_endpoints, &configuration.declarations)
-            .ok_or_else(|| derivation_refusal("effective_names"))?;
-    Ok(header_limits)
+    .map_err(config::ConfigurationRefusal::detail)
 }
 
 #[cfg(unix)]
@@ -293,10 +302,7 @@ fn prepare(mut configuration: config::Configuration, resources: &Resources) -> R
     let header = configuration.trace.as_ref().map(|trace| smith_events::SessionStarted {
         chat: None,
         wall_ms: 0,
-        agent: smith_events::Agent {
-            name: b"smith".as_slice().into(),
-            version: env!("CARGO_PKG_VERSION").as_bytes().into(),
-        },
+        agent: identity(),
         mode: smith_events::Mode::Agent,
         containment: smith_events::Containment::Groups,
         pid: u64::from(resources.pid),
@@ -305,9 +311,9 @@ fn prepare(mut configuration: config::Configuration, resources: &Resources) -> R
         delivery: trace.delivery.encoded(),
         versions: smith_events::Versions {
             events: smith_events::VERSION,
-            channel: 5,
-            charter: 4,
-            transcript: 6,
+            channel: smith_channel::KindRule::FORMAT_VERSION,
+            charter: smith_charter::Charter::FORMAT_VERSION,
+            transcript: smith_transcript::Turn::FORMAT_VERSION,
             chat_store: None,
         },
         limits: header_limits,
@@ -469,7 +475,9 @@ impl Host for Agent {
 
 #[cfg(unix)]
 fn read_configuration(path: &Path, errors: &mut dyn Write) -> Result<config::Configuration, String> {
-    config::read(path).inspect_err(|why| diagnostic(errors, why))
+    config::read_decoded(path)
+        .and_then(|decoded| decoded.resolve(errors).map_err(config::ConfigurationRefusal::detail))
+        .inspect_err(|why| diagnostic(errors, why))
 }
 
 /// The operator's line for one destination IO gave up, naming it and why in
@@ -498,12 +506,16 @@ fn diagnostic(errors: &mut dyn Write, line: &str) {
 /// Run the shipped agent command with its kernel, clock and startup resources.
 #[cfg(unix)]
 pub fn run(path: &Path, mut errors: Box<dyn Write>) -> Result<Exit, String> {
-    let configuration = read_configuration(path, errors.as_mut())?;
-    let seed = skein_shell::seed()
-        .map_err(|errno| format!("kernel seed failed (errno {errno})"))
-        .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
+    let decoded = config::read_decoded(path).inspect_err(|why| diagnostic(errors.as_mut(), why))?;
     let signals = skein_shell::open_termination_signals()
         .map_err(|errno| format!("termination signals cannot open (errno {errno})"))
+        .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
+    let configuration = decoded
+        .resolve(errors.as_mut())
+        .map_err(config::ConfigurationRefusal::detail)
+        .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
+    let seed = skein_shell::seed()
+        .map_err(|errno| format!("kernel seed failed (errno {errno})"))
         .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
     let programs = match configuration.programs.get(&config::ProgramName::ClaudeCode) {
         Some(program) => Some(open_program(program, errors.as_mut())?),

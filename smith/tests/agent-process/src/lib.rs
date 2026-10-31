@@ -89,27 +89,14 @@ pub fn declarations(environment_bytes: u32) -> agent::profile::Configuration {
 
 /// Adopt scenario-specific service settings and mounts in Start order.
 #[must_use]
-#[expect(
-    clippy::zero_sized_map_values,
-    reason = "The fixture retains adapter names even while Claude Code is the sole adapter."
-)]
 pub fn configured(
     configuration: agent::Config,
     seed: u64,
     inherited: &skein_world::Inherited,
     errors: AgentErrors,
 ) -> smith_agent_shell::Agent {
-    let environment_bytes = configuration.limits.machine.env_bytes;
     smith_agent_shell::Agent::new(
-        smith_agent_shell::config::Configuration {
-            programs: std::collections::BTreeMap::new(),
-            endpoint_programs: std::collections::BTreeMap::new(),
-            service: configuration,
-            memory: profile().declared.memory,
-            trace: None,
-            profile: profile(),
-            declarations: declarations(environment_bytes),
-        },
+        shell_configuration(configuration),
         smith_agent_shell::Resources {
             programs: None,
             input: inherited.pipes.iter().find(|(child, _)| *child == 0).expect("stdin").1,
@@ -124,6 +111,20 @@ pub fn configured(
         Box::new(errors),
     )
     .expect("configured shipped agent")
+}
+
+#[expect(clippy::zero_sized_map_values, reason = "the shell configuration uses a unit selector map")]
+fn shell_configuration(configuration: agent::Config) -> smith_agent_shell::config::Configuration {
+    let environment_bytes = configuration.limits.machine.env_bytes;
+    smith_agent_shell::config::Configuration {
+        programs: std::collections::BTreeMap::new(),
+        endpoint_programs: std::collections::BTreeMap::new(),
+        service: configuration,
+        memory: profile().declared.memory,
+        trace: None,
+        profile: profile(),
+        declarations: declarations(environment_bytes),
+    }
 }
 
 /// Tiny deployment declarations shared by direct and hosted process worlds.
