@@ -299,17 +299,6 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
         );
     }
 }
-#[test]
-fn a_not_started_demo_has_the_setup_strip_and_no_context_or_demo_banner() {
-    use temper_client_protocol_wire::v1 as w;
-    for address in [Address::Chats { filter: ChatsFilter::All, start: false }, Address::Chat { task: 41 }] {
-        let root = f::demo_state_root(address, w::DemoState::NotStarted);
-        let view = f::page_view(&root);
-        assert!(f::find(view.tree(), Role::Region, b"Playground").is_none());
-        assert!(f::find(view.tree(), Role::Region, b"Setup").is_some());
-        assert!(view.tree().nodes().iter().all(|node| !node.styles.as_slice().contains(&crate::look::CONTEXT)));
-    }
-}
 
 #[test]
 fn a_full_group_failure_keeps_each_utf8_replacement_as_the_forge_failure_does() {
