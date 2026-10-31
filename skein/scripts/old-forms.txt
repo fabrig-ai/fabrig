@@ -1,6 +1,14 @@
-# Uses of the old forms (skein's docs/design/draft/dynamic-memory.md, 7): each count may only fall.
+# Uses of the old forms (skein's docs/design/draft/dynamic-memory.md, 7, and component-kit.md, 4): each count may only fall.
 # Lower them with `python3 -I -B scripts/old_forms.py --write`; only the director raises one, recorded in a `# Raised:` line.
 max_out 0
 JournalRoom 0
 takes 0
 worst_case 0
+# The component kit's counts (component-kit.md, 4).
+io_resume 39
+earliest_helper 4
+lifecycle_enum 3
+growth_floor 5
+pop_loop 24
+hex_decimal_fn 26
+host_forwarder 11
