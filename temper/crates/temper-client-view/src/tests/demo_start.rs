@@ -295,7 +295,7 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
         let again = f::find(view.tree(), Role::Button, b"Try again").unwrap();
         assert_eq!(
             crate::act(&mut view, again, skein_ui::Act::Press),
-            Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::RetryDemo))
+            Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::RetryPlayground))
         );
     }
 }

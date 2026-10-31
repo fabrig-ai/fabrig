@@ -54,8 +54,10 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
                 root.authorization_revision = root.authorization_revision.checked_add(1).expect("revision fits");
                 pages(root, env, crate::pages::Event::Act { act: crate::pages::Act::SignOut }, out);
             }
-            Action::Pages(crate::pages::Act::RetryDemo) => {
-                forge(root, env, forge::Event::Act { act: forge::Act::StartDemo }, out);
+            Action::Pages(crate::pages::Act::RetryPlayground) => {
+                if root.forge.playground_failure().is_some() {
+                    forge(root, env, forge::Event::Act { act: forge::Act::StartPlayground }, out);
+                }
             }
             Action::Pages(crate::pages::Act::Playground) => playground(root, env, out),
             Action::Pages(crate::pages::Act::Suggest { cue }) => suggest(root, env, cue, out),
@@ -182,10 +184,13 @@ pub(crate) fn route_forge(
             forge::Request::PanelEnded { subject } => refresh_panel(root, env, subject, true, out),
             forge::Request::Client { asked } => client(root, env, asked, out),
             forge::Request::Leave { to } => out.push(Request::Leave { to, replace: false }),
-            forge::Request::PlaygroundReset => out.push(Request::Show {
-                address: Address::Welcome { step: crate::Step::Forge { forge: None } },
-                replace: false,
-            }),
+            forge::Request::PlaygroundReset => {
+                root.pages.playground_choice = crate::pages::PlaygroundChoice::Idle;
+                out.push(Request::Show {
+                    address: Address::Welcome { step: crate::Step::Forge { forge: None } },
+                    replace: false,
+                });
+            }
             forge::Request::Show { address } => {
                 let forge::Address::Adopt { project } = address;
                 out.push(Request::Show { address: Address::Adopt { project }, replace: false });
@@ -339,14 +344,12 @@ fn suggest(root: &mut Domain, env: &Env<Limits>, cue: u8, out: &mut Queue<Reques
 }
 
 fn playground(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    let Some(demo) = root.forge.demo() else { return };
-    if !root.demo_answered() {
+    if crate::pages::welcome::playground_offered(root) != Some(true) {
         return;
     }
-    let project = demo.project;
-    forge(root, env, forge::Event::Act { act: forge::Act::StartDemo }, out);
+    root.pages.playground_choice = crate::pages::PlaygroundChoice::Waiting;
+    forge(root, env, forge::Event::Act { act: forge::Act::StartPlayground }, out);
     demo_facts(root);
-    pages(root, env, crate::pages::Event::Act { act: crate::pages::Act::Project { project } }, out);
     out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false }, replace: false });
 }
 
@@ -371,16 +374,16 @@ fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, o
     consumed
 }
 
-#[expect(clippy::manual_map, reason = "step code reads retained identity without closures")]
 fn demo_facts(root: &mut Domain) {
-    root.pages.demo_provider = root.forge.demo_provider();
-    root.pages.retired_project = match root.forge.retired_demo() {
-        Some(demo) => Some(demo.project),
+    root.pages.playground_provider = root.forge.playground_provider();
+    crate::pages::project_changed(&mut root.pages, &root.client);
+    let project = match root.forge.playground() {
+        Some(playground) => playground.project,
         None => None,
     };
-    crate::pages::project_changed(&mut root.pages, &root.client);
-    root.pages.demo_model = match root.demo() {
-        Some((_, halves)) => halves.model,
+    crate::pages::playground_project(&mut root.pages, &root.client, project);
+    root.pages.demo_model = match root.forge.playground() {
+        Some(playground) => playground.state == forge::PlaygroundState::Running,
         None => false,
     };
 }
