@@ -129,9 +129,7 @@ fn conveys(configuration: &Configuration, error: bool) {
     assert_eq!(tool.name.as_ref(), b"opaque_host");
     assert_eq!(tool.description.as_ref(), b"Whole caller host contract.");
     assert!(
-        tool.parameters
-            .windows(br#""x-caller":{"nested":[1,null,true]}"#.len())
-            .any(|bytes| bytes == br#""x-caller":{"nested":[1,null,true]}"#),
+        skein_lib::bytes::find(&tool.parameters, br#""x-caller":{"nested":[1,null,true]}"#).is_some(),
         "independent literal observation retains the compact schema extension"
     );
     assert_eq!(
@@ -659,7 +657,7 @@ fn only_uses_automatic_wire_choice_and_keeps_all_definitions_and_not_run_feedbac
         assert!(
             query.messages.iter().flat_map(|message| &message.parts).any(|part| {
                 matches!(part, Part::ToolOutput { id, output, .. }
-                if id.as_ref() == b"outside-call" && output.windows(b"not run: allowed calls now: opaque_host".len()).any(|part| part == b"not run: allowed calls now: opaque_host"))
+                if id.as_ref() == b"outside-call" && skein_lib::bytes::find(output, b"not run: allowed calls now: opaque_host").is_some())
             }),
             "observed replay tells the disallowed call which unchanged descriptor is permitted"
         );

@@ -52,7 +52,7 @@ pub(super) fn change_model(conversation: &mut Conversation, llm: crate::record::
     }
     let cost = match u64::try_from(llm.model.len()) {
         Ok(bytes) => bytes.checked_add(match &llm.effort {
-            Some(effort) => u64::try_from(effort.len()).expect("bounded effort"),
+            Some(effort) => skein_lib::len_u64(effort.len()),
             None => 0,
         }),
         Err(_) => None,
@@ -233,7 +233,7 @@ pub(super) fn open_window(
         Compaction::Idle | Compaction::CarryOver { .. } => unreachable!("a summary answers a compaction"),
     };
     let count = held.len().checked_add(3).expect("held offer plus task, preamble and summary fits u32");
-    let summary_bytes = u64::try_from(text.len()).expect("bounded summary bytes");
+    let summary_bytes = skein_lib::len_u64(text.len());
     let mut content = List::with_capacity(count);
     content.push(Block::Text { text: conversation.task.clone(), replay: None }).expect("task slot");
     content.push(Block::Text { text: conversation.preamble.clone(), replay: None }).expect("preamble slot");
@@ -459,9 +459,9 @@ pub(super) fn restore(
             match message.content.first() {
                 Some(Block::Text { text, .. }) => {
                     *bytes = bytes
-                        .checked_sub(u64::try_from(conversation.task.len()).expect("bounded task"))
+                        .checked_sub(skein_lib::len_u64(conversation.task.len()))
                         .ok_or(crate::record::Refusal::TooLarge)?
-                        .checked_add(u64::try_from(text.len()).expect("bounded restored task"))
+                        .checked_add(skein_lib::len_u64(text.len()))
                         .ok_or(crate::record::Refusal::TooLarge)?;
                     conversation.task.clone_from(text);
                 }
@@ -478,7 +478,7 @@ pub(super) fn restore(
             conversation.window = Window::fresh(1, first.usage.output_tokens.unwrap_or(u64::from(conversation.output)));
             match first.messages.first().expect("one window message").content.get(2) {
                 Some(Block::Text { text, .. }) => {
-                    conversation.window.summary_bytes = u64::try_from(text.len()).expect("bounded summary");
+                    conversation.window.summary_bytes = skein_lib::len_u64(text.len());
                 }
                 Some(
                     Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolCall { .. } | Block::ToolResult { .. },

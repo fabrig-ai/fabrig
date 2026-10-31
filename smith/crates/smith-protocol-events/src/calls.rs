@@ -399,9 +399,8 @@ fn millis(at: Time, since: Time) -> u64 {
 }
 
 fn metadata_bytes(metadata: &session::ToolCall) -> u64 {
-    let id = u64::try_from(metadata.id.len()).expect("bounded provider id fits u64");
-    id.checked_add(u64::try_from(metadata.name.len()).expect("bounded tool name fits u64"))
-        .expect("bounded provider identity fits u64")
+    let id = skein_lib::len_u64(metadata.id.len());
+    id.checked_add(skein_lib::len_u64(metadata.name.len())).expect("bounded provider identity fits u64")
 }
 
 fn command_exit(verdict: tools::Verdict) -> Option<smith_events::CommandExit> {

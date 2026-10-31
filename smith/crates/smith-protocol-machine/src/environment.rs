@@ -55,9 +55,7 @@ impl Environment {
             {
                 return Err(Unencodable::Variable { index });
             }
-            let entry = u64::try_from(variable.name.len())
-                .expect("name length fits u64")
-                .checked_add(u64::try_from(variable.value.len()).expect("value length fits u64"));
+            let entry = skein_lib::len_u64(variable.name.len()).checked_add(skein_lib::len_u64(variable.value.len()));
             let entry = entry.ok_or(Unencodable::TooLarge { bytes: u64::MAX, bound: limits.env_bytes })?;
             let entry =
                 entry.checked_add(1).ok_or(Unencodable::TooLarge { bytes: u64::MAX, bound: limits.env_bytes })?;

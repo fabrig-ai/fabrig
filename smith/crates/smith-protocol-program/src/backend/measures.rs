@@ -165,9 +165,7 @@ impl Backend {
                 llm::Said::ToolCall { id, name, input, .. } => {
                     Block::Call { call: id.clone(), tool: name.clone(), input: input.clone() }
                 }
-                llm::Said::Opaque { bytes } => {
-                    Block::Opaque { bytes: u64::try_from(bytes.len()).expect("bounded opaque") }
-                }
+                llm::Said::Opaque { bytes } => Block::Opaque { bytes: skein_lib::len_u64(bytes.len()) },
             };
             blocks.push(block).expect("one capture per block");
         }

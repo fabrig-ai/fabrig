@@ -138,7 +138,7 @@ impl Listing {
             let entry = self.entries.get(index).expect("retained slot").as_ref().expect("retained entry");
             let cost = u64::try_from(size_of::<tools::Entry>())
                 .expect("entry cell fits")
-                .checked_add(u64::try_from(entry.name.len()).expect("bounded entry name"))
+                .checked_add(skein_lib::len_u64(entry.name.len()))
                 .expect("bounded entry cost");
             let next = used.checked_add(cost).expect("bounded entry prefix");
             if next > self.maximum {

@@ -467,7 +467,7 @@ impl Component {
         to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<bool, Error> {
-        let length = u64::try_from(piece.bytes.len()).expect("piece length fits u64");
+        let length = skein_lib::len_u64(piece.bytes.len());
         if self.state.next_turn() != Some(piece.turn)
             || !self.takes_live(piece.kind, u32::try_from(length).unwrap_or(u32::MAX))
             || to_service.room() < crate::limits::EDGE_ROOM.to_domain

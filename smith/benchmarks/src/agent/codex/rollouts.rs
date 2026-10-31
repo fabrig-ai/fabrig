@@ -417,7 +417,7 @@ impl Rollouts {
             let count = if totals.is_empty() {
                 crate::Measure::unavailable("thread has no token_count usage records")
             } else {
-                crate::Measure::Observed { value: u64::try_from(totals.len()).expect("bounded rollout records") }
+                crate::Measure::Observed { value: skein_lib::len_u64(totals.len()) }
             };
             counts.insert(thread.into(), count);
         }

@@ -182,7 +182,7 @@ impl Live {
             Some(_) | None => return,
         }
         if self.current != Some(index) {
-            room.lose(u64::try_from(bytes.len()).expect("delta length"));
+            room.lose(skein_lib::len_u64(bytes.len()));
             return;
         }
         self.append(owner, Some(index), bytes, now, room);
@@ -200,7 +200,7 @@ impl Live {
         if stream.owner != owner {
             return;
         }
-        let length = u64::try_from(bytes.len()).expect("provider delta length fits u64");
+        let length = skein_lib::len_u64(bytes.len());
         if stream.ended {
             room.lose(length);
             return;

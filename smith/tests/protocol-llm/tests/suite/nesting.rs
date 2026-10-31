@@ -57,7 +57,7 @@ fn nesting_asked_for_is_answered_as_its_problem_on_observed_provider_requests() 
             .flat_map(|message| &message.parts)
             .filter(|part| {
                 matches!(part, Part::ToolOutput { output, is_error, .. }
-                if *is_error == error_flag && output.windows(note.len()).any(|bytes| bytes == note))
+                if *is_error == error_flag && skein_lib::bytes::find(output, note).is_some())
             })
             .count();
         assert!(feedback >= 2, "main's agents field and child's unoffered call each receive the nesting explanation");
@@ -75,8 +75,7 @@ fn nesting_asked_for_is_answered_as_its_problem_on_observed_provider_requests() 
             ),
             "observed persisted main result retains the typed problem"
         );
-        let child =
-            world.prompts().iter().filter(|query| query.system.windows(b"@fix".len()).any(|bytes| bytes == b"@fix"));
+        let child = world.prompts().iter().filter(|query| skein_lib::bytes::find(&query.system, b"@fix").is_some());
         assert!(child.clone().count() > 0);
         assert!(child.clone().all(|query| !query.tools.iter().any(|tool| tool.name.as_ref() == b"sub_agent")));
         assert!(
@@ -84,7 +83,7 @@ fn nesting_asked_for_is_answered_as_its_problem_on_observed_provider_requests() 
                 .flat_map(|query| &query.messages)
                 .flat_map(|message| &message.parts)
                 .any(|part| matches!(part, Part::ToolOutput { output, is_error, .. }
-                if *is_error == error_flag && output.windows(note.len()).any(|bytes| bytes == note)))
+                if *is_error == error_flag && skein_lib::bytes::find(output, note).is_some()))
         );
     }
     assert!(crossed_old_document_cap, "a real native request witnesses the former peer-document refusal");

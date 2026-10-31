@@ -190,10 +190,7 @@ fn saved_write_checks_content_size_pairing_and_capture_not_seed() {
     let checked = |records: &[smith_events::Record], minimum| {
         observe(records).written_file(std::path::Path::new("payload.txt"), minimum, &directory).passed
     };
-    assert_eq!(
-        checked(&records, u64::try_from(content.len()).expect("small bytes")),
-        Measure::Observed { value: true }
-    );
+    assert_eq!(checked(&records, skein_lib::len_u64(content.len())), Measure::Observed { value: true });
     assert_eq!(
         checked(&records, 32768),
         Measure::Observed { value: false },
@@ -325,7 +322,7 @@ fn payload_too_large_write_then_observed_pieces_is_a_valid_oversized_refusal() {
         if let Event::ToolStarted(start) = &mut record.event
             && let Some(input) = &start.input
         {
-            start.input_bytes = u64::try_from(input.len()).expect("fixture bytes");
+            start.input_bytes = skein_lib::len_u64(input.len());
         }
     }
     let got = observe(&records).file_pieces(std::path::Path::new("payload.txt"), 10, 64, &directory).passed;

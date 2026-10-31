@@ -399,9 +399,7 @@ impl Process {
                     ToDomain::Aborted { owner }
                 } else {
                     let output = tail;
-                    let cut = dropped
-                        .checked_add(u64::try_from(head.len()).expect("head length fits"))
-                        .expect("output count fits");
+                    let cut = dropped.checked_add(skein_lib::len_u64(head.len())).expect("output count fits");
                     let exit = run_exit(self.exit, timed_out, self.failure.is_some());
                     ToDomain::Checked { owner, ran: run::Ran { exit, output, cut } }
                 }

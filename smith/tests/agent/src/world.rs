@@ -1028,7 +1028,7 @@ impl<B: Backend> World<B> {
                     .checked_mul(u64::from(self.settings.limits.session.retries) + 1)
                     .expect("fixture retry attempts");
                 assert!(
-                    u64::try_from(self.completions.len()).expect("fixture observation count") < starts,
+                    skein_lib::len_u64(self.completions.len()) < starts,
                     "bounded provider chronology from receiving turn/concurrency/retry limits"
                 );
                 let completion_index = self.completions.len();

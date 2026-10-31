@@ -38,7 +38,7 @@ fn tool_call(observer: &Observer, check: &EventCheck) -> Measure<bool> {
             }
         }
     }
-    let number = u64::try_from(starts.len()).expect("tool count fits");
+    let number = skein_lib::len_u64(starts.len());
     if count.is_some_and(|count| !count.holds(number)) {
         return measured(false);
     }

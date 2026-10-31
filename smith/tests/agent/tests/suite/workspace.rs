@@ -20,7 +20,7 @@ fn says(text: &[u8], tokens: u64) -> Turn {
 }
 
 fn contains(bytes: &[u8], part: &[u8]) -> bool {
-    bytes.windows(part.len()).any(|bytes| bytes == part)
+    skein_lib::bytes::find(bytes, part).is_some()
 }
 
 fn mixed_disk() -> (Checkout, run::Workspace) {

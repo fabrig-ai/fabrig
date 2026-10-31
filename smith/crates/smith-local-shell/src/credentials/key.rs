@@ -51,7 +51,7 @@ pub(crate) fn read(file: &Path) -> Result<Box<[u8]>, Credential> {
 pub(super) fn value(bytes: &[u8]) -> Result<Box<[u8]>, Credential> {
     let bound = crate::credentials::token_limits().token_bytes;
     let value = bytes.strip_suffix(b"\n").unwrap_or(bytes);
-    if value.is_empty() || u64::try_from(value.len()).expect("key length fits u64") > u64::from(bound) {
+    if value.is_empty() || skein_lib::len_u64(value.len()) > u64::from(bound) {
         return Err(Credential::KeyUnreadable { problem: KeyProblem::Size });
     }
     if !super::valid_key(value) {

@@ -13,11 +13,11 @@ const NOW: Time = Time::from_nanos(2_000_000);
 
 const RESET_DELAY: Duration = RESET_AT.saturating_since(NOW);
 
-const RESET_MS: u64 = RESET_DELAY.as_nanos() / Duration::from_millis(1).as_nanos();
+const RESET_MS: u64 = RESET_DELAY.as_millis();
 
 const ELAPSED: Duration = NOW.saturating_since(Time::ZERO);
 
-const NOW_MS: u64 = ELAPSED.as_nanos() / Duration::from_millis(1).as_nanos();
+const NOW_MS: u64 = ELAPSED.as_millis();
 
 #[test]
 fn each_account_notice_is_written_when_raised() {

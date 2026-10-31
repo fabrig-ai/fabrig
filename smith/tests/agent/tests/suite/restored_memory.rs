@@ -24,7 +24,7 @@ fn size<T>() -> u64 {
 }
 
 fn len(value: &[u8]) -> u64 {
-    u64::try_from(value.len()).expect("bounded fixture payload")
+    skein_lib::len_u64(value.len())
 }
 
 fn sum(values: impl IntoIterator<Item = u64>) -> u64 {
@@ -236,7 +236,7 @@ fn terminal_bytes(event: &Event) -> u64 {
 // The fixture ledger counts observed public cells and owning byte fields. It
 // neither calls owned_bytes/content_cost nor recreates admission or rendering.
 fn record_blocks(blocks: &[session::llm::Block]) -> u64 {
-    let mut bytes = u64::try_from(blocks.len()).expect("bounded blocks") * size::<session::llm::Block>();
+    let mut bytes = skein_lib::len_u64(blocks.len()) * size::<session::llm::Block>();
     for block in blocks {
         bytes += match block {
             session::llm::Block::Text { text, replay } => {
@@ -260,7 +260,7 @@ fn record_blocks(blocks: &[session::llm::Block]) -> u64 {
 }
 
 fn messages_bytes(messages: &[session::llm::Message]) -> u64 {
-    u64::try_from(messages.len()).expect("bounded messages") * size::<session::llm::Message>()
+    skein_lib::len_u64(messages.len()) * size::<session::llm::Message>()
         + messages.iter().map(|message| record_blocks(&message.content)).sum::<u64>()
 }
 
@@ -280,15 +280,15 @@ fn turn_bytes(turn: &session::record::Turn) -> u64 {
 }
 
 fn transcript_bytes(history: &root::Transcript) -> u64 {
-    u64::try_from(history.turns.len()).expect("bounded turns") * size::<session::record::Turn>()
+    skein_lib::len_u64(history.turns.len()) * size::<session::record::Turn>()
         + history.turns.iter().map(turn_bytes).sum::<u64>()
 }
 
 fn prompt_bytes(prompt: &llm::Prompt) -> u64 {
     let mut bytes = len(&prompt.model)
         + len(&prompt.system)
-        + u64::try_from(prompt.served.len()).expect("bounded descriptors") * size::<llm::Served>()
-        + u64::try_from(prompt.messages.len()).expect("bounded messages") * size::<llm::Message>();
+        + skein_lib::len_u64(prompt.served.len()) * size::<llm::Served>()
+        + skein_lib::len_u64(prompt.messages.len()) * size::<llm::Message>();
     bytes += match &prompt.namespace {
         root::tools::Namespace::NoWorkspace | root::tools::Namespace::One => 0,
         root::tools::Namespace::Several { working } => len(working.as_bytes()),
@@ -297,7 +297,7 @@ fn prompt_bytes(prompt: &llm::Prompt) -> u64 {
         assert!(matches!(served, llm::Served::Finish | llm::Served::Wait));
     }
     for message in &prompt.messages {
-        bytes += u64::try_from(message.content.len()).expect("bounded blocks") * size::<llm::Block>();
+        bytes += skein_lib::len_u64(message.content.len()) * size::<llm::Block>();
         for block in &message.content {
             bytes += match block {
                 llm::Block::Text { text, replay } => len(text) + replay.as_ref().map_or(0, |value| len(&value.bytes)),

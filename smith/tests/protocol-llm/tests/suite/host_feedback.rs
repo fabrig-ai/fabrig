@@ -50,12 +50,9 @@ fn feedback(query: &Query, arguments: &[u8], tool_name: &[u8]) -> bool {
 
 fn host_boundary(world: &World, expected_arguments: &[u8], tool_name: &[u8]) {
     let first = &world.prompts()[0];
-    assert!(first.system.windows(b"@hosttools".len()).any(|bytes| bytes == b"@hosttools"));
+    assert!(skein_lib::bytes::find(&first.system, b"@hosttools").is_some());
     assert!(
-        first
-            .system
-            .windows(b"The answer is in src/lib.rs; the checks want it to be 43.\n".len())
-            .any(|bytes| bytes == b"The answer is in src/lib.rs; the checks want it to be 43.\n"),
+        skein_lib::bytes::find(&first.system, b"The answer is in src/lib.rs; the checks want it to be 43.\n").is_some(),
         "the discovered guide reaches the first observed system text: {first:?}"
     );
     let read = world

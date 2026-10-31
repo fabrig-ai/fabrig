@@ -33,18 +33,8 @@ fn oversized_saved_answer_says_the_call_was_decided() {
         answer: crate::Answered::TooLarge,
     }]);
     let prompt = crate::waking::render(answered, &LIMITS).expect("bounded waking text");
-    let mut decided = false;
-    let mut oversized = false;
-    for part in prompt.windows(b"host decided this call".len()) {
-        if part == b"host decided this call" {
-            decided = true;
-        }
-    }
-    for part in prompt.windows(b"answer was too large to give".len()) {
-        if part == b"answer was too large to give" {
-            oversized = true;
-        }
-    }
+    let decided = skein_lib::bytes::find(&prompt, b"host decided this call").is_some();
+    let oversized = skein_lib::bytes::find(&prompt, b"answer was too large to give").is_some();
     assert!(decided && oversized);
 }
 

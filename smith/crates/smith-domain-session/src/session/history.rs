@@ -296,7 +296,7 @@ pub(super) fn cut_result(result: Returned, credit: u64) -> Returned {
 }
 
 fn cut_text(text: Box<[u8]>, cap: u64) -> Box<[u8]> {
-    if u64::try_from(text.len()).expect("owned bytes fit") <= cap {
+    if skein_lib::len_u64(text.len()) <= cap {
         return text;
     }
     let mut kept = usize::try_from(cap.checked_sub(37).expect("marker room reserved")).expect("bounded cap");

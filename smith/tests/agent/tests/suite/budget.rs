@@ -451,10 +451,13 @@ fn a_real_child_session_answers_its_last_turn_without_running_written_calls() {
     assert_eq!(model_calls(&world, b"fake-1").len(), 2, "main Session receives the child terminal and finishes");
     let resumed =
         world.prompts().iter().filter(|query| query.model.as_ref() == b"fake-1").nth(1).expect("main resumes");
-    assert!(resumed.messages.iter().flat_map(|message| &message.parts).any(|part| {
-        matches!(part, Part::ToolOutput { is_error: false, output, .. }
-            if output.starts_with(CHILD) && output.windows(b"stopped for budget: yes".len()).any(|text| text == b"stopped for budget: yes"))
-    }), "the asker receives the answer and budget stop");
+    assert!(
+        resumed.messages.iter().flat_map(|message| &message.parts).any(|part| {
+            matches!(part, Part::ToolOutput { is_error: false, output, .. }
+            if output.starts_with(CHILD) && skein_lib::bytes::find(output, b"stopped for budget: yes").is_some())
+        }),
+        "the asker receives the answer and budget stop"
+    );
     let child_query = world.prompts().iter().find(|query| query.model.as_ref() == b"fake-2").expect("child request");
     assert_eq!(child_query.choice, skein_fake_llm_domain::api::ToolChoice::None, "native child choice");
     assert!(child_query.messages.last().expect("one final note").parts.iter().any(|part| {
@@ -499,14 +502,17 @@ fn main_final_turns_keep_definitions_append_one_note_and_skip_outside_workspace_
     }
     let final_query = queries.last().expect("finish request");
     assert!(final_query.messages.iter().flat_map(|message| &message.parts).any(|part| {
-        matches!(part, Part::ToolOutput { output, .. } if output.windows(b"OutsideChoice".len()).any(|part| part == b"OutsideChoice"))
+        matches!(part, Part::ToolOutput { output, .. } if skein_lib::bytes::find(output, b"OutsideChoice").is_some())
     }));
-    assert!(final_query.messages.iter().flat_map(|message| &message.parts).any(|part| {
-        matches!(part, Part::ToolOutput { output, .. } if output.windows(b"UnknownTool".len()).any(|part| part == b"UnknownTool"))
-    }), "an allowed malformed finish preserves its argument problem");
+    assert!(
+        final_query.messages.iter().flat_map(|message| &message.parts).any(|part| {
+            matches!(part, Part::ToolOutput { output, .. } if skein_lib::bytes::find(output, b"UnknownTool").is_some())
+        }),
+        "an allowed malformed finish preserves its argument problem"
+    );
     let note = |query: &Query| {
         query.messages.iter().flat_map(|message| &message.parts).filter(|part| {
-        matches!(part, Part::Text { text } if text.windows(b"budget is spent".len()).any(|part| part == b"budget is spent"))
+        matches!(part, Part::Text { text } if skein_lib::bytes::find(text, b"budget is spent").is_some())
     }).count()
     };
     assert_eq!(note(&queries[0]), 0);

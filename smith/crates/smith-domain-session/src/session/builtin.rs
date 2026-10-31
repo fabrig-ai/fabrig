@@ -134,7 +134,7 @@ pub(super) fn prepare(
                     source: ToolSource::Workspace,
                     effect: *effect,
                     deadline: conversation.expires,
-                    input_bytes: u64::try_from(input.len()).expect("bounded input"),
+                    input_bytes: skein_lib::len_u64(input.len()),
                 };
                 let position = u32::try_from(position).expect("bounded block");
                 let run =

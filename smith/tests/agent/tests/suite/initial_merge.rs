@@ -244,7 +244,7 @@ fn submitted(world: &mut World, count: usize) -> Token {
 }
 
 fn contains(bytes: &[u8], part: &[u8]) -> bool {
-    bytes.windows(part.len()).any(|bytes| bytes == part)
+    skein_lib::bytes::find(bytes, part).is_some()
 }
 
 fn conflict_read(turn: &smith_domain::Turn) -> bool {

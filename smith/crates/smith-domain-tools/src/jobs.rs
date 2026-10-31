@@ -354,9 +354,8 @@ fn cancelled(kit: &mut Kit, out: &mut Queue<Request>) {
 fn tell(session: Token, number: JobNumber, job: &Job, facts: &mut facts::Facts) {
     match &job.state {
         State::Ended { head, tail, dropped, end, at } => {
-            let unread_bytes = u64::try_from(head.len())
-                .expect("bounded head")
-                .checked_add(u64::try_from(tail.len()).expect("bounded tail"))
+            let unread_bytes = skein_lib::len_u64(head.len())
+                .checked_add(skein_lib::len_u64(tail.len()))
                 .expect("bounded kept bytes")
                 .checked_add(*dropped)
                 .expect("machine's total output fits u64");

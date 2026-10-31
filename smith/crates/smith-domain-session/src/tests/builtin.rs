@@ -226,11 +226,7 @@ fn builtin_calls_tell_their_facts() {
     drop(harness.step(Event::Close { session }));
     let facts: Vec<_> = core::iter::from_fn(|| harness.pop_fact()).collect();
     assert!(facts.iter().any(|fact| fact.kind
-        == Fact::BuiltinAnswered {
-            opener: Token::new(1),
-            bytes: u64::try_from(STAND_IN.len()).unwrap(),
-            error: true,
-        }));
+        == Fact::BuiltinAnswered { opener: Token::new(1), bytes: skein_lib::len_u64(STAND_IN.len()), error: true }));
 }
 
 #[test]
@@ -438,7 +434,7 @@ fn a_builtin_in_a_late_completion_keeps_its_stand_in() {
             .filter(|fact| fact.kind
                 == Fact::BuiltinAnswered {
                     opener: Token::new(1),
-                    bytes: u64::try_from(STAND_IN.len()).unwrap(),
+                    bytes: skein_lib::len_u64(STAND_IN.len()),
                     error: true
                 })
             .count(),

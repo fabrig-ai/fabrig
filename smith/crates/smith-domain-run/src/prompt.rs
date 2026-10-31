@@ -38,7 +38,7 @@ pub(crate) const PREAMBLE: &[u8] =
 /// The summary instruction's contribution to the compaction headroom.
 #[must_use]
 pub fn summary_bytes() -> u64 {
-    u64::try_from(SUMMARY.len()).expect("fixed summary length fits u64")
+    skein_lib::len_u64(SUMMARY.len())
 }
 
 /// The child's last prompt, independent of provider and host vocabulary.
@@ -1012,10 +1012,7 @@ At open, your share is 3 turns and less than a second. Your answer may hold at m
             let expected = ["\n## Your share\n\nAt open, your share is 3 turns and ", seconds, ". Your answer may hold at most 8192 bytes; anything past it is cut with a marker. Your last turn has no tools: answer with what you have.\n"].concat();
             assert!(text(&rendered).ends_with(&expected));
             assert!(!text(&rendered).contains("spend"));
-            assert!(
-                u64::try_from(expected.len()).expect("small prose")
-                    <= super::budget_prompt_bytes().expect("scalar bound")
-            );
+            assert!(skein_lib::len_u64(expected.len()) <= super::budget_prompt_bytes().expect("scalar bound"));
         }
         let mut measured = Text::measuring();
         super::render_budget(

@@ -146,7 +146,7 @@ pub(super) fn environment(base: &[Box<[u8]>], configuration: &[u8], run_time: Du
             entries.push(entry.clone()).ok()?;
         }
     }
-    let milliseconds = Decimal::of(run_time.as_nanos().checked_div(1_000_000)?);
+    let milliseconds = Decimal::of(run_time.as_millis());
     let room = u32::try_from(TIMEOUT_NAME.len().checked_add(U64_DIGITS)?).ok()?;
     let mut timeout = List::with_capacity(room);
     for byte in TIMEOUT_NAME.iter().chain(milliseconds.as_bytes()) {

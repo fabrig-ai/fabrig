@@ -130,7 +130,7 @@ fn child_scalar_receiving_and_unknown_prefix_ends_remain_distinct_literal_feedba
         );
         let received = feedback(
             run::Returned::Unanswered { end: end.clone(), used: USED, left: LEFT },
-            u64::try_from(expected.len()).expect("bounded bytes"),
+            skein_lib::len_u64(expected.len()),
         )
         .expect("exact complete cap");
         assert_eq!(received.text.as_ref(), expected.as_bytes());
@@ -165,7 +165,7 @@ fn child_usage_has_exact_scalar_values_flooring_and_complete_cap() {
     assert_eq!(
         feedback(
             run::Returned::Unanswered { end: run::End::Budget(run::Exhausted::Time), used, left },
-            u64::try_from(expected.len()).expect("fixture cap")
+            skein_lib::len_u64(expected.len())
         )
         .expect("exact terminal")
         .text
@@ -190,6 +190,6 @@ fn largest_usage_suffix_and_answer_fit_the_declared_feedback_bound() {
     };
     let received = feedback(answer(), cap).expect("largest child fields fit bound");
     assert!(received.text.ends_with(b"Child usage: used 4294967295 turns and 18446744073 seconds; stopped for budget: no; ordinary left 4294967295 turns and 18446744073 seconds."));
-    let measured = u64::try_from(received.text.len()).expect("bounded feedback");
+    let measured = skein_lib::len_u64(received.text.len());
     assert_eq!(feedback(answer(), measured - 1), Err(FeedbackRefusal::TooLarge));
 }

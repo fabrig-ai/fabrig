@@ -1726,10 +1726,9 @@ fn budget_failure(exhausted: Exhausted, run: &Run, now: Time) -> Failure {
     let fields = match exhausted {
         Exhausted::Turns => Some((u64::from(run.spent.turns), u64::from(run.charter.budget.turns))),
         Exhausted::Spend => Some((run.spent.units, run.charter.budget.spend)),
-        Exhausted::Time => Some((
-            now.saturating_since(run.started_at).as_nanos() / 1_000_000,
-            run.charter.budget.time.as_nanos() / 1_000_000,
-        )),
+        Exhausted::Time => {
+            Some((now.saturating_since(run.started_at).as_millis(), run.charter.budget.time.as_millis()))
+        }
         Exhausted::Tokens(_) | Exhausted::Overflow(_) => None,
     };
     let (used, bound) = match fields {

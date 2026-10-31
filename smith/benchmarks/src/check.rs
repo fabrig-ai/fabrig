@@ -432,10 +432,10 @@ pub fn seed_digest(directory: &Path) -> Result<String, Refusal> {
         let name = relative.to_str().ok_or_else(|| Refusal::new(&path, "seed", "file name must be UTF-8"))?;
         let bytes = fs::read(&path).map_err(|error| Refusal::new(&path, "seed", error.to_string()))?;
         let metadata = fs::metadata(&path).map_err(|error| Refusal::new(&path, "seed", error.to_string()))?;
-        digest.update(u64::try_from(name.len()).expect("file name fits u64").to_be_bytes());
+        digest.update(skein_lib::len_u64(name.len()).to_be_bytes());
         digest.update(name.as_bytes());
         digest.update([u8::from(metadata.permissions().mode() & 0o111 != 0)]);
-        digest.update(u64::try_from(bytes.len()).expect("file size fits u64").to_be_bytes());
+        digest.update(skein_lib::len_u64(bytes.len()).to_be_bytes());
         digest.update(bytes);
     }
     Ok(format!("{:x}", digest.finalize()))

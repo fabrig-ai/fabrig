@@ -29,7 +29,7 @@ fn metadata(input: &[u8]) -> session::ToolCall {
         source: session::ToolSource::Run,
         effect: smith_domain::tools::Effect::Read,
         deadline: skein_lib::Time::ZERO,
-        input_bytes: u64::try_from(input.len()).unwrap(),
+        input_bytes: skein_lib::len_u64(input.len()),
     }
 }
 

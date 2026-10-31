@@ -112,9 +112,7 @@ pub(super) fn check(value: &Value, kind: Kind) -> Result<(), Problem> {
     let holds = match kind {
         Kind::Table => value.is_table(),
         Kind::Choice(choices) => value.as_str().is_some_and(|value| choices.contains(&value)),
-        Kind::Text(bound) => {
-            value.as_str().is_some_and(|text| u64::try_from(text.len()).expect("length fits") <= bound)
-        }
+        Kind::Text(bound) => value.as_str().is_some_and(|text| skein_lib::len_u64(text.len()) <= bound),
         Kind::Integer(bound) => value.as_integer().is_some_and(|number| number >= 0 && number.unsigned_abs() <= bound),
         Kind::Number => value
             .as_float()

@@ -78,10 +78,8 @@ pub(super) fn recorded_window(session: &mut Session, turn: &agent::record::Turn,
     session.compacting = None;
     session.opening = Some(turn.messages.clone());
     session.ordinary = None;
-    session.summary = Some((
-        u64::try_from(text.len()).expect("small summary"),
-        turn.usage.output_tokens.unwrap_or(u64::from(session.max_tokens)),
-    ));
+    session.summary =
+        Some((skein_lib::len_u64(text.len()), turn.usage.output_tokens.unwrap_or(u64::from(session.max_tokens))));
 }
 
 fn assert_compaction_prompt(previous: &Prompt, current: &Prompt, session: &Session) {

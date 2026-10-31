@@ -89,7 +89,7 @@ fn trust_sources(sources: &[skein_shell::Trust]) -> Result<tls::Config, Configur
         })?;
         for certificate in roots.certificates {
             bytes = bytes
-                .checked_add(u64::try_from(certificate.len()).expect("bounded certificate"))
+                .checked_add(skein_lib::len_u64(certificate.len()))
                 .ok_or("trust roots exceed their byte bound")?;
             if bytes > TRUST_BYTES || certificates.len() >= 512 {
                 return Err("trust roots exceed their combined bound".into());

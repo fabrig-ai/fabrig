@@ -384,10 +384,10 @@ pub fn agent_document(launch: &Launch) -> serde_json::Value {
         "read_window":declared.read_window,"shell_head":declared.shell_head,"shell_tail":declared.shell_tail,
         "search_hits":declared.search_hits,"search_bytes":declared.search_bytes,"list_entries":declared.list_entries,
         "guide":declared.guide,"memory":declared.memory,"llm_pool":declared.llm_pool},
-        "policy":{"max_turns":policy.max_turns,"max_time":policy.max_time.as_nanos()/1_000_000,
+        "policy":{"max_turns":policy.max_turns,"max_time":policy.max_time.as_millis(),
         "inbox":policy.inbox,"sections":policy.sections,"host_tools":policy.host_tools,"verdicts":policy.verdicts,
-        "check_timeout":policy.check_timeout.as_nanos()/1_000_000,"unacknowledged":policy.unacknowledged,
-        "group_stop":policy.group_stop.as_nanos()/1_000_000,"exit_grace":policy.exit_grace.as_nanos()/1_000_000}},
+        "check_timeout":policy.check_timeout.as_millis(),"unacknowledged":policy.unacknowledged,
+        "group_stop":policy.group_stop.as_millis(),"exit_grace":policy.exit_grace.as_millis()}},
         "endpoints":[endpoint],"environment":[]});
     if launch.traced {
         document["trace"] =

@@ -389,11 +389,11 @@ fn history_fits(transcript: Option<&session::record::Transcript>, answered: &[u8
     let mut messages = 0_u64;
     let mut history_bytes = 0_u64;
     if let Some(transcript) = transcript {
-        if u64::try_from(transcript.turns.len()).expect("owned input count fits") > cap {
+        if skein_lib::len_u64(transcript.turns.len()) > cap {
             return false;
         }
         for turn in &transcript.turns {
-            messages = match messages.checked_add(u64::try_from(turn.messages.len()).expect("owned input count fits")) {
+            messages = match messages.checked_add(skein_lib::len_u64(turn.messages.len())) {
                 Some(count) if count <= cap => count,
                 Some(_) | None => return false,
             };
@@ -403,12 +403,10 @@ fn history_fits(transcript: Option<&session::record::Transcript>, answered: &[u8
             None => return false,
         };
     }
-    if messages > cap
-        || u64::try_from(answered.len()).expect("owned length fits") > u64::from(limits.run.answered_bytes)
-    {
+    if messages > cap || skein_lib::len_u64(answered.len()) > u64::from(limits.run.answered_bytes) {
         return false;
     }
-    let total = history_bytes.checked_add(u64::try_from(answered.len()).expect("owned length fits"));
+    let total = history_bytes.checked_add(skein_lib::len_u64(answered.len()));
     match total {
         Some(bytes) => match limits::record_payload(limits) {
             Some(cap) => bytes <= cap && bytes <= limits.session.history_bytes,

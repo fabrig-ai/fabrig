@@ -912,7 +912,7 @@ pub(crate) fn narrowed(
     conversation.choice = ToolChoice::Auto;
     conversation.choice_names = None;
     let cost = match new.checked_add(u64::try_from(size_of::<Block>()).expect("block cell fits")) {
-        Some(cost) => cost.checked_add(u64::try_from(note.len()).expect("note length fits")),
+        Some(cost) => cost.checked_add(skein_lib::len_u64(note.len())),
         None => None,
     };
     session.state = if conversation.compaction.asking()
@@ -961,8 +961,7 @@ fn valid_choice(choice: &ToolChoice, offered: &[Descriptor]) -> bool {
 fn ticket_bytes(choice: &ToolChoice) -> u64 {
     match choice {
         ToolChoice::Auto | ToolChoice::None => 0,
-        ToolChoice::Only(tickets) => u64::try_from(tickets.len())
-            .expect("bounded descriptors")
+        ToolChoice::Only(tickets) => skein_lib::len_u64(tickets.len())
             .checked_mul(u64::try_from(size_of::<Token>()).expect("token cell fits"))
             .expect("admitted descriptor bound fits"),
     }
@@ -974,7 +973,7 @@ fn choice_bytes(choice: Option<&[Box<[u8]>]>) -> u64 {
         for name in names {
             let cell = u64::try_from(size_of::<Box<[u8]>>()).expect("name cell fits");
             bytes = bytes.checked_add(cell).expect("admitted names fit");
-            bytes = bytes.checked_add(u64::try_from(name.len()).expect("bounded name")).expect("admitted names fit");
+            bytes = bytes.checked_add(skein_lib::len_u64(name.len())).expect("admitted names fit");
         }
     }
     bytes
@@ -1721,7 +1720,7 @@ fn advance(
                     owner: run.token(),
                     effect,
                     deadline,
-                    input_bytes: u64::try_from(input.len()).expect("provider input byte count fits u64"),
+                    input_bytes: skein_lib::len_u64(input.len()),
                 });
                 let heard =
                     tools_step(calls, &bounded, tools::Event::Call { kit, reply_to, observation, call, deadline }, out);
@@ -2473,7 +2472,7 @@ fn tool_metadata(
         source,
         effect,
         deadline,
-        input_bytes: u64::try_from(input.len()).expect("provider input byte count fits u64"),
+        input_bytes: skein_lib::len_u64(input.len()),
     }
 }
 

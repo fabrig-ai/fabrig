@@ -89,10 +89,10 @@ pub enum Incomplete {
 }
 
 fn milliseconds(span: Duration) -> u64 {
-    span.as_nanos() / 1_000_000
+    span.as_millis()
 }
 fn elapsed(start: Time, end: Time) -> u64 {
-    end.as_nanos().checked_sub(start.as_nanos()).expect("one monotonic attempt clock") / 1_000_000
+    Duration::from_nanos(end.as_nanos().checked_sub(start.as_nanos()).expect("one monotonic attempt clock")).as_millis()
 }
 
 fn blank(identity: Identity) -> AttemptResult {

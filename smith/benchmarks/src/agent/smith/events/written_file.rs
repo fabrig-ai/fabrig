@@ -104,7 +104,7 @@ fn evaluate(
             writes.push(content.as_bytes().to_vec());
         }
     }
-    if writes.len() != 1 || u64::try_from(writes[0].len()).expect("captured bytes fit u64") < minimum {
+    if writes.len() != 1 || skein_lib::len_u64(writes[0].len()) < minimum {
         return measured(false);
     }
     match crate::grade::file(workspace, path).and_then(|file| std::fs::read(file).map_err(|error| error.to_string())) {

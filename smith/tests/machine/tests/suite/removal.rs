@@ -123,8 +123,8 @@ fn file_request(files: &FileIo, below: Below) -> (file::Request, Time) {
 
 #[test]
 fn real_removal_checks_current_bytes_and_preserves_refused_targets() {
-    let scratch = std::env::temp_dir().join(format!("smith-real-remove-{}", std::process::id()));
-    fs::create_dir(&scratch).expect("unique scratch");
+    let owner = skein_scratch::Scratch::new("smith-real-remove");
+    let scratch = owner.path();
     fs::create_dir(scratch.join("src")).expect("source directory");
     fs::create_dir(scratch.join("empty")).expect("empty directory");
     fs::create_dir(scratch.join(".GiT")).expect("protected directory");
@@ -132,7 +132,7 @@ fn real_removal_checks_current_bytes_and_preserves_refused_targets() {
     fs::write(scratch.join(".GiT/config"), b"protected").expect("git fixture");
     std::os::unix::fs::symlink("src", scratch.join("alias")).expect("parent link");
     std::os::unix::fs::symlink("src/a", scratch.join("link")).expect("file link");
-    let loaded = perform(&scratch, tools::Op::Load { at: place(b"src/a"), max: 16 });
+    let loaded = perform(scratch, tools::Op::Load { at: place(b"src/a"), max: 16 });
     let tools::Done::Loaded { version, .. } = loaded else {
         panic!("read before removal: {loaded:?}");
     };
@@ -145,18 +145,17 @@ fn real_removal_checks_current_bytes_and_preserves_refused_targets() {
         (b"", tools::Expect::Absent, tools::Done::Failed { fault: tools::Fault::Denied }),
         (b"../outside", tools::Expect::Absent, tools::Done::Escapes),
     ] {
-        assert_eq!(perform(&scratch, remove(path, expect)), expected);
+        assert_eq!(perform(scratch, remove(path, expect)), expected);
         assert_eq!(fs::read(scratch.join("src/a")).expect("refusal preserves file"), b"old");
         assert_eq!(fs::read(scratch.join(".GiT/config")).expect("protected file"), b"protected");
         assert!(scratch.join("empty").is_dir());
     }
     fs::write(scratch.join("src/a"), b"new").expect("external change");
-    assert!(matches!(perform(&scratch, remove(b"src/a", tools::Expect::Is { version })), tools::Done::Conflict { .. }));
+    assert!(matches!(perform(scratch, remove(b"src/a", tools::Expect::Is { version })), tools::Done::Conflict { .. }));
     assert_eq!(fs::read(scratch.join("src/a")).expect("stale removal preserves file"), b"new");
     let current = tools::Version::new(skein_io::digest::digest(b"new").0);
-    assert_eq!(perform(&scratch, remove(b"src/a", tools::Expect::Is { version: current })), tools::Done::Removed);
+    assert_eq!(perform(scratch, remove(b"src/a", tools::Expect::Is { version: current })), tools::Done::Removed);
     assert!(!scratch.join("src/a").exists());
-    assert_eq!(perform(&scratch, remove(b"empty", tools::Expect::Absent)), tools::Done::Removed);
+    assert_eq!(perform(scratch, remove(b"empty", tools::Expect::Absent)), tools::Done::Removed);
     assert!(!scratch.join("empty").exists());
-    fs::remove_dir_all(scratch).expect("scratch reclaimed");
 }

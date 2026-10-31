@@ -260,7 +260,7 @@ pub fn env_record(value: &[u8], codex: bool, wall: Wall) -> Option<Borrowed> {
 
 pub(crate) fn valid_key(value: &[u8]) -> bool {
     !value.is_empty()
-        && u64::try_from(value.len()).expect("key length fits u64") <= u64::from(token_limits().token_bytes)
+        && skein_lib::len_u64(value.len()) <= u64::from(token_limits().token_bytes)
         && value.iter().all(|byte| (0x21..=0x7e).contains(byte))
 }
 

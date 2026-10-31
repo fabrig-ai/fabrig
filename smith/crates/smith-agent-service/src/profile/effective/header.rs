@@ -20,7 +20,7 @@ pub fn header(
             Value::Bytes(value) | Value::Count(value) | Value::Tokens(value) | Value::Spend(value) => {
                 LimitValue::Integer(value)
             }
-            Value::Duration(value) => LimitValue::Integer(value.as_nanos().checked_div(1_000_000)?),
+            Value::Duration(value) => LimitValue::Integer(value.as_millis()),
             Value::Fraction(value) => {
                 if value.denominator == 0 {
                     return None;

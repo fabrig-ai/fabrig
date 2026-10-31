@@ -249,7 +249,7 @@ impl Book {
                 attempt: u64::from(intent.retry),
                 window: u64::from(intent.window),
                 model: conversation.model.clone(),
-                messages: u64::try_from(prompt.messages.len()).expect("admitted prompt messages"),
+                messages: skein_lib::len_u64(prompt.messages.len()),
                 output_tokens: u64::from(prompt.max_tokens),
                 tool_choice: crate::request_tool_choice(&prompt.choice),
                 prompt: None,
@@ -429,9 +429,8 @@ impl Book {
             Attempt::Started(started) => {
                 let (oversized, cut) = rejected_calls(completion);
                 assert!(started.received.is_none(), "one typed component answer per hand-off");
-                let blocks = u64::try_from(completion.content.len())
-                    .expect("bounded blocks")
-                    .checked_add(u64::try_from(completion.reasoning_dropped.len()).expect("bounded drops"))
+                let blocks = skein_lib::len_u64(completion.content.len())
+                    .checked_add(skein_lib::len_u64(completion.reasoning_dropped.len()))
                     .expect("bounded original completion blocks");
                 started.received = Some(Received { usage: completion.usage, oversized, cut, blocks });
             }

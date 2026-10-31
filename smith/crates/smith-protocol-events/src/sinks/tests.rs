@@ -246,7 +246,7 @@ fn each_settled_end_reports_its_destination_loss_and_counts_itself_once() {
     let records = drain(&mut sinks, token);
     let Event::SessionEnded(end) = &records.last().unwrap().event else { panic!("end is last") };
     assert_eq!(end.emitted.iter().map(|entry| entry.count).sum::<u64>(), count + 1);
-    assert_eq!(u64::try_from(records.len()).unwrap().checked_add(end.loss.events).unwrap(), count + 1);
+    assert_eq!(skein_lib::len_u64(records.len()).checked_add(end.loss.events).unwrap(), count + 1);
     assert_eq!(sinks.writers.get(1).unwrap().loss, count + 1);
     assert_eq!(sinks.pop_given_up(), Some(GivenUp { destination: Destination::Output, why: Why::WriteFailed }));
     assert_eq!(sinks.pop_given_up(), None);
@@ -412,7 +412,7 @@ fn a_slow_complete_destination_preserves_order_and_reserves_authoritative_room()
     assert_eq!(sinks.writers.get(0).unwrap().loss, 0);
     assert!(sinks.closed());
     let emitted = sinks.emitted();
-    assert_eq!(emitted.iter().map(|entry| entry.count).sum::<u64>(), u64::try_from(expected.len()).unwrap());
+    assert_eq!(emitted.iter().map(|entry| entry.count).sum::<u64>(), skein_lib::len_u64(expected.len()));
 }
 
 #[test]
@@ -430,7 +430,7 @@ fn best_effort_loses_only_the_counted_records_that_find_it_behind() {
     assert!(lost > 0);
     sinks.finish();
     let records = drain(&mut sinks, token);
-    assert_eq!(u64::try_from(records.len()).unwrap().checked_add(lost).unwrap(), count);
+    assert_eq!(skein_lib::len_u64(records.len()).checked_add(lost).unwrap(), count);
     assert_eq!(sinks.emitted().get(0).unwrap().count, count);
 }
 

@@ -18,8 +18,7 @@ fn codex_lines_survive_seeded_truncations_corruptions_and_repetition() {
             }
             for _ in 0..64 {
                 let mut bytes = line.as_bytes().to_vec();
-                let index =
-                    usize::try_from(rng.below(u64::try_from(bytes.len()).expect("line length"))).expect("index");
+                let index = usize::try_from(rng.below(skein_lib::len_u64(bytes.len()))).expect("index");
                 bytes[index] = u8::try_from(rng.below(128)).expect("ASCII");
                 if let Ok(corrupt) = String::from_utf8(bytes) {
                     let _ = Observer::default().observe_line(&corrupt);
@@ -57,7 +56,7 @@ fn named_rollouts_survive_seeded_truncation_corruption_and_response_repetition()
         }
         for _ in 0..512 {
             let mut bytes = stream.as_bytes().to_vec();
-            let index = usize::try_from(rng.below(u64::try_from(bytes.len()).expect("length"))).expect("index");
+            let index = usize::try_from(rng.below(skein_lib::len_u64(bytes.len()))).expect("index");
             bytes[index] = u8::try_from(rng.below(128)).expect("ASCII");
             let _ = parse_rollout(&bytes, thread);
         }
@@ -84,7 +83,7 @@ fn typed_event_chunks_preserve_records_under_seeded_cuts_and_corruption() {
         }
         observer.finish().expect("framing");
         assert_eq!(observer.sessions().len(), 1);
-        let cut = usize::try_from(rng.below(u64::try_from(stream.len()).expect("length"))).expect("index");
+        let cut = usize::try_from(rng.below(skein_lib::len_u64(stream.len()))).expect("index");
         let mut partial = Events::new(&limits).expect("bounds");
         let _ = partial.feed(&stream[..cut]);
         if cut > 0 {

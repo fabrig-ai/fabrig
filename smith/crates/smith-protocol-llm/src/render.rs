@@ -468,9 +468,9 @@ fn job_following(
             output.put(b"\n[")?;
             output.put(label)?;
             output.put(b" clamped: ")?;
-            output.number(asked.as_nanos() / 1_000_000)?;
+            output.number(asked.as_millis())?;
             output.put(b" ms to ")?;
-            output.number(ceiling.as_nanos() / 1_000_000)?;
+            output.number(ceiling.as_millis())?;
             output.put(b" ms]")?;
         }
     }
@@ -482,9 +482,9 @@ fn command_following(timeout: tools::TimeoutClamp, kept: tools::BytesClamp, outp
         tools::TimeoutClamp::Within => {}
         tools::TimeoutClamp::Clamped { asked, ceiling } => {
             output.put(b"\n[timeout clamped: ")?;
-            output.number(asked.as_nanos() / 1_000_000)?;
+            output.number(asked.as_millis())?;
             output.put(b" ms to ")?;
-            output.number(ceiling.as_nanos() / 1_000_000)?;
+            output.number(ceiling.as_millis())?;
             output.put(b" ms]")?;
         }
     }
