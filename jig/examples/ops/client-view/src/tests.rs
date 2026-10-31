@@ -434,12 +434,7 @@ fn text(bytes: &[u8]) -> Text {
     Text::new(bytes.into(), 32).unwrap()
 }
 fn list<T>(rows: impl IntoIterator<Item = T>) -> List<T> {
-    let rows: Vec<_> = rows.into_iter().collect();
-    let mut out = List::with_capacity(u32::try_from(rows.len()).unwrap());
-    for row in rows {
-        out.push(row).ok().unwrap();
-    }
-    out
+    List::from_boxed(rows.into_iter().collect::<Vec<_>>().into_boxed_slice())
 }
 fn task() -> Task {
     Task {

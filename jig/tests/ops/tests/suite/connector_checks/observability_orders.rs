@@ -86,7 +86,7 @@ fn assert_results(world: &World) {
             outcomes.push((*entry, *key, *outcome));
         }
     }
-    assert_eq!(refreshes.len(), usize::try_from(LIVE_SERVICES).expect("fixture count fits"));
+    assert_eq!(refreshes.len(), skein_lib::length::usize_of(LIVE_SERVICES));
     for number in 0..LIVE_SERVICES {
         assert_eq!(refreshes.get(&service(number)), Some(&1));
         assert!(closed.remove(&(FIRST_SUBSCRIBER + u64::from(number))));

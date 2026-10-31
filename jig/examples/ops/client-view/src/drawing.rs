@@ -7,7 +7,7 @@ use skein_ui::{Builder, DrawingKind, Run};
 
 pub const BYTES: u32 = 32;
 fn open_rate(b: &mut Builder, words: &Words, percent: u8, observed: skein_lib::Wall) {
-    let mut data = skein_lib::Writer::new(usize::try_from(BYTES).expect("drawing bound fits"));
+    let mut data = skein_lib::Writer::new(skein_lib::length::usize_of(BYTES));
     data.put(&[percent]).expect("fixed drawing capacity");
     data.put(&observed.as_nanos().to_le_bytes()).expect("fixed drawing capacity");
     data.put(&[0; 23]).expect("fixed drawing capacity");
