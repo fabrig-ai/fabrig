@@ -31,8 +31,8 @@ pub(crate) fn run(
         .expect("checked engine");
     let provider = engine.clients.provider.as_ref().ok_or("engine.clients.provider is not configured")?;
     let client = provider.clients.iter().find(|client| client.id == row.client).expect("checked sign-in client");
-    let entry = checked.setup.entry(number);
-    let owned = match entry.map(|entry| &entry.mode) {
+    let entry = super::forge::group_entry(directories, number, Some(checked))?;
+    let owned = match entry.as_ref().map(|entry| &entry.mode) {
         Some(Mode::Owned(owned)) => Some(owned),
         Some(Mode::Managed { .. }) | None => None,
         Some(Mode::Fake(_)) => return Err("it is fake, not a Forgejo sign-in host".into()),
@@ -48,7 +48,7 @@ pub(crate) fn run(
     };
     let mut discovery = origin;
     discovery.extend_from_slice(b"/.well-known/openid-configuration");
-    let place = entry.map(|entry| Place { directory: entry.directory.clone(), user: Box::new([]) });
+    let place = entry.as_ref().map(|entry| Place { directory: entry.directory.clone(), user: Box::new([]) });
     let instructions = sign_in::instructions(
         owned.map_or(b"forgejo".as_slice(), |owned| owned.forgejo.as_ref()),
         owned.and(place.as_ref()),

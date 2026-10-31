@@ -5,6 +5,34 @@ use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
 
 #[test]
+fn the_fake_forge_reads_its_entry_from_the_group_file() {
+    let root = std::env::temp_dir().join(format!("temper-fake-group-{}", std::process::id()));
+    let directories = crate::tests::configuration::directories(&root);
+    let mut created = Created::default();
+    created.directory(&root.join("box/groups")).expect("private groups");
+    let value = crate::tests::configuration::check_document(&root);
+    fs::write(directories.document(), serde_json::to_vec(&value).expect("document JSON")).expect("document");
+    let mut setup = value["application"]["setup"][0].clone();
+    setup.as_object_mut().expect("entry").remove("forge");
+    setup["directory"] = "group-forge".into();
+    setup["mode"]["fake"]["owner"] = "group-owner".into();
+    setup["mode"]["fake"]["listen"]["socket"] = "127.0.0.1:10".into();
+    let group = temper_forge_setup::group::compose(&serde_json::to_vec(&setup).expect("setup JSON"), 1, false)
+        .expect("composed group");
+    created.output(&root.join("box/groups/1"), &group).expect("private group");
+    created.directory(&root.join("group-forge")).expect("forge directory");
+    let token = [b'a'; 40];
+    created.output(&root.join("group-forge/admin_token"), &token).expect("fixture token");
+    let (document, read_token) =
+        forge_document(&Source::Setup { directories, forge: 1 }, 0, &mut created).expect("fake from group");
+    assert_eq!(document.owner(), b"group-owner");
+    assert_eq!(document.listen(), "127.0.0.1:10".parse().expect("group address"));
+    assert_eq!(document.admin_token(), root.join("group-forge/admin_token").as_os_str().as_bytes());
+    assert_eq!(read_token, token);
+    fs::remove_dir_all(root).expect("remove fixture");
+}
+
+#[test]
 fn retained_seed_outputs_survive_later_refusal_and_rollback() {
     let directory = std::env::temp_dir().join(format!("temper-seed-reuse-{}", std::process::id()));
     crate::directories::make_private(&directory, skein_shell::effective_user()).expect("private fixture");

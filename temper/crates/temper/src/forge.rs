@@ -1,4 +1,5 @@
-//! Forge commands check the document, then host only their own setup part.
+//! Forge commands host their own setup part; removal reads only the group's file.
+//! Group entries and removal: temper/docs/design/draft/playground-reset.md, 3 and 4.
 use std::{
     ffi::OsString,
     fs,
@@ -150,16 +151,90 @@ fn inherited_listener(which: Which) -> Result<Option<std::net::SocketAddr>, Stri
     // Unlike inherited_listeners, listener_at preserves fd 3's exec flags.
     skein_shell::listener_at(skein_io::kernel::Fd::new(3)).map(Some).map_err(super::listeners_refusal)
 }
-pub(crate) fn start(
+/// Forge N's setup entry: `<data>/box/groups/N` when it exists, else the
+/// document's `application.setup` entry while the document has one (the
+/// fallback `bx-process` removes). `checked` is the document's, if read.
+pub(crate) fn group_entry(
     directories: &super::Directories,
-    arguments: &[OsString],
-    ssl_cert_file: Option<std::path::PathBuf>,
-) -> Result<u8, Refused> {
+    number: u16,
+    checked: Option<&temper_forge_setup::check::Checked>,
+) -> Result<Option<temper_forge_setup::setup::Entry>, String> {
+    use temper_forge_setup::group;
+    let path = super::path(&directories.data).join(super::path(&group::path(number)));
+    let bytes = match skein_shell::read_private_file(&path, group::FILE_BYTES, skein_shell::effective_user()) {
+        Ok(bytes) => bytes,
+        Err(skein_shell::Unread::Absent) => {
+            return Ok(checked.and_then(|checked| checked.setup.entry(number)).cloned());
+        }
+        Err(why) => return Err(format!("{}: {}", path.display(), super::unread(why))),
+    };
+    let machine = group::Machine {
+        flags: directories.flags(),
+        directories: directories.jig(),
+        limits: checked.map_or_else(temper_forge_setup::limits::small, |checked| checked.limits.clone()),
+        llm: None,
+        forgejo_listens: cfg!(target_os = "linux"),
+    };
+    group::read(bytes.expose(), number, &machine).map(|file| Some(file.entry)).map_err(|why| text(&why))
+}
+
+/// `temper forge remove DIRS N`: removes the group's forge directory.
+fn remove(directories: &super::Directories, number: u16) -> Result<u8, String> {
+    let Some(entry) = group_entry(directories, number, None)? else { return Ok(0) };
+    if entry.directory.is_empty() {
+        return Ok(0);
+    }
+    let normalized = super::path(&entry.directory).components().collect::<std::path::PathBuf>();
+    let directory = normalized.as_path();
+    let data = super::path(&directories.data);
+    let cache = super::path(&directories.cache);
+    let config = super::path(&directories.config);
+    // Parent components can hide an escape or a link before a later component.
+    for path in [directory, data, cache, config] {
+        if path.components().any(|part| part == std::path::Component::ParentDir) {
+            return Err(format!("{}: removal paths must contain no parent components", directory.display()));
+        }
+    }
+    if directory == data || !directory.starts_with(data) {
+        return Err(format!("{}: must be strictly beneath the data directory", directory.display()));
+    }
+    if directory.starts_with(data.join("box")) {
+        return Err(format!("{}: must not be the box directory or beneath it", directory.display()));
+    }
+    for protected in [cache, config] {
+        if directory.starts_with(protected) || protected.starts_with(directory) {
+            return Err(format!(
+                "{}: must not contain or be within the cache or configuration directory",
+                directory.display()
+            ));
+        }
+    }
+    for ancestor in directory.ancestors() {
+        match fs::symlink_metadata(ancestor) {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                return Err(format!("{}: reached through a symbolic link", ancestor.display()));
+            }
+            Ok(_) => {}
+            Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
+            Err(why) => return Err(format!("{}: {why}", ancestor.display())),
+        }
+        if ancestor == data {
+            break;
+        }
+    }
+    match fs::remove_dir_all(directory) {
+        Ok(()) => Ok(0),
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => Ok(0),
+        Err(why) => Err(format!("{}: {why}", directory.display())),
+    }
+}
+
+fn command_arguments(arguments: &[OsString]) -> Result<(&'static str, u16, Option<Which>), Refused> {
     let usage = || {
         Refused {
         verb: "prepare",
         number: None,
-        why: "usage: temper forge fetch [DIRECTORIES] FORGE | temper forge prepare [DIRECTORIES] FORGE | temper forge run [DIRECTORIES] FORGE forgejo|runner | temper forge reconcile [DIRECTORIES] FORGE | temper forge sign-in [DIRECTORIES] FORGE".into(),
+        why: "usage: temper forge fetch [DIRECTORIES] FORGE | temper forge prepare [DIRECTORIES] FORGE | temper forge run [DIRECTORIES] FORGE forgejo|runner | temper forge reconcile [DIRECTORIES] FORGE | temper forge sign-in [DIRECTORIES] FORGE | temper forge remove [DIRECTORIES] FORGE".into(),
     }
     };
     let (verb, number, which) = match arguments {
@@ -167,6 +242,7 @@ pub(crate) fn start(
         [verb, number] if verb == "prepare" => ("prepare", number, None),
         [verb, number] if verb == "sign-in" => ("sign-in", number, None),
         [verb, number] if verb == "reconcile" => ("reconcile", number, None),
+        [verb, number] if verb == "remove" => ("remove", number, None),
         [verb, number, which] if verb == "run" => {
             let which = match which.to_str() {
                 Some("forgejo") => Which::Forgejo,
@@ -178,7 +254,19 @@ pub(crate) fn start(
         _ => return Err(usage()),
     };
     let number = number.to_str().and_then(|n| n.parse::<u16>().ok()).ok_or_else(usage)?;
+    Ok((verb, number, which))
+}
+
+pub(crate) fn start(
+    directories: &super::Directories,
+    arguments: &[OsString],
+    ssl_cert_file: Option<std::path::PathBuf>,
+) -> Result<u8, Refused> {
+    let (verb, number, which) = command_arguments(arguments)?;
     let refused = |why| Refused { verb, number: Some(number), why };
+    if verb == "remove" {
+        return remove(directories, number).map_err(refused);
+    }
     // Inspect before reading the document or opening the lock: neither may occupy fd 3.
     let listener = which.map(inherited_listener).transpose().map_err(refused)?.flatten();
     let bytes = directories.read().map_err(refused)?;
@@ -197,7 +285,9 @@ pub(crate) fn start(
                 )
             });
     }
-    let entry = checked.setup.entry(number).ok_or_else(|| refused("the setup has no entry for it".into()))?;
+    let entry = group_entry(directories, number, Some(&checked))
+        .map_err(refused)?
+        .ok_or_else(|| refused("the setup has no entry for it".into()))?;
     let owned = match &entry.mode {
         Mode::Owned(owned) => Some(owned),
         Mode::Managed { .. } => return Err(refused("it is managed, not owned".into())),

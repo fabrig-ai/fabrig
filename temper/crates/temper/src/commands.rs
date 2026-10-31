@@ -56,7 +56,7 @@ const DIRECTORIES: Argument = Argument {
 const FORGE: Argument = Argument { shown: "FORGE", line: "A forge's number in the configuration." };
 
 /// Every row, in `temper --help`'s order: by `Who`, then as listed in protocol/README.md, section 4.
-pub const COMMANDS: [Row; 20] = [
+pub const COMMANDS: [Row; 21] = [
     Row {
         words: &["help"],
         who: Who::Documentation,
@@ -168,6 +168,16 @@ pub const COMMANDS: [Row; 20] = [
         arguments: &[DIRECTORIES, FORGE],
         settings: &[&directories::SETTINGS],
         notes: "For a Forgejo of application.sign_in.forges, on temper's host, before temper serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.",
+        transition: false,
+    },
+    Row {
+        words: &["forge", "remove"],
+        who: Who::Deployment,
+        forms: &["[DIRECTORIES] FORGE"],
+        line: "Remove a box group's forge directory, keeping the cache.",
+        arguments: &[DIRECTORIES, FORGE],
+        settings: &[&directories::SETTINGS],
+        notes: "Reads the group's file without the deployment document. An absent group file or forge directory is already removed; the box removes its own group and started records.",
         transition: false,
     },
     Row {

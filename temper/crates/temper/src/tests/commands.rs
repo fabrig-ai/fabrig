@@ -50,6 +50,7 @@ fn every_row_parses_from_an_example() {
         (&["forge", "prepare"], &["forge", "prepare", "1"]),
         (&["forge", "run"], &["forge", "run", "1", "forgejo"]),
         (&["forge", "sign-in"], &["forge", "sign-in", "1"]),
+        (&["forge", "remove"], &["forge", "remove", "1"]),
         (&["forge", "reconcile"], &["forge", "reconcile", "1"]),
         (&["ctl"], &["ctl", "DIR", "task", "show", "1"]),
         (&["ctl"], &["ctl", "DIR", "me"]),
