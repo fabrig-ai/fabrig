@@ -259,10 +259,6 @@ impl Core {
             let _refused = self.start_refuse(Failure::ProjectPolicy { project });
             return;
         }
-        if !self.people.start_link(&Env { now: env.now, wall: self.start.at, limits: env.limits.people }) {
-            self.start_collect_failure();
-            return;
-        }
         let mut child = Queue::uncapped();
         tasks::step(
             &mut self.tasks,
@@ -292,6 +288,15 @@ impl Core {
                     self.start_refuse(Failure::Accounting { key: Key::Tasks(tasks::Key::Live(context.task)) });
                 return;
             }
+        }
+        for view in self.tasks.view_tasks() {
+            let row = self.tasks.task(view.number).expect("live view owner");
+            let entries = self.waiting_entries(&env.limits, row);
+            self.project(&env.limits, people::RestoreProjection::Waiting { task: view.number, entries });
+        }
+        if !self.people.start_link(&Env { now: env.now, wall: self.start.at, limits: env.limits.people }) {
+            self.start_collect_failure();
+            return;
         }
         let crate::Requests::Out(mut accounts) = crate::want_accounts(self, env);
         self.start_collect_failure();

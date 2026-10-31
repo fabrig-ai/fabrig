@@ -77,6 +77,57 @@ fn task() -> tasks::TaskRecord {
     source.tasks.task(1).expect("source task").clone()
 }
 
+#[test]
+fn link_reprojects_waiting_after_reselecting_the_holder() {
+    let (mut core, env) = loaded();
+    restore_person(
+        &mut core,
+        &env,
+        people::Stored::Person {
+            number: 2,
+            identity: people::Identity {
+                key: people::IdentityKey { provider: 0, subject: Box::new([2]) },
+                login: Box::new([]),
+                name: Box::new([]),
+            },
+        },
+    );
+    restore_person(
+        &mut core,
+        &env,
+        people::Stored::Roles {
+            project: 1,
+            holdings: Box::new([people::Holding { person: 2, role: people::Role::Owner }]),
+        },
+    );
+    restore_task(&mut core, &env, period());
+    let mut row = task();
+    row.executor = tasks::Executor::Person(tasks::PersonAddress::Person(1));
+    row.phase =
+        tasks::Phase::Held { was: tasks::Was::Active(tasks::Active::Due), why: tasks::Hold::Budget, source: None };
+    row.escalation = tasks::Escalation::Waiting {
+        revision: 1,
+        holder: tasks::EscalationHolder::Person(1),
+        entry: 1,
+        since: Wall::EPOCH,
+    };
+    restore_task(&mut core, &env, tasks::Stored::Live(Box::new(row)));
+    let mut out = Queue::uncapped();
+    step_phase(core.start_done(&env, Phase::LoadCore, &mut out), Phase::LoadInbox);
+    let _census = core.census(&env.limits);
+    let mut previous = Phase::LoadInbox;
+    for connector in core.connectors.clone() {
+        let next = Phase::RestoreConnector { connector };
+        step_phase(core.start_done(&env, previous, &mut out), next);
+        previous = next;
+    }
+    step_phase(core.start_done(&env, previous, &mut out), Phase::Link);
+    linked(core.start_done(&env, Phase::Link, &mut out));
+    assert_eq!(core.people.needs(1), Some(0));
+    assert_eq!(core.people.needs(2), Some(1));
+    assert_eq!(core.start_failure(), None);
+}
+
 fn answer(outcome: people::Outcome) -> people::Stored {
     people::Stored::Answer {
         key: people::RequestKey { person: 1, key: [1; 16] },
