@@ -55,7 +55,25 @@ pub(crate) fn configuration(source: &root::Config) -> root::Config {
     }
 }
 
+impl Drop for World {
+    fn drop(&mut self) {
+        if !std::thread::panicking() {
+            self.close();
+        }
+    }
+}
+
 impl World {
+    /// Transfer the started application to another scripted driver.
+    pub(crate) fn into_domain_store(mut self) -> (root::Domain, crate::Store) {
+        self.oracle_closed = true;
+        let config = configuration(&self.restart_config.0);
+        let limits = self.restart_config.1;
+        let store = crate::Store::starting(&limits, &config.core.settings.models);
+        let domain = root::Domain::new(config, &limits);
+        (std::mem::replace(&mut self.domain, domain), std::mem::replace(&mut self.store, store))
+    }
+
     /// Declare this world a deliberately broken fixture: `close` does nothing.
     pub fn broken(&mut self) {
         self.broken = true;
@@ -65,9 +83,13 @@ impl World {
     /// answered and the store's retained rows, restart cold, read back, and compare
     /// through `durable`. Panics naming the first difference (document, field, key).
     pub fn close(&mut self) {
-        if self.broken {
+        if self.broken || self.oracle_closed {
             return;
         }
+        self.oracle_closed = true;
+        // Oracle transport does not advance the scenario's clocks or age its deadlines.
+        let (now, wall) = self.clocks();
+        self.set_clock(now, wall);
         self.settle_oracle();
         let inventory = self.store.retained();
         let records = self.store.readback();

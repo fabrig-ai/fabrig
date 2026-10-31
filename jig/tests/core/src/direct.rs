@@ -176,8 +176,9 @@ impl Driver {
                 reply: signed_in,
             })),
         ];
+        let (domain, store) = world.into_domain_store();
         let driver = Self {
-            domain: world.domain,
+            domain,
             env: Env { now, wall, limits },
             events: VecDeque::new(),
             returned: 0,
@@ -185,7 +186,7 @@ impl Driver {
             pending: VecDeque::new(),
             transactions: Vec::new(),
             stopped: false,
-            store: world.store,
+            store,
             serial: 1000,
         };
         (driver, writer)
@@ -195,8 +196,9 @@ impl Driver {
         let creating = fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);
         let bootstrap = effects::World::first_start_with_accounts(configuration, limits);
         let (now, wall) = bootstrap.clocks();
+        let (domain, store) = bootstrap.into_domain_store();
         let mut driver = Self {
-            domain: bootstrap.domain,
+            domain,
             env: Env { now, wall, limits: *limits },
             events: VecDeque::new(),
             returned: 0,
@@ -204,7 +206,7 @@ impl Driver {
             pending: VecDeque::new(),
             transactions: Vec::new(),
             stopped: false,
-            store: bootstrap.store,
+            store,
             serial: 1000,
         };
         driver.send(root::Event::Core(core::Event::Account(accounts::Event::Want)));

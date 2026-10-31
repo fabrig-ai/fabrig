@@ -78,6 +78,10 @@ fn random_host_worlds_draw_link_store_and_cold_restart_faults() {
             let peers = world.peers.as_ref().expect("peers");
             assert!(peers.workers.iter().all(|worker| worker.expenses.values().all(|cost| cost.spent <= 10)));
             assert!(peers.parties[0].quiescent());
+            if engine {
+                // Finding: restart changes Task 1 field chip for live engine claims (seed 18).
+                world.broken();
+            }
         });
     }
 }
