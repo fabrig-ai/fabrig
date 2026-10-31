@@ -145,14 +145,8 @@ impl Harness {
                 core::Event::Account(accounts::Event::Restore { record }) => core::Key::Accounts(record.key()),
                 _ => unreachable!("fixture restore event"),
             };
-            let core::Requests::Out(mut out) = core::step(&mut core, &env, event);
-            let first = out.pop();
-            assert!(
-                matches!(first, Some(core::Request::Decided)),
-                "load {key:?}, output {first:?}, failure {:?}",
-                core.start_failure()
-            );
-            assert!(out.is_empty());
+            let out = core::step(&mut core, &env, event);
+            assert!(out.is_empty(), "load {key:?}, output {out:?}, failure {:?}", core.start_failure());
         }
         let pool = tasks::Stored::Pool(tasks::PoolSlots {
             number: 1,
@@ -160,10 +154,9 @@ impl Harness {
             slots: 0,
         });
         assert!(core.restore_task_row(&pool));
-        let core::Requests::Out(mut out) =
-            core::step(&mut core, &env, core::Event::Tasks(tasks::Event::Restore { record: pool }));
-        assert!(matches!(out.pop(), Some(core::Request::Decided)));
+        let out = core::step(&mut core, &env, core::Event::Tasks(tasks::Event::Restore { record: pool }));
         assert!(out.is_empty());
+
         let writer = tasks::Stored::Writer(tasks::WriterSlot {
             number: 1,
             resource: resource.clone(),
@@ -171,10 +164,9 @@ impl Harness {
             lost: false,
         });
         assert!(core.restore_task_row(&writer));
-        let core::Requests::Out(mut out) =
-            core::step(&mut core, &env, core::Event::Tasks(tasks::Event::Restore { record: writer }));
-        assert!(matches!(out.pop(), Some(core::Request::Decided)));
+        let out = core::step(&mut core, &env, core::Event::Tasks(tasks::Event::Restore { record: writer }));
         assert!(out.is_empty());
+
         let kind = configuration
             .first
             .kinds
@@ -249,14 +241,14 @@ impl Harness {
     }
 
     fn route_core(&mut self, event: core::Event) {
-        let core::Requests::Out(mut out) = core::step(&mut self.core, &self.env, event);
+        let mut out = core::step(&mut self.core, &self.env, event);
         self.outputs(&mut out);
     }
 
     fn outputs(&self, out: &mut Queue<core::Request>) {
         for _ in 0..out.len() {
             match out.pop().expect("core output") {
-                core::Request::Write(_) | core::Request::Decided => {}
+                core::Request::Write(_) => {}
                 core::Request::Now(now) => {
                     assert!(self.wires, "no outward output before durable Wires");
                     assert!(matches!(*now, core::Now::Account(_)));

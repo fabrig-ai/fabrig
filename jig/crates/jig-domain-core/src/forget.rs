@@ -90,7 +90,7 @@ pub(crate) fn forget(
     _env: &Env<Limits>,
     work: &mut Queue<crate::Event>,
     owner: &Owner,
-) -> crate::Requests {
+) -> Queue<crate::Request> {
     let mut out = Queue::uncapped();
     if core.people.ready() && owner.result_position <= core.counters.deployment().messages {
         let party = owner.party;
@@ -117,6 +117,5 @@ pub(crate) fn forget(
             out.push(crate::Request::Write(crate::Write::Erase(crate::Key::Tasks(index.key()))));
         }
     }
-    out.push(crate::Request::Decided);
-    crate::Requests::Out(out)
+    out
 }

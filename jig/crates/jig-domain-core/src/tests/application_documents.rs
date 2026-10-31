@@ -20,7 +20,7 @@ fn mark(core: &mut Core, limits: &Limits, connector: u16) {
     subjects.push(Token::new(500)).unwrap();
     let out = watch_outputs(core, limits, Event::Marked { connector, subjects });
     assert_eq!(document_asks(&out), 0);
-    let Requests::Out(mut out) = finish_decision(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits });
+    let mut out = finish_decision(core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits });
     while let Some(request) = out.pop() {
         if let Request::Ask { ask: Ask::Document { .. }, .. } = request {
             panic!("a mark waits for the delivery acknowledgement");
@@ -171,11 +171,7 @@ fn a_connector_delivery_waits_for_the_last_commit_the_root_made() {
                 assert!(delivery.is_none());
                 delivery = Some(*held);
             }
-            Request::ProjectMade { .. }
-            | Request::Write(_)
-            | Request::Ask { .. }
-            | Request::Now(_)
-            | Request::Decided => {}
+            Request::ProjectMade { .. } | Request::Write(_) | Request::Ask { .. } | Request::Now(_) => {}
         }
     }
     let delivery = delivery.unwrap();

@@ -13,7 +13,7 @@ fn newcomer() -> people::Identity {
 #[test]
 fn a_sign_in_reply_names_the_sign_in_its_decision_saved() {
     let (mut core, env) = timer_core(false);
-    let Requests::Out(mut out) = step(
+    let mut out = step(
         &mut core,
         &env,
         Event::SignIn { held: None, reply_to: ReplyTo::new(Token::new(60)), identity: newcomer() },
@@ -55,7 +55,7 @@ fn a_replayed_live_sign_in_names_the_same_sign_in() {
         login: Box::from(&b"owner"[..]),
         name: Box::from(&b"A Person"[..]),
     };
-    let Requests::Out(mut out) = step(
+    let mut out = step(
         &mut core,
         &env,
         Event::People(people::Event::SignedIn {
@@ -86,7 +86,7 @@ fn the_held_sign_in_reaches_people_untouched() {
         login: Box::from(&b"owner"[..]),
         name: Box::from(&b"A Person"[..]),
     };
-    let Requests::Out(mut out) =
+    let mut out =
         step(&mut core, &env, Event::SignIn { reply_to: ReplyTo::new(Token::new(63)), identity, held: Some(10) });
     let mut answer = None;
     for _ in 0..out.len() {

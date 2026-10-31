@@ -454,12 +454,12 @@ fn releasing_multiple_revisions_writes_one_extent_after_all_copies_and_erases() 
     limits.settings.versions = 2;
     core.current.oldest = 0;
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = skein_lib::Queue::with_capacity(release_writes(&limits).unwrap() + 1);
+    let mut out = skein_lib::Queue::with_capacity(release_writes(&limits).unwrap());
     core.release_revision(&env, 4, &mut out);
     core.release_revision(&env, 1, &mut out);
-    out.push(crate::Request::Decided);
+
     core.finish_extent(0, &mut out);
-    assert_eq!(out.len(), 8, "two copies, two Held erases, two Charter erases, one extent and the mark");
+    assert_eq!(out.len(), 7, "two copies, two Held erases, two Charter erases and one extent");
     let mut extents = 0_u32;
     for request in &out {
         if let crate::Request::Write(crate::Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent {
@@ -471,12 +471,19 @@ fn releasing_multiple_revisions_writes_one_extent_after_all_copies_and_erases() 
         }
     }
     assert_eq!(extents, 1);
-    for _ in 0_u32..7 {
-        if let Some(crate::Request::Decided) = out.pop() {
-            panic!("the mark follows every write");
+    for _ in 0_u32..6 {
+        let Some(crate::Request::Write(write)) = out.pop() else { panic!("revision write") };
+        if let crate::Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent { .. }))) = write {
+            panic!("extent follows every revision write");
         }
     }
-    let Some(crate::Request::Decided) = out.pop() else { panic!("decision mark") };
+    let Some(crate::Request::Write(crate::Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent {
+        oldest: 1,
+    }))))) = out.pop()
+    else {
+        panic!("extent follows every revision write")
+    };
+    assert!(out.is_empty());
 }
 #[test]
 fn a_reset_is_a_version_made_at_the_reset() {
@@ -665,7 +672,7 @@ fn a_held_revision_left_without_holders_is_released_by_the_start() {
         &limits
     ));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let crate::Requests::Out(mut out) = core.commit_restored_settings(&env, limits.routes);
+    let mut out = core.commit_restored_settings(&env, limits.routes);
     let mut copied = false;
     let mut erased_head = false;
     let mut erased_version = false;
@@ -700,7 +707,7 @@ fn a_settings_commit_before_the_first_start_seed_keeps_the_supplied_defaults() {
     let rules = configured.defaults.rules.clone();
     let mut core = Core::new(configured, &limits).unwrap();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let crate::Requests::Out(out) = core.commit_restored_settings(&env, limits.routes);
+    let out = core.commit_restored_settings(&env, limits.routes);
     assert!(out.is_empty());
     assert_eq!(core.current.rules(), &rules);
     let mut writes = skein_lib::Queue::uncapped();

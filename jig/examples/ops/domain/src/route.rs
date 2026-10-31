@@ -149,7 +149,7 @@ fn event_in(
                         continuation,
                         &mut out,
                     );
-                    core_out(domain, env, decision, core::Requests::Out(out), work);
+                    core_out(domain, env, decision, out, work);
                     work.push(Work::Start(action));
                 }
             }
@@ -219,10 +219,10 @@ pub(crate) fn core_out(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision<Write, Output>,
-    requests: core::Requests,
+    requests: Queue<core::Request>,
     work: &mut Queue<Work>,
 ) {
-    let core::Requests::Out(mut out) = requests;
+    let mut out = requests;
     for _ in 0..out.len() {
         match out.pop().expect("core request count") {
             core::Request::Write(core::Write::CopySettingsRevision(number)) => {
@@ -236,7 +236,6 @@ pub(crate) fn core_out(
             core::Request::Now(value) => core_now(domain, env, *value, work),
             core::Request::Ask { connector, ask } => core_ask(domain, env, decision, connector, ask, work),
             core::Request::ProjectMade { project } => held(decision, Output::ProjectMade { project }),
-            core::Request::Decided => {}
         }
     }
 }

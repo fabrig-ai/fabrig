@@ -5,7 +5,7 @@
 
 use super::refusals::pool_refused;
 use super::{Creation, CreationKind};
-use crate::{Ask, Core, Event, Limits, PersonTaskRoute, Record, Request, Requests, Write};
+use crate::{Ask, Core, Event, Limits, PersonTaskRoute, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -18,11 +18,10 @@ pub(super) fn route_holdings(
     request: Token,
     connector: u16,
     holdings: Option<Box<[tasks::Holding]>>,
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     created_holdings(core, env, &mut out, work, request, connector, holdings);
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 #[expect(clippy::too_many_arguments, reason = "a keyed pool edit carries its owner, beneficiary and budget")]
 pub(super) fn pool_route(

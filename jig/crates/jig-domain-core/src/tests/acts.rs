@@ -303,7 +303,7 @@ fn an_observers_core_role_refusals_match_their_offers() {
         let key = [u8::try_from(index).unwrap(); 16];
         let outcome = people::Outcome::Refused(expected.clone());
         for replay in [false, true] {
-            let Requests::Out(out) = step(
+            let out = step(
                 &mut core,
                 &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
                 Event::People(people::Event::Ask {
@@ -328,11 +328,7 @@ fn an_observers_core_role_refusals_match_their_offers() {
                         saved += 1;
                     }
                     Request::Write(Write::Save(Record::Tasks(_))) => panic!("refused act wrote a task"),
-                    Request::ProjectMade { .. }
-                    | Request::Write(_)
-                    | Request::Ask { .. }
-                    | Request::Now(_)
-                    | Request::Decided => {}
+                    Request::ProjectMade { .. } | Request::Write(_) | Request::Ask { .. } | Request::Now(_) => {}
                 }
             }
             assert!(replied, "index {index}, replay {replay}: {out:?}");
@@ -577,7 +573,7 @@ fn sign_in(core: &mut Core, limits: &Limits) {
 }
 
 fn ask_now(core: &mut Core, limits: &Limits, key: u8, ask: people::Ask) -> people::Outcome {
-    let Requests::Out(out) = step(
+    let out = step(
         core,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
         Event::People(people::Event::Ask {
@@ -815,7 +811,7 @@ fn procedure_goal_bounds_refuse_an_incomplete_executor_list() {
 }
 
 fn keyed_proposal(core: &mut Core, limits: &Limits, key: u8, proposer: Proposer) -> Queue<Request> {
-    let Requests::Out(out) = step(
+    step(
         core,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
         Event::People(people::Event::Ask {
@@ -831,8 +827,7 @@ fn keyed_proposal(core: &mut Core, limits: &Limits, key: u8, proposer: Proposer)
                 running: None,
             },
         }),
-    );
-    out
+    )
 }
 
 fn proposal_answer(out: &Queue<Request>) -> people::Outcome {
@@ -985,7 +980,7 @@ fn a_historical_proposal_decision_requires_the_exact_maker() {
                 choice: people::ProposalChoice::Rejected,
                 created: None,
             };
-            let Requests::Out(out) = step(
+            let out = step(
                 &mut core,
                 &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
                 Event::HistoricalProposal {

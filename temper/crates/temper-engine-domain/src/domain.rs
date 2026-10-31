@@ -661,9 +661,9 @@ fn finish_close(
     let requests = if domain.start_runtime() {
         jig_domain_core::finish_decision(&mut domain.core, &environment_core(env))
     } else {
-        jig_domain_core::Requests::Out(Queue::uncapped())
+        Queue::uncapped()
     };
-    let finished = only_decided(&requests);
+    let finished = requests.is_empty();
     route_core_requests(domain, env, &mut decision, requests);
     route_into(domain, env, &mut decision);
     let persist_header = domain.core_header_loaded
@@ -701,24 +701,6 @@ fn finish_close(
         return false;
     }
     empty
-}
-
-fn only_decided(requests: &jig_domain_core::Requests) -> bool {
-    let jig_domain_core::Requests::Out(output) = requests;
-    if output.len() != 1 {
-        return false;
-    }
-    for request in output {
-        match request {
-            jig_domain_core::Request::Decided => {}
-            jig_domain_core::Request::Write(_)
-            | jig_domain_core::Request::Ask { .. }
-            | jig_domain_core::Request::Held(_)
-            | jig_domain_core::Request::Now(_)
-            | jig_domain_core::Request::ProjectMade { .. } => return false,
-        }
-    }
-    true
 }
 
 pub(crate) fn invalidate_input(domain: &mut Domain, event: &Event) {
@@ -925,7 +907,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
         domain.settled = None;
         let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
         let routed = jig_domain_core::resume_fleet(&mut domain.core, &environment_core(env));
-        let fleet_empty = only_decided(&routed);
+        let fleet_empty = routed.is_empty();
         route_core_requests(domain, env, &mut decision, routed);
         route_into(domain, env, &mut decision);
         if close(domain, env, decision, out) && fleet_empty {
@@ -1063,7 +1045,7 @@ fn released_into(
         Delivery::Start(continuation) => {
             let mut output = Queue::uncapped();
             let action = domain.core.start_resume(&environment_core(env), continuation, &mut output);
-            route_core_requests(domain, env, decision, jig_domain_core::Requests::Out(output));
+            route_core_requests(domain, env, decision, output);
             domain.work.push(Work::Start(action));
         }
         Delivery::Fleet(event) => domain.work.push(Work::Fleet(event)),

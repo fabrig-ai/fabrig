@@ -68,7 +68,7 @@ fn an_assignment_for_a_channel_leaves_as_the_hub_s_record() {
         activation: 3,
         assignment: fleet::Assignment { turns: Token::new(10), answered: Token::new(11) },
     })));
-    crate::routes::route_core(&mut domain, &env, &mut decision, core::Requests::Out(out), &mut fixtures::work());
+    crate::routes::route_core(&mut domain, &env, &mut decision, out, &mut fixtures::work());
     domain.journal.accept(decision);
     let mut released = Queue::uncapped();
     crate::release(&mut domain, &env, &mut released);
@@ -162,10 +162,10 @@ fn a_start_refusal_reaches_the_core_as_invalid_without_reading_a_result() {
     }
 }
 
-fn core_request(request: core::Request) -> core::Requests {
+fn core_request(request: core::Request) -> Queue<core::Request> {
     let mut out = Queue::uncapped();
     out.push(request);
-    core::Requests::Out(out)
+    out
 }
 fn gather_brief(
     domain: &mut crate::Domain,
@@ -407,7 +407,7 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
     }
     assert!(work.is_empty(), "ordinary handoffs finish before the projection pass");
     let requests = core::finish_decision(&mut domain.core, &core_env);
-    let core::Requests::Out(ref outputs) = requests;
+    let outputs = &requests;
     let mut feeds = 0_u32;
     for request in outputs {
         if let core::Request::Ask { ask: core::Ask::ProjectGoal { .. }, .. } = request {

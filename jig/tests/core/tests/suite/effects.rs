@@ -204,8 +204,7 @@ fn effect_outputs(
     wall: skein_lib::Wall,
     event: core::Event,
 ) -> Vec<core::Request> {
-    let core::Requests::Out(mut out) =
-        core::step(domain, &skein_lib::Env { now: skein_lib::Time::ZERO, wall, limits: *limits }, event);
+    let mut out = core::step(domain, &skein_lib::Env { now: skein_lib::Time::ZERO, wall, limits: *limits }, event);
     let mut requests = Vec::new();
     while let Some(request) = out.pop() {
         requests.push(request);
@@ -279,17 +278,17 @@ fn kept_effect(
 fn deadline_answers(outputs: Vec<core::Request>) -> Vec<(u64, core::CallKey, core::CallPart)> {
     outputs
         .into_iter()
-        .filter_map(|row| {
+        .map(|row| {
             assert!(!matches!(row, core::Request::Write(_)), "a deadline makes no new commit");
             match row {
                 core::Request::Held(held) => {
                     if let core::Held::CallAnswer { to, key, part } = *held {
-                        Some((to.into_token().raw(), key, part))
+                        (to.into_token().raw(), key, part)
                     } else {
                         panic!("the deadline emits only retained call answers")
                     }
                 }
-                core::Request::Decided => None,
+
                 core::Request::ProjectMade { .. }
                 | core::Request::Write(_)
                 | core::Request::Ask { .. }

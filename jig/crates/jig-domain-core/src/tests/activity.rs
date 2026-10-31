@@ -15,7 +15,7 @@ fn activity_decision(core: &mut Core, env: &Env<Limits>, event: Event) -> Vec<Re
         Event::TurnPayload { read, cumulative, .. } => Some((*read, *cumulative)),
         _ => None,
     };
-    let Requests::Out(mut out) = step(core, env, event);
+    let mut out = step(core, env, event);
     let mut records = Vec::new();
     while let Some(request) = out.pop() {
         match request {
@@ -42,8 +42,7 @@ fn activity_decision(core: &mut Core, env: &Env<Limits>, event: Event) -> Vec<Re
             Request::Write(Write::Erase(_) | Write::CopySettingsRevision(_))
             | Request::Ask { .. }
             | Request::Held(_)
-            | Request::ProjectMade { .. }
-            | Request::Decided => {}
+            | Request::ProjectMade { .. } => {}
         }
     }
     records

@@ -5,7 +5,7 @@
 //! the views child asks for documents from the decision's final live state.
 
 use crate::documents::{self, Proposer, Subject};
-use crate::{Core, Limits, Request, Requests};
+use crate::{Core, Limits, Request};
 use jig_domain_people as people;
 use jig_domain_people::ApplicationScope;
 use jig_domain_tasks as tasks;
@@ -461,14 +461,14 @@ fn ending(core: &Core, watcher: Token, binding: &crate::WatchBinding, env: &Env<
     }
 }
 
-pub(crate) fn finish_watches(core: &mut Core, env: &Env<Limits>) -> Requests {
+pub(crate) fn finish_watches(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let reconcile_runs = retention_owed(core);
     if core.changed_views.is_empty() && !reconcile_runs {
         return end_invalid(core, env);
     }
     let mut out = Queue::uncapped();
     append(end_invalid(core, env), &mut out);
-    // Retained runs are live independently of watches (QUESTIONS.md, item 41).
+    // Retained runs are live independently of watches.
     // A committed turn stops being provisional; only an ended attempt frees
     // its retained-run admission. Both are fenced by the core's durable proof.
     if reconcile_runs {
@@ -501,11 +501,10 @@ pub(crate) fn finish_watches(core: &mut Core, env: &Env<Limits>) -> Requests {
         subjects.push(name.token()).expect("one opaque subject mark");
         append(super::view_routes::route_view(core, env, views::Event::Changed { subjects }), &mut out);
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
-pub(super) fn end_invalid(core: &mut Core, env: &Env<Limits>) -> Requests {
+pub(super) fn end_invalid(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let mut any = core.draining == Some(true) && core.view_subjects.is_empty();
     for (watcher, binding) in &core.view_subjects {
         if !core.views.is_closing(*watcher) && ending(core, *watcher, binding, env).is_some() {
@@ -514,9 +513,7 @@ pub(super) fn end_invalid(core: &mut Core, env: &Env<Limits>) -> Requests {
         }
     }
     if !any {
-        let mut out = Queue::uncapped();
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return Queue::uncapped();
     }
     let mut out = Queue::uncapped();
     let mut watches = List::with_capacity(core.view_subjects.len());
@@ -531,23 +528,14 @@ pub(super) fn end_invalid(core: &mut Core, env: &Env<Limits>) -> Requests {
         append(super::view_routes::route_view(core, env, views::Event::EndWatch { watcher, end }), &mut out);
     }
     crate::stopping::drained(core, &mut out);
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
-fn append(requests: Requests, out: &mut Queue<Request>) {
-    let Requests::Out(mut requests) = requests;
+fn append(requests: Queue<Request>, out: &mut Queue<Request>) {
+    let mut requests = requests;
     for _ in 0..requests.len() {
-        match requests.pop().expect("watch route outputs") {
-            Request::Decided => {}
-            request @ (Request::ProjectMade { .. }
-            | Request::Write(_)
-            | Request::Held(_)
-            | Request::Now(_)
-            | Request::Ask { .. }) => {
-                out.push(request);
-            }
-        }
+        let request = requests.pop().expect("watch route outputs");
+        out.push(request);
     }
 }
 

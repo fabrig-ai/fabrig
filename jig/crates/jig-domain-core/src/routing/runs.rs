@@ -6,7 +6,7 @@ use super::NoteRoute;
 use super::run_delegation::propose_batch;
 use crate::{
     CallKey, CallPart, CallRecord, Core, CoreRecord, EscalationChoice, Event, Held, Limits, NamedAction,
-    PayloadRefusal, ProposalChoice, Record, Request, Requests, RoutedCall, ToolKind, Write,
+    PayloadRefusal, ProposalChoice, Record, Request, RoutedCall, ToolKind, Write,
 };
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -32,7 +32,7 @@ pub(super) fn escalation_refused(
     key: CallKey,
     task: u64,
     why: tasks::Refusal,
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     call_decision(
         core,
@@ -41,11 +41,10 @@ pub(super) fn escalation_refused(
         key,
         CallPart::EscalationRefused(tasks::Problem { task: Some(task), why, blocked_by: None, capacity: None }),
     );
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
-pub(super) fn proposal_refused(core: &mut Core, to: ReplyTo, key: CallKey, why: tasks::Refusal) -> Requests {
+pub(super) fn proposal_refused(core: &mut Core, to: ReplyTo, key: CallKey, why: tasks::Refusal) -> Queue<Request> {
     let mut out = Queue::uncapped();
     call_decision(
         core,
@@ -54,8 +53,7 @@ pub(super) fn proposal_refused(core: &mut Core, to: ReplyTo, key: CallKey, why: 
         key,
         CallPart::ProposalRefused(tasks::Problem { task: Some(key.task), why, blocked_by: None, capacity: None }),
     );
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive authenticated task proposal dispatcher")]
@@ -66,13 +64,11 @@ pub(super) fn named_proposal_accept(
     to: ReplyTo,
     key: CallKey,
     proposal: tasks::Proposal,
-) -> Requests {
+) -> Queue<Request> {
     let token = to.into_token();
     let to = ReplyTo::new(token);
     if super::proposal_revisions::call(core, work, token, key, &proposal) {
-        let mut out = Queue::uncapped();
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return Queue::uncapped();
     }
     let result_followups = core.tasks.result_proposal(proposal.proposer, proposal.number);
     if let Err(why) = core.proposal_accept_allowed(
@@ -102,9 +98,7 @@ pub(super) fn named_proposal_accept(
             by: tasks::Party::Task(key.task),
             decision: tasks::ProposalDecision::Accept,
         }));
-        let mut out = Queue::uncapped();
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return Queue::uncapped();
     }
     match proposal.action {
         tasks::ProposalAction::Effect { connector, .. } | tasks::ProposalAction::ProcedureEffect { connector, .. } => {
@@ -222,9 +216,7 @@ pub(super) fn named_proposal_accept(
         "one acceptance route"
     );
     work.push(Event::Tasks(event));
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+    Queue::uncapped()
 }
 
 #[expect(clippy::too_many_arguments, reason = "one named proposal decision carries its call and proposal identity")]
@@ -237,7 +229,7 @@ pub(super) fn named_proposal_decide(
     proposer: u64,
     proposal: u64,
     choice: ProposalChoice,
-) -> Requests {
+) -> Queue<Request> {
     let Some(pending) = core.tasks.proposal(proposer, proposal) else {
         return proposal_refused(core, to, key, tasks::Refusal::Unknown);
     };
@@ -282,9 +274,7 @@ pub(super) fn named_proposal_decide(
         by: tasks::Party::Task(key.task),
         decision: next,
     }));
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+    Queue::uncapped()
 }
 
 #[expect(clippy::too_many_arguments, reason = "one named proposal retains its action and call correlation")]
@@ -297,7 +287,7 @@ pub(crate) fn named_propose(
     mut action: tasks::ProposalAction,
     reason: Box<[u8]>,
     as_holder: bool,
-) -> Requests {
+) -> Queue<Request> {
     if reason.len() > usize::try_from(env.limits.tasks.message_bytes).expect("u32 fits usize") {
         return proposal_refused(core, to, key, tasks::Refusal::Read);
     }
@@ -320,8 +310,7 @@ pub(crate) fn named_propose(
                 key,
                 CallPart::Moved { task: *task, now: jig_domain_people::Moved::PlacedHold { revision } },
             );
-            out.push(Request::Decided);
-            return Requests::Out(out);
+            return out;
         }
         return proposal_refused(core, to, key, why);
     }
@@ -330,8 +319,7 @@ pub(crate) fn named_propose(
     {
         let mut out = Queue::uncapped();
         call_decision(core, &mut out, to, key, CallPart::Moved { task: *task, now });
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     if let Err(why) = core.proposal_admit_action(context.project, &action, env.wall) {
         return proposal_refused(core, to, key, why);
@@ -360,9 +348,7 @@ pub(crate) fn named_propose(
             state: tasks::ProposalState::Pending { holder, since: env.wall },
         },
     }));
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+    Queue::uncapped()
 }
 
 #[expect(clippy::too_many_arguments, reason = "one named holder choice carries its call, task and revision")]
@@ -375,7 +361,7 @@ pub(super) fn named_escalation(
     task: u64,
     revision: u64,
     choice: EscalationChoice,
-) -> Requests {
+) -> Queue<Request> {
     let Some(context) = core.tasks.escalation(task) else {
         return escalation_refused(core, to, key, task, tasks::Refusal::Unknown);
     };
@@ -388,8 +374,7 @@ pub(super) fn named_escalation(
     if let Err(jig_domain_people::Refusal::Moved { now }) = core.hold_revision(task, revision) {
         let mut out = Queue::uncapped();
         call_decision(core, &mut out, to, key, CallPart::Moved { task, now });
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     if current != revision || holder != tasks::EscalationHolder::Task(key.task) {
         return escalation_refused(core, to, key, task, tasks::Refusal::Reference);
@@ -437,9 +422,7 @@ pub(super) fn named_escalation(
         entry,
         decision: semantic,
     }));
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+    Queue::uncapped()
 }
 
 #[expect(clippy::too_many_lines, reason = "one generic named-call vocabulary routes its finite task continuations")]
@@ -450,7 +433,7 @@ pub(super) fn named_action(
     to: ReplyTo,
     key: CallKey,
     action: NamedAction,
-) -> Requests {
+) -> Queue<Request> {
     assert!(core.current_proof(key.task, key.attempt), "named action belongs to current claim");
     if let NamedAction::Settings(read) = action {
         return crate::reads::settings::run(core, env, to, key, read);
@@ -458,19 +441,15 @@ pub(super) fn named_action(
     if let Some(part) = core.call_parts.get(&key) {
         let mut out = Queue::uncapped();
         out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part: part.clone() })));
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     if super::amendment_reads::waiting(core, key) {
-        let mut out = Queue::uncapped();
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return Queue::uncapped();
     }
     if let Some(part) = core.authorize_tool(key, named_tool_kind(&action)) {
         let mut out = Queue::uncapped();
         call_decision(core, &mut out, to, key, part);
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     let token = to.into_token();
     let mut out = Queue::uncapped();
@@ -501,8 +480,7 @@ pub(super) fn named_action(
                         tasks::Refusal::PersonAnswers { question },
                     )),
                 );
-                out.push(Request::Decided);
-                return Requests::Out(out);
+                return out;
             }
             let Some(context) = core.tasks.delegation(key.task) else {
                 call_decision(
@@ -517,8 +495,7 @@ pub(super) fn named_action(
                         capacity: None,
                     }),
                 );
-                out.push(Request::Decided);
-                return Requests::Out(out);
+                return out;
             };
             let project = context.project;
             let Some(number) = crate::fresh(&mut core.counters, crate::Family::Message) else {
@@ -534,8 +511,7 @@ pub(super) fn named_action(
                         capacity: None,
                     }),
                 );
-                out.push(Request::Decided);
-                return Requests::Out(out);
+                return out;
             };
             assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
             assert!(core.routing_calls.insert(token, RoutedCall::Message(key)) == Ok(None), "one live routed call");
@@ -578,8 +554,7 @@ pub(super) fn named_action(
                         capacity: None,
                     }),
                 );
-                out.push(Request::Decided);
-                return Requests::Out(out);
+                return out;
             };
             assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
             assert!(
@@ -648,8 +623,7 @@ pub(super) fn named_action(
                         ),
                     };
                     call_decision(core, &mut out, ReplyTo::new(token), key, part);
-                    out.push(Request::Decided);
-                    return Requests::Out(out);
+                    return out;
                 }
             };
             assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
@@ -691,8 +665,7 @@ pub(super) fn named_action(
                     key,
                     proposal,
                 })));
-                out.push(Request::Decided);
-                return Requests::Out(out);
+                return out;
             }
             assert!(core.pending_calls.insert(key, true).is_ok(), "proposal call room reserved");
             assert!(
@@ -720,13 +693,11 @@ pub(super) fn named_action(
         NamedAction::Note { mut entry, recalled } => {
             if recalled.is_none() && entry.name != 0 {
                 call_decision(core, &mut out, ReplyTo::new(token), key, CallPart::NoteRefused(notes::Refusal::Exists));
-                out.push(Request::Decided);
-                return Requests::Out(out);
+                return out;
             }
             if recalled.is_some() && entry.name == 0 {
                 call_decision(core, &mut out, ReplyTo::new(token), key, CallPart::NoteRefused(notes::Refusal::Missing));
-                out.push(Request::Decided);
-                return Requests::Out(out);
+                return out;
             }
             if entry.name == 0 {
                 let Some(name) = crate::fresh(&mut core.counters, crate::Family::Message) else {
@@ -737,8 +708,7 @@ pub(super) fn named_action(
                         key,
                         CallPart::NoteRefused(notes::Refusal::Full),
                     );
-                    out.push(Request::Decided);
-                    return Requests::Out(out);
+                    return out;
                 };
                 entry.name = name;
             }
@@ -753,8 +723,7 @@ pub(super) fn named_action(
             work.push(Event::Notes(notes::Event::Recall { owner, by, page }));
         }
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 pub(super) fn named_tool_kind(action: &NamedAction) -> ToolKind {
@@ -775,12 +744,11 @@ pub(super) fn named_tool_kind(action: &NamedAction) -> ToolKind {
     }
 }
 
-pub(super) fn route_named_answer(core: &mut Core, to: ReplyTo, key: CallKey, part: CallPart) -> Requests {
+pub(super) fn route_named_answer(core: &mut Core, to: ReplyTo, key: CallKey, part: CallPart) -> Queue<Request> {
     assert!(core.current_proof(key.task, key.attempt), "named call belongs to current claim");
     let mut out = Queue::uncapped();
     call_decision(core, &mut out, to, key, part);
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 pub(super) fn route_refused_payload(
@@ -789,7 +757,7 @@ pub(super) fn route_refused_payload(
     request: Token,
     problem: tasks::Problem,
     payload: Option<PayloadRefusal>,
-) -> Requests {
+) -> Queue<Request> {
     match payload {
         Some(PayloadRefusal::Turn { task, attempt, turn }) if problem.task == Some(task) => {
             work.push(Event::Fleet(fleet::Event::TurnBusy {
@@ -802,9 +770,7 @@ pub(super) fn route_refused_payload(
             if problem.task == Some(task) && core.current_proof(task, attempt) =>
         {
             if core.committed_terminal(task, attempt).is_some() {
-                let mut out = Queue::uncapped();
-                out.push(Request::Decided);
-                return Requests::Out(out);
+                return Queue::uncapped();
             }
             let proof = core.proofs.get_mut(&task).expect("answer proof reserved");
             proof.terminal = Some(crate::TerminalRecord {
@@ -827,9 +793,7 @@ pub(super) fn route_refused_payload(
         }
         Some(PayloadRefusal::Turn { .. } | PayloadRefusal::Answer { .. }) | None => {}
     }
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+    Queue::uncapped()
 }
 
 #[expect(clippy::too_many_arguments, reason = "replay retains the original keyed amendment")]
@@ -843,12 +807,11 @@ pub(super) fn named_amend(
     revision: u64,
     mut amendment: tasks::Amendment,
     evidence: super::amendment_reads::Evidence,
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if let Some(part) = core.authorize_tool(key, ToolKind::Control) {
         call_decision(core, &mut out, ReplyTo::new(token), key, part);
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     if let Some(next) = super::amendment_reads::missing(
         core,
@@ -868,8 +831,7 @@ pub(super) fn named_amend(
                 evidence,
             },
         );
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     core.keep_models(target, &mut amendment);
     let stop_run = match core.task_amend_admit(key.task, target, &amendment, env.limits.tasks.depth, &env.limits.tasks)
@@ -883,13 +845,11 @@ pub(super) fn named_amend(
                 key,
                 CallPart::ControlRefused(tasks::Problem { task: Some(task), why, blocked_by: None, capacity: None }),
             );
-            out.push(Request::Decided);
-            return Requests::Out(out);
+            return out;
         }
         Err(crate::TaskAmendDenied::Denied(answer)) => {
             call_decision(core, &mut out, ReplyTo::new(token), key, CallPart::ControlDenied { answer });
-            out.push(Request::Decided);
-            return Requests::Out(out);
+            return out;
         }
     };
     let moved = match core.party_amend_revision(target, revision, &amendment) {
@@ -899,8 +859,7 @@ pub(super) fn named_amend(
     };
     if let Some(now) = moved {
         call_decision(core, &mut out, ReplyTo::new(token), key, CallPart::Moved { task: target, now });
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     let Some(message) = crate::fresh(&mut core.counters, crate::Family::Message) else {
         call_decision(
@@ -915,8 +874,7 @@ pub(super) fn named_amend(
                 capacity: None,
             }),
         );
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     };
     assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
     assert!(
@@ -933,6 +891,5 @@ pub(super) fn named_amend(
         stop_run,
         amendment,
     }));
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }

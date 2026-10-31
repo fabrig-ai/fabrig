@@ -7,7 +7,7 @@ use super::runs::call_decision;
 use super::view_routes::touch_task;
 use crate::{
     Ask, CallPart, Core, CoreKey, CoreRecord, EscalationDecisionRecord, Event, GoalRoute, Held, Key, Limits, Now,
-    PersonProposalRoute, PersonTaskRoute, Record, Request, Requests, RoutedCall, SentRoute, Write,
+    PersonProposalRoute, PersonTaskRoute, Record, Request, RoutedCall, SentRoute, Write,
 };
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -24,7 +24,7 @@ pub(super) fn tag_tasks(
     person_proposal: bool,
     task_escalation: bool,
     person_escalation: bool,
-) -> Requests {
+) -> Queue<Request> {
     let mut pending = Queue::uncapped();
     for _ in 0..child.len() {
         pending.push(child.pop().expect("task output count"));
@@ -1127,22 +1127,14 @@ pub(super) fn tag_tasks(
             tasks::Request::Ended { task, requester, ending } => {
                 let _pending = core.pending_note_briefs.remove(&task);
                 let position = core.ending_positions.remove(&task).expect("ended row assigned its result position");
-                let Requests::Out(mut ended) = super::view_routes::route_view(
+                let mut ended = super::view_routes::route_view(
                     core,
                     env,
                     jig_domain_views::Event::RunEnded { run: Token::new(task) },
                 );
                 for _ in 0..ended.len() {
-                    match ended.pop().expect("ended run outputs") {
-                        Request::Decided => {}
-                        request @ (Request::ProjectMade { .. }
-                        | Request::Write(_)
-                        | Request::Held(_)
-                        | Request::Now(_)
-                        | Request::Ask { .. }) => {
-                            out.push(request);
-                        }
-                    }
+                    let request = ended.pop().expect("ended run outputs");
+                    out.push(request);
                 }
                 for key in core.retire_calls(task, u64::MAX, u32::MAX, env.limits.call_records) {
                     out.push(Request::Write(Write::Erase(Key::Core(CoreKey::Call(key)))));
@@ -1505,23 +1497,22 @@ pub(super) fn tag_tasks(
         core.touch_deployment();
     }
     assert!(pending.is_empty(), "task_routes_drained");
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
-pub(super) fn route_person_escalation(core: &mut Core, env: &Env<Limits>, event: tasks::Event) -> Requests {
+pub(super) fn route_person_escalation(core: &mut Core, env: &Env<Limits>, event: tasks::Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
     tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut out);
     tag_tasks(core, env, out, false, false, true)
 }
 
-pub(super) fn route_task_escalation(core: &mut Core, env: &Env<Limits>, event: tasks::Event) -> Requests {
+pub(super) fn route_task_escalation(core: &mut Core, env: &Env<Limits>, event: tasks::Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
     tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut out);
     tag_tasks(core, env, out, false, true, false)
 }
 
-pub(super) fn route_person_proposal(core: &mut Core, env: &Env<Limits>, event: tasks::Event) -> Requests {
+pub(super) fn route_person_proposal(core: &mut Core, env: &Env<Limits>, event: tasks::Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if let tasks::Event::Make { batch, .. } | tasks::Event::MakeResultFollowups { batch, .. } = &event
         && let Err(problem) = core.batch_accounts(batch)
@@ -1552,7 +1543,7 @@ pub(super) fn route_connector_repair(
     spec: tasks::Spec,
     contract: tasks::Contract,
     holdings: Box<[tasks::Holding]>,
-) -> Requests {
+) -> Queue<Request> {
     if seed.open_period {
         work.push(Event::Tasks(tasks::Event::OpenPeriod {
             reply_to: ReplyTo::new(Token::new(u64::MAX - 2)),
@@ -1584,9 +1575,7 @@ pub(super) fn route_connector_repair(
             tracked: None,
         }]),
     }));
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+    Queue::uncapped()
 }
 
 pub(super) fn route_tasks(
@@ -1594,7 +1583,7 @@ pub(super) fn route_tasks(
     env: &Env<Limits>,
     work: &mut Queue<Event>,
     event: tasks::Event,
-) -> Requests {
+) -> Queue<Request> {
     if let tasks::Event::Procedure { task, step, .. } = &event {
         return super::procedure_steps::apply(core, env, *task, *step, event);
     }

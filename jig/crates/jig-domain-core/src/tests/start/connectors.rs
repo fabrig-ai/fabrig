@@ -79,7 +79,7 @@ fn resource_reports_load_access_slots_and_holds_before_link_without_asking() {
                 &mut child,
             );
             assert!(child.is_empty());
-            let crate::Requests::Out(mut out) = crate::step(
+            let out = crate::step(
                 &mut core,
                 &env,
                 crate::Event::EffectConnector(connector::Event::Resource {
@@ -89,7 +89,6 @@ fn resource_reports_load_access_slots_and_holds_before_link_without_asking() {
                     hold: connector::HoldKind::Pooled { slots: 5, wait: true },
                 }),
             );
-            let Some(Request::Decided) = out.pop() else { panic!("loading decision completes") };
             assert!(out.is_empty(), "loading reports cannot emit connector asks or other outputs");
             assert_eq!(
                 core.tasks.resource_hold(&name(connector)),
@@ -148,7 +147,7 @@ fn a_connector_ask_waits_for_the_wires_continuation() {
             Request::Now(now) => {
                 let crate::Now::Account(_) = *now else { panic!("account startup output") };
             }
-            Request::Decided => {}
+
             Request::Ask { .. } | Request::Held(_) | Request::Write(_) | Request::ProjectMade { .. } => {
                 panic!("only the held connector ask and account startup leave")
             }
