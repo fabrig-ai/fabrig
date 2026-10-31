@@ -72,6 +72,11 @@ impl<T> Stack<T> {
         self.items.pop()
     }
 
+    /// Drops every item, keeping the storage it has grown.
+    pub fn clear(&mut self) {
+        self.items.clear();
+    }
+
     /// The top item: the innermost level.
     #[must_use]
     pub fn top(&self) -> Option<&T> {

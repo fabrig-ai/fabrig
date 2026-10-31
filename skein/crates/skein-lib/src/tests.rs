@@ -11,9 +11,11 @@ mod digest;
 mod handles;
 mod held;
 mod journal;
+mod lifecycle;
 mod requests;
 mod sha256;
 mod streams;
+mod text;
 mod time;
 
 /// The random cases a comparison with a naive function runs here. The

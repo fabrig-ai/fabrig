@@ -6,6 +6,19 @@
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Time(u64);
 
+/// The earlier of two deadlines, either of which may be absent: `None`
+/// only when both are.
+#[must_use]
+pub fn earliest(a: Option<Time>, b: Option<Time>) -> Option<Time> {
+    match a {
+        Some(a) => match b {
+            Some(b) => Some(a.min(b)),
+            None => Some(a),
+        },
+        None => b,
+    }
+}
+
 /// A span of time, in nanoseconds.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Duration(u64);
