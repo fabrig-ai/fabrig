@@ -7,18 +7,20 @@ use jig_client::words::DecisionWord as D;
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
-use crate::{Borrowed, Limits};
+use crate::{Borrowed, Config};
 use jig_client::contract::{OwnerProposal, OwnerProposalAction};
 /// Closed action alternatives, with brief linked chips rather than expanded task cards.
 #[must_use]
-pub fn max_nodes(limits: &Limits) -> Option<u32> {
-    let markdown = skein_ui::markdown::max_nodes(limits.text)?;
-    let authority = crate::tree::fragments::authority::document_nodes(limits.rows, limits.segments)?;
-    let link = crate::chip_nodes(limits)?.max(crate::tree::fragments::chip::max_nodes(limits)?).checked_add(3)?;
-    let part = crate::tree::fragments::proposed_task::part_nodes(limits)?;
-    let batch = crate::sizes::sizes::proposed_task_nodes(limits)?.checked_mul(limits.rows)?.checked_add(1)?;
+pub fn max_nodes(limits: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    let markdown = skein_ui::markdown::max_nodes(client.text)?;
+    let authority = crate::tree::fragments::authority::document_nodes(client.rows, client.segments)?;
+    let link = crate::chip_nodes(limits, client)?
+        .max(crate::tree::fragments::chip::max_nodes(limits, client)?)
+        .checked_add(3)?;
+    let part = crate::tree::fragments::proposed_task::part_nodes(limits, client)?;
+    let batch = crate::sizes::sizes::proposed_task_nodes(limits, client)?.checked_mul(client.rows)?.checked_add(1)?;
     let effect = part.checked_add(authority)?.checked_add(5)?;
-    let amend = crate::tree::fragments::amendment::max_nodes(limits)?
+    let amend = crate::tree::fragments::amendment::max_nodes(limits, client)?
         .checked_mul(2)?
         .checked_add(link)?
         .checked_add(markdown)?
@@ -31,7 +33,7 @@ pub fn max_nodes(limits: &Limits) -> Option<u32> {
         .max(widen)
         .max(release)
         .checked_add(markdown)?
-        .checked_add(limits.rows.checked_mul(10)?)?
+        .checked_add(client.rows.checked_mul(10)?)?
         .checked_add(20)
 }
 fn saying(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {
@@ -55,13 +57,25 @@ pub fn action(
         OwnerProposalAction::Batch(tasks) => {
             saying(b, words, P::Batch, &[]);
             for task in tasks {
-                crate::tree::cards::proposal::proposed_task(b, task, words, bindings, client.limits.rows);
+                crate::tree::cards::proposal::proposed_task(
+                    b,
+                    task,
+                    words,
+                    bindings,
+                    client.client.domain_limits().rows,
+                );
             }
         }
         OwnerProposalAction::Effect { part, authority, attempt, completion, position, purpose } => {
             saying(b, words, P::Effect, &[]);
             crate::tree::fragments::proposed_task::part(b, part, words, bindings);
-            crate::tree::fragments::authority::document_words(b, authority, words, text_limit, client.limits.rows);
+            crate::tree::fragments::authority::document_words(
+                b,
+                authority,
+                words,
+                text_limit,
+                client.client.domain_limits().rows,
+            );
             saying(b, words, P::Attempt, &[Hole::Number(*attempt)]);
             saying(b, words, P::Completion, &[Hole::Number(u64::from(*completion))]);
             saying(b, words, P::Position, &[Hole::Number(u64::from(*position))]);
@@ -70,7 +84,13 @@ pub fn action(
         OwnerProposalAction::ProcedureEffect { part, authority, step, purpose } => {
             saying(b, words, P::Effect, &[]);
             crate::tree::fragments::proposed_task::part(b, part, words, bindings);
-            crate::tree::fragments::authority::document_words(b, authority, words, text_limit, client.limits.rows);
+            crate::tree::fragments::authority::document_words(
+                b,
+                authority,
+                words,
+                text_limit,
+                client.client.domain_limits().rows,
+            );
             saying(b, words, P::ProcedureStep, &[Hole::Number(*step)]);
             saying(b, words, P::Purpose, &[Hole::Number(*purpose)]);
         }
@@ -82,9 +102,9 @@ pub fn action(
                 None => saying(b, words, P::AddressAbsent, &[]),
             }
             saying(b, words, P::Before, &[]);
-            crate::tree::fragments::amendment::render(b, before, words, text_limit, client.limits.rows);
+            crate::tree::fragments::amendment::render(b, before, words, text_limit, client.client.domain_limits().rows);
             saying(b, words, P::After, &[]);
-            crate::tree::fragments::amendment::render(b, after, words, text_limit, client.limits.rows);
+            crate::tree::fragments::amendment::render(b, after, words, text_limit, client.client.domain_limits().rows);
             saying(b, words, P::AmendReason, &[]);
             crate::tree::fragments::document_text::markdown(b, reason, words);
             match release {
@@ -96,9 +116,21 @@ pub fn action(
             saying(b, words, P::Widen, &[]);
             crate::tree::fragments::result::link(b, client, task, words, bindings);
             saying(b, words, P::Before, &[]);
-            crate::tree::fragments::authority::document_words(b, before, words, text_limit, client.limits.rows);
+            crate::tree::fragments::authority::document_words(
+                b,
+                before,
+                words,
+                text_limit,
+                client.client.domain_limits().rows,
+            );
             saying(b, words, P::After, &[]);
-            crate::tree::fragments::authority::document_words(b, after, words, text_limit, client.limits.rows);
+            crate::tree::fragments::authority::document_words(
+                b,
+                after,
+                words,
+                text_limit,
+                client.client.domain_limits().rows,
+            );
         }
         OwnerProposalAction::Release { task, hold } => {
             saying(b, words, P::Release, &[]);

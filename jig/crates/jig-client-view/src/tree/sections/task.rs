@@ -181,7 +181,7 @@ pub(crate) fn section(
                 match section {
                     TaskSection::Overview => overview(b, client, &doc, words, bindings),
                     TaskSection::Activity => activity(b, client, &doc, words, bindings),
-                    TaskSection::Budget => budget(b, &doc, words, bindings, client.limits.rows),
+                    TaskSection::Budget => budget(b, &doc, words, bindings, client.client.domain_limits().rows),
                     TaskSection::Panels => slots(b, &doc, section, words, bindings),
                     TaskSection::Plan | TaskSection::History => unreachable!("independent section"),
                 }

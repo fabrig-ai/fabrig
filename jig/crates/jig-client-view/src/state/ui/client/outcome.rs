@@ -1,6 +1,6 @@
 //! Local client refusals remain distinct from engine answers (view.md, 18.4).
 use crate::{
-    Limits, Request, Ui,
+    Config, Request, Ui,
     state::intents::{self, NotSent, Origin},
     tree::notices::kept::{self, Kind},
 };
@@ -8,7 +8,7 @@ use jig_client::{Answered, Client, Key, Outcome};
 use skein_lib::{Env, Id, Queue, Token};
 pub(super) fn answered(
     domain: &mut Ui,
-    env: &Env<Limits>,
+    env: &Env<Config>,
     client: &Client,
     key: Key,
     outcome: Outcome,

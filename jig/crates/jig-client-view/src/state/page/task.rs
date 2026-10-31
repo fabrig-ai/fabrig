@@ -295,7 +295,7 @@ fn task_names(number: u64, proposals: &List<ProposalKey>) -> List<ObjectKey> {
 }
 fn proposal_cards(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     number: u64,
     proposals: List<ProposalKey>,
     activity: u64,
@@ -348,7 +348,7 @@ fn proposal_cards(
     domain.task_page.proposals = shown;
 }
 /// After the task document reveals its executor, opens only that activity owner.
-pub(crate) fn document(domain: &mut Ui, env: &Env<crate::Limits>, out: &mut Queue<Request>, lent: &jig_client::Client) {
+pub(crate) fn document(domain: &mut Ui, env: &Env<crate::Config>, out: &mut Queue<Request>, lent: &jig_client::Client) {
     let Some(number) = domain.shown_task() else {
         return;
     };
@@ -376,7 +376,7 @@ pub(crate) fn document(domain: &mut Ui, env: &Env<crate::Limits>, out: &mut Queu
     let phase = task.chip.phase;
     let proposals = task.proposals.clone();
     let activity = task.activity;
-    let mut values = List::with_capacity(env.limits.parts.saturating_add(1));
+    let mut values = List::with_capacity(lent.domain_limits().parts.saturating_add(1));
     for section in [
         TaskSection::Overview,
         TaskSection::Activity,
@@ -386,7 +386,7 @@ pub(crate) fn document(domain: &mut Ui, env: &Env<crate::Limits>, out: &mut Queu
         TaskSection::Panels,
     ] {
         if domain.shows(crate::state::page::Section::Task { task: number, section }, lent) {
-            for part in parts(task, section, env.limits.parts.saturating_add(1)).into_boxed() {
+            for part in parts(task, section, lent.domain_limits().parts.saturating_add(1)).into_boxed() {
                 if values.as_slice().contains(&part) {
                     continue;
                 }
@@ -399,7 +399,7 @@ pub(crate) fn document(domain: &mut Ui, env: &Env<crate::Limits>, out: &mut Queu
     proposal_cards(domain, env, number, proposals, activity, out, lent);
     let mut emitted = 0_u32;
     for part in values.into_boxed() {
-        if emitted == env.limits.parts {
+        if emitted == lent.domain_limits().parts {
             crate::state::page::routing::refuse(domain, Limit::Objects);
             break;
         }
@@ -409,7 +409,7 @@ pub(crate) fn document(domain: &mut Ui, env: &Env<crate::Limits>, out: &mut Queu
     }
     if domain.shows(crate::state::page::Section::Task { task: number, section: TaskSection::Plan }, lent) {
         if crate::state::page::conversations::live(phase) {
-            open_once(domain, contract::Subject::Tree { task: number, window: env.limits.rows }, out);
+            open_once(domain, contract::Subject::Tree { task: number, window: lent.domain_limits().rows }, out);
         } else {
             domain.task_page.ended_task = Some(number);
             read(domain, ENDED_READ, Read::Ended { task: number, after: None }, out);
@@ -578,7 +578,7 @@ pub(crate) fn more(domain: &mut Ui, window: Token, end: jig_client::thread::wind
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
-pub(crate) fn valid(limits: &crate::Limits) -> bool {
+pub(crate) fn valid(limits: &jig_client::DomainLimits) -> bool {
     limits.rows.checked_add(1).is_some()
 }
 

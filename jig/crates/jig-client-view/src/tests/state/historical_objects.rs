@@ -111,7 +111,7 @@ fn build(value: &OwnerHistorical, words: &crate::words::Words) -> (Tree, JigBind
     let l = limits(f);
     let domain = Fixture::new(&CLIENT);
     let mut b = Builder::new(&l);
-    let mut bindings = JigBindings::new(f.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(f.bindings, CLIENT.client.text);
     view::render(&mut b, &domain.view(), value, words, &mut bindings);
     let tree = b.finish();
     crate::tests::tree::cards_access::check(&tree);
@@ -196,7 +196,10 @@ fn historical_retained_proposal_uses_bare_whole_fragment_and_keeps_pending_state
     let (tree, _) = build(&value, words());
     assert!(contains(&tree, b"Historical task proposal"));
     assert!(!contains(&tree, b"History revision"));
-    assert!(crate::tree::fragments::history::proposal_max_nodes(&CLIENT).unwrap() <= view::max_nodes(&CLIENT).unwrap());
+    assert!(
+        crate::tree::fragments::history::proposal_max_nodes(&CLIENT, &(CLIENT).client).unwrap()
+            <= view::max_nodes(&CLIENT, &(CLIENT).client).unwrap()
+    );
 }
 #[test]
 fn historical_escalation_keeps_rejection_revision_sender_and_optional_retained_hold_independently() {
@@ -274,7 +277,7 @@ fn historical_passive_card_retains_named_whole_departure_and_does_not_bind_curre
     l.nodes = l.nodes.checked_add(64).unwrap();
     l.text_bytes = l.text_bytes.checked_add(64_u32.checked_mul(l.text_per_node).unwrap()).unwrap();
     let mut b = Builder::new(&l);
-    let mut bindings = JigBindings::new(l.bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(l.bindings, CLIENT.client.text);
     assert!(crate::tree::cards::card(
         &mut b,
         &d.view(),
@@ -295,15 +298,19 @@ fn historical_passive_card_retains_named_whole_departure_and_does_not_bind_curre
     };
     assert_eq!(facts.as_ref(), &value);
 }
-fn step(domain: &mut Fixture, l: &crate::Limits, event: impl crate::tests::fixtures::Input) -> Vec<crate::Request> {
-    domain.ui.limits = *l;
+fn step(
+    domain: &mut Fixture,
+    l: &crate::tests::fixtures::Profile,
+    event: impl crate::tests::fixtures::Input,
+) -> Vec<crate::Request> {
+    domain.ui.limits = l.view;
     domain.drive(skein_lib::Time::ZERO, event).into_vec()
 }
 
-fn presence_finish(domain: &mut Fixture, l: &crate::Limits, task_read: jig_client::Handle, mask: u8) {
+fn presence_finish(domain: &mut Fixture, l: &crate::tests::fixtures::Profile, task_read: jig_client::Handle, mask: u8) {
     let mut doc = task();
-    doc.inputs = List::with_capacity(l.rows);
-    for _ in 0..l.rows {
+    doc.inputs = List::with_capacity(l.client.rows);
+    for _ in 0..l.client.rows {
         doc.inputs.push(OwnerTaskLink::Stored { number: 9, status: None }).unwrap();
     }
     let supplied = envelope(
@@ -322,7 +329,7 @@ fn presence_finish(domain: &mut Fixture, l: &crate::Limits, task_read: jig_clien
     cap.nodes = cap.nodes.checked_add(64).unwrap();
     cap.text_bytes = cap.text_bytes.checked_add(64_u32.checked_mul(cap.text_per_node).unwrap()).unwrap();
     let mut b = Builder::new(&cap);
-    let mut bindings = JigBindings::new(cap.bindings, l.text);
+    let mut bindings = JigBindings::new(cap.bindings, l.client.text);
     assert!(crate::tree::cards::card(
         &mut b,
         &domain.view(),
@@ -367,7 +374,7 @@ fn historical_selected_language_uses_checked_native_captions_and_preserves_opaqu
     }
     let words = crate::words::Words::new(
         Phrasebook::load(
-            crate::words::phrases::jig::shapes(CLIENT.text),
+            crate::words::phrases::jig::shapes(CLIENT.client.text),
             Box::new([english, selected]),
             &PhraseLimits {
                 languages: 2,
@@ -375,7 +382,7 @@ fn historical_selected_language_uses_checked_native_captions_and_preserves_opaqu
                 holes: 4,
                 segments: 9000,
                 text_bytes: 200_000,
-                hole_bytes: CLIENT.text,
+                hole_bytes: CLIENT.client.text,
             },
         )
         .unwrap(),
@@ -397,7 +404,7 @@ fn historical_selected_language_uses_checked_native_captions_and_preserves_opaqu
 
 const UTF8_TEXTS: [&[u8]; 2] = [b"~\0", &[b'~'; 129]];
 
-fn presence_domain(l: &crate::Limits) -> Fixture {
+fn presence_domain(l: &crate::tests::fixtures::Profile) -> Fixture {
     use crate::{Event, Request};
     let mut domain = Fixture::new(l);
     let first = step(
@@ -433,7 +440,10 @@ fn presence_domain(l: &crate::Limits) -> Fixture {
 
 fn presence(mask: u8) {
     use crate::{Event, Request};
-    let l = crate::Limits { objects: 4, reads: 8, ..CLIENT };
+    let l = crate::tests::fixtures::Profile {
+        view: crate::Config { objects: 4, ..(CLIENT).view },
+        client: jig_client::DomainLimits { reads: 8, ..(CLIENT).client },
+    };
     let mut domain = presence_domain(&l);
     let proposal_key = ProposalKey { proposer: Proposer::Task(9), number: 7 };
     let mut keys = List::with_capacity(4);

@@ -9,7 +9,7 @@ fn limits(fragment: Limits) -> Limits {
 fn render(value: &OwnerProposalHistory, words: &Words, limits: &Limits) -> (Tree, JigBindings) {
     let mut bindings = JigBindings::new(limits.bindings, 8);
     let mut builder = Builder::new(limits);
-    view::proposal(&mut builder, value, words, &mut bindings, client_limits().rows);
+    view::proposal(&mut builder, value, words, &mut bindings, client_limits().client.rows);
     (builder.finish(), bindings)
 }
 fn bare(value: &OwnerProposalHistory, words: &Words) -> (Tree, JigBindings, Limits) {

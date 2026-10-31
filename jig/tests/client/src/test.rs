@@ -20,30 +20,20 @@ const LINGER: Duration = Duration::from_millis(25);
 #[must_use]
 pub fn limits() -> jig_client_test_domain::Limits {
     jig_client_test_domain::Limits {
-        jig: jig_client_view::Limits {
-            watches: 8,
+        jig: jig_client_view::Config {
             notices: 2,
             notice_life: Duration::from_secs(5),
             linger: LINGER,
             save_delay: Duration::from_millis(10),
             intents: 2,
-            fields: 4,
 
             objects: 3,
             sources: 8,
-            reads: 8,
-            parts: 8,
-            delegates: 2,
-            document_bytes: 65536,
-            records: 2,
-            kept: 4,
+
             drafts: 1,
-            projects: 2,
+
             roles: 2,
-            text: 32,
-            rows: 2,
-            segments: 4,
-            accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
+
             conversation_words: 2,
             navigation_entries: 8,
             updates_count: 99,
@@ -153,9 +143,10 @@ type Books = (jig_client_view::words::Words, view::words::Words);
 pub(crate) fn phrasebooks(limits: &domain::Limits) -> &'static Books {
     static BOOKS: OnceLock<Mutex<BTreeMap<(u32, u32), &'static Books>>> = OnceLock::new();
     let mut books = BOOKS.get_or_init(|| Mutex::new(BTreeMap::new())).lock().expect("fixture books lock");
-    books.entry((limits.jig.text, limits.first.text)).or_insert_with(|| {
+    books.entry((limits.client.domain.text, limits.first.text)).or_insert_with(|| {
         Box::leak(Box::new((
-            view::connector_values_words::english(limits.jig.text).expect("composed application English fits"),
+            view::connector_values_words::english(limits.client.domain.text)
+                .expect("composed application English fits"),
             view::words::Words::english(limits.first.text).expect("family English fits"),
         )))
     })

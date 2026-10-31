@@ -56,9 +56,14 @@ fn english() -> crate::words::Words {
     crate::tests::english_words()
 }
 fn render(value: &OwnerAuthorityDocument, words: &crate::words::Words, rows: u32) -> Tree {
-    let required =
-        crate::tests::render_limits(&crate::Limits { rows: 3, text: 4096, ..crate::tests::tree::cards::CLIENT }, words)
-            .expect("capacity fits");
+    let required = crate::tests::render_limits(
+        &crate::tests::fixtures::Profile {
+            view: crate::Config { ..(crate::tests::tree::cards::CLIENT).view },
+            client: jig_client::DomainLimits { rows: 3, text: 4096, ..(crate::tests::tree::cards::CLIENT).client },
+        },
+        words,
+    )
+    .expect("capacity fits");
     let limits = Limits {
         nodes: required.nodes,
         depth: required.depth,
@@ -115,7 +120,10 @@ fn exact_authority_fragment_keeps_opaque_boundaries_full_codes_and_explicit_cut(
     assert!(!has(&tree, b"More are held than shown"));
     assert_eq!(tree.len(), 26);
     let envelope = crate::tests::render_limits(
-        &crate::Limits { rows: 3, text: 4096, ..crate::tests::tree::cards::CLIENT },
+        &crate::tests::fixtures::Profile {
+            view: crate::Config { ..(crate::tests::tree::cards::CLIENT).view },
+            client: jig_client::DomainLimits { rows: 3, text: 4096, ..(crate::tests::tree::cards::CLIENT).client },
+        },
         &words,
     )
     .expect("configured envelope");
@@ -204,7 +212,10 @@ fn model_selectors_render_literal_names_all_empty_and_default_with_exact_budgets
         }
     }
     let required = crate::tests::render_limits(
-        &crate::Limits { rows: 3, text: 4096, ..crate::tests::tree::cards::CLIENT },
+        &crate::tests::fixtures::Profile {
+            view: crate::Config { ..(crate::tests::tree::cards::CLIENT).view },
+            client: jig_client::DomainLimits { rows: 3, text: 4096, ..(crate::tests::tree::cards::CLIENT).client },
+        },
         &words,
     )
     .unwrap();

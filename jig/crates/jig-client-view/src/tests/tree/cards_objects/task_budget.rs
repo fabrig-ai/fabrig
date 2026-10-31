@@ -20,7 +20,7 @@ fn budget_page(row: Task) -> Tree {
     crate::tests::tree::pages::deliver(&mut domain, watch, Delivery::Task(Box::new(row)));
     let tree = crate::tests::tree::pages::build(&domain, 3, words()).0;
     crate::tests::tree::cards_access::check(&tree);
-    assert!(tree.len() <= crate::task_nodes(&CLIENT, 0).unwrap());
+    assert!(tree.len() <= crate::task_nodes(&CLIENT, &(CLIENT).client, 0).unwrap());
     tree
 }
 

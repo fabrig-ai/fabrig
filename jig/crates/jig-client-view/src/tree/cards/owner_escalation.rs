@@ -50,7 +50,7 @@ pub fn card(
         words.text(b, JigPhrase::TakenByNumber, &[Hole::Number(*taker)]);
     }
     crate::tree::sections::task::overview(b, client, &document.task, words, bindings);
-    crate::tree::sections::task::budget(b, &document.task, words, bindings, client.limits.rows);
+    crate::tree::sections::task::budget(b, &document.task, words, bindings, client.client.domain_limits().rows);
     super::common::answer(b, &facts, words, text_limit);
     super::common::acts(b, &facts.card, &document.acts, object, words, bindings);
     super::close(b);

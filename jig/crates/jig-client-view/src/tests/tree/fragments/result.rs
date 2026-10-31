@@ -17,8 +17,11 @@ use jig_client::contract::{
 };
 use skein_lib::{List, Wall, bytes::copy_of};
 
-fn client_limits() -> crate::Limits {
-    crate::Limits { rows: 8, ..crate::tests::tree::cards::CLIENT }
+fn client_limits() -> crate::tests::fixtures::Profile {
+    crate::tests::fixtures::Profile {
+        view: crate::Config { ..(crate::tests::tree::cards::CLIENT).view },
+        client: jig_client::DomainLimits { rows: 8, ..(crate::tests::tree::cards::CLIENT).client },
+    }
 }
 fn phrase_limits(languages: &[Language]) -> PhraseLimits {
     let mut segments = 0_u32;
@@ -67,7 +70,7 @@ fn details() -> ResultDetails {
 }
 fn build(value: &ResultDetails, words: &Words) -> Tree {
     let client = Fixture::new(&client_limits());
-    let limits = view::limits(&client_limits(), words).unwrap();
+    let limits = view::limits(&client_limits(), &(client_limits()).client, words).unwrap();
     let mut b = Builder::new(&limits);
     let mut bindings = JigBindings::new(limits.bindings, 128);
     view::render(&mut b, &client.view(), value, words, &mut bindings);
@@ -216,7 +219,7 @@ fn result_words_check_shapes_select_language_and_refuse_insufficient_tree_capaci
     );
     let value = details();
     let client = Fixture::new(&client_limits());
-    let mut capacity = view::limits(&client_limits(), &words).unwrap();
+    let mut capacity = view::limits(&client_limits(), &(client_limits()).client, &words).unwrap();
     assert_eq!(tree.len(), 9, "one region and eight independent metadata leaves");
     capacity.nodes = 9;
     capacity.depth = 2;
@@ -252,5 +255,18 @@ fn result_words_check_shapes_select_language_and_refuse_insufficient_tree_capaci
             "one below a checked storage dimension refuses"
         );
     }
-    assert_eq!(view::nodes(&crate::Limits { rows: u32::MAX, ..client_limits() }), None);
+    assert_eq!(
+        view::nodes(
+            &crate::tests::fixtures::Profile {
+                view: crate::Config { ..(client_limits()).view },
+                client: jig_client::DomainLimits { rows: u32::MAX, ..(client_limits()).client }
+            },
+            &(crate::tests::fixtures::Profile {
+                view: crate::Config { ..(client_limits()).view },
+                client: jig_client::DomainLimits { rows: u32::MAX, ..(client_limits()).client }
+            })
+            .client
+        ),
+        None
+    );
 }

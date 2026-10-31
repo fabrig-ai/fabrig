@@ -6,7 +6,7 @@ use crate::words::history_words::HistoryPhrase as P;
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run};
 
-use crate::Limits;
+use crate::Config;
 use jig_client::contract::{
     OwnerHistoryChange, OwnerHistoryHolder, OwnerHistoryLine, OwnerMessageProposalKind, OwnerProposalHistory,
     OwnerProposalHistoryState, OwnerRetainedAction, OwnerRetainedAmendment, PersonAddress,
@@ -14,22 +14,23 @@ use jig_client::contract::{
 
 /// Conservative retained-proposal bound, including the whole history envelope's spare allowance.
 #[must_use]
-pub fn proposal_max_nodes(limits: &Limits) -> Option<u32> {
-    max_nodes(limits)
+pub fn proposal_max_nodes(limits: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    max_nodes(limits, client)
 }
 /// Finite whole-node envelope reused by bounded history pages.
 #[must_use]
-pub fn max_nodes(limits: &Limits) -> Option<u32> {
-    let amendment = crate::tree::fragments::amendment::max_nodes(limits)?;
-    let authority = crate::tree::fragments::authority::document_nodes(limits.rows, limits.segments)?;
-    let batch = limits.rows.checked_mul(crate::sizes::sizes::proposed_task_nodes(limits)?)?;
-    let delta = crate::tree::fragments::specification::nodes(limits)?
+pub fn max_nodes(limits: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    let amendment = crate::tree::fragments::amendment::max_nodes(limits, client)?;
+    let authority = crate::tree::fragments::authority::document_nodes(client.rows, client.segments)?;
+    let batch = client.rows.checked_mul(crate::sizes::sizes::proposed_task_nodes(limits, client)?)?;
+    let delta = crate::tree::fragments::specification::nodes(limits, client)?
         .checked_add(authority)?
-        .checked_add(skein_ui::markdown::max_nodes(limits.text)?.checked_mul(2)?)?
-        .checked_add(limits.rows)?
+        .checked_add(skein_ui::markdown::max_nodes(client.text)?.checked_mul(2)?)?
+        .checked_add(client.rows)?
         .checked_add(crate::tree::fragments::wake::policy_nodes())?
         .checked_add(30)?;
-    let effect = crate::tree::fragments::proposed_task::part_nodes(limits)?.checked_add(authority)?.checked_add(8)?;
+    let effect =
+        crate::tree::fragments::proposed_task::part_nodes(limits, client)?.checked_add(authority)?.checked_add(8)?;
     100_u32.checked_add(amendment.checked_mul(2)?)?.checked_add(batch.max(delta).max(effect))
 }
 fn saying(b: &mut Builder, words: &Words, phrase: P, holes: &[Hole]) {

@@ -31,8 +31,11 @@ fn fixture(kind: OwnerMessageKind) -> OwnerWord {
 fn activity(line: OwnerActivity) -> OwnerActivityLine {
     OwnerActivityLine { task: u64::MAX, position: u64::MAX, at: Wall::from_nanos(u64::MAX), line }
 }
-fn client_limits() -> crate::Limits {
-    crate::Limits { rows: 3, text: 8, ..crate::tests::tree::cards::CLIENT }
+fn client_limits() -> crate::tests::fixtures::Profile {
+    crate::tests::fixtures::Profile {
+        view: crate::Config { ..(crate::tests::tree::cards::CLIENT).view },
+        client: jig_client::DomainLimits { rows: 3, text: 8, ..(crate::tests::tree::cards::CLIENT).client },
+    }
 }
 fn phrase_limits() -> PhraseLimits {
     PhraseLimits {
@@ -686,7 +689,7 @@ fn dependency_refusals_name_the_circle_the_ending_and_the_kept_answer() {
     ] {
         let f = crate::tests::render_limits(&client_limits(), normal_words()).unwrap();
         let mut b = Builder::new(&tree_limits(f));
-        normal_words().refusal(&mut b, &refusal, client_limits().text);
+        normal_words().refusal(&mut b, &refusal, client_limits().client.text);
         assert!(has(&b.finish(), expected));
     }
 }

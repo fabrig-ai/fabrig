@@ -12,9 +12,9 @@ use skein_lib::{Time, Wall};
 pub fn limits() -> jig_client_test_domain::Limits {
     let mut limits = test::limits();
     limits.jig.objects = 8;
-    limits.jig.watches = 16;
-    limits.jig.rows = 4;
-    limits.jig.document_bytes = 8192;
+    limits.client.domain.watches = 16;
+    limits.client.domain.rows = 4;
+    limits.client.domain.document_bytes = 8192;
     limits
 }
 #[must_use]

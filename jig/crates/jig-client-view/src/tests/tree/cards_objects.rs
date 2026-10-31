@@ -146,7 +146,7 @@ pub(in crate::tests) fn render(
     b.close();
     let tree = b.finish();
     crate::tests::tree::cards_access::check(&tree);
-    assert!(tree.len() <= crate::card_nodes(&CLIENT).unwrap().checked_add(1).unwrap());
+    assert!(tree.len() <= crate::card_nodes(&CLIENT, &(CLIENT).client).unwrap().checked_add(1).unwrap());
     let facts = d.objects().get(id).unwrap();
     match facts.card {
         crate::state::objects::Card::Deciding { .. } => {
@@ -215,7 +215,7 @@ fn result_value_payloads(words: &crate::words::Words, part: &Part) {
     ] {
         let mut b = Builder::new(&limits());
         b.open(Role::Page);
-        let mut bindings = JigBindings::new(64, CLIENT.text);
+        let mut bindings = JigBindings::new(64, CLIENT.client.text);
         cards::result::value_nodes(&mut b, &d.view(), &value, words, &mut bindings);
         b.close();
         assert!(contains(&b.finish(), whole));
@@ -238,7 +238,7 @@ fn dialog(d: &Fixture, words: &crate::words::Words, bindings: &mut JigBindings) 
     b.close();
     let tree = b.finish();
     crate::tests::tree::cards_access::check(&tree);
-    assert!(tree.len() <= crate::confirmation_nodes(&CLIENT).unwrap().checked_add(1).unwrap());
+    assert!(tree.len() <= crate::confirmation_nodes(&CLIENT, &(CLIENT).client).unwrap().checked_add(1).unwrap());
     tree
 }
 pub(in crate::tests) fn task_doc(acts: &[ActKind]) -> Task {
@@ -330,7 +330,7 @@ fn notice_scenarios(words: &crate::words::Words) {
         Kind::Refused(Limit::Objects),
     ] {
         let mut b = Builder::new(&limits());
-        crate::tree::notices::facts(&mut b, &kind, words, CLIENT.text);
+        crate::tree::notices::facts(&mut b, &kind, words, CLIENT.client.text);
         let tree = b.finish();
         crate::tests::tree::cards_access::check(&tree);
         assert_eq!(tree.nodes()[0].role, Role::Status);
@@ -340,7 +340,7 @@ fn notice_scenarios(words: &crate::words::Words) {
     let (mut d, _) = start();
     crate::tree::notices::kept::show(&mut d, Kind::Refused(Limit::Objects));
     let mut b = Builder::new(&limits());
-    let mut bindings = JigBindings::new(limits().bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
     crate::tree::notices::notices(&mut b, &d.view(), words, &mut bindings);
     let tree = b.finish();
     crate::tests::tree::cards_access::check(&tree);
@@ -386,7 +386,7 @@ fn note_loaded(note: Note) -> (Fixture, Id<Object>) {
 
 fn closing_connectors_use_their_owners_words(words: &crate::words::Words) {
     let mut b = Builder::new(&limits());
-    let mut bindings = JigBindings::new(16, CLIENT.text);
+    let mut bindings = JigBindings::new(16, CLIENT.client.text);
     b.open(Role::Page);
     cards::common::closing(
         &mut b,
@@ -421,7 +421,7 @@ fn authority_refusal_uses_only_supplied_proposal_eligibility(words: &crate::word
     for proposable in [None, Some(true), Some(false)] {
         let mut b = Builder::new(&limits());
         b.open(Role::Page);
-        words.refusal(&mut b, &Refusal::Authority { lacking: Lacking::Approver, proposable }, CLIENT.text);
+        words.refusal(&mut b, &Refusal::Authority { lacking: Lacking::Approver, proposable }, CLIENT.client.text);
         b.close();
         let tree = b.finish();
         assert!(contains(&tree, b"Proposal approval authority is missing"));
@@ -451,7 +451,7 @@ fn approved_and_failed_results_show_only_their_supplied_owner_payloads() {
         };
         let mut builder = Builder::new(&limits());
         builder.open(Role::Page);
-        let mut bindings = JigBindings::new(64, CLIENT.text);
+        let mut bindings = JigBindings::new(64, CLIENT.client.text);
         cards::result::value_nodes(&mut builder, &domain.view(), &value, words, &mut bindings);
         builder.close();
         let tree = builder.finish();
@@ -465,7 +465,7 @@ fn approved_and_failed_results_show_only_their_supplied_owner_payloads() {
     }
     let mut builder = Builder::new(&limits());
     builder.open(Role::Page);
-    let mut bindings = JigBindings::new(64, CLIENT.text);
+    let mut bindings = JigBindings::new(64, CLIENT.client.text);
     cards::result::value_nodes(
         &mut builder,
         &domain.view(),
@@ -502,7 +502,7 @@ fn whole_specification_words_edit_preserves_parameters_and_input_identities() {
     drive(&mut domain, Event::Act { action: Action::Intend { object: id.token(), act: ActKind::Amend } });
     drive(&mut domain, Event::Act { action: Action::Edit { field: Purpose::Reason, text: text(b"") } });
     let words = words();
-    let mut bindings = JigBindings::new(256, CLIENT.text);
+    let mut bindings = JigBindings::new(256, CLIENT.client.text);
     let tree = dialog(&domain, words, &mut bindings);
     assert!(contains(&tree, UTF8_TEXTS[0]));
     assert!(contains(&tree, b"Parameter 4294967295 has value 18446744073709551615"));
@@ -552,7 +552,7 @@ fn cut_specification_is_shown_and_cannot_be_reconstructed_by_the_words_editor() 
     assert!(contains(&builder.finish(), b"The specification is incomplete"));
     drive(&mut domain, Event::Act { action: Action::Intend { object: id.token(), act: ActKind::Amend } });
     drive(&mut domain, Event::Act { action: Action::Edit { field: Purpose::Reason, text: text(b"") } });
-    let mut bindings = JigBindings::new(256, CLIENT.text);
+    let mut bindings = JigBindings::new(256, CLIENT.client.text);
     let tree = dialog(&domain, words, &mut bindings);
     assert!(!tree.nodes().iter().any(|node| node.name.as_deref() == Some(b"New specification")));
     assert!(drive(&mut domain, Event::Act { action: Action::Confirm }).is_empty());
@@ -603,7 +603,7 @@ fn specification_documents_keep_independent_text_and_list_loss_and_block_whole_e
         let (mut domain, id) = loaded(ObjectKey::Task(8), ReadValue::Task(Box::new(row)));
         drive(&mut domain, Event::Act { action: Action::Intend { object: id.token(), act: ActKind::Amend } });
         drive(&mut domain, Event::Act { action: Action::Edit { field: Purpose::Reason, text: text(b"") } });
-        let mut bindings = JigBindings::new(256, CLIENT.text);
+        let mut bindings = JigBindings::new(256, CLIENT.client.text);
         let tree = dialog(&domain, words, &mut bindings);
         if mask != 0 {
             assert!(!tree.nodes().iter().any(|node| node.name.as_deref() == Some(b"New specification")));
@@ -648,7 +648,7 @@ fn note_documents_keep_each_text_loss_and_reference_loss_without_reconstructing_
             };
             let (mut domain, id) = note_loaded(note);
             let words = words();
-            let mut bindings = JigBindings::new(256, CLIENT.text);
+            let mut bindings = JigBindings::new(256, CLIENT.client.text);
             let mut builder = Builder::new(&limits());
             cards::card(&mut builder, &domain.view(), id, &cards::Place::Elsewhere, words, &mut bindings);
             let tree = builder.finish();
@@ -679,7 +679,7 @@ pub(crate) mod amendment_presence;
 #[expect(clippy::match_like_matches_macro, reason = "scenario matching stays explicit; matches is disallowed")]
 fn a_cut_note_shows_its_reference_loss_and_blocks_correction_but_keeps_exact_deletion() {
     let words = words();
-    let mut bindings = JigBindings::new(512, CLIENT.text);
+    let mut bindings = JigBindings::new(512, CLIENT.client.text);
     for act in [ActKind::EditNote, ActKind::DeleteNote] {
         let note = Note {
             number: 77,
@@ -757,9 +757,9 @@ fn result_documents_keep_each_words_loss_fact_and_the_exact_change_kind_and_owne
             ResultValue::Change { kind: u16::MAX, part: raw.clone(), words: explanation },
         ];
         for value in values {
-            let mut builder = Builder::new(&crate::sizes::limits::of_words(&CLIENT, words).unwrap());
+            let mut builder = Builder::new(&crate::sizes::limits::of_words(&CLIENT, &(CLIENT).client, words).unwrap());
             builder.open(Role::Page);
-            let mut bindings = JigBindings::new(64, CLIENT.text);
+            let mut bindings = JigBindings::new(64, CLIENT.client.text);
             cards::result::value_nodes(&mut builder, &domain.view(), &value, words, &mut bindings);
             builder.close();
             let tree = builder.finish();
@@ -797,10 +797,10 @@ fn result_cards_distinguish_an_absent_completion_wall_from_epoch_and_render_supp
             proposal: None,
             cut: false,
         }));
-        let envelope = crate::sizes::limits::of_words(&CLIENT, words).unwrap();
+        let envelope = crate::sizes::limits::of_words(&CLIENT, &(CLIENT).client, words).unwrap();
         let mut builder = Builder::new(&envelope);
         builder.open(Role::Page);
-        let mut bindings = JigBindings::new(envelope.bindings, CLIENT.text);
+        let mut bindings = JigBindings::new(envelope.bindings, CLIENT.client.text);
         cards::result::facts(&mut builder, &domain.view(), &value, words, &mut bindings);
         builder.close();
         let tree = builder.finish();
@@ -833,10 +833,10 @@ fn exact_owner_verdict_renders_payload_and_stored_followups_without_inventing_ch
             cut: true,
         }));
         let before = value.clone();
-        let envelope = crate::sizes::limits::of_words(&CLIENT, words).unwrap();
+        let envelope = crate::sizes::limits::of_words(&CLIENT, &(CLIENT).client, words).unwrap();
         let mut builder = Builder::new(&envelope);
         builder.open(Role::Page);
-        let mut bindings = JigBindings::new(envelope.bindings, CLIENT.text);
+        let mut bindings = JigBindings::new(envelope.bindings, CLIENT.client.text);
         cards::result::facts(&mut builder, &domain.view(), &value, words, &mut bindings);
         builder.close();
         let tree = builder.finish();
@@ -880,7 +880,7 @@ fn connector_effect_slots_keep_raw_numbers_separate_from_jig_proposal_makers() {
     let connector = u16::MAX;
     for proposal in [0, u64::MAX] {
         let native = Part::OwnerEffect { connector, proposal };
-        let mut bindings = JigBindings::new(8, CLIENT.text);
+        let mut bindings = JigBindings::new(8, CLIENT.client.text);
         let mut builder = Builder::new(&limits());
         builder.open(Role::Page);
         cards::common::part(&mut builder, &native, words, &mut bindings);
@@ -923,7 +923,7 @@ fn moved_effect_facts_say_the_supplied_connector_proposal_without_inventing_a_ma
                     }))),
                 },
             },
-            CLIENT.text,
+            CLIENT.client.text,
         );
         builder.close();
         let tree = builder.finish();

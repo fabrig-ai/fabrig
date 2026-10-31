@@ -9,7 +9,7 @@ use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run, State};
 
 use crate::{
-    Borrowed, Limits,
+    Borrowed, Config,
     state::{action::Act, ui::borrowed::task::PlanView},
 };
 use jig_client::contract::{Chip, ObjectKey, OwnerPhaseCounts, OwnerTree, OwnerTreeRow, Proposer};
@@ -19,15 +19,15 @@ enum Visit {
     Enter(u32),
     Leave,
 }
-pub(crate) fn max_nodes_with_card(l: &Limits, card: u32) -> Option<u32> {
-    let chip = crate::chip_nodes(l)?.max(crate::tree::fragments::chip::max_nodes(l)?);
+pub(crate) fn max_nodes_with_card(l: &Config, client: &jig_client::DomainLimits, card: u32) -> Option<u32> {
+    let chip = crate::chip_nodes(l, client)?.max(crate::tree::fragments::chip::max_nodes(l, client)?);
     let row = card
-        .checked_mul(l.rows.checked_add(1)?)?
-        .checked_add(chip.checked_add(2)?.checked_mul(l.rows)?)?
+        .checked_mul(client.rows.checked_add(1)?)?
+        .checked_add(chip.checked_add(2)?.checked_mul(client.rows)?)?
         .checked_add(chip)?
-        .checked_add(l.rows.checked_mul(2)?)?
+        .checked_add(client.rows.checked_mul(2)?)?
         .checked_add(12)?;
-    row.checked_mul(l.rows)?.checked_add(chip)?.checked_add(l.rows.checked_mul(14)?)?.checked_add(8)
+    row.checked_mul(client.rows)?.checked_add(chip)?.checked_add(client.rows.checked_mul(14)?)?.checked_add(8)
 }
 
 fn text(b: &mut Builder, words: &Words, p: P, holes: &[Hole]) {

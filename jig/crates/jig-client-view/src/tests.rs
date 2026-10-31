@@ -66,9 +66,10 @@ fn english_words() -> crate::words::Words {
 }
 
 // These rendering fixtures reserve their storage, as an application's world does.
-fn render_limits(client: &crate::Limits, words: &crate::words::Words) -> Option<skein_ui::Limits> {
+fn render_limits(client: &fixtures::Profile, words: &crate::words::Words) -> Option<skein_ui::Limits> {
     let mut limits = crate::sizes::limits::envelope(
         client,
+        &client.client,
         words.jig_capacity()?,
         &crate::state::page::Arrangement::none(),
         0,

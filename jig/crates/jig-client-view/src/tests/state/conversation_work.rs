@@ -22,7 +22,7 @@ fn words() -> &'static Words {
         language.wall = skein_ui::phrases::WallFormat::Nanos;
         Words::new(
             skein_ui::phrases::Phrasebook::load(
-                crate::words::phrases::jig::shapes(CLIENT.text),
+                crate::words::phrases::jig::shapes(CLIENT.client.text),
                 Box::new([language]),
                 &skein_ui::phrases::PhraseLimits {
                     languages: 1,
@@ -30,7 +30,7 @@ fn words() -> &'static Words {
                     holes: 4,
                     segments: crate::tests::english_phrase_segments(1),
                     text_bytes: 100_000,
-                    hole_bytes: CLIENT.text,
+                    hole_bytes: CLIENT.client.text,
                 },
             )
             .unwrap(),
@@ -57,7 +57,7 @@ fn selected() -> &'static Words {
         }
         Words::new(
             skein_ui::phrases::Phrasebook::load(
-                crate::words::phrases::jig::shapes(CLIENT.text),
+                crate::words::phrases::jig::shapes(CLIENT.client.text),
                 Box::new([crate::words::phrases::english::language(), language]),
                 &skein_ui::phrases::PhraseLimits {
                     languages: 2,
@@ -65,7 +65,7 @@ fn selected() -> &'static Words {
                     holes: 4,
                     segments: crate::tests::english_phrase_segments(2),
                     text_bytes: 100_000,
-                    hole_bytes: CLIENT.text,
+                    hole_bytes: CLIENT.client.text,
                 },
             )
             .unwrap(),
@@ -130,7 +130,7 @@ fn page(task: Task, section: TaskSection) -> (Fixture, Vec<Request>) {
 fn render(domain: &Fixture, words: &Words) -> Tree {
     let (tree, _) = crate::tests::tree::pages::build(domain, 3, words);
     crate::tests::tree::cards_access::check(&tree);
-    assert!(tree.len() <= crate::task_nodes(&CLIENT, 0).unwrap());
+    assert!(tree.len() <= crate::task_nodes(&CLIENT, &(CLIENT).client, 0).unwrap());
     tree
 }
 #[test]

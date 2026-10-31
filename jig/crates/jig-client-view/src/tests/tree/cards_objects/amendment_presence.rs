@@ -48,7 +48,7 @@ fn amendment_dependency_and_wake_controls_preserve_only_prior_selected_changes()
     let initial_wake = row.wake;
     let (mut domain, _) = open(row);
     let words = words();
-    let mut bindings = JigBindings::new(limits().bindings, CLIENT.text);
+    let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
     let tree = dialog(&domain, words, &mut bindings);
     drive(&mut domain, Event::Act { action: press(&tree, b"Drop dependency 8", &mut bindings) });
     let mut expected = Amendment { dependencies: Some(list([])), ..empty() };
@@ -86,7 +86,7 @@ fn amendment_loss_in_specification_does_not_select_or_block_independent_fields()
         }]);
         row.spec.cut = mask & 4 != 0;
         let (mut domain, _) = open(row);
-        let mut bindings = JigBindings::new(limits().bindings, CLIENT.text);
+        let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
         let tree = dialog(&domain, words(), &mut bindings);
         assert!(!tree.nodes().iter().any(|node| node.name.as_deref() == Some(b"New specification")));
         assert!(contains(&tree, b"The specification is incomplete"));

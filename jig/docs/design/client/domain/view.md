@@ -1036,6 +1036,8 @@ read by the application: ui.sections(), ui.shown()
 
 ### 18.9 Limits and envelopes
 
+The reference UI's limits are its own: its windows, folds and its pages' bounds; for what the client already bounds (watches, reads, parts, documents, rows, text and the rest) it reads the client's limits (client.md, section 14), never a copy.
+
 Each is configured and bounds what the view accepts or builds:
 
 - objects in a page's working set; rows per window; turns a

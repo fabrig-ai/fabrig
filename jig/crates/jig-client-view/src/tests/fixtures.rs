@@ -1,3 +1,54 @@
+/// A test's presentation configuration and the client's receiving bounds.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Profile {
+    pub view: crate::Config,
+    pub client: jig_client::DomainLimits,
+}
+impl core::ops::Deref for Profile {
+    type Target = crate::Config;
+    fn deref(&self) -> &Self::Target {
+        &self.view
+    }
+}
+impl core::ops::DerefMut for Profile {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.view
+    }
+}
+pub(crate) const CLIENT: jig_client::DomainLimits = jig_client::DomainLimits {
+    owners: &[],
+    requests: skein_lib::RequestLimits {
+        requests: 2,
+        bytes: 1 << 20,
+        out: 256,
+        first: skein_lib::Duration::from_nanos(10),
+        most: skein_lib::Duration::from_nanos(80),
+        margin: skein_lib::Duration::from_secs(1),
+    },
+    ask_bytes: 65536,
+    handles: 256,
+    watches: 8,
+    reads: 8,
+    turn_bytes: 65536,
+    document_bytes: 65536,
+    backoff: jig_client::Backoff {
+        first: skein_lib::Duration::from_nanos(10),
+        most: skein_lib::Duration::from_nanos(80),
+    },
+    rows: 2,
+    segments: 4,
+    authority: 8,
+    text: 128,
+    turn_text: 128,
+    projects: 2,
+    fields: 8,
+    delegates: 2,
+    records: 2,
+    kept: 4,
+    parts: 8,
+    accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
+    heartbeat: skein_lib::Duration::from_secs(1000),
+};
 use crate::state::address::Address;
 use crate::state::records::{RECORDS_VERSION, Record};
 use jig_client::contract::Text;

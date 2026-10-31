@@ -7,7 +7,7 @@ use jig_client::words::DecisionWord as D;
 use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, SlotRef};
 
-use crate::Limits;
+use crate::Config;
 use jig_client::contract::{
     Funder, OwnerExecutor, OwnerPart, OwnerPartKey, OwnerPartKind, PersonAddress, TaskContractDocument,
 };
@@ -132,13 +132,13 @@ pub fn contract(b: &mut Builder, value: &TaskContractDocument, words: &Words, bi
     }
 }
 #[must_use]
-pub fn part_nodes(limits: &Limits) -> Option<u32> {
-    limits.segments.max(1).checked_add(6)
+pub fn part_nodes(_limits: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    client.segments.max(1).checked_add(6)
 }
 #[must_use]
-pub fn contract_nodes(limits: &Limits) -> Option<u32> {
-    let approval = part_nodes(limits)?.checked_add(2)?;
-    let verdict = limits.rows.checked_mul(2)?.checked_add(1)?.checked_mul(limits.rows)?.checked_add(2)?;
+pub fn contract_nodes(limits: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    let approval = part_nodes(limits, client)?.checked_add(2)?;
+    let verdict = client.rows.checked_mul(2)?.checked_add(1)?.checked_mul(client.rows)?.checked_add(2)?;
     Some(approval.max(verdict).max(1))
 }
 

@@ -27,6 +27,7 @@ impl Limits {
         let application_nodes = fragment_nodes.checked_add(cards.checked_mul(3)?)?.checked_add(9)?;
         let mut tree = jig_client_view::limits::envelope(
             &domain.jig,
+            &domain.client.domain,
             jig.jig_capacity()?,
             &jig_client_view::page::Arrangement::none(),
             0,
@@ -34,10 +35,14 @@ impl Limits {
             0,
         )?;
         let jig_nodes = tree.nodes;
-        let sections = jig_client_view::task_section_nodes(&domain.jig, jig_client_view::address::TaskSection::Plan)?
-            .checked_add(4)?
-            .checked_mul(2)?;
-        let jig_cards = u64::from(jig_client_view::card_nodes(&domain.jig)?)
+        let sections = jig_client_view::task_section_nodes(
+            &domain.jig,
+            &domain.client.domain,
+            jig_client_view::address::TaskSection::Plan,
+        )?
+        .checked_add(4)?
+        .checked_mul(2)?;
+        let jig_cards = u64::from(jig_client_view::card_nodes(&domain.jig, &domain.client.domain)?)
             .checked_mul(u64::from(cards))?
             .checked_add(u64::from(sections))?;
         // The complete node ceiling is checked without constructing its storage.
@@ -47,14 +52,14 @@ impl Limits {
             .checked_mul(u64::from(fragment_nodes))?
             .checked_add(jig_cards)?
             .checked_add(u64::from(family::NAV_NODES))?;
-        let jig_page = jig_client_view::page_nodes(&domain.jig, 0)?;
+        let jig_page = jig_client_view::page_nodes(&domain.jig, &domain.client.domain, 0)?;
         let full_nodes = u64::from(jig_nodes.checked_sub(jig_page)?)
             .checked_add(u64::from(jig_page.max(application_nodes)))?
             .checked_add(slot_nodes)?;
         if u64::from(nodes) > full_nodes {
             return None;
         }
-        let text = jig_client_view::limits::node_text(domain.jig.text, jig.jig_capacity()?)?
+        let text = jig_client_view::limits::node_text(domain.client.domain.text, jig.jig_capacity()?)?
             .max(first.capacity()?.checked_mul(2)?.checked_add(20)?)
             .max(owner.text_per_node)
             .max(jig_client_view::literal_segment::max_bytes(domain.first.text)?);
@@ -64,9 +69,9 @@ impl Limits {
         tree.bindings = nodes;
         tree.slots = slots;
         tree.patches = nodes.checked_mul(5)?;
-        tree.text_bytes = nodes
-            .checked_mul(text)?
-            .checked_add(domain.jig.rows.checked_mul(2)?.checked_mul(jig_client::contract::ACCOUNT_MANAGE_USAGE)?)?;
+        tree.text_bytes = nodes.checked_mul(text)?.checked_add(
+            domain.client.domain.rows.checked_mul(2)?.checked_mul(jig_client::contract::ACCOUNT_MANAGE_USAGE)?,
+        )?;
         tree.drawing_bytes = drawing::BYTES;
         let limits = Self { tree, text: domain.first.text };
         if !valid(&limits, domain, jig, first) {
@@ -87,22 +92,29 @@ impl Limits {
         let application_nodes = fragment_nodes.checked_add(cards.checked_mul(3)?)?.checked_add(9)?;
         // All nodes bound the possible slots in the public jig envelope.
         // This conservative bound also covers duplicate references to one part.
-        let jig_nodes = jig_client_view::limits::of_words(&domain.jig, jig)?.nodes;
-        let sections = jig_client_view::task_section_nodes(&domain.jig, jig_client_view::address::TaskSection::Plan)?
-            .checked_add(4)?
-            .checked_mul(2)?;
-        let jig_cards = jig_client_view::card_nodes(&domain.jig)?.checked_mul(cards)?.checked_add(sections)?;
+        let jig_nodes = jig_client_view::limits::of_words(&domain.jig, &domain.client.domain, jig)?.nodes;
+        let sections = jig_client_view::task_section_nodes(
+            &domain.jig,
+            &domain.client.domain,
+            jig_client_view::address::TaskSection::Plan,
+        )?
+        .checked_add(4)?
+        .checked_mul(2)?;
+        let jig_cards = jig_client_view::card_nodes(&domain.jig, &domain.client.domain)?
+            .checked_mul(cards)?
+            .checked_add(sections)?;
         let part_nodes = jig_nodes.checked_add(jig_cards)?.checked_mul(fragment_nodes)?;
         let slot_nodes = part_nodes.checked_add(jig_cards)?.checked_add(family::NAV_NODES)?;
         let mut tree = jig_client_view::limits::compose(
             &domain.jig,
+            &domain.client.domain,
             jig,
             &jig_client_view::page::Arrangement::none(),
             application_nodes,
             slot_nodes,
             owner.depth.checked_add(4)?.max(8),
         )?;
-        let jig_text = jig_client_view::limits::node_text(domain.jig.text, jig.jig_capacity()?)?;
+        let jig_text = jig_client_view::limits::node_text(domain.client.domain.text, jig.jig_capacity()?)?;
         let text = jig_text
             .max(first.capacity()?.checked_mul(2)?.checked_add(20)?)
             .max(owner.text_per_node)

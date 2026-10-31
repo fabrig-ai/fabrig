@@ -32,13 +32,14 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
     Domain {
         jig: jig_client_view::Ui::new(
             &limits.jig,
+            &limits.client.domain,
             jig_client_view::page::navigation::Navigation::new(limits.jig.navigation_entries),
             jig_client_view::address::Address::Inbox { project: None },
             jig_client_view::page::Arrangement::none(),
         )
         .expect("root's UI configuration is valid"),
-        infrastructure: infrastructure::Side::new(&limits.infrastructure),
-        observability: crate::observability::Side::new(&limits.observability),
+        infrastructure: infrastructure::Side::new(&limits.infrastructure, &limits.client.domain),
+        observability: crate::observability::Side::new(&limits.observability, &limits.client.domain),
         client,
         salt: rng.next_u64(),
         unlinked,

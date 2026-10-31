@@ -8,7 +8,7 @@ use skein_ui::phrases::Hole;
 use skein_ui::{Builder, Role, Run, State};
 
 use crate::{
-    Borrowed, Limits,
+    Borrowed, Config,
     state::{action::Act, fields::Purpose, objects::Object},
 };
 use alloc::boxed::Box;
@@ -16,27 +16,27 @@ use jig_client::contract::{ChipPhase, OwnerPersonTask, PersonAddress, TaskContra
 use skein_lib::Id;
 /// Every shown link and optional whole result, specification and contract.
 #[must_use]
-pub fn max_nodes(l: &Limits) -> Option<u32> {
+pub fn max_nodes(l: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
     // The reused card/link chip renderer shows the brief phase, not the
     // standalone full metadata/result renderer. All metadata remains stored.
-    let chip = crate::chip_nodes(l)?;
-    crate::sizes::sizes::result_facts(l)?
+    let chip = crate::chip_nodes(l, client)?;
+    crate::sizes::sizes::result_facts(l, client)?
         .checked_add(chip)?
         .checked_add(5)?
-        .checked_mul(l.rows)?
+        .checked_mul(client.rows)?
         .checked_add(chip)?
-        .checked_add(crate::tree::fragments::specification::nodes(l)?)?
-        .checked_add(crate::tree::fragments::proposed_task::contract_nodes(l)?)?
+        .checked_add(crate::tree::fragments::specification::nodes(l, client)?)?
+        .checked_add(crate::tree::fragments::proposed_task::contract_nodes(l, client)?)?
         .checked_add(20)
 }
 /// Choices, entered fields and Cannot alongside the full contract.
 #[must_use]
-pub fn form_nodes(l: &Limits) -> Option<u32> {
-    crate::tree::fragments::proposed_task::contract_nodes(l)?.checked_add(controls_nodes(l)?)
+pub fn form_nodes(l: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    crate::tree::fragments::proposed_task::contract_nodes(l, client)?.checked_add(controls_nodes(l, client)?)
 }
 /// The single confirmation form's controls, alongside its contract.
-pub(crate) fn controls_nodes(l: &Limits) -> Option<u32> {
-    l.rows.checked_mul(3)?.checked_add(5)
+pub(crate) fn controls_nodes(_l: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
+    client.rows.checked_mul(3)?.checked_add(5)
 }
 fn saying(words: &Words, phrase: P, holes: &[Hole]) -> Box<[u8]> {
     words.book().say(words.language(), phrase.id(), holes).expect("checked person words and typed holes").text

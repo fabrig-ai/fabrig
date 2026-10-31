@@ -21,7 +21,7 @@ pub(crate) fn index(rows: &List<c::TaskLine>, task: u64) -> Option<u32> {
     }
     None
 }
-pub(crate) fn open(domain: &mut Ui, env: &Env<crate::Limits>, task: u64, up: bool, lent: &jig_client::Client) {
+pub(crate) fn open(domain: &mut Ui, env: &Env<crate::Config>, task: u64, up: bool, lent: &jig_client::Client) {
     let rows = domain.borrow(lent).project_page().goals;
     let Some(index) = index(&rows, task) else { return };
     let target = if up { index.checked_sub(1) } else { index.checked_add(1) };

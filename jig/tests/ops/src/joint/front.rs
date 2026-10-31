@@ -52,7 +52,7 @@ impl Joint {
             limits,
             story,
             seed,
-            bytes: Some(super::bytes::Bytes::new(seed, story, limits.jig.rows)),
+            bytes: Some(super::bytes::Bytes::new(seed, story, limits.client.domain.rows)),
             callbacks: Vec::new(),
             now: Time::ZERO,
             due: None,
@@ -204,7 +204,7 @@ pub(super) fn application_document(
                 subject,
                 value: super::infrastructure::translate_value(*document),
             }));
-            assert!(document.fits(&limits.infrastructure), "whole infrastructure admission");
+            assert!(document.fits(&limits.client.domain), "whole infrastructure admission");
             ApplicationDocument::Infrastructure(Box::new(document))
         }
         Subject::Observability(subject) => {
@@ -213,7 +213,7 @@ pub(super) fn application_document(
                 subject,
                 value: super::observability::document(*document),
             }));
-            assert!(document.fits(&limits.observability), "whole observability admission");
+            assert!(document.fits(&limits.client.domain), "whole observability admission");
             ApplicationDocument::Observability(Box::new(document))
         }
     }

@@ -43,7 +43,7 @@ fn owner_hold_confirmation_keeps_exact_prior_counts_loss_clock_presence_and_repe
                 let (mut domain, id, _) = loaded_with_watch(ObjectKey::Task(8), ReadValue::Task(Box::new(row)));
                 drive(&mut domain, Event::Act { action: Action::Intend { object: id.token(), act: ActKind::Release } });
                 let envelope = limits();
-                let mut bindings = JigBindings::new(envelope.bindings, CLIENT.text);
+                let mut bindings = JigBindings::new(envelope.bindings, CLIENT.client.text);
                 let tree = dialog(&domain, words(), &mut bindings);
                 assert!(contains(&tree, b"Release continues from the shown lifecycle; failure counts reset"));
                 assert!(contains(&tree, b"Hold revision: 18446744073709551615"));
@@ -104,8 +104,8 @@ fn owner_hold_confirmation_keeps_exact_prior_counts_loss_clock_presence_and_repe
 }
 
 fn held_reference() -> OwnerPart {
-    let mut segments = List::with_capacity(CLIENT.rows);
-    for _ in 0..CLIENT.rows {
+    let mut segments = List::with_capacity(CLIENT.client.rows);
+    for _ in 0..CLIENT.client.rows {
         segments.push(Box::<[u8]>::from([255_u8; 32])).unwrap();
     }
     OwnerPart { connector: u16::MAX, kind: OwnerPartKind::Resource, key: OwnerPartKey::Path(segments) }

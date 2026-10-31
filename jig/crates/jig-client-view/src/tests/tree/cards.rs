@@ -20,33 +20,37 @@ use skein_ui::Act;
 use skein_ui::phrases::{Hole, PhraseLimits, Phrasebook};
 use skein_ui::{Builder, Role, SlotRef, Tree};
 
-pub(crate) const CLIENT: crate::Limits = crate::Limits {
-    watches: 8,
-    notices: 2,
-    notice_life: Duration::from_secs(5),
-    linger: Duration::from_secs(5),
-    save_delay: Duration::from_secs(1),
-    intents: 2,
-    fields: 8,
-
-    objects: 3,
-    sources: 8,
-    reads: 8,
-    parts: 8,
-    delegates: 2,
-    document_bytes: 65536,
-    records: 2,
-    kept: 4,
-    drafts: 1,
-    projects: 2,
-    roles: 2,
-    text: 128,
-    rows: 2,
-    segments: 4,
-    accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
-    conversation_words: 2,
-    navigation_entries: 8,
-    updates_count: 99,
+pub(crate) const CLIENT: crate::tests::fixtures::Profile = crate::tests::fixtures::Profile {
+    view: crate::Config {
+        notices: 2,
+        notice_life: Duration::from_secs(5),
+        linger: Duration::from_secs(5),
+        save_delay: Duration::from_secs(1),
+        intents: 2,
+        objects: 3,
+        sources: 8,
+        drafts: 1,
+        roles: 2,
+        conversation_words: 2,
+        navigation_entries: 8,
+        updates_count: 99,
+    },
+    client: jig_client::DomainLimits {
+        watches: 9,
+        fields: 8,
+        reads: 8,
+        parts: 8,
+        delegates: 2,
+        document_bytes: 65536,
+        records: 2,
+        kept: 4,
+        projects: 2,
+        text: 128,
+        rows: 2,
+        segments: 4,
+        accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
+        ..crate::tests::fixtures::CLIENT
+    },
 };
 pub(in crate::tests) fn limits() -> skein_ui::Limits {
     skein_ui::Limits {
@@ -66,13 +70,13 @@ pub(in crate::tests) fn limits() -> skein_ui::Limits {
 }
 pub(crate) fn shared_words() -> &'static Words {
     static WORDS: std::sync::OnceLock<Words> = std::sync::OnceLock::new();
-    WORDS.get_or_init(|| Words::new(english::english(CLIENT.text).unwrap(), 0, 60))
+    WORDS.get_or_init(|| Words::new(english::english(CLIENT.client.text).unwrap(), 0, 60))
 }
 pub(in crate::tests) fn words() -> &'static Words {
     shared_words()
 }
 pub(in crate::tests) fn text(bytes: &[u8]) -> Text {
-    Text::new(bytes.into(), CLIENT.text).unwrap()
+    Text::new(bytes.into(), CLIENT.client.text).unwrap()
 }
 pub(in crate::tests) fn drive(d: &mut Fixture, event: impl crate::tests::fixtures::Input) -> Vec<Request> {
     d.drive(Time::ZERO, event).into_vec()
@@ -155,9 +159,9 @@ pub(crate) fn tree(
     section: Option<crate::state::page::Section>,
     card: Option<skein_lib::Id<crate::state::objects::Object>>,
 ) -> Tree {
-    let bounds = crate::sizes::limits::of_words(&fixture.ui.limits, words()).unwrap();
+    let bounds = crate::sizes::limits::of_words(&fixture.ui.limits, fixture.client.domain_limits(), words()).unwrap();
     let mut builder = Builder::new(&bounds);
-    let mut bindings = JigBindings::new(bounds.bindings, fixture.ui.limits.text);
+    let mut bindings = JigBindings::new(bounds.bindings, fixture.client.domain_limits().text);
     builder.open(Role::Page);
     if let Some(card) = card {
         crate::tree::cards::card(
@@ -189,7 +193,7 @@ pub(crate) fn tree(
 fn frame_builds_statuses_counts_navigation_and_number_submission_in_every_link_state() {
     let (mut d, watch) = start();
     let words = words();
-    let mut bindings = JigBindings::new(64, CLIENT.text);
+    let mut bindings = JigBindings::new(64, CLIENT.client.text);
     for expected in [b"Connecting".as_slice(), b"Live", b"Offline"] {
         if expected == b"Live" {
             drive(&mut d, Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(document()))) });

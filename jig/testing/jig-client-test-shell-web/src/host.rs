@@ -23,7 +23,8 @@ pub struct Host {
 impl Host {
     pub fn new(seed: u64, now: Time, wall: Wall) -> Self {
         let limits = super::limits::limits();
-        let words = Box::leak(Box::new(view::connector_values_words::english(limits.jig.text).expect("English")));
+        let words =
+            Box::leak(Box::new(view::connector_values_words::english(limits.client.domain.text).expect("English")));
         let family = Box::leak(Box::new(view::words::Words::english(limits.first.text).expect("family English")));
         let bounds = view::Limits::for_world(&limits, words, family, 512, 256).expect("small view bounds");
         Self {
@@ -50,8 +51,9 @@ impl Host {
         offset: i32,
         secret: Option<Box<[u8]>>,
     ) {
-        let mut kept =
-            List::with_capacity(self.env.limits.jig.records + self.env.limits.client.domain.requests.requests + 1);
+        let mut kept = List::with_capacity(
+            self.env.limits.client.domain.records + self.env.limits.client.domain.requests.requests + 1,
+        );
         for record in records {
             if let Some(record) = super::records::decode(record) {
                 kept.push(record).expect("bounded records");

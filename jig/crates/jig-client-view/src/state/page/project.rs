@@ -141,10 +141,16 @@ pub(crate) fn ask(domain: &mut Ui, number: u16, what: Read, out: &mut Queue<Requ
     }
 }
 
-pub(crate) fn show(domain: &mut Ui, env: &Env<crate::Limits>, parts: List<Part>, out: &mut Queue<Request>) {
+pub(crate) fn show(
+    domain: &mut Ui,
+    _env: &Env<crate::Config>,
+    parts: List<Part>,
+    out: &mut Queue<Request>,
+    lent: &jig_client::Client,
+) {
     let mut count = 0_u32;
     for part in parts.into_boxed() {
-        if count == env.limits.parts {
+        if count == lent.domain_limits().parts {
             crate::state::page::routing::refuse(domain, contract::Limit::Objects);
             break;
         }
@@ -158,11 +164,17 @@ pub(crate) fn show(domain: &mut Ui, env: &Env<crate::Limits>, parts: List<Part>,
     }
 }
 /// Replaces the live task watch so every filter is authoritative at its source.
-pub(crate) fn tasks(domain: &mut Ui, env: &Env<crate::Limits>, filter: TaskQuery, out: &mut Queue<Request>) {
+pub(crate) fn tasks(
+    domain: &mut Ui,
+    _env: &Env<crate::Config>,
+    filter: TaskQuery,
+    out: &mut Queue<Request>,
+    lent: &jig_client::Client,
+) {
     let Some(project) = number(domain) else {
         return;
     };
-    let mut old = List::with_capacity(env.limits.watches);
+    let mut old = List::with_capacity(lent.domain_limits().watches);
     for (id, watch) in &domain.handles.watches {
         match watch.subject {
             contract::Subject::Tasks { .. } => {
@@ -170,7 +182,7 @@ pub(crate) fn tasks(domain: &mut Ui, env: &Env<crate::Limits>, filter: TaskQuery
                     && watch.subject
                         == (contract::Subject::Tasks {
                             query: TaskQuery { project: Some(project), ..domain.project_page.task_filter },
-                            window: env.limits.rows,
+                            window: lent.domain_limits().rows,
                         })
                 {
                     old.push(*id).expect("watch IDs fit");
@@ -193,7 +205,10 @@ pub(crate) fn tasks(domain: &mut Ui, env: &Env<crate::Limits>, filter: TaskQuery
     domain.project_page.task_filter = filter;
     open(
         domain,
-        contract::Subject::Tasks { query: TaskQuery { project: Some(project), ..filter }, window: env.limits.rows },
+        contract::Subject::Tasks {
+            query: TaskQuery { project: Some(project), ..filter },
+            window: lent.domain_limits().rows,
+        },
         out,
     );
     domain.changed();
@@ -264,13 +279,13 @@ pub(crate) fn more(domain: &mut Ui, window: Token, end: End, out: &mut Queue<Req
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
-pub(crate) fn valid(limits: &crate::Limits) -> bool {
+pub(crate) fn valid(limits: &jig_client::DomainLimits) -> bool {
     limits.rows.checked_mul(2).is_some()
 }
 
 pub(crate) fn ended(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     source: Source,
     page: contract::TaskPage,
     out: &mut Queue<Request>,
@@ -287,7 +302,7 @@ pub(crate) fn ended(
         }
         domain.project_page.ended.push(row).expect("ended row fits");
     }
-    let mut keys = List::with_capacity(env.limits.rows);
+    let mut keys = List::with_capacity(lent.domain_limits().rows);
     for goal in &domain.project_page.ended {
         keys.push(contract::ObjectKey::Task(goal.chip.task)).expect("keys fit row window");
     }
@@ -304,13 +319,13 @@ pub(crate) fn ended(
 }
 pub(crate) fn task_rows(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     source: Source,
     tasks: contract::Tasks,
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
 ) {
-    let mut keys = List::with_capacity(env.limits.rows);
+    let mut keys = List::with_capacity(lent.domain_limits().rows);
     for task in &tasks.rows {
         keys.push(contract::ObjectKey::Task(task.chip.task)).expect("keys fit rows");
     }

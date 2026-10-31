@@ -24,8 +24,11 @@ fn list<T>(cap: u32, rows: impl IntoIterator<Item = T>) -> List<T> {
     }
     out
 }
-fn limits() -> crate::Limits {
-    crate::Limits { rows: 4, text: 32, ..crate::tests::tree::cards::CLIENT }
+fn limits() -> crate::tests::fixtures::Profile {
+    crate::tests::fixtures::Profile {
+        view: crate::Config { ..(crate::tests::tree::cards::CLIENT).view },
+        client: jig_client::DomainLimits { rows: 4, text: 32, ..(crate::tests::tree::cards::CLIENT).client },
+    }
 }
 fn doc(bytes: &[u8], cut: bool) -> DocumentText {
     DocumentText { bytes: Text::new(copy_of(bytes), 32).unwrap(), cut }
@@ -963,7 +966,7 @@ fn owner_project_public_goal_form_decodes_whole_bounded_procedure_and_keeps_prop
                 priority: u32::MAX,
                 deadline: None
             },
-            Text::new(copy_of(UTF8_TEXTS[0]), limits().text).unwrap()
+            Text::new(copy_of(UTF8_TEXTS[0]), limits().client.text).unwrap()
         )]
     );
     assert!(native_drive(&mut domain, Event::Act { action: Act::Confirm }).is_empty());
@@ -1083,12 +1086,25 @@ fn owner_project_historical_companion_prices_whole_languages_and_refuses_one_und
             );
         }
         let historical = crate::tests::render_limits(&limits(), w).unwrap();
-        assert!(historical.nodes <= view::max_nodes(&limits()).unwrap());
+        assert!(historical.nodes <= view::max_nodes(&limits(), &(limits()).client).unwrap());
         if second {
             assert!(has(&tree, b"second "));
         }
     }
-    assert!(view::max_nodes(&crate::Limits { rows: u32::MAX, ..limits() }).is_none());
+    assert!(
+        view::max_nodes(
+            &crate::tests::fixtures::Profile {
+                view: crate::Config { ..(limits()).view },
+                client: jig_client::DomainLimits { rows: u32::MAX, ..(limits()).client }
+            },
+            &(crate::tests::fixtures::Profile {
+                view: crate::Config { ..(limits()).view },
+                client: jig_client::DomainLimits { rows: u32::MAX, ..(limits()).client }
+            })
+            .client
+        )
+        .is_none()
+    );
     assert_eq!(domain.project_page().owner_spend.as_deref(), Some(&page));
 }
 

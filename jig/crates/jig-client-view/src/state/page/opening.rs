@@ -13,7 +13,7 @@ use skein_lib::{Env, Queue};
 
 pub(crate) fn section(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    env: &Env<crate::Config>,
     section: Section,
     owner: Holder,
     out: &mut Queue<Request>,
@@ -22,7 +22,7 @@ pub(crate) fn section(
     match section {
         Section::Inbox { group, project } => {
             domain.inbox.filter = super::inbox::Filter { project, kind: None, goal: None };
-            open_once(domain, Subject::Inbox { window: env.limits.rows }, owner, out);
+            open_once(domain, Subject::Inbox { window: lent.domain_limits().rows }, owner, out);
             super::conversations::start_group(domain, group, out);
         }
         Section::Conversations { project } => {
@@ -30,7 +30,7 @@ pub(crate) fn section(
                 && let Some(query) = crate::state::queries::chats(me, project)
             {
                 domain.chats.more = true;
-                open_once(domain, Subject::Tasks { query, window: env.limits.rows }, owner, out);
+                open_once(domain, Subject::Tasks { query, window: lent.domain_limits().rows }, owner, out);
             }
         }
         Section::Task { task, section } => {
@@ -56,7 +56,7 @@ pub(crate) fn section(
 
 fn project_section(
     domain: &mut Ui,
-    env: &Env<crate::Limits>,
+    _env: &Env<crate::Config>,
     project: u32,
     section: ProjectSection,
     owner: Holder,
@@ -68,9 +68,9 @@ fn project_section(
             if let Some(me) = domain.frame(lent).document
                 && crate::state::queries::goal_template(me, project).is_some()
             {
-                open_goals(domain, project, env.limits.rows, owner, out);
+                open_goals(domain, project, lent.domain_limits().rows, owner, out);
             }
-            open_once(domain, Subject::Inbox { window: env.limits.rows }, owner, out);
+            open_once(domain, Subject::Inbox { window: lent.domain_limits().rows }, owner, out);
             domain.inbox.filter = super::inbox::Filter { project: Some(project), kind: None, goal: None };
         }
         ProjectSection::Goals => {
@@ -78,7 +78,7 @@ fn project_section(
                 && let Some(template) = crate::state::queries::goal_template(me, project)
             {
                 let label = template.label;
-                open_goals(domain, project, env.limits.rows, owner, out);
+                open_goals(domain, project, lent.domain_limits().rows, owner, out);
                 project::ask(
                     domain,
                     project::GOALS_READ,
@@ -90,7 +90,7 @@ fn project_section(
         ProjectSection::Tasks => {
             let subject = Subject::Tasks {
                 query: contract::TaskQuery { project: Some(project), ..domain.project_page.task_filter },
-                window: env.limits.rows,
+                window: lent.domain_limits().rows,
             };
             open_once(domain, subject, owner, out);
             domain.changed();

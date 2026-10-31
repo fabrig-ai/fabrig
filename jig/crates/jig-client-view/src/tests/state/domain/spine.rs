@@ -3,42 +3,47 @@ use crate::state::{
     page::Page,
     store::Record,
 };
+use crate::tests::fixtures::Profile;
 use crate::tests::fixtures::{Fixture, Served, Watched};
-use crate::{Event, Limits, Request};
+use crate::{Event, Request};
 use jig_client::Link;
 use jig_client::contract::{Count, Delivery, DocumentText, HeldRole, Me, MeParty, Needs, PartyKind, WatchEvent};
 use skein_lib::{Duration, Env, List, Queue, Time, Wall};
 
-pub(crate) const LIMITS: Limits = Limits {
-    watches: 4,
-    notices: 2,
-    notice_life: Duration::from_secs(5),
-    linger: Duration::from_secs(5),
-    save_delay: Duration::from_secs(1),
-    intents: 2,
-    fields: 4,
-
-    objects: 2,
-    sources: 8,
-    reads: 4,
-    parts: 8,
-    delegates: 2,
-    document_bytes: 65536,
-    records: 2,
-    kept: 4,
-    drafts: 1,
-    projects: 2,
-    roles: 2,
-    text: 32,
-    rows: 2,
-    segments: 4,
-    accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
-    conversation_words: 2,
-    navigation_entries: 8,
-    updates_count: 99,
+pub(crate) const LIMITS: Profile = Profile {
+    view: crate::Config {
+        notices: 2,
+        notice_life: Duration::from_secs(5),
+        linger: Duration::from_secs(5),
+        save_delay: Duration::from_secs(1),
+        intents: 2,
+        objects: 2,
+        sources: 8,
+        drafts: 1,
+        roles: 2,
+        conversation_words: 2,
+        navigation_entries: 8,
+        updates_count: 99,
+    },
+    client: jig_client::DomainLimits {
+        watches: 5,
+        fields: 4,
+        reads: 4,
+        parts: 8,
+        delegates: 2,
+        document_bytes: 65536,
+        records: 2,
+        kept: 4,
+        projects: 2,
+        text: 32,
+        rows: 2,
+        segments: 4,
+        accounts: jig_client::AccountCounts { accounts: 8, sources: 8, sign_ins: 8 },
+        ..crate::tests::fixtures::CLIENT
+    },
 };
-pub(crate) fn env(now: Time) -> Env<Limits> {
-    Env { now, wall: Wall::EPOCH, limits: LIMITS }
+pub(crate) fn env(now: Time) -> Env<crate::Config> {
+    Env { now, wall: Wall::EPOCH, limits: LIMITS.view }
 }
 pub(in crate::tests) fn drain(mut out: Queue<Request>) -> Box<[Request]> {
     let mut rows = List::with_capacity(out.len());
@@ -162,7 +167,17 @@ fn foreign_requests_hide_work_until_me_confirms_the_party() {
     let mut domain = restored(
         &[(1, 7), (2, 7)],
         List::with_capacity(0),
-        &Limits { intents: LIMITS.kept, conversation_words: LIMITS.kept, ..LIMITS },
+        &Profile {
+            view: crate::Config {
+                intents: LIMITS.client.kept,
+                conversation_words: LIMITS.client.kept,
+                ..(LIMITS).view
+            },
+            client: jig_client::DomainLimits {
+                requests: skein_lib::RequestLimits { requests: LIMITS.client.kept, ..LIMITS.client.requests },
+                ..(LIMITS).client
+            },
+        },
     )
     .0;
     let watch = domain.frame_watch.unwrap();
@@ -178,7 +193,17 @@ fn the_last_foreign_kept_request_retiring_restores_the_work_page() {
     let mut domain = restored(
         &[(1, 7), (2, 7), (3, 9)],
         List::with_capacity(0),
-        &Limits { intents: LIMITS.kept, conversation_words: LIMITS.kept, ..LIMITS },
+        &Profile {
+            view: crate::Config {
+                intents: LIMITS.client.kept,
+                conversation_words: LIMITS.client.kept,
+                ..(LIMITS).view
+            },
+            client: jig_client::DomainLimits {
+                requests: skein_lib::RequestLimits { requests: LIMITS.client.kept, ..LIMITS.client.requests },
+                ..(LIMITS).client
+            },
+        },
     )
     .0;
     let watch = domain.frame_watch.unwrap();
@@ -197,7 +222,17 @@ fn own_kept_requests_do_not_hide_work_or_override_kept_draft_guard() {
     let mut domain = restored(
         &[(1, 7), (2, 7)],
         List::with_capacity(0),
-        &Limits { intents: LIMITS.kept, conversation_words: LIMITS.kept, ..LIMITS },
+        &Profile {
+            view: crate::Config {
+                intents: LIMITS.client.kept,
+                conversation_words: LIMITS.client.kept,
+                ..(LIMITS).view
+            },
+            client: jig_client::DomainLimits {
+                requests: skein_lib::RequestLimits { requests: LIMITS.client.kept, ..LIMITS.client.requests },
+                ..(LIMITS).client
+            },
+        },
     )
     .0;
     let watch = domain.frame_watch.unwrap();
@@ -211,12 +246,26 @@ fn own_kept_requests_do_not_hide_work_or_override_kept_draft_guard() {
         version: crate::state::store::STORE_VERSION,
         party: 8,
         task: 9,
-        words: jig_client::contract::Text::new(Box::from(*b"old"), LIMITS.text).unwrap(),
+        words: jig_client::contract::Text::new(Box::from(*b"old"), LIMITS.client.text).unwrap(),
         touched: 1,
     })
     .unwrap();
-    let mut guarded =
-        restored(&[(1, 7)], kept, &Limits { intents: LIMITS.kept, conversation_words: LIMITS.kept, ..LIMITS }).0;
+    let mut guarded = restored(
+        &[(1, 7)],
+        kept,
+        &Profile {
+            view: crate::Config {
+                intents: LIMITS.client.kept,
+                conversation_words: LIMITS.client.kept,
+                ..(LIMITS).view
+            },
+            client: jig_client::DomainLimits {
+                requests: skein_lib::RequestLimits { requests: LIMITS.client.kept, ..LIMITS.client.requests },
+                ..(LIMITS).client
+            },
+        },
+    )
+    .0;
     let watch = guarded.frame_watch.unwrap();
     delivered(&mut guarded, Time::ZERO, watch, frame(7));
     drive(&mut guarded, Time::ZERO, jig_client::Up::NotKept { key: [1; 16] });
@@ -243,7 +292,7 @@ pub(in crate::tests) fn party(number: u64) -> jig_client::contract::Party {
 pub(in crate::tests) fn restored(
     rows: &[(u8, u64)],
     records: List<Record>,
-    limits: &Limits,
+    limits: &Profile,
 ) -> (Fixture, jig_client::Handle) {
     let mut kept = List::with_capacity(u32::try_from(rows.len()).unwrap());
     for (number, party) in rows {

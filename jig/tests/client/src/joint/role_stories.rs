@@ -6,23 +6,21 @@ use jig_fake_workers::Call;
 
 fn receiving_limits() -> jig_client_test_domain::Limits {
     let mut limits = crate::test::limits();
-    limits.client.domain.text = 128;
     limits.client.domain.turn_text = 128;
     limits.client.domain.turn_bytes = 128;
-    limits.jig.text = 128;
-    limits.jig.rows = 2;
-    limits.jig.projects = 2;
+    limits.client.domain.text = 128;
+    limits.client.domain.rows = 2;
+    limits.client.domain.projects = 2;
     limits.jig.roles = 4;
-    limits.jig.delegates = 2;
+    limits.client.domain.delegates = 2;
     limits.first.text = 128;
     limits
 }
 
 fn choice_limits() -> jig_client_test_domain::Limits {
     let mut limits = receiving_limits();
-    limits.client.domain.text = 128;
     limits.client.domain.turn_text = 128;
-    limits.jig.text = 128;
+    limits.client.domain.text = 128;
     limits.first.text = 128;
     limits
 }
@@ -72,7 +70,7 @@ fn configured_with_bounds(
     owner.core.documents.rows = 2;
     owner.core.documents.lines = 2;
     owner.core.documents.chips = 2;
-    owner.core.documents.text_bytes = receiving.jig.text;
+    owner.core.documents.text_bytes = receiving.client.domain.text;
     // This scenario offers its agent and human executor, not a procedure.
     let kinds = Box::new([jig_domain_authority::Executor::Charter(1), jig_domain_authority::Executor::Role(1)]);
 

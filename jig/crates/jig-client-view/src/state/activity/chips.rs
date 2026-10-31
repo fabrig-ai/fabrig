@@ -6,7 +6,7 @@ use skein_lib::{Env, List, Queue};
 
 /// Changes membership after closing the previous watch obligation.
 /// A final unavailable subject waits until the named set changes.
-pub(crate) fn sync(domain: &mut Ui, env: &Env<crate::Limits>, out: &mut Queue<Request>, lent: &jig_client::Client) {
+pub(crate) fn sync(domain: &mut Ui, env: &Env<crate::Config>, out: &mut Queue<Request>, lent: &jig_client::Client) {
     match domain.page {
         crate::state::page::Page::Work { .. } => {}
         crate::state::page::Page::Elsewhere => {
@@ -27,7 +27,7 @@ pub(crate) fn sync(domain: &mut Ui, env: &Env<crate::Limits>, out: &mut Queue<Re
         | crate::state::page::Page::SomeoneElse => return,
     }
     let keys = domain.borrow(lent).conversation().names(env.limits.objects);
-    let mut tasks = List::with_capacity(env.limits.rows);
+    let mut tasks = List::with_capacity(lent.domain_limits().rows);
     for key in keys.into_boxed() {
         match key {
             ObjectKey::Task(task) => {
