@@ -39,17 +39,18 @@ pub fn rebuilt(key: &Key) -> Option<&'static str> {
 /// Last answers and retained rows at a quiescent boundary.
 pub struct Snapshot {
     rows: BTreeMap<Key, Record>,
+    wall: skein_lib::Wall,
     pub queries: Vec<(u64, Read)>,
     pub answers: Vec<Answer>,
 }
 impl Snapshot {
     #[must_use]
-    pub fn new(rows: &BTreeMap<Key, Record>) -> Self {
+    pub fn new(rows: &BTreeMap<Key, Record>, wall: skein_lib::Wall) -> Self {
         let sessions: Vec<_> = rows
             .values()
             .filter_map(|row| {
-                if let Record::Core(core::Record::People(people::Stored::SignIn { number, .. })) = row {
-                    Some(*number)
+                if let Record::Core(core::Record::People(people::Stored::SignIn { number, expires, .. })) = row {
+                    (*expires > wall).then_some(*number)
                 } else {
                     None
                 }
@@ -65,13 +66,21 @@ impl Snapshot {
                 }
             }
         }
-        Self { rows: rows.clone(), queries, answers: Vec::new() }
+        Self { rows: rows.clone(), wall, queries, answers: Vec::new() }
     }
 
     pub fn compare_rows(&self, rows: &BTreeMap<Key, Record>) {
         for key in self.rows.keys().chain(rows.keys()) {
             let mut before = self.rows.get(key).cloned();
             let mut after = rows.get(key).cloned();
+            // Startup discards sessions whose durable expiry is already past.
+            for row in [&mut before, &mut after] {
+                if let Some(Record::Core(core::Record::People(people::Stored::SignIn { expires, .. }))) = row
+                    && *expires <= self.wall
+                {
+                    *row = None;
+                }
+            }
             if rebuilt(key).is_some() {
                 for row in [&mut before, &mut after] {
                     if let Some(Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))) = row {
@@ -128,7 +137,8 @@ impl Driver {
     }
 
     /// A deliberately broken fixture: `close` does nothing.
-    pub fn broken(&mut self) {
+    pub fn broken(&mut self, reason: &str) {
+        assert!(!reason.is_empty(), "a broken fixture names its reason");
         self.broken = Fixture::Broken;
     }
 
@@ -140,7 +150,7 @@ impl Driver {
         self.oracle_settle();
         assert!(self.store.idle() && self.store.held.is_empty(), "restart oracle store settled");
         let forges = self.root.forges();
-        let mut snapshot = Snapshot::new(&self.store.rows);
+        let mut snapshot = Snapshot::new(&self.store.rows, self.env.wall);
         for (sign_in, read) in &snapshot.queries {
             snapshot.answers.push(self.oracle_read(*sign_in, read));
         }
@@ -163,6 +173,7 @@ impl Driver {
         fresh.protocol = std::mem::take(&mut self.protocol);
         fresh.serial = self.serial;
         fresh.period_sent = true;
+        self.broken = Fixture::Broken;
         *self = fresh;
         self.oracle_settle();
         snapshot.compare_rows(&self.store.rows);
@@ -315,6 +326,7 @@ pub fn close_world(
     std::mem::swap(&mut driver.root, root);
     std::mem::swap(&mut driver.store, store);
     std::mem::swap(&mut driver.protocol, protocol);
+    driver.broken = Fixture::Broken;
 }
 
 /// Public forge subjects are discovered from retained owners, including ended tasks.
@@ -392,5 +404,13 @@ pub fn compare_forges(before: temper_engine_domain_forge::Forges, after: temper_
             "restart oracle forge document forges, field {}",
             difference(&format!("{before:#?}"), &format!("{after:#?}"))
         );
+    }
+}
+
+impl Drop for Driver {
+    fn drop(&mut self) {
+        if !std::thread::panicking() {
+            self.close();
+        }
     }
 }

@@ -281,7 +281,7 @@ fn family(
     spent: &mut Spent,
 ) -> Result<reads::Loaded, Failure> {
     let after = paged::cursor(range, selected)?;
-    let walked = pages::walk(store, selected, after.as_ref(), spent.rows).ok_or(Failure::Corrupt)?;
+    let walked = pages::reader::walk(store, selected, after.as_ref(), spent.rows).or(Err(Failure::Corrupt))?;
     let mut found = List::with_capacity(u32::try_from(walked.rows.len()).or(Err(Failure::Corrupt))?);
     let mut last = None;
     for item in walked.rows {
@@ -346,7 +346,7 @@ fn members(store: &mut Store, root: u64) -> Result<Box<[tasks::Edge]>, Failure> 
         let selected = [intervals::delegates(requester)];
         let mut after = None;
         for _ in 0..=cap {
-            let walked = pages::walk(store, &selected, after.as_ref(), cap).ok_or(Failure::Corrupt)?;
+            let walked = pages::reader::walk(store, &selected, after.as_ref(), cap).or(Err(Failure::Corrupt))?;
             if walked.rows.is_empty() && walked.next.is_some() {
                 return Err(Failure::Cut);
             }
@@ -421,7 +421,7 @@ pub(super) fn subtree_history(
         let selected =
             intervals::scope(range.party, &reads::Scope::History { task, subtree: false }).ok_or(Failure::Corrupt)?;
         let after: Option<Cursor> = if index == first { paged::cursor(range, &selected)? } else { None };
-        let walked = pages::walk(store, &selected, after.as_ref(), spent.rows).ok_or(Failure::Corrupt)?;
+        let walked = pages::reader::walk(store, &selected, after.as_ref(), spent.rows).or(Err(Failure::Corrupt))?;
         for item in walked.rows {
             let size = u64::try_from(item.row.key.len())
                 .or(Err(Failure::Corrupt))?

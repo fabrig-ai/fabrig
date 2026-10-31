@@ -230,7 +230,6 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         Event::Failed { number } | Event::FrameTooLarge { number, .. } => {
             into.push(Up::Root(root::Event::Failed { number }));
         }
-        Event::Restored { .. } => unreachable!("the store returns typed start pages"),
         Event::Read { owner, result } => {
             if let Some(Flight::Read(load)) = routes.pending.remove(&owner) {
                 into.push(Up::Root(root::Event::Core(core::Event::ReadLoaded { load, result })));
@@ -342,7 +341,6 @@ fn loaded(routes: &mut Routes, owner: Token, rows: Box<[Row]>, next: Option<stor
         into.push(Up::Root(root::Event::Core(core::Event::Notes(event))));
     }
 }
-
 fn decode(row: Row, limits: &root::Limits) -> Result<root::Record, store::restore::Failure> {
     use store::restore::{Cause, DecodeFailure, Failure, RowSite};
     Ok(match row {

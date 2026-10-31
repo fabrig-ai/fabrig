@@ -13,8 +13,8 @@ fn restart_with(row: forge::Stored) -> Driver {
     restart_with_rows(Box::new([row]))
 }
 fn restart_with_rows(rows: Box<[forge::Stored]>) -> Driver {
-    let (running, _) = Driver::chat();
-    let mut store: Store = running.store;
+    let (mut running, _) = Driver::chat();
+    let mut store: Store = running.take_store();
     store.seed(rows.into_vec().into_iter().map(|row| Record::Forge { row: Box::new(row) }).collect(), Box::new([]));
     store.crash(9761);
     Driver::cold(store, walking::config(91), &walking::limits())
@@ -22,6 +22,7 @@ fn restart_with_rows(rows: Box<[forge::Stored]>) -> Driver {
 fn asserts_before_switch(row: forge::Stored, expected: forge::MissingLink) {
     let key = engine::Key::Forge(forge::stored_key(&row));
     let mut driver = restart_with(row.clone());
+    driver.broken("fixture removes a required forge link and catches the startup assertion");
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         for _ in 0..STEPS {
             driver.advance(true);

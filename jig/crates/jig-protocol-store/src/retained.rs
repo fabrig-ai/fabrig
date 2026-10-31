@@ -12,7 +12,6 @@ pub struct Page {
 
 impl Store {
     pub fn retained_page(&mut self, after: Option<&[u8]>, rows: u32, bytes: u64) -> Result<Page, Failure> {
-        self.consumed = true;
         restore::ready(self)?;
         if let Some(after) = after
             && after.len() > usize::try_from(self.limits.store.key).expect("map key allowance fits usize")
@@ -60,8 +59,8 @@ impl Store {
         if rows.is_empty()
             && let Some(next) = &next
         {
-            let initial = after.unwrap_or(&[]);
-            assert!(next.as_ref() > initial, "empty nonterminal retained page must advance its cursor");
+            let next = Cursor { interval: 0, after: next.clone() };
+            restore::assert_progress(cursor.as_ref(), true, Some(&next));
         }
         Ok(Page { rows, next })
     }

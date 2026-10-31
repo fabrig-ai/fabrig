@@ -503,5 +503,7 @@ pub fn run(story: Story, cut: Cut, seed: u64) -> Result<Outcome, Violation> {
         }
         Story::IssueCreation => issue_creation(&mut world)?,
     }
-    world.drain()
+    world.drain()?;
+    crate::oracle::close(&mut world)?;
+    Ok(world.outcome())
 }

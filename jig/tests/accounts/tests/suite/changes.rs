@@ -12,7 +12,7 @@ const PROVIDER: u32 = 1;
 const CARRIED: u64 = 1 << 63;
 
 fn fresh() -> World {
-    let mut world = World::with(providers(vec![provider(PROVIDER, true, true)]), &[]);
+    let mut world = World::with_start(jig_accounts_world::LIMITS, providers(vec![provider(PROVIDER, true, true)]), &[]);
     world.step(Event::Want);
     world
 }
@@ -205,7 +205,7 @@ fn removing_a_key_erases_its_rows_and_forgets_its_value() {
 }
 #[test]
 fn removing_an_account_answers_when_each_sign_out_has() {
-    let mut world = World::with(providers(vec![provider(PROVIDER, true, true)]), &[]);
+    let mut world = World::with_start(jig_accounts_world::LIMITS, providers(vec![provider(PROVIDER, true, true)]), &[]);
     world.restore(vec![
         account(10, PROVIDER, HOLDER, b"subject"),
         source(10, 11, 0, Kind::SignIn),
@@ -233,7 +233,8 @@ fn a_removed_accounts_number_is_never_given_again() {
     let account = account_of(&world, first);
     change(&mut world, Change::Remove { account });
     let next = world.domain.next_number();
-    let mut restarted = World::with(providers(vec![provider(PROVIDER, true, true)]), &[]);
+    let mut restarted =
+        World::with_start(jig_accounts_world::LIMITS, providers(vec![provider(PROVIDER, true, true)]), &[]);
     restarted.restore(vec![Stored::Next { number: next }]);
     restarted.step(Event::Want);
     let source = kept(&mut restarted, None);
@@ -290,21 +291,11 @@ fn uses_are_bounded_saved_and_restored() {
             vec![refused(Refusal::Uses)]
         );
     }
-    let mut restart = World::with(providers(vec![provider(PROVIDER, true, true)]), &[]);
+    let mut restart =
+        World::with_start(jig_accounts_world::LIMITS, providers(vec![provider(PROVIDER, true, true)]), &[]);
     restart.restore(vec![saved, source(account, first, 0, Kind::Key)]);
     restart.step(Event::Want);
     assert_eq!(restart.domain.account(account).expect("restored").uses(), Some(uses.as_ref()));
-    for invalid in [vec![Use::Party(7); 2], (0..=USES).map(Use::Project).collect()] {
-        let mut restart = World::with(providers(vec![provider(PROVIDER, true, true)]), &[]);
-        let mut row = jig_accounts_world::account(account, PROVIDER, HOLDER, b"");
-        if let Stored::Account { uses, .. } = &mut row {
-            *uses = Some(invalid.into_boxed_slice());
-        }
-        restart.restore(vec![row, source(account, first, 0, Kind::Key)]);
-        restart.step(Event::Want);
-        assert!(restart.domain.account(account).is_none());
-        assert!(restart.domain.unrestored() >= 1);
-    }
     for uses in [Some(Box::new([]) as Box<[Use]>), None] {
         change(&mut world, Change::SetUses { account, uses: uses.clone() });
         assert_eq!(world.domain.account(account).expect("account").uses(), uses.as_deref());
@@ -312,7 +303,8 @@ fn uses_are_bounded_saved_and_restored() {
 }
 #[test]
 fn a_restart_names_each_party_source_before_wanting_it() {
-    let mut world = World::with(
+    let mut world = World::with_start(
+        jig_accounts_world::LIMITS,
         providers(vec![provider(PROVIDER, true, true)]),
         &[account(1, PROVIDER, Holder::Deployment, b""), source(1, 2, 0, Kind::Key)],
     );

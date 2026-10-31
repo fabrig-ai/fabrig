@@ -37,7 +37,7 @@ fn restore_people(store: &mut Store) {
             bytes: u64::MAX,
         },
     );
-    let [Event::Restored { next: None, .. }] = &*events else {
+    let [Event::Page { next: None, .. }] = &*events else {
         panic!("people restored");
     };
 }

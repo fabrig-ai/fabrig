@@ -160,7 +160,6 @@ impl Core {
         self.start_input();
         self.people.start_restore(at);
         self.tasks.start_restore();
-        self.accounts.start_restore();
         self.authority.start_restore();
         self.start.phase = Some(Phase::LoadCore);
         self.start.at = at;

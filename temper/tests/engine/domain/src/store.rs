@@ -393,7 +393,6 @@ impl Store {
         self.drive(VecDeque::from([request]), Queue::uncapped());
     }
     fn open(&mut self) {
-        self.component.as_mut().expect("live component").start_restore();
         let root = self.files.root();
         self.drive(
             VecDeque::from([Request::Open { owner: Token::new(0), root, installation: INSTALLATION }]),
@@ -483,11 +482,7 @@ impl Store {
             | Event::FrameTooLarge { .. }
             | Event::OpenRefused { .. }
             | Event::SecretsNotReady { .. } => self.failed = true,
-            event @ (Event::Page { .. }
-            | Event::Restored { .. }
-            | Event::Loaded { .. }
-            | Event::Turns { .. }
-            | Event::Got { .. })
+            event @ (Event::Page { .. } | Event::Loaded { .. } | Event::Turns { .. } | Event::Got { .. })
                 if self.page_delay != 0 =>
             {
                 self.delayed.push_back(Delayed { event, delay: self.page_delay });
@@ -500,7 +495,6 @@ impl Store {
             | Event::PageRefused { .. }
             | Event::Switched { .. }
             | Event::Site { .. }
-            | Event::Restored { .. }
             | Event::Loaded { .. }
             | Event::Read { .. }
             | Event::Got { .. }

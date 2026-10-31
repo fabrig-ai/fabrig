@@ -102,9 +102,8 @@ impl Store {
         let mut drivers = [driver(limits), driver(limits), driver(limits)];
         let [store, secrets, transcripts] = &mut drivers;
         let seeded = protocol::seed([&mut store.io, &mut secrets.io, &mut transcripts.io], seed);
-        let mut component =
+        let component =
             protocol::Store::on_directory(limits, jig_test_store::application(&application.connector), models, seeded);
-        component.start_restore();
         Self {
             component,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
@@ -530,7 +529,7 @@ pub(super) fn answer(engine: &mut crate::Engine) {
                     engine.store.secrets.push(event);
                 }
             }
-            protocol::Event::Restored { .. } | protocol::Event::Corrupt { .. } => {
+            protocol::Event::Corrupt { .. } => {
                 unreachable!("the service opens its store in start mode")
             }
             protocol::Event::PageRefused { failure, .. } => {

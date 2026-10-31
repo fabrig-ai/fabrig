@@ -1847,7 +1847,7 @@ impl World {
         self.oracle_running = true;
         self.oracle_settle();
         let forges = self.root.forges();
-        let mut snapshot = crate::oracle::Snapshot::new(&self.store.rows);
+        let mut snapshot = crate::oracle::Snapshot::new(&self.store.rows, self.env.wall);
         for (sign_in, read) in &snapshot.queries {
             snapshot.answers.push(self.oracle_read(*sign_in, read.clone()));
         }
@@ -1860,12 +1860,13 @@ impl World {
         self.store.crash(0);
         snapshot.compare_rows(&self.store.rows);
         let store = std::mem::take(&mut self.store);
-        let fresh =
+        let mut fresh =
             crate::direct::Driver::cold(store, crate::oracle::config::copy(&self.restart_config), &self.env.limits);
-        self.root = fresh.root;
-        self.out = fresh.out;
-        self.events = fresh.events;
-        self.store = fresh.store;
+        std::mem::swap(&mut self.root, &mut fresh.root);
+        std::mem::swap(&mut self.out, &mut fresh.out);
+        std::mem::swap(&mut self.events, &mut fresh.events);
+        std::mem::swap(&mut self.store, &mut fresh.store);
+        fresh.broken = crate::oracle::Fixture::Broken;
         self.drained = None;
         self.period = Some(1);
         self.events.push_back(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
@@ -1926,7 +1927,19 @@ impl World {
                 quiet = 0;
             }
         }
-        panic!("restart oracle forge world did not settle: {:?}", self.root);
+        panic!(
+            "restart oracle forge world did not settle: ready={} held={} events={} immediate={:?} pending={:?} store_idle={} held_commits={} phase={:?} stop={:?} first={:?}",
+            self.root.ready(),
+            self.root.held_bytes(),
+            self.events.len(),
+            self.immediate,
+            self.pending,
+            self.store.idle(),
+            self.store.held.len(),
+            self.root.start_phase(),
+            self.root.start_stop(),
+            self.events.front()
+        );
     }
 
     fn oracle_read(&mut self, sign_in: u64, read: jig_domain_core::reads::Read) -> jig_domain_core::reads::Answer {
