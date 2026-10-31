@@ -174,10 +174,7 @@ pub fn sign(secret: &Secret, body: &[u8]) -> [u8; 64] {
     hmac.update(body);
     let mut signature = [0; 64];
     for (out, byte) in signature.as_chunks_mut::<2>().0.iter_mut().zip(hmac.finish()) {
-        for (digit, nibble) in out.iter_mut().zip([byte / 16, byte % 16]) {
-            *digit =
-                if nibble < 10 { b'0'.saturating_add(nibble) } else { b'a'.saturating_add(nibble.saturating_sub(10)) };
-        }
+        *out = skein_lib::hex::pair(byte, skein_lib::hex::Case::Lower);
     }
     signature
 }

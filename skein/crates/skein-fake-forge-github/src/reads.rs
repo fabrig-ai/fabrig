@@ -585,14 +585,7 @@ fn repository(row: Row, answer: Answer, limits: &Limits) -> Response {
     let mut tag = skein_lib::Writer::new(REPOSITORY_ETAG_BYTES);
     tag.put(b"\"").expect("tag");
     for byte in skein_lib::sha256::digest(&response.body) {
-        for nibble in [byte / 16, byte % 16] {
-            tag.put(&[if nibble < 10 {
-                b'0'.saturating_add(nibble)
-            } else {
-                b'a'.saturating_add(nibble.saturating_sub(10))
-            }])
-            .expect("tag");
-        }
+        tag.put(&skein_lib::hex::pair(byte, skein_lib::hex::Case::Lower)).expect("tag");
     }
     tag.put(b"\"").expect("tag");
     response.etag = Some(tag.finish());

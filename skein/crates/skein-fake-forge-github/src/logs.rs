@@ -175,10 +175,7 @@ fn signature(key: &Secret, input: &[u8]) -> [u8; 64] {
     mac.update(input);
     let mut out = [0; 64];
     for (pair, byte) in out.as_chunks_mut::<2>().0.iter_mut().zip(mac.finish()) {
-        for (digit, nibble) in pair.iter_mut().zip([byte / 16, byte % 16]) {
-            *digit =
-                if nibble < 10 { b'0'.saturating_add(nibble) } else { b'a'.saturating_add(nibble.saturating_sub(10)) };
-        }
+        *pair = skein_lib::hex::pair(byte, skein_lib::hex::Case::Lower);
     }
     out
 }

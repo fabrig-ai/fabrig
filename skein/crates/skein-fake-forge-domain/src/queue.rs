@@ -45,11 +45,7 @@ fn branch(base: &[u8], entry: QueueEntry, limit: u32) -> Result<Box<[u8]>, Error
         out.put(part).expect("measured group branch");
     }
     for byte in crate::object_bytes(entry.head) {
-        for nibble in [byte.checked_shr(4).expect("four-bit shift"), byte & 15] {
-            let digit =
-                if nibble < 10 { b'0'.saturating_add(nibble) } else { b'a'.saturating_add(nibble.saturating_sub(10)) };
-            out.put(&[digit]).expect("measured SHA-1");
-        }
+        out.put(&skein_lib::hex::pair(byte, skein_lib::hex::Case::Lower)).expect("measured SHA-1");
     }
     Ok(out.finish())
 }
