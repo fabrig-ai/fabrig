@@ -4,7 +4,7 @@
 use std::fs;
 
 use skein_io::kernel::{Complete, Done, Entry, Op, OpenHow, Submit};
-use skein_lib::{Queue, Token};
+use skein_lib::{Queue, Time, Token, Wall};
 use skein_scratch::Scratch;
 
 use crate::Kernel;
@@ -12,7 +12,64 @@ use crate::system::{open_root, status_flags};
 fn close(fd: i32) {
     crate::system::close(skein_io::kernel::Fd::new(fd)).expect("close test descriptor");
 }
-use crate::{Config, Wait};
+use crate::{Config, Host, Wait};
+
+struct Deadlines {
+    mechanism: Option<Time>,
+    policy: Option<Time>,
+    completions: Queue<Complete>,
+    submissions: Queue<Submit>,
+}
+
+impl Host for Deadlines {
+    fn iterate(&mut self, _now: Time, _wall: Wall) {}
+
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        &mut self.completions
+    }
+
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        &mut self.submissions
+    }
+
+    fn work_pending(&self, _now: Time) -> bool {
+        false
+    }
+
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.mechanism
+    }
+
+    fn next_policy_deadline(&self) -> Option<Time> {
+        self.policy
+    }
+
+    fn is_empty(&self) -> bool {
+        self.completions.is_empty() && self.submissions.is_empty()
+    }
+
+    fn operations(&self) -> u32 {
+        1
+    }
+}
+
+#[test]
+fn next_deadline_is_the_earlier_mechanism_or_policy_deadline() {
+    let early = Time::from_nanos(10);
+    let late = Time::from_nanos(20);
+    for (mechanism, policy, expected) in [
+        (None, None, None),
+        (Some(early), None, Some(early)),
+        (None, Some(early), Some(early)),
+        (Some(early), Some(late), Some(early)),
+        (Some(late), Some(early), Some(early)),
+        (Some(early), Some(early), Some(early)),
+    ] {
+        let host =
+            Deadlines { mechanism, policy, completions: Queue::with_capacity(1), submissions: Queue::with_capacity(1) };
+        assert_eq!(host.next_deadline(), expected, "mechanism {mechanism:?}, policy {policy:?}");
+    }
+}
 
 #[test]
 fn startup_process_id_is_this_process() {
