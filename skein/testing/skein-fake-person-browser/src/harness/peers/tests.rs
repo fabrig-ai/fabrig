@@ -85,15 +85,7 @@ impl Host for Peer {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
-        while self.io.is_ready() {
-            io::resume(&mut self.io, &self.env, &mut self.events, &mut self.submissions);
-        }
-        while let Some(complete) = self.completions.pop() {
-            io::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.submissions);
-        }
-        while self.io.is_due(now) {
-            io::fire(&mut self.io, &self.env, &mut self.events, &mut self.submissions);
-        }
+        io::stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         while let Some(event) = self.events.pop() {
             match event {
                 io::Event::Listening { listener, addr, .. } => {
@@ -120,10 +112,7 @@ impl Host for Peer {
         {
             self.requests.push(io::Request::Close { entity: listener });
         }
-        while self.io.takes() {
-            let Some(request) = self.requests.pop() else { break };
-            io::down(&mut self.io, &self.env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &self.env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
     }
     fn completions(&mut self) -> &mut Queue<Complete> {
@@ -138,7 +127,7 @@ impl Host for Peer {
             || !self.requests.is_empty()
             || self.stopping && self.listener.is_some()
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -218,4 +207,42 @@ fn a_lent_peer_becomes_ready_after_claiming_its_adopted_listener() {
     let (address, listens) = ready_and_drained(Peer::new(Some(listener)));
     assert_eq!(address, reserved);
     assert_eq!(listens, 0, "adoption does not submit a kernel Listen");
+}
+
+#[test]
+fn a_peer_keeps_its_request_until_submission_room_returns() {
+    let mut peer = Peer::new(None);
+    peer.submissions = Queue::with_capacity(io::MAX_OUT_DOWN.submissions);
+    peer.submissions.push(Submit { op: Token::new(99), kind: Op::Close { fd: Fd::new(-1) } });
+
+    peer.iterate(Time::ZERO, Wall::EPOCH);
+    assert_eq!(peer.requests.len(), 1);
+    assert!(peer.io.is_empty());
+
+    peer.submissions.clear();
+    peer.iterate(Time::ZERO, Wall::EPOCH);
+    assert!(peer.requests.is_empty());
+    let Op::Socket { .. } = peer.submissions.pop().expect("listen starts with a socket").kind else {
+        panic!("listen must start with a socket");
+    };
+}
+
+#[test]
+fn a_peer_keeps_its_completion_until_submission_room_returns() {
+    let mut peer = Peer::new(None);
+    peer.iterate(Time::ZERO, Wall::EPOCH);
+    let socket = peer.submissions.pop().expect("listen starts with a socket");
+    peer.completions.push(Complete { op: socket.op, kind: socket.kind, result: Ok(io::kernel::Done::Fd(Fd::new(7))) });
+    peer.submissions = Queue::with_capacity(io::MAX_OUT_UP.submissions);
+    peer.submissions.push(Submit { op: Token::new(99), kind: Op::Close { fd: Fd::new(-1) } });
+
+    peer.iterate(Time::ZERO, Wall::EPOCH);
+    assert_eq!(peer.completions.len(), 1);
+
+    peer.submissions.clear();
+    peer.iterate(Time::ZERO, Wall::EPOCH);
+    assert!(peer.completions.is_empty());
+    let Op::Bind { .. } = peer.submissions.pop().expect("socket completion starts a bind").kind else {
+        panic!("socket completion must start a bind");
+    };
 }
