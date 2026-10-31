@@ -1,5 +1,5 @@
 //! Forge removal (temper/docs/design/draft/playground-reset.md, 4).
-use crate::{Answered, Domain, ForgeRefusal, ForgeState, Mode, RemoveAnswer, Request, forges};
+use crate::{Answered, Domain, ForgeRefusal, ForgeState, Key, Mode, RemoveAnswer, Request, forges};
 use jig_domain_people::Role;
 use skein_lib::{List, Queue, Token};
 
@@ -57,6 +57,9 @@ pub(crate) fn begin(d: &mut Domain, forge: u16, out: &mut Queue<Request>) -> boo
     for key in installations.into_boxed() {
         d.installations.remove(&key);
     }
+    if d.writers.remove(&forge).is_some() {
+        out.push(Request::Erase { key: Key::Writer(forge) });
+    }
     crate::domain::retire_forge(d, forge);
     out.push(Request::MarkedForges);
     true
@@ -79,9 +82,7 @@ fn answered(d: &mut Domain, forge: u16, secrets: bool, out: &mut Queue<Request>)
             let box_removed = box_removed || !secrets;
             record.state = ForgeState::Ended { secrets_erased, box_removed };
             forges::save(d, record, out);
-            if secrets_erased && box_removed {
-                settle(d, forge, out);
-            }
+            settle(d, forge, out);
         }
     }
 }
@@ -103,4 +104,27 @@ pub(crate) fn restart(d: &Domain, out: &mut Queue<Request>) {
 }
 
 /// Finish removal's rows and record once both kept steps are answered.
-pub(crate) fn settle(_d: &mut Domain, _forge: u16, _out: &mut Queue<Request>) {}
+pub(crate) fn settle(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
+    let Some(record) = d.record(forge) else { return };
+    let whole = match record.state {
+        ForgeState::Kept => return,
+        ForgeState::Ended { secrets_erased, box_removed } => secrets_erased && box_removed,
+    };
+    if crate::domain::erase_removed_repositories(d, forge, out) && whole {
+        forges::erase(d, forge, out);
+    }
+}
+
+/// A task's erased names can release repositories on any ended forge.
+pub(crate) fn unnamed(d: &mut Domain, out: &mut Queue<Request>) {
+    let mut ended = List::with_capacity(d.records.capacity());
+    for (forge, record) in &d.records {
+        match record.state {
+            ForgeState::Kept => {}
+            ForgeState::Ended { .. } => ended.push(*forge).expect("bounded forge records"),
+        }
+    }
+    for forge in ended.into_boxed() {
+        settle(d, forge, out);
+    }
+}
