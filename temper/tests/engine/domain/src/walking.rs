@@ -370,6 +370,7 @@ pub fn config(seed: u64) -> engine::Config {
             asked: false,
         }]),
         under_box: false,
+        playground: None,
         demo: None,
     }
 }

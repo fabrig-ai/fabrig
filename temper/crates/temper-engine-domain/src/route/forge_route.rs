@@ -2989,9 +2989,10 @@ pub(crate) fn outputs(
             }
             forge::Request::ListDemoActs => super::demo::list_end_acts(domain),
             forge::Request::SendDemoAct(row) => super::demo::send_end_act(domain, row),
-            forge::Request::PlaygroundActs { .. } | forge::Request::ResetAct { .. } => {
-                // t-root-playground
+            forge::Request::PlaygroundActs { request, forge } => {
+                super::playground::start(domain, env, decision, request, forge);
             }
+            forge::Request::ResetAct { key, act } => super::playground::reset(domain, key, act),
             forge::Request::DemoStart { request } => super::demo::start(domain, env, decision, request),
             forge::Request::ForgeKept(record) => {
                 assert!(super::now(domain, Request::ForgeKept(record)), "forge runtime door");
@@ -3023,10 +3024,12 @@ pub(crate) fn outputs(
             }
             forge::Request::ApplicationDone { request, token } => {
                 super::demo::done(domain, env, decision, request, true);
+                super::playground::done(domain, env, decision, request, true);
                 super::applications::finished(domain, request, Ok(token));
             }
             forge::Request::ApplicationAgain { request, why } => {
                 super::demo::done(domain, env, decision, request, false);
+                super::playground::done(domain, env, decision, request, false);
                 super::applications::finished(domain, request, Err(why));
             }
             forge::Request::WakeProcedure { task } => {
