@@ -47,11 +47,11 @@ pub(crate) fn class(failure: skein_llm::Failure) -> llm::Failure {
         skein_llm::Failure::Unavailable => llm::Failure::Unavailable,
         skein_llm::Failure::TimedOut { phase } => llm::Failure::TimedOut {
             phase: match phase {
-                skein_llm::CompletionPhase::Connect => llm::CompletionPhase::Connect,
-                skein_llm::CompletionPhase::Handshake => llm::CompletionPhase::Handshake,
-                skein_llm::CompletionPhase::Head => llm::CompletionPhase::Head,
-                skein_llm::CompletionPhase::Idle => llm::CompletionPhase::Idle,
-                skein_llm::CompletionPhase::Whole => llm::CompletionPhase::Whole,
+                skein_llm::Phase::Connect => llm::CompletionPhase::Connect,
+                skein_llm::Phase::Handshake => llm::CompletionPhase::Handshake,
+                skein_llm::Phase::Head => llm::CompletionPhase::Head,
+                skein_llm::Phase::Idle => llm::CompletionPhase::Idle,
+                skein_llm::Phase::Whole => llm::CompletionPhase::Whole,
             },
         },
         skein_llm::Failure::ContextTooLong => llm::Failure::ContextTooLong,
