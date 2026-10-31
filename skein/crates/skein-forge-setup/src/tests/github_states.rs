@@ -90,7 +90,7 @@ impl World {
         }
     }
     fn admit(&mut self) -> Run {
-        let forge = configured(&self.host.settings, FORGE);
+        let forge = configured(&self.host.settings, FORGE).expect("fixture forge is held");
         Run::new(
             forge,
             manifest(FORGE),
