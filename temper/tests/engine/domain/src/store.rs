@@ -304,7 +304,8 @@ impl Store {
                 match reply {
                     engine::StoreInput::Loaded { rows, next, .. } => return (rows, next),
                     engine::StoreInput::Committed { .. } => continue,
-                    reply @ (engine::StoreInput::Switched
+                    reply @ (engine::StoreInput::MissingLink { .. }
+                    | engine::StoreInput::Switched
                     | engine::StoreInput::Uncommitted { .. }
                     | engine::StoreInput::Unloaded { .. }
                     | engine::StoreInput::ReadLoaded { .. }) => {
@@ -331,7 +332,8 @@ impl Store {
                 match reply {
                     engine::StoreInput::ReadLoaded { result, .. } => return result,
                     engine::StoreInput::Committed { .. } => continue,
-                    engine::StoreInput::Switched
+                    engine::StoreInput::MissingLink { .. }
+                    | engine::StoreInput::Switched
                     | engine::StoreInput::Uncommitted { .. }
                     | engine::StoreInput::Unloaded { .. }
                     | engine::StoreInput::Loaded { .. } => {
