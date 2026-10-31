@@ -13,9 +13,7 @@ fn running(config: Config) -> (Domain, Env<Limits>, Queue<Request>) {
     let mut limits = crate::tests::limits();
     limits.agent = crate::AgentLimits::Spawned(crate::tests::host_limits());
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.clone() };
-    let mut domain = Domain::new(config, &limits, 71).expect("bounded local parent");
-    domain.chat.phase = Phase::Running;
-    domain.run = Some(Token::new(1));
+    let domain = Domain::running_parent(config, &limits, 71);
     let out = Queue::uncapped();
     (domain, env, out)
 }
@@ -180,8 +178,8 @@ fn account_notices() -> [(parent::Request, AccountFailure); 4] {
 
 #[test]
 fn told_and_withdrawn_do_not_abandon_a_durable_delivery() {
-    let (mut domain, env, mut out) = running(crate::tests::config());
-    domain.delivery_owner = Some(Token::new(55));
+    let (_, env, mut out) = running(crate::tests::config());
+    let mut domain = Domain::running_delivery(crate::tests::config(), &env.limits, 71, Token::new(55));
     parent_request(
         &mut domain,
         &env,
@@ -519,10 +517,7 @@ fn an_unconfigured_host_call_receives_one_unavailable_parent_answer() {
 
 #[test]
 fn closing_input_during_a_refused_start_exits_after_the_notice() {
-    let (mut domain, env, mut out) = running(crate::tests::config());
-    domain.chat.phase = Phase::Starting;
-    domain.chat.start_saved = true;
-    domain.grants.awaiting = 1;
+    let (mut domain, env, mut out) = crate::tests::awaiting_credential(crate::tests::config());
     crate::step(&mut domain, &env, Event::Closed, &mut out);
     assert!(out.is_empty());
     crate::step(
@@ -531,6 +526,12 @@ fn closing_input_during_a_refused_start_exits_after_the_notice() {
         Event::NoCredential { account: 7, reason: crate::CredentialFailure::Missing },
         &mut out,
     );
+    let Some(Request::Notice { notice: Notice::NotDelivered { line: Some(line), why: Undelivered::Dropped } }) =
+        out.pop()
+    else {
+        panic!("the pending line is dropped before the credential refusal")
+    };
+    assert_eq!(line, Token::new(1));
     let Some(Request::Notice { notice }) = out.pop() else { panic!("failed grant notice") };
     assert_eq!(notice, Notice::Failure(Failure::Credential { account: 7, reason: crate::CredentialFailure::Missing }));
     let Some(Request::Exit { status: crate::ExitStatus::Accepted }) = out.pop() else { panic!("closed input exits") };
@@ -539,9 +540,8 @@ fn closing_input_during_a_refused_start_exits_after_the_notice() {
 
 fn answer_with_a_late_state_save(gone_first: bool) {
     let (mut domain, env, mut out) = running(crate::tests::config());
-    domain.chat.state_pending = true;
-    domain.lines.receive(Box::from(&b"follow-up"[..])).expect("room");
-    domain.lines.name(Token::new(1));
+    crate::step(&mut domain, &env, Event::Line { text: b"follow-up".as_slice().into() }, &mut out);
+    drop(crate::tests::drain_requests(&mut out));
     parent_request(
         &mut domain,
         &env,
@@ -596,7 +596,6 @@ fn gone_after_a_late_turn_save_shows_the_answer_once() {
         },
         &mut out,
     );
-    domain.run = None;
     super::turn_saved(&mut domain, &env, 1, &mut out);
     assert_eq!(domain.chat.phase, Phase::Answered { gone: super::Gone::Owed });
     parent_request(
@@ -764,7 +763,8 @@ fn a_forced_exit_after_a_parked_or_cancelled_answer_keeps_its_terminal() {
 fn the_host_answer_clock_precedes_teardown_and_durable_saves() {
     let (mut domain, mut env, mut out) = running(crate::tests::config());
     env.wall = Wall::from_nanos(36_000_000_000_000);
-    domain.chat.state_pending = true;
+    crate::step(&mut domain, &env, Event::Line { text: b"follow-up".as_slice().into() }, &mut out);
+    drop(crate::tests::drain_requests(&mut out));
     assert_eq!(domain.answer_wall(), None);
     parent_request(
         &mut domain,
@@ -827,9 +827,10 @@ mod older {
             crate::Older::Layout(crate::StoreFamily::Store),
             crate::Older::Layout(crate::StoreFamily::Transcript),
         ] {
-            let (mut domain, env, mut out) = running(crate::tests::config());
-            domain.run = None;
-            domain.chat.phase = Phase::Loading;
+            let limits = crate::tests::limits();
+            let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.clone() };
+            let mut domain = Domain::new(crate::tests::config(), &limits, 71).expect("loading parent");
+            let mut out = Queue::uncapped();
             let reason = crate::StoreFailure::OlderBuild { why };
             crate::step(&mut domain, &env, Event::StoreFailed { turn: None, reason }, &mut out);
             assert_eq!(domain.end_cause, Some(crate::EndCause::Host { turn: None, reason }));

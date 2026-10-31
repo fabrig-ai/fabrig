@@ -3,16 +3,9 @@ use crate::{CredentialFailure, Mode, Notice, Undelivered};
 
 #[test]
 fn a_program_failure_drops_the_headless_start() {
-    let limits = crate::tests::limits();
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.clone() };
     let mut config = crate::tests::config();
     config.mode = Mode::Headless { prompt: b"work".as_slice().into() };
-    let mut domain = Domain::new(config, &limits, 71).unwrap();
-    domain.chat.phase = Phase::Starting;
-    domain.chat.start_saved = true;
-    domain.grants.awaiting = 1;
-    domain.lines.name(Token::new(1));
-    let mut out = Queue::uncapped();
+    let (mut domain, env, mut out) = crate::tests::awaiting_credential(config);
     step(
         &mut domain,
         &env,

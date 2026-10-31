@@ -11,9 +11,13 @@ use smith_domain::run::{self, charter::Endpoint, outcome};
 use crate::{Config, Contract, Domain, Event, Invalid, Limits, Request, charter};
 
 fn idle_chat(seed: u64) -> (Domain, Env<Limits>, Queue<Request>) {
+    idle_config(config(), seed)
+}
+
+fn idle_config(config: Config, seed: u64) -> (Domain, Env<Limits>, Queue<Request>) {
     let limits = limits();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.clone() };
-    let mut domain = Domain::new(config(), &limits, seed).unwrap();
+    let mut domain = Domain::new(config, &limits, seed).unwrap();
     let mut out = Queue::uncapped();
     crate::resume(&mut domain, &env, &mut out);
     drop(drain_requests(&mut out));
@@ -23,7 +27,6 @@ fn idle_chat(seed: u64) -> (Domain, Env<Limits>, Queue<Request>) {
 
 #[test]
 fn the_next_charter_keeps_the_startup_sub_agent_models_and_accounts() {
-    let limits = limits();
     let mut configured = config();
     let first = configured.models[0].clone();
     let mut second = first.clone();
@@ -33,9 +36,14 @@ fn the_next_charter_keeps_the_startup_sub_agent_models_and_accounts() {
     configured.progress = Box::new([configured.progress[0], configured.progress[0]]);
     configured.protocol_allowances = Box::new([0, 0]);
     configured.sub_agents = true;
-    let mut domain = Domain::new(configured, &limits, 11).unwrap();
+    let (mut domain, env, mut out) = idle_config(configured, 11);
     let before = domain.charter().0;
-    domain.main_model = 1;
+    crate::step(
+        &mut domain,
+        &env,
+        Event::Slash(crate::Slash::Model { model: b"other".as_slice().into(), selected: Some(1) }),
+        &mut out,
+    );
     let after = domain.charter().0;
     assert_eq!(after.llm.model.as_ref(), b"other");
     assert_eq!(after.models, before.models);
@@ -45,8 +53,8 @@ fn the_next_charter_keeps_the_startup_sub_agent_models_and_accounts() {
 
 #[test]
 fn the_next_charters_effort_leaves_the_startup_inventory_unchanged() {
-    let (mut domain, _, _) = idle_chat(11);
-    domain.effort = Some(b"high".as_slice().into());
+    let (mut domain, env, mut out) = idle_chat(11);
+    crate::step(&mut domain, &env, Event::Slash(crate::Slash::Effort { level: b"high".as_slice().into() }), &mut out);
     assert_eq!(domain.charter().0.llm.effort.as_deref(), Some(b"high".as_slice()));
     assert!(domain.config.models[0].effort.is_none());
 }
@@ -520,7 +528,7 @@ pub(super) fn spawned_chat_with_saved_hello() -> (Domain, Env<Limits>, Queue<Req
     (domain, env, out, owner)
 }
 
-pub(super) fn drain_requests(out: &mut Queue<Request>) -> Vec<Request> {
+pub(crate) fn drain_requests(out: &mut Queue<Request>) -> Vec<Request> {
     let mut requests = Vec::new();
     while let Some(request) = out.pop() {
         requests.push(request);
@@ -749,12 +757,13 @@ fn slash_effort_without_a_list_still_refuses_more_than_32_bytes() {
 
 #[test]
 fn slash_effort_waits_for_the_live_activation_to_end() {
-    let (mut domain, env, mut out) = idle_chat(11);
-    domain.chat.phase = crate::chat::Phase::Running;
+    let limits = limits();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.clone() };
+    let mut domain = Domain::running_parent(config(), &limits, 11);
+    let mut out = Queue::uncapped();
     crate::step(&mut domain, &env, Event::Slash(crate::Slash::Effort { level: b"high".as_slice().into() }), &mut out);
     assert!(domain.charter().0.llm.effort.is_none());
-    domain.chat.phase = crate::chat::Phase::Idle;
-    crate::choices::apply(&mut domain, &env, &mut out);
+    domain.finish_activation(&env, &mut out);
     assert_eq!(domain.charter().0.llm.effort.as_deref(), Some(b"high".as_slice()));
 }
 
@@ -789,9 +798,8 @@ fn slash_model_selects_a_startup_model_only_at_idle() {
     configured.efforts = Box::new([Box::new([]), Box::new([])]);
     configured.progress = Box::new([configured.progress[0], configured.progress[0]]);
     configured.protocol_allowances = Box::new([0, 0]);
-    let mut domain = Domain::new(configured, &limits, 11).unwrap();
+    let mut domain = Domain::running_parent(configured, &limits, 11);
     let mut out = Queue::uncapped();
-    domain.chat.phase = crate::chat::Phase::Running;
     crate::step(
         &mut domain,
         &env,
@@ -799,16 +807,13 @@ fn slash_model_selects_a_startup_model_only_at_idle() {
         &mut out,
     );
     assert_eq!(domain.charter().0.llm.model.as_ref(), b"small");
-    domain.chat.phase = crate::chat::Phase::Idle;
-    crate::choices::apply(&mut domain, &env, &mut out);
+    domain.finish_activation(&env, &mut out);
     assert_eq!(domain.charter().0.llm.model.as_ref(), b"other");
 }
 
 #[test]
 fn slash_model_keeps_an_effort_the_new_model_accepts() {
     for efforts in [Box::<[run::charter::Effort]>::default(), Box::new([b"high".as_slice().into()])] {
-        let limits = limits();
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.clone() };
         let mut configured = config();
         let first = configured.models[0].clone();
         let mut other = first.clone();
@@ -817,10 +822,13 @@ fn slash_model_keeps_an_effort_the_new_model_accepts() {
         configured.efforts = Box::new([Box::new([]), efforts]);
         configured.progress = Box::new([configured.progress[0], configured.progress[0]]);
         configured.protocol_allowances = Box::new([0, 0]);
-        let mut domain = Domain::new(configured, &limits, 11).unwrap();
-        let mut out = Queue::uncapped();
-        domain.chat.phase = crate::chat::Phase::Idle;
-        domain.effort = Some(b"high".as_slice().into());
+        let (mut domain, env, mut out) = idle_config(configured, 11);
+        crate::step(
+            &mut domain,
+            &env,
+            Event::Slash(crate::Slash::Effort { level: b"high".as_slice().into() }),
+            &mut out,
+        );
         crate::step(
             &mut domain,
             &env,
@@ -975,4 +983,17 @@ fn invalid_limits_are_refused() {
     let crate::AgentLimits::Spawned(ref mut child) = spawned.agent else { unreachable!() };
     child.turns = 0;
     assert!(!crate::valid(&spawned));
+}
+
+/// An activation whose metadata is saved while its account request is outstanding.
+pub(crate) fn awaiting_credential(config: Config) -> (Domain, Env<Limits>, Queue<Request>) {
+    let headless = matches!(config.mode, crate::Mode::Headless { .. });
+    let (mut domain, env, mut out) = idle_config(config, 71);
+    if !headless {
+        crate::step(&mut domain, &env, Event::Line { text: b"work".as_slice().into() }, &mut out);
+    }
+    drop(drain_requests(&mut out));
+    crate::step(&mut domain, &env, Event::StateSaved, &mut out);
+    drop(drain_requests(&mut out));
+    (domain, env, out)
 }

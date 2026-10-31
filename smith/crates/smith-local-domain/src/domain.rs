@@ -2124,6 +2124,45 @@ fn reconcile_terminal_with_receipts(
 }
 
 #[cfg(test)]
+impl Domain {
+    pub(crate) fn finish_activation(&mut self, env: &Env<Limits>, out: &mut Queue<Request>) {
+        use smith_host_domain::{self as host, parent};
+        parent_request(
+            self,
+            env,
+            parent::Request::Answered {
+                client: Token::new(1),
+                answer: host::Answer { read: None, turns: 0, spent: 0, result: host::RunResult::Parked },
+                detail: Box::default(),
+            },
+            out,
+        );
+        parent_request(
+            self,
+            env,
+            parent::Request::Gone { client: Token::new(1), end: host::End::Settled, detail: Box::default() },
+            out,
+        );
+        step(self, env, Event::Loaded { state: None, transcript: None, deliveries: Box::default() }, out);
+    }
+
+    /// A parent-face harness with a live child whose requests are injected by the test.
+    pub(crate) fn running_parent(config: Config, limits: &Limits, seed: u64) -> Self {
+        let mut domain = Self::new(config, limits, seed).expect("bounded parent harness");
+        domain.chat.phase = Phase::Running;
+        domain.run = Some(Token::new(1));
+        domain
+    }
+
+    /// A parent-face harness retaining one durable delivery owner through withdrawal.
+    pub(crate) fn running_delivery(config: Config, limits: &Limits, seed: u64, owner: Token) -> Self {
+        let mut domain = Self::running_parent(config, limits, seed);
+        domain.delivery_owner = Some(owner);
+        domain
+    }
+}
+
+#[cfg(test)]
 #[path = "parent_tests.rs"]
 mod parent_tests;
 
