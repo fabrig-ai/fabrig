@@ -164,7 +164,7 @@ impl Component {
             Event::Admitted { watcher } => self.watch_answer(env, watcher, None),
             Event::WatchRefused { watcher, why } => self.watch_answer(env, watcher, Some(why)),
             Event::Delivery { watcher, document } => self.delivery(env, watcher, &document),
-            Event::Ended { watcher, why } => self.watch_ended(env, watcher, why),
+            Event::WatchEnded { watcher, why } => self.watch_ended(env, watcher, why),
             Event::RunText { watcher, turn, from, to, text, cut, call, writing } => {
                 self.run_text(env, watcher, jig_domain_views::Writing { turn, from, to, text, cut, call, writing });
             }

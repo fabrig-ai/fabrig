@@ -73,7 +73,7 @@ pub fn ended_task_record() -> w::Ended {
     ended.value = w::EndedValue::Task(
         w::EndedValueTask::new(&lim, w::EndedValueTaskParts { document: task_record(), result }).unwrap(),
     );
-    w::WatchEnded::new(&lim, ended).unwrap()
+    w::Ended::new(&lim, ended).unwrap()
 }
 pub fn expected_ended_task() -> c::Ended {
     let mut result = read_value_result();

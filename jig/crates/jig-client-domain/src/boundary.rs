@@ -105,7 +105,7 @@ pub enum Up {
     Answer { attempt: Token, envelope: RequestEnvelope, answer: Option<Answered>, why: Option<Retry> },
     Watched { watch: Token, event: contract::WatchEvent },
     FamilyDelivered { watch: Token, record: Family },
-    Ended { watch: Token, end: contract::WatchEnd },
+    WatchEnded { watch: Token, end: contract::WatchEnd },
     ReadDone { read: Token, result: Readout },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]

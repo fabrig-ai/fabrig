@@ -99,7 +99,7 @@ fn a_page_keeps_its_two_cursors_as_bytes() {
     );
 }
 #[test]
-fn a_ended_task_keeps_its_ending() {
+fn an_ended_task_keeps_its_ending() {
     assert_eq!(
         translate::objects::ended(fixtures::ended_task_record(), &fixtures::limits()),
         Ok(fixtures::expected_ended_task())

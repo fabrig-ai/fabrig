@@ -147,7 +147,7 @@ impl Client {
         });
     }
     pub(crate) fn end(&mut self, watch: Token, end: contract::WatchEnd) {
-        self.step(Event::Up { up: Up::Ended { watch, end } });
+        self.step(Event::Up { up: Up::WatchEnded { watch, end } });
     }
 }
 

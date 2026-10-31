@@ -43,7 +43,7 @@ fn a_decided_escalation_keeps_its_decider_and_wall() {
     }
 }
 #[test]
-fn a_ended_task_keeps_its_ending() {
+fn an_ended_task_keeps_its_ending() {
     let answer = reads::Answer::Ended(Box::new(fixtures::ended_task()));
     assert_eq!(
         translate::document(&answer, &[], &fixtures::wire_limits()),

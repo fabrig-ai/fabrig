@@ -292,7 +292,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::Up::Answer { attempt, envelope, answer, why } => {
                 domain.answer(env, attempt, envelope, answer, why, out);
             }
-            crate::Up::Watched { .. } | crate::Up::FamilyDelivered { .. } | crate::Up::Ended { .. } => {
+            crate::Up::Watched { .. } | crate::Up::FamilyDelivered { .. } | crate::Up::WatchEnded { .. } => {
                 domain.up(env, up, out);
             }
         },

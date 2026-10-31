@@ -30,7 +30,7 @@ impl Domain {
             | Up::ReadDone { .. } => {
                 unreachable!("watch events only")
             }
-            Up::Watched { watch, .. } | Up::FamilyDelivered { watch, .. } | Up::Ended { watch, .. } => *watch,
+            Up::Watched { watch, .. } | Up::FamilyDelivered { watch, .. } | Up::WatchEnded { watch, .. } => *watch,
         };
         let mut found = None;
         for (id, w) in &self.watches {
@@ -63,7 +63,7 @@ impl Domain {
                 self.opened(id, name, out);
                 self.deliver(env, id, Latest::Family(record), out);
             }
-            Up::Ended { end, .. } => self.ended(env, id, end, out),
+            Up::WatchEnded { end, .. } => self.ended(env, id, end, out),
         }
     }
     fn opened(&mut self, id: u64, name: Token, out: &mut Queue<Request>) {
