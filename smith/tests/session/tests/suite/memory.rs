@@ -9,7 +9,7 @@ use skein_world::domain::heap::Meter;
 use smith_domain_session::llm::{Block, Completion, Decoded, Descriptor, Endpoint, Failure, Problem, Stop, Usage};
 use smith_domain_session::{Budget, Domain, Event, Limits, MAX_PARALLEL, Request, Spec};
 use smith_domain_tools::{
-    Authority, Budget as ToolBudget, Call, Done, Effect, Grants, Name, Part, Path, Repo, Version,
+    Authority, Budget as ToolBudget, Call, Directory, Done, Effect, Grants, Name, Part, Path, Version,
 };
 use smith_session_world::{TOOLS, reservation_envelope};
 
@@ -27,7 +27,7 @@ fn name() -> Name {
 fn authority() -> Authority {
     Authority {
         cwd: Box::new([name()]),
-        repos: Box::new([Repo {
+        repos: Box::new([Directory {
             host: Box::new([smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
             mount: Box::new([name()]),
             root: Token::new(1),

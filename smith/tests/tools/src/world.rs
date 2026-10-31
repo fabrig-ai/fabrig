@@ -1,4 +1,4 @@
-mod jobs;
+pub mod jobs;
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
@@ -6,7 +6,7 @@ use skein_fake_checkout::Checkout;
 use skein_lib::{Duration, ReplyTo, Rng, Time, Token};
 use skein_world::domain::{Key, Ledger, Schedule, Span, Stage, Trace};
 use smith_domain_tools as tools;
-use smith_domain_tools::{Authority, Call, Done, Expect, Fault, Grants, Op, Outcome, Refusal, Repo};
+use smith_domain_tools::{Authority, Call, Directory, Done, Expect, Fault, Grants, Op, Outcome, Refusal};
 
 use crate::translate;
 
@@ -928,7 +928,7 @@ fn session_of(fact: &tools::Fact) -> Token {
 }
 
 /// A repository of `checkout` at `mount`, made a root.
-pub fn repo(checkout: &mut Checkout, mount: &[u8], writable: bool) -> Repo {
+pub fn repo(checkout: &mut Checkout, mount: &[u8], writable: bool) -> Directory {
     let root = checkout.root(mount.strip_prefix(b"/").expect("a mount is absolute"));
     crate::fixture::directory(mount, translate::token(root), writable)
 }
@@ -936,6 +936,6 @@ pub fn repo(checkout: &mut Checkout, mount: &[u8], writable: bool) -> Repo {
 /// An authority whose relative paths start at `cwd`; the fake machine owns
 /// the commands' configured environment.
 #[must_use]
-pub fn authority(cwd: &[u8], repos: Vec<Repo>, grants: Grants) -> Authority {
+pub fn authority(cwd: &[u8], repos: Vec<Directory>, grants: Grants) -> Authority {
     Authority { cwd: translate::names(cwd), repos: repos.into(), grants }
 }

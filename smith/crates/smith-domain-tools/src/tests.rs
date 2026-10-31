@@ -13,8 +13,8 @@ use crate::knowledge::Knowledge;
 use crate::path;
 use crate::window::{self, Span};
 use crate::{
-    Authority, Call, Domain, Done, Effect, Entry, Event, Exit, Expect, Fault, Grants, Hit, Kind, Limits, Name, Op,
-    Outcome, Part, Path, Place, Refusal, Repo, Request, Version, effect, step, valid,
+    Authority, Call, Directory, Domain, Done, Effect, Entry, Event, Exit, Expect, Fault, Grants, Hit, Kind, Limits,
+    Name, Op, Outcome, Part, Path, Place, Refusal, Request, Version, effect, step, valid,
 };
 use crate::{FactKind as Fact, Tool, Verdict};
 
@@ -167,8 +167,8 @@ fn push(parts: &mut List<Part>, part: &[u8]) {
 }
 
 /// The names of an absolute path.
-fn repo(mount: &[u8], root: u64, writable: bool) -> Repo {
-    Repo { host: names(b"/host"), mount: names(mount), root: Token::new(root), writable }
+fn repo(mount: &[u8], root: u64, writable: bool) -> Directory {
+    Directory { host: names(b"/host"), mount: names(mount), root: Token::new(root), writable }
 }
 
 fn names(text: &[u8]) -> Box<[Name]> {
@@ -184,7 +184,7 @@ fn names(text: &[u8]) -> Box<[Name]> {
     names.into_boxed()
 }
 
-/// A checkout at /work, where relative paths start in temper, which may be
+/// A workspace at /work, where relative paths start in temper, which may be
 /// written; a library vendored in it and the docs beside it may not.
 fn authority(grants: Grants) -> Authority {
     Authority {
@@ -339,7 +339,7 @@ fn a_mount_holds_itself_and_what_is_beneath_it() {
 
 #[test]
 fn a_path_is_in_the_repository_with_the_longest_mount_that_holds_it() {
-    let checkout = authority::admit(authority(ALL), &LIMITS).expect("the authority fits");
+    let working = authority::admit(authority(ALL), &LIMITS).expect("the authority fits");
     let table: [(&[u8], Result<Located, Outcome>); 13] = [
         (b"src/lib.rs", Ok(located(1, b"src/lib.rs", true))),
         (b".", Ok(located(1, b"", true))),
@@ -362,7 +362,7 @@ fn a_path_is_in_the_repository_with_the_longest_mount_that_holds_it() {
         (b"a/very/long/path/that/does/not/fit/in/the/sixty/four/bytes/allowed", Err(Outcome::TooLong)),
     ];
     for (text, expected) in table {
-        let located = match authority::locate(&checkout, &path(text), LIMITS.path_bytes) {
+        let located = match authority::locate(&working, &path(text), LIMITS.path_bytes) {
             Ok(Target::Place(located)) => Ok(located),
             Ok(Target::Directories) => panic!("a place row"),
             Err(outcome) => Err(outcome),
@@ -375,7 +375,7 @@ fn a_path_is_in_the_repository_with_the_longest_mount_that_holds_it() {
 fn a_repository_mounted_at_the_root_holds_what_no_other_does() {
     let mut authority = authority(ALL);
     authority.repos = Box::new([repo(b"/", 7, false), repo(b"/work/temper", 1, true)]);
-    let checkout = authority::admit(authority, &LIMITS).expect("the authority fits");
+    let working = authority::admit(authority, &LIMITS).expect("the authority fits");
     let table: [(&[u8], Result<Located, Outcome>); 3] = [
         (b"/etc/passwd", Ok(located(7, b"etc/passwd", false))),
         (b"src", Ok(located(1, b"src", true))),
@@ -383,7 +383,7 @@ fn a_repository_mounted_at_the_root_holds_what_no_other_does() {
     ];
     for (text, expected) in table {
         assert_eq!(
-            authority::locate(&checkout, &path(text), LIMITS.path_bytes),
+            authority::locate(&working, &path(text), LIMITS.path_bytes),
             match expected {
                 Ok(located) => Ok(Target::Place(located)),
                 Err(outcome) => Err(outcome),
@@ -1151,7 +1151,7 @@ fn a_path_is_in_git_when_one_of_its_names_is_dot_git() {
         (b"src/.gitx/.gIt/HEAD", true),
         (b".git/config", true),
         (b"src/.git", true),
-        (b"vendor/lib/.git/hooks/post-checkout", true),
+        (b"vendor/lib/.git/hooks/post-working", true),
         (b"", false),
         (b"src/lib.rs", false),
         (b".github/workflows/ci.yml", false),
@@ -1662,9 +1662,9 @@ fn host_aliases_choose_whole_names_and_keep_the_namespace_root_pure() {
     let mounted = Authority {
         cwd: names(b"/w"),
         repos: Box::new([
-            Repo { host: names(b"/tmp/work"), mount: names(b"/w"), root: Token::new(1), writable: true },
-            Repo { host: names(b"/tmp/work/vendor"), mount: names(b"/d"), root: Token::new(2), writable: false },
-            Repo { host: names(b"/elsewhere"), mount: names(b"/tmp"), root: Token::new(3), writable: true },
+            Directory { host: names(b"/tmp/work"), mount: names(b"/w"), root: Token::new(1), writable: true },
+            Directory { host: names(b"/tmp/work/vendor"), mount: names(b"/d"), root: Token::new(2), writable: false },
+            Directory { host: names(b"/elsewhere"), mount: names(b"/tmp"), root: Token::new(3), writable: true },
         ]),
         grants: ALL,
     };

@@ -3,7 +3,7 @@
 //! commands run.
 
 use skein_fake_checkout::{Checkout, Exit, Program};
-use smith_domain_tools::{Authority, Grants, Repo};
+use smith_domain_tools::{Authority, Directory, Grants};
 
 use crate::{authority, repo};
 
@@ -18,7 +18,7 @@ pub struct Fixture {
     /// Prepared repository roots and effective write authority supplied by the host.
     pub checkout: Checkout,
     /// Prepared repository mounts and their effective write permissions.
-    pub repos: Vec<Repo>,
+    pub repos: Vec<Directory>,
 }
 
 impl Fixture {
@@ -122,8 +122,8 @@ pub fn long() -> Vec<u8> {
 
 /// A directory root at a namespace mount with an explicit write grant.
 #[must_use]
-pub fn directory(mount: &[u8], root: skein_lib::Token, writable: bool) -> smith_domain_tools::Repo {
-    smith_domain_tools::Repo {
+pub fn directory(mount: &[u8], root: skein_lib::Token, writable: bool) -> smith_domain_tools::Directory {
+    smith_domain_tools::Directory {
         host: crate::translate::names(b"/host"),
         mount: crate::translate::names(mount),
         root,

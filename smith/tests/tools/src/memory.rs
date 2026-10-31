@@ -3,7 +3,7 @@
 //! that a domain fills its configured admission limits.
 
 use skein_lib::Token;
-use smith_domain_tools::{Authority, Call, Grants, Limits, Name, Part, Path, Repo};
+use smith_domain_tools::{Authority, Call, Directory, Grants, Limits, Name, Part, Path};
 
 /// Small bounded checkout-tool limits for exercising the memory envelope.
 pub const LIMITS: Limits = Limits {
@@ -37,7 +37,7 @@ pub fn authority(limits: &Limits) -> Authority {
     let len = usize::try_from(limits.path_bytes).expect("a small limit");
     let names = len.div_ceil(2);
     let cwd: Box<[Name]> = (0..names).map(|_| name(b"a")).collect();
-    let mut repos = vec![Repo {
+    let mut repos = vec![Directory {
         host: Box::new([name(&vec![b'h'; usize::try_from(limits.host_path_bytes).expect("bounded host path")])]),
         mount: Box::new([]),
         root: Token::new(0),
@@ -45,7 +45,7 @@ pub fn authority(limits: &Limits) -> Authority {
     }];
     for repo in 1..limits.repos {
         let mount = format!("{repo:0>len$}");
-        repos.push(Repo {
+        repos.push(Directory {
             host: Box::new([name(&vec![b'h'; usize::try_from(limits.host_path_bytes).expect("bounded host path")])]),
             mount: Box::new([name(mount.as_bytes())]),
             root: Token::new(repo.into()),

@@ -38,7 +38,7 @@ pub enum FactKind {
     Answered {
         session: Token,
         tool: Tool,
-        /// Content-free classification of the checkout call terminal.
+        /// Content-free classification of the tool call terminal.
         verdict: Verdict,
         /// Owned payload bytes charged against the enclosing session limit.
         bytes: u64,

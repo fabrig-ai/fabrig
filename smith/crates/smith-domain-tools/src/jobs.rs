@@ -4,7 +4,7 @@
 //! Same-job reads reach the machine one at a time.
 //! Contract: smith/docs/design/domain/tools.md, section 5; skein/docs/foundation/programming-model.md, sections 5.2 and 6.3.
 
-use crate::command::{Kept, Timed};
+use crate::command::{Kept, SelectedTimeout};
 use crate::domain::Domain;
 use crate::facts::{self, FactKind};
 use crate::flight::{self, Flight};
@@ -16,7 +16,7 @@ use skein_lib::{Env, Id, Map, Queue, ReplyTo, Time, Token};
 #[derive(Debug)]
 pub(crate) struct Jobs {
     held: Map<u32, Job>,
-    reads: Map<u64, Read>,
+    reads: Map<u64, JobRead>,
     highest: u32,
     next_read: u64,
     cancelling: bool,
@@ -39,11 +39,11 @@ enum State {
 }
 
 #[derive(Debug)]
-pub(crate) struct Read {
+pub(crate) struct JobRead {
     job: JobNumber,
     reply_to: ReplyTo,
     observation: Option<CallInfo>,
-    timed: Timed,
+    timed: SelectedTimeout,
     kept: Kept,
     deadline: Time,
     stop: bool,
@@ -73,7 +73,7 @@ impl Jobs {
         self.reads.len()
     }
 
-    pub(crate) fn held(&mut self, owner: Id<Flight>, observation: Option<CallInfo>, started: Time) -> JobNumber {
+    pub(crate) fn hold(&mut self, owner: Id<Flight>, observation: Option<CallInfo>, started: Time) -> JobNumber {
         self.highest = self.highest.checked_add(1).expect("a conversation's job numbers fit u32");
         let number = JobNumber(self.highest);
         let call = match observation {
@@ -116,7 +116,7 @@ impl Jobs {
 }
 
 /// Enqueue a read; another read of this number must consume its answer first.
-pub(crate) fn call(domain: &mut Domain, env: &Env<Limits>, id: Id<Kit>, read: Read, out: &mut Queue<Request>) {
+pub(crate) fn call(domain: &mut Domain, env: &Env<Limits>, id: Id<Kit>, read: JobRead, out: &mut Queue<Request>) {
     let kit = domain.kits.get_mut(id).expect("the session owns its kit");
     let job = read.job;
     let problem = if kit.jobs.held.contains_key(&job.0) { None } else { Some(JobProblem::Unknown { job }) };
@@ -162,12 +162,12 @@ pub(crate) fn read(
     job: JobNumber,
     reply_to: ReplyTo,
     observation: Option<CallInfo>,
-    timed: Timed,
+    timed: SelectedTimeout,
     kept: Kept,
     deadline: Time,
     stop: bool,
-) -> Read {
-    Read { job, reply_to, observation, timed, kept, deadline, stop, hastened: false }
+) -> JobRead {
+    JobRead { job, reply_to, observation, timed, kept, deadline, stop, hastened: false }
 }
 
 /// The session names a pending reply; a queued read keeps its shortened wait.
@@ -380,7 +380,7 @@ fn tell(session: Token, number: JobNumber, job: &Job, facts: &mut facts::Facts) 
 )]
 fn answer(
     session: Token,
-    read: Read,
+    read: JobRead,
     head: Box<[u8]>,
     tail: Box<[u8]>,
     dropped: u64,

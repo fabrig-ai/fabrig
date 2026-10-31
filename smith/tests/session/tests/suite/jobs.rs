@@ -7,8 +7,12 @@ use smith_session_world::recorded::{self, World};
 fn opening(transcript: Option<record::Transcript>) -> record::Opening {
     let mut opening = recorded::opening(transcript, 100);
     opening.spec.authority.grants = tools::Grants { inspect: true, modify: true, shell: true };
-    opening.spec.authority.repos =
-        Box::new([tools::Repo { host: Box::default(), mount: Box::default(), root: Token::new(7), writable: true }]);
+    opening.spec.authority.repos = Box::new([tools::Directory {
+        host: Box::default(),
+        mount: Box::default(),
+        root: Token::new(7),
+        writable: true,
+    }]);
     opening
 }
 

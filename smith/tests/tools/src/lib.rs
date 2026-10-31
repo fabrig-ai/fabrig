@@ -19,7 +19,7 @@ pub mod memory;
 mod names;
 mod noisy;
 pub mod translate;
-mod world;
+pub mod world;
 
 pub use names::kind;
 pub use noisy::noisy_world;
