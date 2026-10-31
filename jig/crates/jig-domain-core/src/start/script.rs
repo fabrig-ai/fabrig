@@ -11,6 +11,9 @@ impl Core {
             return Action::Refused(failure);
         }
         assert!(self.start.phase == Some(done) && self.start.waiting.is_none(), "start phase completed in order");
+        if self.stopping {
+            return Action::Idle;
+        }
         let next = match done {
             Phase::LoadCore => {
                 if let Some(failure) = self.start_settings_finish(env) {
@@ -105,6 +108,9 @@ impl Core {
             return Action::Refused(failure);
         }
         assert!(self.start.phase == Some(Phase::Sweep) && self.start.waiting.is_none(), "sweep waits for its commit");
+        if self.stopping {
+            return Action::Idle;
+        }
         match input {
             SweepInput::Record(record) => {
                 match &record {
@@ -148,6 +154,9 @@ impl Core {
             return Action::Refused(failure);
         }
         self.start.waiting = None;
+        if self.stopping {
+            return Action::Idle;
+        }
         match continuation.phase {
             Phase::AdoptRuns => {
                 assert!(
