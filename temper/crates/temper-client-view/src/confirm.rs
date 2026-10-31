@@ -167,7 +167,6 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut
                 dangerous: jig_client::facts::dangerous(ActKind::Cancel),
                 effect: jig_client::facts::effect(task.acts.as_slice(), ActKind::Cancel).copied(),
                 funding: skein_lib::List::with_capacity(0),
-                funds: None,
             };
             for fact in &jig_client::words::decision(&facts, &words.book, words.language) {
                 crate::cards::text(b, Role::Paragraph, fact);
@@ -243,20 +242,9 @@ fn close(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings)
 fn run_live(task: &jig_client::contract::Task) -> bool {
     use jig_client::contract::{ChipPhase, OwnerChipPhase, RunStage};
     let stage = match task.chip.details.as_ref() {
-        ChipPhase::Owner { phase: OwnerChipPhase::Active(stage), .. } => Some(stage),
-        ChipPhase::Active(active) => Some(&active.stage),
-        ChipPhase::Running { .. } => return true,
-        ChipPhase::Owner { .. }
-        | ChipPhase::Waiting { .. }
-        | ChipPhase::Idle { .. }
-        | ChipPhase::Starting
-        | ChipPhase::WaitingForWords { .. }
-        | ChipPhase::BackingOff { .. }
-        | ChipPhase::Procedure { .. }
-        | ChipPhase::Person { .. }
-        | ChipPhase::Closing(_)
-        | ChipPhase::Held { .. }
-        | ChipPhase::Ended { .. } => None,
+        ChipPhase { phase: OwnerChipPhase::Active(stage), .. } => Some(stage),
+
+        ChipPhase { .. } => None,
     };
     match stage {
         Some(RunStage::Claimed { .. } | RunStage::Running { .. }) => true,

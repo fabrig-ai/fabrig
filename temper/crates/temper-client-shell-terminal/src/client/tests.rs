@@ -16,11 +16,11 @@ fn held_startup_keeps_the_first_quiet_chat_activity_answer() {
     assert_eq!(chat.thread.lines.rows.len(), 1, "the first activity answer reaches the actual page");
     assert_eq!(credential, Some(fixtures::credential()), "first read uses the installed held credential");
     assert!(matches!(
-        chat.thread.lines.rows.as_slice()[0].event,
-        jig_client::contract::Activity::RunBegan { attempt: fixtures::RUN, .. }
+        chat.thread.lines.rows.as_slice()[0].source.line,
+        c::OwnerActivity::RunBegan { attempt: fixtures::RUN, .. }
     ));
     assert!(
-        matches!(chat.thread.lines().as_slice(), [jig_client::thread::Line::RunBegan { attempt: fixtures::RUN }]),
+        matches!(chat.thread.lines().as_slice(), [jig_client::thread::Line::Activity { line }] if matches!(line.source.line, jig_client::contract::OwnerActivity::RunBegan { attempt: fixtures::RUN, .. })),
         "the view receives the intended line"
     );
     assert!(chat.thread.reading.is_none(), "the page consumed its answer");
@@ -183,7 +183,9 @@ fn starting_retold_by_a_lost_sign_out_keeps_the_pending_link_activity_read() {
     host.transport(jig_client::Event::Reply { exchange: current, message: fixtures::activity_answer(true) });
     let chat = host.root.pages().chat().expect("chat");
     assert_eq!(chat.thread.lines.rows.len(), 1, "the original pending R2 answer is still accepted");
-    assert!(matches!(chat.thread.lines().as_slice(), [jig_client::thread::Line::RunBegan { attempt: fixtures::RUN }]));
+    assert!(
+        matches!(chat.thread.lines().as_slice(), [jig_client::thread::Line::Activity { line }] if matches!(line.source.line, jig_client::contract::OwnerActivity::RunBegan { attempt: fixtures::RUN, .. }))
+    );
     assert!(chat.thread.reading.is_none());
     assert!(host.out.is_empty(), "answering R2 quietly completes the read");
 }
@@ -310,9 +312,9 @@ fn another_partys_kept_work_prints_its_line_once() {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch,
-                    event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Me(Box::new(
-                        jig_client_world::stories::frame(CURRENT_PARTY),
-                    ))),
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(jig_client_world::stories::frame(
+                        CURRENT_PARTY,
+                    )))),
                 },
             },
         });
@@ -455,7 +457,7 @@ fn a_snapshot_retains_the_latest_activity_refusal_without_its_payload() {
     host.transport(jig_client::Event::Reply { exchange, message: fixtures::busy_activity_answer() });
     let snapshot = host.pending();
     let chat = snapshot.chat.as_ref().expect("chat snapshot");
-    assert_eq!(chat.last_read_none, Some(jig_client::contract::ReadNone::Busy));
+    assert_eq!(chat.last_read_none, Some(c::ReadNone::Busy));
     assert!(chat.reading.is_some(), "the page retains the read position while waiting to retry");
     assert!(chat.retained.is_empty());
     let rendered = format!("{snapshot:?}");

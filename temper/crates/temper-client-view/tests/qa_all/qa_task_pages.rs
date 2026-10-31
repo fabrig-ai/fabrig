@@ -125,9 +125,7 @@ mod tests {
         task.priority = None;
         task.goal = None;
         task.chip.phase = c::Phase::Active;
-        let c::ChipPhase::Owner { phase, details, .. } = task.chip.details.as_mut() else {
-            unreachable!("owner fixture")
-        };
+        let c::ChipPhase { phase, details, .. } = task.chip.details.as_mut();
         *phase = c::OwnerChipPhase::Active(c::RunStage::Idle);
         details.project = 1;
         details.executor = c::OwnerExecutor::Procedure { connector: FORGE, code: 2 };
@@ -260,7 +258,7 @@ mod tests {
             c::Text::new(format!("ended child {number}").into_bytes().into(), 32).expect("title"),
         );
         task.chip.executor = c::Executor::Agent { charter: 1 };
-        let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { unreachable!("owner") };
+        let c::ChipPhase { details, .. } = task.chip.details.as_mut();
         details.executor = c::OwnerExecutor::Agent { charter: 1 };
         details.procedure = None;
         c::TaskLine {
@@ -286,11 +284,11 @@ mod tests {
     }
     fn phase(task: &mut c::Task, value: c::OwnerChipPhase) {
         task.chip.phase = value.compact();
-        let c::ChipPhase::Owner { phase, .. } = task.chip.details.as_mut() else { unreachable!("owner") };
+        let c::ChipPhase { phase, .. } = task.chip.details.as_mut();
         *phase = value;
     }
     fn details(task: &mut c::Task) -> &mut c::OwnerChipDetails {
-        let c::ChipPhase::Owner { details, .. } = task.chip.details.as_mut() else { unreachable!("owner") };
+        let c::ChipPhase { details, .. } = task.chip.details.as_mut();
         details
     }
     fn agent() -> c::Task {

@@ -55,28 +55,17 @@ pub(super) fn scope(call: &Call, document: &c::ReadValue) -> Result<Scope, Faile
     {
         return Ok(Scope::Project(escalation.task.project));
     }
-    if let c::ReadValue::Escalation(escalation) = document
-        && expected(call) == c::ObjectKey::Escalation(escalation.task.task)
-    {
-        return Ok(chip_scope(&escalation.task));
-    }
+
     if let c::ReadValue::OwnerProposal(proposal) = document
         && expected(call) == c::ObjectKey::Proposal(proposal.key)
     {
         return Ok(Scope::Project(proposal.project));
     }
-    if let c::ReadValue::Proposal(proposal) = document
-        && expected(call) == c::ObjectKey::Proposal(proposal.key)
-    {
-        return Ok(Scope::Project(proposal.project));
-    }
+
     Err(Failed::Fixed(b"tools' bug; unexpected act document; report it as a finding"))
 }
 fn chip_scope(chip: &c::Chip) -> Scope {
-    match chip_project(chip) {
-        Some(project) => Scope::Project(project),
-        None => Scope::Task(chip.task),
-    }
+    Scope::Project(chip_project(chip))
 }
 pub(super) fn offers(document: &c::ReadValue) -> Option<&List<c::Offered>> {
     if let c::ReadValue::Task(task) = document {
@@ -88,15 +77,11 @@ pub(super) fn offers(document: &c::ReadValue) -> Option<&List<c::Offered>> {
     if let c::ReadValue::OwnerEscalation(escalation) = document {
         return Some(&escalation.acts);
     }
-    if let c::ReadValue::Escalation(escalation) = document {
-        return Some(&escalation.acts);
-    }
+
     if let c::ReadValue::OwnerProposal(proposal) = document {
         return Some(&proposal.acts);
     }
-    if let c::ReadValue::Proposal(proposal) = document {
-        return Some(&proposal.acts);
-    }
+
     None
 }
 
@@ -117,9 +102,7 @@ pub(super) fn ended(document: &c::ReadValue) -> Option<c::Phase> {
             c::Ending::Withdrawn { .. } | c::Ending::Decided { .. } | c::Ending::Deleted => c::Phase::Ended,
         });
     }
-    if let c::ChipPhase::Owner { details, .. } = task.chip.details.as_ref()
-        && let Some(ending) = &details.ending
-    {
+    if let Some(ending) = &task.chip.details.details.ending {
         return Some(owner_ending(ending));
     }
     Some(c::Phase::Ended)

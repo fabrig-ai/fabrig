@@ -135,14 +135,14 @@ fn a_landed_delegate_names_the_pull_before_the_whole_merge_commit() {
     let branch = part();
     task.resources = List::with_capacity(1);
     task.resources
-        .push(c::TaskResource::Owner(Box::new(c::OwnerResourceLine {
+        .push(c::OwnerResourceLine {
             part: branch.clone(),
             kind: 1,
             taken: false,
             holder: None,
             writer: None,
             writer_lost: false,
-        })))
+        })
         .expect("branch resource");
     let result = ended(
         task,
@@ -437,13 +437,9 @@ fn report_activity_names_phase_changes_without_history_positions() {
         ),
         (1, c::OwnerActivity::Milestone { position: 1 }),
     ] {
-        rows.push(c::ActivityLine {
-            position,
-            at: Wall::EPOCH,
-            event: c::Activity::Owner {
-                source: Box::new(c::OwnerActivityLine { task: DELEGATE, position, at: Wall::EPOCH, line }),
-                decoded: None,
-            },
+        rows.push(jig_client::contract::ActivityLine {
+            source: Box::new(c::OwnerActivityLine { task: DELEGATE, position, at: Wall::EPOCH, line }),
+            decoded: None,
         })
         .expect("three activity rows");
     }
@@ -665,7 +661,7 @@ fn a_held_tasks_text_names_its_reason_and_release_revision() {
 #[test]
 fn a_held_tasks_text_keeps_the_effect_source_supplied_by_the_read() {
     let mut task = f::held_task(f::goal(f::TASK, c::WaitsOn::Nothing), c::HoldCategory::EffectFailed);
-    let Some(c::TaskHold::Owner(hold)) = task.hold.as_mut() else { panic!("owner hold") };
+    let Some(hold) = task.hold.as_mut() else { panic!("owner hold") };
     hold.source = Some(part());
     let answer = f::read_answer(f::TASK_CALL, f::task_result(task));
     assert_eq!(answer.status, 0);

@@ -373,7 +373,7 @@ fn a_run_or_tree_ending_meets_ended() {
     let mut root = f::signed_in(f::PARTY);
     for (argv, watch, delivery) in [
         (f::WAIT_RUN, f::run_watch(), f::no_provisional()),
-        (f::WAIT_TREE, f::tree_watch(), c::Delivery::Tree(Box::new(f::composite_tree()))),
+        (f::WAIT_TREE, f::tree_watch(), c::Delivery::OwnerTree(Box::new(f::composite_tree()))),
     ] {
         let call = root.wait_since(argv, f::UNTIL_ENDED, &f::task_digest(&f::parked()).hex());
         root.deliver_subject(&watch, delivery);
@@ -646,7 +646,7 @@ fn task_tree_reads_the_tree_alone() {
             held_below: 0,
         })
         .expect("fold");
-    for tree in [c::Delivery::Tree(Box::new(f::composite_tree())), c::Delivery::OwnerTree(owner)] {
+    for tree in [c::Delivery::OwnerTree(Box::new(f::composite_tree())), c::Delivery::OwnerTree(owner)] {
         for json in [false, true] {
             let mut root = f::signed_in(f::PARTY);
             let flags = if json { &["--tree", "--json"][..] } else { &["--tree"][..] };
@@ -715,7 +715,7 @@ fn inbox_read(
         if !needs_more {
             root.serve(call, f::inbox_rows(c::InboxReadGroup::Updates, updates, false));
         }
-        delivery = c::Delivery::Inbox(Box::new(f::inbox_window(needs, updates, false)));
+        delivery = c::Delivery::OwnerInbox(Box::new(f::inbox_window(needs, updates, false)));
     }
     assert!(root.answer(call).is_none(), "read needs the watch's form too");
     root.deliver_subject(&f::inbox_watch(), delivery.clone());
