@@ -90,9 +90,11 @@ pub(crate) fn input(
                         key: connector::Key {
                             deployment: [u8::try_from(config.seed).expect("tiny negative seed"); 16],
                             task: key.task,
-                            attempt: key.attempt,
-                            completion: key.completion,
-                            position: key.position,
+                            origin: jig_test_connector::Purpose::Call {
+                                attempt: key.attempt,
+                                completion: key.completion,
+                                position: key.position,
+                            },
                             purpose: effect.purpose,
                         },
                     },

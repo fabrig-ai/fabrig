@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 pub use jig_test_connector::{
     ApplicationObject, ApplicationOutcome, Attempt, ClientDocument, ClientResource, Description,
     DiagnosticAvailability, Effect, EffectPhase, Fact, Form, Hold, HoldMode, Key, OutboxEntry, Path, ProcedureState,
-    Recovery, ResourceRole, application_core,
+    Purpose, Recovery, ResourceRole, application_core,
 };
 
 /// The owner's exact document and independently retained request subject.

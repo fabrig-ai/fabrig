@@ -16,6 +16,38 @@ use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
 use jig_test_domain as root;
 
+/// Translate the test connector's stable identity at the outside boundary.
+#[must_use]
+pub fn effect_key(key: connector::Key) -> r::EffectKey {
+    r::EffectKey {
+        deployment: key.deployment,
+        task: key.task,
+        purpose: key.purpose,
+        origin: match key.origin {
+            connector::Purpose::Procedure => r::EffectOrigin::Procedure,
+            connector::Purpose::Projection => r::EffectOrigin::Projection,
+            connector::Purpose::Call { attempt, completion, position } => {
+                r::EffectOrigin::Call { attempt, completion, position }
+            }
+        },
+    }
+}
+
+fn connector_key(key: r::EffectKey) -> connector::Key {
+    connector::Key {
+        deployment: key.deployment,
+        task: key.task,
+        purpose: key.purpose,
+        origin: match key.origin {
+            r::EffectOrigin::Procedure => connector::Purpose::Procedure,
+            r::EffectOrigin::Projection => connector::Purpose::Projection,
+            r::EffectOrigin::Call { attempt, completion, position } => {
+                connector::Purpose::Call { attempt, completion, position }
+            }
+        },
+    }
+}
+
 fn pattern(base: &[Box<[u8]>], terminal: &[u8], open: bool) -> r::Pattern {
     r::Pattern { base: base.iter().map(|part| part.to_vec()).collect(), terminal: terminal.to_vec(), open }
 }
@@ -273,6 +305,7 @@ pub struct Observer {
     proposals: BTreeMap<u64, (u16, connector::Effect)>,
     accepted: BTreeMap<(u16, connector::Key), r::Source>,
     settled_calls: BTreeSet<(u64, u64, u64)>,
+    claims: BTreeSet<(u64, u64)>,
     // Durable fresh marks fence these attempts: their traffic is acknowledged
     // and discarded without a turn or terminal row (engine.md, 7.2 and 8).
     crossed: BTreeSet<(u64, u64)>,
@@ -388,6 +421,7 @@ impl Observer {
             proposals: BTreeMap::new(),
             accepted: BTreeMap::new(),
             settled_calls: BTreeSet::new(),
+            claims: BTreeSet::new(),
             crossed: BTreeSet::new(),
             cancelled: BTreeSet::new(),
             discarded: BTreeSet::new(),
@@ -455,7 +489,13 @@ impl Observer {
             }
             root::Event::Turn { task, attempt, cumulative, .. }
             | root::Event::Answer { task, attempt, cumulative, .. } => {
-                self.observe(now, r::Observed::Completion { task: *task, attempt: *attempt, cumulative: *cumulative });
+                // Unknown host listings are discarded without a reservation or charge.
+                if self.claims.contains(&(*task, *attempt)) {
+                    self.observe(
+                        now,
+                        r::Observed::Completion { task: *task, attempt: *attempt, cumulative: *cumulative },
+                    );
+                }
             }
             root::Event::Connector {
                 number,
@@ -474,7 +514,7 @@ impl Observer {
                     }
                     root::Record::Core(_) | root::Record::Connector { .. } => None,
                 }) {
-                    self.observe(now, r::Observed::Uncertain { connector: *number, key: key.into() });
+                    self.observe(now, r::Observed::Uncertain { connector: *number, key: effect_key(key) });
                 }
             }
             root::Event::Application { .. } => {
@@ -518,7 +558,7 @@ impl Observer {
                 self.observe(
                     now,
                     r::Observed::Read {
-                        resource: r::Name { connector, path: read.resource.0.clone() },
+                        resource: r::Name { connector, path: read.resource.path.clone() },
                         state: read.state,
                         at: read.at,
                     },
@@ -526,7 +566,26 @@ impl Observer {
             }
             self.reads[index] = system.reads().len();
             for effect in &system.observed()[self.effects[index]..] {
-                self.observe(now, r::Observed::Effect { connector, effect: effect.clone() });
+                self.observe(
+                    now,
+                    r::Observed::Effect {
+                        connector,
+                        effect: r::EffectObserved {
+                            kind: effect.kind,
+                            key: effect.key,
+                            resources: effect
+                                .resources
+                                .iter()
+                                .map(|name| r::Name { connector, path: name.path.clone() })
+                                .collect(),
+                            condition: effect.condition,
+                            target: effect.target,
+                            before: effect.before.clone(),
+                            applied: effect.applied,
+                            copy: effect.copy,
+                        },
+                    },
+                );
             }
             self.effects[index] = system.observed().len();
         }
@@ -623,6 +682,7 @@ impl Observer {
                     Some(r::Receipt::Task(value.number))
                 }
                 root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(value))) => {
+                    self.claims.insert((value.task, value.attempt));
                     if value.crossed {
                         self.crossed.insert((value.task, value.attempt));
                     }
@@ -927,6 +987,7 @@ impl Observer {
                 }
                 root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(value))) => {
                     snapshot.receipts.insert(r::Receipt::Claim(value.task, value.attempt));
+                    self.claims.insert((value.task, value.attempt));
                     if value.crossed {
                         self.crossed.insert((value.task, value.attempt));
                     }
@@ -959,18 +1020,18 @@ impl Observer {
                 }
                 root::Record::Connector { number, record: connector::Record::Outbox(value) } => {
                     if let Some(attempt) = value.attempt {
-                        snapshot.receipts.insert(r::Receipt::Outbox(*number, value.key.into(), attempt.number));
+                        snapshot.receipts.insert(r::Receipt::Outbox(*number, effect_key(value.key), attempt.number));
                         snapshot
                             .attempts
-                            .insert((*number, value.key.into()), (attempt.number, attempt.deadline.as_nanos()));
+                            .insert((*number, effect_key(value.key)), (attempt.number, attempt.deadline.as_nanos()));
                     }
                     if value.phase == connector::EffectPhase::Held {
-                        snapshot.held_effects.insert((*number, value.key.into()));
+                        snapshot.held_effects.insert((*number, effect_key(value.key)));
                     }
                     snapshot.decisions.push(r::Decision {
-                        projection: value.key.attempt == 0 && value.key.completion == 0 && value.key.position == 1,
+                        projection: value.key.origin == connector::Purpose::Projection,
                         connector: *number,
-                        key: value.key.into(),
+                        key: effect_key(value.key),
                         kind: value.effect.kind,
                         resources: value.effect.resources.iter().map(|resource| path(*number, resource)).collect(),
                         condition: value.effect.condition,
@@ -980,7 +1041,7 @@ impl Observer {
                     });
                 }
                 root::Record::Connector { number, record: connector::Record::Made { key, .. } } => {
-                    snapshot.settled_effects.insert((*number, (*key).into()));
+                    snapshot.settled_effects.insert((*number, effect_key(*key)));
                 }
                 root::Record::Core(_) | root::Record::Connector { .. } => {}
             }
@@ -1031,20 +1092,7 @@ impl Observer {
                             (decision.connector, decision.key),
                             r::Acceptance { proposal: accepted.proposal, by: r::Source::Person(accepted.by) },
                         );
-                        self.accepted.insert(
-                            (
-                                *connector,
-                                connector::Key {
-                                    deployment: decision.key.deployment,
-                                    task: decision.key.task,
-                                    attempt: decision.key.attempt,
-                                    completion: decision.key.completion,
-                                    position: decision.key.position,
-                                    purpose: decision.key.purpose,
-                                },
-                            ),
-                            r::Source::Person(accepted.by),
-                        );
+                        self.accepted.insert((*connector, connector_key(decision.key)), r::Source::Person(accepted.by));
                     }
                 }
             }
@@ -1057,9 +1105,7 @@ impl Observer {
             for decision in &mut snapshot.decisions {
                 if decision.connector == connector
                     && decision.key.task == task
-                    && decision.key.attempt == attempt
-                    && decision.key.completion == completion
-                    && decision.key.position == position
+                    && decision.key.origin == (r::EffectOrigin::Call { attempt, completion, position })
                 {
                     decision.accepted_by = Some(holder);
                     snapshot.acceptances.insert((connector, decision.key), r::Acceptance { proposal, by: holder });
@@ -1132,12 +1178,7 @@ impl Observer {
                 requires.push(receipt);
             }
             root::Delivery::Core(core::Held::Acknowledge { run, attempt, .. }) => {
-                let receipt = if self.crossed.contains(&(run.raw(), attempt.raw())) {
-                    r::Receipt::Claim(run.raw(), attempt.raw())
-                } else {
-                    r::Receipt::Terminal(run.raw(), attempt.raw())
-                };
-                requires.push(receipt);
+                requires.extend(self.terminal_receipt(run.raw(), attempt.raw()));
             }
             root::Delivery::Core(core::Held::CallAnswer { key, .. }) => {
                 requires.push(call(*key));
@@ -1161,7 +1202,7 @@ impl Observer {
                 self.observe(now, r::Observed::Result { task: *task, to: r::Source::Person(*person) });
             }
             root::Delivery::System { connector, call: connector::SystemRequest::Apply { key, attempt, .. } } => {
-                requires.push(r::Receipt::Outbox(*connector, (*key).into(), *attempt));
+                requires.push(r::Receipt::Outbox(*connector, effect_key(*key), *attempt));
             }
             root::Delivery::Procedure { task, .. } => {
                 requires.push(r::Receipt::Task(*task));
@@ -1191,6 +1232,18 @@ impl Observer {
             | root::Delivery::System { .. } => {}
         }
         self.observe(now, r::Observed::Released { requires });
+    }
+
+    fn terminal_receipt(&self, run: u64, attempt: u64) -> Option<r::Receipt> {
+        // Cancelling and forgetting an unknown host listing produces no terminal.
+        if self.cancelled.contains(&(run, attempt)) && !self.claims.contains(&(run, attempt)) {
+            return None;
+        }
+        Some(if self.crossed.contains(&(run, attempt)) {
+            r::Receipt::Claim(run, attempt)
+        } else {
+            r::Receipt::Terminal(run, attempt)
+        })
     }
 
     fn reply_receipts(&mut self, to: &mut skein_lib::ReplyTo, reply: &people::Reply, requires: &mut Vec<r::Receipt>) {

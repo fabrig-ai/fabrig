@@ -462,7 +462,7 @@ pub(super) fn route_prepared_agent(
             transcript.window = None;
         }
         work.push(Work::Event(Event::Tasks(tasks::Event::Prepare {
-            reply_to: ReplyTo::new(Token::new(number)),
+            reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Acknowledge)),
             task: number,
         })));
         let from = core.transcripts.get(&number).expect("begun transcript").window;

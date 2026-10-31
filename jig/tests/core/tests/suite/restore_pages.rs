@@ -1,5 +1,6 @@
 //! Public cold-restore page scheduling (`domain/testing.md`, sections 4 and 7).
 
+use jig_core_world::effects::Setup;
 use jig_core_world::{
     client_peer::ClientPeer,
     effects::World,
@@ -66,7 +67,12 @@ fn reply(world: &mut World, token: u64) -> (Option<u64>, people::Reply) {
 
 fn world() -> (World, u64) {
     let (configuration, limits) = jig_core_world::effects::fixture(SEED, false);
-    let mut world = World::scripted(configuration, limits, Peers::new(Vec::new(), Vec::new()));
+    let mut world = World::new(Setup {
+        configuration: Some(configuration),
+        limits,
+        peers: Some(Peers::new(Vec::new(), Vec::new())),
+        ..Setup::default()
+    });
     assert!(!world.hold_restore_pages, "all constructors default to complete restoration");
     world.client_peer = Some(ClientPeer::default());
     world.send(sign_in(7100));

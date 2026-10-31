@@ -503,7 +503,7 @@ impl Application for Ops {
                         .push(r::Observed::Released { requires: vec![r::Receipt::Outbox(2, stable, attempt)] });
                     let before = match effect {
                         infra::Effect::Restart { operation, .. } => {
-                            vec![jig_test_system::ValueObserved {
+                            vec![r::ValueObserved {
                                 state: systems.production.find_restart(*operation).map(|_| *operation),
                                 owner: None,
                             }]
@@ -513,7 +513,7 @@ impl Application for Ops {
                                 std::str::from_utf8(&service.environment).expect("fixture bytes"),
                                 std::str::from_utf8(&service.name).expect("fixture bytes"),
                             );
-                            vec![jig_test_system::ValueObserved {
+                            vec![r::ValueObserved {
                                 state: Some(u64::from(
                                     systems.production.read_service(&name).expect("fixture service").replicas,
                                 )),
@@ -539,23 +539,21 @@ impl Application for Ops {
                                 state: Some(u64::from(systems.production.used_slots(pool))),
                                 at: clock.now,
                             });
-                            vec![jig_test_system::ValueObserved {
+                            vec![r::ValueObserved {
                                 state: before.as_ref().map(|row| row.until),
                                 owner: before.map(|row| {
-                                    let (attempt, completion, position) = match row.key.origin {
+                                    let origin = match row.key.origin {
                                         production::Purpose::Call { attempt, completion, position } => {
-                                            (attempt, completion, position)
+                                            r::EffectOrigin::Call { attempt, completion, position }
                                         }
-                                        production::Purpose::Procedure { .. } => (0, 0, 0),
-                                        production::Purpose::Projection { .. } => (0, 0, 1),
+                                        production::Purpose::Procedure { .. } => r::EffectOrigin::Procedure,
+                                        production::Purpose::Projection { .. } => r::EffectOrigin::Projection,
                                     };
-                                    jig_test_system::SystemKey {
+                                    r::EffectKey {
                                         deployment: row.key.deployment,
                                         task: row.key.task,
                                         purpose: row.key.purpose,
-                                        attempt,
-                                        completion,
-                                        position,
+                                        origin,
                                     }
                                 }),
                             }]
@@ -565,7 +563,7 @@ impl Application for Ops {
                                 std::str::from_utf8(&environment.pool).expect("fixture pool"),
                                 std::str::from_utf8(&environment.name).expect("fixture environment"),
                             );
-                            vec![jig_test_system::ValueObserved {
+                            vec![r::ValueObserved {
                                 state: systems.production.read_environment(&name).map(|_| 1),
                                 owner: None,
                             }]
@@ -585,22 +583,15 @@ impl Application for Ops {
                     };
                     peers.observed.push(r::Observed::Effect {
                         connector: 2,
-                        effect: jig_test_system::Observed {
+                        effect: r::EffectObserved {
                             kind,
                             key: stable,
-                            resources: resources
-                                .into_iter()
-                                .map(|resource| jig_test_system::Name(resource.path))
-                                .collect(),
+                            resources,
                             condition,
                             target,
                             before,
                             applied,
-                            copy: if attempt == 1 {
-                                jig_test_system::Copy::First
-                            } else {
-                                jig_test_system::Copy::Retried
-                            },
+                            copy: if attempt == 1 { r::Copy::First } else { r::Copy::Retried },
                         },
                     });
                     return vec![Input::Event(root::Event::Infrastructure(infra::Event::System(event)))];

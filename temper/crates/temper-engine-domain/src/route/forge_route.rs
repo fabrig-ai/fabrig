@@ -632,10 +632,10 @@ pub(crate) fn subscribe_call(
         return;
     }
     let token = to.into_token();
-    assert!(domain.core.reserve_connector_subscription(token, key, number), "one routed call");
+    let flight = domain.core.reserve_connector_subscription(token, key, number).expect("one routed call");
     assert!(domain.forge_subscribing.insert(token, subscriber) == Ok(None), "one connector interest");
     domain.work.push(Work::Tasks(tasks::Event::SubscribeTopic {
-        reply_to: ReplyTo::new(token),
+        reply_to: ReplyTo::new(flight),
         task: key.task,
         subscription: tasks::Subscription {
             number,

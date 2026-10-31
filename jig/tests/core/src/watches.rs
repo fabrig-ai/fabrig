@@ -2,6 +2,7 @@
 //! Commit numbers and changed task identities come only from root outputs;
 //! deliveries are checked against the fake store's durable watermark. The
 //! referee never reads the core, its views child, or the journal's held queue.
+use crate::effects::Setup;
 use jig_domain_core::{
     self as core,
     documents::{Document, Subject},
@@ -545,7 +546,8 @@ pub fn world(seed: u64, automatic: bool) -> crate::effects::World {
     let room = limits.core.routes;
     let connectors = jig_test_connector::OUTPUTS_BOUND * 2;
     limits.journal.writes = (room + connectors) * 2;
-    let mut world = crate::effects::World::configured(seed, false, configuration, limits);
+    let mut world =
+        crate::effects::World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
     world.watches = Some(Parties::new(seed, world.store.applied, automatic, world.sign_in.expect("signed in")));
     let task = world.assigned.as_ref().expect("assigned chat").task;
     for (watcher, subject) in [

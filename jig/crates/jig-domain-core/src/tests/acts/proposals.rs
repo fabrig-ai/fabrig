@@ -84,7 +84,7 @@ fn a_procedure_step_proposing_what_nobody_may_accept_is_refused() {
     else {
         unreachable!("the refused procedure step waits");
     };
-    assert!(core.procedure_proposals.is_empty());
+    assert!(core.procedure_proposal_flights() == 0);
 }
 
 #[test]

@@ -1,0 +1,80 @@
+//! Container capacities and byte bounds owned by the client.
+//! Every retained container is sized from these at new; objects and pages add their
+//! own entities. See client/domain/client.md, 14.
+use skein_lib::Duration;
+
+/// Configured capacities, payload bounds and durations for the client spine.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Limits {
+    pub watches: u32,
+    pub notices: u32,
+    pub notice_life: Duration,
+    pub linger: Duration,
+    pub save_delay: Duration,
+    pub intents: u32,
+    pub fields: u32,
+
+    pub objects: u32,
+    pub sources: u32,
+    pub reads: u32,
+    pub parts: u32,
+    /// Live delegates that one close confirmation may dispose of.
+    pub delegates: u32,
+    /// Whole payload budget enforced by the decoding owner: boxes (including
+    /// the root box), list capacities, texts and nested documents.
+    pub document_bytes: u64,
+    pub records: u32,
+    /// Requests restored under jig's asker, until their terminal.
+    pub kept: u32,
+    /// Per-task composers kept across navigation and restart.
+    pub drafts: u32,
+    pub projects: u32,
+    pub roles: u32,
+    pub text: u32,
+    pub rows: u32,
+    /// Whole account lists admitted by the client (client/domain/client.md, 14).
+    pub accounts: jig_client::AccountCounts,
+    pub segments: u32,
+    /// Whole pending or sent word snapshots kept for the displayed conversation.
+    pub conversation_words: u32,
+    /// Maximum configured navigation destinations.
+    pub navigation_entries: u32,
+    /// The largest unread update count displayed without a lower-bound mark.
+    pub updates_count: u32,
+}
+
+/// Whether these limits are representable: every edge bound they size
+/// is finite and every capacity they derive fits (programming-model.md, 6.3).
+#[must_use]
+pub fn valid(limits: &Limits) -> bool {
+    if limits.watches == 0
+        || limits.notice_life == Duration::ZERO
+        || limits.linger == Duration::ZERO
+        || limits.save_delay == Duration::ZERO
+        || limits.sources == 0
+        || limits.conversation_words < limits.intents
+    {
+        return false;
+    }
+    timers(limits).is_some()
+        && tree_names(limits).is_some()
+        && crate::state::page::conversations::valid(limits)
+        && crate::state::page::inbox::valid(limits)
+        && crate::state::page::task::valid(limits)
+        && crate::state::page::project::valid(limits)
+        && crate::tree::notices::kept::valid(limits)
+        && crate::state::objects::valid(limits)
+        && crate::state::windows::valid(limits)
+}
+
+/// One deadline per lingering object, visible notice and saved record,
+/// plus the minute tick. Checked before any container is allocated.
+#[must_use]
+pub fn timers(limits: &Limits) -> Option<u32> {
+    limits.objects.checked_add(limits.notices)?.checked_add(limits.records)?.checked_add(1)
+}
+
+/// One task and every bounded proposal name per retained tree row.
+pub(crate) fn tree_names(limits: &Limits) -> Option<u32> {
+    limits.rows.checked_mul(limits.rows.checked_add(1)?)?.checked_add(1)
+}

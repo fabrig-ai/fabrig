@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::{
     effects::World,
     fixtures::{CREDENTIAL_RESOURCE, WORKSPACE_CREDENTIAL, ask_as},
@@ -17,7 +18,7 @@ mod moves;
 
 fn configured(seed: u64) -> World {
     let (config, limits) = world::with_workspace_credential(seed);
-    let mut world = World::configured(seed, false, config, limits);
+    let mut world = World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() });
     let (now, wall) = world.clocks();
     world.set_clock(now, wall);
     world
@@ -149,7 +150,7 @@ fn signing_configuration(seed: u64) -> (root::Config, root::Limits) {
 }
 fn signing(seed: u64) -> World {
     let (config, limits) = signing_configuration(seed);
-    World::configured(seed, false, config, limits)
+    World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() })
 }
 const PROVIDER: u32 = 3;
 fn ask(world: &mut World, key: u8, ask: people::Ask) -> Option<&people::Reply> {
@@ -616,7 +617,15 @@ fn own_key_run(seed: u64) -> (World, u32, u32) {
         0,
         b"make an effect".as_slice().into(),
     );
-    let mut world = World::configured_with_rows(seed, false, config, limits, initial, Box::new([]));
+    let mut world = World::new(Setup {
+        seed,
+        configuration: Some(config),
+        limits,
+        require_assignment: false,
+        initial: Some(initial),
+        rows: Some(Box::new([])),
+        ..Setup::default()
+    });
     carry(&mut world, 40, llm_key(7), 1_u64 << 63, 7);
     let Some(people::Reply::Outcome(people::Outcome::AccountKeyKept { source })) = world.people_answers.last().cloned()
     else {
@@ -764,7 +773,15 @@ fn an_adopted_program_run_is_sent_its_grant_again() {
         name: b"personal".as_slice().into(),
         signed_out: false,
     })));
-    let mut world = World::configured_with_rows(159, false, config, limits, initial, rows.into_boxed_slice());
+    let mut world = World::new(Setup {
+        seed: 159,
+        configuration: Some(config),
+        limits,
+        require_assignment: false,
+        initial: Some(initial),
+        rows: Some(rows.into_boxed_slice()),
+        ..Setup::default()
+    });
     let task = world.assigned.as_ref().expect("program run assigned").task;
     world.restart_with(program_configuration(159).0);
     hello(&mut world);

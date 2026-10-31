@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::effects::World;
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
@@ -50,7 +51,7 @@ pub fn turn(said: &[u8]) -> Box<[u8]> {
 }
 
 pub fn parked() -> World {
-    let mut world = World::with_patch_sets(SEED, false, BEFORE);
+    let mut world = World::new(Setup { seed: SEED, patch_sets: BEFORE, ..Setup::default() });
     world.store.transcript_text(turn_text);
     world.turn(1, 1, None, &turn(b"earlier window"));
     world.end(tasks::End::Parked, 1);

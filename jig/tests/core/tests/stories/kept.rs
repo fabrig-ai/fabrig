@@ -1,6 +1,7 @@
 //! Kept-task stories at the core's public entrances (engine.md, section 15;
 //! tasks.md, section 5.7). Assertions observe durable rows and party deliveries.
 use super::*;
+use jig_core_world::effects::Setup;
 use jig_core_world::fixtures::unchanged;
 
 fn amend_dependency(world: &mut World, parent: (u64, u64), target: u64, dependency: u64) {
@@ -23,7 +24,7 @@ fn ended(world: &World, task: u64, words: &[u8]) {
 #[test]
 fn a_persons_answer_is_refused_while_kept_and_taken_after_met() {
     let (configuration, limits) = person_world_fixture(880);
-    let mut world = World::configured(880, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 880, configuration: Some(configuration), limits, ..Setup::default() });
     let parent = world.assignments[0];
     let tasks::Party::Person(person) = live_row(&world, parent.0).requester else { panic!("person requester") };
     let choice = member(&world, tasks::Executor::Person(tasks::PersonAddress::Person(person)), b"answer");

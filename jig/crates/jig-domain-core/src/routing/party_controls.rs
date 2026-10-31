@@ -91,10 +91,7 @@ pub(super) fn amend_route(
         tasks::Phase::Held { .. } => release.is_some(),
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => false,
     };
-    assert!(
-        core.person_tasks.insert(request, PersonTaskRoute::Amended { task, released }) == Ok(None),
-        "one person amendment"
-    );
+    let request = core.fly_person_task(request, PersonTaskRoute::Amended { task, released });
     work.push(Work::Event(Event::Tasks(tasks::Event::Amend {
         places: evidence.places.into_boxed(),
         funder: None,
@@ -154,10 +151,7 @@ pub(super) fn stop_request(
                 })));
                 return;
             };
-            assert!(
-                core.person_tasks.insert(request, PersonTaskRoute::Stop(task)) == Ok(None),
-                "one stop continuation"
-            );
+            let request = core.fly_person_task(request, PersonTaskRoute::Stop(task));
             work.push(Work::Event(Event::Tasks(tasks::Event::Place {
                 reply_to: ReplyTo::new(request),
                 hold: tasks::PlacedHold {
@@ -240,7 +234,7 @@ pub(super) fn cancel_request(
             } else {
                 None
             };
-            assert!(core.person_tasks.insert(request, PersonTaskRoute::Cancel(task)) == Ok(None), "one cancel route");
+            let request = core.fly_person_task(request, PersonTaskRoute::Cancel(task));
             work.push(Work::Event(Event::Tasks(tasks::Event::Control {
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
@@ -311,7 +305,7 @@ pub(super) fn release_request(
                     return;
                 }
             };
-            assert!(core.person_tasks.insert(request, PersonTaskRoute::Release(task)) == Ok(None), "one release route");
+            let request = core.fly_person_task(request, PersonTaskRoute::Release(task));
             work.push(Work::Event(Event::Tasks(tasks::Event::Control {
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),
@@ -393,9 +387,9 @@ pub(super) fn move_request(
 ) {
     match core.move_admit(person, role, project, task, env.limits.tasks.tree_tasks, env.limits.tasks.depth) {
         Ok(()) => {
-            assert!(core.moving.insert(request, task) == Ok(None), "one move flight per keyed request");
+            let token = core.fly(crate::flight::Flight::Moving { request, task });
             work.push(Work::Event(Event::Tasks(tasks::Event::Move {
-                reply_to: ReplyTo::new(request),
+                reply_to: ReplyTo::new(token),
                 task,
                 person,
                 period: core.period(project),
@@ -425,7 +419,7 @@ pub(super) fn lift_request(
     let admission = lift_admit(core, person, hold, revision);
     match admission {
         Ok(()) => {
-            assert!(core.person_tasks.insert(request, PersonTaskRoute::Lift(hold)) == Ok(None), "one lift route");
+            let request = core.fly_person_task(request, PersonTaskRoute::Lift(hold));
             work.push(Work::Event(Event::Tasks(tasks::Event::Lift {
                 reply_to: ReplyTo::new(request),
                 by: tasks::Party::Person(person),

@@ -30,7 +30,7 @@ pub enum Action {
 /// One external fact or act for the root to route.
 #[derive(Debug)]
 pub enum Event {
-    Start { address: Address, kept: List<Record>, offset: jig_client_view::boundary::Offset },
+    Start { address: Address, kept: List<Record> },
     Went { place: Place },
     Act { action: Action },
     Client { event: jig_client::Event },

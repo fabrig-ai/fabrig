@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::effects::World;
 use jig_core_world::fixtures::{finish_chat, live_row, member, unchanged};
 use jig_domain_core as core;
@@ -31,7 +32,7 @@ fn program_world_with_deadline(
         configuration.first.procedures[0].actions = actions;
         configuration.first.procedures[0].max_steps = 6;
     }
-    let mut world = World::configured(seed, false, configuration, limits);
+    let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
     world.hold_procedures = true;
     let root_run = world.assignments[0];
     let mut procedure =

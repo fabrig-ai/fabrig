@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::{effects::World, reads, stories::reads::request};
 use jig_domain_core::{self as core, documents};
 use jig_domain_fleet as fleet;
@@ -9,7 +10,7 @@ use skein_lib::{Duration, Token};
 
 #[test]
 fn a_partys_request_after_the_stop_is_answered_not_ready() {
-    let mut world = World::new(160, false);
+    let mut world = World::new(Setup { seed: 160, ..Setup::default() });
     world.stop();
     let commits = world.store.applied;
     let later_chat = jig_core_world::fixtures::chat(&world, 1, b"later".as_slice().into());
@@ -20,7 +21,7 @@ fn a_partys_request_after_the_stop_is_answered_not_ready() {
 
 #[test]
 fn a_turn_after_the_stop_is_answered_busy_and_not_committed() {
-    let mut world = World::new(161, false);
+    let mut world = World::new(Setup { seed: 161, ..Setup::default() });
     world.stop();
     let commits = world.store.applied;
     world.turn(1, 1, None, b"a turn the engine will not take");
@@ -30,7 +31,7 @@ fn a_turn_after_the_stop_is_answered_busy_and_not_committed() {
 
 #[test]
 fn an_answer_after_the_stop_is_left_unacknowledged() {
-    let mut world = World::new(162, false);
+    let mut world = World::new(Setup { seed: 162, ..Setup::default() });
     world.stop();
     let commits = world.store.applied;
     world.end(tasks::End::Parked, 0);
@@ -40,7 +41,7 @@ fn an_answer_after_the_stop_is_left_unacknowledged() {
 
 #[test]
 fn a_call_after_the_stop_is_answered_busy() {
-    let mut world = World::new(163, false);
+    let mut world = World::new(Setup { seed: 163, ..Setup::default() });
     world.stop();
     let commits = world.store.applied;
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Relay {
@@ -61,7 +62,7 @@ fn a_call_after_the_stop_is_answered_busy() {
 
 #[test]
 fn a_new_watch_after_the_stop_is_ended_as_stopping() {
-    let mut world = World::new(164, false);
+    let mut world = World::new(Setup { seed: 164, ..Setup::default() });
     world.stop();
     world.send(root::Event::Core(core::Event::Watch {
         watcher: Token::new(801),
@@ -76,7 +77,7 @@ fn a_new_watch_after_the_stop_is_ended_as_stopping() {
 
 #[test]
 fn no_run_is_placed_after_the_stop() {
-    let mut world = World::new(165, false);
+    let mut world = World::new(Setup { seed: 165, ..Setup::default() });
     world.stop();
     let assignments = world.assignments.len();
     let commits = world.store.applied;
@@ -99,7 +100,7 @@ fn a_read_after_the_stop_is_answered_as_before() {
 
 #[test]
 fn a_connector_event_after_the_stop_is_handed_back_busy() {
-    let mut world = World::new(167, false);
+    let mut world = World::new(Setup { seed: 167, ..Setup::default() });
     world.stop();
     let commits = world.store.applied;
     world.send(root::Event::Connector {
@@ -122,7 +123,7 @@ fn every_open_watch_ends_saying_the_engine_is_stopping() {
 
 #[test]
 fn drained_is_released_once_after_the_last_commit_is_durable() {
-    let mut world = World::new(169, false);
+    let mut world = World::new(Setup { seed: 169, ..Setup::default() });
     let task = world.task();
     let commits = world.store.applied;
     world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
@@ -140,7 +141,7 @@ fn drained_is_released_once_after_the_last_commit_is_durable() {
 
 #[test]
 fn a_second_stop_says_drained_no_second_time() {
-    let mut world = World::new(170, false);
+    let mut world = World::new(Setup { seed: 170, ..Setup::default() });
     world.stop();
     world.stop();
     assert_eq!(world.stop_deliveries.iter().filter(|held| matches!(held, core::Held::Drained)).count(), 1);

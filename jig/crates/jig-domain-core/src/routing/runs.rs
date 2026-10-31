@@ -87,12 +87,9 @@ pub(super) fn named_proposal_accept(
             return proposal_refused(core, to, key, tasks::Refusal::Busy);
         };
         assert!(core.pending_calls.insert(key, true).is_ok(), "release acceptance call room");
-        assert!(
-            core.routing_calls.insert(token, RoutedCall::Decide { key, proposal: proposal.number }) == Ok(None),
-            "one release acceptance route"
-        );
+        let token = core.fly_call(token, RoutedCall::Decide { key, proposal: proposal.number });
         work.push(Work::Event(Event::Tasks(tasks::Event::DecideProposal {
-            reply_to: to,
+            reply_to: ReplyTo::new(token),
             proposer: proposal.proposer,
             proposal: proposal.number,
             message: Some(message),
@@ -209,14 +206,11 @@ pub(super) fn named_proposal_accept(
         }
     };
     assert!(core.pending_calls.insert(key, true).is_ok(), "proposal acceptance room reserved");
-    assert!(
-        core.routing_calls.insert(
-            token,
-            RoutedCall::Accepting { key, proposer: proposal.proposer, proposal: proposal.number, message }
-        ) == Ok(None),
-        "one acceptance route"
+    let token = core.fly_call(
+        token,
+        RoutedCall::Accepting { key, proposer: proposal.proposer, proposal: proposal.number, message },
     );
-    work.push(Work::Event(Event::Tasks(event)));
+    work.push(Work::Event(Event::Tasks(crate::flight::bind(event, token))));
     Queue::uncapped()
 }
 
@@ -266,7 +260,7 @@ pub(super) fn named_proposal_decide(
     };
     let token = to.into_token();
     assert!(core.pending_calls.insert(key, true).is_ok(), "proposal decision room reserved");
-    assert!(core.routing_calls.insert(token, RoutedCall::Decide { key, proposal }) == Ok(None), "one route");
+    let token = core.fly_call(token, RoutedCall::Decide { key, proposal });
     work.push(Work::Event(Event::Tasks(tasks::Event::DecideProposal {
         reply_to: ReplyTo::new(token),
         proposer,
@@ -288,6 +282,7 @@ pub(crate) fn named_propose(
     mut action: tasks::ProposalAction,
     reason: Box<[u8]>,
     as_holder: bool,
+    admitted: &mut Option<Token>,
 ) -> Queue<Request> {
     if reason.len() > usize::try_from(env.limits.tasks.message_bytes).expect("u32 fits usize") {
         return proposal_refused(core, to, key, tasks::Refusal::Read);
@@ -336,7 +331,7 @@ pub(crate) fn named_propose(
     };
     let token = to.into_token();
     assert!(core.pending_calls.insert(key, true).is_ok(), "proposal call room reserved");
-    assert!(core.routing_calls.insert(token, RoutedCall::Propose { key, proposal: number }) == Ok(None), "one route");
+    let token = core.fly_call(token, RoutedCall::Propose { key, proposal: number });
     work.push(Work::Event(Event::Tasks(tasks::Event::Propose {
         reply_to: ReplyTo::new(token),
         proposal: tasks::Proposal {
@@ -349,6 +344,7 @@ pub(crate) fn named_propose(
             state: tasks::ProposalState::Pending { holder, since: env.wall },
         },
     })));
+    *admitted = Some(token);
     Queue::uncapped()
 }
 
@@ -411,18 +407,15 @@ pub(super) fn named_escalation(
     };
     let token = to.into_token();
     assert!(core.pending_calls.insert(key, true).is_ok(), "task escalation call room reserved");
-    assert!(
-        core.routing_calls.insert(token, RoutedCall::Escalation { key, task, revision, passed_up }) == Ok(None),
-        "one route"
-    );
-    work.push(Work::TaskEscalation(tasks::Event::DecideEscalation {
+    let token = core.fly_call(token, RoutedCall::Escalation { key, task, revision, passed_up });
+    work.push(Work::Event(Event::Tasks(tasks::Event::DecideEscalation {
         reply_to: ReplyTo::new(token),
         task,
         revision,
         by: key.task,
         entry,
         decision: semantic,
-    }));
+    })));
     Queue::uncapped()
 }
 
@@ -515,7 +508,7 @@ pub(super) fn named_action(
                 return out;
             };
             assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
-            assert!(core.routing_calls.insert(token, RoutedCall::Message(key)) == Ok(None), "one live routed call");
+            let token = core.fly_call(token, RoutedCall::Message(key));
             work.push(Work::Event(Event::Tasks(tasks::Event::Message {
                 reply_to: ReplyTo::new(token),
                 project,
@@ -533,7 +526,7 @@ pub(super) fn named_action(
         }
         NamedAction::Introduce { left, right } => {
             assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
-            assert!(core.routing_calls.insert(token, RoutedCall::Introduce(key)) == Ok(None), "one live routed call");
+            let token = core.fly_call(token, RoutedCall::Introduce(key));
             work.push(Work::Event(Event::Tasks(tasks::Event::Introduce {
                 reply_to: ReplyTo::new(token),
                 by: key.task,
@@ -558,10 +551,7 @@ pub(super) fn named_action(
                 return out;
             };
             assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
-            assert!(
-                core.routing_calls.insert(token, RoutedCall::Subscribe { key, subscription }) == Ok(None),
-                "one live routed call"
-            );
+            let token = core.fly_call(token, RoutedCall::Subscribe { key, subscription });
             work.push(Work::Event(Event::Tasks(tasks::Event::Subscribe {
                 reply_to: ReplyTo::new(token),
                 task: key.task,
@@ -570,7 +560,7 @@ pub(super) fn named_action(
         }
         NamedAction::Unsubscribe { subscription } => {
             assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
-            assert!(core.routing_calls.insert(token, RoutedCall::Unsubscribe(key)) == Ok(None), "one live routed call");
+            let token = core.fly_call(token, RoutedCall::Unsubscribe(key));
             work.push(Work::Event(Event::Tasks(tasks::Event::Unsubscribe {
                 reply_to: ReplyTo::new(token),
                 task: key.task,
@@ -628,10 +618,7 @@ pub(super) fn named_action(
                 }
             };
             assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
-            assert!(
-                core.routing_calls.insert(token, RoutedCall::Control { key, target, revised: true }) == Ok(None),
-                "one live routed call"
-            );
+            let token = core.fly_call(token, RoutedCall::Control { key, target, revised: true });
             work.push(Work::Event(Event::Tasks(tasks::Event::Control {
                 reply_to: ReplyTo::new(token),
                 by: tasks::Party::Task(key.task),
@@ -669,10 +656,7 @@ pub(super) fn named_action(
                 return out;
             }
             assert!(core.pending_calls.insert(key, true).is_ok(), "proposal call room reserved");
-            assert!(
-                core.routing_calls.insert(token, RoutedCall::Withdraw { key, proposal, moved: None }) == Ok(None),
-                "one route"
-            );
+            let token = core.fly_call(token, RoutedCall::Withdraw { key, proposal, moved: None });
             work.push(Work::Event(Event::Tasks(tasks::Event::WithdrawProposal {
                 reply_to: ReplyTo::new(token),
                 proposer: key.task,
@@ -683,7 +667,7 @@ pub(super) fn named_action(
             return named_proposal_decide(core, env, work, ReplyTo::new(token), key, proposer, proposal, choice);
         }
         NamedAction::Propose { action, reason, as_holder } => {
-            return named_propose(core, env, work, ReplyTo::new(token), key, action, reason, as_holder);
+            return named_propose(core, env, work, ReplyTo::new(token), key, action, reason, as_holder, &mut None);
         }
         NamedAction::ProposeBatch { batch, reason, as_holder } => {
             return propose_batch(core, env, ReplyTo::new(token), key, batch, reason, as_holder, None);
@@ -878,10 +862,7 @@ pub(super) fn named_amend(
         return out;
     };
     assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
-    assert!(
-        core.routing_calls.insert(token, RoutedCall::Control { key, target, revised: true }) == Ok(None),
-        "one amendment route"
-    );
+    let token = core.fly_call(token, RoutedCall::Control { key, target, revised: true });
     work.push(Work::Event(Event::Tasks(tasks::Event::Amend {
         places: evidence.places.into_boxed(),
         funder: None,

@@ -48,7 +48,7 @@ pub(super) fn subscribe(
         super::runs::call_decision(core, &mut out, to, key, part);
     } else if let Some(subscription) = fresh(&mut core.counters, Family::Message) {
         let token = to.into_token();
-        assert!(core.reserve_connector_subscription(token, key, subscription), "topic call room preflighted");
+        let token = core.reserve_connector_subscription(token, key, subscription).expect("topic call room preflighted");
         work.push(Work::Event(Event::Tasks(tasks::Event::SubscribeTopic {
             reply_to: ReplyTo::new(token),
             task: key.task,

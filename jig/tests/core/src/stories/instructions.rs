@@ -1,4 +1,5 @@
 //! Starting facts for a charter instruction amendment and cold continuation.
+use crate::effects::Setup;
 use crate::{effects::World, reads::Parties};
 use jig_domain_core::{self as core, documents};
 use jig_domain_people as people;
@@ -8,7 +9,7 @@ use skein_lib::{ReplyTo, Token};
 
 #[must_use]
 pub fn world(seed: u64) -> World {
-    let mut w = World::new(seed, false);
+    let mut w = World::new(Setup { seed, ..Setup::default() });
     w.reads = Some(Parties::new(w.store.applied));
     w
 }

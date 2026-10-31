@@ -5,6 +5,7 @@ use super::children::append_people;
 use super::refusals::{person_message_refusal, person_move_refusal, person_problem_refusal};
 use super::runs::call_decision;
 use super::view_routes::touch_task;
+use crate::flight::{Flight, Internal};
 use crate::routing::Work;
 use crate::{
     Ask, CallPart, Core, CoreKey, CoreRecord, EscalationDecisionRecord, Event, GoalRoute, Held, Key, Limits, Now,
@@ -18,14 +19,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive task vocabulary routes its bounded child decision")]
-pub(super) fn tag_tasks(
-    core: &mut Core,
-    env: &Env<Limits>,
-    mut child: Queue<tasks::Request>,
-    person_proposal: bool,
-    task_escalation: bool,
-    person_escalation: bool,
-) -> Queue<Request> {
+pub(super) fn tag_task_outputs(core: &mut Core, env: &Env<Limits>, mut child: Queue<tasks::Request>) -> Queue<Request> {
     let mut pending = Queue::uncapped();
     for _ in 0..child.len() {
         pending.push(child.pop().expect("task output count"));
@@ -40,13 +34,13 @@ pub(super) fn tag_tasks(
             }
             tasks::Request::Lifted { reply_to, released } => {
                 let token = reply_to.into_token();
-                let PersonTaskRoute::Lift(hold) = core.person_tasks.remove(&token).expect("lift continuation") else {
-                    unreachable!("lift reply owns a lift continuation")
+                let Some(Flight::PersonTask { request, route: PersonTaskRoute::Lift(hold) }) = core.land(token) else {
+                    continue;
                 };
                 append_people(
                     core,
                     env,
-                    people::Event::Decided { request: token, outcome: people::Outcome::Lifted { hold, released } },
+                    people::Event::Decided { request, outcome: people::Outcome::Lifted { hold, released } },
                     &mut out,
                 );
                 continue;
@@ -87,9 +81,37 @@ pub(super) fn tag_tasks(
                 }
                 continue;
             }
-            tasks::Request::EscalationDecided { reply_to, task, revision, outcome } if person_escalation => {
+            tasks::Request::EscalationDecided { reply_to, task, revision, outcome } => {
                 let token = reply_to.into_token();
-                let flight = core.person_escalations.remove(&token).expect("person held choice has a flight");
+                let flight = match core.land(token) {
+                    Some(Flight::PersonEscalation(flight)) => flight,
+                    Some(Flight::Call {
+                        request,
+                        route: RoutedCall::Escalation { key, task: named, revision: current, passed_up },
+                        ..
+                    }) => {
+                        assert!(task == named && revision == current, "exact task escalation terminal");
+                        call_decision(
+                            core,
+                            &mut out,
+                            ReplyTo::new(request),
+                            key,
+                            match outcome {
+                                tasks::EscalationOutcome::Passed { .. } if passed_up => CallPart::PassedUp { task },
+                                tasks::EscalationOutcome::Released
+                                | tasks::EscalationOutcome::Rejected
+                                | tasks::EscalationOutcome::Passed { .. }
+                                | tasks::EscalationOutcome::Stale
+                                | tasks::EscalationOutcome::NoFurther
+                                | tasks::EscalationOutcome::Limit => {
+                                    CallPart::EscalationDecided { task, revision, outcome }
+                                }
+                            },
+                        );
+                        continue;
+                    }
+                    _ => continue,
+                };
                 assert!(flight.task == task && flight.revision == revision, "exact held choice terminal");
                 let choice = match outcome {
                     tasks::EscalationOutcome::Released => people::EscalationChoice::Released,
@@ -172,7 +194,7 @@ pub(super) fn tag_tasks(
             tasks::Request::Sent { reply_to, task, word, .. } => {
                 let request = reply_to.into_token();
                 match core.sent(request, task, &word, env.limits.tasks.inbox_messages, env.limits.tasks.tasks) {
-                    SentRoute::Call { key, message } => {
+                    SentRoute::Call { request, key, message } => {
                         call_decision(core, &mut out, ReplyTo::new(request), key, CallPart::Sent { message });
                     }
                     SentRoute::Person(event) => append_people(core, env, *event, &mut out),
@@ -376,41 +398,40 @@ pub(super) fn tag_tasks(
             }
             tasks::Request::Made { reply_to, tasks } => {
                 let request = reply_to.into_token();
-                if person_proposal {
-                    match core.routing_people_proposals.get(&request) {
-                        Some(PersonProposalRoute::Accepting { person, proposer, proposal, .. }) => {
-                            let first = *tasks.first().expect("an accepted batch made tasks");
-                            let last = *tasks.last().expect("an accepted batch made tasks");
-                            let count = match last.checked_sub(first) {
-                                Some(count) => count.checked_add(1),
-                                None => None,
-                            };
-                            assert_eq!(count, u64::try_from(tasks.len()).ok(), "batch numbers are consecutive");
-                            let project = core.tasks.task(*proposer).expect("accepted proposer").project;
-                            out.push(Request::Write(Write::Save(Record::Core(CoreRecord::ProposalDecision(
-                                crate::ProposalDecisionRecord {
-                                    project,
-                                    proposer: people::Proposer::Task(*proposer),
-                                    proposal: *proposal,
-                                    kind: tasks::ProposalKind::Batch,
-                                    by: *person,
-                                    at: env.wall,
-                                    choice: people::ProposalChoice::Accepted,
-                                    created: Some((first, last)),
-                                },
-                            )))));
-                        }
-                        Some(PersonProposalRoute::Deciding { .. }) | None => {}
-                    }
+                let flight = core.land(request);
+                if let Some(Flight::PersonProposal(PersonProposalRoute::Accepting {
+                    person, proposer, proposal, ..
+                })) = &flight
+                {
+                    let first = *tasks.first().expect("an accepted batch made tasks");
+                    let last = *tasks.last().expect("an accepted batch made tasks");
+                    let count = match last.checked_sub(first) {
+                        Some(count) => count.checked_add(1),
+                        None => None,
+                    };
+                    assert_eq!(count, u64::try_from(tasks.len()).ok(), "batch numbers are consecutive");
+                    let project = core.tasks.task(*proposer).expect("accepted proposer").project;
+                    out.push(Request::Write(Write::Save(Record::Core(CoreRecord::ProposalDecision(
+                        crate::ProposalDecisionRecord {
+                            project,
+                            proposer: people::Proposer::Task(*proposer),
+                            proposal: *proposal,
+                            kind: tasks::ProposalKind::Batch,
+                            by: *person,
+                            at: env.wall,
+                            choice: people::ProposalChoice::Accepted,
+                            created: Some((first, last)),
+                        },
+                    )))));
                 }
-                match core.made(request, tasks, person_proposal) {
+                match core.made_flight(request, flight, tasks) {
                     crate::MadeRoute::Internal => {}
-                    crate::MadeRoute::Tasks(event) | crate::MadeRoute::PersonProposal(event) => {
+                    crate::MadeRoute::Tasks(event) => {
                         let mut follow = Queue::uncapped();
                         tasks::step(
                             &mut core.tasks,
                             &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-                            event,
+                            *event,
                             &mut follow,
                         );
                         for _ in 0..follow.len() {
@@ -458,13 +479,18 @@ pub(super) fn tag_tasks(
             }
             tasks::Request::ProposalDecided { reply_to, proposer, number, outcome } => {
                 let token = reply_to.into_token();
-                if let Some(event) =
-                    core.task_proposal_decided_for_person(token, proposer, number, outcome, env.wall, person_proposal)
-                {
-                    append_people(core, env, event, &mut out);
-                    continue;
-                }
-                let route = core.routing_calls.remove(&token).expect("pending proposal decision route");
+                let (token, route) = match core.land(token) {
+                    Some(Flight::PersonProposal(route)) => {
+                        if let Some(event) =
+                            core.task_proposal_decided_for_person(token, proposer, number, outcome, env.wall, route)
+                        {
+                            append_people(core, env, event, &mut out);
+                        }
+                        continue;
+                    }
+                    Some(Flight::Call { request, route, .. }) => (request, route),
+                    _ => continue,
+                };
                 if let RoutedCall::Withdraw { key, moved: Some((task, now)), .. } = route {
                     assert!(outcome == tasks::ProposalOutcome::Withdrawn, "stale proposal withdrawn");
                     call_decision(core, &mut out, ReplyTo::new(token), key, CallPart::Moved { task, now });
@@ -497,43 +523,11 @@ pub(super) fn tag_tasks(
                 );
                 continue;
             }
-            tasks::Request::EscalationDecided { reply_to, task, revision, outcome } if task_escalation => {
-                let token = reply_to.into_token();
-                let route = core.routing_calls.remove(&token).expect("task escalation decision route");
-                let (key, named, current, passed_up) = match route {
-                    RoutedCall::Escalation { key, task, revision, passed_up } => (key, task, revision, passed_up),
-                    RoutedCall::Propose { .. }
-                    | RoutedCall::Decide { .. }
-                    | RoutedCall::Withdraw { .. }
-                    | RoutedCall::Accepting { .. }
-                    | RoutedCall::Message(_)
-                    | RoutedCall::Introduce(_)
-                    | RoutedCall::Subscribe { .. }
-                    | RoutedCall::Unsubscribe(_)
-                    | RoutedCall::Control { .. } => unreachable!("task escalation route kind"),
-                };
-                assert!(task == named && revision == current, "exact task escalation terminal");
-                call_decision(
-                    core,
-                    &mut out,
-                    ReplyTo::new(token),
-                    key,
-                    match outcome {
-                        tasks::EscalationOutcome::Passed { .. } if passed_up => CallPart::PassedUp { task },
-                        tasks::EscalationOutcome::Released
-                        | tasks::EscalationOutcome::Rejected
-                        | tasks::EscalationOutcome::Passed { .. }
-                        | tasks::EscalationOutcome::Stale
-                        | tasks::EscalationOutcome::NoFurther
-                        | tasks::EscalationOutcome::Limit => CallPart::EscalationDecided { task, revision, outcome },
-                    },
-                );
-                continue;
-            }
             tasks::Request::CompoundRefused { reply_to, at, problem } => {
                 let request = reply_to.into_token();
-                let Some(PersonTaskRoute::Compound { .. }) = core.person_tasks.remove(&request) else {
-                    unreachable!("compound continuation");
+                let Some(Flight::PersonTask { request, route: PersonTaskRoute::Compound { .. } }) = core.land(request)
+                else {
+                    continue;
                 };
                 let outcome = person_problem_refusal(core, problem);
                 let outcome = if let people::Outcome::Refused(why) = outcome {
@@ -546,228 +540,13 @@ pub(super) fn tag_tasks(
             }
             tasks::Request::Done { reply_to } => {
                 let token = reply_to.into_token();
-                if let Some(route) = core.person_tasks.remove(&token) {
-                    let outcome = match route {
-                        PersonTaskRoute::Compound { project, operations, first_message } => {
-                            people::Outcome::Compound { project, operations, first_message }
+                match core.land(token) {
+                    Some(flight) => tag_tasks(core, env, token, flight, Ok(()), &mut pending, &mut out),
+                    None => {
+                        if let Some(attempt) = core.claiming.remove(&token.raw()) {
+                            core.claim_done(token.raw(), attempt, &mut out);
                         }
-                        PersonTaskRoute::Take(task) => people::Outcome::PersonTaken { task },
-                        PersonTaskRoute::PoolSet { project, person } => people::Outcome::PoolSet { project, person },
-                        PersonTaskRoute::HandBack(task) => people::Outcome::PersonHandedBack { task },
-                        PersonTaskRoute::Answer(task) => people::Outcome::PersonAnswered { task },
-                        PersonTaskRoute::Stop(task) => people::Outcome::Stopped { task },
-                        PersonTaskRoute::Cancel(task) => people::Outcome::Cancelled { task },
-                        PersonTaskRoute::Lift(_) => unreachable!("lift has a counted reply"),
-                        PersonTaskRoute::Release(task) => people::Outcome::Released { task },
-                        PersonTaskRoute::Amended { task, released } => people::Outcome::Amended { task, released },
-                    };
-                    append_people(core, env, people::Event::Decided { request: token, outcome }, &mut out);
-                    continue;
-                }
-                if let Some(moved) = core.moving.remove(&token) {
-                    append_people(
-                        core,
-                        env,
-                        people::Event::Decided { request: token, outcome: people::Outcome::Moved { task: moved } },
-                        &mut out,
-                    );
-                    continue;
-                }
-                if let Some(event) = crate::effects::procedure_proposed(core, &mut out, token, true) {
-                    let mut follow = Queue::uncapped();
-                    tasks::step(
-                        &mut core.tasks,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-                        event,
-                        &mut follow,
-                    );
-                    for _ in 0..follow.len() {
-                        pending.push(follow.pop().expect("procedure proposal outcome"));
                     }
-                    continue;
-                }
-                if let Some(GoalRoute::Accepting { proposer, proposal, by }) = core.goal_routes.get(&token).cloned() {
-                    core.goal_routes
-                        .insert(token, GoalRoute::Deciding { proposer, proposal, by })
-                        .expect("party acceptance route");
-                    let mut follow = Queue::uncapped();
-                    tasks::step(
-                        &mut core.tasks,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-                        tasks::Event::DecidePersonProposal {
-                            reply_to: ReplyTo::new(token),
-                            proposer,
-                            proposal,
-                            by: tasks::Party::Person(by),
-                            message: None,
-                            decision: tasks::ProposalDecision::Accept,
-                            revision: None,
-                        },
-                        &mut follow,
-                    );
-                    for _ in 0..follow.len() {
-                        pending.push(follow.pop().expect("party amendment decision"));
-                    }
-                    continue;
-                }
-                let person_route = if person_proposal { core.routing_people_proposals.remove(&token) } else { None };
-                if let Some(PersonProposalRoute::Accepting { request, person, proposer, proposal, message }) =
-                    person_route
-                {
-                    core.routing_people_proposals
-                        .insert(
-                            request,
-                            PersonProposalRoute::Deciding { request, proposer, proposal, by: person, moved: None },
-                        )
-                        .expect("person acceptance route room");
-                    let mut follow = Queue::uncapped();
-                    tasks::step(
-                        &mut core.tasks,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-                        tasks::Event::DecideProposal {
-                            reply_to: ReplyTo::new(request),
-                            proposer,
-                            proposal,
-                            message: Some(message),
-                            by: tasks::Party::Person(person),
-                            decision: tasks::ProposalDecision::Accept,
-                        },
-                        &mut follow,
-                    );
-                    for _ in 0..follow.len() {
-                        pending.push(follow.pop().expect("person acceptance output count"));
-                    }
-                    continue;
-                }
-                if let Some(route) = core.routing_calls.get(&token).copied() {
-                    let answer = match route {
-                        RoutedCall::Propose { key, proposal } => {
-                            if let Some((connector, owner)) = core.proposing_effects.remove(&token) {
-                                out.push(Request::Ask {
-                                    connector,
-                                    ask: Ask::Effect(crate::connector::Ask::KeepProposal {
-                                        owner,
-                                        proposal,
-                                        task: key.task,
-                                        project: core.tasks.task(key.task).expect("proposing task exists").project,
-                                    }),
-                                });
-                            }
-                            let tasks::ProposalState::Pending { holder, .. } =
-                                core.tasks.proposal(key.task, proposal).expect("admitted proposal").state
-                            else {
-                                unreachable!("new proposal pending");
-                            };
-                            Some((key, CallPart::Proposed { proposal, holder }))
-                        }
-                        RoutedCall::Introduce(key) => Some((key, CallPart::Introduced)),
-                        RoutedCall::Control { key, target, revised } => {
-                            let part = if revised {
-                                let revision = core.tasks.task(target).expect("controlled task exists").revisions.spec;
-                                CallPart::Revised { task: target, revision }
-                            } else {
-                                CallPart::Controlled
-                            };
-                            Some((key, part))
-                        }
-                        RoutedCall::Accepting { key, proposer, proposal, message } => {
-                            let _previous = core.routing_calls.remove(&token).expect("accepted proposal route");
-                            core.routing_calls
-                                .insert(token, RoutedCall::Decide { key, proposal })
-                                .expect("acceptance route room");
-                            let mut follow = Queue::uncapped();
-                            tasks::step(
-                                &mut core.tasks,
-                                &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-                                tasks::Event::DecideProposal {
-                                    reply_to: ReplyTo::new(token),
-                                    proposer,
-                                    proposal,
-                                    message: Some(message),
-                                    by: tasks::Party::Task(key.task),
-                                    decision: tasks::ProposalDecision::Accept,
-                                },
-                                &mut follow,
-                            );
-                            for _ in 0..follow.len() {
-                                pending.push(follow.pop().expect("task acceptance output count"));
-                            }
-                            continue;
-                        }
-                        RoutedCall::Subscribe { .. } | RoutedCall::Unsubscribe(_) => None,
-                        RoutedCall::Message(_)
-                        | RoutedCall::Decide { .. }
-                        | RoutedCall::Withdraw { .. }
-                        | RoutedCall::Escalation { .. } => unreachable!("these calls have another terminal"),
-                    };
-                    if let Some((key, part)) = answer {
-                        let _previous = core.routing_calls.remove(&token).expect("named call route");
-                        call_decision(core, &mut out, ReplyTo::new(token), key, part);
-                        continue;
-                    }
-                }
-                if let Some(route) = core.routing_calls.remove(&token) {
-                    let ask = match route {
-                        RoutedCall::Subscribe { key, subscription } => {
-                            Ask::SubscriptionDone { request: token, key, subscription }
-                        }
-                        RoutedCall::Unsubscribe(key) => Ask::UnsubscriptionDone { request: token, key },
-                        RoutedCall::Propose { .. }
-                        | RoutedCall::Accepting { .. }
-                        | RoutedCall::Introduce(_)
-                        | RoutedCall::Control { .. }
-                        | RoutedCall::Message(_)
-                        | RoutedCall::Decide { .. }
-                        | RoutedCall::Withdraw { .. }
-                        | RoutedCall::Escalation { .. } => unreachable!("generic named calls finish in the core"),
-                    };
-                    for &connector in core.connectors.as_ref() {
-                        out.push(Request::Ask {
-                            connector,
-                            ask: match &ask {
-                                Ask::Application { .. }
-                                | Ask::DropApplication { .. }
-                                | Ask::ApplicationPartAnswered { .. } => {
-                                    unreachable!("application handoffs do not arise from task closes")
-                                }
-                                Ask::SubscriptionDone { request, key, subscription } => {
-                                    Ask::SubscriptionDone { request: *request, key: *key, subscription: *subscription }
-                                }
-                                Ask::UnsubscriptionDone { request, key } => {
-                                    Ask::UnsubscriptionDone { request: *request, key: *key }
-                                }
-                                Ask::StepMade { .. }
-                                | Ask::StepRefused { .. }
-                                | Ask::Hold { .. }
-                                | Ask::EndTopic { .. }
-                                | Ask::Gather { .. }
-                                | Ask::CutTo { .. }
-                                | Ask::Drop { .. }
-                                | Ask::Adopt { .. }
-                                | Ask::Close { .. }
-                                | Ask::Release { .. }
-                                | Ask::Lost { .. }
-                                | Ask::TaskHoldings { .. }
-                                | Ask::DelegateHoldings { .. }
-                                | Ask::ProcedureHoldings { .. }
-                                | Ask::ProjectGoal { .. }
-                                | Ask::ForgetProjection { .. }
-                                | Ask::ClaimDone { .. }
-                                | Ask::DropSubscription { .. }
-                                | Ask::RepairRefused { .. }
-                                | Ask::DelegateRefused { .. }
-                                | Ask::StartProcedure { .. }
-                                | Ask::Effect(_)
-                                | Ask::Document { .. }
-                                | Ask::Read { .. }
-                                | Ask::DropDocument { .. } => unreachable!("subscription handoff"),
-                            },
-                        });
-                    }
-                    continue;
-                }
-                if let Some(attempt) = core.claiming.remove(&token.raw()) {
-                    core.claim_done(token.raw(), attempt, &mut out);
                 }
                 continue;
             }
@@ -1100,8 +879,9 @@ pub(super) fn tag_tasks(
             }
             tasks::Request::Acknowledged { reply_to, task, attempt, .. } => {
                 let token = reply_to.into_token();
-                if token.raw() != u64::MAX {
-                    out.push(Request::Now(Box::new(Now::DropPayload { payload: token })));
+                match core.land(token) {
+                    Some(Flight::Internal(Internal::Acknowledge)) => {}
+                    Some(_) | None => out.push(Request::Now(Box::new(Now::DropPayload { payload: token }))),
                 }
                 if let Some(proof) = core.proofs.get(&task) {
                     if let Some(terminal) = &proof.terminal {
@@ -1176,129 +956,12 @@ pub(super) fn tag_tasks(
             }
             tasks::Request::Refused { reply_to, problem } => {
                 let token = reply_to.into_token();
-                if let Some((connector, owner)) = core.proposing_effects.remove(&token) {
-                    out.push(Request::Ask {
-                        connector,
-                        ask: Ask::Effect(crate::connector::Ask::Drop {
-                            owner,
-                            answer: authority::Answer::Refuse,
-                            findings: Box::new([]),
-                            why: crate::connector::EffectRefusal::Proposal,
-                        }),
-                    });
-                }
-                if match &core.settings_offering {
-                    Some((request, ..)) => *request == token,
-                    None => false,
-                } {
-                    drop(core.settings_offering.take());
-                }
-                if core.goal_routes.remove(&token).is_some() {
-                    let outcome = person_problem_refusal(core, problem);
-                    append_people(core, env, people::Event::Decided { request: token, outcome }, &mut out);
+                if let Some(flight) = core.land(token) {
+                    tag_tasks(core, env, token, flight, Err(problem), &mut pending, &mut out);
                     continue;
-                }
-                if core.person_tasks.remove(&token).is_some() {
-                    append_people(
-                        core,
-                        env,
-                        people::Event::Decided { request: token, outcome: person_problem_refusal(core, problem) },
-                        &mut out,
-                    );
-                    continue;
-                }
-                if core.moving.remove(&token).is_some() {
-                    append_people(
-                        core,
-                        env,
-                        people::Event::Decided { request: token, outcome: person_move_refusal(core, problem) },
-                        &mut out,
-                    );
-                    continue;
-                }
-                if let Some(event) = crate::effects::procedure_proposed(core, &mut out, token, false) {
-                    let mut follow = Queue::uncapped();
-                    tasks::step(
-                        &mut core.tasks,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-                        event,
-                        &mut follow,
-                    );
-                    for _ in 0..follow.len() {
-                        pending.push(follow.pop().expect("procedure proposal outcome"));
-                    }
-                    continue;
-                }
-                let person_route = if person_proposal { core.routing_people_proposals.remove(&token) } else { None };
-                if let Some(route) = person_route {
-                    let request = match route {
-                        PersonProposalRoute::Deciding { request, .. }
-                        | PersonProposalRoute::Accepting { request, .. } => request,
-                    };
-                    append_people(
-                        core,
-                        env,
-                        people::Event::Decided { request, outcome: person_move_refusal(core, problem) },
-                        &mut out,
-                    );
-                    continue;
-                }
-                if let Some(route) = core.routing_calls.get(&token).copied() {
-                    let answer = match route {
-                        RoutedCall::Message(key) | RoutedCall::Introduce(key) => {
-                            Some((key, CallPart::MessageRefused(problem.clone())))
-                        }
-                        RoutedCall::Control { key, target, .. } => {
-                            let part = if let tasks::Refusal::HoldOwner { hold } = problem.why {
-                                let row = core.tasks.placed_hold(hold).expect("owner refusal names retained hold");
-                                CallPart::HoldOwner {
-                                    task: target,
-                                    hold,
-                                    revision: row.revision,
-                                    owner: crate::roles::hold_owner(row.owner),
-                                }
-                            } else {
-                                CallPart::ControlRefused(problem.clone())
-                            };
-                            Some((key, part))
-                        }
-                        RoutedCall::Escalation { key, .. } => Some((key, CallPart::EscalationRefused(problem.clone()))),
-                        RoutedCall::Propose { key, .. }
-                        | RoutedCall::Decide { key, .. }
-                        | RoutedCall::Withdraw { key, .. }
-                        | RoutedCall::Accepting { key, .. } => Some((key, CallPart::ProposalRefused(problem.clone()))),
-                        RoutedCall::Subscribe { key, .. } | RoutedCall::Unsubscribe(key) => {
-                            let _previous = core.routing_calls.remove(&token).expect("refused connector call route");
-                            call_decision(
-                                core,
-                                &mut out,
-                                ReplyTo::new(token),
-                                key,
-                                CallPart::SubscriptionRefused(problem.clone()),
-                            );
-                            for &connector in core.connectors.as_ref() {
-                                out.push(Request::Ask { connector, ask: Ask::DropSubscription { request: token } });
-                            }
-                            continue;
-                        }
-                    };
-                    if let Some((key, part)) = answer {
-                        let _previous = core.routing_calls.remove(&token).expect("refused call route");
-                        call_decision(core, &mut out, ReplyTo::new(token), key, part);
-                        continue;
-                    }
                 }
                 if let Some((key, _stubs, _given)) = core.delegating.remove(&token) {
                     call_decision(core, &mut out, ReplyTo::new(token), key, CallPart::DelegationRefused(problem));
-                    continue;
-                }
-                if core.made.remove(&token).is_some() {
-                    append_people(
-                        core,
-                        env,
-                        people::Event::Decided { request: token, outcome: person_problem_refusal(core, problem) },
-                        &mut out,
-                    );
                     continue;
                 }
                 if core.saying.remove(&token).is_some() {
@@ -1322,18 +985,6 @@ pub(super) fn tag_tasks(
                     );
                     for _ in 0..follow.len() {
                         pending.push(follow.pop().expect("failed preparation output count"));
-                    }
-                    continue;
-                }
-                if token.raw() == u64::MAX - 3 {
-                    for &connector in core.connectors.as_ref() {
-                        out.push(Request::Ask { connector, ask: Ask::RepairRefused { repair: problem.task } });
-                    }
-                    continue;
-                }
-                if token.raw() == u64::MAX {
-                    for &connector in core.connectors.as_ref() {
-                        out.push(Request::Ask { connector, ask: Ask::DelegateRefused { task: problem.task } });
                     }
                     continue;
                 }
@@ -1473,9 +1124,6 @@ pub(super) fn tag_tasks(
                 }
                 continue;
             }
-            tasks::Request::EscalationDecided { .. } => {
-                unreachable!("named and person escalation terminals are routed in the core")
-            }
             tasks::Request::Activate { context } => {
                 if core.pending_note_briefs.get(&context.task) == Some(&super::NoteBrief::Activation) {
                     let _pending = core.pending_note_briefs.remove(&context.task);
@@ -1501,19 +1149,7 @@ pub(super) fn tag_tasks(
     out
 }
 
-pub(super) fn route_person_escalation(core: &mut Core, env: &Env<Limits>, event: tasks::Event) -> Queue<Request> {
-    let mut out = Queue::uncapped();
-    tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut out);
-    tag_tasks(core, env, out, false, false, true)
-}
-
-pub(super) fn route_task_escalation(core: &mut Core, env: &Env<Limits>, event: tasks::Event) -> Queue<Request> {
-    let mut out = Queue::uncapped();
-    tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut out);
-    tag_tasks(core, env, out, false, true, false)
-}
-
-pub(super) fn route_person_proposal(core: &mut Core, env: &Env<Limits>, event: tasks::Event) -> Queue<Request> {
+fn route_proposal(core: &mut Core, env: &Env<Limits>, event: tasks::Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if let tasks::Event::Make { batch, .. } | tasks::Event::MakeResultFollowups { batch, .. } = &event
         && let Err(problem) = core.batch_accounts(batch)
@@ -1522,7 +1158,7 @@ pub(super) fn route_person_proposal(core: &mut Core, env: &Env<Limits>, event: t
             unreachable!("checked batch event")
         };
         out.push(tasks::Request::Refused { reply_to, problem });
-        return tag_tasks(core, env, out, true, false, false);
+        return tag_task_outputs(core, env, out);
     }
     if let tasks::Event::Amend { task, amendment, funder, .. } = &event
         && let Err(why) = core.amendment_account(*task, amendment, *funder)
@@ -1530,14 +1166,15 @@ pub(super) fn route_person_proposal(core: &mut Core, env: &Env<Limits>, event: t
         let problem = tasks::Problem::new(Some(*task), why);
         let tasks::Event::Amend { reply_to, .. } = event else { unreachable!("checked amendment event") };
         out.push(tasks::Request::Refused { reply_to, problem });
-        return tag_tasks(core, env, out, true, false, false);
+        return tag_task_outputs(core, env, out);
     }
     tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut out);
-    tag_tasks(core, env, out, true, false, false)
+    tag_task_outputs(core, env, out)
 }
 
 #[expect(clippy::boxed_local, reason = "the moved route retains its owned event payload")]
 pub(super) fn route_connector_repair(
+    core: &mut Core,
     work: &mut Queue<Work>,
     seed: Box<crate::connector::RepairSeed>,
     executor: tasks::Executor,
@@ -1547,14 +1184,14 @@ pub(super) fn route_connector_repair(
 ) -> Queue<Request> {
     if seed.open_period {
         work.push(Work::Event(Event::Tasks(tasks::Event::OpenPeriod {
-            reply_to: ReplyTo::new(Token::new(u64::MAX - 2)),
+            reply_to: ReplyTo::new(core.internal(Internal::Admission)),
             project: seed.project,
             period: seed.period,
             budget: seed.period_budget,
         })));
     }
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
-        reply_to: ReplyTo::new(Token::new(u64::MAX - 3)),
+        reply_to: ReplyTo::new(core.internal(Internal::Repair)),
         creator: tasks::Party::Deployment { project: seed.project },
         batch: Box::new([tasks::New {
             deadline: jig_domain_tasks::Deadline::Named,
@@ -1583,8 +1220,13 @@ pub(super) fn route_tasks(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
-    event: tasks::Event,
+    mut event: tasks::Event,
 ) -> Queue<Request> {
+    if let Some(token) = crate::flight::request_token(&mut event)
+        && let Some(Flight::PersonProposal(_)) = core.flights.get(skein_lib::Id::from_token(token))
+    {
+        return route_proposal(core, env, event);
+    }
     if let tasks::Event::Procedure { task, step, .. } = &event {
         return super::procedure_steps::apply(core, env, *task, *step, event);
     }
@@ -1595,7 +1237,7 @@ pub(super) fn route_tasks(
         let problem = tasks::Problem::new(Some(*task), why);
         let tasks::Event::Amend { reply_to, .. } = event else { unreachable!("checked amendment event") };
         out.push(tasks::Request::Refused { reply_to, problem });
-        return tag_tasks(core, env, out, false, false, false);
+        return tag_task_outputs(core, env, out);
     }
     if let tasks::Event::Amend { task, amendment, .. } = &event
         && let Some(tasks::Tracking::Tracked { .. }) = amendment.tracked
@@ -1605,7 +1247,7 @@ pub(super) fn route_tasks(
     {
         let tasks::Event::Amend { task, reply_to, .. } = event else { unreachable!("checked amendment") };
         out.push(tasks::Request::Refused { reply_to, problem: tasks::Problem::new(Some(task), tasks::Refusal::Goals) });
-        return tag_tasks(core, env, out, false, false, false);
+        return tag_task_outputs(core, env, out);
     }
     if let tasks::Event::Make { batch, .. } = &event {
         let mut tracked = 0_u32;
@@ -1627,13 +1269,13 @@ pub(super) fn route_tasks(
                 reply_to,
                 problem: tasks::Problem::capacity(None, tasks::Refusal::Live, capacity),
             });
-            return tag_tasks(core, env, out, false, false, false);
+            return tag_task_outputs(core, env, out);
         }
     }
     let event = if let tasks::Event::Make { reply_to, creator, mut batch } = event {
         if let Err(problem) = core.resolve_llm(&mut batch) {
             out.push(tasks::Request::Refused { reply_to, problem });
-            return tag_tasks(core, env, out, false, false, false);
+            return tag_task_outputs(core, env, out);
         }
         match crate::resources::defer(
             core,
@@ -1645,13 +1287,13 @@ pub(super) fn route_tasks(
         ) {
             Some(event) => event,
             None => {
-                return tag_tasks(core, env, out, false, false, false);
+                return tag_task_outputs(core, env, out);
             }
         }
     } else if let tasks::Event::MakeResultFollowups { reply_to, proposer, proposal, mut batch } = event {
         if let Err(problem) = core.resolve_llm(&mut batch) {
             out.push(tasks::Request::Refused { reply_to, problem });
-            return tag_tasks(core, env, out, false, false, false);
+            return tag_task_outputs(core, env, out);
         }
         match crate::resources::defer(
             core,
@@ -1663,7 +1305,7 @@ pub(super) fn route_tasks(
         ) {
             Some(event) => event,
             None => {
-                return tag_tasks(core, env, out, false, false, false);
+                return tag_task_outputs(core, env, out);
             }
         }
     } else {
@@ -1672,7 +1314,7 @@ pub(super) fn route_tasks(
     let event = question_event(core, event);
     tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut out);
     crate::resources::resume(core, work);
-    tag_tasks(core, env, out, false, false, false)
+    tag_task_outputs(core, env, out)
 }
 // Direct-answer authority stays inside the core's question admission.
 fn question_event(core: &Core, event: tasks::Event) -> tasks::Event {
@@ -1741,5 +1383,285 @@ pub(super) fn result_notice(ending: tasks::Ending) -> (tasks::ResultKind, Box<[u
         },
         tasks::Ending::Failed { reason } => (tasks::ResultKind::Failed, reason),
         tasks::Ending::Cancelled { reason, .. } => (tasks::ResultKind::Cancelled, reason),
+    }
+}
+
+fn follow(core: &mut Core, env: &Env<Limits>, event: tasks::Event, pending: &mut Queue<tasks::Request>) {
+    let (event, procedure) = if let tasks::Event::Procedure { reply_to, task, step, read, decision } = event {
+        let token = reply_to.into_token();
+        (tasks::Event::Procedure { reply_to: ReplyTo::new(token), task, step, read, decision }, Some(token))
+    } else {
+        (event, None)
+    };
+    let mut child = Queue::uncapped();
+    tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut child);
+    for _ in 0..child.len() {
+        let request = child.pop().expect("continuation output count");
+        if let tasks::Request::ProcedureRefused { .. } = &request
+            && let Some(token) = procedure
+        {
+            drop(core.land(token));
+        }
+        pending.push(request);
+    }
+}
+
+fn tag_tasks(
+    core: &mut Core,
+    env: &Env<Limits>,
+    token: Token,
+    flight: Flight,
+    outcome: Result<(), tasks::Problem>,
+    pending: &mut Queue<tasks::Request>,
+    out: &mut Queue<Request>,
+) {
+    if let Err(problem) = outcome {
+        refused(core, env, token, flight, problem, pending, out);
+        return;
+    }
+    match flight {
+        Flight::PersonTask { request, route } => {
+            let outcome = match route {
+                PersonTaskRoute::Compound { project, operations, first_message } => {
+                    people::Outcome::Compound { project, operations, first_message }
+                }
+                PersonTaskRoute::Take(task) => people::Outcome::PersonTaken { task },
+                PersonTaskRoute::PoolSet { project, person } => people::Outcome::PoolSet { project, person },
+                PersonTaskRoute::HandBack(task) => people::Outcome::PersonHandedBack { task },
+                PersonTaskRoute::Answer(task) => people::Outcome::PersonAnswered { task },
+                PersonTaskRoute::Stop(task) => people::Outcome::Stopped { task },
+                PersonTaskRoute::Cancel(task) => people::Outcome::Cancelled { task },
+                PersonTaskRoute::Release(task) => people::Outcome::Released { task },
+                PersonTaskRoute::Amended { task, released } => people::Outcome::Amended { task, released },
+                PersonTaskRoute::Lift(_) => return,
+            };
+            append_people(core, env, people::Event::Decided { request, outcome }, out);
+        }
+        Flight::Moving { request, task } => {
+            append_people(core, env, people::Event::Decided { request, outcome: people::Outcome::Moved { task } }, out);
+        }
+        Flight::ProcedureProposal { owner, route } => {
+            let event = crate::effects::procedure_proposed(core, out, owner, route, true);
+            follow(core, env, event, pending);
+        }
+        Flight::Goal { request, route: GoalRoute::Accepting { proposer, proposal, by } } => {
+            let token = core.fly_goal(request, GoalRoute::Deciding { proposer, proposal, by });
+            follow(
+                core,
+                env,
+                tasks::Event::DecidePersonProposal {
+                    reply_to: ReplyTo::new(token),
+                    proposer,
+                    proposal,
+                    by: tasks::Party::Person(by),
+                    message: None,
+                    decision: tasks::ProposalDecision::Accept,
+                    revision: None,
+                },
+                pending,
+            );
+        }
+        Flight::PersonProposal(PersonProposalRoute::Accepting { request, person, proposer, proposal, message }) => {
+            let token = core.fly_person_proposal(PersonProposalRoute::Deciding {
+                request,
+                proposer,
+                proposal,
+                by: person,
+                moved: None,
+            });
+            follow(
+                core,
+                env,
+                tasks::Event::DecideProposal {
+                    reply_to: ReplyTo::new(token),
+                    proposer,
+                    proposal,
+                    message: Some(message),
+                    by: tasks::Party::Person(person),
+                    decision: tasks::ProposalDecision::Accept,
+                },
+                pending,
+            );
+        }
+        Flight::Call { request, route, effect } => call_done(core, env, request, route, effect, pending, out),
+        Flight::Goal { .. }
+        | Flight::PersonProposal(_)
+        | Flight::Made { .. }
+        | Flight::PersonEscalation(_)
+        | Flight::Internal(_)
+        | Flight::Retired => {}
+    }
+}
+
+fn call_done(
+    core: &mut Core,
+    env: &Env<Limits>,
+    request: Token,
+    route: RoutedCall,
+    effect: Option<(u16, Token)>,
+    pending: &mut Queue<tasks::Request>,
+    out: &mut Queue<Request>,
+) {
+    let (key, part) = match route {
+        RoutedCall::Propose { key, proposal } => {
+            if let Some((connector, owner)) = effect {
+                out.push(Request::Ask {
+                    connector,
+                    ask: Ask::Effect(crate::connector::Ask::KeepProposal {
+                        owner,
+                        proposal,
+                        task: key.task,
+                        project: core.tasks.task(key.task).expect("proposing task exists").project,
+                    }),
+                });
+            }
+            let tasks::ProposalState::Pending { holder, .. } =
+                core.tasks.proposal(key.task, proposal).expect("admitted proposal").state
+            else {
+                return;
+            };
+            (key, CallPart::Proposed { proposal, holder })
+        }
+        RoutedCall::Introduce(key) => (key, CallPart::Introduced),
+        RoutedCall::Control { key, target, revised } => {
+            let part = if revised {
+                let revision = core.tasks.task(target).expect("controlled task exists").revisions.spec;
+                CallPart::Revised { task: target, revision }
+            } else {
+                CallPart::Controlled
+            };
+            (key, part)
+        }
+        RoutedCall::Accepting { key, proposer, proposal, message } => {
+            let token = core.fly_call(request, RoutedCall::Decide { key, proposal });
+            follow(
+                core,
+                env,
+                tasks::Event::DecideProposal {
+                    reply_to: ReplyTo::new(token),
+                    proposer,
+                    proposal,
+                    message: Some(message),
+                    by: tasks::Party::Task(key.task),
+                    decision: tasks::ProposalDecision::Accept,
+                },
+                pending,
+            );
+            return;
+        }
+        RoutedCall::Subscribe { key, subscription } => {
+            for &connector in core.connectors.as_ref() {
+                out.push(Request::Ask { connector, ask: Ask::SubscriptionDone { request, key, subscription } });
+            }
+            return;
+        }
+        RoutedCall::Unsubscribe(key) => {
+            for &connector in core.connectors.as_ref() {
+                out.push(Request::Ask { connector, ask: Ask::UnsubscriptionDone { request, key } });
+            }
+            return;
+        }
+        RoutedCall::Message(_)
+        | RoutedCall::Decide { .. }
+        | RoutedCall::Withdraw { .. }
+        | RoutedCall::Escalation { .. } => return,
+    };
+    call_decision(core, out, ReplyTo::new(request), key, part);
+}
+
+fn refused(
+    core: &mut Core,
+    env: &Env<Limits>,
+    token: Token,
+    flight: Flight,
+    problem: tasks::Problem,
+    pending: &mut Queue<tasks::Request>,
+    out: &mut Queue<Request>,
+) {
+    match flight {
+        Flight::Goal { request, .. } | Flight::PersonTask { request, .. } | Flight::Made { request, .. } => {
+            if match &core.settings_offering {
+                Some((token, ..)) => *token == request,
+                None => false,
+            } {
+                drop(core.settings_offering.take());
+            }
+            let outcome = person_problem_refusal(core, problem);
+            append_people(core, env, people::Event::Decided { request, outcome }, out);
+        }
+        Flight::Moving { request, .. } => {
+            let outcome = person_move_refusal(core, problem);
+            append_people(core, env, people::Event::Decided { request, outcome }, out);
+        }
+        Flight::PersonProposal(route) => {
+            let request = match route {
+                PersonProposalRoute::Deciding { request, .. } | PersonProposalRoute::Accepting { request, .. } => {
+                    request
+                }
+            };
+            let outcome = person_move_refusal(core, problem);
+            append_people(core, env, people::Event::Decided { request, outcome }, out);
+        }
+        Flight::ProcedureProposal { owner, route } => {
+            let event = crate::effects::procedure_proposed(core, out, owner, route, false);
+            follow(core, env, event, pending);
+        }
+        Flight::Call { request, route, effect } => {
+            if let Some((connector, owner)) = effect {
+                out.push(Request::Ask {
+                    connector,
+                    ask: Ask::Effect(crate::connector::Ask::Drop {
+                        owner,
+                        answer: authority::Answer::Refuse,
+                        findings: Box::new([]),
+                        why: crate::connector::EffectRefusal::Proposal,
+                    }),
+                });
+            }
+            let (key, part) = match route {
+                RoutedCall::Message(key) | RoutedCall::Introduce(key) => (key, CallPart::MessageRefused(problem)),
+                RoutedCall::Control { key, target, .. } => {
+                    let part = if let tasks::Refusal::HoldOwner { hold } = problem.why {
+                        let row = core.tasks.placed_hold(hold).expect("owner refusal names retained hold");
+                        CallPart::HoldOwner {
+                            task: target,
+                            hold,
+                            revision: row.revision,
+                            owner: crate::roles::hold_owner(row.owner),
+                        }
+                    } else {
+                        CallPart::ControlRefused(problem)
+                    };
+                    (key, part)
+                }
+                RoutedCall::Escalation { key, .. } => (key, CallPart::EscalationRefused(problem)),
+                RoutedCall::Propose { key, .. }
+                | RoutedCall::Decide { key, .. }
+                | RoutedCall::Withdraw { key, .. }
+                | RoutedCall::Accepting { key, .. } => (key, CallPart::ProposalRefused(problem)),
+                RoutedCall::Subscribe { key, .. } | RoutedCall::Unsubscribe(key) => {
+                    call_decision(core, out, ReplyTo::new(request), key, CallPart::SubscriptionRefused(problem));
+                    for &connector in core.connectors.as_ref() {
+                        out.push(Request::Ask { connector, ask: Ask::DropSubscription { request } });
+                    }
+                    return;
+                }
+            };
+            call_decision(core, out, ReplyTo::new(request), key, part);
+        }
+        Flight::Internal(Internal::Repair) => {
+            for &connector in core.connectors.as_ref() {
+                out.push(Request::Ask { connector, ask: Ask::RepairRefused { repair: problem.task } });
+            }
+        }
+        Flight::Internal(Internal::Delegate | Internal::Acknowledge) => {
+            for &connector in core.connectors.as_ref() {
+                out.push(Request::Ask { connector, ask: Ask::DelegateRefused { task: problem.task } });
+            }
+        }
+        Flight::Internal(Internal::Admission) => {
+            out.push(Request::Now(Box::new(Now::RefusedPayload { request: token, problem })));
+        }
+        Flight::Retired | Flight::PersonEscalation(_) => {}
     }
 }

@@ -1,4 +1,5 @@
 use jig_core_world::Fault;
+use jig_core_world::effects::Setup;
 use jig_core_world::effects::World;
 use jig_core_world::fixtures::finish_chat;
 use jig_domain_core as core;
@@ -8,7 +9,7 @@ use skein_lib::{ReplyTo, Token};
 
 #[test]
 fn a_held_effect_commit_holds_the_system_and_the_call_answer() {
-    let mut world = World::new(121, false);
+    let mut world = World::new(Setup { seed: 121, ..Setup::default() });
     let answers = world.answers.len();
     world.store.fault(Fault::Hold { commits: 1 });
     world.call(1, 800);
@@ -22,7 +23,7 @@ fn a_held_effect_commit_holds_the_system_and_the_call_answer() {
 
 #[test]
 fn a_failed_commit_stops_the_root_before_its_effect_or_answer_leaves() {
-    let mut world = World::new(122, false);
+    let mut world = World::new(Setup { seed: 122, ..Setup::default() });
     let durable = world.store.applied;
     let rows = world.store.rows.clone();
     let answers = world.answers.len();
@@ -41,7 +42,7 @@ fn a_failed_commit_stops_the_root_before_its_effect_or_answer_leaves() {
 
 #[test]
 fn slow_pages_delay_a_cold_start_without_skipping_the_live_rows() {
-    let mut world = World::new(123, false);
+    let mut world = World::new(Setup { seed: 123, ..Setup::default() });
     world.enable_tracing();
     world.turn(1, 3, None, b"kept before slow restart");
     world.call(1, 802);
@@ -61,7 +62,7 @@ fn slow_pages_delay_a_cold_start_without_skipping_the_live_rows() {
 
 #[test]
 fn a_crash_before_a_turn_is_durable_loses_only_its_uncommitted_turn() {
-    let mut world = World::new(124, false);
+    let mut world = World::new(Setup { seed: 124, ..Setup::default() });
     let assignment = world.assigned.as_ref().expect("assigned caller");
     let task = assignment.task;
     let attempt = assignment.attempt;
@@ -81,7 +82,7 @@ fn a_crash_before_a_turn_is_durable_loses_only_its_uncommitted_turn() {
 
 #[test]
 fn a_crash_after_durability_before_acknowledgement_restores_the_turn() {
-    let mut world = World::new(125, false);
+    let mut world = World::new(Setup { seed: 125, ..Setup::default() });
     world.store.fault(Fault::Hold { commits: 1 });
     world.turn(1, 3, None, b"durable without acknowledgement");
     assert!(!world.store.held.is_empty());
@@ -96,7 +97,7 @@ fn a_crash_after_durability_before_acknowledgement_restores_the_turn() {
 
 #[test]
 fn parties_run_ahead_of_held_completions_but_every_answer_waits() {
-    let mut world = World::new(126, false);
+    let mut world = World::new(Setup { seed: 126, ..Setup::default() });
     let task = world.call_key(1).task;
     let answers = world.people_answers.len();
     world.store.fault(Fault::Hold { commits: 1 });
@@ -124,7 +125,7 @@ fn parties_run_ahead_of_held_completions_but_every_answer_waits() {
 
 #[test]
 fn a_runs_read_is_answered_while_an_unrelated_commit_is_in_flight() {
-    let mut world = World::new(128, false);
+    let mut world = World::new(Setup { seed: 128, ..Setup::default() });
     world.store.fault(Fault::Hold { commits: 1 });
     world.turn(1, 1, None, b"unrelated turn");
     let held = world.store.held.clone();
@@ -146,7 +147,7 @@ fn a_runs_read_is_answered_while_an_unrelated_commit_is_in_flight() {
 
 #[test]
 fn a_runs_write_answer_waits_for_an_unrelated_commit_in_flight() {
-    let mut world = World::new(129, false);
+    let mut world = World::new(Setup { seed: 129, ..Setup::default() });
     world.store.fault(Fault::Hold { commits: 1 });
     world.turn(1, 1, None, b"unrelated turn");
     let right = world.host_call(b"write-held", b"write", b"{}", true);
@@ -180,7 +181,7 @@ fn start_chat(world: &mut World, number: u8) {
 }
 
 fn filled_chat(seed: u64) -> World {
-    let mut world = World::new(seed, false);
+    let mut world = World::new(Setup { seed, ..Setup::default() });
     world.fill = jig_core_world::world::limits().core.fill_mark + 1;
     world.turn(1, 1, None, b"fill reported with this commit");
     world
@@ -219,7 +220,7 @@ fn a_fill_below_the_mark_admits_a_chat_again() {
 
 #[test]
 fn a_seen_conversation_is_read_back_through_the_store_after_restart() {
-    let mut world = World::new(127, false);
+    let mut world = World::new(Setup { seed: 127, ..Setup::default() });
     let task = world.assigned.as_ref().expect("the world's chat").task;
     world.turn(1, 3, None, b"the chat's reply");
     finish_chat(&mut world, 3, b"done");
@@ -233,7 +234,7 @@ fn a_seen_conversation_is_read_back_through_the_store_after_restart() {
 }
 #[test]
 fn a_historical_escalation_is_read_through_the_store() {
-    let mut world = World::new(132, false);
+    let mut world = World::new(Setup { seed: 132, ..Setup::default() });
     let task = world.assigned.as_ref().expect("the world's chat").task;
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Stalled })));
     world.end(tasks::End::Parked, 0);

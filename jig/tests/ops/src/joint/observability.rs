@@ -1,5 +1,5 @@
 //! Whole genuine owner facts, with no inferred lead, revision, proposal or load.
-use jig_ops_client_domain::observability::{documents, native};
+use jig_ops_client_domain::observability::{documents, values};
 use jig_ops_domain_observability as source;
 use skein_lib::List;
 #[must_use]
@@ -7,8 +7,8 @@ pub fn service(value: source::Service) -> documents::Service {
     documents::Service { environment: value.environment, name: value.name }
 }
 #[must_use]
-pub fn fact(value: source::Fact) -> native::Fact {
-    native::Fact {
+pub fn fact(value: source::Fact) -> values::Fact {
+    values::Fact {
         observed: value.observed,
         healthy_replicas: value.healthy_replicas,
         errors: value.errors,
@@ -18,7 +18,7 @@ pub fn fact(value: source::Fact) -> native::Fact {
             .load
             .into_vec()
             .into_iter()
-            .map(|value| native::LoadPoint { observed: value.at, load_percent: value.percent })
+            .map(|value| values::LoadPoint { observed: value.at, load_percent: value.percent })
             .collect::<Vec<_>>()
             .into(),
     }
@@ -31,13 +31,13 @@ pub fn state(value: source::IncidentState) -> documents::State {
     }
 }
 #[must_use]
-pub fn incident(value: source::Incident) -> native::Incident {
+pub fn incident(value: source::Incident) -> values::Incident {
     let mut timeline = List::with_capacity(value.timeline.capacity());
     for value in &value.timeline {
         timeline
-            .push(native::Point {
+            .push(values::Point {
                 at: value.at,
-                health: value.health.map(|health| native::Health {
+                health: value.health.map(|health| values::Health {
                     observed: health.observed,
                     healthy_replicas: health.healthy_replicas,
                     errors: health.errors,
@@ -46,7 +46,7 @@ pub fn incident(value: source::Incident) -> native::Incident {
             })
             .expect("source timeline capacity");
     }
-    native::Incident {
+    values::Incident {
         project: value.project,
         number: value.number,
         watch: value.watch,
@@ -61,58 +61,58 @@ pub fn incident(value: source::Incident) -> native::Incident {
     }
 }
 #[must_use]
-pub fn purpose(value: source::Purpose) -> native::Purpose {
+pub fn purpose(value: source::Purpose) -> values::Purpose {
     match value {
         source::Purpose::Call { attempt, completion, position } => {
-            native::Purpose::Call { attempt, completion, position }
+            values::Purpose::Call { attempt, completion, position }
         }
-        source::Purpose::Procedure { purpose } => native::Purpose::Procedure { purpose },
-        source::Purpose::Projection { purpose } => native::Purpose::Projection { purpose },
+        source::Purpose::Procedure { purpose } => values::Purpose::Procedure { purpose },
+        source::Purpose::Projection { purpose } => values::Purpose::Projection { purpose },
     }
 }
 #[must_use]
-pub fn entry(value: source::Entry) -> native::Entry {
-    native::Entry {
+pub fn entry(value: source::Entry) -> values::Entry {
+    values::Entry {
         project: value.project,
         number: value.number,
-        key: native::Key {
+        key: values::Key {
             deployment: value.key.deployment,
             task: value.key.task,
             origin: purpose(value.key.origin),
             purpose: value.key.purpose,
         },
-        effect: native::Effect { rule: value.effect.rule, until: value.effect.until },
+        effect: values::Effect { rule: value.effect.rule, until: value.effect.until },
         attempt: value.attempt,
         deadline: value.deadline,
         phase: match value.phase {
-            source::Phase::Kept => native::Phase::Kept,
-            source::Phase::Sent => native::Phase::Sent,
-            source::Phase::Uncertain => native::Phase::Uncertain,
-            source::Phase::Held => native::Phase::Held,
+            source::Phase::Kept => values::Phase::Kept,
+            source::Phase::Sent => values::Phase::Sent,
+            source::Phase::Uncertain => values::Phase::Uncertain,
+            source::Phase::Held => values::Phase::Held,
         },
     }
 }
 #[must_use]
-pub fn document(value: source::ClientDocument) -> native::Value {
+pub fn document(value: source::ClientDocument) -> values::Value {
     match value {
         source::ClientDocument::Service { service: value, fact: current } => {
-            native::Value::Service { service: service(value), fact: fact(current) }
+            values::Value::Service { service: service(value), fact: fact(current) }
         }
         source::ClientDocument::Incident { incident: value, fact: current } => {
-            native::Value::Incident { incident: incident(value), fact: current.map(fact) }
+            values::Value::Incident { incident: incident(value), fact: current.map(fact) }
         }
-        source::ClientDocument::Alert { alert, raised, state: current, fact: health } => native::Value::Alert {
-            alert: native::Alert { number: alert.number, service: service(alert.service), severity: alert.severity },
+        source::ClientDocument::Alert { alert, raised, state: current, fact: health } => values::Value::Alert {
+            alert: values::Alert { number: alert.number, service: service(alert.service), severity: alert.severity },
             raised,
             state: state(current),
             fact: health.map(fact),
         },
-        source::ClientDocument::Outbox { entry: value } => native::Value::Outbox { entry: entry(value) },
+        source::ClientDocument::Outbox { entry: value } => values::Value::Outbox { entry: entry(value) },
         source::ClientDocument::Project { project, services, incidents } => {
             let mut views = List::with_capacity(services.capacity());
             for value in &services {
                 views
-                    .push(native::ServiceState {
+                    .push(values::ServiceState {
                         service: service(value.service.clone()),
                         fact: value.fact.clone().map(fact),
                     })
@@ -122,14 +122,14 @@ pub fn document(value: source::ClientDocument) -> native::Value {
             for value in &incidents {
                 history.push(incident(value.clone())).expect("source incident capacity");
             }
-            native::Value::Project { project, services: views, incidents: history }
+            values::Value::Project { project, services: views, incidents: history }
         }
         source::ClientDocument::Deployment { watches, effects, read_limit, incident_limit } => {
             let mut entries = List::with_capacity(effects.capacity());
             for value in &effects {
                 entries.push(entry(value.clone())).expect("source outbox capacity");
             }
-            native::Value::Deployment { watches, effects: entries, read_limit, incident_limit }
+            values::Value::Deployment { watches, effects: entries, read_limit, incident_limit }
         }
     }
 }

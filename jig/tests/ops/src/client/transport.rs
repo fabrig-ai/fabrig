@@ -141,63 +141,11 @@ fn family_subject(record: &jig_client::Family, scope: jig_client::contract::Scop
         _ => panic!("declared family"),
     }
 }
-fn watch(channel: Channel, local: Token, event: WatchEvent) -> Event {
-    match channel {
-        Channel::Jig => {
-            Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched { watch: local, event } } }
-        }
-        Channel::Observability => Event::Observability(obs::Event::Watch {
-            watch: local,
-            event: match event {
-                WatchEvent::Opened => obs::WatchEvent::Opened,
-                WatchEvent::Alive => obs::WatchEvent::Alive,
-                WatchEvent::Behind | WatchEvent::Delivered(_) => unreachable!("Ops docs use Up::App"),
-            },
-        }),
-        Channel::Infrastructure => Event::Infrastructure(infra::Event::Watch {
-            watch: local,
-            event: match event {
-                WatchEvent::Opened => infra::WatchEvent::Opened,
-                WatchEvent::Alive => infra::WatchEvent::Alive,
-                WatchEvent::Behind | WatchEvent::Delivered(_) => unreachable!("Ops docs use Up::App"),
-            },
-        }),
-    }
+fn watch(local: Token, event: WatchEvent) -> Event {
+    Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Watched { watch: local, event } } }
 }
-fn end(channel: Channel, local: Token, why: WatchEnd) -> Event {
-    match channel {
-        Channel::Jig => {
-            Event::Client { event: jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch: local, end: why } } }
-        }
-        Channel::Observability => Event::Observability(obs::Event::Ended {
-            watch: local,
-            end: match why {
-                WatchEnd::Closed => obs::WatchEnd::Closed,
-                WatchEnd::SignedOut => obs::WatchEnd::SignedOut,
-                WatchEnd::NotServed
-                | WatchEnd::Dropped
-                | WatchEnd::Unknown
-                | WatchEnd::NotAllowed
-                | WatchEnd::Busy
-                | WatchEnd::SubjectEnded
-                | WatchEnd::Stopping => obs::WatchEnd::Dropped,
-            },
-        }),
-        Channel::Infrastructure => Event::Infrastructure(infra::Event::Ended {
-            watch: local,
-            end: match why {
-                WatchEnd::Closed => infra::WatchEnd::Closed,
-                WatchEnd::SignedOut => infra::WatchEnd::SignedOut,
-                WatchEnd::NotServed
-                | WatchEnd::Dropped
-                | WatchEnd::Unknown
-                | WatchEnd::NotAllowed
-                | WatchEnd::Busy
-                | WatchEnd::SubjectEnded
-                | WatchEnd::Stopping => infra::WatchEnd::Dropped,
-            },
-        }),
-    }
+fn end(local: Token, why: WatchEnd) -> Event {
+    Event::Client { event: jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch: local, end: why } } }
 }
 impl Front<Ops> for Scripted {
     fn bind(&mut self, client: ClientId, party: u64) {
@@ -225,7 +173,7 @@ impl Front<Ops> for Scripted {
                     }
                     jig_client::Ask::Family { record, .. } => {
                         let ask = domain::wire::ask_value(&record.bytes).expect("whole infrastructure request");
-                        let infra::Ask::NativeMoveEnd { project, environment, revision, until, .. } = &ask;
+                        let infra::Ask::MoveEnd { project, environment, revision, until, .. } = &ask;
                         let mut canonical = Sha256::new();
                         canonical.update(b"Ops.MoveEnd.v1");
                         canonical.update(project.to_be_bytes());
@@ -356,19 +304,31 @@ impl Front<Ops> for Scripted {
                         up: jig_client::Up::ReadDone { read: local, result: jig_client::Readout::Jig(terminal) },
                     },
                 },
-                Up::Watch { event, .. } => watch(route.channel, local, event),
-                Up::App { document, .. } => match document {
-                    Document::Observability(doc) => Event::Observability(obs::Event::Watch {
-                        watch: local,
-                        event: obs::WatchEvent::Delivered(Box::new(doc)),
-                    }),
-                    Document::Infrastructure(doc) => Event::Infrastructure(infra::Event::Watch {
-                        watch: local,
-                        event: infra::WatchEvent::Delivered(Box::new(doc)),
-                    }),
-                },
+                Up::Watch { event, .. } => watch(local, event),
+                Up::App { document, .. } => {
+                    let (family, bytes) = match document {
+                        Document::Observability(doc) => {
+                            (1, domain::wire::observability::document(&doc).expect("whole incident"))
+                        }
+                        Document::Infrastructure(doc) => {
+                            (2, domain::wire::infrastructure::document(&doc).expect("whole environment"))
+                        }
+                    };
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::FamilyDelivered {
+                                watch: local,
+                                record: jig_client::Family {
+                                    family,
+                                    version: jig_ops_client_protocol_wire::VERSION,
+                                    bytes,
+                                },
+                            },
+                        },
+                    }
+                }
                 Up::ApplicationRead { terminal, .. } => application_read(route.channel, local, terminal),
-                Up::Ended { why, .. } => end(route.channel, local, why),
+                Up::Ended { why, .. } => end(local, why),
             };
             delivered.push((route.client, event));
         }
@@ -654,43 +614,27 @@ impl Scripted {
 }
 
 fn application_read(channel: Channel, local: Token, terminal: std::result::Result<Document, ReadNone>) -> Event {
-    match (channel, terminal) {
-        (Channel::Observability, Ok(Document::Observability(doc))) => {
-            Event::Observability(obs::Event::Read { read: local, result: obs::ReadResult::Value(Box::new(doc)) })
+    let result = match (channel, terminal) {
+        (Channel::Observability, Ok(Document::Observability(doc))) => jig_client::Readout::Family {
+            family: 1,
+            record: Some(
+                domain::wire::observability::read_answer(&obs::ReadResult::Value(Box::new(doc)))
+                    .expect("whole incident read"),
+            ),
+        },
+        (Channel::Infrastructure, Ok(Document::Infrastructure(doc))) => jig_client::Readout::Family {
+            family: 2,
+            record: Some(
+                domain::wire::infrastructure::read_answer(&infra::ReadResult::Value(Box::new(doc)))
+                    .expect("whole environment read"),
+            ),
+        },
+        (Channel::Observability | Channel::Infrastructure, Err(reason)) => {
+            jig_client::Readout::Jig(jig_client::contract::ReadResult::None(reason))
         }
-        (Channel::Infrastructure, Ok(Document::Infrastructure(doc))) => {
-            Event::Infrastructure(infra::Event::Read { read: local, result: infra::ReadResult::Value(Box::new(doc)) })
-        }
-        (Channel::Observability, Err(reason)) => Event::Observability(obs::Event::Read {
-            read: local,
-            result: match reason {
-                ReadNone::SignedOut => obs::ReadResult::SignedOut,
-                ReadNone::Busy | ReadNone::Unreachable => obs::ReadResult::Busy,
-                ReadNone::Unknown
-                | ReadNone::Refused
-                | ReadNone::Gone
-                | ReadNone::TooLinked { .. }
-                | ReadNone::TooLarge { .. }
-                | ReadNone::Malformed => obs::ReadResult::Unknown,
-            },
-        }),
-        (Channel::Infrastructure, Err(reason)) => Event::Infrastructure(infra::Event::Read {
-            read: local,
-            result: match reason {
-                ReadNone::SignedOut => infra::ReadResult::SignedOut,
-                ReadNone::Busy | ReadNone::Unreachable => infra::ReadResult::Busy,
-                ReadNone::Unknown
-                | ReadNone::Refused
-                | ReadNone::Gone
-                | ReadNone::TooLinked { .. }
-                | ReadNone::TooLarge { .. }
-                | ReadNone::Malformed => infra::ReadResult::Unknown,
-            },
-        }),
         (Channel::Jig, _)
         | (Channel::Observability, Ok(Document::Infrastructure(_)))
-        | (Channel::Infrastructure, Ok(Document::Observability(_))) => {
-            panic!("application payload owner mismatch")
-        }
-    }
+        | (Channel::Infrastructure, Ok(Document::Observability(_))) => panic!("application payload owner mismatch"),
+    };
+    Event::Client { event: jig_client::Event::Up { up: jig_client::Up::ReadDone { read: local, result } } }
 }

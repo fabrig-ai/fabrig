@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::{
     effects::World,
     peers::{Peers, fixture},
@@ -31,14 +32,15 @@ fn scripted(seed: u64, scripts: Vec<Box<[Script]>>, engine: bool) -> World {
     } else {
         vec![Worker::new(7, 1, scripts)]
     };
-    let mut world = World::scripted(
-        config,
+    let mut world = World::new(Setup {
+        configuration: Some(config),
         limits,
-        Peers::new(
+        peers: Some(Peers::new(
             workers,
             vec![party(7, Role::Owner, 10_000), party(8, Role::Maintainer, 20_000), party(9, Role::Member, 30_000)],
-        ),
-    );
+        )),
+        ..Setup::default()
+    });
     let parties = &world.peers.as_ref().expect("peers").parties;
     let holdings = parties
         .iter()
@@ -98,7 +100,12 @@ fn three_workers_and_the_engines_own_slot_use_the_same_host_scripts() {
             )
         })
         .collect();
-    let mut world = World::scripted(config, limits, Peers::new(workers, vec![party(7, Role::Owner, 10_000)]));
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        peers: Some(Peers::new(workers, vec![party(7, Role::Owner, 10_000)])),
+        ..Setup::default()
+    });
     for key in 1..=4 {
         acts(
             &mut world,
@@ -250,7 +257,12 @@ fn a_person_stops_a_goal_and_its_delegates_runs_are_cancelled_with_its_own() {
     limits.core.people.inbox_recipients = 24;
     jig_core_world::peers::journal(&mut limits);
     let worker = Worker::new(7, 3, (0..6).map(|_| Box::new([Script::Wait]) as Box<[Script]>).collect());
-    let mut world = World::scripted(config, limits, Peers::new(vec![worker], vec![party(9, Role::Member, 30_000)]));
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        peers: Some(Peers::new(vec![worker], vec![party(9, Role::Member, 30_000)])),
+        ..Setup::default()
+    });
     let person = world.peers.as_ref().expect("peers").parties[0].person.expect("member signed in");
     world.send(root::Event::Core(core::Event::People(people::Event::Roles {
         project: 1,
@@ -384,12 +396,18 @@ fn a_worker_reconnects_and_resends_retained_turns_after_hello() {
 // A shared entrypoint avoids one process startup per short scenario.
 #[test]
 fn peers_scenarios() {
-    jig_core_world::stories::closing_chat::disposals_and_finish_grace();
-    a_scripted_worker_takes_turns_answers_calls_and_finishes_with_acknowledgements();
-    three_workers_and_the_engines_own_slot_use_the_same_host_scripts();
-    a_members_chat_proposes_a_goal_it_cannot_fund_and_a_maintainer_accepts_it_as_their_own();
-    a_person_chooses_between_two_reports_and_the_result_reaches_its_requester();
-    a_person_stops_a_scripted_run_and_words_release_it_for_a_new_attempt();
-    a_request_sent_twice_creates_one_chat_and_replays_the_same_answer();
-    a_worker_reconnects_and_resends_retained_turns_after_hello();
+    let mut bundle = super::bundle::Bundle::default();
+    crate::bundle::case!(bundle, 7074, jig_core_world::stories::closing_chat::disposals_and_finish_grace);
+    crate::bundle::case!(bundle, 201, a_scripted_worker_takes_turns_answers_calls_and_finishes_with_acknowledgements);
+    crate::bundle::case!(bundle, 202, three_workers_and_the_engines_own_slot_use_the_same_host_scripts);
+    crate::bundle::case!(
+        bundle,
+        203,
+        a_members_chat_proposes_a_goal_it_cannot_fund_and_a_maintainer_accepts_it_as_their_own
+    );
+    crate::bundle::case!(bundle, 204, a_person_chooses_between_two_reports_and_the_result_reaches_its_requester);
+    crate::bundle::case!(bundle, 205, a_person_stops_a_scripted_run_and_words_release_it_for_a_new_attempt);
+    crate::bundle::case!(bundle, 206, a_request_sent_twice_creates_one_chat_and_replays_the_same_answer);
+    crate::bundle::case!(bundle, 207, a_worker_reconnects_and_resends_retained_turns_after_hello);
+    bundle.finish().unwrap_or_else(|failures| panic!("{failures}"));
 }

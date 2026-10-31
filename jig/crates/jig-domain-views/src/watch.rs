@@ -122,7 +122,6 @@ pub(crate) fn made(domain: &mut Domain, token: Token, outcome: Made, out: &mut Q
         State::Making { changed } => match outcome {
             Made::Ready => {
                 watch.state = State::Sending { changed };
-                domain.facts.push(Fact::Delivered);
                 out.push(Request::Deliver { watcher: token });
             }
             Made::Gone { why } => finish(domain, id, why, out),
@@ -138,6 +137,7 @@ pub(crate) fn delivered(domain: &mut Domain, token: Token, out: &mut Queue<Reque
     let watch = domain.watchers.get_mut(id).expect("named watch");
     match watch.state {
         State::Sending { changed } => {
+            domain.facts.push(Fact::Delivered);
             watch.state = if changed {
                 make(watch, &mut domain.facts, out);
                 State::Making { changed: false }

@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_test_connector as d;
 use skein_lib::{Rng, Token, Wall};
 pub const FIRST: u16 = 1;
@@ -7,7 +8,12 @@ pub fn path() -> d::Path {
     jig_test_connector_world::path(1, 1)
 }
 pub fn key() -> d::Key {
-    d::Key { attempt: 1, completion: 2, position: 3, deployment: [0; 16], task: 4, purpose: 5 }
+    d::Key {
+        origin: d::Purpose::Call { attempt: 1, completion: 2, position: 3 },
+        deployment: [0; 16],
+        task: 4,
+        purpose: 5,
+    }
 }
 pub fn effect() -> d::Effect {
     d::Effect { kind: 1, resources: Box::new([path()]), purpose: 2, condition: Some(3), target: 4, state: 5 }
@@ -44,9 +50,15 @@ fn random_key(random: &mut Rng) -> d::Key {
         *byte = u8::try_from(random.below(256)).expect("byte");
     }
     d::Key {
-        attempt: random.next_u64(),
-        completion: u32::try_from(random.below(u64::from(u32::MAX))).expect("u32"),
-        position: u32::try_from(random.below(u64::from(u32::MAX))).expect("u32"),
+        origin: match random.below(3) {
+            0 => d::Purpose::Procedure,
+            1 => d::Purpose::Projection,
+            _ => d::Purpose::Call {
+                attempt: random.next_u64(),
+                completion: u32::try_from(random.below(u64::from(u32::MAX))).expect("u32"),
+                position: u32::try_from(random.below(u64::from(u32::MAX))).expect("u32"),
+            },
+        },
         deployment,
         task: random.next_u64(),
         purpose: random.next_u64(),
@@ -325,7 +337,7 @@ pub fn commit_writes(request: jig_protocol_store::Request) -> Box<[jig_protocol_
     }
 }
 pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
-    let mut world = jig_core_world::effects::World::new(18, false);
+    let mut world = jig_core_world::effects::World::new(Setup { seed: 18, ..Setup::default() });
     let task = world.assigned.as_ref().expect("chat assigned").task;
     world.end(
         jig_domain_tasks::End::Finished {

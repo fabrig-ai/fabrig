@@ -53,7 +53,6 @@ fn a_linked_ops_root_signs_in_through_the_byte_face() {
         d::Event::Start {
             address: d::Address::Jig(jig_client_view::address::Address::Conversations { project: None }),
             kept: skein_lib::List::with_capacity(0),
-            offset: jig_client_view::boundary::Offset { minutes: 0 },
         },
         &mut requests,
     );

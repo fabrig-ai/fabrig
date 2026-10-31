@@ -210,7 +210,11 @@ impl Neighbours {
                 }
                 root::Record::Connector { number, record: connector::Record::Outbox(row) } => {
                     if let Some(attempt) = row.attempt {
-                        receipts.insert(Receipt::Outbox(*number, row.key.into(), attempt.number));
+                        receipts.insert(Receipt::Outbox(
+                            *number,
+                            jig_core_world::observations::effect_key(row.key),
+                            attempt.number,
+                        ));
                     }
                 }
                 root::Record::Core(_) | root::Record::Connector { .. } => {}

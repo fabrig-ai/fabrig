@@ -46,7 +46,7 @@ fn sole_follower_detaches_and_reopens_the_retained_retry() {
     report(&mut domain, 1, 0, b"retained");
     take(&mut domain, 1);
     assert_eq!(
-        drive(&mut domain, Event::Unwatch { watcher: Token::new(1) }).as_ref(),
+        drive(&mut domain, Event::EndWatch { watcher: Token::new(1), end: End::Unwatched }).as_ref(),
         &[Request::Ended { watcher: Token::new(1), end: End::Unwatched }]
     );
     assert!(!domain.follows(Token::new(7)));

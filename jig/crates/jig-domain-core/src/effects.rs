@@ -727,7 +727,7 @@ fn complete(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>, out: &mu
     let task = origin.task();
     for resource in held_resources(core, &description) {
         work.push(Work::Event(Event::Tasks(tasks::Event::EffectInFlight {
-            reply_to: ReplyTo::new(Token::new(u64::MAX)),
+            reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Delegate)),
             task,
             resource,
             entry,
@@ -940,47 +940,31 @@ fn complete_accept(
     };
     let message = fresh(&mut core.counters, Family::Message).expect("acceptance message admitted");
     let token = to.into_token();
-    match key {
-        Some(key) => {
-            assert!(
-                core.routing_calls.insert(token, crate::RoutedCall::Decide { key, proposal: proposal.number }).is_ok(),
-                "effect acceptance route"
-            );
-        }
+    let flight = match key {
+        Some(key) => core.fly_call(token, crate::RoutedCall::Decide { key, proposal: proposal.number }),
         None => {
             let person = match by {
                 tasks::Party::Person(person) => person,
                 tasks::Party::Task(_) | tasks::Party::Deployment { .. } => unreachable!("person accepter"),
             };
-            assert!(
-                core.routing_people_proposals
-                    .insert(
-                        token,
-                        crate::PersonProposalRoute::Deciding {
-                            request: token,
-                            proposer: proposal.proposer,
-                            proposal: proposal.number,
-                            by: person,
-                            moved: None
-                        }
-                    )
-                    .is_ok(),
-                "person effect acceptance"
-            );
+            core.fly_person_proposal(crate::PersonProposalRoute::Deciding {
+                request: token,
+                proposer: proposal.proposer,
+                proposal: proposal.number,
+                by: person,
+                moved: None,
+            })
         }
-    }
+    };
     let decided = tasks::Event::DecideProposal {
-        reply_to: ReplyTo::new(token),
+        reply_to: ReplyTo::new(flight),
         proposer: proposal.proposer,
         proposal: proposal.number,
         message: Some(message),
         by,
         decision: tasks::ProposalDecision::Accept,
     };
-    work.push(match key {
-        Some(_) => Work::Event(Event::Tasks(decided)),
-        None => Work::PersonProposal(decided),
-    });
+    work.push(Work::Event(Event::Tasks(decided)));
     out.push(Request::Ask {
         connector: number,
         ask: Ask::Effect(connector::Ask::DropProposal { proposal: proposal.number }),
@@ -1019,6 +1003,7 @@ fn complete_proposal(
         return;
     };
     let token = to.into_token();
+    let mut admitted = None;
     let requests = crate::routing::named_propose(
         core,
         env,
@@ -1035,16 +1020,17 @@ fn complete_proposal(
         },
         reason,
         as_holder,
+        &mut admitted,
     );
     let mut rows = requests;
     for _ in 0..rows.len() {
         out.push(rows.pop().expect("proposal output count"));
     }
-    if core.routing_calls.contains_key(&token) {
-        assert!(
-            core.proposing_effects.insert(token, (number, owner)).is_ok(),
-            "one effect proposal admission per call"
-        );
+    if let Some(token) = admitted {
+        if let Some(crate::flight::Flight::Call { effect, .. }) = core.flights.get_mut(skein_lib::Id::from_token(token))
+        {
+            *effect = Some((number, owner));
+        }
     } else {
         drop_effect(out, number, owner, authority::Answer::Refuse);
     }
@@ -1251,7 +1237,7 @@ pub(crate) fn procedure_propose(
         purpose: description.purpose,
     };
     if core.proposal_admit_action(context.project, &action, env.wall).is_err()
-        || core.procedure_proposals.len() >= env.limits.tasks.tasks
+        || core.procedure_proposal_flights() >= env.limits.tasks.tasks
     {
         drop_with(out, connector, owner, authority::Answer::Refuse, connector::EffectRefusal::Proposal);
         procedure_wait(core, work, task, step);
@@ -1272,11 +1258,12 @@ pub(crate) fn procedure_propose(
         procedure_wait(core, work, task, step);
         return;
     };
-    core.procedure_proposals
-        .insert(owner, ProcedureProposal { task, step, connector, proposal })
-        .expect("admitted procedure proposal route");
+    let token = core.fly(crate::flight::Flight::ProcedureProposal {
+        owner,
+        route: ProcedureProposal { task, step, connector, proposal },
+    });
     work.push(Work::Event(Event::Tasks(tasks::Event::Propose {
-        reply_to: ReplyTo::new(owner),
+        reply_to: ReplyTo::new(token),
         proposal: tasks::Proposal {
             number: proposal,
             proposer: task,
@@ -1294,9 +1281,9 @@ pub(crate) fn procedure_proposed(
     core: &mut Core,
     out: &mut Queue<Request>,
     token: Token,
+    route: ProcedureProposal,
     admitted: bool,
-) -> Option<tasks::Event> {
-    let route = core.procedure_proposals.remove(&token)?;
+) -> tasks::Event {
     if admitted {
         out.push(Request::Ask {
             connector: route.connector,
@@ -1310,18 +1297,18 @@ pub(crate) fn procedure_proposed(
     } else {
         drop_effect(out, route.connector, token, authority::Answer::Refuse);
     }
-    Some(tasks::Event::Procedure {
-        reply_to: ReplyTo::new(Token::new(u64::MAX)),
+    tasks::Event::Procedure {
+        reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Delegate)),
         task: route.task,
         step: route.step,
         read: core.tasks.procedure_offered(route.task),
         decision: tasks::ProcedureDecision::new(tasks::ProcedureEnd::Wait),
-    })
+    }
 }
 
-fn procedure_wait(core: &Core, work: &mut Queue<Work>, task: u64, step: u64) {
+fn procedure_wait(core: &mut Core, work: &mut Queue<Work>, task: u64, step: u64) {
     work.push(Work::Event(Event::Tasks(tasks::Event::Procedure {
-        reply_to: ReplyTo::new(Token::new(u64::MAX)),
+        reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Delegate)),
         task,
         step,
         read: core.tasks.procedure_offered(task),

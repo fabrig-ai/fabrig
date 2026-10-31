@@ -42,11 +42,8 @@ use run_preparation::{
 pub(crate) use runs::named_propose;
 use runs::{named_action, route_named_answer, route_refused_payload};
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
-use task_routes::{
-    route_connector_repair, route_person_escalation, route_person_proposal, route_task_escalation, route_tasks,
-    tag_tasks,
-};
-use view_routes::{made_outputs, open, route_view};
+use task_routes::{route_connector_repair, route_tasks, tag_task_outputs};
+use view_routes::{open, route_view};
 pub(crate) use vocabulary::Work;
 pub use vocabulary::{
     Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsNeed, Limits, NamedAction, Now,
@@ -94,25 +91,25 @@ impl Core {
 
     /// Retain a connector subscription's task-hub continuation with its named call.
     #[must_use]
-    pub fn reserve_connector_subscription(&mut self, token: Token, key: CallKey, subscription: u64) -> bool {
+    pub fn reserve_connector_subscription(&mut self, token: Token, key: CallKey, subscription: u64) -> Option<Token> {
         self.start_input();
         if !self.reserve_connector_call(key) {
-            return false;
+            return None;
         }
-        self.routing_calls.insert(token, RoutedCall::Subscribe { key, subscription }) == Ok(None)
+        Some(self.fly_call(token, RoutedCall::Subscribe { key, subscription }))
     }
 }
 
 /// Person choice retained only while the task child decides its exact revision.
 #[derive(PartialEq, Eq, Debug)]
 pub(crate) struct PersonEscalation {
-    request: Token,
-    requester: u64,
-    person: u64,
-    project: u32,
-    task: u64,
-    revision: u64,
-    decision: people::EscalationDecision,
+    pub(crate) request: Token,
+    pub(crate) requester: u64,
+    pub(crate) person: u64,
+    pub(crate) project: u32,
+    pub(crate) task: u64,
+    pub(crate) revision: u64,
+    pub(crate) decision: people::EscalationDecision,
 }
 
 #[derive(Debug)]
@@ -415,7 +412,7 @@ pub(crate) fn start_task_outputs(
     child: Queue<tasks::Request>,
     out: &mut Queue<Request>,
 ) {
-    let mut routed = tag_tasks(core, env, child, false, false, false);
+    let mut routed = tag_task_outputs(core, env, child);
     for _ in 0..routed.len() {
         let request = routed.pop().expect("bounded restored task outputs");
         out.push(request);
@@ -453,9 +450,6 @@ fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Wo
         Work::StartBrief { task } => start_brief(core, env, work, task),
         Work::BriefNotes { task, lines, more } => plan_brief(core, env, work, task, lines, more),
         Work::PreparationFailed { task } => route_preparation_failed(core, work, task),
-        Work::PersonProposal(event) => route_person_proposal(core, env, event),
-        Work::TaskEscalation(event) => route_task_escalation(core, env, event),
-        Work::PersonEscalation(event) => route_person_escalation(core, env, event),
         Work::Forget { owner } => crate::forget::forget(core, env, work, &owner),
     }
 }
@@ -520,7 +514,9 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::WatchRun { watcher, sign_in, task, turn, offset } => {
             view_routes::open_run(core, env, watcher, sign_in, task, turn, offset)
         }
-        Event::Unwatch { watcher } => route_view(core, env, views::Event::Unwatch { watcher }),
+        Event::Unwatch { watcher } => {
+            route_view(core, env, views::Event::EndWatch { watcher, end: views::End::Unwatched })
+        }
         Event::Delivered { watcher } => route_view(core, env, views::Event::Delivered { watcher }),
         Event::StreamDelivered { watcher } => view_routes::stream_delivered(core, env, watcher),
         Event::RunCall { run, attempt, call } => view_routes::run_call(core, env, run, attempt, call),
@@ -543,7 +539,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         }
         Event::ClaimRefused { task } => route_claim_refused(core, work, task),
         Event::ConnectorRepair { seed, executor, spec, contract, holdings } => {
-            route_connector_repair(work, seed, executor, spec, contract, holdings)
+            route_connector_repair(core, work, seed, executor, spec, contract, holdings)
         }
         Event::Period { project, period, budget, next } => route_period(core, work, project, period, budget, next),
         Event::TranscriptLoaded { task, load } => run_preparation::transcript_loaded(core, env, work, task, load),
@@ -653,7 +649,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
         Timer::Tasks => {
             let mut out = Queue::uncapped();
             tasks::fire(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, &mut out);
-            tag_tasks(core, env, out, false, false, false)
+            tag_task_outputs(core, env, out)
         }
         Timer::Fleet => {
             let mut out = Queue::uncapped();
@@ -691,11 +687,6 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
             let requests = tag_account(core, env, &mut work, out);
             assert!(work.is_empty(), "an account's alarm answers no party");
             requests
-        }
-        Timer::View => {
-            let mut out = Queue::uncapped();
-            views::fire(&mut core.views, &Env { now: env.now, wall: env.wall, limits: env.limits.views }, &mut out);
-            made_outputs(core, env, out)
         }
     };
     core.finish_extent(oldest, &mut out);

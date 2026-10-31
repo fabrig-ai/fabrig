@@ -52,7 +52,7 @@ fn limits() -> root::Limits {
             requests: 4,
             rows: 2,
             segments: 4,
-            retry: Duration::from_nanos(10),
+
             document_bytes: 65536,
         },
         observability: observability::Limits {
@@ -63,7 +63,7 @@ fn limits() -> root::Limits {
             rows: 2,
             segments: 4,
             text: 32,
-            retry: Duration::from_nanos(10),
+
             document_bytes: 65536,
         },
         client: support::client_limits(),
@@ -88,7 +88,6 @@ fn ready() -> Domain {
         Event::Start {
             address: Address::Jig(jig_client_view::address::Address::Inbox { project: None }),
             kept: List::with_capacity(0),
-            offset: jig_client_view::boundary::Offset { minutes: 0 },
         },
     ));
     let watch = rows
@@ -163,10 +162,10 @@ fn small_view() -> View {
     View::new(&bounds, &limits(), jig, obs, infra, 1)
 }
 
-fn incident() -> observability::native::Document {
+fn incident() -> observability::values::Document {
     use observability::{
         documents::{Service, State},
-        native as n,
+        values as n,
     };
     n::Document {
         subject: observability::Subject {
@@ -201,15 +200,15 @@ fn incident() -> observability::native::Document {
         },
     }
 }
-fn environment_name() -> infrastructure::native::Environment {
-    infrastructure::native::Environment { pool: Box::from(*b"Q.pool"), name: Box::from(*b"staging-7") }
+fn environment_name() -> infrastructure::values::Environment {
+    infrastructure::values::Environment { pool: Box::from(*b"Q.pool"), name: Box::from(*b"staging-7") }
 }
 fn environment() -> infrastructure::Document {
-    use infrastructure::native as n;
-    infrastructure::Document::Native(Box::new(n::Document {
+    use infrastructure::values as n;
+    infrastructure::Document::Value(Box::new(n::Document {
         subject: infrastructure::Subject {
             scope: infrastructure::Scope::Project(1),
-            kind: infrastructure::Kind::NativeEnvironment(environment_name()),
+            kind: infrastructure::Kind::Environment(environment_name()),
         },
         value: n::Value::Environment {
             environment: environment_name(),
@@ -280,7 +279,7 @@ fn an_incident_drawing_has_a_readable_fallback_and_missing_lead_is_explicit() {
         &mut root,
         Event::Observability(observability::Event::Read {
             read,
-            result: observability::ReadResult::Value(Box::new(observability::Document::Native(Box::new(incident())))),
+            result: observability::ReadResult::Value(Box::new(observability::Document::Value(Box::new(incident())))),
         }),
     );
     let mut view = view();
@@ -640,9 +639,9 @@ fn incident_plan_page() -> Domain {
         })
         .unwrap();
     let mut facts = incident();
-    let observability::native::Value::Incident { incident, .. } = &mut facts.value else { unreachable!() };
+    let observability::values::Value::Incident { incident, .. } = &mut facts.value else { unreachable!() };
     incident.lead = Some(9);
-    let document = observability::Document::Native(Box::new(facts));
+    let document = observability::Document::Value(Box::new(facts));
     let requests = drive(
         &mut root,
         Event::Observability(observability::Event::Read {
@@ -714,13 +713,13 @@ fn an_incident_with_a_lead_and_an_infrastructure_panel_fills_both_slot_passes() 
         })
         .unwrap();
     let mut facts = incident();
-    let observability::native::Value::Incident { incident, .. } = &mut facts.value else { unreachable!() };
+    let observability::values::Value::Incident { incident, .. } = &mut facts.value else { unreachable!() };
     incident.lead = Some(9);
     let requests = drive(
         &mut root,
         Event::Observability(observability::Event::Read {
             read,
-            result: observability::ReadResult::Value(Box::new(observability::Document::Native(Box::new(facts)))),
+            result: observability::ReadResult::Value(Box::new(observability::Document::Value(Box::new(facts)))),
         }),
     );
     let mut pending = requests;
@@ -745,7 +744,7 @@ fn an_incident_with_a_lead_and_an_infrastructure_panel_fills_both_slot_passes() 
             Request::Infrastructure(infrastructure::Out::Read { read, subject }) => {
                 Event::Infrastructure(infrastructure::Event::Read {
                     read,
-                    result: infrastructure::ReadResult::Value(Box::new(infrastructure::Document::Native(Box::new(
+                    result: infrastructure::ReadResult::Value(Box::new(infrastructure::Document::Value(Box::new(
                         waiting_remediation_panel(subject),
                     )))),
                 })
@@ -770,7 +769,7 @@ fn moving_an_environment_end_names_the_end_revision_and_waits_for_the_final_enve
     let requests = drive(
         &mut root,
         Event::Went {
-            place: root::Place::Address(Address::Infrastructure(infrastructure::Address::NativeEnvironment {
+            place: root::Place::Address(Address::Infrastructure(infrastructure::Address::Environment {
                 project: 1,
                 environment: environment_name(),
             })),
@@ -827,7 +826,7 @@ fn moving_an_environment_end_names_the_end_revision_and_waits_for_the_final_enve
     let request = out.pop().unwrap();
     let Request::Send {
         attempt,
-        ask: root::Ask::Infrastructure(infrastructure::Ask::NativeMoveEnd { revision, until, .. }),
+        ask: root::Ask::Infrastructure(infrastructure::Ask::MoveEnd { revision, until, .. }),
         ..
     } = request
     else {
@@ -840,7 +839,7 @@ fn moving_an_environment_end_names_the_end_revision_and_waits_for_the_final_enve
         support::answer(
             attempt,
             skein_lib::RequestEnvelope::Again,
-            Some(root::Answered::Infrastructure(infrastructure::Answer::NativeMovedEnd {
+            Some(root::Answered::Infrastructure(infrastructure::Answer::MovedEnd {
                 environment: environment_name(),
                 revision: Revision { value: 6 },
                 until,
@@ -867,7 +866,7 @@ fn a_common_entrance_refusal_prints_supplied_budget_facts_without_claiming_gone(
     let requests = drive(
         &mut root,
         Event::Went {
-            place: root::Place::Address(Address::Infrastructure(infrastructure::Address::NativeEnvironment {
+            place: root::Place::Address(Address::Infrastructure(infrastructure::Address::Environment {
                 project: 1,
                 environment: environment_name(),
             })),
@@ -893,12 +892,12 @@ fn a_common_entrance_refusal_prints_supplied_budget_facts_without_claiming_gone(
     drive(
         &mut root,
         Event::Act {
-            action: root::Action::Infrastructure(infrastructure::Act::NativeUntil { object, revision, value: 900 }),
+            action: root::Action::Infrastructure(infrastructure::Act::Until { object, revision, value: 900 }),
         },
     );
     drive(
         &mut root,
-        Event::Act { action: root::Action::Infrastructure(infrastructure::Act::NativeMoveEnd { object, revision }) },
+        Event::Act { action: root::Action::Infrastructure(infrastructure::Act::MoveEnd { object, revision }) },
     );
     let mut out = Queue::uncapped();
     support::take(&mut root, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() }, &mut out);
@@ -1006,8 +1005,8 @@ fn actual_outbox_entries_render_from_their_explicit_scope_and_keep_proposal_keys
     }
 }
 
-fn outbox_entry() -> infrastructure::native::Entry {
-    use infrastructure::native as n;
+fn outbox_entry() -> infrastructure::values::Entry {
+    use infrastructure::values as n;
     n::Entry {
         project: None,
         number: 17,
@@ -1022,8 +1021,8 @@ fn outbox_entry() -> infrastructure::native::Entry {
     }
 }
 fn outbox_document(subject: infrastructure::Subject) -> infrastructure::Document {
-    use infrastructure::native as n;
-    infrastructure::Document::Native(Box::new(n::Document {
+    use infrastructure::values as n;
+    infrastructure::Document::Value(Box::new(n::Document {
         subject,
         value: n::Value::Outbox {
             entry: outbox_entry(),
@@ -1057,8 +1056,8 @@ fn resource_slots_preserve_whole_opaque_segments_and_distinct_equal_concatenatio
     let mut jig_bindings = jig_client_view::JigBindings::new(16, JIG.text);
     let mut obs_bindings = crate::bindings::Bindings::new(16, 32, 1);
     let mut infra_bindings = crate::bindings::Bindings::new(16, 32, 2);
-    let mut obs = observability::Side::new(&domain_limits.observability, 63);
-    let mut infra = infrastructure::Side::new(&domain_limits.infrastructure, 64);
+    let mut obs = observability::Side::new(&domain_limits.observability);
+    let mut infra = infrastructure::Side::new(&domain_limits.infrastructure);
     let mut expected = Vec::new();
     builder.open(skein_ui::Role::Page);
     for connector in [1, 2] {
@@ -1178,11 +1177,11 @@ fn deployment_read(root: &mut Domain, connector: u16) -> Request {
 }
 
 fn infrastructure_deployment(subject: infrastructure::Subject) -> infrastructure::Document {
-    use infrastructure::native as n;
+    use infrastructure::values as n;
     let mut uncertain = outbox_entry();
     uncertain.number = 18;
     uncertain.phase = n::Phase::Uncertain;
-    infrastructure::Document::Native(Box::new(n::Document {
+    infrastructure::Document::Value(Box::new(n::Document {
         subject,
         value: n::Value::Deployment {
             backend: n::Backend::OperationIds,
@@ -1194,7 +1193,7 @@ fn infrastructure_deployment(subject: infrastructure::Subject) -> infrastructure
     }))
 }
 fn observability_deployment(subject: observability::Subject) -> observability::Document {
-    use observability::native as n;
+    use observability::values as n;
     let entry = n::Entry {
         project: Some(91),
         number: 17,
@@ -1207,7 +1206,7 @@ fn observability_deployment(subject: observability::Subject) -> observability::D
     let mut uncertain = entry.clone();
     uncertain.number = 18;
     uncertain.phase = n::Phase::Uncertain;
-    observability::Document::Native(Box::new(n::Document {
+    observability::Document::Value(Box::new(n::Document {
         subject,
         value: n::Value::Deployment {
             watches: 3,
@@ -1414,7 +1413,7 @@ fn deferred_connector_diagnostic_words_select_bounded_checked_language_without_h
 }
 
 #[test]
-fn native_effect_slots_load_infrastructure_without_loading_a_maker_effect_and_keep_observability_unsupported() {
+fn effect_slots_load_infrastructure_without_loading_a_maker_effect_and_keep_observability_unsupported() {
     let domain_limits = limits();
     let (jig_words, obs_words, infra_words) = phrasebooks();
     let mut tree_limits = Limits::of(&domain_limits, &jig_words, &obs_words, &infra_words).unwrap().tree;
@@ -1428,7 +1427,7 @@ fn native_effect_slots_load_infrastructure_without_loading_a_maker_effect_and_ke
             builder.open(skein_ui::Role::Page);
             let mut bindings = crate::bindings::Bindings::new(0, 32, connector);
             if connector == 1 {
-                let mut side = observability::Side::new(&domain_limits.observability, 84);
+                let mut side = observability::Side::new(&domain_limits.observability);
                 let mut out = Queue::uncapped();
                 observability::step(
                     &mut side,
@@ -1440,7 +1439,7 @@ fn native_effect_slots_load_infrastructure_without_loading_a_maker_effect_and_ke
                 assert!(out.is_empty());
                 crate::observability::part(&mut builder, &side, &part, &obs_words, &mut bindings);
             } else {
-                let mut side = infrastructure::Side::new(&domain_limits.infrastructure, 85);
+                let mut side = infrastructure::Side::new(&domain_limits.infrastructure);
                 let mut out = Queue::uncapped();
                 infrastructure::step(
                     &mut side,
@@ -1467,11 +1466,11 @@ fn native_effect_slots_load_infrastructure_without_loading_a_maker_effect_and_ke
             assert!(tree.len() <= tree_limits.nodes);
         }
     }
-    native_effect_facts_have_distinct_proposal_and_state_labels();
+    effect_facts_have_distinct_proposal_and_state_labels();
 }
 
-fn native_effect_facts_have_distinct_proposal_and_state_labels() {
-    use infrastructure::native as n;
+fn effect_facts_have_distinct_proposal_and_state_labels() {
+    use infrastructure::values as n;
     let limits = limits();
     let (jig_words, _, words) = phrasebooks();
     let tree_limits = Limits::of(&limits, &jig_words, &words, &words).unwrap().tree;
@@ -1492,7 +1491,7 @@ fn native_effect_facts_have_distinct_proposal_and_state_labels() {
         Request::Infrastructure(infrastructure::Out::Read { read, .. }) => Some(*read),
         _ => None,
     });
-    let document = infrastructure::Document::Native(Box::new(n::Document {
+    let document = infrastructure::Document::Value(Box::new(n::Document {
         subject: infrastructure::Subject {
             scope: infrastructure::Scope::Project(0),
             kind: infrastructure::Kind::OwnerEffect(u64::MAX),
@@ -1537,14 +1536,14 @@ fn native_effect_facts_have_distinct_proposal_and_state_labels() {
 }
 
 #[test]
-fn native_environment_form_uses_the_supplied_request_revision_and_keeps_whole_width_seconds() {
-    use infrastructure::native as n;
+fn environment_form_uses_the_supplied_request_revision_and_keeps_whole_width_seconds() {
+    use infrastructure::values as n;
     let environment = n::Environment { pool: Box::from(*b"Q.pool"), name: Box::from(*b"preview") };
     let subject = infrastructure::Subject {
         scope: infrastructure::Scope::Project(3),
-        kind: infrastructure::Kind::NativeEnvironment(environment.clone()),
+        kind: infrastructure::Kind::Environment(environment.clone()),
     };
-    let document = infrastructure::Document::Native(Box::new(n::Document {
+    let document = infrastructure::Document::Value(Box::new(n::Document {
         subject: subject.clone(),
         value: n::Value::Environment {
             environment: environment.clone(),
@@ -1569,7 +1568,7 @@ fn native_environment_form_uses_the_supplied_request_revision_and_keeps_whole_wi
         &mut root,
         Event::Went {
             place: jig_ops_client_domain::Place::Address(Address::Infrastructure(
-                infrastructure::Address::NativeEnvironment { project: 3, environment: environment.clone() },
+                infrastructure::Address::Environment { project: 3, environment: environment.clone() },
             )),
         },
     );
@@ -1579,7 +1578,7 @@ fn native_environment_form_uses_the_supplied_request_revision_and_keeps_whole_wi
             Request::Infrastructure(infrastructure::Out::Read { read, .. }) => Some(*read),
             _ => None,
         })
-        .expect("native read");
+        .expect("values read");
     drive(
         &mut root,
         Event::Infrastructure(infrastructure::Event::Read {
@@ -1602,13 +1601,13 @@ fn native_environment_form_uses_the_supplied_request_revision_and_keeps_whole_wi
             node.role == skein_ui::Role::TextField
                 && node.name.as_deref() == Some(b"New end (seconds since epoch)".as_slice())
         })
-        .expect("native end field");
-    assert_eq!(field.value.as_ref().expect("native value").text.as_ref(), b"18446744073709551615");
-    assert_eq!(field.value.as_ref().expect("native value").written, 17);
+        .expect("values end field");
+    assert_eq!(field.value.as_ref().expect("values value").text.as_ref(), b"18446744073709551615");
+    assert_eq!(field.value.as_ref().expect("values value").written, 17);
     let field = field.id;
     assert_eq!(
         crate::decode(&mut view, field, skein_ui::Act::Input { value: Box::from(*b"18446744073709551614") }),
-        Some(jig_ops_client_domain::Action::Infrastructure(infrastructure::Act::NativeUntil {
+        Some(jig_ops_client_domain::Action::Infrastructure(infrastructure::Act::Until {
             object: id.token(),
             revision: Revision { value: 17 },
             value: u64::MAX - 1
@@ -1616,8 +1615,8 @@ fn native_environment_form_uses_the_supplied_request_revision_and_keeps_whole_wi
     );
 }
 
-fn waiting_remediation_panel(subject: infrastructure::Subject) -> infrastructure::native::Document {
-    use infrastructure::native as n;
+fn waiting_remediation_panel(subject: infrastructure::Subject) -> infrastructure::values::Document {
+    use infrastructure::values as n;
     n::Document {
         subject,
         value: n::Value::Panel {

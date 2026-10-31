@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 use jig_core_world::fixtures::{live_row, person_unchanged};
 use jig_core_world::stories::delegates::delegate_pair;
 use jig_core_world::stories::reads::{request, world};
@@ -107,7 +108,7 @@ fn compound(operations: impl IntoIterator<Item = people::Operation>) -> people::
 fn compound_world(seed: u64) -> jig_core_world::effects::World {
     let (config, mut limits) = jig_core_world::faults::plan_fixture(seed);
     limits.core.people.operations = 3;
-    jig_core_world::effects::World::configured(seed, false, config, limits)
+    jig_core_world::effects::World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() })
 }
 
 fn closing(chat: u64, cancelled: u64, moved: u64) -> people::Ask {
@@ -173,7 +174,12 @@ fn a_compound_refused_at_its_second_operation_makes_nothing() {
 #[test]
 fn a_compound_naming_another_projects_task_is_refused_at_its_place() {
     let (config, limits) = jig_core_world::fixtures::two_projects(1109);
-    let mut world = jig_core_world::effects::World::configured(1109, false, config, limits);
+    let mut world = jig_core_world::effects::World::new(Setup {
+        seed: 1109,
+        configuration: Some(config),
+        limits,
+        ..Setup::default()
+    });
     let first = world.assigned.as_ref().expect("first chat").task;
     let other_projects_chat = jig_core_world::fixtures::chat(&world, 2, b"other".as_slice().into());
     request(&mut world, 13, other_projects_chat);

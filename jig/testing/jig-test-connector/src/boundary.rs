@@ -89,16 +89,21 @@ pub struct Description {
 /// A deployment-scoped key derived from an effect's task and purpose.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Key {
-    /// Original call identity; zero for a procedure's stable purpose.
-    pub attempt: u64,
-    pub completion: u32,
-    pub position: u32,
+    pub origin: Purpose,
     /// Deployment identifier, never shared with another deployment.
     pub deployment: [u8; 16],
     /// Task that asked for this effect.
     pub task: u64,
     /// Stable purpose within that task.
     pub purpose: u64,
+}
+
+/// Source of a stable effect key (`jig/docs/design/domain/testing.md`, 5).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum Purpose {
+    Procedure,
+    Projection,
+    Call { attempt: u64, completion: u32, position: u32 },
 }
 
 /// An attempt committed before it is sent to the system.

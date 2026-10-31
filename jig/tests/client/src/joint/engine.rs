@@ -3,6 +3,7 @@
 //! deliveries. Request durability and every business decision stay in the root.
 use super::transport::Transport;
 use jig_client_domain::contract::VersionRange;
+use jig_core_world::effects::Setup;
 use jig_core_world::{client_peer::ClientPeer, effects::World, peers::Peers};
 use jig_domain_core as core;
 use jig_test_domain as root;
@@ -33,7 +34,13 @@ impl Driver {
         let mut transport = Transport::new(VersionRange { first: configured.minimum, last: configured.maximum });
         transport.models = models;
         transport.providers = providers;
-        let mut world = World::scripted_clock(configuration, limits, peers, now, wall);
+        let mut world = World::new(Setup {
+            configuration: Some(configuration),
+            limits,
+            peers: Some(peers),
+            clock: Some((now, wall)),
+            ..Setup::default()
+        });
         world.client_peer = Some(ClientPeer::routed());
         world.store_peer = Some(jig_core_world::store_peer::StorePeer::after(world.store.applied));
         Self {

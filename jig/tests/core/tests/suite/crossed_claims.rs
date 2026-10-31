@@ -1,6 +1,7 @@
 //! engine.md, 15: a fresh mark stops a live resumed claim before retrying.
 
 use crate::fresh_windows;
+use jig_core_world::effects::Setup;
 
 use fresh_windows::{AFTER, BEFORE, SEED, TAIL};
 use jig_core_world::{effects::World, fixtures};
@@ -105,7 +106,7 @@ fn a_crossed_claim_no_worker_lists_is_lost_once_the_grace_passes() {
 
 #[test]
 fn an_in_process_crossed_claim_yet_to_commit_a_turn_is_not_started() {
-    let mut world = World::with_patch_sets(SEED, false, BEFORE);
+    let mut world = World::new(Setup { seed: SEED, patch_sets: BEFORE, ..Setup::default() });
     let (task, attempt) = (world.task(), world.attempt());
     let (now, wall) = world.clocks();
     world.set_clock(now, wall);
@@ -193,7 +194,7 @@ fn writer_slot(world: &World, task: u64, attempt: u64) -> Option<&tasks::WriterS
 
 #[test]
 fn a_crossed_claims_writer_slot_waits_for_the_read_afresh() {
-    let mut world = World::with_patch_sets(SEED, false, BEFORE);
+    let mut world = World::new(Setup { seed: SEED, patch_sets: BEFORE, ..Setup::default() });
     fixtures::configure_resources(&mut world);
     let parent = (world.task(), world.attempt());
     let spec = fixtures::resource_member(&world, 1, b"writer across a fresh mark");

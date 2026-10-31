@@ -1,5 +1,6 @@
 //! Exact offer fences survive decisions and cold restart (tasks.md, section 9).
 
+use jig_core_world::effects::Setup;
 use jig_core_world::effects::World;
 use jig_core_world::fixtures::{ask_as, delegate, live_row, member};
 use jig_domain_core as core;
@@ -102,7 +103,7 @@ fn reconnect(world: &mut World, seed: u64) {
 fn entry_world(proposal: bool) -> (World, (u64, u64), u64) {
     let (config, mut limits) = jig_core_world::faults::plan_fixture(DECISION_SEED);
     limits.core.tasks.run_inbox = SINGLE_SLOT;
-    let mut world = World::configured(DECISION_SEED, false, config, limits);
+    let mut world = World::new(Setup { seed: DECISION_SEED, configuration: Some(config), limits, ..Setup::default() });
     let holder = world.assignments[0];
     let child = member(&world, tasks::Executor::Agent { charter: 1 }, b"delegate");
     let child = delegate(&mut world, holder, 1, child);
@@ -218,7 +219,7 @@ fn decisions_keep_their_offered_fence_and_room_across_each_restart_cut() {
 #[test]
 fn an_old_proposal_passed_below_a_live_runs_high_water_is_not_an_offer() {
     let (config, limits) = jig_core_world::faults::plan_fixture(462);
-    let mut world = World::configured(462, false, config, limits);
+    let mut world = World::new(Setup { seed: 462, configuration: Some(config), limits, ..Setup::default() });
     let holder = world.assignments[0];
     let middle = member(&world, tasks::Executor::Agent { charter: 1 }, b"middle holder");
     let middle = delegate(&mut world, holder, 1, middle);

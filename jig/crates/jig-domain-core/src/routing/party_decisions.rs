@@ -15,7 +15,6 @@ use skein_lib::{Env, Queue, ReplyTo, Token};
 
 #[expect(
     clippy::too_many_arguments,
-    clippy::too_many_lines,
     reason = "one holder decision checks and schedules its complete action atomically"
 )]
 pub(super) fn goal_decide(
@@ -98,23 +97,15 @@ pub(super) fn goal_decide(
                     }
                 }
             };
-            assert!(
-                core.goal_routes.insert(request, GoalRoute::Accepting { proposer, proposal: number, by: person })
-                    == Ok(None),
-                "one party acceptance"
-            );
-            event
+            let request = core.fly_goal(request, GoalRoute::Accepting { proposer, proposal: number, by: person });
+            crate::flight::bind(event, request)
         }
         people::ProposalDecision::Reject { reason } => {
             let Some(message) = crate::fresh(&mut core.counters, crate::Family::Message) else {
                 pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
                 return;
             };
-            assert!(
-                core.goal_routes.insert(request, GoalRoute::Deciding { proposer, proposal: number, by: person })
-                    == Ok(None),
-                "one goal decision"
-            );
+            let request = core.fly_goal(request, GoalRoute::Deciding { proposer, proposal: number, by: person });
             tasks::Event::DecidePersonProposal {
                 reply_to: ReplyTo::new(request),
                 proposer,
@@ -200,21 +191,21 @@ pub(super) fn person_proposal_decide(
         tasks::ProposalDecision::Pass { .. } => None,
         tasks::ProposalDecision::Accept => unreachable!("accept routed separately"),
     };
-    assert!(
-        core.routing_people_proposals.insert(
-            request,
-            PersonProposalRoute::Deciding { request, proposer, proposal: number, by: person, moved: None },
-        ) == Ok(None),
-        "one person proposal route"
-    );
-    work.push(Work::PersonProposal(tasks::Event::DecideProposal {
+    let request = core.fly_person_proposal(PersonProposalRoute::Deciding {
+        request,
+        proposer,
+        proposal: number,
+        by: person,
+        moved: None,
+    });
+    work.push(Work::Event(Event::Tasks(tasks::Event::DecideProposal {
         reply_to: ReplyTo::new(request),
         proposer,
         proposal: number,
         message,
         by: tasks::Party::Person(person),
         decision: next,
-    }));
+    })));
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive authenticated person proposal dispatcher")]
@@ -234,27 +225,21 @@ pub(super) fn person_proposal_accept(
             pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
             return;
         };
-        assert!(
-            core.routing_people_proposals.insert(
-                request,
-                PersonProposalRoute::Deciding {
-                    request,
-                    proposer: proposal.proposer,
-                    proposal: proposal.number,
-                    by: person,
-                    moved: None,
-                }
-            ) == Ok(None),
-            "one release acceptance"
-        );
-        work.push(Work::PersonProposal(tasks::Event::DecideProposal {
+        let request = core.fly_person_proposal(PersonProposalRoute::Deciding {
+            request,
+            proposer: proposal.proposer,
+            proposal: proposal.number,
+            by: person,
+            moved: None,
+        });
+        work.push(Work::Event(Event::Tasks(tasks::Event::DecideProposal {
             reply_to: ReplyTo::new(request),
             proposer: proposal.proposer,
             proposal: proposal.number,
             message: Some(message),
             by: tasks::Party::Person(person),
             decision: tasks::ProposalDecision::Accept,
-        }));
+        })));
         return;
     }
     let source = tasks::Funder::Pool { project: proposal.project, person, period: core.period(proposal.project) };
@@ -407,20 +392,14 @@ pub(super) fn person_proposal_accept(
         pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
         return;
     };
-    assert!(
-        core.routing_people_proposals.insert(
-            request,
-            PersonProposalRoute::Accepting {
-                request,
-                person,
-                proposer: proposal.proposer,
-                proposal: proposal.number,
-                message,
-            },
-        ) == Ok(None),
-        "one person acceptance route"
-    );
-    work.push(Work::PersonProposal(event));
+    let request = core.fly_person_proposal(PersonProposalRoute::Accepting {
+        request,
+        person,
+        proposer: proposal.proposer,
+        proposal: proposal.number,
+        message,
+    });
+    work.push(Work::Event(Event::Tasks(crate::flight::bind(event, request))));
 }
 
 #[expect(clippy::too_many_arguments, reason = "one keyed held choice carries its person and exact semantic revision")]
@@ -490,21 +469,23 @@ pub(super) fn person_escalation_decide(
         },
         tasks::EscalationDecision::Release | tasks::EscalationDecision::Reject { .. } => None,
     };
-    assert!(
-        core.person_escalations.insert(
-            request,
-            PersonEscalation { request, requester: context.requester, person, project, task, revision, decision },
-        ) == Ok(None),
-        "one keyed escalation choice"
-    );
-    work.push(Work::PersonEscalation(tasks::Event::DecideEscalation {
+    let request = core.fly(crate::flight::Flight::PersonEscalation(PersonEscalation {
+        request,
+        requester: context.requester,
+        person,
+        project,
+        task,
+        revision,
+        decision,
+    }));
+    work.push(Work::Event(Event::Tasks(tasks::Event::DecideEscalation {
         reply_to: ReplyTo::new(request),
         task,
         revision,
         by: person,
         entry,
         decision: semantic,
-    }));
+    })));
 }
 
 pub(super) fn current_person_escalation(core: &Core, task: u64, revision: u64) -> bool {
@@ -578,9 +559,8 @@ pub(super) fn proposal_request(
                     );
                     match outcome {
                         Ok(revision) => {
-                            core.goal_routes
-                                .insert(request, GoalRoute::Deciding { proposer: number, proposal, by: person })
-                                .expect("one settings acceptance");
+                            let request =
+                                core.fly_goal(request, GoalRoute::Deciding { proposer: number, proposal, by: person });
                             work.push(Work::Event(Event::Tasks(tasks::Event::DecidePersonProposal {
                                 reply_to: ReplyTo::new(request),
                                 proposer: number,
@@ -732,19 +712,14 @@ fn task_settings_decide(
     };
     let message =
         crate::fresh(&mut core.counters, crate::Family::Message).expect("settings outcome number preflighted");
-    core.routing_people_proposals
-        .insert(
-            request,
-            PersonProposalRoute::Deciding {
-                request,
-                proposer: row.proposer,
-                proposal: row.number,
-                by: person,
-                moved: None,
-            },
-        )
-        .expect("one settings terminal route");
-    work.push(Work::PersonProposal(tasks::Event::DecideSettingsProposal {
+    let request = core.fly_person_proposal(PersonProposalRoute::Deciding {
+        request,
+        proposer: row.proposer,
+        proposal: row.number,
+        by: person,
+        moved: None,
+    });
+    work.push(Work::Event(Event::Tasks(tasks::Event::DecideSettingsProposal {
         reply_to: Some(ReplyTo::new(request)),
         decision: tasks::SettingsDecision {
             proposer: row.proposer,
@@ -754,5 +729,5 @@ fn task_settings_decide(
             outcome,
             reason,
         },
-    }));
+    })));
 }

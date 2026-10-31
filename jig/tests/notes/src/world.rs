@@ -146,14 +146,9 @@ impl World {
         answer.expect("a call has one answer")
     }
 
-    /// Restart the child from the durable store and its end marker.
+    /// Restart the child with an empty cache; durable records stay in the store.
     pub fn restart(&mut self) {
         self.domain = notes::Domain::new(&self.limits);
-        let records: Vec<_> = self.store.values().cloned().collect();
-        for record in records {
-            assert!(self.step_once(Event::Restore { record }).is_empty(), "restore emits nothing");
-        }
-        assert!(self.step_once(Event::Restored).is_empty(), "restored emits nothing");
         self.referee.after_commit(&self.store, &self.limits);
     }
 

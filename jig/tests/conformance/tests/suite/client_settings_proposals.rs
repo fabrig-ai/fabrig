@@ -1,4 +1,4 @@
-//! The settings proposal vocabulary meets at wire 19; task E supplies its domain producers.
+//! Settings proposal documents cross the client wire contract.
 use jig_client_domain::contract as c;
 use jig_client_protocol_link::{Limits, translate};
 use jig_client_protocol_wire::v19 as w;

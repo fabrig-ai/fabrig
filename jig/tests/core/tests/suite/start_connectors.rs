@@ -1,4 +1,5 @@
 //! Direct core starts and connector recovery (jig/docs/design/domain/engine.md, 6).
+use jig_core_world::effects::Setup;
 use jig_core_world::effects::World;
 use jig_domain_core::{
     self as core,
@@ -43,7 +44,7 @@ impl Harness {
     )]
     fn new(recovery: u16) -> Self {
         let (configuration, limits) = jig_core_world::effects::fixture(SEED, false);
-        let mut source = World::new(SEED, false);
+        let mut source = World::new(Setup { seed: SEED, ..Setup::default() });
         let task = source.assigned.as_ref().expect("source run").task;
         source.end(tasks::End::Parked, 0);
         let path = jig_test_connector_world::path(1, 1);
@@ -148,9 +149,7 @@ impl Harness {
                 deployment: configuration.first.deployment,
                 task,
                 purpose: 7,
-                attempt: 1,
-                completion: 1,
-                position: 0,
+                origin: jig_test_connector::Purpose::Call { attempt: 1, completion: 1, position: 0 },
             },
             effect: connector::Effect {
                 kind: kind.kind,

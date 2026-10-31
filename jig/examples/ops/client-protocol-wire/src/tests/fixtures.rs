@@ -2,13 +2,10 @@ use crate::v1 as w;
 use skein_lib::List;
 
 pub const PROJECT: u32 = 7;
-pub fn environment() -> w::InfrastructureNativeEnvironment {
-    w::InfrastructureNativeEnvironment::new(
+pub fn environment() -> w::InfrastructureEnvironment {
+    w::InfrastructureEnvironment::new(
         &w::CEILINGS,
-        w::InfrastructureNativeEnvironmentParts {
-            pool: b"Q.pool".as_slice().into(),
-            name: b"preview".as_slice().into(),
-        },
+        w::InfrastructureEnvironmentParts { pool: b"Q.pool".as_slice().into(), name: b"preview".as_slice().into() },
     )
     .expect("environment")
 }
@@ -20,9 +17,9 @@ const RAISED: u64 = 41;
 const LEAD: u64 = 23;
 
 pub fn request() -> w::InfrastructureAskRecord {
-    let value = w::InfrastructureAskNativeMoveEnd::new(
+    let value = w::InfrastructureAskMoveEnd::new(
         &w::CEILINGS,
-        w::InfrastructureAskNativeMoveEndParts {
+        w::InfrastructureAskMoveEndParts {
             project: PROJECT,
             object: 17,
             environment: environment(),
@@ -33,7 +30,7 @@ pub fn request() -> w::InfrastructureAskRecord {
     .expect("move end");
     w::InfrastructureAskRecord::new(
         &w::CEILINGS,
-        w::InfrastructureAskRecordParts { value: w::InfrastructureAsk::NativeMoveEnd(value) },
+        w::InfrastructureAskRecordParts { value: w::InfrastructureAsk::MoveEnd(value) },
     )
     .expect("request record")
 }
@@ -49,10 +46,10 @@ pub fn infrastructure_subject() -> w::InfrastructureSubject {
     .expect("subject")
 }
 
-pub fn incident() -> w::ObservabilityNativeIncident {
-    w::ObservabilityNativeIncident::new(
+pub fn incident() -> w::ObservabilityIncident {
+    w::ObservabilityIncident::new(
         &w::CEILINGS,
-        w::ObservabilityNativeIncidentParts {
+        w::ObservabilityIncidentParts {
             project: PROJECT,
             number: INCIDENT,
             watch: WATCH,

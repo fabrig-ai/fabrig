@@ -71,15 +71,12 @@ pub(crate) fn route(
         }
         operations.push(operation).expect("same operation count");
     }
-    assert!(
-        core.person_tasks.insert(
-            route.request,
-            PersonTaskRoute::Compound { project: route.project, operations: operations.len(), first_message }
-        ) == Ok(None),
-        "one compound continuation"
+    let token = core.fly_person_task(
+        route.request,
+        PersonTaskRoute::Compound { project: route.project, operations: operations.len(), first_message },
     );
     work.push(Work::Event(Event::Tasks(tasks::Event::Compound {
-        reply_to: ReplyTo::new(route.request),
+        reply_to: ReplyTo::new(token),
         by: context.by,
         project: context.project,
         operations,

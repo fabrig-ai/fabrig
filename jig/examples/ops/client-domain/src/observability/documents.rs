@@ -44,20 +44,20 @@ pub enum State {
 /// One authoritative document for a family page or connector part.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Document {
-    Native(Box<super::native::Document>),
+    Value(Box<super::values::Document>),
 }
 impl Document {
     /// The identity echoed by this whole document.
     #[must_use]
     pub fn subject(&self) -> Subject {
-        let Self::Native(document) = self;
+        let Self::Value(document) = self;
         document.subject
     }
     /// Whole-value admission against the configured text, row and byte bounds.
     #[must_use]
     pub fn fits(&self, limits: &super::Limits) -> bool {
-        let Self::Native(document) = self;
-        let Some(bytes) = super::native::price(document, limits) else { return false };
+        let Self::Value(document) = self;
+        let Some(bytes) = super::values::price(document, limits) else { return false };
         match bytes.checked_add(u64::try_from(size_of::<Document>()).expect("document layout")) {
             Some(bytes) => bytes <= limits.document_bytes,
             None => false,
@@ -66,14 +66,14 @@ impl Document {
     /// The incident's lead's plan, as jig's whole section (examples.md, 8).
     #[must_use]
     pub fn sections(&self) -> List<jig_client_view::page::Section> {
-        let Self::Native(document) = self;
+        let Self::Value(document) = self;
         let lead = match &document.value {
-            super::native::Value::Incident { incident, .. } => incident.lead,
-            super::native::Value::Service { .. }
-            | super::native::Value::Alert { .. }
-            | super::native::Value::Outbox { .. }
-            | super::native::Value::Deployment { .. }
-            | super::native::Value::Project { .. } => None,
+            super::values::Value::Incident { incident, .. } => incident.lead,
+            super::values::Value::Service { .. }
+            | super::values::Value::Alert { .. }
+            | super::values::Value::Outbox { .. }
+            | super::values::Value::Deployment { .. }
+            | super::values::Value::Project { .. } => None,
         };
         let mut sections = List::with_capacity(1);
         if let Some(task) = lead {
@@ -90,18 +90,18 @@ impl Document {
     #[must_use]
     pub fn objects(&self, rows: u32) -> List<ObjectKey> {
         let mut objects = List::with_capacity(rows.checked_add(1).expect("incident object bound"));
-        let Self::Native(document) = self;
+        let Self::Value(document) = self;
         match &document.value {
-            super::native::Value::Incident { incident, .. } => {
+            super::values::Value::Incident { incident, .. } => {
                 if let Some(lead) = incident.lead {
                     objects.push(ObjectKey::Task(lead)).expect("lead capacity");
                 }
             }
-            super::native::Value::Service { .. }
-            | super::native::Value::Alert { .. }
-            | super::native::Value::Outbox { .. }
-            | super::native::Value::Deployment { .. } => {}
-            super::native::Value::Project { incidents, .. } => {
+            super::values::Value::Service { .. }
+            | super::values::Value::Alert { .. }
+            | super::values::Value::Outbox { .. }
+            | super::values::Value::Deployment { .. } => {}
+            super::values::Value::Project { incidents, .. } => {
                 for incident in incidents {
                     if let Some(lead) = incident.lead {
                         objects.push(ObjectKey::Task(lead)).expect("incident lead capacity");
@@ -124,8 +124,6 @@ pub enum ReadResult {
 /// A level-triggered watch callback.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WatchEvent {
-    Opened,
-    Alive,
     Delivered(Box<Document>),
 }
 /// One terminal for every opened watch.
@@ -133,10 +131,7 @@ pub enum WatchEvent {
 pub enum WatchEnd {
     NotAllowed,
     SubjectEnded,
-    Stopping,
-    Busy,
     Closed,
-    Dropped,
     Unknown,
     SignedOut,
 }
@@ -159,7 +154,7 @@ pub fn subject(part: &Part, scope: Scope) -> Option<Subject> {
             return Some(Subject { scope: Scope::Project(*project), kind: Kind::Project(*project) });
         }
         Part::Deployment { .. } => return Some(Subject { scope: Scope::Deployment, kind: Kind::Deployment }),
-        // Native connector proposal numbers do not name this side's typed maker effects.
+        // Connector proposal numbers do not name this side's typed maker effects.
         Part::OwnerEffect { .. } | Part::Connector { .. } | Part::Resource { .. } | Part::Kind { .. } => return None,
     };
     Some(Subject { scope, kind })

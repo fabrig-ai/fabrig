@@ -4,9 +4,9 @@ use jig_ops_client_protocol_wire::{codec, v1 as w};
 /// A value outside the family wire's bounds or vocabulary.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Invalid;
-mod infrastructure_native;
+mod infrastructure_data;
 mod infrastructure_values;
-mod observability_native;
+mod observability_data;
 mod observability_values;
 fn proposal_encode(value: &jig_client::contract::ProposalKey) -> Result<w::DecisionKey, Invalid> {
     use jig_client::contract::Proposer;

@@ -1,5 +1,6 @@
 //! Admission refuses party proposals with no accepting role (QUESTIONS 31).
 use super::*;
+use jig_core_world::effects::Setup;
 const READ_CREATING: u64 = 94;
 // Project subject actions, including Rename (people.md, 5.1).
 const PROJECT_ACTS: u32 = 7;
@@ -8,7 +9,7 @@ use jig_core_world::stories::offers::{goal, no_acceptor_fixture, project};
 #[test]
 fn a_members_goal_beyond_their_pool_is_refused_when_nobody_may_accept_it() {
     let (configuration, limits) = no_acceptor_fixture(180);
-    let mut world = World::configured(180, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 180, configuration: Some(configuration), limits, ..Setup::default() });
     let person = world
         .people_answers
         .iter()

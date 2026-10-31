@@ -774,8 +774,6 @@ pub enum Timer {
     Brief,
     /// Account refresh or retry.
     Account,
-    /// Live view deadline.
-    View,
 }
 
 /// Why an entire connector-owned procedure step was refused.
@@ -1041,7 +1039,6 @@ fn view_new_work(event: &views::Event) -> bool {
         | views::Event::Called { .. }
         | views::Event::TurnCommitted { .. }
         | views::Event::RunEnded { .. }
-        | views::Event::Unwatch { .. }
         | views::Event::Gone { .. } => false,
     }
 }
@@ -1052,10 +1049,7 @@ fn notes_new_work(event: &notes::Event) -> bool {
         | notes::Event::Recall { .. }
         | notes::Event::Write { .. }
         | notes::Event::Edit { .. } => true,
-        notes::Event::LoadFailed { .. }
-        | notes::Event::Loaded { .. }
-        | notes::Event::Restore { .. }
-        | notes::Event::Restored => false,
+        notes::Event::LoadFailed { .. } | notes::Event::Loaded { .. } => false,
     }
 }
 
@@ -1087,7 +1081,7 @@ impl Timer {
     pub const fn new_work(self) -> bool {
         match self {
             Self::Tasks => true,
-            Self::People | Self::Fleet | Self::Brief | Self::Account | Self::View => false,
+            Self::People | Self::Fleet | Self::Brief | Self::Account => false,
         }
     }
 }
@@ -1130,7 +1124,6 @@ mod admission_tests {
             (Timer::Fleet, false),
             (Timer::Brief, false),
             (Timer::Account, false),
-            (Timer::View, false),
             (Timer::Tasks, true),
         ] {
             assert_eq!(timer.new_work(), new, "the timer's work fixes its admission");
@@ -1140,18 +1133,16 @@ mod admission_tests {
 
 /// Core-owned continuations drained within one decision (jig/docs/design/domain/engine.md, 4.3).
 #[derive(Debug)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "public entrances move through the decision queue without a separate allocation"
+)]
 pub(crate) enum Work {
     Event(Event),
     /// A required preparation read or connector section could not be assembled.
     PreparationFailed {
         task: u64,
     },
-    /// A task continuation for a named escalation call.
-    TaskEscalation(tasks::Event),
-    /// A task continuation for a person's pending escalation choice.
-    PersonEscalation(tasks::Event),
-    /// A task continuation for a person's pending proposal.
-    PersonProposal(tasks::Event),
     /// Begin core-owned brief planning for one preparing task.
     StartBrief {
         task: u64,

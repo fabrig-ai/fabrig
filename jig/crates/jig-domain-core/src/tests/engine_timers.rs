@@ -139,7 +139,7 @@ fn people_timer_erases_retained_answers_then_signins_one_decision_at_a_time() {
         assert!(released.is_empty());
     }
     assert_eq!(core.people.next_deadline(), None);
-    for timer in [Timer::People, Timer::Tasks, Timer::Fleet, Timer::Brief, Timer::Account, Timer::View] {
+    for timer in [Timer::People, Timer::Tasks, Timer::Fleet, Timer::Brief, Timer::Account] {
         let out = fire(&mut core, &env, timer);
         assert!(out.is_empty(), "empty owners remain separately dispatchable: {timer:?}");
     }

@@ -131,8 +131,6 @@ pub enum Event {
     TurnCommitted { run: Token, attempt: u64, turn: u32 },
     /// The run ended; discard its provisional writing, leaving its watches open.
     RunEnded { run: Token },
-    /// The watcher left.
-    Unwatch { watcher: Token },
     /// A subject ended or became invisible.
     Gone { subject: Token, why: End },
 }

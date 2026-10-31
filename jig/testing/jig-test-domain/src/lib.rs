@@ -324,12 +324,12 @@ struct OutboxOwner {
 
 fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntry) -> bool {
     let key = &row.key;
-    let projection = (key.attempt, key.completion, key.position) == (0, 0, 1);
+    let projection = key.origin == connector::Purpose::Projection;
     let owner = OutboxOwner { task: row.task, projection };
     if domain.outbox_owners.insert(row.number, owner).is_err() {
         return false;
     }
-    if (key.attempt, key.completion, key.position) == (0, 0, 0) {
+    if key.origin == connector::Purpose::Procedure {
         if domain.outbox_procedures.insert(row.number, number).is_err() {
             return false;
         }

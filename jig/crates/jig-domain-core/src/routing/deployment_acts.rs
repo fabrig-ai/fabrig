@@ -118,7 +118,7 @@ fn close(
         tasks::Party::Person(_) => {}
         tasks::Party::Task(_) | tasks::Party::Deployment { .. } => return Err(people::Refusal::NotOffered),
     }
-    if core.person_tasks.len() == core.person_tasks.capacity() {
+    if core.person_task_flights() == core.person_task_capacity {
         return Err(people::Refusal::Limit { which: people::LimitKind::LiveTasks });
     }
     let mut operations = List::with_capacity(
@@ -144,12 +144,8 @@ fn close(
             *message = Some(number);
         }
     }
-    assert!(
-        core.person_tasks
-            .insert(request, PersonTaskRoute::Compound { project, operations: operations.len(), first_message })
-            == Ok(None),
-        "one compound continuation"
-    );
+    let request = core
+        .fly_person_task(request, PersonTaskRoute::Compound { project, operations: operations.len(), first_message });
     work.push(Work::Event(Event::Tasks(tasks::Event::Compound {
         reply_to: ReplyTo::new(request),
         by: tasks::Party::Deployment { project },

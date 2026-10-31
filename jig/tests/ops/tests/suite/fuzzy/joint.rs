@@ -259,17 +259,17 @@ fn assert_durable_restart(engine: &OpsEngine, lead: u64, remedy: u64) {
     assert_eq!(accepted[0].choice, jig_domain_people::ProposalChoice::Accepted);
     assert_eq!(accepted[0].kind, jig_domain_tasks::ProposalKind::Effect);
     assert!(accepted[0].created.is_none(), "acceptance funds the original effect, not a new task");
-    let native = &engine.peers.conformance.documents;
-    assert!(native.iter().all(|(commit, _)| *commit <= engine.store.applied));
+    let values = &engine.peers.conformance.documents;
+    assert!(values.iter().all(|(commit, _)| *commit <= engine.store.applied));
     for phase in [
         jig_ops_domain_infrastructure::ProcedurePhase::EffectOutstanding,
         jig_ops_domain_infrastructure::ProcedurePhase::WaitingCondition,
     ] {
-        assert!(native.iter().any(|(_, document)| matches!(document,
+        assert!(values.iter().any(|(_, document)| matches!(document,
             jig_ops_domain::ClientDocument::Infrastructure(value)
             if matches!(value.as_ref(), jig_ops_domain_infrastructure::ClientDocument::Panel { task, state, .. } if *task == remedy && state.phase == phase))));
     }
-    assert!(native.iter().any(|(_, document)| matches!(document,
+    assert!(values.iter().any(|(_, document)| matches!(document,
         jig_ops_domain::ClientDocument::Observability(value)
         if matches!(value.as_ref(), jig_ops_domain_observability::ClientDocument::Incident { incident, .. }
             if incident.number == 12 && incident.lead == Some(lead) && incident.state == jig_ops_domain_observability::IncidentState::Resolved))));
@@ -319,12 +319,12 @@ fn q_story(seed: u64, cut: Cut, noise: bool, reload: bool) -> StoryWorld {
         wander(&mut world, q, seed);
     }
     let front = world.front();
-    let native =
+    let values =
         jig_ops_domain_infrastructure::Environment::new(b"staging".as_slice().into(), b"payments".as_slice().into());
     let fact = front
         .engine
         .systems
-        .infrastructure(jig_ops_domain_infrastructure::SystemRequest::Environment { environment: native });
+        .infrastructure(jig_ops_domain_infrastructure::SystemRequest::Environment { environment: values });
     front.source(jig_ops_domain::Event::Infrastructure(jig_ops_domain_infrastructure::Event::System(fact)));
     world.person(
         q,
@@ -332,9 +332,9 @@ fn q_story(seed: u64, cut: Cut, noise: bool, reload: bool) -> StoryWorld {
             Step::Go { address: Address::Jig(JigAddress::Task { task: 1, section: TaskSection::Activity }) },
             see(b"staging/payments is ready"),
             Step::Go {
-                address: Address::Infrastructure(jig_ops_client_domain::infrastructure::Address::NativeEnvironment {
+                address: Address::Infrastructure(jig_ops_client_domain::infrastructure::Address::Environment {
                     project: 1,
-                    environment: jig_ops_client_domain::infrastructure::native::Environment {
+                    environment: jig_ops_client_domain::infrastructure::values::Environment {
                         pool: b"staging".as_slice().into(),
                         name: b"payments".as_slice().into(),
                     },
@@ -391,7 +391,7 @@ fn move_end(world: &mut StoryWorld, q: ClientId, reload: bool) {
     assert_eq!(outcome.verdict, Verdict::Passed, "{}", outcome.trace.join("\n"));
     assert_durable_environment(world.front());
     if reload {
-        assert_native_retries(world);
+        assert_retries(world);
     }
 }
 
@@ -539,7 +539,7 @@ fn assert_durable_end(
         .filter(|(key, _)| *key == markers[0].0.key)
         .map(|(_, bytes)| bytes)
         .collect();
-    assert!(!requests.is_empty(), "Q's opaque request crossed the native byte boundary");
+    assert!(!requests.is_empty(), "Q's opaque request crossed the values byte boundary");
     let digest: [u8; 32] = Sha256::digest(requests[0]).into();
     assert!(requests.iter().all(|bytes| *bytes == requests[0]), "retries preserve the exact opaque request");
     let request = engine
@@ -697,7 +697,7 @@ fn assert_acceptance_key(world: &mut StoryWorld, replayed: bool) {
     ));
 }
 
-fn assert_native_retries(world: &mut StoryWorld) {
+fn assert_retries(world: &mut StoryWorld) {
     let front = world.front();
     let requests = &front.engine.peers.application_asks;
     assert!(requests.len() >= 2, "actual pending whole request was replayed after reload: {requests:?}");

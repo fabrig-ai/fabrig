@@ -144,21 +144,20 @@ pub(crate) fn state_decode(value: w::ObservabilityState) -> d::State {
 
 pub(crate) fn document_encode(value: &d::Document) -> Result<w::ObservabilityDocument, Invalid> {
     Ok(match value {
-        d::Document::Native(value) => {
-            let parts = w::ObservabilityDocumentNativeParts {
-                value: crate::wire::observability_native::document_encode(value)?,
-            };
-            let Ok(value) = w::ObservabilityDocumentNative::new(&w::CEILINGS, parts) else { return Err(Invalid) };
-            w::ObservabilityDocument::Native(value)
+        d::Document::Value(value) => {
+            let parts =
+                w::ObservabilityDocumentValueParts { value: crate::wire::observability_data::document_encode(value)? };
+            let Ok(value) = w::ObservabilityDocumentValue::new(&w::CEILINGS, parts) else { return Err(Invalid) };
+            w::ObservabilityDocument::Value(value)
         }
     })
 }
 
 pub(crate) fn document_decode(value: w::ObservabilityDocument) -> d::Document {
     match value {
-        w::ObservabilityDocument::Native(value) => {
+        w::ObservabilityDocument::Value(value) => {
             let value = value.into_parts();
-            d::Document::Native(Box::new(crate::wire::observability_native::document_decode(value.value)))
+            d::Document::Value(Box::new(crate::wire::observability_data::document_decode(value.value)))
         }
     }
 }

@@ -1,4 +1,5 @@
 //! Shared host bounds for the domain world.
+use crate::effects::Setup;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -59,7 +60,7 @@ pub const OWN_TASKS: jig_domain_core::documents::TaskQuery = jig_domain_core::do
 pub fn notices_world(seed: u64) -> crate::effects::World {
     let (config, mut limits) = crate::effects::fixture(seed, false);
     limits.core.tasks.inbox_bytes = 256;
-    crate::effects::World::configured(seed, false, config, limits)
+    crate::effects::World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() })
 }
 
 /// Task numbers in a live query page, retaining its requested order.
@@ -160,7 +161,14 @@ pub fn run_with_deadline(seed: u64, deadline: Option<skein_lib::Wall>) -> crate:
         panic!("caller creation")
     };
     batch[0].authority.deadline = deadline;
-    crate::effects::World::configured_with(seed, false, config, limits, people::Ask::Create { project, batch })
+    crate::effects::World::new(Setup {
+        seed,
+        configuration: Some(config),
+        limits,
+        require_assignment: false,
+        initial: Some(people::Ask::Create { project, batch }),
+        ..Setup::default()
+    })
 }
 
 /// Assert the last party answer carries this refusal.
@@ -414,7 +422,8 @@ pub fn long_resource_world(seed: u64) -> (crate::effects::World, u64, jig_test_c
     let path = jig_test_connector::Path::new(path, 128).expect("bounded resource");
     configuration.first.resources[0].path = path.clone();
     crate::peers::journal(&mut limits);
-    let mut world = crate::effects::World::configured(seed, false, configuration, limits);
+    let mut world =
+        crate::effects::World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
     world.delegate_on_path(CREDENTIAL_RESOURCE, path.clone());
     let core::CallPart::Delegated(numbers) = &world.answers.last().expect("delegation answer").2 else {
         panic!("resource delegate admitted: {:?}", world.answers.last())
@@ -599,7 +608,15 @@ pub fn configured_sources(
         0,
         b"make an effect".as_slice().into(),
     );
-    crate::effects::World::configured_with_rows(seed, false, config, limits, initial, rows)
+    crate::effects::World::new(Setup {
+        seed,
+        configuration: Some(config),
+        limits,
+        require_assignment: false,
+        initial: Some(initial),
+        rows: Some(rows),
+        ..Setup::default()
+    })
 }
 
 /// What a first start leaves for its seed projects, for worlds that hand-bootstrap rosters without

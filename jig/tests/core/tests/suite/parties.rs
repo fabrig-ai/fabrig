@@ -1,3 +1,4 @@
+use jig_core_world::effects::Setup;
 const OWNER_ROLE: u32 = 0;
 use jig_core_world::{
     effects::World,
@@ -89,7 +90,7 @@ fn a_partys_batch_with_a_dependency_circle_is_refused_naming_its_tasks_in_order(
 #[test]
 fn a_partys_batch_is_refused_while_nobody_holds_its_escalations() {
     let (configuration, limits) = no_holder_fixture(303);
-    let mut world = World::configured(303, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 303, configuration: Some(configuration), limits, ..Setup::default() });
     world.send(jig_test_domain::Event::Core(jig_domain_core::Event::People(people::Event::Roles {
         project: PROJECT,
         holdings: Box::new([people::Holding { person: PARTY, role: people::Role::Member }]),
@@ -398,7 +399,7 @@ fn a_partys_batch_beyond_the_project_ceiling_says_nobody_could_accept() {
 #[test]
 fn a_partys_batch_no_role_may_accept_says_nobody() {
     let (configuration, limits) = jig_core_world::stories::offers::no_acceptor_fixture(322);
-    let mut world = World::configured(322, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 322, configuration: Some(configuration), limits, ..Setup::default() });
     world.send(jig_test_domain::Event::Core(jig_domain_core::Event::People(people::Event::Roles {
         project: PROJECT,
         holdings: Box::new([people::Holding { person: PARTY, role: people::Role::Member }]),
@@ -494,7 +495,7 @@ fn a_proposed_batch_giving_as_allowed_is_not_well_formed() {
 #[test]
 fn a_proposal_no_role_may_accept_is_refused_at_admission() {
     let (configuration, limits) = jig_core_world::stories::offers::no_acceptor_fixture(334);
-    let mut world = World::configured(334, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 334, configuration: Some(configuration), limits, ..Setup::default() });
     let sign_in = world.sign_in.expect("party");
     ask_as(
         &mut world,
@@ -539,7 +540,7 @@ fn a_proposal_beyond_the_project_ceiling_is_refused_naming_nobody() {
 #[test]
 fn a_proposed_batch_is_refused_while_nobody_holds_its_escalations() {
     let (configuration, limits) = no_holder_fixture(336);
-    let mut world = World::configured(336, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 336, configuration: Some(configuration), limits, ..Setup::default() });
     world.send(jig_test_domain::Event::Core(jig_domain_core::Event::People(people::Event::Roles {
         project: PROJECT,
         holdings: Box::new([people::Holding { person: PARTY, role: people::Role::Member }]),

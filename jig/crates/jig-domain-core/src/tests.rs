@@ -7,6 +7,7 @@ use crate::*;
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
 mod deadlines;
+mod flight;
 mod limits;
 mod start;
 mod translate;

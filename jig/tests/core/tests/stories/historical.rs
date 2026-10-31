@@ -1,9 +1,10 @@
 use super::*;
+use jig_core_world::effects::Setup;
 
 #[test]
 fn a_second_party_proposal_request_reads_the_original_committed_decision_after_restart() {
     let (configuration, limits) = fixture(816, false);
-    let mut world = World::configured(816, false, configuration, limits);
+    let mut world = World::new(Setup { seed: 816, configuration: Some(configuration), limits, ..Setup::default() });
     let proposed_goal = jig_core_world::fixtures::goal(
         &world,
         1,
