@@ -495,7 +495,7 @@ impl Host for Terminal {
             || !self.requests.is_empty()
             || self.interrupt
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {

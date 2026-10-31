@@ -330,7 +330,7 @@ impl skein_shell::Host for StoreHost {
             || !self.file_events.is_empty()
             || self.io.takes() && (!self.below.is_empty() || skein_kv::is_ready(&self.store, &self.limits))
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {

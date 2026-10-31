@@ -767,15 +767,12 @@ impl Host for OneShot {
                     || self.until.is_some_and(|at| now >= at)
                     || root::next_deadline(&self.root).is_some_and(|at| now >= at))
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         [
             self.io.next_deadline(),
             self.directory.deadline(),
             self.transport.as_ref().and_then(Memory::next_deadline),
             self.signing.as_ref().and_then(|s| s.shell.as_ref()).and_then(Shell::next_deadline),
-            self.until,
-            self.signing.as_ref().and_then(|s| s.retry),
-            self.status.is_none().then(|| root::next_deadline(&self.root)).flatten(),
         ]
         .into_iter()
         .flatten()

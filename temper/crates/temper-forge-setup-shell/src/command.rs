@@ -191,7 +191,7 @@ impl Host for Running {
     fn work_pending(&self, now: Time) -> bool {
         self.io.is_ready() || self.io.is_due(now) || !self.complete.is_empty()
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {

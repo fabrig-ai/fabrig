@@ -2,7 +2,7 @@
 use crate::{Event, Limits};
 use skein_forge::api;
 use skein_io::Addr;
-use skein_lib::{Env, Id, Map, Queue, Slab, Time, Token};
+use skein_lib::{Env, Id, Map, Queue, Slab, Time, Token, earliest};
 pub(crate) mod connection;
 use connection::{Closing, Hooked};
 /// The listener; each forge's webhook secret is in its access.
@@ -106,18 +106,30 @@ impl Hooks {
     pub fn close(&mut self) {
         self.closing = true;
     }
+    /// The close, with each webhook connection closing gracefully aborted at once:
+    /// once closing, none closes gracefully, so none is left to abort later.
+    pub fn abort(&mut self, io: &mut Queue<skein_io::Request>) {
+        self.closing = true;
+        for (_, id) in &self.connections {
+            let c = self.slab.get_mut(*id).expect("indexed hook");
+            if c.closing == Closing::Sent {
+                c.closing = Closing::Aborted;
+                io.push(skein_io::Request::Abort { entity: c.socket });
+            }
+        }
+    }
     pub fn closed(&self) -> bool {
         !self.live && self.connections.is_empty() && self.waiting.is_none()
     }
     pub fn deadline(&self) -> Option<Time> {
-        let mut earliest = self.wake;
+        let mut next = self.wake;
         for (_, id) in &self.connections {
             let c = self.slab.get(*id).expect("indexed hook");
-            if c.closing != Closing::Sent && (earliest.is_none() || Some(c.deadline) < earliest) {
-                earliest = Some(c.deadline);
+            if !c.closing.sent() {
+                next = earliest(next, Some(c.deadline));
             }
         }
-        earliest
+        next
     }
     pub fn drive(
         &mut self,
@@ -152,11 +164,11 @@ impl Hooks {
         }
         for (owner, id) in &self.connections {
             let c = self.slab.get_mut(*id).expect("indexed hook");
-            if c.closing != Closing::Sent && (self.closing || c.deadline <= env.now) {
-                c.closing = Closing::Sent;
+            if !c.closing.sent() && (self.closing || c.deadline <= env.now) {
+                c.closing = Closing::Aborted;
                 io.push(skein_io::Request::Abort { entity: c.socket });
             }
-            if c.closing != Closing::Sent {
+            if !c.closing.sent() {
                 c.pump(*owner, env, settings, up, io);
                 if c.pending() {
                     self.wake = Some(env.now);

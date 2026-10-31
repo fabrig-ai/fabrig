@@ -105,17 +105,7 @@ fn authority_parts(authority: &[u8], default_port: u16) -> Option<(&[u8], u16)> 
     if suffix.is_empty() {
         return Some((host, default_port));
     }
-    let digits = suffix.strip_prefix(b":")?;
-    if digits.is_empty() {
-        return None;
-    }
-    let mut port = 0_u16;
-    for byte in digits {
-        if !byte.is_ascii_digit() {
-            return None;
-        }
-        port = port.checked_mul(10)?.checked_add(u16::from(byte.checked_sub(b'0')?))?;
-    }
+    let port = u16::try_from(bytes::decimal(suffix.strip_prefix(b":")?)?).ok()?;
     Some((host, port))
 }
 

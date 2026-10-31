@@ -141,8 +141,8 @@ impl Host for Writing {
             || self.io.is_due(now)
             || (self.io.takes() && !self.closed && (self.request.is_some() || self.terminal))
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.io.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        None
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.io.next_deadline()

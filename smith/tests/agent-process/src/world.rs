@@ -386,7 +386,7 @@ impl Host for Parent {
             || (self.error.is_some() && !self.error_reading)
             || (self.pending.is_some() && !self.writing)
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         None
     }
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -467,8 +467,8 @@ impl Host for Proc {
     fn work_pending(&self, now: Time) -> bool {
         matches!(self, Self::Peer(_, Some(_))) || self.host().work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.host().next_policy_deadline()

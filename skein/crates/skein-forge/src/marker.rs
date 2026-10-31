@@ -34,7 +34,7 @@ pub fn encode(word: &[u8], key: &[u8], text: &[u8], limit: u32) -> Option<Box<[u
     out.put(word).ok()?;
     out.put(b":key ").ok()?;
     for byte in key {
-        out.put(&[hex(byte / 16), hex(byte % 16)]).ok()?;
+        out.put(&[bytes::hex_digit(byte / 16), bytes::hex_digit(byte % 16)]).ok()?;
     }
     out.put(TAIL).ok()?;
     out.put(text).ok()?;
@@ -49,21 +49,17 @@ pub fn decode(word: &[u8], body: &[u8]) -> Option<Box<[u8]>> {
         return None;
     }
     let digits = rest.get(..end)?;
+    // The key is written in lower case, and read back only in lower case.
+    for byte in digits {
+        if byte.is_ascii_uppercase() {
+            return None;
+        }
+    }
     let mut out = Writer::new(end / 2);
     for pair in digits.chunks_exact(2) {
-        let high = digit(*pair.first()?)?;
-        let low = digit(*pair.get(1)?)?;
+        let high = bytes::hex_value(*pair.first()?)?;
+        let low = bytes::hex_value(*pair.get(1)?)?;
         out.put(&[high.checked_mul(16)?.checked_add(low)?]).ok()?;
     }
     Some(out.finish())
-}
-fn digit(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => byte.checked_sub(b'0'),
-        b'a'..=b'f' => byte.checked_sub(b'a')?.checked_add(10),
-        _ => None,
-    }
-}
-pub(crate) fn hex(byte: u8) -> u8 {
-    *b"0123456789abcdef".get(usize::from(byte)).expect("one hexadecimal digit")
 }

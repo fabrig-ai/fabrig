@@ -9,7 +9,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_forge::github::{document::Row, pin::PAGE_CAP, request::Request};
-use skein_lib::{Duration, List, Queue, Set, Wall};
+use skein_lib::{Decimal, Duration, List, Queue, Set, Wall};
 
 #[derive(Debug)]
 struct Reading {
@@ -227,7 +227,7 @@ pub(crate) fn step(machine: &mut Sweep, event: Event, out: &mut Queue<Progress>)
         },
         State::Delete { work, id } => match deleted(event) {
             Ok(()) => machine.delete_next(work),
-            Err(why) => machine.stop(&app::decimal(id), why),
+            Err(why) => machine.stop(Decimal::of(id).as_bytes(), why),
         },
         State::Ended => return,
     };

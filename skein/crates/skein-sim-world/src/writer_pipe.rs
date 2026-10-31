@@ -292,8 +292,8 @@ impl<P: Host> Host for PipeHost<P> {
             || !self.submissions.is_empty()
             || (!self.writing && !self.capture.captured.borrow().bytes.is_empty())
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host.next_mechanism_deadline()
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {

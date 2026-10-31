@@ -366,7 +366,7 @@ fn content_length(headers: &[Header]) -> Option<u64> {
             if element.is_empty() {
                 continue;
             }
-            let this = decimal(element)?;
+            let this = bytes::decimal(element)?;
             match length {
                 Some(earlier) if earlier != this => return None,
                 Some(_) | None => length = Some(this),
@@ -374,21 +374,6 @@ fn content_length(headers: &[Header]) -> Option<u64> {
         }
     }
     length
-}
-
-/// `1*DIGIT` as a `u64`, or `None`: empty, another byte, or too large.
-fn decimal(digits: &[u8]) -> Option<u64> {
-    if digits.is_empty() {
-        return None;
-    }
-    let mut value = 0_u64;
-    for &byte in digits {
-        if !byte.is_ascii_digit() {
-            return None;
-        }
-        value = value.checked_mul(10)?.checked_add(u64::from(byte.saturating_sub(b'0')))?;
-    }
-    Some(value)
 }
 
 /// Whether the connection persists after the exchange, as the request

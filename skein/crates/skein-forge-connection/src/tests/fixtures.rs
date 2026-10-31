@@ -806,8 +806,8 @@ pub fn hook_signature(body: &[u8]) -> [u8; 64] {
     let mut signature = [0; 64];
     for (digits, byte) in signature.chunks_exact_mut(2).zip(mac.finish()) {
         let [high, low] = digits else { unreachable!("hex pair") };
-        *high = *b"0123456789abcdef".get(usize::from(byte / 16)).expect("hex digit");
-        *low = *b"0123456789abcdef".get(usize::from(byte % 16)).expect("hex digit");
+        *high = skein_lib::bytes::hex_digit(byte / 16);
+        *low = skein_lib::bytes::hex_digit(byte);
     }
     signature
 }
@@ -884,15 +884,8 @@ impl HookHarness {
             return None;
         }
         let text = self.wire.received.get(9..12).expect("HTTP status");
-        let mut value = 0_u16;
-        for digit in text {
-            value = value
-                .checked_mul(10)
-                .expect("status fits")
-                .checked_add(u16::from(digit.checked_sub(b'0').expect("decimal digit")))
-                .expect("status fits");
-        }
-        Some(value)
+        let value = skein_lib::bytes::decimal(text).expect("decimal status");
+        Some(u16::try_from(value).expect("status fits"))
     }
     fn pump(&mut self) {
         use skein_lib::stream::{Delimiter, Down, Read};

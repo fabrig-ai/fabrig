@@ -11,7 +11,7 @@ use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_tls::client::{self, Client, Event, Request};
 use skein_tls_world::pki;
-use skein_world::{Host, Memory, Referee, World};
+use skein_world::{Delegate, Host, Memory, Referee, World};
 
 const ROOM: u32 = 64;
 const OWNER: Token = Token::new(1);
@@ -97,17 +97,7 @@ impl Host for Sender {
         if let Some(address) = self.address.take() {
             self.requests.push(io::Request::Connect { owner: OWNER, addr: io::Addr::Ip(address) });
         }
-        for _ in 0..ROOM {
-            if self.io.is_ready() {
-                io::resume(&mut self.io, &env, &mut self.events, &mut self.submissions);
-            } else if let Some(complete) = self.completions.pop() {
-                io::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
-            } else if self.io.is_due(now) {
-                io::fire(&mut self.io, &env, &mut self.events, &mut self.submissions);
-            } else {
-                break;
-            }
-        }
+        io::stage::up(&mut self.io, &env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         for _ in 0..ROOM {
             let Some(event) = self.events.pop() else { break };
             match event {
@@ -174,13 +164,7 @@ impl Host for Sender {
             let Some(down) = self.below.pop() else { break };
             self.requests.push(io::Request::Stream { stream: self.socket.expect("connected"), down });
         }
-        for _ in 0..ROOM {
-            if !self.io.takes() {
-                break;
-            }
-            let Some(request) = self.requests.pop() else { break };
-            io::down(&mut self.io, &env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
     }
     fn completions(&mut self) -> &mut Queue<kernel::Complete> {
@@ -198,7 +182,7 @@ impl Host for Sender {
             || !self.above.is_empty()
             || !self.below.is_empty()
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -222,13 +206,14 @@ enum Process {
     Sender(Box<Sender>),
     Peer(Box<llm::Peer>),
 }
-impl Process {
+impl Delegate for Process {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Sender(sender) => sender.as_ref(),
             Self::Peer(peer) => peer.as_ref(),
         }
     }
+
     fn host_mut(&mut self) -> &mut dyn Host {
         match self {
             Self::Sender(sender) => sender.as_mut(),
@@ -236,33 +221,6 @@ impl Process {
         }
     }
 }
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn completions(&mut self) -> &mut Queue<kernel::Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
-    }
-}
-
 struct Judge {
     now: Time,
     text: Box<[u8]>,

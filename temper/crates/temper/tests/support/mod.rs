@@ -205,7 +205,7 @@ impl Scratch {
 
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Signal, Submit};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
-use skein_shell::{Clock, Host};
+use skein_shell::{Clock, Delegate, Host};
 use skein_world::{
     Referee,
     end_to_end::{Binary, Command, Expectation, Mode, Streams},
@@ -324,7 +324,7 @@ impl Host for StdoutReader {
     fn work_pending(&self, _now: Time) -> bool {
         !self.completions.is_empty() || self.input.is_some() || (!self.reading && self.output.is_some())
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         None
     }
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -346,7 +346,7 @@ enum Process {
     Issuer(Box<skein_fake_peers::oauth::Peer>),
     Visitor(Box<sign_in_browser::Visitor>),
 }
-impl Process {
+impl Delegate for Process {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Binary(x) => x.as_ref(),
@@ -358,6 +358,7 @@ impl Process {
             Self::Visitor(x) => x.as_ref(),
         }
     }
+
     fn host_mut(&mut self) -> &mut dyn Host {
         match self {
             Self::Binary(x) => x.as_mut(),
@@ -368,35 +369,6 @@ impl Process {
             Self::Issuer(x) => x.as_mut(),
             Self::Visitor(x) => x.as_mut(),
         }
-    }
-}
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn drain(&mut self) {
-        self.host_mut().drain();
-    }
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
     }
 }
 struct Judge {
@@ -444,9 +416,6 @@ impl Referee<Process> for Judge {
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.settled { None } else { self.deadline.until() }
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
     }
     fn passed(&self) -> bool {
         self.settled
@@ -642,9 +611,6 @@ impl Referee<Process> for ChatJudge<'_> {
         } else {
             self.deadline.until()
         }
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
     }
     fn passed(&self) -> bool {
         matches!(self.phase, ChatPhase::Settled)

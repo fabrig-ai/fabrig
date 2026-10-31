@@ -628,7 +628,7 @@ impl Host for Binary {
                 && !self.signalling)
     }
 
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.poll_at
     }
 

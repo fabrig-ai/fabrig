@@ -1,10 +1,10 @@
 //! Bytes (lib.md, 6): the byte search, against a naive one too; the reader,
-//! the writer, and a count's decimal digits.
+//! the writer, a count's decimal digits and their reading, and hex digits.
 
 use alloc::boxed::Box;
 
 use super::ROUNDS;
-use crate::bytes::{count, find, find_from};
+use crate::bytes::{count, decimal, find, find_from, hex_digit, hex_value};
 use crate::{Decimal, List, Overflow, Reader, Rng, Writer};
 
 #[test]
@@ -281,6 +281,49 @@ fn numbers_drawn_at_every_width_match_the_standard_library() {
         let width = u32::try_from(rng.below(64)).unwrap();
         let n = rng.next_u64().checked_shr(width).unwrap();
         assert_eq!(Decimal::of(n).as_bytes(), format!("{n}").as_bytes());
+    }
+}
+
+#[test]
+fn decimal_reads_one_or_more_digits_up_to_the_largest_u64() {
+    assert_eq!(decimal(b""), None, "no digits");
+    assert_eq!(decimal(b"0"), Some(0));
+    assert_eq!(decimal(b"007"), Some(7), "leading zeros");
+    assert_eq!(decimal(b"18446744073709551615"), Some(u64::MAX));
+    assert_eq!(decimal(b"18446744073709551616"), None, "one past u64::MAX");
+    assert_eq!(decimal(b"184467440737095516150"), None, "a digit past u64::MAX");
+    assert_eq!(decimal(b"1a"), None, "another byte");
+    for other in [&b"/"[..], b":", b"+1", b"-1", b" 1", b"1 ", b"1.0"] {
+        assert_eq!(decimal(other), None, "{other:?}");
+    }
+}
+
+#[test]
+fn decimal_reads_back_the_digits_of_a_count() {
+    let mut rng = Rng::new(0x0DEC_BAC4);
+    for _ in 0..ROUNDS {
+        let width = u32::try_from(rng.below(64)).unwrap();
+        let n = rng.next_u64().checked_shr(width).unwrap();
+        assert_eq!(decimal(Decimal::of(n).as_bytes()), Some(n), "{n}");
+    }
+}
+
+#[test]
+fn a_hex_digit_is_the_lower_case_digit_of_the_low_nibble() {
+    for (nibble, digit) in (0_u8..16).zip(*b"0123456789abcdef") {
+        assert_eq!(hex_digit(nibble), digit, "{nibble}");
+        assert_eq!(hex_digit(nibble | 0xf0), digit, "{nibble}: the high nibble is ignored");
+        assert_eq!(hex_value(digit), Some(nibble), "{nibble}: read back");
+    }
+}
+
+#[test]
+fn every_byte_reads_as_a_hex_digit_as_the_standard_library_reads_it() {
+    // Neither reads as a digit past 15.
+    const NOT_HEX: u8 = 16;
+    for byte in 0_u8..=u8::MAX {
+        let reference = u8::try_from(char::from(byte).to_digit(16).unwrap_or(NOT_HEX.into())).unwrap();
+        assert_eq!(hex_value(byte).unwrap_or(NOT_HEX), reference, "{byte:#04x}");
     }
 }
 

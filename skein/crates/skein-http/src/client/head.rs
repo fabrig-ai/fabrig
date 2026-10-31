@@ -263,7 +263,7 @@ fn content_length(headers: &[Header]) -> Length {
             if element.is_empty() {
                 continue;
             }
-            let Some(this) = decimal(element) else { return Length::Invalid };
+            let Some(this) = bytes::decimal(element) else { return Length::Invalid };
             match length {
                 Some(earlier) if earlier != this => return Length::Invalid,
                 Some(_) | None => length = Some(this),
@@ -275,19 +275,4 @@ fn content_length(headers: &[Header]) -> Length {
         None if present => Length::Invalid,
         None => Length::Absent,
     }
-}
-
-/// `1*DIGIT` as a `u64`, or `None`: empty, another byte, or too large.
-fn decimal(digits: &[u8]) -> Option<u64> {
-    if digits.is_empty() {
-        return None;
-    }
-    let mut value = 0_u64;
-    for &byte in digits {
-        if !byte.is_ascii_digit() {
-            return None;
-        }
-        value = value.checked_mul(10)?.checked_add(u64::from(byte.saturating_sub(b'0')))?;
-    }
-    Some(value)
 }

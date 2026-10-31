@@ -643,7 +643,7 @@ fn paired() -> World {
     let mut w = World::new();
     w.run(1, 1);
     w.plan(2, reachable(1));
-    while w.up.pop().is_some() {}
+    w.up.clear();
     w
 }
 #[test]
@@ -1361,4 +1361,70 @@ fn an_ended_runs_settling_connection_keeps_its_slot_until_closed() {
     w.event(skein_io::Event::Closed { owner });
     w.run(2, 2);
     assert_eq!(w.up.pop(), Some(owner_read(2)));
+}
+#[test]
+fn abort_stops_each_run_down_at_once_and_says_closed_once_io_has_aborted_its_connection() {
+    let mut w = paired();
+    w.answer(1, Answer::Read(Some(fixtures::secret(fixtures::ADMIN))));
+    let owner = w.connect();
+    w.down(Request::Abort);
+    assert_eq!(w.up.pop(), Some(stop(1, 1, Why::Down)), "the run sending, as at its deadline");
+    assert_eq!(w.up.pop(), Some(stop(2, 1, Why::Down)), "the run waiting on the owner, as at its deadline");
+    assert!(w.up.is_empty(), "closed waits for io");
+    assert!(w.io.is_empty(), "io has not named the socket");
+    w.event(skein_io::Event::Connecting { owner, socket: owner });
+    assert_eq!(w.io.pop(), Some(skein_io::Request::Abort { entity: owner }));
+    assert!(w.up.is_empty());
+    w.event(skein_io::Event::Closed { owner });
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    w.answer(2, Answer::Read(None));
+    w.down(Request::Abort);
+    w.fire(120_000);
+    assert!(w.up.is_empty(), "nothing after closed");
+    assert!(w.io.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+}
+#[test]
+fn abort_after_close_changes_nothing_as_the_close_aborted_every_connection() {
+    let mut w = World::new();
+    w.send();
+    let owner = w.connect();
+    w.down(Request::Close);
+    w.down(Request::Abort);
+    assert!(w.up.is_empty(), "the close ended the run unheard");
+    assert!(w.io.is_empty());
+    w.event(skein_io::Event::Connecting { owner, socket: owner });
+    assert_eq!(w.io.pop(), Some(skein_io::Request::Abort { entity: owner }));
+    assert!(w.io.is_empty(), "one abort");
+    w.event(skein_io::Event::Closed { owner });
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    assert!(w.up.is_empty());
+}
+#[test]
+fn close_after_abort_changes_nothing() {
+    let mut w = World::new();
+    w.send();
+    let owner = w.connect();
+    w.down(Request::Abort);
+    assert_eq!(w.up.pop(), Some(stop(1, 1, Why::Down)));
+    w.down(Request::Close);
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    w.event(skein_io::Event::Connecting { owner, socket: owner });
+    assert_eq!(w.io.pop(), Some(skein_io::Request::Abort { entity: owner }));
+    assert!(w.io.is_empty(), "one abort");
+    w.event(skein_io::Event::Closed { owner });
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    assert!(w.up.is_empty());
+}
+#[test]
+fn abort_when_idle_is_closed_at_once() {
+    let mut w = World::new();
+    w.down(Request::Abort);
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    w.down(Request::Close);
+    w.down(Request::Abort);
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
 }

@@ -43,13 +43,8 @@ pub fn claim_and_accept(kernel: &mut Kernel, state: &mut io::Io, token: Token, a
         let now = clock.now();
         assert!(now.now < deadline, "inherited listener must settle");
         let env = Env { now: now.now, wall: now.wall, limits };
-        while state.is_ready() {
-            io::resume(state, &env, &mut events, &mut submissions);
-        }
         kernel.reap(&mut completions);
-        while let Some(complete) = completions.pop() {
-            io::up(state, &env, complete, &mut events, &mut submissions);
-        }
+        io::stage::up(state, &env, &mut completions, &mut events, &mut submissions, now.now);
         while let Some(event) = events.pop() {
             match event {
                 Event::Listening { owner, listener, addr } => {

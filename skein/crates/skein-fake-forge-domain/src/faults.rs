@@ -2,7 +2,7 @@
 //! rate limit per user per window, failures before a call is made and after,
 //! and the latency of its answer, sometimes late.
 
-use skein_lib::{Duration, Env, Time};
+use skein_lib::{Duration, Env, Time, earliest};
 
 use crate::api::{Answer, Error};
 use crate::domain::{self, Config, Domain};
@@ -65,10 +65,7 @@ pub fn rate(
                         ended = Some(key);
                         break;
                     }
-                    first = Some(match first {
-                        Some(end) => end.min(stored.end),
-                        None => stored.end,
-                    });
+                    first = earliest(first, Some(stored.end));
                 }
                 match ended {
                     Some(key) => {

@@ -7,7 +7,7 @@ use std::path::Path;
 use skein_io::kernel::{Complete, Done, Family, Fd, Op, Signal, Spawn, Submit};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::{Clock, open_root};
-use skein_world::{Host, HostedProgram, Inherited, Referee, real};
+use skein_world::{Delegate, Host, HostedProgram, Inherited, Referee, real};
 use skein_world_tests::hosted::{Act, Script};
 
 #[cfg(target_os = "linux")]
@@ -19,14 +19,7 @@ const DESCRIPTORS: &str = "/dev/fd";
 struct Quiet;
 
 impl<P> Referee<P> for Quiet {
-    fn act(&mut self, _now: Time, _procs: &mut [P]) {}
     fn observe(&mut self, _now: Time, _procs: &[P]) {}
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         true
     }
@@ -108,8 +101,8 @@ impl Host for RecordingParent {
     fn work_pending(&self, now: Time) -> bool {
         self.script.work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.script.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.script.next_mechanism_deadline()
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -147,7 +140,7 @@ impl Host for OpeningChild {
     fn work_pending(&self, _now: Time) -> bool {
         !self.started
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         None
     }
 
@@ -170,7 +163,7 @@ enum Proc {
     Opening(OpeningChild),
 }
 
-impl Proc {
+impl Delegate for Proc {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Parent(parent) => parent,
@@ -178,48 +171,13 @@ impl Proc {
             Self::Opening(child) => child,
         }
     }
+
     fn host_mut(&mut self) -> &mut dyn Host {
         match self {
             Self::Parent(parent) => parent,
             Self::Script(script) => script,
             Self::Opening(child) => child,
         }
-    }
-}
-
-impl Host for Proc {
-    fn drain(&mut self) {
-        self.host_mut().drain();
-    }
-
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
-    }
-
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn exit(&self) -> Option<skein_io::kernel::Exit> {
-        self.host().exit()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
     }
 }
 

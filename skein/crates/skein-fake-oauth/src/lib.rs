@@ -599,12 +599,10 @@ impl Issuer {
 }
 
 fn code_bytes(number: u64) -> Box<[u8]> {
-    const HEX: &[u8] = b"0123456789abcdef";
     let mut out = [0_u8; 16];
     for (at, slot) in out.iter_mut().enumerate() {
         let shift = u32::try_from(15_usize.saturating_sub(at).saturating_mul(4)).expect("shift fits");
-        let nibble = usize::try_from((number >> shift) & 15_u64).expect("nibble fits");
-        *slot = *HEX.get(nibble).expect("hex digit");
+        *slot = bytes::hex_digit(u8::try_from((number >> shift) & 15_u64).expect("nibble fits"));
     }
     bytes::copy_of(&out)
 }
@@ -684,8 +682,8 @@ fn percent_decode(value: &[u8], cap: u32) -> Result<Box<[u8]>, Error> {
     while at < value.len() {
         let byte = *value.get(at).ok_or(Error::Plan)?;
         if byte == b'%' {
-            let high = hex(*value.get(at.saturating_add(1)).ok_or(Error::Plan)?).ok_or(Error::Plan)?;
-            let low = hex(*value.get(at.saturating_add(2)).ok_or(Error::Plan)?).ok_or(Error::Plan)?;
+            let high = bytes::hex_value(*value.get(at.saturating_add(1)).ok_or(Error::Plan)?).ok_or(Error::Plan)?;
+            let low = bytes::hex_value(*value.get(at.saturating_add(2)).ok_or(Error::Plan)?).ok_or(Error::Plan)?;
             writer.put(&[(high << 4_u32) | low]).expect("measured decode");
             at = at.saturating_add(3);
         } else {
@@ -699,13 +697,4 @@ fn percent_decode(value: &[u8], cap: u32) -> Result<Box<[u8]>, Error> {
 fn copy_optional(value: Option<&[u8]>) -> Option<Box<[u8]>> {
     let value = value?;
     Some(bytes::copy_of(value))
-}
-
-const fn hex(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => Some(byte.wrapping_sub(b'0')),
-        b'a'..=b'f' => Some(byte.wrapping_sub(b'a').wrapping_add(10)),
-        b'A'..=b'F' => Some(byte.wrapping_sub(b'A').wrapping_add(10)),
-        _ => None,
-    }
 }

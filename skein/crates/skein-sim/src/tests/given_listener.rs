@@ -46,15 +46,11 @@ fn claim_and_accept(sim: &mut Sim, pid: Pid, fd: Fd, address: SocketAddr) {
     skein_io::down(&mut io, &env, Request::Listen { owner: Token::new(1), addr: Addr::Ip(address) }, &mut submissions);
     assert!(submissions.is_empty(), "the inherited listener is claimed by its address");
     io.reclaim();
-    while io.is_ready() {
-        skein_io::resume(&mut io, &env, &mut events, &mut submissions);
-    }
+    skein_io::stage::up(&mut io, &env, &mut completions, &mut events, &mut submissions, env.now);
     assert_eq!(events.pop(), Some(Event::Listening { owner: Token::new(1), listener: held, addr: Addr::Ip(address) }));
     sim.submit(pid, &mut submissions);
     sim.reap(pid, &mut completions);
-    while let Some(complete) = completions.pop() {
-        skein_io::up(&mut io, &env, complete, &mut events, &mut submissions);
-    }
+    skein_io::stage::up(&mut io, &env, &mut completions, &mut events, &mut submissions, env.now);
     let Some(Event::Accepted { owner, socket, .. }) = events.pop() else {
         unreachable!("a queued connection is accepted by the child claim")
     };
@@ -64,9 +60,7 @@ fn claim_and_accept(sim: &mut Sim, pid: Pid, fd: Fd, address: SocketAddr) {
     for _ in 0..8_u32 {
         sim.submit(pid, &mut submissions);
         sim.reap(pid, &mut completions);
-        while let Some(complete) = completions.pop() {
-            skein_io::up(&mut io, &env, complete, &mut events, &mut submissions);
-        }
+        skein_io::stage::up(&mut io, &env, &mut completions, &mut events, &mut submissions, env.now);
         while events.pop().is_some() {}
         io.reclaim();
         if io.is_empty() {

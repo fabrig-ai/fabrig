@@ -29,8 +29,19 @@ pub trait Host {
     /// Whether `iterate` has work at `now` without the kernel.
     fn work_pending(&self, now: Time) -> bool;
 
-    /// Its earliest deadline, over every layer.
-    fn next_deadline(&self) -> Option<Time>;
+    /// Its earliest deadline, over every layer: the earlier of its mechanism
+    /// and its policy deadline.
+    fn next_deadline(&self) -> Option<Time> {
+        match (self.next_mechanism_deadline(), self.next_policy_deadline()) {
+            (Some(mechanism), Some(policy)) => Some(mechanism.min(policy)),
+            (Some(deadline), None) | (None, Some(deadline)) => Some(deadline),
+            (None, None) => None,
+        }
+    }
+
+    /// Its earliest mechanism deadline: io close, retry and file stalls and any other deadline
+    /// `next_policy_deadline` excludes (testing-strategy.md, 6).
+    fn next_mechanism_deadline(&self) -> Option<Time>;
 
     /// Its earliest policy deadline, excluding io close, retry and file stalls
     /// (testing-strategy.md, section 6). Every host states it explicitly.
@@ -48,6 +59,71 @@ pub trait Host {
 
     /// The most operations it has in flight at once: the size of its ring.
     fn operations(&self) -> u32;
+}
+
+/// A process that forwards its whole loop surface to the host it holds (a test world's
+/// dispatcher over several kinds of process).
+///
+/// A trait with a generic impl departs from programming-model.md, 4 and 10 (concrete composition
+/// over traits and generic items). The departure is for test worlds only: a world's dispatcher is
+/// an enum over its processes' kinds, which its referee matches on, and each of its loop methods
+/// is the same forward to the variant's host. Written once here, the forward cannot drift between
+/// dispatchers, and a dispatcher is one accessor pair. Step code and services do not implement it.
+pub trait Delegate {
+    /// The host this process forwards to.
+    fn host(&self) -> &dyn Host;
+
+    /// The same host, mutably.
+    fn host_mut(&mut self) -> &mut dyn Host;
+}
+
+/// Every method forwards to the held host, the provided ones included, but
+/// [`Host::next_deadline`]: no host overrides it, so it is the earlier of the
+/// two forwarded deadlines.
+impl<D: Delegate> Host for D {
+    fn state_digest(&self) -> Option<[u8; 32]> {
+        self.host().state_digest()
+    }
+
+    fn drain(&mut self) {
+        self.host_mut().drain();
+    }
+
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        self.host_mut().iterate(now, wall);
+    }
+
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        self.host_mut().completions()
+    }
+
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        self.host_mut().submissions()
+    }
+
+    fn work_pending(&self, now: Time) -> bool {
+        self.host().work_pending(now)
+    }
+
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
+    }
+
+    fn next_policy_deadline(&self) -> Option<Time> {
+        self.host().next_policy_deadline()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.host().is_empty()
+    }
+
+    fn exit(&self) -> Option<Exit> {
+        self.host().exit()
+    }
+
+    fn operations(&self) -> u32 {
+        self.host().operations()
+    }
 }
 
 /// Runs a service until its entities and kernel operations have settled.

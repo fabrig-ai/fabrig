@@ -109,9 +109,20 @@ pub(super) enum Dialect {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Request {
-    Run { run: Token, plan: Plan },
-    Answer { run: Token, answer: Answer },
+    Run {
+        run: Token,
+        plan: Plan,
+    },
+    Answer {
+        run: Token,
+        answer: Answer,
+    },
+    /// Ends every run unheard and aborts every connection; `Event::Closed` follows.
     Close,
+    /// A close that does not wait (programming-model.md, 5.2): each run ends at once
+    /// with its one `Event::Stop`, as at its deadline, then as `Close`. A close after it
+    /// changes nothing, and so does an abort after a close, which aborted everything.
+    Abort,
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Answer {

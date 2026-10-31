@@ -94,9 +94,7 @@ fn paragraphs_blocks_runs_links_and_literal_fallbacks() {
             }
             assert!(out.is_empty());
         }
-        for _patch in 0..out.len() {
-            let _discarded = out.pop().unwrap();
-        }
+        out.clear();
     }
     for unsafe_url in [
         b"https:///path".as_slice(),

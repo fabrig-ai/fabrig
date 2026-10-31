@@ -614,9 +614,6 @@ pub fn change_page(config: &Path, client: &Path, task: u64) -> String {
         fn next_deadline(&self) -> Option<skein_lib::Time> {
             if self.closing { None } else { self.until.until() }
         }
-        fn overdue(&self, _now: skein_lib::Time) -> Option<String> {
-            None
-        }
         fn passed(&self) -> bool {
             self.closing
         }

@@ -395,23 +395,10 @@ impl Host for Web {
         self.io_env.wall = wall;
         self.env.now = now;
         self.env.wall = wall;
-        for _ in 0..QUEUE {
-            if self.submissions.room() < 4 {
-                break;
-            }
-            if self.io.is_ready() {
-                io::resume(&mut self.io, &self.io_env, &mut self.events, &mut self.submissions);
-            } else if let Some(complete) = self.completions.pop() {
-                io::up(&mut self.io, &self.io_env, complete, &mut self.events, &mut self.submissions);
-            } else if self.io.is_due(now) {
-                io::fire(&mut self.io, &self.io_env, &mut self.events, &mut self.submissions);
-            } else {
-                break;
-            }
-            for _ in 0..self.events.len() {
-                let event = self.events.pop().expect("this io entrance's events");
-                self.event(event);
-            }
+        io::stage::up(&mut self.io, &self.io_env, &mut self.completions, &mut self.events, &mut self.submissions, now);
+        for _ in 0..self.events.len() {
+            let event = self.events.pop().expect("this io stage's events");
+            self.event(event);
         }
         for conn in self.connections.values_mut() {
             if conn.deadline <= now {
@@ -419,15 +406,7 @@ impl Host for Web {
                 conn.deadline = Time::from_nanos(u64::MAX);
             }
         }
-        for _ in 0..QUEUE {
-            if self.submissions.room() < 4 {
-                break;
-            }
-            let Some(request) = self.requests.pop() else {
-                break;
-            };
-            io::down(&mut self.io, &self.io_env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &self.io_env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
     }
     fn completions(&mut self) -> &mut Queue<Complete> {
@@ -439,8 +418,8 @@ impl Host for Web {
     fn work_pending(&self, now: Time) -> bool {
         self.io.is_ready() || self.io.is_due(now) || !self.completions.is_empty() || !self.requests.is_empty()
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.io.next_deadline().into_iter().chain(self.next_policy_deadline()).min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.connections.values().map(|conn| conn.deadline).min()

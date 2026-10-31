@@ -380,8 +380,7 @@ pub(crate) fn hex(value: &Secret) -> Secret {
     let mut out = Writer::new(64);
     for byte in value.expose() {
         for nibble in [byte >> 4_u8, byte & 15] {
-            out.put(&[*b"0123456789abcdef".get(usize::from(nibble)).expect("hex digit")])
-                .expect("32 bytes as 64 hex digits");
+            out.put(&[bytes::hex_digit(nibble)]).expect("32 bytes as 64 hex digits");
         }
     }
     Secret::new(out.finish())

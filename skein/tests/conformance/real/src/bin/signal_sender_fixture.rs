@@ -164,16 +164,15 @@ fn main() {
     loop {
         let now = clock.now();
         let env = Env { now: now.now, wall: now.wall, limits };
-        while state.is_ready() {
-            io::resume(&mut state, &env, &mut events, &mut submissions);
-        }
+        // The stage may leave completions for the next iteration: watch each spawn once, as it lands.
+        let held = usize::try_from(completions.len()).expect("the completion count fits usize");
         kernel.reap(&mut completions);
-        while let Some(complete) = completions.pop() {
-            if let Some(patience) = &mut patience {
-                patience.watch_spawn(&complete);
+        if let Some(patience) = &mut patience {
+            for complete in completions.iter().skip(held) {
+                patience.watch_spawn(complete);
             }
-            io::up(&mut state, &env, complete, &mut events, &mut submissions);
         }
+        io::stage::up(&mut state, &env, &mut completions, &mut events, &mut submissions, now.now);
         while let Some(event) = events.pop() {
             match event {
                 Event::Spawned { child: token, pipes, .. } => {
@@ -249,7 +248,11 @@ fn main() {
             }
             panic!("signal sender service must settle: child {child:?}, heard {heard}");
         }
-        let wait = if state.is_ready() || !events.is_empty() { Wait::No } else { Wait::Until(deadline) };
+        let wait = if state.is_ready() || !completions.is_empty() || !events.is_empty() {
+            Wait::No
+        } else {
+            Wait::Until(deadline)
+        };
         kernel.submit(&mut submissions, wait);
     }
 }

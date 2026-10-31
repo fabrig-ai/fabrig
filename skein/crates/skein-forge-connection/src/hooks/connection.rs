@@ -13,6 +13,7 @@ use skein_json::tokenizer::{self as json, Tokenizer};
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{
     Env, Queue, Time, Token,
+    bytes::hex_digit,
     sha256::{self, Hmac},
 };
 
@@ -20,7 +21,18 @@ use skein_lib::{
 pub(super) enum Closing {
     Open,
     Pending,
+    /// A graceful close is sent; an abort may still follow it.
     Sent,
+    Aborted,
+}
+impl Closing {
+    /// Whether io has the connection's close or abort.
+    pub(super) fn sent(self) -> bool {
+        match self {
+            Self::Open | Self::Pending => false,
+            Self::Sent | Self::Aborted => true,
+        }
+    }
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum HintState {
@@ -200,8 +212,8 @@ impl Hooked {
         let mut signature = [0; 64];
         for (digits, byte) in signature.chunks_exact_mut(2).zip(digest) {
             let [high, low] = digits else { unreachable!("hexadecimal pair") };
-            *high = *b"0123456789abcdef".get(usize::from(byte / 16)).expect("hexadecimal digit");
-            *low = *b"0123456789abcdef".get(usize::from(byte % 16)).expect("hexadecimal digit");
+            *high = hex_digit(byte / 16);
+            *low = hex_digit(byte);
         }
         let status = if !sha256::equal(&signature, &self.signature) {
             403

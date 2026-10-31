@@ -1,7 +1,10 @@
 //! Groups follow fake-forge.md, 10.2: one squash per entry, on the group
 //! ahead, with CI on a counted branch and landing in admission order.
 use alloc::boxed::Box;
-use skein_lib::{Decimal, Env, Id, Writer, bytes::copy_of};
+use skein_lib::{
+    Decimal, Env, Id, Writer,
+    bytes::{copy_of, hex_digit},
+};
 
 use crate::{
     api::{Answer, Change, Check, Error, Permission, QueueEntry, QueueRemoval, State, What},
@@ -46,9 +49,7 @@ fn branch(base: &[u8], entry: QueueEntry, limit: u32) -> Result<Box<[u8]>, Error
     }
     for byte in crate::object_bytes(entry.head) {
         for nibble in [byte.checked_shr(4).expect("four-bit shift"), byte & 15] {
-            let digit =
-                if nibble < 10 { b'0'.saturating_add(nibble) } else { b'a'.saturating_add(nibble.saturating_sub(10)) };
-            out.put(&[digit]).expect("measured SHA-1");
+            out.put(&[hex_digit(nibble)]).expect("measured SHA-1");
         }
     }
     Ok(out.finish())

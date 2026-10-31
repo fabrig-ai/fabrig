@@ -63,8 +63,8 @@ impl Host for Process {
     fn work_pending(&self, now: Time) -> bool {
         !self.completions.is_empty() || self.inner.work_pending(now) || (self.inner.is_empty() && !self.closing)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.inner.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.inner.next_mechanism_deadline()
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {

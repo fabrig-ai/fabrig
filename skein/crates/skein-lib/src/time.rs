@@ -78,6 +78,26 @@ impl Time {
     }
 }
 
+/// The earlier of two optional deadlines, `None` only when both are: an
+/// absent deadline never falls due. A step holding several deadlines folds
+/// each into its next one: `next = earliest(next, Some(deadline))`.
+#[must_use]
+pub const fn earliest(left: Option<Time>, right: Option<Time>) -> Option<Time> {
+    match left {
+        None => right,
+        Some(left_time) => match right {
+            None => left,
+            Some(right_time) => {
+                if right_time.0 < left_time.0 {
+                    right
+                } else {
+                    left
+                }
+            }
+        },
+    }
+}
+
 impl Duration {
     pub const ZERO: Duration = Duration(0);
 

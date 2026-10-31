@@ -12,7 +12,7 @@
 //! sticky. Payloads are owned copies of the decoded input's bytes.
 
 use alloc::boxed::Box;
-use skein_lib::bytes::{copy_of, find, find_from};
+use skein_lib::bytes::{copy_of, find, find_from, hex_digit};
 use skein_lib::{Decimal, List, Writer};
 
 use crate::Observation;
@@ -905,8 +905,8 @@ fn encoded(bytes: &[u8]) -> Box<[u8]> {
         if unreserved(*byte) {
             writer.put(&[*byte]).expect("sized name byte");
         } else {
-            let high = hex(byte.checked_div(16).expect("nonzero divisor"));
-            let low = hex(byte.checked_rem(16).expect("nonzero divisor"));
+            let high = hex_digit(byte / 16).to_ascii_uppercase();
+            let low = hex_digit(byte % 16).to_ascii_uppercase();
             writer.put(&[b'%', high, low]).expect("sized escaped byte");
         }
     }
@@ -915,8 +915,4 @@ fn encoded(bytes: &[u8]) -> Box<[u8]> {
 
 fn unreserved(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || b"-._~".contains(&byte)
-}
-
-fn hex(nibble: u8) -> u8 {
-    *b"0123456789ABCDEF".get(usize::from(nibble)).expect("a hex nibble")
 }

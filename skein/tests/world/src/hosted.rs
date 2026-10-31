@@ -301,8 +301,8 @@ impl Host for Script {
         !self.completions.is_empty()
             || (!self.waiting && !self.done && self.awaiting.is_none() && self.pause.is_none_or(|at| now >= at))
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.pause
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        None
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -337,14 +337,7 @@ impl Machine for RootMachine {
 pub struct Judge;
 
 impl skein_world::Referee<Script> for Judge {
-    fn act(&mut self, _now: Time, _procs: &mut [Script]) {}
     fn observe(&mut self, _now: Time, _procs: &[Script]) {}
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
-    }
     fn passed(&self) -> bool {
         true
     }

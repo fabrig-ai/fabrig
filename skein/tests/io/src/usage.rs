@@ -147,26 +147,32 @@ impl Host for Process {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
-        while self.io.is_ready() {
-            skein_io::resume(&mut self.io, &self.env, &mut self.events, &mut self.submissions);
-        }
-        while let Some(complete) = self.completions.pop() {
+        // The root's close is the owner's own operation, not io's: it leaves
+        // the queue here, and the rest go back in order for io's stage.
+        for _ in 0..self.completions.len() {
+            let Some(complete) = self.completions.pop() else { break };
             if complete.op == ROOT_CLOSE {
                 assert_eq!(complete.result, Ok(Done::Nothing));
                 self.root_closing = false;
-            } else {
-                if let Ok(Done::Spawned { pidfd, .. }) = complete.result {
-                    self.pidfd = Some(pidfd);
-                }
-                skein_io::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.submissions);
+                continue;
             }
+            if let Ok(Done::Spawned { pidfd, .. }) = complete.result {
+                self.pidfd = Some(pidfd);
+            }
+            self.completions.push(complete);
         }
+        skein_io::stage::up(
+            &mut self.io,
+            &self.env,
+            &mut self.completions,
+            &mut self.events,
+            &mut self.submissions,
+            now,
+        );
         while let Some(event) = self.events.pop() {
             self.observe(event);
         }
-        while let Some(request) = self.requests.pop() {
-            skein_io::down(&mut self.io, &self.env, request, &mut self.submissions);
-        }
+        skein_io::stage::down(&mut self.io, &self.env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
         if self.phase == Phase::Done
             && self.io.is_empty()
@@ -185,7 +191,7 @@ impl Host for Process {
     fn work_pending(&self, _now: Time) -> bool {
         self.io.is_ready() || !self.completions.is_empty() || !self.requests.is_empty()
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
 
@@ -211,17 +217,10 @@ pub struct Judge {
     pub simulated: bool,
 }
 impl Referee<Process> for Judge {
-    fn act(&mut self, _now: Time, _procs: &mut [Process]) {}
     fn observe(&mut self, _now: Time, procs: &[Process]) {
         if procs[0].is_empty() {
             procs[0].check(self.simulated);
         }
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
     }
     fn passed(&self) -> bool {
         true

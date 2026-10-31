@@ -4,7 +4,7 @@ use crate::domain::{self, Config, Domain};
 use crate::store::Repository;
 use alloc::boxed::Box;
 use skein_lib::bytes::copy_of;
-use skein_lib::{Env, Id, List, Time};
+use skein_lib::{Decimal, Env, Id, List, Time};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RunEvent {
@@ -260,12 +260,12 @@ pub(crate) fn job_link(repository: &Repository, run: &Run, id: u64) -> Box<[u8]>
     append(&mut link, b"/");
     append(&mut link, &repository.name);
     append(&mut link, b"/actions/runs/");
-    decimal(&mut link, run.number);
+    append(&mut link, Decimal::of(run.number).as_bytes());
     append(&mut link, b"/jobs/");
     let kept = self::run(repository, run.id).expect("stored run");
     for job in &kept.jobs {
         if job.id == id {
-            decimal(&mut link, u64::from(job.index));
+            append(&mut link, Decimal::of(u64::from(job.index)).as_bytes());
         }
     }
     link.into_boxed()
@@ -274,9 +274,6 @@ fn append(out: &mut List<u8>, bytes: &[u8]) {
     for &byte in bytes {
         out.push(byte).expect("bounded bytes");
     }
-}
-fn decimal(out: &mut List<u8>, number: u64) {
-    append(out, skein_lib::Decimal::of(number).as_bytes());
 }
 
 pub(crate) fn outcome_steps(

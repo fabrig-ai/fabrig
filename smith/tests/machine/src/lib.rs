@@ -405,7 +405,6 @@ impl Expectation<Application> for Terminal {
 }
 
 impl Referee<Application> for Expectations<Application, Terminal> {
-    fn act(&mut self, _now: Time, _procs: &mut [Application]) {}
     fn observe(&mut self, now: Time, procs: &[Application]) {
         assert!(procs[0].terminals.len() <= procs[0].expected, "one terminal per act throughout settlement");
         Expectations::observe(self, now, procs);
@@ -972,17 +971,12 @@ impl Host for Application {
             || self.process_io.is_ready()
             || self.next_deadline().is_some_and(|deadline| deadline <= now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        [
-            self.file_io.next_deadline(),
-            self.process_io.next_deadline(),
-            self.component.next_deadline(),
-            self.following_at,
-        ]
-        .into_iter()
-        .flatten()
-        .min()
-        .map(|deadline| Time::from_nanos(deadline.as_nanos().saturating_sub(self.offset.as_nanos())))
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        [self.file_io.next_deadline(), self.process_io.next_deadline()]
+            .into_iter()
+            .flatten()
+            .min()
+            .map(|deadline| Time::from_nanos(deadline.as_nanos().saturating_sub(self.offset.as_nanos())))
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         [self.component.next_deadline(), self.following_at]

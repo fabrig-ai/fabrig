@@ -177,7 +177,7 @@ impl Host for Owner {
         !self.completions.is_empty()
             || (self.io.takes() && matches!(self.phase, Phase::Store | Phase::Load | Phase::Close))
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
 
@@ -353,7 +353,6 @@ impl Machine for FileSystem {
 pub struct Judge;
 
 impl Referee<Owner> for Judge {
-    fn act(&mut self, _now: Time, _procs: &mut [Owner]) {}
     fn observe(&mut self, _now: Time, procs: &[Owner]) {
         for proc in procs {
             for event in &proc.events {
@@ -369,12 +368,6 @@ impl Referee<Owner> for Judge {
                 }
             }
         }
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
     }
     fn passed(&self) -> bool {
         true

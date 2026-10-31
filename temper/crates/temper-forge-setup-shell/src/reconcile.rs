@@ -469,7 +469,7 @@ impl Host for Running {
             || !self.complete.is_empty()
             || (!self.closing && (self.event.is_some() || !self.needs.is_empty()))
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         [self.io.next_deadline(), self.retry, self.result.is_none().then_some(self.end)].into_iter().flatten().min()
     }
     fn next_policy_deadline(&self) -> Option<Time> {

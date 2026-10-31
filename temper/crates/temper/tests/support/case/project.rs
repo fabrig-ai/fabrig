@@ -151,7 +151,7 @@ impl Host for MakeProject {
             || self.shell.work_pending(now)
             || self.client.next_deadline().is_some_and(|at| at <= now)
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.shell.next_deadline().into_iter().chain(self.client.next_deadline()).min()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -170,7 +170,6 @@ struct Judge {
     deadline: Time,
 }
 impl Referee<MakeProject> for Judge {
-    fn act(&mut self, _now: Time, _hosts: &mut [MakeProject]) {}
     fn observe(&mut self, _now: Time, hosts: &[MakeProject]) {
         self.settled = hosts.iter().all(Host::is_empty);
     }

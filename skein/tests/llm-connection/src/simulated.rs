@@ -13,7 +13,7 @@ use skein_io::{self as io, kernel};
 use skein_lib::{Duration, Env, List, Queue, Time, Token, Wall};
 use skein_llm_connection::{Component, Deadlines, Endpoint, Event, Limits, Request};
 use skein_sim::Config;
-use skein_world::{Host, Memory, Outcome, Referee, World};
+use skein_world::{Delegate, Host, Memory, Outcome, Referee, World};
 
 const ROOM: u32 = 256;
 const CUE: &[u8] = b"simulated-world";
@@ -153,25 +153,7 @@ impl Host for Client {
         }
         let io_env = Env { now, wall, limits: self.limits.io };
         let env = Env { now, wall, limits: self.limits };
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 || !self.io.is_ready() {
-                break;
-            }
-            io::resume(&mut self.io, &io_env, &mut self.io_events, &mut self.submissions);
-        }
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 {
-                break;
-            }
-            let Some(complete) = self.completions.pop() else { break };
-            io::up(&mut self.io, &io_env, complete, &mut self.io_events, &mut self.submissions);
-        }
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 || !self.io.is_due(now) {
-                break;
-            }
-            io::fire(&mut self.io, &io_env, &mut self.io_events, &mut self.submissions);
-        }
+        io::stage::up(&mut self.io, &io_env, &mut self.completions, &mut self.io_events, &mut self.submissions, now);
         for _ in 0..ROOM {
             let Some(event) = self.io_events.pop() else { break };
             self.component.as_mut().expect("io follows Start").up(&env, event, &mut self.events, &mut self.requests);
@@ -219,13 +201,7 @@ impl Host for Client {
             assert!(self.received.len() < 32, "bounded owner observations");
             self.received.push(event);
         }
-        for _ in 0..ROOM {
-            if !self.io.takes() || self.submissions.room() < 2 {
-                break;
-            }
-            let Some(request) = self.requests.pop() else { break };
-            io::down(&mut self.io, &io_env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &io_env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
         if let Some(component) = &mut self.component {
             component.reclaim();
@@ -248,11 +224,8 @@ impl Host for Client {
                 component.has_work() || component.next_deadline().is_some_and(|due| due <= now)
             })
     }
-    fn next_deadline(&self) -> Option<Time> {
-        [self.io.next_deadline(), self.component.as_ref().and_then(Component::next_deadline)]
-            .into_iter()
-            .flatten()
-            .min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -279,67 +252,59 @@ pub enum Process {
     /// The connection service sends owner records to the referee and closes its sockets.
     Client(Box<Client>),
     /// The independent fake sends outside observations and settles on shutdown.
-    Peer(Box<llm::Peer>, Option<(Box<[u8]>, Time)>),
+    Peer(Box<Held>),
 }
 
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
+impl Delegate for Process {
+    fn host(&self) -> &dyn Host {
         match self {
-            Self::Client(client) => client.iterate(now, wall),
-            Self::Peer(peer, release) => {
-                if release.as_ref().is_some_and(|(_, at)| now >= *at) {
-                    let (name, _) = release.take().expect("due release");
-                    peer.release(&name).expect("one bounded release");
-                }
-                peer.iterate(now, wall);
-            }
+            Self::Client(client) => client.as_ref(),
+            Self::Peer(held) => held.as_ref(),
         }
+    }
+
+    fn host_mut(&mut self) -> &mut dyn Host {
+        match self {
+            Self::Client(client) => client.as_mut(),
+            Self::Peer(held) => held.as_mut(),
+        }
+    }
+}
+
+/// The independent fake, whose host releases its held reply once, at a set time.
+pub struct Held {
+    peer: llm::Peer,
+    release: Option<(Box<[u8]>, Time)>,
+}
+
+impl Host for Held {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        if self.release.as_ref().is_some_and(|(_, at)| now >= *at) {
+            let (name, _) = self.release.take().expect("due release");
+            self.peer.release(&name).expect("one bounded release");
+        }
+        self.peer.iterate(now, wall);
     }
     fn completions(&mut self) -> &mut Queue<kernel::Complete> {
-        match self {
-            Self::Client(client) => client.completions(),
-            Self::Peer(peer, _) => peer.completions(),
-        }
+        self.peer.completions()
     }
     fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
-        match self {
-            Self::Client(client) => client.submissions(),
-            Self::Peer(peer, _) => peer.submissions(),
-        }
+        self.peer.submissions()
     }
     fn work_pending(&self, now: Time) -> bool {
-        match self {
-            Self::Client(client) => client.work_pending(now),
-            Self::Peer(peer, release) => release.as_ref().is_some_and(|(_, at)| now >= *at) || peer.work_pending(now),
-        }
+        self.release.as_ref().is_some_and(|(_, at)| now >= *at) || self.peer.work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        match self {
-            Self::Client(client) => client.next_deadline(),
-            Self::Peer(peer, release) => {
-                [peer.next_deadline(), release.as_ref().map(|(_, at)| *at)].into_iter().flatten().min()
-            }
-        }
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        [self.peer.next_mechanism_deadline(), self.release.as_ref().map(|(_, at)| *at)].into_iter().flatten().min()
     }
-
     fn next_policy_deadline(&self) -> Option<Time> {
-        match self {
-            Self::Client(client) => client.next_policy_deadline(),
-            Self::Peer(peer, _) => peer.next_policy_deadline(),
-        }
+        self.peer.next_policy_deadline()
     }
-
     fn is_empty(&self) -> bool {
-        match self {
-            Self::Client(client) => client.is_empty(),
-            Self::Peer(peer, _) => peer.is_empty(),
-        }
+        self.peer.is_empty()
     }
     fn operations(&self) -> u32 {
-        match self {
-            Self::Client(client) => client.operations(),
-            Self::Peer(peer, _) => peer.operations(),
-        }
+        self.peer.operations()
     }
 }
 
@@ -357,7 +322,7 @@ struct Judge {
 impl Referee<Process> for Judge {
     fn act(&mut self, _now: Time, processes: &mut [Process]) {
         let address = processes.iter().find_map(|process| match process {
-            Process::Peer(peer, _) => peer.address(),
+            Process::Peer(held) => held.peer.address(),
             Process::Client(_) => None,
         });
         if address.is_some() {
@@ -366,9 +331,9 @@ impl Referee<Process> for Judge {
         for process in processes {
             match process {
                 Process::Client(client) => client.address = address,
-                Process::Peer(peer, _) => {
+                Process::Peer(held) => {
                     if self.passed {
-                        peer.shutdown();
+                        held.peer.shutdown();
                         self.teardown_started = true;
                     }
                 }
@@ -413,8 +378,8 @@ impl Referee<Process> for Judge {
                         }
                     }
                 }
-                Process::Peer(peer, _) => {
-                    for observation in peer.observations() {
+                Process::Peer(held) => {
+                    for observation in held.peer.observations() {
                         match observation {
                             llm::Observation::Query { connection, query } => {
                                 assert_eq!(query.system.as_ref(), CUE);
@@ -656,7 +621,7 @@ fn run_configured(
         if ignore_half_close {
             peer.ignore_half_close();
         }
-        Process::Peer(Box::new(peer), release_at.map(|at| (b"ready".as_slice().into(), at)))
+        Process::Peer(Box::new(Held { peer, release: release_at.map(|at| (b"ready".as_slice().into(), at)) }))
     });
     world.spawn(|| Process::Client(Box::new(Client::new(transport, calls, input))));
     world.run()
@@ -675,16 +640,20 @@ pub fn assert_replay(first: &Outcome<Process>, second: &Outcome<Process>) {
     assert_eq!(first.trace, second.trace, "the actual two-process io trace replays");
     for (first, second) in first.procs.iter().zip(&second.procs) {
         match (first, second) {
-            (Process::Peer(first, first_release), Process::Peer(second, second_release)) => {
-                assert_eq!(first_release, second_release);
-                assert_eq!(first.observations(), second.observations(), "the independent peer's observations replay");
+            (Process::Peer(first), Process::Peer(second)) => {
+                assert_eq!(first.release, second.release);
+                assert_eq!(
+                    first.peer.observations(),
+                    second.peer.observations(),
+                    "the independent peer's observations replay"
+                );
             }
             (Process::Client(first), Process::Client(second)) => assert_eq!(
                 format!("{:?}", first.received),
                 format!("{:?}", second.received),
                 "actual owner payloads and terminals replay"
             ),
-            (Process::Peer(_, _), Process::Client(_)) | (Process::Client(_), Process::Peer(_, _)) => {
+            (Process::Peer(_), Process::Client(_)) | (Process::Client(_), Process::Peer(_)) => {
                 panic!("process order replays")
             }
         }

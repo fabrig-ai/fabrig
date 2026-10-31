@@ -9,7 +9,7 @@ use super::{
 use skein_fake_peers::oauth;
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};
-use skein_shell::{Clock, Host};
+use skein_shell::{Clock, Delegate, Host};
 use skein_world::{Referee, real};
 use std::{
     fs,
@@ -469,47 +469,19 @@ enum MovingProcess {
     Standard(Process),
     Viewer(Viewer),
 }
-impl MovingProcess {
+impl Delegate for MovingProcess {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Standard(host) => host,
             Self::Viewer(viewer) => viewer,
         }
     }
+
     fn host_mut(&mut self) -> &mut dyn Host {
         match self {
             Self::Standard(host) => host,
             Self::Viewer(viewer) => viewer,
         }
-    }
-}
-impl Host for MovingProcess {
-    fn iterate(&mut self, now: Time, wall: skein_lib::Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn drain(&mut self) {
-        self.host_mut().drain();
-    }
-    fn completions(&mut self) -> &mut skein_lib::Queue<skein_io::kernel::Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut skein_lib::Queue<skein_io::kernel::Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
     }
 }
 impl Host for Viewer {
@@ -553,8 +525,8 @@ impl Host for Viewer {
     fn work_pending(&self, now: Time) -> bool {
         self.client.as_ref().is_some_and(|client| client.work_pending(now))
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.client.as_ref().and_then(|client| client.next_deadline())
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.client.as_ref().and_then(|client| client.next_mechanism_deadline())
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.client.as_ref().and_then(|client| client.next_policy_deadline())
