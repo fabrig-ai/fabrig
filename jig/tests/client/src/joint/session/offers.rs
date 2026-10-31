@@ -1,20 +1,11 @@
-//! Opt-in original offered lists from admitted pending-card reads.
+//! Observations of engine and component offered lists (client/domain/testing.md, 5).
 //! These ordinary observations never decide or manufacture an offer.
-use super::packets::Incoming;
+use super::{CardOffers, Incoming};
 use crate::ClientId;
 use jig_client_domain::contract as client;
 use jig_client_test_domain::Event;
 use jig_domain_core::{documents, reads};
-use skein_lib::List;
 use std::collections::BTreeMap;
-
-/// Both lists from the same whole admitted owner value.
-pub struct CardOffers {
-    /// The engine's unchanged supplied list.
-    pub source: List<jig_domain_core::acts::Offered>,
-    /// The receiving client's unchanged supplied list.
-    pub native: List<client::Offered>,
-}
 
 pub(super) type Captured = BTreeMap<(ClientId, client::ObjectKey), CardOffers>;
 
