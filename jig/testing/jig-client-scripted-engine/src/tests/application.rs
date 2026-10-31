@@ -75,27 +75,18 @@ fn own() -> OwnApplication {
 fn own_script() -> Script {
     let mut setup = live_script();
     let entries: Vec<_> = (1..=3)
-        .map(|position| InboxEntry {
-            object: ObjectKey::Result(9 + position),
-            project: 1,
-            group: InboxGroup::Results,
-            position,
-            at: Wall::EPOCH,
-            lineage: list(vec![]),
-            goal: None,
-            recipient: None,
-            stall: None,
-            reply: None,
+        .map(|position| {
+            super::inbox_entry(ObjectKey::Result(9 + position), 1, InboxGroup::Results, position, Wall::EPOCH, None)
         })
         .collect();
     for entry in &entries {
-        let ObjectKey::Result(task_number) = entry.object else { unreachable!() };
+        let ObjectKey::Result(task_number) = entry.card_key() else { unreachable!() };
         let mut chip = task().chip;
         chip.task = task_number;
         chip.phase = Phase::Done;
-        chip.details = Box::new(ChipPhase::Ended { how: Ending::Done, at: Wall::EPOCH });
+        chip.details = Box::new(super::chip_details(OwnerChipPhase::Ended));
         setup.truth.objects.insert(
-            entry.object,
+            entry.card_key(),
             ReadValue::Result(Box::new(jig_client_domain::contract::Result {
                 task: chip,
                 ending: Ending::Done,
@@ -106,7 +97,7 @@ fn own_script() -> Script {
                 details: None,
             })),
         );
-        setup.truth.object_projects.insert(entry.object, 1);
+        setup.truth.object_projects.insert(entry.card_key(), 1);
     }
     let read = Read::Inbox {
         group: jig_client_domain::contract::InboxReadGroup::Updates,
@@ -123,14 +114,22 @@ fn own_script() -> Script {
         setup.rules.push(Rule {
             party: Some(1),
             ask: Ask::Seen { through: SeenThrough::Results { through } },
-            answer: Answer::Done(Outcome::Changed),
+            answer: Answer::Done(Outcome::Owner(OwnerOutcome::MarkedSeen { seen: SeenThrough::Results { through } })),
             changes: vec![
                 Change::Seen { party: 1, results: through, replies: vec![] },
                 Change::Me(latest),
                 Change::Source(Source {
                     party: 1,
                     read: read.clone(),
-                    rows: Rows::Inbox(entries.iter().filter(|entry| entry.position > through).cloned().collect()),
+                    rows: Rows::Inbox(
+                        entries
+                            .iter()
+                            .filter(
+                                |entry| matches!(entry.cursor, OwnerInboxCursor::Number { number } if number > through),
+                            )
+                            .cloned()
+                            .collect(),
+                    ),
                 }),
             ],
         });

@@ -120,19 +120,6 @@ fn owner_authority() -> OwnerAuthorityDocument {
         cut: false,
     }
 }
-fn authority() -> Authority {
-    Authority {
-        models: None,
-        budget: 1,
-        grants: list([]),
-        task_kinds: list([]),
-        depth: 1,
-        tasks: 1,
-        deadline: None,
-        tools: list([]),
-        note_scopes: list([]),
-    }
-}
 fn batch_task(number: u64, spec: SpecificationDocument, executor: OwnerExecutor, budget: u64) -> ProposedTask {
     ProposedTask {
         deadline: jig_client_domain::contract::NewDeadline::Named,
@@ -170,9 +157,6 @@ fn batch_task(number: u64, spec: SpecificationDocument, executor: OwnerExecutor,
         cut: false,
     }
 }
-fn budget() -> Budget {
-    Budget { total: 1, own: 0, ended: 0, reserved: 0, left: 1, funder: Actor::Party(7) }
-}
 /// Creates the initial chat task and its write offer.
 #[must_use]
 pub fn task() -> Task {
@@ -191,9 +175,7 @@ pub fn task() -> Task {
             title: DocumentText::complete(text(b"Chat nine")),
             executor: Executor::Agent { charter: 1 },
             phase: Phase::Running,
-            details: Box::new(ChipPhase::Procedure {
-                panel: Part::Panel { connector: jig_client_test_domain::FIRST, task: 9 },
-            }),
+            details: Box::new(owner_chip(OwnerChipPhase::Active(RunStage::Running { attempt: 1 }), None)),
         },
         goal: None,
         priority: Some(1),
@@ -365,9 +347,8 @@ pub fn chat_ready(seed: u64) -> World<Test, Scripted> {
 
 /// Project facts used by settings, goals and memory stories.
 #[must_use]
-pub fn project() -> Project {
+pub fn project() -> OwnerProject {
     let task = task();
-    let role = RolePolicy { number: 1, authority: authority(), allotment: 10, decisions: list([1, 2]) };
     let recurring = Recurring {
         chip: task.chip.clone(),
         key: 1,
@@ -382,91 +363,207 @@ pub fn project() -> Project {
         last_batch: list([8, 9]),
         cut: false,
     };
-    let part = Part::Project { connector: jig_client_test_domain::FIRST, project: 1 };
-    Project {
-        period: 3,
-        spend_lines: list([TaskSpend { chip: task.chip.clone(), spent: 5 }, TaskSpend { chip: task.chip, spent: 6 }]),
-        number: 1,
-        name: text(&[b'p'; 32]),
-        policy: Policy {
-            ceiling: authority(),
-            period: 3,
-            spend: 20,
-            roles: list([role.clone(), RolePolicy { number: 2, ..role }]),
-            requirements: list([part.clone(), part.clone()]),
-            deciders: list([Decider { kind: 1, role: 1 }, Decider { kind: 2, role: 2 }]),
+    let resource = OwnerProjectResource {
+        part: OwnerPart {
+            connector: jig_client_test_domain::FIRST,
+            kind: OwnerPartKind::Resource,
+            key: OwnerPartKey::Path(list([Box::from(b"project".as_slice())])),
         },
-        roles: list([
-            Holding { party: 7, role: HeldRole::Policy { role: 1 } },
-            Holding { party: 7, role: HeldRole::Policy { role: 2 } },
+        role: OwnerProjectResourceRole::Owned,
+    };
+    let pool = |person| PoolLedger {
+        source: Funder::Pool { project: 1, person, period: 3 },
+        parent: None,
+        numbers: OwnerNumbers { budget: 10, spent: 0, spent_below: 0, reserved: 0 },
+        left: 10,
+        closed: false,
+        began: Some(Wall::EPOCH),
+        next: None,
+    };
+    OwnerProject {
+        number: 1,
+        name: DocumentText::complete(text(&[b'p'; 32])),
+        resources: list([resource.clone(), resource]),
+        policy: OwnerProjectPolicy {
+            templates: list([]),
+            ceiling: owner_authority(),
+            period_spend: 20,
+            escalation_role: Some(1),
+            projections: list([]),
+            roles: list([
+                OwnerProjectPolicyRole {
+                    number: 1,
+                    authority: owner_authority(),
+                    period_spend: 10,
+                    requests: 0,
+                    decides: 3,
+                },
+                OwnerProjectPolicyRole {
+                    number: 2,
+                    authority: owner_authority(),
+                    period_spend: 10,
+                    requests: 0,
+                    decides: 3,
+                },
+            ]),
+            requirements: list([]),
+            permissions: None,
+            permissions_cut: false,
+            cut: false,
+        },
+        members: list([
+            OwnerProjectMember {
+                party: 7,
+                kind: PartyKind::Person,
+                role: HeldRole::Policy { role: 1 },
+                login: DocumentText::complete(text(b"Pat")),
+                name: DocumentText::complete(text(b"Pat")),
+            },
+            OwnerProjectMember {
+                party: 8,
+                kind: PartyKind::Service,
+                role: HeldRole::Policy { role: 2 },
+                login: DocumentText::complete(text(&[b's'; 32])),
+                name: DocumentText::complete(text(&[b's'; 32])),
+            },
         ]),
-        spend: budget(),
-        pools: list([Pool { party: 7, period: 3, budget: budget() }, Pool { party: 8, period: 3, budget: budget() }]),
-        resources: list([part.clone(), part.clone()]),
-        services: list([
-            Party { number: 1, kind: PartyKind::Service, name: text(&[b's'; 32]) },
-            Party { number: 2, kind: PartyKind::Service, name: text(&[b's'; 32]) },
+        current_period: Some(pool(7)),
+        pools: list([pool(7), pool(8)]),
+        configured_period: 3,
+        configured_pools: list([pool(7), pool(8)]),
+        configured_pools_cut: false,
+        spend: list([
+            OwnerProjectSpend {
+                chip: task.chip.clone(),
+                funder: pool(7).source,
+                numbers: OwnerNumbers { budget: 10, spent: 5, spent_below: 0, reserved: 0 },
+            },
+            OwnerProjectSpend {
+                chip: task.chip,
+                funder: pool(8).source,
+                numbers: OwnerNumbers { budget: 10, spent: 6, spent_below: 0, reserved: 0 },
+            },
         ]),
         recurring: list([recurring.clone(), Recurring { key: 2, ..recurring }]),
-        parts: list([part.clone(), part]),
+        cut: false,
         acts: list([Offered { effect: None, act: ActKind::Reorder, admission: Admission::Allowed }]),
     }
 }
-/// Full bounded deployment facts for every capacity panel.
+/// Bounded deployment owner facts for capacity panels.
 #[must_use]
-pub fn deployment() -> Deployment {
+pub fn deployment() -> OwnerDeployment {
     let chip = task().chip;
-    let host = |number| Host {
-        number,
-        connected: false,
-        grace: Some(Wall::EPOCH),
-        used: 1,
-        free: 1,
-        runs: list([chip.clone(), chip.clone()]),
-        refused: Some(text(&[b'h'; 32])),
+    let run = |attempt| OwnerHostRun {
+        task: OwnerTaskLink::Live(chip.clone()),
+        attempt,
+        kept: 0,
+        listed: true,
+        state: OwnerAttemptState::Adopted,
+        location: OwnerRunLocation::Adrift {
+            channel: Some(1),
+            until: Some(Wall::EPOCH),
+            remaining: Some(Duration::from_secs(60)),
+        },
+        grace_until: Some(Wall::EPOCH),
     };
-    let account = |number| Account {
+    let account = |number| OwnerAccount {
         number,
+        place: 0,
+        uses: None,
+        plan: false,
+        provider: None,
+        provider_name: None,
+        manage_usage: None,
+        display: DocumentText::complete(text(b"Fixture account")),
+        holder: OwnerAccountHolder::Party(7),
+        sources: list([]),
+        generation: None,
+        state: OwnerAccountState::Misconfigured,
         usable: false,
-        reason: Some(text(&[b'a'; 32])),
+        expiring: false,
+        attention: true,
+        spent_until: None,
         runs: list([chip.clone(), chip.clone()]),
         waiting: list([chip.clone(), chip.clone()]),
+        cut: false,
     };
-    Deployment {
+    let host = |channel| OwnerHost {
+        name: Some(Box::from(b"worker".as_slice())),
+        awaiting_logins: false,
+        rule: HostRule::Open,
+        programs: list([]),
+        channel,
+        kind: OwnerHostKind::Worker,
+        slots: 2,
+        used: 1,
+        free: 1,
+        draining: false,
+        connected: false,
+        grace_until: Some(Wall::EPOCH),
+        grace_remaining: Some(Duration::from_secs(60)),
+        runs: list([run(1), run(2)]),
+        cut: false,
+    };
+    OwnerDeployment {
+        store: StoreFill { bytes: 1, mark: 1024 },
         hosts: list([host(1), host(2)]),
+        attempts: list([run(1), run(2)]),
         accounts: list([account(1), account(2)]),
-        capacity: list([
-            Capacity { project: None, live: 1, limit: 2 },
-            Capacity { project: Some(1), live: 1, limit: 2 },
-        ]),
-        proposals: 2,
-        refusals: list([Refusal::Limit { which: Limit::Objects }, Refusal::Limit { which: Limit::Reads }]),
-        parts: list([
-            Part::Deployment { connector: jig_client_test_domain::FIRST },
-            Part::Deployment { connector: jig_client_test_domain::SECOND },
-        ]),
+        tasks: OwnerCapacity { used: 1, limit: 2 },
+        workers: OwnerCapacity { used: 2, limit: 4 },
+        attempts_capacity: OwnerCapacity { used: 1, limit: 2 },
+        waiting_attempts: 0,
+        proposals: OwnerCapacity { used: 2, limit: 4 },
+        projects: list([OwnerProjectCapacity { project: 1, tasks: OwnerCapacity { used: 1, limit: 2 }, proposals: 2 }]),
+        grace_bound: Duration::from_secs(60),
+        hello_refusals: list([]),
+        hosts_forgotten: 0,
+        hello_refusals_forgotten: 0,
+        person_room_refusals: list([]),
+        person_room_refusals_forgotten: 0,
+        person_answer_retention: Duration::from_secs(1000),
+        task_room_refusals: list([]),
+        task_room_refusals_forgotten: 0,
+        cut: false,
+        connectors: list([jig_client_test_domain::FIRST, jig_client_test_domain::SECOND]),
+        connectors_cut: false,
+        providers: list([]),
+        providers_cut: false,
+        key_bytes: 256,
+        readiness: list([]),
+        readiness_cut: false,
     }
 }
 
 /// Immutable delegate proposal shared by inbox, plan, two-tab and incident stories.
 #[must_use]
-pub fn proposal() -> Proposal {
+pub fn proposal() -> OwnerProposal {
     let key = ProposalKey { proposer: Proposer::Task(10), number: 1 };
-    Proposal {
+    OwnerProposal {
         key,
         project: 1,
-        proposer: Proposer::Task(10),
-        why: text(b"Resolve the incident"),
-        action: ProposalAction::Effect {
-            part: Part::Effect { connector: jig_client_test_domain::FIRST, proposal: key },
+        reason: DocumentText::complete(text(b"Resolve the incident")),
+        action: OwnerProposalAction::Effect {
+            part: OwnerPart {
+                connector: jig_client_test_domain::FIRST,
+                kind: OwnerPartKind::Effect,
+                key: OwnerPartKey::Number(1),
+            },
+            authority: owner_authority(),
+            attempt: 1,
+            completion: 1,
+            position: 1,
+            purpose: 1,
         },
-        needs: authority(),
-        funding: budget(),
-        waiting: Recipient::Party(7),
-        trail: list([]),
-        since: Wall::EPOCH,
+        as_holder: false,
+        waiting: OwnerProposalWaiting { holder: OwnerHistoryHolder::Person(7), since: Wall::EPOCH },
+        funding: list([OwnerFundingOffer {
+            source: Funder::Pool { project: 1, person: 7, period: 3 },
+            needed: 1,
+            left: Some(1),
+            after: Some(0),
+        }]),
         acts: list([Offered { effect: None, act: ActKind::Accept, admission: Admission::Allowed }]),
-        ending: None,
     }
 }
 /// The same proposal appears in its lead chat and the authoritative inbox.
@@ -496,20 +593,33 @@ pub fn arranged_proposal_world(seed: u64) -> World<Test, Scripted> {
             },
         )
         .expect("arranged task fits");
-    let empty = PhaseCounts { ended: 0, waiting: 0, running: 0, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0 };
-    let tree = Tree {
-        task: 9,
-        nodes: list([TreeNode {
-            chip: task().chip,
-            parent: None,
+    world
+        .front()
+        .engine
+        .act(
+            skein_lib::Time::ZERO,
+            Wall::EPOCH,
+            jig_client_scripted_engine::Change::Object {
+                project: 1,
+                key: ObjectKey::Task(10),
+                value: ReadValue::Task(Box::new(incident_delegate())),
+            },
+        )
+        .expect("plan delegate fits");
+    let tree = OwnerTree {
+        root: task().chip,
+        rows: list([OwnerTreeRow {
+            chip: incident_delegate().chip,
+            parent: 9,
+            depth: 1,
             dependencies: list([]),
             proposals: list([proposal().key]),
-            spend: 0,
-            folded: empty,
-            held_below: 0,
+            spent: 0,
+            cut: false,
         }]),
-        folded: empty,
+        folded: list([]),
         held_below: 0,
+        next: None,
     };
     world
         .front()
@@ -537,7 +647,7 @@ fn proposal_fixture(seed: u64, delegate_chip: bool) -> World<Test, Scripted> {
         jig_client_scripted_engine::Change::Object {
             project: 1,
             key: ObjectKey::Proposal(p.key),
-            value: ReadValue::Proposal(Box::new(p.clone())),
+            value: ReadValue::OwnerProposal(Box::new(p.clone())),
         },
         jig_client_scripted_engine::Change::Source(jig_client_scripted_engine::Source {
             party: 7,
@@ -548,18 +658,14 @@ fn proposal_fixture(seed: u64, delegate_chip: bool) -> World<Test, Scripted> {
                 goal: None,
                 after: None,
             },
-            rows: jig_client_scripted_engine::Rows::Inbox(vec![InboxEntry {
-                reply: None,
-                lineage: list([]),
-                goal: None,
-                recipient: Some(Recipient::Party(7)),
-                stall: None,
-                object: ObjectKey::Proposal(p.key),
-                project: 1,
-                group: InboxGroup::Proposals,
-                position: 1,
-                at: Wall::EPOCH,
-            }]),
+            rows: jig_client_scripted_engine::Rows::Inbox(vec![crate::stories::inbox_entry(
+                ObjectKey::Proposal(p.key),
+                1,
+                InboxGroup::Proposals,
+                1,
+                Wall::EPOCH,
+                None,
+            )]),
         }),
     ] {
         world.front().engine.act(skein_lib::Time::ZERO, Wall::EPOCH, change).expect("proposal facts fit");
@@ -598,7 +704,12 @@ fn proposal_fixture(seed: u64, delegate_chip: bool) -> World<Test, Scripted> {
                 rows: jig_client_scripted_engine::Rows::Activity(vec![ActivityLine {
                     position: 1,
                     at: Wall::EPOCH,
-                    event: Activity::Turn { name: TurnName { attempt: 1, number: 1 }, turn: TurnRead::Decoded(turn) },
+                    event: crate::stories::turn_event(
+                        9,
+                        1,
+                        TurnName { attempt: 1, number: 1 },
+                        TurnRead::Decoded(turn),
+                    ),
                 }]),
             }),
         )
@@ -606,14 +717,8 @@ fn proposal_fixture(seed: u64, delegate_chip: bool) -> World<Test, Scripted> {
     accepted_proposal(&mut world, &p);
     world
 }
-fn accepted_proposal(world: &mut World<Test, Scripted>, p: &Proposal) {
-    let mut decided = p.clone();
-    decided.ending = Some(Ending::Decided {
-        by: frame(7).party.number,
-        party: Some(party(7)),
-        how: Some(Decision::Accepted),
-        at: Wall::EPOCH,
-    });
+fn accepted_proposal(world: &mut World<Test, Scripted>, p: &OwnerProposal) {
+    let decided = decided_proposal(p, OwnerProposalHistoryState::Accepted { by: OwnerRequester::Person(7) });
     let ReadValue::Task(lead) =
         world.front().engine.truth().objects.get(&ObjectKey::Task(9)).expect("lead task exists")
     else {
@@ -635,10 +740,19 @@ fn accepted_proposal(world: &mut World<Test, Scripted>, p: &Proposal) {
         rows.push(ActivityLine {
             position: 2,
             at: Wall::EPOCH,
-            event: Activity::Decision {
-                object: ObjectKey::Proposal(p.key),
-                by: Actor::Party(7),
-                how: Decision::Accepted,
+            event: Activity::Owner {
+                source: Box::new(OwnerActivityLine {
+                    task: 9,
+                    position: 2,
+                    at: Wall::EPOCH,
+                    line: OwnerActivity::Words {
+                        message: 2,
+                        by: OwnerRequester::Person(7),
+                        kind: OwnerMessageKind::ProposalDecision { proposal: p.key.number, accepted: true },
+                        words: text(b"Accepted"),
+                    },
+                }),
+                decoded: None,
             },
         });
     }
@@ -646,7 +760,7 @@ fn accepted_proposal(world: &mut World<Test, Scripted>, p: &Proposal) {
         jig_client_scripted_engine::Change::Object {
             project: 1,
             key: ObjectKey::Proposal(p.key),
-            value: ReadValue::Proposal(Box::new(decided)),
+            value: ReadValue::Historical(Box::new(decided)),
         },
         jig_client_scripted_engine::Change::Object {
             project: 1,
@@ -668,8 +782,8 @@ fn accepted_proposal(world: &mut World<Test, Scripted>, p: &Proposal) {
     ];
     if let Some(tree) = world.front().engine.truth().trees.get(&9) {
         let mut tree = tree.clone();
-        for index in 0..tree.nodes.len() {
-            tree.nodes.get_mut(index).expect("bounded tree row exists").proposals.clear();
+        for index in 0..tree.rows.len() {
+            tree.rows.get_mut(index).expect("bounded tree row exists").proposals.clear();
         }
         changes.push(jig_client_scripted_engine::Change::Tree(tree));
     }
@@ -682,7 +796,13 @@ fn accepted_proposal(world: &mut World<Test, Scripted>, p: &Proposal) {
                 project: 1,
                 on: DecideOn::Proposal { proposal: p.key, decision: Decision::Accepted, running: None },
             },
-            answer: Answer::Done(Outcome::Decided { by: Actor::Party(7), how: Decision::Accepted, at: Wall::EPOCH }),
+            answer: Answer::Done(Outcome::Owner(OwnerOutcome::ProposalDecided {
+                proposal: p.key,
+                by: 7,
+                at: Wall::EPOCH,
+                choice: OwnerProposalChoice::Accepted,
+                repeated: false,
+            })),
             changes,
         })
         .expect("accepted activity rule fits");
@@ -693,19 +813,25 @@ fn accepted_proposal(world: &mut World<Test, Scripted>, p: &Proposal) {
 pub fn held_chat(seed: u64) -> World<Test, Scripted> {
     let mut world = world(seed);
     let mut held = task();
-    let reason = HoldReason::Stopped { by: party(7), at: Wall::EPOCH };
-    held.hold = Some(TaskHold::Document(Box::new(Hold {
+    let reason = OwnerChipHold {
         placed: None,
-        revision: Revision { value: 4 },
-        reason: reason.clone(),
-        before: Phase::Running,
-        since: Wall::EPOCH,
-        result: None,
-        spend: list([]),
-    })));
+        words: None,
+        circle: None,
+        account: None,
+        source: None,
+        reason: HoldCategory::Stopped,
+        revision: 4,
+        before: OwnerPriorPhase::Active(RunStage::Running { attempt: 1 }),
+        escalation: None,
+        tries: OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        hold_wait_since: Some(Wall::EPOCH),
+    };
+    held.hold = Some(TaskHold::Owner(Box::new(reason.clone())));
     held.chip.phase = Phase::Held;
-    held.chip.details =
-        Box::new(ChipPhase::Held { reason, since: Wall::EPOCH, revision: Revision { value: 4 }, was: None });
+    held.chip.details = Box::new(owner_chip(OwnerChipPhase::Held { reason: HoldCategory::Stopped, revision: 4 }, None));
+    if let ChipPhase::Owner { details, .. } = held.chip.details.as_mut() {
+        details.hold = Some(reason);
+    }
     held.context.as_mut().expect("supplied task context").runtime = Runtime::Held { was: None };
     held.acts = list([Offered { effect: None, act: ActKind::Release, admission: Admission::Allowed }]);
     world
@@ -764,20 +890,27 @@ pub fn goal_world(seed: u64) -> World<Test, Scripted> {
     world
         .front()
         .engine
-        .act(skein_lib::Time::ZERO, Wall::EPOCH, jig_client_scripted_engine::Change::Project(Box::new(doc)))
+        .act(skein_lib::Time::ZERO, Wall::EPOCH, jig_client_scripted_engine::Change::OwnerProject(Box::new(doc)))
         .expect("project facts fit");
-    let p = proposal();
+    let mut p = proposal();
+    p.key.proposer = Proposer::Party(7);
+    p.action = OwnerProposalAction::Batch(list([batch_task(
+        1,
+        specification(text(b"Resolve incident")),
+        OwnerExecutor::Agent { charter: 1 },
+        2,
+    )]));
     world
         .front()
         .engine
         .script(jig_client_scripted_engine::Rule {
             party: Some(7),
             ask,
-            answer: Answer::Done(Outcome::Proposed { proposal: p.key }),
+            answer: Answer::Done(Outcome::Owner(OwnerOutcome::Proposed { proposal: p.key.number, to: 1 })),
             changes: vec![jig_client_scripted_engine::Change::Object {
                 project: 1,
                 key: ObjectKey::Proposal(p.key),
-                value: ReadValue::Proposal(Box::new(p)),
+                value: ReadValue::OwnerProposal(Box::new(p)),
             }],
         })
         .expect("proposed goal rule fits");
@@ -820,34 +953,37 @@ pub fn procedure_goal_world(seed: u64) -> World<Test, Scripted> {
     world
         .front()
         .engine
-        .act(skein_lib::Time::ZERO, Wall::EPOCH, jig_client_scripted_engine::Change::Project(Box::new(doc)))
+        .act(skein_lib::Time::ZERO, Wall::EPOCH, jig_client_scripted_engine::Change::OwnerProject(Box::new(doc)))
         .expect("project facts fit");
     let mut p = proposal();
     p.key = ProposalKey { proposer: Proposer::Party(7), number: 1 };
-    p.proposer = Proposer::Party(7);
-    p.waiting = Recipient::Role { project: 1, role: 1 };
-    p.needs.budget = 2;
-    p.funding = Budget { total: 2, own: 0, ended: 0, reserved: 0, left: 2, funder: Actor::Party(7) };
-    p.action = ProposalAction::Batch {
-        tasks: list([batch_task(
-            1,
-            specification(text(b"Resolve incident")),
-            OwnerExecutor::Procedure { connector: 2, code: 7 },
-            2,
-        )]),
-        own: true,
+    p.waiting = OwnerProposalWaiting {
+        holder: OwnerHistoryHolder::Policy { project: 1, kind: OwnerMessageProposalKind::Batch },
+        since: Wall::EPOCH,
     };
+    p.funding = list([OwnerFundingOffer {
+        source: Funder::Pool { project: 1, person: 7, period: 3 },
+        needed: 2,
+        left: Some(2),
+        after: Some(0),
+    }]);
+    p.action = OwnerProposalAction::Batch(list([batch_task(
+        1,
+        specification(text(b"Resolve incident")),
+        OwnerExecutor::Procedure { connector: 2, code: 7 },
+        2,
+    )]));
     world
         .front()
         .engine
         .script(jig_client_scripted_engine::Rule {
             party: Some(7),
             ask,
-            answer: Answer::Done(Outcome::Proposed { proposal: p.key }),
+            answer: Answer::Done(Outcome::Owner(OwnerOutcome::Proposed { proposal: p.key.number, to: 1 })),
             changes: vec![jig_client_scripted_engine::Change::Object {
                 project: 1,
                 key: ObjectKey::Proposal(p.key),
-                value: ReadValue::Proposal(Box::new(p)),
+                value: ReadValue::OwnerProposal(Box::new(p)),
             }],
         })
         .expect("proposed goal rule fits");
@@ -858,8 +994,14 @@ fn incident_delegate() -> Task {
     let mut delegate = task();
     delegate.chip.task = 10;
     delegate.chip.title = DocumentText::complete(text(b"Delegate ten"));
-    delegate.chip.details =
-        Box::new(ChipPhase::Procedure { panel: Part::Panel { connector: jig_client_test_domain::FIRST, task: 10 } });
+    delegate.chip.details = Box::new(owner_chip(
+        OwnerChipPhase::Active(RunStage::Running { attempt: 1 }),
+        Some(OwnerPart {
+            connector: jig_client_test_domain::FIRST,
+            kind: OwnerPartKind::Procedure,
+            key: OwnerPartKey::Number(10),
+        }),
+    ));
     delegate.requester = OwnerRequester::Task(9);
     delegate.context.as_mut().expect("supplied task context").parts =
         list([Part::Panel { connector: jig_client_test_domain::FIRST, task: 10 }]);
@@ -883,8 +1025,6 @@ fn incident_world_with_second(seed: u64, second: Option<u64>) -> World<Test, Scr
     let mut lead = task();
     lead.delegates = list([LiveDelegate { chip: delegate.chip.clone(), takeover_budget: 1 }]);
     lead.context.as_mut().expect("supplied task context").impact.tasks.running = 1;
-    let counts =
-        PhaseCounts { ended: 0, waiting: 0, running: 2, held: 0, closing: 0, done: 0, failed: 0, cancelled: 0 };
     for change in [
         jig_client_scripted_engine::Change::Object {
             project: 1,
@@ -896,30 +1036,20 @@ fn incident_world_with_second(seed: u64, second: Option<u64>) -> World<Test, Scr
             key: ObjectKey::Task(10),
             value: ReadValue::Task(Box::new(delegate.clone())),
         },
-        jig_client_scripted_engine::Change::Tree(Tree {
-            task: 9,
-            nodes: list([
-                TreeNode {
-                    chip: lead.chip,
-                    parent: None,
-                    dependencies: list([]),
-                    proposals: list([]),
-                    spend: 0,
-                    folded: counts,
-                    held_below: 0,
-                },
-                TreeNode {
-                    chip: delegate.chip,
-                    parent: Some(9),
-                    dependencies: list([]),
-                    proposals: list([proposal().key]),
-                    spend: 0,
-                    folded: counts,
-                    held_below: 0,
-                },
-            ]),
-            folded: counts,
+        jig_client_scripted_engine::Change::Tree(OwnerTree {
+            root: lead.chip,
+            rows: list([OwnerTreeRow {
+                chip: delegate.chip,
+                parent: 9,
+                depth: 1,
+                dependencies: list([]),
+                proposals: list([proposal().key]),
+                spent: 0,
+                cut: false,
+            }]),
+            folded: list([]),
             held_below: 0,
+            next: None,
         }),
     ] {
         world.front().engine.act(skein_lib::Time::ZERO, Wall::EPOCH, change).expect("incident task facts fit");
@@ -963,7 +1093,11 @@ pub fn incident() -> RootAddress {
 #[must_use]
 pub fn reported(mut task: Task, report: &[u8]) -> Task {
     task.chip.phase = Phase::Done;
-    task.chip.details = Box::new(ChipPhase::Ended { how: Ending::Done, at: Wall::EPOCH });
+    task.chip.details = Box::new(owner_chip(OwnerChipPhase::Ended, None));
+    if let ChipPhase::Owner { details, .. } = task.chip.details.as_mut() {
+        details.ending = Some(OwnerChipEnding::Done(ResultValue::Report(DocumentText::complete(text(report)))));
+        details.ended_at = Some(Wall::EPOCH);
+    }
     task.context.as_mut().expect("supplied task context").runtime = Runtime::Ended;
     task.acts = list([]);
     task.proposals = list([]);
@@ -996,3 +1130,141 @@ pub fn party(number: u64) -> Party {
 pub mod unread_turn;
 
 use jig_client::contract::DecideOn;
+
+pub(crate) fn inbox_entry(
+    object: ObjectKey,
+    project: u32,
+    group: InboxGroup,
+    position: u64,
+    at: Wall,
+    reply: Option<Box<TaskLine>>,
+) -> OwnerInboxEntry {
+    let (task, object) = match object {
+        ObjectKey::Question { task, message } => (task, OwnerInboxObject::Question { message }),
+        ObjectKey::Proposal(key) => (
+            match key.proposer {
+                Proposer::Task(n) | Proposer::Party(n) => n,
+            },
+            OwnerInboxObject::Proposal { proposer: key.proposer, number: key.number },
+        ),
+        ObjectKey::Escalation(task) => (task, OwnerInboxObject::Escalation { revision: 1 }),
+        ObjectKey::PersonTask(task) => (task, OwnerInboxObject::PersonTask),
+        ObjectKey::Task(task) => (task, OwnerInboxObject::Reply { message: position }),
+        ObjectKey::Result(task) => (task, OwnerInboxObject::Result { position }),
+        ObjectKey::Note { .. } => unreachable!("notes have no inbox row"),
+    };
+    let row = OwnerInboxEntry {
+        reply,
+        task: OwnerTaskLink::Stored { number: task, status: None },
+        project: Some(project),
+        object,
+        activity: None,
+        at: Some(at),
+        unread: None,
+        cursor: OwnerInboxCursor::Number { number: position },
+    };
+    assert_eq!(row.group(), group);
+    row
+}
+
+fn owner_chip(phase: OwnerChipPhase, procedure: Option<OwnerPart>) -> ChipPhase {
+    ChipPhase::Owner {
+        phase,
+        details: Box::new(OwnerChipDetails {
+            dependencies: list([]),
+            project: 1,
+            executor: OwnerExecutor::Agent { charter: 1 },
+            phase_since: Wall::EPOCH,
+            run_since: None,
+            attempt: Some(1),
+            retry: None,
+            wake: OwnerWakePolicy {
+                words: WakeRule::Never,
+                notices: WakeRule::Never,
+                news: WakeRule::Never,
+                results: ResultsWake::Never,
+                questions: false,
+                answers: false,
+                timers: false,
+            },
+            person_wait: None,
+            hold: None,
+            budget: OwnerBudget {
+                numbers: OwnerNumbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
+                left: 1,
+                funder: Funder::Pool { project: 1, person: 7, period: 3 },
+                deadline: None,
+            },
+            activity: 0,
+            resources: list([]),
+            resources_cut: false,
+            resources_observed: false,
+            procedure,
+            live_delegates: 0,
+            closing_connectors: None,
+            ending: None,
+            ended_at: None,
+            observation: None,
+        }),
+    }
+}
+
+/// Retained proposal facts supplied after a decision, independently of the pending card.
+#[must_use]
+pub fn decided_proposal(p: &OwnerProposal, state: OwnerProposalHistoryState) -> OwnerHistorical {
+    let action = match &p.action {
+        OwnerProposalAction::Effect { part, authority, attempt, completion, position, purpose } => {
+            OwnerRetainedAction::Effect {
+                part: part.clone(),
+                authority: authority.clone(),
+                attempt: *attempt,
+                completion: *completion,
+                position: *position,
+                purpose: *purpose,
+            }
+        }
+        OwnerProposalAction::Batch(tasks) => OwnerRetainedAction::Batch(tasks.clone()),
+        OwnerProposalAction::Settings(_)
+        | OwnerProposalAction::ProcedureEffect { .. }
+        | OwnerProposalAction::Amend { .. }
+        | OwnerProposalAction::Widen { .. }
+        | OwnerProposalAction::Release { .. } => unreachable!("story supplies an effect or batch"),
+    };
+    OwnerHistorical {
+        key: ObjectKey::Proposal(p.key),
+        value: OwnerHistoricalValue::Proposal(OwnerProposalHistory {
+            action,
+            number: p.key.number,
+            proposer: match p.key.proposer {
+                Proposer::Task(n) | Proposer::Party(n) => n,
+            },
+            as_holder: p.as_holder,
+            state,
+        }),
+        at: Some(Wall::EPOCH),
+        by: Some(OwnerRequester::Person(7)),
+    }
+}
+/// A committed turn and its decoded archive have the owner's independent identities.
+#[must_use]
+pub fn turn_event(task: u64, position: u64, name: TurnName, turn: TurnRead) -> Activity {
+    Activity::Owner {
+        source: Box::new(OwnerActivityLine {
+            task,
+            position,
+            at: Wall::EPOCH,
+            line: OwnerActivity::Turn { reply: position, attempt: name.attempt, turn: name.number, read: None },
+        }),
+        decoded: Some(ArchivedTurn {
+            task,
+            name,
+            cumulative: match &turn {
+                TurnRead::Decoded(value) => value.spent,
+                TurnRead::Undecodable { .. } => 0,
+            },
+            read: None,
+            at: Wall::EPOCH,
+            turn,
+        }),
+    }
+}

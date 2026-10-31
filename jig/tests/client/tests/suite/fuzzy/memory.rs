@@ -80,10 +80,18 @@ fn full_task() -> jig_client_domain::contract::Task {
         (1..=8).map(|n| jig_client_domain::contract::Part::Panel { connector: jig_client_test_domain::FIRST, task: n }),
     );
     task.resources = jig_client_world::test::list((1..=8).map(|n| {
-        jig_client_domain::contract::TaskResource::Part(jig_client_domain::contract::Part::Panel {
-            connector: jig_client_test_domain::SECOND,
-            task: n,
-        })
+        jig_client_domain::contract::TaskResource::Owner(Box::new(jig_client_domain::contract::OwnerResourceLine {
+            part: jig_client_domain::contract::OwnerPart {
+                connector: jig_client_test_domain::SECOND,
+                kind: jig_client_domain::contract::OwnerPartKind::Resource,
+                key: jig_client_domain::contract::OwnerPartKey::Number(n),
+            },
+            kind: 1,
+            taken: false,
+            holder: None,
+            writer: None,
+            writer_lost: false,
+        }))
     }));
     task.spec.specification.words.bytes = stories::text(&[b's'; 32]);
     task.instructions = Some(jig_client_domain::contract::DocumentText::complete(stories::text(&[b'i'; 32])));
@@ -201,8 +209,8 @@ fn full_world() -> jig_client_world::World<jig_client_world::Test, jig_client_wo
         .act_application(Time::ZERO, Wall::EPOCH, jig_client_test_domain::FIRST, 1, family, vec![])
         .expect("full family fits");
     for change in [
-        jig_client_scripted_engine::Change::Project(Box::new(stories::project())),
-        jig_client_scripted_engine::Change::Deployment(stories::deployment()),
+        jig_client_scripted_engine::Change::OwnerProject(Box::new(stories::project())),
+        jig_client_scripted_engine::Change::OwnerDeployment(stories::deployment()),
     ] {
         w.front().engine.act(Time::ZERO, Wall::EPOCH, change).expect("full page fixture fits");
     }

@@ -295,7 +295,7 @@ fn populate_page(
                     Subject::Me => Some(Delivery::Me(Box::new(jig_client_world::stories::frame(1)))),
                     Subject::Task { .. } => Some(Delivery::Task(Box::new(jig_client_world::stories::task()))),
                     Subject::Deployment => {
-                        Some(Delivery::Deployment(Box::new(jig_client_world::stories::deployment())))
+                        Some(Delivery::OwnerDeployment(Box::new(jig_client_world::stories::deployment())))
                     }
                     Subject::Tree { .. }
                     | Subject::Chips { .. }
@@ -723,9 +723,9 @@ fn read_value(what: &contract::Read) -> Option<contract::ReadValue> {
         }
         Read::Me => Some(ReadValue::Me(Box::new(jig_client_world::stories::frame(1)))),
         Read::Task { .. } => Some(ReadValue::Task(Box::new(jig_client_world::stories::task()))),
-        Read::Project { .. } => Some(ReadValue::Project(Box::new(jig_client_world::stories::project()))),
-        Read::Deployment => Some(ReadValue::Deployment(Box::new(jig_client_world::stories::deployment()))),
-        Read::Proposal { .. } => Some(ReadValue::Proposal(Box::new(jig_client_world::stories::proposal()))),
+        Read::Project { .. } => Some(ReadValue::OwnerProject(Box::new(jig_client_world::stories::project()))),
+        Read::Deployment => Some(ReadValue::OwnerDeployment(Box::new(jig_client_world::stories::deployment()))),
+        Read::Proposal { .. } => Some(ReadValue::OwnerProposal(Box::new(jig_client_world::stories::proposal()))),
         Read::Inbox { group, .. } => Some(ReadValue::Inbox(Box::new(inbox_document(*group)))),
         Read::Activity { .. } => Some(ReadValue::Activity(Box::new(activity_document()))),
         Read::Turn { .. }

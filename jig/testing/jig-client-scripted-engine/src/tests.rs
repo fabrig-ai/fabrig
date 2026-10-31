@@ -79,19 +79,6 @@ pub(crate) fn owner_authority() -> OwnerAuthorityDocument {
         cut: false,
     }
 }
-fn authority() -> Authority {
-    Authority {
-        models: None,
-        budget: 100,
-        grants: list(vec![]),
-        task_kinds: list(vec![]),
-        depth: 10,
-        tasks: 10,
-        deadline: None,
-        tools: list(vec![]),
-        note_scopes: list(vec![]),
-    }
-}
 fn script() -> Script {
     let mut truth = Truth::default();
     truth.frames.insert(1, frame(1));
@@ -123,27 +110,23 @@ fn final_answer(up: &Up) -> &Answer {
         }
     }
 }
-fn proposal() -> Proposal {
-    Proposal {
+fn proposal() -> OwnerProposal {
+    OwnerProposal {
         key: ProposalKey { proposer: Proposer::Task(8), number: 1 },
         project: 1,
-        proposer: Proposer::Task(8),
-        why: text(b"wider"),
-        action: ProposalAction::Batch { tasks: list(vec![]), own: false },
-        needs: authority(),
-        funding: budget(),
-        waiting: Recipient::Role { project: 1, role: 1 },
-        trail: list(vec![]),
-        since: Wall::EPOCH,
+        reason: DocumentText::complete(text(b"wider")),
+        action: OwnerProposalAction::Batch(list(vec![])),
+        as_holder: false,
+        waiting: OwnerProposalWaiting { holder: OwnerHistoryHolder::Person(1), since: Wall::EPOCH },
+        funding: list(vec![]),
         acts: list(vec![Offered { effect: None, act: ActKind::Accept, admission: Admission::Allowed }]),
-        ending: None,
     }
 }
 #[test]
 fn keyed_contract_durability_sign_ins_conflict_and_decided_first() {
     let mut setup = script();
     let p = proposal();
-    setup.truth.objects.insert(ObjectKey::Proposal(p.key), ReadValue::Proposal(Box::new(p.clone())));
+    setup.truth.objects.insert(ObjectKey::Proposal(p.key), ReadValue::OwnerProposal(Box::new(p.clone())));
     let ask = Ask::Decide {
         project: 1,
         on: DecideOn::Proposal { proposal: p.key, decision: Decision::Accepted, running: None },
@@ -160,7 +143,13 @@ fn keyed_contract_durability_sign_ins_conflict_and_decided_first() {
     assert_eq!(final_answer(&up[0]), final_answer(&up[1]));
     assert_eq!(
         final_answer(&up[2]),
-        &Answer::Done(Outcome::DecidedFirst { by: party(1), how: Decision::Accepted, at: Wall::EPOCH })
+        &Answer::Done(Outcome::Owner(OwnerOutcome::ProposalDecided {
+            proposal: p.key,
+            by: 1,
+            choice: OwnerProposalChoice::Accepted,
+            at: Wall::EPOCH,
+            repeated: true
+        }))
     );
     assert_eq!(engine.commits().len(), 2);
     assert_eq!(engine.commits()[0].durable, Some(Time::from_nanos(10_000_000)));
@@ -293,7 +282,17 @@ fn revision_refusals_scripts_retention_and_whole_payload_admission() {
     };
     nested_escalation_payload_bounds(&escalation);
     setup.truth.object_projects.insert(ObjectKey::Escalation(8), 1);
-    setup.truth.objects.insert(ObjectKey::Escalation(8), ReadValue::Escalation(Box::new(escalation)));
+    setup.truth.objects.insert(
+        ObjectKey::Escalation(8),
+        ReadValue::OwnerEscalation(Box::new(OwnerEscalation {
+            task: {
+                let mut value = task();
+                value.hold = Some(TaskHold::Owner(Box::new(owner_hold(HoldCategory::Budget, 2))));
+                Box::new(value)
+            },
+            acts: escalation.acts,
+        })),
+    );
     let mut engine = Engine::new(setup, 2).expect("valid script");
     let ask = Ask::Decide {
         project: 1,
@@ -309,9 +308,7 @@ fn revision_refusals_scripts_retention_and_whole_payload_admission() {
         &Answer::Refused {
             refusal: Refusal::Moved {
                 now: Revision { value: 2 },
-                what: Moved::Hold {
-                    reason: Some(CurrentHold::Document(Box::new(HoldReason::Budget { spent: 100, limit: 100 })))
-                }
+                what: Moved::Hold { reason: Some(CurrentHold::Reason(HoldCategory::Budget)) }
             },
             at: None
         }
@@ -367,7 +364,7 @@ fn task() -> Task {
             title: DocumentText::complete(text(b"chat")),
             executor: Executor::Agent { charter: 1 },
             phase: Phase::Running,
-            details: Box::new(ChipPhase::Running { attempt: 1, since: Wall::EPOCH, tool: None }),
+            details: Box::new(chip_details(OwnerChipPhase::Active(RunStage::Running { attempt: 1 }))),
         },
         goal: None,
         priority: None,
@@ -425,15 +422,10 @@ fn task() -> Task {
 fn live_script() -> Script {
     let mut setup = script();
     setup.truth.objects.insert(ObjectKey::Task(8), ReadValue::Task(Box::new(task())));
-    setup.truth.trees.insert(8, Tree { task: 8, nodes: list(vec![]), folded: counts(), held_below: 0 });
-    setup.truth.deployment = Some(Deployment {
-        hosts: list(vec![]),
-        accounts: list(vec![]),
-        capacity: list(vec![]),
-        proposals: 0,
-        refusals: list(vec![]),
-        parts: list(vec![]),
-    });
+    setup.truth.trees.insert(
+        8,
+        OwnerTree { root: task().chip, rows: list(vec![]), folded: list(vec![]), held_below: 0, next: None },
+    );
     setup
 }
 fn at(nanos: u64) -> Time {
@@ -526,7 +518,9 @@ fn scenario_pages_and_read_barriers() {
     );
 }
 fn scenario_watch_subjects_coalescing_and_lifecycle() {
-    let mut engine = Engine::new(live_script(), 5).expect("live truth");
+    let mut setup = live_script();
+    setup.truth.owner_deployment = Some(owner_deployment::empty());
+    let mut engine = Engine::new(setup, 5).expect("live truth");
     let subjects = vec![
         Subject::Me,
         Subject::Task { task: 8 },
@@ -611,34 +605,38 @@ fn scenario_run_offsets_cut_names_and_activity() {
     drop(engine.poll(Time::ZERO));
     engine.write(Time::ZERO, 8, name, Wall::EPOCH, &text(b"abcdefghijklmnopqrst"), None).expect("first chunk");
     let up = engine.poll(Time::ZERO);
-    let Up::Watch { event: WatchEvent::Delivered(Delivery::Run(run)), .. } = &up[0] else {
+    let Up::Watch { event: WatchEvent::Delivered(Delivery::RunState(state)), .. } = &up[0] else {
         panic!("run text");
     };
+    let run = state.writing.as_ref().expect("provisional text");
     assert_eq!((run.from, run.through, run.cut), (0, 20, false));
     assert_eq!(run.text.bytes(), b"abcdefghijklmnopqrst");
     engine.write(at(1), 8, name, Wall::EPOCH, &text(b"uvwxyz0123456789ABCD"), None).expect("second chunk");
     assert!(engine.poll(at(1)).is_empty());
     engine.continue_run(Token::new(1), Some(provisional(name)), 20).expect("same watch cursor");
     let up = engine.poll(at(1));
-    let Up::Watch { event: WatchEvent::Delivered(Delivery::Run(run)), .. } = &up[0] else {
+    let Up::Watch { event: WatchEvent::Delivered(Delivery::RunState(state)), .. } = &up[0] else {
         panic!("run text");
     };
+    let run = state.writing.as_ref().expect("provisional text");
     assert_eq!((run.from, run.through, run.cut), (20, 40, false), "a valid acknowledged suffix needs no replacement");
     assert_eq!(run.text.bytes(), b"uvwxyz0123456789ABCD");
     engine.continue_run(Token::new(1), Some(provisional(name)), 0).expect("lagging offset");
     let up = engine.poll(at(1));
-    let Up::Watch { event: WatchEvent::Delivered(Delivery::Run(run)), .. } = &up[0] else {
+    let Up::Watch { event: WatchEvent::Delivered(Delivery::RunState(state)), .. } = &up[0] else {
         panic!("cut text");
     };
+    let run = state.writing.as_ref().expect("provisional text");
     assert_eq!((run.from, run.through), (8, 40));
     assert!(run.cut, "the actual lagging origin still proves retained-prefix loss");
     let second = TurnName { attempt: 1, number: 1 };
     engine.write(at(2), 8, second, Wall::EPOCH, &text(b"second"), None).expect("new turn");
     engine.continue_run(Token::new(1), Some(provisional(name)), 40).expect("old turn position");
     let up = engine.poll(at(2));
-    let Up::Watch { event: WatchEvent::Delivered(Delivery::Run(run)), .. } = &up[0] else {
+    let Up::Watch { event: WatchEvent::Delivered(Delivery::RunState(state)), .. } = &up[0] else {
         panic!("new turn text");
     };
+    let run = state.writing.as_ref().expect("provisional text");
     assert_eq!((run.turn, run.from, run.through), (provisional(second), 0, 6));
     engine
         .act(
@@ -650,16 +648,17 @@ fn scenario_run_offsets_cut_names_and_activity() {
                 rows: Rows::Activity(vec![ActivityLine {
                     position: 1,
                     at: Wall::EPOCH,
-                    event: Activity::Turn {
-                        name: second,
-                        turn: TurnRead::Decoded(Turn {
+                    event: turn_event(
+                        1,
+                        second,
+                        TurnRead::Decoded(Turn {
                             messages: list(vec![]),
                             used: Usage { input: 1, output: 1, cached: 0, cache_written: 0 },
                             spent: 1,
                             read_through: None,
                             cut: false,
                         }),
-                    },
+                    ),
                 }]),
             }),
         )
@@ -676,14 +675,14 @@ fn scenario_run_offsets_cut_names_and_activity() {
     assert!(engine.poll(at(10_000_001)).is_empty());
     let up = engine.poll(at(10_000_002));
     assert!(
-        matches!(&up[0],Up::Read { terminal:ReadResult::Value(ReadValue::Activity(page)),.. } if matches!(page.rows.iter().next().expect("turn").event,Activity::Turn { name,.. } if name == second))
+        matches!(&up[0],Up::Read { terminal:ReadResult::Value(ReadValue::Activity(page)),.. } if page.rows.iter().next().expect("turn").event.committed_turn() == Some(second))
     );
     assert!(!engine.runs.contains_key(&8), "durable matching activity replaces the provisional turn");
 }
-fn page_reply(position: u64) -> InboxEntry {
+fn page_reply(position: u64) -> OwnerInboxEntry {
     let line = {
         let mut value = task();
-        value.chip.title = DocumentText::complete(text(&[b'x'; 1100]));
+        value.chip.title = DocumentText::complete(text(&[b'x'; 3500]));
         value.label = 1;
         value.flags = TaskFlags {
             ended_by: EndedBy::Result,
@@ -697,23 +696,12 @@ fn page_reply(position: u64) -> InboxEntry {
             Some(ConversationRead { seen: 0, unread: Count { value: 1, limited: false } }),
         )
     };
-    InboxEntry {
-        reply: Some(Box::new(line)),
-        lineage: list(vec![]),
-        goal: None,
-        recipient: None,
-        stall: None,
-        object: ObjectKey::Task(8),
-        project: 1,
-        group: InboxGroup::Replies,
-        position,
-        at: Wall::EPOCH,
-    }
+    inbox_entry(ObjectKey::Task(8), 1, InboxGroup::Replies, position, Wall::EPOCH, Some(Box::new(line)))
 }
 
 fn scenario_byte_bound_pages_and_watch_windows() {
     let mut setup = live_script();
-    setup.bounds.document_bytes = 3000;
+    setup.bounds.document_bytes = 8192;
     setup.truth.sources.push(Source {
         party: 1,
         read: Read::History { task: 8, subtree: false, after: None },
@@ -725,7 +713,7 @@ fn scenario_byte_bound_pages_and_watch_windows() {
                         task: 8,
                         by: Actor::Party(1),
                         at: Wall::EPOCH,
-                        change: HistoryChange::Amended { before: text(&[b'a'; 1100]), after: text(&[b'b'; 1100]) },
+                        change: HistoryChange::Amended { before: text(&[b'a'; 3500]), after: text(&[b'b'; 3500]) },
                     }))
                 })
                 .collect(),
@@ -743,7 +731,7 @@ fn scenario_byte_bound_pages_and_watch_windows() {
     assert!(page.after.is_some());
     assert!(payload::fits(value, &engine.bounds));
     let mut setup = live_script();
-    setup.bounds.document_bytes = 3000;
+    setup.bounds.document_bytes = 8192;
     let entries = (0..2).map(page_reply).collect();
     setup.truth.sources.push(Source {
         party: 1,
@@ -759,12 +747,12 @@ fn scenario_byte_bound_pages_and_watch_windows() {
     let mut engine = Engine::new(setup, 9).expect("each whole reply row fits");
     engine.open(Time::ZERO, 11, Token::new(2), Subject::Inbox { window: 2 }).expect("inbox");
     let up = engine.poll(Time::ZERO);
-    let Up::Watch { event: WatchEvent::Delivered(value @ Delivery::Inbox(inbox)), .. } = &up[1] else {
+    let Up::Watch { event: WatchEvent::Delivered(value @ Delivery::OwnerInbox(inbox)), .. } = &up[1] else {
         panic!("inbox window");
     };
-    assert_eq!(inbox.entries.len(), 1, "whole nested replies shrink the byte window");
-    assert!(inbox.more);
-    assert!(inbox.entries.iter().next().expect("entry").reply.is_some());
+    assert_eq!(inbox.updates.len(), 1, "whole nested replies shrink the byte window");
+    assert!(inbox.next.is_some());
+    assert!(inbox.updates.iter().next().expect("entry").reply.is_some());
     assert!(payload::fits(value, &engine.bounds));
 }
 fn scenario_all_read_shapes_and_reverse_activity() {
@@ -778,7 +766,15 @@ fn scenario_all_read_shapes_and_reverse_activity() {
                 .map(|position| ActivityLine {
                     position,
                     at: Wall::EPOCH,
-                    event: Activity::RunBegan { attempt: 1, how: RunBeginning::Resumed, why: text(b"run") },
+                    event: Activity::Owner {
+                        source: Box::new(OwnerActivityLine {
+                            task: 8,
+                            position,
+                            at: Wall::EPOCH,
+                            line: OwnerActivity::RunBegan { attempt: 1, why: OwnerRunWhy::Ready, resumed: true },
+                        }),
+                        decoded: None,
+                    },
                 })
                 .collect(),
         ),
@@ -854,18 +850,7 @@ fn scenario_reply_identity() {
             Some(ConversationRead { seen: 0, unread: Count { value: 1, limited: false } }),
         )
     };
-    let entry = InboxEntry {
-        reply: Some(Box::new(line)),
-        lineage: list(vec![]),
-        goal: None,
-        recipient: None,
-        stall: None,
-        object: ObjectKey::Task(9),
-        project: 1,
-        group: InboxGroup::Replies,
-        position: 1,
-        at: Wall::EPOCH,
-    };
+    let entry = inbox_entry(ObjectKey::Task(9), 1, InboxGroup::Replies, 1, Wall::EPOCH, Some(Box::new(line)));
     setup.truth.sources.push(Source {
         party: 1,
         read: Read::Inbox {
@@ -942,18 +927,10 @@ fn bounded_offer_payloads_and_predictions() {
     };
     let offer = Admission::Bounded { within, beyond: Beyond::Proposed { to: Recipient::Party(2) } };
     for (budget, answer, valid) in [
-        (110, Answer::Done(Outcome::Changed), true),
-        (
-            111,
-            Answer::Done(Outcome::Proposed { proposal: ProposalKey { proposer: Proposer::Task(8), number: 1 } }),
-            true,
-        ),
-        (
-            110,
-            Answer::Done(Outcome::Proposed { proposal: ProposalKey { proposer: Proposer::Task(8), number: 1 } }),
-            false,
-        ),
-        (111, Answer::Done(Outcome::Changed), false),
+        (110, Answer::Done(Outcome::Owner(OwnerOutcome::Amended { task: 8 })), true),
+        (111, Answer::Done(Outcome::Owner(OwnerOutcome::Proposed { proposal: 1, to: 1 })), true),
+        (110, Answer::Done(Outcome::Owner(OwnerOutcome::Proposed { proposal: 1, to: 1 })), false),
+        (111, Answer::Done(Outcome::Owner(OwnerOutcome::Amended { task: 8 })), false),
     ] {
         let mut setup = live_script();
         let mut row = task();
@@ -1098,8 +1075,11 @@ fn collective_policy_recipients_accept_any_listed_role_and_price_the_whole_list(
     assert!(crate::requests::recipient(&setup.truth, 1, &recipient));
     assert!(!crate::requests::recipient(&setup.truth, 2, &recipient));
     let mut row = proposal();
-    row.waiting = recipient.clone();
-    setup.truth.objects.insert(ObjectKey::Proposal(row.key), ReadValue::Proposal(Box::new(row.clone())));
+    row.waiting = OwnerProposalWaiting {
+        holder: OwnerHistoryHolder::Policy { project: 1, kind: OwnerMessageProposalKind::Batch },
+        since: Wall::EPOCH,
+    };
+    setup.truth.objects.insert(ObjectKey::Proposal(row.key), ReadValue::OwnerProposal(Box::new(row.clone())));
     let mut engine = Engine::new(setup, 1).unwrap();
     send(
         &mut engine,
@@ -1115,7 +1095,13 @@ fn collective_policy_recipients_accept_any_listed_role_and_price_the_whole_list(
     let up = engine.poll(Time::from_nanos(10_000_000));
     assert_eq!(
         final_answer(&up[0]),
-        &Answer::Done(Outcome::Decided { by: Actor::Party(1), how: Decision::Accepted, at: Wall::EPOCH })
+        &Answer::Done(Outcome::Owner(OwnerOutcome::ProposalDecided {
+            proposal: row.key,
+            by: 1,
+            choice: OwnerProposalChoice::Accepted,
+            at: Wall::EPOCH,
+            repeated: false
+        }))
     );
     let mut bounds = Bounds { rows: 2, ..Bounds::default() };
     bounds.document_bytes = u64::try_from(core::mem::size_of::<Recipient>()).unwrap() + List::<u32>::price(2).unwrap();
@@ -1143,7 +1129,7 @@ fn collective_policy_recipients_accept_any_listed_role_and_price_the_whole_list(
         } else {
             Admission::Proposed { to: recipient }
         };
-        setup.truth.objects.insert(ObjectKey::Proposal(row.key), ReadValue::Proposal(Box::new(row)));
+        setup.truth.objects.insert(ObjectKey::Proposal(row.key), ReadValue::OwnerProposal(Box::new(row)));
         assert_eq!(Engine::new(setup, 1).err(), Some(Invalid::Payload));
     }
 }
@@ -1164,15 +1150,7 @@ fn amendment_release_checks_the_named_hold_separately_from_the_spec() {
     for stale_hold in [false, true] {
         let mut setup = script();
         let mut row = task();
-        row.hold = Some(TaskHold::Document(Box::new(Hold {
-            placed: None,
-            revision: Revision { value: 7 },
-            reason: HoldReason::Stopped { by: party(1), at: Wall::EPOCH },
-            before: Phase::Running,
-            since: Wall::EPOCH,
-            result: None,
-            spend: list(vec![]),
-        })));
+        row.hold = Some(TaskHold::Owner(Box::new(owner_hold(HoldCategory::Stopped, 7))));
         row.acts = list(vec![Offered { effect: None, act: ActKind::Amend, admission: Admission::Allowed }]);
         setup.truth.objects.insert(ObjectKey::Task(8), ReadValue::Task(Box::new(row)));
         let mut engine = Engine::new(setup, 1).unwrap();
@@ -1209,12 +1187,7 @@ fn amendment_release_checks_the_named_hold_separately_from_the_spec() {
                 refusal: Refusal::Moved {
                     now: Revision { value: if stale_hold { 7 } else { 1 } },
                     what: if stale_hold {
-                        Moved::Hold {
-                            reason: Some(CurrentHold::Document(Box::new(HoldReason::Stopped {
-                                by: party(1),
-                                at: Wall::EPOCH,
-                            }))),
-                        }
+                        Moved::Hold { reason: Some(CurrentHold::Reason(HoldCategory::Stopped)) }
                     } else {
                         Moved::Spec
                     },
@@ -1405,24 +1378,20 @@ fn whole_specification_prices_parameter_and_input_capacity_and_refuses_partial_v
     assert!(!crate::payload::fits(&too_long, &bounds), "whole opaque bytes parameter is never clipped");
 }
 
-fn cursor_inbox_entry(number: u64, kind: InboxGroup, at: u64, goal: Option<u64>) -> InboxEntry {
-    InboxEntry {
-        object: match kind {
+fn cursor_inbox_entry(number: u64, kind: InboxGroup, at: u64, _goal: Option<u64>) -> OwnerInboxEntry {
+    inbox_entry(
+        match kind {
             InboxGroup::Questions => ObjectKey::Question { task: number, message: 1 },
             InboxGroup::Results => ObjectKey::Result(number),
             InboxGroup::PersonTasks => ObjectKey::PersonTask(number),
             InboxGroup::Proposals | InboxGroup::Escalations | InboxGroup::Replies => unreachable!("fixture kinds"),
         },
-        group: kind,
-        project: 1,
-        lineage: list(vec![]),
-        goal,
-        recipient: None,
-        stall: None,
-        reply: None,
-        position: number,
-        at: Wall::from_nanos(at),
-    }
+        1,
+        kind,
+        number,
+        Wall::from_nanos(at),
+        None,
+    )
 }
 
 #[test]
@@ -1453,6 +1422,7 @@ fn inbox_group_cursors_keep_exact_filters_and_whole_query_order() {
             rows: Rows::Inbox(rows),
         });
     }
+    inbox_selections(&mut setup.truth);
     let mut engine = Engine::new(setup, 92).expect("whole owner collections fit");
     let needs = Read::Inbox {
         group: InboxReadGroup::Needs,
@@ -1470,21 +1440,21 @@ fn inbox_group_cursors_keep_exact_filters_and_whole_query_order() {
     };
     engine.read(Time::ZERO, 11, Token::new(1), needs.clone()).unwrap();
     let up = engine.poll(Time::ZERO);
-    let Up::Read { terminal: ReadResult::Value(ReadValue::Inbox(page)), .. } = &up[0] else {
+    let Up::Read { terminal: ReadResult::Value(ReadValue::OwnerInbox(page)), .. } = &up[0] else {
         panic!("needs page");
     };
     assert_eq!(
-        page.rows.get(0).unwrap().object,
+        page.rows.get(0).unwrap().card_key(),
         ObjectKey::Question { task: 7, message: 1 },
         "filter before bounded page slicing"
     );
     let needs_cursor = page.after.clone().unwrap();
     engine.read(Time::ZERO, 11, Token::new(2), updates.clone()).unwrap();
     let up = engine.poll(Time::ZERO);
-    let Up::Read { terminal: ReadResult::Value(ReadValue::Inbox(page)), .. } = &up[0] else {
+    let Up::Read { terminal: ReadResult::Value(ReadValue::OwnerInbox(page)), .. } = &up[0] else {
         panic!("updates page");
     };
-    assert_eq!(page.rows.get(0).unwrap().object, ObjectKey::Result(11));
+    assert_eq!(page.rows.get(0).unwrap().card_key(), ObjectKey::Result(11));
     let updates_cursor = page.after.clone().unwrap();
     for (token, mut query, cursor, wanted) in [
         (3, needs.clone(), needs_cursor.clone(), ObjectKey::Question { task: 8, message: 1 }),
@@ -1495,10 +1465,10 @@ fn inbox_group_cursors_keep_exact_filters_and_whole_query_order() {
         }
         engine.read(Time::ZERO, 11, Token::new(token), query).unwrap();
         let up = engine.poll(Time::ZERO);
-        let Up::Read { terminal: ReadResult::Value(ReadValue::Inbox(page)), .. } = &up[0] else {
+        let Up::Read { terminal: ReadResult::Value(ReadValue::OwnerInbox(page)), .. } = &up[0] else {
             panic!("independent continuation");
         };
-        assert_eq!(page.rows.get(0).unwrap().object, wanted);
+        assert_eq!(page.rows.get(0).unwrap().card_key(), wanted);
         assert!(page.after.is_none());
     }
     let mut wrong = updates;
@@ -1509,15 +1479,15 @@ fn inbox_group_cursors_keep_exact_filters_and_whole_query_order() {
     assert!(matches!(engine.poll(Time::ZERO)[0], Up::Read { terminal: ReadResult::None(ReadNone::Gone), .. }));
     engine.open(Time::ZERO, 11, Token::new(6), Subject::Inbox { window: 1 }).unwrap();
     let up = engine.poll(Time::ZERO);
-    let Up::Watch { event: WatchEvent::Delivered(Delivery::Inbox(value)), .. } = &up[1] else {
+    let Up::Watch { event: WatchEvent::Delivered(Delivery::OwnerInbox(value)), .. } = &up[1] else {
         panic!("shared live watch");
     };
     assert_eq!(
-        value.entries.get(0).unwrap().object,
+        value.needs.get(0).unwrap().card_key(),
         ObjectKey::Question { task: 5, message: 1 },
         "live watch remains unfiltered"
     );
-    assert!(value.more);
+    assert!(value.next.is_some());
 }
 
 #[test]
@@ -1563,12 +1533,8 @@ fn procedure_goal_bounds_price_allocated_pairs_and_judge_the_exact_executor() {
     bounds.rows = 2;
     assert!(!crate::payload::fits(&room, &bounds), "unused allocated room is bounded too");
     for (executor, budget, answer) in [
-        (exact, 3, Answer::Done(Outcome::Changed)),
-        (
-            exact,
-            4,
-            Answer::Done(Outcome::Proposed { proposal: ProposalKey { proposer: Proposer::Task(1), number: 2 } }),
-        ),
+        (exact, 3, Answer::Done(Outcome::Owner(OwnerOutcome::Amended { task: 8 }))),
+        (exact, 4, Answer::Done(Outcome::Owner(OwnerOutcome::Proposed { proposal: 2, to: 1 }))),
         (
             OwnerExecutor::Procedure { connector: 6, code: u32::MAX },
             3,
@@ -1698,20 +1664,24 @@ fn full_width_task_and_party_makers_remain_distinct_in_scripted_reads_decisions_
     for (index, key) in keys.iter().enumerate() {
         let mut row = proposal();
         row.key = *key;
-        row.proposer = key.proposer;
-        row.why = text(if index == 0 { b"task maker" } else { b"party maker" });
-        setup.truth.objects.insert(ObjectKey::Proposal(*key), ReadValue::Proposal(Box::new(row)));
+        row.action = OwnerProposalAction::Settings(Box::new(OwnerProposalActionSettings {
+            against: 1,
+            items: list(vec![]),
+            review: None,
+            made: None,
+        }));
+        row.reason = DocumentText::complete(text(if index == 0 { b"task maker" } else { b"party maker" }));
+        setup.truth.objects.insert(ObjectKey::Proposal(*key), ReadValue::OwnerProposal(Box::new(row)));
     }
     let mut engine = Engine::new(setup, 197).unwrap();
     for (index, key) in keys.iter().enumerate() {
         engine.read(Time::ZERO, 11, Token::new(index as u64 + 1), Read::Proposal { proposal: *key }).unwrap();
         let rows = engine.poll(Time::ZERO);
-        let Up::Read { terminal: ReadResult::Value(ReadValue::Proposal(row)), .. } = &rows[0] else {
+        let Up::Read { terminal: ReadResult::Value(ReadValue::OwnerProposal(row)), .. } = &rows[0] else {
             panic!("exact typed read")
         };
         assert_eq!(row.key, *key);
-        assert_eq!(row.proposer, key.proposer);
-        assert_eq!(row.why.bytes(), if index == 0 { b"task maker".as_slice() } else { b"party maker".as_slice() });
+        assert_eq!(row.reason.bytes(), if index == 0 { b"task maker".as_slice() } else { b"party maker".as_slice() });
     }
     let asks = keys.map(|proposal| Ask::Decide {
         project: 1,
@@ -1908,7 +1878,6 @@ fn result_metadata_boxes_price_unfilled_delegate_and_followup_capacity_without_i
 mod owner_chip;
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "whole retained-run admission story includes every mandatory writing field")]
 fn live_raw_calls_price_both_texts_whole_and_refuse_without_replacing_retained_run() {
     use crate::payload::Payload;
     let name = TurnName { attempt: u64::MAX, number: u32::MAX };
@@ -1967,7 +1936,7 @@ fn live_raw_calls_price_both_texts_whole_and_refuse_without_replacing_retained_r
         cut: true,
     };
     let held = RunText { call: Some(LiveCall::Raw(large)), ..run.clone() };
-    let delivery = Delivery::Run(Box::new(held.clone()));
+    let delivery = run_delivery(held.clone());
     let whole = u64::try_from(core::mem::size_of::<Delivery>()).unwrap() + delivery.heap(&original_bounds).unwrap();
     let mut setup = setup;
     setup.bounds.document_bytes = whole;
@@ -1991,9 +1960,7 @@ fn live_raw_calls_price_both_texts_whole_and_refuse_without_replacing_retained_r
     engine.continue_run(token, Some(provisional(name)), 0).unwrap();
     let supplied = RunText { began: Some(Wall::EPOCH), ..held };
     assert!(
-        engine
-            .poll(Time::ZERO)
-            .contains(&Up::Watch { token, event: WatchEvent::Delivered(Delivery::Run(Box::new(supplied))) })
+        engine.poll(Time::ZERO).contains(&Up::Watch { token, event: WatchEvent::Delivered(run_delivery(supplied)) })
     );
     let rich = LiveCall::Decoded(Call {
         number: u64::MAX,
@@ -2133,12 +2100,13 @@ fn scripted_provisional_retry_reopens_exact_positions_and_replaces_on_empty_star
         cut: false,
         call: None,
     };
-    assert!(up.contains(&Up::Watch { token, event: WatchEvent::Delivered(Delivery::Run(Box::new(suffix))) }));
+    assert!(up.contains(&Up::Watch { token, event: WatchEvent::Delivered(run_delivery(suffix)) }));
     engine.continue_run(token, Some(old), 99).unwrap();
     let up = engine.poll(Time::ZERO);
-    let Up::Watch { event: WatchEvent::Delivered(Delivery::Run(value)), .. } = &up[0] else {
+    let Up::Watch { event: WatchEvent::Delivered(Delivery::RunState(state)), .. } = &up[0] else {
         panic!("bounded retained restart");
     };
+    let value = state.writing.as_ref().expect("provisional text");
     assert_eq!((value.turn, value.from, value.through, value.cut), (old, 8, 40, true));
     assert_eq!(value.text.bytes(), b"ijklmnopqrstuvwxyz0123456789ABCD");
     let captured = value.clone();
@@ -2157,7 +2125,7 @@ fn scripted_provisional_retry_reopens_exact_positions_and_replaces_on_empty_star
         cut: false,
         call: None,
     };
-    assert!(up.contains(&Up::Watch { token, event: WatchEvent::Delivered(Delivery::Run(Box::new(empty))) }));
+    assert!(up.contains(&Up::Watch { token, event: WatchEvent::Delivered(run_delivery(empty)) }));
     assert_eq!(captured.turn, old);
     assert_eq!(
         captured.text.bytes(),
@@ -2167,9 +2135,10 @@ fn scripted_provisional_retry_reopens_exact_positions_and_replaces_on_empty_star
     engine.write_provisional(Time::ZERO, 8, old, Some(Wall::EPOCH), &text(b"stale"), None).unwrap();
     engine.continue_run(token, Some(current), 0).unwrap();
     let up = engine.poll(Time::ZERO);
-    let Up::Watch { event: WatchEvent::Delivered(Delivery::Run(value)), .. } = &up[0] else {
+    let Up::Watch { event: WatchEvent::Delivered(Delivery::RunState(state)), .. } = &up[0] else {
         panic!("current retry");
     };
+    let value = state.writing.as_ref().expect("provisional text");
     assert_eq!((value.turn, value.from, value.through, value.cut), (current, 0, 0, false));
     assert_eq!(value.began, None);
     assert_eq!(value.text.bytes(), b"");
@@ -2179,9 +2148,10 @@ fn scripted_provisional_retry_reopens_exact_positions_and_replaces_on_empty_star
     let reopened = Token::new(2);
     engine.open(Time::ZERO, 11, reopened, Subject::Run { task: 8, turn: Some(old), offset: 99 }).unwrap();
     let up = engine.poll(Time::ZERO);
-    let Up::Watch { event: WatchEvent::Delivered(Delivery::Run(value)), .. } = &up[1] else {
+    let Up::Watch { event: WatchEvent::Delivered(Delivery::RunState(state)), .. } = &up[1] else {
         panic!("reopened current retry");
     };
+    let value = state.writing.as_ref().expect("provisional text");
     assert_eq!((value.turn, value.from, value.through, value.cut), (current, 0, 5, false));
     assert_eq!(value.text.bytes(), b"retry");
     assert_eq!(value.began, Some(Wall::EPOCH));
@@ -2301,7 +2271,7 @@ mod propose;
 #[test]
 fn span_acceptance_uses_the_supplied_decision_wall() {
     for (seconds, expected) in [
-        (15, Answer::Done(Outcome::Changed)),
+        (15, Answer::Done(Outcome::Owner(OwnerOutcome::Amended { task: 8 }))),
         (
             16,
             Answer::Refused {
@@ -2341,3 +2311,251 @@ fn named_authority_models_price_their_full_allocated_list_and_bytes() {
     assert_eq!(crate::owner_authority::document_bytes(&value, &bounds), None);
 }
 mod projects;
+
+fn inbox_entry(
+    object: ObjectKey,
+    project: u32,
+    group: InboxGroup,
+    position: u64,
+    at: Wall,
+    reply: Option<Box<TaskLine>>,
+) -> OwnerInboxEntry {
+    let (task, object) = match object {
+        ObjectKey::Question { task, message } => (task, OwnerInboxObject::Question { message }),
+        ObjectKey::Proposal(key) => (
+            match key.proposer {
+                Proposer::Task(n) | Proposer::Party(n) => n,
+            },
+            OwnerInboxObject::Proposal { proposer: key.proposer, number: key.number },
+        ),
+        ObjectKey::Escalation(task) => (task, OwnerInboxObject::Escalation { revision: 1 }),
+        ObjectKey::PersonTask(task) => (task, OwnerInboxObject::PersonTask),
+        ObjectKey::Task(task) => (task, OwnerInboxObject::Reply { message: position }),
+        ObjectKey::Result(task) => (task, OwnerInboxObject::Result { position }),
+        ObjectKey::Note { .. } => unreachable!("notes have no inbox row"),
+    };
+    let row = OwnerInboxEntry {
+        reply,
+        task: OwnerTaskLink::Stored { number: task, status: None },
+        project: Some(project),
+        object,
+        activity: None,
+        at: Some(at),
+        unread: None,
+        cursor: OwnerInboxCursor::Number { number: position },
+    };
+    assert_eq!(row.group(), group);
+    row
+}
+
+pub(super) fn engine_value<A: Application>(value: &Up<A>) {
+    match value {
+        Up::Read { terminal: ReadResult::Value(value), .. } => {
+            assert!(
+                matches!(
+                    value,
+                    ReadValue::Me(_)
+                        | ReadValue::Tasks(_)
+                        | ReadValue::Task(_)
+                        | ReadValue::Historical(_)
+                        | ReadValue::OwnerProposal(_)
+                        | ReadValue::OwnerEscalation(_)
+                        | ReadValue::Question(_)
+                        | ReadValue::OwnerPersonTask(_)
+                        | ReadValue::Result(_)
+                        | ReadValue::OwnerEnded(_)
+                        | ReadValue::History(_)
+                        | ReadValue::Activity(_)
+                        | ReadValue::Turn(_)
+                        | ReadValue::OwnerInbox(_)
+                        | ReadValue::OwnerSpend(_)
+                        | ReadValue::OwnerProject(_)
+                        | ReadValue::Notes(_)
+                        | ReadValue::Settings(_)
+                        | ReadValue::Setting(_)
+                        | ReadValue::Revision(_)
+                        | ReadValue::Revisions(_)
+                        | ReadValue::OwnerDeployment(_)
+                ),
+                "engine read dialect: {value:?}"
+            );
+            assert!(crate::engine_set::read(value), "owner read wrappers: {value:?}");
+        }
+        Up::Watch { event: WatchEvent::Delivered(value), .. } => {
+            assert!(
+                matches!(
+                    value,
+                    Delivery::Me(_)
+                        | Delivery::Task(_)
+                        | Delivery::OwnerTree(_)
+                        | Delivery::Chips(_)
+                        | Delivery::OwnerInbox(_)
+                        | Delivery::Tasks(_)
+                        | Delivery::RunState(_)
+                        | Delivery::Settings(_)
+                        | Delivery::OwnerDeployment(_)
+                        | Delivery::OwnerProject(_)
+                        | Delivery::OwnerProposal(_)
+                        | Delivery::OwnerAccounts(_)
+                ),
+                "engine delivery dialect: {value:?}"
+            );
+            assert!(crate::engine_set::delivery(value), "owner delivery wrappers: {value:?}");
+        }
+        Up::Answer { answer: Some(Answer::Done(value)), .. } => assert!(
+            matches!(
+                value,
+                Outcome::Owner(_)
+                    | Outcome::Made { .. }
+                    | Outcome::SettingsChanged { .. }
+                    | Outcome::MovedToNewest { .. }
+            ),
+            "engine outcome dialect: {value:?}"
+        ),
+        Up::Answer { .. }
+        | Up::Read { .. }
+        | Up::Watch { .. }
+        | Up::ApplicationAnswer { .. }
+        | Up::ApplicationRead { .. }
+        | Up::App { .. }
+        | Up::Ended { .. } => {}
+    }
+}
+fn run_delivery(value: RunText) -> Delivery {
+    Delivery::RunState(Box::new(RunState {
+        task: 8,
+        attempt: Some(value.attempt),
+        committed_turn: 0,
+        writing: Some(value),
+        call: None,
+    }))
+}
+fn chip_details(phase: OwnerChipPhase) -> ChipPhase {
+    ChipPhase::Owner {
+        phase,
+        details: Box::new(OwnerChipDetails {
+            dependencies: List::with_capacity(0),
+            project: 1,
+            executor: OwnerExecutor::Agent { charter: 1 },
+            phase_since: Wall::EPOCH,
+            run_since: None,
+            attempt: Some(1),
+            retry: None,
+            wake: OwnerWakePolicy {
+                words: WakeRule::Immediate,
+                notices: WakeRule::Never,
+                news: WakeRule::Never,
+                results: ResultsWake::Each,
+                questions: false,
+                answers: false,
+                timers: false,
+            },
+            person_wait: None,
+            hold: None,
+            budget: OwnerBudget {
+                numbers: OwnerNumbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
+                left: 100,
+                funder: Funder::Period { project: 1, period: 1 },
+                deadline: None,
+            },
+            activity: 0,
+            resources: List::with_capacity(0),
+            resources_cut: false,
+            resources_observed: false,
+            procedure: None,
+            live_delegates: 0,
+            closing_connectors: None,
+            ending: None,
+            ended_at: None,
+            observation: None,
+        }),
+    }
+}
+fn owner_hold(reason: HoldCategory, revision: u64) -> OwnerChipHold {
+    OwnerChipHold {
+        placed: None,
+        words: None,
+        circle: None,
+        account: None,
+        source: None,
+        reason,
+        revision,
+        before: OwnerPriorPhase::Active(RunStage::Running { attempt: 1 }),
+        escalation: None,
+        tries: OwnerFailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        hold_wait_since: None,
+    }
+}
+fn turn_event(position: u64, name: TurnName, turn: TurnRead) -> Activity {
+    Activity::Owner {
+        source: Box::new(OwnerActivityLine {
+            task: 8,
+            position,
+            at: Wall::EPOCH,
+            line: OwnerActivity::Turn { reply: position, attempt: name.attempt, turn: name.number, read: None },
+        }),
+        decoded: Some(ArchivedTurn { task: 8, name, cumulative: 1, read: None, at: Wall::EPOCH, turn }),
+    }
+}
+
+#[test]
+fn accounts_watch_delivers_the_signed_in_partys_owner_facts() {
+    let mut setup = script();
+    let expected = OwnerAccounts {
+        program_hosts: list(vec![]),
+        accounts: list(vec![]),
+        signing: list(vec![]),
+        last_end: None,
+        usable: true,
+        settled: true,
+        cut: false,
+        readiness: list(vec![]),
+        readiness_cut: false,
+    };
+    setup.truth.accounts.insert(1, expected.clone());
+    let mut engine = Engine::new(setup, 76).unwrap();
+    engine.open(Time::ZERO, 11, Token::new(1), Subject::Accounts).unwrap();
+    assert_eq!(
+        engine.poll(Time::ZERO),
+        vec![
+            Up::Watch { token: Token::new(1), event: WatchEvent::Opened },
+            Up::Watch {
+                token: Token::new(1),
+                event: WatchEvent::Delivered(Delivery::OwnerAccounts(Box::new(expected)))
+            }
+        ]
+    );
+}
+#[test]
+fn scripted_rules_refuse_outcomes_the_engine_never_sends() {
+    let mut engine = Engine::new(script(), 77).unwrap();
+    for answer in [
+        Outcome::Changed,
+        Outcome::Decided { by: Actor::Party(1), how: Decision::Accepted, at: Wall::EPOCH },
+        Outcome::DecidedFirst { by: party(1), how: Decision::Accepted, at: Wall::EPOCH },
+        Outcome::Proposed { proposal: proposal().key },
+    ] {
+        assert_eq!(
+            engine.script(Rule {
+                party: None,
+                ask: Ask::Seen { through: SeenThrough::Results { through: 1 } },
+                answer: Answer::Done(answer),
+                changes: vec![]
+            }),
+            Err(Invalid::Script)
+        );
+    }
+}
+
+fn inbox_selections(truth: &mut Truth) {
+    truth.inbox_selection.insert(
+        1,
+        [(6, 9), (8, 9), (7, 9), (5, 8), (10, 9), (11, 9)]
+            .into_iter()
+            .map(|(number, goal)| OwnerInboxSelection {
+                cursor: OwnerInboxCursor::Number { number },
+                goals: list(vec![goal]),
+            })
+            .collect(),
+    );
+}

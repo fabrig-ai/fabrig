@@ -54,7 +54,7 @@ fn the_deployment_prints_as_its_golden_text() {
     let mut w = stories::world(94);
     w.front()
         .engine
-        .act(Time::ZERO, Wall::EPOCH, jig_client_scripted_engine::Change::Deployment(stories::deployment()))
+        .act(Time::ZERO, Wall::EPOCH, jig_client_scripted_engine::Change::OwnerDeployment(stories::deployment()))
         .expect("deployment fits");
     ready(w, RootAddress::Jig(Address::Deployment), "deployment", include_bytes!("../golden/deployment.txt"));
 }

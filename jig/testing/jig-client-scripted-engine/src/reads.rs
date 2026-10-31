@@ -1,9 +1,9 @@
 //! Retained rows and scoped opaque cursors; contract.md, 6.
 use crate::{Bounds, Engine, Invalid, Up, payload};
 use jig_client_domain::contract::{
-    ActivityLine, ActivityPage, Cursor, HistoryPage, HistoryRow, InboxEntry, InboxGroup, InboxPage, InboxReadGroup,
-    Note, NotePage, NoteScope, ObjectKey, ObjectPage, Read, ReadNone, ReadResult, ReadValue, Result, SpendPage,
-    SpendPeriod,
+    ActivityLine, ActivityPage, Cursor, HistoryPage, HistoryRow, InboxGroup, InboxReadGroup, Note, NotePage, NoteScope,
+    ObjectKey, OwnerEndedDelegate, OwnerEndedPage, OwnerFundingRecord, OwnerInboxEntry, OwnerInboxPage, OwnerSpendPage,
+    Read, ReadNone, ReadResult, ReadValue,
 };
 use skein_lib::{List, Time, Token};
 
@@ -12,11 +12,11 @@ use skein_lib::{List, Time, Token};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Rows {
     Tasks(Vec<jig_client_domain::contract::TaskLine>),
-    Ended(Vec<Result>),
+    Ended(Vec<OwnerEndedDelegate>),
     History(Vec<HistoryRow>),
     Activity(Vec<ActivityLine>),
-    Inbox(Vec<InboxEntry>),
-    Spend(Vec<SpendPeriod>),
+    Inbox(Vec<OwnerInboxEntry>),
+    Spend(Vec<OwnerFundingRecord>),
     Notes(Vec<Note>),
 }
 /// A party's page source. The read has no cursor and supplies its exact filters.
@@ -35,9 +35,9 @@ impl Source {
         self.rows.validate(bounds)?;
         if let Rows::Inbox(rows) = &self.rows {
             for row in rows {
-                match (&row.group, &row.reply) {
+                match (&row.group(), &row.reply) {
                     (InboxGroup::Replies, Some(line))
-                        if row.object == ObjectKey::Task(line.chip.task) && row.project == line.project => {}
+                        if row.card_key() == ObjectKey::Task(line.chip.task) && row.project == Some(line.project) => {}
                     (InboxGroup::Replies, None | Some(_))
                     | (
                         InboxGroup::Questions
@@ -104,21 +104,31 @@ impl Rows {
                 live_after: after,
                 ended: jig_client_domain::contract::EndedGroup::None,
             })),
-            Self::Ended(rows) => {
-                ReadValue::Ended(Box::new(ObjectPage { cut: false, rows: list(&rows[start..end]), before, after }))
-            }
+            Self::Ended(rows) => ReadValue::OwnerEnded(Box::new(OwnerEndedPage {
+                cut: false,
+                rows: list(&rows[start..end]),
+                before,
+                after,
+            })),
             Self::History(rows) => {
                 ReadValue::History(Box::new(HistoryPage { cut: false, rows: list(&rows[start..end]), before, after }))
             }
             Self::Activity(rows) => {
                 ReadValue::Activity(Box::new(ActivityPage { cut: false, rows: list(&rows[start..end]), before, after }))
             }
-            Self::Inbox(rows) => {
-                ReadValue::Inbox(Box::new(InboxPage { cut: false, rows: list(&rows[start..end]), before, after }))
-            }
-            Self::Spend(rows) => {
-                ReadValue::Spend(Box::new(SpendPage { cut: false, rows: list(&rows[start..end]), before, after }))
-            }
+            Self::Inbox(rows) => ReadValue::OwnerInbox(Box::new(OwnerInboxPage {
+                selection: None,
+                cut: false,
+                rows: list(&rows[start..end]),
+                before,
+                after,
+            })),
+            Self::Spend(rows) => ReadValue::OwnerSpend(Box::new(OwnerSpendPage {
+                cut: false,
+                rows: list(&rows[start..end]),
+                before,
+                after,
+            })),
             Self::Notes(rows) => {
                 ReadValue::Notes(Box::new(NotePage { cut: false, rows: list(&rows[start..end]), before, after }))
             }
@@ -208,11 +218,9 @@ impl<A: crate::Application> Engine<A> {
             Read::PersonTask { task } => Some(ObjectKey::PersonTask(*task)),
             Read::Result { task } => Some(ObjectKey::Result(*task)),
             Read::Project { project } => {
-                if let Some(value) = self.truth.owner_projects.get(project) {
-                    return self.checked_read(Some(ReadValue::OwnerProject(Box::new(value.clone()))));
-                }
-                return self
-                    .checked_read(self.truth.projects.get(project).cloned().map(|v| ReadValue::Project(Box::new(v))));
+                return self.checked_read(
+                    self.truth.owner_projects.get(project).cloned().map(|v| ReadValue::OwnerProject(Box::new(v))),
+                );
             }
             Read::Settings => {
                 return self.checked_read(self.truth.settings.clone().map(|v| ReadValue::Settings(Box::new(v))));
@@ -242,10 +250,9 @@ impl<A: crate::Application> Engine<A> {
                 );
             }
             Read::Deployment => {
-                if let Some(value) = &self.truth.owner_deployment {
-                    return self.checked_read(Some(ReadValue::OwnerDeployment(Box::new(value.clone()))));
-                }
-                return self.checked_read(self.truth.deployment.clone().map(|v| ReadValue::Deployment(Box::new(v))));
+                return self.checked_read(
+                    self.truth.owner_deployment.clone().map(|v| ReadValue::OwnerDeployment(Box::new(v))),
+                );
             }
             Read::Tasks { .. }
             | Read::Ended { .. }
@@ -285,7 +292,7 @@ impl<A: crate::Application> Engine<A> {
             let (start, end) = if backward { (index - count, index) } else { (index, index + count) };
             let before = (start != 0).then(|| cursor(self.next_position, &self.bounds));
             let after = (end != rows.len()).then(|| cursor(self.next_position + 1, &self.bounds));
-            let page = if let (Rows::Tasks(rows), Read::Tasks { query, .. }) = (&rows, &query)
+            let mut page = if let (Rows::Tasks(rows), Read::Tasks { query, .. }) = (&rows, &query)
                 && query.phase == Some(jig_client_domain::contract::PhaseClass::Ended)
             {
                 ReadValue::Tasks(Box::new(jig_client_domain::contract::TaskPage {
@@ -300,7 +307,18 @@ impl<A: crate::Application> Engine<A> {
             } else {
                 rows.page(start, end, before.clone(), after.clone())
             };
-            if payload::fits(&page, &self.bounds) {
+            if let ReadValue::OwnerInbox(page) = &mut page {
+                page.selection = self.truth.inbox_selection.get(&party).map(|rows| {
+                    list(
+                        &rows
+                            .iter()
+                            .filter(|selection| page.rows.iter().any(|row| row.cursor == selection.cursor))
+                            .cloned()
+                            .collect::<Vec<_>>(),
+                    )
+                });
+            }
+            if payload::fits(&page, &self.bounds) && crate::engine_set::read(&page) {
                 if before.is_some() {
                     self.positions.insert(self.next_position, Position { party, read: query.clone(), index: start });
                 }
@@ -363,16 +381,16 @@ impl<A: crate::Application> Engine<A> {
         );
         match rows {
             Rows::Inbox(rows) => { let mut rows: Vec<_> = rows.into_iter().filter(|row| {
-                if !self.truth.visible(party,row.project) { return false; }
+                if row.project.is_some_and(|project| !self.truth.visible(party,project)) { return false; }
                 match query {
-                    Read::Inbox { group, project, kind, goal, .. } => *group == InboxReadGroup::of(row.group) && project.is_none_or(|p| p == row.project) && kind.is_none_or(|k| k == row.group) && goal.is_none_or(|g| row.goal == Some(g)),
+                    Read::Inbox { group, project, kind, goal, .. } => *group == InboxReadGroup::of(row.group()) && project.is_none_or(|p| Some(p) == row.project) && kind.is_none_or(|k| k == row.group()) && goal.is_none_or(|g| self.truth.inbox_selection.get(&party).is_some_and(|selections| selections.iter().any(|selection| selection.cursor == row.cursor && selection.goals.iter().any(|goal| *goal == g)))),
                     Read::Tasks { .. } | Read::Me | Read::Task { .. } | Read::Proposal { .. } | Read::Escalation { .. } | Read::Question { .. }
                     | Read::Turn { .. } | Read::PersonTask { .. } | Read::Result { .. } | Read::Ended { .. } | Read::History { .. } | Read::Activity { .. } | Read::Spend { .. } | Read::Project { .. } | Read::Notes { .. } | Read::Settings | Read::Setting(_) | Read::Revision(_) | Read::Revisions(_) | Read::Deployment => false,
                 }
             }).collect();
                 rows.sort_by(|a, b| {
-                    let order = if jig_client_view::page::inbox::needs(a.group) { a.at.cmp(&b.at) } else { b.at.cmp(&a.at) };
-                    order.then(a.object.cmp(&b.object))
+                    let order = if jig_client_view::page::inbox::needs(a.group()) { a.at.cmp(&b.at) } else { b.at.cmp(&a.at) };
+                    order.then(a.card_key().cmp(&b.card_key()))
                 });
                 Rows::Inbox(rows)
             },
@@ -386,7 +404,11 @@ impl<A: crate::Application> Engine<A> {
     }
     fn checked_read(&self, value: Option<ReadValue>) -> core::result::Result<ReadValue, ReadNone> {
         let value = value.ok_or(ReadNone::Unknown)?;
-        if payload::fits(&value, &self.bounds) { Ok(value) } else { Err(ReadNone::Busy) }
+        if payload::fits(&value, &self.bounds) && crate::engine_set::read(&value) {
+            Ok(value)
+        } else {
+            Err(ReadNone::Busy)
+        }
     }
     pub(crate) fn read_visible(&self, party: u64, read: &Read) -> bool {
         let key = match read {

@@ -26,7 +26,7 @@ pub fn board(seed: u64) -> World<Test, Scripted> {
     world
         .front()
         .engine
-        .act(skein_lib::Time::ZERO, Wall::EPOCH, jig_client_scripted_engine::Change::Project(Box::new(project)))
+        .act(skein_lib::Time::ZERO, Wall::EPOCH, jig_client_scripted_engine::Change::OwnerProject(Box::new(project)))
         .expect("fixture admitted");
     world
 }
@@ -73,7 +73,8 @@ pub fn refused(seed: u64, proposable: Option<bool>) -> World<Test, Scripted> {
             changes: vec![],
         })
         .expect("fixture admitted");
-    let proposal = super::proposal();
+    let mut proposal = super::proposal();
+    proposal.key.proposer = Proposer::Party(PARTY);
     world
         .front()
         .engine
@@ -88,11 +89,11 @@ pub fn refused(seed: u64, proposable: Option<bool>) -> World<Test, Scripted> {
                 },
                 reason: text(b"because"),
             },
-            answer: Answer::Done(Outcome::Proposed { proposal: proposal.key }),
+            answer: Answer::Done(Outcome::Owner(OwnerOutcome::Proposed { proposal: proposal.key.number, to: 1 })),
             changes: vec![jig_client_scripted_engine::Change::Object {
                 project: PROJECT,
                 key: ObjectKey::Proposal(proposal.key),
-                value: ReadValue::Proposal(Box::new(proposal)),
+                value: ReadValue::OwnerProposal(Box::new(proposal)),
             }],
         })
         .expect("fixture admitted");
