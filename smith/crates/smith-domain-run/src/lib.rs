@@ -46,6 +46,8 @@ mod conventions;
 mod delivery;
 mod domain;
 pub mod facts;
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
 mod host;
 mod identity;
 mod inbox;
