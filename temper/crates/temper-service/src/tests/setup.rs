@@ -900,8 +900,8 @@ fn restore_local(service: &mut crate::Service) {
     panic!(
         "root restore completes: end={:?}, step={:?}, settings={:?}, header={:?}",
         service.end(),
-        engine.domain.restart_failure(),
-        engine.domain.restore_failure(),
+        engine.domain.start_phase(),
+        engine.domain.start_stop(),
         engine.domain.deployment(),
     );
 }
@@ -1846,7 +1846,7 @@ fn setup_reconciliation_waits_for_the_mark() {
         "end {:?}, room {}, restart {:?}, ready {}",
         engine.end,
         engine.room(),
-        engine.domain.restart_failure(),
+        engine.domain.start_phase(),
         engine.domain.ready()
     );
     assert!(!engine.setup.lifecycle.startup_restored());

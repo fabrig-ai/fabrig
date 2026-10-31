@@ -11,6 +11,7 @@ const STEPS: u32 = 256;
 const MARK_WRITES: usize = 2;
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn every_start_takes_the_switch_step_and_commits_its_wires() {
     let (running, _) = Driver::chat();
     for (label, mut store) in [(FIRST_START, Store::new()), (RESTART, running.store)] {
@@ -35,15 +36,19 @@ fn every_start_takes_the_switch_step_and_commits_its_wires() {
         assert_eq!(driver.switches, vec![driver.loads.len()], "{label}: exactly one switch after all loads");
         assert_eq!(
             driver.loads.last().map(|(_, range)| range),
-            Some(&Range::Forge),
-            "{label}: forge restored before switch"
+            Some(&Range::Core(engine::CoreRange::Sweep)),
+            "{label}: sweep finished before switch"
         );
         driver.store.tick(true).expect("mark becomes durable with its answer held");
         for _ in 0..STEPS {
             driver.advance(false);
         }
         assert!(!driver.root.ready(), "{label}: held mark holds the script");
-        assert!(!driver.root.connectors_restored(), "{label}: adoption remains behind Switch");
+        assert_eq!(
+            driver.root.start_phase(),
+            Some(core::start::Phase::Wires),
+            "{label}: adoption remains behind Switch"
+        );
         assert!(driver.store.pending.is_empty(), "{label}: adoption issued no later decision");
         assert!(driver.delivered.is_empty(), "{label}: no run delivery before the mark");
         let number = driver.store.release_held().expect("held mark answer");

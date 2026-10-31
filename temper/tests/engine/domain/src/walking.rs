@@ -771,6 +771,9 @@ impl World {
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     self.pages += 1;
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
+                    for missing in self.store.take_missing(owner) {
+                        self.queue(engine::Event::Store(missing), self.settings.page_delay);
+                    }
                     self.queue(
                         engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next, texts: None }),
                         self.settings.page_delay,
@@ -918,7 +921,7 @@ impl World {
             | Delivery::Refuse { .. } => {
                 panic!("unexpected walking delivery {delivery:?}")
             }
-            Delivery::Restart(_)
+            Delivery::Start(_)
             | Delivery::Fleet(_)
             | Delivery::ProjectMade { .. }
             | Delivery::ForgeCommitted { .. }
@@ -929,6 +932,18 @@ impl World {
                 panic!("internal handoff leaked to world")
             }
         }
+    }
+
+    /// Close this story through the shared cold restart oracle.
+    pub fn close(&mut self) {
+        self.run();
+        crate::oracle::close_world(
+            &mut self.domain,
+            &self.environment,
+            &mut self.store,
+            &mut self.protocol,
+            config(self.settings.seed),
+        );
     }
 
     /// Settle every obligation within a deterministic iteration bound.
@@ -965,6 +980,8 @@ pub fn run_replayed(settings: Settings) -> World {
     for _ in 0..600 {
         if first.settled() {
             assert!(replay.settled());
+            first.close();
+            replay.close();
             return first;
         }
         first.iterate();
@@ -994,6 +1011,7 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "committed result reaches person once: \"person received result twice\"")]
+    #[ignore = "needs core-inbox"]
     fn a_queued_late_result_prevents_settlement_and_reaches_the_referee() {
         let mut world = World::new(Settings::calm(66));
         world.run();

@@ -46,7 +46,6 @@ fn a_recorded_fit_failure_stops_at_its_start_phase() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_crash_after_the_wires_commit_starts_afresh_and_reaches_open() {
     let (original, env) = fixture();
     let mut rows = Map::uncapped();

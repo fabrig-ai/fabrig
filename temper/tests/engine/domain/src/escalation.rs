@@ -657,6 +657,9 @@ impl World {
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     self.pages += 1;
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
+                    for missing in self.store.take_missing(owner) {
+                        self.queue(engine::Event::Store(missing), self.settings.page_delay);
+                    }
                     self.queue(
                         engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next, texts: None }),
                         self.settings.page_delay,
@@ -810,7 +813,7 @@ impl World {
             | Delivery::Drained
             | Delivery::Refuse { .. }
             | Delivery::TurnBusy { .. } => panic!("unexpected escalation delivery {delivery:?}"),
-            Delivery::Restart(_)
+            Delivery::Start(_)
             | Delivery::Fleet(_)
             | Delivery::ProjectMade { .. }
             | Delivery::ForgeCommitted { .. }
@@ -822,6 +825,18 @@ impl World {
             Delivery::Host(_) => panic!("escalation world sent no calls"),
             Delivery::Procedure { .. } => panic!("escalation world sent no procedures"),
         }
+    }
+
+    /// Close this story through the shared cold restart oracle.
+    pub fn close(&mut self) {
+        self.run();
+        crate::oracle::close_world(
+            &mut self.domain,
+            &self.environment,
+            &mut self.store,
+            &mut self.protocol,
+            config(self.settings.seed),
+        );
     }
 
     /// Complete every outside obligation and actual pending IO within 600 passes.
@@ -879,6 +894,8 @@ pub fn run_replayed(settings: Settings) -> World {
         if first.settled() {
             assert!(replay.settled(), "replay settled at same cut: {settings:?}; {}", replay.unsettled());
             first.referee.final_state(&first.store.rows).expect("replayed finite funding");
+            first.close();
+            replay.close();
             return first;
         }
         first.iterate();
