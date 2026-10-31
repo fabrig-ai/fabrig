@@ -955,8 +955,8 @@ fn turn_landing_restarts(case: &str, retry: bool) {
     let clock = skein_shell::Clock::new();
     let began = clock.now().now;
     let scratch = support::Scratch::new(case);
-    let forge = support::forgejo::Throwaway::start_with_job_sleep(&scratch, 20);
     let barrier = support::forgejo::JobBarrier::new(scratch.path());
+    let forge = turn_restart::start(&scratch, &barrier);
     let workflow = barrier.gate_workflow(landing_by_turn::WORKFLOW);
     forge.add_file(".forgejo/workflows/gate.yaml", workflow.as_bytes());
     support::configuration(scratch.path(), &forge.forge());
