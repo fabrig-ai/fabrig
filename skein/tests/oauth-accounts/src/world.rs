@@ -672,29 +672,15 @@ impl Host for Client {
         }
         let io_env = Env { now, wall, limits: self.limits.io };
         self.private_io(&env);
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 || !self.io.is_ready() {
-                break;
-            }
-            io::resume(&mut self.io, &io_env, &mut self.events, &mut self.submissions);
-        }
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 {
-                break;
-            }
-            let Some(complete) = self.completions.pop() else { break };
+        for _ in 0..self.completions.len() {
+            let complete = self.completions.pop().expect("queued completion");
             if skein_world::files::Driver::owns(complete.op) {
                 self.file_driver.as_mut().expect("tagged file completion").up(complete);
             } else {
-                io::up(&mut self.io, &io_env, complete, &mut self.events, &mut self.submissions);
+                self.completions.push(complete);
             }
         }
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 || !self.io.is_due(now) {
-                break;
-            }
-            io::fire(&mut self.io, &io_env, &mut self.events, &mut self.submissions);
-        }
+        io::stage::up(&mut self.io, &io_env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         for _ in 0..ROOM {
             let Some(event) = self.events.pop() else { break };
             self.component.as_mut().expect("io follows started component").up(
@@ -719,8 +705,10 @@ impl Host for Client {
                 self.close(&env);
             }
         }
+        // Story injections run immediately before each admitted request; a queued
+        // request may still wait behind io's refusals or the kernel's edge.
         for _ in 0..ROOM {
-            if !self.io.takes() || self.submissions.room() < 2 {
+            if !self.io.takes() || self.submissions.room() < io::MAX_OUT_DOWN.submissions {
                 break;
             }
             let Some(request) = self.requests.pop() else { break };
