@@ -5,7 +5,7 @@
 mod census;
 mod cursor;
 mod joins;
-use crate::{Core, fleet};
+use crate::Core;
 pub use census::{Census, ReadResults};
 pub use cursor::restore_cursor;
 
@@ -202,16 +202,9 @@ impl Core {
                 return false;
             }
         }
-        let mut workers = 0_u32;
-        for (task, _) in &self.unreported_restored {
-            match self.proofs.get(task).expect("restored claim has its proof").host {
-                fleet::HostKind::Worker if !self.workers_in_process => {
-                    workers = workers.checked_add(1).expect("bounded restored claims");
-                }
-                fleet::HostKind::Worker | fleet::HostKind::Engine => {}
-            }
-        }
-        if workers > self.restart_attempts {
+        if let Some((_task, held)) = self.restored_worker_claims()
+            && held > u64::from(self.restart_attempts)
+        {
             let _request = self.restart_refuse();
             return false;
         }
@@ -248,10 +241,7 @@ impl Core {
 
     #[must_use]
     pub fn restart_ready(&self) -> bool {
-        match self.restart {
-            Restart::Open => true,
-            Restart::Cold | Restart::Waiting(_) | Restart::Failed(_) => false,
-        }
+        self.start_opened()
     }
 
     #[must_use]
@@ -334,6 +324,7 @@ impl Core {
                 None => RestartStep::Open,
             },
             RestartStep::Open => {
+                self.opened = true;
                 self.restart = Restart::Open;
                 return RestartRequest::Idle;
             }
