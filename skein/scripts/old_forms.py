@@ -1,4 +1,5 @@
-"""Old forms may only fall (skein's docs/design/draft/dynamic-memory.md, 7).
+"""Old forms may only fall (skein's docs/design/draft/dynamic-memory.md, 7;
+skein's docs/design/draft/component-kit.md, 4).
 
 Count matches in tracked Rust files, excluding generated/ components and
 comments, while keeping string literals. Compare each form independently
@@ -8,6 +9,13 @@ The max_out form exempts only the exact identifiers in EXEMPT: the four
 kernel submission bounds and the provider wire field max_output_tokens.
 The worst_case form exempts the four reserved old bound names in EXEMPT.
 Identifiers containing an exempt name still count.
+io_resume counts io::resume and skein_io::resume sites outside skein-io.
+earliest counts earliest/earlier helpers taking Time outside skein-lib.
+lifecycle counts enum Lifecycle definitions outside skein-lib.
+growth_floor counts const GROWTH_FLOOR definitions.
+pop_loop counts loops whose only statement pops a container.
+hex_decimal counts fn hex and fn decimal definitions outside skein-lib.
+forwarding_host counts Host::iterate implementations that only forward.
 Recorded raises and other comments stay in place when counts are rewritten.
 Run from the repository root, using only the Python standard library:
 
@@ -24,6 +32,43 @@ FORMS = {
     'JournalRoom': re.compile(r'\bJournalRoom\b'),
     'takes': re.compile(r'\.takes\(&'),
     'worst_case': re.compile(r'\b\w*worst_case\w*\b'),
+    'io_resume': re.compile(r'\b(?:skein_)?io::resume\b'),
+    'earliest': re.compile(r'\bfn (?:earliest|earlier)\s*\([^)]*\bTime\b'),
+    'lifecycle': re.compile(r'\benum Lifecycle\b'),
+    'growth_floor': re.compile(r'\bconst GROWTH_FLOOR\b'),
+    'pop_loop': re.compile(
+        r'for _ in 0\.\.[\w.]+\.len\(\)\s*\{\s*'
+        r'(?:drop\()?(?:let _ = )?[\w.]+\.pop\(\)\)?;\s*\}'
+    ),
+    'hex_decimal': re.compile(r'\bfn (?:hex|decimal)\b'),
+    'forwarding_host': re.compile(
+        r'fn iterate\(&mut self, now: Time, wall: Wall\)\s*\{\s*'
+        r'(?:self\.host_mut\(\)\.iterate\(now, wall\);\s*'
+        r'|match self\s*\{\s*(?:'
+        r'[\w:]+(?:\(\w+\)|\s*\{[\w\s,.]+\})\s*=>\s*'
+        r'(?:\w+\.iterate\(now, wall\)|[\w:]+::iterate\(\w+, now, wall\)),\s*'
+        r')+\}\s*)\}'
+    ),
+}
+IDENTIFIER_FORMS = ('max_out', 'JournalRoom', 'worst_case')
+MARKERS = {
+    'max_out': ('max_out', 'MAX_OUT'),
+    'JournalRoom': ('JournalRoom',),
+    'takes': ('takes',),
+    'worst_case': ('worst_case',),
+    'io_resume': ('resume',),
+    'earliest': ('fn earl',),
+    'lifecycle': ('enum Lifecycle',),
+    'growth_floor': ('GROWTH_FLOOR',),
+    'pop_loop': ('pop()',),
+    'hex_decimal': ('fn hex', 'fn decimal'),
+    'forwarding_host': ('fn iterate',),
+}
+EXCLUDED_PATHS = {
+    'io_resume': 'crates/skein-io/',
+    'earliest': 'crates/skein-lib/',
+    'lifecycle': 'crates/skein-lib/',
+    'hex_decimal': 'crates/skein-lib/',
 }
 EXEMPT = {
     'worst_case': (
@@ -40,13 +85,23 @@ EXEMPT = {
 }
 BASELINE = Path('scripts/old-forms.txt')
 HEADER = (
-    "# Uses of the old forms (skein's docs/design/draft/dynamic-memory.md, 7): each count may only fall.\n"
+    "# Uses of the old forms (skein's docs/design/draft/dynamic-memory.md, 7;\n"
+    "# skein's docs/design/draft/component-kit.md, 4): each count may only fall.\n"
     '# Lower them with `python3 -I -B scripts/old_forms.py --write`; '
     'only the director raises one, recorded in a `# Raised:` line.\n'
+    '# io_resume: io::resume and skein_io::resume sites outside skein-io.\n'
+    '# earliest: earliest/earlier helpers taking Time outside skein-lib.\n'
+    '# lifecycle: enum Lifecycle definitions outside skein-lib.\n'
+    '# growth_floor: const GROWTH_FLOOR definitions.\n'
+    '# pop_loop: loops whose only statement pops a container.\n'
+    '# hex_decimal: fn hex and fn decimal definitions outside skein-lib.\n'
+    '# forwarding_host: Host::iterate implementations that only forward.\n'
 )
 RULE = (
-    "Uses of the old forms may only fall (skein's docs/design/draft/dynamic-memory.md, 7): "
+    "Uses of the old forms may only fall (skein's docs/design/draft/dynamic-memory.md, 7; "
+    "skein's docs/design/draft/component-kit.md, 4): "
     'new code takes the new forms (Queue::uncapped, Journal::uncapped, decide, backlog), '
+    'uses the shared component kit (io::stage, earliest, Lifecycle, clear, hex, Decimal, Forward), '
     'or removes as many old uses as it adds.'
 )
 # Match whole quoted literals before looking for comment markers inside them.
@@ -99,8 +154,14 @@ def counts():
     for path in paths:
         if not path or b'generated' in path.split(b'/'):
             continue
-        source = Path(path.decode('utf-8')).read_text(encoding='utf-8')
-        if not any(marker in source for marker in (*FORMS, 'MAX_OUT')):
+        path = path.decode('utf-8')
+        source = Path(path).read_text(encoding='utf-8')
+        forms = [
+            form for form in FORMS
+            if (form not in EXCLUDED_PATHS or not path.startswith(EXCLUDED_PATHS[form]))
+            and any(marker in source for marker in MARKERS[form])
+        ]
+        if not forms:
             continue
         source = without_comments(source)
         # Prefilter whole identifiers once: the three identifier patterns
@@ -109,10 +170,11 @@ def counts():
             word for word in IDENTIFIER.findall(source)
             if 'max_out' in word or 'MAX_OUT' in word
             or 'JournalRoom' in word or 'worst_case' in word
-        )
-        for form, pattern in FORMS.items():
+        ) if any(form in IDENTIFIER_FORMS for form in forms) else ''
+        for form in forms:
+            pattern = FORMS[form]
             totals[form] += sum(
-                1 for match in pattern.finditer(source if form == 'takes' else candidates)
+                1 for match in pattern.finditer(candidates if form in IDENTIFIER_FORMS else source)
                 if match.group() not in EXEMPT.get(form, ())
             )
     return totals

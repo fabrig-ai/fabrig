@@ -1,6 +1,21 @@
-# Uses of the old forms (skein's docs/design/draft/dynamic-memory.md, 7): each count may only fall.
+# Uses of the old forms (skein's docs/design/draft/dynamic-memory.md, 7;
+# skein's docs/design/draft/component-kit.md, 4): each count may only fall.
 # Lower them with `python3 -I -B scripts/old_forms.py --write`; only the director raises one, recorded in a `# Raised:` line.
+# io_resume: io::resume and skein_io::resume sites outside skein-io.
+# earliest: earliest/earlier helpers taking Time outside skein-lib.
+# lifecycle: enum Lifecycle definitions outside skein-lib.
+# growth_floor: const GROWTH_FLOOR definitions.
+# pop_loop: loops whose only statement pops a container.
+# hex_decimal: fn hex and fn decimal definitions outside skein-lib.
+# forwarding_host: Host::iterate implementations that only forward.
 max_out 0
 JournalRoom 0
 takes 0
 worst_case 0
+io_resume 39
+earliest 3
+lifecycle 3
+growth_floor 5
+pop_loop 20
+hex_decimal 26
+forwarding_host 8
