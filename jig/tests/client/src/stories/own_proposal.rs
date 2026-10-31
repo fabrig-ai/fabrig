@@ -3,27 +3,32 @@ use super::*;
 const PARTY: u64 = 7;
 const ITEM: u64 = 1;
 const TASK: u64 = 9;
-/// The family's object names a proposal whose funding must be shown.
+/// The application page composes a proposal whose funding must be shown.
 #[must_use]
 pub fn world(seed: u64) -> World<Test, Scripted> {
     let mut world = proposal_world(seed);
+    world.front().compositions.insert(
+        jig_client_test_domain::first::Address { project: 1, item: ITEM },
+        jig_client_test_domain::family::PageComposition { task: TASK, second: None, proposals: list([proposal().key]) },
+    );
     let mut state = Family::default();
     state.documents.insert(
         jig_client_test_domain::family::Subject {
             scope: jig_client_test_domain::family::Scope::Project(1),
             kind: jig_client_test_domain::family::Kind::Item(ITEM),
         },
-        jig_client_test_domain::family::Document::Item(jig_client_test_domain::family::Item {
-            project: 1,
-            key: ITEM,
-            revision: Revision { value: 1 },
-            state: jig_client_test_domain::family::ItemState::Ready,
-            value: 1,
-            task: TASK,
-            second: None,
-            proposals: list([proposal().key]),
-            touchable: false,
-        }),
+        jig_client_test_domain::family::Document::Connector(
+            jig_client_test_domain::connector_values::ConnectorDocument {
+                subject: jig_client_test_domain::family::Subject {
+                    scope: jig_client_test_domain::family::Scope::Project(1),
+                    kind: jig_client_test_domain::family::Kind::Item(ITEM),
+                },
+                value: Box::new(jig_client_test_domain::connector_values::ClientDocument::Object {
+                    object: ITEM,
+                    now: jig_client_test_domain::connector_values::ApplicationObject { revision: 1, value: 1 },
+                }),
+            },
+        ),
     );
     world
         .front()

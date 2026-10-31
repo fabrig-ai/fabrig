@@ -1,12 +1,10 @@
 //! Complete scripted values and one shared byte-round-trip assertion.
 use jig_client_domain::contract::{ProposalKey, Proposer, Revision};
 use jig_client_test_domain::{connector_values::ConnectorLimits, family};
-use skein_lib::List;
 
 pub const PROJECT: u32 = 1;
 pub const ITEM: u64 = 7;
 pub const TASK: u64 = 9;
-pub const SECOND_TASK: u64 = 10;
 pub const REVISION: Revision = Revision { value: 3 };
 pub const PARTY: u64 = 7;
 pub const PROPOSAL_NUMBER: u64 = 1;
@@ -24,30 +22,6 @@ pub const SUBJECT_KINDS: [family::Kind; 10] = [
     family::Kind::Deployment,
 ];
 
-pub fn item(state: family::ItemState) -> family::Item {
-    let mut proposals = List::with_capacity(2);
-    proposals.push(PROPOSAL).expect("one proposal");
-    proposals.push(ProposalKey { proposer: Proposer::Task(TASK), number: PROPOSAL.number }).expect("two makers");
-    family::Item {
-        project: PROJECT,
-        key: ITEM,
-        revision: REVISION,
-        state,
-        value: 42,
-        task: TASK,
-        second: Some(SECOND_TASK),
-        proposals,
-        touchable: true,
-    }
-}
-pub fn part(parameters: Option<family::Parameters>) -> family::PartDocument {
-    family::PartDocument {
-        subject: family::Subject { scope: family::Scope::Project(PROJECT), kind: family::Kind::Panel(TASK) },
-        revision: REVISION,
-        value: 42,
-        parameters,
-    }
-}
 pub fn assert_document(value: family::Document) {
     let bytes = family::wire::encode_document(&value);
     let bounds = jig_core_world::world::limits().connector;
@@ -70,15 +44,18 @@ pub fn assert_subject(subject: family::Subject) {
     let decoded = codec::family::read_value(&bytes, &bounds).expect("family read");
     assert_eq!(family::wire::subject_value(decoded), subject, "read: {subject:?}");
 }
-pub fn assert_touch(parameters: Option<u64>) {
+pub fn assert_change(supplied: u64) {
     use jig_client_test_protocol_wire::codec;
-    let ask = family::Ask::Touch { project: PROJECT, item: ITEM, revision: REVISION, parameters };
+    let ask = family::Ask::ChangeObject { project: PROJECT, object: ITEM, revision: REVISION, value: supplied };
     let (project, value) = family::wire::request(&ask);
     let bytes = codec::family::request_record(project, value);
     let bounds = jig_core_world::world::limits().connector;
     let decoded = codec::family::request_value(&bytes, &bounds).expect("family request");
-    let value = decoded.value.into_parts();
+    let decoded_value = decoded.value.into_parts();
     assert_eq!(decoded.project, PROJECT);
-    assert_eq!((value.object, value.revision, value.value), (ITEM, REVISION.value, parameters));
-    assert_eq!(value.release, None);
+    assert_eq!(
+        (decoded_value.object, decoded_value.revision, decoded_value.value),
+        (ITEM, REVISION.value, Some(supplied))
+    );
+    assert_eq!(decoded_value.release, None);
 }

@@ -18,16 +18,15 @@ fn denied_and_ended_family_values_have_distinct_public_captions_without_mutation
             Event::Went { place: Place::Address(Address::First(first::Address { project: 3, item: 5 })) },
         );
         let watch = watching(&root);
-        let document = family::Document::Item(family::Item {
-            project: 3,
-            key: 5,
-            revision: Revision { value: u64::MAX },
-            state: family::ItemState::Ready,
-            value: u64::MAX,
-            task: 9,
-            second: None,
-            proposals: list([]),
-            touchable: true,
+        let document = family::Document::Connector(jig_client_test_domain::connector_values::ConnectorDocument {
+            subject: family::Subject { scope: family::Scope::Project(3), kind: family::Kind::Item(5) },
+            value: Box::new(jig_client_test_domain::connector_values::ClientDocument::Object {
+                object: 5,
+                now: jig_client_test_domain::connector_values::ApplicationObject {
+                    revision: u64::MAX,
+                    value: u64::MAX,
+                },
+            }),
         });
         drive(
             &mut root,
@@ -39,15 +38,16 @@ fn denied_and_ended_family_values_have_distinct_public_captions_without_mutation
         let mut view = view();
         patches(&mut view, &root);
         assert!(
-            view.tree().nodes().iter().any(|n| n.name.as_deref() == Some(b"Touch".as_slice()) && n.binding.is_some())
+            view.tree()
+                .nodes()
+                .iter()
+                .any(|n| n.name.as_deref() == Some(b"Apply parameters".as_slice()) && n.binding.is_some())
         );
         drive(&mut root, Event::First(first::Event::Ended { watch, end }));
         patches(&mut view, &root);
         assert!(contains(&view, caption));
         assert!(contains(&view, b"18446744073709551615"));
-        assert!(!contains(&view, b"Gone"));
-        assert!(!view.tree().nodes().iter().any(|n| (n.name.as_deref() == Some(b"Touch".as_slice())
-            || n.name.as_deref() == Some(b"Apply parameters".as_slice())
+        assert!(!view.tree().nodes().iter().any(|n| (n.name.as_deref() == Some(b"Apply parameters".as_slice())
             || n.name.as_deref() == Some(b"Parameters".as_slice()))
             && n.binding.is_some()));
         assert_eq!(root.first().object(root.first().page().unwrap()).unwrap().value, first::Value::Known(document));
@@ -77,19 +77,15 @@ fn every_family_departure_fits_the_public_view_and_checked_selected_words() {
         );
         let watch = watching(&root);
         let read = family_read(&rows);
-        let document = family::Document::Item(family::Item {
-            project: 3,
-            key: 5,
-            revision: Revision { value: u64::MAX },
-            state: family::ItemState::Ready,
-            value: u64::MAX,
-            task: 9,
-            second: None,
-            proposals: list([
-                ProposalKey { proposer: Proposer::Task(9), number: 1 },
-                ProposalKey { proposer: Proposer::Task(9), number: 2 },
-            ]),
-            touchable: true,
+        let document = family::Document::Connector(jig_client_test_domain::connector_values::ConnectorDocument {
+            subject: family::Subject { scope: family::Scope::Project(3), kind: family::Kind::Item(5) },
+            value: Box::new(jig_client_test_domain::connector_values::ClientDocument::Object {
+                object: 5,
+                now: jig_client_test_domain::connector_values::ApplicationObject {
+                    revision: u64::MAX,
+                    value: u64::MAX,
+                },
+            }),
         });
         drive(&mut root, Event::First(first::Event::Read { read, result: first::ReadResult::Value(document) }));
         drive(&mut root, Event::First(first::Event::Ended { watch, end }));
@@ -100,7 +96,7 @@ fn every_family_departure_fits_the_public_view_and_checked_selected_words() {
         }
         assert!(view.tree().len() <= view.limits().tree.nodes);
 
-        assert_eq!(family.book.limits().phrases, 31);
+        assert_eq!(family.book.limits().phrases, 22);
         assert!(patches(&mut view, &root).is_empty());
     }
     let checked = &family;
@@ -137,10 +133,12 @@ fn read_not_allowed_unknown_and_unsupported_keep_separate_public_captions() {
         let mut view = view();
         patches(&mut view, &root);
         assert!(contains(&view, caption));
-        assert!(!contains(&view, b"Touched"));
-        assert!(!contains(&view, b"Gone"));
         assert!(
-            !view.tree().nodes().iter().any(|n| n.name.as_deref() == Some(b"Touch".as_slice()) && n.binding.is_some())
+            !view
+                .tree()
+                .nodes()
+                .iter()
+                .any(|n| n.name.as_deref() == Some(b"Apply parameters".as_slice()) && n.binding.is_some())
         );
     }
 }
@@ -153,7 +151,6 @@ fn selected_words() -> words::Words {
     let all = [
         W::Navigation,
         W::Family,
-        W::Item,
         W::Loading,
         W::Proposal,
         W::ReviewProposal,
@@ -161,22 +158,14 @@ fn selected_words() -> words::Words {
         W::Unshowable,
         W::Value,
         W::Drawing,
-        W::Ready,
-        W::Held,
-        W::Ended,
-        W::Touch,
         W::Parameters,
         W::Apply,
         W::Deciding,
         W::Retrying,
         W::Parked,
-        W::Touched,
-        W::Moved,
-        W::Gone,
         W::Connector,
         W::Resource,
         W::Kind,
-        W::Part,
         W::OutboxEntry,
         W::NotAllowed,
         W::SubjectEnded,
@@ -189,9 +178,7 @@ fn selected_words() -> words::Words {
         let mut phrases = Vec::new();
         for word in all {
             let hole = match word {
-                W::Item | W::Value | W::Touched | W::Moved | W::Connector | W::Kind | W::Part | W::OutboxEntry => {
-                    Some(HoleKind::Number)
-                }
+                W::Value | W::Connector | W::Kind | W::OutboxEntry => Some(HoleKind::Number),
                 W::Resource => Some(HoleKind::Name),
                 _ => None,
             };
@@ -232,7 +219,7 @@ fn selected_words() -> words::Words {
         book: Phrasebook::load(
             shapes.into_boxed_slice(),
             languages.into_boxed_slice(),
-            &PhraseLimits { languages: 2, phrases: 31, holes: 1, segments: 124, text_bytes: 4096, hole_bytes: 32 },
+            &PhraseLimits { languages: 2, phrases: 22, holes: 1, segments: 88, text_bytes: 4096, hole_bytes: 32 },
         )
         .unwrap(),
         language: 1,

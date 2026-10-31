@@ -4,7 +4,6 @@
 extern crate alloc;
 #[rustfmt::skip]
 #[path = "generated/v2.rs"]
-#[expect(clippy::large_enum_variant, reason = "generated connector documents own their bounded effect payload and named key origin")]
 pub mod v2;
 pub const VERSION: u32 = 2;
 
