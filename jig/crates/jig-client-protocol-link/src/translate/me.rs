@@ -1,7 +1,7 @@
 //! Nested served me records, bounded by the receiving document.
 use super::{Limits, List, Reader, c, piece_problem, project_role_fields, task_contract_document_fields, too_large, w};
 pub(crate) fn projects(bytes: &[u8], limits: &Limits) -> Result<List<c::MeProject>, w::Problem> {
-    let bound = limits.client.projects;
+    let bound = limits.client().projects;
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
@@ -18,10 +18,10 @@ pub(crate) fn projects(bytes: &[u8], limits: &Limits) -> Result<List<c::MeProjec
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::MeProject::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::MeProject::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = project_role_fields(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -31,7 +31,7 @@ pub(crate) fn projects(bytes: &[u8], limits: &Limits) -> Result<List<c::MeProjec
 }
 
 pub(crate) fn templates(bytes: &[u8], limits: &Limits) -> Result<List<c::Template>, w::Problem> {
-    let bound = limits.client.rows;
+    let bound = limits.client().rows;
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
@@ -48,10 +48,10 @@ pub(crate) fn templates(bytes: &[u8], limits: &Limits) -> Result<List<c::Templat
             .ok_or(too_large())?
             .checked_add(4)
             .ok_or(too_large())?;
-        if sum > limits.client.document_bytes {
+        if sum > limits.client().document_bytes {
             return Err(too_large());
         }
-        let row = w::Template::decode(&limits.wire, &mut Reader::new(&item))?;
+        let row = w::Template::decode(limits.receiving(), &mut Reader::new(&item))?;
         let row = template(&row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
@@ -91,7 +91,7 @@ pub(crate) fn overrides(
     values: &List<w::TemplateOverride>,
     limits: &Limits,
 ) -> Result<List<c::TemplateOverride>, w::Problem> {
-    if values.len() > limits.client.rows {
+    if values.len() > limits.client().rows {
         return Err(too_large());
     }
     Ok(crate::translate::operations::restore_template_overrides(values))

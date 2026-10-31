@@ -301,12 +301,12 @@ pub(super) fn restore_create(value: &w::Create, limits: &crate::Limits) -> Resul
 }
 fn restore_batch(bytes: &[u8], limits: &crate::Limits) -> Result<List<c::NewTask>, w::Problem> {
     let mut reader = skein_lib::Reader::new(bytes);
-    let mut tasks = List::with_capacity(limits.client.rows);
+    let mut tasks = List::with_capacity(limits.client().rows);
     while let Some(bytes) = create_piece(&mut reader)? {
         if tasks.len() == tasks.capacity() {
             return Err(super::too_large());
         }
-        let v = w::NewTask::decode(&limits.wire, &mut skein_lib::Reader::new(&bytes))?;
+        let v = w::NewTask::decode(limits.receiving(), &mut skein_lib::Reader::new(&bytes))?;
         tasks.push(restore_task(&v, limits)?).expect("checked capacity");
     }
     Ok(tasks)
@@ -349,7 +349,7 @@ fn restore_task(v: &w::NewTask, limits: &crate::Limits) -> Result<c::NewTask, w:
         },
         wake: restore_wake(v.wake().as_ref()),
         dependencies,
-        named: super::documents::owner_grant_piece(v.named(), limits, limits.client.authority)?,
+        named: super::documents::owner_grant_piece(v.named(), limits, limits.client().authority)?,
         tracked: *v.tracked(),
         label: v.label(),
         flags: c::TaskFlags {

@@ -86,7 +86,7 @@ pub(crate) fn party(value: &w::Party, limits: &Limits) -> Result<c::Party, w::Pr
     Ok(c::Party {
         number: value.number(),
         kind: party_kind(value.kind()),
-        name: match c::Text::new(bytes::copy_of(value.name()), limits.client.text) {
+        name: match c::Text::new(bytes::copy_of(value.name()), limits.client().text) {
             Ok(value) => value,
             Err(_) => return Err(text_problem()),
         },
@@ -98,7 +98,7 @@ pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decisi
     Ok(match value {
         w::Decision::Accepted => c::Decision::Accepted,
         w::Decision::Rejected(row) => c::Decision::Rejected {
-            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client.text) {
+            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client().text) {
                 Ok(value) => value,
                 Err(_) => return Err(text_problem()),
             },
@@ -112,7 +112,7 @@ pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decisi
             c::Decision::Released { again: opt0 }
         }
         w::Decision::LeftHeld(row) => c::Decision::LeftHeld {
-            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client.text) {
+            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client().text) {
                 Ok(value) => value,
                 Err(_) => return Err(text_problem()),
             },
@@ -132,7 +132,7 @@ pub(crate) fn ending_fields(
         w::EndingFields::Done => c::Ending::Done,
         w::EndingFields::Failed(row) => {
             let opt0 = match &row.reason() {
-                Some(item) => Some(match c::Text::new(bytes::copy_of(item), limits.client.text) {
+                Some(item) => Some(match c::Text::new(bytes::copy_of(item), limits.client().text) {
                     Ok(value) => value,
                     Err(_) => return Err(text_problem()),
                 }),
@@ -142,7 +142,7 @@ pub(crate) fn ending_fields(
         }
         w::EndingFields::Cancelled(row) => {
             let opt0 = match &row.reason() {
-                Some(item) => Some(match c::Text::new(bytes::copy_of(item), limits.client.text) {
+                Some(item) => Some(match c::Text::new(bytes::copy_of(item), limits.client().text) {
                     Ok(value) => value,
                     Err(_) => return Err(text_problem()),
                 }),
@@ -155,7 +155,7 @@ pub(crate) fn ending_fields(
             c::Ending::Cancelled { by: actor(row.by()), reason: opt0, at: opt1 }
         }
         w::EndingFields::Withdrawn(row) => c::Ending::Withdrawn {
-            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client.text) {
+            reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client().text) {
                 Ok(value) => value,
                 Err(_) => return Err(text_problem()),
             },
@@ -192,7 +192,7 @@ pub(crate) fn attempt_failure(value: &w::AttemptFailure, limits: &Limits) -> Res
     Ok(c::AttemptFailure {
         attempt: value.attempt(),
         class: failure_class(value.class()),
-        reason: match c::Text::new(bytes::copy_of(value.reason()), limits.client.text) {
+        reason: match c::Text::new(bytes::copy_of(value.reason()), limits.client().text) {
             Ok(value) => value,
             Err(_) => return Err(text_problem()),
         },
@@ -216,7 +216,7 @@ pub(crate) fn hold_reason_fields(
         }
         w::HoldReasonFields::Stalled(row) => c::HoldReason::Stalled {
             since: Wall::from_nanos(row.since()),
-            waiting: match c::Text::new(bytes::copy_of(row.waiting()), limits.client.text) {
+            waiting: match c::Text::new(bytes::copy_of(row.waiting()), limits.client().text) {
                 Ok(value) => value,
                 Err(_) => return Err(text_problem()),
             },

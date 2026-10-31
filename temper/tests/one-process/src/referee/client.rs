@@ -94,7 +94,7 @@ impl Connection {
         }
         let limits = native_link_limits();
         let keyed =
-            wire::Keyed::decode(&limits.wire, &mut Reader::new(&self.sent[end + 4..])).expect("sent keyed request");
+            wire::Keyed::decode(limits.wire(), &mut Reader::new(&self.sent[end + 4..])).expect("sent keyed request");
         self.sent_application = Some(());
         if matches!(keyed.owner(), wire::Owner::Family(_)) {
             received.push(Received::ApplicationSent { key: *keyed.key() });
@@ -145,7 +145,7 @@ impl Connection {
         match path {
             b"/jig/v1/sign-in/link" => {
                 let answer =
-                    wire::SignInAnswer::decode(&limits.wire, &mut Reader::new(bytes)).expect("sign-in reply bytes");
+                    wire::SignInAnswer::decode(limits.wire(), &mut Reader::new(bytes)).expect("sign-in reply bytes");
                 // NotReady asks the native caller to retry after startup. Only an
                 // actual SignedIn answer releases the referee's sign-in receipt.
                 if matches!(answer, wire::SignInAnswer::NotReady) {
@@ -156,8 +156,8 @@ impl Connection {
             }
             b"/jig/v1/request" => {
                 let keyed =
-                    wire::Keyed::decode(&limits.wire, &mut Reader::new(&self.sent[end + 4..])).expect("request bytes");
-                let value = wire::KeyedAnswer::decode(&limits.wire, &mut Reader::new(bytes)).expect("answer bytes");
+                    wire::Keyed::decode(limits.wire(), &mut Reader::new(&self.sent[end + 4..])).expect("request bytes");
+                let value = wire::KeyedAnswer::decode(limits.wire(), &mut Reader::new(bytes)).expect("answer bytes");
                 if matches!(&value, wire::KeyedAnswer::FinalAnswer(document) if document.owner() == &wire::Owner::Jig) {
                     let answer = translate::answers::answer(value, &limits).expect("jig answer document");
                     received.push(Received::Answer { key: *keyed.key(), answer });
@@ -179,7 +179,7 @@ impl Connection {
             }
             b"/jig/v1/read" => {
                 if let wire::ReadAnswer::Value(value) =
-                    wire::ReadAnswer::decode(&limits.wire, &mut Reader::new(bytes)).expect("read reply bytes")
+                    wire::ReadAnswer::decode(limits.wire(), &mut Reader::new(bytes)).expect("read reply bytes")
                     && value.owner() == &wire::Owner::Jig
                 {
                     received

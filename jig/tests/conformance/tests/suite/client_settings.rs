@@ -15,13 +15,13 @@ macro_rules! encoded {
 }
 fn answer(value: &w::Final, limits: &Limits) -> c::Answer {
     let record = encoded!(value);
-    let owned =
-        w::Owned::new(&limits.wire, w::OwnedParts { owner: w::Owner::Jig, version: 19, record }).expect("owned answer");
+    let owned = w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 19, record })
+        .expect("owned answer");
     translate::answers::answer(w::KeyedAnswer::FinalAnswer(owned), limits).expect("public answer")
 }
 fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, ()> {
     let final_value =
-        w::Final::Done(w::Done::new(&limits.wire, w::DoneParts { outcome: value.clone() }).expect("done"));
+        w::Final::Done(w::Done::new(limits.wire(), w::DoneParts { outcome: value.clone() }).expect("done"));
     match answer(&final_value, limits) {
         c::Answer::Done(value) => Ok(value),
         c::Answer::Refused { .. } => Err(()),
@@ -29,7 +29,7 @@ fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, ()> {
 }
 fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal, ()> {
     let final_value = w::Final::Refused(
-        w::Refused::new(&limits.wire, w::RefusedParts { refusal: value.clone(), at: None }).expect("refused"),
+        w::Refused::new(limits.wire(), w::RefusedParts { refusal: value.clone(), at: None }).expect("refused"),
     );
     match answer(&final_value, limits) {
         c::Answer::Refused { refusal, .. } => Ok(refusal),
@@ -41,7 +41,7 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
     let mut client = jig_client_world::test::limits().client;
     client.domain.rows = 8;
     let limits = Limits::new(client.domain, client.exchanges).expect("client limits");
-    let t = &limits.wire;
+    let t = limits.wire();
     let ask = c::Ask::ChangeSettings(values::settings_change());
     let wire = translate::asks::ask(&ask, t).expect("settings ask");
     // The retained ask follows the same contract as a newly sent one.
@@ -137,7 +137,7 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     use jig_domain_core::{documents as d, reads, settings as s};
     use jig_protocol_engine_clients::translate::settings as engine;
     let limits = Limits::new(jig_client_world::test::limits().client.domain, 4).expect("client limits");
-    let t = &limits.wire;
+    let t = limits.wire();
     let head = s::Head {
         number: 6,
         against: 5,
