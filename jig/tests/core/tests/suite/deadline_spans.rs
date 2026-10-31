@@ -39,7 +39,7 @@ fn a_delayed_commit_does_not_move_the_deadline() {
     f::clock(&mut world, 30);
     world.release_commits();
     assert_eq!(live_row(&world, CREATED).authority.budget.deadline, Some(Wall::from_nanos(15_000_000_000)));
-    // Tasks 5.5: restart retries the overdue task at wall 30; its deadline hold adds a durable escalation message.
+    // Engine 6 step 6 retries work past its wall-15 deadline at wall 30; Message high-water 0 -> 1 is unresolved.
     world.broken();
 }
 #[test]
