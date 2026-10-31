@@ -86,7 +86,13 @@ impl Workers {
             ending: None,
             component_closed: false,
             encoding,
-            forges: crate::forges::Forges::from_document(forges, forge_limit),
+            forges: {
+                let mut table = crate::forges::Forges::with_capacity(forge_limit);
+                for forge in forges {
+                    assert!(table.insert(forge), "unique fixture forges");
+                }
+                table
+            },
             bad_parts: 0,
         })
     }
@@ -573,7 +579,7 @@ impl Workers {
                 endpoints: smith_protocol_channel::Endpoints::new(endpoints),
                 deployment,
             },
-            ::core::mem::replace(&mut settings.forges, Box::new([])),
+            Box::new([]),
             settings.limits.forge.forges,
             &worker_limits,
         )?;

@@ -1,7 +1,7 @@
 //! One process, joined through io's workers channel (protocol/README.md, 8).
 use crate::{
     AccountsRuntime, End, Stop, Worker, accounts, clients, engine, limits, route::box_link, settings, stop, store,
-    translate, values, workers,
+    values, workers,
 };
 use alloc::boxed::Box;
 use jig_protocol_config::{Path, Problems, What};
@@ -192,8 +192,7 @@ impl Service {
         let accounts = accounts_driver(&settings, seeds, accounts, &store_limits.secrets)?;
         let mut values =
             values::Values::new(settings.jig.limits.driver.accounts, values::credential_bytes(&settings.jig));
-        let wire = translate::limits(&settings.limits).ok_or(start_problem(b"limits", What::Bound))?;
-        values.fill(&settings, &wire)?;
+        values.fill(&settings);
         let (forge_config, identities) = crate::forge::config(&settings, seeds.deployment);
         let mut first_periods = List::with_capacity(limits.authority.projects);
         for project in &settings.jig.projects {
@@ -213,12 +212,10 @@ impl Service {
             clients.configure_google(sign_in, settings.limits.sign_in, seeds, &settings.jig);
         }
         let setup = crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, box_line_bytes.is_some())?;
-        let forge =
-            crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &settings.forges)
-                .expect("checked forge limits");
-        forget_handover(&mut settings);
+        let forge = crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &[])
+            .expect("checked forge limits");
         let notes = Queue::with_capacity(settings.limits.forge.forges);
-        let configured = crate::startup::application::configured(&settings);
+        let configured = Box::new([]);
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
         let config = temper_engine_domain::Config {
             period_span: crate::stock::PERIOD_SPAN,
@@ -227,7 +224,7 @@ impl Service {
             forge: forge_config,
             identities,
             forge_charter: settings.charter,
-            machine: None,
+            machine: Some(machine_config(&settings.machine)),
             forges: configured,
             under_box: box_line_bytes.is_some(),
             playground: playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
@@ -953,15 +950,6 @@ fn startup_operations(io: &io::Limits, worker_operations: u32) -> Option<u32> {
     worker_alone_operations(io, worker_operations)?.checked_add(store::OPERATIONS)
 }
 
-fn forget_handover(settings: &mut settings::Engine) {
-    for configured in &mut settings.forges {
-        configured.api_token = None;
-    }
-    for setup in &mut settings.setup {
-        setup.handover = None;
-    }
-}
-
 fn box_notes_full(service: &Service) -> bool {
     let Some(engine) = &service.engine else { return false };
     let Some(pipe) = &service.box_pipe else { return false };
@@ -1097,6 +1085,61 @@ pub(crate) fn playground_config(
     match demo {
         Some(demo) => Some(temper_engine_domain_forge::PlaygroundConfig { provider: demo.provider, deadline }),
         None => None,
+    }
+}
+
+/// Machine places passed to the root (temper/docs/design/draft/playground-reset.md, 3).
+#[expect(clippy::manual_map, reason = "the configuration boundary uses explicit matches")]
+pub(crate) fn machine_config(machine: &temper_forge_setup::machine::Machine) -> temper_engine_domain_forge::Machine {
+    use temper_engine_domain_forge::{Address, Machine, Place};
+    let github = match &machine.github {
+        Some(github) => {
+            let (host, port) = match &github.api {
+                jig_protocol_config::Address::Host { name, port } => (name.clone(), *port),
+                jig_protocol_config::Address::Addr(skein_io::Addr::Ip(address)) => {
+                    (socket_host(*address), address.port())
+                }
+                jig_protocol_config::Address::Addr(skein_io::Addr::InProcess(_)) => {
+                    unreachable!("checked machine socket")
+                }
+            };
+            Place {
+                api: Address { tls: if github.tls { Some(host.clone()) } else { None }, host, port },
+                git: github.remote.clone(),
+                web: Some(github.web.clone()),
+            }
+        }
+        None => Place {
+            api: Address {
+                host: skein_lib::bytes::copy_of(b"api.github.com"),
+                port: 443,
+                tls: Some(skein_lib::bytes::copy_of(b"api.github.com")),
+            },
+            git: skein_lib::bytes::copy_of(b"https://github.com/"),
+            web: Some(skein_lib::bytes::copy_of(b"https://github.com")),
+        },
+    };
+    Machine {
+        owned: match &machine.owned {
+            Some(owned) => Some(local_place(owned.listen, &owned.remote)),
+            None => None,
+        },
+        fake: match &machine.fake {
+            Some(fake) => Some(local_place(fake.listen, &fake.remote)),
+            None => None,
+        },
+        github,
+    }
+}
+#[expect(clippy::disallowed_macros, reason = "startup renders a checked IP address for the domain place")]
+pub(crate) fn socket_host(address: core::net::SocketAddr) -> Box<[u8]> {
+    alloc::format!("{}", address.ip()).into_bytes().into_boxed_slice()
+}
+fn local_place(address: core::net::SocketAddr, remote: &[u8]) -> temper_engine_domain_forge::Place {
+    temper_engine_domain_forge::Place {
+        api: temper_engine_domain_forge::Address { host: socket_host(address), port: address.port(), tls: None },
+        git: skein_lib::bytes::copy_of(remote),
+        web: None,
     }
 }
 

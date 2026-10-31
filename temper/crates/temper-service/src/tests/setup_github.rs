@@ -54,6 +54,7 @@ fn owner_service() -> crate::Service {
         },
     }));
     let _signed_in = pump(&mut service);
+    service.engine.as_mut().unwrap().setup.lifecycle.reconcile.remove(&FORGE);
     service
 }
 

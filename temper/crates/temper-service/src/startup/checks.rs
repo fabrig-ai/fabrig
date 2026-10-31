@@ -209,21 +209,13 @@ pub fn provider(engine: &config::Engine, problems: &mut Problems) {
 }
 /// Each git identity's number is one both the engine's and the worker's
 /// accounts tables hold.
-pub fn credentials(
-    engine: &config::Engine,
-    workers: &[config::Worker],
-    identities: &[super::Identity],
-    problems: &mut Problems,
-) {
+pub fn credentials(engine: &config::Engine, workers: &[config::Worker], forges: u32, problems: &mut Problems) {
     let mut bound = engine.limits.core.accounts.credentials;
     for worker in workers {
         bound = bound.min(worker.limits.core.accounts.credentials);
     }
-    for (index, identity) in identities.iter().enumerate() {
-        if identity.number == 0 || identity.number > bound {
-            let path = at(index, Path::root().member(b"application").member(b"identities"));
-            problems.push(path.member(b"number"), What::Credentials);
-        }
+    if forges > bound {
+        problems.push(own(b"forge.forges"), What::Credentials);
     }
 }
 /// Check the optional listener and the secret paths that require it.
@@ -238,12 +230,6 @@ pub fn webhooks(members: &super::application::Members, problems: &mut Problems) 
             }
             config::Address::Addr(_) | config::Address::Host { .. } => {
                 problems.push(path.member(b"webhooks").member(b"listener"), What::Loopback);
-            }
-        }
-    } else {
-        for (index, forge) in members.forges.iter().enumerate() {
-            if forge.webhook_secret.is_some() {
-                problems.push(at(index, path.member(b"forges")).member(b"webhook_secret"), What::NoWebhooks);
             }
         }
     }
@@ -322,10 +308,19 @@ pub fn limits(limits: &limits::Limits, git: &temper_worker_protocol_git::Limits,
     }
 }
 /// The longest routed remote: base, two separators, owner, name and `.git`.
-pub fn longest_remote(forges: &[settings::Forge], name_bytes: u32) -> Option<u64> {
-    let mut base = 0;
-    for forge in forges {
-        base = base.max(u64::try_from(forge.git.len()).ok()?);
+pub fn longest_remote(machine: &temper_forge_setup::machine::Machine, name_bytes: u32) -> Option<u64> {
+    Some(machine_remote(machine, name_bytes)?.max(u64::from(temper_engine_domain_forge::PULL_ADDRESS_BYTES)))
+}
+pub fn machine_remote(machine: &temper_forge_setup::machine::Machine, name_bytes: u32) -> Option<u64> {
+    let mut base = u64::try_from(b"https://github.com/".len()).ok()?;
+    if let Some(owned) = &machine.owned {
+        base = base.max(u64::try_from(owned.remote.len()).ok()?);
+    }
+    if let Some(fake) = &machine.fake {
+        base = base.max(u64::try_from(fake.remote.len()).ok()?);
+    }
+    if let Some(github) = &machine.github {
+        base = base.max(u64::try_from(github.remote.len()).ok()?);
     }
     remote(base, name_bytes)
 }
@@ -387,12 +382,14 @@ fn bounded(bounds: &payload::Bounds, engine: bool, problems: &mut Problems) -> O
 pub fn channel(
     engine: Option<&payload::Bounds>,
     worker: Option<&payload::Bounds>,
-    forges: &[settings::Forge],
+    machine: Option<&temper_forge_setup::machine::Machine>,
     limits: &limits::Limits,
     problems: &mut Problems,
 ) {
-    if engine.is_some() {
-        names(longest_remote(forges, limits.forge.name_bytes), limits, problems);
+    if engine.is_some()
+        && let Some(machine) = machine
+    {
+        names(machine_remote(machine, limits.forge.name_bytes), limits, problems);
     }
     // The engine's terms take the smaller of the two repository bounds
     // (translate::limits), so a checkout's larger one makes the worker's
@@ -439,22 +436,7 @@ pub fn channel(
         against(problems, b"forge.resources_per_task", b"checkout.repositories and checkout.name_bytes");
     }
 }
-/// The identity's complete encoded value must fit one grant.
-pub fn identities(identities: &[settings::Identity], limits: &payload::v1::Limits, problems: &mut Problems) {
-    for (index, identity) in identities.iter().enumerate() {
-        let path = at(index, Path::root().member(b"application").member(b"identities"));
-        match crate::translate::identity(identity, limits) {
-            Ok(value) => {
-                let bytes = u64::try_from(value.expose().len()).expect("bounded identity");
-                let bound = u64::from(jig_protocol_worker_wire::CEILINGS.application_value_secret);
-                if bytes > bound {
-                    problems.push(path, What::Past { bytes, bound });
-                }
-            }
-            Err(_) => problems.push(path, What::Jig(config::What::Bound)),
-        }
-    }
-}
+
 /// Each sender's credential fits the receiving table and smith's bodies.
 pub fn grants(engine: &config::Engine, worker: &config::Limits, agent: &settings::Agent, problems: &mut Problems) {
     let credential = crate::worker_settings::credential_bytes(worker.token);
@@ -669,8 +651,8 @@ pub fn root(
         forge,
         identities,
         forge_charter: engine.charter,
-        machine: None,
-        forges: super::application::configured(engine),
+        machine: Some(crate::system::machine_config(&engine.machine)),
+        forges: Box::new([]),
         under_box: false,
     };
     let mut numbers = List::with_capacity(engine.jig.limits.core.authority.projects);
@@ -1011,13 +993,8 @@ pub(super) fn raw_worker(document: &skein_json::Document, at: u32, path: &Path, 
 }
 
 /// Encoded active writes; `AppId`/`User` are 9 bytes, dominated by admitted `AppKey`.
-pub(crate) fn record_writes(
-    limits: &limits::Limits,
-    forges: &[super::application::Forge],
-) -> List<(Option<u64>, &'static [u8], Option<usize>)> {
-    use temper_protocol_records as records;
-    let capacity =
-        u32::try_from(forges.len()).expect("bounded configured forges").checked_add(5).expect("five scalars");
+pub(crate) fn record_writes(limits: &limits::Limits) -> List<(Option<u64>, &'static [u8], Option<usize>)> {
+    let capacity = limits.forge.forges.checked_add(5).expect("five scalar writes");
     let mut writes = List::with_capacity(capacity);
     let accepted = match u64::from(limits.forges.installations).checked_mul(8) {
         Some(bytes) => bytes.checked_add(7),
@@ -1034,33 +1011,14 @@ pub(crate) fn record_writes(
     ] {
         writes.push((bytes, source, None)).expect("five scalar writes");
     }
-    for (index, forge) in forges.iter().enumerate() {
-        // Already refused by application::forge_endpoint; never encode its socket.
-        if let config::Address::Addr(Addr::InProcess(_)) = &forge.api {
-            continue;
-        }
-        let kind = match forge.kind {
-            settings::Kind::Forgejo => skein_forge_connection::settings::Kind::Forgejo,
-            settings::Kind::GitHub => skein_forge_connection::settings::Kind::GitHub,
-        };
-        let origin = records::origin(kind, &forge.api).encode();
-        writes
-            .push((
-                u64::try_from(records::encode(records::Item::Origin, &origin).expect("configured origin").len()).ok(),
-                b"Origin",
-                Some(index),
-            ))
-            .expect("configured origins");
+    for _ in 0..limits.forge.forges {
+        // Origin carries a 253-byte host, separator and five-digit port, with its codec headers.
+        writes.push((Some(267), b"Origin", None)).expect("kept forge origins");
     }
     writes
 }
 /// Application records fit the store and the largest encoded active write.
-pub fn records(
-    jig: &config::Engine,
-    limits: &limits::Limits,
-    forges: &[super::application::Forge],
-    problems: &mut Problems,
-) {
+pub fn records(jig: &config::Engine, limits: &limits::Limits, problems: &mut Problems) {
     let component = &limits.forge_component;
     for (name, positive, other) in [
         (b"forges.log_origins".as_slice(), limits.forges.log_origins > 0, b"forges.log_origins (above 0)".as_slice()),
@@ -1115,7 +1073,7 @@ pub fn records(
         }
     }
     let mut largest = (0, b"AppKey (forge_component.key_bytes)".as_slice(), None);
-    for (bytes, source, index) in record_writes(limits, forges).into_boxed() {
+    for (bytes, source, index) in record_writes(limits).into_boxed() {
         if bytes.unwrap_or(u64::MAX) > largest.0 {
             largest = (bytes.unwrap_or(u64::MAX), source, index);
         }

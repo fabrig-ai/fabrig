@@ -35,7 +35,9 @@ pub(super) fn parse(
     }
     let path = Path::root().member(b"application").member(b"demo");
     let mut object = read::object(document, at, &path, problems)?;
-    let at = read::required(&mut object, document, b"llm", &path, problems)?;
+    let at = read::required(&mut object, document, b"llm", &path, problems);
+    read::finish(object, document, &path, problems);
+    let at = at?;
     let llm_path = path.member(b"llm");
     let mut llm = read::object(document, at, &llm_path, problems)?;
     let provider = read::number(&mut llm, document, b"provider", &llm_path, problems)?;
