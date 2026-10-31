@@ -476,6 +476,7 @@ impl World {
             | Request::Erase { .. }
             | Request::MovedToNewest { .. }
             | Request::Released { .. }
+            | Request::DropRefused { .. }
             | Request::RestoreRefused { .. } => {}
         }
     }
@@ -523,6 +524,7 @@ impl World {
             | Event::EffectInFlight { .. }
             | Event::EffectSettled { .. }
             | Event::OpenPeriod { .. }
+            | Event::DropProject { .. }
             | Event::PeriodNext { .. }
             | Event::TickRecurring { .. }
             | Event::RenewStanding { .. }
@@ -616,6 +618,7 @@ impl World {
             | Event::EffectInFlight { .. }
             | Event::EffectSettled { .. }
             | Event::OpenPeriod { .. }
+            | Event::DropProject { .. }
             | Event::PeriodNext { .. }
             | Event::TickRecurring { .. }
             | Event::RenewStanding { .. }
@@ -807,6 +810,7 @@ impl World {
                 | Request::Release { .. }
                 | Request::MovedToNewest { .. }
                 | Request::Released { .. }
+                | Request::DropRefused { .. }
                 | Request::RestoreRefused { .. }
                 | Request::EscalationNeeded { .. }
                 | Request::EscalationsInspected { .. }
@@ -928,7 +932,8 @@ impl World {
                 | Request::ResolveUncertain { .. }
                 | Request::MovedToNewest { .. }
                 | Request::Released { .. }
-                | Request::Release { .. } => {}
+                | Request::Release { .. }
+                | Request::DropRefused { .. } => {}
                 Request::EndTopic { task, subscription, connector } => {
                     self.ended_topics.push((task, subscription, connector));
                 }

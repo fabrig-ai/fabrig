@@ -110,6 +110,33 @@ pub fn view_phase(phase: &Phase) -> u32 {
 }
 
 impl Domain {
+    /// Live roots of a project's trees, in task order, for project deletion
+    /// (temper/docs/design/draft/playground-reset.md, 5). Returns `None` if `out` fills.
+    pub fn live_roots(&self, project: u32, out: &mut List<u64>) -> Option<()> {
+        for (number, _) in &self.names {
+            let row = record(self, *number).expect("indexed live task");
+            if row.project != project {
+                continue;
+            }
+            match row.requester {
+                Party::Task(_) => {}
+                Party::Person(_) | Party::Deployment { .. } => out.push(*number).ok()?,
+            }
+        }
+        Some(())
+    }
+
+    /// Whether any task of the project remains live, including closing tasks.
+    #[must_use]
+    pub fn live_in(&self, project: u32) -> bool {
+        for (number, _) in &self.names {
+            if record(self, *number).expect("indexed live task").project == project {
+                return true;
+            }
+        }
+        false
+    }
+
     pub(crate) fn consume_restore_input(&mut self) {
         self.restore_consumed = true;
     }
@@ -582,6 +609,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     let output_start = out.len();
     let held = crate::settings::before(domain);
     match event {
+        Event::DropProject { project } => crate::drop_project::drop_project(domain, env, project, out),
         Event::MoveToNewest { from } => crate::settings_moves::move_tasks(domain, env, from, out),
         Event::Charters { newest, charters, efforts } => {
             validate_charters(&env.limits, &charters, &efforts);

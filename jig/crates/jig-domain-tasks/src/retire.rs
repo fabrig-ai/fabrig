@@ -25,15 +25,7 @@ pub(crate) fn retire(domain: &mut Domain, out: &mut Queue<Request>) {
             }
         }
         let Some((pool, parent, numbers)) = ready else { break };
-        let period = domain.funding.get_mut(&parent).expect("original period kept");
-        period.numbers.reserved = period.numbers.reserved.checked_sub(numbers.budget).expect("pool reserved");
-        period.numbers.spent_below = period
-            .numbers
-            .spent_below
-            .checked_add(total(numbers).expect("valid pool"))
-            .expect("pool spend representable");
-        close(domain, pool, out);
-        save_funding(domain, parent, out);
+        close_pool(domain, pool, parent, numbers, out);
     }
     let count = domain.funding.len();
     for _ in 0..count {
@@ -56,9 +48,25 @@ pub(crate) fn retire(domain: &mut Domain, out: &mut Queue<Request>) {
     }
 }
 
-fn close(domain: &mut Domain, funder: Funder, out: &mut Queue<Request>) {
+pub(crate) fn close(domain: &mut Domain, funder: Funder, out: &mut Queue<Request>) {
     let mut row = domain.funding.remove(&funder).expect("funding source kept until closure");
     row.closed = true;
     out.push(Request::Erase { key: Key::Ledger(funder) });
     out.push(Request::Save { record: Stored::ClosedLedger(row) });
+}
+
+/// Post a pool or recurring allotment into its original period and close it.
+pub(crate) fn close_pool(
+    domain: &mut Domain,
+    pool: Funder,
+    parent: Funder,
+    numbers: crate::Numbers,
+    out: &mut Queue<Request>,
+) {
+    let period = domain.funding.get_mut(&parent).expect("original period kept");
+    period.numbers.reserved = period.numbers.reserved.checked_sub(numbers.budget).expect("pool reserved");
+    period.numbers.spent_below =
+        period.numbers.spent_below.checked_add(total(numbers).expect("valid pool")).expect("pool spend representable");
+    close(domain, pool, out);
+    save_funding(domain, parent, out);
 }

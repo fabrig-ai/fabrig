@@ -1408,6 +1408,9 @@ pub enum Accepted {
 /// notifications have no reply destination and may be ignored if stale. (domain/tasks.md, sections 4–5).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    /// A deleted project's rows, once none of its tasks is live
+    /// (temper/docs/design/draft/playground-reset.md, 5).
+    DropProject { project: u32 },
     /// Root-checked placement; the root numbers it and judges standing, the child judges room.
     Place { reply_to: ReplyTo, hold: crate::PlacedHold },
     /// Root-checked lift naming the placed hold revision (domain/tasks.md, 5.9).
@@ -1811,6 +1814,8 @@ pub enum Event {
 /// saves/erases with effects and delays outward replies until durability. (domain/tasks.md, section 5).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// A drop asked while a task of the project was live: nothing changed.
+    DropRefused { project: u32 },
     /// Placed hold lifted; count of tasks released from their held phase.
     Lifted { reply_to: ReplyTo, released: u32 },
     /// The selected live agent tasks moved to the newest, and those that could not move.
