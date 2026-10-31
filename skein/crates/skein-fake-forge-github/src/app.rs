@@ -222,7 +222,7 @@ fn claims_read(input: &[u8]) -> Result<Claims, Refused> {
                         | Token::False
                         | Token::Null => unreachable!("claim text"),
                     }
-                    let value = unsigned(text).ok_or(Refused::Malformed)?;
+                    let value = bytes::decimal(text).ok_or(Refused::Malformed)?;
                     let slot = match field {
                         Field::Issued => &mut issued,
                         Field::Expires => &mut expires,
@@ -246,20 +246,6 @@ fn claims_read(input: &[u8]) -> Result<Claims, Refused> {
         expires: expires.ok_or(Refused::Malformed)?,
         issuer: app_id.ok_or(Refused::Malformed)?,
     })
-}
-
-fn unsigned(text: &[u8]) -> Option<u64> {
-    if text.is_empty() {
-        return None;
-    }
-    let mut number = 0_u64;
-    for byte in text {
-        if !byte.is_ascii_digit() {
-            return None;
-        }
-        number = number.checked_mul(10)?.checked_add(u64::from(byte.checked_sub(b'0')?))?;
-    }
-    Some(number)
 }
 
 // Retention, nesting and the driving loop are bounded by the admitted token size.

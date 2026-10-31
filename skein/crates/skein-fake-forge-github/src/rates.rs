@@ -7,7 +7,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_fake_forge_domain as domain;
-use skein_lib::{Duration, Env, ReplyTo, Wall, bytes};
+use skein_lib::{Decimal, Duration, Env, ReplyTo, Wall, bytes};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Heads {
     pub expires: Option<Wall>,
@@ -203,9 +203,6 @@ pub(crate) fn attach(outcome: Outcome, rate: Option<Heads>) -> Outcome {
     }
 }
 
-fn decimal(value: u64) -> Box<[u8]> {
-    bytes::copy_of(skein_lib::Decimal::of(value).as_bytes())
-}
 /// Appends core rate fields, optional person-token expiry and Retry-After; reserve seven slots.
 pub fn headers(heads: Heads, refused: bool, headers: &mut skein_lib::List<skein_http::Header>) {
     if let Some(expires) = heads.expires {
@@ -223,17 +220,17 @@ pub fn headers(heads: Heads, refused: bool, headers: &mut skein_lib::List<skein_
             .expect("expiry header slot");
     }
     for (name, value) in [
-        (b"X-RateLimit-Limit".as_slice(), decimal(u64::from(heads.rate.limit))),
-        (b"X-RateLimit-Remaining", decimal(u64::from(heads.rate.limit.saturating_sub(heads.rate.used)))),
-        (b"X-RateLimit-Used", decimal(u64::from(heads.rate.used))),
-        (
-            b"X-RateLimit-Reset",
-            decimal(heads.rate.reset.as_nanos().checked_div(1_000_000_000).expect("nonzero seconds")),
-        ),
-        (b"X-RateLimit-Resource", bytes::copy_of(b"core")),
+        (b"X-RateLimit-Limit".as_slice(), u64::from(heads.rate.limit)),
+        (b"X-RateLimit-Remaining", u64::from(heads.rate.limit.saturating_sub(heads.rate.used))),
+        (b"X-RateLimit-Used", u64::from(heads.rate.used)),
+        (b"X-RateLimit-Reset", heads.rate.reset.as_nanos().checked_div(1_000_000_000).expect("nonzero seconds")),
     ] {
+        let value = bytes::copy_of(Decimal::of(value).as_bytes());
         headers.push(skein_http::Header { name: bytes::copy_of(name), value }).expect("rate header slot");
     }
+    headers
+        .push(skein_http::Header { name: bytes::copy_of(b"X-RateLimit-Resource"), value: bytes::copy_of(b"core") })
+        .expect("rate header slot");
     // The primary refusal also supplies Retry-After, so the client need not
     // derive a delay from the world clock when no Date was emitted.
     let after = match heads.after {
@@ -246,7 +243,10 @@ pub fn headers(heads: Heads, refused: bool, headers: &mut skein_lib::List<skein_
     if let Some(after) = after {
         let seconds = after.as_nanos().div_ceil(1_000_000_000);
         headers
-            .push(skein_http::Header { name: bytes::copy_of(b"Retry-After"), value: decimal(seconds) })
+            .push(skein_http::Header {
+                name: bytes::copy_of(b"Retry-After"),
+                value: bytes::copy_of(Decimal::of(seconds).as_bytes()),
+            })
             .expect("retry header slot");
     }
 }
