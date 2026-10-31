@@ -1305,7 +1305,6 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
         return false;
     }
     match ask {
-        Ask::RemoveProject { .. } => true,
         Ask::Compound { operations, .. } => crate::compound::refusal(limits, operations).is_none(),
         Ask::MarkSeen { seen } => match seen {
             Seen::Results { .. } => true,
@@ -1321,7 +1320,8 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
                     None => false,
                 }
         }
-        Ask::ChangeSettings { .. }
+        Ask::RemoveProject { .. }
+        | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
         | Ask::Application { .. }
         | Ask::AccountSignIn { .. }
@@ -2014,16 +2014,8 @@ fn restore(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Que
     }
 }
 
-fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Queue<Request>) {
-    match domain.phase {
-        Phase::Ready => {
-            return restore_failed(domain, record.key(), Refusal::Limit { which: LimitKind::Restore }, out);
-        }
-        Phase::Failed => return,
-        Phase::Restoring => {}
-    }
-    let key = record.key();
-    let valid = match &record {
+fn valid_restore_default(domain: &Domain, env: &Env<Limits>, record: &Stored) -> bool {
+    match record {
         Stored::Acted { key, act, outcome, at } => {
             acts::valid(&env.limits, act).is_ok()
                 && valid_program_outcome(&env.limits, outcome)
@@ -2069,8 +2061,19 @@ fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
                 && (answer_expiry(*at, &env.limits) <= env.wall
                     || domain.answers.len().saturating_add(domain.acted.len()) < env.limits.requests)
         }
-    };
-    if !valid {
+    }
+}
+
+fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Queue<Request>) {
+    match domain.phase {
+        Phase::Ready => {
+            return restore_failed(domain, record.key(), Refusal::Limit { which: LimitKind::Restore }, out);
+        }
+        Phase::Failed => return,
+        Phase::Restoring => {}
+    }
+    let key = record.key();
+    if !valid_restore_default(domain, env, &record) {
         return restore_failed(domain, key, Refusal::Limit { which: LimitKind::Restore }, out);
     }
     match record {

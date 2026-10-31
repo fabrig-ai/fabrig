@@ -150,6 +150,12 @@ pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Event>, mut child: Que
             },
         }
     }
+    resume_note_brief(core, work);
+    out.push(Request::Decided);
+    Requests::Out(out)
+}
+
+fn resume_note_brief(core: &mut Core, work: &mut Queue<Event>) {
     if !core.notes.busy() {
         let mut waiting = None;
         for (&task, state) in &core.pending_note_briefs {
@@ -163,8 +169,6 @@ pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Event>, mut child: Que
             work.push(Event::StartBrief { task });
         }
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
 }
 
 fn defer_brief(core: &mut Core, work: &mut Queue<Event>, task: u64) {

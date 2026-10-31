@@ -47,7 +47,6 @@ pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
     use jig_domain_people::Proposer;
     use jig_domain_tasks::{Funder, Key as TaskKey};
     match scope {
-        Scope::EndedTasks | Scope::TaskRows { .. } => false,
         Scope::SettingsHistory { first, last, newest, .. } => match key {
             Key::Core(crate::CoreKey::Settings(crate::settings::Key::Held(n))) => n >= first && n <= last,
             Key::Core(crate::CoreKey::Settings(crate::settings::Key::History(n))) => {
@@ -96,7 +95,9 @@ pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
             Key::Tasks(TaskKey::Update { party: owner, .. }) => *owner == party,
             Key::Tasks(_) | Key::Core(_) | Key::People(_) | Key::Notes(_) | Key::Accounts(_) => false,
         },
-        Scope::Tasks { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::Tasks { .. }
         | Scope::Proposal { proposer: Proposer::Task(_), .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }
@@ -236,9 +237,10 @@ fn subject(read: &Read, party: u64) -> Option<Subject> {
 
 fn backwards(scope: &Scope) -> bool {
     match scope {
-        Scope::EndedTasks | Scope::TaskRows { .. } => false,
         Scope::Activity { .. } | Scope::Escalation { .. } | Scope::Proposal { .. } => true,
-        Scope::SettingsHistory { .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::SettingsHistory { .. }
         | Scope::Task { .. }
         | Scope::Question { .. }
         | Scope::PersonTask { .. }

@@ -75,13 +75,6 @@ fn an_application_ask_on_a_closed_project_is_refused_as_on_one_never_made() {
     else {
         panic!("refusal has no flight or save: {closed:?}");
     };
-    assert!(matches!(
-        reply.as_ref(),
-        Held::PeopleReply {
-            reply: people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Role { held: None })),
-            ..
-        }
-    ));
     let Held::PeopleReply { reply: closed_reply, .. } = reply.as_ref() else {
         panic!("closed reply");
     };
@@ -89,6 +82,7 @@ fn an_application_ask_on_a_closed_project_is_refused_as_on_one_never_made() {
         panic!("unknown reply");
     };
     assert_eq!(closed_reply, unknown_reply);
+    assert_eq!(*closed_reply, people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Role { held: None })));
     for project in [1, 99] {
         let out = watch_outputs(
             &mut core,
@@ -108,7 +102,10 @@ fn an_application_ask_on_a_closed_project_is_refused_as_on_one_never_made() {
         else {
             panic!("read refuses without a handoff or save: {out:?}");
         };
-        assert!(matches!(value.as_ref(), Held::Read { answer: reads::Answer::None(reads::Why::Unknown), .. }));
+        let Held::Read { answer, .. } = value.as_ref() else {
+            panic!("read refusal");
+        };
+        assert_eq!(*answer, reads::Answer::None(reads::Why::Unknown));
     }
 }
 
@@ -145,13 +142,21 @@ fn a_watch_on_a_closed_project_is_refused_and_a_live_one_ends() {
     close(&mut core);
     let Requests::Out(mut out) =
         routing::view_routes::close_views(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, 1);
-    assert!(matches!(out.pop(), Some(Request::Held(value)) if matches!(
-        value.as_ref(), Held::WatchEnded { watcher: ended, why: views::End::Gone } if *ended == watcher
-    )));
+    let Some(Request::Held(value)) = out.pop() else {
+        panic!("held watch ending");
+    };
+    let Held::WatchEnded { watcher: ended, why } = value.as_ref() else {
+        panic!("watch ending");
+    };
+    assert_eq!((*ended, *why), (watcher, views::End::Gone));
     let out = watch_outputs(&mut core, &limits, Event::Delivered { watcher: application_watcher });
-    assert!(matches!(&out[0], Request::Held(value) if matches!(value.as_ref(),
-        Held::ApplicationWatchEnded { watcher, why: views::End::Gone, .. } if *watcher == application_watcher
-    )));
+    let Request::Held(value) = &out[0] else {
+        panic!("held application watch ending");
+    };
+    let Held::ApplicationWatchEnded { watcher: ended, why, .. } = value.as_ref() else {
+        panic!("application watch ending");
+    };
+    assert_eq!((*ended, *why), (application_watcher, views::End::Gone));
     assert!(core.view_subjects.is_empty());
     for project in [1, 99] {
         let out = watch_outputs(

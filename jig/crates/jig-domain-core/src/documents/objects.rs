@@ -500,6 +500,11 @@ fn reviewed_party_action(
     }
     Ok((action, kind))
 }
+fn party_proposal_visible(core: &Core, party: u64, proposer: u64, project: u32) -> bool {
+    (project == jig_domain_people::DEPLOYMENT || core.open_project(project))
+        && (party == proposer || core.people.role(party, project).is_some())
+}
+
 pub(super) fn proposal(
     core: &Core,
     limits: &Limits,
@@ -532,9 +537,7 @@ pub(super) fn proposal(
         }
         Proposer::Party(person) => {
             let value = core.tasks.person_proposal(person, number).ok_or(Missing::Ended)?;
-            if (value.project != jig_domain_people::DEPLOYMENT && !core.open_project(value.project))
-                || (party != person && core.people.role(party, value.project).is_none())
-            {
+            if !party_proposal_visible(core, party, person, value.project) {
                 return Err(Missing::NotAllowed);
             }
             let since = match value.state {

@@ -146,7 +146,6 @@ fn person_result(key: &Key, limits: &Limits, result: &crate::PersonResult) -> Re
 
 pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), RestoreCause> {
     match value {
-        Ask::RemoveProject { .. } => Ok(()),
         Ask::Compound { operations, .. } => {
             measured(RestoreBound::Operations, u64::from(operations.len()), limits.operations)?;
             for operation in operations {
@@ -211,7 +210,8 @@ pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), Restore
             crate::ProposalDecision::Accept | crate::ProposalDecision::Pass => Ok(()),
         },
         Ask::AccountChange { change, .. } => account_change(key, limits, change),
-        Ask::MarkSeen { .. }
+        Ask::RemoveProject { .. }
+        | Ask::MarkSeen { .. }
         | Ask::Application { .. }
         | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
