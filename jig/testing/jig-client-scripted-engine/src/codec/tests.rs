@@ -102,3 +102,48 @@ fn committed_turns_use_the_transcript_and_client_codecs() {
     }));
     assert_eq!(read(&value, &Bounds::default()), Ok(value));
 }
+
+#[test]
+fn committed_call_outcomes_survive_with_or_without_an_explicit_result_block() {
+    let text = |bytes: &[u8]| c::Text::new(bytes.into(), 32).expect("fixture text fits");
+    for explicit in [false, true] {
+        let mut blocks = vec![c::Block::Call(c::Call {
+            number: 1,
+            tool: text(b"tool"),
+            input: text(b"input"),
+            outcome: Some(text(b"refused")),
+            failed: true,
+            objects: List::with_capacity(0),
+            parts: List::with_capacity(0),
+        })];
+        if explicit {
+            blocks.push(c::Block::Result { call: 1, summary: text(b"refused"), failed: true });
+        }
+        let archive = c::ArchivedTurn {
+            task: 7,
+            name: c::TurnName { attempt: 1, number: 1 },
+            cumulative: 5,
+            read: None,
+            at: skein_lib::Wall::EPOCH,
+            turn: c::TurnRead::Decoded(c::Turn {
+                messages: List::from_boxed(Box::new([c::Message {
+                    speaker: c::Speaker::Assistant,
+                    blocks: List::from_boxed(blocks.into_boxed_slice()),
+                }])),
+                used: c::Usage { input: 1, output: 1, cached: 0, cache_written: 0 },
+                spent: 5,
+                read_through: None,
+                cut: false,
+            }),
+        };
+        let decoded = read(&c::ReadValue::Turn(Box::new(archive)), &Bounds::default()).expect("archive admitted");
+        let c::ReadValue::Turn(archive) = decoded else { panic!("archive") };
+        let c::TurnRead::Decoded(turn) = &archive.turn else { panic!("decoded turn") };
+        let blocks = &turn.messages.get(0).expect("message").blocks;
+        assert_eq!(blocks.len(), 2);
+        let c::Block::Call(call) = blocks.get(0).expect("call") else { panic!("call block") };
+        assert_eq!(call.outcome, Some(text(b"refused")));
+        assert!(call.failed);
+        assert!(matches!(blocks.get(1), Some(c::Block::Result { call: 1, failed: true, .. })));
+    }
+}

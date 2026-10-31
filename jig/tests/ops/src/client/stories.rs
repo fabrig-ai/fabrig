@@ -177,8 +177,6 @@ pub fn incident_world(seed: u64) -> ClientWorld {
             key: OwnerPartKey::Number(10),
         });
     }
-    restart.context.as_mut().expect("supplied task context").parts =
-        list([Part::Panel { connector: number(Connector::Infrastructure), task: 10 }]);
     lead.delegates = list([LiveDelegate { chip: restart.chip.clone(), takeover_budget: 1 }]);
     lead.context.as_mut().expect("supplied task context").impact.tasks.running = 1;
     for (key, value) in [

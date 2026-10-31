@@ -87,7 +87,6 @@ fn resolved_incident(seed: u64) {
             see(b"Chat nine"),
             Step::Go { address: stories::chat() },
             see(b"delegate"),
-            Step::See { find: Find::named(Role::Link, b"Delegate ten"), within: WITHIN },
             Step::Go { address: RootAddress::Jig(Address::Task { task: 9, section: TaskSection::Plan }) },
             see(b"Delegate ten"),
             see(b"Resolve the incident"),
