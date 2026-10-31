@@ -66,7 +66,6 @@ fn joint_line_ceiling_is_inclusive_and_one_more_byte_refuses_in_both_paths() {
 }
 
 #[test]
-#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn joint_line_bound_never_relaxes_string_content_or_list_caps() {
     let mut limits = Limits { string: 32, content: 8, ..SMALL };
     limits.items = 1;

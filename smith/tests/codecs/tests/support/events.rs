@@ -293,11 +293,7 @@ fn value_answer_failure(fill: &Fill) -> AnswerFailure {
         reset_ms: if fill.maximum() { Some(u64::MAX) } else { None },
         used: if fill.maximum() { Some(u64::MAX) } else { None },
         bound: if fill.maximum() { Some(u64::MAX) } else { None },
-        dropped: if fill.maximum() {
-            Some(false)
-        } else {
-            if fill.answer_class == AnswerClass::Cancelled { Some(false) } else { None }
-        },
+        dropped: if fill.maximum() || fill.answer_class == AnswerClass::Cancelled { Some(false) } else { None },
         ended: if fill.maximum() { Some(AgentExit::Code(i64::MIN)) } else { None },
         turn: if fill.maximum() { Some(u64::MAX) } else { None },
         endpoint: if fill.maximum() { Some(fill.text()) } else { None },
