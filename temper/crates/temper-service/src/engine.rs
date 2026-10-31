@@ -376,20 +376,32 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     clients_pass(engine);
 }
 fn input_pass(engine: &mut Engine, now: Time) {
+    use jig_domain_core::start::Phase;
+    let credentials_ready = match engine.domain.start_phase() {
+        Some(Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open) => true,
+        Some(
+            Phase::LoadCore
+            | Phase::LoadInbox
+            | Phase::RestoreConnector { .. }
+            | Phase::Link
+            | Phase::Sweep
+            | Phase::Switch
+            | Phase::Wires,
+        )
+        | None => false,
+    };
     if engine.begin {
-        if engine.credentials.is_empty() {
-            engine.begin = false;
-            engine.step(root::Event::Restart { pending: engine.store.pending_generation });
-        } else {
-            let last = engine.credentials.len().checked_sub(1).expect("first credential");
-            let number = *engine.credentials.get(last).expect("configured identity");
-            engine.credentials.truncate(last);
-            engine.step(root::Event::Credential {
-                number,
-                generation: 1,
-                valid: skein_lib::Duration::from_nanos(u64::MAX),
-            });
-        }
+        engine.begin = false;
+        engine.step(root::Event::Restart { pending: engine.store.pending_generation });
+    } else if credentials_ready && !engine.credentials.is_empty() {
+        let last = engine.credentials.len().checked_sub(1).expect("first credential");
+        let number = *engine.credentials.get(last).expect("configured identity");
+        engine.credentials.truncate(last);
+        engine.step(root::Event::Credential {
+            number,
+            generation: 1,
+            valid: skein_lib::Duration::from_nanos(u64::MAX),
+        });
     } else if !engine.blocked && engine.passing.is_some() {
         let event = engine.passing.take().expect("held passing completion");
         engine.step(*event);
@@ -533,9 +545,6 @@ pub(crate) fn answer(engine: &mut Engine) {
         }
         let event = engine.store.above.pop().expect("store terminals");
         match event {
-            jig_protocol_store::Event::Page { .. } | jig_protocol_store::Event::PageRefused { .. } => {
-                unreachable!("a start's pages need a start-mode store")
-            }
             jig_protocol_store::Event::Opened { installation, pending, .. } => {
                 engine.store.opened = true;
                 engine.store.pending_generation = pending;
@@ -578,6 +587,8 @@ pub(crate) fn answer(engine: &mut Engine) {
             event @ (jig_protocol_store::Event::Committed { .. }
             | jig_protocol_store::Event::Failed { .. }
             | jig_protocol_store::Event::FrameTooLarge { .. }
+            | jig_protocol_store::Event::Page { .. }
+            | jig_protocol_store::Event::PageRefused { .. }
             | jig_protocol_store::Event::Restored { .. }
             | jig_protocol_store::Event::Loaded { .. }
             | jig_protocol_store::Event::Read { .. }

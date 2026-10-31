@@ -264,6 +264,7 @@ pub fn records_store() -> crate::store::Store {
         &models,
         maps,
     );
+    store.component.start_restore();
     assert!(store.component.wires(&crate::store::WIRES));
     store.ask(jig_protocol_store::Request::Open {
         owner: OWNER,
@@ -290,6 +291,7 @@ pub(super) fn memory_store_for(
             secrets: skein_kv::Store::memory(&limits.secrets),
         },
     );
+    store.component.start_restore();
     assert!(store.component.wires(&crate::store::WIRES));
     store.ask(jig_protocol_store::Request::Open {
         owner: OWNER,
@@ -1079,6 +1081,7 @@ pub fn reopened_store(mut store: crate::store::Store, root: &temper_engine_domai
         &models,
         maps,
     );
+    store.component.start_restore();
     assert!(store.component.wires(&crate::store::WIRES));
     store.ask(jig_protocol_store::Request::Open {
         owner: OWNER,
