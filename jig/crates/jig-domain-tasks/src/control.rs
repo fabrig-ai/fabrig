@@ -767,7 +767,17 @@ pub(crate) fn apply(
         Ok(to) => to,
         Err((to, why)) => return refused(to, Some(number), why, out),
     };
-    if !allowed(domain, number, by, env.limits.tasks) {
+    let permitted = match by {
+        Party::Deployment { project } => match &control {
+            Control::Cancel { .. } => match record(domain, number) {
+                Some(task) => task.project == project,
+                None => false,
+            },
+            Control::Release { .. } => false,
+        },
+        Party::Task(_) | Party::Person(_) => allowed(domain, number, by, env.limits.tasks),
+    };
+    if !permitted {
         return refused(to, Some(number), Refusal::Reference, out);
     }
     match control {
