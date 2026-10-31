@@ -567,6 +567,9 @@ pub fn root_with_records(
     }
     let mut decision = engine::Decision::decide(&mut root.journal, &limits.journal);
     for record in records {
+        if let engine::Record::Forge { .. } = record {
+            root.forge.restore_begin(env.wall);
+        }
         engine::restart::restore_page_row(&mut root, &env, record.clone());
         engine::route::route_into(&mut root, &env, &mut decision);
     }
