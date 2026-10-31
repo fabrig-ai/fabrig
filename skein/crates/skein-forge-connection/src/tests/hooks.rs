@@ -50,6 +50,12 @@ impl Listening {
         assert!(io.is_empty());
         Self { component, env, up, io, owner }
     }
+    fn listening(&mut self) {
+        match self.up.pop() {
+            Some(Event::Listening { addr }) => assert_eq!(addr, BOUND),
+            other => panic!("bound address: {other:?}"),
+        }
+    }
     fn bound(&mut self) {
         self.component.up(
             &self.env,
@@ -114,6 +120,54 @@ fn a_webhooks_listener_bound_while_closing_is_closed_without_an_announcement() {
         other => panic!("close listener: {other:?}"),
     }
     assert!(h.io.is_empty());
+}
+
+#[test]
+fn an_abort_aborts_the_webhooks_listener_and_closed_follows_its_settling() {
+    let mut h = Listening::new();
+    h.bound();
+    h.listening();
+    h.component.down(&h.env, Request::Abort, &mut h.up, &mut h.io);
+    match h.io.pop() {
+        Some(skein_io::Request::Abort { entity }) => assert_eq!(entity, LISTENER),
+        other => panic!("abort listener: {other:?}"),
+    }
+    assert!(h.io.is_empty());
+    assert!(h.up.is_empty());
+    assert_eq!(h.component.next_deadline(), None);
+    h.component.up(&h.env, skein_io::Event::Closed { owner: h.owner }, &mut h.up, &mut h.io);
+    match h.up.pop() {
+        Some(Event::Closed) => {}
+        other => panic!("closed: {other:?}"),
+    }
+    assert!(h.up.is_empty());
+    assert!(h.io.is_empty());
+}
+
+#[test]
+fn an_abort_after_a_close_aborts_the_listener_closing_gracefully() {
+    let mut h = Listening::new();
+    h.bound();
+    h.listening();
+    h.component.down(&h.env, Request::Close, &mut h.up, &mut h.io);
+    match h.io.pop() {
+        Some(skein_io::Request::Close { entity }) => assert_eq!(entity, LISTENER),
+        other => panic!("close listener: {other:?}"),
+    }
+    h.component.down(&h.env, Request::Abort, &mut h.up, &mut h.io);
+    match h.io.pop() {
+        Some(skein_io::Request::Abort { entity }) => assert_eq!(entity, LISTENER),
+        other => panic!("abort listener: {other:?}"),
+    }
+    h.component.down(&h.env, Request::Abort, &mut h.up, &mut h.io);
+    h.component.down(&h.env, Request::Close, &mut h.up, &mut h.io);
+    assert!(h.io.is_empty(), "a second abort or close changes nothing");
+    h.component.up(&h.env, skein_io::Event::Closed { owner: h.owner }, &mut h.up, &mut h.io);
+    match h.up.pop() {
+        Some(Event::Closed) => {}
+        other => panic!("closed: {other:?}"),
+    }
+    assert!(h.up.is_empty());
 }
 
 #[test]

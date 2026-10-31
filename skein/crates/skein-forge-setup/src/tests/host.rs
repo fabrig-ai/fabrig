@@ -378,6 +378,51 @@ fn a_connect_without_a_socket_retries_from_its_closed_time() {
     assert_eq!(w.up.len(), 0);
 }
 #[test]
+fn abort_mid_flight_ends_the_run_unheard_aborts_its_socket_and_leaves_the_host_empty() {
+    let mut w = World::new();
+    w.send();
+    let owner = w.connect();
+    let socket = Token::new(100);
+    w.event(skein_io::Event::Connecting { owner, socket });
+    w.event(skein_io::Event::Connected { owner });
+    assert!(!w.io.is_empty(), "the run's request is in flight");
+    w.io = Queue::uncapped();
+    w.down(Request::Abort);
+    assert_eq!(w.io.pop(), Some(skein_io::Request::Abort { entity: socket }));
+    assert!(w.io.is_empty());
+    assert!(w.up.is_empty(), "the run ends unheard");
+    assert_eq!(w.host.next_deadline(), None, "no deadline while io settles");
+    w.event(skein_io::Event::Closed { owner });
+    assert_eq!(w.up.pop(), Some(Event::Closed));
+    assert!(w.up.is_empty());
+    w.down(Request::Abort);
+    w.down(Request::Close);
+    w.run(2, 1);
+    w.fire(120_000);
+    assert!(w.up.is_empty());
+    assert!(w.io.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+}
+#[test]
+fn an_abort_after_a_close_and_a_close_after_an_abort_change_nothing() {
+    for (first, second) in [(Request::Close, Request::Abort), (Request::Abort, Request::Close)] {
+        let mut w = World::new();
+        w.send();
+        let owner = w.connect();
+        let socket = Token::new(100);
+        w.event(skein_io::Event::Connecting { owner, socket });
+        w.io = Queue::uncapped();
+        w.down(first.clone());
+        assert_eq!(w.io.pop(), Some(skein_io::Request::Abort { entity: socket }), "{first:?}");
+        w.down(second.clone());
+        assert!(w.io.is_empty(), "{first:?} then {second:?}");
+        assert!(w.up.is_empty());
+        w.event(skein_io::Event::Closed { owner });
+        assert_eq!(w.up.pop(), Some(Event::Closed));
+        assert!(w.up.is_empty());
+    }
+}
+#[test]
 fn a_wrong_answer_kind_stops_the_waiting_plan_unexpected() {
     let mut w = World::new();
     w.read_admin();

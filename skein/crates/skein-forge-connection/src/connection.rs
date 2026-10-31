@@ -122,6 +122,8 @@ pub(crate) struct Connection {
     pub(crate) deadline: Option<Time>,
     pub(crate) socket: Option<Token>,
     pub(crate) closing: bool,
+    /// The socket's close at io is an abort.
+    aborted: bool,
     pub(crate) written: bool,
     http: http::Client,
     tls: Option<skein_tls::client::Client>,
@@ -179,6 +181,7 @@ impl Connection {
             deadline: Some(deadline),
             socket: None,
             closing: false,
+            aborted: false,
             written: false,
             http: http::Client::new(&limits::http(l, tls.is_some(), &shared.io)),
             tls,
@@ -927,11 +930,23 @@ impl Connection {
         self.request = None;
         if let Some(socket) = self.socket {
             self.closing = true;
+            self.aborted = abort;
             io.push(if abort {
                 skein_io::Request::Abort { entity: socket }
             } else {
                 skein_io::Request::Close { entity: socket }
             });
+        }
+    }
+    /// Closes at once with an abort, or turns a graceful close already sent into one.
+    pub fn abort(&mut self, io: &mut Queue<skein_io::Request>) {
+        if !self.closing {
+            self.close(true, io);
+        } else if !self.aborted
+            && let Some(socket) = self.socket
+        {
+            self.aborted = true;
+            io.push(skein_io::Request::Abort { entity: socket });
         }
     }
     fn answer_pending(&self) -> bool {

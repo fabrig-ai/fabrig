@@ -590,26 +590,74 @@ struct ListenerCloseRow {
     expected: [usize; 6],
 }
 
-#[test]
-fn owner_close_wins_or_follows_each_terminal() {
-    use ListenerClosePhase::{Answering, Body, Closing, Head, Hint};
-    for secure in [false, true] {
-        for row in close_rows() {
-            assert_eq!(drive_close(&row, secure), row.expected, "{row:?}, TLS={secure}");
+/// How the owner ends the component: an abort ends it as a close does, but every
+/// socket still settling is aborted at io (forge-connection.md, 8.5).
+#[derive(Clone, Copy, Debug)]
+enum End {
+    Close,
+    Abort,
+    CloseThenAbort,
+    AbortThenClose,
+}
+const ENDS: [End; 4] = [End::Close, End::Abort, End::CloseThenAbort, End::AbortThenClose];
+impl End {
+    fn requests(self) -> Vec<skein_forge_connection::Request> {
+        use skein_forge_connection::Request;
+        match self {
+            End::Close => vec![Request::Close],
+            End::Abort => vec![Request::Abort],
+            End::CloseThenAbort => vec![Request::Close, Request::Abort],
+            End::AbortThenClose => vec![Request::Abort, Request::Close],
         }
     }
-    let handshaking =
-        CloseRow { phase: ClosePhase::Handshaking, delivery: Delivery::Before, expected: [0, 0, 0, 1, 0, 0] };
-    assert_eq!(drive_close(&handshaking, true), handshaking.expected, "{handshaking:?}");
-    for row in [
-        ListenerCloseRow { phase: Head, expected: [0, 0, 0, 1, 0, 0] },
-        ListenerCloseRow { phase: Body, expected: [0, 0, 0, 1, 0, 0] },
-        ListenerCloseRow { phase: Answering, expected: [1, 0, 0, 1, 0, 0] },
-        ListenerCloseRow { phase: Closing, expected: [0, 0, 0, 1, 0, 0] },
-        ListenerCloseRow { phase: Hint, expected: [1, 0, 0, 1, 0, 0] },
-    ] {
-        assert_eq!(drive_listener_close(row.phase), row.expected, "{row:?}");
+    fn aborts(self) -> bool {
+        match self {
+            End::Close => false,
+            End::Abort | End::CloseThenAbort | End::AbortThenClose => true,
+        }
     }
+}
+
+#[test]
+fn owner_close_or_abort_wins_or_follows_each_terminal() {
+    use ListenerClosePhase::{Answering, Body, Closing, Head, Hint};
+    for end in ENDS {
+        for secure in [false, true] {
+            for row in close_rows() {
+                assert_eq!(drive_close(&row, secure, end), row.expected, "{row:?}, TLS={secure}, {end:?}");
+            }
+        }
+        let handshaking =
+            CloseRow { phase: ClosePhase::Handshaking, delivery: Delivery::Before, expected: [0, 0, 0, 1, 0, 0] };
+        assert_eq!(drive_close(&handshaking, true, end), handshaking.expected, "{handshaking:?}, {end:?}");
+        for row in [
+            ListenerCloseRow { phase: Head, expected: [0, 0, 0, 1, 0, 0] },
+            ListenerCloseRow { phase: Body, expected: [0, 0, 0, 1, 0, 0] },
+            ListenerCloseRow { phase: Answering, expected: [1, 0, 0, 1, 0, 0] },
+            ListenerCloseRow { phase: Closing, expected: [0, 0, 0, 1, 0, 0] },
+            ListenerCloseRow { phase: Hint, expected: [1, 0, 0, 1, 0, 0] },
+        ] {
+            assert_eq!(drive_listener_close(row.phase, end), row.expected, "{row:?}, {end:?}");
+        }
+    }
+}
+
+#[test]
+fn an_abort_mid_call_ends_it_unanswered_and_the_component_ends_empty() {
+    let mut world = Machine::ready(7, vec![Answer { request: fixtures::LOCATE, response: Response::Silent }]);
+    world.call(1, fixtures::REPO, fixtures::locate());
+    world.run_for(Duration::from_millis(100));
+    assert_eq!(world.answered(1), None, "the call is in flight");
+    let (opened, closes, aborts) = (world.connections_opened(), world.closes(), world.aborts());
+    assert!(world.abort());
+    assert_eq!(world.answered(1), None, "the call ends with its connection, unanswered");
+    assert_eq!(world.closed_events(), 1);
+    assert!(world.addresses().is_empty(), "every socket settled");
+    assert!(world.closes() > closes);
+    assert_eq!(world.closes() - closes, world.aborts() - aborts, "every socket aborted");
+    world.run_for(SECOND);
+    assert_eq!(world.connections_opened(), opened, "nothing opens after the end");
+    assert_eq!(world.event_order().last(), Some(&"closed"));
 }
 
 // Refusal-prefix room keeps the waiting fixture from the queue's default Made fallback.
@@ -687,7 +735,7 @@ fn close_machine(row: &CloseRow, secure: bool) -> Machine {
     world
 }
 
-fn drive_close(row: &CloseRow, secure: bool) -> [usize; 6] {
+fn drive_close(row: &CloseRow, secure: bool, end: End) -> [usize; 6] {
     use skein_forge_connection::Request;
     let mut world = close_machine(row, secure);
     let baseline = if matches!(row.phase, ClosePhase::Stopped) { world.event_order().len() } else { 0 };
@@ -701,7 +749,12 @@ fn drive_close(row: &CloseRow, secure: bool) -> [usize; 6] {
     }
     let terminals = world.event_order().len() - baseline;
     world.hold_settlement();
-    world.action(Request::Close);
+    for request in end.requests() {
+        world.action(request);
+    }
+    if end.aborts() {
+        assert_eq!(world.graceful_settling(), 0, "an abort aborts each socket still settling");
+    }
     let before = world.closed_events();
     world.action(Request::Offer);
     let reoffers = world.event_order().iter().filter(|name| **name != "closed").count() - baseline - terminals;
@@ -719,7 +772,7 @@ fn drive_close(row: &CloseRow, secure: bool) -> [usize; 6] {
     ]
 }
 
-fn drive_listener_close(phase: ListenerClosePhase) -> [usize; 6] {
+fn drive_listener_close(phase: ListenerClosePhase, end: End) -> [usize; 6] {
     use ListenerClosePhase::{Answering, Body, Closing, Head, Hint};
     use skein_forge_connection::Request;
     use skein_forge_machine_world::hooks::{self, Listener};
@@ -744,7 +797,12 @@ fn drive_listener_close(phase: ListenerClosePhase) -> [usize; 6] {
         Hint => world.send(socket, &post),
     }
     let terminals = world.counts()[1];
-    world.request(Request::Close);
+    for request in end.requests() {
+        world.request(request);
+    }
+    if end.aborts() {
+        assert_eq!(world.graceful_settling(), 0, "an abort aborts the listener and each connection");
+    }
     let before = world.counts()[4];
     world.request(Request::Offer);
     world.release_settlement();

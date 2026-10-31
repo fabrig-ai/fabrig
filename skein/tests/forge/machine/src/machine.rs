@@ -117,6 +117,8 @@ pub struct Machine {
     closed_events: u32,
     hold_settlement: bool,
     settling: Vec<Token>,
+    /// Settling sockets whose close io was asked to abort.
+    aborted: Vec<Token>,
     event_order: Vec<&'static str>,
     tls_addresses: Vec<skein_io::Addr>,
     fake: Option<github::Fake>,
@@ -222,6 +224,7 @@ impl Machine {
             closed_events: 0,
             hold_settlement: false,
             settling: Vec::new(),
+            aborted: Vec::new(),
             event_order: Vec::new(),
             tls_addresses,
             fake: github.then(|| github::Fake::new(seed)),
@@ -392,6 +395,7 @@ impl Machine {
     /// Completes every requested socket close, then drains bounded work.
     pub fn release_settlement(&mut self) {
         self.hold_settlement = false;
+        self.aborted.clear();
         for owner in std::mem::take(&mut self.settling) {
             self.peers.remove(&owner).expect("closing socket remains owned");
             self.up(skein_io::Event::Closed { owner });
@@ -412,6 +416,11 @@ impl Machine {
     #[must_use]
     pub fn closes(&self) -> u32 {
         self.closes
+    }
+    /// Held sockets io was asked to close gracefully and never to abort.
+    #[must_use]
+    pub fn graceful_settling(&self) -> usize {
+        self.settling.iter().filter(|owner| !self.aborted.contains(owner)).count()
     }
     /// Releases the rest of a response held at its byte boundary.
     pub fn release_response(&mut self) {
@@ -701,9 +710,9 @@ impl Machine {
             }
             skein_io::Request::Abort { entity } => {
                 self.aborts += 1;
-                self.end(entity);
+                self.end(entity, true);
             }
-            skein_io::Request::Close { entity } => self.end(entity),
+            skein_io::Request::Close { entity } => self.end(entity, false),
             other @ (skein_io::Request::Listen { .. }
             | skein_io::Request::Bind { .. }
             | skein_io::Request::Reject { .. }
@@ -714,10 +723,17 @@ impl Machine {
             | skein_io::Request::Window { .. }) => panic!("unexpected io {other:?}"),
         }
     }
-    fn end(&mut self, owner: Token) {
+    fn end(&mut self, owner: Token, abort: bool) {
+        if self.hold_settlement && self.settling.contains(&owner) {
+            assert!(abort && !self.aborted.contains(&owner), "a close, then at most an abort, per socket");
+            self.aborted.push(owner);
+            return;
+        }
         if self.hold_settlement && self.peers.contains_key(&owner) {
-            assert!(!self.settling.contains(&owner), "one close request per socket");
             self.settling.push(owner);
+            if abort {
+                self.aborted.push(owner);
+            }
             self.closes += 1;
             return;
         }
@@ -845,7 +861,14 @@ impl Machine {
     }
     /// Closes the component, allowing at most 1,000 ticks for its terminal.
     pub fn close(&mut self) -> bool {
-        self.component.down(&self.env, Request::Close, &mut self.above, &mut self.below);
+        self.end_with(Request::Close)
+    }
+    /// Aborts the component, allowing at most 1,000 ticks for its terminal.
+    pub fn abort(&mut self) -> bool {
+        self.end_with(Request::Abort)
+    }
+    fn end_with(&mut self, request: Request) -> bool {
+        self.component.down(&self.env, request, &mut self.above, &mut self.below);
         for _ in 0..1000 {
             self.tick();
             if self.closed {
