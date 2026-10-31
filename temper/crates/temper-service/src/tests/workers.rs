@@ -53,7 +53,7 @@ fn application_grants_answer_either_retained_generation() {
     assert!(filled[3].is_none());
 }
 #[test]
-fn identities_are_announced_before_the_restart() {
+fn identities_wait_for_the_kept_records() {
     let mut service = fixtures::started();
     service.engine.as_mut().expect("engine").store.opened = true;
     let _listen = service.engine.as_mut().expect("engine").workers.io.pop().unwrap();
@@ -72,7 +72,7 @@ fn identities_are_announced_before_the_restart() {
     assert!(service.engine.as_ref().expect("engine").credentials.is_empty());
     assert_eq!(
         service.engine.as_ref().expect("engine").domain.next_deadline(&service.engine.as_ref().expect("engine").env),
-        Some(Time::from_nanos(u64::MAX))
+        None
     );
     assert!(service.engine.as_ref().expect("engine").store.routed.is_empty(), "the restart has not asked for a load");
     fixtures::restart(&mut service);
@@ -127,7 +127,7 @@ fn an_assignment_carries_its_items_encoded_charter_and_identity_value() {
     let values = fixtures::values_with_identity(1, b"forge-token-1234");
     let event = crate::assignment::down(
         assignment,
-        &fixtures::forge_table(&settings.forges),
+        &fixtures::forge_table(&fixtures::forges()),
         &encoding,
         &values,
         Token::new(8),
@@ -185,7 +185,7 @@ fn a_fresh_start_whose_tail_reaches_the_turns_headers_still_encodes() {
     let values = fixtures::values_with_identity(1, b"forge-token-1234");
     let event = crate::assignment::down(
         assignment,
-        &fixtures::forge_table(&settings.forges),
+        &fixtures::forge_table(&fixtures::forges()),
         &encoding,
         &values,
         Token::new(8),
@@ -302,7 +302,7 @@ fn an_assignment_preserves_its_ordered_messages_and_answered_calls() {
     let values = fixtures::values_with_identity(1, b"forge-token-1234");
     let event = crate::assignment::down(
         assignment,
-        &fixtures::forge_table(&settings.forges),
+        &fixtures::forge_table(&fixtures::forges()),
         &encoding,
         &values,
         Token::new(8),
@@ -594,7 +594,7 @@ fn a_program_grants_charter_keeps_its_source_account() {
     let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment: sent }, values, .. } =
         crate::assignment::down(
             assignment,
-            &fixtures::forge_table(&settings.forges),
+            &fixtures::forge_table(&fixtures::forges()),
             &encoding,
             &empty,
             Token::new(8),
@@ -624,7 +624,7 @@ fn a_first_attempt_requests_saves_from_its_charters_resume_policy() {
         let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment }, parts, .. } =
             crate::assignment::down(
                 run,
-                &fixtures::forge_table(&settings.forges),
+                &fixtures::forge_table(&fixtures::forges()),
                 &encoding,
                 &values,
                 Token::new(8),

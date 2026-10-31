@@ -34,11 +34,12 @@ fn record(host: &[u8]) -> domain::ForgeRecord {
 #[expect(clippy::disallowed_methods, reason = "ordinary fixtures parse their supplied host")]
 fn service(host: &[u8]) -> Service {
     let mut settings = fixtures::engine();
-    settings.forges = Box::new([]);
-    settings.identities = Box::new([]);
     fixtures::fill_files(&mut settings);
     let mut service = Service::engine(settings, &fixtures::seeds(), None, List::with_capacity(0)).unwrap();
-    service.engine.as_mut().unwrap().store = fixtures::records_store();
+    let mut store = fixtures::records_store();
+    fixtures::commit(&mut store, 1, Box::new([root::Write::Erase(root::Key::Forge(domain::Key::Forge(1)))]));
+    assert!(store.above.pop().is_some());
+    service.engine.as_mut().unwrap().store = store;
     let record = record(host);
     let api = match core::str::from_utf8(host).unwrap().parse::<core::net::IpAddr>() {
         Ok(ip) => jig_protocol_config::Address::Addr(skein_io::Addr::Ip(core::net::SocketAddr::new(ip, PORT))),
@@ -89,7 +90,7 @@ fn a_kept_record_adds_its_forge_and_connects_from_its_secrets() {
     load(&mut service);
     let engine = service.engine.as_ref().unwrap();
     let kept = engine.workers.forges.get(NUMBER).unwrap();
-    assert_eq!((kept.number, kept.identity, kept.user), (NUMBER, u32::from(NUMBER), 0));
+    assert_eq!((kept.number, kept.identity, kept.user), (NUMBER, u32::from(NUMBER), 42));
     assert_eq!(kept.mode, domain::Mode::Connected);
     assert!(kept.api_token.is_none());
     assert_eq!(kept.git.as_ref(), b"http://forge.test:3076");

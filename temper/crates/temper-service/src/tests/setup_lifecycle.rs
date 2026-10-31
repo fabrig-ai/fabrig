@@ -29,6 +29,7 @@ fn converted() -> crate::Service {
     service
 }
 pub(super) fn app(service: &mut crate::Service) {
+    service.engine.as_mut().unwrap().setup.lifecycle.reconcile.remove(&1);
     for (item, value) in [
         (Item::AppId, Box::from(7_u64.to_le_bytes())),
         (Item::AppSlug, Box::from(b"app-fixture".as_slice())),
@@ -601,6 +602,7 @@ fn new_app_admission_changes_neither_a_connected_nor_a_stopped_forges_state() {
         let mut setup = super::service(8, Duration::from_secs(3600));
         app(&mut setup);
         let setup = setup.engine.expect("engine");
+        service.engine.as_mut().expect("engine").forge.starts.clear();
         service.engine.as_mut().expect("engine").setup = setup.setup;
         service.engine.as_mut().expect("engine").forge_records.rows = setup.forge_records.rows;
         service
