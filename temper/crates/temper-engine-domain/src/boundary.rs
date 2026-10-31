@@ -688,10 +688,8 @@ pub enum PartyRequest {
 #[derive(Debug)]
 #[expect(clippy::large_enum_variant, reason = "events stay inline in the bounded route queue priced at startup")]
 pub(crate) enum Work {
-    SwitchChecked,
-    AdoptRestored,
-    AdoptDone,
-    Restart(jig_domain_core::RestartRequest),
+    StartDone(jig_domain_core::start::Phase),
+    Start(jig_domain_core::start::Action),
     Decoded { to: ReplyTo, body: Call },
     Core(jig_domain_core::Event),
     Tasks(tasks::Event),
@@ -822,7 +820,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Fleet(_)
         | Delivery::Relay { .. }
         | Delivery::NotesLoad { .. }
-        | Delivery::Restart(_)
+        | Delivery::Start(_)
         | Delivery::Load { .. }
         | Delivery::ReadEscalationDecision { .. }) => Request::ToChild(Released(delivery)),
         delivery @ (Delivery::Host(_)

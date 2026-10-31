@@ -244,8 +244,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             relay_call(domain, &env.limits, decision, to, CallAnswer::NoteRefused(jig_domain_notes::Refusal::Busy));
         }
         core::Now::RestoreRefused => {
-            let _refused = domain.core.restart_refuse();
-            domain.stop_pending = true;
+            domain.stop_core();
         }
         core::Now::Account(request) => {
             assert!(super::now(domain, Request::Account(request)), "admitted account output fits the door");
