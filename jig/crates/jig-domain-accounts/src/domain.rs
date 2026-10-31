@@ -481,7 +481,6 @@ impl Domain {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "one exhaustive event table routes every account input")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.consume_restore();
     domain.now = env.now;
@@ -506,10 +505,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Adopted { source, kept } if domain.wanted() => {
             crate::signing::adopted(domain, env, source, kept, out);
         }
-        Event::Withdrawn { .. }
-        | Event::Opened { .. }
-        | Event::NotOurs { .. }
-        | Event::Adopted { .. } => {}
+        Event::Withdrawn { .. } | Event::Opened { .. } | Event::NotOurs { .. } | Event::Adopted { .. } => {}
         Event::Close => close(domain, env, out),
         Event::Component(FromComponent::Closed) => {
             if domain.phase != Phase::Closing {

@@ -1,5 +1,5 @@
 //! Stored rows without owner or transcript joins for whole-task erasure
-//! (jig/docs/design/protocol/store.md, 11.1; jig/docs/design/protocol/store.md, 11.1).
+//! (jig/docs/design/protocol/store.md, 11.1).
 use super::{Failure, Spent, paged};
 use crate::{Store, intervals, pages};
 use ::core::mem::size_of;
