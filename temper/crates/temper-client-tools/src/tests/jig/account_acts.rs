@@ -566,9 +566,9 @@ fn confirmed_key_and_sign_in_results_keep_done_in_text_only() {
                 assert_eq!(printed.status, 0);
                 if json {
                     let expected = if remove {
-                        b"{\"operation\":\"forget\",\"outcome\":{\"done\":{\"owner\":{\"account_removed\":{\"confirmed\":true,\"failed_hosts\":[]}}}},\"task\":null,\"to\":null}".as_slice()
+                        b"{\"operation\":\"forget\",\"outcome\":{\"done\":{\"document\":{\"account_removed\":{\"confirmed\":true,\"failed_hosts\":[]}}}},\"task\":null,\"to\":null}".as_slice()
                     } else {
-                        b"{\"operation\":\"disconnect\",\"outcome\":{\"done\":{\"owner\":{\"account_signed_out\":{\"confirmed\":true,\"failed_hosts\":[]}}}},\"task\":null,\"to\":null}".as_slice()
+                        b"{\"operation\":\"disconnect\",\"outcome\":{\"done\":{\"document\":{\"account_signed_out\":{\"confirmed\":true,\"failed_hosts\":[]}}}},\"task\":null,\"to\":null}".as_slice()
                     };
                     assert_eq!(printed.stdout.as_ref(), expected);
                 } else {

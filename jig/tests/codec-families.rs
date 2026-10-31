@@ -30,7 +30,7 @@ pub const FAMILIES: &[Family] = &[
         schemas: &["schema/records-v1.schema"],
         generated: &["src/generated/records_v1.rs"],
         golden: "golden",
-        fixtures: &[],
+        fixtures: &["rendered"],
     },
     Family {
         name: "ops client",

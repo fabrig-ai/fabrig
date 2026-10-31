@@ -31,17 +31,15 @@ fn every_settings_proposal_record_translates_both_ways() {
         assert_eq!(t::wire_settings_review(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = include_bytes!(
-            "../../../jig-client-protocol-wire/golden/record_proposal_action_settings_smallest.bin"
-        );
+        let bytes =
+            include_bytes!("../../../jig-client-protocol-wire/golden/record_proposal_action_settings_smallest.bin");
         let wire = w::ProposalActionSettings::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_owner_proposal_action_settings(&wire, &limits).expect("client record");
         assert_eq!(t::wire_owner_proposal_action_settings(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = include_bytes!(
-            "../../../jig-client-protocol-wire/golden/record_retained_action_settings_smallest.bin"
-        );
+        let bytes =
+            include_bytes!("../../../jig-client-protocol-wire/golden/record_retained_action_settings_smallest.bin");
         let wire = w::RetainedActionSettings::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
         let client = t::restore_owner_retained_action_settings(&wire, &limits).expect("client record");
         assert_eq!(t::wire_owner_retained_action_settings(&client, limits.wire()), Ok(wire));
