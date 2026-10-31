@@ -257,6 +257,7 @@ fn a_task_query_lists_a_live_task_past_the_bound() {
     let profile = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     let (mut world, records) = small_chain(FIFTH, false, false, false);
     let mut core = core::Core::new(jig_core_world::world::config(SEED).core, &profile.core).expect("core");
+    core.people.start_restore(Wall::EPOCH);
     let mut out = Queue::uncapped();
     people::step(
         &mut core.people,

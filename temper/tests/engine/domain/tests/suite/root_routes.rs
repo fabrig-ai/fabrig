@@ -2797,7 +2797,6 @@ fn a_missing_current_proof_panics_before_any_restored_closing_effect_or_result()
     store.seed(rows.into_values().collect(), Box::new([Key::Core(proof_key.clone())]));
     let before = store.rows.clone();
     let mut restarted = Driver::new(store);
-    restarted.broken("the fixture removes a live task's required run proof");
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         for _ in 0..100 {
             restarted.advance(true);
@@ -2810,6 +2809,10 @@ fn a_missing_current_proof_panics_before_any_restored_closing_effect_or_result()
     assert_eq!(restarted.store.rows, before, "no closing consequence committed");
     assert!(restarted.switches.is_empty());
     assert!(restarted.delivered.is_empty());
+    restarted.store.seed(driver.store.rows.values().cloned().collect(), Box::new([]));
+    restarted.reopen(config(91));
+    restarted.pump();
+    assert!(restarted.root.ready());
 }
 
 #[test]
@@ -2841,7 +2844,6 @@ fn root_restore_loads_linked_task_shapes_and_panics_at_a_missing_charter() {
         store.seed(rows.into_values().collect(), Box::new([]));
         let mut restarted = Driver::new(store);
         if executor.is_some() {
-            restarted.broken("the fixture names a charter absent from the task's settings");
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 restarted.settle();
             }))
@@ -2851,7 +2853,9 @@ fn root_restore_loads_linked_task_shapes_and_panics_at_a_missing_charter() {
             assert!(restarted.switches.is_empty());
             assert!(restarted.delivered.is_empty());
         } else {
-            restarted.pump();
+            let hosting = protocol::hosting(assignment.task, assignment.attempt, host::Phase::Active);
+            restarted.send(protocol::hello(Token::new(7), Box::new([hosting])));
+            restarted.settle();
             assert!(restarted.root.ready());
             let loaded = restarted.root.tasks().task(assignment.task).expect("linked task serves");
             assert_eq!(loaded.requester, expected.requester);
@@ -2859,6 +2863,12 @@ fn root_restore_loads_linked_task_shapes_and_panics_at_a_missing_charter() {
             assert_eq!(loaded.attempt, expected.attempt);
         }
         assert_eq!(restarted.root.start_stop(), None);
+        if executor.is_some() {
+            restarted.store.seed(driver.store.rows.values().cloned().collect(), Box::new([]));
+            restarted.reopen(config(91));
+            restarted.pump();
+            assert!(restarted.root.ready());
+        }
     }
 }
 
@@ -3070,7 +3080,7 @@ fn release_rejudges_a_still_expired_deadline_and_escalates_the_new_hold() {
 }
 
 #[test]
-fn restored_waiting_rechecks_snapshot_membership_and_same_holder_changes_nothing() {
+fn restored_waiting_keeps_its_committed_holder_despite_current_membership() {
     let store = held_waiting_store();
     let rows = store.rows.clone();
     let mut same = held_driver(store);
@@ -3110,8 +3120,13 @@ fn restored_waiting_rechecks_snapshot_membership_and_same_holder_changes_nothing
     let mut changed = held_driver(store);
     changed.settle();
     assert!(!changed.stopped);
-    // Rerouting keeps the hold's revision (jig 00de0b8c).
-    assert!(changed.store.rows.values().any(|row| matches!(row, Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))) if matches!(task.escalation, tasks::Escalation::Waiting { revision: 1, holder: tasks::EscalationHolder::Role { project: 1, role: 0 }, .. }))));
+    // A restart preserves the committed holder, entry and routing time (jig tasks.md, 12).
+    let original = held_waiting_store();
+    for (key, row) in &original.rows {
+        if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(_))) = row {
+            assert_eq!(changed.store.rows.get(key), Some(row));
+        }
+    }
     assert!(!changed.delivered.iter().any(|delivery| matches!(
         delivery,
         Delivery::Assigned { .. } | Delivery::SourceSignedOut { .. } | Delivery::Result { .. }
@@ -4671,7 +4686,6 @@ fn restart_refuses_live_tasks_or_claims_past_lowered_limits_without_dropping_the
     ] {
         let store = driver.store.fork();
         let mut restarted = Driver::configured(store, [sharing_config(91), sharing_config(91)], &bounds);
-        restarted.broken("the fixture lowers limits below its retained live set");
         for _ in 0..100 {
             restarted.advance(true);
         }
@@ -4679,6 +4693,10 @@ fn restart_refuses_live_tasks_or_claims_past_lowered_limits_without_dropping_the
         assert_eq!(restarted.root.start_phase(), Some(step));
         assert_eq!(restarted.store.rows, expected);
         assert!(restarted.delivered.is_empty());
+        restarted.env.limits = driver.env.limits;
+        restarted.reopen(sharing_config(91));
+        restarted.pump();
+        assert!(restarted.root.ready());
     }
 }
 

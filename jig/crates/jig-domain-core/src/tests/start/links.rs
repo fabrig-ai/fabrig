@@ -78,7 +78,7 @@ fn task() -> tasks::TaskRecord {
 }
 
 #[test]
-fn link_reprojects_waiting_after_reselecting_the_holder() {
+fn link_preserves_the_committed_waiting_holder_and_its_projection() {
     let (mut core, env) = loaded();
     restore_person(
         &mut core,
@@ -111,7 +111,7 @@ fn link_reprojects_waiting_after_reselecting_the_holder() {
         entry: 1,
         since: Wall::EPOCH,
     };
-    restore_task(&mut core, &env, tasks::Stored::Live(Box::new(row)));
+    restore_task(&mut core, &env, tasks::Stored::Live(Box::new(row.clone())));
     let mut out = Queue::uncapped();
     step_phase(core.start_done(&env, Phase::LoadCore, &mut out), Phase::LoadInbox);
     let _census = core.census(&env.limits);
@@ -124,7 +124,8 @@ fn link_reprojects_waiting_after_reselecting_the_holder() {
     step_phase(core.start_done(&env, previous, &mut out), Phase::Link);
     linked(core.start_done(&env, Phase::Link, &mut out));
     assert_eq!(core.people.needs(1), Some(0));
-    assert_eq!(core.people.needs(2), Some(1));
+    assert_eq!(core.people.needs(2), Some(0));
+    assert_eq!(core.tasks.task(row.number), Some(&row));
     assert_eq!(core.start_failure(), None);
 }
 
