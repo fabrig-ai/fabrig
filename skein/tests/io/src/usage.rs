@@ -3,7 +3,7 @@
 //! again; the referee checks that reaping alone adds the child's resources.
 
 use skein_io::kernel::{Complete, Done, Fd, Op, Resources, Spawn, Submit, Usage};
-use skein_io::{Event, Io, Measured, Request};
+use skein_io::{Event, Io, Measured, Request, stage};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_sim::{Answer, Ask, Config, Handle, Program, Reply};
 use skein_world::{Host, Memory, Referee, World};
@@ -147,10 +147,10 @@ impl Host for Process {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
-        while self.io.is_ready() {
-            skein_io::resume(&mut self.io, &self.env, &mut self.events, &mut self.submissions);
-        }
-        while let Some(complete) = self.completions.pop() {
+        // Keep host-owned closes out of io and capture the spawned descriptor
+        // for the world's resource input without changing io's completion order.
+        for _ in 0..self.completions.len() {
+            let complete = self.completions.pop().expect("the completion pass has a fixed length");
             if complete.op == ROOT_CLOSE {
                 assert_eq!(complete.result, Ok(Done::Nothing));
                 self.root_closing = false;
@@ -158,15 +158,14 @@ impl Host for Process {
                 if let Ok(Done::Spawned { pidfd, .. }) = complete.result {
                     self.pidfd = Some(pidfd);
                 }
-                skein_io::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.submissions);
+                self.completions.push(complete);
             }
         }
+        stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.events, &mut self.submissions);
         while let Some(event) = self.events.pop() {
             self.observe(event);
         }
-        while let Some(request) = self.requests.pop() {
-            skein_io::down(&mut self.io, &self.env, request, &mut self.submissions);
-        }
+        stage::down(&mut self.io, &self.env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
         if self.phase == Phase::Done
             && self.io.is_empty()
@@ -185,7 +184,7 @@ impl Host for Process {
     fn work_pending(&self, _now: Time) -> bool {
         self.io.is_ready() || !self.completions.is_empty() || !self.requests.is_empty()
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
 
@@ -211,17 +210,10 @@ pub struct Judge {
     pub simulated: bool,
 }
 impl Referee<Process> for Judge {
-    fn act(&mut self, _now: Time, _procs: &mut [Process]) {}
     fn observe(&mut self, _now: Time, procs: &[Process]) {
         if procs[0].is_empty() {
             procs[0].check(self.simulated);
         }
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    fn overdue(&self, _now: Time) -> Option<String> {
-        None
     }
     fn passed(&self) -> bool {
         true
