@@ -1,4 +1,5 @@
 //! Private bounded diagnostic logs (protocol/setup.md, 7.2). One owned kernel
+//! Bound step names follow temper/docs/design/draft/playground-reset.md, 3.
 //! operation at a time; a retained piece gates further diagnostic reads.
 use crate::{layout::Placed, lines::joined};
 use alloc::boxed::Box;
@@ -9,6 +10,8 @@ const OP: Token = Token::new(u64::MAX - 9);
 #[derive(Debug)]
 struct Log {
     name: Box<[u8]>,
+    enabled: bool,
+    retiring: Option<Fd>,
     fd: Option<Fd>,
     size: u32,
     failed: bool,
@@ -27,6 +30,7 @@ impl Piece {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Phase {
     BoxMake,
+    Rebind,
     BoxOpen,
     OldOpen,
     PreviousOpen,
@@ -48,6 +52,11 @@ enum Phase {
     Cleanup,
     Closed,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Announcement {
+    Waiting,
+    Said,
+}
 #[derive(Debug)]
 pub(crate) struct Logs {
     files: List<Log>,
@@ -67,6 +76,7 @@ pub(crate) struct Logs {
     record: Option<Box<[u8]>>,
     written: u32,
     done: bool,
+    announcement: Announcement,
 }
 impl Logs {
     pub fn new(steps: &[Placed], data: &[u8], bound: u32) -> Self {
@@ -80,7 +90,18 @@ impl Logs {
             }
             // Validate the original name too: '.' must not become a legal '.log'.
             let failed = !kernel::is_name(&name);
-            logs.push(Log { name: joined(&[&name, b".log"]), fd: None, size: 0, failed }).expect("one log per step");
+            logs.push(Log {
+                name: joined(&[&name, b".log"]),
+                enabled: match placed.asked {
+                    Some(asked) => asked.kind.is_none(),
+                    None => true,
+                },
+                retiring: None,
+                fd: None,
+                size: 0,
+                failed,
+            })
+            .expect("one log per step");
         }
         Self {
             files: logs,
@@ -100,6 +121,18 @@ impl Logs {
             record: None,
             written: 0,
             done: false,
+            announcement: Announcement::Waiting,
+        }
+    }
+    pub fn rebind(&mut self, step: usize, name: &[u8]) {
+        let log = self.files.get_mut(u32::try_from(step).expect("step index")).expect("log step");
+        log.retiring = log.fd.take();
+        log.name = joined(&[name, b".log"]);
+        log.enabled = true;
+        log.size = 0;
+        log.failed = !kernel::is_name(name);
+        if !self.unavailable {
+            self.phase = Phase::Rebind;
         }
     }
     pub fn owns(token: Token) -> bool {
@@ -226,10 +259,22 @@ impl Logs {
                 no_replace: false,
             },
             Phase::Make => Op::MakeDirectory { dir: self.directory_fd(), name: bytes::copy_of(b"logs"), mode: 0o700 },
+            Phase::Rebind => match self.retiring() {
+                Some(fd) => Op::Close { fd },
+                None => {
+                    self.phase = Phase::Create;
+                    self.at = 0;
+                    return;
+                }
+            },
             Phase::Create => {
                 if self.at == self.files.len() {
                     self.phase = Phase::Idle;
-                    self.notice = Some(joined(&[b"Logs: ", &self.directory(), b"\n"]));
+                    self.announce_logs();
+                    return;
+                }
+                if !self.log().enabled || self.log().fd.is_some() {
+                    self.at = self.at.checked_add(1).expect("log index");
                     return;
                 }
                 if self.log().failed {
@@ -277,6 +322,20 @@ impl Logs {
         };
         out.push(Submit { op: OP, kind });
         self.waiting = true;
+    }
+    fn announce_logs(&mut self) {
+        if self.announcement == Announcement::Waiting {
+            self.announcement = Announcement::Said;
+            self.notice = Some(joined(&[b"Logs: ", &self.directory(), b"\n"]));
+        }
+    }
+    fn retiring(&mut self) -> Option<Fd> {
+        for index in 0..self.files.len() {
+            if let Some(fd) = self.files.get_mut(index).expect("log index").retiring.take() {
+                return Some(fd);
+            }
+        }
+        None
     }
     fn cleanup_fd(&mut self) -> Option<Fd> {
         for index in 0..self.files.len() {
@@ -375,7 +434,7 @@ impl Logs {
                 self.phase = Phase::Idle;
                 self.done = true;
             }
-            (Phase::Cleanup, Ok(Done::Nothing) | Err(_)) => {}
+            (Phase::Cleanup | Phase::Rebind, Ok(Done::Nothing) | Err(_)) => {}
             (_, Err(error)) => self.refuse_run(error),
             (_, Ok(_)) => unreachable!("logger operation completion shape"),
         }

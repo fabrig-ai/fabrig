@@ -469,7 +469,10 @@ fn asked_groups_follow_their_chains_records_failures_and_stop() {
     // Flatten includes end placements, and preserves the stage on every item.
     let placed = placed();
     assert_eq!(placed.len(), 8);
-    assert_eq!(placed[6].asked, Some(Asked { recorded: true, forge: 4, stage: Stage::Prepare }));
+    assert_eq!(
+        placed[6].asked,
+        Some(Asked { recorded: true, forge: 4, stage: Stage::Prepare, kind: None, remover: false })
+    );
     assert_eq!(layout::label(&placed, 3), Some(b"Forge 3 (Forgejo)".as_slice()));
     assert_eq!(layout::label(&placed, 4), Some(b"other label".as_slice()));
     assert_eq!(layout::label(&placed, 99), None);
@@ -707,7 +710,13 @@ fn a_link_cannot_belong_to_a_group() {
         Placed {
             label: None,
             step: super::fixtures::step(b"seed", Kind::Link),
-            asked: Some(Asked { recorded: true, forge: 3, stage: temper_forge_setup::Stage::Run }),
+            asked: Some(Asked {
+                recorded: true,
+                forge: 3,
+                stage: temper_forge_setup::Stage::Run,
+                kind: None,
+                remover: false,
+            }),
         },
     ]);
 }
@@ -728,7 +737,13 @@ fn a_link_cannot_follow_a_group_step() {
         Placed {
             label: None,
             step: super::fixtures::step(b"serve", Kind::Long),
-            asked: Some(Asked { recorded: true, forge: 3, stage: temper_forge_setup::Stage::Run }),
+            asked: Some(Asked {
+                recorded: true,
+                forge: 3,
+                stage: temper_forge_setup::Stage::Run,
+                kind: None,
+                remover: false,
+            }),
         },
         Placed { label: None, step: super::fixtures::step(b"seed", Kind::Link), asked: None },
     ]);
@@ -1692,4 +1707,113 @@ fn a_box_stop_does_not_withdraw_a_group_stops_spawn_twice() {
     assert_eq!(&*rig.effects(), &[Order::Withdraw { step: 1 }]);
     rig.terminate();
     assert_eq!(&*rig.effects(), &[Order::Signal { step: 3 }]);
+}
+
+fn kind_rig() -> Rig {
+    let steps = crate::layout::flatten(super::fixtures::kind_steps());
+    let mut rig = Rig {
+        machine: crate::machine::Machine::new(&limits::small(), &steps).unwrap(),
+        now: skein_lib::Time::ZERO,
+        out: skein_lib::Queue::uncapped(),
+    };
+    rig.machine.start(rig.now, &[], &mut rig.out);
+    assert_eq!(rig.effects().as_ref(), &[Order::Spawn { step: 2 }]);
+    rig.started(2);
+    rig.effects();
+    rig
+}
+fn started_kind() -> Rig {
+    use crate::machine::Said;
+    use temper_forge_setup::machine::BoxKind;
+    let mut rig = kind_rig();
+    rig.input(Input::AskKind { forge: 17, kind: BoxKind::Fake });
+    assert_eq!(rig.effects().as_ref(), &[Order::WriteGroup { forge: 17, kind: BoxKind::Fake }]);
+    rig.input(Input::Written { forge: 17 });
+    assert_eq!(rig.effects().as_ref(), &[Order::Spawn { step: 0 }, Order::Say { said: Said::Step { step: 0 } }]);
+    rig.started(0);
+    assert_eq!(rig.effects().as_ref(), &[Order::Record { forge: 17 }]);
+    rig.input(Input::Written { forge: 17 });
+    assert_eq!(rig.effects().as_ref(), &[Order::Say { said: Said::Started { forge: 17 } }]);
+    rig
+}
+#[test]
+fn a_slot_binds_to_the_asked_forge_and_names_its_steps_with_it() {
+    use temper_forge_setup::{FORGE_ARGUMENT, Step};
+    let rig = started_kind();
+    assert_eq!(rig.machine.bound(0), Some(17));
+    assert_eq!(rig.machine.bound(1), Some(17));
+    assert_eq!(rig.machine.bound(2), None);
+    let template = Step::new(
+        b"fake-forge".as_slice().into(),
+        Box::new([FORGE_ARGUMENT.into(), b"prefix-$forge".as_slice().into(), FORGE_ARGUMENT.into()]),
+        Kind::Long,
+    );
+    let bound = crate::layout::bound(&template, 17);
+    assert_eq!(bound.name(), b"fake-forge-17");
+    assert_eq!(
+        bound.arguments(),
+        &[Box::from(b"17".as_slice()), Box::from(b"prefix-$forge".as_slice()), Box::from(b"17".as_slice())]
+    );
+}
+#[test]
+fn a_bound_slot_refuses_another_forge_busy() {
+    use crate::machine::{Said, Why};
+    use temper_forge_setup::machine::BoxKind;
+    let mut rig = started_kind();
+    rig.input(Input::AskKind { forge: 18, kind: BoxKind::Fake });
+    assert_eq!(rig.effects().as_ref(), &[Order::Say { said: Said::Failed { forge: 18, why: Why::Busy } }]);
+    assert_eq!(rig.machine.bound(0), Some(17));
+}
+fn removing_kind() -> Rig {
+    let mut rig = started_kind();
+    rig.input(Input::Remove { forge: 17 });
+    assert_eq!(rig.effects().as_ref(), &[Order::Signal { step: 0 }]);
+    rig.exited(0, Exit::Code(0));
+    assert_eq!(rig.effects().as_ref(), &[Order::Close { step: 0 }]);
+    rig.closed(0);
+    assert_eq!(rig.effects().as_ref(), &[Order::RunRemover { slot: 0, forge: 17 }]);
+    rig
+}
+#[test]
+fn remove_stops_runs_the_remover_unlinks_and_answers_removed() {
+    use crate::machine::Said;
+    let mut rig = removing_kind();
+    rig.started(1);
+    assert!(rig.effects().is_empty());
+    rig.exited(1, Exit::Code(0));
+    assert_eq!(rig.effects().as_ref(), &[Order::Close { step: 1 }]);
+    rig.closed(1);
+    assert_eq!(rig.effects().as_ref(), &[Order::Unlink { forge: 17 }]);
+    rig.input(Input::Removed { forge: 17 });
+    assert_eq!(rig.effects().as_ref(), &[Order::Say { said: Said::Removed { forge: 17 } }]);
+    assert_eq!(rig.machine.bound(0), None);
+    rig.input(Input::Remove { forge: 17 });
+    assert_eq!(rig.effects().as_ref(), &[Order::Unlink { forge: 17 }]);
+    rig.input(Input::Removed { forge: 17 });
+    assert_eq!(rig.effects().as_ref(), &[Order::Say { said: Said::Removed { forge: 17 } }]);
+}
+#[test]
+fn remove_of_an_unknown_forge_answers_removed() {
+    use crate::machine::Said;
+    let mut rig = kind_rig();
+    rig.input(Input::Remove { forge: 65535 });
+    assert_eq!(rig.effects().as_ref(), &[Order::Unlink { forge: 65535 }]);
+    rig.input(Input::Removed { forge: 65535 });
+    assert_eq!(rig.effects().as_ref(), &[Order::Say { said: Said::Removed { forge: 65535 } }]);
+}
+#[test]
+fn a_failed_remover_keeps_the_files() {
+    use crate::machine::{Said, Why};
+    let mut rig = removing_kind();
+    rig.started(1);
+    rig.effects();
+    rig.exited(1, Exit::Code(3));
+    rig.effects();
+    rig.closed(1);
+    assert_eq!(
+        rig.effects().as_ref(),
+        &[Order::Say { said: Said::Failed { forge: 17, why: Why::RemoveExited { exit: Exit::Code(3) } } }]
+    );
+    rig.input(Input::Remove { forge: 17 });
+    assert_eq!(rig.effects().as_ref(), &[Order::RunRemover { slot: 0, forge: 17 }]);
 }

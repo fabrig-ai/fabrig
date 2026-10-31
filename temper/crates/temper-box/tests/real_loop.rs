@@ -516,3 +516,81 @@ fn a_split_sign_in_link_stays_whole_on_the_shared_terminal() {
     timestamp_before(bytes, stopping);
     timestamp_before(bytes, stopped);
 }
+
+#[derive(Debug)]
+struct RemoveJudge {
+    controls: Controls,
+    stopping: bool,
+    settled: bool,
+    wake: Option<Time>,
+}
+fn all_closed(procs: &[Proc]) -> bool {
+    for proc in procs {
+        if !proc.is_empty() {
+            return false;
+        }
+    }
+    true
+}
+impl Referee<Proc> for RemoveJudge {
+    fn act(&mut self, _now: Time, procs: &mut [Proc]) {
+        self.wake = None;
+        if !self.stopping && contains(&capture(procs).received, b"removed 17\n") {
+            self.controls.signal(BOX_HOST, ServiceSignal::Terminate);
+            self.stopping = true;
+        }
+        self.settled = self.stopping && all_closed(procs);
+    }
+    fn observe(&mut self, now: Time, procs: &[Proc]) {
+        if !self.stopping && contains(&capture(procs).received, b"removed 17\n") || self.stopping && all_closed(procs) {
+            self.wake = Some(now);
+        }
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        self.wake
+    }
+    fn passed(&self) -> bool {
+        self.settled
+    }
+}
+#[test]
+fn a_kind_removal_unlinks_its_group_file_and_started_record_on_the_real_ring() {
+    use temper_forge_setup::{FORGE_ARGUMENT, Group, Stage, machine::BoxKind};
+    let scratch = skein_scratch::Scratch::new("box-remove");
+    let cache = scratch.path().join("cache");
+    std::fs::create_dir(&cache).unwrap();
+    std::fs::write(cache.join("kept"), b"binary cache").unwrap();
+    let root = open_root(scratch.path()).unwrap();
+    let (reader, stdout, stderr) = shared_terminal(root);
+    let clock = Clock::new();
+    let mut world =
+        World::new_controlled(|controls| RemoveJudge { controls, stopping: false, settled: false, wake: None });
+    world.spawn_signals(|signals| {
+        // All steps use the box's program; the remover execs the /bin/true stub.
+        let script = b"printf 'start 17 fake\n' >&3; IFS= read -r step <&4; IFS= read -r started <&4; [ \"$step\" = 'step 17 run' ] && [ \"$started\" = 'started 17' ] || exit 1; printf 'remove 17\n' >&3; IFS= read -r removed <&4; [ \"$removed\" = 'removed 17' ] || exit 1; printf '%s\n' \"$removed\"; exec /bin/sleep 30";
+        let steps = Steps {
+            always: Box::new([Step::new(b"serve".as_slice().into(), Box::new([b"-c".as_slice().into(), script.as_slice().into()]), Kind::Long)]),
+            asked: Box::new([Group {
+                kind: Some(BoxKind::Fake), forge: 0, label: b"Fake".as_slice().into(), recorded: true, before: 0,
+                steps: Box::new([(Stage::Run, Step::new(b"fake-forge".as_slice().into(), Box::new([b"-c".as_slice().into(), b"exec /bin/sleep 30".as_slice().into(), FORGE_ARGUMENT.into()]), Kind::Long))]),
+                remover: Some(Step::new(b"remove".as_slice().into(), Box::new([b"-c".as_slice().into(), b"exec /bin/true".as_slice().into(), FORGE_ARGUMENT.into()]), Kind::Once)),
+            }]),
+        };
+        Proc::Box(Box::new(Service::new(&temper_box::limits::small(), steps, Settings {
+            program: b"/bin/sh".as_slice().into(), environment: Box::new([]), serve: b"serve".as_slice().into(),
+            listeners: Box::new([]), root, echo: temper_box::host::Echo::Steps,
+            data: scratch.path().as_os_str().as_encoded_bytes().into(), signals, stdout, stderr,
+        }).unwrap()))
+    });
+    world.spawn_with_fds(vec![reader], || Proc::Capture(Synthetic::capture(reader)));
+    let outcome = world.run(&clock, PATIENCE);
+    assert!(outcome.killed.is_empty());
+    assert!(contains(&capture(&outcome.procs).received, b"removed 17\n"));
+    for proc in &outcome.procs {
+        assert!(proc.is_empty());
+        assert_eq!(proc.exit(), Some(Exit::Code(0)));
+    }
+    assert!(!scratch.path().join("box/groups/17").exists());
+    assert!(!scratch.path().join("box/started/17").exists());
+    assert_eq!(std::fs::read(cache.join("kept")).unwrap(), b"binary cache");
+}

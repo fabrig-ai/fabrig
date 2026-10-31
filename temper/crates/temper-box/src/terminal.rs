@@ -150,6 +150,12 @@ pub fn why(why: Why, steps: &[Placed]) -> Box<[u8]> {
         Why::NotStarted { step } => pipe::not_started(steps.get(step).expect("step reason").step.name()),
         Why::NotReady { step } => joined(&[steps.get(step).expect("step reason").step.name(), b" version unavailable"]),
         Why::NotWritten => skein_lib::bytes::copy_of(pipe::not_written()),
+        Why::NotUnlinked => skein_lib::bytes::copy_of(b"remove: files not removed"),
+        Why::RemoveExited { exit } => {
+            let words = pipe::exited(b"", exit);
+            joined(&[b"remove:", &words])
+        }
+        Why::RemoveNotStarted => skein_lib::bytes::copy_of(b"remove: did not start"),
     }
 }
 /// UTC (10), longest WHY suffix/signal (at most 38), restart words (20),
@@ -269,7 +275,14 @@ pub(crate) fn tail_step(fact: Fact) -> Option<usize> {
     };
     match why {
         Why::Exited { step, .. } | Why::NotReady { step } => Some(step),
-        Why::NotStarted { .. } | Why::NotWritten | Why::Busy | Why::NotAsked | Why::Stopping => None,
+        Why::NotStarted { .. }
+        | Why::NotWritten
+        | Why::Busy
+        | Why::NotAsked
+        | Why::Stopping
+        | Why::NotUnlinked
+        | Why::RemoveExited { .. }
+        | Why::RemoveNotStarted => None,
     }
 }
 pub(crate) fn failure_bytes(steps: &[Placed], data: &[u8]) -> u32 {
